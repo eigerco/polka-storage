@@ -1,7 +1,10 @@
 name: Taplo formatting and linting
 
 on:
-  [push, pull_request]
+  push:
+    paths: "**/Cargo.toml"
+  pull_request:
+    paths: "**/Cargo.toml"
 
 jobs:
   lint:
