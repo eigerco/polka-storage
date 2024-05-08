@@ -12,6 +12,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - name: List cargo version
+        run: cargo --version
       - name: Install taplo
         run: cargo install taplo-cli --lock
       - name: Run taplo
