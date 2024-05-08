@@ -1,0 +1,24 @@
+name: Taplo formatting and linting
+
+on:
+  [push, pull_request]
+
+jobs:
+  lint:
+    name: Lint Cargo.toml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: uncenter/setup-taplo@v1.0.8
+
+      - run: taplo lint --verbose
+  fmt:
+    name: Format Cargo.toml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: uncenter/setup-taplo@v1.0.8
+
+      - run: taplo format --check --verbose
