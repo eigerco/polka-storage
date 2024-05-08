@@ -6,7 +6,7 @@ homepage = "https://github.com/eigerco/polka-storage"
 
 [workspace]
 resolver = "2"
-members = ["parachain/node"]
+members = ["node", "runtime"]
 
 [workspace.dependencies]
 polkavm = "0.9.3"
