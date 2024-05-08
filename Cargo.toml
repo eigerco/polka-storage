@@ -9,6 +9,7 @@ resolver = "2"
 members = ["node", "runtime"]
 
 [workspace.dependencies]
+scale-info = { version = "2.11.1", default-features = false }
 polkavm = "0.9.3"
 polkavm-linker = "0.9.2"
 polkavm-derive = "0.9.1"
@@ -22,6 +23,110 @@ serde_yaml = { version = "0.9" }
 syn = { version = "2.0.53" }
 thiserror = { version = "1.0.48" }
 tracing-subscriber = { version = "0.3.18" }
+jsonrpsee = { version = "0.22" }
+clap = { version = "4.5.3" }
+futures = "0.3.28"
+codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false }
+hex-literal = { version = "0.4.1" }
+smallvec = "1.11.0"
+color-print = "0.3.4"
+
+# Local
+polka-storage-runtime = { path = "runtime" }
+
+# Substrate
+pallet-transaction-payment-rpc = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+sc-basic-authorship = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+sc-chain-spec = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+sc-cli = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+sc-client-api = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+sc-offchain = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+sc-consensus = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+sc-executor = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+sc-network = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+sc-network-sync = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+sc-rpc = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+sc-service = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+sc-sysinfo = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+sc-telemetry = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+sc-tracing = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+sc-transaction-pool = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+sc-transaction-pool-api = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+sp-api = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+sp-block-builder = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+sp-blockchain = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+sp-consensus-aura = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+sp-core = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+sp-keystore = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+sp-io = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+sp-runtime = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+sp-timestamp = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+substrate-frame-rpc-system = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+substrate-prometheus-endpoint = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+sp-genesis-builder = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+sp-inherents = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+sp-offchain = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+sp-session = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+sp-std = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+sp-transaction-pool = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+sp-version = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+
+# Polkadot
+polkadot-cli = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", features = [
+    "rococo-native",
+] }
+polkadot-primitives = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+pallet-xcm = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+polkadot-parachain-primitives = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+polkadot-runtime-common = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+xcm = { package = "staging-xcm", git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+xcm-builder = { package = "staging-xcm-builder", git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+xcm-executor = { package = "staging-xcm-executor", git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+
+# Substrate / FRAME
+frame-benchmarking = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+frame-executive = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+frame-support = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+frame-system = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+frame-system-benchmarking = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+frame-system-rpc-runtime-api = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+frame-try-runtime = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+frame-benchmarking-cli = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+
+# FRAME Pallets
+pallet-aura = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+pallet-authorship = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+pallet-balances = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+pallet-message-queue = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+pallet-session = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+pallet-sudo = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+pallet-timestamp = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+pallet-transaction-payment = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+
+
+# Cumulus
+cumulus-pallet-aura-ext = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+cumulus-pallet-parachain-system = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false, features = [
+    "parameterized-consensus-hook",
+] }
+cumulus-pallet-session-benchmarking = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+cumulus-pallet-xcm = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+cumulus-pallet-xcmp-queue = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+cumulus-primitives-utility = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+cumulus-primitives-storage-weight-reclaim = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+pallet-collator-selection = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+parachains-common = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+parachain-info = { package = "staging-parachain-info", git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default-features = false }
+cumulus-client-cli = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+cumulus-client-collator = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+cumulus-client-consensus-aura = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+cumulus-client-consensus-common = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+cumulus-client-consensus-proposer = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+cumulus-client-service = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+cumulus-primitives-core = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", default_features = false }
+cumulus-primitives-parachain-inherent = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+cumulus-relay-chain-interface = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
 
 [workspace.lints.rust]
 suspicious_double_ref_op = { level = "allow", priority = 2 }
