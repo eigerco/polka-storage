@@ -17,8 +17,6 @@ jobs:
       - name: List versions
         run: |
           cargo --version
-          cargo clippy --version
-          cargo fmt --version
           taplo --version
       - name: Run taplo
         run: taplo format --check --diff
