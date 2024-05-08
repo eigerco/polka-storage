@@ -15,7 +15,9 @@ jobs:
       - name: List cargo version
         run: cargo --version
       - name: Install taplo
-        run: cargo install taplo-cli --lock
+        run: cargo install taplo-cli --locked
+      - name: List taplo version
+        run: taplo --version
       - name: Run taplo
         run: taplo format --check --diff
       - name: Taplo failure info
