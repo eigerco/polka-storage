@@ -1,5 +1,5 @@
 [package]
-name = "parachain-template-node"
+name = "polka-storage-node"
 description = "A parachain node template built with Substrate and Cumulus, part of Polkadot Sdk."
 version = "0.0.0"
 license = "MIT-0"
@@ -13,7 +13,7 @@ build = "build.rs"
 workspace = true
 
 # [[bin]]
-# name = "parachain-template-node"
+# name = "polka-storage-node"
 
 [dependencies]
 clap = { workspace = true, features = ["derive"] }
