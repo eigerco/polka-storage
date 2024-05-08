@@ -2,9 +2,9 @@ name: Taplo formatting
 
 on:
   push:
-    paths: "**/Cargo.toml"
+    paths: "**/*.toml"
   pull_request:
-    paths: "**/Cargo.toml"
+    paths: "**/*.toml"
 
 jobs:
   toml:
