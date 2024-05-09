@@ -1,4 +1,4 @@
-name: Taplo formatting
+name: CI
 
 on:
   push:
