@@ -1,10 +1,6 @@
 name: CI
 
-on:
-  push:
-    paths: "**/*.toml"
-  pull_request:
-    paths: "**/*.toml"
+on: [push, pull_request]
 
 jobs:
   toml:
