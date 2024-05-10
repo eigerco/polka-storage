@@ -71,3 +71,13 @@ jobs:
         run: RUSTFLAGS="-D warnings" cargo build -p polka-storage-node --features runtime-benchmarks
       - name: Build in release mode
         run: RUSTFLAGS="-D warnings" cargo build --release
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: List version
+        run: cargo --version
+      - name: Run tests
+        run: RUSTFLAGS="-D warnings" cargo test --workspace
