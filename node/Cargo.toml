@@ -1,18 +1,10 @@
 [package]
-name = "polka-storage-node"
-description = "Polka Storage parachain collator."
-version = "0.0.0"
-license-file.workspace = true
-homepage.workspace = true
-repository.workspace = true
-edition.workspace = true
 authors.workspace = true
-publish = false
 build = "build.rs"
-description = "A parachain node template built with Substrate and Cumulus, part of Polkadot Sdk."
+description = "Polka Storage parachain collator."
 edition.workspace = true
 homepage.workspace = true
-license = "MIT-0"
+license-file.workspace = true
 name = "polka-storage-node"
 publish = false
 repository.workspace = true
@@ -74,7 +66,7 @@ polkadot-primitives = { workspace = true }
 xcm = { workspace = true, default-features = false }
 
 # Cumulus
-color-print = "0.3.4"
+color-print = { workspace = true }
 cumulus-client-cli = { workspace = true }
 cumulus-client-collator = { workspace = true }
 cumulus-client-consensus-aura = { workspace = true }
@@ -84,7 +76,6 @@ cumulus-client-service = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 cumulus-primitives-parachain-inherent = { workspace = true }
 cumulus-relay-chain-interface = { workspace = true }
-color-print = { workspace = true }
 
 [build-dependencies]
 substrate-build-script-utils = { workspace = true }
