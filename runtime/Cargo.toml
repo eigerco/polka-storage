@@ -2,7 +2,7 @@
 name = "polka-storage-runtime"
 description = "Polka Storage parachain runtime."
 version = "0.0.0"
-license = "MIT-0"
+license-file.workspace = true
 homepage.workspace = true
 repository.workspace = true
 edition.workspace = true

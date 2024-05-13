@@ -2,7 +2,7 @@
 name = "polka-storage-node"
 description = "Polka Storage parachain collator implementation."
 version = "0.0.0"
-license = "MIT-0"
+license-file.workspace = true
 homepage.workspace = true
 repository.workspace = true
 edition.workspace = true

@@ -3,6 +3,7 @@ edition = "2021"
 repository = "https://github.com/eigerco/polka-storage"
 homepage = "https://eiger.co"
 authors = ["Eiger Oy <https://eiger.co>"]
+license-file = "LICENSE"
 
 [workspace]
 resolver = "2"
