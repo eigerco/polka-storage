@@ -1,8 +1,8 @@
 [workspace.package]
 edition = "2021"
 repository = "https://github.com/eigerco/polka-storage"
-homepage = "https://github.com/eigerco/polka-storage"
-
+homepage = "https://eiger.co"
+authors = ["Eiger Oy <https://eiger.co>"]
 
 [workspace]
 resolver = "2"

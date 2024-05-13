@@ -6,6 +6,7 @@ license = "MIT-0"
 homepage.workspace = true
 repository.workspace = true
 edition.workspace = true
+authors.workspace = true
 publish = false
 build = "build.rs"
 
