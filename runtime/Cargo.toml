@@ -47,7 +47,7 @@ pallet-timestamp = { workspace = true, default-features = false }
 pallet-transaction-payment = { workspace = true, default-features = false }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true, default-features = false }
 
-# Substrate	Primitives
+# Substrate Primitives
 sp-api = { workspace = true, default-features = false }
 sp-block-builder = { workspace = true, default-features = false }
 sp-consensus-aura = { workspace = true, default-features = false }
