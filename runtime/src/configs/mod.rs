@@ -49,6 +49,7 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::Perbill;
 use sp_version::RuntimeVersion;
 use xcm::latest::prelude::BodyId;
+use xcm_config::{RelayLocation, XcmOriginToTransactDispatchOrigin};
 
 // Local module imports
 use super::{
@@ -60,7 +61,6 @@ use super::{
     MAXIMUM_BLOCK_WEIGHT, MICROUNIT, NORMAL_DISPATCH_RATIO, RELAY_CHAIN_SLOT_DURATION_MILLIS,
     SLOT_DURATION, UNINCLUDED_SEGMENT_CAPACITY, VERSION,
 };
-use xcm_config::{RelayLocation, XcmOriginToTransactDispatchOrigin};
 
 parameter_types! {
     pub const Version: RuntimeVersion = VERSION;

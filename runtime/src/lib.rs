@@ -10,18 +10,6 @@ pub mod apis;
 mod configs;
 mod weights;
 
-use smallvec::smallvec;
-use sp_runtime::{
-    create_runtime_str, generic, impl_opaque_keys,
-    traits::{BlakeTwo256, IdentifyAccount, Verify},
-    MultiSignature,
-};
-
-use sp_std::prelude::*;
-#[cfg(feature = "std")]
-use sp_version::NativeVersion;
-use sp_version::RuntimeVersion;
-
 use frame_support::{
     construct_runtime,
     weights::{
@@ -29,12 +17,20 @@ use frame_support::{
         WeightToFeeCoefficients, WeightToFeePolynomial,
     },
 };
+use smallvec::smallvec;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-pub use sp_runtime::{MultiAddress, Perbill, Permill};
-
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
-
+use sp_runtime::{
+    create_runtime_str, generic, impl_opaque_keys,
+    traits::{BlakeTwo256, IdentifyAccount, Verify},
+    MultiSignature,
+};
+pub use sp_runtime::{MultiAddress, Perbill, Permill};
+use sp_std::prelude::*;
+#[cfg(feature = "std")]
+use sp_version::NativeVersion;
+use sp_version::RuntimeVersion;
 use weights::ExtrinsicBaseWeight;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
@@ -129,13 +125,13 @@ impl WeightToFeePolynomial for WeightToFee {
 /// of data like extrinsics, allowing for them to continue syncing the network through upgrades
 /// to even the core data structures.
 pub mod opaque {
-    use super::*;
+    pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
     use sp_runtime::{
         generic,
         traits::{BlakeTwo256, Hash as HashT},
     };
 
-    pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
+    use super::*;
     /// Opaque block header type.
     pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
     /// Opaque block type.

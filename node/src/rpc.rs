@@ -8,7 +8,6 @@
 use std::sync::Arc;
 
 use polka_storage_runtime::{opaque::Block, AccountId, Balance, Nonce};
-
 pub use sc_rpc::DenyUnsafe;
 use sc_transaction_pool_api::TransactionPool;
 use sp_api::ProvideRuntimeApi;
