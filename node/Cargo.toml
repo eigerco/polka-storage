@@ -1,6 +1,6 @@
 [package]
 name = "polka-storage-node"
-description = "A parachain node template built with Substrate and Cumulus, part of Polkadot Sdk."
+description = "Polka Storage parachain collator implementation."
 version = "0.0.0"
 license = "MIT-0"
 homepage.workspace = true
