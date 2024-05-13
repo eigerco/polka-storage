@@ -1,6 +1,6 @@
 [package]
 name = "polka-storage-runtime"
-description = "A parachain runtime template built with Substrate and Cumulus, part of Polkadot Sdk."
+description = "Polka Storage parachain runtime."
 version = "0.0.0"
 license = "MIT-0"
 homepage.workspace = true
