@@ -60,17 +60,17 @@ jobs:
           cargo --version
           cargo clippy --version
       - name: Cargo clippy
-        run: cargo clippy -- -D warnings
+        run: cargo clippy -q -- -D warnings
       - name: Build with try-runtime feature
-        run: RUSTFLAGS="-D warnings" cargo build --features try-runtime
+        run: RUSTFLAGS="-D warnings" cargo build -q --features try-runtime
       - name: Build node runtime
-        run: RUSTFLAGS="-D warnings" cargo build -p polka-storage-runtime
+        run: RUSTFLAGS="-D warnings" cargo build -q -p polka-storage-runtime
       - name: Build node with runtime-benchmark feature
-        run: RUSTFLAGS="-D warnings" cargo build -p polka-storage-node --features runtime-benchmarks
+        run: RUSTFLAGS="-D warnings" cargo build -q -p polka-storage-node --features runtime-benchmarks
       - name: Build in release mode
-        run: RUSTFLAGS="-D warnings" cargo build --release
+        run: RUSTFLAGS="-D warnings" cargo build -q --release
       - name: Run tests
-        run: RUSTFLAGS="-D warnings" cargo test --workspace
+        run: RUSTFLAGS="-D warnings" cargo test -q --workspace
       - name: Failure handling
         if: failure()
         run: |
