@@ -44,6 +44,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          target: wasm32-unknown-unknown
+          components: clippy
       - name: List version
         run: |
           cargo --version
@@ -61,6 +64,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          target: wasm32-unknown-unknown
       - name: List version
         run: cargo --version
       - name: Build with try-runtime feature
@@ -93,6 +98,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          target: wasm32-unknown-unknown
       - name: List version
         run: cargo --version
       - name: Run tests
