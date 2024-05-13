@@ -13,8 +13,8 @@ build = "build.rs"
 [lints]
 workspace = true
 
-# [[bin]]
-# name = "polka-storage-node"
+[[bin]]
+name = "polka-storage-node"
 
 [dependencies]
 clap = { workspace = true, features = ["derive"] }
