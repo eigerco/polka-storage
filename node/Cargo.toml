@@ -1,6 +1,6 @@
 [package]
 name = "polka-storage-node"
-description = "Polka Storage parachain collator implementation."
+description = "Polka Storage parachain collator."
 version = "0.0.0"
 license-file.workspace = true
 homepage.workspace = true

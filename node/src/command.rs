@@ -30,19 +30,20 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 
 impl SubstrateCli for Cli {
     fn impl_name() -> String {
-        "Parachain Collator Template".into()
+        env!("CARGO_PKG_NAME").into()
     }
 
     fn impl_version() -> String {
-        env!("SUBSTRATE_CLI_IMPL_VERSION").into()
+        env!("CARGO_PKG_VERSION").into()
     }
 
     fn description() -> String {
         format!(
-            "Parachain Collator Template\n\nThe command-line arguments provided first will be \
+            "{}\n\nThe command-line arguments provided first will be \
 		passed to the parachain node, while the arguments provided after -- will be passed \
 		to the relay chain node.\n\n\
 		{} <parachain-args> -- <relay-chain-args>",
+            env!("CARGO_PKG_DESCRIPTION"),
             Self::executable_name()
         )
     }
@@ -52,11 +53,11 @@ impl SubstrateCli for Cli {
     }
 
     fn support_url() -> String {
-        "https://github.com/paritytech/polkadot-sdk/issues/new".into()
+        format!("{}/issues/new", env!("CARGO_PKG_REPOSITORY")).into()
     }
 
     fn copyright_start_year() -> i32 {
-        2020
+        2024
     }
 
     fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
@@ -66,19 +67,20 @@ impl SubstrateCli for Cli {
 
 impl SubstrateCli for RelayChainCli {
     fn impl_name() -> String {
-        "Parachain Collator Template".into()
+        env!("CARGO_PKG_NAME").into()
     }
 
     fn impl_version() -> String {
-        env!("SUBSTRATE_CLI_IMPL_VERSION").into()
+        env!("CARGO_PKG_VERSION").into()
     }
 
     fn description() -> String {
         format!(
-            "Parachain Collator Template\n\nThe command-line arguments provided first will be \
+            "{}\n\nThe command-line arguments provided first will be \
 		passed to the parachain node, while the arguments provided after -- will be passed \
 		to the relay chain node.\n\n\
 		{} <parachain-args> -- <relay-chain-args>",
+            env!("CARGO_PKG_DESCRIPTION"),
             Self::executable_name()
         )
     }
@@ -88,11 +90,11 @@ impl SubstrateCli for RelayChainCli {
     }
 
     fn support_url() -> String {
-        "https://github.com/paritytech/polkadot-sdk/issues/new".into()
+        format!("{}/issues/new", env!("CARGO_PKG_REPOSITORY")).into()
     }
 
     fn copyright_start_year() -> i32 {
-        2020
+        2024
     }
 
     fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
