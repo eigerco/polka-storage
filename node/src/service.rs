@@ -22,11 +22,6 @@ use polka_storage_runtime::{
     apis::RuntimeApi,
     opaque::{Block, Hash},
 };
-// Local Runtime Types
-use polka_storage_runtime::{
-    apis::RuntimeApi,
-    opaque::{Block, Hash},
-};
 use sc_client_api::Backend;
 use sc_consensus::ImportQueue;
 use sc_executor::{HeapAllocStrategy, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
