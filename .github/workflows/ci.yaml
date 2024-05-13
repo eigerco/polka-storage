@@ -52,7 +52,7 @@ jobs:
           sudo apt-get install protobuf-compiler
       - uses: dtolnay/rust-toolchain@stable
         with:
-          target: wasm32-unknown-unknown
+          target: wasm32-unknown-unknown, stable-x86_64-unknown-linux-gnu
           components: clippy
       - name: List version
         run: |
@@ -76,7 +76,7 @@ jobs:
           sudo apt-get install protobuf-compiler
       - uses: dtolnay/rust-toolchain@stable
         with:
-          target: wasm32-unknown-unknown
+          target: wasm32-unknown-unknown, stable-x86_64-unknown-linux-gnu
       - name: List version
         run: cargo --version
       - name: Build with try-runtime feature
@@ -114,7 +114,7 @@ jobs:
           sudo apt-get install protobuf-compiler
       - uses: dtolnay/rust-toolchain@stable
         with:
-          target: wasm32-unknown-unknown
+          target: wasm32-unknown-unknown, stable-x86_64-unknown-linux-gnu
       - name: List version
         run: cargo --version
       - name: Run tests
