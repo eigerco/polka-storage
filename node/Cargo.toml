@@ -1,13 +1,13 @@
 [package]
-name = "polka-storage-node"
-description = "A parachain node template built with Substrate and Cumulus, part of Polkadot Sdk."
-version = "0.0.0"
-license = "MIT-0"
-homepage.workspace = true
-repository.workspace = true
-edition.workspace = true
-publish = false
 build = "build.rs"
+description = "A parachain node template built with Substrate and Cumulus, part of Polkadot Sdk."
+edition.workspace = true
+homepage.workspace = true
+license = "MIT-0"
+name = "polka-storage-node"
+publish = false
+repository.workspace = true
+version = "0.0.0"
 
 [lints]
 workspace = true
@@ -17,11 +17,11 @@ workspace = true
 
 [dependencies]
 clap = { workspace = true, features = ["derive"] }
-log = { workspace = true, default-features = true }
 codec = { workspace = true }
-serde = { features = ["derive"], workspace = true, default-features = true }
-jsonrpsee = { workspace = true, features = ["server"] }
 futures = { workspace = true }
+jsonrpsee = { workspace = true, features = ["server"] }
+log = { workspace = true, default-features = true }
+serde = { features = ["derive"], workspace = true, default-features = true }
 serde_json = { workspace = true, default-features = true }
 
 # Local
@@ -35,11 +35,11 @@ sc-basic-authorship = { workspace = true }
 sc-chain-spec = { workspace = true }
 sc-cli = { workspace = true }
 sc-client-api = { workspace = true }
-sc-offchain = { workspace = true }
 sc-consensus = { workspace = true }
 sc-executor = { workspace = true }
 sc-network = { workspace = true }
 sc-network-sync = { workspace = true }
+sc-offchain = { workspace = true }
 sc-rpc = { workspace = true }
 sc-service = { workspace = true }
 sc-sysinfo = { workspace = true }
@@ -52,8 +52,8 @@ sp-block-builder = { workspace = true }
 sp-blockchain = { workspace = true }
 sp-consensus-aura = { workspace = true }
 sp-core = { workspace = true }
-sp-keystore = { workspace = true }
 sp-io = { workspace = true }
+sp-keystore = { workspace = true }
 sp-runtime = { workspace = true }
 sp-timestamp = { workspace = true }
 substrate-frame-rpc-system = { workspace = true }
@@ -65,6 +65,7 @@ polkadot-primitives = { workspace = true }
 xcm = { workspace = true, default-features = false }
 
 # Cumulus
+color-print = "0.3.4"
 cumulus-client-cli = { workspace = true }
 cumulus-client-collator = { workspace = true }
 cumulus-client-consensus-aura = { workspace = true }
@@ -74,7 +75,6 @@ cumulus-client-service = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 cumulus-primitives-parachain-inherent = { workspace = true }
 cumulus-relay-chain-interface = { workspace = true }
-color-print = "0.3.4"
 
 [build-dependencies]
 substrate-build-script-utils = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
@@ -82,17 +82,13 @@ substrate-build-script-utils = { git = "https://github.com/eigerco/polkadot-sdk"
 [features]
 default = []
 runtime-benchmarks = [
-	"cumulus-primitives-core/runtime-benchmarks",
-	"frame-benchmarking-cli/runtime-benchmarks",
-	"frame-benchmarking/runtime-benchmarks",
-	"polka-storage-runtime/runtime-benchmarks",
-	"polkadot-cli/runtime-benchmarks",
-	"polkadot-primitives/runtime-benchmarks",
-	"sc-service/runtime-benchmarks",
-	"sp-runtime/runtime-benchmarks",
+  "cumulus-primitives-core/runtime-benchmarks",
+  "frame-benchmarking-cli/runtime-benchmarks",
+  "frame-benchmarking/runtime-benchmarks",
+  "polka-storage-runtime/runtime-benchmarks",
+  "polkadot-cli/runtime-benchmarks",
+  "polkadot-primitives/runtime-benchmarks",
+  "sc-service/runtime-benchmarks",
+  "sp-runtime/runtime-benchmarks",
 ]
-try-runtime = [
-	"polka-storage-runtime/try-runtime",
-	"polkadot-cli/try-runtime",
-	"sp-runtime/try-runtime",
-]
+try-runtime = ["polka-storage-runtime/try-runtime", "polkadot-cli/try-runtime", "sp-runtime/try-runtime"]
