@@ -1,6 +1,8 @@
 name: CI
 
-on: push
+on:
+  issue_comment:
+    types: [created]
 
 concurrency:
   group: ${{ github.ref }}
@@ -9,6 +11,7 @@ concurrency:
 jobs:
   toml:
     runs-on: ubuntu-latest
+    if: github.event.issue.pull_request && github.event.comment.body == '!CI'
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -28,6 +31,7 @@ jobs:
 
   format:
     runs-on: ubuntu-latest
+    if: github.event.issue.pull_request && github.event.comment.body == '!CI'
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -48,6 +52,7 @@ jobs:
 
   clippy_build_and_test:
     runs-on: ubuntu-latest
+    if: github.event.issue.pull_request && github.event.comment.body == '!CI'
     steps:
       - uses: actions/checkout@v4
       - name: Install protobuf compiler
