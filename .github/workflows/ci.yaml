@@ -54,7 +54,7 @@ jobs:
         with:
           toolchain: 1.77.0
           target: wasm32-unknown-unknown
-          components: clippy
+          components: clippy rust-src
       - name: List version
         run: |
           cargo --version
