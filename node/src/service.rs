@@ -4,6 +4,12 @@
 use std::{sync::Arc, time::Duration};
 
 use cumulus_client_cli::CollatorOptions;
+// Local Runtime Types
+use polka_storage_runtime::{
+    apis::RuntimeApi,
+    opaque::{Block, Hash},
+};
+
 // Cumulus Imports
 use cumulus_client_collator::service::CollatorService;
 use cumulus_client_consensus_common::ParachainBlockImport as TParachainBlockImport;
@@ -342,9 +348,9 @@ pub async fn start_parachain_node(
         match SUBSTRATE_REFERENCE_HARDWARE.check_hardware(&hwbench) {
             Err(err) if validator => {
                 log::warn!(
-				"⚠️  The hardware does not meet the minimal requirements {} for role 'Authority'.",
-				err
-			);
+                "⚠️  The hardware does not meet the minimal requirements {} for role 'Authority'.",
+                err
+            );
             }
             _ => {}
         }

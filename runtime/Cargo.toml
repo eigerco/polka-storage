@@ -1,9 +1,12 @@
 [package]
-description = "A parachain runtime template built with Substrate and Cumulus, part of Polkadot Sdk."
-edition.workspace = true
-homepage.workspace = true
-license = "MIT-0"
 name = "polka-storage-runtime"
+description = "Polka Storage parachain runtime."
+version = "0.0.0"
+license-file.workspace = true
+homepage.workspace = true
+repository.workspace = true
+edition.workspace = true
+authors.workspace = true
 publish = false
 repository.workspace = true
 version = "0.0.0"
@@ -15,7 +18,7 @@ workspace = true
 targets = ["x86_64-unknown-linux-gnu"]
 
 [build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a", optional = true }
+substrate-wasm-builder = { workspace = true, optional = true }
 
 [dependencies]
 codec = { workspace = true, default-features = false, features = ["derive"] }
@@ -44,7 +47,7 @@ pallet-timestamp = { workspace = true, default-features = false }
 pallet-transaction-payment = { workspace = true, default-features = false }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true, default-features = false }
 
-# Substrate	Primitives
+# Substrate Primitives
 sp-api = { workspace = true, default-features = false }
 sp-block-builder = { workspace = true, default-features = false }
 sp-consensus-aura = { workspace = true, default-features = false }

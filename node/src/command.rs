@@ -30,19 +30,20 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 
 impl SubstrateCli for Cli {
     fn impl_name() -> String {
-        "Parachain Collator Template".into()
+        env!("CARGO_PKG_NAME").into()
     }
 
     fn impl_version() -> String {
-        env!("SUBSTRATE_CLI_IMPL_VERSION").into()
+        env!("CARGO_PKG_VERSION").into()
     }
 
     fn description() -> String {
         format!(
-            "Parachain Collator Template\n\nThe command-line arguments provided first will be \
-		passed to the parachain node, while the arguments provided after -- will be passed \
-		to the relay chain node.\n\n\
-		{} <parachain-args> -- <relay-chain-args>",
+            "{}\n\nThe command-line arguments provided first will be \
+            passed to the parachain node, while the arguments provided after -- will be passed \
+            to the relay chain node.\n\n\
+            {} <parachain-args> -- <relay-chain-args>",
+            env!("CARGO_PKG_DESCRIPTION"),
             Self::executable_name()
         )
     }
@@ -52,11 +53,11 @@ impl SubstrateCli for Cli {
     }
 
     fn support_url() -> String {
-        "https://github.com/paritytech/polkadot-sdk/issues/new".into()
+        format!("{}/issues/new", env!("CARGO_PKG_REPOSITORY")).into()
     }
 
     fn copyright_start_year() -> i32 {
-        2020
+        2024
     }
 
     fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
@@ -66,19 +67,20 @@ impl SubstrateCli for Cli {
 
 impl SubstrateCli for RelayChainCli {
     fn impl_name() -> String {
-        "Parachain Collator Template".into()
+        env!("CARGO_PKG_NAME").into()
     }
 
     fn impl_version() -> String {
-        env!("SUBSTRATE_CLI_IMPL_VERSION").into()
+        env!("CARGO_PKG_VERSION").into()
     }
 
     fn description() -> String {
         format!(
-            "Parachain Collator Template\n\nThe command-line arguments provided first will be \
-		passed to the parachain node, while the arguments provided after -- will be passed \
-		to the relay chain node.\n\n\
-		{} <parachain-args> -- <relay-chain-args>",
+            "{}\n\nThe command-line arguments provided first will be \
+            passed to the parachain node, while the arguments provided after -- will be passed \
+            to the relay chain node.\n\n\
+            {} <parachain-args> -- <relay-chain-args>",
+            env!("CARGO_PKG_DESCRIPTION"),
             Self::executable_name()
         )
     }
@@ -88,11 +90,11 @@ impl SubstrateCli for RelayChainCli {
     }
 
     fn support_url() -> String {
-        "https://github.com/paritytech/polkadot-sdk/issues/new".into()
+        format!("{}/issues/new", env!("CARGO_PKG_REPOSITORY")).into()
     }
 
     fn copyright_start_year() -> i32 {
-        2020
+        2024
     }
 
     fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
@@ -101,14 +103,14 @@ impl SubstrateCli for RelayChainCli {
 }
 
 macro_rules! construct_async_run {
-	(|$components:ident, $cli:ident, $cmd:ident, $config:ident| $( $code:tt )* ) => {{
-		let runner = $cli.create_runner($cmd)?;
-		runner.async_run(|$config| {
-			let $components = new_partial(&$config)?;
-			let task_manager = $components.task_manager;
-			{ $( $code )* }.map(|v| (v, task_manager))
-		})
-	}}
+    (|$components:ident, $cli:ident, $cmd:ident, $config:ident| $( $code:tt )* ) => {{
+        let runner = $cli.create_runner($cmd)?;
+        runner.async_run(|$config| {
+            let $components = new_partial(&$config)?;
+            let task_manager = $components.task_manager;
+            { $( $code )* }.map(|v| (v, task_manager))
+        })
+    }}
 }
 
 /// Parse command line arguments into service configuration.
@@ -190,7 +192,7 @@ pub fn run() -> Result<()> {
                         runner.sync_run(|config| cmd.run_with_spec::<sp_runtime::traits::HashingFor<Block>, ReclaimHostFunctions>(Some(config.chain_spec)))
                     } else {
                         Err("Benchmarking wasn't enabled when building the node. \
-					You can enable it with `--features runtime-benchmarks`."
+                            You can enable it with `--features runtime-benchmarks`."
                             .into())
                     }
                 }
@@ -202,7 +204,7 @@ pub fn run() -> Result<()> {
                 BenchmarkCmd::Storage(_) => {
                     return Err(sc_cli::Error::Input(
                         "Compile with --features=runtime-benchmarks \
-						to enable storage benchmarks."
+                        to enable storage benchmarks."
                             .into(),
                     )
                     .into())
