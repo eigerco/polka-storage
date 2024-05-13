@@ -11,6 +11,7 @@ members = ["node", "runtime"]
 [workspace.dependencies]
 # Build dependencies
 substrate-build-script-utils = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
+substrate-wasm-builder = { git = "https://github.com/eigerco/polkadot-sdk", rev = "cb4554c95552c0e46734e64e56289c547146b98a" }
 
 scale-info = { version = "2.11.1", default-features = false }
 polkavm = "0.9.3"
