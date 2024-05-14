@@ -1,8 +1,10 @@
 name: CI
 
 on:
-  issue_comment:
-    types: [created]
+  pull_request:
+    types: [labeled]
+  push:
+    branches: [develop, main]
 
 concurrency:
   group: ${{ github.ref }}
