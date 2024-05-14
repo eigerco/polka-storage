@@ -9,6 +9,7 @@ license-file = "LICENSE"
 resolver = "2"
 members = ["node", "runtime"]
 
+# FIXME(#@jmg-duarte,#7,14/5/24): remove the patch once something >1.11.0 is released
 [patch.'https://github.com/paritytech/litep2p']
 litep2p = "0.3.0"
 
