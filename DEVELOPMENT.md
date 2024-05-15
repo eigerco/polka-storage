@@ -5,7 +5,7 @@
 ## Setup
 
 ### Requirements
-- [nix](https://nixos.org/download/) with [flakes](https://nixos.wiki/wiki/flakes) enabled (`echo 'experimental-features = nic-command flakes' >> ~/.config/nix/nix.conf`)
+- [nix](https://nixos.org/download/) with [flakes](https://nixos.wiki/wiki/flakes) enabled (`echo 'experimental-features = nix-command flakes' >> ~/.config/nix/nix.conf`)
     - reasoning: every developer has the same version of development tools (rust, protoc, zombienet), directed by `flake.nix`. 
     - how it works? fasterthanli.me has [a whole series on it](https://fasterthanli.me/series/building-a-rust-service-with-nix/part-10).
 - [direnv](https://direnv.net/) with a [shell hook](https://direnv.net/docs/hook.html)
