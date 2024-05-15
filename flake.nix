@@ -9,42 +9,22 @@
         flake-utils.follows = "flake-utils";
       };
     };
+    zombienet = {
+      url = "github:paritytech/zombienet";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+      };
+    };
   };
-  outputs = { self, nixpkgs, flake-utils, rust-overlay }:
+  outputs = { self, nixpkgs, flake-utils, rust-overlay, zombienet }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        overlays = [ (import rust-overlay) ];
+        overlays = [ (import rust-overlay) zombienet.overlays.default ];
         pkgs = import nixpkgs {
           inherit system overlays;
         };
-        # This is not pretty. I couldn't make it work with nix flake `github:paritytech/zombienet`.
-        zombienet = pkgs.stdenv.mkDerivation rec {
-          name = "zombienet";
-          pname = name;
-          src =
-            if (system == "x86_64-linux") then
-              builtins.fetchurl
-                {
-                  url = "https://github.com/paritytech/zombienet/releases/download/v1.3.103/zombienet-linux-x64";
-                  sha256 = "sha256:1qlsvd3h4szcgzj2990qgig6vcrg5grzfxkzhdhg93378fmlz9lx";
-                } else
-              builtins.fetchurl {
-                url = "https://github.com/paritytech/zombienet/releases/download/v1.3.103/zombienet-macos";
-                sha256 = "sha256:19rl1nzlzdf00kbs4s9k2m516basli3z0kyanb3xry4yqpxnr28z";
-              };
-
-          phases = [ "installPhase" ];
-          installPhase = ''
-            mkdir -p $out/bin
-            cp $src $out/bin/${name}
-            chmod +x $out/bin/${name}
-          '';
-        };
         rustToolchain = pkgs.pkgsBuildHost.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-        # build-time
-        nativeBuildInputs = with pkgs; [ pkg-config rustToolchain ];
-        # runtime
-        buildInputs = with pkgs; [ clang just polkadot zombienet ] ++ lib.optionals stdenv.isDarwin [
+        buildInputs = with pkgs; [ clang pkg-config rustToolchain just polkadot pkgs.zombienet.default ] ++ lib.optionals stdenv.isDarwin [
           darwin.apple_sdk.frameworks.Security
           darwin.apple_sdk.frameworks.CoreServices
           darwin.apple_sdk.frameworks.SystemConfiguration
@@ -53,7 +33,7 @@
       with pkgs;
       {
         devShells.default = mkShell {
-          inherit buildInputs nativeBuildInputs;
+          inherit buildInputs;
 
           LIBCLANG_PATH = "${llvmPackages.libclang.lib}/lib";
           PROTOC = "${protobuf}/bin/protoc";
