@@ -16,8 +16,16 @@
 ## Usage
 
 0. [Optional, if you don't have `direnv`] `nix develop`
-1. `cargo build --release`
-2. `zombienet -p native spawn scripts/local-testnet.toml`
+1. Verify:
+```
+$ polkadot --version
+polkadot 1.11.0-0bb6249
+
+$ cargo --version
+cargo 1.77.0 (3fe68eabf 2024-02-29)
+```
+2. `cargo build --release`
+3. `zombienet -p native spawn scripts/local-testnet.toml`
 
 ## Maintenance
 
