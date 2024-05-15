@@ -26,7 +26,7 @@ $ zombienet version
 1.3.103
 ```
 2. `just testnet`
-3. Get into a direct link of `charlie` node to access parachain interface and see block production.
+3. Get into a direct link of `charlie` node to access parachain interface and see block production (it takes ~30s).
     - testnet is defined via [zombienet configuration](https://paritytech.github.io/zombienet/guide.html) in [local-testnet.toml](./scripts//local-testnet.toml)
 
 ## Maintenance
