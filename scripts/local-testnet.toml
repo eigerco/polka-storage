@@ -13,7 +13,6 @@ chain = "rococo-local"
 [[parachains]]
 id = 2000
 cumulus_based = true
-chain = "polkadot-storage-rococo-local"
 
   # run charlie as parachain collator
   [[parachains.collators]]
