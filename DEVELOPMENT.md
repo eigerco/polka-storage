@@ -32,3 +32,4 @@ $ zombienet version
 ## Maintenance
 
 - Updating nix flakes (`flake.lock` file has frozen state of package): `nix flake update`.
+- Running out of the disk space? `nix-collect-garbage`.
