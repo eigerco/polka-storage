@@ -4,7 +4,7 @@ alias t := testnet
 
 lint:
     taplo lint && taplo fmt --check
-    
+
 build: lint
     cargo build
 
@@ -13,3 +13,4 @@ release: lint
 
 testnet: release
     zombienet -p native spawn scripts/local-testnet.toml
+    
