@@ -3236,6 +3236,12 @@ dependencies = [
 [[package]]
 name = "file-storage"
 version = "0.1.0"
+dependencies = [
+ "clap",
+ "quick-protobuf",
+ "rs-car",
+ "tokio",
+]
 
 [[package]]
 name = "filetime"
@@ -4712,6 +4718,55 @@ name = "libc"
 version = "0.2.154"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ae743338b92ff9146ce83992f766a31066a91a8c84a45e0e9f21e7cf6de6d346"
+
+[[package]]
+name = "libipld"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f1ccd6b8ffb3afee7081fcaec00e1b099fd1c7ccf35ba5729d88538fcc3b4599"
+dependencies = [
+ "fnv",
+ "libipld-cbor",
+ "libipld-core",
+ "libipld-macro",
+ "log",
+ "multihash 0.18.1",
+ "thiserror",
+]
+
+[[package]]
+name = "libipld-cbor"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77d98c9d1747aa5eef1cf099cd648c3fd2d235249f5fed07522aaebc348e423b"
+dependencies = [
+ "byteorder",
+ "libipld-core",
+ "thiserror",
+]
+
+[[package]]
+name = "libipld-core"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5acd707e8d8b092e967b2af978ed84709eaded82b75effe6cb6f6cc797ef8158"
+dependencies = [
+ "anyhow",
+ "cid 0.10.1",
+ "core2",
+ "multibase",
+ "multihash 0.18.1",
+ "thiserror",
+]
+
+[[package]]
+name = "libipld-macro"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "71171c54214f866ae6722f3027f81dff0931e600e5a61e6b1b6a49ca0b5ed4ae"
+dependencies = [
+ "libipld-core",
+]
 
 [[package]]
 name = "libloading"
@@ -9955,6 +10010,18 @@ dependencies = [
  "libc",
  "rtoolbox",
  "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "rs-car"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf69c4017006c0101362b5df74ee230331703e9938f970468dc1e429afe12998"
+dependencies = [
+ "blake2b_simd",
+ "futures",
+ "libipld",
+ "sha2 0.10.8",
 ]
 
 [[package]]

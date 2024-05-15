@@ -10,6 +10,11 @@ publish = false
 
 
 [dependencies]
+rs-car = { workspace = true }
+# TODO(@jmg-duarte,15/05/2024): reduce the required features
+tokio = { workspace = true, features = ["full"] }
+clap = { workspace = true, features = ["derive"] }
+quick-protobuf = { workspace = true }
 
 [lints]
 workspace = true

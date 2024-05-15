@@ -49,6 +49,9 @@ smallvec = "1.11.0"
 syn = { version = "2.0.53" }
 thiserror = { version = "1.0.48" }
 tracing-subscriber = { version = "0.3.18" }
+rs-car = "0.4.1"
+tokio = "1.37.0"
+quick-protobuf = "0.8.1"
 
 # Local
 polka-storage-runtime = { path = "runtime" }
