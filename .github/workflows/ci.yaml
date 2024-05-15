@@ -1,0 +1,23 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  toml:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install taplo
+        run: cargo install taplo-cli --locked
+      - name: List versions
+        run: |
+          cargo --version
+          taplo --version
+      - name: Run taplo
+        run: taplo format --check --diff
+      - name: Taplo failure info
+        if: failure()
+        run: |
+          echo 'TOML is not formatted correctly'
+          echo 'Please run `taplo format`'

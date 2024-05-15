@@ -1,0 +1,7 @@
+[[rule]]
+include = ["**/*.toml"]
+
+[rule.formatting]
+column_width = 150
+reorder_arrays = true
+reorder_keys = true
