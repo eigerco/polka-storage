@@ -1,5 +1,7 @@
-[[rule]]
+exclude = [".direnv/*"]
 include = ["**/*.toml"]
+
+[[rule]]
 
 [rule.formatting]
 column_width = 150
