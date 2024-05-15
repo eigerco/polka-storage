@@ -29,6 +29,7 @@
           pkg-config
           rustToolchain
           just
+          taplo
           polkadot
           # Due to zombienet's flake.nix, needs to be prefixed with pkg.zombienet
           pkgs.zombienet.default

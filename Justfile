@@ -2,10 +2,13 @@ alias b := build
 alias r := release
 alias t := testnet
 
-build:
+lint:
+    taplo lint && taplo fmt --check
+    
+build: lint
     cargo build
 
-release:
+release: lint
     cargo build --release
 
 testnet: release
