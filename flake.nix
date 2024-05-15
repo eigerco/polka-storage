@@ -21,10 +21,18 @@
         zombienet = pkgs.stdenv.mkDerivation rec {
           name = "zombienet";
           pname = name;
-          src = builtins.fetchurl {
-            url = "https://github.com/paritytech/zombienet/releases/download/v1.3.103/zombienet-linux-x64";
-            sha256 = "sha256:1qlsvd3h4szcgzj2990qgig6vcrg5grzfxkzhdhg93378fmlz9lx";
-          };
+          src =
+            if (system == "x86_64-linux") then
+              builtins.fetchurl
+                {
+                  url = "https://github.com/paritytech/zombienet/releases/download/v1.3.103/zombienet-linux-x64";
+                  sha256 = "sha256:1qlsvd3h4szcgzj2990qgig6vcrg5grzfxkzhdhg93378fmlz9lx";
+                } else
+              builtins.fetchurl {
+                url = "https://github.com/paritytech/zombienet/releases/download/v1.3.103/zombienet-macos";
+                sha256 = "sha256:19rl1nzlzdf00kbs4s9k2m516basli3z0kyanb3xry4yqpxnr28z";
+              };
+
           phases = [ "installPhase" ];
           installPhase = ''
             mkdir -p $out/bin
@@ -36,7 +44,7 @@
         # build-time
         nativeBuildInputs = with pkgs; [ pkg-config rustToolchain ];
         # runtime
-        buildInputs = with pkgs; [ clang polkadot zombienet ] ++ lib.optionals stdenv.isDarwin [
+        buildInputs = with pkgs; [ clang just polkadot zombienet ] ++ lib.optionals stdenv.isDarwin [
           darwin.apple_sdk.frameworks.Security
         ];
       in
