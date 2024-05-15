@@ -24,7 +24,15 @@
           inherit system overlays;
         };
         rustToolchain = pkgs.pkgsBuildHost.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-        buildInputs = with pkgs; [ clang pkg-config rustToolchain just polkadot pkgs.zombienet.default ] ++ lib.optionals stdenv.isDarwin [
+        buildInputs = with pkgs; [
+          clang
+          pkg-config
+          rustToolchain
+          just
+          polkadot
+          # Due to zombienet's flake.nix, needs to be prefixed with pkg.zombienet
+          pkgs.zombienet.default
+        ] ++ lib.optionals stdenv.isDarwin [
           darwin.apple_sdk.frameworks.Security
           darwin.apple_sdk.frameworks.CoreServices
           darwin.apple_sdk.frameworks.SystemConfiguration
