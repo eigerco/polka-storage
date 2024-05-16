@@ -1,4 +1,4 @@
-exclude = [".direnv/*"]
+exclude = [".direnv/*", "target/*"]
 
 [[rule]]
 include = ["**/*.toml"]
