@@ -3,6 +3,7 @@ alias r := release
 alias t := testnet
 
 lint:
+    cargo clippy
     taplo lint && taplo fmt --check
 
 build: lint
