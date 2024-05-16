@@ -1,0 +1,21 @@
+[relaychain]
+chain = "rococo-local"
+default_command = "polkadot"
+
+[[relaychain.nodes]]
+name = "alice"
+validator = true
+
+[[relaychain.nodes]]
+name = "bob"
+validator = true
+
+[[parachains]]
+cumulus_based = true
+id = 2000
+
+# run charlie as parachain collator
+[[parachains.collators]]
+command = "target/release/polka-storage-node"
+name = "charlie"
+validator = true
