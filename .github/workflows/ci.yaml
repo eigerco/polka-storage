@@ -1,6 +1,14 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  pull_request:
+    types: [labeled]
+  push:
+    branches: [develop, main]
+
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   toml:
@@ -20,4 +28,69 @@ jobs:
         if: failure()
         run: |
           echo 'TOML is not formatted correctly'
-          echo 'Please run `taplo format`'
+          echo 'Please run taplo format'
+
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly
+          components: rustfmt
+      - name: List version
+        run: |
+          cargo --version
+          cargo fmt --version
+      - name: Cargo format
+        run: cargo fmt --all -- --check
+      - name: Cargo fmt failure info
+        if: failure()
+        run: |
+          echo '.rs files are not formatted correctly'
+          echo 'Please run cargo fmt --all'
+
+  clippy_build_and_test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cargo caching
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('**/Cargo.toml') }}
+      - name: Install protobuf compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install protobuf-compiler
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.77.0
+          target: wasm32-unknown-unknown
+          components: clippy rust-src
+      - name: List version
+        run: |
+          cargo --version
+          cargo clippy --version
+      - name: Cargo clippy
+        run: cargo clippy --locked -q --no-deps -- -D warnings
+      - name: Build with try-runtime feature
+        run: RUSTFLAGS="-D warnings" cargo build --locked -q --features try-runtime
+      - name: Build node runtime
+        run: RUSTFLAGS="-D warnings" cargo build --locked -q -p polka-storage-runtime
+      - name: Build node with runtime-benchmark feature
+        run: RUSTFLAGS="-D warnings" cargo build --locked -q -p polka-storage-node --features runtime-benchmarks
+      - name: Build in release mode
+        run: RUSTFLAGS="-D warnings" cargo build --locked -q --release
+      - name: Run tests
+        run: RUSTFLAGS="-D warnings" cargo test --locked -q --workspace
+      - name: Failure handling
+        if: failure()
+        run: |
+          echo 'Job clippy_build_and_test failed.'
+          echo 'Please check the logs for more details'

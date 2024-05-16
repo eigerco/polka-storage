@@ -1,7 +1,3 @@
-use crate::{
-    AccountId, AllPalletsWithSystem, Balances, ParachainInfo, ParachainSystem, PolkadotXcm,
-    Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmpQueue,
-};
 use frame_support::{
     parameter_types,
     traits::{ConstU32, Contains, Everything, Nothing},
@@ -21,6 +17,11 @@ use xcm_builder::{
     TrailingSetTopicAsId, UsingComponents, WithComputedOrigin, WithUniqueTopic,
 };
 use xcm_executor::XcmExecutor;
+
+use crate::{
+    AccountId, AllPalletsWithSystem, Balances, ParachainInfo, ParachainSystem, PolkadotXcm,
+    Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmpQueue,
+};
 
 parameter_types! {
     pub const RelayLocation: Location = Location::parent();
