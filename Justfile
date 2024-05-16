@@ -12,4 +12,4 @@ release: lint
     cargo build --release
 
 testnet: release
-    zombienet -p native spawn scripts/local-testnet.toml
+    zombienet -p native spawn zombienet/local-testnet.toml
