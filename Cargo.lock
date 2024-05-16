@@ -1221,6 +1221,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cbor4ii"
+version = "0.2.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b544cf8c89359205f4f990d0e6f3828db42df85b5dac95d09157a250eb0749c4"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "cc"
 version = "1.0.97"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1319,7 +1328,7 @@ dependencies = [
  "multibase",
  "multihash 0.17.0",
  "serde",
- "unsigned-varint",
+ "unsigned-varint 0.7.2",
 ]
 
 [[package]]
@@ -1332,7 +1341,21 @@ dependencies = [
  "multibase",
  "multihash 0.18.1",
  "serde",
- "unsigned-varint",
+ "unsigned-varint 0.7.2",
+]
+
+[[package]]
+name = "cid"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3147d8272e8fa0ccd29ce51194dd98f79ddfb8191ba9e3409884e751798acf3a"
+dependencies = [
+ "core2",
+ "multibase",
+ "multihash 0.19.1",
+ "serde",
+ "serde_bytes",
+ "unsigned-varint 0.8.0",
 ]
 
 [[package]]
@@ -3238,8 +3261,16 @@ name = "file-storage"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "digest 0.10.7",
+ "fallible-iterator 0.3.0",
+ "ipld-core",
  "quick-protobuf",
- "rs-car",
+ "rand 0.8.5",
+ "rs_merkle",
+ "serde",
+ "serde_ipld_dagcbor",
+ "sha2 0.10.8",
+ "thiserror",
  "tokio",
 ]
 
@@ -4422,6 +4453,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ipld-core"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4ede82a79e134f179f4b29b5fdb1eb92bd1b38c4dfea394c539051150a21b9b"
+dependencies = [
+ "cid 0.11.1",
+ "serde",
+ "serde_bytes",
+]
+
+[[package]]
 name = "ipnet"
 version = "2.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4720,55 +4762,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ae743338b92ff9146ce83992f766a31066a91a8c84a45e0e9f21e7cf6de6d346"
 
 [[package]]
-name = "libipld"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1ccd6b8ffb3afee7081fcaec00e1b099fd1c7ccf35ba5729d88538fcc3b4599"
-dependencies = [
- "fnv",
- "libipld-cbor",
- "libipld-core",
- "libipld-macro",
- "log",
- "multihash 0.18.1",
- "thiserror",
-]
-
-[[package]]
-name = "libipld-cbor"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77d98c9d1747aa5eef1cf099cd648c3fd2d235249f5fed07522aaebc348e423b"
-dependencies = [
- "byteorder",
- "libipld-core",
- "thiserror",
-]
-
-[[package]]
-name = "libipld-core"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5acd707e8d8b092e967b2af978ed84709eaded82b75effe6cb6f6cc797ef8158"
-dependencies = [
- "anyhow",
- "cid 0.10.1",
- "core2",
- "multibase",
- "multihash 0.18.1",
- "thiserror",
-]
-
-[[package]]
-name = "libipld-macro"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71171c54214f866ae6722f3027f81dff0931e600e5a61e6b1b6a49ca0b5ed4ae"
-dependencies = [
- "libipld-core",
-]
-
-[[package]]
 name = "libloading"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4865,7 +4858,7 @@ dependencies = [
  "rw-stream-sink",
  "smallvec",
  "thiserror",
- "unsigned-varint",
+ "unsigned-varint 0.7.2",
  "void",
 ]
 
@@ -4947,7 +4940,7 @@ dependencies = [
  "smallvec",
  "thiserror",
  "uint",
- "unsigned-varint",
+ "unsigned-varint 0.7.2",
  "void",
 ]
 
@@ -5370,7 +5363,7 @@ dependencies = [
  "tracing",
  "trust-dns-resolver 0.23.2",
  "uint",
- "unsigned-varint",
+ "unsigned-varint 0.7.2",
  "url",
  "webpki",
  "x25519-dalek 2.0.1",
@@ -5728,7 +5721,7 @@ dependencies = [
  "percent-encoding",
  "serde",
  "static_assertions",
- "unsigned-varint",
+ "unsigned-varint 0.7.2",
  "url",
 ]
 
@@ -5757,7 +5750,7 @@ dependencies = [
  "multihash-derive 0.8.0",
  "sha2 0.10.8",
  "sha3",
- "unsigned-varint",
+ "unsigned-varint 0.7.2",
 ]
 
 [[package]]
@@ -5774,7 +5767,7 @@ dependencies = [
  "multihash-derive 0.8.0",
  "sha2 0.10.8",
  "sha3",
- "unsigned-varint",
+ "unsigned-varint 0.7.2",
 ]
 
 [[package]]
@@ -5784,7 +5777,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "076d548d76a0e2a0d4ab471d0b1c36c577786dfc4471242035d97a12a735c492"
 dependencies = [
  "core2",
- "unsigned-varint",
+ "serde",
+ "unsigned-varint 0.7.2",
 ]
 
 [[package]]
@@ -5863,7 +5857,7 @@ dependencies = [
  "log",
  "pin-project",
  "smallvec",
- "unsigned-varint",
+ "unsigned-varint 0.7.2",
 ]
 
 [[package]]
@@ -9440,7 +9434,7 @@ dependencies = [
  "bytes",
  "quick-protobuf",
  "thiserror",
- "unsigned-varint",
+ "unsigned-varint 0.7.2",
 ]
 
 [[package]]
@@ -10013,14 +10007,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "rs-car"
-version = "0.4.1"
+name = "rs_merkle"
+version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf69c4017006c0101362b5df74ee230331703e9938f970468dc1e429afe12998"
+checksum = "3b241d2e59b74ef9e98d94c78c47623d04c8392abaf82014dfd372a16041128f"
 dependencies = [
- "blake2b_simd",
- "futures",
- "libipld",
  "sha2 0.10.8",
 ]
 
@@ -10936,7 +10927,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-stream",
- "unsigned-varint",
+ "unsigned-varint 0.7.2",
  "void",
  "wasm-timer",
  "zeroize",
@@ -11708,6 +11699,18 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.61",
+]
+
+[[package]]
+name = "serde_ipld_dagcbor"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ded35fbe4ab8fdec1f1d14b4daff2206b1eada4d6e708cb451d464d2d965f493"
+dependencies = [
+ "cbor4ii",
+ "ipld-core",
+ "scopeguard",
+ "serde",
 ]
 
 [[package]]
@@ -14105,6 +14108,12 @@ dependencies = [
  "futures-util",
  "tokio-util",
 ]
+
+[[package]]
+name = "unsigned-varint"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb066959b24b5196ae73cb057f45598450d2c5f71460e98c49b738086eff9c06"
 
 [[package]]
 name = "untrusted"

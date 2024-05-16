@@ -10,11 +10,19 @@ publish = false
 
 
 [dependencies]
-rs-car = { workspace = true }
 # TODO(@jmg-duarte,15/05/2024): reduce the required features
 tokio = { workspace = true, features = ["full"] }
 clap = { workspace = true, features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
+serde_ipld_dagcbor = { workspace = true }
+ipld-core = { workspace = true, features = ["serde"] }
+thiserror = { workspace = true }
+rand = { workspace = true }
+sha2 = { workspace = true }
+digest = { workspace = true }
 quick-protobuf = { workspace = true }
+fallible-iterator = { workspace = true }
+rs_merkle = { workspace = true }
 
 [lints]
 workspace = true
