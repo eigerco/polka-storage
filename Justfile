@@ -3,7 +3,7 @@ alias r := release
 alias t := testnet
 
 lint:
-    cargo clippy
+    cargo clippy --locked --no-deps -- -D warnings
     taplo lint && taplo fmt --check
 
 build: lint
