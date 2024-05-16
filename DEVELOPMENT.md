@@ -33,7 +33,7 @@ $ zombienet version
 1.3.103
 ```
 2. `just testnet`
-3. Get into a direct link of `charlie` node to access parachain interface and see block production (it takes ~30s).
+3. Click `charlie`'s direct link (should look like `https://polkadot.js.org/apps/?rpc=ws://<address here>#/explorer`). It will take you to the parachain interface where you can monitor block production.
     - testnet is defined via [zombienet configuration](https://paritytech.github.io/zombienet/guide.html) in [local-testnet.toml](./scripts//local-testnet.toml)
 
 ## Maintenance
