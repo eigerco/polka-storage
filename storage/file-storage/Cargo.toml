@@ -1,28 +1,30 @@
 [package]
-name = "file-storage"
-version = "0.1.0"
-edition.workspace = true
-repository.workspace = true
-homepage.workspace = true
 authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
 license-file.workspace = true
+name = "file-storage"
 publish = false
+repository.workspace = true
+version = "0.1.0"
 
 
 [dependencies]
 # TODO(@jmg-duarte,15/05/2024): reduce the required features
-tokio = { workspace = true, features = ["full"] }
+byteorder = { workspace = true, features = ["i128"] }
 clap = { workspace = true, features = ["derive"] }
+digest = { workspace = true }
+integer-encoding = { workspace = true, features = ["tokio_async"] }
+ipld-core = { workspace = true, features = ["serde"] }
+quick-protobuf = { workspace = true }
+rand = { workspace = true }
+rs_merkle = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_ipld_dagcbor = { workspace = true }
-ipld-core = { workspace = true, features = ["serde"] }
-thiserror = { workspace = true }
-rand = { workspace = true }
 sha2 = { workspace = true }
-digest = { workspace = true }
-quick-protobuf = { workspace = true }
-fallible-iterator = { workspace = true }
-rs_merkle = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+bitflags = { workspace = true }
 
 [lints]
 workspace = true

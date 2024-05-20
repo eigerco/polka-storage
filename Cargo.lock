@@ -3260,9 +3260,11 @@ dependencies = [
 name = "file-storage"
 version = "0.1.0"
 dependencies = [
+ "bitflags 2.5.0",
+ "byteorder",
  "clap",
  "digest 0.10.7",
- "fallible-iterator 0.3.0",
+ "integer-encoding 4.0.0",
  "ipld-core",
  "quick-protobuf",
  "rand 0.8.5",
@@ -4413,6 +4415,16 @@ name = "integer-encoding"
 version = "3.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8bb03732005da905c88227371639bf1ad885cc712789c011c31c5fb3ab3ccf02"
+
+[[package]]
+name = "integer-encoding"
+version = "4.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "924df4f0e24e2e7f9cdd90babb0b96f93b20f3ecfa949ea9e6613756b8c8e1bf"
+dependencies = [
+ "async-trait",
+ "tokio",
+]
 
 [[package]]
 name = "integer-sqrt"
@@ -13481,7 +13493,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b82ca8f46f95b3ce96081fe3dd89160fdea970c254bb72925255d1b62aae692e"
 dependencies = [
  "byteorder",
- "integer-encoding",
+ "integer-encoding 3.0.4",
  "log",
  "ordered-float",
  "threadpool",
