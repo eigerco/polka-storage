@@ -1,5 +1,6 @@
 [relaychain]
 chain = "rococo-local"
+default_args = ["--detailed-log-output", "-lxcm=trace"]
 default_command = "polkadot"
 
 [[relaychain.nodes]]
@@ -12,10 +13,15 @@ validator = true
 
 [[parachains]]
 cumulus_based = true
-id = 2000
+# 1000 and 1001 do not work for some reason.
+# We need to use a Parachain of an existing System Chain (https://github.com/paritytech/polkadot-sdk/blob/master/polkadot/runtime/rococo/src/xcm_config.rs).
+# The reason: being able to get native DOTs from Relay Chain to Parachain via XCM Teleport.
+# We'll have a proper Parachain ID in the *future*, but for now, let's stick to 1002.
+id = 1002
 
 # run charlie as parachain collator
 [[parachains.collators]]
+args = ["--detailed-log-output", "-lxcm=trace"]
 command = "target/release/polka-storage-node"
 name = "charlie"
 validator = true
