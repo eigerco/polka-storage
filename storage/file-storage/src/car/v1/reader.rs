@@ -11,11 +11,10 @@ use integer_encoding::{VarIntAsyncReader, VarIntReader};
 use serde_ipld_dagcbor::codec::DagCborCodec;
 use tokio::io::{AsyncRead, AsyncReadExt};
 
-use crate::{
-    car::v1::{Error, Header},
-    car::v2::PRAGMA,
-};
+use crate::car::{v1::Header, v2::PRAGMA, Error};
 
+// `bytes::Buf` might be more useful here
+// https://docs.rs/bytes/1.6.0/bytes/buf/trait.Buf.html
 fn read_cid_v1<B>(cursor: &mut Cursor<B>) -> Result<Cid, Error>
 where
     B: AsRef<[u8]>,
@@ -149,9 +148,10 @@ mod tests {
     use sha2::Sha256;
     use tokio::{fs::File, io::BufReader};
 
-    use crate::{
-        car::generate_multihash,
-        car::v1::{self, reader::read_cid, Error, Reader},
+    use crate::car::{
+        generate_multihash,
+        v1::{self, reader::read_cid, Reader},
+        Error,
     };
 
     const RAW_CODEC: u64 = 0x55;

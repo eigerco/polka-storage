@@ -4,7 +4,9 @@ use integer_encoding::VarIntAsyncWriter;
 use serde_ipld_dagcbor::codec::DagCborCodec;
 use tokio::io::{AsyncWrite, AsyncWriteExt};
 
-pub use crate::car::v1::{Error, Header};
+use crate::car::Error;
+
+pub use crate::car::v1::Header;
 
 /// Write a CARv1 header to the provider writer.
 pub(crate) async fn write_header<W>(writer: &mut W, header: &Header) -> Result<(), Error>

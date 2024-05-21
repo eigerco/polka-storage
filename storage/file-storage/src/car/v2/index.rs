@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use integer_encoding::VarIntAsyncReader;
 use tokio::io::{AsyncRead, AsyncReadExt};
 
-use crate::car::v2::Error;
+use crate::car::Error;
 
 pub const INDEX_SORTED_CODE: u64 = 0x0400;
 pub const MULTIHASH_INDEX_SORTED_CODE: u64 = 0x0401;

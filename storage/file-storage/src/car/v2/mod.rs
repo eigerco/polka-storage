@@ -1,14 +1,15 @@
 mod index;
 mod reader;
 
+pub use index::{Index, MultiWidthIndex, MultihashIndexSorted};
+
 use bitflags::bitflags;
 use byteorder::{LittleEndian, WriteBytesExt};
 use ipld_core::cid::Cid;
 use tokio::io::AsyncWrite;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncWriteExt;
 
-use crate::car::v2::reader::Reader;
-use crate::car::{self, v1};
+use crate::car::{self, Error};
 
 /// The pragma for a CARv2. This is also a valid CARv1 header, with version 2 and no root CIDs.
 pub const PRAGMA: [u8; 11] = [
@@ -18,16 +19,6 @@ pub const PRAGMA: [u8; 11] = [
     0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, // "version"
     0x02, // uint(2)
 ];
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error(transparent)]
-    IoError(#[from] std::io::Error),
-    #[error(transparent)]
-    CarV1Error(#[from] car::v1::Error),
-    #[error("unknown index type {0}")]
-    UnknownIndexError(u64),
-}
 
 bitflags! {
     /// Characteristics of the enclosed data.

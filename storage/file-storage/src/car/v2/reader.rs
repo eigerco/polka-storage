@@ -6,10 +6,9 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use tokio::io::{AsyncSeek, AsyncWrite};
 
 use crate::car;
-use crate::car::v1::{self};
-use crate::car::v2::{Characteristics, Error, Header, PRAGMA};
-
 use crate::car::v2::index::Index;
+use crate::car::v2::{Characteristics, Header, PRAGMA};
+use crate::car::Error;
 
 use super::index::read_index;
 
@@ -137,10 +136,7 @@ mod tests {
             match reader.read_block().await {
                 Ok((cid, _)) => println!("{:?}", cid),
                 else_ => {
-                    assert!(matches!(
-                        else_,
-                        Err(Error::CarV1Error(car::v1::Error::IoError(_)))
-                    ));
+                    assert!(matches!(else_, Err(Error::IoError(_))));
                     break;
                 }
             }
@@ -218,10 +214,7 @@ mod tests {
                     println!("{:?}", cid);
                 }
                 else_ => {
-                    assert!(matches!(
-                        else_,
-                        Err(Error::CarV1Error(car::v1::Error::IoError(_)))
-                    ));
+                    assert!(matches!(else_, Err(Error::IoError(_))));
                     break;
                 }
             }
@@ -281,10 +274,7 @@ mod tests {
                 }
                 else_ => {
                     // With the length check above this branch should actually be unreachable
-                    assert!(matches!(
-                        else_,
-                        Err(Error::CarV1Error(car::v1::Error::IoError(_)))
-                    ));
+                    assert!(matches!(else_, Err(Error::IoError(_))));
                     break;
                 }
             }
