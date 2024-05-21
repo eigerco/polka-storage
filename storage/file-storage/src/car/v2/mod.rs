@@ -1,13 +1,10 @@
 mod index;
 mod reader;
 
-pub use index::{Index, MultiWidthIndex, MultihashIndexSorted};
-
 use bitflags::bitflags;
 use byteorder::{LittleEndian, WriteBytesExt};
 use ipld_core::cid::Cid;
-use tokio::io::AsyncWrite;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncWrite, AsyncWriteExt};
 
 use crate::car::{self, Error};
 
@@ -157,9 +154,11 @@ mod tests {
     use sha2::Sha256;
     use tokio::io::BufWriter;
 
-    use crate::{car, car::generate_multihash, car::v2::Header};
-
     use super::Writer;
+    use crate::{
+        car,
+        car::{generate_multihash, v2::Header},
+    };
 
     const RAW_CODEC: u64 = 0x55;
 

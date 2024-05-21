@@ -1,13 +1,11 @@
 use std::io::{Cursor, Seek};
 
 use byteorder::ReadBytesExt;
+use integer_encoding::{VarIntAsyncReader, VarIntReader};
 use ipld_core::{
     cid::{multihash::Multihash, Cid},
     codec::Codec,
 };
-
-use integer_encoding::{VarIntAsyncReader, VarIntReader};
-
 use serde_ipld_dagcbor::codec::DagCborCodec;
 use tokio::io::{AsyncRead, AsyncReadExt};
 

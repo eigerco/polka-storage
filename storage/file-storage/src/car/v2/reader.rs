@@ -1,16 +1,14 @@
-use bitflags::bitflags;
-use byteorder::{LittleEndian, WriteBytesExt};
 use ipld_core::cid::Cid;
-use thiserror::Error;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
-use tokio::io::{AsyncSeek, AsyncWrite};
-
-use crate::car;
-use crate::car::v2::index::Index;
-use crate::car::v2::{Characteristics, Header, PRAGMA};
-use crate::car::Error;
+use tokio::io::{AsyncRead, AsyncReadExt};
 
 use super::index::read_index;
+use crate::{
+    car,
+    car::{
+        v2::{index::Index, Characteristics, Header, PRAGMA},
+        Error,
+    },
+};
 
 /// Low-level CARv2 reader.
 pub struct Reader<R> {
@@ -80,10 +78,9 @@ mod tests {
     use sha2::Sha256;
     use tokio::{fs::File, io::AsyncSeekExt};
 
-    use crate::{
-        car::generate_multihash,
-        car::v2::{index::Index, reader::Reader, Error, PRAGMA},
-        car::{self, v1},
+    use crate::car::{
+        self, generate_multihash, v1,
+        v2::{index::Index, reader::Reader, Error, PRAGMA},
     };
 
     #[tokio::test]

@@ -1,6 +1,5 @@
-use std::{collections::BTreeMap, mem::offset_of};
+use std::collections::BTreeMap;
 
-use digest::consts::U64;
 use integer_encoding::{VarIntAsyncReader, VarIntAsyncWriter};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
@@ -291,6 +290,14 @@ mod tests {
         io::Cursor,
     };
 
+    use digest::generic_array::GenericArray;
+    use rand::{random, Fill, Rng};
+    use sha2::{Digest, Sha256, Sha512};
+    use tokio::{
+        fs::File,
+        io::{AsyncReadExt, AsyncSeekExt, BufReader, ReadBuf},
+    };
+
     use crate::car::{
         generate_multihash,
         v1::read_block,
@@ -301,14 +308,6 @@ mod tests {
             MultiWidthIndex, MultihashIndexSorted, SingleWidthIndex,
         },
         MultihashCode,
-    };
-
-    use digest::generic_array::GenericArray;
-    use rand::{random, Fill, Rng};
-    use sha2::{Digest, Sha256, Sha512};
-    use tokio::{
-        fs::File,
-        io::{AsyncReadExt, AsyncSeekExt, BufReader, ReadBuf},
     };
 
     fn generate_single_width_index<H>(count: u64) -> SingleWidthIndex

@@ -2,14 +2,13 @@ mod reader;
 mod writer;
 
 use ipld_core::cid::Cid;
-
 use serde::{Deserialize, Serialize};
 
-pub use crate::car::v1::reader::Reader;
-pub use crate::car::v1::writer::Writer;
-
-pub(crate) use crate::car::v1::reader::{read_block, read_header};
-pub(crate) use crate::car::v1::writer::{write_block, write_header};
+pub use crate::car::v1::{reader::Reader, writer::Writer};
+pub(crate) use crate::car::v1::{
+    reader::{read_block, read_header},
+    writer::{write_block, write_header},
+};
 
 /// Low-level CARv1 header.
 #[derive(Debug, Serialize, Deserialize)]
