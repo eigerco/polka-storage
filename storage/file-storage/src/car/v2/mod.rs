@@ -30,7 +30,11 @@ bitflags! {
 impl Characteristics {
     /// Create a new [`Characteristics`].
     pub fn new(fully_indexed: bool) -> Self {
-        Self::FULLY_INDEXED
+        if fully_indexed {
+            Self::FULLY_INDEXED
+        } else {
+            Self::empty()
+        }
     }
 
     /// Check whether the `fully-indexed` characteristic is set.
