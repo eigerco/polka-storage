@@ -9,7 +9,8 @@ use polkadot_parachain_primitives::primitives::Sibling;
 use polkadot_runtime_common::impls::ToAuthor;
 use xcm::latest::prelude::*;
 use xcm_builder::{
-    AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowTopLevelPaidExecutionFrom,
+    AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowHrmpNotificationsFromRelayChain,
+    AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
     DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin, FixedWeightBounds,
     FrameTransactionalProcessor, FungibleAdapter, IsConcrete, NativeAsset, ParentIsPreset,
     RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
@@ -22,6 +23,8 @@ use crate::{
     AccountId, AllPalletsWithSystem, Balances, ParachainInfo, ParachainSystem, PolkadotXcm,
     Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmpQueue,
 };
+
+use parachains_common::xcm_config::{ConcreteAssetFromSystem, ParentRelayOrSiblingParachains};
 
 parameter_types! {
     pub const RelayLocation: Location = Location::parent();
@@ -103,16 +106,20 @@ impl Contains<Location> for ParentOrParentsExecutivePlurality {
     }
 }
 
+pub type TrustedTeleporters = (ConcreteAssetFromSystem<RelayLocation>,);
+
 pub type Barrier = TrailingSetTopicAsId<
     DenyThenTry<
         DenyReserveTransferToRelayChain,
         (
             TakeWeightCredit,
+            AllowKnownQueryResponses<PolkadotXcm>,
             WithComputedOrigin<
                 (
                     AllowTopLevelPaidExecutionFrom<Everything>,
                     AllowExplicitUnpaidExecutionFrom<ParentOrParentsExecutivePlurality>,
-                    // ^^^ Parent and its exec plurality get free execution
+                    AllowSubscriptionsFrom<ParentRelayOrSiblingParachains>,
+                    AllowHrmpNotificationsFromRelayChain,
                 ),
                 UniversalLocation,
                 ConstU32<8>,
@@ -129,7 +136,7 @@ impl xcm_executor::Config for XcmConfig {
     type AssetTransactor = LocalAssetTransactor;
     type OriginConverter = XcmOriginToTransactDispatchOrigin;
     type IsReserve = NativeAsset;
-    type IsTeleporter = (); // Teleporting is disabled.
+    type IsTeleporter = TrustedTeleporters;
     type UniversalLocation = UniversalLocation;
     type Barrier = Barrier;
     type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
