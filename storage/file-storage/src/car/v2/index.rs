@@ -1,7 +1,8 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, mem::offset_of};
 
-use integer_encoding::VarIntAsyncReader;
-use tokio::io::{AsyncRead, AsyncReadExt};
+use digest::consts::U64;
+use integer_encoding::{VarIntAsyncReader, VarIntAsyncWriter};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 use crate::car::Error;
 
@@ -25,17 +26,67 @@ pub struct IndexEntry {
     pub offset: u64,
 }
 
+impl IndexEntry {
+    /// Construct a new [`IndexEntry`].
+    fn new(digest: Vec<u8>, offset: u64) -> Self {
+        Self { digest, offset }
+    }
+}
+
 /// An index containing a single digest length.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct SingleWidthIndex {
     /// The hash digest and the respective offset length.
     pub width: u32,
 
     /// The number of index entries.
+    /// It is serialized as the length of all entries in bytes
+    /// (i.e. `self.count * self.width`).
+    ///
+    /// See `go-car`'s source code for more information:
+    /// https://github.com/ipld/go-car/blob/45b81c1cc5117b3340dfdb025afeca90bfbe8d86/v2/index/indexsorted.go#L29
     pub count: u64,
 
     /// The index entries.
     pub entries: Vec<IndexEntry>,
+}
+
+impl SingleWidthIndex {
+    /// Construct a new [`SingleWidthIndex`].
+    ///
+    /// Notes:
+    /// * The `digest_width` should not account for the offset length.
+    /// * This function sorts the `entries`.
+    fn new(digest_width: u32, count: u64, mut entries: Vec<IndexEntry>) -> Self {
+        entries.sort_by(|fst, snd| fst.digest.cmp(&snd.digest));
+        Self {
+            width: digest_width + 8, // digest_width + offset len
+            count,
+            entries,
+        }
+    }
+}
+
+impl TryFrom<Vec<IndexEntry>> for SingleWidthIndex {
+    type Error = Error;
+
+    /// Performs the conversion, validating that all indexes have the same width.
+    fn try_from(value: Vec<IndexEntry>) -> Result<Self, Self::Error> {
+        if value.is_empty() {
+            return Err(Error::EmptyIndexError);
+        }
+        let width = value[0].digest.len();
+        let count = value.len();
+        for entry in &value[1..] {
+            if entry.digest.len() != width {
+                return Err(Error::NonMatchingDigestError {
+                    expected: width,
+                    received: entry.digest.len(),
+                });
+            }
+        }
+        Ok(Self::new(width as u32, count as u64, value))
+    }
 }
 
 /// An index containing hash digests of multiple lengths.
@@ -44,20 +95,112 @@ pub struct SingleWidthIndex {
 /// and then find the hash to the data block.
 ///
 /// For more details, read the [`Format 0x0400: IndexSorted`](https://ipld.io/specs/transport/car/carv2/#format-0x0400-indexsorted) section in the CARv2 specification.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct MultiWidthIndex(pub Vec<SingleWidthIndex>);
+
+impl From<SingleWidthIndex> for MultiWidthIndex {
+    fn from(value: SingleWidthIndex) -> Self {
+        Self(vec![value])
+    }
+}
+
+impl From<Vec<SingleWidthIndex>> for MultiWidthIndex {
+    fn from(value: Vec<SingleWidthIndex>) -> Self {
+        Self(value)
+    }
+}
 
 /// An index mapping Multihash codes to [`MultiWidthIndex`].
 ///
 /// For more details, read the [`Format 0x0401: MultihashIndexSorted`](https://ipld.io/specs/transport/car/carv2/#format-0x0401-multihashindexsorted) section in the CARv2 specification.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct MultihashIndexSorted(pub BTreeMap<u64, MultiWidthIndex>);
 
+impl From<BTreeMap<u64, MultiWidthIndex>> for MultihashIndexSorted {
+    fn from(value: BTreeMap<u64, MultiWidthIndex>) -> Self {
+        Self(value)
+    }
+}
+
 /// CARv2 index.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Index {
     IndexSorted(MultiWidthIndex),
     MultihashIndexSorted(MultihashIndexSorted),
+}
+
+pub(crate) async fn write_index<W>(mut writer: W, index: &Index) -> Result<(), Error>
+where
+    W: AsyncWrite + Unpin,
+{
+    match index {
+        Index::IndexSorted(index) => {
+            writer.write_varint_async(INDEX_SORTED_CODE).await?;
+            write_index_sorted(&mut writer, index).await?;
+        }
+        Index::MultihashIndexSorted(index) => {
+            writer
+                .write_varint_async(MULTIHASH_INDEX_SORTED_CODE)
+                .await?;
+            write_multihash_index_sorted(&mut writer, index).await?
+        }
+    }
+    Ok(())
+}
+
+pub(crate) async fn write_multihash_index_sorted<W>(
+    mut writer: W,
+    index: &MultihashIndexSorted,
+) -> Result<(), Error>
+where
+    W: AsyncWrite + Unpin,
+{
+    writer.write_i32_le(index.0.len() as i32).await?;
+    for (hash_code, index) in index.0.iter() {
+        writer.write_u64_le(*hash_code).await?;
+        write_index_sorted(&mut writer, index).await?;
+    }
+    Ok(())
+}
+
+pub(crate) async fn write_index_sorted<W>(
+    mut writer: W,
+    index: &MultiWidthIndex,
+) -> Result<(), Error>
+where
+    W: AsyncWrite + Unpin,
+{
+    writer.write_i32_le(index.0.len() as i32).await?;
+    for idx in &index.0 {
+        write_single_width_index(&mut writer, idx).await?;
+    }
+    Ok(())
+}
+
+pub(crate) async fn write_single_width_index<W>(
+    mut writer: W,
+    index: &SingleWidthIndex,
+) -> Result<(), Error>
+where
+    W: AsyncWrite + Unpin,
+{
+    writer.write_u32_le(index.width).await?;
+    writer
+        .write_u64_le(index.count * (index.width as u64))
+        .await?;
+    for entry in &index.entries {
+        write_index_entry(&mut writer, entry).await?;
+    }
+    Ok(())
+}
+
+pub(crate) async fn write_index_entry<W>(mut writer: W, entry: &IndexEntry) -> Result<(), Error>
+where
+    W: AsyncWrite + Unpin,
+{
+    writer.write_all(&entry.digest).await?;
+    writer.write_u64_le(entry.offset).await?;
+    Ok(())
 }
 
 pub(crate) async fn read_index<R>(mut reader: R) -> Result<Index, Error>
@@ -143,17 +286,44 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
-    use crate::{
-        car::v1::read_block,
-        car::v2::index::read_index,
-        car::{generate_multihash, MultihashCode},
+    use std::{
+        collections::{BTreeMap, HashMap},
+        io::Cursor,
     };
 
-    use super::{read_multihash_index_sorted, Index};
-    use sha2::{Digest, Sha256};
-    use tokio::{fs::File, io::AsyncSeekExt};
+    use crate::car::{
+        generate_multihash,
+        v1::read_block,
+        v2::index::{
+            read_index, read_index_entry, read_index_sorted, read_multihash_index_sorted,
+            read_single_width_index, write_index, write_index_entry, write_index_sorted,
+            write_multihash_index_sorted, write_single_width_index, Index, IndexEntry,
+            MultiWidthIndex, MultihashIndexSorted, SingleWidthIndex,
+        },
+        MultihashCode,
+    };
+
+    use digest::generic_array::GenericArray;
+    use rand::{random, Fill, Rng};
+    use sha2::{Digest, Sha256, Sha512};
+    use tokio::{
+        fs::File,
+        io::{AsyncReadExt, AsyncSeekExt, BufReader, ReadBuf},
+    };
+
+    fn generate_single_width_index<H>(count: u64) -> SingleWidthIndex
+    where
+        H: Digest,
+    {
+        let mut entries = vec![];
+        let mut data = vec![0u8; <H as Digest>::output_size()];
+        for idx in 0..count {
+            data.fill_with(random);
+            let digest = H::digest(&data).to_vec();
+            entries.push(IndexEntry::new(digest, idx));
+        }
+        SingleWidthIndex::try_from(entries).unwrap()
+    }
 
     #[tokio::test]
     async fn multihash_index_sorted_lorem() {
@@ -267,5 +437,115 @@ mod tests {
             assert_eq!(entry.offset, 51 + 8);
             assert_eq!(entry.digest, *digest);
         }
+    }
+
+    #[tokio::test]
+    async fn rountrip_index_entry() {
+        let mut data = [0u8; 32];
+        rand::thread_rng().fill(&mut data);
+        let digest = Sha256::digest(data).to_vec();
+        let entry = IndexEntry {
+            digest: digest.clone(),
+            offset: 42,
+        };
+
+        let mut buffer = vec![];
+        write_index_entry(&mut buffer, &entry).await.unwrap();
+
+        let mut reader = Cursor::new(buffer);
+        let result = read_index_entry(&mut reader, 32).await.unwrap();
+        assert_eq!(entry.digest, result.digest);
+        assert_eq!(entry.offset, result.offset);
+    }
+
+    #[tokio::test]
+    async fn roundtrip_single_width_index() {
+        let single_width = generate_single_width_index::<Sha256>(5);
+
+        let mut buffer = vec![];
+        write_single_width_index(&mut buffer, &single_width)
+            .await
+            .unwrap();
+        let mut reader = Cursor::new(buffer);
+        let index = read_single_width_index(&mut reader).await.unwrap();
+        assert_eq!(single_width, index);
+    }
+
+    #[tokio::test]
+    async fn roundtrip_multiwidth_index() {
+        let index = MultiWidthIndex(vec![
+            generate_single_width_index::<Sha256>(5),
+            generate_single_width_index::<Sha512>(5),
+        ]);
+
+        let mut buffer = vec![];
+        write_index_sorted(&mut buffer, &index).await.unwrap();
+
+        let mut reader = Cursor::new(buffer);
+        let result = read_index_sorted(&mut reader).await.unwrap();
+
+        assert_eq!(index, result);
+    }
+
+    #[tokio::test]
+    async fn roundtrip_multihash_index() {
+        let mut mapping = BTreeMap::new();
+        mapping.insert(
+            Sha256::CODE,
+            generate_single_width_index::<Sha256>(5).into(),
+        );
+        mapping.insert(
+            Sha512::CODE,
+            generate_single_width_index::<Sha512>(5).into(),
+        );
+        let index = MultihashIndexSorted(mapping);
+
+        let mut buffer = vec![];
+        write_multihash_index_sorted(&mut buffer, &index)
+            .await
+            .unwrap();
+
+        let mut reader = Cursor::new(buffer);
+        let result = read_multihash_index_sorted(&mut reader).await.unwrap();
+
+        assert_eq!(index, result);
+    }
+
+    #[tokio::test]
+    async fn roundtrip_index_multihash() {
+        let mut mapping = BTreeMap::new();
+        mapping.insert(
+            Sha256::CODE,
+            generate_single_width_index::<Sha256>(5).into(),
+        );
+        mapping.insert(
+            Sha512::CODE,
+            generate_single_width_index::<Sha512>(5).into(),
+        );
+        let index = Index::MultihashIndexSorted(MultihashIndexSorted(mapping));
+
+        let mut buffer = vec![];
+        write_index(&mut buffer, &index).await.unwrap();
+
+        let mut reader = Cursor::new(buffer);
+        let result = read_index(&mut reader).await.unwrap();
+
+        assert_eq!(index, result);
+    }
+
+    #[tokio::test]
+    async fn roundtrip_index_sorted() {
+        let index = Index::IndexSorted(MultiWidthIndex(vec![
+            generate_single_width_index::<Sha256>(5),
+            generate_single_width_index::<Sha512>(5),
+        ]));
+
+        let mut buffer = vec![];
+        write_index(&mut buffer, &index).await.unwrap();
+
+        let mut reader = Cursor::new(buffer);
+        let result = read_index(&mut reader).await.unwrap();
+
+        assert_eq!(index, result);
     }
 }

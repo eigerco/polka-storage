@@ -3,8 +3,8 @@
 mod v1;
 mod v2;
 
+use digest::Digest;
 use ipld_core::cid::multihash::Multihash;
-use sha2::{Digest, Sha256};
 
 /// Trait to ease implementing generic multihash generation.
 pub trait MultihashCode {
@@ -23,8 +23,12 @@ where
     Multihash::wrap(H::CODE, &hashed_bytes).unwrap()
 }
 
-impl MultihashCode for Sha256 {
+impl MultihashCode for sha2::Sha256 {
     const CODE: u64 = 0x12;
+}
+
+impl MultihashCode for sha2::Sha512 {
+    const CODE: u64 = 0x13;
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -49,4 +53,12 @@ pub enum Error {
     /// [`MultihashIndexSorted`](`crate::car::v2::MultihashIndexSorted`).
     #[error("unknown index type {0}")]
     UnknownIndexError(u64),
+
+    /// Digest does not match the expected length.
+    #[error("digest has length {received}, instead of {expected}")]
+    NonMatchingDigestError { expected: usize, received: usize },
+
+    /// Cannot know width or count from an empty vector.
+    #[error("cannot create an index out of an empty `Vec`")]
+    EmptyIndexError,
 }
