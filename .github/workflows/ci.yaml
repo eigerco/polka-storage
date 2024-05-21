@@ -83,8 +83,10 @@ jobs:
         run: RUSTFLAGS="-D warnings" cargo build --locked -q --features try-runtime
       - name: Build node runtime
         run: RUSTFLAGS="-D warnings" cargo build --locked -q -p polka-storage-runtime
-      - name: Build node with runtime-benchmark feature
-        run: RUSTFLAGS="-D warnings" cargo build --locked -q -p polka-storage-node --features runtime-benchmarks
+      - name: Build node with runtime-benchmark and run benchmarks
+        run: |
+          RUSTFLAGS="-D warnings" cargo build --locked -q -p polka-storage-node --features runtime-benchmarks
+          ./target/debug/polka-storage-node benchmark pallet --pallet "" --extrinsic "" --steps 2 --repeat 1
       - name: Build in release mode
         run: RUSTFLAGS="-D warnings" cargo build --locked -q --release
       - name: Run tests
