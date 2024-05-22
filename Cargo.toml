@@ -58,10 +58,12 @@ rand = "0.8.5"
 sha2 = "0.10.8"
 digest = "0.10.7"
 rs_merkle = "1.4.2"
-integer-encoding = { version = "4.0.0" }
-byteorder = { version = "1.5.0" }
+integer-encoding = "4.0.0"
+byteorder = "1.5.0"
 bitflags = "2.5.0"
-
+tokio-util = "0.7.11"
+tokio-stream = "0.1.15"
+ipld-dagpb = "0.2.0"
 
 # Local
 polka-storage-runtime = { path = "runtime" }

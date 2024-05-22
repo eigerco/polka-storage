@@ -27,7 +27,7 @@ pub struct IndexEntry {
 
 impl IndexEntry {
     /// Construct a new [`IndexEntry`].
-    fn new(digest: Vec<u8>, offset: u64) -> Self {
+    pub fn new(digest: Vec<u8>, offset: u64) -> Self {
         Self { digest, offset }
     }
 }
@@ -66,6 +66,12 @@ impl SingleWidthIndex {
     }
 }
 
+impl From<IndexEntry> for SingleWidthIndex {
+    fn from(value: IndexEntry) -> Self {
+        SingleWidthIndex::new(value.digest.len() as u32, 1, vec![value])
+    }
+}
+
 impl TryFrom<Vec<IndexEntry>> for SingleWidthIndex {
     type Error = Error;
 
@@ -97,6 +103,12 @@ impl TryFrom<Vec<IndexEntry>> for SingleWidthIndex {
 #[derive(Debug, PartialEq, Eq)]
 pub struct MultiWidthIndex(pub Vec<SingleWidthIndex>);
 
+impl From<IndexEntry> for MultiWidthIndex {
+    fn from(value: IndexEntry) -> Self {
+        Self(vec![SingleWidthIndex::from(value)])
+    }
+}
+
 impl From<SingleWidthIndex> for MultiWidthIndex {
     fn from(value: SingleWidthIndex) -> Self {
         Self(vec![value])
@@ -113,7 +125,10 @@ impl From<Vec<SingleWidthIndex>> for MultiWidthIndex {
 ///
 /// For more details, read the [`Format 0x0401: MultihashIndexSorted`](https://ipld.io/specs/transport/car/carv2/#format-0x0401-multihashindexsorted) section in the CARv2 specification.
 #[derive(Debug, PartialEq, Eq)]
-pub struct MultihashIndexSorted(pub BTreeMap<u64, MultiWidthIndex>);
+pub struct MultihashIndexSorted(
+    // NOTE(@jmg-duarte,21/05/2024): maybe we should implement Deref where Deref::Target = BTreeMap<u64, MultiwidthIndex>?
+    pub BTreeMap<u64, MultiWidthIndex>,
+);
 
 impl From<BTreeMap<u64, MultiWidthIndex>> for MultihashIndexSorted {
     fn from(value: BTreeMap<u64, MultiWidthIndex>) -> Self {
@@ -126,6 +141,12 @@ impl From<BTreeMap<u64, MultiWidthIndex>> for MultihashIndexSorted {
 pub enum Index {
     IndexSorted(MultiWidthIndex),
     MultihashIndexSorted(MultihashIndexSorted),
+}
+
+impl Index {
+    pub fn multihash(index: BTreeMap<u64, MultiWidthIndex>) -> Self {
+        Self::MultihashIndexSorted(index.into())
+    }
 }
 
 pub(crate) async fn write_index<W>(mut writer: W, index: &Index) -> Result<(), Error>

@@ -4,7 +4,10 @@ mod v1;
 mod v2;
 
 use digest::Digest;
-use ipld_core::cid::multihash::Multihash;
+use ipld_core::{
+    cid::{multihash::Multihash, Cid},
+    ipld,
+};
 
 /// Trait to ease implementing generic multihash generation.
 pub trait MultihashCode {
