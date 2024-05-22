@@ -1,3 +1,5 @@
+use std::io::Cursor;
+
 use integer_encoding::VarIntAsyncWriter;
 use ipld_core::{cid::Cid, codec::Codec};
 use serde_ipld_dagcbor::codec::DagCborCodec;
@@ -20,33 +22,28 @@ where
 /// Write a [`Cid`] and block to the given writer.
 ///
 /// This is a low-level function to be used in the implementation of CAR writers.
-/// The function takes a `cid_buffer` to avoid allocating a new buffer every time it is called.
 pub(crate) async fn write_block<W, Block>(
     writer: &mut W,
     cid: &Cid,
     block: Block,
-    mut cid_buffer: &mut Vec<u8>, // AsMut<[u8]> just pretends to work actually
 ) -> Result<(), Error>
 where
     W: AsyncWrite + Unpin,
     Block: AsRef<[u8]>,
 {
-    let written = cid.write_bytes(&mut cid_buffer)?;
-    debug_assert!(written == cid.encoded_len(), "failed to write the full Cid");
     let data = block.as_ref();
-    let len = written + data.len();
+    let len = cid.encoded_len() + data.len();
 
     writer.write_varint_async(len).await?;
-    writer.write_all(&cid_buffer[..written]).await?;
-    writer.write_all(&data).await?;
+    // This allocation can probably be spared
+    writer.write_all(&cid.to_bytes()).await?;
+    writer.write_all(block.as_ref()).await?;
     Ok(())
 }
 
 /// Low-level CARv1 writer.
 pub struct Writer<W> {
     writer: W,
-    /// Avoids allocating a new buffer each time we write a [`Cid`].
-    cid_buffer: Vec<u8>,
 }
 
 impl<W> Writer<W> {
@@ -54,10 +51,7 @@ impl<W> Writer<W> {
     ///
     /// Takes a writer into which the data will be written.
     pub fn new(writer: W) -> Self {
-        Self {
-            writer,
-            cid_buffer: Vec::new(),
-        }
+        Self { writer }
     }
 }
 
@@ -77,7 +71,7 @@ where
     where
         D: AsRef<[u8]>,
     {
-        write_block(&mut self.writer, cid, data, &mut self.cid_buffer).await
+        write_block(&mut self.writer, cid, data).await
     }
 
     /// Flushes and returns the inner writer.
