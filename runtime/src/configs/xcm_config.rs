@@ -32,7 +32,6 @@ use parachains_common::xcm_config::{
 
 parameter_types! {
     pub const RelayLocation: Location = Location::parent();
-    pub const HereLocation: Location = Location::here();
     pub const RelayNetwork: Option<NetworkId> = None;
     pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
     // For the real deployment, it is recommended to set `RelayNetwork` according to the relay chain
@@ -57,7 +56,7 @@ pub type LocalAssetTransactor = FungibleAdapter<
     // Use this currency:
     Balances,
     // Use this currency when it is a fungible asset matching the given location or name:
-    (IsConcrete<RelayLocation>, IsConcrete<HereLocation>),
+    IsConcrete<RelayLocation>,
     // Do a simple punn to convert an AccountId32 Location into a native chain account ID:
     LocationToAccountId,
     // Our chain's account ID type (we can't get away without mentioning it explicitly):
@@ -113,8 +112,6 @@ impl Contains<Location> for ParentOrParentsExecutivePlurality {
 
 pub type TrustedTeleporters = (
     ConcreteAssetFromSystem<RelayLocation>,
-    ConcreteAssetFromSystem<UniversalLocation>,
-    ConcreteAssetFromSystem<HereLocation>,
 );
 
 pub type Barrier = TrailingSetTopicAsId<
