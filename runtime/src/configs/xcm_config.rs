@@ -203,7 +203,7 @@ impl pallet_xcm::Config for Runtime {
     type TrustedLockers = ();
     type SovereignAccountOf = LocationToAccountId;
     type MaxLockers = ConstU32<8>;
-    // TODO:
+    // TODO(@th7nder, #35, 2024-05-22): Set proper weight, TestWeightInfo is equal to ()
     type WeightInfo = pallet_xcm::TestWeightInfo;
     type AdminOrigin = EnsureRoot<AccountId>;
     type MaxRemoteLockConsumers = ConstU32<0>;
