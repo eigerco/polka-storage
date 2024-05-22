@@ -12,11 +12,10 @@ use xcm_builder::{
     AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowHrmpNotificationsFromRelayChain,
     AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
     DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin, FixedWeightBounds,
-    FrameTransactionalProcessor, FungibleAdapter, IsConcrete, ParentIsPreset,
-    RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
-    SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit,
-    TrailingSetTopicAsId, UsingComponents, WithComputedOrigin, WithUniqueTopic,
-    XcmFeeManagerFromComponents,
+    FrameTransactionalProcessor, FungibleAdapter, IsConcrete, ParentIsPreset, RelayChainAsNative,
+    SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
+    SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, TrailingSetTopicAsId,
+    UsingComponents, WithComputedOrigin, WithUniqueTopic, XcmFeeManagerFromComponents,
 };
 use xcm_executor::XcmExecutor;
 
@@ -110,9 +109,7 @@ impl Contains<Location> for ParentOrParentsExecutivePlurality {
     }
 }
 
-pub type TrustedTeleporters = (
-    ConcreteAssetFromSystem<RelayLocation>,
-);
+pub type TrustedTeleporters = (ConcreteAssetFromSystem<RelayLocation>,);
 
 pub type Barrier = TrailingSetTopicAsId<
     DenyThenTry<
