@@ -6,7 +6,7 @@ use byteorder::{LittleEndian, WriteBytesExt};
 use ipld_core::cid::Cid;
 use tokio::io::{AsyncWrite, AsyncWriteExt};
 
-use crate::car::{self, Error};
+use crate::Error;
 
 use self::index::Index;
 
@@ -107,8 +107,8 @@ where
     /// Write a CARv1 header.
     ///
     /// * If the header has already been written, this is a no-op.
-    pub async fn write_v1_header(&mut self, v1_header: &car::v1::Header) -> Result<(), Error> {
-        car::v1::write_header(&mut self.writer, v1_header).await
+    pub async fn write_v1_header(&mut self, v1_header: &crate::v1::Header) -> Result<(), Error> {
+        crate::v1::write_header(&mut self.writer, v1_header).await
     }
 
     /// Write a [`Cid`] and the respective data block.
@@ -116,11 +116,11 @@ where
     where
         Block: AsRef<[u8]>,
     {
-        car::v1::write_block(&mut self.writer, cid, block).await
+        crate::v1::write_block(&mut self.writer, cid, block).await
     }
 
     pub async fn write_index(&mut self, index: &Index) -> Result<(), Error> {
-        car::v2::index::write_index(&mut self.writer, index).await
+        crate::v2::index::write_index(&mut self.writer, index).await
     }
 
     /// Flushes and returns the inner writer.
@@ -151,11 +151,11 @@ mod tests {
     use tokio_stream::StreamExt;
     use tokio_util::io::ReaderStream;
 
-    use crate::car::{
-        self, generate_multihash,
+    use crate::{
+        multihash::generate_multihash,
+        multihash::MultihashCode,
         v1::Reader,
         v2::{index::IndexEntry, index::MultiWidthIndex, index::SingleWidthIndex, Header, Writer},
-        MultihashCode,
     };
 
     const RAW_CODEC: u64 = 0x55;
@@ -254,7 +254,7 @@ mod tests {
         };
 
         writer
-            .write_v1_header(&car::v1::Header::new(vec![root_cid]))
+            .write_v1_header(&crate::v1::Header::new(vec![root_cid]))
             .await
             .unwrap();
 
@@ -283,7 +283,7 @@ mod tests {
                 start_car_v1_data - start_car_v1,
             )),
         );
-        let index = car::v2::index::Index::multihash(mapping);
+        let index = crate::v2::index::Index::multihash(mapping);
         writer.write_index(&index).await.unwrap();
 
         let mut buf_writer = writer.finish().await.unwrap();
@@ -361,7 +361,7 @@ mod tests {
         };
 
         writer
-            .write_v1_header(&car::v1::Header::new(vec![root_cid]))
+            .write_v1_header(&crate::v1::Header::new(vec![root_cid]))
             .await
             .unwrap();
 
@@ -403,7 +403,7 @@ mod tests {
             ),
         );
 
-        let index = car::v2::index::Index::multihash(mapping);
+        let index = crate::v2::index::Index::multihash(mapping);
         writer.write_index(&index).await.unwrap();
 
         let mut buf_writer = writer.finish().await.unwrap();

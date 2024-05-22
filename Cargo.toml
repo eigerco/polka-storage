@@ -7,7 +7,7 @@ repository = "https://github.com/eigerco/polka-storage"
 
 [workspace]
 resolver = "2"
-members = ["node", "runtime", "storage/file-storage"]
+members = ["node", "runtime", "storage/file-storage", "storage/mater"]
 
 # FIXME(#@jmg-duarte,#7,14/5/24): remove the patch once something >1.11.0 is released
 [patch.'https://github.com/paritytech/litep2p']

@@ -1,0 +1,33 @@
+[package]
+name = "mater"                # name WIP
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+repository.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# TODO(@jmg-duarte,15/05/2024): reduce the required features
+byteorder = { workspace = true, features = ["i128"] }
+clap = { workspace = true, features = ["derive"] }
+digest = { workspace = true }
+integer-encoding = { workspace = true, features = ["tokio_async"] }
+ipld-core = { workspace = true, features = ["serde"] }
+quick-protobuf = { workspace = true }
+rand = { workspace = true }
+rs_merkle = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_ipld_dagcbor = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+bitflags = { workspace = true }
+tokio-util = { workspace = true, features = ["io"] }
+tokio-stream = { workspace = true }
+ipld-dagpb = { workspace = true }
+
+[lints]
+workspace = true

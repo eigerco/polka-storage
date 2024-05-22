@@ -5,8 +5,8 @@ use ipld_core::{cid::Cid, codec::Codec};
 use serde_ipld_dagcbor::codec::DagCborCodec;
 use tokio::io::{AsyncWrite, AsyncWriteExt};
 
-pub use crate::car::v1::Header;
-use crate::car::Error;
+pub use crate::v1::Header;
+use crate::Error;
 
 /// Write a CARv1 header to the provider writer.
 pub(crate) async fn write_header<W>(writer: &mut W, header: &Header) -> Result<(), Error>
@@ -93,8 +93,8 @@ mod tests {
     };
 
     use super::Writer;
-    use crate::car::{
-        generate_multihash,
+    use crate::{
+        multihash::generate_multihash,
         v1::{Header, Reader},
     };
 

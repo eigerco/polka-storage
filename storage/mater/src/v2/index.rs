@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use integer_encoding::{VarIntAsyncReader, VarIntAsyncWriter};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
-use crate::car::Error;
+use crate::Error;
 
 pub const INDEX_SORTED_CODE: u64 = 0x0400;
 pub const MULTIHASH_INDEX_SORTED_CODE: u64 = 0x0401;
@@ -319,8 +319,8 @@ mod tests {
         io::{AsyncReadExt, AsyncSeekExt, BufReader, ReadBuf},
     };
 
-    use crate::car::{
-        generate_multihash,
+    use crate::{
+        multihash::{generate_multihash, MultihashCode},
         v1::read_block,
         v2::index::{
             read_index, read_index_entry, read_index_sorted, read_multihash_index_sorted,
@@ -328,7 +328,6 @@ mod tests {
             write_multihash_index_sorted, write_single_width_index, Index, IndexEntry,
             MultiWidthIndex, MultihashIndexSorted, SingleWidthIndex,
         },
-        MultihashCode,
     };
 
     fn generate_single_width_index<H>(count: u64) -> SingleWidthIndex

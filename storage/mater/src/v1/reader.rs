@@ -9,7 +9,7 @@ use ipld_core::{
 use serde_ipld_dagcbor::codec::DagCborCodec;
 use tokio::io::{AsyncRead, AsyncReadExt};
 
-use crate::car::{v1::Header, v2::PRAGMA, Error};
+use crate::{v1::Header, v2::PRAGMA, Error};
 
 // `bytes::Buf` might be more useful here
 // https://docs.rs/bytes/1.6.0/bytes/buf/trait.Buf.html
@@ -146,9 +146,9 @@ mod tests {
     use sha2::Sha256;
     use tokio::{fs::File, io::BufReader};
 
-    use crate::car::{
-        generate_multihash,
-        v1::{self, reader::read_cid, Reader},
+    use crate::{
+        multihash::generate_multihash,
+        v1::reader::{read_cid, Reader},
         Error,
     };
 

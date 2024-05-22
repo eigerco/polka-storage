@@ -1,38 +1,5 @@
-// mod chunker;
-// mod pb;
 mod v1;
 mod v2;
-
-use digest::Digest;
-use ipld_core::{
-    cid::{multihash::Multihash, Cid},
-    ipld,
-};
-
-/// Trait to ease implementing generic multihash generation.
-pub trait MultihashCode {
-    /// Multihash code as defined in the [specification](https://github.com/multiformats/multicodec/blob/c954a787dc6a17d099653e5f90d26fbd177d2074/table.csv).
-    const CODE: u64;
-}
-
-/// Generate a multihash for a byte slice.
-pub fn generate_multihash<H>(bytes: &[u8]) -> Multihash<64>
-where
-    H: Digest + MultihashCode,
-{
-    let mut hasher = H::new();
-    hasher.update(&bytes);
-    let hashed_bytes = hasher.finalize();
-    Multihash::wrap(H::CODE, &hashed_bytes).unwrap()
-}
-
-impl MultihashCode for sha2::Sha256 {
-    const CODE: u64 = 0x12;
-}
-
-impl MultihashCode for sha2::Sha512 {
-    const CODE: u64 = 0x13;
-}
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -64,4 +31,35 @@ pub enum Error {
     /// Cannot know width or count from an empty vector.
     #[error("cannot create an index out of an empty `Vec`")]
     EmptyIndexError,
+}
+
+#[cfg(test)]
+mod multihash {
+    use digest::Digest;
+    use ipld_core::cid::multihash::Multihash;
+
+    /// Trait to ease implementing generic multihash generation.
+    pub(crate) trait MultihashCode {
+        /// Multihash code as defined in the [specification](https://github.com/multiformats/multicodec/blob/c954a787dc6a17d099653e5f90d26fbd177d2074/table.csv).
+        const CODE: u64;
+    }
+
+    /// Generate a multihash for a byte slice.
+    pub(crate) fn generate_multihash<H>(bytes: &[u8]) -> Multihash<64>
+    where
+        H: Digest + MultihashCode,
+    {
+        let mut hasher = H::new();
+        hasher.update(&bytes);
+        let hashed_bytes = hasher.finalize();
+        Multihash::wrap(H::CODE, &hashed_bytes).unwrap()
+    }
+
+    impl MultihashCode for sha2::Sha256 {
+        const CODE: u64 = 0x12;
+    }
+
+    impl MultihashCode for sha2::Sha512 {
+        const CODE: u64 = 0x13;
+    }
 }

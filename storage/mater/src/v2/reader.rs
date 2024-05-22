@@ -3,11 +3,8 @@ use tokio::io::{AsyncRead, AsyncReadExt};
 
 use super::index::read_index;
 use crate::{
-    car,
-    car::{
-        v2::{index::Index, Characteristics, Header, PRAGMA},
-        Error,
-    },
+    v2::{index::Index, Characteristics, Header, PRAGMA},
+    Error,
 };
 
 /// Low-level CARv2 reader.
@@ -53,12 +50,12 @@ where
         })
     }
 
-    pub async fn read_v1_header(&mut self) -> Result<car::v1::Header, Error> {
-        Ok(car::v1::read_header(&mut self.reader).await?)
+    pub async fn read_v1_header(&mut self) -> Result<crate::v1::Header, Error> {
+        Ok(crate::v1::read_header(&mut self.reader).await?)
     }
 
     pub async fn read_block(&mut self) -> Result<(Cid, Vec<u8>), Error> {
-        Ok(car::v1::read_block(&mut self.reader).await?)
+        Ok(crate::v1::read_block(&mut self.reader).await?)
     }
 
     pub async fn read_index(&mut self) -> Result<Index, Error> {
@@ -78,8 +75,8 @@ mod tests {
     use sha2::Sha256;
     use tokio::{fs::File, io::AsyncSeekExt};
 
-    use crate::car::{
-        self, generate_multihash, v1,
+    use crate::{
+        multihash::generate_multihash,
         v2::{index::Index, reader::Reader, Error, PRAGMA},
     };
 
