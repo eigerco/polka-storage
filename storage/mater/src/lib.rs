@@ -25,8 +25,8 @@ pub enum Error {
     CarV2Error,
 
     /// Unknown type of index. Supported indexes are
-    /// [`MultiWidthIndex`](`crate::car::v2::MultiWidthIndex`) and
-    /// [`MultihashIndexSorted`](`crate::car::v2::MultihashIndexSorted`).
+    /// [`MultiWidthIndex`](`crate::v2::MultiWidthIndex`) and
+    /// [`MultihashIndexSorted`](`crate::v2::MultihashIndexSorted`).
     #[error("unknown index type {0}")]
     UnknownIndexError(u64),
 
