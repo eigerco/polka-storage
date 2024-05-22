@@ -12,10 +12,11 @@ use xcm_builder::{
     AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowHrmpNotificationsFromRelayChain,
     AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
     DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin, FixedWeightBounds,
-    FrameTransactionalProcessor, FungibleAdapter, IsConcrete, NativeAsset, ParentIsPreset,
+    FrameTransactionalProcessor, FungibleAdapter, IsConcrete, ParentIsPreset,
     RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
     SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit,
     TrailingSetTopicAsId, UsingComponents, WithComputedOrigin, WithUniqueTopic,
+    XcmFeeManagerFromComponents,
 };
 use xcm_executor::XcmExecutor;
 
@@ -24,10 +25,14 @@ use crate::{
     Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmpQueue,
 };
 
-use parachains_common::xcm_config::{ConcreteAssetFromSystem, ParentRelayOrSiblingParachains};
+use parachains_common::xcm_config::{
+    AllSiblingSystemParachains, ConcreteAssetFromSystem, ParentRelayOrSiblingParachains,
+    RelayOrOtherSystemParachains,
+};
 
 parameter_types! {
     pub const RelayLocation: Location = Location::parent();
+    pub const HereLocation: Location = Location::here();
     pub const RelayNetwork: Option<NetworkId> = None;
     pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
     // For the real deployment, it is recommended to set `RelayNetwork` according to the relay chain
@@ -52,7 +57,7 @@ pub type LocalAssetTransactor = FungibleAdapter<
     // Use this currency:
     Balances,
     // Use this currency when it is a fungible asset matching the given location or name:
-    IsConcrete<RelayLocation>,
+    (IsConcrete<RelayLocation>, IsConcrete<HereLocation>),
     // Do a simple punn to convert an AccountId32 Location into a native chain account ID:
     LocationToAccountId,
     // Our chain's account ID type (we can't get away without mentioning it explicitly):
@@ -106,7 +111,11 @@ impl Contains<Location> for ParentOrParentsExecutivePlurality {
     }
 }
 
-pub type TrustedTeleporters = (ConcreteAssetFromSystem<RelayLocation>,);
+pub type TrustedTeleporters = (
+    ConcreteAssetFromSystem<RelayLocation>,
+    ConcreteAssetFromSystem<UniversalLocation>,
+    ConcreteAssetFromSystem<HereLocation>,
+);
 
 pub type Barrier = TrailingSetTopicAsId<
     DenyThenTry<
@@ -128,6 +137,8 @@ pub type Barrier = TrailingSetTopicAsId<
     >,
 >;
 
+pub type WaivedLocations = (RelayOrOtherSystemParachains<AllSiblingSystemParachains, Runtime>,);
+
 pub struct XcmConfig;
 impl xcm_executor::Config for XcmConfig {
     type RuntimeCall = RuntimeCall;
@@ -135,7 +146,7 @@ impl xcm_executor::Config for XcmConfig {
     // How to withdraw and deposit an asset.
     type AssetTransactor = LocalAssetTransactor;
     type OriginConverter = XcmOriginToTransactDispatchOrigin;
-    type IsReserve = NativeAsset;
+    type IsReserve = ();
     type IsTeleporter = TrustedTeleporters;
     type UniversalLocation = UniversalLocation;
     type Barrier = Barrier;
@@ -150,7 +161,7 @@ impl xcm_executor::Config for XcmConfig {
     type MaxAssetsIntoHolding = MaxAssetsIntoHolding;
     type AssetLocker = ();
     type AssetExchanger = ();
-    type FeeManager = ();
+    type FeeManager = XcmFeeManagerFromComponents<WaivedLocations, ()>;
     type MessageExporter = ();
     type UniversalAliases = Nothing;
     type CallDispatcher = RuntimeCall;
@@ -179,7 +190,7 @@ impl pallet_xcm::Config for Runtime {
     type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
     type XcmRouter = XcmRouter;
     type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
-    type XcmExecuteFilter = Nothing;
+    type XcmExecuteFilter = Everything;
     // ^ Disable dispatchable execute on the XCM pallet.
     // Needs to be `Everything` for local testing.
     type XcmExecutor = XcmExecutor<XcmConfig>;
@@ -198,6 +209,7 @@ impl pallet_xcm::Config for Runtime {
     type TrustedLockers = ();
     type SovereignAccountOf = LocationToAccountId;
     type MaxLockers = ConstU32<8>;
+    // TODO:
     type WeightInfo = pallet_xcm::TestWeightInfo;
     type AdminOrigin = EnsureRoot<AccountId>;
     type MaxRemoteLockConsumers = ConstU32<0>;
