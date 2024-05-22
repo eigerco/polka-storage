@@ -1,6 +1,12 @@
 mod v1;
 mod v2;
 
+pub use v1::{Header as CarV1Header, Reader as CarV1Reader, Writer as CarV1Writer};
+pub use v2::{
+    Characteristics, Header as CarV2Header, Index, IndexEntry, MultiWidthIndex,
+    MultihashIndexSorted, Reader as CarV2Reader, SingleWidthIndex, Writer as CarV2Writer,
+};
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error(transparent)]

@@ -77,7 +77,8 @@ mod tests {
 
     use crate::{
         multihash::generate_multihash,
-        v2::{index::Index, reader::Reader, Error, PRAGMA},
+        v2::{index::Index, reader::Reader, PRAGMA},
+        Error,
     };
 
     #[tokio::test]
@@ -257,8 +258,9 @@ mod tests {
         );
 
         loop {
+            // TODO(@jmg-duarte,22/05/2024): review this
             match reader.read_block().await {
-                Ok((cid, _)) => {
+                Ok((_, _)) => {
                     // Kinda hacky, but better than doing a seek later on
                     let position = reader.get_inner_mut().stream_position().await.unwrap();
                     let data_end = header.data_offset + header.data_size;
