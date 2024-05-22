@@ -1,5 +1,3 @@
-use std::io::Cursor;
-
 use integer_encoding::VarIntAsyncWriter;
 use ipld_core::{cid::Cid, codec::Codec};
 use serde_ipld_dagcbor::codec::DagCborCodec;
@@ -83,20 +81,14 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::{io::Cursor, path::Path};
+    use std::path::Path;
 
-    use ipld_core::cid::{multihash::Multihash, Cid, Version};
+    use ipld_core::cid::{multihash::Multihash, Cid};
     use sha2::Sha256;
-    use tokio::{
-        fs::File,
-        io::{BufReader, BufWriter},
-    };
+    use tokio::io::BufWriter;
 
     use super::Writer;
-    use crate::{
-        multihash::generate_multihash,
-        v1::{Header, Reader},
-    };
+    use crate::{multihash::generate_multihash, v1::Header};
 
     const RAW_CODEC: u64 = 0x55;
 

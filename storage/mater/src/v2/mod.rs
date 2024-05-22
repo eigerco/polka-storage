@@ -2,11 +2,10 @@ mod index;
 mod reader;
 mod writer;
 
+use bitflags::bitflags;
 pub use index::{Index, IndexEntry, MultiWidthIndex, MultihashIndexSorted, SingleWidthIndex};
 pub use reader::Reader;
 pub use writer::Writer;
-
-use bitflags::bitflags;
 
 /// The pragma for a CARv2. This is also a valid CARv1 header, with version 2 and no root CIDs.
 pub const PRAGMA: [u8; 11] = [

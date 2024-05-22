@@ -140,9 +140,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::{io::Cursor, path::Path};
+    use std::io::Cursor;
 
-    use ipld_core::cid::{multihash::Multihash, Cid, Version};
+    use ipld_core::cid::{Cid, Version};
     use sha2::Sha256;
     use tokio::{fs::File, io::BufReader};
 

@@ -2,11 +2,8 @@ use byteorder::{LittleEndian, WriteBytesExt};
 use ipld_core::cid::Cid;
 use tokio::io::{AsyncWrite, AsyncWriteExt};
 
-use crate::Error;
-
-use crate::v2::index::Index;
-
 use super::{Header, PRAGMA};
+use crate::{v2::index::Index, Error};
 
 /// Low-level CARv2 writer.
 // TODO(@jmg-duarte,17/05/2024): add padding support
@@ -77,26 +74,24 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
-    use std::io::Cursor;
-    use std::panic;
-    use std::{collections::BTreeMap, io::Seek, ops::Index};
+    use std::{collections::BTreeMap, io::Cursor};
 
-    use ipld_core::cid::{Cid, CidGeneric};
-    use ipld_core::ipld::Ipld;
-    use ipld_dagpb::{DagPbCodec, PbNode};
+    use ipld_core::{cid::Cid, ipld::Ipld};
+    use ipld_dagpb::PbNode;
     use sha2::Sha256;
-    use tokio::fs::{File, OpenOptions};
-    use tokio::io::BufWriter;
-    use tokio::io::{AsyncSeekExt, AsyncWriteExt};
+    use tokio::{
+        fs::File,
+        io::{AsyncSeekExt, BufWriter},
+    };
     use tokio_stream::StreamExt;
     use tokio_util::io::ReaderStream;
 
     use crate::{
-        multihash::generate_multihash,
-        multihash::MultihashCode,
-        v1::Reader,
-        v2::{index::IndexEntry, index::MultiWidthIndex, index::SingleWidthIndex, Header, Writer},
+        multihash::{generate_multihash, MultihashCode},
+        v2::{
+            index::{IndexEntry, MultiWidthIndex, SingleWidthIndex},
+            Header, Writer,
+        },
     };
 
     const RAW_CODEC: u64 = 0x55;

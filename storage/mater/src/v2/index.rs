@@ -311,13 +311,9 @@ mod tests {
         io::Cursor,
     };
 
-    use digest::generic_array::GenericArray;
-    use rand::{random, Fill, Rng};
+    use rand::{random, Rng};
     use sha2::{Digest, Sha256, Sha512};
-    use tokio::{
-        fs::File,
-        io::{AsyncReadExt, AsyncSeekExt, BufReader, ReadBuf},
-    };
+    use tokio::{fs::File, io::AsyncSeekExt};
 
     use crate::{
         multihash::{generate_multihash, MultihashCode},
