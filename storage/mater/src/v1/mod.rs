@@ -13,14 +13,21 @@ pub(crate) use crate::v1::{
 /// Low-level CARv1 header.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Header {
-    pub version: u8,
+    /// CAR file version.
+    ///
+    /// It is always 1, as defined in the
+    /// [specification](https://ipld.io/specs/transport/car/carv1/#constraints).
+    version: u8,
+
+    /// Root [`Cid`](`ipld_core::cid::Cid`)s for the contained data.
     pub roots: Vec<Cid>,
 }
 
 impl Header {
-    /// Construct a new CARv1 header.
+    /// Construct a new [`CarV1Header`](`crate::v1::Header`).
     ///
-    /// The version will always be 1.
+    /// The version will always be 1, as defined in the
+    /// [specification](https://ipld.io/specs/transport/car/carv1/#constraints).
     pub fn new(roots: Vec<Cid>) -> Self {
         Self { version: 1, roots }
     }

@@ -6,7 +6,7 @@ use tokio::io::{AsyncWrite, AsyncWriteExt};
 pub use crate::v1::Header;
 use crate::Error;
 
-/// Write a CARv1 header to the provider writer.
+/// Write [`CarV1Header`](`crate::v1::Header`) to the provider writer.
 pub(crate) async fn write_header<W>(writer: &mut W, header: &Header) -> Result<(), Error>
 where
     W: AsyncWrite + Unpin,
@@ -17,7 +17,7 @@ where
     Ok(())
 }
 
-/// Write a [`Cid`] and block to the given writer.
+/// Write a [`Cid`] and data block to the given writer.
 ///
 /// This is a low-level function to be used in the implementation of CAR writers.
 pub(crate) async fn write_block<W, Block>(
@@ -45,7 +45,7 @@ pub struct Writer<W> {
 }
 
 impl<W> Writer<W> {
-    /// Construct a new CARv1 writer.
+    /// Construct a new [`CarV1Writer`](`crate::v1::Writer`).
     ///
     /// Takes a writer into which the data will be written.
     pub fn new(writer: W) -> Self {
@@ -57,9 +57,7 @@ impl<W> Writer<W>
 where
     W: AsyncWrite + Unpin,
 {
-    /// Write a CARv1 header.
-    ///
-    /// * If the header has already been written, this is a no-op.
+    /// Write a [`CarV1Header`](`crate::v1::Header`).
     pub async fn write_header(&mut self, header: &Header) -> Result<(), Error> {
         write_header(&mut self.writer, header).await
     }

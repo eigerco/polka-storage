@@ -3,27 +3,20 @@ mod v2;
 
 pub use v1::{Header as CarV1Header, Reader as CarV1Reader, Writer as CarV1Writer};
 pub use v2::{
-    Characteristics, Header as CarV2Header, Index, IndexEntry, MultiWidthIndex,
-    MultihashIndexSorted, Reader as CarV2Reader, SingleWidthIndex, Writer as CarV2Writer,
+    Characteristics, Header as CarV2Header, Index, IndexEntry, IndexSorted, MultihashIndexSorted,
+    Reader as CarV2Reader, SingleWidthIndex, Writer as CarV2Writer,
 };
 
 // We need to expose this because `read_block` returns `(Cid, Vec<u8>)`.
 pub use ipld_core::cid::Cid;
 
+/// CAR handling errors.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error(transparent)]
-    CodecError(#[from] serde_ipld_dagcbor::error::CodecError),
-
-    #[error(transparent)]
-    IoError(#[from] tokio::io::Error),
-
-    #[error(transparent)]
-    CidError(#[from] ipld_core::cid::Error),
-
-    #[error(transparent)]
-    MultihashError(#[from] ipld_core::cid::multihash::Error),
-
+    /// Returned when a version was expected, but another was received.
+    ///
+    /// For example, when reading CARv1 files, the only valid version is 1,
+    /// otherwise, this error should be returned.
     #[error("expected version {expected}, but received version {received} instead")]
     VersionMismatchError { expected: u8, received: u8 },
 
@@ -33,7 +26,7 @@ pub enum Error {
     EmptyRootsError,
 
     /// Unknown type of index. Supported indexes are
-    /// [`MultiWidthIndex`](`crate::v2::MultiWidthIndex`) and
+    /// [`IndexSorted`](`crate::v2::IndexSorted`) and
     /// [`MultihashIndexSorted`](`crate::v2::MultihashIndexSorted`).
     #[error("unknown index type {0}")]
     UnknownIndexError(u64),
@@ -47,9 +40,9 @@ pub enum Error {
     EmptyIndexError,
 
     /// The [specification](https://ipld.io/specs/transport/car/carv2/#characteristics)
-    /// does not discuss how to handle incoming characteristics
+    /// does not discuss how to handle unknown characteristics
     /// — i.e. if we should ignore them, truncate them or return an error —
-    /// we decided on returning an error.
+    /// we decided to return an error when there are unknown bits set.
     #[error("unknown characteristics were set: {0}")]
     UnknownCharacteristicsError(u128),
 
@@ -58,6 +51,22 @@ pub enum Error {
     /// if the received pragma is not the same, we return an error.
     #[error("received an invalid pragma: {0:?}")]
     InvalidPragmaError(Vec<u8>),
+
+    /// See [`CodecError`](serde_ipld_dagcbor::error::CodecError) for more information.
+    #[error(transparent)]
+    CodecError(#[from] serde_ipld_dagcbor::error::CodecError),
+
+    /// See [`IoError`](tokio::io::Error) for more information.
+    #[error(transparent)]
+    IoError(#[from] tokio::io::Error),
+
+    /// See [`CidError`](ipld_core::cid::Error) for more information.
+    #[error(transparent)]
+    CidError(#[from] ipld_core::cid::Error),
+
+    /// See [`MultihashError`](ipld_core::cid::multihash::Error) for more information.
+    #[error(transparent)]
+    MultihashError(#[from] ipld_core::cid::multihash::Error),
 }
 
 #[cfg(test)]

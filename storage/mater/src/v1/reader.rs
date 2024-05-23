@@ -28,6 +28,7 @@ where
     }
 
     let header: Header = DagCborCodec::decode_from_slice(&header_buffer)?;
+    // NOTE(@jmg-duarte,23/05/2024): implementing a custom Deserialize for Header would make this shorter and overall handling more reliable
     if header.version != 1 {
         return Err(Error::VersionMismatchError {
             expected: 1,

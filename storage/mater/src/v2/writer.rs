@@ -89,7 +89,7 @@ mod tests {
     use crate::{
         multihash::{generate_multihash, MultihashCode},
         v2::{
-            index::{IndexEntry, MultiWidthIndex, SingleWidthIndex},
+            index::{IndexEntry, IndexSorted, SingleWidthIndex},
             Header, Writer,
         },
     };
@@ -209,7 +209,7 @@ mod tests {
         let mut mapping = BTreeMap::new();
         mapping.insert(
             Sha256::CODE,
-            MultiWidthIndex::from(IndexEntry::new(
+            IndexSorted::from(IndexEntry::new(
                 root_cid.hash().digest().to_vec(),
                 // This detail is "hidden" in the spec even though it's SO IMPORTANT
                 // See: https://ipld.io/specs/transport/car/carv2/#format-0x0400-indexsorted
@@ -324,7 +324,7 @@ mod tests {
         let mut mapping = BTreeMap::new();
         mapping.insert(
             Sha256::CODE,
-            MultiWidthIndex::from(
+            IndexSorted::from(
                 SingleWidthIndex::try_from(
                     file_blocks
                         .iter()

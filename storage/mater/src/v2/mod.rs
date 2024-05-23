@@ -3,7 +3,7 @@ mod reader;
 mod writer;
 
 use bitflags::bitflags;
-pub use index::{Index, IndexEntry, MultiWidthIndex, MultihashIndexSorted, SingleWidthIndex};
+pub use index::{Index, IndexEntry, IndexSorted, MultihashIndexSorted, SingleWidthIndex};
 pub use reader::Reader;
 pub use writer::Writer;
 

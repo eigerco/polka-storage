@@ -5,7 +5,12 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 use crate::Error;
 
+/// `IndexSorted` code format value, as defined in the
+/// [specification](https://ipld.io/specs/transport/car/carv2/#format-0x0400-indexsorted).
 pub const INDEX_SORTED_CODE: u64 = 0x0400;
+
+/// `MultihashIndexSorted` code format value, as defined in the
+/// [specification](https://ipld.io/specs/transport/car/carv2/#format-0x0401-multihashindexsorted).
 pub const MULTIHASH_INDEX_SORTED_CODE: u64 = 0x0401;
 
 // Basically, everything that does not have explicit endianness
@@ -26,7 +31,7 @@ pub struct IndexEntry {
 }
 
 impl IndexEntry {
-    /// Construct a new [`IndexEntry`].
+    /// Construct a new [`IndexEntry`](`crate::v2::IndexEntry`).
     pub fn new(digest: Vec<u8>, offset: u64) -> Self {
         Self { digest, offset }
     }
@@ -43,7 +48,7 @@ pub struct SingleWidthIndex {
     /// (i.e. `self.count * self.width`).
     ///
     /// See `go-car`'s source code for more information:
-    /// https://github.com/ipld/go-car/blob/45b81c1cc5117b3340dfdb025afeca90bfbe8d86/v2/index/indexsorted.go#L29
+    /// <https://github.com/ipld/go-car/blob/45b81c1cc5117b3340dfdb025afeca90bfbe8d86/v2/index/indexsorted.go#L29>
     pub count: u64,
 
     /// The index entries.
@@ -51,12 +56,12 @@ pub struct SingleWidthIndex {
 }
 
 impl SingleWidthIndex {
-    /// Construct a new [`SingleWidthIndex`].
+    /// Construct a new [`SingleWidthIndex`](`crate::v2::SingleWidthIndex`).
     ///
     /// Notes:
     /// * The `digest_width` should not account for the offset length.
     /// * This function sorts the `entries`.
-    fn new(digest_width: u32, count: u64, mut entries: Vec<IndexEntry>) -> Self {
+    pub fn new(digest_width: u32, count: u64, mut entries: Vec<IndexEntry>) -> Self {
         entries.sort_by(|fst, snd| fst.digest.cmp(&snd.digest));
         Self {
             width: digest_width + 8, // digest_width + offset len
@@ -101,21 +106,21 @@ impl TryFrom<Vec<IndexEntry>> for SingleWidthIndex {
 ///
 /// For more details, read the [`Format 0x0400: IndexSorted`](https://ipld.io/specs/transport/car/carv2/#format-0x0400-indexsorted) section in the CARv2 specification.
 #[derive(Debug, PartialEq, Eq)]
-pub struct MultiWidthIndex(pub Vec<SingleWidthIndex>);
+pub struct IndexSorted(pub Vec<SingleWidthIndex>);
 
-impl From<IndexEntry> for MultiWidthIndex {
+impl From<IndexEntry> for IndexSorted {
     fn from(value: IndexEntry) -> Self {
         Self(vec![SingleWidthIndex::from(value)])
     }
 }
 
-impl From<SingleWidthIndex> for MultiWidthIndex {
+impl From<SingleWidthIndex> for IndexSorted {
     fn from(value: SingleWidthIndex) -> Self {
         Self(vec![value])
     }
 }
 
-impl From<Vec<SingleWidthIndex>> for MultiWidthIndex {
+impl From<Vec<SingleWidthIndex>> for IndexSorted {
     fn from(value: Vec<SingleWidthIndex>) -> Self {
         Self(value)
     }
@@ -127,11 +132,11 @@ impl From<Vec<SingleWidthIndex>> for MultiWidthIndex {
 #[derive(Debug, PartialEq, Eq)]
 pub struct MultihashIndexSorted(
     // NOTE(@jmg-duarte,21/05/2024): maybe we should implement Deref where Deref::Target = BTreeMap<u64, MultiwidthIndex>?
-    pub BTreeMap<u64, MultiWidthIndex>,
+    pub BTreeMap<u64, IndexSorted>,
 );
 
-impl From<BTreeMap<u64, MultiWidthIndex>> for MultihashIndexSorted {
-    fn from(value: BTreeMap<u64, MultiWidthIndex>) -> Self {
+impl From<BTreeMap<u64, IndexSorted>> for MultihashIndexSorted {
+    fn from(value: BTreeMap<u64, IndexSorted>) -> Self {
         Self(value)
     }
 }
@@ -139,12 +144,12 @@ impl From<BTreeMap<u64, MultiWidthIndex>> for MultihashIndexSorted {
 /// CARv2 index.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Index {
-    IndexSorted(MultiWidthIndex),
+    IndexSorted(IndexSorted),
     MultihashIndexSorted(MultihashIndexSorted),
 }
 
 impl Index {
-    pub fn multihash(index: BTreeMap<u64, MultiWidthIndex>) -> Self {
+    pub fn multihash(index: BTreeMap<u64, IndexSorted>) -> Self {
         Self::MultihashIndexSorted(index.into())
     }
 }
@@ -183,10 +188,7 @@ where
     Ok(())
 }
 
-pub(crate) async fn write_index_sorted<W>(
-    mut writer: W,
-    index: &MultiWidthIndex,
-) -> Result<(), Error>
+pub(crate) async fn write_index_sorted<W>(mut writer: W, index: &IndexSorted) -> Result<(), Error>
 where
     W: AsyncWrite + Unpin,
 {
@@ -253,7 +255,7 @@ where
     Ok(MultihashIndexSorted(indexes))
 }
 
-pub(crate) async fn read_index_sorted<R>(mut reader: R) -> Result<MultiWidthIndex, Error>
+pub(crate) async fn read_index_sorted<R>(mut reader: R) -> Result<IndexSorted, Error>
 where
     R: AsyncRead + Unpin,
 {
@@ -263,7 +265,7 @@ where
         let index = read_single_width_index(&mut reader).await?;
         buckets.push(index);
     }
-    Ok(MultiWidthIndex(buckets))
+    Ok(IndexSorted(buckets))
 }
 
 pub(crate) async fn read_single_width_index<R>(mut reader: R) -> Result<SingleWidthIndex, Error>
@@ -321,8 +323,8 @@ mod tests {
         v2::index::{
             read_index, read_index_entry, read_index_sorted, read_multihash_index_sorted,
             read_single_width_index, write_index, write_index_entry, write_index_sorted,
-            write_multihash_index_sorted, write_single_width_index, Index, IndexEntry,
-            MultiWidthIndex, MultihashIndexSorted, SingleWidthIndex,
+            write_multihash_index_sorted, write_single_width_index, Index, IndexEntry, IndexSorted,
+            MultihashIndexSorted, SingleWidthIndex,
         },
     };
 
@@ -488,7 +490,7 @@ mod tests {
 
     #[tokio::test]
     async fn roundtrip_multiwidth_index() {
-        let index = MultiWidthIndex(vec![
+        let index = IndexSorted(vec![
             generate_single_width_index::<Sha256>(5),
             generate_single_width_index::<Sha512>(5),
         ]);
@@ -550,7 +552,7 @@ mod tests {
 
     #[tokio::test]
     async fn roundtrip_index_sorted() {
-        let index = Index::IndexSorted(MultiWidthIndex(vec![
+        let index = Index::IndexSorted(IndexSorted(vec![
             generate_single_width_index::<Sha256>(5),
             generate_single_width_index::<Sha512>(5),
         ]));
