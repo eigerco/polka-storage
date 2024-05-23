@@ -22,11 +22,16 @@ impl<R> Reader<R>
 where
     R: AsyncRead + Unpin,
 {
+    /// Read the CARv2 pragma.
+    ///
+    /// This function fails if the pragma does not match the one defined in the
+    /// [specification](https://ipld.io/specs/transport/car/carv2/#pragma).
     pub async fn read_pragma(&mut self) -> Result<Vec<u8>, Error> {
         let mut pragma_buffer = vec![0; PRAGMA.len()];
         self.reader.read_exact(&mut pragma_buffer).await?;
-        // NOTE(@jmg-duarte,20/05/2024): Should we validate the pragma here?
-        debug_assert_eq!(pragma_buffer, PRAGMA);
+        if pragma_buffer != PRAGMA {
+            return Err(Error::InvalidPragmaError(pragma_buffer));
+        }
         Ok(pragma_buffer)
     }
 

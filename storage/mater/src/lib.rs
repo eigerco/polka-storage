@@ -49,6 +49,12 @@ pub enum Error {
     /// we decided on returning an error.
     #[error("unknown characteristics were set: {0}")]
     UnknownCharacteristicsError(u128),
+
+    /// According to the [specification](https://ipld.io/specs/transport/car/carv2/#pragma)
+    /// the pragma is composed of a pre-defined list of bytes,
+    /// if the received pragma is not the same, we return an error.
+    #[error("received an invalid pragma: {0:?}")]
+    InvalidPragmaError(Vec<u8>),
 }
 
 #[cfg(test)]
