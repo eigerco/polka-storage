@@ -11,7 +11,7 @@ pub(crate) use crate::v1::{
 };
 
 /// Low-level CARv1 header.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Header {
     /// CAR file version.
     ///
@@ -31,4 +31,60 @@ impl Header {
     pub fn new(roots: Vec<Cid>) -> Self {
         Self { version: 1, roots }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::Cursor;
+
+    use ipld_core::cid::Cid;
+    use sha2::Sha256;
+    use tokio::io::BufWriter;
+
+    use crate::multihash::generate_multihash;
+    use crate::v1::{Header, Reader, Writer};
+
+    pub const RAW_CODEC: u64 = 0x55;
+
+    impl Writer<BufWriter<Vec<u8>>> {
+        pub fn test_writer() -> Self {
+            let buffer = Vec::new();
+            let buf_writer = BufWriter::new(buffer);
+            Writer::new(buf_writer)
+        }
+    }
+
+    #[tokio::test]
+    async fn roundtrip_lorem() {
+        let file_contents = tokio::fs::read("tests/fixtures/original/lorem.txt")
+            .await
+            .unwrap();
+        let contents_multihash = generate_multihash::<Sha256>(&file_contents);
+        let root_cid = Cid::new_v1(0x55, contents_multihash);
+
+        let written_header = Header::new(vec![root_cid]);
+        let mut writer = crate::v1::Writer::test_writer();
+        writer.write_header(&written_header).await.unwrap();
+
+        // There's only one block
+        writer.write_block(&root_cid, &file_contents).await.unwrap();
+        let buf_writer = writer.finish().await.unwrap();
+        let expected_header = tokio::fs::read("tests/fixtures/car_v1/lorem.car")
+            .await
+            .unwrap();
+        assert_eq!(&expected_header, buf_writer.get_ref());
+
+        let buffer = buf_writer.into_inner();
+        let mut reader = Reader::new(Cursor::new(buffer));
+        let read_header = reader.read_header().await.unwrap();
+        assert_eq!(read_header, written_header);
+
+        let (read_cid, read_block) = reader.read_block().await.unwrap();
+        assert_eq!(read_cid, root_cid);
+        assert_eq!(read_block, file_contents);
+    }
+
+    // TODO(@jmg-duarte,23/05/2024): add roundtrip test for spaceglenda
+    // adding it manually right now is too much work due to the missing stores
+    // and other niceties
 }

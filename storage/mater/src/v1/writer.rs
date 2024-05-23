@@ -79,36 +79,21 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
-
-    use ipld_core::cid::{multihash::Multihash, Cid};
+    use ipld_core::cid::Cid;
     use sha2::Sha256;
-    use tokio::io::BufWriter;
 
     use super::Writer;
-    use crate::{multihash::generate_multihash, v1::Header};
-
-    const RAW_CODEC: u64 = 0x55;
-
-    impl Writer<BufWriter<Vec<u8>>> {
-        fn test_writer() -> Self {
-            let buffer = Vec::new();
-            let buf_writer = BufWriter::new(buffer);
-            Writer::new(buf_writer)
-        }
-    }
-
-    async fn file_multihash<P>(path: P) -> Multihash<64>
-    where
-        P: AsRef<Path>,
-    {
-        let file_contents = tokio::fs::read(path).await.unwrap();
-        generate_multihash::<Sha256>(&file_contents)
-    }
+    use crate::{
+        multihash::generate_multihash,
+        v1::{tests::RAW_CODEC, Header},
+    };
 
     #[tokio::test]
     async fn header_writer() {
-        let contents_multihash = file_multihash("tests/fixtures/original/lorem.txt").await;
+        let file_contents = tokio::fs::read("tests/fixtures/original/lorem.txt")
+            .await
+            .unwrap();
+        let contents_multihash = generate_multihash::<Sha256>(&file_contents);
         let root_cid = Cid::new_v1(RAW_CODEC, contents_multihash);
 
         let mut writer = Writer::test_writer();
@@ -147,6 +132,4 @@ mod tests {
             .unwrap();
         assert_eq!(&expected_header, buf_writer.get_ref());
     }
-
-    // TODO(@jmg-duarte,19/05/2024): add more tests
 }
