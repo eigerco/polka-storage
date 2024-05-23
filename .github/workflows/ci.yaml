@@ -64,10 +64,6 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('**/Cargo.toml') }}
-      - name: Install protobuf compiler
-        run: |
-          sudo apt-get update
-          sudo apt-get install protobuf-compiler
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.77.0
