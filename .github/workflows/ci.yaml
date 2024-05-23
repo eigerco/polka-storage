@@ -71,6 +71,7 @@ jobs:
           components: clippy rust-src
       - name: List version
         run: |
+          rustup show
           cargo --version
           cargo clippy --version
       - name: Build with try-runtime feature
