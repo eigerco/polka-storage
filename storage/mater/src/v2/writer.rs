@@ -73,8 +73,8 @@ where
 mod tests {
     use std::{collections::BTreeMap, io::Cursor};
 
-    use ipld_core::{cid::Cid, ipld::Ipld};
-    use ipld_dagpb::PbNode;
+    use ipld_core::cid::Cid;
+    use ipld_dagpb::{PbLink, PbNode};
     use sha2::Sha256;
     use tokio::{
         fs::File,
@@ -228,17 +228,13 @@ mod tests {
 
         let links = file_blocks
             .iter()
-            .map(|(cid, block)| {
-                // NOTE(@jmg-duarte,22/05/2024): really bad API because PbLink is not public...
-                // https://github.com/ipld/rust-ipld-dagpb/pull/7
-                let mut pb_link = BTreeMap::<String, Ipld>::new();
-                pb_link.insert("Hash".to_string(), cid.into());
-                pb_link.insert("Name".to_string(), "".into());
-                pb_link.insert("Tsize".to_string(), block.len().into());
-                (&Ipld::from(pb_link)).try_into()
+            .map(|(cid, block)| PbLink {
+                cid: cid.clone(),
+                // NOTE(@jmg-duarte,23/05/2024): actually how go-car does it... kinda weird if you ask me
+                name: Some("".to_string()),
+                size: Some(block.len() as u64),
             })
-            .collect::<Result<_, _>>()
-            .unwrap();
+            .collect();
         let node = PbNode { links, data: None };
         let mut node_bytes = node.into_bytes();
         // This is very much cheating but the contents here are the UnixFS wrapper for the node
