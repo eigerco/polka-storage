@@ -7,6 +7,9 @@ pub use v2::{
     MultihashIndexSorted, Reader as CarV2Reader, SingleWidthIndex, Writer as CarV2Writer,
 };
 
+// We need to expose this because `read_block` returns `(Cid, Vec<u8>)`.
+pub use ipld_core::cid::Cid;
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error(transparent)]
