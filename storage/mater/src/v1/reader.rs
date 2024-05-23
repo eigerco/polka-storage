@@ -1,65 +1,11 @@
-use std::io::{Cursor, Seek};
+use std::io::Cursor;
 
-use byteorder::ReadBytesExt;
-use integer_encoding::{VarIntAsyncReader, VarIntReader};
-use ipld_core::{
-    cid::{multihash::Multihash, Cid},
-    codec::Codec,
-};
+use integer_encoding::VarIntAsyncReader;
+use ipld_core::{cid::Cid, codec::Codec};
 use serde_ipld_dagcbor::codec::DagCborCodec;
 use tokio::io::{AsyncRead, AsyncReadExt};
 
 use crate::{v1::Header, v2::PRAGMA, Error};
-
-// `bytes::Buf` might be more useful here
-// https://docs.rs/bytes/1.6.0/bytes/buf/trait.Buf.html
-fn read_cid_v1<B>(cursor: &mut Cursor<B>) -> Result<Cid, Error>
-where
-    B: AsRef<[u8]>,
-{
-    let cid_version: u64 = cursor.read_varint()?;
-    debug_assert_eq!(cid_version, 1);
-    let codec_code: u64 = cursor.read_varint()?;
-
-    let hash_function_code: u64 = cursor.read_varint()?;
-    let hash_digest_size: usize = cursor.read_varint()?;
-
-    let cursor_position = cursor.position() as usize;
-    let hash_digest_slice =
-        &cursor.get_ref().as_ref()[cursor_position..(cursor_position + hash_digest_size)];
-
-    // At this point, the cursor holds an allocated buffer
-    // Reading into a new buffer would require the new buffer to be allocated
-    // Taking the slice directly from the inner buffer and setting the position avoids that allocation
-    let multihash = Multihash::wrap(hash_function_code, hash_digest_slice)?;
-    cursor.set_position((cursor_position + hash_digest_size) as u64);
-
-    Ok(Cid::new_v1(codec_code, multihash))
-}
-
-fn read_cid<B>(cursor: &mut Cursor<B>) -> Result<Cid, Error>
-where
-    B: AsRef<[u8]>,
-{
-    // Attempt to read it as a CIDv0 first
-    let cid_v0_hash_code = cursor.read_u8()? as u64;
-    let cid_v0_hash_length = cursor.read_u8()? as usize;
-
-    if cid_v0_hash_code == 0x12 && cid_v0_hash_length == 0x20 {
-        let cursor_position = cursor.position() as usize;
-        let multihash = Multihash::wrap(
-            cid_v0_hash_code,
-            &cursor.get_ref().as_ref()[cursor_position..(cursor_position + cid_v0_hash_length)],
-        )?;
-        return Ok(Cid::new_v0(multihash)?);
-    }
-
-    // Couldn't read a CIDv0, means it is V1
-    // rewind to regain the two bytes we read
-    cursor.rewind()?;
-
-    read_cid_v1(cursor)
-}
 
 pub(crate) async fn read_header<R>(mut reader: R) -> Result<Header, Error>
 where
@@ -94,7 +40,7 @@ where
 
     // We're cheating to get Seek
     let mut full_block_cursor = Cursor::new(full_block_buffer);
-    let cid = read_cid(&mut full_block_cursor)?;
+    let cid = Cid::read_bytes(&mut full_block_cursor)?;
 
     let data_start_position = full_block_cursor.position() as usize;
     let mut full_block_buffer = full_block_cursor.into_inner();
@@ -140,45 +86,13 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::io::Cursor;
-
-    use ipld_core::cid::{Cid, Version};
+    use ipld_core::cid::Cid;
     use sha2::Sha256;
     use tokio::{fs::File, io::BufReader};
 
-    use crate::{
-        multihash::generate_multihash,
-        v1::reader::{read_cid, Reader},
-        Error,
-    };
+    use crate::{multihash::generate_multihash, v1::reader::Reader, Error};
 
     const RAW_CODEC: u64 = 0x55;
-
-    #[test]
-    fn read_cid_v0_roundtrip() {
-        let contents = std::fs::read("tests/fixtures/original/lorem.txt").unwrap();
-        let contents_multihash = generate_multihash::<Sha256>(&contents);
-        let contents_cid = Cid::new_v0(contents_multihash).unwrap();
-        let encoded_cid = contents_cid.to_bytes();
-        let mut cursor = Cursor::new(encoded_cid);
-
-        let cid = read_cid(&mut cursor).unwrap();
-        assert_eq!(cid.version(), Version::V0);
-        assert_eq!(cid.hash(), &contents_multihash);
-    }
-
-    #[test]
-    fn read_cid_v1_roundtrip() {
-        let contents = std::fs::read("tests/fixtures/original/lorem.txt").unwrap();
-        let contents_multihash = generate_multihash::<Sha256>(&contents);
-        let contents_cid = Cid::new_v1(RAW_CODEC, contents_multihash);
-        let encoded_cid = contents_cid.to_bytes();
-        let mut cursor = Cursor::new(encoded_cid);
-
-        let cid = super::read_cid_v1(&mut cursor).unwrap();
-        assert_eq!(cid.version(), Version::V1);
-        assert_eq!(cid.hash(), &contents_multihash);
-    }
 
     #[tokio::test]
     async fn header_reader() {
