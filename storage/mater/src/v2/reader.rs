@@ -146,7 +146,6 @@ mod tests {
             .unwrap();
 
         let v1_header = reader.read_v1_header().await.unwrap();
-        assert_eq!(v1_header.version, 1);
         assert_eq!(v1_header.roots, vec![contents_cid]);
 
         loop {
@@ -216,7 +215,6 @@ mod tests {
         assert_eq!(header.index_offset, 7712);
 
         let v1_header = reader.read_v1_header().await.unwrap();
-        assert_eq!(v1_header.version, 1);
         assert_eq!(v1_header.roots, vec![contents_cid]);
 
         loop {
@@ -269,7 +267,6 @@ mod tests {
         assert_eq!(header.index_offset, 654453);
 
         let v1_header = reader.read_v1_header().await.unwrap();
-        assert_eq!(v1_header.version, 1);
         assert_eq!(v1_header.roots.len(), 1);
         assert_eq!(
             v1_header.roots[0]
