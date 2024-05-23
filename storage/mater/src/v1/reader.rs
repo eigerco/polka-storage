@@ -21,11 +21,14 @@ where
     // > decode since it does not vary for the CARv2 format.
     // We're skipping the first byte because we already read the length
     if header_buffer.starts_with(&PRAGMA[1..]) {
-        return Err(Error::CarV2Error);
+        return Err(Error::VersionMismatchError {
+            expected: 1,
+            received: 2,
+        });
     }
 
     let header: Header = DagCborCodec::decode_from_slice(&header_buffer)?;
-    if header.version == 1 {
+    if header.version != 1 {
         return Err(Error::VersionMismatchError {
             expected: 1,
             received: header.version,
@@ -149,7 +152,13 @@ mod tests {
         let mut reader = Reader::new(file);
         let header = reader.read_header().await;
         println!("{:?}", header);
-        assert!(matches!(header, Err(Error::CarV2Error)));
+        assert!(matches!(
+            header,
+            Err(Error::VersionMismatchError {
+                expected: 1,
+                received: 2
+            })
+        ));
     }
 
     // TODO(@jmg-duarte,19/05/2024): add more tests

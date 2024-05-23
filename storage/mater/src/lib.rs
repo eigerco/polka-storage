@@ -31,9 +31,6 @@ pub enum Error {
     #[error("CAR file must have roots")]
     EmptyRootsError,
 
-    #[error("trying to read V2")]
-    CarV2Error,
-
     /// Unknown type of index. Supported indexes are
     /// [`MultiWidthIndex`](`crate::v2::MultiWidthIndex`) and
     /// [`MultihashIndexSorted`](`crate::v2::MultihashIndexSorted`).
