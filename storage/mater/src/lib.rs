@@ -44,6 +44,9 @@ pub enum Error {
     /// Cannot know width or count from an empty vector.
     #[error("cannot create an index out of an empty `Vec`")]
     EmptyIndexError,
+
+    #[error("unknown characteristics were set: {0}")]
+    UnknownCharacteristicsError(u128),
 }
 
 #[cfg(test)]

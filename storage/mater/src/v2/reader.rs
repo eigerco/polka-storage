@@ -35,8 +35,9 @@ where
         // Even though the standard doesn't explicitly state endianness, go-car does
         // https://github.com/ipld/go-car/blob/45b81c1cc5117b3340dfdb025afeca90bfbe8d86/v2/car.go#L51-L69
         let characteristics_bitfield = self.reader.read_u128_le().await?;
-        // NOTE(@jmg-duarte,19/05/2024): unsure if we should fail on unknown bits, truncate them, or ignore
-        let characteristics = Characteristics::from_bits_retain(characteristics_bitfield);
+
+        let characteristics = Characteristics::from_bits(characteristics_bitfield)
+            .ok_or(Error::UnknownCharacteristicsError(characteristics_bitfield))?;
 
         let data_offset = self.reader.read_u64_le().await?;
         let data_size = self.reader.read_u64_le().await?;
