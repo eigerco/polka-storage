@@ -65,6 +65,7 @@ pub struct Reader<R> {
 }
 
 impl<R> Reader<R> {
+    /// Constructs a new [`CarV1Reader`](`crate::v1::Reader`).
     pub fn new(reader: R) -> Self {
         Self { reader }
     }
@@ -74,21 +75,29 @@ impl<R> Reader<R>
 where
     R: AsyncRead + Unpin,
 {
-    /// Read an [`Header`].
+    /// Read a [`CarV1Header`](`crate::v1::Header`).
+    ///
+    /// As defined in the [specification constraints](https://ipld.io/specs/transport/car/carv1/#constraints),
+    /// this function will return an error if:
+    /// * The read header does not have version 1.
+    /// * The read header does not have roots.
+    ///
+    /// For more information, check the [header specification](https://ipld.io/specs/transport/car/carv1/#header).
     pub async fn read_header(&mut self) -> Result<Header, Error> {
         read_header(&mut self.reader).await
     }
 
-    /// Reads a block.
+    /// Reads a [`Cid`][`ipld_core::cid::Cid`] and a data block.
     ///
     /// A block is composed of a CID (either version 0 or 1) and data, it is prefixed with the data length.
-    /// Below you can see a diagram:
     /// ```text
     /// ┌──────────────────────┬─────┬────────────────────────┐
     /// │ Data length (varint) │ CID │ Data block (raw bytes) │
     /// └──────────────────────┴─────┴────────────────────────┘
     /// ```
-    /// The data block is returned AS IS, callers should use the codec field of the [`Cid`] to parse it.
+    /// *The data block is returned AS IS, callers should use the codec field of the [`Cid`] to parse it.*
+    ///
+    /// For more information, check the [block specification](https://ipld.io/specs/transport/car/carv1/#data).
     pub async fn read_block(&mut self) -> Result<(Cid, Vec<u8>), Error> {
         read_block(&mut self.reader).await
     }
