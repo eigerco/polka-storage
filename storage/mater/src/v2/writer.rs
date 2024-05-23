@@ -6,7 +6,6 @@ use super::{Header, PRAGMA};
 use crate::{v2::index::Index, Error};
 
 /// Low-level CARv2 writer.
-// TODO(@jmg-duarte,17/05/2024): add padding support
 pub struct Writer<W> {
     writer: W,
 }
@@ -52,9 +51,19 @@ where
         crate::v1::write_block(&mut self.writer, cid, block).await
     }
 
-    /// Write an [`Index`];
+    /// Write an [`Index`].
     pub async fn write_index(&mut self, index: &Index) -> Result<(), Error> {
         crate::v2::index::write_index(&mut self.writer, index).await
+    }
+
+    /// Write padding.
+    ///
+    /// Padding consists of only `0x0` bytes.
+    pub async fn write_padding(&mut self, length: usize) -> Result<(), Error> {
+        for _ in 0..length {
+            self.writer.write_u8(0).await?;
+        }
+        Ok(())
     }
 
     /// Flushes and returns the inner writer.
