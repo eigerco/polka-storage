@@ -41,10 +41,8 @@ mod tests {
     use sha2::Sha256;
     use tokio::io::BufWriter;
 
-    use crate::multihash::generate_multihash;
+    use crate::multicodec::{generate_multihash, RAW_CODE};
     use crate::v1::{Header, Reader, Writer};
-
-    pub const RAW_CODEC: u64 = 0x55;
 
     impl Writer<BufWriter<Vec<u8>>> {
         pub fn test_writer() -> Self {
@@ -60,7 +58,7 @@ mod tests {
             .await
             .unwrap();
         let contents_multihash = generate_multihash::<Sha256>(&file_contents);
-        let root_cid = Cid::new_v1(0x55, contents_multihash);
+        let root_cid = Cid::new_v1(RAW_CODE, contents_multihash);
 
         let written_header = Header::new(vec![root_cid]);
         let mut writer = crate::v1::Writer::test_writer();

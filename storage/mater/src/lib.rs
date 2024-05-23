@@ -1,6 +1,6 @@
 #![warn(unused_crate_dependencies)]
-#![warn(rustdoc::broken_intra_doc_links)]
 
+mod multicodec;
 mod v1;
 mod v2;
 
@@ -69,35 +69,4 @@ pub enum Error {
     /// See [`MultihashError`](ipld_core::cid::multihash::Error) for more information.
     #[error(transparent)]
     MultihashError(#[from] ipld_core::cid::multihash::Error),
-}
-
-#[cfg(test)]
-mod multihash {
-    use digest::Digest;
-    use ipld_core::cid::multihash::Multihash;
-
-    /// Trait to ease implementing generic multihash generation.
-    pub(crate) trait MultihashCode {
-        /// Multihash code as defined in the [specification](https://github.com/multiformats/multicodec/blob/c954a787dc6a17d099653e5f90d26fbd177d2074/table.csv).
-        const CODE: u64;
-    }
-
-    /// Generate a multihash for a byte slice.
-    pub(crate) fn generate_multihash<H>(bytes: &[u8]) -> Multihash<64>
-    where
-        H: Digest + MultihashCode,
-    {
-        let mut hasher = H::new();
-        hasher.update(&bytes);
-        let hashed_bytes = hasher.finalize();
-        Multihash::wrap(H::CODE, &hashed_bytes).unwrap()
-    }
-
-    impl MultihashCode for sha2::Sha256 {
-        const CODE: u64 = 0x12;
-    }
-
-    impl MultihashCode for sha2::Sha512 {
-        const CODE: u64 = 0x13;
-    }
 }

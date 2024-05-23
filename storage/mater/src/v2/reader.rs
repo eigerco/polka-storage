@@ -27,13 +27,14 @@ where
     ///
     /// This function fails if the pragma does not match the one defined in the
     /// [specification](https://ipld.io/specs/transport/car/carv2/#pragma).
-    pub async fn read_pragma(&mut self) -> Result<Vec<u8>, Error> {
+    pub async fn read_pragma(&mut self) -> Result<(), Error> {
         let mut pragma_buffer = vec![0; PRAGMA.len()];
         self.reader.read_exact(&mut pragma_buffer).await?;
         if pragma_buffer != PRAGMA {
             return Err(Error::InvalidPragmaError(pragma_buffer));
         }
-        Ok(pragma_buffer)
+        // Since we validate the pragma, there's no point in returning it.
+        Ok(())
     }
 
     /// Read the [`Header`].
@@ -92,14 +93,15 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::io::Cursor;
 
     use ipld_core::cid::Cid;
     use sha2::Sha256;
     use tokio::{fs::File, io::AsyncSeekExt};
 
     use crate::{
-        multihash::generate_multihash,
-        v2::{index::Index, reader::Reader, PRAGMA},
+        multicodec::{generate_multihash, RAW_CODE, SHA_256_CODE},
+        v2::{index::Index, reader::Reader},
         Error,
     };
 
@@ -107,8 +109,17 @@ mod tests {
     async fn pragma() {
         let file = File::open("tests/fixtures/car_v2/lorem.car").await.unwrap();
         let mut reader = Reader::new(file);
-        let pragma = reader.read_pragma().await.unwrap();
-        assert_eq!(pragma, PRAGMA);
+        let pragma = reader.read_pragma().await;
+        assert!(matches!(pragma, Ok(())));
+    }
+
+    #[tokio::test]
+    async fn bad_pragma() {
+        let mut bad_pragma = vec![0u8; 11];
+        bad_pragma.fill_with(rand::random);
+        let mut reader = Reader::new(Cursor::new(bad_pragma));
+        let pragma = reader.read_pragma().await;
+        assert!(matches!(pragma, Err(Error::InvalidPragmaError(_))));
     }
 
     #[tokio::test]
@@ -132,7 +143,7 @@ mod tests {
             .await
             .unwrap();
         let contents_multihash = generate_multihash::<Sha256>(&file_contents);
-        let contents_cid = Cid::new_v1(0x55, contents_multihash);
+        let contents_cid = Cid::new_v1(RAW_CODE, contents_multihash);
 
         let file = File::open("tests/fixtures/car_v2/lorem.car").await.unwrap();
         let mut reader = Reader::new(file);
@@ -182,8 +193,8 @@ mod tests {
         assert!(matches!(index, Index::MultihashIndexSorted(_)));
         if let Index::MultihashIndexSorted(mh) = index {
             assert_eq!(mh.0.len(), 1);
-            assert!(mh.0.contains_key(&0x12));
-            let fst = &mh.0[&0x12].0;
+            assert!(mh.0.contains_key(&SHA_256_CODE));
+            let fst = &mh.0[&SHA_256_CODE].0;
             assert_eq!(fst.len(), 1);
             assert_eq!(fst[0].count, 1);
             assert_eq!(fst[0].width, 40);
@@ -200,12 +211,11 @@ mod tests {
             .await
             .unwrap();
         let contents_multihash = generate_multihash::<Sha256>(&file_contents);
-        let contents_cid = Cid::new_v1(0x55, contents_multihash);
+        let contents_cid = Cid::new_v1(RAW_CODE, contents_multihash);
 
         let file = File::open("tests/fixtures/car_v2/lorem.car").await.unwrap();
         let mut reader = Reader::new(file);
-        let pragma = reader.read_pragma().await.unwrap();
-        assert_eq!(pragma, PRAGMA);
+        reader.read_pragma().await.unwrap();
 
         let header = reader.read_header().await.unwrap();
         // `car inspect tests/fixtures/car_v2/lorem.car` to get the values
@@ -239,8 +249,8 @@ mod tests {
         assert!(matches!(index, Index::MultihashIndexSorted(_)));
         if let Index::MultihashIndexSorted(mh) = index {
             assert_eq!(mh.0.len(), 1);
-            assert!(mh.0.contains_key(&0x12));
-            let fst = &mh.0[&0x12].0;
+            assert!(mh.0.contains_key(&SHA_256_CODE));
+            let fst = &mh.0[&SHA_256_CODE].0;
             assert_eq!(fst.len(), 1);
             assert_eq!(fst[0].count, 1);
             assert_eq!(fst[0].width, 40);
@@ -256,8 +266,7 @@ mod tests {
             .await
             .unwrap();
         let mut reader = Reader::new(file);
-        let pragma = reader.read_pragma().await.unwrap();
-        assert_eq!(pragma, PRAGMA);
+        reader.read_pragma().await.unwrap();
 
         let header = reader.read_header().await.unwrap();
         // `car inspect tests/fixtures/car_v2/lorem.car` to get the values
@@ -299,8 +308,8 @@ mod tests {
         assert!(matches!(index, Index::MultihashIndexSorted(_)));
         if let Index::MultihashIndexSorted(mh) = index {
             assert_eq!(mh.0.len(), 1);
-            assert!(mh.0.contains_key(&0x12));
-            let fst = &mh.0[&0x12].0;
+            assert!(mh.0.contains_key(&SHA_256_CODE));
+            let fst = &mh.0[&SHA_256_CODE].0;
             assert_eq!(fst.len(), 1);
             assert_eq!(fst[0].count, 4);
             assert_eq!(fst[0].width, 40);

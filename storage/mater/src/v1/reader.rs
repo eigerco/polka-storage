@@ -111,9 +111,11 @@ mod tests {
     use sha2::Sha256;
     use tokio::{fs::File, io::BufReader};
 
-    use crate::{multihash::generate_multihash, v1::reader::Reader, Error};
-
-    const RAW_CODEC: u64 = 0x55;
+    use crate::{
+        multicodec::{generate_multihash, RAW_CODE},
+        v1::reader::Reader,
+        Error,
+    };
 
     #[tokio::test]
     async fn header_reader() {
@@ -121,7 +123,7 @@ mod tests {
             .await
             .unwrap();
         let contents_multihash = generate_multihash::<Sha256>(&contents);
-        let contents_cid = Cid::new_v1(RAW_CODEC, contents_multihash);
+        let contents_cid = Cid::new_v1(RAW_CODE, contents_multihash);
 
         let file = File::open("tests/fixtures/car_v1/lorem_header.car")
             .await
@@ -141,7 +143,7 @@ mod tests {
             .await
             .unwrap();
         let contents_multihash = generate_multihash::<Sha256>(&contents);
-        let contents_cid = Cid::new_v1(RAW_CODEC, contents_multihash);
+        let contents_cid = Cid::new_v1(RAW_CODE, contents_multihash);
 
         let file = File::open("tests/fixtures/car_v1/lorem.car").await.unwrap();
         let reader = BufReader::new(file);

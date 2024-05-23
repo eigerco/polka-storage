@@ -330,7 +330,7 @@ mod tests {
     use tokio::{fs::File, io::AsyncSeekExt};
 
     use crate::{
-        multihash::{generate_multihash, MultihashCode},
+        multicodec::{generate_multihash, MultihashCode, DAG_PB_CODE, RAW_CODE, SHA_256_CODE},
         v1::read_block,
         v2::index::{
             read_index, read_index_entry, read_index_sorted, read_multihash_index_sorted,
@@ -346,8 +346,8 @@ mod tests {
     {
         let mut entries = vec![];
         let mut data = vec![0u8; <H as Digest>::output_size()];
+        data.fill_with(random);
         for idx in 0..count {
-            data.fill_with(random);
             let digest = H::digest(&data).to_vec();
             entries.push(IndexEntry::new(digest, idx));
         }
@@ -413,14 +413,11 @@ mod tests {
             .unwrap();
 
             let (cid, block) = read_block(&mut file).await.unwrap();
-            assert_eq!(cid.hash().code(), 0x12);
+            assert_eq!(cid.hash().code(), SHA_256_CODE);
 
             // Sorting at this level is made byte-wise, so there's no short way
             // to compare the expected codecs...
-            assert!(
-                cid.codec() == 0x70 || // DAG-PB
-                cid.codec() == 0x55 // RAW
-            );
+            assert!(cid.codec() == DAG_PB_CODE || cid.codec() == RAW_CODE);
             // instead we build a frequency table and check against that later!
             if let Some(frequency) = codec_frequencies.get_mut(&cid.codec()) {
                 *frequency += 1;
@@ -432,8 +429,8 @@ mod tests {
             assert_eq!(cid.hash(), &multihash);
         }
 
-        assert!(matches!(codec_frequencies.get(&0x70), Some(1)));
-        assert!(matches!(codec_frequencies.get(&0x55), Some(3)));
+        assert!(matches!(codec_frequencies.get(&DAG_PB_CODE), Some(1)));
+        assert!(matches!(codec_frequencies.get(&RAW_CODE), Some(3)));
     }
 
     #[tokio::test]

@@ -84,8 +84,8 @@ mod tests {
 
     use super::Writer;
     use crate::{
-        multihash::generate_multihash,
-        v1::{tests::RAW_CODEC, Header},
+        multicodec::{generate_multihash, RAW_CODE},
+        v1::Header,
     };
 
     #[tokio::test]
@@ -94,7 +94,7 @@ mod tests {
             .await
             .unwrap();
         let contents_multihash = generate_multihash::<Sha256>(&file_contents);
-        let root_cid = Cid::new_v1(RAW_CODEC, contents_multihash);
+        let root_cid = Cid::new_v1(RAW_CODE, contents_multihash);
 
         let mut writer = Writer::test_writer();
         writer
@@ -116,7 +116,7 @@ mod tests {
             .await
             .unwrap();
         let contents_multihash = generate_multihash::<Sha256>(&file_contents);
-        let root_cid = Cid::new_v1(RAW_CODEC, contents_multihash);
+        let root_cid = Cid::new_v1(RAW_CODE, contents_multihash);
 
         let mut writer = Writer::test_writer();
         writer

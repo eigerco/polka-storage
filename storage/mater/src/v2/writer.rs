@@ -84,43 +84,19 @@ mod tests {
     use tokio_util::io::ReaderStream;
 
     use crate::{
-        multihash::{generate_multihash, MultihashCode},
+        multicodec::{generate_multihash, MultihashCode, DAG_PB_CODE, RAW_CODE},
         v2::{
             index::{IndexEntry, IndexSorted, SingleWidthIndex},
+            test_utils::assert_buffer_eq,
             Header, Writer,
         },
     };
-
-    const RAW_CODEC: u64 = 0x55;
 
     impl Writer<BufWriter<Vec<u8>>> {
         fn test_writer() -> Self {
             let buffer = Vec::new();
             let buf_writer = BufWriter::new(buffer);
             Writer::new(buf_writer)
-        }
-    }
-
-    /// Check if two given slices are equal.
-    ///
-    /// First checks if the two slices have the same size,
-    /// then checks each byte-pair. If the slices differ,
-    /// it will show an error message with the difference index
-    /// along with a window showing surrounding elements
-    /// (instead of spamming your terminal like `assert_eq!` does).
-    fn assert_buffer_eq(lhs: &[u8], rhs: &[u8]) {
-        assert_eq!(lhs.len(), rhs.len());
-        for (i, (l, r)) in lhs.iter().zip(rhs).enumerate() {
-            let before = i.checked_sub(5).unwrap_or(0);
-            let after = (i + 5).min(rhs.len());
-            assert_eq!(
-                l,
-                r,
-                "difference at index {}\n  left: {:02x?}\n right: {:02x?}",
-                i,
-                &lhs[before..=after],
-                &rhs[before..=after],
-            )
         }
     }
 
@@ -171,7 +147,7 @@ mod tests {
             .await
             .unwrap();
         let contents_multihash = generate_multihash::<Sha256>(&file_contents);
-        let root_cid = Cid::new_v1(RAW_CODEC, contents_multihash);
+        let root_cid = Cid::new_v1(RAW_CODE, contents_multihash);
 
         // To simplify testing, the values were extracted using `car inspect`
         writer
@@ -246,7 +222,7 @@ mod tests {
         while let Some(chunk) = file_chunker.next().await {
             let chunk = chunk.unwrap();
             let multihash = generate_multihash::<Sha256>(&chunk);
-            let cid = Cid::new_v1(RAW_CODEC, multihash);
+            let cid = Cid::new_v1(RAW_CODE, multihash);
             file_blocks.push((cid, chunk));
         }
 
@@ -277,7 +253,7 @@ mod tests {
         .unwrap();
         let root_cid = {
             let multihash = generate_multihash::<Sha256>(&node_bytes);
-            Cid::new_v1(0x70, multihash)
+            Cid::new_v1(DAG_PB_CODE, multihash)
         };
 
         // To simplify testing, the values were extracted using `car inspect`
