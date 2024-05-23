@@ -111,7 +111,7 @@ impl Contains<Location> for ParentOrParentsExecutivePlurality {
 
 /// Teleporting assets between chains (relay<->parachain) requires both-way trust.
 /// Relay Chain trusts its system parachains, by hardcoded parachain IDs. Currently we use 1000 (AssetHub) id, for this to work out of the box.
-/// ConcreteAssetFromSystem<RelayLocation> trusts teleports of a native currency (assets from a location of a relay Chain).
+/// [`ConcreteAssetFromSystem<RelayLocation>`](parachains_common::xcm_config::ConcreteAssetFromSystem) trusts teleports of a native currency (assets from a location of a relay Chain).
 pub type TrustedTeleporters = (ConcreteAssetFromSystem<RelayLocation>,);
 
 pub type Barrier = TrailingSetTopicAsId<
@@ -130,6 +130,7 @@ pub type Barrier = TrailingSetTopicAsId<
                     // HRMP is the current protocol for the communications between the chains,
                     // When teleporting assets, XCM instructions are exchanged via HRMP.
                     // It'll be someday replaced by XCMP, but it's not implemented yet.
+                    // https://wiki.polkadot.network/docs/learn-xcm-transport#xcmp-cross-chain-message-passing
                     AllowHrmpNotificationsFromRelayChain,
                 ),
                 UniversalLocation,
@@ -153,7 +154,7 @@ impl xcm_executor::Config for XcmConfig {
     type OriginConverter = XcmOriginToTransactDispatchOrigin;
     // Reserve is a different kind of transfering assets between chains.
     // You can either teleport or reserve. Teleport is for trusted chains (polkadot<->system parachain).
-    // Reserve is for other kinds consensum system, like Ethereum.
+    // Reserve is for other kinds consensus system, like Ethereum.
     // In our parachain we don't allow nor leverage reserve transfers, so it's disabled.
     type IsReserve = ();
     type IsTeleporter = TrustedTeleporters;
