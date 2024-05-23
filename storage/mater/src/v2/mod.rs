@@ -22,6 +22,7 @@ pub const PRAGMA: [u8; 11] = [
 bitflags! {
     /// Characteristics of the enclosed data.
     pub struct Characteristics: u128 {
+        const EMPTY = 0;
         const FULLY_INDEXED = 1 << 127;
     }
 }
@@ -32,7 +33,7 @@ impl Characteristics {
         if fully_indexed {
             Self::FULLY_INDEXED
         } else {
-            Self::empty()
+            Self::EMPTY
         }
     }
 
@@ -40,6 +41,12 @@ impl Characteristics {
     #[inline]
     pub const fn is_fully_indexed(&self) -> bool {
         self.intersects(Self::FULLY_INDEXED)
+    }
+}
+
+impl Default for Characteristics {
+    fn default() -> Self {
+        Self::EMPTY
     }
 }
 
