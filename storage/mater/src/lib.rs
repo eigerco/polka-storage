@@ -21,9 +21,7 @@ pub enum Error {
     #[error(transparent)]
     MultihashError(#[from] ipld_core::cid::multihash::Error),
 
-    #[error(
-        "invalid version, expected version {expected}, but received version {received} instead"
-    )]
+    #[error("expected version {expected}, but received version {received} instead")]
     VersionMismatchError { expected: u8, received: u8 },
 
     /// According to the [specification](https://ipld.io/specs/transport/car/carv1/#constraints)
@@ -45,6 +43,10 @@ pub enum Error {
     #[error("cannot create an index out of an empty `Vec`")]
     EmptyIndexError,
 
+    /// The [specification](https://ipld.io/specs/transport/car/carv2/#characteristics)
+    /// does not discuss how to handle incoming characteristics
+    /// — i.e. if we should ignore them, truncate them or return an error —
+    /// we decided on returning an error.
     #[error("unknown characteristics were set: {0}")]
     UnknownCharacteristicsError(u128),
 }
