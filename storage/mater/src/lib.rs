@@ -24,7 +24,7 @@ pub enum Error {
     VersionMismatchError { expected: u8, received: u8 },
 
     /// According to the [specification](https://ipld.io/specs/transport/car/carv1/#constraints)
-    /// CAR files MUST have **one or more** CID roots.
+    /// CAR files MUST have **one or more** [`Cid`] roots.
     #[error("CAR file must have roots")]
     EmptyRootsError,
 

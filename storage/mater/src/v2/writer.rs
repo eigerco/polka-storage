@@ -7,27 +7,24 @@ use crate::{v2::index::Index, Error};
 
 /// Low-level CARv2 writer.
 // TODO(@jmg-duarte,17/05/2024): add padding support
-pub struct Writer<W>
-where
-    W: AsyncWrite + Unpin,
-{
+pub struct Writer<W> {
     writer: W,
+}
+
+impl<W> Writer<W> {
+    /// Construct a new [`Writer`].
+    ///
+    /// Takes a write into which the data will be written.
+    pub fn new(writer: W) -> Self {
+        Self { writer }
+    }
 }
 
 impl<W> Writer<W>
 where
     W: AsyncWrite + Unpin,
 {
-    /// Construct a new CARv1 writer.
-    ///
-    /// Takes a write into which the data will be written.
-    pub fn new(writer: W) -> Self {
-        Self { writer }
-    }
-
-    /// Write a CARv2 header.
-    ///
-    /// * If the header has already been written, this is a no-op.
+    /// Write a [`Header`].
     pub async fn write_header(&mut self, header: &Header) -> Result<(), Error> {
         self.writer.write(&PRAGMA).await?;
 
@@ -42,9 +39,7 @@ where
         Ok(())
     }
 
-    /// Write a CARv1 header.
-    ///
-    /// * If the header has already been written, this is a no-op.
+    /// Write a [`crate::v1::Header`].
     pub async fn write_v1_header(&mut self, v1_header: &crate::v1::Header) -> Result<(), Error> {
         crate::v1::write_header(&mut self.writer, v1_header).await
     }
@@ -57,6 +52,7 @@ where
         crate::v1::write_block(&mut self.writer, cid, block).await
     }
 
+    /// Write an [`Index`];
     pub async fn write_index(&mut self, index: &Index) -> Result<(), Error> {
         crate::v2::index::write_index(&mut self.writer, index).await
     }
@@ -67,6 +63,7 @@ where
         Ok(self.writer)
     }
 
+    /// Get a mutable reference to the inner writer.
     pub fn get_inner_mut(&mut self) -> &mut W {
         &mut self.writer
     }

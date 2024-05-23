@@ -9,8 +9,7 @@ pub use writer::Writer;
 
 /// The pragma for a CARv2. This is also a valid CARv1 header, with version 2 and no root CIDs.
 ///
-/// For more information, check the specification:
-/// https://ipld.io/specs/transport/car/carv2/#pragma
+/// For more information, check the specification: <https://ipld.io/specs/transport/car/carv2/#pragma>
 pub const PRAGMA: [u8; 11] = [
     0x0a, // unit(10)
     0xa1, // map(1)
@@ -64,6 +63,7 @@ pub struct Header {
 }
 
 impl Header {
+    /// Construct a new [`Header`].
     pub fn new(fully_indexed: bool, data_offset: u64, data_size: u64, index_offset: u64) -> Self {
         Self {
             characteristics: Characteristics::new(fully_indexed),

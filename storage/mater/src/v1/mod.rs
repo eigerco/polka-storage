@@ -19,12 +19,12 @@ pub struct Header {
     /// [specification](https://ipld.io/specs/transport/car/carv1/#constraints).
     version: u8,
 
-    /// Root [`Cid`](ipld_core::cid::Cid)s for the contained data.
+    /// Root [`Cid`]s for the contained data.
     pub roots: Vec<Cid>,
 }
 
 impl Header {
-    /// Construct a new [`CarV1Header`](crate::v1::Header).
+    /// Construct a new [`Header`].
     ///
     /// The version will always be 1, as defined in the
     /// [specification](https://ipld.io/specs/transport/car/carv1/#constraints).

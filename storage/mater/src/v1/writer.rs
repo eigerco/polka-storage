@@ -6,7 +6,7 @@ use tokio::io::{AsyncWrite, AsyncWriteExt};
 pub use crate::v1::Header;
 use crate::Error;
 
-/// Write [`CarV1Header`](crate::v1::Header) to the provider writer.
+/// Write [`crate::v1::Header`] to the provider writer.
 pub(crate) async fn write_header<W>(writer: &mut W, header: &Header) -> Result<(), Error>
 where
     W: AsyncWrite + Unpin,
@@ -45,7 +45,7 @@ pub struct Writer<W> {
 }
 
 impl<W> Writer<W> {
-    /// Construct a new [`CarV1Writer`](crate::v1::Writer).
+    /// Construct a new [`crate::v1::Writer`].
     ///
     /// Takes a writer into which the data will be written.
     pub fn new(writer: W) -> Self {
@@ -57,7 +57,7 @@ impl<W> Writer<W>
 where
     W: AsyncWrite + Unpin,
 {
-    /// Write a [`CarV1Header`](crate::v1::Header).
+    /// Write a [`crate::v1::Header`].
     pub async fn write_header(&mut self, header: &Header) -> Result<(), Error> {
         write_header(&mut self.writer, header).await
     }

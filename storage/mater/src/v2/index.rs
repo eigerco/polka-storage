@@ -13,8 +13,8 @@ pub const INDEX_SORTED_CODE: u64 = 0x0400;
 /// [specification](https://ipld.io/specs/transport/car/carv2/#format-0x0401-multihashindexsorted).
 pub const MULTIHASH_INDEX_SORTED_CODE: u64 = 0x0401;
 
-// Basically, everything that does not have explicit endianness
-// is little-endian, as made evident by the go-car source code
+// Basically, everything that does not have explicit endianness in the specification
+// is little-endian, as made evident by the go-car source code:
 // https://github.com/ipld/go-car/blob/45b81c1cc5117b3340dfdb025afeca90bfbe8d86/v2/index/mhindexsorted.go#L45-L53
 
 /// A index entry for a data block inside the CARv1.
@@ -80,7 +80,7 @@ impl From<IndexEntry> for SingleWidthIndex {
 impl TryFrom<Vec<IndexEntry>> for SingleWidthIndex {
     type Error = Error;
 
-    /// Performs the conversion, validating that all indexes have the same width.
+    /// Performs the conversion, validating that all the [`IndexEntry`] have the same width.
     fn try_from(value: Vec<IndexEntry>) -> Result<Self, Self::Error> {
         if value.is_empty() {
             return Err(Error::EmptyIndexError);
@@ -126,7 +126,7 @@ impl From<Vec<SingleWidthIndex>> for IndexSorted {
     }
 }
 
-/// An index mapping Multihash codes to [`IndexSorted`](crate::v2::IndexSorted).
+/// An index mapping Multihash codes to [`IndexSorted`].
 ///
 /// For more details, read the [`Format 0x0401: MultihashIndexSorted`](https://ipld.io/specs/transport/car/carv2/#format-0x0401-multihashindexsorted) section in the CARv2 specification.
 #[derive(Debug, PartialEq, Eq)]
@@ -142,13 +142,25 @@ impl From<BTreeMap<u64, IndexSorted>> for MultihashIndexSorted {
 }
 
 /// CARv2 index.
+///
+/// For more information, check the [specification](https://ipld.io/specs/transport/car/carv2/#index-payload).
 #[derive(Debug, PartialEq, Eq)]
 pub enum Index {
+    /// An index sorting by digest length, from smallest to largest.
+    ///
+    /// Check [`IndexSorted`] for more information.
     IndexSorted(IndexSorted),
+
+    /// An index sorting by [Multihash code](https://github.com/multiformats/multicodec/blob/master/table.csv).
+    ///
+    /// Check [`MultihashIndexSorted`] for more information.
     MultihashIndexSorted(MultihashIndexSorted),
 }
 
 impl Index {
+    /// Construct a new [`Index::MultihashIndexSorted`].
+    ///
+    /// Check [`MultihashIndexSorted`] for more information.
     pub fn multihash(index: BTreeMap<u64, IndexSorted>) -> Self {
         Self::MultihashIndexSorted(index.into())
     }
