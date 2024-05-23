@@ -32,6 +32,7 @@ jobs:
 
   format:
     runs-on: self-hosted
+    needs: toml
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -52,6 +53,9 @@ jobs:
 
   clippy_build_and_test:
     runs-on: self-hosted
+    needs:
+      - toml
+      - format
     steps:
       - uses: actions/checkout@v4
       - name: Cargo caching
