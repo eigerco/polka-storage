@@ -4461,9 +4461,9 @@ dependencies = [
 
 [[package]]
 name = "ipld-dagpb"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "500af0d645ad3c26b544d2ec77c87fefec9319f5eda567d0993b9db59708994f"
+checksum = "c5eb3c08f1508fa62ffe1a805aafa116d2eb034b3542c85596db132f279abc47"
 dependencies = [
  "bytes",
  "ipld-core",
@@ -5524,14 +5524,11 @@ version = "0.1.0"
 dependencies = [
  "bitflags 2.5.0",
  "byteorder",
- "clap",
  "digest 0.10.7",
  "integer-encoding 4.0.0",
  "ipld-core",
  "ipld-dagpb",
- "quick-protobuf",
  "rand 0.8.5",
- "rs_merkle",
  "serde",
  "serde_ipld_dagcbor",
  "sha2 0.10.8",
@@ -10035,15 +10032,6 @@ dependencies = [
  "libc",
  "rtoolbox",
  "windows-sys 0.48.0",
-]
-
-[[package]]
-name = "rs_merkle"
-version = "1.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b241d2e59b74ef9e98d94c78c47623d04c8392abaf82014dfd372a16041128f"
-dependencies = [
- "sha2 0.10.8",
 ]
 
 [[package]]

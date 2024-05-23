@@ -13,21 +13,23 @@ version = "0.1.0"
 # TODO(@jmg-duarte,15/05/2024): reduce the required features
 bitflags = { workspace = true }
 byteorder = { workspace = true, features = ["i128"] }
-clap = { workspace = true, features = ["derive"] }
-digest = { workspace = true }
 integer-encoding = { workspace = true, features = ["tokio_async"] }
 ipld-core = { workspace = true, features = ["serde"] }
-ipld-dagpb = { workspace = true }
-quick-protobuf = { workspace = true }
-rand = { workspace = true }
-rs_merkle = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_ipld_dagcbor = { workspace = true }
-sha2 = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
+
+[dev-dependencies]
+digest = { workspace = true }
+ipld-dagpb = { workspace = true }
+rand = { workspace = true }
+sha2 = { workspace = true }
 tokio-stream = { workspace = true }
 tokio-util = { workspace = true, features = ["io"] }
+# rs_merkle = { workspace = true }
+# quick-protobuf = { workspace = true }
+
 
 [lints]
 workspace = true
