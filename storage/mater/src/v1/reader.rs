@@ -25,8 +25,15 @@ where
     }
 
     let header: Header = DagCborCodec::decode_from_slice(&header_buffer)?;
-    debug_assert!(header.version == 1, "header version is not 1");
-    debug_assert!(!header.roots.is_empty(), "header does not have roots");
+    if header.version == 1 {
+        return Err(Error::VersionMismatchError {
+            expected: 1,
+            received: header.version,
+        });
+    }
+    if header.roots.is_empty() {
+        return Err(Error::EmptyRootsError);
+    }
     Ok(header)
 }
 

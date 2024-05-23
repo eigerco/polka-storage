@@ -21,6 +21,16 @@ pub enum Error {
     #[error(transparent)]
     MultihashError(#[from] ipld_core::cid::multihash::Error),
 
+    #[error(
+        "invalid version, expected version {expected}, but received version {received} instead"
+    )]
+    VersionMismatchError { expected: u8, received: u8 },
+
+    /// According to the [specification](https://ipld.io/specs/transport/car/carv1/#constraints)
+    /// CAR files MUST have **one or more** CID roots.
+    #[error("CAR file must have roots")]
+    EmptyRootsError,
+
     #[error("trying to read V2")]
     CarV2Error,
 
