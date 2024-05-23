@@ -31,7 +31,7 @@ pub struct IndexEntry {
 }
 
 impl IndexEntry {
-    /// Construct a new [`IndexEntry`](`crate::v2::IndexEntry`).
+    /// Construct a new [`IndexEntry`](crate::v2::IndexEntry).
     pub fn new(digest: Vec<u8>, offset: u64) -> Self {
         Self { digest, offset }
     }
@@ -56,7 +56,7 @@ pub struct SingleWidthIndex {
 }
 
 impl SingleWidthIndex {
-    /// Construct a new [`SingleWidthIndex`](`crate::v2::SingleWidthIndex`).
+    /// Construct a new [`SingleWidthIndex`](crate::v2::SingleWidthIndex).
     ///
     /// Notes:
     /// * The `digest_width` should not account for the offset length.
@@ -126,7 +126,7 @@ impl From<Vec<SingleWidthIndex>> for IndexSorted {
     }
 }
 
-/// An index mapping Multihash codes to [`MultiWidthIndex`].
+/// An index mapping Multihash codes to [`IndexSorted`](crate::v2::IndexSorted).
 ///
 /// For more details, read the [`Format 0x0401: MultihashIndexSorted`](https://ipld.io/specs/transport/car/carv2/#format-0x0401-multihashindexsorted) section in the CARv2 specification.
 #[derive(Debug, PartialEq, Eq)]

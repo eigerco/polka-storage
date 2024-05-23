@@ -28,7 +28,8 @@ where
     }
 
     let header: Header = DagCborCodec::decode_from_slice(&header_buffer)?;
-    // NOTE(@jmg-duarte,23/05/2024): implementing a custom Deserialize for Header would make this shorter and overall handling more reliable
+    // NOTE(@jmg-duarte,23/05/2024): implementing a custom Deserialize for Header
+    // would make this shorter and overall handling more reliable
     if header.version != 1 {
         return Err(Error::VersionMismatchError {
             expected: 1,
@@ -66,7 +67,7 @@ pub struct Reader<R> {
 }
 
 impl<R> Reader<R> {
-    /// Constructs a new [`CarV1Reader`](`crate::v1::Reader`).
+    /// Constructs a new [`CarV1Reader`](crate::v1::Reader).
     pub fn new(reader: R) -> Self {
         Self { reader }
     }
@@ -76,7 +77,7 @@ impl<R> Reader<R>
 where
     R: AsyncRead + Unpin,
 {
-    /// Read a [`CarV1Header`](`crate::v1::Header`).
+    /// Read a [`CarV1Header`](crate::v1::Header).
     ///
     /// As defined in the [specification constraints](https://ipld.io/specs/transport/car/carv1/#constraints),
     /// this function will return an error if:
@@ -88,7 +89,7 @@ where
         read_header(&mut self.reader).await
     }
 
-    /// Reads a [`Cid`][`ipld_core::cid::Cid`] and a data block.
+    /// Reads a [`Cid`](ipld_core::cid::Cid) and a data block.
     ///
     /// A block is composed of a CID (either version 0 or 1) and data, it is prefixed with the data length.
     /// ```text
@@ -96,7 +97,7 @@ where
     /// │ Data length (varint) │ CID │ Data block (raw bytes) │
     /// └──────────────────────┴─────┴────────────────────────┘
     /// ```
-    /// *The data block is returned AS IS, callers should use the codec field of the [`Cid`] to parse it.*
+    /// *The data block is returned AS IS, callers should use the codec field of the [`Cid`](ipld_core::cid::Cid) to parse it.*
     ///
     /// For more information, check the [block specification](https://ipld.io/specs/transport/car/carv1/#data).
     pub async fn read_block(&mut self) -> Result<(Cid, Vec<u8>), Error> {

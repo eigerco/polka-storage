@@ -36,7 +36,7 @@ where
         Ok(pragma_buffer)
     }
 
-    /// Read the [`CarV2Header`](`crate::v2::Header`).
+    /// Read the [`CarV2Header`](crate::v2::Header).
     ///
     /// This function fails if there are set bits that are not covered in the
     /// [characteristics specification](https://ipld.io/specs/transport/car/carv2/#characteristics).
@@ -62,7 +62,7 @@ where
         })
     }
 
-    /// Read the [`CarV1Header`](`crate::v1::Header`).
+    /// Read the [`CarV1Header`](crate::v1::Header).
     ///
     /// See [`CarV1Reader`][`crate::v1::Reader`] for more information.
     pub async fn read_v1_header(&mut self) -> Result<crate::v1::Header, Error> {

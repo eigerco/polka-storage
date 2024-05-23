@@ -1,3 +1,6 @@
+#![warn(unused_crate_dependencies)]
+#![warn(rustdoc::broken_intra_doc_links)]
+
 mod v1;
 mod v2;
 
@@ -26,8 +29,7 @@ pub enum Error {
     EmptyRootsError,
 
     /// Unknown type of index. Supported indexes are
-    /// [`IndexSorted`](`crate::v2::IndexSorted`) and
-    /// [`MultihashIndexSorted`](`crate::v2::MultihashIndexSorted`).
+    /// [`IndexSorted`] and [`MultihashIndexSorted`].
     #[error("unknown index type {0}")]
     UnknownIndexError(u64),
 
