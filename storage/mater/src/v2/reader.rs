@@ -13,6 +13,7 @@ pub struct Reader<R> {
 }
 
 impl<R> Reader<R> {
+    /// Constructs a new [`CarV2Reader`][`crate::v2::Reader`].
     pub fn new(reader: R) -> Self {
         Self { reader }
     }
@@ -35,7 +36,12 @@ where
         Ok(pragma_buffer)
     }
 
-    /// Read the [`Header`].
+    /// Read the [`CarV2Header`](`crate::v2::Header`).
+    ///
+    /// This function fails if there are set bits that are not covered in the
+    /// [characteristics specification](https://ipld.io/specs/transport/car/carv2/#characteristics).
+    ///
+    /// For more information check the [header specification](https://ipld.io/specs/transport/car/carv2/#header).
     pub async fn read_header(&mut self) -> Result<Header, Error> {
         // Even though the standard doesn't explicitly state endianness, go-car does
         // https://github.com/ipld/go-car/blob/45b81c1cc5117b3340dfdb025afeca90bfbe8d86/v2/car.go#L51-L69
@@ -56,19 +62,29 @@ where
         })
     }
 
+    /// Read the [`CarV1Header`](`crate::v1::Header`).
+    ///
+    /// See [`CarV1Reader`][`crate::v1::Reader`] for more information.
     pub async fn read_v1_header(&mut self) -> Result<crate::v1::Header, Error> {
         Ok(crate::v1::read_header(&mut self.reader).await?)
     }
 
+    /// Read a [`Cid`][`ipld_core::cid::Cid`] and data block.
+    ///
+    /// See [`CarV1Reader`][`crate::v1::Reader`] for more information.
     pub async fn read_block(&mut self) -> Result<(Cid, Vec<u8>), Error> {
         Ok(crate::v1::read_block(&mut self.reader).await?)
     }
 
+    /// Read an [`Index`][`crate::v2::Index`].
     pub async fn read_index(&mut self) -> Result<Index, Error> {
         read_index(&mut self.reader).await
     }
 
     /// Get a mutable reference to the inner reader.
+    ///
+    /// This is useful to skip padding or perform other operations the
+    /// [`CarV2Reader`][`crate::v2::Reader`] does not natively support.
     pub fn get_inner_mut(&mut self) -> &mut R {
         &mut self.reader
     }
