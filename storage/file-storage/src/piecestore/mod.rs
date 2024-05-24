@@ -1,13 +1,12 @@
 use cid::Cid;
 use thiserror::Error;
 
-pub mod rocksdb;
+use self::types::{DealInfo, PieceInfo};
 
-pub struct DealInfo {}
+pub mod rocksdb;
+mod types;
 
 pub struct BlockLocation {}
-
-pub struct PieceInfo {}
 
 pub struct CidInfo {}
 
@@ -21,7 +20,7 @@ pub trait PieceStore {
     fn add_deal_for_piece(
         &self,
         piece_cid: &Cid,
-        deal_info: &DealInfo,
+        deal_info: DealInfo,
     ) -> Result<(), PieceStoreError>;
 
     /// Store the map of blockLocations in the PieceStore's CIDInfo store, with key `pieceCID`
@@ -48,4 +47,13 @@ pub trait PieceStore {
 pub enum PieceStoreError {
     #[error("Initialization error: {0}")]
     Initialization(String),
+
+    #[error("Piece missing")]
+    PieceMissing,
+
+    #[error("Deal already exists")]
+    DealExists,
+
+    #[error("Failed with generic error: {0}")]
+    Generic(String),
 }
