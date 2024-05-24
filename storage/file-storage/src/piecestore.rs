@@ -1,21 +1,30 @@
 use cid::Cid;
-use rocksdb::DB as RocksDB;
 use thiserror::Error;
 
-struct DealInfo {}
+pub struct DealInfo {}
 
-struct BlockLocation {}
+pub struct BlockLocation {}
 
-struct PieceInfo {}
+pub struct PieceInfo {}
 
-struct CidInfo {}
+pub struct CidInfo {}
 
-pub struct PieceStore<StateStore> {
-    pieces: StateStore,
-    cid_infos: StateStore,
+pub struct PieceStore<T> {
+    pieces: T,
+    cid_infos: T,
 }
 
-impl<StateStore> PieceStore<StateStore> {
+impl<T> PieceStore<T>
+where
+    T: StateStore,
+{
+    pub fn new() -> Result<Self, PieceStoreError> {
+        let pieces = StateStore::init(todo!())?;
+        let cid_infos = StateStore::init(todo!())?;
+
+        Ok(Self { pieces, cid_infos })
+    }
+
     /// Store `dealInfo` in the PieceStore with key `pieceCID`.
     pub fn add_deal_for_piece(
         &self,
@@ -56,16 +65,44 @@ impl<StateStore> PieceStore<StateStore> {
 }
 
 /// Trait for a state store that can be used by the PieceStore.
-trait StateStore {
+pub trait StateStore {
+    /// Initialize the state store at `path`.
+    fn init(path: &str) -> Result<Self, PieceStoreError>
+    where
+        Self: Sized;
+
+    /// List all keys stored in the state store.
     fn list(&self) -> Result<Vec<Cid>, PieceStoreError>;
+
+    /// Retrieve the value stored at `cid`.
     fn get(&self, cid: &Cid) -> Result<Vec<u8>, PieceStoreError>;
+
+    /// Check if the state store has a value stored at `cid`.
     fn has(&self, cid: &Cid) -> Result<bool, PieceStoreError>;
 }
 
 #[derive(Debug, Error)]
-pub enum PieceStoreError {}
+pub enum PieceStoreError {
+    #[error("Initialization error: {0}")]
+    Initialization(String),
+}
+
+struct RocksDB {
+    db: rocksdb::DB,
+}
 
 impl StateStore for RocksDB {
+    fn init(path: &str) -> Result<Self, PieceStoreError>
+    where
+        Self: Sized,
+    {
+        let db = rocksdb::DB::open_default(path).map_err(|e| {
+            PieceStoreError::Initialization(format!("failed to open RocksDB: {}", e))
+        })?;
+
+        Ok(Self { db })
+    }
+
     fn list(&self) -> Result<Vec<Cid>, PieceStoreError> {
         todo!()
     }
