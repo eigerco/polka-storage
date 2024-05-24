@@ -78,6 +78,8 @@ jobs:
           rustup show
           cargo --version
           cargo clippy --version
+      - name: Cargo clippy
+        run: cargo clippy --locked -q --no-deps -- -D warnings
       - name: Build with try-runtime feature
         run: RUSTFLAGS="-D warnings" cargo build --locked -q --features try-runtime
       - name: Build node runtime
@@ -86,8 +88,6 @@ jobs:
         run: RUSTFLAGS="-D warnings" cargo build --locked -q -p polka-storage-node --features runtime-benchmarks
       - name: Build in release mode
         run: RUSTFLAGS="-D warnings" cargo build --locked -q --release
-      - name: Cargo clippy
-        run: cargo clippy --locked -q --no-deps -- -D warnings
       - name: Run tests
         run: RUSTFLAGS="-D warnings" cargo test --locked -q --workspace
       - name: Failure handling
