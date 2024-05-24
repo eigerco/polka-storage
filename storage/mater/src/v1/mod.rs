@@ -57,7 +57,7 @@ mod tests {
         let file_contents = tokio::fs::read("tests/fixtures/original/lorem.txt")
             .await
             .unwrap();
-        let contents_multihash = generate_multihash::<Sha256>(&file_contents);
+        let contents_multihash = generate_multihash::<Sha256, _>(&file_contents);
         let root_cid = Cid::new_v1(RAW_CODE, contents_multihash);
 
         let written_header = Header::new(vec![root_cid]);

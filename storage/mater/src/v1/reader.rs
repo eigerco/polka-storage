@@ -122,7 +122,7 @@ mod tests {
         let contents = tokio::fs::read("tests/fixtures/original/lorem.txt")
             .await
             .unwrap();
-        let contents_multihash = generate_multihash::<Sha256>(&contents);
+        let contents_multihash = generate_multihash::<Sha256, _>(&contents);
         let contents_cid = Cid::new_v1(RAW_CODE, contents_multihash);
 
         let file = File::open("tests/fixtures/car_v1/lorem_header.car")
@@ -142,7 +142,7 @@ mod tests {
         let contents = tokio::fs::read("tests/fixtures/original/lorem.txt")
             .await
             .unwrap();
-        let contents_multihash = generate_multihash::<Sha256>(&contents);
+        let contents_multihash = generate_multihash::<Sha256, _>(&contents);
         let contents_cid = Cid::new_v1(RAW_CODE, contents_multihash);
 
         let file = File::open("tests/fixtures/car_v1/lorem.car").await.unwrap();

@@ -425,7 +425,7 @@ mod tests {
                 codec_frequencies.insert(cid.codec(), 1);
             }
 
-            let multihash = generate_multihash::<Sha256>(&block);
+            let multihash = generate_multihash::<Sha256, _>(&block);
             assert_eq!(cid.hash(), &multihash);
         }
 

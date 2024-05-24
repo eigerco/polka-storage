@@ -155,7 +155,7 @@ mod tests {
         let file_contents = tokio::fs::read("tests/fixtures/original/lorem.txt")
             .await
             .unwrap();
-        let contents_multihash = generate_multihash::<Sha256>(&file_contents);
+        let contents_multihash = generate_multihash::<Sha256, _>(&file_contents);
         let root_cid = Cid::new_v1(RAW_CODE, contents_multihash);
 
         // To simplify testing, the values were extracted using `car inspect`
@@ -230,7 +230,7 @@ mod tests {
         let mut file_blocks = vec![];
         while let Some(chunk) = file_chunker.next().await {
             let chunk = chunk.unwrap();
-            let multihash = generate_multihash::<Sha256>(&chunk);
+            let multihash = generate_multihash::<Sha256, _>(&chunk);
             let cid = Cid::new_v1(RAW_CODE, multihash);
             file_blocks.push((cid, chunk));
         }
@@ -257,7 +257,7 @@ mod tests {
         )
         .unwrap();
         let root_cid = {
-            let multihash = generate_multihash::<Sha256>(&node_bytes);
+            let multihash = generate_multihash::<Sha256, _>(&node_bytes);
             Cid::new_v1(DAG_PB_CODE, multihash)
         };
 
