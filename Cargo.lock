@@ -1488,6 +1488,13 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.1.0"
+dependencies = [
+ "parity-scale-codec",
+]
+
+[[package]]
+name = "common"
+version = "0.1.0"
 source = "git+https://github.com/w3f/ring-proof#b273d33f9981e2bb3375ab45faeb537f7ee35224"
 dependencies = [
  "ark-ec",
@@ -9766,7 +9773,7 @@ dependencies = [
  "ark-serialize",
  "ark-std",
  "blake2 0.10.6",
- "common",
+ "common 0.1.0 (git+https://github.com/w3f/ring-proof)",
  "fflonk",
  "merlin",
 ]
