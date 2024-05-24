@@ -87,11 +87,11 @@ pub enum PieceStoreError {
     Initialization(String),
 }
 
-struct RocksDB {
+struct RocksDBStore {
     db: rocksdb::DB,
 }
 
-impl StateStore for RocksDB {
+impl StateStore for RocksDBStore {
     fn init(path: &str) -> Result<Self, PieceStoreError>
     where
         Self: Sized,
