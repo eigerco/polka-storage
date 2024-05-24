@@ -12,7 +12,7 @@ pub struct CidInfo {}
 
 pub trait PieceStore {
     /// Initialize a new store.
-    fn new() -> Result<Self, PieceStoreError>
+    fn new(path: &str) -> Result<Self, PieceStoreError>
     where
         Self: Sized;
 
@@ -43,6 +43,7 @@ pub trait PieceStore {
     fn get_cid_info(&self, payload_cid: &Cid) -> Result<CidInfo, PieceStoreError>;
 }
 
+/// Error that can occur when interacting with the PieceStore.
 #[derive(Debug, Error)]
 pub enum PieceStoreError {
     #[error("Initialization error: {0}")]
