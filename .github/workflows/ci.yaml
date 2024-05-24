@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   toml:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -31,7 +31,8 @@ jobs:
           echo 'Please run taplo format'
 
   format:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+    needs: toml
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -51,7 +52,9 @@ jobs:
           echo 'Please run cargo fmt --all'
 
   clippy_build_and_test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+    needs:
+      - format
     steps:
       - uses: actions/checkout@v4
       - name: Cargo caching
@@ -64,10 +67,6 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('**/Cargo.toml') }}
-      - name: Install protobuf compiler
-        run: |
-          sudo apt-get update
-          sudo apt-get install protobuf-compiler
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.77.0
@@ -75,10 +74,9 @@ jobs:
           components: clippy rust-src
       - name: List version
         run: |
+          rustup show
           cargo --version
           cargo clippy --version
-      - name: Cargo clippy
-        run: cargo clippy --locked -q --no-deps -- -D warnings
       - name: Build with try-runtime feature
         run: RUSTFLAGS="-D warnings" cargo build --locked -q --features try-runtime
       - name: Build node runtime
@@ -89,6 +87,8 @@ jobs:
           ./target/debug/polka-storage-node benchmark pallet --pallet "" --extrinsic "" --steps 2 --repeat 1
       - name: Build in release mode
         run: RUSTFLAGS="-D warnings" cargo build --locked -q --release
+      - name: Cargo clippy
+        run: cargo clippy --locked -q --no-deps -- -D warnings
       - name: Run tests
         run: RUSTFLAGS="-D warnings" cargo test --locked -q --workspace
       - name: Failure handling
