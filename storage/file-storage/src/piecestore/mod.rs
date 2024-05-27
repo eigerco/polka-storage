@@ -1,18 +1,19 @@
+use std::collections::HashMap;
+
 use cid::Cid;
 use thiserror::Error;
 
-use self::types::{DealInfo, PieceInfo};
+use self::types::{BlockLocation, CidInfo, DealInfo, PieceInfo};
 
 pub mod rocksdb;
 mod types;
 
-pub struct BlockLocation {}
-
-pub struct CidInfo {}
-
 pub trait PieceStore {
+    /// Implementation-specific configuration.
+    type Config;
+
     /// Initialize a new store.
-    fn new(path: &str) -> Result<Self, PieceStoreError>
+    fn new(config: Self::Config) -> Result<Self, PieceStoreError>
     where
         Self: Sized;
 
@@ -27,7 +28,7 @@ pub trait PieceStore {
     fn add_piece_block_locations(
         &self,
         piece_cid: &Cid,
-        block_locations: &[BlockLocation],
+        block_locations: &HashMap<Cid, BlockLocation>,
     ) -> Result<(), PieceStoreError>;
 
     /// List all piece CIDs stored in the PieceStore.
@@ -36,11 +37,11 @@ pub trait PieceStore {
     /// List all CIDInfo keys stored in the PieceStore.
     fn list_cid_info_keys(&self) -> Result<Vec<Cid>, PieceStoreError>;
 
-    /// Retrieve the [`PieceInfo`] for a given piece CID.
-    fn get_piece_info(&self, piece_cid: &Cid) -> Result<PieceInfo, PieceStoreError>;
+    /// Retrieve the PieceInfo for a given piece CID.
+    fn get_piece_info(&self, cid: &Cid) -> Result<Option<PieceInfo>, PieceStoreError>;
 
-    /// Retrieve the CIDInfo for a given CID.
-    fn get_cid_info(&self, payload_cid: &Cid) -> Result<CidInfo, PieceStoreError>;
+    /// Retrieve the CidInfo associated with piece CID.
+    fn get_cid_info(&self, cid: &Cid) -> Result<Option<CidInfo>, PieceStoreError>;
 }
 
 /// Error that can occur when interacting with the PieceStore.
@@ -52,9 +53,15 @@ pub enum PieceStoreError {
     #[error("Piece missing")]
     PieceMissing,
 
+    #[error("CidInfo missing")]
+    CidInfoMissing,
+
     #[error("Deal already exists")]
     DealExists,
 
-    #[error("Failed with generic error: {0}")]
-    Generic(String),
+    #[error("Block location already exists: {0:?}")]
+    BlockLocationExists(BlockLocation),
+
+    #[error("Failed with store specific error: {0}")]
+    StoreSpecific(String),
 }
