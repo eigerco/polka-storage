@@ -9,18 +9,24 @@ use polkadot_parachain_primitives::primitives::Sibling;
 use polkadot_runtime_common::impls::ToAuthor;
 use xcm::latest::prelude::*;
 use xcm_builder::{
-    AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowTopLevelPaidExecutionFrom,
+    AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowHrmpNotificationsFromRelayChain,
+    AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
     DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin, FixedWeightBounds,
-    FrameTransactionalProcessor, FungibleAdapter, IsConcrete, NativeAsset, ParentIsPreset,
-    RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
-    SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit,
-    TrailingSetTopicAsId, UsingComponents, WithComputedOrigin, WithUniqueTopic,
+    FrameTransactionalProcessor, FungibleAdapter, IsConcrete, ParentIsPreset, RelayChainAsNative,
+    SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
+    SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit, TrailingSetTopicAsId,
+    UsingComponents, WithComputedOrigin, WithUniqueTopic, XcmFeeManagerFromComponents,
 };
 use xcm_executor::XcmExecutor;
 
 use crate::{
     AccountId, AllPalletsWithSystem, Balances, ParachainInfo, ParachainSystem, PolkadotXcm,
     Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmpQueue,
+};
+
+use parachains_common::xcm_config::{
+    AllSiblingSystemParachains, ConcreteAssetFromSystem, ParentRelayOrSiblingParachains,
+    RelayOrOtherSystemParachains,
 };
 
 parameter_types! {
@@ -103,16 +109,29 @@ impl Contains<Location> for ParentOrParentsExecutivePlurality {
     }
 }
 
+/// Teleporting assets between chains (relay<->parachain) requires both-way trust.
+/// Relay Chain trusts its system parachains, by hardcoded parachain IDs. Currently we use 1000 (AssetHub) id, for this to work out of the box.
+/// [`ConcreteAssetFromSystem<RelayLocation>`](parachains_common::xcm_config::ConcreteAssetFromSystem) trusts teleports of a native currency (assets from a location of a relay Chain).
+pub type TrustedTeleporters = (ConcreteAssetFromSystem<RelayLocation>,);
+
 pub type Barrier = TrailingSetTopicAsId<
     DenyThenTry<
         DenyReserveTransferToRelayChain,
         (
             TakeWeightCredit,
+            AllowKnownQueryResponses<PolkadotXcm>,
             WithComputedOrigin<
                 (
                     AllowTopLevelPaidExecutionFrom<Everything>,
                     AllowExplicitUnpaidExecutionFrom<ParentOrParentsExecutivePlurality>,
-                    // ^^^ Parent and its exec plurality get free execution
+                    // SubscribeVersion is a query about the XCM version that is supported
+                    // In the process of teleport those are send both ways.
+                    AllowSubscriptionsFrom<ParentRelayOrSiblingParachains>,
+                    // HRMP is the current protocol for the communications between the chains,
+                    // When teleporting assets, XCM instructions are exchanged via HRMP.
+                    // It'll be someday replaced by XCMP, but it's not implemented yet.
+                    // https://wiki.polkadot.network/docs/learn-xcm-transport#xcmp-cross-chain-message-passing
+                    AllowHrmpNotificationsFromRelayChain,
                 ),
                 UniversalLocation,
                 ConstU32<8>,
@@ -121,6 +140,11 @@ pub type Barrier = TrailingSetTopicAsId<
     >,
 >;
 
+/// Locations that will not be charged fees in the executor,
+/// either execution or delivery.
+/// We only waive fees for system functions, which these locations represent
+pub type WaivedLocations = (RelayOrOtherSystemParachains<AllSiblingSystemParachains, Runtime>,);
+
 pub struct XcmConfig;
 impl xcm_executor::Config for XcmConfig {
     type RuntimeCall = RuntimeCall;
@@ -128,10 +152,15 @@ impl xcm_executor::Config for XcmConfig {
     // How to withdraw and deposit an asset.
     type AssetTransactor = LocalAssetTransactor;
     type OriginConverter = XcmOriginToTransactDispatchOrigin;
-    type IsReserve = NativeAsset;
-    type IsTeleporter = (); // Teleporting is disabled.
+    // Reserve is a different kind of transfering assets between chains.
+    // You can either teleport or reserve. Teleport is for trusted chains (polkadot<->system parachain).
+    // Reserve is for other kinds consensus system, like Ethereum.
+    // In our parachain we don't allow nor leverage reserve transfers, so it's disabled.
+    type IsReserve = ();
+    type IsTeleporter = TrustedTeleporters;
     type UniversalLocation = UniversalLocation;
     type Barrier = Barrier;
+    // TODO(@th7nder, #35, 2024-05-22): Set proper weight
     type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
     type Trader =
         UsingComponents<WeightToFee, RelayLocation, AccountId, Balances, ToAuthor<Runtime>>;
@@ -143,7 +172,10 @@ impl xcm_executor::Config for XcmConfig {
     type MaxAssetsIntoHolding = MaxAssetsIntoHolding;
     type AssetLocker = ();
     type AssetExchanger = ();
-    type FeeManager = ();
+    // XcmFees are paid when executing XCM instructions (e.g. teleporting assets between chains).
+    // We don't want to take fees when doing those instructions between relay<->parachains, so it's waived.
+    // The () corresponds to what we do, when it's not system parachain or relay. Currently we don't support that, so it does nothing.
+    type FeeManager = XcmFeeManagerFromComponents<WaivedLocations, ()>;
     type MessageExporter = ();
     type UniversalAliases = Nothing;
     type CallDispatcher = RuntimeCall;
@@ -171,13 +203,15 @@ impl pallet_xcm::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
     type XcmRouter = XcmRouter;
+    // We support local origins dispatching XCM executions in principle...
     type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
+    // ... but disallow generic XCM execution. As a result only teleports and reserve transfers are
+    // allowed.
     type XcmExecuteFilter = Nothing;
-    // ^ Disable dispatchable execute on the XCM pallet.
-    // Needs to be `Everything` for local testing.
     type XcmExecutor = XcmExecutor<XcmConfig>;
     type XcmTeleportFilter = Everything;
     type XcmReserveTransferFilter = Nothing;
+    // TODO(@th7nder, #35, 2024-05-22): Set proper weight.
     type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
     type UniversalLocation = UniversalLocation;
     type RuntimeOrigin = RuntimeOrigin;
@@ -191,6 +225,7 @@ impl pallet_xcm::Config for Runtime {
     type TrustedLockers = ();
     type SovereignAccountOf = LocationToAccountId;
     type MaxLockers = ConstU32<8>;
+    // TODO(@th7nder, #35, 2024-05-22): Set proper weight, TestWeightInfo is equal to ()
     type WeightInfo = pallet_xcm::TestWeightInfo;
     type AdminOrigin = EnsureRoot<AccountId>;
     type MaxRemoteLockConsumers = ConstU32<0>;
