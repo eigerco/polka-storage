@@ -83,12 +83,18 @@ jobs:
         run: RUSTFLAGS="-D warnings" cargo build --locked -q -p polka-storage-runtime
       - name: Build node with runtime-benchmark feature
         run: RUSTFLAGS="-D warnings" cargo build --locked -q -p polka-storage-node --features runtime-benchmarks
-      - name: Build in release mode
-        run: RUSTFLAGS="-D warnings" cargo build --locked -q --release
+      - name: Build in dev mode
+        run: RUSTFLAGS="-D warnings" cargo build --locked -q
       - name: Cargo clippy
         run: cargo clippy --locked -q --no-deps -- -D warnings
       - name: Run tests
         run: RUSTFLAGS="-D warnings" cargo test --locked -q --workspace
+      - name: Build in release mode
+        # Run only on merge to the protected branches
+        if: |
+          contains(github.ref, 'develop') ||
+          contains(github.ref, 'main')
+        run: RUSTFLAGS="-D warnings" cargo build --locked -q --release
       - name: Failure handling
         if: failure()
         run: |
