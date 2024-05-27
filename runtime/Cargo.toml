@@ -45,6 +45,9 @@ pallet-timestamp = { workspace = true, default-features = false }
 pallet-transaction-payment = { workspace = true, default-features = false }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true, default-features = false }
 
+# Local Pallets
+pallet-collator-power = { workspace = true, default-features = false }
+
 # Substrate Primitives
 sp-api = { workspace = true, default-features = false }
 sp-block-builder = { workspace = true, default-features = false }
@@ -103,6 +106,7 @@ std = [
   "pallet-aura/std",
   "pallet-authorship/std",
   "pallet-balances/std",
+  "pallet-collator-power/std",
   "pallet-collator-selection/std",
   "pallet-message-queue/std",
   "pallet-session/std",
@@ -146,6 +150,7 @@ runtime-benchmarks = [
   "frame-system/runtime-benchmarks",
   "hex-literal",
   "pallet-balances/runtime-benchmarks",
+  "pallet-collator-power/runtime-benchmarks",
   "pallet-collator-selection/runtime-benchmarks",
   "pallet-message-queue/runtime-benchmarks",
   "pallet-sudo/runtime-benchmarks",
@@ -171,6 +176,7 @@ try-runtime = [
   "pallet-aura/try-runtime",
   "pallet-authorship/try-runtime",
   "pallet-balances/try-runtime",
+  "pallet-collator-power/try-runtime",
   "pallet-collator-selection/try-runtime",
   "pallet-message-queue/try-runtime",
   "pallet-session/try-runtime",

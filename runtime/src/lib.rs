@@ -245,6 +245,9 @@ construct_runtime!(
         PolkadotXcm: pallet_xcm = 31,
         CumulusXcm: cumulus_pallet_xcm = 32,
         MessageQueue: pallet_message_queue = 33,
+
+        // Polka Storage Pallets
+        CollatorPower: pallet_collator_power = 50,
     }
 );
 

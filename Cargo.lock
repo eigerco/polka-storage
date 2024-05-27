@@ -6515,6 +6515,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-collator-power"
+version = "0.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+]
+
+[[package]]
 name = "pallet-collator-selection"
 version = "9.0.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-v1.11.0#0bb6249268c0b77d2834640b84cb52fdd3d7e860"
@@ -7806,6 +7820,7 @@ dependencies = [
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
+ "pallet-collator-power",
  "pallet-collator-selection",
  "pallet-message-queue",
  "pallet-session",

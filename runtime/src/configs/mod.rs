@@ -303,3 +303,11 @@ impl pallet_collator_selection::Config for Runtime {
     type ValidatorRegistration = Session;
     type WeightInfo = ();
 }
+
+impl pallet_collator_power::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type Currency = Balances;
+    type StoragePower = u128;
+    type CollatorId = <Self as frame_system::Config>::AccountId;
+    type StorageProviderId = <Self as frame_system::Config>::AccountId;
+}
