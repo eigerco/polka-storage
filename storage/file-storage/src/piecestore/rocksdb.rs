@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use cid::Cid;
-use rocksdb::{ColumnFamilyDescriptor, IteratorMode, Options, DB as RocksDB};
+use rocksdb::{ColumnFamily, ColumnFamilyDescriptor, IteratorMode, Options, DB as RocksDB};
 
 use crate::piecestore::types::{PieceBlockLocation, PieceInfo};
 
@@ -26,7 +26,7 @@ impl RocksDBPieceStore {
     /// Get the column family handle for the given column family name. Panics if
     /// the column family is not present.
     #[track_caller]
-    fn cf_handle(&self, cf_name: &str) -> &rocksdb::ColumnFamily {
+    fn cf_handle(&self, cf_name: &str) -> &ColumnFamily {
         self.database
             .cf_handle(cf_name)
             .expect("column family should be present")
@@ -128,16 +128,14 @@ impl PieceStore for RocksDBPieceStore {
             return Err(PieceStoreError::PieceMissing);
         };
 
-        // Check if deal already added
+        // Check if deal already added for this piece
         if piece_info.deals.iter().any(|d| *d == deal_info) {
             return Err(PieceStoreError::DealExists);
         }
 
         // Save the new deal
         piece_info.deals.push(deal_info);
-        self.put_value_at_key(piece_cid.to_bytes(), piece_info, PIECES_CF)?;
-
-        Ok(())
+        self.put_value_at_key(piece_cid.to_bytes(), piece_info, PIECES_CF)
     }
 
     /// Store the map of block_locations in the PieceStore's CidInfo store, with key `piece_cid`.
