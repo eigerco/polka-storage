@@ -5,6 +5,16 @@ homepage = "https://eiger.co"
 license-file = "LICENSE"
 repository = "https://github.com/eigerco/polka-storage"
 
+[profile.ci]
+inherits = "dev"
+opt-level = 0             # No optimization
+debug = false             # No debug information
+overflow-checks = false   # Disable overflow checks
+lto = false               # Disable Link Time Optimization
+codegen-units = 256       # Increase parallel code generation units
+panic = 'abort'           # Use abort on panic to reduce binary size
+incremental = false       # Disable incremental compilation for consistent CI performance
+
 [workspace]
 members = ["node", "runtime"]
 resolver = "2"
