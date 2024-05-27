@@ -3,6 +3,7 @@ mod writer;
 
 use ipld_core::cid::Cid;
 use serde::{Deserialize, Serialize};
+use serde_ipld_dagcbor::codec::DagCborCodec;
 
 pub use crate::v1::{reader::Reader, writer::Writer};
 pub(crate) use crate::v1::{

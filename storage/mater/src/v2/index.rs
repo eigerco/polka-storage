@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, mem::size_of};
 
 use integer_encoding::{VarIntAsyncReader, VarIntAsyncWriter};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
@@ -135,6 +135,14 @@ pub struct MultihashIndexSorted(
     pub BTreeMap<u64, IndexSorted>,
 );
 
+impl MultihashIndexSorted {
+    pub fn from_single_width(code: u64, index: IndexSorted) -> Self {
+        let mut map = BTreeMap::new();
+        map.insert(code, index);
+        Self(map)
+    }
+}
+
 impl From<BTreeMap<u64, IndexSorted>> for MultihashIndexSorted {
     fn from(value: BTreeMap<u64, IndexSorted>) -> Self {
         Self(value)
@@ -166,75 +174,87 @@ impl Index {
     }
 }
 
-pub(crate) async fn write_index<W>(mut writer: W, index: &Index) -> Result<(), Error>
+pub(crate) async fn write_index<W>(mut writer: W, index: &Index) -> Result<usize, Error>
 where
     W: AsyncWrite + Unpin,
 {
+    let mut written_bytes = 0;
     match index {
         Index::IndexSorted(index) => {
-            writer.write_varint_async(INDEX_SORTED_CODE).await?;
-            write_index_sorted(&mut writer, index).await?;
+            written_bytes += writer.write_varint_async(INDEX_SORTED_CODE).await?;
+            written_bytes += write_index_sorted(&mut writer, index).await?;
         }
         Index::MultihashIndexSorted(index) => {
-            writer
+            written_bytes += writer
                 .write_varint_async(MULTIHASH_INDEX_SORTED_CODE)
                 .await?;
-            write_multihash_index_sorted(&mut writer, index).await?
+            written_bytes += write_multihash_index_sorted(&mut writer, index).await?;
         }
     }
-    Ok(())
+    Ok(written_bytes)
 }
 
 pub(crate) async fn write_multihash_index_sorted<W>(
     mut writer: W,
     index: &MultihashIndexSorted,
-) -> Result<(), Error>
+) -> Result<usize, Error>
 where
     W: AsyncWrite + Unpin,
 {
+    let mut written_bytes = 0;
     writer.write_i32_le(index.0.len() as i32).await?;
+    written_bytes += size_of::<i32>();
     for (hash_code, index) in index.0.iter() {
         writer.write_u64_le(*hash_code).await?;
-        write_index_sorted(&mut writer, index).await?;
+        written_bytes += size_of::<u64>();
+        written_bytes += write_index_sorted(&mut writer, index).await?;
     }
-    Ok(())
+    Ok(written_bytes)
 }
 
-pub(crate) async fn write_index_sorted<W>(mut writer: W, index: &IndexSorted) -> Result<(), Error>
+pub(crate) async fn write_index_sorted<W>(
+    mut writer: W,
+    index: &IndexSorted,
+) -> Result<usize, Error>
 where
     W: AsyncWrite + Unpin,
 {
+    let mut written_bytes = 0;
     writer.write_i32_le(index.0.len() as i32).await?;
+    written_bytes += size_of::<i32>();
     for idx in &index.0 {
-        write_single_width_index(&mut writer, idx).await?;
+        written_bytes += write_single_width_index(&mut writer, idx).await?;
     }
-    Ok(())
+    Ok(written_bytes)
 }
 
 pub(crate) async fn write_single_width_index<W>(
     mut writer: W,
     index: &SingleWidthIndex,
-) -> Result<(), Error>
+) -> Result<usize, Error>
 where
     W: AsyncWrite + Unpin,
 {
+    let mut written_bytes = 0;
     writer.write_u32_le(index.width).await?;
+    written_bytes += size_of::<u32>();
     writer
         .write_u64_le(index.count * (index.width as u64))
         .await?;
+    written_bytes += size_of::<u64>();
     for entry in &index.entries {
-        write_index_entry(&mut writer, entry).await?;
+        written_bytes += write_index_entry(&mut writer, entry).await?;
     }
-    Ok(())
+    Ok(written_bytes)
 }
 
-pub(crate) async fn write_index_entry<W>(mut writer: W, entry: &IndexEntry) -> Result<(), Error>
+pub(crate) async fn write_index_entry<W>(mut writer: W, entry: &IndexEntry) -> Result<usize, Error>
 where
     W: AsyncWrite + Unpin,
 {
     writer.write_all(&entry.digest).await?;
     writer.write_u64_le(entry.offset).await?;
-    Ok(())
+    Ok(entry.digest.len() + size_of::<u64>())
 }
 
 pub(crate) async fn read_index<R>(mut reader: R) -> Result<Index, Error>

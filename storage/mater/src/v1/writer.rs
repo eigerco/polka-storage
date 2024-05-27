@@ -7,14 +7,14 @@ pub use crate::v1::Header;
 use crate::Error;
 
 /// Write [`crate::v1::Header`] to the provider writer.
-pub(crate) async fn write_header<W>(writer: &mut W, header: &Header) -> Result<(), Error>
+pub(crate) async fn write_header<W>(writer: &mut W, header: &Header) -> Result<usize, Error>
 where
     W: AsyncWrite + Unpin,
 {
     let encoded_header = DagCborCodec::encode_to_vec(header)?;
-    writer.write_varint_async(encoded_header.len()).await?;
+    let varint_len = writer.write_varint_async(encoded_header.len()).await?;
     writer.write_all(&encoded_header).await?;
-    Ok(())
+    Ok(varint_len + encoded_header.len())
 }
 
 /// Write a [`Cid`] and data block to the given writer.
@@ -24,7 +24,7 @@ pub(crate) async fn write_block<W, Block>(
     writer: &mut W,
     cid: &Cid,
     block: Block,
-) -> Result<(), Error>
+) -> Result<usize, Error>
 where
     W: AsyncWrite + Unpin,
     Block: AsRef<[u8]>,
@@ -32,11 +32,11 @@ where
     let data = block.as_ref();
     let len = cid.encoded_len() + data.len();
 
-    writer.write_varint_async(len).await?;
+    let varint_len = writer.write_varint_async(len).await?;
     // This allocation can probably be spared
     writer.write_all(&cid.to_bytes()).await?;
     writer.write_all(block.as_ref()).await?;
-    Ok(())
+    Ok(varint_len + cid.encoded_len() + block.as_ref().len())
 }
 
 /// Low-level CARv1 writer.
@@ -58,12 +58,12 @@ where
     W: AsyncWrite + Unpin,
 {
     /// Write a [`crate::v1::Header`].
-    pub async fn write_header(&mut self, header: &Header) -> Result<(), Error> {
+    pub async fn write_header(&mut self, header: &Header) -> Result<usize, Error> {
         write_header(&mut self.writer, header).await
     }
 
     /// Write a [`Cid`] and the respective data block.
-    pub async fn write_block<D>(&mut self, cid: &Cid, data: &D) -> Result<(), Error>
+    pub async fn write_block<D>(&mut self, cid: &Cid, data: &D) -> Result<usize, Error>
     where
         D: AsRef<[u8]>,
     {

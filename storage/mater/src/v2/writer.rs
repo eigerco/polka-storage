@@ -24,7 +24,9 @@ where
     W: AsyncWrite + Unpin,
 {
     /// Write a [`Header`].
-    pub async fn write_header(&mut self, header: &Header) -> Result<(), Error> {
+    ///
+    /// Returns the number of bytes written.
+    pub async fn write_header(&mut self, header: &Header) -> Result<usize, Error> {
         self.writer.write(&PRAGMA).await?;
 
         let mut buffer = [0; 40];
@@ -35,16 +37,20 @@ where
         WriteBytesExt::write_u64::<LittleEndian>(&mut handle, header.index_offset)?;
 
         self.writer.write_all(&buffer).await?;
-        Ok(())
+        Ok(PRAGMA.len() + buffer.len())
     }
 
     /// Write a [`crate::v1::Header`].
-    pub async fn write_v1_header(&mut self, v1_header: &crate::v1::Header) -> Result<(), Error> {
+    ///
+    /// Returns the number of bytes written.
+    pub async fn write_v1_header(&mut self, v1_header: &crate::v1::Header) -> Result<usize, Error> {
         crate::v1::write_header(&mut self.writer, v1_header).await
     }
 
     /// Write a [`Cid`] and the respective data block.
-    pub async fn write_block<Block>(&mut self, cid: &Cid, block: &Block) -> Result<(), Error>
+    ///
+    /// Returns the number of bytes written.
+    pub async fn write_block<Block>(&mut self, cid: &Cid, block: &Block) -> Result<usize, Error>
     where
         Block: AsRef<[u8]>,
     {
@@ -52,18 +58,20 @@ where
     }
 
     /// Write an [`Index`].
-    pub async fn write_index(&mut self, index: &Index) -> Result<(), Error> {
+    ///
+    /// Returns the number of bytes written.
+    pub async fn write_index(&mut self, index: &Index) -> Result<usize, Error> {
         crate::v2::index::write_index(&mut self.writer, index).await
     }
 
-    /// Write padding.
+    /// Write padding (`0x0` bytes).
     ///
-    /// Padding consists of only `0x0` bytes.
-    pub async fn write_padding(&mut self, length: usize) -> Result<(), Error> {
+    /// Returns the number of bytes written.
+    pub async fn write_padding(&mut self, length: usize) -> Result<usize, Error> {
         for _ in 0..length {
             self.writer.write_u8(0).await?;
         }
-        Ok(())
+        Ok(length)
     }
 
     /// Flushes and returns the inner writer.

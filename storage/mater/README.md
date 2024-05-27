@@ -2,6 +2,8 @@
 
 A Rust library to read and write CAR files.
 
+This library is based on [beetle](https://github.com/n0-computer/beetle).
+
 ## Specifications
 
 CARv1 specification: https://ipld.io/specs/transport/car/carv1/
