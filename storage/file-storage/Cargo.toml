@@ -8,9 +8,9 @@ license-file.workspace = true
 repository.workspace = true
 
 [dependencies]
-cid = "0.11.1"
+cid = { workspace = true }
 thiserror = { workspace = true }
-rocksdb = "0.21"
+rocksdb = { workspace = true }
 
 [lints]
 workspace = true
