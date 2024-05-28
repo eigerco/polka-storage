@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use cid::Cid;
 use rocksdb::{ColumnFamily, ColumnFamilyDescriptor, IteratorMode, Options, DB as RocksDB};
+use serde::{de::DeserializeOwned, Serialize};
 
 use crate::piecestore::types::{PieceBlockLocation, PieceInfo};
 
@@ -65,26 +66,40 @@ impl RocksDBPieceStore {
     ) -> Result<Option<Value>, PieceStoreError>
     where
         Key: Into<Vec<u8>>,
-        for<'a> Value: From<&'a [u8]>,
+        Value: DeserializeOwned,
     {
-        Ok(self
+        let Some(slice) = self
             .database
             .get_pinned_cf(self.cf_handle(cf_name), key.into())?
-            .map(|slice| Value::from(slice.as_ref())))
+        else {
+            return Ok(None);
+        };
+
+        match ciborium::from_reader(slice.as_ref()) {
+            Ok(value) => Ok(Some(value)),
+            Err(err) => Err(PieceStoreError::Deserialization(err.to_string())),
+        }
     }
 
     /// Put value at the specified key in the specified column family.
     fn put_value_at_key<Key, Value>(
         &self,
         key: Key,
-        value: Value,
+        value: &Value,
         cf_name: &str,
     ) -> Result<(), PieceStoreError>
     where
         Key: AsRef<[u8]>,
-        Value: AsRef<[u8]>,
+        Value: Serialize,
     {
-        self.database.put_cf(self.cf_handle(cf_name), key, value)?;
+        let mut serialized = Vec::new();
+        if let Err(err) = ciborium::into_writer(value, &mut serialized) {
+            return Err(PieceStoreError::Serialization(err.to_string()));
+        }
+
+        self.database
+            .put_cf(self.cf_handle(cf_name), key, serialized)?;
+
         Ok(())
     }
 }
@@ -135,7 +150,7 @@ impl PieceStore for RocksDBPieceStore {
 
         // Save the new deal
         piece_info.deals.push(deal_info);
-        self.put_value_at_key(piece_cid.to_bytes(), piece_info, PIECES_CF)
+        self.put_value_at_key(piece_cid.to_bytes(), &piece_info, PIECES_CF)
     }
 
     /// Store the map of block_locations in the PieceStore's CidInfo store, with key `piece_cid`.
@@ -166,7 +181,7 @@ impl PieceStore for RocksDBPieceStore {
             });
 
             // Save the updated CidInfo
-            self.put_value_at_key(cid.to_bytes(), info, CID_INFOS_CF)?;
+            self.put_value_at_key(cid.to_bytes(), &info, CID_INFOS_CF)?;
         }
 
         Ok(())

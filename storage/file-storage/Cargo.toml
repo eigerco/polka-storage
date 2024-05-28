@@ -8,9 +8,11 @@ license-file.workspace = true
 repository.workspace = true
 
 [dependencies]
-cid = { workspace = true }
-thiserror = { workspace = true }
+ciborium = { workspace = true }
+cid = { workspace = true, features = ["serde"] }
 rocksdb = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
 
 [lints]
 workspace = true

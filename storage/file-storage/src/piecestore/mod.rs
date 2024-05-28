@@ -62,6 +62,12 @@ pub enum PieceStoreError {
     #[error("Block location already exists: {0:?}")]
     BlockLocationExists(BlockLocation),
 
+    #[error("Serialization error: {0}")]
+    Serialization(String),
+
+    #[error("Deserialization error: {0}")]
+    Deserialization(String),
+
     #[error("Failed with store specific error: {0}")]
     StoreSpecific(String),
 }
