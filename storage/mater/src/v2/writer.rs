@@ -91,7 +91,6 @@ mod tests {
     use std::{collections::BTreeMap, io::Cursor};
 
     use ipld_core::cid::Cid;
-    use ipld_dagpb::{PbLink, PbNode};
     use sha2::Sha256;
     use tokio::{
         fs::File,
@@ -100,9 +99,10 @@ mod tests {
     use tokio_stream::StreamExt;
     use tokio_util::io::ReaderStream;
 
-    use crate::test_utils::assert_buffer_eq;
     use crate::{
-        multicodec::{generate_multihash, MultihashCode, DAG_PB_CODE, RAW_CODE},
+        multicodec::{generate_multihash, MultihashCode, RAW_CODE},
+        test_utils::assert_buffer_eq,
+        unixfs::stream_balanced_tree,
         v2::{
             index::{IndexEntry, IndexSorted, SingleWidthIndex},
             Header, Writer,
@@ -234,40 +234,11 @@ mod tests {
             .await
             .unwrap();
         // https://github.com/ipfs/boxo/blob/f4fe8997dcbeb39b3a4842d8f08b34739bfd84a4/chunker/parse.go#L13
-        let mut file_chunker = ReaderStream::with_capacity(file, 1024 * 256);
-        let mut file_blocks = vec![];
-        while let Some(chunk) = file_chunker.next().await {
-            let chunk = chunk.unwrap();
-            let multihash = generate_multihash::<Sha256, _>(&chunk);
-            let cid = Cid::new_v1(RAW_CODE, multihash);
-            file_blocks.push((cid, chunk));
-        }
-
-        let links = file_blocks
-            .iter()
-            .map(|(cid, block)| PbLink {
-                cid: cid.clone(),
-                // NOTE(@jmg-duarte,23/05/2024): actually how go-car does it... kinda weird if you ask me
-                name: Some("".to_string()),
-                size: Some(block.len() as u64),
-            })
-            .collect();
-        let node = PbNode { links, data: None };
-        let mut node_bytes = node.into_bytes();
-        // This is very much cheating but the contents here are the UnixFS wrapper for the node
-        // TODO(@jmg-duarte,22/05/2024): replace this when we implement unixfs
-        std::io::Write::write_all(
-            &mut node_bytes,
-            &vec![
-                0x0A, 0x12, 0x08, 0x02, 0x18, 0xCE, 0xF5, 0x27, 0x20, 0x80, 0x80, 0x10, 0x20, 0x80,
-                0x80, 0x10, 0x20, 0xCE, 0xF5, 0x07,
-            ],
-        )
-        .unwrap();
-        let root_cid = {
-            let multihash = generate_multihash::<Sha256, _>(&node_bytes);
-            Cid::new_v1(DAG_PB_CODE, multihash)
-        };
+        let file_chunker = ReaderStream::with_capacity(file, 1024 * 256);
+        let nodes = stream_balanced_tree(file_chunker, 11)
+            .collect::<Result<Vec<_>, _>>()
+            .await
+            .unwrap();
 
         // To simplify testing, the values were extracted using `car inspect`
         writer
@@ -283,12 +254,12 @@ mod tests {
         };
 
         writer
-            .write_v1_header(&crate::v1::Header::new(vec![root_cid]))
+            .write_v1_header(&crate::v1::Header::new(vec![nodes.last().unwrap().0]))
             .await
             .unwrap();
 
         let mut offsets = vec![];
-        for (cid, block) in &file_blocks {
+        for (cid, block) in &nodes {
             // write the blocks, saving their positions for the index
             offsets.push({
                 let inner = writer.get_inner_mut();
@@ -296,12 +267,6 @@ mod tests {
             });
             writer.write_block(cid, block).await.unwrap();
         }
-        // Write the DAG-PB link unifying everything
-        offsets.push({
-            let inner = writer.get_inner_mut();
-            inner.stream_position().await.unwrap() - start_car_v1
-        });
-        writer.write_block(&root_cid, &node_bytes).await.unwrap();
 
         let inner = writer.get_inner_mut();
         let written = inner.stream_position().await.unwrap();
@@ -312,9 +277,8 @@ mod tests {
             Sha256::CODE,
             IndexSorted::from(
                 SingleWidthIndex::try_from(
-                    file_blocks
+                    nodes
                         .iter()
-                        .chain(std::iter::once(&(root_cid, node_bytes.into())))
                         .zip(&offsets)
                         .map(|((cid, _), offset)| {
                             IndexEntry::new(cid.hash().digest().to_vec(), *offset)
