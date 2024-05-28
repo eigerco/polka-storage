@@ -14,14 +14,14 @@ resolver = "2"
 litep2p = "0.3.0"
 
 [profile.ci]
+codegen-units = 256     # Increase parallel code generation units
+debug = false           # No debug information
+incremental = false     # Disable incremental compilation for consistent CI performance
 inherits = "dev"
-opt-level = 0             # No optimization
-debug = false             # No debug information
-overflow-checks = false   # Disable overflow checks
-lto = false               # Disable Link Time Optimization
-codegen-units = 256       # Increase parallel code generation units
-panic = 'abort'           # Use abort on panic to reduce binary size
-incremental = false       # Disable incremental compilation for consistent CI performance
+lto = false             # Disable Link Time Optimization
+opt-level = 0           # No optimization
+overflow-checks = false # Disable overflow checks
+panic = 'abort'         # Use abort on panic to reduce binary size
 
 [workspace.dependencies]
 # Build dependencies
