@@ -29,6 +29,7 @@ ipld-dagpb.workspace = true
 itertools.workspace = true
 async-stream.workspace = true
 futures.workspace = true
+indexmap.workspace = true
 
 [dev-dependencies]
 rand.workspace = true

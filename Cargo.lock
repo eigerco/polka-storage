@@ -5555,6 +5555,7 @@ dependencies = [
  "bytes",
  "digest 0.10.7",
  "futures",
+ "indexmap 2.2.6",
  "integer-encoding 4.0.0",
  "ipld-core",
  "ipld-dagpb",

@@ -6,6 +6,7 @@ mod unixfs;
 mod v1;
 mod v2;
 
+pub use blockstore::Blockstore;
 pub use v1::{Header as CarV1Header, Reader as CarV1Reader, Writer as CarV1Writer};
 pub use v2::{
     Characteristics, Header as CarV2Header, Index, IndexEntry, IndexSorted, MultihashIndexSorted,
@@ -84,6 +85,9 @@ pub enum Error {
 // NOTE(@jmg-duarte,23/05/2024): I'm looking for better alternatives to this
 #[cfg(test)]
 pub(crate) mod test_utils {
+
+    // NOTE(@jmg-duarte,28/05/2024): I'm still not convinced that assert_buffer_eq should be a macro
+    // but I am also not convinced it should be a method. Please advise!
 
     /// Check if two given slices are equal.
     ///
