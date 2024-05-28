@@ -32,8 +32,8 @@ pub struct DealInfo {
 /// piece
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BlockLocation {
-    rel_offset: u64,
-    block_size: u64,
+    pub rel_offset: u64,
+    pub block_size: u64,
 }
 
 /// Contains block information along with the piece_id of the piece the block is

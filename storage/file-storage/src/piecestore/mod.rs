@@ -17,14 +17,18 @@ pub trait PieceStore {
     where
         Self: Sized;
 
-    /// Store `dealInfo` in the PieceStore with key `pieceCID`.
+    /// Store deal_info in the PieceStore with key piece_cid.
     fn add_deal_for_piece(
         &self,
         piece_cid: &Cid,
         deal_info: DealInfo,
     ) -> Result<(), PieceStoreError>;
 
-    /// Store the map of blockLocations in the PieceStore's CIDInfo store, with key `pieceCID`
+    /// Store the map of block_locations in the PieceStore's CidInfo store, with
+    /// key piece_cid.
+    ///
+    /// Note: If a piece block location is already present in the CidInfo, it
+    /// will be ignored.
     fn add_piece_block_locations(
         &self,
         piece_cid: &Cid,
@@ -50,17 +54,8 @@ pub enum PieceStoreError {
     #[error("Initialization error: {0}")]
     Initialization(String),
 
-    #[error("Piece missing")]
-    PieceMissing,
-
-    #[error("CidInfo missing")]
-    CidInfoMissing,
-
     #[error("Deal already exists")]
     DealExists,
-
-    #[error("Block location already exists: {0:?}")]
-    BlockLocationExists(BlockLocation),
 
     #[error("Serialization error: {0}")]
     Serialization(String),

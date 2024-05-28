@@ -3282,6 +3282,7 @@ dependencies = [
  "cid 0.11.1",
  "rocksdb",
  "serde",
+ "tempfile",
  "thiserror",
 ]
 
