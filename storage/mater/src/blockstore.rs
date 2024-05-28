@@ -213,20 +213,19 @@ impl Default for Blockstore {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Cursor;
-    use std::str::FromStr;
+    use std::{io::Cursor, str::FromStr};
 
-    use ipld_core::cid::Cid;
-    use ipld_core::codec::Codec;
+    use ipld_core::{cid::Cid, codec::Codec};
     use ipld_dagpb::{DagPbCodec, PbNode};
     use sha2::{Digest, Sha256};
     use tokio::fs::File;
-    use tokio::io::AsyncWriteExt;
 
-    use crate::blockstore::Blockstore;
-    use crate::multicodec::{generate_multihash, RAW_CODE, SHA_256_CODE};
-    use crate::test_utils::assert_buffer_eq;
-    use crate::{CarV2Reader, Index};
+    use crate::{
+        blockstore::Blockstore,
+        multicodec::{generate_multihash, RAW_CODE, SHA_256_CODE},
+        test_utils::assert_buffer_eq,
+        CarV2Reader, Index,
+    };
 
     #[tokio::test]
     async fn byte_eq_lorem() {

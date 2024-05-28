@@ -41,8 +41,10 @@ mod tests {
     use sha2::Sha256;
     use tokio::io::BufWriter;
 
-    use crate::multicodec::{generate_multihash, RAW_CODE};
-    use crate::v1::{Header, Reader, Writer};
+    use crate::{
+        multicodec::{generate_multihash, RAW_CODE},
+        v1::{Header, Reader, Writer},
+    };
 
     impl Writer<BufWriter<Vec<u8>>> {
         pub fn test_writer() -> Self {

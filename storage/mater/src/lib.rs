@@ -17,14 +17,13 @@ mod v1;
 mod v2;
 
 pub use blockstore::Blockstore;
+// We need to expose this because `read_block` returns `(Cid, Vec<u8>)`.
+pub use ipld_core::cid::Cid;
 pub use v1::{Header as CarV1Header, Reader as CarV1Reader, Writer as CarV1Writer};
 pub use v2::{
     Characteristics, Header as CarV2Header, Index, IndexEntry, IndexSorted, MultihashIndexSorted,
     Reader as CarV2Reader, SingleWidthIndex, Writer as CarV2Writer,
 };
-
-// We need to expose this because `read_block` returns `(Cid, Vec<u8>)`.
-pub use ipld_core::cid::Cid;
 
 /// CAR handling errors.
 #[derive(Debug, thiserror::Error)]

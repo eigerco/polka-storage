@@ -10,10 +10,8 @@ use bytes::Bytes;
 use futures::TryStreamExt;
 use ipld_core::{cid::Cid, codec::Codec};
 use ipld_dagpb::{DagPbCodec, PbLink, PbNode};
-
 use quick_protobuf::MessageWrite;
 use sha2::Sha256;
-
 use tokio_stream::{Stream, StreamExt};
 
 use crate::{
@@ -344,9 +342,10 @@ mod tests {
     //!
     //! [beetle]: https://github.com/n0-computer/beetle/blob/3e137cb2bc18e1d458c3f72d5e817b03d9537d5d/iroh-unixfs/src/balanced_tree.rs#L234-L507
 
-    use super::*;
     use bytes::BytesMut;
     use futures::StreamExt;
+
+    use super::*;
 
     fn test_chunk_stream(num_chunks: usize) -> impl Stream<Item = std::io::Result<Bytes>> {
         futures::stream::iter((0..num_chunks).map(|n| Ok(n.to_be_bytes().to_vec().into())))
