@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use cid::Cid;
+use rocksdb::RocksDBError;
 use thiserror::Error;
 
 use self::types::{BlockLocation, CidInfo, DealInfo, PieceInfo};
@@ -63,6 +64,6 @@ pub enum PieceStoreError {
     #[error("Deserialization error: {0}")]
     Deserialization(String),
 
-    #[error("Failed with store specific error: {0}")]
-    StoreSpecific(String),
+    #[error(transparent)]
+    StoreError(#[from] RocksDBError),
 }

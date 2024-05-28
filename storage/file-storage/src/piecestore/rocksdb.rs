@@ -11,6 +11,8 @@ use super::{
     PieceStore, PieceStoreError,
 };
 
+pub type RocksDBError = rocksdb::Error;
+
 const PIECES_CF: &str = "pieces";
 const CID_INFOS_CF: &str = "cid_infos";
 
@@ -46,7 +48,7 @@ impl RocksDBPieceStore {
                     let parsed_cid = Cid::try_from(key.as_ref()).map_err(|err| {
                         // We know that all stored CIDs are valid, so this
                         // should only happen if database is corrupted.
-                        PieceStoreError::StoreSpecific(format!("invalid CID: {}", err))
+                        PieceStoreError::Deserialization(format!("invalid CID: {}", err))
                     })?;
 
                     result.push(parsed_cid);
@@ -211,12 +213,6 @@ impl PieceStore for RocksDBPieceStore {
     /// Retrieve the CidInfo for a given CID.
     fn get_cid_info(&self, cid: &Cid) -> Result<Option<CidInfo>, PieceStoreError> {
         self.get_value_at_key(cid.to_bytes(), CID_INFOS_CF)
-    }
-}
-
-impl From<rocksdb::Error> for PieceStoreError {
-    fn from(err: rocksdb::Error) -> Self {
-        PieceStoreError::StoreSpecific(err.to_string())
     }
 }
 
