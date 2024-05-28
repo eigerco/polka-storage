@@ -291,9 +291,6 @@ mod tests {
         let mut result_buffer = vec![];
         store.write(&mut result_buffer).await.unwrap();
 
-        let mut f = File::create("test").await.unwrap();
-        f.write_all(&result_buffer).await.unwrap();
-
         let mut cursor = Cursor::new(result_buffer);
         std::io::Seek::rewind(&mut cursor).unwrap();
         let mut car_reader = CarV2Reader::new(cursor);
