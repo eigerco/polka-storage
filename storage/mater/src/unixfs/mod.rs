@@ -3,22 +3,18 @@
 
 mod unixfs_pb;
 
-use std::{collections::VecDeque};
+use std::collections::VecDeque;
 
 use async_stream::try_stream;
 use bytes::Bytes;
-use futures::{TryStreamExt};
-use ipld_core::{
-    cid::{Cid},
-    codec::Codec,
-};
+use futures::TryStreamExt;
+use ipld_core::{cid::Cid, codec::Codec};
 use ipld_dagpb::{DagPbCodec, PbLink, PbNode};
 
 use quick_protobuf::MessageWrite;
-use sha2::{Digest, Sha256};
+use sha2::Sha256;
 
 use tokio_stream::{Stream, StreamExt};
-
 
 use crate::{
     multicodec::{generate_multihash, DAG_PB_CODE, RAW_CODE},
@@ -41,26 +37,13 @@ impl LinkInfo {
 }
 
 #[derive(Debug)]
-pub(crate) struct Block {
-    pub cid: Cid,
-    pub data: Bytes,
-    pub links: Vec<Cid>,
-}
-
-impl Block {
-    fn new(cid: Cid, data: Bytes, links: Vec<Cid>) -> Self {
-        Self { cid, data, links }
-    }
-}
-
-#[derive(Debug)]
 enum TreeNode {
     Leaf(Bytes),
     Stem(Vec<(Cid, LinkInfo)>),
 }
 
 impl TreeNode {
-    fn encode(self) -> Result<(Block, LinkInfo), Error> {
+    fn encode(self) -> Result<((Cid, Bytes), LinkInfo), Error> {
         match self {
             TreeNode::Leaf(bytes) => {
                 let data_length = bytes.len() as u64;
@@ -68,7 +51,7 @@ impl TreeNode {
                 // Storing the block as RAW as go-car does
                 // TODO(@jmg-duarte,27/05/2024): find the go-car link
                 let cid = Cid::new_v1(RAW_CODE, multihash);
-                let block = Block::new(cid, bytes, vec![]);
+                let block = (cid, bytes);
                 // The data is raw, so the raw length == encoded length
                 let link_info = LinkInfo::new(data_length, data_length);
                 Ok((block, link_info))
@@ -113,11 +96,10 @@ impl TreeNode {
                 encoded_length += outer.len() as u64;
 
                 Ok((
-                    Block::new(
-                        cid,
-                        outer.into(),
-                        pb_node.links.iter().map(|link| link.cid).collect(),
-                    ),
+                    // NOTE(@jmg-duarte,28/05/2024): In the original implementation
+                    // they have a `Block` structure that contains the child links,
+                    // we're not currently using them and as such I didn't include them
+                    (cid, outer.into()),
                     LinkInfo {
                         raw_data_length: pb_node_data_length,
                         encoded_data_length: encoded_length,
@@ -275,7 +257,7 @@ impl TreeNode {
 pub(crate) fn stream_balanced_tree<I>(
     input: I,
     width: usize,
-) -> impl Stream<Item = Result<Block, Error>>
+) -> impl Stream<Item = Result<(Cid, Bytes), Error>>
 where
     I: Stream<Item = std::io::Result<Bytes>> + Send,
 {
@@ -292,7 +274,7 @@ where
         tokio::pin!(input);
 
         while let Some(data) = input.next().await {
-            let (block, link_info) = data?;
+            let (block @ (cid, _), link_info) = data?;
             let tree_height = tree.len();
 
             // Check if the leaf node is full
@@ -317,8 +299,7 @@ where
                     // it's most likely less performant (I didn't measure)
                     // due to the different nature of the approaches (batch vs iterator)
                     let links = std::mem::replace(&mut tree[level], Vec::with_capacity(width));
-                    let (block, link_info) = TreeNode::Stem(links).encode()?;
-                    let cid = block.cid; // Cid: Copy
+                    let (block @ (cid, _), link_info) = TreeNode::Stem(links).encode()?;
                     yield block;
 
                     tree[level + 1].push((cid, link_info));
@@ -329,7 +310,7 @@ where
 
             // If the tree level is empty, we can push,
             // if the tree level was not empty, the `for` took care of it
-            tree[0].push((block.cid, link_info));
+            tree[0].push((cid, link_info));
             yield block;
         }
 
@@ -342,8 +323,7 @@ where
         // Once `input` is exhausted, we need to perform cleanup of any leftovers,
         // to do so, we start by popping levels from the front and building stems over them.
         while let Some(links) = tree.pop_front() {
-            let (block, link_info) = TreeNode::Stem(links).encode()?; // TODO
-            let cid = block.cid;
+            let (block @ (cid, _), link_info) = TreeNode::Stem(links).encode()?; // TODO
             yield block;
 
             // If there's still a level in the front, it means the stem we just built will have a parent

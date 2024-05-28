@@ -80,14 +80,14 @@ impl Blockstore {
         let mut tree = tree.peekable();
 
         while let Some(block) = tree.next().await {
-            let block = block?;
-            self.insert(block.cid, block.data, true);
+            let (cid, bytes) = block?;
+            self.insert(cid, bytes, true);
 
             // If the stream is exhausted, we know the current block is the root
             if tree.peek().await.is_none() {
                 // The root should always be indexed, there's no official spec saying it should though, it just makes sense.
                 // So, if the insert line is changed, the root should be placed in the `indexed` structure here
-                self.root = Some(block.cid);
+                self.root = Some(cid);
             }
         }
 
@@ -213,10 +213,10 @@ impl Default for Blockstore {
 
 #[cfg(test)]
 mod tests {
-    use std::io::{Cursor, Read};
+    use std::io::Cursor;
     use std::str::FromStr;
 
-    use ipld_core::cid::{Cid, CidGeneric};
+    use ipld_core::cid::Cid;
     use ipld_core::codec::Codec;
     use ipld_dagpb::{DagPbCodec, PbNode};
     use sha2::{Digest, Sha256};
@@ -226,7 +226,7 @@ mod tests {
     use crate::blockstore::Blockstore;
     use crate::multicodec::{generate_multihash, RAW_CODE, SHA_256_CODE};
     use crate::test_utils::assert_buffer_eq;
-    use crate::{CarV2Reader, Index, SingleWidthIndex};
+    use crate::{CarV2Reader, Index};
 
     #[tokio::test]
     async fn byte_eq_lorem() {
