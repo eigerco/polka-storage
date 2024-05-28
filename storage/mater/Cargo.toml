@@ -11,25 +11,24 @@ version = "0.1.0"
 
 [dependencies]
 # TODO(@jmg-duarte,15/05/2024): reduce the required features
+async-stream.workspace = true
 bitflags.workspace = true
 byteorder = { workspace = true, features = ["i128"] }
-integer-encoding = { workspace = true, features = ["tokio_async"] }
-ipld-core = { workspace = true, features = ["serde"] }
-serde = { workspace = true, features = ["derive"] }
-serde_ipld_dagcbor.workspace = true
-thiserror.workspace = true
-tokio = { workspace = true, features = ["full"] }
-quick-protobuf.workspace = true
-tokio-stream.workspace = true
-tokio-util = { workspace = true, features = ["io"] }
 bytes.workspace = true
-sha2.workspace = true
 digest.workspace = true
-ipld-dagpb.workspace = true
-itertools.workspace = true
-async-stream.workspace = true
 futures.workspace = true
 indexmap.workspace = true
+integer-encoding = { workspace = true, features = ["tokio_async"] }
+ipld-core = { workspace = true, features = ["serde"] }
+ipld-dagpb.workspace = true
+quick-protobuf.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_ipld_dagcbor.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["full"] }
+tokio-stream.workspace = true
+tokio-util = { workspace = true, features = ["io"] }
 
 [dev-dependencies]
 rand.workspace = true

@@ -22,7 +22,11 @@ bitflags! {
     /// Characteristics of the enclosed data.
     #[derive(Debug, PartialEq, Eq)]
     pub struct Characteristics: u128 {
+        /// No characteristics were set.
         const EMPTY = 0;
+        /// When this characteristic is set (1), the index includes
+        /// a complete catalog of the section CIDs regardless of
+        /// whether they are identity CIDs or not.
         const FULLY_INDEXED = 1 << 127;
     }
 }

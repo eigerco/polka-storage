@@ -1,4 +1,14 @@
+//! A library to handle CAR files.
+//! Both version 1 and version 2 are supported.
+//!
+//! You can make use of the lower-level utilities such as [`CarV2Reader`] to read a CARv2 file,
+//! though these utilies were designed to be used in higher-level abstractions, like the [`Blockstore`].
+
 #![warn(unused_crate_dependencies)]
+#![warn(missing_docs)]
+#![deny(rustdoc::broken_intra_doc_links)]
+#![deny(rustdoc::private_intra_doc_links)]
+#![deny(unsafe_code)]
 
 mod blockstore;
 mod multicodec;
@@ -24,7 +34,12 @@ pub enum Error {
     /// For example, when reading CARv1 files, the only valid version is 1,
     /// otherwise, this error should be returned.
     #[error("expected version {expected}, but received version {received} instead")]
-    VersionMismatchError { expected: u8, received: u8 },
+    VersionMismatchError {
+        /// Expected version (usually 1 or 2)
+        expected: u8,
+        /// Received version
+        received: u8,
+    },
 
     /// According to the [specification](https://ipld.io/specs/transport/car/carv1/#constraints)
     /// CAR files MUST have **one or more** [`Cid`] roots.
@@ -38,7 +53,12 @@ pub enum Error {
 
     /// Digest does not match the expected length.
     #[error("digest has length {received}, instead of {expected}")]
-    NonMatchingDigestError { expected: usize, received: usize },
+    NonMatchingDigestError {
+        /// Expected digest length
+        expected: usize,
+        /// Received digest length
+        received: usize,
+    },
 
     /// Cannot know width or count from an empty vector.
     #[error("cannot create an index out of an empty `Vec`")]

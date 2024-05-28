@@ -136,6 +136,7 @@ pub struct MultihashIndexSorted(
 );
 
 impl MultihashIndexSorted {
+    /// Create a [`MultihashIndexSorted`] from a [digest code](https://github.com/multiformats/multicodec/blob/c954a787dc6a17d099653e5f90d26fbd177d2074/table.csv) and an [`IndexSorted`].
     pub fn from_single_width(code: u64, index: IndexSorted) -> Self {
         let mut map = BTreeMap::new();
         map.insert(code, index);
