@@ -6,8 +6,7 @@ mod v1;
 mod v2;
 
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
-    io::Cursor,
+    collections::{HashMap, HashSet},
 };
 
 use bytes::Bytes;
@@ -94,18 +93,15 @@ pub enum Error {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        collections::{BTreeMap, VecDeque},
-        io::Cursor,
-    };
+    
 
     use tokio::fs::File;
     use tokio_stream::StreamExt;
     use tokio_util::io::ReaderStream;
 
     use crate::{
-        multicodec::SHA_256_CODE, unixfs::stream_balanced_tree, v2::test_utils::assert_buffer_eq,
-        Blockstore, CarV1Header, CarV2Header, CarV2Writer, Index, IndexEntry,
+        unixfs::stream_balanced_tree, v2::test_utils::assert_buffer_eq,
+        Blockstore,
     };
 
     #[tokio::test]

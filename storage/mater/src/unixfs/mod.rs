@@ -3,22 +3,22 @@
 
 mod unixfs_pb;
 
-use std::{collections::VecDeque, thread::current, vec::Drain};
+use std::{collections::VecDeque};
 
 use async_stream::try_stream;
 use bytes::Bytes;
-use futures::{TryStream, TryStreamExt};
+use futures::{TryStreamExt};
 use ipld_core::{
-    cid::{Cid, CidGeneric},
+    cid::{Cid},
     codec::Codec,
 };
 use ipld_dagpb::{DagPbCodec, PbLink, PbNode};
-use itertools::{IntoChunks, Itertools};
+
 use quick_protobuf::MessageWrite;
 use sha2::{Digest, Sha256};
-use tokio::{fs::File, io::AsyncRead, runtime::TryCurrentError};
+
 use tokio_stream::{Stream, StreamExt};
-use tokio_util::io::ReaderStream;
+
 
 use crate::{
     multicodec::{generate_multihash, DAG_PB_CODE, RAW_CODE},
