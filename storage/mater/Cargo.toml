@@ -7,8 +7,6 @@ name = "mater"                # name WIP
 repository.workspace = true
 version = "0.1.0"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 # TODO(@jmg-duarte,15/05/2024): reduce the required features
 async-stream.workspace = true
@@ -26,7 +24,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_ipld_dagcbor.workspace = true
 sha2.workspace = true
 thiserror.workspace = true
-tokio = { workspace = true, features = ["full"] }
+tokio = { workspace = true, features = ["fs", "macros", "rt"] }
 tokio-stream.workspace = true
 tokio-util = { workspace = true, features = ["io"] }
 
