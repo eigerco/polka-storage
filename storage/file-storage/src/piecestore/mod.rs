@@ -1,12 +1,10 @@
 use std::collections::HashMap;
 
 use cid::Cid;
-use rocksdb::RocksDBError;
 use thiserror::Error;
 
 use self::types::{BlockLocation, CidInfo, DealInfo, PieceInfo};
 
-pub mod rocksdb;
 mod types;
 
 pub trait PieceStore {
@@ -65,5 +63,5 @@ pub enum PieceStoreError {
     Deserialization(String),
 
     #[error(transparent)]
-    StoreError(#[from] RocksDBError),
+    StoreError(#[from] rocksdb::Error),
 }

@@ -10,9 +10,10 @@ use super::{
 };
 use crate::piecestore::types::{PieceBlockLocation, PieceInfo};
 
-pub type RocksDBError = rocksdb::Error;
-
+/// Column family name used to store piece.
 const PIECES_CF: &str = "pieces";
+
+/// Column family name used to store CID infos.
 const CID_INFOS_CF: &str = "cid_infos";
 
 pub struct RocksDBStateStoreConfig {
@@ -26,7 +27,8 @@ pub struct RocksDBPieceStore {
 
 impl RocksDBPieceStore {
     /// Get the column family handle for the given column family name. Panics if
-    /// the column family is not present.
+    /// the column family is not present. The column families needed and used
+    /// are created at initialization. They will always be present.
     #[track_caller]
     fn cf_handle(&self, cf_name: &str) -> &ColumnFamily {
         self.database
@@ -42,18 +44,14 @@ impl RocksDBPieceStore {
             .iterator_cf(self.cf_handle(cf_name), IteratorMode::Start);
 
         for cid in iterator {
-            match cid {
-                Ok((key, _)) => {
-                    let parsed_cid = Cid::try_from(key.as_ref()).map_err(|err| {
-                        // We know that all stored CIDs are valid, so this
-                        // should only happen if database is corrupted.
-                        PieceStoreError::Deserialization(format!("invalid CID: {}", err))
-                    })?;
+            let (key, _) = cid?;
+            let parsed_cid = Cid::try_from(key.as_ref()).map_err(|err| {
+                // We know that all stored CIDs are valid, so this
+                // should only happen if database is corrupted.
+                PieceStoreError::Deserialization(format!("invalid CID: {}", err))
+            })?;
 
-                    result.push(parsed_cid);
-                }
-                Err(e) => return Err(e.into()),
-            }
+            result.push(parsed_cid);
         }
 
         Ok(result)
