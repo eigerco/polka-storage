@@ -86,8 +86,8 @@ impl TreeNode {
                     .into_iter()
                     .map(|(cid, link)| PbLink {
                         cid,
-                        name: None,
-                        // TODO(@jmg-duarte,27/05/2024): check this: it might not be compliant with go-car, due to being taken from iroh
+                        // Having an empty name makes it compliant with go-car
+                        name: Some("".to_string()),
                         size: Some(link.encoded_data_length),
                     })
                     .collect();
