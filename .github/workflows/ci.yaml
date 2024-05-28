@@ -14,6 +14,12 @@ jobs:
   toml:
     runs-on: self-hosted
     steps:
+      - name: Debug
+        run: |
+          whoami
+          echo $PATH
+          echo $SHELL
+          cargo --help
       - uses: actions/checkout@v4
       - name: List versions
         run: |
