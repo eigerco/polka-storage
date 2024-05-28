@@ -4,12 +4,11 @@ use cid::Cid;
 use rocksdb::{ColumnFamily, ColumnFamilyDescriptor, IteratorMode, Options, DB as RocksDB};
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::piecestore::types::{PieceBlockLocation, PieceInfo};
-
 use super::{
     types::{BlockLocation, CidInfo, DealInfo},
     PieceStore, PieceStoreError,
 };
+use crate::piecestore::types::{PieceBlockLocation, PieceInfo};
 
 pub type RocksDBError = rocksdb::Error;
 
@@ -223,12 +222,11 @@ mod test {
     use cid::Cid;
     use tempfile::tempdir;
 
+    use super::{RocksDBPieceStore, RocksDBStateStoreConfig};
     use crate::piecestore::{
         types::{BlockLocation, DealInfo, PieceBlockLocation},
         PieceStore, PieceStoreError,
     };
-
-    use super::{RocksDBPieceStore, RocksDBStateStoreConfig};
 
     fn init_database() -> RocksDBPieceStore {
         let tmp_dir = tempdir().unwrap();

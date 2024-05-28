@@ -19,3 +19,6 @@ target/
 
 # reproducible local environment
 .direnv
+
+# Visual Studio Code
+.vscode/
