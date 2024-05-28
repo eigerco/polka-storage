@@ -34,10 +34,10 @@ quote = { version = "1.0.33" }
 rocksdb = { version = "0.21" }
 scale-info = { version = "2.11.1", default-features = false }
 serde = { version = "1.0.197", default-features = false }
+serde-big-array = { version = "0.3.2" }
 serde_derive = { version = "1.0.117" }
 serde_json = { version = "1.0.114", default-features = false }
 serde_yaml = { version = "0.9" }
-serde-big-array = { version = "0.3.2" }
 smallvec = "1.11.0"
 syn = { version = "2.0.53" }
 thiserror = { version = "1.0.48" }
@@ -85,9 +85,7 @@ substrate-prometheus-endpoint = { git = "https://github.com/paritytech/polkadot-
 
 # Polkadot
 pallet-xcm = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", default-features = false }
-polkadot-cli = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", features = [
-  "rococo-native",
-] }
+polkadot-cli = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", features = ["rococo-native"] }
 polkadot-parachain-primitives = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", default-features = false }
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0" }
 polkadot-runtime-common = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", default-features = false }
