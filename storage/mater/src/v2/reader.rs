@@ -67,14 +67,14 @@ where
     ///
     /// See [`crate::v1::Reader`] for more information.
     pub async fn read_v1_header(&mut self) -> Result<crate::v1::Header, Error> {
-        Ok(crate::v1::read_header(&mut self.reader).await?)
+        crate::v1::read_header(&mut self.reader).await
     }
 
     /// Read a [`Cid`] and data block.
     ///
     /// See [`crate::v1::Reader`] for more information.
     pub async fn read_block(&mut self) -> Result<(Cid, Vec<u8>), Error> {
-        Ok(crate::v1::read_block(&mut self.reader).await?)
+        crate::v1::read_block(&mut self.reader).await
     }
 
     /// Read an [`Index`].

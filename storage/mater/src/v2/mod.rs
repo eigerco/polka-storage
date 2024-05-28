@@ -93,9 +93,9 @@ mod tests {
 
     use crate::{
         multicodec::{generate_multihash, MultihashCode, RAW_CODE},
+        test_utils::assert_buffer_eq,
         v2::{
             index::{Index, IndexEntry, IndexSorted},
-            test_utils::assert_buffer_eq,
             Header, Reader, Writer,
         },
     };
@@ -162,7 +162,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_buffer_eq(&expected_header, buffer.get_ref());
+        assert_buffer_eq!(&expected_header, buffer.get_ref());
 
         let mut reader = Reader::new(buffer);
         reader.read_pragma().await.unwrap();
@@ -175,33 +175,5 @@ mod tests {
         assert_eq!(read_block, file_contents);
         let read_index = reader.read_index().await.unwrap();
         assert_eq!(read_index, written_index);
-    }
-}
-
-// NOTE(@jmg-duarte,23/05/2024): I'm looking for better alternatives to this
-#[cfg(test)]
-pub(crate) mod test_utils {
-    /// Check if two given slices are equal.
-    ///
-    /// First checks if the two slices have the same size,
-    /// then checks each byte-pair. If the slices differ,
-    /// it will show an error message with the difference index
-    /// along with a window showing surrounding elements
-    /// (instead of spamming your terminal like `assert_eq!` does).
-    pub fn assert_buffer_eq(lhs: &[u8], rhs: &[u8]) {
-        // NOTE(@jmg-duarte,23/05/2024): Unsure if instead of a function, this should be a macro_rules!
-        assert_eq!(lhs.len(), rhs.len());
-        for (i, (l, r)) in lhs.iter().zip(rhs).enumerate() {
-            let before = i.checked_sub(5).unwrap_or(0);
-            let after = (i + 5).min(rhs.len());
-            assert_eq!(
-                l,
-                r,
-                "difference at index {}\n  left: {:02x?}\n right: {:02x?}",
-                i,
-                &lhs[before..=after],
-                &rhs[before..=after],
-            )
-        }
     }
 }

@@ -27,7 +27,7 @@ where
     ///
     /// Returns the number of bytes written.
     pub async fn write_header(&mut self, header: &Header) -> Result<usize, Error> {
-        self.writer.write(&PRAGMA).await?;
+        self.writer.write_all(&PRAGMA).await?;
 
         let mut buffer = [0; 40];
         let mut handle = &mut buffer[..];
@@ -100,11 +100,11 @@ mod tests {
     use tokio_stream::StreamExt;
     use tokio_util::io::ReaderStream;
 
+    use crate::test_utils::assert_buffer_eq;
     use crate::{
         multicodec::{generate_multihash, MultihashCode, DAG_PB_CODE, RAW_CODE},
         v2::{
             index::{IndexEntry, IndexSorted, SingleWidthIndex},
-            test_utils::assert_buffer_eq,
             Header, Writer,
         },
     };
@@ -219,7 +219,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_buffer_eq(&expected_header, buf_writer.get_ref().get_ref())
+        assert_buffer_eq!(&expected_header, buf_writer.get_ref().get_ref())
     }
 
     // Byte to byte comparison to the spaceglenda.car file
@@ -335,6 +335,6 @@ mod tests {
             .await
             .unwrap();
 
-        assert_buffer_eq(&expected_header, buf_writer.get_ref().get_ref());
+        assert_buffer_eq!(&expected_header, buf_writer.get_ref().get_ref());
     }
 }
