@@ -6,7 +6,7 @@ license-file = "LICENSE"
 repository = "https://github.com/eigerco/polka-storage"
 
 [workspace]
-members = ["node", "runtime"]
+members = ["node", "primitives/cli", "runtime"]
 resolver = "2"
 
 # FIXME(#@jmg-duarte,#7,14/5/24): remove the patch once something >1.11.0 is released
