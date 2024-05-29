@@ -10,7 +10,7 @@ pub struct PieceInfo {
     pub deals: Vec<DealInfo>,
 }
 
-/// DealID is an identifier for a retrieval deal (unique to a client)
+/// DealId is an identifier for a retrieval deal (unique to a client)
 type DealId = u64;
 
 /// SectorNumber is a numeric identifier for a sector. It is usually relative to a miner.
