@@ -83,8 +83,4 @@ mod tests {
         assert_eq!(read_cid, root_cid);
         assert_eq!(read_block, file_contents);
     }
-
-    // TODO(@jmg-duarte,23/05/2024): add roundtrip test for spaceglenda
-    // adding it manually right now is too much work due to the missing stores
-    // and other niceties
 }

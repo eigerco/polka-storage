@@ -286,7 +286,7 @@ mod tests {
         );
 
         loop {
-            // TODO(@jmg-duarte,22/05/2024): review this
+            // NOTE(@jmg-duarte,22/05/2024): review this
             match reader.read_block().await {
                 Ok((_, _)) => {
                     // Kinda hacky, but better than doing a seek later on

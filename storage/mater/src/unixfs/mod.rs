@@ -47,7 +47,7 @@ impl TreeNode {
                 let data_length = bytes.len() as u64;
                 let multihash = generate_multihash::<Sha256, _>(&bytes);
                 // Storing the block as RAW as go-car does
-                // TODO(@jmg-duarte,27/05/2024): find the go-car link
+                // https://github.com/ipfs/go-unixfsnode/blob/c41f115d06cff90e0cbc634da5073b4c1447af09/data/builder/file.go#L54-L63
                 let cid = Cid::new_v1(RAW_CODE, multihash);
                 let block = (cid, bytes);
                 // The data is raw, so the raw length == encoded length
@@ -317,7 +317,7 @@ where
         // Once `input` is exhausted, we need to perform cleanup of any leftovers,
         // to do so, we start by popping levels from the front and building stems over them.
         while let Some(links) = tree.pop_front() {
-            let (block @ (cid, _), link_info) = TreeNode::Stem(links).encode()?; // TODO
+            let (block @ (cid, _), link_info) = TreeNode::Stem(links).encode()?;
             yield block;
 
             // If there's still a level in the front, it means the stem we just built will have a parent

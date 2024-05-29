@@ -173,6 +173,4 @@ mod tests {
             })
         ));
     }
-
-    // TODO(@jmg-duarte,19/05/2024): add more tests
 }
