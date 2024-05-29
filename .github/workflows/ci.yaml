@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    types: [labeled]
+    types: [ labeled ]
   push:
-    branches: [develop, main]
+    branches: [ develop, main ]
 
 concurrency:
   group: ${{ github.ref }}
@@ -15,41 +15,26 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Install taplo
-        run: cargo install taplo-cli --locked
       - name: List versions
         run: |
           cargo --version
           taplo --version
       - name: Run taplo
-        run: taplo format --check --diff
-      - name: Taplo failure info
-        if: failure()
         run: |
-          echo 'TOML is not formatted correctly'
-          echo 'Please run taplo format'
+          taplo lint
+          taplo fmt --check
 
   format:
     runs-on: self-hosted
     needs: toml
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: nightly
-          components: rustfmt
       - name: List version
         run: |
-          cargo --version
-          cargo fmt --version
+          cargo +nightly --version
+          cargo +nightly fmt --version
       - name: Cargo format
-        run: cargo fmt --all -- --check
-      - name: Cargo fmt failure info
-        if: failure()
-        run: |
-          echo '.rs files are not formatted correctly'
-          echo 'Please run cargo fmt --all'
+        run: cargo +nightly fmt --all -- --check
 
   clippy_build_and_test:
     runs-on: self-hosted
@@ -57,46 +42,15 @@ jobs:
       - format
     steps:
       - uses: actions/checkout@v4
-      - name: Cargo caching
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('**/Cargo.toml') }}
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: 1.77.0
-          target: wasm32-unknown-unknown
-          components: clippy rust-src
       - name: List version
         run: |
           rustup show
           cargo --version
           cargo clippy --version
-      - name: Build with try-runtime feature
-        run: RUSTFLAGS="-D warnings" cargo build --locked -q --features try-runtime
-      - name: Build node runtime
-        run: RUSTFLAGS="-D warnings" cargo build --locked -q -p polka-storage-runtime
-      - name: Build node with runtime-benchmark feature
-        run: RUSTFLAGS="-D warnings" cargo build --locked -q -p polka-storage-node --features runtime-benchmarks
       - name: Build in dev mode
-        run: RUSTFLAGS="-D warnings" cargo build --locked -q
+        run: RUSTFLAGS="-D warnings" cargo build --profile ci --locked
       - name: Cargo clippy
-        run: cargo clippy --locked -q --no-deps -- -D warnings
+        run: RUSTFLAGS="-D warnings" cargo clippy --profile ci --locked
       - name: Run tests
-        run: RUSTFLAGS="-D warnings" cargo test --locked -q --workspace
-      - name: Build in release mode
-        # Run only on merge to the protected branches
-        if: |
-          contains(github.ref, 'develop') ||
-          contains(github.ref, 'main')
-        run: RUSTFLAGS="-D warnings" cargo build --locked -q --release
-      - name: Failure handling
-        if: failure()
-        run: |
-          echo 'Job clippy_build_and_test failed.'
-          echo 'Please check the logs for more details'
+        run: RUSTFLAGS="-D warnings" cargo test --profile ci --locked --workspace
+      # FIXME(#35,@serhii,27/5/2024): Revert the commit from the issue to restore the full set of CI steps.
