@@ -76,6 +76,8 @@ impl RocksDBPieceStore {
 
         match ciborium::from_reader(slice.as_ref()) {
             Ok(value) => Ok(Some(value)),
+            // ciborium error is bubbled up as a string because it is generic
+            // and we didn't want to add a generic type to the PieceStoreError
             Err(err) => Err(PieceStoreError::Deserialization(err.to_string())),
         }
     }
@@ -93,6 +95,8 @@ impl RocksDBPieceStore {
     {
         let mut serialized = Vec::new();
         if let Err(err) = ciborium::into_writer(value, &mut serialized) {
+            // ciborium error is bubbled up as a string because it is generic
+            // and we didn't want to add a generic type to the PieceStoreError
             return Err(PieceStoreError::Serialization(err.to_string()));
         }
 
