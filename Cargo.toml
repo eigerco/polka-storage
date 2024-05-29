@@ -6,7 +6,7 @@ license-file = "LICENSE"
 repository = "https://github.com/eigerco/polka-storage"
 
 [workspace]
-members = ["node", "runtime", "storage/file-storage"]
+members = ["node", "runtime", "storage/polka-index"]
 resolver = "2"
 
 # FIXME(#@jmg-duarte,#7,14/5/24): remove the patch once something >1.11.0 is released
@@ -96,7 +96,9 @@ substrate-prometheus-endpoint = { git = "https://github.com/paritytech/polkadot-
 
 # Polkadot
 pallet-xcm = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", default-features = false }
-polkadot-cli = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", features = ["rococo-native"] }
+polkadot-cli = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", features = [
+  "rococo-native",
+] }
 polkadot-parachain-primitives = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", default-features = false }
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0" }
 polkadot-runtime-common = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", default-features = false }

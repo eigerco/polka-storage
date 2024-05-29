@@ -3275,18 +3275,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "file-storage"
-version = "0.1.0"
-dependencies = [
- "ciborium",
- "cid 0.11.1",
- "rocksdb",
- "serde",
- "tempfile",
- "thiserror",
-]
-
-[[package]]
 name = "filetime"
 version = "0.2.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7789,6 +7777,18 @@ name = "platforms"
 version = "3.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "db23d408679286588f4d4644f965003d056e3dd5abcaaa938116871d7ce2fee7"
+
+[[package]]
+name = "polka-index"
+version = "0.1.0"
+dependencies = [
+ "ciborium",
+ "cid 0.11.1",
+ "rocksdb",
+ "serde",
+ "tempfile",
+ "thiserror",
+]
 
 [[package]]
 name = "polka-storage-node"
