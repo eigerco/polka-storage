@@ -17,13 +17,7 @@ use crate::{
     Error, Index, IndexEntry, MultihashIndexSorted, SingleWidthIndex,
 };
 
-/// The default block size, as defined in
-/// [boxo](https://github.com/ipfs/boxo/blob/f4fe8997dcbeb39b3a4842d8f08b34739bfd84a4/chunker/parse.go#L13).
-const DEFAULT_BLOCK_SIZE: usize = 1024 * 256;
-
-/// The default tree width, also called links per block, as defined in
-/// [boxo](https://github.com/ipfs/boxo/blob/625ba769263c2beeec934836f54bbd6624db945a/ipld/unixfs/importer/helpers/helpers.go#L16-L30).
-const DEFAULT_TREE_WIDTH: usize = 174;
+use super::{DEFAULT_BLOCK_SIZE, DEFAULT_TREE_WIDTH};
 
 /// The [`Blockstore`] stores pairs of [`Cid`] and [`Bytes`] in memory.
 ///
@@ -228,8 +222,8 @@ mod tests {
     use tokio::fs::File;
 
     use crate::{
-        blockstore::Blockstore,
         multicodec::{generate_multihash, RAW_CODE, SHA_256_CODE},
+        stores::blockstore::Blockstore,
         test_utils::assert_buffer_eq,
         CarV2Header, CarV2Reader, Index,
     };

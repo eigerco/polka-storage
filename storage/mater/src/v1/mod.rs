@@ -33,6 +33,22 @@ impl Header {
     }
 }
 
+impl Default for Header {
+    /// Creates a "placeholder" [`Header`].
+    ///
+    /// This is useful when converting a regular file
+    /// to a CARv1 file, where you don't know the root beforehand.
+    ///
+    /// If you need more than one root, please use [`Self::new`] instead.
+    // NOTE(@jmg-duarte,29/05/2024): why tf doesn't the previous intradoc link work??
+    fn default() -> Self {
+        Self {
+            version: 1,
+            roots: vec![Cid::default()],
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::io::Cursor;
