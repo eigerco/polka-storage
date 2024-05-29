@@ -6,7 +6,7 @@ license-file = "LICENSE"
 repository = "https://github.com/eigerco/polka-storage"
 
 [workspace]
-members = ["node", "primitives/cli", "runtime"]
+members = ["cli/polka-storage-provider", "node", "primitives/cli", "runtime"]
 resolver = "2"
 
 # FIXME(#@jmg-duarte,#7,14/5/24): remove the patch once something >1.11.0 is released
@@ -39,6 +39,9 @@ smallvec = "1.11.0"
 syn = { version = "2.0.53" }
 thiserror = { version = "1.0.48" }
 tracing-subscriber = { version = "0.3.18" }
+url = "2.5.0"
+env_logger = "0.11.2"
+tokio = { version = "^1" }
 
 # Local
 polka-storage-runtime = { path = "runtime" }
