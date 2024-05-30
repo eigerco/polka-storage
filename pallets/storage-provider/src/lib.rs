@@ -104,7 +104,7 @@ pub mod pallet {
         }
 
         /// Update PeerId associated with a given miner.
-        #[pallet::call_index(2)]
+        #[pallet::call_index(1)]
         pub fn change_peer_id(
             origin: OriginFor<T>,
             miner: T::MinerAccountId,
@@ -126,7 +126,7 @@ pub mod pallet {
         }
 
         // This function updates the owner address to the given `new_owner` for the given `miner`
-        #[pallet::call_index(4)]
+        #[pallet::call_index(2)]
         pub fn change_owner_address(
             origin: OriginFor<T>,
             miner: T::MinerAccountId,
@@ -144,6 +144,15 @@ pub mod pallet {
             // Change owner address
 
             Self::deposit_event(Event::OwnerAddressChanged { miner, new_owner });
+            todo!()
+        }
+
+        // Used by the reward pallet to award a block reward to a Miner.
+        // I am not sure if this should be implemented on this pallet.
+        // The reward pallet could be tightly coupled with the storage provider pallet 
+        // so the reward pallet can take over this functionality.
+        #[pallet::call_index(3)]
+        pub fn apply_rewards(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             todo!()
         }
     }
