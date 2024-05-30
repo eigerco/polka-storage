@@ -10,6 +10,9 @@ use super::{
 };
 use crate::piecestore::types::{PieceBlockLocation, PieceInfo};
 
+/// Error type for RocksDB operations.
+pub(crate) type RocksDBError = rocksdb::Error;
+
 /// Column family name used to store piece.
 const PIECES_CF: &str = "pieces";
 
@@ -20,7 +23,7 @@ pub struct RocksDBStateStoreConfig {
     pub path: PathBuf,
 }
 
-/// A PieceStore implementation backed by RocksDB.
+/// A [`super::PieceStore`] implementation backed by RocksDB.
 pub struct RocksDBPieceStore {
     database: RocksDB,
 }
@@ -37,24 +40,23 @@ impl RocksDBPieceStore {
     }
 
     fn list_cids_in_cf(&self, cf_name: &str) -> Result<Vec<Cid>, PieceStoreError> {
-        let mut result = vec![];
-
         let iterator = self
             .database
             .iterator_cf(self.cf_handle(cf_name), IteratorMode::Start);
 
-        for cid in iterator {
-            let (key, _) = cid?;
-            let parsed_cid = Cid::try_from(key.as_ref()).map_err(|err| {
-                // We know that all stored CIDs are valid, so this
-                // should only happen if database is corrupted.
-                PieceStoreError::Deserialization(format!("invalid CID: {}", err))
-            })?;
+        iterator
+            .map(|line| {
+                let (key, _) = line?;
 
-            result.push(parsed_cid);
-        }
+                let parsed_cid = Cid::try_from(key.as_ref()).map_err(|err| {
+                    // We know that all stored CIDs are valid, so this
+                    // should only happen if database is corrupted.
+                    PieceStoreError::Deserialization(format!("invalid CID: {}", err))
+                })?;
 
-        Ok(result)
+                Ok(parsed_cid)
+            })
+            .collect()
     }
 
     /// Get value at the specified key in the specified column family.
@@ -64,13 +66,10 @@ impl RocksDBPieceStore {
         cf_name: &str,
     ) -> Result<Option<Value>, PieceStoreError>
     where
-        Key: Into<Vec<u8>>,
+        Key: AsRef<[u8]>,
         Value: DeserializeOwned,
     {
-        let Some(slice) = self
-            .database
-            .get_pinned_cf(self.cf_handle(cf_name), key.into())?
-        else {
+        let Some(slice) = self.database.get_pinned_cf(self.cf_handle(cf_name), key)? else {
             return Ok(None);
         };
 
@@ -110,7 +109,6 @@ impl RocksDBPieceStore {
 impl PieceStore for RocksDBPieceStore {
     type Config = RocksDBStateStoreConfig;
 
-    /// Initialize a new store.
     fn new(config: Self::Config) -> Result<Self, PieceStoreError>
     where
         Self: Sized,
@@ -133,7 +131,6 @@ impl PieceStore for RocksDBPieceStore {
         Ok(Self { database })
     }
 
-    /// Store deal_info in the PieceStore with key piece_cid.
     fn add_deal_for_piece(
         &self,
         piece_cid: &Cid,
@@ -157,11 +154,6 @@ impl PieceStore for RocksDBPieceStore {
         self.put_value_at_key(piece_cid.to_bytes(), &piece_info, PIECES_CF)
     }
 
-    /// Store the map of block_locations in the PieceStore's CidInfo store, with
-    /// key piece_cid.
-    ///
-    /// Note: If a piece block location is already present in the CidInfo, it
-    /// will be ignored.
     fn add_piece_block_locations(
         &self,
         piece_cid: &Cid,
@@ -196,22 +188,18 @@ impl PieceStore for RocksDBPieceStore {
         Ok(())
     }
 
-    /// List all piece CIDs stored in the PieceStore.
     fn list_piece_info_keys(&self) -> Result<Vec<Cid>, PieceStoreError> {
         self.list_cids_in_cf(PIECES_CF)
     }
 
-    /// List all CidInfo keys stored in the PieceStore.
     fn list_cid_info_keys(&self) -> Result<Vec<Cid>, PieceStoreError> {
         self.list_cids_in_cf(CID_INFOS_CF)
     }
 
-    /// Retrieve the [`PieceInfo`] for a given piece CID.
     fn get_piece_info(&self, cid: &Cid) -> Result<Option<PieceInfo>, PieceStoreError> {
         self.get_value_at_key(cid.to_bytes(), PIECES_CF)
     }
 
-    /// Retrieve the CidInfo for a given CID.
     fn get_cid_info(&self, cid: &Cid) -> Result<Option<CidInfo>, PieceStoreError> {
         self.get_value_at_key(cid.to_bytes(), CID_INFOS_CF)
     }

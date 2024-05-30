@@ -16,16 +16,13 @@ type DealId = u64;
 /// SectorNumber is a numeric identifier for a sector. It is usually relative to a miner.
 type SectorNumber = u64;
 
-// PaddedPieceSize is the size of a piece, in bytes
-type PaddedPieceSize = u64;
-
 /// DealInfo is information about a single deal for a given piece
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DealInfo {
     pub deal_id: DealId,
     pub sector_id: SectorNumber,
-    pub offset: PaddedPieceSize,
-    pub length: PaddedPieceSize,
+    pub offset: u64,
+    pub length: u64,
 }
 
 /// Contains information about where a given block is relative to the overall
