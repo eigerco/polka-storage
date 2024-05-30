@@ -155,5 +155,10 @@ pub mod pallet {
         pub fn apply_rewards(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             todo!()
         }
-    }
+
+        // This method is used to report a consensus fault by a miner.
+        #[pallet::call_index(4)]
+        pub fn report_consensus_fault(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+            todo!()
+        }
 }
