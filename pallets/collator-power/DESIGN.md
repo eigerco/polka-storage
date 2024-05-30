@@ -4,7 +4,8 @@
 - **extrinsic** - state transition function on a pallet, essentially a signed transaction which requires an account with some tokens to be executed as it costs fees.
 - **Miner** - [Storage Provider][5]
 - **collateral** - amount of tokens staked by a miner (via `SPP`) to be able to provide storage services 
-- **PoSt** - [Proof of Storage][3]
+- **PoS** - [Proof of Storage][3]
+- **PoSt** - [Proof of Space-Time][6]
 - `SPP` - Storage Provider Pallet
 - `CPP` - Collator Power Pallet
 - `CSP` - Collator Selection Pallet
@@ -61,7 +62,7 @@ struct MinerClaim {
 - `SPP` only calls `CPP.update_miner_power` function after:
     * Miner has been registered in `Collator Power` via `create_miner` function call
     * Miner has submitted `PreCommit` sector with a certain (calculated by `SPP`) amount **Collateral** required
-    * Miner has proven sectors with **PoSt** via `ProveCommit` of `SPP`.
+    * Miner has proven sectors with **PoS** via `ProveCommit` of `SPP`.
 - `update_miner_power` is ***NOT** an **extrinsic**. It can only be called from `SPP` via [tight coupling][2].
     - The reason is that we can't trust that a **Miner** will call extrinsic and update it on their own. `SPP` logic will perform those updates, e.g: after (not)receiving **PoSt**, receiving **pledge collaterals**.
 
@@ -89,5 +90,6 @@ TODO: I don't have this piece of the puzzle yet. I mean... What happens if a **M
 [1]: https://github.com/filecoin-project/lotus/blob/9851d35a3811e5339560fb706926bf63a846edae/cmd/lotus-miner/init.go#L638
 [2]: https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_pallet_coupling/index.html#tight-coupling-pallets
 [3]: https://spec.filecoin.io/#section-algorithms.pos
-[4]: https://paritytech.github.io/polkadot-sdk/master/pallet_session/index.
+[4]: https://paritytech.github.io/polkadot-sdk/master/pallet_session/index.html
 [5]: https://github.com/eigerco/polka-disk/blob/main/doc/research/lotus/lotus-overview.md#Roles
+[6]: https://spec.filecoin.io/#section-algorithms.pos.post
