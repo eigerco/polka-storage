@@ -15,11 +15,9 @@ use codec::{Decode, Encode};
 use scale_info::TypeInfo;
 
 #[derive(Decode, Encode, TypeInfo)]
-pub struct MinerInfo<AccountId, WorkerAddress, PeerId> {
+pub struct MinerInfo<AccountId, PeerId> {
     /// The owner of this miner.
     owner: AccountId,
-    /// Worker of this miner
-    worker: WorkerAddress,
     /// Miner's libp2p peer id in bytes.
     peer_id: PeerId,
 }
@@ -30,10 +28,16 @@ pub mod pallet {
 
     use frame_support::dispatch::DispatchResultWithPostInfo;
     use frame_support::pallet_prelude::{IsType, PhantomData, StorageMap};
+    use frame_support::traits::{Currency, ReservableCurrency};
     use frame_support::{Blake2_128Concat, Parameter};
-    use frame_system::ensure_signed;
     use frame_system::pallet_prelude::OriginFor;
+    use frame_system::{ensure_signed, Config as SystemConfig};
     use scale_info::prelude::vec::Vec;
+
+    // Allows to extract Balance of an account via the Config::Currency associated type.
+    // BalanceOf is a sophisticated way of getting an u128.
+    type BalanceOf<T> =
+        <<T as Config>::Currency as Currency<<T as SystemConfig>::AccountId>>::Balance;
 
     /// Peer ID is derived by hashing an encoded public key.
     /// Usually represented in bytes.
@@ -49,8 +53,10 @@ pub mod pallet {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-        /// This pallet handles registration of workers to an account. These workers have an address that is outside of substrate.
-        type WorkerAddress: Parameter;
+        /// The currency mechanism.
+        /// Used for rewards, using `ReservableCurrency` over `Currency` because the rewards will be locked 
+        /// in this pallet until the miner requests the funds through `withdraw_balance`
+        type Currency: ReservableCurrency<Self::AccountId>;
 
         /// MinerAccountId identifies a miner
         type MinerAccountId: Parameter;
@@ -64,7 +70,7 @@ pub mod pallet {
         _,
         Blake2_128Concat,
         T::AccountId,
-        MinerInfo<T::AccountId, T::WorkerAddress, PeerId>,
+        MinerInfo<T::AccountId, PeerId>,
     >;
 
     #[pallet::event]
@@ -149,16 +155,33 @@ pub mod pallet {
 
         // Used by the reward pallet to award a block reward to a Miner.
         // I am not sure if this should be implemented on this pallet.
-        // The reward pallet could be tightly coupled with the storage provider pallet 
+        // The reward pallet could be tightly coupled with the storage provider pallet
         // so the reward pallet can take over this functionality.
         #[pallet::call_index(3)]
         pub fn apply_rewards(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+            // Check that the extrinsic was signed and get the signer.
+            let _who = ensure_signed(origin)?;
             todo!()
         }
 
         // This method is used to report a consensus fault by a miner.
         #[pallet::call_index(4)]
         pub fn report_consensus_fault(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+            // Check that the extrinsic was signed and get the signer.
+            let _who = ensure_signed(origin)?;
             todo!()
         }
+
+        // Used by the Miner's Owner to withdraw available funds earned from block rewards.
+        // If the amount to withdraw is larger than what is available the extrinsic will fail.
+        #[pallet::call_index(5)]
+        pub fn withdraw_balance(
+            origin: OriginFor<T>,
+            _amount: BalanceOf<T>,
+        ) -> DispatchResultWithPostInfo {
+            // Check that the extrinsic was signed and get the signer.
+            let _who = ensure_signed(origin)?;
+            todo!()
+        }
+    }
 }
