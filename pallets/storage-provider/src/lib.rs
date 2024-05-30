@@ -2,9 +2,9 @@
 //!
 //! This pallet holds information about storage providers and
 //! provides an interface to modify information about miners.
-//! 
+//!
 //! The Storage Provider Pallet is the source of truth for anything storage provider (the binary) related.
-//! 
+//!
 //! At some point this pallet will have to verify proofs submitted by storage providers
 
 #![cfg_attr(not(feature = "std"), no_std)]
