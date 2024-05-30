@@ -73,17 +73,9 @@ pub mod pallet {
         MinerCreated {
             owner: T::AccountId,
         },
-        ChangeWorkerAddressRequested {
-            miner: T::MinerAccountId,
-            new_worker: T::WorkerAddress,
-        },
         PeerIdChanged {
             miner: T::MinerAccountId,
             peer_id: PeerId,
-        },
-        WorkerAddressChanged {
-            miner: T::MinerAccountId,
-            new_worker: T::WorkerAddress,
         },
         OwnerAddressChanged {
             miner: T::MinerAccountId,
@@ -98,7 +90,6 @@ pub mod pallet {
         pub fn create_miner(
             origin: OriginFor<T>,
             owner: T::AccountId,
-            _worker: T::WorkerAddress,
             _peer_id: PeerId,
         ) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
@@ -109,28 +100,6 @@ pub mod pallet {
             // This probably inherits a `create_miner` function from a `Power` trait.
 
             Self::deposit_event(Event::MinerCreated { owner });
-            todo!()
-        }
-
-        /// Request to change a worker address for a given miner
-        #[pallet::call_index(1)]
-        pub fn change_worker_address(
-            origin: OriginFor<T>,
-            miner: T::MinerAccountId,
-            new_worker: T::WorkerAddress,
-        ) -> DispatchResultWithPostInfo {
-            // Check that the extrinsic was signed and get the signer.
-            let _who = ensure_signed(origin)?;
-
-            // Get miner info from `Miners` with `who` value
-            // let miner_info = Miners::<T>::try_get(&miner);
-
-            // Ensure who is the owner of the miner
-            // ensure!(who == miner_info.owner)
-
-            // Flag miner as worker address change
-
-            Self::deposit_event(Event::ChangeWorkerAddressRequested { miner, new_worker });
             todo!()
         }
 
@@ -153,27 +122,6 @@ pub mod pallet {
             // Update PeerId
 
             Self::deposit_event(Event::PeerIdChanged { miner, peer_id });
-            todo!()
-        }
-
-        /// Confirms the change of the worker address initiated by `change_worker_address`
-        #[pallet::call_index(3)]
-        pub fn confirm_change_worker_address(
-            origin: OriginFor<T>,
-            _miner: T::MinerAccountId,
-        ) -> DispatchResultWithPostInfo {
-            // Check that the extrinsic was signed and get the signer.
-            let _who = ensure_signed(origin)?;
-
-            // Get miner info from `Miners` with `who` value
-            // let miner_info = Miners::<T>::try_get(&miner);
-
-            // Ensure who is the owner of the miner
-            // ensure!(who == miner_info.owner)
-
-            // Change worker address and extract `new_worker` for event emitted.
-
-            // Self::deposit_event(Event::WorkerAddressChanged { miner, new_worker });
             todo!()
         }
 
