@@ -69,7 +69,12 @@ thiserror = { version = "1.0.48" }
 tokio = "1.37.0"
 tokio-stream = "0.1.15"
 tokio-util = "0.7.11"
-tracing-subscriber = { version = "0.3.18" }
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
+time = "0.3.36"                                                                         # replace with chrono
+async-channel = "2.3.1"
+uuid = "1.8.0"
+hex = "0.4.3"
 
 # Local
 polka-storage-runtime = { path = "runtime" }
@@ -113,7 +118,9 @@ substrate-prometheus-endpoint = { git = "https://github.com/paritytech/polkadot-
 
 # Polkadot
 pallet-xcm = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", default-features = false }
-polkadot-cli = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", features = ["rococo-native"] }
+polkadot-cli = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", features = [
+  "rococo-native",
+] }
 polkadot-parachain-primitives = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", default-features = false }
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0" }
 polkadot-runtime-common = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", default-features = false }
