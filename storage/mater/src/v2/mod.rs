@@ -82,9 +82,7 @@ impl Header {
     /// The [`Header`] size in bytes (includes the pragma).
     ///
     /// As defined in the [specification](https://ipld.io/specs/transport/car/carv2/#header).
-    pub const fn size() -> usize {
-        PRAGMA.len() + 40
-    }
+    pub const SIZE: usize = PRAGMA.len() + 40;
 }
 
 #[cfg(test)]
