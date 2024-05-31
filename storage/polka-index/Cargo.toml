@@ -1,0 +1,21 @@
+[package]
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+name = "polka-index"
+repository.workspace = true
+version = "0.1.0"
+
+[dependencies]
+ciborium = { workspace = true }
+cid = { workspace = true, features = ["serde"] }
+rocksdb = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true
