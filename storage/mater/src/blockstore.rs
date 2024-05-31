@@ -87,7 +87,8 @@ impl Blockstore {
         }
     }
 
-    /// Fully read the contents of `reader` into the [`Blockstore`].
+    /// Fully read the contents of an arbitrary `reader` into the [`Blockstore`],
+    /// converting the contents into a CARv2 file.
     pub async fn read<R>(&mut self, reader: R) -> Result<(), Error>
     where
         R: AsyncRead + Unpin + Send,
