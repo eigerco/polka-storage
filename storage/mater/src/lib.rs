@@ -101,13 +101,8 @@ pub enum Error {
     DagPbError(#[from] ipld_dagpb::Error),
 }
 
-// NOTE(@jmg-duarte,23/05/2024): I'm looking for better alternatives to this
 #[cfg(test)]
 pub(crate) mod test_utils {
-
-    // NOTE(@jmg-duarte,28/05/2024): I'm still not convinced that assert_buffer_eq should be a macro
-    // but I am also not convinced it should be a method. Please advise!
-
     /// Check if two given slices are equal.
     ///
     /// First checks if the two slices have the same size,
