@@ -27,7 +27,7 @@ const DEFAULT_TREE_WIDTH: usize = 174;
 
 /// The [`Blockstore`] stores pairs of [`Cid`] and [`Bytes`] in memory.
 ///
-/// The store will chunk data blocks into `chunk_size` and "gather" nodes in groups of `tree_width` length.
+/// The store will chunk data blocks into `chunk_size` and "gather" nodes in groups with at most `tree_width` children.
 /// You can visualize the underlying tree in <https://dag.ipfs.tech/>, using the "Balanced DAG" layout.
 ///
 /// It is necessary to keep the blocks somewhere before writing them to a file since the CARv2 header
