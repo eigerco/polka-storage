@@ -13,8 +13,9 @@
 
 ## Overview
 
-**Collators** are entities selected to produce **blocks** which are then finalized by relay chain's **validators**.
-To participate in **block production**, a **Collator** needs to:
+**Collators** are entities selected to produce state transition proofs which are then finalized by relay chain's **validators**.
+They aggregate parachain transactions into **parachain block candidates*.
+To participate in **block candidate production**, a **Collator** needs to:
 - stake a ***certain*** (yet to be determined) amount of tokens 
 - be backed by **Miners'** **Storage Power**.
 Collators' staking is a requirement for participation in the process, the actual selection is based on **Storage Power**.
