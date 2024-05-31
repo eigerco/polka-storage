@@ -122,9 +122,8 @@ pub mod pallet {
             // Check that the extrinsic was signed and get the signer.
             let who = ensure_signed(origin)?;
 
-            // Get miner info from `Miners` with `who` value
-            Miners::<T>::try_mutate(&miner, |maybe_miner| -> DispatchResultWithPostInfo {
-                let miner_info = match maybe_miner.as_mut().ok_or(Error::<T>::MinerNotFound) {
+            Miners::<T>::try_mutate(&miner, |info| -> DispatchResultWithPostInfo {
+                let miner_info = match info.as_mut().ok_or(Error::<T>::MinerNotFound) {
                     Ok(info) => info,
                     Err(e) => {
                         log::warn!("Could not get info for miner: {miner:?}");
@@ -136,8 +135,10 @@ pub mod pallet {
                 ensure!(who == miner_info.owner, Error::<T>::InvalidSigner);
 
                 log::debug!("Updating peer id for {miner:?}");
+
                 // Update PeerId
                 miner_info.peer_id = peer_id.clone();
+
                 Self::deposit_event(Event::PeerIdChanged {
                     miner: miner.clone(),
                     new_peer_id: peer_id,
@@ -154,18 +155,31 @@ pub mod pallet {
             new_owner: T::AccountId,
         ) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
-            let _who = ensure_signed(origin)?;
+            let who = ensure_signed(origin)?;
 
-            // Get miner info from `Miners` with `who` value
-            // let miner_info = Miners::<T>::try_get(&miner);
+            Miners::<T>::try_mutate(&miner, |info| -> DispatchResultWithPostInfo {
+                let miner_info = match info.as_mut().ok_or(Error::<T>::MinerNotFound) {
+                    Ok(info) => info,
+                    Err(e) => {
+                        log::warn!("Could not get info for miner: {miner:?}");
+                        return Err(e.into());
+                    }
+                };
 
-            // Ensure who is the owner of the miner
-            // ensure!(who == miner_info.owner)
+                // Ensure who is the owner of the miner
+                ensure!(who == miner_info.owner, Error::<T>::InvalidSigner);
 
-            // Change owner address
+                log::debug!("Updating owner for {miner:?}");
 
-            Self::deposit_event(Event::OwnerAddressChanged { miner, new_owner });
-            todo!()
+                // Update owner address
+                miner_info.owner = new_owner.clone();
+
+                Self::deposit_event(Event::OwnerAddressChanged {
+                    miner: miner.clone(),
+                    new_owner,
+                });
+                Ok(().into())
+            })
         }
 
         // Used by the reward pallet to award a block reward to a Miner.
