@@ -15,9 +15,14 @@ use codec::{Decode, Encode};
 use scale_info::TypeInfo;
 
 #[derive(Decode, Encode, TypeInfo)]
-pub struct MinerInfo<AccountId, PeerId> {
+pub struct MinerInfo<
+    AccountId: Encode + Decode + Eq + PartialEq,
+    PeerId: Encode + Decode + Eq + PartialEq,
+> {
     /// The owner of this miner.
     owner: AccountId,
+    /// The miner address
+    miner: AccountId,
     /// Miner's libp2p peer id in bytes.
     peer_id: PeerId,
 }
@@ -27,9 +32,9 @@ pub mod pallet {
     use super::MinerInfo;
 
     use frame_support::dispatch::DispatchResultWithPostInfo;
+    use frame_support::ensure;
     use frame_support::pallet_prelude::{IsType, PhantomData, StorageMap};
     use frame_support::traits::{Currency, ReservableCurrency};
-    use frame_support::{Blake2_128Concat, Parameter};
     use frame_system::pallet_prelude::OriginFor;
     use frame_system::{ensure_signed, Config as SystemConfig};
     use scale_info::prelude::vec::Vec;
@@ -54,24 +59,16 @@ pub mod pallet {
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
         /// The currency mechanism.
-        /// Used for rewards, using `ReservableCurrency` over `Currency` because the rewards will be locked 
+        /// Used for rewards, using `ReservableCurrency` over `Currency` because the rewards will be locked
         /// in this pallet until the miner requests the funds through `withdraw_balance`
         type Currency: ReservableCurrency<Self::AccountId>;
-
-        /// MinerAccountId identifies a miner
-        type MinerAccountId: Parameter;
     }
 
     // Need some storage type that keeps track of sectors, deadlines and terminations.
     // Could be added to this type maybe?
     #[pallet::storage]
     #[pallet::getter(fn miners)]
-    pub type Miners<T: Config> = StorageMap<
-        _,
-        Blake2_128Concat,
-        T::AccountId,
-        MinerInfo<T::AccountId, PeerId>,
-    >;
+    pub type Miners<T: Config> = StorageMap<_, _, T::AccountId, MinerInfo<T::AccountId, PeerId>>;
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -80,13 +77,19 @@ pub mod pallet {
             owner: T::AccountId,
         },
         PeerIdChanged {
-            miner: T::MinerAccountId,
-            peer_id: PeerId,
+            miner: T::AccountId,
+            new_peer_id: PeerId,
         },
         OwnerAddressChanged {
-            miner: T::MinerAccountId,
+            miner: T::AccountId,
             new_owner: T::AccountId,
         },
+    }
+
+    #[pallet::error]
+    pub enum Error<T> {
+        MinerNotFound,
+        InvalidSigner,
     }
 
     #[pallet::call]
@@ -113,29 +116,41 @@ pub mod pallet {
         #[pallet::call_index(1)]
         pub fn change_peer_id(
             origin: OriginFor<T>,
-            miner: T::MinerAccountId,
+            miner: T::AccountId,
             peer_id: PeerId,
         ) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
-            let _who = ensure_signed(origin)?;
+            let who = ensure_signed(origin)?;
 
             // Get miner info from `Miners` with `who` value
-            // let miner_info = Miners::<T>::try_get(&miner);
+            Miners::<T>::try_mutate(&miner, |maybe_miner| -> DispatchResultWithPostInfo {
+                let miner_info = match maybe_miner.as_mut().ok_or(Error::<T>::MinerNotFound) {
+                    Ok(info) => info,
+                    Err(e) => {
+                        log::warn!("Could not get info for miner: {miner:?}");
+                        return Err(e.into());
+                    }
+                };
 
-            // Ensure who is the owner of the miner
-            // ensure!(who == miner_info.owner)
+                // Ensure who is the owner of the miner
+                ensure!(who == miner_info.owner, Error::<T>::InvalidSigner);
 
-            // Update PeerId
-
-            Self::deposit_event(Event::PeerIdChanged { miner, peer_id });
-            todo!()
+                log::debug!("Updating peer id for {miner:?}");
+                // Update PeerId
+                miner_info.peer_id = peer_id.clone();
+                Self::deposit_event(Event::PeerIdChanged {
+                    miner: miner.clone(),
+                    new_peer_id: peer_id,
+                });
+                Ok(().into())
+            })
         }
 
         // This function updates the owner address to the given `new_owner` for the given `miner`
         #[pallet::call_index(2)]
         pub fn change_owner_address(
             origin: OriginFor<T>,
-            miner: T::MinerAccountId,
+            miner: T::AccountId,
             new_owner: T::AccountId,
         ) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.

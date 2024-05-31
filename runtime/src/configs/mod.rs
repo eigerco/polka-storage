@@ -307,5 +307,4 @@ impl pallet_collator_selection::Config for Runtime {
 impl storage_provider::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
-    type MinerAccountId = AccountId;
 }

@@ -13,6 +13,7 @@ version = "0.1.0"
 codec.workspace = true
 frame-support = { workspace = true, default-features = false }
 frame-system = { workspace = true, default-features = false }
+log.workspace = true
 scale-info.workspace = true
 
 [lints]
