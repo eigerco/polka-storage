@@ -16,7 +16,8 @@ mod unixfs;
 mod v1;
 mod v2;
 
-pub use stores::blockstore::Blockstore;
+pub use stores::Blockstore;
+pub use stores::Filestore;
 // We need to expose this because `read_block` returns `(Cid, Vec<u8>)`.
 pub use ipld_core::cid::Cid;
 pub use v1::{Header as CarV1Header, Reader as CarV1Reader, Writer as CarV1Writer};
@@ -127,6 +128,23 @@ pub(crate) mod test_utils {
             }
         }};
     }
-
     pub(crate) use assert_buffer_eq;
+
+    use std::path::Path;
+    use tokio::{fs::File, io::AsyncWriteExt};
+
+    /// Dump a byte slice into a file.
+    ///
+    /// * If *anything* goes wrong, the function will panic.
+    /// * If the file doesn't exist, it will be created.
+    /// * If the file exists, it will be overwritten and truncated.
+    #[allow(dead_code)] // This function is supposed to be a debugging helper
+    pub(crate) async fn dump<P, B>(path: P, bytes: B)
+    where
+        P: AsRef<Path>,
+        B: AsRef<[u8]>,
+    {
+        let mut file = File::create(path).await.unwrap();
+        file.write_all(bytes.as_ref()).await.unwrap();
+    }
 }

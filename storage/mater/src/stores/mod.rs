@@ -1,5 +1,8 @@
-pub(crate) mod blockstore;
-pub(crate) mod filestore;
+mod blockstore;
+mod filestore;
+
+pub use blockstore::Blockstore;
+pub use filestore::Filestore;
 
 /// The default block size, as defined in
 /// [boxo](https://github.com/ipfs/boxo/blob/f4fe8997dcbeb39b3a4842d8f08b34739bfd84a4/chunker/parse.go#L13).
@@ -18,6 +21,16 @@ pub enum Config {
         chunk_size: usize,
         tree_width: usize,
     },
+}
+
+impl Config {
+    /// Create a new [`Config::Balanced`].
+    pub fn balanced(chunk_size: usize, tree_width: usize) -> Self {
+        Self::Balanced {
+            chunk_size,
+            tree_width,
+        }
+    }
 }
 
 impl Default for Config {
