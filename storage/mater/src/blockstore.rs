@@ -95,9 +95,15 @@ impl Blockstore {
     {
         let chunks = ReaderStream::with_capacity(reader, self.chunk_size);
 
-        // NOTE(@jmg-duarte,28/05/2024): being honest, I don't quite understand why the .peekable() needs to go after the pin
-        // my suspicion is that if you peek an item that is not Pin, it may move under your feet, by peeking a Pin item you
-        // know the item is not going to move and as such, it is ok
+        // The `stream -> pin -> peekable` combo instead of `stream -> peekable -> pin` feels weird
+        // but it has to do with two things:
+        // - The fact that the stream can be self-referential:
+        //   https://users.rust-lang.org/t/why-is-pin-mut-needed-for-iteration-of-async-stream/51107
+        // - Using a tokio_stream::Peekable instead of futures::Peekable, they differ on who is required to be pinned
+        //  - tokio_stream::Peekable::peek(&mut self)
+        //    https://github.com/tokio-rs/tokio/blob/14c17fc09656a30230177b600bacceb9db33e942/tokio-stream/src/stream_ext/peekable.rs#L26-L37
+        //  - futures::Peekable::peek(self: Pin<&mut Self>)
+        //    https://github.com/rust-lang/futures-rs/blob/c507ff833728e2979cf5519fc931ea97308ec876/futures-util/src/stream/stream/peek.rs#L38-L40
         let tree = stream_balanced_tree(chunks, self.tree_width);
         tokio::pin!(tree);
         let mut tree = tree.peekable();
