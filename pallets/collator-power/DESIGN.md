@@ -18,10 +18,11 @@ They aggregate parachain transactions into **parachain block candidates*.
 To participate in **block candidate production**, a **Collator** needs to:
 - stake a ***certain*** (yet to be determined) amount of tokens 
 - be backed by **Miners'** **Storage Power**.
+
 Collators' staking is a requirement for participation in the process, the actual selection is based on **Storage Power**.
 
 The collators are selected based on **Storage Power** by `CSP` in an randonmized auction algorithm.
-The more **Storage Power** has been staked on a **Collator** by the **Miner**, the more likely their chances to be selected for block production.
+The more **Storage Power** has been staked on a **Collator** by the **Miner**, the more likely their chances to be selected for parachain block candidate.
 
 This pallet works as a proxy between `SPP` and `CSP` to make collator choices.
 It stores how much **Storage Power** a **Miner** has and how much was delegated by **Miners** to **Collators**.
