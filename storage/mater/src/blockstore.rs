@@ -47,6 +47,28 @@ pub struct Blockstore {
 }
 
 impl Blockstore {
+    /// The size of the [`Header`] when encoded using [`DagCborCodec`].
+    ///
+    /// The formula is: `overhead + 37 * roots.len()`.
+    /// It is based on reversing the CBOR encoding, see an example:
+    /// ```text
+    /// A2                                      # map(2)
+    ///    65                                   # text(5)
+    ///       726F6F7473                        # "roots"
+    ///    81                                   # array(1)
+    ///       D8 2A                             # tag(42)
+    ///          58 25                          # bytes(37)
+    ///             00015512206D623B17625E25CBDA46D17AC89C26B3DB63544701E2C0592626320DBEFD515B
+    ///    67                                   # text(7)
+    ///       76657273696F6E                    # "version"
+    ///    01                                   # unsigned(1)
+    /// ```
+    /// In this case we're always doing a single root, so we just use the fixed size: 58
+    ///
+    /// Is this cheating? Yes. The alternative is to encode the CARv1 header twice.
+    /// We can cache it, but for now, this should be better.
+    const V1_HEADER_OVERHEAD: u64 = 58;
+
     /// Construct a new [`Blockstore`], using the default parameters.
     pub fn new() -> Self {
         Default::default()
@@ -152,30 +174,8 @@ impl Blockstore {
             })
             .sum();
 
-        // The size of the [`Header`] when encoded using [`DagCborCodec`].
-        //
-        // The formula is: `overhead + 37 * roots.len()`.
-        // It is based on reversing the CBOR encoding, see an example:
-        // ```text
-        // A2                                      # map(2)
-        //    65                                   # text(5)
-        //       726F6F7473                        # "roots"
-        //    81                                   # array(1)
-        //       D8 2A                             # tag(42)
-        //          58 25                          # bytes(37)
-        //             00015512206D623B17625E25CBDA46D17AC89C26B3DB63544701E2C0592626320DBEFD515B
-        //    67                                   # text(7)
-        //       76657273696F6E                    # "version"
-        //    01                                   # unsigned(1)
-        // ```
-        // In this case we're always doing a single root, so we just use the fixed size: 58
-        //
-        // Is this cheating? Yes. The alternative is to encode the CARv1 header twice.
-        // We can cache it, but for now, this should be better.
-        let header_v1_length = 58;
-        let header_v1_varint = header_v1_length.required_space() as u64;
-
-        let car_v1_payload_length = header_v1_length + header_v1_varint + data_size;
+        let header_v1_varint = Self::V1_HEADER_OVERHEAD.required_space() as u64;
+        let car_v1_payload_length = Self::V1_HEADER_OVERHEAD + header_v1_varint + data_size;
 
         // If there is padding, this does not apply, however, the go-car tool doesn't seem to ever add padding
         let index_offset = data_offset + car_v1_payload_length;
