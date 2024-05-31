@@ -6,7 +6,7 @@ license-file = "LICENSE"
 repository = "https://github.com/eigerco/polka-storage"
 
 [workspace]
-members = ["node", "runtime"]
+members = ["node", "runtime", "storage/polka-index"]
 resolver = "2"
 
 # FIXME(#@jmg-duarte,#7,14/5/24): remove the patch once something >1.11.0 is released
@@ -28,6 +28,8 @@ panic = 'abort'         # Use abort on panic to reduce binary size
 substrate-build-script-utils = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0" }
 substrate-wasm-builder = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0" }
 
+ciborium = "0.2.2"
+cid = { version = "0.11.1" }
 clap = { version = "4.5.3" }
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false }
 color-print = "0.3.4"
@@ -39,6 +41,7 @@ polkavm = "0.9.3"
 polkavm-derive = "0.9.1"
 polkavm-linker = "0.9.2"
 quote = { version = "1.0.33" }
+rocksdb = { version = "0.21" }
 scale-info = { version = "2.11.1", default-features = false }
 serde = { version = "1.0.197", default-features = false }
 serde-big-array = { version = "0.3.2" }
@@ -47,6 +50,7 @@ serde_json = { version = "1.0.114", default-features = false }
 serde_yaml = { version = "0.9" }
 smallvec = "1.11.0"
 syn = { version = "2.0.53" }
+tempfile = "3.10.1"
 thiserror = { version = "1.0.48" }
 tracing-subscriber = { version = "0.3.18" }
 
