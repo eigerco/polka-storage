@@ -96,7 +96,7 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        /// Add a new storage_provider information to `StorageProviders`
+        /// Index a new storage provider
         #[pallet::call_index(0)]
         pub fn create_storage_provider(
             origin: OriginFor<T>,
@@ -121,7 +121,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// Update PeerId associated with a given storage_provider.
+        /// Update PeerId for a Storage Provider.
         #[pallet::call_index(1)]
         pub fn change_peer_id(
             origin: OriginFor<T>,
@@ -164,7 +164,7 @@ pub mod pallet {
             )
         }
 
-        // This function updates the owner address to the given `new_owner` for the given `storage_provider`
+        /// Update the owner address for a Storage Provider.
         #[pallet::call_index(2)]
         pub fn change_owner_address(
             origin: OriginFor<T>,
