@@ -12,12 +12,11 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_stream::StreamExt;
 use tokio_util::io::ReaderStream;
 
+use super::{DEFAULT_BLOCK_SIZE, DEFAULT_TREE_WIDTH};
 use crate::{
     multicodec::SHA_256_CODE, unixfs::stream_balanced_tree, CarV1Header, CarV2Header, CarV2Writer,
     Error, Index, IndexEntry, MultihashIndexSorted, SingleWidthIndex,
 };
-
-use super::{DEFAULT_BLOCK_SIZE, DEFAULT_TREE_WIDTH};
 
 /// The [`Blockstore`] stores pairs of [`Cid`] and [`Bytes`] in memory.
 ///

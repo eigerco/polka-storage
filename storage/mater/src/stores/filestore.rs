@@ -5,12 +5,11 @@ use tokio::{fs::File, io::AsyncSeekExt};
 use tokio_stream::StreamExt;
 use tokio_util::io::ReaderStream;
 
+use super::Config;
 use crate::{
     multicodec::SHA_256_CODE, unixfs::stream_balanced_tree, CarV1Header, CarV2Header, CarV2Writer,
     Error, Index, IndexEntry, MultihashIndexSorted, SingleWidthIndex,
 };
-
-use super::Config;
 
 /// A file-backed CAR store.
 pub struct Filestore {

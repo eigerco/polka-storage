@@ -16,10 +16,9 @@ mod unixfs;
 mod v1;
 mod v2;
 
-pub use stores::Blockstore;
-pub use stores::Filestore;
 // We need to expose this because `read_block` returns `(Cid, Vec<u8>)`.
 pub use ipld_core::cid::Cid;
+pub use stores::{Blockstore, Filestore};
 pub use v1::{Header as CarV1Header, Reader as CarV1Reader, Writer as CarV1Writer};
 pub use v2::{
     Characteristics, Header as CarV2Header, Index, IndexEntry, IndexSorted, MultihashIndexSorted,
@@ -128,9 +127,9 @@ pub(crate) mod test_utils {
             }
         }};
     }
-    pub(crate) use assert_buffer_eq;
-
     use std::path::Path;
+
+    pub(crate) use assert_buffer_eq;
     use tokio::{fs::File, io::AsyncWriteExt};
 
     /// Dump a byte slice into a file.
