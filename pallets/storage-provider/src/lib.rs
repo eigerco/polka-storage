@@ -91,6 +91,7 @@ pub mod pallet {
     pub enum Error<T> {
         StorageProviderNotFound,
         InvalidSigner,
+        StorageProviderExists,
     }
 
     #[pallet::call]
@@ -99,17 +100,25 @@ pub mod pallet {
         #[pallet::call_index(0)]
         pub fn create_storage_provider(
             origin: OriginFor<T>,
-            _peer_id: T::PeerId,
+            peer_id: T::PeerId,
         ) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
-            let _who = ensure_signed(origin)?;
+            let owner = ensure_signed(origin)?;
 
             // Generate some storage_provider id and insert into `StorageProviders` storage
-
-            // This probably inherits a `create_storage_provider` function from a `Power` trait.
-
+            let storage_provider_info = StorageProviderInfo {
+                owner: owner.clone(),
+                peer_id: peer_id.clone(),
+            };
+            // Probably need some check to make sure the storage provider is legit
+            // This means the storage provider exist
+            ensure!(
+                !StorageProviders::<T>::contains_key(&owner),
+                Error::<T>::StorageProviderExists
+            );
+            StorageProviders::<T>::insert(owner.clone(), storage_provider_info);
             Self::deposit_event(Event::StorageProviderCreated { owner });
-            todo!()
+            Ok(().into())
         }
 
         /// Update PeerId associated with a given storage_provider.
@@ -119,7 +128,7 @@ pub mod pallet {
             peer_id: T::PeerId,
         ) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
-            let who = ensure_signed(origin)?;
+            let storage_provider = ensure_signed(origin)?;
 
             StorageProviders::<T>::try_mutate(
                 &storage_provider,
@@ -128,16 +137,16 @@ pub mod pallet {
                         match info.as_mut().ok_or(Error::<T>::StorageProviderNotFound) {
                             Ok(info) => info,
                             Err(e) => {
-                                log::warn!(
+                                log::error!(
                                     "Could not get info for storage_provider: {storage_provider:?}"
                                 );
                                 return Err(e.into());
                             }
                         };
 
-                    // Ensure who is the owner of the storage_provider
+                    // Ensure storage_provider is the owner of the storage_provider
                     ensure!(
-                        who == storage_provider_info.owner,
+                        storage_provider == storage_provider_info.owner,
                         Error::<T>::InvalidSigner
                     );
 
@@ -162,40 +171,41 @@ pub mod pallet {
             new_owner: T::AccountId,
         ) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
-            let who = ensure_signed(origin)?;
+            let storage_provider = ensure_signed(origin)?;
 
-            StorageProviders::<T>::try_mutate(
-                &storage_provider,
-                |info| -> DispatchResultWithPostInfo {
-                    let storage_provider_info =
-                        match info.as_mut().ok_or(Error::<T>::StorageProviderNotFound) {
-                            Ok(info) => info,
-                            Err(e) => {
-                                log::warn!(
-                                    "Could not get info for storage_provider: {storage_provider:?}"
-                                );
-                                return Err(e.into());
-                            }
-                        };
+            // Extract storage provider
+            match StorageProviders::<T>::try_get(&storage_provider) {
+                Ok(info) => {
+                    // Ensure storage_provider is the owner of the storage_provider
+                    ensure!(storage_provider == info.owner, Error::<T>::InvalidSigner);
 
-                    // Ensure who is the owner of the storage_provider
+                    let new_info = StorageProviderInfo {
+                        owner: new_owner.clone(),
+                        peer_id: info.peer_id,
+                    };
+
+                    // Ensure no storage provider is associated with the new owner
                     ensure!(
-                        who == storage_provider_info.owner,
-                        Error::<T>::InvalidSigner
+                        !StorageProviders::<T>::contains_key(&new_owner),
+                        Error::<T>::StorageProviderExists
                     );
 
-                    log::debug!("Updating owner for {storage_provider:?}");
+                    // Insert new storage provider info
+                    StorageProviders::<T>::insert(new_owner.clone(), new_info);
 
-                    // Update owner address
-                    storage_provider_info.owner = new_owner.clone();
+                    // Remove old storage provider entry
+                    StorageProviders::<T>::remove(storage_provider.clone());
 
+                    // Emit event
                     Self::deposit_event(Event::OwnerAddressChanged {
                         storage_provider: storage_provider.clone(),
                         new_owner,
                     });
+
                     Ok(().into())
-                },
-            )
+                }
+                Err(..) => Err(Error::<T>::StorageProviderNotFound.into()),
+            }
         }
 
         // Used by the reward pallet to award a block reward to a storage_provider.
