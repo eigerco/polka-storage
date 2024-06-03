@@ -3,6 +3,7 @@
 .AppleDouble
 .LSOverride
 .idea
+.vscode
 
 # Rust .gitignore
 # https://github.com/github/gitignore/blob/main/Rust.gitignore

@@ -1,7 +1,7 @@
-use crate::cli::Subcommand;
-use crate::Cli;
 use clap::Parser;
 use cli_primitives::Result;
+
+use crate::{cli::SubCommand, Cli};
 
 /// Parses command line arguments into the service configuration and runs the specified
 /// command with it.
@@ -10,17 +10,12 @@ pub(crate) async fn run() -> Result<()> {
     let cli_arguments: Cli = Cli::parse();
 
     match &cli_arguments.subcommand {
-        Some(Subcommand::RunRpc(_cmd)) => {
-            // TODO(@serhii, #52, 2024-05-28): Implement an RPC server to listen for RPC calls, which will be used by the UI app to display information to the user.
-            Ok(())
-        }
-        Some(Subcommand::StopRpc(_cmd)) => {
-            // TODO(@serhii, #52, 2024-05-28): Implement functionality to gracefully stop the previously started RPC server.
-            Ok(())
-        }
+        Some(SubCommand::Init(cmd)) => cmd.handle().await,
+        Some(SubCommand::Run(cmd)) => cmd.handle().await,
+        Some(SubCommand::Info(cmd)) => cmd.handle().await,
         None => {
-            // TODO(@serhii, #54, 2024-05-28): Add default logic for when no specific command is requested.
-            Ok(())
+            // Help is shown if no subcommand is provided.
+            unreachable!()
         }
     }
 }

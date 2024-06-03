@@ -28,12 +28,13 @@ panic = 'abort'         # Use abort on panic to reduce binary size
 substrate-build-script-utils = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0" }
 substrate-wasm-builder = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0" }
 
+async-trait = { version = "0.1.18" }
 clap = { version = "4.5.3" }
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false }
 color-print = "0.3.4"
 futures = "0.3.28"
 hex-literal = { version = "0.4.1" }
-jsonrpsee = { version = "0.22" }
+jsonrpsee = { version = "0.22.5" }
 log = { version = "0.4.21", default-features = false }
 polkavm = "0.9.3"
 polkavm-derive = "0.9.1"
@@ -46,12 +47,14 @@ serde_derive = { version = "1.0.117" }
 serde_json = { version = "1.0.114", default-features = false }
 serde_yaml = { version = "0.9" }
 smallvec = "1.11.0"
+subxt = { version = "0.37.0" }
 syn = { version = "2.0.53" }
 thiserror = { version = "1.0.48" }
+tokio = { version = "^1" }
+tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18" }
 url = "2.5.0"
-env_logger = "0.11.2"
-tokio = { version = "^1" }
+chrono = "0.4.38"
 
 # Local
 polka-storage-runtime = { path = "runtime" }
@@ -95,7 +98,9 @@ substrate-prometheus-endpoint = { git = "https://github.com/paritytech/polkadot-
 
 # Polkadot
 pallet-xcm = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", default-features = false }
-polkadot-cli = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", features = ["rococo-native"] }
+polkadot-cli = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", features = [
+  "rococo-native",
+] }
 polkadot-parachain-primitives = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", default-features = false }
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0" }
 polkadot-runtime-common = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", default-features = false }

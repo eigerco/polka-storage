@@ -3,17 +3,17 @@
 #![deny(unused_crate_dependencies)]
 
 mod cli;
+mod rpc;
 
 pub(crate) mod commands;
 pub(crate) use cli::Cli;
-
 use cli_primitives::Result;
 use commands::runner;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     // Logger initialization.
-    env_logger::init();
+    tracing_subscriber::fmt().init();
 
     // Run requested command.
     runner::run().await
