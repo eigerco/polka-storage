@@ -2,7 +2,7 @@ mod blockstore;
 mod filestore;
 
 pub use blockstore::Blockstore;
-pub use filestore::Filestore;
+pub use filestore::create_filestore;
 
 /// The default block size, as defined in
 /// [boxo](https://github.com/ipfs/boxo/blob/f4fe8997dcbeb39b3a4842d8f08b34739bfd84a4/chunker/parse.go#L13).
