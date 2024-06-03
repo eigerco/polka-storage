@@ -1,11 +1,10 @@
 mod reader;
 mod writer;
 
-use ipld_core::cid::{multihash::Multihash, Cid, CidGeneric};
+use ipld_core::cid::{multihash::Multihash, Cid};
 use serde::{Deserialize, Serialize};
-use sha2::Sha256;
 
-use crate::multicodec::{generate_multihash, RAW_CODE, SHA_256_CODE};
+use crate::multicodec::{RAW_CODE, SHA_256_CODE};
 pub use crate::v1::{reader::Reader, writer::Writer};
 pub(crate) use crate::v1::{
     reader::{read_block, read_header},
