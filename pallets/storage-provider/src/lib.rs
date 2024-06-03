@@ -1,7 +1,7 @@
 //! # Storage Provider Pallet
 //!
 //! This pallet holds information about storage providers and
-//! provides an interface to modify information about miners.
+//! provides an interface to modify information about Storage Providers.
 //!
 //! The Storage Provider Pallet is the source of truth for anything storage provider (the binary) related.
 //!
@@ -15,39 +15,34 @@ use codec::{Decode, Encode};
 use scale_info::TypeInfo;
 
 #[derive(Decode, Encode, TypeInfo)]
-pub struct MinerInfo<
+pub struct StorageProviderInfo<
     AccountId: Encode + Decode + Eq + PartialEq,
     PeerId: Encode + Decode + Eq + PartialEq,
 > {
-    /// The owner of this miner.
+    /// The owner of this storage_provider.
     owner: AccountId,
-    /// The miner address
-    miner: AccountId,
-    /// Miner's libp2p peer id in bytes.
+    /// storage_provider's libp2p peer id in bytes.
     peer_id: PeerId,
 }
 
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
-    use super::MinerInfo;
+    use super::StorageProviderInfo;
 
+    use codec::{Decode, Encode};
+    use core::fmt::Debug;
     use frame_support::dispatch::DispatchResultWithPostInfo;
     use frame_support::ensure;
     use frame_support::pallet_prelude::{IsType, PhantomData, StorageMap};
     use frame_support::traits::{Currency, ReservableCurrency};
     use frame_system::pallet_prelude::OriginFor;
     use frame_system::{ensure_signed, Config as SystemConfig};
-    use scale_info::prelude::vec::Vec;
+    use scale_info::TypeInfo;
 
     // Allows to extract Balance of an account via the Config::Currency associated type.
     // BalanceOf is a sophisticated way of getting an u128.
     type BalanceOf<T> =
         <<T as Config>::Currency as Currency<<T as SystemConfig>::AccountId>>::Balance;
-
-    /// Peer ID is derived by hashing an encoded public key.
-    /// Usually represented in bytes.
-    /// https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
-    type PeerId = Vec<u8>;
 
     #[pallet::pallet]
     #[pallet::without_storage_info] // Allows to define storage items without fixed size
@@ -60,129 +55,150 @@ pub mod pallet {
 
         /// The currency mechanism.
         /// Used for rewards, using `ReservableCurrency` over `Currency` because the rewards will be locked
-        /// in this pallet until the miner requests the funds through `withdraw_balance`
+        /// in this pallet until the storage provider requests the funds through `withdraw_balance`
         type Currency: ReservableCurrency<Self::AccountId>;
+
+        /// Peer ID is derived by hashing an encoded public key.
+        /// Usually represented in bytes.
+        /// https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
+        type PeerId: Clone + Debug + Decode + Encode + Eq + TypeInfo;
     }
 
     // Need some storage type that keeps track of sectors, deadlines and terminations.
     // Could be added to this type maybe?
     #[pallet::storage]
-    #[pallet::getter(fn miners)]
-    pub type Miners<T: Config> = StorageMap<_, _, T::AccountId, MinerInfo<T::AccountId, PeerId>>;
+    #[pallet::getter(fn storage_providers)]
+    pub type StorageProviders<T: Config> =
+        StorageMap<_, _, T::AccountId, StorageProviderInfo<T::AccountId, T::PeerId>>;
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        MinerCreated {
+        StorageProviderCreated {
             owner: T::AccountId,
         },
         PeerIdChanged {
-            miner: T::AccountId,
-            new_peer_id: PeerId,
+            storage_provider: T::AccountId,
+            new_peer_id: T::PeerId,
         },
         OwnerAddressChanged {
-            miner: T::AccountId,
+            storage_provider: T::AccountId,
             new_owner: T::AccountId,
         },
     }
 
     #[pallet::error]
     pub enum Error<T> {
-        MinerNotFound,
+        StorageProviderNotFound,
         InvalidSigner,
     }
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        /// Add a new miner information to `Miners`
+        /// Add a new storage_provider information to `StorageProviders`
         #[pallet::call_index(0)]
-        pub fn create_miner(
+        pub fn create_storage_provider(
             origin: OriginFor<T>,
-            owner: T::AccountId,
-            _peer_id: PeerId,
+            _peer_id: T::PeerId,
         ) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
             let _who = ensure_signed(origin)?;
 
-            // Generate some miner id and insert into `Miners` storage
+            // Generate some storage_provider id and insert into `StorageProviders` storage
 
-            // This probably inherits a `create_miner` function from a `Power` trait.
+            // This probably inherits a `create_storage_provider` function from a `Power` trait.
 
-            Self::deposit_event(Event::MinerCreated { owner });
+            Self::deposit_event(Event::StorageProviderCreated { owner });
             todo!()
         }
 
-        /// Update PeerId associated with a given miner.
+        /// Update PeerId associated with a given storage_provider.
         #[pallet::call_index(1)]
         pub fn change_peer_id(
             origin: OriginFor<T>,
-            miner: T::AccountId,
-            peer_id: PeerId,
+            peer_id: T::PeerId,
         ) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
             let who = ensure_signed(origin)?;
 
-            Miners::<T>::try_mutate(&miner, |info| -> DispatchResultWithPostInfo {
-                let miner_info = match info.as_mut().ok_or(Error::<T>::MinerNotFound) {
-                    Ok(info) => info,
-                    Err(e) => {
-                        log::warn!("Could not get info for miner: {miner:?}");
-                        return Err(e.into());
-                    }
-                };
+            StorageProviders::<T>::try_mutate(
+                &storage_provider,
+                |info| -> DispatchResultWithPostInfo {
+                    let storage_provider_info =
+                        match info.as_mut().ok_or(Error::<T>::StorageProviderNotFound) {
+                            Ok(info) => info,
+                            Err(e) => {
+                                log::warn!(
+                                    "Could not get info for storage_provider: {storage_provider:?}"
+                                );
+                                return Err(e.into());
+                            }
+                        };
 
-                // Ensure who is the owner of the miner
-                ensure!(who == miner_info.owner, Error::<T>::InvalidSigner);
+                    // Ensure who is the owner of the storage_provider
+                    ensure!(
+                        who == storage_provider_info.owner,
+                        Error::<T>::InvalidSigner
+                    );
 
-                log::debug!("Updating peer id for {miner:?}");
+                    log::debug!("Updating peer id for {storage_provider:?}");
 
-                // Update PeerId
-                miner_info.peer_id = peer_id.clone();
+                    // Update PeerId
+                    storage_provider_info.peer_id = peer_id.clone();
 
-                Self::deposit_event(Event::PeerIdChanged {
-                    miner: miner.clone(),
-                    new_peer_id: peer_id,
-                });
-                Ok(().into())
-            })
+                    Self::deposit_event(Event::PeerIdChanged {
+                        storage_provider: storage_provider.clone(),
+                        new_peer_id: peer_id,
+                    });
+                    Ok(().into())
+                },
+            )
         }
 
-        // This function updates the owner address to the given `new_owner` for the given `miner`
+        // This function updates the owner address to the given `new_owner` for the given `storage_provider`
         #[pallet::call_index(2)]
         pub fn change_owner_address(
             origin: OriginFor<T>,
-            miner: T::AccountId,
             new_owner: T::AccountId,
         ) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
             let who = ensure_signed(origin)?;
 
-            Miners::<T>::try_mutate(&miner, |info| -> DispatchResultWithPostInfo {
-                let miner_info = match info.as_mut().ok_or(Error::<T>::MinerNotFound) {
-                    Ok(info) => info,
-                    Err(e) => {
-                        log::warn!("Could not get info for miner: {miner:?}");
-                        return Err(e.into());
-                    }
-                };
+            StorageProviders::<T>::try_mutate(
+                &storage_provider,
+                |info| -> DispatchResultWithPostInfo {
+                    let storage_provider_info =
+                        match info.as_mut().ok_or(Error::<T>::StorageProviderNotFound) {
+                            Ok(info) => info,
+                            Err(e) => {
+                                log::warn!(
+                                    "Could not get info for storage_provider: {storage_provider:?}"
+                                );
+                                return Err(e.into());
+                            }
+                        };
 
-                // Ensure who is the owner of the miner
-                ensure!(who == miner_info.owner, Error::<T>::InvalidSigner);
+                    // Ensure who is the owner of the storage_provider
+                    ensure!(
+                        who == storage_provider_info.owner,
+                        Error::<T>::InvalidSigner
+                    );
 
-                log::debug!("Updating owner for {miner:?}");
+                    log::debug!("Updating owner for {storage_provider:?}");
 
-                // Update owner address
-                miner_info.owner = new_owner.clone();
+                    // Update owner address
+                    storage_provider_info.owner = new_owner.clone();
 
-                Self::deposit_event(Event::OwnerAddressChanged {
-                    miner: miner.clone(),
-                    new_owner,
-                });
-                Ok(().into())
-            })
+                    Self::deposit_event(Event::OwnerAddressChanged {
+                        storage_provider: storage_provider.clone(),
+                        new_owner,
+                    });
+                    Ok(().into())
+                },
+            )
         }
 
-        // Used by the reward pallet to award a block reward to a Miner.
+        // Used by the reward pallet to award a block reward to a storage_provider.
         // I am not sure if this should be implemented on this pallet.
         // The reward pallet could be tightly coupled with the storage provider pallet
         // so the reward pallet can take over this functionality.
@@ -193,7 +209,7 @@ pub mod pallet {
             todo!()
         }
 
-        // This method is used to report a consensus fault by a miner.
+        // This method is used to report a consensus fault by a storage_provider.
         #[pallet::call_index(4)]
         pub fn report_consensus_fault(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
@@ -201,7 +217,7 @@ pub mod pallet {
             todo!()
         }
 
-        // Used by the Miner's Owner to withdraw available funds earned from block rewards.
+        // Used by the storage_provider's Owner to withdraw available funds earned from block rewards.
         // If the amount to withdraw is larger than what is available the extrinsic will fail.
         #[pallet::call_index(5)]
         pub fn withdraw_balance(
