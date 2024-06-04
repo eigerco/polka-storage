@@ -219,7 +219,8 @@ pub mod pallet {
         pub fn apply_rewards(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
             let _who = ensure_signed(origin)?;
-            todo!()
+            // TODO(@aidan46, no-ref, 2024-06-04): Implement apply rewards functionality
+            unimplemented!("Apply rewards is not implemented yet")
         }
 
         // This method is used to report a consensus fault by a storage_provider.
@@ -227,7 +228,8 @@ pub mod pallet {
         pub fn report_consensus_fault(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
             let _who = ensure_signed(origin)?;
-            todo!()
+            // TODO(@aidan46, no-ref, 2024-06-04): Implement report consensus fault functionality
+            unimplemented!("Report consensus fault is not implemented yet")
         }
 
         // Used by the storage_provider's Owner to withdraw available funds earned from block rewards.
@@ -239,7 +241,8 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
             let _who = ensure_signed(origin)?;
-            todo!()
+            // TODO(@aidan46, no-ref, 2024-06-04): Implement withdraw balance functionality
+            unimplemented!("Withdraw balance is not implemented yet")
         }
     }
 }
