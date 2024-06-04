@@ -12,18 +12,11 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_stream::StreamExt;
 use tokio_util::io::ReaderStream;
 
+use super::{DEFAULT_BLOCK_SIZE, DEFAULT_TREE_WIDTH};
 use crate::{
     multicodec::SHA_256_CODE, unixfs::stream_balanced_tree, CarV1Header, CarV2Header, CarV2Writer,
     Error, Index, IndexEntry, MultihashIndexSorted, SingleWidthIndex,
 };
-
-/// The default block size, as defined in
-/// [boxo](https://github.com/ipfs/boxo/blob/f4fe8997dcbeb39b3a4842d8f08b34739bfd84a4/chunker/parse.go#L13).
-const DEFAULT_BLOCK_SIZE: usize = 1024 * 256;
-
-/// The default tree width, also called links per block, as defined in
-/// [boxo](https://github.com/ipfs/boxo/blob/625ba769263c2beeec934836f54bbd6624db945a/ipld/unixfs/importer/helpers/helpers.go#L16-L30).
-const DEFAULT_TREE_WIDTH: usize = 174;
 
 /// The [`Blockstore`] stores pairs of [`Cid`] and [`Bytes`] in memory.
 ///
@@ -228,8 +221,8 @@ mod tests {
     use tokio::fs::File;
 
     use crate::{
-        blockstore::Blockstore,
         multicodec::{generate_multihash, RAW_CODE, SHA_256_CODE},
+        stores::blockstore::Blockstore,
         test_utils::assert_buffer_eq,
         CarV2Header, CarV2Reader, Index,
     };
