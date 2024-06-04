@@ -21,11 +21,14 @@ use scale_info::TypeInfo;
 pub struct StorageProviderInfo<
     AccountId: Encode + Decode + Eq + PartialEq,
     PeerId: Encode + Decode + Eq + PartialEq,
+    StoragePower: Encode + Decode + Eq + PartialEq,
 > {
     /// The owner of this storage_provider.
     owner: AccountId,
     /// storage_provider's libp2p peer id in bytes.
     peer_id: PeerId,
+    /// The total power the storage provider has
+    total_raw_power: StoragePower,
 }
 
 #[frame_support::pallet(dev_mode)]
@@ -65,14 +68,22 @@ pub mod pallet {
         /// Usually represented in bytes.
         /// https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
         type PeerId: Clone + Debug + Decode + Encode + Eq + TypeInfo;
+
+        /// Unit of Storage Power of a Miner
+        /// E.g. `u128`, used as `number of bytes` for a given SP.
+        type StoragePower: Clone + Debug + Decode + Encode + Eq + TypeInfo;
     }
 
     // Need some storage type that keeps track of sectors, deadlines and terminations.
     // Could be added to this type maybe?
     #[pallet::storage]
     #[pallet::getter(fn storage_providers)]
-    pub type StorageProviders<T: Config> =
-        StorageMap<_, _, T::AccountId, StorageProviderInfo<T::AccountId, T::PeerId>>;
+    pub type StorageProviders<T: Config> = StorageMap<
+        _,
+        _,
+        T::AccountId,
+        StorageProviderInfo<T::AccountId, T::PeerId, T::StoragePower>,
+    >;
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -107,6 +118,7 @@ pub mod pallet {
         pub fn create_storage_provider(
             origin: OriginFor<T>,
             peer_id: T::PeerId,
+            total_raw_power: T::StoragePower,
         ) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
             let owner = ensure_signed(origin)?;
@@ -115,6 +127,7 @@ pub mod pallet {
             let storage_provider_info = StorageProviderInfo {
                 owner: owner.clone(),
                 peer_id: peer_id.clone(),
+                total_raw_power: total_raw_power,
             };
             // Probably need some check to make sure the storage provider is legit
             // This means the storage provider exist
@@ -188,6 +201,7 @@ pub mod pallet {
                     let new_info = StorageProviderInfo {
                         owner: new_owner.clone(),
                         peer_id: info.peer_id,
+                        total_raw_power: info.total_raw_power,
                     };
 
                     // Ensure no storage provider is associated with the new owner

@@ -309,4 +309,5 @@ impl pallet_storage_provider::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
     type PeerId = Vec<u8>;
+    type StoragePower = u128;
 }
