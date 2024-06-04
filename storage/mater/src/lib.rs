@@ -42,6 +42,7 @@ pub enum Error {
 
     /// According to the [specification](https://ipld.io/specs/transport/car/carv1/#constraints)
     /// CAR files MUST have **one or more** [`Cid`] roots.
+    /// This may happen if the input is empty.
     #[error("CAR file must have roots")]
     EmptyRootsError,
 

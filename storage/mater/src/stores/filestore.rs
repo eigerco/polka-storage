@@ -24,13 +24,11 @@ where
     Src: AsyncRead + Unpin + Send,
     Out: AsyncWrite + AsyncSeek + Unpin,
 {
-    // let mut source = File::open(&self.source_path).await?;
     let chunker = ReaderStream::with_capacity(&mut source, chunk_size);
     let nodes = stream_balanced_tree(chunker, tree_width);
     tokio::pin!(nodes);
     let mut nodes = nodes.peekable();
 
-    // let mut output = File::create(&self.output_path).await?;
     let mut writer = CarV2Writer::new(&mut output);
     let mut position = 0;
 
@@ -55,6 +53,10 @@ where
         }
     }
 
+    let Some(root) = root else {
+        return Err(Error::EmptyRootsError);
+    };
+
     let index_offset = position;
     let single_width_index =
         SingleWidthIndex::new(Sha256::output_size() as u32, entries.len() as u64, entries);
@@ -75,7 +77,7 @@ where
     writer.write_header(&header).await?;
 
     // If the length of the roots doesn't match the previous one, you WILL OVERWRITE parts of the file
-    let header_v1 = CarV1Header::new(vec![root.expect("root should have been set")]);
+    let header_v1 = CarV1Header::new(vec![root]);
     writer.write_v1_header(&header_v1).await?;
 
     Ok(())
@@ -97,7 +99,7 @@ where
             tree_width,
         } => {
             let source_file = File::open(source).await?;
-            let output_file = File::open(output).await?;
+            let output_file = File::create(output).await?;
             balanced_import(source_file, output_file, chunk_size, tree_width).await
         }
     }
@@ -112,7 +114,6 @@ mod test {
     use crate::{
         stores::{filestore::create_filestore, Config},
         test_utils::assert_buffer_eq,
-        Filestore,
     };
 
     async fn test_filestore_roundtrip<P1, P2>(original: P1, expected: P2)
