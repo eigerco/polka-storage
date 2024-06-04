@@ -254,7 +254,7 @@ pub mod pallet {
             unimplemented!("Apply rewards is not implemented yet")
         }
 
-        // This method is used to report a consensus fault by a storage_provider.
+        /// This method is used to report a consensus fault by a storage provider.
         #[pallet::call_index(4)]
         // #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
         // TODO(aidan46, no-ref, 2024-06-04): Determine applicable weights.
@@ -265,8 +265,8 @@ pub mod pallet {
             unimplemented!("Report consensus fault is not implemented yet")
         }
 
-        // Used by the storage_provider's Owner to withdraw available funds earned from block rewards.
-        // If the amount to withdraw is larger than what is available the extrinsic will fail.
+        /// Used by the storage provider to withdraw available funds earned from block rewards.
+        /// If the amount to withdraw is larger than what is available the extrinsic will fail.
         #[pallet::call_index(5)]
         // #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
         // TODO(aidan46, no-ref, 2024-06-04): Determine applicable weights.
@@ -278,6 +278,17 @@ pub mod pallet {
             let _who = ensure_signed(origin)?;
             // TODO(@aidan46, no-ref, 2024-06-04): Implement withdraw balance functionality
             unimplemented!("Withdraw balance is not implemented yet")
+        }
+
+        /// Used by the storage provider to submit their Proof-of-Spacetime
+        #[pallet::call_index(6)]
+        // #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
+        // TODO(aidan46, no-ref, 2024-06-04): Determine applicable weights.
+        pub fn submit_windowed_post(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+            // Check that the extrinsic was signed and get the signer.
+            let _who = ensure_signed(origin)?;
+            // TODO(@aidan46, no-ref, 2024-06-04): Implement submit windowed PoSt functionality
+            unimplemented!("Submit windowed PoSt is not implemented yet")
         }
     }
 }
