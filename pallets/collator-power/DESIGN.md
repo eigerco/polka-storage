@@ -2,92 +2,96 @@
 
 ## Glossary
 - **extrinsic** - state transition function on a pallet, essentially a signed transaction which requires an account with some tokens to be executed as it costs fees.
-- **Miner** - [Storage Provider][5]
+- [Storage Provider][5] - is running a full node and as well off-chain operations and provides storage to the blockchain clients. 
 - **collateral** - amount of tokens staked by a miner (via `SPP`) to be able to provide storage services 
 - **PoS** - [Proof of Storage][3]
 - **PoSt** - [Proof of Space-Time][6]
 - `SPP` - Storage Provider Pallet
 - `CPP` - Collator Power Pallet
 - `CSP` - Collator Selection Pallet
+- `CRP` - Collator Reward Pallet
 - **session** - a [session][4] is a period of time that has a constant set of validators. 
 
 ## Overview
 
 **Collators** are entities selected to produce state transition proofs which are then finalized by relay chain's **validators**.
 They aggregate parachain transactions into **parachain block candidates*.
-To participate in **block candidate production**, a **Collator** needs to:
-- stake a ***certain*** (yet to be determined) amount of tokens 
-- be backed by **Miners'** **Storage Power**.
+To participate in **block candidate production**, a **Collator** needs to stake some **tokens**.
+Proportionally to the amount of **tokens**, a **Collator** has a higher chance to be selected for the **block candidate production**.  
+**Collator** can stake his own tokens or a **Storage Provider** can delegate his tokens to the **Collator**.
+**Storage Provider** by doing that can earn some tokens, when the **Collator** he delegated his tokens on is chosen for the production.
+When a **Collator** is slashed, **Storage Provider** that staked their tokens on them is slashed accordingly. 
 
-Collators' staking is a requirement for participation in the process, the actual selection is based on **Storage Power**.
-
-The collators are selected based on **Storage Power** by `CSP` in an randonmized auction algorithm.
-The more **Storage Power** has been staked on a **Collator** by the **Miner**, the more likely their chances to be selected for parachain block candidate production.
+**Storage Providers** do not need to stake any tokens on Collator to support their storage resources, it's optional.
+When **Storage Providers** misbehave e.g. fail to deliver some proof, they're being slashed from the collateral they pledged when for example:
+- securing a new deal with a customer,
+- adding storage capacity (which requires pledging).
 
 This pallet works as a proxy between `SPP` and `CSP` to make collator choices.
-It stores how much **Storage Power** a **Miner** has and how much was delegated by **Miners** to **Collators**.
+It stores how much power was delegated by **Miners** to **Collators**.
 Both `SPP` and `CSP` are [tightly coupled][2] to this pallet.
-
-Trade Offs [?]:
-
-**Collators** are separately tracked by `CSP` and this pallet gives back the `staked_power` to a **Miner** when a **Collator** disappears.
-This is an intentional design decision, this could be also tracked in this pallet, however I do think it'd make this Pallet too complex.
-As Collators also need to be staked and require their own registration logic.
 
 ## Data Structures
 
 ```rust
-struct MinerClaim {
-    /// Indicates how much power a Miner has
-    raw_bytes_power: T::StoragePower;
-    staked_power: Map<T::CollatorId, T::StoragePower>
+struct CollatorInfo<Collator, StorageProvider, Power> {
+    /// Identifier of a Collator
+    who: Collator,
+    /// Reserved deposit of a Collator
+    deposit: Power,
+    /// Delegated deposits from Storage Providers to Collators
+    delegated_deposit: Map<StorageProvider, Power>
 }
 ```
 
 ## Use Cases
 
-### Registration
+### Storage Provider Registration
+
+We need to identify storage providers somehow. 
+Calling a `Storage Provider Pallet` would create a circular dependency.
+The `SPP` will call the registration function to let the `CPP` now, that a **Storage Provider**
+is allowed to stake Power (tokens) on a **Collator**.
 
 #### Useful links
 - [Creating Storage Miner in Lotus][1]
 
 #### Assumptions
-- `create_miner(miner: T::MinerId)` is an **extrinsic**. It's called by `Storage Provider Node` on a bootstrap. We can trust it, as `T::MinerId` is essentialy an account ID. The transaction needs to be signed, for it to be signed it needs to come from an account. For it to come from an account, the account has to have an **existential deposit** and it costs money. That's how it's DOS-resistant.
+- `register_storage_provider(storage_provider: T::StorageProviderId)` is an **plain function**, it's called by `Storage Provider Pallet` when a new Storage Provider is registered, we trust the caller. It can only be called from `SPP` via [tight coupling][2].
 
 #### Flow:
-1. **Miner** calls `create_miner(miner: T::MinerId)` 
-2. `CPP` initializes `Map<MinerId, MinerClaim>`.
+1. `SPP` calls `register_storage_provider(storage_provider: T::StorageProviderId)` 
+2. `CPP` adds a `storage provider` to the `TreeSet` keeping the list of registered providers
 
-### Manipulating Power 
-
-#### Assumptions
-- `SPP` only calls `CPP.update_miner_power` function after:
-    * Miner has been registered in `Collator Power` via `create_miner` function call
-    * Miner has submitted `PreCommit` sector with a certain (calculated by `SPP`) amount **Collateral** required
-    * Miner has proven sectors with **PoS** via `ProveCommit` of `SPP`.
-- `update_miner_power` is ***NOT** an **extrinsic**. It can only be called from `SPP` via [tight coupling][2].
-    - The reason is that we can't trust that a **Miner** will call extrinsic and update it on their own. `SPP` logic will perform those updates, e.g: after (not)receiving **PoSt**, receiving **pledge collaterals**.
-
-#### Flow
-1. `SPP` calls `CPP.update_miner_power(miner: T::MinerId, deltaStorageBytes: T::StoragePower)`
-2. If Storage Power was decresed: `CPP` decreases all delegated power (to **Collators**)
-    - essentially means 'Slashing Miner and the Power they delegated'
-3. If Storage Power was increased: `CPP` does nothing.
-4. `CPP` performs bookeeping, updating `MinerClaim`
-
-### Delegating Power
+### Collator Registration
 
 #### Assumptions
-- It's an **extrinsic**, can be called by a **Miner**.
+
+- **Collator** can register on its own by calling an extrinsic `register_as_collator()`.
+- It requires a certain minimum amount of **collateral** (a bond) to be locked, to become a **collator**.
+- After you registered as a **collator**, you can update your bond and lock even more **collateral**.
 
 #### Flow
-1. **Miner** calls `CPP.delegate_power(miner: T::MinerId, collator: T::CollatorId, amount: T::StoragePower)`
-2. `CPP` saves delegated **Storage Power** in **Miner's** claims (`staked_power`).
-3. In the next **session**, the saved Power is picked up by `CSP`, by calling `CPP.get_collator_power(collator: T::CollatorId) -> T::StoragePower`. 
 
-#### Slashing Collator (?)
+1. A node in the network calls `CPP.register_as_collator(origin: T::CollatorId)`
+2. `CPP` verifies whether a account that originated the transaction has a minimum amount of **collateral** to be deposited.
+3. `CPP` reserves (locks) deposited balance of the account, through `ReservableCurrency`
+3. `CPP` adds `CollatorId` to the `Map<Collator, CollatorInfo>` with the `deposit` equal to the minimum **bond**.
 
-TODO: I don't have this piece of the puzzle yet. I mean... What happens if a **Miner** staked some power on a **Collator** and it misbehaved? Do we **slash** the **Miner's** staked tokens/or storage power, and if so, how?
+<!-- TODO(@th7nder,04/06/2024):  -->
+### Adding more Collator Power as a Collator
+
+#### Assumptions
+
+#### Flow
+
+x. In the next **session**, the saved Power is picked up by `CSP`, by calling `CPP.get_collator_power(collator: T::CollatorId) -> T::StoragePower`. 
+
+<!-- TODO(@th7nder,04/06/2024):  -->
+### Delegating power to a Collator as a Storage Provider
+
+### Slashing 
+
 
 [1]: https://github.com/filecoin-project/lotus/blob/9851d35a3811e5339560fb706926bf63a846edae/cmd/lotus-miner/init.go#L638
 [2]: https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_pallet_coupling/index.html#tight-coupling-pallets
