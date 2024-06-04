@@ -88,13 +88,14 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        StorageProviderCreated {
-            owner: T::AccountId,
-        },
+        /// This event is emitted when a new storage provider is initialized.
+        StorageProviderCreated { owner: T::AccountId },
+        /// This event is emitted when a storage provider changes its `PeerId`.
         PeerIdChanged {
             storage_provider: T::AccountId,
             new_peer_id: T::PeerId,
         },
+        /// This event is emitted when a storage provider changes its owner.
         OwnerAddressChanged {
             storage_provider: T::AccountId,
             new_owner: T::AccountId,
