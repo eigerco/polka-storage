@@ -94,11 +94,23 @@ is allowed to stake Power (tokens) on a **Collator**.
 1. **Collator** calls `CPP.update_bond(collator: T::CollatorId, new_deposit: BalanceOf<T>)` 
 2. In the next **session**, the saved Power is picked up by `CSP`, by calling `CPP.get_collator_power(collator: T::CollatorId) -> T::StoragePower`. 
 
-<!-- TODO(@th7nder,04/06/2024):  -->
 ### Delegating power to a Collator as a Storage Provider
+
+#### Assumptions
+
+- `update_storage_provider_bond()` is an **extrinsic** that can be called by **Storage Providers** 
+- **Storage Provider** is present in the `storage_providers` set -  has been registered with `CPP.register_storage_provider`.
+- **Collator** has been registerd in `collators` TreeMap
+
+#### Flow
+
+1. **Storage Provider** calls `CPP.update_storage_provider_bond(storage_provider: T::StorageProviderId, collator: T:CollatorId, new_deposit: BalanceOf<T>)`
+2. In the next **session**, the saved Power is picked up by `CSP`, by calling `CPP.get_collator_power(collator: T::CollatorId) -> T::StoragePower`. 
 
 ### Slashing 
 
+<!-- TODO(@th7nder,04/06/2024) -->
+<!-- slashing flow and when, who calls what, why are those extrinsics -->
 
 [1]: https://github.com/filecoin-project/lotus/blob/9851d35a3811e5339560fb706926bf63a846edae/cmd/lotus-miner/init.go#L638
 [2]: https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_pallet_coupling/index.html#tight-coupling-pallets
