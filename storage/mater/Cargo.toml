@@ -29,7 +29,7 @@ tokio-util = { workspace = true, features = ["io"] }
 
 [dev-dependencies]
 rand.workspace = true
-
+tempfile.workspace = true
 
 [lints]
 workspace = true

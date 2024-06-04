@@ -10,15 +10,15 @@
 #![deny(rustdoc::private_intra_doc_links)]
 #![deny(unsafe_code)]
 
-mod blockstore;
 mod multicodec;
+mod stores;
 mod unixfs;
 mod v1;
 mod v2;
 
-pub use blockstore::Blockstore;
 // We need to expose this because `read_block` returns `(Cid, Vec<u8>)`.
 pub use ipld_core::cid::Cid;
+pub use stores::{create_filestore, Blockstore};
 pub use v1::{Header as CarV1Header, Reader as CarV1Reader, Writer as CarV1Writer};
 pub use v2::{
     Characteristics, Header as CarV2Header, Index, IndexEntry, IndexSorted, MultihashIndexSorted,
@@ -42,6 +42,7 @@ pub enum Error {
 
     /// According to the [specification](https://ipld.io/specs/transport/car/carv1/#constraints)
     /// CAR files MUST have **one or more** [`Cid`] roots.
+    /// This may happen if the input is empty.
     #[error("CAR file must have roots")]
     EmptyRootsError,
 
@@ -127,6 +128,23 @@ pub(crate) mod test_utils {
             }
         }};
     }
+    use std::path::Path;
 
     pub(crate) use assert_buffer_eq;
+    use tokio::{fs::File, io::AsyncWriteExt};
+
+    /// Dump a byte slice into a file.
+    ///
+    /// * If *anything* goes wrong, the function will panic.
+    /// * If the file doesn't exist, it will be created.
+    /// * If the file exists, it will be overwritten and truncated.
+    #[allow(dead_code)] // This function is supposed to be a debugging helper
+    pub(crate) async fn dump<P, B>(path: P, bytes: B)
+    where
+        P: AsRef<Path>,
+        B: AsRef<[u8]>,
+    {
+        let mut file = File::create(path).await.unwrap();
+        file.write_all(bytes.as_ref()).await.unwrap();
+    }
 }
