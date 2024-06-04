@@ -15,6 +15,7 @@ mod benchmarking;
 pub use pallet::{Config, Pallet};
 
 use codec::{Decode, Encode};
+use scale_info::prelude::string::String;
 use scale_info::TypeInfo;
 
 #[derive(Decode, Encode, TypeInfo)]
@@ -29,6 +30,9 @@ pub struct StorageProviderInfo<
     peer_id: PeerId,
     /// The total power the storage provider has
     total_raw_power: StoragePower,
+    /// The price of storage (in DOT) for each block the storage provider takes for storage.
+    // TODO(aidan46, no-ref, 2024-06-04): Use appropriate type
+    price_per_block: String,
 }
 
 #[frame_support::pallet(dev_mode)]
@@ -43,6 +47,7 @@ pub mod pallet {
     use frame_support::traits::{Currency, ReservableCurrency};
     use frame_system::pallet_prelude::OriginFor;
     use frame_system::{ensure_signed, Config as SystemConfig};
+    use scale_info::prelude::string::String;
     use scale_info::TypeInfo;
 
     // Allows to extract Balance of an account via the Config::Currency associated type.
@@ -122,6 +127,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             peer_id: T::PeerId,
             total_raw_power: T::StoragePower,
+            price_per_block: String,
         ) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
             let owner = ensure_signed(origin)?;
@@ -130,7 +136,8 @@ pub mod pallet {
             let storage_provider_info = StorageProviderInfo {
                 owner: owner.clone(),
                 peer_id: peer_id.clone(),
-                total_raw_power: total_raw_power,
+                total_raw_power,
+                price_per_block,
             };
             // Probably need some check to make sure the storage provider is legit
             // This means the storage provider exist
@@ -209,6 +216,7 @@ pub mod pallet {
                         owner: new_owner.clone(),
                         peer_id: info.peer_id,
                         total_raw_power: info.total_raw_power,
+                        price_per_block: info.price_per_block,
                     };
 
                     // Ensure no storage provider is associated with the new owner
