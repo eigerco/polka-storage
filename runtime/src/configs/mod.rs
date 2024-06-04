@@ -305,7 +305,7 @@ impl pallet_collator_selection::Config for Runtime {
     type WeightInfo = ();
 }
 
-impl storage_provider::Config for Runtime {
+impl pallet_storage_provider::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
     type PeerId = Vec<u8>;

@@ -20,7 +20,7 @@ substrate-wasm-builder = { workspace = true, optional = true }
 
 [dependencies]
 # Pallets
-storage-provider.workspace = true
+pallet-storage-provider.workspace = true
 
 codec = { workspace = true, default-features = false, features = ["derive"] }
 hex-literal = { workspace = true, optional = true }

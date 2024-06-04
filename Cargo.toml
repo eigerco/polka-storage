@@ -72,8 +72,8 @@ tokio-util = "0.7.11"
 tracing-subscriber = { version = "0.3.18" }
 
 # Local
+pallet-storage-provider = { path = "pallets/storage-provider" }
 polka-storage-runtime = { path = "runtime" }
-storage-provider = { path = "pallets/storage-provider" }
 
 # Substrate
 pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0" }
