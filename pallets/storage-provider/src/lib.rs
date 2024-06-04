@@ -89,9 +89,12 @@ pub mod pallet {
 
     #[pallet::error]
     pub enum Error<T> {
+        /// Error emitted when trying to get info on a storage provider that does not exist.
         StorageProviderNotFound,
+        /// Error emitted when doing a privileged call and the signer does not match.
         InvalidSigner,
-        StorageProviderExists,
+        /// Error emitted when trying to create a storage provider that is already indexed.
+        DuplicateStorageProvider,
     }
 
     #[pallet::call]
@@ -114,7 +117,7 @@ pub mod pallet {
             // This means the storage provider exist
             ensure!(
                 !StorageProviders::<T>::contains_key(&owner),
-                Error::<T>::StorageProviderExists
+                Error::<T>::DuplicateStorageProvider
             );
             StorageProviders::<T>::insert(owner.clone(), storage_provider_info);
             Self::deposit_event(Event::StorageProviderCreated { owner });
@@ -187,7 +190,7 @@ pub mod pallet {
                     // Ensure no storage provider is associated with the new owner
                     ensure!(
                         !StorageProviders::<T>::contains_key(&new_owner),
-                        Error::<T>::StorageProviderExists
+                        Error::<T>::DuplicateStorageProvider
                     );
 
                     // Insert new storage provider info
