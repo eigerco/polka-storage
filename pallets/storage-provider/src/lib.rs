@@ -116,6 +116,8 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// Index a new storage provider
         #[pallet::call_index(0)]
+        // #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
+        // TODO(aidan46, no-ref, 2024-06-04): Determine applicable weights.
         pub fn create_storage_provider(
             origin: OriginFor<T>,
             peer_id: T::PeerId,
@@ -143,6 +145,8 @@ pub mod pallet {
 
         /// Update PeerId for a Storage Provider.
         #[pallet::call_index(1)]
+        // #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
+        // TODO(aidan46, no-ref, 2024-06-04): Determine applicable weights.
         pub fn change_peer_id(
             origin: OriginFor<T>,
             peer_id: T::PeerId,
@@ -186,6 +190,8 @@ pub mod pallet {
 
         /// Update the owner address for a Storage Provider.
         #[pallet::call_index(2)]
+        // #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
+        // TODO(aidan46, no-ref, 2024-06-04): Determine applicable weights.
         pub fn change_owner_address(
             origin: OriginFor<T>,
             new_owner: T::AccountId,
@@ -230,10 +236,9 @@ pub mod pallet {
         }
 
         // Used by the reward pallet to award a block reward to a storage_provider.
-        // I am not sure if this should be implemented on this pallet.
-        // The reward pallet could be tightly coupled with the storage provider pallet
-        // so the reward pallet can take over this functionality.
         #[pallet::call_index(3)]
+        // #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
+        // TODO(aidan46, no-ref, 2024-06-04): Determine applicable weights.
         pub fn apply_rewards(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
             let _who = ensure_signed(origin)?;
@@ -243,6 +248,8 @@ pub mod pallet {
 
         // This method is used to report a consensus fault by a storage_provider.
         #[pallet::call_index(4)]
+        // #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
+        // TODO(aidan46, no-ref, 2024-06-04): Determine applicable weights.
         pub fn report_consensus_fault(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
             let _who = ensure_signed(origin)?;
@@ -253,6 +260,8 @@ pub mod pallet {
         // Used by the storage_provider's Owner to withdraw available funds earned from block rewards.
         // If the amount to withdraw is larger than what is available the extrinsic will fail.
         #[pallet::call_index(5)]
+        // #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
+        // TODO(aidan46, no-ref, 2024-06-04): Determine applicable weights.
         pub fn withdraw_balance(
             origin: OriginFor<T>,
             _amount: BalanceOf<T>,
