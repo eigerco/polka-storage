@@ -109,6 +109,11 @@ is allowed to stake Power (tokens) on a **Collator**.
 
 ### Slashing 
 
+
+###
+- List of Collators 
+- Collator Rating
+
 <!-- TODO(@th7nder,04/06/2024) -->
 <!-- slashing flow and when, who calls what, why are those extrinsics -->
 
