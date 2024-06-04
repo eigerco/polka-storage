@@ -34,6 +34,12 @@ Both `SPP` and `CSP` are [tightly coupled][2] to this pallet.
 ## Data Structures
 
 ```rust
+/// Store of Collators and their metadata
+collators: BoundedBTreeMap<CollatorId, StoragePower, ConstU32<100>>
+/// List of available Storaged Providers
+/// Used as an allowlist for who can stake on a Collator
+storage_providers: BoundedBTreeSet<StorageProviderId>
+
 struct CollatorInfo<Collator, StorageProvider, Power> {
     /// Identifier of a Collator
     who: Collator,
@@ -53,11 +59,8 @@ Calling a `Storage Provider Pallet` would create a circular dependency.
 The `SPP` will call the registration function to let the `CPP` now, that a **Storage Provider**
 is allowed to stake Power (tokens) on a **Collator**.
 
-#### Useful links
-- [Creating Storage Miner in Lotus][1]
-
 #### Assumptions
-- `register_storage_provider(storage_provider: T::StorageProviderId)` is an **plain function**, it's called by `Storage Provider Pallet` when a new Storage Provider is registered, we trust the caller. It can only be called from `SPP` via [tight coupling][2].
+- `register_storage_provider(storage_provider: T::StorageProviderId)` is a **plain function**, it's called by `Storage Provider Pallet` when a new Storage Provider is registered, we trust the caller. It can only be called from `SPP` via [tight coupling][2].
 
 #### Flow:
 1. `SPP` calls `register_storage_provider(storage_provider: T::StorageProviderId)` 
@@ -78,14 +81,18 @@ is allowed to stake Power (tokens) on a **Collator**.
 3. `CPP` reserves (locks) deposited balance of the account, through `ReservableCurrency`
 3. `CPP` adds `CollatorId` to the `Map<Collator, CollatorInfo>` with the `deposit` equal to the minimum **bond**.
 
-<!-- TODO(@th7nder,04/06/2024):  -->
 ### Adding more Collator Power as a Collator
 
 #### Assumptions
 
+- `CPP.update_bond` is an **extrinsic**, which is called by a **Collator**.
+- You cannot update bond on a *Collator* that has not been registered before with `CPP.register_as_collator`
+- `CPP.update_bond` can reduce as well as increase deposit, hence the Power
+
 #### Flow
 
-x. In the next **session**, the saved Power is picked up by `CSP`, by calling `CPP.get_collator_power(collator: T::CollatorId) -> T::StoragePower`. 
+1. **Collator** calls `CPP.update_bond(collator: T::CollatorId, new_deposit: BalanceOf<T>)` 
+2. In the next **session**, the saved Power is picked up by `CSP`, by calling `CPP.get_collator_power(collator: T::CollatorId) -> T::StoragePower`. 
 
 <!-- TODO(@th7nder,04/06/2024):  -->
 ### Delegating power to a Collator as a Storage Provider
