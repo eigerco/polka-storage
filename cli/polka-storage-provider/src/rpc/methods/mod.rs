@@ -6,6 +6,7 @@ use super::RpcServerState;
 use crate::rpc::reflect::RpcMethod;
 
 pub mod common;
+pub mod wallet;
 
 /// The macro `callback` will be passed in each type that implements
 /// [`RpcMethod`].
@@ -15,6 +16,8 @@ macro_rules! for_each_method {
     ($callback:path) => {
         // common
         $callback!(common::Info);
+        // wallet
+        $callback!(wallet::WalletBalance);
     };
 }
 

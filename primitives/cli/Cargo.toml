@@ -9,6 +9,7 @@ version = "0.1.0"
 
 [dependencies]
 thiserror = { workspace = true }
+subxt = { workspace = true }
 
 [lints]
 workspace = true

@@ -5,9 +5,10 @@ use clap::Parser;
 use cli_primitives::Result;
 use url::Url;
 
-use crate::rpc::{start_rpc, RpcServerState};
-
-// use crate::rpc::{RpcServerImpl, ServiceServer};
+use crate::{
+    polkadot,
+    rpc::{start_rpc, RpcServerState},
+};
 
 const SERVER_DEFAULT_BIND_ADDR: &str = "127.0.0.1:8000";
 const SUBSTRATE_DEFAULT_RPC_ADDR: &str = "ws://127.0.0.1:9944";
@@ -24,8 +25,11 @@ pub(crate) struct RunCommand {
 
 impl RunCommand {
     pub async fn handle(&self) -> Result<()> {
+        let substrate_client = polkadot::init_client(self.node_rpc_address.as_str()).await?;
+
         let state = Arc::new(RpcServerState {
             start_time: Utc::now(),
+            substrate_client,
         });
 
         let handle = start_rpc(state, self.listen_addr).await?;

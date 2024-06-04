@@ -3,6 +3,7 @@
 #![deny(unused_crate_dependencies)]
 
 mod cli;
+mod polkadot;
 mod rpc;
 
 pub(crate) mod commands;

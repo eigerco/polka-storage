@@ -5,11 +5,14 @@ use jsonrpsee::server::{Server, ServerHandle};
 use methods::create_module;
 use tracing::info;
 
+use crate::polkadot;
+
 pub mod methods;
 mod reflect;
 
 pub struct RpcServerState {
     pub start_time: chrono::DateTime<Utc>,
+    pub substrate_client: polkadot::Client,
 }
 
 pub async fn start_rpc(
