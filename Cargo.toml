@@ -72,7 +72,7 @@ tokio-util = "0.7.11"
 tracing-subscriber = { version = "0.3.18" }
 
 # Local
-pallet-storage-provider = { path = "pallets/storage-provider" }
+pallet-storage-provider = { path = "pallets/storage-provider", default-features = false }
 polka-storage-runtime = { path = "runtime" }
 
 # Substrate
