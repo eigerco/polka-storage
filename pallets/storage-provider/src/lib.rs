@@ -33,7 +33,7 @@ pub mod pallet {
     use core::fmt::Debug;
     use frame_support::dispatch::DispatchResultWithPostInfo;
     use frame_support::ensure;
-    use frame_support::pallet_prelude::{IsType, PhantomData, StorageMap};
+    use frame_support::pallet_prelude::{IsType, StorageMap};
     use frame_support::traits::{Currency, ReservableCurrency};
     use frame_system::pallet_prelude::OriginFor;
     use frame_system::{ensure_signed, Config as SystemConfig};
@@ -46,7 +46,7 @@ pub mod pallet {
 
     #[pallet::pallet]
     #[pallet::without_storage_info] // Allows to define storage items without fixed size
-    pub struct Pallet<T>(PhantomData<T>);
+    pub struct Pallet<T>(_);
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
