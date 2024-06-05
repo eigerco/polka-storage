@@ -85,6 +85,22 @@ impl Header {
     pub const SIZE: usize = PRAGMA.len() + 40;
 }
 
+impl Default for Header {
+    /// Creates a "placeholder" [`Header`].
+    ///
+    /// This is useful when converting from an arbitrary file
+    /// to a CARv2 file, where the header contains information
+    /// that is only available after processing the whole input.
+    fn default() -> Self {
+        Self {
+            characteristics: Characteristics::empty(),
+            data_offset: 0,
+            data_size: 0,
+            index_offset: 0,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{collections::BTreeMap, io::Cursor};
