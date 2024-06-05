@@ -292,5 +292,17 @@ pub mod pallet {
             // TODO(@aidan46, no-ref, 2024-06-04): Implement submit windowed PoSt functionality
             unimplemented!("Submit windowed PoSt is not implemented yet")
         }
+
+        /// Used to declare a set of sectors as "faulty," indicating that the next PoSt for those sectors'
+        /// deadline will not contain a proof for those sectors' existence.
+        #[pallet::call_index(7)]
+        // #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
+        // TODO(aidan46, no-ref, 2024-06-05): Determine applicable weights.
+        pub fn declare_faults(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+            // Check that the extrinsic was signed and get the signer.
+            let _who = ensure_signed(origin)?;
+            // TODO(@aidan46, no-ref, 2024-06-05): Implement declare faults functionality
+            unimplemented!("Declare faults is not implemented yet")
+        }
     }
 }
