@@ -10,7 +10,7 @@ version = "0.1.0"
 [dependencies]
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive"] }
-cli-primitives = { path = "../../primitives/cli" }
+cli-primitives = { workspace = true }
 jsonrpsee = { workspace = true, features = ["server"] }
 serde = { workspace = true }
 subxt = { workspace = true }

@@ -57,6 +57,7 @@ tracing-subscriber = { version = "0.3.18" }
 url = "2.5.0"
 
 # Local
+cli-primitives = { path = "primitives/cli" }
 polka-storage-runtime = { path = "runtime" }
 
 # Substrate

@@ -5,7 +5,7 @@ use crate::commands::{InfoCommand, InitCommand, RunCommand};
 /// A CLI application that facilitates management operations over a running full
 /// node and other components.
 #[derive(Parser, Debug, Clone)]
-#[command(author, version, about, long_about = None, arg_required_else_help(true))]
+#[command(author, version, about, long_about = None)]
 pub(crate) struct Cli {
     #[command(subcommand)]
     pub subcommand: SubCommand,

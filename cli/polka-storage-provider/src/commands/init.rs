@@ -12,6 +12,6 @@ impl InitCommand {
         // TODO(@cernicc,31/05/2024): Check if full node is synced
         info!("Miner initialized successfully. Start it with `polka-storage-provider run`");
 
-        Ok(())
+        unimplemented!()
     }
 }
