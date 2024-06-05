@@ -10,12 +10,8 @@ pub(crate) async fn run() -> Result<()> {
     let cli_arguments: Cli = Cli::parse();
 
     match &cli_arguments.subcommand {
-        Some(SubCommand::Init(cmd)) => cmd.handle().await,
-        Some(SubCommand::Run(cmd)) => cmd.handle().await,
-        Some(SubCommand::Info(cmd)) => cmd.handle().await,
-        None => {
-            // Help is shown if no subcommand is provided.
-            unreachable!()
-        }
+        SubCommand::Init(cmd) => cmd.handle().await,
+        SubCommand::Run(cmd) => cmd.handle().await,
+        SubCommand::Info(cmd) => cmd.handle().await,
     }
 }

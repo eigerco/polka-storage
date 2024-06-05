@@ -8,7 +8,7 @@ use crate::commands::{InfoCommand, InitCommand, RunCommand};
 #[command(author, version, about, long_about = None, arg_required_else_help(true))]
 pub(crate) struct Cli {
     #[command(subcommand)]
-    pub subcommand: Option<SubCommand>,
+    pub subcommand: SubCommand,
 }
 
 /// Supported sub-commands.
