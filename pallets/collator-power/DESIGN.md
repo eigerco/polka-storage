@@ -1,16 +1,13 @@
 # Overall Power Pallet Flow
 
 ## Glossary
-- **extrinsic** - state transition function on a pallet, essentially a signed transaction which requires an account with some tokens to be executed as it costs fees.
-- [Storage Provider][5] - is running a full node and as well off-chain operations and provides storage to the blockchain clients. 
-- **collateral** - amount of tokens staked by a miner (via `SPP`) to be able to provide storage services 
-- **PoS** - [Proof of Storage][3]
-- **PoSt** - [Proof of Space-Time][6]
+For an overview of established terms across the project look [here](../../docs/glossary.md).
+This is just a handy index for shortcuts that are used in **this** design doc.
+
 - `SPP` - Storage Provider Pallet
 - `CPP` - Collator Power Pallet
 - `CSP` - Collator Selection Pallet
 - `CRP` - Collator Reward Pallet
-- **session** - a [session][4] is a period of time that has a constant set of validators. 
 
 ## Overview
 
@@ -107,15 +104,42 @@ is allowed to stake Power (tokens) on a **Collator**.
 1. **Storage Provider** calls `CPP.update_storage_provider_bond(storage_provider: T::StorageProviderId, collator: T:CollatorId, new_deposit: BalanceOf<T>)`
 2. In the next **session**, the saved Power is picked up by `CSP`, by calling `CPP.get_collator_power(collator: T::CollatorId) -> T::StoragePower`. 
 
-### Slashing 
 
+### Getting list of Collator Candidates
 
-###
-- List of Collators 
-- Collator Rating
+`Collator Selection Pallet` has it's own list of **invulnerables**, to get select next **Collator** it'll also used candidates based on the power defined in this pallet.
 
-<!-- TODO(@th7nder,04/06/2024) -->
-<!-- slashing flow and when, who calls what, why are those extrinsics -->
+#### Assumptions
+
+- `CPP.get_collator_candidates() -> BoundedVec<CollatorId, Power>` is a **plain function** that is called by `CSP` at the end of a session.
+
+#### Flow 
+
+1. `CSP` calls `CPP.get_collator_candidates()`
+2. `CPP` returns candidate list sorted by `Power`
+
+### Storage Provider Slashing 
+
+When Storage Provider misbehaves, `Storage Provider Pallet` slashes the **Storage Provider** internally calls `update_storage_provider_bond` to decrease delegated **Power**.
+
+We need to consider:
+- Eras vs Sessions
+
+### Collator Slashing
+
+****VERY UNSTABLE START*****
+When Collator misbehaves, i.e. produces invalid block, someone needs to slash him, but who?
+How does it work? Why is it important? Because then we also need to slash Storage Providers that backed him.
+Lots of useful info is in the pallet reponsible for [`frame/staking`][7], we can probably use lots of implementation from there.
+Seems complex enough though. It basically implements Substrate [NPoS][10], which we want to use, but with a twist.
+Our twist is that, only **Storage Provider** can become **a Nominator**. Whether that's good, we are yet to determine.
+
+Overall process looks like this:
+- [pallet_babe][8] - [BABE][9] consensus has a constant set of validators (collators) in an epoch, epoch is divided in slots. For every slot a validator is selected randomly. If other validators detect, that the leader fails, the process of **equivocation** is launched.
+- [pallet_offences][11] - pallet offences exposes an `OffenceHandler` interface, which is used by `pallet_babe`.
+- [pallet_staking][7] - handles **Validator**'s and **Nominators** balances, and implements `OffenceHandler` defined by `pallet_offences` and used by `pallet_babe`.
+
+****VERY UNSTABLE END****
 
 [1]: https://github.com/filecoin-project/lotus/blob/9851d35a3811e5339560fb706926bf63a846edae/cmd/lotus-miner/init.go#L638
 [2]: https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_pallet_coupling/index.html#tight-coupling-pallets
@@ -123,3 +147,8 @@ is allowed to stake Power (tokens) on a **Collator**.
 [4]: https://paritytech.github.io/polkadot-sdk/master/pallet_session/index.html
 [5]: https://github.com/eigerco/polka-disk/blob/main/doc/research/lotus/lotus-overview.md#Roles
 [6]: https://spec.filecoin.io/#section-algorithms.pos.post
+[7]: https://github.com/paritytech/polkadot-sdk/blob/master/substrate/frame/staking/README.md
+[8]: https://paritytech.github.io/polkadot-sdk/master/pallet_babe/index.html
+[9]: https://research.web3.foundation/Polkadot/protocols/block-production/Babe
+[10]: https://research.web3.foundation/Polkadot/protocols/NPoS/Overview
+[11]: https://paritytech.github.io/polkadot-sdk/master/pallet_offences/index.html
