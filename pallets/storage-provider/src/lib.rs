@@ -304,5 +304,17 @@ pub mod pallet {
             // TODO(@aidan46, no-ref, 2024-06-05): Implement declare faults functionality
             unimplemented!("Declare faults is not implemented yet")
         }
+
+        /// Used by a Storage Provider to declare a set of faulty sectors as "recovering," indicating that the 
+        /// next PoSt for those sectors' deadline will contain a proof for those sectors' existence.
+        #[pallet::call_index(8)]
+        // #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
+        // TODO(aidan46, no-ref, 2024-06-05): Determine applicable weights.
+        pub fn declare_faults_recovered(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+            // Check that the extrinsic was signed and get the signer.
+            let _who = ensure_signed(origin)?;
+            // TODO(@aidan46, no-ref, 2024-06-05): Implement declare faults recovered functionality
+            unimplemented!("Declare faults recovered is not implemented yet")
+        }
     }
 }
