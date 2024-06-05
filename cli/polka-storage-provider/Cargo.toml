@@ -14,11 +14,11 @@ cli-primitives = { path = "../../primitives/cli" }
 jsonrpsee = { workspace = true, features = ["server"] }
 serde = { workspace = true }
 subxt = { workspace = true }
+subxt-signer = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 url = { workspace = true }
-subxt-signer = { workspace = true }
 
 [lints]
 workspace = true

@@ -28,7 +28,6 @@ panic = 'abort'         # Use abort on panic to reduce binary size
 substrate-build-script-utils = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0" }
 substrate-wasm-builder = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0" }
 
-async-trait = { version = "0.1.18" }
 chrono = "0.4.38"
 clap = { version = "4.5.3" }
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false }
@@ -99,9 +98,7 @@ substrate-prometheus-endpoint = { git = "https://github.com/paritytech/polkadot-
 
 # Polkadot
 pallet-xcm = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", default-features = false }
-polkadot-cli = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", features = [
-  "rococo-native",
-] }
+polkadot-cli = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", features = ["rococo-native"] }
 polkadot-parachain-primitives = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", default-features = false }
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0" }
 polkadot-runtime-common = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", default-features = false }
