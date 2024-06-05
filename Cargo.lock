@@ -8059,7 +8059,6 @@ dependencies = [
  "chrono",
  "clap",
  "cli-primitives",
- "futures",
  "jsonrpsee",
  "serde",
  "subxt",

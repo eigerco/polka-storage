@@ -1,6 +1,5 @@
-use std::sync::Arc;
+use std::{future::Future, sync::Arc};
 
-use futures::Future;
 use jsonrpsee::{
     types::{ErrorObjectOwned, Params},
     RpcModule,

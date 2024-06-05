@@ -12,7 +12,6 @@ version = "0.1.0"
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive"] }
 cli-primitives = { path = "../../primitives/cli" }
-futures = "0.3.30"
 jsonrpsee = { workspace = true, features = ["full"] }
 serde = { workspace = true }
 subxt = { workspace = true }
@@ -20,7 +19,7 @@ tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 url = { workspace = true }
-subxt-signer = "0.37.0"
+subxt-signer = { workspace = true }
 
 [lints]
 workspace = true
