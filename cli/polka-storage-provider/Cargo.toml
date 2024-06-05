@@ -8,11 +8,10 @@ repository.workspace = true
 version = "0.1.0"
 
 [dependencies]
-# async-trait = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive"] }
 cli-primitives = { path = "../../primitives/cli" }
-jsonrpsee = { workspace = true, features = ["full"] }
+jsonrpsee = { workspace = true, features = ["server"] }
 serde = { workspace = true }
 subxt = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
