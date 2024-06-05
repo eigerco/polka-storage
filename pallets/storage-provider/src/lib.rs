@@ -1,11 +1,13 @@
 //! # Storage Provider Pallet
 //!
-//! This pallet holds information about storage providers and
-//! provides an interface to modify information about Storage Providers.
+//! This pallet is responsible for:
+//! - Storage proving operations
+//! - Used by the storage provider to generate and submit Proof-of-Replication (PoRep) and Proof-of-Spacetime (PoSt).
+//! - Managing and handling collateral for storage deals, penalties, and rewards related to storage deal performance.
 //!
-//! The Storage Provider Pallet is the source of truth for anything storage provider (the binary) related.
+//! This pallet holds information about storage providers and provides an interface to modify that information.
 //!
-//! At some point this pallet will have to verify proofs submitted by storage providers
+//! The Storage Provider Pallet is the source of truth for anything storage provider related.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
