@@ -6,8 +6,8 @@ use cli_primitives::Result;
 use url::Url;
 
 use crate::{
-    polkadot,
     rpc::{start_rpc, RpcServerState},
+    substrate,
 };
 
 const SERVER_DEFAULT_BIND_ADDR: &str = "127.0.0.1:8000";
@@ -25,7 +25,7 @@ pub(crate) struct RunCommand {
 
 impl RunCommand {
     pub async fn handle(&self) -> Result<()> {
-        let substrate_client = polkadot::init_client(self.node_rpc_address.as_str()).await?;
+        let substrate_client = substrate::init_client(self.node_rpc_address.as_str()).await?;
 
         let state = Arc::new(RpcServerState {
             start_time: Utc::now(),

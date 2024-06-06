@@ -1,8 +1,8 @@
 use chrono::{DateTime, Utc};
-use jsonrpsee::types::{ErrorObjectOwned, Params};
+use jsonrpsee::types::Params;
 use serde::{Deserialize, Serialize};
 
-use crate::rpc::{ApiVersion, Ctx, RpcMethod};
+use crate::rpc::{error::ServerError, ApiVersion, Ctx, RpcMethod};
 
 #[derive(Debug)]
 pub struct Info;
@@ -14,7 +14,7 @@ impl RpcMethod for Info {
 
     type Ok = InfoResult;
 
-    async fn handle(ctx: Ctx, _params: Params<'_>) -> Result<Self::Ok, ErrorObjectOwned> {
+    async fn handle(ctx: Ctx, _params: Params<'_>) -> Result<Self::Ok, ServerError> {
         Ok(InfoResult {
             start_time: ctx.start_time,
         })

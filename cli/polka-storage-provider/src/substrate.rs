@@ -1,5 +1,5 @@
 use polkadot::runtime_types::{frame_system::AccountInfo, pallet_balances::types::AccountData};
-use subxt::{utils::AccountId32, OnlineClient, PolkadotConfig};
+use subxt::{utils::AccountId32, Error, OnlineClient, PolkadotConfig};
 use tracing::info;
 
 #[subxt::subxt(runtime_metadata_path = "artifacts/metadata.scale")]
@@ -13,7 +13,7 @@ type Config = PolkadotConfig;
 pub type Client = OnlineClient<Config>;
 
 /// Initialize a Polkadot client.
-pub async fn init_client(url: impl AsRef<str>) -> Result<Client, cli_primitives::Error> {
+pub async fn init_client(url: impl AsRef<str>) -> Result<Client, Error> {
     let inner = OnlineClient::<Config>::from_url(url).await?;
     info!("Connection with parachain established.");
     Ok(inner)
@@ -22,7 +22,7 @@ pub async fn init_client(url: impl AsRef<str>) -> Result<Client, cli_primitives:
 pub async fn get_balance(
     client: &Client,
     account: &AccountId32,
-) -> Result<Option<AccountInfo<u32, AccountData<u128>>>, cli_primitives::Error> {
+) -> Result<Option<AccountInfo<u32, AccountData<u128>>>, Error> {
     let storage_query = polkadot::storage().system().account(account);
 
     let result = client

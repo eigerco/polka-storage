@@ -1,10 +1,10 @@
-use jsonrpsee::types::{ErrorObjectOwned, Params};
+use jsonrpsee::types::Params;
 use serde::{Deserialize, Serialize};
 use subxt_signer::sr25519::dev;
 
 use crate::{
-    polkadot::get_balance,
-    rpc::{ApiVersion, Ctx, RpcMethod},
+    rpc::{error::ServerError, ApiVersion, Ctx, RpcMethod},
+    substrate::get_balance,
 };
 
 /// This RPC method exposes getting the system balances for the particular
@@ -16,11 +16,11 @@ impl RpcMethod for WalletBalance {
 
     type Ok = Option<WalletBalanceResult>;
 
-    async fn handle(ctx: Ctx, _params: Params<'_>) -> Result<Self::Ok, ErrorObjectOwned> {
+    async fn handle(ctx: Ctx, _params: Params<'_>) -> Result<Self::Ok, ServerError> {
         // TODO(@cernicc,05/06/2024): Implement correctly. dev alice is used as a show case for now.
         let account = dev::alice().public_key().into();
         // TODO(@cernicc,05/06/2024): Handle error.
-        let balance = get_balance(&ctx.substrate_client, &account).await.unwrap();
+        let balance = get_balance(&ctx.substrate_client, &account).await?;
 
         Ok(balance.map(|balance| WalletBalanceResult {
             free: balance.data.free.to_string(),

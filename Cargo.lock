@@ -7995,6 +7995,7 @@ dependencies = [
  "cli-primitives",
  "jsonrpsee",
  "serde",
+ "serde_json",
  "subxt",
  "subxt-signer",
  "tokio",

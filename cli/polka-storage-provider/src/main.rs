@@ -4,8 +4,8 @@
 
 mod cli;
 pub(crate) mod commands;
-mod polkadot;
 mod rpc;
+mod substrate;
 
 pub(crate) use cli::Cli;
 use cli_primitives::Result;

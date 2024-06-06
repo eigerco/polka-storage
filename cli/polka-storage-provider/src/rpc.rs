@@ -1,37 +1,38 @@
 use std::{future::Future, net::SocketAddr, sync::Arc};
 
 use chrono::Utc;
+use error::ServerError;
 use jsonrpsee::{
     server::{Server, ServerHandle},
-    types::{ErrorObjectOwned, Params},
+    types::Params,
     RpcModule,
 };
 use methods::create_module;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
-use crate::polkadot;
+use crate::substrate;
 
+pub mod error;
 pub mod methods;
 
 /// Type to be used by [`RpcMethod::handle`].
 pub type Ctx = Arc<RpcServerState>;
 
-/// A definition of an RPC method handler which:
-/// - can be [registered](RpcMethodExt::register) with an [`RpcModule`].
+/// A definition of an RPC method handler which can be registered with an [`RpcModule`].
 pub trait RpcMethod {
     /// Method name.
     const NAME: &'static str;
     /// See [`ApiVersion`].
     const API_VERSION: ApiVersion;
-    /// Return value of this method.
+    /// Successful response type.
     type Ok: Serialize;
 
     /// Logic for this method.
     fn handle(
         ctx: Ctx,
         params: Params,
-    ) -> impl Future<Output = Result<Self::Ok, ErrorObjectOwned>> + Send;
+    ) -> impl Future<Output = Result<Self::Ok, ServerError>> + Send;
 
     /// Register this method with an [`RpcModule`].
     fn register_async(module: &mut RpcModule<RpcServerState>) -> &mut jsonrpsee::MethodCallback
@@ -61,7 +62,7 @@ pub enum ApiVersion {
 
 pub struct RpcServerState {
     pub start_time: chrono::DateTime<Utc>,
-    pub substrate_client: polkadot::Client,
+    pub substrate_client: substrate::Client,
 }
 
 pub async fn start_rpc(
