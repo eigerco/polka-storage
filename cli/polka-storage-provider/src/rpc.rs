@@ -34,7 +34,7 @@ pub trait RpcMethod {
     ) -> impl Future<Output = Result<Self::Ok, ErrorObjectOwned>> + Send;
 
     /// Register this method with an [`RpcModule`].
-    fn register(module: &mut RpcModule<RpcServerState>) -> &mut jsonrpsee::MethodCallback
+    fn register_async(module: &mut RpcModule<RpcServerState>) -> &mut jsonrpsee::MethodCallback
     where
         Self::Ok: Clone + 'static,
     {

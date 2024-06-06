@@ -7,6 +7,8 @@ use crate::{
     rpc::{ApiVersion, Ctx, RpcMethod},
 };
 
+/// This RPC method exposes getting the system balances for the particular
+/// account.
 pub struct WalletBalance;
 impl RpcMethod for WalletBalance {
     const NAME: &'static str = "wallet_balance";

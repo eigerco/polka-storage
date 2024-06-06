@@ -10,8 +10,8 @@ pub mod wallet;
 pub fn create_module(state: Arc<RpcServerState>) -> RpcModule<RpcServerState> {
     let mut module = RpcModule::from_arc(state);
 
-    common::Info::register(&mut module);
-    wallet::WalletBalance::register(&mut module);
+    common::Info::register_async(&mut module);
+    wallet::WalletBalance::register_async(&mut module);
 
     module
 }

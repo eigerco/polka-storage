@@ -18,7 +18,7 @@ pub(crate) struct RunCommand {
     /// RPC API endpoint of the parachain node
     #[arg(short = 'n', long, default_value = SUBSTRATE_DEFAULT_RPC_ADDR)]
     pub node_rpc_address: Url,
-    /// Address on which the miner will listen to
+    /// Address on which the storage provider will listen to
     #[arg(short = 'a', long, default_value = SERVER_DEFAULT_BIND_ADDR)]
     pub listen_addr: SocketAddr,
 }
