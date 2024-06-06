@@ -4,7 +4,7 @@ use subxt_signer::sr25519::dev;
 
 use crate::{
     polkadot::get_balance,
-    rpc::reflect::{ApiVersion, Ctx, RpcMethod},
+    rpc::{ApiVersion, Ctx, RpcMethod},
 };
 
 pub struct WalletBalance;
