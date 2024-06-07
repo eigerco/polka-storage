@@ -76,7 +76,7 @@ pub mod pallet {
         /// https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
         type PeerId: Clone + Debug + Decode + Encode + Eq + TypeInfo;
 
-        /// Unit of Storage Power of a Miner
+        /// Unit of Storage Power of a Storage Provider
         /// E.g. `u128`, used as `number of bytes` for a given SP.
         type StoragePower: Clone + Debug + Decode + Encode + Eq + TypeInfo;
     }
