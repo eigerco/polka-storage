@@ -726,6 +726,20 @@ mod test {
         ]
     }
 
+    fn dummy_deal_info() -> DealInfo {
+        DealInfo {
+            deal_uuid: uuid::Uuid::new_v4(),
+            is_legacy: false,
+            chain_deal_id: 1337.into(),
+            miner_address: "address".to_string().into(),
+            sector_number: 42,
+            piece_offset: 10,
+            piece_length: 10,
+            car_length: 97,
+            is_direct_deal: false,
+        }
+    }
+
     /// Ensure that the expected column families are initialized.
     #[test]
     fn column_families() {
@@ -812,21 +826,9 @@ mod test {
     #[test]
     fn add_deal_for_piece() {
         let db = init_database();
-        let cid = Cid::from_str("QmawceGscqN4o8Y8Fv26UUmB454kn2bnkXV5tEQYc4jBd6").unwrap();
+        let cid = cids_vec()[0];
         // Not real values
-        let deal_info = DealInfo {
-            // TODO(@jmg-duarte,06/06/2024): there's possibly a bug here, the Eq for DealInfo should probably be based on UUIDs and nothing else
-            // TODO(@jmg-duarte,06/06/2024): after fixing, add test for it
-            deal_uuid: uuid::Uuid::new_v4(),
-            is_legacy: false,
-            chain_deal_id: 1337,
-            miner_address: "address".to_string(),
-            sector_number: 42,
-            piece_offset: 10,
-            piece_length: 10,
-            car_length: 97,
-            is_direct_deal: false,
-        };
+        let deal_info = dummy_deal_info();
         let deal_info_2 = DealInfo {
             deal_uuid: uuid::Uuid::new_v4(),
             ..deal_info.clone()
@@ -849,19 +851,9 @@ mod test {
     #[test]
     fn duplicate_add_deal_for_piece() {
         let db = init_database();
-        let cid = Cid::from_str("QmawceGscqN4o8Y8Fv26UUmB454kn2bnkXV5tEQYc4jBd6").unwrap();
+        let cid = cids_vec()[0];
         // Not real values
-        let deal_info = DealInfo {
-            deal_uuid: uuid::Uuid::new_v4(),
-            is_legacy: false,
-            chain_deal_id: 1337,
-            miner_address: "address".to_string(),
-            sector_number: 42,
-            piece_offset: 10,
-            piece_length: 10,
-            car_length: 97,
-            is_direct_deal: false,
-        };
+        let deal_info = dummy_deal_info();
 
         assert!(matches!(db.get_piece_cid_to_metadata(cid), Ok(None)));
         assert!(db.add_deal_for_piece(cid, deal_info.clone()).is_ok());

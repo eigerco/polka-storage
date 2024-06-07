@@ -54,6 +54,41 @@ pub struct FlaggedPiece {
     pub has_unsealed_copy: bool,
 }
 
+pub struct FlaggedPiecesListFilter {
+    pub miner_address: String,
+    pub has_unsealed_copy: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FlaggedMetadata {
+    #[serde(rename = "c")]
+    pub created_at: time::OffsetDateTime,
+
+    #[serde(rename = "u")]
+    pub updated_at: time::OffsetDateTime,
+
+    #[serde(rename = "huc")]
+    pub has_unsealed_copy: bool,
+
+    #[serde(rename = "m")]
+    // The miner address is a special type from filecoin-project/go-address
+    // however, it's simply a wrapper to string:
+    // https://github.com/filecoin-project/go-address/blob/365a7c8d0e85c731c192e65ece5f5b764026e85d/address.go#L39-L40
+    pub miner_address: String,
+}
+
+impl FlaggedMetadata {
+    pub fn with_address(miner_address: String) -> Self {
+        let now = time::OffsetDateTime::now_utc();
+        Self {
+            created_at: now,
+            updated_at: now,
+            has_unsealed_copy: false,
+            miner_address,
+        }
+    }
+}
+
 // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/model/model.go#L50-L62
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -70,7 +105,7 @@ pub struct OffsetSize {
 
 impl OffsetSize {
     // NOTE(@jmg-duarte,06/06/2024): I've decided against implementing From/Into as this API is very specific
-    // and the traits would be public
+    // and the traits would be public by default
 
     /// Convert [`Self`] to bytes, this is done by encoding [`Self::offset`] and [`Self::size`] as [`VarInt`]s
     /// and packing them without padding.
@@ -118,41 +153,6 @@ impl From<Record> for CarIndexRecord {
     }
 }
 
-pub struct FlaggedPiecesListFilter {
-    pub miner_address: String,
-    pub has_unsealed_copy: bool,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct FlaggedMetadata {
-    #[serde(rename = "c")]
-    pub created_at: time::OffsetDateTime,
-
-    #[serde(rename = "u")]
-    pub updated_at: time::OffsetDateTime,
-
-    #[serde(rename = "huc")]
-    pub has_unsealed_copy: bool,
-
-    #[serde(rename = "m")]
-    // The miner address is a special type from filecoin-project/go-address
-    // however, it's simply a wrapper to string:
-    // https://github.com/filecoin-project/go-address/blob/365a7c8d0e85c731c192e65ece5f5b764026e85d/address.go#L39-L40
-    pub miner_address: String,
-}
-
-impl FlaggedMetadata {
-    pub fn with_address(miner_address: String) -> Self {
-        let now = time::OffsetDateTime::now_utc();
-        Self {
-            created_at: now,
-            updated_at: now,
-            has_unsealed_copy: false,
-            miner_address,
-        }
-    }
-}
-
 /// Metadata about a piece that provider may be storing based on its [`Cid`]. So
 /// that, given a [`Cid`] during retrieval, the miner can determine how to
 /// unseal it if needed
@@ -187,7 +187,24 @@ impl PieceInfo {
 }
 
 /// Identifier for a retrieval deal (unique to a client)
-type DealId = u64;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct DealId(u64);
+
+impl From<u64> for DealId {
+    fn from(value: u64) -> Self {
+        Self(value)
+    }
+}
+
+/// The miner's address.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct MinerAddress(String);
+
+impl From<String> for MinerAddress {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
 
 /// Numeric identifier for a sector. It is usually relative to a miner.
 type SectorNumber = u64;
@@ -198,16 +215,34 @@ type SectorNumber = u64;
 /// <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/model/model.go#L14-L36>
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DealInfo {
-    // TODO(@jmg-duarte,05/06/2024): convert these into newtypes
+    // By default, the Eq implementation will use all fields,
+    // likewise, it doesn't sound like the best idea since
+    // as soon as you change a single detail that isn't the deal UUID
+    // what should be a conflicting DealInfo, no longer is.
+    // However, in the original implementation they do it like that
+    // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L119-L125
+    // Note that in Go, there is not operator overloading and
+    // == is implicitly defined for all types
+
     // TODO(@jmg-duarte,05/06/2024): document
     #[serde(rename = "u")]
     pub deal_uuid: uuid::Uuid,
     #[serde(rename = "y")]
     pub is_legacy: bool,
-    #[serde(rename = "i")]
-    pub chain_deal_id: u64,
+
+    /// Identifier for a deal.
+    ///
+    /// See [`DealId`] for more information.
+    #[serde(rename = "i", flatten)]
+    pub chain_deal_id: DealId,
+
+    /// The miner's address.
+    ///
+    /// See [`MinerAddress`] for more information.-
     #[serde(rename = "m")]
-    pub miner_address: String,
+    pub miner_address: MinerAddress,
+
+    // TODO(@jmg-duarte,05/06/2024): convert this into newtype
     #[serde(rename = "s")]
     pub sector_number: SectorNumber,
     #[serde(rename = "o")]
