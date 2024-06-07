@@ -1479,6 +1479,7 @@ version = "0.1.0"
 dependencies = [
  "subxt",
  "thiserror",
+ "tracing-subscriber",
 ]
 
 [[package]]

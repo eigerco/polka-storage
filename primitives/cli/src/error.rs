@@ -6,6 +6,9 @@ pub enum Error {
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
 
+    #[error("FromEnv error: {0}")]
+    EnvError(#[from] tracing_subscriber::filter::FromEnvError),
+
     #[error("Substrate error: {0}")]
     Substrate(#[from] subxt::Error),
 }
