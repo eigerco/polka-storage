@@ -19,6 +19,8 @@ that should not be used.
     - [Collateral](#collateral)
     - [Slashing](#slashing)
     - [Staking](#staking)
+        - [Validators](#validators)
+        - [Nominators](#nominators)
     - [Slot Auction](#slot-auction)
     - [Crowdloan](#crowdloan)
 - [Anti-Glossary](#anti-glossary)
@@ -94,7 +96,7 @@ for non-compliance or misconduct by [slashing](#slashing).
 
 ### Slashing
 
-The process of penalizing network participants, including validators, nominators, and collators, for various protocol
+The process of penalizing network participants, including [validators](#validators), [nominators](#nominators), and [collators](#collator), for various protocol
 violations. These violations could include producing invalid blocks, equivocation (double signing), or other malicious
 activities. As a result of slashing, participants may face a reduction in their [staked](#staking) funds or other
 penalties depending on the severity of the violation.
@@ -104,11 +106,12 @@ penalties depending on the severity of the violation.
 Staking is the process where DOT holders lock up their tokens to support the network's security and operations. In
 return, they can earn rewards. There are two main roles involved in staking:
 
-- **Validators**: Validators are responsible for producing new blocks, validating transactions, and securing the
+- <a name="validators"></a>**Validators**
+: Validators are responsible for producing new blocks, validating transactions, and securing the
   network. They are selected based on their stake and performance. Validators need to run a [node](#node) and have the
   technical capability to maintain it.
 
-- **Nominators**: Nominators support the network by backing (nominating) validators they trust with their DOT tokens.
+- <a name="nominators"></a>**Nominators**: Nominators support the network by backing (nominating) validators they trust with their DOT tokens.
   Nominators share in the rewards earned by the validators they support. This allows DOT holders who don't want to run a
   validator node to still participate in the network's security and earn rewards.
 
