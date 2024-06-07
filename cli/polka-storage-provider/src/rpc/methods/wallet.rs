@@ -4,7 +4,7 @@ use subxt_signer::sr25519::dev;
 
 use crate::{
     rpc::{error::ServerError, ApiVersion, Ctx, RpcMethod},
-    substrate::get_balance,
+    substrate::get_system_balances,
 };
 
 /// This RPC method exposes getting the system balances for the particular
@@ -20,7 +20,7 @@ impl RpcMethod for WalletBalance {
         // TODO(@cernicc,05/06/2024): Implement correctly. dev alice is used as a show case for now.
         let account = dev::alice().public_key().into();
         // TODO(@cernicc,05/06/2024): Handle error.
-        let balance = get_balance(&ctx.substrate_client, &account).await?;
+        let balance = get_system_balances(&ctx.substrate_client, &account).await?;
 
         Ok(balance.map(|balance| WalletBalanceResult {
             free: balance.data.free.to_string(),

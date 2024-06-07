@@ -2,6 +2,7 @@ use clap::Parser;
 use cli_primitives::Result;
 use tracing::info;
 
+/// Command to initialize the storage provider.s
 #[derive(Debug, Clone, Parser)]
 pub(crate) struct InitCommand {}
 

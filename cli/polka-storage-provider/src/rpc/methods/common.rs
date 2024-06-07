@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::rpc::{error::ServerError, ApiVersion, Ctx, RpcMethod};
 
+/// This RPC method exposes the system information.
 #[derive(Debug)]
 pub struct Info;
 

@@ -19,7 +19,8 @@ pub async fn init_client(url: impl AsRef<str>) -> Result<Client, Error> {
     Ok(inner)
 }
 
-pub async fn get_balance(
+/// Get system balances for the particular account.
+pub async fn get_system_balances(
     client: &Client,
     account: &AccountId32,
 ) -> Result<Option<AccountInfo<u32, AccountData<u128>>>, Error> {

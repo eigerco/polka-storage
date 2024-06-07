@@ -1,5 +1,4 @@
 //! A CLI application that facilitates management operations over a running full node and other components.
-
 #![deny(unused_crate_dependencies)]
 
 mod cli;

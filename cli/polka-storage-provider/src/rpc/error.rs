@@ -3,6 +3,7 @@ use std::fmt::Display;
 use jsonrpsee::types::{error::INTERNAL_ERROR_CODE, ErrorObjectOwned};
 use serde_json::Value;
 
+/// Error type for RPC server errors.
 pub struct ServerError {
     inner: ErrorObjectOwned,
 }

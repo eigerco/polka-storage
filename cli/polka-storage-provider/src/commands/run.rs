@@ -13,6 +13,7 @@ use crate::{
 const SERVER_DEFAULT_BIND_ADDR: &str = "127.0.0.1:8000";
 const SUBSTRATE_DEFAULT_RPC_ADDR: &str = "ws://127.0.0.1:9944";
 
+/// Command to start the storage provider.
 #[derive(Debug, Clone, Parser)]
 pub(crate) struct RunCommand {
     /// RPC API endpoint of the parachain node
