@@ -327,5 +327,17 @@ pub mod pallet {
             // TODO(@aidan46, no-ref, 2024-06-05): Implement pre commit sector functionality
             unimplemented!("Pre commit sector is not implemented yet")
         }
+
+        /// Checks state of the corresponding sector pre-commitments and verifies aggregate proof of replication
+        /// of these sectors. If valid, the sectors' deals are activated.
+        #[pallet::call_index(10)]
+        // #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
+        // TODO(aidan46, no-ref, 2024-06-05): Determine applicable weights.
+        pub fn prove_commit_sector(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+            // Check that the extrinsic was signed and get the signer.
+            let _who = ensure_signed(origin)?;
+            // TODO(@aidan46, no-ref, 2024-06-07): Implement prove commit sector functionality
+            unimplemented!("Prove commit sector is not implemented yet")
+        }
     }
 }
