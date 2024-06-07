@@ -35,11 +35,14 @@ impl RunCommand {
 
         let handle = start_rpc(state, self.listen_addr).await?;
         let handle_clone = handle.clone();
-        tokio::spawn(handle_clone.stopped());
+        let rpc_server_stopped = tokio::spawn(handle_clone.stopped());
 
         // Monitor shutdown
         tokio::signal::ctrl_c().await?;
         let _ = handle.stop();
+
+        // Wait for the server to stop
+        let _ = rpc_server_stopped.await;
 
         Ok(())
     }
