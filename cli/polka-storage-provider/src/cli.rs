@@ -14,9 +14,9 @@ pub(crate) struct Cli {
 /// Supported sub-commands.
 #[derive(Debug, clap::Subcommand, Clone)]
 pub enum SubCommand {
-    /// Initialize the polka storage miner
+    /// Initialize the polka storage provider
     Init(InitCommand),
-    /// Start a polka storage miner
+    /// Start a polka storage provider
     Run(RunCommand),
     /// Info command
     Info(InfoCommand),
