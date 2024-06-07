@@ -4,8 +4,17 @@ use jsonrpsee::types::{error::INTERNAL_ERROR_CODE, ErrorObjectOwned};
 use serde_json::Value;
 
 /// Error type for RPC server errors.
+#[derive(Debug)]
 pub struct ServerError {
     inner: ErrorObjectOwned,
+}
+
+impl std::error::Error for ServerError {}
+
+impl Display for ServerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "JSON-RPC error: {}", &self.inner)
+    }
 }
 
 impl From<ServerError> for ErrorObjectOwned {
