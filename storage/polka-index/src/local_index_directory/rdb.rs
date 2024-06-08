@@ -16,9 +16,6 @@ use super::{
     FlaggedPiecesListFilter, OffsetSize, PieceInfo, PieceStoreError, Record, Service,
 };
 
-// NOTE(@jmg-duarte,04/06/2024): In the LevelDB implementation these CFs are numbered prefixes instead.
-// I've decided to use a string for legibility, but if it affects performance, let's switch.
-
 // NOTE(@jmg-duarte,04/06/2024): We probably could split the interface according to the respective column family
 
 /// Key for the next free cursor.
@@ -28,31 +25,45 @@ use super::{
 /// Sources:
 /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L30-L32>
 /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L54-L56>
-const NEXT_CURSOR_KEY: &str = "next_cursor";
+pub const NEXT_CURSOR_KEY: &str = "next_cursor";
+
+// # Notes on LevelDB vs RocksDB:
+// ## Prefixes & Column Families
+// In LevelDB there's no concept of logical partitioning, let alone column families,
+// instead and partitioning is achieved by prefixing an identifier to create a namespace.
+// However, RocksDB has support for logical partitioning and as such, we take advantage
+// of it by mapping the LevelDB prefixes from the original code into proper column families.
+//
+// ## Transactions
+// LevelDB does not support transactions, as such, when using `WriteBatchWithTransaction`
+// the TRANSACTION const generic is set to `false`. We may wish to turn it on, but at the
+// time of writing (7/6/24) the main focus is on porting, and as such keeping things as
+// close as possible to the original implementation.
+// Discussion on LevelDB transactions: https://groups.google.com/g/leveldb/c/O_iNRkAoObg
 
 /// Column family name to store the mapping between a [`Cid`] and its cursor.
 ///
 /// Sources:
 /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L34-L37>
 /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L58-L61>
-const PIECE_CID_TO_CURSOR_CF: &str = "piece_cid_to_cursor";
+pub const PIECE_CID_TO_CURSOR_CF: &str = "piece_cid_to_cursor";
 
 /// Column family name to store the mapping between [`Multihash`]es and piece [`Cid`]s.
 ///
 /// Sources:
 /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L39-L42>
 /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L62-L64>
-const MULTIHASH_TO_PIECE_CID_CF: &str = "multihash_to_piece_cids";
+pub const MULTIHASH_TO_PIECE_CID_CF: &str = "multihash_to_piece_cids";
 
 /// Column family name to store the flagged piece [`Cid`]s.
 ///
 /// Sources:
 /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L44-L47>
 /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L66-L68>
-const PIECE_CID_TO_FLAGGED_CF: &str = "piece_cid_to_flagged";
+pub const PIECE_CID_TO_FLAGGED_CF: &str = "piece_cid_to_flagged";
 
 // TODO(@jmg-duarte,04/06/2024): double check and document
-const CURSOR_TO_OFFSET_SIZE_CF: &str = "cursor_to_offset_size";
+pub const CURSOR_TO_OFFSET_SIZE_CF: &str = "cursor_to_offset_size";
 
 fn key_cursor_prefix(cursor: u64) -> String {
     format!("{}/", cursor)
@@ -72,12 +83,19 @@ pub struct RocksDBPieceStore {
 impl RocksDBPieceStore {
     // TODO(@jmg-duarte,05/06/2024): refactor the API to take the CF first (just makes more sense)
 
+    /// Construct a new [`Self`] from the provided [`RocksDBStateStoreConfig`].
+    ///
+    /// * If the database does not exist in the path, it will be created.
+    /// * If the column families ([`PIECE_CID_TO_CURSOR_CF`],
+    ///   [`MULTIHASH_TO_PIECE_CID_CF`], [`PIECE_CID_TO_FLAGGED_CF`],
+    ///   [`CURSOR_TO_OFFSET_SIZE_CF`]) do not exist, they will be created.
     fn new(config: RocksDBStateStoreConfig) -> Result<Self, PieceStoreError>
     where
         Self: Sized,
     {
         let column_families = [
             PIECE_CID_TO_FLAGGED_CF,
+            MULTIHASH_TO_PIECE_CID_CF,
             PIECE_CID_TO_CURSOR_CF,
             CURSOR_TO_OFFSET_SIZE_CF,
         ]
@@ -90,14 +108,15 @@ impl RocksDBPieceStore {
         // Create missing column families
         opts.create_missing_column_families(true);
 
-        let database = RocksDB::open_cf_descriptors(&opts, config.path, column_families)?;
-
-        Ok(Self { database })
+        Ok(Self {
+            database: RocksDB::open_cf_descriptors(&opts, config.path, column_families)?,
+        })
     }
 
-    /// Get the column family handle for the given column family name. Panics if
-    /// the column family is not present. The column families needed and used
-    /// are created at initialization. They will always be present.
+    /// Get the column family handle for the given column family name.
+    ///
+    /// **Invariant**: The column family name MUST exist. *Otherwise this function will panic.*
+    ///
     #[track_caller]
     fn cf_handle(&self, cf_name: &str) -> &ColumnFamily {
         self.database
@@ -157,6 +176,13 @@ impl RocksDBPieceStore {
             .put_cf(self.cf_handle(cf_name), key, serialized)?)
     }
 
+    /// Get the [`PieceInfo`] for the provided piece [`Cid`].
+    ///
+    /// The information is stored in the [`PIECE_CID_TO_CURSOR_CF`] column family.
+    ///
+    /// It is equivalent to boost's `DB.GetPieceCidToMetadata`.
+    ///
+    /// Source: <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L282-L302>
     fn get_piece_cid_to_metadata(
         &self,
         piece_cid: Cid,
@@ -164,6 +190,13 @@ impl RocksDBPieceStore {
         self.get_value_at_key(piece_cid.to_bytes(), PIECE_CID_TO_CURSOR_CF)
     }
 
+    /// Set the [`PieceInfo`] for the provided piece [`Cid`].
+    ///
+    /// The information is stored in the [`PIECE_CID_TO_CURSOR_CF`] column family.
+    ///
+    /// It is equivalent to boost's `DB.SetPieceCidToMetadata`.
+    ///
+    /// Source: <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L267-L280>
     fn set_piece_cid_to_metadata(
         &self,
         piece_cid: Cid,
@@ -177,7 +210,6 @@ impl RocksDBPieceStore {
         records: &Vec<CarIndexRecord>,
         piece_cid: Cid,
     ) -> Result<(), PieceStoreError> {
-        // NOTE(@jmg-duarte,06/06/2024): maybe this should be a transaction? The Go docs indicate otherwise though
         // https://github.com/ipfs/go-datastore/blob/1de47089f5c72b61d91b5cd9043e49fe95771ac0/datastore.go#L97-L106
         let mut batch = WriteBatchWithTransaction::<false>::default();
 
@@ -211,6 +243,8 @@ impl RocksDBPieceStore {
     /// Returns [`PieceStoreError::NotFoundError`] if no cursor has been set.
     /// Use [`Self::set_next_cursor`] to set the next cursor.
     ///
+    /// The information is stored in the [`rocksdb::DEFAULT_COLUMN_FAMILY_NAME`] column family.
+    ///
     /// Source:
     /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L109-L118>
     fn get_next_cursor(&self) -> Result<(u64, String), PieceStoreError> {
@@ -231,6 +265,8 @@ impl RocksDBPieceStore {
 
     /// Set the next available cursor.
     ///
+    /// The information is stored in the [`rocksdb::DEFAULT_COLUMN_FAMILY_NAME`] column family.
+    ///
     /// Source:
     /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L124-L130>
     fn set_next_cursor(&self, cursor: u64) -> Result<(), PieceStoreError> {
@@ -243,6 +279,59 @@ impl RocksDBPieceStore {
         let key = format!("{}{:x?}", cursor_prefix, record.cid.hash().to_bytes());
         Ok(self.database.put(key, record.offset_size.to_bytes())?)
     }
+
+    ///
+    fn remove_indexes(&self, piece_cid: Cid, cursor: u64) -> Result<(), PieceStoreError> {
+        // In the original code they don't add first "/" in the prefix,
+        // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L635-L640
+        // but they actually do, if we dig deeper, until the go-ds-leveldb Datastore implementation,
+        // the first thing ds.Query does is prepepend the "/" in case it is missing
+        // https://github.com/ipfs/go-ds-leveldb/blob/efa3b97d25995dfcd042c476f3e2afe0105d0784/datastore.go#L131-L138
+
+        let cursor_prefix = format!("/{}/", cursor);
+        let iterator = self.database.prefix_iterator(&cursor_prefix);
+        let mut batch = WriteBatchWithTransaction::<false>::default();
+
+        // NOTE(@jmg-duarte,08/06/2024): the continues are wrong because the batch.Delete will always run
+        // as long as it doesnt fail
+        for it in iterator {
+            let (key, _) = it?;
+            // TODO(@jmg-duarte,07/06/2024): add note about the +1 or not
+            let (_, mh_key) = key.split_at(cursor_prefix.len());
+
+            // Without the closure, the only alternative is to use goto's to skip from the `return Ok(())` to the deletion of the key
+            // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L655-L702
+            (|| {
+                let Some(mut cids) =
+                    self.get_value_at_key::<_, Vec<Cid>>(mh_key, MULTIHASH_TO_PIECE_CID_CF)?
+                else {
+                    return Err(PieceStoreError::NotFoundError);
+                };
+
+                let Some(idx) = cids.iter().position(|cid| cid == &piece_cid) else {
+                    return Ok(());
+                };
+
+                // If it is empty or it would become empty, delete the whole entry
+                if cids.len() <= 1 {
+                    batch.delete_cf(self.cf_handle(MULTIHASH_TO_PIECE_CID_CF), mh_key);
+                    return Ok(());
+                }
+
+                // Otherwise, just delete from the list and put it back in the DB
+                // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L684-L690
+                cids.swap_remove(idx);
+                // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L692-L698
+                batch.put_cf_cbor(self.cf_handle(MULTIHASH_TO_PIECE_CID_CF), mh_key, cids)?;
+                Ok(())
+            })()?;
+
+            // Cursors are stored in the "default" CF, thus we don't specify a CF
+            batch.delete(key);
+        }
+
+        Ok(self.database.write(batch)?)
+    }
 }
 
 // NOTE(@jmg-duarte,06/06/2024): this abstraction is not ported with 100% fidelity to the Go solution
@@ -253,6 +342,9 @@ impl RocksDBPieceStore {
 // "acts" a bit differently in both languages.
 
 impl Service for RocksDBPieceStore {
+    /// For a detailed description, see [`Service::add_deal_for_piece`].
+    ///
+    /// Source: <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L91-L139>
     fn add_deal_for_piece(
         &self,
         piece_cid: Cid,
@@ -263,9 +355,9 @@ impl Service for RocksDBPieceStore {
             .get_piece_cid_to_metadata(piece_cid)?
             .unwrap_or_else(|| PieceInfo::with_cid(piece_cid));
 
-        // Check if deal already added for this piece
+        // Check for the duplicate deal
         if let Some(deal) = piece_info.deals.iter().find(|d| **d == deal_info) {
-            return Err(PieceStoreError::DealExists(deal.deal_uuid));
+            return Err(PieceStoreError::DuplicateDealError(deal.deal_uuid));
         }
 
         // Save the new deal
@@ -273,10 +365,158 @@ impl Service for RocksDBPieceStore {
         self.set_piece_cid_to_metadata(piece_cid, &piece_info)
     }
 
-    // In Boost, this operation is performed by running a goroutine that will feed the returned channel,
-    // in Rust we there's a mix of things that make life especially difficult for us here, however,
-    // since the whole Service relies on the sync API of RocksDB, we can just use `tokio.spawn_blocking`
-    // and ensure the user is aware that this operation takes a while to complete. Same for `get_index`.
+    /// For a detailed description, see [`Service::remove_deal_for_piece`].
+    ///
+    /// Source: <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L697-L757>
+    fn remove_deal_for_piece(
+        &self,
+        piece_cid: Cid,
+        deal_uuid: Uuid,
+    ) -> Result<(), PieceStoreError> {
+        let mut piece_info = self.get_piece_metadata(piece_cid)?;
+
+        if let Some(idx) = piece_info
+            .deals
+            .iter()
+            .position(|deal| deal.deal_uuid == deal_uuid)
+        {
+            // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L733-L739
+            piece_info.deals.swap_remove(idx);
+        }
+
+        // If the removed deal was the last one, remove the metadata as well
+        // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L741-L748
+        if piece_info.deals.is_empty() {
+            return match self.remove_piece_metadata(piece_cid) {
+                Ok(()) => Ok(()),
+                // First of all, it's kinda weird that the metadata might not be there
+                // but in any case, it was going to be deleted, so in this case,
+                // not finding it is not an error, just means we don't need to do anything
+                Err(PieceStoreError::NotFoundError) => Ok(()),
+                Err(err) => Err(err),
+            };
+        }
+
+        self.put_value_at_key(piece_cid.to_bytes(), &piece_info, PIECE_CID_TO_CURSOR_CF)
+    }
+
+    /// For a detailed description, see [`Service::is_indexed`].
+    ///
+    /// * If the piece does not exist, `false` will be returned instead of [`PieceStoreError::NotFoundError`].
+    ///   This is the same behavior the original implementation exhibits[*][1].
+    ///
+    /// Sources:
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L295-L306>
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L444-L469>
+    ///
+    /// [1]: https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L461-L468
+    fn is_indexed(&self, piece_cid: Cid) -> Result<bool, PieceStoreError> {
+        Ok(self
+            .get_piece_cid_to_metadata(piece_cid)?
+            // If the piece does not exist, it's clearly not indexed
+            .map_or(false, |piece_info: PieceInfo| {
+                // The sentinel value we're using is the Unix epoch, so we check against that
+                piece_info.indexed_at != OffsetDateTime::UNIX_EPOCH
+            }))
+    }
+
+    /// For a detailed description, see [`Service::indexed_at`].
+    ///
+    /// The information is stored in the [`PIECE_CID_TO_CURSOR_CF`] column family.
+    ///
+    /// Source: <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L444-L469>
+    fn indexed_at(&self, piece_cid: Cid) -> Result<time::OffsetDateTime, PieceStoreError> {
+        // The Go implementation seems to return the Unix epoch but returning the error makes more sense
+        // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L461-L468
+        Ok(self
+            .get_piece_cid_to_metadata(piece_cid)?
+            .map(|piece_info: PieceInfo| piece_info.indexed_at)
+            .ok_or(PieceStoreError::NotFoundError)?)
+    }
+
+    /// For a detailed description, see [`Service::is_complete_index`].
+    ///
+    /// The information is stored in the [`PIECE_CID_TO_CURSOR_CF`] column family.
+    ///
+    /// Source: <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L308-L330>
+    fn is_complete_index(&self, piece_cid: Cid) -> Result<bool, PieceStoreError> {
+        Ok(self
+            .get_piece_cid_to_metadata(piece_cid)?
+            .map(|piece_info: PieceInfo| piece_info.complete_index)
+            .ok_or(PieceStoreError::NotFoundError)?)
+    }
+
+    /// For a detailed description, see [`Service::get_piece_metadata`].
+    ///
+    /// The information is stored in the [`PIECE_CID_TO_CURSOR_CF`] column family.
+    ///
+    /// Source: <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L173-L196>
+    fn get_piece_metadata(&self, piece_cid: Cid) -> Result<PieceInfo, PieceStoreError> {
+        self.get_piece_cid_to_metadata(piece_cid)?
+            .ok_or(PieceStoreError::NotFoundError)
+    }
+
+    // TODO(@jmg-duarte,06/06/2024): double check
+    /// For a detailed description, see [`Service::remove_piece_metadata`].
+    ///
+    /// The information is removed from the [`PIECE_CID_TO_CURSOR_CF`] column family.
+    ///
+    /// Sources:
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L759-L784>
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L591-L623>
+    fn remove_piece_metadata(&self, piece_cid: Cid) -> Result<(), PieceStoreError> {
+        let piece = self.get_piece_metadata(piece_cid)?;
+        // Remove all the multihashes before, as without metadata, they're useless.
+        // This operation is made first for consistency — i.e. if this fails
+        // For more details, see the original implementation:
+        // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L610-L615
+        self.remove_indexes(piece_cid, piece.cursor)?;
+        self.remove_value_at_key(piece_cid.to_bytes(), PIECE_CID_TO_CURSOR_CF)
+    }
+
+    /// For a detailed description, see [`Service::get_piece_deals`].
+    ///
+    /// The information is stored in the [`PIECE_CID_TO_CURSOR_CF`] column family.
+    ///
+    /// Source: <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L198-L224>
+    fn get_piece_deals(&self, piece_cid: Cid) -> Result<Vec<DealInfo>, PieceStoreError> {
+        Ok(self
+            .get_piece_cid_to_metadata(piece_cid)?
+            .map(|piece_info: PieceInfo| piece_info.deals)
+            .ok_or(PieceStoreError::NotFoundError)?)
+    }
+
+    /// For a detailed description, see [`Service::list_pieces`].
+    ///
+    /// The information is stored in the [`PIECE_CID_TO_CURSOR_CF`] column family.
+    ///
+    /// Sources:
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L517-L538>
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L550-L580>
+    fn list_pieces(&self) -> Result<Vec<Cid>, PieceStoreError> {
+        let iterator = self
+            .database
+            .iterator_cf(self.cf_handle(PIECE_CID_TO_CURSOR_CF), IteratorMode::Start);
+
+        iterator
+            .map(|line| {
+                let (key, _) = line?;
+
+                let parsed_cid = Cid::try_from(key.as_ref()).map_err(|err| {
+                    // We know that all stored CIDs are valid, so this
+                    // should only happen if database is corrupted.
+                    PieceStoreError::Deserialization(format!("invalid CID: {}", err))
+                })?;
+
+                Ok(parsed_cid)
+            })
+            .collect()
+    }
+
+    /// ### Note
+    /// In Boost, this operation is performed by running a goroutine that will feed the returned channel,
+    /// in Rust we there's a mix of things that make life especially difficult for us here, however,
+    /// since the whole [`Service`] relies on the sync API of RocksDB, you should use [`tokio::task::spawn_blocking`].
     fn add_index(
         &self,
         piece_cid: Cid,
@@ -354,22 +594,6 @@ impl Service for RocksDBPieceStore {
         Ok(records)
     }
 
-    fn is_indexed(&self, piece_cid: Cid) -> Result<bool, PieceStoreError> {
-        Ok(self
-            .get_piece_cid_to_metadata(piece_cid)?
-            // If the piece does not exist, it's clearly not indexed
-            .map_or(false, |piece_info: PieceInfo| {
-                // The sentinel value we're using is the Unix epoch, so we check against that
-                piece_info.indexed_at == OffsetDateTime::UNIX_EPOCH
-            }))
-    }
-
-    fn is_complete_index(&self, piece_cid: Cid) -> Result<bool, PieceStoreError> {
-        Ok(self
-            .get_piece_cid_to_metadata(piece_cid)?
-            .map_or(false, |piece_info: PieceInfo| piece_info.complete_index))
-    }
-
     fn get_offset_size(
         &self,
         piece_cid: Cid,
@@ -389,51 +613,6 @@ impl Service for RocksDBPieceStore {
             CURSOR_TO_OFFSET_SIZE_CF,
         )?
         .ok_or(PieceStoreError::NotFoundError)
-    }
-
-    fn list_pieces(&self) -> Result<Vec<Cid>, PieceStoreError> {
-        let iterator = self
-            .database
-            .iterator_cf(self.cf_handle(PIECE_CID_TO_CURSOR_CF), IteratorMode::Start);
-
-        iterator
-            .map(|line| {
-                let (key, _) = line?;
-
-                let parsed_cid = Cid::try_from(key.as_ref()).map_err(|err| {
-                    // We know that all stored CIDs are valid, so this
-                    // should only happen if database is corrupted.
-                    PieceStoreError::Deserialization(format!("invalid CID: {}", err))
-                })?;
-
-                Ok(parsed_cid)
-            })
-            .collect()
-    }
-
-    // TODO(@jmg-duarte,05/06/2024): improve docs
-    /// Get a Piece's Metadata. If none is found [`PieceStoreError::NotFoundError`] is returned.
-    fn get_piece_metadata(&self, piece_cid: Cid) -> Result<PieceInfo, PieceStoreError> {
-        self.get_piece_cid_to_metadata(piece_cid)
-            .and_then(|piece_info: Option<PieceInfo>| {
-                piece_info.ok_or(PieceStoreError::NotFoundError)
-            })
-    }
-
-    fn get_piece_deals(&self, piece_cid: Cid) -> Result<Vec<DealInfo>, PieceStoreError> {
-        Ok(self
-            .get_piece_cid_to_metadata(piece_cid)?
-            .map(|piece_info: PieceInfo| piece_info.deals)
-            .ok_or(PieceStoreError::NotFoundError)?)
-    }
-
-    fn indexed_at(&self, piece_cid: Cid) -> Result<time::OffsetDateTime, PieceStoreError> {
-        // The Go implementation returns the "epoch" but returning the error makes more sense
-        // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L461-L468
-        Ok(self
-            .get_piece_cid_to_metadata(piece_cid)?
-            .map(|piece_info: PieceInfo| piece_info.indexed_at)
-            .ok_or(PieceStoreError::NotFoundError)?)
     }
 
     fn pieces_containing_multihash(
@@ -464,54 +643,25 @@ impl Service for RocksDBPieceStore {
             .collect()
     }
 
-    fn remove_deal_for_piece(
-        &self,
-        piece_cid: Cid,
-        deal_uuid: Uuid,
-    ) -> Result<(), PieceStoreError> {
-        let mut piece_info = self.get_piece_metadata(piece_cid)?;
-
-        if let Some((idx, _)) = piece_info
-            .deals
-            .iter()
-            .enumerate()
-            .filter(|(_, deal)| deal.deal_uuid == deal_uuid)
-            .next()
-        {
-            piece_info.deals.remove(idx);
-        }
-
-        if piece_info.deals.is_empty() {
-            self.remove_piece_metadata(piece_cid)?;
-            return Ok(());
-        }
-
-        self.put_value_at_key(piece_cid.to_bytes(), &piece_info, PIECE_CID_TO_CURSOR_CF)
-    }
-
-    // TODO(@jmg-duarte,06/06/2024): double check
-    fn remove_piece_metadata(&self, piece_cid: Cid) -> Result<(), PieceStoreError> {
-        // Remove all the multihashes before, as without metadata, they're useless.
-        // This operation is made first for consistency — i.e. if this fails
-        // For more details, see the original implementation:
-        // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L610-L615
-        self.remove_indexes(piece_cid)?;
-        self.remove_value_at_key(piece_cid.to_bytes(), PIECE_CID_TO_CURSOR_CF)
-    }
-
+    /// Sources:
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L786-L832>
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L625-L717>
     fn remove_indexes(&self, piece_cid: Cid) -> Result<(), PieceStoreError> {
         let Some(metadata) = self.get_piece_cid_to_metadata(piece_cid)? else {
             return Err(PieceStoreError::NotFoundError);
         };
 
+        // This part is a bit weird, in the original code they don't add first "/" in the prefix
+        // which hints that it is in the "global namespace", so here we're searching the default column family
+        // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L635-L640
         let cursor_prefix = format!("{}/", metadata.cursor);
         let iterator = self.database.prefix_iterator(&cursor_prefix);
         let mut batch = WriteBatchWithTransaction::<false>::default();
 
         for it in iterator {
             let (key, _) = it?;
-            // Possible off-by-one error
-            let (_, mh_key) = key.split_at(cursor_prefix.len() + 1);
+            // TODO(@jmg-duarte,07/06/2024): add note about the +1 or not
+            let (_, mh_key) = key.split_at(cursor_prefix.len());
             let Some(mut cids) =
                 self.get_value_at_key::<_, Vec<Cid>>(mh_key, MULTIHASH_TO_PIECE_CID_CF)?
             else {
@@ -522,21 +672,20 @@ impl Service for RocksDBPieceStore {
                 continue;
             };
 
-            if cids.is_empty() {
-                self.database.delete_cf(
-                    self.cf_handle(MULTIHASH_TO_PIECE_CID_CF),
-                    piece_cid.to_bytes(),
-                )?;
+            // If it is empty or it would become empty, delete the whole entry
+            if cids.len() <= 1 {
+                batch.delete_cf(self.cf_handle(MULTIHASH_TO_PIECE_CID_CF), mh_key);
                 continue;
             }
 
+            // Otherwise, just delete from the list and put it back in the DB
             // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L684-L690
             cids.swap_remove(idx);
             // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L692-L698
             batch.put_cf_cbor(self.cf_handle(MULTIHASH_TO_PIECE_CID_CF), mh_key, cids)?;
 
-            // This might be wrong — might need to reference a CF
-            self.database.delete(key)?;
+            // Cursors are stored in the "default" CF, thus we don't specify a CF
+            batch.delete(key);
         }
 
         Ok(self.database.write(batch)?)
@@ -697,11 +846,12 @@ impl Service for RocksDBPieceStore {
 
 #[cfg(test)]
 mod test {
-    use std::{collections::HashMap, str::FromStr};
+    use std::str::FromStr;
 
     use cid::Cid;
     use rocksdb::DEFAULT_COLUMN_FAMILY_NAME;
     use tempfile::tempdir;
+    use time::OffsetDateTime;
 
     use super::{RocksDBPieceStore, RocksDBStateStoreConfig};
     use crate::local_index_directory::{
@@ -827,7 +977,6 @@ mod test {
     fn add_deal_for_piece() {
         let db = init_database();
         let cid = cids_vec()[0];
-        // Not real values
         let deal_info = dummy_deal_info();
         let deal_info_2 = DealInfo {
             deal_uuid: uuid::Uuid::new_v4(),
@@ -858,5 +1007,147 @@ mod test {
         assert!(matches!(db.get_piece_cid_to_metadata(cid), Ok(None)));
         assert!(db.add_deal_for_piece(cid, deal_info.clone()).is_ok());
         assert!(db.add_deal_for_piece(cid, deal_info.clone()).is_err());
+    }
+
+    #[test]
+    fn remove_deal_for_piece() {
+        let db = init_database();
+        let cid = cids_vec()[0];
+        let deal_info = dummy_deal_info();
+        let deal_info_2 = DealInfo {
+            deal_uuid: uuid::Uuid::new_v4(),
+            ..deal_info.clone()
+        };
+
+        assert!(matches!(db.get_piece_cid_to_metadata(cid), Ok(None)));
+        assert!(db.add_deal_for_piece(cid, deal_info.clone()).is_ok());
+        assert!(db.add_deal_for_piece(cid, deal_info_2.clone()).is_ok()); // add a second one
+
+        let piece_info = db.get_piece_cid_to_metadata(cid);
+        assert!(matches!(piece_info, Ok(Some(_))));
+        assert_eq!(piece_info.unwrap().unwrap().deals[0], deal_info.clone());
+
+        let piece_info = db.get_piece_cid_to_metadata(cid);
+        assert!(matches!(piece_info, Ok(Some(_))));
+        assert_eq!(piece_info.unwrap().unwrap().deals[1], deal_info_2.clone());
+
+        assert!(db.remove_deal_for_piece(cid, deal_info_2.deal_uuid).is_ok());
+        assert_eq!(db.get_piece_deals(cid).unwrap(), vec![deal_info.clone()]);
+
+        assert!(db.remove_deal_for_piece(cid, deal_info.deal_uuid).is_ok());
+        assert!(matches!(
+            db.get_piece_deals(cid),
+            Err(PieceStoreError::NotFoundError)
+        ));
+    }
+
+    #[test]
+    fn is_indexed() {
+        let db = init_database();
+        let cid = cids_vec()[0];
+        let mut piece_info = PieceInfo::with_cid(cid);
+
+        // PieceInfo hasn't been inserted
+        assert_eq!(db.is_indexed(cid).unwrap(), false);
+        // Inserted but false
+        db.set_piece_cid_to_metadata(cid, &piece_info).unwrap();
+        assert_eq!(db.is_indexed(cid).unwrap(), false);
+        // Modify and insert
+        piece_info.indexed_at = OffsetDateTime::now_utc();
+        db.set_piece_cid_to_metadata(cid, &piece_info).unwrap();
+        assert!(db.is_indexed(cid).unwrap());
+    }
+
+    #[test]
+    fn indexed_at() {
+        let db = init_database();
+        let cid = cids_vec()[0];
+        let mut piece_info = PieceInfo::with_cid(cid);
+        piece_info.indexed_at = OffsetDateTime::now_utc();
+
+        // Inserted but false
+        db.set_piece_cid_to_metadata(cid, &piece_info).unwrap();
+        assert!(db.is_indexed(cid).unwrap());
+        assert_eq!(db.indexed_at(cid).unwrap(), piece_info.indexed_at);
+    }
+
+    #[test]
+    fn is_complete_index() {
+        let db = init_database();
+        let cid = cids_vec()[0];
+        let mut piece_info = PieceInfo::with_cid(cid);
+
+        // PieceInfo hasn't been inserted
+        assert!(matches!(
+            db.is_complete_index(cid),
+            Err(PieceStoreError::NotFoundError)
+        ));
+        // Inserted but false
+        db.set_piece_cid_to_metadata(cid, &piece_info).unwrap();
+        assert_eq!(db.is_complete_index(cid).unwrap(), false);
+        // Modify and insert
+        piece_info.complete_index = true;
+        db.set_piece_cid_to_metadata(cid, &piece_info).unwrap();
+        assert!(db.is_complete_index(cid).unwrap());
+    }
+
+    #[test]
+    fn list_pieces() {
+        let db = init_database();
+        let cids = cids_vec();
+
+        assert_eq!(db.list_pieces().unwrap(), vec![]);
+        // empty payload since `list_pieces` reads the Cid off of the key
+        cids.iter().for_each(|cid| {
+            db.put_value_at_key::<_, Vec<u8>>(cid.to_bytes(), &vec![], PIECE_CID_TO_CURSOR_CF)
+                .unwrap()
+        });
+        assert_eq!(db.list_pieces().unwrap(), cids);
+    }
+
+    #[test]
+    fn get_piece_metadata() {
+        let db = init_database();
+        let cid = Cid::from_str("QmawceGscqN4o8Y8Fv26UUmB454kn2bnkXV5tEQYc4jBd6").unwrap();
+        let piece_info = PieceInfo::with_cid(cid);
+
+        assert!(matches!(
+            db.get_piece_metadata(cid),
+            Err(PieceStoreError::NotFoundError)
+        ));
+        assert!(db.set_piece_cid_to_metadata(cid, &piece_info).is_ok());
+        let received = db.get_piece_metadata(cid);
+        assert!(matches!(received, Ok(_)));
+        assert_eq!(piece_info, received.unwrap());
+    }
+
+    #[test]
+    fn get_piece_deals() {
+        let db = init_database();
+        let cid = cids_vec()[0];
+        let deal_info = dummy_deal_info();
+        let deal_info_2 = DealInfo {
+            deal_uuid: uuid::Uuid::new_v4(),
+            ..deal_info.clone()
+        };
+
+        // Ensure there are no tricks up our sleeves
+        assert!(matches!(
+            db.get_piece_metadata(cid),
+            Err(PieceStoreError::NotFoundError)
+        ));
+        assert!(matches!(
+            db.get_piece_deals(cid),
+            Err(PieceStoreError::NotFoundError)
+        ));
+
+        assert!(db.add_deal_for_piece(cid, deal_info.clone()).is_ok());
+        assert!(db.add_deal_for_piece(cid, deal_info_2.clone()).is_ok()); // add a second one
+
+        assert!(matches!(db.get_piece_deals(cid), Ok(_)));
+        assert_eq!(
+            db.get_piece_deals(cid).unwrap(),
+            vec![deal_info, deal_info_2]
+        );
     }
 }

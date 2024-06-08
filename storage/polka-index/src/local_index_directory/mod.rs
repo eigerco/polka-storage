@@ -12,7 +12,7 @@ pub mod rdb;
 #[derive(Debug, thiserror::Error)]
 pub enum PieceStoreError {
     #[error("Deal already exists: {0}")]
-    DealExists(Uuid),
+    DuplicateDealError(Uuid),
 
     // TODO(@jmg-duarte,06/06/2024): make this error more specific for improved error messages
     #[error("Not found")]
@@ -233,7 +233,7 @@ pub struct DealInfo {
     /// Identifier for a deal.
     ///
     /// See [`DealId`] for more information.
-    #[serde(rename = "i", flatten)]
+    #[serde(rename = "i")]
     pub chain_deal_id: DealId,
 
     /// The miner's address.
@@ -257,11 +257,57 @@ pub struct DealInfo {
 
 // TODO(@jmg-duarte,04/06/2024): document
 pub trait Service {
+    /// Add [`DealInfo`] pertaining to the piece with the provided [`Cid`].
+    ///
+    /// * If the piece does not exist in the index, it will be created before adding the [`DealInfo`].
+    /// * If the deal is already present in the piece, returns [`PieceStoreError::DuplicateDealError`].
     fn add_deal_for_piece(
         &self,
         piece_cid: Cid,
         deal_info: DealInfo,
     ) -> Result<(), PieceStoreError>;
+
+    /// Remove a deal with the given [`Uuid`] for the piece with the provided [`Cid`].
+    ///
+    /// * If the piece does not exist, `false` will be returned instead of [`PieceStoreError::NotFoundError`].
+    fn remove_deal_for_piece(&self, piece_cid: Cid, deal_uuid: Uuid)
+        -> Result<(), PieceStoreError>;
+
+    /// Check if the piece with the provided [`Cid`] is indexed.
+    ///
+    /// * If the piece does not exist, `false` will be returned instead of [`PieceStoreError::NotFoundError`].
+    fn is_indexed(&self, piece_cid: Cid) -> Result<bool, PieceStoreError>;
+
+    /// Get when the piece with the provided [`Cid`] was indexed.
+    ///
+    /// * If the piece does not exist, returns [`PieceStoreError::NotFoundError`].
+    fn indexed_at(&self, piece_cid: Cid) -> Result<time::OffsetDateTime, PieceStoreError>;
+
+    /// Check if the piece with the provided [`Cid`] has been fully indexed.
+    ///
+    /// * If the piece does not exist, returns [`PieceStoreError::NotFoundError`].
+    fn is_complete_index(&self, piece_cid: Cid) -> Result<bool, PieceStoreError>;
+
+    /// Get the [`PieceInfo`] pertaining to the piece with the provided [`Cid`].
+    ///
+    /// * If the piece does not exist, returns [`PieceStoreError::NotFoundError`].
+    fn get_piece_metadata(&self, piece_cid: Cid) -> Result<PieceInfo, PieceStoreError>;
+
+    /// Remove the [`PieceInfo`] pertaining to the piece with the provided [`Cid`].
+    /// It will also remove the piece's indexes.
+    ///
+    /// * If the piece does not exist, returns [`PieceStoreError::NotFoundError`].
+    fn remove_piece_metadata(&self, piece_cid: Cid) -> Result<(), PieceStoreError>;
+
+    /// Get the list of [`DealInfo`] pertaining to the piece with the provided [`Cid`].
+    ///
+    /// * If the piece does not exist, returns [`PieceStoreError::NotFoundError`].
+    fn get_piece_deals(&self, piece_cid: Cid) -> Result<Vec<DealInfo>, PieceStoreError>;
+
+    /// List the existing pieces.
+    ///
+    /// * If no pieces exist, an empty [`Vec`] is returned.
+    fn list_pieces(&self) -> Result<Vec<Cid>, PieceStoreError>;
 
     // The return type in Go is considerably different:
     // type AddIndexProgress struct {
@@ -283,24 +329,17 @@ pub trait Service {
     // }
     fn get_index(&self, piece_cid: Cid) -> Result<Vec<Record>, PieceStoreError>;
 
-    fn is_indexed(&self, piece_cid: Cid) -> Result<bool, PieceStoreError>;
-    fn is_complete_index(&self, piece_cid: Cid) -> Result<bool, PieceStoreError>;
     fn get_offset_size(
         &self,
         piece_cid: Cid,
         multihash: multihash::Multihash<64>,
     ) -> Result<OffsetSize, PieceStoreError>;
-    fn list_pieces(&self) -> Result<Vec<Cid>, PieceStoreError>;
-    fn get_piece_metadata(&self, piece_cid: Cid) -> Result<PieceInfo, PieceStoreError>;
-    fn get_piece_deals(&self, piece_cid: Cid) -> Result<Vec<DealInfo>, PieceStoreError>;
-    fn indexed_at(&self, piece_cid: Cid) -> Result<time::OffsetDateTime, PieceStoreError>;
+
     fn pieces_containing_multihash(
         &self,
         multihash: multihash::Multihash<64>,
     ) -> Result<Vec<Cid>, PieceStoreError>;
-    fn remove_deal_for_piece(&self, piece_cid: Cid, deal_uuid: Uuid)
-        -> Result<(), PieceStoreError>;
-    fn remove_piece_metadata(&self, piece_cid: Cid) -> Result<(), PieceStoreError>;
+
     fn remove_indexes(&self, piece_cid: Cid) -> Result<(), PieceStoreError>;
     fn next_pieces_to_check(&self, miner_address: String) -> Result<Vec<Cid>, PieceStoreError>;
 
