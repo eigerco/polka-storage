@@ -7,14 +7,21 @@ that should not be used.
 
 - [Glossary](#glossary)
     - [Actor](#actor)
+    - [Bond](#bond)
     - [Collateral](#collateral)
     - [Collator](#collator)
+    - [Committed Capacity](#committed-capacity)
     - [Crowdloan](#crowdloan)
     - [Full Node](#full-node)
+    - [Invulnerable](#invulnerable)
     - [Node](#node)
     - [Parachain](#parachain)
     - [Polkadot](#polkadot)
+    - [Proofs](#proofs)
+        - [Proof-of-Replication (PoRep)](#porep)
+        - [Proof-of-Spacetime (PoSt)](#post)
     - [Relay Chain](#relay-chain)
+    - [Session](#session)
     - [Slashing](#slashing)
     - [Slot Auction](#slot-auction)
     - [Staking](#staking)
@@ -38,6 +45,13 @@ object with its own state and set of methods.
 [Actors](https://docs.filecoin.io/reference/built-in-actors#types-of-built-in-actors) define how
 the [Filecoin](https://docs.filecoin.io) network manages and updates global state.
 
+### Bond
+
+The amount of DOT's that a [collator](#collator) must lock up or stake as a security deposit. This bond is used to
+ensure that the [collator](#collator) acts honestly and follows the protocol rules. If the [collator](#collator)
+misbehaves or fails to perform their duties properly, their bond may be slashed, which means that a portion of their
+staked funds will be forfeited as a penalty.
+
 ### Collateral
 
 Collaterals are assets that are locked up or deposited as a form of security to mitigate risks and ensure the
@@ -54,6 +68,16 @@ candidates and producing state transition proofs (Proof-of-Validity, PoV) for va
 financial commitment ([collateral](#collateral)) to ensure they are incentivized to perform their duties correctly and
 to dissuade malicious behavior.
 
+### Committed Capacity
+
+The Committed Capacity (CC) is one of three types of deals in which there is effectively no deal, and the [Storage
+Provider](#storage-provider) stores random data inside the sector instead of customer data.
+
+If a [storage provider](#storage-provider) doesn't find any available deal proposals appealing, they can alternatively
+make a capacity commitment, filling a sector with arbitrary data, rather than with client data. Maintaining this sector
+allows the [storage provider](#storage-provider) to provably demonstrate that they are reserving space on behalf of the
+network.
+
 ### Crowdloan
 
 Projects can raise DOT tokens from the community through crowdloans. Participants pledge their DOT tokens to help the
@@ -64,6 +88,11 @@ and participants might receive rewards or tokens from the project in return.
 
 A device (computer) that fully downloads and stores the entire blockchain of the parachain, validating and relaying
 transactions and blocks within the network. It is one of the [node](#node) types.
+
+### Invulnerable
+
+A status assigned to certain [collators](#collator) that makes them exempt from being removed from the active set of
+[collators](#collator).
 
 ### Node
 
@@ -80,10 +109,29 @@ from shared security and interoperability, and can be validated by the validator
 “Layer-0” blockchain platform designed to facilitate interoperability, scalability and security among different
 “Layer-1” blockchains, called [parachains](#parachain).
 
+## Proofs
+
+Cryptographic evidence used to verify that storage providers have received, are storing, and are continuously
+maintaining data as promised.
+
+There are two main types of proofs:
+
+- <a name="porep"></a> **Proof-of-Replication (PoRep):** In order to register a sector with the network, the
+  sector has to be sealed. Sealing is a computation-heavy process that produces a unique representation of the data in
+  the form of a proof, called Proof-of-Replication or PoRep.
+
+- <a name="post"></a> **Proof-of-Spacetime (PoSt):** Used to verify that the storage provider continues to store the
+  data over time. [Storage providers](#storage-provider) must periodically generate and submit proofs to show that they
+  are still maintaining the stored data as promised.
+
 ### Relay Chain
 
 The Relay Chain in [Polkadot](#polkadot) is the central chain (blockchain) responsible for the network's shared
 security, consensus, and cross-chain interoperability.
+
+### Session
+
+A predefined period during which a set of [collators](#collator) remains constant.
 
 ### Slashing
 
@@ -114,6 +162,8 @@ return, they can earn rewards. There are two main roles involved in staking:
   who don't want to run a validator node to still participate in the network's security and earn rewards.
 
 Our parachain will use staking to back up the [collators](#collator) in a similar way as "Nominators" do.
+In this regard, the role of "Nominators" will fall to [Storage Providers](#storage-provider), while the role of "
+Validators" will be assigned to [Collators](#collator) accordingly.
 
 ### Storage Provider
 
