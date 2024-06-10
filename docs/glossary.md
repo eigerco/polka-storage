@@ -137,9 +137,10 @@ A predefined period during which a set of [collators](#collator) remains constan
 
 The process of penalizing network participants, including [validators](#validators), [nominators](#nominators),
 and [collators](#collator), for various protocol
-violations. These violations could include producing invalid blocks, equivocation (double signing), or other malicious
-activities. As a result of slashing, participants may face a reduction in their [staked](#staking) funds or other
-penalties depending on the severity of the violation.
+violations. These violations could include producing invalid blocks, equivocation (double signing), inability of the
+[Storage Provider](#storage-provider) to [prove](#proofs) that the data is stored and maintained as promised, or other
+malicious activities. As a result of slashing, participants may face a reduction in their [staked](#staking) funds or
+other penalties depending on the severity of the violation.
 
 ### Slot Auction
 
