@@ -18,35 +18,6 @@ The `Storage Provider Pallet` allows storage providers to modify their informati
 
 In our parachain, the state management for all storage providers is handled collectively, unlike Filecoin, which manages the state for individual storage providers.
 
-### State Structure
-
-The State structure maintains all the necessary information about the storage providers. This structure includes details about funds, sectors, and deadlines.
-
-```rust
-pub struct ProviderInfo {
-    // Contains static information about the storage provider.
-    pub info: Cid,
-    /// Total funds locked as pre_commit_deposit
-    pub pre_commit_deposits: u128,
-    /// Total rewards and added funds locked in vesting table
-    pub locked_funds: u128,
-    /// Sum of initial pledge requirements of all active sectors
-    pub initial_pledge: u128,
-    /// Sectors that have been pre-committed but not yet proven
-    pub pre_committed_sectors: Cid,
-    /// Allocated sector IDs.
-    pub allocated_sectors: Cid,
-    /// Information for all proven and not-yet-garbage-collected sectors
-    pub sectors: Cid,
-    /// The first block number in this storage provider's current proving period
-    pub proving_period_start: u64,
-    /// Index of the deadline within the proving period beginning at ProvingPeriodStart that has not yet been finalized
-    pub current_deadline: u64,
-    /// The sector numbers due for PoSt at each deadline in the current proving period, frozen at period start
-    pub deadlines: Cid,
-}
-```
-
 ### Static information about a Storage Provider
 
 The below struct and its fields ensure that all necessary static information about a Storage provider is encapsulated, allowing for efficient management and interaction within the parachain.
