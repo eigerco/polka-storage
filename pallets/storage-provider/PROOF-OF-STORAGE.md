@@ -57,6 +57,9 @@ Before delving into the details of WinningPoSt and WindowPoSt algorithms, it is 
 
 ### WinningPoSt
 
+> [!NOTE]
+> This is not relevant for our implementation as block rewards are earned by Collators.
+
 At the beginning of each epoch, a small number of storage providers are elected to validate new blocks through the Expected Consensus algorithm. Each elected provider must submit proof that they maintain a sealed copy of the data included in their proposed block before the end of the current epoch. This proof submission is known as WinningPoSt. Successfully submitting a WinningPoSt proof grants the provider a block reward and the opportunity to charge fees for including transactions in the block. Failing to meet the deadline results in the provider missing the opportunity to validate a block and earn rewards.
 
 ### WindowPoSt
