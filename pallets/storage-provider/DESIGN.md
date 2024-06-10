@@ -23,7 +23,6 @@ In our parachain, the state management for all storage providers is handled coll
 The State structure maintains all the necessary information about the storage providers. This structure includes details about funds, sectors, and deadlines.
 
 ```rust
-#[derive(Encode, Decode, Default, Clone, PartialEq, Debug)]
 pub struct ProviderInfo {
     // Contains static information about the storage provider.
     pub info: Cid,
@@ -53,7 +52,6 @@ pub struct ProviderInfo {
 The below struct and its fields ensure that all necessary static information about a Storage provider is encapsulated, allowing for efficient management and interaction within the parachain.
 
 ```rust
-#[derive(Debug, PartialEq, Eq, Serialize_tuple, Deserialize_tuple)]
 pub struct StorageProviderInfo<AccountId, PeerId> {
     /// Account that owns this StorageProvider
     /// - Income and returned collateral are paid to this address
@@ -88,5 +86,78 @@ pub struct StorageProviderInfo<AccountId, PeerId> {
     /// simplifies the process of generating and verifying proofs. By storing this value, we enhance the efficiency
     /// of proof operations and reduce computational overhead during runtime.
     pub window_post_partition_sectors: u64,
+}
+```
+
+## Data structures
+
+### Proof of spacetime
+
+Proof of spacetime indicates the version and the sector size of the proof. This type is used by the Storage Provider when initially starting up to indicate what PoSt version it will use to submit Window PoSt proof.
+
+```rust
+pub enum RegisteredPoStProof {
+    StackedDRGWinning2KiBV1,
+    StackedDRGWinning8MiBV1,
+    StackedDRGWinning512MiBV1,
+    StackedDRGWinning32GiBV1,
+    StackedDRGWinning64GiBV1,
+    StackedDRGWindow2KiBV1P1,
+    StackedDRGWindow8MiBV1P1,
+    StackedDRGWindow512MiBV1P1,
+    StackedDRGWindow32GiBV1P1,
+    StackedDRGWindow64GiBV1P1,
+    Invalid(i64),
+}
+```
+
+The `SectorSize` indicates one of a set of possible sizes in the network.
+
+```rust
+#[repr(u64)]
+pub enum SectorSize {
+    _2KiB = 2_048,
+    _8MiB = 8_388_608,
+    _512MiB = 536_870_912,
+    _32GiB = 34_359_738_368,
+    _64GiB = 68_719_476_736,
+}
+```
+
+### Proof of replication
+
+Proof of replication is used when a Storage Provider wants to store data on behalf of a client and receives a piece of client data. The data will first be placed in a sector after which that sector is sealed by the storage provider. Then a unique encoding, which serves as proof that the Storage Provider has replicated a copy of the data they agreed to store, is generated. Finally, the proof is compressed and submitted to the network as certification of storage.
+
+```rust
+/// This type indicates the seal proof type which defines the version and the sector size
+pub enum RegisteredSealProof {
+    StackedDRG2KiBV1,
+    StackedDRG512MiBV1,
+    StackedDRG8MiBV1,
+    StackedDRG32GiBV1,
+    StackedDRG64GiBV1,
+    StackedDRG2KiBV1P1,
+    StackedDRG512MiBV1P1,
+    StackedDRG8MiBV1P1,
+    StackedDRG32GiBV1P1,
+    StackedDRG64GiBV1P1,
+    StackedDRG2KiBV1P1_Feat_SyntheticPoRep,
+    StackedDRG512MiBV1P1_Feat_SyntheticPoRep,
+    StackedDRG8MiBV1P1_Feat_SyntheticPoRep,
+    StackedDRG32GiBV1P1_Feat_SyntheticPoRep,
+    StackedDRG64GiBV1P1_Feat_SyntheticPoRep,
+    Invalid(i64),
+}
+```
+
+The unique encoding created during the sealing process is generated using the sealed data, the storage provider who seals the data and the time at which the data was sealed.
+
+```rust
+/// This type is passed into the pre commit function on the storage provider pallet
+pub struct SectorPreCommitInfo {
+    pub seal_proof: RegisteredSealProof,
+    pub sector_number: SectorNumber,
+    pub sealed_cid: Cid,
+    pub expiration: u64,
 }
 ```

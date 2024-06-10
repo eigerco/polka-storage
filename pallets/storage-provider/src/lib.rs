@@ -14,32 +14,13 @@
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+mod types;
+
 pub use pallet::{Config, Pallet};
-
-use codec::{Decode, Encode};
-use scale_info::prelude::string::String;
-use scale_info::TypeInfo;
-
-#[derive(Decode, Encode, TypeInfo)]
-pub struct StorageProviderInfo<
-    AccountId: Encode + Decode + Eq + PartialEq,
-    PeerId: Encode + Decode + Eq + PartialEq,
-    StoragePower: Encode + Decode + Eq + PartialEq,
-> {
-    /// The owner of this storage_provider.
-    owner: AccountId,
-    /// storage_provider's libp2p peer id in bytes.
-    peer_id: PeerId,
-    /// The total power the storage provider has
-    total_raw_power: StoragePower,
-    /// The price of storage (in DOT) for each block the storage provider takes for storage.
-    // TODO(aidan46, no-ref, 2024-06-04): Use appropriate type
-    price_per_block: String,
-}
 
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
-    use super::StorageProviderInfo;
+    use crate::types::StorageProviderInfo;
 
     use codec::{Decode, Encode};
     use core::fmt::Debug;
