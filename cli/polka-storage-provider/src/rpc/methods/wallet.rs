@@ -17,7 +17,7 @@ impl RpcMethod for WalletBalance {
     type Ok = Option<WalletBalanceResult>;
 
     async fn handle(ctx: Ctx, _params: Params<'_>) -> Result<Self::Ok, ServerError> {
-        // TODO(@cernicc,05/06/2024): Implement correctly. dev alice is used as a show case for now.
+        // TODO(#68,@cernicc,05/06/2024): Implement correctly. dev alice is used as a show case for now.
         let account = dev::alice().public_key().into();
         let balance = get_system_balances(&ctx.substrate_client, &account).await?;
 
