@@ -115,7 +115,6 @@ pub enum RegisteredPoStProof {
 
 impl RegisteredPoStProof {
     /// Returns the sector size of the proof type, which is measured in bytes.
-    #[allow(unused)]
     pub fn sector_size(self) -> Result<SectorSize, String> {
         use RegisteredPoStProof::*;
         match self {
@@ -148,7 +147,6 @@ impl RegisteredPoStProof {
     }
     /// Returns the partition size, in sectors, associated with a proof type.
     /// The partition size is the number of sectors proven in a single PoSt proof.
-    #[allow(unused)]
     pub fn window_post_partitions_sector(self) -> Result<u64, String> {
         // Resolve to post proof and then compute size from that.
         use RegisteredPoStProof::*;
