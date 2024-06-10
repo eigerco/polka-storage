@@ -57,7 +57,6 @@ pub trait RpcMethod {
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub enum ApiVersion {
     V0,
-    V1,
 }
 
 pub struct RpcServerState {
