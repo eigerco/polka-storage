@@ -79,11 +79,11 @@ The `SectorSize` indicates one of a set of possible sizes in the network.
 ```rust
 #[repr(u64)]
 pub enum SectorSize {
-    _2KiB = 2_048,
-    _8MiB = 8_388_608,
-    _512MiB = 536_870_912,
-    _32GiB = 34_359_738_368,
-    _64GiB = 68_719_476_736,
+    _2KiB
+    _8MiB,
+    _512MiB,
+    _32GiB,
+    _64GiB,
 }
 ```
 
