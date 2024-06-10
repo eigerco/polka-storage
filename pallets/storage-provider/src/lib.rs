@@ -20,23 +20,19 @@ pub use pallet::{Config, Pallet};
 
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
-    use crate::types::StorageProviderInfo;
+    use crate::types::{
+        PoStProof, RegisteredPoStProof, SectorNumber, SectorPreCommitInfo, StorageProviderInfo,
+    };
 
     use codec::{Decode, Encode};
     use core::fmt::Debug;
     use frame_support::dispatch::DispatchResultWithPostInfo;
     use frame_support::ensure;
     use frame_support::pallet_prelude::{IsType, StorageMap};
-    use frame_support::traits::{Currency, ReservableCurrency};
+    use frame_system::ensure_signed;
     use frame_system::pallet_prelude::OriginFor;
-    use frame_system::{ensure_signed, Config as SystemConfig};
-    use scale_info::prelude::string::String;
+    use scale_info::prelude::vec::Vec;
     use scale_info::TypeInfo;
-
-    // Allows to extract Balance of an account via the Config::Currency associated type.
-    // BalanceOf is a sophisticated way of getting an u128.
-    type BalanceOf<T> =
-        <<T as Config>::Currency as Currency<<T as SystemConfig>::AccountId>>::Balance;
 
     #[pallet::pallet]
     #[pallet::without_storage_info] // Allows to define storage items without fixed size
@@ -47,31 +43,18 @@ pub mod pallet {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-        /// The currency mechanism.
-        /// Used for rewards, using `ReservableCurrency` over `Currency` because the rewards will be locked
-        /// in this pallet until the storage provider requests the funds through `withdraw_balance`
-        type Currency: ReservableCurrency<Self::AccountId>;
-
         /// Peer ID is derived by hashing an encoded public key.
         /// Usually represented in bytes.
         /// https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
         type PeerId: Clone + Debug + Decode + Encode + Eq + TypeInfo;
-
-        /// Unit of Storage Power of a Storage Provider
-        /// E.g. `u128`, used as `number of bytes` for a given SP.
-        type StoragePower: Clone + Debug + Decode + Encode + Eq + TypeInfo;
     }
 
     // Need some storage type that keeps track of sectors, deadlines and terminations.
     // Could be added to this type maybe?
     #[pallet::storage]
     #[pallet::getter(fn storage_providers)]
-    pub type StorageProviders<T: Config> = StorageMap<
-        _,
-        _,
-        T::AccountId,
-        StorageProviderInfo<T::AccountId, T::PeerId, T::StoragePower>,
-    >;
+    pub type StorageProviders<T: Config> =
+        StorageMap<_, _, T::AccountId, StorageProviderInfo<T::AccountId, T::PeerId>>;
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -92,6 +75,8 @@ pub mod pallet {
 
     #[pallet::error]
     pub enum Error<T> {
+        /// Error emitted when the provided information for the storage provider is invalid.
+        StorageProviderInfoError,
         /// Error emitted when trying to get info on a storage provider that does not exist.
         StorageProviderNotFound,
         /// Error emitted when doing a privileged call and the signer does not match.
@@ -109,19 +94,15 @@ pub mod pallet {
         pub fn create_storage_provider(
             origin: OriginFor<T>,
             peer_id: T::PeerId,
-            total_raw_power: T::StoragePower,
-            price_per_block: String,
+            window_post_proof_type: RegisteredPoStProof,
         ) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
             let owner = ensure_signed(origin)?;
 
             // Generate some storage_provider id and insert into `StorageProviders` storage
-            let storage_provider_info = StorageProviderInfo {
-                owner: owner.clone(),
-                peer_id: peer_id.clone(),
-                total_raw_power,
-                price_per_block,
-            };
+            let storage_provider_info =
+                StorageProviderInfo::new(owner.clone(), peer_id.clone(), window_post_proof_type)
+                    .map_err(|_| Error::<T>::StorageProviderInfoError)?;
             // Probably need some check to make sure the storage provider is legit
             // This means the storage provider exist
             ensure!(
@@ -195,18 +176,13 @@ pub mod pallet {
                     // Ensure storage_provider is the owner of the storage_provider
                     ensure!(storage_provider == info.owner, Error::<T>::InvalidSigner);
 
-                    let new_info = StorageProviderInfo {
-                        owner: new_owner.clone(),
-                        peer_id: info.peer_id,
-                        total_raw_power: info.total_raw_power,
-                        price_per_block: info.price_per_block,
-                    };
-
                     // Ensure no storage provider is associated with the new owner
                     ensure!(
                         !StorageProviders::<T>::contains_key(&new_owner),
                         Error::<T>::DuplicateStorageProvider
                     );
+
+                    let new_info = info.change_owner(new_owner.clone());
 
                     // Insert new storage provider info
                     StorageProviders::<T>::insert(new_owner.clone(), new_info);
@@ -226,48 +202,16 @@ pub mod pallet {
             }
         }
 
-        // Used by the reward pallet to award a block reward to a storage_provider.
+        /// Used by the storage provider to submit their Proof-of-Spacetime
         #[pallet::call_index(3)]
         // #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
         // TODO(aidan46, no-ref, 2024-06-04): Determine applicable weights.
-        pub fn apply_rewards(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
-            // Check that the extrinsic was signed and get the signer.
-            let _who = ensure_signed(origin)?;
-            // TODO(@aidan46, no-ref, 2024-06-04): Implement apply rewards functionality
-            unimplemented!("Apply rewards is not implemented yet")
-        }
-
-        /// This method is used to report a consensus fault by a storage provider.
-        #[pallet::call_index(4)]
-        // #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
-        // TODO(aidan46, no-ref, 2024-06-04): Determine applicable weights.
-        pub fn report_consensus_fault(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
-            // Check that the extrinsic was signed and get the signer.
-            let _who = ensure_signed(origin)?;
-            // TODO(@aidan46, no-ref, 2024-06-04): Implement report consensus fault functionality
-            unimplemented!("Report consensus fault is not implemented yet")
-        }
-
-        /// Used by the storage provider to withdraw available funds earned from block rewards.
-        /// If the amount to withdraw is larger than what is available the extrinsic will fail.
-        #[pallet::call_index(5)]
-        // #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
-        // TODO(aidan46, no-ref, 2024-06-04): Determine applicable weights.
-        pub fn withdraw_balance(
+        pub fn submit_windowed_post(
             origin: OriginFor<T>,
-            _amount: BalanceOf<T>,
+            _deadline: u64,
+            _partitions: Vec<u64>,
+            _proofs: Vec<PoStProof>,
         ) -> DispatchResultWithPostInfo {
-            // Check that the extrinsic was signed and get the signer.
-            let _who = ensure_signed(origin)?;
-            // TODO(@aidan46, no-ref, 2024-06-04): Implement withdraw balance functionality
-            unimplemented!("Withdraw balance is not implemented yet")
-        }
-
-        /// Used by the storage provider to submit their Proof-of-Spacetime
-        #[pallet::call_index(6)]
-        // #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
-        // TODO(aidan46, no-ref, 2024-06-04): Determine applicable weights.
-        pub fn submit_windowed_post(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
             let _who = ensure_signed(origin)?;
             // TODO(@aidan46, no-ref, 2024-06-04): Implement submit windowed PoSt functionality
@@ -276,10 +220,15 @@ pub mod pallet {
 
         /// Used to declare a set of sectors as "faulty," indicating that the next PoSt for those sectors'
         /// deadline will not contain a proof for those sectors' existence.
-        #[pallet::call_index(7)]
+        #[pallet::call_index(4)]
         // #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
         // TODO(aidan46, no-ref, 2024-06-05): Determine applicable weights.
-        pub fn declare_faults(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+        pub fn declare_faults(
+            origin: OriginFor<T>,
+            _deadline: u64,
+            _partition: u64,
+            _sectors: Vec<u64>,
+        ) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
             let _who = ensure_signed(origin)?;
             // TODO(@aidan46, no-ref, 2024-06-05): Implement declare faults functionality
@@ -288,10 +237,15 @@ pub mod pallet {
 
         /// Used by a Storage Provider to declare a set of faulty sectors as "recovering," indicating that the
         /// next PoSt for those sectors' deadline will contain a proof for those sectors' existence.
-        #[pallet::call_index(8)]
+        #[pallet::call_index(5)]
         // #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
         // TODO(aidan46, no-ref, 2024-06-05): Determine applicable weights.
-        pub fn declare_faults_recovered(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+        pub fn declare_faults_recovered(
+            origin: OriginFor<T>,
+            _deadline: u64,
+            _partition: u64,
+            _sectors: Vec<u64>,
+        ) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
             let _who = ensure_signed(origin)?;
             // TODO(@aidan46, no-ref, 2024-06-05): Implement declare faults recovered functionality
@@ -299,10 +253,13 @@ pub mod pallet {
         }
 
         /// Pledges the storage provider to seal and commit some new sectors.
-        #[pallet::call_index(9)]
+        #[pallet::call_index(6)]
         // #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
         // TODO(aidan46, no-ref, 2024-06-05): Determine applicable weights.
-        pub fn pre_commit_sector(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+        pub fn pre_commit_sector(
+            origin: OriginFor<T>,
+            _sectors: SectorPreCommitInfo,
+        ) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
             let _who = ensure_signed(origin)?;
             // TODO(@aidan46, no-ref, 2024-06-05): Implement pre commit sector functionality
@@ -311,10 +268,14 @@ pub mod pallet {
 
         /// Checks state of the corresponding sector pre-commitments and verifies aggregate proof of replication
         /// of these sectors. If valid, the sectors' deals are activated.
-        #[pallet::call_index(10)]
+        #[pallet::call_index(8)]
         // #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
         // TODO(aidan46, no-ref, 2024-06-05): Determine applicable weights.
-        pub fn prove_commit_sector(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+        pub fn prove_commit_sector(
+            origin: OriginFor<T>,
+            _sector_number: SectorNumber,
+            _proof: Vec<u8>,
+        ) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
             let _who = ensure_signed(origin)?;
             // TODO(@aidan46, no-ref, 2024-06-07): Implement prove commit sector functionality

@@ -53,14 +53,6 @@ The below struct and its fields ensure that all necessary static information abo
 
 ```rust
 pub struct StorageProviderInfo<AccountId, PeerId> {
-    /// Account that owns this StorageProvider
-    /// - Income and returned collateral are paid to this address
-    /// 
-    /// Rationale: The owner account is essential for economic transactions and permissions management.
-    /// By tying the income and collateral to this address, we ensure that the economic benefits and responsibilities
-    /// are correctly attributed.
-    pub owner: AccountId,
-
     /// Libp2p identity that should be used when connecting to this Storage Provider
     pub peer_id: PeerId,
 
@@ -121,6 +113,15 @@ pub enum SectorSize {
     _512MiB = 536_870_912,
     _32GiB = 34_359_738_368,
     _64GiB = 68_719_476_736,
+}
+```
+
+The `PoStProof` is the proof of spacetime data that is stored on chain
+
+```rust
+pub struct PoStProof {
+    pub post_proof: RegisteredPoStProof,
+    pub proof_bytes: Vec<u8>,
 }
 ```
 
