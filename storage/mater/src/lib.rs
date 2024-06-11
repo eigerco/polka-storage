@@ -2,7 +2,7 @@
 //! Both version 1 and version 2 are supported.
 //!
 //! You can make use of the lower-level utilities such as [`CarV2Reader`] to read a CARv2 file,
-//! though these utilies were designed to be used in higher-level abstractions, like the [`Blockstore`].
+//! though these utilities were designed to be used in higher-level abstractions, like the [`Blockstore`].
 
 #![warn(unused_crate_dependencies)]
 #![warn(missing_docs)]

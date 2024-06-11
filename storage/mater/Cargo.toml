@@ -12,6 +12,7 @@ async-stream.workspace = true
 bitflags.workspace = true
 byteorder = { workspace = true, features = ["i128"] }
 bytes.workspace = true
+criterion = { workspace = true, features = ["async_tokio", "html_reports"] }
 digest.workspace = true
 futures.workspace = true
 indexmap.workspace = true
@@ -23,7 +24,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_ipld_dagcbor.workspace = true
 sha2.workspace = true
 thiserror.workspace = true
-tokio = { workspace = true, features = ["fs", "macros", "rt"] }
+tokio = { workspace = true, features = ["fs", "macros", "rt", "rt-multi-thread"] }
 tokio-stream.workspace = true
 tokio-util = { workspace = true, features = ["io"] }
 
@@ -33,3 +34,7 @@ tempfile.workspace = true
 
 [lints]
 workspace = true
+
+[[bench]]
+harness = false
+name = "benchmark"
