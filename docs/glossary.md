@@ -47,10 +47,15 @@ the [Filecoin](https://docs.filecoin.io) network manages and updates global stat
 
 ### Bond
 
-The amount of DOT's that a [collator](#collator) must lock up or stake as a security deposit. This bond is used to
-ensure that the [collator](#collator) acts honestly and follows the protocol rules. If the [collator](#collator)
-misbehaves or fails to perform their duties properly, their bond may be slashed, which means that a portion of their
-staked funds will be forfeited as a penalty.
+This term used in:
+
+- Parachain [Slot Auction](#slot-auction). To bid in an auction, [parachain](#parachain) teams agree to lock up (or
+  bond) a portion of DOT tokens for the duration of the lease. While bonded for a lease, the DOT cannot be used for
+  other activities like staking or transfers.
+
+- [Collator](#collator) slot auction (selection mechanism). It is used as a deposit to become a collator. Candidates can
+  register by placing the minimum bond. Then, if an account wants to participate in the [collator](#collator) slot
+  auction, they have to replace an existing candidate by placing a greater deposit (bond).
 
 ### Collateral
 
