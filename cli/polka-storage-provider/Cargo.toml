@@ -1,18 +1,19 @@
 [package]
-name = "polka-storage-provider"
-version = "0.1.0"
 authors.workspace = true
 edition.workspace = true
 homepage.workspace = true
 license-file.workspace = true
+name = "polka-storage-provider"
 repository.workspace = true
+version = "0.1.0"
 
 [dependencies]
-cli-primitives = { path = "../../primitives/cli" }
 clap = { workspace = true, features = ["derive"] }
-url = { workspace = true }
+cli-primitives = { path = "../../primitives/cli" }
 env_logger = { workspace = true }
+sc-cli = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
+url = { workspace = true }
 
 [lints]
 workspace = true
