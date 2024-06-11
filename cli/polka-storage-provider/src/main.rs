@@ -6,7 +6,6 @@ mod cli;
 
 pub(crate) mod commands;
 pub(crate) use cli::Cli;
-
 use cli_primitives::Result;
 use commands::runner;
 

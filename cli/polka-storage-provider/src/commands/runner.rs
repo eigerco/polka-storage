@@ -1,8 +1,7 @@
-use crate::cli::Subcommand;
-use crate::commands::WalletCmd;
-use crate::Cli;
 use clap::Parser;
 use cli_primitives::Result;
+
+use crate::{cli::Subcommand, commands::WalletCmd, Cli};
 
 /// Parses command line arguments into the service configuration and runs the specified
 /// command with it.

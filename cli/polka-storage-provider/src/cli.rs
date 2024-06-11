@@ -1,5 +1,6 @@
-use crate::commands::{RunRpcCmd, StopRpcCmd, WalletCmd};
 use clap::Parser;
+
+use crate::commands::{RunRpcCmd, StopRpcCmd, WalletCmd};
 
 /// A CLI application that facilitates management operations over a running full node and other components.
 #[derive(Parser, Debug)]
