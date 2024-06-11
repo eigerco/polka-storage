@@ -131,6 +131,9 @@ pub(crate) mod test_utils {
     use std::path::Path;
 
     pub(crate) use assert_buffer_eq;
+    /// This is here so that our build doesn't fail. It thinks that the
+    /// criterion is not used. But it is used by the benchmarks.
+    use criterion as _;
     use tokio::{fs::File, io::AsyncWriteExt};
 
     /// Dump a byte slice into a file.
