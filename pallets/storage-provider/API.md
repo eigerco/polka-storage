@@ -1,5 +1,8 @@
 # Storage Provider pallet API
 
+> [!NOTE]
+> Some terms used in this document are described in the [design document](./DESIGN.md#constants--terminology)
+
 ## Creating Storage Provider
 
 When a Storage provider first starts up it needs to index itself in the storage provider pallet. The `create_storage_provider` extrinsic is used for this.
