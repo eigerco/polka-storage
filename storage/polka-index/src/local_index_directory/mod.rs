@@ -91,43 +91,19 @@ impl FlaggedMetadata {
 
 // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/model/model.go#L50-L62
 
+// NOTE(@jmg-duarte,12/06/2024): `OffsetSize` is currently (de)serialized using CBOR
+// however, we can save up on space using the same encoding that the original implementation uses
+// which are just two varints, packed together
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OffsetSize {
-    // Offset is the offset into the CAR file of the section, where a section
-    // is <section size><cid><block data>
+    /// Offset is the offset into the CAR file of the section, where a section
+    /// is <section size><cid><block data>
     #[serde(rename = "o")]
     pub offset: u64,
 
-    // Size is the size of the block data (not the whole section)
+    /// Size is the size of the block data (not the whole section)
     #[serde(rename = "s")]
     pub size: u64,
-}
-
-impl OffsetSize {
-    // NOTE(@jmg-duarte,06/06/2024): I've decided against implementing From/Into as this API is very specific
-    // and the traits would be public by default
-
-    /// Convert [`Self`] to bytes, this is done by encoding [`Self::offset`] and [`Self::size`] as [`VarInt`]s
-    /// and packing them without padding.
-    ///
-    /// Source:
-    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L358-L360>
-    pub(crate) fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = vec![0u8; self.offset.required_space() + self.size.required_space()];
-        let o = self.offset.encode_var(&mut bytes);
-        self.size.encode_var(&mut bytes[o..]);
-        bytes
-    }
-
-    /// Read a byte slice into [`Self`], this is the dual to [`Self::to_bytes`].
-    ///
-    /// Source:
-    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L377-L382>
-    pub(crate) fn from_bytes(mut bytes: &[u8]) -> Result<Self, std::io::Error> {
-        let offset = bytes.read_varint()?;
-        let size = bytes.read_varint()?;
-        Ok(Self { offset, size })
-    }
 }
 
 // Record is the information stored in the index for each block in a piece
@@ -346,6 +322,9 @@ pub trait Service {
         multihash: multihash::Multihash<64>,
     ) -> Result<OffsetSize, PieceStoreError>;
 
+    /// Get all the pieces containing the given [`Multihash`].
+    ///
+    /// * If not pieces are found, returns [`PieceStoreError::NotFoundError`].
     fn pieces_containing_multihash(
         &self,
         multihash: multihash::Multihash<64>,

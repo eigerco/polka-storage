@@ -1,19 +1,19 @@
 // The name of this file is `rdb.rs` to avoid clashing with the `rocksdb` import.
-use std::{collections::HashMap, path::PathBuf, str::FromStr};
+use std::{path::PathBuf, str::FromStr};
 
 use base64::Engine;
-use cid::{multihash::Multihash, Cid, CidGeneric};
+use cid::{multihash::Multihash, Cid};
 use integer_encoding::{VarInt, VarIntReader};
 use rocksdb::{
-    AsColumnFamilyRef, ColumnFamily, ColumnFamilyDescriptor, IteratorMode, Options,
-    WriteBatchWithTransaction, DB as RocksDB,
+    ColumnFamily, ColumnFamilyDescriptor, IteratorMode, Options, WriteBatchWithTransaction,
+    DB as RocksDB,
 };
 use serde::{de::DeserializeOwned, Serialize};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
 use super::{
-    ext::WriteBatchWithTransactionExt, CarIndexRecord, DealInfo, FlaggedMetadata, FlaggedPiece,
+    ext::WriteBatchWithTransactionExt, DealInfo, FlaggedMetadata, FlaggedPiece,
     FlaggedPiecesListFilter, OffsetSize, PieceInfo, PieceStoreError, Record, Service,
 };
 
@@ -664,32 +664,18 @@ impl Service for RocksDBPieceStore {
         .ok_or(PieceStoreError::NotFoundError)
     }
 
+    /// For a detailed description, see [`Service::pieces_containing_multihash`].
+    ///
+    /// This information is stored in the [`MULTIHASH_TO_PIECE_CID_CF`] column family.
+    ///
+    /// Sources:
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L226-L252>
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L132-L150>
     fn pieces_containing_multihash(
         &self,
         multihash: Multihash<64>,
     ) -> Result<Vec<Cid>, PieceStoreError> {
-        let iterator = self.database.iterator_cf(
-            self.cf_handle(MULTIHASH_TO_PIECE_CID_CF),
-            IteratorMode::Start,
-        );
-
-        iterator
-            .map(|line| {
-                let (key, value) = line?;
-                let mh: Multihash<64> = Multihash::from_bytes(&key)?;
-                let parsed_cid = Cid::try_from(value.as_ref()).map_err(|err| {
-                    // We know that all stored CIDs are valid, so this
-                    // should only happen if database is corrupted.
-                    PieceStoreError::Deserialization(format!("invalid CID: {}", err))
-                })?;
-                Ok((mh, parsed_cid))
-            })
-            .filter_map(|res| match res {
-                Ok((mh, cid)) if mh == multihash => Some(Ok(cid)),
-                Ok(_) => None,
-                Err(err) => Some(Err(err)),
-            })
-            .collect()
+        self.get_multihash_to_piece_cids(&multihash)
     }
 
     /// Sources:
@@ -892,6 +878,8 @@ impl Service for RocksDBPieceStore {
     }
 }
 
+// TODO(@jmg-duarte,12/06/2024): replace .is_ok() assertions with unwraps
+// they provide a stack trace with more information
 #[cfg(test)]
 mod test {
     use std::str::FromStr;
@@ -1302,5 +1290,32 @@ mod test {
 
         let offset_size = db.get_offset_size(cid, *cids[2].hash()).unwrap();
         assert_eq!(records[1].offset_size, offset_size);
+    }
+
+    #[test]
+    fn pieces_containing_multihash() {
+        let db = init_database();
+        let cids = cids_vec();
+        let deal_info = dummy_deal_info();
+        let records = vec![Record {
+            cid: cids[2],
+            offset_size: OffsetSize { offset: 0, size: 0 },
+        }];
+
+        let pieces = db
+            .pieces_containing_multihash(cids[2].hash().to_owned())
+            .unwrap();
+        assert_eq!(pieces, vec![]);
+
+        db.add_deal_for_piece(cids[0], deal_info.clone()).unwrap();
+        db.add_deal_for_piece(cids[1], deal_info.clone()).unwrap();
+
+        db.add_index(cids[0], records.clone(), false).unwrap();
+        db.add_index(cids[1], records, false).unwrap();
+
+        let pieces = db
+            .pieces_containing_multihash(cids[2].hash().to_owned())
+            .unwrap();
+        assert_eq!(pieces, vec![cids[0], cids[1]]);
     }
 }
