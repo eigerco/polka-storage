@@ -1,5 +1,4 @@
 use codec::{Decode, Encode};
-use scale_info::prelude::format;
 use scale_info::prelude::string::String;
 use scale_info::prelude::vec::Vec;
 use scale_info::TypeInfo;
@@ -61,10 +60,9 @@ where
         peer_id: PeerId,
         window_post_proof_type: RegisteredPoStProof,
     ) -> Result<Self, String> {
-        let sector_size = window_post_proof_type.sector_size()?;
+        let sector_size = window_post_proof_type.sector_size();
 
-        let window_post_partition_sectors =
-            window_post_proof_type.window_post_partitions_sector()?;
+        let window_post_partition_sectors = window_post_proof_type.window_post_partitions_sector();
 
         Ok(Self {
             owner,
@@ -101,52 +99,32 @@ pub enum SectorSize {
 #[derive(Debug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone, Copy)]
 pub enum RegisteredPoStProof {
     StackedDRGWindow2KiBV1P1,
-    StackedDRGWindow8MiBV1P1,
-    StackedDRGWindow512MiBV1P1,
-    StackedDRGWindow32GiBV1P1,
-    StackedDRGWindow64GiBV1P1,
-    Invalid(i64),
 }
 
 impl RegisteredPoStProof {
     /// Returns the sector size of the proof type, which is measured in bytes.
-    pub fn sector_size(self) -> Result<SectorSize, String> {
+    pub fn sector_size(self) -> SectorSize {
         use RegisteredPoStProof::*;
         match self {
-            StackedDRGWindow2KiBV1P1 => Ok(SectorSize::_2KiB),
-            StackedDRGWindow8MiBV1P1 => Ok(SectorSize::_8MiB),
-            StackedDRGWindow512MiBV1P1 => Ok(SectorSize::_512MiB),
-            StackedDRGWindow32GiBV1P1 => Ok(SectorSize::_32GiB),
-            StackedDRGWindow64GiBV1P1 => Ok(SectorSize::_64GiB),
-            Invalid(i) => Err(format!("unsupported proof type: {}", i)),
+            StackedDRGWindow2KiBV1P1 => SectorSize::_2KiB,
         }
     }
 
     /// Proof size for each PoStProof type
     #[allow(unused)]
-    pub fn proof_size(self) -> Result<usize, String> {
+    pub fn proof_size(self) -> usize {
         use RegisteredPoStProof::*;
         match self {
-            StackedDRGWindow2KiBV1P1
-            | StackedDRGWindow8MiBV1P1
-            | StackedDRGWindow512MiBV1P1
-            | StackedDRGWindow32GiBV1P1
-            | StackedDRGWindow64GiBV1P1 => Ok(192),
-            Invalid(i) => Err(format!("unsupported proof type: {}", i)),
+            StackedDRGWindow2KiBV1P1 => 192,
         }
     }
     /// Returns the partition size, in sectors, associated with a proof type.
     /// The partition size is the number of sectors proven in a single PoSt proof.
-    pub fn window_post_partitions_sector(self) -> Result<u64, String> {
+    pub fn window_post_partitions_sector(self) -> u64 {
         // Resolve to post proof and then compute size from that.
         use RegisteredPoStProof::*;
         match self {
-            StackedDRGWindow2KiBV1P1 => Ok(2),
-            StackedDRGWindow8MiBV1P1 => Ok(2),
-            StackedDRGWindow512MiBV1P1 => Ok(2),
-            StackedDRGWindow32GiBV1P1 => Ok(2349),
-            StackedDRGWindow64GiBV1P1 => Ok(2300),
-            Invalid(i) => Err(format!("unsupported proof type: {}", i)),
+            StackedDRGWindow2KiBV1P1 => 2,
         }
     }
 }
