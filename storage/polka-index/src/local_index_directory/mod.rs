@@ -91,7 +91,7 @@ impl FlaggedMetadata {
 
 // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/model/model.go#L50-L62
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OffsetSize {
     // Offset is the offset into the CAR file of the section, where a section
     // is <section size><cid><block data>
@@ -131,13 +131,17 @@ impl OffsetSize {
 }
 
 // Record is the information stored in the index for each block in a piece
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Record {
     #[serde(rename = "s")]
     pub cid: Cid,
     pub offset_size: OffsetSize,
 }
 
+// NOTE(@jmg-duarte,11/06/2024): I'm almost sure this structure isn't useful,
+// in the original code, this structure is picked filled only for the Cid to be used
+// https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L361-L369
+// https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L162-L163
 #[derive(Debug, Clone)]
 pub struct CarIndexRecord {
     pub cid: Cid,
@@ -309,12 +313,13 @@ pub trait Service {
     /// * If no pieces exist, an empty [`Vec`] is returned.
     fn list_pieces(&self) -> Result<Vec<Cid>, PieceStoreError>;
 
-    // The return type in Go is considerably different:
-    // type AddIndexProgress struct {
-    //     Progress float64 `json:"p"`
-    //     Err      string  `json:"e,omitempty"`
-    // }
-    // But honestly, this makes much more sense (?)
+    /// Add index records to the piece with the provided [`Cid`].
+    ///
+    /// * If the piece does not exist, returns [`PieceStoreError::NotFoundError`].
+    ///
+    /// Differences to the original:
+    /// * The original implementation streams the operation progress.
+    /// * The original implementation does not support this operation through HTTP.
     fn add_index(
         &self,
         piece_cid: Cid,
@@ -322,11 +327,13 @@ pub trait Service {
         is_complete_index: bool,
     ) -> Result<(), PieceStoreError>;
 
-    // Just like `add_index`, the return type here is also slightly different:
-    // type IndexRecord struct {
-    //     model.Record
-    //     PieceStoreError PieceStoreError `json:"e,omitempty"`
-    // }
+    /// Get the index records for the piece with the provided [`Cid`].
+    ///
+    /// * If the piece does not exist, returns [`PieceStoreError::NotFoundError`].
+    ///
+    /// Differences to the original:
+    /// * The original implementation streams the [`OffsetSize`].
+    /// * The original implementation does not support this operation through HTTP.
     fn get_index(&self, piece_cid: Cid) -> Result<Vec<Record>, PieceStoreError>;
 
     fn get_offset_size(

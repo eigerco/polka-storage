@@ -62,11 +62,9 @@ pub const MULTIHASH_TO_PIECE_CID_CF: &str = "multihash_to_piece_cids";
 /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L66-L68>
 pub const PIECE_CID_TO_FLAGGED_CF: &str = "piece_cid_to_flagged";
 
-// TODO(@jmg-duarte,04/06/2024): double check and document
-pub const CURSOR_TO_OFFSET_SIZE_CF: &str = "cursor_to_offset_size";
-
+/// Returns a prefix like `/<cursor>/`
 fn key_cursor_prefix(cursor: u64) -> String {
-    format!("{}/", cursor)
+    format!("/{}/", cursor)
 }
 
 pub struct RocksDBStateStoreConfig {
@@ -97,7 +95,6 @@ impl RocksDBPieceStore {
             PIECE_CID_TO_FLAGGED_CF,
             MULTIHASH_TO_PIECE_CID_CF,
             PIECE_CID_TO_CURSOR_CF,
-            CURSOR_TO_OFFSET_SIZE_CF,
         ]
         .into_iter()
         .map(|cf| ColumnFamilyDescriptor::new(cf, Options::default()));
@@ -205,37 +202,52 @@ impl RocksDBPieceStore {
         self.put_value_at_key(piece_cid.to_bytes(), metadata, PIECE_CID_TO_CURSOR_CF)
     }
 
-    fn set_multihashes_to_piece_cid(
+    /// Add mappings from several [`Multihash`]es to a single piece [`Cid`].
+    ///
+    /// * [`Cid`]s are stored as a [`Vec<Cid>`] — i.e. a single [`Multihash`] can map to multiple [`Cid`]s.
+    /// * If the [`Multihash`] already exists in the database, it will append the [`Cid`] to the existing list.
+    /// * The [`Cid`] order inside the mapping is *not stable*!
+    fn set_multihashes_to_piece_cid<const S: usize>(
         &self,
-        records: &Vec<CarIndexRecord>,
+        record_multihashes: &Vec<Multihash<S>>,
         piece_cid: Cid,
     ) -> Result<(), PieceStoreError> {
         // https://github.com/ipfs/go-datastore/blob/1de47089f5c72b61d91b5cd9043e49fe95771ac0/datastore.go#L97-L106
         let mut batch = WriteBatchWithTransaction::<false>::default();
 
-        for record in records {
+        for multihash in record_multihashes {
             // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L166-L167
-            let multihash_key = format!("{:x?}", record.cid.hash().to_bytes());
-            let cids = if let Some(mut cids) =
-                self.get_value_at_key::<_, Vec<Cid>>(&multihash_key, MULTIHASH_TO_PIECE_CID_CF)?
-            {
-                if cids.contains(&piece_cid) {
-                    continue;
-                }
-                cids.push(piece_cid);
-                cids
-            } else {
-                vec![piece_cid]
-            };
+            let multihash_bytes = multihash.to_bytes();
+            // let multihash_key = hex::encode(multihash.to_bytes());
+            let mut cids = self
+                .get_value_at_key::<_, Vec<Cid>>(&multihash_bytes, MULTIHASH_TO_PIECE_CID_CF)?
+                .unwrap_or_default();
+            if cids.contains(&piece_cid) {
+                continue;
+            }
+            cids.push(piece_cid);
             batch.put_cf_cbor(
                 self.cf_handle(MULTIHASH_TO_PIECE_CID_CF),
-                multihash_key,
+                multihash_bytes,
                 &cids,
             )?;
         }
         // "commit" the batch, should be equivalent to
         // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L216-L218
         Ok(self.database.write(batch)?)
+    }
+
+    /// Retrieve the list of [`Cid`]s corresponding to a single [`Multihash`].
+    fn get_multihash_to_piece_cids<const S: usize>(
+        &self,
+        multihash: &Multihash<S>,
+    ) -> Result<Vec<Cid>, PieceStoreError> {
+        let Some(multihash) =
+            self.get_value_at_key(multihash.to_bytes(), MULTIHASH_TO_PIECE_CID_CF)?
+        else {
+            return Err(PieceStoreError::NotFoundError);
+        };
+        Ok(multihash)
     }
 
     /// Get the next available cursor.
@@ -274,13 +286,17 @@ impl RocksDBPieceStore {
         Ok(self.database.put(NEXT_CURSOR_KEY, encoded_cursor)?)
     }
 
-    /// Add a [`Record`] to the database under a given cursor prefix
+    /// Add a [`Record`] to the database under a given cursor prefix.
     fn add_index_record(&self, cursor_prefix: &str, record: Record) -> Result<(), PieceStoreError> {
-        let key = format!("{}{:x?}", cursor_prefix, record.cid.hash().to_bytes());
+        let key = format!(
+            "{}{}",
+            cursor_prefix,
+            hex::encode(record.cid.hash().to_bytes())
+        );
         Ok(self.database.put(key, record.offset_size.to_bytes())?)
     }
 
-    ///
+    /// Remove the indexes for a given piece [`Cid`], under the given cursor.
     fn remove_indexes(&self, piece_cid: Cid, cursor: u64) -> Result<(), PieceStoreError> {
         // In the original code they don't add first "/" in the prefix,
         // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L635-L640
@@ -333,13 +349,6 @@ impl RocksDBPieceStore {
         Ok(self.database.write(batch)?)
     }
 }
-
-// NOTE(@jmg-duarte,06/06/2024): this abstraction is not ported with 100% fidelity to the Go solution
-// In the Go solution a double interface is used, the first is the `Service` interface, the second is
-// the `datastore.Batching` interface. The first one is implemented by a generic `DB` structure and
-// the second is implemented by the actual database, be it Yugabyte or LevelDB. I suspect this is due
-// to the fact that Go (like Rust) doesn't have inheritance and promotes composition, but the latter
-// "acts" a bit differently in both languages.
 
 impl Service for RocksDBPieceStore {
     /// For a detailed description, see [`Service::add_deal_for_piece`].
@@ -513,29 +522,33 @@ impl Service for RocksDBPieceStore {
             .collect()
     }
 
-    /// ### Note
-    /// In Boost, this operation is performed by running a goroutine that will feed the returned channel,
-    /// in Rust we there's a mix of things that make life especially difficult for us here, however,
-    /// since the whole [`Service`] relies on the sync API of RocksDB, you should use [`tokio::task::spawn_blocking`].
+    /// For a detailed description, see [`Service::add_index`].
+    ///
+    /// The index information is stored in the [`rocksdb::DEFAULT_COLUMN_FAMILY_NAME`] and [`MULTIHASH_TO_PIECE_CID_CF`] column families.
+    ///
+    /// Note:
+    /// * In Boost, this operation is performed by running a goroutine that will feed the returned channel,
+    ///   in Rust we there's a mix of things that make life especially difficult for us here, however,
+    ///   since the whole [`Service`] relies on the sync API of RocksDB, you should use [`tokio::task::spawn_blocking`].
+    ///
+    /// Sources:
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L332-L443>
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L152-L227>
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L351-L363>
     fn add_index(
         &self,
         piece_cid: Cid,
         records: Vec<Record>,
         is_complete_index: bool,
     ) -> Result<(), PieceStoreError> {
-        let car_index_records = records
-            .iter()
-            .cloned()
-            .map(CarIndexRecord::from)
-            .collect::<Vec<_>>();
-
+        let record_cids = records.iter().map(|r| r.cid.hash().to_owned()).collect();
         // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L369-L374
-        self.set_multihashes_to_piece_cid(&car_index_records, piece_cid)?;
+        self.set_multihashes_to_piece_cid(&record_cids, piece_cid)?;
 
+        // This looks a bit strange at first but in Go mutability is much more of a thing than in Rust, hence,
+        // you get a bunch of parts where a variable is declared (and initialized) to be overwritten in a deeper scope
+        // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L376-L410
         let (mut metadata, cursor_prefix) =
-            // This looks a bit strange at first but in Go mutability is much more of a thing than in Rust, hence,
-            // you get a bunch of parts where a variable is declared (and initialized) to be overwritten in a deeper scope
-            // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L376-L410
             if let Some(metadata) = self.get_piece_cid_to_metadata(piece_cid)? {
                 let cursor_prefix = key_cursor_prefix(metadata.cursor);
                 (metadata, cursor_prefix)
@@ -549,6 +562,7 @@ impl Service for RocksDBPieceStore {
                 (metadata, next_cursor_prefix)
             };
 
+        // NOTE(@jmg-duarte,11/06/2024): this could be batched
         records
             .into_iter()
             .map(|record| self.add_index_record(&cursor_prefix, record))
@@ -558,6 +572,13 @@ impl Service for RocksDBPieceStore {
         self.set_piece_cid_to_metadata(piece_cid, &metadata)
     }
 
+    /// For a detailed description, see [`Service::get_index`].
+    ///
+    /// The information is stored in the [`rocksdb::DEFAULT_COLUMN_FAMILY_NAME`] column family.
+    ///
+    /// Sources:
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L253-L294>
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L304-L349>
     fn get_index(&self, piece_cid: Cid) -> Result<Vec<Record>, PieceStoreError> {
         let Some(metadata) = self.get_piece_cid_to_metadata(piece_cid)? else {
             return Err(PieceStoreError::NotFoundError);
@@ -565,11 +586,9 @@ impl Service for RocksDBPieceStore {
 
         // This is equivalent to `db.AllRecords`
         // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L304-L349
-        let cursor_prefix = format!("{}/", metadata.cursor);
+        let cursor_prefix = key_cursor_prefix(metadata.cursor);
 
-        // NOTE(@jmg-duarte,06/06/2024): Not sure if we can do this without setting extra stuff on DB creation
-        // https://github.com/facebook/rocksdb/wiki/Prefix-Seek
-        // TODO(@jmg-duarte,06/06/2024): review usage patterns as we can place all cursors for this in a single column family
+        // TODO(@jmg-duarte,06/06/2024): review usage patterns as might be able to place all cursors for this in a single column family
         let iterator = self.database.prefix_iterator(&cursor_prefix);
 
         let mut records = vec![];
@@ -577,23 +596,30 @@ impl Service for RocksDBPieceStore {
             let (key, value) = it?;
             // With some trickery, we can probably get rid of this allocation
             let key = String::from_utf8(key.to_vec())?
-                // I suspect there might be an off-by-1 error here
-                .split_off(cursor_prefix.len() + 1);
+                // The original implementation does `k := r.Key[len(q.Prefix)+1:]`
+                // but that is because the underlying query "secretly" prepends a `/`,
+                // hence the `+1` in the original implementation, and the lack of one here
+                .split_off(cursor_prefix.len());
             let mh_bytes = hex::decode(&key)?;
-            let mh = Multihash::<64>::from_bytes(&mh_bytes)?;
-            let cid = Cid::new_v1(0x55, mh); // TODO(@jmg-duarte,06/06/2024): make the CID code const
+            let cid = Cid::read_bytes(mh_bytes.as_slice())?;
             let offset_size = OffsetSize::from_bytes(&value)?;
             records.push(Record { cid, offset_size });
         }
 
-        // The main difference here is that we don't need to return IndexRecord
-        // since we're not sending the records over a channel, we should be able to
-        // just error out as soon as we hit one
+        // The main difference here is that we don't need to return IndexRecord since we're not sending
+        // the records over a channel, we should be able to just error out as soon as we hit one
         // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L285-L289
 
         Ok(records)
     }
 
+    /// For a detailed description, see [`Service::get_offset_size`].
+    ///
+    /// This information is stored in the [`rocksdb::DEFAULT_COLUMN_FAMILY_NAME`] column family.
+    ///
+    /// Sources:
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L141-L171>
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L365-L383>
     fn get_offset_size(
         &self,
         piece_cid: Cid,
@@ -607,10 +633,15 @@ impl Service for RocksDBPieceStore {
         // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L164-L165
         // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L370-L371
         self.get_value_at_key(
-            // Multihash.String is implemented as hex format
+            // Multihash.String() returns the bytes as hex
             // https://github.com/multiformats/go-multihash/blob/728cc45bec837e8ff5abc3ca3f46bcec52b563d2/multihash.go#L177-L185
-            format!("{}/{:x?}", cursor, multihash.to_bytes()),
-            CURSOR_TO_OFFSET_SIZE_CF,
+            format!(
+                "{}{}",
+                key_cursor_prefix(cursor),
+                hex::encode(multihash.to_bytes())
+            ),
+            // In the original source, the key is prefixed by the cursor, which is used in other places as well
+            rocksdb::DEFAULT_COLUMN_FAMILY_NAME,
         )?
         .ok_or(PieceStoreError::NotFoundError)
     }
@@ -855,8 +886,8 @@ mod test {
 
     use super::{RocksDBPieceStore, RocksDBStateStoreConfig};
     use crate::local_index_directory::{
-        rdb::{CURSOR_TO_OFFSET_SIZE_CF, PIECE_CID_TO_CURSOR_CF, PIECE_CID_TO_FLAGGED_CF},
-        DealInfo, PieceInfo, PieceStoreError, Service,
+        rdb::{key_cursor_prefix, PIECE_CID_TO_CURSOR_CF, PIECE_CID_TO_FLAGGED_CF},
+        DealInfo, OffsetSize, PieceInfo, PieceStoreError, Record, Service,
     };
 
     fn init_database() -> RocksDBPieceStore {
@@ -864,7 +895,7 @@ mod test {
         let config = RocksDBStateStoreConfig {
             path: tmp_dir.path().join("rocksdb"),
         };
-
+        println!("{:?}", config.path);
         RocksDBPieceStore::new(config).unwrap()
     }
 
@@ -904,10 +935,6 @@ mod test {
         ));
         assert!(matches!(
             db.get_value_at_key::<_, Vec<u8>>("non_existing_key", PIECE_CID_TO_CURSOR_CF),
-            Ok(None)
-        ));
-        assert!(matches!(
-            db.get_value_at_key::<_, Vec<u8>>("non_existing_key", CURSOR_TO_OFFSET_SIZE_CF),
             Ok(None)
         ));
     }
@@ -968,7 +995,7 @@ mod test {
         assert!(db.get_next_cursor().is_err());
         assert!(db.set_next_cursor(1010).is_ok());
         let cursor = db.get_next_cursor();
-        assert_eq!(cursor.unwrap(), (1010, format!("{}/", 1010)));
+        assert_eq!(cursor.unwrap(), (1010, key_cursor_prefix(1010)));
     }
 
     /// Ensure `add_deal_for_piece` creates a new [`PieceInfo`] and adds the respective deal
@@ -1122,6 +1149,29 @@ mod test {
     }
 
     #[test]
+    fn remove_piece_metadata() {
+        let db = init_database();
+        let cid = Cid::from_str("QmawceGscqN4o8Y8Fv26UUmB454kn2bnkXV5tEQYc4jBd6").unwrap();
+        let piece_info = PieceInfo::with_cid(cid);
+
+        assert!(matches!(
+            db.get_piece_metadata(cid),
+            Err(PieceStoreError::NotFoundError)
+        ));
+        assert!(db.set_piece_cid_to_metadata(cid, &piece_info).is_ok());
+        let received = db.get_piece_metadata(cid);
+        assert!(matches!(received, Ok(_)));
+        assert_eq!(piece_info, received.unwrap());
+
+        assert!(db.remove_piece_metadata(cid).is_ok());
+        // TODO(@jmg-duarte,11/06/2024): add test ensuring that indexes are also removed
+        assert!(matches!(
+            db.get_piece_metadata(cid),
+            Err(PieceStoreError::NotFoundError)
+        ));
+    }
+
+    #[test]
     fn get_piece_deals() {
         let db = init_database();
         let cid = cids_vec()[0];
@@ -1149,5 +1199,45 @@ mod test {
             db.get_piece_deals(cid).unwrap(),
             vec![deal_info, deal_info_2]
         );
+    }
+
+    /// Tests the insertion and retrieval of pieces indexes.
+    #[test]
+    fn get_index() {
+        let db = init_database();
+        let cids = cids_vec();
+        let cid = cids[0];
+        let deal_info = dummy_deal_info();
+        let records = vec![
+            Record {
+                cid: cids[1],
+                offset_size: OffsetSize { offset: 0, size: 0 },
+            },
+            Record {
+                cid: cids[2],
+                offset_size: OffsetSize {
+                    offset: 0,
+                    size: 100,
+                },
+            },
+        ];
+
+        // Insert the deal
+        assert!(db.add_deal_for_piece(cid, deal_info.clone()).is_ok());
+        assert_eq!(db.get_index(cid).unwrap(), vec![]);
+        // Add the index records
+        db.add_index(cid, records.clone(), false).unwrap();
+
+        // Get the index back
+        let received = db.get_index(cid);
+        assert!(received.is_ok());
+        assert_eq!(received.unwrap(), records);
+
+        // Check the multihash -> cid mapping — i.e. check the add_index side effect
+        for record in &records {
+            println!("{}", hex::encode(record.cid.hash().to_bytes()));
+            let value = db.get_multihash_to_piece_cids(record.cid.hash());
+            assert_eq!(value.unwrap(), vec![cid]);
+        }
     }
 }

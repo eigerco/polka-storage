@@ -30,9 +30,9 @@ impl<const TRANSACTION: bool> WriteBatchWithTransactionExt
         V: Serialize,
     {
         let mut serialized = vec![];
-        match ciborium::into_writer(&value, &mut serialized) {
-            Ok(_) => Ok(self.put_cf(cf, key, serialized)),
-            Err(err) => Err(PieceStoreError::Serialization(err.to_string())),
+        if let Err(err) = ciborium::into_writer(&value, &mut serialized) {
+            return Err(PieceStoreError::Serialization(err.to_string()));
         }
+        Ok(self.put_cf(cf, key, serialized))
     }
 }
