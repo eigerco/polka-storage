@@ -99,7 +99,7 @@ pub mod pallet {
             // Check that the extrinsic was signed and get the signer.
             let owner = ensure_signed(origin)?;
 
-            // This means the storage provider already exists
+            // This means the storage provider is already registered.
             ensure!(
                 !StorageProviders::<T>::contains_key(&owner),
                 Error::<T>::DuplicateStorageProvider
@@ -123,40 +123,29 @@ pub mod pallet {
             peer_id: T::PeerId,
         ) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer.
-            let storage_provider = ensure_signed(origin)?;
+            let owner = ensure_signed(origin)?;
 
-            StorageProviders::<T>::try_mutate(
-                &storage_provider,
-                |info| -> DispatchResultWithPostInfo {
-                    let storage_provider_info =
-                        match info.as_mut().ok_or(Error::<T>::StorageProviderNotFound) {
-                            Ok(info) => info,
-                            Err(e) => {
-                                log::error!(
-                                    "Could not get info for storage_provider: {storage_provider:?}"
-                                );
-                                return Err(e.into());
-                            }
-                        };
+            // Fails if the SP has not been registered.
+            let sp =
+                StorageProviders::<T>::get(&owner).ok_or(Error::<T>::StorageProviderNotFound)?;
 
-                    // Ensure storage_provider is the owner of the storage_provider
-                    ensure!(
-                        storage_provider == storage_provider_info.owner,
-                        Error::<T>::InvalidSigner
-                    );
+            // Ensure caller is the owner of SP
+            ensure!(owner == sp.owner, Error::<T>::InvalidSigner);
 
-                    log::debug!("Updating peer id for {storage_provider:?}");
+            StorageProviders::<T>::mutate(&owner, |info| {
+                // Can safely unwrap this because of previous `get` check
+                let sp_info = info.as_mut().unwrap();
 
-                    // Update PeerId
-                    storage_provider_info.peer_id = peer_id.clone();
+                log::debug!("Updating peer id for {owner:?}");
 
-                    Self::deposit_event(Event::PeerIdChanged {
-                        storage_provider: storage_provider.clone(),
-                        new_peer_id: peer_id,
-                    });
-                    Ok(().into())
-                },
-            )
+                sp_info.peer_id = peer_id.clone();
+
+                Self::deposit_event(Event::PeerIdChanged {
+                    storage_provider: owner.clone(),
+                    new_peer_id: peer_id,
+                });
+                Ok(().into())
+            })
         }
 
         /// Update the owner address for a Storage Provider.
