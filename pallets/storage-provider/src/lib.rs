@@ -57,7 +57,7 @@ pub mod pallet {
         StorageMap<_, _, T::AccountId, StorageProviderInfo<T::AccountId, T::PeerId>>;
 
     #[pallet::event]
-    #[pallet::generate_deposit(pub(super) fn deposit_event)]
+    #[pallet::generate_deposit(fn deposit_event)]
     pub enum Event<T: Config> {
         /// This event is emitted when a new storage provider is initialized.
         StorageProviderCreated { owner: T::AccountId },
@@ -87,7 +87,7 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        /// Index a new storage provider
+        /// Register a new storage provider
         #[pallet::call_index(0)]
         // #[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
         // TODO(aidan46, no-ref, 2024-06-04): Determine applicable weights.
@@ -99,16 +99,16 @@ pub mod pallet {
             // Check that the extrinsic was signed and get the signer.
             let owner = ensure_signed(origin)?;
 
-            // Generate some storage_provider id and insert into `StorageProviders` storage
-            let storage_provider_info =
-                StorageProviderInfo::new(owner.clone(), peer_id.clone(), window_post_proof_type)
-                    .map_err(|_| Error::<T>::StorageProviderInfoError)?;
-            // Probably need some check to make sure the storage provider is legit
-            // This means the storage provider exist
+            // This means the storage provider already exists
             ensure!(
                 !StorageProviders::<T>::contains_key(&owner),
                 Error::<T>::DuplicateStorageProvider
             );
+
+            // Generate some storage_provider id and insert into `StorageProviders` storage
+            let storage_provider_info =
+                StorageProviderInfo::new(owner.clone(), peer_id.clone(), window_post_proof_type)
+                    .map_err(|_| Error::<T>::StorageProviderInfoError)?;
             StorageProviders::<T>::insert(owner.clone(), storage_provider_info);
             Self::deposit_event(Event::StorageProviderCreated { owner });
             Ok(().into())
