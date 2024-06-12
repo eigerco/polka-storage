@@ -12,6 +12,7 @@ chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive"] }
 cli-primitives = { workspace = true }
 jsonrpsee = { workspace = true, features = ["server"] }
+sc-cli = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 subxt = { workspace = true }

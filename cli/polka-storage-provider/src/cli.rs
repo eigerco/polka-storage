@@ -1,10 +1,10 @@
 use clap::Parser;
 
-use crate::commands::{InfoCommand, InitCommand, RunCommand};
+use crate::commands::{InfoCommand, InitCommand, RunCommand, WalletCommand};
 
 /// A CLI application that facilitates management operations over a running full
 /// node and other components.
-#[derive(Parser, Debug, Clone)]
+#[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub(crate) struct Cli {
     #[command(subcommand)]
@@ -12,7 +12,8 @@ pub(crate) struct Cli {
 }
 
 /// Supported sub-commands.
-#[derive(Debug, clap::Subcommand, Clone)]
+
+#[derive(Debug, clap::Subcommand)]
 pub enum SubCommand {
     /// Initialize the polka storage provider
     Init(InitCommand),
@@ -20,4 +21,7 @@ pub enum SubCommand {
     Run(RunCommand),
     /// Info command
     Info(InfoCommand),
+    /// Command to manage wallet operations.
+    #[command(subcommand)]
+    Wallet(WalletCommand),
 }

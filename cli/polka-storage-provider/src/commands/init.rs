@@ -7,7 +7,7 @@ use tracing::info;
 pub(crate) struct InitCommand {}
 
 impl InitCommand {
-    pub async fn handle(&self) -> Result<()> {
+    pub async fn run(&self) -> Result<()> {
         info!("Initializing polka storage provider...");
         // TODO(#64,@cernicc,31/05/2024): Init needed configurations.
         // TODO(#65,@cernicc,31/05/2024): Check if full node is synced

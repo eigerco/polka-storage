@@ -11,4 +11,7 @@ pub enum Error {
 
     #[error("Substrate error: {0}")]
     Substrate(#[from] subxt::Error),
+
+    #[error(transparent)]
+    SubstrateCli(#[from] sc_cli::Error),
 }

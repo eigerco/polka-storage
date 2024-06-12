@@ -25,7 +25,7 @@ pub(crate) struct RunCommand {
 }
 
 impl RunCommand {
-    pub async fn handle(&self) -> Result<()> {
+    pub async fn run(&self) -> Result<()> {
         let substrate_client = substrate::init_client(self.node_rpc_address.as_str()).await?;
 
         let state = Arc::new(RpcServerState {
