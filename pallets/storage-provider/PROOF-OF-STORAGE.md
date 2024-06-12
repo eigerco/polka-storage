@@ -45,7 +45,7 @@ From the point of committing to store data, storage providers must continuously 
 
 There are two types of challenges (and their corresponding mechanisms) within the PoSt process: WinningPoSt and WindowPoSt, each serving a different purpose.
 
-- WinningPoSt: Proves that the storage provider has a replica of the data at the specific time they are challenged. A WinningPoSt challenge is issued to a storage provider only if they are selected through the Secret Leader Election algorithm to validate the next block. The answer to the WinningPoSt challenge must be submitted within a short deadline, making it impractical for the provider to reseal and find the answer on demand. This ensures that the provider maintains a copy of the data at the time of the challenge.
+- WinningPoSt: Proves that the storage provider has a replica of the data at the specific time they are challenged. A WinningPoSt challenge is issued to a storage provider only if they are selected through the Secret Leader Election algorithm to validate the next block. The answer to the WinningPoSt challenge must be submitted within a short [deadline](./DESIGN.md#constants--terminology), making it impractical for the provider to reseal and find the answer on demand. This ensures that the provider maintains a copy of the data at the time of the challenge.
 - WindowPoSt: Proves that a copy of the data has been continuously maintained over time. Providers must submit proofs regularly, making it irrational for them to reseal the data every time a WindowPoSt challenge is issued.
 
 ### WinningPoSt
@@ -53,30 +53,30 @@ There are two types of challenges (and their corresponding mechanisms) within th
 > [!NOTE]
 > This is not relevant for our implementation as block rewards are earned by Collators.
 
-At the beginning of each epoch, a small number of storage providers are elected to validate new blocks through the Expected Consensus algorithm. Each elected provider must submit proof that they maintain a sealed copy of the data included in their proposed block before the end of the current epoch. This proof submission is known as WinningPoSt. Successfully submitting a WinningPoSt proof grants the provider a block reward and the opportunity to charge fees for including transactions in the block. Failing to meet the deadline results in the provider missing the opportunity to validate a block and earn rewards.
+At the beginning of each epoch, a small number of storage providers are elected to validate new blocks through the Expected Consensus algorithm. Each elected provider must submit proof that they maintain a sealed copy of the data included in their proposed block before the end of the current epoch. This proof submission is known as WinningPoSt. Successfully submitting a WinningPoSt proof grants the provider a block reward and the opportunity to charge fees for including transactions in the block. Failing to meet the [deadline](./DESIGN.md#constants--terminology) results in the provider missing the opportunity to validate a block and earn rewards.
 
 ### WindowPoSt
 
-WindowPoSt audits the commitments made by storage providers. Every 24-hour period, known as a proving period, is divided into 30-minute, non-overlapping deadlines, totalling 48 deadlines per period. Providers must demonstrate the availability of all claimed sectors within this time frame. Each proof is limited to 2349 sectors (a partition), with 10 challenges per partition.
-Sectors are assigned to deadlines and grouped into partitions. At each deadline, providers must prove an entire partition rather than individual sectors. For each partition, the provider generates a SNARK-compressed proof and publishes it to the blockchain. This process ensures that each sector is audited at least once every 24 hours, creating a permanent, verifiable record of the provider's commitment.
-The more sectors a provider has pledged to store, the more partitions they must prove per deadline. This setup necessitates ready access to sealed copies of each challenged sector, making it impractical for the provider to reseal data each time a WindowPoSt proof is required.
+WindowPoSt audits the commitments made by storage providers. Every 24-hour period, known as a [proving period](./DESIGN.md#constants--terminology), is divided into 30-minute, non-overlapping [deadline](./DESIGN.md#constants--terminology)s, totalling 48 [deadline](./DESIGN.md#constants--terminology)s per period. Providers must demonstrate the availability of all claimed [sectors](./DESIGN.md#constants--terminology) within this time frame. Each proof is limited to 2349 [sectors](./DESIGN.md#constants--terminology) (a partition), with 10 challenges per partition.
+[Sectors](./DESIGN.md#constants--terminology) are assigned to [deadline](./DESIGN.md#constants--terminology)s and grouped into partitions. At each [deadline](./DESIGN.md#constants--terminology), providers must prove an entire partition rather than individual [sectors](./DESIGN.md#constants--terminology). For each partition, the provider generates a SNARK-compressed proof and publishes it to the blockchain. This process ensures that each sector is audited at least once every 24 hours, creating a permanent, verifiable record of the provider's commitment.
+The more [sectors](./DESIGN.md#constants--terminology) a provider has pledged to store, the more partitions they must prove per [deadline](./DESIGN.md#constants--terminology). This setup necessitates ready access to sealed copies of each challenged sector, making it impractical for the provider to reseal data each time a WindowPoSt proof is required.
 
 ### Design of Proof-of-Spacetime
 
-Each storage provider is allocated a 24-hour proving period upon creation, divided into 48 non-overlapping half-hour deadlines. Each sector is assigned to a specific deadline when proven to the chain and remains assigned to that deadline throughout its lifetime. Sectors are proven in partitions, and the set of sectors due at each deadline is recorded in a collection of 48 bitfields.
+Each storage provider is allocated a 24-hour [proving period](./DESIGN.md#constants--terminology) upon creation, divided into 48 non-overlapping half-hour [deadline](./DESIGN.md#constants--terminology)s. Each sector is assigned to a specific [deadline](./DESIGN.md#constants--terminology) when proven to the chain and remains assigned to that [deadline](./DESIGN.md#constants--terminology) throughout its lifetime. [Sectors](./DESIGN.md#constants--terminology) are proven in partitions, and the set of [sectors](./DESIGN.md#constants--terminology) due at each [deadline](./DESIGN.md#constants--terminology) is recorded in a collection of 48 bitfields.
 
-- Open: Epoch from which a PoSt Proof for this deadline can be submitted.
-- Close: Epoch after which a PoSt Proof for this deadline will be rejected.
-- FaultCutoff: Epoch after which fault declarations for sectors in the upcoming deadline are rejected.
+- Open: Epoch from which a PoSt Proof for this [deadline](./DESIGN.md#constants--terminology) can be submitted.
+- Close: Epoch after which a PoSt Proof for this [deadline](./DESIGN.md#constants--terminology) will be rejected.
+- FaultCutoff: Epoch after which fault declarations for [sectors](./DESIGN.md#constants--terminology) in the upcoming [deadline](./DESIGN.md#constants--terminology) are rejected.
 - Challenge: Epoch at which the randomness for the challenges is available.
 
 ### PoSt Summary
 
-- Storage providers maintain their sectors by generating Proofs-of-Spacetime (PoSt) and submitting WindowPoSt proofs for their sectors on time.
-- WindowPoSt ensures that sectors are persistently stored over time.
-- Each provider proves all their sectors once per proving period, with each sector proven by a specific deadline.
-- The proving period is a 24-hour cycle divided into deadlines, each assigned to specific sectors.
-- To prove continuous storage of a sector, providers must submit a WindowPoSt for each deadline.
-- Sectors are grouped into partitions, with each partition proven in a single SNARK proof.
+- Storage providers maintain their [sectors](./DESIGN.md#constants--terminology) by generating Proofs-of-Spacetime (PoSt) and submitting WindowPoSt proofs for their [sectors](./DESIGN.md#constants--terminology) on time.
+- WindowPoSt ensures that [sectors](./DESIGN.md#constants--terminology) are persistently stored over time.
+- Each provider proves all their [sectors](./DESIGN.md#constants--terminology) once per [proving period](./DESIGN.md#constants--terminology), with each sector proven by a specific [deadline](./DESIGN.md#constants--terminology).
+- The [proving period](./DESIGN.md#constants--terminology) is a 24-hour cycle divided into [deadline](./DESIGN.md#constants--terminology)s, each assigned to specific [sectors](./DESIGN.md#constants--terminology).
+- To prove continuous storage of a sector, providers must submit a WindowPoSt for each [deadline](./DESIGN.md#constants--terminology).
+- [Sectors](./DESIGN.md#constants--terminology) are grouped into partitions, with each partition proven in a single SNARK proof.
 
 By implementing PoSt within our parachain, we ensure that storage providers are consistently accountable for the data they store, enhancing the integrity and reliability of our decentralized storage solution in the Polkadot ecosystem.

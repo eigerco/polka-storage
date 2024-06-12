@@ -34,42 +34,41 @@ The `submit_windowed_post` is used by the storage provider to submit their Proof
 
 ### Arguments
 
-`deadline`: The deadline index which the submission targets.
-`partitions`: The partitions being proven.
-`proofs`: An array of proofs, one per distinct registered proof type present in the sectors being proven.
+`deadline`: The [deadline](./DESIGN.md#constants--terminology) at which the submission targets.
+`partition`: The [partition](./DESIGN.md#constants--terminology)s being proven.
+`proofs`: An array of proofs, one per distinct registered proof type present in the [sectors](./DESIGN.md#constants--terminology) being proven.
 
 ## Declaring faults
 
-Storage providers can use the `declare_faults` extrinsic to declare a set of sectors as 'faulty', indicating that the next PoSt for those sectors' deadline will not contain a proof for those sectors' existence.
+Storage providers can use the `declare_faults` extrinsic to declare a set of [sectors](./DESIGN.md#constants--terminology) as 'faulty', indicating that the next PoSt for those [sectors](./DESIGN.md#constants--terminology)' [deadline](./DESIGN.md#constants--terminology) will not contain a proof for those [sectors](./DESIGN.md#constants--terminology)' existence.
 
 ### Arguments
 
-`deadline`: The deadline to which the faulty sectors are assigned
-`partition`: Partition index within the deadline containing the faulty sectors.
-`sectors`: Sectors in the partition being declared faulty.
+`deadline`: The [deadline](./DESIGN.md#constants--terminology) to which the faulty [sectors](./DESIGN.md#constants--terminology) are assigned
+`partition`: [Partition](./DESIGN.md#constants--terminology) index within the [deadline](./DESIGN.md#constants--terminology) containing the faulty [sectors](./DESIGN.md#constants--terminology).
+`sectors`: [Sectors](./DESIGN.md#constants--terminology) in the [partition](./DESIGN.md#constants--terminology) being declared faulty.
 
 ## Declaring faults as recovered
 
-Storage providers can declare a set of faulty sectors as "recovering", indicating that the next PoSt for those sectors' deadline will contain a proof for those sectors' existence.
+Storage providers can declare a set of faulty [sectors](./DESIGN.md#constants--terminology) as "recovering", indicating that the next PoSt for those [sectors](./DESIGN.md#constants--terminology)' [deadline](./DESIGN.md#constants--terminology) will contain a proof for those [sectors](./DESIGN.md#constants--terminology)' existence.
 
 ### Arguments
 
-`deadline`: The deadline to which the recovered sectors are assigned
-`partition`: Partition index within the deadline containing the recovered sectors.
-`sectors`: Sectors in the partition being declared recovered.
+`deadline`: The [deadline](./DESIGN.md#constants--terminology) to which the recovered [sectors](./DESIGN.md#constants--terminology) are assigned
+`partition`: [Partition](./DESIGN.md#constants--terminology) index within the [deadline](./DESIGN.md#constants--terminology) containing the recovered [sectors](./DESIGN.md#constants--terminology).
+`sectors`: [Sectors](./DESIGN.md#constants--terminology) in the [partition](./DESIGN.md#constants--terminology) being declared recovered.
 
-## Pre committing sectors
+## Pre committing [sectors](./DESIGN.md#constants--terminology)
 
-The Storage Provider can use the `pre_commit_sector` extrinsic to pledge to seal and commit some new sectors.
+The Storage Provider can use the `pre_commit_sector` extrinsic to pledge to seal and commit some new [sectors](./DESIGN.md#constants--terminology).
 
 ### Arguments
 
-`sectors`: Sectors to be committed.
+`sectors`: [Sectors](./DESIGN.md#constants--terminology) to be committed.
 
+## Prove commit [sectors](./DESIGN.md#constants--terminology)
 
-## Prove commit sectors
-
-Storage providers can use the `prove_commit_sector` extrinsic to check the state of the corresponding sector pre-commitments and verifies aggregate proof of replication of these sectors. If valid, the sectors' deals are activated.
+Storage providers can use the `prove_commit_sector` extrinsic to check the state of the corresponding sector pre-commitments and verifies aggregate proof of replication of these [sectors](./DESIGN.md#constants--terminology). If valid, the [sectors](./DESIGN.md#constants--terminology)' deals are activated.
 
 ### Arguments
 
