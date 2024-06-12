@@ -7,7 +7,7 @@ When a Storage provider first starts up it needs to index itself in the storage 
 ### Arguments
 
 `peer_id`: storage_provider's libp2p peer id in bytes.
-`window_post_proof_type`: The total power the storage provider has
+`window_post_proof_type`: The Proof of Spacetime type the storage provider will submit.
 
 ## Change peer id
 
