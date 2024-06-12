@@ -1,6 +1,7 @@
 // The name of this file is `rdb.rs` to avoid clashing with the `rocksdb` import.
 use std::{collections::HashMap, path::PathBuf, str::FromStr};
 
+use base64::Engine;
 use cid::{multihash::Multihash, Cid, CidGeneric};
 use integer_encoding::{VarInt, VarIntReader};
 use rocksdb::{
@@ -150,6 +151,22 @@ impl RocksDBPieceStore {
         }
     }
 
+    // TODO(@jmg-duarte,12/06/2024): move all rocksdb unique funcionality to an extension
+    fn put_cbor_at_key<K, V>(&self, key: K, value: &V) -> Result<(), PieceStoreError>
+    where
+        K: AsRef<[u8]>,
+        V: Serialize,
+    {
+        let mut serialized = Vec::new();
+        if let Err(err) = ciborium::into_writer(value, &mut serialized) {
+            // ciborium error is bubbled up as a string because it is generic
+            // and we didn't want to add a generic type to the PieceStoreError
+            return Err(PieceStoreError::Serialization(err.to_string()));
+        }
+
+        Ok(self.database.put(key, serialized)?)
+    }
+
     /// Serializes the `Value` to CBOR and puts resulting bytes at the specified key in the specified column family.
     fn put_value_at_key<Key, Value>(
         &self,
@@ -218,7 +235,6 @@ impl RocksDBPieceStore {
         for multihash in record_multihashes {
             // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L166-L167
             let multihash_bytes = multihash.to_bytes();
-            // let multihash_key = hex::encode(multihash.to_bytes());
             let mut cids = self
                 .get_value_at_key::<_, Vec<Cid>>(&multihash_bytes, MULTIHASH_TO_PIECE_CID_CF)?
                 .unwrap_or_default();
@@ -287,13 +303,12 @@ impl RocksDBPieceStore {
     }
 
     /// Add a [`Record`] to the database under a given cursor prefix.
+    ///
+    /// Even though the interface is different, this function is the dual to [`Service::get_offset_size`].
     fn add_index_record(&self, cursor_prefix: &str, record: Record) -> Result<(), PieceStoreError> {
-        let key = format!(
-            "{}{}",
-            cursor_prefix,
-            hex::encode(record.cid.hash().to_bytes())
-        );
-        Ok(self.database.put(key, record.offset_size.to_bytes())?)
+        let b64_mh = base64::engine::general_purpose::STANDARD.encode(record.cid.hash().to_bytes());
+        let key = format!("{}{}", cursor_prefix, b64_mh);
+        Ok(self.put_cbor_at_key(key, &record.offset_size)?)
     }
 
     /// Remove the indexes for a given piece [`Cid`], under the given cursor.
@@ -595,14 +610,16 @@ impl Service for RocksDBPieceStore {
         for it in iterator {
             let (key, value) = it?;
             // With some trickery, we can probably get rid of this allocation
-            let key = String::from_utf8(key.to_vec())?
+            let key = key
+                .to_vec()
                 // The original implementation does `k := r.Key[len(q.Prefix)+1:]`
                 // but that is because the underlying query "secretly" prepends a `/`,
                 // hence the `+1` in the original implementation, and the lack of one here
                 .split_off(cursor_prefix.len());
-            let mh_bytes = hex::decode(&key)?;
+            let mh_bytes = base64::engine::general_purpose::STANDARD.decode(&key)?;
             let cid = Cid::read_bytes(mh_bytes.as_slice())?;
-            let offset_size = OffsetSize::from_bytes(&value)?;
+            let offset_size = ciborium::from_reader(&*value)
+                .map_err(|err| PieceStoreError::Deserialization(err.to_string()))?;
             records.push(Record { cid, offset_size });
         }
 
@@ -630,16 +647,17 @@ impl Service for RocksDBPieceStore {
             .map(|piece_info: PieceInfo| piece_info.cursor)
             .ok_or(PieceStoreError::NotFoundError)?;
 
+        // Go encodes []byte as Base64
+        // > Array and slice values encode as JSON arrays,
+        // > except that []byte encodes as a base64-encoded string,
+        // > and a nil slice encodes as the null JSON value.
+        // https://pkg.go.dev/encoding/json#Marshal
+        let b64_multihash = base64::engine::general_purpose::STANDARD.encode(multihash.to_bytes());
+
         // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L164-L165
         // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L370-L371
         self.get_value_at_key(
-            // Multihash.String() returns the bytes as hex
-            // https://github.com/multiformats/go-multihash/blob/728cc45bec837e8ff5abc3ca3f46bcec52b563d2/multihash.go#L177-L185
-            format!(
-                "{}{}",
-                key_cursor_prefix(cursor),
-                hex::encode(multihash.to_bytes())
-            ),
+            format!("{}{}", key_cursor_prefix(cursor), b64_multihash),
             // In the original source, the key is prefixed by the cursor, which is used in other places as well
             rocksdb::DEFAULT_COLUMN_FAMILY_NAME,
         )?
@@ -685,13 +703,12 @@ impl Service for RocksDBPieceStore {
         // This part is a bit weird, in the original code they don't add first "/" in the prefix
         // which hints that it is in the "global namespace", so here we're searching the default column family
         // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L635-L640
-        let cursor_prefix = format!("{}/", metadata.cursor);
+        let cursor_prefix = key_cursor_prefix(metadata.cursor);
         let iterator = self.database.prefix_iterator(&cursor_prefix);
         let mut batch = WriteBatchWithTransaction::<false>::default();
 
         for it in iterator {
             let (key, _) = it?;
-            // TODO(@jmg-duarte,07/06/2024): add note about the +1 or not
             let (_, mh_key) = key.split_at(cursor_prefix.len());
             let Some(mut cids) =
                 self.get_value_at_key::<_, Vec<Cid>>(mh_key, MULTIHASH_TO_PIECE_CID_CF)?
@@ -895,7 +912,6 @@ mod test {
         let config = RocksDBStateStoreConfig {
             path: tmp_dir.path().join("rocksdb"),
         };
-        println!("{:?}", config.path);
         RocksDBPieceStore::new(config).unwrap()
     }
 
@@ -1231,13 +1247,60 @@ mod test {
         // Get the index back
         let received = db.get_index(cid);
         assert!(received.is_ok());
-        assert_eq!(received.unwrap(), records);
+        let mut received = received.unwrap();
+        // This sort is just to ensure the order matches our records vec, it's not representative of a pattern
+        received.sort_by(|l, h| l.offset_size.size.cmp(&h.offset_size.size));
+        assert_eq!(received, records);
 
         // Check the multihash -> cid mapping — i.e. check the add_index side effect
         for record in &records {
-            println!("{}", hex::encode(record.cid.hash().to_bytes()));
             let value = db.get_multihash_to_piece_cids(record.cid.hash());
             assert_eq!(value.unwrap(), vec![cid]);
         }
+    }
+
+    #[test]
+    fn get_offset_size() {
+        let db = init_database();
+        let cids = cids_vec();
+        let cid = cids[0];
+        let deal_info = dummy_deal_info();
+        let records = vec![
+            Record {
+                cid: cids[1],
+                offset_size: OffsetSize { offset: 0, size: 0 },
+            },
+            Record {
+                cid: cids[2],
+                offset_size: OffsetSize {
+                    offset: 0,
+                    size: 100,
+                },
+            },
+        ];
+
+        // No piece
+        assert!(matches!(
+            db.get_offset_size(cid, *cids[1].hash()),
+            Err(PieceStoreError::NotFoundError)
+        ));
+
+        // Insert the deal
+        assert!(db.add_deal_for_piece(cid, deal_info.clone()).is_ok());
+        assert_eq!(db.get_index(cid).unwrap(), vec![]);
+        // Piece exists but no index
+        assert!(matches!(
+            db.get_offset_size(cid, *cids[1].hash()),
+            Err(PieceStoreError::NotFoundError)
+        ));
+
+        // Add the index records
+        db.add_index(cid, records.clone(), false).unwrap();
+
+        let offset_size = db.get_offset_size(cid, *cids[1].hash()).unwrap();
+        assert_eq!(records[0].offset_size, offset_size);
+
+        let offset_size = db.get_offset_size(cid, *cids[2].hash()).unwrap();
+        assert_eq!(records[1].offset_size, offset_size);
     }
 }

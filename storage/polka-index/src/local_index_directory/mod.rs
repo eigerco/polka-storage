@@ -43,7 +43,7 @@ pub enum PieceStoreError {
     IoError(#[from] std::io::Error),
 
     #[error(transparent)]
-    FromHexError(#[from] hex::FromHexError),
+    Base64DecodeError(#[from] base64::DecodeError),
 }
 
 pub struct FlaggedPiece {
@@ -336,6 +336,10 @@ pub trait Service {
     /// * The original implementation does not support this operation through HTTP.
     fn get_index(&self, piece_cid: Cid) -> Result<Vec<Record>, PieceStoreError>;
 
+    /// Get the [`OffsetSize`] of the given [`Multihash`](multihash::Multihash) for the piece with the provided [`Cid`].
+    ///
+    /// * If the piece does not exist, returns [`PieceStoreError::NotFoundError`].
+    /// * If the index entry (i.e. multihash) does not exist, returns [`PieceStoreError::NotFoundError`].
     fn get_offset_size(
         &self,
         piece_cid: Cid,
