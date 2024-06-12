@@ -1,5 +1,22 @@
 # Storage Provider Pallet
 
+- [Overview](#overview)
+  - [Constants \& Terminology](#constants--terminology)
+- [Usage](#usage)
+  - [Registering storage providers](#registering-storage-providers)
+  - [Modifying storage provider information](#modifying-storage-provider-information)
+  - [Declaring storage faults](#declaring-storage-faults)
+  - [Declaring storage faults recovered](#declaring-storage-faults-recovered)
+- [Storage fault slashing](#storage-fault-slashing)
+  - [Fault Fee (FF)](#fault-fee-ff)
+  - [Sector Penalty (SP)](#sector-penalty-sp)
+  - [Termination Penalty (TP)](#termination-penalty-tp)
+  - [State management for Storage Providers](#state-management-for-storage-providers)
+  - [Static information about a Storage Provider](#static-information-about-a-storage-provider)
+- [Data structures](#data-structures)
+  - [Proof of Spacetime](#proof-of-spacetime)
+  - [Proof of Replication](#proof-of-replication)
+
 ## Overview
 
 The `Storage Provider Pallet` handles the creation of storage providers and facilitates storage providers and client in creating storage deals.
@@ -34,7 +51,29 @@ A storage provider can declare sectors as faulty, through the `declare_faults`, 
 
 After a storage provider has declared some sectors as faulty, it can recover those sectors. The storage provider can use the `declare_faults_recovered` method to set the sectors it previously declared as faulty to recovering.
 
-## State management for Storage Providers
+## Storage fault slashing
+
+Storage Fault Slashing refers to a set of penalties that storage providers may incur if they fail to maintain sector reliability or choose to voluntarily exit the network. These penalties include Fault Fees, Sector Penalties, and Termination Fees. Below is a detailed explanation of each type of penalty.
+
+### Fault Fee (FF)
+
+- **Description**: A penalty incurred by a storage provider for each day that a sector is offline.
+- **Rationale**: Ensures that storage providers maintain high availability and reliability of their committed data.
+
+### Sector Penalty (SP)
+
+- **Description**: A penalty incurred by a storage provider for a sector that becomes faulted without being declared as such before a WindowPoSt (Proof-of-Spacetime) check.
+- **Rationale**: Encourages storage providers to promptly declare any faults to avoid more severe penalties.
+- **Details**: If a fault is detected during a WindowPoSt check, the sector will incur an SP and will continue to incur a FF until the fault is resolved.
+
+### Termination Penalty (TP)
+
+- **Description**: A penalty incurred when a sector is either voluntarily or involuntarily terminated and removed from the network.
+- **Rationale**: Discourages storage providers from arbitrarily terminating sectors and ensures they fulfill their storage commitments.
+
+By implementing these penalties, storage providers are incentivised to maintain the reliability and availability of the data they store. This system of Storage Fault Slashing helps maintain the integrity and reliability of our decentralized storage network.
+
+### State management for Storage Providers
 
 In our parachain, the state management for all storage providers is handled collectively, unlike Filecoin, which manages the state for individual storage providers.
 
