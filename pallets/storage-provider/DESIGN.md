@@ -6,7 +6,7 @@ The `Storage Provider Pallet` handles the creation of storage providers and faci
 
 ## Usage
 
-### Indexing storage providers
+### Registering storage providers
 
 A storage provider indexes in the storage provider pallet itself when it starts up by calling the `create_storage_provider` extrinsic with it's `PeerId` as an argument. The public key will be extracted from the origin and is used to modify on-chain information and receive rewards. The `PeerId` is given by the storage provider so clients can use that to connect to the storage provider.
 
