@@ -63,11 +63,6 @@ Proof of Spacetime indicates the version and the sector size of the proof. This 
 
 ```rust
 pub enum RegisteredPoStProof {
-    StackedDRGWinning2KiBV1,
-    StackedDRGWinning8MiBV1,
-    StackedDRGWinning512MiBV1,
-    StackedDRGWinning32GiBV1,
-    StackedDRGWinning64GiBV1,
     StackedDRGWindow2KiBV1P1,
     StackedDRGWindow8MiBV1P1,
     StackedDRGWindow512MiBV1P1,

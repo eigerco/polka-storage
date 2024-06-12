@@ -100,11 +100,6 @@ pub enum SectorSize {
 /// Proof of Spacetime type, indicating version and sector size of the proof.
 #[derive(Debug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone, Copy)]
 pub enum RegisteredPoStProof {
-    StackedDRGWinning2KiBV1,
-    StackedDRGWinning8MiBV1,
-    StackedDRGWinning512MiBV1,
-    StackedDRGWinning32GiBV1,
-    StackedDRGWinning64GiBV1,
     StackedDRGWindow2KiBV1P1,
     StackedDRGWindow8MiBV1P1,
     StackedDRGWindow512MiBV1P1,
@@ -118,11 +113,11 @@ impl RegisteredPoStProof {
     pub fn sector_size(self) -> Result<SectorSize, String> {
         use RegisteredPoStProof::*;
         match self {
-            StackedDRGWindow2KiBV1P1 | StackedDRGWinning2KiBV1 => Ok(SectorSize::_2KiB),
-            StackedDRGWindow8MiBV1P1 | StackedDRGWinning8MiBV1 => Ok(SectorSize::_8MiB),
-            StackedDRGWindow512MiBV1P1 | StackedDRGWinning512MiBV1 => Ok(SectorSize::_512MiB),
-            StackedDRGWindow32GiBV1P1 | StackedDRGWinning32GiBV1 => Ok(SectorSize::_32GiB),
-            StackedDRGWindow64GiBV1P1 | StackedDRGWinning64GiBV1 => Ok(SectorSize::_64GiB),
+            StackedDRGWindow2KiBV1P1 => Ok(SectorSize::_2KiB),
+            StackedDRGWindow8MiBV1P1 => Ok(SectorSize::_8MiB),
+            StackedDRGWindow512MiBV1P1 => Ok(SectorSize::_512MiB),
+            StackedDRGWindow32GiBV1P1 => Ok(SectorSize::_32GiB),
+            StackedDRGWindow64GiBV1P1 => Ok(SectorSize::_64GiB),
             Invalid(i) => Err(format!("unsupported proof type: {}", i)),
         }
     }
@@ -132,12 +127,7 @@ impl RegisteredPoStProof {
     pub fn proof_size(self) -> Result<usize, String> {
         use RegisteredPoStProof::*;
         match self {
-            StackedDRGWinning2KiBV1
-            | StackedDRGWinning8MiBV1
-            | StackedDRGWinning512MiBV1
-            | StackedDRGWinning32GiBV1
-            | StackedDRGWinning64GiBV1
-            | StackedDRGWindow2KiBV1P1
+            StackedDRGWindow2KiBV1P1
             | StackedDRGWindow8MiBV1P1
             | StackedDRGWindow512MiBV1P1
             | StackedDRGWindow32GiBV1P1
@@ -151,11 +141,11 @@ impl RegisteredPoStProof {
         // Resolve to post proof and then compute size from that.
         use RegisteredPoStProof::*;
         match self {
-            StackedDRGWinning64GiBV1 | StackedDRGWindow64GiBV1P1 => Ok(2300),
-            StackedDRGWinning32GiBV1 | StackedDRGWindow32GiBV1P1 => Ok(2349),
-            StackedDRGWinning2KiBV1 | StackedDRGWindow2KiBV1P1 => Ok(2),
-            StackedDRGWinning8MiBV1 | StackedDRGWindow8MiBV1P1 => Ok(2),
-            StackedDRGWinning512MiBV1 | StackedDRGWindow512MiBV1P1 => Ok(2),
+            StackedDRGWindow2KiBV1P1 => Ok(2),
+            StackedDRGWindow8MiBV1P1 => Ok(2),
+            StackedDRGWindow512MiBV1P1 => Ok(2),
+            StackedDRGWindow32GiBV1P1 => Ok(2349),
+            StackedDRGWindow64GiBV1P1 => Ok(2300),
             Invalid(i) => Err(format!("unsupported proof type: {}", i)),
         }
     }
