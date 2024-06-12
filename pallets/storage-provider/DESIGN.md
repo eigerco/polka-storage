@@ -15,6 +15,9 @@ The `Storage Provider Pallet` handles the creation of storage providers and faci
 
 ## Usage
 
+> [!NOTE]
+> For more information about the storage provider pallet API check out [the designated docs](./API.md)
+
 ### Registering storage providers
 
 A storage provider indexes in the storage provider pallet itself when it starts up by calling the `create_storage_provider` extrinsic with it's `PeerId` as an argument. The public key will be extracted from the origin and is used to modify on-chain information and receive rewards. The `PeerId` is given by the storage provider so clients can use that to connect to the storage provider.
@@ -22,6 +25,14 @@ A storage provider indexes in the storage provider pallet itself when it starts 
 ### Modifying storage provider information
 
 The `Storage Provider Pallet` allows storage providers to modify their information such as changing the peer id, through `change_peer_id` and changing owners, through `change_owner_address`.
+
+### Declaring storage faults
+
+A storage provider can declare sectors as faulty, through the `declare_faults`, for any sectors that it cannot generate `WindowPoSt` proofs. A storage provider has to declare the sector as faulty **before** the challenge window. Until the sectors are recovered they will be masked from proofs in subsequent proving periods.
+
+### Declaring storage faults recovered
+
+After a storage provider has declared some sectors as faulty, it can recover those sectors. The storage provider can use the `declare_faults_recovered` method to set the sectors it previously declared as faulty to recovering.
 
 ## State management for Storage Providers
 
