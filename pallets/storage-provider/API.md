@@ -1,4 +1,4 @@
-# Storage provider API
+# Storage Provider pallet API
 
 ## Creating Storage Provider
 
