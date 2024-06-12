@@ -14,7 +14,7 @@ use uuid::Uuid;
 
 use super::{
     ext::WriteBatchWithTransactionExt, DealInfo, FlaggedMetadata, FlaggedPiece,
-    FlaggedPiecesListFilter, OffsetSize, PieceInfo, PieceStoreError, Record, Service,
+    FlaggedPiecesListFilter, MinerAddress, OffsetSize, PieceInfo, PieceStoreError, Record, Service,
 };
 
 // NOTE(@jmg-duarte,04/06/2024): We probably could split the interface according to the respective column family
@@ -63,9 +63,14 @@ pub const MULTIHASH_TO_PIECE_CID_CF: &str = "multihash_to_piece_cids";
 /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L66-L68>
 pub const PIECE_CID_TO_FLAGGED_CF: &str = "piece_cid_to_flagged";
 
-/// Returns a prefix like `/<cursor>/`
+/// Returns a prefix like `/<cursor>/`.
 fn key_cursor_prefix(cursor: u64) -> String {
     format!("/{}/", cursor)
+}
+
+/// Returns a key for flagging a piece, like `/<cid>/<address>`.
+fn key_flag_piece(cid: &Cid, address: &MinerAddress) -> String {
+    format!("/{}/{}", cid, address.0)
 }
 
 pub struct RocksDBStateStoreConfig {
@@ -122,6 +127,7 @@ impl RocksDBPieceStore {
             .expect("column family should have been initialized")
     }
 
+    /// Remove the value at the specified key in the specified column family.
     fn remove_value_at_key<Key>(&self, key: Key, cf_name: &str) -> Result<(), PieceStoreError>
     where
         Key: AsRef<[u8]>,
@@ -725,21 +731,23 @@ impl Service for RocksDBPieceStore {
         Ok(self.database.write(batch)?)
     }
 
-    fn next_pieces_to_check(&self, miner_address: String) -> Result<Vec<Cid>, PieceStoreError> {
-        // self.database.iterator_cf(self.cf_handle(PIECE_CID_TO_CURSOR_CF), IteratorMode::From((), ()))
-        todo!()
-    }
-
+    /// For a detailed description, see [`Service::flag_piece`].
+    ///
+    /// This information is stored in the [`PIECE_CID_TO_FLAGGED_CF`] column family.
+    ///
+    /// Sources:
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L561-L603>
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L246-L265>
     fn flag_piece(
         &self,
         piece_cid: Cid,
         has_unsealed_copy: bool,
-        miner_address: String,
+        miner_address: MinerAddress,
     ) -> Result<(), PieceStoreError> {
-        let key = format!("{}/{}", piece_cid.to_string(), miner_address);
+        let key = key_flag_piece(&piece_cid, &miner_address);
         let mut metadata = self
             .get_value_at_key(&key, PIECE_CID_TO_FLAGGED_CF)?
-            .unwrap_or_else(|| FlaggedMetadata::with_address(miner_address));
+            .unwrap_or_else(|| FlaggedPiece::new(piece_cid, miner_address));
 
         metadata.updated_at = time::OffsetDateTime::now_utc();
         metadata.has_unsealed_copy = has_unsealed_copy;
@@ -747,8 +755,19 @@ impl Service for RocksDBPieceStore {
         self.put_value_at_key(key, &metadata, PIECE_CID_TO_FLAGGED_CF)
     }
 
-    fn unflag_piece(&self, piece_cid: Cid, miner_address: String) -> Result<(), PieceStoreError> {
-        let key = format!("{}/{}", piece_cid.to_string(), miner_address);
+    /// For a detailed description, see [`Service::unflag_piece`].
+    ///
+    /// This information is stored in the [`PIECE_CID_TO_FLAGGED_CF`] column family.
+    ///
+    /// Sources:
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L605-L629>
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L838-L847>
+    fn unflag_piece(
+        &self,
+        piece_cid: Cid,
+        miner_address: MinerAddress,
+    ) -> Result<(), PieceStoreError> {
+        let key = key_flag_piece(&piece_cid, &miner_address);
         self.remove_value_at_key(key, PIECE_CID_TO_FLAGGED_CF)
     }
 
@@ -876,6 +895,11 @@ impl Service for RocksDBPieceStore {
             Ok(iterator.count() as u64)
         }
     }
+
+    fn next_pieces_to_check(&self, miner_address: String) -> Result<Vec<Cid>, PieceStoreError> {
+        // self.database.iterator_cf(self.cf_handle(PIECE_CID_TO_CURSOR_CF), IteratorMode::From((), ()))
+        todo!()
+    }
 }
 
 // TODO(@jmg-duarte,12/06/2024): replace .is_ok() assertions with unwraps
@@ -889,10 +913,11 @@ mod test {
     use tempfile::tempdir;
     use time::OffsetDateTime;
 
-    use super::{RocksDBPieceStore, RocksDBStateStoreConfig};
+    use super::{key_flag_piece, RocksDBPieceStore, RocksDBStateStoreConfig};
     use crate::local_index_directory::{
         rdb::{key_cursor_prefix, PIECE_CID_TO_CURSOR_CF, PIECE_CID_TO_FLAGGED_CF},
-        DealInfo, OffsetSize, PieceInfo, PieceStoreError, Record, Service,
+        DealInfo, FlaggedPiece, MinerAddress, OffsetSize, PieceInfo, PieceStoreError, Record,
+        Service,
     };
 
     fn init_database() -> RocksDBPieceStore {
@@ -1302,10 +1327,8 @@ mod test {
             offset_size: OffsetSize { offset: 0, size: 0 },
         }];
 
-        let pieces = db
-            .pieces_containing_multihash(cids[2].hash().to_owned())
-            .unwrap();
-        assert_eq!(pieces, vec![]);
+        let pieces = db.pieces_containing_multihash(cids[2].hash().to_owned());
+        assert!(matches!(pieces, Err(PieceStoreError::NotFoundError)));
 
         db.add_deal_for_piece(cids[0], deal_info.clone()).unwrap();
         db.add_deal_for_piece(cids[1], deal_info.clone()).unwrap();
@@ -1317,5 +1340,67 @@ mod test {
             .pieces_containing_multihash(cids[2].hash().to_owned())
             .unwrap();
         assert_eq!(pieces, vec![cids[0], cids[1]]);
+    }
+
+    #[test]
+    fn flag_piece() {
+        let db = init_database();
+        let cid = cids_vec()[0];
+        // The address of the top miner at the time of writing (12/6/24)
+        let miner_address = MinerAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
+        let key = key_flag_piece(&cid, &miner_address);
+
+        assert!(db
+            .get_value_at_key::<_, Option<FlaggedPiece>>(&key, PIECE_CID_TO_FLAGGED_CF)
+            .unwrap()
+            .is_none());
+
+        db.flag_piece(cid, true, miner_address.clone()).unwrap();
+
+        let flagged_piece: FlaggedPiece = db
+            .get_value_at_key(key, PIECE_CID_TO_FLAGGED_CF)
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(flagged_piece.piece_cid, cid);
+        assert_eq!(flagged_piece.miner_address, miner_address);
+        assert!(flagged_piece.has_unsealed_copy);
+    }
+
+    #[test]
+    fn unflag_piece() {
+        let db = init_database();
+        let cid = cids_vec()[0];
+        // The address of the top miner at the time of writing (12/6/24)
+        let miner_address = MinerAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
+        let key = key_flag_piece(&cid, &miner_address);
+
+        assert!(matches!(
+            db.unflag_piece(cid, miner_address.clone()),
+            Err(PieceStoreError::NotFoundError)
+        ));
+
+        assert!(db
+            .get_value_at_key::<_, Option<FlaggedPiece>>(&key, PIECE_CID_TO_FLAGGED_CF)
+            .unwrap()
+            .is_none());
+
+        db.flag_piece(cid, true, miner_address.clone()).unwrap();
+
+        let flagged_piece: FlaggedPiece = db
+            .get_value_at_key(&key, PIECE_CID_TO_FLAGGED_CF)
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(flagged_piece.piece_cid, cid);
+        assert_eq!(flagged_piece.miner_address, miner_address);
+        assert!(flagged_piece.has_unsealed_copy);
+
+        db.unflag_piece(cid, miner_address.clone()).unwrap();
+
+        assert!(db
+            .get_value_at_key::<_, Option<FlaggedPiece>>(&key, PIECE_CID_TO_FLAGGED_CF)
+            .unwrap()
+            .is_none());
     }
 }

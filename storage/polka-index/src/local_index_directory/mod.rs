@@ -1,8 +1,7 @@
 use cid::{multihash, Cid};
 
-use integer_encoding::{VarInt, VarIntReader};
 use serde::{Deserialize, Serialize};
-use std::string;
+use std::{ops::Deref, string};
 use uuid::Uuid;
 
 pub mod ext;
@@ -46,16 +45,38 @@ pub enum PieceStoreError {
     Base64DecodeError(#[from] base64::DecodeError),
 }
 
+/// A [`FlaggedPiece`] is a piece that has been flagged for the user's attention
+/// (e.g. the index is missing).
+///
+/// Source: <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/model/model.go#L86-L95>
+#[derive(Debug, Serialize, Deserialize)]
 pub struct FlaggedPiece {
     pub piece_cid: Cid,
-    pub miner_address: String,
+    pub miner_address: MinerAddress,
     pub created_at: time::OffsetDateTime,
     pub updated_at: time::OffsetDateTime,
     pub has_unsealed_copy: bool,
 }
 
+impl FlaggedPiece {
+    /// Construct a new [`FlaggedPiece`].
+    ///
+    /// * `created_at` and `updated_at` will be set to `now`.
+    /// * `has_unsealed_copy` will be set to `false`.
+    pub fn new(piece_cid: Cid, miner_address: MinerAddress) -> Self {
+        let now = time::OffsetDateTime::now_utc();
+        Self {
+            piece_cid,
+            miner_address,
+            created_at: now,
+            updated_at: now,
+            has_unsealed_copy: false,
+        }
+    }
+}
+
 pub struct FlaggedPiecesListFilter {
-    pub miner_address: String,
+    pub miner_address: MinerAddress,
     pub has_unsealed_copy: bool,
 }
 
@@ -71,14 +92,11 @@ pub struct FlaggedMetadata {
     pub has_unsealed_copy: bool,
 
     #[serde(rename = "m")]
-    // The miner address is a special type from filecoin-project/go-address
-    // however, it's simply a wrapper to string:
-    // https://github.com/filecoin-project/go-address/blob/365a7c8d0e85c731c192e65ece5f5b764026e85d/address.go#L39-L40
-    pub miner_address: String,
+    pub miner_address: MinerAddress,
 }
 
 impl FlaggedMetadata {
-    pub fn with_address(miner_address: String) -> Self {
+    pub fn with_address(miner_address: MinerAddress) -> Self {
         let now = time::OffsetDateTime::now_utc();
         Self {
             created_at: now,
@@ -166,6 +184,8 @@ impl PieceInfo {
     }
 }
 
+// NOTE(@jmg-duarte,12/06/2024): maybe we could implement Deref from DealId and MinerAddress
+
 /// Identifier for a retrieval deal (unique to a client)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct DealId(u64);
@@ -177,8 +197,21 @@ impl From<u64> for DealId {
 }
 
 /// The miner's address.
+///
+/// It is a special type from `filecoin-project/go-address`
+/// however, it's simply a wrapper to `string`:
+/// https://github.com/filecoin-project/go-address/blob/365a7c8d0e85c731c192e65ece5f5b764026e85d/address.go#L39-L40
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct MinerAddress(String);
+
+// The Deref implementation eases usages like checking whether the address is empty.
+impl Deref for MinerAddress {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 impl From<String> for MinerAddress {
     fn from(value: String) -> Self {
@@ -322,7 +355,7 @@ pub trait Service {
         multihash: multihash::Multihash<64>,
     ) -> Result<OffsetSize, PieceStoreError>;
 
-    /// Get all the pieces containing the given [`Multihash`].
+    /// Get all the pieces containing the given [`Multihash`](multihash::Multihash).
     ///
     /// * If not pieces are found, returns [`PieceStoreError::NotFoundError`].
     fn pieces_containing_multihash(
@@ -331,15 +364,26 @@ pub trait Service {
     ) -> Result<Vec<Cid>, PieceStoreError>;
 
     fn remove_indexes(&self, piece_cid: Cid) -> Result<(), PieceStoreError>;
-    fn next_pieces_to_check(&self, miner_address: String) -> Result<Vec<Cid>, PieceStoreError>;
 
+    /// Flag the piece with the given [`Cid`].
+    ///
+    /// * If the piece & miner address pair is not found, a new entry will be stored.
     fn flag_piece(
         &self,
         piece_cid: Cid,
         has_unsealed_copy: bool,
-        miner_address: String,
+        miner_address: MinerAddress,
     ) -> Result<(), PieceStoreError>;
-    fn unflag_piece(&self, piece_cid: Cid, miner_address: String) -> Result<(), PieceStoreError>;
+
+    /// Unflag the piece with the given [`Cid`].
+    ///
+    /// * If the piece & miner address pair is not found, this is a no-op.
+    fn unflag_piece(
+        &self,
+        piece_cid: Cid,
+        miner_address: MinerAddress,
+    ) -> Result<(), PieceStoreError>;
+
     fn flagged_pieces_list(
         &self,
         filter: Option<FlaggedPiecesListFilter>,
@@ -354,4 +398,5 @@ pub trait Service {
         &self,
         filter: Option<FlaggedPiecesListFilter>,
     ) -> Result<u64, PieceStoreError>;
+    fn next_pieces_to_check(&self, miner_address: String) -> Result<Vec<Cid>, PieceStoreError>;
 }
