@@ -97,7 +97,7 @@ pub enum SectorSize {
     _64GiB,
 }
 
-/// Proof of spacetime type, indicating version and sector size of the proof.
+/// Proof of Spacetime type, indicating version and sector size of the proof.
 #[derive(Debug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone, Copy)]
 pub enum RegisteredPoStProof {
     StackedDRGWinning2KiBV1,
@@ -161,7 +161,7 @@ impl RegisteredPoStProof {
     }
 }
 
-/// Proof of spacetime data stored on chain.
+/// Proof of Spacetime data stored on chain.
 #[derive(Debug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone)]
 pub struct PoStProof {
     pub post_proof: RegisteredPoStProof,

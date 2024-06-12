@@ -54,9 +54,9 @@ pub struct StorageProviderInfo<AccountId, PeerId> {
 
 ## Data structures
 
-### Proof of spacetime
+### Proof of Spacetime
 
-Proof of spacetime indicates the version and the sector size of the proof. This type is used by the Storage Provider when initially starting up to indicate what PoSt version it will use to submit Window PoSt proof.
+Proof of Spacetime indicates the version and the sector size of the proof. This type is used by the Storage Provider when initially starting up to indicate what PoSt version it will use to submit Window PoSt proof.
 
 ```rust
 pub enum RegisteredPoStProof {
@@ -96,9 +96,9 @@ pub struct PoStProof {
 }
 ```
 
-### Proof of replication
+### Proof of Replication
 
-Proof of replication is used when a Storage Provider wants to store data on behalf of a client and receives a piece of client data. The data will first be placed in a sector after which that sector is sealed by the storage provider. Then a unique encoding, which serves as proof that the Storage Provider has replicated a copy of the data they agreed to store, is generated. Finally, the proof is compressed and submitted to the network as certification of storage.
+Proof of Replication is used when a Storage Provider wants to store data on behalf of a client and receives a piece of client data. The data will first be placed in a sector after which that sector is sealed by the storage provider. Then a unique encoding, which serves as proof that the Storage Provider has replicated a copy of the data they agreed to store, is generated. Finally, the proof is compressed and submitted to the network as certification of storage.
 
 ```rust
 /// This type indicates the seal proof type which defines the version and the sector size
