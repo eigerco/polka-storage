@@ -25,6 +25,9 @@ panic = 'abort'         # Use abort on panic to reduce binary size
 
 [workspace.dependencies]
 # Build dependencies
+substrate-build-script-utils = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0" }
+substrate-wasm-builder = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0" }
+
 async-stream = "0.3.5"
 bitflags = "2.5.0"
 byteorder = "1.5.0"
@@ -62,8 +65,6 @@ serde_json = { version = "1.0.114", default-features = false }
 serde_yaml = { version = "0.9" }
 sha2 = "0.10.8"
 smallvec = "1.11.0"
-substrate-build-script-utils = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0" }
-substrate-wasm-builder = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0" }
 subxt = { version = "0.37.0" }
 subxt-signer = "0.37.0"
 syn = { version = "2.0.53" }
