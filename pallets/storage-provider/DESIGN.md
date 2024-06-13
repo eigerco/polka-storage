@@ -14,6 +14,7 @@
     - [Termination Penalty (TP)](#termination-penalty-tp)
     - [State management for Storage Providers](#state-management-for-storage-providers)
     - [Static information about a Storage Provider](#static-information-about-a-storage-provider)
+  - [Sector sealing](#sector-sealing)
   - [Data structures](#data-structures)
     - [Proof of Spacetime](#proof-of-spacetime)
     - [Proof of Replication](#proof-of-replication)
@@ -111,6 +112,23 @@ pub struct StorageProviderInfo<AccountId, PeerId> {
     pub window_post_partition_sectors: u64,
 }
 ```
+
+## Sector sealing
+
+Before a sector can be used, the storage provider must seal the sector, which involves encoding the data in the sector to prepare it for the proving process.
+
+- **Unsealed Sector**: An unsealed sector is a sector containing raw data that has not yet been sealed.
+- **UnsealedCID (CommD)**: The root hash of the unsealed sector’s Merkle tree, also referred to as CommD or "data commitment."
+- **Sealed Sector**: A sector that has been encoded and prepared for the proving process.
+- **SealedCID (CommR)**: The root hash of the sealed sector’s Merkle tree, also referred to as CommR or "replica commitment."
+
+By sealing sectors, storage providers ensure that data is properly encoded and ready for the proof-of-storage process, maintaining the integrity and security of the stored data in the network.
+
+Sealing a sector using Proof-of-Replication (PoRep) is a computation-intensive process that results in a unique encoding of the sector. Once the data is sealed, storage providers follow these steps:
+
+- **Generate a Proof**: Create a proof that the data has been correctly sealed.
+- **Run a SNARK on the Proof**: Compress the proof using a Succinct Non-interactive Argument of Knowledge (SNARK).
+- **Submit the Compressed Proof:** Submit the result of the compression to the blockchain as certification of the storage commitment.
 
 ## Data structures
 
