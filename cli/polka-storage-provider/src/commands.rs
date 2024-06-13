@@ -1,9 +1,11 @@
-mod run_rpc_cmd;
-mod stop_rpc_cmd;
-mod wallet_cmd;
+mod info;
+mod init;
+mod run;
+mod wallet;
 
 pub(crate) mod runner;
 
-pub(crate) use run_rpc_cmd::RunRpcCmd;
-pub(crate) use stop_rpc_cmd::StopRpcCmd;
-pub(crate) use wallet_cmd::WalletCmd;
+pub(crate) use info::InfoCommand;
+pub(crate) use init::InitCommand;
+pub(crate) use run::RunCommand;
+pub(crate) use wallet::WalletCommand;

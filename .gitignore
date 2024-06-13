@@ -3,6 +3,7 @@
 .AppleDouble
 .LSOverride
 .idea
+.vscode
 
 # Rust .gitignore
 # https://github.com/github/gitignore/blob/main/Rust.gitignore
@@ -20,6 +21,3 @@ target/
 
 # reproducible local environment
 .direnv
-
-# Visual Studio Code
-.vscode/

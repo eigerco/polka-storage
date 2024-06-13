@@ -8,11 +8,18 @@ repository.workspace = true
 version = "0.1.0"
 
 [dependencies]
+chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive"] }
-cli-primitives = { path = "../../primitives/cli" }
-env_logger = { workspace = true }
+cli-primitives = { workspace = true }
+jsonrpsee = { workspace = true, features = ["server"] }
 sc-cli = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+subxt = { workspace = true }
+subxt-signer = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 url = { workspace = true }
 
 [lints]

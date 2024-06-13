@@ -11,7 +11,7 @@ use sc_cli::{
     about = "Utility for generating and restoring keys",
     version
 )]
-pub enum WalletCmd {
+pub enum WalletCommand {
     /// Generate a random node key, write it to a file or stdout and write the
     /// corresponding peer-id to stderr
     GenerateNodeKey(GenerateKeyCmdCommon),

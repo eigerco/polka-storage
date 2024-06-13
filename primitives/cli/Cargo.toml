@@ -9,7 +9,9 @@ version = "0.1.0"
 
 [dependencies]
 sc-cli = { workspace = true }
+subxt = { workspace = true }
 thiserror = { workspace = true }
+tracing-subscriber = { workspace = true }
 
 [lints]
 workspace = true
