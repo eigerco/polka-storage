@@ -18,7 +18,7 @@ mod v2;
 
 // We need to expose this because `read_block` returns `(Cid, Vec<u8>)`.
 pub use ipld_core::cid::Cid;
-pub use stores::{create_filestore, Blockstore};
+pub use stores::{create_filestore, Blockstore, Config};
 pub use v1::{Header as CarV1Header, Reader as CarV1Reader, Writer as CarV1Writer};
 pub use v2::{
     Characteristics, Header as CarV2Header, Index, IndexEntry, IndexSorted, MultihashIndexSorted,
