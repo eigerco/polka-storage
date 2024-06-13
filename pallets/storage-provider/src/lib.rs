@@ -45,7 +45,7 @@ pub mod pallet {
 
         /// Peer ID is derived by hashing an encoded public key.
         /// Usually represented in bytes.
-        /// https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
+        /// https://github.com/libp2p/specs/blob/2ea41e8c769f1bead8e637a9d4ebf8c791976e8a/peer-ids/peer-ids.md#peer-ids
         type PeerId: Clone + Debug + Decode + Encode + Eq + TypeInfo;
     }
 
