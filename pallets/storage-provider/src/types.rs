@@ -88,7 +88,7 @@ where
 /// SectorSize indicates one of a set of possible sizes in the network.
 #[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq, Eq, Copy)]
 pub enum SectorSize {
-    2KiB,
+    _2KiB,
 }
 
 /// Proof of Spacetime type, indicating version and sector size of the proof.
@@ -102,7 +102,7 @@ impl RegisteredPoStProof {
     pub fn sector_size(self) -> SectorSize {
         use RegisteredPoStProof::*;
         match self {
-            StackedDRGWindow2KiBV1P1 => SectorSize::2KiB,
+            StackedDRGWindow2KiBV1P1 => SectorSize::_2KiB,
         }
     }
 
