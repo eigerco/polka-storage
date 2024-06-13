@@ -6,7 +6,7 @@ license-file = "LICENSE"
 repository = "https://github.com/eigerco/polka-storage"
 
 [workspace]
-members = ["cli/polka-storage-provider", "node", "primitives/cli", "runtime", "storage/mater", "storage/polka-index"]
+members = ["cli/polka-storage-provider", "node", "pallets/market", "primitives/cli", "runtime", "storage/mater", "storage/polka-index"]
 resolver = "2"
 
 [profile.ci]
@@ -79,6 +79,7 @@ uuid = "1.8.0"
 
 # Local
 cli-primitives = { path = "primitives/cli" }
+pallet-market = { path = "pallets/market", default-features = false }
 polka-storage-runtime = { path = "runtime" }
 
 # Substrate
