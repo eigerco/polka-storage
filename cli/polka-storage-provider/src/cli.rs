@@ -18,7 +18,7 @@ pub enum SubCommand {
     Init(InitCommand),
     /// Start a polka storage provider
     Run(RunCommand),
-    /// Info command
+    /// Info command to display information about the storage provider.
     Info(InfoCommand),
     /// Command to manage wallet operations.
     #[command(subcommand)]

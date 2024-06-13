@@ -4,7 +4,7 @@ use tracing::info;
 
 /// Command to initialize the storage provider.
 #[derive(Debug, Clone, Parser)]
-pub(crate) struct InitCommand {}
+pub(crate) struct InitCommand;
 
 impl InitCommand {
     pub async fn run(&self) -> Result<()> {

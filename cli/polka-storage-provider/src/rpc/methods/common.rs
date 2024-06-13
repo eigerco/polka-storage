@@ -1,8 +1,10 @@
+use std::sync::Arc;
+
 use chrono::{DateTime, Utc};
 use jsonrpsee::types::Params;
 use serde::{Deserialize, Serialize};
 
-use crate::rpc::{error::ServerError, ApiVersion, Ctx, RpcMethod};
+use crate::rpc::{error::ServerError, ApiVersion, RpcMethod, RpcServerState};
 
 /// This RPC method exposes the system information.
 #[derive(Debug)]
@@ -15,7 +17,10 @@ impl RpcMethod for Info {
 
     type Ok = InfoResult;
 
-    async fn handle(ctx: Ctx, _params: Params<'_>) -> Result<Self::Ok, ServerError> {
+    async fn handle(
+        ctx: Arc<RpcServerState>,
+        _params: Params<'_>,
+    ) -> Result<Self::Ok, ServerError> {
         Ok(InfoResult {
             start_time: ctx.start_time,
         })

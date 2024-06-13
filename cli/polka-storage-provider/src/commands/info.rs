@@ -3,7 +3,7 @@ use cli_primitives::Result;
 
 /// Command to display information about the storage provider.
 #[derive(Debug, Clone, Parser)]
-pub(crate) struct InfoCommand {}
+pub(crate) struct InfoCommand;
 
 impl InfoCommand {
     pub async fn run(&self) -> Result<()> {

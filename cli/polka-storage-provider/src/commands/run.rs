@@ -3,6 +3,7 @@ use std::{net::SocketAddr, sync::Arc};
 use chrono::Utc;
 use clap::Parser;
 use cli_primitives::Result;
+use tracing::info;
 use url::Url;
 
 use crate::{
@@ -33,16 +34,19 @@ impl RunCommand {
             substrate_client,
         });
 
+        // Start RPC server
         let handle = start_rpc(state, self.listen_addr).await?;
-        let handle_clone = handle.clone();
-        let rpc_server_stopped = tokio::spawn(handle_clone.stopped());
+        info!("RPC server started at {}", self.listen_addr);
 
         // Monitor shutdown
         tokio::signal::ctrl_c().await?;
+
+        // Stop the Server
         let _ = handle.stop();
 
         // Wait for the server to stop
-        let _ = rpc_server_stopped.await;
+        handle.stopped().await;
+        info!("RPC server stopped");
 
         Ok(())
     }

@@ -1,9 +1,11 @@
+use std::sync::Arc;
+
 use jsonrpsee::types::Params;
 use serde::{Deserialize, Serialize};
 use subxt_signer::sr25519::dev;
 
 use crate::{
-    rpc::{error::ServerError, ApiVersion, Ctx, RpcMethod},
+    rpc::{error::ServerError, ApiVersion, RpcMethod, RpcServerState},
     substrate::get_system_balances,
 };
 
@@ -16,7 +18,10 @@ impl RpcMethod for WalletBalance {
 
     type Ok = Option<WalletBalanceResult>;
 
-    async fn handle(ctx: Ctx, _params: Params<'_>) -> Result<Self::Ok, ServerError> {
+    async fn handle(
+        ctx: Arc<RpcServerState>,
+        _params: Params<'_>,
+    ) -> Result<Self::Ok, ServerError> {
         // TODO(#68,@cernicc,05/06/2024): Implement correctly. dev alice is used as a show case for now.
         let account = dev::alice().public_key().into();
         let balance = get_system_balances(&ctx.substrate_client, &account).await?;

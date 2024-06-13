@@ -16,9 +16,6 @@ use crate::substrate;
 pub mod error;
 pub mod methods;
 
-/// Type to be used by [`RpcMethod::handle`].
-pub type Ctx = Arc<RpcServerState>;
-
 /// A definition of an RPC method handler which can be registered with an [`RpcModule`].
 pub trait RpcMethod {
     /// Method name.
@@ -30,7 +27,7 @@ pub trait RpcMethod {
 
     /// Logic for this method.
     fn handle(
-        ctx: Ctx,
+        ctx: Arc<RpcServerState>,
         params: Params,
     ) -> impl Future<Output = Result<Self::Ok, ServerError>> + Send;
 
@@ -52,8 +49,6 @@ pub trait RpcMethod {
 ///
 /// These are significant because they are expressed in the URL path against
 /// which RPC calls are made, e.g `rpc/v0` or `rpc/v1`.
-///
-/// This information is important when using [`crate::rpc::client`].
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub enum ApiVersion {
     V0,
@@ -72,8 +67,6 @@ pub async fn start_rpc(
 
     let module = create_module(state.clone());
     let server_handle = server.start(module);
-
-    info!("RPC server started at {}", listen_addr);
 
     Ok(server_handle)
 }
