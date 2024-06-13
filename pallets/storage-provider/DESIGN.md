@@ -1,21 +1,22 @@
 # Storage Provider Pallet
 
-- [Overview](#overview)
-  - [Constants \& Terminology](#constants--terminology)
-- [Usage](#usage)
-  - [Registering storage providers](#registering-storage-providers)
-  - [Modifying storage provider information](#modifying-storage-provider-information)
-  - [Declaring storage faults](#declaring-storage-faults)
-  - [Declaring storage faults recovered](#declaring-storage-faults-recovered)
-- [Storage fault slashing](#storage-fault-slashing)
-  - [Fault Fee (FF)](#fault-fee-ff)
-  - [Sector Penalty (SP)](#sector-penalty-sp)
-  - [Termination Penalty (TP)](#termination-penalty-tp)
-  - [State management for Storage Providers](#state-management-for-storage-providers)
-  - [Static information about a Storage Provider](#static-information-about-a-storage-provider)
-- [Data structures](#data-structures)
-  - [Proof of Spacetime](#proof-of-spacetime)
-  - [Proof of Replication](#proof-of-replication)
+- [Storage Provider Pallet](#storage-provider-pallet)
+  - [Overview](#overview)
+    - [Constants \& Terminology](#constants--terminology)
+  - [Usage](#usage)
+    - [Registering storage providers](#registering-storage-providers)
+    - [Modifying storage provider information](#modifying-storage-provider-information)
+    - [Declaring storage faults](#declaring-storage-faults)
+    - [Declaring storage faults recovered](#declaring-storage-faults-recovered)
+  - [Storage fault slashing](#storage-fault-slashing)
+    - [Fault Fee (FF)](#fault-fee-ff)
+    - [Sector Penalty (SP)](#sector-penalty-sp)
+    - [Termination Penalty (TP)](#termination-penalty-tp)
+    - [State management for Storage Providers](#state-management-for-storage-providers)
+    - [Static information about a Storage Provider](#static-information-about-a-storage-provider)
+  - [Data structures](#data-structures)
+    - [Proof of Spacetime](#proof-of-spacetime)
+    - [Proof of Replication](#proof-of-replication)
 
 ## Overview
 
@@ -33,7 +34,7 @@ The `Storage Provider Pallet` handles the creation of storage providers and faci
 ## Usage
 
 > [!NOTE]
-> For more information about the storage provider pallet API check out [the designated docs](./API.md)
+> For more information about the storage provider pallet API check out [the API docs](./API.md)
 
 ### Registering storage providers
 
