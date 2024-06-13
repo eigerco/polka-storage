@@ -108,7 +108,7 @@ pub mod pallet {
             // Generate some storage_provider id and insert into `StorageProviders` storage
             let storage_provider_info =
                 StorageProviderInfo::new(owner.clone(), peer_id.clone(), window_post_proof_type)
-                    .map_err(|_| Error::<T>::StorageProviderInfoError)?;
+                    .map_err(|_| Error::<T>::StorageProviderInfo)?;
             StorageProviders::<T>::insert(owner.clone(), storage_provider_info);
             Self::deposit_event(Event::StorageProviderCreated { owner });
             Ok(().into())
