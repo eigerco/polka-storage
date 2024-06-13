@@ -142,11 +142,6 @@ Proof of Spacetime indicates the version and the sector size of the proof. This 
 ```rust
 pub enum RegisteredPoStProof {
     StackedDRGWindow2KiBV1P1,
-    StackedDRGWindow8MiBV1P1,
-    StackedDRGWindow512MiBV1P1,
-    StackedDRGWindow32GiBV1P1,
-    StackedDRGWindow64GiBV1P1,
-    Invalid(i64),
 }
 ```
 
@@ -155,11 +150,7 @@ The `SectorSize` indicates one of a set of possible sizes in the network.
 ```rust
 #[repr(u64)]
 pub enum SectorSize {
-    _2KiB
-    _8MiB,
-    _512MiB,
-    _32GiB,
-    _64GiB,
+    2KiB
 }
 ```
 
@@ -182,22 +173,7 @@ Proof of Replication is used when a Storage Provider wants to store data on beha
 ```rust
 /// This type indicates the seal proof type which defines the version and the sector size
 pub enum RegisteredSealProof {
-    StackedDRG2KiBV1,
-    StackedDRG512MiBV1,
-    StackedDRG8MiBV1,
-    StackedDRG32GiBV1,
-    StackedDRG64GiBV1,
     StackedDRG2KiBV1P1,
-    StackedDRG512MiBV1P1,
-    StackedDRG8MiBV1P1,
-    StackedDRG32GiBV1P1,
-    StackedDRG64GiBV1P1,
-    StackedDRG2KiBV1P1_Feat_SyntheticPoRep,
-    StackedDRG512MiBV1P1_Feat_SyntheticPoRep,
-    StackedDRG8MiBV1P1_Feat_SyntheticPoRep,
-    StackedDRG32GiBV1P1_Feat_SyntheticPoRep,
-    StackedDRG64GiBV1P1_Feat_SyntheticPoRep,
-    Invalid(i64),
 }
 ```
 

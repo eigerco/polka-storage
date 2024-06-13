@@ -88,11 +88,7 @@ where
 /// SectorSize indicates one of a set of possible sizes in the network.
 #[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq, Eq, Copy)]
 pub enum SectorSize {
-    _2KiB,
-    _8MiB,
-    _512MiB,
-    _32GiB,
-    _64GiB,
+    2KiB,
 }
 
 /// Proof of Spacetime type, indicating version and sector size of the proof.
@@ -106,7 +102,7 @@ impl RegisteredPoStProof {
     pub fn sector_size(self) -> SectorSize {
         use RegisteredPoStProof::*;
         match self {
-            StackedDRGWindow2KiBV1P1 => SectorSize::_2KiB,
+            StackedDRGWindow2KiBV1P1 => SectorSize::2KiB,
         }
     }
 
@@ -140,22 +136,7 @@ pub struct PoStProof {
 #[allow(non_camel_case_types)]
 #[derive(Debug, Decode, Encode, TypeInfo, Eq, PartialEq, Clone)]
 pub enum RegisteredSealProof {
-    StackedDRG2KiBV1,
-    StackedDRG512MiBV1,
-    StackedDRG8MiBV1,
-    StackedDRG32GiBV1,
-    StackedDRG64GiBV1,
     StackedDRG2KiBV1P1,
-    StackedDRG512MiBV1P1,
-    StackedDRG8MiBV1P1,
-    StackedDRG32GiBV1P1,
-    StackedDRG64GiBV1P1,
-    StackedDRG2KiBV1P1_Feat_SyntheticPoRep,
-    StackedDRG512MiBV1P1_Feat_SyntheticPoRep,
-    StackedDRG8MiBV1P1_Feat_SyntheticPoRep,
-    StackedDRG32GiBV1P1_Feat_SyntheticPoRep,
-    StackedDRG64GiBV1P1_Feat_SyntheticPoRep,
-    Invalid(i64),
 }
 
 /// This type is passed into the pre commit function on the storage provider pallet
