@@ -306,7 +306,13 @@ impl pallet_collator_selection::Config for Runtime {
     type WeightInfo = ();
 }
 
+parameter_types! {
+    /// PalletId of Market Pallet, used to convert it to AccountId which holds the Market funds
+    pub const MarketPalletId: PalletId = PalletId(*b"spMarket");
+}
+
 impl pallet_market::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
+    type PalletId = MarketPalletId;
 }
