@@ -26,7 +26,7 @@ The PoRep proof links together:
 2. The storage provider who performs the sealing.
 3. The time when the specific data was sealed by the specific storage provider.
 
-If the same storage provider attempts to seal the same data at a later time, a different PoRep proof will be produced. The time is recorded as the blockchain height at which sealing took place, with the corresponding chain reference termed SealRandomness.
+If the same storage provider attempts to seal the same data at a later time, a different PoRep proof will be produced. The time is recorded as the blockchain height at which sealing took place, with the corresponding chain reference termed [SealRandomness](https://spec.filecoin.io/systems/filecoin_mining/sector/sealing/#section-systems.filecoin_mining.sector.sealing.randomness).
 Generating and Submitting PoRep Proofs
 
 Once the proof is generated, the storage provider compresses it using a SNARK (Succinct Non-interactive Argument of Knowledge) and submits the result to the blockchain. This submission certifies that the storage provider has indeed replicated a copy of the data they committed to store.
