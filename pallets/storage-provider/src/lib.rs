@@ -75,13 +75,13 @@ pub mod pallet {
 
     #[pallet::error]
     pub enum Error<T> {
-        /// Error emitted when the provided information for the storage provider is invalid.
-        StorageProviderInfoError,
-        /// Error emitted when trying to get info on a storage provider that does not exist.
+        /// Emitted when the provided information for the storage provider is invalid.
+        StorageProviderInfo,
+        /// Emitted when trying to get info on a storage provider that does not exist.
         StorageProviderNotFound,
-        /// Error emitted when doing a privileged call and the signer does not match.
+        /// Emitted when doing a privileged call and the signer does not match.
         InvalidSigner,
-        /// Error emitted when trying to create a storage provider that is already indexed.
+        /// Emitted when trying to create a storage provider that is already indexed.
         DuplicateStorageProvider,
     }
 
