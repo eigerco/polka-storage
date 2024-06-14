@@ -1,6 +1,7 @@
 use std::{future::Future, net::SocketAddr, sync::Arc};
 
 use chrono::Utc;
+use cli_primitives::Error;
 use error::ServerError;
 use jsonrpsee::{
     server::{Server, ServerHandle},
@@ -62,7 +63,7 @@ pub struct RpcServerState {
 pub async fn start_rpc(
     state: Arc<RpcServerState>,
     listen_addr: SocketAddr,
-) -> cli_primitives::Result<ServerHandle> {
+) -> Result<ServerHandle, Error> {
     let server = Server::builder().build(listen_addr).await?;
 
     let module = create_module(state.clone());

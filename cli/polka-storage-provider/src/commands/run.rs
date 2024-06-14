@@ -2,7 +2,7 @@ use std::{net::SocketAddr, sync::Arc};
 
 use chrono::Utc;
 use clap::Parser;
-use cli_primitives::Result;
+use cli_primitives::Error;
 use tracing::info;
 use url::Url;
 
@@ -26,7 +26,7 @@ pub(crate) struct RunCommand {
 }
 
 impl RunCommand {
-    pub async fn run(&self) -> Result<()> {
+    pub async fn run(&self) -> Result<(), Error> {
         let substrate_client = substrate::init_client(self.node_rpc_address.as_str()).await?;
 
         let state = Arc::new(RpcServerState {
