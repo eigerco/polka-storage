@@ -12,6 +12,10 @@ pub use pallet::*;
 #[cfg(test)]
 mod mock;
 
+#[cfg(test)]
+mod test;
+
+// TODO(@th7nder,#77,14/06/2024): take the pallet out of dev mode
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
     use codec::{Decode, Encode};
@@ -19,15 +23,22 @@ pub mod pallet {
         dispatch::DispatchResult,
         ensure,
         pallet_prelude::*,
-        sp_runtime::{RuntimeDebug,traits::{AccountIdConversion,CheckedAdd},ArithmeticError},
-        traits::{Currency, ReservableCurrency,ExistenceRequirement::KeepAlive,ExistenceRequirement::AllowDeath},
+        sp_runtime::{
+            traits::{AccountIdConversion, CheckedAdd, CheckedSub},
+            ArithmeticError, RuntimeDebug,
+        },
+        traits::{
+            Currency,
+            ExistenceRequirement::{AllowDeath, KeepAlive},
+            ReservableCurrency,
+        },
         PalletId,
     };
     use frame_system::{pallet_prelude::*, Config as SystemConfig};
     use scale_info::TypeInfo;
 
-    // Allows to extract Balance of an account via the Config::Currency associated type.
-    // BalanceOf is a sophisticated way of getting an u128.
+    /// Allows to extract Balance of an account via the Config::Currency associated type.
+    /// BalanceOf is a sophisticated way of getting an u128.
     type BalanceOf<T> =
         <<T as Config>::Currency as Currency<<T as SystemConfig>::AccountId>>::Balance;
 
@@ -45,7 +56,7 @@ pub mod pallet {
     }
 
     /// Stores balances info for both Storage Providers and Storage Users
-    /// We do not use the ReservableCurrency::reserve mechanism, 
+    /// We do not use the ReservableCurrency::reserve mechanism,
     /// as the Market works as a liaison between Storage Providers and Storage Clients.
     /// Market has its own account on which funds of all parties are stored.
     /// It's Market reposibility to manage deposited funds, lock/unlock and pay them out when necessary.
@@ -55,10 +66,10 @@ pub mod pallet {
     pub struct BalanceEntry<Balance> {
         /// Amount of Balance that has been deposited for future deals/earned from deals.
         /// It can be withdrawn at any time.
-        free: Balance,
+        pub(crate) free: Balance,
         /// Amount of Balance that has been staked as Deal Collateral
         /// It's locked to a deal and cannot be withdrawn until the deal ends.
-        locked: Balance,
+        pub(crate) locked: Balance,
     }
 
     #[pallet::pallet]
@@ -81,7 +92,7 @@ pub mod pallet {
         BalanceWithdrawn {
             who: T::AccountId,
             amount: BalanceOf<T>,
-        }
+        },
     }
 
     #[pallet::error]
@@ -89,31 +100,32 @@ pub mod pallet {
         /// When a Market Participant tries to withdraw more
         /// funds than they have available on the Market, because:
         /// - they never deposited the amount they want to withdraw
-        //  - the funds they deposited were locked as part of a deal
+        /// - the funds they deposited were locked as part of a deal
         InsufficientFreeFunds,
     }
 
     /// Extrinsics exposed by the pallet
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-
         /// Transfers `amount` of Balance from the `origin` to the Market Pallet account.
         /// It is marked as _free_ in the Market bookkeeping.
         /// Free balance can be withdrawn at any moment from the Market.
         pub fn add_balance(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult {
             let caller = ensure_signed(origin)?;
 
-            BalanceTable::<T>::try_mutate(
-                &caller,
-                |balance| -> DispatchResult {
-                    T::Currency::transfer(&caller, &Self::account_id(), amount, KeepAlive)?;
-                    balance.free = balance.free.checked_add(&amount)
-                        .ok_or(ArithmeticError::Overflow)?;
+            BalanceTable::<T>::try_mutate(&caller, |balance| -> DispatchResult {
+                balance.free = balance
+                    .free
+                    .checked_add(&amount)
+                    .ok_or(ArithmeticError::Overflow)?;
+                T::Currency::transfer(&caller, &Self::account_id(), amount, KeepAlive)?;
 
-                    Self::deposit_event(Event::<T>::BalanceAdded { who: caller.clone(), amount });
-                    Ok(())
-                }
-            )?;
+                Self::deposit_event(Event::<T>::BalanceAdded {
+                    who: caller.clone(),
+                    amount,
+                });
+                Ok(())
+            })?;
 
             Ok(())
         }
@@ -123,18 +135,21 @@ pub mod pallet {
         pub fn withdraw_balance(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult {
             let caller = ensure_signed(origin)?;
 
-            BalanceTable::<T>::try_mutate(
-                &caller,
-                |balance| -> DispatchResult {
-                    ensure!(balance.free >= amount, Error::<T>::InsufficientFreeFunds);
-                    balance.free -= amount;
-                    // The Market Pallet account will be reaped if no one is participating in the market.
-                    T::Currency::transfer(&Self::account_id(), &caller, amount, AllowDeath)?;
+            BalanceTable::<T>::try_mutate(&caller, |balance| -> DispatchResult {
+                ensure!(balance.free >= amount, Error::<T>::InsufficientFreeFunds);
+                balance.free = balance
+                    .free
+                    .checked_sub(&amount)
+                    .ok_or(ArithmeticError::Underflow)?;
+                // The Market Pallet account will be reaped if no one is participating in the market.
+                T::Currency::transfer(&Self::account_id(), &caller, amount, AllowDeath)?;
 
-                    Self::deposit_event(Event::<T>::BalanceWithdrawn { who: caller.clone(), amount });
-                    Ok(())
-                }
-            )?;
+                Self::deposit_event(Event::<T>::BalanceWithdrawn {
+                    who: caller.clone(),
+                    amount,
+                });
+                Ok(())
+            })?;
 
             Ok(())
         }
@@ -144,7 +159,7 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// Account Id of the Market
         ///
-        /// This actually does computation. 
+        /// This actually does computation.
         /// If you need to keep using it, make sure you cache it and call it once.
         pub fn account_id() -> T::AccountId {
             T::PalletId::get().into_account_truncating()
