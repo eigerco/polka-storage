@@ -2,7 +2,6 @@ use std::{
     fmt::Display,
     io::Cursor,
     path::{Path, PathBuf},
-    sync::OnceLock,
 };
 
 use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
@@ -42,19 +41,20 @@ fn get_num_copies() -> Vec<usize> {
     vec![0, 1, 2, 4]
 }
 
-static CONTENTS: OnceLock<Vec<(Params, Vec<u8>)>> = OnceLock::new();
-fn get_contents() -> &'static Vec<(Params, Vec<u8>)> {
-    CONTENTS.get_or_init(|| {
-        let mut contents = vec![];
-        for size in get_sizes() {
-            for num in get_num_copies() {
-                let content = create_content(size, num);
-                contents.push((Params { size, num }, content));
-            }
-        }
-
-        contents
-    })
+/// Get combinations of parameters for the benchmarks.
+fn get_params() -> Vec<Params> {
+    get_sizes()
+        .iter()
+        .flat_map(|size| {
+            get_num_copies()
+                .iter()
+                .map(move |num| Params {
+                    size: *size,
+                    num: *num,
+                })
+                .collect::<Vec<Params>>()
+        })
+        .collect::<Vec<Params>>()
 }
 
 /// Create random content of a given size. Duplicates are used to specify how
@@ -86,10 +86,10 @@ async fn read_content_benched(content: &[u8], mut store: Blockstore) {
 }
 
 fn read(c: &mut Criterion) {
-    let contents = get_contents();
-
-    for (params, content) in contents {
-        c.bench_with_input(BenchmarkId::new("read", params), params, |b, _params| {
+    let params = get_params();
+    for param in &params {
+        let content = create_content(param.size, param.num);
+        c.bench_with_input(BenchmarkId::new("read", param), param, |b, _param| {
             b.to_async(TokioExecutor::new().unwrap())
                 .iter(|| read_content_benched(&content, Blockstore::new()));
         });
@@ -103,9 +103,10 @@ async fn write_contents_benched(buffer: Vec<u8>, store: Blockstore) {
 
 fn write(c: &mut Criterion) {
     let runtime = TokioExecutor::new().unwrap();
-    let contents = get_contents();
+    let params = get_params();
 
-    for (params, content) in contents {
+    for param in params {
+        let content = create_content(param.size, param.num);
         let mut blockstore = Blockstore::new();
 
         // Read file contents to the blockstore
@@ -114,9 +115,9 @@ fn write(c: &mut Criterion) {
             blockstore.read(cursor).await.unwrap()
         });
 
-        c.bench_with_input(BenchmarkId::new("write", params), &(), |b, _: &()| {
+        c.bench_with_input(BenchmarkId::new("write", param), &(), |b, _: &()| {
             b.to_async(TokioExecutor::new().unwrap()).iter_batched(
-                || (blockstore.clone(), Vec::with_capacity(params.size)),
+                || (blockstore.clone(), Vec::with_capacity(param.size)),
                 |(blockstore, buffer)| write_contents_benched(buffer, blockstore),
                 BatchSize::SmallInput,
             );
@@ -132,14 +133,15 @@ async fn create_filestore_benched(source: &Path, target: &Path) {
 }
 
 fn filestore(c: &mut Criterion) {
-    let contents = get_contents();
+    let params = get_params();
 
-    for (params, content) in contents {
+    for param in params {
         // Prepare temporary files
+        let content = create_content(param.size, param.num);
         let (temp_dir, source_file) = prepare_source_file(&content);
         let target_file = temp_dir.path().join("target");
 
-        c.bench_with_input(BenchmarkId::new("filestore", params), &(), |b, _: &()| {
+        c.bench_with_input(BenchmarkId::new("filestore", param), &(), |b, _: &()| {
             b.to_async(TokioExecutor::new().unwrap())
                 .iter(|| create_filestore_benched(&source_file, &target_file));
         });
