@@ -1,5 +1,5 @@
 // The name of this file is `rdb.rs` to avoid clashing with the `rocksdb` import.
-use std::{path::PathBuf, str::FromStr};
+use std::{collections::HashMap, path::PathBuf, str::FromStr, time::Duration};
 
 use base64::Engine;
 use cid::{multihash::Multihash, Cid};
@@ -63,6 +63,16 @@ pub const MULTIHASH_TO_PIECE_CID_CF: &str = "multihash_to_piece_cids";
 /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L66-L68>
 pub const PIECE_CID_TO_FLAGGED_CF: &str = "piece_cid_to_flagged";
 
+/// The minimum time between piece checks.
+///
+/// Source: <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L386-L387>
+const MIN_PIECE_CHECK_PERIOD: Duration = Duration::from_secs(5 * 60);
+
+/// The number of pieces to be checked per batch.
+///
+/// Source: <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L396-L397>
+const PIECES_TRACKER_BATCH_SIZE: usize = 1024;
+
 /// Returns a prefix like `/<cursor>/`.
 fn key_cursor_prefix(cursor: u64) -> String {
     format!("/{}/", cursor)
@@ -91,6 +101,14 @@ pub struct RocksDBStateStoreConfig {
 /// A [`super::PieceStore`] implementation backed by RocksDB.
 pub struct RocksDBPieceStore {
     database: RocksDB,
+    /// Used in [`Self::next_pieces_to_check`], keeps track of the checked pieces.
+    ///
+    /// Source:
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L389-L390>
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L412-L413>
+    offset: usize,
+    /// Tracks the last time we processed a given piece.
+    checked: HashMap<String, OffsetDateTime>,
 }
 
 // TODO(@jmg-duarte,05/06/2024): review all CF usages
@@ -124,6 +142,8 @@ impl RocksDBPieceStore {
 
         Ok(Self {
             database: RocksDB::open_cf_descriptors(&opts, config.path, column_families)?,
+            offset: 0,
+            checked: HashMap::new(),
         })
     }
 
@@ -885,9 +905,68 @@ impl Service for RocksDBPieceStore {
         }
     }
 
-    fn next_pieces_to_check(&self, miner_address: String) -> Result<Vec<Cid>, PieceStoreError> {
-        // self.database.iterator_cf(self.cf_handle(PIECE_CID_TO_CURSOR_CF), IteratorMode::From((), ()))
-        todo!()
+    /// For a detailed description, see [`Self::next_pieces_to_check`].
+    ///
+    /// This information is stored in the [`PIECE_CID_TO_CURSOR_CF`] column family.
+    ///
+    /// Sources:
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L540-L559>
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L404-L479>
+    fn next_pieces_to_check(
+        &mut self,
+        miner_address: MinerAddress,
+    ) -> Result<Vec<Cid>, PieceStoreError> {
+        let mut cids = vec![];
+
+        // Leveraging the `DBRawIteratorWithThreadMode` should bring more performance
+        // but requires deeper knowledge of RocksDB, this is good enough for now
+        let iter = self
+            .database
+            .iterator_cf(self.cf_handle(PIECE_CID_TO_CURSOR_CF), IteratorMode::Start)
+            // Looks silly but it's faithful to the original implementation
+            // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L389-L390
+            .skip(self.offset)
+            .take(PIECES_TRACKER_BATCH_SIZE);
+
+        let mut seen_pieces = 0;
+        for it in iter {
+            let (key, value) = it?;
+            seen_pieces += 1;
+
+            let key_str = Cid::read_bytes(key.as_ref())?;
+            // TODO(@jmg-duarte,14/06/2024): missing an encoding step here
+            // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L421-L422
+            let checked_key = {
+                let mut key = miner_address.0.clone();
+                key.push_str(&key_str.to_string());
+                key
+            };
+
+            if let Some(last_checked) = self.checked.get(&checked_key) {
+                if *last_checked > (OffsetDateTime::now_utc() - MIN_PIECE_CHECK_PERIOD) {
+                    continue;
+                }
+            }
+
+            let cid = Cid::read_bytes(key.as_ref())?;
+            let metadata: PieceInfo = ciborium::from_reader(value.as_ref())
+                .map_err(|err| PieceStoreError::Deserialization(err.to_string()))?;
+            for deal in metadata.deals {
+                if deal.miner_address == miner_address {
+                    self.checked
+                        .insert(checked_key.clone(), OffsetDateTime::now_utc());
+                    cids.push(cid);
+                    break;
+                }
+            }
+        }
+        self.offset += seen_pieces;
+
+        if seen_pieces < PIECES_TRACKER_BATCH_SIZE {
+            self.offset = 0;
+        }
+
+        Ok(cids)
     }
 }
 
@@ -897,8 +976,9 @@ impl Service for RocksDBPieceStore {
 mod test {
     use std::str::FromStr;
 
-    use cid::Cid;
+    use cid::{multihash::Multihash, Cid};
     use rocksdb::DEFAULT_COLUMN_FAMILY_NAME;
+    use sha2::{Digest, Sha256};
     use tempfile::tempdir;
     use time::OffsetDateTime;
 
@@ -908,8 +988,8 @@ mod test {
             key_cursor_prefix, MULTIHASH_TO_PIECE_CID_CF, PIECE_CID_TO_CURSOR_CF,
             PIECE_CID_TO_FLAGGED_CF,
         },
-        DealInfo, FlaggedPiece, FlaggedPiecesListFilter, MinerAddress, OffsetSize, PieceInfo,
-        PieceStoreError, Record, Service,
+        DealId, DealInfo, FlaggedPiece, FlaggedPiecesListFilter, MinerAddress, OffsetSize,
+        PieceInfo, PieceStoreError, Record, Service,
     };
 
     fn init_database() -> RocksDBPieceStore {
@@ -1620,5 +1700,49 @@ mod test {
             .collect::<Vec<_>>(),
             vec![cids[1]]
         );
+    }
+
+    #[test]
+    fn next_pieces_to_check() {
+        let mut db = init_database();
+        let mut cids = vec![];
+        let miner_address = MinerAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
+
+        // 1024 + 512 (a batch and a half)
+        for i in 0..1536u64 {
+            let digest = Sha256::digest(i.to_le_bytes());
+            let mh = Multihash::wrap(0x12, digest.as_ref()).unwrap();
+            let cid = Cid::new_v1(0x55, mh);
+            cids.push(cid);
+            let mut piece_info = PieceInfo::with_cid(cid);
+            piece_info.deals.push(DealInfo {
+                deal_uuid: uuid::Uuid::new_v4(),
+                is_legacy: false,
+                chain_deal_id: DealId(i),
+                miner_address: miner_address.clone(),
+                sector_number: 0,
+                piece_offset: 0,
+                piece_length: 0,
+                car_length: 0,
+                is_direct_deal: false,
+            });
+            db.set_piece_cid_to_metadata(cid, &piece_info).unwrap();
+        }
+        // The DB does not ensure order, so we "create" one.
+        cids.sort();
+
+        let first_batch = {
+            let mut v = db.next_pieces_to_check(miner_address.clone()).unwrap();
+            v.sort();
+            v
+        };
+        assert_eq!(first_batch, cids[0..1024]);
+
+        let second_batch = {
+            let mut v = db.next_pieces_to_check(miner_address.clone()).unwrap();
+            v.sort();
+            v
+        };
+        assert_eq!(second_batch, cids[1024..]);
     }
 }

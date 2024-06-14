@@ -386,5 +386,9 @@ pub trait Service {
         filter: Option<FlaggedPiecesListFilter>,
     ) -> Result<u64, PieceStoreError>;
 
-    fn next_pieces_to_check(&self, miner_address: String) -> Result<Vec<Cid>, PieceStoreError>;
+    /// Returns the [`Cid`]s of the next pieces to be checked for a given miner.
+    fn next_pieces_to_check(
+        &mut self,
+        miner_address: MinerAddress,
+    ) -> Result<Vec<Cid>, PieceStoreError>;
 }

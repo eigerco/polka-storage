@@ -7874,6 +7874,7 @@ dependencies = [
  "jsonrpsee",
  "rocksdb",
  "serde",
+ "sha2 0.10.8",
  "tempfile",
  "thiserror",
  "time",
