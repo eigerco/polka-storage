@@ -10,7 +10,6 @@ use jsonrpsee::{
 };
 use methods::create_module;
 use serde::{Deserialize, Serialize};
-use tracing::info;
 
 use crate::substrate;
 

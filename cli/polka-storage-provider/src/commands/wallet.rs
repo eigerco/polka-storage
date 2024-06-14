@@ -8,21 +8,21 @@ use sc_cli::{
 #[derive(Debug, Parser)]
 #[command(
     name = "wallet",
-    about = "Utility for generating and restoring keys",
+    about = "Utility for generating and restoring keys.",
     version
 )]
 pub enum WalletCommand {
     /// Generate a random node key, write it to a file or stdout and write the
-    /// corresponding peer-id to stderr
+    /// corresponding peer-id to stderr.
     GenerateNodeKey(GenerateKeyCmdCommon),
 
-    /// Generate a random account
+    /// Generate a random account.
     Generate(GenerateCmd),
 
-    /// Gets a public key and a SS58 address from the provided Secret URI
+    /// Gets a public key and a SS58 address from the provided Secret URI.
     Inspect(InspectKeyCmd),
 
-    /// Load a node key from a file or stdin and print the corresponding peer-id
+    /// Load a node key from a file or stdin and print the corresponding peer-id.
     InspectNodeKey(InspectNodeKeyCmd),
 
     /// Sign a message, with a given (secret) key.
