@@ -21,7 +21,7 @@
 
 ## Overview
 
-The `Storage Provider Pallet` handles the creation of storage providers and facilitates storage providers and client in creating storage deals.
+The `Storage Provider Pallet` handles the creation of storage providers and facilitates storage providers and client in creating storage deals. Storage providers must provide Proof of Spacetime and Proof of Replication to the `Storage Provider Pallet` in order to prevent the pallet impose penalties on the storage providers through [slashing](#storage-fault-slashing).
 
 ### Constants & Terminology
 
