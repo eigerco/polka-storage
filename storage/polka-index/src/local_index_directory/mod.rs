@@ -359,6 +359,13 @@ pub trait Service {
         miner_address: MinerAddress,
     ) -> Result<(), PieceStoreError>;
 
+    /// List the flagged pieces matching the filter.
+    ///
+    /// * If the filter is `None`, then all flagged pieces will be matched.
+    /// * If no pieces are found, returns an empty [`Vec`].
+    /// * Pieces flagged before `cursor` will be filtered out.
+    /// * Pieces are sorted according to when they were first flagged — see [`FlaggedPiece::created_at`].
+    /// * Offset and limit are applied _after_ sorting the pieces.
     fn flagged_pieces_list(
         &self,
         filter: Option<FlaggedPiecesListFilter>,

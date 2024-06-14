@@ -771,6 +771,13 @@ impl Service for RocksDBPieceStore {
         self.remove_value_at_key(key, PIECE_CID_TO_FLAGGED_CF)
     }
 
+    /// For a detailed description, see [`Service::flagged_pieces_list`].
+    ///
+    /// This information is stored in the [`PIECE_CID_TO_FLAGGED_CF`] column family.
+    ///
+    /// Sources:
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L631-L653>
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L719-L793>
     fn flagged_pieces_list(
         &self,
         filter: Option<FlaggedPiecesListFilter>,
@@ -788,7 +795,8 @@ impl Service for RocksDBPieceStore {
 
             // This one should never happen but who knows?
             let key = String::from_utf8(key.to_vec())?;
-            let mut split = key.split('/');
+            // The key starts with a "/", skip it
+            let mut split = key.split('/').skip(1);
 
             // Using let/else instead of .ok_or/.ok_or_else avoids using .clone
             let Some(piece_cid) = split.next() else {
@@ -821,10 +829,10 @@ impl Service for RocksDBPieceStore {
                 {
                     continue;
                 }
+            }
 
-                if flagged_metadata.created_at < cursor {
-                    continue;
-                }
+            if flagged_metadata.created_at < cursor {
+                continue;
             }
 
             flagged_pieces.push(FlaggedPiece {
@@ -1383,7 +1391,7 @@ mod test {
 
         assert!(matches!(
             db.unflag_piece(cid, miner_address.clone()),
-            Err(PieceStoreError::NotFoundError)
+            Ok(())
         ));
 
         assert!(db
@@ -1421,11 +1429,19 @@ mod test {
 
         // All pieces
         assert_eq!(db.flagged_pieces_count(None).unwrap(), 1);
-        // Empty (unknown) miner address — i.e. shouldn't match
+        // Should ignore empty address
         assert_eq!(
             db.flagged_pieces_count(Some(FlaggedPiecesListFilter {
                 miner_address: MinerAddress("".to_string()),
-                has_unsealed_copy: false
+                has_unsealed_copy: true
+            }))
+            .unwrap(),
+            1
+        );
+        assert_eq!(
+            db.flagged_pieces_count(Some(FlaggedPiecesListFilter {
+                miner_address: MinerAddress("a".to_string()),
+                has_unsealed_copy: true
             }))
             .unwrap(),
             0
@@ -1448,5 +1464,108 @@ mod test {
             .unwrap(),
             1
         )
+    }
+
+    #[test]
+    fn flagged_pieces_list() {
+        let db = init_database();
+        let cids = cids_vec();
+        // The address of the top miner at the time of writing (12/6/24)
+        let miner_address = MinerAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
+
+        db.flag_piece(cids[0], true, miner_address.clone()).unwrap();
+
+        // To test the cursor functionality
+        let after_first = OffsetDateTime::now_utc();
+
+        db.flag_piece(cids[1], false, miner_address.clone())
+            .unwrap();
+        db.flag_piece(cids[2], true, miner_address.clone()).unwrap();
+
+        assert_eq!(
+            db.flagged_pieces_list(None, OffsetDateTime::UNIX_EPOCH, 0, 1000)
+                .unwrap()
+                .into_iter()
+                .map(|fp| fp.piece_cid)
+                .collect::<Vec<_>>(),
+            cids
+        );
+
+        assert_eq!(
+            db.flagged_pieces_list(None, OffsetDateTime::UNIX_EPOCH, 0, 1)
+                .unwrap()
+                .into_iter()
+                .map(|fp| fp.piece_cid)
+                .collect::<Vec<_>>(),
+            cids[..1]
+        );
+
+        assert_eq!(
+            db.flagged_pieces_list(None, OffsetDateTime::UNIX_EPOCH, 1, 1)
+                .unwrap()
+                .into_iter()
+                .map(|fp| fp.piece_cid)
+                .collect::<Vec<_>>(),
+            cids[1..2]
+        );
+
+        assert_eq!(
+            db.flagged_pieces_list(None, after_first, 0, 1000)
+                .unwrap()
+                .into_iter()
+                .map(|fp| fp.piece_cid)
+                .collect::<Vec<_>>(),
+            cids[1..]
+        );
+
+        assert_eq!(
+            db.flagged_pieces_list(
+                Some(FlaggedPiecesListFilter {
+                    miner_address: MinerAddress("".to_string()),
+                    has_unsealed_copy: false
+                }),
+                OffsetDateTime::UNIX_EPOCH,
+                1,
+                1000
+            )
+            .unwrap()
+            .into_iter()
+            .map(|fp| fp.piece_cid)
+            .collect::<Vec<_>>(),
+            vec![]
+        );
+        assert_eq!(
+            db.flagged_pieces_list(
+                Some(FlaggedPiecesListFilter {
+                    miner_address: MinerAddress("a".to_string()),
+                    has_unsealed_copy: false
+                }),
+                OffsetDateTime::UNIX_EPOCH,
+                0,
+                1000
+            )
+            .unwrap()
+            .into_iter()
+            .map(|fp| fp.piece_cid)
+            .collect::<Vec<_>>(),
+            vec![]
+        );
+
+        assert_eq!(
+            db.flagged_pieces_list(
+                Some(FlaggedPiecesListFilter {
+                    miner_address,
+                    has_unsealed_copy: false
+                }),
+                OffsetDateTime::UNIX_EPOCH,
+                0,
+                1000
+            )
+            .unwrap()
+            .into_iter()
+            .map(|fp| fp.piece_cid)
+            .collect::<Vec<_>>(),
+            vec![cids[1]]
+        );
     }
 }
