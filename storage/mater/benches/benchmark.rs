@@ -2,70 +2,184 @@ use std::{
     fmt::Display,
     io::Cursor,
     path::{Path, PathBuf},
+    sync::OnceLock,
 };
 
 use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
 use mater::{create_filestore, Blockstore, Config};
+use rand::{prelude::SliceRandom, rngs::ThreadRng, Rng};
 use tempfile::{tempdir, TempDir};
-use tokio::runtime::Runtime as TokioExecutor;
+use tokio::{fs::File, runtime::Runtime as TokioExecutor};
+
+static FILES: OnceLock<Vec<(Params, PathBuf, TempDir)>> = OnceLock::new();
+fn get_source_files() -> &'static Vec<(Params, PathBuf, TempDir)> {
+    FILES.get_or_init(|| {
+        let params = get_params();
+        let mut contents = vec![];
+
+        for param in params {
+            // Prepare temporary files
+            let content = generate_content(&param);
+            let (temp_dir, source_file) = prepare_source_file(&content);
+
+            contents.push((param, source_file, temp_dir));
+        }
+
+        contents
+    })
+}
+
+/// Get content sizes for the benchmarks.
+const SIZES: [usize; 3] = [
+    1024 * 10000,   // 10 MB
+    1024 * 100000,  // 100 MB
+    1024 * 1000000, // 1 GB
+];
+
+/// The percentage of duplicated content in the file. e.g. 0.8 means 80% of the file is duplicated.
+const DUPLICATIONS: [f64; 5] = [0.0, 0.1, 0.2, 0.4, 0.8];
+
+/// The default block size
+const BLOCK_SIZE: usize = 1024 * 256;
+
+/// A chunk of data
+#[derive(Debug, Clone, Copy)]
+struct Chunk([u8; BLOCK_SIZE]);
+
+impl Chunk {
+    fn new_random(rng: &mut ThreadRng) -> Self {
+        Self([0; BLOCK_SIZE].map(|_| rng.gen()))
+    }
+
+    fn new_zeroed() -> Self {
+        Self([0; BLOCK_SIZE])
+    }
+}
+
+impl IntoIterator for Chunk {
+    type Item = u8;
+    type IntoIter = std::array::IntoIter<u8, BLOCK_SIZE>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 struct Params {
+    /// The size of the content in bytes.
     size: usize,
-    num: usize,
+    /// The percentage of duplicated content in the file.
+    duplication: f64,
 }
 
 impl Display for Params {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "content_size: {} bytes, num_of_duplicates: {}",
-            self.size, self.num
+            "content_size: {} bytes, percent_duplicated: {}",
+            self.size, self.duplication
         )
     }
 }
 
-/// Get content sizes for the benchmarks.
-fn get_sizes() -> Vec<usize> {
-    vec![
-        1024 * 1000,    // 1 MB
-        1024 * 10000,   // 10 MB
-        1024 * 100000,  // 100 MB
-        1024 * 1000000, // 1 GB
-    ]
-}
-
-/// Get number of copies for the benchmarks. Zero means that there are no copies
-/// and the whole content is unique.
-fn get_num_copies() -> Vec<usize> {
-    vec![0, 1, 2, 4]
-}
-
-/// Get combinations of parameters for the benchmarks.
+/// Get combination of parameters for the benchmarks.
 fn get_params() -> Vec<Params> {
-    get_sizes()
+    SIZES
         .iter()
-        .flat_map(|size| {
-            get_num_copies()
+        .flat_map(|&size| {
+            DUPLICATIONS
                 .iter()
-                .map(move |num| Params {
-                    size: *size,
-                    num: *num,
-                })
-                .collect::<Vec<Params>>()
+                .map(move |&duplication| Params { size, duplication })
         })
-        .collect::<Vec<Params>>()
+        .collect()
 }
 
-/// Create random content of a given size. Duplicates are used to specify how
-/// many times the content should be repeated.
-fn create_content(size: usize, num_of_copies: usize) -> Vec<u8> {
-    let single_part_size = size / (num_of_copies + 1);
-    let single_content = (0..single_part_size)
-        .map(|_| rand::random())
-        .collect::<Vec<u8>>();
+/// Generate content for the benchmarks. The duplicated data is placed between
+/// the random chunks.
+fn generate_content(params: &Params) -> Vec<u8> {
+    let num_chunks = params.size / BLOCK_SIZE;
+    let mut chunks = Vec::with_capacity(num_chunks);
+    let mut rng = rand::thread_rng();
 
-    single_content.repeat(num_of_copies)
+    // Generate zeroed chunks for the specified percentage of the content. Other
+    // part is filled with random chunks.
+    for index in 1..=num_chunks {
+        let percentage_processed = index as f64 / num_chunks as f64;
+        if percentage_processed < params.duplication {
+            chunks.push(Chunk::new_zeroed());
+        } else {
+            chunks.push(Chunk::new_random(&mut rng));
+        }
+    }
+
+    // Shuffle the chunks
+    chunks.shuffle(&mut rng);
+
+    // Flatten the chunks into a single byte array
+    let mut bytes = chunks.into_iter().flatten().collect::<Vec<u8>>();
+
+    // There can be some bytes missing because we are generating data in chunks.
+    // We append the random data at the end.
+    let missing_bytes_len = params.size - bytes.len();
+    bytes.extend(
+        (0..missing_bytes_len)
+            .map(|_| rng.gen())
+            .collect::<Vec<u8>>(),
+    );
+
+    bytes
+}
+
+/// Read content to a Blockstore. This function is benchmarked.
+async fn read_content_benched(content: &[u8], mut store: Blockstore) {
+    let cursor = Cursor::new(content);
+    store.read(cursor).await.unwrap()
+}
+
+fn read(c: &mut Criterion) {
+    let files = get_source_files();
+
+    for (params, source_file, _) in files {
+        let content = std::fs::read(&source_file).unwrap();
+
+        c.bench_with_input(BenchmarkId::new("read", params), params, |b, _params| {
+            b.to_async(TokioExecutor::new().unwrap()).iter(|| {
+                read_content_benched(
+                    &content,
+                    Blockstore::with_parameters(Some(BLOCK_SIZE), None),
+                )
+            });
+        });
+    }
+}
+
+/// Write content from a Blockstore. This function is benchmarked.
+async fn write_contents_benched(buffer: Vec<u8>, store: Blockstore) {
+    store.write(buffer).await.unwrap();
+}
+
+fn write(c: &mut Criterion) {
+    let runtime = TokioExecutor::new().unwrap();
+    let files = get_source_files();
+
+    for (params, source_file, _) in files {
+        let mut blockstore = Blockstore::with_parameters(Some(BLOCK_SIZE), None);
+
+        // Read file contents to the blockstore
+        runtime.block_on(async {
+            let file = File::open(&source_file).await.unwrap();
+            blockstore.read(file).await.unwrap()
+        });
+
+        c.bench_with_input(BenchmarkId::new("write", params), &(), |b, _: &()| {
+            b.to_async(TokioExecutor::new().unwrap()).iter_batched(
+                || (blockstore.clone(), Vec::with_capacity(params.size)),
+                |(blockstore, buffer)| write_contents_benched(buffer, blockstore),
+                BatchSize::SmallInput,
+            );
+        });
+    }
 }
 
 /// Prepare temporary file
@@ -79,52 +193,6 @@ fn prepare_source_file(content: &[u8]) -> (TempDir, PathBuf) {
     (temp_dir, file)
 }
 
-/// Read content to a Blockstore. This function is benchmarked.
-async fn read_content_benched(content: &[u8], mut store: Blockstore) {
-    let cursor = Cursor::new(content);
-    store.read(cursor).await.unwrap()
-}
-
-fn read(c: &mut Criterion) {
-    let params = get_params();
-    for param in &params {
-        let content = create_content(param.size, param.num);
-        c.bench_with_input(BenchmarkId::new("read", param), param, |b, _param| {
-            b.to_async(TokioExecutor::new().unwrap())
-                .iter(|| read_content_benched(&content, Blockstore::new()));
-        });
-    }
-}
-
-/// Write content from a Blockstore. This function is benchmarked.
-async fn write_contents_benched(buffer: Vec<u8>, store: Blockstore) {
-    store.write(buffer).await.unwrap();
-}
-
-fn write(c: &mut Criterion) {
-    let runtime = TokioExecutor::new().unwrap();
-    let params = get_params();
-
-    for param in params {
-        let content = create_content(param.size, param.num);
-        let mut blockstore = Blockstore::new();
-
-        // Read file contents to the blockstore
-        runtime.block_on(async {
-            let cursor = Cursor::new(content);
-            blockstore.read(cursor).await.unwrap()
-        });
-
-        c.bench_with_input(BenchmarkId::new("write", param), &(), |b, _: &()| {
-            b.to_async(TokioExecutor::new().unwrap()).iter_batched(
-                || (blockstore.clone(), Vec::with_capacity(param.size)),
-                |(blockstore, buffer)| write_contents_benched(buffer, blockstore),
-                BatchSize::SmallInput,
-            );
-        });
-    }
-}
-
 /// Create a filestore. This function is benchmarked.
 async fn create_filestore_benched(source: &Path, target: &Path) {
     create_filestore(source, target, Config::default())
@@ -133,15 +201,12 @@ async fn create_filestore_benched(source: &Path, target: &Path) {
 }
 
 fn filestore(c: &mut Criterion) {
-    let params = get_params();
+    let files = get_source_files();
 
-    for param in params {
-        // Prepare temporary files
-        let content = create_content(param.size, param.num);
-        let (temp_dir, source_file) = prepare_source_file(&content);
+    for (params, source_file, temp_dir) in files {
         let target_file = temp_dir.path().join("target");
 
-        c.bench_with_input(BenchmarkId::new("filestore", param), &(), |b, _: &()| {
+        c.bench_with_input(BenchmarkId::new("filestore", params), &(), |b, _: &()| {
             b.to_async(TokioExecutor::new().unwrap())
                 .iter(|| create_filestore_benched(&source_file, &target_file));
         });
