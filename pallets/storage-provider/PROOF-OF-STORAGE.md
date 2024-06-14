@@ -53,7 +53,7 @@ There are two types of challenges (and their corresponding mechanisms) within th
 > [!NOTE]
 > This is not relevant for our implementation as block rewards are earned by Collators.
 
-At the beginning of each epoch, a small number of storage providers are elected to validate new blocks through the Expected Consensus algorithm. Each elected provider must submit proof that they maintain a sealed copy of the data included in their proposed block before the end of the current epoch. This proof submission is known as WinningPoSt. Successfully submitting a WinningPoSt proof grants the provider a block reward and the opportunity to charge fees for including transactions in the block. Failing to meet the [deadline](./DESIGN.md#constants--terminology) results in the provider missing the opportunity to validate a block and earn rewards.
+At the beginning of each block, a small number of storage providers are elected to validate new blocks through the Expected Consensus algorithm. Each elected provider must submit proof that they maintain a sealed copy of the data included in their proposed block before the end of the current block. This proof submission is known as WinningPoSt. Successfully submitting a WinningPoSt proof grants the provider a block reward and the opportunity to charge fees for including transactions in the block. Failing to meet the [deadline](./DESIGN.md#constants--terminology) results in the provider missing the opportunity to validate a block and earn rewards.
 
 ### WindowPoSt
 
@@ -65,10 +65,10 @@ The more [sectors](./DESIGN.md#constants--terminology) a provider has pledged to
 
 Each storage provider is allocated a 24-hour [proving period](./DESIGN.md#constants--terminology) upon creation, divided into 48 non-overlapping half-hour [deadline](./DESIGN.md#constants--terminology)s. Each sector is assigned to a specific [deadline](./DESIGN.md#constants--terminology) when proven to the chain and remains assigned to that [deadline](./DESIGN.md#constants--terminology) throughout its lifetime. [Sectors](./DESIGN.md#constants--terminology) are proven in partitions, and the set of [sectors](./DESIGN.md#constants--terminology) due at each [deadline](./DESIGN.md#constants--terminology) is recorded in a collection of 48 bitfields.
 
-- Open: Epoch from which a PoSt Proof for this [deadline](./DESIGN.md#constants--terminology) can be submitted.
-- Close: Epoch after which a PoSt Proof for this [deadline](./DESIGN.md#constants--terminology) will be rejected.
-- FaultCutoff: Epoch after which fault declarations for [sectors](./DESIGN.md#constants--terminology) in the upcoming [deadline](./DESIGN.md#constants--terminology) are rejected.
-- Challenge: Epoch at which the randomness for the challenges is available.
+- Open: BlockNumber from which a PoSt Proof for this [deadline](./DESIGN.md#constants--terminology) can be submitted.
+- Close: BlockNumber after which a PoSt Proof for this [deadline](./DESIGN.md#constants--terminology) will be rejected.
+- FaultCutoff: BlockNumber after which fault declarations for [sectors](./DESIGN.md#constants--terminology) in the upcoming [deadline](./DESIGN.md#constants--terminology) are rejected.
+- Challenge: BlockNumber at which the randomness for the challenges is available.
 
 ### PoSt Summary
 
