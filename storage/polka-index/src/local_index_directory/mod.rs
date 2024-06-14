@@ -1,7 +1,7 @@
-use cid::{multihash, Cid};
-
-use serde::{Deserialize, Serialize};
 use std::{ops::Deref, string};
+
+use cid::{multihash, Cid};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 pub mod ext;

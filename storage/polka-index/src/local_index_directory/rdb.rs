@@ -122,7 +122,7 @@ impl RocksDBPieceStore {
     /// * If the column families ([`PIECE_CID_TO_CURSOR_CF`],
     ///   [`MULTIHASH_TO_PIECE_CID_CF`], [`PIECE_CID_TO_FLAGGED_CF`],
     ///   [`CURSOR_TO_OFFSET_SIZE_CF`]) do not exist, they will be created.
-    fn new(config: RocksDBStateStoreConfig) -> Result<Self, PieceStoreError>
+    pub fn new(config: RocksDBStateStoreConfig) -> Result<Self, PieceStoreError>
     where
         Self: Sized,
     {
@@ -342,7 +342,7 @@ impl RocksDBPieceStore {
     /// Even though the interface is different, this function is the dual to [`Service::get_offset_size`].
     fn add_index_record(&self, cursor_prefix: &str, record: Record) -> Result<(), PieceStoreError> {
         let key = format!("{}{}", cursor_prefix, key_multihash(record.cid.hash()));
-        Ok(self.put_cbor_at_key(key, &record.offset_size)?)
+        self.put_cbor_at_key(key, &record.offset_size)
     }
 
     /// Remove the indexes for a given piece [`Cid`], under the given cursor.
@@ -489,10 +489,9 @@ impl Service for RocksDBPieceStore {
     fn indexed_at(&self, piece_cid: Cid) -> Result<time::OffsetDateTime, PieceStoreError> {
         // The Go implementation seems to return the Unix epoch but returning the error makes more sense
         // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L461-L468
-        Ok(self
-            .get_piece_cid_to_metadata(piece_cid)?
+        self.get_piece_cid_to_metadata(piece_cid)?
             .map(|piece_info: PieceInfo| piece_info.indexed_at)
-            .ok_or(PieceStoreError::NotFoundError)?)
+            .ok_or(PieceStoreError::NotFoundError)
     }
 
     /// For a detailed description, see [`Service::is_complete_index`].
@@ -501,10 +500,9 @@ impl Service for RocksDBPieceStore {
     ///
     /// Source: <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L308-L330>
     fn is_complete_index(&self, piece_cid: Cid) -> Result<bool, PieceStoreError> {
-        Ok(self
-            .get_piece_cid_to_metadata(piece_cid)?
+        self.get_piece_cid_to_metadata(piece_cid)?
             .map(|piece_info: PieceInfo| piece_info.complete_index)
-            .ok_or(PieceStoreError::NotFoundError)?)
+            .ok_or(PieceStoreError::NotFoundError)
     }
 
     /// For a detailed description, see [`Service::get_piece_metadata`].
@@ -541,10 +539,9 @@ impl Service for RocksDBPieceStore {
     ///
     /// Source: <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L198-L224>
     fn get_piece_deals(&self, piece_cid: Cid) -> Result<Vec<DealInfo>, PieceStoreError> {
-        Ok(self
-            .get_piece_cid_to_metadata(piece_cid)?
+        self.get_piece_cid_to_metadata(piece_cid)?
             .map(|piece_info: PieceInfo| piece_info.deals)
-            .ok_or(PieceStoreError::NotFoundError)?)
+            .ok_or(PieceStoreError::NotFoundError)
     }
 
     /// For a detailed description, see [`Service::list_pieces`].
