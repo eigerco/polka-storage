@@ -28,6 +28,7 @@ frame-system = { workspace = true, default-features = false }
 sp-core = { workspace = true, default-features = false }
 sp-io = { workspace = true }
 sp-runtime = { workspace = true, default-features = false }
+pallet-balances = { workspace = true, default-features = false }
 
 [features]
 default = ["std"]
@@ -40,6 +41,7 @@ runtime-benchmarks = [
 std = [
   "codec/std",
   "frame-benchmarking?/std",
+  "pallet-balances/std",
   "frame-support/std",
   "frame-system/std",
   "scale-info/std",

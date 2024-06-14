@@ -4,19 +4,22 @@
 //!
 //! Market Pallet provides functions for:
 //! - storing balances of Storage Clients and Storage Providers to handle deal collaterals and payouts
-//! 
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use pallet::*;
+
+#[cfg(test)]
+mod mock;
 
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
     use codec::{Decode, Encode};
     use frame_support::{
         dispatch::DispatchResult,
+        ensure,
         pallet_prelude::*,
-        sp_runtime::{RuntimeDebug,traits::{AccountIdConversion}},
+        sp_runtime::{RuntimeDebug,traits::{AccountIdConversion,CheckedAdd},ArithmeticError},
         traits::{Currency, ReservableCurrency,ExistenceRequirement::KeepAlive,ExistenceRequirement::AllowDeath},
         PalletId,
     };
@@ -42,13 +45,19 @@ pub mod pallet {
     }
 
     /// Stores balances info for both Storage Providers and Storage Users
+    /// We do not use the ReservableCurrency::reserve mechanism, 
+    /// as the Market works as a liaison between Storage Providers and Storage Clients.
+    /// Market has its own account on which funds of all parties are stored.
+    /// It's Market reposibility to manage deposited funds, lock/unlock and pay them out when necessary.
     #[derive(
         Clone, Eq, PartialEq, Encode, Decode, RuntimeDebug, Default, TypeInfo, MaxEncodedLen,
     )]
     pub struct BalanceEntry<Balance> {
-        /// Amount of Balance that has been deposited for future deals
-        deposit: Balance,
+        /// Amount of Balance that has been deposited for future deals/earned from deals.
+        /// It can be withdrawn at any time.
+        free: Balance,
         /// Amount of Balance that has been staked as Deal Collateral
+        /// It's locked to a deal and cannot be withdrawn until the deal ends.
         locked: Balance,
     }
 
@@ -61,24 +70,36 @@ pub mod pallet {
         StorageMap<_, _, T::AccountId, BalanceEntry<BalanceOf<T>>, ValueQuery>;
 
     #[pallet::event]
-    // #[pallet::generate_deposit(pub(super) fn deposit_event)]
+    #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        // TODO(@th7nder,13/06/2024): 
-        // - add output balance
-        // - add failure event
-        // - add withdrawal event 
-        // - verify what happens (nothing the fees are paid by the executor...)
-        BalanceAdded(T::AccountId),
+        /// Market Participant deposited free balance to the Market Account
+        BalanceAdded {
+            who: T::AccountId,
+            amount: BalanceOf<T>,
+        },
+        /// Market Participant withdrawn their free balance from the Market Account
+        BalanceWithdrawn {
+            who: T::AccountId,
+            amount: BalanceOf<T>,
+        }
     }
 
     #[pallet::error]
     pub enum Error<T> {
-        InsufficientFunds,
+        /// When a Market Participant tries to withdraw more
+        /// funds than they have available on the Market, because:
+        /// - they never deposited the amount they want to withdraw
+        //  - the funds they deposited were locked as part of a deal
+        InsufficientFreeFunds,
     }
 
     /// Extrinsics exposed by the pallet
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+
+        /// Transfers `amount` of Balance from the `origin` to the Market Pallet account.
+        /// It is marked as _free_ in the Market bookkeeping.
+        /// Free balance can be withdrawn at any moment from the Market.
         pub fn add_balance(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult {
             let caller = ensure_signed(origin)?;
 
@@ -86,7 +107,10 @@ pub mod pallet {
                 &caller,
                 |balance| -> DispatchResult {
                     T::Currency::transfer(&caller, &Self::account_id(), amount, KeepAlive)?;
-                    balance.deposit += amount;
+                    balance.free = balance.free.checked_add(&amount)
+                        .ok_or(ArithmeticError::Overflow)?;
+
+                    Self::deposit_event(Event::<T>::BalanceAdded { who: caller.clone(), amount });
                     Ok(())
                 }
             )?;
@@ -94,19 +118,20 @@ pub mod pallet {
             Ok(())
         }
 
+        /// Transfers `amount` of Balance from the Market Pallet account to the `origin`.
+        /// Only _free_ balance can be withdrawn.
         pub fn withdraw_balance(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult {
             let caller = ensure_signed(origin)?;
 
             BalanceTable::<T>::try_mutate(
                 &caller,
                 |balance| -> DispatchResult {
-                    // TODO(@th7nder,13/06/2024): add checking if the funds are not locked as collateral
-                    balance.deposit -= amount;
-
-                    // NOTE(@th7nder,13/06/2024): Edge Case
-                    // We allow death to be able to withdraw the funds if only 1 SP has allocated them
-                    // The Market Pallet account will be reaped.
+                    ensure!(balance.free >= amount, Error::<T>::InsufficientFreeFunds);
+                    balance.free -= amount;
+                    // The Market Pallet account will be reaped if no one is participating in the market.
                     T::Currency::transfer(&Self::account_id(), &caller, amount, AllowDeath)?;
+
+                    Self::deposit_event(Event::<T>::BalanceWithdrawn { who: caller.clone(), amount });
                     Ok(())
                 }
             )?;
