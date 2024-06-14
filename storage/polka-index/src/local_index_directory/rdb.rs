@@ -13,8 +13,8 @@ use time::OffsetDateTime;
 use uuid::Uuid;
 
 use super::{
-    ext::WriteBatchWithTransactionExt, DealInfo, FlaggedMetadata, FlaggedPiece,
-    FlaggedPiecesListFilter, MinerAddress, OffsetSize, PieceInfo, PieceStoreError, Record, Service,
+    ext::WriteBatchWithTransactionExt, DealInfo, FlaggedPiece, FlaggedPiecesListFilter,
+    MinerAddress, OffsetSize, PieceInfo, PieceStoreError, Record, Service,
 };
 
 // NOTE(@jmg-duarte,04/06/2024): We probably could split the interface according to the respective column family
@@ -799,8 +799,7 @@ impl Service for RocksDBPieceStore {
             // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L740-L748
 
             let piece_cid = Cid::from_str(piece_cid)?;
-            let flagged_metadata = match ciborium::from_reader::<FlaggedMetadata, _>(value.as_ref())
-            {
+            let flagged_metadata = match ciborium::from_reader::<FlaggedPiece, _>(value.as_ref()) {
                 Ok(value) => Ok(value),
                 Err(err) => Err(PieceStoreError::Deserialization(err.to_string())),
             }?;
@@ -855,6 +854,13 @@ impl Service for RocksDBPieceStore {
         Ok(flagged_pieces)
     }
 
+    /// For a detailed description, see [`Service::flagged_pieces_count`].
+    ///
+    /// This information is stored in the [`PIECE_CID_TO_FLAGGED_CF`] column family.
+    ///
+    /// Sources:
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L654-L676>
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L795-L837>
     fn flagged_pieces_count(
         &self,
         filter: Option<FlaggedPiecesListFilter>,
@@ -869,7 +875,7 @@ impl Service for RocksDBPieceStore {
                 let (_, value) = line?;
 
                 let flagged_metadata =
-                    match ciborium::from_reader::<FlaggedMetadata, _>(value.as_ref()) {
+                    match ciborium::from_reader::<FlaggedPiece, _>(value.as_ref()) {
                         Ok(value) => Ok(value),
                         Err(err) => Err(PieceStoreError::Deserialization(err.to_string())),
                     }?;
@@ -916,8 +922,8 @@ mod test {
     use super::{key_flag_piece, RocksDBPieceStore, RocksDBStateStoreConfig};
     use crate::local_index_directory::{
         rdb::{key_cursor_prefix, PIECE_CID_TO_CURSOR_CF, PIECE_CID_TO_FLAGGED_CF},
-        DealInfo, FlaggedPiece, MinerAddress, OffsetSize, PieceInfo, PieceStoreError, Record,
-        Service,
+        DealInfo, FlaggedPiece, FlaggedPiecesListFilter, MinerAddress, OffsetSize, PieceInfo,
+        PieceStoreError, Record, Service,
     };
 
     fn init_database() -> RocksDBPieceStore {
@@ -1402,5 +1408,45 @@ mod test {
             .get_value_at_key::<_, Option<FlaggedPiece>>(&key, PIECE_CID_TO_FLAGGED_CF)
             .unwrap()
             .is_none());
+    }
+
+    #[test]
+    fn flagged_pieces_count() {
+        let db = init_database();
+        let cid = cids_vec()[0];
+        // The address of the top miner at the time of writing (12/6/24)
+        let miner_address = MinerAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
+
+        db.flag_piece(cid, true, miner_address.clone()).unwrap();
+
+        // All pieces
+        assert_eq!(db.flagged_pieces_count(None).unwrap(), 1);
+        // Empty (unknown) miner address — i.e. shouldn't match
+        assert_eq!(
+            db.flagged_pieces_count(Some(FlaggedPiecesListFilter {
+                miner_address: MinerAddress("".to_string()),
+                has_unsealed_copy: false
+            }))
+            .unwrap(),
+            0
+        );
+        // Right miner address but the flagged piece has `has_unsealed_copy: true`
+        assert_eq!(
+            db.flagged_pieces_count(Some(FlaggedPiecesListFilter {
+                miner_address: miner_address.clone(),
+                has_unsealed_copy: false
+            }))
+            .unwrap(),
+            0
+        );
+        // All filters match
+        assert_eq!(
+            db.flagged_pieces_count(Some(FlaggedPiecesListFilter {
+                miner_address: miner_address,
+                has_unsealed_copy: true
+            }))
+            .unwrap(),
+            1
+        )
     }
 }

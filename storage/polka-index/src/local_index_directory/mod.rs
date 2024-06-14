@@ -80,33 +80,6 @@ pub struct FlaggedPiecesListFilter {
     pub has_unsealed_copy: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct FlaggedMetadata {
-    #[serde(rename = "c")]
-    pub created_at: time::OffsetDateTime,
-
-    #[serde(rename = "u")]
-    pub updated_at: time::OffsetDateTime,
-
-    #[serde(rename = "huc")]
-    pub has_unsealed_copy: bool,
-
-    #[serde(rename = "m")]
-    pub miner_address: MinerAddress,
-}
-
-impl FlaggedMetadata {
-    pub fn with_address(miner_address: MinerAddress) -> Self {
-        let now = time::OffsetDateTime::now_utc();
-        Self {
-            created_at: now,
-            updated_at: now,
-            has_unsealed_copy: false,
-            miner_address,
-        }
-    }
-}
-
 // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/model/model.go#L50-L62
 
 // NOTE(@jmg-duarte,12/06/2024): `OffsetSize` is currently (de)serialized using CBOR
@@ -195,6 +168,8 @@ impl From<u64> for DealId {
         Self(value)
     }
 }
+
+// TODO(@jmg-duarte,14/06/2024): validate miner address
 
 /// The miner's address.
 ///
@@ -392,11 +367,14 @@ pub trait Service {
         limit: usize,
     ) -> Result<Vec<FlaggedPiece>, PieceStoreError>;
 
-    // In Go they use int, which is at least 32bit, but can be more!
-    // A count of flagged pieces doesn't seem to ever be negative though (?)
+    /// Count all pieces that match the given filter.
+    ///
+    /// * If the filter is `None`, then all flagged pieces will be counted.
+    /// * If no pieces are found, returns `0`.
     fn flagged_pieces_count(
         &self,
         filter: Option<FlaggedPiecesListFilter>,
     ) -> Result<u64, PieceStoreError>;
+
     fn next_pieces_to_check(&self, miner_address: String) -> Result<Vec<Cid>, PieceStoreError>;
 }
