@@ -332,12 +332,15 @@ pub trait Service {
 
     /// Get all the pieces containing the given [`Multihash`](multihash::Multihash).
     ///
-    /// * If not pieces are found, returns [`PieceStoreError::NotFoundError`].
+    /// * If no pieces are found, returns [`PieceStoreError::NotFoundError`].
     fn pieces_containing_multihash(
         &self,
         multihash: multihash::Multihash<64>,
     ) -> Result<Vec<Cid>, PieceStoreError>;
 
+    /// Remove indexes for the piece with the provided [`Cid`].
+    ///
+    /// * If the piece does not exist, returns [`PieceStoreError::NotFoundError`].
     fn remove_indexes(&self, piece_cid: Cid) -> Result<(), PieceStoreError>;
 
     /// Flag the piece with the given [`Cid`].
