@@ -40,10 +40,10 @@ This section lists terms used throughout the project.
 
 ### Actor
 
-In [Filecoin](https://docs.filecoin.io), an [actor](https://spec.filecoin.io/#section-glossary.actor) is an on-chain
-object with its own state and set of methods.
-[Actors](https://docs.filecoin.io/reference/built-in-actors#types-of-built-in-actors) define how
-the [Filecoin](https://docs.filecoin.io) network manages and updates global state.
+In [Filecoin](https://spec.filecoin.io/#section-glossary.filecoin),
+an [actor](https://spec.filecoin.io/#section-glossary.actor) is an on-chain object with its own state and set of
+methods. [Actors](https://spec.filecoin.io/#section-glossary.actor) define how
+the [Filecoin](https://spec.filecoin.io/#section-glossary.filecoin) network manages and updates global state.
 
 ### Bond
 
@@ -59,24 +59,26 @@ This term used in:
 
 ### Collateral
 
-Collaterals are assets that are locked up or deposited as a form of security to mitigate risks and ensure the
-performance of certain actions. Collateral acts as a guarantee that an individual will fulfill their obligations.
-Failing to meet obligations or behaving maliciously can result in the loss of staked assets or collateral as a penalty
-for non-compliance or misconduct by [slashing](#slashing).
+[Collaterals](https://spec.filecoin.io/#section-glossary.collateral) are assets that are locked up or deposited as a
+form of security to mitigate risks and ensure the performance of certain actions. Collateral acts as a guarantee that an
+individual will fulfill their obligations. Failing to meet obligations or behaving maliciously can result in the loss of
+staked assets or collateral as a penalty for non-compliance or misconduct by [slashing](#slashing).
 
 ### Collator
 
-Collators maintain [parachains](#parachain) by collecting [parachain](#parachain) transactions from users and producing
-state transition proofs for [Relay Chain](#relay-chain) validators. In other words, collators maintain
-[parachains](#parachain) by aggregating [parachain](#parachain) transactions into [parachain](#parachain) block
-candidates and producing state transition proofs (Proof-of-Validity, PoV) for validators. They need to provide a
-financial commitment ([collateral](#collateral)) to ensure they are incentivized to perform their duties correctly and
+[Collators](https://wiki.polkadot.network/docs/learn-collator) maintain [parachains](#parachain) by
+collecting [parachain](#parachain) transactions from users and producing state transition proofs
+for [Relay Chain](#relay-chain) validators. In other words, collators maintain [parachains](#parachain) by
+aggregating [parachain](#parachain) transactions into [parachain](#parachain) block candidates and producing state
+transition proofs (Proof-of-Validity, PoV) for validators. They need to provide a financial
+commitment ([collateral](#collateral)) to ensure they are incentivized to perform their duties correctly and
 to dissuade malicious behavior.
 
 ### Committed Capacity
 
-The Committed Capacity (CC) is one of three types of deals in which there is effectively no deal, and the [Storage
-Provider](#storage-provider) stores random data inside the sector instead of customer data.
+The [Committed Capacity](https://spec.filecoin.io/#section-glossary.capacity-commitment) (CC) is one of three types of
+deals in which there is effectively no deal, and the [Storage Provider](#storage-provider) stores random data inside the
+sector instead of customer data.
 
 If a [storage provider](#storage-provider) doesn't find any available deal proposals appealing, they can alternatively
 make a capacity commitment, filling a sector with arbitrary data, rather than with client data. Maintaining this sector
@@ -85,9 +87,10 @@ network.
 
 ### Crowdloan
 
-Projects can raise DOT tokens from the community through crowdloans. Participants pledge their DOT tokens to help the
-project win a parachain slot auction. If successful, the tokens are locked up for the duration of the parachain lease,
-and participants might receive rewards or tokens from the project in return.
+Projects can raise DOT tokens from the community
+through [crowdloans](https://wiki.polkadot.network/docs/learn-crowdloans). Participants pledge their DOT tokens to help
+the project win a parachain slot auction. If successful, the tokens are locked up for the duration of the parachain
+lease, and participants might receive rewards or tokens from the project in return.
 
 ### Full Node
 
@@ -141,11 +144,10 @@ A predefined period during which a set of [collators](#collator) remains constan
 ### Slashing
 
 The process of penalizing network participants, including [validators](#validators), [nominators](#nominators),
-and [collators](#collator), for various protocol
-violations. These violations could include producing invalid blocks, equivocation (double signing), inability of the
-[Storage Provider](#storage-provider) to [prove](#proofs) that the data is stored and maintained as promised, or other
-malicious activities. As a result of slashing, participants may face a reduction in their [staked](#staking) funds or
-other penalties depending on the severity of the violation.
+and [collators](#collator), for various protocol violations. These violations could include producing invalid blocks,
+equivocation (double signing), inability of the [Storage Provider](#storage-provider) to [prove](#proofs) that the data
+is stored and maintained as promised, or other malicious activities. As a result of slashing, participants may face a
+reduction in their [staked](#staking) funds or other penalties depending on the severity of the violation.
 
 ### Slot Auction
 
@@ -182,9 +184,10 @@ Provider](#storage-provider).
 
 ### System Parachain
 
-System-level chains move functionality from the [Relay Chain](#relay-chain) into [parachains](#parachain), minimizing
-the administrative use of the [Relay Chain](#relay-chain). For example, a governance [parachain](#parachain) could move
-all the [Polkadot](#polkadot) governance processes from the [Relay Chain](#relay-chain) into a [parachain](#parachain).
+[System-level chains](https://wiki.polkadot.network/docs/learn-system-chains) move functionality from
+the [Relay Chain](#relay-chain) into [parachains](#parachain), minimizing the administrative use of
+the [Relay Chain](#relay-chain). For example, a governance [parachain](#parachain) could move all
+the [Polkadot](#polkadot) governance processes from the [Relay Chain](#relay-chain) into a [parachain](#parachain).
 
 ## Anti-Glossary
 
@@ -192,13 +195,14 @@ This section lists terms that should not be used within the project, along with 
 
 ### Term to Avoid: Miner
 
-In [Filecoin](https://docs.filecoin.io), a "Lotus Miner" is responsible for storage-related operations, such as sealing
+In [Filecoin](https://spec.filecoin.io/#section-glossary.filecoin), a "Lotus Miner" is responsible for storage-related
+operations, such as sealing
 sectors ([PoRep (Proof-of-Replication)](https://spec.filecoin.io/#section-algorithms.pos.porep)), proving storage
 ([PoSt (Proof-of-Spacetime)](https://spec.filecoin.io/#section-algorithms.pos.post)), and participating in
-the [Filecoin](https://docs.filecoin.io/) network as a storage miner.
+the [Filecoin](https://spec.filecoin.io/#section-glossary.filecoin) network as a storage miner.
 
-**Reason**: In the [Filecoin](https://docs.filecoin.io) network, the miner plays the roles of both
-[storage provider](#storage-provider) and block producer simultaneously. However, in the [Polkadot](#polkadot)
+**Reason**: In the [Filecoin](https://spec.filecoin.io/#section-glossary.filecoin) network, the miner plays the roles of
+both [storage provider](#storage-provider) and block producer simultaneously. However, in the [Polkadot](#polkadot)
 ecosystem, this term cannot be used because there are no block producers in [parachains](#parachain);
 the [Relay Chain](#relay-chain) is responsible for block production. [Parachains](#parachain) can only prepare block
 candidates via the [Collator](#collator) node and pass them to the [Relay Chain](#relay-chain).
