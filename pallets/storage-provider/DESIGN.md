@@ -22,6 +22,7 @@
     - [Registration](#registration)
     - [Commit](#commit)
     - [Proof of Spacetime submission](#proof-of-spacetime-submission)
+  - [Storage provider pallet hooks](#storage-provider-pallet-hooks)
 
 ## Overview
 
@@ -202,7 +203,7 @@ The first thing a storage provider must do is register itself by calling `storag
 ### Commit
 
 When the storage provider has completed their first seal, they should post it to the storage provider pallet by calling `storage_provider.pre_commit_sector(sectors: SectorPreCommitInfo)`. If the storage provider had zero committed sectors before this call, this begins their proving period. The proving period is a fixed amount of time in which the storage provider must submit a Proof of Space Time to the network.
-During this period, the storage provider may also commit to new sectors, but they will not be included in proofs of space time until the next proving period starts.
+During this period, the storage provider may also commit to new sectors, but they will not be included in proofs of space time until the next proving period starts. During the prove commit call, the storage provider pledges some collateral in case they fail to submit their PoSt on time.
 
 ### Proof of Spacetime submission
 
@@ -210,3 +211,7 @@ When the storage provider has completed their PoSt, they must submit it to the n
 
 - **Standard Submission**: A standard submission is one that makes it on-chain before the end of the proving period.
 - **Penalize Submission**:A penalized submission is one that makes it on-chain after the end of the proving period, but before the generation attack threshold. These submissions count as valid PoSt submissions, but the miner must pay a penalty for their late submission. See [storage fault slashing](#storage-fault-slashing).
+
+## Storage provider pallet hooks
+
+Substrate pallet hooks execute some actions when certain conditions are met. We use these hooks, when a block finalizes, to check if storage providers are up to date with their proofs. If a proof needs to be submitted but isn't the storage provider pallet will penalize the storage provider accordingly [slash](#storage-fault-slashing) their collateral that the locked up during the [pre commit section](#commit).
