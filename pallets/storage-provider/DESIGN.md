@@ -18,6 +18,10 @@
   - [Data structures](#data-structures)
     - [Proof of Spacetime](#proof-of-spacetime)
     - [Proof of Replication](#proof-of-replication)
+  - [Storage Provider Flow](#storage-provider-flow)
+    - [Registration](#registration)
+    - [Commit](#commit)
+    - [Proof of Spacetime submission](#proof-of-spacetime-submission)
 
 ## Overview
 
@@ -188,3 +192,21 @@ pub struct SectorPreCommitInfo {
     pub expiration: u64,
 }
 ```
+
+## Storage Provider Flow
+
+### Registration
+
+The first thing a storage provider must do is register itself by calling `storage_provider.create_storage_provider(peer_id: PeerId, window_post_proof_type: RegisteredPoStProof)`. At this point there are no funds locked in the storage provider pallet. The next step is to place storage market asks on the market, this is done through the market pallet. After that the storage provider needs to make deals with clients and begin filling up sectors with data. When they have a full sector they should seal the sector.
+
+### Commit
+
+When the storage provider has completed their first seal, they should post it to the storage provider pallet by calling `storage_provider.pre_commit_sector(sectors: SectorPreCommitInfo)`. If the storage provider had zero committed sectors before this call, this begins their proving period. The proving period is a fixed amount of time in which the storage provider must submit a Proof of Space Time to the network.
+During this period, the storage provider may also commit to new sectors, but they will not be included in proofs of space time until the next proving period starts.
+
+### Proof of Spacetime submission
+
+When the storage provider has completed their PoSt, they must submit it to the network by calling `storage_provider.submit_windowed_post(deadline: u64, partitions: Vec<u64>, proofs: Vec<PostProof>)`. There are two different types of submissions:
+
+- **Standard Submission**: A standard submission is one that makes it on-chain before the end of the proving period.
+- **Penalize Submission**:A penalized submission is one that makes it on-chain after the end of the proving period, but before the generation attack threshold. These submissions count as valid PoSt submissions, but the miner must pay a penalty for their late submission. See [storage fault slashing](#storage-fault-slashing).
