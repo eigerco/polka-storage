@@ -1,7 +1,7 @@
 use rocksdb::{AsColumnFamilyRef, WriteBatchWithTransaction};
 use serde::Serialize;
 
-use super::PieceStoreError;
+use super::LidError;
 
 pub(crate) trait WriteBatchWithTransactionExt {
     /// Insert a CBOR serialized value with the provided key.
@@ -10,7 +10,7 @@ pub(crate) trait WriteBatchWithTransactionExt {
         cf: &impl AsColumnFamilyRef,
         key: K,
         value: V,
-    ) -> Result<(), PieceStoreError>
+    ) -> Result<(), LidError>
     where
         K: AsRef<[u8]>,
         V: Serialize;
@@ -24,14 +24,14 @@ impl<const TRANSACTION: bool> WriteBatchWithTransactionExt
         cf: &impl AsColumnFamilyRef,
         key: K,
         value: V,
-    ) -> Result<(), PieceStoreError>
+    ) -> Result<(), LidError>
     where
         K: AsRef<[u8]>,
         V: Serialize,
     {
         let mut serialized = vec![];
         if let Err(err) = ciborium::into_writer(&value, &mut serialized) {
-            return Err(PieceStoreError::Serialization(err.to_string()));
+            return Err(LidError::Serialization(err.to_string()));
         }
         Ok(self.put_cf(cf, key, serialized))
     }

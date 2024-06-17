@@ -22,9 +22,9 @@ pub(crate) fn multihash_base64<const S: usize>(multihash: &Multihash<S>) -> Stri
     base64::engine::general_purpose::STANDARD.encode(multihash.to_bytes())
 }
 
-/// Error that can occur when interacting with the [`PieceStore`].
+/// Error that can occur when interacting with the [`Service`].
 #[derive(Debug, thiserror::Error)]
-pub enum PieceStoreError {
+pub enum LidError {
     #[error("Deal already exists: {0}")]
     DuplicateDealError(Uuid),
 
@@ -254,59 +254,52 @@ pub trait Service {
     /// Add [`DealInfo`] pertaining to the piece with the provided [`Cid`].
     ///
     /// * If the piece does not exist in the index, it will be created before adding the [`DealInfo`].
-    /// * If the deal is already present in the piece, returns [`PieceStoreError::DuplicateDealError`].
-    fn add_deal_for_piece(
-        &self,
-        piece_cid: Cid,
-        deal_info: DealInfo,
-    ) -> Result<(), PieceStoreError>;
+    /// * If the deal is already present in the piece, returns [`LidError::DuplicateDealError`].
+    fn add_deal_for_piece(&self, piece_cid: Cid, deal_info: DealInfo) -> Result<(), LidError>;
 
     /// Remove a deal with the given [`Uuid`] for the piece with the provided [`Cid`].
     ///
     /// * If the piece does not exist, this operation is a no-op.
-    fn remove_deal_for_piece(&self, piece_cid: Cid, deal_uuid: Uuid)
-        -> Result<(), PieceStoreError>;
+    fn remove_deal_for_piece(&self, piece_cid: Cid, deal_uuid: Uuid) -> Result<(), LidError>;
 
     /// Check if the piece with the provided [`Cid`] is indexed.
     ///
     /// * If the piece does not exist, returns `false`.
-    fn is_indexed(&self, piece_cid: Cid) -> Result<bool, PieceStoreError>;
+    fn is_indexed(&self, piece_cid: Cid) -> Result<bool, LidError>;
 
     /// Get when the piece with the provided [`Cid`] was indexed.
     ///
-    /// * If the piece does not exist, returns [`PieceStoreError::PieceNotFound`].
-    fn indexed_at(
-        &self,
-        piece_cid: Cid,
-    ) -> Result<Option<chrono::DateTime<chrono::Utc>>, PieceStoreError>;
+    /// * If the piece does not exist, returns [`LidError::PieceNotFound`].
+    fn indexed_at(&self, piece_cid: Cid)
+        -> Result<Option<chrono::DateTime<chrono::Utc>>, LidError>;
 
     /// Check if the piece with the provided [`Cid`] has been fully indexed.
     ///
-    /// * If the piece does not exist, returns [`PieceStoreError::PieceNotFound`].
-    fn is_complete_index(&self, piece_cid: Cid) -> Result<bool, PieceStoreError>;
+    /// * If the piece does not exist, returns [`LidError::PieceNotFound`].
+    fn is_complete_index(&self, piece_cid: Cid) -> Result<bool, LidError>;
 
     /// Get the [`PieceInfo`] pertaining to the piece with the provided [`Cid`].
     ///
-    /// * If the piece does not exist, returns [`PieceStoreError::PieceNotFound`].
-    fn get_piece_metadata(&self, piece_cid: Cid) -> Result<PieceInfo, PieceStoreError>;
+    /// * If the piece does not exist, returns [`LidError::PieceNotFound`].
+    fn get_piece_metadata(&self, piece_cid: Cid) -> Result<PieceInfo, LidError>;
 
     /// Remove the [`PieceInfo`] pertaining to the piece with the provided [`Cid`].
     /// It will also remove the piece's indexes.
     ///
-    /// * If the piece does not exist, returns [`PieceStoreError::PieceNotFound`].
+    /// * If the piece does not exist, returns [`LidError::PieceNotFound`].
     /// * If the piece's indexes are out of sync and its [`Multihash`] entries are not found,
-    ///   returns [`PieceStoreError::MultihashNotFound`].
-    fn remove_piece_metadata(&self, piece_cid: Cid) -> Result<(), PieceStoreError>;
+    ///   returns [`LidError::MultihashNotFound`].
+    fn remove_piece_metadata(&self, piece_cid: Cid) -> Result<(), LidError>;
 
     /// Get the list of [`DealInfo`] pertaining to the piece with the provided [`Cid`].
     ///
-    /// * If the piece does not exist, returns [`PieceStoreError::PieceNotFound`].
-    fn get_piece_deals(&self, piece_cid: Cid) -> Result<Vec<DealInfo>, PieceStoreError>;
+    /// * If the piece does not exist, returns [`LidError::PieceNotFound`].
+    fn get_piece_deals(&self, piece_cid: Cid) -> Result<Vec<DealInfo>, LidError>;
 
     /// List the existing pieces.
     ///
     /// * If no pieces exist, an empty [`Vec`] is returned.
-    fn list_pieces(&self) -> Result<Vec<Cid>, PieceStoreError>;
+    fn list_pieces(&self) -> Result<Vec<Cid>, LidError>;
 
     /// Add index records to the piece with the provided [`Cid`].
     ///
@@ -320,41 +313,41 @@ pub trait Service {
         piece_cid: Cid,
         records: Vec<Record>,
         is_complete_index: bool,
-    ) -> Result<(), PieceStoreError>;
+    ) -> Result<(), LidError>;
 
     /// Get the index records for the piece with the provided [`Cid`].
     ///
-    /// * If the piece does not exist, returns [`PieceStoreError::PieceNotFound`].
+    /// * If the piece does not exist, returns [`LidError::PieceNotFound`].
     ///
     /// Differences to the original:
     /// * The original implementation streams the [`OffsetSize`].
     /// * The original implementation does not support this operation through HTTP.
-    fn get_index(&self, piece_cid: Cid) -> Result<Vec<Record>, PieceStoreError>;
+    fn get_index(&self, piece_cid: Cid) -> Result<Vec<Record>, LidError>;
 
     /// Get the [`OffsetSize`] of the given [`Multihash`](multihash::Multihash) for the piece with the provided [`Cid`].
     ///
-    /// * If the piece does not exist, returns [`PieceStoreError::PieceNotFound`].
-    /// * If the index entry (i.e. multihash) does not exist, returns [`PieceStoreError::MultihashNotFound`].
+    /// * If the piece does not exist, returns [`LidError::PieceNotFound`].
+    /// * If the index entry (i.e. multihash) does not exist, returns [`LidError::MultihashNotFound`].
     fn get_offset_size(
         &self,
         piece_cid: Cid,
         multihash: multihash::Multihash<64>,
-    ) -> Result<OffsetSize, PieceStoreError>;
+    ) -> Result<OffsetSize, LidError>;
 
     /// Get all the pieces containing the given [`Multihash`](multihash::Multihash).
     ///
-    /// * If no pieces are found, returns [`PieceStoreError::MultihashNotFound`].
+    /// * If no pieces are found, returns [`LidError::MultihashNotFound`].
     fn pieces_containing_multihash(
         &self,
         multihash: multihash::Multihash<64>,
-    ) -> Result<Vec<Cid>, PieceStoreError>;
+    ) -> Result<Vec<Cid>, LidError>;
 
     /// Remove indexes for the piece with the provided [`Cid`].
     ///
-    /// * If the piece does not exist, returns [`PieceStoreError::PieceNotFound`].
+    /// * If the piece does not exist, returns [`LidError::PieceNotFound`].
     /// * If the piece contains index entries — i.e. [`Multihash`] —
-    ///   that cannot be found, returns [`PieceStoreError::MultihashNotFound`].
-    fn remove_indexes(&self, piece_cid: Cid) -> Result<(), PieceStoreError>;
+    ///   that cannot be found, returns [`LidError::MultihashNotFound`].
+    fn remove_indexes(&self, piece_cid: Cid) -> Result<(), LidError>;
 
     /// Flag the piece with the given [`Cid`].
     ///
@@ -364,7 +357,7 @@ pub trait Service {
         piece_cid: Cid,
         has_unsealed_copy: bool,
         storage_provider_address: StorageProviderAddress,
-    ) -> Result<(), PieceStoreError>;
+    ) -> Result<(), LidError>;
 
     /// Unflag the piece with the given [`Cid`].
     ///
@@ -373,7 +366,7 @@ pub trait Service {
         &self,
         piece_cid: Cid,
         storage_provider_address: StorageProviderAddress,
-    ) -> Result<(), PieceStoreError>;
+    ) -> Result<(), LidError>;
 
     /// List the flagged pieces matching the filter.
     ///
@@ -388,7 +381,7 @@ pub trait Service {
         cursor: chrono::DateTime<chrono::Utc>, // this name doesn't make much sense but it's the original one,
         offset: usize,
         limit: usize,
-    ) -> Result<Vec<FlaggedPiece>, PieceStoreError>;
+    ) -> Result<Vec<FlaggedPiece>, LidError>;
 
     /// Count all pieces that match the given filter.
     ///
@@ -397,11 +390,11 @@ pub trait Service {
     fn flagged_pieces_count(
         &self,
         filter: Option<FlaggedPiecesListFilter>,
-    ) -> Result<u64, PieceStoreError>;
+    ) -> Result<u64, LidError>;
 
     /// Returns the [`Cid`]s of the next pieces to be checked for a given storage provider.
     fn next_pieces_to_check(
         &mut self,
         storage_provider_address: StorageProviderAddress,
-    ) -> Result<Vec<Cid>, PieceStoreError>;
+    ) -> Result<Vec<Cid>, LidError>;
 }
