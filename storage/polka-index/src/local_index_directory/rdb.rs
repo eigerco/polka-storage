@@ -12,12 +12,12 @@ use serde::{de::DeserializeOwned, Serialize};
 use uuid::Uuid;
 
 use super::{
-    ext::WriteBatchWithTransactionExt, multihash_base64, DealInfo, FlaggedPiece,
-    FlaggedPiecesListFilter, LidError, OffsetSize, PieceInfo, Record, Service,
+    multihash_base64, rdb_ext::WriteBatchWithTransactionExt, DealInfo, FlaggedPiece,
+    FlaggedPiecesListFilter, IndexRecord, LidError, OffsetSize, PieceInfo, Service,
     StorageProviderAddress,
 };
 
-// NOTE(@jmg-duarte,04/06/2024): We probably could split the interface according to the respective column family
+const RAW_CODEC: u64 = 0x55;
 
 /// Key for the next free cursor.
 ///
@@ -26,7 +26,7 @@ use super::{
 /// Sources:
 /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L30-L32>
 /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L54-L56>
-pub const NEXT_CURSOR_KEY: &str = "next_cursor";
+const NEXT_CURSOR_KEY: &str = "next_cursor";
 
 // # Notes on LevelDB vs RocksDB:
 // ## Prefixes & Column Families
@@ -47,21 +47,21 @@ pub const NEXT_CURSOR_KEY: &str = "next_cursor";
 /// Sources:
 /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L34-L37>
 /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L58-L61>
-pub const PIECE_CID_TO_CURSOR_CF: &str = "piece_cid_to_cursor";
+const PIECE_CID_TO_CURSOR_CF: &str = "piece_cid_to_cursor";
 
 /// Column family name to store the mapping between [`Multihash`]es and piece [`Cid`]s.
 ///
 /// Sources:
 /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L39-L42>
 /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L62-L64>
-pub const MULTIHASH_TO_PIECE_CID_CF: &str = "multihash_to_piece_cids";
+const MULTIHASH_TO_PIECE_CID_CF: &str = "multihash_to_piece_cids";
 
 /// Column family name to store the flagged piece [`Cid`]s.
 ///
 /// Sources:
 /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L44-L47>
 /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L66-L68>
-pub const PIECE_CID_TO_FLAGGED_CF: &str = "piece_cid_to_flagged";
+const PIECE_CID_TO_FLAGGED_CF: &str = "piece_cid_to_flagged";
 
 /// The minimum time between piece checks.
 ///
@@ -303,7 +303,7 @@ impl RocksDBLid {
     /// Add a [`Record`] to the database under a given cursor prefix.
     ///
     /// Even though the interface is different, this function is the dual to [`Service::get_offset_size`].
-    fn add_index_record(&self, cursor_prefix: &str, record: Record) -> Result<(), LidError> {
+    fn add_index_record(&self, cursor_prefix: &str, record: IndexRecord) -> Result<(), LidError> {
         let key = format!("{}{}", cursor_prefix, multihash_base64(record.cid.hash()));
         self.put_value_at_key(
             key,
@@ -376,7 +376,7 @@ impl Service for RocksDBLid {
         // Check if the piece exists
         let mut piece_info = self
             .get_piece_cid_to_metadata(piece_cid)?
-            .unwrap_or_else(|| PieceInfo::with_cid(piece_cid));
+            .unwrap_or_else(|| PieceInfo::default());
 
         // Check for the duplicate deal
         if let Some(deal) = piece_info.deals.iter().find(|d| **d == deal_info) {
@@ -546,7 +546,7 @@ impl Service for RocksDBLid {
     fn add_index(
         &self,
         piece_cid: Cid,
-        records: Vec<Record>,
+        records: Vec<IndexRecord>,
         is_complete_index: bool,
     ) -> Result<(), LidError> {
         let record_cids = records.iter().map(|r| r.cid.hash().to_owned()).collect();
@@ -561,7 +561,7 @@ impl Service for RocksDBLid {
                 let cursor_prefix = key_cursor_prefix(metadata.cursor);
                 (metadata, cursor_prefix)
             } else {
-                let mut metadata = PieceInfo::with_cid(piece_cid);
+                let mut metadata = PieceInfo::default();
                 let (next_cursor, next_cursor_prefix) = self.get_next_cursor()?;
                 self.set_next_cursor(next_cursor + 1)?;
 
@@ -587,7 +587,7 @@ impl Service for RocksDBLid {
     /// Sources:
     /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L253-L294>
     /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L304-L349>
-    fn get_index(&self, piece_cid: Cid) -> Result<Vec<Record>, LidError> {
+    fn get_index(&self, piece_cid: Cid) -> Result<Vec<IndexRecord>, LidError> {
         let Some(metadata) = self.get_piece_cid_to_metadata(piece_cid)? else {
             return Err(LidError::PieceNotFound(piece_cid));
         };
@@ -595,8 +595,6 @@ impl Service for RocksDBLid {
         // This is equivalent to `db.AllRecords`
         // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L304-L349
         let cursor_prefix = key_cursor_prefix(metadata.cursor);
-
-        // TODO(@jmg-duarte,06/06/2024): review usage patterns as might be able to place all cursors for this in a single column family
         let iterator = self.database.prefix_iterator(&cursor_prefix);
 
         let mut records = vec![];
@@ -612,11 +610,10 @@ impl Service for RocksDBLid {
             let mh_bytes = base64::engine::general_purpose::STANDARD.decode(&key)?;
             // We lost the original Cid version and so on, so we just create a new one
             // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L334-L335
-            // TODO(@jmg-duarte,14/06/2024): const the 0x55
-            let cid = Cid::new_v1(0x55, Multihash::from_bytes(&mh_bytes)?);
+            let cid = Cid::new_v1(RAW_CODEC, Multihash::from_bytes(&mh_bytes)?);
             let offset_size = ciborium::from_reader(&*value)
                 .map_err(|err| LidError::Deserialization(err.to_string()))?;
-            records.push(Record { cid, offset_size });
+            records.push(IndexRecord { cid, offset_size });
         }
 
         // The main difference here is that we don't need to return IndexRecord since we're not sending
@@ -939,10 +936,10 @@ mod test {
     use crate::local_index_directory::{
         rdb::{
             key_cursor_prefix, MULTIHASH_TO_PIECE_CID_CF, PIECE_CID_TO_CURSOR_CF,
-            PIECE_CID_TO_FLAGGED_CF,
+            PIECE_CID_TO_FLAGGED_CF, RAW_CODEC,
         },
-        DealId, DealInfo, FlaggedPiece, FlaggedPiecesListFilter, LidError, OffsetSize, PieceInfo,
-        Record, Service, StorageProviderAddress,
+        DealId, DealInfo, FlaggedPiece, FlaggedPiecesListFilter, IndexRecord, LidError, OffsetSize,
+        PieceInfo, Service, StorageProviderAddress,
     };
 
     fn init_database() -> RocksDBLid {
@@ -1028,7 +1025,7 @@ mod test {
     fn piece_cid_to_metadata() {
         let db = init_database();
         let cid = Cid::from_str("QmawceGscqN4o8Y8Fv26UUmB454kn2bnkXV5tEQYc4jBd6").unwrap();
-        let piece_info = PieceInfo::with_cid(cid);
+        let piece_info = PieceInfo::default();
 
         assert!(matches!(db.get_piece_cid_to_metadata(cid), Ok(None)));
         assert!(db.set_piece_cid_to_metadata(cid, &piece_info).is_ok());
@@ -1126,7 +1123,7 @@ mod test {
     fn is_indexed() {
         let db = init_database();
         let cid = cids_vec()[0];
-        let mut piece_info = PieceInfo::with_cid(cid);
+        let mut piece_info = PieceInfo::default();
 
         // PieceInfo hasn't been inserted
         assert_eq!(db.is_indexed(cid).unwrap(), false);
@@ -1143,7 +1140,7 @@ mod test {
     fn indexed_at() {
         let db = init_database();
         let cid = cids_vec()[0];
-        let mut piece_info = PieceInfo::with_cid(cid);
+        let mut piece_info = PieceInfo::default();
         piece_info.indexed_at = chrono::Utc::now().into();
 
         // Inserted but false
@@ -1156,7 +1153,7 @@ mod test {
     fn is_complete_index() {
         let db = init_database();
         let cid = cids_vec()[0];
-        let mut piece_info = PieceInfo::with_cid(cid);
+        let mut piece_info = PieceInfo::default();
 
         // PieceInfo hasn't been inserted
         assert!(matches!(
@@ -1190,7 +1187,7 @@ mod test {
     fn get_piece_metadata() {
         let db = init_database();
         let cid = Cid::from_str("QmawceGscqN4o8Y8Fv26UUmB454kn2bnkXV5tEQYc4jBd6").unwrap();
-        let piece_info = PieceInfo::with_cid(cid);
+        let piece_info = PieceInfo::default();
 
         assert!(matches!(
             db.get_piece_metadata(cid),
@@ -1205,24 +1202,44 @@ mod test {
     #[test]
     fn remove_piece_metadata() {
         let db = init_database();
-        let cid = Cid::from_str("QmawceGscqN4o8Y8Fv26UUmB454kn2bnkXV5tEQYc4jBd6").unwrap();
-        let piece_info = PieceInfo::with_cid(cid);
+        let cids = cids_vec();
+        let piece_info = PieceInfo::default();
+        let records = vec![
+            IndexRecord {
+                cid: cids[1],
+                offset_size: OffsetSize { offset: 0, size: 0 },
+            },
+            IndexRecord {
+                cid: cids[2],
+                offset_size: OffsetSize {
+                    offset: 0,
+                    size: 100,
+                },
+            },
+        ];
 
         assert!(matches!(
-            db.get_piece_metadata(cid),
+            db.get_piece_metadata(cids[0]),
             Err(LidError::PieceNotFound(_))
         ));
-        assert!(db.set_piece_cid_to_metadata(cid, &piece_info).is_ok());
-        let received = db.get_piece_metadata(cid);
+        assert!(db.set_piece_cid_to_metadata(cids[0], &piece_info).is_ok());
+        let received = db.get_piece_metadata(cids[0]);
         assert!(matches!(received, Ok(_)));
         assert_eq!(piece_info, received.unwrap());
+        assert!(db.add_index(cids[0], records.clone(), false).is_ok());
 
-        assert!(db.remove_piece_metadata(cid).is_ok());
-        // TODO(@jmg-duarte,11/06/2024): add test ensuring that indexes are also removed
+        assert!(db.remove_piece_metadata(cids[0]).is_ok());
         assert!(matches!(
-            db.get_piece_metadata(cid),
+            db.get_piece_metadata(cids[0]),
             Err(LidError::PieceNotFound(_))
         ));
+
+        // Ensure mh -> offset also gets removed when indexes are removed
+        assert!(db
+            .database
+            .prefix_iterator("/0/")
+            .collect::<Vec<_>>()
+            .is_empty());
     }
 
     #[test]
@@ -1263,11 +1280,11 @@ mod test {
         let cid = cids[0];
         let deal_info = dummy_deal_info();
         let records = vec![
-            Record {
+            IndexRecord {
                 cid: cids[1],
                 offset_size: OffsetSize { offset: 0, size: 0 },
             },
-            Record {
+            IndexRecord {
                 cid: cids[2],
                 offset_size: OffsetSize {
                     offset: 0,
@@ -1295,7 +1312,7 @@ mod test {
             // but it forcefully makes them RAW on their way out, so,
             // we need to check that the CIDs we have, that have the DAG-PB codec
             // were converted to the RAW codec
-            assert_eq!(new.cid.codec(), 0x55);
+            assert_eq!(new.cid.codec(), RAW_CODEC);
             assert_eq!(new.offset_size, old.offset_size);
         }
 
@@ -1319,11 +1336,11 @@ mod test {
         let cid = cids[0];
         let deal_info = dummy_deal_info();
         let records = vec![
-            Record {
+            IndexRecord {
                 cid: cids[1],
                 offset_size: OffsetSize { offset: 0, size: 0 },
             },
-            Record {
+            IndexRecord {
                 cid: cids[2],
                 offset_size: OffsetSize {
                     offset: 0,
@@ -1379,11 +1396,11 @@ mod test {
         let cid = cids[0];
         let deal_info = dummy_deal_info();
         let records = vec![
-            Record {
+            IndexRecord {
                 cid: cids[1],
                 offset_size: OffsetSize { offset: 0, size: 0 },
             },
-            Record {
+            IndexRecord {
                 cid: cids[2],
                 offset_size: OffsetSize {
                     offset: 0,
@@ -1422,7 +1439,7 @@ mod test {
         let db = init_database();
         let cids = cids_vec();
         let deal_info = dummy_deal_info();
-        let records = vec![Record {
+        let records = vec![IndexRecord {
             cid: cids[2],
             offset_size: OffsetSize { offset: 0, size: 0 },
         }];
@@ -1688,9 +1705,9 @@ mod test {
         for i in 0..1536u64 {
             let digest = Sha256::digest(i.to_le_bytes());
             let mh = Multihash::wrap(0x12, digest.as_ref()).unwrap();
-            let cid = Cid::new_v1(0x55, mh);
+            let cid = Cid::new_v1(RAW_CODEC, mh);
             cids.push(cid);
-            let mut piece_info = PieceInfo::with_cid(cid);
+            let mut piece_info = PieceInfo::default();
             piece_info.deals.push(DealInfo {
                 deal_uuid: uuid::Uuid::new_v4(),
                 is_legacy: false,

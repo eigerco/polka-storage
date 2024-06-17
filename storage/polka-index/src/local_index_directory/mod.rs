@@ -8,8 +8,8 @@ use cid::{
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-pub mod ext;
 pub mod rdb;
+pub mod rdb_ext;
 
 /// Convert a [`Multihash`] into a key (converts [`Multihash::digest`] to base-64).
 ///
@@ -119,22 +119,44 @@ pub struct OffsetSize {
 
 // Record is the information stored in the index for each block in a piece
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Record {
+pub struct IndexRecord {
+    /// The [`Cid`] of the indexed block.
     #[serde(rename = "s")]
     pub cid: Cid,
+
+    /// The [`OffsetSize`] for the data — i.e. offset and size.
     pub offset_size: OffsetSize,
 }
 
-/// Metadata about a piece that provider may be storing based on its [`Cid`].
-/// So that, given a [`Cid`] during retrieval, the storage provider can determine how to unseal it if needed.
+/// Metadata over a [piece][1], pertaining to the storage of the piece in a given storage provider.
+///
+/// A piece is the unit of negotiation for data storage.
+/// Piece sizes are limited by the sector size, hence,
+/// if a user wants to store data larger than the sector size,
+/// the data will be split into multiple pieces.
+///
+/// [1]: https://spec.filecoin.io/systems/filecoin_files/piece/
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PieceInfo {
-    // NOTE(@jmg-duarte,04/06/2024): not sure if this is useful + without it we could implement Default
-    pub piece_cid: Cid,
-
+    /// The piece metadata version, it *will* be used for data migrations.
+    ///
+    /// Source: <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L25-L27>
     pub version: String,
+
+    /// If present, when the piece was last indexed.
     pub indexed_at: Option<chrono::DateTime<chrono::Utc>>,
+
+    /// If the index has all information or is missing block size information.
+    ///
+    /// Source: <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/model/model.go#L42-L46>
     pub complete_index: bool,
+
+    /// Deals that this piece is related to.
+    ///
+    /// Each deal can only pertain to a single piece, however,
+    /// a piece can contain multiple deals — e.g. for redundancy.
+    ///
+    /// See [`DealInfo`] for more information.
     pub deals: Vec<DealInfo>,
 
     /// Piece cursor for other information, such as offset, etc.
@@ -142,10 +164,9 @@ pub struct PieceInfo {
     pub cursor: u64,
 }
 
-impl PieceInfo {
-    pub fn with_cid(piece_cid: Cid) -> Self {
+impl Default for PieceInfo {
+    fn default() -> Self {
         Self {
-            piece_cid,
             // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L45-L46
             version: "1".to_string(),
             // In Go, time.Time's default is "0001-01-01 00:00:00 +0000 UTC"
@@ -157,8 +178,6 @@ impl PieceInfo {
         }
     }
 }
-
-// NOTE(@jmg-duarte,12/06/2024): maybe we could implement Deref from DealId and MinerAddress
 
 /// Identifier for a retrieval deal (unique to a client)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -196,6 +215,9 @@ impl From<String> for StorageProviderAddress {
 }
 
 /// Numeric identifier for a sector. It is usually relative to a storage provider.
+///
+/// For more information on sectors, see:
+/// <https://spec.filecoin.io/#section-systems.filecoin_mining.sector>
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct SectorNumber(u64);
 
@@ -205,7 +227,7 @@ impl From<u64> for SectorNumber {
     }
 }
 
-/// Information about a single deal for a given piece.
+/// Information about a single *storage* deal for a given piece.
 ///
 /// Source:
 /// <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/model/model.go#L14-L36>
@@ -218,14 +240,20 @@ pub struct DealInfo {
     // However, in the original implementation they do it like that
     // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L119-L125
     // Note that in Go, there is no operator overloading and == is implicitly defined for all types
-
-    // TODO(@jmg-duarte,05/06/2024): document
+    /// The deal [`Uuid`].
     #[serde(rename = "u")]
-    pub deal_uuid: uuid::Uuid,
+    pub deal_uuid: Uuid,
+
+    // NOTE(@jmg-duarte,17/06/2024): this will probably not be needed
+    /// Wether this deal was performed using `go-fil-markets`.
+    ///
+    /// See the following links for more information:
+    /// * <https://boost.filecoin.io/configuration/legacy-deal-configuration>
+    /// * <https://filecoin.io/blog/posts/make-lightning-fast-storage-deals-with-boost-v1.0>
     #[serde(rename = "y")]
     pub is_legacy: bool,
 
-    /// Identifier for a deal.
+    /// Identifier for a deal on the chain.
     ///
     /// See [`DealId`] for more information.
     #[serde(rename = "i")]
@@ -233,23 +261,45 @@ pub struct DealInfo {
 
     /// The storage provider's address.
     ///
-    /// See [`MinerAddress`] for more information.-
+    /// See [`StorageProviderAddress`] for more information.
     #[serde(rename = "m")]
     pub storage_provider_address: StorageProviderAddress,
 
+    /// The sector number where the piece is stored in.
+    ///
+    /// See [`SectorNumber`] for more information.
     #[serde(rename = "s")]
     pub sector_number: SectorNumber,
+
+    /// The offset of this deal's piece in the [sector][`SectorNumber`].
     #[serde(rename = "o")]
     pub piece_offset: u64,
+
+    /// The length of this deal's piece.
+    ///
+    /// A full piece will contain a proving tree and a CAR file.
+    ///
+    /// See:
+    /// * <https://spec.filecoin.io/#section-glossary.piece>
+    /// * <https://spec.filecoin.io/#section-systems.filecoin_files.piece>
     #[serde(rename = "l")]
     pub piece_length: u64,
+
+    /// The length of the piece's CAR file.
     #[serde(rename = "c")]
     pub car_length: u64,
+
+    /// Wether this deal is a [direct deal][1].
+    ///
+    /// A direct deal is usually made for data larger than 4Gb as it will contain a single piece,
+    /// a non-direct deal is an [aggregated deal][2], which is aggregated from small scale data (< 4Gb).
+    ///
+    /// [1]: https://docs.filecoin.io/smart-contracts/programmatic-storage/direct-deal-making
+    /// [2]: https://docs.filecoin.io/smart-contracts/programmatic-storage/aggregated-deal-making
     #[serde(rename = "d")]
     pub is_direct_deal: bool,
 }
 
-// TODO(@jmg-duarte,04/06/2024): document
 pub trait Service {
     /// Add [`DealInfo`] pertaining to the piece with the provided [`Cid`].
     ///
@@ -273,7 +323,9 @@ pub trait Service {
     fn indexed_at(&self, piece_cid: Cid)
         -> Result<Option<chrono::DateTime<chrono::Utc>>, LidError>;
 
-    /// Check if the piece with the provided [`Cid`] has been fully indexed.
+    /// Check if the index of the piece with the provided [`Cid`] has block size information.
+    ///
+    /// See [`PieceInfo::complete_index`] for details.
     ///
     /// * If the piece does not exist, returns [`LidError::PieceNotFound`].
     fn is_complete_index(&self, piece_cid: Cid) -> Result<bool, LidError>;
@@ -311,7 +363,7 @@ pub trait Service {
     fn add_index(
         &self,
         piece_cid: Cid,
-        records: Vec<Record>,
+        records: Vec<IndexRecord>,
         is_complete_index: bool,
     ) -> Result<(), LidError>;
 
@@ -322,7 +374,7 @@ pub trait Service {
     /// Differences to the original:
     /// * The original implementation streams the [`OffsetSize`].
     /// * The original implementation does not support this operation through HTTP.
-    fn get_index(&self, piece_cid: Cid) -> Result<Vec<Record>, LidError>;
+    fn get_index(&self, piece_cid: Cid) -> Result<Vec<IndexRecord>, LidError>;
 
     /// Get the [`OffsetSize`] of the given [`Multihash`](multihash::Multihash) for the piece with the provided [`Cid`].
     ///
