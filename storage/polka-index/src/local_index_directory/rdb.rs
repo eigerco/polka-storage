@@ -9,7 +9,6 @@ use rocksdb::{
     DB as RocksDB,
 };
 use serde::{de::DeserializeOwned, Serialize};
-use time::OffsetDateTime;
 use uuid::Uuid;
 
 use super::{
@@ -108,7 +107,7 @@ pub struct RocksDBPieceStore {
     /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L412-L413>
     offset: usize,
     /// Tracks the last time we processed a given piece.
-    checked: HashMap<String, OffsetDateTime>,
+    checked: HashMap<String, chrono::DateTime<chrono::Utc>>,
 }
 
 // TODO(@jmg-duarte,05/06/2024): review all CF usages
@@ -135,9 +134,7 @@ impl RocksDBPieceStore {
         .map(|cf| ColumnFamilyDescriptor::new(cf, Options::default()));
 
         let mut opts = Options::default();
-        // Creates a new database if it doesn't exist
         opts.create_if_missing(true);
-        // Create missing column families
         opts.create_missing_column_families(true);
 
         Ok(Self {
@@ -487,7 +484,10 @@ impl Service for RocksDBPieceStore {
     /// The information is stored in the [`PIECE_CID_TO_CURSOR_CF`] column family.
     ///
     /// Source: <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L444-L469>
-    fn indexed_at(&self, piece_cid: Cid) -> Result<Option<time::OffsetDateTime>, PieceStoreError> {
+    fn indexed_at(
+        &self,
+        piece_cid: Cid,
+    ) -> Result<Option<chrono::DateTime<chrono::Utc>>, PieceStoreError> {
         // The Go implementation seems to return the Unix epoch but returning the error makes more sense
         // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L461-L468
         self.get_piece_cid_to_metadata(piece_cid)?
@@ -618,7 +618,7 @@ impl Service for RocksDBPieceStore {
             .map(|record| self.add_index_record(&cursor_prefix, record))
             .collect::<Result<_, _>>()?;
 
-        metadata.indexed_at = time::OffsetDateTime::now_utc().into();
+        metadata.indexed_at = chrono::Utc::now().into();
         self.set_piece_cid_to_metadata(piece_cid, &metadata)
     }
 
@@ -742,7 +742,7 @@ impl Service for RocksDBPieceStore {
             .get_value_at_key(&key, PIECE_CID_TO_FLAGGED_CF)?
             .unwrap_or_else(|| FlaggedPiece::new(piece_cid, storage_provider_address));
 
-        metadata.updated_at = time::OffsetDateTime::now_utc();
+        metadata.updated_at = chrono::Utc::now();
         metadata.has_unsealed_copy = has_unsealed_copy;
 
         self.put_value_at_key(key, &metadata, PIECE_CID_TO_FLAGGED_CF)
@@ -774,7 +774,7 @@ impl Service for RocksDBPieceStore {
     fn flagged_pieces_list(
         &self,
         filter: Option<FlaggedPiecesListFilter>,
-        cursor: time::OffsetDateTime,
+        cursor: chrono::DateTime<chrono::Utc>,
         offset: usize,
         limit: usize,
     ) -> Result<Vec<FlaggedPiece>, PieceStoreError> {
@@ -941,7 +941,7 @@ impl Service for RocksDBPieceStore {
             };
 
             if let Some(last_checked) = self.checked.get(&checked_key) {
-                if *last_checked > (OffsetDateTime::now_utc() - MIN_PIECE_CHECK_PERIOD) {
+                if *last_checked > (chrono::Utc::now() - MIN_PIECE_CHECK_PERIOD) {
                     continue;
                 }
             }
@@ -951,8 +951,7 @@ impl Service for RocksDBPieceStore {
                 .map_err(|err| PieceStoreError::Deserialization(err.to_string()))?;
             for deal in metadata.deals {
                 if deal.storage_provider_address == storage_provider_address {
-                    self.checked
-                        .insert(checked_key.clone(), OffsetDateTime::now_utc());
+                    self.checked.insert(checked_key.clone(), chrono::Utc::now());
                     cids.push(cid);
                     break;
                 }
@@ -978,7 +977,6 @@ mod test {
     use rocksdb::DEFAULT_COLUMN_FAMILY_NAME;
     use sha2::{Digest, Sha256};
     use tempfile::tempdir;
-    use time::OffsetDateTime;
 
     use super::{key_flag_piece, RocksDBPieceStore, RocksDBStateStoreConfig};
     use crate::local_index_directory::{
@@ -1179,7 +1177,7 @@ mod test {
         db.set_piece_cid_to_metadata(cid, &piece_info).unwrap();
         assert_eq!(db.is_indexed(cid).unwrap(), false);
         // Modify and insert
-        piece_info.indexed_at = OffsetDateTime::now_utc().into();
+        piece_info.indexed_at = chrono::Utc::now().into();
         db.set_piece_cid_to_metadata(cid, &piece_info).unwrap();
         assert!(db.is_indexed(cid).unwrap());
     }
@@ -1189,7 +1187,7 @@ mod test {
         let db = init_database();
         let cid = cids_vec()[0];
         let mut piece_info = PieceInfo::with_cid(cid);
-        piece_info.indexed_at = OffsetDateTime::now_utc().into();
+        piece_info.indexed_at = chrono::Utc::now().into();
 
         // Inserted but false
         db.set_piece_cid_to_metadata(cid, &piece_info).unwrap();
@@ -1622,7 +1620,7 @@ mod test {
             .unwrap();
 
         // To test the cursor functionality
-        let after_first = OffsetDateTime::now_utc();
+        let after_first = chrono::Utc::now();
 
         db.flag_piece(cids[1], false, storage_provider_address.clone())
             .unwrap();
@@ -1630,7 +1628,7 @@ mod test {
             .unwrap();
 
         assert_eq!(
-            db.flagged_pieces_list(None, OffsetDateTime::UNIX_EPOCH, 0, 1000)
+            db.flagged_pieces_list(None, chrono::DateTime::UNIX_EPOCH, 0, 1000)
                 .unwrap()
                 .into_iter()
                 .map(|fp| fp.piece_cid)
@@ -1639,7 +1637,7 @@ mod test {
         );
 
         assert_eq!(
-            db.flagged_pieces_list(None, OffsetDateTime::UNIX_EPOCH, 0, 1)
+            db.flagged_pieces_list(None, chrono::DateTime::UNIX_EPOCH, 0, 1)
                 .unwrap()
                 .into_iter()
                 .map(|fp| fp.piece_cid)
@@ -1648,7 +1646,7 @@ mod test {
         );
 
         assert_eq!(
-            db.flagged_pieces_list(None, OffsetDateTime::UNIX_EPOCH, 1, 1)
+            db.flagged_pieces_list(None, chrono::DateTime::UNIX_EPOCH, 1, 1)
                 .unwrap()
                 .into_iter()
                 .map(|fp| fp.piece_cid)
@@ -1671,7 +1669,7 @@ mod test {
                     storage_provider_address: StorageProviderAddress("".to_string()),
                     has_unsealed_copy: false
                 }),
-                OffsetDateTime::UNIX_EPOCH,
+                chrono::DateTime::UNIX_EPOCH,
                 1,
                 1000
             )
@@ -1687,7 +1685,7 @@ mod test {
                     storage_provider_address: StorageProviderAddress("a".to_string()),
                     has_unsealed_copy: false
                 }),
-                OffsetDateTime::UNIX_EPOCH,
+                chrono::DateTime::UNIX_EPOCH,
                 0,
                 1000
             )
@@ -1704,7 +1702,7 @@ mod test {
                     storage_provider_address,
                     has_unsealed_copy: false
                 }),
-                OffsetDateTime::UNIX_EPOCH,
+                chrono::DateTime::UNIX_EPOCH,
                 0,
                 1000
             )

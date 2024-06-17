@@ -53,8 +53,8 @@ pub enum PieceStoreError {
 pub struct FlaggedPiece {
     pub piece_cid: Cid,
     pub storage_provider_address: StorageProviderAddress,
-    pub created_at: time::OffsetDateTime,
-    pub updated_at: time::OffsetDateTime,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
     pub has_unsealed_copy: bool,
 }
 
@@ -64,7 +64,7 @@ impl FlaggedPiece {
     /// * `created_at` and `updated_at` will be set to `now`.
     /// * `has_unsealed_copy` will be set to `false`.
     pub fn new(piece_cid: Cid, storage_provider_address: StorageProviderAddress) -> Self {
-        let now = time::OffsetDateTime::now_utc();
+        let now = chrono::Utc::now();
         Self {
             piece_cid,
             storage_provider_address,
@@ -132,7 +132,7 @@ pub struct PieceInfo {
     pub piece_cid: Cid,
 
     pub version: String,
-    pub indexed_at: Option<time::OffsetDateTime>,
+    pub indexed_at: Option<chrono::DateTime<chrono::Utc>>,
     pub complete_index: bool,
     pub deals: Vec<DealInfo>,
 
@@ -269,7 +269,10 @@ pub trait Service {
     /// Get when the piece with the provided [`Cid`] was indexed.
     ///
     /// * If the piece does not exist, returns [`PieceStoreError::NotFoundError`].
-    fn indexed_at(&self, piece_cid: Cid) -> Result<Option<time::OffsetDateTime>, PieceStoreError>;
+    fn indexed_at(
+        &self,
+        piece_cid: Cid,
+    ) -> Result<Option<chrono::DateTime<chrono::Utc>>, PieceStoreError>;
 
     /// Check if the piece with the provided [`Cid`] has been fully indexed.
     ///
@@ -372,7 +375,7 @@ pub trait Service {
     fn flagged_pieces_list(
         &self,
         filter: Option<FlaggedPiecesListFilter>,
-        cursor: time::OffsetDateTime, // this name doesn't make much sense but it's the original one,
+        cursor: chrono::DateTime<chrono::Utc>, // this name doesn't make much sense but it's the original one,
         offset: usize,
         limit: usize,
     ) -> Result<Vec<FlaggedPiece>, PieceStoreError>;

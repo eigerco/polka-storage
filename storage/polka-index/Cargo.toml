@@ -16,13 +16,13 @@ serde = { workspace = true }
 thiserror = { workspace = true }
 clap = { workspace = true, features = ["derive", "string"] }
 jsonrpsee = { workspace = true, features = ["server"] }
-time = { workspace = true, features = ["serde"] }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 async-channel = { workspace = true }
 uuid = { workspace = true, features = ["serde", "v4"] }
 integer-encoding = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
 
 [dev-dependencies]
 tempfile = { workspace = true }
