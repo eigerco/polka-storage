@@ -948,8 +948,6 @@ impl Service for RocksDBPieceStore {
     }
 }
 
-// TODO(@jmg-duarte,12/06/2024): replace .is_ok() assertions with unwraps
-// they provide a stack trace with more information
 #[cfg(test)]
 mod test {
     use std::str::FromStr;
@@ -1155,11 +1153,11 @@ mod test {
         // PieceInfo hasn't been inserted
         assert_eq!(db.is_indexed(cid).unwrap(), false);
         // Inserted but false
-        db.set_piece_cid_to_metadata(cid, &piece_info).unwrap();
+        assert!(db.set_piece_cid_to_metadata(cid, &piece_info).is_ok());
         assert_eq!(db.is_indexed(cid).unwrap(), false);
         // Modify and insert
         piece_info.indexed_at = chrono::Utc::now().into();
-        db.set_piece_cid_to_metadata(cid, &piece_info).unwrap();
+        assert!(db.set_piece_cid_to_metadata(cid, &piece_info).is_ok());
         assert!(db.is_indexed(cid).unwrap());
     }
 
@@ -1304,7 +1302,7 @@ mod test {
         assert!(db.add_deal_for_piece(cid, deal_info.clone()).is_ok());
         assert_eq!(db.get_index(cid).unwrap(), vec![]);
         // Add the index records
-        db.add_index(cid, records.clone(), false).unwrap();
+        assert!(db.add_index(cid, records.clone(), false).is_ok());
 
         // Get the index back
         let mut received = db.get_index(cid).unwrap();
@@ -1359,8 +1357,8 @@ mod test {
             db.remove_indexes(cid),
             Err(PieceStoreError::PieceNotFound(_))
         ));
-        db.add_deal_for_piece(cid, deal_info.clone()).unwrap();
-        db.add_index(cid, records.clone(), false).unwrap();
+        assert!(db.add_deal_for_piece(cid, deal_info.clone()).is_ok());
+        assert!(db.add_index(cid, records.clone(), false).is_ok());
         // Ensure it's not empty
         let indexes: Vec<_> = db
             .database
@@ -1377,7 +1375,7 @@ mod test {
             2
         );
         // Ensure it's empty after removal
-        db.remove_indexes(cid).unwrap();
+        assert!(db.remove_indexes(cid).is_ok());
         let indexes: Vec<_> = db
             .database
             .iterator_cf(
@@ -1432,7 +1430,7 @@ mod test {
         ));
 
         // Add the index records
-        db.add_index(cid, records.clone(), false).unwrap();
+        assert!(db.add_index(cid, records.clone(), false).is_ok());
 
         let offset_size = db.get_offset_size(cid, *cids[1].hash()).unwrap();
         assert_eq!(records[0].offset_size, offset_size);
@@ -1454,11 +1452,10 @@ mod test {
         let pieces = db.pieces_containing_multihash(cids[2].hash().to_owned());
         assert!(matches!(pieces, Err(PieceStoreError::MultihashNotFound(_))));
 
-        db.add_deal_for_piece(cids[0], deal_info.clone()).unwrap();
-        db.add_deal_for_piece(cids[1], deal_info.clone()).unwrap();
-
-        db.add_index(cids[0], records.clone(), false).unwrap();
-        db.add_index(cids[1], records, false).unwrap();
+        assert!(db.add_deal_for_piece(cids[0], deal_info.clone()).is_ok());
+        assert!(db.add_deal_for_piece(cids[1], deal_info.clone()).is_ok());
+        assert!(db.add_index(cids[0], records.clone(), false).is_ok());
+        assert!(db.add_index(cids[1], records, false).is_ok());
 
         let pieces = db
             .pieces_containing_multihash(cids[2].hash().to_owned())
@@ -1480,8 +1477,9 @@ mod test {
             .unwrap()
             .is_none());
 
-        db.flag_piece(cid, true, storage_provider_address.clone())
-            .unwrap();
+        assert!(db
+            .flag_piece(cid, true, storage_provider_address.clone())
+            .is_ok());
 
         let flagged_piece: FlaggedPiece = db
             .get_value_at_key(key, PIECE_CID_TO_FLAGGED_CF)
@@ -1515,8 +1513,9 @@ mod test {
             .unwrap()
             .is_none());
 
-        db.flag_piece(cid, true, storage_provider_address.clone())
-            .unwrap();
+        assert!(db
+            .flag_piece(cid, true, storage_provider_address.clone())
+            .is_ok());
 
         let flagged_piece: FlaggedPiece = db
             .get_value_at_key(&key, PIECE_CID_TO_FLAGGED_CF)
@@ -1530,8 +1529,9 @@ mod test {
         );
         assert!(flagged_piece.has_unsealed_copy);
 
-        db.unflag_piece(cid, storage_provider_address.clone())
-            .unwrap();
+        assert!(db
+            .unflag_piece(cid, storage_provider_address.clone())
+            .is_ok());
 
         assert!(db
             .get_value_at_key::<_, Option<FlaggedPiece>>(&key, PIECE_CID_TO_FLAGGED_CF)
@@ -1547,8 +1547,9 @@ mod test {
         let storage_provider_address =
             StorageProviderAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
 
-        db.flag_piece(cid, true, storage_provider_address.clone())
-            .unwrap();
+        assert!(db
+            .flag_piece(cid, true, storage_provider_address.clone())
+            .is_ok());
 
         // All pieces
         assert_eq!(db.flagged_pieces_count(None).unwrap(), 1);
@@ -1597,16 +1598,19 @@ mod test {
         let storage_provider_address =
             StorageProviderAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
 
-        db.flag_piece(cids[0], true, storage_provider_address.clone())
-            .unwrap();
+        assert!(db
+            .flag_piece(cids[0], true, storage_provider_address.clone())
+            .is_ok());
 
         // To test the cursor functionality
         let after_first = chrono::Utc::now();
 
-        db.flag_piece(cids[1], false, storage_provider_address.clone())
-            .unwrap();
-        db.flag_piece(cids[2], true, storage_provider_address.clone())
-            .unwrap();
+        assert!(db
+            .flag_piece(cids[1], false, storage_provider_address.clone())
+            .is_ok());
+        assert!(db
+            .flag_piece(cids[2], true, storage_provider_address.clone())
+            .is_ok());
 
         assert_eq!(
             db.flagged_pieces_list(None, chrono::DateTime::UNIX_EPOCH, 0, 1000)
