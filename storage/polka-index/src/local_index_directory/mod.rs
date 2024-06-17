@@ -11,6 +11,17 @@ use uuid::Uuid;
 pub mod ext;
 pub mod rdb;
 
+/// Convert a [`Multihash`] into a key (converts [`Multihash::digest`] to base-64).
+///
+/// Go encodes []byte as base-64:
+/// > Array and slice values encode as JSON arrays,
+/// > except that []byte encodes as a base64-encoded string,
+/// > and a nil slice encodes as the null JSON value.
+/// > — https://pkg.go.dev/encoding/json#Marshal
+pub(crate) fn multihash_base64<const S: usize>(multihash: &Multihash<S>) -> String {
+    base64::engine::general_purpose::STANDARD.encode(multihash.to_bytes())
+}
+
 /// Error that can occur when interacting with the [`PieceStore`].
 #[derive(Debug, thiserror::Error)]
 pub enum PieceStoreError {
@@ -20,10 +31,7 @@ pub enum PieceStoreError {
     #[error("Piece {0} was not found")]
     PieceNotFound(Cid),
 
-    #[error(
-        "Multihash {:?} was not found",
-        base64::engine::general_purpose::STANDARD.encode(.0.to_bytes())
-    )]
+    #[error("Multihash {:?} was not found", multihash_base64(.0))]
     MultihashNotFound(Multihash<64>),
 
     #[error("A free cursor was not found")]
@@ -188,7 +196,14 @@ impl From<String> for StorageProviderAddress {
 }
 
 /// Numeric identifier for a sector. It is usually relative to a storage provider.
-type SectorNumber = u64;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct SectorNumber(u64);
+
+impl From<u64> for SectorNumber {
+    fn from(value: u64) -> Self {
+        Self(value)
+    }
+}
 
 /// Information about a single deal for a given piece.
 ///
@@ -222,7 +237,6 @@ pub struct DealInfo {
     #[serde(rename = "m")]
     pub storage_provider_address: StorageProviderAddress,
 
-    // TODO(@jmg-duarte,05/06/2024): convert this into newtype
     #[serde(rename = "s")]
     pub sector_number: SectorNumber,
     #[serde(rename = "o")]

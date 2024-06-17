@@ -12,8 +12,9 @@ use serde::{de::DeserializeOwned, Serialize};
 use uuid::Uuid;
 
 use super::{
-    ext::WriteBatchWithTransactionExt, DealInfo, FlaggedPiece, FlaggedPiecesListFilter, OffsetSize,
-    PieceInfo, PieceStoreError, Record, Service, StorageProviderAddress,
+    ext::WriteBatchWithTransactionExt, multihash_base64, DealInfo, FlaggedPiece,
+    FlaggedPiecesListFilter, OffsetSize, PieceInfo, PieceStoreError, Record, Service,
+    StorageProviderAddress,
 };
 
 // NOTE(@jmg-duarte,04/06/2024): We probably could split the interface according to the respective column family
@@ -82,17 +83,6 @@ fn key_flag_piece(cid: &Cid, address: &StorageProviderAddress) -> String {
     format!("/{}/{}", cid, address.0)
 }
 
-/// Convert a [`Multihash`] into a key (converts [`Multihash::digest`] to base-64).
-///
-/// Go encodes []byte as base-64:
-/// > Array and slice values encode as JSON arrays,
-/// > except that []byte encodes as a base64-encoded string,
-/// > and a nil slice encodes as the null JSON value.
-/// > — https://pkg.go.dev/encoding/json#Marshal
-fn key_multihash<const S: usize>(multihash: &Multihash<S>) -> String {
-    base64::engine::general_purpose::STANDARD.encode(multihash.to_bytes())
-}
-
 pub struct RocksDBStateStoreConfig {
     pub path: PathBuf,
 }
@@ -110,11 +100,7 @@ pub struct RocksDBPieceStore {
     checked: HashMap<String, chrono::DateTime<chrono::Utc>>,
 }
 
-// TODO(@jmg-duarte,05/06/2024): review all CF usages
-
 impl RocksDBPieceStore {
-    // TODO(@jmg-duarte,05/06/2024): refactor the API to take the CF first (just makes more sense)
-
     /// Construct a new [`Self`] from the provided [`RocksDBStateStoreConfig`].
     ///
     /// * If the database does not exist in the path, it will be created.
@@ -162,7 +148,7 @@ impl RocksDBPieceStore {
         Ok(self.database.delete_cf(self.cf_handle(cf_name), key)?)
     }
 
-    /// Get value at the specified key in the specified column family.
+    /// Get and deserialize (using CBOR) the value at the specified key in the specified column family.
     fn get_value_at_key<Key, Value>(
         &self,
         key: Key,
@@ -184,23 +170,7 @@ impl RocksDBPieceStore {
         }
     }
 
-    // TODO(@jmg-duarte,12/06/2024): move all rocksdb unique funcionality to an extension
-    fn put_cbor_at_key<K, V>(&self, key: K, value: &V) -> Result<(), PieceStoreError>
-    where
-        K: AsRef<[u8]>,
-        V: Serialize,
-    {
-        let mut serialized = Vec::new();
-        if let Err(err) = ciborium::into_writer(value, &mut serialized) {
-            // ciborium error is bubbled up as a string because it is generic
-            // and we didn't want to add a generic type to the PieceStoreError
-            return Err(PieceStoreError::Serialization(err.to_string()));
-        }
-
-        Ok(self.database.put(key, serialized)?)
-    }
-
-    /// Serializes the `Value` to CBOR and puts resulting bytes at the specified key in the specified column family.
+    /// Serialize (using CBOR) and put the value at the specified key in the specified column family.
     fn put_value_at_key<Key, Value>(
         &self,
         key: Key,
@@ -276,7 +246,7 @@ impl RocksDBPieceStore {
             cids.push(piece_cid);
             batch.put_cf_cbor(
                 self.cf_handle(MULTIHASH_TO_PIECE_CID_CF),
-                key_multihash(multihash),
+                multihash_base64(multihash),
                 &cids,
             )?;
         }
@@ -293,7 +263,7 @@ impl RocksDBPieceStore {
         &self,
         multihash: &Multihash<64>,
     ) -> Result<Vec<Cid>, PieceStoreError> {
-        let mh_key = key_multihash(multihash);
+        let mh_key = multihash_base64(multihash);
         let Some(multihash) = self.get_value_at_key(mh_key, MULTIHASH_TO_PIECE_CID_CF)? else {
             return Err(PieceStoreError::MultihashNotFound(*multihash));
         };
@@ -340,8 +310,12 @@ impl RocksDBPieceStore {
     ///
     /// Even though the interface is different, this function is the dual to [`Service::get_offset_size`].
     fn add_index_record(&self, cursor_prefix: &str, record: Record) -> Result<(), PieceStoreError> {
-        let key = format!("{}{}", cursor_prefix, key_multihash(record.cid.hash()));
-        self.put_cbor_at_key(key, &record.offset_size)
+        let key = format!("{}{}", cursor_prefix, multihash_base64(record.cid.hash()));
+        self.put_value_at_key(
+            key,
+            &record.offset_size,
+            rocksdb::DEFAULT_COLUMN_FAMILY_NAME,
+        )
     }
 
     /// Remove the indexes for a given piece [`Cid`], under the given cursor.
@@ -688,7 +662,11 @@ impl Service for RocksDBPieceStore {
             .map(|piece_info: PieceInfo| piece_info.cursor)
             .ok_or(PieceStoreError::PieceNotFound(piece_cid))?;
 
-        let key = format!("{}{}", key_cursor_prefix(cursor), key_multihash(&multihash));
+        let key = format!(
+            "{}{}",
+            key_cursor_prefix(cursor),
+            multihash_base64(&multihash)
+        );
         // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L164-L165
         // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L370-L371
         self.get_value_at_key(
@@ -1013,7 +991,7 @@ mod test {
             is_legacy: false,
             chain_deal_id: 1337.into(),
             storage_provider_address: "address".to_string().into(),
-            sector_number: 42,
+            sector_number: 42.into(),
             piece_offset: 10,
             piece_length: 10,
             car_length: 97,
@@ -1736,7 +1714,7 @@ mod test {
                 is_legacy: false,
                 chain_deal_id: DealId(i),
                 storage_provider_address: storage_provider_address.clone(),
-                sector_number: 0,
+                sector_number: 0.into(),
                 piece_offset: 0,
                 piece_length: 0,
                 car_length: 0,
