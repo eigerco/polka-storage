@@ -16,13 +16,18 @@ workspace = true
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
+bs58 = { workspace = true, default-features = false }
+cid = { workspace = true, default-features = false, features = ["scale-codec"] }
 codec = { workspace = true, default-features = false, features = ["derive"] }
+log = { workspace = true }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 
 # frame deps
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 frame-support = { workspace = true, default-features = false }
 frame-system = { workspace = true, default-features = false }
+sp-arithmetic = { workspace = true, default-features = false }
+sp-std = { workspace = true, default-features = false }
 
 [dev-dependencies]
 pallet-balances = { workspace = true, default-features = false }
@@ -39,6 +44,7 @@ runtime-benchmarks = [
   "sp-runtime/runtime-benchmarks",
 ]
 std = [
+  "cid/std",
   "codec/std",
   "frame-benchmarking?/std",
   "frame-support/std",
