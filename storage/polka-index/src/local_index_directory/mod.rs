@@ -1,6 +1,10 @@
 use std::{ops::Deref, string};
 
-use cid::{multihash, Cid};
+use base64::Engine;
+use cid::{
+    multihash::{self, Multihash},
+    Cid,
+};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -13,9 +17,17 @@ pub enum PieceStoreError {
     #[error("Deal already exists: {0}")]
     DuplicateDealError(Uuid),
 
-    // TODO(@jmg-duarte,06/06/2024): make this error more specific for improved error messages
-    #[error("Not found")]
-    NotFoundError,
+    #[error("Piece {0} was not found")]
+    PieceNotFound(Cid),
+
+    #[error(
+        "Multihash {:?} was not found",
+        base64::engine::general_purpose::STANDARD.encode(.0.to_bytes())
+    )]
+    MultihashNotFound(Multihash<64>),
+
+    #[error("A free cursor was not found")]
+    CursorNotFound,
 
     #[error("Invalid flagged piece key format")]
     InvalidFlaggedPieceKeyError(String),
@@ -105,25 +117,6 @@ pub struct Record {
     pub offset_size: OffsetSize,
 }
 
-// NOTE(@jmg-duarte,11/06/2024): I'm almost sure this structure isn't useful,
-// in the original code, this structure is picked filled only for the Cid to be used
-// https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L361-L369
-// https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L162-L163
-#[derive(Debug, Clone)]
-pub struct CarIndexRecord {
-    pub cid: Cid,
-    pub offset: u64,
-}
-
-impl From<Record> for CarIndexRecord {
-    fn from(value: Record) -> Self {
-        Self {
-            cid: value.cid,
-            offset: value.offset_size.offset,
-        }
-    }
-}
-
 /// Metadata about a piece that provider may be storing based on its [`Cid`].
 /// So that, given a [`Cid`] during retrieval, the storage provider can determine how to unseal it if needed.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -209,8 +202,7 @@ pub struct DealInfo {
     // what should be a conflicting DealInfo, no longer is.
     // However, in the original implementation they do it like that
     // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L119-L125
-    // Note that in Go, there is not operator overloading and
-    // == is implicitly defined for all types
+    // Note that in Go, there is no operator overloading and == is implicitly defined for all types
 
     // TODO(@jmg-duarte,05/06/2024): document
     #[serde(rename = "u")]
@@ -263,12 +255,12 @@ pub trait Service {
 
     /// Check if the piece with the provided [`Cid`] is indexed.
     ///
-    /// * If the piece does not exist, `false` will be returned instead of [`PieceStoreError::NotFoundError`].
+    /// * If the piece does not exist, returns `false`.
     fn is_indexed(&self, piece_cid: Cid) -> Result<bool, PieceStoreError>;
 
     /// Get when the piece with the provided [`Cid`] was indexed.
     ///
-    /// * If the piece does not exist, returns [`PieceStoreError::NotFoundError`].
+    /// * If the piece does not exist, returns [`PieceStoreError::PieceNotFound`].
     fn indexed_at(
         &self,
         piece_cid: Cid,
@@ -276,23 +268,25 @@ pub trait Service {
 
     /// Check if the piece with the provided [`Cid`] has been fully indexed.
     ///
-    /// * If the piece does not exist, returns [`PieceStoreError::NotFoundError`].
+    /// * If the piece does not exist, returns [`PieceStoreError::PieceNotFound`].
     fn is_complete_index(&self, piece_cid: Cid) -> Result<bool, PieceStoreError>;
 
     /// Get the [`PieceInfo`] pertaining to the piece with the provided [`Cid`].
     ///
-    /// * If the piece does not exist, returns [`PieceStoreError::NotFoundError`].
+    /// * If the piece does not exist, returns [`PieceStoreError::PieceNotFound`].
     fn get_piece_metadata(&self, piece_cid: Cid) -> Result<PieceInfo, PieceStoreError>;
 
     /// Remove the [`PieceInfo`] pertaining to the piece with the provided [`Cid`].
     /// It will also remove the piece's indexes.
     ///
-    /// * If the piece does not exist, returns [`PieceStoreError::NotFoundError`].
+    /// * If the piece does not exist, returns [`PieceStoreError::PieceNotFound`].
+    /// * If the piece's indexes are out of sync and its [`Multihash`] entries are not found,
+    ///   returns [`PieceStoreError::MultihashNotFound`].
     fn remove_piece_metadata(&self, piece_cid: Cid) -> Result<(), PieceStoreError>;
 
     /// Get the list of [`DealInfo`] pertaining to the piece with the provided [`Cid`].
     ///
-    /// * If the piece does not exist, returns [`PieceStoreError::NotFoundError`].
+    /// * If the piece does not exist, returns [`PieceStoreError::PieceNotFound`].
     fn get_piece_deals(&self, piece_cid: Cid) -> Result<Vec<DealInfo>, PieceStoreError>;
 
     /// List the existing pieces.
@@ -302,7 +296,7 @@ pub trait Service {
 
     /// Add index records to the piece with the provided [`Cid`].
     ///
-    /// * If the piece does not exist, returns [`PieceStoreError::NotFoundError`].
+    /// * If the piece does not exist, a new [`PieceInfo`] will be created.
     ///
     /// Differences to the original:
     /// * The original implementation streams the operation progress.
@@ -316,7 +310,7 @@ pub trait Service {
 
     /// Get the index records for the piece with the provided [`Cid`].
     ///
-    /// * If the piece does not exist, returns [`PieceStoreError::NotFoundError`].
+    /// * If the piece does not exist, returns [`PieceStoreError::PieceNotFound`].
     ///
     /// Differences to the original:
     /// * The original implementation streams the [`OffsetSize`].
@@ -325,8 +319,8 @@ pub trait Service {
 
     /// Get the [`OffsetSize`] of the given [`Multihash`](multihash::Multihash) for the piece with the provided [`Cid`].
     ///
-    /// * If the piece does not exist, returns [`PieceStoreError::NotFoundError`].
-    /// * If the index entry (i.e. multihash) does not exist, returns [`PieceStoreError::NotFoundError`].
+    /// * If the piece does not exist, returns [`PieceStoreError::PieceNotFound`].
+    /// * If the index entry (i.e. multihash) does not exist, returns [`PieceStoreError::MultihashNotFound`].
     fn get_offset_size(
         &self,
         piece_cid: Cid,
@@ -335,7 +329,7 @@ pub trait Service {
 
     /// Get all the pieces containing the given [`Multihash`](multihash::Multihash).
     ///
-    /// * If no pieces are found, returns [`PieceStoreError::NotFoundError`].
+    /// * If no pieces are found, returns [`PieceStoreError::MultihashNotFound`].
     fn pieces_containing_multihash(
         &self,
         multihash: multihash::Multihash<64>,
@@ -343,7 +337,9 @@ pub trait Service {
 
     /// Remove indexes for the piece with the provided [`Cid`].
     ///
-    /// * If the piece does not exist, returns [`PieceStoreError::NotFoundError`].
+    /// * If the piece does not exist, returns [`PieceStoreError::PieceNotFound`].
+    /// * If the piece contains index entries — i.e. [`Multihash`] —
+    ///   that cannot be found, returns [`PieceStoreError::MultihashNotFound`].
     fn remove_indexes(&self, piece_cid: Cid) -> Result<(), PieceStoreError>;
 
     /// Flag the piece with the given [`Cid`].

@@ -147,7 +147,6 @@ impl RocksDBPieceStore {
     /// Get the column family handle for the given column family name.
     ///
     /// **Invariant**: The column family name MUST exist. *Otherwise this function will panic.*
-    ///
     #[track_caller]
     fn cf_handle(&self, cf_name: &str) -> &ColumnFamily {
         self.database
@@ -258,9 +257,9 @@ impl RocksDBPieceStore {
     /// * [`Cid`]s are stored as a [`Vec<Cid>`] — i.e. a single [`Multihash`] can map to multiple [`Cid`]s.
     /// * If the [`Multihash`] already exists in the database, it will append the [`Cid`] to the existing list.
     /// * The [`Cid`] order inside the mapping is *not stable*!
-    fn set_multihashes_to_piece_cid<const S: usize>(
+    fn set_multihashes_to_piece_cid(
         &self,
-        record_multihashes: &Vec<Multihash<S>>,
+        record_multihashes: &Vec<Multihash<64>>,
         piece_cid: Cid,
     ) -> Result<(), PieceStoreError> {
         // https://github.com/ipfs/go-datastore/blob/1de47089f5c72b61d91b5cd9043e49fe95771ac0/datastore.go#L97-L106
@@ -287,20 +286,23 @@ impl RocksDBPieceStore {
     }
 
     /// Retrieve the list of [`Cid`]s corresponding to a single [`Multihash`].
-    fn get_multihash_to_piece_cids<const S: usize>(
+    ///
+    /// * If the [`Multihash`] is not found in the [`MULTIHASH_TO_PIECE_CID_CF`] column family,
+    ///   returns [`PieceStoreError::MultihashNotFound`].
+    fn get_multihash_to_piece_cids(
         &self,
-        multihash: &Multihash<S>,
+        multihash: &Multihash<64>,
     ) -> Result<Vec<Cid>, PieceStoreError> {
         let mh_key = key_multihash(multihash);
         let Some(multihash) = self.get_value_at_key(mh_key, MULTIHASH_TO_PIECE_CID_CF)? else {
-            return Err(PieceStoreError::NotFoundError);
+            return Err(PieceStoreError::MultihashNotFound(*multihash));
         };
         Ok(multihash)
     }
 
     /// Get the next available cursor.
     ///
-    /// Returns [`PieceStoreError::NotFoundError`] if no cursor has been set.
+    /// Returns [`PieceStoreError::CursorNotFound`] if no cursor has been set.
     /// Use [`Self::set_next_cursor`] to set the next cursor.
     ///
     /// The information is stored in the [`rocksdb::DEFAULT_COLUMN_FAMILY_NAME`] column family.
@@ -314,7 +316,7 @@ impl RocksDBPieceStore {
             // however, that does not apply for a missing cursor
             // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L391-L396
             // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L111-L114
-            return Err(PieceStoreError::NotFoundError);
+            return Err(PieceStoreError::CursorNotFound);
         };
 
         // We use varint instead of cborium here to match the original implementation
@@ -370,7 +372,8 @@ impl RocksDBPieceStore {
                 let Some(mut cids) =
                     self.get_value_at_key::<_, Vec<Cid>>(mh_key, MULTIHASH_TO_PIECE_CID_CF)?
                 else {
-                    return Err(PieceStoreError::NotFoundError);
+                    let mh = Multihash::from_bytes(mh_key)?;
+                    return Err(PieceStoreError::MultihashNotFound(mh));
                 };
 
                 let Some(idx) = cids.iter().position(|cid| cid == &piece_cid) else {
@@ -452,7 +455,8 @@ impl Service for RocksDBPieceStore {
                 // First of all, it's kinda weird that the metadata might not be there
                 // but in any case, it was going to be deleted, so in this case,
                 // not finding it is not an error, just means we don't need to do anything
-                Err(PieceStoreError::NotFoundError) => Ok(()),
+                Err(PieceStoreError::PieceNotFound(_))
+                | Err(PieceStoreError::MultihashNotFound(_)) => Ok(()),
                 Err(err) => Err(err),
             };
         }
@@ -462,7 +466,7 @@ impl Service for RocksDBPieceStore {
 
     /// For a detailed description, see [`Service::is_indexed`].
     ///
-    /// * If the piece does not exist, `false` will be returned instead of [`PieceStoreError::NotFoundError`].
+    /// * If the piece does not exist, `false` will be returned instead of [`PieceStoreError::PieceNotFound`].
     ///   This is the same behavior the original implementation exhibits[*][1].
     ///
     /// Sources:
@@ -492,7 +496,7 @@ impl Service for RocksDBPieceStore {
         // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L461-L468
         self.get_piece_cid_to_metadata(piece_cid)?
             .map(|piece_info: PieceInfo| piece_info.indexed_at)
-            .ok_or(PieceStoreError::NotFoundError)
+            .ok_or(PieceStoreError::PieceNotFound(piece_cid))
     }
 
     /// For a detailed description, see [`Service::is_complete_index`].
@@ -503,7 +507,7 @@ impl Service for RocksDBPieceStore {
     fn is_complete_index(&self, piece_cid: Cid) -> Result<bool, PieceStoreError> {
         self.get_piece_cid_to_metadata(piece_cid)?
             .map(|piece_info: PieceInfo| piece_info.complete_index)
-            .ok_or(PieceStoreError::NotFoundError)
+            .ok_or(PieceStoreError::PieceNotFound(piece_cid))
     }
 
     /// For a detailed description, see [`Service::get_piece_metadata`].
@@ -513,10 +517,9 @@ impl Service for RocksDBPieceStore {
     /// Source: <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L173-L196>
     fn get_piece_metadata(&self, piece_cid: Cid) -> Result<PieceInfo, PieceStoreError> {
         self.get_piece_cid_to_metadata(piece_cid)?
-            .ok_or(PieceStoreError::NotFoundError)
+            .ok_or(PieceStoreError::PieceNotFound(piece_cid))
     }
 
-    // TODO(@jmg-duarte,06/06/2024): double check
     /// For a detailed description, see [`Service::remove_piece_metadata`].
     ///
     /// The information is removed from the [`PIECE_CID_TO_CURSOR_CF`] column family.
@@ -542,7 +545,7 @@ impl Service for RocksDBPieceStore {
     fn get_piece_deals(&self, piece_cid: Cid) -> Result<Vec<DealInfo>, PieceStoreError> {
         self.get_piece_cid_to_metadata(piece_cid)?
             .map(|piece_info: PieceInfo| piece_info.deals)
-            .ok_or(PieceStoreError::NotFoundError)
+            .ok_or(PieceStoreError::PieceNotFound(piece_cid))
     }
 
     /// For a detailed description, see [`Service::list_pieces`].
@@ -564,7 +567,7 @@ impl Service for RocksDBPieceStore {
                 let parsed_cid = Cid::try_from(key.as_ref()).map_err(|err| {
                     // We know that all stored CIDs are valid, so this
                     // should only happen if database is corrupted.
-                    PieceStoreError::Deserialization(format!("invalid CID: {}", err))
+                    PieceStoreError::Deserialization(format!("failed to deserialize CID: {}", err))
                 })?;
 
                 Ok(parsed_cid)
@@ -631,7 +634,7 @@ impl Service for RocksDBPieceStore {
     /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L304-L349>
     fn get_index(&self, piece_cid: Cid) -> Result<Vec<Record>, PieceStoreError> {
         let Some(metadata) = self.get_piece_cid_to_metadata(piece_cid)? else {
-            return Err(PieceStoreError::NotFoundError);
+            return Err(PieceStoreError::PieceNotFound(piece_cid));
         };
 
         // This is equivalent to `db.AllRecords`
@@ -683,7 +686,7 @@ impl Service for RocksDBPieceStore {
         let cursor = self
             .get_piece_cid_to_metadata(piece_cid)?
             .map(|piece_info: PieceInfo| piece_info.cursor)
-            .ok_or(PieceStoreError::NotFoundError)?;
+            .ok_or(PieceStoreError::PieceNotFound(piece_cid))?;
 
         let key = format!("{}{}", key_cursor_prefix(cursor), key_multihash(&multihash));
         // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L164-L165
@@ -693,7 +696,7 @@ impl Service for RocksDBPieceStore {
             // In the original source, the key is prefixed by the cursor, which is used in other places as well
             rocksdb::DEFAULT_COLUMN_FAMILY_NAME,
         )?
-        .ok_or(PieceStoreError::NotFoundError)
+        .ok_or(PieceStoreError::MultihashNotFound(multihash))
     }
 
     /// For a detailed description, see [`Service::pieces_containing_multihash`].
@@ -719,7 +722,7 @@ impl Service for RocksDBPieceStore {
     /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L625-L717>
     fn remove_indexes(&self, piece_cid: Cid) -> Result<(), PieceStoreError> {
         let Some(metadata) = self.get_piece_cid_to_metadata(piece_cid)? else {
-            return Err(PieceStoreError::NotFoundError);
+            return Err(PieceStoreError::PieceNotFound(piece_cid));
         };
         self.remove_indexes_with_cursor(piece_cid, metadata.cursor)
     }
@@ -1161,7 +1164,7 @@ mod test {
         assert!(db.remove_deal_for_piece(cid, deal_info.deal_uuid).is_ok());
         assert!(matches!(
             db.get_piece_deals(cid),
-            Err(PieceStoreError::NotFoundError)
+            Err(PieceStoreError::PieceNotFound(_))
         ));
     }
 
@@ -1204,7 +1207,7 @@ mod test {
         // PieceInfo hasn't been inserted
         assert!(matches!(
             db.is_complete_index(cid),
-            Err(PieceStoreError::NotFoundError)
+            Err(PieceStoreError::PieceNotFound(_))
         ));
         // Inserted but false
         db.set_piece_cid_to_metadata(cid, &piece_info).unwrap();
@@ -1237,7 +1240,7 @@ mod test {
 
         assert!(matches!(
             db.get_piece_metadata(cid),
-            Err(PieceStoreError::NotFoundError)
+            Err(PieceStoreError::PieceNotFound(_))
         ));
         assert!(db.set_piece_cid_to_metadata(cid, &piece_info).is_ok());
         let received = db.get_piece_metadata(cid);
@@ -1253,7 +1256,7 @@ mod test {
 
         assert!(matches!(
             db.get_piece_metadata(cid),
-            Err(PieceStoreError::NotFoundError)
+            Err(PieceStoreError::PieceNotFound(_))
         ));
         assert!(db.set_piece_cid_to_metadata(cid, &piece_info).is_ok());
         let received = db.get_piece_metadata(cid);
@@ -1264,7 +1267,7 @@ mod test {
         // TODO(@jmg-duarte,11/06/2024): add test ensuring that indexes are also removed
         assert!(matches!(
             db.get_piece_metadata(cid),
-            Err(PieceStoreError::NotFoundError)
+            Err(PieceStoreError::PieceNotFound(_))
         ));
     }
 
@@ -1281,11 +1284,11 @@ mod test {
         // Ensure there are no tricks up our sleeves
         assert!(matches!(
             db.get_piece_metadata(cid),
-            Err(PieceStoreError::NotFoundError)
+            Err(PieceStoreError::PieceNotFound(_))
         ));
         assert!(matches!(
             db.get_piece_deals(cid),
-            Err(PieceStoreError::NotFoundError)
+            Err(PieceStoreError::PieceNotFound(_))
         ));
 
         assert!(db.add_deal_for_piece(cid, deal_info.clone()).is_ok());
@@ -1376,7 +1379,7 @@ mod test {
         ];
         assert!(matches!(
             db.remove_indexes(cid),
-            Err(PieceStoreError::NotFoundError)
+            Err(PieceStoreError::PieceNotFound(_))
         ));
         db.add_deal_for_piece(cid, deal_info.clone()).unwrap();
         db.add_index(cid, records.clone(), false).unwrap();
@@ -1438,7 +1441,7 @@ mod test {
         // No piece
         assert!(matches!(
             db.get_offset_size(cid, *cids[1].hash()),
-            Err(PieceStoreError::NotFoundError)
+            Err(PieceStoreError::PieceNotFound(_))
         ));
 
         // Insert the deal
@@ -1447,7 +1450,7 @@ mod test {
         // Piece exists but no index
         assert!(matches!(
             db.get_offset_size(cid, *cids[1].hash()),
-            Err(PieceStoreError::NotFoundError)
+            Err(PieceStoreError::MultihashNotFound(_))
         ));
 
         // Add the index records
@@ -1471,7 +1474,7 @@ mod test {
         }];
 
         let pieces = db.pieces_containing_multihash(cids[2].hash().to_owned());
-        assert!(matches!(pieces, Err(PieceStoreError::NotFoundError)));
+        assert!(matches!(pieces, Err(PieceStoreError::MultihashNotFound(_))));
 
         db.add_deal_for_piece(cids[0], deal_info.clone()).unwrap();
         db.add_deal_for_piece(cids[1], deal_info.clone()).unwrap();
