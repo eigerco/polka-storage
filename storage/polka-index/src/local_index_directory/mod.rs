@@ -17,7 +17,7 @@ pub enum PieceStoreError {
     #[error("Not found")]
     NotFoundError,
 
-    #[error("invalid flagged piece key format")]
+    #[error("Invalid flagged piece key format")]
     InvalidFlaggedPieceKeyError(String),
 
     #[error("Serialization error: {0}")]
@@ -52,7 +52,7 @@ pub enum PieceStoreError {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FlaggedPiece {
     pub piece_cid: Cid,
-    pub miner_address: MinerAddress,
+    pub storage_provider_address: StorageProviderAddress,
     pub created_at: time::OffsetDateTime,
     pub updated_at: time::OffsetDateTime,
     pub has_unsealed_copy: bool,
@@ -63,11 +63,11 @@ impl FlaggedPiece {
     ///
     /// * `created_at` and `updated_at` will be set to `now`.
     /// * `has_unsealed_copy` will be set to `false`.
-    pub fn new(piece_cid: Cid, miner_address: MinerAddress) -> Self {
+    pub fn new(piece_cid: Cid, storage_provider_address: StorageProviderAddress) -> Self {
         let now = time::OffsetDateTime::now_utc();
         Self {
             piece_cid,
-            miner_address,
+            storage_provider_address,
             created_at: now,
             updated_at: now,
             has_unsealed_copy: false,
@@ -76,7 +76,7 @@ impl FlaggedPiece {
 }
 
 pub struct FlaggedPiecesListFilter {
-    pub miner_address: MinerAddress,
+    pub storage_provider_address: StorageProviderAddress,
     pub has_unsealed_copy: bool,
 }
 
@@ -124,16 +124,15 @@ impl From<Record> for CarIndexRecord {
     }
 }
 
-/// Metadata about a piece that provider may be storing based on its [`Cid`]. So
-/// that, given a [`Cid`] during retrieval, the miner can determine how to
-/// unseal it if needed
+/// Metadata about a piece that provider may be storing based on its [`Cid`].
+/// So that, given a [`Cid`] during retrieval, the storage provider can determine how to unseal it if needed.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PieceInfo {
     // NOTE(@jmg-duarte,04/06/2024): not sure if this is useful + without it we could implement Default
     pub piece_cid: Cid,
 
     pub version: String,
-    pub indexed_at: time::OffsetDateTime,
+    pub indexed_at: Option<time::OffsetDateTime>,
     pub complete_index: bool,
     pub deals: Vec<DealInfo>,
 
@@ -149,7 +148,8 @@ impl PieceInfo {
             // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L45-L46
             version: "1".to_string(),
             // In Go, time.Time's default is "0001-01-01 00:00:00 +0000 UTC"
-            indexed_at: time::OffsetDateTime::UNIX_EPOCH,
+            // but in Go, structures cannot be `nil`, which is probably why they use that sentinel value
+            indexed_at: None,
             complete_index: false,
             deals: Vec::new(),
             cursor: 0,
@@ -171,16 +171,16 @@ impl From<u64> for DealId {
 
 // TODO(@jmg-duarte,14/06/2024): validate miner address
 
-/// The miner's address.
+/// The storage provider address.
 ///
 /// It is a special type from `filecoin-project/go-address`
 /// however, it's simply a wrapper to `string`:
 /// https://github.com/filecoin-project/go-address/blob/365a7c8d0e85c731c192e65ece5f5b764026e85d/address.go#L39-L40
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct MinerAddress(String);
+pub struct StorageProviderAddress(String);
 
 // The Deref implementation eases usages like checking whether the address is empty.
-impl Deref for MinerAddress {
+impl Deref for StorageProviderAddress {
     type Target = String;
 
     fn deref(&self) -> &Self::Target {
@@ -188,16 +188,16 @@ impl Deref for MinerAddress {
     }
 }
 
-impl From<String> for MinerAddress {
+impl From<String> for StorageProviderAddress {
     fn from(value: String) -> Self {
         Self(value)
     }
 }
 
-/// Numeric identifier for a sector. It is usually relative to a miner.
+/// Numeric identifier for a sector. It is usually relative to a storage provider.
 type SectorNumber = u64;
 
-/// Information about a single deal for a given piece
+/// Information about a single deal for a given piece.
 ///
 /// Source:
 /// <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/model/model.go#L14-L36>
@@ -224,11 +224,11 @@ pub struct DealInfo {
     #[serde(rename = "i")]
     pub chain_deal_id: DealId,
 
-    /// The miner's address.
+    /// The storage provider's address.
     ///
     /// See [`MinerAddress`] for more information.-
     #[serde(rename = "m")]
-    pub miner_address: MinerAddress,
+    pub storage_provider_address: StorageProviderAddress,
 
     // TODO(@jmg-duarte,05/06/2024): convert this into newtype
     #[serde(rename = "s")]
@@ -257,7 +257,7 @@ pub trait Service {
 
     /// Remove a deal with the given [`Uuid`] for the piece with the provided [`Cid`].
     ///
-    /// * If the piece does not exist, `false` will be returned instead of [`PieceStoreError::NotFoundError`].
+    /// * If the piece does not exist, this operation is a no-op.
     fn remove_deal_for_piece(&self, piece_cid: Cid, deal_uuid: Uuid)
         -> Result<(), PieceStoreError>;
 
@@ -269,7 +269,7 @@ pub trait Service {
     /// Get when the piece with the provided [`Cid`] was indexed.
     ///
     /// * If the piece does not exist, returns [`PieceStoreError::NotFoundError`].
-    fn indexed_at(&self, piece_cid: Cid) -> Result<time::OffsetDateTime, PieceStoreError>;
+    fn indexed_at(&self, piece_cid: Cid) -> Result<Option<time::OffsetDateTime>, PieceStoreError>;
 
     /// Check if the piece with the provided [`Cid`] has been fully indexed.
     ///
@@ -345,21 +345,21 @@ pub trait Service {
 
     /// Flag the piece with the given [`Cid`].
     ///
-    /// * If the piece & miner address pair is not found, a new entry will be stored.
+    /// * If the piece & storage provider address pair is not found, a new entry will be stored.
     fn flag_piece(
         &self,
         piece_cid: Cid,
         has_unsealed_copy: bool,
-        miner_address: MinerAddress,
+        storage_provider_address: StorageProviderAddress,
     ) -> Result<(), PieceStoreError>;
 
     /// Unflag the piece with the given [`Cid`].
     ///
-    /// * If the piece & miner address pair is not found, this is a no-op.
+    /// * If the piece & storage provider address pair is not found, this is a no-op.
     fn unflag_piece(
         &self,
         piece_cid: Cid,
-        miner_address: MinerAddress,
+        storage_provider_address: StorageProviderAddress,
     ) -> Result<(), PieceStoreError>;
 
     /// List the flagged pieces matching the filter.
@@ -386,9 +386,9 @@ pub trait Service {
         filter: Option<FlaggedPiecesListFilter>,
     ) -> Result<u64, PieceStoreError>;
 
-    /// Returns the [`Cid`]s of the next pieces to be checked for a given miner.
+    /// Returns the [`Cid`]s of the next pieces to be checked for a given storage provider.
     fn next_pieces_to_check(
         &mut self,
-        miner_address: MinerAddress,
+        storage_provider_address: StorageProviderAddress,
     ) -> Result<Vec<Cid>, PieceStoreError>;
 }

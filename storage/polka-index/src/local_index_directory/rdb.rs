@@ -13,8 +13,8 @@ use time::OffsetDateTime;
 use uuid::Uuid;
 
 use super::{
-    ext::WriteBatchWithTransactionExt, DealInfo, FlaggedPiece, FlaggedPiecesListFilter,
-    MinerAddress, OffsetSize, PieceInfo, PieceStoreError, Record, Service,
+    ext::WriteBatchWithTransactionExt, DealInfo, FlaggedPiece, FlaggedPiecesListFilter, OffsetSize,
+    PieceInfo, PieceStoreError, Record, Service, StorageProviderAddress,
 };
 
 // NOTE(@jmg-duarte,04/06/2024): We probably could split the interface according to the respective column family
@@ -79,7 +79,7 @@ fn key_cursor_prefix(cursor: u64) -> String {
 }
 
 /// Returns a key for flagging a piece, like `/<cid>/<address>`.
-fn key_flag_piece(cid: &Cid, address: &MinerAddress) -> String {
+fn key_flag_piece(cid: &Cid, address: &StorageProviderAddress) -> String {
     format!("/{}/{}", cid, address.0)
 }
 
@@ -405,7 +405,9 @@ impl RocksDBPieceStore {
 impl Service for RocksDBPieceStore {
     /// For a detailed description, see [`Service::add_deal_for_piece`].
     ///
-    /// Source: <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L91-L139>
+    /// Sources:
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L91-L139>
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L267-L280>
     fn add_deal_for_piece(
         &self,
         piece_cid: Cid,
@@ -476,8 +478,7 @@ impl Service for RocksDBPieceStore {
             .get_piece_cid_to_metadata(piece_cid)?
             // If the piece does not exist, it's clearly not indexed
             .map_or(false, |piece_info: PieceInfo| {
-                // The sentinel value we're using is the Unix epoch, so we check against that
-                piece_info.indexed_at != OffsetDateTime::UNIX_EPOCH
+                piece_info.indexed_at.is_some()
             }))
     }
 
@@ -486,7 +487,7 @@ impl Service for RocksDBPieceStore {
     /// The information is stored in the [`PIECE_CID_TO_CURSOR_CF`] column family.
     ///
     /// Source: <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L444-L469>
-    fn indexed_at(&self, piece_cid: Cid) -> Result<time::OffsetDateTime, PieceStoreError> {
+    fn indexed_at(&self, piece_cid: Cid) -> Result<Option<time::OffsetDateTime>, PieceStoreError> {
         // The Go implementation seems to return the Unix epoch but returning the error makes more sense
         // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L461-L468
         self.get_piece_cid_to_metadata(piece_cid)?
@@ -617,7 +618,7 @@ impl Service for RocksDBPieceStore {
             .map(|record| self.add_index_record(&cursor_prefix, record))
             .collect::<Result<_, _>>()?;
 
-        metadata.indexed_at = time::OffsetDateTime::now_utc();
+        metadata.indexed_at = time::OffsetDateTime::now_utc().into();
         self.set_piece_cid_to_metadata(piece_cid, &metadata)
     }
 
@@ -734,12 +735,12 @@ impl Service for RocksDBPieceStore {
         &self,
         piece_cid: Cid,
         has_unsealed_copy: bool,
-        miner_address: MinerAddress,
+        storage_provider_address: StorageProviderAddress,
     ) -> Result<(), PieceStoreError> {
-        let key = key_flag_piece(&piece_cid, &miner_address);
+        let key = key_flag_piece(&piece_cid, &storage_provider_address);
         let mut metadata = self
             .get_value_at_key(&key, PIECE_CID_TO_FLAGGED_CF)?
-            .unwrap_or_else(|| FlaggedPiece::new(piece_cid, miner_address));
+            .unwrap_or_else(|| FlaggedPiece::new(piece_cid, storage_provider_address));
 
         metadata.updated_at = time::OffsetDateTime::now_utc();
         metadata.has_unsealed_copy = has_unsealed_copy;
@@ -757,9 +758,9 @@ impl Service for RocksDBPieceStore {
     fn unflag_piece(
         &self,
         piece_cid: Cid,
-        miner_address: MinerAddress,
+        storage_provider_address: StorageProviderAddress,
     ) -> Result<(), PieceStoreError> {
-        let key = key_flag_piece(&piece_cid, &miner_address);
+        let key = key_flag_piece(&piece_cid, &storage_provider_address);
         self.remove_value_at_key(key, PIECE_CID_TO_FLAGGED_CF)
     }
 
@@ -816,8 +817,8 @@ impl Service for RocksDBPieceStore {
                 // NOTE(@jmg-duarte,05/06/2024): We could check the address against the key and
                 // possibly avoid deserializing, but the original code only checks after deserializing
                 // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L750-L762
-                if !filter.miner_address.is_empty()
-                    && filter.miner_address != flagged_metadata.miner_address
+                if !filter.storage_provider_address.is_empty()
+                    && filter.storage_provider_address != flagged_metadata.storage_provider_address
                 {
                     continue;
                 }
@@ -829,7 +830,7 @@ impl Service for RocksDBPieceStore {
 
             flagged_pieces.push(FlaggedPiece {
                 piece_cid,
-                miner_address: flagged_metadata.miner_address,
+                storage_provider_address: flagged_metadata.storage_provider_address,
                 created_at: flagged_metadata.created_at,
                 updated_at: flagged_metadata.updated_at,
                 has_unsealed_copy: flagged_metadata.has_unsealed_copy,
@@ -888,8 +889,8 @@ impl Service for RocksDBPieceStore {
                     continue;
                 }
 
-                if !filter.miner_address.is_empty()
-                    && filter.miner_address != flagged_metadata.miner_address
+                if !filter.storage_provider_address.is_empty()
+                    && filter.storage_provider_address != flagged_metadata.storage_provider_address
                 {
                     continue;
                 }
@@ -911,7 +912,7 @@ impl Service for RocksDBPieceStore {
     /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L404-L479>
     fn next_pieces_to_check(
         &mut self,
-        miner_address: MinerAddress,
+        storage_provider_address: StorageProviderAddress,
     ) -> Result<Vec<Cid>, PieceStoreError> {
         let mut cids = vec![];
 
@@ -934,7 +935,7 @@ impl Service for RocksDBPieceStore {
             // TODO(@jmg-duarte,14/06/2024): missing an encoding step here
             // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L421-L422
             let checked_key = {
-                let mut key = miner_address.0.clone();
+                let mut key = storage_provider_address.0.clone();
                 key.push_str(&key_str.to_string());
                 key
             };
@@ -949,7 +950,7 @@ impl Service for RocksDBPieceStore {
             let metadata: PieceInfo = ciborium::from_reader(value.as_ref())
                 .map_err(|err| PieceStoreError::Deserialization(err.to_string()))?;
             for deal in metadata.deals {
-                if deal.miner_address == miner_address {
+                if deal.storage_provider_address == storage_provider_address {
                     self.checked
                         .insert(checked_key.clone(), OffsetDateTime::now_utc());
                     cids.push(cid);
@@ -985,8 +986,8 @@ mod test {
             key_cursor_prefix, MULTIHASH_TO_PIECE_CID_CF, PIECE_CID_TO_CURSOR_CF,
             PIECE_CID_TO_FLAGGED_CF,
         },
-        DealId, DealInfo, FlaggedPiece, FlaggedPiecesListFilter, MinerAddress, OffsetSize,
-        PieceInfo, PieceStoreError, Record, Service,
+        DealId, DealInfo, FlaggedPiece, FlaggedPiecesListFilter, OffsetSize, PieceInfo,
+        PieceStoreError, Record, Service, StorageProviderAddress,
     };
 
     fn init_database() -> RocksDBPieceStore {
@@ -1010,7 +1011,7 @@ mod test {
             deal_uuid: uuid::Uuid::new_v4(),
             is_legacy: false,
             chain_deal_id: 1337.into(),
-            miner_address: "address".to_string().into(),
+            storage_provider_address: "address".to_string().into(),
             sector_number: 42,
             piece_offset: 10,
             piece_length: 10,
@@ -1178,7 +1179,7 @@ mod test {
         db.set_piece_cid_to_metadata(cid, &piece_info).unwrap();
         assert_eq!(db.is_indexed(cid).unwrap(), false);
         // Modify and insert
-        piece_info.indexed_at = OffsetDateTime::now_utc();
+        piece_info.indexed_at = OffsetDateTime::now_utc().into();
         db.set_piece_cid_to_metadata(cid, &piece_info).unwrap();
         assert!(db.is_indexed(cid).unwrap());
     }
@@ -1188,7 +1189,7 @@ mod test {
         let db = init_database();
         let cid = cids_vec()[0];
         let mut piece_info = PieceInfo::with_cid(cid);
-        piece_info.indexed_at = OffsetDateTime::now_utc();
+        piece_info.indexed_at = OffsetDateTime::now_utc().into();
 
         // Inserted but false
         db.set_piece_cid_to_metadata(cid, &piece_info).unwrap();
@@ -1490,16 +1491,18 @@ mod test {
     fn flag_piece() {
         let db = init_database();
         let cid = cids_vec()[0];
-        // The address of the top miner at the time of writing (12/6/24)
-        let miner_address = MinerAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
-        let key = key_flag_piece(&cid, &miner_address);
+        // The address of the top storage provider at the time of writing (12/6/24)
+        let storage_provider_address =
+            StorageProviderAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
+        let key = key_flag_piece(&cid, &storage_provider_address);
 
         assert!(db
             .get_value_at_key::<_, Option<FlaggedPiece>>(&key, PIECE_CID_TO_FLAGGED_CF)
             .unwrap()
             .is_none());
 
-        db.flag_piece(cid, true, miner_address.clone()).unwrap();
+        db.flag_piece(cid, true, storage_provider_address.clone())
+            .unwrap();
 
         let flagged_piece: FlaggedPiece = db
             .get_value_at_key(key, PIECE_CID_TO_FLAGGED_CF)
@@ -1507,7 +1510,10 @@ mod test {
             .unwrap();
 
         assert_eq!(flagged_piece.piece_cid, cid);
-        assert_eq!(flagged_piece.miner_address, miner_address);
+        assert_eq!(
+            flagged_piece.storage_provider_address,
+            storage_provider_address
+        );
         assert!(flagged_piece.has_unsealed_copy);
     }
 
@@ -1515,12 +1521,13 @@ mod test {
     fn unflag_piece() {
         let db = init_database();
         let cid = cids_vec()[0];
-        // The address of the top miner at the time of writing (12/6/24)
-        let miner_address = MinerAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
-        let key = key_flag_piece(&cid, &miner_address);
+        // The address of the top storage provider at the time of writing (12/6/24)
+        let storage_provider_address =
+            StorageProviderAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
+        let key = key_flag_piece(&cid, &storage_provider_address);
 
         assert!(matches!(
-            db.unflag_piece(cid, miner_address.clone()),
+            db.unflag_piece(cid, storage_provider_address.clone()),
             Ok(())
         ));
 
@@ -1529,7 +1536,8 @@ mod test {
             .unwrap()
             .is_none());
 
-        db.flag_piece(cid, true, miner_address.clone()).unwrap();
+        db.flag_piece(cid, true, storage_provider_address.clone())
+            .unwrap();
 
         let flagged_piece: FlaggedPiece = db
             .get_value_at_key(&key, PIECE_CID_TO_FLAGGED_CF)
@@ -1537,10 +1545,14 @@ mod test {
             .unwrap();
 
         assert_eq!(flagged_piece.piece_cid, cid);
-        assert_eq!(flagged_piece.miner_address, miner_address);
+        assert_eq!(
+            flagged_piece.storage_provider_address,
+            storage_provider_address
+        );
         assert!(flagged_piece.has_unsealed_copy);
 
-        db.unflag_piece(cid, miner_address.clone()).unwrap();
+        db.unflag_piece(cid, storage_provider_address.clone())
+            .unwrap();
 
         assert!(db
             .get_value_at_key::<_, Option<FlaggedPiece>>(&key, PIECE_CID_TO_FLAGGED_CF)
@@ -1552,17 +1564,19 @@ mod test {
     fn flagged_pieces_count() {
         let db = init_database();
         let cid = cids_vec()[0];
-        // The address of the top miner at the time of writing (12/6/24)
-        let miner_address = MinerAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
+        // The address of the top storage provider at the time of writing (12/6/24)
+        let storage_provider_address =
+            StorageProviderAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
 
-        db.flag_piece(cid, true, miner_address.clone()).unwrap();
+        db.flag_piece(cid, true, storage_provider_address.clone())
+            .unwrap();
 
         // All pieces
         assert_eq!(db.flagged_pieces_count(None).unwrap(), 1);
         // Should ignore empty address
         assert_eq!(
             db.flagged_pieces_count(Some(FlaggedPiecesListFilter {
-                miner_address: MinerAddress("".to_string()),
+                storage_provider_address: StorageProviderAddress("".to_string()),
                 has_unsealed_copy: true
             }))
             .unwrap(),
@@ -1570,16 +1584,16 @@ mod test {
         );
         assert_eq!(
             db.flagged_pieces_count(Some(FlaggedPiecesListFilter {
-                miner_address: MinerAddress("a".to_string()),
+                storage_provider_address: StorageProviderAddress("a".to_string()),
                 has_unsealed_copy: true
             }))
             .unwrap(),
             0
         );
-        // Right miner address but the flagged piece has `has_unsealed_copy: true`
+        // Right address but the flagged piece has `has_unsealed_copy: true`
         assert_eq!(
             db.flagged_pieces_count(Some(FlaggedPiecesListFilter {
-                miner_address: miner_address.clone(),
+                storage_provider_address: storage_provider_address.clone(),
                 has_unsealed_copy: false
             }))
             .unwrap(),
@@ -1588,7 +1602,7 @@ mod test {
         // All filters match
         assert_eq!(
             db.flagged_pieces_count(Some(FlaggedPiecesListFilter {
-                miner_address: miner_address,
+                storage_provider_address: storage_provider_address,
                 has_unsealed_copy: true
             }))
             .unwrap(),
@@ -1600,17 +1614,20 @@ mod test {
     fn flagged_pieces_list() {
         let db = init_database();
         let cids = cids_vec();
-        // The address of the top miner at the time of writing (12/6/24)
-        let miner_address = MinerAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
+        // The address of the top storage provider at the time of writing (12/6/24)
+        let storage_provider_address =
+            StorageProviderAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
 
-        db.flag_piece(cids[0], true, miner_address.clone()).unwrap();
+        db.flag_piece(cids[0], true, storage_provider_address.clone())
+            .unwrap();
 
         // To test the cursor functionality
         let after_first = OffsetDateTime::now_utc();
 
-        db.flag_piece(cids[1], false, miner_address.clone())
+        db.flag_piece(cids[1], false, storage_provider_address.clone())
             .unwrap();
-        db.flag_piece(cids[2], true, miner_address.clone()).unwrap();
+        db.flag_piece(cids[2], true, storage_provider_address.clone())
+            .unwrap();
 
         assert_eq!(
             db.flagged_pieces_list(None, OffsetDateTime::UNIX_EPOCH, 0, 1000)
@@ -1651,7 +1668,7 @@ mod test {
         assert_eq!(
             db.flagged_pieces_list(
                 Some(FlaggedPiecesListFilter {
-                    miner_address: MinerAddress("".to_string()),
+                    storage_provider_address: StorageProviderAddress("".to_string()),
                     has_unsealed_copy: false
                 }),
                 OffsetDateTime::UNIX_EPOCH,
@@ -1667,7 +1684,7 @@ mod test {
         assert_eq!(
             db.flagged_pieces_list(
                 Some(FlaggedPiecesListFilter {
-                    miner_address: MinerAddress("a".to_string()),
+                    storage_provider_address: StorageProviderAddress("a".to_string()),
                     has_unsealed_copy: false
                 }),
                 OffsetDateTime::UNIX_EPOCH,
@@ -1684,7 +1701,7 @@ mod test {
         assert_eq!(
             db.flagged_pieces_list(
                 Some(FlaggedPiecesListFilter {
-                    miner_address,
+                    storage_provider_address,
                     has_unsealed_copy: false
                 }),
                 OffsetDateTime::UNIX_EPOCH,
@@ -1703,7 +1720,8 @@ mod test {
     fn next_pieces_to_check() {
         let mut db = init_database();
         let mut cids = vec![];
-        let miner_address = MinerAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
+        let storage_provider_address =
+            StorageProviderAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
 
         // 1024 + 512 (a batch and a half)
         for i in 0..1536u64 {
@@ -1716,7 +1734,7 @@ mod test {
                 deal_uuid: uuid::Uuid::new_v4(),
                 is_legacy: false,
                 chain_deal_id: DealId(i),
-                miner_address: miner_address.clone(),
+                storage_provider_address: storage_provider_address.clone(),
                 sector_number: 0,
                 piece_offset: 0,
                 piece_length: 0,
@@ -1729,14 +1747,18 @@ mod test {
         cids.sort();
 
         let first_batch = {
-            let mut v = db.next_pieces_to_check(miner_address.clone()).unwrap();
+            let mut v = db
+                .next_pieces_to_check(storage_provider_address.clone())
+                .unwrap();
             v.sort();
             v
         };
         assert_eq!(first_batch, cids[0..1024]);
 
         let second_batch = {
-            let mut v = db.next_pieces_to_check(miner_address.clone()).unwrap();
+            let mut v = db
+                .next_pieces_to_check(storage_provider_address.clone())
+                .unwrap();
             v.sort();
             v
         };
