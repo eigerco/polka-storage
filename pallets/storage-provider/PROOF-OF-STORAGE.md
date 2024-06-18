@@ -45,7 +45,7 @@ From the point of committing to store data, storage providers must continuously 
 
 There are two types of challenges (and their corresponding mechanisms) within the PoSt process: WinningPoSt and WindowPoSt, each serving a different purpose.
 
-- WinningPoSt: Proves that the storage provider has a replica of the data at the specific time they are challenged. A WinningPoSt challenge is issued to a storage provider only if they are selected through the Secret Leader Election algorithm to validate the next block. The answer to the WinningPoSt challenge must be submitted within a short [deadline](./DESIGN.md#constants--terminology), making it impractical for the provider to reseal and find the answer on demand. This ensures that the provider maintains a copy of the data at the time of the challenge.
+- WinningPoSt: Proves that the storage provider has a replica of the data at the specific time they are challenged. A WinningPoSt challenge is issued to a storage provider only if they are selected through the [Secret Leader Election algorithm](https://eprint.iacr.org/2020/025.pdf) to validate the next block. The answer to the WinningPoSt challenge must be submitted within a short [deadline](./DESIGN.md#constants--terminology), making it impractical for the provider to reseal and find the answer on demand. This ensures that the provider maintains a copy of the data at the time of the challenge.
 - WindowPoSt: Proves that a copy of the data has been continuously maintained over time. Providers must submit proofs regularly, making it irrational for them to reseal the data every time a WindowPoSt challenge is issued.
 
 ### WinningPoSt
