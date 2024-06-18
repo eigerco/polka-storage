@@ -16,11 +16,11 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 subxt = { workspace = true }
 subxt-signer = { workspace = true }
+thiserror = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 url = { workspace = true }
-thiserror = { workspace = true }
 
 [lints]
 workspace = true

@@ -1,6 +1,5 @@
 use std::{net::SocketAddr, sync::Arc};
 
-use crate::Error;
 use chrono::Utc;
 use clap::Parser;
 use tracing::info;
@@ -8,7 +7,7 @@ use url::Url;
 
 use crate::{
     rpc::{start_rpc, RpcServerState},
-    substrate,
+    substrate, Error,
 };
 
 const SERVER_DEFAULT_BIND_ADDR: &str = "127.0.0.1:8000";

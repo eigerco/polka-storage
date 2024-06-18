@@ -1,5 +1,6 @@
-use crate::Error;
 use clap::Parser;
+
+use crate::Error;
 
 /// Command to display information about the storage provider.
 #[derive(Debug, Clone, Parser)]

@@ -1,8 +1,7 @@
-use crate::Error;
 use clap::Parser;
 
 use super::WalletCommand;
-use crate::{cli::SubCommand, Cli};
+use crate::{cli::SubCommand, Cli, Error};
 
 /// Parses command line arguments into the service configuration and runs the specified
 /// command with it.
