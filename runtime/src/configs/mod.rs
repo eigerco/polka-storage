@@ -308,4 +308,5 @@ impl pallet_collator_selection::Config for Runtime {
 impl pallet_storage_provider::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type PeerId = Vec<u8>;
+    type Currency = Balances;
 }
