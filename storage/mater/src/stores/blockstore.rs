@@ -30,6 +30,7 @@ use crate::{
 /// The store keeps track of ([`Cid`], [`Bytes`]) pairs, performing de-duplication based on the [`Cid`].
 ///
 /// **Important note: currently, the blockstore only supports a single file!**
+#[derive(Debug, Clone)]
 pub struct Blockstore {
     root: Option<Cid>,
     blocks: IndexMap<Cid, Bytes>,
