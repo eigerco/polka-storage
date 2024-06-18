@@ -4,11 +4,14 @@ Execute the benchmarks with `cargo bench`.
 
 ### Results
 
-Tested on the machine with `Ryzen 9 5950X` and `64GB DDR4`.
+The benchmarks below use Median times after 100 runs. The duplication
+percentages show the proportion of duplicated content in the file. The
+benchmarks were performed on a machine with a `Ryzen 9 5950X` processor and
+`64GB DDR4` memory.
 
 #### read
 
-Benchmark checks what is the time needed to fully read a content buffer into the `BlockStore`
+Benchmark checks what is the time needed to fully read a content buffer into the `BlockStore`.
 
 | Size / Duplication | 0%        | 10%       | 20%       | 40%       | 80%       |
 | ------------------ | --------- | --------- | --------- | --------- | --------- |
@@ -28,7 +31,7 @@ Checks the time needed to write the CARv2 to the buffer from `BlockStore`.
 
 #### filestore
 
-Converts a source file to the CARv2 and writes it to the output file
+Converts a source file to the CARv2 and writes it to the output file.
 
 | Size / Duplication | 0%        | 10%       | 20%       | 40%       | 80%       |
 | ------------------ | --------- | --------- | --------- | --------- | --------- |
