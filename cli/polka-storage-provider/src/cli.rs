@@ -1,6 +1,9 @@
 use clap::Parser;
 
-use crate::commands::{InfoCommand, InitCommand, RunCommand, WalletCommand};
+use crate::{
+    commands::{InfoCommand, InitCommand, RunCommand, WalletCommand},
+    rpc::SERVER_DEFAULT_BIND_ADDR,
+};
 
 /// A CLI application that facilitates management operations over a running full
 /// node and other components.
@@ -9,6 +12,8 @@ use crate::commands::{InfoCommand, InitCommand, RunCommand, WalletCommand};
 pub(crate) struct Cli {
     #[command(subcommand)]
     pub subcommand: SubCommand,
+    #[arg(short, long, default_value = SERVER_DEFAULT_BIND_ADDR)]
+    pub rpc_server_address: String,
 }
 
 /// Supported sub-commands.

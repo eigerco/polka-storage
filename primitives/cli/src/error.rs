@@ -14,4 +14,7 @@ pub enum Error {
 
     #[error(transparent)]
     SubstrateCli(#[from] sc_cli::Error),
+
+    #[error("JSON-RPC client error: {0}")]
+    JsonRpcClient(#[from] jsonrpsee::core::ClientError),
 }

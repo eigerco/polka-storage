@@ -4,6 +4,7 @@ use chrono::Utc;
 use cli_primitives::Error;
 use error::ServerError;
 use jsonrpsee::{
+    core::ClientError,
     server::{Server, ServerHandle},
     types::Params,
     RpcModule,
@@ -13,8 +14,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::substrate;
 
+mod client;
 pub mod error;
 pub mod methods;
+
+pub use client::RpcClient;
+
+/// Default address to bind the RPC server to.
+pub const SERVER_DEFAULT_BIND_ADDR: &str = "127.0.0.1:8000";
 
 /// A definition of an RPC method handler which can be registered with an [`RpcModule`].
 pub trait RpcMethod {
@@ -42,6 +49,11 @@ pub trait RpcMethod {
                 Result::<_, jsonrpsee::types::ErrorObjectOwned>::Ok(ok)
             })
             .expect("method should be valid") // This is safe because we know the method registered is valid.
+    }
+
+    /// Call the rpc method with the provided client and params.
+    async fn call(client: &RpcClient, params: Option<Params<'_>>) -> Result<Self::Ok, ClientError> {
+        todo!()
     }
 }
 

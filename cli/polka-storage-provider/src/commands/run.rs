@@ -7,11 +7,10 @@ use tracing::info;
 use url::Url;
 
 use crate::{
-    rpc::{start_rpc, RpcServerState},
+    rpc::{start_rpc, RpcServerState, SERVER_DEFAULT_BIND_ADDR},
     substrate,
 };
 
-const SERVER_DEFAULT_BIND_ADDR: &str = "127.0.0.1:8000";
 const FULL_NODE_DEFAULT_RPC_ADDR: &str = "ws://127.0.0.1:9944";
 
 /// Command to start the storage provider.

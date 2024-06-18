@@ -8,6 +8,7 @@ repository.workspace = true
 version = "0.1.0"
 
 [dependencies]
+jsonrpsee = { workspace = true }
 sc-cli = { workspace = true }
 subxt = { workspace = true }
 thiserror = { workspace = true }
