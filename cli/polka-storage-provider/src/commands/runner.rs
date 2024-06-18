@@ -7,7 +7,7 @@ use url::Url;
 use super::WalletCommand;
 use crate::{
     cli::SubCommand,
-    rpc::{RpcClient, SERVER_DEFAULT_BIND_ADDR},
+    rpc::{RpcClient, RPC_SERVER_DEFAULT_BIND_ADDR},
     Cli,
 };
 
@@ -18,7 +18,7 @@ pub(crate) async fn run() -> Result<(), Error> {
     let cli_arguments: Cli = Cli::parse();
 
     // Rpc client used to interact with the node
-    let rpc_url = Url::from_str(&format!("http://{SERVER_DEFAULT_BIND_ADDR}")).unwrap();
+    let rpc_url = Url::from_str(&format!("http://{RPC_SERVER_DEFAULT_BIND_ADDR}")).unwrap();
     let rpc_client = RpcClient::new(rpc_url);
 
     match &cli_arguments.subcommand {

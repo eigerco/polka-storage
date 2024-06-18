@@ -7,7 +7,7 @@ use tracing::info;
 use url::Url;
 
 use crate::{
-    rpc::{start_rpc, RpcServerState, SERVER_DEFAULT_BIND_ADDR},
+    rpc::{start_rpc, RpcServerState, RPC_SERVER_DEFAULT_BIND_ADDR},
     substrate,
 };
 
@@ -20,7 +20,7 @@ pub(crate) struct RunCommand {
     #[arg(short = 'n', long, default_value = FULL_NODE_DEFAULT_RPC_ADDR)]
     pub node_rpc_address: Url,
     /// Address used for RPC. By default binds on localhost on port 8000.
-    #[arg(short = 'a', long, default_value = SERVER_DEFAULT_BIND_ADDR)]
+    #[arg(short = 'a', long, default_value = RPC_SERVER_DEFAULT_BIND_ADDR)]
     pub listen_addr: SocketAddr,
 }
 

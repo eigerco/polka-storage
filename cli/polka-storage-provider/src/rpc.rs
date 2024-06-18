@@ -21,7 +21,7 @@ pub mod methods;
 pub use client::RpcClient;
 
 /// Default address to bind the RPC server to.
-pub const SERVER_DEFAULT_BIND_ADDR: &str = "127.0.0.1:8000";
+pub const RPC_SERVER_DEFAULT_BIND_ADDR: &str = "127.0.0.1:8000";
 
 /// A definition of an RPC method handler which can be registered with an [`RpcModule`].
 pub trait RpcMethod {
