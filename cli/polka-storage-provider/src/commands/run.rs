@@ -1,8 +1,8 @@
 use std::{net::SocketAddr, sync::Arc};
 
+use crate::Error;
 use chrono::Utc;
 use clap::Parser;
-use cli_primitives::Error;
 use tracing::info;
 use url::Url;
 

@@ -1,7 +1,7 @@
 use std::{future::Future, net::SocketAddr, sync::Arc};
 
+use crate::Error;
 use chrono::Utc;
-use cli_primitives::Error;
 use error::ServerError;
 use jsonrpsee::{
     server::{Server, ServerHandle},

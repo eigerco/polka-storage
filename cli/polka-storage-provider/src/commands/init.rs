@@ -1,5 +1,5 @@
+use crate::Error;
 use clap::Parser;
-use cli_primitives::Error;
 use tracing::info;
 
 /// Command to initialize the storage provider.

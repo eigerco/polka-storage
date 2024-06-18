@@ -10,7 +10,6 @@ version = "0.1.0"
 [dependencies]
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive"] }
-cli-primitives = { workspace = true }
 jsonrpsee = { workspace = true, features = ["server"] }
 sc-cli = { workspace = true }
 serde = { workspace = true }
@@ -21,6 +20,7 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 url = { workspace = true }
+thiserror = { workspace = true }
 
 [lints]
 workspace = true

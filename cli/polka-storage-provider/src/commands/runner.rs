@@ -1,5 +1,5 @@
+use crate::Error;
 use clap::Parser;
-use cli_primitives::Error;
 
 use super::WalletCommand;
 use crate::{cli::SubCommand, Cli};
