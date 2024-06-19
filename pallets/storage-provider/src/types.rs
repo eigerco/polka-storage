@@ -1,13 +1,13 @@
 use primitives::{BlockNumber, DAYS, SLOT_DURATION};
 use scale_info::prelude::string::String;
 
-pub use proofs::{RegisteredPoStProof, RegisteredSealProof};
-pub use sector::{SectorOnChainInfo, SectorPreCommitOnChainInfo, SectorSize};
-pub use storage_provider::{StorageProviderInfo, StorageProviderState};
-
 mod proofs;
 mod sector;
 mod storage_provider;
+
+pub use proofs::{RegisteredPoStProof, RegisteredSealProof};
+pub use sector::{SectorOnChainInfo, SectorPreCommitOnChainInfo, SectorSize};
+pub use storage_provider::{StorageProviderInfo, StorageProviderState};
 
 type Cid = String;
 

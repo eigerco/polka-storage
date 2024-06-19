@@ -27,11 +27,6 @@ mod utils;
 
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
-    use crate::types::{RegisteredPoStProof, StorageProviderInfo, StorageProviderState};
-    use crate::utils::{
-        assign_proving_period_offset, current_deadline_index, current_proving_period_start,
-    };
-
     use codec::{Decode, Encode};
     use core::fmt::Debug;
     use frame_support::{
@@ -43,6 +38,11 @@ pub mod pallet {
     };
     use frame_system::{ensure_signed, pallet_prelude::OriginFor, Config as SystemConfig};
     use scale_info::TypeInfo;
+
+    use crate::types::{RegisteredPoStProof, StorageProviderInfo, StorageProviderState};
+    use crate::utils::{
+        assign_proving_period_offset, current_deadline_index, current_proving_period_start,
+    };
 
     // Allows to extract Balance of an account via the Config::Currency associated type.
     // BalanceOf is a sophisticated way of getting an u128.

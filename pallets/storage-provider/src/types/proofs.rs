@@ -1,9 +1,9 @@
-use crate::types::SectorSize;
-
 use codec::{Decode, Encode};
 use frame_support::pallet_prelude::ConstU32;
 use frame_support::sp_runtime::BoundedVec;
 use scale_info::TypeInfo;
+
+use crate::types::SectorSize;
 
 /// Proof of Spacetime type, indicating version and sector size of the proof.
 #[derive(Debug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone, Copy)]

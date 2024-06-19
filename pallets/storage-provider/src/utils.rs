@@ -1,8 +1,8 @@
-use crate::types::{WPOST_CHALLENGE_WINDOW, WPOST_PROVING_PERIOD};
-
 use codec::Encode;
 use primitives::BlockNumber;
 use sp_core::blake2_64;
+
+use crate::types::{WPOST_CHALLENGE_WINDOW, WPOST_PROVING_PERIOD};
 
 /// Assigns proving period offset randomly in the range [0, WPOST_PROVING_PERIOD)
 /// by hashing the address and current block number.
