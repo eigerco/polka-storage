@@ -14,27 +14,25 @@ pub enum RegisteredPoStProof {
 impl RegisteredPoStProof {
     /// Returns the sector size of the proof type, which is measured in bytes.
     pub fn sector_size(self) -> SectorSize {
-        use RegisteredPoStProof::*;
         match self {
-            StackedDRGWindow2KiBV1P1 => SectorSize::_2KiB,
+            RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => SectorSize::_2KiB,
         }
     }
 
     /// Proof size for each PoStProof type
     #[allow(unused)]
     pub fn proof_size(self) -> usize {
-        use RegisteredPoStProof::*;
         match self {
-            StackedDRGWindow2KiBV1P1 => 192,
+            RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => 192,
         }
     }
     /// Returns the partition size, in sectors, associated with a proof type.
     /// The partition size is the number of sectors proven in a single PoSt proof.
     pub fn window_post_partitions_sector(self) -> u64 {
         // Resolve to post proof and then compute size from that.
-        use RegisteredPoStProof::*;
+
         match self {
-            StackedDRGWindow2KiBV1P1 => 2,
+            RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => 2,
         }
     }
 }
