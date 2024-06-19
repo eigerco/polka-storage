@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use jsonrpsee::RpcModule;
 
-use super::{RpcMethod, RpcServerState};
+use super::{RpcMethodExt, RpcServerState};
 
 pub mod common;
 pub mod wallet;

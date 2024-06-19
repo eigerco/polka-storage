@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use jsonrpsee::types::Params;
 use serde::{Deserialize, Serialize};
 use subxt_signer::sr25519::dev;
 
@@ -15,13 +14,10 @@ pub struct WalletBalance;
 impl RpcMethod for WalletBalance {
     const NAME: &'static str = "wallet_balance";
     const API_VERSION: ApiVersion = ApiVersion::V0;
-
     type Ok = Option<WalletBalanceResult>;
+    type Params = ();
 
-    async fn handle(
-        ctx: Arc<RpcServerState>,
-        _params: Params<'_>,
-    ) -> Result<Self::Ok, ServerError> {
+    async fn handle(ctx: Arc<RpcServerState>, _: Self::Params) -> Result<Self::Ok, ServerError> {
         // TODO(#68,@cernicc,05/06/2024): Implement correctly. dev alice is used as a show case for now.
         let account = dev::alice().public_key().into();
         let balance = get_system_balances(&ctx.substrate_client, &account).await?;

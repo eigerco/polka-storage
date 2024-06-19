@@ -1,9 +1,12 @@
-use std::{fmt, fmt::Debug};
+use std::{
+    fmt::{self, Debug},
+    marker::PhantomData,
+};
 
 use jsonrpsee::{
     core::{
         client::{BatchResponse, ClientT, Subscription, SubscriptionClientT},
-        params::BatchRequestBuilder,
+        params::{ArrayParams, BatchRequestBuilder, ObjectParams},
         traits::ToRpcParams,
         ClientError,
     },
@@ -12,11 +15,14 @@ use jsonrpsee::{
 };
 use serde::de::DeserializeOwned;
 use tokio::sync::OnceCell;
+use tracing::{debug, Instrument};
 use url::Url;
+
+use super::ApiVersion;
 
 pub struct RpcClient {
     base_url: Url,
-    v0: OnceCell<ClientSpecific>,
+    v0: OnceCell<InnerClient>,
 }
 
 impl RpcClient {
@@ -25,6 +31,72 @@ impl RpcClient {
             base_url,
             v0: OnceCell::new(),
         }
+    }
+
+    pub async fn call<T: DeserializeOwned + std::fmt::Debug>(
+        &self,
+        req: Request<T>,
+    ) -> Result<T, ClientError> {
+        let Request {
+            method_name,
+            params,
+            api_version,
+            ..
+        } = req;
+
+        let client = self.get_or_init_client(api_version).await?;
+        let span = tracing::debug_span!("request", method = %method_name, url = %client.url);
+
+        let work = async {
+            let result = match params {
+                serde_json::Value::Null => client.request(method_name, ArrayParams::new()),
+                serde_json::Value::Array(it) => {
+                    let mut params = ArrayParams::new();
+                    for param in it {
+                        params.insert(param)?
+                    }
+                    client.request(method_name, params)
+                }
+                serde_json::Value::Object(it) => {
+                    let mut params = ObjectParams::new();
+                    for (name, param) in it {
+                        params.insert(&name, param)?
+                    }
+                    client.request(method_name, params)
+                }
+                prim @ (serde_json::Value::Bool(_)
+                | serde_json::Value::Number(_)
+                | serde_json::Value::String(_)) => {
+                    return Err(ClientError::Custom(format!(
+                        "invalid parameter type: `{}`",
+                        prim
+                    )))
+                }
+            }
+            .await;
+            debug!(?result);
+
+            result
+        };
+
+        work.instrument(span.or_current()).await
+    }
+
+    async fn get_or_init_client(&self, version: ApiVersion) -> Result<&InnerClient, ClientError> {
+        match version {
+            ApiVersion::V0 => &self.v0,
+        }
+        .get_or_try_init(|| async {
+            let version_part = match version {
+                ApiVersion::V0 => "rpc/v0",
+            };
+
+            let url = self.base_url.join(version_part).map_err(|it| {
+                ClientError::Custom(format!("creating url for endpoint failed: {}", it))
+            })?;
+            InnerClient::new(url).await
+        })
+        .await
     }
 }
 
@@ -136,5 +208,19 @@ impl SubscriptionClientT for InnerClient {
             ClientSpecific::Ws(it) => it.subscribe_to_method(method).await,
             ClientSpecific::Https(it) => it.subscribe_to_method(method).await,
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct Request<T = serde_json::Value> {
+    pub method_name: &'static str,
+    pub params: serde_json::Value,
+    pub result_type: PhantomData<T>,
+    pub api_version: ApiVersion,
+}
+
+impl<T> ToRpcParams for Request<T> {
+    fn to_rpc_params(self) -> Result<Option<Box<serde_json::value::RawValue>>, serde_json::Error> {
+        Ok(Some(serde_json::value::to_raw_value(&self.params)?))
     }
 }

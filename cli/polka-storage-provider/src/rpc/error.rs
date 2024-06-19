@@ -1,6 +1,9 @@
 use std::fmt::Display;
 
-use jsonrpsee::types::{error::INTERNAL_ERROR_CODE, ErrorObjectOwned};
+use jsonrpsee::types::{
+    error::{INTERNAL_ERROR_CODE, INVALID_PARAMS_CODE},
+    ErrorObjectOwned,
+};
 use serde_json::Value;
 
 /// Error type for RPC server errors.
@@ -32,6 +35,10 @@ impl ServerError {
 
     pub fn internal_error(message: impl Display, data: impl Into<Option<Value>>) -> Self {
         Self::new(INTERNAL_ERROR_CODE, message, data)
+    }
+
+    pub fn invalid_params(message: impl Display, data: impl Into<Option<Value>>) -> Self {
+        Self::new(INVALID_PARAMS_CODE, message, data)
     }
 }
 

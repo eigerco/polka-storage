@@ -1,16 +1,16 @@
-use std::{future::Future, net::SocketAddr, sync::Arc};
+use std::{fmt::Debug, future::Future, net::SocketAddr, sync::Arc};
 
 use chrono::Utc;
 use cli_primitives::Error;
+use client::Request;
 use error::ServerError;
 use jsonrpsee::{
     core::ClientError,
     server::{Server, ServerHandle},
-    types::Params,
     RpcModule,
 };
 use methods::create_module;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::substrate;
 
@@ -30,14 +30,18 @@ pub trait RpcMethod {
     /// See [`ApiVersion`].
     const API_VERSION: ApiVersion;
     /// Successful response type.
-    type Ok: Serialize;
+    type Ok: Debug + Serialize + DeserializeOwned;
+    /// Parameters type.
+    type Params: Debug + Serialize + DeserializeOwned;
 
     /// Logic for this method.
     fn handle(
         ctx: Arc<RpcServerState>,
-        params: Params,
+        params: Self::Params,
     ) -> impl Future<Output = Result<Self::Ok, ServerError>> + Send;
+}
 
+pub trait RpcMethodExt: RpcMethod {
     /// Register this method with an [`RpcModule`].
     fn register_async(module: &mut RpcModule<RpcServerState>) -> &mut jsonrpsee::MethodCallback
     where
@@ -45,17 +49,42 @@ pub trait RpcMethod {
     {
         module
             .register_async_method(Self::NAME, move |params, ctx| async move {
+                // Try to deserialize the params
+                let params = params.parse().map_err(|e| {
+                    tracing::error!("Failed to parse params: {:?}", e);
+                    ServerError::invalid_params("Failed to parse params", None)
+                })?;
+
+                // Handle the method
                 let ok = Self::handle(ctx, params).await?;
                 Result::<_, jsonrpsee::types::ErrorObjectOwned>::Ok(ok)
             })
             .expect("method should be valid") // This is safe because we know the method registered is valid.
     }
 
-    /// Call the rpc method with the provided client and params.
-    async fn call(client: &RpcClient, params: Option<Params<'_>>) -> Result<Self::Ok, ClientError> {
-        todo!()
+    /// Create a request for this method.
+    ///
+    /// Returns [`Err`] if any of the parameters fail to serialize.
+    fn request(params: Self::Params) -> Result<Request<Self::Ok>, serde_json::Error> {
+        let params = serde_json::to_value(params).expect("params should serialize");
+
+        Ok(Request {
+            method_name: Self::NAME,
+            params,
+            result_type: std::marker::PhantomData,
+            api_version: Self::API_VERSION,
+        })
+    }
+
+    /// Call the method with the provided client and params.
+    async fn call(client: &RpcClient, params: Self::Params) -> Result<Self::Ok, ClientError> {
+        let response = client.call(Self::request(params)?).await?;
+        Ok(response)
     }
 }
+
+/// Blanket implementation for all types that implement [`RpcMethod`].
+impl<T> RpcMethodExt for T where T: RpcMethod {}
 
 /// Available API versions.
 ///
