@@ -11,13 +11,17 @@ version = "0.1.0"
 async-trait = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive"] }
-cli-primitives = { workspace = true }
-jsonrpsee = { workspace = true, features = ["http-client", "server", "ws-client"] }
+jsonrpsee = { workspace = true, features = [
+    "server",
+    "http-client",
+    "ws-client",
+] }
 sc-cli = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 subxt = { workspace = true }
 subxt-signer = { workspace = true }
+thiserror = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }

@@ -2,7 +2,8 @@ use std::fmt::{self, Display, Formatter};
 
 use chrono::{DateTime, Utc};
 use clap::Parser;
-use cli_primitives::Error;
+
+use crate::Error;
 
 use crate::rpc::{methods::common::Info, RpcClient, RpcMethodExt};
 

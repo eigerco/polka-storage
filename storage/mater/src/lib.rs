@@ -2,7 +2,7 @@
 //! Both version 1 and version 2 are supported.
 //!
 //! You can make use of the lower-level utilities such as [`CarV2Reader`] to read a CARv2 file,
-//! though these utilies were designed to be used in higher-level abstractions, like the [`Blockstore`].
+//! though these utilities were designed to be used in higher-level abstractions, like the [`Blockstore`].
 
 #![warn(unused_crate_dependencies)]
 #![warn(missing_docs)]
@@ -18,7 +18,7 @@ mod v2;
 
 // We need to expose this because `read_block` returns `(Cid, Vec<u8>)`.
 pub use ipld_core::cid::Cid;
-pub use stores::{create_filestore, Blockstore};
+pub use stores::{create_filestore, Blockstore, Config};
 pub use v1::{Header as CarV1Header, Reader as CarV1Reader, Writer as CarV1Writer};
 pub use v2::{
     Characteristics, Header as CarV2Header, Index, IndexEntry, IndexSorted, MultihashIndexSorted,
@@ -131,6 +131,9 @@ pub(crate) mod test_utils {
     use std::path::Path;
 
     pub(crate) use assert_buffer_eq;
+    /// This is here so that our build doesn't fail. It thinks that the
+    /// criterion is not used. But it is used by the benchmarks.
+    use criterion as _;
     use tokio::{fs::File, io::AsyncWriteExt};
 
     /// Dump a byte slice into a file.

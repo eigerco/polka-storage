@@ -1,7 +1,6 @@
 use std::{fmt::Debug, future::Future, net::SocketAddr, sync::Arc};
 
 use chrono::Utc;
-use cli_primitives::Error;
 use client::Request;
 use error::ServerError;
 use jsonrpsee::{
@@ -12,7 +11,7 @@ use jsonrpsee::{
 use methods::create_module;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use crate::substrate;
+use crate::{substrate, Error};
 
 mod client;
 pub mod error;

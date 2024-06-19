@@ -2,13 +2,12 @@ use std::{net::SocketAddr, sync::Arc};
 
 use chrono::Utc;
 use clap::Parser;
-use cli_primitives::Error;
 use tracing::info;
 use url::Url;
 
 use crate::{
     rpc::{start_rpc, RpcServerState, RPC_SERVER_DEFAULT_BIND_ADDR},
-    substrate,
+    substrate, Error,
 };
 
 const FULL_NODE_DEFAULT_RPC_ADDR: &str = "ws://127.0.0.1:9944";

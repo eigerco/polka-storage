@@ -1,6 +1,7 @@
 use clap::Parser;
-use cli_primitives::Error;
 use tracing::info;
+
+use crate::Error;
 
 /// Command to initialize the storage provider.
 #[derive(Debug, Clone, Parser)]

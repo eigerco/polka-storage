@@ -14,7 +14,7 @@ pub type Client = OnlineClient<Config>;
 
 /// Initialize a Polkadot client.
 pub async fn init_client(url: impl AsRef<str>) -> Result<Client, Error> {
-    let inner = OnlineClient::<Config>::from_url(url).await?;
+    let inner = Client::from_url(url).await?;
     info!("Connection with parachain established.");
     Ok(inner)
 }

@@ -1,14 +1,13 @@
 use std::str::FromStr;
 
 use clap::Parser;
-use cli_primitives::Error;
 use url::Url;
 
 use super::WalletCommand;
 use crate::{
     cli::SubCommand,
     rpc::{RpcClient, RPC_SERVER_DEFAULT_BIND_ADDR},
-    Cli,
+    Cli, Error,
 };
 
 /// Parses command line arguments into the service configuration and runs the specified

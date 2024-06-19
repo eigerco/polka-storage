@@ -1,1 +1,1 @@
-pub mod piecestore;
+pub mod local_index_directory;

@@ -3,12 +3,13 @@
 
 mod cli;
 pub(crate) mod commands;
+mod error;
 mod rpc;
 mod substrate;
 
 pub(crate) use cli::Cli;
-use cli_primitives::Error;
 use commands::runner;
+pub(crate) use error::Error;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 

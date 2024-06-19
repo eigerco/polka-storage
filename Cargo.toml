@@ -6,7 +6,14 @@ license-file = "LICENSE"
 repository = "https://github.com/eigerco/polka-storage"
 
 [workspace]
-members = ["cli/polka-storage-provider", "node", "primitives/cli", "runtime", "storage/mater", "storage/polka-index"]
+members = [
+  "cli/polka-storage-provider",
+  "node",
+  "primitives/cli",
+  "runtime",
+  "storage/mater",
+  "storage/polka-index",
+]
 resolver = "2"
 
 # FIXME(#@jmg-duarte,#7,14/5/24): remove the patch once something >1.11.0 is released
@@ -28,7 +35,9 @@ panic = 'abort'         # Use abort on panic to reduce binary size
 substrate-build-script-utils = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0" }
 substrate-wasm-builder = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0" }
 
+async-channel = "2.3.1"
 async-stream = "0.3.5"
+base64 = "0.22.1"
 async-trait = "0.1.80"
 bitflags = "2.5.0"
 byteorder = "1.5.0"
@@ -39,6 +48,7 @@ cid = { version = "0.11.1" }
 clap = { version = "4.5.3" }
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false }
 color-print = "0.3.4"
+criterion = "0.5.1"
 digest = "0.10.7"
 env_logger = "0.11.2"
 futures = "0.3.28"
@@ -75,8 +85,9 @@ tokio = "1.37.0"
 tokio-stream = "0.1.15"
 tokio-util = "0.7.11"
 tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18" }
+tracing-subscriber = "0.3.18"
 url = "2.5.0"
+uuid = "1.8.0"
 
 # Local
 cli-primitives = { path = "primitives/cli" }
@@ -121,7 +132,9 @@ substrate-prometheus-endpoint = { git = "https://github.com/paritytech/polkadot-
 
 # Polkadot
 pallet-xcm = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", default-features = false }
-polkadot-cli = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", features = ["rococo-native"] }
+polkadot-cli = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", features = [
+  "rococo-native",
+] }
 polkadot-parachain-primitives = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", default-features = false }
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0" }
 polkadot-runtime-common = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.11.0", default-features = false }
