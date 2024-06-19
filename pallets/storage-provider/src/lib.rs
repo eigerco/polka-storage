@@ -27,8 +27,9 @@ mod utils;
 
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
-    use codec::{Decode, Encode};
     use core::fmt::Debug;
+
+    use codec::{Decode, Encode};
     use frame_support::{
         dispatch::DispatchResultWithPostInfo,
         ensure,
@@ -39,9 +40,11 @@ pub mod pallet {
     use frame_system::{ensure_signed, pallet_prelude::OriginFor, Config as SystemConfig};
     use scale_info::TypeInfo;
 
-    use crate::types::{RegisteredPoStProof, StorageProviderInfo, StorageProviderState};
-    use crate::utils::{
-        assign_proving_period_offset, current_deadline_index, current_proving_period_start,
+    use crate::{
+        types::{RegisteredPoStProof, StorageProviderInfo, StorageProviderState},
+        utils::{
+            assign_proving_period_offset, current_deadline_index, current_proving_period_start,
+        },
     };
 
     // Allows to extract Balance of an account via the Config::Currency associated type.

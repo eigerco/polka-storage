@@ -1,6 +1,5 @@
 use codec::{Decode, Encode};
-use frame_support::pallet_prelude::ConstU32;
-use frame_support::sp_runtime::BoundedVec;
+use frame_support::{pallet_prelude::ConstU32, sp_runtime::BoundedVec};
 use primitives::BlockNumber;
 use scale_info::TypeInfo;
 

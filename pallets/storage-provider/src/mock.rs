@@ -1,6 +1,4 @@
-use frame_support::derive_impl;
-use frame_support::pallet_prelude::ConstU32;
-use frame_support::sp_runtime::BoundedVec;
+use frame_support::{derive_impl, pallet_prelude::ConstU32, sp_runtime::BoundedVec};
 use sp_runtime::BuildStorage;
 
 use crate as pallet_storage_provider;
