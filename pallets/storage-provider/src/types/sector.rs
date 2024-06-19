@@ -1,6 +1,7 @@
 use crate::types::{Cid, RegisteredSealProof};
 
 use codec::{Decode, Encode};
+use primitives::BlockNumber;
 use scale_info::TypeInfo;
 
 /// SectorNumber is a numeric identifier for a sector.
@@ -23,7 +24,7 @@ pub struct SectorPreCommitInfo {
 
 /// Information stored on-chain for a pre-committed sector.
 #[derive(Debug, Decode, Encode, TypeInfo)]
-pub struct SectorPreCommitOnChainInfo<Balance, BlockNumber> {
+pub struct SectorPreCommitOnChainInfo<Balance> {
     pub info: SectorPreCommitInfo,
     /// Total collateral for this sector
     pub pre_commit_deposit: Balance,
@@ -32,7 +33,7 @@ pub struct SectorPreCommitOnChainInfo<Balance, BlockNumber> {
 }
 
 #[derive(Debug, Decode, Encode, TypeInfo)]
-pub struct SectorOnChainInfo<BlockNumber> {
+pub struct SectorOnChainInfo {
     pub sector_number: SectorNumber,
     /// The seal proof type implies the PoSt proofs
     pub seal_proof: RegisteredSealProof,

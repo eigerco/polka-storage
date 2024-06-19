@@ -7325,6 +7325,7 @@ dependencies = [
  "log",
  "pallet-balances",
  "parity-scale-codec",
+ "primitives",
  "scale-info",
  "sp-core",
  "sp-io",
@@ -7983,6 +7984,7 @@ dependencies = [
  "parity-scale-codec",
  "polkadot-parachain-primitives",
  "polkadot-runtime-common",
+ "primitives",
  "scale-info",
  "smallvec",
  "sp-api",
@@ -9303,6 +9305,10 @@ dependencies = [
  "scale-info",
  "uint",
 ]
+
+[[package]]
+name = "primitives"
+version = "0.1.0"
 
 [[package]]
 name = "prioritized-metered-channel"

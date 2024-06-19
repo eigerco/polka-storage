@@ -3,37 +3,57 @@ use crate::types::{
 };
 
 use codec::{Decode, Encode};
+use primitives::BlockNumber;
 use scale_info::prelude::vec::Vec;
 use scale_info::TypeInfo;
 
 /// This struct holds the state of a single storage provider.
 #[derive(Debug, Decode, Encode, TypeInfo)]
-pub struct StorageProviderState<PeerId, BlockNumber, Balance> {
+pub struct StorageProviderState<PeerId, Balance> {
     /// Contains static information about this storage provider
     pub info: StorageProviderInfo<PeerId>,
 
     /// Information for all proven and not-yet-garbage-collected sectors.
-    pub sectors: Vec<SectorOnChainInfo<BlockNumber>>,
+    pub sectors: Vec<SectorOnChainInfo>,
 
     /// Total funds locked as pre_commit_deposit
     /// Optional because when registering there is no need for deposits.
     pub pre_commit_deposits: Option<Balance>,
 
     /// Sectors that have been pre-committed but not yet proven.
-    pub pre_committed_sectors: Vec<SectorPreCommitOnChainInfo<Balance, BlockNumber>>,
+    pub pre_committed_sectors: Vec<SectorPreCommitOnChainInfo<Balance>>,
+
+    /// The first block in this storage provider's current proving period. This is the first block in which a PoSt for a
+    /// partition at the storage provider's first deadline may arrive. Alternatively, it is after the last block at which
+    /// a PoSt for the previous window is valid.
+    /// Always greater than zero, this may be greater than the current block for genesis miners in the first
+    /// WPoStProvingPeriod blocks of the chain; the blocks before the first proving period starts are exempt from Window
+    /// PoSt requirements.
+    /// Updated at the end of every period.
+    pub proving_period_start: BlockNumber,
+
+    /// Index of the deadline within the proving period beginning at ProvingPeriodStart that has not yet been
+    /// finalized.
+    /// Updated at the end of each deadline window.
+    pub current_deadline: BlockNumber,
 }
 
-impl<PeerId, BlockNumber, Balance> StorageProviderState<PeerId, BlockNumber, Balance>
+impl<PeerId, Balance> StorageProviderState<PeerId, Balance>
 where
     PeerId: Clone + Decode + Encode + TypeInfo,
-    BlockNumber: Decode + Encode + TypeInfo,
 {
-    pub fn new(info: &StorageProviderInfo<PeerId>) -> Self {
+    pub fn new(
+        info: &StorageProviderInfo<PeerId>,
+        period_start: BlockNumber,
+        deadline_idx: BlockNumber,
+    ) -> Self {
         Self {
             info: info.clone(),
             sectors: Vec::new(),
             pre_commit_deposits: None,
             pre_committed_sectors: Vec::new(),
+            proving_period_start: period_start,
+            current_deadline: deadline_idx,
         }
     }
 }

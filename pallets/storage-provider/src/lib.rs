@@ -23,10 +23,14 @@ mod mock;
 mod test;
 
 mod types;
+mod utils;
 
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
     use crate::types::{RegisteredPoStProof, StorageProviderInfo, StorageProviderState};
+    use crate::utils::{
+        assign_proving_period_offset, current_deadline_index, current_proving_period_start,
+    };
 
     use codec::{Decode, Encode};
     use core::fmt::Debug;
@@ -34,6 +38,7 @@ pub mod pallet {
         dispatch::DispatchResultWithPostInfo,
         ensure,
         pallet_prelude::{IsType, StorageMap},
+        sp_runtime::SaturatedConversion,
         traits::{Currency, ReservableCurrency},
     };
     use frame_system::{ensure_signed, pallet_prelude::OriginFor, Config as SystemConfig};
@@ -43,11 +48,6 @@ pub mod pallet {
     // BalanceOf is a sophisticated way of getting an u128.
     type BalanceOf<T> =
         <<T as Config>::Currency as Currency<<T as SystemConfig>::AccountId>>::Balance;
-
-    // TODO(@aidan46, no-ref, 2023-06-17): Set a logical value for proving period start, in Filecoin this is a random number in a range.
-    const _PROVING_PERIOD_OFFSET: u32 = 5;
-    /// TODO(@aidan46, no-ref, 2023-06-17): Set a logical challenge window. Filecoin uses half an hour (=48 per day).
-    const _WPOST_CHALLENGE_WINDOW: u32 = 48;
 
     #[pallet::pallet]
     #[pallet::without_storage_info] // Allows to define storage items without fixed size
@@ -71,12 +71,8 @@ pub mod pallet {
     // Could be added to this type maybe?
     #[pallet::storage]
     #[pallet::getter(fn storage_providers)]
-    pub type StorageProviders<T: Config> = StorageMap<
-        _,
-        _,
-        T::AccountId,
-        StorageProviderState<T::PeerId, <T as SystemConfig>::Block, BalanceOf<T>>,
-    >;
+    pub type StorageProviders<T: Config> =
+        StorageMap<_, _, T::AccountId, StorageProviderState<T::PeerId, BalanceOf<T>>>;
 
     #[pallet::event]
     #[pallet::generate_deposit(fn deposit_event)]
@@ -112,10 +108,31 @@ pub mod pallet {
                 Error::<T>::StorageProviderExists
             );
 
+            // Get current block an convert to `u32`
+            let current_block = <frame_system::Pallet<T>>::block_number();
+            let current_block = current_block.saturated_into::<u32>();
+
+            // Get proving period offset
+            let offset = assign_proving_period_offset::<T::AccountId>(&owner, current_block);
+
+            // Get proving period start from current block and the offset
+            let period_start = current_proving_period_start(current_block, offset);
+
+            // Get the deadline index
+            let deadline_idx = current_deadline_index(current_block, period_start);
+
+            // Create static storage provider info
             let info = StorageProviderInfo::new(peer_id, window_post_proof_type);
-            let state = StorageProviderState::new(&info);
+
+            // Create storage provider state
+            let state = StorageProviderState::new(&info, period_start, deadline_idx);
+
+            // Insert into `StorageMap`
             StorageProviders::<T>::insert(&owner, state);
+
+            // Emit event
             Self::deposit_event(Event::StorageProviderRegistered { owner, info });
+
             Ok(().into())
         }
     }
