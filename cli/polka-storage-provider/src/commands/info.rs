@@ -1,6 +1,6 @@
 use std::fmt::{self, Display, Formatter};
 
-use chrono::{DateTime, Local, Utc};
+use chrono::{DateTime, Utc};
 use clap::Parser;
 use cli_primitives::Error;
 
