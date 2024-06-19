@@ -1,10 +1,12 @@
 use crate::types::{
-    RegisteredPoStProof, SectorOnChainInfo, SectorPreCommitOnChainInfo, SectorSize,
+    sector::SECTORS_MAX, RegisteredPoStProof, SectorOnChainInfo, SectorPreCommitOnChainInfo,
+    SectorSize,
 };
 
 use codec::{Decode, Encode};
+use frame_support::pallet_prelude::ConstU32;
+use frame_support::sp_runtime::BoundedVec;
 use primitives::BlockNumber;
-use scale_info::prelude::vec::Vec;
 use scale_info::TypeInfo;
 
 /// This struct holds the state of a single storage provider.
@@ -14,14 +16,15 @@ pub struct StorageProviderState<PeerId, Balance> {
     pub info: StorageProviderInfo<PeerId>,
 
     /// Information for all proven and not-yet-garbage-collected sectors.
-    pub sectors: Vec<SectorOnChainInfo>,
+    pub sectors: BoundedVec<SectorOnChainInfo, ConstU32<SECTORS_MAX>>,
 
     /// Total funds locked as pre_commit_deposit
     /// Optional because when registering there is no need for deposits.
     pub pre_commit_deposits: Option<Balance>,
 
     /// Sectors that have been pre-committed but not yet proven.
-    pub pre_committed_sectors: Vec<SectorPreCommitOnChainInfo<Balance>>,
+    pub pre_committed_sectors:
+        BoundedVec<SectorPreCommitOnChainInfo<Balance>, ConstU32<SECTORS_MAX>>,
 
     /// The first block in this storage provider's current proving period. This is the first block in which a PoSt for a
     /// partition at the storage provider's first deadline may arrive. Alternatively, it is after the last block at which
@@ -49,9 +52,9 @@ where
     ) -> Self {
         Self {
             info: info.clone(),
-            sectors: Vec::new(),
+            sectors: BoundedVec::new(),
             pre_commit_deposits: None,
-            pre_committed_sectors: Vec::new(),
+            pre_committed_sectors: BoundedVec::new(),
             proving_period_start: period_start,
             current_deadline: deadline_idx,
         }

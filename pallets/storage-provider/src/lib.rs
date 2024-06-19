@@ -37,7 +37,7 @@ pub mod pallet {
     use frame_support::{
         dispatch::DispatchResultWithPostInfo,
         ensure,
-        pallet_prelude::{IsType, StorageMap},
+        pallet_prelude::*,
         sp_runtime::SaturatedConversion,
         traits::{Currency, ReservableCurrency},
     };

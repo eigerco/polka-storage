@@ -1,7 +1,8 @@
 use crate::types::SectorSize;
 
 use codec::{Decode, Encode};
-use scale_info::prelude::vec::Vec;
+use frame_support::pallet_prelude::ConstU32;
+use frame_support::sp_runtime::BoundedVec;
 use scale_info::TypeInfo;
 
 /// Proof of Spacetime type, indicating version and sector size of the proof.
@@ -42,7 +43,7 @@ impl RegisteredPoStProof {
 #[derive(Debug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone)]
 pub struct PoStProof {
     pub post_proof: RegisteredPoStProof,
-    pub proof_bytes: Vec<u8>,
+    pub proof_bytes: BoundedVec<u8, ConstU32<256>>, // Arbitrary length
 }
 
 /// Seal proof type which defines the version and sector size.

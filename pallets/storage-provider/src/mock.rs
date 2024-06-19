@@ -1,5 +1,6 @@
 use frame_support::derive_impl;
-use scale_info::prelude::vec::Vec;
+use frame_support::pallet_prelude::ConstU32;
+use frame_support::sp_runtime::BoundedVec;
 use sp_runtime::BuildStorage;
 
 use crate as pallet_storage_provider;
@@ -27,7 +28,7 @@ impl pallet_balances::Config for Test {
 
 impl pallet_storage_provider::Config for Test {
     type RuntimeEvent = RuntimeEvent;
-    type PeerId = Vec<u8>;
+    type PeerId = BoundedVec<u8, ConstU32<256>>; // Arbitrary length
     type Currency = Balances;
 }
 
