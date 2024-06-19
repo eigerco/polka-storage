@@ -19,13 +19,6 @@ impl RegisteredPoStProof {
         }
     }
 
-    /// Proof size for each PoStProof type
-    #[allow(unused)]
-    pub fn proof_size(self) -> usize {
-        match self {
-            RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => 192,
-        }
-    }
     /// Returns the partition size, in sectors, associated with a proof type.
     /// The partition size is the number of sectors proven in a single PoSt proof.
     pub fn window_post_partitions_sector(self) -> u64 {
