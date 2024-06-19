@@ -4,7 +4,7 @@ use crate::{
     types::{RegisteredPoStProof, StorageProviderInfo},
 };
 
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{assert_noop, assert_ok, sp_runtime::BoundedVec};
 
 #[test]
 fn initial_state() {
@@ -19,6 +19,7 @@ fn initial_state() {
 fn register_sp() {
     new_test_ext().execute_with(|| {
         let peer_id = "storage_provider_1".as_bytes().to_vec();
+        let peer_id = BoundedVec::try_from(peer_id).unwrap();
         let window_post_type = RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
         let expected_sector_size = window_post_type.sector_size();
         let expected_partition_sectors = window_post_type.window_post_partitions_sector();
@@ -68,6 +69,7 @@ fn register_sp() {
 fn double_register_sp() {
     new_test_ext().execute_with(|| {
         let peer_id = "storage_provider_1".as_bytes().to_vec();
+        let peer_id = BoundedVec::try_from(peer_id).unwrap();
         let window_post_type = RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
 
         // Register BOB as a storage provider.
