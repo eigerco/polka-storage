@@ -5,9 +5,9 @@ use primitives::BlockNumber;
 use sp_core::blake2_64;
 
 /// Assigns proving period offset randomly in the range [0, WPOST_PROVING_PERIOD)
-/// by hashing the  address and current block number.
+/// by hashing the address and current block number.
 ///
-/// Filecoin implementation reference: https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L4886
+/// Filecoin implementation reference: <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L4886>
 pub fn assign_proving_period_offset<AccountId>(
     addr: &AccountId,
     current_block: BlockNumber,
