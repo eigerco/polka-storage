@@ -21,7 +21,7 @@ pub mod pallet {
     pub const CID_CODEC: u64 = 0x55;
     pub const LOG_TARGET: &'static str = "runtime::market";
 
-    use cid::{multihash::Multihash, Cid};
+    use cid::Cid;
     use codec::{Decode, Encode};
     use frame_support::{
         dispatch::DispatchResult,
@@ -45,7 +45,7 @@ pub mod pallet {
 
     /// Allows to extract Balance of an account via the Config::Currency associated type.
     /// BalanceOf is a sophisticated way of getting an u128.
-    type BalanceOf<T> =
+    pub type BalanceOf<T> =
         <<T as Config>::Currency as Currency<<T as SystemConfig>::AccountId>>::Balance;
 
     // TODO(@th7nder,17/06/2024): this is likely to be extracted into primitives/ package
@@ -73,6 +73,7 @@ pub mod pallet {
         /// Must identify as an on-chain `Self::AccountId`.
         type OffchainPublic: IdentifyAccount<AccountId = Self::AccountId>;
 
+        /// How many deals can be published in a single batch of `publish_storage_deals`.
         #[pallet::constant]
         type MaxDeals: Get<u32>;
 
@@ -140,39 +141,40 @@ pub mod pallet {
     // It cannot be generic over <T: Config> because, #[derive(RuntimeDebug, TypeInfo)] also make `T` to have `RuntimeDebug`/`TypeInfo`
     // It is a known rust issue <https://substrate.stackexchange.com/questions/452/t-doesnt-implement-stdfmtdebug>
     pub struct DealProposal<Address, Balance, BlockNumber> {
+        /// Byte Encoded Cid
         // We use BoundedVec here, as cid::Cid do not implement `TypeInfo`, so it cannot be saved into the Runtime Storage.
         // It maybe doable using newtype pattern, however not sure how the UI on the frontend side would handle that anyways.
         // There is Encode/Decode implementation though, through the feature flag: `scale-codec`.
-        piece_cid: BoundedVec<u8, ConstU32<128>>,
-        piece_size: u64,
+        pub piece_cid: BoundedVec<u8, ConstU32<128>>,
+        pub piece_size: u64,
         /// Storage Client's Account Id
-        client: Address,
+        pub client: Address,
         /// Storage Provider's Account Id
-        provider: Address,
+        pub provider: Address,
 
         /// Arbitrary client chosen label to apply to the deal
-        label: BoundedVec<u8, ConstU32<128>>,
+        pub label: BoundedVec<u8, ConstU32<128>>,
 
         /// Nominal start block. Deal payment is linear between StartBlock and EndBlock,
         /// with total amount StoragePricePerBlock * (EndBlock - StartBlock).
         /// Storage deal must appear in a sealed (proven) sector no later than StartBlock,
         /// otherwise it is invalid.
-        start_block: BlockNumber,
+        pub start_block: BlockNumber,
         /// When the Deal is supposed to end.
-        end_block: BlockNumber,
+        pub end_block: BlockNumber,
         /// `Deal` can be terminated early, by `on_sectors_terminate`.
         /// Before that, a Storage Provider can payout it's earned fees by calling `on_settle_deal_payments`.
         /// `on_settle_deal_payments` must know how much money it can payout, so it's related to the number of blocks (time) it was stored.
         /// Reference <https://spec.filecoin.io/#section-systems.filecoin_markets.onchain_storage_market.storage_deal_states>
-        storage_price_per_block: Balance,
+        pub storage_price_per_block: Balance,
 
         /// Amount of Balance (DOTs) Storage Provider stakes as Collateral for storing given `piece_cid`
         /// There should be enough Balance added by `add_balance` by Storage Provider to cover it.
         /// When the Deal fails/is terminated to early, this is the amount which get slashed.
-        provider_collateral: Balance,
+        pub provider_collateral: Balance,
         /// Current [`DealState`].
         /// It goes: `Unpublished` -> `Published` -> `Active`
-        state: DealState<BlockNumber>,
+        pub state: DealState<BlockNumber>,
     }
 
     impl<Address, Balance: BaseArithmetic + Copy, BlockNumber: BaseArithmetic + Copy>
@@ -193,14 +195,8 @@ pub mod pallet {
         }
 
         fn cid(&self) -> Result<Cid, ProposalError> {
-            let mh_bytes = bs58::decode(&self.piece_cid)
-                .into_vec()
-                .map_err(|e| ProposalError::Base58Error(e))?;
-            let cid = Cid::new_v1(
-                CID_CODEC,
-                Multihash::from_bytes(&mh_bytes).map_err(|e| ProposalError::InvalidMultihash(e))?,
-            );
-
+            let cid =
+                Cid::try_from(&self.piece_cid[..]).map_err(|e| ProposalError::InvalidCid(e))?;
             Ok(cid)
         }
     }
@@ -247,6 +243,7 @@ pub mod pallet {
             who: T::AccountId,
             amount: BalanceOf<T>,
         },
+        /// Deal has been successfully published between a client and a provider.
         DealPublished {
             deal_id: DealId,
             client: T::AccountId,
@@ -256,29 +253,41 @@ pub mod pallet {
 
     #[pallet::error]
     pub enum Error<T> {
-        /// When a Market Participant tries to withdraw more
+        /// Market Participant tries to withdraw more
         /// funds than they have available on the Market, because:
         /// - they never deposited the amount they want to withdraw
         /// - the funds they deposited were locked as part of a deal
         InsufficientFreeFunds,
+        /// `publish_storage_deals` was called with empty `deals` array.
         NoProposalsToBePublished,
+        /// `publish_storage_deals` must be called by Storage Providers and it's a Provider of all of the deals.
         ProposalsNotPublishedByStorageProvider,
+        /// `publish_storage_deals` call was supplied with `deals` which are all invalid.
         AllProposalsInvalid,
-        NoValidProposals,
-        WrongSignature,
+        /// `publish_storage_deals`'s core logic was invoked with a broken invariant that should be called by `validate_deals`.
+        UnexpectedValidationError,
     }
 
     // NOTE(@th7nder,18/06/2024):
     // would love to use `thiserror` but it's not supporting no_std environments yet
     // `thiserror-core` relies on rust nightly feature: error_in_core
+    /// Errors related to [`DealProposal`] and [`ClientDealProposal`]
+    /// This is error does not surface externally, only in the logs.
+    /// Mostly used for Deal Validation [`Self::<T>::validate_deals`].
     #[derive(RuntimeDebug)]
     pub enum ProposalError {
+        /// ClientDealProposal.client_signature did not match client's public key and data.
         WrongSignature,
+        /// Provider of one of the deals is different than the Provider of the first deal.
+        DifferentProvider,
+        /// Deal's block_start > block_end, so it doesn't make sense.
         EndBeforeStart,
+        /// Deal has to be [`DealState::Unpublished`] when being Published
         NotUnpublished,
+        /// Deal's duration must be within `Config::MinDealDuration` < `Config:MaxDealDuration`.
         DurationOutOfBounds,
-        Base58Error(bs58::decode::Error),
-        InvalidMultihash(cid::multihash::Error),
+        /// Deal's piece_cid is invalid.
+        InvalidCid(cid::Error),
     }
 
     /// Extrinsics exposed by the pallet
@@ -332,6 +341,11 @@ pub mod pallet {
         }
 
         /// Publish a new set of storage deals (not yet included in a sector).
+        /// It saves valid deals as [`DealState::Published`] and locks up client fees and provider's collaterals.
+        /// Locked up balances cannot be withdrawn until a deal is terminated.
+        /// All of the deals must belong to a single Storage Provider.
+        /// It is permissive, if some of the deals are correct and some are not, it emits events for valid deals.
+        /// On success emits [`Event::<T>::DealPublished`] for each successful deal.
         pub fn publish_storage_deals(
             origin: OriginFor<T>,
             deals: BoundedVec<
@@ -344,26 +358,21 @@ pub mod pallet {
                 T::MaxDeals,
             >,
         ) -> DispatchResult {
-            // TODO(@th7nder,19/06/2024):
-            // - pending proposal dedpulication
-            // - struct DealId(u64)
-            // - unit tests
-            // - docs
-            // - testing on substrate
             let provider = ensure_signed(origin)?;
             let (valid_deals, total_provider_lockup) =
                 Self::validate_deals(provider.clone(), deals)?;
 
             // Lock up funds for the clients and emit events
             for mut deal in valid_deals.into_iter() {
+                // PRE-COND: always succeeds, validated by `validate_deals`
                 let client_fee: BalanceOf<T> = deal
                     .total_storage_fee()
-                    .expect("should have been validated by now in validate_deals")
+                    .ok_or(Error::<T>::UnexpectedValidationError)?
                     .try_into()
-                    .ok()
-                    .expect("should have been validated by now in validate_deals");
+                    .map_err(|_| Error::<T>::UnexpectedValidationError)?;
 
                 BalanceTable::<T>::try_mutate(&deal.client, |balance| -> DispatchResult {
+                    // PRE-COND: always succeeds, validated by `validate_deals`
                     balance.free = balance
                         .free
                         .checked_sub(&client_fee)
@@ -388,6 +397,7 @@ pub mod pallet {
             }
 
             // Lock up funds for the Storage Provider
+            // PRE-COND: always succeeds, validated by `validate_deals`
             BalanceTable::<T>::try_mutate(&provider, |balance| -> DispatchResult {
                 balance.free = balance
                     .free
@@ -414,6 +424,38 @@ pub mod pallet {
             T::PalletId::get().into_account_truncating()
         }
 
+        /// Validates the signature of the given data with the provided signer's account ID.
+        ///
+        /// # Errors
+        ///
+        /// This function returns a [`WrongSignature`](crate::Error::WrongSignature) error if the
+        /// signature is invalid or the verification process fails.
+        pub fn validate_signature(
+            data: &[u8],
+            signature: &T::OffchainSignature,
+            signer: &T::AccountId,
+        ) -> Result<(), ProposalError> {
+            if signature.verify(data, &signer) {
+                return Ok(());
+            }
+
+            // NOTE: for security reasons modern UIs implicitly wrap the data requested to sign into
+            // <Bytes></Bytes>, that's why we support both wrapped and raw versions.
+            let prefix = b"<Bytes>";
+            let suffix = b"</Bytes>";
+            let mut wrapped = Vec::with_capacity(data.len() + prefix.len() + suffix.len());
+            wrapped.extend(prefix);
+            wrapped.extend(data);
+            wrapped.extend(suffix);
+
+            ensure!(
+                signature.verify(&*wrapped, &signer),
+                ProposalError::WrongSignature
+            );
+
+            Ok(())
+        }
+
         fn generate_deal_id() -> DealId {
             let ret = NextDealId::<T>::get();
             let next = ret
@@ -435,11 +477,16 @@ pub mod pallet {
             Self::validate_signature(
                 &Encode::encode(&deal.proposal),
                 &deal.client_signature,
-                &provider,
+                &deal.proposal.client,
             )?;
 
             // Ensure the Piece's Cid is parsable and valid
             let _ = deal.proposal.cid()?;
+
+            ensure!(
+                deal.proposal.provider == *provider,
+                ProposalError::DifferentProvider
+            );
 
             ensure!(
                 deal.proposal.start_block < deal.proposal.end_block,
@@ -491,8 +538,7 @@ pub mod pallet {
                 Error::<T>::ProposalsNotPublishedByStorageProvider
             );
 
-            // TODO(@th7nder,17/06/2024): validate a Storage Provider's Account (whether the account was registerd as Storage Provider)
-            // maybe call the StorageProviderPallet via loose coupling?
+            // TODO(@th7nder,#87,17/06/2024): validate a Storage Provider's Account (whether the account was registerd as Storage Provider)
 
             let mut total_client_lockup: BoundedBTreeMap<T::AccountId, BalanceOf<T>, T::MaxDeals> =
                 BoundedBTreeMap::new();
@@ -500,9 +546,9 @@ pub mod pallet {
             let mut message_proposals: BoundedBTreeSet<T::Hash, T::MaxDeals> =
                 BoundedBTreeSet::new();
 
-            let valid_deals = deals.into_iter().filter_map(|deal| {
+            let valid_deals = deals.into_iter().enumerate().filter_map(|(idx, deal)| {
                     if let Err(e) = Self::sanity_check(&deal, &provider) {
-                        log::info!(target: LOG_TARGET, "insane deal: {:?}, error: {:?}", deal, e);
+                        log::error!(target: LOG_TARGET, "insane deal: idx {}, error: {:?}", idx, e);
                         return None;
                     }
 
@@ -518,8 +564,8 @@ pub mod pallet {
 
                     let client_balance = BalanceTable::<T>::get(&deal.proposal.client);
                     if client_lockup > client_balance.free {
-                        log::info!(target: LOG_TARGET, "invalid deal: client {:?} not enough free balance {:?} < {:?} to cover deal {:?}", 
-                            deal.proposal.client, client_balance.free, client_lockup, deal);
+                        log::error!(target: LOG_TARGET, "invalid deal: client {:?} not enough free balance {:?} < {:?} to cover deal idx: {}", 
+                            deal.proposal.client, client_balance.free, client_lockup, idx);
                         return None;
                     }
 
@@ -528,8 +574,8 @@ pub mod pallet {
 
                     let provider_balance = BalanceTable::<T>::get(&deal.proposal.provider);
                     if provider_lockup > provider_balance.free {
-                        log::info!(target: LOG_TARGET, "invalid deal: storage provider {:?} not enough free balance {:?} < {:?} to cover deal {:?}",
-                            deal.proposal.provider, provider_balance.free, provider_lockup, deal);
+                        log::error!(target: LOG_TARGET, "invalid deal: storage provider {:?} not enough free balance {:?} < {:?} to cover deal idx: {}",
+                            deal.proposal.provider, provider_balance.free, provider_lockup, idx);
                         return None;
                     }
 
@@ -537,13 +583,16 @@ pub mod pallet {
                     let duplicate_in_state = PendingProposals::<T>::get().contains(&hash);
                     let duplicate_in_message = message_proposals.contains(&hash);
                     if duplicate_in_state || duplicate_in_message {
-                        log::info!(target: LOG_TARGET, "invalid deal: cannot publish duplicate deal: {:?}", deal);
+                        log::error!(target: LOG_TARGET, "invalid deal: cannot publish duplicate deal idx: {}", idx);
                         return None;
                     }
-                    PendingProposals::<T>::get().try_insert(hash.clone()).ok()?;
+                    if let Err(e) = PendingProposals::<T>::get().try_insert(hash) {
+                        log::error!(target: LOG_TARGET, "cannot publish: too many pending deal proposals, wait for them to be expired/activated, deal idx: {}, err: {:?}", idx, e);
+                        return None;
+                    }
+                    // PRE-COND: always succeeds, as there cannot be more deals than T::MaxDeals and this the size of the set
                     message_proposals.try_insert(hash).ok()?;
-
-                    // SAFETY: it'll always succeed, as there cannot be more clients than T::MaxDeals
+                    // PRE-COND: always succeeds as there cannot be more clients than T::MaxDeals
                     total_client_lockup.try_insert(deal.proposal.client.clone(), client_lockup)
                         .ok()?;
                     total_provider_lockup = provider_lockup;
@@ -557,7 +606,7 @@ pub mod pallet {
         // Used for deduplication purposes
         // We don't want to store another BTreeSet of ClientDealProposals
         // We only care about hashes.
-        // It is not an associated function, because T::Hashing was hard to use inside of there.
+        // It is not an associated function, because T::Hashing is hard to use inside of there.
         fn hash_proposal(
             proposal: &ClientDealProposal<
                 T::AccountId,
@@ -568,38 +617,6 @@ pub mod pallet {
         ) -> T::Hash {
             let bytes = Encode::encode(proposal);
             T::Hashing::hash(&bytes)
-        }
-
-        /// Validates the signature of the given data with the provided signer's account ID.
-        ///
-        /// # Errors
-        ///
-        /// This function returns a [`WrongSignature`](crate::Error::WrongSignature) error if the
-        /// signature is invalid or the verification process fails.
-        pub fn validate_signature(
-            data: &Vec<u8>,
-            signature: &T::OffchainSignature,
-            signer: &T::AccountId,
-        ) -> Result<(), ProposalError> {
-            if signature.verify(&**data, &signer) {
-                return Ok(());
-            }
-
-            // NOTE: for security reasons modern UIs implicitly wrap the data requested to sign into
-            // <Bytes></Bytes>, that's why we support both wrapped and raw versions.
-            let prefix = b"<Bytes>";
-            let suffix = b"</Bytes>";
-            let mut wrapped = Vec::with_capacity(data.len() + prefix.len() + suffix.len());
-            wrapped.extend(prefix);
-            wrapped.extend(data);
-            wrapped.extend(suffix);
-
-            ensure!(
-                signature.verify(&*wrapped, &signer),
-                ProposalError::WrongSignature
-            );
-
-            Ok(())
         }
     }
 }
