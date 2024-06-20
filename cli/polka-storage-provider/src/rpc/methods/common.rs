@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use tracing::debug;
 
 use crate::rpc::{error::ServerError, ApiVersion, RpcMethod, RpcServerState};
 
