@@ -23,7 +23,6 @@ mod mock;
 mod test;
 
 mod types;
-mod utils;
 
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
@@ -34,17 +33,15 @@ pub mod pallet {
         dispatch::DispatchResultWithPostInfo,
         ensure,
         pallet_prelude::*,
-        sp_runtime::SaturatedConversion,
         traits::{Currency, ReservableCurrency},
     };
     use frame_system::{ensure_signed, pallet_prelude::OriginFor, Config as SystemConfig};
     use scale_info::TypeInfo;
+    use sp_arithmetic::traits::BaseArithmetic;
 
-    use crate::{
-        types::{RegisteredPoStProof, StorageProviderInfo, StorageProviderState},
-        utils::{
-            assign_proving_period_offset, current_deadline_index, current_proving_period_start,
-        },
+    use crate::types::{
+        assign_proving_period_offset, current_deadline_index, current_proving_period_start,
+        RegisteredPoStProof, StorageProviderInfo, StorageProviderState,
     };
 
     // Allows to extract Balance of an account via the Config::Currency associated type.
@@ -68,14 +65,28 @@ pub mod pallet {
 
         /// Currency mechanism, used for collateral
         type Currency: ReservableCurrency<Self::AccountId>;
+
+        type BlockNumber: BaseArithmetic + Copy + Decode + Encode + TypeInfo + TryInto<u64>;
+
+        #[pallet::constant] // put the constant in metadata
+        /// Proving period for submitting Window PoSt, 24 hours is blocks
+        type WPoStProvingPeriod: Get<Self::BlockNumber>;
+
+        #[pallet::constant] // put the constant in metadata
+        /// Window PoSt challenge window (default 30 minutes in blocks)
+        type WPoStChallengeWindow: Get<Self::BlockNumber>;
     }
 
     // Need some storage type that keeps track of sectors, deadlines and terminations.
     // Could be added to this type maybe?
     #[pallet::storage]
     #[pallet::getter(fn storage_providers)]
-    pub type StorageProviders<T: Config> =
-        StorageMap<_, _, T::AccountId, StorageProviderState<T::PeerId, BalanceOf<T>>>;
+    pub type StorageProviders<T: Config> = StorageMap<
+        _,
+        _,
+        T::AccountId,
+        StorageProviderState<T::PeerId, BalanceOf<T>, T::BlockNumber>,
+    >;
 
     #[pallet::event]
     #[pallet::generate_deposit(fn deposit_event)]
@@ -92,6 +103,8 @@ pub mod pallet {
         /// Emitted when a storage provider is trying to be registered
         /// but there is already storage provider registered for that `AccountId`.
         StorageProviderExists,
+        /// Emitted when a type conversion fails.
+        ConversionError,
     }
 
     #[pallet::call]
@@ -111,18 +124,29 @@ pub mod pallet {
                 Error::<T>::StorageProviderExists
             );
 
-            // Get current block an convert to `u32`
-            let current_block = <frame_system::Pallet<T>>::block_number();
-            let current_block = current_block.saturated_into::<u32>();
+            let proving_period = T::WPoStProvingPeriod::get();
+
+            // Get current block an convert to `u64`
+            let current_block = TryInto::<u64>::try_into(<frame_system::Pallet<T>>::block_number())
+                .map_err(|_| Error::<T>::ConversionError)?;
+
+            let current_block = TryInto::<T::BlockNumber>::try_into(current_block)
+                .map_err(|_| Error::<T>::ConversionError)?;
 
             // Get proving period offset
-            let offset = assign_proving_period_offset::<T::AccountId>(&owner, current_block);
+            let offset = assign_proving_period_offset::<T::AccountId, T::BlockNumber>(
+                &owner,
+                current_block,
+                proving_period,
+            )
+            .map_err(|_| Error::<T>::ConversionError)?;
 
             // Get proving period start from current block and the offset
-            let period_start = current_proving_period_start(current_block, offset);
+            let period_start = current_proving_period_start(current_block, offset, proving_period);
 
             // Get the deadline index
-            let deadline_idx = current_deadline_index(current_block, period_start);
+            let deadline_idx =
+                current_deadline_index(current_block, period_start, T::WPoStChallengeWindow::get());
 
             // Create static storage provider info
             let info = StorageProviderInfo::new(peer_id, window_post_proof_type);

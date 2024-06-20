@@ -1,6 +1,5 @@
 use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::ConstU32, sp_runtime::BoundedVec};
-use primitives::BlockNumber;
 use scale_info::TypeInfo;
 
 use crate::types::{
@@ -10,12 +9,12 @@ use crate::types::{
 
 /// This struct holds the state of a single storage provider.
 #[derive(Debug, Decode, Encode, TypeInfo)]
-pub struct StorageProviderState<PeerId, Balance> {
+pub struct StorageProviderState<PeerId, Balance, BlockNumber> {
     /// Contains static information about this storage provider
     pub info: StorageProviderInfo<PeerId>,
 
     /// Information for all proven and not-yet-garbage-collected sectors.
-    pub sectors: BoundedVec<SectorOnChainInfo, ConstU32<SECTORS_MAX>>,
+    pub sectors: BoundedVec<SectorOnChainInfo<BlockNumber>, ConstU32<SECTORS_MAX>>,
 
     /// Total funds locked as pre_commit_deposit
     /// Optional because when registering there is no need for deposits.
@@ -23,7 +22,7 @@ pub struct StorageProviderState<PeerId, Balance> {
 
     /// Sectors that have been pre-committed but not yet proven.
     pub pre_committed_sectors:
-        BoundedVec<SectorPreCommitOnChainInfo<Balance>, ConstU32<SECTORS_MAX>>,
+        BoundedVec<SectorPreCommitOnChainInfo<Balance, BlockNumber>, ConstU32<SECTORS_MAX>>,
 
     /// The first block in this storage provider's current proving period. This is the first block in which a PoSt for a
     /// partition at the storage provider's first deadline may arrive. Alternatively, it is after the last block at which
@@ -40,9 +39,10 @@ pub struct StorageProviderState<PeerId, Balance> {
     pub current_deadline: BlockNumber,
 }
 
-impl<PeerId, Balance> StorageProviderState<PeerId, Balance>
+impl<PeerId, Balance, BlockNumber> StorageProviderState<PeerId, Balance, BlockNumber>
 where
     PeerId: Clone + Decode + Encode + TypeInfo,
+    BlockNumber: Decode + Encode + TypeInfo,
 {
     pub fn new(
         info: &StorageProviderInfo<PeerId>,

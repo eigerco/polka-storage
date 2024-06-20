@@ -1,9 +1,18 @@
-use frame_support::{derive_impl, pallet_prelude::ConstU32, sp_runtime::BoundedVec};
+use frame_support::{
+    derive_impl, pallet_prelude::ConstU32, parameter_types, sp_runtime::BoundedVec,
+};
 use sp_runtime::BuildStorage;
 
 use crate as pallet_storage_provider;
 
 type Block = frame_system::mocking::MockBlock<Test>;
+
+type BlockNumber = u32;
+
+const MILLISECS_PER_BLOCK: u64 = 12000;
+const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
+const HOURS: BlockNumber = MINUTES * 60;
+const DAYS: BlockNumber = HOURS * 24;
 
 frame_support::construct_runtime!(
     pub enum Test {
@@ -24,10 +33,21 @@ impl pallet_balances::Config for Test {
     type AccountStore = System;
 }
 
+parameter_types! {
+    pub const WpostProvingPeriod: BlockNumber = DAYS;
+    // Half an hour (=48 per day)
+    // 30 * 60 = 30 minutes
+    // SLOT_DURATION is in milliseconds thats why we / 1000
+    pub const WpostChallengeWindow: BlockNumber = 30 * 60 / (SLOT_DURATION as BlockNumber / 1000);
+}
+
 impl pallet_storage_provider::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type PeerId = BoundedVec<u8, ConstU32<256>>; // Arbitrary length
     type Currency = Balances;
+    type BlockNumber = BlockNumber;
+    type WPoStProvingPeriod = WpostProvingPeriod;
+    type WPoStChallengeWindow = WpostChallengeWindow;
 }
 
 pub const ALICE: u64 = 0;

@@ -1,5 +1,4 @@
 use codec::{Decode, Encode};
-use primitives::BlockNumber;
 use scale_info::TypeInfo;
 
 use crate::types::{Cid, RegisteredSealProof};
@@ -27,7 +26,7 @@ pub struct SectorPreCommitInfo {
 
 /// Information stored on-chain for a pre-committed sector.
 #[derive(Debug, Decode, Encode, TypeInfo)]
-pub struct SectorPreCommitOnChainInfo<Balance> {
+pub struct SectorPreCommitOnChainInfo<Balance, BlockNumber> {
     pub info: SectorPreCommitInfo,
     /// Total collateral for this sector
     pub pre_commit_deposit: Balance,
@@ -36,7 +35,7 @@ pub struct SectorPreCommitOnChainInfo<Balance> {
 }
 
 #[derive(Debug, Decode, Encode, TypeInfo)]
-pub struct SectorOnChainInfo {
+pub struct SectorOnChainInfo<BlockNumber> {
     pub sector_number: SectorNumber,
     /// The seal proof type implies the PoSt proofs
     pub seal_proof: RegisteredSealProof,

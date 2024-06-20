@@ -45,7 +45,6 @@ use parachains_common::message_queue::{NarrowOriginToSibling, ParaIdToSibling};
 use polkadot_runtime_common::{
     xcm_sender::NoPriceForMessageDelivery, BlockHashCount, SlowAdjustingFeeUpdate,
 };
-use primitives::{BlockNumber, HOURS, SLOT_DURATION};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::{BoundedVec, Perbill};
 use sp_version::RuntimeVersion;
@@ -55,12 +54,12 @@ use xcm_config::{RelayLocation, XcmOriginToTransactDispatchOrigin};
 // Local module imports
 use super::{
     weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight},
-    AccountId, Aura, Balance, Balances, Block, CollatorSelection, Hash, MessageQueue, Nonce,
-    PalletInfo, ParachainSystem, Runtime, RuntimeCall, RuntimeEvent, RuntimeFreezeReason,
+    AccountId, Aura, Balance, Balances, Block, BlockNumber, CollatorSelection, Hash, MessageQueue,
+    Nonce, PalletInfo, ParachainSystem, Runtime, RuntimeCall, RuntimeEvent, RuntimeFreezeReason,
     RuntimeHoldReason, RuntimeOrigin, RuntimeTask, Session, SessionKeys, System, WeightToFee,
-    XcmpQueue, AVERAGE_ON_INITIALIZE_RATIO, BLOCK_PROCESSING_VELOCITY, EXISTENTIAL_DEPOSIT,
-    MAXIMUM_BLOCK_WEIGHT, MICROUNIT, NORMAL_DISPATCH_RATIO, RELAY_CHAIN_SLOT_DURATION_MILLIS,
-    UNINCLUDED_SEGMENT_CAPACITY, VERSION,
+    XcmpQueue, AVERAGE_ON_INITIALIZE_RATIO, BLOCK_PROCESSING_VELOCITY, DAYS, EXISTENTIAL_DEPOSIT,
+    HOURS, MAXIMUM_BLOCK_WEIGHT, MICROUNIT, NORMAL_DISPATCH_RATIO,
+    RELAY_CHAIN_SLOT_DURATION_MILLIS, SLOT_DURATION, UNINCLUDED_SEGMENT_CAPACITY, VERSION,
 };
 
 parameter_types! {
@@ -305,8 +304,19 @@ impl pallet_collator_selection::Config for Runtime {
     type WeightInfo = ();
 }
 
+parameter_types! {
+    pub const WpostProvingPeriod: BlockNumber = DAYS;
+    // Half an hour (=48 per day)
+    // 30 * 60 = 30 minutes
+    // SLOT_DURATION is in milliseconds thats why we / 1000
+    pub const WpostChallengeWindow: BlockNumber = 30 * 60 / (SLOT_DURATION as BlockNumber / 1000);
+}
+
 impl pallet_storage_provider::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type PeerId = BoundedVec<u8, ConstU32<256>>; // Arbitrary length
     type Currency = Balances;
+    type BlockNumber = BlockNumber;
+    type WPoStProvingPeriod = WpostProvingPeriod;
+    type WPoStChallengeWindow = WpostChallengeWindow;
 }
