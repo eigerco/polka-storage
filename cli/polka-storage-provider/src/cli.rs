@@ -12,8 +12,8 @@ use crate::{
 pub(crate) struct Cli {
     #[command(subcommand)]
     pub subcommand: SubCommand,
-    #[arg(short, long, default_value = RPC_SERVER_DEFAULT_BIND_ADDR)]
-    pub rpc_server_address: String,
+    #[arg(short, long, default_value_t = format!("http://{RPC_SERVER_DEFAULT_BIND_ADDR}"))]
+    pub rpc_server_url: String,
 }
 
 /// Supported sub-commands.

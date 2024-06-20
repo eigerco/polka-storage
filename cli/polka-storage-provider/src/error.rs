@@ -9,6 +9,9 @@ pub enum Error {
     #[error("FromEnv error: {0}")]
     EnvError(#[from] tracing_subscriber::filter::FromEnvError),
 
+    #[error("URL parse error: {0}")]
+    ParseUrl(#[from] url::ParseError),
+
     #[error("Substrate error: {0}")]
     Substrate(#[from] subxt::Error),
 
