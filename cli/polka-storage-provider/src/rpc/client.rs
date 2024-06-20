@@ -214,6 +214,7 @@ impl SubscriptionClientT for Client {
     }
 }
 
+/// Represents a single RPC request.
 #[derive(Debug)]
 pub struct Request<T = serde_json::Value> {
     pub method_name: &'static str,
