@@ -22,10 +22,11 @@ use super::ApiVersion;
 
 pub struct RpcClient {
     base_url: Url,
-    v0: OnceCell<InnerClient>,
+    v0: OnceCell<Client>,
 }
 
 impl RpcClient {
+    /// Create a new RPC client with the given base URL.
     pub fn new(base_url: Url) -> Self {
         Self {
             base_url,
@@ -33,6 +34,7 @@ impl RpcClient {
         }
     }
 
+    /// Call an RPC server with the given request.
     pub async fn call<T: DeserializeOwned + std::fmt::Debug>(
         &self,
         req: Request<T>,
@@ -82,7 +84,8 @@ impl RpcClient {
         work.instrument(span.or_current()).await
     }
 
-    async fn get_or_init_client(&self, version: ApiVersion) -> Result<&InnerClient, ClientError> {
+    /// Get or initialize a client for the given API version.
+    async fn get_or_init_client(&self, version: ApiVersion) -> Result<&Client, ClientError> {
         match version {
             ApiVersion::V0 => &self.v0,
         }
@@ -94,19 +97,19 @@ impl RpcClient {
             let url = self.base_url.join(version_part).map_err(|it| {
                 ClientError::Custom(format!("creating url for endpoint failed: {}", it))
             })?;
-            InnerClient::new(url).await
+            Client::new(url).await
         })
         .await
     }
 }
 
 /// Represents a single connection to the URL server
-struct InnerClient {
+struct Client {
     url: Url,
-    specific: ClientSpecific,
+    specific: ClientInner,
 }
 
-impl Debug for InnerClient {
+impl Debug for Client {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("InnerClient")
             .field("url", &self.url)
@@ -114,11 +117,11 @@ impl Debug for InnerClient {
     }
 }
 
-impl InnerClient {
+impl Client {
     async fn new(url: Url) -> Result<Self, ClientError> {
         let specific = match url.scheme() {
-            "ws" | "wss" => ClientSpecific::Ws(WsClientBuilder::new().build(&url).await?),
-            "http" | "https" => ClientSpecific::Https(HttpClientBuilder::new().build(&url)?),
+            "ws" | "wss" => ClientInner::Ws(WsClientBuilder::new().build(&url).await?),
+            "http" | "https" => ClientInner::Https(HttpClientBuilder::new().build(&url)?),
             it => {
                 return Err(ClientError::Custom(format!(
                     "Unsupported URL scheme: {}",
@@ -131,20 +134,20 @@ impl InnerClient {
     }
 }
 
-enum ClientSpecific {
+enum ClientInner {
     Ws(jsonrpsee::ws_client::WsClient),
     Https(jsonrpsee::http_client::HttpClient),
 }
 
 #[async_trait::async_trait]
-impl ClientT for InnerClient {
+impl ClientT for Client {
     async fn notification<Params>(&self, method: &str, params: Params) -> Result<(), ClientError>
     where
         Params: ToRpcParams + Send,
     {
         match &self.specific {
-            ClientSpecific::Ws(client) => client.notification(method, params).await,
-            ClientSpecific::Https(client) => client.notification(method, params).await,
+            ClientInner::Ws(client) => client.notification(method, params).await,
+            ClientInner::Https(client) => client.notification(method, params).await,
         }
     }
 
@@ -154,8 +157,8 @@ impl ClientT for InnerClient {
         Params: ToRpcParams + Send,
     {
         match &self.specific {
-            ClientSpecific::Ws(client) => client.request(method, params).await,
-            ClientSpecific::Https(client) => client.request(method, params).await,
+            ClientInner::Ws(client) => client.request(method, params).await,
+            ClientInner::Https(client) => client.request(method, params).await,
         }
     }
 
@@ -167,14 +170,14 @@ impl ClientT for InnerClient {
         R: DeserializeOwned + fmt::Debug + 'a,
     {
         match &self.specific {
-            ClientSpecific::Ws(client) => client.batch_request(batch).await,
-            ClientSpecific::Https(client) => client.batch_request(batch).await,
+            ClientInner::Ws(client) => client.batch_request(batch).await,
+            ClientInner::Https(client) => client.batch_request(batch).await,
         }
     }
 }
 
 #[async_trait::async_trait]
-impl SubscriptionClientT for InnerClient {
+impl SubscriptionClientT for Client {
     async fn subscribe<'a, Notif, Params>(
         &self,
         subscribe_method: &'a str,
@@ -186,11 +189,11 @@ impl SubscriptionClientT for InnerClient {
         Notif: DeserializeOwned,
     {
         match &self.specific {
-            ClientSpecific::Ws(it) => {
+            ClientInner::Ws(it) => {
                 it.subscribe(subscribe_method, params, unsubscribe_method)
                     .await
             }
-            ClientSpecific::Https(it) => {
+            ClientInner::Https(it) => {
                 it.subscribe(subscribe_method, params, unsubscribe_method)
                     .await
             }
@@ -205,8 +208,8 @@ impl SubscriptionClientT for InnerClient {
         Notif: DeserializeOwned,
     {
         match &self.specific {
-            ClientSpecific::Ws(it) => it.subscribe_to_method(method).await,
-            ClientSpecific::Https(it) => it.subscribe_to_method(method).await,
+            ClientInner::Ws(it) => it.subscribe_to_method(method).await,
+            ClientInner::Https(it) => it.subscribe_to_method(method).await,
         }
     }
 }

@@ -18,7 +18,7 @@ pub(crate) struct RunCommand {
     /// RPC API endpoint used by the parachain node.
     #[arg(short = 'n', long, default_value = FULL_NODE_DEFAULT_RPC_ADDR)]
     pub node_rpc_address: Url,
-    /// Address used for RPC. By default binds on localhost on port 8000.
+    /// Address and port used for RPC server.
     #[arg(short = 'a', long, default_value = RPC_SERVER_DEFAULT_BIND_ADDR)]
     pub listen_addr: SocketAddr,
 }
