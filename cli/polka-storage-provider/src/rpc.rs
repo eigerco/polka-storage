@@ -10,6 +10,8 @@ use jsonrpsee::{
 };
 use methods::create_module;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use tracing::{debug, debug_span, error, Instrument};
+use uuid::Uuid;
 
 use crate::{substrate, Error};
 
@@ -45,18 +47,34 @@ pub trait RpcMethodExt: RpcMethod {
     fn register_async(module: &mut RpcModule<RpcServerState>) -> &mut jsonrpsee::MethodCallback
     where
         Self::Ok: Clone + 'static,
+        Self::Params: Debug + Send,
     {
         module
             .register_async_method(Self::NAME, move |params, ctx| async move {
                 // Try to deserialize the params
+                let span =
+                    debug_span!("rpc", id = %Uuid::new_v4(), method = Self::NAME, params = ?params);
+                let entered = span.enter();
+
                 let params = params.parse().map_err(|e| {
                     tracing::error!("Failed to parse params: {:?}", e);
                     ServerError::invalid_params("Failed to parse params", None)
                 })?;
+                drop(entered);
 
                 // Handle the method
-                let ok = Self::handle(ctx, params).await?;
-                Result::<_, jsonrpsee::types::ErrorObjectOwned>::Ok(ok)
+                let result = Self::handle(ctx, params).instrument(span.clone()).await;
+
+                match &result {
+                    Ok(ok) => {
+                        span.in_scope(|| debug!(response = ?ok, "handled successfully"));
+                    }
+                    Err(err) => {
+                        span.in_scope(|| error!(err = ?err, "error ocurred while handling"));
+                    }
+                }
+
+                Result::<_, jsonrpsee::types::ErrorObjectOwned>::Ok(result?)
             })
             .expect("method should be valid") // This is safe because we know the method registered is valid.
     }
@@ -65,7 +83,7 @@ pub trait RpcMethodExt: RpcMethod {
     ///
     /// Returns [`Err`] if any of the parameters fail to serialize.
     fn request(params: Self::Params) -> Result<Request<Self::Ok>, serde_json::Error> {
-        let params = serde_json::to_value(params).expect("params should serialize");
+        let params = serde_json::to_value(params)?;
 
         Ok(Request {
             method_name: Self::NAME,

@@ -15,7 +15,7 @@ use jsonrpsee::{
 };
 use serde::de::DeserializeOwned;
 use tokio::sync::OnceCell;
-use tracing::{debug, Instrument};
+use tracing::{debug, debug_span, Instrument};
 use url::Url;
 
 use super::ApiVersion;
@@ -45,7 +45,7 @@ impl RpcClient {
         } = req;
 
         let client = self.get_or_init_client(api_version).await?;
-        let span = tracing::debug_span!("request", method = %method_name, url = %client.url);
+        let span = debug_span!("request", method = %method_name, url = %client.url, ?params);
 
         let work = async {
             let result = match params {
