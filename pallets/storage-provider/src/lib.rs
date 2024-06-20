@@ -52,8 +52,8 @@ pub mod pallet {
         storage_provider::{StorageProviderInfo, StorageProviderState},
     };
 
-    // Allows to extract Balance of an account via the Config::Currency associated type.
-    // BalanceOf is a sophisticated way of getting an u128.
+    /// Allows to extract Balance of an account via the Config::Currency associated type.
+    /// BalanceOf is a sophisticated way of getting an u128.
     type BalanceOf<T> =
         <<T as Config>::Currency as Currency<<T as SystemConfig>::AccountId>>::Balance;
 
@@ -85,8 +85,7 @@ pub mod pallet {
         type WPoStChallengeWindow: Get<Self::BlockNumber>;
     }
 
-    // Need some storage type that keeps track of sectors, deadlines and terminations.
-    // Could be added to this type maybe?
+    /// Need some storage type that keeps track of sectors, deadlines and terminations.
     #[pallet::storage]
     #[pallet::getter(fn storage_providers)]
     pub type StorageProviders<T: Config> = StorageMap<
