@@ -3,9 +3,10 @@ use std::fmt::{self, Display, Formatter};
 use chrono::{DateTime, Utc};
 use clap::Parser;
 
-use crate::Error;
-
-use crate::rpc::{methods::common::Info, RpcClient, RpcMethodExt};
+use crate::{
+    rpc::{methods::common::Info, RpcClient, RpcMethodExt},
+    Error,
+};
 
 /// Command to display information about the storage provider.
 #[derive(Debug, Clone, Parser)]
@@ -34,13 +35,6 @@ struct NodeStatusInfo {
 
 impl Display for NodeStatusInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let uptime = {
-            let now = Utc::now();
-            let uptime = now - self.start_time;
-
-            format!("Uptime: {uptime} (Started at: {})", self.start_time)
-        };
-
-        writeln!(f, "{uptime}")
+        writeln!(f, "Started at: {}", self.start_time)
     }
 }
