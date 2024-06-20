@@ -2,9 +2,9 @@ use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::ConstU32, sp_runtime::BoundedVec};
 use scale_info::TypeInfo;
 
-use crate::types::{
-    sector::SECTORS_MAX, RegisteredPoStProof, SectorOnChainInfo, SectorPreCommitOnChainInfo,
-    SectorSize,
+use crate::{
+    proofs::RegisteredPoStProof,
+    sector::{SectorOnChainInfo, SectorPreCommitOnChainInfo, SectorSize, SECTORS_MAX},
 };
 
 /// This struct holds the state of a single storage provider.

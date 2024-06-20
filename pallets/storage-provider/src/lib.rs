@@ -10,8 +10,8 @@
 //! The Storage Provider Pallet is the source of truth for anything storage provider related.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-
 pub use pallet::{Config, Pallet};
+use scale_info::prelude::string::String;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarks;
@@ -22,7 +22,12 @@ mod mock;
 #[cfg(test)]
 mod test;
 
+mod proofs;
+mod sector;
+mod storage_provider;
 mod types;
+
+type Cid = String;
 
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
@@ -39,9 +44,12 @@ pub mod pallet {
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::BaseArithmetic;
 
-    use crate::types::{
-        assign_proving_period_offset, current_deadline_index, current_proving_period_start,
-        RegisteredPoStProof, StorageProviderInfo, StorageProviderState,
+    use crate::{
+        proofs::{
+            assign_proving_period_offset, current_deadline_index, current_proving_period_start,
+            RegisteredPoStProof,
+        },
+        storage_provider::{StorageProviderInfo, StorageProviderState},
     };
 
     // Allows to extract Balance of an account via the Config::Currency associated type.

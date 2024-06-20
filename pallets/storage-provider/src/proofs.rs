@@ -4,7 +4,7 @@ use scale_info::TypeInfo;
 use sp_arithmetic::traits::BaseArithmetic;
 use sp_core::blake2_64;
 
-use crate::types::SectorSize;
+use crate::sector::SectorSize;
 
 /// Proof of Spacetime type, indicating version and sector size of the proof.
 #[derive(Debug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone, Copy)]

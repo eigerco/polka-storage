@@ -10,6 +10,7 @@ type Block = frame_system::mocking::MockBlock<Test>;
 type BlockNumber = u32;
 
 const MILLISECS_PER_BLOCK: u64 = 12000;
+const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
 const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
 const HOURS: BlockNumber = MINUTES * 60;
 const DAYS: BlockNumber = HOURS * 24;

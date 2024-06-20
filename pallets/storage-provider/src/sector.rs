@@ -1,7 +1,7 @@
 use codec::{Decode, Encode};
 use scale_info::TypeInfo;
 
-use crate::types::{Cid, RegisteredSealProof};
+use crate::{proofs::RegisteredSealProof, Cid};
 
 // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/runtime/src/runtime/policy.rs#L262
 pub const SECTORS_MAX: u32 = 32 << 20;

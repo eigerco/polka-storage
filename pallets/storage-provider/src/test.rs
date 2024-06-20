@@ -3,7 +3,8 @@ use frame_support::{assert_noop, assert_ok, sp_runtime::BoundedVec};
 use crate::{
     mock::{events, new_test_ext, RuntimeEvent, RuntimeOrigin, StorageProvider, Test, ALICE, BOB},
     pallet::{Error, Event, StorageProviders},
-    types::{RegisteredPoStProof, StorageProviderInfo},
+    proofs::RegisteredPoStProof,
+    storage_provider::StorageProviderInfo,
 };
 
 #[test]
