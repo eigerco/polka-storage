@@ -1,9 +1,15 @@
+use core::str::FromStr;
+
+use cid::Cid;
 use frame_support::{
     assert_noop, assert_ok,
     sp_runtime::{bounded_vec, ArithmeticError, TokenError},
 };
 
-use crate::{mock::*, BalanceEntry, BalanceTable, DealProposal, DealState, Error, Event};
+use crate::{
+    mock::*, BalanceEntry, BalanceTable, DealProposal, DealState, Error, Event, Proposals,
+    RegisteredSealProof, SectorDeal,
+};
 
 #[test]
 fn initial_state() {
@@ -270,6 +276,57 @@ fn publish_storage_deals() {
                     provider: account(PROVIDER),
                 }),
             ]
+        );
+    });
+}
+
+#[test]
+fn verify_deals_for_activation() {
+    let _ = env_logger::try_init();
+    new_test_ext().execute_with(|| {
+        Proposals::<Test>::insert(
+            1,
+            DealProposal {
+                piece_cid: cid_of("polka-storage-data")
+                    .to_bytes()
+                    .try_into()
+                    .expect("hash is always 32 bytes"),
+                piece_size: 18,
+                client: account(ALICE),
+                provider: account(PROVIDER),
+                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
+                start_block: 100,
+                end_block: 110,
+                storage_price_per_block: 5,
+                provider_collateral: 25,
+                state: DealState::Published,
+            },
+        );
+
+        let deals = bounded_vec![
+            SectorDeal {
+                sector_number: 1,
+                sector_expiry: 120,
+                sector_type: RegisteredSealProof::StackedDRG2KiBV1P1,
+                deal_ids: bounded_vec![1]
+            },
+            SectorDeal {
+                sector_number: 2,
+                sector_expiry: 50,
+                sector_type: RegisteredSealProof::StackedDRG2KiBV1P1,
+                deal_ids: bounded_vec![]
+            }
+        ];
+
+        assert_eq!(
+            Ok(bounded_vec![
+                Some(
+                    Cid::from_str("bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu")
+                        .unwrap()
+                ),
+                None,
+            ]),
+            Market::verify_deals_for_activation(&account(PROVIDER), deals)
         );
     });
 }

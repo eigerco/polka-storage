@@ -19,6 +19,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 cid = { workspace = true, default-features = false, features = ["scale-codec"] }
 codec = { workspace = true, default-features = false, features = ["derive"] }
 log = { workspace = true }
+multihash-codetable = { workspace = true, features = ["blake2b"] }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 
 # frame deps
@@ -30,8 +31,8 @@ sp-std = { workspace = true, default-features = false }
 
 [dev-dependencies]
 blake2b_simd = { workspace = true }
+cid = { workspace = true, default-features = false, features = ["alloc", "scale-codec"] }
 env_logger = { workspace = true }
-multihash-codetable = { workspace = true, features = ["blake2b"] }
 pallet-balances = { workspace = true, default-features = false }
 sp-core = { workspace = true, default-features = false }
 sp-io = { workspace = true }
