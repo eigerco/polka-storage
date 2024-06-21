@@ -2,8 +2,8 @@ use core::str::FromStr;
 
 use cid::Cid;
 use frame_support::{
-    assert_noop, assert_ok,
-    sp_runtime::{bounded_vec, ArithmeticError, TokenError},
+    assert_err, assert_noop, assert_ok,
+    sp_runtime::{bounded_vec, ArithmeticError, DispatchError, TokenError},
     BoundedBTreeSet,
 };
 use primitives_proofs::{
@@ -11,8 +11,8 @@ use primitives_proofs::{
 };
 
 use crate::{
-    mock::*, BalanceEntry, BalanceTable, DealProposal, DealState, Error, Event, PendingProposals,
-    Proposals,
+    mock::*, ActiveDealState, BalanceEntry, BalanceTable, DealProposal, DealSettlementError,
+    DealState, Error, Event, PendingProposals, Proposals,
 };
 
 #[test]
@@ -414,4 +414,537 @@ fn publish_for_activation(deal_id: DealId, deal: DealProposalOf<Test>) {
     PendingProposals::<Test>::set(pending);
 
     Proposals::<Test>::insert(deal_id, deal);
+}
+
+#[test]
+fn settle_deal_payments_not_found() {
+    let _ = env_logger::try_init();
+    new_test_ext().execute_with(|| {
+        assert_ok!(Market::settle_deal_payments(
+            RuntimeOrigin::signed(account(ALICE)),
+            bounded_vec!(0)
+        ));
+
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Market(Event::<Test>::DealsSettled {
+                successful: bounded_vec!(),
+                unsuccessful: bounded_vec!((0, DealSettlementError::DealNotFound))
+            })]
+        )
+    });
+}
+
+#[test]
+fn settle_deal_payments_early() {
+    let _ = env_logger::try_init();
+    new_test_ext().execute_with(|| {
+        let alice_proposal = sign_proposal(
+            ALICE,
+            DealProposal {
+                piece_cid: cid_of("polka-storage-data")
+                    .to_bytes()
+                    .try_into()
+                    .expect("hash is always 32 bytes"),
+                piece_size: 18,
+                client: account(ALICE),
+                provider: account(PROVIDER),
+                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
+                start_block: 100,
+                end_block: 110,
+                storage_price_per_block: 5,
+                provider_collateral: 25,
+                state: DealState::Unpublished,
+            },
+        );
+
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 75);
+
+        assert_ok!(Market::publish_storage_deals(
+            RuntimeOrigin::signed(account(PROVIDER)),
+            bounded_vec![alice_proposal]
+        ));
+        System::reset_events();
+
+        assert_ok!(Market::settle_deal_payments(
+            RuntimeOrigin::signed(account(ALICE)),
+            bounded_vec!(0)
+        ));
+
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Market(Event::<Test>::DealsSettled {
+                successful: bounded_vec!(),
+                unsuccessful: bounded_vec!((0, DealSettlementError::EarlySettlement))
+            })]
+        )
+    });
+}
+
+#[test]
+fn settle_deal_payments_published() {
+    let _ = env_logger::try_init();
+    new_test_ext().execute_with(|| {
+        let alice_proposal = sign_proposal(
+            ALICE,
+            DealProposal {
+                piece_cid: cid_of("polka-storage-data")
+                    .to_bytes()
+                    .try_into()
+                    .expect("hash is always 32 bytes"),
+                piece_size: 18,
+                client: account(ALICE),
+                provider: account(PROVIDER),
+                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
+                start_block: 0,
+                end_block: 10,
+                storage_price_per_block: 5,
+                provider_collateral: 25,
+                state: DealState::Unpublished,
+            },
+        );
+
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(BOB)), 70);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 75);
+
+        assert_ok!(Market::publish_storage_deals(
+            RuntimeOrigin::signed(account(PROVIDER)),
+            bounded_vec![alice_proposal]
+        ));
+
+        Proposals::<Test>::insert(
+            1,
+            DealProposal {
+                piece_cid: cid_of("polka-storage-data-bob")
+                    .to_bytes()
+                    .try_into()
+                    .expect("hash is always 32 bytes"),
+                piece_size: 21,
+                client: account(BOB),
+                provider: account(PROVIDER),
+                label: bounded_vec![0xa, 0xe, 0xe, 0xf],
+                start_block: 0,
+                end_block: 10,
+                storage_price_per_block: 10,
+                provider_collateral: 15,
+                state: DealState::Unpublished,
+            },
+        );
+
+        System::reset_events();
+
+        assert_ok!(Market::settle_deal_payments(
+            RuntimeOrigin::signed(account(ALICE)),
+            bounded_vec!(0, 1)
+        ));
+
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Market(Event::<Test>::DealsSettled {
+                successful: bounded_vec!(0, 1),
+                unsuccessful: bounded_vec!()
+            })]
+        )
+    });
+}
+
+#[test]
+fn settle_deal_payments_active_slashed_deal() {
+    let _ = env_logger::try_init();
+    new_test_ext().execute_with(|| {
+        let alice_proposal = sign_proposal(
+            ALICE,
+            DealProposal {
+                piece_cid: cid_of("polka-storage-data")
+                    .to_bytes()
+                    .try_into()
+                    .expect("hash is always 32 bytes"),
+                piece_size: 18,
+                client: account(ALICE),
+                provider: account(PROVIDER),
+                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
+                start_block: 0,
+                end_block: 10,
+                storage_price_per_block: 5,
+                provider_collateral: 25,
+                state: DealState::Unpublished,
+            },
+        );
+
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 75);
+
+        assert_eq!(
+            <Test as crate::Config>::Currency::free_balance(Market::account_id()),
+            135
+        );
+
+        assert_ok!(Market::publish_storage_deals(
+            RuntimeOrigin::signed(account(PROVIDER)),
+            bounded_vec![alice_proposal]
+        ));
+
+        Proposals::<Test>::mutate(0, |proposal| {
+            if let Some(proposal) = proposal {
+                proposal.state = DealState::Active(ActiveDealState {
+                    sector_number: 0,
+                    sector_start_block: 0,
+                    last_updated_block: None,
+                    slash_block: Some(0),
+                })
+            }
+        });
+
+        System::reset_events();
+
+        assert_ok!(Market::settle_deal_payments(
+            RuntimeOrigin::signed(account(ALICE)),
+            bounded_vec!(0)
+        ));
+
+        assert_eq!(
+            events(),
+            [
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Withdraw {
+                    who: Market::account_id(),
+                    amount: 25
+                }),
+                RuntimeEvent::Market(Event::<Test>::DealSlashed(0)),
+                RuntimeEvent::Market(Event::<Test>::DealsSettled {
+                    successful: bounded_vec!(),
+                    unsuccessful: bounded_vec!((0, DealSettlementError::SlashedDeal))
+                }),
+            ]
+        );
+
+        assert_eq!(
+            BalanceTable::<Test>::get(account(PROVIDER)),
+            BalanceEntry::<u64> {
+                free: 50,
+                locked: 0,
+            }
+        );
+
+        assert_eq!(Balances::free_balance(Market::account_id()), 110);
+    });
+}
+
+#[test]
+fn settle_deal_payments_active_future_last_update() {
+    let _ = env_logger::try_init();
+    new_test_ext().execute_with(|| {
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 75);
+
+        Proposals::<Test>::insert(
+            0,
+            DealProposal {
+                piece_cid: cid_of("polka-storage-data")
+                    .to_bytes()
+                    .try_into()
+                    .expect("hash is always 32 bytes"),
+                piece_size: 18,
+                client: account(ALICE),
+                provider: account(PROVIDER),
+                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
+                start_block: 0,
+                end_block: 10,
+                storage_price_per_block: 5,
+                provider_collateral: 25,
+                state: DealState::Active(ActiveDealState {
+                    sector_number: 0,
+                    sector_start_block: 0,
+                    last_updated_block: Some(10),
+                    slash_block: None,
+                }),
+            },
+        );
+        System::reset_events();
+
+        assert_ok!(Market::settle_deal_payments(
+            RuntimeOrigin::signed(account(ALICE)),
+            bounded_vec!(0)
+        ));
+
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Market(Event::<Test>::DealsSettled {
+                successful: bounded_vec!(),
+                unsuccessful: bounded_vec!((0, DealSettlementError::FutureLastUpdate))
+            })]
+        )
+    });
+}
+
+#[test]
+fn settle_deal_payments_active_corruption() {
+    let _ = env_logger::try_init();
+    new_test_ext().execute_with(|| {
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 75);
+
+        Proposals::<Test>::insert(
+            0,
+            DealProposal {
+                piece_cid: cid_of("polka-storage-data")
+                    .to_bytes()
+                    .try_into()
+                    .expect("hash is always 32 bytes"),
+                piece_size: 18,
+                client: account(ALICE),
+                provider: account(PROVIDER),
+                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
+                start_block: 0,
+                end_block: 10,
+                storage_price_per_block: 5,
+                provider_collateral: 25,
+                state: DealState::Active(ActiveDealState {
+                    sector_number: 0,
+                    sector_start_block: 0,
+                    last_updated_block: Some(11),
+                    slash_block: None,
+                }),
+            },
+        );
+        run_to_block(12);
+        System::reset_events();
+
+        assert_err!(
+            Market::settle_deal_payments(RuntimeOrigin::signed(account(ALICE)), bounded_vec!(0)),
+            DispatchError::Corruption
+        );
+
+        assert_eq!(events(), [])
+    });
+}
+
+#[test]
+fn settle_deal_payments_success() {
+    let _ = env_logger::try_init();
+    new_test_ext().execute_with(|| {
+        let alice_proposal = sign_proposal(
+            ALICE,
+            DealProposal {
+                piece_cid: cid_of("polka-storage-data")
+                    .to_bytes()
+                    .try_into()
+                    .expect("hash is always 32 bytes"),
+                piece_size: 18,
+                client: account(ALICE),
+                provider: account(PROVIDER),
+                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
+                start_block: 0,
+                end_block: 10,
+                storage_price_per_block: 5,
+                provider_collateral: 25,
+                state: DealState::Unpublished,
+            },
+        );
+
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 75);
+
+        assert_ok!(Market::publish_storage_deals(
+            RuntimeOrigin::signed(account(PROVIDER)),
+            bounded_vec![alice_proposal]
+        ));
+
+        Proposals::<Test>::mutate(0, |proposal| {
+            if let Some(proposal) = proposal {
+                proposal.state = DealState::Active(ActiveDealState {
+                    sector_number: 0,
+                    sector_start_block: 0,
+                    last_updated_block: None,
+                    slash_block: None,
+                })
+            }
+        });
+
+        assert_eq!(
+            Proposals::<Test>::get(0),
+            Some(DealProposal {
+                piece_cid: cid_of("polka-storage-data")
+                    .to_bytes()
+                    .try_into()
+                    .expect("hash is always 32 bytes"),
+                piece_size: 18,
+                client: account(ALICE),
+                provider: account(PROVIDER),
+                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
+                start_block: 0,
+                end_block: 10,
+                storage_price_per_block: 5,
+                provider_collateral: 25,
+                state: DealState::Active(ActiveDealState {
+                    sector_number: 0,
+                    sector_start_block: 0,
+                    last_updated_block: None,
+                    slash_block: None,
+                }),
+            })
+        );
+
+        System::reset_events();
+
+        run_to_block(5);
+
+        assert_ok!(Market::settle_deal_payments(
+            RuntimeOrigin::signed(account(ALICE)),
+            bounded_vec!(0)
+        ));
+
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Market(Event::<Test>::DealsSettled {
+                successful: bounded_vec!(0),
+                unsuccessful: bounded_vec!()
+            })]
+        );
+
+        assert_eq!(
+            BalanceTable::<Test>::get(account(PROVIDER)),
+            BalanceEntry::<u64> {
+                free: 75, // 50 (from 75 - collateral) + 5 * 5 (price per block * n blocks)
+                locked: 25
+            }
+        );
+
+        assert_eq!(
+            BalanceTable::<Test>::get(account(ALICE)),
+            BalanceEntry::<u64> {
+                free: 10,
+                locked: 25, // 50 - 5 * 5 (price per block * n blocks)
+            }
+        );
+
+        assert_eq!(
+            Proposals::<Test>::get(0),
+            Some(DealProposal {
+                piece_cid: cid_of("polka-storage-data")
+                    .to_bytes()
+                    .try_into()
+                    .expect("hash is always 32 bytes"),
+                piece_size: 18,
+                client: account(ALICE),
+                provider: account(PROVIDER),
+                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
+                start_block: 0,
+                end_block: 10,
+                storage_price_per_block: 5,
+                provider_collateral: 25,
+                state: DealState::Active(ActiveDealState {
+                    sector_number: 0,
+                    sector_start_block: 0,
+                    last_updated_block: Some(5),
+                    slash_block: None,
+                }),
+            })
+        );
+    });
+}
+
+#[test]
+fn settle_deal_payments_success_finished() {
+    let _ = env_logger::try_init();
+    new_test_ext().execute_with(|| {
+        let alice_proposal = sign_proposal(
+            ALICE,
+            DealProposal {
+                piece_cid: cid_of("polka-storage-data")
+                    .to_bytes()
+                    .try_into()
+                    .expect("hash is always 32 bytes"),
+                piece_size: 18,
+                client: account(ALICE),
+                provider: account(PROVIDER),
+                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
+                start_block: 0,
+                end_block: 10,
+                storage_price_per_block: 5,
+                provider_collateral: 25,
+                state: DealState::Unpublished,
+            },
+        );
+
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 75);
+
+        assert_ok!(Market::publish_storage_deals(
+            RuntimeOrigin::signed(account(PROVIDER)),
+            bounded_vec![alice_proposal]
+        ));
+
+        Proposals::<Test>::mutate(0, |proposal| {
+            if let Some(proposal) = proposal {
+                proposal.state = DealState::Active(ActiveDealState {
+                    sector_number: 0,
+                    sector_start_block: 0,
+                    last_updated_block: None,
+                    slash_block: None,
+                })
+            }
+        });
+
+        assert_eq!(
+            Proposals::<Test>::get(0),
+            Some(DealProposal {
+                piece_cid: cid_of("polka-storage-data")
+                    .to_bytes()
+                    .try_into()
+                    .expect("hash is always 32 bytes"),
+                piece_size: 18,
+                client: account(ALICE),
+                provider: account(PROVIDER),
+                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
+                start_block: 0,
+                end_block: 10,
+                storage_price_per_block: 5,
+                provider_collateral: 25,
+                state: DealState::Active(ActiveDealState {
+                    sector_number: 0,
+                    sector_start_block: 0,
+                    last_updated_block: None,
+                    slash_block: None,
+                }),
+            })
+        );
+
+        System::reset_events();
+
+        // Deal is finished
+        run_to_block(11);
+
+        assert_ok!(Market::settle_deal_payments(
+            RuntimeOrigin::signed(account(ALICE)),
+            bounded_vec!(0)
+        ));
+
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Market(Event::<Test>::DealsSettled {
+                successful: bounded_vec!(0),
+                unsuccessful: bounded_vec!()
+            })]
+        );
+
+        assert_eq!(
+            BalanceTable::<Test>::get(account(PROVIDER)),
+            BalanceEntry::<u64> {
+                free: 50 + 5 * 10, // 50 (from 75 - collateral) + (price per block * n blocks)
+                locked: 25
+            }
+        );
+
+        assert_eq!(
+            BalanceTable::<Test>::get(account(ALICE)),
+            BalanceEntry::<u64> {
+                free: 10,
+                locked: 50 - 5 * 10, // locked - (price per block * n blocks)
+            }
+        );
+
+        assert_eq!(Proposals::<Test>::get(0), None);
+    });
 }
