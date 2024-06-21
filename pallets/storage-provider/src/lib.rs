@@ -40,9 +40,8 @@ pub mod pallet {
         pallet_prelude::*,
         traits::{Currency, ReservableCurrency},
     };
-    use frame_system::{ensure_signed, pallet_prelude::OriginFor, Config as SystemConfig};
+    use frame_system::{ensure_signed, pallet_prelude::*, Config as SystemConfig};
     use scale_info::TypeInfo;
-    use sp_arithmetic::traits::BaseArithmetic;
 
     use crate::{
         proofs::{
@@ -74,15 +73,13 @@ pub mod pallet {
         /// Currency mechanism, used for collateral
         type Currency: ReservableCurrency<Self::AccountId>;
 
-        type BlockNumber: BaseArithmetic + Copy + Decode + Encode + TypeInfo + TryInto<u64>;
-
         #[pallet::constant] // put the constant in metadata
         /// Proving period for submitting Window PoSt, 24 hours is blocks
-        type WPoStProvingPeriod: Get<Self::BlockNumber>;
+        type WPoStProvingPeriod: Get<BlockNumberFor<Self>>;
 
         #[pallet::constant] // put the constant in metadata
         /// Window PoSt challenge window (default 30 minutes in blocks)
-        type WPoStChallengeWindow: Get<Self::BlockNumber>;
+        type WPoStChallengeWindow: Get<BlockNumberFor<Self>>;
     }
 
     /// Need some storage type that keeps track of sectors, deadlines and terminations.
@@ -92,7 +89,7 @@ pub mod pallet {
         _,
         _,
         T::AccountId,
-        StorageProviderState<T::PeerId, BalanceOf<T>, T::BlockNumber>,
+        StorageProviderState<T::PeerId, BalanceOf<T>, BlockNumberFor<T>>,
     >;
 
     #[pallet::event]
@@ -133,35 +130,25 @@ pub mod pallet {
 
             let proving_period = T::WPoStProvingPeriod::get();
 
-            // Get current block an convert to `u64`
-            let current_block = TryInto::<u64>::try_into(<frame_system::Pallet<T>>::block_number())
-                .map_err(|_| Error::<T>::ConversionError)?;
+            
+            let current_block = <frame_system::Pallet<T>>::block_number();
 
-            let current_block = TryInto::<T::BlockNumber>::try_into(current_block)
-                .map_err(|_| Error::<T>::ConversionError)?;
-
-            // Get proving period offset
-            let offset = assign_proving_period_offset::<T::AccountId, T::BlockNumber>(
+            let offset = assign_proving_period_offset::<T::AccountId, BlockNumberFor<T>>(
                 &owner,
                 current_block,
                 proving_period,
             )
             .map_err(|_| Error::<T>::ConversionError)?;
 
-            // Get proving period start from current block and the offset
             let period_start = current_proving_period_start(current_block, offset, proving_period);
 
-            // Get the deadline index
             let deadline_idx =
                 current_deadline_index(current_block, period_start, T::WPoStChallengeWindow::get());
 
-            // Create static storage provider info
             let info = StorageProviderInfo::new(peer_id, window_post_proof_type);
 
-            // Create storage provider state
             let state = StorageProviderState::new(&info, period_start, deadline_idx);
 
-            // Insert into `StorageMap`
             StorageProviders::<T>::insert(&owner, state);
 
             // Emit event
