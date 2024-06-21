@@ -14,8 +14,9 @@ use jsonrpsee::{
     ws_client::WsClientBuilder,
 };
 use serde::de::DeserializeOwned;
+use serde_json::Value;
 use tokio::sync::OnceCell;
-use tracing::{debug, debug_span, Instrument};
+use tracing::{debug, instrument};
 use url::Url;
 
 use super::ApiVersion;
@@ -35,10 +36,10 @@ impl RpcClient {
     }
 
     /// Call an RPC server with the given request.
-    pub async fn call<T: DeserializeOwned + std::fmt::Debug>(
-        &self,
-        req: Request<T>,
-    ) -> Result<T, ClientError> {
+    pub async fn call<T>(&self, req: Request<T>) -> Result<T, ClientError>
+    where
+        T: DeserializeOwned + Debug,
+    {
         let Request {
             method_name,
             params,
@@ -47,41 +48,44 @@ impl RpcClient {
         } = req;
 
         let client = self.get_or_init_client(api_version).await?;
-        let span = debug_span!("request", method = %method_name, url = %client.url, ?params);
+        Self::request(client, method_name, params).await
+    }
 
-        let work = async {
-            let result = match params {
-                serde_json::Value::Null => client.request(method_name, ArrayParams::new()),
-                serde_json::Value::Array(it) => {
-                    let mut params = ArrayParams::new();
-                    for param in it {
-                        params.insert(param)?
-                    }
-                    client.request(method_name, params)
+    #[instrument(skip_all, fields(url = %client.url, params = ?params))]
+    async fn request<T>(client: &Client, method_name: &str, params: Value) -> Result<T, ClientError>
+    where
+        T: DeserializeOwned + Debug,
+    {
+        let result = match params {
+            Value::Null => client.request(method_name, ArrayParams::new()),
+            Value::Array(it) => {
+                let mut params = ArrayParams::new();
+                for param in it {
+                    params.insert(param)?
                 }
-                serde_json::Value::Object(it) => {
-                    let mut params = ObjectParams::new();
-                    for (name, param) in it {
-                        params.insert(&name, param)?
-                    }
-                    client.request(method_name, params)
-                }
-                prim @ (serde_json::Value::Bool(_)
-                | serde_json::Value::Number(_)
-                | serde_json::Value::String(_)) => {
-                    return Err(ClientError::Custom(format!(
-                        "invalid parameter type: `{}`",
-                        prim
-                    )))
-                }
+
+                client.request(method_name, params)
             }
-            .await;
-            debug!(?result);
+            Value::Object(it) => {
+                let mut params = ObjectParams::new();
+                for (name, param) in it {
+                    params.insert(&name, param)?
+                }
 
-            result
-        };
+                client.request(method_name, params)
+            }
+            prim @ (Value::Bool(_) | Value::Number(_) | Value::String(_)) => {
+                return Err(ClientError::Custom(format!(
+                    "invalid parameter type: `{}`",
+                    prim
+                )))
+            }
+        }
+        .await;
 
-        work.instrument(span.or_current()).await
+        debug!(?result, "request completed");
+
+        result
     }
 
     /// Get or initialize a client for the given API version.
@@ -90,13 +94,10 @@ impl RpcClient {
             ApiVersion::V0 => &self.v0,
         }
         .get_or_try_init(|| async {
-            let version_part = match version {
-                ApiVersion::V0 => "rpc/v0",
-            };
-
-            let url = self.base_url.join(version_part).map_err(|it| {
+            let url = self.base_url.join(&version.to_string()).map_err(|it| {
                 ClientError::Custom(format!("creating url for endpoint failed: {}", it))
             })?;
+
             Client::new(url).await
         })
         .await
@@ -216,9 +217,9 @@ impl SubscriptionClientT for Client {
 
 /// Represents a single RPC request.
 #[derive(Debug)]
-pub struct Request<T = serde_json::Value> {
+pub struct Request<T = Value> {
     pub method_name: &'static str,
-    pub params: serde_json::Value,
+    pub params: Value,
     pub result_type: PhantomData<T>,
     pub api_version: ApiVersion,
 }

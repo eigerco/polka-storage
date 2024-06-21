@@ -1,4 +1,9 @@
-use std::{fmt::Debug, future::Future, net::SocketAddr, sync::Arc};
+use std::{
+    fmt::{self, Debug, Display},
+    future::Future,
+    net::SocketAddr,
+    sync::Arc,
+};
 
 use chrono::Utc;
 use client::Request;
@@ -110,6 +115,14 @@ impl<T> RpcMethodExt for T where T: RpcMethod {}
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub enum ApiVersion {
     V0,
+}
+
+impl Display for ApiVersion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::V0 => write!(f, "rpc/v0"),
+        }
+    }
 }
 
 pub struct RpcServerState {
