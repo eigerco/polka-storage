@@ -1,28 +1,35 @@
 use codec::{Decode, Encode};
-use frame_support::{pallet_prelude::ConstU32, sp_runtime::BoundedVec};
+use frame_support::{pallet_prelude::ConstU32, sp_runtime::BoundedBTreeMap};
 use scale_info::TypeInfo;
+use sp_arithmetic::traits::BaseArithmetic;
 
 use crate::{
     proofs::RegisteredPoStProof,
-    sector::{SectorOnChainInfo, SectorPreCommitOnChainInfo, SectorSize, SECTORS_MAX},
+    sector::{
+        SectorNumber, SectorOnChainInfo, SectorPreCommitOnChainInfo, SectorSize, SECTORS_MAX,
+    },
 };
 
 /// This struct holds the state of a single storage provider.
 #[derive(Debug, Decode, Encode, TypeInfo)]
-pub struct StorageProviderState<PeerId, Balance, BlockNumber> {
+pub struct StorageProviderState<PeerId, Balance, BlockNumber, DealID> {
     /// Contains static information about this storage provider
     pub info: StorageProviderInfo<PeerId>,
 
     /// Information for all proven and not-yet-garbage-collected sectors.
-    pub sectors: BoundedVec<SectorOnChainInfo<BlockNumber>, ConstU32<SECTORS_MAX>>,
+    pub sectors:
+        BoundedBTreeMap<SectorNumber, SectorOnChainInfo<BlockNumber>, ConstU32<SECTORS_MAX>>,
 
     /// Total funds locked as pre_commit_deposit
     /// Optional because when registering there is no need for deposits.
     pub pre_commit_deposits: Option<Balance>,
 
     /// Sectors that have been pre-committed but not yet proven.
-    pub pre_committed_sectors:
-        BoundedVec<SectorPreCommitOnChainInfo<Balance, BlockNumber>, ConstU32<SECTORS_MAX>>,
+    pub pre_committed_sectors: BoundedBTreeMap<
+        SectorNumber,
+        SectorPreCommitOnChainInfo<Balance, BlockNumber, DealID>,
+        ConstU32<SECTORS_MAX>,
+    >,
 
     /// The first block in this storage provider's current proving period. This is the first block in which a PoSt for a
     /// partition at the storage provider's first deadline may arrive. Alternatively, it is after the last block at which
@@ -39,10 +46,13 @@ pub struct StorageProviderState<PeerId, Balance, BlockNumber> {
     pub current_deadline: BlockNumber,
 }
 
-impl<PeerId, Balance, BlockNumber> StorageProviderState<PeerId, Balance, BlockNumber>
+impl<PeerId, Balance, BlockNumber, DealID>
+    StorageProviderState<PeerId, Balance, BlockNumber, DealID>
 where
     PeerId: Clone + Decode + Encode + TypeInfo,
     BlockNumber: Decode + Encode + TypeInfo,
+    DealID: Decode + Encode + TypeInfo,
+    Balance: BaseArithmetic,
 {
     pub fn new(
         info: &StorageProviderInfo<PeerId>,
@@ -51,13 +61,46 @@ where
     ) -> Self {
         Self {
             info: info.clone(),
-            sectors: BoundedVec::new(),
+            sectors: BoundedBTreeMap::new(),
             pre_commit_deposits: None,
-            pre_committed_sectors: BoundedVec::new(),
+            pre_committed_sectors: BoundedBTreeMap::new(),
             proving_period_start: period_start,
             current_deadline: deadline_idx,
         }
     }
+
+    pub fn add_pre_commit_deposit(&mut self, amount: Balance) {
+        self.pre_commit_deposits = match &self.pre_commit_deposits {
+            None => Some(amount),
+            Some(amt) => {
+                let new_amount = amt.clone() + amount;
+                Some(new_amount)
+            }
+        }
+    }
+
+    // TODO(@aidan46, no-ref, 2024-06-21): Allow for batch inserts.
+    pub fn put_precommitted_sector(
+        &mut self,
+        precommit: SectorPreCommitOnChainInfo<Balance, BlockNumber, DealID>,
+    ) -> Result<(), StorageProviderError> {
+        let sector_number = precommit.info.sector_number;
+
+        if self.pre_committed_sectors.contains_key(&sector_number) {
+            return Err(StorageProviderError::SectorAlreadyPreCommitted);
+        }
+
+        self.pre_committed_sectors
+            .try_insert(sector_number, precommit)
+            .map_err(|_| StorageProviderError::MaxPreCommittedSectorExceeded)?;
+
+        Ok(())
+    }
+}
+
+pub enum StorageProviderError {
+    SectorAlreadyPreCommitted,
+    MaxPreCommittedSectorExceeded,
 }
 
 /// Static information about the storage provider.

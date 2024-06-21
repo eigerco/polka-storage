@@ -1,9 +1,13 @@
 use frame_support::{assert_noop, assert_ok, sp_runtime::BoundedVec};
 
 use crate::{
-    mock::{events, new_test_ext, RuntimeEvent, RuntimeOrigin, StorageProvider, Test, ALICE, BOB},
+    mock::{
+        events, new_test_ext, Balances, RuntimeEvent, RuntimeOrigin, StorageProvider, Test, ALICE,
+        BOB,
+    },
     pallet::{Error, Event, StorageProviders},
-    proofs::RegisteredPoStProof,
+    proofs::{RegisteredPoStProof, RegisteredSealProof},
+    sector::SectorPreCommitInfo,
     storage_provider::StorageProviderInfo,
 };
 
@@ -89,6 +93,118 @@ fn double_register_sp() {
                 window_post_type,
             ),
             Error::<Test>::StorageProviderExists
+        );
+    });
+}
+
+#[test]
+fn pre_commit_sector() {
+    new_test_ext().execute_with(|| {
+        let peer_id = "storage_provider_1".as_bytes().to_vec();
+        let peer_id = BoundedVec::try_from(peer_id).unwrap();
+        let window_post_type = RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
+
+        // Register ALICE as a storage provider.
+        assert_ok!(StorageProvider::register_storage_provider(
+            RuntimeOrigin::signed(ALICE),
+            peer_id.clone(),
+            window_post_type,
+        ));
+        assert!(StorageProviders::<Test>::contains_key(ALICE));
+
+        // Check that the event triggered
+        assert!(matches!(
+            events()[..],
+            [RuntimeEvent::StorageProvider(
+                Event::<Test>::StorageProviderRegistered { .. }
+            )]
+        ));
+
+        let sector = SectorPreCommitInfo {
+            seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
+            sector_number: 1,
+            sealed_cid: BoundedVec::default(),
+            deal_id: 1,
+            expiration: 66,
+            unsealed_cid: BoundedVec::default(),
+        };
+
+        // Check starting balance
+        assert_eq!(Balances::free_balance(ALICE), 100);
+
+        // Run pre commit extrinsic
+        assert_ok!(StorageProvider::pre_commit_sector(
+            RuntimeOrigin::signed(ALICE),
+            sector.clone()
+        ));
+
+        // Check that the event triggered
+        assert_eq!(
+            events(),
+            [
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Reserved {
+                    who: ALICE,
+                    amount: 1
+                },),
+                RuntimeEvent::StorageProvider(Event::<Test>::SectorPreCommitted {
+                    owner: ALICE,
+                    sector: sector.clone(),
+                })
+            ]
+        );
+
+        // `unwrap()` should be safe because of the above check.
+        let sp_alice = StorageProviders::<Test>::get(ALICE).unwrap();
+
+        assert!(sp_alice.sectors.is_empty()); // not yet proven
+        assert!(!sp_alice.pre_committed_sectors.is_empty());
+        assert!(sp_alice.pre_commit_deposits.is_some());
+        assert_eq!(Balances::free_balance(ALICE), 99);
+    });
+}
+
+#[test] // failure test
+fn double_pre_commit_sector() {
+    new_test_ext().execute_with(|| {
+        let peer_id = "storage_provider_1".as_bytes().to_vec();
+        let peer_id = BoundedVec::try_from(peer_id).unwrap();
+        let window_post_type = RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
+
+        // Register ALICE as a storage provider.
+        assert_ok!(StorageProvider::register_storage_provider(
+            RuntimeOrigin::signed(ALICE),
+            peer_id.clone(),
+            window_post_type,
+        ));
+        assert!(StorageProviders::<Test>::contains_key(ALICE));
+
+        // Check that the event triggered
+        assert!(matches!(
+            events()[..],
+            [RuntimeEvent::StorageProvider(
+                Event::<Test>::StorageProviderRegistered { .. }
+            )]
+        ));
+
+        let sector = SectorPreCommitInfo {
+            seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
+            sector_number: 1,
+            sealed_cid: BoundedVec::default(),
+            deal_id: 1,
+            expiration: 66,
+            unsealed_cid: BoundedVec::default(),
+        };
+
+        // Run pre commit extrinsic
+        assert_ok!(StorageProvider::pre_commit_sector(
+            RuntimeOrigin::signed(ALICE),
+            sector.clone()
+        ));
+
+        // Run same extrinsic, this should fail
+        assert_noop!(
+            StorageProvider::pre_commit_sector(RuntimeOrigin::signed(ALICE), sector.clone()),
+            Error::<Test>::MaxPreCommittedSectorExceeded
         );
     });
 }

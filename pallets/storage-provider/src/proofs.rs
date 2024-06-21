@@ -45,6 +45,18 @@ pub enum RegisteredSealProof {
     StackedDRG2KiBV1P1,
 }
 
+impl RegisteredSealProof {
+    /// Produces the windowed PoSt-specific RegisteredProof corresponding
+    /// to the receiving RegisteredProof.
+    pub fn registered_window_post_proof(&self) -> RegisteredPoStProof {
+        match self {
+            RegisteredSealProof::StackedDRG2KiBV1P1 => {
+                RegisteredPoStProof::StackedDRGWindow2KiBV1P1
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum ProofError {
     Conversion,
@@ -99,7 +111,11 @@ where
         proving_period - (offset - curr_modulus)
     };
 
-    current_block - period_progress
+    if current_block < period_progress {
+        period_progress
+    } else {
+        current_block - period_progress
+    }
 }
 
 /// Filecoin implementation reference: https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L4923
@@ -111,5 +127,9 @@ pub fn current_deadline_index<BlockNumber>(
 where
     BlockNumber: BaseArithmetic,
 {
-    (current_block - period_start) / challenge_window
+    if current_block < period_start {
+        period_start / challenge_window
+    } else {
+        (current_block - period_start) / challenge_window
+    }
 }

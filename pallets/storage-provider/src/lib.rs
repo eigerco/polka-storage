@@ -11,7 +11,6 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 pub use pallet::{Config, Pallet};
-use scale_info::prelude::string::String;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarks;
@@ -26,8 +25,6 @@ mod proofs;
 mod sector;
 mod storage_provider;
 mod types;
-
-type Cid = String;
 
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
@@ -48,6 +45,7 @@ pub mod pallet {
             assign_proving_period_offset, current_deadline_index, current_proving_period_start,
             RegisteredPoStProof,
         },
+        sector::{SectorPreCommitInfo, SectorPreCommitOnChainInfo, SECTORS_MAX},
         storage_provider::{StorageProviderInfo, StorageProviderState},
     };
 
@@ -73,6 +71,8 @@ pub mod pallet {
         /// Currency mechanism, used for collateral
         type Currency: ReservableCurrency<Self::AccountId>;
 
+        type DealID: Copy + Debug + Decode + Encode + PartialEq + TypeInfo;
+
         #[pallet::constant] // put the constant in metadata
         /// Proving period for submitting Window PoSt, 24 hours is blocks
         type WPoStProvingPeriod: Get<BlockNumberFor<Self>>;
@@ -89,7 +89,7 @@ pub mod pallet {
         _,
         _,
         T::AccountId,
-        StorageProviderState<T::PeerId, BalanceOf<T>, BlockNumberFor<T>>,
+        StorageProviderState<T::PeerId, BalanceOf<T>, BlockNumberFor<T>, T::DealID>,
     >;
 
     #[pallet::event]
@@ -100,6 +100,11 @@ pub mod pallet {
             owner: T::AccountId,
             info: StorageProviderInfo<T::PeerId>,
         },
+        /// Emitted when a storage provider pre commits some sectors.
+        SectorPreCommitted {
+            owner: T::AccountId,
+            sector: SectorPreCommitInfo<BlockNumberFor<T>, T::DealID>,
+        },
     }
 
     #[pallet::error]
@@ -109,6 +114,17 @@ pub mod pallet {
         StorageProviderExists,
         /// Emitted when a type conversion fails.
         ConversionError,
+        /// Emitted when an account tries to call a storage provider
+        /// extrinsic but is not registered as one.
+        StorageProviderNotFound,
+        /// Emitted when trying to access an invalid sector.
+        InvalidSector,
+        /// Emitted when submitting an invalid proof type.
+        InvalidProofType,
+        /// Emitted when there is not enough funds to run an extrinsic.
+        NotEnoughFunds,
+        /// Emitted when a storage provider tries to commit more sectors than MAX_SECTORS.
+        MaxPreCommittedSectorExceeded,
     }
 
     #[pallet::call]
@@ -130,7 +146,6 @@ pub mod pallet {
 
             let proving_period = T::WPoStProvingPeriod::get();
 
-            
             let current_block = <frame_system::Pallet<T>>::block_number();
 
             let offset = assign_proving_period_offset::<T::AccountId, BlockNumberFor<T>>(
@@ -156,5 +171,57 @@ pub mod pallet {
 
             Ok(().into())
         }
+
+        /// Pledges the storage provider to seal and commit some new sector
+        /// TODO(@aidan46, no-ref, 2024-06-20): Add functionality to allow for batch pre commit
+        pub fn pre_commit_sector(
+            origin: OriginFor<T>,
+            sector: SectorPreCommitInfo<BlockNumberFor<T>, T::DealID>,
+        ) -> DispatchResultWithPostInfo {
+            // Check that the extrinsic was signed and get the signer
+            // This will be the owner of the storage provider
+            let owner = ensure_signed(origin)?;
+
+            let sp = StorageProviders::<T>::try_get(&owner)
+                .map_err(|_| Error::<T>::StorageProviderNotFound)?;
+
+            if sector.sector_number > SECTORS_MAX {
+                return Err(Error::<T>::InvalidSector.into());
+            }
+
+            ensure!(
+                sp.info.window_post_proof_type == sector.seal_proof.registered_window_post_proof(),
+                Error::<T>::InvalidProofType
+            );
+
+            let balance = T::Currency::total_balance(&owner);
+            let deposit = calculate_pre_commit_deposit::<T>();
+
+            ensure!(balance >= deposit, Error::<T>::NotEnoughFunds);
+
+            T::Currency::reserve(&owner, deposit)?;
+
+            StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResultWithPostInfo {
+                let sp = maybe_sp
+                    .as_mut()
+                    .ok_or(Error::<T>::StorageProviderNotFound)?;
+                sp.add_pre_commit_deposit(deposit);
+                sp.put_precommitted_sector(SectorPreCommitOnChainInfo::new(
+                    sector.clone(),
+                    deposit,
+                    <frame_system::Pallet<T>>::block_number(),
+                ))
+                .map_err(|_| Error::<T>::MaxPreCommittedSectorExceeded)?;
+                Ok(().into())
+            })?;
+
+            Self::deposit_event(Event::SectorPreCommitted { owner, sector });
+            Ok(().into())
+        }
+    }
+
+    /// Calculate the required pre commit deposit amount
+    fn calculate_pre_commit_deposit<T: Config>() -> BalanceOf<T> {
+        1u32.into() // TODO(@aidan46, no-ref, 2024-06-24): Set a logical value or calculation
     }
 }
