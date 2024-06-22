@@ -20,6 +20,7 @@ cid = { workspace = true, default-features = false, features = ["scale-codec"] }
 codec = { workspace = true, default-features = false, features = ["derive"] }
 log = { workspace = true }
 multihash-codetable = { workspace = true, features = ["blake2b"] }
+primitives-proofs = { workspace = true, default-features = false }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 
 # frame deps
@@ -53,6 +54,7 @@ std = [
   "frame-support/std",
   "frame-system/std",
   "pallet-balances/std",
+  "primitives-proofs/std",
   "scale-info/std",
   "sp-core/std",
   "sp-io/std",

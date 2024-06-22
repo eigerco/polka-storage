@@ -5,10 +5,10 @@ use frame_support::{
     assert_noop, assert_ok,
     sp_runtime::{bounded_vec, ArithmeticError, TokenError},
 };
+use primitives_proofs::{Market as MarketTrait, RegisteredSealProof, SectorDeal};
 
 use crate::{
     mock::*, BalanceEntry, BalanceTable, DealProposal, DealState, Error, Event, Proposals,
-    RegisteredSealProof, SectorDeal,
 };
 
 #[test]

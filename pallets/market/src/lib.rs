@@ -40,6 +40,9 @@ pub mod pallet {
     };
     use frame_system::{pallet_prelude::*, Config as SystemConfig, Pallet as System};
     use multihash_codetable::{Code, MultihashDigest};
+    use primitives_proofs::{
+        DealId, Market, RegisteredSealProof, SectorDeal, SectorNumber, SectorSize,
+    };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::BaseArithmetic;
     use sp_std::vec::Vec;
@@ -48,9 +51,6 @@ pub mod pallet {
     /// BalanceOf is a sophisticated way of getting an u128.
     pub type BalanceOf<T> =
         <<T as Config>::Currency as Currency<<T as SystemConfig>::AccountId>>::Balance;
-
-    // TODO(@th7nder,17/06/2024): this is likely to be extracted into primitives/ package
-    type DealId = u64;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -93,10 +93,6 @@ pub mod pallet {
         /// https://github.com/filecoin-project/builtin-actors/blob/c32c97229931636e3097d92cf4c43ac36a7b4b47/actors/market/src/policy.rs#L29
         #[pallet::constant]
         type MaxDealDuration: Get<BlockNumberFor<Self>>;
-
-        /// How many deals can be activated in a single batch.
-        #[pallet::constant]
-        type MaxSectorsForActivation: Get<u32>;
     }
 
     /// Stores balances info for both Storage Providers and Storage Users
@@ -220,47 +216,6 @@ pub mod pallet {
         pub client_signature: OffchainSignature,
     }
 
-    // TODO(@th7nder,20/06/2024): this DOES NOT belong here. it should be somewhere else.
-    #[allow(non_camel_case_types)]
-    #[derive(Debug, Decode, Encode, TypeInfo, Eq, PartialEq, Clone)]
-    pub enum RegisteredSealProof {
-        StackedDRG2KiBV1P1,
-    }
-
-    impl RegisteredSealProof {
-        pub fn sector_size(&self) -> SectorSize {
-            SectorSize::_2KiB
-        }
-    }
-
-    /// SectorSize indicates one of a set of possible sizes in the network.
-    #[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq, Eq, Copy)]
-    pub enum SectorSize {
-        _2KiB,
-    }
-
-    impl SectorSize {
-        /// <https://github.com/filecoin-project/ref-fvm/blob/5659196fa94accdf1e7f10e00586a8166c44a60d/shared/src/sector/mod.rs#L40>
-        pub fn bytes(&self) -> u64 {
-            match self {
-                SectorSize::_2KiB => 2 << 10,
-            }
-        }
-    }
-
-    // TODO(@th7nder,20/06/2024): this DOES not belong here. it should be somewhere else.
-    pub type SectorNumber = u64;
-
-    #[derive(Debug, Decode, Encode, TypeInfo, Eq, PartialEq, Clone)]
-    pub struct SectorDeal<BlockNumber> {
-        pub sector_number: SectorNumber,
-        pub sector_expiry: BlockNumber,
-        pub sector_type: RegisteredSealProof,
-        pub deal_ids: BoundedVec<DealId, ConstU32<128>>,
-    }
-    // verify_deals_for_activation is called by Storage Provider Pallllllet!
-    // it's not an extrinsic then?
-
     #[pallet::pallet]
     pub struct Pallet<T>(_);
 
@@ -315,10 +270,15 @@ pub mod pallet {
         AllProposalsInvalid,
         /// `publish_storage_deals`'s core logic was invoked with a broken invariant that should be called by `validate_deals`.
         UnexpectedValidationError,
+        /// There is more than 1 deal of this ID in the Sector.
         DuplicateDeal,
+        /// Due to a programmer bug, bounds on Bounded data structures were incorrect so couldn't insert into them.
         DealPreconditionFailed,
+        /// Tried to activate a deal which is not in the system.
         DealNotFound,
+        /// Tried to activate a deal, but data doesn't make sense. Details are in the logs.
         DealActivationError,
+        /// Sum of all of the deals piece sizes for a sector exceeds sector size.
         DealsTooLargeToFitIntoSector,
     }
 
@@ -520,50 +480,6 @@ pub mod pallet {
             );
 
             Ok(())
-        }
-
-        /// Verifies a given set of storage deals is valid for sectors being PreCommitted.
-        /// Computes UnsealedCID (CommD) for each sector or None for Committed Capacity sectors..
-        /// Currently UnsealedCID is hardcoded as we `compute_commd` remains unimplemented because of #92.
-        pub fn verify_deals_for_activation(
-            storage_provider: &T::AccountId,
-            sector_deals: BoundedVec<SectorDeal<BlockNumberFor<T>>, T::MaxSectorsForActivation>,
-        ) -> Result<BoundedVec<Option<Cid>, T::MaxSectorsForActivation>, DispatchError> {
-            // TODO:
-            // - primitives
-            // - trait in primitives
-            // - docs
-            let curr_block = System::<T>::block_number();
-            let mut unsealed_cids = BoundedVec::new();
-            for sector in sector_deals {
-                let proposals = Self::proposals_for_deals(sector.deal_ids)?;
-                let sector_size = sector.sector_type.sector_size();
-                Self::validate_deals_for_sector(
-                    &proposals,
-                    storage_provider,
-                    sector.sector_number,
-                    sector.sector_expiry,
-                    curr_block,
-                    sector_size,
-                )?;
-
-                // Sealing a Sector without Deals, Committed Capacity Only.
-                let commd = if proposals.is_empty() {
-                    None
-                } else {
-                    Some(Self::compute_commd(
-                        proposals.iter().map(|(_, deal)| deal),
-                        sector.sector_type,
-                    )?)
-                };
-
-                // PRE-COND: can't fail, unsealed_cids<_, X> == BoundedVec<_ X> == sector_deals<_, X>
-                unsealed_cids
-                    .try_push(commd)
-                    .map_err(|_| "programmer error, there should be space for Cids")?;
-            }
-
-            Ok(unsealed_cids)
         }
 
         /// <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L1370>
@@ -832,6 +748,48 @@ pub mod pallet {
         ) -> T::Hash {
             let bytes = Encode::encode(proposal);
             T::Hashing::hash(&bytes)
+        }
+    }
+
+    impl<T: Config> Market<T::AccountId, BlockNumberFor<T>> for Pallet<T> {
+        /// Verifies a given set of storage deals is valid for sectors being PreCommitted.
+        /// Computes UnsealedCID (CommD) for each sector or None for Committed Capacity sectors.
+        /// Currently UnsealedCID is hardcoded as we `compute_commd` remains unimplemented because of #92.
+        fn verify_deals_for_activation(
+            storage_provider: &T::AccountId,
+            sector_deals: BoundedVec<SectorDeal<BlockNumberFor<T>>, ConstU32<32>>,
+        ) -> Result<BoundedVec<Option<Cid>, ConstU32<32>>, DispatchError> {
+            let curr_block = System::<T>::block_number();
+            let mut unsealed_cids = BoundedVec::new();
+            for sector in sector_deals {
+                let proposals = Self::proposals_for_deals(sector.deal_ids)?;
+                let sector_size = sector.sector_type.sector_size();
+                Self::validate_deals_for_sector(
+                    &proposals,
+                    storage_provider,
+                    sector.sector_number,
+                    sector.sector_expiry,
+                    curr_block,
+                    sector_size,
+                )?;
+
+                // Sealing a Sector without Deals, Committed Capacity Only.
+                let commd = if proposals.is_empty() {
+                    None
+                } else {
+                    Some(Self::compute_commd(
+                        proposals.iter().map(|(_, deal)| deal),
+                        sector.sector_type,
+                    )?)
+                };
+
+                // PRE-COND: can't fail, unsealed_cids<_, X> == BoundedVec<_ X> == sector_deals<_, X>
+                unsealed_cids
+                    .try_push(commd)
+                    .map_err(|_| "programmer error, there should be space for Cids")?;
+            }
+
+            Ok(unsealed_cids)
         }
     }
 }
