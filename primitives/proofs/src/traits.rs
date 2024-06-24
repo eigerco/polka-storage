@@ -12,6 +12,18 @@ pub trait Market<AccountId, BlockNumber> {
         storage_provider: &AccountId,
         sector_deals: BoundedVec<SectorDeal<BlockNumber>, ConstU32<32>>,
     ) -> Result<BoundedVec<Option<Cid>, ConstU32<32>>, DispatchError>;
+
+    /// Activate a set of deals grouped by sector, returning the size and
+    /// extra info about verified deals.
+    /// Sectors' deals are activated in parameter-defined order.
+    /// Each sector's deals are activated or fail as a group, but independently of other sectors.
+    /// Note that confirming all deals fit within a sector is the caller's responsibility
+    /// (and is implied by confirming the sector's data commitment is derived from the deal peices).
+    fn activate_deals(
+        storage_provider: &AccountId,
+        sector_deals: BoundedVec<SectorDeal<BlockNumber>, ConstU32<32>>,
+        compute_cid: bool,
+    ) -> Result<BoundedVec<ActivatedSector<AccountId>, ConstU32<32>>, DispatchError>;
 }
 
 /// Binds given Sector with the Deals that it should contain
@@ -32,4 +44,18 @@ pub struct SectorDeal<BlockNumber> {
     /// Deals Ids that are supposed to be activated.
     /// If any of those is invalid, whole activation is rejected.
     pub deal_ids: BoundedVec<DealId, ConstU32<128>>,
+}
+
+pub struct ActivatedSector<AccountId> {
+    /// Information about each deal activated.
+    pub activated_deals: Vec<ActivatedDeal<AccountId>>,
+    /// Unsealed CID computed from the deals specified for the sector.
+    /// A None indicates no deals were specified, or the computation was not requested.
+    pub unsealed_cid: Option<Cid>,
+}
+
+pub struct ActivatedDeal<AccountId> {
+    pub client: AccountId,
+    pub piece_cid: Cid,
+    pub piece_size: u64,
 }
