@@ -43,9 +43,9 @@ pub mod pallet {
     use crate::{
         proofs::{
             assign_proving_period_offset, current_deadline_index, current_proving_period_start,
-            RegisteredPoStProof,
+            RegisteredPoStProof, RegisteredSealProof,
         },
-        sector::{SectorPreCommitInfo, SectorPreCommitOnChainInfo, SECTORS_MAX},
+        sector::{ProveCommitSector, SectorPreCommitInfo, SectorPreCommitOnChainInfo, SECTORS_MAX},
         storage_provider::{StorageProviderInfo, StorageProviderState},
     };
 
@@ -80,6 +80,10 @@ pub mod pallet {
         #[pallet::constant] // put the constant in metadata
         /// Window PoSt challenge window (default 30 minutes in blocks)
         type WPoStChallengeWindow: Get<BlockNumberFor<Self>>;
+
+        #[pallet::constant]
+        /// The max prove commit duration in blocks.
+        type MaxProveCommitDuration: Get<BlockNumberFor<Self>>;
     }
 
     /// Need some storage type that keeps track of sectors, deadlines and terminations.
@@ -218,10 +222,54 @@ pub mod pallet {
             Self::deposit_event(Event::SectorPreCommitted { owner, sector });
             Ok(().into())
         }
+
+        /// Checks state of the corresponding sector pre-commitment
+        /// TODO(@aidan46, no-ref, 2024-06-24): Add functionality to allow for batch pre commit
+        pub fn prove_commit_sector(
+            origin: OriginFor<T>,
+            sector: ProveCommitSector,
+        ) -> DispatchResultWithPostInfo {
+            // Check that the extrinsic was signed and get the signer
+            // This will be the owner of the storage provider
+            let owner = ensure_signed(origin)?;
+
+            let sp = StorageProviders::<T>::try_get(&owner)
+                .map_err(|_| Error::<T>::StorageProviderNotFound)?;
+
+            if sector.sector_number > SECTORS_MAX {
+                return Err(Error::<T>::InvalidSector.into());
+            }
+
+            let precommit = sp
+                .get_precommitted_sector(sector.sector_number)
+                .map_err(|_| Error::<T>::InvalidSector)?;
+
+            let current_block = <frame_system::Pallet<T>>::block_number();
+            let prove_commit_due =
+                precommit.pre_commit_block_number + T::MaxProveCommitDuration::get();
+
+            if current_block > prove_commit_due {
+                // TODO(@aidan46, no-ref, 2024-06-25): Flag this sector for late submission fee.
+                log::warn!("Prove commit sent after the deadline");
+            }
+
+            ensure!(
+                validate_seal_proof(&precommit.info.seal_proof, sector.proof),
+                Error::<T>::InvalidProofType,
+            );
+            Ok(().into())
+        }
     }
 
     /// Calculate the required pre commit deposit amount
     fn calculate_pre_commit_deposit<T: Config>() -> BalanceOf<T> {
         1u32.into() // TODO(@aidan46, no-ref, 2024-06-24): Set a logical value or calculation
+    }
+
+    fn validate_seal_proof(
+        _seal_proof_type: &RegisteredSealProof,
+        _proofs: BoundedVec<u8, ConstU32<256>>,
+    ) -> bool {
+        true // TODO(@aidan46, no-ref, 2024-06-24): Actually check proof
     }
 }

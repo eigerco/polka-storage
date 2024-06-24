@@ -96,11 +96,22 @@ where
 
         Ok(())
     }
+
+    pub fn get_precommitted_sector(
+        &self,
+        sector_number: SectorNumber,
+    ) -> Result<&SectorPreCommitOnChainInfo<Balance, BlockNumber, DealID>, StorageProviderError>
+    {
+        self.pre_committed_sectors
+            .get(&sector_number)
+            .ok_or(StorageProviderError::SectorNotFound)
+    }
 }
 
 pub enum StorageProviderError {
     SectorAlreadyPreCommitted,
     MaxPreCommittedSectorExceeded,
+    SectorNotFound,
 }
 
 /// Static information about the storage provider.

@@ -75,3 +75,9 @@ pub struct SectorOnChainInfo<BlockNumber> {
     /// CommD
     pub unsealed_cid: BoundedVec<u8, ConstU32<128>>,
 }
+
+#[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
+pub struct ProveCommitSector {
+    pub sector_number: SectorNumber,
+    pub proof: BoundedVec<u8, ConstU32<256>>, // Arbitrary length
+}
