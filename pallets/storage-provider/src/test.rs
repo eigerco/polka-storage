@@ -7,7 +7,7 @@ use crate::{
     },
     pallet::{Error, Event, StorageProviders},
     proofs::{RegisteredPoStProof, RegisteredSealProof},
-    sector::SectorPreCommitInfo,
+    sector::{ProveCommitSector, SectorPreCommitInfo},
     storage_provider::StorageProviderInfo,
 };
 
@@ -206,5 +206,72 @@ fn double_pre_commit_sector() {
             StorageProvider::pre_commit_sector(RuntimeOrigin::signed(ALICE), sector.clone()),
             Error::<Test>::MaxPreCommittedSectorExceeded
         );
+    });
+}
+
+#[test]
+fn prove_commit_sector() {
+    new_test_ext().execute_with(|| {
+        let peer_id = "storage_provider_1".as_bytes().to_vec();
+        let peer_id = BoundedVec::try_from(peer_id).unwrap();
+        let window_post_type = RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
+        let sector_number = 1;
+
+        // Register ALICE as a storage provider.
+        assert_ok!(StorageProvider::register_storage_provider(
+            RuntimeOrigin::signed(ALICE),
+            peer_id.clone(),
+            window_post_type,
+        ));
+        assert!(StorageProviders::<Test>::contains_key(ALICE));
+
+        let sector = SectorPreCommitInfo {
+            seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
+            sector_number,
+            sealed_cid: BoundedVec::default(),
+            deal_id: 1,
+            expiration: 66,
+            unsealed_cid: BoundedVec::default(),
+        };
+
+        // Run pre commit extrinsic
+        assert_ok!(StorageProvider::pre_commit_sector(
+            RuntimeOrigin::signed(ALICE),
+            sector.clone()
+        ));
+
+        // check that the deposit has been reserved.
+        assert_eq!(Balances::free_balance(ALICE), 99);
+
+        // flush the events
+        events();
+
+        // Test prove commits
+        let sector = ProveCommitSector {
+            sector_number,
+            proof: BoundedVec::default(),
+        };
+
+        assert_ok!(StorageProvider::prove_commit_sector(
+            RuntimeOrigin::signed(ALICE),
+            sector
+        ));
+
+        assert_eq!(
+            events(),
+            [
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Unreserved {
+                    who: ALICE,
+                    amount: 1
+                }),
+                RuntimeEvent::StorageProvider(Event::<Test>::SectorProven {
+                    owner: ALICE,
+                    sector_number: sector_number
+                })
+            ]
+        );
+
+        // check that the funds have been released
+        assert_eq!(Balances::free_balance(ALICE), 100);
     });
 }

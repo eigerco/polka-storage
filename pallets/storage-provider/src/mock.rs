@@ -40,6 +40,8 @@ parameter_types! {
     // 30 * 60 = 30 minutes
     // SLOT_DURATION is in milliseconds thats why we / 1000
     pub const WpostChallengeWindow: BlockNumber = 30 * 60 / (SLOT_DURATION as BlockNumber / 1000);
+    // Max prove commit duration 150 days
+    pub const MaxProveCommitDuration: BlockNumber = 150 * DAYS;
 }
 
 impl pallet_storage_provider::Config for Test {
@@ -49,6 +51,7 @@ impl pallet_storage_provider::Config for Test {
     type DealID = u32;
     type WPoStProvingPeriod = WpostProvingPeriod;
     type WPoStChallengeWindow = WpostChallengeWindow;
+    type MaxProveCommitDuration = MaxProveCommitDuration;
 }
 
 pub const ALICE: u64 = 0;
