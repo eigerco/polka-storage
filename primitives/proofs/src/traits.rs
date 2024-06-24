@@ -46,14 +46,16 @@ pub struct SectorDeal<BlockNumber> {
     pub deal_ids: BoundedVec<DealId, ConstU32<128>>,
 }
 
+#[derive(RuntimeDebug, Eq, PartialEq)]
 pub struct ActivatedSector<AccountId> {
     /// Information about each deal activated.
-    pub activated_deals: Vec<ActivatedDeal<AccountId>>,
+    pub activated_deals: BoundedVec<ActivatedDeal<AccountId>, ConstU32<128>>,
     /// Unsealed CID computed from the deals specified for the sector.
     /// A None indicates no deals were specified, or the computation was not requested.
     pub unsealed_cid: Option<Cid>,
 }
 
+#[derive(RuntimeDebug, Eq, PartialEq)]
 pub struct ActivatedDeal<AccountId> {
     pub client: AccountId,
     pub piece_cid: Cid,

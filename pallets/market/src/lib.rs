@@ -41,7 +41,8 @@ pub mod pallet {
     use frame_system::{pallet_prelude::*, Config as SystemConfig, Pallet as System};
     use multihash_codetable::{Code, MultihashDigest};
     use primitives_proofs::{
-        DealId, Market, RegisteredSealProof, SectorDeal, SectorNumber, SectorSize,
+        ActivatedDeal, ActivatedSector, DealId, Market, RegisteredSealProof, SectorDeal,
+        SectorNumber, SectorSize,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::BaseArithmetic;
@@ -253,6 +254,12 @@ pub mod pallet {
             client: T::AccountId,
             provider: T::AccountId,
         },
+        // Deal has been successfully activated.
+        DealActivated {
+            deal_id: DealId,
+            client: T::AccountId,
+            provider: T::AccountId,
+        },
     }
 
     #[pallet::error]
@@ -292,6 +299,10 @@ pub mod pallet {
         SectorExpiresBeforeDeal,
         /// Deal needs to be [`DealState::Published`] if it's to be activated
         InvalidDealState,
+        /// Tried to activate a deal which is not in the system.
+        DealNotFound,
+        /// Tried to activate a deal which is not in the Pending Proposals
+        DealNotPending,
     }
 
     // NOTE(@th7nder,18/06/2024):
@@ -548,6 +559,17 @@ pub mod pallet {
                 DealActivationError::SectorExpiresBeforeDeal
             );
 
+            // Confirm the deal is in the pending proposals set.
+            // It will be removed from this queue later, during cron.
+            // Failing this check is an internal invariant violation.
+            // The pending deals set exists to prevent duplicate proposals.
+            // It should be impossible to have a proposal, no deal state, and not be in pending deals.
+            let hash = Self::hash_proposal(&deal);
+            ensure!(
+                PendingProposals::<T>::get().contains(&hash),
+                DealActivationError::DealNotPending
+            );
+
             Ok(())
         }
 
@@ -710,17 +732,19 @@ pub mod pallet {
                         return None;
                     }
 
-                    let hash = Self::hash_proposal(&deal);
+                    let hash = Self::hash_proposal(&deal.proposal);
                     let duplicate_in_state = PendingProposals::<T>::get().contains(&hash);
                     let duplicate_in_message = message_proposals.contains(&hash);
                     if duplicate_in_state || duplicate_in_message {
                         log::error!(target: LOG_TARGET, "invalid deal: cannot publish duplicate deal idx: {}", idx);
                         return None;
                     }
-                    if let Err(e) = PendingProposals::<T>::get().try_insert(hash) {
+                    let mut pending = PendingProposals::<T>::get();
+                    if let Err(e) = pending.try_insert(hash) {
                         log::error!(target: LOG_TARGET, "cannot publish: too many pending deal proposals, wait for them to be expired/activated, deal idx: {}, err: {:?}", idx, e);
                         return None;
                     }
+                    PendingProposals::<T>::set(pending);
                     // PRE-COND: always succeeds, as there cannot be more deals than T::MaxDeals and this the size of the set
                     message_proposals.try_insert(hash).ok()?;
                     // PRE-COND: always succeeds as there cannot be more clients than T::MaxDeals
@@ -735,16 +759,11 @@ pub mod pallet {
         }
 
         // Used for deduplication purposes
-        // We don't want to store another BTreeSet of ClientDealProposals
+        // We don't want to store another BTreeSet of DealProposals
         // We only care about hashes.
         // It is not an associated function, because T::Hashing is hard to use inside of there.
-        fn hash_proposal(
-            proposal: &ClientDealProposal<
-                T::AccountId,
-                BalanceOf<T>,
-                BlockNumberFor<T>,
-                T::OffchainSignature,
-            >,
+        pub(crate) fn hash_proposal(
+            proposal: &DealProposal<T::AccountId, BalanceOf<T>, BlockNumberFor<T>>,
         ) -> T::Hash {
             let bytes = Encode::encode(proposal);
             T::Hashing::hash(&bytes)
@@ -790,6 +809,102 @@ pub mod pallet {
             }
 
             Ok(unsealed_cids)
+        }
+
+        /// Activate a set of deals grouped by sector, returning the size and
+        /// extra info about verified deals.
+        /// Sectors' deals are activated in parameter-defined order.
+        /// Each sector's deals are activated or fail as a group, but independently of other sectors.
+        /// Note that confirming all deals fit within a sector is the caller's responsibility
+        /// (and is implied by confirming the sector's data commitment is derived from the deal peices).
+        fn activate_deals(
+            storage_provider: &T::AccountId,
+            sector_deals: BoundedVec<SectorDeal<BlockNumberFor<T>>, ConstU32<32>>,
+            compute_cid: bool,
+        ) -> Result<BoundedVec<ActivatedSector<T::AccountId>, ConstU32<32>>, DispatchError>
+        {
+            // TODO(@th7nder,#87,17/06/2024): validate a Storage Provider's Account (whether the account was registerd as Storage Provider)
+            let mut activations = BoundedVec::new();
+            let curr_block = System::<T>::block_number();
+            let mut activated_deals: BoundedBTreeSet<DealId, ConstU32<{ 32 * 128 }>> =
+                BoundedBTreeSet::new();
+
+            for sector in sector_deals {
+                let proposals = Self::proposals_for_deals(sector.deal_ids)?;
+                let sector_size = sector.sector_type.sector_size();
+                if let Err(e) = Self::validate_deals_for_sector(
+                    &proposals,
+                    storage_provider,
+                    sector.sector_number,
+                    sector.sector_expiry,
+                    curr_block,
+                    sector_size,
+                ) {
+                    log::error!(
+                        "failed to activate sector: {}, skipping... {:?}",
+                        sector.sector_number,
+                        e
+                    );
+                    continue;
+                }
+
+                let data_commitment = if compute_cid && !proposals.is_empty() {
+                    Some(Self::compute_commd(
+                        proposals.iter().map(|(_, deal)| deal),
+                        sector.sector_type,
+                    )?)
+                } else {
+                    None
+                };
+
+                let mut activated: BoundedVec<_, ConstU32<128>> = BoundedVec::new();
+                for (deal_id, mut proposal) in proposals {
+                    proposal.state = DealState::Active(ActiveDealState {
+                        sector_number: sector.sector_number,
+                        sector_start_block: curr_block,
+                        last_updated_block: None,
+                        slash_block: None,
+                    });
+
+                    activated
+                        .try_push(ActivatedDeal {
+                            client: proposal.client.clone(),
+                            piece_cid: proposal.cid().map_err(|e| {
+                                log::error!(
+                                    "there is invalid cid saved on-chain for deal: {}, {:?}",
+                                    deal_id,
+                                    e
+                                );
+                                Error::<T>::DealPreconditionFailed
+                            })?,
+                            piece_size: proposal.piece_size,
+                        })
+                        .map_err(|_| {
+                            log::error!("failed to insert into `activated`, programmer's error");
+                            Error::<T>::DealPreconditionFailed
+                        })?;
+                    activated_deals.try_insert(deal_id).map_err(|_| {
+                        log::error!("failed to insert into `activated_deals`, programmer's error");
+                        Error::<T>::DealPreconditionFailed
+                    })?;
+
+                    Self::deposit_event(Event::<T>::DealActivated {
+                        deal_id,
+                        client: proposal.client.clone(),
+                        provider: proposal.provider.clone(),
+                    });
+                    Proposals::<T>::insert(deal_id, proposal);
+                }
+
+                activations
+                    .try_push(ActivatedSector {
+                        activated_deals: activated,
+                        unsealed_cid: data_commitment,
+                    })
+                    .map_err(|_| Error::<T>::DealPreconditionFailed)?;
+            }
+
+            Ok(activations)
         }
     }
 }

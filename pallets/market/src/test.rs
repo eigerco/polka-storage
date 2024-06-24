@@ -4,11 +4,15 @@ use cid::Cid;
 use frame_support::{
     assert_noop, assert_ok,
     sp_runtime::{bounded_vec, ArithmeticError, TokenError},
+    BoundedBTreeSet,
 };
-use primitives_proofs::{Market as MarketTrait, RegisteredSealProof, SectorDeal};
+use primitives_proofs::{
+    ActivatedDeal, ActivatedSector, DealId, Market as MarketTrait, RegisteredSealProof, SectorDeal,
+};
 
 use crate::{
-    mock::*, BalanceEntry, BalanceTable, DealProposal, DealState, Error, Event, Proposals,
+    mock::*, BalanceEntry, BalanceTable, DealProposal, DealState, Error, Event, PendingProposals,
+    Proposals,
 };
 
 #[test]
@@ -230,6 +234,8 @@ fn publish_storage_deals() {
                 state: DealState::Unpublished,
             },
         );
+        let alice_hash = Market::hash_proposal(&alice_proposal.proposal);
+        let bob_hash = Market::hash_proposal(&bob_proposal.proposal);
 
         let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
         let _ = Market::add_balance(RuntimeOrigin::signed(account(BOB)), 70);
@@ -277,6 +283,8 @@ fn publish_storage_deals() {
                 }),
             ]
         );
+        assert!(PendingProposals::<Test>::get().contains(&alice_hash));
+        assert!(PendingProposals::<Test>::get().contains(&bob_hash));
     });
 }
 
@@ -284,7 +292,7 @@ fn publish_storage_deals() {
 fn verify_deals_for_activation() {
     let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
-        Proposals::<Test>::insert(
+        insert_deal(
             1,
             DealProposal {
                 piece_cid: cid_of("polka-storage-data")
@@ -329,4 +337,77 @@ fn verify_deals_for_activation() {
             Market::verify_deals_for_activation(&account(PROVIDER), deals)
         );
     });
+}
+
+#[test]
+fn activate_deals() {
+    let _ = env_logger::try_init();
+    new_test_ext().execute_with(|| {
+        insert_deal(
+            1,
+            DealProposal {
+                piece_cid: cid_of("polka-storage-data")
+                    .to_bytes()
+                    .try_into()
+                    .expect("hash is always 32 bytes"),
+                piece_size: 18,
+                client: account(ALICE),
+                provider: account(PROVIDER),
+                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
+                start_block: 100,
+                end_block: 110,
+                storage_price_per_block: 5,
+                provider_collateral: 25,
+                state: DealState::Published,
+            },
+        );
+
+        let deals = bounded_vec![
+            SectorDeal {
+                sector_number: 1,
+                sector_expiry: 120,
+                sector_type: RegisteredSealProof::StackedDRG2KiBV1P1,
+                deal_ids: bounded_vec![1]
+            },
+            SectorDeal {
+                sector_number: 2,
+                sector_expiry: 50,
+                sector_type: RegisteredSealProof::StackedDRG2KiBV1P1,
+                deal_ids: bounded_vec![]
+            }
+        ];
+
+        let piece_cid =
+            Cid::from_str("bafk2bzacecg3xxc4f2ql2hreiuy767u6r72ekdz54k7luieknboaakhft5rgk")
+                .unwrap();
+        let placeholder_commd_cid =
+            Cid::from_str("bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu")
+                .unwrap();
+        assert_eq!(
+            Ok(bounded_vec![
+                ActivatedSector {
+                    activated_deals: bounded_vec![ActivatedDeal {
+                        client: account(ALICE),
+                        piece_cid: piece_cid,
+                        piece_size: 18
+                    }],
+                    unsealed_cid: Some(placeholder_commd_cid),
+                },
+                ActivatedSector {
+                    activated_deals: bounded_vec![],
+                    unsealed_cid: None
+                }
+            ]),
+            Market::activate_deals(&account(PROVIDER), deals, true)
+        );
+    });
+}
+
+fn insert_deal(deal_id: DealId, deal: DealProposalOf<Test>) {
+    let hash = Market::hash_proposal(&deal);
+    let mut pending = BoundedBTreeSet::new();
+    pending.try_insert(hash).unwrap();
+    PendingProposals::<Test>::set(pending);
+
+    Proposals::<Test>::insert(deal_id, deal);
 }
