@@ -20,12 +20,13 @@ pub use pallet::{Config, Pallet};
 
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
-    use crate::types::StorageProviderInfo;
+    use core::fmt::Debug;
 
     use codec::{Decode, Encode};
-    use core::fmt::Debug;
     use frame_support::pallet_prelude::{IsType, StorageMap};
     use scale_info::TypeInfo;
+
+    use crate::types::StorageProviderInfo;
 
     #[pallet::pallet]
     #[pallet::without_storage_info] // Allows to define storage items without fixed size

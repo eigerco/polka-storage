@@ -1,7 +1,8 @@
 use codec::{Decode, Encode};
-use scale_info::prelude::string::String;
-use scale_info::prelude::vec::Vec;
-use scale_info::TypeInfo;
+use scale_info::{
+    prelude::{string::String, vec::Vec},
+    TypeInfo,
+};
 
 /// SectorNumber is a numeric identifier for a sector.
 pub type SectorNumber = u64;
