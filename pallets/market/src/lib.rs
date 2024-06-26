@@ -880,7 +880,7 @@ pub mod pallet {
                     None
                 };
 
-                let mut activated_deals: BoundedVec<_, ConstU32<128>> = BoundedVec::new();
+                let mut activated_deals: BoundedVec<_, ConstU32<MAX_DEALS_PER_SECTOR>> = BoundedVec::new();
                 for (deal_id, mut proposal) in proposals {
                     // Make it Active! This is what's this function is about in the end.
                     proposal.state =
