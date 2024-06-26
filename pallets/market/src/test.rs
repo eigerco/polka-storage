@@ -9,10 +9,11 @@ use frame_support::{
 use primitives_proofs::{
     ActiveDeal, ActiveSector, DealId, Market as MarketTrait, RegisteredSealProof, SectorDeal,
 };
+use sp_core::H256;
 
 use crate::{
     mock::*, ActiveDealState, BalanceEntry, BalanceTable, DealProposal, DealSettlementError,
-    DealState, Error, Event, PendingProposals, Proposals,
+    DealState, DealsForBlock, Error, Event, PendingProposals, Proposals,
 };
 
 #[test]
@@ -198,6 +199,7 @@ fn publish_storage_deals() {
     let _ = env_logger::try_init();
 
     new_test_ext().execute_with(|| {
+        let alice_start_block = 100;
         let alice_proposal = sign_proposal(
             ALICE,
             DealProposal {
@@ -209,13 +211,14 @@ fn publish_storage_deals() {
                 client: account(ALICE),
                 provider: account(PROVIDER),
                 label: bounded_vec![0xb, 0xe, 0xe, 0xf],
-                start_block: 100,
+                start_block: alice_start_block,
                 end_block: 110,
                 storage_price_per_block: 5,
                 provider_collateral: 25,
-                state: DealState::Unpublished,
+                state: DealState::Published,
             },
         );
+        let bob_start_block = 130;
         let bob_proposal = sign_proposal(
             BOB,
             DealProposal {
@@ -227,11 +230,11 @@ fn publish_storage_deals() {
                 client: account(BOB),
                 provider: account(PROVIDER),
                 label: bounded_vec![0xa, 0xe, 0xe, 0xf],
-                start_block: 130,
+                start_block: bob_start_block,
                 end_block: 135,
                 storage_price_per_block: 10,
                 provider_collateral: 15,
-                state: DealState::Unpublished,
+                state: DealState::Published,
             },
         );
         let alice_hash = Market::hash_proposal(&alice_proposal.proposal);
@@ -285,6 +288,8 @@ fn publish_storage_deals() {
         );
         assert!(PendingProposals::<Test>::get().contains(&alice_hash));
         assert!(PendingProposals::<Test>::get().contains(&bob_hash));
+        assert!(DealsForBlock::<Test>::get(&alice_start_block).contains(&0));
+        assert!(DealsForBlock::<Test>::get(&bob_start_block).contains(&1));
     });
 }
 
@@ -343,7 +348,7 @@ fn verify_deals_for_activation() {
 fn activate_deals() {
     let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
-        publish_for_activation(
+        let alice_hash = publish_for_activation(
             1,
             DealProposal {
                 piece_cid: cid_of("polka-storage-data")
@@ -400,6 +405,7 @@ fn activate_deals() {
             ]),
             Market::activate_deals(&account(PROVIDER), deals, true)
         );
+        assert!(!PendingProposals::<Test>::get().contains(&alice_hash));
     });
 }
 
@@ -407,13 +413,136 @@ fn activate_deals() {
 /// In addition to saving it to `Proposals::<T>` it also calculate's
 /// it's hash and saves it to `PendingProposals::<T>`.
 /// Behaves like `publish_storage_deals` without the validation and calling extrinsics.
-fn publish_for_activation(deal_id: DealId, deal: DealProposalOf<Test>) {
+fn publish_for_activation(deal_id: DealId, deal: DealProposalOf<Test>) -> H256 {
     let hash = Market::hash_proposal(&deal);
     let mut pending = BoundedBTreeSet::new();
     pending.try_insert(hash).unwrap();
     PendingProposals::<Test>::set(pending);
 
     Proposals::<Test>::insert(deal_id, deal);
+    hash
+}
+
+#[test]
+fn verifies_deals_on_block_finalization() {
+    let _ = env_logger::try_init();
+
+    new_test_ext().execute_with(|| {
+        let alice_start_block = 100;
+        let alice_proposal = sign_proposal(
+            ALICE,
+            DealProposal {
+                piece_cid: cid_of("polka-storage-data")
+                    .to_bytes()
+                    .try_into()
+                    .expect("hash is always 32 bytes"),
+                piece_size: 18,
+                client: account(ALICE),
+                provider: account(PROVIDER),
+                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
+                start_block: alice_start_block,
+                end_block: 110,
+                storage_price_per_block: 5,
+                provider_collateral: 25,
+                state: DealState::Published,
+            },
+        );
+        let bob_start_block = 130;
+        let bob_proposal = sign_proposal(
+            BOB,
+            DealProposal {
+                piece_cid: cid_of("polka-storage-data-bob")
+                    .to_bytes()
+                    .try_into()
+                    .expect("hash is always 32 bytes"),
+                piece_size: 21,
+                client: account(BOB),
+                provider: account(PROVIDER),
+                label: bounded_vec![0xa, 0xe, 0xe, 0xf],
+                start_block: bob_start_block,
+                end_block: 135,
+                storage_price_per_block: 10,
+                provider_collateral: 15,
+                state: DealState::Published,
+            },
+        );
+
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(BOB)), 70);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 75);
+        let _ = Market::publish_storage_deals(
+            RuntimeOrigin::signed(account(PROVIDER)),
+            bounded_vec![alice_proposal, bob_proposal],
+        );
+        let _ = Market::activate_deals(
+            &account(PROVIDER),
+            bounded_vec![SectorDeal {
+                sector_number: 1,
+                sector_expiry: 200,
+                sector_type: RegisteredSealProof::StackedDRG2KiBV1P1,
+                deal_ids: bounded_vec![0]
+            }],
+            true,
+        );
+        System::reset_events();
+
+        // Idea: Activate Alice's Deal, forget to do that for Bob's.
+
+        // Alice's balance before the hook
+        assert_eq!(
+            BalanceTable::<Test>::get(account(ALICE)),
+            BalanceEntry::<u64> {
+                free: 10,
+                locked: 50
+            }
+        );
+        // After Alice's block, nothing changes to the balance. It has been activated properly.
+        run_to_block(alice_start_block + 1);
+        assert!(!DealsForBlock::<Test>::get(&alice_start_block).contains(&0));
+        assert_eq!(
+            BalanceTable::<Test>::get(account(ALICE)),
+            BalanceEntry::<u64> {
+                free: 10,
+                locked: 50
+            }
+        );
+
+        // Balances before processing the hook
+        assert_eq!(
+            BalanceTable::<Test>::get(account(BOB)),
+            BalanceEntry::<u64> {
+                free: 20,
+                locked: 50
+            }
+        );
+        assert_eq!(
+            BalanceTable::<Test>::get(account(PROVIDER)),
+            BalanceEntry::<u64> {
+                free: 35,
+                locked: 40
+            }
+        );
+        // After exceeding Bob's deal start_block,
+        // Storage Provider should be slashed for Bob's amount and Bob refunded.
+        run_to_block(bob_start_block + 1);
+        assert_eq!(
+            BalanceTable::<Test>::get(account(BOB)),
+            BalanceEntry::<u64> {
+                free: 70,
+                locked: 0
+            }
+        );
+        assert_eq!(
+            BalanceTable::<Test>::get(account(PROVIDER)),
+            BalanceEntry::<u64> {
+                free: 35,
+                // Reduced to 25 = 40 - 15
+                locked: 25
+            }
+        );
+
+        assert!(!DealsForBlock::<Test>::get(&bob_start_block).contains(&1));
+    });
 }
 
 #[test]
@@ -454,7 +583,7 @@ fn settle_deal_payments_early() {
                 end_block: 110,
                 storage_price_per_block: 5,
                 provider_collateral: 25,
-                state: DealState::Unpublished,
+                state: DealState::Published
             },
         );
 
@@ -501,7 +630,7 @@ fn settle_deal_payments_published() {
                 end_block: 10,
                 storage_price_per_block: 5,
                 provider_collateral: 25,
-                state: DealState::Unpublished,
+                state: DealState::Published
             },
         );
 
@@ -529,7 +658,7 @@ fn settle_deal_payments_published() {
                 end_block: 10,
                 storage_price_per_block: 10,
                 provider_collateral: 15,
-                state: DealState::Unpublished,
+                state: DealState::Published,
             },
         );
 
@@ -658,7 +787,7 @@ fn settle_deal_payments_success() {
                 end_block: 10,
                 storage_price_per_block: 5,
                 provider_collateral: 25,
-                state: DealState::Unpublished,
+                state: DealState::Published,
             },
         );
 
@@ -783,7 +912,7 @@ fn settle_deal_payments_success_finished() {
                 end_block: 10,
                 storage_price_per_block: 5,
                 provider_collateral: 25,
-                state: DealState::Unpublished,
+                state: DealState::Published,
             },
         );
 

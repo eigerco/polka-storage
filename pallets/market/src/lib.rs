@@ -34,7 +34,7 @@ pub mod pallet {
         traits::{
             Currency,
             ExistenceRequirement::{AllowDeath, KeepAlive},
-            ReservableCurrency,
+            Hooks, ReservableCurrency, WithdrawReasons,
         },
         PalletId,
     };
@@ -94,6 +94,12 @@ pub mod pallet {
         /// https://github.com/filecoin-project/builtin-actors/blob/c32c97229931636e3097d92cf4c43ac36a7b4b47/actors/market/src/policy.rs#L29
         #[pallet::constant]
         type MaxDealDuration: Get<BlockNumberFor<Self>>;
+
+        /// How many deals can be scheduled to start at a given block. Maximum.
+        /// Those deals are checked by Hook::<T>::on_initialize and it has to have reasonable time complexity.
+        /// Having this number too big can affect block production.
+        #[pallet::constant]
+        type MaxDealsPerBlock: Get<u32>;
     }
 
     /// Stores balances info for both Storage Providers and Storage Users
@@ -115,8 +121,6 @@ pub mod pallet {
 
     #[derive(Clone, Eq, PartialEq, Encode, Decode, RuntimeDebug, TypeInfo, MaxEncodedLen)]
     pub enum DealState<BlockNumber> {
-        /// Deal has been negotiated off-chain and is being proposed via `publish_storage_deals`.
-        Unpublished,
         /// Deal has been accepted on-chain by both Storage Provider and Storage Client, it's waiting for activation.
         Published,
         /// Deal has been activated
@@ -236,7 +240,7 @@ pub mod pallet {
         /// When the Deal fails/is terminated to early, this is the amount which get slashed.
         pub provider_collateral: Balance,
         /// Current [`DealState`].
-        /// It goes: `Unpublished` -> `Published` -> `Active`
+        /// It goes: `Published` -> `Active`
         pub state: DealState<BlockNumber>,
     }
 
@@ -295,6 +299,15 @@ pub mod pallet {
     #[pallet::storage]
     pub type PendingProposals<T: Config> =
         StorageValue<_, BoundedBTreeSet<T::Hash, T::MaxDeals>, ValueQuery>;
+
+    #[pallet::storage]
+    pub type DealsForBlock<T: Config> = StorageMap<
+        _,
+        _,
+        BlockNumberFor<T>,
+        BoundedBTreeSet<DealId, T::MaxDealsPerBlock>,
+        ValueQuery,
+    >;
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -360,6 +373,8 @@ pub mod pallet {
         DealActivationError,
         /// Sum of all of the deals piece sizes for a sector exceeds sector size.
         DealsTooLargeToFitIntoSector,
+        /// Tried to activate too many deals at a given start_block.
+        TooManyDealsPerBlock,
     }
 
     #[derive(RuntimeDebug)]
@@ -392,8 +407,8 @@ pub mod pallet {
         DifferentProvider,
         /// Deal's block_start > block_end, so it doesn't make sense.
         EndBeforeStart,
-        /// Deal has to be [`DealState::Unpublished`] when being Published
-        NotUnpublished,
+        /// Deal has to be [`DealState::Published`] when being Published
+        NotPublished,
         /// Deal's duration must be within `Config::MinDealDuration` < `Config:MaxDealDuration`.
         DurationOutOfBounds,
         /// Deal's piece_cid is invalid.
@@ -629,7 +644,7 @@ pub mod pallet {
                 Self::validate_deals(provider.clone(), deals)?;
 
             // Lock up funds for the clients and emit events
-            for mut deal in valid_deals.into_iter() {
+            for deal in valid_deals.into_iter() {
                 // PRE-COND: always succeeds, validated by `validate_deals`
                 let client_fee: BalanceOf<T> = deal
                     .total_storage_fee()
@@ -651,7 +666,6 @@ pub mod pallet {
                     Ok(())
                 })?;
 
-                deal.state = DealState::Published;
                 let deal_id = Self::generate_deal_id();
 
                 Self::deposit_event(Event::<T>::DealPublished {
@@ -659,6 +673,12 @@ pub mod pallet {
                     provider: provider.clone(),
                     deal_id,
                 });
+                let mut deals_for_block = DealsForBlock::<T>::get(&deal.start_block);
+                deals_for_block.try_insert(deal_id).map_err(|_| {
+                    log::error!("there is not enough space to activate all of the deals at the given block {:?}", deal.start_block);
+                    Error::<T>::TooManyDealsPerBlock
+                })?;
+                DealsForBlock::<T>::insert(deal.start_block, deals_for_block);
                 Proposals::<T>::insert(deal_id, deal);
             }
 
@@ -880,8 +900,8 @@ pub mod pallet {
             );
 
             ensure!(
-                deal.proposal.state == DealState::Unpublished,
-                ProposalError::NotUnpublished
+                deal.proposal.state == DealState::Published,
+                ProposalError::NotPublished
             );
 
             let min_dur = T::BlocksPerDay::get() * T::MinDealDuration::get();
@@ -1001,6 +1021,28 @@ pub mod pallet {
             let bytes = Encode::encode(proposal);
             T::Hashing::hash(&bytes)
         }
+
+        fn slash_and_burn(account_id: &T::AccountId, amount: BalanceOf<T>) -> DispatchResult {
+            BalanceTable::<T>::try_mutate(account_id, |balance| -> DispatchResult {
+                let locked = balance
+                    .locked
+                    .checked_sub(&amount)
+                    .ok_or(ArithmeticError::Underflow)?;
+                balance.locked = locked;
+                Ok(())
+            })?;
+            // Burn from circulating supply
+            let imbalance = T::Currency::burn(amount);
+            // Remove burned amount from the market account
+            T::Currency::settle(
+                &T::PalletId::get().into_account_truncating(),
+                imbalance,
+                WithdrawReasons::FEE,
+                KeepAlive,
+            )
+            // If we burned X, tried to settle X and failed, we're in a bad state
+            .map_err(|_| DispatchError::Corruption)
+        }
     }
 
     impl<T: Config> Market<T::AccountId, BlockNumberFor<T>> for Pallet<T> {
@@ -1067,6 +1109,7 @@ pub mod pallet {
                 ConstU32<MAX_DEALS_FOR_ALL_SECTORS>,
             > = BoundedBTreeSet::new();
 
+            let mut pending_proposals = PendingProposals::<T>::get();
             for sector in sector_deals {
                 let proposals = Self::proposals_for_deals(sector.deal_ids)?;
                 let sector_size = sector.sector_type.sector_size();
@@ -1099,6 +1142,7 @@ pub mod pallet {
                     BoundedVec::new();
                 for (deal_id, mut proposal) in proposals {
                     // Make it Active! This is what's this function is about in the end.
+                    pending_proposals.remove(&Self::hash_proposal(&proposal));
                     proposal.state =
                         DealState::Active(ActiveDealState::new(sector.sector_number, curr_block));
 
@@ -1142,7 +1186,104 @@ pub mod pallet {
                     .map_err(|_| Error::<T>::DealPreconditionFailed)?;
             }
 
+            PendingProposals::<T>::set(pending_proposals);
             Ok(activations)
+        }
+    }
+
+    #[pallet::hooks]
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+        fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+            // TODO(@th7nder,#77,26/06/2024): set proper weights according to what does the `on_finalize` do
+            // return placeholder for now
+            // the correct way: get number of deals for a given block from DealsForBlock
+            // and then calculate weights according to the actions performed in on_finalize
+            T::DbWeight::get().reads(1)
+        }
+
+        /// Called for each block after every extrinsic has already been called.
+        /// This is a slasher for Deals that have been Published, but Storage Provider failed to activate them.
+        /// It scans for Deals that were supposed to be activated in a given block, when registered in `publish_storage_deals`.
+        /// When a deal is not [`DealState::Active`], it refunds all the funds to the client and burns provider's collateral.
+        /// When a deal has been activated, it just removes it from data structures used for tracking.
+        /// This function should not fail at any point, if it fails, it's a bug.
+        ///
+        /// ### Technical notes
+        /// Should be deterministic, bounded and have minimal time complexity.
+        /// <https://paritytech.github.io/polkadot-sdk/master/frame_support/traits/trait.Hooks.html#summary>
+        fn on_finalize(current_block: BlockNumberFor<T>) {
+            let deal_ids = DealsForBlock::<T>::get(&current_block);
+            if deal_ids.is_empty() {
+                log::info!(target: LOG_TARGET, "no deals to process in block: {:?}", current_block);
+                return;
+            }
+
+            // PRE-COND: every deal in deal_ids is unique and properly validated
+            // it should have been performed by `publish_storage_deals`
+            let mut pending_proposals = PendingProposals::<T>::get();
+            for deal_id in deal_ids {
+                let proposal = match Proposals::<T>::try_get(&deal_id) {
+                    Ok(proposal) => proposal,
+                    // Proposal might have been cleaned up by manual settlement or termination prior to reaching
+                    // this scheduled block. nothing more to do for this deal
+                    Err(_) => continue,
+                };
+
+                match &proposal.state {
+                    DealState::Published => {
+                        assert!(
+                            proposal.start_block == current_block,
+                            "deals are scheduled to be checked only at their start block"
+                        );
+                        // Deal has not been activated, time to slash!
+                        // PRE-COND: deal cannot make to this stage without being validated and proper funds allocated
+                        let _ = BalanceTable::<T>::try_mutate(
+                            &proposal.client,
+                            |balance| -> DispatchResult {
+                                let client_fee: BalanceOf<T> = proposal
+                                    .total_storage_fee()
+                                    .ok_or(Error::<T>::UnexpectedValidationError)?
+                                    .try_into()
+                                    .map_err(|_| Error::<T>::UnexpectedValidationError)?;
+                                balance.free = balance
+                                    .free
+                                    .checked_add(&client_fee)
+                                    .ok_or(ArithmeticError::Overflow)?;
+                                balance.locked = balance
+                                    .locked
+                                    .checked_sub(&client_fee)
+                                    .ok_or(ArithmeticError::Underflow)?;
+                                Ok(())
+                            },
+                        );
+
+                        log::info!(
+                            "Slashing {:?} for not activating a deal: {}",
+                            proposal.provider,
+                            deal_id
+                        );
+                        // PRE-COND: deal cannot make to this stage without being validated and proper funds allocated
+                        let _ =
+                            Self::slash_and_burn(&proposal.provider, proposal.provider_collateral);
+                    }
+                    DealState::Active(_) => {
+                        log::info!(
+                            "Deal {} has been properly activated before, all good.",
+                            deal_id
+                        );
+                    }
+                }
+
+                // Deal has been processed, no need to process it twice.
+                Proposals::<T>::remove(&deal_id);
+                // PRE-COND: should always succeed, deals should have been put into DealsForBlock only when published
+                // When published, also should be put to pending proposals.
+                // The other place where a deal can be removed is `on_sectors_terminate`.
+                let _ = pending_proposals.remove(&Self::hash_proposal(&proposal));
+            }
+
+            PendingProposals::<T>::set(pending_proposals);
+            DealsForBlock::<T>::remove(&current_block);
         }
     }
 
