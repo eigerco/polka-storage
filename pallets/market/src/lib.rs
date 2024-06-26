@@ -138,6 +138,20 @@ pub mod pallet {
         slash_block: Option<BlockNumber>,
     }
 
+    impl<BlockNumber> ActiveDealState<BlockNumber> {
+        fn new(
+            sector_number: SectorNumber,
+            sector_start_block: BlockNumber,
+        ) -> ActiveDealState<BlockNumber> {
+            ActiveDealState {
+                sector_number,
+                sector_start_block,
+                last_updated_block: None,
+                slash_block: None,
+            }
+        }
+    }
+
     #[derive(Clone, Eq, PartialEq, Encode, Decode, RuntimeDebug, TypeInfo, MaxEncodedLen)]
     /// Reference: <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/deal.rs#L93>
     // It cannot be generic over <T: Config> because, #[derive(RuntimeDebug, TypeInfo)] also make `T` to have `RuntimeDebug`/`TypeInfo`
@@ -868,12 +882,9 @@ pub mod pallet {
 
                 let mut activated_deals: BoundedVec<_, ConstU32<128>> = BoundedVec::new();
                 for (deal_id, mut proposal) in proposals {
-                    proposal.state = DealState::Active(ActiveDealState {
-                        sector_number: sector.sector_number,
-                        sector_start_block: curr_block,
-                        last_updated_block: None,
-                        slash_block: None,
-                    });
+                    // Make it Active! This is what's this function is about in the end.
+                    proposal.state =
+                        DealState::Active(ActiveDealState::new(sector.sector_number, curr_block));
 
                     activated_deals
                         .try_push(ActiveDeal {
