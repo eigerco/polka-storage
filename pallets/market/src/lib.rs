@@ -41,8 +41,8 @@ pub mod pallet {
     use frame_system::{pallet_prelude::*, Config as SystemConfig, Pallet as System};
     use multihash_codetable::{Code, MultihashDigest};
     use primitives_proofs::{
-        ActivatedDeal, ActivatedSector, DealId, Market, RegisteredSealProof, SectorDeal,
-        SectorNumber, SectorSize,
+        ActiveDeal, ActiveSector, DealId, Market, RegisteredSealProof, SectorDeal, SectorNumber,
+        SectorSize, MAX_DEALS_FOR_ALL_SECTORS, MAX_DEALS_PER_SECTOR, MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::BaseArithmetic;
@@ -574,9 +574,9 @@ pub mod pallet {
         }
 
         fn proposals_for_deals(
-            deal_ids: BoundedVec<DealId, ConstU32<128>>,
-        ) -> Result<BoundedVec<(DealId, DealProposalOf<T>), ConstU32<32>>, DispatchError> {
-            let mut unique_deals: BoundedBTreeSet<DealId, ConstU32<32>> = BoundedBTreeSet::new();
+            deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
+        ) -> Result<BoundedVec<(DealId, DealProposalOf<T>), ConstU32<MAX_SECTORS_PER_CALL>>, DispatchError> {
+            let mut unique_deals: BoundedBTreeSet<DealId, ConstU32<MAX_SECTORS_PER_CALL>> = BoundedBTreeSet::new();
             let mut proposals = BoundedVec::new();
             for deal_id in deal_ids {
                 ensure!(!unique_deals.contains(&deal_id), {
@@ -776,8 +776,9 @@ pub mod pallet {
         /// Currently UnsealedCID is hardcoded as we `compute_commd` remains unimplemented because of #92.
         fn verify_deals_for_activation(
             storage_provider: &T::AccountId,
-            sector_deals: BoundedVec<SectorDeal<BlockNumberFor<T>>, ConstU32<32>>,
-        ) -> Result<BoundedVec<Option<Cid>, ConstU32<32>>, DispatchError> {
+            sector_deals: BoundedVec<SectorDeal<BlockNumberFor<T>>, ConstU32<MAX_SECTORS_PER_CALL>>,
+        ) -> Result<BoundedVec<Option<Cid>, ConstU32<MAX_SECTORS_PER_CALL>>, DispatchError>
+        {
             let curr_block = System::<T>::block_number();
             let mut unsealed_cids = BoundedVec::new();
             for sector in sector_deals {
@@ -819,15 +820,19 @@ pub mod pallet {
         /// (and is implied by confirming the sector's data commitment is derived from the deal peices).
         fn activate_deals(
             storage_provider: &T::AccountId,
-            sector_deals: BoundedVec<SectorDeal<BlockNumberFor<T>>, ConstU32<32>>,
+            sector_deals: BoundedVec<SectorDeal<BlockNumberFor<T>>, ConstU32<MAX_SECTORS_PER_CALL>>,
             compute_cid: bool,
-        ) -> Result<BoundedVec<ActivatedSector<T::AccountId>, ConstU32<32>>, DispatchError>
-        {
+        ) -> Result<
+            BoundedVec<ActiveSector<T::AccountId>, ConstU32<MAX_SECTORS_PER_CALL>>,
+            DispatchError,
+        > {
             // TODO(@th7nder,#87,17/06/2024): validate a Storage Provider's Account (whether the account was registerd as Storage Provider)
             let mut activations = BoundedVec::new();
             let curr_block = System::<T>::block_number();
-            let mut activated_deals: BoundedBTreeSet<DealId, ConstU32<{ 32 * 128 }>> =
-                BoundedBTreeSet::new();
+            let mut activated_deal_ids: BoundedBTreeSet<
+                DealId,
+                ConstU32<MAX_DEALS_FOR_ALL_SECTORS>,
+            > = BoundedBTreeSet::new();
 
             for sector in sector_deals {
                 let proposals = Self::proposals_for_deals(sector.deal_ids)?;
@@ -857,7 +862,7 @@ pub mod pallet {
                     None
                 };
 
-                let mut activated: BoundedVec<_, ConstU32<128>> = BoundedVec::new();
+                let mut activated_deals: BoundedVec<_, ConstU32<128>> = BoundedVec::new();
                 for (deal_id, mut proposal) in proposals {
                     proposal.state = DealState::Active(ActiveDealState {
                         sector_number: sector.sector_number,
@@ -866,8 +871,8 @@ pub mod pallet {
                         slash_block: None,
                     });
 
-                    activated
-                        .try_push(ActivatedDeal {
+                    activated_deals
+                        .try_push(ActiveDeal {
                             client: proposal.client.clone(),
                             piece_cid: proposal.cid().map_err(|e| {
                                 log::error!(
@@ -883,8 +888,10 @@ pub mod pallet {
                             log::error!("failed to insert into `activated`, programmer's error");
                             Error::<T>::DealPreconditionFailed
                         })?;
-                    activated_deals.try_insert(deal_id).map_err(|_| {
-                        log::error!("failed to insert into `activated_deals`, programmer's error");
+                    activated_deal_ids.try_insert(deal_id).map_err(|_| {
+                        log::error!(
+                            "failed to insert into `activated_deal_ids`, programmer's error"
+                        );
                         Error::<T>::DealPreconditionFailed
                     })?;
 
@@ -897,8 +904,8 @@ pub mod pallet {
                 }
 
                 activations
-                    .try_push(ActivatedSector {
-                        activated_deals: activated,
+                    .try_push(ActiveSector {
+                        active_deals: activated_deals,
                         unsealed_cid: data_commitment,
                     })
                     .map_err(|_| Error::<T>::DealPreconditionFailed)?;

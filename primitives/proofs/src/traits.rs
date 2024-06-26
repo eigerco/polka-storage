@@ -4,14 +4,26 @@ use sp_runtime::{BoundedVec, DispatchError, RuntimeDebug};
 
 use crate::types::{DealId, RegisteredSealProof, SectorNumber};
 
+/// Number of Sectors that can be provided in a single extrinsics call.
+/// Required for BoundedVec.
+/// It was selected arbitrarly, without precise calculations.
+pub const MAX_SECTORS_PER_CALL: u32 = 32;
+/// Number of Deals that can be contained in a single sector.
+/// Required for BoundedVec.
+/// It was selected arbitrarly, without precise calculations.
+pub const MAX_DEALS_PER_SECTOR: u32 = 128;
+/// Flattened size of all active deals for all of the sectors.
+/// Required for BoundedVec.
+pub const MAX_DEALS_FOR_ALL_SECTORS: u32 = MAX_SECTORS_PER_CALL * MAX_DEALS_PER_SECTOR;
+
 /// Represents functions that are provided by the Market Provider Pallet
 pub trait Market<AccountId, BlockNumber> {
     /// Verifies a given set of storage deals is valid for sectors being PreCommitted.
     /// Computes UnsealedCID (CommD) for each sector or None for Committed Capacity sectors.
     fn verify_deals_for_activation(
         storage_provider: &AccountId,
-        sector_deals: BoundedVec<SectorDeal<BlockNumber>, ConstU32<32>>,
-    ) -> Result<BoundedVec<Option<Cid>, ConstU32<32>>, DispatchError>;
+        sector_deals: BoundedVec<SectorDeal<BlockNumber>, ConstU32<MAX_SECTORS_PER_CALL>>,
+    ) -> Result<BoundedVec<Option<Cid>, ConstU32<MAX_SECTORS_PER_CALL>>, DispatchError>;
 
     /// Activate a set of deals grouped by sector, returning the size and
     /// extra info about verified deals.
@@ -21,9 +33,9 @@ pub trait Market<AccountId, BlockNumber> {
     /// (and is implied by confirming the sector's data commitment is derived from the deal peices).
     fn activate_deals(
         storage_provider: &AccountId,
-        sector_deals: BoundedVec<SectorDeal<BlockNumber>, ConstU32<32>>,
+        sector_deals: BoundedVec<SectorDeal<BlockNumber>, ConstU32<MAX_SECTORS_PER_CALL>>,
         compute_cid: bool,
-    ) -> Result<BoundedVec<ActivatedSector<AccountId>, ConstU32<32>>, DispatchError>;
+    ) -> Result<BoundedVec<ActiveSector<AccountId>, ConstU32<MAX_SECTORS_PER_CALL>>, DispatchError>;
 }
 
 /// Binds given Sector with the Deals that it should contain
@@ -43,21 +55,26 @@ pub struct SectorDeal<BlockNumber> {
     pub sector_type: RegisteredSealProof,
     /// Deals Ids that are supposed to be activated.
     /// If any of those is invalid, whole activation is rejected.
-    pub deal_ids: BoundedVec<DealId, ConstU32<128>>,
+    pub deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
 }
 
+/// A sector with all of its active deals.
 #[derive(RuntimeDebug, Eq, PartialEq)]
-pub struct ActivatedSector<AccountId> {
+pub struct ActiveSector<AccountId> {
     /// Information about each deal activated.
-    pub activated_deals: BoundedVec<ActivatedDeal<AccountId>, ConstU32<128>>,
+    pub active_deals: BoundedVec<ActiveDeal<AccountId>, ConstU32<MAX_DEALS_PER_SECTOR>>,
     /// Unsealed CID computed from the deals specified for the sector.
     /// A None indicates no deals were specified, or the computation was not requested.
     pub unsealed_cid: Option<Cid>,
 }
 
+/// An active deal with references to data that it stores
 #[derive(RuntimeDebug, Eq, PartialEq)]
-pub struct ActivatedDeal<AccountId> {
+pub struct ActiveDeal<AccountId> {
+    /// Client's account
     pub client: AccountId,
+    /// Data that was stored
     pub piece_cid: Cid,
+    /// Real size of the data
     pub piece_size: u64,
 }

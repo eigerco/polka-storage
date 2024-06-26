@@ -8,7 +8,7 @@ repository.workspace = true
 version = "0.1.0"
 
 [dependencies]
-cid = { workspace = true, default-features = false }
+cid = { workspace = true, default-features = false, features = ["alloc"]}
 codec = { workspace = true, default-features = false, features = ["derive"] }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 

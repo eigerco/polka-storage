@@ -7,7 +7,7 @@ use frame_support::{
     BoundedBTreeSet,
 };
 use primitives_proofs::{
-    ActivatedDeal, ActivatedSector, DealId, Market as MarketTrait, RegisteredSealProof, SectorDeal,
+    ActiveDeal, ActiveSector, DealId, Market as MarketTrait, RegisteredSealProof, SectorDeal,
 };
 
 use crate::{
@@ -385,16 +385,16 @@ fn activate_deals() {
                 .unwrap();
         assert_eq!(
             Ok(bounded_vec![
-                ActivatedSector {
-                    activated_deals: bounded_vec![ActivatedDeal {
+                ActiveSector {
+                    active_deals: bounded_vec![ActiveDeal {
                         client: account(ALICE),
                         piece_cid: piece_cid,
                         piece_size: 18
                     }],
                     unsealed_cid: Some(placeholder_commd_cid),
                 },
-                ActivatedSector {
-                    activated_deals: bounded_vec![],
+                ActiveSector {
+                    active_deals: bounded_vec![],
                     unsealed_cid: None
                 }
             ]),
