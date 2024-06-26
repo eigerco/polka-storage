@@ -48,44 +48,7 @@ impl RpcClient {
         } = req;
 
         let client = self.get_or_init_client(api_version).await?;
-        Self::request(client, method_name, params).await
-    }
-
-    #[instrument(skip_all, fields(url = %client.url, params = ?params))]
-    async fn request<T>(client: &Client, method_name: &str, params: Value) -> Result<T, ClientError>
-    where
-        T: DeserializeOwned + Debug,
-    {
-        let result = match params {
-            Value::Null => client.request(method_name, ArrayParams::new()),
-            Value::Array(it) => {
-                let mut params = ArrayParams::new();
-                for param in it {
-                    params.insert(param)?
-                }
-
-                client.request(method_name, params)
-            }
-            Value::Object(it) => {
-                let mut params = ObjectParams::new();
-                for (name, param) in it {
-                    params.insert(&name, param)?
-                }
-
-                client.request(method_name, params)
-            }
-            prim @ (Value::Bool(_) | Value::Number(_) | Value::String(_)) => {
-                return Err(ClientError::Custom(format!(
-                    "invalid parameter type: `{}`",
-                    prim
-                )))
-            }
-        }
-        .await;
-
-        debug!(?result, "request completed");
-
-        result
+        request(client, method_name, params).await
     }
 
     /// Get or initialize a client for the given API version.
@@ -102,6 +65,43 @@ impl RpcClient {
         })
         .await
     }
+}
+
+#[instrument(skip_all, fields(url = %client.url, params = ?params))]
+async fn request<T>(client: &Client, method_name: &str, params: Value) -> Result<T, ClientError>
+where
+    T: DeserializeOwned + Debug,
+{
+    let result = match params {
+        Value::Null => client.request(method_name, ArrayParams::new()),
+        Value::Array(it) => {
+            let mut params = ArrayParams::new();
+            for param in it {
+                params.insert(param)?
+            }
+
+            client.request(method_name, params)
+        }
+        Value::Object(it) => {
+            let mut params = ObjectParams::new();
+            for (name, param) in it {
+                params.insert(&name, param)?
+            }
+
+            client.request(method_name, params)
+        }
+        param @ (Value::Bool(_) | Value::Number(_) | Value::String(_)) => {
+            return Err(ClientError::Custom(format!(
+                "invalid parameter type: `{}`",
+                param
+            )))
+        }
+    }
+    .await;
+
+    debug!(?result, "request completed");
+
+    result
 }
 
 /// Represents a single connection to the URL server
@@ -217,10 +217,10 @@ impl SubscriptionClientT for Client {
 
 /// Represents a single RPC request.
 #[derive(Debug)]
-pub struct Request<T = Value> {
+pub struct Request<Result = Value> {
     pub method_name: &'static str,
     pub params: Value,
-    pub result_type: PhantomData<T>,
+    pub result_type: PhantomData<Result>,
     pub api_version: ApiVersion,
 }
 

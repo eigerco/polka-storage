@@ -72,10 +72,10 @@ pub trait RpcMethodExt: RpcMethod {
 
                 match &result {
                     Ok(ok) => {
-                        span.in_scope(|| debug!(response = ?ok, "handled successfully"));
+                        debug!(parent: span, response = ?ok, "handled successfully");
                     }
                     Err(err) => {
-                        span.in_scope(|| error!(err = ?err, "error ocurred while handling"));
+                        error!(parent: span, err = ?err, "error ocurred while handling")
                     }
                 }
 
