@@ -30,7 +30,7 @@ pub trait Market<AccountId, BlockNumber> {
     /// Sectors' deals are activated in parameter-defined order.
     /// Each sector's deals are activated or fail as a group, but independently of other sectors.
     /// Note that confirming all deals fit within a sector is the caller's responsibility
-    /// (and is implied by confirming the sector's data commitment is derived from the deal peices).
+    /// (and is implied by confirming the sector's data commitment is derived from the deal pieces).
     fn activate_deals(
         storage_provider: &AccountId,
         sector_deals: BoundedVec<SectorDeal<BlockNumber>, ConstU32<MAX_SECTORS_PER_CALL>>,

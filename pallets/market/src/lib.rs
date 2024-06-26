@@ -695,7 +695,7 @@ pub mod pallet {
                 Error::<T>::ProposalsNotPublishedByStorageProvider
             );
 
-            // TODO(@th7nder,#87,17/06/2024): validate a Storage Provider's Account (whether the account was registerd as Storage Provider)
+            // TODO(@th7nder,#87,17/06/2024): validate a Storage Provider's Account (whether the account was registered as Storage Provider)
 
             let mut total_client_lockup: BoundedBTreeMap<T::AccountId, BalanceOf<T>, T::MaxDeals> =
                 BoundedBTreeMap::new();
@@ -821,7 +821,7 @@ pub mod pallet {
         /// Sectors' deals are activated in parameter-defined order.
         /// Each sector's deals are activated or fail as a group, but independently of other sectors.
         /// Note that confirming all deals fit within a sector is the caller's responsibility
-        /// (and is implied by confirming the sector's data commitment is derived from the deal peices).
+        /// (and is implied by confirming the sector's data commitment is derived from the deal pieces).
         fn activate_deals(
             storage_provider: &T::AccountId,
             sector_deals: BoundedVec<SectorDeal<BlockNumberFor<T>>, ConstU32<MAX_SECTORS_PER_CALL>>,
@@ -830,7 +830,7 @@ pub mod pallet {
             BoundedVec<ActiveSector<T::AccountId>, ConstU32<MAX_SECTORS_PER_CALL>>,
             DispatchError,
         > {
-            // TODO(@th7nder,#87,17/06/2024): validate a Storage Provider's Account (whether the account was registerd as Storage Provider)
+            // TODO(@th7nder,#87,17/06/2024): validate a Storage Provider's Account (whether the account was registered as Storage Provider)
             let mut activations = BoundedVec::new();
             let curr_block = System::<T>::block_number();
             let mut activated_deal_ids: BoundedBTreeSet<
