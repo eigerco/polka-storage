@@ -1,8 +1,14 @@
 use cid::Cid;
 use sp_core::ConstU32;
-use sp_runtime::{BoundedVec, DispatchError, RuntimeDebug};
+use sp_runtime::{BoundedVec, DispatchError, DispatchResult, RuntimeDebug};
 
 use crate::types::{DealId, RegisteredSealProof, SectorNumber};
+
+/// Size of a CID with a 512-bit multihash — i.e. the default CID size.
+const CID_SIZE_IN_BYTES: u32 = 64;
+
+/// The CID (in bytes) of a given sector.
+pub type SectorId = BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>;
 
 /// Number of Sectors that can be provided in a single extrinsics call.
 /// Required for BoundedVec.
@@ -36,6 +42,17 @@ pub trait Market<AccountId, BlockNumber> {
         sector_deals: BoundedVec<SectorDeal<BlockNumber>, ConstU32<MAX_SECTORS_PER_CALL>>,
         compute_cid: bool,
     ) -> Result<BoundedVec<ActiveSector<AccountId>, ConstU32<MAX_SECTORS_PER_CALL>>, DispatchError>;
+
+    /// Activate a set of deals grouped by sector, returning the size and
+    /// extra info about verified deals.
+    /// Sectors' deals are activated in parameter-defined order.
+    /// Each sector's deals are activated or fail as a group, but independently of other sectors.
+    /// Note that confirming all deals fit within a sector is the caller's responsibility
+    /// (and is implied by confirming the sector's data commitment is derived from the deal pieces).
+    fn on_sectors_terminate(
+        storage_provider: &AccountId,
+        sector_ids: BoundedVec<SectorId, ConstU32<MAX_DEALS_PER_SECTOR>>,
+    ) -> DispatchResult;
 }
 
 /// Binds given Sector with the Deals that it should contain
