@@ -292,7 +292,7 @@ fn publish_storage_deals() {
 fn verify_deals_for_activation() {
     let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
-        insert_deal(
+        publish_for_activation(
             1,
             DealProposal {
                 piece_cid: cid_of("polka-storage-data")
@@ -343,7 +343,7 @@ fn verify_deals_for_activation() {
 fn activate_deals() {
     let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
-        insert_deal(
+        publish_for_activation(
             1,
             DealProposal {
                 piece_cid: cid_of("polka-storage-data")
@@ -403,7 +403,11 @@ fn activate_deals() {
     });
 }
 
-fn insert_deal(deal_id: DealId, deal: DealProposalOf<Test>) {
+/// Creates a new deal and saves it in the Runtime Storage.
+/// In addition to saving it to `Proposals::<T>` it also calculate's
+/// it's hash and saves it to `PendingProposals::<T>`.
+/// Behaves like `publish_storage_deals` without the validation and calling extrinsics.
+fn publish_for_activation(deal_id: DealId, deal: DealProposalOf<Test>) {
     let hash = Market::hash_proposal(&deal);
     let mut pending = BoundedBTreeSet::new();
     pending.try_insert(hash).unwrap();

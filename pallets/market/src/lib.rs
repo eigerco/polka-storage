@@ -575,8 +575,12 @@ pub mod pallet {
 
         fn proposals_for_deals(
             deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
-        ) -> Result<BoundedVec<(DealId, DealProposalOf<T>), ConstU32<MAX_SECTORS_PER_CALL>>, DispatchError> {
-            let mut unique_deals: BoundedBTreeSet<DealId, ConstU32<MAX_SECTORS_PER_CALL>> = BoundedBTreeSet::new();
+        ) -> Result<
+            BoundedVec<(DealId, DealProposalOf<T>), ConstU32<MAX_SECTORS_PER_CALL>>,
+            DispatchError,
+        > {
+            let mut unique_deals: BoundedBTreeSet<DealId, ConstU32<MAX_SECTORS_PER_CALL>> =
+                BoundedBTreeSet::new();
             let mut proposals = BoundedVec::new();
             for deal_id in deal_ids {
                 ensure!(!unique_deals.contains(&deal_id), {
