@@ -1,30 +1,33 @@
 use frame_support::{
     assert_noop, assert_ok,
-    sp_runtime::{ArithmeticError, TokenError},
+    sp_runtime::{bounded_vec, ArithmeticError, TokenError},
 };
 
-use crate::{mock::*, BalanceEntry, BalanceTable, Error, Event};
+use crate::{mock::*, BalanceEntry, BalanceTable, DealProposal, DealState, Error, Event};
 
 #[test]
 fn initial_state() {
     new_test_ext().execute_with(|| {
         assert_eq!(Balances::free_balance(Market::account_id()), 0);
         assert_eq!(
-            BalanceTable::<Test>::get(ALICE),
+            BalanceTable::<Test>::get(account(ALICE)),
             BalanceEntry::<u64> { free: 0, locked: 0 }
         );
     });
 }
 
 #[test]
-fn basic_end_to_end_works() {
+fn adds_and_withdraws_balances() {
     new_test_ext().execute_with(|| {
         // Adds funds from an account to the Market
-        assert_ok!(Market::add_balance(RuntimeOrigin::signed(ALICE), 10));
+        assert_ok!(Market::add_balance(
+            RuntimeOrigin::signed(account(ALICE)),
+            10
+        ));
         assert_eq!(Balances::free_balance(Market::account_id()), 10);
-        assert_eq!(Balances::free_balance(ALICE), INITIAL_FUNDS - 10);
+        assert_eq!(Balances::free_balance(account(ALICE)), INITIAL_FUNDS - 10);
         assert_eq!(
-            BalanceTable::<Test>::get(ALICE),
+            BalanceTable::<Test>::get(account(ALICE)),
             BalanceEntry::<u64> {
                 free: 10,
                 locked: 0,
@@ -32,11 +35,14 @@ fn basic_end_to_end_works() {
         );
 
         // Is able to withdraw added funds back
-        assert_ok!(Market::withdraw_balance(RuntimeOrigin::signed(ALICE), 10));
+        assert_ok!(Market::withdraw_balance(
+            RuntimeOrigin::signed(account(ALICE)),
+            10
+        ));
         assert_eq!(Balances::free_balance(Market::account_id()), 0);
-        assert_eq!(Balances::free_balance(ALICE), INITIAL_FUNDS);
+        assert_eq!(Balances::free_balance(account(ALICE)), INITIAL_FUNDS);
         assert_eq!(
-            BalanceTable::<Test>::get(ALICE),
+            BalanceTable::<Test>::get(account(ALICE)),
             BalanceEntry::<u64> { free: 0, locked: 0 }
         );
     });
@@ -45,11 +51,14 @@ fn basic_end_to_end_works() {
 #[test]
 fn adds_balance() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Market::add_balance(RuntimeOrigin::signed(ALICE), 10));
+        assert_ok!(Market::add_balance(
+            RuntimeOrigin::signed(account(ALICE)),
+            10
+        ));
         assert_eq!(Balances::free_balance(Market::account_id()), 10);
-        assert_eq!(Balances::free_balance(ALICE), INITIAL_FUNDS - 10);
+        assert_eq!(Balances::free_balance(account(ALICE)), INITIAL_FUNDS - 10);
         assert_eq!(
-            BalanceTable::<Test>::get(ALICE),
+            BalanceTable::<Test>::get(account(ALICE)),
             BalanceEntry::<u64> {
                 free: 10,
                 locked: 0,
@@ -67,12 +76,12 @@ fn adds_balance() {
                     free_balance: 10
                 }),
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Transfer {
-                    from: ALICE,
+                    from: account(ALICE),
                     to: Market::account_id(),
                     amount: 10
                 }),
                 RuntimeEvent::Market(Event::<Test>::BalanceAdded {
-                    who: ALICE,
+                    who: account(ALICE),
                     amount: 10
                 })
             ]
@@ -80,7 +89,7 @@ fn adds_balance() {
 
         // Makes sure other accounts are unaffected
         assert_eq!(
-            BalanceTable::<Test>::get(BOB),
+            BalanceTable::<Test>::get(account(BOB)),
             BalanceEntry::<u64> { free: 0, locked: 0 }
         );
     });
@@ -90,7 +99,7 @@ fn adds_balance() {
 fn fails_to_add_balance_insufficient_funds() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Market::add_balance(RuntimeOrigin::signed(ALICE), INITIAL_FUNDS + 1),
+            Market::add_balance(RuntimeOrigin::signed(account(ALICE)), INITIAL_FUNDS + 1),
             TokenError::FundsUnavailable,
         );
     });
@@ -101,7 +110,7 @@ fn fails_to_add_balance_overflow() {
     new_test_ext().execute_with(|| {
         // Hard to do this without setting it explicitly in the map
         BalanceTable::<Test>::set(
-            BOB,
+            account(BOB),
             BalanceEntry::<u64> {
                 free: u64::MAX,
                 locked: 0,
@@ -109,7 +118,7 @@ fn fails_to_add_balance_overflow() {
         );
 
         assert_noop!(
-            Market::add_balance(RuntimeOrigin::signed(BOB), 1),
+            Market::add_balance(RuntimeOrigin::signed(account(BOB)), 1),
             ArithmeticError::Overflow
         );
     });
@@ -118,14 +127,17 @@ fn fails_to_add_balance_overflow() {
 #[test]
 fn withdraws_balance() {
     new_test_ext().execute_with(|| {
-        let _ = Market::add_balance(RuntimeOrigin::signed(ALICE), 10);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 10);
         System::reset_events();
 
-        assert_ok!(Market::withdraw_balance(RuntimeOrigin::signed(ALICE), 10));
+        assert_ok!(Market::withdraw_balance(
+            RuntimeOrigin::signed(account(ALICE)),
+            10
+        ));
         assert_eq!(Balances::free_balance(Market::account_id()), 0);
-        assert_eq!(Balances::free_balance(ALICE), INITIAL_FUNDS);
+        assert_eq!(Balances::free_balance(account(ALICE)), INITIAL_FUNDS);
         assert_eq!(
-            BalanceTable::<Test>::get(ALICE),
+            BalanceTable::<Test>::get(account(ALICE)),
             BalanceEntry::<u64> { free: 0, locked: 0 }
         );
 
@@ -137,11 +149,11 @@ fn withdraws_balance() {
                 }),
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Transfer {
                     from: Market::account_id(),
-                    to: ALICE,
+                    to: account(ALICE),
                     amount: 10
                 }),
                 RuntimeEvent::Market(Event::<Test>::BalanceWithdrawn {
-                    who: ALICE,
+                    who: account(ALICE),
                     amount: 10
                 })
             ]
@@ -153,10 +165,111 @@ fn withdraws_balance() {
 fn fails_to_withdraw_balance() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Market::withdraw_balance(RuntimeOrigin::signed(BOB), 10),
+            Market::withdraw_balance(RuntimeOrigin::signed(account(BOB)), 10),
             Error::<Test>::InsufficientFreeFunds
         );
 
         assert_eq!(events(), []);
+    });
+}
+
+#[test]
+fn publish_storage_deals_fails_with_empty_deals() {
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            Market::publish_storage_deals(RuntimeOrigin::signed(account(PROVIDER)), bounded_vec![]),
+            Error::<Test>::NoProposalsToBePublished
+        );
+    });
+}
+
+#[test]
+fn publish_storage_deals() {
+    let _ = env_logger::try_init();
+
+    new_test_ext().execute_with(|| {
+        let alice_proposal = sign_proposal(
+            ALICE,
+            DealProposal {
+                piece_cid: cid_of("polka-storage-data")
+                    .to_bytes()
+                    .try_into()
+                    .expect("hash is always 32 bytes"),
+                piece_size: 18,
+                client: account(ALICE),
+                provider: account(PROVIDER),
+                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
+                start_block: 100,
+                end_block: 110,
+                storage_price_per_block: 5,
+                provider_collateral: 25,
+                state: DealState::Unpublished,
+            },
+        );
+        let bob_proposal = sign_proposal(
+            BOB,
+            DealProposal {
+                piece_cid: cid_of("polka-storage-data-bob")
+                    .to_bytes()
+                    .try_into()
+                    .expect("hash is always 32 bytes"),
+                piece_size: 21,
+                client: account(BOB),
+                provider: account(PROVIDER),
+                label: bounded_vec![0xa, 0xe, 0xe, 0xf],
+                start_block: 130,
+                end_block: 135,
+                storage_price_per_block: 10,
+                provider_collateral: 15,
+                state: DealState::Unpublished,
+            },
+        );
+
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(BOB)), 70);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 75);
+        System::reset_events();
+
+        assert_ok!(Market::publish_storage_deals(
+            RuntimeOrigin::signed(account(PROVIDER)),
+            bounded_vec![alice_proposal, bob_proposal]
+        ));
+        assert_eq!(
+            BalanceTable::<Test>::get(account(ALICE)),
+            BalanceEntry::<u64> {
+                free: 10,
+                locked: 50
+            }
+        );
+        assert_eq!(
+            BalanceTable::<Test>::get(account(BOB)),
+            BalanceEntry::<u64> {
+                free: 20,
+                locked: 50
+            }
+        );
+        assert_eq!(
+            BalanceTable::<Test>::get(account(PROVIDER)),
+            BalanceEntry::<u64> {
+                free: 35,
+                locked: 40
+            }
+        );
+
+        assert_eq!(
+            events(),
+            [
+                RuntimeEvent::Market(Event::<Test>::DealPublished {
+                    deal_id: 0,
+                    client: account(ALICE),
+                    provider: account(PROVIDER),
+                }),
+                RuntimeEvent::Market(Event::<Test>::DealPublished {
+                    deal_id: 1,
+                    client: account(BOB),
+                    provider: account(PROVIDER),
+                }),
+            ]
+        );
     });
 }
