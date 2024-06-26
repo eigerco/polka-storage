@@ -87,9 +87,7 @@ pub trait RpcMethodExt: RpcMethod {
     /// Create a request for this method.
     ///
     /// Returns [`Err`] if any of the parameters fail to serialize.
-    fn request(params: Self::Params) -> Result<Request<Self::Ok>, serde_json::Error> {
-        let params = serde_json::to_value(params)?;
-
+    fn request(params: Self::Params) -> Result<Request<Self::Ok, Self::Params>, serde_json::Error> {
         Ok(Request {
             method_name: Self::NAME,
             params,

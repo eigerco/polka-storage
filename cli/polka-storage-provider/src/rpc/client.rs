@@ -13,7 +13,7 @@ use jsonrpsee::{
     http_client::HttpClientBuilder,
     ws_client::WsClientBuilder,
 };
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use tokio::sync::OnceCell;
 use tracing::{debug, instrument};
@@ -36,9 +36,10 @@ impl RpcClient {
     }
 
     /// Call an RPC server with the given request.
-    pub async fn call<T>(&self, req: Request<T>) -> Result<T, ClientError>
+    pub async fn call<T, P>(&self, req: Request<T, P>) -> Result<T, ClientError>
     where
         T: DeserializeOwned + Debug,
+        P: Serialize + Debug,
     {
         let Request {
             method_name,
@@ -68,10 +69,13 @@ impl RpcClient {
 }
 
 #[instrument(skip_all, fields(url = %client.url, params = ?params))]
-async fn request<T>(client: &Client, method_name: &str, params: Value) -> Result<T, ClientError>
+async fn request<T, P>(client: &Client, method_name: &str, params: P) -> Result<T, ClientError>
 where
     T: DeserializeOwned + Debug,
+    P: Serialize + Debug,
 {
+    let params = serde_json::to_value(params)?;
+
     let result = match params {
         Value::Null => client.request(method_name, ArrayParams::new()),
         Value::Array(it) => {
@@ -217,9 +221,9 @@ impl SubscriptionClientT for Client {
 
 /// Represents a single RPC request.
 #[derive(Debug)]
-pub struct Request<Result = Value> {
+pub struct Request<Result = Value, Params = Value> {
     pub method_name: &'static str,
-    pub params: Value,
+    pub params: Params,
     pub result_type: PhantomData<Result>,
     pub api_version: ApiVersion,
 }
