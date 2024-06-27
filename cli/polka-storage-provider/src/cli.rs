@@ -1,4 +1,5 @@
 use clap::Parser;
+use url::Url;
 
 use crate::{
     commands::{InfoCommand, InitCommand, RunCommand, WalletCommand},
@@ -12,8 +13,10 @@ use crate::{
 pub(crate) struct Cli {
     #[command(subcommand)]
     pub subcommand: SubCommand,
-    #[arg(short, long, default_value_t = format!("http://{RPC_SERVER_DEFAULT_BIND_ADDR}"))]
-    pub rpc_server_url: String,
+
+    /// URL of the providers RPC server.
+    #[arg(long, default_value_t = Url::parse(&format!("http://{RPC_SERVER_DEFAULT_BIND_ADDR}")).unwrap())]
+    pub rpc_server_url: Url,
 }
 
 /// Supported sub-commands.

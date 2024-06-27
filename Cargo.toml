@@ -59,6 +59,7 @@ quote = { version = "1.0.33" }
 rand = "0.8.5"
 rocksdb = { version = "0.21" }
 scale-info = { version = "2.11.1", default-features = false }
+sealed = "0.5"
 serde = { version = "1.0.197", default-features = false }
 serde-big-array = { version = "0.3.2" }
 serde_derive = { version = "1.0.117" }

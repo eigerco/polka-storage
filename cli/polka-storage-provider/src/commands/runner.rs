@@ -1,7 +1,4 @@
-use std::str::FromStr;
-
 use clap::Parser;
-use url::Url;
 
 use super::WalletCommand;
 use crate::{cli::SubCommand, rpc::Client, Cli, Error};
@@ -13,8 +10,7 @@ pub(crate) async fn run() -> Result<(), Error> {
     let cli_arguments: Cli = Cli::parse();
 
     // RPC client used to interact with the full node
-    let rpc_url = Url::from_str(&cli_arguments.rpc_server_url)?;
-    let rpc_client = Client::new(rpc_url).await?;
+    let rpc_client = Client::new(cli_arguments.rpc_server_url).await?;
 
     match &cli_arguments.subcommand {
         SubCommand::Init(cmd) => cmd.run().await,
