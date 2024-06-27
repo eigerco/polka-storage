@@ -15,9 +15,9 @@ pub trait RpcRequest<Version> {
     /// Method name.
     const NAME: &'static str;
     /// Successful response type.
-    type Ok: Clone + Debug + Serialize + DeserializeOwned + Send + Sync + 'static;
+    type Ok: Debug + Clone + Serialize + DeserializeOwned + 'static;
     /// Parameters type.
-    type Params: Clone + Debug + Serialize + DeserializeOwned + Send + Sync;
+    type Params: Debug + Serialize + DeserializeOwned;
 
     /// Get request parameters.
     fn get_params(&self) -> Self::Params;
