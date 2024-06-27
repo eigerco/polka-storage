@@ -47,7 +47,7 @@ use polkadot_runtime_common::{
 };
 use scale_info::prelude::vec::Vec;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_runtime::Perbill;
+use sp_runtime::{traits::Verify, MultiSignature, Perbill};
 use sp_version::RuntimeVersion;
 use xcm::latest::prelude::BodyId;
 use xcm_config::{RelayLocation, XcmOriginToTransactDispatchOrigin};
@@ -58,9 +58,9 @@ use super::{
     AccountId, Aura, Balance, Balances, Block, BlockNumber, CollatorSelection, Hash, MessageQueue,
     Nonce, PalletInfo, ParachainSystem, Runtime, RuntimeCall, RuntimeEvent, RuntimeFreezeReason,
     RuntimeHoldReason, RuntimeOrigin, RuntimeTask, Session, SessionKeys, System, WeightToFee,
-    XcmpQueue, AVERAGE_ON_INITIALIZE_RATIO, BLOCK_PROCESSING_VELOCITY, EXISTENTIAL_DEPOSIT, HOURS,
-    MAXIMUM_BLOCK_WEIGHT, MICROUNIT, NORMAL_DISPATCH_RATIO, RELAY_CHAIN_SLOT_DURATION_MILLIS,
-    SLOT_DURATION, UNINCLUDED_SEGMENT_CAPACITY, VERSION,
+    XcmpQueue, AVERAGE_ON_INITIALIZE_RATIO, BLOCK_PROCESSING_VELOCITY, DAYS, EXISTENTIAL_DEPOSIT,
+    HOURS, MAXIMUM_BLOCK_WEIGHT, MICROUNIT, NORMAL_DISPATCH_RATIO,
+    RELAY_CHAIN_SLOT_DURATION_MILLIS, SLOT_DURATION, UNINCLUDED_SEGMENT_CAPACITY, VERSION,
 };
 
 parameter_types! {
@@ -310,4 +310,23 @@ impl pallet_collator_selection::Config for Runtime {
 impl pallet_storage_provider::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type PeerId = Vec<u8>;
+}
+
+parameter_types! {
+    /// PalletId of Market Pallet, used to convert it to AccountId which holds the Market funds
+    pub const MarketPalletId: PalletId = PalletId(*b"spMarket");
+}
+
+pub type AccountPublic = <MultiSignature as Verify>::Signer;
+
+impl pallet_market::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type Currency = Balances;
+    type PalletId = MarketPalletId;
+    type OffchainSignature = MultiSignature;
+    type OffchainPublic = AccountPublic;
+    type MaxDeals = ConstU32<128>;
+    type BlocksPerDay = ConstU32<DAYS>;
+    type MinDealDuration = ConstU32<{ DAYS * 180 }>;
+    type MaxDealDuration = ConstU32<{ DAYS * 1278 }>;
 }
