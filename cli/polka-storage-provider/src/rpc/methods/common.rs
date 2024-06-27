@@ -18,7 +18,7 @@ impl RpcRequest<V0> for InfoRequest {
     type Ok = InfoResult;
     type Params = ();
 
-    fn get_params(&self) -> Self::Params {
+    fn params(&self) -> Self::Params {
         ()
     }
 

@@ -18,13 +18,7 @@ use thiserror::Error;
 use tracing::{debug, instrument};
 use url::Url;
 
-use super::{
-    methods::RpcRequest,
-    version::{ApiVersion, V0},
-};
-
-/// Type alias for the V0 client instance
-pub type ClientV0 = Client<V0>;
+use super::{methods::RpcRequest, version::ApiVersion};
 
 /// Errors that can occur when working with the client
 #[derive(Debug, Error)]
@@ -64,12 +58,13 @@ impl<Version> Client<Version>
 where
     Version: ApiVersion,
 {
+    /// Create a new client instance with the given base URL
     pub async fn new(base_url: Url) -> Result<Self, ClientError> {
         let url = base_url.join(Version::version())?;
         let inner = match url.scheme() {
             "ws" | "wss" => ClientInner::Ws(WsClientBuilder::new().build(&url).await?),
             "http" | "https" => ClientInner::Https(HttpClientBuilder::new().build(&url)?),
-            it => return Err(ClientError::UnsupportedUrlScheme(it.to_string())),
+            scheme => return Err(ClientError::UnsupportedUrlScheme(scheme.to_string())),
         };
 
         Ok(Self {
@@ -79,6 +74,7 @@ where
         })
     }
 
+    /// Execute a JSON-RPC request
     #[instrument(skip_all, fields(url = %self.url, method = %Request::NAME))]
     pub async fn execute<Request>(&self, request: Request) -> Result<Request::Ok, ClientError>
     where
@@ -86,21 +82,21 @@ where
         Version: ApiVersion,
     {
         let method_name = Request::NAME;
-        let params = serde_json::to_value(request.get_params())?;
+        let params = serde_json::to_value(request.params())?;
 
         let result = match params {
             Value::Null => self.inner.request(method_name, ArrayParams::new()),
-            Value::Array(it) => {
+            Value::Array(arr) => {
                 let mut params = ArrayParams::new();
-                for param in it {
+                for param in arr {
                     params.insert(param)?
                 }
 
                 self.inner.request(method_name, params)
             }
-            Value::Object(it) => {
+            Value::Object(obj) => {
                 let mut params = ObjectParams::new();
-                for (name, param) in it {
+                for (name, param) in obj {
                     params.insert(&name, param)?
                 }
 

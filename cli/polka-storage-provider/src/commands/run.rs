@@ -6,8 +6,9 @@ use tracing::info;
 use url::Url;
 
 use crate::{
+    cli::CliError,
     rpc::server::{start_rpc_server, RpcServerState, RPC_SERVER_DEFAULT_BIND_ADDR},
-    substrate, Error,
+    substrate,
 };
 
 const FULL_NODE_DEFAULT_RPC_ADDR: &str = "ws://127.0.0.1:9944";
@@ -24,7 +25,7 @@ pub(crate) struct RunCommand {
 }
 
 impl RunCommand {
-    pub async fn run(&self) -> Result<(), Error> {
+    pub async fn run(&self) -> Result<(), CliError> {
         let substrate_client = substrate::init_client(self.rpc_address.as_str()).await?;
 
         let state = Arc::new(RpcServerState {

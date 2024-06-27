@@ -4,8 +4,8 @@ use chrono::{DateTime, Utc};
 use clap::Parser;
 
 use crate::{
-    rpc::{methods::common::InfoRequest, ClientV0},
-    Error,
+    cli::CliError,
+    rpc::{methods::common::InfoRequest, version::V0, Client},
 };
 
 /// Command to display information about the storage provider.
@@ -13,7 +13,7 @@ use crate::{
 pub(crate) struct InfoCommand;
 
 impl InfoCommand {
-    pub async fn run(&self, client: &ClientV0) -> Result<(), Error> {
+    pub async fn run(&self, client: &Client<V0>) -> Result<(), CliError> {
         // TODO(#67,@cernicc,07/06/2024): Print polkadot address used by the provider
 
         // Get server info

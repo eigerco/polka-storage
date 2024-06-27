@@ -19,7 +19,7 @@ use super::{
     methods::{common::InfoRequest, register_async, wallet::WalletRequest},
     version::V0,
 };
-use crate::{substrate, Error};
+use crate::{substrate, CliError};
 
 /// Default address to bind the RPC server to.
 pub const RPC_SERVER_DEFAULT_BIND_ADDR: &str = "127.0.0.1:8000";
@@ -34,7 +34,7 @@ pub struct RpcServerState {
 pub async fn start_rpc_server(
     state: Arc<RpcServerState>,
     listen_addr: SocketAddr,
-) -> Result<ServerHandle, Error> {
+) -> Result<ServerHandle, CliError> {
     let server = Server::builder().build(listen_addr).await?;
 
     let module = create_module(state.clone());
@@ -43,7 +43,9 @@ pub async fn start_rpc_server(
     Ok(server_handle)
 }
 
-/// Initialize [`RpcModule`].
+/// Initialize [`RpcModule`] and register the handlers
+/// [`super::methods::RpcRequest::handle`] which are specifying how requests
+/// should be processed.
 pub fn create_module(state: Arc<RpcServerState>) -> RpcModule<RpcServerState> {
     let mut module = RpcModule::from_arc(state);
 
@@ -80,10 +82,12 @@ impl ServerError {
         }
     }
 
+    /// Construct an error with [`jsonrpsee::types::error::INTERNAL_ERROR_CODE`].
     pub fn internal_error(message: impl Display, data: impl Into<Option<Value>>) -> Self {
         Self::new(INTERNAL_ERROR_CODE, message, data)
     }
 
+    /// Construct an error with [`jsonrpsee::types::error::INVALID_PARAMS_CODE`].
     pub fn invalid_params(message: impl Display, data: impl Into<Option<Value>>) -> Self {
         Self::new(INVALID_PARAMS_CODE, message, data)
     }

@@ -15,12 +15,12 @@ pub trait RpcRequest<Version> {
     /// Method name.
     const NAME: &'static str;
     /// Successful response type.
-    type Ok: Debug + Clone + Serialize + DeserializeOwned + 'static;
+    type Ok: Debug + Serialize + DeserializeOwned + Clone + 'static;
     /// Parameters type.
     type Params: Debug + Serialize + DeserializeOwned;
 
     /// Get request parameters.
-    fn get_params(&self) -> Self::Params;
+    fn params(&self) -> Self::Params;
 
     /// A definition of an RPC request handle which can be registered with an
     /// [`RpcModule`]. This specifies how to handle some specific RPC request.
@@ -31,6 +31,11 @@ pub trait RpcRequest<Version> {
 }
 
 /// Register the [`RpcRequest`] handle with the [`RpcModule`].
+///
+/// # Panics
+///
+/// The function panics when the method name is already registered and if the
+/// method name conflicts with the existing registered subscription name.
 pub fn register_async<Request, Version>(
     module: &mut RpcModule<RpcServerState>,
 ) -> &mut jsonrpsee::MethodCallback

@@ -20,7 +20,7 @@ impl RpcRequest<V0> for WalletRequest {
     type Ok = Option<WalletBalanceResult>;
     type Params = ();
 
-    fn get_params(&self) -> Self::Params {
+    fn params(&self) -> Self::Params {
         ()
     }
 

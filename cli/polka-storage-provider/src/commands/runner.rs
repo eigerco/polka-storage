@@ -1,11 +1,15 @@
 use clap::Parser;
 
 use super::WalletCommand;
-use crate::{cli::SubCommand, rpc::Client, Cli, Error};
+use crate::{
+    cli::{CliError, SubCommand},
+    rpc::Client,
+    Cli,
+};
 
 /// Parses command line arguments into the service configuration and runs the
 /// specified command with it.
-pub(crate) async fn run() -> Result<(), Error> {
+pub(crate) async fn run() -> Result<(), CliError> {
     // CLI arguments parsed and mapped to the struct.
     let cli_arguments: Cli = Cli::parse();
 
