@@ -8,7 +8,7 @@ pub trait ApiVersion {
 }
 
 /// RPC API version v0.
-pub struct V0;
+pub enum V0 {}
 
 #[sealed]
 impl ApiVersion for V0 {
