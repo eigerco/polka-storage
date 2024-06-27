@@ -37,13 +37,17 @@ pub mod pallet {
         pallet_prelude::*,
         traits::{Currency, ReservableCurrency},
     };
-    use frame_system::{ensure_signed, pallet_prelude::*, Config as SystemConfig};
+    use frame_system::{
+        ensure_signed,
+        pallet_prelude::{BlockNumberFor, *},
+        Config as SystemConfig,
+    };
     use scale_info::TypeInfo;
 
     use crate::{
         proofs::{
             assign_proving_period_offset, current_deadline_index, current_proving_period_start,
-            RegisteredPoStProof, RegisteredSealProof,
+            RegisteredPoStProof, RegisteredSealProof, SubmitWindowedPoStParams,
         },
         sector::{
             ProveCommitSector, SectorNumber, SectorPreCommitInfo, SectorPreCommitOnChainInfo,
@@ -273,6 +277,25 @@ pub mod pallet {
                 sector_number: sector.sector_number,
             });
 
+            Ok(().into())
+        }
+
+        pub fn submit_windowed_post(
+            origin: OriginFor<T>,
+            params: SubmitWindowedPoStParams<BlockNumberFor<T>>,
+        ) -> DispatchResultWithPostInfo {
+            // Check that the extrinsic was signed and get the signer
+            // This will be the owner of the storage provider
+            let owner = ensure_signed(origin)?;
+
+            let sp = StorageProviders::<T>::try_get(&owner)
+                .map_err(|_| Error::<T>::StorageProviderNotFound)?;
+
+            // Make sure the storage provider is using the correct proof type.
+            ensure!(
+                params.proofs.post_proof == sp.info.window_post_proof_type,
+                Error::<T>::InvalidProofType
+            );
             Ok(().into())
         }
     }

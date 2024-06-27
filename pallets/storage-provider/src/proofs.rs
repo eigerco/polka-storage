@@ -20,6 +20,13 @@ impl RegisteredPoStProof {
         }
     }
 
+    /// Proof size for each PoStProof type
+    pub fn proof_size(self) -> usize {
+        match self {
+            RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => 192,
+        }
+    }
+
     /// Returns the partition size, in sectors, associated with a proof type.
     /// The partition size is the number of sectors proven in a single PoSt proof.
     pub fn window_post_partitions_sector(self) -> u64 {
@@ -36,6 +43,19 @@ impl RegisteredPoStProof {
 pub struct PoStProof {
     pub post_proof: RegisteredPoStProof,
     pub proof_bytes: BoundedVec<u8, ConstU32<256>>, // Arbitrary length
+}
+
+#[derive(Debug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone)]
+pub struct SubmitWindowedPoStParams<BlockNumber> {
+    /// The deadline index which the submission targets.
+    pub deadline: u64,
+    /// The partition being proven.
+    pub index: u64,
+    /// Array of proofs, one per distinct registered proof type present in the sectors being proven.
+    /// In the usual case of a single proof type, this array will always have a single element (independent of number of partitions).
+    pub proofs: PoStProof,
+    /// The block at which these proofs is being committed.
+    pub chain_commit_block: BlockNumber,
 }
 
 /// Seal proof type which defines the version and sector size.
