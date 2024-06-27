@@ -30,6 +30,8 @@ pub type DealID = u64; // TODO(@aidan46, no-ref, 2024-06-27): Import from primit
 
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
+    pub const CID_CODEC: u64 = 0x55;
+
     use core::fmt::Debug;
 
     use codec::{Decode, Encode};
@@ -224,4 +226,5 @@ pub mod pallet {
     fn calculate_pre_commit_deposit<T: Config>() -> BalanceOf<T> {
         1u32.into() // TODO(@aidan46, no-ref, 2024-06-24): Set a logical value or calculation
     }
+
 }

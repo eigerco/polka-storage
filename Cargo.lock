@@ -7319,10 +7319,12 @@ dependencies = [
 name = "pallet-storage-provider"
 version = "0.0.0"
 dependencies = [
+ "cid 0.11.1",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
+ "multihash-codetable",
  "pallet-balances",
  "parity-scale-codec",
  "scale-info",

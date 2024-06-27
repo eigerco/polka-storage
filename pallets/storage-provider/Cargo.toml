@@ -27,6 +27,8 @@ frame-support = { workspace = true, default-features = false }
 frame-system = { workspace = true, default-features = false }
 
 [dev-dependencies]
+cid = { workspace = true }
+multihash-codetable = { workspace = true, features = ["blake2b"] }
 pallet-balances = { workspace = true, default-features = false }
 sp-io = { workspace = true }
 sp-runtime = { workspace = true, default-features = false }

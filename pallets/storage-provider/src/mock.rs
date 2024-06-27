@@ -1,9 +1,11 @@
+use cid::Cid;
 use frame_support::{
     derive_impl, pallet_prelude::ConstU32, parameter_types, sp_runtime::BoundedVec,
 };
+use multihash_codetable::{Code, MultihashDigest};
 use sp_runtime::BuildStorage;
 
-use crate as pallet_storage_provider;
+use crate::{self as pallet_storage_provider, pallet::CID_CODEC};
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -77,4 +79,8 @@ pub fn events() -> Vec<RuntimeEvent> {
         .collect::<Vec<_>>();
     System::reset_events();
     evt
+}
+
+pub fn cid_of(data: &str) -> cid::Cid {
+    Cid::new_v1(CID_CODEC, Code::Blake2b256.digest(data.as_bytes()))
 }
