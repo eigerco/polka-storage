@@ -10,7 +10,7 @@ use super::server::{RpcServerState, ServerError};
 pub mod common;
 pub mod wallet;
 
-/// A definition of an RPC method handler which can be registered with an [`RpcModule`].
+/// A trait for defining a versioned RPC request.
 pub trait RpcRequest<Version> {
     /// Method name.
     const NAME: &'static str;
@@ -22,14 +22,15 @@ pub trait RpcRequest<Version> {
     /// Get request parameters.
     fn get_params(&self) -> Self::Params;
 
-    /// Logic for handling this request.
+    /// A definition of an RPC request handle which can be registered with an
+    /// [`RpcModule`]. This specifies how to handle some specific RPC request.
     fn handle(
         ctx: Arc<RpcServerState>,
         params: Self::Params,
     ) -> impl Future<Output = Result<Self::Ok, ServerError>> + Send;
 }
 
-/// Register the RpcRequest handle with the [`RpcModule`].
+/// Register the [`RpcRequest`] handle with the [`RpcModule`].
 pub fn register_async<Request, Version>(
     module: &mut RpcModule<RpcServerState>,
 ) -> &mut jsonrpsee::MethodCallback
