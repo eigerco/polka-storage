@@ -1,7 +1,7 @@
 use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::ConstU32, sp_runtime::BoundedBTreeMap};
 use scale_info::TypeInfo;
-use sp_arithmetic::traits::BaseArithmetic;
+use sp_arithmetic::{traits::BaseArithmetic, ArithmeticError};
 
 use crate::{
     proofs::RegisteredPoStProof,
@@ -22,7 +22,7 @@ pub struct StorageProviderState<PeerId, Balance, BlockNumber, DealID> {
 
     /// Total funds locked as pre_commit_deposit
     /// Optional because when registering there is no need for deposits.
-    pub pre_commit_deposits: Option<Balance>,
+    pub pre_commit_deposits: Balance,
 
     /// Sectors that have been pre-committed but not yet proven.
     pub pre_committed_sectors: BoundedBTreeMap<
@@ -62,21 +62,18 @@ where
         Self {
             info: info.clone(),
             sectors: BoundedBTreeMap::new(),
-            pre_commit_deposits: None,
+            pre_commit_deposits: 0.into(),
             pre_committed_sectors: BoundedBTreeMap::new(),
             proving_period_start: period_start,
             current_deadline: deadline_idx,
         }
     }
 
-    pub fn add_pre_commit_deposit(&mut self, amount: Balance) {
-        self.pre_commit_deposits = match &self.pre_commit_deposits {
-            None => Some(amount),
-            Some(amt) => {
-                let new_amount = amt.clone() + amount;
-                Some(new_amount)
-            }
-        }
+    pub fn add_pre_commit_deposit(&mut self, amount: Balance) -> Result<(), ArithmeticError> {
+        self.pre_commit_deposits
+            .checked_add(&amount)
+            .ok_or(ArithmeticError::Overflow)?;
+        Ok(())
     }
 
     // TODO(@aidan46, no-ref, 2024-06-21): Allow for batch inserts.

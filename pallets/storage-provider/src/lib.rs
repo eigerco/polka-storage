@@ -205,7 +205,7 @@ pub mod pallet {
                 let sp = maybe_sp
                     .as_mut()
                     .ok_or(Error::<T>::StorageProviderNotFound)?;
-                sp.add_pre_commit_deposit(deposit);
+                sp.add_pre_commit_deposit(deposit)?;
                 sp.put_precommitted_sector(SectorPreCommitOnChainInfo::new(
                     sector.clone(),
                     deposit,
