@@ -2,7 +2,7 @@ use clap::Parser;
 
 use crate::{
     commands::{InfoCommand, InitCommand, RunCommand, WalletCommand},
-    rpc::RPC_SERVER_DEFAULT_BIND_ADDR,
+    rpc::server::RPC_SERVER_DEFAULT_BIND_ADDR,
 };
 
 /// A CLI application that facilitates management operations over a running full

@@ -13,108 +13,27 @@ use jsonrpsee::{
     http_client::HttpClientBuilder,
     ws_client::WsClientBuilder,
 };
-use serde::{de::DeserializeOwned, Serialize};
+use serde::de::DeserializeOwned;
 use serde_json::Value;
-use tokio::sync::OnceCell;
 use tracing::{debug, instrument};
 use url::Url;
 
-use super::ApiVersion;
+use super::{
+    methods::RpcRequest,
+    version::{ApiVersion, V0},
+};
 
-pub struct RpcClient {
-    base_url: Url,
-    v0: OnceCell<Client>,
-}
-
-impl RpcClient {
-    /// Create a new RPC client with the given base URL.
-    pub fn new(base_url: Url) -> Self {
-        Self {
-            base_url,
-            v0: OnceCell::new(),
-        }
-    }
-
-    /// Call an RPC server with the given request.
-    pub async fn call<T, P>(&self, req: Request<T, P>) -> Result<T, ClientError>
-    where
-        T: DeserializeOwned + Debug,
-        P: Serialize + Debug,
-    {
-        let Request {
-            method_name,
-            params,
-            api_version,
-            ..
-        } = req;
-
-        let client = self.get_or_init_client(api_version).await?;
-        request(client, method_name, params).await
-    }
-
-    /// Get or initialize a client for the given API version.
-    async fn get_or_init_client(&self, version: ApiVersion) -> Result<&Client, ClientError> {
-        match version {
-            ApiVersion::V0 => &self.v0,
-        }
-        .get_or_try_init(|| async {
-            let url = self.base_url.join(&version.to_string()).map_err(|it| {
-                ClientError::Custom(format!("creating url for endpoint failed: {}", it))
-            })?;
-
-            Client::new(url).await
-        })
-        .await
-    }
-}
-
-#[instrument(skip_all, fields(url = %client.url, params = ?params))]
-async fn request<T, P>(client: &Client, method_name: &str, params: P) -> Result<T, ClientError>
-where
-    T: DeserializeOwned + Debug,
-    P: Serialize + Debug,
-{
-    let params = serde_json::to_value(params)?;
-
-    let result = match params {
-        Value::Null => client.request(method_name, ArrayParams::new()),
-        Value::Array(it) => {
-            let mut params = ArrayParams::new();
-            for param in it {
-                params.insert(param)?
-            }
-
-            client.request(method_name, params)
-        }
-        Value::Object(it) => {
-            let mut params = ObjectParams::new();
-            for (name, param) in it {
-                params.insert(&name, param)?
-            }
-
-            client.request(method_name, params)
-        }
-        param @ (Value::Bool(_) | Value::Number(_) | Value::String(_)) => {
-            return Err(ClientError::Custom(format!(
-                "invalid parameter type: `{}`",
-                param
-            )))
-        }
-    }
-    .await;
-
-    debug!(?result, "request completed");
-
-    result
-}
+/// Type alias for the V0 client instance
+pub type ClientV0 = Client<V0>;
 
 /// Represents a single connection to the URL server
-struct Client {
+pub struct Client<Version> {
     url: Url,
-    specific: ClientInner,
+    inner: ClientInner,
+    _version: PhantomData<Version>,
 }
 
-impl Debug for Client {
+impl<Version> Debug for Client<Version> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("InnerClient")
             .field("url", &self.url)
@@ -122,9 +41,9 @@ impl Debug for Client {
     }
 }
 
-impl Client {
-    async fn new(url: Url) -> Result<Self, ClientError> {
-        let specific = match url.scheme() {
+impl<Version> Client<Version> {
+    pub async fn new(url: Url) -> Result<Self, ClientError> {
+        let inner = match url.scheme() {
             "ws" | "wss" => ClientInner::Ws(WsClientBuilder::new().build(&url).await?),
             "http" | "https" => ClientInner::Https(HttpClientBuilder::new().build(&url)?),
             it => {
@@ -135,7 +54,52 @@ impl Client {
             }
         };
 
-        Ok(Self { url, specific })
+        Ok(Self {
+            url,
+            inner,
+            _version: PhantomData,
+        })
+    }
+
+    #[instrument(skip_all, fields(url = %self.url, method = %Request::NAME))]
+    pub async fn execute<Request>(&self, request: Request) -> Result<Request::Ok, ClientError>
+    where
+        Request: RpcRequest<Version>,
+        Version: ApiVersion,
+    {
+        let method_name = Request::NAME;
+        let params = serde_json::to_value(request.get_params())?;
+
+        let result = match params {
+            Value::Null => self.inner.request(method_name, ArrayParams::new()),
+            Value::Array(it) => {
+                let mut params = ArrayParams::new();
+                for param in it {
+                    params.insert(param)?
+                }
+
+                self.inner.request(method_name, params)
+            }
+            Value::Object(it) => {
+                let mut params = ObjectParams::new();
+                for (name, param) in it {
+                    params.insert(&name, param)?
+                }
+
+                self.inner.request(method_name, params)
+            }
+            param @ (Value::Bool(_) | Value::Number(_) | Value::String(_)) => {
+                return Err(ClientError::Custom(format!(
+                    "invalid parameter type: `{}`",
+                    param
+                )))
+            }
+        }
+        .await;
+
+        debug!(?result, "response received");
+
+        result
     }
 }
 
@@ -145,12 +109,12 @@ enum ClientInner {
 }
 
 #[async_trait::async_trait]
-impl ClientT for Client {
+impl ClientT for ClientInner {
     async fn notification<Params>(&self, method: &str, params: Params) -> Result<(), ClientError>
     where
         Params: ToRpcParams + Send,
     {
-        match &self.specific {
+        match &self {
             ClientInner::Ws(client) => client.notification(method, params).await,
             ClientInner::Https(client) => client.notification(method, params).await,
         }
@@ -161,7 +125,7 @@ impl ClientT for Client {
         R: DeserializeOwned,
         Params: ToRpcParams + Send,
     {
-        match &self.specific {
+        match &self {
             ClientInner::Ws(client) => client.request(method, params).await,
             ClientInner::Https(client) => client.request(method, params).await,
         }
@@ -174,7 +138,7 @@ impl ClientT for Client {
     where
         R: DeserializeOwned + fmt::Debug + 'a,
     {
-        match &self.specific {
+        match &self {
             ClientInner::Ws(client) => client.batch_request(batch).await,
             ClientInner::Https(client) => client.batch_request(batch).await,
         }
@@ -182,7 +146,7 @@ impl ClientT for Client {
 }
 
 #[async_trait::async_trait]
-impl SubscriptionClientT for Client {
+impl SubscriptionClientT for ClientInner {
     async fn subscribe<'a, Notif, Params>(
         &self,
         subscribe_method: &'a str,
@@ -193,7 +157,7 @@ impl SubscriptionClientT for Client {
         Params: ToRpcParams + Send,
         Notif: DeserializeOwned,
     {
-        match &self.specific {
+        match &self {
             ClientInner::Ws(it) => {
                 it.subscribe(subscribe_method, params, unsubscribe_method)
                     .await
@@ -212,24 +176,9 @@ impl SubscriptionClientT for Client {
     where
         Notif: DeserializeOwned,
     {
-        match &self.specific {
+        match &self {
             ClientInner::Ws(it) => it.subscribe_to_method(method).await,
             ClientInner::Https(it) => it.subscribe_to_method(method).await,
         }
-    }
-}
-
-/// Represents a single RPC request.
-#[derive(Debug)]
-pub struct Request<Result = Value, Params = Value> {
-    pub method_name: &'static str,
-    pub params: Params,
-    pub result_type: PhantomData<Result>,
-    pub api_version: ApiVersion,
-}
-
-impl<T> ToRpcParams for Request<T> {
-    fn to_rpc_params(self) -> Result<Option<Box<serde_json::value::RawValue>>, serde_json::Error> {
-        Ok(Some(serde_json::value::to_raw_value(&self.params)?))
     }
 }

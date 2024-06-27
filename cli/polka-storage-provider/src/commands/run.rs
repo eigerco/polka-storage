@@ -6,7 +6,7 @@ use tracing::info;
 use url::Url;
 
 use crate::{
-    rpc::{start_rpc, RpcServerState, RPC_SERVER_DEFAULT_BIND_ADDR},
+    rpc::server::{start_rpc_server, RpcServerState, RPC_SERVER_DEFAULT_BIND_ADDR},
     substrate, Error,
 };
 
@@ -16,16 +16,16 @@ const FULL_NODE_DEFAULT_RPC_ADDR: &str = "ws://127.0.0.1:9944";
 #[derive(Debug, Clone, Parser)]
 pub(crate) struct RunCommand {
     /// RPC API endpoint used by the parachain node.
-    #[arg(short = 'n', long, default_value = FULL_NODE_DEFAULT_RPC_ADDR)]
-    pub node_rpc_address: Url,
+    #[arg(short = 'p', long, default_value = FULL_NODE_DEFAULT_RPC_ADDR)]
+    pub parachain_rpc_address: Url,
     /// Address and port used for RPC server.
-    #[arg(short = 'a', long, default_value = RPC_SERVER_DEFAULT_BIND_ADDR)]
-    pub listen_addr: SocketAddr,
+    #[arg(short = 'n', long, default_value = RPC_SERVER_DEFAULT_BIND_ADDR)]
+    pub full_node_listen_addr: SocketAddr,
 }
 
 impl RunCommand {
     pub async fn run(&self) -> Result<(), Error> {
-        let substrate_client = substrate::init_client(self.node_rpc_address.as_str()).await?;
+        let substrate_client = substrate::init_client(self.parachain_rpc_address.as_str()).await?;
 
         let state = Arc::new(RpcServerState {
             start_time: Utc::now(),
@@ -33,8 +33,8 @@ impl RunCommand {
         });
 
         // Start RPC server
-        let handle = start_rpc(state, self.listen_addr).await?;
-        info!("RPC server started at {}", self.listen_addr);
+        let handle = start_rpc_server(state, self.full_node_listen_addr).await?;
+        info!("RPC server started at {}", self.full_node_listen_addr);
 
         // Monitor shutdown
         tokio::signal::ctrl_c().await?;

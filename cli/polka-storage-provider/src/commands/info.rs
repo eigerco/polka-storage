@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use clap::Parser;
 
 use crate::{
-    rpc::{methods::common::Info, RpcClient, RpcMethodExt},
+    rpc::{methods::common::InfoRequest, ClientV0},
     Error,
 };
 
@@ -13,11 +13,11 @@ use crate::{
 pub(crate) struct InfoCommand;
 
 impl InfoCommand {
-    pub async fn run(&self, client: &RpcClient) -> Result<(), Error> {
+    pub async fn run(&self, client: &ClientV0) -> Result<(), Error> {
         // TODO(#67,@cernicc,07/06/2024): Print polkadot address used by the provider
 
         // Get server info
-        let server_info = Info::call(client, ()).await?;
+        let server_info = client.execute(InfoRequest).await?;
 
         let node_status_info = NodeStatusInfo {
             start_time: server_info.start_time,
