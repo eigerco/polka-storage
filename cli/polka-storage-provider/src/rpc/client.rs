@@ -8,13 +8,13 @@ use jsonrpsee::{
         client::{BatchResponse, ClientT, Subscription, SubscriptionClientT},
         params::{ArrayParams, BatchRequestBuilder, ObjectParams},
         traits::ToRpcParams,
-        ClientError,
     },
     http_client::HttpClientBuilder,
     ws_client::WsClientBuilder,
 };
 use serde::de::DeserializeOwned;
 use serde_json::Value;
+use thiserror::Error;
 use tracing::{debug, instrument};
 use url::Url;
 
@@ -25,6 +25,25 @@ use super::{
 
 /// Type alias for the V0 client instance
 pub type ClientV0 = Client<V0>;
+
+/// Errors that can occur when working with the client
+#[derive(Debug, Error)]
+pub enum ClientError {
+    #[error("Unsupported scheme error: {0}")]
+    UnsupportedUrlScheme(String),
+
+    #[error("Invalid parameter type: {0}")]
+    InvalidParameter(Value),
+
+    #[error(transparent)]
+    Url(#[from] url::ParseError),
+
+    #[error(transparent)]
+    JsonRpcClient(#[from] jsonrpsee::core::ClientError),
+
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+}
 
 /// Represents a single connection to the URL server
 pub struct Client<Version> {
@@ -41,17 +60,16 @@ impl<Version> Debug for Client<Version> {
     }
 }
 
-impl<Version> Client<Version> {
-    pub async fn new(url: Url) -> Result<Self, ClientError> {
+impl<Version> Client<Version>
+where
+    Version: ApiVersion,
+{
+    pub async fn new(base_url: Url) -> Result<Self, ClientError> {
+        let url = base_url.join(Version::version())?;
         let inner = match url.scheme() {
             "ws" | "wss" => ClientInner::Ws(WsClientBuilder::new().build(&url).await?),
             "http" | "https" => ClientInner::Https(HttpClientBuilder::new().build(&url)?),
-            it => {
-                return Err(ClientError::Custom(format!(
-                    "Unsupported URL scheme: {}",
-                    it
-                )))
-            }
+            it => return Err(ClientError::UnsupportedUrlScheme(it.to_string())),
         };
 
         Ok(Self {
@@ -89,17 +107,16 @@ impl<Version> Client<Version> {
                 self.inner.request(method_name, params)
             }
             param @ (Value::Bool(_) | Value::Number(_) | Value::String(_)) => {
-                return Err(ClientError::Custom(format!(
-                    "invalid parameter type: `{}`",
-                    param
-                )))
+                return Err(ClientError::InvalidParameter(param))
             }
         }
         .await;
 
         debug!(?result, "response received");
 
-        result
+        // We cant return result directly because compiler needs some help to
+        // understand the types
+        Ok(result?)
     }
 }
 
@@ -110,7 +127,11 @@ enum ClientInner {
 
 #[async_trait::async_trait]
 impl ClientT for ClientInner {
-    async fn notification<Params>(&self, method: &str, params: Params) -> Result<(), ClientError>
+    async fn notification<Params>(
+        &self,
+        method: &str,
+        params: Params,
+    ) -> Result<(), jsonrpsee::core::ClientError>
     where
         Params: ToRpcParams + Send,
     {
@@ -120,7 +141,11 @@ impl ClientT for ClientInner {
         }
     }
 
-    async fn request<R, Params>(&self, method: &str, params: Params) -> Result<R, ClientError>
+    async fn request<R, Params>(
+        &self,
+        method: &str,
+        params: Params,
+    ) -> Result<R, jsonrpsee::core::ClientError>
     where
         R: DeserializeOwned,
         Params: ToRpcParams + Send,
@@ -134,7 +159,7 @@ impl ClientT for ClientInner {
     async fn batch_request<'a, R>(
         &self,
         batch: BatchRequestBuilder<'a>,
-    ) -> Result<BatchResponse<'a, R>, ClientError>
+    ) -> Result<BatchResponse<'a, R>, jsonrpsee::core::ClientError>
     where
         R: DeserializeOwned + fmt::Debug + 'a,
     {
@@ -152,7 +177,7 @@ impl SubscriptionClientT for ClientInner {
         subscribe_method: &'a str,
         params: Params,
         unsubscribe_method: &'a str,
-    ) -> Result<Subscription<Notif>, ClientError>
+    ) -> Result<Subscription<Notif>, jsonrpsee::core::ClientError>
     where
         Params: ToRpcParams + Send,
         Notif: DeserializeOwned,
@@ -172,7 +197,7 @@ impl SubscriptionClientT for ClientInner {
     async fn subscribe_to_method<'a, Notif>(
         &self,
         method: &'a str,
-    ) -> Result<Subscription<Notif>, ClientError>
+    ) -> Result<Subscription<Notif>, jsonrpsee::core::ClientError>
     where
         Notif: DeserializeOwned,
     {
