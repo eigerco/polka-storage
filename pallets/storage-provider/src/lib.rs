@@ -26,6 +26,8 @@ mod sector;
 mod storage_provider;
 mod types;
 
+pub type DealID = u64; // TODO(@aidan46, no-ref, 2024-06-27): Import from primitives
+
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
     use core::fmt::Debug;
@@ -71,8 +73,6 @@ pub mod pallet {
         /// Currency mechanism, used for collateral
         type Currency: ReservableCurrency<Self::AccountId>;
 
-        type DealID: Copy + Debug + Decode + Encode + PartialEq + TypeInfo;
-
         #[pallet::constant] // put the constant in metadata
         /// Proving period for submitting Window PoSt, 24 hours is blocks
         type WPoStProvingPeriod: Get<BlockNumberFor<Self>>;
@@ -89,7 +89,7 @@ pub mod pallet {
         _,
         _,
         T::AccountId,
-        StorageProviderState<T::PeerId, BalanceOf<T>, BlockNumberFor<T>, T::DealID>,
+        StorageProviderState<T::PeerId, BalanceOf<T>, BlockNumberFor<T>>,
     >;
 
     #[pallet::event]
@@ -103,7 +103,7 @@ pub mod pallet {
         /// Emitted when a storage provider pre commits some sectors.
         SectorPreCommitted {
             owner: T::AccountId,
-            sector: SectorPreCommitInfo<BlockNumberFor<T>, T::DealID>,
+            sector: SectorPreCommitInfo<BlockNumberFor<T>>,
         },
     }
 
@@ -176,7 +176,7 @@ pub mod pallet {
         /// TODO(@aidan46, no-ref, 2024-06-20): Add functionality to allow for batch pre commit
         pub fn pre_commit_sector(
             origin: OriginFor<T>,
-            sector: SectorPreCommitInfo<BlockNumberFor<T>, T::DealID>,
+            sector: SectorPreCommitInfo<BlockNumberFor<T>>,
         ) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer
             // This will be the owner of the storage provider

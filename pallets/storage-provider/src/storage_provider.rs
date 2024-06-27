@@ -12,7 +12,7 @@ use crate::{
 
 /// This struct holds the state of a single storage provider.
 #[derive(Debug, Decode, Encode, TypeInfo)]
-pub struct StorageProviderState<PeerId, Balance, BlockNumber, DealID> {
+pub struct StorageProviderState<PeerId, Balance, BlockNumber> {
     /// Contains static information about this storage provider
     pub info: StorageProviderInfo<PeerId>,
 
@@ -27,7 +27,7 @@ pub struct StorageProviderState<PeerId, Balance, BlockNumber, DealID> {
     /// Sectors that have been pre-committed but not yet proven.
     pub pre_committed_sectors: BoundedBTreeMap<
         SectorNumber,
-        SectorPreCommitOnChainInfo<Balance, BlockNumber, DealID>,
+        SectorPreCommitOnChainInfo<Balance, BlockNumber>,
         ConstU32<SECTORS_MAX>,
     >,
 
@@ -46,12 +46,10 @@ pub struct StorageProviderState<PeerId, Balance, BlockNumber, DealID> {
     pub current_deadline: BlockNumber,
 }
 
-impl<PeerId, Balance, BlockNumber, DealID>
-    StorageProviderState<PeerId, Balance, BlockNumber, DealID>
+impl<PeerId, Balance, BlockNumber> StorageProviderState<PeerId, Balance, BlockNumber>
 where
     PeerId: Clone + Decode + Encode + TypeInfo,
     BlockNumber: Decode + Encode + TypeInfo,
-    DealID: Decode + Encode + TypeInfo,
     Balance: BaseArithmetic,
 {
     pub fn new(
@@ -79,7 +77,7 @@ where
     // TODO(@aidan46, no-ref, 2024-06-21): Allow for batch inserts.
     pub fn put_precommitted_sector(
         &mut self,
-        precommit: SectorPreCommitOnChainInfo<Balance, BlockNumber, DealID>,
+        precommit: SectorPreCommitOnChainInfo<Balance, BlockNumber>,
     ) -> Result<(), StorageProviderError> {
         let sector_number = precommit.info.sector_number;
 

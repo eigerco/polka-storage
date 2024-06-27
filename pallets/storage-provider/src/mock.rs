@@ -46,7 +46,6 @@ impl pallet_storage_provider::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type PeerId = BoundedVec<u8, ConstU32<256>>; // Arbitrary length
     type Currency = Balances;
-    type DealID = u32;
     type WPoStProvingPeriod = WpostProvingPeriod;
     type WPoStChallengeWindow = WpostChallengeWindow;
 }
