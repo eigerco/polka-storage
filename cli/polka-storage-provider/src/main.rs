@@ -3,18 +3,17 @@
 
 mod cli;
 pub(crate) mod commands;
-mod error;
 mod rpc;
 mod substrate;
 
 pub(crate) use cli::Cli;
+use cli::CliError;
 use commands::runner;
-pub(crate) use error::Error;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 #[tokio::main]
-async fn main() -> Result<(), Error> {
+async fn main() -> Result<(), CliError> {
     // Logger initialization.
     tracing_subscriber::registry()
         .with(fmt::layer())

@@ -38,7 +38,12 @@ pub mod pallet {
         },
         PalletId,
     };
-    use frame_system::{pallet_prelude::*, Config as SystemConfig};
+    use frame_system::{pallet_prelude::*, Config as SystemConfig, Pallet as System};
+    use multihash_codetable::{Code, MultihashDigest};
+    use primitives_proofs::{
+        ActiveDeal, ActiveSector, DealId, Market, RegisteredSealProof, SectorDeal, SectorNumber,
+        SectorSize, MAX_DEALS_FOR_ALL_SECTORS, MAX_DEALS_PER_SECTOR, MAX_SECTORS_PER_CALL,
+    };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::BaseArithmetic;
     use sp_std::vec::Vec;
@@ -47,9 +52,6 @@ pub mod pallet {
     /// BalanceOf is a sophisticated way of getting an u128.
     pub type BalanceOf<T> =
         <<T as Config>::Currency as Currency<<T as SystemConfig>::AccountId>>::Balance;
-
-    // TODO(@th7nder,17/06/2024): this is likely to be extracted into primitives/ package
-    type DealId = u64;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -126,7 +128,7 @@ pub mod pallet {
     /// Reference: <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/deal.rs#L138>
     pub struct ActiveDealState<BlockNumber> {
         /// Sector in which given piece has been included
-        sector_number: u128,
+        sector_number: SectorNumber,
 
         /// At which block (time) the deal's sector has been activated.
         sector_start_block: BlockNumber,
@@ -134,6 +136,20 @@ pub mod pallet {
 
         /// When the deal was last slashed, can be never.
         slash_block: Option<BlockNumber>,
+    }
+
+    impl<BlockNumber> ActiveDealState<BlockNumber> {
+        fn new(
+            sector_number: SectorNumber,
+            sector_start_block: BlockNumber,
+        ) -> ActiveDealState<BlockNumber> {
+            ActiveDealState {
+                sector_number,
+                sector_start_block,
+                last_updated_block: None,
+                slash_block: None,
+            }
+        }
     }
 
     #[derive(Clone, Eq, PartialEq, Encode, Decode, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -201,6 +217,9 @@ pub mod pallet {
         }
     }
 
+    type DealProposalOf<T> =
+        DealProposal<<T as frame_system::Config>::AccountId, BalanceOf<T>, BlockNumberFor<T>>;
+
     /// After Storage Client has successfully negotiated with the Storage Provider, they prepare a DealProposal,
     /// sign it with their signature and send to the Storage Provider.
     /// Storage Provider only after successful file transfer and verification of the data, calls an extrinsic `market.publish_storage_deals`.
@@ -249,6 +268,12 @@ pub mod pallet {
             client: T::AccountId,
             provider: T::AccountId,
         },
+        // Deal has been successfully activated.
+        DealActivated {
+            deal_id: DealId,
+            client: T::AccountId,
+            provider: T::AccountId,
+        },
     }
 
     #[pallet::error]
@@ -266,6 +291,32 @@ pub mod pallet {
         AllProposalsInvalid,
         /// `publish_storage_deals`'s core logic was invoked with a broken invariant that should be called by `validate_deals`.
         UnexpectedValidationError,
+        /// There is more than 1 deal of this ID in the Sector.
+        DuplicateDeal,
+        /// Due to a programmer bug, bounds on Bounded data structures were incorrect so couldn't insert into them.
+        DealPreconditionFailed,
+        /// Tried to activate a deal which is not in the system.
+        DealNotFound,
+        /// Tried to activate a deal, but data doesn't make sense. Details are in the logs.
+        DealActivationError,
+        /// Sum of all of the deals piece sizes for a sector exceeds sector size.
+        DealsTooLargeToFitIntoSector,
+    }
+
+    #[derive(RuntimeDebug)]
+    pub enum DealActivationError {
+        /// Deal was tried to be activated by a provider which does not own it
+        InvalidProvider,
+        /// Deal should have been activated earlier, it's too late
+        StartBlockElapsed,
+        /// Sector containing the deal will expire before the deal is supposed to end
+        SectorExpiresBeforeDeal,
+        /// Deal needs to be [`DealState::Published`] if it's to be activated
+        InvalidDealState,
+        /// Tried to activate a deal which is not in the system.
+        DealNotFound,
+        /// Tried to activate a deal which is not in the Pending Proposals
+        DealNotPending,
     }
 
     // NOTE(@th7nder,18/06/2024):
@@ -456,6 +507,126 @@ pub mod pallet {
             Ok(())
         }
 
+        /// <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L1370>
+        fn compute_commd<'a>(
+            _proposals: impl IntoIterator<Item = &'a DealProposalOf<T>>,
+            _sector_type: RegisteredSealProof,
+        ) -> Result<Cid, DispatchError> {
+            // TODO(@th7nder,#92,21/06/2024):
+            // https://github.com/filecoin-project/rust-fil-proofs/blob/daec42b64ae6bf9a537545d5f116d57b9a29cc11/filecoin-proofs/src/pieces.rs#L85
+            let cid = Cid::new_v1(
+                CID_CODEC,
+                Code::Blake2b256.digest(b"placeholder-to-be-done"),
+            );
+
+            Ok(cid)
+        }
+
+        /// <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L1388>
+        fn validate_deals_for_sector(
+            deals: &BoundedVec<(DealId, DealProposalOf<T>), ConstU32<32>>,
+            provider: &T::AccountId,
+            sector_number: SectorNumber,
+            sector_expiry: BlockNumberFor<T>,
+            sector_activation: BlockNumberFor<T>,
+            sector_size: SectorSize,
+        ) -> DispatchResult {
+            let mut total_deal_space = 0;
+            for (deal_id, deal) in deals {
+                Self::validate_deal_can_activate(deal, provider, sector_expiry, sector_activation)
+                    .map_err(|e| {
+                        log::error!(target: LOG_TARGET, "deal {} cannot be activated, because: {:?}", *deal_id, e);
+                        Error::<T>::DealActivationError }
+                    )?;
+                total_deal_space += deal.piece_size;
+            }
+
+            ensure!(total_deal_space <= sector_size.bytes(), {
+                log::error!(target: LOG_TARGET, "cannot fit all of the deals into sector {}, {} < {}", sector_number, total_deal_space, sector_size.bytes());
+                Error::<T>::DealsTooLargeToFitIntoSector
+            });
+
+            Ok(())
+        }
+
+        /// <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L1570>
+        fn validate_deal_can_activate(
+            deal: &DealProposalOf<T>,
+            provider: &T::AccountId,
+            sector_expiry: BlockNumberFor<T>,
+            sector_activation: BlockNumberFor<T>,
+        ) -> Result<(), DealActivationError> {
+            ensure!(
+                *provider == deal.provider,
+                DealActivationError::InvalidProvider
+            );
+            ensure!(
+                deal.state == DealState::Published,
+                DealActivationError::InvalidDealState
+            );
+            ensure!(
+                sector_activation <= deal.start_block,
+                DealActivationError::StartBlockElapsed
+            );
+            ensure!(
+                sector_expiry >= deal.end_block,
+                DealActivationError::SectorExpiresBeforeDeal
+            );
+
+            // Confirm the deal is in the pending proposals set.
+            // It will be removed from this queue later, during cron.
+            // Failing this check is an internal invariant violation.
+            // The pending deals set exists to prevent duplicate proposals.
+            // It should be impossible to have a proposal, no deal state, and not be in pending deals.
+            let hash = Self::hash_proposal(&deal);
+            ensure!(
+                PendingProposals::<T>::get().contains(&hash),
+                DealActivationError::DealNotPending
+            );
+
+            Ok(())
+        }
+
+        fn proposals_for_deals(
+            deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
+        ) -> Result<
+            BoundedVec<(DealId, DealProposalOf<T>), ConstU32<MAX_SECTORS_PER_CALL>>,
+            DispatchError,
+        > {
+            let mut unique_deals: BoundedBTreeSet<DealId, ConstU32<MAX_SECTORS_PER_CALL>> =
+                BoundedBTreeSet::new();
+            let mut proposals = BoundedVec::new();
+            for deal_id in deal_ids {
+                ensure!(!unique_deals.contains(&deal_id), {
+                    log::error!(target: LOG_TARGET, "deal {} is duplicated", deal_id);
+                    Error::<T>::DuplicateDeal
+                });
+
+                // PRE-COND: always succeeds, unique_deals has the same boundary as sector.deal_ids[]
+                unique_deals.try_insert(deal_id).map_err(|deal_id| {
+                    log::error!(target: LOG_TARGET, "failed to insert deal {}", deal_id);
+                    Error::<T>::DealPreconditionFailed
+                })?;
+
+                let proposal: DealProposalOf<T> =
+                    Proposals::<T>::try_get(&deal_id).map_err(|_| {
+                        log::error!(target: LOG_TARGET, "deal {} not found", deal_id);
+                        Error::<T>::DealNotFound
+                    })?;
+
+                // PRE-COND: always succeeds, unique_deals has the same boundary as sector.deal_ids[]
+                proposals
+                    .try_push((deal_id, proposal))
+                    .map_err(|_| {
+                            log::error!(target: LOG_TARGET, "failed to insert deal {} into proposals", deal_id);
+                            Error::<T>::DealPreconditionFailed
+                        }
+                    )?;
+            }
+
+            Ok(proposals)
+        }
+
         fn generate_deal_id() -> DealId {
             let ret = NextDealId::<T>::get();
             let next = ret
@@ -538,7 +709,7 @@ pub mod pallet {
                 Error::<T>::ProposalsNotPublishedByStorageProvider
             );
 
-            // TODO(@th7nder,#87,17/06/2024): validate a Storage Provider's Account (whether the account was registerd as Storage Provider)
+            // TODO(@th7nder,#87,17/06/2024): validate a Storage Provider's Account (whether the account was registered as Storage Provider)
 
             let mut total_client_lockup: BoundedBTreeMap<T::AccountId, BalanceOf<T>, T::MaxDeals> =
                 BoundedBTreeMap::new();
@@ -579,17 +750,19 @@ pub mod pallet {
                         return None;
                     }
 
-                    let hash = Self::hash_proposal(&deal);
+                    let hash = Self::hash_proposal(&deal.proposal);
                     let duplicate_in_state = PendingProposals::<T>::get().contains(&hash);
                     let duplicate_in_message = message_proposals.contains(&hash);
                     if duplicate_in_state || duplicate_in_message {
                         log::error!(target: LOG_TARGET, "invalid deal: cannot publish duplicate deal idx: {}", idx);
                         return None;
                     }
-                    if let Err(e) = PendingProposals::<T>::get().try_insert(hash) {
+                    let mut pending = PendingProposals::<T>::get();
+                    if let Err(e) = pending.try_insert(hash) {
                         log::error!(target: LOG_TARGET, "cannot publish: too many pending deal proposals, wait for them to be expired/activated, deal idx: {}, err: {:?}", idx, e);
                         return None;
                     }
+                    PendingProposals::<T>::set(pending);
                     // PRE-COND: always succeeds, as there cannot be more deals than T::MaxDeals and this the size of the set
                     message_proposals.try_insert(hash).ok()?;
                     // PRE-COND: always succeeds as there cannot be more clients than T::MaxDeals
@@ -604,19 +777,157 @@ pub mod pallet {
         }
 
         // Used for deduplication purposes
-        // We don't want to store another BTreeSet of ClientDealProposals
+        // We don't want to store another BTreeSet of DealProposals
         // We only care about hashes.
         // It is not an associated function, because T::Hashing is hard to use inside of there.
-        fn hash_proposal(
-            proposal: &ClientDealProposal<
-                T::AccountId,
-                BalanceOf<T>,
-                BlockNumberFor<T>,
-                T::OffchainSignature,
-            >,
+        pub(crate) fn hash_proposal(
+            proposal: &DealProposal<T::AccountId, BalanceOf<T>, BlockNumberFor<T>>,
         ) -> T::Hash {
             let bytes = Encode::encode(proposal);
             T::Hashing::hash(&bytes)
+        }
+    }
+
+    impl<T: Config> Market<T::AccountId, BlockNumberFor<T>> for Pallet<T> {
+        /// Verifies a given set of storage deals is valid for sectors being PreCommitted.
+        /// Computes UnsealedCID (CommD) for each sector or None for Committed Capacity sectors.
+        /// Currently UnsealedCID is hardcoded as we `compute_commd` remains unimplemented because of #92.
+        fn verify_deals_for_activation(
+            storage_provider: &T::AccountId,
+            sector_deals: BoundedVec<SectorDeal<BlockNumberFor<T>>, ConstU32<MAX_SECTORS_PER_CALL>>,
+        ) -> Result<BoundedVec<Option<Cid>, ConstU32<MAX_SECTORS_PER_CALL>>, DispatchError>
+        {
+            let curr_block = System::<T>::block_number();
+            let mut unsealed_cids = BoundedVec::new();
+            for sector in sector_deals {
+                let proposals = Self::proposals_for_deals(sector.deal_ids)?;
+                let sector_size = sector.sector_type.sector_size();
+                Self::validate_deals_for_sector(
+                    &proposals,
+                    storage_provider,
+                    sector.sector_number,
+                    sector.sector_expiry,
+                    curr_block,
+                    sector_size,
+                )?;
+
+                // Sealing a Sector without Deals, Committed Capacity Only.
+                let commd = if proposals.is_empty() {
+                    None
+                } else {
+                    Some(Self::compute_commd(
+                        proposals.iter().map(|(_, deal)| deal),
+                        sector.sector_type,
+                    )?)
+                };
+
+                // PRE-COND: can't fail, unsealed_cids<_, X> == BoundedVec<_ X> == sector_deals<_, X>
+                unsealed_cids
+                    .try_push(commd)
+                    .map_err(|_| "programmer error, there should be space for Cids")?;
+            }
+
+            Ok(unsealed_cids)
+        }
+
+        /// Activate a set of deals grouped by sector, returning the size and
+        /// extra info about verified deals.
+        /// Sectors' deals are activated in parameter-defined order.
+        /// Each sector's deals are activated or fail as a group, but independently of other sectors.
+        /// Note that confirming all deals fit within a sector is the caller's responsibility
+        /// (and is implied by confirming the sector's data commitment is derived from the deal pieces).
+        fn activate_deals(
+            storage_provider: &T::AccountId,
+            sector_deals: BoundedVec<SectorDeal<BlockNumberFor<T>>, ConstU32<MAX_SECTORS_PER_CALL>>,
+            compute_cid: bool,
+        ) -> Result<
+            BoundedVec<ActiveSector<T::AccountId>, ConstU32<MAX_SECTORS_PER_CALL>>,
+            DispatchError,
+        > {
+            // TODO(@th7nder,#87,17/06/2024): validate a Storage Provider's Account (whether the account was registered as Storage Provider)
+            let mut activations = BoundedVec::new();
+            let curr_block = System::<T>::block_number();
+            let mut activated_deal_ids: BoundedBTreeSet<
+                DealId,
+                ConstU32<MAX_DEALS_FOR_ALL_SECTORS>,
+            > = BoundedBTreeSet::new();
+
+            for sector in sector_deals {
+                let proposals = Self::proposals_for_deals(sector.deal_ids)?;
+                let sector_size = sector.sector_type.sector_size();
+                if let Err(e) = Self::validate_deals_for_sector(
+                    &proposals,
+                    storage_provider,
+                    sector.sector_number,
+                    sector.sector_expiry,
+                    curr_block,
+                    sector_size,
+                ) {
+                    log::error!(
+                        "failed to activate sector: {}, skipping... {:?}",
+                        sector.sector_number,
+                        e
+                    );
+                    continue;
+                }
+
+                let data_commitment = if compute_cid && !proposals.is_empty() {
+                    Some(Self::compute_commd(
+                        proposals.iter().map(|(_, deal)| deal),
+                        sector.sector_type,
+                    )?)
+                } else {
+                    None
+                };
+
+                let mut activated_deals: BoundedVec<_, ConstU32<MAX_DEALS_PER_SECTOR>> =
+                    BoundedVec::new();
+                for (deal_id, mut proposal) in proposals {
+                    // Make it Active! This is what's this function is about in the end.
+                    proposal.state =
+                        DealState::Active(ActiveDealState::new(sector.sector_number, curr_block));
+
+                    activated_deals
+                        .try_push(ActiveDeal {
+                            client: proposal.client.clone(),
+                            piece_cid: proposal.cid().map_err(|e| {
+                                log::error!(
+                                    "there is invalid cid saved on-chain for deal: {}, {:?}",
+                                    deal_id,
+                                    e
+                                );
+                                Error::<T>::DealPreconditionFailed
+                            })?,
+                            piece_size: proposal.piece_size,
+                        })
+                        .map_err(|_| {
+                            log::error!("failed to insert into `activated`, programmer's error");
+                            Error::<T>::DealPreconditionFailed
+                        })?;
+                    activated_deal_ids.try_insert(deal_id).map_err(|_| {
+                        log::error!(
+                            "failed to insert into `activated_deal_ids`, programmer's error"
+                        );
+                        Error::<T>::DealPreconditionFailed
+                    })?;
+
+                    Self::deposit_event(Event::<T>::DealActivated {
+                        deal_id,
+                        client: proposal.client.clone(),
+                        provider: proposal.provider.clone(),
+                    });
+                    Proposals::<T>::insert(deal_id, proposal);
+                }
+
+                activations
+                    .try_push(ActiveSector {
+                        active_deals: activated_deals,
+                        unsealed_cid: data_commitment,
+                    })
+                    .map_err(|_| Error::<T>::DealPreconditionFailed)?;
+            }
+
+            Ok(activations)
         }
     }
 }

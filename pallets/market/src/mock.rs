@@ -76,7 +76,7 @@ pub fn cid_of(data: &str) -> cid::Cid {
     Cid::new_v1(CID_CODEC, Code::Blake2b256.digest(data.as_bytes()))
 }
 
-type DealProposalOf<T> =
+pub(crate) type DealProposalOf<T> =
     DealProposal<<T as frame_system::Config>::AccountId, BalanceOf<T>, BlockNumberFor<T>>;
 
 type ClientDealProposalOf<T> = ClientDealProposal<
