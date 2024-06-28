@@ -24,7 +24,6 @@ mod test;
 mod proofs;
 mod sector;
 mod storage_provider;
-mod types;
 
 pub type DealID = u64; // TODO(@aidan46, no-ref, 2024-06-27): Import from primitives
 
@@ -70,6 +69,7 @@ pub mod pallet {
         /// Peer ID is derived by hashing an encoded public key.
         /// Usually represented in bytes.
         /// https://github.com/libp2p/specs/blob/2ea41e8c769f1bead8e637a9d4ebf8c791976e8a/peer-ids/peer-ids.md#peer-ids
+        /// More information about libp2p peer ids: https://docs.libp2p.io/concepts/fundamentals/peers/
         type PeerId: Clone + Debug + Decode + Encode + Eq + TypeInfo;
 
         /// Currency mechanism, used for collateral
