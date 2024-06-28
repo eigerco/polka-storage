@@ -37,7 +37,7 @@ pub async fn start_rpc_server(
 ) -> Result<ServerHandle, CliError> {
     let server = Server::builder().build(listen_addr).await?;
 
-    let module = create_module(state.clone());
+    let module = create_module(state);
     let server_handle = server.start(module);
 
     Ok(server_handle)

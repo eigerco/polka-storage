@@ -8,10 +8,19 @@ repository.workspace = true
 version = "0.1.0"
 
 [dependencies]
+# TODO(no-ref,@cernicc,28/06/2024): Move to workkspacecs
+mater = { workspace = true }
 async-trait = { workspace = true }
+futures = "0.3.30"
+axum = { version = "0.7.5", features = ["multipart"] }
+tokio-util = { version = "0.7.11" }
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive"] }
-jsonrpsee = { workspace = true, features = ["http-client", "server", "ws-client"] }
+jsonrpsee = { workspace = true, features = [
+    "http-client",
+    "server",
+    "ws-client",
+] }
 sc-cli = { workspace = true }
 sealed = { workspace = true }
 serde = { workspace = true }

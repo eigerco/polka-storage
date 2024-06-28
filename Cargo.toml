@@ -92,6 +92,7 @@ uuid = "1.8.0"
 
 # Local
 cli-primitives = { path = "primitives/cli" }
+mater = { path = "storage/mater" }
 pallet-market = { path = "pallets/market", default-features = false }
 polka-storage-runtime = { path = "runtime" }
 primitives-proofs = { path = "primitives/proofs", default-features = false }
@@ -136,7 +137,9 @@ substrate-prometheus-endpoint = { git = "https://github.com/paritytech/polkadot-
 
 # Polkadot
 pallet-xcm = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.13.0", default-features = false }
-polkadot-cli = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.13.0", features = ["rococo-native"] }
+polkadot-cli = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.13.0", features = [
+  "rococo-native",
+] }
 polkadot-parachain-primitives = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.13.0", default-features = false }
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.13.0" }
 polkadot-runtime-common = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.13.0", default-features = false }

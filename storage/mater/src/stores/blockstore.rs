@@ -85,7 +85,7 @@ impl Blockstore {
     /// converting the contents into a CARv2 file.
     pub async fn read<R>(&mut self, reader: R) -> Result<(), Error>
     where
-        R: AsyncRead + Unpin + Send,
+        R: AsyncRead + Unpin,
     {
         let chunks = ReaderStream::with_capacity(reader, self.chunk_size);
 
