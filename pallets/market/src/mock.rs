@@ -1,6 +1,10 @@
 use cid::Cid;
 use codec::Encode;
-use frame_support::{derive_impl, parameter_types, PalletId};
+use frame_support::{
+    derive_impl, parameter_types,
+    traits::{OnFinalize, OnInitialize},
+    PalletId,
+};
 use frame_system::{self as system, pallet_prelude::BlockNumberFor};
 use multihash_codetable::{Code, MultihashDigest};
 use sp_core::Pair;
@@ -128,4 +132,19 @@ pub fn events() -> Vec<RuntimeEvent> {
         .collect::<Vec<_>>();
     System::reset_events();
     evt
+}
+
+/// Run until a particular block.
+///
+/// Stolen't from: <https://github.com/paritytech/polkadot-sdk/blob/7df94a469e02e1d553bd4050b0e91870d6a4c31b/substrate/frame/lottery/src/mock.rs#L87-L98>
+pub fn run_to_block(n: u64) {
+    while System::block_number() < n {
+        if System::block_number() > 1 {
+            Market::on_finalize(System::block_number());
+            System::on_finalize(System::block_number());
+        }
+        System::set_block_number(System::block_number() + 1);
+        System::on_initialize(System::block_number());
+        Market::on_initialize(System::block_number());
+    }
 }

@@ -128,14 +128,61 @@ pub mod pallet {
     /// Reference: <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/deal.rs#L138>
     pub struct ActiveDealState<BlockNumber> {
         /// Sector in which given piece has been included
-        sector_number: SectorNumber,
+        pub(crate) sector_number: SectorNumber,
 
         /// At which block (time) the deal's sector has been activated.
-        sector_start_block: BlockNumber,
-        last_updated_block: Option<BlockNumber>,
+        pub(crate) sector_start_block: BlockNumber,
+
+        /// The last block (time) when the deal was updated — i.e. when a deal payment settlement was made.
+        ///
+        /// In Filecoin this happens under two circumstances:
+        /// * Someone starts the payment settlement procedure.
+        /// * Cron tick (deprecated) settles legacy deals.
+        ///
+        /// Sources:
+        /// * <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L985>
+        /// * <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L1315>
+        pub(crate) last_updated_block: Option<BlockNumber>,
 
         /// When the deal was last slashed, can be never.
-        slash_block: Option<BlockNumber>,
+        ///
+        /// In Filecoin, slashing can happen in two cases, storage faults and consensus faults,
+        /// in our case, we're only concerned about the storage faults, as the consensus is
+        /// handled by the collators.
+        ///
+        /// Slashing is related to three main kinds of penalties:
+        /// * Fault Fee — incurred for each day a sector is offline.
+        /// * Storage Penalty — incurred when sectors that were not declared as faulty before a WindowPoSt are detected.
+        /// * Termination Penalty — incurred when a sector is voluntarily (the miner "gave up on the deal") or
+        ///   involuntarily (when a sector is faulty for 42 days in a row) terminated and removed from the network.
+        ///
+        /// Slashing is applied (i.e. `slash_epoch` is updated) in a single place:
+        /// * During [`on_miners_sector_terminate`][1], by termination penalty since the deal was terminated early.
+        ///   The deal is first settled — i.e. the storage provider gets paid for the storage time since they last settled the deal —
+        ///   then storage provider has their collateral slashed and burned and the client gets their funds unlocked (i.e. refunded).
+        ///
+        /// However, slashing is performed in other places, it just does not update `slash_epoch` (`slash_block` in our case).
+        /// * During [`get_active_deal_or_process_timeout`][2], slashing will happen if the deal has expired
+        ///   — i.e. if and when the deal is published but fails to be activated in a given period.
+        ///   This function is called in [`cron_tick`][3] and [`settle_deal_payments`][4].
+        /// * During [`process_deal_update`][5], if the deal has a `slash_epoch`, any remaining payments will be settled
+        ///   and the provider will have its collateral slashed.
+        /// * During [`cron_tick`][7], by means of [`get_active_deal_or_process_timeout`][8] and finally [`process_deal_init_timed_out`][9].
+        ///
+        /// Sources:
+        /// * <https://spec.filecoin.io/#section-glossary.storage-fault-slashing>
+        /// * <https://spec.filecoin.io/#section-systems.filecoin_mining.sector.lifecycle>
+        ///
+        /// [1]: https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L852-L853
+        /// [2]: https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/state.rs#L741-L797
+        /// [3]: https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L904-L924
+        /// [4]: https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L1240-L1271
+        /// [5]: https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/state.rs#L886-L912
+        /// [6]: https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/market/src/state.rs#L922-L962
+        /// [7]: https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/market/src/lib.rs#L904-L924
+        /// [8]: https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/state.rs#L765
+        /// [9]: https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/state.rs#L964-L997
+        pub(crate) slash_block: Option<BlockNumber>,
     }
 
     impl<BlockNumber> ActiveDealState<BlockNumber> {
@@ -252,12 +299,12 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// Market Participant deposited free balance to the Market Account
+        /// Market Participant deposited free balance to the Market Account.
         BalanceAdded {
             who: T::AccountId,
             amount: BalanceOf<T>,
         },
-        /// Market Participant withdrawn their free balance from the Market Account
+        /// Market Participant withdrawn their free balance from the Market Account.
         BalanceWithdrawn {
             who: T::AccountId,
             amount: BalanceOf<T>,
@@ -274,7 +321,19 @@ pub mod pallet {
             client: T::AccountId,
             provider: T::AccountId,
         },
+        /// Deals were settled.
+        DealsSettled {
+            /// Deal IDs for those that were successfully settled.
+            successful: BoundedVec<DealId, MaxSettleDeals<T>>,
+            /// Deal IDs for those that were not successfully settled along with the respective error.
+            unsuccessful: BoundedVec<(DealId, DealSettlementError), MaxSettleDeals<T>>,
+        },
+        /// Deal was slashed.
+        DealSlashed(DealId),
     }
+
+    /// Utility type to ensure that the bound for deal settlement is in sync.
+    pub type MaxSettleDeals<T> = <T as Config>::MaxDeals;
 
     #[pallet::error]
     pub enum Error<T> {
@@ -341,6 +400,21 @@ pub mod pallet {
         InvalidCid(cid::Error),
     }
 
+    // Clone and PartialEq required because of the BoundedVec<(DealId, DealSettlementError)>
+    #[derive(RuntimeDebug, TypeInfo, Encode, Decode, Clone, PartialEq)]
+    pub enum DealSettlementError {
+        /// The deal is going to be slashed.
+        SlashedDeal,
+        /// The deal last update is in the future — i.e. `last_update_block > current_block`.
+        FutureLastUpdate,
+        /// The deal was not found.
+        DealNotFound,
+        /// The deal is too early to settle.
+        EarlySettlement,
+        /// The deal has expired
+        ExpiredDeal,
+    }
+
     /// Extrinsics exposed by the pallet
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -387,6 +461,147 @@ pub mod pallet {
                 });
                 Ok(())
             })?;
+
+            Ok(())
+        }
+
+        /// Settle pending deal payments for the given deal IDs.
+        ///
+        /// This function *should* only fully fail when a block was last updated after its `end_block` target.
+        ///
+        /// In other cases, the function will return two lists, the successful settlements and the unsuccessful ones.
+        ///
+        /// A settlement is only fully performed when a deal is active.
+        /// If a deal is not active, its settlement is simply marked as successful but nothing happens.
+        ///
+        /// A settlement is unsuccessful when:
+        /// * The deal was not found. The returned error is [`DealSettlementError::DealNotFound`].
+        /// * The deal's start block is after the current block, meaning it's too early to settle the deal.
+        ///   The returned error is [`DealSettlementError::EarlySettlement`].
+        /// * The deal has been slashed. The returned error is [`DealSettlementError::SlashedDeal`].
+        /// * The deal's last update is after the current block, meaning the deal's last update is in the future.
+        ///   The returned error is [`DealSettlementError::FutureLastUpdate`].
+        pub fn settle_deal_payments(
+            origin: OriginFor<T>,
+            // The original `deals` structure is a bitfield from fvm-ipld-bitfield
+            deal_ids: BoundedVec<DealId, MaxSettleDeals<T>>,
+        ) -> DispatchResult {
+            // Anyone with gas can settle payments, so we just check if the origin is signed
+            ensure_signed(origin)?;
+
+            // INVARIANT: slashed deals cannot show up here because slashing is fully processed by `on_sector_terminate`
+
+            let current_block = <frame_system::Pallet<T>>::block_number();
+
+            let mut successful = BoundedVec::<_, MaxSettleDeals<T>>::new();
+            let mut unsuccessful = BoundedVec::<_, MaxSettleDeals<T>>::new();
+
+            for deal_id in deal_ids {
+                // If the deal is not found, we register an error and move on
+                // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L1225-L1231
+                let Some(mut deal_proposal) = Proposals::<T>::get(deal_id) else {
+                    log::error!(target: LOG_TARGET, "deal not found — deal_id: {}", deal_id);
+                    // SAFETY: Always succeeds because the upper bound on the vecs should be the same as the input vec
+                    let _ = unsuccessful.try_push((deal_id, DealSettlementError::DealNotFound));
+                    continue;
+                };
+
+                // Deal isn't possibly valid yet
+                // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L1255-L1264
+                if deal_proposal.start_block > current_block {
+                    // SAFETY: Always succeeds because the upper bound on the vecs should be the same as the input vec
+                    let _ = unsuccessful.try_push((deal_id, DealSettlementError::EarlySettlement));
+                    continue;
+                }
+
+                // If the deal is not active (i.e. unpublished or published), there's nothing to settle
+                // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L1225-L1231
+                let DealState::Active(ref mut active_deal_state) = deal_proposal.state else {
+                    // If a deal is not published, there's nothing to settle
+                    // If a deal is published, but not active, it's supposed to be removed by cron/hooks
+
+                    // NOTE(@jmg-duarte,28/06/2024): maybe we should handle deals where deal_proposal.start_block < current_block — i.e. expired
+
+                    // SAFETY: Always succeeds because the upper bound on the vecs should be the same as the input vec
+                    let _ = successful.try_push(deal_id);
+                    continue;
+                };
+
+                // If the last updated block is in the future, return an error
+                if let Some(last_updated_block) = active_deal_state.last_updated_block {
+                    if last_updated_block > current_block {
+                        log::error!(target: LOG_TARGET,
+                            "last_updated_block for deal is in the future — deal_id: {}, last_updated_block: {:?}",
+                            deal_id,
+                            last_updated_block
+                        );
+                        // SAFETY: Always succeeds because the upper bound on the vecs should be the same as the input vec
+                        let _ =
+                            unsuccessful.try_push((deal_id, DealSettlementError::FutureLastUpdate));
+                        continue;
+                    }
+                }
+
+                // If we never settled, the duration starts at `start_block`
+                let last_settled_block = active_deal_state
+                    .last_updated_block
+                    .unwrap_or(deal_proposal.start_block);
+
+                if last_settled_block > deal_proposal.end_block {
+                    // If the code reaches this, it's a big whoops
+                    log::error!(target: LOG_TARGET, "the last settled block cannot be bigger than the end block — last_settled_block: {:?}, end_block: {:?}",
+                        last_settled_block, deal_proposal.end_block);
+                    return Err(DispatchError::Corruption);
+                }
+
+                let (block_to_settle, complete_deal) = {
+                    if current_block >= deal_proposal.end_block {
+                        // The deal has been completed, as such, we'll remove it later on
+                        (deal_proposal.end_block, true)
+                    } else {
+                        (current_block, false)
+                    }
+                };
+
+                // If an error happens when converting here we have more to worry about than completing all settlements
+                let deal_settlement_amount: BalanceOf<T> = {
+                    // There's no great way to avoid the repeated code without macros or more generics magic
+                    // ArithmeticError::Overflow used as `duration` and `storage_price_per_block` can only be positive
+                    let duration: u128 = (block_to_settle - last_settled_block)
+                        .try_into()
+                        .map_err(|_| DispatchError::Arithmetic(ArithmeticError::Overflow))?;
+                    let storage_price_per_block: u128 = deal_proposal
+                        .storage_price_per_block
+                        .try_into()
+                        .map_err(|_| DispatchError::Arithmetic(ArithmeticError::Overflow))?;
+
+                    (duration * storage_price_per_block)
+                        .try_into()
+                        .map_err(|_| DispatchError::Arithmetic(ArithmeticError::Overflow))
+                }?;
+
+                perform_storage_payment::<T>(
+                    &deal_proposal.client,
+                    &deal_proposal.provider,
+                    deal_settlement_amount,
+                )?;
+
+                // NOTE(@jmg-duarte,28/06/2024): Maybe emit an event when the table is updated?
+                if complete_deal {
+                    Proposals::<T>::remove(deal_id);
+                } else {
+                    // Otherwise, we update the proposal — `last_updated_block`
+                    active_deal_state.last_updated_block = Some(current_block);
+                    Proposals::<T>::insert(deal_id, deal_proposal);
+                }
+                // SAFETY: Always succeeds because the upper bound on the vecs should be the same as the input vec
+                let _ = successful.try_push(deal_id);
+            }
+
+            Self::deposit_event(Event::<T>::DealsSettled {
+                successful,
+                unsuccessful,
+            });
 
             Ok(())
         }
@@ -735,7 +950,7 @@ pub mod pallet {
 
                     let client_balance = BalanceTable::<T>::get(&deal.proposal.client);
                     if client_lockup > client_balance.free {
-                        log::error!(target: LOG_TARGET, "invalid deal: client {:?} not enough free balance {:?} < {:?} to cover deal idx: {}", 
+                        log::error!(target: LOG_TARGET, "invalid deal: client {:?} not enough free balance {:?} < {:?} to cover deal idx: {}",
                             deal.proposal.client, client_balance.free, client_lockup, idx);
                         return None;
                     }
@@ -929,5 +1144,36 @@ pub mod pallet {
 
             Ok(activations)
         }
+    }
+
+    /// Moves the provided `amount` from the `client`'s locked funds, to the provider's `free` funds.
+    ///
+    /// # Pre-Conditions
+    /// * The client MUST have the necessary funds locked.
+    fn perform_storage_payment<T: Config>(
+        client: &T::AccountId,
+        provider: &T::AccountId,
+        amount: BalanceOf<T>,
+    ) -> DispatchResult {
+        // These should have been checked when locking funds
+        BalanceTable::<T>::try_mutate(client, |balance| -> DispatchResult {
+            let locked = balance
+                .locked
+                .checked_sub(&amount)
+                .ok_or(ArithmeticError::Underflow)?;
+            balance.locked = locked;
+            Ok(())
+        })?;
+
+        BalanceTable::<T>::try_mutate(provider, |balance| -> DispatchResult {
+            let free = balance
+                .free
+                .checked_add(&amount)
+                .ok_or(ArithmeticError::Overflow)?;
+            balance.free = free;
+            Ok(())
+        })?;
+
+        Ok(())
     }
 }
