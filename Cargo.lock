@@ -7185,6 +7185,7 @@ dependencies = [
  "multihash-codetable",
  "pallet-balances",
  "parity-scale-codec",
+ "primitives-proofs",
  "scale-info",
  "sp-arithmetic",
  "sp-core",
@@ -9690,6 +9691,17 @@ dependencies = [
  "impl-serde",
  "scale-info",
  "uint",
+]
+
+[[package]]
+name = "primitives-proofs"
+version = "0.1.0"
+dependencies = [
+ "cid 0.11.1",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-runtime",
 ]
 
 [[package]]
