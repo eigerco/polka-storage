@@ -34,7 +34,7 @@ use frame_support::{
     parameter_types,
     traits::{ConstBool, ConstU32, ConstU64, ConstU8, EitherOfDiverse, TransformOrigin},
     weights::{ConstantMultiplier, Weight},
-    PalletId,
+    BoundedVec, PalletId,
 };
 use frame_system::{
     limits::{BlockLength, BlockWeights},
@@ -46,7 +46,7 @@ use polkadot_runtime_common::{
     xcm_sender::NoPriceForMessageDelivery, BlockHashCount, SlowAdjustingFeeUpdate,
 };
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_runtime::{BoundedVec, Perbill};
+use sp_runtime::{traits::Verify, MultiSignature, Perbill};
 use sp_version::RuntimeVersion;
 use xcm::latest::prelude::BodyId;
 use xcm_config::{RelayLocation, XcmOriginToTransactDispatchOrigin};
@@ -242,6 +242,8 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
     // Enqueue XCMP messages from siblings for later processing.
     type XcmpQueue = TransformOrigin<MessageQueue, AggregateMessageOrigin, ParaId, ParaIdToSibling>;
     type MaxInboundSuspended = sp_core::ConstU32<1_000>;
+    type MaxActiveOutboundChannels = sp_core::ConstU32<128>;
+    type MaxPageSize = ConstU32<{ 1 << 16 }>;
     type ControllerOrigin = EnsureRoot<AccountId>;
     type ControllerOriginConverter = XcmOriginToTransactDispatchOrigin;
     type WeightInfo = ();
@@ -318,4 +320,23 @@ impl pallet_storage_provider::Config for Runtime {
     type Currency = Balances;
     type WPoStProvingPeriod = WpostProvingPeriod;
     type WPoStChallengeWindow = WpostChallengeWindow;
+}
+
+parameter_types! {
+    /// PalletId of Market Pallet, used to convert it to AccountId which holds the Market funds
+    pub const MarketPalletId: PalletId = PalletId(*b"spMarket");
+}
+
+pub type AccountPublic = <MultiSignature as Verify>::Signer;
+
+impl pallet_market::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type Currency = Balances;
+    type PalletId = MarketPalletId;
+    type OffchainSignature = MultiSignature;
+    type OffchainPublic = AccountPublic;
+    type MaxDeals = ConstU32<128>;
+    type BlocksPerDay = ConstU32<DAYS>;
+    type MinDealDuration = ConstU32<{ DAYS * 180 }>;
+    type MaxDealDuration = ConstU32<{ DAYS * 1278 }>;
 }
