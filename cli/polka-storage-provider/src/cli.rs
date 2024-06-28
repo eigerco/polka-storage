@@ -1,6 +1,11 @@
 use clap::Parser;
+use thiserror::Error;
+use url::Url;
 
-use crate::commands::{InfoCommand, InitCommand, RunCommand, WalletCommand};
+use crate::{
+    commands::{InfoCommand, InitCommand, RunCommand, WalletCommand},
+    rpc::{server::RPC_SERVER_DEFAULT_BIND_ADDR, ClientError},
+};
 
 /// A CLI application that facilitates management operations over a running full
 /// node and other components.
@@ -9,6 +14,10 @@ use crate::commands::{InfoCommand, InitCommand, RunCommand, WalletCommand};
 pub(crate) struct Cli {
     #[command(subcommand)]
     pub subcommand: SubCommand,
+
+    /// URL of the providers RPC server.
+    #[arg(long, default_value_t = Url::parse(&format!("http://{RPC_SERVER_DEFAULT_BIND_ADDR}")).unwrap())]
+    pub rpc_server_url: Url,
 }
 
 /// Supported sub-commands.
@@ -23,4 +32,26 @@ pub enum SubCommand {
     /// Command to manage wallet operations.
     #[command(subcommand)]
     Wallet(WalletCommand),
+}
+
+/// CLI components error handling implementor.
+#[derive(Debug, Error)]
+pub enum CliError {
+    #[error("IO error: {0}")]
+    IoError(#[from] std::io::Error),
+
+    #[error("FromEnv error: {0}")]
+    EnvError(#[from] tracing_subscriber::filter::FromEnvError),
+
+    #[error("URL parse error: {0}")]
+    ParseUrl(#[from] url::ParseError),
+
+    #[error("Substrate error: {0}")]
+    Substrate(#[from] subxt::Error),
+
+    #[error(transparent)]
+    SubstrateCli(#[from] sc_cli::Error),
+
+    #[error("Rpc Client error: {0}")]
+    RpcClient(#[from] ClientError),
 }

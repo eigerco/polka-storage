@@ -1,14 +1,14 @@
 use clap::Parser;
 use tracing::info;
 
-use crate::Error;
+use crate::cli::CliError;
 
 /// Command to initialize the storage provider.
 #[derive(Debug, Clone, Parser)]
 pub(crate) struct InitCommand;
 
 impl InitCommand {
-    pub async fn run(&self) -> Result<(), Error> {
+    pub async fn run(&self) -> Result<(), CliError> {
         info!("Initializing polka storage provider...");
         // TODO(#64,@cernicc,31/05/2024): Init needed configurations.
         // TODO(#65,@cernicc,31/05/2024): Check if full node is synced
