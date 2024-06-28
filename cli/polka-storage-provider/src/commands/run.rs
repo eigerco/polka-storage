@@ -101,10 +101,10 @@ async fn upload(
     // Destination file
     let path = "something.car";
     let path = std::path::Path::new(UPLOADS_DIRECTORY).join(path);
-    let mut file = BufWriter::new(File::create(path).await.unwrap());
+    let file = BufWriter::new(File::create(path).await.unwrap());
 
     // Stream the body, convert it to car and write it to the file
-    create_filestore(body_reader, &mut file, Config::default()).await;
+    create_filestore(body_reader, file, Config::default()).await;
 
     Ok(())
 }
