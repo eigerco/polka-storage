@@ -1,27 +1,30 @@
 use std::sync::Arc;
 
-use jsonrpsee::types::Params;
 use serde::{Deserialize, Serialize};
 use subxt_signer::sr25519::dev;
 
+use super::RpcRequest;
 use crate::{
-    rpc::{error::ServerError, ApiVersion, RpcMethod, RpcServerState},
+    rpc::{
+        server::{RpcServerState, ServerError},
+        version::V0,
+    },
     substrate::get_system_balances,
 };
 
 /// This RPC method exposes getting the system balances for the particular
 /// account.
-pub struct WalletBalance;
-impl RpcMethod for WalletBalance {
+pub struct WalletRequest;
+impl RpcRequest<V0> for WalletRequest {
     const NAME: &'static str = "wallet_balance";
-    const API_VERSION: ApiVersion = ApiVersion::V0;
-
     type Ok = Option<WalletBalanceResult>;
+    type Params = ();
 
-    async fn handle(
-        ctx: Arc<RpcServerState>,
-        _params: Params<'_>,
-    ) -> Result<Self::Ok, ServerError> {
+    fn params(&self) -> Self::Params {
+        ()
+    }
+
+    async fn handle(ctx: Arc<RpcServerState>, _: Self::Params) -> Result<Self::Ok, ServerError> {
         // TODO(#68,@cernicc,05/06/2024): Implement correctly. dev alice is used as a show case for now.
         let account = dev::alice().public_key().into();
         let balance = get_system_balances(&ctx.substrate_client, &account).await?;
@@ -34,6 +37,7 @@ impl RpcMethod for WalletBalance {
     }
 }
 
+/// Result of the wallet balance request.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WalletBalanceResult {
     free: String,
