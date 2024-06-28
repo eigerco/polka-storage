@@ -30,6 +30,7 @@ pub type DealID = u64; // TODO(@aidan46, no-ref, 2024-06-27): Import from primit
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
     pub const CID_CODEC: u64 = 0x55;
+    pub const CID_MAX_BYTE_SIZE: u32 = 128;
 
     use core::fmt::Debug;
 
