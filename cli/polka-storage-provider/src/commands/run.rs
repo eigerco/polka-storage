@@ -1,17 +1,16 @@
 use std::{io, net::SocketAddr, sync::Arc};
 
 use axum::{
-    body::Bytes,
+    debug_handler,
     extract::{Path, Request, State},
-    http::{Error, StatusCode},
-    response::IntoResponse,
+    http::StatusCode,
     routing::{get, post},
-    BoxError, Router,
+    Router,
 };
 use chrono::Utc;
 use clap::Parser;
-use futures::{Stream, TryStreamExt};
-use mater::Blockstore;
+use futures::TryStreamExt;
+use mater::{create_filestore, Config};
 use tokio::{fs::File, io::BufWriter};
 use tokio_util::io::StreamReader;
 use tracing::info;
@@ -88,14 +87,25 @@ async fn shutdown_signal() {
 // TODO(no-ref,@cernicc,28/06/2024): Move somewhere else
 // TODO(no-ref,@cernicc,28/06/2024): Handle response
 // TODO(no-ref,@cernicc,28/06/2024): Better error handling
+#[debug_handler]
 async fn upload(
     State(state): State<Arc<RpcServerState>>,
     request: Request,
 ) -> Result<(), (StatusCode, String)> {
-    dbg!("Uploading file");
-    stream_to_file(request.into_body().into_data_stream())
-        .await
-        .unwrap();
+    // Body stream and reader
+    let body_data_stream = request.into_body().into_data_stream();
+    let body_with_io_error =
+        body_data_stream.map_err(|err| io::Error::new(io::ErrorKind::Other, err));
+    let body_reader = StreamReader::new(body_with_io_error);
+
+    // Destination file
+    let path = "something.car";
+    let path = std::path::Path::new(UPLOADS_DIRECTORY).join(path);
+    let mut file = BufWriter::new(File::create(path).await.unwrap());
+
+    // Stream the body, convert it to car and write it to the file
+    create_filestore(body_reader, &mut file, Config::default()).await;
+
     Ok(())
 }
 
@@ -112,37 +122,4 @@ fn configure_router(state: Arc<RpcServerState>) -> Router {
         .route("/upload", post(upload))
         .route("/download/:cid", get(download))
         .with_state(state)
-}
-
-// Save a `Stream` to a file
-async fn stream_to_file<S, E>(stream: S) -> Result<(), (StatusCode, String)>
-where
-    S: Stream<Item = Result<Bytes, E>>,
-    E: Into<BoxError>,
-{
-    // TODO: Check if file is already a car file
-    let path = "something.car";
-
-    async {
-        // Convert the stream into an `AsyncRead`.
-        let body_with_io_error = stream.map_err(|err| io::Error::new(io::ErrorKind::Other, err));
-        let body_reader = StreamReader::new(body_with_io_error);
-        futures::pin_mut!(body_reader);
-
-        // Stream the body to the Blockstore
-        let mut block_store = Blockstore::new();
-        block_store.read(body_reader).await.unwrap();
-
-        // Create the file. `File` implements `AsyncWrite`.
-        let path = std::path::Path::new(UPLOADS_DIRECTORY).join(path);
-        let mut file = BufWriter::new(File::create(path).await?);
-
-        // Copy the body into the file.
-        // Uncomment this for error.
-        // block_store.write(&mut file).await.unwrap();
-
-        Ok::<_, io::Error>(())
-    }
-    .await
-    .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))
 }

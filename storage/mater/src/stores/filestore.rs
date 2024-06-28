@@ -1,10 +1,5 @@
-use std::path::Path;
-
 use sha2::{Digest, Sha256};
-use tokio::{
-    fs::File,
-    io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite},
-};
+use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite};
 use tokio_stream::StreamExt;
 use tokio_util::io::ReaderStream;
 
@@ -21,7 +16,7 @@ async fn balanced_import<Src, Out>(
     tree_width: usize,
 ) -> Result<(), Error>
 where
-    Src: AsyncRead + Unpin + Send,
+    Src: AsyncRead + Unpin,
     Out: AsyncWrite + AsyncSeek + Unpin,
 {
     let chunker = ReaderStream::with_capacity(&mut source, chunk_size);
@@ -83,25 +78,21 @@ where
     Ok(())
 }
 
-/// Convert a `source` file into a CARv2 file and write it to `output`.
+/// Convert a `source` stream into a CARv2 file and write it to `output` stream.
 pub async fn create_filestore<Src, Out>(
     source: Src,
     output: Out,
     config: Config,
 ) -> Result<(), Error>
 where
-    Src: AsRef<Path>,
-    Out: AsRef<Path>,
+    Src: AsyncRead + Unpin,
+    Out: AsyncWrite + AsyncSeek + Unpin,
 {
     match config {
         Config::Balanced {
             chunk_size,
             tree_width,
-        } => {
-            let source_file = File::open(source).await?;
-            let output_file = File::create(output).await?;
-            balanced_import(source_file, output_file, chunk_size, tree_width).await
-        }
+        } => balanced_import(source, output, chunk_size, tree_width).await,
     }
 }
 
@@ -110,6 +101,7 @@ mod test {
     use std::path::Path;
 
     use tempfile::tempdir;
+    use tokio::fs::File;
 
     use crate::{
         stores::{filestore::create_filestore, Config},
@@ -124,7 +116,9 @@ mod test {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().join("lorem.car");
 
-        create_filestore(original, &temp_path, Config::default())
+        let source_file = File::open(original).await.unwrap();
+        let output_file = File::create(&temp_path).await.unwrap();
+        create_filestore(source_file, output_file, Config::default())
             .await
             .unwrap();
 

@@ -195,7 +195,10 @@ fn prepare_source_file(content: &[u8]) -> (TempDir, PathBuf) {
 
 /// Create a filestore. This function is benchmarked.
 async fn create_filestore_benched(source: &Path, target: &Path) {
-    create_filestore(source, target, Config::default())
+    let source_file = File::open(source).await.unwrap();
+    let output_file = File::create(target).await.unwrap();
+
+    create_filestore(source_file, output_file, Config::default())
         .await
         .unwrap();
 }

@@ -10,7 +10,7 @@ version = "0.1.0"
 [dependencies]
 # TODO(no-ref,@cernicc,28/06/2024): Move to workkspacecs
 async-trait = { workspace = true }
-axum = { version = "0.7.5", features = ["multipart"] }
+axum = { version = "0.7.5", features = ["macros", "multipart"] }
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive"] }
 futures = "0.3.30"
