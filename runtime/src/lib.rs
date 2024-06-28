@@ -246,6 +246,8 @@ construct_runtime!(
         CumulusXcm: cumulus_pallet_xcm = 32,
         MessageQueue: pallet_message_queue = 33,
 
+        Market: pallet_market = 35,
+
         // Custom
         PaymentChannel: pallet_payment_channel = 50,
     }
