@@ -245,6 +245,9 @@ construct_runtime!(
         PolkadotXcm: pallet_xcm = 31,
         CumulusXcm: cumulus_pallet_xcm = 32,
         MessageQueue: pallet_message_queue = 33,
+
+        // Custom
+        PaymentChannel: pallet_payment_channel = 50,
     }
 );
 

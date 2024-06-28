@@ -6,7 +6,7 @@ license-file = "LICENSE"
 repository = "https://github.com/eigerco/polka-storage"
 
 [workspace]
-members = ["cli/polka-storage-provider", "node", "primitives/cli", "runtime", "storage/mater", "storage/polka-index"]
+members = ["cli/polka-storage-provider", "node", "primitives/cli", "runtime", "storage/mater", "storage/polka-index", "pallets/payment-channel"]
 resolver = "2"
 
 [profile.ci]
@@ -80,6 +80,7 @@ uuid = "1.8.0"
 # Local
 cli-primitives = { path = "primitives/cli" }
 polka-storage-runtime = { path = "runtime" }
+pallet-payment-channel = { path = "pallets/payment-channel", default-features = false }
 
 # Substrate
 pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.13.0" }

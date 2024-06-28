@@ -305,3 +305,8 @@ impl pallet_collator_selection::Config for Runtime {
     type ValidatorRegistration = Session;
     type WeightInfo = ();
 }
+
+impl pallet_payment_channel::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = pallet_payment_channel::weights::SubstrateWeight<Runtime>;
+}
