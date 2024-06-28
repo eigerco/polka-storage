@@ -50,7 +50,7 @@ impl<PeerId, Balance, BlockNumber> StorageProviderState<PeerId, Balance, BlockNu
 where
     PeerId: Clone + Decode + Encode + TypeInfo,
     BlockNumber: Decode + Encode + TypeInfo,
-    Balance: BaseArithmetic ,
+    Balance: BaseArithmetic,
 {
     pub fn new(
         info: &StorageProviderInfo<PeerId>,
@@ -68,7 +68,8 @@ where
     }
 
     pub fn add_pre_commit_deposit(&mut self, amount: Balance) -> Result<(), ArithmeticError> {
-        let pcd = self.pre_commit_deposits
+        let pcd = self
+            .pre_commit_deposits
             .checked_add(&amount)
             .ok_or(ArithmeticError::Overflow)?;
         self.pre_commit_deposits = pcd;

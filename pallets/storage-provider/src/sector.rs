@@ -2,7 +2,7 @@ use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::ConstU32, BoundedVec};
 use scale_info::TypeInfo;
 
-use crate::{proofs::RegisteredSealProof, DealID};
+use crate::{pallet::CID_MAX_BYTE_SIZE, proofs::RegisteredSealProof, DealID};
 
 // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/runtime/src/runtime/policy.rs#L262
 pub const SECTORS_MAX: u32 = 32 << 20;
@@ -25,11 +25,11 @@ pub struct SectorPreCommitInfo<BlockNumber> {
     // We use BoundedVec here, as cid::Cid do not implement `TypeInfo`, so it cannot be saved into the Runtime Storage.
     // It maybe doable using newtype pattern, however not sure how the UI on the frontend side would handle that anyways.
     // There is Encode/Decode implementation though, through the feature flag: `scale-codec`.
-    pub sealed_cid: BoundedVec<u8, ConstU32<128>>,
+    pub sealed_cid: BoundedVec<u8, ConstU32<CID_MAX_BYTE_SIZE>>,
     pub deal_id: DealID,
     pub expiration: BlockNumber,
     /// CommD
-    pub unsealed_cid: BoundedVec<u8, ConstU32<128>>,
+    pub unsealed_cid: BoundedVec<u8, ConstU32<CID_MAX_BYTE_SIZE>>,
 }
 
 /// Information stored on-chain for a pre-committed sector.
@@ -67,13 +67,13 @@ pub struct SectorOnChainInfo<BlockNumber> {
     // We use BoundedVec here, as cid::Cid do not implement `TypeInfo`, so it cannot be saved into the Runtime Storage.
     // It maybe doable using newtype pattern, however not sure how the UI on the frontend side would handle that anyways.
     // There is Encode/Decode implementation though, through the feature flag: `scale-codec`.
-    pub sealed_cid: BoundedVec<u8, ConstU32<128>>,
+    pub sealed_cid: BoundedVec<u8, ConstU32<CID_MAX_BYTE_SIZE>>,
     /// Block number during which the sector proof was accepted
     pub activation: BlockNumber,
     /// Block number during which the sector expires
     pub expiration: BlockNumber,
     /// CommD
-    pub unsealed_cid: BoundedVec<u8, ConstU32<128>>,
+    pub unsealed_cid: BoundedVec<u8, ConstU32<CID_MAX_BYTE_SIZE>>,
 }
 
 #[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
