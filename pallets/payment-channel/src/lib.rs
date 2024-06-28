@@ -14,16 +14,19 @@ mod benchmarking;
 // TODO(@Serhii, no-ref, 20/06/2024): when ready for prod - replace with #[frame_support::pallet]
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
-    use codec::{Decode, Encode};
     use core::fmt::Debug;
+
+    use codec::{Decode, Encode};
     use frame_support::{
         pallet_prelude::*,
         traits::{Currency, ExistenceRequirement, ReservableCurrency},
     };
     use frame_system::pallet_prelude::*;
     use scale_info::TypeInfo;
-    use sp_runtime::traits::{Hash, SaturatedConversion, Verify, Zero};
-    use sp_runtime::{AccountId32, MultiSignature};
+    use sp_runtime::{
+        traits::{Hash, SaturatedConversion, Verify, Zero},
+        AccountId32, MultiSignature,
+    };
 
     type BalanceOf<T> =
         <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
