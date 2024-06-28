@@ -245,7 +245,9 @@ construct_runtime!(
         PolkadotXcm: pallet_xcm = 31,
         CumulusXcm: cumulus_pallet_xcm = 32,
         MessageQueue: pallet_message_queue = 33,
+
         StorageProvider: pallet_storage_provider::pallet = 34,
+        Market: pallet_market = 35,
     }
 );
 

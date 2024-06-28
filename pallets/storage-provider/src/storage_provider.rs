@@ -1,7 +1,7 @@
 use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::ConstU32, sp_runtime::BoundedBTreeMap};
 use scale_info::TypeInfo;
-use sp_arithmetic::traits::BaseArithmetic;
+use sp_arithmetic::{traits::BaseArithmetic, ArithmeticError};
 
 use crate::{
     proofs::RegisteredPoStProof,
@@ -12,7 +12,7 @@ use crate::{
 
 /// This struct holds the state of a single storage provider.
 #[derive(Debug, Decode, Encode, TypeInfo)]
-pub struct StorageProviderState<PeerId, Balance, BlockNumber, DealID> {
+pub struct StorageProviderState<PeerId, Balance, BlockNumber> {
     /// Contains static information about this storage provider
     pub info: StorageProviderInfo<PeerId>,
 
@@ -22,12 +22,12 @@ pub struct StorageProviderState<PeerId, Balance, BlockNumber, DealID> {
 
     /// Total funds locked as pre_commit_deposit
     /// Optional because when registering there is no need for deposits.
-    pub pre_commit_deposits: Option<Balance>,
+    pub pre_commit_deposits: Balance,
 
     /// Sectors that have been pre-committed but not yet proven.
     pub pre_committed_sectors: BoundedBTreeMap<
         SectorNumber,
-        SectorPreCommitOnChainInfo<Balance, BlockNumber, DealID>,
+        SectorPreCommitOnChainInfo<Balance, BlockNumber>,
         ConstU32<SECTORS_MAX>,
     >,
 
@@ -46,13 +46,11 @@ pub struct StorageProviderState<PeerId, Balance, BlockNumber, DealID> {
     pub current_deadline: BlockNumber,
 }
 
-impl<PeerId, Balance, BlockNumber, DealID>
-    StorageProviderState<PeerId, Balance, BlockNumber, DealID>
+impl<PeerId, Balance, BlockNumber> StorageProviderState<PeerId, Balance, BlockNumber>
 where
     PeerId: Clone + Decode + Encode + TypeInfo,
     BlockNumber: Decode + Encode + TypeInfo,
-    DealID: Decode + Encode + TypeInfo,
-    Balance: BaseArithmetic,
+    Balance: BaseArithmetic ,
 {
     pub fn new(
         info: &StorageProviderInfo<PeerId>,
@@ -62,27 +60,25 @@ where
         Self {
             info: info.clone(),
             sectors: BoundedBTreeMap::new(),
-            pre_commit_deposits: None,
+            pre_commit_deposits: 0.into(),
             pre_committed_sectors: BoundedBTreeMap::new(),
             proving_period_start: period_start,
             current_deadline: deadline_idx,
         }
     }
 
-    pub fn add_pre_commit_deposit(&mut self, amount: Balance) {
-        self.pre_commit_deposits = match &self.pre_commit_deposits {
-            None => Some(amount),
-            Some(amt) => {
-                let new_amount = amt.clone() + amount;
-                Some(new_amount)
-            }
-        }
+    pub fn add_pre_commit_deposit(&mut self, amount: Balance) -> Result<(), ArithmeticError> {
+        let pcd = self.pre_commit_deposits
+            .checked_add(&amount)
+            .ok_or(ArithmeticError::Overflow)?;
+        self.pre_commit_deposits = pcd;
+        Ok(())
     }
 
     // TODO(@aidan46, no-ref, 2024-06-21): Allow for batch inserts.
     pub fn put_precommitted_sector(
         &mut self,
-        precommit: SectorPreCommitOnChainInfo<Balance, BlockNumber, DealID>,
+        precommit: SectorPreCommitOnChainInfo<Balance, BlockNumber>,
     ) -> Result<(), StorageProviderError> {
         let sector_number = precommit.info.sector_number;
 
@@ -100,7 +96,7 @@ where
     pub fn get_precommitted_sector(
         &self,
         sector_number: SectorNumber,
-    ) -> Result<&SectorPreCommitOnChainInfo<Balance, BlockNumber, DealID>, StorageProviderError>
+    ) -> Result<&SectorPreCommitOnChainInfo<Balance, BlockNumber>, StorageProviderError>
     {
         self.pre_committed_sectors
             .get(&sector_number)

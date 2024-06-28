@@ -18,7 +18,9 @@ pub enum Config {
     /// generating byte chunks of `chunk_size` and
     /// generating parent nodes every `tree_width` nodes.
     Balanced {
+        /// The size of the byte chunks.
         chunk_size: usize,
+        /// The number of children per parent node.
         tree_width: usize,
     },
 }

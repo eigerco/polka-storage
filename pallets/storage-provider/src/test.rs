@@ -2,8 +2,8 @@ use frame_support::{assert_noop, assert_ok, sp_runtime::BoundedVec};
 
 use crate::{
     mock::{
-        events, new_test_ext, Balances, RuntimeEvent, RuntimeOrigin, StorageProvider, Test, ALICE,
-        BOB,
+        cid_of, events, new_test_ext, Balances, RuntimeEvent, RuntimeOrigin, StorageProvider, Test,
+        ALICE, BOB,
     },
     pallet::{Error, Event, StorageProviders},
     proofs::{RegisteredPoStProof, RegisteredSealProof},
@@ -52,7 +52,7 @@ fn register_sp() {
         // Check that pre commit sectors are empty.
         assert!(sp_bob.pre_committed_sectors.is_empty());
         // Check that no pre commit deposit is made
-        assert!(sp_bob.pre_commit_deposits.is_none());
+        assert_eq!(sp_bob.pre_commit_deposits, 0);
         // Check that sectors are empty.
         assert!(sp_bob.sectors.is_empty());
 
@@ -123,20 +123,24 @@ fn pre_commit_sector() {
         let sector = SectorPreCommitInfo {
             seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
             sector_number: 1,
-            sealed_cid: BoundedVec::default(),
+            sealed_cid: cid_of("sealed_cid")
+                .to_bytes()
+                .try_into()
+                .expect("hash is always 32 bytes"),
             deal_id: 1,
             expiration: 66,
-            unsealed_cid: BoundedVec::default(),
+            unsealed_cid: cid_of("unsealed_cid")
+                .to_bytes()
+                .try_into()
+                .expect("hash is always 32 bytes"),
         };
 
         // Check starting balance
         assert_eq!(Balances::free_balance(ALICE), 100);
 
         // Run pre commit extrinsic
-        assert_ok!(StorageProvider::pre_commit_sector(
-            RuntimeOrigin::signed(ALICE),
-            sector.clone()
-        ));
+        StorageProvider::pre_commit_sector(RuntimeOrigin::signed(ALICE), sector.clone())
+            .expect("Pre commit failed");
 
         // Check that the event triggered
         assert_eq!(
@@ -158,7 +162,7 @@ fn pre_commit_sector() {
 
         assert!(sp_alice.sectors.is_empty()); // not yet proven
         assert!(!sp_alice.pre_committed_sectors.is_empty());
-        assert!(sp_alice.pre_commit_deposits.is_some());
+        assert_eq!(sp_alice.pre_commit_deposits, 1);
         assert_eq!(Balances::free_balance(ALICE), 99);
     });
 }
@@ -189,10 +193,16 @@ fn double_pre_commit_sector() {
         let sector = SectorPreCommitInfo {
             seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
             sector_number: 1,
-            sealed_cid: BoundedVec::default(),
+            sealed_cid: cid_of("sealed_cid")
+                .to_bytes()
+                .try_into()
+                .expect("hash is always 32 bytes"),
             deal_id: 1,
             expiration: 66,
-            unsealed_cid: BoundedVec::default(),
+            unsealed_cid: cid_of("unsealed_cid")
+                .to_bytes()
+                .try_into()
+                .expect("hash is always 32 bytes"),
         };
 
         // Run pre commit extrinsic

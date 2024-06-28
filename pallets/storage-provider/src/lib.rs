@@ -24,10 +24,13 @@ mod test;
 mod proofs;
 mod sector;
 mod storage_provider;
-mod types;
+
+pub type DealID = u64; // TODO(@aidan46, no-ref, 2024-06-27): Import from primitives
 
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
+    pub const CID_CODEC: u64 = 0x55;
+
     use core::fmt::Debug;
 
     use codec::{Decode, Encode};
@@ -69,12 +72,11 @@ pub mod pallet {
         /// Peer ID is derived by hashing an encoded public key.
         /// Usually represented in bytes.
         /// https://github.com/libp2p/specs/blob/2ea41e8c769f1bead8e637a9d4ebf8c791976e8a/peer-ids/peer-ids.md#peer-ids
+        /// More information about libp2p peer ids: https://docs.libp2p.io/concepts/fundamentals/peers/
         type PeerId: Clone + Debug + Decode + Encode + Eq + TypeInfo;
 
         /// Currency mechanism, used for collateral
         type Currency: ReservableCurrency<Self::AccountId>;
-
-        type DealID: Copy + Debug + Decode + Encode + PartialEq + TypeInfo;
 
         #[pallet::constant] // put the constant in metadata
         /// Proving period for submitting Window PoSt, 24 hours is blocks
@@ -96,7 +98,7 @@ pub mod pallet {
         _,
         _,
         T::AccountId,
-        StorageProviderState<T::PeerId, BalanceOf<T>, BlockNumberFor<T>, T::DealID>,
+        StorageProviderState<T::PeerId, BalanceOf<T>, BlockNumberFor<T>>,
     >;
 
     #[pallet::event]
@@ -110,7 +112,7 @@ pub mod pallet {
         /// Emitted when a storage provider pre commits some sectors.
         SectorPreCommitted {
             owner: T::AccountId,
-            sector: SectorPreCommitInfo<BlockNumberFor<T>, T::DealID>,
+            sector: SectorPreCommitInfo<BlockNumberFor<T>>,
         },
         /// Emitted when a storage provider successfully proves pre committed sectors.
         SectorProven {
@@ -188,7 +190,7 @@ pub mod pallet {
         /// TODO(@aidan46, no-ref, 2024-06-20): Add functionality to allow for batch pre commit
         pub fn pre_commit_sector(
             origin: OriginFor<T>,
-            sector: SectorPreCommitInfo<BlockNumberFor<T>, T::DealID>,
+            sector: SectorPreCommitInfo<BlockNumberFor<T>>,
         ) -> DispatchResultWithPostInfo {
             // Check that the extrinsic was signed and get the signer
             // This will be the owner of the storage provider
@@ -217,7 +219,7 @@ pub mod pallet {
                 let sp = maybe_sp
                     .as_mut()
                     .ok_or(Error::<T>::StorageProviderNotFound)?;
-                sp.add_pre_commit_deposit(deposit);
+                sp.add_pre_commit_deposit(deposit)?;
                 sp.put_precommitted_sector(SectorPreCommitOnChainInfo::new(
                     sector.clone(),
                     deposit,
