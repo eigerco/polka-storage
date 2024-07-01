@@ -10,6 +10,11 @@
 - [direnv](https://direnv.net/) with a [shell hook](https://direnv.net/docs/hook.html)
     - *VS Code only* [direnv extension](https://marketplace.visualstudio.com/items?itemName=mkhl.direnv) (uses the same tooling as rust-toolchain.toml defined).
     - reasoning: when you enter a directory it uses everything defined in [.envrc](./.envrc), e.g. environment variables, `nix`, secrets.
+- [cargo-llvm-cov](llvm coverage generator), produces coverage in `coverage/` directory.
+    - *VS Code only* [Coverage Gutters extension](https://github.com/ryanluker/vscode-coverage-gutters), configured in `.vscode/settings.json`.
+
+> [!NOTE]
+> `.vscode/settings.json` is part of the git repo, please add only necessary and life-saving things there (like Code Coverage configuration).
 
 ## How it works?
 Nix is a package manager, which sneakily downloads all of the dependencies and updates PATH when you launch it with `nix develop`. 

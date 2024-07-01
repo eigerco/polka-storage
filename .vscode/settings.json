@@ -1,0 +1,7 @@
+{
+    "coverage-gutters.coverageBaseDir": "coverage",
+    "coverage-gutters.coverageFileNames": [ 
+        "pallet-market.lcov.info",
+        "mater.lcov.info"
+    ]
+}
