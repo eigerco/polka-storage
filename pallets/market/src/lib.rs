@@ -263,7 +263,7 @@ pub mod pallet {
 
         fn cid(&self) -> Result<Cid, ProposalError> {
             let cid =
-                Cid::try_from(&self.piece_cid[..]).map_err(|e| ProposalError::InvalidCid(e))?;
+                Cid::try_from(&self.piece_cid[..]).map_err(|e| ProposalError::InvalidPieceCid(e))?;
             Ok(cid)
         }
     }
@@ -402,17 +402,17 @@ pub mod pallet {
     #[derive(RuntimeDebug)]
     pub enum ProposalError {
         /// ClientDealProposal.client_signature did not match client's public key and data.
-        WrongSignature,
+        WrongClientSignatureOnProposal,
         /// Provider of one of the deals is different than the Provider of the first deal.
         DifferentProvider,
         /// Deal's block_start > block_end, so it doesn't make sense.
-        EndBeforeStart,
+        DealEndBeforeStart,
         /// Deal has to be [`DealState::Published`] when being Published
-        NotPublished,
+        DealNotPublished,
         /// Deal's duration must be within `Config::MinDealDuration` < `Config:MaxDealDuration`.
-        DurationOutOfBounds,
+        DealDurationOutOfBounds,
         /// Deal's piece_cid is invalid.
-        InvalidCid(cid::Error),
+        InvalidPieceCid(cid::Error),
     }
 
     // Clone and PartialEq required because of the BoundedVec<(DealId, DealSettlementError)>
@@ -714,8 +714,8 @@ pub mod pallet {
         ///
         /// # Errors
         ///
-        /// This function returns a [`WrongSignature`](crate::Error::WrongSignature) error if the
-        /// signature is invalid or the verification process fails.
+        /// This function returns a [`WrongSignature`](crate::Error::WrongClientSignatureOnProposal) 
+        //// error if the signature is invalid or the verification process fails.
         pub fn validate_signature(
             data: &[u8],
             signature: &T::OffchainSignature,
@@ -736,7 +736,7 @@ pub mod pallet {
 
             ensure!(
                 signature.verify(&*wrapped, &signer),
-                ProposalError::WrongSignature
+                ProposalError::WrongClientSignatureOnProposal
             );
 
             Ok(())
@@ -896,19 +896,19 @@ pub mod pallet {
 
             ensure!(
                 deal.proposal.start_block < deal.proposal.end_block,
-                ProposalError::EndBeforeStart
+                ProposalError::DealEndBeforeStart
             );
 
             ensure!(
                 deal.proposal.state == DealState::Published,
-                ProposalError::NotPublished
+                ProposalError::DealNotPublished
             );
 
             let min_dur = T::BlocksPerDay::get() * T::MinDealDuration::get();
             let max_dur = T::BlocksPerDay::get() * T::MaxDealDuration::get();
             ensure!(
                 deal.proposal.duration() >= min_dur && deal.proposal.duration() <= max_dur,
-                ProposalError::DurationOutOfBounds
+                ProposalError::DealDurationOutOfBounds
             );
 
             // TODO(@th7nder,#81,18/06/2024): figure out the minimum collateral limits
