@@ -583,7 +583,7 @@ fn settle_deal_payments_early() {
                 end_block: 110,
                 storage_price_per_block: 5,
                 provider_collateral: 25,
-                state: DealState::Published
+                state: DealState::Published,
             },
         );
 
@@ -630,7 +630,7 @@ fn settle_deal_payments_published() {
                 end_block: 10,
                 storage_price_per_block: 5,
                 provider_collateral: 25,
-                state: DealState::Published
+                state: DealState::Published,
             },
         );
 

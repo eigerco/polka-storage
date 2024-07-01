@@ -262,8 +262,8 @@ pub mod pallet {
         }
 
         fn cid(&self) -> Result<Cid, ProposalError> {
-            let cid =
-                Cid::try_from(&self.piece_cid[..]).map_err(|e| ProposalError::InvalidPieceCid(e))?;
+            let cid = Cid::try_from(&self.piece_cid[..])
+                .map_err(|e| ProposalError::InvalidPieceCid(e))?;
             Ok(cid)
         }
     }
@@ -285,21 +285,43 @@ pub mod pallet {
     #[pallet::pallet]
     pub struct Pallet<T>(_);
 
+    /// [`BalanceTable`] is used to store balances for Storage Market Participants.
+    /// Both Clients and Providers track their `free` and `locked` funds.
+    /// `free funds` can be added by `add_balance` method and withdrawn by `withdrawn_balance` method.
+    /// `free funds` are converted to `locked_funds` when staked as collateral for _Deals_.
+    /// `locked funds` cannot be withdrawn freely, first some process need to unlock it.
+    /// Invariant must be held at all times (LaTeX syntax):
+    /// - Balance(account(MarketPallet)) === \sum_{account}^{all accounts}{balance[account]].locked + balance[account].free}
     #[pallet::storage]
     pub type BalanceTable<T: Config> =
         StorageMap<_, _, T::AccountId, BalanceEntry<BalanceOf<T>>, ValueQuery>;
 
+    /// Simple incremental id generator for Deal Identification purposes.
+    /// Starts as 0 each new Published Deal receives the next number.
+    /// DealId is monotonically incremented , does not wrap around. If there is more DealIds then u64, panics the runtime.
     #[pallet::storage]
     pub type NextDealId<T: Config> = StorageValue<_, DealId, ValueQuery>;
 
+    /// Stores all published proposals which are handled by the Market.
+    /// Deals are identified by `DealId`.
+    /// Proposals are stored here until terminated and settled or expired (not activated in time).
     #[pallet::storage]
     pub type Proposals<T: Config> =
         StorageMap<_, _, DealId, DealProposal<T::AccountId, BalanceOf<T>, BlockNumberFor<T>>>;
 
+    /// Stores Proposals which have been Published but not yet Activated.
+    /// Only `T::MaxDeals` Pending Proposals can be held at any time.
+    /// `hash_proposal(deal)` is stored in the [`BoundedBTreeSet`].
+    /// Stores the Pending Proposals to deduplicate Deals and don't allow to same deal to be Published twice.
+    /// Deals could end up having different DealId, but same contents. New deals cannot be deduplicated based on DealId.
     #[pallet::storage]
     pub type PendingProposals<T: Config> =
         StorageValue<_, BoundedBTreeSet<T::Hash, T::MaxDeals>, ValueQuery>;
 
+    /// Stores Published or Activated Deals for each Block.
+    /// When Deal is Published it's expected to be activated until a certain Block.
+    /// If it's not, Storage Provider is slashed and Client refunded by [`Hooks::on_finalize`] .
+    /// If it has been activated properly, it's just removed from the map.
     #[pallet::storage]
     pub type DealsForBlock<T: Config> = StorageMap<
         _,
@@ -714,7 +736,7 @@ pub mod pallet {
         ///
         /// # Errors
         ///
-        /// This function returns a [`WrongSignature`](crate::Error::WrongClientSignatureOnProposal) 
+        /// This function returns a [`WrongSignature`](crate::Error::WrongClientSignatureOnProposal)
         //// error if the signature is invalid or the verification process fails.
         pub fn validate_signature(
             data: &[u8],
@@ -1201,7 +1223,7 @@ pub mod pallet {
             T::DbWeight::get().reads(1)
         }
 
-        /// Called for each block after every extrinsic has already been called.
+        /// Called for each block after every extrinsic has been called.
         /// This is a slasher for Deals that have been Published, but Storage Provider failed to activate them.
         /// It scans for Deals that were supposed to be activated in a given block, when registered in `publish_storage_deals`.
         /// When a deal is not [`DealState::Active`], it refunds all the funds to the client and burns provider's collateral.
@@ -1218,8 +1240,8 @@ pub mod pallet {
                 return;
             }
 
-            // PRE-COND: every deal in deal_ids is unique and properly validated
-            // it should have been performed by `publish_storage_deals`
+            // INVARIANT: every deal in deal_ids is unique.
+            // PRE-COND: deal validation has been performed by `publish_storage_deals`.
             let mut pending_proposals = PendingProposals::<T>::get();
             for deal_id in deal_ids {
                 let proposal = match Proposals::<T>::try_get(&deal_id) {
@@ -1262,7 +1284,7 @@ pub mod pallet {
                             proposal.provider,
                             deal_id
                         );
-                        // PRE-COND: deal cannot make to this stage without being validated and proper funds allocated
+                        // PRE-COND: deal MUST BE validated and the proper funds allocated
                         let _ =
                             Self::slash_and_burn(&proposal.provider, proposal.provider_collateral);
                     }
@@ -1276,9 +1298,8 @@ pub mod pallet {
 
                 // Deal has been processed, no need to process it twice.
                 Proposals::<T>::remove(&deal_id);
-                // PRE-COND: should always succeed, deals should have been put into DealsForBlock only when published
-                // When published, also should be put to pending proposals.
-                // The other place where a deal can be removed is `on_sectors_terminate`.
+                // PRE-COND: all deals in DealsPerBlock are published.
+                // All Published deals are hashed and added to [`PendingProposals`].
                 let _ = pending_proposals.remove(&Self::hash_proposal(&proposal));
             }
 
