@@ -6,15 +6,14 @@
 - [nix](https://nixos.org/download/) with [flakes](https://nixos.wiki/wiki/flakes) enabled (`echo 'experimental-features = nix-command flakes' >> ~/.config/nix/nix.conf`)
     - reasoning: every developer has the same version of development tools (rust, protoc, zombienet), directed by [flake.nix](./flake.nix)`. 
     - how it works? fasterthanli.me has [a whole series on it](https://fasterthanli.me/series/building-a-rust-service-with-nix/part-10).
-    - optional: [vscode extension for Nix](https://marketplace.visualstudio.com/items?itemName=jnoortheen.nix-ide)
 - [direnv](https://direnv.net/) with a [shell hook](https://direnv.net/docs/hook.html)
-    - *VS Code only* [direnv extension](https://marketplace.visualstudio.com/items?itemName=mkhl.direnv) (uses the same tooling as rust-toolchain.toml defined).
     - reasoning: when you enter a directory it uses everything defined in [.envrc](./.envrc), e.g. environment variables, `nix`, secrets.
 - [cargo-llvm-cov](llvm coverage generator), produces coverage in `coverage/` directory.
-    - *VS Code only* [Coverage Gutters extension](https://github.com/ryanluker/vscode-coverage-gutters), configured in `.vscode/settings.json`.
 
 > [!NOTE]
 > `.vscode/settings.json` is part of the git repo, please add only necessary and life-saving things there (like Code Coverage configuration).
+>
+> [Recommended extensions](https://code.visualstudio.com/docs/editor/extension-marketplace#_workspace-recommended-extensions) are also part of the repo in `.vscode/extensions.json`.
 
 ## How it works?
 Nix is a package manager, which sneakily downloads all of the dependencies and updates PATH when you launch it with `nix develop`. 
