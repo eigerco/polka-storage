@@ -3,7 +3,8 @@ use core::str::FromStr;
 use cid::Cid;
 use frame_support::{
     assert_err, assert_noop, assert_ok,
-    sp_runtime::{bounded_vec, ArithmeticError, DispatchError, TokenError},
+    pallet_prelude::ConstU32,
+    sp_runtime::{bounded_vec, ArithmeticError, BoundedVec, DispatchError, TokenError},
     BoundedBTreeSet,
 };
 use primitives_proofs::{
@@ -185,7 +186,7 @@ fn fails_to_withdraw_balance() {
 }
 
 #[test]
-fn publish_storage_deals_fails_with_empty_deals() {
+fn publish_storage_deals_fails_empty_deals() {
     new_test_ext().execute_with(|| {
         assert_noop!(
             Market::publish_storage_deals(RuntimeOrigin::signed(account(PROVIDER)), bounded_vec![]),
@@ -195,48 +196,270 @@ fn publish_storage_deals_fails_with_empty_deals() {
 }
 
 #[test]
-fn publish_storage_deals() {
-    let _ = env_logger::try_init();
-
+fn publish_storage_deals_fails_caller_not_provider() {
     new_test_ext().execute_with(|| {
-        let alice_start_block = 100;
-        let alice_proposal = sign_proposal(
-            ALICE,
-            DealProposal {
-                piece_cid: cid_of("polka-storage-data")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                piece_size: 18,
+        assert_noop!(
+            Market::publish_storage_deals(
+                RuntimeOrigin::signed(account(ALICE)),
+                bounded_vec![DealProposalBuilder::default().signed(ALICE)]
+            ),
+            Error::<Test>::ProposalsNotPublishedByStorageProvider
+        );
+    });
+}
+
+#[test]
+fn publish_storage_deals_fails_invalid_signature() {
+    new_test_ext().execute_with(|| {
+        let mut deal = DealProposalBuilder::default().signed(ALICE);
+        // Change the message contents so the signature does not match
+        deal.proposal.piece_size = 1337;
+
+        assert_noop!(
+            Market::publish_storage_deals(
+                RuntimeOrigin::signed(account(PROVIDER)),
+                bounded_vec![deal]
+            ),
+            Error::<Test>::AllProposalsInvalid
+        );
+    });
+}
+
+#[test]
+fn publish_storage_deals_fails_end_before_start() {
+    new_test_ext().execute_with(|| {
+        let proposal = DealProposalBuilder::default()
+            // Make start_block > end_block
+            .start_block(1337)
+            .signed(ALICE);
+
+        assert_noop!(
+            Market::publish_storage_deals(
+                RuntimeOrigin::signed(account(PROVIDER)),
+                bounded_vec![proposal]
+            ),
+            Error::<Test>::AllProposalsInvalid
+        );
+    });
+}
+
+#[test]
+fn publish_storage_deals_fails_must_be_unpublished() {
+    new_test_ext().execute_with(|| {
+        let proposal = DealProposalBuilder::default()
+            .state(DealState::Published)
+            .signed(ALICE);
+
+        assert_noop!(
+            Market::publish_storage_deals(
+                RuntimeOrigin::signed(account(PROVIDER)),
+                bounded_vec![proposal]
+            ),
+            Error::<Test>::AllProposalsInvalid
+        );
+    });
+}
+
+#[test]
+fn publish_storage_deals_fails_min_duration_out_of_bounds() {
+    new_test_ext().execute_with(|| {
+        let proposal = DealProposalBuilder::default()
+            .start_block(10)
+            // Make duration shorter than [`T::MinDealDuration`]
+            .end_block(11)
+            .signed(ALICE);
+
+        assert_noop!(
+            Market::publish_storage_deals(
+                RuntimeOrigin::signed(account(PROVIDER)),
+                bounded_vec![proposal]
+            ),
+            Error::<Test>::AllProposalsInvalid
+        );
+    });
+}
+
+#[test]
+fn publish_storage_deals_fails_max_duration_out_of_bounds() {
+    new_test_ext().execute_with(|| {
+        let proposal = DealProposalBuilder::default()
+            // Make duration too many blocks.
+            .end_block(1000)
+            .signed(ALICE);
+
+        assert_noop!(
+            Market::publish_storage_deals(
+                RuntimeOrigin::signed(account(PROVIDER)),
+                bounded_vec![proposal]
+            ),
+            Error::<Test>::AllProposalsInvalid
+        );
+    });
+}
+
+#[test]
+fn publish_storage_deals_fails_different_providers() {
+    new_test_ext().execute_with(|| {
+        // Let the first proposal pass, by adding enough balance for Alice
+        // Second proposal will be rejected, but first still published
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 60);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
+        System::reset_events();
+
+        assert_ok!(Market::publish_storage_deals(
+            RuntimeOrigin::signed(account(PROVIDER)),
+            bounded_vec![
+                DealProposalBuilder::default().signed(ALICE),
+                // Proposal where second deal's provider is not a caller
+                DealProposalBuilder::default()
+                    .client(BOB)
+                    .provider(BOB)
+                    .signed(BOB),
+            ]
+        ));
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Market(Event::<Test>::DealPublished {
+                deal_id: 0,
                 client: account(ALICE),
                 provider: account(PROVIDER),
-                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
-                start_block: alice_start_block,
-                end_block: 110,
-                storage_price_per_block: 5,
-                provider_collateral: 25,
-                state: DealState::Published,
-            },
+            })]
         );
-        let bob_start_block = 130;
-        let bob_proposal = sign_proposal(
-            BOB,
-            DealProposal {
-                piece_cid: cid_of("polka-storage-data-bob")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                piece_size: 21,
-                client: account(BOB),
+    });
+}
+
+#[test]
+fn publish_storage_deals_fails_client_not_enough_funds_for_second_deal() {
+    new_test_ext().execute_with(|| {
+        // Let the first proposal pass, by adding enough balance for Alice
+        // Second proposal will be rejected, but first still published
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 60);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
+        System::reset_events();
+
+        assert_ok!(Market::publish_storage_deals(
+            RuntimeOrigin::signed(account(PROVIDER)),
+            bounded_vec![
+                DealProposalBuilder::default().signed(ALICE),
+                DealProposalBuilder::default().signed(ALICE),
+            ]
+        ));
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Market(Event::<Test>::DealPublished {
+                deal_id: 0,
+                client: account(ALICE),
                 provider: account(PROVIDER),
-                label: bounded_vec![0xa, 0xe, 0xe, 0xf],
-                start_block: bob_start_block,
-                end_block: 135,
-                storage_price_per_block: 10,
-                provider_collateral: 15,
-                state: DealState::Published,
-            },
+            })]
         );
+    });
+}
+
+#[test]
+fn publish_storage_deals_fails_provider_not_enough_funds_for_second_deal() {
+    new_test_ext().execute_with(|| {
+        // Let the first proposal pass, by adding enough balance for Provider
+        // Collateral is 25 for the default deal, so provider should have at least 50.
+        // Second proposal will be rejected, but first still published
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 40);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 90);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(BOB)), 90);
+        System::reset_events();
+
+        assert_ok!(Market::publish_storage_deals(
+            RuntimeOrigin::signed(account(PROVIDER)),
+            bounded_vec![
+                DealProposalBuilder::default().signed(ALICE),
+                DealProposalBuilder::default().client(BOB).signed(BOB),
+            ]
+        ));
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Market(Event::<Test>::DealPublished {
+                deal_id: 0,
+                client: account(ALICE),
+                provider: account(PROVIDER),
+            })]
+        );
+    });
+}
+
+#[test]
+fn publish_storage_deals_fails_duplicate_deal_in_message() {
+    new_test_ext().execute_with(|| {
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 90);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 90);
+        System::reset_events();
+
+        assert_ok!(Market::publish_storage_deals(
+            RuntimeOrigin::signed(account(PROVIDER)),
+            bounded_vec![
+                DealProposalBuilder::default()
+                    .storage_price_per_block(1)
+                    .signed(ALICE),
+                DealProposalBuilder::default()
+                    .storage_price_per_block(1)
+                    .signed(ALICE),
+            ]
+        ));
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Market(Event::<Test>::DealPublished {
+                deal_id: 0,
+                client: account(ALICE),
+                provider: account(PROVIDER),
+            })]
+        );
+    });
+}
+
+#[test]
+fn publish_storage_deals_fails_duplicate_deal_in_state() {
+    new_test_ext().execute_with(|| {
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 90);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 90);
+        System::reset_events();
+
+        assert_ok!(Market::publish_storage_deals(
+            RuntimeOrigin::signed(account(PROVIDER)),
+            bounded_vec![DealProposalBuilder::default()
+                .storage_price_per_block(1)
+                .signed(ALICE),]
+        ));
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Market(Event::<Test>::DealPublished {
+                deal_id: 0,
+                client: account(ALICE),
+                provider: account(PROVIDER),
+            })]
+        );
+        assert_noop!(
+            Market::publish_storage_deals(
+                RuntimeOrigin::signed(account(PROVIDER)),
+                bounded_vec![DealProposalBuilder::default()
+                    .storage_price_per_block(1)
+                    .signed(ALICE),]
+            ),
+            Error::<Test>::AllProposalsInvalid
+        );
+    });
+}
+
+#[test]
+fn publish_storage_deals() {
+    new_test_ext().execute_with(|| {
+        let alice_proposal = DealProposalBuilder::default().signed(ALICE);
+        // We're not expecting for it to go through, but the call should not fail.
+        let alice_second_proposal = DealProposalBuilder::default().piece_size(37).signed(ALICE);
+        let bob_proposal = DealProposalBuilder::default()
+            .client(BOB)
+            .start_block(130)
+            .end_block(135)
+            .storage_price_per_block(10)
+            .provider_collateral(15)
+            .signed(BOB);
+
         let alice_hash = Market::hash_proposal(&alice_proposal.proposal);
         let bob_hash = Market::hash_proposal(&bob_proposal.proposal);
 
@@ -247,7 +470,11 @@ fn publish_storage_deals() {
 
         assert_ok!(Market::publish_storage_deals(
             RuntimeOrigin::signed(account(PROVIDER)),
-            bounded_vec![alice_proposal, bob_proposal]
+            bounded_vec![
+                alice_proposal.clone(),
+                alice_second_proposal.clone(),
+                bob_proposal.clone()
+            ]
         ));
         assert_eq!(
             BalanceTable::<Test>::get(account(ALICE)),
@@ -288,14 +515,13 @@ fn publish_storage_deals() {
         );
         assert!(PendingProposals::<Test>::get().contains(&alice_hash));
         assert!(PendingProposals::<Test>::get().contains(&bob_hash));
-        assert!(DealsForBlock::<Test>::get(&alice_start_block).contains(&0));
-        assert!(DealsForBlock::<Test>::get(&bob_start_block).contains(&1));
+        assert!(DealsForBlock::<Test>::get(&alice_proposal.proposal.start_block).contains(&0));
+        assert!(DealsForBlock::<Test>::get(&bob_proposal.proposal.start_block).contains(&1));
     });
 }
 
 #[test]
 fn verify_deals_for_activation() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
         publish_for_activation(
             1,
@@ -346,7 +572,6 @@ fn verify_deals_for_activation() {
 
 #[test]
 fn activate_deals() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
         let alice_hash = publish_for_activation(
             1,
@@ -425,8 +650,6 @@ fn publish_for_activation(deal_id: DealId, deal: DealProposalOf<Test>) -> H256 {
 
 #[test]
 fn verifies_deals_on_block_finalization() {
-    let _ = env_logger::try_init();
-
     new_test_ext().execute_with(|| {
         let alice_start_block = 100;
         let alice_proposal = sign_proposal(
@@ -547,7 +770,6 @@ fn verifies_deals_on_block_finalization() {
 
 #[test]
 fn settle_deal_payments_not_found() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
         assert_ok!(Market::settle_deal_payments(
             RuntimeOrigin::signed(account(ALICE)),
@@ -566,7 +788,6 @@ fn settle_deal_payments_not_found() {
 
 #[test]
 fn settle_deal_payments_early() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
         let alice_proposal = sign_proposal(
             ALICE,
@@ -613,7 +834,6 @@ fn settle_deal_payments_early() {
 
 #[test]
 fn settle_deal_payments_published() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
         let alice_proposal = sign_proposal(
             ALICE,
@@ -681,7 +901,6 @@ fn settle_deal_payments_published() {
 
 #[test]
 fn settle_deal_payments_active_future_last_update() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
         let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
         let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 75);
@@ -728,7 +947,6 @@ fn settle_deal_payments_active_future_last_update() {
 
 #[test]
 fn settle_deal_payments_active_corruption() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
         let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
         let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 75);
@@ -770,7 +988,6 @@ fn settle_deal_payments_active_corruption() {
 
 #[test]
 fn settle_deal_payments_success() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
         let alice_proposal = sign_proposal(
             ALICE,
@@ -895,7 +1112,6 @@ fn settle_deal_payments_success() {
 
 #[test]
 fn settle_deal_payments_success_finished() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
         let alice_proposal = sign_proposal(
             ALICE,
@@ -995,4 +1211,105 @@ fn settle_deal_payments_success_finished() {
 
         assert_eq!(Proposals::<Test>::get(0), None);
     });
+}
+
+// TODO(@th7nder,01/07/2024):
+// - refactor tests to use `example_proposal` after some of the stuff is merged
+// - dispatch error/from
+/// Builder to simplify writing complex tests of [`DealProposal`]
+struct DealProposalBuilder {
+    piece_cid: BoundedVec<u8, ConstU32<128>>,
+    piece_size: u64,
+    client: AccountIdOf<Test>,
+    provider: AccountIdOf<Test>,
+    label: BoundedVec<u8, ConstU32<128>>,
+    start_block: u64,
+    end_block: u64,
+    storage_price_per_block: u64,
+    provider_collateral: u64,
+    state: DealState<u64>,
+}
+
+impl Default for DealProposalBuilder {
+    fn default() -> Self {
+        Self {
+            piece_cid: cid_of("polka-storage-data")
+                .to_bytes()
+                .try_into()
+                .expect("hash is always 32 bytes"),
+            piece_size: 18,
+            client: account(ALICE),
+            provider: account(PROVIDER),
+            label: bounded_vec![0xb, 0xe, 0xe, 0xf],
+            start_block: 100,
+            end_block: 110,
+            storage_price_per_block: 5,
+            provider_collateral: 25,
+            // TODO(@th7nder,01/07/2024): change this to Published
+            state: DealState::Published,
+        }
+    }
+}
+
+impl DealProposalBuilder {
+    pub fn client(mut self, client: &'static str) -> Self {
+        self.client = account(client);
+        self
+    }
+
+    pub fn provider(mut self, provider: &'static str) -> Self {
+        self.provider = account(provider);
+        self
+    }
+
+    pub fn state(mut self, state: DealState<u64>) -> Self {
+        self.state = state;
+        self
+    }
+
+    pub fn start_block(mut self, start_block: u64) -> Self {
+        self.start_block = start_block;
+        self
+    }
+
+    pub fn end_block(mut self, end_block: u64) -> Self {
+        self.end_block = end_block;
+        self
+    }
+
+    pub fn storage_price_per_block(mut self, price: u64) -> Self {
+        self.storage_price_per_block = price;
+        self
+    }
+
+    pub fn provider_collateral(mut self, price: u64) -> Self {
+        self.provider_collateral = price;
+        self
+    }
+
+    pub fn piece_size(mut self, piece_size: u64) -> Self {
+        self.piece_size = piece_size;
+        self
+    }
+
+    pub fn build(self) -> DealProposalOf<Test> {
+        DealProposalOf::<Test> {
+            piece_cid: self.piece_cid,
+            piece_size: self.piece_size,
+            client: self.client,
+            provider: self.provider,
+            label: self.label,
+            start_block: self.start_block,
+            end_block: self.end_block,
+            storage_price_per_block: self.storage_price_per_block,
+            provider_collateral: self.provider_collateral,
+            state: self.state,
+        }
+    }
+
+    pub fn signed(self, by: &'static str) -> ClientDealProposalOf<Test> {
+        let built = self.build();
+        let signed = sign_proposal(by, built);
+        signed
+    }
 }
