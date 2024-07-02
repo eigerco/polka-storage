@@ -157,8 +157,8 @@ fn pre_commit_sector() {
             ]
         );
 
-        // `unwrap()` should be safe because of the above check.
-        let sp_alice = StorageProviders::<Test>::get(ALICE).unwrap();
+        // `expect()` should be safe because of the above check.
+        let sp_alice = StorageProviders::<Test>::get(ALICE).expect("SP Alice should be present");
 
         assert!(sp_alice.sectors.is_empty()); // not yet proven
         assert!(!sp_alice.pre_committed_sectors.is_empty());
