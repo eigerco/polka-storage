@@ -97,8 +97,7 @@ where
     pub fn get_precommitted_sector(
         &self,
         sector_number: SectorNumber,
-    ) -> Result<&SectorPreCommitOnChainInfo<Balance, BlockNumber>, StorageProviderError>
-    {
+    ) -> Result<&SectorPreCommitOnChainInfo<Balance, BlockNumber>, StorageProviderError> {
         self.pre_committed_sectors
             .get(&sector_number)
             .ok_or(StorageProviderError::SectorNotFound)
