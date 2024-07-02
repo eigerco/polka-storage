@@ -225,6 +225,6 @@ pub mod pallet {
 
     /// Calculate the required pre commit deposit amount
     fn calculate_pre_commit_deposit<T: Config>() -> BalanceOf<T> {
-        1u32.into() // TODO(@aidan46, no-ref, 2024-06-24): Set a logical value or calculation
+        1u32.into() // TODO(@aidan46, #106, 2024-06-24): Set a logical value or calculation
     }
 }
