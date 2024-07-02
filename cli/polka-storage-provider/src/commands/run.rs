@@ -98,13 +98,16 @@ async fn upload(
         body_data_stream.map_err(|err| io::Error::new(io::ErrorKind::Other, err));
     let body_reader = StreamReader::new(body_with_io_error);
 
-    // Destination file
-    let path = "something.car";
-    let path = std::path::Path::new(UPLOADS_DIRECTORY).join(path);
-    let file = BufWriter::new(File::create(path).await.unwrap());
+    // Stream the body, convert it to car and write it to the file]
+    // TODO: Remove spawn. Currently used only to check if the future is Send
+    tokio::spawn(async move {
+        // Destination file
+        let path = "something.car";
+        let path = std::path::Path::new(UPLOADS_DIRECTORY).join(path);
+        let file = Box::new(BufWriter::new(File::create(path).await.unwrap()));
 
-    // Stream the body, convert it to car and write it to the file
-    create_filestore(body_reader, file, Config::default()).await;
+        create_filestore(body_reader, file, Config::default()).await;
+    });
 
     Ok(())
 }

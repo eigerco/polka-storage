@@ -27,17 +27,7 @@ where
     ///
     /// Returns the number of bytes written.
     pub async fn write_header(&mut self, header: &Header) -> Result<usize, Error> {
-        self.writer.write_all(&PRAGMA).await?;
-
-        let mut buffer = [0; 40];
-        let mut handle = &mut buffer[..];
-        WriteBytesExt::write_u128::<LittleEndian>(&mut handle, header.characteristics.bits())?;
-        WriteBytesExt::write_u64::<LittleEndian>(&mut handle, header.data_offset)?;
-        WriteBytesExt::write_u64::<LittleEndian>(&mut handle, header.data_size)?;
-        WriteBytesExt::write_u64::<LittleEndian>(&mut handle, header.index_offset)?;
-
-        self.writer.write_all(&buffer).await?;
-        Ok(PRAGMA.len() + buffer.len())
+        write_header(&mut self.writer, header).await
     }
 
     /// Write a [`crate::v1::Header`].
@@ -84,6 +74,26 @@ where
     pub fn get_inner_mut(&mut self) -> &mut W {
         &mut self.writer
     }
+}
+
+/// Write a [`Header`].
+///
+/// Returns the number of bytes written.
+pub(crate) async fn write_header<W>(writer: &mut W, header: &Header) -> Result<usize, Error>
+where
+    W: AsyncWrite + Unpin,
+{
+    writer.write_all(&PRAGMA).await?;
+
+    let mut buffer = [0; 40];
+    let mut handle = &mut buffer[..];
+    WriteBytesExt::write_u128::<LittleEndian>(&mut handle, header.characteristics.bits())?;
+    WriteBytesExt::write_u64::<LittleEndian>(&mut handle, header.data_offset)?;
+    WriteBytesExt::write_u64::<LittleEndian>(&mut handle, header.data_size)?;
+    WriteBytesExt::write_u64::<LittleEndian>(&mut handle, header.index_offset)?;
+
+    writer.write_all(&buffer).await?;
+    Ok(PRAGMA.len() + buffer.len())
 }
 
 #[cfg(test)]

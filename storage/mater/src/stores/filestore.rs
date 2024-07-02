@@ -1,16 +1,16 @@
+use futures::stream::StreamExt;
 use sha2::{Digest, Sha256};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite};
-use tokio_stream::StreamExt;
 use tokio_util::io::ReaderStream;
 
 use super::Config;
 use crate::{
-    multicodec::SHA_256_CODE, unixfs::stream_balanced_tree, CarV1Header, CarV2Header, CarV2Writer,
+    multicodec::SHA_256_CODE, unixfs::stream_balanced_tree, v1, v2, CarV1Header, CarV2Header,
     Error, Index, IndexEntry, MultihashIndexSorted, SingleWidthIndex,
 };
 
 async fn balanced_import<Src, Out>(
-    mut source: Src,
+    source: Src,
     mut output: Out,
     chunk_size: usize,
     tree_width: usize,
@@ -19,20 +19,18 @@ where
     Src: AsyncRead + Unpin,
     Out: AsyncWrite + AsyncSeek + Unpin,
 {
-    let chunker = ReaderStream::with_capacity(&mut source, chunk_size);
-    let nodes = stream_balanced_tree(chunker, tree_width);
+    let chunker = ReaderStream::with_capacity(source, chunk_size);
+    let nodes = stream_balanced_tree(chunker, tree_width).peekable();
     tokio::pin!(nodes);
-    let mut nodes = nodes.peekable();
 
-    let mut writer = CarV2Writer::new(&mut output);
     let mut position = 0;
 
     let placeholder_header = CarV2Header::default();
-    position += writer.write_header(&placeholder_header).await?;
+    position += v2::write_header(&mut output, &placeholder_header).await?;
     let car_v1_start = position;
 
     let placeholder_header_v1 = CarV1Header::default();
-    position += writer.write_v1_header(&placeholder_header_v1).await?;
+    position += v1::write_header(&mut output, &placeholder_header_v1).await?;
 
     let mut root = None;
     let mut entries = vec![];
@@ -41,9 +39,9 @@ where
         let digest = node_cid.hash().digest().to_owned();
         let entry = IndexEntry::new(digest, (position - car_v1_start) as u64);
         entries.push(entry);
-        position += writer.write_block(&node_cid, &node_bytes).await?;
+        position += v1::write_block(&mut output, &node_cid, &node_bytes).await?;
 
-        if nodes.peek().await.is_none() {
+        if nodes.as_mut().peek().await.is_none() {
             root = Some(node_cid);
         }
     }
@@ -59,21 +57,21 @@ where
         SHA_256_CODE,
         single_width_index.into(),
     ));
-    writer.write_index(&index).await?;
+    v2::write_index(&mut output, &index).await?;
 
     // Go back to the beginning of the file
-    writer.get_inner_mut().rewind().await?;
+    output.rewind().await?;
     let header = CarV2Header::new(
         false,
         (car_v1_start) as u64,
         (index_offset - car_v1_start) as u64,
         (index_offset) as u64,
     );
-    writer.write_header(&header).await?;
+    v2::write_header(&mut output, &header).await?;
 
     // If the length of the roots doesn't match the previous one, you WILL OVERWRITE parts of the file
     let header_v1 = CarV1Header::new(vec![root]);
-    writer.write_v1_header(&header_v1).await?;
+    v1::write_header(&mut output, &header_v1).await?;
 
     Ok(())
 }

@@ -1,10 +1,9 @@
-use integer_encoding::VarIntAsyncWriter;
 use ipld_core::{cid::Cid, codec::Codec};
 use serde_ipld_dagcbor::codec::DagCborCodec;
 use tokio::io::{AsyncWrite, AsyncWriteExt};
 
 pub use crate::v1::Header;
-use crate::Error;
+use crate::{write_varint_async, Error};
 
 /// Write [`crate::v1::Header`] to the provider writer.
 pub(crate) async fn write_header<W>(writer: &mut W, header: &Header) -> Result<usize, Error>
@@ -12,7 +11,7 @@ where
     W: AsyncWrite + Unpin,
 {
     let encoded_header = DagCborCodec::encode_to_vec(header)?;
-    let varint_len = writer.write_varint_async(encoded_header.len()).await?;
+    let varint_len = write_varint_async(writer, encoded_header.len()).await?;
     writer.write_all(&encoded_header).await?;
     Ok(varint_len + encoded_header.len())
 }
@@ -32,7 +31,7 @@ where
     let data = block.as_ref();
     let len = cid.encoded_len() + data.len();
 
-    let varint_len = writer.write_varint_async(len).await?;
+    let varint_len = write_varint_async(writer, len).await?;
     // This allocation can probably be spared
     writer.write_all(&cid.to_bytes()).await?;
     writer.write_all(block.as_ref()).await?;

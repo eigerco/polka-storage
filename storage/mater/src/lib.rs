@@ -16,9 +16,11 @@ mod unixfs;
 mod v1;
 mod v2;
 
-// We need to expose this because `read_block` returns `(Cid, Vec<u8>)`.
+use integer_encoding::VarInt;
+// We need to re-expose this because `read_block` returns `(Cid, Vec<u8>)`.
 pub use ipld_core::cid::Cid;
 pub use stores::{create_filestore, Blockstore, Config};
+use tokio::io::{AsyncWrite, AsyncWriteExt};
 pub use v1::{Header as CarV1Header, Reader as CarV1Reader, Writer as CarV1Writer};
 pub use v2::{
     Characteristics, Header as CarV2Header, Index, IndexEntry, IndexSorted, MultihashIndexSorted,
@@ -100,6 +102,17 @@ pub enum Error {
     /// See [`DagPbError`](ipld_dagpb::Error) for more information.
     #[error(transparent)]
     DagPbError(#[from] ipld_dagpb::Error),
+}
+
+pub(crate) async fn write_varint_async<W, VI>(writer: &mut W, n: VI) -> Result<usize, Error>
+where
+    W: AsyncWrite + Unpin,
+    VI: VarInt,
+{
+    let mut buf = [0 as u8; 10];
+    let b = n.encode_var(&mut buf);
+    writer.write_all(&buf[0..b]).await?;
+    Ok(b)
 }
 
 #[cfg(test)]
