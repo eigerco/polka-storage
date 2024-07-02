@@ -79,16 +79,16 @@ pub mod pallet {
         /// Currency mechanism, used for collateral
         type Currency: ReservableCurrency<Self::AccountId>;
 
-        #[pallet::constant] // put the constant in metadata
         /// Proving period for submitting Window PoSt, 24 hours is blocks
+        #[pallet::constant]
         type WPoStProvingPeriod: Get<BlockNumberFor<Self>>;
 
-        #[pallet::constant] // put the constant in metadata
         /// Window PoSt challenge window (default 30 minutes in blocks)
+        #[pallet::constant]
         type WPoStChallengeWindow: Get<BlockNumberFor<Self>>;
 
-        #[pallet::constant]
         /// The max prove commit duration in blocks.
+        #[pallet::constant]
         type MaxProveCommitDuration: Get<BlockNumberFor<Self>>;
     }
 
