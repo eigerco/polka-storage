@@ -176,7 +176,7 @@ pub mod pallet {
         }
 
         /// Pledges the storage provider to seal and commit some new sector
-        /// TODO(@aidan46, no-ref, 2024-06-20): Add functionality to allow for batch pre commit
+        /// TODO(@aidan46, #107, 2024-06-20): Add functionality to allow for batch pre commit
         pub fn pre_commit_sector(
             origin: OriginFor<T>,
             sector: SectorPreCommitInfo<BlockNumberFor<T>>,
