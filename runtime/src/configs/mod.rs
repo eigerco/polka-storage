@@ -45,6 +45,7 @@ use parachains_common::message_queue::{NarrowOriginToSibling, ParaIdToSibling};
 use polkadot_runtime_common::{
     xcm_sender::NoPriceForMessageDelivery, BlockHashCount, SlowAdjustingFeeUpdate,
 };
+use scale_info::prelude::vec::Vec;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::{traits::Verify, MultiSignature, Perbill};
 use sp_version::RuntimeVersion;
@@ -304,6 +305,11 @@ impl pallet_collator_selection::Config for Runtime {
     type ValidatorIdOf = pallet_collator_selection::IdentityCollator;
     type ValidatorRegistration = Session;
     type WeightInfo = ();
+}
+
+impl pallet_storage_provider::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type PeerId = Vec<u8>;
 }
 
 parameter_types! {

@@ -10,6 +10,7 @@ members = [
   "cli/polka-storage-provider",
   "node",
   "pallets/market",
+  "pallets/storage-provider",
   "primitives/cli",
   "primitives/proofs",
   "runtime",
@@ -91,8 +92,10 @@ url = "2.5.0"
 uuid = "1.8.0"
 
 # Local
+
 cli-primitives = { path = "primitives/cli" }
 pallet-market = { path = "pallets/market", default-features = false }
+pallet-storage-provider = { path = "pallets/storage-provider", default-features = false }
 polka-storage-runtime = { path = "runtime" }
 primitives-proofs = { path = "primitives/proofs", default-features = false }
 

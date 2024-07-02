@@ -19,6 +19,9 @@ targets = ["x86_64-unknown-linux-gnu"]
 substrate-wasm-builder = { workspace = true, optional = true }
 
 [dependencies]
+# Pallets
+pallet-storage-provider = { workspace = true, default-features = false }
+
 codec = { workspace = true, default-features = false, features = ["derive"] }
 hex-literal = { workspace = true, optional = true }
 log = { workspace = true }
@@ -110,6 +113,7 @@ std = [
   "pallet-market/std",
   "pallet-message-queue/std",
   "pallet-session/std",
+  "pallet-storage-provider/std",
   "pallet-sudo/std",
   "pallet-timestamp/std",
   "pallet-transaction-payment-rpc-runtime-api/std",
@@ -153,6 +157,7 @@ runtime-benchmarks = [
   "pallet-collator-selection/runtime-benchmarks",
   "pallet-market/runtime-benchmarks",
   "pallet-message-queue/runtime-benchmarks",
+  "pallet-storage-provider/runtime-benchmarks",
   "pallet-sudo/runtime-benchmarks",
   "pallet-timestamp/runtime-benchmarks",
   "pallet-xcm/runtime-benchmarks",
@@ -180,6 +185,7 @@ try-runtime = [
   "pallet-market/try-runtime",
   "pallet-message-queue/try-runtime",
   "pallet-session/try-runtime",
+  "pallet-storage-provider/try-runtime",
   "pallet-sudo/try-runtime",
   "pallet-timestamp/try-runtime",
   "pallet-transaction-payment/try-runtime",

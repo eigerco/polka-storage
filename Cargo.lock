@@ -7637,6 +7637,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-storage-provider"
+version = "0.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+]
+
+[[package]]
 name = "pallet-sudo"
 version = "28.0.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-v1.13.0#d5160c1d567cc73c7df6c816d41e21aa3adb188d"
@@ -8340,6 +8355,7 @@ dependencies = [
  "pallet-market",
  "pallet-message-queue",
  "pallet-session",
+ "pallet-storage-provider",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-transaction-payment",
