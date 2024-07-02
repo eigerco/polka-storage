@@ -14,3 +14,4 @@ release: lint
 
 testnet: release
     zombienet -p native spawn zombienet/local-testnet.toml
+
