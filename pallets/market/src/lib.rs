@@ -287,18 +287,20 @@ pub mod pallet {
 
     /// [`BalanceTable`] is used to store balances for Storage Market Participants.
     /// Both Clients and Providers track their `free` and `locked` funds.
-    /// `free funds` can be added by `add_balance` method and withdrawn by `withdrawn_balance` method.
-    /// `free funds` are converted to `locked_funds` when staked as collateral for _Deals_.
-    /// `locked funds` cannot be withdrawn freely, first some process need to unlock it.
-    /// Invariant must be held at all times (LaTeX syntax):
-    /// - Balance(account(MarketPallet)) === \sum_{account}^{all accounts}{balance[account]].locked + balance[account].free}
+    /// * `free funds` can be added by `add_balance` method and withdrawn by `withdrawn_balance` method.
+    /// * `free funds` are converted to `locked_funds` when staked as collateral for _Deals_.
+    /// * `locked funds` cannot be withdrawn freely, first some process need to unlock it.
+    /// Invariant must be held at all times:
+    /// `account(MarketPallet).balance == all_accounts.map(|balance| balance[account]].locked + balance[account].free).sum()`
     #[pallet::storage]
     pub type BalanceTable<T: Config> =
         StorageMap<_, _, T::AccountId, BalanceEntry<BalanceOf<T>>, ValueQuery>;
 
-    /// Simple incremental id generator for Deal Identification purposes.
-    /// Starts as 0 each new Published Deal receives the next number.
-    /// DealId is monotonically incremented , does not wrap around. If there is more DealIds then u64, panics the runtime.
+    /// Simple incremental ID generator for `Deal` Identification purposes.
+    /// Starts as 0, increments once for each published deal.
+    /// [`DealId`] is monotonically incremented, does not wrap around.
+    /// If there is more [`DealId`]s then u64, panics the runtime (if the chain processed 1M deals / day, it would take ~50539024859 years
+    /// to reach the ID limit — for reference Filecoin doesn't even average 200k / day).
     #[pallet::storage]
     pub type NextDealId<T: Config> = StorageValue<_, DealId, ValueQuery>;
 
@@ -737,7 +739,7 @@ pub mod pallet {
         /// # Errors
         ///
         /// This function returns a [`WrongSignature`](crate::Error::WrongClientSignatureOnProposal)
-        //// error if the signature is invalid or the verification process fails.
+        /// error if the signature is invalid or the verification process fails.
         pub fn validate_signature(
             data: &[u8],
             signature: &T::OffchainSignature,
