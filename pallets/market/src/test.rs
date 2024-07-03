@@ -737,7 +737,7 @@ fn activate_deals() {
 /// Behaves like `publish_storage_deals` without the validation and calling extrinsics.
 fn publish_for_activation(deal_id: DealId, deal: DealProposalOf<Test>) -> H256 {
     let hash = Market::hash_proposal(&deal);
-    let mut pending = BoundedBTreeSet::new();
+    let mut pending = PendingProposals::<Test>::get();
     pending.try_insert(hash).unwrap();
     PendingProposals::<Test>::set(pending);
 
@@ -833,7 +833,7 @@ fn verifies_deals_on_block_finalization() {
             BalanceTable::<Test>::get(account(PROVIDER)),
             BalanceEntry::<u64> {
                 free: 35,
-                // Reduced to 25 = 40 - 15
+                // 40 (locked) - 15 (lost collateral) = 25
                 locked: 25
             }
         );

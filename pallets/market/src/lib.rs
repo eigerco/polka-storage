@@ -287,18 +287,20 @@ pub mod pallet {
 
     /// [`BalanceTable`] is used to store balances for Storage Market Participants.
     /// Both Clients and Providers track their `free` and `locked` funds.
-    /// `free funds` can be added by `add_balance` method and withdrawn by `withdrawn_balance` method.
-    /// `free funds` are converted to `locked_funds` when staked as collateral for _Deals_.
-    /// `locked funds` cannot be withdrawn freely, first some process need to unlock it.
-    /// Invariant must be held at all times (LaTeX syntax):
-    /// - Balance(account(MarketPallet)) === \sum_{account}^{all accounts}{balance[account]].locked + balance[account].free}
+    /// * `free funds` can be added by `add_balance` method and withdrawn by `withdrawn_balance` method.
+    /// * `free funds` are converted to `locked_funds` when staked as collateral for _Deals_.
+    /// * `locked funds` cannot be withdrawn freely, first some process need to unlock it.
+    /// Invariant must be held at all times:
+    /// `account(MarketPallet).balance == all_accounts.map(|balance| balance[account]].locked + balance[account].free).sum()`
     #[pallet::storage]
     pub type BalanceTable<T: Config> =
         StorageMap<_, _, T::AccountId, BalanceEntry<BalanceOf<T>>, ValueQuery>;
 
-    /// Simple incremental id generator for Deal Identification purposes.
-    /// Starts as 0 each new Published Deal receives the next number.
-    /// DealId is monotonically incremented , does not wrap around. If there is more DealIds then u64, panics the runtime.
+    /// Simple incremental ID generator for `Deal` Identification purposes.
+    /// Starts as 0, increments once for each published deal.
+    /// [`DealId`] is monotonically incremented, does not wrap around.
+    /// If there is more [`DealId`]s then u64, panics the runtime (if the chain processed 1M deals / day, it would take ~50539024859 years
+    /// to reach the ID limit — for reference Filecoin doesn't even average 200k / day).
     #[pallet::storage]
     pub type NextDealId<T: Config> = StorageValue<_, DealId, ValueQuery>;
 
@@ -737,7 +739,7 @@ pub mod pallet {
         /// # Errors
         ///
         /// This function returns a [`WrongSignature`](crate::Error::WrongClientSignatureOnProposal)
-        //// error if the signature is invalid or the verification process fails.
+        /// error if the signature is invalid or the verification process fails.
         pub fn validate_signature(
             data: &[u8],
             signature: &T::OffchainSignature,
@@ -1223,20 +1225,15 @@ pub mod pallet {
             T::DbWeight::get().reads(1)
         }
 
-        /// Called for each block after every extrinsic has been called.
         /// This is a slasher for Deals that have been Published, but Storage Provider failed to activate them.
         /// It scans for Deals that were supposed to be activated in a given block, when registered in `publish_storage_deals`.
         /// When a deal is not [`DealState::Active`], it refunds all the funds to the client and burns provider's collateral.
         /// When a deal has been activated, it just removes it from data structures used for tracking.
         /// This function should not fail at any point, if it fails, it's a bug.
-        ///
-        /// ### Technical notes
-        /// Should be deterministic, bounded and have minimal time complexity.
-        /// <https://paritytech.github.io/polkadot-sdk/master/frame_support/traits/trait.Hooks.html#summary>
         fn on_finalize(current_block: BlockNumberFor<T>) {
             let deal_ids = DealsForBlock::<T>::get(&current_block);
             if deal_ids.is_empty() {
-                log::info!(target: LOG_TARGET, "no deals to process in block: {:?}", current_block);
+                log::info!(target: LOG_TARGET, "on_finalize: no deals to process in block: {:?}", current_block);
                 return;
             }
 
@@ -1244,29 +1241,34 @@ pub mod pallet {
             // PRE-COND: deal validation has been performed by `publish_storage_deals`.
             let mut pending_proposals = PendingProposals::<T>::get();
             for deal_id in deal_ids {
-                let proposal = match Proposals::<T>::try_get(&deal_id) {
-                    Ok(proposal) => proposal,
+                let Ok(proposal) = Proposals::<T>::try_get(&deal_id) else {
                     // Proposal might have been cleaned up by manual settlement or termination prior to reaching
-                    // this scheduled block. nothing more to do for this deal
-                    Err(_) => continue,
+                    // this scheduled block. Nothing more to do for this deal.
+                    continue;
                 };
 
                 match &proposal.state {
                     DealState::Published => {
-                        assert!(
+                        debug_assert!(
                             proposal.start_block == current_block,
                             "deals are scheduled to be checked only at their start block"
                         );
+
                         // Deal has not been activated, time to slash!
                         // PRE-COND: deal cannot make to this stage without being validated and proper funds allocated
-                        let _ = BalanceTable::<T>::try_mutate(
+                        let Some(total_storage_fee) = proposal.total_storage_fee() else {
+                            log::error!(target: LOG_TARGET, "on_finalize: invariant violated cannot calculate total storage fee, deal {}", deal_id);
+                            continue;
+                        };
+                        let Ok(client_fee) = TryInto::<BalanceOf<T>>::try_into(total_storage_fee)
+                        else {
+                            log::error!(target: LOG_TARGET, "on_finalize: invariant violated, cannot convert total storage to {}, deal {}", total_storage_fee, deal_id);
+                            continue;
+                        };
+
+                        let Ok(()) = BalanceTable::<T>::try_mutate(
                             &proposal.client,
                             |balance| -> DispatchResult {
-                                let client_fee: BalanceOf<T> = proposal
-                                    .total_storage_fee()
-                                    .ok_or(Error::<T>::UnexpectedValidationError)?
-                                    .try_into()
-                                    .map_err(|_| Error::<T>::UnexpectedValidationError)?;
                                 balance.free = balance
                                     .free
                                     .checked_add(&client_fee)
@@ -1277,20 +1279,27 @@ pub mod pallet {
                                     .ok_or(ArithmeticError::Underflow)?;
                                 Ok(())
                             },
-                        );
+                        ) else {
+                            log::error!(target: LOG_TARGET, "on_finalize: invariant violated, failed to return the fee to the client, deal {}", deal_id);
+                            continue;
+                        };
 
                         log::info!(
-                            "Slashing {:?} for not activating a deal: {}",
+                            "on_finalize: slashing {:?} for not activating a deal {}",
                             proposal.provider,
                             deal_id
                         );
                         // PRE-COND: deal MUST BE validated and the proper funds allocated
-                        let _ =
-                            Self::slash_and_burn(&proposal.provider, proposal.provider_collateral);
+                        let Ok(()) =
+                            Self::slash_and_burn(&proposal.provider, proposal.provider_collateral)
+                        else {
+                            log::error!(target: LOG_TARGET, "on_finalize: invariant violated, cannot slash the deal {}", deal_id);
+                            continue;
+                        };
                     }
                     DealState::Active(_) => {
                         log::info!(
-                            "Deal {} has been properly activated before, all good.",
+                            "on_finalize: deal {} has been properly activated before, all good.",
                             deal_id
                         );
                     }
