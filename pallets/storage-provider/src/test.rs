@@ -260,10 +260,6 @@ fn prove_commit_sector() {
         assert_eq!(
             events(),
             [
-                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Unreserved {
-                    who: ALICE,
-                    amount: 1
-                }),
                 RuntimeEvent::StorageProvider(Event::<Test>::SectorProven {
                     owner: ALICE,
                     sector_number: sector_number
@@ -271,8 +267,8 @@ fn prove_commit_sector() {
             ]
         );
 
-        // check that the funds have been released
-        assert_eq!(Balances::free_balance(ALICE), 100);
+        // check that the funds are still locked
+        assert_eq!(Balances::free_balance(ALICE), 99);
     });
 }
 

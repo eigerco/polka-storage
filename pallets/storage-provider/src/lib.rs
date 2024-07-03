@@ -269,8 +269,6 @@ pub mod pallet {
                 Error::<T>::InvalidProofType,
             );
 
-            T::Currency::unreserve(&owner, precommit.pre_commit_deposit);
-
             Self::deposit_event(Event::SectorProven {
                 owner,
                 sector_number: sector.sector_number,
