@@ -4,7 +4,6 @@ use cid::Cid;
 use frame_support::{
     assert_err, assert_noop, assert_ok,
     sp_runtime::{bounded_vec, ArithmeticError, DispatchError, TokenError},
-    BoundedBTreeSet,
 };
 use primitives_proofs::{
     ActiveDeal, ActiveSector, DealId, Market as MarketTrait, RegisteredSealProof, SectorDeal,
@@ -415,7 +414,7 @@ fn activate_deals() {
 /// Behaves like `publish_storage_deals` without the validation and calling extrinsics.
 fn publish_for_activation(deal_id: DealId, deal: DealProposalOf<Test>) -> H256 {
     let hash = Market::hash_proposal(&deal);
-    let mut pending = BoundedBTreeSet::new();
+    let mut pending = PendingProposals::<Test>::get();
     pending.try_insert(hash).unwrap();
     PendingProposals::<Test>::set(pending);
 
@@ -486,8 +485,7 @@ fn verifies_deals_on_block_finalization() {
         );
         System::reset_events();
 
-        // Idea: Activate Alice's Deal, forget to do that for Bob's.
-
+        // Scenario: Activate Alice's Deal, forget to do that for Bob's.
         // Alice's balance before the hook
         assert_eq!(
             BalanceTable::<Test>::get(account(ALICE)),
@@ -536,7 +534,7 @@ fn verifies_deals_on_block_finalization() {
             BalanceTable::<Test>::get(account(PROVIDER)),
             BalanceEntry::<u64> {
                 free: 35,
-                // Reduced to 25 = 40 - 15
+                // 40 (locked) - 15 (lost collateral) = 25
                 locked: 25
             }
         );
