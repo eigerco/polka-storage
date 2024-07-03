@@ -18,9 +18,14 @@ pub enum SectorSize {
 /// This type is passed into the pre commit function on the storage provider pallet
 #[derive(Debug, Decode, Encode, TypeInfo)]
 pub struct SectorPreCommitInfo {
+    /// The proof type this SP will use for the pre-comitted sectors.
     pub seal_proof: RegisteredSealProof,
+    /// Which sector number this SP is pre-committing.
     pub sector_number: SectorNumber,
+    /// 'commR' Commitment of replication,
+    /// Some docs on commR here: <https://proto.school/verifying-storage-on-filecoin/03>
     pub sealed_cid: Cid,
+    /// Expiration of the pre-committed sector.
     pub expiration: u64,
 }
 
