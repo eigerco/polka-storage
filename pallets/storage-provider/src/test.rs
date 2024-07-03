@@ -158,8 +158,8 @@ fn pre_commit_sector() {
     });
 }
 
-#[test] // failure test
-fn double_pre_commit_sector() {
+#[test]
+fn pre_commit_sector_fails_when_precommited_twice() {
     new_test_ext().execute_with(|| {
         let peer_id = "storage_provider_1".as_bytes().to_vec();
         let peer_id = BoundedVec::try_from(peer_id).unwrap();
