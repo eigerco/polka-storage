@@ -40,10 +40,13 @@ impl RegisteredPoStProof {
 /// Proof of Spacetime data stored on chain.
 #[derive(Debug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone)]
 pub struct PoStProof {
+    /// The proof type, currently only one type is supported.
     pub post_proof: RegisteredPoStProof,
+    /// The proof submission, to be checked in the storage provider pallet.
     pub proof_bytes: BoundedVec<u8, ConstU32<256>>, // Arbitrary length
 }
 
+/// Parameter type for `submit_windowed_post` extrinsic.
 #[derive(Debug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone)]
 pub struct SubmitWindowedPoStParams<BlockNumber> {
     /// The deadline index which the submission targets.

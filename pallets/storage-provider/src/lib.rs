@@ -39,11 +39,7 @@ pub mod pallet {
         pallet_prelude::*,
         traits::{Currency, ReservableCurrency},
     };
-    use frame_system::{
-        ensure_signed,
-        pallet_prelude::{BlockNumberFor, *},
-        Config as SystemConfig,
-    };
+    use frame_system::{ensure_signed, pallet_prelude::*, Config as SystemConfig};
     use scale_info::TypeInfo;
 
     use crate::{
@@ -248,24 +244,27 @@ pub mod pallet {
             Ok(().into())
         }
 
+        /// The SP uses this extrinsic to submit their Proof-of-Spacetime.
+        ///
+        /// Proofs are checked with `validate_windowed_post`.
         pub fn submit_windowed_post(
             origin: OriginFor<T>,
             params: SubmitWindowedPoStParams<BlockNumberFor<T>>,
         ) -> DispatchResultWithPostInfo {
-            // Check that the extrinsic was signed and get the signer
-            // This will be the owner of the storage provider
             let owner = ensure_signed(origin)?;
-
             let sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
-
-            // Make sure the storage provider is using the correct proof type.
             ensure!(
                 params.proofs.post_proof == sp.info.window_post_proof_type,
                 Error::<T>::InvalidProofType
             );
+            validate_windowed_post(params.proofs.proof_bytes);
             Ok(().into())
         }
+    }
+
+    fn validate_windowed_post(proof_bytes: BoundedVec<u8, ConstU32<256>>) -> bool {
+        true // TODO(@aidan46, no-ref, 2024-07-03): Actually validate proof.
     }
 
     /// Calculate the required pre commit deposit amount
