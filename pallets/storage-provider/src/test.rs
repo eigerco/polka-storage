@@ -1,4 +1,4 @@
-use frame_support::{assert_noop, assert_ok, sp_runtime::BoundedVec};
+use frame_support::{assert_noop, assert_ok, pallet_prelude::ConstU32, sp_runtime::BoundedVec};
 
 use crate::{
     mock::{
@@ -57,15 +57,7 @@ fn register_sp() {
         assert!(sp_bob.sectors.is_empty());
 
         // Check that the event triggered
-        assert_eq!(
-            events(),
-            [RuntimeEvent::StorageProvider(
-                Event::<Test>::StorageProviderRegistered {
-                    owner: BOB,
-                    info: expected_sp_info
-                }
-            )]
-        )
+        check_register_event(events(), BOB, expected_sp_info);
     })
 }
 
@@ -113,12 +105,11 @@ fn pre_commit_sector() {
         assert!(StorageProviders::<Test>::contains_key(ALICE));
 
         // Check that the event triggered
-        assert!(matches!(
-            events()[..],
-            [RuntimeEvent::StorageProvider(
-                Event::<Test>::StorageProviderRegistered { .. }
-            )]
-        ));
+        check_register_event(
+            events(),
+            ALICE,
+            StorageProviderInfo::new(peer_id, window_post_type),
+        );
 
         let sector = SectorPreCommitInfo {
             seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
@@ -157,8 +148,8 @@ fn pre_commit_sector() {
             ]
         );
 
-        // `unwrap()` should be safe because of the above check.
-        let sp_alice = StorageProviders::<Test>::get(ALICE).unwrap();
+        // `expect()` should be safe because of the above check.
+        let sp_alice = StorageProviders::<Test>::get(ALICE).expect("SP Alice should be present");
 
         assert!(sp_alice.sectors.is_empty()); // not yet proven
         assert!(!sp_alice.pre_committed_sectors.is_empty());
@@ -183,12 +174,11 @@ fn double_pre_commit_sector() {
         assert!(StorageProviders::<Test>::contains_key(ALICE));
 
         // Check that the event triggered
-        assert!(matches!(
-            events()[..],
-            [RuntimeEvent::StorageProvider(
-                Event::<Test>::StorageProviderRegistered { .. }
-            )]
-        ));
+        check_register_event(
+            events(),
+            ALICE,
+            StorageProviderInfo::new(peer_id, window_post_type),
+        );
 
         let sector = SectorPreCommitInfo {
             seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
@@ -284,4 +274,18 @@ fn prove_commit_sector() {
         // check that the funds have been released
         assert_eq!(Balances::free_balance(ALICE), 100);
     });
+}
+
+fn check_register_event(
+    events: Vec<RuntimeEvent>,
+    account: u64,
+    expected_sp_info: StorageProviderInfo<BoundedVec<u8, ConstU32<256>>>,
+) -> bool {
+    events
+        == [RuntimeEvent::StorageProvider(
+            Event::<Test>::StorageProviderRegistered {
+                owner: account,
+                info: expected_sp_info,
+            },
+        )]
 }
