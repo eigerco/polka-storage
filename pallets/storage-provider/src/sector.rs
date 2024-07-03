@@ -76,6 +76,7 @@ pub struct SectorOnChainInfo<BlockNumber> {
     pub unsealed_cid: BoundedVec<u8, ConstU32<CID_MAX_BYTE_SIZE>>,
 }
 
+/// Arguments passed into the `prove_commit_sector` extrinsic.
 #[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct ProveCommitSector {
     pub sector_number: SectorNumber,
