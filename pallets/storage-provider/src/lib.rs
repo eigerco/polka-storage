@@ -64,20 +64,16 @@ pub mod pallet {
     pub trait Config: frame_system::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
         /// Peer ID is derived by hashing an encoded public key.
         /// Usually represented in bytes.
         /// https://github.com/libp2p/specs/blob/2ea41e8c769f1bead8e637a9d4ebf8c791976e8a/peer-ids/peer-ids.md#peer-ids
         /// More information about libp2p peer ids: https://docs.libp2p.io/concepts/fundamentals/peers/
         type PeerId: Clone + Debug + Decode + Encode + Eq + TypeInfo;
-
         /// Currency mechanism, used for collateral
         type Currency: ReservableCurrency<Self::AccountId>;
-
         #[pallet::constant] // put the constant in metadata
         /// Proving period for submitting Window PoSt, 24 hours is blocks
         type WPoStProvingPeriod: Get<BlockNumberFor<Self>>;
-
         #[pallet::constant] // put the constant in metadata
         /// Window PoSt challenge window (default 30 minutes in blocks)
         type WPoStChallengeWindow: Get<BlockNumberFor<Self>>;
@@ -138,38 +134,27 @@ pub mod pallet {
             // Check that the extrinsic was signed and get the signer
             // This will be the owner of the storage provider
             let owner = ensure_signed(origin)?;
-
             // Ensure that the storage provider does not exist yet
             ensure!(
                 !StorageProviders::<T>::contains_key(&owner),
                 Error::<T>::StorageProviderExists
             );
-
             let proving_period = T::WPoStProvingPeriod::get();
-
             let current_block = <frame_system::Pallet<T>>::block_number();
-
             let offset = assign_proving_period_offset::<T::AccountId, BlockNumberFor<T>>(
                 &owner,
                 current_block,
                 proving_period,
             )
             .map_err(|_| Error::<T>::ConversionError)?;
-
             let period_start = current_proving_period_start(current_block, offset, proving_period);
-
             let deadline_idx =
                 current_deadline_index(current_block, period_start, T::WPoStChallengeWindow::get());
-
             let info = StorageProviderInfo::new(peer_id, window_post_proof_type);
-
             let state = StorageProviderState::new(&info, period_start, deadline_idx);
-
             StorageProviders::<T>::insert(&owner, state);
-
             // Emit event
             Self::deposit_event(Event::StorageProviderRegistered { owner, info });
-
             Ok(().into())
         }
 
@@ -187,10 +172,8 @@ pub mod pallet {
             // Check that the extrinsic was signed and get the signer
             // This will be the owner of the storage provider
             let owner = ensure_signed(origin)?;
-
             let sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
-
             ensure!(
                 sector.sector_number <= SECTORS_MAX,
                 Error::<T>::InvalidSector
@@ -199,14 +182,10 @@ pub mod pallet {
                 sp.info.window_post_proof_type == sector.seal_proof.registered_window_post_proof(),
                 Error::<T>::InvalidProofType
             );
-
             let balance = T::Currency::total_balance(&owner);
             let deposit = calculate_pre_commit_deposit::<T>();
-
             ensure!(balance >= deposit, Error::<T>::NotEnoughFunds);
-
             T::Currency::reserve(&owner, deposit)?;
-
             StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResultWithPostInfo {
                 let sp = maybe_sp
                     .as_mut()
@@ -220,7 +199,6 @@ pub mod pallet {
                 .map_err(|_| Error::<T>::MaxPreCommittedSectorExceeded)?;
                 Ok(().into())
             })?;
-
             Self::deposit_event(Event::SectorPreCommitted { owner, sector });
             Ok(().into())
         }

@@ -68,7 +68,6 @@ pub struct SectorOnChainInfo<BlockNumber> {
     pub seal_proof: RegisteredSealProof,
     /// The root hash of the sealed sector's merkle tree.
     /// Also called CommR, or 'replica commitment'.
-    ///
     // We use BoundedVec here, as cid::Cid do not implement `TypeInfo`, so it cannot be saved into the Runtime Storage.
     // It maybe doable using newtype pattern, however not sure how the UI on the frontend side would handle that anyways.
     // There is Encode/Decode implementation though, through the feature flag: `scale-codec`.

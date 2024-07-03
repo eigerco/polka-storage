@@ -24,7 +24,6 @@ impl RegisteredPoStProof {
     /// The partition size is the number of sectors proven in a single PoSt proof.
     pub fn window_post_partitions_sector(self) -> u64 {
         // Resolve to post proof and then compute size from that.
-
         match self {
             RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => 2,
         }
@@ -78,23 +77,17 @@ where
     // Encode address and current block number
     let mut addr = addr.encode();
     let mut block_num = current_block.encode();
-
     // Concatenate the encoded block number to the encoded address.
     addr.append(&mut block_num);
-
     // Hash the address and current block number for a pseudo-random offset.
     let digest = blake2_64(&addr);
-
     // Create a pseudo-random offset from the bytes of the hash of the address and current block number.
     let offset = u64::from_be_bytes(digest);
-
     // Convert into block number
     let mut offset =
         TryInto::<BlockNumber>::try_into(offset).map_err(|_| ProofError::Conversion)?;
-
     // Mod with the proving period so it is within the valid range of [0, WPOST_PROVING_PERIOD)
     offset %= wpost_proving_period;
-
     Ok(offset)
 }
 
@@ -112,13 +105,11 @@ where
     BlockNumber: BaseArithmetic,
 {
     let curr_modulus = current_block.clone() % proving_period.clone();
-
     let period_progress = if curr_modulus >= offset {
         curr_modulus - offset
     } else {
         proving_period - (offset - curr_modulus)
     };
-
     if current_block < period_progress {
         period_progress
     } else {
