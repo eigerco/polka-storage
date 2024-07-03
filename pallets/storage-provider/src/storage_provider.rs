@@ -1,5 +1,6 @@
 use codec::{Decode, Encode};
 use frame_support::{
+    ensure,
     pallet_prelude::{ConstU32, RuntimeDebug},
     sp_runtime::BoundedBTreeMap,
 };
@@ -86,9 +87,10 @@ where
     ) -> Result<(), StorageProviderError> {
         let sector_number = precommit.info.sector_number;
 
-        if self.pre_committed_sectors.contains_key(&sector_number) {
-            return Err(StorageProviderError::SectorAlreadyPreCommitted);
-        }
+        ensure!(
+            self.pre_committed_sectors.contains_key(&sector_number),
+            StorageProviderError::SectorAlreadyPreCommitted
+        );
 
         self.pre_committed_sectors
             .try_insert(sector_number, precommit)
