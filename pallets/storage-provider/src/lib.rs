@@ -45,7 +45,7 @@ pub mod pallet {
     use crate::{
         proofs::{
             assign_proving_period_offset, current_deadline_index, current_proving_period_start,
-            RegisteredPoStProof, RegisteredSealProof,
+            RegisteredPoStProof, RegisteredSealProof, SubmitWindowedPoStParams,
         },
         sector::{
             ProveCommitSector, SectorNumber, SectorPreCommitInfo, SectorPreCommitOnChainInfo,
@@ -243,6 +243,28 @@ pub mod pallet {
             });
             Ok(().into())
         }
+
+        /// The SP uses this extrinsic to submit their Proof-of-Spacetime.
+        ///
+        /// Proofs are checked with `validate_windowed_post`.
+        pub fn submit_windowed_post(
+            origin: OriginFor<T>,
+            params: SubmitWindowedPoStParams<BlockNumberFor<T>>,
+        ) -> DispatchResultWithPostInfo {
+            let owner = ensure_signed(origin)?;
+            let sp = StorageProviders::<T>::try_get(&owner)
+                .map_err(|_| Error::<T>::StorageProviderNotFound)?;
+            ensure!(
+                params.proofs.post_proof == sp.info.window_post_proof_type,
+                Error::<T>::InvalidProofType
+            );
+            validate_windowed_post(params.proofs.proof_bytes);
+            Ok(().into())
+        }
+    }
+
+    fn validate_windowed_post(_proof_bytes: BoundedVec<u8, ConstU32<256>>) -> bool {
+        true // TODO(@aidan46, no-ref, 2024-07-03): Actually validate proof.
     }
 
     /// Calculate the required pre commit deposit amount
