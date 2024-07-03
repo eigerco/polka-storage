@@ -126,9 +126,8 @@ pub fn current_deadline_index<BlockNumber>(
 where
     BlockNumber: BaseArithmetic,
 {
-    if current_block < period_start {
-        period_start / challenge_window
-    } else {
-        (current_block - period_start) / challenge_window
+    match current_block.checked_sub(&period_start) {
+        Some(block) => block / challenge_window,
+        None => period_start / challenge_window
     }
 }
