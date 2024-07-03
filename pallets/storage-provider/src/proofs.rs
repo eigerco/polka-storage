@@ -63,16 +63,24 @@ where
     AccountId: Encode,
     BlockNumber: BaseArithmetic + Encode + TryFrom<u64>,
 {
+    // Encode address and current block number
     let mut addr = addr.encode();
     let mut block_num = current_block.encode();
 
+    // Concatenate the encoded block number to the encoded address.
     addr.append(&mut block_num);
 
+    // Hash the address and current block number for a pseudo-random offset.
     let digest = blake2_64(&addr);
 
-    let mut offset = TryInto::<BlockNumber>::try_into(u64::from_be_bytes(digest))
-        .map_err(|_| ProofError::Conversion)?;
+    // Create a pseudo-random offset from the bytes of the hash of the address and current block number.
+    let offset = u64::from_be_bytes(digest);
 
+    // Convert into block number
+    let mut offset =
+        TryInto::<BlockNumber>::try_into(offset).map_err(|_| ProofError::Conversion)?;
+
+    // Mod with the proving period so it is within the valid range of [0, WPOST_PROVING_PERIOD)
     offset %= wpost_proving_period;
 
     Ok(offset)
