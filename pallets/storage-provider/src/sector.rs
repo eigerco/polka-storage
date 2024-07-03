@@ -20,13 +20,17 @@ pub enum SectorSize {
 #[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct SectorPreCommitInfo<BlockNumber> {
     pub seal_proof: RegisteredSealProof,
+    /// Which sector number this SP is pre-committing.
     pub sector_number: SectorNumber,
     /// Byte Encoded Cid / CommR
+    ///'commR' Commitment of replication,
+    /// Some docs on commR here: <https://proto.school/verifying-storage-on-filecoin/03>
     // We use BoundedVec here, as cid::Cid do not implement `TypeInfo`, so it cannot be saved into the Runtime Storage.
     // It maybe doable using newtype pattern, however not sure how the UI on the frontend side would handle that anyways.
     // There is Encode/Decode implementation though, through the feature flag: `scale-codec`.
     pub sealed_cid: BoundedVec<u8, ConstU32<CID_MAX_BYTE_SIZE>>,
     pub deal_id: DealID,
+    /// Expiration of the pre-committed sector.
     pub expiration: BlockNumber,
     /// CommD
     pub unsealed_cid: BoundedVec<u8, ConstU32<CID_MAX_BYTE_SIZE>>,
