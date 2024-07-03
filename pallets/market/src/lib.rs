@@ -1225,16 +1225,11 @@ pub mod pallet {
             T::DbWeight::get().reads(1)
         }
 
-        /// Called for each block after every extrinsic has been called.
         /// This is a slasher for Deals that have been Published, but Storage Provider failed to activate them.
         /// It scans for Deals that were supposed to be activated in a given block, when registered in `publish_storage_deals`.
         /// When a deal is not [`DealState::Active`], it refunds all the funds to the client and burns provider's collateral.
         /// When a deal has been activated, it just removes it from data structures used for tracking.
         /// This function should not fail at any point, if it fails, it's a bug.
-        ///
-        /// ### Technical notes
-        /// Should be deterministic, bounded and have minimal time complexity.
-        /// <https://paritytech.github.io/polkadot-sdk/master/frame_support/traits/trait.Hooks.html#summary>
         fn on_finalize(current_block: BlockNumberFor<T>) {
             let deal_ids = DealsForBlock::<T>::get(&current_block);
             if deal_ids.is_empty() {
@@ -1246,16 +1241,15 @@ pub mod pallet {
             // PRE-COND: deal validation has been performed by `publish_storage_deals`.
             let mut pending_proposals = PendingProposals::<T>::get();
             for deal_id in deal_ids {
-                let proposal = match Proposals::<T>::try_get(&deal_id) {
-                    Ok(proposal) => proposal,
+                let Ok(proposal) = Proposals::<T>::try_get(&deal_id) else {
                     // Proposal might have been cleaned up by manual settlement or termination prior to reaching
-                    // this scheduled block. nothing more to do for this deal
-                    Err(_) => continue,
+                    // this scheduled block. Nothing more to do for this deal.
+                    continue;
                 };
 
                 match &proposal.state {
                     DealState::Published => {
-                        assert!(
+                        debug_assert!(
                             proposal.start_block == current_block,
                             "deals are scheduled to be checked only at their start block"
                         );
