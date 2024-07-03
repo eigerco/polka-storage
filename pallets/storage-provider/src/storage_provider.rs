@@ -81,7 +81,7 @@ where
     ) -> Result<(), StorageProviderError> {
         let sector_number = precommit.info.sector_number;
         ensure!(
-            self.pre_committed_sectors.contains_key(&sector_number),
+            !self.pre_committed_sectors.contains_key(&sector_number),
             StorageProviderError::SectorAlreadyPreCommitted
         );
         self.pre_committed_sectors
