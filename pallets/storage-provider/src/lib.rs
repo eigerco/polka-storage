@@ -247,9 +247,10 @@ pub mod pallet {
             let sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
 
-            if sector.sector_number > SECTORS_MAX {
-                return Err(Error::<T>::InvalidSector.into());
-            }
+            ensure!(
+                sector.sector_number <= SECTORS_MAX,
+                Error::<T>::InvalidSector
+            );
 
             let precommit = sp
                 .get_precommitted_sector(sector.sector_number)
