@@ -173,8 +173,13 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// Pledges the storage provider to seal and commit some new sector
-        /// TODO(@aidan46, #107, 2024-06-20): Add functionality to allow for batch pre commit
+        /// The Storage Provider uses this extrinsic to pledge and seal a new sector.
+        /// 
+        /// The deposit amount is calculated by `calculate_pre_commit_deposit`.
+        /// The deposited amount is locked until the sector has been terminated.
+        /// A hook will check pre-committed sectors `expiration` and 
+        /// if that sector has not been proven by that time the deposit will be slashed.
+        // TODO(@aidan46, #107, 2024-06-20): Add functionality to allow for batch pre commit
         pub fn pre_commit_sector(
             origin: OriginFor<T>,
             sector: SectorPreCommitInfo<BlockNumberFor<T>>,
