@@ -131,8 +131,6 @@ pub mod pallet {
             peer_id: T::PeerId,
             window_post_proof_type: RegisteredPoStProof,
         ) -> DispatchResultWithPostInfo {
-            // Check that the extrinsic was signed and get the signer
-            // This will be the owner of the storage provider
             let owner = ensure_signed(origin)?;
             // Ensure that the storage provider does not exist yet
             ensure!(
@@ -169,8 +167,6 @@ pub mod pallet {
             origin: OriginFor<T>,
             sector: SectorPreCommitInfo<BlockNumberFor<T>>,
         ) -> DispatchResultWithPostInfo {
-            // Check that the extrinsic was signed and get the signer
-            // This will be the owner of the storage provider
             let owner = ensure_signed(origin)?;
             let sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
