@@ -1,5 +1,8 @@
 use codec::{Decode, Encode};
-use frame_support::{pallet_prelude::ConstU32, sp_runtime::BoundedBTreeMap};
+use frame_support::{
+    pallet_prelude::{ConstU32, RuntimeDebug},
+    sp_runtime::BoundedBTreeMap,
+};
 use scale_info::TypeInfo;
 use sp_arithmetic::{traits::BaseArithmetic, ArithmeticError};
 
@@ -95,8 +98,11 @@ where
     }
 }
 
+#[derive(RuntimeDebug)]
 pub enum StorageProviderError {
+    /// Happens when an SP try to commit a sector more than once
     SectorAlreadyPreCommitted,
+    /// Happens when an SP tries to pre-commit more sectors than SECTOR_MAX.
     MaxPreCommittedSectorExceeded,
 }
 
