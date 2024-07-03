@@ -259,12 +259,10 @@ fn prove_commit_sector() {
 
         assert_eq!(
             events(),
-            [
-                RuntimeEvent::StorageProvider(Event::<Test>::SectorProven {
-                    owner: ALICE,
-                    sector_number: sector_number
-                })
-            ]
+            [RuntimeEvent::StorageProvider(Event::<Test>::SectorProven {
+                owner: ALICE,
+                sector_number: sector_number
+            })]
         );
 
         // check that the funds are still locked
