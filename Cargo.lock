@@ -7648,6 +7648,7 @@ dependencies = [
  "multihash-codetable",
  "pallet-balances",
  "parity-scale-codec",
+ "primitives-proofs",
  "scale-info",
  "sp-arithmetic",
  "sp-core",
