@@ -1,4 +1,4 @@
-use frame_support::{assert_noop, assert_ok, pallet_prelude::ConstU32, sp_runtime::BoundedVec};
+use frame_support::{assert_noop, assert_ok, sp_runtime::BoundedVec};
 
 use crate::{
     mock::{
@@ -57,7 +57,15 @@ fn register_sp() {
         assert!(sp_bob.sectors.is_empty());
 
         // Check that the event triggered
-        check_register_event(events(), BOB, expected_sp_info);
+        assert_eq!(
+            events(),
+            [RuntimeEvent::StorageProvider(
+                Event::<Test>::StorageProviderRegistered {
+                    owner: BOB,
+                    info: expected_sp_info,
+                },
+            )]
+        );
     })
 }
 
@@ -105,10 +113,14 @@ fn pre_commit_sector() {
         assert!(StorageProviders::<Test>::contains_key(ALICE));
 
         // Check that the event triggered
-        check_register_event(
+        assert_eq!(
             events(),
-            ALICE,
-            StorageProviderInfo::new(peer_id, window_post_type),
+            [RuntimeEvent::StorageProvider(
+                Event::<Test>::StorageProviderRegistered {
+                    owner: ALICE,
+                    info: StorageProviderInfo::new(peer_id, window_post_type),
+                },
+            )]
         );
 
         let sector = SectorPreCommitInfo {
@@ -174,10 +186,14 @@ fn pre_commit_sector_fails_when_precommited_twice() {
         assert!(StorageProviders::<Test>::contains_key(ALICE));
 
         // Check that the event triggered
-        check_register_event(
+        assert_eq!(
             events(),
-            ALICE,
-            StorageProviderInfo::new(peer_id, window_post_type),
+            [RuntimeEvent::StorageProvider(
+                Event::<Test>::StorageProviderRegistered {
+                    owner: ALICE,
+                    info: StorageProviderInfo::new(peer_id, window_post_type),
+                },
+            )]
         );
 
         let sector = SectorPreCommitInfo {
@@ -207,18 +223,4 @@ fn pre_commit_sector_fails_when_precommited_twice() {
             Error::<Test>::MaxPreCommittedSectorExceeded
         );
     });
-}
-
-fn check_register_event(
-    events: Vec<RuntimeEvent>,
-    account: u64,
-    expected_sp_info: StorageProviderInfo<BoundedVec<u8, ConstU32<256>>>,
-) -> bool {
-    events
-        == [RuntimeEvent::StorageProvider(
-            Event::<Test>::StorageProviderRegistered {
-                owner: account,
-                info: expected_sp_info,
-            },
-        )]
 }
