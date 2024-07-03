@@ -72,11 +72,10 @@ where
     }
 
     pub fn add_pre_commit_deposit(&mut self, amount: Balance) -> Result<(), ArithmeticError> {
-        let pcd = self
+        self.pre_commit_deposits =  self
             .pre_commit_deposits
             .checked_add(&amount)
             .ok_or(ArithmeticError::Overflow)?;
-        self.pre_commit_deposits = pcd;
         Ok(())
     }
 
