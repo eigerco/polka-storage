@@ -1,8 +1,9 @@
 use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::ConstU32, BoundedVec};
+use primitives_proofs::DealId;
 use scale_info::TypeInfo;
 
-use crate::proofs::RegisteredSealProof;
+use crate::{pallet::CID_MAX_BYTE_SIZE, proofs::RegisteredSealProof};
 
 // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/runtime/src/runtime/policy.rs#L262
 pub const SECTORS_MAX: u32 = 32 << 20;
@@ -18,33 +19,37 @@ pub enum SectorSize {
 
 /// This type is passed into the pre commit function on the storage provider pallet
 #[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
-pub struct SectorPreCommitInfo<BlockNumber, DealID> {
+pub struct SectorPreCommitInfo<BlockNumber> {
     pub seal_proof: RegisteredSealProof,
+    /// Which sector number this SP is pre-committing.
     pub sector_number: SectorNumber,
     /// Byte Encoded Cid / CommR
+    ///'commR' Commitment of replication,
+    /// Some docs on commR here: <https://proto.school/verifying-storage-on-filecoin/03>
     // We use BoundedVec here, as cid::Cid do not implement `TypeInfo`, so it cannot be saved into the Runtime Storage.
     // It maybe doable using newtype pattern, however not sure how the UI on the frontend side would handle that anyways.
     // There is Encode/Decode implementation though, through the feature flag: `scale-codec`.
-    pub sealed_cid: BoundedVec<u8, ConstU32<128>>,
-    pub deal_id: DealID,
+    pub sealed_cid: BoundedVec<u8, ConstU32<CID_MAX_BYTE_SIZE>>,
+    pub deal_id: DealId,
+    /// Expiration of the pre-committed sector.
     pub expiration: BlockNumber,
     /// CommD
-    pub unsealed_cid: BoundedVec<u8, ConstU32<128>>,
+    pub unsealed_cid: BoundedVec<u8, ConstU32<CID_MAX_BYTE_SIZE>>,
 }
 
 /// Information stored on-chain for a pre-committed sector.
 #[derive(Debug, Decode, Encode, TypeInfo)]
-pub struct SectorPreCommitOnChainInfo<Balance, BlockNumber, DealID> {
-    pub info: SectorPreCommitInfo<BlockNumber, DealID>,
+pub struct SectorPreCommitOnChainInfo<Balance, BlockNumber> {
+    pub info: SectorPreCommitInfo<BlockNumber>,
     /// Total collateral for this sector
     pub pre_commit_deposit: Balance,
     /// Block number this was pre-committed
     pub pre_commit_block_number: BlockNumber,
 }
 
-impl<Balance, BlockNumber, DealID> SectorPreCommitOnChainInfo<Balance, BlockNumber, DealID> {
+impl<Balance, BlockNumber> SectorPreCommitOnChainInfo<Balance, BlockNumber> {
     pub fn new(
-        info: SectorPreCommitInfo<BlockNumber, DealID>,
+        info: SectorPreCommitInfo<BlockNumber>,
         pre_commit_deposit: Balance,
         pre_commit_block_number: BlockNumber,
     ) -> Self {
@@ -63,19 +68,19 @@ pub struct SectorOnChainInfo<BlockNumber> {
     pub seal_proof: RegisteredSealProof,
     /// The root hash of the sealed sector's merkle tree.
     /// Also called CommR, or 'replica commitment'.
-    ///
     // We use BoundedVec here, as cid::Cid do not implement `TypeInfo`, so it cannot be saved into the Runtime Storage.
     // It maybe doable using newtype pattern, however not sure how the UI on the frontend side would handle that anyways.
     // There is Encode/Decode implementation though, through the feature flag: `scale-codec`.
-    pub sealed_cid: BoundedVec<u8, ConstU32<128>>,
+    pub sealed_cid: BoundedVec<u8, ConstU32<CID_MAX_BYTE_SIZE>>,
     /// Block number during which the sector proof was accepted
     pub activation: BlockNumber,
     /// Block number during which the sector expires
     pub expiration: BlockNumber,
     /// CommD
-    pub unsealed_cid: BoundedVec<u8, ConstU32<128>>,
+    pub unsealed_cid: BoundedVec<u8, ConstU32<CID_MAX_BYTE_SIZE>>,
 }
 
+/// Arguments passed into the `prove_commit_sector` extrinsic.
 #[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct ProveCommitSector {
     pub sector_number: SectorNumber,

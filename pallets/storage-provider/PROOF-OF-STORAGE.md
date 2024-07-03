@@ -3,7 +3,7 @@
 > [!NOTE]
 > Some terms used in this document are described in the [design document](./DESIGN.md#constants--terminology)
 
-In our parachain within the Polkadot ecosystem, storage providers are required to prove that they hold a copy of the data they have committed to storing at any given point in time. This proof is achieved through a mechanism known as 'challenges.' The process involves the system posing specific questions to the storage providers, who must then provide correct answers to prove they are maintaining the data as promised.
+In our parachain within the Polkadot ecosystem, storage providers are required to prove that they hold a copy of the data they have committed to storing at any given point in time. This proof is achieved through a mechanism known as 'challenges'. The process involves the system posing specific questions to the storage providers, who must then provide correct answers to prove they are maintaining the data as promised.
 
 To ensure the integrity and reliability of these proofs, the challenges must:
 
