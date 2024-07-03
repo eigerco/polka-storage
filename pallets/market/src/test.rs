@@ -9,6 +9,7 @@ use frame_support::{
 };
 use primitives_proofs::{
     ActiveDeal, ActiveSector, DealId, Market as MarketTrait, RegisteredSealProof, SectorDeal,
+    MAX_DEALS_PER_SECTOR,
 };
 use sp_core::H256;
 
@@ -549,6 +550,136 @@ fn verify_deals_for_activation() {
                 None,
             ]),
             Market::verify_deals_for_activation(&account(PROVIDER), deals)
+        );
+    });
+}
+
+/// Builder with nice defaults for test purposes.
+struct SectorDealBuilder {
+    sector_number: u64,
+    sector_expiry: u64,
+    sector_type: RegisteredSealProof,
+    deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
+}
+
+impl SectorDealBuilder {
+    pub fn sector_expiry(mut self, sector_expiry: u64) -> Self {
+        self.sector_expiry = sector_expiry;
+        self
+    }
+
+    pub fn build(self) -> SectorDeal<u64> {
+        SectorDeal::<u64> {
+            sector_number: self.sector_number,
+            sector_expiry: self.sector_expiry,
+            sector_type: self.sector_type,
+            deal_ids: self.deal_ids,
+        }
+    }
+}
+
+impl Default for SectorDealBuilder {
+    fn default() -> Self {
+        Self {
+            sector_number: 1,
+            sector_expiry: 120,
+            sector_type: RegisteredSealProof::StackedDRG2KiBV1P1,
+            deal_ids: bounded_vec![1],
+        }
+    }
+}
+
+#[test]
+fn verify_deals_for_activation_fails_with_different_provider() {
+    new_test_ext().execute_with(|| {
+        publish_for_activation(1, DealProposalBuilder::default().provider(BOB).build());
+
+        let deals = bounded_vec![SectorDealBuilder::default().build()];
+
+        assert_noop!(
+            Market::verify_deals_for_activation(&account(PROVIDER), deals),
+            Error::<Test>::DealActivationError
+        );
+    });
+}
+
+#[test]
+fn verify_deals_for_activation_fails_with_invalid_deal_state() {
+    new_test_ext().execute_with(|| {
+        publish_for_activation(
+            1,
+            DealProposalBuilder::default()
+                .state(DealState::Active(ActiveDealState {
+                    sector_number: 0,
+                    sector_start_block: 0,
+                    last_updated_block: Some(10),
+                    slash_block: None,
+                }))
+                .build(),
+        );
+
+        let deals = bounded_vec![SectorDealBuilder::default().build()];
+
+        assert_noop!(
+            Market::verify_deals_for_activation(&account(PROVIDER), deals),
+            Error::<Test>::DealActivationError
+        );
+    });
+}
+
+#[test]
+fn verify_deals_for_activation_fails_deal_not_in_pending() {
+    new_test_ext().execute_with(|| {
+        // do not use `publish_for_activation` as it puts deal in PendingProposals
+        Proposals::<Test>::insert(1, DealProposalBuilder::default().build());
+        let deals = bounded_vec![SectorDealBuilder::default().build()];
+
+        assert_noop!(
+            Market::verify_deals_for_activation(&account(PROVIDER), deals),
+            Error::<Test>::DealActivationError
+        );
+    });
+}
+
+#[test]
+fn verify_deals_for_activation_fails_sector_activation_after_start_block() {
+    new_test_ext().execute_with(|| {
+        // current_block == sector_activation when calling `verify_deals_for_activation`
+        // wait a couple of blocks so deal cannot be activated, because it's too late.
+        run_to_block(2);
+
+        publish_for_activation(
+            1,
+            DealProposalBuilder::default()
+                .start_block(1)
+                .build(),
+        );
+
+        let deals = bounded_vec![SectorDealBuilder::default().build()];
+
+        assert_noop!(
+            Market::verify_deals_for_activation(&account(PROVIDER), deals),
+            Error::<Test>::DealActivationError
+        );
+    });
+}
+
+#[test]
+fn verify_deals_for_activation_fails_sector_expires_before_deal_ends() {
+    new_test_ext().execute_with(|| {
+        publish_for_activation(
+            1,
+            DealProposalBuilder::default()
+                .start_block(10)
+                .end_block(15)
+                .build(),
+        );
+
+        let deals = bounded_vec![SectorDealBuilder::default().sector_expiry(11).build()];
+
+        assert_noop!(
+            Market::verify_deals_for_activation(&account(PROVIDER), deals),
+            Error::<Test>::DealActivationError
         );
     });
 }
