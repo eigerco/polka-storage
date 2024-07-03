@@ -1233,7 +1233,7 @@ pub mod pallet {
         fn on_finalize(current_block: BlockNumberFor<T>) {
             let deal_ids = DealsForBlock::<T>::get(&current_block);
             if deal_ids.is_empty() {
-                log::info!(target: LOG_TARGET, "no deals to process in block: {:?}", current_block);
+                log::info!(target: LOG_TARGET, "on_finalize: no deals to process in block: {:?}", current_block);
                 return;
             }
 
@@ -1253,16 +1253,22 @@ pub mod pallet {
                             proposal.start_block == current_block,
                             "deals are scheduled to be checked only at their start block"
                         );
+
                         // Deal has not been activated, time to slash!
                         // PRE-COND: deal cannot make to this stage without being validated and proper funds allocated
-                        let _ = BalanceTable::<T>::try_mutate(
+                        let Some(total_storage_fee) = proposal.total_storage_fee() else {
+                            log::error!(target: LOG_TARGET, "on_finalize: invariant violated cannot calculate total storage fee, deal {}", deal_id);
+                            continue;
+                        };
+                        let Ok(client_fee) = TryInto::<BalanceOf<T>>::try_into(total_storage_fee)
+                        else {
+                            log::error!(target: LOG_TARGET, "on_finalize: invariant violated, cannot convert total storage to {}, deal {}", total_storage_fee, deal_id);
+                            continue;
+                        };
+
+                        let Ok(()) = BalanceTable::<T>::try_mutate(
                             &proposal.client,
                             |balance| -> DispatchResult {
-                                let client_fee: BalanceOf<T> = proposal
-                                    .total_storage_fee()
-                                    .ok_or(Error::<T>::UnexpectedValidationError)?
-                                    .try_into()
-                                    .map_err(|_| Error::<T>::UnexpectedValidationError)?;
                                 balance.free = balance
                                     .free
                                     .checked_add(&client_fee)
@@ -1273,20 +1279,27 @@ pub mod pallet {
                                     .ok_or(ArithmeticError::Underflow)?;
                                 Ok(())
                             },
-                        );
+                        ) else {
+                            log::error!(target: LOG_TARGET, "on_finalize: invariant violated, failed to return the fee to the client, deal {}", deal_id);
+                            continue;
+                        };
 
                         log::info!(
-                            "Slashing {:?} for not activating a deal: {}",
+                            "on_finalize: slashing {:?} for not activating a deal {}",
                             proposal.provider,
                             deal_id
                         );
                         // PRE-COND: deal MUST BE validated and the proper funds allocated
-                        let _ =
-                            Self::slash_and_burn(&proposal.provider, proposal.provider_collateral);
+                        let Ok(()) =
+                            Self::slash_and_burn(&proposal.provider, proposal.provider_collateral)
+                        else {
+                            log::error!(target: LOG_TARGET, "on_finalize: invariant violated, cannot slash the deal {}", deal_id);
+                            continue;
+                        };
                     }
                     DealState::Active(_) => {
                         log::info!(
-                            "Deal {} has been properly activated before, all good.",
+                            "on_finalize: deal {} has been properly activated before, all good.",
                             deal_id
                         );
                     }
