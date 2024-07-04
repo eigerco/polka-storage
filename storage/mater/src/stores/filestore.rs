@@ -6,7 +6,7 @@ use tokio_util::io::ReaderStream;
 
 use super::Config;
 use crate::{
-    multicodec::SHA_256_CODE, unixfs::stream_balanced_tree, v1, v2, CarV1Header, CarV2Header,
+    multicodec::SHA_256_CODE, unixfs::stream_balanced_tree, CarV1Header, CarV2Header, CarV2Writer,
     Error, Index, IndexEntry, MultihashIndexSorted, SingleWidthIndex,
 };
 
@@ -24,14 +24,15 @@ where
     let nodes = stream_balanced_tree(chunker, tree_width).peekable();
     tokio::pin!(nodes);
 
+    let mut writer = CarV2Writer::new(&mut output);
     let mut position = 0;
 
     let placeholder_header = CarV2Header::default();
-    position += v2::write_header(&mut output, &placeholder_header).await?;
+    position += writer.write_header(&placeholder_header).await?;
     let car_v1_start = position;
 
     let placeholder_header_v1 = CarV1Header::default();
-    position += v1::write_header(&mut output, &placeholder_header_v1).await?;
+    position += writer.write_v1_header(&placeholder_header_v1).await?;
 
     let mut root = None;
     let mut entries = vec![];
@@ -40,7 +41,7 @@ where
         let digest = node_cid.hash().digest().to_owned();
         let entry = IndexEntry::new(digest, (position - car_v1_start) as u64);
         entries.push(entry);
-        position += v1::write_block(&mut output, &node_cid, &node_bytes).await?;
+        position += writer.write_block(&node_cid, &node_bytes).await?;
 
         if nodes.as_mut().peek().await.is_none() {
             root = Some(node_cid);
@@ -58,21 +59,21 @@ where
         SHA_256_CODE,
         single_width_index.into(),
     ));
-    v2::write_index(&mut output, &index).await?;
+    writer.write_index(&index).await?;
 
     // Go back to the beginning of the file
-    output.rewind().await?;
+    writer.get_inner_mut().rewind().await?;
     let header = CarV2Header::new(
         false,
         (car_v1_start) as u64,
         (index_offset - car_v1_start) as u64,
         (index_offset) as u64,
     );
-    v2::write_header(&mut output, &header).await?;
+    writer.write_header(&header).await?;
 
     // If the length of the roots doesn't match the previous one, you WILL OVERWRITE parts of the file
     let header_v1 = CarV1Header::new(vec![root]);
-    v1::write_header(&mut output, &header_v1).await?;
+    writer.write_v1_header(&header_v1).await?;
 
     Ok(root)
 }
