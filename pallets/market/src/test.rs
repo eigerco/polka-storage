@@ -16,9 +16,9 @@ use sp_core::H256;
 
 use crate::{
     mock::*,
-    pallet::{lock_funds, slash_and_burn, unlock_funds}, 
-    ActiveDealState, BalanceEntry, BalanceTable, DealProposal, DealSettlementError,
-    DealState, DealsForBlock, Error, Event, PendingProposals, Proposals, SectorDeals, SectorTerminateError
+    pallet::{lock_funds, slash_and_burn, unlock_funds},
+    ActiveDealState, BalanceEntry, BalanceTable, DealProposal, DealSettlementError, DealState,
+    DealsForBlock, Error, Event, PendingProposals, Proposals, SectorDeals, SectorTerminateError,
 };
 #[test]
 fn initial_state() {

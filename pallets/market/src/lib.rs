@@ -1420,7 +1420,6 @@ pub mod pallet {
     // NOTE(@jmg-duarte,01/07/2024): having free functions instead of implemented ones makes it harder
     // to mistakenly make them public or interact weirdly with the Polkadot macros
 
-
     /// Moves the provided `amount` from the `client`'s locked funds, to the provider's `free` funds.
     ///
     /// # Pre-Conditions
