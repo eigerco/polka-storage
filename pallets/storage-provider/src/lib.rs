@@ -34,7 +34,7 @@ pub mod pallet {
 
     use codec::{Decode, Encode};
     use frame_support::{
-        dispatch::DispatchResultWithPostInfo,
+        dispatch::DispatchResult,
         ensure,
         pallet_prelude::*,
         traits::{Currency, ReservableCurrency},
@@ -130,7 +130,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             peer_id: T::PeerId,
             window_post_proof_type: RegisteredPoStProof,
-        ) -> DispatchResultWithPostInfo {
+        ) -> DispatchResult {
             let owner = ensure_signed(origin)?;
             // Ensure that the storage provider does not exist yet
             ensure!(
@@ -153,7 +153,7 @@ pub mod pallet {
             StorageProviders::<T>::insert(&owner, state);
             // Emit event
             Self::deposit_event(Event::StorageProviderRegistered { owner, info });
-            Ok(().into())
+            Ok(())
         }
 
         /// The Storage Provider uses this extrinsic to pledge and seal a new sector.
@@ -166,7 +166,7 @@ pub mod pallet {
         pub fn pre_commit_sector(
             origin: OriginFor<T>,
             sector: SectorPreCommitInfo<BlockNumberFor<T>>,
-        ) -> DispatchResultWithPostInfo {
+        ) -> DispatchResult {
             let owner = ensure_signed(origin)?;
             let sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
@@ -182,7 +182,7 @@ pub mod pallet {
             let deposit = calculate_pre_commit_deposit::<T>();
             ensure!(balance >= deposit, Error::<T>::NotEnoughFunds);
             T::Currency::reserve(&owner, deposit)?;
-            StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResultWithPostInfo {
+            StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResult {
                 let sp = maybe_sp
                     .as_mut()
                     .ok_or(Error::<T>::StorageProviderNotFound)?;
@@ -193,7 +193,7 @@ pub mod pallet {
                     <frame_system::Pallet<T>>::block_number(),
                 ))
                 .map_err(|_| Error::<T>::MaxPreCommittedSectorExceeded)?;
-                Ok(().into())
+                Ok(())
             })?;
             Self::deposit_event(Event::SectorPreCommitted { owner, sector });
             Ok(().into())
