@@ -1065,6 +1065,12 @@ pub mod pallet {
             Ok(unsealed_cids)
         }
 
+        /// Activate a set of deals grouped by sector, returning the size and
+        /// extra info about verified deals.
+        /// Sectors' deals are activated in parameter-defined order.
+        /// Each sector's deals are activated or fail as a group, but independently of other sectors.
+        /// Note that confirming all deals fit within a sector is the caller's responsibility
+        /// (and is implied by confirming the sector's data commitment is derived from the deal pieces).
         fn activate_deals(
             storage_provider: &T::AccountId,
             sector_deals: BoundedVec<SectorDeal<BlockNumberFor<T>>, ConstU32<MAX_SECTORS_PER_CALL>>,
