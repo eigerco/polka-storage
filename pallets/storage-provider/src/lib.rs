@@ -42,7 +42,11 @@ pub mod pallet {
         pallet_prelude::*,
         traits::{Currency, ReservableCurrency},
     };
-    use frame_system::{ensure_signed, pallet_prelude::*, Config as SystemConfig};
+    use frame_system::{
+        ensure_signed,
+        pallet_prelude::{BlockNumberFor, *},
+        Config as SystemConfig,
+    };
     use scale_info::TypeInfo;
 
     use crate::{
@@ -74,12 +78,24 @@ pub mod pallet {
         type PeerId: Clone + Debug + Decode + Encode + Eq + TypeInfo;
         /// Currency mechanism, used for collateral
         type Currency: ReservableCurrency<Self::AccountId>;
-        #[pallet::constant] // put the constant in metadata
         /// Proving period for submitting Window PoSt, 24 hours is blocks
+        #[pallet::constant]
         type WPoStProvingPeriod: Get<BlockNumberFor<Self>>;
-        #[pallet::constant] // put the constant in metadata
         /// Window PoSt challenge window (default 30 minutes in blocks)
+        #[pallet::constant]
         type WPoStChallengeWindow: Get<BlockNumberFor<Self>>;
+        /// Minimum number of blocks past the current block a sector may be set to expire.
+        #[pallet::constant]
+        type MinSectorExpiration: Get<BlockNumberFor<Self>>;
+        /// Maximum number of blocks past the current block a sector may be set to expire.
+        #[pallet::constant]
+        type MaxSectorExpirationExtension: Get<BlockNumberFor<Self>>;
+        /// Maximum number of blocks a sector can stay in pre-committed state
+        #[pallet::constant]
+        type SectorMaximumLifetime: Get<BlockNumberFor<Self>>;
+        /// Maximum duration to allow for the sealing process for seal algorithms.
+        #[pallet::constant]
+        type MaxProveCommitDuration: Get<BlockNumberFor<Self>>;
     }
 
     /// Need some storage type that keeps track of sectors, deadlines and terminations.
@@ -127,6 +143,14 @@ pub mod pallet {
         MaxPreCommittedSectorExceeded,
         /// Emitted when trying to reuse a sector number
         SectorNumberAlreadyUsed,
+        /// Emitted when expiration is after activation
+        ExpirationBeforeActivation,
+        /// Emitted when expiration is less than minimum after activation
+        ExpirationTooSoon,
+        /// Emitted when the expiration exceeds MaxSectorExpirationExtension
+        ExpirationTooLong,
+        /// Emitted when a sectors lifetime exceeds SectorMaximumLifetime
+        MaxSectorLifetimeExceeded,
     }
 
     #[pallet::call]
@@ -176,6 +200,7 @@ pub mod pallet {
             let sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
             let sector_number = sector.sector_number;
+            let current_block = <frame_system::Pallet<T>>::block_number();
             ensure!(sector_number <= SECTORS_MAX, Error::<T>::InvalidSector);
             ensure!(
                 sp.info.window_post_proof_type == sector.seal_proof.registered_window_post_proof(),
@@ -188,6 +213,11 @@ pub mod pallet {
             );
             let balance = T::Currency::total_balance(&owner);
             let deposit = calculate_pre_commit_deposit::<T>();
+            Self::validate_expiration(
+                current_block,
+                current_block + T::MaxProveCommitDuration::get(),
+                sector.expiration,
+            )?;
             ensure!(balance >= deposit, Error::<T>::NotEnoughFunds);
             T::Currency::reserve(&owner, deposit)?;
             StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResult {
@@ -205,6 +235,36 @@ pub mod pallet {
             })?;
             Self::deposit_event(Event::SectorPreCommitted { owner, sector });
             Ok(().into())
+        }
+    }
+
+    impl<T: Config> Pallet<T> {
+        fn validate_expiration(
+            curr_block: BlockNumberFor<T>,
+            activation: BlockNumberFor<T>,
+            expiration: BlockNumberFor<T>,
+        ) -> Result<(), Error<T>> {
+            // Expiration must be after activation. Check this explicitly to avoid an underflow below.
+            ensure!(
+                expiration >= activation,
+                Error::<T>::ExpirationBeforeActivation
+            );
+            // expiration cannot be less than minimum after activation
+            ensure!(
+                expiration - activation > T::MinSectorExpiration::get(),
+                Error::<T>::ExpirationTooSoon
+            );
+            // expiration cannot exceed MaxSectorExpirationExtension from now
+            ensure!(
+                expiration < curr_block + T::MaxSectorExpirationExtension::get(),
+                Error::<T>::ExpirationTooLong,
+            );
+            // total sector lifetime cannot exceed SectorMaximumLifetime for the sector's seal proof
+            ensure!(
+                expiration - activation < T::SectorMaximumLifetime::get(),
+                Error::<T>::MaxSectorLifetimeExceeded
+            );
+            Ok(())
         }
     }
 
