@@ -6,7 +6,7 @@ use frame_support::{
     pallet_prelude::ConstU32,
     sp_runtime::{bounded_vec, ArithmeticError, DispatchError, TokenError},
     traits::Currency,
-     BoundedVec,
+    BoundedVec,
 };
 use primitives_proofs::{
     ActiveDeal, ActiveSector, DealId, Market as MarketTrait, RegisteredSealProof, SectorDeal,
