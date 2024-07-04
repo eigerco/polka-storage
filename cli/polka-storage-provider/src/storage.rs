@@ -6,13 +6,16 @@ use tokio::{
     fs::{self, File},
     io::{AsyncRead, BufWriter},
 };
+use tracing::info;
 
 /// Directory where uploaded files are stored.
-// TODO(no-ref,@cernicc,04/07/2024): Where should the uploads be stored?
-const UPLOADS_DIRECTORY: &str = "uploads";
+pub const STORAGE_DEFAULT_DIRECTORY: &str = "./uploads";
 
 /// Reads bytes from the source and writes them to a CAR file.
-pub async fn stream_contents_to_car<R>(source: R) -> Result<Cid, Box<dyn std::error::Error>>
+pub async fn stream_contents_to_car<R>(
+    folder: &str,
+    source: R,
+) -> Result<Cid, Box<dyn std::error::Error>>
 where
     R: AsyncRead + Unpin,
 {
@@ -28,14 +31,16 @@ where
 
     // If the file is successfully written, we can now move it to the final
     // location.
-    let final_content_path = content_path(cid);
-    fs::rename(temp_file_path, final_content_path).await?;
+    let (_, final_content_path) = content_path(folder, cid);
+    fs::rename(temp_file_path, &final_content_path).await?;
+    info!(location = %final_content_path.display(), "CAR file created");
 
     Ok(cid)
 }
 
-/// Returns the path to the content with the specified CID.
-pub fn content_path(cid: Cid) -> PathBuf {
+/// Returns the tuple of file name and path for a specified Cid.
+pub fn content_path(folder: &str, cid: Cid) -> (String, PathBuf) {
     let name = format!("{cid}.car");
-    Path::new(UPLOADS_DIRECTORY).join(name)
+    let path = Path::new(folder).join(&name);
+    (name, path)
 }

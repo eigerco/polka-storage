@@ -15,7 +15,7 @@ use jsonrpsee::{
 };
 use serde_json::Value;
 use tokio::sync::Notify;
-use tracing::info;
+use tracing::{info, instrument};
 
 use super::{
     methods::{common::InfoRequest, register_async, wallet::WalletRequest},
@@ -30,9 +30,13 @@ pub const RPC_SERVER_DEFAULT_BIND_ADDR: &str = "127.0.0.1:8000";
 pub struct RpcServerState {
     pub start_time: chrono::DateTime<Utc>,
     pub substrate_client: substrate::Client,
+    // TODO(no-ref,@cernicc,04/07/2024): Should use config struct that would
+    // provide the configuration across the provider
+    pub storage_dir: String,
 }
 
 /// Start the RPC server.
+#[instrument(skip_all)]
 pub async fn start_rpc_server(
     state: Arc<RpcServerState>,
     listen_addr: SocketAddr,

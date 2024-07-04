@@ -1,5 +1,6 @@
 //! A CLI application that facilitates management operations over a running full node and other components.
 #![deny(unused_crate_dependencies)]
+#![deny(clippy::unwrap_used)]
 
 mod cli;
 pub(crate) mod commands;

@@ -2,8 +2,8 @@ use std::{io, net::SocketAddr, str::FromStr, sync::Arc};
 
 use axum::{
     body::Body,
-    extract::{Path, Request, State},
-    http::StatusCode,
+    extract::{MatchedPath, Path, Request, State},
+    http::{header, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, post},
     Router,
@@ -14,13 +14,15 @@ use futures::TryStreamExt;
 use mater::Cid;
 use tokio::{fs::File, signal, sync::Notify};
 use tokio_util::io::{ReaderStream, StreamReader};
-use tracing::info;
+use tower_http::trace::TraceLayer;
+use tracing::{error, info, info_span, instrument};
 use url::Url;
+use uuid::Uuid;
 
 use crate::{
     cli::CliError,
     rpc::server::{start_rpc_server, RpcServerState, RPC_SERVER_DEFAULT_BIND_ADDR},
-    storage::{content_path, stream_contents_to_car},
+    storage::{content_path, stream_contents_to_car, STORAGE_DEFAULT_DIRECTORY},
     substrate,
 };
 
@@ -35,6 +37,9 @@ pub(crate) struct RunCommand {
     /// Address and port used for RPC server.
     #[arg(long, default_value = RPC_SERVER_DEFAULT_BIND_ADDR)]
     pub listen_addr: SocketAddr,
+    /// Directory where uploaded files are stored.
+    #[arg(long, default_value = STORAGE_DEFAULT_DIRECTORY)]
+    pub storage_dir: String,
 }
 
 impl RunCommand {
@@ -44,6 +49,7 @@ impl RunCommand {
         let state = Arc::new(RpcServerState {
             start_time: Utc::now(),
             substrate_client,
+            storage_dir: self.storage_dir.clone(),
         });
 
         // Notify setup for graceful shutdown
@@ -62,61 +68,84 @@ impl RunCommand {
                 info!("RPC server stopped");
             }
             _ = start_upload_server(state.clone(), shutdown.clone()) => {
-                info!("Upload server stopped");
+                info!("upload server stopped");
             }
         }
 
-        info!("Storage provider stopped");
+        info!("storage provider stopped");
 
         Ok(())
     }
 }
 
+/// Handler for the upload endpoint. It receives a stream of bytes, coverts them
+/// to a CAR file and returns the CID of the CAR file to the user.
 async fn upload(
-    State(_state): State<Arc<RpcServerState>>,
+    State(state): State<Arc<RpcServerState>>,
     request: Request,
 ) -> Result<String, (StatusCode, String)> {
-    // Body stream and reader
-    let body_data_stream = request.into_body().into_data_stream();
-    let body_with_io_error =
-        body_data_stream.map_err(|err| io::Error::new(io::ErrorKind::Other, err));
-    let body_reader = StreamReader::new(body_with_io_error);
+    // Body reader
+    let body_reader = StreamReader::new(
+        request
+            .into_body()
+            .into_data_stream()
+            .map_err(|err| io::Error::new(io::ErrorKind::Other, err)),
+    );
 
-    let cid = stream_contents_to_car(body_reader).await.unwrap();
-    Ok(cid.to_string())
+    stream_contents_to_car(&state.storage_dir, body_reader)
+        .await
+        .map_err(|err| {
+            error!(?err, "failed to create a CAR file");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "failed to create a CAR file".to_string(),
+            )
+        })
+        .map(|cid| cid.to_string())
 }
 
+/// Handler for the download endpoint. It receives a CID and streams the CAR
+/// file back to the user.
 async fn download(
-    State(_state): State<Arc<RpcServerState>>,
+    State(state): State<Arc<RpcServerState>>,
     Path(cid): Path<String>,
 ) -> Result<Response, (StatusCode, String)> {
     // Path to a CAR file
     let Ok(cid) = Cid::from_str(&cid) else {
+        error!(cid, "cid incorrect format");
         return Err((StatusCode::BAD_REQUEST, "cid incorrect format".to_string()));
     };
-    let path = content_path(cid);
+    let (file_name, path) = content_path(&state.storage_dir, cid);
+    info!(path = %path.display(), "file requested");
 
     // Check if the file exists
     if !path.exists() {
-        // Stream the file
-        return Err((StatusCode::NOT_FOUND, "File not found".to_string()));
+        error!(?path, "file not found");
+        return Err((StatusCode::NOT_FOUND, "file not found".to_string()));
     }
 
     // Open car file
     let Ok(file) = File::open(path).await else {
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
-            "Failed to open file".to_string(),
+            "failed to open file".to_string(),
         ));
     };
 
-    // convert the `AsyncRead` into a `Stream`
+    // Convert the `AsyncRead` into a `Stream`
     let stream = ReaderStream::new(file);
-    // convert the `Stream` into the Body
+    // Convert the `Stream` into the Body
     let body = Body::from_stream(stream);
+    // Response headers
+    let headers = [
+        (header::CONTENT_TYPE, "application/octet-stream"),
+        (
+            header::CONTENT_DISPOSITION,
+            &format!("attachment; filename=\"{:?}\"", file_name),
+        ),
+    ];
 
-    // TODO(no-ref,@cernicc,03/07/2024): What should be the response headers?
-    Ok(body.into_response())
+    Ok((headers, body).into_response())
 }
 
 // TODO(no-ref,@cernicc,28/06/2024): Move routing and handlers somewhere else
@@ -126,9 +155,31 @@ fn configure_router(state: Arc<RpcServerState>) -> Router {
         .route("/upload", post(upload))
         .route("/download/:cid", get(download))
         .with_state(state)
+        // Tracing layer
+        .layer(
+            TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
+                // Log the matched route's path (with placeholders not filled in).
+                // Use request.uri() or OriginalUri if you want the real path.
+                let matched_path = request
+                    .extensions()
+                    .get::<MatchedPath>()
+                    .map(MatchedPath::as_str);
+
+                info_span!(
+                    "request",
+                    method = ?request.method(),
+                    matched_path,
+                    request_id = %Uuid::new_v4()
+                )
+            }),
+        )
 }
 
-async fn start_upload_server(state: Arc<RpcServerState>, shutdown: Arc<Notify>) {
+#[instrument(skip_all)]
+async fn start_upload_server(
+    state: Arc<RpcServerState>,
+    shutdown: Arc<Notify>,
+) -> Result<(), CliError> {
     // Configure router
     let router = configure_router(state);
 
@@ -136,12 +187,13 @@ async fn start_upload_server(state: Arc<RpcServerState>, shutdown: Arc<Notify>) 
     // in use. This should be done when both servers will listen on the same
     // address
     let address = "127.0.0.1:3000";
-    let listener = tokio::net::TcpListener::bind(address).await.unwrap();
+    let listener = tokio::net::TcpListener::bind(address).await?;
 
     // Start server
-    info!("Upload server started at: {address}");
+    info!("upload server started at: {address}");
     axum::serve(listener, router)
         .with_graceful_shutdown(async move { shutdown.notified().await })
-        .await
-        .unwrap();
+        .await?;
+
+    Ok(())
 }
