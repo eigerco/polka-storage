@@ -558,54 +558,6 @@ fn verify_deals_for_activation() {
     });
 }
 
-/// Builder with nice defaults for test purposes.
-struct SectorDealBuilder {
-    sector_number: u64,
-    sector_expiry: u64,
-    sector_type: RegisteredSealProof,
-    deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
-}
-
-impl SectorDealBuilder {
-    pub fn sector_expiry(mut self, sector_expiry: u64) -> Self {
-        self.sector_expiry = sector_expiry;
-        self
-    }
-
-    pub fn sector_number(mut self, sector_number: u64) -> Self {
-        self.sector_number = sector_number;
-        self
-    }
-
-    pub fn deal_ids(
-        mut self,
-        deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
-    ) -> Self {
-        self.deal_ids = deal_ids;
-        self
-    }
-
-    pub fn build(self) -> SectorDeal<u64> {
-        SectorDeal::<u64> {
-            sector_number: self.sector_number,
-            sector_expiry: self.sector_expiry,
-            sector_type: self.sector_type,
-            deal_ids: self.deal_ids,
-        }
-    }
-}
-
-impl Default for SectorDealBuilder {
-    fn default() -> Self {
-        Self {
-            sector_number: 1,
-            sector_expiry: 120,
-            sector_type: RegisteredSealProof::StackedDRG2KiBV1P1,
-            deal_ids: bounded_vec![1],
-        }
-    }
-}
-
 #[test]
 fn verify_deals_for_activation_fails_with_different_provider() {
     new_test_ext().execute_with(|| {
@@ -1394,5 +1346,53 @@ impl DealProposalBuilder {
         let built = self.build();
         let signed = sign_proposal(by, built);
         signed
+    }
+}
+
+/// Builder with nice defaults for test purposes.
+struct SectorDealBuilder {
+    sector_number: u64,
+    sector_expiry: u64,
+    sector_type: RegisteredSealProof,
+    deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
+}
+
+impl SectorDealBuilder {
+    pub fn sector_expiry(mut self, sector_expiry: u64) -> Self {
+        self.sector_expiry = sector_expiry;
+        self
+    }
+
+    pub fn sector_number(mut self, sector_number: u64) -> Self {
+        self.sector_number = sector_number;
+        self
+    }
+
+    pub fn deal_ids(
+        mut self,
+        deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
+    ) -> Self {
+        self.deal_ids = deal_ids;
+        self
+    }
+
+    pub fn build(self) -> SectorDeal<u64> {
+        SectorDeal::<u64> {
+            sector_number: self.sector_number,
+            sector_expiry: self.sector_expiry,
+            sector_type: self.sector_type,
+            deal_ids: self.deal_ids,
+        }
+    }
+}
+
+impl Default for SectorDealBuilder {
+    fn default() -> Self {
+        Self {
+            sector_number: 1,
+            sector_expiry: 120,
+            sector_type: RegisteredSealProof::StackedDRG2KiBV1P1,
+            deal_ids: bounded_vec![1],
+        }
     }
 }
