@@ -13,11 +13,7 @@ axum = { workspace = true, features = ["macros", "multipart"] }
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive"] }
 futures = { workspace = true }
-jsonrpsee = { workspace = true, features = [
-    "http-client",
-    "server",
-    "ws-client",
-] }
+jsonrpsee = { workspace = true, features = ["http-client", "server", "ws-client"] }
 mater = { workspace = true }
 sc-cli = { workspace = true }
 sealed = { workspace = true }
