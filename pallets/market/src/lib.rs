@@ -1135,7 +1135,11 @@ pub mod pallet {
 
             let mut pending_proposals = PendingProposals::<T>::get();
             for sector in sector_deals {
-                let proposals = Self::proposals_for_deals(sector.deal_ids)?;
+                let Ok(proposals) = Self::proposals_for_deals(sector.deal_ids) else {
+                    log::error!("failed to find deals for sector: {}", sector.sector_number,);
+                    continue;
+                };
+
                 let sector_size = sector.sector_type.sector_size();
                 if let Err(e) = Self::validate_deals_for_sector(
                     &proposals,

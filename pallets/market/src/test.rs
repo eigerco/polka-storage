@@ -5,7 +5,6 @@ use frame_support::{
     assert_err, assert_noop, assert_ok,
     pallet_prelude::ConstU32,
     sp_runtime::{bounded_vec, ArithmeticError, BoundedVec, DispatchError, TokenError},
-    BoundedBTreeSet,
 };
 use primitives_proofs::{
     ActiveDeal, ActiveSector, DealId, Market as MarketTrait, RegisteredSealProof, SectorDeal,
@@ -248,7 +247,12 @@ fn publish_storage_deals_fails_end_before_start() {
 fn publish_storage_deals_fails_must_be_unpublished() {
     new_test_ext().execute_with(|| {
         let proposal = DealProposalBuilder::default()
-            .state(DealState::Published)
+            .state(DealState::Active(ActiveDealState {
+                sector_number: 0,
+                sector_start_block: 0,
+                last_updated_block: Some(10),
+                slash_block: None,
+            }))
             .signed(ALICE);
 
         assert_noop!(
@@ -568,6 +572,19 @@ impl SectorDealBuilder {
         self
     }
 
+    pub fn sector_number(mut self, sector_number: u64) -> Self {
+        self.sector_number = sector_number;
+        self
+    }
+
+    pub fn deal_ids(
+        mut self,
+        deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
+    ) -> Self {
+        self.deal_ids = deal_ids;
+        self
+    }
+
     pub fn build(self) -> SectorDeal<u64> {
         SectorDeal::<u64> {
             sector_number: self.sector_number,
@@ -648,12 +665,7 @@ fn verify_deals_for_activation_fails_sector_activation_after_start_block() {
         // wait a couple of blocks so deal cannot be activated, because it's too late.
         run_to_block(2);
 
-        publish_for_activation(
-            1,
-            DealProposalBuilder::default()
-                .start_block(1)
-                .build(),
-        );
+        publish_for_activation(1, DealProposalBuilder::default().start_block(1).build());
 
         let deals = bounded_vec![SectorDealBuilder::default().build()];
 
@@ -685,23 +697,126 @@ fn verify_deals_for_activation_fails_sector_expires_before_deal_ends() {
 }
 
 #[test]
+fn verify_deals_for_activation_fails_not_enough_space() {
+    new_test_ext().execute_with(|| {
+        publish_for_activation(
+            1,
+            DealProposalBuilder::default()
+                .piece_size(1 << 10 /* 1 KiB */)
+                .build(),
+        );
+        publish_for_activation(
+            2,
+            DealProposalBuilder::default()
+                .piece_size(3 << 10 /* 3 KiB */)
+                .build(),
+        );
+        // 1 KiB + 3KiB >= 2 KiB (sector size)
+
+        let deals = bounded_vec![SectorDealBuilder::default()
+            .deal_ids(bounded_vec![1, 2])
+            .build()];
+
+        assert_noop!(
+            Market::verify_deals_for_activation(&account(PROVIDER), deals),
+            Error::<Test>::DealsTooLargeToFitIntoSector
+        );
+    });
+}
+
+#[test]
+fn verify_deals_for_activation_fails_duplicate_deals() {
+    new_test_ext().execute_with(|| {
+        publish_for_activation(1, DealProposalBuilder::default().build());
+
+        let deals = bounded_vec![SectorDealBuilder::default()
+            .deal_ids(bounded_vec![1, 1])
+            .build()];
+
+        assert_noop!(
+            Market::verify_deals_for_activation(&account(PROVIDER), deals),
+            Error::<Test>::DuplicateDeal
+        );
+    });
+}
+
+#[test]
+fn verify_deals_for_activation_fails_deal_not_found() {
+    new_test_ext().execute_with(|| {
+        let deals = bounded_vec![SectorDealBuilder::default()
+            .deal_ids(bounded_vec![1, 2, 3, 4])
+            .build()];
+
+        assert_noop!(
+            Market::verify_deals_for_activation(&account(PROVIDER), deals),
+            Error::<Test>::DealNotFound
+        );
+    });
+}
+
+#[test]
 fn activate_deals() {
     new_test_ext().execute_with(|| {
         let alice_hash = publish_for_activation(1, DealProposalBuilder::default().build());
 
         let deals = bounded_vec![
-            SectorDeal {
-                sector_number: 1,
-                sector_expiry: 120,
-                sector_type: RegisteredSealProof::StackedDRG2KiBV1P1,
-                deal_ids: bounded_vec![1]
-            },
-            SectorDeal {
-                sector_number: 2,
-                sector_expiry: 50,
-                sector_type: RegisteredSealProof::StackedDRG2KiBV1P1,
-                deal_ids: bounded_vec![]
-            }
+            SectorDealBuilder::default().build(),
+            SectorDealBuilder::default()
+                .sector_number(2)
+                .sector_expiry(50)
+                .deal_ids(bounded_vec![])
+                .build()
+        ];
+
+        let piece_cid =
+            Cid::from_str("bafk2bzacecg3xxc4f2ql2hreiuy767u6r72ekdz54k7luieknboaakhft5rgk")
+                .unwrap();
+        let placeholder_commd_cid =
+            Cid::from_str("bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu")
+                .unwrap();
+        assert_eq!(
+            Ok(bounded_vec![
+                ActiveSector {
+                    active_deals: bounded_vec![ActiveDeal {
+                        client: account(ALICE),
+                        piece_cid: piece_cid,
+                        piece_size: 18
+                    }],
+                    unsealed_cid: Some(placeholder_commd_cid),
+                },
+                ActiveSector {
+                    active_deals: bounded_vec![],
+                    unsealed_cid: None
+                }
+            ]),
+            Market::activate_deals(&account(PROVIDER), deals, true)
+        );
+        assert!(!PendingProposals::<Test>::get().contains(&alice_hash));
+    });
+}
+
+#[test]
+fn activate_deals_fails_for_1_sector_but_succeeds_for_others() {
+    new_test_ext().execute_with(|| {
+        let alice_hash = publish_for_activation(1, DealProposalBuilder::default().build());
+        let _ = publish_for_activation(2, DealProposalBuilder::default().build());
+        let deals = bounded_vec![
+            SectorDealBuilder::default().build(),
+            SectorDealBuilder::default()
+                .sector_number(2)
+                .sector_expiry(50)
+                .deal_ids(bounded_vec![])
+                .build(),
+            SectorDealBuilder::default()
+                .sector_number(3)
+                .deal_ids(bounded_vec![1337])
+                .build(),
+            SectorDealBuilder::default()
+                .sector_number(4)
+                // force error by making expiry < start_block < end_block
+                .sector_expiry(10)
+                .deal_ids(bounded_vec![2])
+                .build()
         ];
 
         let piece_cid =
