@@ -128,6 +128,6 @@ where
 {
     match current_block.checked_sub(&period_start) {
         Some(block) => block / challenge_window,
-        None => period_start / challenge_window
+        None => period_start / challenge_window,
     }
 }
