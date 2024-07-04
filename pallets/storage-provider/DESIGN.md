@@ -13,11 +13,7 @@
     - [Sector Penalty (SP)](#sector-penalty-sp)
     - [Termination Penalty (TP)](#termination-penalty-tp)
     - [State management for Storage Providers](#state-management-for-storage-providers)
-    - [Static information about a Storage Provider](#static-information-about-a-storage-provider)
   - [Sector sealing](#sector-sealing)
-  - [Data structures](#data-structures)
-    - [Proof of Spacetime](#proof-of-spacetime)
-    - [Proof of Replication](#proof-of-replication)
   - [Storage Provider Flow](#storage-provider-flow)
     - [Registration](#registration)
     - [Commit](#commit)
@@ -81,40 +77,6 @@ By implementing these penalties, storage providers are incentivised to maintain 
 
 In our parachain, the state management for all storage providers is handled collectively, unlike Filecoin, which manages the state for individual storage providers.
 
-### Static information about a Storage Provider
-
-The below struct and its fields ensure that all necessary static information about a Storage provider is encapsulated, allowing for efficient management and interaction within the parachain.
-
-```rust
-pub struct StorageProviderInfo<AccountId, PeerId> {
-    /// Libp2p identity that should be used when connecting to this Storage Provider
-    pub peer_id: PeerId,
-
-    /// The proof type used by this Storage provider for sealing sectors.
-    /// Rationale: Different StorageProviders may use different proof types for sealing sectors. By storing
-    /// the `window_post_proof_type`, we can ensure that the correct proof mechanisms are applied and verified
-    /// according to the provider's chosen method. This enhances compatibility and integrity in the proof-of-storage
-    /// processes.
-    pub window_post_proof_type: RegisteredPoStProof,
-
-    /// Amount of space in each sector committed to the network by this Storage Provider
-    /// 
-    /// Rationale: The `sector_size` indicates the amount of data each sector can hold. This information is crucial
-    /// for calculating storage capacity, economic incentives, and the validation process. It ensures that the storage
-    /// commitments made by the provider are transparent and verifiable.
-    pub sector_size: SectorSize,
-
-    /// The number of sectors in each Window PoSt partition (proof).
-    /// This is computed from the proof type and represented here redundantly.
-    /// 
-    /// Rationale: The `window_post_partition_sectors` field specifies the number of sectors included in each
-    /// Window PoSt proof partition. This redundancy ensures that partition calculations are consistent and
-    /// simplifies the process of generating and verifying proofs. By storing this value, we enhance the efficiency
-    /// of proof operations and reduce computational overhead during runtime.
-    pub window_post_partition_sectors: u64,
-}
-```
-
 ## Sector sealing
 
 Before a sector can be used, the storage provider must seal the sector, which involves encoding the data in the sector to prepare it for the proving process.
@@ -131,65 +93,6 @@ Sealing a sector using Proof-of-Replication (PoRep) is a computation-intensive p
 - **Generate a Proof**: Create a proof that the data has been correctly sealed.
 - **Run a SNARK on the Proof**: Compress the proof using a Succinct Non-interactive Argument of Knowledge (SNARK).
 - **Submit the Compressed Proof:** Submit the result of the compression to the blockchain as certification of the storage commitment.
-
-## Data structures
-
-### Proof of Spacetime
-
-> [!NOTE]
-> For more information about proofs check out the [proof of storage docs](./PROOF-OF-STORAGE.md)
-
-Proof of Spacetime indicates the version and the sector size of the proof. This type is used by the Storage Provider when initially starting up to indicate what PoSt version it will use to submit Window PoSt proof.
-
-```rust
-pub enum RegisteredPoStProof {
-    StackedDRGWindow2KiBV1P1,
-}
-```
-
-The `SectorSize` indicates one of a set of possible sizes in the network.
-
-```rust
-#[repr(u64)]
-pub enum SectorSize {
-    _2KiB,
-}
-```
-
-The `PoStProof` is the proof of spacetime data that is stored on chain
-
-```rust
-pub struct PoStProof {
-    pub post_proof: RegisteredPoStProof,
-    pub proof_bytes: Vec<u8>,
-}
-```
-
-### Proof of Replication
-
-> [!NOTE]
-> For more information about proofs check out the [proof of storage docs](./PROOF-OF-STORAGE.md)
-
-Proof of Replication is used when a Storage Provider wants to store data on behalf of a client and receives a piece of client data. The data will first be placed in a sector after which that sector is sealed by the storage provider. Then a unique encoding, which serves as proof that the Storage Provider has replicated a copy of the data they agreed to store, is generated. Finally, the proof is compressed and submitted to the network as certification of storage.
-
-```rust
-/// This type indicates the seal proof type which defines the version and the sector size
-pub enum RegisteredSealProof {
-    StackedDRG2KiBV1P1,
-}
-```
-
-The unique encoding created during the sealing process is generated using the sealed data, the storage provider who seals the data and the time at which the data was sealed.
-
-```rust
-/// This type is passed into the pre commit function on the storage provider pallet
-pub struct SectorPreCommitInfo {
-    pub seal_proof: RegisteredSealProof,
-    pub sector_number: SectorNumber,
-    pub sealed_cid: Cid,
-    pub expiration: u64,
-}
-```
 
 ## Storage Provider Flow
 
