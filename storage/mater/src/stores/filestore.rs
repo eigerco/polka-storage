@@ -1,4 +1,5 @@
 use futures::stream::StreamExt;
+use ipld_core::cid::Cid;
 use sha2::{Digest, Sha256};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite};
 use tokio_util::io::ReaderStream;
@@ -14,7 +15,7 @@ async fn balanced_import<Src, Out>(
     mut output: Out,
     chunk_size: usize,
     tree_width: usize,
-) -> Result<(), Error>
+) -> Result<Cid, Error>
 where
     Src: AsyncRead + Unpin,
     Out: AsyncWrite + AsyncSeek + Unpin,
@@ -73,7 +74,7 @@ where
     let header_v1 = CarV1Header::new(vec![root]);
     v1::write_header(&mut output, &header_v1).await?;
 
-    Ok(())
+    Ok(root)
 }
 
 /// Convert a `source` stream into a CARv2 file and write it to `output` stream.
@@ -81,7 +82,7 @@ pub async fn create_filestore<Src, Out>(
     source: Src,
     output: Out,
     config: Config,
-) -> Result<(), Error>
+) -> Result<Cid, Error>
 where
     Src: AsyncRead + Unpin,
     Out: AsyncWrite + AsyncSeek + Unpin,

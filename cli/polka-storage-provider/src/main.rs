@@ -4,6 +4,7 @@
 mod cli;
 pub(crate) mod commands;
 mod rpc;
+mod storage;
 mod substrate;
 
 pub(crate) use cli::Cli;

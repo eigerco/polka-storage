@@ -6,7 +6,7 @@ use std::{
 
 use chrono::Utc;
 use jsonrpsee::{
-    server::{Server, ServerHandle},
+    server::Server,
     types::{
         error::{INTERNAL_ERROR_CODE, INVALID_PARAMS_CODE},
         ErrorObjectOwned,
@@ -14,6 +14,8 @@ use jsonrpsee::{
     RpcModule,
 };
 use serde_json::Value;
+use tokio::sync::Notify;
+use tracing::info;
 
 use super::{
     methods::{common::InfoRequest, register_async, wallet::WalletRequest},
@@ -34,13 +36,24 @@ pub struct RpcServerState {
 pub async fn start_rpc_server(
     state: Arc<RpcServerState>,
     listen_addr: SocketAddr,
-) -> Result<ServerHandle, CliError> {
+    shutdown: Arc<Notify>,
+) -> Result<(), CliError> {
     let server = Server::builder().build(listen_addr).await?;
 
     let module = create_module(state);
     let server_handle = server.start(module);
+    info!("RPC server started at {}", listen_addr);
 
-    Ok(server_handle)
+    // Wait for shutdown signal
+    shutdown.notified().await;
+
+    // Stop returns and error if the server has already been stopped
+    let _ = server_handle.stop();
+
+    // Wait for server to be stopped
+    server_handle.stopped().await;
+
+    Ok(())
 }
 
 /// Initialize [`RpcModule`] and register the handlers

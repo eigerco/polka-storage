@@ -22,6 +22,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 subxt = { workspace = true }
 subxt-signer = { workspace = true }
+tempfile = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tokio-util = { version = "0.7.11" }
