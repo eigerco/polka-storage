@@ -28,7 +28,10 @@ mod storage_provider;
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
     pub const CID_CODEC: u64 = 0x55;
-    pub const CID_MAX_BYTE_SIZE: u32 = 128;
+    pub const CID_SIZE_IN_BYTES: u32 = 128;
+    pub type SubstrateCid = BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>;
+    /// The CID (in bytes) of a given sector.
+    pub type SectorId = SubstrateCid;
 
     use core::fmt::Debug;
 
