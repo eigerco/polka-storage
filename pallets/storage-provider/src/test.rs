@@ -256,5 +256,9 @@ fn prove_commit_sector() {
         );
         // check that the funds are still locked
         assert_eq!(Balances::free_balance(ALICE), 99);
+        let sp_state = StorageProviders::<Test>::get(ALICE).expect("Should be able to get ALICE info");
+        // check that the sector has been activated
+        assert!(!sp_state.sectors.is_empty());
+        assert!(sp_state.sectors.contains_key(&sector_number));
     });
 }
