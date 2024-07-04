@@ -8,6 +8,7 @@ use tokio::{
 };
 
 /// Directory where uploaded files are stored.
+// TODO(no-ref,@cernicc,04/07/2024): Where should the uploads be stored?
 const UPLOADS_DIRECTORY: &str = "uploads";
 
 /// Reads bytes from the source and writes them to a CAR file.
