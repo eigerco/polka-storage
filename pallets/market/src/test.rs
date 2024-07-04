@@ -199,6 +199,7 @@ fn publish_storage_deals() {
 
     new_test_ext().execute_with(|| {
         let alice_start_block = 100;
+        let alice_deal_id = 0;
         let alice_proposal = sign_proposal(
             ALICE,
             DealProposal {
@@ -218,6 +219,7 @@ fn publish_storage_deals() {
             },
         );
         let bob_start_block = 130;
+        let bob_deal_id = 1;
         let bob_proposal = sign_proposal(
             BOB,
             DealProposal {
@@ -274,12 +276,12 @@ fn publish_storage_deals() {
             events(),
             [
                 RuntimeEvent::Market(Event::<Test>::DealPublished {
-                    deal_id: 0,
+                    deal_id: alice_deal_id,
                     client: account(ALICE),
                     provider: account(PROVIDER),
                 }),
                 RuntimeEvent::Market(Event::<Test>::DealPublished {
-                    deal_id: 1,
+                    deal_id: bob_deal_id,
                     client: account(BOB),
                     provider: account(PROVIDER),
                 }),
@@ -287,8 +289,8 @@ fn publish_storage_deals() {
         );
         assert!(PendingProposals::<Test>::get().contains(&alice_hash));
         assert!(PendingProposals::<Test>::get().contains(&bob_hash));
-        assert!(DealsForBlock::<Test>::get(&alice_start_block).contains(&0));
-        assert!(DealsForBlock::<Test>::get(&bob_start_block).contains(&1));
+        assert!(DealsForBlock::<Test>::get(&alice_start_block).contains(&alice_deal_id));
+        assert!(DealsForBlock::<Test>::get(&bob_start_block).contains(&bob_deal_id));
     });
 }
 
@@ -428,6 +430,7 @@ fn verifies_deals_on_block_finalization() {
 
     new_test_ext().execute_with(|| {
         let alice_start_block = 100;
+        let alice_deal_id = 0;
         let alice_proposal = sign_proposal(
             ALICE,
             DealProposal {
@@ -447,6 +450,7 @@ fn verifies_deals_on_block_finalization() {
             },
         );
         let bob_start_block = 130;
+        let bob_deal_id = 1;
         let bob_proposal = sign_proposal(
             BOB,
             DealProposal {
@@ -496,7 +500,7 @@ fn verifies_deals_on_block_finalization() {
         );
         // After Alice's block, nothing changes to the balance. It has been activated properly.
         run_to_block(alice_start_block + 1);
-        assert!(!DealsForBlock::<Test>::get(&alice_start_block).contains(&0));
+        assert!(!DealsForBlock::<Test>::get(&alice_start_block).contains(&alice_deal_id));
         assert_eq!(
             BalanceTable::<Test>::get(account(ALICE)),
             BalanceEntry::<u64> {
@@ -539,7 +543,7 @@ fn verifies_deals_on_block_finalization() {
             }
         );
 
-        assert!(!DealsForBlock::<Test>::get(&bob_start_block).contains(&1));
+        assert!(!DealsForBlock::<Test>::get(&bob_start_block).contains(&bob_deal_id));
     });
 }
 
