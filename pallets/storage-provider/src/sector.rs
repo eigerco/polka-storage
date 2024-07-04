@@ -80,6 +80,22 @@ pub struct SectorOnChainInfo<BlockNumber> {
     pub unsealed_cid: BoundedVec<u8, ConstU32<CID_MAX_BYTE_SIZE>>,
 }
 
+impl<BlockNumber> SectorOnChainInfo<BlockNumber> {
+    pub fn from_pre_commit(
+        pre_commit: SectorPreCommitInfo<BlockNumber>,
+        activation: BlockNumber,
+    ) -> Self {
+        SectorOnChainInfo {
+            sector_number: pre_commit.sector_number,
+            seal_proof: pre_commit.seal_proof,
+            sealed_cid: pre_commit.sealed_cid,
+            expiration: pre_commit.expiration,
+            activation,
+            unsealed_cid: pre_commit.unsealed_cid,
+        }
+    }
+}
+
 /// Arguments passed into the `prove_commit_sector` extrinsic.
 #[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct ProveCommitSector {

@@ -99,6 +99,27 @@ where
             .get(&sector_number)
             .ok_or(StorageProviderError::SectorNotFound)
     }
+
+    pub fn remove_precomitted_sector(
+        &mut self,
+        sector_num: SectorNumber,
+    ) -> Result<(), StorageProviderError> {
+        self.pre_committed_sectors
+            .remove(&sector_num)
+            .ok_or(StorageProviderError::SectorNotFound)?;
+        Ok(())
+    }
+
+    pub fn activate_sector(
+        &mut self,
+        sector_num: SectorNumber,
+        info: SectorOnChainInfo<BlockNumber>,
+    ) -> Result<(), StorageProviderError> {
+        self.sectors
+            .try_insert(sector_num, info)
+            .map_err(|_| StorageProviderError::SectorNumberInUse)?;
+        Ok(())
+    }
 }
 
 #[derive(RuntimeDebug)]
@@ -108,6 +129,7 @@ pub enum StorageProviderError {
     /// Happens when an SP tries to pre-commit more sectors than SECTOR_MAX.
     MaxPreCommittedSectorExceeded,
     SectorNotFound,
+    SectorNumberInUse,
 }
 
 /// Static information about the storage provider.

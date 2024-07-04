@@ -48,8 +48,8 @@ pub mod pallet {
             RegisteredPoStProof, RegisteredSealProof,
         },
         sector::{
-            ProveCommitSector, SectorNumber, SectorPreCommitInfo, SectorPreCommitOnChainInfo,
-            SECTORS_MAX,
+            ProveCommitSector, SectorNumber, SectorOnChainInfo, SectorPreCommitInfo,
+            SectorPreCommitOnChainInfo, SECTORS_MAX,
         },
         storage_provider::{StorageProviderInfo, StorageProviderState},
     };
@@ -133,6 +133,10 @@ pub mod pallet {
         NotEnoughFunds,
         /// Emitted when a storage provider tries to commit more sectors than MAX_SECTORS.
         MaxPreCommittedSectorExceeded,
+        /// Emitted when a sector fails to activate.
+        SectorActivateFailed,
+        /// Emitted when removing a precommitted sector after proving fails.
+        CouldNotRemoveSector,
     }
 
     #[pallet::call]
@@ -219,12 +223,10 @@ pub mod pallet {
             let owner = ensure_signed(origin)?;
             let sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
-            ensure!(
-                sector.sector_number <= SECTORS_MAX,
-                Error::<T>::InvalidSector
-            );
+            let sector_num = sector.sector_number;
+            ensure!(sector_num <= SECTORS_MAX, Error::<T>::InvalidSector);
             let precommit = sp
-                .get_precommitted_sector(sector.sector_number)
+                .get_precommitted_sector(sector_num)
                 .map_err(|_| Error::<T>::InvalidSector)?;
             let current_block = <frame_system::Pallet<T>>::block_number();
             let prove_commit_due =
@@ -237,9 +239,22 @@ pub mod pallet {
                 validate_seal_proof(&precommit.info.seal_proof, sector.proof),
                 Error::<T>::InvalidProofType,
             );
+            let new_sector =
+                SectorOnChainInfo::from_pre_commit(precommit.info.clone(), current_block);
+
+            StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResultWithPostInfo {
+                let sp = maybe_sp
+                    .as_mut()
+                    .ok_or(Error::<T>::StorageProviderNotFound)?;
+                sp.activate_sector(sector_num, new_sector)
+                    .map_err(|_| Error::<T>::SectorActivateFailed)?;
+                sp.remove_precomitted_sector(sector_num)
+                    .map_err(|_| Error::<T>::CouldNotRemoveSector)?;
+                Ok(().into())
+            })?;
             Self::deposit_event(Event::SectorProven {
                 owner,
-                sector_number: sector.sector_number,
+                sector_number: sector_num,
             });
             Ok(().into())
         }
