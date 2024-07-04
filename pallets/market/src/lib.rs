@@ -18,9 +18,6 @@ mod test;
 // TODO(@th7nder,#77,14/06/2024): take the pallet out of dev mode
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
-    pub const CID_CODEC: u64 = 0x55;
-    pub const LOG_TARGET: &'static str = "runtime::market";
-
     use cid::Cid;
     use codec::{Decode, Encode};
     use frame_support::{
@@ -32,6 +29,7 @@ pub mod pallet {
             ArithmeticError, BoundedBTreeMap, RuntimeDebug,
         },
         traits::{
+            tokens::WithdrawReasons,
             Currency,
             ExistenceRequirement::{AllowDeath, KeepAlive},
             Hooks, ReservableCurrency, WithdrawReasons,
@@ -41,12 +39,16 @@ pub mod pallet {
     use frame_system::{pallet_prelude::*, Config as SystemConfig, Pallet as System};
     use multihash_codetable::{Code, MultihashDigest};
     use primitives_proofs::{
-        ActiveDeal, ActiveSector, DealId, Market, RegisteredSealProof, SectorDeal, SectorNumber,
-        SectorSize, MAX_DEALS_FOR_ALL_SECTORS, MAX_DEALS_PER_SECTOR, MAX_SECTORS_PER_CALL,
+        ActiveDeal, ActiveSector, DealId, Market, RegisteredSealProof, SectorDeal, SectorId,
+        SectorNumber, SectorSize, MAX_DEALS_FOR_ALL_SECTORS, MAX_DEALS_PER_SECTOR,
+        MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::BaseArithmetic;
     use sp_std::vec::Vec;
+
+    pub const CID_CODEC: u64 = 0x55;
+    pub const LOG_TARGET: &'static str = "runtime::market";
 
     /// Allows to extract Balance of an account via the Config::Currency associated type.
     /// BalanceOf is a sophisticated way of getting an u128.
@@ -190,7 +192,7 @@ pub mod pallet {
     }
 
     impl<BlockNumber> ActiveDealState<BlockNumber> {
-        fn new(
+        pub(crate) fn new(
             sector_number: SectorNumber,
             sector_start_block: BlockNumber,
         ) -> ActiveDealState<BlockNumber> {
@@ -333,6 +335,11 @@ pub mod pallet {
         ValueQuery,
     >;
 
+    /// Holds a mapping from [`SectorId`] to its respective [`DealId`]s.
+    #[pallet::storage]
+    pub type SectorDeals<T: Config> =
+        StorageMap<_, _, SectorId, BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>>;
+
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
@@ -367,6 +374,18 @@ pub mod pallet {
         },
         /// Deal was slashed.
         DealSlashed(DealId),
+
+        /// Deal has been terminated.
+        ///
+        /// A deal may be voluntarily terminated by the storage provider,
+        /// or involuntarily, if the sector has been faulty for 42 consecutive days.
+        ///
+        /// Source: <https://spec.filecoin.io/#section-systems.filecoin_mining.sector.lifecycle>
+        DealTerminated {
+            deal_id: DealId,
+            client: T::AccountId,
+            provider: T::AccountId,
+        },
     }
 
     /// Utility type to ensure that the bound for deal settlement is in sync.
@@ -454,6 +473,26 @@ pub mod pallet {
         ExpiredDeal,
     }
 
+    #[derive(RuntimeDebug)]
+    pub enum SectorTerminateError {
+        /// Deal was not found in the [`Proposals`] table.
+        DealNotFound,
+        /// Caller is not the provider.
+        InvalidCaller,
+        /// Deal is not active
+        DealIsNotActive,
+    }
+
+    impl From<SectorTerminateError> for DispatchError {
+        fn from(value: SectorTerminateError) -> Self {
+            DispatchError::Other(match value {
+                SectorTerminateError::DealNotFound => "deal was not found",
+                SectorTerminateError::InvalidCaller => "caller is not the provider",
+                SectorTerminateError::DealIsNotActive => "sector contains active deals",
+            })
+        }
+    }
+
     /// Extrinsics exposed by the pallet
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -470,12 +509,13 @@ pub mod pallet {
                     .ok_or(ArithmeticError::Overflow)?;
                 T::Currency::transfer(&caller, &Self::account_id(), amount, KeepAlive)?;
 
-                Self::deposit_event(Event::<T>::BalanceAdded {
-                    who: caller.clone(),
-                    amount,
-                });
                 Ok(())
             })?;
+
+            Self::deposit_event(Event::<T>::BalanceAdded {
+                who: caller.clone(),
+                amount,
+            });
 
             Ok(())
         }
@@ -494,12 +534,13 @@ pub mod pallet {
                 // The Market Pallet account will be reaped if no one is participating in the market.
                 T::Currency::transfer(&Self::account_id(), &caller, amount, AllowDeath)?;
 
-                Self::deposit_event(Event::<T>::BalanceWithdrawn {
-                    who: caller.clone(),
-                    amount,
-                });
                 Ok(())
             })?;
+
+            Self::deposit_event(Event::<T>::BalanceWithdrawn {
+                who: caller.clone(),
+                amount,
+            });
 
             Ok(())
         }
@@ -676,19 +717,8 @@ pub mod pallet {
                     .try_into()
                     .map_err(|_| Error::<T>::UnexpectedValidationError)?;
 
-                BalanceTable::<T>::try_mutate(&deal.client, |balance| -> DispatchResult {
-                    // PRE-COND: always succeeds, validated by `validate_deals`
-                    balance.free = balance
-                        .free
-                        .checked_sub(&client_fee)
-                        .ok_or(ArithmeticError::Underflow)?;
-                    balance.locked = balance
-                        .locked
-                        .checked_add(&client_fee)
-                        .ok_or(ArithmeticError::Overflow)?;
-
-                    Ok(())
-                })?;
+                // PRE-COND: always succeeds, validated by `validate_deals`
+                lock_funds::<T>(&deal.client, client_fee)?;
 
                 let deal_id = Self::generate_deal_id();
 
@@ -708,17 +738,7 @@ pub mod pallet {
 
             // Lock up funds for the Storage Provider
             // PRE-COND: always succeeds, validated by `validate_deals`
-            BalanceTable::<T>::try_mutate(&provider, |balance| -> DispatchResult {
-                balance.free = balance
-                    .free
-                    .checked_sub(&total_provider_lockup)
-                    .ok_or(ArithmeticError::Underflow)?;
-                balance.locked = balance
-                    .locked
-                    .checked_add(&total_provider_lockup)
-                    .ok_or(ArithmeticError::Overflow)?;
-                Ok(())
-            })?;
+            lock_funds::<T>(&provider, total_provider_lockup)?;
 
             Ok(())
         }
@@ -1045,28 +1065,6 @@ pub mod pallet {
             let bytes = Encode::encode(proposal);
             T::Hashing::hash(&bytes)
         }
-
-        fn slash_and_burn(account_id: &T::AccountId, amount: BalanceOf<T>) -> DispatchResult {
-            BalanceTable::<T>::try_mutate(account_id, |balance| -> DispatchResult {
-                let locked = balance
-                    .locked
-                    .checked_sub(&amount)
-                    .ok_or(ArithmeticError::Underflow)?;
-                balance.locked = locked;
-                Ok(())
-            })?;
-            // Burn from circulating supply
-            let imbalance = T::Currency::burn(amount);
-            // Remove burned amount from the market account
-            T::Currency::settle(
-                &T::PalletId::get().into_account_truncating(),
-                imbalance,
-                WithdrawReasons::FEE,
-                KeepAlive,
-            )
-            // If we burned X, tried to settle X and failed, we're in a bad state
-            .map_err(|_| DispatchError::Corruption)
-        }
     }
 
     impl<T: Config> Market<T::AccountId, BlockNumberFor<T>> for Pallet<T> {
@@ -1213,6 +1211,121 @@ pub mod pallet {
             PendingProposals::<T>::set(pending_proposals);
             Ok(activations)
         }
+
+        /// Terminate a set of deals in response to their sector being terminated.
+        ///
+        /// Slashes the provider collateral, refunds the partial unpaid escrow amount to the client.
+        ///
+        /// A sector can be terminated voluntarily — the storage provider terminates the sector —
+        /// or involuntarily — the sector has been faulty for more than 42 consecutive days.
+        ///
+        /// Source: <https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/market/src/lib.rs#L786-L876>
+        fn on_sectors_terminate(
+            storage_provider: &T::AccountId,
+            sector_ids: BoundedVec<SectorId, ConstU32<MAX_DEALS_PER_SECTOR>>,
+        ) -> DispatchResult {
+            // TODO(@jmg-duarte,04/07/2024): check that the caller is actually a storage provider (?)
+
+            // NOTE(@jmg-duarte,03/07/2024): the usage of the `current_block` NEEDS to be revised
+            // in the future as this function MAY be called on a different block than the current one.
+            // This is a consequence of the fact that this function is called indirectly,
+            // through a chain of calls that start on deferred cron events
+            let current_block = <frame_system::Pallet<T>>::block_number();
+
+            for sector_id in sector_ids {
+                // In the original implementation, all sectors are popped, here, we take them all
+                let Some(deal_ids) = SectorDeals::<T>::take(sector_id) else {
+                    // Not found sectors are ignored, if we don't find any, we don't do anything
+                    continue;
+                };
+
+                for deal_id in deal_ids {
+                    // Fetch the corresponding deal proposal, it's ok if it has already been deleted
+                    let Some(mut deal_proposal) = Proposals::<T>::get(deal_id) else {
+                        return Err(SectorTerminateError::DealNotFound)?;
+                    };
+
+                    if *storage_provider != deal_proposal.provider {
+                        return Err(SectorTerminateError::InvalidCaller)?;
+                    }
+
+                    if deal_proposal.end_block <= current_block {
+                        // not slashing finished deals
+                        continue;
+                    }
+
+                    let hash_proposal = Self::hash_proposal(&deal_proposal);
+                    // If a sector is being terminated, it means that at some point,
+                    // the deals contained within were active
+                    let DealState::Active(ref mut active_deal_state) = deal_proposal.state else {
+                        return Err(SectorTerminateError::DealIsNotActive)?;
+                    };
+
+                    // https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/market/src/lib.rs#L840-L844
+                    if let Some(_) = active_deal_state.slash_block {
+                        log::warn!("deal {} was already slashed, terminating anyway", deal_id);
+                    }
+
+                    // https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/market/src/lib.rs#L846-L850
+                    if let None = active_deal_state.last_updated_block {
+                        PendingProposals::<T>::mutate(|pending_proposals| {
+                            pending_proposals.remove(&hash_proposal);
+                        });
+                    }
+
+                    // Handle payments
+                    // https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/market/src/state.rs#L922-L962
+
+                    // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/state.rs#L932-L933
+                    let payment_start_block = calculate_start_block(
+                        deal_proposal.start_block,
+                        active_deal_state.last_updated_block,
+                    );
+                    // The only reason we can use `current_block` is because of the line
+                    // https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/market/src/lib.rs#L852
+                    let payment_end_block =
+                        calculate_end_block(current_block, deal_proposal.end_block);
+                    let n_blocks_elapsed =
+                        calculate_elapsed_blocks(payment_start_block, payment_end_block);
+
+                    let total_payment = calculate_storage_price::<T>(
+                        n_blocks_elapsed,
+                        deal_proposal.storage_price_per_block,
+                    )?;
+
+                    // Pay any outstanding debts to the provider
+                    perform_storage_payment::<T>(
+                        &deal_proposal.client,
+                        &deal_proposal.provider,
+                        total_payment,
+                    )?;
+                    // Slash and burn the provider collateral
+                    slash_and_burn::<T>(
+                        &deal_proposal.provider,
+                        deal_proposal.provider_collateral,
+                    )?;
+
+                    // The remaining client locked funds should be counted from
+                    // everything we just paid until the deal's end block
+                    let remaining_client_collateral = calculate_storage_price::<T>(
+                        deal_proposal.end_block - payment_end_block,
+                        deal_proposal.storage_price_per_block,
+                    )?;
+                    // We then unlock those client funds
+                    unlock_funds::<T>(&deal_proposal.client, remaining_client_collateral)?;
+
+                    // Remove completed deal
+                    let _ = Proposals::<T>::remove(deal_id);
+
+                    Self::deposit_event(Event::<T>::DealTerminated {
+                        deal_id,
+                        client: deal_proposal.client.clone(),
+                        provider: deal_proposal.provider.clone(),
+                    });
+                }
+            }
+            Ok(())
+        }
     }
 
     #[pallet::hooks]
@@ -1266,20 +1379,7 @@ pub mod pallet {
                             continue;
                         };
 
-                        let Ok(()) = BalanceTable::<T>::try_mutate(
-                            &proposal.client,
-                            |balance| -> DispatchResult {
-                                balance.free = balance
-                                    .free
-                                    .checked_add(&client_fee)
-                                    .ok_or(ArithmeticError::Overflow)?;
-                                balance.locked = balance
-                                    .locked
-                                    .checked_sub(&client_fee)
-                                    .ok_or(ArithmeticError::Underflow)?;
-                                Ok(())
-                            },
-                        ) else {
+                        let Ok(()) = unlock_funds::<T>(&proposal.client, client_fee) else {
                             log::error!(target: LOG_TARGET, "on_finalize: invariant violated, failed to return the fee to the client, deal {}", deal_id);
                             continue;
                         };
@@ -1291,7 +1391,7 @@ pub mod pallet {
                         );
                         // PRE-COND: deal MUST BE validated and the proper funds allocated
                         let Ok(()) =
-                            Self::slash_and_burn(&proposal.provider, proposal.provider_collateral)
+                            slash_and_burn::<T>(&proposal.provider, proposal.provider_collateral)
                         else {
                             log::error!(target: LOG_TARGET, "on_finalize: invariant violated, cannot slash the deal {}", deal_id);
                             continue;
@@ -1317,11 +1417,15 @@ pub mod pallet {
         }
     }
 
+    // NOTE(@jmg-duarte,01/07/2024): having free functions instead of implemented ones makes it harder
+    // to mistakenly make them public or interact weirdly with the Polkadot macros
+
+
     /// Moves the provided `amount` from the `client`'s locked funds, to the provider's `free` funds.
     ///
     /// # Pre-Conditions
     /// * The client MUST have the necessary funds locked.
-    fn perform_storage_payment<T: Config>(
+    pub(crate) fn perform_storage_payment<T: Config>(
         client: &T::AccountId,
         provider: &T::AccountId,
         amount: BalanceOf<T>,
@@ -1346,5 +1450,138 @@ pub mod pallet {
         })?;
 
         Ok(())
+    }
+
+    /// Unlock a given `amount` of funds from the target account.
+    ///
+    /// Moves funds from `locked` to `free`.
+    #[inline(always)]
+    pub(crate) fn unlock_funds<T: Config>(
+        account_id: &T::AccountId,
+        amount: BalanceOf<T>,
+    ) -> DispatchResult {
+        BalanceTable::<T>::try_mutate(account_id, |balance| -> DispatchResult {
+            balance.locked = balance
+                .locked
+                .checked_sub(&amount)
+                .ok_or(ArithmeticError::Underflow)?;
+
+            balance.free = balance
+                .free
+                .checked_add(&amount)
+                .ok_or(ArithmeticError::Overflow)?;
+
+            Ok(())
+        })
+    }
+
+    /// Lock a given `amount` of funds from the target account.
+    ///
+    /// Moves funds from `free` to `locked`.
+    #[inline(always)]
+    pub(crate) fn lock_funds<T: Config>(
+        account_id: &T::AccountId,
+        amount: BalanceOf<T>,
+    ) -> DispatchResult {
+        BalanceTable::<T>::try_mutate(account_id, |balance| -> DispatchResult {
+            balance.free = balance
+                .free
+                .checked_sub(&amount)
+                .ok_or(ArithmeticError::Underflow)?;
+
+            balance.locked = balance
+                .locked
+                .checked_add(&amount)
+                .ok_or(ArithmeticError::Overflow)?;
+
+            Ok(())
+        })
+    }
+
+    /// Slash and burn the provided `amount` from a given account.
+    ///
+    /// Sets `locked` to `locked - amount` and burns `amount`.
+    pub(crate) fn slash_and_burn<T: Config>(
+        account_id: &T::AccountId,
+        amount: BalanceOf<T>,
+    ) -> DispatchResult {
+        BalanceTable::<T>::try_mutate(account_id, |balance| -> DispatchResult {
+            let locked = balance
+                .locked
+                .checked_sub(&amount)
+                .ok_or(ArithmeticError::Underflow)?;
+            balance.locked = locked;
+            Ok(())
+        })?;
+        // Burn from circulating supply
+        let imbalance = T::Currency::burn(amount);
+        // Remove burned amount from the market account
+        T::Currency::settle(
+            &T::PalletId::get().into_account_truncating(),
+            imbalance,
+            WithdrawReasons::FEE,
+            KeepAlive,
+        )
+        // If we burned X, tried to settle X and failed, we're in a bad state
+        .map_err(|_| DispatchError::Corruption)
+    }
+
+    /// Calculate the start block.
+    ///
+    /// If `last_updated_block` is `None`, returns `start_block`.
+    /// Otherwise, returns the `max` between `start_block` and `last_updated_block`.
+    #[inline(always)]
+    fn calculate_start_block<BlockNumber: BaseArithmetic>(
+        start_block: BlockNumber,
+        last_updated_block: Option<BlockNumber>,
+    ) -> BlockNumber {
+        if let Some(last_updated_block) = last_updated_block {
+            core::cmp::max(start_block, last_updated_block)
+        } else {
+            start_block
+        }
+    }
+
+    /// Calculate the end block.
+    ///
+    /// Returns the `min` between the `current_block` and `end_block`.
+    #[inline(always)]
+    fn calculate_end_block<BlockNumber: BaseArithmetic>(
+        current_block: BlockNumber,
+        end_block: BlockNumber,
+    ) -> BlockNumber {
+        core::cmp::min(current_block, end_block)
+    }
+
+    /// Calculate the number of elapsed blocks.
+    ///
+    /// Returns the `max` between `end_block - start_block` and `0`.
+    #[inline(always)]
+    fn calculate_elapsed_blocks<BlockNumber: BaseArithmetic>(
+        start_block: BlockNumber,
+        end_block: BlockNumber,
+    ) -> BlockNumber {
+        // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/state.rs#L934-L935
+        core::cmp::max(end_block - start_block, 0.into())
+    }
+
+    /// Calculate the storage price for a given `n_blocks` at a rate of `price_per_block`.
+    ///
+    /// Internally, this function converts both values to [`u128`], multiplies them,
+    /// and converts back to [`BalanceOf<T>`], if at any point the conversion fails,
+    /// it is assumed to be an overflow and [`ArithmeticError::Overflow`] is returned.
+    #[inline(always)]
+    fn calculate_storage_price<T>(
+        n_blocks: BlockNumberFor<T>,
+        price_per_block: BalanceOf<T>,
+    ) -> Result<BalanceOf<T>, ArithmeticError>
+    where
+        T: Config,
+    {
+        let n_blocks =
+            TryInto::<u128>::try_into(n_blocks).map_err(|_| ArithmeticError::Overflow)?;
+        let price_per_block =
+            TryInto::<u128>::try_into(price_per_block).map_err(|_| ArithmeticError::Overflow)?;
+        TryInto::try_into(price_per_block * n_blocks).map_err(|_| ArithmeticError::Overflow)
     }
 }
