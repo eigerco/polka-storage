@@ -1061,10 +1061,7 @@ fn on_sector_terminate_deal_not_found() {
         SectorDeals::<Test>::insert(cid.clone(), sector_deal_ids);
 
         assert_err!(
-            Market::on_sectors_terminate(
-                &account(PROVIDER),
-                bounded_vec![cid],
-            ),
+            Market::on_sectors_terminate(&account(PROVIDER), bounded_vec![cid]),
             DispatchError::from(SectorTerminateError::DealNotFound)
         );
 
@@ -1142,10 +1139,7 @@ fn on_sector_terminate_not_active() {
         );
 
         assert_err!(
-            Market::on_sectors_terminate(
-                &account(PROVIDER),
-                bounded_vec![cid],
-            ),
+            Market::on_sectors_terminate(&account(PROVIDER), bounded_vec![cid],),
             DispatchError::from(SectorTerminateError::DealIsNotActive)
         );
 
