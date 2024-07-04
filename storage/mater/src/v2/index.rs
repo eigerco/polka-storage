@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, mem::size_of};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 use crate::{
-    utils::{read_varint, write_varint},
+    async_varint::{read_varint, write_varint},
     Error,
 };
 

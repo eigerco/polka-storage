@@ -10,10 +10,10 @@
 #![deny(rustdoc::private_intra_doc_links)]
 #![deny(unsafe_code)]
 
+mod async_varint;
 mod multicodec;
 mod stores;
 mod unixfs;
-mod utils;
 mod v1;
 mod v2;
 

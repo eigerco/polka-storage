@@ -4,7 +4,7 @@ use ipld_core::{cid::Cid, codec::Codec};
 use serde_ipld_dagcbor::codec::DagCborCodec;
 use tokio::io::{AsyncRead, AsyncReadExt};
 
-use crate::{utils::read_varint, v1::Header, v2::PRAGMA, Error};
+use crate::{async_varint::read_varint, v1::Header, v2::PRAGMA, Error};
 
 pub(crate) async fn read_header<R>(mut reader: R) -> Result<Header, Error>
 where

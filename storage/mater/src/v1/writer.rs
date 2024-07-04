@@ -3,7 +3,7 @@ use serde_ipld_dagcbor::codec::DagCborCodec;
 use tokio::io::{AsyncWrite, AsyncWriteExt};
 
 pub use crate::v1::Header;
-use crate::{utils::write_varint, Error};
+use crate::{async_varint::write_varint, Error};
 
 /// Write [`crate::v1::Header`] to the provider writer.
 pub(crate) async fn write_header<W>(writer: &mut W, header: &Header) -> Result<usize, Error>
