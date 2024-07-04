@@ -202,7 +202,7 @@ fn pre_commit_sector_fails_when_precommited_twice() {
         // Run same extrinsic, this should fail
         assert_noop!(
             StorageProvider::pre_commit_sector(RuntimeOrigin::signed(ALICE), sector.clone()),
-            Error::<Test>::MaxPreCommittedSectorExceeded
+            Error::<Test>::SectorNumberAlreadyUsed,
         );
     });
 }
