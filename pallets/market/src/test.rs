@@ -6,7 +6,7 @@ use frame_support::{
     pallet_prelude::ConstU32,
     sp_runtime::{bounded_vec, ArithmeticError, DispatchError, TokenError},
     traits::Currency,
-    BoundedBTreeSet, BoundedVec,
+     BoundedVec,
 };
 use primitives_proofs::{
     ActiveDeal, ActiveSector, DealId, Market as MarketTrait, RegisteredSealProof, SectorDeal,
@@ -1227,7 +1227,7 @@ fn on_sector_terminate_invalid_caller() {
                 end_block: 10,
                 storage_price_per_block: 10,
                 provider_collateral: 15,
-                state: DealState::Unpublished,
+                state: DealState::Published,
             },
         );
 
@@ -1266,7 +1266,7 @@ fn on_sector_terminate_not_active() {
                 end_block: 10,
                 storage_price_per_block: 10,
                 provider_collateral: 15,
-                state: DealState::Unpublished,
+                state: DealState::Published,
             },
         );
 
