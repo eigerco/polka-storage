@@ -1177,7 +1177,7 @@ pub mod pallet {
             storage_provider: &T::AccountId,
             sector_ids: BoundedVec<SectorId, ConstU32<MAX_DEALS_PER_SECTOR>>,
         ) -> DispatchResult {
-            // TODO: check that the caller is actually a storage provider (?)
+            // TODO(@jmg-duarte,04/07/2024): check that the caller is actually a storage provider (?)
 
             // NOTE(@jmg-duarte,03/07/2024): the usage of the `current_block` NEEDS to be revised
             // in the future as this function MAY be called on a different block than the current one.
@@ -1388,8 +1388,6 @@ pub mod pallet {
         // If we burned X, tried to settle X and failed, we're in a bad state
         .map_err(|_| DispatchError::Corruption)
     }
-
-    // NOTE(@jmg-duarte,01/07/2024): calculate* functions to ease conversions and so on
 
     /// Calculate the start block.
     ///
