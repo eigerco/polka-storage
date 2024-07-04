@@ -322,7 +322,7 @@ pub mod pallet {
 
     /// Stores Published or Activated Deals for each Block.
     /// When Deal is Published it's expected to be activated until a certain Block.
-    /// If it's not, Storage Provider is slashed and Client refunded by [`Hooks::on_finalize`] .
+    /// If it's not, Storage Provider is slashed and Client refunded by [`Hooks::on_finalize`].
     /// If it has been activated properly, it's just removed from the map.
     #[pallet::storage]
     pub type DealsForBlock<T: Config> = StorageMap<
