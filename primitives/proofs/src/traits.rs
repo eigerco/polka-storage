@@ -43,12 +43,14 @@ pub trait Market<AccountId, BlockNumber> {
         compute_cid: bool,
     ) -> Result<BoundedVec<ActiveSector<AccountId>, ConstU32<MAX_SECTORS_PER_CALL>>, DispatchError>;
 
-    /// Activate a set of deals grouped by sector, returning the size and
-    /// extra info about verified deals.
-    /// Sectors' deals are activated in parameter-defined order.
-    /// Each sector's deals are activated or fail as a group, but independently of other sectors.
-    /// Note that confirming all deals fit within a sector is the caller's responsibility
-    /// (and is implied by confirming the sector's data commitment is derived from the deal pieces).
+    /// Terminate a set of deals in response to their sector being terminated.
+    ///
+    /// Slashes the provider collateral, refunds the partial unpaid escrow amount to the client.
+    ///
+    /// A sector can be terminated voluntarily — the storage provider terminates the sector —
+    /// or involuntarily — the sector has been faulty for more than 42 consecutive days.
+    ///
+    /// Source: <https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/market/src/lib.rs#L786-L876>
     fn on_sectors_terminate(
         storage_provider: &AccountId,
         sector_ids: BoundedVec<SectorId, ConstU32<MAX_DEALS_PER_SECTOR>>,
