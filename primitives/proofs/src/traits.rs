@@ -1,8 +1,14 @@
 use cid::Cid;
 use sp_core::ConstU32;
-use sp_runtime::{BoundedVec, DispatchError, RuntimeDebug};
+use sp_runtime::{BoundedVec, DispatchError, DispatchResult, RuntimeDebug};
 
 use crate::types::{DealId, RegisteredSealProof, SectorNumber};
+
+/// Size of a CID with a 512-bit multihash — i.e. the default CID size.
+const CID_SIZE_IN_BYTES: u32 = 64;
+
+/// The CID (in bytes) of a given sector.
+pub type SectorId = BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>;
 
 /// Number of Sectors that can be provided in a single extrinsics call.
 /// Required for BoundedVec.
@@ -36,6 +42,19 @@ pub trait Market<AccountId, BlockNumber> {
         sector_deals: BoundedVec<SectorDeal<BlockNumber>, ConstU32<MAX_SECTORS_PER_CALL>>,
         compute_cid: bool,
     ) -> Result<BoundedVec<ActiveSector<AccountId>, ConstU32<MAX_SECTORS_PER_CALL>>, DispatchError>;
+
+    /// Terminate a set of deals in response to their sector being terminated.
+    ///
+    /// Slashes the provider collateral, refunds the partial unpaid escrow amount to the client.
+    ///
+    /// A sector can be terminated voluntarily — the storage provider terminates the sector —
+    /// or involuntarily — the sector has been faulty for more than 42 consecutive days.
+    ///
+    /// Source: <https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/market/src/lib.rs#L786-L876>
+    fn on_sectors_terminate(
+        storage_provider: &AccountId,
+        sector_ids: BoundedVec<SectorId, ConstU32<MAX_DEALS_PER_SECTOR>>,
+    ) -> DispatchResult;
 }
 
 /// Binds given Sector with the Deals that it should contain
