@@ -29,6 +29,7 @@ mod storage_provider;
 pub mod pallet {
     pub const CID_CODEC: u64 = 0x55;
     pub const CID_SIZE_IN_BYTES: u32 = 128;
+    /// Sourced from multihash code table <https://github.com/multiformats/rust-multihash/blob/b321afc11e874c08735671ebda4d8e7fcc38744c/codetable/src/lib.rs#L108>
     pub const BLAKE2B_MULTIHASH_CODE: u64 = 0xB220;
     pub type SubstrateCid = BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>;
     /// The CID (in bytes) of a given sector.
@@ -153,7 +154,7 @@ pub mod pallet {
         ExpirationTooLong,
         /// Emitted when a sectors lifetime exceeds SectorMaximumLifetime
         MaxSectorLifetimeExceeded,
-        /// Emitted when a CID is invalidB220
+        /// Emitted when a CID is invalid
         InvalidCid,
     }
 
