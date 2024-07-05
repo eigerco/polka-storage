@@ -6,7 +6,7 @@ use frame_support::{
     pallet_prelude::ConstU32,
     sp_runtime::{bounded_vec, ArithmeticError, DispatchError, TokenError},
     traits::Currency,
-    BoundedBTreeSet, BoundedVec,
+    BoundedVec,
 };
 use primitives_proofs::{
     ActiveDeal, ActiveSector, DealId, Market as MarketTrait, RegisteredSealProof, SectorDeal,
@@ -17,8 +17,8 @@ use sp_core::H256;
 use crate::{
     mock::*,
     pallet::{lock_funds, slash_and_burn, unlock_funds},
-    ActiveDealState, BalanceEntry, BalanceTable, DealProposal, DealSettlementError, DealState,
-    DealsForBlock, Error, Event, PendingProposals, Proposals, SectorDeals, SectorTerminateError,
+    ActiveDealState, BalanceEntry, BalanceTable, DealSettlementError, DealState, DealsForBlock,
+    Error, Event, PendingProposals, Proposals, SectorDeals, SectorTerminateError,
 };
 #[test]
 fn initial_state() {
@@ -984,21 +984,13 @@ fn settle_deal_payments_published() {
 
         Proposals::<Test>::insert(
             1,
-            DealProposal {
-                piece_cid: cid_of("polka-storage-data-bob")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                piece_size: 21,
-                client: account(BOB),
-                provider: account(PROVIDER),
-                label: bounded_vec![0xa, 0xe, 0xe, 0xf],
-                start_block: 0,
-                end_block: 10,
-                storage_price_per_block: 10,
-                provider_collateral: 15,
-                state: DealState::Published,
-            },
+            DealProposalBuilder::default()
+                .client(BOB)
+                .start_block(0)
+                .end_block(10)
+                .storage_price_per_block(10)
+                .provider_collateral(15)
+                .build(),
         );
 
         System::reset_events();
@@ -1614,24 +1606,7 @@ fn on_sector_terminate_invalid_caller() {
         let sector_deal_ids: BoundedVec<_, ConstU32<MAX_DEALS_PER_SECTOR>> = bounded_vec![1];
 
         SectorDeals::<Test>::insert(cid.clone(), sector_deal_ids);
-        Proposals::<Test>::insert(
-            1,
-            DealProposal {
-                piece_cid: cid_of("polka-storage-data-bob")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                piece_size: 21,
-                client: account(BOB),
-                provider: account(PROVIDER),
-                label: bounded_vec![0xa, 0xe, 0xe, 0xf],
-                start_block: 0,
-                end_block: 10,
-                storage_price_per_block: 10,
-                provider_collateral: 15,
-                state: DealState::Published,
-            },
-        );
+        Proposals::<Test>::insert(1, DealProposalBuilder::default().client(BOB).build());
 
         assert_err!(
             Market::on_sectors_terminate(&account(BOB), bounded_vec![cid],),
@@ -1655,21 +1630,13 @@ fn on_sector_terminate_not_active() {
         SectorDeals::<Test>::insert(cid.clone(), sector_deal_ids);
         Proposals::<Test>::insert(
             1,
-            DealProposal {
-                piece_cid: cid_of("polka-storage-data-bob")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                piece_size: 21,
-                client: account(BOB),
-                provider: account(PROVIDER),
-                label: bounded_vec![0xa, 0xe, 0xe, 0xf],
-                start_block: 0,
-                end_block: 10,
-                storage_price_per_block: 10,
-                provider_collateral: 15,
-                state: DealState::Published,
-            },
+            DealProposalBuilder::default()
+                .client(BOB)
+                .start_block(0)
+                .end_block(10)
+                .storage_price_per_block(10)
+                .provider_collateral(15)
+                .build(),
         );
 
         assert_err!(
@@ -1690,21 +1657,14 @@ fn on_sector_terminate_active() {
 
         let cid = BoundedVec::try_from(cid_of("polka_storage_cid").to_bytes()).unwrap();
         let sector_deal_ids: BoundedVec<_, ConstU32<MAX_DEALS_PER_SECTOR>> = bounded_vec![1];
-        let deal_proposal = DealProposal {
-            piece_cid: cid_of("polka_storage_piece")
-                .to_bytes()
-                .try_into()
-                .expect("hash is always 32 bytes"),
-            piece_size: 21,
-            client: account(BOB),
-            provider: account(PROVIDER),
-            label: bounded_vec![0xa, 0xe, 0xe, 0xf],
-            start_block: 0,
-            end_block: 10,
-            storage_price_per_block: 5,
-            provider_collateral: 15,
-            state: DealState::Active(ActiveDealState::new(0, 0)),
-        };
+        let deal_proposal = DealProposalBuilder::default()
+            .client(BOB)
+            .start_block(0)
+            .end_block(10)
+            .storage_price_per_block(5)
+            .provider_collateral(15)
+            .state(DealState::Active(ActiveDealState::new(0, 0)))
+            .build();
 
         assert_ok!(lock_funds::<Test>(&account(BOB), 5 * 10));
         assert_ok!(lock_funds::<Test>(&account(PROVIDER), 15));
