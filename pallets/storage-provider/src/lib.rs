@@ -247,6 +247,7 @@ pub mod pallet {
         /// The SP uses this extrinsic to submit their Proof-of-Spacetime.
         ///
         /// Proofs are checked with `validate_windowed_post`.
+        /// Proof is valid when proof.len() > 0
         pub fn submit_windowed_post(
             origin: OriginFor<T>,
             params: SubmitWindowedPoStParams<BlockNumberFor<T>>,
@@ -263,8 +264,8 @@ pub mod pallet {
         }
     }
 
-    fn validate_windowed_post(_proof_bytes: BoundedVec<u8, ConstU32<256>>) -> bool {
-        true // TODO(@aidan46, no-ref, 2024-07-03): Actually validate proof.
+    fn validate_windowed_post(proof_bytes: BoundedVec<u8, ConstU32<256>>) -> bool {
+        proof_bytes.len() == 0 // TODO(@aidan46, no-ref, 2024-07-03): Actually validate proof.
     }
 
     /// Calculate the required pre commit deposit amount
