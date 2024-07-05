@@ -14,7 +14,7 @@ use futures::TryStreamExt;
 use mater::Cid;
 use tokio::{
     fs::File,
-    join, signal,
+    signal,
     sync::broadcast::{self, Receiver, Sender},
     try_join,
 };
