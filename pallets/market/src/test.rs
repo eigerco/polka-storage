@@ -4,7 +4,9 @@ use cid::Cid;
 use frame_support::{
     assert_err, assert_noop, assert_ok,
     pallet_prelude::ConstU32,
-    sp_runtime::{bounded_vec, ArithmeticError, BoundedVec, DispatchError, TokenError},
+    sp_runtime::{bounded_vec, ArithmeticError, DispatchError, TokenError},
+    traits::Currency,
+    BoundedBTreeSet, BoundedVec,
 };
 use primitives_proofs::{
     ActiveDeal, ActiveSector, DealId, Market as MarketTrait, RegisteredSealProof, SectorDeal,
@@ -13,10 +15,11 @@ use primitives_proofs::{
 use sp_core::H256;
 
 use crate::{
-    mock::*, ActiveDealState, BalanceEntry, BalanceTable, DealProposal, DealSettlementError,
-    DealState, DealsForBlock, Error, Event, PendingProposals, Proposals,
+    mock::*,
+    pallet::{lock_funds, slash_and_burn, unlock_funds},
+    ActiveDealState, BalanceEntry, BalanceTable, DealProposal, DealSettlementError, DealState,
+    DealsForBlock, Error, Event, PendingProposals, Proposals, SectorDeals, SectorTerminateError,
 };
-
 #[test]
 fn initial_state() {
     new_test_ext().execute_with(|| {
@@ -455,11 +458,15 @@ fn publish_storage_deals_fails_duplicate_deal_in_state() {
 fn publish_storage_deals() {
     new_test_ext().execute_with(|| {
         let alice_proposal = DealProposalBuilder::default().signed(ALICE);
+        let alice_start_block = 100;
+        let alice_deal_id = 0;
         // We're not expecting for it to go through, but the call should not fail.
         let alice_second_proposal = DealProposalBuilder::default().piece_size(37).signed(ALICE);
+        let bob_deal_id = 1;
+        let bob_start_block = 130;
         let bob_proposal = DealProposalBuilder::default()
             .client(BOB)
-            .start_block(130)
+            .start_block(bob_start_block)
             .end_block(135)
             .storage_price_per_block(10)
             .provider_collateral(15)
@@ -507,12 +514,12 @@ fn publish_storage_deals() {
             events(),
             [
                 RuntimeEvent::Market(Event::<Test>::DealPublished {
-                    deal_id: 0,
+                    deal_id: alice_deal_id,
                     client: account(ALICE),
                     provider: account(PROVIDER),
                 }),
                 RuntimeEvent::Market(Event::<Test>::DealPublished {
-                    deal_id: 1,
+                    deal_id: bob_deal_id,
                     client: account(BOB),
                     provider: account(PROVIDER),
                 }),
@@ -520,8 +527,8 @@ fn publish_storage_deals() {
         );
         assert!(PendingProposals::<Test>::get().contains(&alice_hash));
         assert!(PendingProposals::<Test>::get().contains(&bob_hash));
-        assert!(DealsForBlock::<Test>::get(&alice_proposal.proposal.start_block).contains(&0));
-        assert!(DealsForBlock::<Test>::get(&bob_proposal.proposal.start_block).contains(&1));
+        assert!(DealsForBlock::<Test>::get(&alice_start_block).contains(&alice_deal_id));
+        assert!(DealsForBlock::<Test>::get(&bob_start_block).contains(&bob_deal_id));
     });
 }
 
@@ -816,6 +823,7 @@ fn publish_for_activation(deal_id: DealId, deal: DealProposalOf<Test>) -> H256 {
 fn verifies_deals_on_block_finalization() {
     new_test_ext().execute_with(|| {
         let alice_start_block = 100;
+        let alice_deal_id = 0;
         let alice_proposal = DealProposalBuilder::default()
             .start_block(alice_start_block)
             .end_block(alice_start_block + 10)
@@ -824,6 +832,7 @@ fn verifies_deals_on_block_finalization() {
             .signed(ALICE);
 
         let bob_start_block = 130;
+        let bob_deal_id = 1;
         let bob_proposal = DealProposalBuilder::default()
             .client(BOB)
             .start_block(bob_start_block)
@@ -862,7 +871,7 @@ fn verifies_deals_on_block_finalization() {
         );
         // After Alice's block, nothing changes to the balance. It has been activated properly.
         run_to_block(alice_start_block + 1);
-        assert!(!DealsForBlock::<Test>::get(&alice_start_block).contains(&0));
+        assert!(!DealsForBlock::<Test>::get(&alice_start_block).contains(&alice_deal_id));
         assert_eq!(
             BalanceTable::<Test>::get(account(ALICE)),
             BalanceEntry::<u64> {
@@ -905,7 +914,7 @@ fn verifies_deals_on_block_finalization() {
             }
         );
 
-        assert!(!DealsForBlock::<Test>::get(&bob_start_block).contains(&1));
+        assert!(!DealsForBlock::<Test>::get(&bob_start_block).contains(&bob_deal_id));
     });
 }
 
@@ -1395,4 +1404,363 @@ impl Default for SectorDealBuilder {
             deal_ids: bounded_vec![1],
         }
     }
+}
+
+#[test]
+fn test_lock_funds() {
+    let _ = env_logger::try_init();
+    new_test_ext().execute_with(|| {
+        assert_eq!(
+            <Test as crate::pallet::Config>::Currency::total_balance(&account(PROVIDER)),
+            100
+        );
+        // We can't get all 100, otherwise the account would be reaped
+        assert_ok!(Market::add_balance(
+            RuntimeOrigin::signed(account(PROVIDER)),
+            90
+        ));
+        assert_eq!(
+            <Test as crate::pallet::Config>::Currency::total_balance(&account(PROVIDER)),
+            10
+        );
+        assert_ok!(lock_funds::<Test>(&account(PROVIDER), 25));
+        assert_eq!(
+            BalanceTable::<Test>::get(account(PROVIDER)),
+            BalanceEntry::<u64> {
+                free: 65,
+                locked: 25,
+            }
+        );
+
+        assert_ok!(lock_funds::<Test>(&account(PROVIDER), 65));
+        assert_eq!(
+            BalanceTable::<Test>::get(account(PROVIDER)),
+            BalanceEntry::<u64> {
+                free: 0,
+                locked: 90,
+            }
+        );
+
+        assert_err!(
+            lock_funds::<Test>(&account(PROVIDER), 25),
+            DispatchError::Arithmetic(ArithmeticError::Underflow)
+        );
+
+        assert_eq!(
+            BalanceTable::<Test>::get(account(PROVIDER)),
+            BalanceEntry::<u64> {
+                free: 0,
+                locked: 90,
+            }
+        );
+    });
+}
+
+#[test]
+fn test_unlock_funds() {
+    let _ = env_logger::try_init();
+    new_test_ext().execute_with(|| {
+        assert_eq!(
+            <Test as crate::pallet::Config>::Currency::total_balance(&account(PROVIDER)),
+            100
+        );
+        // We can't get all 100, otherwise the account would be reaped
+        assert_ok!(Market::add_balance(
+            RuntimeOrigin::signed(account(PROVIDER)),
+            90
+        ));
+        assert_eq!(
+            <Test as crate::pallet::Config>::Currency::total_balance(&account(PROVIDER)),
+            10
+        );
+        assert_ok!(lock_funds::<Test>(&account(PROVIDER), 90));
+        assert_eq!(
+            BalanceTable::<Test>::get(account(PROVIDER)),
+            BalanceEntry::<u64> {
+                free: 0,
+                locked: 90,
+            }
+        );
+
+        assert_ok!(unlock_funds::<Test>(&account(PROVIDER), 30));
+        assert_eq!(
+            BalanceTable::<Test>::get(account(PROVIDER)),
+            BalanceEntry::<u64> {
+                free: 30,
+                locked: 60,
+            }
+        );
+
+        assert_ok!(unlock_funds::<Test>(&account(PROVIDER), 60));
+        assert_eq!(
+            BalanceTable::<Test>::get(account(PROVIDER)),
+            BalanceEntry::<u64> {
+                free: 90,
+                locked: 0,
+            }
+        );
+
+        assert_err!(
+            unlock_funds::<Test>(&account(PROVIDER), 60),
+            DispatchError::Arithmetic(ArithmeticError::Underflow)
+        );
+        assert_eq!(
+            BalanceTable::<Test>::get(account(PROVIDER)),
+            BalanceEntry::<u64> {
+                free: 90,
+                locked: 0,
+            }
+        );
+    });
+}
+
+#[test]
+fn slash_and_burn_acc() {
+    let _ = env_logger::try_init();
+    new_test_ext().execute_with(|| {
+        assert_eq!(
+            <Test as crate::pallet::Config>::Currency::total_issuance(),
+            300
+        );
+        assert_ok!(Market::add_balance(
+            RuntimeOrigin::signed(account(PROVIDER)),
+            75
+        ));
+
+        System::reset_events();
+
+        assert_ok!(lock_funds::<Test>(&account(PROVIDER), 10));
+        assert_ok!(slash_and_burn::<Test>(&account(PROVIDER), 10));
+
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Balances(
+                pallet_balances::Event::<Test>::Withdraw {
+                    who: Market::account_id(),
+                    amount: 10
+                }
+            ),]
+        );
+        assert_eq!(
+            <Test as crate::pallet::Config>::Currency::total_issuance(),
+            290
+        );
+
+        assert_eq!(
+            BalanceTable::<Test>::get(account(PROVIDER)),
+            BalanceEntry::<u64> {
+                free: 65,
+                locked: 0,
+            }
+        );
+
+        assert_err!(
+            slash_and_burn::<Test>(&account(PROVIDER), 10),
+            DispatchError::Arithmetic(ArithmeticError::Underflow)
+        );
+        assert_eq!(
+            <Test as crate::pallet::Config>::Currency::total_issuance(),
+            290
+        );
+    });
+}
+
+#[test]
+fn on_sector_terminate_unknown_deals() {
+    let _ = env_logger::try_init();
+    new_test_ext().execute_with(|| {
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 75);
+        System::reset_events();
+
+        let cid = BoundedVec::try_from(cid_of("polka_storage_cid").to_bytes()).unwrap();
+        assert_ok!(Market::on_sectors_terminate(
+            &account(PROVIDER),
+            bounded_vec![cid],
+        ));
+
+        assert_eq!(events(), []);
+    });
+}
+
+#[test]
+fn on_sector_terminate_deal_not_found() {
+    let _ = env_logger::try_init();
+    new_test_ext().execute_with(|| {
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 75);
+        System::reset_events();
+
+        let cid = BoundedVec::try_from(cid_of("polka_storage_cid").to_bytes()).unwrap();
+        let sector_deal_ids: BoundedVec<_, ConstU32<MAX_DEALS_PER_SECTOR>> = bounded_vec![1];
+
+        SectorDeals::<Test>::insert(cid.clone(), sector_deal_ids);
+
+        assert_err!(
+            Market::on_sectors_terminate(&account(PROVIDER), bounded_vec![cid]),
+            DispatchError::from(SectorTerminateError::DealNotFound)
+        );
+
+        assert_eq!(events(), []);
+    });
+}
+
+#[test]
+fn on_sector_terminate_invalid_caller() {
+    let _ = env_logger::try_init();
+    new_test_ext().execute_with(|| {
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 75);
+        System::reset_events();
+
+        let cid = BoundedVec::try_from(cid_of("polka_storage_cid").to_bytes()).unwrap();
+        let sector_deal_ids: BoundedVec<_, ConstU32<MAX_DEALS_PER_SECTOR>> = bounded_vec![1];
+
+        SectorDeals::<Test>::insert(cid.clone(), sector_deal_ids);
+        Proposals::<Test>::insert(
+            1,
+            DealProposal {
+                piece_cid: cid_of("polka-storage-data-bob")
+                    .to_bytes()
+                    .try_into()
+                    .expect("hash is always 32 bytes"),
+                piece_size: 21,
+                client: account(BOB),
+                provider: account(PROVIDER),
+                label: bounded_vec![0xa, 0xe, 0xe, 0xf],
+                start_block: 0,
+                end_block: 10,
+                storage_price_per_block: 10,
+                provider_collateral: 15,
+                state: DealState::Published,
+            },
+        );
+
+        assert_err!(
+            Market::on_sectors_terminate(&account(BOB), bounded_vec![cid],),
+            DispatchError::from(SectorTerminateError::InvalidCaller)
+        );
+
+        assert_eq!(events(), []);
+    });
+}
+
+#[test]
+fn on_sector_terminate_not_active() {
+    let _ = env_logger::try_init();
+    new_test_ext().execute_with(|| {
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 75);
+        System::reset_events();
+
+        let cid = BoundedVec::try_from(cid_of("polka_storage_cid").to_bytes()).unwrap();
+        let sector_deal_ids: BoundedVec<_, ConstU32<MAX_DEALS_PER_SECTOR>> = bounded_vec![1];
+
+        SectorDeals::<Test>::insert(cid.clone(), sector_deal_ids);
+        Proposals::<Test>::insert(
+            1,
+            DealProposal {
+                piece_cid: cid_of("polka-storage-data-bob")
+                    .to_bytes()
+                    .try_into()
+                    .expect("hash is always 32 bytes"),
+                piece_size: 21,
+                client: account(BOB),
+                provider: account(PROVIDER),
+                label: bounded_vec![0xa, 0xe, 0xe, 0xf],
+                start_block: 0,
+                end_block: 10,
+                storage_price_per_block: 10,
+                provider_collateral: 15,
+                state: DealState::Published,
+            },
+        );
+
+        assert_err!(
+            Market::on_sectors_terminate(&account(PROVIDER), bounded_vec![cid],),
+            DispatchError::from(SectorTerminateError::DealIsNotActive)
+        );
+
+        assert_eq!(events(), []);
+    });
+}
+
+#[test]
+fn on_sector_terminate_active() {
+    let _ = env_logger::try_init();
+    new_test_ext().execute_with(|| {
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(BOB)), 75);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 75);
+
+        let cid = BoundedVec::try_from(cid_of("polka_storage_cid").to_bytes()).unwrap();
+        let sector_deal_ids: BoundedVec<_, ConstU32<MAX_DEALS_PER_SECTOR>> = bounded_vec![1];
+        let deal_proposal = DealProposal {
+            piece_cid: cid_of("polka_storage_piece")
+                .to_bytes()
+                .try_into()
+                .expect("hash is always 32 bytes"),
+            piece_size: 21,
+            client: account(BOB),
+            provider: account(PROVIDER),
+            label: bounded_vec![0xa, 0xe, 0xe, 0xf],
+            start_block: 0,
+            end_block: 10,
+            storage_price_per_block: 5,
+            provider_collateral: 15,
+            state: DealState::Active(ActiveDealState::new(0, 0)),
+        };
+
+        assert_ok!(lock_funds::<Test>(&account(BOB), 5 * 10));
+        assert_ok!(lock_funds::<Test>(&account(PROVIDER), 15));
+
+        let hash_proposal = Market::hash_proposal(&deal_proposal);
+        let mut pending = PendingProposals::<Test>::get();
+        pending
+            .try_insert(hash_proposal)
+            .expect("should have enough space");
+        PendingProposals::<Test>::set(pending);
+
+        SectorDeals::<Test>::insert(cid.clone(), sector_deal_ids);
+        Proposals::<Test>::insert(1, deal_proposal);
+
+        System::reset_events();
+
+        assert_ok!(Market::on_sectors_terminate(
+            &account(PROVIDER),
+            bounded_vec![cid],
+        ));
+
+        assert_eq!(
+            BalanceTable::<Test>::get(&account(BOB)),
+            BalanceEntry {
+                free: 70,  // unlocked funds - 5 for the storage payment of a single block
+                locked: 0, // unlocked
+            }
+        );
+
+        assert_eq!(
+            BalanceTable::<Test>::get(&account(PROVIDER)),
+            BalanceEntry {
+                free: 65,  // the original 60 + 5 for the storage payment of a single block
+                locked: 0, // lost the 15 collateral
+            }
+        );
+
+        assert_eq!(
+            events(),
+            [
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Withdraw {
+                    who: Market::account_id(),
+                    amount: 15
+                }),
+                RuntimeEvent::Market(Event::<Test>::DealTerminated {
+                    deal_id: 1,
+                    client: account(BOB),
+                    provider: account(PROVIDER)
+                })
+            ]
+        );
+        assert!(PendingProposals::<Test>::get().is_empty());
+        assert!(!Proposals::<Test>::contains_key(1));
+        assert_eq!(
+            <Test as crate::pallet::Config>::Currency::total_issuance(),
+            285
+        );
+    });
 }
