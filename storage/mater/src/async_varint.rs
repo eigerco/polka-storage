@@ -1,19 +1,19 @@
 /// Utility functions for the mater crate. The contents were mostly borrowed
-/// from the https://github.com/dermesser/integer-encoding-rs.
+/// from the <https://github.com/dermesser/integer-encoding-rs>.
 ///
 /// The original issue why we needed to borrow the implantation of the reader
 /// and writer is
-/// https://github.com/dermesser/integer-encoding-rs/blob/4f57046ae90b6b923ff235a91f0729d3cf868d72/src/writer.rs#L20.
+/// <https://github.com/dermesser/integer-encoding-rs/blob/4f57046ae90b6b923ff235a91f0729d3cf868d72/src/writer.rs#L20>.
 /// This specifies the Send bound as optional. The side effect of this choice is
 /// that all futures using the writer or reader are non Send and there is no way
 /// to make them Send.
 ///
 /// The second crate researched was
-/// https://github.com/paritytech/unsigned-varint/tree/master. Issue with that
+/// <https://github.com/paritytech/unsigned-varint/tree/master>. Issue with that
 /// crate is that it only implements AsyncRead and AsyncWrite from the futures
 /// crate and not tokio. For the future reference we could probably used
 /// `unsigned-varint` with the tokio and use
-/// https://docs.rs/tokio-util/latest/tokio_util/compat/trait.FuturesAsyncReadCompatExt.html
+/// <https://docs.rs/tokio-util/latest/tokio_util/compat/trait.FuturesAsyncReadCompatExt.html>
 /// as the compatibility layer.
 use std::{io, mem::size_of};
 
@@ -23,7 +23,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 /// Write a VarInt integer to an asynchronous writer.
 ///
 /// Borrowed from:
-/// https://github.com/dermesser/integer-encoding-rs/blob/4f57046ae90b6b923ff235a91f0729d3cf868d72/src/writer.rs#L29
+/// <https://github.com/dermesser/integer-encoding-rs/blob/4f57046ae90b6b923ff235a91f0729d3cf868d72/src/writer.rs#L29>
 pub(crate) async fn write_varint<W, VI>(writer: &mut W, n: VI) -> Result<usize, io::Error>
 where
     W: AsyncWrite + Unpin,
@@ -43,7 +43,7 @@ where
 /// On EOF, an io::Error with io::ErrorKind::UnexpectedEof is returned.
 ///
 /// Borrowed from:
-/// https://github.com/dermesser/integer-encoding-rs/blob/4f57046ae90b6b923ff235a91f0729d3cf868d72/src/reader.rs#L70
+/// <https://github.com/dermesser/integer-encoding-rs/blob/4f57046ae90b6b923ff235a91f0729d3cf868d72/src/reader.rs#L70>
 pub(crate) async fn read_varint<R, VI>(reader: &mut R) -> Result<VI, io::Error>
 where
     R: AsyncRead + Unpin,
@@ -76,7 +76,7 @@ const MSB: u8 = 0b1000_0000;
 /// VarIntProcessor encapsulates the logic for decoding a VarInt byte-by-byte.
 ///
 /// Borrowed from
-/// https://github.com/dermesser/integer-encoding-rs/blob/4f57046ae90b6b923ff235a91f0729d3cf868d72/src/reader.rs#L35
+/// <https://github.com/dermesser/integer-encoding-rs/blob/4f57046ae90b6b923ff235a91f0729d3cf868d72/src/reader.rs#L35>
 #[derive(Default)]
 struct VarIntProcessor {
     buf: [u8; 10],
@@ -111,7 +111,7 @@ impl VarIntProcessor {
 }
 
 /// Borrowed from
-/// https://github.com/dermesser/integer-encoding-rs/blob/4f57046ae90b6b923ff235a91f0729d3cf868d72/src/varint.rs#L69
+/// <https://github.com/dermesser/integer-encoding-rs/blob/4f57046ae90b6b923ff235a91f0729d3cf868d72/src/varint.rs#L69>
 pub(crate) trait VarIntMaxSize {
     fn varint_max_size() -> usize;
 }

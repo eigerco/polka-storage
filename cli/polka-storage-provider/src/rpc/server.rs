@@ -1,6 +1,7 @@
 use std::{
     fmt::{Debug, Display},
     net::SocketAddr,
+    path::PathBuf,
     sync::Arc,
 };
 
@@ -32,7 +33,7 @@ pub struct RpcServerState {
     pub substrate_client: substrate::Client,
     // TODO(no-ref,@cernicc,04/07/2024): Should use config struct that would
     // provide the configuration across the provider
-    pub storage_dir: String,
+    pub storage_dir: PathBuf,
 }
 
 /// Start the RPC server.
@@ -52,7 +53,8 @@ pub async fn start_rpc_server(
     // in any case.
     let _ = notify_shutdown_rx.recv().await;
 
-    // Stop returns and error if the server has already been stopped.
+    // Stop returns an error if the server has already been stopped.
+    // PRE-COND: the server is only shutdown by receiving from `notify_shutdown_rx`
     let _ = server_handle.stop();
 
     // Wait for server to be stopped

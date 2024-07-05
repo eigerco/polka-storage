@@ -78,7 +78,7 @@ where
     Ok(root)
 }
 
-/// Convert a `source` stream into a CARv2 file and write it to `output` stream.
+/// Convert a `source` stream into a CARv2 file and write it to an `output` stream.
 pub async fn create_filestore<Src, Out>(
     source: Src,
     output: Out,
