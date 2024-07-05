@@ -2,10 +2,7 @@ use std::{env, net::SocketAddr, path::PathBuf, sync::Arc};
 
 use chrono::Utc;
 use clap::Parser;
-use tokio::{
-    signal,
-    sync::broadcast::{self, Sender},
-};
+use tokio::{signal, sync::broadcast};
 use tracing::info;
 use url::Url;
 
