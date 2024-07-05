@@ -505,7 +505,7 @@ pub mod pallet {
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
             log::debug!(target: LOG_TARGET, "submit_windowed_post: proof recorded");
             Self::deposit_event(Event::ValidPoStSubmitted { owner });
-            Ok(())
+            Ok(().into())
         }
     }
 
