@@ -22,12 +22,9 @@ pub struct SectorPreCommitInfo<BlockNumber> {
     pub seal_proof: RegisteredSealProof,
     /// Which sector number this SP is pre-committing.
     pub sector_number: SectorNumber,
-    /// Byte Encoded Cid / CommR
-    ///'commR' Commitment of replication,
+    /// This value is also known as 'commR', Commitment of replication. The terms commR and sealed_cid are interchangeable.
+    /// Using sealed_cid as I think that is more descriptive.
     /// Some docs on commR here: <https://proto.school/verifying-storage-on-filecoin/03>
-    // We use BoundedVec here, as cid::Cid do not implement `TypeInfo`, so it cannot be saved into the Runtime Storage.
-    // It maybe doable using newtype pattern, however not sure how the UI on the frontend side would handle that anyways.
-    // There is Encode/Decode implementation though, through the feature flag: `scale-codec`.
     pub sealed_cid: SectorId,
     pub deal_id: DealId,
     /// Expiration of the pre-committed sector.
