@@ -312,8 +312,10 @@ parameter_types! {
     // 30 * 60 = 30 minutes
     // SLOT_DURATION is in milliseconds thats why we / 1000
     pub const WpostChallengeWindow: BlockNumber = 30 * 60 / (SLOT_DURATION as BlockNumber / 1000);
-    // Max prove commit duration 150 days
-    pub const MaxProveCommitDuration: BlockNumber = 150 * DAYS;
+    pub const MinSectorExpiration: BlockNumber = 180 * DAYS;
+    pub const MaxSectorExpirationExtension: BlockNumber = 1278 * DAYS;
+    pub const SectorMaximumLifetime: BlockNumber = (365 * DAYS) * 5; // 5 years
+    pub const MaxProveCommitDuration: BlockNumber =  (30 * DAYS) + 150;
 }
 
 impl pallet_storage_provider::Config for Runtime {
@@ -322,6 +324,9 @@ impl pallet_storage_provider::Config for Runtime {
     type Currency = Balances;
     type WPoStProvingPeriod = WpostProvingPeriod;
     type WPoStChallengeWindow = WpostChallengeWindow;
+    type MinSectorExpiration = MinSectorExpiration;
+    type MaxSectorExpirationExtension = MaxSectorExpirationExtension;
+    type SectorMaximumLifetime = SectorMaximumLifetime;
     type MaxProveCommitDuration = MaxProveCommitDuration;
 }
 

@@ -1,10 +1,7 @@
 use frame_support::{assert_noop, assert_ok, sp_runtime::BoundedVec};
 
 use crate::{
-    mock::{
-        cid_of, events, new_test_ext, Balances, RuntimeEvent, RuntimeOrigin, StorageProvider, Test,
-        ALICE, BOB,
-    },
+    mock::*,
     pallet::{Error, Event, StorageProviders},
     proofs::{RegisteredPoStProof, RegisteredSealProof},
     sector::{ProveCommitSector, SectorPreCommitInfo},
@@ -122,7 +119,7 @@ fn pre_commit_sector() {
                 .try_into()
                 .expect("hash is always 32 bytes"),
             deal_id: 1,
-            expiration: 66,
+            expiration: YEARS,
             unsealed_cid: cid_of("unsealed_cid")
                 .to_bytes()
                 .try_into()
@@ -188,7 +185,7 @@ fn pre_commit_sector_fails_when_precommited_twice() {
                 .try_into()
                 .expect("hash is always 32 bytes"),
             deal_id: 1,
-            expiration: 66,
+            expiration: YEARS,
             unsealed_cid: cid_of("unsealed_cid")
                 .to_bytes()
                 .try_into()
@@ -202,7 +199,7 @@ fn pre_commit_sector_fails_when_precommited_twice() {
         // Run same extrinsic, this should fail
         assert_noop!(
             StorageProvider::pre_commit_sector(RuntimeOrigin::signed(ALICE), sector.clone()),
-            Error::<Test>::MaxPreCommittedSectorExceeded
+            Error::<Test>::SectorNumberAlreadyUsed,
         );
     });
 }
