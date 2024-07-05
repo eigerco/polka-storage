@@ -12,7 +12,11 @@ use chrono::Utc;
 use clap::Parser;
 use futures::TryStreamExt;
 use mater::Cid;
-use tokio::{fs::File, signal, sync::Notify};
+use tokio::{
+    fs::File,
+    join, signal,
+    sync::broadcast::{self, Receiver, Sender},
+};
 use tokio_util::io::{ReaderStream, StreamReader};
 use tower_http::trace::TraceLayer;
 use tracing::{error, info, info_span, instrument};
@@ -52,30 +56,32 @@ impl RunCommand {
             storage_dir: self.storage_dir.clone(),
         });
 
-        // Notify setup for graceful shutdown
-        let shutdown = Arc::new(Notify::new());
-
-        // Listen for shutdown signal
-        let shutdown_clone = shutdown.clone();
-        tokio::spawn(async move {
-            signal::ctrl_c().await.expect("failed to listen for event");
-            shutdown_clone.notify_one();
-        });
+        // Setup shutdown mechanism
+        let (notify_shutdown_tx, _) = broadcast::channel(1);
+        tokio::spawn(shutdown_trigger(notify_shutdown_tx.clone()));
 
         // Start both servers
-        tokio::select! {
-            _ = start_rpc_server(state.clone(), self.listen_addr, shutdown.clone()) => {
-                info!("RPC server stopped");
-            }
-            _ = start_upload_server(state.clone(), shutdown.clone()) => {
-                info!("upload server stopped");
-            }
-        }
+        let _ = join!(
+            start_rpc_server(
+                state.clone(),
+                self.listen_addr,
+                notify_shutdown_tx.subscribe()
+            ),
+            start_upload_server(state.clone(), notify_shutdown_tx.subscribe())
+        );
 
         info!("storage provider stopped");
-
         Ok(())
     }
+}
+
+async fn shutdown_trigger(notify_shutdown_tx: Sender<()>) {
+    // Listen for the shutdown signal
+    signal::ctrl_c().await.expect("failed to listen for event");
+
+    // Notify the shutdown
+    info!("shutdown signal received");
+    let _ = notify_shutdown_tx.send(());
 }
 
 /// Handler for the upload endpoint. It receives a stream of bytes, coverts them
@@ -178,7 +184,7 @@ fn configure_router(state: Arc<RpcServerState>) -> Router {
 #[instrument(skip_all)]
 async fn start_upload_server(
     state: Arc<RpcServerState>,
-    shutdown: Arc<Notify>,
+    mut notify_shutdown_rx: Receiver<()>,
 ) -> Result<(), CliError> {
     // Configure router
     let router = configure_router(state);
@@ -192,7 +198,9 @@ async fn start_upload_server(
     // Start server
     info!("upload server started at: {address}");
     axum::serve(listener, router)
-        .with_graceful_shutdown(async move { shutdown.notified().await })
+        .with_graceful_shutdown(async move {
+            let _ = notify_shutdown_rx.recv().await;
+        })
         .await?;
 
     Ok(())

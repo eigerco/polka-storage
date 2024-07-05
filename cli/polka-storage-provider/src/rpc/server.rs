@@ -14,7 +14,7 @@ use jsonrpsee::{
     RpcModule,
 };
 use serde_json::Value;
-use tokio::sync::Notify;
+use tokio::sync::broadcast::Receiver;
 use tracing::{info, instrument};
 
 use super::{
@@ -40,7 +40,7 @@ pub struct RpcServerState {
 pub async fn start_rpc_server(
     state: Arc<RpcServerState>,
     listen_addr: SocketAddr,
-    shutdown: Arc<Notify>,
+    mut notify_shutdown_rx: Receiver<()>,
 ) -> Result<(), CliError> {
     let server = Server::builder().build(listen_addr).await?;
 
@@ -48,10 +48,11 @@ pub async fn start_rpc_server(
     let server_handle = server.start(module);
     info!("RPC server started at {}", listen_addr);
 
-    // Wait for shutdown signal
-    shutdown.notified().await;
+    // Wait for shutdown signal. No need to handle the error. We stop ste server
+    // in any case.
+    let _ = notify_shutdown_rx.recv().await;
 
-    // Stop returns and error if the server has already been stopped
+    // Stop returns and error if the server has already been stopped.
     let _ = server_handle.stop();
 
     // Wait for server to be stopped
