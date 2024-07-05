@@ -29,12 +29,14 @@ mod storage_provider;
 pub mod pallet {
     pub const CID_CODEC: u64 = 0x55;
     pub const CID_SIZE_IN_BYTES: u32 = 128;
+    pub const BLAKE2B_MULTIHASH_CODE: u64 = 0xB220;
     pub type SubstrateCid = BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>;
     /// The CID (in bytes) of a given sector.
     pub type SectorId = SubstrateCid;
 
     use core::fmt::Debug;
 
+    use cid::{Cid, Version};
     use codec::{Decode, Encode};
     use frame_support::{
         dispatch::DispatchResult,
@@ -151,6 +153,8 @@ pub mod pallet {
         ExpirationTooLong,
         /// Emitted when a sectors lifetime exceeds SectorMaximumLifetime
         MaxSectorLifetimeExceeded,
+        /// Emitted when a CID is invalidB220
+        InvalidCid,
     }
 
     #[pallet::call]
@@ -211,6 +215,7 @@ pub mod pallet {
                     && !sp.sectors.contains_key(&sector_number),
                 Error::<T>::SectorNumberAlreadyUsed
             );
+            Self::cid_validation(&sector.unsealed_cid[..])?;
             let balance = T::Currency::total_balance(&owner);
             let deposit = calculate_pre_commit_deposit::<T>();
             Self::validate_expiration(
@@ -263,6 +268,18 @@ pub mod pallet {
             ensure!(
                 expiration - activation < T::SectorMaximumLifetime::get(),
                 Error::<T>::MaxSectorLifetimeExceeded
+            );
+            Ok(())
+        }
+
+        fn cid_validation(bytes: &[u8]) -> Result<(), Error<T>> {
+            let c = Cid::try_from(bytes).map_err(|_| Error::<T>::InvalidCid)?;
+            ensure!(
+                c.version() == Version::V1
+                    && c.codec() == CID_CODEC
+                    && c.hash().code() == BLAKE2B_MULTIHASH_CODE
+                    && c.hash().size() == 32,
+                Error::<T>::InvalidCid
             );
             Ok(())
         }
