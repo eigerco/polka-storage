@@ -63,10 +63,9 @@ pub struct SectorOnChainInfo<BlockNumber> {
     /// The seal proof type implies the PoSt proofs
     pub seal_proof: RegisteredSealProof,
     /// The root hash of the sealed sector's merkle tree.
-    /// Also called CommR, or 'replica commitment'.
-    // We use BoundedVec here, as cid::Cid do not implement `TypeInfo`, so it cannot be saved into the Runtime Storage.
-    // It maybe doable using newtype pattern, however not sure how the UI on the frontend side would handle that anyways.
-    // There is Encode/Decode implementation though, through the feature flag: `scale-codec`.
+    /// This value is also known as 'commR', Commitment of replication. The terms commR and sealed_cid are interchangeable.
+    /// Using sealed_cid as I think that is more descriptive.
+    /// Some docs on commR here: <https://proto.school/verifying-storage-on-filecoin/03>
     pub sealed_cid: SectorId,
     /// Block number during which the sector proof was accepted
     pub activation: BlockNumber,
