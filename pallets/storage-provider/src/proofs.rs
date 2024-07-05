@@ -91,24 +91,25 @@ where
     Ok(offset)
 }
 
-/// Computes the epoch at which a proving period should start such that it is greater than the current epoch, and
+/// Computes the block at which a proving period should start such that it is greater than the current block, and
 /// has a defined offset from being an exact multiple of WPoStProvingPeriod.
-/// A miner is exempt from Window PoSt until the first full proving period starts.
-//
+/// A storage provider is exempt from Window PoSt until the first full proving period starts.
 /// Filecoin implementation reference: https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L4907
 pub(crate) fn current_proving_period_start<BlockNumber>(
     current_block: BlockNumber,
     offset: BlockNumber,
-    proving_period: BlockNumber,
+    proving_period: BlockNumber, // should be the max proving period
 ) -> BlockNumber
 where
     BlockNumber: BaseArithmetic,
 {
-    let curr_modulus = current_block.clone() % proving_period.clone();
-    let period_progress = if curr_modulus >= offset {
-        curr_modulus - offset
+    // Use this value to calculate the proving period start, modulo the proving period so we cannot go over the max proving period
+    // the value represents how far into a proving period we are.
+    let how_far_into_proving_period = current_block.clone() % proving_period.clone();
+    let period_progress = if how_far_into_proving_period >= offset {
+        how_far_into_proving_period - offset
     } else {
-        proving_period - (offset - curr_modulus)
+        proving_period - (offset - how_far_into_proving_period)
     };
     if current_block < period_progress {
         period_progress
