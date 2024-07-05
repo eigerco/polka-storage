@@ -16,6 +16,7 @@ use tokio::{
     fs::File,
     join, signal,
     sync::broadcast::{self, Receiver, Sender},
+    try_join,
 };
 use tokio_util::io::{ReaderStream, StreamReader};
 use tower_http::trace::TraceLayer;
@@ -61,14 +62,14 @@ impl RunCommand {
         tokio::spawn(shutdown_trigger(notify_shutdown_tx.clone()));
 
         // Start both servers
-        let _ = join!(
+        try_join!(
             start_rpc_server(
                 state.clone(),
                 self.listen_addr,
                 notify_shutdown_tx.subscribe()
             ),
             start_upload_server(state.clone(), notify_shutdown_tx.subscribe())
-        );
+        )?;
 
         info!("storage provider stopped");
         Ok(())
