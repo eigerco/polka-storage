@@ -31,8 +31,7 @@ pub mod pallet {
         traits::{
             Currency,
             ExistenceRequirement::{AllowDeath, KeepAlive},
-            Hooks, ReservableCurrency,
-            WithdrawReasons
+            Hooks, ReservableCurrency, WithdrawReasons,
         },
         PalletId,
     };
