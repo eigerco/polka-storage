@@ -271,6 +271,7 @@ pub mod pallet {
         }
     }
 
+    // Adapted from filecoin reference here: https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/miner/src/commd.rs#L51-L56
     fn validate_cid<T: Config>(bytes: &[u8]) -> Result<(), Error<T>> {
         let c = Cid::try_from(bytes).map_err(|e| {
             log::error!(target: LOG_TARGET, "failed to validate cid: {:?}", e);
@@ -278,8 +279,8 @@ pub mod pallet {
         })?;
         ensure!(
             c.version() == Version::V1
-                && c.codec() == CID_CODEC
-                && c.hash().code() == BLAKE2B_MULTIHASH_CODE
+                && c.codec() == CID_CODEC // The codec should align with our CID_CODEC value.
+                && c.hash().code() == BLAKE2B_MULTIHASH_CODE // The CID should be hashed using blake2b
                 && c.hash().size() == 32,
             Error::<T>::InvalidCid
         );
