@@ -58,6 +58,7 @@ impl crate::Config for Test {
     type BlocksPerDay = ConstU64<1>;
     type MinDealDuration = ConstU64<1>;
     type MaxDealDuration = ConstU64<30>;
+    type MaxDealsPerBlock = ConstU32<32>;
 }
 
 pub type AccountIdOf<Test> = <Test as frame_system::Config>::AccountId;
