@@ -31,7 +31,8 @@ pub mod pallet {
         traits::{
             Currency,
             ExistenceRequirement::{AllowDeath, KeepAlive},
-            Hooks, ReservableCurrency, WithdrawReasons,
+            Hooks, ReservableCurrency,
+            WithdrawReasons
         },
         PalletId,
     };
@@ -1341,11 +1342,12 @@ pub mod pallet {
             T::DbWeight::get().reads(1)
         }
 
-        /// This is a slasher for Deals that have been Published, but Storage Provider failed to activate them.
-        /// It scans for Deals that were supposed to be activated in a given block, when registered in `publish_storage_deals`.
-        /// When a deal is not [`DealState::Active`], it refunds all the funds to the client and burns provider's collateral.
-        /// When a deal has been activated, it just removes it from data structures used for tracking.
-        /// This function should not fail at any point, if it fails, it's a bug.
+        /// When deals are published in [`publish_storage_deals`], they're added to the `DealsForBlock::<T>::get(current_block)` data structure.
+        /// When they are activated in [`activate_deal`], their state is changed from `DealState::Published` to `DealState::Active`
+        /// If it did not happen, when [`on_finalize`] reaches `current_block`, it gets Deals that were supposed to be `DealState::Active` from `DealForBlock`.
+        /// If they are not `DealState::Active`, hook slashes the Storage Provider and returns all of the funds to the Client.
+        ///
+        /// *This function should not fail at any point, if it fails, it's a bug.*
         fn on_finalize(current_block: BlockNumberFor<T>) {
             let deal_ids = DealsForBlock::<T>::get(&current_block);
             if deal_ids.is_empty() {
