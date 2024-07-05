@@ -1,8 +1,8 @@
 use codec::{Decode, Encode};
-use primitives_proofs::DealId;
+use primitives_proofs::{DealId, SectorId};
 use scale_info::TypeInfo;
 
-use crate::{pallet::SectorId, proofs::RegisteredSealProof};
+use crate::proofs::RegisteredSealProof;
 
 // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/runtime/src/runtime/policy.rs#L262
 pub const SECTORS_MAX: u32 = 32 << 20;
