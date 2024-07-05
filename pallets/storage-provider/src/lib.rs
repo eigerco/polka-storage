@@ -277,6 +277,7 @@ pub mod pallet {
             log::error!(target: LOG_TARGET, "failed to validate cid: {:?}", e);
             Error::<T>::InvalidCid
         })?;
+        // these values should be consistent with the cid's created by the SP
         ensure!(
             c.version() == Version::V1
                 && c.codec() == CID_CODEC // The codec should align with our CID_CODEC value.
