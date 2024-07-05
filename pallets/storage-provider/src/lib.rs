@@ -34,6 +34,7 @@ pub mod pallet {
     pub type SubstrateCid = BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>;
     /// The CID (in bytes) of a given sector.
     pub type SectorId = SubstrateCid;
+    pub const LOG_TARGET: &'static str = "runtime::storage_provider";
 
     use core::fmt::Debug;
 
@@ -216,7 +217,7 @@ pub mod pallet {
                     && !sp.sectors.contains_key(&sector_number),
                 Error::<T>::SectorNumberAlreadyUsed
             );
-            Self::cid_validation(&sector.unsealed_cid[..])?;
+            validate_cid::<T>(&sector.unsealed_cid[..])?;
             let balance = T::Currency::total_balance(&owner);
             let deposit = calculate_pre_commit_deposit::<T>();
             Self::validate_expiration(
@@ -272,20 +273,22 @@ pub mod pallet {
             );
             Ok(())
         }
-
-        fn cid_validation(bytes: &[u8]) -> Result<(), Error<T>> {
-            let c = Cid::try_from(bytes).map_err(|_| Error::<T>::InvalidCid)?;
-            ensure!(
-                c.version() == Version::V1
-                    && c.codec() == CID_CODEC
-                    && c.hash().code() == BLAKE2B_MULTIHASH_CODE
-                    && c.hash().size() == 32,
-                Error::<T>::InvalidCid
-            );
-            Ok(())
-        }
     }
 
+    fn validate_cid<T: Config>(bytes: &[u8]) -> Result<(), Error<T>> {
+        let c = Cid::try_from(bytes).map_err(|e| {
+            log::error!(target: LOG_TARGET, "failed to validate cid: {:?}", e);
+            Error::<T>::InvalidCid
+        })?;
+        ensure!(
+            c.version() == Version::V1
+                && c.codec() == CID_CODEC
+                && c.hash().code() == BLAKE2B_MULTIHASH_CODE
+                && c.hash().size() == 32,
+            Error::<T>::InvalidCid
+        );
+        Ok(())
+    }
     /// Calculate the required pre commit deposit amount
     fn calculate_pre_commit_deposit<T: Config>() -> BalanceOf<T> {
         1u32.into() // TODO(@aidan46, #106, 2024-06-24): Set a logical value or calculation
