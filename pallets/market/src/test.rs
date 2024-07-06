@@ -535,7 +535,7 @@ fn publish_storage_deals() {
 #[test]
 fn verify_deals_for_activation() {
     new_test_ext().execute_with(|| {
-        publish_for_activation(1, DealProposalBuilder::default().build());
+        publish_for_activation(1, DealProposalBuilder::default().unsigned());
 
         let deals = bounded_vec![
             SectorDeal {
@@ -568,7 +568,7 @@ fn verify_deals_for_activation() {
 #[test]
 fn verify_deals_for_activation_fails_with_different_provider() {
     new_test_ext().execute_with(|| {
-        publish_for_activation(1, DealProposalBuilder::default().provider(BOB).build());
+        publish_for_activation(1, DealProposalBuilder::default().provider(BOB).unsigned());
 
         let deals = bounded_vec![SectorDealBuilder::default().build()];
 
@@ -591,7 +591,7 @@ fn verify_deals_for_activation_fails_with_invalid_deal_state() {
                     last_updated_block: Some(10),
                     slash_block: None,
                 }))
-                .build(),
+                .unsigned(),
         );
 
         let deals = bounded_vec![SectorDealBuilder::default().build()];
@@ -607,7 +607,7 @@ fn verify_deals_for_activation_fails_with_invalid_deal_state() {
 fn verify_deals_for_activation_fails_deal_not_in_pending() {
     new_test_ext().execute_with(|| {
         // do not use `publish_for_activation` as it puts deal in PendingProposals
-        Proposals::<Test>::insert(1, DealProposalBuilder::default().build());
+        Proposals::<Test>::insert(1, DealProposalBuilder::default().unsigned());
         let deals = bounded_vec![SectorDealBuilder::default().build()];
 
         assert_noop!(
@@ -624,7 +624,7 @@ fn verify_deals_for_activation_fails_sector_activation_after_start_block() {
         // wait a couple of blocks so deal cannot be activated, because it's too late.
         run_to_block(2);
 
-        publish_for_activation(1, DealProposalBuilder::default().start_block(1).build());
+        publish_for_activation(1, DealProposalBuilder::default().start_block(1).unsigned());
 
         let deals = bounded_vec![SectorDealBuilder::default().build()];
 
@@ -643,7 +643,7 @@ fn verify_deals_for_activation_fails_sector_expires_before_deal_ends() {
             DealProposalBuilder::default()
                 .start_block(10)
                 .end_block(15)
-                .build(),
+                .unsigned(),
         );
 
         let deals = bounded_vec![SectorDealBuilder::default().sector_expiry(11).build()];
@@ -662,13 +662,13 @@ fn verify_deals_for_activation_fails_not_enough_space() {
             1,
             DealProposalBuilder::default()
                 .piece_size(1 << 10 /* 1 KiB */)
-                .build(),
+                .unsigned(),
         );
         publish_for_activation(
             2,
             DealProposalBuilder::default()
                 .piece_size(3 << 10 /* 3 KiB */)
-                .build(),
+                .unsigned(),
         );
         // 1 KiB + 3KiB >= 2 KiB (sector size)
 
@@ -686,7 +686,7 @@ fn verify_deals_for_activation_fails_not_enough_space() {
 #[test]
 fn verify_deals_for_activation_fails_duplicate_deals() {
     new_test_ext().execute_with(|| {
-        publish_for_activation(1, DealProposalBuilder::default().build());
+        publish_for_activation(1, DealProposalBuilder::default().unsigned());
 
         let deals = bounded_vec![SectorDealBuilder::default()
             .deal_ids(bounded_vec![1, 1])
@@ -716,7 +716,7 @@ fn verify_deals_for_activation_fails_deal_not_found() {
 #[test]
 fn activate_deals() {
     new_test_ext().execute_with(|| {
-        let alice_hash = publish_for_activation(1, DealProposalBuilder::default().build());
+        let alice_hash = publish_for_activation(1, DealProposalBuilder::default().unsigned());
 
         let deals = bounded_vec![
             SectorDealBuilder::default().build(),
@@ -757,8 +757,8 @@ fn activate_deals() {
 #[test]
 fn activate_deals_fails_for_1_sector_but_succeeds_for_others() {
     new_test_ext().execute_with(|| {
-        let alice_hash = publish_for_activation(1, DealProposalBuilder::default().build());
-        let _ = publish_for_activation(2, DealProposalBuilder::default().build());
+        let alice_hash = publish_for_activation(1, DealProposalBuilder::default().unsigned());
+        let _ = publish_for_activation(2, DealProposalBuilder::default().unsigned());
         let deals = bounded_vec![
             SectorDealBuilder::default().build(),
             SectorDealBuilder::default()
@@ -772,7 +772,7 @@ fn activate_deals_fails_for_1_sector_but_succeeds_for_others() {
                 .build(),
             SectorDealBuilder::default()
                 .sector_number(4)
-                // force error by making expiry < start_block < end_block
+                // force error by making expiry < start_block
                 .sector_expiry(10)
                 .deal_ids(bounded_vec![2])
                 .build()
@@ -990,7 +990,7 @@ fn settle_deal_payments_published() {
                 .end_block(10)
                 .storage_price_per_block(10)
                 .provider_collateral(15)
-                .build(),
+                .unsigned(),
         );
 
         System::reset_events();
@@ -1027,7 +1027,7 @@ fn settle_deal_payments_active_future_last_update() {
                     last_updated_block: Some(10),
                     slash_block: None,
                 }))
-                .build(),
+                .unsigned(),
         );
         System::reset_events();
 
@@ -1063,7 +1063,7 @@ fn settle_deal_payments_active_corruption() {
                     last_updated_block: Some(11),
                     slash_block: None,
                 }))
-                .build(),
+                .unsigned(),
         );
         run_to_block(12);
         System::reset_events();
@@ -1116,7 +1116,7 @@ fn settle_deal_payments_success() {
                         last_updated_block: None,
                         slash_block: None,
                     }))
-                    .build()
+                    .unsigned()
             )
         );
         System::reset_events();
@@ -1164,7 +1164,7 @@ fn settle_deal_payments_success() {
                         last_updated_block: Some(5),
                         slash_block: None,
                     }))
-                    .build()
+                    .unsigned()
             )
         );
     });
@@ -1209,7 +1209,7 @@ fn settle_deal_payments_success_finished() {
                         last_updated_block: None,
                         slash_block: None,
                     }))
-                    .build()
+                    .unsigned()
             )
         );
 
@@ -1249,153 +1249,6 @@ fn settle_deal_payments_success_finished() {
 
         assert_eq!(Proposals::<Test>::get(0), None);
     });
-}
-
-/// Builder to simplify writing complex tests of [`DealProposal`]
-/// Use of Generics is strictly limited and concrete values for the Test config are used instead.
-struct DealProposalBuilder {
-    piece_cid: BoundedVec<u8, ConstU32<128>>,
-    piece_size: u64,
-    client: AccountIdOf<Test>,
-    provider: AccountIdOf<Test>,
-    label: BoundedVec<u8, ConstU32<128>>,
-    start_block: u64,
-    end_block: u64,
-    storage_price_per_block: u64,
-    provider_collateral: u64,
-    state: DealState<u64>,
-}
-
-impl Default for DealProposalBuilder {
-    fn default() -> Self {
-        Self {
-            piece_cid: cid_of("polka-storage-data")
-                .to_bytes()
-                .try_into()
-                .expect("hash is always 32 bytes"),
-            piece_size: 18,
-            client: account(ALICE),
-            provider: account(PROVIDER),
-            label: bounded_vec![0xb, 0xe, 0xe, 0xf],
-            start_block: 100,
-            end_block: 110,
-            storage_price_per_block: 5,
-            provider_collateral: 25,
-            // TODO(@th7nder,01/07/2024): change this to Published
-            state: DealState::Published,
-        }
-    }
-}
-
-impl DealProposalBuilder {
-    pub fn client(mut self, client: &'static str) -> Self {
-        self.client = account(client);
-        self
-    }
-
-    pub fn provider(mut self, provider: &'static str) -> Self {
-        self.provider = account(provider);
-        self
-    }
-
-    pub fn state(mut self, state: DealState<u64>) -> Self {
-        self.state = state;
-        self
-    }
-
-    pub fn start_block(mut self, start_block: u64) -> Self {
-        self.start_block = start_block;
-        self
-    }
-
-    pub fn end_block(mut self, end_block: u64) -> Self {
-        self.end_block = end_block;
-        self
-    }
-
-    pub fn storage_price_per_block(mut self, price: u64) -> Self {
-        self.storage_price_per_block = price;
-        self
-    }
-
-    pub fn provider_collateral(mut self, price: u64) -> Self {
-        self.provider_collateral = price;
-        self
-    }
-
-    pub fn piece_size(mut self, piece_size: u64) -> Self {
-        self.piece_size = piece_size;
-        self
-    }
-
-    pub fn build(self) -> DealProposalOf<Test> {
-        DealProposalOf::<Test> {
-            piece_cid: self.piece_cid,
-            piece_size: self.piece_size,
-            client: self.client,
-            provider: self.provider,
-            label: self.label,
-            start_block: self.start_block,
-            end_block: self.end_block,
-            storage_price_per_block: self.storage_price_per_block,
-            provider_collateral: self.provider_collateral,
-            state: self.state,
-        }
-    }
-
-    pub fn signed(self, by: &'static str) -> ClientDealProposalOf<Test> {
-        let built = self.build();
-        let signed = sign_proposal(by, built);
-        signed
-    }
-}
-
-/// Builder with nice defaults for test purposes.
-struct SectorDealBuilder {
-    sector_number: u64,
-    sector_expiry: u64,
-    sector_type: RegisteredSealProof,
-    deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
-}
-
-impl SectorDealBuilder {
-    pub fn sector_expiry(mut self, sector_expiry: u64) -> Self {
-        self.sector_expiry = sector_expiry;
-        self
-    }
-
-    pub fn sector_number(mut self, sector_number: u64) -> Self {
-        self.sector_number = sector_number;
-        self
-    }
-
-    pub fn deal_ids(
-        mut self,
-        deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
-    ) -> Self {
-        self.deal_ids = deal_ids;
-        self
-    }
-
-    pub fn build(self) -> SectorDeal<u64> {
-        SectorDeal::<u64> {
-            sector_number: self.sector_number,
-            sector_expiry: self.sector_expiry,
-            sector_type: self.sector_type,
-            deal_ids: self.deal_ids,
-        }
-    }
-}
-
-impl Default for SectorDealBuilder {
-    fn default() -> Self {
-        Self {
-            sector_number: 1,
-            sector_expiry: 120,
-            sector_type: RegisteredSealProof::StackedDRG2KiBV1P1,
-            deal_ids: bounded_vec![1],
-        }
-    }
 }
 
 #[test]
@@ -1606,7 +1459,7 @@ fn on_sector_terminate_invalid_caller() {
         let sector_deal_ids: BoundedVec<_, ConstU32<MAX_DEALS_PER_SECTOR>> = bounded_vec![1];
 
         SectorDeals::<Test>::insert(cid.clone(), sector_deal_ids);
-        Proposals::<Test>::insert(1, DealProposalBuilder::default().client(BOB).build());
+        Proposals::<Test>::insert(1, DealProposalBuilder::default().client(BOB).unsigned());
 
         assert_err!(
             Market::on_sectors_terminate(&account(BOB), bounded_vec![cid],),
@@ -1636,7 +1489,7 @@ fn on_sector_terminate_not_active() {
                 .end_block(10)
                 .storage_price_per_block(10)
                 .provider_collateral(15)
-                .build(),
+                .unsigned(),
         );
 
         assert_err!(
@@ -1664,7 +1517,7 @@ fn on_sector_terminate_active() {
             .storage_price_per_block(5)
             .provider_collateral(15)
             .state(DealState::Active(ActiveDealState::new(0, 0)))
-            .build();
+            .unsigned();
 
         assert_ok!(lock_funds::<Test>(&account(BOB), 5 * 10));
         assert_ok!(lock_funds::<Test>(&account(PROVIDER), 15));
@@ -1723,4 +1576,151 @@ fn on_sector_terminate_active() {
             285
         );
     });
+}
+
+/// Builder with nice defaults for test purposes.
+struct SectorDealBuilder {
+    sector_number: u64,
+    sector_expiry: u64,
+    sector_type: RegisteredSealProof,
+    deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
+}
+
+impl SectorDealBuilder {
+    pub fn sector_expiry(mut self, sector_expiry: u64) -> Self {
+        self.sector_expiry = sector_expiry;
+        self
+    }
+
+    pub fn sector_number(mut self, sector_number: u64) -> Self {
+        self.sector_number = sector_number;
+        self
+    }
+
+    pub fn deal_ids(
+        mut self,
+        deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
+    ) -> Self {
+        self.deal_ids = deal_ids;
+        self
+    }
+
+    pub fn build(self) -> SectorDeal<u64> {
+        SectorDeal::<u64> {
+            sector_number: self.sector_number,
+            sector_expiry: self.sector_expiry,
+            sector_type: self.sector_type,
+            deal_ids: self.deal_ids,
+        }
+    }
+}
+
+impl Default for SectorDealBuilder {
+    fn default() -> Self {
+        Self {
+            sector_number: 1,
+            sector_expiry: 120,
+            sector_type: RegisteredSealProof::StackedDRG2KiBV1P1,
+            deal_ids: bounded_vec![1],
+        }
+    }
+}
+
+/// Builder to simplify writing complex tests of [`DealProposal`].
+/// Exclusively uses [`Test`] for simplification purposes.
+struct DealProposalBuilder {
+    piece_cid: BoundedVec<u8, ConstU32<128>>,
+    piece_size: u64,
+    client: AccountIdOf<Test>,
+    provider: AccountIdOf<Test>,
+    label: BoundedVec<u8, ConstU32<128>>,
+    start_block: u64,
+    end_block: u64,
+    storage_price_per_block: u64,
+    provider_collateral: u64,
+    state: DealState<u64>,
+}
+
+impl Default for DealProposalBuilder {
+    fn default() -> Self {
+        Self {
+            piece_cid: cid_of("polka-storage-data")
+                .to_bytes()
+                .try_into()
+                .expect("hash is always 32 bytes"),
+            piece_size: 18,
+            client: account(ALICE),
+            provider: account(PROVIDER),
+            label: bounded_vec![0xb, 0xe, 0xe, 0xf],
+            start_block: 100,
+            end_block: 110,
+            storage_price_per_block: 5,
+            provider_collateral: 25,
+            // TODO(@th7nder,01/07/2024): change this to Published
+            state: DealState::Published,
+        }
+    }
+}
+
+impl DealProposalBuilder {
+    pub fn client(mut self, client: &'static str) -> Self {
+        self.client = account(client);
+        self
+    }
+
+    pub fn provider(mut self, provider: &'static str) -> Self {
+        self.provider = account(provider);
+        self
+    }
+
+    pub fn state(mut self, state: DealState<u64>) -> Self {
+        self.state = state;
+        self
+    }
+
+    pub fn start_block(mut self, start_block: u64) -> Self {
+        self.start_block = start_block;
+        self
+    }
+
+    pub fn end_block(mut self, end_block: u64) -> Self {
+        self.end_block = end_block;
+        self
+    }
+
+    pub fn storage_price_per_block(mut self, price: u64) -> Self {
+        self.storage_price_per_block = price;
+        self
+    }
+
+    pub fn provider_collateral(mut self, price: u64) -> Self {
+        self.provider_collateral = price;
+        self
+    }
+
+    pub fn piece_size(mut self, piece_size: u64) -> Self {
+        self.piece_size = piece_size;
+        self
+    }
+
+    pub fn unsigned(self) -> DealProposalOf<Test> {
+        DealProposalOf::<Test> {
+            piece_cid: self.piece_cid,
+            piece_size: self.piece_size,
+            client: self.client,
+            provider: self.provider,
+            label: self.label,
+            start_block: self.start_block,
+            end_block: self.end_block,
+            storage_price_per_block: self.storage_price_per_block,
+            provider_collateral: self.provider_collateral,
+            state: self.state,
+        }
+    }
+
+    pub fn signed(self, by: &'static str) -> ClientDealProposalOf<Test> {
+        let built = self.unsigned();
+        let signed = sign_proposal(by, built);
+        signed
+    }
 }

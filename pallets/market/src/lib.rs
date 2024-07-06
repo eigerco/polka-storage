@@ -1133,7 +1133,7 @@ pub mod pallet {
             let mut pending_proposals = PendingProposals::<T>::get();
             for sector in sector_deals {
                 let Ok(proposals) = Self::proposals_for_deals(sector.deal_ids) else {
-                    log::error!("failed to find deals for sector: {}", sector.sector_number,);
+                    log::error!("failed to find deals for sector: {}", sector.sector_number);
                     continue;
                 };
 
