@@ -1,7 +1,7 @@
 {
     "recommendations": [
         // Rust language support
-        "1yib.rust-bundle",
+        "rust-lang.rust-analyzer",
         // Justfile
         "nefrob.vscode-just-syntax",
         // TOML support
