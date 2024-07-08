@@ -2,9 +2,8 @@ use frame_support::{
     assert_noop, assert_ok,
     sp_runtime::{bounded_vec, BoundedVec},
 };
-use pallet_market::{DealProposal, DealState, PendingProposals, Proposals};
-use primitives_proofs::{DealId, RegisteredPoStProof, RegisteredSealProof};
-use sp_core::H256;
+use pallet_market::{DealProposal, DealState};
+use primitives_proofs::{RegisteredPoStProof, RegisteredSealProof};
 
 use crate::{
     mock::*,
@@ -216,24 +215,29 @@ fn pre_commit_sector_fails_when_precommited_twice() {
 #[test]
 fn prove_commit_sector() {
     new_test_ext().execute_with(|| {
-        let _deal_hash = publish_for_activation(
-            1,
-            DealProposal {
-                piece_cid: cid_of("polka-storage-data")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                piece_size: 18,
-                client: account(BOB),
-                provider: account(ALICE),
-                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
-                start_block: 100,
-                end_block: 110,
-                storage_price_per_block: 5,
-                provider_collateral: 25,
-                state: DealState::Published,
-            },
-        );
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(BOB)), 70);
+        assert_ok!(Market::publish_storage_deals(
+            RuntimeOrigin::signed(account(ALICE)),
+            bounded_vec![sign_proposal(
+                BOB,
+                DealProposal {
+                    piece_cid: cid_of("polka-storage-data")
+                        .to_bytes()
+                        .try_into()
+                        .expect("hash is always 32 bytes"),
+                    piece_size: 18,
+                    client: account(BOB),
+                    provider: account(ALICE),
+                    label: bounded_vec![0xb, 0xe, 0xe, 0xf],
+                    start_block: 100,
+                    end_block: 110,
+                    storage_price_per_block: 5,
+                    provider_collateral: 25,
+                    state: DealState::Published,
+                },
+            )],
+        ));
         let peer_id = "storage_provider_1".as_bytes().to_vec();
         let peer_id = BoundedVec::try_from(peer_id).unwrap();
         let window_post_type = RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
@@ -252,7 +256,7 @@ fn prove_commit_sector() {
                 .to_bytes()
                 .try_into()
                 .expect("hash is always 32 bytes"),
-            deal_ids: bounded_vec![1],
+            deal_ids: bounded_vec![0],
             expiration: YEARS,
             unsealed_cid: cid_of("unsealed_cid")
                 .to_bytes()
@@ -265,7 +269,7 @@ fn prove_commit_sector() {
             sector.clone()
         ));
         // check that the deposit has been reserved.
-        assert_eq!(Balances::free_balance(account(ALICE)), 99);
+        assert_eq!(Balances::free_balance(account(ALICE)), 39);
         // flush the events
         events();
         // Test prove commits
@@ -284,7 +288,7 @@ fn prove_commit_sector() {
             events(),
             [
                 RuntimeEvent::Market(pallet_market::Event::DealActivated {
-                    deal_id: 1,
+                    deal_id: 0,
                     client: account(BOB),
                     provider: account(ALICE)
                 }),
@@ -295,25 +299,11 @@ fn prove_commit_sector() {
             ]
         );
         // check that the funds are still locked
-        assert_eq!(Balances::free_balance(account(ALICE)), 99);
+        assert_eq!(Balances::free_balance(account(ALICE)), 39);
         let sp_state = StorageProviders::<Test>::get(account(ALICE))
             .expect("Should be able to get ALICE info");
         // check that the sector has been activated
         assert!(!sp_state.sectors.is_empty());
         assert!(sp_state.sectors.contains_key(&sector_number));
     });
-}
-
-/// Creates a new deal and saves it in the Runtime Storage.
-/// In addition to saving it to `Proposals::<T>` it also calculate's
-/// it's hash and saves it to `PendingProposals::<T>`.
-/// Behaves like `publish_storage_deals` without the validation and calling extrinsics.
-fn publish_for_activation(deal_id: DealId, deal: DealProposalOf<Test>) -> H256 {
-    let hash = Market::hash_proposal(&deal);
-    let mut pending = PendingProposals::<Test>::get();
-    pending.try_insert(hash).unwrap();
-    PendingProposals::<Test>::set(pending);
-
-    Proposals::<Test>::insert(deal_id, deal);
-    hash
 }
