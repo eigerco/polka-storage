@@ -113,7 +113,7 @@ async fn download(
     })?;
 
     let (file_name, path) = content_path(&state.storage_dir, cid);
-    info!(path = %path.display(), "file requested");
+    info!(?path, "file requested");
 
     // Check if the file exists
     if !path.exists() {
@@ -175,7 +175,7 @@ where
     // location.
     let (_, final_content_path) = content_path(folder, cid);
     fs::rename(temp_file_path, &final_content_path).await?;
-    info!(location = %final_content_path.display(), "CAR file created");
+    info!(?final_content_path, "CAR file created");
 
     Ok(cid)
 }
