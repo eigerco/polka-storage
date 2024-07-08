@@ -19,6 +19,7 @@ pub(crate) async fn run() -> Result<(), CliError> {
     match &cli_arguments.subcommand {
         SubCommand::Init(cmd) => cmd.run().await,
         SubCommand::Run(cmd) => cmd.run().await,
+        SubCommand::Storage(cmd) => cmd.run().await,
         SubCommand::Info(cmd) => cmd.run(&rpc_client).await,
         SubCommand::Wallet(cmd) => match cmd {
             WalletCommand::GenerateNodeKey(cmd) => Ok(cmd.run()?),

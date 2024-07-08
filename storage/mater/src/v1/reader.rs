@@ -1,17 +1,16 @@
 use std::io::Cursor;
 
-use integer_encoding::VarIntAsyncReader;
 use ipld_core::{cid::Cid, codec::Codec};
 use serde_ipld_dagcbor::codec::DagCborCodec;
 use tokio::io::{AsyncRead, AsyncReadExt};
 
-use crate::{v1::Header, v2::PRAGMA, Error};
+use crate::{async_varint::read_varint, v1::Header, v2::PRAGMA, Error};
 
 pub(crate) async fn read_header<R>(mut reader: R) -> Result<Header, Error>
 where
     R: AsyncRead + Unpin,
 {
-    let header_length: usize = reader.read_varint_async().await?;
+    let header_length: usize = read_varint(&mut reader).await?;
     let mut header_buffer = vec![0; header_length];
     reader.read_exact(&mut header_buffer).await?;
 
@@ -46,7 +45,7 @@ pub(crate) async fn read_block<R>(mut reader: R) -> Result<(Cid, Vec<u8>), Error
 where
     R: AsyncRead + Unpin,
 {
-    let full_block_length: usize = reader.read_varint_async().await?;
+    let full_block_length: usize = read_varint(&mut reader).await?;
     let mut full_block_buffer = vec![0; full_block_length];
     reader.read_exact(&mut full_block_buffer).await?;
 

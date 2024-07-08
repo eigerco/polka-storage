@@ -2,6 +2,7 @@ use std::{net::SocketAddr, sync::Arc};
 
 use chrono::Utc;
 use clap::Parser;
+use tokio::{signal, sync::oneshot};
 use tracing::info;
 use url::Url;
 
@@ -11,6 +12,7 @@ use crate::{
     substrate,
 };
 
+/// Default RPC API endpoint used by the parachain node.
 const FULL_NODE_DEFAULT_RPC_ADDR: &str = "ws://127.0.0.1:9944";
 
 /// Command to start the storage provider.
@@ -33,20 +35,26 @@ impl RunCommand {
             substrate_client,
         });
 
-        // Start RPC server
-        let handle = start_rpc_server(state, self.listen_addr).await?;
-        info!("RPC server started at {}", self.listen_addr);
+        // Setup shutdown channel
+        let (notify_shutdown_tx, notify_shutdown_rx) = oneshot::channel();
 
-        // Monitor shutdown
-        tokio::signal::ctrl_c().await?;
+        // Start the server in the background
+        let rpc_handler = tokio::spawn(start_rpc_server(
+            state.clone(),
+            self.listen_addr,
+            notify_shutdown_rx,
+        ));
 
-        // Stop the Server
-        let _ = handle.stop();
+        // Wait for SIGTERM on the main thread and once received "unblock"
+        signal::ctrl_c().await.expect("failed to listen for event");
+        // Send the shutdown signal
+        let _ = notify_shutdown_tx.send(());
 
-        // Wait for the server to stop
-        handle.stopped().await;
-        info!("RPC server stopped");
+        // Give server some time to finish
+        info!("shutting down server, killing it in 10sec");
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(10), rpc_handler).await;
 
+        info!("storage provider stopped");
         Ok(())
     }
 }
