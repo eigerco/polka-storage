@@ -4583,7 +4583,7 @@ checksum = "ec3efd23720e2049821a693cbc7e65ea87c72f1c58ff2f9522ff332b1491e590"
 dependencies = [
  "futures-util",
  "http 0.2.12",
- "hyper 0.14.29",
+ "hyper 0.14.28",
  "log",
  "rustls 0.21.12",
  "rustls-native-certs 0.6.3",
@@ -4997,7 +4997,7 @@ dependencies = [
  "beef",
  "futures-timer",
  "futures-util",
- "hyper 0.14.29",
+ "hyper 0.14.28",
  "jsonrpsee-types",
  "parking_lot 0.12.3",
  "pin-project",
@@ -5018,7 +5018,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ccf93fc4a0bfe05d851d37d7c32b7f370fe94336b52a2f0efc5f1981895c2e5"
 dependencies = [
  "async-trait",
- "hyper 0.14.29",
+ "hyper 0.14.28",
  "hyper-rustls",
  "jsonrpsee-core",
  "jsonrpsee-types",
@@ -5052,7 +5052,7 @@ checksum = "12d8b6a9674422a8572e0b0abb12feeb3f2aeda86528c80d0350c2bd0923ab41"
 dependencies = [
  "futures-util",
  "http 0.2.12",
- "hyper 0.14.29",
+ "hyper 0.14.28",
  "jsonrpsee-core",
  "jsonrpsee-types",
  "pin-project",
@@ -11841,7 +11841,7 @@ dependencies = [
  "fnv",
  "futures",
  "futures-timer",
- "hyper 0.14.29",
+ "hyper 0.14.28",
  "hyper-rustls",
  "libp2p",
  "log",
@@ -11936,7 +11936,7 @@ dependencies = [
  "futures",
  "governor",
  "http 0.2.12",
- "hyper 0.14.29",
+ "hyper 0.14.28",
  "ip_network",
  "jsonrpsee",
  "log",
@@ -14294,7 +14294,7 @@ name = "substrate-prometheus-endpoint"
 version = "0.17.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-v1.13.0#d5160c1d567cc73c7df6c816d41e21aa3adb188d"
 dependencies = [
- "hyper 0.14.29",
+ "hyper 0.14.28",
  "log",
  "prometheus",
  "thiserror",
