@@ -613,7 +613,7 @@ fn verify_deals_for_activation_fails_deal_not_in_pending() {
 }
 
 #[test]
-fn verify_deals_for_activation_fails_sector_activation_after_start_block() {
+fn verify_deals_for_activation_fails_sector_activation_on_deal_from_the_past() {
     new_test_ext().execute_with(|| {
         // current_block == sector_activation when calling `verify_deals_for_activation`
         // wait a couple of blocks so deal cannot be activated, because it's too late.
