@@ -107,10 +107,11 @@ async fn download(
     Path(cid): Path<String>,
 ) -> Result<Response, (StatusCode, String)> {
     // Path to a CAR file
-    let Ok(cid) = Cid::from_str(&cid) else {
-        error!(cid, "cid incorrect format");
-        return Err((StatusCode::BAD_REQUEST, "cid incorrect format".to_string()));
-    };
+    let cid = Cid::from_str(&cid).map_err(|e| {
+        error!(?e, cid, "cid incorrect format");
+        (StatusCode::BAD_REQUEST, "cid incorrect format".to_string())
+    })?;
+
     let (file_name, path) = content_path(&state.storage_dir, cid);
     info!(path = %path.display(), "file requested");
 
@@ -121,13 +122,13 @@ async fn download(
     }
 
     // Open car file
-    let Ok(file) = File::open(path).await else {
-        error!(?path, "failed to open file");
-        return Err((
+    let file = File::open(&path).await.map_err(|e| {
+        error!(?e, ?path, "failed to open file");
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
             "failed to open file".to_string(),
-        ));
-    };
+        )
+    })?;
 
     // Convert the `AsyncRead` into a `Stream`
     let stream = ReaderStream::new(file);
@@ -155,7 +156,7 @@ where
 {
     // Create a storage folder if it doesn't exist.
     if !folder.exists() {
-        info!("creating storage folder: {}", folder.display());
+        info!(?folder, "creating storage folder");
         fs::create_dir_all(folder).await?;
     }
 
