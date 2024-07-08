@@ -14,7 +14,7 @@ use tempfile::tempdir_in;
 use tokio::{
     fs::{self, File},
     io::{AsyncRead, BufWriter},
-    sync::broadcast::Receiver,
+    sync::oneshot::Receiver,
 };
 use tokio_util::io::{ReaderStream, StreamReader};
 use tower_http::trace::TraceLayer;
@@ -32,7 +32,7 @@ pub struct StorageServerState {
 pub async fn start_upload_server(
     state: Arc<StorageServerState>,
     listen_addr: SocketAddr,
-    mut notify_shutdown_rx: Receiver<()>,
+    notify_shutdown_rx: Receiver<()>,
 ) -> Result<(), CliError> {
     // Configure router
     let router = configure_router(state);
@@ -42,14 +42,13 @@ pub async fn start_upload_server(
     info!("upload server started at: {listen_addr}");
     axum::serve(listener, router)
         .with_graceful_shutdown(async move {
-            let _ = notify_shutdown_rx.recv().await;
+            let _ = notify_shutdown_rx.await;
         })
         .await?;
 
     Ok(())
 }
 
-// TODO(no-ref,@cernicc,28/06/2024): Nicer error handling in handlers
 fn configure_router(state: Arc<StorageServerState>) -> Router {
     Router::new()
         .route("/upload", post(upload))
@@ -123,6 +122,7 @@ async fn download(
 
     // Open car file
     let Ok(file) = File::open(path).await else {
+        error!(?path, "failed to open file");
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             "failed to open file".to_string(),

@@ -1,7 +1,7 @@
 use std::{env, net::SocketAddr, path::PathBuf, sync::Arc};
 
 use clap::Parser;
-use tokio::{signal, sync::broadcast};
+use tokio::{signal, sync::oneshot};
 use tracing::info;
 
 use crate::{
@@ -9,7 +9,7 @@ use crate::{
     storage::{start_upload_server, StorageServerState},
 };
 
-/// Default storage path.
+/// Creates a path relative to the current directory in the format `./uploads`
 fn default_storage_path() -> PathBuf {
     let mut current_dir = env::current_dir().expect("failed to get current directory");
     current_dir.push("uploads");
@@ -37,13 +37,13 @@ impl StorageCommand {
         });
 
         // Setup shutdown channel
-        let (notify_shutdown_tx, _) = broadcast::channel(1);
+        let (notify_shutdown_tx, notify_shutdown_rx) = oneshot::channel();
 
         // Start the server in the background
         let upload_handler = tokio::spawn(start_upload_server(
             state.clone(),
             self.listen_addr,
-            notify_shutdown_tx.subscribe(),
+            notify_shutdown_rx,
         ));
 
         // Wait for SIGTERM on the main thread and once received "unblock"
@@ -52,9 +52,10 @@ impl StorageCommand {
         let _ = notify_shutdown_tx.send(());
 
         // Give uploads some time to finish
+        info!("shutting down server, killing it in 30sec");
         let _ = tokio::time::timeout(std::time::Duration::from_secs(30), upload_handler).await;
 
-        info!("storage provider storage stopped");
+        info!("storage provider server stopped");
         Ok(())
     }
 }

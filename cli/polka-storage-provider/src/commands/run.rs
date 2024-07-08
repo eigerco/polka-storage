@@ -1,8 +1,8 @@
-use std::{env, net::SocketAddr, path::PathBuf, sync::Arc};
+use std::{net::SocketAddr, sync::Arc};
 
 use chrono::Utc;
 use clap::Parser;
-use tokio::{signal, sync::broadcast};
+use tokio::{signal, sync::oneshot};
 use tracing::info;
 use url::Url;
 
@@ -15,13 +15,6 @@ use crate::{
 /// Default RPC API endpoint used by the parachain node.
 const FULL_NODE_DEFAULT_RPC_ADDR: &str = "ws://127.0.0.1:9944";
 
-/// Default storage path.
-fn default_storage_path() -> PathBuf {
-    let mut current_dir = env::current_dir().expect("failed to get current directory");
-    current_dir.push("uploads");
-    current_dir
-}
-
 /// Command to start the storage provider.
 #[derive(Debug, Clone, Parser)]
 pub(crate) struct RunCommand {
@@ -31,9 +24,6 @@ pub(crate) struct RunCommand {
     /// Address and port used for RPC server.
     #[arg(long, default_value = RPC_SERVER_DEFAULT_BIND_ADDR)]
     pub listen_addr: SocketAddr,
-    /// Directory where uploaded files are stored.
-    #[arg(long, default_value = default_storage_path().into_os_string())]
-    pub storage_dir: PathBuf,
 }
 
 impl RunCommand {
@@ -46,13 +36,13 @@ impl RunCommand {
         });
 
         // Setup shutdown channel
-        let (notify_shutdown_tx, _) = broadcast::channel(1);
+        let (notify_shutdown_tx, notify_shutdown_rx) = oneshot::channel();
 
         // Start the server in the background
         let rpc_handler = tokio::spawn(start_rpc_server(
             state.clone(),
             self.listen_addr,
-            notify_shutdown_tx.subscribe(),
+            notify_shutdown_rx,
         ));
 
         // Wait for SIGTERM on the main thread and once received "unblock"
@@ -61,6 +51,7 @@ impl RunCommand {
         let _ = notify_shutdown_tx.send(());
 
         // Give server some time to finish
+        info!("shutting down server, killing it in 10sec");
         let _ = tokio::time::timeout(std::time::Duration::from_secs(10), rpc_handler).await;
 
         info!("storage provider stopped");
