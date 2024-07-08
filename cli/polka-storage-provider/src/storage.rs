@@ -37,7 +37,6 @@ pub async fn start_upload_server(
     // Configure router
     let router = configure_router(state);
     let listener = tokio::net::TcpListener::bind(listen_addr).await?;
-    dbg!("dwadaw");
 
     // Start server
     info!("upload server started at: {listen_addr}");

@@ -20,8 +20,9 @@ This command creates a volume named storage_provider.
 
 Next, start the storage server using the created volume:
 
-`docker run --mount source=storage_provider,destination=/app/uploads eiger/provider storage`
+`docker run --net=host --mount source=storage_provider,destination=/app/uploads eiger/provider storage`
 
+- `--net=host`: Uses the host network, allowing the container to communicate with the host machine.
 - `--mount source=storage_provider,destination=/app/uploads`: Mounts the storage_provider volume to /app/uploads inside the container.
 - `eiger/provider storage`: Runs the eiger/provider image with the storage command.
 
@@ -35,7 +36,7 @@ This command uploads the file image.jpg to the server running at http://localhos
 
 ## Download the CAR File
 
-After uploading, you will receive a CID (Content Identifier) for the file. Use this CID to download the corresponding CAR file. Replace :cid with the actual CID provided:
+After uploading, you will receive a CID (Content Identifier) for the file. Use this CID to download the corresponding CAR file. Replace `:cid` with the actual CID provided:
 
 `curl -v -X GET http://localhost:9000/download/:cid --output ./content.car`
 
