@@ -3,9 +3,9 @@ use core::str::FromStr;
 use cid::Cid;
 use frame_support::{
     assert_err, assert_noop, assert_ok,
-    pallet_prelude::ConstU32,
+    pallet_prelude::{ConstU32,Get},
     sp_runtime::{bounded_vec, ArithmeticError, DispatchError, TokenError},
-    traits::Currency,
+    traits::{Currency},
     BoundedVec,
 };
 use primitives_proofs::{
@@ -18,7 +18,7 @@ use crate::{
     mock::*,
     pallet::{lock_funds, slash_and_burn, unlock_funds},
     ActiveDealState, BalanceEntry, BalanceTable, DealSettlementError, DealState, DealsForBlock,
-    Error, Event, PendingProposals, Proposals, SectorDeals, SectorTerminateError,
+    Error, Event, Config, PendingProposals, Proposals, SectorDeals, SectorTerminateError,
 };
 #[test]
 fn initial_state() {
@@ -273,8 +273,7 @@ fn publish_storage_deals_fails_min_duration_out_of_bounds() {
     new_test_ext().execute_with(|| {
         let proposal = DealProposalBuilder::default()
             .start_block(10)
-            // Make duration shorter than [`T::MinDealDuration`]
-            .end_block(11)
+            .end_block(10 + <<Test as Config>::MinDealDuration as Get<u64>>::get() - 1)
             .signed(ALICE);
 
         assert_noop!(
