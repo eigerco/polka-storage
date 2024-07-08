@@ -14,7 +14,7 @@ pub enum RegisteredPoStProof {
 
 impl RegisteredPoStProof {
     /// Returns the sector size of the proof type, which is measured in bytes.
-    pub fn sector_size(self) -> SectorSize {
+    pub(crate) fn sector_size(self) -> SectorSize {
         match self {
             RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => SectorSize::_2KiB,
         }
@@ -22,9 +22,8 @@ impl RegisteredPoStProof {
 
     /// Returns the partition size, in sectors, associated with a proof type.
     /// The partition size is the number of sectors proven in a single PoSt proof.
-    pub fn window_post_partitions_sector(self) -> u64 {
+    pub(crate) fn window_post_partitions_sector(self) -> u64 {
         // Resolve to post proof and then compute size from that.
-
         match self {
             RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => 2,
         }
@@ -45,6 +44,18 @@ pub enum RegisteredSealProof {
     StackedDRG2KiBV1P1,
 }
 
+impl RegisteredSealProof {
+    /// Produces the windowed PoSt-specific RegisteredProof corresponding
+    /// to the receiving RegisteredProof.
+    pub(crate) fn registered_window_post_proof(&self) -> RegisteredPoStProof {
+        match self {
+            RegisteredSealProof::StackedDRG2KiBV1P1 => {
+                RegisteredPoStProof::StackedDRGWindow2KiBV1P1
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum ProofError {
     Conversion,
@@ -54,7 +65,7 @@ pub enum ProofError {
 /// by hashing the address and current block number.
 ///
 /// Filecoin implementation reference: <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L4886>
-pub fn assign_proving_period_offset<AccountId, BlockNumber>(
+pub(crate) fn assign_proving_period_offset<AccountId, BlockNumber>(
     addr: &AccountId,
     current_block: BlockNumber,
     wpost_proving_period: BlockNumber,
@@ -66,52 +77,49 @@ where
     // Encode address and current block number
     let mut addr = addr.encode();
     let mut block_num = current_block.encode();
-
     // Concatenate the encoded block number to the encoded address.
     addr.append(&mut block_num);
-
     // Hash the address and current block number for a pseudo-random offset.
     let digest = blake2_64(&addr);
-
     // Create a pseudo-random offset from the bytes of the hash of the address and current block number.
     let offset = u64::from_be_bytes(digest);
-
     // Convert into block number
     let mut offset =
         TryInto::<BlockNumber>::try_into(offset).map_err(|_| ProofError::Conversion)?;
-
     // Mod with the proving period so it is within the valid range of [0, WPOST_PROVING_PERIOD)
     offset %= wpost_proving_period;
-
     Ok(offset)
 }
 
-/// Computes the epoch at which a proving period should start such that it is greater than the current epoch, and
+/// Computes the block at which a proving period should start such that it is greater than the current block, and
 /// has a defined offset from being an exact multiple of WPoStProvingPeriod.
-/// A miner is exempt from Window PoSt until the first full proving period starts.
-//
+/// A storage provider is exempt from Window PoSt until the first full proving period starts.
 /// Filecoin implementation reference: https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L4907
-pub fn current_proving_period_start<BlockNumber>(
+pub(crate) fn current_proving_period_start<BlockNumber>(
     current_block: BlockNumber,
     offset: BlockNumber,
-    proving_period: BlockNumber,
+    proving_period: BlockNumber, // should be the max proving period
 ) -> BlockNumber
 where
     BlockNumber: BaseArithmetic,
 {
-    let curr_modulus = current_block.clone() % proving_period.clone();
-
-    let period_progress = if curr_modulus >= offset {
-        curr_modulus - offset
+    // Use this value to calculate the proving period start, modulo the proving period so we cannot go over the max proving period
+    // the value represents how far into a proving period we are.
+    let how_far_into_proving_period = current_block.clone() % proving_period.clone();
+    let period_progress = if how_far_into_proving_period >= offset {
+        how_far_into_proving_period - offset
     } else {
-        proving_period - (offset - curr_modulus)
+        proving_period - (offset - how_far_into_proving_period)
     };
-
-    current_block - period_progress
+    if current_block < period_progress {
+        period_progress
+    } else {
+        current_block - period_progress
+    }
 }
 
 /// Filecoin implementation reference: https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L4923
-pub fn current_deadline_index<BlockNumber>(
+pub(crate) fn current_deadline_index<BlockNumber>(
     current_block: BlockNumber,
     period_start: BlockNumber,
     challenge_window: BlockNumber,
@@ -119,5 +127,8 @@ pub fn current_deadline_index<BlockNumber>(
 where
     BlockNumber: BaseArithmetic,
 {
-    (current_block - period_start) / challenge_window
+    match current_block.checked_sub(&period_start) {
+        Some(block) => block / challenge_window,
+        None => period_start / challenge_window,
+    }
 }
