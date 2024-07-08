@@ -3,15 +3,11 @@ use frame_support::{
     pallet_prelude::{ConstU32, RuntimeDebug},
     sp_runtime::BoundedBTreeMap,
 };
+use primitives_proofs::{RegisteredPoStProof, SectorNumber, SectorSize};
 use scale_info::TypeInfo;
 use sp_arithmetic::{traits::BaseArithmetic, ArithmeticError};
 
-use crate::{
-    proofs::RegisteredPoStProof,
-    sector::{
-        SectorNumber, SectorOnChainInfo, SectorPreCommitOnChainInfo, SectorSize, SECTORS_MAX,
-    },
-};
+use crate::sector::{SectorOnChainInfo, SectorPreCommitOnChainInfo, SECTORS_MAX};
 
 /// This struct holds the state of a single storage provider.
 #[derive(Debug, Decode, Encode, TypeInfo)]
@@ -20,14 +16,14 @@ pub struct StorageProviderState<PeerId, Balance, BlockNumber> {
     pub info: StorageProviderInfo<PeerId>,
     /// Information for all proven and not-yet-garbage-collected sectors.
     pub sectors:
-        BoundedBTreeMap<SectorNumber, SectorOnChainInfo<BlockNumber>, ConstU32<SECTORS_MAX>>,
+        BoundedBTreeMap<SectorNumber, SectorOnChainInfo<BlockNumber>, ConstU32<SECTORS_MAX>>, // Cannot use ConstU64 here because of BoundedBTreeMap trait bound `Get<u32>`
     /// Total funds locked as pre_commit_deposit
     pub pre_commit_deposits: Balance,
     /// Sectors that have been pre-committed but not yet proven.
     pub pre_committed_sectors: BoundedBTreeMap<
         SectorNumber,
         SectorPreCommitOnChainInfo<Balance, BlockNumber>,
-        ConstU32<SECTORS_MAX>,
+        ConstU32<SECTORS_MAX>, // Cannot use ConstU64 here because of BoundedBTreeMap trait bound `Get<u32>`
     >,
     /// The first block in this storage provider's current proving period. This is the first block in which a PoSt for a
     /// partition at the storage provider's first deadline may arrive. Alternatively, it is after the last block at which

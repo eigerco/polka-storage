@@ -1,20 +1,12 @@
 use codec::{Decode, Encode};
-use primitives_proofs::{DealId, SectorId};
+use frame_support::{pallet_prelude::*, BoundedVec};
+use primitives_proofs::{
+    DealId, RegisteredSealProof, SectorDeal, SectorId, SectorNumber, MAX_DEALS_PER_SECTOR,
+};
 use scale_info::TypeInfo;
-
-use crate::proofs::RegisteredSealProof;
 
 // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/runtime/src/runtime/policy.rs#L262
 pub const SECTORS_MAX: u32 = 32 << 20;
-
-/// SectorNumber is a numeric identifier for a sector.
-pub type SectorNumber = u32;
-
-/// SectorSize indicates one of a set of possible sizes in the network.
-#[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq, Eq, Copy)]
-pub enum SectorSize {
-    _2KiB,
-}
 
 /// This type is passed into the pre commit function on the storage provider pallet
 #[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
@@ -26,7 +18,7 @@ pub struct SectorPreCommitInfo<BlockNumber> {
     /// Using sealed_cid as I think that is more descriptive.
     /// Some docs on commR here: <https://proto.school/verifying-storage-on-filecoin/03>
     pub sealed_cid: SectorId,
-    pub deal_id: DealId,
+    pub deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
     /// Expiration of the pre-committed sector.
     pub expiration: BlockNumber,
     /// CommD
@@ -53,6 +45,19 @@ impl<Balance, BlockNumber> SectorPreCommitOnChainInfo<Balance, BlockNumber> {
             info,
             pre_commit_deposit,
             pre_commit_block_number,
+        }
+    }
+}
+
+impl<Balance, BlockNumber: Clone> From<&SectorPreCommitOnChainInfo<Balance, BlockNumber>>
+    for SectorDeal<BlockNumber>
+{
+    fn from(precommit: &SectorPreCommitOnChainInfo<Balance, BlockNumber>) -> Self {
+        Self {
+            sector_number: precommit.info.sector_number,
+            sector_expiry: precommit.info.expiration.clone(),
+            sector_type: precommit.info.seal_proof.clone(),
+            deal_ids: precommit.info.deal_ids.clone(),
         }
     }
 }

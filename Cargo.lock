@@ -7647,6 +7647,7 @@ dependencies = [
  "log",
  "multihash-codetable",
  "pallet-balances",
+ "pallet-market",
  "parity-scale-codec",
  "primitives-proofs",
  "scale-info",

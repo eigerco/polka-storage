@@ -1,9 +1,14 @@
-use frame_support::{assert_noop, assert_ok, sp_runtime::BoundedVec};
+use frame_support::{
+    assert_noop, assert_ok,
+    sp_runtime::{bounded_vec, BoundedVec},
+};
+use pallet_market::{DealProposal, DealState, PendingProposals, Proposals};
+use primitives_proofs::{DealId, RegisteredPoStProof, RegisteredSealProof};
+use sp_core::H256;
 
 use crate::{
     mock::*,
     pallet::{Error, Event, StorageProviders},
-    proofs::{RegisteredPoStProof, RegisteredSealProof},
     sector::{ProveCommitSector, SectorPreCommitInfo},
     storage_provider::StorageProviderInfo,
 };
@@ -11,8 +16,8 @@ use crate::{
 #[test]
 fn initial_state() {
     new_test_ext().execute_with(|| {
-        assert!(!StorageProviders::<Test>::contains_key(ALICE));
-        assert!(!StorageProviders::<Test>::contains_key(BOB));
+        assert!(!StorageProviders::<Test>::contains_key(account(ALICE)));
+        assert!(!StorageProviders::<Test>::contains_key(account(BOB)));
     })
 }
 
@@ -28,13 +33,13 @@ fn register_sp() {
         let expected_sp_info = StorageProviderInfo::new(peer_id.clone(), window_post_type);
         // Register BOB as a storage provider.
         assert_ok!(StorageProvider::register_storage_provider(
-            RuntimeOrigin::signed(BOB),
+            RuntimeOrigin::signed(account(BOB)),
             peer_id.clone(),
             window_post_type,
         ));
-        assert!(StorageProviders::<Test>::contains_key(BOB));
+        assert!(StorageProviders::<Test>::contains_key(account(BOB)));
         // `unwrap()` should be safe because of the above check.
-        let sp_bob = StorageProviders::<Test>::get(BOB).unwrap();
+        let sp_bob = StorageProviders::<Test>::get(account(BOB)).unwrap();
         // Check that storage provider information is correct.
         assert_eq!(sp_bob.info.peer_id, peer_id);
         assert_eq!(sp_bob.info.window_post_proof_type, window_post_type);
@@ -54,7 +59,7 @@ fn register_sp() {
             events(),
             [RuntimeEvent::StorageProvider(
                 Event::<Test>::StorageProviderRegistered {
-                    owner: BOB,
+                    owner: account(BOB),
                     info: expected_sp_info,
                 },
             )]
@@ -71,15 +76,15 @@ fn double_register_sp() {
         let window_post_type = RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
         // Register BOB as a storage provider.
         assert_ok!(StorageProvider::register_storage_provider(
-            RuntimeOrigin::signed(BOB),
+            RuntimeOrigin::signed(account(BOB)),
             peer_id.clone(),
             window_post_type,
         ));
-        assert!(StorageProviders::<Test>::contains_key(BOB));
+        assert!(StorageProviders::<Test>::contains_key(account(BOB)));
         // Try to register BOB again. Should fail
         assert_noop!(
             StorageProvider::register_storage_provider(
-                RuntimeOrigin::signed(BOB),
+                RuntimeOrigin::signed(account(BOB)),
                 peer_id.clone(),
                 window_post_type,
             ),
@@ -96,17 +101,17 @@ fn pre_commit_sector() {
         let window_post_type = RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
         // Register ALICE as a storage provider.
         assert_ok!(StorageProvider::register_storage_provider(
-            RuntimeOrigin::signed(ALICE),
+            RuntimeOrigin::signed(account(ALICE)),
             peer_id.clone(),
             window_post_type,
         ));
-        assert!(StorageProviders::<Test>::contains_key(ALICE));
+        assert!(StorageProviders::<Test>::contains_key(account(ALICE)));
         // Check that the event triggered
         assert_eq!(
             events(),
             [RuntimeEvent::StorageProvider(
                 Event::<Test>::StorageProviderRegistered {
-                    owner: ALICE,
+                    owner: account(ALICE),
                     info: StorageProviderInfo::new(peer_id, window_post_type),
                 },
             )]
@@ -118,7 +123,7 @@ fn pre_commit_sector() {
                 .to_bytes()
                 .try_into()
                 .expect("hash is always 32 bytes"),
-            deal_id: 1,
+            deal_ids: vec![0, 1].try_into().expect("Could not set deal ids"),
             expiration: YEARS,
             unsealed_cid: cid_of("unsealed_cid")
                 .to_bytes()
@@ -126,31 +131,32 @@ fn pre_commit_sector() {
                 .expect("hash is always 32 bytes"),
         };
         // Check starting balance
-        assert_eq!(Balances::free_balance(ALICE), 100);
+        assert_eq!(Balances::free_balance(account(ALICE)), 100);
         // Run pre commit extrinsic
-        StorageProvider::pre_commit_sector(RuntimeOrigin::signed(ALICE), sector.clone())
+        StorageProvider::pre_commit_sector(RuntimeOrigin::signed(account(ALICE)), sector.clone())
             .expect("Pre commit failed");
         // Check that the event triggered
         assert_eq!(
             events(),
             [
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Reserved {
-                    who: ALICE,
+                    who: account(ALICE),
                     amount: 1
                 },),
                 RuntimeEvent::StorageProvider(Event::<Test>::SectorPreCommitted {
-                    owner: ALICE,
+                    owner: account(ALICE),
                     sector: sector.clone(),
                 })
             ]
         );
         // `expect()` should be safe because of the above check.
-        let sp_alice = StorageProviders::<Test>::get(ALICE).expect("SP Alice should be present");
+        let sp_alice =
+            StorageProviders::<Test>::get(account(ALICE)).expect("SP Alice should be present");
 
         assert!(sp_alice.sectors.is_empty()); // not yet proven
         assert!(!sp_alice.pre_committed_sectors.is_empty());
         assert_eq!(sp_alice.pre_commit_deposits, 1);
-        assert_eq!(Balances::free_balance(ALICE), 99);
+        assert_eq!(Balances::free_balance(account(ALICE)), 99);
     });
 }
 
@@ -162,17 +168,17 @@ fn pre_commit_sector_fails_when_precommited_twice() {
         let window_post_type = RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
         // Register ALICE as a storage provider.
         assert_ok!(StorageProvider::register_storage_provider(
-            RuntimeOrigin::signed(ALICE),
+            RuntimeOrigin::signed(account(ALICE)),
             peer_id.clone(),
             window_post_type,
         ));
-        assert!(StorageProviders::<Test>::contains_key(ALICE));
+        assert!(StorageProviders::<Test>::contains_key(account(ALICE)));
         // Check that the event triggered
         assert_eq!(
             events(),
             [RuntimeEvent::StorageProvider(
                 Event::<Test>::StorageProviderRegistered {
-                    owner: ALICE,
+                    owner: account(ALICE),
                     info: StorageProviderInfo::new(peer_id, window_post_type),
                 },
             )]
@@ -184,7 +190,7 @@ fn pre_commit_sector_fails_when_precommited_twice() {
                 .to_bytes()
                 .try_into()
                 .expect("hash is always 32 bytes"),
-            deal_id: 1,
+            deal_ids: vec![0, 1].try_into().expect("Could not set deal ids"),
             expiration: YEARS,
             unsealed_cid: cid_of("unsealed_cid")
                 .to_bytes()
@@ -193,12 +199,15 @@ fn pre_commit_sector_fails_when_precommited_twice() {
         };
         // Run pre commit extrinsic
         assert_ok!(StorageProvider::pre_commit_sector(
-            RuntimeOrigin::signed(ALICE),
+            RuntimeOrigin::signed(account(ALICE)),
             sector.clone()
         ));
         // Run same extrinsic, this should fail
         assert_noop!(
-            StorageProvider::pre_commit_sector(RuntimeOrigin::signed(ALICE), sector.clone()),
+            StorageProvider::pre_commit_sector(
+                RuntimeOrigin::signed(account(ALICE)),
+                sector.clone()
+            ),
             Error::<Test>::SectorNumberAlreadyUsed,
         );
     });
@@ -207,55 +216,104 @@ fn pre_commit_sector_fails_when_precommited_twice() {
 #[test]
 fn prove_commit_sector() {
     new_test_ext().execute_with(|| {
+        let _deal_hash = publish_for_activation(
+            1,
+            DealProposal {
+                piece_cid: cid_of("polka-storage-data")
+                    .to_bytes()
+                    .try_into()
+                    .expect("hash is always 32 bytes"),
+                piece_size: 18,
+                client: account(BOB),
+                provider: account(ALICE),
+                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
+                start_block: 100,
+                end_block: 110,
+                storage_price_per_block: 5,
+                provider_collateral: 25,
+                state: DealState::Published,
+            },
+        );
         let peer_id = "storage_provider_1".as_bytes().to_vec();
         let peer_id = BoundedVec::try_from(peer_id).unwrap();
         let window_post_type = RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
         let sector_number = 1;
         // Register ALICE as a storage provider.
         assert_ok!(StorageProvider::register_storage_provider(
-            RuntimeOrigin::signed(ALICE),
+            RuntimeOrigin::signed(account(ALICE)),
             peer_id.clone(),
             window_post_type,
         ));
-        assert!(StorageProviders::<Test>::contains_key(ALICE));
+        assert!(StorageProviders::<Test>::contains_key(account(ALICE)));
         let sector = SectorPreCommitInfo {
             seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
             sector_number,
-            sealed_cid: BoundedVec::default(),
-            deal_id: 1,
-            expiration: 66,
-            unsealed_cid: BoundedVec::default(),
+            sealed_cid: cid_of("sealed_cid")
+                .to_bytes()
+                .try_into()
+                .expect("hash is always 32 bytes"),
+            deal_ids: vec![1].try_into().expect("Could not set deal ids"),
+            expiration: YEARS,
+            unsealed_cid: cid_of("unsealed_cid")
+                .to_bytes()
+                .try_into()
+                .expect("hash is always 32 bytes"),
         };
         // Run pre commit extrinsic
         assert_ok!(StorageProvider::pre_commit_sector(
-            RuntimeOrigin::signed(ALICE),
+            RuntimeOrigin::signed(account(ALICE)),
             sector.clone()
         ));
         // check that the deposit has been reserved.
-        assert_eq!(Balances::free_balance(ALICE), 99);
+        assert_eq!(Balances::free_balance(account(ALICE)), 99);
         // flush the events
         events();
         // Test prove commits
         let sector = ProveCommitSector {
             sector_number,
-            proof: BoundedVec::default(),
+            proof: cid_of("prove_commit")
+                .to_bytes()
+                .try_into()
+                .expect("hash is always 32 bytes"),
         };
         assert_ok!(StorageProvider::prove_commit_sector(
-            RuntimeOrigin::signed(ALICE),
+            RuntimeOrigin::signed(account(ALICE)),
             sector
         ));
         assert_eq!(
             events(),
-            [RuntimeEvent::StorageProvider(Event::<Test>::SectorProven {
-                owner: ALICE,
-                sector_number: sector_number
-            })]
+            [
+                RuntimeEvent::Market(pallet_market::Event::DealActivated {
+                    deal_id: 1,
+                    client: account(BOB),
+                    provider: account(ALICE)
+                }),
+                RuntimeEvent::StorageProvider(Event::<Test>::SectorProven {
+                    owner: account(ALICE),
+                    sector_number: sector_number
+                })
+            ]
         );
         // check that the funds are still locked
-        assert_eq!(Balances::free_balance(ALICE), 99);
-        let sp_state = StorageProviders::<Test>::get(ALICE).expect("Should be able to get ALICE info");
+        assert_eq!(Balances::free_balance(account(ALICE)), 99);
+        let sp_state = StorageProviders::<Test>::get(account(ALICE))
+            .expect("Should be able to get ALICE info");
         // check that the sector has been activated
         assert!(!sp_state.sectors.is_empty());
         assert!(sp_state.sectors.contains_key(&sector_number));
     });
+}
+
+/// Creates a new deal and saves it in the Runtime Storage.
+/// In addition to saving it to `Proposals::<T>` it also calculate's
+/// it's hash and saves it to `PendingProposals::<T>`.
+/// Behaves like `publish_storage_deals` without the validation and calling extrinsics.
+fn publish_for_activation(deal_id: DealId, deal: DealProposalOf<Test>) -> H256 {
+    let hash = Market::hash_proposal(&deal);
+    let mut pending = PendingProposals::<Test>::get();
+    pending.try_insert(hash).unwrap();
+    PendingProposals::<Test>::set(pending);
+
+    Proposals::<Test>::insert(deal_id, deal);
+    hash
 }

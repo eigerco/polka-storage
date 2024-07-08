@@ -42,21 +42,17 @@ pub mod pallet {
         pallet_prelude::*,
         traits::{Currency, ReservableCurrency},
     };
-    use frame_system::{
-        ensure_signed,
-        pallet_prelude::{BlockNumberFor, *},
-        Config as SystemConfig,
-    };
+    use frame_system::{ensure_signed, pallet_prelude::*, Config as SystemConfig};
+    use primitives_proofs::{Market, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
     use scale_info::TypeInfo;
 
     use crate::{
         proofs::{
             assign_proving_period_offset, current_deadline_index, current_proving_period_start,
-            RegisteredPoStProof, RegisteredSealProof,
         },
         sector::{
-            ProveCommitSector, SectorNumber, SectorOnChainInfo, SectorPreCommitInfo,
-            SectorPreCommitOnChainInfo, SECTORS_MAX,
+            ProveCommitSector, SectorOnChainInfo, SectorPreCommitInfo, SectorPreCommitOnChainInfo,
+            SECTORS_MAX,
         },
         storage_provider::{StorageProviderInfo, StorageProviderState},
     };
@@ -81,6 +77,8 @@ pub mod pallet {
         type PeerId: Clone + Debug + Decode + Encode + Eq + TypeInfo;
         /// Currency mechanism, used for collateral
         type Currency: ReservableCurrency<Self::AccountId>;
+        /// Market trait implementation for activating deals
+        type Market: Market<Self::AccountId, BlockNumberFor<Self>>;
         /// Proving period for submitting Window PoSt, 24 hours is blocks
         #[pallet::constant]
         type WPoStProvingPeriod: Get<BlockNumberFor<Self>>;
@@ -165,6 +163,8 @@ pub mod pallet {
         MaxSectorLifetimeExceeded,
         /// Emitted when a CID is invalid
         InvalidCid,
+        /// Emitted when a sector fails to activate
+        CouldNotActivateSector,
     }
 
     #[pallet::call]
@@ -215,7 +215,10 @@ pub mod pallet {
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
             let sector_number = sector.sector_number;
             let current_block = <frame_system::Pallet<T>>::block_number();
-            ensure!(sector_number <= SECTORS_MAX, Error::<T>::InvalidSector);
+            ensure!(
+                sector_number <= SECTORS_MAX.into(),
+                Error::<T>::InvalidSector
+            );
             ensure!(
                 sp.info.window_post_proof_type == sector.seal_proof.registered_window_post_proof(),
                 Error::<T>::InvalidProofType
@@ -262,7 +265,7 @@ pub mod pallet {
             let sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
             let sector_num = sector.sector_number;
-            ensure!(sector_num <= SECTORS_MAX, Error::<T>::InvalidSector);
+            ensure!(sector_num <= SECTORS_MAX.into(), Error::<T>::InvalidSector);
             let precommit = sp
                 .get_precommitted_sector(sector_num)
                 .map_err(|_| Error::<T>::InvalidSector)?;
@@ -271,6 +274,7 @@ pub mod pallet {
                 precommit.pre_commit_block_number + T::MaxProveCommitDuration::get();
             if current_block > prove_commit_due {
                 // TODO(@aidan46, no-ref, 2024-06-25): Flag this sector for late submission fee.
+                // I am not sure what to do here yet
                 log::warn!("Prove commit sent after the deadline");
             }
             ensure!(
@@ -290,6 +294,15 @@ pub mod pallet {
                     .map_err(|_| Error::<T>::CouldNotRemoveSector)?;
                 Ok(().into())
             })?;
+            let mut sector_deals = BoundedVec::new();
+            sector_deals
+                .try_push(precommit.into())
+                .map_err(|_| Error::<T>::CouldNotActivateSector)?;
+            if sector_deals.len() > 0 {
+                T::Market::activate_deals(&owner, sector_deals, true)?;
+            } else {
+                T::Market::activate_deals(&owner, sector_deals, false)?;
+            }
             Self::deposit_event(Event::SectorProven {
                 owner,
                 sector_number: sector_num,

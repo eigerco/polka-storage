@@ -51,6 +51,8 @@ use sp_version::RuntimeVersion;
 use xcm::latest::prelude::BodyId;
 use xcm_config::{RelayLocation, XcmOriginToTransactDispatchOrigin};
 
+use crate::Market;
+
 // Local module imports
 use super::{
     weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight},
@@ -322,6 +324,7 @@ impl pallet_storage_provider::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type PeerId = BoundedVec<u8, ConstU32<256>>; // Arbitrary length
     type Currency = Balances;
+    type Market = Market;
     type WPoStProvingPeriod = WpostProvingPeriod;
     type WPoStChallengeWindow = WpostChallengeWindow;
     type MinSectorExpiration = MinSectorExpiration;
