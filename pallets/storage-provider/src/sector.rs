@@ -1,8 +1,8 @@
 use codec::{Decode, Encode};
-use primitives_proofs::DealId;
+use primitives_proofs::{DealId, SectorId};
 use scale_info::TypeInfo;
 
-use crate::{pallet::SectorId, proofs::RegisteredSealProof};
+use crate::proofs::RegisteredSealProof;
 
 // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/runtime/src/runtime/policy.rs#L262
 pub const SECTORS_MAX: u32 = 32 << 20;
@@ -22,12 +22,9 @@ pub struct SectorPreCommitInfo<BlockNumber> {
     pub seal_proof: RegisteredSealProof,
     /// Which sector number this SP is pre-committing.
     pub sector_number: SectorNumber,
-    /// Byte Encoded Cid / CommR
-    ///'commR' Commitment of replication,
+    /// This value is also known as 'commR', Commitment of replication. The terms commR and sealed_cid are interchangeable.
+    /// Using sealed_cid as I think that is more descriptive.
     /// Some docs on commR here: <https://proto.school/verifying-storage-on-filecoin/03>
-    // We use BoundedVec here, as cid::Cid do not implement `TypeInfo`, so it cannot be saved into the Runtime Storage.
-    // It maybe doable using newtype pattern, however not sure how the UI on the frontend side would handle that anyways.
-    // There is Encode/Decode implementation though, through the feature flag: `scale-codec`.
     pub sealed_cid: SectorId,
     pub deal_id: DealId,
     /// Expiration of the pre-committed sector.
@@ -66,10 +63,9 @@ pub struct SectorOnChainInfo<BlockNumber> {
     /// The seal proof type implies the PoSt proofs
     pub seal_proof: RegisteredSealProof,
     /// The root hash of the sealed sector's merkle tree.
-    /// Also called CommR, or 'replica commitment'.
-    // We use BoundedVec here, as cid::Cid do not implement `TypeInfo`, so it cannot be saved into the Runtime Storage.
-    // It maybe doable using newtype pattern, however not sure how the UI on the frontend side would handle that anyways.
-    // There is Encode/Decode implementation though, through the feature flag: `scale-codec`.
+    /// This value is also known as 'commR', Commitment of replication. The terms commR and sealed_cid are interchangeable.
+    /// Using sealed_cid as I think that is more descriptive.
+    /// Some docs on commR here: <https://proto.school/verifying-storage-on-filecoin/03>
     pub sealed_cid: SectorId,
     /// Block number during which the sector proof was accepted
     pub activation: BlockNumber,

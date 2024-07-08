@@ -28,11 +28,9 @@ mod storage_provider;
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
     pub const CID_CODEC: u64 = 0x55;
-    pub const CID_SIZE_IN_BYTES: u32 = 128;
+    /// Sourced from multihash code table <https://github.com/multiformats/rust-multihash/blob/b321afc11e874c08735671ebda4d8e7fcc38744c/codetable/src/lib.rs#L108>
     pub const BLAKE2B_MULTIHASH_CODE: u64 = 0xB220;
-    pub type SubstrateCid = BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>;
-    /// The CID (in bytes) of a given sector.
-    pub type SectorId = SubstrateCid;
+    pub const LOG_TARGET: &'static str = "runtime::storage_provider";
 
     use core::fmt::Debug;
 
@@ -165,7 +163,7 @@ pub mod pallet {
         ExpirationTooLong,
         /// Emitted when a sectors lifetime exceeds SectorMaximumLifetime
         MaxSectorLifetimeExceeded,
-        /// Emitted when a CID is invalidB220
+        /// Emitted when a CID is invalid
         InvalidCid,
     }
 
@@ -227,7 +225,7 @@ pub mod pallet {
                     && !sp.sectors.contains_key(&sector_number),
                 Error::<T>::SectorNumberAlreadyUsed
             );
-            Self::cid_validation(&sector.unsealed_cid[..])?;
+            validate_cid::<T>(&sector.unsealed_cid[..])?;
             let balance = T::Currency::total_balance(&owner);
             let deposit = calculate_pre_commit_deposit::<T>();
             Self::validate_expiration(
@@ -328,20 +326,25 @@ pub mod pallet {
             );
             Ok(())
         }
-
-        fn cid_validation(bytes: &[u8]) -> Result<(), Error<T>> {
-            let c = Cid::try_from(bytes).map_err(|_| Error::<T>::InvalidCid)?;
-            ensure!(
-                c.version() == Version::V1
-                    && c.codec() == CID_CODEC
-                    && c.hash().code() == BLAKE2B_MULTIHASH_CODE
-                    && c.hash().size() == 32,
-                Error::<T>::InvalidCid
-            );
-            Ok(())
-        }
     }
 
+    // Adapted from filecoin reference here: https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/miner/src/commd.rs#L51-L56
+    fn validate_cid<T: Config>(bytes: &[u8]) -> Result<(), Error<T>> {
+        let c = Cid::try_from(bytes).map_err(|e| {
+            log::error!(target: LOG_TARGET, "failed to validate cid: {:?}", e);
+            Error::<T>::InvalidCid
+        })?;
+        // these values should be consistent with the cid's created by the SP.
+        // They could change in the future when we make a definitive decision on what hashing algorithm to use and such
+        ensure!(
+            c.version() == Version::V1
+                && c.codec() == CID_CODEC // The codec should align with our CID_CODEC value.
+                && c.hash().code() == BLAKE2B_MULTIHASH_CODE // The CID should be hashed using blake2b
+                && c.hash().size() == 32,
+            Error::<T>::InvalidCid
+        );
+        Ok(())
+    }
     /// Calculate the required pre commit deposit amount
     fn calculate_pre_commit_deposit<T: Config>() -> BalanceOf<T> {
         1u32.into() // TODO(@aidan46, #106, 2024-06-24): Set a logical value or calculation

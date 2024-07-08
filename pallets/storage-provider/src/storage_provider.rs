@@ -22,7 +22,6 @@ pub struct StorageProviderState<PeerId, Balance, BlockNumber> {
     pub sectors:
         BoundedBTreeMap<SectorNumber, SectorOnChainInfo<BlockNumber>, ConstU32<SECTORS_MAX>>,
     /// Total funds locked as pre_commit_deposit
-    /// Optional because when registering there is no need for deposits.
     pub pre_commit_deposits: Balance,
     /// Sectors that have been pre-committed but not yet proven.
     pub pre_committed_sectors: BoundedBTreeMap<

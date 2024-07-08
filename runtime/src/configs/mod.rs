@@ -347,4 +347,5 @@ impl pallet_market::Config for Runtime {
     type BlocksPerDay = ConstU32<DAYS>;
     type MinDealDuration = ConstU32<{ DAYS * 180 }>;
     type MaxDealDuration = ConstU32<{ DAYS * 1278 }>;
+    type MaxDealsPerBlock = ConstU32<128>;
 }
