@@ -165,6 +165,9 @@ pub mod pallet {
         InvalidCid,
         /// Emitted when a sector fails to activate
         CouldNotActivateSector,
+        /// Emitted when a prove commit is sent after the dealine
+        /// These precommits will be cleaned up in the hook
+        ProveCommitAfterDeadline,
     }
 
     #[pallet::call]
@@ -272,18 +275,16 @@ pub mod pallet {
             let current_block = <frame_system::Pallet<T>>::block_number();
             let prove_commit_due =
                 precommit.pre_commit_block_number + T::MaxProveCommitDuration::get();
-            if current_block > prove_commit_due {
-                // TODO(@aidan46, no-ref, 2024-06-25): Flag this sector for late submission fee.
-                // I am not sure what to do here yet
-                log::warn!("Prove commit sent after the deadline");
-            }
+            ensure!(
+                current_block < prove_commit_due,
+                Error::<T>::ProveCommitAfterDeadline
+            );
             ensure!(
                 validate_seal_proof(&precommit.info.seal_proof, sector.proof),
                 Error::<T>::InvalidProofType,
             );
             let new_sector =
                 SectorOnChainInfo::from_pre_commit(precommit.info.clone(), current_block);
-
             StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResultWithPostInfo {
                 let sp = maybe_sp
                     .as_mut()
