@@ -1,0 +1,14 @@
+# Ignore everything
+*
+
+# Allow files and directories
+!/api
+!/cli
+!/node
+!/pallets
+!/primitives
+!/runtime
+!/storage
+!/rust-toolchain.toml
+!/Cargo.lock
+!/Cargo.toml

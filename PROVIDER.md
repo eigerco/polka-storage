@@ -2,9 +2,9 @@
 
 To build the Docker image for the provider, execute the following command in the project directory.
 
-`docker build -t eiger/polka-storage-provider --file ./ci/Dockerfile.provider .`
+`docker build -t eiger/polka-storage-provider --file ./docker/dockerfiles/storage-provider/Dockerfile .`
 
-This command uses the Dockerfile located at ./ci/Dockerfile.provider to create an image named `eiger/provider`.
+This command uses the custom Dockerfile located at `./docker/dockerfiles/storage-provider/Dockerfile` to create an image named `eiger/polka-storage-provider`.
 
 ## Start the Storage Provider Server
 
@@ -20,11 +20,11 @@ This command creates a volume named storage_provider.
 
 Next, start the storage server using the created volume:
 
-`docker run -p 9000:9000 --mount source=storage_provider,destination=/app/uploads eiger/provider storage`
+`docker run -p 9000:9000 --mount source=storage_provider,destination=/app/uploads eiger/polka-storage-provider storage`
 
-- `-p 9000:9000`: This maps port 9000 on the host to port 9000 on the container.
-- `--mount source=storage_provider,destination=/app/uploads`: Mounts the storage_provider volume to /app/uploads inside the container.
-- `eiger/provider storage`: Runs the eiger/provider image with the storage command.
+- `-p 9000:9000`: This maps port `9000` on the host to port `9000` on the container.
+- `--mount source=storage_provider,destination=/app/uploads`: Mounts the `storage_provider` volume to `/app/uploads` inside the container.
+- `eiger/polka-storage-provider storage`: Runs the `eiger/polka-storage-provider` image with the `storage` command.
 
 ## Upload a file
 
