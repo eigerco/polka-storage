@@ -322,7 +322,7 @@ impl pallet_storage_provider::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type PeerId = BoundedVec<u8, ConstU32<256>>; // Arbitrary length
     type Currency = Balances;
-    type Market = crate::Market; // Market pallet
+    type Market = crate::Market;
     type WPoStProvingPeriod = WpostProvingPeriod;
     type WPoStChallengeWindow = WpostChallengeWindow;
     type MinSectorExpiration = MinSectorExpiration;
