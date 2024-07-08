@@ -366,8 +366,8 @@ pub mod pallet {
 
     fn validate_seal_proof(
         _seal_proof_type: &RegisteredSealProof,
-        _proofs: BoundedVec<u8, ConstU32<256>>,
+        proofs: BoundedVec<u8, ConstU32<256>>,
     ) -> bool {
-        true // TODO(@aidan46, no-ref, 2024-06-24): Actually check proof
+        proofs.len() != 0 // TODO(@aidan46, no-ref, 2024-06-24): Actually check proof
     }
 }
