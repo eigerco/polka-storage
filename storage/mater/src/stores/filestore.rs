@@ -1,11 +1,7 @@
-use std::path::Path;
-
+use futures::stream::StreamExt;
+use ipld_core::cid::Cid;
 use sha2::{Digest, Sha256};
-use tokio::{
-    fs::File,
-    io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite},
-};
-use tokio_stream::StreamExt;
+use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite};
 use tokio_util::io::ReaderStream;
 
 use super::Config;
@@ -15,19 +11,18 @@ use crate::{
 };
 
 async fn balanced_import<Src, Out>(
-    mut source: Src,
+    source: Src,
     mut output: Out,
     chunk_size: usize,
     tree_width: usize,
-) -> Result<(), Error>
+) -> Result<Cid, Error>
 where
-    Src: AsyncRead + Unpin + Send,
+    Src: AsyncRead + Unpin,
     Out: AsyncWrite + AsyncSeek + Unpin,
 {
-    let chunker = ReaderStream::with_capacity(&mut source, chunk_size);
-    let nodes = stream_balanced_tree(chunker, tree_width);
+    let chunker = ReaderStream::with_capacity(source, chunk_size);
+    let nodes = stream_balanced_tree(chunker, tree_width).peekable();
     tokio::pin!(nodes);
-    let mut nodes = nodes.peekable();
 
     let mut writer = CarV2Writer::new(&mut output);
     let mut position = 0;
@@ -48,7 +43,7 @@ where
         entries.push(entry);
         position += writer.write_block(&node_cid, &node_bytes).await?;
 
-        if nodes.peek().await.is_none() {
+        if nodes.as_mut().peek().await.is_none() {
             root = Some(node_cid);
         }
     }
@@ -80,28 +75,24 @@ where
     let header_v1 = CarV1Header::new(vec![root]);
     writer.write_v1_header(&header_v1).await?;
 
-    Ok(())
+    Ok(root)
 }
 
-/// Convert a `source` file into a CARv2 file and write it to `output`.
+/// Convert a `source` stream into a CARv2 file and write it to an `output` stream.
 pub async fn create_filestore<Src, Out>(
     source: Src,
     output: Out,
     config: Config,
-) -> Result<(), Error>
+) -> Result<Cid, Error>
 where
-    Src: AsRef<Path>,
-    Out: AsRef<Path>,
+    Src: AsyncRead + Unpin,
+    Out: AsyncWrite + AsyncSeek + Unpin,
 {
     match config {
         Config::Balanced {
             chunk_size,
             tree_width,
-        } => {
-            let source_file = File::open(source).await?;
-            let output_file = File::create(output).await?;
-            balanced_import(source_file, output_file, chunk_size, tree_width).await
-        }
+        } => balanced_import(source, output, chunk_size, tree_width).await,
     }
 }
 
@@ -110,6 +101,7 @@ mod test {
     use std::path::Path;
 
     use tempfile::tempdir;
+    use tokio::fs::File;
 
     use crate::{
         stores::{filestore::create_filestore, Config},
@@ -124,7 +116,9 @@ mod test {
         let temp_dir = tempdir().unwrap();
         let temp_path = temp_dir.path().join("lorem.car");
 
-        create_filestore(original, &temp_path, Config::default())
+        let source_file = File::open(original).await.unwrap();
+        let output_file = File::create(&temp_path).await.unwrap();
+        create_filestore(source_file, output_file, Config::default())
             .await
             .unwrap();
 

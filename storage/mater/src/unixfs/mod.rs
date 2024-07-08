@@ -253,7 +253,7 @@ pub(crate) fn stream_balanced_tree<I>(
     width: usize,
 ) -> impl Stream<Item = Result<(Cid, Bytes), Error>>
 where
-    I: Stream<Item = std::io::Result<Bytes>> + Send,
+    I: Stream<Item = std::io::Result<Bytes>>,
 {
     try_stream! {
         let mut tree: VecDeque<Vec<(Cid, LinkInfo)>> = VecDeque::new();
