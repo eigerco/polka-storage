@@ -258,7 +258,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// Checks state of the corresponding sector pre-commitment
+        /// Allows the SP to submit proof for their precomitted sectors.
         /// TODO(@aidan46, no-ref, 2024-06-24): Add functionality to allow for batch pre commit
         pub fn prove_commit_sector(
             origin: OriginFor<T>,
@@ -267,10 +267,13 @@ pub mod pallet {
             let owner = ensure_signed(origin)?;
             let sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
-            let sector_num = sector.sector_number;
-            ensure!(sector_num <= SECTORS_MAX.into(), Error::<T>::InvalidSector);
+            let sector_number = sector.sector_number;
+            ensure!(
+                sector_number <= SECTORS_MAX.into(),
+                Error::<T>::InvalidSector
+            );
             let precommit = sp
-                .get_precommitted_sector(sector_num)
+                .get_precommitted_sector(sector_number)
                 .map_err(|_| Error::<T>::InvalidSector)?;
             let current_block = <frame_system::Pallet<T>>::block_number();
             let prove_commit_due =
@@ -289,9 +292,9 @@ pub mod pallet {
                 let sp = maybe_sp
                     .as_mut()
                     .ok_or(Error::<T>::StorageProviderNotFound)?;
-                sp.activate_sector(sector_num, new_sector)
+                sp.activate_sector(sector_number, new_sector)
                     .map_err(|_| Error::<T>::SectorActivateFailed)?;
-                sp.remove_precomitted_sector(sector_num)
+                sp.remove_precomitted_sector(sector_number)
                     .map_err(|_| Error::<T>::CouldNotRemoveSector)?;
                 Ok(().into())
             })?;
@@ -299,14 +302,11 @@ pub mod pallet {
             sector_deals
                 .try_push(precommit.into())
                 .map_err(|_| Error::<T>::CouldNotActivateSector)?;
-            if sector_deals.len() > 0 {
-                T::Market::activate_deals(&owner, sector_deals, true)?;
-            } else {
-                T::Market::activate_deals(&owner, sector_deals, false)?;
-            }
+            let deal_amount = sector_deals.len();
+            T::Market::activate_deals(&owner, sector_deals, deal_amount > 0)?;
             Self::deposit_event(Event::SectorProven {
                 owner,
-                sector_number: sector_num,
+                sector_number,
             });
             Ok(().into())
         }
