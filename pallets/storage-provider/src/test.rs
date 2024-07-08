@@ -252,7 +252,7 @@ fn prove_commit_sector() {
                 .to_bytes()
                 .try_into()
                 .expect("hash is always 32 bytes"),
-            deal_ids: vec![1].try_into().expect("Progammer error"),
+            deal_ids: bounded_vec![1],
             expiration: YEARS,
             unsealed_cid: cid_of("unsealed_cid")
                 .to_bytes()
