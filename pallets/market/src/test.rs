@@ -3,9 +3,9 @@ use core::str::FromStr;
 use cid::Cid;
 use frame_support::{
     assert_err, assert_noop, assert_ok,
-    pallet_prelude::{ConstU32,Get},
+    pallet_prelude::{ConstU32, Get},
     sp_runtime::{bounded_vec, ArithmeticError, DispatchError, TokenError},
-    traits::{Currency},
+    traits::Currency,
     BoundedVec,
 };
 use primitives_proofs::{
@@ -17,8 +17,8 @@ use sp_core::H256;
 use crate::{
     mock::*,
     pallet::{lock_funds, slash_and_burn, unlock_funds},
-    ActiveDealState, BalanceEntry, BalanceTable, DealSettlementError, DealState, DealsForBlock,
-    Error, Event, Config, PendingProposals, Proposals, SectorDeals, SectorTerminateError,
+    ActiveDealState, BalanceEntry, BalanceTable, Config, DealSettlementError, DealState,
+    DealsForBlock, Error, Event, PendingProposals, Proposals, SectorDeals, SectorTerminateError,
 };
 #[test]
 fn initial_state() {
@@ -290,8 +290,8 @@ fn publish_storage_deals_fails_min_duration_out_of_bounds() {
 fn publish_storage_deals_fails_max_duration_out_of_bounds() {
     new_test_ext().execute_with(|| {
         let proposal = DealProposalBuilder::default()
-            // Make duration too many blocks.
-            .end_block(1000)
+            .start_block(100)
+            .end_block(100 + <<Test as Config>::MaxDealDuration as Get<u64>>::get() + 1)
             .signed(ALICE);
 
         assert_noop!(
@@ -304,11 +304,11 @@ fn publish_storage_deals_fails_max_duration_out_of_bounds() {
     });
 }
 
+/// Add enough balance to the provider so that the first proposal can be accepted and published.
+/// Second proposal will be rejected, but first still published
 #[test]
 fn publish_storage_deals_fails_different_providers() {
     new_test_ext().execute_with(|| {
-        // Let the first proposal pass, by adding enough balance for Alice
-        // Second proposal will be rejected, but first still published
         let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 60);
         let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
         System::reset_events();
@@ -335,11 +335,11 @@ fn publish_storage_deals_fails_different_providers() {
     });
 }
 
+/// Add enough balance to the provider so that the first proposal can be accepted and published.
+/// Second proposal will be rejected, but first still published
 #[test]
 fn publish_storage_deals_fails_client_not_enough_funds_for_second_deal() {
     new_test_ext().execute_with(|| {
-        // Let the first proposal pass, by adding enough balance for Alice
-        // Second proposal will be rejected, but first still published
         let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 60);
         let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
         System::reset_events();
@@ -348,7 +348,7 @@ fn publish_storage_deals_fails_client_not_enough_funds_for_second_deal() {
             RuntimeOrigin::signed(account(PROVIDER)),
             bounded_vec![
                 DealProposalBuilder::default().signed(ALICE),
-                DealProposalBuilder::default().signed(ALICE),
+                DealProposalBuilder::default().piece_size(10).signed(ALICE),
             ]
         ));
         assert_eq!(
@@ -362,12 +362,12 @@ fn publish_storage_deals_fails_client_not_enough_funds_for_second_deal() {
     });
 }
 
+/// Add enough balance to the provider so that the first proposal can be accepted and published.
+/// Collateral is 25 for the default deal, so provider should have at least 50.
+/// Second proposal will be rejected, but first still published
 #[test]
 fn publish_storage_deals_fails_provider_not_enough_funds_for_second_deal() {
     new_test_ext().execute_with(|| {
-        // Let the first proposal pass, by adding enough balance for Provider
-        // Collateral is 25 for the default deal, so provider should have at least 50.
-        // Second proposal will be rejected, but first still published
         let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 40);
         let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 90);
         let _ = Market::add_balance(RuntimeOrigin::signed(account(BOB)), 90);
@@ -481,11 +481,7 @@ fn publish_storage_deals() {
 
         assert_ok!(Market::publish_storage_deals(
             RuntimeOrigin::signed(account(PROVIDER)),
-            bounded_vec![
-                alice_proposal.clone(),
-                alice_second_proposal.clone(),
-                bob_proposal.clone()
-            ]
+            bounded_vec![alice_proposal, alice_second_proposal, bob_proposal]
         ));
         assert_eq!(
             BalanceTable::<Test>::get(account(ALICE)),
