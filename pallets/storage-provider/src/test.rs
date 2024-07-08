@@ -123,7 +123,7 @@ fn pre_commit_sector() {
                 .to_bytes()
                 .try_into()
                 .expect("hash is always 32 bytes"),
-            deal_ids: vec![0, 1].try_into().expect("Could not set deal ids"),
+            deal_ids: vec![0, 1].try_into().expect("Progammer error"),
             expiration: YEARS,
             unsealed_cid: cid_of("unsealed_cid")
                 .to_bytes()
@@ -190,7 +190,7 @@ fn pre_commit_sector_fails_when_precommited_twice() {
                 .to_bytes()
                 .try_into()
                 .expect("hash is always 32 bytes"),
-            deal_ids: vec![0, 1].try_into().expect("Could not set deal ids"),
+            deal_ids: vec![0, 1].try_into().expect("Progammer error"),
             expiration: YEARS,
             unsealed_cid: cid_of("unsealed_cid")
                 .to_bytes()
@@ -252,7 +252,7 @@ fn prove_commit_sector() {
                 .to_bytes()
                 .try_into()
                 .expect("hash is always 32 bytes"),
-            deal_ids: vec![1].try_into().expect("Could not set deal ids"),
+            deal_ids: vec![1].try_into().expect("Progammer error"),
             expiration: YEARS,
             unsealed_cid: cid_of("unsealed_cid")
                 .to_bytes()
