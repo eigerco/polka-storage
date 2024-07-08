@@ -1,9 +1,11 @@
 use std::{collections::BTreeMap, mem::size_of};
 
-use integer_encoding::{VarIntAsyncReader, VarIntAsyncWriter};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
-use crate::Error;
+use crate::{
+    async_varint::{read_varint, write_varint},
+    Error,
+};
 
 /// `IndexSorted` code format value, as defined in the
 /// [specification](https://ipld.io/specs/transport/car/carv2/#format-0x0400-indexsorted).
@@ -175,21 +177,19 @@ impl Index {
     }
 }
 
-pub(crate) async fn write_index<W>(mut writer: W, index: &Index) -> Result<usize, Error>
+pub async fn write_index<W>(writer: &mut W, index: &Index) -> Result<usize, Error>
 where
     W: AsyncWrite + Unpin,
 {
     let mut written_bytes = 0;
     match index {
         Index::IndexSorted(index) => {
-            written_bytes += writer.write_varint_async(INDEX_SORTED_CODE).await?;
-            written_bytes += write_index_sorted(&mut writer, index).await?;
+            written_bytes += write_varint(writer, INDEX_SORTED_CODE).await?;
+            written_bytes += write_index_sorted(writer, index).await?;
         }
         Index::MultihashIndexSorted(index) => {
-            written_bytes += writer
-                .write_varint_async(MULTIHASH_INDEX_SORTED_CODE)
-                .await?;
-            written_bytes += write_multihash_index_sorted(&mut writer, index).await?;
+            written_bytes += write_varint(writer, MULTIHASH_INDEX_SORTED_CODE).await?;
+            written_bytes += write_multihash_index_sorted(writer, index).await?;
         }
     }
     Ok(written_bytes)
@@ -262,7 +262,7 @@ pub(crate) async fn read_index<R>(mut reader: R) -> Result<Index, Error>
 where
     R: AsyncRead + Unpin,
 {
-    let index_type: u64 = reader.read_varint_async().await?;
+    let index_type: u64 = read_varint(&mut reader).await?;
     return match index_type {
         INDEX_SORTED_CODE => Ok(Index::IndexSorted(read_index_sorted(&mut reader).await?)),
         MULTIHASH_INDEX_SORTED_CODE => Ok(Index::MultihashIndexSorted(

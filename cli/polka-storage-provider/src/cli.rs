@@ -3,7 +3,7 @@ use thiserror::Error;
 use url::Url;
 
 use crate::{
-    commands::{InfoCommand, InitCommand, RunCommand, WalletCommand},
+    commands::{InfoCommand, InitCommand, RunCommand, StorageCommand, WalletCommand},
     rpc::{server::RPC_SERVER_DEFAULT_BIND_ADDR, ClientError},
 };
 
@@ -27,6 +27,8 @@ pub enum SubCommand {
     Init(InitCommand),
     /// Start a polka storage provider
     Run(RunCommand),
+    /// Command to start storage server.
+    Storage(StorageCommand),
     /// Info command to display information about the storage provider.
     Info(InfoCommand),
     /// Command to manage wallet operations.
