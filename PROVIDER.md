@@ -20,11 +20,12 @@ This command creates a volume named storage_provider.
 
 Next, start the storage server using the created volume:
 
-`docker run -p 127.0.0.1:9000:9000 --mount source=storage_provider,destination=/app/uploads eiger/polka-storage-provider storage`
+`docker run -p 127.0.0.1:9000:9000 --mount source=storage_provider,destination=/app/uploads eiger/polka-storage-provider storage --listen-addr 0.0.0.0:9000`
 
 - `-p 127.0.0.1:9000:9000`: This maps port `9000` on the localhost to port `9000` on the container.
 - `--mount source=storage_provider,destination=/app/uploads`: Mounts the `storage_provider` volume to `/app/uploads` inside the container.
 - `eiger/polka-storage-provider storage`: Runs the `eiger/polka-storage-provider` image with the `storage` command.
+- `--listen-addr 0.0.0.0:9000`: Configures the server to listen on all available network interfaces.
 
 ## Upload a file
 
