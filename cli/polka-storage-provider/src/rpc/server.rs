@@ -1,7 +1,6 @@
 use std::{
     fmt::{Debug, Display},
     net::SocketAddr,
-    path::PathBuf,
     sync::Arc,
 };
 
@@ -31,9 +30,6 @@ pub const RPC_SERVER_DEFAULT_BIND_ADDR: &str = "127.0.0.1:8000";
 pub struct RpcServerState {
     pub start_time: chrono::DateTime<Utc>,
     pub substrate_client: substrate::Client,
-    // TODO(no-ref,@cernicc,04/07/2024): Should use config struct that would
-    // provide the configuration across the provider
-    pub storage_dir: PathBuf,
 }
 
 /// Start the RPC server.

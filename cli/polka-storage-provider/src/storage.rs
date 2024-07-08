@@ -1,4 +1,4 @@
-use std::{io, path::PathBuf, str::FromStr, sync::Arc};
+use std::{io, net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
 
 use axum::{
     body::Body,
@@ -10,7 +10,7 @@ use axum::{
 };
 use futures::TryStreamExt;
 use mater::{create_filestore, Cid, Config};
-use tempfile::tempdir;
+use tempfile::tempdir_in;
 use tokio::{
     fs::{self, File},
     io::{AsyncRead, BufWriter},
@@ -21,24 +21,26 @@ use tower_http::trace::TraceLayer;
 use tracing::{error, info, info_span, instrument};
 use uuid::Uuid;
 
-use crate::{cli::CliError, rpc::server::RpcServerState};
+use crate::cli::CliError;
+
+/// Shared state of the storage server.
+pub struct StorageServerState {
+    pub storage_dir: PathBuf,
+}
 
 #[instrument(skip_all)]
 pub async fn start_upload_server(
-    state: Arc<RpcServerState>,
+    state: Arc<StorageServerState>,
+    listen_addr: SocketAddr,
     mut notify_shutdown_rx: Receiver<()>,
 ) -> Result<(), CliError> {
     // Configure router
     let router = configure_router(state);
-
-    // TODO(no-ref,@cernicc,04/07/2024): handle error if the address is already
-    // in use. This should be done when both servers will listen on the same
-    // address
-    let address = "127.0.0.1:3000";
-    let listener = tokio::net::TcpListener::bind(address).await?;
+    let listener = tokio::net::TcpListener::bind(listen_addr).await?;
+    dbg!("dwadaw");
 
     // Start server
-    info!("upload server started at: {address}");
+    info!("upload server started at: {listen_addr}");
     axum::serve(listener, router)
         .with_graceful_shutdown(async move {
             let _ = notify_shutdown_rx.recv().await;
@@ -49,7 +51,7 @@ pub async fn start_upload_server(
 }
 
 // TODO(no-ref,@cernicc,28/06/2024): Nicer error handling in handlers
-fn configure_router(state: Arc<RpcServerState>) -> Router {
+fn configure_router(state: Arc<StorageServerState>) -> Router {
     Router::new()
         .route("/upload", post(upload))
         .route("/download/:cid", get(download))
@@ -77,7 +79,7 @@ fn configure_router(state: Arc<RpcServerState>) -> Router {
 /// Handler for the upload endpoint. It receives a stream of bytes, coverts them
 /// to a CAR file and returns the CID of the CAR file to the user.
 async fn upload(
-    State(state): State<Arc<RpcServerState>>,
+    State(state): State<Arc<StorageServerState>>,
     request: Request,
 ) -> Result<String, (StatusCode, String)> {
     // Body reader
@@ -103,7 +105,7 @@ async fn upload(
 /// Handler for the download endpoint. It receives a CID and streams the CAR
 /// file back to the user.
 async fn download(
-    State(state): State<Arc<RpcServerState>>,
+    State(state): State<Arc<StorageServerState>>,
     Path(cid): Path<String>,
 ) -> Result<Response, (StatusCode, String)> {
     // Path to a CAR file
@@ -159,8 +161,9 @@ where
     }
 
     // Temp file which will be used to store the CAR file content. The temp
-    // director has a randomized name.
-    let temp_dir = tempdir()?;
+    // director has a randomized name and is created in the same folder as the
+    // finalized uploads are stored.
+    let temp_dir = tempdir_in(folder)?;
     let temp_file_path = temp_dir.path().join("temp.car");
 
     // Stream the body from source to the temp file.
