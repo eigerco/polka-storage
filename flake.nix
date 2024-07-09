@@ -23,6 +23,7 @@
         };
         rustToolchain = pkgs.pkgsBuildHost.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
         buildInputs = with pkgs; [
+          cargo-llvm-cov
           clang
           pkg-config
           rustToolchain

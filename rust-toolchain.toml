@@ -1,5 +1,5 @@
 [toolchain]
 channel = "1.77.0"
-components = ["cargo", "clippy", "rust-analyzer", "rust-src", "rust-std", "rustc", "rustc-dev", "rustfmt"]
+components = ["cargo", "clippy", "llvm-tools-preview", "rust-analyzer", "rust-src", "rust-std", "rustc", "rustc-dev", "rustfmt"]
 profile = "minimal"
 targets = ["wasm32-unknown-unknown"]

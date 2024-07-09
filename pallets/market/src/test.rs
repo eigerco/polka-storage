@@ -3,7 +3,7 @@ use core::str::FromStr;
 use cid::Cid;
 use frame_support::{
     assert_err, assert_noop, assert_ok,
-    pallet_prelude::ConstU32,
+    pallet_prelude::{ConstU32, Get},
     sp_runtime::{bounded_vec, ArithmeticError, DispatchError, TokenError},
     traits::Currency,
     BoundedVec,
@@ -17,7 +17,7 @@ use sp_core::H256;
 use crate::{
     mock::*,
     pallet::{lock_funds, slash_and_burn, unlock_funds},
-    ActiveDealState, BalanceEntry, BalanceTable, DealProposal, DealSettlementError, DealState,
+    ActiveDealState, BalanceEntry, BalanceTable, Config, DealSettlementError, DealState,
     DealsForBlock, Error, Event, PendingProposals, Proposals, SectorDeals, SectorTerminateError,
 };
 #[test]
@@ -189,7 +189,7 @@ fn fails_to_withdraw_balance() {
 }
 
 #[test]
-fn publish_storage_deals_fails_with_empty_deals() {
+fn publish_storage_deals_fails_empty_deals() {
     new_test_ext().execute_with(|| {
         assert_noop!(
             Market::publish_storage_deals(RuntimeOrigin::signed(account(PROVIDER)), bounded_vec![]),
@@ -199,50 +199,278 @@ fn publish_storage_deals_fails_with_empty_deals() {
 }
 
 #[test]
-fn publish_storage_deals() {
-    let _ = env_logger::try_init();
-
+fn publish_storage_deals_fails_caller_not_provider() {
     new_test_ext().execute_with(|| {
-        let alice_start_block = 100;
-        let alice_deal_id = 0;
-        let alice_proposal = sign_proposal(
-            ALICE,
-            DealProposal {
-                piece_cid: cid_of("polka-storage-data")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                piece_size: 18,
+        assert_noop!(
+            Market::publish_storage_deals(
+                RuntimeOrigin::signed(account(ALICE)),
+                bounded_vec![DealProposalBuilder::default().signed(ALICE)]
+            ),
+            Error::<Test>::ProposalsNotPublishedByStorageProvider
+        );
+    });
+}
+
+#[test]
+fn publish_storage_deals_fails_invalid_signature() {
+    new_test_ext().execute_with(|| {
+        let mut deal = DealProposalBuilder::default().signed(ALICE);
+        // Change the message contents so the signature does not match
+        deal.proposal.piece_size = 1337;
+
+        assert_noop!(
+            Market::publish_storage_deals(
+                RuntimeOrigin::signed(account(PROVIDER)),
+                bounded_vec![deal]
+            ),
+            Error::<Test>::AllProposalsInvalid
+        );
+    });
+}
+
+#[test]
+fn publish_storage_deals_fails_end_before_start() {
+    new_test_ext().execute_with(|| {
+        let proposal = DealProposalBuilder::default()
+            // Make start_block > end_block
+            .start_block(1337)
+            .signed(ALICE);
+
+        assert_noop!(
+            Market::publish_storage_deals(
+                RuntimeOrigin::signed(account(PROVIDER)),
+                bounded_vec![proposal]
+            ),
+            Error::<Test>::AllProposalsInvalid
+        );
+    });
+}
+
+#[test]
+fn publish_storage_deals_fails_must_be_unpublished() {
+    new_test_ext().execute_with(|| {
+        let proposal = DealProposalBuilder::default()
+            .state(DealState::Active(ActiveDealState {
+                sector_number: 0,
+                sector_start_block: 0,
+                last_updated_block: Some(10),
+                slash_block: None,
+            }))
+            .signed(ALICE);
+
+        assert_noop!(
+            Market::publish_storage_deals(
+                RuntimeOrigin::signed(account(PROVIDER)),
+                bounded_vec![proposal]
+            ),
+            Error::<Test>::AllProposalsInvalid
+        );
+    });
+}
+
+#[test]
+fn publish_storage_deals_fails_min_duration_out_of_bounds() {
+    new_test_ext().execute_with(|| {
+        let proposal = DealProposalBuilder::default()
+            .start_block(10)
+            .end_block(10 + <<Test as Config>::MinDealDuration as Get<u64>>::get() - 1)
+            .signed(ALICE);
+
+        assert_noop!(
+            Market::publish_storage_deals(
+                RuntimeOrigin::signed(account(PROVIDER)),
+                bounded_vec![proposal]
+            ),
+            Error::<Test>::AllProposalsInvalid
+        );
+    });
+}
+
+#[test]
+fn publish_storage_deals_fails_max_duration_out_of_bounds() {
+    new_test_ext().execute_with(|| {
+        let proposal = DealProposalBuilder::default()
+            .start_block(100)
+            .end_block(100 + <<Test as Config>::MaxDealDuration as Get<u64>>::get() + 1)
+            .signed(ALICE);
+
+        assert_noop!(
+            Market::publish_storage_deals(
+                RuntimeOrigin::signed(account(PROVIDER)),
+                bounded_vec![proposal]
+            ),
+            Error::<Test>::AllProposalsInvalid
+        );
+    });
+}
+
+/// Add enough balance to the provider so that the first proposal can be accepted and published.
+/// Second proposal will be rejected, but first still published
+#[test]
+fn publish_storage_deals_fails_different_providers() {
+    new_test_ext().execute_with(|| {
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 60);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
+        System::reset_events();
+
+        assert_ok!(Market::publish_storage_deals(
+            RuntimeOrigin::signed(account(PROVIDER)),
+            bounded_vec![
+                DealProposalBuilder::default().signed(ALICE),
+                // Proposal where second deal's provider is not a caller
+                DealProposalBuilder::default()
+                    .client(BOB)
+                    .provider(BOB)
+                    .signed(BOB),
+            ]
+        ));
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Market(Event::<Test>::DealPublished {
+                deal_id: 0,
                 client: account(ALICE),
                 provider: account(PROVIDER),
-                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
-                start_block: alice_start_block,
-                end_block: 110,
-                storage_price_per_block: 5,
-                provider_collateral: 25,
-                state: DealState::Published,
-            },
+            })]
         );
-        let bob_start_block = 130;
-        let bob_deal_id = 1;
-        let bob_proposal = sign_proposal(
-            BOB,
-            DealProposal {
-                piece_cid: cid_of("polka-storage-data-bob")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                piece_size: 21,
-                client: account(BOB),
+    });
+}
+
+/// Add enough balance to the provider so that the first proposal can be accepted and published.
+/// Second proposal will be rejected, but first still published
+#[test]
+fn publish_storage_deals_fails_client_not_enough_funds_for_second_deal() {
+    new_test_ext().execute_with(|| {
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 60);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
+        System::reset_events();
+
+        assert_ok!(Market::publish_storage_deals(
+            RuntimeOrigin::signed(account(PROVIDER)),
+            bounded_vec![
+                DealProposalBuilder::default().signed(ALICE),
+                DealProposalBuilder::default().piece_size(10).signed(ALICE),
+            ]
+        ));
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Market(Event::<Test>::DealPublished {
+                deal_id: 0,
+                client: account(ALICE),
                 provider: account(PROVIDER),
-                label: bounded_vec![0xa, 0xe, 0xe, 0xf],
-                start_block: bob_start_block,
-                end_block: 135,
-                storage_price_per_block: 10,
-                provider_collateral: 15,
-                state: DealState::Published,
-            },
+            })]
         );
+    });
+}
+
+/// Add enough balance to the provider so that the first proposal can be accepted and published.
+/// Collateral is 25 for the default deal, so provider should have at least 50.
+/// Second proposal will be rejected, but first still published
+#[test]
+fn publish_storage_deals_fails_provider_not_enough_funds_for_second_deal() {
+    new_test_ext().execute_with(|| {
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 40);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 90);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(BOB)), 90);
+        System::reset_events();
+
+        assert_ok!(Market::publish_storage_deals(
+            RuntimeOrigin::signed(account(PROVIDER)),
+            bounded_vec![
+                DealProposalBuilder::default().signed(ALICE),
+                DealProposalBuilder::default().client(BOB).signed(BOB),
+            ]
+        ));
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Market(Event::<Test>::DealPublished {
+                deal_id: 0,
+                client: account(ALICE),
+                provider: account(PROVIDER),
+            })]
+        );
+    });
+}
+
+#[test]
+fn publish_storage_deals_fails_duplicate_deal_in_message() {
+    new_test_ext().execute_with(|| {
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 90);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 90);
+        System::reset_events();
+
+        assert_ok!(Market::publish_storage_deals(
+            RuntimeOrigin::signed(account(PROVIDER)),
+            bounded_vec![
+                DealProposalBuilder::default()
+                    .storage_price_per_block(1)
+                    .signed(ALICE),
+                DealProposalBuilder::default()
+                    .storage_price_per_block(1)
+                    .signed(ALICE),
+            ]
+        ));
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Market(Event::<Test>::DealPublished {
+                deal_id: 0,
+                client: account(ALICE),
+                provider: account(PROVIDER),
+            })]
+        );
+    });
+}
+
+#[test]
+fn publish_storage_deals_fails_duplicate_deal_in_state() {
+    new_test_ext().execute_with(|| {
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 90);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 90);
+        System::reset_events();
+
+        assert_ok!(Market::publish_storage_deals(
+            RuntimeOrigin::signed(account(PROVIDER)),
+            bounded_vec![DealProposalBuilder::default()
+                .storage_price_per_block(1)
+                .signed(ALICE),]
+        ));
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Market(Event::<Test>::DealPublished {
+                deal_id: 0,
+                client: account(ALICE),
+                provider: account(PROVIDER),
+            })]
+        );
+        assert_noop!(
+            Market::publish_storage_deals(
+                RuntimeOrigin::signed(account(PROVIDER)),
+                bounded_vec![DealProposalBuilder::default()
+                    .storage_price_per_block(1)
+                    .signed(ALICE),]
+            ),
+            Error::<Test>::AllProposalsInvalid
+        );
+    });
+}
+
+#[test]
+fn publish_storage_deals() {
+    new_test_ext().execute_with(|| {
+        let alice_proposal = DealProposalBuilder::default().signed(ALICE);
+        let alice_start_block = 100;
+        let alice_deal_id = 0;
+        // We're not expecting for it to go through, but the call should not fail.
+        let alice_second_proposal = DealProposalBuilder::default().piece_size(37).signed(ALICE);
+        let bob_deal_id = 1;
+        let bob_start_block = 130;
+        let bob_proposal = DealProposalBuilder::default()
+            .client(BOB)
+            .start_block(bob_start_block)
+            .end_block(135)
+            .storage_price_per_block(10)
+            .provider_collateral(15)
+            .signed(BOB);
+
         let alice_hash = Market::hash_proposal(&alice_proposal.proposal);
         let bob_hash = Market::hash_proposal(&bob_proposal.proposal);
 
@@ -253,7 +481,7 @@ fn publish_storage_deals() {
 
         assert_ok!(Market::publish_storage_deals(
             RuntimeOrigin::signed(account(PROVIDER)),
-            bounded_vec![alice_proposal, bob_proposal]
+            bounded_vec![alice_proposal, alice_second_proposal, bob_proposal]
         ));
         assert_eq!(
             BalanceTable::<Test>::get(account(ALICE)),
@@ -301,26 +529,8 @@ fn publish_storage_deals() {
 
 #[test]
 fn verify_deals_for_activation() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
-        publish_for_activation(
-            1,
-            DealProposal {
-                piece_cid: cid_of("polka-storage-data")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                piece_size: 18,
-                client: account(ALICE),
-                provider: account(PROVIDER),
-                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
-                start_block: 100,
-                end_block: 110,
-                storage_price_per_block: 5,
-                provider_collateral: 25,
-                state: DealState::Published,
-            },
-        );
+        publish_for_activation(1, DealProposalBuilder::default().unsigned());
 
         let deals = bounded_vec![
             SectorDeal {
@@ -351,41 +561,216 @@ fn verify_deals_for_activation() {
 }
 
 #[test]
-fn activate_deals() {
-    let _ = env_logger::try_init();
+fn verify_deals_for_activation_fails_with_different_provider() {
     new_test_ext().execute_with(|| {
-        let alice_hash = publish_for_activation(
+        publish_for_activation(1, DealProposalBuilder::default().provider(BOB).unsigned());
+
+        let deals = bounded_vec![SectorDealBuilder::default().build()];
+
+        assert_noop!(
+            Market::verify_deals_for_activation(&account(PROVIDER), deals),
+            Error::<Test>::DealActivationError
+        );
+    });
+}
+
+#[test]
+fn verify_deals_for_activation_fails_with_invalid_deal_state() {
+    new_test_ext().execute_with(|| {
+        publish_for_activation(
             1,
-            DealProposal {
-                piece_cid: cid_of("polka-storage-data")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                piece_size: 18,
-                client: account(ALICE),
-                provider: account(PROVIDER),
-                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
-                start_block: 100,
-                end_block: 110,
-                storage_price_per_block: 5,
-                provider_collateral: 25,
-                state: DealState::Published,
-            },
+            DealProposalBuilder::default()
+                .state(DealState::Active(ActiveDealState {
+                    sector_number: 0,
+                    sector_start_block: 0,
+                    last_updated_block: Some(10),
+                    slash_block: None,
+                }))
+                .unsigned(),
         );
 
+        let deals = bounded_vec![SectorDealBuilder::default().build()];
+
+        assert_noop!(
+            Market::verify_deals_for_activation(&account(PROVIDER), deals),
+            Error::<Test>::DealActivationError
+        );
+    });
+}
+
+#[test]
+fn verify_deals_for_activation_fails_deal_not_in_pending() {
+    new_test_ext().execute_with(|| {
+        // do not use `publish_for_activation` as it puts deal in PendingProposals
+        Proposals::<Test>::insert(1, DealProposalBuilder::default().unsigned());
+        let deals = bounded_vec![SectorDealBuilder::default().build()];
+
+        assert_noop!(
+            Market::verify_deals_for_activation(&account(PROVIDER), deals),
+            Error::<Test>::DealActivationError
+        );
+    });
+}
+
+#[test]
+fn verify_deals_for_activation_fails_sector_activation_on_deal_from_the_past() {
+    new_test_ext().execute_with(|| {
+        // current_block == sector_activation when calling `verify_deals_for_activation`
+        // wait a couple of blocks so deal cannot be activated, because it's too late.
+        run_to_block(2);
+
+        publish_for_activation(1, DealProposalBuilder::default().start_block(1).unsigned());
+
+        let deals = bounded_vec![SectorDealBuilder::default().build()];
+
+        assert_noop!(
+            Market::verify_deals_for_activation(&account(PROVIDER), deals),
+            Error::<Test>::DealActivationError
+        );
+    });
+}
+
+#[test]
+fn verify_deals_for_activation_fails_sector_expires_before_deal_ends() {
+    new_test_ext().execute_with(|| {
+        publish_for_activation(
+            1,
+            DealProposalBuilder::default()
+                .start_block(10)
+                .end_block(15)
+                .unsigned(),
+        );
+
+        let deals = bounded_vec![SectorDealBuilder::default().sector_expiry(11).build()];
+
+        assert_noop!(
+            Market::verify_deals_for_activation(&account(PROVIDER), deals),
+            Error::<Test>::DealActivationError
+        );
+    });
+}
+
+#[test]
+fn verify_deals_for_activation_fails_not_enough_space() {
+    new_test_ext().execute_with(|| {
+        publish_for_activation(
+            1,
+            DealProposalBuilder::default()
+                .piece_size(1 << 10 /* 1 KiB */)
+                .unsigned(),
+        );
+        publish_for_activation(
+            2,
+            DealProposalBuilder::default()
+                .piece_size(3 << 10 /* 3 KiB */)
+                .unsigned(),
+        );
+        // 1 KiB + 3KiB >= 2 KiB (sector size)
+
+        let deals = bounded_vec![SectorDealBuilder::default()
+            .deal_ids(bounded_vec![1, 2])
+            .build()];
+
+        assert_noop!(
+            Market::verify_deals_for_activation(&account(PROVIDER), deals),
+            Error::<Test>::DealsTooLargeToFitIntoSector
+        );
+    });
+}
+
+#[test]
+fn verify_deals_for_activation_fails_duplicate_deals() {
+    new_test_ext().execute_with(|| {
+        publish_for_activation(1, DealProposalBuilder::default().unsigned());
+
+        let deals = bounded_vec![SectorDealBuilder::default()
+            .deal_ids(bounded_vec![1, 1])
+            .build()];
+
+        assert_noop!(
+            Market::verify_deals_for_activation(&account(PROVIDER), deals),
+            Error::<Test>::DuplicateDeal
+        );
+    });
+}
+
+#[test]
+fn verify_deals_for_activation_fails_deal_not_found() {
+    new_test_ext().execute_with(|| {
+        let deals = bounded_vec![SectorDealBuilder::default()
+            .deal_ids(bounded_vec![1, 2, 3, 4])
+            .build()];
+
+        assert_noop!(
+            Market::verify_deals_for_activation(&account(PROVIDER), deals),
+            Error::<Test>::DealNotFound
+        );
+    });
+}
+
+#[test]
+fn activate_deals() {
+    new_test_ext().execute_with(|| {
+        let alice_hash = publish_for_activation(1, DealProposalBuilder::default().unsigned());
+
         let deals = bounded_vec![
-            SectorDeal {
-                sector_number: 1,
-                sector_expiry: 120,
-                sector_type: RegisteredSealProof::StackedDRG2KiBV1P1,
-                deal_ids: bounded_vec![1]
-            },
-            SectorDeal {
-                sector_number: 2,
-                sector_expiry: 50,
-                sector_type: RegisteredSealProof::StackedDRG2KiBV1P1,
-                deal_ids: bounded_vec![]
-            }
+            SectorDealBuilder::default().build(),
+            SectorDealBuilder::default()
+                .sector_number(2)
+                .sector_expiry(50)
+                .deal_ids(bounded_vec![])
+                .build()
+        ];
+
+        let piece_cid =
+            Cid::from_str("bafk2bzacecg3xxc4f2ql2hreiuy767u6r72ekdz54k7luieknboaakhft5rgk")
+                .unwrap();
+        let placeholder_commd_cid =
+            Cid::from_str("bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu")
+                .unwrap();
+        assert_eq!(
+            Ok(bounded_vec![
+                ActiveSector {
+                    active_deals: bounded_vec![ActiveDeal {
+                        client: account(ALICE),
+                        piece_cid: piece_cid,
+                        piece_size: 18
+                    }],
+                    unsealed_cid: Some(placeholder_commd_cid),
+                },
+                ActiveSector {
+                    active_deals: bounded_vec![],
+                    unsealed_cid: None
+                }
+            ]),
+            Market::activate_deals(&account(PROVIDER), deals, true)
+        );
+        assert!(!PendingProposals::<Test>::get().contains(&alice_hash));
+    });
+}
+
+#[test]
+fn activate_deals_fails_for_1_sector_but_succeeds_for_others() {
+    new_test_ext().execute_with(|| {
+        let alice_hash = publish_for_activation(1, DealProposalBuilder::default().unsigned());
+        let _ = publish_for_activation(2, DealProposalBuilder::default().unsigned());
+        let deals = bounded_vec![
+            SectorDealBuilder::default().build(),
+            SectorDealBuilder::default()
+                .sector_number(2)
+                .sector_expiry(50)
+                .deal_ids(bounded_vec![])
+                .build(),
+            SectorDealBuilder::default()
+                .sector_number(3)
+                .deal_ids(bounded_vec![1337])
+                .build(),
+            SectorDealBuilder::default()
+                .sector_number(4)
+                // force error by making expiry < start_block
+                .sector_expiry(10)
+                .deal_ids(bounded_vec![2])
+                .build()
         ];
 
         let piece_cid =
@@ -431,49 +816,25 @@ fn publish_for_activation(deal_id: DealId, deal: DealProposalOf<Test>) -> H256 {
 
 #[test]
 fn verifies_deals_on_block_finalization() {
-    let _ = env_logger::try_init();
-
     new_test_ext().execute_with(|| {
         let alice_start_block = 100;
         let alice_deal_id = 0;
-        let alice_proposal = sign_proposal(
-            ALICE,
-            DealProposal {
-                piece_cid: cid_of("polka-storage-data")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                piece_size: 18,
-                client: account(ALICE),
-                provider: account(PROVIDER),
-                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
-                start_block: alice_start_block,
-                end_block: 110,
-                storage_price_per_block: 5,
-                provider_collateral: 25,
-                state: DealState::Published,
-            },
-        );
+        let alice_proposal = DealProposalBuilder::default()
+            .start_block(alice_start_block)
+            .end_block(alice_start_block + 10)
+            .storage_price_per_block(5)
+            .provider_collateral(25)
+            .signed(ALICE);
+
         let bob_start_block = 130;
         let bob_deal_id = 1;
-        let bob_proposal = sign_proposal(
-            BOB,
-            DealProposal {
-                piece_cid: cid_of("polka-storage-data-bob")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                piece_size: 21,
-                client: account(BOB),
-                provider: account(PROVIDER),
-                label: bounded_vec![0xa, 0xe, 0xe, 0xf],
-                start_block: bob_start_block,
-                end_block: 135,
-                storage_price_per_block: 10,
-                provider_collateral: 15,
-                state: DealState::Published,
-            },
-        );
+        let bob_proposal = DealProposalBuilder::default()
+            .client(BOB)
+            .start_block(bob_start_block)
+            .end_block(bob_start_block + 5)
+            .storage_price_per_block(10)
+            .provider_collateral(15)
+            .signed(BOB);
 
         let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
         let _ = Market::add_balance(RuntimeOrigin::signed(account(BOB)), 70);
@@ -554,7 +915,6 @@ fn verifies_deals_on_block_finalization() {
 
 #[test]
 fn settle_deal_payments_not_found() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
         assert_ok!(Market::settle_deal_payments(
             RuntimeOrigin::signed(account(ALICE)),
@@ -573,26 +933,8 @@ fn settle_deal_payments_not_found() {
 
 #[test]
 fn settle_deal_payments_early() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
-        let alice_proposal = sign_proposal(
-            ALICE,
-            DealProposal {
-                piece_cid: cid_of("polka-storage-data")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                piece_size: 18,
-                client: account(ALICE),
-                provider: account(PROVIDER),
-                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
-                start_block: 100,
-                end_block: 110,
-                storage_price_per_block: 5,
-                provider_collateral: 25,
-                state: DealState::Published,
-            },
-        );
+        let alice_proposal = DealProposalBuilder::default().signed(ALICE);
 
         let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
         let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 75);
@@ -620,26 +962,11 @@ fn settle_deal_payments_early() {
 
 #[test]
 fn settle_deal_payments_published() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
-        let alice_proposal = sign_proposal(
-            ALICE,
-            DealProposal {
-                piece_cid: cid_of("polka-storage-data")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                piece_size: 18,
-                client: account(ALICE),
-                provider: account(PROVIDER),
-                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
-                start_block: 0,
-                end_block: 10,
-                storage_price_per_block: 5,
-                provider_collateral: 25,
-                state: DealState::Published,
-            },
-        );
+        let alice_proposal = DealProposalBuilder::default()
+            .start_block(0)
+            .end_block(10)
+            .signed(ALICE);
 
         let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
         let _ = Market::add_balance(RuntimeOrigin::signed(account(BOB)), 70);
@@ -652,21 +979,13 @@ fn settle_deal_payments_published() {
 
         Proposals::<Test>::insert(
             1,
-            DealProposal {
-                piece_cid: cid_of("polka-storage-data-bob")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                piece_size: 21,
-                client: account(BOB),
-                provider: account(PROVIDER),
-                label: bounded_vec![0xa, 0xe, 0xe, 0xf],
-                start_block: 0,
-                end_block: 10,
-                storage_price_per_block: 10,
-                provider_collateral: 15,
-                state: DealState::Published,
-            },
+            DealProposalBuilder::default()
+                .client(BOB)
+                .start_block(0)
+                .end_block(10)
+                .storage_price_per_block(10)
+                .provider_collateral(15)
+                .unsigned(),
         );
 
         System::reset_events();
@@ -688,33 +1007,22 @@ fn settle_deal_payments_published() {
 
 #[test]
 fn settle_deal_payments_active_future_last_update() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
         let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
         let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 75);
 
         Proposals::<Test>::insert(
             0,
-            DealProposal {
-                piece_cid: cid_of("polka-storage-data")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                piece_size: 18,
-                client: account(ALICE),
-                provider: account(PROVIDER),
-                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
-                start_block: 0,
-                end_block: 10,
-                storage_price_per_block: 5,
-                provider_collateral: 25,
-                state: DealState::Active(ActiveDealState {
+            DealProposalBuilder::default()
+                .start_block(0)
+                .end_block(10)
+                .state(DealState::Active(ActiveDealState {
                     sector_number: 0,
                     sector_start_block: 0,
                     last_updated_block: Some(10),
                     slash_block: None,
-                }),
-            },
+                }))
+                .unsigned(),
         );
         System::reset_events();
 
@@ -735,33 +1043,22 @@ fn settle_deal_payments_active_future_last_update() {
 
 #[test]
 fn settle_deal_payments_active_corruption() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
         let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
         let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 75);
 
         Proposals::<Test>::insert(
             0,
-            DealProposal {
-                piece_cid: cid_of("polka-storage-data")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                piece_size: 18,
-                client: account(ALICE),
-                provider: account(PROVIDER),
-                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
-                start_block: 0,
-                end_block: 10,
-                storage_price_per_block: 5,
-                provider_collateral: 25,
-                state: DealState::Active(ActiveDealState {
+            DealProposalBuilder::default()
+                .start_block(0)
+                .end_block(10)
+                .state(DealState::Active(ActiveDealState {
                     sector_number: 0,
                     sector_start_block: 0,
                     last_updated_block: Some(11),
                     slash_block: None,
-                }),
-            },
+                }))
+                .unsigned(),
         );
         run_to_block(12);
         System::reset_events();
@@ -777,26 +1074,11 @@ fn settle_deal_payments_active_corruption() {
 
 #[test]
 fn settle_deal_payments_success() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
-        let alice_proposal = sign_proposal(
-            ALICE,
-            DealProposal {
-                piece_cid: cid_of("polka-storage-data")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                piece_size: 18,
-                client: account(ALICE),
-                provider: account(PROVIDER),
-                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
-                start_block: 0,
-                end_block: 10,
-                storage_price_per_block: 5,
-                provider_collateral: 25,
-                state: DealState::Published,
-            },
-        );
+        let alice_proposal = DealProposalBuilder::default()
+            .start_block(0)
+            .end_block(10)
+            .signed(ALICE);
 
         let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
         let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 75);
@@ -819,28 +1101,19 @@ fn settle_deal_payments_success() {
 
         assert_eq!(
             Proposals::<Test>::get(0),
-            Some(DealProposal {
-                piece_cid: cid_of("polka-storage-data")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                piece_size: 18,
-                client: account(ALICE),
-                provider: account(PROVIDER),
-                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
-                start_block: 0,
-                end_block: 10,
-                storage_price_per_block: 5,
-                provider_collateral: 25,
-                state: DealState::Active(ActiveDealState {
-                    sector_number: 0,
-                    sector_start_block: 0,
-                    last_updated_block: None,
-                    slash_block: None,
-                }),
-            })
+            Some(
+                DealProposalBuilder::default()
+                    .start_block(0)
+                    .end_block(10)
+                    .state(DealState::Active(ActiveDealState {
+                        sector_number: 0,
+                        sector_start_block: 0,
+                        last_updated_block: None,
+                        slash_block: None,
+                    }))
+                    .unsigned()
+            )
         );
-
         System::reset_events();
 
         run_to_block(5);
@@ -876,52 +1149,29 @@ fn settle_deal_payments_success() {
 
         assert_eq!(
             Proposals::<Test>::get(0),
-            Some(DealProposal {
-                piece_cid: cid_of("polka-storage-data")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                piece_size: 18,
-                client: account(ALICE),
-                provider: account(PROVIDER),
-                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
-                start_block: 0,
-                end_block: 10,
-                storage_price_per_block: 5,
-                provider_collateral: 25,
-                state: DealState::Active(ActiveDealState {
-                    sector_number: 0,
-                    sector_start_block: 0,
-                    last_updated_block: Some(5),
-                    slash_block: None,
-                }),
-            })
+            Some(
+                DealProposalBuilder::default()
+                    .start_block(0)
+                    .end_block(10)
+                    .state(DealState::Active(ActiveDealState {
+                        sector_number: 0,
+                        sector_start_block: 0,
+                        last_updated_block: Some(5),
+                        slash_block: None,
+                    }))
+                    .unsigned()
+            )
         );
     });
 }
 
 #[test]
 fn settle_deal_payments_success_finished() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
-        let alice_proposal = sign_proposal(
-            ALICE,
-            DealProposal {
-                piece_cid: cid_of("polka-storage-data")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                piece_size: 18,
-                client: account(ALICE),
-                provider: account(PROVIDER),
-                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
-                start_block: 0,
-                end_block: 10,
-                storage_price_per_block: 5,
-                provider_collateral: 25,
-                state: DealState::Published,
-            },
-        );
+        let alice_proposal = DealProposalBuilder::default()
+            .start_block(0)
+            .end_block(10)
+            .signed(ALICE);
 
         let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
         let _ = Market::add_balance(RuntimeOrigin::signed(account(PROVIDER)), 75);
@@ -944,26 +1194,18 @@ fn settle_deal_payments_success_finished() {
 
         assert_eq!(
             Proposals::<Test>::get(0),
-            Some(DealProposal {
-                piece_cid: cid_of("polka-storage-data")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                piece_size: 18,
-                client: account(ALICE),
-                provider: account(PROVIDER),
-                label: bounded_vec![0xb, 0xe, 0xe, 0xf],
-                start_block: 0,
-                end_block: 10,
-                storage_price_per_block: 5,
-                provider_collateral: 25,
-                state: DealState::Active(ActiveDealState {
-                    sector_number: 0,
-                    sector_start_block: 0,
-                    last_updated_block: None,
-                    slash_block: None,
-                }),
-            })
+            Some(
+                DealProposalBuilder::default()
+                    .start_block(0)
+                    .end_block(10)
+                    .state(DealState::Active(ActiveDealState {
+                        sector_number: 0,
+                        sector_start_block: 0,
+                        last_updated_block: None,
+                        slash_block: None,
+                    }))
+                    .unsigned()
+            )
         );
 
         System::reset_events();
@@ -1212,24 +1454,7 @@ fn on_sector_terminate_invalid_caller() {
         let sector_deal_ids: BoundedVec<_, ConstU32<MAX_DEALS_PER_SECTOR>> = bounded_vec![1];
 
         SectorDeals::<Test>::insert(cid.clone(), sector_deal_ids);
-        Proposals::<Test>::insert(
-            1,
-            DealProposal {
-                piece_cid: cid_of("polka-storage-data-bob")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                piece_size: 21,
-                client: account(BOB),
-                provider: account(PROVIDER),
-                label: bounded_vec![0xa, 0xe, 0xe, 0xf],
-                start_block: 0,
-                end_block: 10,
-                storage_price_per_block: 10,
-                provider_collateral: 15,
-                state: DealState::Published,
-            },
-        );
+        Proposals::<Test>::insert(1, DealProposalBuilder::default().client(BOB).unsigned());
 
         assert_err!(
             Market::on_sectors_terminate(&account(BOB), bounded_vec![cid],),
@@ -1253,21 +1478,13 @@ fn on_sector_terminate_not_active() {
         SectorDeals::<Test>::insert(cid.clone(), sector_deal_ids);
         Proposals::<Test>::insert(
             1,
-            DealProposal {
-                piece_cid: cid_of("polka-storage-data-bob")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                piece_size: 21,
-                client: account(BOB),
-                provider: account(PROVIDER),
-                label: bounded_vec![0xa, 0xe, 0xe, 0xf],
-                start_block: 0,
-                end_block: 10,
-                storage_price_per_block: 10,
-                provider_collateral: 15,
-                state: DealState::Published,
-            },
+            DealProposalBuilder::default()
+                .client(BOB)
+                .start_block(0)
+                .end_block(10)
+                .storage_price_per_block(10)
+                .provider_collateral(15)
+                .unsigned(),
         );
 
         assert_err!(
@@ -1288,21 +1505,14 @@ fn on_sector_terminate_active() {
 
         let cid = BoundedVec::try_from(cid_of("polka_storage_cid").to_bytes()).unwrap();
         let sector_deal_ids: BoundedVec<_, ConstU32<MAX_DEALS_PER_SECTOR>> = bounded_vec![1];
-        let deal_proposal = DealProposal {
-            piece_cid: cid_of("polka_storage_piece")
-                .to_bytes()
-                .try_into()
-                .expect("hash is always 32 bytes"),
-            piece_size: 21,
-            client: account(BOB),
-            provider: account(PROVIDER),
-            label: bounded_vec![0xa, 0xe, 0xe, 0xf],
-            start_block: 0,
-            end_block: 10,
-            storage_price_per_block: 5,
-            provider_collateral: 15,
-            state: DealState::Active(ActiveDealState::new(0, 0)),
-        };
+        let deal_proposal = DealProposalBuilder::default()
+            .client(BOB)
+            .start_block(0)
+            .end_block(10)
+            .storage_price_per_block(5)
+            .provider_collateral(15)
+            .state(DealState::Active(ActiveDealState::new(0, 0)))
+            .unsigned();
 
         assert_ok!(lock_funds::<Test>(&account(BOB), 5 * 10));
         assert_ok!(lock_funds::<Test>(&account(PROVIDER), 15));
@@ -1361,4 +1571,151 @@ fn on_sector_terminate_active() {
             285
         );
     });
+}
+
+/// Builder with nice defaults for test purposes.
+struct SectorDealBuilder {
+    sector_number: u64,
+    sector_expiry: u64,
+    sector_type: RegisteredSealProof,
+    deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
+}
+
+impl SectorDealBuilder {
+    pub fn sector_expiry(mut self, sector_expiry: u64) -> Self {
+        self.sector_expiry = sector_expiry;
+        self
+    }
+
+    pub fn sector_number(mut self, sector_number: u64) -> Self {
+        self.sector_number = sector_number;
+        self
+    }
+
+    pub fn deal_ids(
+        mut self,
+        deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
+    ) -> Self {
+        self.deal_ids = deal_ids;
+        self
+    }
+
+    pub fn build(self) -> SectorDeal<u64> {
+        SectorDeal::<u64> {
+            sector_number: self.sector_number,
+            sector_expiry: self.sector_expiry,
+            sector_type: self.sector_type,
+            deal_ids: self.deal_ids,
+        }
+    }
+}
+
+impl Default for SectorDealBuilder {
+    fn default() -> Self {
+        Self {
+            sector_number: 1,
+            sector_expiry: 120,
+            sector_type: RegisteredSealProof::StackedDRG2KiBV1P1,
+            deal_ids: bounded_vec![1],
+        }
+    }
+}
+
+/// Builder to simplify writing complex tests of [`DealProposal`].
+/// Exclusively uses [`Test`] for simplification purposes.
+struct DealProposalBuilder {
+    piece_cid: BoundedVec<u8, ConstU32<128>>,
+    piece_size: u64,
+    client: AccountIdOf<Test>,
+    provider: AccountIdOf<Test>,
+    label: BoundedVec<u8, ConstU32<128>>,
+    start_block: u64,
+    end_block: u64,
+    storage_price_per_block: u64,
+    provider_collateral: u64,
+    state: DealState<u64>,
+}
+
+impl Default for DealProposalBuilder {
+    fn default() -> Self {
+        Self {
+            piece_cid: cid_of("polka-storage-data")
+                .to_bytes()
+                .try_into()
+                .expect("hash is always 32 bytes"),
+            piece_size: 18,
+            client: account(ALICE),
+            provider: account(PROVIDER),
+            label: bounded_vec![0xb, 0xe, 0xe, 0xf],
+            start_block: 100,
+            end_block: 110,
+            storage_price_per_block: 5,
+            provider_collateral: 25,
+            // TODO(@th7nder,01/07/2024): change this to Published
+            state: DealState::Published,
+        }
+    }
+}
+
+impl DealProposalBuilder {
+    pub fn client(mut self, client: &'static str) -> Self {
+        self.client = account(client);
+        self
+    }
+
+    pub fn provider(mut self, provider: &'static str) -> Self {
+        self.provider = account(provider);
+        self
+    }
+
+    pub fn state(mut self, state: DealState<u64>) -> Self {
+        self.state = state;
+        self
+    }
+
+    pub fn start_block(mut self, start_block: u64) -> Self {
+        self.start_block = start_block;
+        self
+    }
+
+    pub fn end_block(mut self, end_block: u64) -> Self {
+        self.end_block = end_block;
+        self
+    }
+
+    pub fn storage_price_per_block(mut self, price: u64) -> Self {
+        self.storage_price_per_block = price;
+        self
+    }
+
+    pub fn provider_collateral(mut self, price: u64) -> Self {
+        self.provider_collateral = price;
+        self
+    }
+
+    pub fn piece_size(mut self, piece_size: u64) -> Self {
+        self.piece_size = piece_size;
+        self
+    }
+
+    pub fn unsigned(self) -> DealProposalOf<Test> {
+        DealProposalOf::<Test> {
+            piece_cid: self.piece_cid,
+            piece_size: self.piece_size,
+            client: self.client,
+            provider: self.provider,
+            label: self.label,
+            start_block: self.start_block,
+            end_block: self.end_block,
+            storage_price_per_block: self.storage_price_per_block,
+            provider_collateral: self.provider_collateral,
+            state: self.state,
+        }
+    }
+
+    pub fn signed(self, by: &'static str) -> ClientDealProposalOf<Test> {
+        let built = self.unsigned();
+        let signed = sign_proposal(by, built);
+        signed
+    }
 }
