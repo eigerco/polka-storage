@@ -36,7 +36,7 @@ ARG BUILD_DATE
 LABEL co.eiger.image.authors="releases@eiger.co" \
     co.eiger.image.vendor="Eiger" \
     co.eiger.image.title="Polka Storage Provider" \
-    co.eiger.image.description="Allows Storage Providers to offer storage services on the Polkadot network." \
+    co.eiger.image.description="Provides a server used for uploading arbitrary files and downloading them as CAR files." \
     co.eiger.image.revision="${VCS_REF}" \
     co.eiger.image.created="${BUILD_DATE}" \
     co.eiger.image.documentation="https://github.com/eigerco/polka-storage"

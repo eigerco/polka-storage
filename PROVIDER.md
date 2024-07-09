@@ -2,7 +2,14 @@
 
 To build the Docker image for the provider, execute the following command in the project directory.
 
-`docker build -t eiger/polka-storage-provider --file ./docker/dockerfiles/storage-provider/Dockerfile .`
+```
+docker build \
+    --build-arg VCS_REF=$(git rev-parse HEAD) \
+    --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+    -t eiger/polka-storage-provider \
+    --file ./docker/dockerfiles/storage-provider/Dockerfile \
+    .
+```
 
 This command uses the custom Dockerfile located at `./docker/dockerfiles/storage-provider/Dockerfile` to create an image named `eiger/polka-storage-provider`.
 
@@ -51,13 +58,12 @@ This command uploads the file `image.jpg` to the server running at `http://local
 After uploading, you will receive a CID (Content Identifier) for the file. Use this CID to download the corresponding CAR file. Replace `:cid` with the actual CID provided:
 
 ```
-curl -v \
+curl \
     -X GET \
     --output ./content.car \
     http://localhost:9000/download/:cid
 ```
 
-- `-v`: Enables verbose mode, providing detailed information about the request.
 - `-X GET`: Specifies the GET request method.
 - `http://localhost:9000/download/:cid`: The URL to download the CAR file, with :cid being the placeholder for the actual CID.
 - `--output ./content.car`: Saves the downloaded CAR file as content.car in the current directory.
