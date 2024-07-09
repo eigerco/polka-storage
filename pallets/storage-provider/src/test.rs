@@ -148,9 +148,8 @@ fn pre_commit_sector() {
                 })
             ]
         );
-        // `expect()` should be safe because of the above check.
-        let sp_alice =
-            StorageProviders::<Test>::get(account(ALICE)).expect("SP Alice should be present");
+        let sp_alice = StorageProviders::<Test>::get(account(ALICE))
+            .expect("SP Alice should be present because of the pre-check");
 
         assert!(sp_alice.sectors.is_empty()); // not yet proven
         assert!(!sp_alice.pre_committed_sectors.is_empty());
