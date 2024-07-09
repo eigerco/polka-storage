@@ -255,7 +255,7 @@ pub mod pallet {
                 Ok(())
             })?;
             Self::deposit_event(Event::SectorPreCommitted { owner, sector });
-            Ok(().into())
+            Ok(())
         }
 
         /// Allows the SP to submit proof for their precomitted sectors.
@@ -263,7 +263,7 @@ pub mod pallet {
         pub fn prove_commit_sector(
             origin: OriginFor<T>,
             sector: ProveCommitSector,
-        ) -> DispatchResultWithPostInfo {
+        ) -> DispatchResult {
             let owner = ensure_signed(origin)?;
             let sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
@@ -288,7 +288,7 @@ pub mod pallet {
             );
             let new_sector =
                 SectorOnChainInfo::from_pre_commit(precommit.info.clone(), current_block);
-            StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResultWithPostInfo {
+            StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResult {
                 let sp = maybe_sp
                     .as_mut()
                     .ok_or(Error::<T>::StorageProviderNotFound)?;
@@ -296,7 +296,7 @@ pub mod pallet {
                     .map_err(|_| Error::<T>::SectorActivateFailed)?;
                 sp.remove_precomitted_sector(sector_number)
                     .map_err(|_| Error::<T>::CouldNotRemoveSector)?;
-                Ok(().into())
+                Ok(())
             })?;
             let mut sector_deals = BoundedVec::new();
             sector_deals
@@ -308,7 +308,7 @@ pub mod pallet {
                 owner,
                 sector_number,
             });
-            Ok(().into())
+            Ok(())
         }
     }
 
