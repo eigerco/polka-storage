@@ -18,6 +18,8 @@ pub struct SectorPreCommitInfo<BlockNumber> {
     /// Using sealed_cid as I think that is more descriptive.
     /// Some docs on commR here: <https://proto.school/verifying-storage-on-filecoin/03>
     pub sealed_cid: SectorId,
+    /// Deals Ids that are supposed to be activated.
+    /// If any of those is invalid, whole activation is rejected.
     pub deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
     /// Expiration of the pre-committed sector.
     pub expiration: BlockNumber,
