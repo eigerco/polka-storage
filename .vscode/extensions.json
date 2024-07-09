@@ -1,0 +1,14 @@
+{
+    "recommendations": [
+        // Rust language support
+        "rust-lang.rust-analyzer",
+        // Justfile
+        "nefrob.vscode-just-syntax",
+        // TOML support
+        "tamasfe.even-better-toml",
+        // Code Coverage display inline, next to the code
+        "ryanluker.vscode-coverage-gutters",
+        // direnv, to use tool binaries from `nix` profile and set environment variables automatically
+        "mkhl.direnv",
+    ]
+}
