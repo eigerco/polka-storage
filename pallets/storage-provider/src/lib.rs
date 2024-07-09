@@ -46,7 +46,8 @@ pub mod pallet {
     };
     use frame_system::{ensure_signed, pallet_prelude::*, Config as SystemConfig};
     use primitives_proofs::{Market, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
-    use scale_info::TypeInfo;
+    use scale_info::{prelude::vec::Vec, TypeInfo};
+    use sp_arithmetic::traits::Zero;
 
     use crate::{
         deadline::DeadlineInfo,
@@ -509,6 +510,22 @@ pub mod pallet {
         }
     }
 
+    #[pallet::hooks]
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+        fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+            // TODO(@aidan46, no-ref, 2024/07/09): set proper weights
+            T::DbWeight::get().reads(1)
+        }
+
+        /// This function should check 2 things for every storage provider:
+        /// 1. Whether pre committed sectors that have not yet been proven are past their deadline.
+        /// If the pre committed sectors are expired, the SP should be slashed and these pre committed sectors should be removed.
+        /// 2. Check wether a PoSt deadline has been passed and slash the SPs deposit if this is the case.
+        fn on_finalize(current_block: BlockNumberFor<T>) {
+            Self::pre_commit_expired_hook(current_block);
+        }
+    }
+
     impl<T: Config> Pallet<T> {
         fn validate_expiration(
             curr_block: BlockNumberFor<T>,
@@ -588,6 +605,54 @@ pub mod pallet {
                 Error::<T>::InvalidDeadlineSubmission
             });
             Ok(())
+        }
+
+        /// Goes through all of the registered storage providers and checks if they have any expired pre committed sectors.
+        /// If there are any sectors that are expired the total deposit amount for all those sectors will be slashed.
+        fn pre_commit_expired_hook(current_block: BlockNumberFor<T>) {
+            StorageProviders::<T>::iter().for_each(|(owner, sp) |{
+                log::info!(target: LOG_TARGET, "Checking storage provider owned by {owner:?}");
+                // Check precommit sector expiry
+                let (expired, slash_amount) = Self::check_pre_commit_expiration(current_block, &sp);
+                if !expired.is_empty() {
+                    log::warn!(target: LOG_TARGET, "on_finalize: Found expired pre committed sectors for {owner}");
+                    // Some sectors are expired and should be removed.
+                    // The expect calls here are infallible because we are looping over sps and using the keys to get them.
+                    // In case the infallible expect does fail somehow first remove sectors to prevent loss of funds.
+                    for sector_number in expired {
+                        StorageProviders::<T>::mutate(&owner, |maybe_sp| -> () {
+                            let sp = maybe_sp.as_mut().expect("Infallible");
+                            let _ = sp.remove_pre_committed_sector(sector_number);
+                        });
+                    }
+                    // Slash the amount for all the sectors and updates the state.
+                    StorageProviders::<T>::mutate(&owner, |maybe_sp| -> () {
+                        let sp = maybe_sp.as_mut().expect("Infallible");
+                        sp.pre_commit_deposits -= slash_amount;
+                        let _ = T::Currency::slash_reserved(&owner, slash_amount);
+                    });
+                }
+            })
+        }
+
+        /// Checks whether pre-committed sectors are expired.
+        ///
+        /// Returns an array of expired sector numbers and the total deposit about to be slashed.
+        fn check_pre_commit_expiration(
+            curr_block: BlockNumberFor<T>,
+            sp: &StorageProviderState<T::PeerId, BalanceOf<T>, BlockNumberFor<T>>,
+        ) -> (Vec<SectorNumber>, BalanceOf<T>) {
+            let mut expired_sectors = Vec::new();
+            let mut to_be_slashed = BalanceOf::<T>::zero();
+            sp.pre_committed_sectors
+                .iter()
+                .for_each(|(sector_number, sector)| {
+                    if sector.info.expiration > curr_block {
+                        expired_sectors.push(*sector_number);
+                        to_be_slashed += sector.pre_commit_deposit;
+                    }
+                });
+            (expired_sectors, to_be_slashed)
         }
     }
 
