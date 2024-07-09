@@ -118,7 +118,9 @@ where
 pub enum StorageProviderError {
     /// Happens when an SP tries to pre-commit more sectors than SECTOR_MAX.
     MaxPreCommittedSectorExceeded,
+    /// Happens when trying to access a sector that does not exist.
     SectorNotFound,
+    /// Happens when a sector number is already in use.
     SectorNumberInUse,
 }
 
