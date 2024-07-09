@@ -83,6 +83,7 @@ where
         Ok(())
     }
 
+    /// Get a pre committed sector from the given sector number.
     pub fn get_pre_committed_sector(
         &self,
         sector_number: SectorNumber,
@@ -92,6 +93,7 @@ where
             .ok_or(StorageProviderError::SectorNotFound)
     }
 
+    /// Removes a pre committed sector from the given sector number.
     pub fn remove_pre_committed_sector(
         &mut self,
         sector_num: SectorNumber,
@@ -102,6 +104,9 @@ where
         Ok(())
     }
 
+    /// Activates a given sector according to the sector number
+    /// 
+    /// Before this call the sector number should be checked for collisions.
     pub fn activate_sector(
         &mut self,
         sector_num: SectorNumber,
