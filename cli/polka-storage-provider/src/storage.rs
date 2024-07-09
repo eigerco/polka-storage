@@ -14,7 +14,7 @@ use tempfile::tempdir_in;
 use tokio::{
     fs::{self, File},
     io::{AsyncRead, BufWriter},
-    sync::broadcast::Receiver,
+    sync::oneshot::Receiver,
 };
 use tokio_util::io::{ReaderStream, StreamReader};
 use tower_http::trace::TraceLayer;
@@ -32,7 +32,7 @@ pub struct StorageServerState {
 pub async fn start_upload_server(
     state: Arc<StorageServerState>,
     listen_addr: SocketAddr,
-    mut notify_shutdown_rx: Receiver<()>,
+    notify_shutdown_rx: Receiver<()>,
 ) -> Result<(), CliError> {
     // Configure router
     let router = configure_router(state);
@@ -42,14 +42,13 @@ pub async fn start_upload_server(
     info!("upload server started at: {listen_addr}");
     axum::serve(listener, router)
         .with_graceful_shutdown(async move {
-            let _ = notify_shutdown_rx.recv().await;
+            let _ = notify_shutdown_rx.await;
         })
         .await?;
 
     Ok(())
 }
 
-// TODO(no-ref,@cernicc,28/06/2024): Nicer error handling in handlers
 fn configure_router(state: Arc<StorageServerState>) -> Router {
     Router::new()
         .route("/upload", post(upload))
@@ -108,12 +107,13 @@ async fn download(
     Path(cid): Path<String>,
 ) -> Result<Response, (StatusCode, String)> {
     // Path to a CAR file
-    let Ok(cid) = Cid::from_str(&cid) else {
-        error!(cid, "cid incorrect format");
-        return Err((StatusCode::BAD_REQUEST, "cid incorrect format".to_string()));
-    };
+    let cid = Cid::from_str(&cid).map_err(|e| {
+        error!(?e, cid, "cid incorrect format");
+        (StatusCode::BAD_REQUEST, "cid incorrect format".to_string())
+    })?;
+
     let (file_name, path) = content_path(&state.storage_dir, cid);
-    info!(path = %path.display(), "file requested");
+    info!(?path, "file requested");
 
     // Check if the file exists
     if !path.exists() {
@@ -122,12 +122,13 @@ async fn download(
     }
 
     // Open car file
-    let Ok(file) = File::open(path).await else {
-        return Err((
+    let file = File::open(&path).await.map_err(|e| {
+        error!(?e, ?path, "failed to open file");
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
             "failed to open file".to_string(),
-        ));
-    };
+        )
+    })?;
 
     // Convert the `AsyncRead` into a `Stream`
     let stream = ReaderStream::new(file);
@@ -155,7 +156,7 @@ where
 {
     // Create a storage folder if it doesn't exist.
     if !folder.exists() {
-        info!("creating storage folder: {}", folder.display());
+        info!(?folder, "creating storage folder");
         fs::create_dir_all(folder).await?;
     }
 
@@ -174,7 +175,7 @@ where
     // location.
     let (_, final_content_path) = content_path(folder, cid);
     fs::rename(temp_file_path, &final_content_path).await?;
-    info!(location = %final_content_path.display(), "CAR file created");
+    info!(?final_content_path, "CAR file created");
 
     Ok(cid)
 }
