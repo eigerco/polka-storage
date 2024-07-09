@@ -259,7 +259,8 @@ pub mod pallet {
         }
 
         /// Allows the SP to submit proof for their precomitted sectors.
-        /// TODO(@aidan46, no-ref, 2024-06-24): Add functionality to allow for batch pre commit
+        // TODO(@aidan46, no-ref, 2024-06-24): Add functionality to allow for batch pre commit
+        // TODO(@aidan46, no-ref, 2024-06-24): Actually check proof, currently the proof validation is stubbed out.
         pub fn prove_commit_sector(
             origin: OriginFor<T>,
             sector: ProveCommitSector,
