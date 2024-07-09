@@ -1058,7 +1058,7 @@ pub mod pallet {
         // We don't want to store another BTreeSet of DealProposals
         // We only care about hashes.
         // It is not an associated function, because T::Hashing is hard to use inside of there.
-        pub fn hash_proposal(
+        pub(crate) fn hash_proposal(
             proposal: &DealProposal<T::AccountId, BalanceOf<T>, BlockNumberFor<T>>,
         ) -> T::Hash {
             let bytes = Encode::encode(proposal);
