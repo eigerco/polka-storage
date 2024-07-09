@@ -294,7 +294,7 @@ pub mod pallet {
                     .ok_or(Error::<T>::StorageProviderNotFound)?;
                 sp.activate_sector(sector_number, new_sector)
                     .map_err(|_| Error::<T>::SectorActivateFailed)?;
-                sp.remove_precomitted_sector(sector_number)
+                sp.remove_pre_committed_sector(sector_number)
                     .map_err(|_| Error::<T>::CouldNotRemoveSector)?;
                 Ok(())
             })?;
