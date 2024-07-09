@@ -20,7 +20,13 @@ This command creates a volume named storage_provider.
 
 Next, start the storage server using the created volume:
 
-`docker run -p 127.0.0.1:9000:9000 --mount source=storage_provider,destination=/app/uploads eiger/polka-storage-provider storage --listen-addr 0.0.0.0:9000`
+```
+docker run \
+    -p 127.0.0.1:9000:9000 \
+    --mount source=storage_provider,destination=/app/uploads \
+    eiger/polka-storage-provider storage \
+        --listen-addr 0.0.0.0:9000
+```
 
 - `-p 127.0.0.1:9000:9000`: This maps port `9000` on the localhost to port `9000` on the container.
 - `--mount source=storage_provider,destination=/app/uploads`: Mounts the `storage_provider` volume to `/app/uploads` inside the container.
@@ -31,15 +37,25 @@ Next, start the storage server using the created volume:
 
 To upload a file to the provider's server, use the following curl command. Replace image.jpg with the path to your file:
 
-`curl -X POST --data-binary "@image.jpg" http://localhost:9000/upload`
+```
+curl \
+    -X POST \
+    --data-binary "@image.jpg" \
+    http://localhost:9000/upload
+```
 
-This command uploads the file image.jpg to the server running at `http://localhost:9000/upload`. The server converts the uploaded content to a CAR file and saves it to the mounted volume. The returned Cid can later be used to fetch a CAR file from the server.
+This command uploads the file `image.jpg` to the server running at `http://localhost:9000/upload`. The server converts the uploaded content to a CAR file and saves it to the mounted volume. The returned Cid can later be used to fetch a CAR file from the server.
 
 ## Download the CAR File
 
 After uploading, you will receive a CID (Content Identifier) for the file. Use this CID to download the corresponding CAR file. Replace `:cid` with the actual CID provided:
 
-`curl -v -X GET http://localhost:9000/download/:cid --output ./content.car`
+```
+curl -v \
+    -X GET \
+    --output ./content.car \
+    http://localhost:9000/download/:cid
+```
 
 - `-v`: Enables verbose mode, providing detailed information about the request.
 - `-X GET`: Specifies the GET request method.
