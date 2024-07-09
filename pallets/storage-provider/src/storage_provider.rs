@@ -71,7 +71,7 @@ where
     /// Inserts sectors into the pre commit state.
     /// Before calling this it should be ensured that the sector number is not being reused.
     // TODO(@aidan46, #107, 2024-06-21): Allow for batch inserts.
-    pub fn put_precommitted_sector(
+    pub fn put_pre_committed_sector(
         &mut self,
         precommit: SectorPreCommitOnChainInfo<Balance, BlockNumber>,
     ) -> Result<(), StorageProviderError> {
@@ -83,7 +83,7 @@ where
         Ok(())
     }
 
-    pub fn get_precommitted_sector(
+    pub fn get_pre_committed_sector(
         &self,
         sector_number: SectorNumber,
     ) -> Result<&SectorPreCommitOnChainInfo<Balance, BlockNumber>, StorageProviderError> {
@@ -92,7 +92,7 @@ where
             .ok_or(StorageProviderError::SectorNotFound)
     }
 
-    pub fn remove_precomitted_sector(
+    pub fn remove_pre_committed_sector(
         &mut self,
         sector_num: SectorNumber,
     ) -> Result<(), StorageProviderError> {

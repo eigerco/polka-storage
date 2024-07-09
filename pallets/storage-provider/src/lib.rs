@@ -149,7 +149,7 @@ pub mod pallet {
         MaxPreCommittedSectorExceeded,
         /// Emitted when a sector fails to activate.
         SectorActivateFailed,
-        /// Emitted when removing a precommitted sector after proving fails.
+        /// Emitted when removing a pre_committed sector after proving fails.
         CouldNotRemoveSector,
         /// Emitted when trying to reuse a sector number
         SectorNumberAlreadyUsed,
@@ -246,7 +246,7 @@ pub mod pallet {
                     .as_mut()
                     .ok_or(Error::<T>::StorageProviderNotFound)?;
                 sp.add_pre_commit_deposit(deposit)?;
-                sp.put_precommitted_sector(SectorPreCommitOnChainInfo::new(
+                sp.put_pre_committed_sector(SectorPreCommitOnChainInfo::new(
                     sector.clone(),
                     deposit,
                     <frame_system::Pallet<T>>::block_number(),
@@ -273,7 +273,7 @@ pub mod pallet {
                 Error::<T>::InvalidSector
             );
             let precommit = sp
-                .get_precommitted_sector(sector_number)
+                .get_pre_committed_sector(sector_number)
                 .map_err(|_| Error::<T>::InvalidSector)?;
             let current_block = <frame_system::Pallet<T>>::block_number();
             let prove_commit_due =
