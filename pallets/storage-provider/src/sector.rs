@@ -1,20 +1,12 @@
 use codec::{Decode, Encode};
-use primitives_proofs::{DealId, SectorId};
+use frame_support::{pallet_prelude::*, BoundedVec};
+use primitives_proofs::{
+    DealId, RegisteredSealProof, SectorDeal, SectorId, SectorNumber, MAX_DEALS_PER_SECTOR,
+};
 use scale_info::TypeInfo;
-
-use crate::proofs::RegisteredSealProof;
 
 // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/runtime/src/runtime/policy.rs#L262
 pub const SECTORS_MAX: u32 = 32 << 20;
-
-/// SectorNumber is a numeric identifier for a sector.
-pub type SectorNumber = u32;
-
-/// SectorSize indicates one of a set of possible sizes in the network.
-#[derive(Encode, Decode, TypeInfo, Clone, Debug, PartialEq, Eq, Copy)]
-pub enum SectorSize {
-    _2KiB,
-}
 
 /// This type is passed into the pre commit function on the storage provider pallet
 #[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
@@ -26,7 +18,9 @@ pub struct SectorPreCommitInfo<BlockNumber> {
     /// Using sealed_cid as I think that is more descriptive.
     /// Some docs on commR here: <https://proto.school/verifying-storage-on-filecoin/03>
     pub sealed_cid: SectorId,
-    pub deal_id: DealId,
+    /// Deals Ids that are supposed to be activated.
+    /// If any of those is invalid, whole activation is rejected.
+    pub deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
     /// Expiration of the pre-committed sector.
     pub expiration: BlockNumber,
     /// CommD
@@ -57,6 +51,19 @@ impl<Balance, BlockNumber> SectorPreCommitOnChainInfo<Balance, BlockNumber> {
     }
 }
 
+impl<Balance, BlockNumber: Clone> From<&SectorPreCommitOnChainInfo<Balance, BlockNumber>>
+    for SectorDeal<BlockNumber>
+{
+    fn from(precommit: &SectorPreCommitOnChainInfo<Balance, BlockNumber>) -> Self {
+        Self {
+            sector_number: precommit.info.sector_number,
+            sector_expiry: precommit.info.expiration.clone(),
+            sector_type: precommit.info.seal_proof.clone(),
+            deal_ids: precommit.info.deal_ids.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Decode, Encode, TypeInfo)]
 pub struct SectorOnChainInfo<BlockNumber> {
     pub sector_number: SectorNumber,
@@ -73,4 +80,27 @@ pub struct SectorOnChainInfo<BlockNumber> {
     pub expiration: BlockNumber,
     /// CommD
     pub unsealed_cid: SectorId,
+}
+
+impl<BlockNumber> SectorOnChainInfo<BlockNumber> {
+    pub fn from_pre_commit(
+        pre_commit: SectorPreCommitInfo<BlockNumber>,
+        activation: BlockNumber,
+    ) -> Self {
+        SectorOnChainInfo {
+            sector_number: pre_commit.sector_number,
+            seal_proof: pre_commit.seal_proof,
+            sealed_cid: pre_commit.sealed_cid,
+            expiration: pre_commit.expiration,
+            activation,
+            unsealed_cid: pre_commit.unsealed_cid,
+        }
+    }
+}
+
+/// Arguments passed into the `prove_commit_sector` extrinsic.
+#[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
+pub struct ProveCommitSector {
+    pub sector_number: SectorNumber,
+    pub proof: BoundedVec<u8, ConstU32<256>>, // Arbitrary length
 }

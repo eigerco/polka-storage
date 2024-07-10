@@ -10,7 +10,7 @@ use multihash_codetable::{Code, MultihashDigest};
 use sp_core::Pair;
 use sp_runtime::{
     traits::{ConstU32, ConstU64, IdentifyAccount, IdentityLookup, Verify},
-    BuildStorage, MultiSignature, MultiSigner,
+    AccountId32, BuildStorage, MultiSignature, MultiSigner,
 };
 
 use crate::{self as pallet_market, BalanceOf, ClientDealProposal, DealProposal, CID_CODEC};
@@ -61,13 +61,13 @@ impl crate::Config for Test {
     type MaxDealsPerBlock = ConstU32<32>;
 }
 
-pub type AccountIdOf<Test> = <Test as frame_system::Config>::AccountId;
+pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 
 pub fn key_pair(name: &str) -> sp_core::sr25519::Pair {
     sp_core::sr25519::Pair::from_string(name, None).unwrap()
 }
 
-pub fn account(name: &str) -> AccountIdOf<Test> {
+pub fn account<T: frame_system::Config>(name: &str) -> AccountId32 {
     let user_pair = key_pair(name);
     let signer = MultiSigner::Sr25519(user_pair.public());
     signer.into_account()
@@ -114,9 +114,9 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
         .into();
     pallet_balances::GenesisConfig::<Test> {
         balances: vec![
-            (account(ALICE), INITIAL_FUNDS),
-            (account(BOB), INITIAL_FUNDS),
-            (account(PROVIDER), INITIAL_FUNDS),
+            (account::<Test>(ALICE), INITIAL_FUNDS),
+            (account::<Test>(BOB), INITIAL_FUNDS),
+            (account::<Test>(PROVIDER), INITIAL_FUNDS),
         ],
     }
     .assimilate_storage(&mut t)
