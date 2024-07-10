@@ -14,3 +14,5 @@ docker build \
 The command builds a Docker image `eiger/polka-storage-node` from a Dockerfile located at `./docker/dockerfiles/parachain/Dockerfile`.
 
 ## Running the Parachain
+
+`just podman-testnet`
