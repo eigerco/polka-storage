@@ -1,9 +1,14 @@
+use codec::Encode;
 use frame_support::{
     assert_noop, assert_ok,
     sp_runtime::{bounded_vec, BoundedVec},
+    traits::ConstU32,
 };
-use pallet_market::{DealProposal, DealState};
+use frame_system::pallet_prelude::BlockNumberFor;
+use pallet_market::{BalanceOf, ClientDealProposal, DealProposal, DealState};
 use primitives_proofs::{RegisteredPoStProof, RegisteredSealProof};
+use sp_core::Pair;
+use sp_runtime::MultiSignature;
 
 use crate::{
     mock::*,
@@ -216,26 +221,13 @@ fn prove_commit_sector() {
     new_test_ext().execute_with(|| {
         let _ = Market::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
         let _ = Market::add_balance(RuntimeOrigin::signed(account(BOB)), 70);
+        let deal_proposal = DealProposalBuilder::default()
+            .client(BOB)
+            .provider(ALICE)
+            .signed(BOB);
         assert_ok!(Market::publish_storage_deals(
             RuntimeOrigin::signed(account(ALICE)),
-            bounded_vec![sign_proposal(
-                BOB,
-                DealProposal {
-                    piece_cid: cid_of("polka-storage-data")
-                        .to_bytes()
-                        .try_into()
-                        .expect("hash is always 32 bytes"),
-                    piece_size: 18,
-                    client: account(BOB),
-                    provider: account(ALICE),
-                    label: bounded_vec![0xb, 0xe, 0xe, 0xf],
-                    start_block: 100,
-                    end_block: 110,
-                    storage_price_per_block: 5,
-                    provider_collateral: 25,
-                    state: DealState::Published,
-                },
-            )],
+            bounded_vec![deal_proposal],
         ));
         let peer_id = "storage_provider_1".as_bytes().to_vec();
         let peer_id = BoundedVec::try_from(peer_id).unwrap();
@@ -305,4 +297,95 @@ fn prove_commit_sector() {
         assert!(!sp_state.sectors.is_empty());
         assert!(sp_state.sectors.contains_key(&sector_number));
     });
+}
+
+/// Builder to simplify writing complex tests of [`DealProposal`].
+/// Exclusively uses [`Test`] for simplification purposes.
+struct DealProposalBuilder {
+    piece_cid: BoundedVec<u8, ConstU32<128>>,
+    piece_size: u64,
+    client: AccountIdOf<Test>,
+    provider: AccountIdOf<Test>,
+    label: BoundedVec<u8, ConstU32<128>>,
+    start_block: u64,
+    end_block: u64,
+    storage_price_per_block: u64,
+    provider_collateral: u64,
+    state: DealState<u64>,
+}
+
+impl Default for DealProposalBuilder {
+    fn default() -> Self {
+        Self {
+            piece_cid: cid_of("polka-storage-data")
+                .to_bytes()
+                .try_into()
+                .expect("hash is always 32 bytes"),
+            piece_size: 18,
+            client: account(BOB),
+            provider: account(ALICE),
+            label: bounded_vec![0xb, 0xe, 0xe, 0xf],
+            start_block: 100,
+            end_block: 110,
+            storage_price_per_block: 5,
+            provider_collateral: 25,
+            state: DealState::Published,
+        }
+    }
+}
+
+impl DealProposalBuilder {
+    pub fn client(mut self, client: &'static str) -> Self {
+        self.client = account(client);
+        self
+    }
+
+    pub fn provider(mut self, provider: &'static str) -> Self {
+        self.provider = account(provider);
+        self
+    }
+
+    pub fn unsigned(self) -> DealProposalOf<Test> {
+        DealProposalOf::<Test> {
+            piece_cid: self.piece_cid,
+            piece_size: self.piece_size,
+            client: self.client,
+            provider: self.provider,
+            label: self.label,
+            start_block: self.start_block,
+            end_block: self.end_block,
+            storage_price_per_block: self.storage_price_per_block,
+            provider_collateral: self.provider_collateral,
+            state: self.state,
+        }
+    }
+
+    pub fn signed(self, by: &'static str) -> ClientDealProposalOf<Test> {
+        let built = self.unsigned();
+        let signed = sign_proposal(by, built);
+        signed
+    }
+}
+
+type DealProposalOf<T> =
+    DealProposal<<T as frame_system::Config>::AccountId, BalanceOf<T>, BlockNumberFor<T>>;
+
+type ClientDealProposalOf<T> = ClientDealProposal<
+    <T as frame_system::Config>::AccountId,
+    BalanceOf<T>,
+    BlockNumberFor<T>,
+    MultiSignature,
+>;
+
+fn sign(pair: &sp_core::sr25519::Pair, bytes: &[u8]) -> MultiSignature {
+    MultiSignature::Sr25519(pair.sign(bytes))
+}
+
+fn sign_proposal(client: &str, proposal: DealProposalOf<Test>) -> ClientDealProposalOf<Test> {
+    let alice_pair = key_pair(client);
+    let client_signature = sign(&alice_pair, &Encode::encode(&proposal));
+    ClientDealProposal {
+        proposal,
+        client_signature,
+    }
 }

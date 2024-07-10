@@ -105,7 +105,7 @@ where
     }
 
     /// Activates a given sector according to the sector number
-    /// 
+    ///
     /// Before this call the sector number should be checked for collisions.
     pub fn activate_sector(
         &mut self,

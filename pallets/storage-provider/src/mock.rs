@@ -1,11 +1,8 @@
 use cid::Cid;
-use codec::Encode;
 use frame_support::{
     derive_impl, pallet_prelude::ConstU32, parameter_types, sp_runtime::BoundedVec, PalletId,
 };
-use frame_system::pallet_prelude::BlockNumberFor;
 use multihash_codetable::{Code, MultihashDigest};
-use pallet_market::{BalanceOf, ClientDealProposal, DealProposal};
 use sp_core::Pair;
 use sp_runtime::{
     traits::{ConstU64, IdentifyAccount, IdentityLookup, Verify},
@@ -139,27 +136,4 @@ pub fn events() -> Vec<RuntimeEvent> {
 
 pub fn cid_of(data: &str) -> cid::Cid {
     Cid::new_v1(CID_CODEC, Code::Blake2b256.digest(data.as_bytes()))
-}
-
-pub(crate) type DealProposalOf<T> =
-    DealProposal<<T as frame_system::Config>::AccountId, BalanceOf<T>, BlockNumberFor<T>>;
-
-type ClientDealProposalOf<T> = ClientDealProposal<
-    <T as frame_system::Config>::AccountId,
-    BalanceOf<T>,
-    BlockNumberFor<T>,
-    MultiSignature,
->;
-
-pub fn sign(pair: &sp_core::sr25519::Pair, bytes: &[u8]) -> MultiSignature {
-    MultiSignature::Sr25519(pair.sign(bytes))
-}
-
-pub fn sign_proposal(client: &str, proposal: DealProposalOf<Test>) -> ClientDealProposalOf<Test> {
-    let alice_pair = key_pair(client);
-    let client_signature = sign(&alice_pair, &Encode::encode(&proposal));
-    ClientDealProposal {
-        proposal,
-        client_signature,
-    }
 }
