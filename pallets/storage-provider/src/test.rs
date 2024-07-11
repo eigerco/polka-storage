@@ -13,6 +13,7 @@ use sp_runtime::MultiSignature;
 use crate::{
     mock::*,
     pallet::{Error, Event, StorageProviders},
+    proofs::{PoStProof, SubmitWindowedPoStParams},
     sector::{ProveCommitSector, SectorPreCommitInfo},
     storage_provider::StorageProviderInfo,
 };
@@ -296,6 +297,47 @@ fn prove_commit_sector() {
         // check that the sector has been activated
         assert!(!sp_state.sectors.is_empty());
         assert!(sp_state.sectors.contains_key(&sector_number));
+    });
+}
+
+#[test]
+fn submit_windowed_post() {
+    new_test_ext().execute_with(|| {
+        let peer_id = "storage_provider_1".as_bytes().to_vec();
+        let peer_id = BoundedVec::try_from(peer_id).unwrap();
+        let window_post_type = RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
+        // Register ALICE as a storage provider.
+        assert_ok!(StorageProvider::register_storage_provider(
+            RuntimeOrigin::signed(account(ALICE)),
+            peer_id.clone(),
+            window_post_type,
+        ));
+        // Flush events
+        events();
+        // Build window post proof
+        let windowed_post = SubmitWindowedPoStParams {
+            deadline: 1,
+            index: 1,
+            proof: PoStProof {
+                post_proof: window_post_type,
+                proof_bytes: bounded_vec![0x1, 0x2, 0x3],
+            },
+            chain_commit_block: System::block_number() - 1,
+        };
+        // Run extrinsic and assert that the result is `Ok`
+        assert_ok!(StorageProvider::submit_windowed_post(
+            RuntimeOrigin::signed(account(ALICE)),
+            windowed_post,
+        ));
+        // Check that expected events were emitted
+        assert_eq!(
+            events(),
+            [RuntimeEvent::StorageProvider(
+                Event::<Test>::ValidPoStSubmitted {
+                    owner: account(ALICE)
+                }
+            )]
+        );
     });
 }
 

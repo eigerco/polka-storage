@@ -128,6 +128,8 @@ pub mod pallet {
             owner: T::AccountId,
             sector_number: SectorNumber,
         },
+        /// Emitted when an SP submits a valid PoSt
+        ValidPoStSubmitted { owner: T::AccountId },
     }
 
     #[pallet::error]
@@ -169,6 +171,8 @@ pub mod pallet {
         /// Emitted when a prove commit is sent after the dealine
         /// These precommits will be cleaned up in the hook
         ProveCommitAfterDeadline,
+        /// Emitted when a PoSt supplied by by the SP is invalid
+        PoStProofInvalid,
     }
 
     #[pallet::call]
@@ -319,22 +323,24 @@ pub mod pallet {
         /// Proof is valid when proof.len() > 0
         pub fn submit_windowed_post(
             origin: OriginFor<T>,
-            params: SubmitWindowedPoStParams<BlockNumberFor<T>>,
-        ) -> DispatchResultWithPostInfo {
+            windowed_post: SubmitWindowedPoStParams<BlockNumberFor<T>>,
+        ) -> DispatchResult {
             let owner = ensure_signed(origin)?;
+            let current_block = <frame_system::Pallet<T>>::block_number();
             let sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
-            ensure!(
-                params.proofs.post_proof == sp.info.window_post_proof_type,
-                Error::<T>::InvalidProofType
-            );
-            validate_windowed_post(params.proofs.proof_bytes);
-            Ok(().into())
+            if let Err(e) = Self::validate_windowed_post(
+                current_block,
+                &windowed_post,
+                sp.info.window_post_proof_type,
+            ) {
+                log::error!(target: LOG_TARGET, "submit_window_post: PoSt submission is invalid {e:?}");
+                return Err(e.into());
+            }
+            // Set new deadline for PoSt submission
+            Self::deposit_event(Event::ValidPoStSubmitted { owner });
+            Ok(())
         }
-    }
-
-    fn validate_windowed_post(proof_bytes: BoundedVec<u8, ConstU32<256>>) -> bool {
-        proof_bytes.len() == 0 // TODO(@aidan46, no-ref, 2024-07-03): Actually validate proof.
     }
 
     impl<T: Config> Pallet<T> {
@@ -362,6 +368,29 @@ pub mod pallet {
             ensure!(
                 expiration - activation < T::SectorMaximumLifetime::get(),
                 Error::<T>::MaxSectorLifetimeExceeded
+            );
+            Ok(())
+        }
+
+        /// Validates the SPs submitted PoSt
+        fn validate_windowed_post(
+            current_block: BlockNumberFor<T>,
+            windowed_post: &SubmitWindowedPoStParams<BlockNumberFor<T>>,
+            expected_proof: RegisteredPoStProof,
+        ) -> Result<(), Error<T>> {
+            ensure!(
+                windowed_post.proof.post_proof == expected_proof,
+                Error::<T>::InvalidProofType
+            );
+            // TODO(@aidan46, no-ref, 2024-07-03): Actually validate proof.
+            ensure!(
+                windowed_post.proof.proof_bytes.len() > 0,
+                Error::<T>::PoStProofInvalid
+            );
+            // chain commit block must be less than the current epoch
+            ensure!(
+                windowed_post.chain_commit_block < current_block,
+                Error::<T>::PoStProofInvalid
             );
             Ok(())
         }

@@ -21,9 +21,8 @@ pub struct SubmitWindowedPoStParams<BlockNumber> {
     pub deadline: u64,
     /// The partition being proven.
     pub index: u64,
-    /// Array of proofs, one per distinct registered proof type present in the sectors being proven.
-    /// In the usual case of a single proof type, this array will always have a single element (independent of number of partitions).
-    pub proofs: PoStProof,
+    /// Proof submission
+    pub proof: PoStProof,
     /// The block at which these proofs is being committed.
     pub chain_commit_block: BlockNumber,
 }
