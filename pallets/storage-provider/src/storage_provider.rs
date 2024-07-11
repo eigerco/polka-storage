@@ -1,6 +1,5 @@
 use codec::{Decode, Encode};
 use frame_support::{
-    ensure,
     pallet_prelude::{ConstU32, RuntimeDebug},
     sp_runtime::BoundedBTreeMap,
 };
@@ -23,7 +22,6 @@ pub struct StorageProviderState<PeerId, Balance, BlockNumber> {
     pub sectors:
         BoundedBTreeMap<SectorNumber, SectorOnChainInfo<BlockNumber>, ConstU32<SECTORS_MAX>>,
     /// Total funds locked as pre_commit_deposit
-    /// Optional because when registering there is no need for deposits.
     pub pre_commit_deposits: Balance,
     /// Sectors that have been pre-committed but not yet proven.
     pub pre_committed_sectors: BoundedBTreeMap<
@@ -74,16 +72,14 @@ where
         Ok(())
     }
 
+    /// Inserts sectors into the pre commit state.
+    /// Before calling this it should be ensured that the sector number is not being reused.
     // TODO(@aidan46, #107, 2024-06-21): Allow for batch inserts.
     pub fn put_precommitted_sector(
         &mut self,
         precommit: SectorPreCommitOnChainInfo<Balance, BlockNumber>,
     ) -> Result<(), StorageProviderError> {
         let sector_number = precommit.info.sector_number;
-        ensure!(
-            self.pre_committed_sectors.contains_key(&sector_number),
-            StorageProviderError::SectorAlreadyPreCommitted
-        );
         self.pre_committed_sectors
             .try_insert(sector_number, precommit)
             .map_err(|_| StorageProviderError::MaxPreCommittedSectorExceeded)?;
@@ -103,8 +99,6 @@ where
 
 #[derive(RuntimeDebug)]
 pub enum StorageProviderError {
-    /// Happens when an SP try to commit a sector more than once
-    SectorAlreadyPreCommitted,
     /// Happens when an SP tries to pre-commit more sectors than SECTOR_MAX.
     MaxPreCommittedSectorExceeded,
     SectorNotFound,

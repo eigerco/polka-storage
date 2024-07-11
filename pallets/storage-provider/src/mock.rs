@@ -9,13 +9,14 @@ use crate::{self as pallet_storage_provider, pallet::CID_CODEC};
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
-type BlockNumber = u32;
+type BlockNumber = u64;
 
 const MILLISECS_PER_BLOCK: u64 = 12000;
 const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
 const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
 const HOURS: BlockNumber = MINUTES * 60;
 const DAYS: BlockNumber = HOURS * 24;
+pub const YEARS: BlockNumber = DAYS * 365;
 
 frame_support::construct_runtime!(
     pub enum Test {
@@ -42,8 +43,10 @@ parameter_types! {
     // 30 * 60 = 30 minutes
     // SLOT_DURATION is in milliseconds thats why we / 1000
     pub const WpostChallengeWindow: BlockNumber = 30 * 60 / (SLOT_DURATION as BlockNumber / 1000);
-    // Max prove commit duration 150 days
-    pub const MaxProveCommitDuration: BlockNumber = 150 * DAYS;
+    pub const MinSectorExpiration: BlockNumber = 180 * DAYS;
+    pub const MaxSectorExpirationExtension: BlockNumber = 1278 * DAYS;
+    pub const SectorMaximumLifetime: BlockNumber = YEARS * 5;
+    pub const MaxProveCommitDuration: BlockNumber =  (30 * DAYS) + 150;
 }
 
 impl pallet_storage_provider::Config for Test {
@@ -52,6 +55,9 @@ impl pallet_storage_provider::Config for Test {
     type Currency = Balances;
     type WPoStProvingPeriod = WpostProvingPeriod;
     type WPoStChallengeWindow = WpostChallengeWindow;
+    type MinSectorExpiration = MinSectorExpiration;
+    type MaxSectorExpirationExtension = MaxSectorExpirationExtension;
+    type SectorMaximumLifetime = SectorMaximumLifetime;
     type MaxProveCommitDuration = MaxProveCommitDuration;
 }
 

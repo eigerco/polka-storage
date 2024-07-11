@@ -28,18 +28,25 @@ mod storage_provider;
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
     pub const CID_CODEC: u64 = 0x55;
-    pub const CID_MAX_BYTE_SIZE: u32 = 128;
+    /// Sourced from multihash code table <https://github.com/multiformats/rust-multihash/blob/b321afc11e874c08735671ebda4d8e7fcc38744c/codetable/src/lib.rs#L108>
+    pub const BLAKE2B_MULTIHASH_CODE: u64 = 0xB220;
+    pub const LOG_TARGET: &'static str = "runtime::storage_provider";
 
     use core::fmt::Debug;
 
+    use cid::{Cid, Version};
     use codec::{Decode, Encode};
     use frame_support::{
-        dispatch::DispatchResultWithPostInfo,
+        dispatch::DispatchResult,
         ensure,
         pallet_prelude::*,
         traits::{Currency, ReservableCurrency},
     };
-    use frame_system::{ensure_signed, pallet_prelude::*, Config as SystemConfig};
+    use frame_system::{
+        ensure_signed,
+        pallet_prelude::{BlockNumberFor, *},
+        Config as SystemConfig,
+    };
     use scale_info::TypeInfo;
 
     use crate::{
@@ -80,7 +87,16 @@ pub mod pallet {
         /// Window PoSt challenge window (default 30 minutes in blocks)
         #[pallet::constant]
         type WPoStChallengeWindow: Get<BlockNumberFor<Self>>;
-        /// The max prove commit duration in blocks.
+        /// Minimum number of blocks past the current block a sector may be set to expire.
+        #[pallet::constant]
+        type MinSectorExpiration: Get<BlockNumberFor<Self>>;
+        /// Maximum number of blocks past the current block a sector may be set to expire.
+        #[pallet::constant]
+        type MaxSectorExpirationExtension: Get<BlockNumberFor<Self>>;
+        /// Maximum number of blocks a sector can stay in pre-committed state
+        #[pallet::constant]
+        type SectorMaximumLifetime: Get<BlockNumberFor<Self>>;
+        /// Maximum duration to allow for the sealing process for seal algorithms.
         #[pallet::constant]
         type MaxProveCommitDuration: Get<BlockNumberFor<Self>>;
     }
@@ -133,6 +149,18 @@ pub mod pallet {
         NotEnoughFunds,
         /// Emitted when a storage provider tries to commit more sectors than MAX_SECTORS.
         MaxPreCommittedSectorExceeded,
+        /// Emitted when trying to reuse a sector number
+        SectorNumberAlreadyUsed,
+        /// Emitted when expiration is after activation
+        ExpirationBeforeActivation,
+        /// Emitted when expiration is less than minimum after activation
+        ExpirationTooSoon,
+        /// Emitted when the expiration exceeds MaxSectorExpirationExtension
+        ExpirationTooLong,
+        /// Emitted when a sectors lifetime exceeds SectorMaximumLifetime
+        MaxSectorLifetimeExceeded,
+        /// Emitted when a CID is invalid
+        InvalidCid,
     }
 
     #[pallet::call]
@@ -141,7 +169,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             peer_id: T::PeerId,
             window_post_proof_type: RegisteredPoStProof,
-        ) -> DispatchResultWithPostInfo {
+        ) -> DispatchResult {
             let owner = ensure_signed(origin)?;
             // Ensure that the storage provider does not exist yet
             ensure!(
@@ -164,7 +192,7 @@ pub mod pallet {
             StorageProviders::<T>::insert(&owner, state);
             // Emit event
             Self::deposit_event(Event::StorageProviderRegistered { owner, info });
-            Ok(().into())
+            Ok(())
         }
 
         /// The Storage Provider uses this extrinsic to pledge and seal a new sector.
@@ -177,23 +205,33 @@ pub mod pallet {
         pub fn pre_commit_sector(
             origin: OriginFor<T>,
             sector: SectorPreCommitInfo<BlockNumberFor<T>>,
-        ) -> DispatchResultWithPostInfo {
+        ) -> DispatchResult {
             let owner = ensure_signed(origin)?;
             let sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
-            ensure!(
-                sector.sector_number <= SECTORS_MAX,
-                Error::<T>::InvalidSector
-            );
+            let sector_number = sector.sector_number;
+            let current_block = <frame_system::Pallet<T>>::block_number();
+            ensure!(sector_number <= SECTORS_MAX, Error::<T>::InvalidSector);
             ensure!(
                 sp.info.window_post_proof_type == sector.seal_proof.registered_window_post_proof(),
                 Error::<T>::InvalidProofType
             );
+            ensure!(
+                !sp.pre_committed_sectors.contains_key(&sector_number)
+                    && !sp.sectors.contains_key(&sector_number),
+                Error::<T>::SectorNumberAlreadyUsed
+            );
+            validate_cid::<T>(&sector.unsealed_cid[..])?;
             let balance = T::Currency::total_balance(&owner);
             let deposit = calculate_pre_commit_deposit::<T>();
+            Self::validate_expiration(
+                current_block,
+                current_block + T::MaxProveCommitDuration::get(),
+                sector.expiration,
+            )?;
             ensure!(balance >= deposit, Error::<T>::NotEnoughFunds);
             T::Currency::reserve(&owner, deposit)?;
-            StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResultWithPostInfo {
+            StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResult {
                 let sp = maybe_sp
                     .as_mut()
                     .ok_or(Error::<T>::StorageProviderNotFound)?;
@@ -204,7 +242,7 @@ pub mod pallet {
                     <frame_system::Pallet<T>>::block_number(),
                 ))
                 .map_err(|_| Error::<T>::MaxPreCommittedSectorExceeded)?;
-                Ok(().into())
+                Ok(())
             })?;
             Self::deposit_event(Event::SectorPreCommitted { owner, sector });
             Ok(().into())
@@ -268,6 +306,53 @@ pub mod pallet {
         proof_bytes.len() == 0 // TODO(@aidan46, no-ref, 2024-07-03): Actually validate proof.
     }
 
+    impl<T: Config> Pallet<T> {
+        fn validate_expiration(
+            curr_block: BlockNumberFor<T>,
+            activation: BlockNumberFor<T>,
+            expiration: BlockNumberFor<T>,
+        ) -> Result<(), Error<T>> {
+            // Expiration must be after activation. Check this explicitly to avoid an underflow below.
+            ensure!(
+                expiration >= activation,
+                Error::<T>::ExpirationBeforeActivation
+            );
+            // expiration cannot be less than minimum after activation
+            ensure!(
+                expiration - activation > T::MinSectorExpiration::get(),
+                Error::<T>::ExpirationTooSoon
+            );
+            // expiration cannot exceed MaxSectorExpirationExtension from now
+            ensure!(
+                expiration < curr_block + T::MaxSectorExpirationExtension::get(),
+                Error::<T>::ExpirationTooLong,
+            );
+            // total sector lifetime cannot exceed SectorMaximumLifetime for the sector's seal proof
+            ensure!(
+                expiration - activation < T::SectorMaximumLifetime::get(),
+                Error::<T>::MaxSectorLifetimeExceeded
+            );
+            Ok(())
+        }
+    }
+
+    // Adapted from filecoin reference here: https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/miner/src/commd.rs#L51-L56
+    fn validate_cid<T: Config>(bytes: &[u8]) -> Result<(), Error<T>> {
+        let c = Cid::try_from(bytes).map_err(|e| {
+            log::error!(target: LOG_TARGET, "failed to validate cid: {:?}", e);
+            Error::<T>::InvalidCid
+        })?;
+        // these values should be consistent with the cid's created by the SP.
+        // They could change in the future when we make a definitive decision on what hashing algorithm to use and such
+        ensure!(
+            c.version() == Version::V1
+                && c.codec() == CID_CODEC // The codec should align with our CID_CODEC value.
+                && c.hash().code() == BLAKE2B_MULTIHASH_CODE // The CID should be hashed using blake2b
+                && c.hash().size() == 32,
+            Error::<T>::InvalidCid
+        );
+        Ok(())
+    }
     /// Calculate the required pre commit deposit amount
     fn calculate_pre_commit_deposit<T: Config>() -> BalanceOf<T> {
         1u32.into() // TODO(@aidan46, #106, 2024-06-24): Set a logical value or calculation

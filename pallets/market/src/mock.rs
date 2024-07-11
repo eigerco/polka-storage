@@ -56,8 +56,9 @@ impl crate::Config for Test {
     type OffchainPublic = AccountPublic;
     type MaxDeals = ConstU32<32>;
     type BlocksPerDay = ConstU64<1>;
-    type MinDealDuration = ConstU64<1>;
+    type MinDealDuration = ConstU64<2>;
     type MaxDealDuration = ConstU64<30>;
+    type MaxDealsPerBlock = ConstU32<32>;
 }
 
 pub type AccountIdOf<Test> = <Test as frame_system::Config>::AccountId;
@@ -83,7 +84,7 @@ pub fn cid_of(data: &str) -> cid::Cid {
 pub(crate) type DealProposalOf<T> =
     DealProposal<<T as frame_system::Config>::AccountId, BalanceOf<T>, BlockNumberFor<T>>;
 
-type ClientDealProposalOf<T> = ClientDealProposal<
+pub(crate) type ClientDealProposalOf<T> = ClientDealProposal<
     <T as frame_system::Config>::AccountId,
     BalanceOf<T>,
     BlockNumberFor<T>,
@@ -106,6 +107,7 @@ pub const INITIAL_FUNDS: u64 = 100;
 
 /// Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
+    let _ = env_logger::try_init();
     let mut t = system::GenesisConfig::<Test>::default()
         .build_storage()
         .unwrap()

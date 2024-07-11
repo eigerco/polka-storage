@@ -1361,7 +1361,7 @@ mod test {
                 db.cf_handle(MULTIHASH_TO_PIECE_CID_CF),
                 rocksdb::IteratorMode::Start,
             )
-            .flat_map(std::convert::identity)
+            .flatten()
             .collect();
         assert_eq!(indexes.len(), 2);
 
@@ -1377,7 +1377,7 @@ mod test {
                 db.cf_handle(MULTIHASH_TO_PIECE_CID_CF),
                 rocksdb::IteratorMode::Start,
             )
-            .flat_map(std::convert::identity)
+            .flatten()
             .collect();
         assert!(indexes.is_empty());
 
