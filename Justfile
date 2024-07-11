@@ -29,7 +29,7 @@ load-to-minikube:
     minikube image load ghcr.io/eigerco/polka-storage-node:0.1.0 
 
 kube-testnet:
-    ~/workspace/zombienet/javascript/bins/zombienet-linux-x64 -p kubernetes spawn zombienet/local-kube-testnet.toml
+    zombienet -p kubernetes spawn zombienet/local-kube-testnet.toml
 
 # Must be in sync with .vscode/settings.json and have extension Coverage Gutters to display it in VS Code.
 market-coverage:

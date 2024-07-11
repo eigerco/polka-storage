@@ -25,7 +25,7 @@ id = 1000
 # run charlie as parachain collator
 [[parachains.collators]]
 args = ["--detailed-log-output", "-lparachain=debug,xcm=trace,runtime=trace"]
-image = "ghcr.io/eigerco/polka-storage-node:0.1.0"
 command = "polka-storage-node"
+image = "ghcr.io/eigerco/polka-storage-node:0.1.0"
 name = "charlie"
 validator = true

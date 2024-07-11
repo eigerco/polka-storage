@@ -61,11 +61,6 @@ RUN /usr/local/bin/polka-storage-node --version
 # 9615 for Prometheus (metrics)
 
 EXPOSE 30333 30334 9933 9944 9615 
-# mount-point for saving state of the parachain
+# mount-point for saving state of the parachain (not required for ZombieNet)
 VOLUME ["/eiger"]
 ENTRYPOINT ["/usr/local/bin/polka-storage-node"]
-
-# TODO:
-# - try to run this stand-alone
-# - add script to build this image/just build 
-# - configure ombienet

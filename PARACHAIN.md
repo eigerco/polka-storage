@@ -3,16 +3,42 @@
 ## Build the Docker Image
 
 ```bash
-docker build \
-    --build-arg VCS_REF=$(git rev-parse HEAD) \
-    --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
-    -t eiger/polka-storage-node \
-    --file ./docker/dockerfiles/parachain/Dockerfile \
-    .
+just build-parachain-docker
 ```
 
-The command builds a Docker image `eiger/polka-storage-node` from a Dockerfile located at `./docker/dockerfiles/parachain/Dockerfile`.
+The command builds a Docker image `ghcr.io/eiger/polka-storage-node:0.1.0` from a Dockerfile located at `./docker/dockerfiles/parachain/Dockerfile`.
 
 ## Running the Parachain
 
-`just podman-testnet`
+Prerequisites:
+- Kubernetes Cluster access - configured kubectl, e.g. [minikube](https://minikube.sigs.k8s.io/docs/start/)
+
+
+Ideally, when the docker image `ghcr.io/eiger/polka-storage-node:0.1.0` is released publically, it'd work:
+
+```bash
+just kube-testnet
+```
+It launches zombienet from scratch based on `./zombienet/local-kube-testnet.toml` configuration.
+
+### Workaround
+
+However, given that ZombieNet [does not support private Docker registries](https://github.com/paritytech/zombienet/issues/1829) we need to do some trickery to test it out in Kubernetes.
+
+It requires:
+1. loading the image into the local minikube cluster
+```bash
+just load-to-minikube
+```
+2. building patched ZombieNet
+    - pulling a branch of [ZombieNet](https://github.com/paritytech/zombienet/pull/1830)
+    - building it locally 
+```bash
+    cd zombienet/javascript
+    npm i && npm run build
+    npm run package
+```
+3. running patched ZombieNet
+```bash
+    $ZOMBIENET_REPO/javascript/bins/zombienet -p kubernetes spawn zombienet/local-kube-testnet.toml
+```
