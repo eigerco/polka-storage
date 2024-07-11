@@ -15,6 +15,12 @@ release: lint
 testnet: release
     zombienet -p native spawn zombienet/local-testnet.toml
 
+pallet-storage-provider-coverage:
+    mkdir -p coverage
+    cargo llvm-cov -p pallet-storage-provider --ignore-filename-regex "(mock|test)"
+    cargo llvm-cov -p pallet-storage-provider report --ignore-filename-regex "(mock|test)" --html --output-dir coverage/pallet-storage-provider
+    cargo llvm-cov -p pallet-storage-provider report --ignore-filename-regex "(mock|test)" --lcov --output-path coverage/pallet-storage-provider.lcov.info
+
 # Must be in sync with .vscode/settings.json and have extension Coverage Gutters to display it in VS Code.
 market-coverage:
     mkdir -p coverage
