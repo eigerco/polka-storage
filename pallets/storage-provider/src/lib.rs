@@ -165,8 +165,8 @@ pub mod pallet {
         InvalidCid,
         /// Emitted when a sector fails to activate
         CouldNotActivateSector,
-        /// Emitted when a prove commit is sent after the dealine
-        /// These precommits will be cleaned up in the hook
+        /// Emitted when a prove commit is sent after the deadline.
+        /// These pre-commits will be cleaned up in the hook
         ProveCommitAfterDeadline,
     }
 
@@ -258,7 +258,7 @@ pub mod pallet {
             Ok(())
         }
 
-        /// Allows the SP to submit proof for their precomitted sectors.
+        /// Allows the storage providers to submit proof for their pre-committed sectors.
         // TODO(@aidan46, no-ref, 2024-06-24): Add functionality to allow for batch pre commit
         // TODO(@aidan46, no-ref, 2024-06-24): Actually check proof, currently the proof validation is stubbed out.
         pub fn prove_commit_sector(
@@ -269,10 +269,14 @@ pub mod pallet {
             let sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
             let sector_number = sector.sector_number;
+
+            // TODO(no-ref,@cernicc,11/07/2024): This check can be removed. The
+            // sector number is already checked in the pre-commit
             ensure!(
                 sector_number <= SECTORS_MAX.into(),
                 Error::<T>::InvalidSector
             );
+
             let precommit = sp
                 .get_pre_committed_sector(sector_number)
                 .map_err(|_| Error::<T>::InvalidSector)?;
@@ -360,6 +364,7 @@ pub mod pallet {
         );
         Ok(())
     }
+
     /// Calculate the required pre commit deposit amount
     fn calculate_pre_commit_deposit<T: Config>() -> BalanceOf<T> {
         1u32.into() // TODO(@aidan46, #106, 2024-06-24): Set a logical value or calculation

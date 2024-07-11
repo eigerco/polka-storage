@@ -119,6 +119,7 @@ where
     }
 }
 
+/// Errors that can occur while interacting with the storage provider state.
 #[derive(RuntimeDebug)]
 pub enum StorageProviderError {
     /// Happens when an SP tries to pre-commit more sectors than SECTOR_MAX.

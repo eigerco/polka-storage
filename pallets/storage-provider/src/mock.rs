@@ -104,10 +104,13 @@ pub fn account(name: &str) -> AccountIdOf<Test> {
 
 pub const ALICE: &'static str = "//Alice";
 pub const BOB: &'static str = "//Bob";
+pub const CHARLIE: &'static str = "//Charlie";
+
+/// Initial funds of all accounts.
 pub const INITIAL_FUNDS: u64 = 100;
 
 // Build genesis storage according to the mock runtime.
-pub fn new_test_ext() -> sp_io::TestExternalities {
+pub fn new_test_ext(starting_block_number: u64) -> sp_io::TestExternalities {
     let mut t = frame_system::GenesisConfig::<Test>::default()
         .build_storage()
         .unwrap()
@@ -121,7 +124,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     .assimilate_storage(&mut t)
     .unwrap();
     let mut ext = sp_io::TestExternalities::new(t);
-    ext.execute_with(|| System::set_block_number(1));
+    ext.execute_with(|| System::set_block_number(starting_block_number));
     ext
 }
 
