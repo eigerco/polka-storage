@@ -635,6 +635,14 @@ pub mod pallet {
             })
         }
 
+        /// Loops through all the storage providers and checks whether they missed
+        /// any of their proof of spacetime submission deadlines.
+        ///
+        /// If any of these proof submissions are past their deadline the sp is charged a fee and the sector will be marked as faulty.
+        fn post_past_deadline(current_block: BlockNumberFor<T>) {
+            todo!()
+        }
+
         /// Checks whether pre-committed sectors are expired.
         ///
         /// Returns an array of expired sector numbers and the total deposit about to be slashed.
