@@ -42,20 +42,17 @@ pub mod pallet {
         pallet_prelude::*,
         traits::{Currency, ReservableCurrency},
     };
-    use frame_system::{
-        ensure_signed,
-        pallet_prelude::{BlockNumberFor, *},
-        Config as SystemConfig,
-    };
+    use frame_system::{ensure_signed, pallet_prelude::*, Config as SystemConfig};
+    use primitives_proofs::{Market, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
     use scale_info::TypeInfo;
 
     use crate::{
         proofs::{
             assign_proving_period_offset, current_deadline_index, current_proving_period_start,
-            RegisteredPoStProof, RegisteredSealProof, SubmitWindowedPoStParams,
+            SubmitWindowedPoStParams,
         },
         sector::{
-            ProveCommitSector, SectorNumber, SectorPreCommitInfo, SectorPreCommitOnChainInfo,
+            ProveCommitSector, SectorOnChainInfo, SectorPreCommitInfo, SectorPreCommitOnChainInfo,
             SECTORS_MAX,
         },
         storage_provider::{StorageProviderInfo, StorageProviderState},
@@ -81,6 +78,8 @@ pub mod pallet {
         type PeerId: Clone + Debug + Decode + Encode + Eq + TypeInfo;
         /// Currency mechanism, used for collateral
         type Currency: ReservableCurrency<Self::AccountId>;
+        /// Market trait implementation for activating deals
+        type Market: Market<Self::AccountId, BlockNumberFor<Self>>;
         /// Proving period for submitting Window PoSt, 24 hours is blocks
         #[pallet::constant]
         type WPoStProvingPeriod: Get<BlockNumberFor<Self>>;
@@ -149,6 +148,10 @@ pub mod pallet {
         NotEnoughFunds,
         /// Emitted when a storage provider tries to commit more sectors than MAX_SECTORS.
         MaxPreCommittedSectorExceeded,
+        /// Emitted when a sector fails to activate.
+        SectorActivateFailed,
+        /// Emitted when removing a pre_committed sector after proving fails.
+        CouldNotRemoveSector,
         /// Emitted when trying to reuse a sector number
         SectorNumberAlreadyUsed,
         /// Emitted when expiration is after activation
@@ -161,6 +164,11 @@ pub mod pallet {
         MaxSectorLifetimeExceeded,
         /// Emitted when a CID is invalid
         InvalidCid,
+        /// Emitted when a sector fails to activate
+        CouldNotActivateSector,
+        /// Emitted when a prove commit is sent after the dealine
+        /// These precommits will be cleaned up in the hook
+        ProveCommitAfterDeadline,
     }
 
     #[pallet::call]
@@ -211,7 +219,10 @@ pub mod pallet {
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
             let sector_number = sector.sector_number;
             let current_block = <frame_system::Pallet<T>>::block_number();
-            ensure!(sector_number <= SECTORS_MAX, Error::<T>::InvalidSector);
+            ensure!(
+                sector_number <= SECTORS_MAX.into(),
+                Error::<T>::InvalidSector
+            );
             ensure!(
                 sp.info.window_post_proof_type == sector.seal_proof.registered_window_post_proof(),
                 Error::<T>::InvalidProofType
@@ -236,7 +247,7 @@ pub mod pallet {
                     .as_mut()
                     .ok_or(Error::<T>::StorageProviderNotFound)?;
                 sp.add_pre_commit_deposit(deposit)?;
-                sp.put_precommitted_sector(SectorPreCommitOnChainInfo::new(
+                sp.put_pre_committed_sector(SectorPreCommitOnChainInfo::new(
                     sector.clone(),
                     deposit,
                     <frame_system::Pallet<T>>::block_number(),
@@ -245,41 +256,61 @@ pub mod pallet {
                 Ok(())
             })?;
             Self::deposit_event(Event::SectorPreCommitted { owner, sector });
-            Ok(().into())
+            Ok(())
         }
 
-        /// Checks state of the corresponding sector pre-commitment
-        /// TODO(@aidan46, no-ref, 2024-06-24): Add functionality to allow for batch pre commit
+        /// Allows the SP to submit proof for their precomitted sectors.
+        // TODO(@aidan46, no-ref, 2024-06-24): Add functionality to allow for batch pre commit
+        // TODO(@aidan46, no-ref, 2024-06-24): Actually check proof, currently the proof validation is stubbed out.
         pub fn prove_commit_sector(
             origin: OriginFor<T>,
             sector: ProveCommitSector,
-        ) -> DispatchResultWithPostInfo {
+        ) -> DispatchResult {
             let owner = ensure_signed(origin)?;
             let sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
+            let sector_number = sector.sector_number;
             ensure!(
-                sector.sector_number <= SECTORS_MAX,
+                sector_number <= SECTORS_MAX.into(),
                 Error::<T>::InvalidSector
             );
             let precommit = sp
-                .get_precommitted_sector(sector.sector_number)
+                .get_pre_committed_sector(sector_number)
                 .map_err(|_| Error::<T>::InvalidSector)?;
             let current_block = <frame_system::Pallet<T>>::block_number();
             let prove_commit_due =
                 precommit.pre_commit_block_number + T::MaxProveCommitDuration::get();
-            if current_block > prove_commit_due {
-                // TODO(@aidan46, no-ref, 2024-06-25): Flag this sector for late submission fee.
-                log::warn!("Prove commit sent after the deadline");
-            }
+            ensure!(
+                current_block < prove_commit_due,
+                Error::<T>::ProveCommitAfterDeadline
+            );
             ensure!(
                 validate_seal_proof(&precommit.info.seal_proof, sector.proof),
                 Error::<T>::InvalidProofType,
             );
+            let new_sector =
+                SectorOnChainInfo::from_pre_commit(precommit.info.clone(), current_block);
+            StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResult {
+                let sp = maybe_sp
+                    .as_mut()
+                    .ok_or(Error::<T>::StorageProviderNotFound)?;
+                sp.activate_sector(sector_number, new_sector)
+                    .map_err(|_| Error::<T>::SectorActivateFailed)?;
+                sp.remove_pre_committed_sector(sector_number)
+                    .map_err(|_| Error::<T>::CouldNotRemoveSector)?;
+                Ok(())
+            })?;
+            let mut sector_deals = BoundedVec::new();
+            sector_deals
+                .try_push(precommit.into())
+                .map_err(|_| Error::<T>::CouldNotActivateSector)?;
+            let deal_amount = sector_deals.len();
+            T::Market::activate_deals(&owner, sector_deals, deal_amount > 0)?;
             Self::deposit_event(Event::SectorProven {
                 owner,
-                sector_number: sector.sector_number,
+                sector_number,
             });
-            Ok(().into())
+            Ok(())
         }
 
         /// The SP uses this extrinsic to submit their Proof-of-Spacetime.
@@ -360,8 +391,8 @@ pub mod pallet {
 
     fn validate_seal_proof(
         _seal_proof_type: &RegisteredSealProof,
-        _proofs: BoundedVec<u8, ConstU32<256>>,
+        proofs: BoundedVec<u8, ConstU32<256>>,
     ) -> bool {
-        true // TODO(@aidan46, no-ref, 2024-06-24): Actually check proof
+        proofs.len() != 0 // TODO(@aidan46, no-ref, 2024-06-24): Actually check proof
     }
 }

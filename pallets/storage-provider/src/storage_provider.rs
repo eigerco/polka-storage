@@ -3,15 +3,11 @@ use frame_support::{
     pallet_prelude::{ConstU32, RuntimeDebug},
     sp_runtime::BoundedBTreeMap,
 };
+use primitives_proofs::{RegisteredPoStProof, SectorNumber, SectorSize};
 use scale_info::TypeInfo;
 use sp_arithmetic::{traits::BaseArithmetic, ArithmeticError};
 
-use crate::{
-    proofs::RegisteredPoStProof,
-    sector::{
-        SectorNumber, SectorOnChainInfo, SectorPreCommitOnChainInfo, SectorSize, SECTORS_MAX,
-    },
-};
+use crate::sector::{SectorOnChainInfo, SectorPreCommitOnChainInfo, SECTORS_MAX};
 
 /// This struct holds the state of a single storage provider.
 #[derive(Debug, Decode, Encode, TypeInfo)]
@@ -20,14 +16,14 @@ pub struct StorageProviderState<PeerId, Balance, BlockNumber> {
     pub info: StorageProviderInfo<PeerId>,
     /// Information for all proven and not-yet-garbage-collected sectors.
     pub sectors:
-        BoundedBTreeMap<SectorNumber, SectorOnChainInfo<BlockNumber>, ConstU32<SECTORS_MAX>>,
+        BoundedBTreeMap<SectorNumber, SectorOnChainInfo<BlockNumber>, ConstU32<SECTORS_MAX>>, // Cannot use ConstU64 here because of BoundedBTreeMap trait bound `Get<u32>`
     /// Total funds locked as pre_commit_deposit
     pub pre_commit_deposits: Balance,
     /// Sectors that have been pre-committed but not yet proven.
     pub pre_committed_sectors: BoundedBTreeMap<
         SectorNumber,
         SectorPreCommitOnChainInfo<Balance, BlockNumber>,
-        ConstU32<SECTORS_MAX>,
+        ConstU32<SECTORS_MAX>, // Cannot use ConstU64 here because of BoundedBTreeMap trait bound `Get<u32>`
     >,
     /// The first block in this storage provider's current proving period. This is the first block in which a PoSt for a
     /// partition at the storage provider's first deadline may arrive. Alternatively, it is after the last block at which
@@ -75,7 +71,7 @@ where
     /// Inserts sectors into the pre commit state.
     /// Before calling this it should be ensured that the sector number is not being reused.
     // TODO(@aidan46, #107, 2024-06-21): Allow for batch inserts.
-    pub fn put_precommitted_sector(
+    pub fn put_pre_committed_sector(
         &mut self,
         precommit: SectorPreCommitOnChainInfo<Balance, BlockNumber>,
     ) -> Result<(), StorageProviderError> {
@@ -87,7 +83,8 @@ where
         Ok(())
     }
 
-    pub fn get_precommitted_sector(
+    /// Get a pre committed sector from the given sector number.
+    pub fn get_pre_committed_sector(
         &self,
         sector_number: SectorNumber,
     ) -> Result<&SectorPreCommitOnChainInfo<Balance, BlockNumber>, StorageProviderError> {
@@ -95,13 +92,41 @@ where
             .get(&sector_number)
             .ok_or(StorageProviderError::SectorNotFound)
     }
+
+    /// Removes a pre committed sector from the given sector number.
+    pub fn remove_pre_committed_sector(
+        &mut self,
+        sector_num: SectorNumber,
+    ) -> Result<(), StorageProviderError> {
+        self.pre_committed_sectors
+            .remove(&sector_num)
+            .ok_or(StorageProviderError::SectorNotFound)?;
+        Ok(())
+    }
+
+    /// Activates a given sector according to the sector number
+    ///
+    /// Before this call the sector number should be checked for collisions.
+    pub fn activate_sector(
+        &mut self,
+        sector_num: SectorNumber,
+        info: SectorOnChainInfo<BlockNumber>,
+    ) -> Result<(), StorageProviderError> {
+        self.sectors
+            .try_insert(sector_num, info)
+            .map_err(|_| StorageProviderError::SectorNumberInUse)?;
+        Ok(())
+    }
 }
 
 #[derive(RuntimeDebug)]
 pub enum StorageProviderError {
     /// Happens when an SP tries to pre-commit more sectors than SECTOR_MAX.
     MaxPreCommittedSectorExceeded,
+    /// Happens when trying to access a sector that does not exist.
     SectorNotFound,
+    /// Happens when a sector number is already in use.
+    SectorNumberInUse,
 }
 
 /// Static information about the storage provider.

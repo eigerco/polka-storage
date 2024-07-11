@@ -1,41 +1,9 @@
 use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::ConstU32, sp_runtime::BoundedVec};
+use primitives_proofs::RegisteredPoStProof;
 use scale_info::TypeInfo;
 use sp_arithmetic::traits::BaseArithmetic;
 use sp_core::blake2_64;
-
-use crate::sector::SectorSize;
-
-/// Proof of Spacetime type, indicating version and sector size of the proof.
-#[derive(Debug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone, Copy)]
-pub enum RegisteredPoStProof {
-    StackedDRGWindow2KiBV1P1,
-}
-
-impl RegisteredPoStProof {
-    /// Returns the sector size of the proof type, which is measured in bytes.
-    pub(crate) fn sector_size(self) -> SectorSize {
-        match self {
-            RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => SectorSize::_2KiB,
-        }
-    }
-
-    /// Proof size for each PoStProof type
-    pub fn proof_size(self) -> usize {
-        match self {
-            RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => 192,
-        }
-    }
-
-    /// Returns the partition size, in sectors, associated with a proof type.
-    /// The partition size is the number of sectors proven in a single PoSt proof.
-    pub(crate) fn window_post_partitions_sector(self) -> u64 {
-        // Resolve to post proof and then compute size from that.
-        match self {
-            RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => 2,
-        }
-    }
-}
 
 /// Proof of Spacetime data stored on chain.
 #[derive(Debug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone)]
@@ -58,25 +26,6 @@ pub struct SubmitWindowedPoStParams<BlockNumber> {
     pub proofs: PoStProof,
     /// The block at which these proofs is being committed.
     pub chain_commit_block: BlockNumber,
-}
-
-/// Seal proof type which defines the version and sector size.
-#[allow(non_camel_case_types)]
-#[derive(Debug, Decode, Encode, TypeInfo, Eq, PartialEq, Clone)]
-pub enum RegisteredSealProof {
-    StackedDRG2KiBV1P1,
-}
-
-impl RegisteredSealProof {
-    /// Produces the windowed PoSt-specific RegisteredProof corresponding
-    /// to the receiving RegisteredProof.
-    pub(crate) fn registered_window_post_proof(&self) -> RegisteredPoStProof {
-        match self {
-            RegisteredSealProof::StackedDRG2KiBV1P1 => {
-                RegisteredPoStProof::StackedDRGWindow2KiBV1P1
-            }
-        }
-    }
 }
 
 #[derive(Debug)]

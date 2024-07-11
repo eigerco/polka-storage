@@ -16,6 +16,40 @@ impl RegisteredSealProof {
     pub fn sector_size(&self) -> SectorSize {
         SectorSize::_2KiB
     }
+
+    /// Produces the windowed PoSt-specific RegisteredProof corresponding
+    /// to the receiving RegisteredProof.
+    pub fn registered_window_post_proof(&self) -> RegisteredPoStProof {
+        match self {
+            RegisteredSealProof::StackedDRG2KiBV1P1 => {
+                RegisteredPoStProof::StackedDRGWindow2KiBV1P1
+            }
+        }
+    }
+}
+
+/// Proof of Spacetime type, indicating version and sector size of the proof.
+#[derive(Debug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone, Copy)]
+pub enum RegisteredPoStProof {
+    StackedDRGWindow2KiBV1P1,
+}
+
+impl RegisteredPoStProof {
+    /// Returns the sector size of the proof type, which is measured in bytes.
+    pub fn sector_size(self) -> SectorSize {
+        match self {
+            RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => SectorSize::_2KiB,
+        }
+    }
+
+    /// Returns the partition size, in sectors, associated with a proof type.
+    /// The partition size is the number of sectors proven in a single PoSt proof.
+    pub fn window_post_partitions_sector(self) -> u64 {
+        // Resolve to post proof and then compute size from that.
+        match self {
+            RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => 2,
+        }
+    }
 }
 
 /// SectorSize indicates one of a set of possible sizes in the network.
