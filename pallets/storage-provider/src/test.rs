@@ -6,7 +6,9 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 use pallet_market::{BalanceOf, ClientDealProposal, DealProposal, DealState};
-use primitives_proofs::{RegisteredPoStProof, RegisteredSealProof};
+use primitives_proofs::{
+    DealId, RegisteredPoStProof, RegisteredSealProof, SectorId, SectorNumber, MAX_DEALS_PER_SECTOR,
+};
 use sp_core::Pair;
 use sp_runtime::MultiSignature;
 
@@ -102,6 +104,7 @@ mod storage_provider_registration {
             let peer_id = "storage_provider_1".as_bytes().to_vec();
             let peer_id = BoundedVec::try_from(peer_id).unwrap();
             let window_post_type = RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
+
             // Register BOB as a storage provider.
             assert_ok!(StorageProvider::register_storage_provider(
                 RuntimeOrigin::signed(account(BOB)),
@@ -137,30 +140,24 @@ mod pre_commit_sector {
             register_storage_provider(account(storage_provider));
 
             // Sector to be pre-committed.
-            let sector = SectorPreCommitInfo {
-                seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
-                sector_number: 1,
-                sealed_cid: cid_of("sealed_cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                deal_ids: bounded_vec![0, 1],
-                expiration: YEARS,
-                unsealed_cid: cid_of("unsealed_cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-            };
+            let sector = SectorPreCommitInfoBuilder::default()
+                .sector_number(1)
+                .deals([0, 1])
+                .sealed_cid("sealed_cid")
+                .unsealed_cid("unsealed_cid")
+                .build();
 
             // Check starting balance
             assert_eq!(Balances::free_balance(account(storage_provider)), 100);
+
             // Run pre commit extrinsic
             StorageProvider::pre_commit_sector(
                 RuntimeOrigin::signed(account(storage_provider)),
                 sector.clone(),
             )
             .expect("Pre commit failed");
-            // Check that the event triggered
+
+            // Check that the events were triggered
             assert_eq!(
                 events(),
                 [
@@ -174,6 +171,7 @@ mod pre_commit_sector {
                     })
                 ]
             );
+
             let sp_alice = StorageProviders::<Test>::get(account(storage_provider))
                 .expect("SP Alice should be present because of the pre-check");
 
@@ -188,20 +186,12 @@ mod pre_commit_sector {
     fn fails_should_be_signed() {
         new_test_ext().execute_with(|| {
             // Sector to be pre-committed
-            let sector = SectorPreCommitInfo {
-                seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
-                sector_number: 1,
-                sealed_cid: cid_of("sealed_cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                deal_ids: bounded_vec![0, 1],
-                expiration: YEARS,
-                unsealed_cid: cid_of("unsealed_cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-            };
+            let sector = SectorPreCommitInfoBuilder::default()
+                .sector_number(1)
+                .deals([0, 1])
+                .sealed_cid("sealed_cid")
+                .unsealed_cid("unsealed_cid")
+                .build();
 
             // Run pre commit extrinsic
             assert_noop!(
@@ -215,20 +205,12 @@ mod pre_commit_sector {
     fn fails_storage_provider_not_found() {
         new_test_ext().execute_with(|| {
             // Sector to be pre-committed
-            let sector = SectorPreCommitInfo {
-                seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
-                sector_number: 1,
-                sealed_cid: cid_of("sealed_cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                deal_ids: bounded_vec![0, 1],
-                expiration: YEARS,
-                unsealed_cid: cid_of("unsealed_cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-            };
+            let sector = SectorPreCommitInfoBuilder::default()
+                .sector_number(1)
+                .deals([0, 1])
+                .sealed_cid("sealed_cid")
+                .unsealed_cid("unsealed_cid")
+                .build();
 
             // Run pre commit extrinsic
             assert_noop!(
@@ -249,20 +231,13 @@ mod pre_commit_sector {
             register_storage_provider(account(storage_provider));
 
             // Sector to be pre-committed
-            let sector = SectorPreCommitInfo {
-                seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
-                sector_number: 1,
-                sealed_cid: cid_of("sealed_cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                deal_ids: bounded_vec![0, 1],
-                expiration: YEARS,
-                unsealed_cid: cid_of("unsealed_cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-            };
+            let sector = SectorPreCommitInfoBuilder::default()
+                .sector_number(1)
+                .deals([0, 1])
+                .sealed_cid("sealed_cid")
+                .unsealed_cid("unsealed_cid")
+                .build();
+
             // Run pre commit extrinsic
             assert_ok!(StorageProvider::pre_commit_sector(
                 RuntimeOrigin::signed(account(storage_provider)),
@@ -287,24 +262,19 @@ mod pre_commit_sector {
             register_storage_provider(account(storage_provider));
 
             // Sector to be pre-committed
-            let sector = SectorPreCommitInfo {
-                seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
-                sector_number: SECTORS_MAX as u64 + 1,
-                sealed_cid: cid_of("sealed_cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                deal_ids: bounded_vec![0, 1],
-                expiration: YEARS,
-                unsealed_cid: cid_of("unsealed_cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-            };
+            let sector = SectorPreCommitInfoBuilder::default()
+                .sector_number(SECTORS_MAX as u64 + 1)
+                .deals([0, 1])
+                .sealed_cid("sealed_cid")
+                .unsealed_cid("unsealed_cid")
+                .build();
 
             // Run pre commit extrinsic
             assert_noop!(
-                StorageProvider::pre_commit_sector(RuntimeOrigin::signed(account(storage_provider)), sector.clone()),
+                StorageProvider::pre_commit_sector(
+                    RuntimeOrigin::signed(account(storage_provider)),
+                    sector.clone()
+                ),
                 Error::<Test>::InvalidSector,
             );
         });
@@ -318,22 +288,22 @@ mod pre_commit_sector {
             register_storage_provider(account(storage_provider));
 
             // Sector to be pre-committed
-            let sector = SectorPreCommitInfo {
-                seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
-                sector_number: 1,
-                sealed_cid: cid_of("sealed_cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                deal_ids: bounded_vec![0, 1],
-                expiration: YEARS,
-                // Wrong cid set
-                unsealed_cid: BoundedVec::new(),
-            };
+            let mut sector = SectorPreCommitInfoBuilder::default()
+                .sector_number(1)
+                .deals([0, 1])
+                .sealed_cid("sealed_cid")
+                .unsealed_cid("unsealed_cid")
+                .build();
+
+            // Setting the wrong unseal cid on the sector
+            sector.unsealed_cid = BoundedVec::new();
 
             // Run pre commit extrinsic
             assert_noop!(
-                StorageProvider::pre_commit_sector(RuntimeOrigin::signed(account(storage_provider)), sector.clone()),
+                StorageProvider::pre_commit_sector(
+                    RuntimeOrigin::signed(account(storage_provider)),
+                    sector.clone()
+                ),
                 Error::<Test>::InvalidCid,
             );
         });
@@ -347,24 +317,20 @@ mod pre_commit_sector {
             register_storage_provider(account(&storage_provider));
 
             // Sector to be pre-committed
-            let sector = SectorPreCommitInfo {
-                seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
-                sector_number: 1,
-                sealed_cid: cid_of("sealed_cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                deal_ids: bounded_vec![0, 1],
-                expiration: 1000,
-                unsealed_cid: cid_of("unsealed_cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-            };
+            let sector = SectorPreCommitInfoBuilder::default()
+                .sector_number(1)
+                .deals([0, 1])
+                .sealed_cid("sealed_cid")
+                .unsealed_cid("unsealed_cid")
+                .expiration(1000)
+                .build();
 
             // Run pre commit extrinsic
             assert_noop!(
-                StorageProvider::pre_commit_sector(RuntimeOrigin::signed(account(storage_provider)), sector.clone()),
+                StorageProvider::pre_commit_sector(
+                    RuntimeOrigin::signed(account(storage_provider)),
+                    sector.clone()
+                ),
                 Error::<Test>::ExpirationBeforeActivation,
             );
         });
@@ -380,25 +346,21 @@ mod pre_commit_sector {
             register_storage_provider(account(storage_provider));
 
             // Sector to be pre-committed
-            let sector = SectorPreCommitInfo {
-                seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
-                sector_number: 1,
-                sealed_cid: cid_of("sealed_cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                deal_ids: bounded_vec![0, 1],
+            let sector = SectorPreCommitInfoBuilder::default()
+                .sector_number(1)
+                .deals([0, 1])
+                .sealed_cid("sealed_cid")
+                .unsealed_cid("unsealed_cid")
                 // Set expiration to be in the next block after the maximum
                 // allowed activation.
-                expiration: current_height + MaxProveCommitDuration::get() + 1,
-                unsealed_cid: cid_of("unsealed_cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-            };
+                .expiration(current_height + MaxProveCommitDuration::get() + 1)
+                .build();
 
             assert_noop!(
-                StorageProvider::pre_commit_sector(RuntimeOrigin::signed(account(storage_provider)), sector.clone()),
+                StorageProvider::pre_commit_sector(
+                    RuntimeOrigin::signed(account(storage_provider)),
+                    sector.clone()
+                ),
                 Error::<Test>::ExpirationTooSoon,
             );
         });
@@ -414,26 +376,22 @@ mod pre_commit_sector {
             register_storage_provider(account(storage_provider));
 
             // Sector to be pre-committed
-            let sector = SectorPreCommitInfo {
-                seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
-                sector_number: 1,
-                sealed_cid: cid_of("sealed_cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                deal_ids: bounded_vec![0, 1],
+            let sector = SectorPreCommitInfoBuilder::default()
+                .sector_number(1)
+                .deals([0, 1])
+                .sealed_cid("sealed_cid")
+                .unsealed_cid("unsealed_cid")
                 // Set expiration to be in the next block after the maximum
                 // allowed
-                expiration: current_height + MaxSectorExpirationExtension::get() + 1,
-                unsealed_cid: cid_of("unsealed_cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-            };
+                .expiration(current_height + MaxSectorExpirationExtension::get() + 1)
+                .build();
 
             // Run pre commit extrinsic
             assert_noop!(
-                StorageProvider::pre_commit_sector(RuntimeOrigin::signed(account(storage_provider)), sector.clone()),
+                StorageProvider::pre_commit_sector(
+                    RuntimeOrigin::signed(account(storage_provider)),
+                    sector.clone()
+                ),
                 Error::<Test>::ExpirationTooLong,
             );
         });
@@ -448,28 +406,19 @@ mod pre_commit_sector {
     // fn fails_max_sector_lifetime_exceeded() {
     //     let current_height = 1000;
 
-    //     new_test_ext(current_height).execute_with(|| {
+    //     new_test_ext_with_block(current_height).execute_with(|| {
     //         // Register ALICE as a storage provider.
-    //         let storage_provider = account(ALICE);
+    //         let storage_provider = ALICE;
     //         register_storage_provider(account(storage_provider));
 
     //         // Sector to be pre-committed
-    //         let sector = SectorPreCommitInfo {
-    //             seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
-    //             sector_number: 1,
-    //             sealed_cid: cid_of("sealed_cid")
-    //                 .to_bytes()
-    //                 .try_into()
-    //                 .expect("hash is always 32 bytes"),
-    //             deal_ids: bounded_vec![0, 1],
-    //             // Set expiration to be in the next block after the maximum
-    //             // allowed
-    //             expiration: current_height + MaxProveCommitDuration::get() + SectorMaximumLifetime::get(),
-    //             unsealed_cid: cid_of("unsealed_cid")
-    //                 .to_bytes()
-    //                 .try_into()
-    //                 .expect("hash is always 32 bytes"),
-    //         };
+    //         let sector = SectorPreCommitInfoBuilder::default()
+    //             .sector_number(1)
+    //             .deals([0, 1])
+    //             .sealed_cid("sealed_cid")
+    //             .unsealed_cid("unsealed_cid")
+    //             .expiration(current_height + MaxProveCommitDuration::get() + SectorMaximumLifetime::get())
+    //             .build();
 
     //         // Run pre commit extrinsic
     //         assert_noop!(
@@ -486,8 +435,6 @@ mod pre_commit_sector {
 mod prove_commit_sector {
     use sp_runtime::DispatchError;
 
-    use crate::sector::SECTORS_MAX;
-
     use super::*;
 
     #[test]
@@ -501,8 +448,14 @@ mod prove_commit_sector {
             register_storage_provider(account(storage_provider));
 
             // Add balance to the market pallet
-            assert_ok!(Market::add_balance(RuntimeOrigin::signed(account(storage_provider)), 60));
-            assert_ok!(Market::add_balance(RuntimeOrigin::signed(account(storage_client)), 70));
+            assert_ok!(Market::add_balance(
+                RuntimeOrigin::signed(account(storage_provider)),
+                60
+            ));
+            assert_ok!(Market::add_balance(
+                RuntimeOrigin::signed(account(storage_client)),
+                70
+            ));
 
             // Generate a deal proposal
             let deal_proposal = DealProposalBuilder::default()
@@ -520,20 +473,12 @@ mod prove_commit_sector {
             let sector_number = 1;
 
             // Sector data
-            let sector = SectorPreCommitInfo {
-                seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
-                sector_number,
-                sealed_cid: cid_of("sealed_cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                deal_ids: bounded_vec![0],
-                expiration: YEARS,
-                unsealed_cid: cid_of("unsealed_cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-            };
+            let sector = SectorPreCommitInfoBuilder::default()
+                .sector_number(sector_number)
+                .deals([0])
+                .sealed_cid("sealed_cid")
+                .unsealed_cid("unsealed_cid")
+                .build();
 
             // Run pre commit extrinsic
             assert_ok!(StorageProvider::pre_commit_sector(
@@ -573,6 +518,7 @@ mod prove_commit_sector {
             assert_eq!(Balances::free_balance(account(storage_provider)), 39);
             let sp_state = StorageProviders::<Test>::get(account(storage_provider))
                 .expect("Should be able to get providers info");
+
             // check that the sector has been activated
             assert!(!sp_state.sectors.is_empty());
             assert!(sp_state.sectors.contains_key(&sector_number));
@@ -583,20 +529,12 @@ mod prove_commit_sector {
     fn fails_should_be_signed() {
         new_test_ext().execute_with(|| {
             // Sector to be pre-committed
-            let sector = SectorPreCommitInfo {
-                seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
-                sector_number: SECTORS_MAX as u64 + 1,
-                sealed_cid: cid_of("sealed_cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                deal_ids: bounded_vec![0, 1],
-                expiration: YEARS,
-                unsealed_cid: cid_of("unsealed_cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-            };
+            let sector = SectorPreCommitInfoBuilder::default()
+                .sector_number(1)
+                .deals([0, 1])
+                .sealed_cid("sealed_cid")
+                .unsealed_cid("unsealed_cid")
+                .build();
 
             // Run pre commit extrinsic
             assert_noop!(
@@ -617,8 +555,14 @@ mod prove_commit_sector {
             register_storage_provider(account(storage_provider));
 
             // Add balance to the market pallet
-            assert_ok!(Market::add_balance(RuntimeOrigin::signed(account(storage_provider)), 60));
-            assert_ok!(Market::add_balance(RuntimeOrigin::signed(account(storage_client)), 70));
+            assert_ok!(Market::add_balance(
+                RuntimeOrigin::signed(account(storage_provider)),
+                60
+            ));
+            assert_ok!(Market::add_balance(
+                RuntimeOrigin::signed(account(storage_client)),
+                70
+            ));
 
             // Generate a deal proposal
             let deal_proposal = DealProposalBuilder::default()
@@ -633,20 +577,12 @@ mod prove_commit_sector {
             ));
 
             // Sector data
-            let sector = SectorPreCommitInfo {
-                seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
-                sector_number,
-                sealed_cid: cid_of("sealed_cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                deal_ids: bounded_vec![0],
-                expiration: YEARS,
-                unsealed_cid: cid_of("unsealed_cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-            };
+            let sector = SectorPreCommitInfoBuilder::default()
+                .sector_number(sector_number)
+                .deals([0])
+                .sealed_cid("sealed_cid")
+                .unsealed_cid("unsealed_cid")
+                .build();
 
             // Run pre commit extrinsic
             assert_ok!(StorageProvider::pre_commit_sector(
@@ -711,8 +647,14 @@ mod prove_commit_sector {
             register_storage_provider(account(storage_provider));
 
             // Add balance to the market pallet
-            assert_ok!(Market::add_balance(RuntimeOrigin::signed(account(storage_provider)), 60));
-            assert_ok!(Market::add_balance(RuntimeOrigin::signed(account(storage_client)), 70));
+            assert_ok!(Market::add_balance(
+                RuntimeOrigin::signed(account(storage_provider)),
+                60
+            ));
+            assert_ok!(Market::add_balance(
+                RuntimeOrigin::signed(account(storage_client)),
+                70
+            ));
 
             // Generate a deal proposal
             let deal_proposal = DealProposalBuilder::default()
@@ -727,20 +669,12 @@ mod prove_commit_sector {
             ));
 
             // Sector data
-            let sector = SectorPreCommitInfo {
-                seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
-                sector_number,
-                sealed_cid: cid_of("sealed_cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-                deal_ids: bounded_vec![0],
-                expiration: YEARS,
-                unsealed_cid: cid_of("unsealed_cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-            };
+            let sector = SectorPreCommitInfoBuilder::default()
+                .sector_number(sector_number)
+                .deals([0])
+                .sealed_cid("sealed_cid")
+                .unsealed_cid("unsealed_cid")
+                .build();
 
             // Run pre commit extrinsic
             assert_ok!(StorageProvider::pre_commit_sector(
@@ -782,6 +716,80 @@ fn register_storage_provider(account: AccountIdOf<Test>) {
 
     // Remove any events that were triggered during registration.
     System::reset_events();
+}
+
+struct SectorPreCommitInfoBuilder {
+    seal_proof: RegisteredSealProof,
+    sector_number: Option<SectorNumber>,
+    sealed_cid: Option<SectorId>,
+    deal_ids: Option<BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>>,
+    expiration: u64,
+    unsealed_cid: Option<SectorId>,
+}
+
+impl Default for SectorPreCommitInfoBuilder {
+    fn default() -> Self {
+        Self {
+            seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
+            sector_number: None,
+            sealed_cid: None,
+            deal_ids: None,
+            expiration: YEARS,
+            unsealed_cid: None,
+        }
+    }
+}
+
+impl SectorPreCommitInfoBuilder {
+    pub fn sector_number(mut self, sector_number: u64) -> Self {
+        self.sector_number = Some(sector_number);
+        self
+    }
+
+    pub fn deals<I>(mut self, deal_ids: I) -> Self
+    where
+        I: IntoIterator<Item = DealId>,
+    {
+        let deal_ids_vec = deal_ids.into_iter().collect::<Vec<_>>();
+        self.deal_ids = Some(BoundedVec::try_from(deal_ids_vec).unwrap());
+        self
+    }
+
+    pub fn sealed_cid(mut self, data: &str) -> Self {
+        self.sealed_cid = Some(
+            cid_of(data)
+                .to_bytes()
+                .try_into()
+                .expect("hash is always 32 bytes"),
+        );
+        self
+    }
+
+    pub fn unsealed_cid(mut self, data: &str) -> Self {
+        self.unsealed_cid = Some(
+            cid_of(data)
+                .to_bytes()
+                .try_into()
+                .expect("hash is always 32 bytes"),
+        );
+        self
+    }
+
+    pub fn expiration(mut self, expiration: u64) -> Self {
+        self.expiration = expiration;
+        self
+    }
+
+    pub fn build(self) -> SectorPreCommitInfo<u64> {
+        SectorPreCommitInfo {
+            seal_proof: self.seal_proof,
+            sector_number: self.sector_number.expect("sector number is required"),
+            sealed_cid: self.sealed_cid.expect("sealed cid is required"),
+            deal_ids: self.deal_ids.expect("deal ids are required"),
+            expiration: self.expiration,
+            unsealed_cid: self.unsealed_cid.expect("unsealed cid is required"),
+        }
+    }
 }
 
 /// Builder to simplify writing complex tests of [`DealProposal`].

@@ -1,6 +1,7 @@
 use cid::Cid;
 use frame_support::{
-    derive_impl, pallet_prelude::ConstU32, parameter_types, sp_runtime::BoundedVec, traits::Hooks, PalletId
+    derive_impl, pallet_prelude::ConstU32, parameter_types, sp_runtime::BoundedVec, traits::Hooks,
+    PalletId,
 };
 use multihash_codetable::{Code, MultihashDigest};
 use sp_core::Pair;
