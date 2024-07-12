@@ -31,14 +31,15 @@ It requires:
 just load-to-minikube
 ```
 2. building patched ZombieNet
-    - pulling a branch of [ZombieNet](https://github.com/paritytech/zombienet/pull/1830)
-    - building it locally 
+    - requires NodeJS: preferably via [nvm](https://nodejs.org/en/download/package-manager)
+    - pulling a branch of [ZombieNet](https://github.com/paritytech/zombienet/pull/1830) and building it locally
 ```bash
-    cd zombienet/javascript
+    git clone -b th7nder/fix/generating-containers git@github.com:th7nder/zombienet.git ~/patched-zombienet
+    cd ~/patched-zombienet/javascript
     npm i && npm run build
     npm run package
 ```
-3. running patched ZombieNet
+3. running patched ZombieNet (inside of `polka-storage` workspace)
 ```bash
-    $ZOMBIENET_REPO/javascript/bins/zombienet -p kubernetes spawn zombienet/local-kube-testnet.toml
+    ~/patched-zombienet/javascript/bins/zombienet-linux-x64 -p kubernetes spawn zombienet/local-kube-testnet.toml
 ```
