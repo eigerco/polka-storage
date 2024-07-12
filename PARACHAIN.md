@@ -1,5 +1,10 @@
 # Polka Storage Node - Parachain
 
+Supported Kubernetes Platforms:
+- Linux x86_64
+
+Others were not tested and `polkadot` does not have an image for Linux ARM.
+
 ## Build the Docker Image
 
 ```bash
@@ -33,13 +38,14 @@ just load-to-minikube
 2. building patched ZombieNet
     - requires NodeJS: preferably via [nvm](https://nodejs.org/en/download/package-manager)
     - pulling a branch of [ZombieNet](https://github.com/paritytech/zombienet/pull/1830) and building it locally
-```bash
-    git clone -b th7nder/fix/generating-containers git@github.com:th7nder/zombienet.git ~/patched-zombienet
-    cd ~/patched-zombienet/javascript
-    npm i && npm run build
-    npm run package
-```
+    ```bash
+        git clone -b th7nder/fix/generating-containers git@github.com:th7nder/zombienet.git patched-zombienet
+        cd patched-zombienet/javascript
+        npm i && npm run build
+        npm run package
+    ```
+    - NOTE: warnings like `> Warning Failed to make bytecode node18-arm64 for file` are normal and don't break the build.
 3. running patched ZombieNet (inside of `polka-storage` workspace)
 ```bash
-    ~/patched-zombienet/javascript/bins/zombienet-linux-x64 -p kubernetes spawn zombienet/local-kube-testnet.toml
+patched-zombienet/javascript/bins/zombienet-linux-x64 -p kubernetes spawn zombienet/local-kube-testnet.toml
 ```

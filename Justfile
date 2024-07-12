@@ -17,8 +17,8 @@ testnet: release
 
 build-parachain-docker:
     docker build \
-        --build-arg VCS_REF=$(git rev-parse HEAD) \
-        --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+        --build-arg VCS_REF="$(git rev-parse HEAD)" \
+        --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
         -t ghcr.io/eigerco/polka-storage-node:0.1.0 \
         --file ./docker/dockerfiles/parachain/Dockerfile \
         .
