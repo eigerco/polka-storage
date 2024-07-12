@@ -16,10 +16,7 @@ pub use pallet::{Config, Pallet};
 mod benchmarks;
 
 #[cfg(test)]
-mod mock;
-
-#[cfg(test)]
-mod test;
+mod tests;
 
 mod proofs;
 mod sector;
@@ -166,7 +163,7 @@ pub mod pallet {
         /// Emitted when a sector fails to activate
         CouldNotActivateSector,
         /// Emitted when a prove commit is sent after the deadline.
-        /// These pre-commits will be cleaned up in the hook
+        /// These pre-commits will be cleaned up in the hook.
         ProveCommitAfterDeadline,
     }
 
