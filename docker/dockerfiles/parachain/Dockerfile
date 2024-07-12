@@ -32,15 +32,6 @@ FROM debian:bookworm-slim AS runtime
 ARG VCS_REF
 ARG BUILD_DATE
 
-LABEL co.eiger.image.authors="releases@eiger.co" \
-	co.eiger.image.vendor="Eiger" \
-	co.eiger.image.title="Polka Storage Parachain" \
-	co.eiger.image.description="Parachain Node binary for Polka Storage, without specs. For local ZombieNet usage only." \
-	co.eiger.image.source="https://github.com/eigerco/polka-storage/blob/${VCS_REF}/docker/dockerfiles/parachain/Dockerfile" \
-	co.eiger.image.revision="${VCS_REF}" \
-	co.eiger.image.created="${BUILD_DATE}" \
-	co.eiger.image.documentation="https://github.com/eigerco/polka-storage"
-
 # show backtraces
 ENV RUST_BACKTRACE=1
 
@@ -63,4 +54,13 @@ RUN /usr/local/bin/polka-storage-node --version
 EXPOSE 30333 30334 9933 9944 9615 
 # mount-point for saving state of the parachain (not required for ZombieNet)
 VOLUME ["/eiger"]
+LABEL co.eiger.image.authors="releases@eiger.co" \
+	co.eiger.image.vendor="Eiger" \
+	co.eiger.image.title="Polka Storage Parachain" \
+	co.eiger.image.description="Parachain Node binary for Polka Storage, without specs. For local ZombieNet usage only." \
+	co.eiger.image.source="https://github.com/eigerco/polka-storage/blob/${VCS_REF}/docker/dockerfiles/parachain/Dockerfile" \
+	co.eiger.image.revision="${VCS_REF}" \
+	co.eiger.image.created="${BUILD_DATE}" \
+	co.eiger.image.documentation="https://github.com/eigerco/polka-storage"
+
 ENTRYPOINT ["/usr/local/bin/polka-storage-node"]
