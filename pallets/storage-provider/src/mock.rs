@@ -105,7 +105,6 @@ pub fn account(name: &str) -> AccountIdOf<Test> {
 
 pub const ALICE: &'static str = "//Alice";
 pub const BOB: &'static str = "//Bob";
-pub const CHARLIE: &'static str = "//Charlie";
 
 /// Initial funds of all accounts.
 pub const INITIAL_FUNDS: u64 = 100;

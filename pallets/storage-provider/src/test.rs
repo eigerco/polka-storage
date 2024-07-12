@@ -547,58 +547,58 @@ mod prove_commit_sector {
     #[test]
     fn fails_storage_provider_not_found() {
         new_test_ext().execute_with(|| {
-            let storage_provider = ALICE;
-            let storage_client = BOB;
-            let sector_number = 1;
+            // let storage_provider = ALICE;
+            // let storage_client = BOB;
+            // let sector_number = 1;
 
-            // Register storage provider
-            register_storage_provider(account(storage_provider));
+            // // Register storage provider
+            // register_storage_provider(account(storage_provider));
 
-            // Add balance to the market pallet
-            assert_ok!(Market::add_balance(
-                RuntimeOrigin::signed(account(storage_provider)),
-                60
-            ));
-            assert_ok!(Market::add_balance(
-                RuntimeOrigin::signed(account(storage_client)),
-                70
-            ));
+            // // Add balance to the market pallet
+            // assert_ok!(Market::add_balance(
+            //     RuntimeOrigin::signed(account(storage_provider)),
+            //     60
+            // ));
+            // assert_ok!(Market::add_balance(
+            //     RuntimeOrigin::signed(account(storage_client)),
+            //     70
+            // ));
 
-            // Generate a deal proposal
-            let deal_proposal = DealProposalBuilder::default()
-                .client(storage_client)
-                .provider(storage_provider)
-                .signed(storage_client);
+            // // Generate a deal proposal
+            // let deal_proposal = DealProposalBuilder::default()
+            //     .client(storage_client)
+            //     .provider(storage_provider)
+            //     .signed(storage_client);
 
-            // Publish the deal proposal
-            assert_ok!(Market::publish_storage_deals(
-                RuntimeOrigin::signed(account(storage_provider)),
-                bounded_vec![deal_proposal],
-            ));
+            // // Publish the deal proposal
+            // assert_ok!(Market::publish_storage_deals(
+            //     RuntimeOrigin::signed(account(storage_provider)),
+            //     bounded_vec![deal_proposal],
+            // ));
 
-            // Sector data
-            let sector = SectorPreCommitInfoBuilder::default()
-                .sector_number(sector_number)
-                .deals([0])
-                .sealed_cid("sealed_cid")
-                .unsealed_cid("unsealed_cid")
-                .build();
+            // // Sector data
+            // let sector = SectorPreCommitInfoBuilder::default()
+            //     .sector_number(sector_number)
+            //     .deals([0])
+            //     .sealed_cid("sealed_cid")
+            //     .unsealed_cid("unsealed_cid")
+            //     .build();
 
-            // Run pre commit extrinsic
-            assert_ok!(StorageProvider::pre_commit_sector(
-                RuntimeOrigin::signed(account(storage_provider)),
-                sector.clone()
-            ));
+            // // Run pre commit extrinsic
+            // assert_ok!(StorageProvider::pre_commit_sector(
+            //     RuntimeOrigin::signed(account(storage_provider)),
+            //     sector.clone()
+            // ));
 
             // Test prove commits
             let sector = ProveCommitSector {
-                sector_number,
+                sector_number: 1,
                 proof: bounded_vec![0xd, 0xe, 0xa, 0xd],
             };
 
             assert_noop!(
                 StorageProvider::prove_commit_sector(
-                    RuntimeOrigin::signed(account(CHARLIE)),
+                    RuntimeOrigin::signed(account(ALICE)),
                     sector
                 ),
                 Error::<Test>::StorageProviderNotFound,
