@@ -4,7 +4,7 @@ use sp_runtime::RuntimeDebug;
 
 pub type DealId = u64;
 
-// TODO(no-ref,@cernicc,11/07/2024): Refactor to new type. Sector number should
+// TODO(#129,@cernicc,11/07/2024): Refactor to new type. Sector number should
 // always be between 0 and SECTORS_MAX (32 << 20).
 pub type SectorNumber = u64;
 
