@@ -1,6 +1,6 @@
 use cid::Cid;
 use frame_support::{
-    derive_impl, pallet_prelude::ConstU32, parameter_types, sp_runtime::BoundedVec, PalletId,
+    derive_impl, pallet_prelude::ConstU32, parameter_types, sp_runtime::BoundedVec, traits::Hooks, PalletId
 };
 use multihash_codetable::{Code, MultihashDigest};
 use sp_core::Pair;
@@ -109,12 +109,21 @@ pub const CHARLIE: &'static str = "//Charlie";
 /// Initial funds of all accounts.
 pub const INITIAL_FUNDS: u64 = 100;
 
+// Build genesis storage according to the mock runtime. Specify the starting
+// block number.
+pub fn new_test_ext_with_block(starting_block_number: u64) -> sp_io::TestExternalities {
+    let mut ext = new_test_ext();
+    ext.execute_with(|| System::set_block_number(starting_block_number));
+    ext
+}
+
 // Build genesis storage according to the mock runtime.
-pub fn new_test_ext(starting_block_number: u64) -> sp_io::TestExternalities {
+pub fn new_test_ext() -> sp_io::TestExternalities {
     let mut t = frame_system::GenesisConfig::<Test>::default()
         .build_storage()
         .unwrap()
         .into();
+
     pallet_balances::GenesisConfig::<Test> {
         balances: vec![
             (account(ALICE), INITIAL_FUNDS),
@@ -123,8 +132,9 @@ pub fn new_test_ext(starting_block_number: u64) -> sp_io::TestExternalities {
     }
     .assimilate_storage(&mut t)
     .unwrap();
+
     let mut ext = sp_io::TestExternalities::new(t);
-    ext.execute_with(|| System::set_block_number(starting_block_number));
+    ext.execute_with(|| System::set_block_number(1));
     ext
 }
 
@@ -139,4 +149,20 @@ pub fn events() -> Vec<RuntimeEvent> {
 
 pub fn cid_of(data: &str) -> cid::Cid {
     Cid::new_v1(CID_CODEC, Code::Blake2b256.digest(data.as_bytes()))
+}
+
+/// Run until a particular block.
+///
+/// Stolen't from: <https://github.com/paritytech/polkadot-sdk/blob/7df94a469e02e1d553bd4050b0e91870d6a4c31b/substrate/frame/lottery/src/mock.rs#L87-L98>
+pub fn run_to_block(n: u64) {
+    while System::block_number() < n {
+        if System::block_number() > 1 {
+            StorageProvider::on_finalize(System::block_number());
+            System::on_finalize(System::block_number());
+        }
+
+        System::set_block_number(System::block_number() + 1);
+        System::on_initialize(System::block_number());
+        StorageProvider::on_initialize(System::block_number());
+    }
 }

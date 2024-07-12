@@ -270,19 +270,13 @@ pub mod pallet {
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
             let sector_number = sector.sector_number;
 
-            // TODO(no-ref,@cernicc,11/07/2024): This check can be removed. The
-            // sector number is already checked in the pre-commit
-            ensure!(
-                sector_number <= SECTORS_MAX.into(),
-                Error::<T>::InvalidSector
-            );
-
             let precommit = sp
                 .get_pre_committed_sector(sector_number)
                 .map_err(|_| Error::<T>::InvalidSector)?;
             let current_block = <frame_system::Pallet<T>>::block_number();
             let prove_commit_due =
                 precommit.pre_commit_block_number + T::MaxProveCommitDuration::get();
+
             ensure!(
                 current_block < prove_commit_due,
                 Error::<T>::ProveCommitAfterDeadline
@@ -291,8 +285,10 @@ pub mod pallet {
                 validate_seal_proof(&precommit.info.seal_proof, sector.proof),
                 Error::<T>::InvalidProofType,
             );
+
             let new_sector =
                 SectorOnChainInfo::from_pre_commit(precommit.info.clone(), current_block);
+
             StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResult {
                 let sp = maybe_sp
                     .as_mut()
@@ -303,16 +299,20 @@ pub mod pallet {
                     .map_err(|_| Error::<T>::CouldNotRemoveSector)?;
                 Ok(())
             })?;
+
             let mut sector_deals = BoundedVec::new();
             sector_deals
                 .try_push(precommit.into())
                 .map_err(|_| Error::<T>::CouldNotActivateSector)?;
+
             let deal_amount = sector_deals.len();
             T::Market::activate_deals(&owner, sector_deals, deal_amount > 0)?;
+
             Self::deposit_event(Event::SectorProven {
                 owner,
                 sector_number,
             });
+
             Ok(())
         }
     }

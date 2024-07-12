@@ -19,7 +19,7 @@ use crate::{
 
 #[test]
 fn initial_state() {
-    new_test_ext(1).execute_with(|| {
+    new_test_ext().execute_with(|| {
         assert!(!StorageProviders::<Test>::contains_key(account(ALICE)));
         assert!(!StorageProviders::<Test>::contains_key(account(BOB)));
     })
@@ -33,7 +33,7 @@ mod storage_provider_registration {
     /// Tests if storage provider registration is successful.
     #[test]
     fn successful_registration() {
-        new_test_ext(1).execute_with(|| {
+        new_test_ext().execute_with(|| {
             let peer_id = "storage_provider_1".as_bytes().to_vec();
             let peer_id = BoundedVec::try_from(peer_id).unwrap();
             let window_post_type = RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
@@ -80,7 +80,7 @@ mod storage_provider_registration {
 
     #[test]
     fn fails_should_be_signed() {
-        new_test_ext(1).execute_with(|| {
+        new_test_ext().execute_with(|| {
             let peer_id = "storage_provider_1".as_bytes().to_vec();
             let peer_id = BoundedVec::try_from(peer_id).unwrap();
             let window_post_type = RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
@@ -98,7 +98,7 @@ mod storage_provider_registration {
 
     #[test]
     fn fails_double_register() {
-        new_test_ext(1).execute_with(|| {
+        new_test_ext().execute_with(|| {
             let peer_id = "storage_provider_1".as_bytes().to_vec();
             let peer_id = BoundedVec::try_from(peer_id).unwrap();
             let window_post_type = RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
@@ -131,10 +131,10 @@ mod pre_commit_sector {
 
     #[test]
     fn successfully_precommited() {
-        new_test_ext(1).execute_with(|| {
+        new_test_ext().execute_with(|| {
             // Register ALICE as a storage provider.
-            let account = account(ALICE);
-            register_storage_provider(account.clone());
+            let storage_provider = ALICE;
+            register_storage_provider(account(storage_provider));
 
             // Sector to be pre-committed.
             let sector = SectorPreCommitInfo {
@@ -153,10 +153,10 @@ mod pre_commit_sector {
             };
 
             // Check starting balance
-            assert_eq!(Balances::free_balance(account.clone()), 100);
+            assert_eq!(Balances::free_balance(account(storage_provider)), 100);
             // Run pre commit extrinsic
             StorageProvider::pre_commit_sector(
-                RuntimeOrigin::signed(account.clone()),
+                RuntimeOrigin::signed(account(storage_provider)),
                 sector.clone(),
             )
             .expect("Pre commit failed");
@@ -165,32 +165,32 @@ mod pre_commit_sector {
                 events(),
                 [
                     RuntimeEvent::Balances(pallet_balances::Event::<Test>::Reserved {
-                        who: account.clone(),
+                        who: account(storage_provider),
                         amount: 1
                     },),
                     RuntimeEvent::StorageProvider(Event::<Test>::SectorPreCommitted {
-                        owner: account.clone(),
+                        owner: account(storage_provider),
                         sector: sector.clone(),
                     })
                 ]
             );
-            let sp_alice = StorageProviders::<Test>::get(account.clone())
+            let sp_alice = StorageProviders::<Test>::get(account(storage_provider))
                 .expect("SP Alice should be present because of the pre-check");
 
             assert!(sp_alice.sectors.is_empty()); // not yet proven
             assert!(!sp_alice.pre_committed_sectors.is_empty());
             assert_eq!(sp_alice.pre_commit_deposits, 1);
-            assert_eq!(Balances::free_balance(account), 99);
+            assert_eq!(Balances::free_balance(account(storage_provider)), 99);
         });
     }
 
     #[test]
     fn fails_should_be_signed() {
-        new_test_ext(1).execute_with(|| {
+        new_test_ext().execute_with(|| {
             // Sector to be pre-committed
             let sector = SectorPreCommitInfo {
                 seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
-                sector_number: SECTORS_MAX as u64 + 1,
+                sector_number: 1,
                 sealed_cid: cid_of("sealed_cid")
                     .to_bytes()
                     .try_into()
@@ -213,7 +213,7 @@ mod pre_commit_sector {
 
     #[test]
     fn fails_storage_provider_not_found() {
-        new_test_ext(1).execute_with(|| {
+        new_test_ext().execute_with(|| {
             // Sector to be pre-committed
             let sector = SectorPreCommitInfo {
                 seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
@@ -243,10 +243,10 @@ mod pre_commit_sector {
 
     #[test]
     fn fails_sector_number_already_used() {
-        new_test_ext(1).execute_with(|| {
+        new_test_ext().execute_with(|| {
             // Register ALICE as a storage provider.
-            let account = account(ALICE);
-            register_storage_provider(account.clone());
+            let storage_provider = ALICE;
+            register_storage_provider(account(storage_provider));
 
             // Sector to be pre-committed
             let sector = SectorPreCommitInfo {
@@ -265,13 +265,13 @@ mod pre_commit_sector {
             };
             // Run pre commit extrinsic
             assert_ok!(StorageProvider::pre_commit_sector(
-                RuntimeOrigin::signed(account.clone()),
+                RuntimeOrigin::signed(account(storage_provider)),
                 sector.clone()
             ));
             // Run same extrinsic, this should fail
             assert_noop!(
                 StorageProvider::pre_commit_sector(
-                    RuntimeOrigin::signed(account.clone()),
+                    RuntimeOrigin::signed(account(storage_provider)),
                     sector.clone()
                 ),
                 Error::<Test>::SectorNumberAlreadyUsed,
@@ -281,10 +281,10 @@ mod pre_commit_sector {
 
     #[test]
     fn fails_invalid_sector() {
-        new_test_ext(1).execute_with(|| {
+        new_test_ext().execute_with(|| {
             // Register ALICE as a storage provider.
-            let account = account(ALICE);
-            register_storage_provider(account.clone());
+            let storage_provider = ALICE;
+            register_storage_provider(account(storage_provider));
 
             // Sector to be pre-committed
             let sector = SectorPreCommitInfo {
@@ -304,7 +304,7 @@ mod pre_commit_sector {
 
             // Run pre commit extrinsic
             assert_noop!(
-                StorageProvider::pre_commit_sector(RuntimeOrigin::signed(account), sector.clone()),
+                StorageProvider::pre_commit_sector(RuntimeOrigin::signed(account(storage_provider)), sector.clone()),
                 Error::<Test>::InvalidSector,
             );
         });
@@ -312,10 +312,10 @@ mod pre_commit_sector {
 
     #[test]
     fn fails_invalid_cid() {
-        new_test_ext(1).execute_with(|| {
+        new_test_ext().execute_with(|| {
             // Register ALICE as a storage provider.
-            let account = account(ALICE);
-            register_storage_provider(account.clone());
+            let storage_provider = ALICE;
+            register_storage_provider(account(storage_provider));
 
             // Sector to be pre-committed
             let sector = SectorPreCommitInfo {
@@ -333,7 +333,7 @@ mod pre_commit_sector {
 
             // Run pre commit extrinsic
             assert_noop!(
-                StorageProvider::pre_commit_sector(RuntimeOrigin::signed(account), sector.clone()),
+                StorageProvider::pre_commit_sector(RuntimeOrigin::signed(account(storage_provider)), sector.clone()),
                 Error::<Test>::InvalidCid,
             );
         });
@@ -341,10 +341,10 @@ mod pre_commit_sector {
 
     #[test]
     fn fails_expiration_before_activation() {
-        new_test_ext(1000).execute_with(|| {
+        new_test_ext_with_block(1000).execute_with(|| {
             // Register ALICE as a storage provider.
-            let account = account(ALICE);
-            register_storage_provider(account.clone());
+            let storage_provider = ALICE;
+            register_storage_provider(account(&storage_provider));
 
             // Sector to be pre-committed
             let sector = SectorPreCommitInfo {
@@ -364,7 +364,7 @@ mod pre_commit_sector {
 
             // Run pre commit extrinsic
             assert_noop!(
-                StorageProvider::pre_commit_sector(RuntimeOrigin::signed(account), sector.clone()),
+                StorageProvider::pre_commit_sector(RuntimeOrigin::signed(account(storage_provider)), sector.clone()),
                 Error::<Test>::ExpirationBeforeActivation,
             );
         });
@@ -374,10 +374,10 @@ mod pre_commit_sector {
     fn fails_expiration_too_soon() {
         let current_height = 1000;
 
-        new_test_ext(current_height).execute_with(|| {
+        new_test_ext_with_block(current_height).execute_with(|| {
             // Register ALICE as a storage provider.
-            let account = account(ALICE);
-            register_storage_provider(account.clone());
+            let storage_provider = ALICE;
+            register_storage_provider(account(storage_provider));
 
             // Sector to be pre-committed
             let sector = SectorPreCommitInfo {
@@ -397,9 +397,8 @@ mod pre_commit_sector {
                     .expect("hash is always 32 bytes"),
             };
 
-            // Run pre commit extrinsic
             assert_noop!(
-                StorageProvider::pre_commit_sector(RuntimeOrigin::signed(account), sector.clone()),
+                StorageProvider::pre_commit_sector(RuntimeOrigin::signed(account(storage_provider)), sector.clone()),
                 Error::<Test>::ExpirationTooSoon,
             );
         });
@@ -409,10 +408,10 @@ mod pre_commit_sector {
     fn fails_expiration_too_long() {
         let current_height = 1000;
 
-        new_test_ext(current_height).execute_with(|| {
+        new_test_ext_with_block(current_height).execute_with(|| {
             // Register ALICE as a storage provider.
-            let account = account(ALICE);
-            register_storage_provider(account.clone());
+            let storage_provider = ALICE;
+            register_storage_provider(account(storage_provider));
 
             // Sector to be pre-committed
             let sector = SectorPreCommitInfo {
@@ -434,7 +433,7 @@ mod pre_commit_sector {
 
             // Run pre commit extrinsic
             assert_noop!(
-                StorageProvider::pre_commit_sector(RuntimeOrigin::signed(account), sector.clone()),
+                StorageProvider::pre_commit_sector(RuntimeOrigin::signed(account(storage_provider)), sector.clone()),
                 Error::<Test>::ExpirationTooLong,
             );
         });
@@ -451,8 +450,8 @@ mod pre_commit_sector {
 
     //     new_test_ext(current_height).execute_with(|| {
     //         // Register ALICE as a storage provider.
-    //         let account = account(ALICE);
-    //         register_storage_provider(account.clone());
+    //         let storage_provider = account(ALICE);
+    //         register_storage_provider(account(storage_provider));
 
     //         // Sector to be pre-committed
     //         let sector = SectorPreCommitInfo {
@@ -475,7 +474,7 @@ mod pre_commit_sector {
     //         // Run pre commit extrinsic
     //         assert_noop!(
     //             StorageProvider::pre_commit_sector(
-    //                 RuntimeOrigin::signed(account),
+    //                 RuntimeOrigin::signed(account(storage_provider)),
     //                 sector.clone()
     //             ),
     //             Error::<Test>::MaxSectorLifetimeExceeded,
@@ -493,7 +492,7 @@ mod prove_commit_sector {
 
     #[test]
     fn successfully_prove_sector() {
-        new_test_ext(1).execute_with(|| {
+        new_test_ext().execute_with(|| {
             // Setup accounts
             let storage_provider = ALICE;
             let storage_client = BOB;
@@ -502,8 +501,8 @@ mod prove_commit_sector {
             register_storage_provider(account(storage_provider));
 
             // Add balance to the market pallet
-            let _ = Market::add_balance(RuntimeOrigin::signed(account(storage_provider)), 60);
-            let _ = Market::add_balance(RuntimeOrigin::signed(account(storage_client)), 70);
+            assert_ok!(Market::add_balance(RuntimeOrigin::signed(account(storage_provider)), 60));
+            assert_ok!(Market::add_balance(RuntimeOrigin::signed(account(storage_client)), 70));
 
             // Generate a deal proposal
             let deal_proposal = DealProposalBuilder::default()
@@ -548,10 +547,7 @@ mod prove_commit_sector {
             // Test prove commits
             let sector = ProveCommitSector {
                 sector_number,
-                proof: cid_of("prove_commit")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
+                proof: bounded_vec![0xd, 0xe, 0xa, 0xd],
             };
 
             assert_ok!(StorageProvider::prove_commit_sector(
@@ -585,7 +581,7 @@ mod prove_commit_sector {
 
     #[test]
     fn fails_should_be_signed() {
-        new_test_ext(1).execute_with(|| {
+        new_test_ext().execute_with(|| {
             // Sector to be pre-committed
             let sector = SectorPreCommitInfo {
                 seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
@@ -612,7 +608,7 @@ mod prove_commit_sector {
 
     #[test]
     fn fails_storage_provider_not_found() {
-        new_test_ext(1).execute_with(|| {
+        new_test_ext().execute_with(|| {
             let storage_provider = ALICE;
             let storage_client = BOB;
             let sector_number = 1;
@@ -621,8 +617,8 @@ mod prove_commit_sector {
             register_storage_provider(account(storage_provider));
 
             // Add balance to the market pallet
-            let _ = Market::add_balance(RuntimeOrigin::signed(account(storage_provider)), 60);
-            let _ = Market::add_balance(RuntimeOrigin::signed(account(storage_client)), 70);
+            assert_ok!(Market::add_balance(RuntimeOrigin::signed(account(storage_provider)), 60));
+            assert_ok!(Market::add_balance(RuntimeOrigin::signed(account(storage_client)), 70));
 
             // Generate a deal proposal
             let deal_proposal = DealProposalBuilder::default()
@@ -661,10 +657,7 @@ mod prove_commit_sector {
             // Test prove commits
             let sector = ProveCommitSector {
                 sector_number,
-                proof: cid_of("prove_commit")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
+                proof: bounded_vec![0xd, 0xe, 0xa, 0xd],
             };
 
             assert_noop!(
@@ -679,7 +672,7 @@ mod prove_commit_sector {
 
     #[test]
     fn fails_storage_precommit_missing() {
-        new_test_ext(1).execute_with(|| {
+        new_test_ext().execute_with(|| {
             let storage_provider = ALICE;
             let sector_number = 1;
 
@@ -689,10 +682,7 @@ mod prove_commit_sector {
             // Test prove commits
             let sector = ProveCommitSector {
                 sector_number,
-                proof: cid_of("prove_commit")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
+                proof: bounded_vec![0xd, 0xe, 0xa, 0xd],
             };
 
             assert_noop!(
@@ -712,7 +702,7 @@ mod prove_commit_sector {
         // Block number at which the prove commit is made.
         let proving_at_block_number = precommit_at_block_number + MaxProveCommitDuration::get();
 
-        new_test_ext(precommit_at_block_number).execute_with(|| {
+        new_test_ext_with_block(precommit_at_block_number).execute_with(|| {
             let storage_provider = ALICE;
             let storage_client = BOB;
             let sector_number = 1;
@@ -721,8 +711,8 @@ mod prove_commit_sector {
             register_storage_provider(account(storage_provider));
 
             // Add balance to the market pallet
-            let _ = Market::add_balance(RuntimeOrigin::signed(account(storage_provider)), 60);
-            let _ = Market::add_balance(RuntimeOrigin::signed(account(storage_client)), 70);
+            assert_ok!(Market::add_balance(RuntimeOrigin::signed(account(storage_provider)), 60));
+            assert_ok!(Market::add_balance(RuntimeOrigin::signed(account(storage_client)), 70));
 
             // Generate a deal proposal
             let deal_proposal = DealProposalBuilder::default()
@@ -761,13 +751,11 @@ mod prove_commit_sector {
             // Test prove commits
             let sector = ProveCommitSector {
                 sector_number,
-                proof: cid_of("prove_commit")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
+                proof: bounded_vec![0xd, 0xe, 0xa, 0xd],
             };
 
-            System::set_block_number(proving_at_block_number);
+            run_to_block(proving_at_block_number);
+
             assert_noop!(
                 StorageProvider::prove_commit_sector(
                     RuntimeOrigin::signed(account(storage_provider)),
@@ -786,11 +774,11 @@ fn register_storage_provider(account: AccountIdOf<Test>) {
     let window_post_type = RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
 
     // Register account as a storage provider.
-    let _ = StorageProvider::register_storage_provider(
+    assert_ok!(StorageProvider::register_storage_provider(
         RuntimeOrigin::signed(account),
         peer_id.clone(),
         window_post_type,
-    );
+    ));
 
     // Remove any events that were triggered during registration.
     System::reset_events();
