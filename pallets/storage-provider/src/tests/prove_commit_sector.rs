@@ -51,7 +51,7 @@ fn successfully_prove_sector() {
         // Sector data
         let sector = SectorPreCommitInfoBuilder::default()
             .sector_number(sector_number)
-            .deals([0])
+            .deals(vec![0])
             .build();
 
         // Run pre commit extrinsic
@@ -196,7 +196,7 @@ fn fails_prove_commit_after_deadline() {
         // Sector data
         let sector = SectorPreCommitInfoBuilder::default()
             .sector_number(sector_number)
-            .deals([0])
+            .deals(vec![0])
             .build();
 
         // Run pre commit extrinsic

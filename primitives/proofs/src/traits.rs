@@ -7,9 +7,8 @@ use crate::types::{DealId, RegisteredSealProof, SectorNumber};
 /// Size of a CID with a 512-bit multihash — i.e. the default CID size.
 const CID_SIZE_IN_BYTES: u32 = 64;
 
-// TODO(no-ref,@cernicc,11/07/2024): Refactor to a new-type. SectorId should
+// TODO(#129,@cernicc,11/07/2024): Refactor to a new-type. SectorId should
 // always be a valid CID. That should be checked before initializing it.
-//
 /// The CID (in bytes) of a given sector.
 pub type SectorId = BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>;
 

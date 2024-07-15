@@ -243,28 +243,8 @@ impl SectorPreCommitInfoBuilder {
         self
     }
 
-    pub fn deals<I>(mut self, deal_ids: I) -> Self
-    where
-        I: IntoIterator<Item = DealId>,
-    {
-        let deal_ids_vec = deal_ids.into_iter().collect::<Vec<_>>();
-        self.deal_ids = BoundedVec::try_from(deal_ids_vec).unwrap();
-        self
-    }
-
-    pub fn sealed_cid(mut self, data: &str) -> Self {
-        self.sealed_cid = cid_of(data)
-            .to_bytes()
-            .try_into()
-            .expect("hash is always 32 bytes");
-        self
-    }
-
-    pub fn unsealed_cid(mut self, data: &str) -> Self {
-        self.unsealed_cid = cid_of(data)
-            .to_bytes()
-            .try_into()
-            .expect("hash is always 32 bytes");
+    pub fn deals(mut self, deal_ids: Vec<u64>) -> Self {
+        self.deal_ids = BoundedVec::try_from(deal_ids).unwrap();
         self
     }
 
