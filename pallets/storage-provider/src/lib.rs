@@ -40,7 +40,9 @@ pub mod pallet {
         traits::{Currency, ReservableCurrency},
     };
     use frame_system::{ensure_signed, pallet_prelude::*, Config as SystemConfig};
-    use primitives_proofs::{Market, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
+    use primitives_proofs::{
+        Market, RegisteredPoStProof, RegisteredSealProof, SectorDeal, SectorNumber,
+    };
     use scale_info::TypeInfo;
 
     use crate::{
