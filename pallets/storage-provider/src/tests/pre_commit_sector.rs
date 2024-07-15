@@ -20,12 +20,7 @@ fn successfully_precommited() {
         register_storage_provider(account(storage_provider));
 
         // Sector to be pre-committed.
-        let sector = SectorPreCommitInfoBuilder::default()
-            .sector_number(1)
-            .deals([0, 1])
-            .sealed_cid("sealed_cid")
-            .unsealed_cid("unsealed_cid")
-            .build();
+        let sector = SectorPreCommitInfoBuilder::default().build();
 
         // Check starting balance
         assert_eq!(Balances::free_balance(account(storage_provider)), 100);
@@ -66,12 +61,7 @@ fn successfully_precommited() {
 fn fails_should_be_signed() {
     new_test_ext().execute_with(|| {
         // Sector to be pre-committed
-        let sector = SectorPreCommitInfoBuilder::default()
-            .sector_number(1)
-            .deals([0, 1])
-            .sealed_cid("sealed_cid")
-            .unsealed_cid("unsealed_cid")
-            .build();
+        let sector = SectorPreCommitInfoBuilder::default().build();
 
         // Run pre commit extrinsic
         assert_noop!(
@@ -85,12 +75,7 @@ fn fails_should_be_signed() {
 fn fails_storage_provider_not_found() {
     new_test_ext().execute_with(|| {
         // Sector to be pre-committed
-        let sector = SectorPreCommitInfoBuilder::default()
-            .sector_number(1)
-            .deals([0, 1])
-            .sealed_cid("sealed_cid")
-            .unsealed_cid("unsealed_cid")
-            .build();
+        let sector = SectorPreCommitInfoBuilder::default().build();
 
         // Run pre commit extrinsic
         assert_noop!(
@@ -111,12 +96,7 @@ fn fails_sector_number_already_used() {
         register_storage_provider(account(storage_provider));
 
         // Sector to be pre-committed
-        let sector = SectorPreCommitInfoBuilder::default()
-            .sector_number(1)
-            .deals([0, 1])
-            .sealed_cid("sealed_cid")
-            .unsealed_cid("unsealed_cid")
-            .build();
+        let sector = SectorPreCommitInfoBuilder::default().build();
 
         // Run pre commit extrinsic
         assert_ok!(StorageProvider::pre_commit_sector(
@@ -127,7 +107,7 @@ fn fails_sector_number_already_used() {
         assert_noop!(
             StorageProvider::pre_commit_sector(
                 RuntimeOrigin::signed(account(storage_provider)),
-                sector.clone()
+                sector
             ),
             Error::<Test>::SectorNumberAlreadyUsed,
         );
@@ -144,9 +124,6 @@ fn fails_invalid_sector() {
         // Sector to be pre-committed
         let sector = SectorPreCommitInfoBuilder::default()
             .sector_number(SECTORS_MAX as u64 + 1)
-            .deals([0, 1])
-            .sealed_cid("sealed_cid")
-            .unsealed_cid("unsealed_cid")
             .build();
 
         // Run pre commit extrinsic
@@ -168,12 +145,7 @@ fn fails_invalid_cid() {
         register_storage_provider(account(storage_provider));
 
         // Sector to be pre-committed
-        let mut sector = SectorPreCommitInfoBuilder::default()
-            .sector_number(1)
-            .deals([0, 1])
-            .sealed_cid("sealed_cid")
-            .unsealed_cid("unsealed_cid")
-            .build();
+        let mut sector = SectorPreCommitInfoBuilder::default().build();
 
         // Setting the wrong unseal cid on the sector
         sector.unsealed_cid = BoundedVec::new();
@@ -200,10 +172,6 @@ fn fails_expiration_before_activation() {
 
         // Sector to be pre-committed
         let sector = SectorPreCommitInfoBuilder::default()
-            .sector_number(1)
-            .deals([0, 1])
-            .sealed_cid("sealed_cid")
-            .unsealed_cid("unsealed_cid")
             .expiration(1000)
             .build();
 
@@ -231,10 +199,6 @@ fn fails_expiration_too_soon() {
 
         // Sector to be pre-committed
         let sector = SectorPreCommitInfoBuilder::default()
-            .sector_number(1)
-            .deals([0, 1])
-            .sealed_cid("sealed_cid")
-            .unsealed_cid("unsealed_cid")
             // Set expiration to be in the next block after the maximum
             // allowed activation.
             .expiration(current_height + MaxProveCommitDuration::get() + 1)
@@ -263,10 +227,6 @@ fn fails_expiration_too_long() {
 
         // Sector to be pre-committed
         let sector = SectorPreCommitInfoBuilder::default()
-            .sector_number(1)
-            .deals([0, 1])
-            .sealed_cid("sealed_cid")
-            .unsealed_cid("unsealed_cid")
             // Set expiration to be in the next block after the maximum
             // allowed
             .expiration(current_height + MaxSectorExpirationExtension::get() + 1)
@@ -299,10 +259,6 @@ fn fails_expiration_too_long() {
 
 //         // Sector to be pre-committed
 //         let sector = SectorPreCommitInfoBuilder::default()
-//             .sector_number(1)
-//             .deals([0, 1])
-//             .sealed_cid("sealed_cid")
-//             .unsealed_cid("unsealed_cid")
 //             .expiration(current_height + MaxProveCommitDuration::get() + SectorMaximumLifetime::get())
 //             .build();
 

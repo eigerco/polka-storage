@@ -211,29 +211,35 @@ fn register_storage_provider(account: AccountIdOf<Test>) {
 
 struct SectorPreCommitInfoBuilder {
     seal_proof: RegisteredSealProof,
-    sector_number: Option<SectorNumber>,
-    sealed_cid: Option<SectorId>,
-    deal_ids: Option<BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>>,
+    sector_number: SectorNumber,
+    sealed_cid: SectorId,
+    deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
     expiration: u64,
-    unsealed_cid: Option<SectorId>,
+    unsealed_cid: SectorId,
 }
 
 impl Default for SectorPreCommitInfoBuilder {
     fn default() -> Self {
         Self {
             seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
-            sector_number: None,
-            sealed_cid: None,
-            deal_ids: None,
+            sector_number: 1,
+            sealed_cid: cid_of("sealed_cid")
+                .to_bytes()
+                .try_into()
+                .expect("hash is always 32 bytes"),
+            deal_ids: bounded_vec![0, 1],
             expiration: YEARS,
-            unsealed_cid: None,
+            unsealed_cid: cid_of("unsealed_cid")
+                .to_bytes()
+                .try_into()
+                .expect("hash is always 32 bytes"),
         }
     }
 }
 
 impl SectorPreCommitInfoBuilder {
     pub fn sector_number(mut self, sector_number: u64) -> Self {
-        self.sector_number = Some(sector_number);
+        self.sector_number = sector_number;
         self
     }
 
@@ -242,27 +248,23 @@ impl SectorPreCommitInfoBuilder {
         I: IntoIterator<Item = DealId>,
     {
         let deal_ids_vec = deal_ids.into_iter().collect::<Vec<_>>();
-        self.deal_ids = Some(BoundedVec::try_from(deal_ids_vec).unwrap());
+        self.deal_ids = BoundedVec::try_from(deal_ids_vec).unwrap();
         self
     }
 
     pub fn sealed_cid(mut self, data: &str) -> Self {
-        self.sealed_cid = Some(
-            cid_of(data)
-                .to_bytes()
-                .try_into()
-                .expect("hash is always 32 bytes"),
-        );
+        self.sealed_cid = cid_of(data)
+            .to_bytes()
+            .try_into()
+            .expect("hash is always 32 bytes");
         self
     }
 
     pub fn unsealed_cid(mut self, data: &str) -> Self {
-        self.unsealed_cid = Some(
-            cid_of(data)
-                .to_bytes()
-                .try_into()
-                .expect("hash is always 32 bytes"),
-        );
+        self.unsealed_cid = cid_of(data)
+            .to_bytes()
+            .try_into()
+            .expect("hash is always 32 bytes");
         self
     }
 
@@ -274,11 +276,11 @@ impl SectorPreCommitInfoBuilder {
     pub fn build(self) -> SectorPreCommitInfo<u64> {
         SectorPreCommitInfo {
             seal_proof: self.seal_proof,
-            sector_number: self.sector_number.expect("sector number is required"),
-            sealed_cid: self.sealed_cid.expect("sealed cid is required"),
-            deal_ids: self.deal_ids.expect("deal ids are required"),
+            sector_number: self.sector_number,
+            sealed_cid: self.sealed_cid,
+            deal_ids: self.deal_ids,
             expiration: self.expiration,
-            unsealed_cid: self.unsealed_cid.expect("unsealed cid is required"),
+            unsealed_cid: self.unsealed_cid,
         }
     }
 }

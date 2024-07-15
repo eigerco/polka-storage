@@ -52,8 +52,6 @@ fn successfully_prove_sector() {
         let sector = SectorPreCommitInfoBuilder::default()
             .sector_number(sector_number)
             .deals([0])
-            .sealed_cid("sealed_cid")
-            .unsealed_cid("unsealed_cid")
             .build();
 
         // Run pre commit extrinsic
@@ -105,12 +103,7 @@ fn successfully_prove_sector() {
 fn fails_should_be_signed() {
     new_test_ext().execute_with(|| {
         // Sector to be pre-committed
-        let sector = SectorPreCommitInfoBuilder::default()
-            .sector_number(1)
-            .deals([0, 1])
-            .sealed_cid("sealed_cid")
-            .unsealed_cid("unsealed_cid")
-            .build();
+        let sector = SectorPreCommitInfoBuilder::default().build();
 
         // Run pre commit extrinsic
         assert_noop!(
@@ -204,8 +197,6 @@ fn fails_prove_commit_after_deadline() {
         let sector = SectorPreCommitInfoBuilder::default()
             .sector_number(sector_number)
             .deals([0])
-            .sealed_cid("sealed_cid")
-            .unsealed_cid("unsealed_cid")
             .build();
 
         // Run pre commit extrinsic
