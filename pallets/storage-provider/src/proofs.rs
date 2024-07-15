@@ -12,6 +12,7 @@ pub struct PoStProof {
     pub proof_bytes: BoundedVec<u8, ConstU32<256>>, // Arbitrary length
 }
 
+/// Error type for proof operations.
 #[derive(Debug)]
 pub enum ProofError {
     Conversion,
