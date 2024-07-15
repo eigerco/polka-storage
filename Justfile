@@ -25,7 +25,7 @@ build-parachain-docker:
         
 load-to-minikube:
     # https://github.com/paritytech/zombienet/pull/1830
-    # unless this is merged and we pull it in, launching it in local zombienet (without publishing the docker image is impossible)
+    # unless this is merged and we pull it in, launching it in local zombienet (without publicly publishing the docker image is impossible)
     minikube image load polkadotstorage.azurecr.io/parachain-node:0.1.0
 
 kube-testnet:

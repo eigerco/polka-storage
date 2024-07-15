@@ -13,10 +13,29 @@ just build-parachain-docker
 
 The command builds a Docker image `polkadotstorage.azurecr.io/parachain-node:0.1.0` from a Dockerfile located at `./docker/dockerfiles/parachain/Dockerfile`.
 
+## Authenticating and Authorizing to Azure Container Registry
+
+```bash
+az login --use-device-code --tenant dareneiger.onmicrosoft.com
+az acr login --name polkadotstorage.azurecr.io
+```
+
+> [!NOTE]
+> Azure Container Registry token expires after 3 hours.
+
+## Pulling the image from registry
+
+Use this option if you don't want to build locally.
+
+```bash
+docker pull polkadotstorage.azurecr.io/parachain-node:0.1.0
+```
+
 ## Running the Parachain
 
 Prerequisites:
-- Kubernetes Cluster access - configured [kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl), e.g. [minikube](https://minikube.sigs.k8s.io/docs/start/)
+- Kubernetes Cluster access - configured [kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl), e.g. [minikube](https://minikube.sigs.k8s.io/docs/start/),
+- If using `minikube`, a started minikube cluster (`minikube start`).
 
 The configuration is stored in `./zombienet/local-kube-testnet.toml`.
 ZombieNet [does not support private Docker registries](https://github.com/paritytech/zombienet/issues/1829) we need to do some trickery to test it out in Kubernetes.
@@ -27,7 +46,7 @@ It requires:
 just load-to-minikube
 ```
 2. Building patched ZombieNet
-    - requires NodeJS: preferably via [nvm](https://nodejs.org/en/download/package-manager)
+    - requires NodeJS (LTS v20): preferably via [nvm](https://nodejs.org/en/download/package-manager)
     - pulling a branch of [ZombieNet](https://github.com/paritytech/zombienet/pull/1830) and building it locally
     ```bash
         git clone -b th7nder/fix/generating-containers git@github.com:th7nder/zombienet.git patched-zombienet
