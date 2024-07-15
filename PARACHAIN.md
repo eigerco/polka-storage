@@ -11,7 +11,7 @@ Others were not tested and `polkadot` does not have an image for Linux ARM.
 just build-parachain-docker
 ```
 
-The command builds a Docker image `ghcr.io/eiger/polka-storage-node:0.1.0` from a Dockerfile located at `./docker/dockerfiles/parachain/Dockerfile`.
+The command builds a Docker image `polkadotstorage.azurecr.io/parachain-node:0.1.0` from a Dockerfile located at `./docker/dockerfiles/parachain/Dockerfile`.
 
 ## Running the Parachain
 

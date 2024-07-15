@@ -19,14 +19,14 @@ build-parachain-docker:
     docker build \
         --build-arg VCS_REF="$(git rev-parse HEAD)" \
         --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-        -t ghcr.io/eigerco/polka-storage-node:0.1.0 \
+        -t polkadotstorage.azurecr.io/parachain-node:0.1.0 \
         --file ./docker/dockerfiles/parachain/Dockerfile \
         .
         
 load-to-minikube:
     # https://github.com/paritytech/zombienet/pull/1830
     # unless this is merged and we pull it in, launching it in local zombienet (without publishing the docker image is impossible)
-    minikube image load ghcr.io/eigerco/polka-storage-node:0.1.0 
+    minikube image load polkadotstorage.azurecr.io/parachain-node:0.1.0
 
 kube-testnet:
     zombienet -p kubernetes spawn zombienet/local-kube-testnet.toml
