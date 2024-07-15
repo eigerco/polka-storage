@@ -5,6 +5,8 @@ use scale_info::TypeInfo;
 use sp_arithmetic::traits::BaseArithmetic;
 use sp_core::blake2_64;
 
+use crate::partition::PartitionNumber;
+
 /// Proof of Spacetime data stored on chain.
 #[derive(Debug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone)]
 pub struct PoStProof {
@@ -15,12 +17,15 @@ pub struct PoStProof {
 }
 
 /// Parameter type for `submit_windowed_post` extrinsic.
+// Filecoin has the partitions and the proofs in an array but then checks that there is only one element in the array.
+// Why even use the array?
+// ref: <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/actors/miner/src/lib.rs#L510>
 #[derive(Debug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone)]
 pub struct SubmitWindowedPoStParams<BlockNumber> {
     /// The deadline index which the submission targets.
     pub deadline: u64,
     /// The partition being proven.
-    pub index: u64,
+    pub partition: PartitionNumber,
     /// Proof submission
     pub proof: PoStProof,
     /// The block at which these proofs is being committed.

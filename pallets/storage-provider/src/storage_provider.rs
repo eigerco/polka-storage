@@ -2,29 +2,37 @@ use codec::{Decode, Encode};
 use frame_support::{
     pallet_prelude::{ConstU32, RuntimeDebug},
     sp_runtime::BoundedBTreeMap,
+    PalletError,
 };
 use primitives_proofs::{RegisteredPoStProof, SectorNumber, SectorSize};
 use scale_info::TypeInfo;
 use sp_arithmetic::{traits::BaseArithmetic, ArithmeticError};
 
-use crate::sector::{SectorOnChainInfo, SectorPreCommitOnChainInfo, SECTORS_MAX};
+use crate::{
+    deadline::{DeadlineError, DeadlineInfo, Deadlines},
+    sector::{SectorOnChainInfo, SectorPreCommitOnChainInfo, MAX_SECTORS},
+};
 
 /// This struct holds the state of a single storage provider.
 #[derive(Debug, Decode, Encode, TypeInfo)]
 pub struct StorageProviderState<PeerId, Balance, BlockNumber> {
     /// Contains static information about this storage provider
     pub info: StorageProviderInfo<PeerId>,
+
     /// Information for all proven and not-yet-garbage-collected sectors.
     pub sectors:
-        BoundedBTreeMap<SectorNumber, SectorOnChainInfo<BlockNumber>, ConstU32<SECTORS_MAX>>, // Cannot use ConstU64 here because of BoundedBTreeMap trait bound `Get<u32>`
+        BoundedBTreeMap<SectorNumber, SectorOnChainInfo<BlockNumber>, ConstU32<MAX_SECTORS>>, // Cannot use ConstU64 here because of BoundedBTreeMap trait bound `Get<u32>`,
+
     /// Total funds locked as pre_commit_deposit
     pub pre_commit_deposits: Balance,
+
     /// Sectors that have been pre-committed but not yet proven.
     pub pre_committed_sectors: BoundedBTreeMap<
         SectorNumber,
         SectorPreCommitOnChainInfo<Balance, BlockNumber>,
-        ConstU32<SECTORS_MAX>, // Cannot use ConstU64 here because of BoundedBTreeMap trait bound `Get<u32>`
+        ConstU32<MAX_SECTORS>, // Cannot use ConstU64 here because of BoundedBTreeMap trait bound `Get<u32>`
     >,
+
     /// The first block in this storage provider's current proving period. This is the first block in which a PoSt for a
     /// partition at the storage provider's first deadline may arrive. Alternatively, it is after the last block at which
     /// a PoSt for the previous window is valid.
@@ -33,16 +41,32 @@ pub struct StorageProviderState<PeerId, Balance, BlockNumber> {
     /// PoSt requirements.
     /// Updated at the end of every period.
     pub proving_period_start: BlockNumber,
+
     /// Index of the deadline within the proving period beginning at ProvingPeriodStart that has not yet been
     /// finalized.
     /// Updated at the end of each deadline window.
     pub current_deadline: BlockNumber,
+
+    /// Deadlines indexed by their proving periods — e.g. for proving period 7, find it in
+    /// `deadlines[7]` — proving periods are present in the interval `[0, 47]`.
+    ///
+    /// Bounded to 48 elements since that's the set amount of deadlines per proving period.
+    ///
+    /// In the original implementation, the information is kept in a separated structure, possibly
+    /// to make fetching the state more efficient as this is kept in the storage providers
+    /// blockstore. However, we're keeping all the state on-chain
+    ///
+    /// References:
+    /// * <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/state.rs#L105-L108>
+    /// * <https://spec.filecoin.io/#section-algorithms.pos.post.constants--terminology>
+    /// * <https://spec.filecoin.io/#section-algorithms.pos.post.design>
+    pub deadlines: Deadlines<BlockNumber>,
 }
 
 impl<PeerId, Balance, BlockNumber> StorageProviderState<PeerId, Balance, BlockNumber>
 where
     PeerId: Clone + Decode + Encode + TypeInfo,
-    BlockNumber: Decode + Encode + TypeInfo,
+    BlockNumber: Copy + BaseArithmetic + Decode + Encode + TypeInfo,
     Balance: BaseArithmetic,
 {
     pub fn new(
@@ -57,6 +81,7 @@ where
             pre_committed_sectors: BoundedBTreeMap::new(),
             proving_period_start: period_start,
             current_deadline: deadline_idx,
+            deadlines: Deadlines::new(),
         }
     }
 
@@ -117,9 +142,44 @@ where
             .map_err(|_| StorageProviderError::SectorNumberInUse)?;
         Ok(())
     }
+
+    /// Simple getter to load deadlines.
+    pub fn get_deadlines_mut(&mut self) -> &mut Deadlines<BlockNumber> {
+        &mut self.deadlines
+    }
+
+    pub fn get_sectors(
+        &self,
+    ) -> &BoundedBTreeMap<SectorNumber, SectorOnChainInfo<BlockNumber>, ConstU32<MAX_SECTORS>> {
+        &self.sectors
+    }
+
+    /// Returns deadline calculations for the current (according to state) proving period.
+    pub fn deadline_info(
+        &self,
+        current_block: BlockNumber,
+        w_post_challenge_window: BlockNumber,
+        w_post_period_deadlines: u64,
+        w_post_proving_period: BlockNumber,
+    ) -> Result<DeadlineInfo<BlockNumber>, DeadlineError> {
+        let current_deadline_index =
+            (current_block / self.proving_period_start) / w_post_challenge_window;
+        // convert to u64
+        let current_deadline_index: u64 = current_deadline_index
+            .try_into()
+            .map_err(|_| DeadlineError::CouldNotConstructDeadlineInfo)?;
+        DeadlineInfo::new(
+            current_block,
+            self.proving_period_start,
+            current_deadline_index,
+            w_post_period_deadlines,
+            w_post_challenge_window,
+            w_post_proving_period,
+        )
+    }
 }
 
-#[derive(RuntimeDebug)]
+#[derive(Decode, Encode, PalletError, TypeInfo, RuntimeDebug)]
 pub enum StorageProviderError {
     /// Happens when an SP tries to pre-commit more sectors than SECTOR_MAX.
     MaxPreCommittedSectorExceeded,

@@ -1,0 +1,236 @@
+use codec::{Decode, Encode};
+use frame_support::{
+    pallet_prelude::*,
+    sp_runtime::{BoundedBTreeMap, BoundedVec},
+    PalletError,
+};
+use scale_info::TypeInfo;
+use sp_arithmetic::traits::BaseArithmetic;
+
+use crate::partition::{Partition, PartitionNumber, MAX_PARTITIONS};
+
+type DeadlineResult<T> = Result<T, DeadlineError>;
+
+/// Deadline holds the state for all sectors due at a specific deadline.
+///
+/// A deadline exists along side 47 other deadlines (1 for every 30 minutes in a day).
+/// Only one deadline may be active for a given proving window.
+#[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
+pub struct Deadline<BlockNumber> {
+    /// Partitions in this deadline. Indexed on partition number.
+    pub partitions:
+        BoundedBTreeMap<PartitionNumber, Partition<BlockNumber>, ConstU32<MAX_PARTITIONS>>,
+
+    /// Partitions that have been proved by window PoSts so far during the
+    /// current challenge window.
+    pub partitions_posted: BoundedBTreeSet<PartitionNumber, ConstU32<MAX_PARTITIONS>>,
+
+    /// Partition numbers with sectors that terminated early.
+    pub early_terminations: BoundedBTreeSet<PartitionNumber, ConstU32<MAX_PARTITIONS>>,
+
+    /// The number of non-terminated sectors in this deadline (incl faulty).
+    pub live_sectors: u64,
+
+    /// The total number of sectors in this deadline (incl dead).
+    pub total_sectors: u64,
+}
+
+impl<BlockNumber> Deadline<BlockNumber> {
+    pub fn new() -> Self {
+        Self {
+            partitions: BoundedBTreeMap::new(),
+            partitions_posted: BoundedBTreeSet::new(),
+            early_terminations: BoundedBTreeSet::new(),
+            live_sectors: 0,
+            total_sectors: 0,
+        }
+    }
+
+    pub fn update_deadline(&mut self, new_dl: Self) {
+        self.partitions_posted = new_dl.partitions_posted;
+        self.early_terminations = new_dl.early_terminations;
+        self.live_sectors = new_dl.live_sectors;
+        self.total_sectors = new_dl.total_sectors;
+        self.partitions = new_dl.partitions;
+    }
+
+    /// Processes a PoSt
+    pub fn record_proven(&mut self, partition_num: PartitionNumber) -> DeadlineResult<()> {
+        ensure!(
+            !self.partitions_posted.contains(&partition_num),
+            DeadlineError::PartitionAlreadyProven
+        );
+        self.partitions_posted
+            .try_insert(partition_num)
+            .map_err(|_| DeadlineError::ProofUpdateFailed)?;
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
+pub struct Deadlines<BlockNumber> {
+    /// Deadlines indexed by their proving periods — e.g. for proving period 7, find it in
+    /// `deadlines[7]` — proving periods are present in the interval `[0, 47]`.
+    ///
+    /// Bounded to 48 elements since that's the set amount of deadlines per proving period.
+    ///
+    /// In the original implementation, the information is kept in a separated structure, possibly
+    /// to make fetching the state more efficient as this is kept in the storage providers
+    /// blockstore. However, we're keeping all the state on-chain
+    ///
+    /// References:
+    /// * <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/state.rs#L105-L108>
+    /// * <https://spec.filecoin.io/#section-algorithms.pos.post.constants--terminology>
+    /// * <https://spec.filecoin.io/#section-algorithms.pos.post.design>
+    pub due: BoundedVec<Deadline<BlockNumber>, ConstU32<48>>,
+}
+
+impl<BlockNumber> Deadlines<BlockNumber> {
+    /// Constructor function.
+    pub fn new() -> Self {
+        Self {
+            due: BoundedVec::new(),
+        }
+    }
+
+    /// Get the amount of deadlines that are due.
+    pub fn len(&self) -> usize {
+        self.due.len()
+    }
+
+    /// Inserts a new deadline.
+    /// Fails if the deadline insertion fails.
+    /// Returns the deadline index it inserted the deadline at
+    ///
+    /// I am not sure if this should just insert the new deadline at the back and return the index
+    /// or take in the index and insert the deadline in there.
+    pub fn insert_deadline(
+        &mut self,
+        new_deadline: Deadline<BlockNumber>,
+    ) -> DeadlineResult<usize> {
+        self.due
+            .try_push(new_deadline)
+            .map_err(|_| DeadlineError::CouldNotInsertDeadline)?;
+        // No underflow if the above was successful, minimum length 1
+        Ok(self.due.len() - 1)
+    }
+
+    /// Loads a deadline from the given index.
+    /// Fails if the index does not exist or is out of range.
+    pub fn load_deadline(&mut self, idx: usize) -> DeadlineResult<&mut Deadline<BlockNumber>> {
+        // Ensure the provided index is within range.
+        ensure!(self.len() > idx, DeadlineError::DeadlineIndexOutOfRange);
+        self.due.get_mut(idx).ok_or(DeadlineError::DeadlineNotFound)
+    }
+
+    /// Records a deadline as proven
+    pub fn record_proven(
+        &mut self,
+        deadline_idx: usize,
+        partition_num: PartitionNumber,
+    ) -> DeadlineResult<()> {
+        let deadline = self.load_deadline(deadline_idx)?;
+        deadline.record_proven(partition_num)?;
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
+pub struct DeadlineInfo<BlockNumber> {
+    /// The block number at which this info was calculated.
+    pub block_number: BlockNumber,
+
+    /// The block number at which the proving period for this deadline starts.
+    pub period_start: BlockNumber,
+
+    /// The deadline index within its proving window.
+    pub idx: u64,
+
+    /// The first block number from which a proof can be submitted.
+    pub open: BlockNumber,
+
+    /// The first block number from which a proof can *no longer* be submitted.
+    pub close: BlockNumber,
+}
+
+impl<BlockNumber: BaseArithmetic + Copy> DeadlineInfo<BlockNumber> {
+    /// Constructs a new `DeadlineInfo`
+    // ref: <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/actors/miner/src/deadline_info.rs#L43>
+    pub fn new(
+        block_number: BlockNumber,
+        period_start: BlockNumber,
+        idx: u64,
+        w_post_period_deadlines: u64,
+        w_post_challenge_window: BlockNumber,
+        w_post_proving_period: BlockNumber,
+    ) -> DeadlineResult<Self> {
+        // convert w_post_period_deadlines and idx so we can math
+        // interesting that the error type for `BlockNumber::try_from` is `Infallible` indicating that it cannot fail.
+        // ref: <https://doc.rust-lang.org/nightly/core/convert/trait.TryFrom.html#generic-implementations>
+        // does this mean we do no need to catch the error?
+        let period_deadlines = BlockNumber::try_from(w_post_period_deadlines)
+            .map_err(|_| DeadlineError::CouldNotConstructDeadlineInfo)?;
+        let idx_converted =
+            BlockNumber::try_from(idx).map_err(|_| DeadlineError::CouldNotConstructDeadlineInfo)?;
+        if idx_converted < period_deadlines {
+            let deadline_open = period_start + (idx_converted * w_post_challenge_window);
+            Ok(Self {
+                block_number,
+                period_start,
+                idx,
+                open: deadline_open,
+                close: deadline_open + w_post_challenge_window,
+            })
+        } else {
+            let after_last_deadline = period_start + w_post_proving_period;
+            Ok(Self {
+                block_number,
+                period_start,
+                idx,
+                open: after_last_deadline,
+                close: after_last_deadline,
+            })
+        }
+    }
+
+    /// Whether the current deadline is currently open.
+    pub fn is_open(&self) -> bool {
+        self.block_number >= self.open && self.block_number < self.close
+    }
+}
+
+#[derive(Decode, Encode, PalletError, TypeInfo, RuntimeDebug)]
+pub enum DeadlineError {
+    /// Emitted when the passed in deadline index supplied for `submit_windowed_post` is out of range.
+    DeadlineIndexOutOfRange,
+    /// Emitted when a trying to get a deadline index but fails because that index does not exist.
+    DeadlineNotFound,
+    /// Emitted when a given index in `Deadlines` already exists and try to insert a deadline on that index.
+    DeadlineIndexExists,
+    /// Emitted when trying to insert a new deadline fails.
+    CouldNotInsertDeadline,
+    /// Emitted when constructing `DeadlineInfo` fails.
+    CouldNotConstructDeadlineInfo,
+    /// Emitted when a proof is submitted for a partition that is already proven.
+    PartitionAlreadyProven,
+    /// Emitted when trying to retrieve a partition that does not exit.
+    PartitionNotFound,
+    /// Emitted when trying to update proven partitions fails
+    ProofUpdateFailed,
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn load_deadline() -> DeadlineResult<()> {
+        let mut dls: Deadlines<u32> = Deadlines::new();
+        let dl: Deadline<u32> = Deadline::new();
+
+        let idx = dls.insert_deadline(dl.clone())?;
+        let loaded_dl = dls.load_deadline(idx)?;
+        assert_eq!(&dl, loaded_dl);
+        Ok(())
+    }
+}

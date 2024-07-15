@@ -75,6 +75,7 @@ parameter_types! {
     pub const MaxSectorExpirationExtension: BlockNumber = 1278 * DAYS;
     pub const SectorMaximumLifetime: BlockNumber = YEARS * 5;
     pub const MaxProveCommitDuration: BlockNumber =  (30 * DAYS) + 150;
+    pub const WPoStPeriodDeadlines: u64 = 48;
 }
 
 impl pallet_storage_provider::Config for Test {
@@ -88,6 +89,7 @@ impl pallet_storage_provider::Config for Test {
     type MaxSectorExpirationExtension = MaxSectorExpirationExtension;
     type SectorMaximumLifetime = SectorMaximumLifetime;
     type MaxProveCommitDuration = MaxProveCommitDuration;
+    type WPoStPeriodDeadlines = WPoStPeriodDeadlines;
 }
 
 pub type AccountIdOf<Test> = <Test as frame_system::Config>::AccountId;
