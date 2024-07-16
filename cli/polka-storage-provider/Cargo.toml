@@ -15,7 +15,7 @@ cid = { workspace = true, default-features = false, features = ["scale-codec", "
 clap = { workspace = true, features = ["derive"] }
 codec = { workspace = true, default-features = false, features = ["derive"] }
 futures = { workspace = true }
-hex = { workspace = true }
+hex = { workspace = true, default-features = false, features = ["std"] }
 jsonrpsee = { workspace = true, features = ["http-client", "server", "ws-client"] }
 mater = { workspace = true }
 multihash-codetable = { workspace = true, features = ["blake2b"] }

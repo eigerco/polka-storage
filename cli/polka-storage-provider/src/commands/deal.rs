@@ -71,9 +71,9 @@ impl DealProposalCommand {
             piece_size: 1,
             client,
             provider,
-            label: bounded_vec![0xd, 0xe, 0xa, 0xd],
+            label: bounded_vec![0xde, 0xad],
             start_block: 100,
-            end_block: 1300000,
+            end_block: 100 + 741265408 + 200,
             storage_price_per_block: 1,
             provider_collateral: 1,
             state: DealState::<BlockNumber>::Published,
@@ -88,3 +88,6 @@ impl DealProposalCommand {
         Ok(())
     }
 }
+
+// 980155a0e4022022e14069bfa61a3c7440209dbc8922d591719a1b5cf96cf1262b0fc6aec0b60f0100000000000000d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d90b5ab205c6974c9ea841be688864633dc9ca8a357843eeacf2314649965fe2208dead6400000020d61300010000000000000000000000000000000100000000000000000000000000000000
+// 980155a0e4022022e14069bfa61a3c7440209dbc8922d591719a1b5cf96cf1262b0fc6aec0b60f0100000000000000d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d90b5ab205c6974c9ea841be688864633dc9ca8a357843eeacf2314649965fe2208dead6400000020d61300010000000000000000000000000000000100000000000000000000000000000000 

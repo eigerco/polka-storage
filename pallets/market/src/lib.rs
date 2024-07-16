@@ -923,13 +923,10 @@ pub mod pallet {
             >,
             provider: &T::AccountId,
         ) -> Result<(), ProposalError> {
-            log::trace!(target: LOG_TARGET, "validating signature...");
-
-            Self::validate_signature(
-                &Encode::encode(&deal.proposal),
-                &deal.client_signature,
-                &deal.proposal.client,
-            )?;
+            log::trace!(target: LOG_TARGET, "validating signature... {:?}", deal.client_signature);
+            let encoded = Encode::encode(&deal.proposal);
+            log::trace!(target: LOG_TARGET, "encoded data: {}", hex::encode(&encoded));
+            Self::validate_signature(&encoded, &deal.client_signature, &deal.proposal.client)?;
 
             log::trace!(target: LOG_TARGET, "validating cid...");
             // Ensure the Piece's Cid is parsable and valid
