@@ -15,6 +15,10 @@ clap = { workspace = true, features = ["derive"] }
 futures = { workspace = true }
 jsonrpsee = { workspace = true, features = ["http-client", "server", "ws-client"] }
 mater = { workspace = true }
+# primitives-proofs = { workspace = true, features = ["std"]}
+pallet-market = { workspace = true, features = ["std"]}
+sp-runtime = { workspace = true, features = ["std"] }
+sp-core = { workspace = true, features = ["std"] }
 sc-cli = { workspace = true }
 sealed = { workspace = true }
 serde = { workspace = true }

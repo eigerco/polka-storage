@@ -17,6 +17,7 @@ pub(crate) async fn run() -> Result<(), CliError> {
     let rpc_client = Client::new(cli_arguments.rpc_server_url).await?;
 
     match &cli_arguments.subcommand {
+        SubCommand::Deal(cmd) => cmd.run().await,
         SubCommand::Init(cmd) => cmd.run().await,
         SubCommand::Run(cmd) => cmd.run().await,
         SubCommand::Storage(cmd) => cmd.run().await,

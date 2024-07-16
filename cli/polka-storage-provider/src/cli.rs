@@ -3,7 +3,7 @@ use thiserror::Error;
 use url::Url;
 
 use crate::{
-    commands::{InfoCommand, InitCommand, RunCommand, StorageCommand, WalletCommand},
+    commands::{DealProposalCommand, InfoCommand, InitCommand, RunCommand, StorageCommand, WalletCommand},
     rpc::{server::RPC_SERVER_DEFAULT_BIND_ADDR, ClientError},
 };
 
@@ -31,6 +31,8 @@ pub enum SubCommand {
     Storage(StorageCommand),
     /// Info command to display information about the storage provider.
     Info(InfoCommand),
+    /// Command to generate a deal proposal by one of 3 guys  
+    Deal(DealProposalCommand),
     /// Command to manage wallet operations.
     #[command(subcommand)]
     Wallet(WalletCommand),
