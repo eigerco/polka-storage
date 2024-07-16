@@ -1,8 +1,11 @@
-use pallet_market::{ClientDealProposal, DealProposal, DealState};
+use pallet_market::{ClientDealProposal, DealProposal, DealState, CID_CODEC};
 use clap::Parser;
 use sp_runtime::{AccountId32, MultiSigner, MultiSignature, bounded_vec, traits::{Verify, IdentifyAccount}};
 use sp_core::Pair;
+use cid::Cid;
 use codec::Encode;
+use multihash_codetable::{Code, MultihashDigest};
+
 
 use crate::cli::CliError;
 
@@ -44,13 +47,18 @@ pub fn sign_proposal(client: &str, proposal: DealProposal::<AccountId, Balance, 
     }
 }
 
+pub fn cid_of(data: &str) -> cid::Cid {
+    Cid::new_v1(CID_CODEC, Code::Blake2b256.digest(data.as_bytes()))
+}
+
 impl DealProposalCommand {
     pub async fn run(&self) -> Result<(), CliError> {
         let client: AccountId32 = account("//Alice");
         let provider: AccountId32 = account("//Charlie");
 
+        let c = cid_of("marrocc");
         let deal_proposal = DealProposal::<AccountId, Balance, BlockNumber> {
-            piece_cid: bounded_vec![],
+            piece_cid: c.to_bytes().try_into().unwrap(),
             piece_size: 1,
             client,
             provider,
@@ -64,6 +72,8 @@ impl DealProposalCommand {
         let client_proposal = sign_proposal("//Alice", deal_proposal);
 
         println!("c'est la vi, {:?}", client_proposal);
+        println!("numbli je: {:?}", hex::encode(c.to_bytes()));
+
         Ok(())
     }
 }
