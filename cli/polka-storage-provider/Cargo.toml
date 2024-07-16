@@ -10,6 +10,7 @@ version = "0.1.0"
 [dependencies]
 async-trait = { workspace = true }
 axum = { workspace = true, features = ["macros", "multipart"] }
+codec = { workspace = true, default-features = false, features = ["derive"] }
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive"] }
 futures = { workspace = true }

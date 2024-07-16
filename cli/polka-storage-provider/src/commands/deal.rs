@@ -1,7 +1,8 @@
-use pallet_market::{DealProposal, DealState};
+use pallet_market::{ClientDealProposal, DealProposal, DealState};
 use clap::Parser;
 use sp_runtime::{AccountId32, MultiSigner, MultiSignature, bounded_vec, traits::{Verify, IdentifyAccount}};
 use sp_core::Pair;
+use codec::Encode;
 
 use crate::cli::CliError;
 
@@ -29,6 +30,20 @@ pub fn account(name: &str) -> AccountId32 {
     signer.into_account()
 }
 
+pub fn sign(pair: &sp_core::sr25519::Pair, bytes: &[u8]) -> MultiSignature {
+    MultiSignature::Sr25519(pair.sign(bytes))
+}
+
+pub fn sign_proposal(client: &str, proposal: DealProposal::<AccountId, Balance, BlockNumber>) -> 
+    ClientDealProposal::<AccountId, Balance, BlockNumber, MultiSignature> {
+    let alice_pair = key_pair(client);
+    let client_signature = sign(&alice_pair, &Encode::encode(&proposal));
+    ClientDealProposal {
+        proposal,
+        client_signature,
+    }
+}
+
 impl DealProposalCommand {
     pub async fn run(&self) -> Result<(), CliError> {
         let client: AccountId32 = account("//Alice");
@@ -46,8 +61,9 @@ impl DealProposalCommand {
             provider_collateral: 100, 
             state: DealState::<BlockNumber>::Published,
         };
+        let client_proposal = sign_proposal("//Alice", deal_proposal);
 
-        println!("c'est la vi, {:?}", deal_proposal);
+        println!("c'est la vi, {:?}", client_proposal);
         Ok(())
     }
 }
