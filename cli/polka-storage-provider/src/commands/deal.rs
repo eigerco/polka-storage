@@ -45,7 +45,9 @@ pub fn sign_proposal(
     proposal: DealProposal<AccountId, Balance, BlockNumber>,
 ) -> ClientDealProposal<AccountId, Balance, BlockNumber, MultiSignature> {
     let alice_pair = key_pair(client);
-    let client_signature = sign(&alice_pair, &Encode::encode(&proposal));
+    let encoded = Encode::encode(&proposal);
+    println!("encoded proposal: {}", hex::encode(&encoded));
+    let client_signature = sign(&alice_pair, &encoded);
     ClientDealProposal {
         proposal,
         client_signature,
@@ -77,10 +79,12 @@ impl DealProposalCommand {
             state: DealState::<BlockNumber>::Published,
         };
         let client_proposal = sign_proposal("//Alice", deal_proposal);
-
-        println!("c'est la vi, {:?}", client_proposal);
-        println!("numbli je: {:?}", hex::encode(c.to_bytes()));
-
+        // println!("client proposal {:?}", client_proposal);
+        println!("encoded cid  {:?}", hex::encode(c.to_bytes()));
+        let MultiSignature::Sr25519(crypto_bytes) = &client_proposal.client_signature else {
+            panic!("no no no");
+        };
+        println!("signature hex: {:?}", hex::encode(&crypto_bytes[..]));
         Ok(())
     }
 }
