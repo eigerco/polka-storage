@@ -17,7 +17,7 @@ The command builds a Docker image `polkadotstorage.azurecr.io/parachain-node:0.1
 
 ```bash
 az login --use-device-code --tenant dareneiger.onmicrosoft.com
-az acr login --name polkadotstorage.azurecr.io
+az acr login --name polkadotstorage
 ```
 
 > [!NOTE]
