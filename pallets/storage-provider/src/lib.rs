@@ -16,10 +16,7 @@ pub use pallet::{Config, Pallet};
 mod benchmarks;
 
 #[cfg(test)]
-mod mock;
-
-#[cfg(test)]
-mod test;
+mod tests;
 
 mod proofs;
 mod sector;
@@ -165,8 +162,8 @@ pub mod pallet {
         InvalidCid,
         /// Emitted when a sector fails to activate
         CouldNotActivateSector,
-        /// Emitted when a prove commit is sent after the dealine
-        /// These precommits will be cleaned up in the hook
+        /// Emitted when a prove commit is sent after the deadline.
+        /// These pre-commits will be cleaned up in the hook.
         ProveCommitAfterDeadline,
     }
 
@@ -258,7 +255,7 @@ pub mod pallet {
             Ok(())
         }
 
-        /// Allows the SP to submit proof for their precomitted sectors.
+        /// Allows the storage providers to submit proof for their pre-committed sectors.
         // TODO(@aidan46, no-ref, 2024-06-24): Add functionality to allow for batch pre commit
         // TODO(@aidan46, no-ref, 2024-06-24): Actually check proof, currently the proof validation is stubbed out.
         pub fn prove_commit_sector(
@@ -269,16 +266,14 @@ pub mod pallet {
             let sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
             let sector_number = sector.sector_number;
-            ensure!(
-                sector_number <= SECTORS_MAX.into(),
-                Error::<T>::InvalidSector
-            );
+
             let precommit = sp
                 .get_pre_committed_sector(sector_number)
                 .map_err(|_| Error::<T>::InvalidSector)?;
             let current_block = <frame_system::Pallet<T>>::block_number();
             let prove_commit_due =
                 precommit.pre_commit_block_number + T::MaxProveCommitDuration::get();
+
             ensure!(
                 current_block < prove_commit_due,
                 Error::<T>::ProveCommitAfterDeadline
@@ -287,8 +282,10 @@ pub mod pallet {
                 validate_seal_proof(&precommit.info.seal_proof, sector.proof),
                 Error::<T>::InvalidProofType,
             );
+
             let new_sector =
                 SectorOnChainInfo::from_pre_commit(precommit.info.clone(), current_block);
+
             StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResult {
                 let sp = maybe_sp
                     .as_mut()
@@ -299,16 +296,20 @@ pub mod pallet {
                     .map_err(|_| Error::<T>::CouldNotRemoveSector)?;
                 Ok(())
             })?;
+
             let mut sector_deals = BoundedVec::new();
             sector_deals
                 .try_push(precommit.into())
                 .map_err(|_| Error::<T>::CouldNotActivateSector)?;
+
             let deal_amount = sector_deals.len();
             T::Market::activate_deals(&owner, sector_deals, deal_amount > 0)?;
+
             Self::deposit_event(Event::SectorProven {
                 owner,
                 sector_number,
             });
+
             Ok(())
         }
     }
@@ -360,6 +361,7 @@ pub mod pallet {
         );
         Ok(())
     }
+
     /// Calculate the required pre commit deposit amount
     fn calculate_pre_commit_deposit<T: Config>() -> BalanceOf<T> {
         1u32.into() // TODO(@aidan46, #106, 2024-06-24): Set a logical value or calculation
