@@ -6,12 +6,12 @@ To build the Docker image for the provider, execute the following command in the
 docker build \
     --build-arg VCS_REF=$(git rev-parse HEAD) \
     --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
-    -t eiger/polka-storage-provider \
+    -t polkadotstorage.azurecr.io/polka-storage-provider:0.1.0 \
     --file ./docker/dockerfiles/storage-provider/Dockerfile \
     .
 ```
 
-This command uses the custom Dockerfile located at `./docker/dockerfiles/storage-provider/Dockerfile` to create an image named `eiger/polka-storage-provider`.
+This command uses the custom Dockerfile located at `./docker/dockerfiles/storage-provider/Dockerfile` to create an image named `polkadotstorage.azurecr.io/polka-storage-provider:0.1.0`.
 
 ## Start the Storage Provider Server
 
@@ -31,13 +31,13 @@ Next, start the storage server using the created volume:
 docker run \
     -p 127.0.0.1:9000:9000 \
     --mount source=storage_provider,destination=/app/uploads \
-    eiger/polka-storage-provider storage \
+    polkadotstorage.azurecr.io/polka-storage-provider:0.1.0 storage \
         --listen-addr 0.0.0.0:9000
 ```
 
 - `-p 127.0.0.1:9000:9000`: This maps port `9000` on the localhost to port `9000` on the container.
 - `--mount source=storage_provider,destination=/app/uploads`: Mounts the `storage_provider` volume to `/app/uploads` inside the container.
-- `eiger/polka-storage-provider storage`: Runs the `eiger/polka-storage-provider` image with the `storage` command.
+- `polkadotstorage.azurecr.io/polka-storage-provider:0.1.0 storage`: Runs the `polkadotstorage.azurecr.io/polka-storage-provider:0.1.0` image with the `storage` command.
 - `--listen-addr 0.0.0.0:9000`: Configures the server to listen on all available network interfaces.
 
 ## Upload a file
