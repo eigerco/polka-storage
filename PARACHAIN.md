@@ -59,3 +59,18 @@ just load-to-minikube
 ```bash
 patched-zombienet/javascript/bins/zombienet-linux-x64 -p kubernetes spawn zombienet/local-kube-testnet.toml
 ```
+
+## Zombienet Structure
+
+The previous setup leaves us with 3 nodes:
+* Alice
+* Bob
+* Charlie
+
+The first two (Alice and Bob) will be running Polkadot relay chain nodes, as such,
+you won't have access to the parachain extrinsics when calling them.
+
+Charlie however, is running a parachain node, and as such, he will be your contact point to the parachain.
+
+> Check you Kubernetes cluster status by using `kubectl get pods --all-namespaces`.
+> It should show all pods from all namespaces along with their status.
