@@ -24,7 +24,7 @@ type Balance = u128;
 type BlockNumber = u32;
 
 pub fn key_pair(name: &str) -> sp_core::sr25519::Pair {
-    sp_core::sr25519::Pair::from_string(name, None).unwrap()
+    sp_core::sr25519::Pair::from_string(name, None).expect("pls work")
 }
 
 pub fn account(name: &str) -> AccountId32 {
@@ -58,7 +58,7 @@ impl DealProposalCommand {
 
         let c = cid_of("marrocc");
         let deal_proposal = DealProposal::<AccountId, Balance, BlockNumber> {
-            piece_cid: c.to_bytes().try_into().unwrap(),
+            piece_cid: c.to_bytes().try_into().expect("work eh"),
             piece_size: 1,
             client,
             provider,
