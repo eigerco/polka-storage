@@ -1,11 +1,14 @@
-use pallet_market::{ClientDealProposal, DealProposal, DealState, CID_CODEC};
-use clap::Parser;
-use sp_runtime::{AccountId32, MultiSigner, MultiSignature, bounded_vec, traits::{Verify, IdentifyAccount}};
-use sp_core::Pair;
 use cid::Cid;
+use clap::Parser;
 use codec::Encode;
 use multihash_codetable::{Code, MultihashDigest};
-
+use pallet_market::{ClientDealProposal, DealProposal, DealState, CID_CODEC};
+use sp_core::Pair;
+use sp_runtime::{
+    bounded_vec,
+    traits::{IdentifyAccount, Verify},
+    AccountId32, MultiSignature, MultiSigner,
+};
 
 use crate::cli::CliError;
 
@@ -37,8 +40,10 @@ pub fn sign(pair: &sp_core::sr25519::Pair, bytes: &[u8]) -> MultiSignature {
     MultiSignature::Sr25519(pair.sign(bytes))
 }
 
-pub fn sign_proposal(client: &str, proposal: DealProposal::<AccountId, Balance, BlockNumber>) -> 
-    ClientDealProposal::<AccountId, Balance, BlockNumber, MultiSignature> {
+pub fn sign_proposal(
+    client: &str,
+    proposal: DealProposal<AccountId, Balance, BlockNumber>,
+) -> ClientDealProposal<AccountId, Balance, BlockNumber, MultiSignature> {
     let alice_pair = key_pair(client);
     let client_signature = sign(&alice_pair, &Encode::encode(&proposal));
     ClientDealProposal {
@@ -56,6 +61,8 @@ impl DealProposalCommand {
         let client: AccountId32 = account("//Alice");
         let provider: AccountId32 = account("//Charlie");
 
+        println!("client: {}", client);
+        println!("provider: {}", provider);
         let c = cid_of("marrocc");
         let deal_proposal = DealProposal::<AccountId, Balance, BlockNumber> {
             piece_cid: c.to_bytes().try_into().expect("work eh"),
@@ -64,9 +71,9 @@ impl DealProposalCommand {
             provider,
             label: bounded_vec![0xd, 0xe, 0xa, 0xd],
             start_block: 100,
-            end_block: 120,
-            storage_price_per_block: 10,
-            provider_collateral: 100, 
+            end_block: 1300000,
+            storage_price_per_block: 1,
+            provider_collateral: 1,
             state: DealState::<BlockNumber>::Published,
         };
         let client_proposal = sign_proposal("//Alice", deal_proposal);

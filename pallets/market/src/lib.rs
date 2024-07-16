@@ -923,25 +923,31 @@ pub mod pallet {
             >,
             provider: &T::AccountId,
         ) -> Result<(), ProposalError> {
+            log::trace!(target: LOG_TARGET, "validating signature...");
+
             Self::validate_signature(
                 &Encode::encode(&deal.proposal),
                 &deal.client_signature,
                 &deal.proposal.client,
             )?;
 
+            log::trace!(target: LOG_TARGET, "validating cid...");
             // Ensure the Piece's Cid is parsable and valid
             let _ = deal.proposal.cid()?;
 
+            log::trace!(target: LOG_TARGET, "checking if provider is the same across deals");
             ensure!(
                 deal.proposal.provider == *provider,
                 ProposalError::DifferentProvider
             );
 
+            log::trace!(target: LOG_TARGET, "check if deal.start_block < deal.end_block");
             ensure!(
                 deal.proposal.start_block < deal.proposal.end_block,
                 ProposalError::DealEndBeforeStart
             );
 
+            log::trace!(target: LOG_TARGET, "check if deal.state == PUBLISHED");
             ensure!(
                 deal.proposal.state == DealState::Published,
                 ProposalError::DealNotPublished
@@ -949,6 +955,7 @@ pub mod pallet {
 
             let min_dur = T::BlocksPerDay::get() * T::MinDealDuration::get();
             let max_dur = T::BlocksPerDay::get() * T::MaxDealDuration::get();
+            log::trace!(target: LOG_TARGET, "checking if deal.duration() {:?} <= {:?} <= {:?}", min_dur, deal.proposal.duration(), max_dur);
             ensure!(
                 deal.proposal.duration() >= min_dur && deal.proposal.duration() <= max_dur,
                 ProposalError::DealDurationOutOfBounds

@@ -3,7 +3,9 @@ use thiserror::Error;
 use url::Url;
 
 use crate::{
-    commands::{DealProposalCommand, InfoCommand, InitCommand, RunCommand, StorageCommand, WalletCommand},
+    commands::{
+        DealProposalCommand, InfoCommand, InitCommand, RunCommand, StorageCommand, WalletCommand,
+    },
     rpc::{server::RPC_SERVER_DEFAULT_BIND_ADDR, ClientError},
 };
 
