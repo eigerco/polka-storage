@@ -162,7 +162,7 @@ fn fails_prove_commit_after_deadline() {
     let proving_at_block_number = precommit_at_block_number + MaxProveCommitDuration::get();
 
     new_test_ext().execute_with(|| {
-        run_to_block(precommit_at_block_number);
+        run_to_block(precommit_at_block_number as u64);
 
         let storage_provider = ALICE;
         let storage_client = BOB;
@@ -211,7 +211,7 @@ fn fails_prove_commit_after_deadline() {
             proof: bounded_vec![0xd, 0xe, 0xa, 0xd],
         };
 
-        run_to_block(proving_at_block_number);
+        run_to_block(proving_at_block_number as u64);
 
         assert_noop!(
             StorageProvider::prove_commit_sector(

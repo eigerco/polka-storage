@@ -45,7 +45,7 @@ pub mod pallet {
 
     use crate::{
         proofs::{
-            assign_proving_period_offset, current_deadline_index, current_proving_period_start,
+            calculate_proving_period_offset, current_deadline_index, current_proving_period_start,
         },
         sector::{
             ProveCommitSector, SectorOnChainInfo, SectorPreCommitInfo, SectorPreCommitOnChainInfo,
@@ -78,7 +78,7 @@ pub mod pallet {
         type Market: Market<Self::AccountId, BlockNumberFor<Self>>;
         /// Proving period for submitting Window PoSt, 24 hours is blocks
         #[pallet::constant]
-        type WPoStProvingPeriod: Get<BlockNumberFor<Self>>;
+        type WPoStProvingPeriod: Get<u32>;
         /// Window PoSt challenge window (default 30 minutes in blocks)
         #[pallet::constant]
         type WPoStChallengeWindow: Get<BlockNumberFor<Self>>;
@@ -180,22 +180,28 @@ pub mod pallet {
                 !StorageProviders::<T>::contains_key(&owner),
                 Error::<T>::StorageProviderExists
             );
+
+            // Calculate proving offset for this potential provider
             let proving_period = T::WPoStProvingPeriod::get();
             let current_block = <frame_system::Pallet<T>>::block_number();
-            let offset = assign_proving_period_offset::<T::AccountId, BlockNumberFor<T>>(
+            let offset = calculate_proving_period_offset::<T::AccountId, BlockNumberFor<T>>(
                 &owner,
                 current_block,
                 proving_period,
-            )
-            .map_err(|_| Error::<T>::ConversionError)?;
+            );
+
             let period_start = current_proving_period_start(current_block, offset, proving_period);
             let deadline_idx =
                 current_deadline_index(current_block, period_start, T::WPoStChallengeWindow::get());
             let info = StorageProviderInfo::new(peer_id, window_post_proof_type);
             let state = StorageProviderState::new(&info, period_start, deadline_idx);
+
+            // Insert the storage provider into storage
             StorageProviders::<T>::insert(&owner, state);
+
             // Emit event
             Self::deposit_event(Event::StorageProviderRegistered { owner, info });
+
             Ok(())
         }
 

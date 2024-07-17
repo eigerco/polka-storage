@@ -201,7 +201,7 @@ fn fails_expiration_too_soon() {
         let sector = SectorPreCommitInfoBuilder::default()
             // Set expiration to be in the next block after the maximum
             // allowed activation.
-            .expiration(current_height + MaxProveCommitDuration::get() + 1)
+            .expiration(current_height + MaxProveCommitDuration::get() as u64 + 1)
             .build();
 
         assert_noop!(
@@ -229,7 +229,7 @@ fn fails_expiration_too_long() {
         let sector = SectorPreCommitInfoBuilder::default()
             // Set expiration to be in the next block after the maximum
             // allowed
-            .expiration(current_height + MaxSectorExpirationExtension::get() + 1)
+            .expiration(current_height + MaxSectorExpirationExtension::get() as u64 + 1)
             .build();
 
         // Run pre commit extrinsic

@@ -26,12 +26,12 @@ mod storage_provider_registration;
 type Block = frame_system::mocking::MockBlock<Test>;
 type BlockNumber = u64;
 
-const MILLISECS_PER_BLOCK: u64 = 12000;
-const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
-const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
-const HOURS: BlockNumber = MINUTES * 60;
-const DAYS: BlockNumber = HOURS * 24;
-const YEARS: BlockNumber = DAYS * 365;
+const MILLISECS_PER_BLOCK: u32 = 12000;
+const SLOT_DURATION: u32 = MILLISECS_PER_BLOCK;
+const MINUTES: u32 = 60_000 / (MILLISECS_PER_BLOCK as u32);
+const HOURS: u32 = MINUTES * 60;
+const DAYS: u32 = HOURS * 24;
+const YEARS: u32 = DAYS * 365;
 
 frame_support::construct_runtime!(
     pub enum Test {
@@ -77,15 +77,15 @@ impl pallet_market::Config for Test {
 }
 
 parameter_types! {
-    pub const WpostProvingPeriod: BlockNumber = DAYS;
+    pub const WpostProvingPeriod: u32 = DAYS;
     // Half an hour (=48 per day)
     // 30 * 60 = 30 minutes
     // SLOT_DURATION is in milliseconds thats why we / 1000
-    pub const WpostChallengeWindow: BlockNumber = 30 * 60 / (SLOT_DURATION as BlockNumber / 1000);
-    pub const MinSectorExpiration: BlockNumber = 180 * DAYS;
-    pub const MaxSectorExpirationExtension: BlockNumber = 1278 * DAYS;
-    pub const SectorMaximumLifetime: BlockNumber = YEARS * 5;
-    pub const MaxProveCommitDuration: BlockNumber =  (30 * DAYS) + 150;
+    pub const WpostChallengeWindow: u32 = 30 * 60 / (SLOT_DURATION as u32 / 1000);
+    pub const MinSectorExpiration: u32 = 180 * DAYS;
+    pub const MaxSectorExpirationExtension: u32 = 1278 * DAYS;
+    pub const SectorMaximumLifetime: u32 = YEARS * 5;
+    pub const MaxProveCommitDuration: u32 =  (30 * DAYS) + 150;
 }
 
 impl pallet_storage_provider::Config for Test {
@@ -228,7 +228,7 @@ impl Default for SectorPreCommitInfoBuilder {
                 .try_into()
                 .expect("hash is always 32 bytes"),
             deal_ids: bounded_vec![0, 1],
-            expiration: YEARS,
+            expiration: YEARS as u64,
             unsealed_cid: cid_of("unsealed_cid")
                 .to_bytes()
                 .try_into()

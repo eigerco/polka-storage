@@ -1,5 +1,8 @@
 use codec::{Decode, Encode};
-use frame_support::{pallet_prelude::ConstU32, sp_runtime::BoundedVec};
+use frame_support::{
+    pallet_prelude::ConstU32,
+    sp_runtime::{BoundedVec, SaturatedConversion},
+};
 use primitives_proofs::RegisteredPoStProof;
 use scale_info::TypeInfo;
 use sp_arithmetic::traits::BaseArithmetic;
@@ -12,21 +15,15 @@ pub struct PoStProof {
     pub proof_bytes: BoundedVec<u8, ConstU32<256>>, // Arbitrary length
 }
 
-/// Error type for proof operations.
-#[derive(Debug)]
-pub enum ProofError {
-    Conversion,
-}
-
 /// Assigns proving period offset randomly in the range [0, WPOST_PROVING_PERIOD)
 /// by hashing the address and current block number.
 ///
 /// Filecoin implementation reference: <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L4886>
-pub(crate) fn assign_proving_period_offset<AccountId, BlockNumber>(
+pub(crate) fn calculate_proving_period_offset<AccountId, BlockNumber>(
     addr: &AccountId,
     current_block: BlockNumber,
-    wpost_proving_period: BlockNumber,
-) -> Result<BlockNumber, ProofError>
+    wpost_proving_period: u32,
+) -> BlockNumber
 where
     AccountId: Encode,
     BlockNumber: BaseArithmetic + Encode + TryFrom<u64>,
@@ -34,18 +31,23 @@ where
     // Encode address and current block number
     let mut addr = addr.encode();
     let mut block_num = current_block.encode();
+
     // Concatenate the encoded block number to the encoded address.
     addr.append(&mut block_num);
+
     // Hash the address and current block number for a pseudo-random offset.
     let digest = blake2_64(&addr);
+
     // Create a pseudo-random offset from the bytes of the hash of the address and current block number.
-    let offset = u64::from_be_bytes(digest);
-    // Convert into block number
-    let mut offset =
-        TryInto::<BlockNumber>::try_into(offset).map_err(|_| ProofError::Conversion)?;
+    let mut offset = u64::from_be_bytes(digest);
+
     // Mod with the proving period so it is within the valid range of [0, WPOST_PROVING_PERIOD)
-    offset %= wpost_proving_period;
-    Ok(offset)
+    offset %= wpost_proving_period as u64;
+
+    // Convert into block number. We can saturate because the offset is
+    // guaranteed to be less than the proving period. The guaranty is made by
+    // the modulo operation.
+    offset.saturated_into::<BlockNumber>()
 }
 
 /// Computes the block at which a proving period should start such that it is greater than the current block, and
@@ -55,11 +57,13 @@ where
 pub(crate) fn current_proving_period_start<BlockNumber>(
     current_block: BlockNumber,
     offset: BlockNumber,
-    proving_period: BlockNumber, // should be the max proving period
+    proving_period: u32, // should be the max proving period
 ) -> BlockNumber
 where
-    BlockNumber: BaseArithmetic,
+    BlockNumber: BaseArithmetic + From<u32>,
 {
+    let proving_period: BlockNumber = proving_period.into();
+
     // Use this value to calculate the proving period start, modulo the proving period so we cannot go over the max proving period
     // the value represents how far into a proving period we are.
     let how_far_into_proving_period = current_block.clone() % proving_period.clone();
