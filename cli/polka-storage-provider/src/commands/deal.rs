@@ -73,7 +73,7 @@ impl DealProposalCommand {
             provider,
             label: bounded_vec![0xde, 0xad],
             start_block: 100,
-            end_block: 100 + 741265408 + 200,
+            end_block: 125,
             storage_price_per_block: 1,
             provider_collateral: 1,
             state: DealState::<BlockNumber>::Published,
