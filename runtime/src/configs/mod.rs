@@ -58,7 +58,7 @@ use super::{
     Nonce, PalletInfo, ParachainSystem, Runtime, RuntimeCall, RuntimeEvent, RuntimeFreezeReason,
     RuntimeHoldReason, RuntimeOrigin, RuntimeTask, Session, SessionKeys, System, WeightToFee,
     XcmpQueue, AVERAGE_ON_INITIALIZE_RATIO, BLOCK_PROCESSING_VELOCITY, DAYS, EXISTENTIAL_DEPOSIT,
-    HOURS, MAXIMUM_BLOCK_WEIGHT, MICROUNIT, NORMAL_DISPATCH_RATIO,
+    HOURS, MAXIMUM_BLOCK_WEIGHT, MICROUNIT, MINUTES, NORMAL_DISPATCH_RATIO,
     RELAY_CHAIN_SLOT_DURATION_MILLIS, SLOT_DURATION, UNINCLUDED_SEGMENT_CAPACITY, VERSION,
 };
 
@@ -345,8 +345,8 @@ impl pallet_market::Config for Runtime {
     type OffchainSignature = MultiSignature;
     type OffchainPublic = AccountPublic;
     type MaxDeals = ConstU32<128>;
-    type BlocksPerDay = ConstU32<DAYS>;
-    type MinDealDuration = ConstU32<{ DAYS * 180 }>;
-    type MaxDealDuration = ConstU32<{ DAYS * 1278 }>;
+    type BlocksPerDay = ConstU32<MINUTES>;
+    type MinDealDuration = ConstU32<{ MINUTES * 5}>;
+    type MaxDealDuration = ConstU32<{ MINUTES * 60}>;
     type MaxDealsPerBlock = ConstU32<128>;
 }
