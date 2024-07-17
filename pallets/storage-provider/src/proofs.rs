@@ -39,7 +39,7 @@ where
     // Hash the address and current block number for a pseudo-random offset.
     let digest = blake2_64(&addr);
     // Create a pseudo-random offset from the bytes of the hash of the address and current block number.
-    let offset = u64::from_be_bytes(digest);
+    let offset = u64::from_be_bytes(digest) % (u32::MAX as u64);
     // Convert into block number
     let mut offset =
         TryInto::<BlockNumber>::try_into(offset).map_err(|_| ProofError::Conversion)?;
