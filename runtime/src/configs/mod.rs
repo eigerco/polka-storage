@@ -57,7 +57,7 @@ use super::{
     AccountId, Aura, Balance, Balances, Block, BlockNumber, CollatorSelection, Hash, MessageQueue,
     Nonce, PalletInfo, ParachainSystem, Runtime, RuntimeCall, RuntimeEvent, RuntimeFreezeReason,
     RuntimeHoldReason, RuntimeOrigin, RuntimeTask, Session, SessionKeys, System, WeightToFee,
-    XcmpQueue, AVERAGE_ON_INITIALIZE_RATIO, BLOCK_PROCESSING_VELOCITY, DAYS, EXISTENTIAL_DEPOSIT,
+    XcmpQueue, AVERAGE_ON_INITIALIZE_RATIO, BLOCK_PROCESSING_VELOCITY, EXISTENTIAL_DEPOSIT,
     HOURS, MAXIMUM_BLOCK_WEIGHT, MICROUNIT, MINUTES, NORMAL_DISPATCH_RATIO,
     RELAY_CHAIN_SLOT_DURATION_MILLIS, SLOT_DURATION, UNINCLUDED_SEGMENT_CAPACITY, VERSION,
 };
@@ -307,15 +307,15 @@ impl pallet_collator_selection::Config for Runtime {
 }
 
 parameter_types! {
-    pub const WpostProvingPeriod: BlockNumber = DAYS;
+    pub const WpostProvingPeriod: BlockNumber = MINUTES;
     // Half an hour (=48 per day)
     // 30 * 60 = 30 minutes
     // SLOT_DURATION is in milliseconds thats why we / 1000
-    pub const WpostChallengeWindow: BlockNumber = 30 * 60 / (SLOT_DURATION as BlockNumber / 1000);
-    pub const MinSectorExpiration: BlockNumber = 180 * DAYS;
-    pub const MaxSectorExpirationExtension: BlockNumber = 1278 * DAYS;
-    pub const SectorMaximumLifetime: BlockNumber = (365 * DAYS) * 5; // 5 years
-    pub const MaxProveCommitDuration: BlockNumber =  (30 * DAYS) + 150;
+    pub const WpostChallengeWindow: BlockNumber = 2 * MINUTES;
+    pub const MinSectorExpiration: BlockNumber = 5 * MINUTES;
+    pub const MaxSectorExpirationExtension: BlockNumber = 60 * MINUTES;
+    pub const SectorMaximumLifetime: BlockNumber = 120 * MINUTES;
+    pub const MaxProveCommitDuration: BlockNumber =  5 * MINUTES;
 }
 
 impl pallet_storage_provider::Config for Runtime {
