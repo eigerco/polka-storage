@@ -346,7 +346,7 @@ impl pallet_market::Config for Runtime {
     type OffchainPublic = AccountPublic;
     type MaxDeals = ConstU32<128>;
     type BlocksPerDay = ConstU32<MINUTES>;
-    type MinDealDuration = ConstU32<{ 5 }>;
-    type MaxDealDuration = ConstU32<{ 60 }>;
+    type MinDealDuration = ConstU32<5>;
+    type MaxDealDuration = ConstU32<60>;
     type MaxDealsPerBlock = ConstU32<128>;
 }
