@@ -32,6 +32,7 @@ pub struct SubmitWindowedPoStParams<BlockNumber> {
     pub chain_commit_block: BlockNumber,
 }
 
+/// Error type for proof operations.
 #[derive(Debug)]
 pub enum ProofError {
     Conversion,

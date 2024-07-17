@@ -7,7 +7,10 @@ use frame_support::{
 use scale_info::TypeInfo;
 use sp_arithmetic::traits::BaseArithmetic;
 
-use crate::partition::{Partition, PartitionNumber, MAX_PARTITIONS};
+use crate::{
+    pallet::LOG_TARGET,
+    partition::{Partition, PartitionNumber, MAX_PARTITIONS},
+};
 
 type DeadlineResult<T> = Result<T, DeadlineError>;
 
@@ -56,6 +59,7 @@ impl<BlockNumber> Deadline<BlockNumber> {
 
     /// Processes a PoSt
     pub fn record_proven(&mut self, partition_num: PartitionNumber) -> DeadlineResult<()> {
+        log::debug!(target: LOG_TARGET, "record_proven: partition number = {partition_num:?}");
         ensure!(
             !self.partitions_posted.contains(&partition_num),
             DeadlineError::PartitionAlreadyProven
@@ -118,6 +122,7 @@ impl<BlockNumber> Deadlines<BlockNumber> {
     /// Loads a deadline from the given index.
     /// Fails if the index does not exist or is out of range.
     pub fn load_deadline(&mut self, idx: usize) -> DeadlineResult<&mut Deadline<BlockNumber>> {
+        log::debug!(target: LOG_TARGET, "load_deadline: getting deadline at index {idx}");
         // Ensure the provided index is within range.
         ensure!(self.len() > idx, DeadlineError::DeadlineIndexOutOfRange);
         self.due.get_mut(idx).ok_or(DeadlineError::DeadlineNotFound)
@@ -129,6 +134,7 @@ impl<BlockNumber> Deadlines<BlockNumber> {
         deadline_idx: usize,
         partition_num: PartitionNumber,
     ) -> DeadlineResult<()> {
+        log::debug!(target: LOG_TARGET, "record_proven: partition number: {partition_num:?}");
         let deadline = self.load_deadline(deadline_idx)?;
         deadline.record_proven(partition_num)?;
         Ok(())

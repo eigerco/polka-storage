@@ -66,7 +66,7 @@ pub struct StorageProviderState<PeerId, Balance, BlockNumber> {
 impl<PeerId, Balance, BlockNumber> StorageProviderState<PeerId, Balance, BlockNumber>
 where
     PeerId: Clone + Decode + Encode + TypeInfo,
-    BlockNumber: Copy + BaseArithmetic + Decode + Encode + TypeInfo,
+    BlockNumber: Copy + BaseArithmetic + Decode + Encode + TypeInfo + core::fmt::Debug,
     Balance: BaseArithmetic,
 {
     pub fn new(
@@ -143,6 +143,17 @@ where
         Ok(())
     }
 
+    /// Assign new sector to a deadline.
+    pub fn assign_sectors_to_deadlines(
+        &mut self,
+        _current_block: BlockNumber,
+        _info: SectorOnChainInfo<BlockNumber>,
+    ) -> Result<(), StorageProviderError> {
+        let _deadlines = self.get_deadlines_mut();
+
+        Ok(())
+    }
+
     /// Simple getter to load deadlines.
     pub fn get_deadlines_mut(&mut self) -> &mut Deadlines<BlockNumber> {
         &mut self.deadlines
@@ -179,6 +190,7 @@ where
     }
 }
 
+/// Errors that can occur while interacting with the storage provider state.
 #[derive(Decode, Encode, PalletError, TypeInfo, RuntimeDebug)]
 pub enum StorageProviderError {
     /// Happens when an SP tries to pre-commit more sectors than SECTOR_MAX.
