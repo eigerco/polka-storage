@@ -1404,6 +1404,8 @@ pub mod pallet {
                             log::error!(target: LOG_TARGET, "on_finalize: invariant violated, cannot slash the deal {}", deal_id);
                             continue;
                         };
+                        // Deal has been processed, no need to process it twice.
+                        Proposals::<T>::remove(&deal_id);
                     }
                     DealState::Active(_) => {
                         log::info!(
@@ -1413,8 +1415,6 @@ pub mod pallet {
                     }
                 }
 
-                // Deal has been processed, no need to process it twice.
-                Proposals::<T>::remove(&deal_id);
                 // PRE-COND: all deals in DealsPerBlock are published.
                 // All Published deals are hashed and added to [`PendingProposals`].
                 let _ = pending_proposals.remove(&Self::hash_proposal(&proposal));
