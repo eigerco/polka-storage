@@ -24,7 +24,6 @@ mod state;
 mod storage_provider_registration;
 
 type Block = frame_system::mocking::MockBlock<Test>;
-type BlockNumber = u64;
 
 const MILLISECS_PER_BLOCK: u32 = 12000;
 const SLOT_DURATION: u32 = MILLISECS_PER_BLOCK;
