@@ -325,9 +325,9 @@ fn publish_storage_deals_fails_max_duration_out_of_bounds() {
 
 #[test]
 fn publish_storage_deals_fails_start_time_expired() {
-    run_to_block(101);
-
     new_test_ext().execute_with(|| {
+        run_to_block(101);
+
         let proposal = DealProposalBuilder::<Test>::default()
             .start_block(100)
             .end_block(100 + <<Test as Config>::MaxDealDuration as Get<u64>>::get() + 1)
@@ -1176,7 +1176,7 @@ fn settle_deal_payments_success() {
         );
         System::reset_events();
 
-        run_to_block(5);
+        run_to_block(6);
 
         assert_ok!(Market::settle_deal_payments(
             RuntimeOrigin::signed(account::<Test>(ALICE)),
@@ -1216,7 +1216,7 @@ fn settle_deal_payments_success() {
                     .state(DealState::Active(ActiveDealState {
                         sector_number: 0,
                         sector_start_block: 0,
-                        last_updated_block: Some(5),
+                        last_updated_block: Some(6),
                         slash_block: None,
                     }))
                     .unsigned()
