@@ -1,9 +1,10 @@
+use frame_support::sp_runtime::AccountId32;
 use primitives_proofs::DealId;
 use subxt::{config::ExtrinsicParams, Config as SubxtConfig, OnlineClient};
 
 use crate::{
     runtime::{self},
-    ClientDealProposal,
+    DealProposal,
 };
 
 /// The maximum number of deal IDs supported.
@@ -39,6 +40,7 @@ where
         Ok(Self { client })
     }
 
+    /// Withdraw the given `amount` of balance.
     #[tracing::instrument(skip(self, account_keypair))]
     pub async fn withdraw_balance<Keypair>(
         &self,
@@ -51,6 +53,7 @@ where
         Ok(extrinsics::withdraw_balance(&self.client, account_keypair, amount).await?)
     }
 
+    /// Add the given `amount` of balance.
     #[tracing::instrument(skip(self, account_keypair))]
     pub async fn add_balance<Keypair>(
         &self,
@@ -70,7 +73,7 @@ where
     pub async fn settle_deal_payments<Keypair>(
         &self,
         account_keypair: &Keypair,
-        mut deal_ids: Vec<DealId>, // Using the vec so we can print the contents
+        mut deal_ids: Vec<DealId>,
     ) -> Result<Config::Hash, MarketClientError>
     where
         Keypair: subxt::tx::Signer<Config>,
@@ -98,34 +101,56 @@ where
     pub async fn publish_storage_deals<Keypair>(
         &self,
         account_keypair: &Keypair,
-        mut deals: Vec<ClientDealProposal>,
+        mut deals: Vec<DealProposal>,
     ) -> Result<Config::Hash, MarketClientError>
     where
         Keypair: subxt::tx::Signer<Config>,
+        Config: subxt::Config<Signature = subxt::utils::MultiSignature>,
     {
         if deals.len() > MAX_N_DEALS {
             tracing::warn!("more than {} deals, truncating", MAX_N_DEALS);
             deals.truncate(MAX_N_DEALS);
         }
+
+        let signed_deal_proposals = deals
+            .into_iter()
+            .map(|deal| {
+                let client_deal_proposal = deal.sign(account_keypair);
+                runtime::runtime_types::pallet_market::pallet::ClientDealProposal::<
+                    AccountId32,
+                    u128,
+                    u32,
+                    runtime::runtime_types::sp_runtime::MultiSignature,
+                >::from(client_deal_proposal)
+            })
+            .collect();
+
         // `deals` has been truncated to fit the proper bound, however,
         // the `BoundedVec` defined in the `runtime::runtime_types` is actually just a newtype
         // making the `BoundedVec` actually unbounded
         let bounded_unbounded_deals =
-            runtime::runtime_types::bounded_collections::bounded_vec::BoundedVec(deals);
+            runtime::runtime_types::bounded_collections::bounded_vec::BoundedVec(
+                signed_deal_proposals,
+            );
 
-        Ok(extrinsics::publish_storage_deals(&self.client, account_keypair, todo!()).await?)
+        Ok(extrinsics::publish_storage_deals(
+            &self.client,
+            account_keypair,
+            bounded_unbounded_deals,
+        )
+        .await?)
     }
 }
 
 /// Module containing thin-wrappers around signing and submitting an extrinsinc.
 ///
 /// Separated to isolate the conversion from app types to runtime types from these calls.
+/// In other words, [`crate::runtime`] types should not be used outside of this module.
 pub mod extrinsics {
     use hex::ToHex;
     use subxt::{config::ExtrinsicParams, OnlineClient};
-    use tracing::{instrument, trace_span, Instrument};
+    use tracing::instrument;
 
-    use super::MarketClientError;
     use crate::runtime::{
         self,
         market::calls::types::{publish_storage_deals::Deals, settle_deal_payments::DealIds},
@@ -145,7 +170,11 @@ pub mod extrinsics {
         traced_submission(client, &payload, account_keypair).await
     }
 
-    #[instrument(skip_all, account_address = account_keypair.address())]
+    #[instrument(
+        skip_all, fields(
+            account_address = ?account_keypair.address()
+        )
+    )]
     pub async fn add_balance<Keypair, Config>(
         client: &OnlineClient<Config>,
         account_keypair: &Keypair,
@@ -163,7 +192,7 @@ pub mod extrinsics {
     pub async fn settle_deal_payments<Keypair, Config>(
         client: &OnlineClient<Config>,
         account_keypair: &Keypair,
-        mut deal_ids: DealIds,
+        deal_ids: DealIds,
     ) -> Result<Config::Hash, subxt::Error>
     where
         Config: subxt::Config,

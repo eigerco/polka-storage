@@ -14178,6 +14178,7 @@ dependencies = [
 name = "storagext"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "chrono",
  "cid 0.11.1",
@@ -14186,6 +14187,7 @@ dependencies = [
  "futures",
  "hex",
  "jsonrpsee",
+ "parity-scale-codec",
  "primitives-proofs",
  "serde",
  "serde_json",

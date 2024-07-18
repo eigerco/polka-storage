@@ -93,6 +93,7 @@ tracing-subscriber = "0.3.18"
 url = "2.5.0"
 uuid = "1.8.0"
 hex = "0.4.3"
+anyhow = "1.0.86"
 
 # Local
 

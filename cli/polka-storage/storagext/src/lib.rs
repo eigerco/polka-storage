@@ -1,7 +1,7 @@
-use std::str::FromStr;
-
 use cid::Cid;
-use subxt::utils::{AccountId32, MultiSignature};
+use codec::Encode;
+use frame_support::sp_runtime::{AccountId32, MultiSignature};
+use subxt::tx::Signer;
 
 pub mod market;
 pub mod runtime;
@@ -9,48 +9,28 @@ pub mod runtime;
 /// Address as specified by the SCALE-encoded runtime.
 type Address = AccountId32;
 
-struct AccountId32Visitor;
+#[derive(Debug, Clone, codec::Encode)]
+struct CidWrapper(Cid);
 
-impl<'v> serde::de::Visitor<'v> for AccountId32Visitor {
-    type Value = AccountId32;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("expected an ss58 string")
-    }
-
-    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+// The CID has some issues that require a workaround for strings.
+// For more details, see: <https://github.com/multiformats/rust-cid/issues/162>
+impl<'de> serde::de::Deserialize<'de> for CidWrapper {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        E: serde::de::Error,
+        D: serde::Deserializer<'de>,
     {
-        AccountId32::from_str(v)
-            .map_err(|err| serde::de::Error::invalid_value(serde::de::Unexpected::Str(v), &self))
+        let s = String::deserialize(deserializer)?;
+        Ok(Self(
+            Cid::try_from(s.as_str()).map_err(|e| serde::de::Error::custom(format!("{e:?}")))?,
+        ))
     }
 }
 
-// struct MultiSignatureVisitor;
-
-// impl<'v> serde::de::Visitor<'v> for MultiSignatureVisitor {
-//     type Value = MultiSignature;
-
-//     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-//         formatter.write_str("expected a valid hex-formatted key (sr25518, ed25519, ecdsa)")
-//     }
-
-//     fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-//     where
-//         E: serde::de::Error,
-//     {
-//         let secret_key_bytes = hex::decode(v).map_err(|err| serde::de::Unexpected::Str(v), &self)?;
-//         let multi_signature = if let Ok(keypair) = sr25519::Keypair::from_secret_key(secret_key_bytes) {
-//             MultiSignature::Sr25519(keypair.sign(message))
-//         }
-//         else if let Ok(keypair) = ed25519::Keypair::from_secret_key(secret_key_bytes) {}
-//         else if let Ok(keypair) = ecdsa::Keypair::from_secret_key(secret_key_bytes) {}
-
-//         MultiSignature::from_str(v)
-//             .map_err(|err| serde::de::Error::invalid_value(serde::de::Unexpected::Str(v), &self))
-//     }
-// }
+impl Into<Cid> for CidWrapper {
+    fn into(self) -> Cid {
+        self.0
+    }
+}
 
 /// Currency as specified by the SCALE-encoded runtime.
 type Currency = u128;
@@ -58,23 +38,23 @@ type Currency = u128;
 /// BlockNumber as specified by the SCALE-encoded runtime.
 type BlockNumber = u32;
 
-#[derive(Debug, serde::Deserialize)]
-struct ActiveDealState {
+#[derive(Debug, Clone, serde::Deserialize, codec::Encode)]
+pub struct ActiveDealState {
     pub sector_number: u64,
     pub sector_start_block: BlockNumber,
     pub last_updated_block: Option<BlockNumber>,
     pub slash_block: Option<BlockNumber>,
 }
 
-#[derive(Debug, serde::Deserialize)]
-enum DealState {
+#[derive(Debug, Clone, serde::Deserialize, codec::Encode)]
+pub enum DealState {
     Published,
     Active(ActiveDealState),
 }
 
-#[derive(Debug, serde::Deserialize)]
-struct DealProposal {
-    pub piece_cid: Cid,
+#[derive(Debug, Clone, serde::Deserialize, codec::Encode)]
+pub struct DealProposal {
+    pub piece_cid: CidWrapper,
     pub piece_size: u64,
     pub client: Address,
     pub provider: Address,
@@ -86,7 +66,25 @@ struct DealProposal {
     pub state: DealState,
 }
 
-struct ClientDealProposal {
+impl DealProposal {
+    fn sign<Keypair, Config>(self, keypair: &Keypair) -> ClientDealProposal
+    where
+        Keypair: Signer<Config>,
+        Config: subxt::Config<Signature = subxt::utils::MultiSignature>,
+    {
+        let encoded_deal_proposal = self.encode();
+
+        let signature = keypair.sign(&encoded_deal_proposal);
+        let client = MultiSignature::from(signature);
+
+        ClientDealProposal {
+            proposal: self,
+            client,
+        }
+    }
+}
+
+pub struct ClientDealProposal {
     pub proposal: DealProposal,
     pub client: MultiSignature, // OffchainSignature
 }

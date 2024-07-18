@@ -36,8 +36,10 @@ url = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 primitives-proofs = { workspace = true }
 frame-support = { workspace = true, features = ["std"] }
-cid = { workspace = true, features = ["serde"] }
+cid = { workspace = true, features = ["scale-codec"] }
 hex.workspace = true
+codec.workspace = true
+anyhow.workspace = true
 
 [lints]
 workspace = true
