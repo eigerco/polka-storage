@@ -1299,8 +1299,8 @@ fn settle_deal_payments_success_finished() {
         assert_eq!(
             BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
             BalanceEntry::<u64> {
-                free: 50 + 5 * 10, // 50 (from 75 - collateral) + (price per block * n blocks)
-                locked: 25
+                free: 75 + 5 * 10, // 50 (from 75 - collateral + returned collateral (not slashed)) + (price per block * n blocks)
+                locked: 0
             }
         );
 
