@@ -323,6 +323,26 @@ fn publish_storage_deals_fails_max_duration_out_of_bounds() {
     });
 }
 
+#[test]
+fn publish_storage_deals_fails_start_time_expired() {
+    run_to_block(101);
+
+    new_test_ext().execute_with(|| {
+        let proposal = DealProposalBuilder::<Test>::default()
+            .start_block(100)
+            .end_block(100 + <<Test as Config>::MaxDealDuration as Get<u64>>::get() + 1)
+            .signed(ALICE);
+
+        assert_noop!(
+            Market::publish_storage_deals(
+                RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+                bounded_vec![proposal]
+            ),
+            Error::<Test>::AllProposalsInvalid
+        );
+    });
+}
+
 /// Add enough balance to the provider so that the first proposal can be accepted and published.
 /// Second proposal will be rejected, but first still published
 #[test]
@@ -1001,8 +1021,8 @@ fn settle_deal_payments_early() {
 fn settle_deal_payments_published() {
     new_test_ext().execute_with(|| {
         let alice_proposal = DealProposalBuilder::<Test>::default()
-            .start_block(0)
-            .end_block(10)
+            .start_block(1)
+            .end_block(11)
             .signed(ALICE);
 
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 60);
@@ -1018,8 +1038,8 @@ fn settle_deal_payments_published() {
             1,
             DealProposalBuilder::<Test>::default()
                 .client(BOB)
-                .start_block(0)
-                .end_block(10)
+                .start_block(1)
+                .end_block(11)
                 .storage_price_per_block(10)
                 .provider_collateral(15)
                 .unsigned(),
@@ -1116,8 +1136,8 @@ fn settle_deal_payments_active_corruption() {
 fn settle_deal_payments_success() {
     new_test_ext().execute_with(|| {
         let alice_proposal = DealProposalBuilder::<Test>::default()
-            .start_block(0)
-            .end_block(10)
+            .start_block(1)
+            .end_block(11)
             .signed(ALICE);
 
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 60);
@@ -1143,8 +1163,8 @@ fn settle_deal_payments_success() {
             Proposals::<Test>::get(0),
             Some(
                 DealProposalBuilder::<Test>::default()
-                    .start_block(0)
-                    .end_block(10)
+                    .start_block(1)
+                    .end_block(11)
                     .state(DealState::Active(ActiveDealState {
                         sector_number: 0,
                         sector_start_block: 0,
@@ -1191,8 +1211,8 @@ fn settle_deal_payments_success() {
             Proposals::<Test>::get(0),
             Some(
                 DealProposalBuilder::<Test>::default()
-                    .start_block(0)
-                    .end_block(10)
+                    .start_block(1)
+                    .end_block(11)
                     .state(DealState::Active(ActiveDealState {
                         sector_number: 0,
                         sector_start_block: 0,
@@ -1209,8 +1229,8 @@ fn settle_deal_payments_success() {
 fn settle_deal_payments_success_finished() {
     new_test_ext().execute_with(|| {
         let alice_proposal = DealProposalBuilder::<Test>::default()
-            .start_block(0)
-            .end_block(10)
+            .start_block(1)
+            .end_block(11)
             .signed(ALICE);
 
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 60);
@@ -1236,8 +1256,8 @@ fn settle_deal_payments_success_finished() {
             Proposals::<Test>::get(0),
             Some(
                 DealProposalBuilder::<Test>::default()
-                    .start_block(0)
-                    .end_block(10)
+                    .start_block(1)
+                    .end_block(11)
                     .state(DealState::Active(ActiveDealState {
                         sector_number: 0,
                         sector_start_block: 0,
@@ -1251,7 +1271,7 @@ fn settle_deal_payments_success_finished() {
         System::reset_events();
 
         // Deal is finished
-        run_to_block(11);
+        run_to_block(12);
 
         assert_ok!(Market::settle_deal_payments(
             RuntimeOrigin::signed(account::<Test>(ALICE)),
