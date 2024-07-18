@@ -87,7 +87,7 @@ parachain-info = { workspace = true, default-features = false }
 parachains-common = { workspace = true, default-features = false }
 
 [features]
-default = ["std"]
+default = ["std", "testnet"]
 std = [
   "codec/std",
   "cumulus-pallet-aura-ext/std",
@@ -141,6 +141,7 @@ std = [
   "xcm-executor/std",
   "xcm/std",
 ]
+testnet = []
 
 runtime-benchmarks = [
   "cumulus-pallet-parachain-system/runtime-benchmarks",
