@@ -4,8 +4,11 @@ use runtime::{AccountId, AuraId, Signature, EXISTENTIAL_DEPOSIT};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
-use sp_core::{sr25519, Pair, Public};
-use sp_runtime::traits::{IdentifyAccount, Verify};
+use sp_core::{crypto::Ss58Codec, sr25519, Pair, Public};
+use sp_runtime::{
+    traits::{IdentifyAccount, Verify},
+    AccountId32,
+};
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
 pub type ChainSpec = sc_service::GenericChainSpec<Extensions>;
@@ -155,6 +158,8 @@ pub fn local_testnet_config() -> ChainSpec {
             get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
             get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
             get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+            AccountId32::from_ss58check("5GvHnpY1433RytXW66r77iL4CyewAAErDU6fAouoaPKvcvLU")
+                .unwrap(),
         ],
         get_account_id_from_seed::<sr25519::Public>("Alice"),
         1000.into(),

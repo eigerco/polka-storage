@@ -1,0 +1,43 @@
+[package]
+name = "storagext"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+repository.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[features]
+default = []
+insecure_url = []
+
+[dependencies]
+async-trait = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+clap = { workspace = true, features = ["derive"] }
+futures = { workspace = true }
+jsonrpsee = { workspace = true, features = [
+    "http-client",
+    "server",
+    "ws-client",
+] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+subxt = { workspace = true, features = ["jsonrpsee"] }
+subxt-signer = { workspace = true, features = ["subxt"] }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+url = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }
+primitives-proofs = { workspace = true }
+frame-support = { workspace = true, features = ["std"] }
+cid = { workspace = true, features = ["serde"] }
+hex.workspace = true
+
+[lints]
+workspace = true
