@@ -35,13 +35,14 @@ pub mod pallet {
     use codec::{Decode, Encode};
     use frame_support::{
         dispatch::DispatchResult,
-        ensure,
+        ensure, fail,
         pallet_prelude::*,
         traits::{Currency, ReservableCurrency},
     };
     use frame_system::{ensure_signed, pallet_prelude::*, Config as SystemConfig};
     use primitives_proofs::{Market, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
     use scale_info::TypeInfo;
+    use sp_core::bounded_vec;
 
     use crate::{
         proofs::{
@@ -165,6 +166,12 @@ pub mod pallet {
         /// Emitted when a prove commit is sent after the deadline.
         /// These pre-commits will be cleaned up in the hook.
         ProveCommitAfterDeadline,
+        /// Emitted when Market::verify_deals_for_activation fails for an unexpected reason.
+        /// Verification happens in pre_commit, to make sure a sector is precommited with valid deals.
+        CouldNotVerifySectorForPreCommit,
+        /// Declared unsealed_cid for pre_commit is different from the one calcualated by `Market::verify_deals_for_activation`.
+        /// unsealed_cid === CommD and is calculated from piece ids of all of the deals in a sector.
+        InvalidUnsealedCidForSector,
     }
 
     #[pallet::call]
@@ -215,6 +222,7 @@ pub mod pallet {
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
             let sector_number = sector.sector_number;
             let current_block = <frame_system::Pallet<T>>::block_number();
+
             ensure!(
                 sector_number <= SECTORS_MAX.into(),
                 Error::<T>::InvalidSector
@@ -228,7 +236,8 @@ pub mod pallet {
                     && !sp.sectors.contains_key(&sector_number),
                 Error::<T>::SectorNumberAlreadyUsed
             );
-            validate_cid::<T>(&sector.unsealed_cid[..])?;
+
+            let unsealed_cid = validate_cid::<T>(&sector.unsealed_cid[..])?;
             let balance = T::Currency::total_balance(&owner);
             let deposit = calculate_pre_commit_deposit::<T>();
             Self::validate_expiration(
@@ -237,18 +246,44 @@ pub mod pallet {
                 sector.expiration,
             )?;
             ensure!(balance >= deposit, Error::<T>::NotEnoughFunds);
+
+            let sector_on_chain = SectorPreCommitOnChainInfo::new(
+                sector.clone(),
+                deposit,
+                <frame_system::Pallet<T>>::block_number(),
+            );
+            let calculated_commds = T::Market::verify_deals_for_activation(
+                &owner,
+                bounded_vec![(&sector_on_chain).into()],
+            )?;
+
+            ensure!(calculated_commds.len() == 1, {
+                log::error!(target: LOG_TARGET, "pre_commit_sector: failed to verify deals, invalid calculated_commd length: {}", calculated_commds.len());
+                Error::<T>::CouldNotVerifySectorForPreCommit
+            });
+
+            // We need to verify CommD only if there are deals in the sector, otherwise it's a Committed Capacity sector.
+            if sector.deal_ids.len() > 0 {
+                // PRE-COND: verify_deals_for_activation is called with a single sector, so a single CommD should always be returned
+                let Some(calculated_commd) = calculated_commds[0] else {
+                    log::error!(target: LOG_TARGET, "pre_commit_sector: commd from verify_deals is None...");
+                    fail!(Error::<T>::CouldNotVerifySectorForPreCommit)
+                };
+
+                ensure!(calculated_commd == unsealed_cid, {
+                    log::error!(target: LOG_TARGET, "pre_commit_sector: calculated_commd != sector.unsealed_cid, {:?} != {:?}", calculated_commd, unsealed_cid);
+                    Error::<T>::InvalidUnsealedCidForSector
+                });
+            }
+
             T::Currency::reserve(&owner, deposit)?;
             StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResult {
                 let sp = maybe_sp
                     .as_mut()
                     .ok_or(Error::<T>::StorageProviderNotFound)?;
                 sp.add_pre_commit_deposit(deposit)?;
-                sp.put_pre_committed_sector(SectorPreCommitOnChainInfo::new(
-                    sector.clone(),
-                    deposit,
-                    <frame_system::Pallet<T>>::block_number(),
-                ))
-                .map_err(|_| Error::<T>::MaxPreCommittedSectorExceeded)?;
+                sp.put_pre_committed_sector(sector_on_chain)
+                    .map_err(|_| Error::<T>::MaxPreCommittedSectorExceeded)?;
                 Ok(())
             })?;
             Self::deposit_event(Event::SectorPreCommitted { owner, sector });
@@ -345,7 +380,7 @@ pub mod pallet {
     }
 
     // Adapted from filecoin reference here: https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/miner/src/commd.rs#L51-L56
-    fn validate_cid<T: Config>(bytes: &[u8]) -> Result<(), Error<T>> {
+    fn validate_cid<T: Config>(bytes: &[u8]) -> Result<cid::Cid, Error<T>> {
         let c = Cid::try_from(bytes).map_err(|e| {
             log::error!(target: LOG_TARGET, "failed to validate cid: {:?}", e);
             Error::<T>::InvalidCid
@@ -359,7 +394,8 @@ pub mod pallet {
                 && c.hash().size() == 32,
             Error::<T>::InvalidCid
         );
-        Ok(())
+
+        Ok(c)
     }
 
     /// Calculate the required pre commit deposit amount

@@ -115,12 +115,14 @@ type ClientDealProposalOf<Test> = ClientDealProposal<
 
 const ALICE: &'static str = "//Alice";
 const BOB: &'static str = "//Bob";
+const CHARLIE: &'static str = "//Charlie";
 
 /// Initial funds of all accounts.
 const INITIAL_FUNDS: u64 = 100;
 
 // Build genesis storage according to the mock runtime.
 fn new_test_ext() -> sp_io::TestExternalities {
+    let _ = env_logger::try_init();
     let mut t = frame_system::GenesisConfig::<Test>::default()
         .build_storage()
         .unwrap()
@@ -130,6 +132,7 @@ fn new_test_ext() -> sp_io::TestExternalities {
         balances: vec![
             (account(ALICE), INITIAL_FUNDS),
             (account(BOB), INITIAL_FUNDS),
+            (account(CHARLIE), INITIAL_FUNDS),
         ],
     }
     .assimilate_storage(&mut t)
@@ -229,7 +232,8 @@ impl Default for SectorPreCommitInfoBuilder {
                 .expect("hash is always 32 bytes"),
             deal_ids: bounded_vec![0, 1],
             expiration: YEARS,
-            unsealed_cid: cid_of("unsealed_cid")
+            // TODO(@th7nder,#92,19/07/2024): compute_commd not yet implemented.
+            unsealed_cid: cid_of("placeholder-to-be-done")
                 .to_bytes()
                 .try_into()
                 .expect("hash is always 32 bytes"),

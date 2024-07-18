@@ -1,4 +1,5 @@
 use frame_support::{assert_noop, assert_ok};
+use sp_core::bounded_vec;
 use sp_runtime::{BoundedVec, DispatchError};
 
 use super::new_test_ext;
@@ -6,24 +7,26 @@ use crate::{
     pallet::{Error, Event, StorageProviders},
     sector::SECTORS_MAX,
     tests::{
-        account, events, register_storage_provider, run_to_block, Balances, MaxProveCommitDuration,
-        MaxSectorExpirationExtension, RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder,
-        StorageProvider, Test, ALICE,
+        account, events, register_storage_provider, run_to_block, Balances, DealProposalBuilder,
+        Market, MaxProveCommitDuration, MaxSectorExpirationExtension, RuntimeEvent, RuntimeOrigin,
+        SectorPreCommitInfoBuilder, StorageProvider, System, Test, ALICE, BOB, CHARLIE,
     },
 };
 
 #[test]
 fn successfully_precommited() {
     new_test_ext().execute_with(|| {
-        // Register ALICE as a storage provider.
-        let storage_provider = ALICE;
+        // Register CHARLIE as a storage provider.
+        let storage_provider = CHARLIE;
         register_storage_provider(account(storage_provider));
+        // Publish deals for verification before pre-commit.
+        publish_deals(storage_provider);
 
         // Sector to be pre-committed.
         let sector = SectorPreCommitInfoBuilder::default().build();
 
         // Check starting balance
-        assert_eq!(Balances::free_balance(account(storage_provider)), 100);
+        assert_eq!(Balances::free_balance(account(storage_provider)), 30);
 
         // Run pre commit extrinsic
         StorageProvider::pre_commit_sector(
@@ -53,7 +56,7 @@ fn successfully_precommited() {
         assert!(sp_alice.sectors.is_empty()); // not yet proven
         assert!(!sp_alice.pre_committed_sectors.is_empty());
         assert_eq!(sp_alice.pre_commit_deposits, 1);
-        assert_eq!(Balances::free_balance(account(storage_provider)), 99);
+        assert_eq!(Balances::free_balance(account(storage_provider)), 29);
     });
 }
 
@@ -91,10 +94,11 @@ fn fails_storage_provider_not_found() {
 #[test]
 fn fails_sector_number_already_used() {
     new_test_ext().execute_with(|| {
-        // Register ALICE as a storage provider.
-        let storage_provider = ALICE;
+        // Register CHARLIE as a storage provider.
+        let storage_provider = CHARLIE;
         register_storage_provider(account(storage_provider));
-
+        publish_deals(storage_provider);
+       
         // Sector to be pre-committed
         let sector = SectorPreCommitInfoBuilder::default().build();
 
@@ -241,6 +245,37 @@ fn fails_expiration_too_long() {
             Error::<Test>::ExpirationTooLong,
         );
     });
+}
+
+
+fn publish_deals(storage_provider: &str) {
+        // Add balance to the market pallet
+        assert_ok!(Market::add_balance(
+            RuntimeOrigin::signed(account(ALICE)),
+            60
+        ));
+        assert_ok!(Market::add_balance(RuntimeOrigin::signed(account(BOB)), 60));
+        assert_ok!(Market::add_balance(
+            RuntimeOrigin::signed(account(storage_provider)),
+            70
+        ));
+
+        // Publish the deal proposal
+        Market::publish_storage_deals(
+            RuntimeOrigin::signed(account(storage_provider)),
+            bounded_vec![
+                DealProposalBuilder::default()
+                    .client(ALICE)
+                    .provider(storage_provider)
+                    .signed(ALICE),
+                DealProposalBuilder::default()
+                    .client(BOB)
+                    .provider(storage_provider)
+                    .signed(BOB)
+            ],
+        )
+        .expect("publish_storage_deals needs to work in order to call verify_deals_for_activation");
+        System::reset_events();
 }
 
 // TODO(no-ref,@cernicc,11/07/2024): Based on the current setup I can't get
