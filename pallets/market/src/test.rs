@@ -947,6 +947,16 @@ fn verifies_deals_on_block_finalization() {
         );
 
         assert!(!DealsForBlock::<Test>::get(&bob_start_block).contains(&bob_deal_id));
+        assert_eq!(
+            events(),
+            [
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Withdraw {
+                    who: Market::account_id(),
+                    amount: 15
+                }),
+                RuntimeEvent::Market(Event::<Test>::DealSlashed(bob_deal_id))
+            ]
+        )
     });
 }
 

@@ -372,6 +372,10 @@ pub mod pallet {
             unsuccessful: BoundedVec<(DealId, DealSettlementError), MaxSettleDeals<T>>,
         },
         /// Deal was slashed.
+        /// It means that the `provider_collateral` was burned and the entire client's lockup returned.
+        ///
+        /// Currently it's emitted only when a deal was supposed to be activated on a given block, but was not.
+        /// [`Hooks::on_finalize`] checks deals and slashes them when necessary.
         DealSlashed(DealId),
 
         /// Deal has been terminated.
@@ -1400,6 +1404,8 @@ pub mod pallet {
                             log::error!(target: LOG_TARGET, "on_finalize: invariant violated, cannot slash the deal {}", deal_id);
                             continue;
                         };
+
+                        Self::deposit_event(Event::<T>::DealSlashed(deal_id));
                     }
                     DealState::Active(_) => {
                         log::info!(
