@@ -257,7 +257,6 @@ pub mod pallet {
             // Reserve deposit from storage provider
             T::Currency::reserve(&owner, deposit)?;
 
-            // TODO(no-ref,@cernicc,19/07/2024): If mutation fails do we need to explicitly unreserve the deposit?
             StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResult {
                 let sp = maybe_sp
                     .as_mut()
