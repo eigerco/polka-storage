@@ -1,24 +1,31 @@
 use cid::Cid;
 use codec::Encode;
-use frame_support::sp_runtime::{traits::BlakeTwo256, MultiAddress, MultiSignature};
-use subxt::{
-    config::{polkadot::AccountId32, substrate::SubstrateHeader, DefaultExtrinsicParams},
-    tx::Signer,
-    utils::H256,
-    Config,
-};
+use frame_support::CloneNoBound;
+use subxt::{tx::Signer, utils::Static};
 
 pub mod market;
 pub mod runtime;
 
-pub enum PolkaStorageConfig {}
+use crate::runtime::bounded_vec::IntoBoundedByteVec;
+pub use crate::runtime::runtime_types::pallet_market::{
+    pallet as market_pallet_types,
+    pallet::{ActiveDealState, DealState},
+};
+
+/// Currency as specified by the SCALE-encoded runtime.
+type Currency = u128;
+
+/// BlockNumber as specified by the SCALE-encoded runtime.
+type BlockNumber = u32;
 
 type AccountIndex = u32;
+
+pub enum PolkaStorageConfig {}
 
 // Types are fully qualified ON PURPOSE!
 // It's not fun to find out where in your config a type comes from subxt or frame_support
 // going up and down, in and out the files, this helps!
-impl Config for PolkaStorageConfig {
+impl subxt::Config for PolkaStorageConfig {
     type Hash = subxt::utils::H256;
     type AccountId = subxt::config::polkadot::AccountId32;
     type Address = subxt::config::polkadot::MultiAddress<Self::AccountId, AccountIndex>;
@@ -30,35 +37,16 @@ impl Config for PolkaStorageConfig {
     type AssetId = u32;
 }
 
-/// Currency as specified by the SCALE-encoded runtime.
-type Currency = u128;
-
-/// BlockNumber as specified by the SCALE-encoded runtime.
-type BlockNumber = u32;
-
-#[derive(Debug, Clone, serde::Deserialize, codec::Encode)]
-pub struct ActiveDealState<BlockNumber> {
-    pub sector_number: u64,
-    pub sector_start_block: BlockNumber,
-    pub last_updated_block: Option<BlockNumber>,
-    pub slash_block: Option<BlockNumber>,
-}
-
-#[derive(Debug, Clone, serde::Deserialize, codec::Encode)]
-pub enum DealState<BlockNumber> {
-    Published,
-    Active(ActiveDealState<BlockNumber>),
-}
-
-#[derive(Debug, Clone, serde::Deserialize, codec::Encode)]
-pub struct DealProposal<Config, BlockNumber, Currency>
+// We need this type because of the CID & label ergonomics.
+#[derive(CloneNoBound)]
+pub struct DealProposal<Config>
 where
     Config: subxt::Config,
 {
     pub piece_cid: Cid,
     pub piece_size: u64,
-    pub client: Config::Address,
-    pub provider: Config::Address,
+    pub client: Config::AccountId,
+    pub provider: Config::AccountId,
     pub label: String,
     pub start_block: BlockNumber,
     pub end_block: BlockNumber,
@@ -67,30 +55,68 @@ where
     pub state: DealState<BlockNumber>,
 }
 
-impl<Config, BlockNumber, Currency> DealProposal<Config, BlockNumber, Currency>
+impl<Config> From<DealProposal<Config>>
+    for market_pallet_types::DealProposal<Config::AccountId, Currency, BlockNumber>
 where
-    Config: subxt::Config<Signature = MultiSignature>,
+    Config: subxt::Config,
 {
-    fn sign<Keypair>(self, keypair: &Keypair) -> ClientDealProposal<Config, BlockNumber, Currency>
-    where
-        Keypair: Signer<Config>,
-    {
-        let encoded_deal_proposal = self.encode();
-
-        let signature = keypair.sign(&encoded_deal_proposal);
-        let client = MultiSignature::from(signature);
-
-        ClientDealProposal {
-            proposal: self,
-            client,
+    fn from(value: DealProposal<Config>) -> Self {
+        Self {
+            piece_cid: value.piece_cid.into_bounded_byte_vec(),
+            piece_size: value.piece_size,
+            client: value.client,
+            provider: value.provider,
+            label: value.label.into_bounded_byte_vec(),
+            start_block: value.start_block,
+            end_block: value.end_block,
+            storage_price_per_block: value.storage_price_per_block,
+            provider_collateral: value.provider_collateral,
+            state: value.state,
         }
     }
 }
 
-pub struct ClientDealProposal<Config, BlockNumber, Currency>
+impl<Config> DealProposal<Config>
 where
     Config: subxt::Config,
 {
-    pub proposal: DealProposal<Config, BlockNumber, Currency>,
-    pub client: Config::Signature, // OffchainSignature
+    fn sign<Keypair>(self, keypair: &Keypair) -> ClientDealProposal<Config>
+    where
+        Keypair: Signer<Config>,
+        Self: Into<market_pallet_types::DealProposal<Config::AccountId, Currency, BlockNumber>>,
+    {
+        let market_deal_proposal: market_pallet_types::DealProposal<_, _, _> = self.clone().into();
+        let encoded_deal_proposal = market_deal_proposal.encode();
+
+        ClientDealProposal {
+            proposal: self,
+            client: keypair.sign(&encoded_deal_proposal),
+        }
+    }
+}
+
+pub struct ClientDealProposal<Config>
+where
+    Config: subxt::Config,
+{
+    pub proposal: DealProposal<Config>,
+    pub client: Config::Signature,
+}
+
+impl<Config> From<ClientDealProposal<Config>>
+    for market_pallet_types::ClientDealProposal<
+        Config::AccountId,
+        Currency,
+        BlockNumber,
+        Static<Config::Signature>,
+    >
+where
+    Config: subxt::Config,
+{
+    fn from(value: ClientDealProposal<Config>) -> Self {
+        Self {
+            proposal: market_pallet_types::DealProposal::from(value.proposal),
+            client_signature: Static(value.client),
+        }
+    }
 }

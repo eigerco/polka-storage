@@ -14185,8 +14185,29 @@ dependencies = [
  "hex",
  "parity-scale-codec",
  "primitives-proofs",
+ "subxt",
+ "subxt-signer",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+]
+
+[[package]]
+name = "storagext-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cid 0.11.1",
+ "clap",
+ "frame-support",
+ "hex",
+ "parity-scale-codec",
+ "primitives-proofs",
  "serde",
  "serde_json",
+ "storagext",
  "subxt",
  "subxt-signer",
  "thiserror",

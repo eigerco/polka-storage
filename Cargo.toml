@@ -9,6 +9,7 @@ repository = "https://github.com/eigerco/polka-storage"
 members = [
   "cli/polka-storage-provider",
   "cli/polka-storage/storagext",
+  "cli/polka-storage/storagext-cli",
   "node",
   "pallets/market",
   "pallets/storage-provider",
@@ -103,6 +104,7 @@ pallet-market = { path = "pallets/market", default-features = false }
 pallet-storage-provider = { path = "pallets/storage-provider", default-features = false }
 polka-storage-runtime = { path = "runtime" }
 primitives-proofs = { path = "primitives/proofs", default-features = false }
+storagext = { path = "cli/polka-storage/storagext" }
 
 # Substrate
 pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.13.0" }
