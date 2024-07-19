@@ -1373,7 +1373,6 @@ pub mod pallet {
                     // this scheduled block. Nothing more to do for this deal.
                     continue;
                 };
-
                 match &proposal.state {
                     DealState::Published => {
                         debug_assert!(

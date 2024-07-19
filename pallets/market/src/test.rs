@@ -1618,6 +1618,104 @@ fn on_sector_terminate_active() {
     });
 }
 
+#[test]
+fn on_finalize_hook_activated_deal() {
+    new_test_ext().execute_with(|| {
+        let alice_proposal = DealProposalBuilder::<Test>::default().signed(ALICE);
+        let alice_start_block = alice_proposal.proposal.start_block;
+        let alice_deal_id = 0;
+
+        // Add some balance to the accounts
+        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 60);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
+
+        // Publish the deal
+        assert_ok!(Market::publish_storage_deals(
+            RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+            bounded_vec![alice_proposal]
+        ));
+
+        // Activate the deal
+        assert_ok!(Market::activate_deals(
+            &account::<Test>(PROVIDER),
+            bounded_vec![SectorDeal {
+                sector_number: 1,
+                sector_expiry: 200,
+                sector_type: RegisteredSealProof::StackedDRG2KiBV1P1,
+                deal_ids: bounded_vec![0]
+            }],
+            true,
+        ));
+
+        // We need to activate the on_finalize hook for the block in which our
+        // deal should be Activated.
+        run_to_block(alice_start_block + 1);
+
+        assert!(Proposals::<Test>::get(&alice_deal_id).is_some());
+        assert!(PendingProposals::<Test>::get().is_empty());
+        assert!(DealsForBlock::<Test>::get(&alice_start_block).is_empty());
+
+        assert_eq!(
+            BalanceTable::<Test>::get(account::<Test>(ALICE)),
+            BalanceEntry::<u64> {
+                free: 10,
+                locked: 50
+            }
+        );
+        assert_eq!(
+            BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
+            BalanceEntry::<u64> {
+                free: 50,
+                locked: 25
+            }
+        );
+    });
+}
+
+#[test]
+fn on_finalize_hook_slash_deal() {
+    new_test_ext().execute_with(|| {
+        let alice_proposal = DealProposalBuilder::<Test>::default().signed(ALICE);
+        let alice_start_block = alice_proposal.proposal.start_block;
+        let alice_deal_id = 0;
+
+        // Add some balance to the accounts
+        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 60);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
+
+        // Publish the deal
+        assert_ok!(Market::publish_storage_deals(
+            RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+            bounded_vec![alice_proposal]
+        ));
+
+        // We need to activate the on_finalize hook for the block in which our
+        // deal should be Activated or it's going to be slashed.
+        run_to_block(alice_start_block + 1);
+
+        assert!(Proposals::<Test>::get(&alice_deal_id).is_none());
+        assert!(PendingProposals::<Test>::get().is_empty());
+        assert!(DealsForBlock::<Test>::get(&alice_start_block).is_empty());
+
+        // Deal was slashed, Alice's balance should be unlocked
+        assert_eq!(
+            BalanceTable::<Test>::get(account::<Test>(ALICE)),
+            BalanceEntry::<u64> {
+                free: 60,
+                locked: 0
+            }
+        );
+        // Provider's balance should be slashed
+        assert_eq!(
+            BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
+            BalanceEntry::<u64> {
+                free: 50,
+                locked: 0
+            }
+        );
+    });
+}
+
 /// Builder with nice defaults for test purposes.
 struct SectorDealBuilder {
     sector_number: u64,
