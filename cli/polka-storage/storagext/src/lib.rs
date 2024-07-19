@@ -1,35 +1,33 @@
 use cid::Cid;
 use codec::Encode;
-use frame_support::sp_runtime::{AccountId32, MultiSignature};
-use subxt::tx::Signer;
+use frame_support::sp_runtime::{traits::BlakeTwo256, MultiAddress, MultiSignature};
+use subxt::{
+    config::{polkadot::AccountId32, substrate::SubstrateHeader, DefaultExtrinsicParams},
+    tx::Signer,
+    utils::H256,
+    Config,
+};
 
 pub mod market;
 pub mod runtime;
 
-/// Address as specified by the SCALE-encoded runtime.
-type Address = AccountId32;
+pub enum PolkaStorageConfig {}
 
-#[derive(Debug, Clone, codec::Encode)]
-struct CidWrapper(Cid);
+type AccountIndex = u32;
 
-// The CID has some issues that require a workaround for strings.
-// For more details, see: <https://github.com/multiformats/rust-cid/issues/162>
-impl<'de> serde::de::Deserialize<'de> for CidWrapper {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        Ok(Self(
-            Cid::try_from(s.as_str()).map_err(|e| serde::de::Error::custom(format!("{e:?}")))?,
-        ))
-    }
-}
-
-impl Into<Cid> for CidWrapper {
-    fn into(self) -> Cid {
-        self.0
-    }
+// Types are fully qualified ON PURPOSE!
+// It's not fun to find out where in your config a type comes from subxt or frame_support
+// going up and down, in and out the files, this helps!
+impl Config for PolkaStorageConfig {
+    type Hash = subxt::utils::H256;
+    type AccountId = subxt::config::polkadot::AccountId32;
+    type Address = subxt::config::polkadot::MultiAddress<Self::AccountId, AccountIndex>;
+    type Signature = frame_support::sp_runtime::MultiSignature;
+    type Hasher = subxt::config::substrate::BlakeTwo256;
+    type Header =
+        subxt::config::substrate::SubstrateHeader<u32, subxt::config::substrate::BlakeTwo256>;
+    type ExtrinsicParams = subxt::config::DefaultExtrinsicParams<Self>;
+    type AssetId = u32;
 }
 
 /// Currency as specified by the SCALE-encoded runtime.
@@ -39,7 +37,7 @@ type Currency = u128;
 type BlockNumber = u32;
 
 #[derive(Debug, Clone, serde::Deserialize, codec::Encode)]
-pub struct ActiveDealState {
+pub struct ActiveDealState<BlockNumber> {
     pub sector_number: u64,
     pub sector_start_block: BlockNumber,
     pub last_updated_block: Option<BlockNumber>,
@@ -47,30 +45,35 @@ pub struct ActiveDealState {
 }
 
 #[derive(Debug, Clone, serde::Deserialize, codec::Encode)]
-pub enum DealState {
+pub enum DealState<BlockNumber> {
     Published,
-    Active(ActiveDealState),
+    Active(ActiveDealState<BlockNumber>),
 }
 
 #[derive(Debug, Clone, serde::Deserialize, codec::Encode)]
-pub struct DealProposal {
-    pub piece_cid: CidWrapper,
+pub struct DealProposal<Config, BlockNumber, Currency>
+where
+    Config: subxt::Config,
+{
+    pub piece_cid: Cid,
     pub piece_size: u64,
-    pub client: Address,
-    pub provider: Address,
+    pub client: Config::Address,
+    pub provider: Config::Address,
     pub label: String,
     pub start_block: BlockNumber,
     pub end_block: BlockNumber,
     pub storage_price_per_block: Currency,
     pub provider_collateral: Currency,
-    pub state: DealState,
+    pub state: DealState<BlockNumber>,
 }
 
-impl DealProposal {
-    fn sign<Keypair, Config>(self, keypair: &Keypair) -> ClientDealProposal
+impl<Config, BlockNumber, Currency> DealProposal<Config, BlockNumber, Currency>
+where
+    Config: subxt::Config<Signature = MultiSignature>,
+{
+    fn sign<Keypair>(self, keypair: &Keypair) -> ClientDealProposal<Config, BlockNumber, Currency>
     where
         Keypair: Signer<Config>,
-        Config: subxt::Config<Signature = subxt::utils::MultiSignature>,
     {
         let encoded_deal_proposal = self.encode();
 
@@ -84,7 +87,10 @@ impl DealProposal {
     }
 }
 
-pub struct ClientDealProposal {
-    pub proposal: DealProposal,
-    pub client: MultiSignature, // OffchainSignature
+pub struct ClientDealProposal<Config, BlockNumber, Currency>
+where
+    Config: subxt::Config,
+{
+    pub proposal: DealProposal<Config, BlockNumber, Currency>,
+    pub client: Config::Signature, // OffchainSignature
 }

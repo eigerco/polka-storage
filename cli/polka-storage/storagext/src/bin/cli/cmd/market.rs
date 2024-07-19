@@ -1,14 +1,8 @@
-use std::{error::Error, path::PathBuf, str::FromStr};
+use std::{path::PathBuf, str::FromStr};
 
 use clap::Subcommand;
-use frame_support::sp_runtime::{MultiSigner, AccountId32};
 use primitives_proofs::DealId;
-use storagext::{market::MarketClient, DealProposal};
-use subxt::{tx::Signer, , OnlineClient, SubstrateConfig};
-use subxt_signer::{
-    sr25519::{dev, Keypair},
-    SecretUri,
-};
+use storagext::{market::MarketClient, DealProposal, PolkaStorageConfig};
 use url::Url;
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -52,9 +46,9 @@ impl MarketCommand {
         account_keypair: Keypair,
     ) -> Result<(), anyhow::Error>
     where
-        Keypair: subxt::tx::Signer<SubstrateConfig>,
+        Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
-        let client = MarketClient::<SubstrateConfig>::new(node_rpc).await?;
+        let client = MarketClient::<PolkaStorageConfig>::new(node_rpc).await?;
         match self {
             MarketCommand::AddBalance { amount } => {
                 let block_hash = client.add_balance(&account_keypair, amount).await?;

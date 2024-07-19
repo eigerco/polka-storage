@@ -1,6 +1,10 @@
-use frame_support::sp_runtime::AccountId32;
+use frame_support::sp_runtime::MultiSignature;
 use primitives_proofs::DealId;
-use subxt::{config::ExtrinsicParams, Config as SubxtConfig, OnlineClient};
+use subxt::{
+    config::{polkadot::AccountId32, ExtrinsicParams},
+    utils::Static,
+    Config as SubxtConfig, OnlineClient,
+};
 
 use crate::{
     runtime::{self},
@@ -17,6 +21,7 @@ pub enum MarketClientError {
     SubxtError(#[from] subxt::Error),
 }
 
+/// Client to interact with the market pallet extrinsics.
 pub struct MarketClient<Config>
 where
     Config: SubxtConfig,
@@ -30,6 +35,9 @@ where
     <Config::ExtrinsicParams as ExtrinsicParams<Config>>::Params: Default,
 {
     /// Create a new [`MarketClient`] from a target `rpc_address`.
+    ///
+    /// By default, this function does not support insecure URLs,
+    /// to enable support for them, use the `insecure_url` feature.
     pub async fn new(rpc_address: impl AsRef<str>) -> Result<Self, MarketClientError> {
         let client = if cfg!(feature = "insecure_url") {
             OnlineClient::<Config>::from_insecure_url(rpc_address).await?
@@ -98,14 +106,14 @@ where
 
     // TODO remove skip_all
     #[tracing::instrument(skip_all)]
-    pub async fn publish_storage_deals<Keypair>(
+    pub async fn publish_storage_deals<Keypair, BlockNumber, Currency>(
         &self,
         account_keypair: &Keypair,
-        mut deals: Vec<DealProposal>,
+        mut deals: Vec<DealProposal<Config, BlockNumber, Currency>>,
     ) -> Result<Config::Hash, MarketClientError>
     where
         Keypair: subxt::tx::Signer<Config>,
-        Config: subxt::Config<Signature = subxt::utils::MultiSignature>,
+        Config: subxt::Config<Signature = frame_support::sp_runtime::MultiSignature>,
     {
         if deals.len() > MAX_N_DEALS {
             tracing::warn!("more than {} deals, truncating", MAX_N_DEALS);
@@ -120,7 +128,7 @@ where
                     AccountId32,
                     u128,
                     u32,
-                    runtime::runtime_types::sp_runtime::MultiSignature,
+                    Static<MultiSignature>,
                 >::from(client_deal_proposal)
             })
             .collect();
@@ -149,13 +157,13 @@ where
 pub mod extrinsics {
     use hex::ToHex;
     use subxt::{config::ExtrinsicParams, OnlineClient};
-    use tracing::instrument;
 
     use crate::runtime::{
         self,
         market::calls::types::{publish_storage_deals::Deals, settle_deal_payments::DealIds},
     };
 
+    /// Withdraw `amount` of balance from an account.
     pub async fn withdraw_balance<Keypair, Config>(
         client: &OnlineClient<Config>,
         account_keypair: &Keypair,
@@ -170,11 +178,7 @@ pub mod extrinsics {
         traced_submission(client, &payload, account_keypair).await
     }
 
-    #[instrument(
-        skip_all, fields(
-            account_address = ?account_keypair.address()
-        )
-    )]
+    /// Add `amount` of balance to an account.
     pub async fn add_balance<Keypair, Config>(
         client: &OnlineClient<Config>,
         account_keypair: &Keypair,
@@ -189,6 +193,7 @@ pub mod extrinsics {
         traced_submission(client, &payload, account_keypair).await
     }
 
+    /// Settle deal payments for the given `deal_ids`.
     pub async fn settle_deal_payments<Keypair, Config>(
         client: &OnlineClient<Config>,
         account_keypair: &Keypair,
@@ -203,6 +208,7 @@ pub mod extrinsics {
         traced_submission(client, &payload, account_keypair).await
     }
 
+    /// Publish the given `deals`.
     pub async fn publish_storage_deals<Keypair, Config>(
         client: &OnlineClient<Config>,
         account_keypair: &Keypair,

@@ -1,15 +1,10 @@
-#![warn(unused_crate_dependencies)]
 #![deny(clippy::unwrap_used)]
 
-mod cmd;
+mod cli;
 
-use std::error::Error;
-
-use cid::{Cid, CidGeneric};
 use clap::{ArgGroup, Parser, Subcommand};
-use cmd::market::MarketCommand;
-use storagext::runtime::balances::storage::types::account;
-use subxt::{OnlineClient, SubstrateConfig};
+use cli::cmd::market::MarketCommand;
+use storagext::PolkaStorageConfig;
 use subxt_signer::{ecdsa, sr25519};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{
@@ -51,7 +46,7 @@ impl SubCommand {
         account_keypair: Keypair,
     ) -> Result<(), anyhow::Error>
     where
-        Keypair: subxt::tx::Signer<SubstrateConfig>,
+        Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
         match self {
             SubCommand::Market(cmd) => {
