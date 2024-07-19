@@ -834,18 +834,25 @@ pub mod pallet {
             sector_expiry: BlockNumberFor<T>,
             sector_activation: BlockNumberFor<T>,
         ) -> Result<(), DealActivationError> {
+            log::trace!(target: LOG_TARGET, "validate_deal_can_activate: {provider:?} == {:?}", deal.provider);
             ensure!(
                 *provider == deal.provider,
                 DealActivationError::InvalidProvider
             );
+
+            log::trace!(target: LOG_TARGET, "validate_deal_can_activate: {:?} == DealState::Published", deal.state);
             ensure!(
                 deal.state == DealState::Published,
                 DealActivationError::InvalidDealState
             );
+
+            log::trace!(target: LOG_TARGET, "validate_deal_can_activate: {sector_activation:?} <= {:?}", deal.start_block);
             ensure!(
                 sector_activation <= deal.start_block,
                 DealActivationError::StartBlockElapsed
             );
+
+            log::trace!(target: LOG_TARGET, "validate_deal_can_activate: {sector_expiry:?} >= {:?}", deal.end_block);
             ensure!(
                 sector_expiry >= deal.end_block,
                 DealActivationError::SectorExpiresBeforeDeal
