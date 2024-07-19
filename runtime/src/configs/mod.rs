@@ -317,6 +317,7 @@ parameter_types! {
     pub const SectorMaximumLifetime: BlockNumber = (365 * DAYS) * 5; // 5 years
     pub const MaxProveCommitDuration: BlockNumber =  (30 * DAYS) + 150;
     pub const WPoStPeriodDeadlines: u64 = 48;
+    pub const MaxPartitionsPerDeadline: u64 = 3000;
 }
 
 impl pallet_storage_provider::Config for Runtime {
@@ -331,6 +332,7 @@ impl pallet_storage_provider::Config for Runtime {
     type SectorMaximumLifetime = SectorMaximumLifetime;
     type MaxProveCommitDuration = MaxProveCommitDuration;
     type WPoStPeriodDeadlines = WPoStPeriodDeadlines;
+    type MaxPartitionsPerDeadline = MaxPartitionsPerDeadline;
 }
 
 parameter_types! {

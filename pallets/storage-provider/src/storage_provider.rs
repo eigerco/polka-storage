@@ -5,17 +5,18 @@ use frame_support::{
     PalletError,
 };
 use primitives_proofs::{RegisteredPoStProof, SectorNumber, SectorSize};
-use scale_info::TypeInfo;
+use scale_info::{prelude::vec::Vec, TypeInfo};
 use sp_arithmetic::{traits::BaseArithmetic, ArithmeticError};
 
 use crate::{
-    deadline::{DeadlineError, DeadlineInfo, Deadlines},
+    deadline::{assign_deadlines, Deadline, DeadlineError, DeadlineInfo, Deadlines},
+    pallet::LOG_TARGET,
     sector::{SectorOnChainInfo, SectorPreCommitOnChainInfo, MAX_SECTORS},
 };
 
 /// This struct holds the state of a single storage provider.
 #[derive(Debug, Decode, Encode, TypeInfo)]
-pub struct StorageProviderState<PeerId, Balance, BlockNumber> {
+pub struct StorageProviderState<PeerId, Balance, BlockNumber: Clone + Copy + Ord> {
     /// Contains static information about this storage provider
     pub info: StorageProviderInfo<PeerId>,
 
@@ -66,7 +67,7 @@ pub struct StorageProviderState<PeerId, Balance, BlockNumber> {
 impl<PeerId, Balance, BlockNumber> StorageProviderState<PeerId, Balance, BlockNumber>
 where
     PeerId: Clone + Decode + Encode + TypeInfo,
-    BlockNumber: Copy + BaseArithmetic + Decode + Encode + TypeInfo + core::fmt::Debug,
+    BlockNumber: Copy + Clone + BaseArithmetic + Decode + Encode + TypeInfo + core::fmt::Debug,
     Balance: BaseArithmetic,
 {
     pub fn new(
@@ -145,18 +146,90 @@ where
 
     /// Assign new sector to a deadline.
     pub fn assign_sectors_to_deadlines(
-        &mut self,
-        _current_block: BlockNumber,
-        _info: SectorOnChainInfo<BlockNumber>,
+        &self,
+        current_block: BlockNumber,
+        mut sectors: Vec<SectorOnChainInfo<BlockNumber>>,
+        partition_size: u64,
+        _sector_size: SectorSize,
+        max_partitions_per_deadline: u64,
+        w_post_challenge_window: BlockNumber,
+        w_post_period_deadlines: u64,
+        w_post_proving_period: BlockNumber,
     ) -> Result<(), StorageProviderError> {
-        let _deadlines = self.get_deadlines_mut();
+        let deadlines = self.get_deadlines();
+        sectors.sort_by_key(|info| info.sector_number);
+        let mut deadline_vec: Vec<Option<Deadline<BlockNumber>>> =
+            (0..w_post_period_deadlines).map(|_| None).collect();
+        log::debug!(target: LOG_TARGET,
+            "assign_sectors_to_deadlines: deadline len = {}",
+            deadlines.len()
+        );
+        deadlines.for_each(|deadline_idx, deadline| {
+            // Skip deadlines that aren't currently mutable.
+            if deadline_is_mutable(
+                self.current_proving_period_start(
+                    current_block,
+                    w_post_challenge_window,
+                    w_post_period_deadlines,
+                    w_post_proving_period,
+                )?,
+                deadline_idx,
+                current_block,
+                w_post_challenge_window,
+                w_post_period_deadlines,
+                w_post_proving_period,
+            )? {
+                deadline_vec[deadline_idx as usize] = Some(deadline);
+            }
 
+            Ok(())
+        })?;
+        let deadline_to_sectors = assign_deadlines(
+            max_partitions_per_deadline,
+            partition_size,
+            &deadline_vec,
+            sectors,
+            w_post_period_deadlines,
+        )?;
+        for (deadline_idx, deadline_sectors) in deadline_to_sectors.into_iter().enumerate() {
+            if deadline_sectors.is_empty() {
+                continue;
+            }
+
+            let deadline = deadline_vec[deadline_idx].as_mut().unwrap();
+
+            deadline.add_sectors(partition_size, &deadline_sectors)?;
+
+            // deadlines.update_deadline(policy, store, deadline_idx as u64, deadline)?;
+        }
         Ok(())
     }
 
-    /// Simple getter to load deadlines.
+    // Returns current proving period start for the current block according to the current block and constant state offset
+    fn current_proving_period_start(
+        &self,
+        current_block: BlockNumber,
+        w_post_challenge_window: BlockNumber,
+        w_post_period_deadlines: u64,
+        w_post_proving_period: BlockNumber,
+    ) -> Result<BlockNumber, DeadlineError> {
+        let dl_info = self.deadline_info(
+            current_block,
+            w_post_challenge_window,
+            w_post_period_deadlines,
+            w_post_proving_period,
+        )?;
+        Ok(dl_info.period_start)
+    }
+
+    /// Simple getter for mutable deadlines.
     pub fn get_deadlines_mut(&mut self) -> &mut Deadlines<BlockNumber> {
         &mut self.deadlines
+    }
+
+    /// Simple getter for deadlines.
+    pub fn get_deadlines(&self) -> &Deadlines<BlockNumber> {
+        &self.deadlines
     }
 
     pub fn get_sectors(
@@ -199,6 +272,14 @@ pub enum StorageProviderError {
     SectorNotFound,
     /// Happens when a sector number is already in use.
     SectorNumberInUse,
+    /// Wrapper around [`DeadlineError`]
+    DeadlineError(crate::deadline::DeadlineError),
+}
+
+impl From<DeadlineError> for StorageProviderError {
+    fn from(dl_err: DeadlineError) -> Self {
+        Self::DeadlineError(dl_err)
+    }
 }
 
 /// Static information about the storage provider.
@@ -240,4 +321,32 @@ impl<PeerId> StorageProviderInfo<PeerId> {
             window_post_partition_sectors,
         }
     }
+}
+
+/// Returns true if the deadline at the given index is currently mutable.
+pub fn deadline_is_mutable<BlockNumber: BaseArithmetic + Copy + core::fmt::Debug>(
+    proving_period_start: BlockNumber,
+    deadline_idx: u64,
+    current_block: BlockNumber,
+    w_post_challenge_window: BlockNumber,
+    w_post_period_deadlines: u64,
+    w_post_proving_period: BlockNumber,
+) -> Result<bool, DeadlineError> {
+    log::debug!(target: LOG_TARGET,"fn deadline_is_mutable");
+    // Get the next non-elapsed deadline (i.e., the next time we care about
+    // mutations to the deadline).
+    let dl_info = DeadlineInfo::new(
+        current_block,
+        proving_period_start,
+        deadline_idx,
+        w_post_period_deadlines,
+        w_post_challenge_window,
+        w_post_proving_period,
+    )?
+    .next_not_elapsed()?;
+    log::debug!(target: LOG_TARGET,"dl_info = {dl_info:?}");
+
+    // Ensure that the current block is at least one challenge window before
+    // that deadline opens.
+    Ok(current_block < dl_info.open - w_post_challenge_window)
 }

@@ -2,11 +2,12 @@ use frame_support::assert_ok;
 use sp_core::bounded_vec;
 
 use crate::{
+    pallet::Event,
     sector::ProveCommitSector,
     tests::{
-        account, new_test_ext, register_storage_provider, run_to_block, DealProposalBuilder,
-        Market, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider,
-        SubmitWindowedPoStBuilder, System, ALICE, BOB,
+        account, events, new_test_ext, register_storage_provider, run_to_block,
+        DealProposalBuilder, Market, RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder,
+        StorageProvider, SubmitWindowedPoStBuilder, System, Test, ALICE, BOB,
     },
 };
 
@@ -80,14 +81,14 @@ fn submit_windowed_post() {
             RuntimeOrigin::signed(account(ALICE)),
             windowed_post,
         ));
-        // // Check that expected events were emitted
-        // assert_eq!(
-        //     events(),
-        //     [RuntimeEvent::StorageProvider(
-        //         Event::<Test>::ValidPoStSubmitted {
-        //             owner: account(ALICE)
-        //         }
-        //     )]
-        // );
+        // Check that expected events were emitted
+        assert_eq!(
+            events(),
+            [RuntimeEvent::StorageProvider(
+                Event::<Test>::ValidPoStSubmitted {
+                    owner: account(ALICE)
+                }
+            )]
+        );
     });
 }

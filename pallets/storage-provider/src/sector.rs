@@ -51,21 +51,24 @@ impl<Balance, BlockNumber> SectorPreCommitOnChainInfo<Balance, BlockNumber> {
     }
 }
 
-impl<Balance, BlockNumber: Clone> From<&SectorPreCommitOnChainInfo<Balance, BlockNumber>>
-    for SectorDeal<BlockNumber>
+impl<Balance, BlockNumber: Clone + Copy + Ord>
+    From<&SectorPreCommitOnChainInfo<Balance, BlockNumber>> for SectorDeal<BlockNumber>
 {
     fn from(precommit: &SectorPreCommitOnChainInfo<Balance, BlockNumber>) -> Self {
         Self {
             sector_number: precommit.info.sector_number,
-            sector_expiry: precommit.info.expiration.clone(),
+            sector_expiry: precommit.info.expiration,
             sector_type: precommit.info.seal_proof.clone(),
             deal_ids: precommit.info.deal_ids.clone(),
         }
     }
 }
 
-#[derive(Debug, Decode, Encode, TypeInfo)]
-pub struct SectorOnChainInfo<BlockNumber> {
+#[derive(Clone, Debug, Decode, Encode, TypeInfo)]
+pub struct SectorOnChainInfo<BlockNumber>
+where
+    BlockNumber: Clone + Copy + Ord,
+{
     pub sector_number: SectorNumber,
     /// The seal proof type implies the PoSt proofs
     pub seal_proof: RegisteredSealProof,
@@ -82,7 +85,10 @@ pub struct SectorOnChainInfo<BlockNumber> {
     pub unsealed_cid: SectorId,
 }
 
-impl<BlockNumber> SectorOnChainInfo<BlockNumber> {
+impl<BlockNumber> SectorOnChainInfo<BlockNumber>
+where
+    BlockNumber: Clone + Copy + Ord,
+{
     pub fn from_pre_commit(
         pre_commit: SectorPreCommitInfo<BlockNumber>,
         activation: BlockNumber,

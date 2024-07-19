@@ -74,10 +74,7 @@ impl<BlockNumber: Ord> Partition<BlockNumber> {
     ///
     /// condition: the sector numbers cannot be in any of the `BoundedBTreeSet`'s
     /// fails if any of the given sector numbers are a duplicate
-    pub fn add_sectors(
-        &mut self,
-        sectors: BoundedVec<SectorNumber, ConstU32<MAX_SECTORS>>,
-    ) -> PartitionResult<()> {
+    pub fn add_sectors(&mut self, sectors: &[SectorNumber]) -> PartitionResult<()> {
         let new_sectors = sectors.iter().cloned();
         for sector_number in new_sectors {
             // Ensure that the sector number has not been used before.
@@ -133,7 +130,7 @@ mod test {
         let mut partition: Partition<u64> = Partition::new();
         // Add some sectors
         let sectors_to_add: BoundedVec<SectorNumber, ConstU32<MAX_SECTORS>> = bounded_vec![1, 2];
-        partition.add_sectors(sectors_to_add.clone())?;
+        partition.add_sectors(&sectors_to_add)?;
         for sector_number in sectors_to_add {
             assert!(partition.sectors.contains(&sector_number));
         }
@@ -145,8 +142,7 @@ mod test {
         // Set up partition, using `u64` for block number because it is not relevant to this test.
         let mut partition: Partition<u64> = Partition::new();
         // Add some sectors
-        let active_sectors = bounded_vec![1, 2];
-        partition.add_sectors(active_sectors)?;
+        partition.add_sectors(&[1, 2])?;
         // Terminate a sector that is in the active sectors.
         partition
             .terminated

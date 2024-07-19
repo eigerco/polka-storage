@@ -43,7 +43,7 @@ pub mod pallet {
     };
     use frame_system::{ensure_signed, pallet_prelude::*, Config as SystemConfig};
     use primitives_proofs::{Market, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
-    use scale_info::TypeInfo;
+    use scale_info::{prelude::vec, TypeInfo};
 
     use crate::{
         deadline::DeadlineInfo,
@@ -173,6 +173,9 @@ pub mod pallet {
         /// Closely tied to `WPoStChallengeWindow`
         #[pallet::constant]
         type WPoStPeriodDeadlines: Get<u64>;
+
+        #[pallet::constant]
+        type MaxPartitionsPerDeadline: Get<u64>;
     }
 
     /// Need some storage type that keeps track of sectors, deadlines and terminations.
@@ -382,10 +385,19 @@ pub mod pallet {
                 let sp = maybe_sp
                     .as_mut()
                     .ok_or(Error::<T>::StorageProviderNotFound)?;
-                sp.activate_sector(sector_number, new_sector)
+                sp.activate_sector(sector_number, new_sector.clone())
                     .map_err(|e| Error::<T>::StorageProviderError(e))?;
-                // sp.assign_sector_to_deadline(current_block, new_sector)
-                // .map_err(|e| Error::<T>::StorageProviderError(e))?;
+                sp.assign_sectors_to_deadlines(
+                    current_block,
+                    vec![new_sector],
+                    sp.info.window_post_partition_sectors,
+                    sp.info.sector_size,
+                    T::MaxPartitionsPerDeadline::get(),
+                    T::WPoStChallengeWindow::get(),
+                    T::WPoStPeriodDeadlines::get(),
+                    T::WPoStProvingPeriod::get(),
+                )
+                .map_err(|e| Error::<T>::StorageProviderError(e))?;
                 sp.remove_pre_committed_sector(sector_number)
                     .map_err(|e| Error::<T>::StorageProviderError(e))?;
                 Ok(())
