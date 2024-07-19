@@ -393,15 +393,19 @@ pub mod pallet {
             Error::<T>::InvalidCid
         })?;
 
-        log::trace!(target: LOG_TARGET, "cid metadata: {:?}", c);
+        let version = c.version();
+        let codec = c.codec();
+        let hash = c.hash();
+
+        log::trace!(target: LOG_TARGET, "cid: version {version:?} codec {codec} hash {hash:?}");
 
         // these values should be consistent with the cid's created by the SP.
         // They could change in the future when we make a definitive decision on what hashing algorithm to use and such
         ensure!(
-            c.version() == Version::V1
-                && c.codec() == CID_CODEC // The codec should align with our CID_CODEC value.
-                && c.hash().code() == BLAKE2B_MULTIHASH_CODE // The CID should be hashed using blake2b
-                && c.hash().size() == 32,
+            version == Version::V1
+                && codec == CID_CODEC // The codec should align with our CID_CODEC value.
+                && hash.code() == BLAKE2B_MULTIHASH_CODE // The CID should be hashed using blake2b
+                && hash.size() == 32,
             Error::<T>::InvalidCid
         );
         Ok(())
