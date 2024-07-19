@@ -99,7 +99,7 @@ impl MarketClient {
     pub async fn publish_storage_deals<Keypair>(
         &self,
         account_keypair: &Keypair,
-        mut deals: Vec<DealProposal<PolkaStorageConfig>>,
+        mut deals: Vec<DealProposal>,
     ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, MarketClientError>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
