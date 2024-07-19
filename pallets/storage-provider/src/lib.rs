@@ -42,7 +42,6 @@ pub mod pallet {
     use frame_system::{ensure_signed, pallet_prelude::*, Config as SystemConfig};
     use primitives_proofs::{Market, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
     use scale_info::TypeInfo;
-    use sp_core::bounded_vec;
 
     use crate::{
         proofs::{
@@ -252,10 +251,14 @@ pub mod pallet {
                 deposit,
                 <frame_system::Pallet<T>>::block_number(),
             );
-            let calculated_commds = T::Market::verify_deals_for_activation(
-                &owner,
-                bounded_vec![(&sector_on_chain).into()],
-            )?;
+
+            let mut sector_deals = BoundedVec::new();
+            sector_deals.try_push((&sector_on_chain).into())
+                .map_err(|_| {
+                    log::error!(target: LOG_TARGET, "pre_commit_sector: failed to push into sector deals, shouldn't ever happen");
+                    Error::<T>::CouldNotVerifySectorForPreCommit
+                })?;
+            let calculated_commds = T::Market::verify_deals_for_activation(&owner, sector_deals)?;
 
             ensure!(calculated_commds.len() == 1, {
                 log::error!(target: LOG_TARGET, "pre_commit_sector: failed to verify deals, invalid calculated_commd length: {}", calculated_commds.len());

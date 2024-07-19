@@ -7,9 +7,9 @@ use crate::{
     pallet::{Error, Event, StorageProviders},
     sector::SECTORS_MAX,
     tests::{
-        account, events, register_storage_provider, run_to_block, Balances, DealProposalBuilder,
-        Market, MaxProveCommitDuration, MaxSectorExpirationExtension, RuntimeEvent, RuntimeOrigin,
-        SectorPreCommitInfoBuilder, StorageProvider, System, Test, ALICE, BOB, CHARLIE,
+        account, cid_of, events, publish_deals, register_storage_provider, run_to_block, Balances,
+        MaxProveCommitDuration, MaxSectorExpirationExtension, RuntimeEvent, RuntimeOrigin,
+        SectorPreCommitInfoBuilder, StorageProvider, Test, ALICE, CHARLIE,
     },
 };
 
@@ -61,6 +61,57 @@ fn successfully_precommited() {
 }
 
 #[test]
+fn successfully_precommited_no_deals() {
+    new_test_ext().execute_with(|| {
+        // Register CHARLIE as a storage provider.
+        let storage_provider = CHARLIE;
+        register_storage_provider(account(storage_provider));
+
+        // Sector to be pre-committed.
+        let sector = SectorPreCommitInfoBuilder::default()
+            // No sectors -> No CommD verification
+            .deals(bounded_vec![])
+            .unsealed_cid(
+                cid_of("cc-unsealed-cid")
+                    .to_bytes()
+                    .try_into()
+                    .expect("hash is always 32 bytes"),
+            )
+            .build();
+
+        // Run pre commit extrinsic
+        StorageProvider::pre_commit_sector(
+            RuntimeOrigin::signed(account(storage_provider)),
+            sector.clone(),
+        )
+        .expect("Pre commit failed");
+
+        // Check that the events were triggered
+        assert_eq!(
+            events(),
+            [
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Reserved {
+                    who: account(storage_provider),
+                    amount: 1
+                },),
+                RuntimeEvent::StorageProvider(Event::<Test>::SectorPreCommitted {
+                    owner: account(storage_provider),
+                    sector,
+                })
+            ]
+        );
+
+        let sp_alice = StorageProviders::<Test>::get(account(storage_provider))
+            .expect("SP Alice should be present because of the pre-check");
+
+        assert!(sp_alice.sectors.is_empty()); // not yet proven
+        assert!(!sp_alice.pre_committed_sectors.is_empty());
+        assert_eq!(sp_alice.pre_commit_deposits, 1);
+        assert_eq!(Balances::free_balance(account(storage_provider)), 99);
+    });
+}
+
+#[test]
 fn fails_should_be_signed() {
     new_test_ext().execute_with(|| {
         // Sector to be pre-committed
@@ -98,7 +149,7 @@ fn fails_sector_number_already_used() {
         let storage_provider = CHARLIE;
         register_storage_provider(account(storage_provider));
         publish_deals(storage_provider);
-       
+
         // Sector to be pre-committed
         let sector = SectorPreCommitInfoBuilder::default().build();
 
@@ -114,6 +165,34 @@ fn fails_sector_number_already_used() {
                 sector
             ),
             Error::<Test>::SectorNumberAlreadyUsed,
+        );
+    });
+}
+
+#[test]
+fn fails_declared_commd_not_matching() {
+    new_test_ext().execute_with(|| {
+        // Register CHARLIE as a storage provider.
+        let storage_provider = CHARLIE;
+        register_storage_provider(account(storage_provider));
+        publish_deals(storage_provider);
+
+        // Sector to be pre-committed
+        let sector = SectorPreCommitInfoBuilder::default()
+            .unsealed_cid(
+                cid_of("different-unsealed-cid")
+                    .to_bytes()
+                    .try_into()
+                    .expect("hash is always 32 bytes"),
+            )
+            .build();
+
+        assert_noop!(
+            StorageProvider::pre_commit_sector(
+                RuntimeOrigin::signed(account(storage_provider)),
+                sector
+            ),
+            Error::<Test>::InvalidUnsealedCidForSector,
         );
     });
 }
@@ -245,37 +324,6 @@ fn fails_expiration_too_long() {
             Error::<Test>::ExpirationTooLong,
         );
     });
-}
-
-
-fn publish_deals(storage_provider: &str) {
-        // Add balance to the market pallet
-        assert_ok!(Market::add_balance(
-            RuntimeOrigin::signed(account(ALICE)),
-            60
-        ));
-        assert_ok!(Market::add_balance(RuntimeOrigin::signed(account(BOB)), 60));
-        assert_ok!(Market::add_balance(
-            RuntimeOrigin::signed(account(storage_provider)),
-            70
-        ));
-
-        // Publish the deal proposal
-        Market::publish_storage_deals(
-            RuntimeOrigin::signed(account(storage_provider)),
-            bounded_vec![
-                DealProposalBuilder::default()
-                    .client(ALICE)
-                    .provider(storage_provider)
-                    .signed(ALICE),
-                DealProposalBuilder::default()
-                    .client(BOB)
-                    .provider(storage_provider)
-                    .signed(BOB)
-            ],
-        )
-        .expect("publish_storage_deals needs to work in order to call verify_deals_for_activation");
-        System::reset_events();
 }
 
 // TODO(no-ref,@cernicc,11/07/2024): Based on the current setup I can't get
