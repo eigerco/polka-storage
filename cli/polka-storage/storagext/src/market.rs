@@ -1,5 +1,6 @@
+use hex::ToHex;
 use primitives_proofs::DealId;
-use subxt::{config::ExtrinsicParams, utils::Static, OnlineClient};
+use subxt::OnlineClient;
 
 use crate::{
     runtime::{self},
@@ -46,7 +47,8 @@ impl MarketClient {
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
-        Ok(extrinsics::withdraw_balance(&self.client, account_keypair, amount).await?)
+        let payload = runtime::tx().market().withdraw_balance(amount);
+        Ok(self.traced_submission(&payload, account_keypair).await?)
     }
 
     /// Add the given `amount` of balance.
@@ -59,7 +61,8 @@ impl MarketClient {
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
-        Ok(extrinsics::add_balance(&self.client, account_keypair, amount).await?)
+        let payload = runtime::tx().market().add_balance(amount);
+        Ok(self.traced_submission(&payload, account_keypair).await?)
     }
 
     /// Settle deal payments for the provided [`DealId`]s.
@@ -84,12 +87,11 @@ impl MarketClient {
         let bounded_unbounded_deal_ids =
             runtime::runtime_types::bounded_collections::bounded_vec::BoundedVec(deal_ids);
 
-        Ok(extrinsics::settle_deal_payments(
-            &self.client,
-            account_keypair,
-            bounded_unbounded_deal_ids,
-        )
-        .await?)
+        let payload = runtime::tx()
+            .market()
+            .settle_deal_payments(bounded_unbounded_deal_ids);
+
+        Ok(self.traced_submission(&payload, account_keypair).await?)
     }
 
     // TODO remove skip_all
@@ -120,81 +122,11 @@ impl MarketClient {
                 signed_deal_proposals,
             );
 
-        Ok(extrinsics::publish_storage_deals(
-            &self.client,
-            account_keypair,
-            bounded_unbounded_deals,
-        )
-        .await?)
-    }
-}
+        let payload = runtime::tx()
+            .market()
+            .publish_storage_deals(bounded_unbounded_deals);
 
-/// Module containing thin-wrappers around signing and submitting an extrinsinc.
-///
-/// Separated to isolate the conversion from app types to runtime types from these calls.
-/// In other words, [`crate::runtime`] types should not be used outside of this module.
-pub mod extrinsics {
-    use hex::ToHex;
-    use subxt::{config::ExtrinsicParams, OnlineClient};
-
-    use crate::{
-        runtime::{
-            self,
-            market::calls::types::{publish_storage_deals::Deals, settle_deal_payments::DealIds},
-        },
-        PolkaStorageConfig,
-    };
-
-    /// Withdraw `amount` of balance from an account.
-    pub async fn withdraw_balance<Keypair>(
-        client: &OnlineClient<PolkaStorageConfig>,
-        account_keypair: &Keypair,
-        amount: u128,
-    ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
-    where
-        Keypair: subxt::tx::Signer<PolkaStorageConfig>,
-    {
-        let payload = runtime::tx().market().withdraw_balance(amount);
-        traced_submission(client, &payload, account_keypair).await
-    }
-
-    /// Add `amount` of balance to an account.
-    pub async fn add_balance<Keypair>(
-        client: &OnlineClient<PolkaStorageConfig>,
-        account_keypair: &Keypair,
-        amount: u128,
-    ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
-    where
-        Keypair: subxt::tx::Signer<PolkaStorageConfig>,
-    {
-        let payload = runtime::tx().market().add_balance(amount);
-        traced_submission(client, &payload, account_keypair).await
-    }
-
-    /// Settle deal payments for the given `deal_ids`.
-    pub async fn settle_deal_payments<Keypair>(
-        client: &OnlineClient<PolkaStorageConfig>,
-        account_keypair: &Keypair,
-        deal_ids: DealIds,
-    ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
-    where
-        Keypair: subxt::tx::Signer<PolkaStorageConfig>,
-    {
-        let payload = runtime::tx().market().settle_deal_payments(deal_ids);
-        traced_submission(client, &payload, account_keypair).await
-    }
-
-    /// Publish the given `deals`.
-    pub async fn publish_storage_deals<Keypair>(
-        client: &OnlineClient<PolkaStorageConfig>,
-        account_keypair: &Keypair,
-        deals: Deals,
-    ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
-    where
-        Keypair: subxt::tx::Signer<PolkaStorageConfig>,
-    {
-        let payload = runtime::tx().market().publish_storage_deals(deals);
-        traced_submission(client, &payload, account_keypair).await
+        Ok(self.traced_submission(&payload, account_keypair).await?)
     }
 
     /// Submit an extrinsic and wait for finalization, returning the block hash it was included in.
@@ -202,7 +134,7 @@ pub mod extrinsics {
     /// Equivalent to performing [`OnlineClient::sign_and_submit_then_watch_default`],
     /// followed by [`TxInBlock::wait_for_finalized`].
     async fn traced_submission<Call, Keypair>(
-        client: &OnlineClient<PolkaStorageConfig>,
+        &self,
         call: &Call,
         account_keypair: &Keypair,
     ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
@@ -211,7 +143,8 @@ pub mod extrinsics {
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
         tracing::info!("submitting extrinsic");
-        let submission_progress = client
+        let submission_progress = self
+            .client
             .tx()
             .sign_and_submit_then_watch_default(call, account_keypair)
             .await?;
