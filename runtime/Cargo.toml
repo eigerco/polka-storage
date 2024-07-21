@@ -87,7 +87,7 @@ parachain-info = { workspace = true, default-features = false }
 parachains-common = { workspace = true, default-features = false }
 
 [features]
-default = ["std", "testnet"]
+default = ["std"]
 std = [
   "codec/std",
   "cumulus-pallet-aura-ext/std",
