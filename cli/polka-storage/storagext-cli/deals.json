@@ -16,9 +16,9 @@
         "piece_size": 4,
         "client": "5GvHnpY1433RytXW66r77iL4CyewAAErDU6fAouoaPKvcvLU",
         "provider": "5GvHnpY1433RytXW66r77iL4CyewAAErDU6fAouoaPKvcvLU",
-        "label": "heyyy",
+        "label": "heyyy 2",
         "start_block": 10,
-        "end_block": 55,
+        "end_block": 25,
         "storage_price_per_block": 1,
         "provider_collateral": 1,
         "state": "Published"

@@ -9,7 +9,7 @@ pub(crate) mod bounded_vec;
     runtime_metadata_path = "../../artifacts/metadata.scale",
     substitute_type(
         path = "sp_runtime::MultiSignature",
-        with = "::subxt::utils::Static<::frame_support::sp_runtime::MultiSignature>"
+        with = "::subxt::utils::Static<::subxt::ext::sp_runtime::MultiSignature>"
     ),
     derive_for_all_types = "Clone"
 )]

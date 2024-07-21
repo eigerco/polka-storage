@@ -2,16 +2,18 @@ use std::{path::PathBuf, str::FromStr};
 
 use clap::Subcommand;
 use primitives_proofs::DealId;
-use storagext::{market::MarketClient, DealProposal, PolkaStorageConfig};
+use storagext::{market::MarketClient, PolkaStorageConfig};
 use url::Url;
 
+use crate::DealProposal;
+
 #[derive(Debug, Clone, serde::Deserialize)]
-struct DealProposals(Vec<DealProposal>);
+pub struct DealProposals(Vec<DealProposal>);
 
 impl DealProposals {
     fn parse(src: &str) -> Result<Self, anyhow::Error> {
         Ok(if src.starts_with('@') {
-            let path = PathBuf::from_str(&src[1..])?;
+            let path = PathBuf::from_str(&src[1..])?.canonicalize()?;
             let mut file = std::fs::File::open(path)?;
             serde_json::from_reader(&mut file)
         } else {
@@ -48,7 +50,7 @@ impl MarketCommand {
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
-        let client = MarketClient::<PolkaStorageConfig>::new(node_rpc).await?;
+        let client = MarketClient::new(node_rpc).await?;
         match self {
             MarketCommand::AddBalance { amount } => {
                 let block_hash = client.add_balance(&account_keypair, amount).await?;
@@ -60,7 +62,10 @@ impl MarketCommand {
             }
             MarketCommand::PublishStorageDeals { deals } => {
                 let block_hash = client
-                    .publish_storage_deals(&account_keypair, deals.0)
+                    .publish_storage_deals(
+                        &account_keypair,
+                        deals.0.into_iter().map(Into::into).collect(),
+                    )
                     .await?;
                 tracing::info!("[{}] Successfully published storage deals", block_hash);
             }

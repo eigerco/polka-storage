@@ -29,7 +29,7 @@ impl subxt::Config for PolkaStorageConfig {
     type Hash = subxt::utils::H256;
     type AccountId = subxt::config::polkadot::AccountId32;
     type Address = subxt::config::polkadot::MultiAddress<Self::AccountId, AccountIndex>;
-    type Signature = frame_support::sp_runtime::MultiSignature;
+    type Signature = subxt::ext::sp_runtime::MultiSignature;
     type Hasher = subxt::config::substrate::BlakeTwo256;
     type Header =
         subxt::config::substrate::SubstrateHeader<u32, subxt::config::substrate::BlakeTwo256>;

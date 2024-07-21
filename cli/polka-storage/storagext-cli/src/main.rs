@@ -2,10 +2,13 @@
 
 mod cmd;
 
+use std::fmt::Debug;
+
+use cid::Cid;
 use clap::{ArgGroup, Parser, Subcommand};
-use cli::cmd::market::MarketCommand;
+use cmd::market::MarketCommand;
 use storagext::PolkaStorageConfig;
-use subxt_signer::{ecdsa, sr25519};
+use subxt::ext::sp_core::crypto::Ss58Codec;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{
     filter, fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer,
@@ -25,11 +28,11 @@ struct Cli {
     pub node_rpc: Url,
 
     /// An hex encoded Sr25519 key
-    #[arg(long, value_parser = parse_sr25519_keypair)]
-    pub sr25519_key: Option<sr25519::Keypair>,
+    #[arg(long, value_parser = DebugPair::<subxt::ext::sp_core::sr25519::Pair>::value_parser)]
+    pub sr25519_key: Option<DebugPair<subxt::ext::sp_core::sr25519::Pair>>,
 
-    #[arg(long, value_parser = parse_ecdsa_keypair)]
-    pub ecdsa_key: Option<ecdsa::Keypair>,
+    #[arg(long, value_parser = DebugPair::<subxt::ext::sp_core::ecdsa::Pair>::value_parser)]
+    pub ecdsa_key: Option<DebugPair<subxt::ext::sp_core::ecdsa::Pair>>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -86,13 +89,19 @@ async fn main() -> Result<(), anyhow::Error> {
         (Some(account_keypair), _) => {
             cli_arguments
                 .subcommand
-                .run_with_keypair(cli_arguments.node_rpc, account_keypair)
+                .run_with_keypair(
+                    cli_arguments.node_rpc,
+                    subxt::tx::PairSigner::new(account_keypair.0),
+                )
                 .await?
         }
         (_, Some(account_keypair)) => {
             cli_arguments
                 .subcommand
-                .run_with_keypair(cli_arguments.node_rpc, account_keypair)
+                .run_with_keypair(
+                    cli_arguments.node_rpc,
+                    subxt::tx::PairSigner::new(account_keypair.0),
+                )
                 .await?
         }
         _ => unreachable!("should be handled by clap::ArgGroup"),
@@ -101,22 +110,31 @@ async fn main() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-fn parse_sr25519_keypair(mut src: &str) -> Result<sr25519::Keypair, String> {
-    if src.starts_with("0x") {
-        src = &src[2..]
+#[derive(Clone)]
+struct DebugPair<Pair>(Pair)
+where
+    Pair: subxt::ext::sp_core::Pair;
+
+impl<Pair> Debug for DebugPair<Pair>
+where
+    Pair: subxt::ext::sp_core::Pair,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("DebugPair")
+            .field(&self.0.public().to_ss58check())
+            .finish()
     }
-    let mut key_bytes = [0u8; 32];
-    hex::decode_to_slice(src, &mut key_bytes).unwrap();
-    Ok(sr25519::Keypair::from_secret_key(key_bytes).unwrap())
 }
 
-fn parse_ecdsa_keypair(mut src: &str) -> Result<ecdsa::Keypair, String> {
-    if src.starts_with("0x") {
-        src = &src[2..]
+impl<Pair> DebugPair<Pair>
+where
+    Pair: subxt::ext::sp_core::Pair,
+{
+    fn value_parser(src: &str) -> Result<Self, String> {
+        Ok(Self(
+            Pair::from_string(&src, None).map_err(|err| format!("{}", err))?,
+        ))
     }
-    let mut key_bytes = [0u8; 32];
-    hex::decode_to_slice(src, &mut key_bytes).unwrap();
-    Ok(ecdsa::Keypair::from_secret_key(key_bytes).unwrap())
 }
 
 /// Currency as specified by the SCALE-encoded runtime.
@@ -125,23 +143,11 @@ type Currency = u128;
 /// BlockNumber as specified by the SCALE-encoded runtime.
 type BlockNumber = u32;
 
-/// CID wrapper to get deserialization.
+/// CID doesn't deserialize from a string, hence we need our work wrapper.
+///
+/// <https://github.com/multiformats/rust-cid/issues/162>
 #[derive(Debug, Clone)]
 pub struct CidWrapper(Cid);
-
-impl Deref for CidWrapper {
-    type Target = Cid;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl Into<Cid> for CidWrapper {
-    fn into(self) -> Cid {
-        self.0
-    }
-}
 
 // The CID has some issues that require a workaround for strings.
 // For more details, see: <https://github.com/multiformats/rust-cid/issues/162>
@@ -182,16 +188,42 @@ pub enum DealState {
     Active(ActiveDealState),
 }
 
+impl Into<storagext::DealState<BlockNumber>> for DealState {
+    fn into(self) -> storagext::DealState<BlockNumber> {
+        match self {
+            DealState::Published => storagext::DealState::Published,
+            DealState::Active(v) => storagext::DealState::Active(v.into()),
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct DealProposal {
     pub piece_cid: CidWrapper,
     pub piece_size: u64,
-    pub client: AccountId32,
-    pub provider: AccountId32,
+    pub client: <PolkaStorageConfig as subxt::Config>::AccountId,
+    pub provider: <PolkaStorageConfig as subxt::Config>::AccountId,
     pub label: String,
     pub start_block: BlockNumber,
     pub end_block: BlockNumber,
     pub storage_price_per_block: Currency,
     pub provider_collateral: Currency,
     pub state: DealState,
+}
+
+impl Into<storagext::DealProposal> for DealProposal {
+    fn into(self) -> storagext::DealProposal {
+        storagext::DealProposal {
+            piece_cid: self.piece_cid.0,
+            piece_size: self.piece_size,
+            client: self.client,
+            provider: self.provider,
+            label: self.label,
+            start_block: self.start_block,
+            end_block: self.end_block,
+            storage_price_per_block: self.storage_price_per_block,
+            provider_collateral: self.provider_collateral,
+            state: self.state.into(),
+        }
+    }
 }

@@ -7,7 +7,8 @@ homepage.workspace = true
 license-file.workspace = true
 repository.workspace = true
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+insecure_url = ["storagext/insecure_url"]
 
 [dependencies]
 storagext.workspace = true
@@ -21,14 +22,13 @@ hex.workspace = true
 primitives-proofs = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-subxt = { workspace = true, features = ["jsonrpsee"] }
+subxt = { workspace = true, features = ["jsonrpsee", "substrate-compat"] }
 subxt-signer = { workspace = true, features = ["subxt"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 url = { workspace = true }
-
 
 [lints]
 workspace = true
