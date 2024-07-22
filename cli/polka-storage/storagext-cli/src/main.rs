@@ -29,15 +29,15 @@ struct Cli {
     #[arg(long, default_value = FULL_NODE_DEFAULT_RPC_ADDR)]
     pub node_rpc: Url,
 
-    /// An Sr25519 keypair.
+    /// Sr25519 keypair, encoded as hex or BIP-39. See `sp_core::crypto::Pair::from_string_with_seed` for more information.
     #[arg(long, value_parser = DebugPair::<subxt::ext::sp_core::sr25519::Pair>::value_parser)]
     pub sr25519_key: Option<DebugPair<subxt::ext::sp_core::sr25519::Pair>>,
 
-    /// An ECDSA keypair.
+    /// ECDSA keypair, encoded as hex or BIP-39. See `sp_core::crypto::Pair::from_string_with_seed` for more information.
     #[arg(long, value_parser = DebugPair::<subxt::ext::sp_core::ecdsa::Pair>::value_parser)]
     pub ecdsa_key: Option<DebugPair<subxt::ext::sp_core::ecdsa::Pair>>,
 
-    /// An Ed25519 keypair.
+    /// Ed25519 keypair, encoded as hex or BIP-39. See `sp_core::crypto::Pair::from_string_with_seed` for more information.
     #[arg(long, value_parser = DebugPair::<subxt::ext::sp_core::ed25519::Pair>::value_parser)]
     pub ed25519_key: Option<DebugPair<subxt::ext::sp_core::ed25519::Pair>>,
 }
