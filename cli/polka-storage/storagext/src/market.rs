@@ -11,12 +11,6 @@ use crate::{
 // NOTE(@jmg-duarte,17/07/2024): ideally, should be read from the primitives or something
 const MAX_N_DEALS: usize = 32;
 
-#[derive(Debug, thiserror::Error)]
-pub enum MarketClientError {
-    #[error(transparent)]
-    SubxtError(#[from] subxt::Error),
-}
-
 /// Client to interact with the market pallet extrinsics.
 pub struct MarketClient {
     client: OnlineClient<PolkaStorageConfig>,
@@ -27,7 +21,7 @@ impl MarketClient {
     ///
     /// By default, this function does not support insecure URLs,
     /// to enable support for them, use the `insecure_url` feature.
-    pub async fn new(rpc_address: impl AsRef<str>) -> Result<Self, MarketClientError> {
+    pub async fn new(rpc_address: impl AsRef<str>) -> Result<Self, subxt::Error> {
         let client = if cfg!(feature = "insecure_url") {
             OnlineClient::<_>::from_insecure_url(rpc_address).await?
         } else {
@@ -38,12 +32,15 @@ impl MarketClient {
     }
 
     /// Withdraw the given `amount` of balance.
-    #[tracing::instrument(skip(self, account_keypair))]
+    #[tracing::instrument(skip_all, fields(
+        address = keypair.address(),
+        amount = amount
+    ))]
     pub async fn withdraw_balance<Keypair>(
         &self,
         account_keypair: &Keypair,
         amount: u128,
-    ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, MarketClientError>
+    ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
@@ -52,12 +49,15 @@ impl MarketClient {
     }
 
     /// Add the given `amount` of balance.
-    #[tracing::instrument(skip(self, account_keypair))]
+    #[tracing::instrument(skip_all, fields(
+        address = keypair.address(),
+        amount = amount
+    ))]
     pub async fn add_balance<Keypair>(
         &self,
         account_keypair: &Keypair,
         amount: u128,
-    ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, MarketClientError>
+    ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
@@ -68,12 +68,15 @@ impl MarketClient {
     /// Settle deal payments for the provided [`DealId`]s.
     ///
     /// If `deal_ids` length is bigger than [`MAX_DEAL_IDS`], it will get truncated.
-    #[tracing::instrument(skip(self, account_keypair))]
+    #[tracing::instrument(skip_all, fields(
+        address = keypair.address(),
+        deal_ids = deal_ids
+    ))]
     pub async fn settle_deal_payments<Keypair>(
         &self,
         account_keypair: &Keypair,
         mut deal_ids: Vec<DealId>,
-    ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, MarketClientError>
+    ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
@@ -94,13 +97,17 @@ impl MarketClient {
         Ok(self.traced_submission(&payload, account_keypair).await?)
     }
 
-    // TODO remove skip_all
-    #[tracing::instrument(skip_all)]
+    /// Publish the given storage deals.
+    ///
+    /// If `deals` length is bigger than [`MAX_DEAL_IDS`], it will get truncated.
+    #[tracing::instrument(skip_all, fields(
+        address = keypair.address()
+    ))]
     pub async fn publish_storage_deals<Keypair>(
         &self,
         account_keypair: &Keypair,
         mut deals: Vec<DealProposal>,
-    ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, MarketClientError>
+    ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
