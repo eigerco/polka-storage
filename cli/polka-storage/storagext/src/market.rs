@@ -9,7 +9,7 @@ use crate::{
 
 /// The maximum number of deal IDs supported.
 // NOTE(@jmg-duarte,17/07/2024): ideally, should be read from the primitives or something
-const MAX_N_DEALS: usize = 128;
+const MAX_N_DEALS: usize = 32;
 
 #[derive(Debug, thiserror::Error)]
 pub enum MarketClientError {
