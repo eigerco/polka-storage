@@ -453,6 +453,8 @@ pub mod pallet {
         DifferentProvider,
         /// Deal's block_start > block_end, so it doesn't make sense.
         DealEndBeforeStart,
+        /// Deal's start block is in the past, it should be in the future.
+        DealStartExpired,
         /// Deal has to be [`DealState::Published`] when being Published
         DealNotPublished,
         /// Deal's duration must be within `Config::MinDealDuration` < `Config:MaxDealDuration`.
@@ -708,8 +710,9 @@ pub mod pallet {
             >,
         ) -> DispatchResult {
             let provider = ensure_signed(origin)?;
+            let current_block = <frame_system::Pallet<T>>::block_number();
             let (valid_deals, total_provider_lockup) =
-                Self::validate_deals(provider.clone(), deals)?;
+                Self::validate_deals(provider.clone(), deals, current_block)?;
 
             // Lock up funds for the clients and emit events
             for deal in valid_deals.into_iter() {
@@ -926,6 +929,7 @@ pub mod pallet {
                 T::OffchainSignature,
             >,
             provider: &T::AccountId,
+            current_block: BlockNumberFor<T>,
         ) -> Result<(), ProposalError> {
             Self::validate_signature(
                 &Encode::encode(&deal.proposal),
@@ -944,6 +948,11 @@ pub mod pallet {
             ensure!(
                 deal.proposal.start_block < deal.proposal.end_block,
                 ProposalError::DealEndBeforeStart
+            );
+
+            ensure!(
+                deal.proposal.start_block >= current_block,
+                ProposalError::DealStartExpired
             );
 
             ensure!(
@@ -975,6 +984,7 @@ pub mod pallet {
                 >,
                 T::MaxDeals,
             >,
+            current_block: BlockNumberFor<T>,
         ) -> Result<
             (
                 Vec<DealProposal<T::AccountId, BalanceOf<T>, BlockNumberFor<T>>>,
@@ -1000,7 +1010,7 @@ pub mod pallet {
                 BoundedBTreeSet::new();
 
             let valid_deals = deals.into_iter().enumerate().filter_map(|(idx, deal)| {
-                    if let Err(e) = Self::sanity_check(&deal, &provider) {
+                    if let Err(e) = Self::sanity_check(&deal, &provider, current_block) {
                         log::error!(target: LOG_TARGET, "insane deal: idx {}, error: {:?}", idx, e);
                         return None;
                     }
