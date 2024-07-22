@@ -1,7 +1,12 @@
 use cid::Cid;
 use codec::Encode;
-use frame_support::CloneNoBound;
-use subxt::{self, tx::Signer, utils::Static};
+use frame_support::{sp_runtime::AccountId32, CloneNoBound};
+use subxt::{
+    self,
+    ext::sp_runtime::{MultiAddress, MultiSignature},
+    tx::Signer,
+    utils::Static,
+};
 
 pub mod market;
 pub mod runtime;
@@ -49,7 +54,7 @@ pub struct DealProposal {
     pub end_block: BlockNumber,
     pub storage_price_per_block: Currency,
     pub provider_collateral: Currency,
-    pub state: DealState<BlockNumber>,
+    pub state: market_pallet_types::DealState<BlockNumber>,
 }
 
 impl From<DealProposal>
@@ -76,7 +81,15 @@ impl From<DealProposal>
 }
 
 impl DealProposal {
-    fn sign<Keypair>(self, keypair: &Keypair) -> ClientDealProposal
+    fn sign<Keypair>(
+        self,
+        keypair: &Keypair,
+    ) -> market_pallet_types::ClientDealProposal<
+        <PolkaStorageConfig as subxt::Config>::AccountId,
+        Currency,
+        BlockNumber,
+        Static<MultiSignature>,
+    >
     where
         Keypair: Signer<PolkaStorageConfig>,
         Self: Into<
@@ -87,33 +100,12 @@ impl DealProposal {
             >,
         >,
     {
-        let market_deal_proposal: market_pallet_types::DealProposal<_, _, _> = self.clone().into();
-        let encoded_deal_proposal = market_deal_proposal.encode();
+        let proposal: market_pallet_types::DealProposal<_, _, _> = self.into();
+        let client_signature = Static(keypair.sign(&proposal.encode()));
 
-        ClientDealProposal {
-            proposal: self,
-            client: keypair.sign(&encoded_deal_proposal),
-        }
-    }
-}
-
-pub struct ClientDealProposal {
-    pub proposal: DealProposal,
-    pub client: <PolkaStorageConfig as subxt::Config>::Signature,
-}
-
-impl From<ClientDealProposal>
-    for market_pallet_types::ClientDealProposal<
-        <PolkaStorageConfig as subxt::Config>::AccountId,
-        Currency,
-        BlockNumber,
-        Static<<PolkaStorageConfig as subxt::Config>::Signature>,
-    >
-{
-    fn from(value: ClientDealProposal) -> Self {
-        Self {
-            proposal: market_pallet_types::DealProposal::from(value.proposal),
-            client_signature: Static(value.client),
+        market_pallet_types::ClientDealProposal {
+            proposal,
+            client_signature,
         }
     }
 }

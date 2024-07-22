@@ -178,40 +178,6 @@ impl<'de> serde::de::Deserialize<'de> for CidWrapper {
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
-pub struct ActiveDealState {
-    pub sector_number: u64,
-    pub sector_start_block: BlockNumber,
-    pub last_updated_block: Option<BlockNumber>,
-    pub slash_block: Option<BlockNumber>,
-}
-
-impl Into<storagext::ActiveDealState<BlockNumber>> for ActiveDealState {
-    fn into(self) -> storagext::ActiveDealState<BlockNumber> {
-        storagext::ActiveDealState {
-            sector_number: self.sector_number,
-            sector_start_block: self.sector_start_block,
-            last_updated_block: self.last_updated_block,
-            slash_block: self.slash_block,
-        }
-    }
-}
-
-#[derive(Debug, Clone, serde::Deserialize)]
-pub enum DealState {
-    Published,
-    Active(ActiveDealState),
-}
-
-impl Into<storagext::DealState<BlockNumber>> for DealState {
-    fn into(self) -> storagext::DealState<BlockNumber> {
-        match self {
-            DealState::Published => storagext::DealState::Published,
-            DealState::Active(v) => storagext::DealState::Active(v.into()),
-        }
-    }
-}
-
-#[derive(Debug, Clone, serde::Deserialize)]
 pub struct DealProposal {
     pub piece_cid: CidWrapper,
     pub piece_size: u64,
@@ -222,7 +188,7 @@ pub struct DealProposal {
     pub end_block: BlockNumber,
     pub storage_price_per_block: Currency,
     pub provider_collateral: Currency,
-    pub state: DealState,
+    pub state: storagext::runtime::runtime_types::pallet_market::pallet::DealState<BlockNumber>,
 }
 
 impl Into<storagext::DealProposal> for DealProposal {

@@ -111,7 +111,7 @@ impl MarketClient {
 
         let signed_deal_proposals = deals
             .into_iter()
-            .map(|deal| deal.sign(account_keypair).into())
+            .map(|deal| deal.sign(account_keypair))
             .collect();
 
         // `deals` has been truncated to fit the proper bound, however,

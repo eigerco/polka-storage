@@ -14577,6 +14577,8 @@ dependencies = [
  "hex",
  "parity-scale-codec",
  "primitives-proofs",
+ "serde",
+ "serde_json",
  "subxt",
  "subxt-signer",
  "thiserror",
