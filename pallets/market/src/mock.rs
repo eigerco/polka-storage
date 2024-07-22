@@ -55,7 +55,7 @@ impl crate::Config for Test {
     type OffchainSignature = Signature;
     type OffchainPublic = AccountPublic;
     type MaxDeals = ConstU32<32>;
-    type BlocksPerDay = ConstU64<1>;
+    type TimeUnitInBlocks = ConstU64<1>;
     type MinDealDuration = ConstU64<2>;
     type MaxDealDuration = ConstU64<30>;
     type MaxDealsPerBlock = ConstU32<32>;

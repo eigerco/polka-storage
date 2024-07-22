@@ -51,15 +51,19 @@ use sp_version::RuntimeVersion;
 use xcm::latest::prelude::BodyId;
 use xcm_config::{RelayLocation, XcmOriginToTransactDispatchOrigin};
 
+#[cfg(not(feature = "testnet"))]
+use super::DAYS;
+#[cfg(feature = "testnet")]
+use super::MINUTES;
 // Local module imports
 use super::{
     weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight},
     AccountId, Aura, Balance, Balances, Block, BlockNumber, CollatorSelection, Hash, MessageQueue,
     Nonce, PalletInfo, ParachainSystem, Runtime, RuntimeCall, RuntimeEvent, RuntimeFreezeReason,
     RuntimeHoldReason, RuntimeOrigin, RuntimeTask, Session, SessionKeys, System, WeightToFee,
-    XcmpQueue, AVERAGE_ON_INITIALIZE_RATIO, BLOCK_PROCESSING_VELOCITY, DAYS, EXISTENTIAL_DEPOSIT,
-    HOURS, MAXIMUM_BLOCK_WEIGHT, MICROUNIT, NORMAL_DISPATCH_RATIO,
-    RELAY_CHAIN_SLOT_DURATION_MILLIS, SLOT_DURATION, UNINCLUDED_SEGMENT_CAPACITY, VERSION,
+    XcmpQueue, AVERAGE_ON_INITIALIZE_RATIO, BLOCK_PROCESSING_VELOCITY, EXISTENTIAL_DEPOSIT, HOURS,
+    MAXIMUM_BLOCK_WEIGHT, MICROUNIT, NORMAL_DISPATCH_RATIO, RELAY_CHAIN_SLOT_DURATION_MILLIS,
+    SLOT_DURATION, UNINCLUDED_SEGMENT_CAPACITY, VERSION,
 };
 
 parameter_types! {
@@ -306,7 +310,9 @@ impl pallet_collator_selection::Config for Runtime {
     type WeightInfo = ();
 }
 
+#[cfg(not(feature = "testnet"))]
 parameter_types! {
+    // Storage Provider Pallet
     pub const WpostProvingPeriod: BlockNumber = DAYS;
     // Half an hour (=48 per day)
     // 30 * 60 = 30 minutes
@@ -316,6 +322,29 @@ parameter_types! {
     pub const MaxSectorExpirationExtension: BlockNumber = 1278 * DAYS;
     pub const SectorMaximumLifetime: BlockNumber = (365 * DAYS) * 5; // 5 years
     pub const MaxProveCommitDuration: BlockNumber =  (30 * DAYS) + 150;
+
+    // Market Pallet
+    /// Deal duration values copied from FileCoin.
+    /// <https://github.com/filecoin-project/builtin-actors/blob/c32c97229931636e3097d92cf4c43ac36a7b4b47/actors/market/src/policy.rs#L28>
+    pub const TimeUnitInBlocks: u32 = DAYS;
+    pub const MinDealDuration: u32 = 20;
+    pub const MaxDealDuration: u32 = 1278;
+}
+
+#[cfg(feature = "testnet")]
+parameter_types! {
+    // Storage Provider Pallet
+    pub const WpostProvingPeriod: BlockNumber = 5 * MINUTES;
+    pub const WpostChallengeWindow: BlockNumber = 2 * MINUTES;
+    pub const MinSectorExpiration: BlockNumber = 5 * MINUTES;
+    pub const MaxSectorExpirationExtension: BlockNumber = 60 * MINUTES;
+    pub const SectorMaximumLifetime: BlockNumber = 120 * MINUTES;
+    pub const MaxProveCommitDuration: BlockNumber = 5 * MINUTES;
+
+    // Market Pallet
+    pub const TimeUnitInBlocks: u32 = MINUTES;
+    pub const MinDealDuration: u32 = 5;
+    pub const MaxDealDuration: u32 = 180;
 }
 
 impl pallet_storage_provider::Config for Runtime {
@@ -345,8 +374,8 @@ impl pallet_market::Config for Runtime {
     type OffchainSignature = MultiSignature;
     type OffchainPublic = AccountPublic;
     type MaxDeals = ConstU32<128>;
-    type BlocksPerDay = ConstU32<DAYS>;
-    type MinDealDuration = ConstU32<{ DAYS * 180 }>;
-    type MaxDealDuration = ConstU32<{ DAYS * 1278 }>;
     type MaxDealsPerBlock = ConstU32<128>;
+    type TimeUnitInBlocks = TimeUnitInBlocks;
+    type MinDealDuration = MinDealDuration;
+    type MaxDealDuration = MaxDealDuration;
 }

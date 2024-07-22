@@ -80,19 +80,27 @@ pub mod pallet {
         #[pallet::constant]
         type MaxDeals: Get<u32>;
 
-        /// How many blocks are created in a day (time unit used for calculation)
+        /// How many blocks are created in a time unit.
+        /// [`MinDealDuration`] and [`MaxDealDuration`] are expressed in terms of [`TimeUnitInBlocks`].
+        ///
+        /// E.g. `TimeUnitInBlocks = DAYS` is the number of of blocks finalized in a day
+        ///
         #[pallet::constant]
-        type BlocksPerDay: Get<BlockNumberFor<Self>>;
+        type TimeUnitInBlocks: Get<BlockNumberFor<Self>>;
 
         /// How many days should a deal last (activated). Minimum.
         /// Filecoin uses 180 as default.
         /// https://github.com/filecoin-project/builtin-actors/blob/c32c97229931636e3097d92cf4c43ac36a7b4b47/actors/market/src/policy.rs#L29
+        ///
+        /// MinDealDuration = [`MinDealDuration`] * [`TimeUnitInBlocks`] in Blocks.
         #[pallet::constant]
         type MinDealDuration: Get<BlockNumberFor<Self>>;
 
         /// How many days should a deal last (activated). Maximum.
         /// Filecoin uses 1278 as default.
         /// https://github.com/filecoin-project/builtin-actors/blob/c32c97229931636e3097d92cf4c43ac36a7b4b47/actors/market/src/policy.rs#L29
+        ///
+        /// MaxDealDuration = [`MaxDealDuration`] * [`TimeUnitInBlocks`] in Blocks.
         #[pallet::constant]
         type MaxDealDuration: Get<BlockNumberFor<Self>>;
 
@@ -960,8 +968,8 @@ pub mod pallet {
                 ProposalError::DealNotPublished
             );
 
-            let min_dur = T::BlocksPerDay::get() * T::MinDealDuration::get();
-            let max_dur = T::BlocksPerDay::get() * T::MaxDealDuration::get();
+            let min_dur = T::TimeUnitInBlocks::get() * T::MinDealDuration::get();
+            let max_dur = T::TimeUnitInBlocks::get() * T::MaxDealDuration::get();
             ensure!(
                 deal.proposal.duration() >= min_dur && deal.proposal.duration() <= max_dur,
                 ProposalError::DealDurationOutOfBounds

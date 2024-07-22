@@ -141,6 +141,7 @@ std = [
   "xcm-executor/std",
   "xcm/std",
 ]
+testnet = []
 
 runtime-benchmarks = [
   "cumulus-pallet-parachain-system/runtime-benchmarks",
