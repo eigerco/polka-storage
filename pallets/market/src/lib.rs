@@ -837,18 +837,25 @@ pub mod pallet {
             sector_expiry: BlockNumberFor<T>,
             sector_activation: BlockNumberFor<T>,
         ) -> Result<(), DealActivationError> {
+            log::trace!(target: LOG_TARGET, "validate_deal_can_activate: {provider:?} == {:?}", deal.provider);
             ensure!(
                 *provider == deal.provider,
                 DealActivationError::InvalidProvider
             );
+
+            log::trace!(target: LOG_TARGET, "validate_deal_can_activate: {:?} == DealState::Published", deal.state);
             ensure!(
                 deal.state == DealState::Published,
                 DealActivationError::InvalidDealState
             );
+
+            log::trace!(target: LOG_TARGET, "validate_deal_can_activate: {sector_activation:?} <= {:?}", deal.start_block);
             ensure!(
                 sector_activation <= deal.start_block,
                 DealActivationError::StartBlockElapsed
             );
+
+            log::trace!(target: LOG_TARGET, "validate_deal_can_activate: {sector_expiry:?} >= {:?}", deal.end_block);
             ensure!(
                 sector_expiry >= deal.end_block,
                 DealActivationError::SectorExpiresBeforeDeal
@@ -927,25 +934,27 @@ pub mod pallet {
             provider: &T::AccountId,
             current_block: BlockNumberFor<T>,
         ) -> Result<(), ProposalError> {
-            Self::validate_signature(
-                &Encode::encode(&deal.proposal),
-                &deal.client_signature,
-                &deal.proposal.client,
-            )?;
+            log::trace!(target: LOG_TARGET, "validating signature... {:?}", deal.client_signature);
+            let encoded = Encode::encode(&deal.proposal);
+            Self::validate_signature(&encoded, &deal.client_signature, &deal.proposal.client)?;
 
             // Ensure the Piece's Cid is parsable and valid
+            log::trace!(target: LOG_TARGET, "validating cid...");
             let _ = deal.proposal.cid()?;
 
+            log::trace!(target: LOG_TARGET, "checking if provider is the same across deals");
             ensure!(
                 deal.proposal.provider == *provider,
                 ProposalError::DifferentProvider
             );
 
+            log::trace!(target: LOG_TARGET, "check if deal.start_block < deal.end_block");
             ensure!(
                 deal.proposal.start_block < deal.proposal.end_block,
                 ProposalError::DealEndBeforeStart
             );
 
+            log::trace!(target: LOG_TARGET, "check if deal.state == PUBLISHED");
             ensure!(
                 deal.proposal.start_block >= current_block,
                 ProposalError::DealStartExpired
@@ -958,6 +967,7 @@ pub mod pallet {
 
             let min_dur = T::BlocksPerDay::get() * T::MinDealDuration::get();
             let max_dur = T::BlocksPerDay::get() * T::MaxDealDuration::get();
+            log::trace!(target: LOG_TARGET, "checking if deal.duration() {:?} <= {:?} <= {:?}", min_dur, deal.proposal.duration(), max_dur);
             ensure!(
                 deal.proposal.duration() >= min_dur && deal.proposal.duration() <= max_dur,
                 ProposalError::DealDurationOutOfBounds
@@ -1373,7 +1383,6 @@ pub mod pallet {
                     // this scheduled block. Nothing more to do for this deal.
                     continue;
                 };
-
                 match &proposal.state {
                     DealState::Published => {
                         debug_assert!(
@@ -1410,6 +1419,9 @@ pub mod pallet {
                             log::error!(target: LOG_TARGET, "on_finalize: invariant violated, cannot slash the deal {}", deal_id);
                             continue;
                         };
+
+                        // Deal has been processed, no need to process it twice.
+                        Proposals::<T>::remove(&deal_id);
                     }
                     DealState::Active(_) => {
                         log::info!(
@@ -1419,8 +1431,6 @@ pub mod pallet {
                     }
                 }
 
-                // Deal has been processed, no need to process it twice.
-                Proposals::<T>::remove(&deal_id);
                 // PRE-COND: all deals in DealsPerBlock are published.
                 // All Published deals are hashed and added to [`PendingProposals`].
                 let _ = pending_proposals.remove(&Self::hash_proposal(&proposal));

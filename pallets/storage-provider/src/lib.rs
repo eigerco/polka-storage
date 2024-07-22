@@ -221,29 +221,42 @@ pub mod pallet {
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
             let sector_number = sector.sector_number;
             let current_block = <frame_system::Pallet<T>>::block_number();
+
+            log::trace!(
+                target: LOG_TARGET,
+                "checking sector number {sector_number} <= {SECTORS_MAX}",
+            );
             ensure!(
                 sector_number <= SECTORS_MAX.into(),
                 Error::<T>::InvalidSector
             );
+            log::trace!(target: LOG_TARGET, "checking proof type");
             ensure!(
                 sp.info.window_post_proof_type == sector.seal_proof.registered_window_post_proof(),
                 Error::<T>::InvalidProofType
             );
+            log::trace!(target: LOG_TARGET, "checking sector number not used");
             ensure!(
                 !sp.pre_committed_sectors.contains_key(&sector_number)
                     && !sp.sectors.contains_key(&sector_number),
                 Error::<T>::SectorNumberAlreadyUsed
             );
             validate_cid::<T>(&sector.unsealed_cid[..])?;
-            let balance = T::Currency::total_balance(&owner);
-            let deposit = calculate_pre_commit_deposit::<T>();
+
             Self::validate_expiration(
                 current_block,
                 current_block + T::MaxProveCommitDuration::get(),
                 sector.expiration,
             )?;
+
+            let balance = T::Currency::total_balance(&owner);
+            let deposit = calculate_pre_commit_deposit::<T>();
+            log::trace!(target: LOG_TARGET, "checking balance {balance:?} >= {deposit:?}");
             ensure!(balance >= deposit, Error::<T>::NotEnoughFunds);
+
+            // Reserve deposit from storage provider
             T::Currency::reserve(&owner, deposit)?;
+
             StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResult {
                 let sp = maybe_sp
                     .as_mut()
@@ -257,7 +270,10 @@ pub mod pallet {
                 .map_err(|_| Error::<T>::MaxPreCommittedSectorExceeded)?;
                 Ok(())
             })?;
+
+            // Notify that the sector has been pre-committed
             Self::deposit_event(Event::SectorPreCommitted { owner, sector });
+
             Ok(())
         }
 
@@ -268,18 +284,24 @@ pub mod pallet {
             origin: OriginFor<T>,
             sector: ProveCommitSector,
         ) -> DispatchResult {
-            let owner = ensure_signed(origin)?;
-            let sp = StorageProviders::<T>::try_get(&owner)
-                .map_err(|_| Error::<T>::StorageProviderNotFound)?;
-            let sector_number = sector.sector_number;
+            log::trace!(target: LOG_TARGET, "prove_commit_sector: {:?}", sector);
 
-            let precommit = sp
-                .get_pre_committed_sector(sector_number)
-                .map_err(|_| Error::<T>::InvalidSector)?;
+            let owner = ensure_signed(origin)?;
+            let sp = StorageProviders::<T>::try_get(&owner).map_err(|_| {
+                log::error!(target: LOG_TARGET, "storage provider {owner:?} not found ");
+                Error::<T>::StorageProviderNotFound
+            })?;
+
+            let sector_number = sector.sector_number;
+            let precommit = sp.get_pre_committed_sector(sector_number).map_err(|_| {
+                log::error!(target: LOG_TARGET, "precommitted sector {sector_number} not found ");
+                Error::<T>::InvalidSector
+            })?;
             let current_block = <frame_system::Pallet<T>>::block_number();
             let prove_commit_due =
                 precommit.pre_commit_block_number + T::MaxProveCommitDuration::get();
 
+            log::trace!(target: LOG_TARGET, "prove_commit_sector: {current_block:?} < {prove_commit_due:?}");
             ensure!(
                 current_block < prove_commit_due,
                 Error::<T>::ProveCommitAfterDeadline
@@ -311,6 +333,7 @@ pub mod pallet {
             let deal_amount = sector_deals.len();
             T::Market::activate_deals(&owner, sector_deals, deal_amount > 0)?;
 
+            // Notify that the sector has been proven
             Self::deposit_event(Event::SectorProven {
                 owner,
                 sector_number,
@@ -327,42 +350,62 @@ pub mod pallet {
             expiration: BlockNumberFor<T>,
         ) -> Result<(), Error<T>> {
             // Expiration must be after activation. Check this explicitly to avoid an underflow below.
+            log::trace!(target: LOG_TARGET, "validate_expiration: {expiration:?} >= {activation:?}");
             ensure!(
                 expiration >= activation,
                 Error::<T>::ExpirationBeforeActivation
             );
+
             // expiration cannot be less than minimum after activation
+            let min_sector_expiration = T::MinSectorExpiration::get();
+            log::trace!(target: LOG_TARGET, "validate_expiration: {expiration:?} - {activation:?} > {min_sector_expiration:?}");
             ensure!(
-                expiration - activation > T::MinSectorExpiration::get(),
+                expiration - activation > min_sector_expiration,
                 Error::<T>::ExpirationTooSoon
             );
+
             // expiration cannot exceed MaxSectorExpirationExtension from now
+            let max_sector_expiration_extension = T::MaxSectorExpirationExtension::get();
+            log::trace!(target: LOG_TARGET, "validate_expiration: {expiration:?} < {curr_block:?} + {max_sector_expiration_extension:?}");
             ensure!(
-                expiration < curr_block + T::MaxSectorExpirationExtension::get(),
+                expiration < curr_block + max_sector_expiration_extension,
                 Error::<T>::ExpirationTooLong,
             );
+
             // total sector lifetime cannot exceed SectorMaximumLifetime for the sector's seal proof
+            let sector_maximum_lifetime = T::SectorMaximumLifetime::get();
+            log::trace!(target: LOG_TARGET, "validate_expiration: {expiration:?} - {activation:?} < {sector_maximum_lifetime:?}");
             ensure!(
-                expiration - activation < T::SectorMaximumLifetime::get(),
+                expiration - activation < sector_maximum_lifetime,
                 Error::<T>::MaxSectorLifetimeExceeded
             );
+
             Ok(())
         }
     }
 
     // Adapted from filecoin reference here: https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/miner/src/commd.rs#L51-L56
     fn validate_cid<T: Config>(bytes: &[u8]) -> Result<(), Error<T>> {
+        log::trace!(target: LOG_TARGET, "validating cid: {bytes:?}");
+
         let c = Cid::try_from(bytes).map_err(|e| {
             log::error!(target: LOG_TARGET, "failed to validate cid: {:?}", e);
             Error::<T>::InvalidCid
         })?;
+
+        let version = c.version();
+        let codec = c.codec();
+        let hash = c.hash();
+
+        log::trace!(target: LOG_TARGET, "cid: version {version:?} codec {codec} hash {hash:?}");
+
         // these values should be consistent with the cid's created by the SP.
         // They could change in the future when we make a definitive decision on what hashing algorithm to use and such
         ensure!(
-            c.version() == Version::V1
-                && c.codec() == CID_CODEC // The codec should align with our CID_CODEC value.
-                && c.hash().code() == BLAKE2B_MULTIHASH_CODE // The CID should be hashed using blake2b
-                && c.hash().size() == 32,
+            version == Version::V1
+                && codec == CID_CODEC // The codec should align with our CID_CODEC value.
+                && hash.code() == BLAKE2B_MULTIHASH_CODE // The CID should be hashed using blake2b
+                && hash.size() == 32,
             Error::<T>::InvalidCid
         );
         Ok(())
@@ -374,9 +417,10 @@ pub mod pallet {
     }
 
     fn validate_seal_proof(
-        _seal_proof_type: &RegisteredSealProof,
+        seal_proof_type: &RegisteredSealProof,
         proofs: BoundedVec<u8, ConstU32<256>>,
     ) -> bool {
+        log::trace!(target: LOG_TARGET, "validate_seal_proof: {seal_proof_type:?} {proofs:?}");
         proofs.len() != 0 // TODO(@aidan46, no-ref, 2024-06-24): Actually check proof
     }
 }
