@@ -29,6 +29,7 @@ frame-support = { workspace = true, default-features = false }
 frame-system = { workspace = true, default-features = false }
 
 [dev-dependencies]
+env_logger = { workspace = true }
 multihash-codetable = { workspace = true, features = ["blake2b"] }
 pallet-balances = { workspace = true, default-features = false }
 pallet-market = { workspace = true, default-features = false }

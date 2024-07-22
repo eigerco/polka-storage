@@ -1,4 +1,5 @@
 use frame_support::{assert_noop, assert_ok};
+use sp_core::bounded_vec;
 use sp_runtime::{BoundedVec, DispatchError};
 
 use super::new_test_ext;
@@ -6,24 +7,26 @@ use crate::{
     pallet::{Error, Event, StorageProviders},
     sector::SECTORS_MAX,
     tests::{
-        account, events, register_storage_provider, run_to_block, Balances, MaxProveCommitDuration,
-        MaxSectorExpirationExtension, RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder,
-        StorageProvider, Test, ALICE,
+        account, cid_of, events, publish_deals, register_storage_provider, run_to_block, Balances,
+        MaxProveCommitDuration, MaxSectorExpirationExtension, RuntimeEvent, RuntimeOrigin,
+        SectorPreCommitInfoBuilder, StorageProvider, Test, ALICE, CHARLIE,
     },
 };
 
 #[test]
 fn successfully_precommited() {
     new_test_ext().execute_with(|| {
-        // Register ALICE as a storage provider.
-        let storage_provider = ALICE;
+        // Register CHARLIE as a storage provider.
+        let storage_provider = CHARLIE;
         register_storage_provider(account(storage_provider));
+        // Publish deals for verification before pre-commit.
+        publish_deals(storage_provider);
 
         // Sector to be pre-committed.
         let sector = SectorPreCommitInfoBuilder::default().build();
 
         // Check starting balance
-        assert_eq!(Balances::free_balance(account(storage_provider)), 100);
+        assert_eq!(Balances::free_balance(account(storage_provider)), 30);
 
         // Run pre commit extrinsic
         StorageProvider::pre_commit_sector(
@@ -43,6 +46,57 @@ fn successfully_precommited() {
                 RuntimeEvent::StorageProvider(Event::<Test>::SectorPreCommitted {
                     owner: account(storage_provider),
                     sector: sector.clone(),
+                })
+            ]
+        );
+
+        let sp_alice = StorageProviders::<Test>::get(account(storage_provider))
+            .expect("SP Alice should be present because of the pre-check");
+
+        assert!(sp_alice.sectors.is_empty()); // not yet proven
+        assert!(!sp_alice.pre_committed_sectors.is_empty());
+        assert_eq!(sp_alice.pre_commit_deposits, 1);
+        assert_eq!(Balances::free_balance(account(storage_provider)), 29);
+    });
+}
+
+#[test]
+fn successfully_precommited_no_deals() {
+    new_test_ext().execute_with(|| {
+        // Register CHARLIE as a storage provider.
+        let storage_provider = CHARLIE;
+        register_storage_provider(account(storage_provider));
+
+        // Sector to be pre-committed.
+        let sector = SectorPreCommitInfoBuilder::default()
+            // No sectors -> No CommD verification
+            .deals(bounded_vec![])
+            .unsealed_cid(
+                cid_of("cc-unsealed-cid")
+                    .to_bytes()
+                    .try_into()
+                    .expect("hash is always 32 bytes"),
+            )
+            .build();
+
+        // Run pre commit extrinsic
+        StorageProvider::pre_commit_sector(
+            RuntimeOrigin::signed(account(storage_provider)),
+            sector.clone(),
+        )
+        .expect("Pre commit failed");
+
+        // Check that the events were triggered
+        assert_eq!(
+            events(),
+            [
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Reserved {
+                    who: account(storage_provider),
+                    amount: 1
+                },),
+                RuntimeEvent::StorageProvider(Event::<Test>::SectorPreCommitted {
+                    owner: account(storage_provider),
+                    sector,
                 })
             ]
         );
@@ -91,9 +145,10 @@ fn fails_storage_provider_not_found() {
 #[test]
 fn fails_sector_number_already_used() {
     new_test_ext().execute_with(|| {
-        // Register ALICE as a storage provider.
-        let storage_provider = ALICE;
+        // Register CHARLIE as a storage provider.
+        let storage_provider = CHARLIE;
         register_storage_provider(account(storage_provider));
+        publish_deals(storage_provider);
 
         // Sector to be pre-committed
         let sector = SectorPreCommitInfoBuilder::default().build();
@@ -110,6 +165,34 @@ fn fails_sector_number_already_used() {
                 sector
             ),
             Error::<Test>::SectorNumberAlreadyUsed,
+        );
+    });
+}
+
+#[test]
+fn fails_declared_commd_not_matching() {
+    new_test_ext().execute_with(|| {
+        // Register CHARLIE as a storage provider.
+        let storage_provider = CHARLIE;
+        register_storage_provider(account(storage_provider));
+        publish_deals(storage_provider);
+
+        // Sector to be pre-committed
+        let sector = SectorPreCommitInfoBuilder::default()
+            .unsealed_cid(
+                cid_of("different-unsealed-cid")
+                    .to_bytes()
+                    .try_into()
+                    .expect("hash is always 32 bytes"),
+            )
+            .build();
+
+        assert_noop!(
+            StorageProvider::pre_commit_sector(
+                RuntimeOrigin::signed(account(storage_provider)),
+                sector
+            ),
+            Error::<Test>::InvalidUnsealedCidForSector,
         );
     });
 }
