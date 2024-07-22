@@ -1,9 +1,6 @@
 [relaychain]
 chain = "rococo-local"
-default_args = [
-    "--detailed-log-output",
-    "-lparachain=debug,xcm=trace,runtime=trace",
-]
+default_args = ["--detailed-log-output", "-lparachain=debug,xcm=trace,runtime=trace"]
 default_command = "polkadot"
 
 [[relaychain.nodes]]

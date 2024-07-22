@@ -19,6 +19,7 @@ codec.workspace = true
 frame-support = { workspace = true, features = ["std"] }
 hex.workspace = true
 primitives-proofs = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 subxt = { workspace = true, features = ["jsonrpsee", "substrate-compat"] }
 subxt-signer = { workspace = true, features = ["subxt"] }
 thiserror = { workspace = true }
@@ -26,7 +27,6 @@ tokio = { workspace = true, features = ["rt-multi-thread"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 url = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 serde_json = { workspace = true }
