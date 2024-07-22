@@ -115,12 +115,14 @@ type ClientDealProposalOf<Test> = ClientDealProposal<
 
 const ALICE: &'static str = "//Alice";
 const BOB: &'static str = "//Bob";
+const CHARLIE: &'static str = "//Charlie";
 
 /// Initial funds of all accounts.
 const INITIAL_FUNDS: u64 = 100;
 
 // Build genesis storage according to the mock runtime.
 fn new_test_ext() -> sp_io::TestExternalities {
+    let _ = env_logger::try_init();
     let mut t = frame_system::GenesisConfig::<Test>::default()
         .build_storage()
         .unwrap()
@@ -130,6 +132,7 @@ fn new_test_ext() -> sp_io::TestExternalities {
         balances: vec![
             (account(ALICE), INITIAL_FUNDS),
             (account(BOB), INITIAL_FUNDS),
+            (account(CHARLIE), INITIAL_FUNDS),
         ],
     }
     .assimilate_storage(&mut t)
@@ -209,6 +212,44 @@ fn register_storage_provider(account: AccountIdOf<Test>) {
     System::reset_events();
 }
 
+/// Publish deals to Market Pallet for the sectors to be properly pre-committed and proven.
+/// Pre-commit requires it as it calls [`Market::verify_deals_for_activation`].
+///
+/// It adds balance to the Market Pallet and publishes 2 deals to match default values in [`SectorPreCommitInfoBuilder`].
+/// It also resets events to not interfere with [`events()`] assertions.
+/// Deal 1: Client = Alice, Provider = provided
+/// Deal 2: Client = Bob, Provider = provided
+/// Balances: Alice = 60, Bob = 70, Provider = 70
+fn publish_deals(storage_provider: &str) {
+    // Add balance to the market pallet
+    assert_ok!(Market::add_balance(
+        RuntimeOrigin::signed(account(ALICE)),
+        60
+    ));
+    assert_ok!(Market::add_balance(RuntimeOrigin::signed(account(BOB)), 60));
+    assert_ok!(Market::add_balance(
+        RuntimeOrigin::signed(account(storage_provider)),
+        70
+    ));
+
+    // Publish the deal proposal
+    Market::publish_storage_deals(
+        RuntimeOrigin::signed(account(storage_provider)),
+        bounded_vec![
+            DealProposalBuilder::default()
+                .client(ALICE)
+                .provider(storage_provider)
+                .signed(ALICE),
+            DealProposalBuilder::default()
+                .client(BOB)
+                .provider(storage_provider)
+                .signed(BOB)
+        ],
+    )
+    .expect("publish_storage_deals needs to work in order to call verify_deals_for_activation");
+    System::reset_events();
+}
+
 struct SectorPreCommitInfoBuilder {
     seal_proof: RegisteredSealProof,
     sector_number: SectorNumber,
@@ -229,7 +270,8 @@ impl Default for SectorPreCommitInfoBuilder {
                 .expect("hash is always 32 bytes"),
             deal_ids: bounded_vec![0, 1],
             expiration: YEARS,
-            unsealed_cid: cid_of("unsealed_cid")
+            // TODO(@th7nder,#92,19/07/2024): compute_commd not yet implemented.
+            unsealed_cid: cid_of("placeholder-to-be-done")
                 .to_bytes()
                 .try_into()
                 .expect("hash is always 32 bytes"),
@@ -250,6 +292,11 @@ impl SectorPreCommitInfoBuilder {
 
     pub fn expiration(mut self, expiration: u64) -> Self {
         self.expiration = expiration;
+        self
+    }
+
+    pub fn unsealed_cid(mut self, unsealed_cid: SectorId) -> Self {
+        self.unsealed_cid = unsealed_cid;
         self
     }
 
