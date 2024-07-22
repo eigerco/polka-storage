@@ -7,7 +7,7 @@ use std::fmt::Debug;
 use cid::Cid;
 use clap::{ArgGroup, Parser, Subcommand};
 use cmd::market::MarketCommand;
-use storagext::PolkaStorageConfig;
+use storagext::{BlockNumber, Currency, PolkaStorageConfig};
 use subxt::ext::sp_core::crypto::Ss58Codec;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{
@@ -136,12 +136,6 @@ where
         ))
     }
 }
-
-/// Currency as specified by the SCALE-encoded runtime.
-type Currency = u128;
-
-/// BlockNumber as specified by the SCALE-encoded runtime.
-type BlockNumber = u32;
 
 /// CID doesn't deserialize from a string, hence we need our work wrapper.
 ///

@@ -13,12 +13,12 @@ pub use crate::runtime::runtime_types::pallet_market::{
 };
 
 /// Currency as specified by the SCALE-encoded runtime.
-type Currency = u128;
+pub type Currency = u128;
 
 /// BlockNumber as specified by the SCALE-encoded runtime.
-type BlockNumber = u32;
+pub type BlockNumber = u32;
 
-type AccountIndex = u32;
+pub type AccountIndex = u32;
 
 pub enum PolkaStorageConfig {}
 
