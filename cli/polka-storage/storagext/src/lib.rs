@@ -23,8 +23,7 @@ pub type Currency = u128;
 /// BlockNumber as specified by the SCALE-encoded runtime.
 pub type BlockNumber = u32;
 
-pub type AccountIndex = u32;
-
+/// Parachain configuration for subxt.
 pub enum PolkaStorageConfig {}
 
 // Types are fully qualified ON PURPOSE!
@@ -33,7 +32,7 @@ pub enum PolkaStorageConfig {}
 impl subxt::Config for PolkaStorageConfig {
     type Hash = subxt::utils::H256;
     type AccountId = subxt::config::polkadot::AccountId32;
-    type Address = subxt::config::polkadot::MultiAddress<Self::AccountId, AccountIndex>;
+    type Address = subxt::config::polkadot::MultiAddress<Self::AccountId, u32>;
     type Signature = subxt::ext::sp_runtime::MultiSignature;
     type Hasher = subxt::config::substrate::BlakeTwo256;
     type Header =
