@@ -18,21 +18,28 @@ use url::Url;
 pub(crate) const FULL_NODE_DEFAULT_RPC_ADDR: &str = "ws://127.0.0.1:9944";
 
 #[derive(Debug, Parser)]
-#[command(group(ArgGroup::new("key").required(true).args(&["sr25519_key", "ecdsa_key"])))]
+#[command(group(ArgGroup::new("keypair").required(true).args(
+    &["sr25519_key", "ecdsa_key", "ed25519_key"]
+)))]
 struct Cli {
     #[command(subcommand)]
     pub subcommand: SubCommand,
 
-    /// URL of the providers RPC server.
+    /// RPC server's URL.
     #[arg(long, default_value = FULL_NODE_DEFAULT_RPC_ADDR)]
     pub node_rpc: Url,
 
-    /// An hex encoded Sr25519 key
+    /// An Sr25519 keypair.
     #[arg(long, value_parser = DebugPair::<subxt::ext::sp_core::sr25519::Pair>::value_parser)]
     pub sr25519_key: Option<DebugPair<subxt::ext::sp_core::sr25519::Pair>>,
 
+    /// An ECDSA keypair.
     #[arg(long, value_parser = DebugPair::<subxt::ext::sp_core::ecdsa::Pair>::value_parser)]
     pub ecdsa_key: Option<DebugPair<subxt::ext::sp_core::ecdsa::Pair>>,
+
+    /// An Ed25519 keypair.
+    #[arg(long, value_parser = DebugPair::<subxt::ext::sp_core::ed25519::Pair>::value_parser)]
+    pub ed25519_key: Option<DebugPair<subxt::ext::sp_core::ed25519::Pair>>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -85,8 +92,12 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let cli_arguments = Cli::parse();
 
-    match (cli_arguments.sr25519_key, cli_arguments.ecdsa_key) {
-        (Some(account_keypair), _) => {
+    match (
+        cli_arguments.sr25519_key,
+        cli_arguments.ecdsa_key,
+        cli_arguments.ed25519_key,
+    ) {
+        (Some(account_keypair), _, _) => {
             cli_arguments
                 .subcommand
                 .run_with_keypair(
@@ -95,7 +106,16 @@ async fn main() -> Result<(), anyhow::Error> {
                 )
                 .await?
         }
-        (_, Some(account_keypair)) => {
+        (_, Some(account_keypair), _) => {
+            cli_arguments
+                .subcommand
+                .run_with_keypair(
+                    cli_arguments.node_rpc,
+                    subxt::tx::PairSigner::new(account_keypair.0),
+                )
+                .await?
+        }
+        (_, _, Some(account_keypair)) => {
             cli_arguments
                 .subcommand
                 .run_with_keypair(
