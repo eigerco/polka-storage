@@ -1,6 +1,9 @@
 [relaychain]
 chain = "rococo-local"
-default_args = ["--detailed-log-output", "-lparachain=debug,xcm=trace,runtime=trace"]
+default_args = [
+    "--detailed-log-output",
+    "-lparachain=debug,xcm=trace,runtime=trace",
+]
 default_command = "polkadot"
 
 [[relaychain.nodes]]
@@ -25,3 +28,4 @@ args = ["--detailed-log-output", "-lparachain=debug,xcm=trace,runtime=trace"]
 command = "target/release/polka-storage-node"
 name = "charlie"
 validator = true
+ws_port = 42069

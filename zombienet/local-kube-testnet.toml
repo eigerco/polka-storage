@@ -3,7 +3,10 @@ image_pull_policy = "IfNotPresent"
 
 [relaychain]
 chain = "rococo-local"
-default_args = ["--detailed-log-output", "-lparachain=debug,xcm=trace,runtime=trace"]
+default_args = [
+    "--detailed-log-output",
+    "-lparachain=debug,xcm=trace,runtime=trace",
+]
 default_image = "docker.io/parity/polkadot:latest"
 
 [[relaychain.nodes]]
@@ -29,3 +32,4 @@ command = "polka-storage-node"
 image = "polkadotstorage.azurecr.io/parachain-node:0.1.0"
 name = "charlie"
 validator = true
+ws_port = 42069

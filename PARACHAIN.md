@@ -72,5 +72,9 @@ you won't have access to the parachain extrinsics when calling them.
 
 Charlie however, is running a parachain node, and as such, he will be your contact point to the parachain.
 
+> [!INFO]
+> Charlie will always open port 42069 as per the [Zombienet configuration](zombienet/local-kube-testnet.toml).
+
+> [!INFO]
 > Check you Kubernetes cluster status by using `kubectl get pods --all-namespaces`.
 > It should show all pods from all namespaces along with their status.
