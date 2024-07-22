@@ -158,8 +158,6 @@ pub fn local_testnet_config() -> ChainSpec {
             get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
             get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
             get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
-            AccountId32::from_ss58check("5GvHnpY1433RytXW66r77iL4CyewAAErDU6fAouoaPKvcvLU")
-                .unwrap(),
         ],
         get_account_id_from_seed::<sr25519::Public>("Alice"),
         1000.into(),
