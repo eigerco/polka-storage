@@ -13,6 +13,8 @@ pub struct DealProposals(Vec<DealProposal>);
 
 impl DealProposals {
     /// Attempt to parse a command-line argument into [`DealProposals`].
+    ///
+    /// The command-line argument may be a valid JSON object, or a file path starting with @.
     fn parse(src: &str) -> Result<Self, anyhow::Error> {
         Ok(if src.starts_with('@') {
             let path = PathBuf::from_str(&src[1..])?.canonicalize()?;
@@ -54,6 +56,9 @@ pub enum MarketCommand {
 }
 
 impl MarketCommand {
+    /// Run a `market` command.
+    ///
+    /// Requires the target RPC address and a keypair able to sign transactions.
     pub async fn run<Keypair>(
         self,
         node_rpc: Url,
