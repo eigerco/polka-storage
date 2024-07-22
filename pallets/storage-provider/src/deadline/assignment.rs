@@ -197,7 +197,10 @@ pub fn assign_deadlines<BlockNumber: Clone + Copy + Ord>(
     let mut changes = vec![Vec::new(); w_post_period_deadlines as usize];
 
     for sector in sectors {
-        let info = &mut heap.peek_mut().unwrap().info;
+        let info = &mut heap
+            .peek_mut()
+            .ok_or(DeadlineError::CouldNotConstructDeadlineInfo)?
+            .info;
 
         if info.max_partitions_reached(partition_size, max_partitions) {
             return Err(DeadlineError::MaxPartitionsReached);

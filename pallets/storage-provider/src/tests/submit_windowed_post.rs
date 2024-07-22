@@ -2,7 +2,7 @@ use frame_support::assert_ok;
 use sp_core::bounded_vec;
 
 use crate::{
-    pallet::Event,
+    pallet::{Event, StorageProviders},
     sector::ProveCommitSector,
     tests::{
         account, events, new_test_ext, register_storage_provider, run_to_block,
@@ -90,5 +90,10 @@ fn submit_windowed_post() {
                 }
             )]
         );
+        let state = StorageProviders::<Test>::get(account(ALICE)).unwrap();
+        let deadlines = state.deadlines;
+        let new_dl = deadlines.due.first().expect("Programmer error");
+        assert_eq!(new_dl.live_sectors, 1);
+        assert_eq!(new_dl.total_sectors, 1);
     });
 }

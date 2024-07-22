@@ -146,7 +146,7 @@ where
 
     /// Assign new sector to a deadline.
     pub fn assign_sectors_to_deadlines(
-        &self,
+        &mut self,
         current_block: BlockNumber,
         mut sectors: Vec<SectorOnChainInfo<BlockNumber>>,
         partition_size: u64,
@@ -164,7 +164,7 @@ where
             "assign_sectors_to_deadlines: deadline len = {}",
             deadlines.len()
         );
-        deadlines.for_each(|deadline_idx, deadline| {
+        deadlines.clone().for_each(|deadline_idx, deadline| {
             // Skip deadlines that aren't currently mutable.
             if deadline_is_mutable(
                 self.current_proving_period_start(
@@ -191,16 +191,24 @@ where
             sectors,
             w_post_period_deadlines,
         )?;
+        let deadlines = self.get_deadlines_mut();
         for (deadline_idx, deadline_sectors) in deadline_to_sectors.into_iter().enumerate() {
             if deadline_sectors.is_empty() {
                 continue;
             }
 
-            let deadline = deadline_vec[deadline_idx].as_mut().unwrap();
+            let deadline =
+                deadline_vec[deadline_idx]
+                    .as_mut()
+                    .ok_or(StorageProviderError::DeadlineError(
+                        DeadlineError::CouldNotAssignSectorsToDeadlines,
+                    ))?;
 
             deadline.add_sectors(partition_size, &deadline_sectors)?;
 
-            // deadlines.update_deadline(policy, store, deadline_idx as u64, deadline)?;
+            deadlines
+                .update_deadline(deadline_idx, deadline.clone())
+                .map_err(|e| StorageProviderError::DeadlineError(e))?;
         }
         Ok(())
     }

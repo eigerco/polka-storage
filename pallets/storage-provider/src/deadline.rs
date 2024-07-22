@@ -146,7 +146,7 @@ impl<BlockNumber: Clone + Copy + Ord> Deadline<BlockNumber> {
             // Add sectors to partition.
             partition
                 .add_sectors(&new_partition_sectors)
-                .expect("TODO: change this to explicit error");
+                .map_err(|_| DeadlineError::CouldNotAddSectors)?;
 
             // Save partition back.
             match partitions.get_mut(&(partition_idx as u32)) {
@@ -199,6 +199,7 @@ impl<BlockNumber: Clone + Copy + Ord> Deadlines<BlockNumber> {
     /// Constructor function.
     pub fn new() -> Self {
         let mut due = BoundedVec::new();
+        // Initialize deadlines as empty deadlines.
         for _ in 0..48 {
             let _ = due.try_push(Deadline::new());
         }
@@ -269,6 +270,19 @@ impl<BlockNumber: Clone + Copy + Ord> Deadlines<BlockNumber> {
             let deadline = self.load_deadline(i as usize)?;
             f(index, deadline)?;
         }
+        Ok(())
+    }
+
+    pub fn update_deadline(
+        &mut self,
+        deadline_idx: usize,
+        deadline: Deadline<BlockNumber>,
+    ) -> DeadlineResult<()> {
+        let dl = self
+            .due
+            .get_mut(deadline_idx)
+            .ok_or(DeadlineError::DeadlineNotFound)?;
+        dl.update_deadline(deadline);
         Ok(())
     }
 }
@@ -394,7 +408,12 @@ pub enum DeadlineError {
     ProofUpdateFailed,
     /// Emitted when trying to get the next instance of a deadline that has not yet elapsed fails.
     FailedToGetNextDeadline,
+    /// Emitted when max partition for a given deadline have been reached.
     MaxPartitionsReached,
+    /// Emitted when trying to add sectors to a deadline fails
+    CouldNotAddSectors,
+    /// Emitted when assigning sectors to deadlines fails.
+    CouldNotAssignSectorsToDeadlines,
 }
 
 #[cfg(test)]
