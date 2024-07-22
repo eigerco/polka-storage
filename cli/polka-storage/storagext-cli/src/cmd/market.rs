@@ -7,10 +7,12 @@ use url::Url;
 
 use crate::DealProposal;
 
+/// List of [`DealProposal`]s to publish.
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct DealProposals(Vec<DealProposal>);
 
 impl DealProposals {
+    /// Attempt to parse a command-line argument into [`DealProposals`].
     fn parse(src: &str) -> Result<Self, anyhow::Error> {
         Ok(if src.starts_with('@') {
             let path = PathBuf::from_str(&src[1..])?.canonicalize()?;
@@ -26,19 +28,29 @@ impl DealProposals {
 #[command(name = "market", about = "CLI Client to the Market Pallet", version)]
 pub enum MarketCommand {
     /// Add balance to an account.
-    AddBalance { amount: u128 },
+    AddBalance {
+        /// Amount to add to the account.
+        amount: u128,
+    },
 
     /// Publish storage deals.
     PublishStorageDeals {
+        /// Storage deals to publish. Either JSON or a file path, prepended with an @.
         #[arg(value_parser = DealProposals::parse)]
         deals: DealProposals,
     },
 
     /// Settle deal payments.
-    SettleDealPayments { deal_ids: Vec<DealId> },
+    SettleDealPayments {
+        /// The IDs for the deals to settle.
+        deal_ids: Vec<DealId>,
+    },
 
     /// Withdraw balance from an account.
-    WithdrawBalance { amount: u128 },
+    WithdrawBalance {
+        /// Amount to withdraw from the account.
+        amount: u128,
+    },
 }
 
 impl MarketCommand {
