@@ -255,8 +255,8 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 }
 
 parameter_types! {
-    pub const Period: u32 = 6 * HOURS;
-    pub const Offset: u32 = 0;
+    pub const Period: u64 = 6 * HOURS;
+    pub const Offset: u64 = 0;
 }
 
 impl pallet_session::Config for Runtime {
@@ -326,9 +326,9 @@ parameter_types! {
     // Market Pallet
     /// Deal duration values copied from FileCoin.
     /// <https://github.com/filecoin-project/builtin-actors/blob/c32c97229931636e3097d92cf4c43ac36a7b4b47/actors/market/src/policy.rs#L28>
-    pub const TimeUnitInBlocks: u32 = DAYS;
-    pub const MinDealDuration: u32 = 20;
-    pub const MaxDealDuration: u32 = 1278;
+    pub const TimeUnitInBlocks: u64 = DAYS;
+    pub const MinDealDuration: u64 = 20;
+    pub const MaxDealDuration: u64 = 1278;
 }
 
 #[cfg(feature = "testnet")]
@@ -342,9 +342,9 @@ parameter_types! {
     pub const MaxProveCommitDuration: BlockNumber = 5 * MINUTES;
 
     // Market Pallet
-    pub const TimeUnitInBlocks: u32 = MINUTES;
-    pub const MinDealDuration: u32 = 5;
-    pub const MaxDealDuration: u32 = 180;
+    pub const TimeUnitInBlocks: u64 = MINUTES;
+    pub const MinDealDuration: u64 = 5;
+    pub const MaxDealDuration: u64 = 180;
 }
 
 impl pallet_storage_provider::Config for Runtime {
