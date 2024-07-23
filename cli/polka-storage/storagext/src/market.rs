@@ -178,6 +178,9 @@ impl MarketClient {
         );
         let finalized_xt = submission_progress.wait_for_finalized().await?;
 
+        // Wait for a successful inclusion because finalization != success
+        finalized_xt.wait_for_success().await?;
+
         let block_hash = finalized_xt.block_hash();
         tracing::trace!(
             block_hash = block_hash.encode_hex::<String>(),
