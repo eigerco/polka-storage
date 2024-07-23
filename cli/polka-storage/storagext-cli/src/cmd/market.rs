@@ -3,6 +3,7 @@ use std::{path::PathBuf, str::FromStr};
 use clap::Subcommand;
 use primitives_proofs::DealId;
 use storagext::{market::MarketClient, PolkaStorageConfig};
+use subxt::ext::sp_core::crypto::Ss58Codec;
 use url::Url;
 
 use crate::DealProposal;
@@ -32,7 +33,7 @@ pub enum MarketCommand {
     /// Add balance to an account.
     AddBalance {
         /// Amount to add to the account.
-        amount: u128,
+        amount: storagext::Currency,
     },
 
     /// Publish storage deals.
@@ -51,7 +52,7 @@ pub enum MarketCommand {
     /// Withdraw balance from an account.
     WithdrawBalance {
         /// Amount to withdraw from the account.
-        amount: u128,
+        amount: storagext::Currency,
     },
 }
 
@@ -59,6 +60,14 @@ impl MarketCommand {
     /// Run a `market` command.
     ///
     /// Requires the target RPC address and a keypair able to sign transactions.
+    #[tracing::instrument(
+        level = "info",
+        skip_all,
+        fields(
+            node_rpc,
+            address = account_keypair.account_id().to_ss58check()
+        )
+    )]
     pub async fn run<Keypair>(
         self,
         node_rpc: Url,

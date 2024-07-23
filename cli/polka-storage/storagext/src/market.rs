@@ -1,10 +1,10 @@
 use hex::ToHex;
 use primitives_proofs::DealId;
-use subxt::OnlineClient;
+use subxt::{ext::sp_core::crypto::Ss58Codec, OnlineClient};
 
 use crate::{
     runtime::{self},
-    DealProposal, PolkaStorageConfig,
+    Currency, DealProposal, PolkaStorageConfig,
 };
 
 /// The maximum number of deal IDs supported.
@@ -32,14 +32,18 @@ impl MarketClient {
     }
 
     /// Withdraw the given `amount` of balance.
-    #[tracing::instrument(skip_all, fields(
-        address = ?account_keypair.address(),
-        amount = amount
-    ))]
+    #[tracing::instrument(
+        level = "trace",
+        skip_all,
+        fields(
+            address = account_keypair.account_id().to_ss58check(),
+            amount = amount
+        )
+    )]
     pub async fn withdraw_balance<Keypair>(
         &self,
         account_keypair: &Keypair,
-        amount: u128,
+        amount: Currency,
     ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
@@ -49,14 +53,18 @@ impl MarketClient {
     }
 
     /// Add the given `amount` of balance.
-    #[tracing::instrument(skip_all, fields(
-        address = ?account_keypair.address(),
-        amount = amount
-    ))]
+    #[tracing::instrument(
+        level = "trace",
+        skip_all,
+        fields(
+            address = account_keypair.account_id().to_ss58check(),
+            amount = amount
+        )
+    )]
     pub async fn add_balance<Keypair>(
         &self,
         account_keypair: &Keypair,
-        amount: u128,
+        amount: Currency,
     ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
@@ -68,10 +76,14 @@ impl MarketClient {
     /// Settle deal payments for the provided [`DealId`]s.
     ///
     /// If `deal_ids` length is bigger than [`MAX_DEAL_IDS`], it will get truncated.
-    #[tracing::instrument(skip_all, fields(
-        address = ?account_keypair.address(),
-        deal_ids = ?deal_ids
-    ))]
+    #[tracing::instrument(
+        level = "trace",
+        skip_all,
+        fields(
+            address = account_keypair.account_id().to_ss58check(),
+            deal_ids = ?deal_ids
+        )
+    )]
     pub async fn settle_deal_payments<Keypair>(
         &self,
         account_keypair: &Keypair,
@@ -100,9 +112,13 @@ impl MarketClient {
     /// Publish the given storage deals.
     ///
     /// If `deals` length is bigger than [`MAX_DEAL_IDS`], it will get truncated.
-    #[tracing::instrument(skip_all, fields(
-        address = ?account_keypair.address()
-    ))]
+    #[tracing::instrument(
+        level = "trace",
+        skip_all,
+        fields(
+            address = account_keypair.account_id().to_ss58check()
+        )
+    )]
     pub async fn publish_storage_deals<Keypair>(
         &self,
         account_keypair: &Keypair,
@@ -149,7 +165,7 @@ impl MarketClient {
         Call: subxt::tx::Payload,
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
-        tracing::info!("submitting extrinsic");
+        tracing::trace!("submitting extrinsic");
         let submission_progress = self
             .client
             .tx()
@@ -163,7 +179,7 @@ impl MarketClient {
         let finalized_xt = submission_progress.wait_for_finalized().await?;
 
         let block_hash = finalized_xt.block_hash();
-        tracing::info!(
+        tracing::trace!(
             block_hash = block_hash.encode_hex::<String>(),
             "successfully submitted extrinsic"
         );

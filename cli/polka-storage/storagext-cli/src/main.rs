@@ -15,7 +15,7 @@ use tracing_subscriber::{
 };
 use url::Url;
 
-pub(crate) const FULL_NODE_DEFAULT_RPC_ADDR: &str = "ws://127.0.0.1:9944";
+pub(crate) const FULL_NODE_DEFAULT_RPC_ADDR: &str = "ws://127.0.0.1:42069";
 
 #[derive(Debug, Parser)]
 #[command(group(ArgGroup::new("keypair").required(true).args(
@@ -29,15 +29,21 @@ struct Cli {
     #[arg(long, default_value = FULL_NODE_DEFAULT_RPC_ADDR)]
     pub node_rpc: Url,
 
-    /// Sr25519 keypair, encoded as hex or BIP-39. See `sp_core::crypto::Pair::from_string_with_seed` for more information.
+    /// Sr25519 keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
+    ///
+    /// See `sp_core::crypto::Pair::from_string_with_seed` for more information.
     #[arg(long, value_parser = DebugPair::<subxt::ext::sp_core::sr25519::Pair>::value_parser)]
     pub sr25519_key: Option<DebugPair<subxt::ext::sp_core::sr25519::Pair>>,
 
-    /// ECDSA keypair, encoded as hex or BIP-39. See `sp_core::crypto::Pair::from_string_with_seed` for more information.
+    /// ECDSA keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
+    ///
+    /// See `sp_core::crypto::Pair::from_string_with_seed` for more information.
     #[arg(long, value_parser = DebugPair::<subxt::ext::sp_core::ecdsa::Pair>::value_parser)]
     pub ecdsa_key: Option<DebugPair<subxt::ext::sp_core::ecdsa::Pair>>,
 
-    /// Ed25519 keypair, encoded as hex or BIP-39. See `sp_core::crypto::Pair::from_string_with_seed` for more information.
+    /// Ed25519 keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
+    ///
+    /// See `sp_core::crypto::Pair::from_string_with_seed` for more information.
     #[arg(long, value_parser = DebugPair::<subxt::ext::sp_core::ed25519::Pair>::value_parser)]
     pub ed25519_key: Option<DebugPair<subxt::ext::sp_core::ed25519::Pair>>,
 }
@@ -70,7 +76,6 @@ impl SubCommand {
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
-    // TODO: replace the box/dyn
     // Logger initialization.
     tracing_subscriber::registry()
         .with(
