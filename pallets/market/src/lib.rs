@@ -681,6 +681,7 @@ pub mod pallet {
 
                 // NOTE(@jmg-duarte,28/06/2024): Maybe emit an event when the table is updated?
                 if complete_deal {
+                    unlock_funds::<T>(&deal_proposal.provider, deal_proposal.provider_collateral)?;
                     Proposals::<T>::remove(deal_id);
                 } else {
                     // Otherwise, we update the proposal — `last_updated_block`
