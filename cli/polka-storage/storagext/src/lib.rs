@@ -16,7 +16,7 @@ pub use crate::runtime::runtime_types::pallet_market::{
 pub type Currency = u128;
 
 /// BlockNumber as specified by the SCALE-encoded runtime.
-pub type BlockNumber = u32;
+pub type BlockNumber = u64;
 
 /// Parachain configuration for subxt.
 pub enum PolkaStorageConfig {}
