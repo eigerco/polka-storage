@@ -176,9 +176,12 @@ impl<'de> serde::de::Deserialize<'de> for CidWrapper {
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        Ok(Self(
-            Cid::try_from(s.as_str()).map_err(|e| serde::de::Error::custom(format!("{e:?}")))?,
-        ))
+        let cid = Cid::try_from(s.as_str()).map_err(|e| {
+            serde::de::Error::custom(format!(
+                "failed to parse CID, check that the input is a valid CID: {e:?}"
+            ))
+        })?
+        Ok(Self(cid))
     }
 }
 
