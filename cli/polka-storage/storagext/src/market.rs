@@ -33,7 +33,7 @@ impl MarketClient {
 
     /// Withdraw the given `amount` of balance.
     #[tracing::instrument(skip_all, fields(
-        address = keypair.address(),
+        address = ?account_keypair.address(),
         amount = amount
     ))]
     pub async fn withdraw_balance<Keypair>(
@@ -45,12 +45,12 @@ impl MarketClient {
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
         let payload = runtime::tx().market().withdraw_balance(amount);
-        Ok(self.traced_submission(&payload, account_keypair).await?)
+        self.traced_submission(&payload, account_keypair).await
     }
 
     /// Add the given `amount` of balance.
     #[tracing::instrument(skip_all, fields(
-        address = keypair.address(),
+        address = ?account_keypair.address(),
         amount = amount
     ))]
     pub async fn add_balance<Keypair>(
@@ -62,15 +62,15 @@ impl MarketClient {
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
         let payload = runtime::tx().market().add_balance(amount);
-        Ok(self.traced_submission(&payload, account_keypair).await?)
+        self.traced_submission(&payload, account_keypair).await
     }
 
     /// Settle deal payments for the provided [`DealId`]s.
     ///
     /// If `deal_ids` length is bigger than [`MAX_DEAL_IDS`], it will get truncated.
     #[tracing::instrument(skip_all, fields(
-        address = keypair.address(),
-        deal_ids = deal_ids
+        address = ?account_keypair.address(),
+        deal_ids = ?deal_ids
     ))]
     pub async fn settle_deal_payments<Keypair>(
         &self,
@@ -94,14 +94,14 @@ impl MarketClient {
             .market()
             .settle_deal_payments(bounded_unbounded_deal_ids);
 
-        Ok(self.traced_submission(&payload, account_keypair).await?)
+        self.traced_submission(&payload, account_keypair).await
     }
 
     /// Publish the given storage deals.
     ///
     /// If `deals` length is bigger than [`MAX_DEAL_IDS`], it will get truncated.
     #[tracing::instrument(skip_all, fields(
-        address = keypair.address()
+        address = ?account_keypair.address()
     ))]
     pub async fn publish_storage_deals<Keypair>(
         &self,
@@ -133,7 +133,7 @@ impl MarketClient {
             .market()
             .publish_storage_deals(bounded_unbounded_deals);
 
-        Ok(self.traced_submission(&payload, account_keypair).await?)
+        self.traced_submission(&payload, account_keypair).await
     }
 
     /// Submit an extrinsic and wait for finalization, returning the block hash it was included in.

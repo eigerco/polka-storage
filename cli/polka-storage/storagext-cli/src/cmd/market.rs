@@ -16,8 +16,8 @@ impl DealProposals {
     ///
     /// The command-line argument may be a valid JSON object, or a file path starting with @.
     fn parse(src: &str) -> Result<Self, anyhow::Error> {
-        Ok(if src.starts_with('@') {
-            let path = PathBuf::from_str(&src[1..])?.canonicalize()?;
+        Ok(if let Some(stripped) = src.strip_prefix('@') {
+            let path = PathBuf::from_str(stripped)?.canonicalize()?;
             let mut file = std::fs::File::open(path)?;
             serde_json::from_reader(&mut file)
         } else {
