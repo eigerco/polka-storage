@@ -78,7 +78,7 @@ impl<BlockNumber: Clone + Copy + Ord> Deadline<BlockNumber> {
         self.partitions = new_dl.partitions;
     }
 
-    /// Processes a PoSt
+    /// Sets a given partition as proven
     pub fn record_proven(&mut self, partition_num: PartitionNumber) -> DeadlineResult<()> {
         log::debug!(target: LOG_TARGET, "record_proven: partition number = {partition_num:?}");
         ensure!(
