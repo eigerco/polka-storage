@@ -4,6 +4,7 @@
 //! This module wasn't designed to be exposed to the final user of the crate.
 
 pub(crate) mod bounded_vec;
+pub(crate) mod client;
 
 #[subxt::subxt(
     runtime_metadata_path = "../../artifacts/metadata.scale",

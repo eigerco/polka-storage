@@ -1,6 +1,5 @@
-use hex::ToHex;
 use primitives_proofs::DealId;
-use subxt::{ext::sp_core::crypto::Ss58Codec, OnlineClient};
+use subxt::ext::sp_core::crypto::Ss58Codec;
 
 use crate::{
     runtime::{self},
@@ -13,7 +12,7 @@ const MAX_N_DEALS: usize = 32;
 
 /// Client to interact with the market pallet extrinsics.
 pub struct MarketClient {
-    client: OnlineClient<PolkaStorageConfig>,
+    client: crate::runtime::client::Client,
 }
 
 impl MarketClient {
@@ -22,13 +21,9 @@ impl MarketClient {
     /// By default, this function does not support insecure URLs,
     /// to enable support for them, use the `insecure_url` feature.
     pub async fn new(rpc_address: impl AsRef<str>) -> Result<Self, subxt::Error> {
-        let client = if cfg!(feature = "insecure_url") {
-            OnlineClient::<_>::from_insecure_url(rpc_address).await?
-        } else {
-            OnlineClient::<_>::from_url(rpc_address).await?
-        };
-
-        Ok(Self { client })
+        Ok(Self {
+            client: crate::runtime::client::Client::new(rpc_address).await?,
+        })
     }
 
     /// Withdraw the given `amount` of balance.
@@ -49,7 +44,9 @@ impl MarketClient {
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
         let payload = runtime::tx().market().withdraw_balance(amount);
-        self.traced_submission(&payload, account_keypair).await
+        self.client
+            .traced_submission(&payload, account_keypair)
+            .await
     }
 
     /// Add the given `amount` of balance.
@@ -70,7 +67,9 @@ impl MarketClient {
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
         let payload = runtime::tx().market().add_balance(amount);
-        self.traced_submission(&payload, account_keypair).await
+        self.client
+            .traced_submission(&payload, account_keypair)
+            .await
     }
 
     /// Settle deal payments for the provided [`DealId`]s.
@@ -106,7 +105,9 @@ impl MarketClient {
             .market()
             .settle_deal_payments(bounded_unbounded_deal_ids);
 
-        self.traced_submission(&payload, account_keypair).await
+        self.client
+            .traced_submission(&payload, account_keypair)
+            .await
     }
 
     /// Publish the given storage deals.
@@ -149,43 +150,8 @@ impl MarketClient {
             .market()
             .publish_storage_deals(bounded_unbounded_deals);
 
-        self.traced_submission(&payload, account_keypair).await
-    }
-
-    /// Submit an extrinsic and wait for finalization, returning the block hash it was included in.
-    ///
-    /// Equivalent to performing [`OnlineClient::sign_and_submit_then_watch_default`],
-    /// followed by [`TxInBlock::wait_for_finalized`].
-    async fn traced_submission<Call, Keypair>(
-        &self,
-        call: &Call,
-        account_keypair: &Keypair,
-    ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
-    where
-        Call: subxt::tx::Payload,
-        Keypair: subxt::tx::Signer<PolkaStorageConfig>,
-    {
-        tracing::trace!("submitting extrinsic");
-        let submission_progress = self
-            .client
-            .tx()
-            .sign_and_submit_then_watch_default(call, account_keypair)
-            .await?;
-
-        tracing::trace!(
-            extrinsic_hash = submission_progress.extrinsic_hash().encode_hex::<String>(),
-            "waiting for finalization"
-        );
-        let finalized_xt = submission_progress.wait_for_finalized().await?;
-
-        // Wait for a successful inclusion because finalization != success
-        finalized_xt.wait_for_success().await?;
-
-        let block_hash = finalized_xt.block_hash();
-        tracing::trace!(
-            block_hash = block_hash.encode_hex::<String>(),
-            "successfully submitted extrinsic"
-        );
-        Ok(block_hash)
+        self.client
+            .traced_submission(&payload, account_keypair)
+            .await
     }
 }

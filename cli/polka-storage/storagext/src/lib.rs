@@ -5,6 +5,7 @@ use subxt::{self, ext::sp_runtime::MultiSignature, tx::Signer, utils::Static};
 
 pub mod market;
 pub mod runtime;
+pub mod storage_provider;
 
 use crate::runtime::bounded_vec::IntoBoundedByteVec;
 pub use crate::runtime::runtime_types::pallet_market::{
