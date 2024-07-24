@@ -19,9 +19,11 @@ mod benchmarks;
 mod tests;
 
 mod deadline;
+mod fault;
 mod partition;
 mod proofs;
 mod sector;
+mod sector_map;
 mod storage_provider;
 
 #[frame_support::pallet(dev_mode)]
@@ -50,6 +52,7 @@ pub mod pallet {
 
     use crate::{
         deadline::DeadlineInfo,
+        fault::DeclareFaultsParams,
         proofs::{
             assign_proving_period_offset, current_deadline_index, current_proving_period_start,
             SubmitWindowedPoStParams,
@@ -179,6 +182,10 @@ pub mod pallet {
 
         #[pallet::constant]
         type MaxPartitionsPerDeadline: Get<u64>;
+
+        /// Maximum number of unique "declarations" in batch operations.
+        #[pallet::constant]
+        type DeclarationsMax: Get<u64>;
     }
 
     /// Need some storage type that keeps track of sectors, deadlines and terminations.
@@ -254,6 +261,8 @@ pub mod pallet {
         PoStProofInvalid,
         /// Emitted when an error occurs when submitting PoSt.
         InvalidDeadlineSubmission,
+        /// Emitted when an SP tries to declare too many faults in 1 extrinsic (max is DeclartionsMax).
+        TooManyDeclartions,
         /// Wrapper around the [`DeadlineError`] type.
         DeadlineError(crate::deadline::DeadlineError),
         /// Wrapper around the [`PartitionError`] type.
@@ -505,6 +514,18 @@ pub mod pallet {
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
             log::debug!(target: LOG_TARGET, "submit_windowed_post: proof recorded");
             Self::deposit_event(Event::ValidPoStSubmitted { owner });
+            Ok(())
+        }
+
+        /// The SP uses this extrinsic to declare some sectors as faulty. Letting the system know it will not submit PoSt for the next deadline.
+        pub fn declare_faults(origin: OriginFor<T>, params: DeclareFaultsParams) -> DispatchResult {
+            let owner = ensure_signed(origin)?;
+            ensure!(
+                params.faults.len() as u64 <= T::DeclarationsMax::get(),
+                Error::<T>::TooManyDeclartions
+            );
+            let mut _sp = StorageProviders::<T>::try_get(&owner)
+                .map_err(|_| Error::<T>::StorageProviderNotFound)?;
             Ok(())
         }
     }

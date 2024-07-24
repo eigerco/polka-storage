@@ -324,6 +324,7 @@ parameter_types! {
     pub const MaxProveCommitDuration: BlockNumber =  (30 * DAYS) + 150;
     pub const WPoStPeriodDeadlines: u64 = 48;
     pub const MaxPartitionsPerDeadline: u64 = 3000;
+    pub const DeclarationsMax: u64 = 3000;
 
     // Market Pallet
     /// Deal duration values copied from FileCoin.
@@ -344,6 +345,7 @@ parameter_types! {
     pub const MaxProveCommitDuration: BlockNumber = 5 * MINUTES;
     pub const WPoStPeriodDeadlines: u64 = 48;
     pub const MaxPartitionsPerDeadline: u64 = 3000;
+    pub const DeclarationsMax: u64 = 3000;
 
     // Market Pallet
     pub const TimeUnitInBlocks: u64 = MINUTES;
@@ -365,6 +367,7 @@ impl pallet_storage_provider::Config for Runtime {
     type MaxProveCommitDuration = MaxProveCommitDuration;
     type WPoStPeriodDeadlines = WPoStPeriodDeadlines;
     type MaxPartitionsPerDeadline = MaxPartitionsPerDeadline;
+    type DeclarationsMax = DeclarationsMax;
 }
 
 parameter_types! {
