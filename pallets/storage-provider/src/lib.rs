@@ -522,18 +522,18 @@ pub mod pallet {
             current_deadline: &DeadlineInfo<BlockNumberFor<T>>,
             post_params: &SubmitWindowedPoStParams<BlockNumberFor<T>>,
         ) -> Result<(), Error<T>> {
-            ensure!(
-                current_deadline.is_open(),
+            ensure!(current_deadline.is_open(), {
+                log::error!(target: LOG_TARGET, "validate_deadline: {current_deadline:?}, deadline isn't open");
                 Error::<T>::InvalidDeadlineSubmission
-            );
-            ensure!(
-                post_params.deadline == current_deadline.idx,
+            });
+            ensure!(post_params.deadline == current_deadline.idx, {
+                log::error!(target: LOG_TARGET, "validate_deadline: given index does not match current index {} != {}", post_params.deadline, current_deadline.idx);
                 Error::<T>::InvalidDeadlineSubmission
-            );
-            ensure!(
-                post_params.chain_commit_block < curr_block,
+            });
+            ensure!(post_params.chain_commit_block < curr_block, {
+                log::error!(target: LOG_TARGET, "validate_deadline: chain commit block is after current block {:?} > {curr_block:?}", post_params.chain_commit_block);
                 Error::<T>::InvalidDeadlineSubmission
-            );
+            });
             Ok(())
         }
     }
