@@ -23,7 +23,7 @@ Depending on the type of key you use, you should use a different flag as well:
 Example:
 
 ```
-storagext-cli --sr25519 "//Alice" ...
+storagext-cli --sr25519-key "//Alice" ...
 ```
 
 ### RPC Address — `--node-rpc`
