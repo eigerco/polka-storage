@@ -28,5 +28,5 @@ args = ["--detailed-log-output", "-lparachain=debug,xcm=trace,runtime=trace"]
 command = "polka-storage-node"
 image = "polkadotstorage.azurecr.io/parachain-node:0.1.0"
 name = "charlie"
-validator = true
 rpc_port = 42069
+validator = true
