@@ -332,10 +332,14 @@ impl<BlockNumber: BaseArithmetic + Copy> DeadlineInfo<BlockNumber> {
         // interesting that the error type for `BlockNumber::try_from` is `Infallible` indicating that it cannot fail.
         // ref: <https://doc.rust-lang.org/nightly/core/convert/trait.TryFrom.html#generic-implementations>
         // does this mean we do no need to catch the error?
-        let period_deadlines = BlockNumber::try_from(w_post_period_deadlines)
-            .map_err(|_| DeadlineError::CouldNotConstructDeadlineInfo)?;
-        let idx_converted =
-            BlockNumber::try_from(idx).map_err(|_| DeadlineError::CouldNotConstructDeadlineInfo)?;
+        let period_deadlines = BlockNumber::try_from(w_post_period_deadlines).map_err(|_| {
+            log::error!(target: LOG_TARGET, "failed to convert {w_post_period_deadlines:?} to BlockNumber");
+            DeadlineError::CouldNotConstructDeadlineInfo
+        })?;
+        let idx_converted = BlockNumber::try_from(idx).map_err(|_| {
+            log::error!(target: LOG_TARGET, "failed to convert {idx:?} to BlockNumber");
+            DeadlineError::CouldNotConstructDeadlineInfo
+        })?;
         if idx_converted < period_deadlines {
             let deadline_open = period_start + (idx_converted * w_post_challenge_window);
             Ok(Self {
