@@ -95,6 +95,8 @@ impl<BlockNumber: Clone + Copy + Ord> Deadline<BlockNumber> {
     /// that this deadline isn't currently "open" (i.e., being proved at this point
     /// in time).
     /// The sectors are assumed to be non-faulty.
+    ///
+    /// The sectors are added to the last partition stored in the deadline. .
     pub fn add_sectors(
         &mut self,
         partition_size: u64,
@@ -404,13 +406,13 @@ pub enum DeadlineError {
     PartitionAlreadyProven,
     /// Emitted when trying to retrieve a partition that does not exit.
     PartitionNotFound,
-    /// Emitted when trying to update proven partitions fails
+    /// Emitted when trying to update proven partitions fails.
     ProofUpdateFailed,
     /// Emitted when trying to get the next instance of a deadline that has not yet elapsed fails.
     FailedToGetNextDeadline,
     /// Emitted when max partition for a given deadline have been reached.
     MaxPartitionsReached,
-    /// Emitted when trying to add sectors to a deadline fails
+    /// Emitted when trying to add sectors to a deadline fails.
     CouldNotAddSectors,
     /// Emitted when assigning sectors to deadlines fails.
     CouldNotAssignSectorsToDeadlines,
