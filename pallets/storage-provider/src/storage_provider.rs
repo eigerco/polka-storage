@@ -241,12 +241,6 @@ where
         &self.deadlines
     }
 
-    pub fn get_sectors(
-        &self,
-    ) -> &BoundedBTreeMap<SectorNumber, SectorOnChainInfo<BlockNumber>, ConstU32<MAX_SECTORS>> {
-        &self.sectors
-    }
-
     /// Returns deadline calculations for the current (according to state) proving period.
     pub fn deadline_info(
         &self,
