@@ -45,6 +45,7 @@ impl DeadlineAssignmentInfo {
     }
 }
 
+/// Reference: https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/actors/miner/src/deadline_assignment.rs#L47
 fn cmp(a: &DeadlineAssignmentInfo, b: &DeadlineAssignmentInfo, partition_size: u64) -> Ordering {
     // When assigning partitions to deadlines, we're trying to optimize the
     // following:
