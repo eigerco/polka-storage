@@ -109,6 +109,7 @@ impl<BlockNumber: Clone + Copy + Ord> Deadline<BlockNumber> {
         // First update partitions, consuming the sectors
         let mut partition_deadline_updates =
             Vec::<(BlockNumber, PartitionNumber)>::with_capacity(sectors.len());
+        // PRE-COND: there can never be more live sectors than u64, so it never overflows
         self.live_sectors += sectors.len() as u64;
         self.total_sectors += sectors.len() as u64;
 
