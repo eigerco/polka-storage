@@ -121,7 +121,7 @@ storagext-cli --sr25519-key <key> market publish-storage-deals @important-deals.
 ### `settle-deal-payments`
 
 As a storage provider, you are entitled to your payment (when you are well behaved),
-you can reclaim your payment by calling `settle-deal-payments`. The command takes a
+you can claim your payment by calling`settle-deal-payments`. The command takes a
 list of IDs for the deals to be processed.
 
 ```
