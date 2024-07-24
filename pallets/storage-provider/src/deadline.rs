@@ -302,10 +302,10 @@ pub struct DeadlineInfo<BlockNumber> {
     pub idx: u64,
 
     /// The first block number from which a proof can be submitted.
-    pub open: BlockNumber,
+    pub open_at: BlockNumber,
 
     /// The first block number from which a proof can *no longer* be submitted.
-    pub close: BlockNumber,
+    pub close_at: BlockNumber,
 
     /// The number of non-overlapping PoSt deadlines in each proving period.
     pub w_post_period_deadlines: u64,
@@ -346,8 +346,8 @@ impl<BlockNumber: BaseArithmetic + Copy> DeadlineInfo<BlockNumber> {
                 block_number,
                 period_start,
                 idx,
-                open: deadline_open,
-                close: deadline_open + w_post_challenge_window,
+                open_at: deadline_open,
+                close_at: deadline_open + w_post_challenge_window,
                 w_post_period_deadlines,
                 w_post_challenge_window,
                 w_post_proving_period,
@@ -358,8 +358,8 @@ impl<BlockNumber: BaseArithmetic + Copy> DeadlineInfo<BlockNumber> {
                 block_number,
                 period_start,
                 idx,
-                open: after_last_deadline,
-                close: after_last_deadline,
+                open_at: after_last_deadline,
+                close_at: after_last_deadline,
                 w_post_period_deadlines,
                 w_post_challenge_window,
                 w_post_proving_period,
@@ -369,12 +369,12 @@ impl<BlockNumber: BaseArithmetic + Copy> DeadlineInfo<BlockNumber> {
 
     /// Whether the current deadline is currently open.
     pub fn is_open(&self) -> bool {
-        self.block_number >= self.open && self.block_number < self.close
+        self.block_number >= self.open_at && self.block_number < self.close_at
     }
 
     /// Whether the current deadline has already closed.
     pub fn has_elapsed(&self) -> bool {
-        self.block_number >= self.close
+        self.block_number >= self.close_at
     }
 
     /// Returns the next instance of this deadline that has not yet elapsed.
@@ -384,7 +384,7 @@ impl<BlockNumber: BaseArithmetic + Copy> DeadlineInfo<BlockNumber> {
         }
 
         // has elapsed, advance by some multiples of w_post_proving_period
-        let gap = self.block_number - self.close;
+        let gap = self.block_number - self.close_at;
         let delta_periods = TryInto::<BlockNumber>::try_into(1u64)
             .map_err(|_| DeadlineError::FailedToGetNextDeadline)?
             + gap / self.w_post_proving_period;

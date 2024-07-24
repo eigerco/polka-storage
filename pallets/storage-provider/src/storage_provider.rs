@@ -357,5 +357,5 @@ pub fn deadline_is_mutable<BlockNumber: BaseArithmetic + Copy + core::fmt::Debug
 
     // Ensure that the current block is at least one challenge window before
     // that deadline opens.
-    Ok(current_block < dl_info.open - w_post_challenge_window)
+    Ok(current_block < dl_info.open_at - w_post_challenge_window)
 }
