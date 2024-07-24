@@ -200,10 +200,10 @@ pub struct Deadlines<BlockNumber> {
 
 impl<BlockNumber: Clone + Copy + Ord> Deadlines<BlockNumber> {
     /// Constructor function.
-    pub fn new() -> Self {
+    pub fn new(w_post_period_deadlines: u64) -> Self {
         let mut due = BoundedVec::new();
         // Initialize deadlines as empty deadlines.
-        for _ in 0..48 {
+        for _ in 0..w_post_period_deadlines {
             let _ = due.try_push(Deadline::new());
         }
         Self { due }
@@ -430,7 +430,7 @@ mod test {
 
     #[test]
     fn load_deadline_mut() -> DeadlineResult<()> {
-        let mut dls: Deadlines<u32> = Deadlines::new();
+        let mut dls: Deadlines<u32> = Deadlines::new(48);
         let dl: Deadline<u32> = Deadline::new();
 
         let idx = dls.insert_deadline(dl.clone())?;

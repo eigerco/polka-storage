@@ -74,6 +74,7 @@ where
         info: &StorageProviderInfo<PeerId>,
         period_start: BlockNumber,
         deadline_idx: BlockNumber,
+        w_post_period_deadlines: u64,
     ) -> Self {
         Self {
             info: info.clone(),
@@ -82,7 +83,7 @@ where
             pre_committed_sectors: BoundedBTreeMap::new(),
             proving_period_start: period_start,
             current_deadline: deadline_idx,
-            deadlines: Deadlines::new(),
+            deadlines: Deadlines::new(w_post_period_deadlines),
         }
     }
 

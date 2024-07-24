@@ -284,7 +284,12 @@ pub mod pallet {
             let deadline_idx =
                 current_deadline_index(current_block, period_start, T::WPoStChallengeWindow::get());
             let info = StorageProviderInfo::new(peer_id, window_post_proof_type);
-            let state = StorageProviderState::new(&info, period_start, deadline_idx);
+            let state = StorageProviderState::new(
+                &info,
+                period_start,
+                deadline_idx,
+                T::WPoStPeriodDeadlines::get(),
+            );
             StorageProviders::<T>::insert(&owner, state);
             // Emit event
             Self::deposit_event(Event::StorageProviderRegistered { owner, info });
