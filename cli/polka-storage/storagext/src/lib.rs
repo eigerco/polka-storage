@@ -30,8 +30,10 @@ impl subxt::Config for PolkaStorageConfig {
     type Address = subxt::config::polkadot::MultiAddress<Self::AccountId, u32>;
     type Signature = subxt::ext::sp_runtime::MultiSignature;
     type Hasher = subxt::config::substrate::BlakeTwo256;
-    type Header =
-        subxt::config::substrate::SubstrateHeader<u32, subxt::config::substrate::BlakeTwo256>;
+    type Header = subxt::config::substrate::SubstrateHeader<
+        BlockNumber,
+        subxt::config::substrate::BlakeTwo256,
+    >;
     type ExtrinsicParams = subxt::config::DefaultExtrinsicParams<Self>;
     type AssetId = u32;
 }

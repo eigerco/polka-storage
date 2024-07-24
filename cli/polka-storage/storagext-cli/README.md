@@ -50,7 +50,8 @@ this is one of the entrypoints for the parachain as you need to add some balance
 
 ### `add-balance`
 
-Add a given amount of MDOT to your free balance, this will enable you to store your files in providers or provide space to others.
+Add a given amount of [Plancks](https://wiki.polkadot.network/docs/learn-DOT#the-planck-unit) to your free balance,
+this will enable you to store your files in providers or provide space to others.
 
 ```
 storagext-cli --sr25519-key <key> market add-balance <amount>
@@ -123,6 +124,12 @@ storagext-cli --sr25519-key <key> market publish-storage-deals @important-deals.
 As a storage provider, you are entitled to your payment (when you are well behaved),
 you can claim your payment by calling`settle-deal-payments`. The command takes a
 list of IDs for the deals to be processed.
+
+> [!NOTE]
+> The deal ID list is separated by spaces, for example:
+> ```
+> settle_deal_payments 1203 1243 1254
+> ```
 
 ```
 storagext-cli --sr25519-key <key> market settle-deal-payments <deal ids>
