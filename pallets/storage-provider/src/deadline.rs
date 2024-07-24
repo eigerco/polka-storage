@@ -306,8 +306,13 @@ pub struct DeadlineInfo<BlockNumber> {
     /// The first block number from which a proof can *no longer* be submitted.
     pub close: BlockNumber,
 
+    /// The number of non-overlapping PoSt deadlines in each proving period.
     pub w_post_period_deadlines: u64,
+
+    /// The period over which all an SP's active sectors will be challenged.
     pub w_post_proving_period: BlockNumber,
+
+    /// The duration of a deadline's challenge window, the period before a deadline when the challenge is available.
     pub w_post_challenge_window: BlockNumber,
 }
 
