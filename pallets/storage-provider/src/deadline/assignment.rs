@@ -143,7 +143,7 @@ pub fn assign_deadlines<BlockNumber: Clone + Copy + Ord>(
     sectors: Vec<SectorOnChainInfo<BlockNumber>>,
     w_post_period_deadlines: u64,
 ) -> DeadlineResult<Vec<Vec<SectorOnChainInfo<BlockNumber>>>> {
-    log::debug!(target: LOG_TARGET,"dealines len: {}", deadlines.len());
+    log::debug!(target: LOG_TARGET,"deadlines len: {}", deadlines.len());
     log::debug!(target: LOG_TARGET,"sectors len: {}", sectors.len());
     let mut nones = 0;
     for dl in deadlines {
