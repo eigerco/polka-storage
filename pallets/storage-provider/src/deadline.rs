@@ -13,7 +13,7 @@ use sp_arithmetic::traits::BaseArithmetic;
 
 use crate::{
     pallet::LOG_TARGET,
-    partition::{Partition, PartitionNumber, MAX_PARTITIONS},
+    partition::{Partition, PartitionNumber, MAX_PARTITIONS_PER_DEADLINE},
     sector::SectorOnChainInfo,
 };
 
@@ -28,8 +28,11 @@ pub use assignment::assign_deadlines;
 #[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct Deadline<BlockNumber> {
     /// Partitions in this deadline. Indexed by partition number.
-    pub partitions:
-        BoundedBTreeMap<PartitionNumber, Partition<BlockNumber>, ConstU32<MAX_PARTITIONS>>,
+    pub partitions: BoundedBTreeMap<
+        PartitionNumber,
+        Partition<BlockNumber>,
+        ConstU32<MAX_PARTITIONS_PER_DEADLINE>,
+    >,
 
     /// Maps blocks to partitions Maps blocks to partitions (i.e. [BlockNumber] -> [PartitionNumber]).
     /// The partition _may_ have sectors that expire in or
@@ -41,14 +44,15 @@ pub struct Deadline<BlockNumber> {
     /// associated block has passed) even if they no longer have sectors
     /// expiring at that block. Sectors expiring at their given block may later be
     /// recovered, and this queue will not be updated at that time.
-    pub expirations_blocks: BoundedBTreeMap<BlockNumber, PartitionNumber, ConstU32<MAX_PARTITIONS>>,
+    pub expirations_blocks:
+        BoundedBTreeMap<BlockNumber, PartitionNumber, ConstU32<MAX_PARTITIONS_PER_DEADLINE>>,
 
     /// Partitions that have been proved by window PoSts so far during the
     /// current challenge window.
-    pub partitions_posted: BoundedBTreeSet<PartitionNumber, ConstU32<MAX_PARTITIONS>>,
+    pub partitions_posted: BoundedBTreeSet<PartitionNumber, ConstU32<MAX_PARTITIONS_PER_DEADLINE>>,
 
     /// Partition numbers with sectors that terminated early.
-    pub early_terminations: BoundedBTreeSet<PartitionNumber, ConstU32<MAX_PARTITIONS>>,
+    pub early_terminations: BoundedBTreeSet<PartitionNumber, ConstU32<MAX_PARTITIONS_PER_DEADLINE>>,
 
     /// The number of non-terminated sectors in this deadline (incl faulty).
     pub live_sectors: u64,

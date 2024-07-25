@@ -7,7 +7,9 @@ use scale_info::TypeInfo;
 
 use crate::{pallet::LOG_TARGET, sector::MAX_SECTORS};
 
-pub const MAX_PARTITIONS: u32 = 5;
+/// Max amount of partitions per deadline.
+/// ref: <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/runtime/src/runtime/policy.rs#L283>
+pub const MAX_PARTITIONS_PER_DEADLINE: u32 = 3000;
 pub type PartitionNumber = u32;
 
 #[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
