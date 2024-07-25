@@ -386,9 +386,9 @@ where
 
         // has elapsed, advance by some multiples of w_post_proving_period
         let gap = self.block_number - self.close_at;
-        let delta_periods = TryInto::<BlockNumber>::try_into(1u64)
-            .map_err(|_| DeadlineError::FailedToGetNextDeadline)?
-            + gap / self.w_post_proving_period;
+        let next_deadline = TryInto::<BlockNumber>::try_into(1u64)
+            .map_err(|_| DeadlineError::FailedToGetNextDeadline)?;
+        let delta_periods = next_deadline + gap / self.w_post_proving_period;
 
         Self::new(
             self.block_number,
@@ -399,6 +399,36 @@ where
             self.w_post_challenge_window,
         )
     }
+}
+
+/// Returns true if the deadline at the given index is currently mutable.
+pub fn deadline_is_mutable<BlockNumber>(
+    proving_period_start: BlockNumber,
+    deadline_idx: u64,
+    current_block: BlockNumber,
+    w_post_challenge_window: BlockNumber,
+    w_post_period_deadlines: u64,
+    w_post_proving_period: BlockNumber,
+) -> Result<bool, DeadlineError>
+where
+    BlockNumber: BaseArithmetic + Copy + core::fmt::Debug,
+{
+    // Get the next non-elapsed deadline (i.e., the next time we care about
+    // mutations to the deadline).
+    let dl_info = DeadlineInfo::new(
+        current_block,
+        proving_period_start,
+        deadline_idx,
+        w_post_period_deadlines,
+        w_post_challenge_window,
+        w_post_proving_period,
+    )?
+    .next_not_elapsed()?;
+    log::debug!(target: LOG_TARGET,"dl_info = {dl_info:?}");
+
+    // Ensure that the current block is at least one challenge window before
+    // that deadline opens.
+    Ok(current_block < dl_info.open_at - w_post_challenge_window)
 }
 
 #[derive(Decode, Encode, PalletError, TypeInfo, RuntimeDebug)]

@@ -9,7 +9,9 @@ use scale_info::{prelude::vec::Vec, TypeInfo};
 use sp_arithmetic::{traits::BaseArithmetic, ArithmeticError};
 
 use crate::{
-    deadline::{assign_deadlines, Deadline, DeadlineError, DeadlineInfo, Deadlines},
+    deadline::{
+        assign_deadlines, deadline_is_mutable, Deadline, DeadlineError, DeadlineInfo, Deadlines,
+    },
     pallet::LOG_TARGET,
     sector::{SectorOnChainInfo, SectorPreCommitOnChainInfo, MAX_SECTORS},
 };
@@ -327,35 +329,4 @@ impl<PeerId> StorageProviderInfo<PeerId> {
             window_post_partition_sectors,
         }
     }
-}
-
-/// Returns true if the deadline at the given index is currently mutable.
-pub fn deadline_is_mutable<BlockNumber>(
-    proving_period_start: BlockNumber,
-    deadline_idx: u64,
-    current_block: BlockNumber,
-    w_post_challenge_window: BlockNumber,
-    w_post_period_deadlines: u64,
-    w_post_proving_period: BlockNumber,
-) -> Result<bool, DeadlineError>
-where
-    BlockNumber: BaseArithmetic + Copy + core::fmt::Debug,
-{
-    log::debug!(target: LOG_TARGET,"fn deadline_is_mutable");
-    // Get the next non-elapsed deadline (i.e., the next time we care about
-    // mutations to the deadline).
-    let dl_info = DeadlineInfo::new(
-        current_block,
-        proving_period_start,
-        deadline_idx,
-        w_post_period_deadlines,
-        w_post_challenge_window,
-        w_post_proving_period,
-    )?
-    .next_not_elapsed()?;
-    log::debug!(target: LOG_TARGET,"dl_info = {dl_info:?}");
-
-    // Ensure that the current block is at least one challenge window before
-    // that deadline opens.
-    Ok(current_block < dl_info.open_at - w_post_challenge_window)
 }
