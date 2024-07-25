@@ -161,7 +161,7 @@ where
         w_post_period_deadlines: u64,
         w_post_proving_period: BlockNumber,
     ) -> Result<(), StorageProviderError> {
-        let deadlines = self.get_deadlines();
+        let deadlines = &self.deadlines;
         sectors.sort_by_key(|info| info.sector_number);
         let mut deadline_vec: Vec<Option<Deadline<BlockNumber>>> =
             (0..w_post_period_deadlines).map(|_| None).collect();
@@ -240,11 +240,6 @@ where
     /// Simple getter for mutable deadlines.
     pub fn get_deadlines_mut(&mut self) -> &mut Deadlines<BlockNumber> {
         &mut self.deadlines
-    }
-
-    /// Simple getter for deadlines.
-    pub fn get_deadlines(&self) -> &Deadlines<BlockNumber> {
-        &self.deadlines
     }
 
     /// Returns deadline calculations for the current (according to state) proving period.
