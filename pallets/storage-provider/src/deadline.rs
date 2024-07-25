@@ -21,8 +21,6 @@ mod assignment;
 
 pub use assignment::assign_deadlines;
 
-type DeadlineResult<T> = Result<T, DeadlineError>;
-
 /// Deadline holds the state for all sectors due at a specific deadline.
 ///
 /// A deadline exists along side 47 other deadlines (1 for every 30 minutes in a day).
@@ -82,7 +80,7 @@ where
     }
 
     /// Sets a given partition as proven
-    pub fn record_proven(&mut self, partition_num: PartitionNumber) -> DeadlineResult<()> {
+    pub fn record_proven(&mut self, partition_num: PartitionNumber) -> Result<(), DeadlineError> {
         log::debug!(target: LOG_TARGET, "record_proven: partition number = {partition_num:?}");
         ensure!(
             !self.partitions_posted.contains(&partition_num),
@@ -99,12 +97,12 @@ where
     /// in time).
     /// The sectors are assumed to be non-faulty.
     ///
-    /// The sectors are added to the last partition stored in the deadline. .
+    /// The sectors are added to the last partition stored in the deadline.
     pub fn add_sectors(
         &mut self,
         partition_size: u64,
         mut sectors: &[SectorOnChainInfo<BlockNumber>],
-    ) -> DeadlineResult<()> {
+    ) -> Result<(), DeadlineError> {
         if sectors.is_empty() {
             return Ok(());
         }
@@ -229,7 +227,7 @@ where
     pub fn insert_deadline(
         &mut self,
         new_deadline: Deadline<BlockNumber>,
-    ) -> DeadlineResult<usize> {
+    ) -> Result<usize, DeadlineError> {
         self.due
             .try_push(new_deadline)
             .map_err(|_| DeadlineError::CouldNotInsertDeadline)?;
@@ -239,7 +237,10 @@ where
 
     /// Loads a mutable deadline from the given index.
     /// Fails if the index does not exist or is out of range.
-    pub fn load_deadline_mut(&mut self, idx: usize) -> DeadlineResult<&mut Deadline<BlockNumber>> {
+    pub fn load_deadline_mut(
+        &mut self,
+        idx: usize,
+    ) -> Result<&mut Deadline<BlockNumber>, DeadlineError> {
         log::debug!(target: LOG_TARGET, "load_deadline_mut: getting deadline at index {idx}");
         // Ensure the provided index is within range.
         ensure!(self.len() > idx, DeadlineError::DeadlineIndexOutOfRange);
@@ -248,7 +249,7 @@ where
 
     /// Loads a deadline
     /// Fails if the index does not exist or is out of range.
-    pub fn load_deadline(&self, idx: usize) -> DeadlineResult<Deadline<BlockNumber>> {
+    pub fn load_deadline(&self, idx: usize) -> Result<Deadline<BlockNumber>, DeadlineError> {
         log::debug!(target: LOG_TARGET, "load_deadline_mut: getting deadline at index {idx}");
         // Ensure the provided index is within range.
         ensure!(self.len() > idx, DeadlineError::DeadlineIndexOutOfRange);
@@ -263,7 +264,7 @@ where
         &mut self,
         deadline_idx: usize,
         partition_num: PartitionNumber,
-    ) -> DeadlineResult<()> {
+    ) -> Result<(), DeadlineError> {
         log::debug!(target: LOG_TARGET, "record_proven: partition number: {partition_num:?}");
         let deadline = self.load_deadline_mut(deadline_idx)?;
         deadline.record_proven(partition_num)?;
@@ -272,8 +273,8 @@ where
 
     pub fn for_each(
         &self,
-        mut f: impl FnMut(u64, Deadline<BlockNumber>) -> DeadlineResult<()>,
-    ) -> DeadlineResult<()> {
+        mut f: impl FnMut(u64, Deadline<BlockNumber>) -> Result<(), DeadlineError>,
+    ) -> Result<(), DeadlineError> {
         for i in 0..(self.len() as u64) {
             let index = i;
             let deadline = self.load_deadline(i as usize)?;
@@ -286,7 +287,7 @@ where
         &mut self,
         deadline_idx: usize,
         deadline: Deadline<BlockNumber>,
-    ) -> DeadlineResult<()> {
+    ) -> Result<(), DeadlineError> {
         let dl = self
             .due
             .get_mut(deadline_idx)
@@ -336,7 +337,7 @@ where
         w_post_period_deadlines: u64,
         w_post_challenge_window: BlockNumber,
         w_post_proving_period: BlockNumber,
-    ) -> DeadlineResult<Self> {
+    ) -> Result<Self, DeadlineError> {
         // convert w_post_period_deadlines and idx so we can math
         // interesting that the error type for `BlockNumber::try_from` is `Infallible` indicating that it cannot fail.
         // ref: <https://doc.rust-lang.org/nightly/core/convert/trait.TryFrom.html#generic-implementations>
@@ -387,7 +388,7 @@ where
     }
 
     /// Returns the next instance of this deadline that has not yet elapsed.
-    pub fn next_not_elapsed(self) -> DeadlineResult<Self> {
+    pub fn next_not_elapsed(self) -> Result<Self, DeadlineError> {
         if !self.has_elapsed() {
             return Ok(self);
         }
@@ -442,7 +443,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn load_deadline_mut() -> DeadlineResult<()> {
+    fn load_deadline_mut() -> Result<(), DeadlineError> {
         let mut dls: Deadlines<u32> = Deadlines::new(48);
         let dl: Deadline<u32> = Deadline::new();
 

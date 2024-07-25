@@ -9,8 +9,6 @@ use crate::{
     sector::SectorOnChainInfo,
 };
 
-use super::DeadlineResult;
-
 fn div_rounding_up(dividend: u64, divisor: u64) -> u64 {
     dividend / divisor + u64::from(dividend % divisor > 0)
 }
@@ -143,7 +141,7 @@ pub fn assign_deadlines<BlockNumber>(
     deadlines: &[Option<Deadline<BlockNumber>>],
     sectors: Vec<SectorOnChainInfo<BlockNumber>>,
     w_post_period_deadlines: u64,
-) -> DeadlineResult<Vec<Vec<SectorOnChainInfo<BlockNumber>>>>
+) -> Result<Vec<Vec<SectorOnChainInfo<BlockNumber>>>, DeadlineError>
 where
     BlockNumber: Clone + Copy + Ord,
 {
