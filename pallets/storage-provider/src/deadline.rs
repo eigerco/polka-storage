@@ -215,23 +215,6 @@ where
         self.due.len()
     }
 
-    /// Inserts a new deadline.
-    /// Fails if the deadline insertion fails.
-    /// Returns the deadline index it inserted the deadline at
-    ///
-    /// I am not sure if this should just insert the new deadline at the back and return the index
-    /// or take in the index and insert the deadline in there.
-    pub fn insert_deadline(
-        &mut self,
-        new_deadline: Deadline<BlockNumber>,
-    ) -> Result<usize, DeadlineError> {
-        self.due
-            .try_push(new_deadline)
-            .map_err(|_| DeadlineError::CouldNotInsertDeadline)?;
-        // No underflow if the above was successful, minimum length 1
-        Ok(self.due.len() - 1)
-    }
-
     /// Loads a mutable deadline from the given index.
     /// Fails if the index does not exist or is out of range.
     pub fn load_deadline_mut(
@@ -449,20 +432,4 @@ pub enum DeadlineError {
     CouldNotAddSectors,
     /// Emitted when assigning sectors to deadlines fails.
     CouldNotAssignSectorsToDeadlines,
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn load_deadline_mut() -> Result<(), DeadlineError> {
-        let mut dls: Deadlines<u32> = Deadlines::new(48);
-        let dl: Deadline<u32> = Deadline::new();
-
-        let idx = dls.insert_deadline(dl.clone())?;
-        let loaded_dl = dls.load_deadline_mut(idx)?;
-        assert_eq!(&dl, loaded_dl);
-        Ok(())
-    }
 }
