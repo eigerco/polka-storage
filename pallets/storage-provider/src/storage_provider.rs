@@ -168,26 +168,27 @@ where
             "assign_sectors_to_deadlines: deadline len = {}",
             deadlines.len()
         );
-        deadlines.clone().for_each(|deadline_idx, deadline| {
-            // Skip deadlines that aren't currently mutable.
-            if deadline_is_mutable(
-                self.current_proving_period_start(
+        deadlines.clone().due.iter().enumerate().try_for_each(
+            |(deadline_idx, deadline)| -> Result<(), DeadlineError> {
+                // Skip deadlines that aren't currently mutable.
+                if deadline_is_mutable(
+                    self.current_proving_period_start(
+                        current_block,
+                        w_post_challenge_window,
+                        w_post_period_deadlines,
+                        w_post_proving_period,
+                    )?,
+                    deadline_idx as u64,
                     current_block,
                     w_post_challenge_window,
                     w_post_period_deadlines,
                     w_post_proving_period,
-                )?,
-                deadline_idx,
-                current_block,
-                w_post_challenge_window,
-                w_post_period_deadlines,
-                w_post_proving_period,
-            )? {
-                deadline_vec[deadline_idx as usize] = Some(deadline);
-            }
-
-            Ok(())
-        })?;
+                )? {
+                    deadline_vec[deadline_idx as usize] = Some(deadline.clone());
+                }
+                Ok(())
+            },
+        )?;
         let deadline_to_sectors = assign_deadlines(
             max_partitions_per_deadline,
             partition_size,

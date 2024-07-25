@@ -271,18 +271,6 @@ where
         Ok(())
     }
 
-    pub fn for_each(
-        &self,
-        mut f: impl FnMut(u64, Deadline<BlockNumber>) -> Result<(), DeadlineError>,
-    ) -> Result<(), DeadlineError> {
-        for i in 0..(self.len() as u64) {
-            let index = i;
-            let deadline = self.load_deadline(i as usize)?;
-            f(index, deadline)?;
-        }
-        Ok(())
-    }
-
     pub fn update_deadline(
         &mut self,
         deadline_idx: usize,
