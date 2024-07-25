@@ -12,7 +12,10 @@ build: lint
 release: lint
     cargo build --release
 
-testnet: release
+release-testnet: lint
+    cargo build --release --features polka-storage-runtime/testnet
+
+testnet: release-testnet
     zombienet -p native spawn zombienet/local-testnet.toml
 
 build-parachain-docker:

@@ -8,9 +8,9 @@ use crate::{
     sector::ProveCommitSector,
     storage_provider::StorageProviderError,
     tests::{
-        account, events, register_storage_provider, run_to_block, Balances, DealProposalBuilder,
-        Market, RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System,
-        Test, ALICE, BOB,
+        account, events, publish_deals, register_storage_provider, run_to_block, Balances,
+        RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System, Test,
+        ALICE, BOB, CHARLIE,
     },
 };
 
@@ -18,33 +18,12 @@ use crate::{
 fn successfully_prove_sector() {
     new_test_ext().execute_with(|| {
         // Setup accounts
-        let storage_provider = ALICE;
-        let storage_client = BOB;
+        let storage_provider = CHARLIE;
 
         // Register storage provider
         register_storage_provider(account(storage_provider));
-
-        // Add balance to the market pallet
-        assert_ok!(Market::add_balance(
-            RuntimeOrigin::signed(account(storage_provider)),
-            60
-        ));
-        assert_ok!(Market::add_balance(
-            RuntimeOrigin::signed(account(storage_client)),
-            70
-        ));
-
-        // Generate a deal proposal
-        let deal_proposal = DealProposalBuilder::default()
-            .client(storage_client)
-            .provider(storage_provider)
-            .signed(storage_client);
-
-        // Publish the deal proposal
-        assert_ok!(Market::publish_storage_deals(
-            RuntimeOrigin::signed(account(storage_provider)),
-            bounded_vec![deal_proposal],
-        ));
+        // Set-up dependencies in Market Pallet
+        publish_deals(storage_provider);
 
         // Sector to be pre-committed and proven
         let sector_number = 1;
@@ -52,7 +31,6 @@ fn successfully_prove_sector() {
         // Sector data
         let sector = SectorPreCommitInfoBuilder::default()
             .sector_number(sector_number)
-            .deals(vec![0])
             .build();
 
         // Run pre commit extrinsic
@@ -79,7 +57,12 @@ fn successfully_prove_sector() {
             [
                 RuntimeEvent::Market(pallet_market::Event::DealActivated {
                     deal_id: 0,
-                    client: account(storage_client),
+                    client: account(ALICE),
+                    provider: account(storage_provider)
+                }),
+                RuntimeEvent::Market(pallet_market::Event::DealActivated {
+                    deal_id: 1,
+                    client: account(BOB),
                     provider: account(storage_provider)
                 }),
                 RuntimeEvent::StorageProvider(Event::<Test>::SectorProven {
@@ -90,7 +73,7 @@ fn successfully_prove_sector() {
         );
 
         // check that the funds are still locked
-        assert_eq!(Balances::free_balance(account(storage_provider)), 39);
+        assert_eq!(Balances::free_balance(account(storage_provider)), 29);
         let sp_state = StorageProviders::<Test>::get(account(storage_provider))
             .expect("Should be able to get providers info");
 
@@ -165,39 +148,17 @@ fn fails_prove_commit_after_deadline() {
     new_test_ext().execute_with(|| {
         run_to_block(precommit_at_block_number);
 
-        let storage_provider = ALICE;
-        let storage_client = BOB;
+        let storage_provider = CHARLIE;
         let sector_number = 1;
 
         // Register storage provider
         register_storage_provider(account(storage_provider));
-
-        // Add balance to the market pallet
-        assert_ok!(Market::add_balance(
-            RuntimeOrigin::signed(account(storage_provider)),
-            60
-        ));
-        assert_ok!(Market::add_balance(
-            RuntimeOrigin::signed(account(storage_client)),
-            70
-        ));
-
-        // Generate a deal proposal
-        let deal_proposal = DealProposalBuilder::default()
-            .client(storage_client)
-            .provider(storage_provider)
-            .signed(storage_client);
-
-        // Publish the deal proposal
-        assert_ok!(Market::publish_storage_deals(
-            RuntimeOrigin::signed(account(storage_provider)),
-            bounded_vec![deal_proposal],
-        ));
+        // Set-up dependencies in Market pallet
+        publish_deals(storage_provider);
 
         // Sector data
         let sector = SectorPreCommitInfoBuilder::default()
             .sector_number(sector_number)
-            .deals(vec![0])
             .build();
 
         // Run pre commit extrinsic

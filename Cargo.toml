@@ -8,10 +8,11 @@ repository = "https://github.com/eigerco/polka-storage"
 [workspace]
 members = [
   "cli/polka-storage-provider",
+  "cli/polka-storage/storagext",
+  "cli/polka-storage/storagext-cli",
   "node",
   "pallets/market",
   "pallets/storage-provider",
-  "primitives/cli",
   "primitives/proofs",
   "runtime",
   "storage/mater",
@@ -34,6 +35,7 @@ panic = 'abort'         # Use abort on panic to reduce binary size
 substrate-build-script-utils = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.13.0" }
 substrate-wasm-builder = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.13.0" }
 
+anyhow = "1.0.86"
 async-channel = "2.3.1"
 async-stream = "0.3.5"
 async-trait = "0.1.80"
@@ -53,6 +55,7 @@ criterion = "0.5.1"
 digest = "0.10.7"
 env_logger = "0.11.2"
 futures = "0.3.28"
+hex = "0.4.3"
 hex-literal = { version = "0.4.1" }
 indexmap = "2.2.6"
 integer-encoding = "4.0.0"
@@ -101,6 +104,7 @@ pallet-market = { path = "pallets/market", default-features = false }
 pallet-storage-provider = { path = "pallets/storage-provider", default-features = false }
 polka-storage-runtime = { path = "runtime" }
 primitives-proofs = { path = "primitives/proofs", default-features = false }
+storagext = { path = "cli/polka-storage/storagext" }
 
 # Substrate
 pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.13.0" }
