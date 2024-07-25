@@ -154,7 +154,6 @@ where
         current_block: BlockNumber,
         mut sectors: Vec<SectorOnChainInfo<BlockNumber>>,
         partition_size: u64,
-        _sector_size: SectorSize,
         max_partitions_per_deadline: u64,
         w_post_challenge_window: BlockNumber,
         w_post_period_deadlines: u64,

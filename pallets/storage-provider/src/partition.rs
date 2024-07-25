@@ -5,7 +5,7 @@ use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeSet, PalletError}
 use primitives_proofs::SectorNumber;
 use scale_info::TypeInfo;
 
-use crate::sector::MAX_SECTORS;
+use crate::{pallet::LOG_TARGET, sector::MAX_SECTORS};
 
 pub const MAX_PARTITIONS: u32 = 5;
 pub type PartitionNumber = u32;
@@ -97,22 +97,22 @@ where
         &self,
         sector_number: &SectorNumber,
     ) -> Result<(), PartitionError> {
-        ensure!(
-            !self.sectors.contains(sector_number),
+        ensure!(!self.sectors.contains(sector_number), {
+            log::error!(target: LOG_TARGET, "check_sector_number_duplicate: sector_number {sector_number:?} duplicate in sectors");
             PartitionError::DuplicateSectorNumber
-        );
-        ensure!(
-            !self.unproven.contains(sector_number),
+        });
+        ensure!(!self.unproven.contains(sector_number), {
+            log::error!(target: LOG_TARGET, "check_sector_number_duplicate: sector_number {sector_number:?} duplicate in unproven");
             PartitionError::DuplicateSectorNumber
-        );
-        ensure!(
-            !self.recoveries.contains(sector_number),
+        });
+        ensure!(!self.recoveries.contains(sector_number), {
+            log::error!(target: LOG_TARGET, "check_sector_number_duplicate: sector_number {sector_number:?} duplicate in recoveries");
             PartitionError::DuplicateSectorNumber
-        );
-        ensure!(
-            !self.terminated.contains(sector_number),
+        });
+        ensure!(!self.terminated.contains(sector_number), {
+            log::error!(target: LOG_TARGET, "check_sector_number_duplicate: sector_number {sector_number:?} duplicate in terminated");
             PartitionError::DuplicateSectorNumber
-        );
+        });
         Ok(())
     }
 }
