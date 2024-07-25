@@ -76,16 +76,6 @@ where
         }
     }
 
-    /// Replace all values of the current dealline with values from the provided deadline.
-    pub fn update_deadline(&mut self, new_dl: Self) {
-        self.partitions_posted = new_dl.partitions_posted;
-        self.expirations_blocks = new_dl.expirations_blocks;
-        self.early_terminations = new_dl.early_terminations;
-        self.live_sectors = new_dl.live_sectors;
-        self.total_sectors = new_dl.total_sectors;
-        self.partitions = new_dl.partitions;
-    }
-
     /// Sets a given partition as proven
     pub fn record_proven(&mut self, partition_num: PartitionNumber) -> Result<(), DeadlineError> {
         log::debug!(target: LOG_TARGET, "record_proven: partition number = {partition_num:?}");
@@ -281,13 +271,18 @@ where
     pub fn update_deadline(
         &mut self,
         deadline_idx: usize,
-        deadline: Deadline<BlockNumber>,
+        new_dl: Deadline<BlockNumber>,
     ) -> Result<(), DeadlineError> {
         let dl = self
             .due
             .get_mut(deadline_idx)
             .ok_or(DeadlineError::DeadlineNotFound)?;
-        dl.update_deadline(deadline);
+        dl.partitions_posted = new_dl.partitions_posted;
+        dl.expirations_blocks = new_dl.expirations_blocks;
+        dl.early_terminations = new_dl.early_terminations;
+        dl.live_sectors = new_dl.live_sectors;
+        dl.total_sectors = new_dl.total_sectors;
+        dl.partitions = new_dl.partitions;
         Ok(())
     }
 }
