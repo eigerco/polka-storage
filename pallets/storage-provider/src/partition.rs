@@ -96,25 +96,14 @@ where
         Ok(())
     }
 
-    /// Checks if the given sector number is used in any of the set's
+    /// Checks if the given sector number is used
     fn check_sector_number_duplicate(
         &self,
         sector_number: &SectorNumber,
     ) -> Result<(), PartitionError> {
+        // All sector number (including faulty, terminated and unproven) are contained in `sectors` so we only need to check in there.
         ensure!(!self.sectors.contains(sector_number), {
             log::error!(target: LOG_TARGET, "check_sector_number_duplicate: sector_number {sector_number:?} duplicate in sectors");
-            PartitionError::DuplicateSectorNumber
-        });
-        ensure!(!self.unproven.contains(sector_number), {
-            log::error!(target: LOG_TARGET, "check_sector_number_duplicate: sector_number {sector_number:?} duplicate in unproven");
-            PartitionError::DuplicateSectorNumber
-        });
-        ensure!(!self.recoveries.contains(sector_number), {
-            log::error!(target: LOG_TARGET, "check_sector_number_duplicate: sector_number {sector_number:?} duplicate in recoveries");
-            PartitionError::DuplicateSectorNumber
-        });
-        ensure!(!self.terminated.contains(sector_number), {
-            log::error!(target: LOG_TARGET, "check_sector_number_duplicate: sector_number {sector_number:?} duplicate in terminated");
             PartitionError::DuplicateSectorNumber
         });
         Ok(())

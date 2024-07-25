@@ -517,7 +517,7 @@ pub mod pallet {
         }
 
         /// Check whether the given deadline is valid for PoSt submission.
-        /// 
+        ///
         /// Fails if:
         /// - The given deadline is not open.
         /// - There is and deadline index mismatch.
