@@ -27,15 +27,18 @@ pub struct Partition<BlockNumber> {
     /// The intersection of `faults` and `terminated` is always empty.
     ///
     /// Used in the `declare_faults` extrinsic
+    /// TODO: Add helper method for adding faults.
     pub faults: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
 
     /// Subset of faulty sectors expected to recover on next PoSt
     /// The intersection of `recoveries` and `terminated` is always empty.
     ///
     /// Used in the `declare_faults_recovered` extrinsic
+    /// TODO: Add helper method for adding recoveries.
     pub recoveries: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
 
     /// Subset of sectors terminated but not yet removed from partition (excl. from PoSt)
+    /// TODO: Add helper method for adding terminated sectors.
     pub terminated: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
 
     /// Sectors that were terminated before their committed expiration, indexed by termination block.
