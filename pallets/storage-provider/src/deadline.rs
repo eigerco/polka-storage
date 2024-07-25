@@ -124,7 +124,7 @@ where
         let partitions = &mut self.partitions;
 
         // try filling up the last partition first.
-        for partition_idx in partitions.iter().count().saturating_sub(1).. {
+        for partition_idx in partitions.len().saturating_sub(1).. {
             // Get/create partition to update.
             let mut partition = match partitions.get_mut(&(partition_idx as u32)) {
                 Some(partition) => partition.clone(),
