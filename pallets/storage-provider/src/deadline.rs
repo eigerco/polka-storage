@@ -119,11 +119,8 @@ where
             let mut partition = match partitions.get_mut(&(partition_idx as u32)) {
                 Some(partition) => partition.clone(),
                 None => {
-                    // This case will usually happen zero times.
-                    // It would require adding more than a full partition in one go
-                    // to happen more than once.
-                    let partition = Partition::new();
-                    partition
+                    // This case will only happen when trying to add a full partition more than once in go.
+                    Partition::new()
                 }
             };
 
