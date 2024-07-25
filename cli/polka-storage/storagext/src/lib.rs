@@ -1,6 +1,7 @@
 use cid::Cid;
 use codec::Encode;
 use frame_support::CloneNoBound;
+use primitives_proofs::{DealId, SectorNumber};
 use subxt::{self, ext::sp_runtime::MultiSignature, tx::Signer, utils::Static};
 
 pub mod market;
@@ -109,6 +110,39 @@ impl DealProposal {
         market_pallet_types::ClientDealProposal {
             proposal,
             client_signature,
+        }
+    }
+}
+
+#[derive(CloneNoBound)]
+pub struct SectorPreCommitInfo {
+    /// Which sector number this SP is pre-committing.
+    pub sector_number: SectorNumber,
+    /// This value is also known as 'commR', Commitment of replication. The terms commR and sealed_cid are interchangeable.
+    /// Using sealed_cid as I think that is more descriptive.
+    /// Some docs on commR here: <https://proto.school/verifying-storage-on-filecoin/03>
+    pub sealed_cid: Cid,
+    /// Deals Ids that are supposed to be activated.
+    /// If any of those is invalid, whole activation is rejected.
+    pub deal_ids: Vec<DealId>,
+    /// Expiration of the pre-committed sector.
+    pub expiration: BlockNumber,
+    /// CommD
+    pub unsealed_cid: Cid,
+}
+
+impl From<SectorPreCommitInfo>
+    for runtime::runtime_types::pallet_storage_provider::sector::SectorPreCommitInfo<BlockNumber>
+{
+    fn from(value: SectorPreCommitInfo) -> Self {
+        Self {
+            // there is only one variant, so we hide it from the CLI and use it directly here.
+            seal_proof: crate::runtime::runtime_types::primitives_proofs::types::RegisteredSealProof::StackedDRG2KiBV1P1,
+            sector_number: value.sector_number,
+            sealed_cid: value.sealed_cid.into_bounded_byte_vec(),
+            deal_ids: crate::runtime::polka_storage_runtime::runtime_types::bounded_collections::bounded_vec::BoundedVec(value.deal_ids),
+            expiration: value.expiration,
+            unsealed_cid: value.unsealed_cid.into_bounded_byte_vec(),
         }
     }
 }

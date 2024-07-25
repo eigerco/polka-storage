@@ -1,7 +1,28 @@
+use std::{path::PathBuf, str::FromStr};
+
+use crate::deser::PreCommitSector;
 use clap::Subcommand;
 use storagext::{storage_provider::StorageProviderClient, PolkaStorageConfig};
 use subxt::ext::sp_core::crypto::Ss58Codec;
 use url::Url;
+
+#[derive(Debug, Clone)]
+pub struct PreCommitSectorWrapper(PreCommitSector);
+
+impl PreCommitSectorWrapper {
+    /// Attempt to parse a command-line argument into [`PreCommitSector`].
+    ///
+    /// The command-line argument may be a valid JSON object, or a file path starting with @.
+    pub(crate) fn parse(src: &str) -> Result<Self, anyhow::Error> {
+        Ok(Self(if let Some(stripped) = src.strip_prefix('@') {
+            let path = PathBuf::from_str(stripped)?.canonicalize()?;
+            let mut file = std::fs::File::open(path)?;
+            serde_json::from_reader(&mut file)
+        } else {
+            serde_json::from_str(src)
+        }?))
+    }
+}
 
 #[derive(Debug, Subcommand)]
 #[command(
@@ -16,6 +37,10 @@ pub enum StorageProviderCommand {
         /// PeerId in Storage Provider P2P network
         /// Can be any String for now.
         peer_id: String,
+    },
+    PreCommit {
+        #[arg(value_parser = PreCommitSectorWrapper::parse)]
+        pre_commit_sector: PreCommitSectorWrapper,
     },
 }
 
@@ -49,6 +74,18 @@ impl StorageProviderCommand {
                     "[{}] Successfully registered {} in Storage Provider Pallet",
                     block_hash,
                     peer_id
+                );
+            }
+            StorageProviderCommand::PreCommit { pre_commit_sector } => {
+                let sector_number = pre_commit_sector.0.sector_number;
+                let block_hash = client
+                    .pre_commit_sector(&account_keypair, pre_commit_sector.0.into())
+                    .await?;
+
+                tracing::info!(
+                    "[{}] Successfully pre-commited sector {}.",
+                    block_hash,
+                    sector_number
                 );
             }
         }

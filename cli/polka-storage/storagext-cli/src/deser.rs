@@ -1,8 +1,8 @@
 //! Types in this module are defined to enable deserializing them from the CLI arguments or similar.
-
 use std::fmt::Debug;
 
 use cid::Cid;
+use primitives_proofs::{DealId, SectorNumber};
 use storagext::{BlockNumber, Currency, PolkaStorageConfig};
 use subxt::ext::sp_core::crypto::Ss58Codec;
 
@@ -37,7 +37,7 @@ where
 ///
 /// <https://github.com/multiformats/rust-cid/issues/162>
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct CidWrapper(Cid);
+pub(crate) struct CidWrapper(pub(crate) Cid);
 
 // The CID has some issues that require a workaround for strings.
 // For more details, see: <https://github.com/multiformats/rust-cid/issues/162>
@@ -83,6 +83,35 @@ impl Into<storagext::DealProposal> for DealProposal {
             storage_price_per_block: self.storage_price_per_block,
             provider_collateral: self.provider_collateral,
             state: self.state.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub(crate) struct PreCommitSector {
+    /// Which sector number this SP is pre-committing.
+    pub sector_number: SectorNumber,
+    /// This value is also known as 'commR', Commitment of replication. The terms commR and sealed_cid are interchangeable.
+    /// Using sealed_cid as I think that is more descriptive.
+    /// Some docs on commR here: <https://proto.school/verifying-storage-on-filecoin/03>
+    pub sealed_cid: CidWrapper,
+    /// Deals Ids that are supposed to be activated.
+    /// If any of those is invalid, whole activation is rejected.
+    pub deal_ids: Vec<DealId>,
+    /// Expiration of the pre-committed sector.
+    pub expiration: storagext::BlockNumber,
+    /// CommD
+    pub unsealed_cid: CidWrapper,
+}
+
+impl Into<storagext::SectorPreCommitInfo> for PreCommitSector {
+    fn into(self) -> storagext::SectorPreCommitInfo {
+        storagext::SectorPreCommitInfo {
+            sector_number: self.sector_number,
+            sealed_cid: self.sealed_cid.0,
+            deal_ids: self.deal_ids,
+            expiration: self.expiration,
+            unsealed_cid: self.unsealed_cid.0,
         }
     }
 }
