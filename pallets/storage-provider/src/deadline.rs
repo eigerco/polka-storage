@@ -149,12 +149,9 @@ where
                 .add_sectors(&new_partition_sectors)
                 .map_err(|_| DeadlineError::CouldNotAddSectors)?;
 
-            // Save partition back.
-            match partitions.get_mut(&(partition_idx as u32)) {
-                Some(p) => *p = partition,
-                None => {
-                    let _ = partitions.try_insert(partition_idx as u32, partition);
-                }
+            // Save partition if it is newly constructed.
+            if !partitions.contains_key(&(partition_idx as u32)) {
+                let _ = partitions.try_insert(partition_idx as u32, partition);
             }
 
             // Record deadline -> partition mapping so we can later update the deadlines.
