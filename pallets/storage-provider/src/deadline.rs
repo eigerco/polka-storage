@@ -27,17 +27,19 @@ pub use assignment::assign_deadlines;
 /// Only one deadline may be active for a given proving window.
 #[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct Deadline<BlockNumber> {
-    /// Partitions in this deadline. Indexed on partition number.
+    /// Partitions in this deadline. Indexed by partition number.
     pub partitions:
         BoundedBTreeMap<PartitionNumber, Partition<BlockNumber>, ConstU32<MAX_PARTITIONS>>,
 
-    /// Maps blocks to partitions that _may_ have sectors that expire in or
-    /// before that block, either on-time or early as faults.
-    /// Keys are quantized to final blocks in each proving deadline.
+    /// Maps blocks to partitions Maps blocks to partitions (i.e. [BlockNumber] -> [PartitionNumber]).
+    /// The partition _may_ have sectors that expire in or
+    /// before that block.
+    /// The expiration happens either on-time or early because faults.
     ///
-    /// NOTE: Partitions MUST NOT be removed from this queue (until the
+    /// # Important
+    /// Partitions MUST NOT be removed from this queue (until the
     /// associated block has passed) even if they no longer have sectors
-    /// expiring at that block. Sectors expiring at this block may later be
+    /// expiring at that block. Sectors expiring at their given block may later be
     /// recovered, and this queue will not be updated at that time.
     pub expirations_blocks: BoundedBTreeMap<BlockNumber, PartitionNumber, ConstU32<MAX_PARTITIONS>>,
 
@@ -70,6 +72,7 @@ where
         }
     }
 
+    /// Replace all values of the current dealline with values from the provided deadline.
     pub fn update_deadline(&mut self, new_dl: Self) {
         self.partitions_posted = new_dl.partitions_posted;
         self.expirations_blocks = new_dl.expirations_blocks;
@@ -92,7 +95,7 @@ where
         Ok(())
     }
 
-    /// Adds sectors to a deadline. It's the caller's responsibility to make sure
+    /// Adds sectors to the current deadline. It's the caller's responsibility to make sure
     /// that this deadline isn't currently "open" (i.e., being proved at this point
     /// in time).
     /// The sectors are assumed to be non-faulty.
