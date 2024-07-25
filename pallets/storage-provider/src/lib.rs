@@ -516,6 +516,12 @@ pub mod pallet {
             Ok(())
         }
 
+        /// Check whether the given deadline is valid for PoSt submission.
+        /// 
+        /// Fails if:
+        /// - The given deadline is not open.
+        /// - There is and deadline index mismatch.
+        /// - The block the deadline was committed at is after the current block.
         fn validate_deadline(
             curr_block: BlockNumberFor<T>,
             current_deadline: &DeadlineInfo<BlockNumberFor<T>>,
