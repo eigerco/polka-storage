@@ -169,16 +169,17 @@ where
             "assign_sectors_to_deadlines: deadline len = {}",
             deadlines.len()
         );
+        let proving_period_start = self.current_proving_period_start(
+            current_block,
+            w_post_challenge_window,
+            w_post_period_deadlines,
+            w_post_proving_period,
+        )?;
         deadlines.clone().due.iter().enumerate().try_for_each(
             |(deadline_idx, deadline)| -> Result<(), DeadlineError> {
                 // Skip deadlines that aren't currently mutable.
                 if deadline_is_mutable(
-                    self.current_proving_period_start(
-                        current_block,
-                        w_post_challenge_window,
-                        w_post_period_deadlines,
-                        w_post_proving_period,
-                    )?,
+                    proving_period_start,
                     deadline_idx as u64,
                     current_block,
                     w_post_challenge_window,
