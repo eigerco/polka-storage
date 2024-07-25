@@ -431,7 +431,6 @@ pub mod pallet {
         TooManyDealsPerBlock,
     }
 
-    #[derive(RuntimeDebug)]
     pub enum DealActivationError {
         /// Deal was tried to be activated by a provider which does not own it
         InvalidProvider,
@@ -447,13 +446,43 @@ pub mod pallet {
         DealNotPending,
     }
 
+    impl core::fmt::Debug for DealActivationError {
+        fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+            match self {
+                DealActivationError::InvalidProvider => {
+                    write!(f, "DealActivationError: Invalid Provider")
+                }
+                DealActivationError::StartBlockElapsed => {
+                    write!(f, "DealActivationError: Start Block Elapsed")
+                }
+                DealActivationError::SectorExpiresBeforeDeal => {
+                    write!(f, "DealActivationError: Sector Expires Before Deal")
+                }
+                DealActivationError::InvalidDealState => {
+                    write!(f, "DealActivationError: Invalid Deal State")
+                }
+                DealActivationError::DealNotFound => {
+                    write!(f, "DealActivationError: Deal Not Found")
+                }
+                DealActivationError::DealNotPending => {
+                    write!(f, "DealActivationError: Deal Not Pending")
+                }
+            }
+        }
+    }
+
+    impl core::fmt::Display for DealActivationError {
+        fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+            <Self as core::fmt::Debug>::fmt(self, f)
+        }
+    }
+
     // NOTE(@th7nder,18/06/2024):
     // would love to use `thiserror` but it's not supporting no_std environments yet
     // `thiserror-core` relies on rust nightly feature: error_in_core
     /// Errors related to [`DealProposal`] and [`ClientDealProposal`]
     /// This is error does not surface externally, only in the logs.
     /// Mostly used for Deal Validation [`Self::<T>::validate_deals`].
-    #[derive(RuntimeDebug)]
     pub enum ProposalError {
         /// ClientDealProposal.client_signature did not match client's public key and data.
         WrongClientSignatureOnProposal,
@@ -471,8 +500,42 @@ pub mod pallet {
         InvalidPieceCid(cid::Error),
     }
 
+    impl core::fmt::Debug for ProposalError {
+        fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+            match self {
+                ProposalError::WrongClientSignatureOnProposal => {
+                    write!(f, "ProposalError::WrongClientSignatureOnProposal")
+                }
+                ProposalError::DifferentProvider => {
+                    write!(f, "ProposalError::DifferentProvider")
+                }
+                ProposalError::DealEndBeforeStart => {
+                    write!(f, "ProposalError::DealEndBeforeStart")
+                }
+                ProposalError::DealStartExpired => {
+                    write!(f, "ProposalError::DealStartExpired")
+                }
+                ProposalError::DealNotPublished => {
+                    write!(f, "ProposalError::DealNotPublished")
+                }
+                ProposalError::DealDurationOutOfBounds => {
+                    write!(f, "ProposalError::DealDurationOutOfBounds")
+                }
+                ProposalError::InvalidPieceCid(_err) => {
+                    write!(f, "ProposalError::InvalidPieceCid")
+                }
+            }
+        }
+    }
+
+    impl core::fmt::Display for ProposalError {
+        fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+            <Self as core::fmt::Debug>::fmt(self, f)
+        }
+    }
+
     // Clone and PartialEq required because of the BoundedVec<(DealId, DealSettlementError)>
-    #[derive(RuntimeDebug, TypeInfo, Encode, Decode, Clone, PartialEq)]
+    #[derive(TypeInfo, Encode, Decode, Clone, PartialEq)]
     pub enum DealSettlementError {
         /// The deal is going to be slashed.
         SlashedDeal,
@@ -486,7 +549,34 @@ pub mod pallet {
         ExpiredDeal,
     }
 
-    #[derive(RuntimeDebug)]
+    impl core::fmt::Debug for DealSettlementError {
+        fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+            match self {
+                DealSettlementError::SlashedDeal => {
+                    write!(f, "DealSettlementError: Slashed Deal")
+                }
+                DealSettlementError::FutureLastUpdate => {
+                    write!(f, "DealSettlementError: Future Last Update")
+                }
+                DealSettlementError::DealNotFound => {
+                    write!(f, "DealSettlementError: Deal Not Found")
+                }
+                DealSettlementError::EarlySettlement => {
+                    write!(f, "DealSettlementError: Early Settlement")
+                }
+                DealSettlementError::ExpiredDeal => {
+                    write!(f, "DealSettlementError: Expired Deal")
+                }
+            }
+        }
+    }
+
+    impl core::fmt::Display for DealSettlementError {
+        fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+            <Self as core::fmt::Debug>::fmt(self, f)
+        }
+    }
+
     pub enum SectorTerminateError {
         /// Deal was not found in the [`Proposals`] table.
         DealNotFound,
@@ -494,6 +584,28 @@ pub mod pallet {
         InvalidCaller,
         /// Deal is not active
         DealIsNotActive,
+    }
+
+    impl core::fmt::Debug for SectorTerminateError {
+        fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+            match self {
+                SectorTerminateError::DealNotFound => {
+                    write!(f, "SectorTerminateError: Deal Not Found")
+                }
+                SectorTerminateError::InvalidCaller => {
+                    write!(f, "SectorTerminateError: Invalid Caller")
+                }
+                SectorTerminateError::DealIsNotActive => {
+                    write!(f, "SectorTerminateError: Deal Is Not Active")
+                }
+            }
+        }
+    }
+
+    impl core::fmt::Display for SectorTerminateError {
+        fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+            <Self as core::fmt::Debug>::fmt(self, f)
+        }
     }
 
     impl From<SectorTerminateError> for DispatchError {
@@ -1020,7 +1132,7 @@ pub mod pallet {
 
             let valid_deals = deals.into_iter().enumerate().filter_map(|(idx, deal)| {
                     if let Err(e) = Self::sanity_check(&deal, &provider, current_block) {
-                        log::error!(target: LOG_TARGET, "insane deal: idx {}, error: {:?}", idx, e);
+                        log::error!(target: LOG_TARGET, "insane deal: idx {idx}, error: {e}");
                         return None;
                     }
 
