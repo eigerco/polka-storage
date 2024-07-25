@@ -23,13 +23,13 @@ pub struct Partition<BlockNumber> {
 
     /// Subset of sectors detected/declared faulty and not yet recovered (excl. from PoSt).
     /// The intersection of `faults` and `terminated` is always empty.
-    /// 
+    ///
     /// Used in the `declare_faults` extrinsic
     pub faults: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
 
     /// Subset of faulty sectors expected to recover on next PoSt
     /// The intersection of `recoveries` and `terminated` is always empty.
-    /// 
+    ///
     /// Used in the `declare_faults_recovered` extrinsic
     pub recoveries: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
 

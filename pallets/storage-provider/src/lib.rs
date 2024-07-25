@@ -396,7 +396,6 @@ pub mod pallet {
                     current_block,
                     vec![new_sector],
                     sp.info.window_post_partition_sectors,
-                    sp.info.sector_size,
                     T::MaxPartitionsPerDeadline::get(),
                     T::WPoStChallengeWindow::get(),
                     T::WPoStPeriodDeadlines::get(),

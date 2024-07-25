@@ -1,4 +1,3 @@
-#![allow(dead_code, unused_variables)]
 use core::cmp::Ordering;
 
 use scale_info::prelude::{collections::BinaryHeap, vec, vec::Vec};
