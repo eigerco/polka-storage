@@ -531,7 +531,10 @@ pub mod pallet {
             Ok(())
         }
 
-        /// Validates the SPs submitted PoSt
+        /// Validates the SPs submitted PoSt by checking if:
+        /// - it has the correct proof type
+        /// - the proof length is > 0
+        /// - the chain commit block < current block
         fn validate_windowed_post(
             current_block: BlockNumberFor<T>,
             windowed_post: &SubmitWindowedPoStParams<BlockNumberFor<T>>,
@@ -546,7 +549,7 @@ pub mod pallet {
                 windowed_post.proof.proof_bytes.len() > 0,
                 Error::<T>::PoStProofInvalid
             );
-            // chain commit block must be less than the current epoch
+            // chain commit block must be less than the current block
             ensure!(
                 windowed_post.chain_commit_block < current_block,
                 Error::<T>::PoStProofInvalid
