@@ -2,7 +2,7 @@ use polkadot::runtime_types::{frame_system::AccountInfo, pallet_balances::types:
 use subxt::{utils::AccountId32, Error, OnlineClient, PolkadotConfig};
 use tracing::info;
 
-#[subxt::subxt(runtime_metadata_path = "artifacts/metadata.scale")]
+#[subxt::subxt(runtime_metadata_path = "../artifacts/metadata.scale")]
 pub mod polkadot {}
 
 // PolkadotConfig or SubstrateConfig will suffice for this example at the moment,
