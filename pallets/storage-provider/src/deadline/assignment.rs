@@ -8,10 +8,7 @@ use crate::{
     sector::SectorOnChainInfo,
 };
 
-fn div_rounding_up(dividend: u64, divisor: u64) -> u64 {
-    dividend / divisor + u64::from(dividend % divisor > 0)
-}
-
+/// Intermediary data structure used to assign deadlines to sectors.
 struct DeadlineAssignmentInfo {
     index: usize,
     live_sectors: u64,
@@ -20,17 +17,13 @@ struct DeadlineAssignmentInfo {
 
 impl DeadlineAssignmentInfo {
     fn partitions_after_assignment(&self, partition_size: u64) -> u64 {
-        div_rounding_up(
-            self.total_sectors + 1, // after assignment
-            partition_size,
-        )
+        let total_sectors = self.total_sectors + 1; // after assignment
+        total_sectors.div_ceil(partition_size)
     }
 
     fn compact_partitions_after_assignment(&self, partition_size: u64) -> u64 {
-        div_rounding_up(
-            self.live_sectors + 1, // after assignment
-            partition_size,
-        )
+        let live_sectors = self.live_sectors + 1; // after assignment
+        live_sectors.div_ceil(partition_size)
     }
 
     fn is_full_now(&self, partition_size: u64) -> bool {
