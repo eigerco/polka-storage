@@ -51,8 +51,10 @@ impl<Balance, BlockNumber> SectorPreCommitOnChainInfo<Balance, BlockNumber> {
     }
 }
 
-impl<Balance, BlockNumber: Clone + Copy + Ord>
-    From<&SectorPreCommitOnChainInfo<Balance, BlockNumber>> for SectorDeal<BlockNumber>
+impl<Balance, BlockNumber> From<&SectorPreCommitOnChainInfo<Balance, BlockNumber>>
+    for SectorDeal<BlockNumber>
+where
+    BlockNumber: Clone + Copy + Ord,
 {
     fn from(precommit: &SectorPreCommitOnChainInfo<Balance, BlockNumber>) -> Self {
         Self {

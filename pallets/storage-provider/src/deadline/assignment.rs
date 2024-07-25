@@ -137,13 +137,16 @@ fn cmp(a: &DeadlineAssignmentInfo, b: &DeadlineAssignmentInfo, partition_size: u
 
 // Assigns partitions to deadlines, first filling partial partitions, then
 // adding new partitions to deadlines with the fewest live sectors.
-pub fn assign_deadlines<BlockNumber: Clone + Copy + Ord>(
+pub fn assign_deadlines<BlockNumber>(
     max_partitions: u64,
     partition_size: u64,
     deadlines: &[Option<Deadline<BlockNumber>>],
     sectors: Vec<SectorOnChainInfo<BlockNumber>>,
     w_post_period_deadlines: u64,
-) -> DeadlineResult<Vec<Vec<SectorOnChainInfo<BlockNumber>>>> {
+) -> DeadlineResult<Vec<Vec<SectorOnChainInfo<BlockNumber>>>>
+where
+    BlockNumber: Clone + Copy + Ord,
+{
     log::debug!(target: LOG_TARGET,"deadlines len: {}", deadlines.len());
     log::debug!(target: LOG_TARGET,"sectors len: {}", sectors.len());
     let mut nones = 0;

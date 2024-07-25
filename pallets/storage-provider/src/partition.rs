@@ -39,7 +39,10 @@ pub struct Partition<BlockNumber> {
     pub early_terminations: BoundedBTreeMap<BlockNumber, Sectors, ConstU32<MAX_SECTORS>>,
 }
 
-impl<BlockNumber: Ord> Partition<BlockNumber> {
+impl<BlockNumber> Partition<BlockNumber>
+where
+    BlockNumber: Ord,
+{
     pub fn new() -> Self {
         Self {
             sectors: BoundedBTreeSet::new(),

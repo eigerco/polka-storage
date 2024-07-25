@@ -16,7 +16,10 @@ use crate::{
 
 /// This struct holds the state of a single storage provider.
 #[derive(Debug, Decode, Encode, TypeInfo)]
-pub struct StorageProviderState<PeerId, Balance, BlockNumber: Clone + Copy + Ord> {
+pub struct StorageProviderState<PeerId, Balance, BlockNumber>
+where
+    BlockNumber: Clone + Copy + Ord,
+{
     /// Contains static information about this storage provider
     pub info: StorageProviderInfo<PeerId>,
 
@@ -327,14 +330,17 @@ impl<PeerId> StorageProviderInfo<PeerId> {
 }
 
 /// Returns true if the deadline at the given index is currently mutable.
-pub fn deadline_is_mutable<BlockNumber: BaseArithmetic + Copy + core::fmt::Debug>(
+pub fn deadline_is_mutable<BlockNumber>(
     proving_period_start: BlockNumber,
     deadline_idx: u64,
     current_block: BlockNumber,
     w_post_challenge_window: BlockNumber,
     w_post_period_deadlines: u64,
     w_post_proving_period: BlockNumber,
-) -> Result<bool, DeadlineError> {
+) -> Result<bool, DeadlineError>
+where
+    BlockNumber: BaseArithmetic + Copy + core::fmt::Debug,
+{
     log::debug!(target: LOG_TARGET,"fn deadline_is_mutable");
     // Get the next non-elapsed deadline (i.e., the next time we care about
     // mutations to the deadline).

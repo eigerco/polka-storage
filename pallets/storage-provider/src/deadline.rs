@@ -57,7 +57,10 @@ pub struct Deadline<BlockNumber> {
     pub total_sectors: u64,
 }
 
-impl<BlockNumber: Clone + Copy + Ord> Deadline<BlockNumber> {
+impl<BlockNumber> Deadline<BlockNumber>
+where
+    BlockNumber: Clone + Copy + Ord,
+{
     pub fn new() -> Self {
         Self {
             partitions: BoundedBTreeMap::new(),
@@ -198,7 +201,10 @@ pub struct Deadlines<BlockNumber> {
     pub due: BoundedVec<Deadline<BlockNumber>, ConstU32<48>>,
 }
 
-impl<BlockNumber: Clone + Copy + Ord> Deadlines<BlockNumber> {
+impl<BlockNumber> Deadlines<BlockNumber>
+where
+    BlockNumber: Clone + Copy + Ord,
+{
     /// Constructor function.
     pub fn new(w_post_period_deadlines: u64) -> Self {
         let mut due = BoundedVec::new();
@@ -317,7 +323,10 @@ pub struct DeadlineInfo<BlockNumber> {
     pub w_post_challenge_window: BlockNumber,
 }
 
-impl<BlockNumber: BaseArithmetic + Copy> DeadlineInfo<BlockNumber> {
+impl<BlockNumber> DeadlineInfo<BlockNumber>
+where
+    BlockNumber: BaseArithmetic + Copy,
+{
     /// Constructs a new `DeadlineInfo`
     // ref: <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/actors/miner/src/deadline_info.rs#L43>
     pub fn new(
