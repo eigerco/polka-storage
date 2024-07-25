@@ -10,33 +10,34 @@ use crate::sector::MAX_SECTORS;
 pub const MAX_PARTITIONS: u32 = 5;
 pub type PartitionNumber = u32;
 
-type Sectors = BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>;
-type PartitionResult<T> = Result<T, PartitionError>;
-
 #[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct Partition<BlockNumber> {
     /// Sector numbers in this partition, including faulty, unproven and terminated sectors.
-    pub sectors: Sectors,
+    pub sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
 
     /// Unproven sectors in this partition. This will be cleared on
     /// a successful window post (or at the end of the partition's next
     /// deadline). At that time, any still unproven sectors will be added to
     /// the faulty sectors.
-    pub unproven: Sectors,
+    pub unproven: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
 
     /// Subset of sectors detected/declared faulty and not yet recovered (excl. from PoSt).
     /// The intersection of `faults` and `terminated` is always empty.
-    pub faults: Sectors,
+    pub faults: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
 
     /// Subset of faulty sectors expected to recover on next PoSt
     /// The intersection of `recoveries` and `terminated` is always empty.
-    pub recoveries: Sectors,
+    pub recoveries: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
 
     /// Subset of sectors terminated but not yet removed from partition (excl. from PoSt)
-    pub terminated: Sectors,
+    pub terminated: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
 
     /// Sectors that were terminated before their committed expiration, indexed by termination block.
-    pub early_terminations: BoundedBTreeMap<BlockNumber, Sectors, ConstU32<MAX_SECTORS>>,
+    pub early_terminations: BoundedBTreeMap<
+        BlockNumber,
+        BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
+        ConstU32<MAX_SECTORS>,
+    >,
 }
 
 impl<BlockNumber> Partition<BlockNumber>
@@ -61,7 +62,9 @@ where
     /// unproven
     /// faults
     /// recoveries
-    pub fn live_sectors(&self) -> PartitionResult<Sectors> {
+    pub fn live_sectors(
+        &self,
+    ) -> Result<BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>, PartitionError> {
         let mut live_sectors = BoundedBTreeSet::new();
         let difference = self.sectors.difference(&self.terminated).cloned();
         for sector_number in difference {
@@ -77,7 +80,7 @@ where
     ///
     /// condition: the sector numbers cannot be in any of the `BoundedBTreeSet`'s
     /// fails if any of the given sector numbers are a duplicate
-    pub fn add_sectors(&mut self, sectors: &[SectorNumber]) -> PartitionResult<()> {
+    pub fn add_sectors(&mut self, sectors: &[SectorNumber]) -> Result<(), PartitionError> {
         let new_sectors = sectors.iter().cloned();
         for sector_number in new_sectors {
             // Ensure that the sector number has not been used before.
@@ -90,7 +93,10 @@ where
     }
 
     /// Checks if the given sector number is used in any of the set's
-    fn check_sector_number_duplicate(&self, sector_number: &SectorNumber) -> PartitionResult<()> {
+    fn check_sector_number_duplicate(
+        &self,
+        sector_number: &SectorNumber,
+    ) -> Result<(), PartitionError> {
         ensure!(
             !self.sectors.contains(sector_number),
             PartitionError::DuplicateSectorNumber
@@ -128,7 +134,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn add_sectors() -> PartitionResult<()> {
+    fn add_sectors() -> Result<(), PartitionError> {
         // Set up partition, using `u64` for block number because it is not relevant to this test.
         let mut partition: Partition<u64> = Partition::new();
         // Add some sectors
@@ -141,7 +147,7 @@ mod test {
     }
 
     #[test]
-    fn live_sectors() -> PartitionResult<()> {
+    fn live_sectors() -> Result<(), PartitionError> {
         // Set up partition, using `u64` for block number because it is not relevant to this test.
         let mut partition: Partition<u64> = Partition::new();
         // Add some sectors
@@ -153,7 +159,8 @@ mod test {
             .expect("Programmer error");
         let live_sectors = partition.live_sectors()?;
         // Create expected result.
-        let mut expected_live_sectors: Sectors = BoundedBTreeSet::new();
+        let mut expected_live_sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>> =
+            BoundedBTreeSet::new();
         expected_live_sectors
             .try_insert(2)
             .expect("Programmer error");
