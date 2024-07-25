@@ -341,31 +341,24 @@ where
             log::error!(target: LOG_TARGET, "failed to convert {idx:?} to BlockNumber");
             DeadlineError::CouldNotConstructDeadlineInfo
         })?;
-        if idx_converted < period_deadlines {
-            let deadline_open = period_start + (idx_converted * w_post_challenge_window);
-            Ok(Self {
-                block_number,
-                period_start,
-                idx,
-                open_at: deadline_open,
-                close_at: deadline_open + w_post_challenge_window,
-                w_post_period_deadlines,
-                w_post_challenge_window,
-                w_post_proving_period,
-            })
+        let (open_at, close_at) = if idx_converted < period_deadlines {
+            let open_at = period_start + (idx_converted * w_post_challenge_window);
+            let close_at = open_at + w_post_challenge_window;
+            (open_at, close_at)
         } else {
             let after_last_deadline = period_start + w_post_proving_period;
-            Ok(Self {
-                block_number,
-                period_start,
-                idx,
-                open_at: after_last_deadline,
-                close_at: after_last_deadline,
-                w_post_period_deadlines,
-                w_post_challenge_window,
-                w_post_proving_period,
-            })
-        }
+            (after_last_deadline, after_last_deadline)
+        };
+        Ok(Self {
+            block_number,
+            period_start,
+            idx,
+            open_at,
+            close_at,
+            w_post_period_deadlines,
+            w_post_challenge_window,
+            w_post_proving_period,
+        })
     }
 
     /// Whether the current deadline is currently open.
