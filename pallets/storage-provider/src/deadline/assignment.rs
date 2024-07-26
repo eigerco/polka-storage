@@ -10,8 +10,11 @@ use crate::{
 
 /// Intermediary data structure used to assign deadlines to sectors.
 struct DeadlineAssignmentInfo {
+    /// The deadline index.
     index: usize,
+    /// The number of live sectors (i.e. sectors that have *not* been terminated) in the deadline.
     live_sectors: u64,
+    /// The total number of sectors in the deadline (may include terminated ones).
     total_sectors: u64,
 }
 
