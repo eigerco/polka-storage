@@ -197,10 +197,11 @@ impl<BlockNumber> Deadlines<BlockNumber>
 where
     BlockNumber: sp_runtime::traits::BlockNumber,
 {
-    /// Constructor function.
+    /// Construct a new [`Deadlines`]. 
+    ///
+    /// Pre-initializes all the `w_post_period_deadlines` as empty deadlines.
     pub fn new(w_post_period_deadlines: u64) -> Self {
         let mut due = BoundedVec::new();
-        // Initialize deadlines as empty deadlines.
         for _ in 0..w_post_period_deadlines {
             let _ = due.try_push(Deadline::new());
         }
