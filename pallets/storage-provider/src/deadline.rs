@@ -76,7 +76,9 @@ where
         }
     }
 
-    /// Sets a given partition as proven
+    /// Sets a given partition as proven.
+    ///
+    /// If the partition has already been proven, an error is returned.
     pub fn record_proven(&mut self, partition_num: PartitionNumber) -> Result<(), DeadlineError> {
         log::debug!(target: LOG_TARGET, "record_proven: partition number = {partition_num:?}");
         ensure!(
