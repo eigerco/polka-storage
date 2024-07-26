@@ -544,7 +544,7 @@ pub mod pallet {
                 windowed_post.proof.post_proof == expected_proof,
                 Error::<T>::InvalidProofType
             );
-            // TODO(@aidan46, no-ref, 2024-07-03): Actually validate proof.
+            // TODO(@aidan46, #91, 2024-07-03): Validate the proof after research is done
             ensure!(
                 windowed_post.proof.proof_bytes.len() > 0,
                 Error::<T>::PoStProofInvalid
