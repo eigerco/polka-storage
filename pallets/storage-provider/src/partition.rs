@@ -14,7 +14,7 @@ pub type PartitionNumber = u32;
 
 #[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct Partition<BlockNumber> {
-    /// Sector numbers in this partition, including faulty, unproven and terminated sectors.
+    /// All sector numbers in this partition, including faulty, unproven and terminated sectors.
     pub sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
 
     /// Unproven sectors in this partition. This will be cleared on
