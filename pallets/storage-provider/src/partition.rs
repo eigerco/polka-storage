@@ -64,13 +64,7 @@ where
         }
     }
 
-    /// Live sectors are sectors that are not terminated.
-    ///
-    /// Live sectors include:
-    /// sectors
-    /// unproven
-    /// faults
-    /// recoveries
+    /// Live sectors are sectors that are not terminated (i.e. not in `terminated` or `early_terminations`).
     pub fn live_sectors(
         &self,
     ) -> Result<BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>, PartitionError> {
