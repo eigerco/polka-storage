@@ -9,8 +9,9 @@ pub type DealId = u64;
 pub type SectorNumber = u64;
 
 #[allow(non_camel_case_types)]
-#[derive(RuntimeDebug, Decode, Encode, TypeInfo, Eq, PartialEq, Clone)]
+#[derive(RuntimeDebug, Decode, Default, Encode, TypeInfo, Eq, PartialEq, Clone)]
 pub enum RegisteredSealProof {
+    #[default]
     StackedDRG2KiBV1P1,
 }
 

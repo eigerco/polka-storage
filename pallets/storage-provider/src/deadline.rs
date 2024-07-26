@@ -24,8 +24,8 @@ pub use assignment::assign_deadlines;
 ///
 /// A deadline exists along side 47 other deadlines (1 for every 30 minutes in a day).
 /// Only one deadline may be active for a given proving window.
-#[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
-pub struct Deadline<BlockNumber> {
+#[derive(Clone, Debug, Default, Decode, Encode, PartialEq, TypeInfo)]
+pub struct Deadline<BlockNumber: sp_runtime::traits::BlockNumber> {
     /// Partitions in this deadline. Indexed by partition number.
     pub partitions: BoundedBTreeMap<
         PartitionNumber,
@@ -112,7 +112,6 @@ where
 
         let partitions = &mut self.partitions;
 
-
         // try filling up the last partition first.
         for partition_idx in partitions.len().saturating_sub(1).. {
             // Get/create partition to update.
@@ -171,7 +170,7 @@ where
 }
 
 #[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
-pub struct Deadlines<BlockNumber> {
+pub struct Deadlines<BlockNumber: sp_runtime::traits::BlockNumber> {
     /// Deadlines indexed by their proving periods — e.g. for proving period 7, find it in
     /// `deadlines[7]` — proving periods are present in the interval `[0, 47]`.
     ///
