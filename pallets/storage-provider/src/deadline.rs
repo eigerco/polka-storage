@@ -112,6 +112,7 @@ where
 
         let partitions = &mut self.partitions;
 
+
         // try filling up the last partition first.
         for partition_idx in partitions.len().saturating_sub(1).. {
             // Get/create partition to update.
@@ -344,7 +345,7 @@ where
         self.block_number >= self.close_at
     }
 
-    /// Returns the next instance of this deadline that has not yet elapsed.
+    /// Returns the next deadline that has not yet elapsed.
     pub fn next_not_elapsed(self) -> Result<Self, DeadlineError> {
         if !self.has_elapsed() {
             return Ok(self);
