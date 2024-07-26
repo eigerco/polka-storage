@@ -25,7 +25,7 @@ pub struct SubmitWindowedPoStParams<BlockNumber> {
     pub deadline: u64,
     /// The partition being proven.
     pub partition: PartitionNumber,
-    /// Proof submission
+    /// The proof submission.
     pub proof: PoStProof,
     /// The block at which these proofs is being committed.
     pub chain_commit_block: BlockNumber,
