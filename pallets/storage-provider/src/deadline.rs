@@ -249,6 +249,7 @@ where
         Ok(())
     }
 
+    /// Replace values of the deadline at index `deadline_idx` with those of `new_dl`.
     pub fn update_deadline(
         &mut self,
         deadline_idx: usize,
