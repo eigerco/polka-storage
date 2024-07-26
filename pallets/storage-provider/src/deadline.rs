@@ -91,7 +91,7 @@ where
         Ok(())
     }
 
-    /// Adds sectors to the current deadline. 
+    /// Adds sectors to the current deadline.
     ///
     /// Added sectors will be stored in the deadline's last stored partition.
     ///
@@ -197,7 +197,7 @@ impl<BlockNumber> Deadlines<BlockNumber>
 where
     BlockNumber: sp_runtime::traits::BlockNumber,
 {
-    /// Construct a new [`Deadlines`]. 
+    /// Construct a new [`Deadlines`].
     ///
     /// Pre-initializes all the `w_post_period_deadlines` as empty deadlines.
     pub fn new(w_post_period_deadlines: u64) -> Self {
@@ -238,7 +238,7 @@ where
     }
 
     /// Records a deadline as proven.
-    /// 
+    ///
     /// Returns an error if the deadline has already been proven.
     pub fn record_proven(
         &mut self,
@@ -309,7 +309,7 @@ where
     BlockNumber: sp_runtime::traits::BlockNumber,
 {
     /// Constructs a new `DeadlineInfo`.
-    /// 
+    ///
     /// Reference: <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/actors/miner/src/deadline_info.rs#L43>
     pub fn new(
         block_number: BlockNumber,
@@ -386,7 +386,7 @@ where
 }
 
 /// Returns true if the deadline at the given index is currently mutable.
-/// 
+///
 /// Deadlines are considered to be immutable if they are being proven or about to be proven.
 ///
 /// Reference: <https://spec.filecoin.io/#example-storage-miner-actor>
