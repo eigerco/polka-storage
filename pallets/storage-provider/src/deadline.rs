@@ -237,7 +237,9 @@ where
             .ok_or(DeadlineError::DeadlineNotFound)
     }
 
-    /// Records a deadline as proven
+    /// Records a deadline as proven.
+    /// 
+    /// Returns an error if the deadline has already been proven.
     pub fn record_proven(
         &mut self,
         deadline_idx: usize,
