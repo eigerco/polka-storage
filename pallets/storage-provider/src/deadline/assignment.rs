@@ -140,8 +140,7 @@ pub fn assign_deadlines<BlockNumber>(
 where
     BlockNumber: sp_runtime::traits::BlockNumber,
 {
-    log::debug!(target: LOG_TARGET,"deadlines len: {}", deadlines.len());
-    log::debug!(target: LOG_TARGET,"sectors len: {}", sectors.len());
+    log::debug!(target: LOG_TARGET,"deadlines len: {}, sectors len: {}", deadlines.len(), sectors.len());
     let mut nones = 0;
     for dl in deadlines {
         if dl.is_none() {
