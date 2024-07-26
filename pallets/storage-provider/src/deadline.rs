@@ -222,7 +222,10 @@ where
         log::debug!(target: LOG_TARGET, "load_deadline_mut: getting deadline at index {idx}");
         // Ensure the provided index is within range.
         ensure!(self.len() > idx, DeadlineError::DeadlineIndexOutOfRange);
-        self.due.get_mut(idx).ok_or(DeadlineError::DeadlineNotFound)
+        Ok(self
+            .due
+            .get_mut(idx)
+            .expect("Deadlines are pre-initialized, this cannot fail"))
     }
 
     /// Loads a deadline
@@ -231,10 +234,11 @@ where
         log::debug!(target: LOG_TARGET, "load_deadline_mut: getting deadline at index {idx}");
         // Ensure the provided index is within range.
         ensure!(self.len() > idx, DeadlineError::DeadlineIndexOutOfRange);
-        self.due
+        Ok(self
+            .due
             .get(idx)
             .cloned()
-            .ok_or(DeadlineError::DeadlineNotFound)
+            .expect("Deadlines are pre-initialized, this cannot fail"))
     }
 
     /// Records a deadline as proven.
