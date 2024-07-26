@@ -345,6 +345,10 @@ where
     }
 
     /// Returns the next deadline that has not yet elapsed.
+    /// 
+    /// If the current deadline has not elapsed yet then it returns the current deadline.
+    /// Otherwise it calculates the next period start by getting the gap between the current block number and the closing block number
+    /// and adding 1. Making sure it is a multiple of proving period by dividing by `w_post_proving_period`.
     pub fn next_not_elapsed(self) -> Result<Self, DeadlineError> {
         if !self.has_elapsed() {
             return Ok(self);
