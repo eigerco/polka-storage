@@ -87,24 +87,15 @@ where
         let new_sectors = sectors.iter().cloned();
         for sector_number in new_sectors {
             // Ensure that the sector number has not been used before.
-            self.check_sector_number_duplicate(&sector_number)?;
+            // All sector number (including faulty, terminated and unproven) are contained in `sectors` so we only need to check in there.
+            ensure!(!self.sectors.contains(&sector_number), {
+                log::error!(target: LOG_TARGET, "check_sector_number_duplicate: sector_number {sector_number:?} duplicate in sectors");
+                PartitionError::DuplicateSectorNumber
+            });
             self.sectors
                 .try_insert(sector_number)
                 .map_err(|_| PartitionError::FailedToAddSector)?;
         }
-        Ok(())
-    }
-
-    /// Checks if the given sector number is used
-    fn check_sector_number_duplicate(
-        &self,
-        sector_number: &SectorNumber,
-    ) -> Result<(), PartitionError> {
-        // All sector number (including faulty, terminated and unproven) are contained in `sectors` so we only need to check in there.
-        ensure!(!self.sectors.contains(sector_number), {
-            log::error!(target: LOG_TARGET, "check_sector_number_duplicate: sector_number {sector_number:?} duplicate in sectors");
-            PartitionError::DuplicateSectorNumber
-        });
         Ok(())
     }
 }
