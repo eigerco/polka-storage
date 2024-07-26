@@ -306,8 +306,9 @@ impl<BlockNumber> DeadlineInfo<BlockNumber>
 where
     BlockNumber: sp_runtime::traits::BlockNumber,
 {
-    /// Constructs a new `DeadlineInfo`
-    // ref: <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/actors/miner/src/deadline_info.rs#L43>
+    /// Constructs a new `DeadlineInfo`.
+    /// 
+    /// Reference: <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/actors/miner/src/deadline_info.rs#L43>
     pub fn new(
         block_number: BlockNumber,
         period_start: BlockNumber,
