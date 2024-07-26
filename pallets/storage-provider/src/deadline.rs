@@ -261,18 +261,24 @@ where
     }
 }
 
+/// Holds information about deadlines like when they open and close and what deadline index they relate to.
+/// 
+/// Filecoin reference about PoSt deadline design:
+/// <https://spec.filecoin.io/#section-algorithms.pos.post.design>
 #[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct DeadlineInfo<BlockNumber> {
     /// The block number at which this info was calculated.
     pub block_number: BlockNumber,
 
     /// The block number at which the proving period for this deadline starts.
+    /// period_start < open_at to give time to SPs to create the proof before open.
     pub period_start: BlockNumber,
 
     /// The deadline index within its proving window.
     pub idx: u64,
 
     /// The first block number from which a proof can be submitted.
+    /// open_at > period_start
     pub open_at: BlockNumber,
 
     /// The first block number from which a proof can *no longer* be submitted.
