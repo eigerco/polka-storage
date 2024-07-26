@@ -16,9 +16,9 @@ pub struct PoStProof {
 }
 
 /// Parameter type for `submit_windowed_post` extrinsic.
-// Filecoin has the partitions and the proofs in an array but then checks that there is only one element in the array.
-// Why even use the array?
-// ref: <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/actors/miner/src/lib.rs#L510>
+// In filecoind the proof is an array of proofs, one per distinct registered proof type present in the sectors being proven.
+// Reference: <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/types.rs#L114-L115>
+// We differ here from Filecoin and do not support registration of different proof types.
 #[derive(Debug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone)]
 pub struct SubmitWindowedPoStParams<BlockNumber> {
     /// The deadline index which the submission targets.
