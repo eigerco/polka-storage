@@ -320,9 +320,6 @@ where
         w_post_proving_period: BlockNumber,
     ) -> Result<Self, DeadlineError> {
         // convert w_post_period_deadlines and idx so we can math
-        // interesting that the error type for `BlockNumber::try_from` is `Infallible` indicating that it cannot fail.
-        // ref: <https://doc.rust-lang.org/nightly/core/convert/trait.TryFrom.html#generic-implementations>
-        // does this mean we do no need to catch the error?
         let period_deadlines = BlockNumber::try_from(w_post_period_deadlines).map_err(|_| {
             log::error!(target: LOG_TARGET, "failed to convert {w_post_period_deadlines:?} to BlockNumber");
             DeadlineError::CouldNotConstructDeadlineInfo
