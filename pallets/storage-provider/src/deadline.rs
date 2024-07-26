@@ -64,6 +64,7 @@ impl<BlockNumber> Deadline<BlockNumber>
 where
     BlockNumber: sp_runtime::traits::BlockNumber,
 {
+    /// Construct a new [`Deadline`] instance.
     pub fn new() -> Self {
         Self {
             partitions: BoundedBTreeMap::new(),
