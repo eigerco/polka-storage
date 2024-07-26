@@ -430,9 +430,13 @@ pub mod pallet {
                     .ok_or(Error::<T>::StorageProviderNotFound)?;
                 sp.activate_sector(sector_number, new_sector.clone())
                     .map_err(|e| Error::<T>::StorageProviderError(e))?;
+                let mut new_sectors = BoundedVec::new();
+                new_sectors
+                    .try_push(new_sector)
+                    .expect("Infallible since only 1 element is inserted");
                 sp.assign_sectors_to_deadlines(
                     current_block,
-                    vec![new_sector],
+                    new_sectors,
                     sp.info.window_post_partition_sectors,
                     T::MaxPartitionsPerDeadline::get(),
                     T::WPoStChallengeWindow::get(),

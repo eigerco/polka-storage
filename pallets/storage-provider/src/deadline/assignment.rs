@@ -138,9 +138,9 @@ pub fn assign_deadlines<BlockNumber>(
     max_partitions: u64,
     partition_size: u64,
     deadlines: &[Option<Deadline<BlockNumber>>],
-    sectors: Vec<SectorOnChainInfo<BlockNumber>>,
+    sectors: &[SectorOnChainInfo<BlockNumber>],
     w_post_period_deadlines: u64,
-) -> Result<Vec<Vec<SectorOnChainInfo<BlockNumber>>>, DeadlineError>
+) -> Result<impl Iterator<Item = Vec<SectorOnChainInfo<BlockNumber>>>, DeadlineError>
 where
     BlockNumber: sp_runtime::traits::BlockNumber,
 {
@@ -206,12 +206,12 @@ where
             return Err(DeadlineError::MaxPartitionsReached);
         }
 
-        changes[info.index].push(sector);
+        changes[info.index].push(sector.clone());
         info.live_sectors += 1;
         info.total_sectors += 1;
     }
 
-    Ok(changes)
+    Ok(changes.into_iter())
 }
 
 #[cfg(test)]
@@ -224,7 +224,7 @@ mod tests {
     #[test]
     fn test_deadline_assignment() {
         const PARTITION_SIZE: u64 = 4;
-        const MAX_PARITIONS: u64 = 100;
+        const MAX_PARTITIONS: u64 = 100;
 
         #[derive(Clone)]
         struct Spec {
@@ -399,7 +399,7 @@ mod tests {
                 .collect();
 
             let assignment =
-                assign_deadlines(MAX_PARITIONS, PARTITION_SIZE, &deadlines, sectors, 48).unwrap();
+                assign_deadlines(MAX_PARTITIONS, PARTITION_SIZE, &deadlines, &sectors, 48).unwrap();
             for (i, sectors) in assignment.iter().enumerate() {
                 if let Some(Some(dl)) = tc.deadlines.get(i) {
                     assert_eq!(

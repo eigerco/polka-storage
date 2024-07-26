@@ -1,7 +1,7 @@
 use codec::{Decode, Encode};
 use frame_support::{
     pallet_prelude::{ConstU32, RuntimeDebug},
-    sp_runtime::BoundedBTreeMap,
+    sp_runtime::{BoundedBTreeMap, BoundedVec},
     PalletError,
 };
 use primitives_proofs::{RegisteredPoStProof, SectorNumber, SectorSize};
@@ -154,7 +154,7 @@ where
     pub fn assign_sectors_to_deadlines(
         &mut self,
         current_block: BlockNumber,
-        mut sectors: Vec<SectorOnChainInfo<BlockNumber>>,
+        mut sectors: BoundedVec<SectorOnChainInfo<BlockNumber>, ConstU32<MAX_SECTORS>>,
         partition_size: u64,
         max_partitions_per_deadline: u64,
         w_post_challenge_window: BlockNumber,
@@ -195,11 +195,11 @@ where
             max_partitions_per_deadline,
             partition_size,
             &deadline_vec,
-            sectors,
+            &sectors,
             w_post_period_deadlines,
         )?;
         let deadlines = self.get_deadlines_mut();
-        for (deadline_idx, deadline_sectors) in deadline_to_sectors.into_iter().enumerate() {
+        for (deadline_idx, deadline_sectors) in deadline_to_sectors.enumerate() {
             if deadline_sectors.is_empty() {
                 continue;
             }
