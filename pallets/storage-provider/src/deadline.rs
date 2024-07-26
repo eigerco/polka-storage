@@ -387,6 +387,10 @@ where
 }
 
 /// Returns true if the deadline at the given index is currently mutable.
+/// 
+/// Deadlines are considered to be immutable if they are being proven or about to be proven.
+///
+/// Reference: <https://spec.filecoin.io/#example-storage-miner-actor>
 pub fn deadline_is_mutable<BlockNumber>(
     proving_period_start: BlockNumber,
     deadline_idx: u64,
