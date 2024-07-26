@@ -112,8 +112,9 @@ where
 
         let partitions = &mut self.partitions;
 
+        let mut partition_idx = 0;
         // try filling up the last partition first.
-        for partition_idx in partitions.len().saturating_sub(1).. {
+        loop {
             // Get/create partition to update.
             let mut partition = match partitions.get_mut(&(partition_idx as u32)) {
                 Some(partition) => partition.clone(),
@@ -158,6 +159,7 @@ where
             if sectors.is_empty() {
                 break;
             }
+            partition_idx += 1;
         }
 
         // Next, update the expiration queue.
@@ -262,7 +264,7 @@ where
 }
 
 /// Holds information about deadlines like when they open and close and what deadline index they relate to.
-/// 
+///
 /// Filecoin reference about PoSt deadline design:
 /// <https://spec.filecoin.io/#section-algorithms.pos.post.design>
 #[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
@@ -351,7 +353,7 @@ where
     }
 
     /// Returns the next deadline that has not yet elapsed.
-    /// 
+    ///
     /// If the current deadline has not elapsed yet then it returns the current deadline.
     /// Otherwise it calculates the next period start by getting the gap between the current block number and the closing block number
     /// and adding 1. Making sure it is a multiple of proving period by dividing by `w_post_proving_period`.
