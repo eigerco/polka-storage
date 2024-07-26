@@ -135,7 +135,7 @@ pub fn assign_deadlines<BlockNumber>(
     w_post_period_deadlines: u64,
 ) -> Result<Vec<Vec<SectorOnChainInfo<BlockNumber>>>, DeadlineError>
 where
-    BlockNumber: Clone + Copy + Ord,
+    BlockNumber: sp_runtime::traits::BlockNumber,
 {
     log::debug!(target: LOG_TARGET,"deadlines len: {}", deadlines.len());
     log::debug!(target: LOG_TARGET,"sectors len: {}", sectors.len());

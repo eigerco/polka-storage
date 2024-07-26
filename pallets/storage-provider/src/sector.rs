@@ -54,7 +54,7 @@ impl<Balance, BlockNumber> SectorPreCommitOnChainInfo<Balance, BlockNumber> {
 impl<Balance, BlockNumber> From<&SectorPreCommitOnChainInfo<Balance, BlockNumber>>
     for SectorDeal<BlockNumber>
 where
-    BlockNumber: Clone + Copy + Ord,
+    BlockNumber: sp_runtime::traits::BlockNumber,
 {
     fn from(precommit: &SectorPreCommitOnChainInfo<Balance, BlockNumber>) -> Self {
         Self {
@@ -69,7 +69,7 @@ where
 #[derive(Clone, Debug, Decode, Encode, TypeInfo)]
 pub struct SectorOnChainInfo<BlockNumber>
 where
-    BlockNumber: Clone + Copy + Ord,
+    BlockNumber: sp_runtime::traits::BlockNumber,
 {
     pub sector_number: SectorNumber,
     /// The seal proof type implies the PoSt proofs
@@ -89,7 +89,7 @@ where
 
 impl<BlockNumber> SectorOnChainInfo<BlockNumber>
 where
-    BlockNumber: Clone + Copy + Ord,
+    BlockNumber: sp_runtime::traits::BlockNumber,
 {
     pub fn from_pre_commit(
         pre_commit: SectorPreCommitInfo<BlockNumber>,

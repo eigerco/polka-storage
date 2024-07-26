@@ -2,7 +2,6 @@ use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::ConstU32, sp_runtime::BoundedVec};
 use primitives_proofs::RegisteredPoStProof;
 use scale_info::TypeInfo;
-use sp_arithmetic::traits::BaseArithmetic;
 use sp_core::blake2_64;
 
 use crate::partition::PartitionNumber;
@@ -49,7 +48,7 @@ pub(crate) fn assign_proving_period_offset<AccountId, BlockNumber>(
 ) -> Result<BlockNumber, ProofError>
 where
     AccountId: Encode,
-    BlockNumber: BaseArithmetic + Encode + TryFrom<u64>,
+    BlockNumber: sp_runtime::traits::BlockNumber,
 {
     // Encode address and current block number
     let mut addr = addr.encode();
@@ -78,11 +77,11 @@ pub(crate) fn current_proving_period_start<BlockNumber>(
     proving_period: BlockNumber, // should be the max proving period
 ) -> BlockNumber
 where
-    BlockNumber: BaseArithmetic,
+    BlockNumber: sp_runtime::traits::BlockNumber,
 {
     // Use this value to calculate the proving period start, modulo the proving period so we cannot go over the max proving period
     // the value represents how far into a proving period we are.
-    let how_far_into_proving_period = current_block.clone() % proving_period.clone();
+    let how_far_into_proving_period = current_block % proving_period;
     let period_progress = if how_far_into_proving_period >= offset {
         how_far_into_proving_period - offset
     } else {
@@ -102,7 +101,7 @@ pub(crate) fn current_deadline_index<BlockNumber>(
     challenge_window: BlockNumber,
 ) -> BlockNumber
 where
-    BlockNumber: BaseArithmetic,
+    BlockNumber: sp_runtime::traits::BlockNumber,
 {
     match current_block.checked_sub(&period_start) {
         Some(block) => block / challenge_window,

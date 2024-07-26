@@ -20,7 +20,7 @@ use crate::{
 #[derive(Debug, Decode, Encode, TypeInfo)]
 pub struct StorageProviderState<PeerId, Balance, BlockNumber>
 where
-    BlockNumber: Clone + Copy + Ord,
+    BlockNumber: sp_runtime::traits::BlockNumber,
 {
     /// Contains static information about this storage provider
     pub info: StorageProviderInfo<PeerId>,
@@ -72,7 +72,7 @@ where
 impl<PeerId, Balance, BlockNumber> StorageProviderState<PeerId, Balance, BlockNumber>
 where
     PeerId: Clone + Decode + Encode + TypeInfo,
-    BlockNumber: Copy + Clone + BaseArithmetic + Decode + Encode + TypeInfo + core::fmt::Debug,
+    BlockNumber: sp_runtime::traits::BlockNumber,
     Balance: BaseArithmetic,
 {
     pub fn new(

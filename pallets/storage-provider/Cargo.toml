@@ -22,6 +22,7 @@ primitives-proofs = { workspace = true, default-features = false }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 sp-arithmetic = { workspace = true, default-features = false }
 sp-core = { workspace = true, default-features = false }
+sp-runtime = { workspace = true, default-features = false }
 
 # Frame deps
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
@@ -34,7 +35,6 @@ multihash-codetable = { workspace = true, features = ["blake2b"] }
 pallet-balances = { workspace = true, default-features = false }
 pallet-market = { workspace = true, default-features = false }
 sp-io = { workspace = true }
-sp-runtime = { workspace = true, default-features = false }
 
 [features]
 default = ["std"]

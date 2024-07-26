@@ -9,7 +9,6 @@ use scale_info::{
     prelude::{cmp, vec::Vec},
     TypeInfo,
 };
-use sp_arithmetic::traits::BaseArithmetic;
 
 use crate::{
     pallet::LOG_TARGET,
@@ -63,7 +62,7 @@ pub struct Deadline<BlockNumber> {
 
 impl<BlockNumber> Deadline<BlockNumber>
 where
-    BlockNumber: Clone + Copy + Ord,
+    BlockNumber: sp_runtime::traits::BlockNumber,
 {
     pub fn new() -> Self {
         Self {
@@ -192,7 +191,7 @@ pub struct Deadlines<BlockNumber> {
 
 impl<BlockNumber> Deadlines<BlockNumber>
 where
-    BlockNumber: Clone + Copy + Ord,
+    BlockNumber: sp_runtime::traits::BlockNumber,
 {
     /// Constructor function.
     pub fn new(w_post_period_deadlines: u64) -> Self {
@@ -293,7 +292,7 @@ pub struct DeadlineInfo<BlockNumber> {
 
 impl<BlockNumber> DeadlineInfo<BlockNumber>
 where
-    BlockNumber: BaseArithmetic + Copy,
+    BlockNumber: sp_runtime::traits::BlockNumber,
 {
     /// Constructs a new `DeadlineInfo`
     // ref: <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/actors/miner/src/deadline_info.rs#L43>
@@ -380,7 +379,7 @@ pub fn deadline_is_mutable<BlockNumber>(
     w_post_proving_period: BlockNumber,
 ) -> Result<bool, DeadlineError>
 where
-    BlockNumber: BaseArithmetic + Copy + core::fmt::Debug,
+    BlockNumber: sp_runtime::traits::BlockNumber,
 {
     // Get the next non-elapsed deadline (i.e., the next time we care about
     // mutations to the deadline).
