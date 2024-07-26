@@ -43,9 +43,9 @@ pub struct Deadline<BlockNumber: sp_runtime::traits::BlockNumber> {
     /// associated block has passed) even if they no longer have sectors
     /// expiring at that block. Sectors expiring at their given block may later be
     /// recovered, and this queue will not be updated at that time.
-    /// 
+    ///
     /// Filecoin has another expiration mapping in the Partition struct which maps the a block to sectors that are on-time or expired (due to being faulty).
-    /// We can extract this information from other sources. 
+    /// We can extract this information from other sources.
     /// The faulty sectors are stored in the Partition and the sectors that are on-time are sectors - (faults + terminated + unproven + recoveries).
     pub expirations_blocks:
         BoundedBTreeMap<BlockNumber, PartitionNumber, ConstU32<MAX_PARTITIONS_PER_DEADLINE>>,
