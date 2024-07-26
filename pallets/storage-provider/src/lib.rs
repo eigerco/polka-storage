@@ -463,8 +463,8 @@ pub mod pallet {
 
         /// The SP uses this extrinsic to submit their Proof-of-Spacetime.
         ///
-        /// Proofs are checked with `validate_windowed_post`.
-        /// Proof is valid when proof.len() > 0
+        /// * Proofs are checked with `validate_windowed_post`.
+        /// * Currently the proof is considered valid when `proof.len() > 0`.
         pub fn submit_windowed_post(
             origin: OriginFor<T>,
             windowed_post: SubmitWindowedPoStParams<BlockNumberFor<T>>,
