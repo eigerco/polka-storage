@@ -97,7 +97,7 @@ where
     pub fn add_sectors(
         &mut self,
         partition_size: u64,
-        mut sectors: &[SectorOnChainInfo<BlockNumber>],
+        sectors: &[SectorOnChainInfo<BlockNumber>],
     ) -> Result<(), DeadlineError> {
         if sectors.is_empty() {
             return Ok(());
@@ -130,10 +130,8 @@ where
             }
 
             let size = cmp::min(partition_size - sector_count, sectors.len() as u64) as usize;
-            let partition_new_sectors = &sectors[..size];
 
-            // Intentionally ignoring the index at size, split_at returns size inclusively for start
-            sectors = &sectors[size..];
+            let (partition_new_sectors, sectors) = sectors.split_at(size);
 
             let new_partition_sectors: Vec<SectorNumber> = partition_new_sectors
                 .into_iter()
