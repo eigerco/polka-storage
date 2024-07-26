@@ -29,6 +29,10 @@ impl DeadlineAssignmentInfo {
         live_sectors.div_ceil(partition_size)
     }
 
+    /// Partitions size = maximum amount of sectors in a single partition.
+    /// total_sectors % partition size is zero if the partition is full.
+    /// Example 1: partition size = 10, total sectors = 8; 8 % 10 = 8 -> not full
+    /// Example 2: partition size = 10, total sectors = 10; 10 % 10 = 0 -> full
     fn is_full_now(&self, partition_size: u64) -> bool {
         self.total_sectors % partition_size == 0
     }
