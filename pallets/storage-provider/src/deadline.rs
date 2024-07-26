@@ -91,12 +91,13 @@ where
         Ok(())
     }
 
-    /// Adds sectors to the current deadline. It's the caller's responsibility to make sure
-    /// that this deadline isn't currently "open" (i.e., being proved at this point
-    /// in time).
-    /// The sectors are assumed to be non-faulty.
+    /// Adds sectors to the current deadline. 
     ///
-    /// The sectors are added to the last partition stored in the deadline.
+    /// Added sectors will be stored in the deadline's last stored partition.
+    ///
+    /// # Important
+    /// * It's the caller's responsibility to make sure that this deadline isn't currently being proven — i.e. open.
+    /// * The sectors are assumed to be non-faulty.
     pub fn add_sectors(
         &mut self,
         partition_size: u64,
