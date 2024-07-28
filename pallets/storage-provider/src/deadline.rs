@@ -120,7 +120,7 @@ where
 
         let partitions = &mut self.partitions;
 
-        let mut partition_idx = 0;
+        let mut partition_idx = partitions.len().saturating_sub(1);
         // try filling up the last partition first.
         loop {
             // Get/create partition to update.
