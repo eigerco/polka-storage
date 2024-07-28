@@ -400,7 +400,7 @@ mod tests {
 
             let assignment =
                 assign_deadlines(MAX_PARTITIONS, PARTITION_SIZE, &deadlines, &sectors, 48).unwrap();
-            for (i, sectors) in assignment.iter().enumerate() {
+            for (i, sectors) in assignment.enumerate() {
                 if let Some(Some(dl)) = tc.deadlines.get(i) {
                     assert_eq!(
                         dl.expect_sectors.len(),
