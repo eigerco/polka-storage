@@ -216,10 +216,26 @@ where
 
 #[cfg(test)]
 mod tests {
+    use frame_support::BoundedVec;
+    use primitives_proofs::RegisteredSealProof;
+    
     use crate::{
         deadline::{assign_deadlines, Deadline},
         sector::SectorOnChainInfo,
     };
+
+    impl Default for SectorOnChainInfo<u64> {
+        fn default() -> Self {
+            Self {
+                sector_number: 1,
+                seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
+                sealed_cid: BoundedVec::new(),
+                activation: 1,
+                expiration: 1,
+                unsealed_cid: BoundedVec::new(),
+            }
+        }
+    }
 
     #[test]
     fn test_deadline_assignment() {

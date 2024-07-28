@@ -66,7 +66,7 @@ where
     }
 }
 
-#[derive(Clone, Debug, Default, Decode, Encode, TypeInfo)]
+#[derive(Clone, Debug, Decode, Encode, TypeInfo)]
 pub struct SectorOnChainInfo<BlockNumber>
 where
     BlockNumber: sp_runtime::traits::BlockNumber,
