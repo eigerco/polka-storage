@@ -161,7 +161,7 @@ Deals in the sector are validated, so without calling `publish-storage-deals` it
 storagext-cli --sr25519-key <key> storage-provider pre-commit <pre-commit-sector>
 ```
 
-This commant takes `pre-commit-sector` as JSON Object.
+This command takes `pre-commit-sector` as JSON Object.
 
 <details>
 <summary>Example Pre-commit Sector JSON</summary>
@@ -183,6 +183,39 @@ you prefix a file path with `@` and use the JSON file location instead:
 
 ```
 storagext-cli --sr25519-key <key> storage-provider pre-commit @pre-commit-sector.json
+```
+
+</p>
+</details>
+
+### `prove-commit`
+
+Storage Provider must prove commit a sector which has been pre-commited.
+If the sector is not proven, deal won't become `Active` and will be **slashed**.
+
+```
+storagext-cli --sr25519-key <key> storage-provider prove-commit <prove-commit-sector>
+```
+
+This command takes `prove-commit-sector` as JSON Object, here `proof` must be a valid hex-string.
+Proof is accepted if it is any valid hex string of length >= 1.
+
+<details>
+<summary>Example Prove Commit Sector JSON</summary>
+<p>
+
+```json
+{
+    "sector_number": 1,
+    "proof": "1230deadbeef"
+}
+```
+
+However, writing a full JSON file in a single command is cumbersome, to solve that,
+you prefix a file path with `@` and use the JSON file location instead:
+
+```
+storagext-cli --sr25519-key <key> storage-provider prove-commit @prove-commit-sector.json
 ```
 
 </p>
