@@ -91,7 +91,7 @@ impl Into<storagext::DealProposal> for DealProposal {
 pub(crate) struct PreCommitSector {
     /// Which sector number this SP is pre-committing.
     pub sector_number: SectorNumber,
-    /// This value is also known as 'commR', Commitment of replication. The terms commR and sealed_cid are interchangeable.
+    /// This value is also known as `commR` or "commitment of replication". The terms `commR` and `sealed_cid` are interchangeable.
     /// Using sealed_cid as I think that is more descriptive.
     /// Some docs on commR here: <https://proto.school/verifying-storage-on-filecoin/03>
     pub sealed_cid: CidWrapper,
@@ -100,7 +100,8 @@ pub(crate) struct PreCommitSector {
     pub deal_ids: Vec<DealId>,
     /// Expiration of the pre-committed sector.
     pub expiration: storagext::BlockNumber,
-    /// CommD
+    /// This value is also known as `commD` or "commitment of data".
+    /// Once a sector is full `commD` is produced representing the root node of all of the piece CIDs contained in the sector.
     pub unsealed_cid: CidWrapper,
 }
 

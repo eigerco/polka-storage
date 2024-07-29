@@ -14,7 +14,7 @@ pub struct SectorPreCommitInfo<BlockNumber> {
     pub seal_proof: RegisteredSealProof,
     /// Which sector number this SP is pre-committing.
     pub sector_number: SectorNumber,
-    /// This value is also known as 'commR', Commitment of replication. The terms commR and sealed_cid are interchangeable.
+    /// This value is also known as `commR` or "commitment of replication". The terms `commR` and `sealed_cid` are interchangeable.
     /// Using sealed_cid as I think that is more descriptive.
     /// Some docs on commR here: <https://proto.school/verifying-storage-on-filecoin/03>
     pub sealed_cid: SectorId,
@@ -23,7 +23,8 @@ pub struct SectorPreCommitInfo<BlockNumber> {
     pub deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
     /// Expiration of the pre-committed sector.
     pub expiration: BlockNumber,
-    /// CommD
+    /// This value is also known as `commD` or "commitment of data".
+    /// Once a sector is full `commD` is produced representing the root node of all of the piece CIDs contained in the sector.
     pub unsealed_cid: SectorId,
 }
 

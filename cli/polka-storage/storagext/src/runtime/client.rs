@@ -3,7 +3,8 @@ use subxt::OnlineClient;
 
 use crate::PolkaStorageConfig;
 
-/// GenericClient to interact with a pallet extrinsics.
+/// Client to interact with a pallet extrinsics.
+/// You can call any extrinsic via [`Client::traced_submission`].
 pub struct Client {
     client: OnlineClient<PolkaStorageConfig>,
 }

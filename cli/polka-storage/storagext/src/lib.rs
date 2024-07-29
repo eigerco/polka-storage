@@ -116,18 +116,10 @@ impl DealProposal {
 
 #[derive(CloneNoBound)]
 pub struct SectorPreCommitInfo {
-    /// Which sector number this SP is pre-committing.
     pub sector_number: SectorNumber,
-    /// This value is also known as 'commR', Commitment of replication. The terms commR and sealed_cid are interchangeable.
-    /// Using sealed_cid as I think that is more descriptive.
-    /// Some docs on commR here: <https://proto.school/verifying-storage-on-filecoin/03>
     pub sealed_cid: Cid,
-    /// Deals Ids that are supposed to be activated.
-    /// If any of those is invalid, whole activation is rejected.
     pub deal_ids: Vec<DealId>,
-    /// Expiration of the pre-committed sector.
     pub expiration: BlockNumber,
-    /// CommD
     pub unsealed_cid: Cid,
 }
 
