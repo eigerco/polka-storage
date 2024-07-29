@@ -9,13 +9,15 @@ pub mod runtime;
 pub mod storage_provider;
 
 use crate::runtime::bounded_vec::IntoBoundedByteVec;
-pub use crate::runtime::runtime_types::pallet_market::{
-    pallet as market_pallet_types,
-    pallet::{ActiveDealState, DealState},
-};
-pub use crate::runtime::runtime_types::primitives_proofs::{
-    types as primitives_proofs_types,
-    types::{RegisteredPoStProof, RegisteredSealProof},
+pub use crate::runtime::runtime_types::{
+    pallet_market::{
+        pallet as market_pallet_types,
+        pallet::{ActiveDealState, DealState},
+    },
+    primitives_proofs::{
+        types as primitives_proofs_types,
+        types::{RegisteredPoStProof, RegisteredSealProof},
+    },
 };
 
 /// Currency as specified by the SCALE-encoded runtime.

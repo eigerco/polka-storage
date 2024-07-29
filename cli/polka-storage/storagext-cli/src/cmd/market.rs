@@ -3,14 +3,13 @@ use std::{path::PathBuf, str::FromStr};
 use clap::{ArgGroup, Subcommand};
 use primitives_proofs::DealId;
 use storagext::{market::MarketClient, PolkaStorageConfig};
-use subxt::ext::sp_core::crypto::Ss58Codec;
 use subxt::ext::sp_core::{
-    ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair, sr25519::Pair as Sr25519Pair,
+    crypto::Ss58Codec, ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair,
+    sr25519::Pair as Sr25519Pair,
 };
 use url::Url;
 
-use crate::deser::DebugPair;
-use crate::DealProposal;
+use crate::{deser::DebugPair, DealProposal};
 
 /// List of [`DealProposal`]s to publish.
 #[derive(Debug, Clone, serde::Deserialize)]

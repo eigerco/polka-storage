@@ -6,8 +6,7 @@ mod deser;
 use std::fmt::Debug;
 
 use clap::{ArgGroup, Parser, Subcommand};
-use cmd::market::MarketCommand;
-use cmd::storage_provider::StorageProviderCommand;
+use cmd::{market::MarketCommand, storage_provider::StorageProviderCommand};
 use deser::{DealProposal, DebugPair};
 use storagext::PolkaStorageConfig;
 use subxt::ext::sp_core::{

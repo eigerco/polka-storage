@@ -1,11 +1,12 @@
 use std::{path::PathBuf, str::FromStr};
 
-use crate::deser::{PreCommitSector, ProveCommitSector};
 use anyhow::bail;
 use clap::Subcommand;
 use storagext::{storage_provider::StorageProviderClient, PolkaStorageConfig, RegisteredPoStProof};
 use subxt::ext::sp_core::crypto::Ss58Codec;
 use url::Url;
+
+use crate::deser::{PreCommitSector, ProveCommitSector};
 
 fn parse_post_proof(src: &str) -> Result<RegisteredPoStProof, anyhow::Error> {
     let post_proof = match src {
