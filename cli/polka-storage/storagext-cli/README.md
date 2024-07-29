@@ -134,3 +134,54 @@ list of IDs for the deals to be processed.
 ```
 storagext-cli --sr25519-key <key> market settle-deal-payments <deal ids>
 ```
+
+## `storage-provider`
+
+The `storage-provider` subcommand enables you to interact with the `storage-provider` pallet.
+
+### `register`
+
+You need to register as a `Storage Provider` to be able to deal with the clients and perform any storage provider duties.
+There are no other `post_proofs` currently then `2KiB` so it's set as default value.
+
+```
+storagext-cli --sr25519-key <key> storage-provider register [--post_proof 2KiB] <peer_id>
+```
+
+### `pre-commit`
+
+Storage Provider must pre-commit a sector with deals that have been published by `market publish-storage-deals`, so it can later be proven.
+If the deals are not pre-commited in any sector and then proven, they'll be slashed.
+Deals in the sector are validated, so without calling `publish-storage-deals` it's not possible to execute this function.
+`seal_proof` must match the `post_proof` used in `register`.
+
+```
+storagext-cli --sr25519-key <key> storage-provider pre-commit <pre-commit-sector>
+```
+
+This commant takes `pre-commit-sector` as JSON Object.
+
+<details>
+<summary>Example Pre-commit Sector JSON</summary>
+<p>
+
+```json
+{
+    "sector_number": 1,
+    "sealed_cid": "bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu",
+    "deal_ids": [0],
+    "expiration": 100,
+    "unsealed_cid": "bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu",
+    "seal_proof": "StackedDRGWindow2KiBV1P1",
+}
+```
+
+However, writing a full JSON file in a single command is cumbersome, to solve that,
+you prefix a file path with `@` and use the JSON file location instead:
+
+```
+storagext-cli --sr25519-key <key> storage-provider pre-commit @pre-commit-sector.json
+```
+
+</p>
+</details>
