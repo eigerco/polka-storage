@@ -1,7 +1,6 @@
 extern crate alloc;
 
-use alloc::collections::BinaryHeap;
-use alloc::{vec, vec::Vec};
+use alloc::{collections::BinaryHeap, vec, vec::Vec};
 use core::cmp::Ordering;
 
 use crate::{
