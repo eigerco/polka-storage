@@ -144,3 +144,20 @@ impl From<SectorPreCommitInfo>
         }
     }
 }
+
+#[derive(CloneNoBound)]
+pub struct ProveCommitSector {
+    pub sector_number: SectorNumber,
+    pub proof: Vec<u8>,
+}
+
+impl From<ProveCommitSector>
+    for runtime::runtime_types::pallet_storage_provider::sector::ProveCommitSector
+{
+    fn from(value: ProveCommitSector) -> Self {
+        Self {
+            sector_number: value.sector_number,
+            proof: value.proof.into_bounded_byte_vec(),
+        }
+    }
+}

@@ -1,11 +1,20 @@
 use std::{path::PathBuf, str::FromStr};
 
-use crate::deser::PreCommitSector;
+use crate::deser::{PreCommitSector, ProveCommitSector};
 use anyhow::bail;
 use clap::Subcommand;
 use storagext::{storage_provider::StorageProviderClient, PolkaStorageConfig, RegisteredPoStProof};
 use subxt::ext::sp_core::crypto::Ss58Codec;
 use url::Url;
+
+fn parse_post_proof(src: &str) -> Result<RegisteredPoStProof, anyhow::Error> {
+    let post_proof = match src {
+        "2KiB" => RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+        unknown => bail!("Unknown PoSt Proof type: {}", unknown),
+    };
+
+    Ok(post_proof)
+}
 
 #[derive(Debug, Clone)]
 pub struct PreCommitSectorWrapper(PreCommitSector);
@@ -25,13 +34,22 @@ impl PreCommitSectorWrapper {
     }
 }
 
-fn parse_post_proof(src: &str) -> Result<RegisteredPoStProof, anyhow::Error> {
-    let post_proof = match src {
-        "2KiB" => RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
-        unknown => bail!("Unknown PoSt Proof type: {}", unknown),
-    };
+#[derive(Debug, Clone)]
+pub struct ProveCommitSectorWrapper(ProveCommitSector);
 
-    Ok(post_proof)
+impl ProveCommitSectorWrapper {
+    /// Attempt to parse a command-line argument into [`ProveCommitSector`].
+    ///
+    /// The command-line argument may be a valid JSON object, or a file path starting with @.
+    pub(crate) fn parse(src: &str) -> Result<Self, anyhow::Error> {
+        Ok(Self(if let Some(stripped) = src.strip_prefix('@') {
+            let path = PathBuf::from_str(stripped)?.canonicalize()?;
+            let mut file = std::fs::File::open(path)?;
+            serde_json::from_reader(&mut file)
+        } else {
+            serde_json::from_str(src)
+        }?))
+    }
 }
 
 #[derive(Debug, Subcommand)]
@@ -57,6 +75,12 @@ pub enum StorageProviderCommand {
     PreCommit {
         #[arg(value_parser = PreCommitSectorWrapper::parse)]
         pre_commit_sector: PreCommitSectorWrapper,
+    },
+    /// Proves sector that has been previously pre-committed.
+    /// After proving, a deal in a sector is considered Active.
+    ProveCommit {
+        #[arg(value_parser = ProveCommitSectorWrapper::parse)]
+        prove_commit_sector: ProveCommitSectorWrapper,
     },
 }
 
@@ -108,6 +132,20 @@ impl StorageProviderCommand {
 
                 tracing::info!(
                     "[{}] Successfully pre-commited sector {}.",
+                    block_hash,
+                    sector_number
+                );
+            }
+            StorageProviderCommand::ProveCommit {
+                prove_commit_sector,
+            } => {
+                let sector_number = prove_commit_sector.0.sector_number;
+                let block_hash = client
+                    .prove_commit_sector(&account_keypair, prove_commit_sector.0.into())
+                    .await?;
+
+                tracing::info!(
+                    "[{}] Successfully proven sector {}.",
                     block_hash,
                     sector_number
                 );

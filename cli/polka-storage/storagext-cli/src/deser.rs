@@ -120,6 +120,42 @@ impl Into<storagext::SectorPreCommitInfo> for PreCommitSector {
     }
 }
 
+/// Deserialize hex-string as `Vec<u8>`.
+/// JSON doesn't have 'bytes' format, so we specify that bytes need to be just a hex-string and we provide deserializer for it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct HexBytesWrapper(pub(crate) Vec<u8>);
+
+impl<'de> serde::de::Deserialize<'de> for HexBytesWrapper {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let bytes = hex::decode(s.as_str()).map_err(|e| {
+            serde::de::Error::custom(format!("failed to parse bytes from hex string: {e:?}"))
+        })?;
+        Ok(Self(bytes))
+    }
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub(crate) struct ProveCommitSector {
+    /// Number of a sector that has been previously pre-committed.
+    pub sector_number: SectorNumber,
+    /// Proof bytes as a hex string.
+    /// If empty it fails validation, it has any bytes it succeeds.
+    pub proof: HexBytesWrapper,
+}
+
+impl Into<storagext::ProveCommitSector> for ProveCommitSector {
+    fn into(self) -> storagext::ProveCommitSector {
+        storagext::ProveCommitSector {
+            sector_number: self.sector_number,
+            proof: self.proof.0.clone(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     //! These tests basically ensure that the underlying parsers aren't broken without warning.
