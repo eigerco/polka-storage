@@ -153,7 +153,10 @@ where
 
             // Save partition if it is newly constructed.
             if !partitions.contains_key(&(partition_idx as u32)) {
-                let _ = partitions.try_insert(partition_idx as u32, partition);
+                partitions.try_insert(partition_idx as u32, partition).map_err(|_| {
+                    log::error!(target: LOG_TARGET, "add_sectors: Cannot insert new partition at {partition_idx}");
+                    DeadlineError::CouldNotAddSectors
+                })?;
             }
 
             // Record deadline -> partition mapping so we can later update the deadlines.
@@ -171,7 +174,10 @@ where
 
         // Next, update the expiration queue.
         for (block, partition_index) in partition_deadline_updates {
-            let _ = self.expirations_blocks.try_insert(block, partition_index);
+            self.expirations_blocks.try_insert(block, partition_index).map_err(|_| {
+                log::error!(target: LOG_TARGET, "add_sectors: Cannot update expiration queue at index {partition_idx}");
+                DeadlineError::CouldNotAddSectors
+            })?;
         }
 
         Ok(())
