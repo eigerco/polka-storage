@@ -1,8 +1,8 @@
 extern crate alloc;
 
+use alloc::collections::BinaryHeap;
 use core::cmp::Ordering;
 
-use alloc::collections::BinaryHeap;
 use scale_info::prelude::{vec, vec::Vec};
 
 use crate::{
