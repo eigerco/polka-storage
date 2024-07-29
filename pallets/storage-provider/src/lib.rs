@@ -31,6 +31,9 @@ pub mod pallet {
     pub const BLAKE2B_MULTIHASH_CODE: u64 = 0xB220;
     pub const LOG_TARGET: &'static str = "runtime::storage_provider";
 
+    extern crate alloc;
+
+    use alloc::vec;
     use core::fmt::Debug;
 
     use cid::{Cid, Version};
@@ -43,7 +46,7 @@ pub mod pallet {
     };
     use frame_system::{ensure_signed, pallet_prelude::*, Config as SystemConfig};
     use primitives_proofs::{Market, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
-    use scale_info::{prelude::vec, TypeInfo};
+    use scale_info::TypeInfo;
 
     use crate::{
         deadline::DeadlineInfo,

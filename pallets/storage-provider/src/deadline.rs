@@ -1,3 +1,7 @@
+extern crate alloc;
+
+use alloc::vec::Vec;
+
 use codec::{Decode, Encode};
 use frame_support::{
     pallet_prelude::*,
@@ -5,10 +9,7 @@ use frame_support::{
     PalletError,
 };
 use primitives_proofs::SectorNumber;
-use scale_info::{
-    prelude::{cmp, vec::Vec},
-    TypeInfo,
-};
+use scale_info::{prelude::cmp, TypeInfo};
 
 use crate::{
     pallet::LOG_TARGET,

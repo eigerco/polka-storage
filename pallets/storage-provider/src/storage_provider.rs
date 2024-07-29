@@ -1,3 +1,7 @@
+extern crate alloc;
+
+use alloc::vec::Vec;
+
 use codec::{Decode, Encode};
 use frame_support::{
     pallet_prelude::{ConstU32, RuntimeDebug},
@@ -5,7 +9,7 @@ use frame_support::{
     PalletError,
 };
 use primitives_proofs::{RegisteredPoStProof, SectorNumber, SectorSize};
-use scale_info::{prelude::vec::Vec, TypeInfo};
+use scale_info::TypeInfo;
 use sp_arithmetic::{traits::BaseArithmetic, ArithmeticError};
 
 use crate::{
