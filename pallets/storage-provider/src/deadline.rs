@@ -41,6 +41,21 @@ pub struct Deadline<BlockNumber: sp_runtime::traits::BlockNumber> {
     /// We can extract this information from other sources.
     /// The faulty sectors are stored in the Partition and the sectors that are on-time are sectors - (faults + terminated + unproven + recoveries).
     ///
+    /// Getting the information about a partition that has sectors that are about to expire you need to get the current deadline from the storage provider state.
+    /// `let current_deadline_block = storage_provider_state.current_deadline;`
+    /// With the current deadline we can then get the partition number that is associated with that deadline block.
+    /// `let partition_number = deadline.expirations_blocks.get(current_deadline_block);`
+    ///
+    /// Then we can get the partition information from the deadline.
+    /// `let partition_to_expire = deadline.partitions.get(partition_number);`
+    ///
+    /// With this information we can get the sectors information from the storage provider state.
+    /// `let sectors_info = partition_to_expire.`
+    /// Then we can get the sector information.
+    /// `let sectors_info: Vec<SectorOnChainInfo<BlockNumber> = partition_to_expire.sectors.iter().map(|sector_number| {
+    ///     storage_provider_state.sectors.get(sector_number)
+    /// }).collect()`
+    ///
     /// # Important
     /// Partitions MUST NOT be removed from this queue (until the
     /// associated block has passed) even if they no longer have sectors

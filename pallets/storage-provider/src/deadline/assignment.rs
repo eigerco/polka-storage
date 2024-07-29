@@ -27,7 +27,7 @@ impl DeadlineAssignmentInfo {
         total_sectors.div_ceil(partition_size)
     }
 
-    /// Returns the amount of partitions after adding 1 sector to live sectors. 
+    /// Returns the amount of partitions after adding 1 sector to live sectors.
     fn compact_partitions_after_assignment(&self, partition_size: u64) -> u64 {
         let live_sectors = self.live_sectors + 1; // after assignment
         live_sectors.div_ceil(partition_size)
