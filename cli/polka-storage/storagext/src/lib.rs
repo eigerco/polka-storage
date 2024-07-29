@@ -109,7 +109,9 @@ impl DealProposal {
         >,
     {
         let proposal: market_pallet_types::DealProposal<_, _, _> = self.into();
-        let client_signature = Static(keypair.sign(&proposal.encode()));
+        let encoded = &proposal.encode();
+        tracing::trace!("deal_proposal: encoded proposal: {}", hex::encode(&encoded));
+        let client_signature = Static(keypair.sign(encoded));
 
         market_pallet_types::ClientDealProposal {
             proposal,

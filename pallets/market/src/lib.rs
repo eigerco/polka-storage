@@ -1052,8 +1052,10 @@ pub mod pallet {
             provider: &T::AccountId,
             current_block: BlockNumberFor<T>,
         ) -> Result<(), ProposalError> {
+            let encoded = Encode::encode(&deal.proposal);
+            log::trace!(target: LOG_TARGET, "sanity_check: encoded proposal: {}", hex::encode(&encoded));
             Self::validate_signature(
-                &Encode::encode(&deal.proposal),
+                &encoded,
                 &deal.client_signature,
                 &deal.proposal.client,
             )?;
