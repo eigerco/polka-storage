@@ -1054,11 +1054,7 @@ pub mod pallet {
         ) -> Result<(), ProposalError> {
             let encoded = Encode::encode(&deal.proposal);
             log::trace!(target: LOG_TARGET, "sanity_check: encoded proposal: {}", hex::encode(&encoded));
-            Self::validate_signature(
-                &encoded,
-                &deal.client_signature,
-                &deal.proposal.client,
-            )?;
+            Self::validate_signature(&encoded, &deal.client_signature, &deal.proposal.client)?;
 
             // Ensure the Piece's Cid is parsable and valid
             let _ = deal.proposal.cid()?;

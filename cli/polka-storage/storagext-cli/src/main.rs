@@ -53,7 +53,7 @@ struct Cli {
 }
 
 #[derive(Debug, Subcommand)]
-pub enum SubCommand {
+enum SubCommand {
     // Perform market operations.
     #[command(subcommand)]
     Market(MarketCommand),

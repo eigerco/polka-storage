@@ -1,11 +1,15 @@
 use std::{path::PathBuf, str::FromStr};
 
-use clap::Subcommand;
+use clap::{ArgGroup, Subcommand};
 use primitives_proofs::DealId;
 use storagext::{market::MarketClient, PolkaStorageConfig};
 use subxt::ext::sp_core::crypto::Ss58Codec;
+use subxt::ext::sp_core::{
+    ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair, sr25519::Pair as Sr25519Pair,
+};
 use url::Url;
 
+use crate::deser::DebugPair;
 use crate::DealProposal;
 
 /// List of [`DealProposal`]s to publish.
@@ -29,18 +33,36 @@ impl DealProposals {
 
 #[derive(Debug, Subcommand)]
 #[command(name = "market", about = "CLI Client to the Market Pallet", version)]
-pub enum MarketCommand {
+pub(crate) enum MarketCommand {
     /// Add balance to an account.
     AddBalance {
         /// Amount to add to the account.
         amount: storagext::Currency,
     },
 
-    /// Publish storage deals.
+    /// Publish storage deals and sign by client_<key_type>_key
+    #[command(group(ArgGroup::new("client_keypair").required(true).args(&["client_sr25519_key", "client_ecdsa_key", "client_ed25519_key"])))]
     PublishStorageDeals {
         /// Storage deals to publish. Either JSON or a file path, prepended with an @.
         #[arg(value_parser = DealProposals::parse)]
         deals: DealProposals,
+        /// Sr25519 keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
+        ///
+        /// See `sp_core::crypto::Pair::from_string_with_seed` for more information.
+        #[arg(long, value_parser = DebugPair::<Sr25519Pair>::value_parser)]
+        client_sr25519_key: Option<DebugPair<Sr25519Pair>>,
+
+        /// ECDSA keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
+        ///
+        /// See `sp_core::crypto::Pair::from_string_with_seed` for more information.
+        #[arg(long, value_parser = DebugPair::<ECDSAPair>::value_parser)]
+        client_ecdsa_key: Option<DebugPair<ECDSAPair>>,
+
+        /// Ed25519 keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
+        ///
+        /// See `sp_core::crypto::Pair::from_string_with_seed` for more information.
+        #[arg(long, value_parser = DebugPair::<Ed25519Pair>::value_parser)]
+        client_ed25519_key: Option<DebugPair<Ed25519Pair>>,
     },
 
     /// Settle deal payments.
@@ -86,13 +108,42 @@ impl MarketCommand {
                     amount
                 );
             }
-            MarketCommand::PublishStorageDeals { deals } => {
-                let block_hash = client
-                    .publish_storage_deals(
-                        &account_keypair,
-                        deals.0.into_iter().map(Into::into).collect(),
-                    )
-                    .await?;
+            MarketCommand::PublishStorageDeals {
+                deals,
+                client_sr25519_key,
+                client_ecdsa_key,
+                client_ed25519_key,
+            } => {
+                let block_hash = match (client_sr25519_key, client_ecdsa_key, client_ed25519_key) {
+                    (Some(client_keypair), _, _) => {
+                        client
+                            .publish_storage_deals(
+                                &account_keypair,
+                                &subxt::tx::PairSigner::new(client_keypair.0),
+                                deals.0.into_iter().map(Into::into).collect(),
+                            )
+                            .await?
+                    }
+                    (_, Some(client_keypair), _) => {
+                        client
+                            .publish_storage_deals(
+                                &account_keypair,
+                                &subxt::tx::PairSigner::new(client_keypair.0),
+                                deals.0.into_iter().map(Into::into).collect(),
+                            )
+                            .await?
+                    }
+                    (_, _, Some(client_keypair)) => {
+                        client
+                            .publish_storage_deals(
+                                &account_keypair,
+                                &subxt::tx::PairSigner::new(client_keypair.0),
+                                deals.0.into_iter().map(Into::into).collect(),
+                            )
+                            .await?
+                    }
+                    _ => unreachable!("should be handled by clap::ArgGroup"),
+                };
                 tracing::info!("[{}] Successfully published storage deals", block_hash);
             }
             MarketCommand::SettleDealPayments { deal_ids } => {

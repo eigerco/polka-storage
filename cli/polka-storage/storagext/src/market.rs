@@ -120,13 +120,15 @@ impl MarketClient {
             address = account_keypair.account_id().to_ss58check()
         )
     )]
-    pub async fn publish_storage_deals<Keypair>(
+    pub async fn publish_storage_deals<Keypair, ClientKeypair>(
         &self,
         account_keypair: &Keypair,
+        client_keypair: &ClientKeypair,
         mut deals: Vec<DealProposal>,
     ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
+        ClientKeypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
         if deals.len() > MAX_N_DEALS {
             tracing::warn!("more than {} deals, truncating", MAX_N_DEALS);
@@ -135,7 +137,7 @@ impl MarketClient {
 
         let signed_deal_proposals = deals
             .into_iter()
-            .map(|deal| deal.sign(account_keypair))
+            .map(|deal| deal.sign(client_keypair))
             .collect();
 
         // `deals` has been truncated to fit the proper bound, however,
