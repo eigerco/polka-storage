@@ -69,11 +69,15 @@ storagext-cli --sr25519-key <key> market withdraw-balance <amount>
 ### `publish-storage-deals`
 
 As a storage provider, you are able to publish storage deals you have done off-chain.
-As this is expirmental CLI for now, you must provide Client's private key to sign a deal.
+As this is expirmental CLI, you must provide Client's private key to sign a deal.
 Normally, you'd just publish a signed message which you received from a client.
 
 ```
-storagext-cli --sr25519-key <key> market publish-storage-deals --client-sr25519-key <client-key> <deals>
+storagext-cli \ 
+    --sr25519-key <key> \ 
+    market publish-storage-deals \ 
+    --client-sr25519-key <client-key> \ 
+    <deals>
 ```
 
 The command takes `deals` as a JSON array, containing one or more storage deals.
@@ -114,11 +118,15 @@ The command takes `deals` as a JSON array, containing one or more storage deals.
 </p>
 </details>
 
-However, writing a full JSON file in a single command is cumbersome, to solve that,
-you prefix a file path with `@` and use the JSON file location instead:
+However, writing a full JSON file in a single command is cumbersome, instead,
+you can use a JSON file by pointing to its path, prefixed by an `@`, like so:
 
 ```
-storagext-cli --sr25519-key <key> market publish-storage-deals --client-sr25519-key <client-key> @important-deals.json
+storagext-cli \ 
+    --sr25519-key <key> \ 
+    market publish-storage-deals \ 
+    --client-sr25519-key <client-key> \ 
+    @important-deals.json
 ```
 
 ### `settle-deal-payments`
@@ -137,6 +145,7 @@ list of IDs for the deals to be processed.
 storagext-cli --sr25519-key <key> market settle-deal-payments <deal ids>
 ```
 
+
 ## `storage-provider`
 
 The `storage-provider` subcommand enables you to interact with the `storage-provider` pallet.
@@ -144,10 +153,9 @@ The `storage-provider` subcommand enables you to interact with the `storage-prov
 ### `register`
 
 You need to register as a `Storage Provider` to be able to deal with the clients and perform any storage provider duties.
-There are no other `post_proofs` currently then `2KiB` so it's set as default value.
 
 ```
-storagext-cli --sr25519-key <key> storage-provider register [--post_proof 2KiB] <peer_id>
+storagext-cli --sr25519-key <key> storage-provider register <peer_id>
 ```
 
 ### `pre-commit`
@@ -155,7 +163,7 @@ storagext-cli --sr25519-key <key> storage-provider register [--post_proof 2KiB] 
 Storage Provider must pre-commit a sector with deals that have been published by `market publish-storage-deals`, so it can later be proven.
 If the deals are not pre-commited in any sector and then proven, they'll be slashed.
 Deals in the sector are validated, so without calling `publish-storage-deals` it's not possible to execute this function.
-`seal_proof` must match the `post_proof` used in `register`.
+`seal-proof` must match the `post-proof` used in `register`.
 
 ```
 storagext-cli --sr25519-key <key> storage-provider pre-commit <pre-commit-sector>
@@ -178,8 +186,8 @@ This command takes `pre-commit-sector` as JSON Object.
 }
 ```
 
-However, writing a full JSON file in a single command is cumbersome, to solve that,
-you prefix a file path with `@` and use the JSON file location instead:
+However, writing a full JSON file in a single command is cumbersome, instead,
+you can use a JSON file by pointing to its path, prefixed by an `@`, like so:
 
 ```
 storagext-cli --sr25519-key <key> storage-provider pre-commit @pre-commit-sector.json
@@ -197,7 +205,7 @@ If the sector is not proven, deal won't become `Active` and will be **slashed**.
 storagext-cli --sr25519-key <key> storage-provider prove-commit <prove-commit-sector>
 ```
 
-This command takes `prove-commit-sector` as JSON Object, here `proof` must be a valid hex-string.
+This command takes a `prove-commit-sector` JSON object, the `proof` must be a valid hex-string.
 Proof is accepted if it is any valid hex string of length >= 1.
 
 <details>
@@ -211,8 +219,8 @@ Proof is accepted if it is any valid hex string of length >= 1.
 }
 ```
 
-However, writing a full JSON file in a single command is cumbersome, to solve that,
-you prefix a file path with `@` and use the JSON file location instead:
+However, writing a full JSON file in a single command is cumbersome, instead,
+you can use a JSON file by pointing to its path, prefixed by an `@`, like so:
 
 ```
 storagext-cli --sr25519-key <key> storage-provider prove-commit @prove-commit-sector.json

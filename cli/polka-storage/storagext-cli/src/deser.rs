@@ -95,10 +95,10 @@ pub(crate) struct PreCommitSector {
     pub sector_number: SectorNumber,
     /// This value is also known as `commR` or "commitment of replication". The terms `commR` and `sealed_cid` are interchangeable.
     /// Using sealed_cid as I think that is more descriptive.
-    /// Some docs on commR here: <https://proto.school/verifying-storage-on-filecoin/03>
+    /// Some docs on `commR` here: <https://proto.school/verifying-storage-on-filecoin/03>
     pub sealed_cid: CidWrapper,
-    /// Deals Ids that are supposed to be activated.
-    /// If any of those is invalid, whole activation is rejected.
+    /// Deals IDs to be activated.
+    /// If any of those is invalid, the whole activation is rejected.
     pub deal_ids: Vec<DealId>,
     /// Expiration of the pre-committed sector.
     pub expiration: storagext::BlockNumber,

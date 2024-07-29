@@ -63,11 +63,10 @@ pub enum StorageProviderCommand {
     /// Register account as a Storage Provider, so it can perform duties in Storage Provider Pallet.
     #[command(name = "register")]
     RegisterStorageProvider {
-        /// PeerId in Storage Provider P2P network
-        /// Can be any String for now.
+        /// PeerId in Storage Provider P2P network, can be any String.
         peer_id: String,
         /// PoSt Proof Type
-        /// Can only be "2KiB" which means `RegisteredPoStProof::StackedDRGWindow2KiBV1P1` for now.
+        /// Can only be "2KiB" meaning `RegisteredPoStProof::StackedDRGWindow2KiBV1P1.
         #[arg(long, value_parser = parse_post_proof, default_value = "2KiB")]
         post_proof: RegisteredPoStProof,
     },

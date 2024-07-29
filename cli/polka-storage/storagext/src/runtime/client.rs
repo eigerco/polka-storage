@@ -27,7 +27,7 @@ impl Client {
     /// Submit an extrinsic and wait for finalization, returning the block hash it was included in.
     ///
     /// Equivalent to performing [`OnlineClient::sign_and_submit_then_watch_default`],
-    /// followed by [`TxInBlock::wait_for_finalized`].
+    /// followed by [`TxInBlock::wait_for_finalized`] and [`TxInBlock::wait_for_success`].
     pub async fn traced_submission<Call, Keypair>(
         &self,
         call: &Call,
