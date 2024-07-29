@@ -1,6 +1,9 @@
+extern crate alloc;
+
 use core::cmp::Ordering;
 
-use scale_info::prelude::{collections::BinaryHeap, vec, vec::Vec};
+use alloc::collections::BinaryHeap;
+use scale_info::prelude::{vec, vec::Vec};
 
 use crate::{
     deadline::{Deadline, DeadlineError},
