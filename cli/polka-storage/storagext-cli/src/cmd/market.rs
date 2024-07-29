@@ -1,5 +1,3 @@
-use std::{path::PathBuf, str::FromStr};
-
 use clap::{ArgGroup, Subcommand};
 use primitives_proofs::DealId;
 use storagext::{market::MarketClient, PolkaStorageConfig};
@@ -9,26 +7,14 @@ use subxt::ext::sp_core::{
 };
 use url::Url;
 
-use crate::{deser::DebugPair, DealProposal};
+use crate::{
+    deser::{DebugPair, ParseablePath},
+    DealProposal,
+};
 
 /// List of [`DealProposal`]s to publish.
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct DealProposals(Vec<DealProposal>);
-
-impl DealProposals {
-    /// Attempt to parse a command-line argument into [`DealProposals`].
-    ///
-    /// The command-line argument may be a valid JSON object, or a file path starting with @.
-    fn parse(src: &str) -> Result<Self, anyhow::Error> {
-        Ok(if let Some(stripped) = src.strip_prefix('@') {
-            let path = PathBuf::from_str(stripped)?.canonicalize()?;
-            let mut file = std::fs::File::open(path)?;
-            serde_json::from_reader(&mut file)
-        } else {
-            serde_json::from_str(src)
-        }?)
-    }
-}
 
 #[derive(Debug, Subcommand)]
 #[command(name = "market", about = "CLI Client to the Market Pallet", version)]
@@ -43,7 +29,7 @@ pub(crate) enum MarketCommand {
     #[command(group(ArgGroup::new("client_keypair").required(true).args(&["client_sr25519_key", "client_ecdsa_key", "client_ed25519_key"])))]
     PublishStorageDeals {
         /// Storage deals to publish. Either JSON or a file path, prepended with an @.
-        #[arg(value_parser = DealProposals::parse)]
+        #[arg(value_parser = <DealProposals as ParseablePath>::parse_json)]
         deals: DealProposals,
         /// Sr25519 keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
         ///

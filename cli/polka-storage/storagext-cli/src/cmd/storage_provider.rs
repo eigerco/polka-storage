@@ -1,12 +1,10 @@
-use std::{path::PathBuf, str::FromStr};
-
 use anyhow::bail;
 use clap::Subcommand;
 use storagext::{storage_provider::StorageProviderClient, PolkaStorageConfig, RegisteredPoStProof};
 use subxt::ext::sp_core::crypto::Ss58Codec;
 use url::Url;
 
-use crate::deser::{PreCommitSector, ProveCommitSector};
+use crate::deser::{ParseablePath, PreCommitSector, ProveCommitSector};
 
 fn parse_post_proof(src: &str) -> Result<RegisteredPoStProof, anyhow::Error> {
     let post_proof = match src {
@@ -15,42 +13,6 @@ fn parse_post_proof(src: &str) -> Result<RegisteredPoStProof, anyhow::Error> {
     };
 
     Ok(post_proof)
-}
-
-#[derive(Debug, Clone)]
-pub struct PreCommitSectorWrapper(PreCommitSector);
-
-impl PreCommitSectorWrapper {
-    /// Attempt to parse a command-line argument into [`PreCommitSector`].
-    ///
-    /// The command-line argument may be a valid JSON object, or a file path starting with @.
-    pub(crate) fn parse(src: &str) -> Result<Self, anyhow::Error> {
-        Ok(Self(if let Some(stripped) = src.strip_prefix('@') {
-            let path = PathBuf::from_str(stripped)?.canonicalize()?;
-            let mut file = std::fs::File::open(path)?;
-            serde_json::from_reader(&mut file)
-        } else {
-            serde_json::from_str(src)
-        }?))
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ProveCommitSectorWrapper(ProveCommitSector);
-
-impl ProveCommitSectorWrapper {
-    /// Attempt to parse a command-line argument into [`ProveCommitSector`].
-    ///
-    /// The command-line argument may be a valid JSON object, or a file path starting with @.
-    pub(crate) fn parse(src: &str) -> Result<Self, anyhow::Error> {
-        Ok(Self(if let Some(stripped) = src.strip_prefix('@') {
-            let path = PathBuf::from_str(stripped)?.canonicalize()?;
-            let mut file = std::fs::File::open(path)?;
-            serde_json::from_reader(&mut file)
-        } else {
-            serde_json::from_str(src)
-        }?))
-    }
 }
 
 #[derive(Debug, Subcommand)]
@@ -73,14 +35,14 @@ pub enum StorageProviderCommand {
     /// Pre-commit sector containing deals, so they can be proven.
     /// If deals have been published and not pre-commited and proven, they'll be slashed by Market Pallet.
     PreCommit {
-        #[arg(value_parser = PreCommitSectorWrapper::parse)]
-        pre_commit_sector: PreCommitSectorWrapper,
+        #[arg(value_parser = <PreCommitSector as ParseablePath>::parse_json)]
+        pre_commit_sector: PreCommitSector,
     },
     /// Proves sector that has been previously pre-committed.
     /// After proving, a deal in a sector is considered Active.
     ProveCommit {
-        #[arg(value_parser = ProveCommitSectorWrapper::parse)]
-        prove_commit_sector: ProveCommitSectorWrapper,
+        #[arg(value_parser = <ProveCommitSector as ParseablePath>::parse_json)]
+        prove_commit_sector: ProveCommitSector,
     },
 }
 
@@ -125,9 +87,9 @@ impl StorageProviderCommand {
                 );
             }
             StorageProviderCommand::PreCommit { pre_commit_sector } => {
-                let sector_number = pre_commit_sector.0.sector_number;
+                let sector_number = pre_commit_sector.sector_number;
                 let block_hash = client
-                    .pre_commit_sector(&account_keypair, pre_commit_sector.0.into())
+                    .pre_commit_sector(&account_keypair, pre_commit_sector.into())
                     .await?;
 
                 tracing::info!(
@@ -139,9 +101,9 @@ impl StorageProviderCommand {
             StorageProviderCommand::ProveCommit {
                 prove_commit_sector,
             } => {
-                let sector_number = prove_commit_sector.0.sector_number;
+                let sector_number = prove_commit_sector.sector_number;
                 let block_hash = client
-                    .prove_commit_sector(&account_keypair, prove_commit_sector.0.into())
+                    .prove_commit_sector(&account_keypair, prove_commit_sector.into())
                     .await?;
 
                 tracing::info!(

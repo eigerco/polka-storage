@@ -1,10 +1,24 @@
 //! Types in this module are defined to enable deserializing them from the CLI arguments or similar.
-use std::fmt::Debug;
+use std::{fmt::Debug, path::PathBuf, str::FromStr};
 
 use cid::Cid;
 use primitives_proofs::{DealId, SectorNumber};
 use storagext::{BlockNumber, Currency, PolkaStorageConfig, RegisteredSealProof};
 use subxt::ext::sp_core::crypto::Ss58Codec;
+
+pub(crate) trait ParseablePath: serde::de::DeserializeOwned {
+    fn parse_json(src: &str) -> Result<Self, anyhow::Error> {
+        Ok(if let Some(stripped) = src.strip_prefix('@') {
+            let path = PathBuf::from_str(stripped)?.canonicalize()?;
+            let mut file = std::fs::File::open(path)?;
+            serde_json::from_reader(&mut file)
+        } else {
+            serde_json::from_str(src)
+        }?)
+    }
+}
+
+impl<T> ParseablePath for T where T: serde::de::DeserializeOwned {}
 
 #[derive(Clone, PartialEq, Eq)]
 pub(crate) struct DebugPair<Pair>(pub(crate) Pair)
@@ -119,7 +133,6 @@ impl Into<storagext::SectorPreCommitInfo> for PreCommitSector {
         }
     }
 }
-
 
 #[derive(Debug, Clone, serde::Deserialize)]
 pub(crate) struct ProveCommitSector {
