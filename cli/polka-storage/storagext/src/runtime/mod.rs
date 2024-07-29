@@ -24,6 +24,10 @@ pub(crate) mod client;
     derive_for_type(
         path = "primitives_proofs::types::RegisteredSealProof",
         derive = "::serde::Deserialize"
+    ),
+    derive_for_type(
+        path = "primitives_proofs::types::RegisteredPoStProof",
+        derive = "::serde::Deserialize"
     )
 )]
 mod polka_storage_runtime {}

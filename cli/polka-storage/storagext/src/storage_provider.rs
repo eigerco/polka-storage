@@ -1,11 +1,8 @@
-// TODO:
-// - precommit sector
-// - prove commit sector
 use subxt::ext::sp_core::crypto::Ss58Codec;
 
 use crate::{
     runtime::{self, bounded_vec::IntoBoundedByteVec},
-    PolkaStorageConfig, SectorPreCommitInfo,
+    PolkaStorageConfig, RegisteredPoStProof, SectorPreCommitInfo,
 };
 
 /// The maximum number of deal IDs supported.
@@ -36,14 +33,14 @@ impl StorageProviderClient {
         &self,
         account_keypair: &Keypair,
         peer_id: String,
+        post_proof: RegisteredPoStProof,
     ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
-        let payload = runtime::tx().storage_provider().register_storage_provider(
-                peer_id.into_bounded_byte_vec(),
-                runtime::runtime_types::primitives_proofs::types::RegisteredPoStProof::StackedDRGWindow2KiBV1P1
-        );
+        let payload = runtime::tx()
+            .storage_provider()
+            .register_storage_provider(peer_id.into_bounded_byte_vec(), post_proof);
 
         self.client
             .traced_submission(&payload, account_keypair)

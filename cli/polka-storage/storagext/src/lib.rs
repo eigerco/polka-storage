@@ -13,6 +13,10 @@ pub use crate::runtime::runtime_types::pallet_market::{
     pallet as market_pallet_types,
     pallet::{ActiveDealState, DealState},
 };
+pub use crate::runtime::runtime_types::primitives_proofs::{
+    types as primitives_proofs_types,
+    types::{RegisteredPoStProof, RegisteredSealProof},
+};
 
 /// Currency as specified by the SCALE-encoded runtime.
 pub type Currency = u128;
@@ -116,6 +120,7 @@ impl DealProposal {
 
 #[derive(CloneNoBound)]
 pub struct SectorPreCommitInfo {
+    pub seal_proof: RegisteredSealProof,
     pub sector_number: SectorNumber,
     pub sealed_cid: Cid,
     pub deal_ids: Vec<DealId>,
@@ -128,8 +133,7 @@ impl From<SectorPreCommitInfo>
 {
     fn from(value: SectorPreCommitInfo) -> Self {
         Self {
-            // there is only one variant, so we hide it from the CLI and use it directly here.
-            seal_proof: crate::runtime::runtime_types::primitives_proofs::types::RegisteredSealProof::StackedDRG2KiBV1P1,
+            seal_proof: value.seal_proof,
             sector_number: value.sector_number,
             sealed_cid: value.sealed_cid.into_bounded_byte_vec(),
             deal_ids: crate::runtime::polka_storage_runtime::runtime_types::bounded_collections::bounded_vec::BoundedVec(value.deal_ids),

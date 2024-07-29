@@ -3,7 +3,7 @@ use std::fmt::Debug;
 
 use cid::Cid;
 use primitives_proofs::{DealId, SectorNumber};
-use storagext::{BlockNumber, Currency, PolkaStorageConfig};
+use storagext::{BlockNumber, Currency, PolkaStorageConfig, RegisteredSealProof};
 use subxt::ext::sp_core::crypto::Ss58Codec;
 
 #[derive(Clone, PartialEq, Eq)]
@@ -89,6 +89,8 @@ impl Into<storagext::DealProposal> for DealProposal {
 
 #[derive(Debug, Clone, serde::Deserialize)]
 pub(crate) struct PreCommitSector {
+    /// Type of seal that was used when registering a Storage Provider.
+    pub seal_proof: RegisteredSealProof,
     /// Which sector number this SP is pre-committing.
     pub sector_number: SectorNumber,
     /// This value is also known as `commR` or "commitment of replication". The terms `commR` and `sealed_cid` are interchangeable.
@@ -108,6 +110,7 @@ pub(crate) struct PreCommitSector {
 impl Into<storagext::SectorPreCommitInfo> for PreCommitSector {
     fn into(self) -> storagext::SectorPreCommitInfo {
         storagext::SectorPreCommitInfo {
+            seal_proof: self.seal_proof,
             sector_number: self.sector_number,
             sealed_cid: self.sealed_cid.0,
             deal_ids: self.deal_ids,
