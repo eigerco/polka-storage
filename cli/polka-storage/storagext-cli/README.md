@@ -69,9 +69,11 @@ storagext-cli --sr25519-key <key> market withdraw-balance <amount>
 ### `publish-storage-deals`
 
 As a storage provider, you are able to publish storage deals you have done off-chain.
+As this is expirmental CLI for now, you must provide Client's private key to sign a deal.
+Normally, you'd just publish a signed message which you received from a client.
 
 ```
-storagext-cli --sr25519-key <key> market publish-storage-deals <deals>
+storagext-cli --sr25519-key <key> market publish-storage-deals --client-sr25519-key <client-key> <deals>
 ```
 
 The command takes `deals` as a JSON array, containing one or more storage deals.
@@ -116,7 +118,7 @@ However, writing a full JSON file in a single command is cumbersome, to solve th
 you prefix a file path with `@` and use the JSON file location instead:
 
 ```
-storagext-cli --sr25519-key <key> market publish-storage-deals @important-deals.json
+storagext-cli --sr25519-key <key> market publish-storage-deals --client-sr25519-key <client-key> @important-deals.json
 ```
 
 ### `settle-deal-payments`
@@ -171,8 +173,8 @@ This commant takes `pre-commit-sector` as JSON Object.
     "sealed_cid": "bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu",
     "deal_ids": [0],
     "expiration": 100,
-    "unsealed_cid": "bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu",
-    "seal_proof": "StackedDRGWindow2KiBV1P1",
+    "unsealed_cid": "bafkreibme22gw2h7y2h7tg2fhqotaqjucnbc24deqo72b6mkl2egezxhvy",
+    "seal_proof": "StackedDRG2KiBV1P1"
 }
 ```
 
