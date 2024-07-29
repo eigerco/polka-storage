@@ -34,9 +34,7 @@ pub struct Deadline<BlockNumber: sp_runtime::traits::BlockNumber> {
         ConstU32<MAX_PARTITIONS_PER_DEADLINE>,
     >,
 
-    /// Maps blocks to partitions Maps blocks to partitions (i.e. [BlockNumber] -> [PartitionNumber]).
-    /// The partition _may_ have sectors that expire in or
-    /// before that block.
+    /// Maps blocks to partitions that _may_ have sectors about to expire — i.e. just before or in that block.
     /// The expiration happens either on-time or early because faults.
     ///
     /// # Important
