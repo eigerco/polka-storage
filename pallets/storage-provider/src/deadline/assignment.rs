@@ -21,11 +21,13 @@ struct DeadlineAssignmentInfo {
 }
 
 impl DeadlineAssignmentInfo {
+    /// Returns the amount of partitions after adding 1 sector to total sectors.
     fn partitions_after_assignment(&self, partition_size: u64) -> u64 {
         let total_sectors = self.total_sectors + 1; // after assignment
         total_sectors.div_ceil(partition_size)
     }
 
+    /// Returns the amount of partitions after adding 1 sector to live sectors. 
     fn compact_partitions_after_assignment(&self, partition_size: u64) -> u64 {
         let live_sectors = self.live_sectors + 1; // after assignment
         live_sectors.div_ceil(partition_size)
@@ -39,6 +41,7 @@ impl DeadlineAssignmentInfo {
         self.total_sectors % partition_size == 0
     }
 
+    /// Determines if the maximum amount of partitions is reached. The max_partitions value is passed into this function.
     fn max_partitions_reached(&self, partition_size: u64, max_partitions: u64) -> bool {
         self.total_sectors >= partition_size * max_partitions
     }
