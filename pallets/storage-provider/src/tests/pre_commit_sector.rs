@@ -5,7 +5,7 @@ use sp_runtime::{BoundedVec, DispatchError};
 use super::new_test_ext;
 use crate::{
     pallet::{Error, Event, StorageProviders},
-    sector::SECTORS_MAX,
+    sector::MAX_SECTORS,
     tests::{
         account, cid_of, events, publish_deals, register_storage_provider, run_to_block, Balances,
         MaxProveCommitDuration, MaxSectorExpirationExtension, RuntimeEvent, RuntimeOrigin,
@@ -206,7 +206,7 @@ fn fails_invalid_sector() {
 
         // Sector to be pre-committed
         let sector = SectorPreCommitInfoBuilder::default()
-            .sector_number(SECTORS_MAX as u64 + 1)
+            .sector_number(MAX_SECTORS as u64 + 1)
             .build();
 
         // Run pre commit extrinsic

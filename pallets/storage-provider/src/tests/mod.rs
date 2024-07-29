@@ -16,12 +16,19 @@ use sp_runtime::{
     BuildStorage, MultiSignature, MultiSigner,
 };
 
-use crate::{self as pallet_storage_provider, pallet::CID_CODEC, sector::SectorPreCommitInfo};
+use crate::{
+    self as pallet_storage_provider,
+    pallet::CID_CODEC,
+    partition::PartitionNumber,
+    proofs::{PoStProof, SubmitWindowedPoStParams},
+    sector::SectorPreCommitInfo,
+};
 
 mod pre_commit_sector;
 mod prove_commit_sector;
 mod state;
 mod storage_provider_registration;
+mod submit_windowed_post;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 type BlockNumber = u64;
@@ -86,6 +93,8 @@ parameter_types! {
     pub const MaxSectorExpirationExtension: BlockNumber = 1278 * DAYS;
     pub const SectorMaximumLifetime: BlockNumber = YEARS * 5;
     pub const MaxProveCommitDuration: BlockNumber =  (30 * DAYS) + 150;
+    pub const WPoStPeriodDeadlines: u64 = 48;
+    pub const MaxPartitionsPerDeadline: u64 = 3000;
 }
 
 impl pallet_storage_provider::Config for Test {
@@ -99,6 +108,8 @@ impl pallet_storage_provider::Config for Test {
     type MaxSectorExpirationExtension = MaxSectorExpirationExtension;
     type SectorMaximumLifetime = SectorMaximumLifetime;
     type MaxProveCommitDuration = MaxProveCommitDuration;
+    type WPoStPeriodDeadlines = WPoStPeriodDeadlines;
+    type MaxPartitionsPerDeadline = MaxPartitionsPerDeadline;
 }
 
 type AccountIdOf<Test> = <Test as frame_system::Config>::AccountId;
@@ -377,5 +388,44 @@ impl DealProposalBuilder {
         let built = self.unsigned();
         let signed = sign_proposal(by, built);
         signed
+    }
+}
+
+struct SubmitWindowedPoStBuilder {
+    deadline: u64,
+    partition: PartitionNumber,
+    proof: PoStProof,
+    chain_commit_block: BlockNumber,
+}
+
+impl SubmitWindowedPoStBuilder {
+    pub(crate) fn chain_commit_block(self, chain_commit_block: BlockNumber) -> Self {
+        Self {
+            chain_commit_block,
+            ..self
+        }
+    }
+
+    pub(crate) fn build(self) -> SubmitWindowedPoStParams<BlockNumber> {
+        SubmitWindowedPoStParams {
+            deadline: self.deadline,
+            partition: self.partition,
+            proof: self.proof,
+            chain_commit_block: self.chain_commit_block,
+        }
+    }
+}
+
+impl Default for SubmitWindowedPoStBuilder {
+    fn default() -> Self {
+        Self {
+            deadline: 0,
+            partition: 1,
+            proof: PoStProof {
+                post_proof: RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+                proof_bytes: bounded_vec![0x1, 0x2, 0x3],
+            },
+            chain_commit_block: System::block_number(),
+        }
     }
 }

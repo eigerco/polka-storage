@@ -6,6 +6,7 @@ use super::{new_test_ext, MaxProveCommitDuration};
 use crate::{
     pallet::{Error, Event, StorageProviders},
     sector::ProveCommitSector,
+    storage_provider::StorageProviderError,
     tests::{
         account, events, publish_deals, register_storage_provider, run_to_block, Balances,
         RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System, Test,
@@ -132,7 +133,7 @@ fn fails_storage_precommit_missing() {
                 RuntimeOrigin::signed(account(storage_provider)),
                 sector
             ),
-            Error::<Test>::InvalidSector,
+            Error::<Test>::StorageProviderError(StorageProviderError::SectorNotFound),
         );
     });
 }

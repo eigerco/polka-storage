@@ -6,7 +6,7 @@ use primitives_proofs::{
 use scale_info::TypeInfo;
 
 // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/runtime/src/runtime/policy.rs#L262
-pub const SECTORS_MAX: u32 = 32 << 20;
+pub const MAX_SECTORS: u32 = 32 << 20;
 
 /// This type is passed into the pre commit function on the storage provider pallet
 #[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
@@ -51,21 +51,26 @@ impl<Balance, BlockNumber> SectorPreCommitOnChainInfo<Balance, BlockNumber> {
     }
 }
 
-impl<Balance, BlockNumber: Clone> From<&SectorPreCommitOnChainInfo<Balance, BlockNumber>>
+impl<Balance, BlockNumber> From<&SectorPreCommitOnChainInfo<Balance, BlockNumber>>
     for SectorDeal<BlockNumber>
+where
+    BlockNumber: sp_runtime::traits::BlockNumber,
 {
     fn from(precommit: &SectorPreCommitOnChainInfo<Balance, BlockNumber>) -> Self {
         Self {
             sector_number: precommit.info.sector_number,
-            sector_expiry: precommit.info.expiration.clone(),
+            sector_expiry: precommit.info.expiration,
             sector_type: precommit.info.seal_proof.clone(),
             deal_ids: precommit.info.deal_ids.clone(),
         }
     }
 }
 
-#[derive(Debug, Decode, Encode, TypeInfo)]
-pub struct SectorOnChainInfo<BlockNumber> {
+#[derive(Clone, Debug, Decode, Encode, TypeInfo)]
+pub struct SectorOnChainInfo<BlockNumber>
+where
+    BlockNumber: sp_runtime::traits::BlockNumber,
+{
     pub sector_number: SectorNumber,
     /// The seal proof type implies the PoSt proofs
     pub seal_proof: RegisteredSealProof,
@@ -82,7 +87,10 @@ pub struct SectorOnChainInfo<BlockNumber> {
     pub unsealed_cid: SectorId,
 }
 
-impl<BlockNumber> SectorOnChainInfo<BlockNumber> {
+impl<BlockNumber> SectorOnChainInfo<BlockNumber>
+where
+    BlockNumber: sp_runtime::traits::BlockNumber,
+{
     pub fn from_pre_commit(
         pre_commit: SectorPreCommitInfo<BlockNumber>,
         activation: BlockNumber,

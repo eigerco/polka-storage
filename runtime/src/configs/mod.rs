@@ -322,6 +322,8 @@ parameter_types! {
     pub const MaxSectorExpirationExtension: BlockNumber = 1278 * DAYS;
     pub const SectorMaximumLifetime: BlockNumber = (365 * DAYS) * 5; // 5 years
     pub const MaxProveCommitDuration: BlockNumber =  (30 * DAYS) + 150;
+    pub const WPoStPeriodDeadlines: u64 = 48;
+    pub const MaxPartitionsPerDeadline: u64 = 3000;
 
     // Market Pallet
     /// Deal duration values copied from FileCoin.
@@ -340,6 +342,8 @@ parameter_types! {
     pub const MaxSectorExpirationExtension: BlockNumber = 60 * MINUTES;
     pub const SectorMaximumLifetime: BlockNumber = 120 * MINUTES;
     pub const MaxProveCommitDuration: BlockNumber = 5 * MINUTES;
+    pub const WPoStPeriodDeadlines: u64 = 48;
+    pub const MaxPartitionsPerDeadline: u64 = 3000;
 
     // Market Pallet
     pub const TimeUnitInBlocks: u64 = MINUTES;
@@ -358,6 +362,8 @@ impl pallet_storage_provider::Config for Runtime {
     type MaxSectorExpirationExtension = MaxSectorExpirationExtension;
     type SectorMaximumLifetime = SectorMaximumLifetime;
     type MaxProveCommitDuration = MaxProveCommitDuration;
+    type WPoStPeriodDeadlines = WPoStPeriodDeadlines;
+    type MaxPartitionsPerDeadline = MaxPartitionsPerDeadline;
 }
 
 parameter_types! {
