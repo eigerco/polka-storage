@@ -218,7 +218,7 @@ where
 mod tests {
     use frame_support::BoundedVec;
     use primitives_proofs::RegisteredSealProof;
-    
+
     use crate::{
         deadline::{assign_deadlines, Deadline},
         sector::SectorOnChainInfo,
