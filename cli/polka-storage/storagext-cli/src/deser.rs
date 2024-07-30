@@ -1,10 +1,24 @@
 //! Types in this module are defined to enable deserializing them from the CLI arguments or similar.
-
-use std::fmt::Debug;
+use std::{fmt::Debug, path::PathBuf, str::FromStr};
 
 use cid::Cid;
-use storagext::{BlockNumber, Currency, PolkaStorageConfig};
+use primitives_proofs::{DealId, SectorNumber};
+use storagext::{BlockNumber, Currency, PolkaStorageConfig, RegisteredSealProof};
 use subxt::ext::sp_core::crypto::Ss58Codec;
+
+pub(crate) trait ParseablePath: serde::de::DeserializeOwned {
+    fn parse_json(src: &str) -> Result<Self, anyhow::Error> {
+        Ok(if let Some(stripped) = src.strip_prefix('@') {
+            let path = PathBuf::from_str(stripped)?.canonicalize()?;
+            let mut file = std::fs::File::open(path)?;
+            serde_json::from_reader(&mut file)
+        } else {
+            serde_json::from_str(src)
+        }?)
+    }
+}
+
+impl<T> ParseablePath for T where T: serde::de::DeserializeOwned {}
 
 #[derive(Clone, PartialEq, Eq)]
 pub(crate) struct DebugPair<Pair>(pub(crate) Pair)
@@ -37,7 +51,7 @@ where
 ///
 /// <https://github.com/multiformats/rust-cid/issues/162>
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct CidWrapper(Cid);
+pub(crate) struct CidWrapper(pub(crate) Cid);
 
 // The CID has some issues that require a workaround for strings.
 // For more details, see: <https://github.com/multiformats/rust-cid/issues/162>
@@ -83,6 +97,58 @@ impl Into<storagext::DealProposal> for DealProposal {
             storage_price_per_block: self.storage_price_per_block,
             provider_collateral: self.provider_collateral,
             state: self.state.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub(crate) struct PreCommitSector {
+    /// Type of seal that was used when registering a Storage Provider.
+    pub seal_proof: RegisteredSealProof,
+    /// Which sector number this SP is pre-committing.
+    pub sector_number: SectorNumber,
+    /// This value is also known as `commR` or "commitment of replication". The terms `commR` and `sealed_cid` are interchangeable.
+    /// Using sealed_cid as I think that is more descriptive.
+    /// Some docs on `commR` here: <https://proto.school/verifying-storage-on-filecoin/03>
+    pub sealed_cid: CidWrapper,
+    /// Deals IDs to be activated.
+    /// If any of those is invalid, the whole activation is rejected.
+    pub deal_ids: Vec<DealId>,
+    /// Expiration of the pre-committed sector.
+    pub expiration: storagext::BlockNumber,
+    /// This value is also known as `commD` or "commitment of data".
+    /// Once a sector is full `commD` is produced representing the root node of all of the piece CIDs contained in the sector.
+    pub unsealed_cid: CidWrapper,
+}
+
+impl Into<storagext::SectorPreCommitInfo> for PreCommitSector {
+    fn into(self) -> storagext::SectorPreCommitInfo {
+        storagext::SectorPreCommitInfo {
+            seal_proof: self.seal_proof,
+            sector_number: self.sector_number,
+            sealed_cid: self.sealed_cid.0,
+            deal_ids: self.deal_ids,
+            expiration: self.expiration,
+            unsealed_cid: self.unsealed_cid.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub(crate) struct ProveCommitSector {
+    /// Number of a sector that has been previously pre-committed.
+    pub sector_number: SectorNumber,
+    /// Proof bytes as a hex string.
+    /// If empty it fails validation, it has any bytes it succeeds.
+    #[serde(with = "hex")]
+    pub proof: Vec<u8>,
+}
+
+impl Into<storagext::ProveCommitSector> for ProveCommitSector {
+    fn into(self) -> storagext::ProveCommitSector {
+        storagext::ProveCommitSector {
+            sector_number: self.sector_number,
+            proof: self.proof.clone(),
         }
     }
 }

@@ -26,3 +26,9 @@ impl IntoBoundedByteVec for String {
         bounded_vec::BoundedVec(self.into_bytes())
     }
 }
+
+impl IntoBoundedByteVec for Vec<u8> {
+    fn into_bounded_byte_vec(self) -> bounded_vec::BoundedVec<u8> {
+        bounded_vec::BoundedVec(self)
+    }
+}

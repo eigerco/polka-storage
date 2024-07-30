@@ -1,15 +1,23 @@
 use cid::Cid;
 use codec::Encode;
 use frame_support::CloneNoBound;
+use primitives_proofs::{DealId, SectorNumber};
 use subxt::{self, ext::sp_runtime::MultiSignature, tx::Signer, utils::Static};
 
 pub mod market;
 pub mod runtime;
+pub mod storage_provider;
 
 use crate::runtime::bounded_vec::IntoBoundedByteVec;
-pub use crate::runtime::runtime_types::pallet_market::{
-    pallet as market_pallet_types,
-    pallet::{ActiveDealState, DealState},
+pub use crate::runtime::runtime_types::{
+    pallet_market::{
+        pallet as market_pallet_types,
+        pallet::{ActiveDealState, DealState},
+    },
+    primitives_proofs::{
+        types as primitives_proofs_types,
+        types::{RegisteredPoStProof, RegisteredSealProof},
+    },
 };
 
 /// Currency as specified by the SCALE-encoded runtime.
@@ -103,11 +111,55 @@ impl DealProposal {
         >,
     {
         let proposal: market_pallet_types::DealProposal<_, _, _> = self.into();
-        let client_signature = Static(keypair.sign(&proposal.encode()));
+        let encoded = &proposal.encode();
+        tracing::trace!("deal_proposal: encoded proposal: {}", hex::encode(&encoded));
+        let client_signature = Static(keypair.sign(encoded));
 
         market_pallet_types::ClientDealProposal {
             proposal,
             client_signature,
+        }
+    }
+}
+
+#[derive(CloneNoBound)]
+pub struct SectorPreCommitInfo {
+    pub seal_proof: RegisteredSealProof,
+    pub sector_number: SectorNumber,
+    pub sealed_cid: Cid,
+    pub deal_ids: Vec<DealId>,
+    pub expiration: BlockNumber,
+    pub unsealed_cid: Cid,
+}
+
+impl From<SectorPreCommitInfo>
+    for runtime::runtime_types::pallet_storage_provider::sector::SectorPreCommitInfo<BlockNumber>
+{
+    fn from(value: SectorPreCommitInfo) -> Self {
+        Self {
+            seal_proof: value.seal_proof,
+            sector_number: value.sector_number,
+            sealed_cid: value.sealed_cid.into_bounded_byte_vec(),
+            deal_ids: crate::runtime::polka_storage_runtime::runtime_types::bounded_collections::bounded_vec::BoundedVec(value.deal_ids),
+            expiration: value.expiration,
+            unsealed_cid: value.unsealed_cid.into_bounded_byte_vec(),
+        }
+    }
+}
+
+#[derive(CloneNoBound)]
+pub struct ProveCommitSector {
+    pub sector_number: SectorNumber,
+    pub proof: Vec<u8>,
+}
+
+impl From<ProveCommitSector>
+    for runtime::runtime_types::pallet_storage_provider::sector::ProveCommitSector
+{
+    fn from(value: ProveCommitSector) -> Self {
+        Self {
+            sector_number: value.sector_number,
+            proof: value.proof.into_bounded_byte_vec(),
         }
     }
 }
