@@ -69,7 +69,7 @@ storagext-cli --sr25519-key <key> market withdraw-balance <amount>
 ### `publish-storage-deals`
 
 As a storage provider, you are able to publish storage deals you have done off-chain.
-As this is expirmental CLI, you must provide Client's private key to sign a deal.
+As this is an experimental CLI, you must provide Client's private key to sign a deal.
 Normally, you'd just publish a signed message which you received from a client.
 
 ```

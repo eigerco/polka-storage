@@ -27,7 +27,7 @@ pub enum StorageProviderCommand {
     RegisterStorageProvider {
         /// PeerId in Storage Provider P2P network, can be any String.
         peer_id: String,
-        /// PoSt Proof Type
+        /// Proof of Space Time type.
         /// Can only be "2KiB" meaning `RegisteredPoStProof::StackedDRGWindow2KiBV1P1.
         #[arg(long, value_parser = parse_post_proof, default_value = "2KiB")]
         post_proof: RegisteredPoStProof,
