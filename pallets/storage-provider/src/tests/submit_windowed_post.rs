@@ -13,7 +13,6 @@ use crate::{
 
 #[test]
 fn submit_windowed_post() {
-    env_logger::init();
     new_test_ext().execute_with(|| {
         // Setup accounts
         let storage_provider = ALICE;

@@ -24,6 +24,12 @@ pub const MAX_DEALS_PER_SECTOR: u32 = 128;
 /// Required for BoundedVec.
 pub const MAX_DEALS_FOR_ALL_SECTORS: u32 = MAX_SECTORS_PER_CALL * MAX_DEALS_PER_SECTOR;
 
+/// The maximum number of sector per partition.
+pub const MAX_SECTORS_PER_PARTITION: u32 = 128; // TODO(@jmg-duarte,25/07/2024): change for a better value
+
+/// The maximum number of terminations for a single extrinsics call.
+pub const MAX_TERMINATIONS_PER_CALL: u32 = 32; // TODO(@jmg-duarte,25/07/2024): change for a better value
+
 /// Represents functions that are provided by the Market Provider Pallet
 pub trait Market<AccountId, BlockNumber> {
     /// Verifies a given set of storage deals is valid for sectors being PreCommitted.

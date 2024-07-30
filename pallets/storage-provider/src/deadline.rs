@@ -3,18 +3,15 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use codec::{Decode, Encode};
-use frame_support::{
-    pallet_prelude::*,
-    sp_runtime::{BoundedBTreeMap, BoundedVec},
-    PalletError,
-};
+use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeMap, PalletError};
 use primitives_proofs::SectorNumber;
 use scale_info::{prelude::cmp, TypeInfo};
 
 use crate::{
     pallet::LOG_TARGET,
-    partition::{Partition, PartitionNumber, MAX_PARTITIONS_PER_DEADLINE},
-    sector::SectorOnChainInfo,
+    partition::{Partition, PartitionError, PartitionNumber, MAX_PARTITIONS_PER_DEADLINE},
+    sector::{SectorOnChainInfo, MAX_SECTORS},
+    sector_map::PartitionMap,
 };
 
 mod assignment;
@@ -195,6 +192,62 @@ where
             })?;
         }
 
+        Ok(())
+    }
+
+    /// Records the partitions passed in as faulty.
+    /// Filecoin ref: <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/deadline_state.rs#L759>
+    pub fn record_faults(
+        &mut self,
+        sectors: &BoundedBTreeMap<
+            SectorNumber,
+            SectorOnChainInfo<BlockNumber>,
+            ConstU32<MAX_SECTORS>,
+        >,
+        partition_sectors: &mut PartitionMap,
+    ) -> Result<(), DeadlineError> {
+        let partition_map = partition_sectors.clone();
+        let mut partitions = self.partitions.clone();
+        let mut partitions_with_fault =
+            Vec::<PartitionNumber>::with_capacity(partition_sectors.len());
+        for (partition_idx, sector_numbers) in partition_map.0.iter() {
+            let mut partition = partitions.get_mut(&partition_idx).cloned().ok_or({
+                log::error!(target: LOG_TARGET, "Could not get partition at index {partition_idx}");
+                DeadlineError::PartitionNotFound
+            })?;
+            let new_faults =
+                partition.record_faults(sectors, sector_numbers).map_err(|e| {
+                    log::error!(target: LOG_TARGET, "Error while recording faults in a partition: {e:?}");
+                    DeadlineError::PartitionError(e)})?;
+            if !new_faults.is_empty() {
+                partitions_with_fault.push(*partition_idx);
+            }
+
+            partitions = partitions
+                .try_mutate(|inner| {
+                    if let Some(p) = inner.get_mut(partition_idx) {
+                        *p = partition.clone();
+                    }
+                }).ok_or({
+                    log::error!(target: LOG_TARGET, "Failed to update partitions after recording faults");
+                    DeadlineError::FailedToUpdatePartition
+                })?
+                ;
+        }
+        self.partitions = partitions;
+
+        self.add_expiration_partitions(&partitions_with_fault)
+    }
+
+    /// Adds some partition numbers to the set expiring at a block
+    pub fn add_expiration_partitions(
+        &mut self,
+        partitions: &[PartitionNumber],
+    ) -> Result<(), DeadlineError> {
+        // Avoid doing any work if there's nothing to reschedule.
+        if partitions.is_empty() {
+            return Ok(());
+        }
         Ok(())
     }
 }
@@ -386,6 +439,12 @@ where
         self.block_number >= self.close_at
     }
 
+    /// The last block during which a proof may be submitted.
+    pub fn last(&self) -> Result<BlockNumber, DeadlineError> {
+        Ok(self.close_at
+            - BlockNumber::try_from(1u64).map_err(|_| DeadlineError::ConversionError)?)
+    }
+
     /// Returns the next deadline that has not yet elapsed.
     ///
     /// If the current deadline has not elapsed yet then it returns the current deadline.
@@ -473,4 +532,10 @@ pub enum DeadlineError {
     CouldNotAddSectors,
     /// Emitted when assigning sectors to deadlines fails.
     CouldNotAssignSectorsToDeadlines,
+    /// Emitted when a type conversion fails.
+    ConversionError,
+    /// Emitted when updates to a partition fail.
+    FailedToUpdatePartition,
+    /// Wrapper around the partition error type
+    PartitionError(PartitionError),
 }

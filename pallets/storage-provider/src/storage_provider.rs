@@ -225,7 +225,7 @@ where
     }
 
     // Returns current proving period start for the current block according to the current block and constant state offset
-    fn current_proving_period_start(
+    pub fn current_proving_period_start(
         &self,
         current_block: BlockNumber,
         w_post_challenge_window: BlockNumber,

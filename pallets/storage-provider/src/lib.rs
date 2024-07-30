@@ -46,7 +46,11 @@ pub mod pallet {
         pallet_prelude::*,
         traits::{Currency, ReservableCurrency},
     };
-    use frame_system::{ensure_signed, pallet_prelude::*, Config as SystemConfig};
+    use frame_system::{
+        ensure_signed,
+        pallet_prelude::{BlockNumberFor, *},
+        Config as SystemConfig,
+    };
     use primitives_proofs::{Market, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
     use scale_info::TypeInfo;
 
@@ -61,6 +65,7 @@ pub mod pallet {
             ProveCommitSector, SectorOnChainInfo, SectorPreCommitInfo, SectorPreCommitOnChainInfo,
             MAX_SECTORS,
         },
+        sector_map::DeadlineSectorMap,
         storage_provider::{StorageProviderInfo, StorageProviderState},
     };
 
@@ -186,6 +191,10 @@ pub mod pallet {
         /// Maximum number of unique "declarations" in batch operations.
         #[pallet::constant]
         type DeclarationsMax: Get<u64>;
+
+        /// The longest a faulty sector can live without being removed.
+        #[pallet::constant]
+        type FaultMaxAge: Get<BlockNumberFor<Self>>;
     }
 
     /// Need some storage type that keeps track of sectors, deadlines and terminations.
@@ -261,18 +270,20 @@ pub mod pallet {
         PoStProofInvalid,
         /// Emitted when an error occurs when submitting PoSt.
         InvalidDeadlineSubmission,
-        /// Emitted when an SP tries to declare too many faults in 1 extrinsic (max is DeclartionsMax).
-        TooManyDeclartions,
+        /// Emitted when an SP tries to declare too many faults in 1 extrinsic (max is DeclarationsMax).
+        TooManyDeclarations,
         /// Wrapper around the [`DeadlineError`] type.
         DeadlineError(crate::deadline::DeadlineError),
         /// Wrapper around the [`PartitionError`] type.
         PartitionError(crate::partition::PartitionError),
         /// Wrapper around the [`StorageProviderError`] type.
         StorageProviderError(crate::storage_provider::StorageProviderError),
+        /// Wrapper around the [`SectorMapError`] type.
+        SectorMapError(crate::sector_map::SectorMapError),
         /// Emitted when Market::verify_deals_for_activation fails for an unexpected reason.
         /// Verification happens in pre_commit, to make sure a sector is precommited with valid deals.
         CouldNotVerifySectorForPreCommit,
-        /// Declared unsealed_cid for pre_commit is different from the one calcualated by `Market::verify_deals_for_activation`.
+        /// Declared unsealed_cid for pre_commit is different from the one calculated by `Market::verify_deals_for_activation`.
         /// unsealed_cid === CommD and is calculated from piece ids of all of the deals in a sector.
         InvalidUnsealedCidForSector,
     }
@@ -518,14 +529,59 @@ pub mod pallet {
         }
 
         /// The SP uses this extrinsic to declare some sectors as faulty. Letting the system know it will not submit PoSt for the next deadline.
+        ///
+        /// Filecoin reference: <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/lib.rs#L2648>
         pub fn declare_faults(origin: OriginFor<T>, params: DeclareFaultsParams) -> DispatchResult {
+            ensure!(params.faults.len() as u64 <= T::DeclarationsMax::get(), {
+                log::error!(target: LOG_TARGET, "declare_faults: too many fault declarations for a single message: {} > {}", params.faults.len(), T::DeclarationsMax::get());
+                Error::<T>::TooManyDeclarations
+            });
             let owner = ensure_signed(origin)?;
-            ensure!(
-                params.faults.len() as u64 <= T::DeclarationsMax::get(),
-                Error::<T>::TooManyDeclartions
-            );
-            let mut _sp = StorageProviders::<T>::try_get(&owner)
+            let current_block = <frame_system::Pallet<T>>::block_number();
+            let mut sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
+            let mut to_process = DeadlineSectorMap::new();
+            for term in params.faults {
+                let deadline = term.deadline;
+                let partition = term.partition;
+
+                to_process
+                    .try_insert(deadline, partition, term.sectors)
+                    .map_err(|e| Error::<T>::SectorMapError(e))?;
+            }
+            let w_post_period_deadlines = T::WPoStPeriodDeadlines::get();
+            let w_post_challenge_window = T::WPoStChallengeWindow::get();
+            let w_post_proving_period = T::WPoStProvingPeriod::get();
+            let proving_period_start = sp
+                .current_proving_period_start(
+                    current_block,
+                    w_post_challenge_window,
+                    w_post_period_deadlines,
+                    T::WPoStProvingPeriod::get(),
+                )
+                .map_err(|e| Error::<T>::DeadlineError(e))?;
+            let sectors = sp.sectors.clone();
+            let deadlines = sp.get_deadlines_mut();
+            for (deadline_idx, partition_map) in to_process.into_iter() {
+                log::debug!(target: LOG_TARGET, "declare_faults: Processing deadline index: {deadline_idx}");
+                // Get the deadline
+                let target_dl = DeadlineInfo::new(
+                    current_block,
+                    proving_period_start,
+                    *deadline_idx,
+                    w_post_period_deadlines,
+                    w_post_challenge_window,
+                    w_post_proving_period,
+                )
+                .map_err(|e| Error::<T>::DeadlineError(e))?;
+                // TODO(check fault cutoff)
+                let dl = deadlines
+                    .load_deadline_mut(*deadline_idx as usize)
+                    .map_err(|e| Error::<T>::DeadlineError(e))?;
+                let _fault_expiration_block = target_dl.last();
+                dl.record_faults(&sectors, partition_map)
+                    .map_err(|e| Error::<T>::DeadlineError(e))?;
+            }
             Ok(())
         }
     }
