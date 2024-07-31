@@ -153,8 +153,25 @@ fn successful_submit_windowed_post() {
     });
 }
 
+#[ignore]
 #[test]
-fn should_be_slashed_deadline_missed() {}
+fn missed_deadline_should_be_marked_as_faulty() {
+    new_test_ext().execute_with(|| {
+        setup();
+
+        // Run to block where the first deadline is missed
+        run_to_block(7000);
+
+        // Check that the first sector is marked as faulty
+        let state = StorageProviders::<Test>::get(account(ALICE)).unwrap();
+        let deadlines = state.deadlines;
+        let first_dl = deadlines.due.first().expect("programmer error");
+        dbg!(first_dl);
+        assert_eq!(first_dl.live_sectors, 1);
+        assert_eq!(first_dl.total_sectors, 1);
+        assert_eq!(first_dl.partitions.get(&0).unwrap().faults.len(), 1);
+    });
+}
 
 #[ignore]
 #[test]
@@ -284,5 +301,6 @@ fn fail_windowed_post_wrong_deadline_index_used() {
 #[test]
 fn fail_windowed_post_commit_block_outside_challenge() {
     // TODO: Check that if we try to post a proof for the block outside the
-    // challenge window, it should fail.
+    // challenge window, it should fail. Currently this is hard to check because
+    // the deadline calculation is wrong.
 }
