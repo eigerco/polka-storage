@@ -251,7 +251,7 @@ where
         Ok(self
             .due
             .get_mut(idx)
-            .expect("Deadlines are pre-initialized, this cannot fail"))
+            .expect("deadlines are pre-initialized, this cannot fail"))
     }
 
     /// Loads a deadline. Err is returned if the index is out of range.
@@ -265,7 +265,7 @@ where
             .due
             .get(idx)
             .cloned()
-            .expect("Deadlines are pre-initialized, this cannot fail"))
+            .expect("deadlines are pre-initialized, this cannot fail"))
     }
 
     /// Records a deadline as proven.
