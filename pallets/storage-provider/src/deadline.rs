@@ -237,27 +237,30 @@ where
         self.due.len()
     }
 
-    /// Loads a mutable deadline from the given index.
-    /// Fails if the index does not exist or is out of range.
+    /// Loads a mutable deadline from the given index. Err is returned if the
+    /// index is out of range.
     pub fn load_deadline_mut(
         &mut self,
         idx: usize,
     ) -> Result<&mut Deadline<BlockNumber>, DeadlineError> {
         log::debug!(target: LOG_TARGET, "load_deadline_mut: getting deadline at index {idx}");
+
         // Ensure the provided index is within range.
         ensure!(self.len() > idx, DeadlineError::DeadlineIndexOutOfRange);
+
         Ok(self
             .due
             .get_mut(idx)
             .expect("Deadlines are pre-initialized, this cannot fail"))
     }
 
-    /// Loads a deadline
-    /// Fails if the index does not exist or is out of range.
+    /// Loads a deadline. Err is returned if the index is out of range.
     pub fn load_deadline(&self, idx: usize) -> Result<Deadline<BlockNumber>, DeadlineError> {
         log::debug!(target: LOG_TARGET, "load_deadline_mut: getting deadline at index {idx}");
+
         // Ensure the provided index is within range.
         ensure!(self.len() > idx, DeadlineError::DeadlineIndexOutOfRange);
+
         Ok(self
             .due
             .get(idx)
