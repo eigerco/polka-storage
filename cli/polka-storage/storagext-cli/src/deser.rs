@@ -10,8 +10,9 @@ pub(crate) trait ParseablePath: serde::de::DeserializeOwned {
     fn parse_json(src: &str) -> Result<Self, anyhow::Error> {
         Ok(if let Some(stripped) = src.strip_prefix('@') {
             let path = PathBuf::from_str(stripped)?.canonicalize()?;
-            let mut file = std::fs::File::open(path)?;
-            serde_json::from_reader(&mut file)
+            let file = std::fs::File::open(path)?;
+            let mut buffered_file = std::io::BufReader::new(file);
+            serde_json::from_reader(&mut buffered_file)
         } else {
             serde_json::from_str(src)
         }?)
