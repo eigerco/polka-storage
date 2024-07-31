@@ -609,6 +609,10 @@ pub mod pallet {
 
         /// Goes through all of the registered storage providers and checks if they have any expired pre committed sectors.
         /// If there are any sectors that are expired the total deposit amount for all those sectors will be slashed.
+        ///
+        /// References:
+        /// * <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/state.rs#L1071>
+        /// * <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/state.rs#L1054>
         fn check_precommited_sectors(current_block: BlockNumberFor<T>) {
             const LOG_TARGET: &'static str = "runtime::storage_provider::check_precommited_sectors";
 
@@ -666,6 +670,8 @@ pub mod pallet {
                     log::error!(target: LOG_TARGET, "failed to settle currency after slashing... amount: {:?}, storage_provider: {}", slash_amount, storage_provider);
                     continue;
                 };
+
+                StorageProviders::<T>::insert(&storage_provider, state);
             }
         }
 
