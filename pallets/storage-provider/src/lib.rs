@@ -33,7 +33,7 @@ pub mod pallet {
 
     extern crate alloc;
 
-    use alloc::vec;
+    use alloc::{vec, vec::Vec};
     use core::fmt::Debug;
 
     use cid::{Cid, Version};
@@ -42,11 +42,15 @@ pub mod pallet {
         dispatch::DispatchResult,
         ensure, fail,
         pallet_prelude::*,
-        traits::{Currency, ReservableCurrency},
+        sp_runtime::traits::{CheckedAdd, CheckedSub},
+        traits::{
+            Currency, ExistenceRequirement::KeepAlive, Imbalance, ReservableCurrency,
+            WithdrawReasons,
+        },
     };
     use frame_system::{ensure_signed, pallet_prelude::*, Config as SystemConfig};
     use primitives_proofs::{Market, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
-    use scale_info::{prelude::vec::Vec, TypeInfo};
+    use scale_info::TypeInfo;
     use sp_arithmetic::traits::Zero;
 
     use crate::{
@@ -513,16 +517,12 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
-            // TODO(@aidan46, no-ref, 2024/07/09): set proper weights
+            // TODO(@th7nder, no-ref, 2024/07/31): set proper weights
             T::DbWeight::get().reads(1)
         }
 
-        /// This function should check 2 things for every storage provider:
-        /// 1. Whether pre committed sectors that have not yet been proven are past their deadline.
-        /// If the pre committed sectors are expired, the SP should be slashed and these pre committed sectors should be removed.
-        /// 2. Check wether a PoSt deadline has been passed and slash the SPs deposit if this is the case.
         fn on_finalize(current_block: BlockNumberFor<T>) {
-            Self::pre_commit_expired_hook(current_block);
+            Self::check_precommited_sectors(current_block);
         }
     }
 
@@ -609,57 +609,99 @@ pub mod pallet {
 
         /// Goes through all of the registered storage providers and checks if they have any expired pre committed sectors.
         /// If there are any sectors that are expired the total deposit amount for all those sectors will be slashed.
-        fn pre_commit_expired_hook(current_block: BlockNumberFor<T>) {
-            StorageProviders::<T>::iter().for_each(|(owner, sp) |{
-                log::info!(target: LOG_TARGET, "Checking storage provider owned by {owner:?}");
-                // Check precommit sector expiry
-                let (expired, slash_amount) = Self::check_pre_commit_expiration(current_block, &sp);
-                if !expired.is_empty() {
-                    log::warn!(target: LOG_TARGET, "on_finalize: Found expired pre committed sectors for {owner}");
-                    // Some sectors are expired and should be removed.
-                    // The expect calls here are infallible because we are looping over sps and using the keys to get them.
-                    // In case the infallible expect does fail somehow first remove sectors to prevent loss of funds.
-                    for sector_number in expired {
-                        StorageProviders::<T>::mutate(&owner, |maybe_sp| -> () {
-                            let sp = maybe_sp.as_mut().expect("Infallible");
-                            let _ = sp.remove_pre_committed_sector(sector_number);
-                        });
-                    }
-                    // Slash the amount for all the sectors and updates the state.
-                    StorageProviders::<T>::mutate(&owner, |maybe_sp| -> () {
-                        let sp = maybe_sp.as_mut().expect("Infallible");
-                        sp.pre_commit_deposits -= slash_amount;
-                        let _ = T::Currency::slash_reserved(&owner, slash_amount);
-                    });
+        fn check_precommited_sectors(current_block: BlockNumberFor<T>) {
+            const LOG_TARGET: &'static str = "runtime::storage_provider::check_precommited_sectors";
+
+            // TODO(@th7nder,31/07/2024): this approach is suboptimal, as it's time complexity is O(StorageProviders * PreCommitedSectors).
+            // We can reduce this by indexing pre-committed sectors by BlockNumber in which they're supposed to be activated in PreCommit and remove them in ProveCommit.
+            log::info!(target: LOG_TARGET, "checking pre_commited_sectors for block: {}", current_block);
+
+            // We cannot modify storage map while inside `iter_keys()` as docs say it's undefined results.
+            // And we can use `alloc::Vec`, because it's bounded by StorageProviders data structure anyways.
+            let storage_providers: Vec<_> = StorageProviders::<T>::iter_keys().collect();
+            for storage_provider in storage_providers {
+                log::info!(target: LOG_TARGET, "checking storage provider {:?}", storage_provider);
+                let Ok(mut state) = StorageProviders::<T>::try_get(storage_provider.clone()) else {
+                    log::error!(target: LOG_TARGET, "catastrophe, couldn't find a storage provider based on key. it should have been there...");
+                    continue;
+                };
+
+                let (expired, slash_amount) =
+                    Self::detect_expired_precommit_sectors(current_block, &state);
+                if expired.is_empty() {
+                    return;
                 }
-            })
+
+                log::info!(target: LOG_TARGET, "found {} expired pre committed sectors for {}", expired.len(), storage_provider);
+                for sector_number in expired {
+                    // Expired sectors should be removed, because in other case they'd be processed twice in the next block.
+                    let Ok(()) = state.remove_pre_committed_sector(sector_number) else {
+                        log::error!(target: LOG_TARGET, "catastrophe, failed to remove sector {} for {}", sector_number, storage_provider);
+                        continue;
+                    };
+                }
+
+                let Some(slashed_deposits) = state.pre_commit_deposits.checked_sub(&slash_amount)
+                else {
+                    log::error!(target: LOG_TARGET, "catastrophe, failed to subtract from pre_commit_deposits {:?} - {:?} < 0", state.pre_commit_deposits, slash_amount);
+                    continue;
+                };
+                state.pre_commit_deposits = slashed_deposits;
+
+                // PRE-COND: currency was previously reserved in pre_commit
+                let (imbalance, balance) =
+                    T::Currency::slash_reserved(&storage_provider, slash_amount);
+                if balance > BalanceOf::<T>::zero() {
+                    log::warn!(target: LOG_TARGET, "could not slash_reserved entirely, invariant violated");
+                }
+                // slash_reserved returns NegativeImbalance, we need to get a concrete value and burn it to level out the circulating currency
+                let imbalance = T::Currency::burn(imbalance.peek());
+
+                let Ok(()) = T::Currency::settle(
+                    &storage_provider,
+                    imbalance,
+                    WithdrawReasons::RESERVE,
+                    KeepAlive,
+                ) else {
+                    log::error!(target: LOG_TARGET, "failed to settle currency after slashing... amount: {:?}, storage_provider: {}", slash_amount, storage_provider);
+                    continue;
+                };
+            }
         }
 
-        /// Loops through all the storage providers and checks whether they missed
-        /// any of their proof of spacetime submission deadlines.
+        /// Checks whether pre-committed sectors are expired and calculates slash amount.
         ///
-        /// If any of these proof submissions are past their deadline the sp is charged a fee and the sector will be marked as faulty.
-        fn post_past_deadline(current_block: BlockNumberFor<T>) {
-            todo!()
-        }
-
-        /// Checks whether pre-committed sectors are expired.
+        /// THIS FUNCTION DOES NOT HANDLE ERRORS!
+        /// Code in hooks is assumed infallible and operates under invariants.
         ///
-        /// Returns an array of expired sector numbers and the total deposit about to be slashed.
-        fn check_pre_commit_expiration(
+        /// Returns an array of expired sector numbers and the total deposit to be slashed.
+        fn detect_expired_precommit_sectors(
             curr_block: BlockNumberFor<T>,
-            sp: &StorageProviderState<T::PeerId, BalanceOf<T>, BlockNumberFor<T>>,
-        ) -> (Vec<SectorNumber>, BalanceOf<T>) {
-            let mut expired_sectors = Vec::new();
+            state: &StorageProviderState<T::PeerId, BalanceOf<T>, BlockNumberFor<T>>,
+        ) -> (
+            BoundedVec<SectorNumber, ConstU32<MAX_SECTORS>>,
+            BalanceOf<T>,
+        ) {
+            let mut expired_sectors: BoundedVec<SectorNumber, ConstU32<MAX_SECTORS>> =
+                BoundedVec::new();
             let mut to_be_slashed = BalanceOf::<T>::zero();
-            sp.pre_committed_sectors
-                .iter()
-                .for_each(|(sector_number, sector)| {
-                    if sector.info.expiration > curr_block {
-                        expired_sectors.push(*sector_number);
-                        to_be_slashed += sector.pre_commit_deposit;
-                    }
-                });
+
+            for (sector_number, sector) in &state.pre_committed_sectors {
+                // Expiration marks the time for a block when it was supposed to be proven by `prove_commit` ultimately.
+                // If it's still in `pre_commited_sectors` and `curr_block` is past this time, it means it was not.
+                if curr_block >= sector.info.expiration {
+                    let Ok(()) = expired_sectors.try_push(*sector_number) else {
+                        log::error!(target: LOG_TARGET, "detect_expired_precommit_sectors: invariant violated, expired_sectors bounded_vec's capacity < state.pre_committed_sectors capacity, sector: {}", sector_number);
+                        continue;
+                    };
+                    let Some(result) = to_be_slashed.checked_add(&sector.pre_commit_deposit) else {
+                        log::error!(target: LOG_TARGET, "detect_expired_precommit_sectors: invariant violated, overflow in adding slash deposit: sector: {}, current: {:?}, to add: {:?}", sector_number, to_be_slashed, sector.pre_commit_deposit);
+                        continue;
+                    };
+                    to_be_slashed = result;
+                }
+            }
+
             (expired_sectors, to_be_slashed)
         }
     }
