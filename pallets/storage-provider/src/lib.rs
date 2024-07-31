@@ -480,6 +480,8 @@ pub mod pallet {
             let current_block = <frame_system::Pallet<T>>::block_number();
             let mut sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
+
+            // Validate the PoSt submission
             if let Err(e) = Self::validate_windowed_post(
                 current_block,
                 &windowed_post,
@@ -488,6 +490,8 @@ pub mod pallet {
                 log::error!(target: LOG_TARGET, "submit_window_post: PoSt submission is invalid {e:?}");
                 return Err(e.into());
             }
+
+            // Get the deadline that should be open for PoSt submission
             let current_deadline = sp
                 .deadline_info(
                     current_block,
@@ -496,15 +500,23 @@ pub mod pallet {
                     T::WPoStProvingPeriod::get(),
                 )
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
+            // Validate the deadline
             Self::validate_deadline(current_block, &current_deadline, &windowed_post)?;
+
+            // Get all deadlines
             let deadlines = sp.get_deadlines_mut();
             log::debug!(target: LOG_TARGET, "submit_windowed_post: deadlines = {deadlines:#?}");
-            // record sector as proven
+
+            // Record partition as proven
             deadlines
                 .record_proven(windowed_post.deadline as usize, windowed_post.partition)
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
+
             log::debug!(target: LOG_TARGET, "submit_windowed_post: proof recorded");
+
+            // Notify that the successful PoSt was submitted
             Self::deposit_event(Event::ValidPoStSubmitted { owner });
+
             Ok(())
         }
     }
@@ -520,21 +532,25 @@ pub mod pallet {
                 expiration >= activation,
                 Error::<T>::ExpirationBeforeActivation
             );
+
             // expiration cannot be less than minimum after activation
             ensure!(
                 expiration - activation > T::MinSectorExpiration::get(),
                 Error::<T>::ExpirationTooSoon
             );
+
             // expiration cannot exceed MaxSectorExpirationExtension from now
             ensure!(
                 expiration < curr_block + T::MaxSectorExpirationExtension::get(),
                 Error::<T>::ExpirationTooLong,
             );
+
             // total sector lifetime cannot exceed SectorMaximumLifetime for the sector's seal proof
             ensure!(
                 expiration - activation < T::SectorMaximumLifetime::get(),
                 Error::<T>::MaxSectorLifetimeExceeded
             );
+
             Ok(())
         }
 
@@ -551,16 +567,19 @@ pub mod pallet {
                 windowed_post.proof.post_proof == expected_proof,
                 Error::<T>::InvalidProofType
             );
+
             // TODO(@aidan46, #91, 2024-07-03): Validate the proof after research is done
             ensure!(
                 windowed_post.proof.proof_bytes.len() > 0,
                 Error::<T>::PoStProofInvalid
             );
+
             // chain commit block must be less than the current block
             ensure!(
                 windowed_post.chain_commit_block < current_block,
                 Error::<T>::PoStProofInvalid
             );
+
             Ok(())
         }
 
@@ -579,14 +598,17 @@ pub mod pallet {
                 log::error!(target: LOG_TARGET, "validate_deadline: {current_deadline:?}, deadline isn't open");
                 Error::<T>::InvalidDeadlineSubmission
             });
+
             ensure!(post_params.deadline == current_deadline.idx, {
                 log::error!(target: LOG_TARGET, "validate_deadline: given index does not match current index {} != {}", post_params.deadline, current_deadline.idx);
                 Error::<T>::InvalidDeadlineSubmission
             });
+
             ensure!(post_params.chain_commit_block < curr_block, {
                 log::error!(target: LOG_TARGET, "validate_deadline: chain commit block is after current block {:?} > {curr_block:?}", post_params.chain_commit_block);
                 Error::<T>::InvalidDeadlineSubmission
             });
+
             Ok(())
         }
     }

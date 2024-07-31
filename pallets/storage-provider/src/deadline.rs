@@ -277,8 +277,11 @@ where
         partition_num: PartitionNumber,
     ) -> Result<(), DeadlineError> {
         log::debug!(target: LOG_TARGET, "record_proven: partition number: {partition_num:?}");
+
+        // Record the partition as proven.
         let deadline = self.load_deadline_mut(deadline_idx)?;
         deadline.record_proven(partition_num)?;
+
         Ok(())
     }
 

@@ -167,18 +167,22 @@ where
     ) -> Result<(), StorageProviderError> {
         let deadlines = &self.deadlines;
         sectors.sort_by_key(|info| info.sector_number);
+
         let mut deadline_vec: Vec<Option<Deadline<BlockNumber>>> =
             (0..w_post_period_deadlines).map(|_| None).collect();
+
         log::debug!(target: LOG_TARGET,
             "assign_sectors_to_deadlines: deadline len = {}",
             deadlines.len()
         );
+
         let proving_period_start = self.current_proving_period_start(
             current_block,
             w_post_challenge_window,
             w_post_period_deadlines,
             w_post_proving_period,
         )?;
+
         deadlines.clone().due.iter().enumerate().try_for_each(
             |(deadline_idx, deadline)| -> Result<(), DeadlineError> {
                 // Skip deadlines that aren't currently mutable.
@@ -195,6 +199,7 @@ where
                 Ok(())
             },
         )?;
+
         let deadline_to_sectors = assign_deadlines(
             max_partitions_per_deadline,
             partition_size,
@@ -202,7 +207,9 @@ where
             &sectors,
             w_post_period_deadlines,
         )?;
+
         let deadlines = self.get_deadlines_mut();
+
         for (deadline_idx, deadline_sectors) in deadline_to_sectors.enumerate() {
             if deadline_sectors.is_empty() {
                 continue;
@@ -221,6 +228,7 @@ where
                 .update_deadline(deadline_idx, deadline.clone())
                 .map_err(|e| StorageProviderError::DeadlineError(e))?;
         }
+
         Ok(())
     }
 
@@ -256,10 +264,12 @@ where
     ) -> Result<DeadlineInfo<BlockNumber>, DeadlineError> {
         let current_deadline_index =
             (current_block / self.proving_period_start) / w_post_challenge_window;
+
         // convert to u64
         let current_deadline_index: u64 = current_deadline_index
             .try_into()
             .map_err(|_| DeadlineError::CouldNotConstructDeadlineInfo)?;
+
         DeadlineInfo::new(
             current_block,
             self.proving_period_start,

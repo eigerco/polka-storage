@@ -399,14 +399,17 @@ struct SubmitWindowedPoStBuilder {
 }
 
 impl SubmitWindowedPoStBuilder {
-    pub(crate) fn chain_commit_block(self, chain_commit_block: BlockNumber) -> Self {
-        Self {
-            chain_commit_block,
-            ..self
-        }
+    pub fn deadline(mut self, deadline: u64) -> Self {
+        self.deadline = deadline;
+        self
     }
 
-    pub(crate) fn build(self) -> SubmitWindowedPoStParams<BlockNumber> {
+    pub fn chain_commit_block(mut self, chain_commit_block: BlockNumber) -> Self {
+        self.chain_commit_block = chain_commit_block;
+        self
+    }
+
+    pub fn build(self) -> SubmitWindowedPoStParams<BlockNumber> {
         SubmitWindowedPoStParams {
             deadline: self.deadline,
             partition: self.partition,
