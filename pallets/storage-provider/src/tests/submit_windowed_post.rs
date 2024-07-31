@@ -155,6 +155,48 @@ fn successful_submit_windowed_post() {
 
 #[ignore]
 #[test]
+fn submit_windowed_post_for_sector_twice() {
+    new_test_ext().execute_with(|| {
+        setup();
+
+        // Run to block where the window post proof is to be submitted
+        run_to_block(6700);
+
+        // Build window post proof
+        let windowed_post = SubmitWindowedPoStBuilder::default()
+            .deadline(0)
+            .chain_commit_block(System::block_number() - 1)
+            .build();
+
+        // Run extrinsic and assert that the result is `Ok`
+        assert_ok!(StorageProvider::submit_windowed_post(
+            RuntimeOrigin::signed(account(ALICE)),
+            windowed_post.clone(),
+        ));
+
+        // Run extrinsic and assert that the result is `Ok`
+        assert_noop!(
+            StorageProvider::submit_windowed_post(
+                RuntimeOrigin::signed(account(ALICE)),
+                windowed_post,
+            ),
+            Error::<Test>::PoStProofInvalid
+        );
+
+        // Check that only one event was emitted
+        assert_eq!(
+            events(),
+            [RuntimeEvent::StorageProvider(
+                Event::<Test>::ValidPoStSubmitted {
+                    owner: account(ALICE)
+                }
+            )]
+        );
+    });
+}
+
+#[ignore]
+#[test]
 fn missed_deadline_should_be_marked_as_faulty() {
     new_test_ext().execute_with(|| {
         setup();
