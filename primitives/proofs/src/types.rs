@@ -10,6 +10,22 @@ pub type DealId = u64;
 // always be between 0 and SECTORS_MAX (32 << 20).
 pub type SectorNumber = u64;
 
+/// SectorSize indicates one of a set of possible sizes in the network.
+#[derive(Encode, Decode, TypeInfo, Clone, RuntimeDebug, PartialEq, Eq, Copy)]
+pub enum SectorSize {
+    _2KiB,
+}
+
+impl SectorSize {
+    /// Returns the size of a sector in bytes
+    /// <https://github.com/filecoin-project/ref-fvm/blob/5659196fa94accdf1e7f10e00586a8166c44a60d/shared/src/sector/mod.rs#L40>
+    pub fn bytes(&self) -> u64 {
+        match self {
+            SectorSize::_2KiB => 2 << 10,
+        }
+    }
+}
+
 #[allow(non_camel_case_types)]
 #[derive(
     RuntimeDebug, Decode, Encode, DecodeAsType, EncodeAsType, TypeInfo, Eq, PartialEq, Clone,
@@ -70,18 +86,31 @@ impl RegisteredPoStProof {
     }
 }
 
-/// SectorSize indicates one of a set of possible sizes in the network.
-#[derive(Encode, Decode, TypeInfo, Clone, RuntimeDebug, PartialEq, Eq, Copy)]
-pub enum SectorSize {
-    _2KiB,
-}
+#[cfg(all(test, feature = "serde"))]
+mod serde_tests {
+    use crate::{RegisteredPoStProof, RegisteredSealProof};
 
-impl SectorSize {
-    /// Returns the size of a sector in bytes
-    /// <https://github.com/filecoin-project/ref-fvm/blob/5659196fa94accdf1e7f10e00586a8166c44a60d/shared/src/sector/mod.rs#L40>
-    pub fn bytes(&self) -> u64 {
-        match self {
-            SectorSize::_2KiB => 2 << 10,
-        }
+    #[test]
+    fn ensure_serde_for_registered_seal_proof() {
+        assert_eq!(
+            serde_json::from_str::<RegisteredSealProof>(r#""2KiB""#).unwrap(),
+            RegisteredSealProof::StackedDRGWindow2KiBV1P1
+        );
+        assert_eq!(
+            serde_json::from_str::<RegisteredSealProof>(r#""StackedDRGWindow2KiBV1P1""#).unwrap(),
+            RegisteredSealProof::StackedDRGWindow2KiBV1P1
+        );
+    }
+
+    #[test]
+    fn ensure_serde_for_registered_post_proof() {
+        assert_eq!(
+            serde_json::from_str::<RegisteredPoStProof>(r#""2KiB""#).unwrap(),
+            RegisteredPoStProof::StackedDRGWindow2KiBV1P1
+        );
+        assert_eq!(
+            serde_json::from_str::<RegisteredPoStProof>(r#""StackedDRGWindow2KiBV1P1""#).unwrap(),
+            RegisteredPoStProof::StackedDRGWindow2KiBV1P1
+        );
     }
 }

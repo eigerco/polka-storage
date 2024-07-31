@@ -10,7 +10,7 @@ use super::runtime_types::bounded_collections::bounded_vec;
 /// Due to Rust's orphan rule, we cannot implement `Into<BoundedVec<u8>> for T`
 /// where we don't own `T`, which turns out to be most of the useful cases;
 /// much like [`Cid`] or [`String`], which don't have official representations in Substrate.
-pub(crate) trait IntoBoundedByteVec {
+pub trait IntoBoundedByteVec {
     /// Convert [`Self`] into a bounded vector of bytes.
     fn into_bounded_byte_vec(self) -> bounded_vec::BoundedVec<u8>;
 }

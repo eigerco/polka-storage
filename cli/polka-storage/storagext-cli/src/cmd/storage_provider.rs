@@ -1,13 +1,11 @@
 use anyhow::bail;
 use clap::Subcommand;
-use storagext::{
-    runtime::runtime_types::pallet_storage_provider::proofs::SubmitWindowedPoStParams,
-    storage_provider::StorageProviderClient, BlockNumber, PolkaStorageConfig, RegisteredPoStProof,
-};
+use primitives_proofs::RegisteredPoStProof;
+use storagext::{storage_provider::StorageProviderClient, PolkaStorageConfig};
 use subxt::ext::sp_core::crypto::Ss58Codec;
 use url::Url;
 
-use crate::deser::{ParseablePath, PreCommitSector, ProveCommitSector};
+use crate::deser::{ParseablePath, PreCommitSector, ProveCommitSector, SubmitWindowedPoStParams};
 
 fn parse_post_proof(src: &str) -> Result<RegisteredPoStProof, anyhow::Error> {
     let post_proof = match src {
@@ -53,8 +51,8 @@ pub enum StorageProviderCommand {
     /// Submit a Proof-of-SpaceTime (PoST).
     #[command(name = "submit-windowed-post")]
     SubmitWindowedProofOfSpaceTime {
-        #[arg(value_parser = <SubmitWindowedPoStParams<BlockNumber> as ParseablePath>::parse_json)]
-        windowed_post: SubmitWindowedPoStParams<BlockNumber>,
+        #[arg(value_parser = <SubmitWindowedPoStParams as ParseablePath>::parse_json)]
+        windowed_post: SubmitWindowedPoStParams,
     },
 }
 
@@ -126,7 +124,7 @@ impl StorageProviderCommand {
             }
             StorageProviderCommand::SubmitWindowedProofOfSpaceTime { windowed_post } => {
                 let block_hash = client
-                    .submit_windowed_post(&account_keypair, windowed_post)
+                    .submit_windowed_post(&account_keypair, windowed_post.into())
                     .await?;
 
                 tracing::info!("[{}] Successfully submitted proof.", block_hash,);

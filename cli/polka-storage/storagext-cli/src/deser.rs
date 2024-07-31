@@ -2,8 +2,8 @@
 use std::{fmt::Debug, path::PathBuf, str::FromStr};
 
 use cid::Cid;
-use primitives_proofs::{DealId, SectorNumber};
-use storagext::{BlockNumber, Currency, PolkaStorageConfig, RegisteredSealProof};
+use primitives_proofs::{DealId, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
+use storagext::{BlockNumber, Currency, IntoBoundedByteVec, PolkaStorageConfig};
 use subxt::ext::sp_core::crypto::Ss58Codec;
 
 pub(crate) trait ParseablePath: serde::de::DeserializeOwned {
@@ -135,7 +135,7 @@ impl Into<storagext::SectorPreCommitInfo> for PreCommitSector {
     }
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
 pub(crate) struct ProveCommitSector {
     /// Number of a sector that has been previously pre-committed.
     pub sector_number: SectorNumber,
@@ -154,6 +154,41 @@ impl Into<storagext::ProveCommitSector> for ProveCommitSector {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+pub(crate) struct PoStProof {
+    pub post_proof: RegisteredPoStProof,
+    #[serde(with = "hex")]
+    pub proof_bytes: Vec<u8>,
+}
+
+impl Into<storagext::PoStProof> for PoStProof {
+    fn into(self) -> storagext::PoStProof {
+        storagext::PoStProof {
+            post_proof: self.post_proof,
+            proof_bytes: self.proof_bytes.into_bounded_byte_vec(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+pub(crate) struct SubmitWindowedPoStParams {
+    pub deadline: u64,
+    pub partition: u32,
+    pub proof: PoStProof,
+    pub chain_commit_block: BlockNumber,
+}
+
+impl Into<storagext::SubmitWindowedPoStParams<BlockNumber>> for SubmitWindowedPoStParams {
+    fn into(self) -> storagext::SubmitWindowedPoStParams<BlockNumber> {
+        storagext::SubmitWindowedPoStParams {
+            deadline: self.deadline,
+            partition: self.partition,
+            proof: self.proof.into(),
+            chain_commit_block: self.chain_commit_block,
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     //! These tests basically ensure that the underlying parsers aren't broken without warning.
@@ -161,13 +196,13 @@ mod test {
     use std::str::FromStr;
 
     use cid::Cid;
+    use primitives_proofs::RegisteredPoStProof;
     use storagext::PolkaStorageConfig;
     use subxt::ext::sp_core::{
         ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair, sr25519::Pair as Sr25519Pair,
     };
 
-    use super::{CidWrapper, DealProposal, DebugPair};
-
+    use super::{CidWrapper, DealProposal, DebugPair, PoStProof, SubmitWindowedPoStParams};
     #[track_caller]
     fn assert_debug_pair<P>(s: &str)
     where
@@ -273,5 +308,51 @@ mod test {
         };
 
         assert_eq!(result_deal_proposal, expect_deal_proposal);
+    }
+
+    #[test]
+    fn ensure_serde_for_post_proof() {
+        let proof = serde_json::from_str::<PoStProof>(
+            r#"{
+                "post_proof": "2KiB",
+                "proof_bytes": "1234567890"
+            }"#,
+        )
+        .unwrap();
+        assert_eq!(
+            proof,
+            PoStProof {
+                post_proof: RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+                proof_bytes: vec![0x12u8, 0x34, 0x56, 0x78, 0x90]
+            }
+        );
+    }
+
+    #[test]
+    fn ensure_serde_for_submit_windowed_post_params() {
+        let proof = serde_json::from_str::<SubmitWindowedPoStParams>(
+            r#"{
+                "deadline": 10,
+                "partition": 10,
+                "chain_commit_block": 1,
+                "proof": {
+                    "post_proof": "2KiB",
+                    "proof_bytes": "1234567890"
+                }
+            }"#,
+        )
+        .unwrap();
+        assert_eq!(
+            proof,
+            SubmitWindowedPoStParams {
+                deadline: 10,
+                partition: 10,
+                chain_commit_block: 1,
+                proof: PoStProof {
+                    post_proof: RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+                    proof_bytes: vec![0x12u8, 0x34, 0x56, 0x78, 0x90]
+                }
+            }
+        );
     }
 }

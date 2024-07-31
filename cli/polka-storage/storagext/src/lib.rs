@@ -8,13 +8,15 @@ use frame_support::CloneNoBound;
 use primitives_proofs::{DealId, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
 use subxt::{self, ext::sp_runtime::MultiSignature, tx::Signer, utils::Static};
 
-use crate::runtime::bounded_vec::IntoBoundedByteVec;
-pub use crate::runtime::runtime_types::{
-    pallet_market::{
-        pallet as market_pallet_types,
-        pallet::{ActiveDealState, DealState},
+pub use crate::runtime::{
+    bounded_vec::IntoBoundedByteVec,
+    runtime_types::{
+        pallet_market::{
+            pallet as market_pallet_types,
+            pallet::{ActiveDealState, DealState},
+        },
+        pallet_storage_provider::proofs::{PoStProof, SubmitWindowedPoStParams},
     },
-    primitives_proofs::types as primitives_proofs_types,
 };
 
 /// Currency as specified by the SCALE-encoded runtime.
