@@ -17,7 +17,7 @@ cid = { workspace = true, features = ["scale-codec"] }
 clap = { workspace = true, features = ["derive"] }
 codec.workspace = true
 frame-support = { workspace = true, features = ["std"] }
-hex.workspace = true
+hex = { workspace = true, features = ["serde"] }
 primitives-proofs = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 subxt = { workspace = true, features = ["jsonrpsee", "substrate-compat"] }

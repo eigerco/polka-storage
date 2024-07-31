@@ -1,8 +1,11 @@
 use subxt::ext::sp_core::crypto::Ss58Codec;
 
 use crate::{
-    runtime::{self, bounded_vec::IntoBoundedByteVec},
-    PolkaStorageConfig, ProveCommitSector, RegisteredPoStProof, SectorPreCommitInfo,
+    runtime::{
+        self, bounded_vec::IntoBoundedByteVec,
+        runtime_types::pallet_storage_provider::proofs::SubmitWindowedPoStParams,
+    },
+    BlockNumber, PolkaStorageConfig, ProveCommitSector, RegisteredPoStProof, SectorPreCommitInfo,
 };
 
 /// The maximum number of deal IDs supported.
@@ -89,6 +92,30 @@ impl StorageProviderClient {
         let payload = runtime::tx()
             .storage_provider()
             .prove_commit_sector(prove_commit_sector.into());
+
+        self.client
+            .traced_submission(&payload, account_keypair)
+            .await
+    }
+
+    #[tracing::instrument(
+        level = "trace",
+        skip_all,
+        fields(
+            address = account_keypair.account_id().to_ss58check(),
+        )
+    )]
+    pub async fn submit_windowed_post<Keypair>(
+        &self,
+        account_keypair: &Keypair,
+        windowed_post: SubmitWindowedPoStParams<BlockNumber>,
+    ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
+    where
+        Keypair: subxt::tx::Signer<PolkaStorageConfig>,
+    {
+        let payload = runtime::tx()
+            .storage_provider()
+            .submit_windowed_post(windowed_post);
 
         self.client
             .traced_submission(&payload, account_keypair)
