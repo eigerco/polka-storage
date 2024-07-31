@@ -68,13 +68,13 @@ parameter_types! {
 
 parameter_types! {
     // Storage Provider Pallet
-    pub const WpostProvingPeriod: BlockNumber = 5 * MINUTES;
+    pub const WPoStPeriodDeadlines: u64 = 10;
+    pub const WpostProvingPeriod: BlockNumber = 40 * MINUTES;
     pub const WpostChallengeWindow: BlockNumber = 2 * MINUTES;
     pub const MinSectorExpiration: BlockNumber = 5 * MINUTES;
     pub const MaxSectorExpirationExtension: BlockNumber = 360 * MINUTES;
     pub const SectorMaximumLifetime: BlockNumber = 120 * MINUTES;
     pub const MaxProveCommitDuration: BlockNumber = 5 * MINUTES;
-    pub const WPoStPeriodDeadlines: u64 = 48;
     pub const MaxPartitionsPerDeadline: u64 = 3000;
 
     // Market Pallet

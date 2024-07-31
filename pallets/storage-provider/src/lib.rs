@@ -618,7 +618,7 @@ pub mod pallet {
 
             // TODO(@th7nder,31/07/2024): this approach is suboptimal, as it's time complexity is O(StorageProviders * PreCommitedSectors).
             // We can reduce this by indexing pre-committed sectors by BlockNumber in which they're supposed to be activated in PreCommit and remove them in ProveCommit.
-            log::info!(target: LOG_TARGET, "checking pre_commited_sectors for block: {}", current_block);
+            log::info!(target: LOG_TARGET, "checking pre_commited_sectors for block: {:?}", current_block);
 
             // We cannot modify storage map while inside `iter_keys()` as docs say it's undefined results.
             // And we can use `alloc::Vec`, because it's bounded by StorageProviders data structure anyways.
@@ -636,11 +636,11 @@ pub mod pallet {
                     return;
                 }
 
-                log::info!(target: LOG_TARGET, "found {} expired pre committed sectors for {}", expired.len(), storage_provider);
+                log::info!(target: LOG_TARGET, "found {} expired pre committed sectors for {:?}", expired.len(), storage_provider);
                 for sector_number in expired {
                     // Expired sectors should be removed, because in other case they'd be processed twice in the next block.
                     let Ok(()) = state.remove_pre_committed_sector(sector_number) else {
-                        log::error!(target: LOG_TARGET, "catastrophe, failed to remove sector {} for {}", sector_number, storage_provider);
+                        log::error!(target: LOG_TARGET, "catastrophe, failed to remove sector {} for {:?}", sector_number, storage_provider);
                         continue;
                     };
                 }
@@ -667,7 +667,7 @@ pub mod pallet {
                     WithdrawReasons::RESERVE,
                     KeepAlive,
                 ) else {
-                    log::error!(target: LOG_TARGET, "failed to settle currency after slashing... amount: {:?}, storage_provider: {}", slash_amount, storage_provider);
+                    log::error!(target: LOG_TARGET, "failed to settle currency after slashing... amount: {:?}, storage_provider: {:?}", slash_amount, storage_provider);
                     continue;
                 };
 
