@@ -174,7 +174,7 @@ fn submit_windowed_post_for_sector_twice() {
             windowed_post.clone(),
         ));
 
-        // Run extrinsic and assert that the result is `Ok`
+        // Run extrinsic and assert that the result is `Err`
         assert_noop!(
             StorageProvider::submit_windowed_post(
                 RuntimeOrigin::signed(account(ALICE)),
