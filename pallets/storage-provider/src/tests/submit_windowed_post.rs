@@ -7,9 +7,8 @@ use crate::{
     sector::ProveCommitSector,
     tests::{
         account, events, new_test_ext, register_storage_provider, run_to_block,
-        DealProposalBuilder, Market, RuntimeError, RuntimeEvent, RuntimeOrigin,
-        SectorPreCommitInfoBuilder, StorageProvider, SubmitWindowedPoStBuilder, System, Test,
-        ALICE, BOB,
+        DealProposalBuilder, Market, RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder,
+        StorageProvider, SubmitWindowedPoStBuilder, System, Test, ALICE, BOB,
     },
 };
 
@@ -72,6 +71,34 @@ fn setup() {
 
     // Remove any events that were triggered until now.
     System::reset_events();
+
+    // Check if the sector was successfully committed
+    let state = StorageProviders::<Test>::get(account(ALICE)).unwrap();
+    let deadlines = state.deadlines;
+    let new_dl = deadlines.due.first().expect("programmer error");
+    assert_eq!(new_dl.live_sectors, 1);
+    assert_eq!(new_dl.total_sectors, 1);
+}
+
+#[test]
+fn fails_should_be_signed() {
+    new_test_ext().execute_with(|| {
+        setup();
+
+        // Run to block where the window post proof is to be submitted
+        run_to_block(6700);
+
+        // Build window post proof
+        let windowed_post = SubmitWindowedPoStBuilder::default()
+            .deadline(0)
+            .chain_commit_block(System::block_number() - 1) // Wrong proof
+            .build();
+
+        assert_noop!(
+            StorageProvider::submit_windowed_post(RuntimeOrigin::none(), windowed_post),
+            DispatchError::BadOrigin
+        );
+    });
 }
 
 // TODO: Remove ignore after the deadline calculation is fixed
@@ -123,17 +150,15 @@ fn successful_submit_windowed_post() {
                 )]
             );
         }
-
-        let state = StorageProviders::<Test>::get(account(ALICE)).unwrap();
-        let deadlines = state.deadlines;
-        let new_dl = deadlines.due.first().expect("programmer error");
-        assert_eq!(new_dl.live_sectors, 1);
-        assert_eq!(new_dl.total_sectors, 1);
     });
 }
 
 #[test]
-fn fails_should_be_signed() {
+fn should_be_slashed_deadline_missed() {}
+
+#[ignore]
+#[test]
+fn should_fail_when_proving_wrong_partition() {
     new_test_ext().execute_with(|| {
         setup();
 
@@ -142,13 +167,17 @@ fn fails_should_be_signed() {
 
         // Build window post proof
         let windowed_post = SubmitWindowedPoStBuilder::default()
-            .deadline(0)
-            .chain_commit_block(System::block_number() - 1) // Wrong proof
+            .chain_commit_block(System::block_number() - 1)
+            .partition(2) // This partition does not exist
             .build();
 
+        // Run extrinsic
         assert_noop!(
-            StorageProvider::submit_windowed_post(RuntimeOrigin::none(), windowed_post,),
-            DispatchError::BadOrigin
+            StorageProvider::submit_windowed_post(
+                RuntimeOrigin::signed(account(ALICE)),
+                windowed_post,
+            ),
+            Error::<Test>::PoStProofInvalid
         );
     });
 }

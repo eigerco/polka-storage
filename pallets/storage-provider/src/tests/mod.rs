@@ -409,6 +409,11 @@ impl SubmitWindowedPoStBuilder {
         self
     }
 
+    pub fn partition(mut self, partition: PartitionNumber) -> Self {
+        self.partition = partition;
+        self
+    }
+
     pub fn proof_bytes(mut self, proof_bytes: Vec<u8>) -> Self {
         self.proof.proof_bytes = BoundedVec::try_from(proof_bytes).unwrap();
         self
