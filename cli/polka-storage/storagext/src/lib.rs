@@ -1,12 +1,12 @@
-use cid::Cid;
-use codec::Encode;
-use frame_support::CloneNoBound;
-use primitives_proofs::{DealId, SectorNumber};
-use subxt::{self, ext::sp_runtime::MultiSignature, tx::Signer, utils::Static};
-
 pub mod market;
 pub mod runtime;
 pub mod storage_provider;
+
+use cid::Cid;
+use codec::Encode;
+use frame_support::CloneNoBound;
+use primitives_proofs::{DealId, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
+use subxt::{self, ext::sp_runtime::MultiSignature, tx::Signer, utils::Static};
 
 use crate::runtime::bounded_vec::IntoBoundedByteVec;
 pub use crate::runtime::runtime_types::{
@@ -14,10 +14,7 @@ pub use crate::runtime::runtime_types::{
         pallet as market_pallet_types,
         pallet::{ActiveDealState, DealState},
     },
-    primitives_proofs::{
-        types as primitives_proofs_types,
-        types::{RegisteredPoStProof, RegisteredSealProof},
-    },
+    primitives_proofs::types as primitives_proofs_types,
 };
 
 /// Currency as specified by the SCALE-encoded runtime.

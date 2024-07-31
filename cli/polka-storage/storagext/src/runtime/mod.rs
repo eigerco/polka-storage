@@ -13,18 +13,20 @@ pub(crate) mod client;
         path = "sp_runtime::MultiSignature",
         with = "::subxt::utils::Static<::subxt::ext::sp_runtime::MultiSignature>"
     ),
+    substitute_type(
+        path = "primitives_proofs::types::RegisteredSealProof",
+        with = "::primitives_proofs::RegisteredSealProof",
+    ),
+    substitute_type(
+        path = "primitives_proofs::types::RegisteredPoStProof",
+        with = "::primitives_proofs::RegisteredPoStProof",
+    ),
     derive_for_type(
         path = "pallet_market::pallet::ActiveDealState",
         derive = "::serde::Deserialize"
     ),
     derive_for_type(
         path = "pallet_market::pallet::DealState",
-        derive = "::serde::Deserialize"
-    ),
-    // NOTE(@jmg-duarte,31/07/2024): we should actually replace this and all primitive_proofs types
-    // with their proper implementation from the primitive_proofs crate
-    derive_for_type(
-        path = "primitives_proofs::types::RegisteredSealProof",
         derive = "::serde::Deserialize"
     ),
     derive_for_type(
@@ -39,43 +41,10 @@ pub use self::polka_storage_runtime::*;
 use self::runtime_types::pallet_storage_provider as storage_provider_types;
 use crate::runtime::bounded_vec::IntoBoundedByteVec;
 
-// Necessary to support having aliases while we don't replace the types,
-// once replaced we'll need to conditionally add serde to the primitive_proofs crate and an alias
-struct RegisteredPoSTProofVisitor;
-
-impl<'de> serde::de::Visitor<'de> for RegisteredPoSTProofVisitor {
-    type Value = runtime_types::primitives_proofs::types::RegisteredPoStProof;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("the string \"2KiB\"")
-    }
-
-    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        match v {
-            "StackedDRGWindow2KiBV1P1" | "2KiB" => {
-                Ok(runtime_types::primitives_proofs::types::RegisteredPoStProof::StackedDRGWindow2KiBV1P1)
-            }
-            field => Err(serde::de::Error::unknown_field(field, &["StackedDRGWindow2KiBV1P1", "2KiB"]))
-        }
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for runtime_types::primitives_proofs::types::RegisteredPoStProof {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        deserializer.deserialize_identifier(RegisteredPoSTProofVisitor)
-    }
-}
-
 // Necessary because the proof bytes are a `BoundedVec` which doesn't implement serde::Deserialize
-struct PoSTProofVisitor;
+struct PoStProofVisitor;
 
-impl<'de> serde::de::Visitor<'de> for PoSTProofVisitor {
+impl<'de> serde::de::Visitor<'de> for PoStProofVisitor {
     type Value = storage_provider_types::proofs::PoStProof;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -141,14 +110,16 @@ impl<'de> serde::Deserialize<'de> for storage_provider_types::proofs::PoStProof 
     where
         D: serde::Deserializer<'de>,
     {
-        deserializer.deserialize_map(PoSTProofVisitor)
+        deserializer.deserialize_map(PoStProofVisitor)
     }
 }
+
 #[cfg(test)]
 mod test {
-    use super::runtime_types::{
-        pallet_storage_provider::proofs::{PoStProof, SubmitWindowedPoStParams},
-        primitives_proofs::types::RegisteredPoStProof,
+    use primitives_proofs::RegisteredPoStProof;
+
+    use super::runtime_types::pallet_storage_provider::proofs::{
+        PoStProof, SubmitWindowedPoStParams,
     };
     use crate::{
         runtime::bounded_vec::IntoBoundedByteVec, ActiveDealState, BlockNumber, DealState,

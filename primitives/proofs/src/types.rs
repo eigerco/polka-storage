@@ -1,4 +1,6 @@
 use codec::{Decode, Encode};
+use scale_decode::DecodeAsType;
+use scale_encode::EncodeAsType;
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
@@ -9,8 +11,13 @@ pub type DealId = u64;
 pub type SectorNumber = u64;
 
 #[allow(non_camel_case_types)]
-#[derive(RuntimeDebug, Decode, Encode, TypeInfo, Eq, PartialEq, Clone)]
+#[derive(
+    RuntimeDebug, Decode, Encode, DecodeAsType, EncodeAsType, TypeInfo, Eq, PartialEq, Clone,
+)]
 #[cfg_attr(feature = "serde", derive(::serde::Deserialize))]
+#[codec(crate = ::codec)]
+#[decode_as_type(crate_path = "::scale_decode")]
+#[encode_as_type(crate_path = "::scale_encode")]
 pub enum RegisteredSealProof {
     #[cfg_attr(feature = "serde", serde(alias = "2KiB"))]
     StackedDRG2KiBV1P1,
@@ -33,8 +40,13 @@ impl RegisteredSealProof {
 }
 
 /// Proof of Spacetime type, indicating version and sector size of the proof.
-#[derive(Debug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone, Copy)]
+#[derive(
+    Debug, Decode, Encode, DecodeAsType, EncodeAsType, TypeInfo, PartialEq, Eq, Clone, Copy,
+)]
 #[cfg_attr(feature = "serde", derive(::serde::Deserialize))]
+#[codec(crate = ::codec)]
+#[decode_as_type(crate_path = "::scale_decode")]
+#[encode_as_type(crate_path = "::scale_encode")]
 pub enum RegisteredPoStProof {
     #[cfg_attr(feature = "serde", serde(alias = "2KiB"))]
     StackedDRGWindow2KiBV1P1,
