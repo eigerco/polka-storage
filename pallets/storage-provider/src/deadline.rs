@@ -246,7 +246,7 @@ where
         log::debug!(target: LOG_TARGET, "load_deadline_mut: getting deadline at index {idx}");
 
         // Ensure the provided index is within range.
-        ensure!(self.len() >= idx, DeadlineError::DeadlineIndexOutOfRange);
+        ensure!(self.len() > idx, DeadlineError::DeadlineIndexOutOfRange);
 
         Ok(self
             .due
@@ -259,7 +259,7 @@ where
         log::debug!(target: LOG_TARGET, "load_deadline_mut: getting deadline at index {idx}");
 
         // Ensure the provided index is within range.
-        ensure!(self.len() >= idx, DeadlineError::DeadlineIndexOutOfRange);
+        ensure!(self.len() > idx, DeadlineError::DeadlineIndexOutOfRange);
 
         Ok(self
             .due
