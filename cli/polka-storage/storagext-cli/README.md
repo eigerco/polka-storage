@@ -7,6 +7,15 @@ as such, if you want to interact with the `market` pallet, you can find it's fun
 
 ## Global Flags
 
+> [!INFO]
+> Commands that take in JSON objects as input, are also able to read in files with the provided content.
+>
+> Instead of passing the JSON object as a parameter, pass the JSON filename prefixed with an `@`.
+> For example:
+> ```
+> storagext-cli --sr25519-key <key> storage-provider pre-commit @pre-commit-sector.json
+> ```
+
 ### Keypair — `--X-key`
 
 Extrinsics are *required* to be signed, as such you need to pass your key.
@@ -42,7 +51,6 @@ Or insecure if, for example, you are running the node locally, using just the st
 storagext-cli --node-rpc ws://127.0.0.1:7331 ...
 ```
 
-
 ## `market`
 
 The `market` subcommand enables you to interact with the `market` pallet,
@@ -73,10 +81,10 @@ As this is an experimental CLI, you must provide Client's private key to sign a 
 Normally, you'd just publish a signed message which you received from a client.
 
 ```
-storagext-cli \ 
-    --sr25519-key <key> \ 
-    market publish-storage-deals \ 
-    --client-sr25519-key <client-key> \ 
+storagext-cli \
+    --sr25519-key <key> \
+    market publish-storage-deals \
+    --client-sr25519-key <client-key> \
     <deals>
 ```
 
@@ -118,16 +126,6 @@ The command takes `deals` as a JSON array, containing one or more storage deals.
 </p>
 </details>
 
-However, writing a full JSON file in a single command is cumbersome, instead,
-you can use a JSON file by pointing to its path, prefixed by an `@`, like so:
-
-```
-storagext-cli \ 
-    --sr25519-key <key> \ 
-    market publish-storage-deals \ 
-    --client-sr25519-key <client-key> \ 
-    @important-deals.json
-```
 
 ### `settle-deal-payments`
 
@@ -186,13 +184,6 @@ This command takes `pre-commit-sector` as JSON Object.
 }
 ```
 
-However, writing a full JSON file in a single command is cumbersome, instead,
-you can use a JSON file by pointing to its path, prefixed by an `@`, like so:
-
-```
-storagext-cli --sr25519-key <key> storage-provider pre-commit @pre-commit-sector.json
-```
-
 </p>
 </details>
 
@@ -219,11 +210,37 @@ Proof is accepted if it is any valid hex string of length >= 1.
 }
 ```
 
-However, writing a full JSON file in a single command is cumbersome, instead,
-you can use a JSON file by pointing to its path, prefixed by an `@`, like so:
+</p>
+</details>
+
+### `submit-windowed-post`
+
+Submit a window [Proof-of-Spacetime](https://spec.filecoin.io/#section-algorithms.pos.post)
+to prove the storage provider is still storing the client data.
 
 ```
-storagext-cli --sr25519-key <key> storage-provider prove-commit @prove-commit-sector.json
+storagext-cli --sr25519-key <key> storage-provider submit-windowed-post <window-proof>
+```
+
+The command takes a JSON object with four fields — `deadline` a number, `partition` a number,
+`chain_commit_block` a block number and `proof` which is another JSON object with fields —
+`post_proof` which can either be `2KiB` or `StackedDRGWindow2KiBV1P1` (both amounting to the same value)
+and `proof_bytes` which expectes a valid hex string.
+
+<details>
+<summary>Example Submit Windowed Proof-of-Spacetime JSON</summary>
+<p>
+
+```json
+{
+    "deadline": 10,
+    "partition": 10,
+    "chain_commit_block": 1,
+    "proof": {
+        "post_proof": "2KiB",
+        "proof_bytes": "07482439"
+    }
+}
 ```
 
 </p>
