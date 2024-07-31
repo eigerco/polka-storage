@@ -10,7 +10,9 @@ pub type SectorNumber = u64;
 
 #[allow(non_camel_case_types)]
 #[derive(RuntimeDebug, Decode, Encode, TypeInfo, Eq, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(::serde::Deserialize))]
 pub enum RegisteredSealProof {
+    #[cfg_attr(feature = "serde", serde(alias = "2KiB"))]
     StackedDRG2KiBV1P1,
 }
 
@@ -32,7 +34,9 @@ impl RegisteredSealProof {
 
 /// Proof of Spacetime type, indicating version and sector size of the proof.
 #[derive(Debug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(::serde::Deserialize))]
 pub enum RegisteredPoStProof {
+    #[cfg_attr(feature = "serde", serde(alias = "2KiB"))]
     StackedDRGWindow2KiBV1P1,
 }
 
