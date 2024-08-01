@@ -6,7 +6,7 @@ mod deser;
 use std::fmt::Debug;
 
 use clap::{ArgGroup, Parser, Subcommand};
-use cmd::market::MarketCommand;
+use cmd::{market::MarketCommand, storage_provider::StorageProviderCommand};
 use deser::{DealProposal, DebugPair};
 use storagext::PolkaStorageConfig;
 use subxt::ext::sp_core::{
@@ -52,10 +52,12 @@ struct Cli {
 }
 
 #[derive(Debug, Subcommand)]
-pub enum SubCommand {
+enum SubCommand {
     // Perform market operations.
     #[command(subcommand)]
     Market(MarketCommand),
+    #[command(subcommand)]
+    StorageProvider(StorageProviderCommand),
 }
 
 impl SubCommand {
@@ -69,6 +71,9 @@ impl SubCommand {
     {
         match self {
             SubCommand::Market(cmd) => {
+                cmd.run(node_rpc, account_keypair).await?;
+            }
+            SubCommand::StorageProvider(cmd) => {
                 cmd.run(node_rpc, account_keypair).await?;
             }
         }

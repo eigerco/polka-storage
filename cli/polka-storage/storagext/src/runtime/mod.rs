@@ -4,6 +4,7 @@
 //! This module wasn't designed to be exposed to the final user of the crate.
 
 pub(crate) mod bounded_vec;
+pub(crate) mod client;
 
 #[subxt::subxt(
     runtime_metadata_path = "../../artifacts/metadata.scale",
@@ -18,6 +19,14 @@ pub(crate) mod bounded_vec;
     ),
     derive_for_type(
         path = "pallet_market::pallet::DealState",
+        derive = "::serde::Deserialize"
+    ),
+    derive_for_type(
+        path = "primitives_proofs::types::RegisteredSealProof",
+        derive = "::serde::Deserialize"
+    ),
+    derive_for_type(
+        path = "primitives_proofs::types::RegisteredPoStProof",
         derive = "::serde::Deserialize"
     )
 )]

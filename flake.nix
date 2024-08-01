@@ -26,9 +26,11 @@
           # Building Docker images and publishing to Azure Container Registry
           azure-cli
           cargo-llvm-cov
+          cargo-expand
           clang
           pkg-config
           rustToolchain
+          subxt
           just
           taplo
           polkadot

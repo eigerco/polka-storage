@@ -144,7 +144,7 @@ where
             .collect();
         // Add new faults to state, skip if no new faults.
         if !new_fault_sectors.is_empty() {
-            self.add_faults()?;
+            self.add_faults(sector_numbers);
         }
         // remove faulty recoveries from state, skip if no recoveries set to faulty.
         let retracted_recovery_sectors: BTreeSet<SectorNumber> = sectors
@@ -164,31 +164,33 @@ where
     }
 
     /// marks a set of sectors faulty
-    pub fn add_faults(&mut self) -> Result<(), PartitionError> {
-        // Load expiration queue
-        // let mut queue = ExpirationQueue::new(store, &self.expirations_epochs, quant)
-        //     .map_err(|e| e.downcast_wrap("failed to load partition queue"))?;
-
-        // Reschedule faults
-        // queue
-        //     .reschedule_as_faults(fault_expiration, sectors, sector_size)
-        //     .map_err(|e| e.downcast_wrap("failed to add faults to partition queue"))?;
-
-        // Save expiration queue
-        // self.expirations_epochs = queue.amt.flush()?;
-
+    /// Filecoin reference: <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/partition_state.rs#L155>
+    pub fn add_faults(
+        &mut self,
+        sector_numbers: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
+    ) {
         // Update partition metadata
-        // self.faults |= sector_numbers;
-
-        // The sectors must not have been previously faulty or recovering.
-        // No change to recoveries or terminations.
-        // self.faulty_power += &new_faulty_power;
+        let faults = self.faults.clone();
+        self.faults = faults
+            .try_mutate(|faults| {
+                for number in sector_numbers {
+                    if !faults.contains(number) {
+                        // Insert is safe because the contains check
+                        faults.insert(*number);
+                    }
+                }
+            })
+            .unwrap();
 
         // Once marked faulty, sectors are moved out of the unproven set.
-        // let unproven = sector_numbers & &self.unproven;
-
-        // self.unproven -= &unproven;
-        Ok(())
+        let unproven = self.unproven.clone();
+        let unproven: Vec<&SectorNumber> = sector_numbers.intersection(&unproven).collect();
+        for number in unproven {
+            if self.unproven.contains(number) {
+                // Remove is safe because the contains check
+                self.unproven.remove(number);
+            }
+        }
     }
 
     /// Removes sectors from recoveries
