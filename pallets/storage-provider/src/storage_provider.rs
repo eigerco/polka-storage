@@ -77,17 +77,17 @@ where
 impl<PeerId, Balance, BlockNumber> StorageProviderState<PeerId, Balance, BlockNumber>
 where
     PeerId: Clone + Decode + Encode + TypeInfo,
-    BlockNumber: sp_runtime::traits::BlockNumber,
+    BlockNumber: sp_runtime::traits::BlockNumber + BaseArithmetic,
     Balance: BaseArithmetic,
 {
     pub fn new(
-        info: &StorageProviderInfo<PeerId>,
+        info: StorageProviderInfo<PeerId>,
         period_start: BlockNumber,
         deadline_idx: BlockNumber,
         w_post_period_deadlines: u64,
     ) -> Self {
         Self {
-            info: info.clone(),
+            info,
             sectors: BoundedBTreeMap::new(),
             pre_commit_deposits: 0.into(),
             pre_committed_sectors: BoundedBTreeMap::new(),
@@ -168,14 +168,18 @@ where
         w_post_challenge_window: BlockNumber,
         w_post_challenge_lookback: BlockNumber,
     ) -> Result<(), StorageProviderError> {
-        let deadlines = &self.deadlines;
         sectors.sort_by_key(|info| info.sector_number);
-        let mut deadline_vec: Vec<Option<Deadline<BlockNumber>>> =
-            (0..w_post_period_deadlines).map(|_| None).collect();
+
         log::debug!(target: LOG_TARGET,
             "assign_sectors_to_deadlines: deadline len = {}",
-            deadlines.len()
+            self.deadlines.len()
         );
+
+        let mut deadline_vec: Vec<Option<Deadline<BlockNumber>>> =
+            (0..w_post_period_deadlines).map(|_| None).collect();
+
+        // Calculate the proving period start current proving period start
+        // may fail if conversion between BlockNumber/u64 fails
         let proving_period_start = self.current_proving_period_start(
             current_block,
             fault_cutoff_declaration,
@@ -184,24 +188,23 @@ where
             w_post_challenge_window,
             w_post_challenge_lookback,
         )?;
-        deadlines.clone().due.iter().enumerate().try_for_each(
-            |(deadline_idx, deadline)| -> Result<(), DeadlineError> {
-                // Skip deadlines that aren't currently mutable.
-                if deadline_is_mutable(
-                    proving_period_start,
-                    deadline_idx as u64,
-                    current_block,
-                    fault_cutoff_declaration,
-                    w_post_period_deadlines,
-                    w_post_proving_period,
-                    w_post_challenge_window,
-                    w_post_challenge_lookback,
-                )? {
-                    deadline_vec[deadline_idx as usize] = Some(deadline.clone());
-                }
-                Ok(())
-            },
-        )?;
+
+        for (idx, deadline) in self.deadlines.due.iter().enumerate() {
+            // Skip deadlines that aren't currently mutable.
+            if deadline_is_mutable(
+                proving_period_start,
+                idx as u64,
+                current_block,
+                fault_cutoff_declaration,
+                w_post_period_deadlines,
+                w_post_proving_period,
+                w_post_challenge_window,
+                w_post_challenge_lookback,
+            )? {
+                deadline_vec[idx as usize] = Some(deadline.clone());
+            }
+        }
+
         let deadline_to_sectors = assign_deadlines(
             max_partitions_per_deadline,
             partition_size,
@@ -227,7 +230,8 @@ where
         Ok(())
     }
 
-    // Returns current proving period start for the current block according to the current block and constant state offset
+    /// Returns current proving period start for the current block according
+    /// to the current block and constant state offset.
     pub fn current_proving_period_start(
         &self,
         current_block: BlockNumber,
@@ -263,12 +267,18 @@ where
         w_post_challenge_window: BlockNumber,
         w_post_challenge_lookback: BlockNumber,
     ) -> Result<DeadlineInfo<BlockNumber>, DeadlineError> {
-        let current_deadline_index =
-            (current_block / self.proving_period_start) / w_post_challenge_window;
+        let current_deadline_index = calculate_current_deadline_index(
+            // HACK: if the proving period start is in the future the deadline will be 0
+            current_block.max(self.proving_period_start),
+            self.proving_period_start,
+            w_post_challenge_window,
+        );
+
         // convert to u64
         let current_deadline_index: u64 = current_deadline_index
             .try_into()
             .map_err(|_| DeadlineError::CouldNotConstructDeadlineInfo)?;
+
         DeadlineInfo::new(
             current_block,
             self.proving_period_start,
@@ -339,5 +349,77 @@ impl<PeerId> StorageProviderInfo<PeerId> {
             sector_size,
             window_post_partition_sectors,
         }
+    }
+}
+
+/// Calculate the *first* proving period.
+///
+/// *This function deviates considerably from Filecoin.*
+///
+/// Since our block number (equivalent to `ChainEpoch`) is unsigned, we are not afforded the
+/// luxury of calculating "current proving period" as it generates edge cases for the first
+/// storage providers being registered, that is, before [`Config::WPoStChallengeWindow`] blocks
+/// have elapsed).
+///
+/// This method will calculate the current global proving period start and add the offset to it.
+/// You can read how to calculate the global proving period start and index in the description
+/// for [`Config::WPoStProvingWindow`].
+///
+/// Reference:
+/// * <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L4904-L4921>
+pub(crate) fn calculate_first_proving_period<BlockNumber>(
+    current_block: BlockNumber,
+    offset: BlockNumber,
+    wpost_proving_period: BlockNumber,
+) -> BlockNumber
+where
+    BlockNumber: sp_runtime::traits::BlockNumber,
+{
+    let global_proving_index = current_block / wpost_proving_period;
+    let global_proving_start = global_proving_index * wpost_proving_period;
+    global_proving_start + offset
+}
+
+/// Calculate the current deadline index.
+///
+/// No magic here, the same logic from Filecoin applies.
+///
+/// Reference:
+/// * <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L4923-L4929>
+pub(crate) fn calculate_current_deadline_index<BlockNumber>(
+    current_block: BlockNumber,
+    period_start: BlockNumber,
+    w_post_challenge_period: BlockNumber,
+) -> BlockNumber
+where
+    BlockNumber: sp_runtime::traits::BlockNumber,
+{
+    (current_block - period_start) / w_post_challenge_period
+}
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+
+    use crate::storage_provider::calculate_first_proving_period;
+
+    #[rstest]
+    #[case(0, 0, 0)]
+    #[case(0, 119, 119)]
+    #[case(1, 0, 0)]
+    #[case(1, 119, 119)]
+    #[case(120, 0, 120)]
+    #[case(120, 20, 140)]
+    #[case(124, 0, 120)]
+    #[case(124, 20, 140)]
+    fn calculate_proving_period(
+        #[case] current_block: u64,
+        #[case] offset: u64,
+        #[case] expected_start: u64,
+    ) {
+        assert_eq!(
+            calculate_first_proving_period::<u64>(current_block, offset, 120),
+            expected_start
+        );
     }
 }
