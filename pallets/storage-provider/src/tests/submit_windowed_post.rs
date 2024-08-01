@@ -70,7 +70,8 @@ fn submit_windowed_post() {
         ));
         // Remove any events that were triggered until now.
         System::reset_events();
-        run_to_block(6700);
+        // proving period is assigned based on hash(account_id, block_number) % wpost_proving_offset `assign_proving_period_offset`.
+        run_to_block(19);
         // Done with setup build window post proof
         let windowed_post = SubmitWindowedPoStBuilder::default()
             .chain_commit_block(System::block_number() - 1)
