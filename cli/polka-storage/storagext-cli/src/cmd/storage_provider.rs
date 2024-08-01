@@ -86,7 +86,7 @@ impl StorageProviderCommand {
                     .register_storage_provider(
                         &account_keypair,
                         peer_id.clone(),
-                        post_proof.clone(),
+                        post_proof,
                     )
                     .await?;
                 tracing::info!(
