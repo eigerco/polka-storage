@@ -86,7 +86,11 @@ impl RegisteredPoStProof {
     }
 }
 
-#[cfg(all(test, feature = "serde"))]
+// serde_json requires std, hence, to test the serialization, we need:
+// * test (duh!)
+// * serde — (duh!)
+// * std — because of serde_json
+#[cfg(all(test, feature = "std", feature = "serde"))]
 mod serde_tests {
     use crate::{RegisteredPoStProof, RegisteredSealProof};
 
@@ -94,11 +98,11 @@ mod serde_tests {
     fn ensure_serde_for_registered_seal_proof() {
         assert_eq!(
             serde_json::from_str::<RegisteredSealProof>(r#""2KiB""#).unwrap(),
-            RegisteredSealProof::StackedDRGWindow2KiBV1P1
+            RegisteredSealProof::StackedDRG2KiBV1P1
         );
         assert_eq!(
-            serde_json::from_str::<RegisteredSealProof>(r#""StackedDRGWindow2KiBV1P1""#).unwrap(),
-            RegisteredSealProof::StackedDRGWindow2KiBV1P1
+            serde_json::from_str::<RegisteredSealProof>(r#""StackedDRG2KiBV1P1""#).unwrap(),
+            RegisteredSealProof::StackedDRG2KiBV1P1
         );
     }
 
