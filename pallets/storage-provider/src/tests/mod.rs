@@ -24,6 +24,7 @@ use crate::{
     sector::SectorPreCommitInfo,
 };
 
+mod declare_faults;
 mod pre_commit_sector;
 mod prove_commit_sector;
 mod state;
@@ -95,6 +96,8 @@ parameter_types! {
     pub const MaxProveCommitDuration: BlockNumber =  (30 * DAYS) + 150;
     pub const WPoStPeriodDeadlines: u64 = 48;
     pub const MaxPartitionsPerDeadline: u64 = 3000;
+    pub const DeclarationsMax: u64 = 3000;
+    pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
 }
 
 impl pallet_storage_provider::Config for Test {
@@ -110,6 +113,8 @@ impl pallet_storage_provider::Config for Test {
     type MaxProveCommitDuration = MaxProveCommitDuration;
     type WPoStPeriodDeadlines = WPoStPeriodDeadlines;
     type MaxPartitionsPerDeadline = MaxPartitionsPerDeadline;
+    type DeclarationsMax = DeclarationsMax;
+    type FaultMaxAge = FaultMaxAge;
 }
 
 type AccountIdOf<Test> = <Test as frame_system::Config>::AccountId;

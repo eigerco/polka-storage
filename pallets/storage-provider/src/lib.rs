@@ -561,7 +561,7 @@ pub mod pallet {
                 )
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
             let sectors = sp.sectors.clone();
-            let deadlines = sp.get_deadlines_mut();
+            // let deadlines = sp.get_deadlines_mut();
             for (deadline_idx, partition_map) in to_process.into_iter() {
                 log::debug!(target: LOG_TARGET, "declare_faults: Processing deadline index: {deadline_idx}");
                 // Get the deadline
@@ -575,13 +575,19 @@ pub mod pallet {
                 )
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
                 // TODO(check fault cutoff)
-                let dl = deadlines
-                    .load_deadline_mut(*deadline_idx as usize)
-                    .map_err(|e| Error::<T>::DeadlineError(e))?;
+                let mut dl = sp
+                    .deadlines
+                    .load_deadline(*deadline_idx as usize)
+                    .map_err(|e| Error::<T>::DeadlineError(e))?
+                    .clone();
                 let _fault_expiration_block = target_dl.last();
                 dl.record_faults(&sectors, partition_map)
                     .map_err(|e| Error::<T>::DeadlineError(e))?;
+                sp.deadlines
+                    .update_deadline(*deadline_idx as usize, dl.clone())
+                    .map_err(|e| Error::<T>::DeadlineError(e))?;
             }
+            StorageProviders::<T>::insert(owner, sp);
             Ok(())
         }
     }

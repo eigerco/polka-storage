@@ -96,7 +96,7 @@ where
             // Ensure that the sector number has not been used before.
             // All sector number (including faulty, terminated and unproven) are contained in `sectors` so we only need to check in there.
             ensure!(!self.sectors.contains(&sector_number), {
-                log::error!(target: LOG_TARGET, "check_sector_number_duplicate: sector_number {sector_number:?} duplicate in sectors");
+                log::error!(target: &[LOG_TARGET, "partition"].join("::"), "check_sector_number_duplicate: sector_number {sector_number:?} duplicate in sectors");
                 PartitionError::DuplicateSectorNumber
             });
             self.sectors
@@ -137,14 +137,19 @@ where
         // Ignore any terminated sectors and previously declared or detected faults
         new_faults = new_faults.difference(&self.terminated).cloned().collect();
         new_faults = new_faults.difference(&self.faults).cloned().collect();
-
+        log::debug!(target: &[LOG_TARGET, "partition"].join("::"), "record_faults: new_faults = {new_faults:#?}, amount = {:?}", new_faults.len());
         let new_fault_sectors: Vec<(&SectorNumber, &SectorOnChainInfo<BlockNumber>)> = sectors
             .iter()
-            .filter(|(sector_number, _info)| new_faults.contains(&sector_number))
+            .filter(|(sector_number, _info)| {
+                log::debug!(target: &[LOG_TARGET, "partition"].join("::"), "record_faults: checking sec_num {sector_number}");
+                new_faults.contains(&sector_number)
+            })
             .collect();
         // Add new faults to state, skip if no new faults.
         if !new_fault_sectors.is_empty() {
             self.add_faults(sector_numbers);
+        } else {
+            log::debug!(target: &[LOG_TARGET, "partition"].join("::"), "record_faults: No new faults detected");
         }
         // remove faulty recoveries from state, skip if no recoveries set to faulty.
         let retracted_recovery_sectors: BTreeSet<SectorNumber> = sectors
@@ -159,6 +164,8 @@ where
             .collect();
         if !retracted_recovery_sectors.is_empty() {
             self.remove_recoveries(&retracted_recovery_sectors)?;
+        } else {
+            log::debug!(target: &[LOG_TARGET, "partition"].join("::"), "record_faults: No retracted recoveries detected");
         }
         Ok(new_faults)
     }
@@ -175,12 +182,14 @@ where
             .try_mutate(|faults| {
                 for number in sector_numbers {
                     if !faults.contains(number) {
+                        log::debug!(target: &[LOG_TARGET, "partition"].join("::"), "add_faults: Adding sector number {number} to faults");
                         // Insert is safe because the contains check
                         faults.insert(*number);
                     }
                 }
             })
             .unwrap();
+        log::debug!(target: &[LOG_TARGET, "partition"].join("::"), "add_faults: new faults {:?}", self.faults);
 
         // Once marked faulty, sectors are moved out of the unproven set.
         let unproven = self.unproven.clone();

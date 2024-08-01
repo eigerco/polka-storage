@@ -81,8 +81,12 @@ where
 {
     /// Construct a new [`Deadline`] instance.
     pub fn new() -> Self {
+        let mut partitions = BoundedBTreeMap::new();
+        for partition_number in 0..=MAX_PARTITIONS_PER_DEADLINE {
+            let _ = partitions.try_insert(partition_number, Partition::new());
+        }
         Self {
-            partitions: BoundedBTreeMap::new(),
+            partitions,
             expirations_blocks: BoundedBTreeMap::new(),
             partitions_posted: BoundedBTreeSet::new(),
             early_terminations: BoundedBTreeSet::new(),
@@ -95,7 +99,7 @@ where
     ///
     /// If the partition has already been proven, an error is returned.
     pub fn record_proven(&mut self, partition_num: PartitionNumber) -> Result<(), DeadlineError> {
-        log::debug!(target: LOG_TARGET, "record_proven: partition number = {partition_num:?}");
+        log::debug!(target: &[LOG_TARGET, "deadline"].join("::"), "record_proven: partition number = {partition_num:?}");
         ensure!(
             !self.partitions_posted.contains(&partition_num),
             DeadlineError::PartitionAlreadyProven
@@ -166,7 +170,7 @@ where
             // Save partition if it is newly constructed.
             if !partitions.contains_key(&(partition_idx as u32)) {
                 partitions.try_insert(partition_idx as u32, partition).map_err(|_| {
-                    log::error!(target: LOG_TARGET, "add_sectors: Cannot insert new partition at {partition_idx}");
+                    log::error!(target: &[LOG_TARGET, "deadline"].join("::"), "add_sectors: Cannot insert new partition at {partition_idx}");
                     DeadlineError::CouldNotAddSectors
                 })?;
             }
@@ -187,7 +191,7 @@ where
         // Next, update the expiration queue.
         for (block, partition_index) in partition_deadline_updates {
             self.expirations_blocks.try_insert(block, partition_index).map_err(|_| {
-                log::error!(target: LOG_TARGET, "add_sectors: Cannot update expiration queue at index {partition_idx}");
+                log::error!(target: &[LOG_TARGET, "deadline"].join("::"), "add_sectors: Cannot update expiration queue at index {partition_idx}");
                 DeadlineError::CouldNotAddSectors
             })?;
         }
@@ -211,30 +215,38 @@ where
         let mut partitions_with_fault =
             Vec::<PartitionNumber>::with_capacity(partition_sectors.len());
         for (partition_idx, sector_numbers) in partition_map.0.iter() {
-            let mut partition = partitions.get_mut(&partition_idx).cloned().ok_or({
-                log::error!(target: LOG_TARGET, "Could not get partition at index {partition_idx}");
-                DeadlineError::PartitionNotFound
-            })?;
+            let mut partition = if let Some(partition) = partitions.get_mut(&partition_idx).cloned()
+            {
+                partition
+            } else {
+                log::error!(target: &[LOG_TARGET, "deadline"].join("::"), "record_faults: Could not get partition at index {partition_idx}");
+                return Err(DeadlineError::PartitionNotFound);
+            };
             let new_faults =
                 partition.record_faults(sectors, sector_numbers).map_err(|e| {
-                    log::error!(target: LOG_TARGET, "Error while recording faults in a partition: {e:?}");
+                    log::error!(target: &[LOG_TARGET, "deadline"].join("::"), "record_faults: Error while recording faults in a partition: {e:?}");
                     DeadlineError::PartitionError(e)})?;
             if !new_faults.is_empty() {
                 partitions_with_fault.push(*partition_idx);
             }
 
-            partitions = partitions
-                .try_mutate(|inner| {
-                    if let Some(p) = inner.get_mut(partition_idx) {
-                        *p = partition.clone();
-                    }
-                }).ok_or({
-                    log::error!(target: LOG_TARGET, "Failed to update partitions after recording faults");
-                    DeadlineError::FailedToUpdatePartition
-                })?
-                ;
+            partitions = if let Some(partitions) = partitions.try_mutate(|inner| {
+                if let Some(p) = inner.get_mut(partition_idx) {
+                    *p = partition.clone();
+                }
+            }) {
+                partitions
+            } else {
+                log::error!(target: &[LOG_TARGET, "deadline"].join("::"), "Failed to update partitions after recording faults");
+                return Err(DeadlineError::FailedToUpdatePartition);
+            };
         }
         self.partitions = partitions;
+        for (partition_num, partition) in self.partitions.iter() {
+            if partition.faults.len() > 0 {
+                log::debug!(target: &[LOG_TARGET, "deadline"].join("::"), "record_faults: partition[{partition_num}] update to: {partition:#?}");
+            }
+        }
 
         self.add_expiration_partitions(&partitions_with_fault)
     }
@@ -296,7 +308,7 @@ where
         &mut self,
         idx: usize,
     ) -> Result<&mut Deadline<BlockNumber>, DeadlineError> {
-        log::debug!(target: LOG_TARGET, "load_deadline_mut: getting deadline at index {idx}");
+        log::debug!(target: &[LOG_TARGET, "deadline"].join("::"), "load_deadline_mut: getting deadline at index {idx}");
         // Ensure the provided index is within range.
         ensure!(self.len() > idx, DeadlineError::DeadlineIndexOutOfRange);
         Ok(self
@@ -308,7 +320,7 @@ where
     /// Loads a deadline
     /// Fails if the index does not exist or is out of range.
     pub fn load_deadline(&self, idx: usize) -> Result<Deadline<BlockNumber>, DeadlineError> {
-        log::debug!(target: LOG_TARGET, "load_deadline_mut: getting deadline at index {idx}");
+        log::debug!(target: &[LOG_TARGET, "deadline"].join("::"), "load_deadline_mut: getting deadline at index {idx}");
         // Ensure the provided index is within range.
         ensure!(self.len() > idx, DeadlineError::DeadlineIndexOutOfRange);
         Ok(self
@@ -326,7 +338,7 @@ where
         deadline_idx: usize,
         partition_num: PartitionNumber,
     ) -> Result<(), DeadlineError> {
-        log::debug!(target: LOG_TARGET, "record_proven: partition number: {partition_num:?}");
+        log::debug!(target: &[LOG_TARGET, "deadline"].join("::"), "record_proven: partition number: {partition_num:?}");
         let deadline = self.load_deadline_mut(deadline_idx)?;
         deadline.record_proven(partition_num)?;
         Ok(())
@@ -338,16 +350,9 @@ where
         deadline_idx: usize,
         new_dl: Deadline<BlockNumber>,
     ) -> Result<(), DeadlineError> {
-        let dl = self
-            .due
-            .get_mut(deadline_idx)
-            .ok_or(DeadlineError::DeadlineNotFound)?;
-        dl.partitions_posted = new_dl.partitions_posted;
-        dl.expirations_blocks = new_dl.expirations_blocks;
-        dl.early_terminations = new_dl.early_terminations;
-        dl.live_sectors = new_dl.live_sectors;
-        dl.total_sectors = new_dl.total_sectors;
-        dl.partitions = new_dl.partitions;
+        // drop removed deadline
+        let _ = self.due.remove(deadline_idx);
+        let _ = self.due.try_insert(deadline_idx, new_dl);
         Ok(())
     }
 }
@@ -402,11 +407,11 @@ where
     ) -> Result<Self, DeadlineError> {
         // convert w_post_period_deadlines and idx so we can math
         let period_deadlines = BlockNumber::try_from(w_post_period_deadlines).map_err(|_| {
-            log::error!(target: LOG_TARGET, "failed to convert {w_post_period_deadlines:?} to BlockNumber");
+            log::error!(target: &[LOG_TARGET, "deadline"].join("::"), "failed to convert {w_post_period_deadlines:?} to BlockNumber");
             DeadlineError::CouldNotConstructDeadlineInfo
         })?;
         let idx_converted = BlockNumber::try_from(idx).map_err(|_| {
-            log::error!(target: LOG_TARGET, "failed to convert {idx:?} to BlockNumber");
+            log::error!(target: &[LOG_TARGET, "deadline"].join("::"), "failed to convert {idx:?} to BlockNumber");
             DeadlineError::CouldNotConstructDeadlineInfo
         })?;
         let (open_at, close_at) = if idx_converted < period_deadlines {
@@ -499,7 +504,6 @@ where
         w_post_proving_period,
     )?
     .next_not_elapsed()?;
-    log::debug!(target: LOG_TARGET,"dl_info = {dl_info:?}");
 
     // Ensure that the current block is at least one challenge window before
     // that deadline opens.
