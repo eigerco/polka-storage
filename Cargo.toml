@@ -96,8 +96,8 @@ tracing-subscriber = "0.3.18"
 url = "2.5.0"
 uuid = "1.8.0"
 
-scale-encode = { version = "0.7.1", default-features = false }
 scale-decode = { version = "0.13.1", default-features = false }
+scale-encode = { version = "0.7.1", default-features = false }
 
 # Local
 
@@ -149,9 +149,7 @@ substrate-prometheus-endpoint = { git = "https://github.com/paritytech/polkadot-
 
 # Polkadot
 pallet-xcm = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.13.0", default-features = false }
-polkadot-cli = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.13.0", features = [
-  "rococo-native",
-] }
+polkadot-cli = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.13.0", features = ["rococo-native"] }
 polkadot-parachain-primitives = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.13.0", default-features = false }
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.13.0" }
 polkadot-runtime-common = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.13.0", default-features = false }
