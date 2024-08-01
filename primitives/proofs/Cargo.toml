@@ -10,15 +10,9 @@ version = "0.1.0"
 [dependencies]
 cid = { workspace = true, default-features = false, features = ["alloc"] }
 codec = { workspace = true, default-features = false, features = ["derive"] }
-scale-decode = { workspace = true, default-features = false, features = [
-    "derive",
-] }
-scale-encode = { workspace = true, default-features = false, features = [
-    "derive",
-] }
-scale-info = { workspace = true, default-features = false, features = [
-    "derive",
-] }
+scale-decode = { workspace = true, default-features = false, features = ["derive"] }
+scale-encode = { workspace = true, default-features = false, features = ["derive"] }
+scale-info = { workspace = true, default-features = false, features = ["derive"] }
 
 sp-core = { workspace = true, default-features = false }
 sp-runtime = { workspace = true, default-features = false }
@@ -33,10 +27,4 @@ workspace = true
 
 [features]
 default = ["std"]
-std = [
-    "cid/scale-codec",
-    "codec/std",
-    "scale-info/std",
-    "sp-core/std",
-    "sp-runtime/std",
-]
+std = ["cid/scale-codec", "codec/std", "scale-info/std", "sp-core/std", "sp-runtime/std"]
