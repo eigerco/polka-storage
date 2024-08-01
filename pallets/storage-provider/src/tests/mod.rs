@@ -280,7 +280,7 @@ impl Default for SectorPreCommitInfoBuilder {
                 .try_into()
                 .expect("hash is always 32 bytes"),
             deal_ids: bounded_vec![0, 1],
-            expiration: 120,
+            expiration: 120 * MINUTES,
             // TODO(@th7nder,#92,19/07/2024): compute_commd not yet implemented.
             unsealed_cid: cid_of("placeholder-to-be-done")
                 .to_bytes()
@@ -349,8 +349,8 @@ impl Default for DealProposalBuilder {
             client: account(BOB),
             provider: account(ALICE),
             label: bounded_vec![0xb, 0xe, 0xe, 0xf],
-            start_block: 100,
-            end_block: 110,
+            start_block: 100 * MINUTES,
+            end_block: 110 * MINUTES,
             storage_price_per_block: 5,
             provider_collateral: 25,
             state: DealState::Published,
