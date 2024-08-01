@@ -2,7 +2,7 @@ use sp_core::bounded_vec;
 
 use super::new_test_ext;
 use crate::{
-    pallet::StorageProviders,
+    pallet::{Event, StorageProviders},
     sector::ProveCommitSector,
     tests::{
         account, events, publish_deals, register_storage_provider, run_to_block, Balances,
@@ -11,6 +11,11 @@ use crate::{
     },
 };
 
+/// Publish 2 deals, by a 1 Storage Provider.
+/// Precommit both of them, but prove only the 2nd one.
+/// First one should be slashed -> pre_commit_deposit slashed & burned and removed from state + emitted event.
+/// Second one should **NOT** be slashed -> just removed during proving and not touched by the hook.
+/// There is a balance in pre_commit_deposit after proving, because we release balance after termination.
 #[test]
 fn pre_commit_hook_slashed_deal() {
     new_test_ext().execute_with(|| {
@@ -72,6 +77,10 @@ fn pre_commit_hook_slashed_deal() {
         assert_eq!(
             events(),
             [
+                RuntimeEvent::StorageProvider(Event::<Test>::SectorSlashed {
+                    owner: account(storage_provider),
+                    sector_number: 1,
+                }),
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Slashed {
                     who: account(storage_provider),
                     amount: deal_precommit_deposit,

@@ -214,6 +214,11 @@ pub mod pallet {
             owner: T::AccountId,
             sector_number: SectorNumber,
         },
+        /// Emitted when a sector was pre-committed, but not proven, so it got slashed in the pre-commit hook.
+        SectorSlashed {
+            owner: T::AccountId,
+            sector_number: SectorNumber,
+        },
         /// Emitted when an SP submits a valid PoSt
         ValidPoStSubmitted { owner: T::AccountId },
     }
@@ -643,6 +648,11 @@ pub mod pallet {
                         log::error!(target: LOG_TARGET, "catastrophe, failed to remove sector {} for {:?}", sector_number, storage_provider);
                         continue;
                     };
+
+                    Self::deposit_event(Event::<T>::SectorSlashed {
+                        sector_number,
+                        owner: storage_provider.clone(),
+                    });
                 }
 
                 let Some(slashed_deposits) = state.pre_commit_deposits.checked_sub(&slash_amount)
