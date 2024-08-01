@@ -83,11 +83,7 @@ impl StorageProviderCommand {
                 post_proof,
             } => {
                 let block_hash = client
-                    .register_storage_provider(
-                        &account_keypair,
-                        peer_id.clone(),
-                        post_proof,
-                    )
+                    .register_storage_provider(&account_keypair, peer_id.clone(), post_proof)
                     .await?;
                 tracing::info!(
                     "[{}] Successfully registered {}, seal: {:?} in Storage Provider Pallet",
