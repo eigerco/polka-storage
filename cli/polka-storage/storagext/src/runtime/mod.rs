@@ -3,30 +3,30 @@
 //!
 //! This module wasn't designed to be exposed to the final user of the crate.
 
-pub(crate) mod bounded_vec;
+pub mod bounded_vec;
 pub(crate) mod client;
 
 #[subxt::subxt(
     runtime_metadata_path = "../../artifacts/metadata.scale",
+    derive_for_all_types = "Clone, PartialEq, Eq",
     substitute_type(
         path = "sp_runtime::MultiSignature",
         with = "::subxt::utils::Static<::subxt::ext::sp_runtime::MultiSignature>"
     ),
-    derive_for_all_types = "Clone, PartialEq, Eq",
+    substitute_type(
+        path = "primitives_proofs::types::RegisteredSealProof",
+        with = "::primitives_proofs::RegisteredSealProof",
+    ),
+    substitute_type(
+        path = "primitives_proofs::types::RegisteredPoStProof",
+        with = "::primitives_proofs::RegisteredPoStProof",
+    ),
     derive_for_type(
         path = "pallet_market::pallet::ActiveDealState",
         derive = "::serde::Deserialize"
     ),
     derive_for_type(
         path = "pallet_market::pallet::DealState",
-        derive = "::serde::Deserialize"
-    ),
-    derive_for_type(
-        path = "primitives_proofs::types::RegisteredSealProof",
-        derive = "::serde::Deserialize"
-    ),
-    derive_for_type(
-        path = "primitives_proofs::types::RegisteredPoStProof",
         derive = "::serde::Deserialize"
     )
 )]
