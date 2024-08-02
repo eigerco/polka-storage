@@ -555,7 +555,7 @@ pub mod pallet {
             let current_block = <frame_system::Pallet<T>>::block_number();
             let mut sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
-                
+
             let mut to_process = DeadlineSectorMap::new();
             for term in params.faults.clone() {
                 let deadline = term.deadline;
@@ -565,7 +565,7 @@ pub mod pallet {
                     .try_insert(deadline, partition, term.sectors)
                     .map_err(|e| Error::<T>::SectorMapError(e))?;
             }
-            
+
             let w_post_period_deadlines = T::WPoStPeriodDeadlines::get();
             let w_post_challenge_window = T::WPoStChallengeWindow::get();
             let w_post_proving_period = T::WPoStProvingPeriod::get();
