@@ -82,15 +82,14 @@ impl pallet_market::Config for Test {
 }
 
 parameter_types! {
-    // Half an hour (=48 per day)
-    // 30 * 60 = 30 minutes
-    // SLOT_DURATION is in milliseconds thats why we / 1000
-    pub const WpostChallengeWindow: BlockNumber = 30 * 60 / (SLOT_DURATION as BlockNumber / 1000);
-    pub const MinSectorExpiration: BlockNumber = 180 * DAYS;
-    pub const MaxSectorExpirationExtension: BlockNumber = 1278 * DAYS;
-    pub const SectorMaximumLifetime: BlockNumber = YEARS * 5;
-    pub const MaxProveCommitDuration: BlockNumber =  (30 * DAYS) + 150;
-    pub const WPoStPeriodDeadlines: u64 = 48;
+    // Storage Provider Pallet
+    pub const WPoStPeriodDeadlines: u64 = 10;
+    pub const WpostProvingPeriod: BlockNumber = 40 * MINUTES;
+    pub const WpostChallengeWindow: BlockNumber = 2 * MINUTES;
+    pub const MinSectorExpiration: BlockNumber = 5 * MINUTES;
+    pub const MaxSectorExpirationExtension: BlockNumber = 360 * MINUTES;
+    pub const SectorMaximumLifetime: BlockNumber = 120 * MINUTES;
+    pub const MaxProveCommitDuration: BlockNumber = 5 * MINUTES;
     pub const MaxPartitionsPerDeadline: u64 = 3000;
     pub const DeclarationsMax: u64 = 3000;
     pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
