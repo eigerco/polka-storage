@@ -67,23 +67,6 @@ parameter_types! {
     pub const MarketPalletId: PalletId = PalletId(*b"spMarket");
 }
 
-parameter_types! {
-    // Storage Provider Pallet
-    pub const WPoStPeriodDeadlines: u64 = 10;
-    pub const WpostProvingPeriod: BlockNumber = 40 * MINUTES;
-    pub const WpostChallengeWindow: BlockNumber = 2 * MINUTES;
-    pub const MinSectorExpiration: BlockNumber = 5 * MINUTES;
-    pub const MaxSectorExpirationExtension: BlockNumber = 360 * MINUTES;
-    pub const SectorMaximumLifetime: BlockNumber = 120 * MINUTES;
-    pub const MaxProveCommitDuration: BlockNumber = 5 * MINUTES;
-    pub const MaxPartitionsPerDeadline: u64 = 3000;
-
-    // Market Pallet
-    pub const TimeUnitInBlocks: u64 = MINUTES;
-    pub const MinDealDuration: u64 = 2 * MINUTES;
-    pub const MaxDealDuration: u64 = 30 * MINUTES;
-}
-
 impl pallet_market::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type PalletId = MarketPalletId;
@@ -99,7 +82,6 @@ impl pallet_market::Config for Test {
 }
 
 parameter_types! {
-    pub const WpostProvingPeriod: BlockNumber = DAYS;
     // Half an hour (=48 per day)
     // 30 * 60 = 30 minutes
     // SLOT_DURATION is in milliseconds thats why we / 1000
@@ -113,10 +95,10 @@ parameter_types! {
     pub const DeclarationsMax: u64 = 3000;
     pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
 
-        // Market Pallet
-        pub const TimeUnitInBlocks: u64 = MINUTES;
-        pub const MinDealDuration: u64 = 2 * MINUTES;
-        pub const MaxDealDuration: u64 = 30 * MINUTES;
+    // Market Pallet
+    pub const TimeUnitInBlocks: u64 = MINUTES;
+    pub const MinDealDuration: u64 = 2 * MINUTES;
+    pub const MaxDealDuration: u64 = 30 * MINUTES;
 }
 
 impl pallet_storage_provider::Config for Test {
