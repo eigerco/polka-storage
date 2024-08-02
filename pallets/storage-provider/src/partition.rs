@@ -147,7 +147,7 @@ where
             .collect();
         // Add new faults to state, skip if no new faults.
         if !new_fault_sectors.is_empty() {
-            self.add_faults(sector_numbers);
+            self.add_faults(sector_numbers)?;
         } else {
             log::debug!(target: &[LOG_TARGET, "partition"].join("::"), "record_faults: No new faults detected");
         }
@@ -175,10 +175,10 @@ where
     pub fn add_faults(
         &mut self,
         sector_numbers: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
-    ) {
+    ) -> Result<(), PartitionError> {
         // Update partition metadata
         let faults = self.faults.clone();
-        self.faults = faults
+        self.faults = if let Some(faults) = faults
             .try_mutate(|faults| {
                 for number in sector_numbers {
                     if !faults.contains(number) {
@@ -187,8 +187,13 @@ where
                         faults.insert(*number);
                     }
                 }
-            })
-            .unwrap();
+            }) {
+                faults
+            } else {
+                log::error!(target: &[LOG_TARGET, "partition"].join("::"), "add_faults: Failed to add sector numbers to faults");
+                return Err(PartitionError::FailedToAddFaults)
+            };
+
         log::debug!(target: &[LOG_TARGET, "partition"].join("::"), "add_faults: new faults {:?}", self.faults);
 
         // Once marked faulty, sectors are moved out of the unproven set.
@@ -200,6 +205,7 @@ where
                 self.unproven.remove(number);
             }
         }
+        Ok(())
     }
 
     /// Removes sectors from recoveries
@@ -211,7 +217,6 @@ where
             return Ok(());
         }
 
-        // TODO(catch error)
         let recoveries: BTreeSet<SectorNumber> = self
             .recoveries
             .difference(sector_numbers)
@@ -234,6 +239,8 @@ pub enum PartitionError {
     DuplicateSectorNumber,
     /// Emitted when removing recovering sectors fails
     FailedToRemoveRecoveries,
+    /// Emitted when adding faults fails
+    FailedToAddFaults,
 }
 
 #[cfg(test)]
