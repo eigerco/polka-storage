@@ -30,7 +30,7 @@ pub(crate) type MaxTerminationsPerCallBound = ConstU32<MAX_TERMINATIONS_PER_CALL
 /// Maps partitions to sectors.
 ///
 /// For information about the bounds, check [`MaxTerminationsPerCallBound`].
-#[derive(Debug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone, Default)]
+#[derive(RuntimeDebug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone, Default)]
 pub struct PartitionMap(
     pub  BoundedBTreeMap<
         PartitionNumber,
@@ -98,7 +98,7 @@ impl PartitionMap {
 }
 
 // Maps deadlines to partitions (which then maps to sectors).
-#[derive(Debug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone)]
+#[derive(RuntimeDebug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone)]
 pub struct DeadlineSectorMap(
     BoundedBTreeMap<
         u64, // Deadline Index

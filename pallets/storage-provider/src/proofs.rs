@@ -1,5 +1,8 @@
 use codec::{Decode, Encode};
-use frame_support::{pallet_prelude::ConstU32, sp_runtime::BoundedVec};
+use frame_support::{
+    pallet_prelude::{ConstU32, RuntimeDebug},
+    sp_runtime::BoundedVec,
+};
 use primitives_proofs::RegisteredPoStProof;
 use scale_info::TypeInfo;
 use sp_core::blake2_64;
@@ -7,7 +10,7 @@ use sp_core::blake2_64;
 use crate::partition::PartitionNumber;
 
 /// Proof of Spacetime data stored on chain.
-#[derive(Debug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone)]
+#[derive(RuntimeDebug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone)]
 pub struct PoStProof {
     /// The proof type, currently only one type is supported.
     pub post_proof: RegisteredPoStProof,
@@ -19,7 +22,7 @@ pub struct PoStProof {
 // In filecoind the proof is an array of proofs, one per distinct registered proof type present in the sectors being proven.
 // Reference: <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/types.rs#L114-L115>
 // We differ here from Filecoin and do not support registration of different proof types.
-#[derive(Debug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone)]
+#[derive(RuntimeDebug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone)]
 pub struct SubmitWindowedPoStParams<BlockNumber> {
     /// The deadline index which the submission targets.
     pub deadline: u64,
@@ -32,7 +35,7 @@ pub struct SubmitWindowedPoStParams<BlockNumber> {
 }
 
 /// Error type for proof operations.
-#[derive(Debug)]
+#[derive(RuntimeDebug)]
 pub enum ProofError {
     Conversion,
 }

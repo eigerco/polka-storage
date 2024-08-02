@@ -22,7 +22,7 @@ use crate::{
 const LOG_TARGET: &'static str = "runtime::storage_provider::storage_provider";
 
 /// This struct holds the state of a single storage provider.
-#[derive(Debug, Decode, Encode, TypeInfo)]
+#[derive(RuntimeDebug, Decode, Encode, TypeInfo)]
 pub struct StorageProviderState<PeerId, Balance, BlockNumber>
 where
     BlockNumber: sp_runtime::traits::BlockNumber,
@@ -292,7 +292,7 @@ impl From<DeadlineError> for StorageProviderError {
 }
 
 /// Static information about the storage provider.
-#[derive(Debug, Clone, Copy, Decode, Encode, TypeInfo, PartialEq)]
+#[derive(RuntimeDebug, Clone, Copy, Decode, Encode, TypeInfo, PartialEq)]
 pub struct StorageProviderInfo<PeerId> {
     /// Libp2p identity that should be used when connecting to this Storage Provider
     pub peer_id: PeerId,
