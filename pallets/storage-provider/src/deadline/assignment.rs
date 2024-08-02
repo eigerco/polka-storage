@@ -5,9 +5,10 @@ use core::cmp::Ordering;
 
 use crate::{
     deadline::{Deadline, DeadlineError},
-    pallet::LOG_TARGET,
     sector::SectorOnChainInfo,
 };
+
+const LOG_TARGET: &'static str = "runtime::storage_provider::assignment";
 
 /// Intermediary data structure used to assign deadlines to sectors.
 struct DeadlineAssignmentInfo {
@@ -148,14 +149,14 @@ pub fn assign_deadlines<BlockNumber>(
 where
     BlockNumber: sp_runtime::traits::BlockNumber,
 {
-    log::debug!(target: &[LOG_TARGET, "assignment"].join("::"),"deadlines len: {}, sectors len: {}", deadlines.len(), sectors.len());
+    log::debug!(target: LOG_TARGET,"deadlines len: {}, sectors len: {}", deadlines.len(), sectors.len());
     let mut nones = 0;
     for dl in deadlines {
         if dl.is_none() {
             nones += 1;
         }
     }
-    log::debug!(target: &[LOG_TARGET, "assignment"].join("::"),"deadlines that are none: {nones}");
+    log::debug!(target: LOG_TARGET,"deadlines that are none: {nones}");
     struct Entry {
         partition_size: u64,
         info: DeadlineAssignmentInfo,

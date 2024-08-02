@@ -16,9 +16,10 @@ use crate::{
     deadline::{
         assign_deadlines, deadline_is_mutable, Deadline, DeadlineError, DeadlineInfo, Deadlines,
     },
-    pallet::LOG_TARGET,
     sector::{SectorOnChainInfo, SectorPreCommitOnChainInfo, MAX_SECTORS},
 };
+
+const LOG_TARGET: &'static str = "runtime::storage_provider::storage_provider";
 
 /// This struct holds the state of a single storage provider.
 #[derive(Debug, Decode, Encode, TypeInfo)]

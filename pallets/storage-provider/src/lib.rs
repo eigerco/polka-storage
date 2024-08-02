@@ -31,7 +31,7 @@ pub mod pallet {
     pub const CID_CODEC: u64 = 0x55;
     /// Sourced from multihash code table <https://github.com/multiformats/rust-multihash/blob/b321afc11e874c08735671ebda4d8e7fcc38744c/codetable/src/lib.rs#L108>
     pub const BLAKE2B_MULTIHASH_CODE: u64 = 0xB220;
-    pub const LOG_TARGET: &'static str = "runtime::storage_provider";
+    const LOG_TARGET: &'static str = "runtime::storage_provider";
 
     extern crate alloc;
 
