@@ -216,10 +216,7 @@ where
         let mut partitions_with_fault =
             Vec::<PartitionNumber>::with_capacity(partition_sectors.len());
         for (partition_idx, sector_numbers) in partition_map.0.iter() {
-            let mut partition = if let Some(partition) = partitions.get_mut(&partition_idx).cloned()
-            {
-                partition
-            } else {
+            let Some(mut partition) = partitions.get_mut(&partition_idx).cloned() else {
                 log::error!(target: LOG_TARGET, "record_faults: Could not get partition at index {partition_idx}");
                 return Err(DeadlineError::PartitionNotFound);
             };
