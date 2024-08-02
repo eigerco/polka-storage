@@ -555,6 +555,7 @@ pub mod pallet {
             let current_block = <frame_system::Pallet<T>>::block_number();
             let mut sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
+                
             let mut to_process = DeadlineSectorMap::new();
             for term in params.faults.clone() {
                 let deadline = term.deadline;
