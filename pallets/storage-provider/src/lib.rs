@@ -61,7 +61,7 @@ pub mod pallet {
 
     use crate::{
         deadline::DeadlineInfo,
-        fault::DeclareFaultsParams,
+        fault::{DeclareFaultsParams, FaultDeclaration},
         proofs::{
             assign_proving_period_offset, current_deadline_index, current_proving_period_start,
             SubmitWindowedPoStParams,
@@ -237,6 +237,11 @@ pub mod pallet {
         },
         /// Emitted when an SP submits a valid PoSt
         ValidPoStSubmitted { owner: T::AccountId },
+        /// Emitted when an SP declares some sectors as faulty
+        FaultsDeclared {
+            owner: T::AccountId,
+            faults: Vec<FaultDeclaration>,
+        },
     }
 
     #[pallet::error]
@@ -551,7 +556,7 @@ pub mod pallet {
             let mut sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
             let mut to_process = DeadlineSectorMap::new();
-            for term in params.faults {
+            for term in params.faults.clone() {
                 let deadline = term.deadline;
                 let partition = term.partition;
 
@@ -597,7 +602,11 @@ pub mod pallet {
                     .update_deadline(*deadline_idx as usize, dl.clone())
                     .map_err(|e| Error::<T>::DeadlineError(e))?;
             }
-            StorageProviders::<T>::insert(owner, sp);
+            StorageProviders::<T>::insert(owner.clone(), sp);
+            Self::deposit_event(Event::FaultsDeclared {
+                owner,
+                faults: params.faults,
+            });
             Ok(())
         }
     }
