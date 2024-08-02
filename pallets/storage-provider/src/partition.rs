@@ -196,6 +196,37 @@ where
 
         Ok(())
     }
+
+    /// Set sectors from faulty to recovering
+    ///
+    /// Filecoin reference: <https://github.com/filecoin-project/builtin-actors/blob/0f205c378983ac6a08469b9f400cbb908eef64e2/actors/miner/src/partition_state.rs#L317>
+    pub fn declare_faults_recovered(
+        &mut self,
+        sector_numbers: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
+    ) where
+        BlockNumber: sp_runtime::traits::BlockNumber,
+    {
+        // Recoveries = (sector_numbers & self.faults) - self.recoveries
+        let recoveries = sector_numbers
+            .iter()
+            .filter(|sector_number| self.faults.contains(&sector_number))
+            .filter_map(|sector_number| {
+                if !self.recoveries.contains(sector_number) {
+                    Some(*sector_number)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        // self.recoveries | recoveries
+        self.recoveries = self
+            .recoveries
+            .union(&recoveries)
+            .map(|sector_number| *sector_number)
+            .collect::<BTreeSet<u64>>()
+            .try_into()
+            .expect("Programmer error: BoundedBTreeSet should be able to be created from BTreeSet");
+    }
 }
 
 #[derive(Decode, Encode, PalletError, TypeInfo, RuntimeDebug)]

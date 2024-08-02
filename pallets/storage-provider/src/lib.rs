@@ -62,8 +62,14 @@ pub mod pallet {
 
     use crate::{
         deadline::DeadlineInfo,
-        fault::{DeclareFaultsParams, FaultDeclaration},
-        proofs::{assign_proving_period_offset, SubmitWindowedPoStParams},
+        fault::{
+            DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration,
+            RecoveryDeclaration,
+        },
+        proofs::{
+            assign_proving_period_offset, current_deadline_index, current_proving_period_start,
+            SubmitWindowedPoStParams,
+        },
         sector::{
             ProveCommitSector, SectorOnChainInfo, SectorPreCommitInfo, SectorPreCommitOnChainInfo,
             MAX_SECTORS,
@@ -244,6 +250,11 @@ pub mod pallet {
         FaultsDeclared {
             owner: T::AccountId,
             faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>>,
+        },
+        /// Emitted when an SP declares some sectors as recovered
+        FaultsRecovered {
+            owner: T::AccountId,
+            recoveries: Vec<RecoveryDeclaration>,
         },
     }
 
@@ -595,12 +606,12 @@ pub mod pallet {
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
 
             let mut to_process = DeadlineSectorMap::new();
-            for term in params.faults.clone() {
+            for term in &params.faults {
                 let deadline = term.deadline;
                 let partition = term.partition;
 
                 to_process
-                    .try_insert(deadline, partition, term.sectors)
+                    .try_insert(deadline, partition, term.sectors.clone())
                     .map_err(|e| Error::<T>::SectorMapError(e))?;
             }
 
@@ -647,6 +658,60 @@ pub mod pallet {
             Self::deposit_event(Event::FaultsDeclared {
                 owner,
                 faults: params.faults,
+            });
+            Ok(())
+        }
+
+        /// This extrinsic allows an SP to declare some faulty sectors as recovering.
+        /// Sectors can either be declared faulty by the SP or by the system.
+        /// The system declares a sector as faulty when an SP misses their PoSt deadline.
+        ///
+        /// Filecoin reference: <https://github.com/filecoin-project/builtin-actors/blob/0f205c378983ac6a08469b9f400cbb908eef64e2/actors/miner/src/lib.rs#L2620>
+        pub fn declare_faults_recovered(
+            origin: OriginFor<T>,
+            params: DeclareFaultsRecoveredParams,
+        ) -> DispatchResult {
+            ensure!(
+                params.recoveries.len() as u64 <= T::DeclarationsMax::get(),
+                {
+                    log::error!(
+                        target: LOG_TARGET,
+                        "declare_faults_recovered: too many fault recoveries for a single message: {} > {}",
+                        params.recoveries.len(),
+                        T::DeclarationsMax::get()
+                    );
+                    Error::<T>::TooManyDeclarations
+                }
+            );
+            let owner = ensure_signed(origin)?;
+            let mut sp = StorageProviders::<T>::try_get(&owner)
+                .map_err(|_| Error::<T>::StorageProviderNotFound)?;
+            let mut to_process = DeadlineSectorMap::new();
+            for term in &params.recoveries {
+                let deadline = term.deadline;
+                let partition = term.partition;
+
+                to_process
+                    .try_insert(deadline, partition, term.sectors.clone())
+                    .map_err(|e| Error::<T>::SectorMapError(e))?;
+            }
+            for (deadline_idx, partition_map) in to_process.into_iter() {
+                log::debug!(target: LOG_TARGET, "declare_faults_recovered: Processing deadline index: {deadline_idx}");
+                let mut dl = sp
+                    .deadlines
+                    .load_deadline(*deadline_idx as usize)
+                    .map_err(|e| Error::<T>::DeadlineError(e))?;
+                dl.declare_faults_recovered(partition_map)
+                    .map_err(|e| Error::<T>::DeadlineError(e))?;
+                sp.deadlines
+                    .update_deadline(*deadline_idx as usize, dl.clone())
+                    .map_err(|e| Error::<T>::DeadlineError(e))?;
+            }
+
+            StorageProviders::<T>::insert(owner.clone(), sp);
+            Self::deposit_event(Event::FaultsRecovered {
+                owner,
+                recoveries: params.recoveries,
             });
             Ok(())
         }

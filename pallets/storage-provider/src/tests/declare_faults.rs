@@ -264,7 +264,7 @@ fn multiple_deadline_faults() {
     });
 }
 
-fn default_fault_setup(storage_provider: &str, storage_client: &str) {
+pub(crate) fn default_fault_setup(storage_provider: &str, storage_client: &str) {
     // Register storage provider
     register_storage_provider(account(storage_provider));
 
