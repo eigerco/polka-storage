@@ -10,10 +10,17 @@ version = "0.1.0"
 [dependencies]
 cid = { workspace = true, default-features = false, features = ["alloc"] }
 codec = { workspace = true, default-features = false, features = ["derive"] }
+scale-decode = { workspace = true, default-features = false, features = ["derive"] }
+scale-encode = { workspace = true, default-features = false, features = ["derive"] }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 
 sp-core = { workspace = true, default-features = false }
 sp-runtime = { workspace = true, default-features = false }
+
+serde = { workspace = true, features = ["derive"], optional = true }
+
+[dev-dependencies]
+serde_json = { workspace = true, default-features = true }
 
 [lints]
 workspace = true

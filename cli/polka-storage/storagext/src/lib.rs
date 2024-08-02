@@ -1,22 +1,21 @@
-use cid::Cid;
-use codec::Encode;
-use frame_support::CloneNoBound;
-use primitives_proofs::{DealId, SectorNumber};
-use subxt::{self, ext::sp_runtime::MultiSignature, tx::Signer, utils::Static};
-
 pub mod market;
 pub mod runtime;
 pub mod storage_provider;
 
-use crate::runtime::bounded_vec::IntoBoundedByteVec;
-pub use crate::runtime::runtime_types::{
-    pallet_market::{
-        pallet as market_pallet_types,
-        pallet::{ActiveDealState, DealState},
-    },
-    primitives_proofs::{
-        types as primitives_proofs_types,
-        types::{RegisteredPoStProof, RegisteredSealProof},
+use cid::Cid;
+use codec::Encode;
+use frame_support::CloneNoBound;
+use primitives_proofs::{DealId, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
+use subxt::{self, ext::sp_runtime::MultiSignature, tx::Signer, utils::Static};
+
+pub use crate::runtime::{
+    bounded_vec::IntoBoundedByteVec,
+    runtime_types::{
+        pallet_market::{
+            pallet as market_pallet_types,
+            pallet::{ActiveDealState, DealState},
+        },
+        pallet_storage_provider::proofs::{PoStProof, SubmitWindowedPoStParams},
     },
 };
 
