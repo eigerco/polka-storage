@@ -565,6 +565,7 @@ pub mod pallet {
                     .try_insert(deadline, partition, term.sectors)
                     .map_err(|e| Error::<T>::SectorMapError(e))?;
             }
+            
             let w_post_period_deadlines = T::WPoStPeriodDeadlines::get();
             let w_post_challenge_window = T::WPoStChallengeWindow::get();
             let w_post_proving_period = T::WPoStProvingPeriod::get();
