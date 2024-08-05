@@ -595,8 +595,7 @@ pub mod pallet {
                 let mut dl = sp
                     .deadlines
                     .load_deadline(*deadline_idx as usize)
-                    .map_err(|e| Error::<T>::DeadlineError(e))?
-                    .clone();
+                    .map_err(|e| Error::<T>::DeadlineError(e))?;
                 let _fault_expiration_block = target_dl.last();
                 dl.record_faults(&sectors, partition_map)
                     .map_err(|e| Error::<T>::DeadlineError(e))?;

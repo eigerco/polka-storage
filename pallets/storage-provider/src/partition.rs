@@ -194,12 +194,9 @@ where
         log::debug!(target: LOG_TARGET, "add_faults: new faults {:?}", self.faults);
 
         // Once marked faulty, sectors are moved out of the unproven set.
-        let unproven = self.unproven.clone();
-        let unproven: Vec<&SectorNumber> = sector_numbers.intersection(&unproven).collect();
-        for number in unproven {
-            if self.unproven.contains(number) {
-                // Remove is safe because the contains check
-                self.unproven.remove(number);
+        for sector_number in sector_numbers {
+            if self.unproven.contains(sector_number) {
+                self.unproven.remove(sector_number);
             }
         }
         Ok(())
