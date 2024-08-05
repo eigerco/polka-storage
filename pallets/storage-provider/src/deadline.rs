@@ -344,11 +344,13 @@ where
         new_dl: Deadline<BlockNumber>,
     ) -> Result<(), DeadlineError> {
         // drop removed deadline
-        self.due.remove(deadline_idx);
-        self.due
-            .try_insert(deadline_idx, new_dl)
-            .map_err(|_| DeadlineError::FailedToUpdateDeadline)?;
-        Ok(())
+        match self.due.get_mut(deadline_idx) {
+            Some(dl) => {
+                *dl = new_dl;
+                Ok(())
+            }
+            None => Err(DeadlineError::FailedToUpdateDeadline),
+        }
     }
 }
 
