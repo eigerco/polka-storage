@@ -134,7 +134,7 @@ const BOB: &'static str = "//Bob";
 const CHARLIE: &'static str = "//Charlie";
 
 /// Initial funds of all accounts.
-const INITIAL_FUNDS: u64 = 100;
+const INITIAL_FUNDS: u64 = 500;
 
 // Build genesis storage according to the mock runtime.
 fn new_test_ext() -> sp_io::TestExternalities {

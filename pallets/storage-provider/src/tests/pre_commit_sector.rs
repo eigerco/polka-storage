@@ -26,7 +26,7 @@ fn successfully_precommited() {
         let sector = SectorPreCommitInfoBuilder::default().build();
 
         // Check starting balance
-        assert_eq!(Balances::free_balance(account(storage_provider)), 30);
+        assert_eq!(Balances::free_balance(account(storage_provider)), 430);
 
         // Run pre commit extrinsic
         StorageProvider::pre_commit_sector(
@@ -56,7 +56,7 @@ fn successfully_precommited() {
         assert!(sp.sectors.is_empty()); // not yet proven
         assert!(!sp.pre_committed_sectors.is_empty());
         assert_eq!(sp.pre_commit_deposits, 1);
-        assert_eq!(Balances::free_balance(account(storage_provider)), 29);
+        assert_eq!(Balances::free_balance(account(storage_provider)), 429);
     });
 }
 
@@ -107,7 +107,7 @@ fn successfully_precommited_no_deals() {
         assert!(sp.sectors.is_empty()); // not yet proven
         assert!(!sp.pre_committed_sectors.is_empty());
         assert_eq!(sp.pre_commit_deposits, 1);
-        assert_eq!(Balances::free_balance(account(storage_provider)), 99);
+        assert_eq!(Balances::free_balance(account(storage_provider)), 499);
     });
 }
 
