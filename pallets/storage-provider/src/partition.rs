@@ -206,7 +206,7 @@ where
     pub fn remove_recoveries(
         &mut self,
         sector_numbers: &BTreeSet<SectorNumber>,
-    ) -> Result<&mut Self, PartitionError> {
+    ) -> Result<(), PartitionError> {
         // need to clone here because `try_mutate(mut self, ..)`
         self.recoveries = if let Some(recoveries) = self.recoveries.clone().try_mutate(|sectors| {
             sectors.retain(|sector_number| !sector_numbers.contains(sector_number))
@@ -216,7 +216,7 @@ where
             log::error!(target: LOG_TARGET, "remove_recoveries: Failed to remove sectors from recovering");
             return Err(PartitionError::FailedToRemoveRecoveries);
         };
-        Ok(self)
+        Ok(())
     }
 }
 
