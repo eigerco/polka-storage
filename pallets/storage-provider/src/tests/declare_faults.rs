@@ -3,11 +3,11 @@ use sp_core::bounded_vec;
 
 use crate::{
     fault::{DeclareFaultsParams, FaultDeclaration},
-    pallet::StorageProviders,
+    pallet::{Event, StorageProviders},
     sector::ProveCommitSector,
     tests::{
-        account, new_test_ext, register_storage_provider, DealProposalBuilder, Market,
-        RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, Test, ALICE, BOB,
+        account, events, new_test_ext, register_storage_provider, DealProposalBuilder, Market,
+        RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, Test, ALICE, BOB,
     },
 };
 
@@ -76,10 +76,12 @@ fn declare_faults() {
             partition: 1,
             sectors,
         };
+        // Flush events before running extrinsic to check only relevant events
+        events();
         assert_ok!(StorageProvider::declare_faults(
             RuntimeOrigin::signed(account(storage_provider)),
             DeclareFaultsParams {
-                faults: vec![fault]
+                faults: vec![fault.clone()]
             },
         ));
 
@@ -97,5 +99,6 @@ fn declare_faults() {
         }
         // One partitions fault should be added.
         assert_eq!(updates, 1);
+        assert_eq!(events(), [RuntimeEvent::StorageProvider(Event::FaultsDeclared { owner: account(storage_provider), faults: vec![fault] })]);
     });
 }
