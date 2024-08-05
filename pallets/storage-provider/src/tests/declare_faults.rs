@@ -87,8 +87,6 @@ fn declare_faults() {
 
         let mut updates = 0;
 
-        // why tf is this partition not updating? 
-        // When I log the updates it does seem like it.
         for (deadline_idx, dl) in sp.deadlines.due.iter().enumerate() {
             for (partition_number, partition) in dl.partitions.iter() {
                 if partition.faults.len() > 0 {
