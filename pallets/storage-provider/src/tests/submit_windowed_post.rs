@@ -85,9 +85,6 @@ fn fails_should_be_signed() {
     new_test_ext().execute_with(|| {
         setup();
 
-        // Run to block where the window post proof is to be submitted
-        run_to_block(6700);
-
         // Build window post proof
         let windowed_post = SubmitWindowedPoStBuilder::default()
             .deadline(0)
@@ -101,8 +98,6 @@ fn fails_should_be_signed() {
     });
 }
 
-// TODO: Remove ignore after the deadline calculation is fixed
-#[ignore]
 #[test]
 fn successful_submit_single_windowed_post() {
     new_test_ext().execute_with(|| {
@@ -122,16 +117,7 @@ fn successful_submit_single_windowed_post() {
             windowed_post.clone(),
         ));
 
-        // Run extrinsic and assert that the result is `Err`
-        assert_noop!(
-            StorageProvider::submit_windowed_post(
-                RuntimeOrigin::signed(account(ALICE)),
-                windowed_post,
-            ),
-            Error::<Test>::PoStProofInvalid
-        );
-
-        // Check that only one event was emitted
+        // Check that event was emitted
         assert_eq!(
             events(),
             [RuntimeEvent::StorageProvider(
@@ -143,11 +129,9 @@ fn successful_submit_single_windowed_post() {
     });
 }
 
-
-// TODO: Remove ignore after the deadline calculation is fixed
 #[ignore]
 #[test]
-fn successful_submit_windowed_post() {
+fn successful_submit_multiple_windowed_post() {
     new_test_ext().execute_with(|| {
         setup();
 
@@ -196,7 +180,6 @@ fn successful_submit_windowed_post() {
     });
 }
 
-#[ignore]
 #[test]
 fn submit_windowed_post_for_sector_twice() {
     new_test_ext().execute_with(|| {
