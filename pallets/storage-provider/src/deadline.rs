@@ -442,9 +442,8 @@ where
     }
 
     /// The last block during which a proof may be submitted.
-    pub fn last(&self) -> Result<BlockNumber, DeadlineError> {
-        Ok(self.close_at
-            - BlockNumber::try_from(1u64).map_err(|_| DeadlineError::ConversionError)?)
+    pub fn last(&self) -> BlockNumber {
+        self.close_at.saturating_less_one()
     }
 
     /// Returns the next deadline that has not yet elapsed.
@@ -533,8 +532,6 @@ pub enum DeadlineError {
     CouldNotAddSectors,
     /// Emitted when assigning sectors to deadlines fails.
     CouldNotAssignSectorsToDeadlines,
-    /// Emitted when a type conversion fails.
-    ConversionError,
     /// Emitted when updates to a partition fail.
     FailedToUpdatePartition,
     /// Emitted when trying to update a deadline fails.
