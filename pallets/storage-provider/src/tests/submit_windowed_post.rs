@@ -129,7 +129,6 @@ fn successful_submit_single_windowed_post() {
     });
 }
 
-#[ignore]
 #[test]
 fn successful_submit_multiple_windowed_post() {
     new_test_ext().execute_with(|| {
@@ -143,11 +142,11 @@ fn successful_submit_multiple_windowed_post() {
         let submit_proofs = vec![
             ProofSubmitted {
                 deadline: 0,
-                height: 6700,
+                height: 19,
             },
             ProofSubmitted {
                 deadline: 1,
-                height: 13500,
+                height: 38,
             },
         ];
 
@@ -228,7 +227,7 @@ fn missed_deadline_should_be_marked_as_faulty() {
         setup();
 
         // Run to block where the first deadline is missed
-        run_to_block(7000);
+        run_to_block(19);
 
         // Check that the first sector is marked as faulty
         let state = StorageProviders::<Test>::get(account(ALICE)).unwrap();
@@ -248,7 +247,7 @@ fn should_fail_when_proving_wrong_partition() {
         setup();
 
         // Run to block where the window post proof is to be submitted
-        run_to_block(6700);
+        run_to_block(19);
 
         // Build window post proof
         let windowed_post = SubmitWindowedPoStBuilder::default()
@@ -273,7 +272,7 @@ fn fail_windowed_post_wrong_signature() {
         setup();
 
         // Run to block where the window post proof is to be submitted
-        run_to_block(6700);
+        run_to_block(19);
 
         // Build window post proof
         let windowed_post = SubmitWindowedPoStBuilder::default()
@@ -299,7 +298,7 @@ fn fail_windowed_post_future_commit_block() {
         setup();
 
         // Run to block where the window post proof is to be submitted
-        run_to_block(6700);
+        run_to_block(19);
 
         // Build window post proof
         let windowed_post = SubmitWindowedPoStBuilder::default()
@@ -346,7 +345,7 @@ fn fail_windowed_post_wrong_deadline_index_used() {
         setup();
 
         // Run to block where the window post proof is to be submitted
-        run_to_block(6700);
+        run_to_block(19);
 
         // Build window post proof
         let windowed_post = SubmitWindowedPoStBuilder::default()
