@@ -209,20 +209,17 @@ where
     pub fn remove_recoveries(
         &mut self,
         sector_numbers: &BTreeSet<SectorNumber>,
-    ) -> Result<(), PartitionError> {
-        if sector_numbers.is_empty() {
-            return Ok(());
-        }
-
-        let recoveries: BTreeSet<SectorNumber> = self
-            .recoveries
-            .difference(sector_numbers)
-            .cloned()
-            .collect();
-        self.recoveries = recoveries
-            .try_into()
-            .map_err(|_| PartitionError::FailedToRemoveRecoveries)?;
-        Ok(())
+    ) -> Result<&mut Self, PartitionError> {
+        // need to clone here because `try_mutate(mut self, ..)`
+        self.recoveries = if let Some(recoveries) = self.recoveries.clone().try_mutate(|sectors| {
+            sectors.retain(|sector_number| !sector_numbers.contains(sector_number))
+        }) {
+            recoveries
+        } else {
+            log::error!(target: LOG_TARGET, "remove_recoveries: Failed to remove sectors from recovering");
+            return Err(PartitionError::FailedToRemoveRecoveries);
+        };
+        Ok(self)
     }
 }
 
@@ -234,10 +231,10 @@ pub enum PartitionError {
     FailedToAddSector,
     /// Emitted when trying to add a sector number that has already been used in this partition.
     DuplicateSectorNumber,
-    /// Emitted when removing recovering sectors fails
-    FailedToRemoveRecoveries,
     /// Emitted when adding faults fails
     FailedToAddFaults,
+    /// Emitted when removing recovering sectors fails
+    FailedToRemoveRecoveries,
 }
 
 #[cfg(test)]
