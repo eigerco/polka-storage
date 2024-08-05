@@ -1,6 +1,9 @@
+extern crate alloc;
+
+use alloc::vec::Vec;
+
 use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeSet};
 use primitives_proofs::{SectorNumber, MAX_TERMINATIONS_PER_CALL};
-use scale_info::prelude::vec::Vec;
 
 use crate::partition::PartitionNumber;
 

@@ -73,7 +73,7 @@ where
         &self,
     ) -> Result<BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>, PartitionError> {
         let mut live_sectors = BoundedBTreeSet::new();
-        let difference = self.sectors.difference(&self.terminated).cloned();
+        let difference = self.sectors.difference(&self.terminated).copied();
         for sector_number in difference {
             live_sectors
                 .try_insert(sector_number)
@@ -88,7 +88,7 @@ where
     /// condition: the sector numbers cannot be in any of the `BoundedBTreeSet`'s
     /// fails if any of the given sector numbers are a duplicate
     pub fn add_sectors(&mut self, sectors: &[SectorNumber]) -> Result<(), PartitionError> {
-        let new_sectors = sectors.iter().cloned();
+        let new_sectors = sectors.iter().copied();
         for sector_number in new_sectors {
             // Ensure that the sector number has not been used before.
             // All sector number (including faulty, terminated and unproven) are contained in `sectors` so we only need to check in there.
@@ -124,16 +124,16 @@ where
         let retracted_recoveries: BTreeSet<SectorNumber> = self
             .recoveries
             .intersection(sector_numbers)
-            .cloned()
+            .copied()
             .collect();
         // sector_numbers - retracted_recoveries
         let mut new_faults: BTreeSet<SectorNumber> = sector_numbers
             .difference(&retracted_recoveries)
-            .cloned()
+            .copied()
             .collect();
         // Ignore any terminated sectors and previously declared or detected faults
-        new_faults = new_faults.difference(&self.terminated).cloned().collect();
-        new_faults = new_faults.difference(&self.faults).cloned().collect();
+        new_faults = new_faults.difference(&self.terminated).copied().collect();
+        new_faults = new_faults.difference(&self.faults).copied().collect();
         log::debug!(target: LOG_TARGET, "record_faults: new_faults = {new_faults:#?}, amount = {:?}", new_faults.len());
         let new_fault_sectors: Vec<(&SectorNumber, &SectorOnChainInfo<BlockNumber>)> = sectors
             .iter()
