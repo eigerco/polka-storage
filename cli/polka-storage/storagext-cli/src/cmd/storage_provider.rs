@@ -1,10 +1,11 @@
 use anyhow::bail;
 use clap::Subcommand;
-use storagext::{storage_provider::StorageProviderClient, PolkaStorageConfig, RegisteredPoStProof};
+use primitives_proofs::RegisteredPoStProof;
+use storagext::{storage_provider::StorageProviderClient, PolkaStorageConfig};
 use subxt::ext::sp_core::crypto::Ss58Codec;
 use url::Url;
 
-use crate::deser::{ParseablePath, PreCommitSector, ProveCommitSector};
+use crate::deser::{ParseablePath, PreCommitSector, ProveCommitSector, SubmitWindowedPoStParams};
 
 fn parse_post_proof(src: &str) -> Result<RegisteredPoStProof, anyhow::Error> {
     let post_proof = match src {
@@ -28,21 +29,30 @@ pub enum StorageProviderCommand {
         /// PeerId in Storage Provider P2P network, can be any String.
         peer_id: String,
         /// Proof of Space Time type.
-        /// Can only be "2KiB" meaning `RegisteredPoStProof::StackedDRGWindow2KiBV1P1.
+        /// Can only be "2KiB" meaning `RegisteredPoStProof::StackedDRGWindow2KiBV1P1`.
         #[arg(long, value_parser = parse_post_proof, default_value = "2KiB")]
         post_proof: RegisteredPoStProof,
     },
+
     /// Pre-commit sector containing deals, so they can be proven.
     /// If deals have been published and not pre-commited and proven, they'll be slashed by Market Pallet.
     PreCommit {
         #[arg(value_parser = <PreCommitSector as ParseablePath>::parse_json)]
         pre_commit_sector: PreCommitSector,
     },
+
     /// Proves sector that has been previously pre-committed.
     /// After proving, a deal in a sector is considered Active.
     ProveCommit {
         #[arg(value_parser = <ProveCommitSector as ParseablePath>::parse_json)]
         prove_commit_sector: ProveCommitSector,
+    },
+
+    /// Submit a Proof-of-SpaceTime (PoST).
+    #[command(name = "submit-windowed-post")]
+    SubmitWindowedProofOfSpaceTime {
+        #[arg(value_parser = <SubmitWindowedPoStParams as ParseablePath>::parse_json)]
+        windowed_post: SubmitWindowedPoStParams,
     },
 }
 
@@ -73,11 +83,7 @@ impl StorageProviderCommand {
                 post_proof,
             } => {
                 let block_hash = client
-                    .register_storage_provider(
-                        &account_keypair,
-                        peer_id.clone(),
-                        post_proof.clone(),
-                    )
+                    .register_storage_provider(&account_keypair, peer_id.clone(), post_proof)
                     .await?;
                 tracing::info!(
                     "[{}] Successfully registered {}, seal: {:?} in Storage Provider Pallet",
@@ -111,6 +117,13 @@ impl StorageProviderCommand {
                     block_hash,
                     sector_number
                 );
+            }
+            StorageProviderCommand::SubmitWindowedProofOfSpaceTime { windowed_post } => {
+                let block_hash = client
+                    .submit_windowed_post(&account_keypair, windowed_post.into())
+                    .await?;
+
+                tracing::info!("[{}] Successfully submitted proof.", block_hash,);
             }
         }
         Ok(())

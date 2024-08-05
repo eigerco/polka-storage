@@ -12,7 +12,7 @@ use primitives_proofs::{
 };
 use sp_core::{bounded_vec, Pair};
 use sp_runtime::{
-    traits::{ConstU64, IdentifyAccount, IdentityLookup, Verify},
+    traits::{IdentifyAccount, IdentityLookup, Verify},
     BuildStorage, MultiSignature, MultiSigner,
 };
 
@@ -25,6 +25,7 @@ use crate::{
 };
 
 mod pre_commit_sector;
+mod pre_commit_sector_hook;
 mod prove_commit_sector;
 mod state;
 mod storage_provider_registration;
@@ -33,12 +34,7 @@ mod submit_windowed_post;
 type Block = frame_system::mocking::MockBlock<Test>;
 type BlockNumber = u64;
 
-const MILLISECS_PER_BLOCK: u64 = 12000;
-const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
-const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
-const HOURS: BlockNumber = MINUTES * 60;
-const DAYS: BlockNumber = HOURS * 24;
-const YEARS: BlockNumber = DAYS * 365;
+const MINUTES: BlockNumber = 1;
 
 frame_support::construct_runtime!(
     pub enum Test {
@@ -70,6 +66,23 @@ parameter_types! {
     pub const MarketPalletId: PalletId = PalletId(*b"spMarket");
 }
 
+parameter_types! {
+    // Storage Provider Pallet
+    pub const WPoStPeriodDeadlines: u64 = 10;
+    pub const WpostProvingPeriod: BlockNumber = 40 * MINUTES;
+    pub const WpostChallengeWindow: BlockNumber = 2 * MINUTES;
+    pub const MinSectorExpiration: BlockNumber = 5 * MINUTES;
+    pub const MaxSectorExpirationExtension: BlockNumber = 360 * MINUTES;
+    pub const SectorMaximumLifetime: BlockNumber = 120 * MINUTES;
+    pub const MaxProveCommitDuration: BlockNumber = 5 * MINUTES;
+    pub const MaxPartitionsPerDeadline: u64 = 3000;
+
+    // Market Pallet
+    pub const TimeUnitInBlocks: u64 = MINUTES;
+    pub const MinDealDuration: u64 = 2 * MINUTES;
+    pub const MaxDealDuration: u64 = 30 * MINUTES;
+}
+
 impl pallet_market::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type PalletId = MarketPalletId;
@@ -77,24 +90,11 @@ impl pallet_market::Config for Test {
     type OffchainSignature = Signature;
     type OffchainPublic = AccountPublic;
     type MaxDeals = ConstU32<32>;
-    type TimeUnitInBlocks = ConstU64<1>;
-    type MinDealDuration = ConstU64<1>;
-    type MaxDealDuration = ConstU64<30>;
-    type MaxDealsPerBlock = ConstU32<32>;
-}
 
-parameter_types! {
-    pub const WpostProvingPeriod: BlockNumber = DAYS;
-    // Half an hour (=48 per day)
-    // 30 * 60 = 30 minutes
-    // SLOT_DURATION is in milliseconds thats why we / 1000
-    pub const WpostChallengeWindow: BlockNumber = 30 * 60 / (SLOT_DURATION as BlockNumber / 1000);
-    pub const MinSectorExpiration: BlockNumber = 180 * DAYS;
-    pub const MaxSectorExpirationExtension: BlockNumber = 1278 * DAYS;
-    pub const SectorMaximumLifetime: BlockNumber = YEARS * 5;
-    pub const MaxProveCommitDuration: BlockNumber =  (30 * DAYS) + 150;
-    pub const WPoStPeriodDeadlines: u64 = 48;
-    pub const MaxPartitionsPerDeadline: u64 = 3000;
+    type TimeUnitInBlocks = TimeUnitInBlocks;
+    type MinDealDuration = MinDealDuration;
+    type MaxDealDuration = MaxDealDuration;
+    type MaxDealsPerBlock = ConstU32<32>;
 }
 
 impl pallet_storage_provider::Config for Test {
@@ -280,7 +280,7 @@ impl Default for SectorPreCommitInfoBuilder {
                 .try_into()
                 .expect("hash is always 32 bytes"),
             deal_ids: bounded_vec![0, 1],
-            expiration: YEARS,
+            expiration: 120 * MINUTES,
             // TODO(@th7nder,#92,19/07/2024): compute_commd not yet implemented.
             unsealed_cid: cid_of("placeholder-to-be-done")
                 .to_bytes()
@@ -349,8 +349,8 @@ impl Default for DealProposalBuilder {
             client: account(BOB),
             provider: account(ALICE),
             label: bounded_vec![0xb, 0xe, 0xe, 0xf],
-            start_block: 100,
-            end_block: 110,
+            start_block: 100 * MINUTES,
+            end_block: 110 * MINUTES,
             storage_price_per_block: 5,
             provider_collateral: 25,
             state: DealState::Published,

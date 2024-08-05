@@ -1,4 +1,6 @@
 use codec::{Decode, Encode};
+use scale_decode::DecodeAsType;
+use scale_encode::EncodeAsType;
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
@@ -8,9 +10,32 @@ pub type DealId = u64;
 // always be between 0 and SECTORS_MAX (32 << 20).
 pub type SectorNumber = u64;
 
+/// SectorSize indicates one of a set of possible sizes in the network.
+#[derive(Encode, Decode, TypeInfo, Clone, RuntimeDebug, PartialEq, Eq, Copy)]
+pub enum SectorSize {
+    _2KiB,
+}
+
+impl SectorSize {
+    /// Returns the size of a sector in bytes
+    /// <https://github.com/filecoin-project/ref-fvm/blob/5659196fa94accdf1e7f10e00586a8166c44a60d/shared/src/sector/mod.rs#L40>
+    pub fn bytes(&self) -> u64 {
+        match self {
+            SectorSize::_2KiB => 2 << 10,
+        }
+    }
+}
+
 #[allow(non_camel_case_types)]
-#[derive(RuntimeDebug, Decode, Encode, TypeInfo, Eq, PartialEq, Clone)]
+#[derive(
+    RuntimeDebug, Decode, Encode, DecodeAsType, EncodeAsType, TypeInfo, Eq, PartialEq, Clone,
+)]
+#[cfg_attr(feature = "serde", derive(::serde::Deserialize))]
+#[codec(crate = ::codec)]
+#[decode_as_type(crate_path = "::scale_decode")]
+#[encode_as_type(crate_path = "::scale_encode")]
 pub enum RegisteredSealProof {
+    #[cfg_attr(feature = "serde", serde(alias = "2KiB"))]
     StackedDRG2KiBV1P1,
 }
 
@@ -31,8 +56,15 @@ impl RegisteredSealProof {
 }
 
 /// Proof of Spacetime type, indicating version and sector size of the proof.
-#[derive(Debug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone, Copy)]
+#[derive(
+    Debug, Decode, Encode, DecodeAsType, EncodeAsType, TypeInfo, PartialEq, Eq, Clone, Copy,
+)]
+#[cfg_attr(feature = "serde", derive(::serde::Deserialize))]
+#[codec(crate = ::codec)]
+#[decode_as_type(crate_path = "::scale_decode")]
+#[encode_as_type(crate_path = "::scale_encode")]
 pub enum RegisteredPoStProof {
+    #[cfg_attr(feature = "serde", serde(alias = "2KiB"))]
     StackedDRGWindow2KiBV1P1,
 }
 
@@ -54,18 +86,35 @@ impl RegisteredPoStProof {
     }
 }
 
-/// SectorSize indicates one of a set of possible sizes in the network.
-#[derive(Encode, Decode, TypeInfo, Clone, RuntimeDebug, PartialEq, Eq, Copy)]
-pub enum SectorSize {
-    _2KiB,
-}
+// serde_json requires std, hence, to test the serialization, we need:
+// * test (duh!)
+// * serde — (duh!)
+// * std — because of serde_json
+#[cfg(all(test, feature = "std", feature = "serde"))]
+mod serde_tests {
+    use crate::{RegisteredPoStProof, RegisteredSealProof};
 
-impl SectorSize {
-    /// Returns the size of a sector in bytes
-    /// <https://github.com/filecoin-project/ref-fvm/blob/5659196fa94accdf1e7f10e00586a8166c44a60d/shared/src/sector/mod.rs#L40>
-    pub fn bytes(&self) -> u64 {
-        match self {
-            SectorSize::_2KiB => 2 << 10,
-        }
+    #[test]
+    fn ensure_serde_for_registered_seal_proof() {
+        assert_eq!(
+            serde_json::from_str::<RegisteredSealProof>(r#""2KiB""#).unwrap(),
+            RegisteredSealProof::StackedDRG2KiBV1P1
+        );
+        assert_eq!(
+            serde_json::from_str::<RegisteredSealProof>(r#""StackedDRG2KiBV1P1""#).unwrap(),
+            RegisteredSealProof::StackedDRG2KiBV1P1
+        );
+    }
+
+    #[test]
+    fn ensure_serde_for_registered_post_proof() {
+        assert_eq!(
+            serde_json::from_str::<RegisteredPoStProof>(r#""2KiB""#).unwrap(),
+            RegisteredPoStProof::StackedDRGWindow2KiBV1P1
+        );
+        assert_eq!(
+            serde_json::from_str::<RegisteredPoStProof>(r#""StackedDRGWindow2KiBV1P1""#).unwrap(),
+            RegisteredPoStProof::StackedDRGWindow2KiBV1P1
+        );
     }
 }
