@@ -344,8 +344,10 @@ where
         new_dl: Deadline<BlockNumber>,
     ) -> Result<(), DeadlineError> {
         // drop removed deadline
-        let _ = self.due.remove(deadline_idx);
-        let _ = self.due.try_insert(deadline_idx, new_dl);
+        self.due.remove(deadline_idx);
+        self.due
+            .try_insert(deadline_idx, new_dl)
+            .map_err(|_| DeadlineError::FailedToUpdateDeadline)?;
         Ok(())
     }
 }
@@ -533,6 +535,8 @@ pub enum DeadlineError {
     ConversionError,
     /// Emitted when updates to a partition fail.
     FailedToUpdatePartition,
+    /// Emitted when trying to update a deadline fails.
+    FailedToUpdateDeadline,
     /// Wrapper around the partition error type
     PartitionError(PartitionError),
 }
