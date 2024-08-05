@@ -241,18 +241,6 @@ where
         }
         self.partitions = partitions;
 
-        self.add_expiration_partitions(&partitions_with_fault)
-    }
-
-    /// Adds some partition numbers to the set expiring at a block
-    pub fn add_expiration_partitions(
-        &mut self,
-        partitions: &[PartitionNumber],
-    ) -> Result<(), DeadlineError> {
-        // Avoid doing any work if there's nothing to reschedule.
-        if partitions.is_empty() {
-            return Ok(());
-        }
         Ok(())
     }
 }
