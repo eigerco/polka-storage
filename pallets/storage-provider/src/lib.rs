@@ -516,8 +516,9 @@ pub mod pallet {
         ) -> DispatchResult {
             let owner = ensure_signed(origin)?;
             let current_block = <frame_system::Pallet<T>>::block_number();
-            let mut sp = StorageProviders::<T>::try_get(&owner)
+            let sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
+
             if let Err(e) = Self::validate_windowed_post(
                 current_block,
                 &windowed_post,
@@ -526,6 +527,7 @@ pub mod pallet {
                 log::error!(target: LOG_TARGET, "submit_window_post: PoSt submission is invalid {e:?}");
                 return Err(e.into());
             }
+
             let current_deadline = sp
                 .deadline_info(
                     current_block,
@@ -535,15 +537,30 @@ pub mod pallet {
                     T::WPoStProvingPeriod::get(),
                 )
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
+
             Self::validate_deadline(current_block, &current_deadline, &windowed_post)?;
-            let deadlines = sp.get_deadlines_mut();
-            log::debug!(target: LOG_TARGET, "submit_windowed_post: deadlines = {deadlines:#?}");
-            // record sector as proven
-            deadlines
-                .record_proven(windowed_post.deadline as usize, windowed_post.partition)
-                .map_err(|e| Error::<T>::DeadlineError(e))?;
+
+            // mutate provider state
+            StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResult {
+                let sp = maybe_sp
+                    .as_mut()
+                    .ok_or(Error::<T>::StorageProviderNotFound)?;
+                let deadlines = sp.get_deadlines_mut();
+
+                log::debug!(target: LOG_TARGET, "submit_windowed_post: deadlines = {deadlines:#?}");
+
+                // record sector as proven
+                deadlines
+                    .record_proven(windowed_post.deadline as usize, windowed_post.partition)
+                    .map_err(|e| Error::<T>::DeadlineError(e))?;
+
+                Ok(())
+            })?;
+
             log::debug!(target: LOG_TARGET, "submit_windowed_post: proof recorded");
+
             Self::deposit_event(Event::ValidPoStSubmitted { owner });
+
             Ok(())
         }
 
