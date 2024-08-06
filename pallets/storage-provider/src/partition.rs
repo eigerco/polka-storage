@@ -73,7 +73,13 @@ where
         &self,
     ) -> Result<BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>, PartitionError> {
         let mut live_sectors = BoundedBTreeSet::new();
-        let difference = self.sectors.difference(&self.terminated).copied();
+        let difference = self.sectors.iter().filter_map(|sector_number| {
+            if !self.terminated.contains(sector_number) {
+                Some(*sector_number)
+            } else {
+                None
+            }
+        });
         for sector_number in difference {
             live_sectors
                 .try_insert(sector_number)
@@ -88,8 +94,7 @@ where
     /// condition: the sector numbers cannot be in any of the `BoundedBTreeSet`'s
     /// fails if any of the given sector numbers are a duplicate
     pub fn add_sectors(&mut self, sectors: &[SectorNumber]) -> Result<(), PartitionError> {
-        let new_sectors = sectors.iter().copied();
-        for sector_number in new_sectors {
+        for sector_number in sectors {
             // Ensure that the sector number has not been used before.
             // All sector number (including faulty, terminated and unproven) are contained in `sectors` so we only need to check in there.
             ensure!(!self.sectors.contains(&sector_number), {
@@ -97,7 +102,7 @@ where
                 PartitionError::DuplicateSectorNumber
             });
             self.sectors
-                .try_insert(sector_number)
+                .try_insert(*sector_number)
                 .map_err(|_| PartitionError::FailedToAddSector)?;
         }
         Ok(())
@@ -123,17 +128,37 @@ where
         // recoveries & sector_numbers
         let retracted_recoveries: BTreeSet<SectorNumber> = self
             .recoveries
-            .intersection(sector_numbers)
-            .copied()
+            .iter()
+            .filter_map(|sector_number| {
+                if sector_numbers.contains(sector_number) {
+                    Some(*sector_number)
+                } else {
+                    None
+                }
+            })
             .collect();
         // sector_numbers - retracted_recoveries
-        let mut new_faults: BTreeSet<SectorNumber> = sector_numbers
-            .difference(&retracted_recoveries)
-            .copied()
+        let new_faults: BTreeSet<SectorNumber> = sector_numbers
+            .iter()
+            .filter_map(|sector_number| {
+                if !retracted_recoveries.contains(sector_number) {
+                    Some(*sector_number)
+                } else {
+                    None
+                }
+            })
+            // Ignore any terminated sectors and previously declared or detected faults
+            .filter_map(|sector_number| {
+                if !self.terminated.contains(&sector_number)
+                    && !self.faults.contains(&sector_number)
+                {
+                    Some(sector_number)
+                } else {
+                    None
+                }
+            })
             .collect();
-        // Ignore any terminated sectors and previously declared or detected faults
-        new_faults = new_faults.difference(&self.terminated).copied().collect();
-        new_faults = new_faults.difference(&self.faults).copied().collect();
+
         log::debug!(target: LOG_TARGET, "record_faults: new_faults = {new_faults:#?}, amount = {:?}", new_faults.len());
         let new_fault_sectors: Vec<(&SectorNumber, &SectorOnChainInfo<BlockNumber>)> = sectors
             .iter()
@@ -174,8 +199,7 @@ where
         sector_numbers: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
     ) -> Result<(), PartitionError> {
         // Update partition metadata
-        let faults = self.faults.clone();
-        self.faults = if let Some(faults) = faults
+        self.faults = if let Some(faults) = self.faults.clone()
             .try_mutate(|faults| {
                 for number in sector_numbers {
                     if !faults.contains(number) {
