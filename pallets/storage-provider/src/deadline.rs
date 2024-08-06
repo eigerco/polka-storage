@@ -99,13 +99,24 @@ where
     /// If the partition has already been proven, an error is returned.
     pub fn record_proven(&mut self, partition_num: PartitionNumber) -> Result<(), DeadlineError> {
         log::debug!(target: LOG_TARGET, "record_proven: partition number = {partition_num:?}");
+
+        // Ensure the partition exists.
+        ensure!(
+            self.partitions.contains_key(&partition_num),
+            DeadlineError::PartitionNotFound
+        );
+
+        // Ensure the partition hasn't already been proven.
         ensure!(
             !self.partitions_posted.contains(&partition_num),
             DeadlineError::PartitionAlreadyProven
         );
+
+        // Record the partition as proven.
         self.partitions_posted
             .try_insert(partition_num)
             .map_err(|_| DeadlineError::ProofUpdateFailed)?;
+
         Ok(())
     }
 

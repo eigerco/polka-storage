@@ -1,5 +1,6 @@
 use frame_support::{assert_noop, assert_ok};
 use sp_core::bounded_vec;
+use sp_runtime::DispatchError;
 
 use crate::{
     deadline::DeadlineError,
@@ -78,6 +79,21 @@ fn setup() {
     let new_dl = deadlines.due.first().expect("programmer error");
     assert_eq!(new_dl.live_sectors, 1);
     assert_eq!(new_dl.total_sectors, 1);
+}
+
+#[test]
+fn fails_should_be_signed() {
+    new_test_ext().execute_with(|| {
+        // Build window post proof
+        let windowed_post = SubmitWindowedPoStBuilder::default()
+            .chain_commit_block(System::block_number() - 1) // Wrong proof
+            .build();
+
+        assert_noop!(
+            StorageProvider::submit_windowed_post(RuntimeOrigin::none(), windowed_post),
+            DispatchError::BadOrigin
+        );
+    });
 }
 
 #[test]
@@ -160,5 +176,30 @@ fn submit_windowed_post_for_sector_twice() {
         );
         // Check that nothing was emitted
         assert_eq!(events(), []);
+    });
+}
+
+#[test]
+fn should_fail_when_proving_wrong_partition() {
+    new_test_ext().execute_with(|| {
+        setup();
+
+        // Run to block where the window post proof is to be submitted
+        run_to_block(19);
+
+        // Build window post proof
+        let windowed_post = SubmitWindowedPoStBuilder::default()
+            .chain_commit_block(System::block_number() - 1)
+            .partition(2) // This partition does not exist
+            .build();
+
+        // Run extrinsic
+        assert_noop!(
+            StorageProvider::submit_windowed_post(
+                RuntimeOrigin::signed(account(ALICE)),
+                windowed_post,
+            ),
+            Error::<Test>::DeadlineError(DeadlineError::PartitionNotFound)
+        );
     });
 }
