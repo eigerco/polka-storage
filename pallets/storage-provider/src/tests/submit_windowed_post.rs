@@ -328,6 +328,7 @@ fn windowed_post_commit_block() {
             // Build window post proof
             let windowed_post = SubmitWindowedPoStBuilder::default()
                 .chain_commit_block(case.chain_commit_block)
+                .partition(0)
                 .build();
 
             // Run extrinsic

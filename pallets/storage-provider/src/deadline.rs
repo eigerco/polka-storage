@@ -101,16 +101,16 @@ where
         log::debug!(target: LOG_TARGET, "record_proven: partition number = {partition_num:?}");
 
         // Ensure the partition exists.
-        ensure!(
-            self.partitions.contains_key(&partition_num),
+        ensure!(self.partitions.contains_key(&partition_num), {
+            log::error!(target: LOG_TARGET, "record_proven: partition {partition_num:?} not found");
             DeadlineError::PartitionNotFound
-        );
+        });
 
         // Ensure the partition hasn't already been proven.
-        ensure!(
-            !self.partitions_posted.contains(&partition_num),
+        ensure!(!self.partitions_posted.contains(&partition_num), {
+            log::error!(target: LOG_TARGET, "record_proven: partition {partition_num:?} already proven");
             DeadlineError::PartitionAlreadyProven
-        );
+        });
 
         // Record the partition as proven.
         self.partitions_posted
