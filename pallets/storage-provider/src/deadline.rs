@@ -320,7 +320,8 @@ pub struct DeadlineInfo<BlockNumber> {
     pub block_number: BlockNumber,
 
     /// The block number at which the proving period for this deadline starts.
-    /// period_start < open_at to give time to SPs to create the proof before open.
+    /// period_start < open_at to give time to SPs to create the proof before
+    /// open.
     pub period_start: BlockNumber,
 
     /// The deadline index within its proving window.
@@ -333,14 +334,23 @@ pub struct DeadlineInfo<BlockNumber> {
     /// The first block number from which a proof can *no longer* be submitted.
     pub close_at: BlockNumber,
 
+    /// The block number at which the randomness for the deadline proving is
+    /// available.
+    pub challenge: BlockNumber,
+
     /// The number of non-overlapping PoSt deadlines in each proving period.
     pub w_post_period_deadlines: u64,
 
     /// The period over which all an SP's active sectors will be challenged.
     pub w_post_proving_period: BlockNumber,
 
-    /// The duration of a deadline's challenge window, the period before a deadline when the challenge is available.
+    /// The duration of a deadline's challenge window. This is a window in which
+    /// the storage provider can submit a PoSt for the deadline.
     pub w_post_challenge_window: BlockNumber,
+
+    /// The duration of the lookback window for challenge responses. The period
+    /// before a deadline when the randomness is available.
+    pub w_post_challenge_lookback: BlockNumber,
 }
 
 impl<BlockNumber> DeadlineInfo<BlockNumber>
@@ -355,35 +365,46 @@ where
         period_start: BlockNumber,
         idx: u64,
         w_post_period_deadlines: u64,
-        w_post_challenge_window: BlockNumber,
         w_post_proving_period: BlockNumber,
+        w_post_challenge_window: BlockNumber,
+        w_post_challenge_lookback: BlockNumber,
     ) -> Result<Self, DeadlineError> {
         // convert w_post_period_deadlines and idx so we can math
         let period_deadlines = BlockNumber::try_from(w_post_period_deadlines).map_err(|_| {
             log::error!(target: LOG_TARGET, "failed to convert {w_post_period_deadlines:?} to BlockNumber");
             DeadlineError::CouldNotConstructDeadlineInfo
         })?;
+
         let idx_converted = BlockNumber::try_from(idx).map_err(|_| {
             log::error!(target: LOG_TARGET, "failed to convert {idx:?} to BlockNumber");
             DeadlineError::CouldNotConstructDeadlineInfo
         })?;
-        let (open_at, close_at) = if idx_converted < period_deadlines {
+
+        let (open_at, close_at, challenge) = if idx_converted < period_deadlines {
             let open_at = period_start + (idx_converted * w_post_challenge_window);
             let close_at = open_at + w_post_challenge_window;
-            (open_at, close_at)
+            let challenge = period_start - w_post_challenge_lookback;
+            (open_at, close_at, challenge)
         } else {
             let after_last_deadline = period_start + w_post_proving_period;
-            (after_last_deadline, after_last_deadline)
+            (
+                after_last_deadline,
+                after_last_deadline,
+                after_last_deadline,
+            )
         };
+
         Ok(Self {
             block_number,
             period_start,
             idx,
             open_at,
             close_at,
+            challenge,
             w_post_period_deadlines,
-            w_post_challenge_window,
             w_post_proving_period,
+            w_post_challenge_window,
+            w_post_challenge_lookback,
         })
     }
 
@@ -409,9 +430,7 @@ where
 
         // has elapsed, advance by some multiples of w_post_proving_period
         let gap = self.block_number - self.close_at;
-        let next_deadline = TryInto::<BlockNumber>::try_into(1u64)
-            .map_err(|_| DeadlineError::FailedToGetNextDeadline)?;
-        let delta_periods = next_deadline + gap / self.w_post_proving_period;
+        let delta_periods = BlockNumber::one() + gap / self.w_post_proving_period;
 
         Self::new(
             self.block_number,
@@ -420,6 +439,7 @@ where
             self.w_post_period_deadlines,
             self.w_post_proving_period,
             self.w_post_challenge_window,
+            self.w_post_challenge_lookback,
         )
     }
 }
@@ -433,9 +453,10 @@ pub fn deadline_is_mutable<BlockNumber>(
     proving_period_start: BlockNumber,
     deadline_idx: u64,
     current_block: BlockNumber,
-    w_post_challenge_window: BlockNumber,
     w_post_period_deadlines: u64,
     w_post_proving_period: BlockNumber,
+    w_post_challenge_window: BlockNumber,
+    w_post_challenge_lookback: BlockNumber,
 ) -> Result<bool, DeadlineError>
 where
     BlockNumber: sp_runtime::traits::BlockNumber,
@@ -447,8 +468,9 @@ where
         proving_period_start,
         deadline_idx,
         w_post_period_deadlines,
-        w_post_challenge_window,
         w_post_proving_period,
+        w_post_challenge_window,
+        w_post_challenge_lookback,
     )?
     .next_not_elapsed()?;
     log::debug!(target: LOG_TARGET,"dl_info = {dl_info:?}");
@@ -476,8 +498,6 @@ pub enum DeadlineError {
     PartitionNotFound,
     /// Emitted when trying to update proven partitions fails.
     ProofUpdateFailed,
-    /// Emitted when trying to get the next instance of a deadline that has not yet elapsed fails.
-    FailedToGetNextDeadline,
     /// Emitted when max partition for a given deadline have been reached.
     MaxPartitionsReached,
     /// Emitted when trying to add sectors to a deadline fails.

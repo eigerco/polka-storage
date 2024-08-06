@@ -203,3 +203,141 @@ fn should_fail_when_proving_wrong_partition() {
         );
     });
 }
+
+#[test]
+fn fail_windowed_post_deadline_not_opened() {
+    new_test_ext().execute_with(|| {
+        setup();
+
+        // Build window post proof
+        let windowed_post = SubmitWindowedPoStBuilder::default()
+            .chain_commit_block(System::block_number() - 1)
+            .build();
+
+        // Run extrinsic
+        assert_noop!(
+            StorageProvider::submit_windowed_post(
+                RuntimeOrigin::signed(account(ALICE)),
+                windowed_post,
+            ),
+            Error::<Test>::InvalidDeadlineSubmission
+        );
+    });
+}
+
+#[test]
+fn fail_windowed_post_wrong_deadline_index_used() {
+    new_test_ext().execute_with(|| {
+        setup();
+
+        // Run to block where the window post proof is to be submitted
+        run_to_block(19);
+
+        // Build window post proof
+        let windowed_post = SubmitWindowedPoStBuilder::default()
+            .deadline(1) // This index is wrong because it is specifying the next deadline that will be opened
+            .chain_commit_block(System::block_number() - 1)
+            .build();
+
+        // Run extrinsic
+        assert_noop!(
+            StorageProvider::submit_windowed_post(
+                RuntimeOrigin::signed(account(ALICE)),
+                windowed_post,
+            ),
+            Error::<Test>::InvalidDeadlineSubmission
+        );
+    });
+}
+
+#[test]
+fn fail_windowed_post_wrong_signature() {
+    new_test_ext().execute_with(|| {
+        setup();
+
+        // Run to block where the window post proof is to be submitted
+        run_to_block(19);
+
+        // Build window post proof
+        let windowed_post = SubmitWindowedPoStBuilder::default()
+            .chain_commit_block(System::block_number() - 1)
+            .proof_bytes(vec![]) // Wrong proof
+            .build();
+
+        // Run extrinsic
+        assert_noop!(
+            StorageProvider::submit_windowed_post(
+                RuntimeOrigin::signed(account(ALICE)),
+                windowed_post,
+            ),
+            Error::<Test>::PoStProofInvalid
+        );
+    });
+}
+
+#[test]
+fn windowed_post_commit_block() {
+    struct TestCase {
+        block_number: u64,
+        chain_commit_block: u64,
+        expected_extrinsic_result: Result<(), DispatchError>,
+    }
+
+    let cases = vec![
+        // deadline is not opened
+        TestCase {
+            block_number: 10, // deadline not yet opened at this block
+            chain_commit_block: 9,
+            expected_extrinsic_result: Err(Error::<Test>::InvalidDeadlineSubmission.into()),
+        },
+        // commit block height is on the current block
+        TestCase {
+            block_number: 19,
+            chain_commit_block: 19,
+            expected_extrinsic_result: Err(Error::<Test>::PoStProofInvalid.into()),
+        },
+        // commit block is set on the block before the deadline is officially
+        // opened
+        TestCase {
+            block_number: 19,       // open_at for the deadline
+            chain_commit_block: 18, // commit deadline opens one block before
+            expected_extrinsic_result: Ok(()),
+        },
+        // submit proof on the last allowed block for the deadline
+        TestCase {
+            block_number: 20,       // deadline at the next block
+            chain_commit_block: 19, // commit block has to be for the previous block
+            expected_extrinsic_result: Ok(()),
+        },
+        // deadline has passed
+        TestCase {
+            block_number: 21,       // deadline closes at this block
+            chain_commit_block: 20, // commit block has to be for the previous block
+            expected_extrinsic_result: Err(Error::<Test>::InvalidDeadlineSubmission.into()),
+        },
+    ];
+
+    for case in cases {
+        new_test_ext().execute_with(|| {
+            // Setup environment
+            setup();
+
+            // Run to block
+            run_to_block(case.block_number);
+
+            // Build window post proof
+            let windowed_post = SubmitWindowedPoStBuilder::default()
+                .chain_commit_block(case.chain_commit_block)
+                .build();
+
+            // Run extrinsic
+            assert_eq!(
+                StorageProvider::submit_windowed_post(
+                    RuntimeOrigin::signed(account(ALICE)),
+                    windowed_post
+                ),
+                case.expected_extrinsic_result
+            );
+        });
+    }
+}
