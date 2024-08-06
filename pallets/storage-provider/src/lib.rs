@@ -619,7 +619,7 @@ pub mod pallet {
         /// Fails if:
         /// - The given deadline is not open.
         /// - There is and deadline index mismatch.
-        /// - The block the deadline was committed at is before challenge height.
+        /// - The block the deadline was committed at is after challenge height.
         fn validate_deadline(
             current_deadline: &DeadlineInfo<BlockNumberFor<T>>,
             post_params: &SubmitWindowedPoStParams<BlockNumberFor<T>>,
