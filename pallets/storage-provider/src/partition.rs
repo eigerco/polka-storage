@@ -140,19 +140,13 @@ where
         // sector_numbers - retracted_recoveries
         let new_faults: BTreeSet<SectorNumber> = sector_numbers
             .iter()
-            .filter_map(|sector_number| {
-                if !retracted_recoveries.contains(sector_number) {
-                    Some(*sector_number)
-                } else {
-                    None
-                }
-            })
+            .filter(|sector_number| !retracted_recoveries.contains(sector_number))
             // Ignore any terminated sectors and previously declared or detected faults
             .filter_map(|sector_number| {
                 if !self.terminated.contains(&sector_number)
                     && !self.faults.contains(&sector_number)
                 {
-                    Some(sector_number)
+                    Some(*sector_number)
                 } else {
                     None
                 }

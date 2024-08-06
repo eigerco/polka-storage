@@ -162,6 +162,7 @@ where
         mut sectors: BoundedVec<SectorOnChainInfo<BlockNumber>, ConstU32<MAX_SECTORS>>,
         partition_size: u64,
         max_partitions_per_deadline: u64,
+        fault_cutoff_declaration: BlockNumber,
         w_post_challenge_window: BlockNumber,
         w_post_period_deadlines: u64,
         w_post_proving_period: BlockNumber,
@@ -176,6 +177,7 @@ where
         );
         let proving_period_start = self.current_proving_period_start(
             current_block,
+            fault_cutoff_declaration,
             w_post_challenge_window,
             w_post_period_deadlines,
             w_post_proving_period,
@@ -187,6 +189,7 @@ where
                     proving_period_start,
                     deadline_idx as u64,
                     current_block,
+                    fault_cutoff_declaration,
                     w_post_challenge_window,
                     w_post_period_deadlines,
                     w_post_proving_period,
@@ -229,12 +232,14 @@ where
     pub fn current_proving_period_start(
         &self,
         current_block: BlockNumber,
+        fault_cutoff_declaration: BlockNumber,
         w_post_challenge_window: BlockNumber,
         w_post_period_deadlines: u64,
         w_post_proving_period: BlockNumber,
     ) -> Result<BlockNumber, DeadlineError> {
         let dl_info = self.deadline_info(
             current_block,
+            fault_cutoff_declaration,
             w_post_challenge_window,
             w_post_period_deadlines,
             w_post_proving_period,
@@ -251,6 +256,7 @@ where
     pub fn deadline_info(
         &self,
         current_block: BlockNumber,
+        fault_cutoff_declaration: BlockNumber,
         w_post_challenge_window: BlockNumber,
         w_post_period_deadlines: u64,
         w_post_proving_period: BlockNumber,
@@ -265,6 +271,7 @@ where
             current_block,
             self.proving_period_start,
             current_deadline_index,
+            fault_cutoff_declaration,
             w_post_period_deadlines,
             w_post_challenge_window,
             w_post_proving_period,

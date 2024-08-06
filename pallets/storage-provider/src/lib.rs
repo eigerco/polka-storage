@@ -301,6 +301,8 @@ pub mod pallet {
         /// Declared unsealed_cid for pre_commit is different from the one calculated by `Market::verify_deals_for_activation`.
         /// unsealed_cid === CommD and is calculated from piece ids of all of the deals in a sector.
         InvalidUnsealedCidForSector,
+        /// Emitted when SP calls declare_faults and the fault cutoff is passed.
+        FaultDeclarationTooLate,
     }
 
     #[pallet::call]
@@ -477,6 +479,7 @@ pub mod pallet {
                     new_sectors,
                     sp.info.window_post_partition_sectors,
                     T::MaxPartitionsPerDeadline::get(),
+                    T::FaultMaxAge::get(),
                     T::WPoStChallengeWindow::get(),
                     T::WPoStPeriodDeadlines::get(),
                     T::WPoStProvingPeriod::get(),
@@ -526,6 +529,7 @@ pub mod pallet {
             let current_deadline = sp
                 .deadline_info(
                     current_block,
+                    T::FaultMaxAge::get(),
                     T::WPoStChallengeWindow::get(),
                     T::WPoStPeriodDeadlines::get(),
                     T::WPoStProvingPeriod::get(),
@@ -569,9 +573,11 @@ pub mod pallet {
             let w_post_period_deadlines = T::WPoStPeriodDeadlines::get();
             let w_post_challenge_window = T::WPoStChallengeWindow::get();
             let w_post_proving_period = T::WPoStProvingPeriod::get();
+            let fault_declaration_cutoff = T::FaultMaxAge::get();
             let proving_period_start = sp
                 .current_proving_period_start(
                     current_block,
+                    fault_declaration_cutoff,
                     w_post_challenge_window,
                     w_post_period_deadlines,
                     T::WPoStProvingPeriod::get(),
@@ -586,17 +592,20 @@ pub mod pallet {
                     current_block,
                     proving_period_start,
                     *deadline_idx,
+                    fault_declaration_cutoff,
                     w_post_period_deadlines,
                     w_post_challenge_window,
                     w_post_proving_period,
                 )
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
-                // TODO(check fault cutoff)
+                ensure!(!target_dl.fault_cutoff_passed(), {
+                    log::error!(target: LOG_TARGET, "declare_faults: Late fault declaration at deadline {deadline_idx}");
+                    Error::<T>::FaultDeclarationTooLate
+                });
                 let mut dl = sp
                     .deadlines
                     .load_deadline(*deadline_idx as usize)
                     .map_err(|e| Error::<T>::DeadlineError(e))?;
-                let _fault_expiration_block = target_dl.last();
                 dl.record_faults(&sectors, partition_map)
                     .map_err(|e| Error::<T>::DeadlineError(e))?;
                 sp.deadlines
