@@ -187,29 +187,14 @@ where
         sector_numbers: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
     ) -> Result<(), PartitionError> {
         // Update partition metadata
-        self.faults = if let Some(faults) = self.faults.clone()
-            .try_mutate(|faults| {
-                for number in sector_numbers {
-                    if !faults.contains(number) {
-                        log::debug!(target: LOG_TARGET, "add_faults: Adding sector number {number} to faults");
-                        // Insert is safe because the contains check
-                        faults.insert(*number);
-                    }
-                }
-            }) {
-                faults
-            } else {
-                log::error!(target: LOG_TARGET, "add_faults: Failed to add sector numbers to faults");
-                return Err(PartitionError::FailedToAddFaults)
-            };
+        self.faults = self.faults.union(sector_numbers).cloned().collect::<BTreeSet<_>>().try_into().map_err(|_|{log::error!(target: LOG_TARGET, "add_faults: Failed to add sector numbers to faults");
+        PartitionError::FailedToAddFaults})?;
 
         log::debug!(target: LOG_TARGET, "add_faults: new faults {:?}", self.faults);
 
         // Once marked faulty, sectors are moved out of the unproven set.
         for sector_number in sector_numbers {
-            if self.unproven.contains(sector_number) {
-                self.unproven.remove(sector_number);
-            }
+            self.unproven.remove(sector_number);
         }
         Ok(())
     }
