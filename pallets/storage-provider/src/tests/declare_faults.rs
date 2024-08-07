@@ -7,7 +7,8 @@ use crate::{
     sector::ProveCommitSector,
     tests::{
         account, events, new_test_ext, register_storage_provider, DealProposalBuilder, Market,
-        RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, Test, ALICE, BOB,
+        RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System, Test,
+        ALICE, BOB,
     },
 };
 
@@ -67,7 +68,7 @@ fn multiple_sector_faults() {
         }
 
         // Flush events before running extrinsic to check only relevant events
-        events();
+        System::reset_events();
 
         let mut sectors = BoundedBTreeSet::new();
         // insert 5 sectors
@@ -313,5 +314,5 @@ fn default_fault_setup(storage_provider: &str, storage_client: &str) {
     ));
 
     // Flush events before running extrinsic to check only relevant events
-    events();
+    System::reset_events();
 }
