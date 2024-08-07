@@ -164,3 +164,178 @@ pub enum SectorMapError {
     /// Emitted when trying to insert sector(s) fails.
     FailedToInsertSector,
 }
+
+#[cfg(test)]
+mod test {
+    extern crate alloc;
+
+    use alloc::collections::BTreeSet;
+
+    use sp_core::bounded_btree_map;
+
+    use super::*;
+
+    #[test]
+    fn partition_map_add_sectors() {
+        let mut map = PartitionMap::new();
+
+        let partition = 0;
+        let sectors = [1, 2, 3];
+        let _ = map.try_insert_sectors(partition, create_set(&sectors));
+        expect_sectors_exact(&map, partition, &sectors);
+
+        let sectors = [4, 5, 6];
+        let _ = map.try_insert_sectors(partition, create_set(&sectors));
+        expect_sectors_partial(&map, partition, &sectors);
+
+        let partition = 1;
+        let sectors = [7, 8, 9];
+        let _ = map.try_insert_sectors(partition, create_set(&sectors));
+        expect_sectors_partial(&map, partition, &sectors);
+    }
+
+    #[test]
+    fn partition_map_duplicated_sectors() {
+        let mut map = PartitionMap::new();
+        let partition = 0;
+        let sectors = [1, 2, 3];
+
+        let _ = map.try_insert_sectors(partition, create_set(&sectors));
+        expect_sectors_exact(&map, partition, &sectors);
+        // This call is a no-op since all sectors are already in the partition
+        let _ = map.try_insert_sectors(partition, create_set(&sectors));
+        expect_sectors_exact(&map, partition, &sectors);
+
+        let partition = 1;
+        let sectors = [4, 5, 6];
+        let _ = map.try_insert_sectors(partition, create_set(&sectors));
+        expect_sectors_exact(&map, partition, &sectors);
+    }
+
+    #[test]
+    fn partition_map_fail_large_input() {
+        let partition = 0;
+
+        // Create a map that is at the limit of the number of sectors
+        let original_sectors = (0..MAX_SECTORS as u64).collect::<Vec<_>>();
+        let set = create_set::<MAX_SECTORS>(&original_sectors);
+        let map = bounded_btree_map!(partition => set);
+        let mut map = PartitionMap(map);
+
+        // Try to insert a new partition with a single sector
+        let sectors = [u64::MAX]; // We know that this sector is not in the map
+        assert!(map
+            .try_insert_sectors(partition, create_set(&sectors))
+            .is_err());
+
+        // Check that map is still the same. It's faster to check the length
+        // instead of going through all elements.
+        assert_eq!(map.0.get(&partition).unwrap().len(), original_sectors.len());
+    }
+
+    #[test]
+    fn deadline_sector_map_add_sectors() {
+        let mut map = DeadlineSectorMap::new();
+
+        let deadline = 0;
+        let partition = 0;
+        let sectors = [1, 2, 3];
+        let _ = map.try_insert(deadline, partition, create_set(&sectors));
+        expect_deadline_sectors_exact(&map, deadline, partition, &sectors);
+
+        let sectors = [4, 5, 6];
+        let _ = map.try_insert(deadline, partition, create_set(&sectors));
+        expect_deadline_sectors_partial(&map, deadline, partition, &sectors);
+
+        let partition = 1;
+        let sectors = [1, 2, 3];
+        let _ = map.try_insert(deadline, partition, create_set(&sectors));
+        expect_deadline_sectors_exact(&map, deadline, partition, &sectors);
+
+        let sectors = [4, 5, 6];
+        let _ = map.try_insert(deadline, partition, create_set(&sectors));
+        expect_deadline_sectors_partial(&map, deadline, partition, &sectors);
+
+        let deadline = 1;
+        let partition = 1;
+        let sectors = [7, 8, 9];
+        let _ = map.try_insert(deadline, partition, create_set(&sectors));
+        expect_deadline_sectors_exact(&map, deadline, partition, &sectors);
+    }
+
+    #[test]
+    fn deadline_sector_map_duplicated() {
+        let mut map = DeadlineSectorMap::new();
+
+        let deadline = 0;
+        let partition = 0;
+        let sectors = [1, 2, 3];
+        let _ = map.try_insert(deadline, partition, create_set(&sectors));
+        expect_deadline_sectors_exact(&map, deadline, partition, &sectors);
+
+        let sectors = [1, 2, 3];
+        let _ = map.try_insert(deadline, partition, create_set(&sectors));
+        expect_deadline_sectors_exact(&map, deadline, partition, &sectors);
+    }
+
+    /// This is a helper function to easily create a set of sectors.
+    fn create_set<const T: u32>(sectors: &[u64]) -> BoundedBTreeSet<SectorNumber, ConstU32<T>> {
+        let sectors = sectors.iter().cloned().collect::<BTreeSet<_>>();
+        BoundedBTreeSet::try_from(sectors).unwrap()
+    }
+
+    /// Check if map contains the expected partition and sectors. This function
+    /// panics if any passed sectors are not found in the partition.
+    fn expect_sectors_partial(map: &PartitionMap, partition: PartitionNumber, sectors: &[u64]) {
+        match map.0.get(&partition) {
+            Some(a) => {
+                sectors.iter().for_each(|s| {
+                    if !a.contains(s) {
+                        panic!("sector {} not found in partition {}", s, partition);
+                    }
+                });
+            }
+            None => panic!("partition {partition} not found"),
+        }
+    }
+
+    /// Check if map contains the expected partition and sectors. This function
+    /// panics if the actual sectors do not equal the expected sectors.
+    fn expect_sectors_exact(map: &PartitionMap, partition: PartitionNumber, sectors: &[u64]) {
+        match map.0.get(&partition) {
+            Some(actual) => {
+                let mut expected = sectors.iter().copied().collect::<BTreeSet<_>>();
+                assert_eq!(&expected, actual.as_ref());
+            }
+            None => panic!("partition {partition} not found"),
+        }
+    }
+
+    /// Check if map contains the expected deadline, partition and sectors. The
+    /// function panics if there are any sectors missing.
+    fn expect_deadline_sectors_partial(
+        map: &DeadlineSectorMap,
+        deadline: u64,
+        partition: PartitionNumber,
+        sectors: &[u64],
+    ) {
+        match map.0.get(&deadline) {
+            Some(p_map) => expect_sectors_partial(p_map, partition, sectors),
+            None => panic!("deadline {deadline} not found"),
+        }
+    }
+
+    /// Check if map contains the expected deadline, partition and sectors. The
+    /// function panics if sectors are not exact.
+    fn expect_deadline_sectors_exact(
+        map: &DeadlineSectorMap,
+        deadline: u64,
+        partition: PartitionNumber,
+        sectors: &[u64],
+    ) {
+        match map.0.get(&deadline) {
+            Some(p_map) => expect_sectors_exact(p_map, partition, sectors),
+            None => panic!("deadline {deadline} not found"),
+        }
+    }
+}
