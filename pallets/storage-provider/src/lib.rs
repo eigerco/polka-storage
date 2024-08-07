@@ -635,7 +635,8 @@ pub mod pallet {
                 Error::<T>::InvalidDeadlineSubmission
             });
 
-            // Ensure the chain commit block is before the current block
+            // Ensure the chain commit block is after or equal the challenge
+            // start height
             ensure!(
                 post_params.chain_commit_block >= current_deadline.challenge,
                 {
