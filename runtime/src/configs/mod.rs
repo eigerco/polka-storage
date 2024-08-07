@@ -53,8 +53,6 @@ use xcm_config::{RelayLocation, XcmOriginToTransactDispatchOrigin};
 
 #[cfg(not(feature = "testnet"))]
 use super::DAYS;
-#[cfg(feature = "testnet")]
-use super::MINUTES;
 // Local module imports
 use super::{
     weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight},
@@ -65,6 +63,7 @@ use super::{
     MAXIMUM_BLOCK_WEIGHT, MICROUNIT, NORMAL_DISPATCH_RATIO, RELAY_CHAIN_SLOT_DURATION_MILLIS,
     SLOT_DURATION, UNINCLUDED_SEGMENT_CAPACITY, VERSION,
 };
+use crate::MINUTES;
 
 parameter_types! {
     pub const Version: RuntimeVersion = VERSION;
