@@ -209,6 +209,9 @@ fn fail_windowed_post_deadline_not_opened() {
     new_test_ext().execute_with(|| {
         setup();
 
+        // On this block the deadline is not yet opened
+        run_to_block(5);
+
         // Build window post proof
         let windowed_post = SubmitWindowedPoStBuilder::default()
             .chain_commit_block(System::block_number() - 1)
