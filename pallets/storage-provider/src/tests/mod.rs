@@ -92,7 +92,6 @@ parameter_types! {
     pub const SectorMaximumLifetime: BlockNumber = 120 * MINUTES;
     pub const MaxProveCommitDuration: BlockNumber = 5 * MINUTES;
     pub const MaxPartitionsPerDeadline: u64 = 3000;
-    pub const DeclarationsMax: u64 = 3000;
     pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
 
     // Market Pallet
@@ -115,7 +114,7 @@ impl pallet_storage_provider::Config for Test {
     type MaxProveCommitDuration = MaxProveCommitDuration;
     type WPoStPeriodDeadlines = WPoStPeriodDeadlines;
     type MaxPartitionsPerDeadline = MaxPartitionsPerDeadline;
-    type DeclarationsMax = DeclarationsMax;
+
     type FaultMaxAge = FaultMaxAge;
 }
 

@@ -31,6 +31,7 @@ pub mod pallet {
     pub const CID_CODEC: u64 = 0x55;
     /// Sourced from multihash code table <https://github.com/multiformats/rust-multihash/blob/b321afc11e874c08735671ebda4d8e7fcc38744c/codetable/src/lib.rs#L108>
     pub const BLAKE2B_MULTIHASH_CODE: u64 = 0xB220;
+    pub(crate) const DECLARATIONS_MAX: u32 = 3000;
     const LOG_TARGET: &'static str = "runtime::storage_provider";
 
     extern crate alloc;
@@ -201,10 +202,6 @@ pub mod pallet {
         #[pallet::constant]
         type MaxPartitionsPerDeadline: Get<u64>;
 
-        /// Maximum number of unique "declarations" in batch operations.
-        #[pallet::constant]
-        type DeclarationsMax: Get<u64>;
-
         /// The longest a faulty sector can live without being removed.
         #[pallet::constant]
         type FaultMaxAge: Get<BlockNumberFor<Self>>;
@@ -248,7 +245,7 @@ pub mod pallet {
         /// Emitted when an SP declares some sectors as faulty
         FaultsDeclared {
             owner: T::AccountId,
-            faults: Vec<FaultDeclaration>,
+            faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>>,
         },
     }
 
@@ -293,8 +290,6 @@ pub mod pallet {
         PoStProofInvalid,
         /// Emitted when an error occurs when submitting PoSt.
         InvalidDeadlineSubmission,
-        /// Emitted when an SP tries to declare too many faults in 1 extrinsic (max is DeclarationsMax).
-        TooManyDeclarations,
         /// Wrapper around the [`DeadlineError`] type.
         DeadlineError(crate::deadline::DeadlineError),
         /// Wrapper around the [`PartitionError`] type.
@@ -578,10 +573,6 @@ pub mod pallet {
         ///
         /// Filecoin reference: <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/lib.rs#L2648>
         pub fn declare_faults(origin: OriginFor<T>, params: DeclareFaultsParams) -> DispatchResult {
-            ensure!(params.faults.len() as u64 <= T::DeclarationsMax::get(), {
-                log::error!(target: LOG_TARGET, "declare_faults: too many fault declarations for a single message: {} > {}", params.faults.len(), T::DeclarationsMax::get());
-                Error::<T>::TooManyDeclarations
-            });
             let owner = ensure_signed(origin)?;
             let current_block = <frame_system::Pallet<T>>::block_number();
             let mut sp = StorageProviders::<T>::try_get(&owner)

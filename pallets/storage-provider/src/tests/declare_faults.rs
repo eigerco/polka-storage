@@ -1,9 +1,10 @@
-use frame_support::{assert_ok, BoundedBTreeSet};
+use frame_support::{assert_ok, pallet_prelude::*, BoundedBTreeSet};
 use sp_core::bounded_vec;
+use sp_runtime::BoundedVec;
 
 use crate::{
     fault::{DeclareFaultsParams, FaultDeclaration},
-    pallet::{Event, StorageProviders},
+    pallet::{Event, StorageProviders, DECLARATIONS_MAX},
     sector::ProveCommitSector,
     tests::{
         account, events, new_test_ext, register_storage_provider, DealProposalBuilder, Market,
@@ -84,7 +85,7 @@ fn multiple_sector_faults() {
         assert_ok!(StorageProvider::declare_faults(
             RuntimeOrigin::signed(account(storage_provider)),
             DeclareFaultsParams {
-                faults: vec![fault.clone()]
+                faults: bounded_vec![fault.clone()]
             },
         ));
 
@@ -105,7 +106,7 @@ fn multiple_sector_faults() {
             events(),
             [RuntimeEvent::StorageProvider(Event::FaultsDeclared {
                 owner: account(storage_provider),
-                faults: vec![fault]
+                faults: bounded_vec![fault]
             })]
         );
     });
@@ -130,7 +131,7 @@ fn declare_single_fault() {
         assert_ok!(StorageProvider::declare_faults(
             RuntimeOrigin::signed(account(storage_provider)),
             DeclareFaultsParams {
-                faults: vec![fault.clone()]
+                faults: bounded_vec![fault.clone()]
             },
         ));
 
@@ -151,7 +152,7 @@ fn declare_single_fault() {
             events(),
             [RuntimeEvent::StorageProvider(Event::FaultsDeclared {
                 owner: account(storage_provider),
-                faults: vec![fault]
+                faults: bounded_vec![fault]
             })]
         );
     });
@@ -168,7 +169,7 @@ fn multiple_partition_faults() {
 
         let mut sectors = BoundedBTreeSet::new();
         sectors.try_insert(1).expect("Programmer error");
-        let mut faults = vec![];
+        let mut faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>> = bounded_vec![];
         // declare faults in 5 partitions
         for i in 1..6 {
             let fault = FaultDeclaration {
@@ -176,7 +177,7 @@ fn multiple_partition_faults() {
                 partition: i,
                 sectors: sectors.clone(),
             };
-            faults.push(fault);
+            faults.try_push(fault).expect("Programmer error");
         }
 
         assert_ok!(StorageProvider::declare_faults(
@@ -220,7 +221,7 @@ fn multiple_deadline_faults() {
 
         let mut sectors = BoundedBTreeSet::new();
         sectors.try_insert(1).expect("Programmer error");
-        let mut faults = vec![];
+        let mut faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>> = bounded_vec![];
         // declare faults in 5 partitions
         for i in 1..6 {
             let fault = FaultDeclaration {
@@ -228,7 +229,7 @@ fn multiple_deadline_faults() {
                 partition: 1,
                 sectors: sectors.clone(),
             };
-            faults.push(fault);
+            faults.try_push(fault).expect("Programmer error");
         }
 
         assert_ok!(StorageProvider::declare_faults(

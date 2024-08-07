@@ -1,11 +1,7 @@
-extern crate alloc;
-
-use alloc::vec::Vec;
-
 use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeSet};
 use primitives_proofs::{SectorNumber, MAX_TERMINATIONS_PER_CALL};
 
-use crate::partition::PartitionNumber;
+use crate::{pallet::DECLARATIONS_MAX, partition::PartitionNumber};
 
 #[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct FaultDeclaration {
@@ -19,5 +15,5 @@ pub struct FaultDeclaration {
 
 #[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct DeclareFaultsParams {
-    pub faults: Vec<FaultDeclaration>,
+    pub faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>>,
 }
