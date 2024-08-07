@@ -53,8 +53,6 @@ use xcm_config::{RelayLocation, XcmOriginToTransactDispatchOrigin};
 
 #[cfg(not(feature = "testnet"))]
 use super::DAYS;
-#[cfg(feature = "testnet")]
-use super::MINUTES;
 // Local module imports
 use super::{
     weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight},
@@ -65,6 +63,7 @@ use super::{
     MAXIMUM_BLOCK_WEIGHT, MICROUNIT, NORMAL_DISPATCH_RATIO, RELAY_CHAIN_SLOT_DURATION_MILLIS,
     SLOT_DURATION, UNINCLUDED_SEGMENT_CAPACITY, VERSION,
 };
+use crate::MINUTES;
 
 parameter_types! {
     pub const Version: RuntimeVersion = VERSION;
@@ -318,6 +317,7 @@ parameter_types! {
     // 30 * 60 = 30 minutes
     // SLOT_DURATION is in milliseconds thats why we / 1000
     pub const WpostChallengeWindow: BlockNumber = 30 * 60 / (SLOT_DURATION as BlockNumber / 1000);
+    pub const WPoStChallengeLookBack: BlockNumber = 10 * MINUTES;
     pub const MinSectorExpiration: BlockNumber = 180 * DAYS;
     pub const MaxSectorExpirationExtension: BlockNumber = 1278 * DAYS;
     pub const SectorMaximumLifetime: BlockNumber = (365 * DAYS) * 5; // 5 years
@@ -338,6 +338,7 @@ parameter_types! {
     // Storage Provider Pallet
     pub const WpostProvingPeriod: BlockNumber = 5 * MINUTES;
     pub const WpostChallengeWindow: BlockNumber = 2 * MINUTES;
+    pub const WPoStChallengeLookBack: BlockNumber = 1 * MINUTES;
     pub const MinSectorExpiration: BlockNumber = 5 * MINUTES;
     pub const MaxSectorExpirationExtension: BlockNumber = 60 * MINUTES;
     pub const SectorMaximumLifetime: BlockNumber = 120 * MINUTES;
@@ -358,6 +359,7 @@ impl pallet_storage_provider::Config for Runtime {
     type Market = crate::Market;
     type WPoStProvingPeriod = WpostProvingPeriod;
     type WPoStChallengeWindow = WpostChallengeWindow;
+    type WPoStChallengeLookBack = WPoStChallengeLookBack;
     type MinSectorExpiration = MinSectorExpiration;
     type MaxSectorExpirationExtension = MaxSectorExpirationExtension;
     type SectorMaximumLifetime = SectorMaximumLifetime;

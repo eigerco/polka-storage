@@ -1,4 +1,5 @@
 use frame_support::{assert_noop, assert_ok};
+use rstest::rstest;
 use sp_core::bounded_vec;
 use sp_runtime::DispatchError;
 
@@ -200,6 +201,120 @@ fn should_fail_when_proving_wrong_partition() {
                 windowed_post,
             ),
             Error::<Test>::DeadlineError(DeadlineError::PartitionNotFound)
+        );
+    });
+}
+
+#[test]
+fn fail_windowed_post_deadline_not_opened() {
+    new_test_ext().execute_with(|| {
+        setup();
+
+        // On this block the deadline is not yet opened
+        run_to_block(5);
+
+        // Build window post proof
+        let windowed_post = SubmitWindowedPoStBuilder::default()
+            .chain_commit_block(System::block_number() - 1)
+            .build();
+
+        // Run extrinsic
+        assert_noop!(
+            StorageProvider::submit_windowed_post(
+                RuntimeOrigin::signed(account(ALICE)),
+                windowed_post,
+            ),
+            Error::<Test>::InvalidDeadlineSubmission
+        );
+    });
+}
+
+#[test]
+fn fail_windowed_post_wrong_deadline_index_used() {
+    new_test_ext().execute_with(|| {
+        setup();
+
+        // Run to block where the window post proof is to be submitted
+        run_to_block(19);
+
+        // Build window post proof
+        let windowed_post = SubmitWindowedPoStBuilder::default()
+            .deadline(1) // This index is wrong because it is specifying the next deadline that will be opened
+            .chain_commit_block(System::block_number() - 1)
+            .build();
+
+        // Run extrinsic
+        assert_noop!(
+            StorageProvider::submit_windowed_post(
+                RuntimeOrigin::signed(account(ALICE)),
+                windowed_post,
+            ),
+            Error::<Test>::InvalidDeadlineSubmission
+        );
+    });
+}
+
+#[test]
+fn fail_windowed_post_wrong_signature() {
+    new_test_ext().execute_with(|| {
+        setup();
+
+        // Run to block where the window post proof is to be submitted
+        run_to_block(19);
+
+        // Build window post proof
+        let windowed_post = SubmitWindowedPoStBuilder::default()
+            .chain_commit_block(System::block_number() - 1)
+            .proof_bytes(vec![]) // Wrong proof
+            .build();
+
+        // Run extrinsic
+        assert_noop!(
+            StorageProvider::submit_windowed_post(
+                RuntimeOrigin::signed(account(ALICE)),
+                windowed_post,
+            ),
+            Error::<Test>::PoStProofInvalid
+        );
+    });
+}
+
+#[rstest]
+// deadline is not opened
+#[case(10, 9, Err(Error::<Test>::InvalidDeadlineSubmission.into()))]
+// deadline is opened. commit block is on the current block
+#[case(19, 19, Err(Error::<Test>::PoStProofInvalid.into()))]
+// commit block is set on the block before the deadline is officially opened
+#[case(19, 18, Ok(()))]
+// submit proof on the last allowed block for the deadline
+#[case(20, 19, Ok(()))]
+// deadline has passed
+#[case(21, 20, Err(Error::<Test>::InvalidDeadlineSubmission.into()))]
+fn windowed_post_commit_block(
+    #[case] block_number: u64,
+    #[case] chain_commit_block: u64,
+    #[case] expected_extrinsic_result: Result<(), DispatchError>,
+) {
+    new_test_ext().execute_with(|| {
+        // Setup environment
+        setup();
+
+        // Run to block
+        run_to_block(block_number);
+
+        // Build window post proof
+        let windowed_post = SubmitWindowedPoStBuilder::default()
+            .chain_commit_block(chain_commit_block)
+            .partition(0)
+            .build();
+
+        // Run extrinsic
+        assert_eq!(
+            StorageProvider::submit_windowed_post(
+                RuntimeOrigin::signed(account(ALICE)),
+                windowed_post
+            ),
+            expected_extrinsic_result
         );
     });
 }

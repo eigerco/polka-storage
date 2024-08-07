@@ -71,6 +71,7 @@ parameter_types! {
     pub const WPoStPeriodDeadlines: u64 = 10;
     pub const WpostProvingPeriod: BlockNumber = 40 * MINUTES;
     pub const WpostChallengeWindow: BlockNumber = 2 * MINUTES;
+    pub const WpostChallengeLookBack: BlockNumber = MINUTES;
     pub const MinSectorExpiration: BlockNumber = 5 * MINUTES;
     pub const MaxSectorExpirationExtension: BlockNumber = 360 * MINUTES;
     pub const SectorMaximumLifetime: BlockNumber = 120 * MINUTES;
@@ -104,6 +105,7 @@ impl pallet_storage_provider::Config for Test {
     type Market = Market;
     type WPoStProvingPeriod = WpostProvingPeriod;
     type WPoStChallengeWindow = WpostChallengeWindow;
+    type WPoStChallengeLookBack = WpostChallengeLookBack;
     type MinSectorExpiration = MinSectorExpiration;
     type MaxSectorExpirationExtension = MaxSectorExpirationExtension;
     type SectorMaximumLifetime = SectorMaximumLifetime;
@@ -399,6 +401,11 @@ struct SubmitWindowedPoStBuilder {
 }
 
 impl SubmitWindowedPoStBuilder {
+    pub fn deadline(mut self, deadline: u64) -> Self {
+        self.deadline = deadline;
+        self
+    }
+
     pub fn chain_commit_block(mut self, chain_commit_block: BlockNumber) -> Self {
         self.chain_commit_block = chain_commit_block;
         self
@@ -406,6 +413,11 @@ impl SubmitWindowedPoStBuilder {
 
     pub fn partition(mut self, partition: PartitionNumber) -> Self {
         self.partition = partition;
+        self
+    }
+
+    pub fn proof_bytes(mut self, proof_bytes: Vec<u8>) -> Self {
+        self.proof.proof_bytes = BoundedVec::try_from(proof_bytes).unwrap();
         self
     }
 
