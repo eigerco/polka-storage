@@ -128,14 +128,8 @@ where
         // recoveries & sector_numbers
         let retracted_recoveries: BTreeSet<SectorNumber> = self
             .recoveries
-            .iter()
-            .filter_map(|sector_number| {
-                if sector_numbers.contains(sector_number) {
-                    Some(*sector_number)
-                } else {
-                    None
-                }
-            })
+            .intersection(&sector_numbers)
+            .cloned()
             .collect();
         // sector_numbers - retracted_recoveries
         let new_faults: BTreeSet<SectorNumber> = sector_numbers
