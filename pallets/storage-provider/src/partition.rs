@@ -165,7 +165,7 @@ where
         let retracted_recovery_sectors: BTreeSet<SectorNumber> = sectors
             .iter()
             .filter_map(|(sector_number, _info)| {
-                if sector_numbers.contains(&sector_number) {
+                if retracted_recoveries.contains(&sector_number) {
                     Some(*sector_number)
                 } else {
                     None
