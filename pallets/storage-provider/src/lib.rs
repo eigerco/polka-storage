@@ -162,11 +162,10 @@ pub mod pallet {
         type WPoStChallengeWindow: Get<BlockNumberFor<Self>>;
 
         /// Window PoSt challenge look back. This lookback exists so that
-        /// deadline windows can be non-overlapping (which make the programming
-        /// simpler) but without making the storage provider wait for chain
-        /// stability before being able to start on PoSt computation. The
-        /// challenge is available this many blocks before the window is
-        /// actually open to receiving a PoSt.
+        /// deadline windows can be non-overlapping (which makes the programming
+        /// simpler). This period allows the storage providers to start working
+        /// on the post before the deadline is officially opened to receiving a
+        /// PoSt.
         #[pallet::constant]
         type WPoStChallengeLookBack: Get<BlockNumberFor<Self>>;
 
