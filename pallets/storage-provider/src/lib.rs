@@ -318,15 +318,15 @@ pub mod pallet {
                 !StorageProviders::<T>::contains_key(&owner),
                 Error::<T>::StorageProviderExists
             );
-            let proving_period = T::WPoStProvingPeriod::get();
             let current_block = <frame_system::Pallet<T>>::block_number();
             let offset = assign_proving_period_offset::<T::AccountId, BlockNumberFor<T>>(
                 &owner,
                 current_block,
-                proving_period,
+                T::WPoStProvingPeriod::get(),
             )
             .map_err(|_| Error::<T>::ConversionError)?;
-            let period_start = current_proving_period_start(current_block, offset, proving_period);
+            let period_start =
+                current_proving_period_start(current_block, offset, T::WPoStProvingPeriod::get());
             let deadline_idx =
                 current_deadline_index(current_block, period_start, T::WPoStChallengeWindow::get());
             let info = StorageProviderInfo::new(peer_id, window_post_proof_type);
@@ -587,16 +587,12 @@ pub mod pallet {
                     .map_err(|e| Error::<T>::SectorMapError(e))?;
             }
 
-            let w_post_period_deadlines = T::WPoStPeriodDeadlines::get();
-            let w_post_challenge_window = T::WPoStChallengeWindow::get();
-            let w_post_proving_period = T::WPoStProvingPeriod::get();
-            let fault_declaration_cutoff = T::FaultMaxAge::get();
             let proving_period_start = sp
                 .current_proving_period_start(
                     current_block,
-                    fault_declaration_cutoff,
-                    w_post_challenge_window,
-                    w_post_period_deadlines,
+                    T::FaultMaxAge::get(),
+                    T::WPoStChallengeWindow::get(),
+                    T::WPoStPeriodDeadlines::get(),
                     T::WPoStProvingPeriod::get(),
                 )
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
@@ -609,10 +605,10 @@ pub mod pallet {
                     current_block,
                     proving_period_start,
                     *deadline_idx,
-                    fault_declaration_cutoff,
-                    w_post_period_deadlines,
-                    w_post_challenge_window,
-                    w_post_proving_period,
+                    T::FaultMaxAge::get(),
+                    T::WPoStPeriodDeadlines::get(),
+                    T::WPoStChallengeWindow::get(),
+                    T::WPoStProvingPeriod::get(),
                 )
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
                 ensure!(!target_dl.fault_cutoff_passed(), {
