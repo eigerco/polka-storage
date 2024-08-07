@@ -304,7 +304,7 @@ mod test {
     fn expect_sectors_exact(map: &PartitionMap, partition: PartitionNumber, sectors: &[u64]) {
         match map.0.get(&partition) {
             Some(actual) => {
-                let mut expected = sectors.iter().copied().collect::<BTreeSet<_>>();
+                let expected = sectors.iter().copied().collect::<BTreeSet<_>>();
                 assert_eq!(&expected, actual.as_ref());
             }
             None => panic!("partition {partition} not found"),
