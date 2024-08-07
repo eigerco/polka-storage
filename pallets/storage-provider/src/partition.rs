@@ -120,7 +120,7 @@ where
             ConstU32<MAX_SECTORS>,
         >,
         sector_numbers: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
-    ) -> Result<BTreeSet<SectorNumber>, PartitionError>
+    ) -> Result<(), PartitionError>
     where
         BlockNumber: sp_runtime::traits::BlockNumber,
     {
@@ -177,7 +177,7 @@ where
         } else {
             log::debug!(target: LOG_TARGET, "record_faults: No retracted recoveries detected");
         }
-        Ok(new_faults)
+        Ok(())
     }
 
     /// marks a set of sectors faulty

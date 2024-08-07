@@ -222,35 +222,21 @@ where
         >,
         partition_sectors: &mut PartitionMap,
     ) -> Result<(), DeadlineError> {
-        let partition_map = partition_sectors.clone();
-        let mut partitions = self.partitions.clone();
-        let mut partitions_with_fault =
-            Vec::<PartitionNumber>::with_capacity(partition_sectors.len());
-        for (partition_idx, sector_numbers) in partition_map.0.iter() {
-            let Some(mut partition) = partitions.get_mut(&partition_idx).cloned() else {
-                log::error!(target: LOG_TARGET, "record_faults: Could not get partition at index {partition_idx}");
-                return Err(DeadlineError::PartitionNotFound);
-            };
-            let new_faults =
-                partition.record_faults(sectors, sector_numbers).map_err(|e| {
-                    log::error!(target: LOG_TARGET, "record_faults: Error while recording faults in a partition: {e:?}");
-                    DeadlineError::PartitionError(e)})?;
-            if !new_faults.is_empty() {
-                partitions_with_fault.push(*partition_idx);
+        for (partition_number, partition) in self.partitions.iter_mut() {
+            if !partition_sectors.0.contains_key(&partition_number) {
+                continue;
             }
-
-            partitions = if let Some(partitions) = partitions.try_mutate(|inner| {
-                if let Some(p) = inner.get_mut(partition_idx) {
-                    *p = partition.clone();
-                }
-            }) {
-                partitions
-            } else {
-                log::error!(target: LOG_TARGET, "Failed to update partitions after recording faults");
-                return Err(DeadlineError::FailedToUpdatePartition);
-            };
+            partition.record_faults(
+                sectors,
+                partition_sectors
+                    .0
+                    .get(partition_number)
+                    .expect("Infallible because of the above check"),
+            ).map_err(|e| {
+                log::error!(target: LOG_TARGET, "record_faults: Error while recording faults in a partition: {e:?}");
+                DeadlineError::PartitionError(e)
+            })?;
         }
-        self.partitions = partitions;
 
         Ok(())
     }
