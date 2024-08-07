@@ -697,14 +697,12 @@ pub mod pallet {
             }
             for (deadline_idx, partition_map) in to_process.into_iter() {
                 log::debug!(target: LOG_TARGET, "declare_faults_recovered: Processing deadline index: {deadline_idx}");
-                let mut dl = sp
+                let dl = sp
                     .deadlines
-                    .load_deadline(*deadline_idx as usize)
+                    .load_deadline_mut(*deadline_idx as usize)
                     .map_err(|e| Error::<T>::DeadlineError(e))?;
                 dl.declare_faults_recovered(partition_map)
                     .map_err(|e| Error::<T>::DeadlineError(e))?;
-                sp.deadlines
-                    .update_deadline(*deadline_idx as usize, dl.clone());
             }
 
             StorageProviders::<T>::insert(owner.clone(), sp);
