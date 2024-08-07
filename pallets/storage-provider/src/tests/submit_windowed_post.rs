@@ -1,4 +1,5 @@
 use frame_support::{assert_noop, assert_ok};
+use rstest::rstest;
 use sp_core::bounded_vec;
 use sp_runtime::DispatchError;
 
@@ -278,70 +279,42 @@ fn fail_windowed_post_wrong_signature() {
     });
 }
 
-#[test]
-fn windowed_post_commit_block() {
-    struct TestCase {
-        block_number: u64,
-        chain_commit_block: u64,
-        expected_extrinsic_result: Result<(), DispatchError>,
-    }
+#[rstest]
+// deadline is not opened
+#[case(10, 9, Err(Error::<Test>::InvalidDeadlineSubmission.into()))]
+// deadline is opened. commit block is on the current block
+#[case(19, 19, Err(Error::<Test>::PoStProofInvalid.into()))]
+// commit block is set on the block before the deadline is officially opened
+#[case(19, 18, Ok(()))]
+// submit proof on the last allowed block for the deadline
+#[case(20, 19, Ok(()))]
+// deadline has passed
+#[case(21, 20, Err(Error::<Test>::InvalidDeadlineSubmission.into()))]
+fn windowed_post_commit_block(
+    #[case] block_number: u64,
+    #[case] chain_commit_block: u64,
+    #[case] expected_extrinsic_result: Result<(), DispatchError>,
+) {
+    new_test_ext().execute_with(|| {
+        // Setup environment
+        setup();
 
-    let cases = vec![
-        // deadline is not opened
-        TestCase {
-            block_number: 10, // deadline not yet opened at this block
-            chain_commit_block: 9,
-            expected_extrinsic_result: Err(Error::<Test>::InvalidDeadlineSubmission.into()),
-        },
-        // commit block height is on the current block
-        TestCase {
-            block_number: 19,
-            chain_commit_block: 19,
-            expected_extrinsic_result: Err(Error::<Test>::PoStProofInvalid.into()),
-        },
-        // commit block is set on the block before the deadline is officially
-        // opened
-        TestCase {
-            block_number: 19,       // open_at for the deadline
-            chain_commit_block: 18, // commit deadline opens one block before
-            expected_extrinsic_result: Ok(()),
-        },
-        // submit proof on the last allowed block for the deadline
-        TestCase {
-            block_number: 20,       // deadline at the next block
-            chain_commit_block: 19, // commit block has to be for the previous block
-            expected_extrinsic_result: Ok(()),
-        },
-        // deadline has passed
-        TestCase {
-            block_number: 21,       // deadline closes at this block
-            chain_commit_block: 20, // commit block has to be for the previous block
-            expected_extrinsic_result: Err(Error::<Test>::InvalidDeadlineSubmission.into()),
-        },
-    ];
+        // Run to block
+        run_to_block(block_number);
 
-    for case in cases {
-        new_test_ext().execute_with(|| {
-            // Setup environment
-            setup();
+        // Build window post proof
+        let windowed_post = SubmitWindowedPoStBuilder::default()
+            .chain_commit_block(chain_commit_block)
+            .partition(0)
+            .build();
 
-            // Run to block
-            run_to_block(case.block_number);
-
-            // Build window post proof
-            let windowed_post = SubmitWindowedPoStBuilder::default()
-                .chain_commit_block(case.chain_commit_block)
-                .partition(0)
-                .build();
-
-            // Run extrinsic
-            assert_eq!(
-                StorageProvider::submit_windowed_post(
-                    RuntimeOrigin::signed(account(ALICE)),
-                    windowed_post
-                ),
-                case.expected_extrinsic_result
-            );
-        });
-    }
+        // Run extrinsic
+        assert_eq!(
+            StorageProvider::submit_windowed_post(
+                RuntimeOrigin::signed(account(ALICE)),
+                windowed_post
+            ),
+            expected_extrinsic_result
+        );
+    });
 }

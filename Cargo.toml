@@ -99,8 +99,10 @@ uuid = "1.8.0"
 scale-decode = { version = "0.13.1", default-features = false }
 scale-encode = { version = "0.7.1", default-features = false }
 
-# Local
+# Testing
+rstest = { version = "0.22.0" }
 
+# Local
 cli-primitives = { path = "primitives/cli" }
 mater = { path = "storage/mater" }
 pallet-market = { path = "pallets/market", default-features = false }
