@@ -147,8 +147,8 @@ where
 
         let partitions = &mut self.partitions;
 
-        let mut partition_idx = partitions.len().saturating_sub(1);
-        // try filling up the last partition first.
+        // Needs to start at 1 because the length is constants
+        let mut partition_idx = 1;
         loop {
             // Get/create partition to update.
             let mut partition = match partitions.get_mut(&(partition_idx as u32)) {
@@ -221,6 +221,7 @@ where
             ConstU32<MAX_SECTORS>,
         >,
         partition_sectors: &mut PartitionMap,
+        fault_expiration_block: BlockNumber,
     ) -> Result<(), DeadlineError> {
         for (partition_number, partition) in self.partitions.iter_mut() {
             if !partition_sectors.0.contains_key(&partition_number) {
@@ -235,6 +236,20 @@ where
             ).map_err(|e| {
                 log::error!(target: LOG_TARGET, "record_faults: Error while recording faults in a partition: {e:?}");
                 DeadlineError::PartitionError(e)
+            })?;
+            // Update expiration block
+            let Some((block, _)) = self
+                .expirations_blocks
+                .iter()
+                .find(|(_, partition_num)| partition_num == &partition_number)
+            else {
+                log::error!(target: LOG_TARGET, "record_faults: Could not find {partition_number} in expirations_blocks");
+                return Err(DeadlineError::PartitionNotFound);
+            };
+            self.expirations_blocks.remove(&block.clone());
+            self.expirations_blocks.try_insert(fault_expiration_block, *partition_number).map_err(|_| {
+                log::error!(target: LOG_TARGET, "record_faults: Could not insert new expiration");
+                DeadlineError::FailedToUpdateFaultExpiration
             })?;
         }
 
@@ -547,6 +562,8 @@ pub enum DeadlineError {
     FailedToUpdatePartition,
     /// Emitted when trying to update a deadline fails.
     FailedToUpdateDeadline,
+    /// Emitted when trying to update fault expirations fails
+    FailedToUpdateFaultExpiration,
     /// Wrapper around the partition error type
     PartitionError(PartitionError),
 }

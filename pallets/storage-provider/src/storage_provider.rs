@@ -209,7 +209,6 @@ where
             &sectors,
             w_post_period_deadlines,
         )?;
-        let deadlines = self.get_deadlines_mut();
         for (deadline_idx, deadline_sectors) in deadline_to_sectors.enumerate() {
             if deadline_sectors.is_empty() {
                 continue;
@@ -223,8 +222,7 @@ where
                     ))?;
 
             deadline.add_sectors(partition_size, &deadline_sectors)?;
-
-            deadlines.update_deadline(deadline_idx, deadline.clone());
+            self.deadlines.due[deadline_idx] = deadline.clone();
         }
         Ok(())
     }

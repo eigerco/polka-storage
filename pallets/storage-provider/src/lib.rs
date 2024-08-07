@@ -618,11 +618,12 @@ pub mod pallet {
                     log::error!(target: LOG_TARGET, "declare_faults: Late fault declaration at deadline {deadline_idx}");
                     Error::<T>::FaultDeclarationTooLate
                 });
+                let fault_expiration_block = target_dl.last() + T::FaultMaxAge::get();
                 let dl = sp
                     .deadlines
                     .load_deadline_mut(*deadline_idx as usize)
                     .map_err(|e| Error::<T>::DeadlineError(e))?;
-                dl.record_faults(&sectors, partition_map)
+                dl.record_faults(&sectors, partition_map, fault_expiration_block)
                     .map_err(|e| Error::<T>::DeadlineError(e))?;
             }
             StorageProviders::<T>::insert(owner.clone(), sp);
