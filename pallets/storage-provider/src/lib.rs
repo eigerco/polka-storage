@@ -599,7 +599,6 @@ pub mod pallet {
                 )
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
             let sectors = sp.sectors.clone();
-            // let deadlines = sp.get_deadlines_mut();
             for (deadline_idx, partition_map) in to_process.into_iter() {
                 log::debug!(target: LOG_TARGET, "declare_faults: Processing deadline index: {deadline_idx}");
                 // Get the deadline

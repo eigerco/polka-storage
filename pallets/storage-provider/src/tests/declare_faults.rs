@@ -158,8 +158,9 @@ fn declare_single_fault() {
     });
 }
 
+/// TODO(aidan46, #183, 2024-08-07): Create setup for multiple partitions
 #[test]
-#[ignore = "This requires adding multiple partition by adding a lot of sectors, need improvement on this test"]
+#[ignore = "This requires adding multiple partitions by adding more sectors than MAX_SECTORS."]
 fn multiple_partition_faults() {
     new_test_ext().execute_with(|| {
         // Setup accounts
