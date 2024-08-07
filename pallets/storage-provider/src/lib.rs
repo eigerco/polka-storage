@@ -704,8 +704,7 @@ pub mod pallet {
                 dl.declare_faults_recovered(partition_map)
                     .map_err(|e| Error::<T>::DeadlineError(e))?;
                 sp.deadlines
-                    .update_deadline(*deadline_idx as usize, dl.clone())
-                    .map_err(|e| Error::<T>::DeadlineError(e))?;
+                    .update_deadline(*deadline_idx as usize, dl.clone());
             }
 
             StorageProviders::<T>::insert(owner.clone(), sp);
