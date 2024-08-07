@@ -163,9 +163,10 @@ where
         partition_size: u64,
         max_partitions_per_deadline: u64,
         fault_cutoff_declaration: BlockNumber,
-        w_post_challenge_window: BlockNumber,
         w_post_period_deadlines: u64,
         w_post_proving_period: BlockNumber,
+        w_post_challenge_window: BlockNumber,
+        w_post_challenge_lookback: BlockNumber,
     ) -> Result<(), StorageProviderError> {
         let deadlines = &self.deadlines;
         sectors.sort_by_key(|info| info.sector_number);
@@ -178,9 +179,10 @@ where
         let proving_period_start = self.current_proving_period_start(
             current_block,
             fault_cutoff_declaration,
-            w_post_challenge_window,
             w_post_period_deadlines,
             w_post_proving_period,
+            w_post_challenge_window,
+            w_post_challenge_lookback,
         )?;
         deadlines.clone().due.iter().enumerate().try_for_each(
             |(deadline_idx, deadline)| -> Result<(), DeadlineError> {
@@ -190,9 +192,10 @@ where
                     deadline_idx as u64,
                     current_block,
                     fault_cutoff_declaration,
-                    w_post_challenge_window,
                     w_post_period_deadlines,
                     w_post_proving_period,
+                    w_post_challenge_window,
+                    w_post_challenge_lookback,
                 )? {
                     deadline_vec[deadline_idx as usize] = Some(deadline.clone());
                 }
@@ -231,16 +234,18 @@ where
         &self,
         current_block: BlockNumber,
         fault_cutoff_declaration: BlockNumber,
-        w_post_challenge_window: BlockNumber,
         w_post_period_deadlines: u64,
         w_post_proving_period: BlockNumber,
+        w_post_challenge_window: BlockNumber,
+        w_post_challenge_lookback: BlockNumber,
     ) -> Result<BlockNumber, DeadlineError> {
         let dl_info = self.deadline_info(
             current_block,
             fault_cutoff_declaration,
-            w_post_challenge_window,
             w_post_period_deadlines,
             w_post_proving_period,
+            w_post_challenge_window,
+            w_post_challenge_lookback,
         )?;
         Ok(dl_info.period_start)
     }
@@ -255,9 +260,10 @@ where
         &self,
         current_block: BlockNumber,
         fault_cutoff_declaration: BlockNumber,
-        w_post_challenge_window: BlockNumber,
         w_post_period_deadlines: u64,
         w_post_proving_period: BlockNumber,
+        w_post_challenge_window: BlockNumber,
+        w_post_challenge_lookback: BlockNumber,
     ) -> Result<DeadlineInfo<BlockNumber>, DeadlineError> {
         let current_deadline_index =
             (current_block / self.proving_period_start) / w_post_challenge_window;
@@ -271,8 +277,9 @@ where
             current_deadline_index,
             fault_cutoff_declaration,
             w_post_period_deadlines,
-            w_post_challenge_window,
             w_post_proving_period,
+            w_post_challenge_window,
+            w_post_challenge_lookback,
         )
     }
 }

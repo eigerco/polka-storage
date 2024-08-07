@@ -169,6 +169,14 @@ pub mod pallet {
         #[pallet::constant]
         type WPoStChallengeWindow: Get<BlockNumberFor<Self>>;
 
+        /// Window PoSt challenge look back. This lookback exists so that
+        /// deadline windows can be non-overlapping (which makes the programming
+        /// simpler). This period allows the storage providers to start working
+        /// on the post before the deadline is officially opened to receiving a
+        /// PoSt.
+        #[pallet::constant]
+        type WPoStChallengeLookBack: Get<BlockNumberFor<Self>>;
+
         /// Minimum number of blocks past the current block a sector may be set to expire.
         #[pallet::constant]
         type MinSectorExpiration: Get<BlockNumberFor<Self>>;
@@ -480,9 +488,10 @@ pub mod pallet {
                     sp.info.window_post_partition_sectors,
                     T::MaxPartitionsPerDeadline::get(),
                     T::FaultMaxAge::get(),
-                    T::WPoStChallengeWindow::get(),
                     T::WPoStPeriodDeadlines::get(),
                     T::WPoStProvingPeriod::get(),
+                    T::WPoStChallengeWindow::get(),
+                    T::WPoStChallengeLookBack::get(),
                 )
                 .map_err(|e| Error::<T>::StorageProviderError(e))?;
                 sp.remove_pre_committed_sector(sector_number)
@@ -532,13 +541,14 @@ pub mod pallet {
                 .deadline_info(
                     current_block,
                     T::FaultMaxAge::get(),
-                    T::WPoStChallengeWindow::get(),
                     T::WPoStPeriodDeadlines::get(),
                     T::WPoStProvingPeriod::get(),
+                    T::WPoStChallengeWindow::get(),
+                    T::WPoStChallengeLookBack::get(),
                 )
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
 
-            Self::validate_deadline(current_block, &current_deadline, &windowed_post)?;
+            Self::validate_deadline(&current_deadline, &windowed_post)?;
 
             // mutate provider state
             StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResult {
@@ -591,9 +601,10 @@ pub mod pallet {
                 .current_proving_period_start(
                     current_block,
                     T::FaultMaxAge::get(),
-                    T::WPoStChallengeWindow::get(),
                     T::WPoStPeriodDeadlines::get(),
                     T::WPoStProvingPeriod::get(),
+                    T::WPoStChallengeWindow::get(),
+                    T::WPoStChallengeLookBack::get(),
                 )
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
             let sectors = sp.sectors.clone();
@@ -609,6 +620,7 @@ pub mod pallet {
                     T::WPoStPeriodDeadlines::get(),
                     T::WPoStChallengeWindow::get(),
                     T::WPoStProvingPeriod::get(),
+                    T::WPoStChallengeLookBack::get(),
                 )
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
                 ensure!(!target_dl.fault_cutoff_passed(), {
@@ -703,24 +715,32 @@ pub mod pallet {
         /// Fails if:
         /// - The given deadline is not open.
         /// - There is and deadline index mismatch.
-        /// - The block the deadline was committed at is after the current block.
+        /// - The block the deadline was committed at is after challenge height.
         fn validate_deadline(
-            curr_block: BlockNumberFor<T>,
             current_deadline: &DeadlineInfo<BlockNumberFor<T>>,
             post_params: &SubmitWindowedPoStParams<BlockNumberFor<T>>,
         ) -> Result<(), Error<T>> {
+            // Ensure the deadline is open
             ensure!(current_deadline.is_open(), {
                 log::error!(target: LOG_TARGET, "validate_deadline: {current_deadline:?}, deadline isn't open");
                 Error::<T>::InvalidDeadlineSubmission
             });
+
+            // Ensure the deadline index matches the one in the post params
             ensure!(post_params.deadline == current_deadline.idx, {
                 log::error!(target: LOG_TARGET, "validate_deadline: given index does not match current index {} != {}", post_params.deadline, current_deadline.idx);
                 Error::<T>::InvalidDeadlineSubmission
             });
-            ensure!(post_params.chain_commit_block < curr_block, {
-                log::error!(target: LOG_TARGET, "validate_deadline: chain commit block is after current block {:?} > {curr_block:?}", post_params.chain_commit_block);
-                Error::<T>::InvalidDeadlineSubmission
-            });
+
+            // Ensure the chain commit block is after or equal the challenge
+            // start height
+            ensure!(
+                post_params.chain_commit_block >= current_deadline.challenge,
+                {
+                    log::error!(target: LOG_TARGET, "validate_deadline: expected chain_commit_block {:?} to be >= {:?}", post_params.chain_commit_block, current_deadline.challenge);
+                    Error::<T>::InvalidDeadlineSubmission
+                }
+            );
             Ok(())
         }
 
