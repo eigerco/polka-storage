@@ -16,7 +16,7 @@ pub const MAX_PARTITIONS_PER_DEADLINE: u32 = 3000;
 const LOG_TARGET: &'static str = "runtime::storage_provider::partition";
 pub type PartitionNumber = u32;
 
-#[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct Partition<BlockNumber> {
     /// All sector numbers in this partition, including faulty, unproven and terminated sectors.
     pub sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,

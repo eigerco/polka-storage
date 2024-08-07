@@ -23,7 +23,7 @@ const LOG_TARGET: &'static str = "runtime::storage_provider::deadline";
 ///
 /// A deadline exists along side 47 other deadlines (1 for every 30 minutes in a day).
 /// Only one deadline may be active for a given proving window.
-#[derive(Clone, Debug, Default, Decode, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Default, Decode, Encode, PartialEq, TypeInfo)]
 pub struct Deadline<BlockNumber: sp_runtime::traits::BlockNumber> {
     /// Partitions in this deadline. Indexed by partition number.
     pub partitions: BoundedBTreeMap<
@@ -256,7 +256,7 @@ where
     }
 }
 
-#[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct Deadlines<BlockNumber: sp_runtime::traits::BlockNumber> {
     /// Deadlines indexed by their proving periods — e.g. for proving period 7, find it in
     /// `deadlines[7]` — proving periods are present in the interval `[0, 47]`.
@@ -357,7 +357,7 @@ where
 ///
 /// Filecoin reference about PoSt deadline design:
 /// <https://spec.filecoin.io/#section-algorithms.pos.post.design>
-#[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct DeadlineInfo<BlockNumber> {
     /// The block number at which this info was calculated.
     pub block_number: BlockNumber,

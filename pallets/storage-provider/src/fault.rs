@@ -7,7 +7,7 @@ use primitives_proofs::{SectorNumber, MAX_TERMINATIONS_PER_CALL};
 
 use crate::partition::PartitionNumber;
 
-#[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct FaultDeclaration {
     /// The deadline to which the faulty sectors are assigned, in range [0..WPoStPeriodDeadlines)
     pub deadline: u64,
@@ -17,7 +17,7 @@ pub struct FaultDeclaration {
     pub sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_TERMINATIONS_PER_CALL>>,
 }
 
-#[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct DeclareFaultsParams {
     pub faults: Vec<FaultDeclaration>,
 }
