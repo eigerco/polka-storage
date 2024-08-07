@@ -337,19 +337,10 @@ where
     }
 
     /// Replace values of the deadline at index `deadline_idx` with those of `new_dl`.
-    pub fn update_deadline(
-        &mut self,
-        deadline_idx: usize,
-        new_dl: Deadline<BlockNumber>,
-    ) -> Result<(), DeadlineError> {
-        // drop removed deadline
-        match self.due.get_mut(deadline_idx) {
-            Some(dl) => {
-                *dl = new_dl;
-                Ok(())
-            }
-            None => Err(DeadlineError::FailedToUpdateDeadline),
-        }
+    /// 
+    /// IMPORTANT: It is the caller of this functions responsibility to make sure the given index exists.
+    pub fn update_deadline(&mut self, deadline_idx: usize, new_dl: Deadline<BlockNumber>) {
+        self.due[deadline_idx] = new_dl;
     }
 }
 

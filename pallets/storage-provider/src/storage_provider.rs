@@ -221,9 +221,7 @@ where
 
             deadline.add_sectors(partition_size, &deadline_sectors)?;
 
-            deadlines
-                .update_deadline(deadline_idx, deadline.clone())
-                .map_err(|e| StorageProviderError::DeadlineError(e))?;
+            deadlines.update_deadline(deadline_idx, deadline.clone());
         }
         Ok(())
     }
