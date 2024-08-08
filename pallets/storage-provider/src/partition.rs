@@ -132,18 +132,13 @@ where
             .cloned()
             .collect();
         // sector_numbers - retracted_recoveries
-        let new_faults: BTreeSet<SectorNumber> = sector_numbers
+        let new_faults: BTreeSet<&SectorNumber> = sector_numbers
             .iter()
-            .filter(|sector_number| !retracted_recoveries.contains(sector_number))
-            // Ignore any terminated sectors and previously declared or detected faults
-            .filter_map(|sector_number| {
-                if !self.terminated.contains(&sector_number)
+            .filter(|sector_number| {
+                !retracted_recoveries.contains(sector_number)
+                // Ignore any terminated sectors and previously declared or detected faults
+                && !self.terminated.contains(&sector_number)
                     && !self.faults.contains(&sector_number)
-                {
-                    Some(*sector_number)
-                } else {
-                    None
-                }
             })
             .collect();
 
@@ -152,7 +147,7 @@ where
             .iter()
             .filter(|(sector_number, _info)| {
                 log::debug!(target: LOG_TARGET, "record_faults: checking sec_num {sector_number}");
-                new_faults.contains(&sector_number)
+                new_faults.contains(sector_number)
             })
             .collect();
         // Add new faults to state, skip if no new faults.
