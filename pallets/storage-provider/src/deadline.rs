@@ -340,13 +340,6 @@ where
         deadline.record_proven(partition_num)?;
         Ok(())
     }
-
-    /// Replace values of the deadline at index `deadline_idx` with those of `new_dl`.
-    ///
-    /// IMPORTANT: It is the caller of this functions responsibility to make sure the given index exists.
-    pub fn update_deadline(&mut self, deadline_idx: usize, new_dl: Deadline<BlockNumber>) {
-        self.due[deadline_idx] = new_dl;
-    }
 }
 
 /// Holds information about deadlines like when they open and close and what deadline index they relate to.
