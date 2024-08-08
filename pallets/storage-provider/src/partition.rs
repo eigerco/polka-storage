@@ -68,24 +68,15 @@ where
         }
     }
 
-    /// Live sectors are sectors that are not terminated (i.e. not in `terminated` or `early_terminations`).
-    pub fn live_sectors(
-        &self,
-    ) -> Result<BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>, PartitionError> {
-        let mut live_sectors = BoundedBTreeSet::new();
-        let difference = self.sectors.iter().filter_map(|sector_number| {
-            if !self.terminated.contains(sector_number) {
-                Some(*sector_number)
-            } else {
-                None
-            }
-        });
-        for sector_number in difference {
-            live_sectors
-                .try_insert(sector_number)
-                .map_err(|_| PartitionError::FailedToGetLiveSectors)?;
-        }
-        Ok(live_sectors)
+    /// Live sectors are sectors that are not terminated (i.e. not in `terminated`).
+    pub fn live_sectors(&self) -> BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>> {
+        self.sectors
+            .iter()
+            .filter(|sector_number| !self.terminated.contains(sector_number))
+            .copied()
+            .collect::<BTreeSet<_>>()
+            .try_into()
+            .expect("Sectors is bounded to MAX_SECTORS so the length can never exceed MAX_SECTORS")
     }
 
     /// Adds sectors to this partition.
@@ -182,8 +173,15 @@ where
         sector_numbers: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
     ) -> Result<(), PartitionError> {
         // Update partition metadata
-        self.faults = self.faults.union(sector_numbers).cloned().collect::<BTreeSet<_>>().try_into().map_err(|_|{log::error!(target: LOG_TARGET, "add_faults: Failed to add sector numbers to faults");
-        PartitionError::FailedToAddFaults})?;
+        self.faults = self.faults
+            .union(sector_numbers)
+            .cloned()
+            .collect::<BTreeSet<_>>()
+            .try_into()
+            .map_err(|_|{
+                log::error!(target: LOG_TARGET, "add_faults: Failed to add sector numbers to faults");
+                PartitionError::FailedToAddFaults
+            })?;
 
         log::debug!(target: LOG_TARGET, "add_faults: new faults {:?}", self.faults);
 

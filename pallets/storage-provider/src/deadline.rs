@@ -459,7 +459,7 @@ where
     }
 
     /// The last block during which a proof may be submitted.
-    /// 
+    ///
     /// When the value of `close_at` is 0 this function will also return 0 instead of panicking or underflowing.
     pub fn last(&self) -> BlockNumber {
         self.close_at.saturating_less_one()
