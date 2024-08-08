@@ -71,8 +71,7 @@ where
     /// Live sectors are sectors that are not terminated (i.e. not in `terminated`).
     pub fn live_sectors(&self) -> BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>> {
         self.sectors
-            .iter()
-            .filter(|sector_number| !self.terminated.contains(sector_number))
+            .difference(&self.terminated)
             .copied()
             .collect::<BTreeSet<_>>()
             .try_into()
