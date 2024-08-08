@@ -225,7 +225,7 @@ fn multiple_deadline_faults() {
         sectors.try_insert(1).expect("Programmer error");
         let mut faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>> = bounded_vec![];
         // declare faults in 5 partitions
-        for i in 0..6 {
+        for i in 0..5 {
             let fault = FaultDeclaration {
                 deadline: i,
                 partition: 1,

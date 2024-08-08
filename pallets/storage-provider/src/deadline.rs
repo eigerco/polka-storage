@@ -230,27 +230,31 @@ where
             partition.record_faults(
                 sectors,
                 partition_sectors
-                    .0
-                    .get(partition_number)
-                    .expect("Infallible because of the above check"),
+                .0
+                .get(partition_number)
+                .expect("Infallible because of the above check"),
             ).map_err(|e| {
                 log::error!(target: LOG_TARGET, "record_faults: Error while recording faults in a partition: {e:?}");
                 DeadlineError::PartitionError(e)
             })?;
             // Update expiration block
-            let Some((block, _)) = self
+            if let Some((block, _)) = self
                 .expirations_blocks
                 .iter()
                 .find(|(_, partition_num)| partition_num == &partition_number)
-            else {
-                log::error!(target: LOG_TARGET, "record_faults: Could not find {partition_number} in expirations_blocks");
-                return Err(DeadlineError::PartitionNotFound);
-            };
-            self.expirations_blocks.remove(&block.clone());
-            self.expirations_blocks.try_insert(fault_expiration_block, *partition_number).map_err(|_| {
-                log::error!(target: LOG_TARGET, "record_faults: Could not insert new expiration");
-                DeadlineError::FailedToUpdateFaultExpiration
-            })?;
+            {
+                self.expirations_blocks.remove(&block.clone());
+                self.expirations_blocks.try_insert(fault_expiration_block, *partition_number).map_err(|_| {
+                        log::error!(target: LOG_TARGET, "record_faults: Could not insert new expiration");
+                        DeadlineError::FailedToUpdateFaultExpiration
+                    })?;
+            } else {
+                log::debug!(target: LOG_TARGET, "record_faults: Inserting partition number {partition_number}");
+                self.expirations_blocks.try_insert(fault_expiration_block, *partition_number).map_err(|_| {
+                    log::error!(target: LOG_TARGET, "record_faults: Could not insert new expiration");
+                    DeadlineError::FailedToUpdateFaultExpiration
+                })?;
+            }
         }
 
         Ok(())
