@@ -135,7 +135,7 @@ impl DeadlineSectorMap {
     /// Attempts to insert new sectors into a partition.
     /// If the partition does not exist this partition will be created and the sectors added.
     ///
-    /// returns an Err (and is a noop) if the new length of the map exceeds S.
+    /// Returns an Err (and is a no-op) if the new length of the map exceeds S.
     pub fn try_insert(
         &mut self,
         deadline_index: u64,
