@@ -78,7 +78,7 @@ fn multiple_sector_faults() {
         }
         let fault = FaultDeclaration {
             deadline: 0,
-            partition: 1,
+            partition: 0,
             sectors,
         };
 
@@ -125,7 +125,7 @@ fn declare_single_fault() {
         sectors.try_insert(1).expect("Programmer error");
         let fault = FaultDeclaration {
             deadline: 0,
-            partition: 1,
+            partition: 0,
             sectors,
         };
         assert_ok!(StorageProvider::declare_faults(
@@ -228,7 +228,7 @@ fn multiple_deadline_faults() {
         for i in 0..5 {
             let fault = FaultDeclaration {
                 deadline: i,
-                partition: 1,
+                partition: 0,
                 sectors: sectors.clone(),
             };
             faults.try_push(fault).expect("Programmer error");

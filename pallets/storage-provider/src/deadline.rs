@@ -149,7 +149,7 @@ where
 
         // Needs to start at 1 because if we take the length of `self.partitions`
         // it will always be `MAX_PARTITIONS_PER_DEADLINE` because the partitions are pre-initialized.
-        let mut partition_idx = 1;
+        let mut partition_idx = 0;
         loop {
             // Get/create partition to update.
             let mut partition = match partitions.get_mut(&(partition_idx as u32)) {

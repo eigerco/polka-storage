@@ -249,7 +249,7 @@ mod test {
             .terminated
             .try_insert(1)
             .expect("Programmer error");
-        let live_sectors = partition.live_sectors()?;
+        let live_sectors = partition.live_sectors();
         // Create expected result.
         let mut expected_live_sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>> =
             BoundedBTreeSet::new();
