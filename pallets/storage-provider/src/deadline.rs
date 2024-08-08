@@ -78,7 +78,7 @@ pub struct Deadline<BlockNumber: sp_runtime::traits::BlockNumber> {
 
 impl<BlockNumber> Deadline<BlockNumber>
 where
-    BlockNumber: sp_runtime::traits::BlockNumber,
+    BlockNumber: sp_runtime::traits::BlockNumber + Copy,
 {
     /// Construct a new [`Deadline`] instance.
     pub fn new() -> Self {
@@ -147,7 +147,8 @@ where
 
         let partitions = &mut self.partitions;
 
-        // Needs to start at 1 because the length is constants
+        // Needs to start at 1 because if we take the length of `self.partitions`
+        // it will always be `MAX_PARTITIONS_PER_DEADLINE` because the partitions are pre-initialized.
         let mut partition_idx = 1;
         loop {
             // Get/create partition to update.
@@ -238,12 +239,12 @@ where
                 DeadlineError::PartitionError(e)
             })?;
             // Update expiration block
-            if let Some((block, _)) = self
+            if let Some((&block, _)) = self
                 .expirations_blocks
                 .iter()
                 .find(|(_, partition_num)| partition_num == &partition_number)
             {
-                self.expirations_blocks.remove(&block.clone());
+                self.expirations_blocks.remove(&block);
                 self.expirations_blocks.try_insert(fault_expiration_block, *partition_number).map_err(|_| {
                         log::error!(target: LOG_TARGET, "record_faults: Could not insert new expiration");
                         DeadlineError::FailedToUpdateFaultExpiration
