@@ -101,6 +101,7 @@ where
     /// Declares a set of sectors faulty. Already faulty sectors are ignored,
     /// terminated sectors are skipped, and recovering sectors are reverted to
     /// faulty.
+    /// Returns all sectors marked as faulty (including the previous ones), after the operation.
     /// Filecoin ref: <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/partition_state.rs#L225>
     pub fn record_faults(
         &mut self,
@@ -110,7 +111,7 @@ where
             ConstU32<MAX_SECTORS>,
         >,
         sector_numbers: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
-    ) -> Result<(), PartitionError>
+    ) -> Result<BTreeSet<SectorNumber>, PartitionError>
     where
         BlockNumber: sp_runtime::traits::BlockNumber,
     {
@@ -151,11 +152,14 @@ where
             .iter()
             .filter_map(|(sector_number, _info)| retracted_recoveries.get(&sector_number).copied())
             .collect();
-        if retracted_recovery_sectors.is_empty() {
+
+        if !retracted_recovery_sectors.is_empty() {
+            self.remove_recoveries(&retracted_recovery_sectors)?;
+        } else {
             log::debug!(target: LOG_TARGET, "record_faults: No retracted recoveries detected");
-            return Ok(());
         }
-        self.remove_recoveries(&retracted_recovery_sectors)
+
+        Ok(self.faults.clone().into())
     }
 
     /// marks a set of sectors faulty

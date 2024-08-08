@@ -45,7 +45,7 @@ pub mod pallet {
         dispatch::DispatchResult,
         ensure, fail,
         pallet_prelude::*,
-        sp_runtime::traits::{CheckedAdd, CheckedSub},
+        sp_runtime::traits::{CheckedAdd, CheckedSub, One},
         traits::{
             Currency, ExistenceRequirement::KeepAlive, Imbalance, ReservableCurrency,
             WithdrawReasons,
@@ -312,6 +312,8 @@ pub mod pallet {
         InvalidUnsealedCidForSector,
         /// Emitted when SP calls declare_faults and the fault cutoff is passed.
         FaultDeclarationTooLate,
+        /// Tried to slash reserved currency and burn it.
+        SlashingFailed,
     }
 
     #[pallet::call]
@@ -729,6 +731,7 @@ pub mod pallet {
 
         fn on_finalize(current_block: BlockNumberFor<T>) {
             Self::check_precommited_sectors(current_block);
+            Self::check_deadlines(current_block);
         }
     }
 
@@ -872,21 +875,8 @@ pub mod pallet {
                 state.pre_commit_deposits = slashed_deposits;
 
                 // PRE-COND: currency was previously reserved in pre_commit
-                let (imbalance, balance) =
-                    T::Currency::slash_reserved(&storage_provider, slash_amount);
-                if balance > BalanceOf::<T>::zero() {
-                    log::warn!(target: LOG_TARGET, "could not slash_reserved entirely, invariant violated");
-                }
-                // slash_reserved returns NegativeImbalance, we need to get a concrete value and burn it to level out the circulating currency
-                let imbalance = T::Currency::burn(imbalance.peek());
-
-                let Ok(()) = T::Currency::settle(
-                    &storage_provider,
-                    imbalance,
-                    WithdrawReasons::RESERVE,
-                    KeepAlive,
-                ) else {
-                    log::error!(target: LOG_TARGET, "failed to settle currency after slashing... amount: {:?}, storage_provider: {:?}", slash_amount, storage_provider);
+                let Ok(()) = slash_and_burn::<T>(&storage_provider, slash_amount) else {
+                    log::error!(target: LOG_TARGET, "failed to slash.. amount: {:?}, storage_provider: {:?}", slash_amount, storage_provider);
                     continue;
                 };
 
@@ -929,6 +919,129 @@ pub mod pallet {
 
             (expired_sectors, to_be_slashed)
         }
+
+        /// Goes through each Storage Provider and its current deadline.
+        ///
+        /// If the deadline elapsed (current_block >= deadline.close_at) it checks all of the partitions and their sectors.
+        /// If a proof for a partition has not been submitted, all sectors in the partition are marked as faulty.
+        /// A deadline is checked once every [`T::WPoStProvingPeriod`]. If a Partition was marked as faulty in a deadline (deadline_idx, proving_period_idx),
+        /// it's rechecked in the next [`T::WPoStProvingPeriod`] in the next deadline (deadline_idx,, proving_period_idx + 1).
+        /// `pre_commit_deposit` is slashed by 1 for each partition for each proving period a partition is faulty.
+        ///
+        /// TODO:
+        /// - If a partition is faulty for too long [`T::FaultMaxAge`], it needs to be be terminated. (#165, #167)
+        /// - A proper slashing mechanism `pre_commit_deposit` and calculation. (#187)
+        ///
+        /// Reference implementation:
+        /// * <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/state.rs#L1128>
+        /// * <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/state.rs#L1192>
+        fn check_deadlines(current_block: BlockNumberFor<T>) {
+            const LOG_TARGET: &'static str = "runtime::storage_provider::check_deadlines";
+            log::info!(target: LOG_TARGET, "block: {:?}", current_block);
+
+            // We cannot modify storage map while inside `iter_keys()` as docs say it's undefined results.
+            // And we can use `alloc::Vec`, because it's bounded by StorageProviders data structure anyways.
+            let storage_providers: Vec<_> = StorageProviders::<T>::iter_keys().collect();
+            for storage_provider in storage_providers {
+                log::info!(target: LOG_TARGET, "checking storage provider {:?}", storage_provider);
+                let Ok(mut state) = StorageProviders::<T>::try_get(storage_provider.clone()) else {
+                    log::error!(target: LOG_TARGET, "catastrophe, couldn't find a storage provider based on key. it should have been there...");
+                    continue;
+                };
+
+                let Ok(current_deadline) = state.deadline_info(
+                    current_block,
+                    T::FaultMaxAge::get(),
+                    T::WPoStPeriodDeadlines::get(),
+                    T::WPoStProvingPeriod::get(),
+                    T::WPoStChallengeWindow::get(),
+                    T::WPoStChallengeLookBack::get(),
+                ) else {
+                    log::error!(target: LOG_TARGET, "block: {:?}, there are no deadlines for storage provider {:?}", current_block, storage_provider);
+                    continue;
+                };
+
+                if !current_deadline.period_started() {
+                    log::warn!(target: LOG_TARGET, "block: {:?}, period for deadline {:?}, sp {:?} has not yet started...", current_block, current_deadline.idx, storage_provider);
+                    continue;
+                }
+
+                if !current_deadline.has_elapsed() {
+                    log::info!(target: LOG_TARGET,
+                        "block: {:?}, deadline {:?} for sp {:?} not yet elapsed. open_at: {} < current {} < close_at {}",
+                            current_block,
+                            current_deadline.idx, storage_provider, current_deadline.open_at, current_block, current_deadline.close_at
+                    );
+                    continue;
+                }
+                // deadlines is borrowed as mut, so sectors need to be cloned.
+                let Ok(deadline) =
+                    (&mut state.deadlines).load_deadline_mut(current_deadline.idx as usize)
+                else {
+                    log::error!(target: LOG_TARGET, "block: {:?}, failed to get deadline {}, sp: {:?}", 
+                        current_block, current_deadline.idx, storage_provider);
+                    continue;
+                };
+
+                let mut slashed_partitions = 0;
+                for (partition_number, partition) in deadline.partitions.iter_mut() {
+                    // WindowPoSt Proof was submitted for a partition.
+                    if deadline.partitions_posted.contains(&partition_number) {
+                        continue;
+                    }
+
+                    // Mark all Sectors in a partition as faulty
+                    let Ok(faults) =
+                        partition.record_faults(&state.sectors, &partition.sectors.clone())
+                    else {
+                        log::error!(target: LOG_TARGET, "block: {:?}, failed to mark {} sectors as faulty, deadline: {}, sp: {:?}", 
+                            current_block, partition.sectors.len(), current_deadline.idx, storage_provider);
+                        continue;
+                    };
+
+                    // TODO(@th7nder,#167,08/08/2024):
+                    // - process early terminations (we need ExpirationQueue for that)
+                    // - https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/state.rs#L1182
+
+                    log::info!(target: LOG_TARGET, "block: {:?}, slashing sp's {:?} partition {} for {} faults...", 
+                        current_block, storage_provider, partition_number, faults.len());
+
+                    slashed_partitions += 1;
+                }
+
+                // TODO(@th7nder,[#106,#187],08/08/2024): figure out slashing amounts (for continued faults, new faults).
+                if slashed_partitions > 0 {
+                    log::info!(target: LOG_TARGET, "block: {:?}, sp: {:?}, deadline: {:?} - should have slashed {} partitions...",
+                        current_block,
+                        storage_provider,
+                        current_deadline.idx,
+                        slashed_partitions,
+                    );
+                } else {
+                    log::info!(target: LOG_TARGET, "block: {:?}, sp: {:?}, deadline: {:?} - all proofs submitted on time.",
+                        current_block,
+                        storage_provider,
+                        current_deadline.idx,
+                    );
+                }
+
+                // Advance the proving period start of the storage provider if the next deadline is the first one.
+                let Ok(max_deadlines) = TryInto::<BlockNumberFor<T>>::try_into(T::WPoStPeriodDeadlines::get()) else {
+                    log::error!(target: LOG_TARGET, "catastrophe, WPostPeriodDeadlines > BlockNumber");
+                    continue;
+                };
+                state.current_deadline = (state.current_deadline + BlockNumberFor::<T>::one()) % max_deadlines;
+                if state.current_deadline.is_zero() {
+                    state.proving_period_start =
+                        current_deadline.period_start + T::WPoStProvingPeriod::get();
+                }
+
+                // Reset posted partitions, as deadline has been processed.
+                // Next processing will happen in the next proving period.
+                deadline.partitions_posted = BoundedBTreeSet::new();
+                StorageProviders::<T>::insert(storage_provider, state);
+            }
+        }
     }
 
     // Adapted from filecoin reference here: https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/miner/src/commd.rs#L51-L56
@@ -952,7 +1065,32 @@ pub mod pallet {
 
     /// Calculate the required pre commit deposit amount
     fn calculate_pre_commit_deposit<T: Config>() -> BalanceOf<T> {
-        1u32.into() // TODO(@aidan46, #106, 2024-06-24): Set a logical value or calculation
+        BalanceOf::<T>::one() // TODO(@aidan46, #106, 2024-06-24): Set a logical value or calculation
+    }
+
+    /// Slashes **reserved* currency, burns it completely and settles the token amount in the chain.
+    ///
+    /// Preconditions:
+    /// - `slash_amount` needs to be previously reserved via `T::Currency::reserve()` on `account`,
+    fn slash_and_burn<T: Config>(
+        account: &T::AccountId,
+        slash_amount: BalanceOf<T>,
+    ) -> Result<(), DispatchError> {
+        let (imbalance, balance) = T::Currency::slash_reserved(account, slash_amount);
+
+        log::debug!(target: LOG_TARGET, "imbalance: {:?}, balance: {:?}", imbalance.peek(), balance);
+        ensure!(balance == BalanceOf::<T>::zero(), {
+            log::error!(target: LOG_TARGET, "could not slash_reserved entirely, precondition violated");
+            Error::<T>::SlashingFailed
+        });
+
+        // slash_reserved returns NegativeImbalance, we need to get a concrete value and burn it to level out the circulating currency
+        let imbalance = T::Currency::burn(imbalance.peek());
+
+        T::Currency::settle(account, imbalance, WithdrawReasons::RESERVE, KeepAlive)
+            .map_err(|_| Error::<T>::SlashingFailed)?;
+
+        Ok(())
     }
 
     fn validate_seal_proof(

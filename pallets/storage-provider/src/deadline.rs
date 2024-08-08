@@ -453,6 +453,11 @@ where
         })
     }
 
+    /// Whether the proving period has begun.
+    pub fn period_started(&self) -> bool {
+        self.block_number >= self.period_start
+    }
+
     /// Whether the current deadline is currently open.
     pub fn is_open(&self) -> bool {
         self.block_number >= self.open_at && self.block_number < self.close_at
