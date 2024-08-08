@@ -552,8 +552,6 @@ pub mod pallet {
                     .ok_or(Error::<T>::StorageProviderNotFound)?;
                 let deadlines = sp.get_deadlines_mut();
 
-                log::debug!(target: LOG_TARGET, "submit_windowed_post: deadlines = {deadlines:#?}");
-
                 // record sector as proven
                 deadlines
                     .record_proven(windowed_post.deadline as usize, windowed_post.partition)
@@ -618,6 +616,7 @@ pub mod pallet {
                     Error::<T>::FaultDeclarationTooLate
                 });
                 let fault_expiration_block = target_dl.last() + T::FaultMaxAge::get();
+                log::debug!(target: LOG_TARGET, "declare_faults: Getting deadline[{deadline_idx}]");
                 let dl = sp
                     .deadlines
                     .load_deadline_mut(*deadline_idx as usize)
