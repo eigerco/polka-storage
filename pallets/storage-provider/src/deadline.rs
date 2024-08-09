@@ -78,14 +78,13 @@ pub struct Deadline<BlockNumber: sp_runtime::traits::BlockNumber> {
 
 impl<BlockNumber> Deadline<BlockNumber>
 where
-    BlockNumber: sp_runtime::traits::BlockNumber,
+    BlockNumber: sp_runtime::traits::BlockNumber + Copy,
 {
     /// Construct a new [`Deadline`] instance.
     pub fn new() -> Self {
         let mut partitions = BoundedBTreeMap::new();
-        for partition_number in 0..=MAX_PARTITIONS_PER_DEADLINE {
-            let _ = partitions.try_insert(partition_number, Partition::new());
-        }
+        // create 1 initial partition because deadlines are tied to partition so at least 1 partition should be initialized.
+        let _ = partitions.try_insert(0, Partition::new());
         Self {
             partitions,
             expirations_blocks: BoundedBTreeMap::new(),
@@ -147,8 +146,9 @@ where
 
         let partitions = &mut self.partitions;
 
-        // Needs to start at 1 because the length is constants
-        let mut partition_idx = 1;
+        // Needs to start at 1 because if we take the length of `self.partitions`
+        // it will always be `MAX_PARTITIONS_PER_DEADLINE` because the partitions are pre-initialized.
+        let mut partition_idx = 0;
         loop {
             // Get/create partition to update.
             let mut partition = match partitions.get_mut(&(partition_idx as u32)) {
@@ -230,27 +230,31 @@ where
             partition.record_faults(
                 sectors,
                 partition_sectors
-                    .0
-                    .get(partition_number)
-                    .expect("Infallible because of the above check"),
+                .0
+                .get(partition_number)
+                .expect("Infallible because of the above check"),
             ).map_err(|e| {
                 log::error!(target: LOG_TARGET, "record_faults: Error while recording faults in a partition: {e:?}");
                 DeadlineError::PartitionError(e)
             })?;
             // Update expiration block
-            let Some((block, _)) = self
+            if let Some((&block, _)) = self
                 .expirations_blocks
                 .iter()
                 .find(|(_, partition_num)| partition_num == &partition_number)
-            else {
-                log::error!(target: LOG_TARGET, "record_faults: Could not find {partition_number} in expirations_blocks");
-                return Err(DeadlineError::PartitionNotFound);
-            };
-            self.expirations_blocks.remove(&block.clone());
-            self.expirations_blocks.try_insert(fault_expiration_block, *partition_number).map_err(|_| {
-                log::error!(target: LOG_TARGET, "record_faults: Could not insert new expiration");
-                DeadlineError::FailedToUpdateFaultExpiration
-            })?;
+            {
+                self.expirations_blocks.remove(&block);
+                self.expirations_blocks.try_insert(fault_expiration_block, *partition_number).map_err(|_| {
+                        log::error!(target: LOG_TARGET, "record_faults: Could not insert new expiration");
+                        DeadlineError::FailedToUpdateFaultExpiration
+                    })?;
+            } else {
+                log::debug!(target: LOG_TARGET, "record_faults: Inserting partition number {partition_number}");
+                self.expirations_blocks.try_insert(fault_expiration_block, *partition_number).map_err(|_| {
+                    log::error!(target: LOG_TARGET, "record_faults: Could not insert new expiration");
+                    DeadlineError::FailedToUpdateFaultExpiration
+                })?;
+            }
         }
 
         Ok(())
@@ -304,23 +308,12 @@ where
         log::debug!(target: LOG_TARGET, "load_deadline_mut: getting deadline at index {idx}");
         // Ensure the provided index is within range.
         ensure!(self.len() > idx, DeadlineError::DeadlineIndexOutOfRange);
-        Ok(self
-            .due
-            .get_mut(idx)
-            .expect("Deadlines are pre-initialized, this cannot fail"))
-    }
-
-    /// Loads a deadline
-    /// Fails if the index does not exist or is out of range.
-    pub fn load_deadline(&self, idx: usize) -> Result<Deadline<BlockNumber>, DeadlineError> {
-        log::debug!(target: LOG_TARGET, "load_deadline_mut: getting deadline at index {idx}");
-        // Ensure the provided index is within range.
-        ensure!(self.len() > idx, DeadlineError::DeadlineIndexOutOfRange);
-        Ok(self
-            .due
-            .get(idx)
-            .cloned()
-            .expect("Deadlines are pre-initialized, this cannot fail"))
+        if let Some(deadline) = self.due.get_mut(idx) {
+            Ok(deadline)
+        } else {
+            log::error!(target: LOG_TARGET, "load_deadline_mut: Failed to get deadline at index {idx}");
+            Err(DeadlineError::DeadlineNotFound)
+        }
     }
 
     /// Records a deadline as proven.
@@ -335,13 +328,6 @@ where
         let deadline = self.load_deadline_mut(deadline_idx)?;
         deadline.record_proven(partition_num)?;
         Ok(())
-    }
-
-    /// Replace values of the deadline at index `deadline_idx` with those of `new_dl`.
-    ///
-    /// IMPORTANT: It is the caller of this functions responsibility to make sure the given index exists.
-    pub fn update_deadline(&mut self, deadline_idx: usize, new_dl: Deadline<BlockNumber>) {
-        self.due[deadline_idx] = new_dl;
     }
 }
 
@@ -461,6 +447,8 @@ where
     }
 
     /// The last block during which a proof may be submitted.
+    ///
+    /// When the value of `close_at` is 0 this function will also return 0 instead of panicking or underflowing.
     pub fn last(&self) -> BlockNumber {
         self.close_at.saturating_less_one()
     }

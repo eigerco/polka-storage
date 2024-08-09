@@ -68,24 +68,14 @@ where
         }
     }
 
-    /// Live sectors are sectors that are not terminated (i.e. not in `terminated` or `early_terminations`).
-    pub fn live_sectors(
-        &self,
-    ) -> Result<BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>, PartitionError> {
-        let mut live_sectors = BoundedBTreeSet::new();
-        let difference = self.sectors.iter().filter_map(|sector_number| {
-            if !self.terminated.contains(sector_number) {
-                Some(*sector_number)
-            } else {
-                None
-            }
-        });
-        for sector_number in difference {
-            live_sectors
-                .try_insert(sector_number)
-                .map_err(|_| PartitionError::FailedToGetLiveSectors)?;
-        }
-        Ok(live_sectors)
+    /// Live sectors are sectors that are not terminated (i.e. not in `terminated`).
+    pub fn live_sectors(&self) -> BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>> {
+        self.sectors
+            .difference(&self.terminated)
+            .copied()
+            .collect::<BTreeSet<_>>()
+            .try_into()
+            .expect("Sectors is bounded to MAX_SECTORS so the length can never exceed MAX_SECTORS")
     }
 
     /// Adds sectors to this partition.
@@ -132,18 +122,13 @@ where
             .cloned()
             .collect();
         // sector_numbers - retracted_recoveries
-        let new_faults: BTreeSet<SectorNumber> = sector_numbers
+        let new_faults: BTreeSet<&SectorNumber> = sector_numbers
             .iter()
-            .filter(|sector_number| !retracted_recoveries.contains(sector_number))
-            // Ignore any terminated sectors and previously declared or detected faults
-            .filter_map(|sector_number| {
-                if !self.terminated.contains(&sector_number)
+            .filter(|sector_number| {
+                !retracted_recoveries.contains(sector_number)
+                // Ignore any terminated sectors and previously declared or detected faults
+                && !self.terminated.contains(&sector_number)
                     && !self.faults.contains(&sector_number)
-                {
-                    Some(*sector_number)
-                } else {
-                    None
-                }
             })
             .collect();
 
@@ -152,7 +137,7 @@ where
             .iter()
             .filter(|(sector_number, _info)| {
                 log::debug!(target: LOG_TARGET, "record_faults: checking sec_num {sector_number}");
-                new_faults.contains(&sector_number)
+                new_faults.contains(sector_number)
             })
             .collect();
         // Add new faults to state, skip if no new faults.
@@ -164,20 +149,13 @@ where
         // remove faulty recoveries from state, skip if no recoveries set to faulty.
         let retracted_recovery_sectors: BTreeSet<SectorNumber> = sectors
             .iter()
-            .filter_map(|(sector_number, _info)| {
-                if retracted_recoveries.contains(&sector_number) {
-                    Some(*sector_number)
-                } else {
-                    None
-                }
-            })
+            .filter_map(|(sector_number, _info)| retracted_recoveries.get(&sector_number).copied())
             .collect();
-        if !retracted_recovery_sectors.is_empty() {
-            self.remove_recoveries(&retracted_recovery_sectors)?;
-        } else {
+        if retracted_recovery_sectors.is_empty() {
             log::debug!(target: LOG_TARGET, "record_faults: No retracted recoveries detected");
+            return Ok(());
         }
-        Ok(())
+        self.remove_recoveries(&retracted_recovery_sectors)
     }
 
     /// marks a set of sectors faulty
@@ -187,8 +165,15 @@ where
         sector_numbers: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
     ) -> Result<(), PartitionError> {
         // Update partition metadata
-        self.faults = self.faults.union(sector_numbers).cloned().collect::<BTreeSet<_>>().try_into().map_err(|_|{log::error!(target: LOG_TARGET, "add_faults: Failed to add sector numbers to faults");
-        PartitionError::FailedToAddFaults})?;
+        self.faults = self.faults
+            .union(sector_numbers)
+            .cloned()
+            .collect::<BTreeSet<_>>()
+            .try_into()
+            .map_err(|_|{
+                log::error!(target: LOG_TARGET, "add_faults: Failed to add sector numbers to faults");
+                PartitionError::FailedToAddFaults
+            })?;
 
         log::debug!(target: LOG_TARGET, "add_faults: new faults {:?}", self.faults);
 
@@ -257,7 +242,7 @@ mod test {
             .terminated
             .try_insert(1)
             .expect("Programmer error");
-        let live_sectors = partition.live_sectors()?;
+        let live_sectors = partition.live_sectors();
         // Create expected result.
         let mut expected_live_sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>> =
             BoundedBTreeSet::new();
