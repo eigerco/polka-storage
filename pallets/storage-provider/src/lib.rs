@@ -672,9 +672,11 @@ pub mod pallet {
             params: DeclareFaultsRecoveredParams,
         ) -> DispatchResult {
             let owner = ensure_signed(origin)?;
+            let current_block = <frame_system::Pallet<T>>::block_number();
             let mut sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
             let mut to_process = DeadlineSectorMap::new();
+
             for term in &params.recoveries {
                 let deadline = term.deadline;
                 let partition = term.partition;
@@ -683,8 +685,36 @@ pub mod pallet {
                     .try_insert(deadline, partition, term.sectors.clone())
                     .map_err(|e| Error::<T>::SectorMapError(e))?;
             }
+
+            let proving_period_start = sp
+                .current_proving_period_start(
+                    current_block,
+                    T::FaultMaxAge::get(),
+                    T::WPoStPeriodDeadlines::get(),
+                    T::WPoStProvingPeriod::get(),
+                    T::WPoStChallengeWindow::get(),
+                    T::WPoStChallengeLookBack::get(),
+                )
+                .map_err(|e| Error::<T>::DeadlineError(e))?;
+
             for (deadline_idx, partition_map) in to_process.into_iter() {
                 log::debug!(target: LOG_TARGET, "declare_faults_recovered: Processing deadline index: {deadline_idx}");
+                // Get the deadline
+                let target_dl = DeadlineInfo::new(
+                    current_block,
+                    proving_period_start,
+                    *deadline_idx,
+                    T::FaultMaxAge::get(),
+                    T::WPoStPeriodDeadlines::get(),
+                    T::WPoStChallengeWindow::get(),
+                    T::WPoStProvingPeriod::get(),
+                    T::WPoStChallengeLookBack::get(),
+                )
+                .map_err(|e| Error::<T>::DeadlineError(e))?;
+                ensure!(!target_dl.fault_cutoff_passed(), {
+                    log::error!(target: LOG_TARGET, "declare_faults: Late fault declaration at deadline {deadline_idx}");
+                    Error::<T>::FaultDeclarationTooLate
+                });
                 let dl = sp
                     .deadlines
                     .load_deadline_mut(*deadline_idx as usize)
