@@ -80,6 +80,10 @@ fn successfully_prove_sector() {
         // check that the sector has been activated
         assert!(!sp_state.sectors.is_empty());
         assert!(sp_state.sectors.contains_key(&sector_number));
+        // always assigns first deadline and first partition, probably will fail when we change deadline calculation algo.
+        let deadline = &sp_state.deadlines.due[0];
+        let assigned_partition = &deadline.partitions[&0];
+        assert_eq!(assigned_partition.sectors.len(), 1);
     });
 }
 
