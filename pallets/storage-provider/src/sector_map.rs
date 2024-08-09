@@ -280,18 +280,25 @@ mod test {
 
     /// This is a helper function to easily create a set of sectors.
     fn create_set<const T: u32>(sectors: &[u64]) -> BoundedBTreeSet<SectorNumber, ConstU32<T>> {
-        let sectors = sectors.iter().cloned().collect::<BTreeSet<_>>();
+        let sectors = sectors.iter().copied().collect::<BTreeSet<_>>();
         BoundedBTreeSet::try_from(sectors).unwrap()
     }
 
-    /// Check if map contains the expected partition and sectors. This function
-    /// panics if any passed sectors are not found in the partition.
-    fn expect_sectors_partial(map: &PartitionMap, partition: PartitionNumber, sectors: &[u64]) {
+    /// Checks that items in `expected_sectors` are in the actual partition. Any
+    /// extra items that are not in the `expected_sectors` are ignored.
+    fn expect_sectors_partial(
+        map: &PartitionMap,
+        partition: PartitionNumber,
+        expected_sectors: &[u64],
+    ) {
         match map.0.get(&partition) {
             Some(a) => {
-                sectors.iter().for_each(|s| {
+                expected_sectors.iter().enumerate().for_each(|(idx, s)| {
                     if !a.contains(s) {
-                        panic!("sector {} not found in partition {}", s, partition);
+                        panic!(
+                            "sector {} (idx: {}) not found in partition {}",
+                            s, idx, partition
+                        );
                     }
                 });
             }
@@ -299,42 +306,48 @@ mod test {
         }
     }
 
-    /// Check if map contains the expected partition and sectors. This function
-    /// panics if the actual sectors do not equal the expected sectors.
-    fn expect_sectors_exact(map: &PartitionMap, partition: PartitionNumber, sectors: &[u64]) {
+    /// Checks that all items in `expected_sectors` are in the actual partition.
+    /// The actual partition should have no extra or missing items.
+    fn expect_sectors_exact(
+        map: &PartitionMap,
+        partition: PartitionNumber,
+        expected_sectors: &[u64],
+    ) {
         match map.0.get(&partition) {
             Some(actual) => {
-                let expected = sectors.iter().copied().collect::<BTreeSet<_>>();
+                let expected = expected_sectors.iter().copied().collect::<BTreeSet<_>>();
+                assert_eq!(expected.len(), actual.len());
                 assert_eq!(&expected, actual.as_ref());
             }
             None => panic!("partition {partition} not found"),
         }
     }
 
-    /// Check if map contains the expected deadline, partition and sectors. The
-    /// function panics if there are any sectors missing.
+    /// Checks that items in `expected_sectors` are in the actual partition
+    /// deadline. Any extra items that are not in the `expected_sectors` are
+    /// ignored.
     fn expect_deadline_sectors_partial(
         map: &DeadlineSectorMap,
         deadline: u64,
         partition: PartitionNumber,
-        sectors: &[u64],
+        expected_sectors: &[u64],
     ) {
         match map.0.get(&deadline) {
-            Some(p_map) => expect_sectors_partial(p_map, partition, sectors),
+            Some(p_map) => expect_sectors_partial(p_map, partition, expected_sectors),
             None => panic!("deadline {deadline} not found"),
         }
     }
 
-    /// Check if map contains the expected deadline, partition and sectors. The
-    /// function panics if sectors are not exact.
+    /// Checks that all items in `expected_sectors` are in the actual partition
+    /// deadline. The actual partition should have no extra or missing items.
     fn expect_deadline_sectors_exact(
         map: &DeadlineSectorMap,
         deadline: u64,
         partition: PartitionNumber,
-        sectors: &[u64],
+        expected_sectors: &[u64],
     ) {
         match map.0.get(&deadline) {
-            Some(p_map) => expect_sectors_exact(p_map, partition, sectors),
+            Some(p_map) => expect_sectors_exact(p_map, partition, expected_sectors),
             None => panic!("deadline {deadline} not found"),
         }
     }
