@@ -209,14 +209,10 @@ where
         // Recoveries = (sector_numbers & self.faults) - self.recoveries
         let recoveries = sector_numbers
             .iter()
-            .filter(|sector_number| self.faults.contains(&sector_number))
-            .filter_map(|sector_number| {
-                if !self.recoveries.contains(sector_number) {
-                    Some(*sector_number)
-                } else {
-                    None
-                }
+            .filter(|sector_number| {
+                self.faults.contains(&sector_number) && !self.recoveries.contains(sector_number)
             })
+            .copied()
             .collect();
         // self.recoveries | recoveries
         self.recoveries = self

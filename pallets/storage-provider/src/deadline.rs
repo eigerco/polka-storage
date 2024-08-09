@@ -263,26 +263,17 @@ where
         &mut self,
         partition_sectors: &mut PartitionMap,
     ) -> Result<(), DeadlineError> {
-        let mut partitions = self.partitions.clone();
-        for (partition_idx, sector_numbers) in partition_sectors.0.iter() {
-            let Some(mut partition) = partitions.get_mut(&partition_idx).cloned() else {
-                log::error!(target: LOG_TARGET, "declare_faults_recovered: Could not get partition at index {partition_idx}");
-                return Err(DeadlineError::PartitionNotFound);
-            };
-
-            partition.declare_faults_recovered(sector_numbers);
-            partitions = if let Some(partitions) = partitions.try_mutate(|inner| {
-                if let Some(p) = inner.get_mut(partition_idx) {
-                    *p = partition.clone();
-                }
-            }) {
-                partitions
-            } else {
-                log::error!(target: LOG_TARGET, "Failed to update partitions after recovering faults");
-                return Err(DeadlineError::FailedToUpdatePartition);
-            };
+        for (partition_number, partition) in self.partitions.iter_mut() {
+            if !partition_sectors.0.contains_key(&partition_number) {
+                continue;
+            }
+            partition.declare_faults_recovered(
+                partition_sectors
+                    .0
+                    .get(partition_number)
+                    .expect("Infallible because of the above check"),
+            );
         }
-        self.partitions = partitions;
 
         Ok(())
     }
