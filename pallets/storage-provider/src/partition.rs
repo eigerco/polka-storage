@@ -115,6 +115,8 @@ where
     where
         BlockNumber: sp_runtime::traits::BlockNumber,
     {
+        log::debug!(target: LOG_TARGET, "record_faults: sector_number = {sector_numbers:#?}");
+        
         // Split declarations into declarations of new faults, and retraction of declared recoveries.
         // recoveries & sector_numbers
         let retracted_recoveries: BTreeSet<SectorNumber> = self

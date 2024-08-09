@@ -943,12 +943,13 @@ pub mod pallet {
             // And we can use `alloc::Vec`, because it's bounded by StorageProviders data structure anyways.
             let storage_providers: Vec<_> = StorageProviders::<T>::iter_keys().collect();
             for storage_provider in storage_providers {
-                log::info!(target: LOG_TARGET, "checking storage provider {:?}", storage_provider);
+                log::info!(target: LOG_TARGET, "block: {:?}, checking storage provider {:?}", current_block, storage_provider);
                 let Ok(mut state) = StorageProviders::<T>::try_get(storage_provider.clone()) else {
                     log::error!(target: LOG_TARGET, "catastrophe, couldn't find a storage provider based on key. it should have been there...");
                     continue;
                 };
 
+                
                 let Ok(current_deadline) = state.deadline_info(
                     current_block,
                     T::FaultMaxAge::get(),
@@ -960,23 +961,30 @@ pub mod pallet {
                     log::error!(target: LOG_TARGET, "block: {:?}, there are no deadlines for storage provider {:?}", current_block, storage_provider);
                     continue;
                 };
-
+                
+                
                 if !current_deadline.period_started() {
-                    log::warn!(target: LOG_TARGET, "block: {:?}, period for deadline {:?}, sp {:?} has not yet started...", current_block, current_deadline.idx, storage_provider);
+                    log::info!(target: LOG_TARGET, "block: {:?}, period for deadline {:?}, sp {:?} has not yet started...", current_block, current_deadline.idx, storage_provider);
                     continue;
                 }
-
+                
                 if !current_deadline.has_elapsed() {
                     log::info!(target: LOG_TARGET,
                         "block: {:?}, deadline {:?} for sp {:?} not yet elapsed. open_at: {} < current {} < close_at {}",
-                            current_block,
-                            current_deadline.idx, storage_provider, current_deadline.open_at, current_block, current_deadline.close_at
+                        current_block,
+                        current_deadline.idx, storage_provider, current_deadline.open_at, current_block, current_deadline.close_at
                     );
                     continue;
                 }
-                // deadlines is borrowed as mut, so sectors need to be cloned.
+                
+                log::info!(target: LOG_TARGET, "block: {:?}, checking storage provider {:?} deadline: {:?}", 
+                    current_block, 
+                    storage_provider,
+                    current_deadline.idx,
+                 );
+                
                 let Ok(deadline) =
-                    (&mut state.deadlines).load_deadline_mut(current_deadline.idx as usize)
+                (&mut state.deadlines).load_deadline_mut(current_deadline.idx as usize)
                 else {
                     log::error!(target: LOG_TARGET, "block: {:?}, failed to get deadline {}, sp: {:?}", 
                         current_block, current_deadline.idx, storage_provider);
@@ -989,6 +997,8 @@ pub mod pallet {
                     if deadline.partitions_posted.contains(&partition_number) {
                         continue;
                     }
+
+                    log::debug!(target: LOG_TARGET, "block: {:?}, going through partition: {:?}", current_block, partition);
 
                     // Mark all Sectors in a partition as faulty
                     let Ok(faults) =
