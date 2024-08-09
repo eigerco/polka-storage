@@ -157,12 +157,11 @@ where
                 }
             })
             .collect();
-        if !retracted_recovery_sectors.is_empty() {
-            self.remove_recoveries(&retracted_recovery_sectors)?;
-        } else {
+        if retracted_recovery_sectors.is_empty() {
             log::debug!(target: LOG_TARGET, "record_faults: No retracted recoveries detected");
+            return Ok(());
         }
-        Ok(())
+        self.remove_recoveries(&retracted_recovery_sectors)
     }
 
     /// marks a set of sectors faulty
