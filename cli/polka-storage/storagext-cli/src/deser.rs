@@ -159,6 +159,8 @@ pub(crate) struct PoStProof {
     pub post_proof: RegisteredPoStProof,
     #[serde(with = "hex")]
     pub proof_bytes: Vec<u8>,
+    #[serde(with = "hex")]
+    pub vkey_bytes: Vec<u8>,
 }
 
 impl Into<storagext::PoStProof> for PoStProof {
@@ -166,6 +168,7 @@ impl Into<storagext::PoStProof> for PoStProof {
         storagext::PoStProof {
             post_proof: self.post_proof,
             proof_bytes: self.proof_bytes.into_bounded_byte_vec(),
+            vkey_bytes: self.vkey_bytes.into_bounded_byte_vec(),
         }
     }
 }

@@ -39,6 +39,7 @@ pub mod pallet {
     use alloc::{vec, vec::Vec};
     use core::fmt::Debug;
 
+    use bls12_381::Bls12;
     use cid::{Cid, Version};
     use codec::{Decode, Encode};
     use frame_support::{
@@ -51,11 +52,8 @@ pub mod pallet {
             WithdrawReasons,
         },
     };
-    use frame_system::{
-        ensure_signed,
-        pallet_prelude::{BlockNumberFor, *},
-        Config as SystemConfig,
-    };
+    use frame_system::{ensure_signed, pallet_prelude::*, Config as SystemConfig};
+    use pairing::group::ff::PrimeField as Fr;
     use primitives_proofs::{Market, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::Zero;
@@ -67,7 +65,10 @@ pub mod pallet {
             RecoveryDeclaration,
         },
         partition::PartitionNumber,
-        proofs::{assign_proving_period_offset, SubmitWindowedPoStParams},
+        proofs::{
+            assign_proving_period_offset, prepare_verifying_key, verify_proof, Proof,
+            SubmitWindowedPoStParams, VerifyingKey, PROOF_BYTES, VERIFYINGKEY_BYTES,
+        },
         sector::{
             ProveCommitSector, SectorOnChainInfo, SectorPreCommitInfo, SectorPreCommitOnChainInfo,
             MAX_SECTORS,
@@ -328,6 +329,8 @@ pub mod pallet {
         FaultRecoveryTooLate,
         /// Tried to slash reserved currency and burn it.
         SlashingFailed,
+        /// TODO: Temporary error type for a wrong verification key on proving.
+        InvalidVerifyingKey,
     }
 
     #[pallet::call]
@@ -797,6 +800,30 @@ pub mod pallet {
                 owner,
                 recoveries: params.recoveries,
             });
+
+            Ok(())
+        }
+
+        /// Temporary testing extrinsic to trigger off-chain proof computation.
+        pub fn test_submit_windowed_post(
+            origin: OriginFor<T>,
+            proof_bytes: [u8; PROOF_BYTES],
+            vkey_bytes: [u8; VERIFYINGKEY_BYTES],
+        ) -> DispatchResult {
+            ensure_root(origin)?;
+
+            // Deserialze bytes into `SnarkProofs` and `VerifyingKey`.
+            let proof = Proof::<Bls12>::from_bytes(proof_bytes).map_err(Into::<Error<T>>::into)?;
+            let vkey =
+                VerifyingKey::<Bls12>::from_bytes(vkey_bytes).map_err(Into::<Error<T>>::into)?;
+
+            let prepared_vkey = prepare_verifying_key(&vkey);
+            verify_proof::<Bls12>(
+                &prepared_vkey,
+                &proof,
+                &[Fr::from_str_vartime("33").unwrap()],
+            )
+            .map_err(Into::<Error<T>>::into)?;
 
             Ok(())
         }

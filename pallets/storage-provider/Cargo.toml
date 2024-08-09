@@ -15,25 +15,26 @@ workspace = true
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
+bls12_381 = { workspace = true }
 cid = { workspace = true, features = ["alloc"] }
-codec = { workspace = true, default-features = false, features = ["derive"] }
-log.workspace = true
-primitives-proofs = { workspace = true, default-features = false }
-scale-info = { workspace = true, default-features = false, features = ["derive"] }
-sp-arithmetic = { workspace = true, default-features = false }
-sp-core = { workspace = true, default-features = false }
-sp-runtime = { workspace = true, default-features = false }
-
-# Frame deps
-frame-benchmarking = { workspace = true, default-features = false, optional = true }
-frame-support = { workspace = true, default-features = false }
-frame-system = { workspace = true, default-features = false }
+codec = { workspace = true, features = ["derive"] }
+frame-benchmarking = { workspace = true, optional = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+log = { workspace = true }
+pairing = { workspace = true }
+primitives-proofs = { workspace = true }
+scale-info = { workspace = true, features = ["derive"] }
+sp-arithmetic = { workspace = true }
+sp-core = { workspace = true }
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
 
 [dev-dependencies]
 env_logger = { workspace = true }
 multihash-codetable = { workspace = true, features = ["blake2b"] }
-pallet-balances = { workspace = true, default-features = false }
-pallet-market = { workspace = true, default-features = false }
+pallet-balances = { workspace = true }
+pallet-market = { workspace = true }
 rstest = { workspace = true }
 sp-io = { workspace = true }
 
@@ -50,8 +51,13 @@ std = [
   "frame-benchmarking?/std",
   "frame-support/std",
   "frame-system/std",
+  "log/std",
+  "multihash-codetable/std",
   "pallet-balances/std",
+  "pallet-market/std",
+  "primitives-proofs/std",
   "scale-info/std",
+  "sp-arithmetic/std",
   "sp-core/std",
   "sp-io/std",
   "sp-runtime/std",
