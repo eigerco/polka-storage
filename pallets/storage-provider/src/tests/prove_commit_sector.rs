@@ -73,7 +73,7 @@ fn successfully_prove_sector() {
         );
 
         // check that the funds are still locked
-        assert_eq!(Balances::free_balance(account(storage_provider)), 29);
+        assert_eq!(Balances::free_balance(account(storage_provider)), 429);
         let sp_state = StorageProviders::<Test>::get(account(storage_provider))
             .expect("Should be able to get providers info");
 

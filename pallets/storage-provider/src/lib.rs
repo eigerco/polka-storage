@@ -19,9 +19,11 @@ mod benchmarks;
 mod tests;
 
 mod deadline;
+mod fault;
 mod partition;
 mod proofs;
 mod sector;
+mod sector_map;
 mod storage_provider;
 
 #[frame_support::pallet(dev_mode)]
@@ -29,7 +31,8 @@ pub mod pallet {
     pub const CID_CODEC: u64 = 0x55;
     /// Sourced from multihash code table <https://github.com/multiformats/rust-multihash/blob/b321afc11e874c08735671ebda4d8e7fcc38744c/codetable/src/lib.rs#L108>
     pub const BLAKE2B_MULTIHASH_CODE: u64 = 0xB220;
-    pub const LOG_TARGET: &'static str = "runtime::storage_provider";
+    pub(crate) const DECLARATIONS_MAX: u32 = 3000;
+    const LOG_TARGET: &'static str = "runtime::storage_provider";
 
     extern crate alloc;
 
@@ -48,13 +51,18 @@ pub mod pallet {
             WithdrawReasons,
         },
     };
-    use frame_system::{ensure_signed, pallet_prelude::*, Config as SystemConfig};
+    use frame_system::{
+        ensure_signed,
+        pallet_prelude::{BlockNumberFor, *},
+        Config as SystemConfig,
+    };
     use primitives_proofs::{Market, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::Zero;
 
     use crate::{
         deadline::DeadlineInfo,
+        fault::{DeclareFaultsParams, FaultDeclaration},
         proofs::{
             assign_proving_period_offset, current_deadline_index, current_proving_period_start,
             SubmitWindowedPoStParams,
@@ -63,6 +71,7 @@ pub mod pallet {
             ProveCommitSector, SectorOnChainInfo, SectorPreCommitInfo, SectorPreCommitOnChainInfo,
             MAX_SECTORS,
         },
+        sector_map::DeadlineSectorMap,
         storage_provider::{StorageProviderInfo, StorageProviderState},
     };
 
@@ -192,6 +201,10 @@ pub mod pallet {
 
         #[pallet::constant]
         type MaxPartitionsPerDeadline: Get<u64>;
+
+        /// The longest a faulty sector can live without being removed.
+        #[pallet::constant]
+        type FaultMaxAge: Get<BlockNumberFor<Self>>;
     }
 
     /// Need some storage type that keeps track of sectors, deadlines and terminations.
@@ -229,6 +242,11 @@ pub mod pallet {
         },
         /// Emitted when an SP submits a valid PoSt
         ValidPoStSubmitted { owner: T::AccountId },
+        /// Emitted when an SP declares some sectors as faulty
+        FaultsDeclared {
+            owner: T::AccountId,
+            faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>>,
+        },
     }
 
     #[pallet::error]
@@ -278,12 +296,16 @@ pub mod pallet {
         PartitionError(crate::partition::PartitionError),
         /// Wrapper around the [`StorageProviderError`] type.
         StorageProviderError(crate::storage_provider::StorageProviderError),
+        /// Wrapper around the [`SectorMapError`] type.
+        SectorMapError(crate::sector_map::SectorMapError),
         /// Emitted when Market::verify_deals_for_activation fails for an unexpected reason.
         /// Verification happens in pre_commit, to make sure a sector is precommited with valid deals.
         CouldNotVerifySectorForPreCommit,
-        /// Declared unsealed_cid for pre_commit is different from the one calcualated by `Market::verify_deals_for_activation`.
+        /// Declared unsealed_cid for pre_commit is different from the one calculated by `Market::verify_deals_for_activation`.
         /// unsealed_cid === CommD and is calculated from piece ids of all of the deals in a sector.
         InvalidUnsealedCidForSector,
+        /// Emitted when SP calls declare_faults and the fault cutoff is passed.
+        FaultDeclarationTooLate,
     }
 
     #[pallet::call]
@@ -299,15 +321,15 @@ pub mod pallet {
                 !StorageProviders::<T>::contains_key(&owner),
                 Error::<T>::StorageProviderExists
             );
-            let proving_period = T::WPoStProvingPeriod::get();
             let current_block = <frame_system::Pallet<T>>::block_number();
             let offset = assign_proving_period_offset::<T::AccountId, BlockNumberFor<T>>(
                 &owner,
                 current_block,
-                proving_period,
+                T::WPoStProvingPeriod::get(),
             )
             .map_err(|_| Error::<T>::ConversionError)?;
-            let period_start = current_proving_period_start(current_block, offset, proving_period);
+            let period_start =
+                current_proving_period_start(current_block, offset, T::WPoStProvingPeriod::get());
             let deadline_idx =
                 current_deadline_index(current_block, period_start, T::WPoStChallengeWindow::get());
             let info = StorageProviderInfo::new(peer_id, window_post_proof_type);
@@ -460,6 +482,7 @@ pub mod pallet {
                     new_sectors,
                     sp.info.window_post_partition_sectors,
                     T::MaxPartitionsPerDeadline::get(),
+                    T::FaultMaxAge::get(),
                     T::WPoStPeriodDeadlines::get(),
                     T::WPoStProvingPeriod::get(),
                     T::WPoStChallengeWindow::get(),
@@ -512,6 +535,7 @@ pub mod pallet {
             let current_deadline = sp
                 .deadline_info(
                     current_block,
+                    T::FaultMaxAge::get(),
                     T::WPoStPeriodDeadlines::get(),
                     T::WPoStProvingPeriod::get(),
                     T::WPoStChallengeWindow::get(),
@@ -528,8 +552,6 @@ pub mod pallet {
                     .ok_or(Error::<T>::StorageProviderNotFound)?;
                 let deadlines = sp.get_deadlines_mut();
 
-                log::debug!(target: LOG_TARGET, "submit_windowed_post: deadlines = {deadlines:#?}");
-
                 // record sector as proven
                 deadlines
                     .record_proven(windowed_post.deadline as usize, windowed_post.partition)
@@ -542,6 +564,71 @@ pub mod pallet {
 
             Self::deposit_event(Event::ValidPoStSubmitted { owner });
 
+            Ok(())
+        }
+
+        /// The SP uses this extrinsic to declare some sectors as faulty. Letting the system know it will not submit PoSt for the next deadline.
+        ///
+        /// Filecoin reference: <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/lib.rs#L2648>
+        pub fn declare_faults(origin: OriginFor<T>, params: DeclareFaultsParams) -> DispatchResult {
+            let owner = ensure_signed(origin)?;
+            let current_block = <frame_system::Pallet<T>>::block_number();
+            let mut sp = StorageProviders::<T>::try_get(&owner)
+                .map_err(|_| Error::<T>::StorageProviderNotFound)?;
+
+            let mut to_process = DeadlineSectorMap::new();
+            for term in params.faults.clone() {
+                let deadline = term.deadline;
+                let partition = term.partition;
+
+                to_process
+                    .try_insert(deadline, partition, term.sectors)
+                    .map_err(|e| Error::<T>::SectorMapError(e))?;
+            }
+
+            let proving_period_start = sp
+                .current_proving_period_start(
+                    current_block,
+                    T::FaultMaxAge::get(),
+                    T::WPoStPeriodDeadlines::get(),
+                    T::WPoStProvingPeriod::get(),
+                    T::WPoStChallengeWindow::get(),
+                    T::WPoStChallengeLookBack::get(),
+                )
+                .map_err(|e| Error::<T>::DeadlineError(e))?;
+            let sectors = sp.sectors.clone();
+            for (deadline_idx, partition_map) in to_process.into_iter() {
+                log::debug!(target: LOG_TARGET, "declare_faults: Processing deadline index: {deadline_idx}");
+                // Get the deadline
+                let target_dl = DeadlineInfo::new(
+                    current_block,
+                    proving_period_start,
+                    *deadline_idx,
+                    T::FaultMaxAge::get(),
+                    T::WPoStPeriodDeadlines::get(),
+                    T::WPoStChallengeWindow::get(),
+                    T::WPoStProvingPeriod::get(),
+                    T::WPoStChallengeLookBack::get(),
+                )
+                .map_err(|e| Error::<T>::DeadlineError(e))?;
+                ensure!(!target_dl.fault_cutoff_passed(), {
+                    log::error!(target: LOG_TARGET, "declare_faults: Late fault declaration at deadline {deadline_idx}");
+                    Error::<T>::FaultDeclarationTooLate
+                });
+                let fault_expiration_block = target_dl.last() + T::FaultMaxAge::get();
+                log::debug!(target: LOG_TARGET, "declare_faults: Getting deadline[{deadline_idx}]");
+                let dl = sp
+                    .deadlines
+                    .load_deadline_mut(*deadline_idx as usize)
+                    .map_err(|e| Error::<T>::DeadlineError(e))?;
+                dl.record_faults(&sectors, partition_map, fault_expiration_block)
+                    .map_err(|e| Error::<T>::DeadlineError(e))?;
+            }
+            StorageProviders::<T>::insert(owner.clone(), sp);
+            Self::deposit_event(Event::FaultsDeclared {
+                owner,
+                faults: params.faults,
+            });
             Ok(())
         }
     }

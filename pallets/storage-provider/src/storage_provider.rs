@@ -16,12 +16,13 @@ use crate::{
     deadline::{
         assign_deadlines, deadline_is_mutable, Deadline, DeadlineError, DeadlineInfo, Deadlines,
     },
-    pallet::LOG_TARGET,
     sector::{SectorOnChainInfo, SectorPreCommitOnChainInfo, MAX_SECTORS},
 };
 
+const LOG_TARGET: &'static str = "runtime::storage_provider::storage_provider";
+
 /// This struct holds the state of a single storage provider.
-#[derive(Debug, Decode, Encode, TypeInfo)]
+#[derive(RuntimeDebug, Decode, Encode, TypeInfo)]
 pub struct StorageProviderState<PeerId, Balance, BlockNumber>
 where
     BlockNumber: sp_runtime::traits::BlockNumber,
@@ -161,6 +162,7 @@ where
         mut sectors: BoundedVec<SectorOnChainInfo<BlockNumber>, ConstU32<MAX_SECTORS>>,
         partition_size: u64,
         max_partitions_per_deadline: u64,
+        fault_cutoff_declaration: BlockNumber,
         w_post_period_deadlines: u64,
         w_post_proving_period: BlockNumber,
         w_post_challenge_window: BlockNumber,
@@ -176,6 +178,7 @@ where
         );
         let proving_period_start = self.current_proving_period_start(
             current_block,
+            fault_cutoff_declaration,
             w_post_period_deadlines,
             w_post_proving_period,
             w_post_challenge_window,
@@ -188,6 +191,7 @@ where
                     proving_period_start,
                     deadline_idx as u64,
                     current_block,
+                    fault_cutoff_declaration,
                     w_post_period_deadlines,
                     w_post_proving_period,
                     w_post_challenge_window,
@@ -205,7 +209,6 @@ where
             &sectors,
             w_post_period_deadlines,
         )?;
-        let deadlines = self.get_deadlines_mut();
         for (deadline_idx, deadline_sectors) in deadline_to_sectors.enumerate() {
             if deadline_sectors.is_empty() {
                 continue;
@@ -219,18 +222,16 @@ where
                     ))?;
 
             deadline.add_sectors(partition_size, &deadline_sectors)?;
-
-            deadlines
-                .update_deadline(deadline_idx, deadline.clone())
-                .map_err(|e| StorageProviderError::DeadlineError(e))?;
+            self.deadlines.due[deadline_idx] = deadline.clone();
         }
         Ok(())
     }
 
     // Returns current proving period start for the current block according to the current block and constant state offset
-    fn current_proving_period_start(
+    pub fn current_proving_period_start(
         &self,
         current_block: BlockNumber,
+        fault_cutoff_declaration: BlockNumber,
         w_post_period_deadlines: u64,
         w_post_proving_period: BlockNumber,
         w_post_challenge_window: BlockNumber,
@@ -238,6 +239,7 @@ where
     ) -> Result<BlockNumber, DeadlineError> {
         let dl_info = self.deadline_info(
             current_block,
+            fault_cutoff_declaration,
             w_post_period_deadlines,
             w_post_proving_period,
             w_post_challenge_window,
@@ -255,6 +257,7 @@ where
     pub fn deadline_info(
         &self,
         current_block: BlockNumber,
+        fault_cutoff_declaration: BlockNumber,
         w_post_period_deadlines: u64,
         w_post_proving_period: BlockNumber,
         w_post_challenge_window: BlockNumber,
@@ -270,6 +273,7 @@ where
             current_block,
             self.proving_period_start,
             current_deadline_index,
+            fault_cutoff_declaration,
             w_post_period_deadlines,
             w_post_proving_period,
             w_post_challenge_window,
@@ -298,7 +302,7 @@ impl From<DeadlineError> for StorageProviderError {
 }
 
 /// Static information about the storage provider.
-#[derive(Debug, Clone, Copy, Decode, Encode, TypeInfo, PartialEq)]
+#[derive(RuntimeDebug, Clone, Copy, Decode, Encode, TypeInfo, PartialEq)]
 pub struct StorageProviderInfo<PeerId> {
     /// Libp2p identity that should be used when connecting to this Storage Provider
     pub peer_id: PeerId,

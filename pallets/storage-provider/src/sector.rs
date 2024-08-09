@@ -9,7 +9,7 @@ use scale_info::TypeInfo;
 pub const MAX_SECTORS: u32 = 32 << 20;
 
 /// This type is passed into the pre commit function on the storage provider pallet
-#[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct SectorPreCommitInfo<BlockNumber> {
     pub seal_proof: RegisteredSealProof,
     /// Which sector number this SP is pre-committing.
@@ -29,7 +29,7 @@ pub struct SectorPreCommitInfo<BlockNumber> {
 }
 
 /// Information stored on-chain for a pre-committed sector.
-#[derive(Debug, Decode, Encode, TypeInfo)]
+#[derive(RuntimeDebug, Decode, Encode, TypeInfo)]
 pub struct SectorPreCommitOnChainInfo<Balance, BlockNumber> {
     pub info: SectorPreCommitInfo<BlockNumber>,
     /// Total collateral for this sector
@@ -67,7 +67,7 @@ where
     }
 }
 
-#[derive(Clone, Debug, Decode, Encode, TypeInfo)]
+#[derive(Clone, Decode, Encode, TypeInfo, RuntimeDebug)]
 pub struct SectorOnChainInfo<BlockNumber>
 where
     BlockNumber: sp_runtime::traits::BlockNumber,
@@ -108,7 +108,7 @@ where
 }
 
 /// Arguments passed into the `prove_commit_sector` extrinsic.
-#[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct ProveCommitSector {
     pub sector_number: SectorNumber,
     pub proof: BoundedVec<u8, ConstU32<256>>, // Arbitrary length

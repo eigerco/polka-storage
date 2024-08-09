@@ -24,6 +24,7 @@ use crate::{
     sector::SectorPreCommitInfo,
 };
 
+mod declare_faults;
 mod pre_commit_sector;
 mod pre_commit_sector_hook;
 mod prove_commit_sector;
@@ -66,24 +67,6 @@ parameter_types! {
     pub const MarketPalletId: PalletId = PalletId(*b"spMarket");
 }
 
-parameter_types! {
-    // Storage Provider Pallet
-    pub const WPoStPeriodDeadlines: u64 = 10;
-    pub const WpostProvingPeriod: BlockNumber = 40 * MINUTES;
-    pub const WpostChallengeWindow: BlockNumber = 2 * MINUTES;
-    pub const WpostChallengeLookBack: BlockNumber = MINUTES;
-    pub const MinSectorExpiration: BlockNumber = 5 * MINUTES;
-    pub const MaxSectorExpirationExtension: BlockNumber = 360 * MINUTES;
-    pub const SectorMaximumLifetime: BlockNumber = 120 * MINUTES;
-    pub const MaxProveCommitDuration: BlockNumber = 5 * MINUTES;
-    pub const MaxPartitionsPerDeadline: u64 = 3000;
-
-    // Market Pallet
-    pub const TimeUnitInBlocks: u64 = MINUTES;
-    pub const MinDealDuration: u64 = 2 * MINUTES;
-    pub const MaxDealDuration: u64 = 30 * MINUTES;
-}
-
 impl pallet_market::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type PalletId = MarketPalletId;
@@ -96,6 +79,25 @@ impl pallet_market::Config for Test {
     type MinDealDuration = MinDealDuration;
     type MaxDealDuration = MaxDealDuration;
     type MaxDealsPerBlock = ConstU32<32>;
+}
+
+parameter_types! {
+    // Storage Provider Pallet
+    pub const WPoStPeriodDeadlines: u64 = 10;
+    pub const WpostProvingPeriod: BlockNumber = 40 * MINUTES;
+    pub const WpostChallengeWindow: BlockNumber = 2 * MINUTES;
+    pub const WpostChallengeLookBack: BlockNumber = MINUTES;
+    pub const MinSectorExpiration: BlockNumber = 5 * MINUTES;
+    pub const MaxSectorExpirationExtension: BlockNumber = 360 * MINUTES;
+    pub const SectorMaximumLifetime: BlockNumber = 120 * MINUTES;
+    pub const MaxProveCommitDuration: BlockNumber = 5 * MINUTES;
+    pub const MaxPartitionsPerDeadline: u64 = 3000;
+    pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
+
+    // Market Pallet
+    pub const TimeUnitInBlocks: u64 = MINUTES;
+    pub const MinDealDuration: u64 = 2 * MINUTES;
+    pub const MaxDealDuration: u64 = 30 * MINUTES;
 }
 
 impl pallet_storage_provider::Config for Test {
@@ -112,6 +114,8 @@ impl pallet_storage_provider::Config for Test {
     type MaxProveCommitDuration = MaxProveCommitDuration;
     type WPoStPeriodDeadlines = WPoStPeriodDeadlines;
     type MaxPartitionsPerDeadline = MaxPartitionsPerDeadline;
+
+    type FaultMaxAge = FaultMaxAge;
 }
 
 type AccountIdOf<Test> = <Test as frame_system::Config>::AccountId;
@@ -131,7 +135,7 @@ const BOB: &'static str = "//Bob";
 const CHARLIE: &'static str = "//Charlie";
 
 /// Initial funds of all accounts.
-const INITIAL_FUNDS: u64 = 100;
+const INITIAL_FUNDS: u64 = 500;
 
 // Build genesis storage according to the mock runtime.
 fn new_test_ext() -> sp_io::TestExternalities {

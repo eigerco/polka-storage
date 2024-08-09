@@ -1,3 +1,6 @@
+extern crate alloc;
+
+use alloc::{collections::BTreeSet, vec::Vec};
 use core::cmp::Ord;
 
 use codec::{Decode, Encode};
@@ -5,14 +8,15 @@ use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeSet, PalletError}
 use primitives_proofs::SectorNumber;
 use scale_info::TypeInfo;
 
-use crate::{pallet::LOG_TARGET, sector::MAX_SECTORS};
+use crate::sector::{SectorOnChainInfo, MAX_SECTORS};
 
 /// Max amount of partitions per deadline.
 /// ref: <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/runtime/src/runtime/policy.rs#L283>
 pub const MAX_PARTITIONS_PER_DEADLINE: u32 = 3000;
+const LOG_TARGET: &'static str = "runtime::storage_provider::partition";
 pub type PartitionNumber = u32;
 
-#[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct Partition<BlockNumber> {
     /// All sector numbers in this partition, including faulty, unproven and terminated sectors.
     pub sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
@@ -64,18 +68,14 @@ where
         }
     }
 
-    /// Live sectors are sectors that are not terminated (i.e. not in `terminated` or `early_terminations`).
-    pub fn live_sectors(
-        &self,
-    ) -> Result<BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>, PartitionError> {
-        let mut live_sectors = BoundedBTreeSet::new();
-        let difference = self.sectors.difference(&self.terminated).cloned();
-        for sector_number in difference {
-            live_sectors
-                .try_insert(sector_number)
-                .map_err(|_| PartitionError::FailedToGetLiveSectors)?;
-        }
-        Ok(live_sectors)
+    /// Live sectors are sectors that are not terminated (i.e. not in `terminated`).
+    pub fn live_sectors(&self) -> BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>> {
+        self.sectors
+            .difference(&self.terminated)
+            .copied()
+            .collect::<BTreeSet<_>>()
+            .try_into()
+            .expect("Sectors is bounded to MAX_SECTORS so the length can never exceed MAX_SECTORS")
     }
 
     /// Adds sectors to this partition.
@@ -84,8 +84,7 @@ where
     /// condition: the sector numbers cannot be in any of the `BoundedBTreeSet`'s
     /// fails if any of the given sector numbers are a duplicate
     pub fn add_sectors(&mut self, sectors: &[SectorNumber]) -> Result<(), PartitionError> {
-        let new_sectors = sectors.iter().cloned();
-        for sector_number in new_sectors {
+        for sector_number in sectors {
             // Ensure that the sector number has not been used before.
             // All sector number (including faulty, terminated and unproven) are contained in `sectors` so we only need to check in there.
             ensure!(!self.sectors.contains(&sector_number), {
@@ -93,9 +92,108 @@ where
                 PartitionError::DuplicateSectorNumber
             });
             self.sectors
-                .try_insert(sector_number)
+                .try_insert(*sector_number)
                 .map_err(|_| PartitionError::FailedToAddSector)?;
         }
+        Ok(())
+    }
+
+    /// Declares a set of sectors faulty. Already faulty sectors are ignored,
+    /// terminated sectors are skipped, and recovering sectors are reverted to
+    /// faulty.
+    /// Filecoin ref: <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/partition_state.rs#L225>
+    pub fn record_faults(
+        &mut self,
+        sectors: &BoundedBTreeMap<
+            SectorNumber,
+            SectorOnChainInfo<BlockNumber>,
+            ConstU32<MAX_SECTORS>,
+        >,
+        sector_numbers: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
+    ) -> Result<(), PartitionError>
+    where
+        BlockNumber: sp_runtime::traits::BlockNumber,
+    {
+        // Split declarations into declarations of new faults, and retraction of declared recoveries.
+        // recoveries & sector_numbers
+        let retracted_recoveries: BTreeSet<SectorNumber> = self
+            .recoveries
+            .intersection(&sector_numbers)
+            .cloned()
+            .collect();
+        // sector_numbers - retracted_recoveries
+        let new_faults: BTreeSet<&SectorNumber> = sector_numbers
+            .iter()
+            .filter(|sector_number| {
+                !retracted_recoveries.contains(sector_number)
+                // Ignore any terminated sectors and previously declared or detected faults
+                && !self.terminated.contains(&sector_number)
+                    && !self.faults.contains(&sector_number)
+            })
+            .collect();
+
+        log::debug!(target: LOG_TARGET, "record_faults: new_faults = {new_faults:#?}, amount = {:?}", new_faults.len());
+        let new_fault_sectors: Vec<(&SectorNumber, &SectorOnChainInfo<BlockNumber>)> = sectors
+            .iter()
+            .filter(|(sector_number, _info)| {
+                log::debug!(target: LOG_TARGET, "record_faults: checking sec_num {sector_number}");
+                new_faults.contains(sector_number)
+            })
+            .collect();
+        // Add new faults to state, skip if no new faults.
+        if !new_fault_sectors.is_empty() {
+            self.add_faults(sector_numbers)?;
+        } else {
+            log::debug!(target: LOG_TARGET, "record_faults: No new faults detected");
+        }
+        // remove faulty recoveries from state, skip if no recoveries set to faulty.
+        let retracted_recovery_sectors: BTreeSet<SectorNumber> = sectors
+            .iter()
+            .filter_map(|(sector_number, _info)| retracted_recoveries.get(&sector_number).copied())
+            .collect();
+        if retracted_recovery_sectors.is_empty() {
+            log::debug!(target: LOG_TARGET, "record_faults: No retracted recoveries detected");
+            return Ok(());
+        }
+        self.remove_recoveries(&retracted_recovery_sectors)
+    }
+
+    /// marks a set of sectors faulty
+    /// Filecoin reference: <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/partition_state.rs#L155>
+    fn add_faults(
+        &mut self,
+        sector_numbers: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
+    ) -> Result<(), PartitionError> {
+        // Update partition metadata
+        self.faults = self.faults
+            .union(sector_numbers)
+            .cloned()
+            .collect::<BTreeSet<_>>()
+            .try_into()
+            .map_err(|_|{
+                log::error!(target: LOG_TARGET, "add_faults: Failed to add sector numbers to faults");
+                PartitionError::FailedToAddFaults
+            })?;
+
+        log::debug!(target: LOG_TARGET, "add_faults: new faults {:?}", self.faults);
+
+        // Once marked faulty, sectors are moved out of the unproven set.
+        for sector_number in sector_numbers {
+            self.unproven.remove(sector_number);
+        }
+        Ok(())
+    }
+
+    /// Removes sectors from recoveries
+    fn remove_recoveries(
+        &mut self,
+        sector_numbers: &BTreeSet<SectorNumber>,
+    ) -> Result<(), PartitionError> {
+        self.recoveries = self.recoveries.difference(sector_numbers).cloned().collect::<BTreeSet<_>>().try_into().map_err(|_| {
+            log::error!(target: LOG_TARGET, "remove_recoveries: Failed to remove sectors from recovering");
+            PartitionError::FailedToRemoveRecoveries
+        })?;
+
         Ok(())
     }
 }
@@ -108,6 +206,10 @@ pub enum PartitionError {
     FailedToAddSector,
     /// Emitted when trying to add a sector number that has already been used in this partition.
     DuplicateSectorNumber,
+    /// Emitted when adding faults fails
+    FailedToAddFaults,
+    /// Emitted when removing recovering sectors fails
+    FailedToRemoveRecoveries,
 }
 
 #[cfg(test)]
@@ -140,7 +242,7 @@ mod test {
             .terminated
             .try_insert(1)
             .expect("Programmer error");
-        let live_sectors = partition.live_sectors()?;
+        let live_sectors = partition.live_sectors();
         // Create expected result.
         let mut expected_live_sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>> =
             BoundedBTreeSet::new();

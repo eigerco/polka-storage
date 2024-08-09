@@ -3,29 +3,27 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use codec::{Decode, Encode};
-use frame_support::{
-    pallet_prelude::*,
-    sp_runtime::{BoundedBTreeMap, BoundedVec},
-    PalletError,
-};
+use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeMap, PalletError};
 use primitives_proofs::SectorNumber;
 use scale_info::{prelude::cmp, TypeInfo};
 
 use crate::{
-    pallet::LOG_TARGET,
-    partition::{Partition, PartitionNumber, MAX_PARTITIONS_PER_DEADLINE},
-    sector::SectorOnChainInfo,
+    partition::{Partition, PartitionError, PartitionNumber, MAX_PARTITIONS_PER_DEADLINE},
+    sector::{SectorOnChainInfo, MAX_SECTORS},
+    sector_map::PartitionMap,
 };
 
 mod assignment;
 
 pub use assignment::assign_deadlines;
 
+const LOG_TARGET: &'static str = "runtime::storage_provider::deadline";
+
 /// Deadline holds the state for all sectors due at a specific deadline.
 ///
 /// A deadline exists along side 47 other deadlines (1 for every 30 minutes in a day).
 /// Only one deadline may be active for a given proving window.
-#[derive(Clone, Debug, Default, Decode, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Default, Decode, Encode, PartialEq, TypeInfo)]
 pub struct Deadline<BlockNumber: sp_runtime::traits::BlockNumber> {
     /// Partitions in this deadline. Indexed by partition number.
     pub partitions: BoundedBTreeMap<
@@ -80,12 +78,15 @@ pub struct Deadline<BlockNumber: sp_runtime::traits::BlockNumber> {
 
 impl<BlockNumber> Deadline<BlockNumber>
 where
-    BlockNumber: sp_runtime::traits::BlockNumber,
+    BlockNumber: sp_runtime::traits::BlockNumber + Copy,
 {
     /// Construct a new [`Deadline`] instance.
     pub fn new() -> Self {
+        let mut partitions = BoundedBTreeMap::new();
+        // create 1 initial partition because deadlines are tied to partition so at least 1 partition should be initialized.
+        let _ = partitions.try_insert(0, Partition::new());
         Self {
-            partitions: BoundedBTreeMap::new(),
+            partitions,
             expirations_blocks: BoundedBTreeMap::new(),
             partitions_posted: BoundedBTreeSet::new(),
             early_terminations: BoundedBTreeSet::new(),
@@ -145,8 +146,9 @@ where
 
         let partitions = &mut self.partitions;
 
-        let mut partition_idx = partitions.len().saturating_sub(1);
-        // try filling up the last partition first.
+        // Needs to start at 1 because if we take the length of `self.partitions`
+        // it will always be `MAX_PARTITIONS_PER_DEADLINE` because the partitions are pre-initialized.
+        let mut partition_idx = 0;
         loop {
             // Get/create partition to update.
             let mut partition = match partitions.get_mut(&(partition_idx as u32)) {
@@ -208,9 +210,58 @@ where
 
         Ok(())
     }
+
+    /// Records the partitions passed in as faulty.
+    /// Filecoin ref: <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/deadline_state.rs#L759>
+    pub fn record_faults(
+        &mut self,
+        sectors: &BoundedBTreeMap<
+            SectorNumber,
+            SectorOnChainInfo<BlockNumber>,
+            ConstU32<MAX_SECTORS>,
+        >,
+        partition_sectors: &mut PartitionMap,
+        fault_expiration_block: BlockNumber,
+    ) -> Result<(), DeadlineError> {
+        for (partition_number, partition) in self.partitions.iter_mut() {
+            if !partition_sectors.0.contains_key(&partition_number) {
+                continue;
+            }
+            partition.record_faults(
+                sectors,
+                partition_sectors
+                .0
+                .get(partition_number)
+                .expect("Infallible because of the above check"),
+            ).map_err(|e| {
+                log::error!(target: LOG_TARGET, "record_faults: Error while recording faults in a partition: {e:?}");
+                DeadlineError::PartitionError(e)
+            })?;
+            // Update expiration block
+            if let Some((&block, _)) = self
+                .expirations_blocks
+                .iter()
+                .find(|(_, partition_num)| partition_num == &partition_number)
+            {
+                self.expirations_blocks.remove(&block);
+                self.expirations_blocks.try_insert(fault_expiration_block, *partition_number).map_err(|_| {
+                        log::error!(target: LOG_TARGET, "record_faults: Could not insert new expiration");
+                        DeadlineError::FailedToUpdateFaultExpiration
+                    })?;
+            } else {
+                log::debug!(target: LOG_TARGET, "record_faults: Inserting partition number {partition_number}");
+                self.expirations_blocks.try_insert(fault_expiration_block, *partition_number).map_err(|_| {
+                    log::error!(target: LOG_TARGET, "record_faults: Could not insert new expiration");
+                    DeadlineError::FailedToUpdateFaultExpiration
+                })?;
+            }
+        }
+
+        Ok(())
+    }
 }
 
-#[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct Deadlines<BlockNumber: sp_runtime::traits::BlockNumber> {
     /// Deadlines indexed by their proving periods — e.g. for proving period 7, find it in
     /// `deadlines[7]` — proving periods are present in the interval `[0, 47]`.
@@ -257,23 +308,12 @@ where
         log::debug!(target: LOG_TARGET, "load_deadline_mut: getting deadline at index {idx}");
         // Ensure the provided index is within range.
         ensure!(self.len() > idx, DeadlineError::DeadlineIndexOutOfRange);
-        Ok(self
-            .due
-            .get_mut(idx)
-            .expect("Deadlines are pre-initialized, this cannot fail"))
-    }
-
-    /// Loads a deadline
-    /// Fails if the index does not exist or is out of range.
-    pub fn load_deadline(&self, idx: usize) -> Result<Deadline<BlockNumber>, DeadlineError> {
-        log::debug!(target: LOG_TARGET, "load_deadline_mut: getting deadline at index {idx}");
-        // Ensure the provided index is within range.
-        ensure!(self.len() > idx, DeadlineError::DeadlineIndexOutOfRange);
-        Ok(self
-            .due
-            .get(idx)
-            .cloned()
-            .expect("Deadlines are pre-initialized, this cannot fail"))
+        if let Some(deadline) = self.due.get_mut(idx) {
+            Ok(deadline)
+        } else {
+            log::error!(target: LOG_TARGET, "load_deadline_mut: Failed to get deadline at index {idx}");
+            Err(DeadlineError::DeadlineNotFound)
+        }
     }
 
     /// Records a deadline as proven.
@@ -289,32 +329,13 @@ where
         deadline.record_proven(partition_num)?;
         Ok(())
     }
-
-    /// Replace values of the deadline at index `deadline_idx` with those of `new_dl`.
-    pub fn update_deadline(
-        &mut self,
-        deadline_idx: usize,
-        new_dl: Deadline<BlockNumber>,
-    ) -> Result<(), DeadlineError> {
-        let dl = self
-            .due
-            .get_mut(deadline_idx)
-            .ok_or(DeadlineError::DeadlineNotFound)?;
-        dl.partitions_posted = new_dl.partitions_posted;
-        dl.expirations_blocks = new_dl.expirations_blocks;
-        dl.early_terminations = new_dl.early_terminations;
-        dl.live_sectors = new_dl.live_sectors;
-        dl.total_sectors = new_dl.total_sectors;
-        dl.partitions = new_dl.partitions;
-        Ok(())
-    }
 }
 
 /// Holds information about deadlines like when they open and close and what deadline index they relate to.
 ///
 /// Filecoin reference about PoSt deadline design:
 /// <https://spec.filecoin.io/#section-algorithms.pos.post.design>
-#[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct DeadlineInfo<BlockNumber> {
     /// The block number at which this info was calculated.
     pub block_number: BlockNumber,
@@ -333,6 +354,9 @@ pub struct DeadlineInfo<BlockNumber> {
 
     /// The first block number from which a proof can *no longer* be submitted.
     pub close_at: BlockNumber,
+
+    /// First block at which a fault declaration is rejected (< Open).
+    pub fault_cutoff: BlockNumber,
 
     /// The block number at which the randomness for the deadline proving is
     /// available.
@@ -364,6 +388,7 @@ where
         block_number: BlockNumber,
         period_start: BlockNumber,
         idx: u64,
+        fault_declaration_cutoff: BlockNumber,
         w_post_period_deadlines: u64,
         w_post_proving_period: BlockNumber,
         w_post_challenge_window: BlockNumber,
@@ -380,16 +405,18 @@ where
             DeadlineError::CouldNotConstructDeadlineInfo
         })?;
 
-        let (open_at, close_at, challenge) = if idx_converted < period_deadlines {
+        let (open_at, close_at, challenge, fault_cutoff) = if idx_converted < period_deadlines {
             let open_at = period_start + (idx_converted * w_post_challenge_window);
             let close_at = open_at + w_post_challenge_window;
             let challenge = period_start - w_post_challenge_lookback;
-            (open_at, close_at, challenge)
+            let fault_cutoff = open_at + fault_declaration_cutoff;
+            (open_at, close_at, challenge, fault_cutoff)
         } else {
             let after_last_deadline = period_start + w_post_proving_period;
             (
                 after_last_deadline,
                 after_last_deadline,
+                BlockNumber::zero(),
                 after_last_deadline,
             )
         };
@@ -400,6 +427,7 @@ where
             idx,
             open_at,
             close_at,
+            fault_cutoff,
             challenge,
             w_post_period_deadlines,
             w_post_proving_period,
@@ -416,6 +444,18 @@ where
     /// Whether the current deadline has already closed.
     pub fn has_elapsed(&self) -> bool {
         self.block_number >= self.close_at
+    }
+
+    /// The last block during which a proof may be submitted.
+    ///
+    /// When the value of `close_at` is 0 this function will also return 0 instead of panicking or underflowing.
+    pub fn last(&self) -> BlockNumber {
+        self.close_at.saturating_less_one()
+    }
+
+    /// Whether the deadline's fault cutoff has passed.
+    pub fn fault_cutoff_passed(&self) -> bool {
+        self.block_number >= self.fault_cutoff
     }
 
     /// Returns the next deadline that has not yet elapsed.
@@ -436,6 +476,7 @@ where
             self.block_number,
             self.period_start + self.w_post_proving_period * delta_periods,
             self.idx,
+            self.fault_cutoff,
             self.w_post_period_deadlines,
             self.w_post_proving_period,
             self.w_post_challenge_window,
@@ -453,6 +494,7 @@ pub fn deadline_is_mutable<BlockNumber>(
     proving_period_start: BlockNumber,
     deadline_idx: u64,
     current_block: BlockNumber,
+    fault_declaration_cutoff: BlockNumber,
     w_post_period_deadlines: u64,
     w_post_proving_period: BlockNumber,
     w_post_challenge_window: BlockNumber,
@@ -467,13 +509,13 @@ where
         current_block,
         proving_period_start,
         deadline_idx,
+        fault_declaration_cutoff,
         w_post_period_deadlines,
         w_post_proving_period,
         w_post_challenge_window,
         w_post_challenge_lookback,
     )?
     .next_not_elapsed()?;
-    log::debug!(target: LOG_TARGET,"dl_info = {dl_info:?}");
 
     // Ensure that the current block is at least one challenge window before
     // that deadline opens.
@@ -504,4 +546,12 @@ pub enum DeadlineError {
     CouldNotAddSectors,
     /// Emitted when assigning sectors to deadlines fails.
     CouldNotAssignSectorsToDeadlines,
+    /// Emitted when updates to a partition fail.
+    FailedToUpdatePartition,
+    /// Emitted when trying to update a deadline fails.
+    FailedToUpdateDeadline,
+    /// Emitted when trying to update fault expirations fails
+    FailedToUpdateFaultExpiration,
+    /// Wrapper around the partition error type
+    PartitionError(PartitionError),
 }
