@@ -33,5 +33,5 @@ pub struct RecoveryDeclaration {
 
 #[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct DeclareFaultsRecoveredParams {
-    pub recoveries: Vec<RecoveryDeclaration>,
+    pub recoveries: BoundedVec<RecoveryDeclaration, ConstU32<DECLARATIONS_MAX>>,
 }

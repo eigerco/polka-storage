@@ -32,7 +32,7 @@ fn multiple_sector_faults() {
             RuntimeOrigin::signed(account(storage_client)),
             250
         ));
-        for sector_number in 1..6 {
+        for sector_number in 0..5 {
             // Generate a deal proposal
             let deal_proposal = DealProposalBuilder::default()
                 .client(storage_client)
@@ -47,7 +47,7 @@ fn multiple_sector_faults() {
             // Sector data
             let sector = SectorPreCommitInfoBuilder::default()
                 .sector_number(sector_number)
-                .deals(vec![sector_number - 1])
+                .deals(vec![sector_number])
                 .build();
 
             // Run pre commit extrinsic

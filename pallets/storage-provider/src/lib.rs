@@ -254,7 +254,7 @@ pub mod pallet {
         /// Emitted when an SP declares some sectors as recovered
         FaultsRecovered {
             owner: T::AccountId,
-            recoveries: Vec<RecoveryDeclaration>,
+            recoveries: BoundedVec<RecoveryDeclaration, ConstU32<DECLARATIONS_MAX>>,
         },
     }
 
@@ -671,18 +671,6 @@ pub mod pallet {
             origin: OriginFor<T>,
             params: DeclareFaultsRecoveredParams,
         ) -> DispatchResult {
-            ensure!(
-                params.recoveries.len() as u64 <= T::DeclarationsMax::get(),
-                {
-                    log::error!(
-                        target: LOG_TARGET,
-                        "declare_faults_recovered: too many fault recoveries for a single message: {} > {}",
-                        params.recoveries.len(),
-                        T::DeclarationsMax::get()
-                    );
-                    Error::<T>::TooManyDeclarations
-                }
-            );
             let owner = ensure_signed(origin)?;
             let mut sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;

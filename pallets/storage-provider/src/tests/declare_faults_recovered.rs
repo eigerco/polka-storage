@@ -1,11 +1,12 @@
-use frame_support::{assert_ok, BoundedBTreeSet};
+use frame_support::{assert_ok, pallet_prelude::*, BoundedBTreeSet};
 use sp_core::bounded_vec;
+use sp_runtime::BoundedVec;
 
 use crate::{
     fault::{
         DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration, RecoveryDeclaration,
     },
-    pallet::{Event, StorageProviders},
+    pallet::{Event, StorageProviders, DECLARATIONS_MAX},
     sector::ProveCommitSector,
     tests::{
         account, declare_faults::default_fault_setup, events, new_test_ext,
@@ -22,8 +23,8 @@ fn declare_single_fault_recovered() {
         let storage_client = BOB;
 
         default_fault_setup(storage_provider, storage_client);
-        let deadline = 1;
-        let partition = 1;
+        let deadline = 0;
+        let partition = 0;
 
         let mut sectors = BoundedBTreeSet::new();
         sectors.try_insert(1).expect("Programmer error");
@@ -38,7 +39,7 @@ fn declare_single_fault_recovered() {
             assert_ok!(StorageProvider::declare_faults(
                 RuntimeOrigin::signed(account(storage_provider)),
                 DeclareFaultsParams {
-                    faults: vec![fault]
+                    faults: bounded_vec![fault]
                 },
             ));
 
@@ -57,7 +58,7 @@ fn declare_single_fault_recovered() {
         assert_ok!(StorageProvider::declare_faults_recovered(
             RuntimeOrigin::signed(account(storage_provider)),
             DeclareFaultsRecoveredParams {
-                recoveries: vec![recovery.clone()]
+                recoveries: bounded_vec![recovery.clone()]
             }
         ));
 
@@ -78,13 +79,15 @@ fn declare_single_fault_recovered() {
             events(),
             [RuntimeEvent::StorageProvider(Event::FaultsRecovered {
                 owner: account(storage_provider),
-                recoveries: vec![recovery]
+                recoveries: bounded_vec![recovery]
             })]
         );
     });
 }
 
+/// TODO(aidan46, #183, 2024-08-07): Create setup for multiple partitions
 #[test]
+#[ignore = "This requires adding multiple partitions by adding more sectors than MAX_SECTORS."]
 fn multiple_partition_faults_recovered() {
     new_test_ext().execute_with(|| {
         // Setup accounts
@@ -98,15 +101,16 @@ fn multiple_partition_faults_recovered() {
         {
             default_fault_setup(storage_provider, storage_client);
 
-            let mut faults = vec![];
+            let mut faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>> =
+                bounded_vec![];
             // declare faults in 5 partitions
-            for i in 1..6 {
+            for i in 0..5 {
                 let fault = FaultDeclaration {
-                    deadline: 1,
+                    deadline: 0,
                     partition: i,
                     sectors: sectors.clone(),
                 };
-                faults.push(fault);
+                faults.try_push(fault).expect("Programmer error");
             }
 
             assert_ok!(StorageProvider::declare_faults(
@@ -121,14 +125,15 @@ fn multiple_partition_faults_recovered() {
         }
 
         // setup recovery
-        let mut recoveries = vec![];
-        for i in 1..6 {
-            let fault = RecoveryDeclaration {
-                deadline: 1,
+        let mut recoveries: BoundedVec<RecoveryDeclaration, ConstU32<DECLARATIONS_MAX>> =
+            bounded_vec![];
+        for i in 0..5 {
+            let recovery = RecoveryDeclaration {
+                deadline: 0,
                 partition: i,
                 sectors: sectors.clone(),
             };
-            recoveries.push(fault);
+            recoveries.try_push(recovery).expect("Programmer error");
         }
 
         // run extrinsic
@@ -175,15 +180,16 @@ fn multiple_deadline_faults_recovered() {
 
         // Fault declaration setup, not relevant to this test that why it has its own scope
         {
-            let mut faults = vec![];
+            let mut faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>> =
+                bounded_vec![];
             // declare faults in 5 partitions
-            for i in 1..6 {
+            for i in 0..5 {
                 let fault = FaultDeclaration {
                     deadline: i,
-                    partition: 1,
+                    partition: 0,
                     sectors: sectors.clone(),
                 };
-                faults.push(fault);
+                faults.try_push(fault).expect("Programmer error");
             }
 
             assert_ok!(StorageProvider::declare_faults(
@@ -198,14 +204,15 @@ fn multiple_deadline_faults_recovered() {
         }
 
         // setup recovery
-        let mut recoveries = vec![];
-        for i in 1..6 {
+        let mut recoveries: BoundedVec<RecoveryDeclaration, ConstU32<DECLARATIONS_MAX>> =
+            bounded_vec![];
+        for i in 0..5 {
             let recovery = RecoveryDeclaration {
                 deadline: i,
-                partition: 1,
+                partition: 0,
                 sectors: sectors.clone(),
             };
-            recoveries.push(recovery);
+            recoveries.try_push(recovery).expect("Programmer error");
         }
 
         // run extrinsic
@@ -248,7 +255,7 @@ fn multiple_sector_faults_recovered() {
 
         let mut sectors = BoundedBTreeSet::new();
         // insert 5 sectors
-        for i in 1..6 {
+        for i in 0..5 {
             sectors.try_insert(i).expect("Programmer error");
         }
 
@@ -266,7 +273,7 @@ fn multiple_sector_faults_recovered() {
                 RuntimeOrigin::signed(account(storage_client)),
                 250
             ));
-            for sector_number in 1..6 {
+            for sector_number in 0..5 {
                 // Generate a deal proposal
                 let deal_proposal = DealProposalBuilder::default()
                     .client(storage_client)
@@ -281,7 +288,7 @@ fn multiple_sector_faults_recovered() {
                 // Sector data
                 let sector = SectorPreCommitInfoBuilder::default()
                     .sector_number(sector_number)
-                    .deals(vec![sector_number - 1])
+                    .deals(bounded_vec![sector_number])
                     .build();
 
                 // Run pre commit extrinsic
@@ -303,15 +310,15 @@ fn multiple_sector_faults_recovered() {
             }
 
             let fault = FaultDeclaration {
-                deadline: 1,
-                partition: 1,
+                deadline: 0,
+                partition: 0,
                 sectors: sectors.clone(),
             };
 
             assert_ok!(StorageProvider::declare_faults(
                 RuntimeOrigin::signed(account(storage_provider)),
                 DeclareFaultsParams {
-                    faults: vec![fault.clone()]
+                    faults: bounded_vec![fault.clone()]
                 },
             ));
 
@@ -321,8 +328,8 @@ fn multiple_sector_faults_recovered() {
 
         // setup recovery
         let recovery = RecoveryDeclaration {
-            deadline: 1,
-            partition: 1,
+            deadline: 0,
+            partition: 0,
             sectors: sectors.clone(),
         };
 
@@ -330,7 +337,7 @@ fn multiple_sector_faults_recovered() {
         assert_ok!(StorageProvider::declare_faults_recovered(
             RuntimeOrigin::signed(account(storage_provider)),
             DeclareFaultsRecoveredParams {
-                recoveries: vec![recovery.clone()],
+                recoveries: bounded_vec![recovery.clone()],
             }
         ));
 
@@ -351,7 +358,7 @@ fn multiple_sector_faults_recovered() {
             events(),
             [RuntimeEvent::StorageProvider(Event::FaultsRecovered {
                 owner: account(storage_provider),
-                recoveries: vec![recovery]
+                recoveries: bounded_vec![recovery]
             })]
         );
     });
