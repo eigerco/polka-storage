@@ -149,13 +149,7 @@ where
         // remove faulty recoveries from state, skip if no recoveries set to faulty.
         let retracted_recovery_sectors: BTreeSet<SectorNumber> = sectors
             .iter()
-            .filter_map(|(sector_number, _info)| {
-                if retracted_recoveries.contains(&sector_number) {
-                    Some(*sector_number)
-                } else {
-                    None
-                }
-            })
+            .filter_map(|(sector_number, _info)| retracted_recoveries.get(&sector_number).copied())
             .collect();
         if retracted_recovery_sectors.is_empty() {
             log::debug!(target: LOG_TARGET, "record_faults: No retracted recoveries detected");
