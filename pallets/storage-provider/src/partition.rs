@@ -197,7 +197,7 @@ where
         Ok(())
     }
 
-    /// Set sectors from faulty to recovering
+    /// Set sectors from faulty to recovering, skips any sectors already marked as non-faulty or recovering
     ///
     /// Filecoin reference: <https://github.com/filecoin-project/builtin-actors/blob/0f205c378983ac6a08469b9f400cbb908eef64e2/actors/miner/src/partition_state.rs#L317>
     pub fn declare_faults_recovered(
