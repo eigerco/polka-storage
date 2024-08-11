@@ -266,15 +266,11 @@ where
         partition_sectors: &mut PartitionMap,
     ) -> Result<(), DeadlineError> {
         for (partition_number, partition) in self.partitions.iter_mut() {
-            if !partition_sectors.0.contains_key(&partition_number) {
+            let Some(sectors) = partition_sectors.0.get(partition_number) else {
                 continue;
-            }
-            partition.declare_faults_recovered(
-                partition_sectors
-                    .0
-                    .get(partition_number)
-                    .expect("Infallible because of the above check"),
-            );
+            };
+
+            partition.declare_faults_recovered(sectors);
         }
 
         Ok(())
