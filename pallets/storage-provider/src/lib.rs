@@ -697,7 +697,7 @@ pub mod pallet {
                 )
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
 
-            for (deadline_idx, partition_map) in to_process.into_iter() {
+            for (deadline_idx, partition_map) in to_process.0.iter() {
                 log::debug!(target: LOG_TARGET, "declare_faults_recovered: Processing deadline index: {deadline_idx}");
                 // Get the deadline
                 let target_dl = DeadlineInfo::new(

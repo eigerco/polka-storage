@@ -263,7 +263,7 @@ where
     /// Filecoin ref: <https://github.com/filecoin-project/builtin-actors/blob/0f205c378983ac6a08469b9f400cbb908eef64e2/actors/miner/src/deadline_state.rs#L818>
     pub fn declare_faults_recovered(
         &mut self,
-        partition_sectors: &mut PartitionMap,
+        partition_sectors: &PartitionMap,
     ) -> Result<(), DeadlineError> {
         for (partition_number, partition) in self.partitions.iter_mut() {
             let Some(sectors) = partition_sectors.0.get(partition_number) else {

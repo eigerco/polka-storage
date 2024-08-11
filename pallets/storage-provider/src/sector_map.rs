@@ -100,7 +100,7 @@ impl PartitionMap {
 // Maps deadlines to partitions (which then maps to sectors).
 #[derive(RuntimeDebug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone)]
 pub struct DeadlineSectorMap(
-    BoundedBTreeMap<
+    pub  BoundedBTreeMap<
         u64, // Deadline Index
         PartitionMap,
         // Similar to the bound in `PartitionMap`, we have the same `MAX_TERMINATIONS_PER_CALL`
