@@ -1,3 +1,6 @@
+extern crate alloc;
+use alloc::collections::BTreeSet;
+
 use cid::Cid;
 use codec::Encode;
 use frame_support::{
@@ -13,7 +16,7 @@ use primitives_proofs::{
 use sp_core::{bounded_vec, Pair};
 use sp_runtime::{
     traits::{IdentifyAccount, IdentityLookup, Verify},
-    BuildStorage, MultiSignature, MultiSigner,
+    BoundedBTreeSet, BuildStorage, MultiSignature, MultiSigner,
 };
 
 use crate::{
@@ -73,12 +76,12 @@ impl pallet_market::Config for Test {
     type Currency = Balances;
     type OffchainSignature = Signature;
     type OffchainPublic = AccountPublic;
-    type MaxDeals = ConstU32<32>;
+    type MaxDeals = ConstU32<500>;
 
     type TimeUnitInBlocks = TimeUnitInBlocks;
     type MinDealDuration = MinDealDuration;
     type MaxDealDuration = MaxDealDuration;
-    type MaxDealsPerBlock = ConstU32<32>;
+    type MaxDealsPerBlock = ConstU32<500>;
 }
 
 parameter_types! {
@@ -135,7 +138,7 @@ const BOB: &'static str = "//Bob";
 const CHARLIE: &'static str = "//Charlie";
 
 /// Initial funds of all accounts.
-const INITIAL_FUNDS: u64 = 500;
+const INITIAL_FUNDS: u64 = 50000;
 
 // Build genesis storage according to the mock runtime.
 fn new_test_ext() -> sp_io::TestExternalities {
@@ -210,6 +213,12 @@ fn run_to_block(n: u64) {
         System::on_initialize(System::block_number());
         StorageProvider::on_initialize(System::block_number());
     }
+}
+
+/// This is a helper function to easily create a set of sectors.
+pub fn create_set<const T: u32>(sectors: &[u64]) -> BoundedBTreeSet<SectorNumber, ConstU32<T>> {
+    let sectors = sectors.iter().copied().collect::<BTreeSet<_>>();
+    BoundedBTreeSet::try_from(sectors).unwrap()
 }
 
 /// Register account as a provider.

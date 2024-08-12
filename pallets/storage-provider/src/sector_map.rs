@@ -174,6 +174,7 @@ mod test {
     use sp_core::bounded_btree_map;
 
     use super::*;
+    use crate::tests::create_set;
 
     #[test]
     fn partition_map_add_sectors() {
@@ -276,12 +277,6 @@ mod test {
         let sectors = [1, 2, 3];
         let _ = map.try_insert(deadline, partition, create_set(&sectors));
         expect_deadline_sectors_exact(&map, deadline, partition, &sectors);
-    }
-
-    /// This is a helper function to easily create a set of sectors.
-    fn create_set<const T: u32>(sectors: &[u64]) -> BoundedBTreeSet<SectorNumber, ConstU32<T>> {
-        let sectors = sectors.iter().copied().collect::<BTreeSet<_>>();
-        BoundedBTreeSet::try_from(sectors).unwrap()
     }
 
     /// Checks that items in `expected_sectors` are in the actual partition. Any

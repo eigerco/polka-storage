@@ -10,7 +10,7 @@ use crate::{
     tests::{
         account, events, publish_deals, register_storage_provider, run_to_block, Balances,
         RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System, Test,
-        ALICE, BOB, CHARLIE,
+        ALICE, BOB, CHARLIE, INITIAL_FUNDS,
     },
 };
 
@@ -73,7 +73,10 @@ fn successfully_prove_sector() {
         );
 
         // check that the funds are still locked
-        assert_eq!(Balances::free_balance(account(storage_provider)), 429);
+        assert_eq!(
+            Balances::free_balance(account(storage_provider)),
+            INITIAL_FUNDS - 71
+        );
         let sp_state = StorageProviders::<Test>::get(account(storage_provider))
             .expect("Should be able to get providers info");
 

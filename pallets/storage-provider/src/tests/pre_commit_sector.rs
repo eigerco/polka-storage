@@ -9,7 +9,7 @@ use crate::{
     tests::{
         account, cid_of, events, publish_deals, register_storage_provider, run_to_block, Balances,
         MaxProveCommitDuration, MaxSectorExpirationExtension, RuntimeEvent, RuntimeOrigin,
-        SectorPreCommitInfoBuilder, StorageProvider, Test, ALICE, CHARLIE,
+        SectorPreCommitInfoBuilder, StorageProvider, Test, ALICE, CHARLIE, INITIAL_FUNDS,
     },
 };
 
@@ -26,7 +26,10 @@ fn successfully_precommited() {
         let sector = SectorPreCommitInfoBuilder::default().build();
 
         // Check starting balance
-        assert_eq!(Balances::free_balance(account(storage_provider)), 430);
+        assert_eq!(
+            Balances::free_balance(account(storage_provider)),
+            INITIAL_FUNDS - 70
+        );
 
         // Run pre commit extrinsic
         StorageProvider::pre_commit_sector(
@@ -56,7 +59,10 @@ fn successfully_precommited() {
         assert!(sp.sectors.is_empty()); // not yet proven
         assert!(!sp.pre_committed_sectors.is_empty());
         assert_eq!(sp.pre_commit_deposits, 1);
-        assert_eq!(Balances::free_balance(account(storage_provider)), 429);
+        assert_eq!(
+            Balances::free_balance(account(storage_provider)),
+            INITIAL_FUNDS - 70 - 1  // 1 for pre-commit deposit
+        );
     });
 }
 
@@ -107,7 +113,11 @@ fn successfully_precommited_no_deals() {
         assert!(sp.sectors.is_empty()); // not yet proven
         assert!(!sp.pre_committed_sectors.is_empty());
         assert_eq!(sp.pre_commit_deposits, 1);
-        assert_eq!(Balances::free_balance(account(storage_provider)), 499);
+
+        assert_eq!(
+            Balances::free_balance(account(storage_provider)),
+            INITIAL_FUNDS - 1
+        );
     });
 }
 

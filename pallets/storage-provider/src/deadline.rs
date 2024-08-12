@@ -148,31 +148,40 @@ where
         let mut partitions = core::mem::take(&mut self.partitions).into_inner();
         let initial_partitions = partitions.len();
 
-        // Needs to start at 1 because if we take the length of `self.partitions`
-        // it will always be `MAX_PARTITIONS_PER_DEADLINE` because the partitions are pre-initialized.
-        let mut partition_idx = 0;
+        // We are starting at the last partition. That is because we know that
+        // all partitions before last are already full.
+        let mut partition_idx = partitions.len().saturating_sub(1);
         loop {
-            // Get/create partition to update.
+            // Get partition to which we want to add sectors. If the partition
+            // does not exist, create a new one. The new partition is created
+            // when it's our first time adding sectors to it.
             let partition = partitions
                 .entry(partition_idx as u32)
                 .or_insert(Partition::new());
 
-            // Figure out which (if any) sectors we want to add to this partition.
+            // Get the current partition's sector count.
+            // If the current partition is full, move to the next one.
             let sector_count = partition.sectors.len() as u64;
             if sector_count >= partition_size {
+                // Create a new partition.
+                partition_idx += 1;
                 continue;
             }
 
+            // Calculate how many sectors we can add to current partition.
             let size = cmp::min(partition_size - sector_count, sectors.len() as u64) as usize;
 
+            // Split the sectors into two parts: one to add to the current
+            // partition and the rest which will be added to the next one.
             let (partition_new_sectors, sectors) = sectors.split_at(size);
 
+            // Extract the sector numbers from the new sectors.
             let new_partition_sectors: Vec<SectorNumber> = partition_new_sectors
                 .into_iter()
                 .map(|sector| sector.sector_number)
                 .collect();
 
-            // Add sectors to partition.
+            // Add new sector numbers to the current partition.
             partition
                 .add_sectors(&new_partition_sectors)
                 .map_err(|_| DeadlineError::CouldNotAddSectors)?;
@@ -184,10 +193,10 @@ where
                     .map(|s| (s.expiration, partition_idx as PartitionNumber)),
             );
 
+            // No more sectors to add
             if sectors.is_empty() {
                 break;
             }
-            partition_idx += 1;
         }
 
         let partitions = BoundedBTreeMap::try_from(partitions).map_err(|_| {
@@ -201,7 +210,6 @@ where
 
         // Next, update the expiration queue.
         for (block, partition_index) in partition_deadline_updates {
-            dbg!(&block, &partition_index);
             self.expirations_blocks.try_insert(block, partition_index).map_err(|_| {
                 log::error!(target: LOG_TARGET, "add_sectors: Cannot update expiration queue at index {partition_idx}");
                 DeadlineError::CouldNotAddSectors
@@ -223,8 +231,6 @@ where
         partition_sectors: &mut PartitionMap,
         fault_expiration_block: BlockNumber,
     ) -> Result<(), DeadlineError> {
-        dbg!(&self.expirations_blocks);
-
         for (partition_number, partition) in self.partitions.iter_mut() {
             if !partition_sectors.0.contains_key(&partition_number) {
                 continue;

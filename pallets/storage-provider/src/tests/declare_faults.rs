@@ -1,16 +1,14 @@
-use std::collections::HashMap;
-
-use frame_support::{assert_ok, pallet_prelude::*, traits::fungible::Inspect, BoundedBTreeSet};
+use frame_support::{assert_ok, pallet_prelude::*, BoundedBTreeSet};
 use sp_core::bounded_vec;
 use sp_runtime::BoundedVec;
 
-use super::AccountIdOf;
 use crate::{
+    deadline::Deadlines,
     fault::{DeclareFaultsParams, FaultDeclaration},
     pallet::{Event, StorageProviders, DECLARATIONS_MAX},
     sector::ProveCommitSector,
     tests::{
-        account, events, new_test_ext, register_storage_provider, Balances, DealProposalBuilder,
+        account, create_set, events, new_test_ext, register_storage_provider, DealProposalBuilder,
         Market, RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System,
         Test, ALICE, BOB, CHARLIE,
     },
@@ -162,29 +160,34 @@ fn declare_single_fault() {
 }
 
 #[test]
-fn multiple_partition_faults() {
+fn multiple_partition_faults_in_same_deadline() {
     new_test_ext().execute_with(|| {
         // Setup accounts
         let storage_provider = CHARLIE;
         let storage_client = ALICE;
 
-        setup_sp_with_many_sectors(storage_provider, storage_client);
+        setup_sp_with_many_sectors_multiple_partitions(storage_provider, storage_client);
 
-        let mut sectors = BoundedBTreeSet::new();
         let mut faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>> = bounded_vec![];
-        sectors.try_insert(0).expect("Programmer error");
-
-        // Mark 0th sector in each partition as faulty
-        for partition_index in 0..5 {
-            let fault = FaultDeclaration {
+        faults
+            .try_push(FaultDeclaration {
                 deadline: 0,
-                partition: partition_index,
-                sectors: sectors.clone(),
-            };
-            faults.try_push(fault).expect("Programmer error");
-        }
-
-        dbg!(&faults);
+                partition: 0,
+                sectors: create_set(&[0, 1]),
+            })
+            .expect("Programmer error");
+        faults
+            .try_push(FaultDeclaration {
+                deadline: 0,
+                partition: 1,
+                sectors: create_set(&[20]),
+            })
+            .expect("Programmer error");
+        let faulty_sectors = faults
+            .clone()
+            .iter()
+            .map(|f| f.sectors.clone())
+            .collect::<Vec<_>>();
 
         assert_ok!(StorageProvider::declare_faults(
             RuntimeOrigin::signed(account(storage_provider)),
@@ -194,21 +197,10 @@ fn multiple_partition_faults() {
         ));
 
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
+        expect_exact_faulty_sectors(&sp.deadlines, &faults);
 
-        let mut updates = 0;
-
-        for dl in sp.deadlines.due.iter() {
-            for (partition_index, partition) in dl.partitions.iter() {
-                if partition.faults.len() > 0 {
-                    dbg!(partition_index, &partition.faults);
-                    updates += partition.faults.len();
-                }
-            }
-        }
-        // One partitions faults should be added.
-        assert_eq!(updates, 5);
         assert_eq!(
-            dbg!(events()),
+            events(),
             [RuntimeEvent::StorageProvider(Event::FaultsDeclared {
                 owner: account(storage_provider),
                 faults
@@ -325,13 +317,20 @@ fn default_fault_setup(storage_provider: &str, storage_client: &str) {
     System::reset_events();
 }
 
-fn setup_sp_with_many_sectors(storage_provider: &str, storage_client: &str) {
+fn setup_sp_with_many_sectors_multiple_partitions(storage_provider: &str, storage_client: &str) {
     // Register storage provider
     register_storage_provider(account(storage_provider));
 
-    for deal_id in 0..7 {
-        let provider_amount_needed = 70;
-        let client_amount_needed = 60;
+    // We are making so that each deadline have at least two partitions. The
+    // first deadline has three with third sector only partially filled.
+    let desired_sectors = 10 * (2 + 2) + 1; // 10 deadlines with 2 partitions each partition have 2 sectors
+
+    // Publish as many deals as we need to fill the sectors. We are batching
+    // deals so that the processing is a little faster.
+    let deal_ids = {
+        // Amounts needed for deals
+        let provider_amount_needed = desired_sectors * 70;
+        let client_amount_needed = desired_sectors * 60;
 
         // Move available balance of provider to the market pallet
         assert_ok!(Market::add_balance(
@@ -345,20 +344,32 @@ fn setup_sp_with_many_sectors(storage_provider: &str, storage_client: &str) {
             client_amount_needed
         ));
 
-        // Generate a deal proposal
-        let deal_proposal = DealProposalBuilder::default()
-            .client(storage_client)
-            .provider(storage_provider)
-            // We are setting a label here so that our deals are unique
-            .label(vec![deal_id as u8])
-            .signed(storage_client);
+        // Deal proposals
+        let deal_ids = 0..desired_sectors;
+        let proposals = deal_ids
+            .clone()
+            .map(|deal_id| {
+                // Generate a deal proposal
+                DealProposalBuilder::default()
+                    .client(storage_client)
+                    .provider(storage_provider)
+                    // We are setting a label here so that our deals are unique
+                    .label(vec![deal_id as u8])
+                    .signed(storage_client)
+            })
+            .collect::<Vec<_>>();
 
-        // Publish the deal proposal
+        // Publish all proposals
         assert_ok!(Market::publish_storage_deals(
             RuntimeOrigin::signed(account(storage_provider)),
-            bounded_vec![deal_proposal],
+            proposals.try_into().unwrap(),
         ));
 
+        deal_ids
+    };
+
+    // Pre commit and prove commit sectors
+    for deal_id in deal_ids {
         // We are reusing deal_id as sector_number. In this case this is ok
         // because we wan't to have a unique sector for each deal. Usually
         // we would pack multiple deals in the same sector
@@ -390,4 +401,30 @@ fn setup_sp_with_many_sectors(storage_provider: &str, storage_client: &str) {
 
     // Flush events before running extrinsic to check only relevant events
     System::reset_events();
+}
+
+/// Compare deadlines and faults. Panic if faults in both are not equal.
+fn expect_exact_faulty_sectors(
+    deadlines: &Deadlines<u64>,
+    faults: &BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>>,
+) {
+    // Faulty sectors specified in the faults
+    let faults_sectors = faults
+        .iter()
+        .flat_map(|f| f.sectors.iter().collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+
+    // Faults sectors in the deadlines
+    let deadline_sectors = deadlines
+        .due
+        .iter()
+        .flat_map(|dl| {
+            dl.partitions
+                .iter()
+                .flat_map(|(_, p)| p.faults.iter().collect::<Vec<_>>())
+        })
+        .collect::<Vec<_>>();
+
+    // Should be equal
+    assert_eq!(faults_sectors, deadline_sectors);
 }
