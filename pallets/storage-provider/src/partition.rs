@@ -224,6 +224,16 @@ where
             .collect::<BTreeSet<u64>>()
             .try_into()
             .expect("Programmer error: BoundedBTreeSet should be able to be created from BTreeSet");
+
+        // remove recovered sectors from faults
+        self.faults = self
+            .faults
+            .iter()
+            .filter(|sector_number| !self.recoveries.contains(sector_number))
+            .copied()
+            .collect::<BTreeSet<u64>>()
+            .try_into()
+            .expect("Programmer error: BoundedBTreeSet should be able to be created from BTreeSet");
     }
 }
 
