@@ -116,7 +116,7 @@ where
         BlockNumber: sp_runtime::traits::BlockNumber,
     {
         log::debug!(target: LOG_TARGET, "record_faults: sector_number = {sector_numbers:#?}");
-        
+
         // Split declarations into declarations of new faults, and retraction of declared recoveries.
         // recoveries & sector_numbers
         let retracted_recoveries: BTreeSet<SectorNumber> = self
@@ -125,7 +125,7 @@ where
             .cloned()
             .collect();
         // sector_numbers - retracted_recoveries
-        let new_faults: BTreeSet<&SectorNumber> = sector_numbers
+        let new_faults: BTreeSet<SectorNumber> = sector_numbers
             .iter()
             .filter(|sector_number| {
                 !retracted_recoveries.contains(sector_number)
@@ -133,6 +133,7 @@ where
                 && !self.terminated.contains(&sector_number)
                     && !self.faults.contains(&sector_number)
             })
+            .copied()
             .collect();
 
         log::debug!(target: LOG_TARGET, "record_faults: new_faults = {new_faults:#?}, amount = {:?}", new_faults.len());
@@ -140,7 +141,7 @@ where
             .iter()
             .filter(|(sector_number, _info)| {
                 log::debug!(target: LOG_TARGET, "record_faults: checking sec_num {sector_number}");
-                new_faults.contains(sector_number)
+                new_faults.contains(&sector_number)
             })
             .collect();
         // Add new faults to state, skip if no new faults.
@@ -161,7 +162,7 @@ where
             log::debug!(target: LOG_TARGET, "record_faults: No retracted recoveries detected");
         }
 
-        Ok(self.faults.clone().into())
+        Ok(new_faults)
     }
 
     /// marks a set of sectors faulty

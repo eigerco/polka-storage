@@ -66,6 +66,7 @@ pub mod pallet {
             DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration,
             RecoveryDeclaration,
         },
+        partition::PartitionNumber,
         proofs::{assign_proving_period_offset, SubmitWindowedPoStParams},
         sector::{
             ProveCommitSector, SectorOnChainInfo, SectorPreCommitInfo, SectorPreCommitOnChainInfo,
@@ -252,6 +253,12 @@ pub mod pallet {
         FaultsRecovered {
             owner: T::AccountId,
             recoveries: BoundedVec<RecoveryDeclaration, ConstU32<DECLARATIONS_MAX>>,
+        }
+        /// Emitted when an SP doesn't submit Windowed PoSt in time and PoSt hook marks partitions as faulty
+        PartitionFaulty {
+            owner: T::AccountId,
+            partition: PartitionNumber,
+            sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
         },
     }
 
@@ -925,7 +932,7 @@ pub mod pallet {
         /// If the deadline elapsed (current_block >= deadline.close_at) it checks all of the partitions and their sectors.
         /// If a proof for a partition has not been submitted, all sectors in the partition are marked as faulty.
         /// A deadline is checked once every [`T::WPoStProvingPeriod`]. If a Partition was marked as faulty in a deadline (deadline_idx, proving_period_idx),
-        /// it's rechecked in the next [`T::WPoStProvingPeriod`] in the next deadline (deadline_idx,, proving_period_idx + 1).
+        /// it's rechecked in the next [`T::WPoStProvingPeriod`] in the next deadline (deadline_idx, proving_period_idx + 1).
         /// `pre_commit_deposit` is slashed by 1 for each partition for each proving period a partition is faulty.
         ///
         /// TODO:
@@ -949,7 +956,12 @@ pub mod pallet {
                     continue;
                 };
 
-                
+                if current_block < state.proving_period_start {
+                    log::info!(target: LOG_TARGET, "skipping checking sp: {:?} on block: {:?} < proving_start {:?}, because it hasn't started yet.",
+                        storage_provider, current_block, state.proving_period_start);
+                    continue;
+                }
+
                 let Ok(current_deadline) = state.deadline_info(
                     current_block,
                     T::FaultMaxAge::get(),
@@ -961,30 +973,35 @@ pub mod pallet {
                     log::error!(target: LOG_TARGET, "block: {:?}, there are no deadlines for storage provider {:?}", current_block, storage_provider);
                     continue;
                 };
-                
-                
+
+                log::debug!(
+                    "current_deadline.idx: {:?}, sp.current_deadline: {:?}",
+                    current_deadline.idx,
+                    state.current_deadline
+                );
+
                 if !current_deadline.period_started() {
                     log::info!(target: LOG_TARGET, "block: {:?}, period for deadline {:?}, sp {:?} has not yet started...", current_block, current_deadline.idx, storage_provider);
                     continue;
                 }
-                
+
                 if !current_deadline.has_elapsed() {
                     log::info!(target: LOG_TARGET,
-                        "block: {:?}, deadline {:?} for sp {:?} not yet elapsed. open_at: {} < current {} < close_at {}",
+                        "block: {:?}, deadline {:?} for sp {:?} not yet elapsed. open_at: {:?} < current {:?} < close_at {:?}",
                         current_block,
                         current_deadline.idx, storage_provider, current_deadline.open_at, current_block, current_deadline.close_at
                     );
                     continue;
                 }
-                
-                log::info!(target: LOG_TARGET, "block: {:?}, checking storage provider {:?} deadline: {:?}", 
-                    current_block, 
-                    storage_provider,
-                    current_deadline.idx,
-                 );
-                
+
+                log::info!(target: LOG_TARGET, "block: {:?}, checking storage provider {:?} deadline: {:?}",
+                   current_block,
+                   storage_provider,
+                   current_deadline.idx,
+                );
+
                 let Ok(deadline) =
-                (&mut state.deadlines).load_deadline_mut(current_deadline.idx as usize)
+                    (&mut state.deadlines).load_deadline_mut(current_deadline.idx as usize)
                 else {
                     log::error!(target: LOG_TARGET, "block: {:?}, failed to get deadline {}, sp: {:?}", 
                         current_block, current_deadline.idx, storage_provider);
@@ -993,6 +1010,9 @@ pub mod pallet {
 
                 let mut slashed_partitions = 0;
                 for (partition_number, partition) in deadline.partitions.iter_mut() {
+                    if partition.sectors.len() == 0 {
+                        continue;
+                    }
                     // WindowPoSt Proof was submitted for a partition.
                     if deadline.partitions_posted.contains(&partition_number) {
                         continue;
@@ -1001,7 +1021,7 @@ pub mod pallet {
                     log::debug!(target: LOG_TARGET, "block: {:?}, going through partition: {:?}", current_block, partition);
 
                     // Mark all Sectors in a partition as faulty
-                    let Ok(faults) =
+                    let Ok(new_faults) =
                         partition.record_faults(&state.sectors, &partition.sectors.clone())
                     else {
                         log::error!(target: LOG_TARGET, "block: {:?}, failed to mark {} sectors as faulty, deadline: {}, sp: {:?}", 
@@ -1013,10 +1033,18 @@ pub mod pallet {
                     // - process early terminations (we need ExpirationQueue for that)
                     // - https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/state.rs#L1182
 
-                    log::info!(target: LOG_TARGET, "block: {:?}, slashing sp's {:?} partition {} for {} faults...", 
-                        current_block, storage_provider, partition_number, faults.len());
+                    log::info!(target: LOG_TARGET, "block: {:?}, sp: {:?}, detected partition {} with {} new faults...", 
+                        current_block, storage_provider, partition_number, new_faults.len());
 
-                    slashed_partitions += 1;
+                    if new_faults.len() > 0 {
+                        Self::deposit_event(Event::PartitionFaulty {
+                            owner: storage_provider.clone(),
+                            partition: *partition_number,
+                            sectors: new_faults.try_into()
+                                .expect("new_faults.len() <= MAX_SECTORS, cannot be more new faults than all of the sectors in partition"),
+                        });
+                        slashed_partitions += 1;
+                    }
                 }
 
                 // TODO(@th7nder,[#106,#187],08/08/2024): figure out slashing amounts (for continued faults, new faults).
@@ -1036,11 +1064,14 @@ pub mod pallet {
                 }
 
                 // Advance the proving period start of the storage provider if the next deadline is the first one.
-                let Ok(max_deadlines) = TryInto::<BlockNumberFor<T>>::try_into(T::WPoStPeriodDeadlines::get()) else {
-                    log::error!(target: LOG_TARGET, "catastrophe, WPostPeriodDeadlines > BlockNumber");
-                    continue;
-                };
-                state.current_deadline = (state.current_deadline + BlockNumberFor::<T>::one()) % max_deadlines;
+                state.current_deadline =
+                    (state.current_deadline + 1) % T::WPoStPeriodDeadlines::get();
+                log::debug!(
+                    "new deadline {:?}, period deadlines {:?}",
+                    state.current_deadline,
+                    T::WPoStPeriodDeadlines::get()
+                );
+
                 if state.current_deadline.is_zero() {
                     state.proving_period_start =
                         current_deadline.period_start + T::WPoStProvingPeriod::get();

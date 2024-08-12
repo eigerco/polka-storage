@@ -250,16 +250,7 @@ where
         w_post_challenge_window: BlockNumber,
         w_post_challenge_lookback: BlockNumber,
     ) -> Result<DeadlineInfo<BlockNumber>, DeadlineError> {
-        let current_deadline_index = calculate_current_deadline_index(
-            current_block,
-            self.proving_period_start,
-            w_post_challenge_window,
-        );
-
-        // convert to u64
-        let current_deadline_index: u64 = current_deadline_index
-            .try_into()
-            .map_err(|_| DeadlineError::CouldNotConstructDeadlineInfo)?;
+        let current_deadline_index = self.current_deadline;
 
         DeadlineInfo::new(
             current_block,
@@ -363,25 +354,6 @@ where
     let global_proving_start = (global_proving_index + BlockNumber::one()) * wpost_proving_period;
 
     global_proving_start + offset
-}
-
-/// Calculate the current deadline index.
-///
-/// **Pre-condition**: `current_block >= period_start`
-///
-/// No magic here, the same logic from Filecoin applies.
-///
-/// Reference:
-/// * <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L4923-L4929>
-pub(crate) fn calculate_current_deadline_index<BlockNumber>(
-    current_block: BlockNumber,
-    period_start: BlockNumber,
-    w_post_challenge_period: BlockNumber,
-) -> BlockNumber
-where
-    BlockNumber: sp_runtime::traits::BlockNumber,
-{
-    (current_block - period_start) / w_post_challenge_period
 }
 
 #[cfg(test)]

@@ -34,14 +34,17 @@ use crate::{
 };
 
 mod declare_faults;
+<<<<<<< HEAD
 mod declare_faults_recovered;
+=======
+mod post_hook;
+>>>>>>> acf77fb (tests(pallet-storage-provider): post hook tests)
 mod pre_commit_sector;
 mod pre_commit_sector_hook;
 mod prove_commit_sector;
 mod state;
 mod storage_provider_registration;
 mod submit_windowed_post;
-mod post_hook;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 type BlockNumber = u64;
