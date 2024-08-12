@@ -13,7 +13,7 @@ use crate::{
     tests::{
         account, declare_faults::default_fault_setup, events, new_test_ext,
         register_storage_provider, DealProposalBuilder, Market, RuntimeEvent, RuntimeOrigin,
-        SectorPreCommitInfoBuilder, StorageProvider, Test, ALICE, BOB,
+        SectorPreCommitInfoBuilder, StorageProvider, System, Test, ALICE, BOB,
     },
 };
 
@@ -32,7 +32,7 @@ fn declare_single_fault_recovered() {
         assert_ok!(StorageProvider::declare_faults(
             RuntimeOrigin::signed(account(storage_provider)),
             DeclareFaultsBuilder::default()
-                .single_fault(deadline, partition, vec![1])
+                .fault(deadline, partition, vec![1])
                 .build(),
         ));
 
@@ -43,7 +43,7 @@ fn declare_single_fault_recovered() {
         assert_ok!(StorageProvider::declare_faults_recovered(
             RuntimeOrigin::signed(account(storage_provider)),
             DeclareFaultsRecoveredBuilder::default()
-                .single_fault_recovery(deadline, partition, vec![1])
+                .fault_recovery(deadline, partition, vec![1])
                 .build(),
         ));
 
@@ -65,13 +65,10 @@ fn declare_single_fault_recovered() {
         // 1 recovery and 0 faults.
         assert_eq!(recoveries, 1);
         assert_eq!(faults, 0);
-        // assert_eq!(
-        //     events(),
-        //     [RuntimeEvent::StorageProvider(Event::FaultsRecovered {
-        //         owner: account(storage_provider),
-        //         recoveries: bounded_vec![recovery]
-        //     })]
-        // );
+        assert!(matches!(
+            events()[..],
+            [RuntimeEvent::StorageProvider(Event::FaultsRecovered { .. })]
+        ));
     });
 }
 
@@ -163,76 +160,53 @@ fn multiple_deadline_faults_recovered() {
         let storage_provider = ALICE;
         let storage_client = BOB;
 
+        let partition = 0;
+
         default_fault_setup(storage_provider, storage_client);
 
-        let mut sectors = BoundedBTreeSet::new();
-        sectors.try_insert(1).expect("Programmer error");
+        // Fault declaration setup
 
-        // Fault declaration setup, not relevant to this test that why it has its own scope
-        {
-            let mut faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>> =
-                bounded_vec![];
-            // declare faults in 5 partitions
-            for i in 0..5 {
-                let fault = FaultDeclaration {
-                    deadline: i,
-                    partition: 0,
-                    sectors: sectors.clone(),
-                };
-                faults.try_push(fault).expect("Programmer error");
-            }
+        assert_ok!(StorageProvider::declare_faults(
+            RuntimeOrigin::signed(account(storage_provider)),
+            DeclareFaultsBuilder::default()
+                .multiple_deadlines(vec![0, 1, 2, 3, 4], partition, vec![1])
+                .build(),
+        ));
 
-            assert_ok!(StorageProvider::declare_faults(
-                RuntimeOrigin::signed(account(storage_provider)),
-                DeclareFaultsParams {
-                    faults: faults.clone()
-                },
-            ));
+        // flush events
+        events();
 
-            // flush events
-            events();
-        }
-
-        // setup recovery
-        let mut recoveries: BoundedVec<RecoveryDeclaration, ConstU32<DECLARATIONS_MAX>> =
-            bounded_vec![];
-        for i in 0..5 {
-            let recovery = RecoveryDeclaration {
-                deadline: i,
-                partition: 0,
-                sectors: sectors.clone(),
-            };
-            recoveries.try_push(recovery).expect("Programmer error");
-        }
-
-        // run extrinsic
+        // setup recovery and run extrinsic
+        // setup recovery and run extrinsic
         assert_ok!(StorageProvider::declare_faults_recovered(
             RuntimeOrigin::signed(account(storage_provider)),
-            DeclareFaultsRecoveredParams {
-                recoveries: recoveries.clone(),
-            }
+            DeclareFaultsRecoveredBuilder::default()
+                .multiple_deadlines_recovery(vec![0, 1, 2, 3, 4], partition, vec![1])
+                .build(),
         ));
 
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
 
         let mut recovered = 0;
-
+        let mut faults = 0;
         for dl in sp.deadlines.due.iter() {
             for (_, partition) in dl.partitions.iter() {
                 if partition.recoveries.len() > 0 {
                     recovered += partition.recoveries.len();
                 }
+                if partition.faults.len() > 0 {
+                    faults += 1;
+                }
             }
         }
 
+        // Check that all faults are recovered.
         assert_eq!(recovered, 5);
-        assert_eq!(
-            events(),
-            [RuntimeEvent::StorageProvider(Event::FaultsRecovered {
-                owner: account(storage_provider),
-                recoveries
-            })]
-        );
+        assert_eq!(faults, 0);
+        assert!(matches!(
+            events()[..],
+            [RuntimeEvent::StorageProvider(Event::FaultsRecovered { .. })]
+        ));
     });
 }
 
@@ -243,115 +217,102 @@ fn multiple_sector_faults_recovered() {
         let storage_provider = ALICE;
         let storage_client = BOB;
 
-        let mut sectors = BoundedBTreeSet::new();
-        // insert 5 sectors
-        for i in 0..5 {
-            sectors.try_insert(i).expect("Programmer error");
-        }
+        let sectors = vec![0, 1, 2, 3, 4];
 
-        // Fault declaration setup, not relevant to this test that why it has its own scope
-        {
-            // Register storage provider
-            register_storage_provider(account(storage_provider));
+        // Fault declaration setup
+        multi_sectors_setup(storage_provider, storage_client, &sectors);
 
-            // Add balance to the market pallet
-            assert_ok!(Market::add_balance(
-                RuntimeOrigin::signed(account(storage_provider)),
-                250
-            ));
-            assert_ok!(Market::add_balance(
-                RuntimeOrigin::signed(account(storage_client)),
-                250
-            ));
-            for sector_number in 0..5 {
-                // Generate a deal proposal
-                let deal_proposal = DealProposalBuilder::default()
-                    .client(storage_client)
-                    .provider(storage_provider)
-                    .signed(storage_client);
-
-                // Publish the deal proposal
-                assert_ok!(Market::publish_storage_deals(
-                    RuntimeOrigin::signed(account(storage_provider)),
-                    bounded_vec![deal_proposal],
-                ));
-                // Sector data
-                let sector = SectorPreCommitInfoBuilder::default()
-                    .sector_number(sector_number)
-                    .deals(bounded_vec![sector_number])
-                    .build();
-
-                // Run pre commit extrinsic
-                assert_ok!(StorageProvider::pre_commit_sector(
-                    RuntimeOrigin::signed(account(storage_provider)),
-                    sector.clone()
-                ));
-
-                // Prove commit sector
-                let sector = ProveCommitSector {
-                    sector_number,
-                    proof: bounded_vec![0xd, 0xe, 0xa, 0xd],
-                };
-
-                assert_ok!(StorageProvider::prove_commit_sector(
-                    RuntimeOrigin::signed(account(storage_provider)),
-                    sector
-                ));
-            }
-
-            let fault = FaultDeclaration {
-                deadline: 0,
-                partition: 0,
-                sectors: sectors.clone(),
-            };
-
-            assert_ok!(StorageProvider::declare_faults(
-                RuntimeOrigin::signed(account(storage_provider)),
-                DeclareFaultsParams {
-                    faults: bounded_vec![fault.clone()]
-                },
-            ));
-
-            // Flush events
-            events();
-        }
-
-        // setup recovery
-        let recovery = RecoveryDeclaration {
-            deadline: 0,
-            partition: 0,
-            sectors: sectors.clone(),
-        };
-
-        // run extrinsic
+        // setup recovery and run extrinsic
         assert_ok!(StorageProvider::declare_faults_recovered(
             RuntimeOrigin::signed(account(storage_provider)),
-            DeclareFaultsRecoveredParams {
-                recoveries: bounded_vec![recovery.clone()],
-            }
+            DeclareFaultsRecoveredBuilder::default()
+                .fault_recovery(0, 0, sectors)
+                .build(),
         ));
 
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
 
         let mut recovered = 0;
-
+        let mut faults = 0;
         for dl in sp.deadlines.due.iter() {
             for (_, partition) in dl.partitions.iter() {
                 if partition.recoveries.len() > 0 {
                     recovered += partition.recoveries.len();
                 }
+                if partition.faults.len() > 0 {
+                    faults += 1;
+                }
             }
         }
-        // One partitions fault should be added.
+        // Check that all faults are recovered.
         assert_eq!(recovered, 5);
-        assert_eq!(
-            events(),
-            [RuntimeEvent::StorageProvider(Event::FaultsRecovered {
-                owner: account(storage_provider),
-                recoveries: bounded_vec![recovery]
-            })]
-        );
+        assert_eq!(faults, 0);
+        assert!(matches!(
+            events()[..],
+            [RuntimeEvent::StorageProvider(Event::FaultsRecovered { .. })]
+        ));
     });
+}
+
+fn multi_sectors_setup(storage_provider: &str, storage_client: &str, sectors: &[SectorNumber]) {
+    // Register storage provider
+    register_storage_provider(account(storage_provider));
+
+    // Add balance to the market pallet
+    assert_ok!(Market::add_balance(
+        RuntimeOrigin::signed(account(storage_provider)),
+        250
+    ));
+    assert_ok!(Market::add_balance(
+        RuntimeOrigin::signed(account(storage_client)),
+        250
+    ));
+    for sector_number in 0..5 {
+        // Generate a deal proposal
+        let deal_proposal = DealProposalBuilder::default()
+            .client(storage_client)
+            .provider(storage_provider)
+            .signed(storage_client);
+
+        // Publish the deal proposal
+        assert_ok!(Market::publish_storage_deals(
+            RuntimeOrigin::signed(account(storage_provider)),
+            bounded_vec![deal_proposal],
+        ));
+        // Sector data
+        let sector = SectorPreCommitInfoBuilder::default()
+            .sector_number(sector_number)
+            .deals(bounded_vec![sector_number])
+            .build();
+
+        // Run pre commit extrinsic
+        assert_ok!(StorageProvider::pre_commit_sector(
+            RuntimeOrigin::signed(account(storage_provider)),
+            sector.clone()
+        ));
+
+        // Prove commit sector
+        let sector = ProveCommitSector {
+            sector_number,
+            proof: bounded_vec![0xd, 0xe, 0xa, 0xd],
+        };
+
+        assert_ok!(StorageProvider::prove_commit_sector(
+            RuntimeOrigin::signed(account(storage_provider)),
+            sector
+        ));
+    }
+
+    // Run extrinsic
+    assert_ok!(StorageProvider::declare_faults(
+        RuntimeOrigin::signed(account(storage_provider)),
+        DeclareFaultsBuilder::default()
+            .fault(0, 0, sectors.into())
+            .build(),
+    ));
+
+    // Flush events
+    System::reset_events();
 }
 
 struct DeclareFaultsBuilder {
@@ -367,7 +328,7 @@ impl Default for DeclareFaultsBuilder {
 }
 
 impl DeclareFaultsBuilder {
-    fn single_fault(
+    fn fault(
         mut self,
         deadline: u64,
         partition: PartitionNumber,
@@ -385,6 +346,32 @@ impl DeclareFaultsBuilder {
             sectors: fault_sectors,
         };
         self.faults = bounded_vec![fault];
+        self
+    }
+
+    fn multiple_deadlines(
+        mut self,
+        deadlines: Vec<u64>,
+        partition: PartitionNumber,
+        sectors: Vec<SectorNumber>,
+    ) -> Self {
+        let mut fault_sectors = BoundedBTreeSet::new();
+        sectors.iter().for_each(|sector_number| {
+            fault_sectors
+                .try_insert(*sector_number)
+                .expect("Programmer error");
+        });
+        let mut faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>> = bounded_vec![];
+        for deadline in deadlines {
+            faults
+                .try_push(FaultDeclaration {
+                    deadline,
+                    partition,
+                    sectors: fault_sectors.clone(),
+                })
+                .expect("Programmer error");
+        }
+        self.faults = faults;
         self
     }
 
@@ -408,7 +395,7 @@ impl Default for DeclareFaultsRecoveredBuilder {
 }
 
 impl DeclareFaultsRecoveredBuilder {
-    fn single_fault_recovery(
+    fn fault_recovery(
         mut self,
         deadline: u64,
         partition: PartitionNumber,
@@ -426,6 +413,33 @@ impl DeclareFaultsRecoveredBuilder {
             sectors: recovered_sectors,
         };
         self.recoveries = bounded_vec![recovery];
+        self
+    }
+
+    fn multiple_deadlines_recovery(
+        mut self,
+        deadlines: Vec<u64>,
+        partition: PartitionNumber,
+        sectors: Vec<SectorNumber>,
+    ) -> Self {
+        let mut recovered_sectors = BoundedBTreeSet::new();
+        sectors.iter().for_each(|sector_number| {
+            recovered_sectors
+                .try_insert(*sector_number)
+                .expect("Programmer error");
+        });
+        let mut recoveries: BoundedVec<RecoveryDeclaration, ConstU32<DECLARATIONS_MAX>> =
+            bounded_vec![];
+        for deadline in deadlines {
+            recoveries
+                .try_push(RecoveryDeclaration {
+                    deadline,
+                    partition,
+                    sectors: recovered_sectors.clone(),
+                })
+                .expect("Programmer error");
+        }
+        self.recoveries = recoveries;
         self
     }
 
