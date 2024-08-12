@@ -207,7 +207,7 @@ where
         BlockNumber: sp_runtime::traits::BlockNumber,
     {
         // Recoveries = (sector_numbers & self.faults) - self.recoveries
-        let recoveries = sector_numbers
+        let new_recoveries = sector_numbers
             .iter()
             .filter(|sector_number| {
                 self.faults.contains(&sector_number) && !self.recoveries.contains(sector_number)
@@ -217,7 +217,7 @@ where
         // self.recoveries | recoveries
         self.recoveries = self
             .recoveries
-            .union(&recoveries)
+            .union(&new_recoveries)
             .map(|sector_number| *sector_number)
             .collect::<BTreeSet<u64>>()
             .try_into()
