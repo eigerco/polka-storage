@@ -144,20 +144,18 @@ where
         self.live_sectors += sectors.len() as u64;
         self.total_sectors += sectors.len() as u64;
 
-        let partitions = &mut self.partitions;
+        // Take ownership of underlying map and convert it into inner BTree to be able to use `.entry` API.
+        let mut partitions = core::mem::take(&mut self.partitions).into_inner();
+        let initial_partitions = partitions.len();
 
         // Needs to start at 1 because if we take the length of `self.partitions`
         // it will always be `MAX_PARTITIONS_PER_DEADLINE` because the partitions are pre-initialized.
         let mut partition_idx = 0;
         loop {
             // Get/create partition to update.
-            let mut partition = match partitions.get_mut(&(partition_idx as u32)) {
-                Some(partition) => partition.clone(),
-                None => {
-                    // This case will only happen when trying to add a full partition more than once in go.
-                    Partition::new()
-                }
-            };
+            let partition = partitions
+                .entry(partition_idx as u32)
+                .or_insert(Partition::new());
 
             // Figure out which (if any) sectors we want to add to this partition.
             let sector_count = partition.sectors.len() as u64;
@@ -179,14 +177,6 @@ where
                 .add_sectors(&new_partition_sectors)
                 .map_err(|_| DeadlineError::CouldNotAddSectors)?;
 
-            // Save partition if it is newly constructed.
-            if !partitions.contains_key(&(partition_idx as u32)) {
-                partitions.try_insert(partition_idx as u32, partition).map_err(|_| {
-                    log::error!(target: LOG_TARGET, "add_sectors: Cannot insert new partition at {partition_idx}");
-                    DeadlineError::CouldNotAddSectors
-                })?;
-            }
-
             // Record deadline -> partition mapping so we can later update the deadlines.
             partition_deadline_updates.extend(
                 partition_new_sectors
@@ -199,6 +189,15 @@ where
             }
             partition_idx += 1;
         }
+
+        let partitions = BoundedBTreeMap::try_from(partitions).map_err(|_| {
+            log::error!(target: LOG_TARGET, "add_sectors: could not convert partitions to BoundedBTreeMap, too many of them ({} -> {}).", 
+                initial_partitions,
+                partition_idx);
+            DeadlineError::CouldNotAddSectors
+        })?;
+        // Ignore the default value placed by `take`
+        let _ = core::mem::replace(&mut self.partitions, partitions);
 
         // Next, update the expiration queue.
         for (block, partition_index) in partition_deadline_updates {
