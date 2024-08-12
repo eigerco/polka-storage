@@ -224,7 +224,7 @@ where
     ) -> Result<(), DeadlineError> {
         for (partition_number, partition) in self.partitions.iter_mut() {
             if !partition_sectors.0.contains_key(&partition_number) {
-                continue;
+                return Err(DeadlineError::PartitionNotFound);
             }
             partition.record_faults(
                 sectors,
@@ -267,7 +267,7 @@ where
     ) -> Result<(), DeadlineError> {
         for (partition_number, partition) in self.partitions.iter_mut() {
             let Some(sectors) = partition_sectors.0.get(partition_number) else {
-                continue;
+                return Err(DeadlineError::PartitionNotFound);
             };
 
             partition.declare_faults_recovered(sectors);
