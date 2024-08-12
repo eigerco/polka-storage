@@ -229,7 +229,7 @@ fn multiple_deadline_faults_recovered() {
 
         for dl in sp.deadlines.due.iter() {
             for (_, partition) in dl.partitions.iter() {
-                if partition.faults.len() > 0 {
+                if partition.recoveries.len() > 0 {
                     recovered += partition.recoveries.len();
                 }
             }
@@ -347,8 +347,8 @@ fn multiple_sector_faults_recovered() {
 
         for dl in sp.deadlines.due.iter() {
             for (_, partition) in dl.partitions.iter() {
-                if partition.faults.len() > 0 {
-                    recovered += partition.faults.len();
+                if partition.recoveries.len() > 0 {
+                    recovered += partition.recoveries.len();
                 }
             }
         }
