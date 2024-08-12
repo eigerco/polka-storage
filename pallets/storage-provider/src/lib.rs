@@ -70,7 +70,8 @@ pub mod pallet {
         },
         sector_map::DeadlineSectorMap,
         storage_provider::{
-            calculate_first_proving_period, StorageProviderInfo, StorageProviderState,
+            calculate_first_proving_period_start, calculate_proving_period_start_with_seed,
+            StorageProviderInfo, StorageProviderState,
         },
     };
 
@@ -329,7 +330,7 @@ pub mod pallet {
             )
             .map_err(|_| Error::<T>::ConversionError)?;
 
-            let local_proving_start = calculate_first_proving_period::<BlockNumberFor<T>>(
+            let local_proving_start = calculate_first_proving_period_start::<BlockNumberFor<T>>(
                 current_block,
                 offset,
                 proving_period,
@@ -452,13 +453,13 @@ pub mod pallet {
                 sector_number <= MAX_SECTORS.into(),
                 Error::<T>::InvalidSector
             );
+
             let precommit = sp
                 .get_pre_committed_sector(sector_number)
                 .map_err(|e| Error::<T>::StorageProviderError(e))?;
             let current_block = <frame_system::Pallet<T>>::block_number();
             let prove_commit_due =
                 precommit.pre_commit_block_number + T::MaxProveCommitDuration::get();
-
             ensure!(
                 current_block < prove_commit_due,
                 Error::<T>::ProveCommitAfterDeadline
@@ -477,10 +478,12 @@ pub mod pallet {
                     .ok_or(Error::<T>::StorageProviderNotFound)?;
                 sp.activate_sector(sector_number, new_sector.clone())
                     .map_err(|e| Error::<T>::StorageProviderError(e))?;
+
                 let mut new_sectors = BoundedVec::new();
                 new_sectors
                     .try_push(new_sector)
                     .expect("Infallible since only 1 element is inserted");
+
                 sp.assign_sectors_to_deadlines(
                     current_block,
                     new_sectors,
@@ -493,6 +496,7 @@ pub mod pallet {
                     T::WPoStChallengeLookBack::get(),
                 )
                 .map_err(|e| Error::<T>::StorageProviderError(e))?;
+
                 sp.remove_pre_committed_sector(sector_number)
                     .map_err(|e| Error::<T>::StorageProviderError(e))?;
                 Ok(())
@@ -536,11 +540,16 @@ pub mod pallet {
                 return Err(e.into());
             }
 
-            if current_block < sp.proving_period_start {
-                // If the proving period is in the future, we can't submit a proof yet
-                // Related issue: https://github.com/filecoin-project/specs-actors/issues/946
-                return Err(Error::<T>::InvalidDeadlineSubmission.into());
-            }
+            // If the proving period is in the future, we can't submit a proof yet
+            // Related issue: https://github.com/filecoin-project/specs-actors/issues/946
+            ensure!(current_block >= sp.proving_period_start, {
+                log::error!(target: LOG_TARGET,
+                    "proving period hasn't opened yet (current_block: {}, proving_period_start: {})",
+                    current_block,
+                    sp.proving_period_start
+                );
+                Error::<T>::InvalidDeadlineSubmission
+            });
 
             let current_deadline = sp
                 .deadline_info(
@@ -596,16 +605,13 @@ pub mod pallet {
                     .map_err(|e| Error::<T>::SectorMapError(e))?;
             }
 
-            let proving_period_start = sp
-                .current_proving_period_start(
-                    current_block,
-                    T::FaultMaxAge::get(),
-                    T::WPoStPeriodDeadlines::get(),
-                    T::WPoStProvingPeriod::get(),
-                    T::WPoStChallengeWindow::get(),
-                    T::WPoStChallengeLookBack::get(),
-                )
-                .map_err(|e| Error::<T>::DeadlineError(e))?;
+            let wpost_proving_period = T::WPoStProvingPeriod::get();
+            let proving_period_start = calculate_proving_period_start_with_seed(
+                current_block,
+                sp.proving_period_start,
+                wpost_proving_period,
+            );
+
             let sectors = sp.sectors.clone();
             for (deadline_idx, partition_map) in to_process.into_iter() {
                 log::debug!(target: LOG_TARGET, "declare_faults: Processing deadline index: {deadline_idx}");

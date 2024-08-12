@@ -15,7 +15,13 @@ use crate::{
     Config,
 };
 
-/// Setup the environment for the submit_windowed_post tests
+/// Setup the environment for the submit_windowed_post tests.
+///
+/// 1. Registers Alice as a storage provider
+/// 2. Adds balances
+///     1. 60 for the storage provider
+///     2. 70 for the storage client
+/// 3. Publishes one storage deal
 fn setup() {
     // Setup accounts
     let storage_provider = ALICE;
@@ -197,7 +203,6 @@ fn should_fail_before_first_post() {
         // Build window post proof
         let windowed_post = SubmitWindowedPoStBuilder::default()
             .chain_commit_block(System::block_number() - 1)
-            .partition(2) // This partition does not exist
             .build();
 
         // Run extrinsic

@@ -156,6 +156,9 @@ where
     }
 
     /// Assign new sector to a deadline.
+    ///
+    /// Reference:
+    /// * <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/state.rs#L489-L554>
     pub fn assign_sectors_to_deadlines(
         &mut self,
         current_block: BlockNumber,
@@ -178,30 +181,36 @@ where
         let mut deadline_vec: Vec<Option<Deadline<BlockNumber>>> =
             (0..w_post_period_deadlines).map(|_| None).collect();
 
-        // Calculate the proving period start current proving period start
-        // may fail if conversion between BlockNumber/u64 fails
-        let proving_period_start = self.current_proving_period_start(
-            current_block,
-            fault_cutoff_declaration,
-            w_post_period_deadlines,
-            w_post_proving_period,
-            w_post_challenge_window,
-            w_post_challenge_lookback,
-        )?;
-
-        for (idx, deadline) in self.deadlines.due.iter().enumerate() {
-            // Skip deadlines that aren't currently mutable.
-            if deadline_is_mutable(
-                proving_period_start,
-                idx as u64,
-                current_block,
-                fault_cutoff_declaration,
-                w_post_period_deadlines,
-                w_post_proving_period,
-                w_post_challenge_window,
-                w_post_challenge_lookback,
-            )? {
+        // required otherwise the logic gets complicated really fast
+        // the issue is that filecoin supports negative epoch numbers
+        if current_block < w_post_challenge_window {
+            // Before the firs
+            for (idx, deadline) in self.deadlines.due.iter().enumerate() {
                 deadline_vec[idx as usize] = Some(deadline.clone());
+            }
+        } else {
+            let proving_period_start = calculate_proving_period_start_with_seed(
+                current_block,
+                self.proving_period_start,
+                w_post_proving_period,
+            );
+
+            for (idx, deadline) in self.deadlines.due.iter().enumerate() {
+                let is_deadline_mutable = deadline_is_mutable(
+                    proving_period_start,
+                    idx as u64,
+                    current_block,
+                    fault_cutoff_declaration,
+                    w_post_period_deadlines,
+                    w_post_proving_period,
+                    w_post_challenge_window,
+                    w_post_challenge_lookback,
+                )?;
+                log::error!(target: LOG_TARGET, "is_deadline_mutable {}", is_deadline_mutable);
+                // Skip deadlines that aren't currently mutable.
+                if is_deadline_mutable {
+                    deadline_vec[idx as usize] = Some(deadline.clone());
+                }
             }
         }
 
@@ -228,28 +237,6 @@ where
             self.deadlines.due[deadline_idx] = deadline.clone();
         }
         Ok(())
-    }
-
-    /// Returns current proving period start for the current block according
-    /// to the current block and constant state offset.
-    pub fn current_proving_period_start(
-        &self,
-        current_block: BlockNumber,
-        fault_cutoff_declaration: BlockNumber,
-        w_post_period_deadlines: u64,
-        w_post_proving_period: BlockNumber,
-        w_post_challenge_window: BlockNumber,
-        w_post_challenge_lookback: BlockNumber,
-    ) -> Result<BlockNumber, DeadlineError> {
-        let dl_info = self.deadline_info(
-            current_block,
-            fault_cutoff_declaration,
-            w_post_period_deadlines,
-            w_post_proving_period,
-            w_post_challenge_window,
-            w_post_challenge_lookback,
-        )?;
-        Ok(dl_info.period_start)
     }
 
     /// Simple getter for mutable deadlines.
@@ -368,7 +355,7 @@ impl<PeerId> StorageProviderInfo<PeerId> {
 ///
 /// Reference:
 /// * <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L4904-L4921>
-pub(crate) fn calculate_first_proving_period<BlockNumber>(
+pub(crate) fn calculate_first_proving_period_start<BlockNumber>(
     current_block: BlockNumber,
     offset: BlockNumber,
     wpost_proving_period: BlockNumber,
@@ -382,6 +369,54 @@ where
     let global_proving_start = (global_proving_index + BlockNumber::one()) * wpost_proving_period;
 
     global_proving_start + offset
+}
+
+/// Calculate the *first* proving period.
+///
+/// **Pre-condition**: `current_block >= wpost_proving_period`
+///
+/// This method will calculate the current global proving period start and add the offset to it.
+/// You can read how to calculate the global proving period start and index in the description
+/// for [`Config::WPoStProvingWindow`].
+///
+/// Reference:
+/// * <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L4904-L4921>
+pub(crate) fn calculate_proving_period_start<BlockNumber>(
+    current_block: BlockNumber,
+    offset: BlockNumber,
+    wpost_proving_period: BlockNumber,
+) -> BlockNumber
+where
+    BlockNumber: sp_runtime::traits::BlockNumber,
+{
+    let global_proving_index = current_block / wpost_proving_period;
+    let global_proving_start = global_proving_index * wpost_proving_period;
+
+    global_proving_start + offset
+}
+
+/// Calculate the current proving period start, using a proving period seed instead of the offset.
+///
+/// It calculates the offset by `seed % wpost_proving_period`.
+pub(crate) fn calculate_proving_period_start_with_seed<BlockNumber>(
+    current_block: BlockNumber,
+    seed: BlockNumber,
+    wpost_proving_period: BlockNumber,
+) -> BlockNumber
+where
+    BlockNumber: sp_runtime::traits::BlockNumber,
+{
+    log::error!(
+        "{} {} {}",
+        seed,
+        wpost_proving_period,
+        seed % wpost_proving_period
+    );
+    calculate_proving_period_start(
+        current_block,
+        seed % wpost_proving_period,
+        wpost_proving_period,
+    )
 }
 
 /// Calculate the current deadline index.
@@ -407,7 +442,7 @@ where
 mod tests {
     use rstest::rstest;
 
-    use crate::storage_provider::calculate_first_proving_period;
+    use crate::storage_provider::calculate_first_proving_period_start;
 
     // Adding +120 since it's always one full proving period ahead
     #[rstest]
@@ -426,7 +461,7 @@ mod tests {
         #[case] expected_start: u64,
     ) {
         assert_eq!(
-            calculate_first_proving_period::<u64>(current_block, offset, 120),
+            calculate_first_proving_period_start::<u64>(current_block, offset, 120),
             expected_start
         );
     }
