@@ -209,13 +209,7 @@ where
         BlockNumber: sp_runtime::traits::BlockNumber,
     {
         // Recoveries = (sector_numbers & self.faults) - self.recoveries
-        let new_recoveries = sector_numbers
-            .iter()
-            .filter(|sector_number| {
-                self.faults.contains(&sector_number) && !self.recoveries.contains(sector_number)
-            })
-            .copied()
-            .collect();
+        let new_recoveries = sector_numbers.intersection(&self.faults).copied().collect();
         // self.recoveries | recoveries
         self.recoveries = self
             .recoveries
