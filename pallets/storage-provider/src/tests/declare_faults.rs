@@ -206,7 +206,7 @@ fn multiple_partition_faults() {
             }
         }
         // One partitions faults should be added.
-        // assert_eq!(updates, 5);
+        assert_eq!(updates, 5);
         assert_eq!(
             dbg!(events()),
             [RuntimeEvent::StorageProvider(Event::FaultsDeclared {
