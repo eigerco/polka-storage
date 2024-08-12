@@ -8,11 +8,11 @@ use crate::{
         DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration, RecoveryDeclaration,
     },
     pallet::{Event, StorageProviders, DECLARATIONS_MAX},
-    partition::PartitionNumber,
     sector::ProveCommitSector,
     tests::{
         account, declare_faults::default_fault_setup, events, new_test_ext,
-        register_storage_provider, DealProposalBuilder, Market, RuntimeEvent, RuntimeOrigin,
+        register_storage_provider, DealProposalBuilder, DeclareFaultsBuilder,
+        DeclareFaultsRecoveredBuilder, Market, RuntimeEvent, RuntimeOrigin,
         SectorPreCommitInfoBuilder, StorageProvider, System, Test, ALICE, BOB,
     },
 };
@@ -313,139 +313,4 @@ fn multi_sectors_setup(storage_provider: &str, storage_client: &str, sectors: &[
 
     // Flush events
     System::reset_events();
-}
-
-struct DeclareFaultsBuilder {
-    faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>>,
-}
-
-impl Default for DeclareFaultsBuilder {
-    fn default() -> Self {
-        Self {
-            faults: bounded_vec![],
-        }
-    }
-}
-
-impl DeclareFaultsBuilder {
-    fn fault(
-        mut self,
-        deadline: u64,
-        partition: PartitionNumber,
-        sectors: Vec<SectorNumber>,
-    ) -> Self {
-        let mut fault_sectors = BoundedBTreeSet::new();
-        sectors.iter().for_each(|sector_number| {
-            fault_sectors
-                .try_insert(*sector_number)
-                .expect("Programmer error");
-        });
-        let fault = FaultDeclaration {
-            deadline,
-            partition,
-            sectors: fault_sectors,
-        };
-        self.faults = bounded_vec![fault];
-        self
-    }
-
-    fn multiple_deadlines(
-        mut self,
-        deadlines: Vec<u64>,
-        partition: PartitionNumber,
-        sectors: Vec<SectorNumber>,
-    ) -> Self {
-        let mut fault_sectors = BoundedBTreeSet::new();
-        sectors.iter().for_each(|sector_number| {
-            fault_sectors
-                .try_insert(*sector_number)
-                .expect("Programmer error");
-        });
-        let mut faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>> = bounded_vec![];
-        for deadline in deadlines {
-            faults
-                .try_push(FaultDeclaration {
-                    deadline,
-                    partition,
-                    sectors: fault_sectors.clone(),
-                })
-                .expect("Programmer error");
-        }
-        self.faults = faults;
-        self
-    }
-
-    fn build(self) -> DeclareFaultsParams {
-        DeclareFaultsParams {
-            faults: self.faults,
-        }
-    }
-}
-
-struct DeclareFaultsRecoveredBuilder {
-    recoveries: BoundedVec<RecoveryDeclaration, ConstU32<DECLARATIONS_MAX>>,
-}
-
-impl Default for DeclareFaultsRecoveredBuilder {
-    fn default() -> Self {
-        Self {
-            recoveries: bounded_vec![],
-        }
-    }
-}
-
-impl DeclareFaultsRecoveredBuilder {
-    fn fault_recovery(
-        mut self,
-        deadline: u64,
-        partition: PartitionNumber,
-        sectors: Vec<SectorNumber>,
-    ) -> Self {
-        let mut recovered_sectors = BoundedBTreeSet::new();
-        sectors.iter().for_each(|sector_number| {
-            recovered_sectors
-                .try_insert(*sector_number)
-                .expect("Programmer error");
-        });
-        let recovery = RecoveryDeclaration {
-            deadline,
-            partition,
-            sectors: recovered_sectors,
-        };
-        self.recoveries = bounded_vec![recovery];
-        self
-    }
-
-    fn multiple_deadlines_recovery(
-        mut self,
-        deadlines: Vec<u64>,
-        partition: PartitionNumber,
-        sectors: Vec<SectorNumber>,
-    ) -> Self {
-        let mut recovered_sectors = BoundedBTreeSet::new();
-        sectors.iter().for_each(|sector_number| {
-            recovered_sectors
-                .try_insert(*sector_number)
-                .expect("Programmer error");
-        });
-        let mut recoveries: BoundedVec<RecoveryDeclaration, ConstU32<DECLARATIONS_MAX>> =
-            bounded_vec![];
-        for deadline in deadlines {
-            recoveries
-                .try_push(RecoveryDeclaration {
-                    deadline,
-                    partition,
-                    sectors: recovered_sectors.clone(),
-                })
-                .expect("Programmer error");
-        }
-        self.recoveries = recoveries;
-        self
-    }
-
-    fn build(self) -> DeclareFaultsRecoveredParams {
-        DeclareFaultsRecoveredParams {
-            recoveries: self.recoveries,
-        }
-    }
 }
