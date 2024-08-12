@@ -201,6 +201,7 @@ where
 
         // Next, update the expiration queue.
         for (block, partition_index) in partition_deadline_updates {
+            dbg!(&block, &partition_index);
             self.expirations_blocks.try_insert(block, partition_index).map_err(|_| {
                 log::error!(target: LOG_TARGET, "add_sectors: Cannot update expiration queue at index {partition_idx}");
                 DeadlineError::CouldNotAddSectors
@@ -222,10 +223,13 @@ where
         partition_sectors: &mut PartitionMap,
         fault_expiration_block: BlockNumber,
     ) -> Result<(), DeadlineError> {
+        dbg!(&self.expirations_blocks);
+
         for (partition_number, partition) in self.partitions.iter_mut() {
             if !partition_sectors.0.contains_key(&partition_number) {
                 continue;
             }
+
             partition.record_faults(
                 sectors,
                 partition_sectors

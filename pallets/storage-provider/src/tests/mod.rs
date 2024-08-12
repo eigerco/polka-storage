@@ -375,6 +375,11 @@ impl DealProposalBuilder {
         self
     }
 
+    pub fn label(mut self, label: Vec<u8>) -> Self {
+        self.label = BoundedVec::try_from(label).unwrap();
+        self
+    }
+
     pub fn unsigned(self) -> DealProposalOf<Test> {
         DealProposalOf::<Test> {
             piece_cid: self.piece_cid,
