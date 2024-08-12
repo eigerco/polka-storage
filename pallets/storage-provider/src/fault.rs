@@ -21,7 +21,7 @@ pub struct DeclareFaultsParams {
     pub faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>>,
 }
 
-#[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct RecoveryDeclaration {
     /// The deadline to which the recovered sectors are assigned, in range [0..WPoStPeriodDeadlines)
     pub deadline: u64,
@@ -31,7 +31,7 @@ pub struct RecoveryDeclaration {
     pub sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_TERMINATIONS_PER_CALL>>,
 }
 
-#[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct DeclareFaultsRecoveredParams {
     pub recoveries: BoundedVec<RecoveryDeclaration, ConstU32<DECLARATIONS_MAX>>,
 }
