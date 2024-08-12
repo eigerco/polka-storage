@@ -220,7 +220,7 @@ where
         self.recoveries = self
             .recoveries
             .union(&new_recoveries)
-            .map(|sector_number| *sector_number)
+            .copied()
             .collect::<BTreeSet<u64>>()
             .try_into()
             .expect("Programmer error: BoundedBTreeSet should be able to be created from BTreeSet");
