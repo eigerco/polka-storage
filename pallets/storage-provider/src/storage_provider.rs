@@ -385,6 +385,8 @@ where
 
 /// Calculate the current deadline index.
 ///
+/// **Pre-condition**: `current_block >= period_start`
+///
 /// No magic here, the same logic from Filecoin applies.
 ///
 /// Reference:
