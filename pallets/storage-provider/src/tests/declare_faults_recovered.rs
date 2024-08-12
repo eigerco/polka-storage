@@ -37,7 +37,7 @@ fn declare_single_fault_recovered() {
         ));
 
         // Flush events
-        events();
+        System::reset_events();
 
         // setup recovery and run extrinsic
         assert_ok!(StorageProvider::declare_faults_recovered(
@@ -165,7 +165,6 @@ fn multiple_deadline_faults_recovered() {
         default_fault_setup(storage_provider, storage_client);
 
         // Fault declaration setup
-
         assert_ok!(StorageProvider::declare_faults(
             RuntimeOrigin::signed(account(storage_provider)),
             DeclareFaultsBuilder::default()
@@ -173,8 +172,8 @@ fn multiple_deadline_faults_recovered() {
                 .build(),
         ));
 
-        // flush events
-        events();
+        // Flush events
+        System::reset_events();
 
         // setup recovery and run extrinsic
         // setup recovery and run extrinsic
