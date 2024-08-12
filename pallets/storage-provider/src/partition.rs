@@ -159,7 +159,8 @@ where
     }
 
     /// marks a set of sectors faulty
-    /// Filecoin reference: <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/partition_state.rs#L155>
+    /// References:
+    /// * <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/partition_state.rs#L155>
     fn add_faults(
         &mut self,
         sector_numbers: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
@@ -199,7 +200,8 @@ where
 
     /// Set sectors from faulty to recovering, skips any sectors already marked as non-faulty or recovering
     ///
-    /// Filecoin reference: <https://github.com/filecoin-project/builtin-actors/blob/0f205c378983ac6a08469b9f400cbb908eef64e2/actors/miner/src/partition_state.rs#L317>
+    /// References:
+    /// * <https://github.com/filecoin-project/builtin-actors/blob/0f205c378983ac6a08469b9f400cbb908eef64e2/actors/miner/src/partition_state.rs#L317>
     pub fn declare_faults_recovered(
         &mut self,
         sector_numbers: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,

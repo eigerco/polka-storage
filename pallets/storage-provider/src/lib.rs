@@ -598,7 +598,8 @@ pub mod pallet {
 
         /// The SP uses this extrinsic to declare some sectors as faulty. Letting the system know it will not submit PoSt for the next deadline.
         ///
-        /// Filecoin reference: <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/lib.rs#L2648>
+        /// References:
+        /// * <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/lib.rs#L2648>
         pub fn declare_faults(origin: OriginFor<T>, params: DeclareFaultsParams) -> DispatchResult {
             let owner = ensure_signed(origin)?;
             let current_block = <frame_system::Pallet<T>>::block_number();
@@ -666,7 +667,8 @@ pub mod pallet {
         /// Sectors can either be declared faulty by the SP or by the system.
         /// The system declares a sector as faulty when an SP misses their PoSt deadline.
         ///
-        /// Filecoin reference: <https://github.com/filecoin-project/builtin-actors/blob/0f205c378983ac6a08469b9f400cbb908eef64e2/actors/miner/src/lib.rs#L2620>
+        /// References:
+        /// * <https://github.com/filecoin-project/builtin-actors/blob/0f205c378983ac6a08469b9f400cbb908eef64e2/actors/miner/src/lib.rs#L2620>
         pub fn declare_faults_recovered(
             origin: OriginFor<T>,
             params: DeclareFaultsRecoveredParams,
