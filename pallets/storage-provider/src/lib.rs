@@ -337,22 +337,13 @@ pub mod pallet {
                 offset,
                 proving_period,
             );
-            // This is actually always zero since the proving_start will always be the future
-            let local_deadline_idx = calculate_current_deadline_index::<BlockNumberFor<T>>(
-                local_proving_start,
-                local_proving_start,
-                challenge_period,
-            );
-
-            log::debug!("proving_period: {proving_period:?}");
-            log::debug!("current_block: {current_block:?}");
-            log::debug!("offset: {offset:?}");
-
             let info = StorageProviderInfo::new(peer_id, window_post_proof_type);
             let state = StorageProviderState::new(
                 info.clone(),
                 local_proving_start,
-                local_deadline_idx,
+                // Always zero since we're calculating the absolute first start
+                // thus the deadline will always be zero
+                0,
                 T::WPoStPeriodDeadlines::get(),
             );
             StorageProviders::<T>::insert(&owner, state);

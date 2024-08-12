@@ -56,7 +56,7 @@ where
     /// Index of the deadline within the proving period beginning at ProvingPeriodStart that has not yet been
     /// finalized.
     /// Updated at the end of each deadline window.
-    pub current_deadline: BlockNumber,
+    pub current_deadline: u64,
 
     /// Deadlines indexed by their proving periods — e.g. for proving period 7, find it in
     /// `deadlines[7]` — proving periods are present in the interval `[0, 47]`.
@@ -83,7 +83,7 @@ where
     pub fn new(
         info: StorageProviderInfo<PeerId>,
         period_start: BlockNumber,
-        deadline_idx: BlockNumber,
+        deadline_idx: u64,
         w_post_period_deadlines: u64,
     ) -> Self {
         Self {
@@ -376,7 +376,10 @@ where
     BlockNumber: sp_runtime::traits::BlockNumber,
 {
     let global_proving_index = current_block / wpost_proving_period;
-    let global_proving_start = global_proving_index * wpost_proving_period;
+    // +1 to get the next proving period, ensuring the start is always in the future and
+    // and the absolute first time the SP needs to start submitting proofs
+    let global_proving_start = (global_proving_index + BlockNumber::one()) * wpost_proving_period;
+
     global_proving_start + offset
 }
 
@@ -403,15 +406,17 @@ mod tests {
 
     use crate::storage_provider::calculate_first_proving_period;
 
+    // Adding +120 since it's always one full proving period ahead
     #[rstest]
-    #[case(0, 0, 0)]
-    #[case(0, 119, 119)]
-    #[case(1, 0, 0)]
-    #[case(1, 119, 119)]
-    #[case(120, 0, 120)]
-    #[case(120, 20, 140)]
-    #[case(124, 0, 120)]
-    #[case(124, 20, 140)]
+    #[case(0, 0, 120)]
+    #[case(0, 119, 120 + 119)]
+    #[case(1, 0, 120)]
+    #[case(1, 119, 120 + 119)]
+    #[case(120, 0, 120 + 120)]
+    #[case(120, 20, 120 + 140)]
+    #[case(124, 0, 120 + 120)]
+    #[case(124, 20, 120 + 140)]
+    #[case(20, 5, 120 + 5)]
     fn calculate_proving_period(
         #[case] current_block: u64,
         #[case] offset: u64,

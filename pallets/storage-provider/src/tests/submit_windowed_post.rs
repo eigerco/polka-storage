@@ -378,8 +378,6 @@ fn windowed_post_commit_block(
         let target_block = ((proving_period_start as i64) + block_offset) as u64;
         let chain_commit_block = ((proving_period_start as i64) + chain_commit_block_offset) as u64;
 
-        log::error!("{} {}", target_block, chain_commit_block);
-
         // Cast is safe for this test, CANNOT be generalized for other uses
         run_to_block(target_block);
 
