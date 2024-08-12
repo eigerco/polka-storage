@@ -1,4 +1,4 @@
-use frame_support::{assert_noop, assert_ok, pallet_prelude::*, BoundedBTreeSet};
+use frame_support::{assert_noop, assert_ok, assert_err,pallet_prelude::*, BoundedBTreeSet};
 use primitives_proofs::{SectorNumber, MAX_TERMINATIONS_PER_CALL};
 use rstest::rstest;
 use sp_core::bounded_vec;
