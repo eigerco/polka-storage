@@ -258,6 +258,8 @@ where
     }
 
     /// Returns deadline calculations for the current (according to state) proving period.
+    ///
+    /// **Pre-condition**: `current_block > self.proving_period_start`
     pub fn deadline_info(
         &self,
         current_block: BlockNumber,
@@ -268,8 +270,7 @@ where
         w_post_challenge_lookback: BlockNumber,
     ) -> Result<DeadlineInfo<BlockNumber>, DeadlineError> {
         let current_deadline_index = calculate_current_deadline_index(
-            // HACK: if the proving period start is in the future the deadline will be 0
-            current_block.max(self.proving_period_start),
+            current_block,
             self.proving_period_start,
             w_post_challenge_window,
         );

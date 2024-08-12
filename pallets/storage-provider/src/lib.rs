@@ -70,8 +70,7 @@ pub mod pallet {
         },
         sector_map::DeadlineSectorMap,
         storage_provider::{
-            calculate_current_deadline_index, calculate_first_proving_period, StorageProviderInfo,
-            StorageProviderState,
+            calculate_first_proving_period, StorageProviderInfo, StorageProviderState,
         },
     };
 
@@ -321,9 +320,7 @@ pub mod pallet {
                 Error::<T>::StorageProviderExists
             );
             let current_block = <frame_system::Pallet<T>>::block_number();
-
             let proving_period = T::WPoStProvingPeriod::get();
-            let challenge_period = T::WPoStChallengeWindow::get();
 
             let offset = assign_proving_period_offset::<T::AccountId, BlockNumberFor<T>>(
                 &owner,
