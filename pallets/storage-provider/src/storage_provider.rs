@@ -406,12 +406,6 @@ pub(crate) fn calculate_proving_period_start_with_seed<BlockNumber>(
 where
     BlockNumber: sp_runtime::traits::BlockNumber,
 {
-    log::error!(
-        "{} {} {}",
-        seed,
-        wpost_proving_period,
-        seed % wpost_proving_period
-    );
     calculate_proving_period_start(
         current_block,
         seed % wpost_proving_period,

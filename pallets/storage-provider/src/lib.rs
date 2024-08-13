@@ -544,7 +544,7 @@ pub mod pallet {
             // Related issue: https://github.com/filecoin-project/specs-actors/issues/946
             ensure!(current_block >= sp.proving_period_start, {
                 log::error!(target: LOG_TARGET,
-                    "proving period hasn't opened yet (current_block: {}, proving_period_start: {})",
+                    "proving period hasn't opened yet (current_block: {:?}, proving_period_start: {:?})",
                     current_block,
                     sp.proving_period_start
                 );
