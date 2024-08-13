@@ -6,10 +6,10 @@ use frame_support::{assert_noop, assert_ok, pallet_prelude::*, BoundedBTreeSet};
 use primitives_proofs::MAX_TERMINATIONS_PER_CALL;
 use rstest::rstest;
 use sp_core::bounded_vec;
-use sp_runtime::BoundedVec;
+use sp_runtime::{traits::BlockNumberProvider, BoundedVec};
 
 use crate::{
-    deadline::{DeadlineError, Deadlines},
+    deadline::{DeadlineError, DeadlineInfo, Deadlines},
     fault::{DeclareFaultsParams, FaultDeclaration},
     pallet::{Error, Event, StorageProviders, DECLARATIONS_MAX},
     sector::ProveCommitSector,
@@ -19,6 +19,7 @@ use crate::{
         RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System, Test,
         ALICE, BOB, CHARLIE,
     },
+    Config,
 };
 
 #[test]
@@ -103,6 +104,36 @@ fn declare_single_fault_before_proving_period_start() {
             events()[..],
             [RuntimeEvent::StorageProvider(Event::FaultsDeclared { .. })]
         ));
+
+        // Check the expiration blocks
+        let test_dl = DeadlineInfo::new(
+            System::current_block_number(),
+            sp.proving_period_start,
+            0,
+            <Test as Config>::FaultMaxAge::get(),
+            <Test as Config>::WPoStPeriodDeadlines::get(),
+            <Test as Config>::WPoStChallengeWindow::get(),
+            <Test as Config>::WPoStProvingPeriod::get(),
+            <Test as Config>::WPoStChallengeLookBack::get(),
+        )
+        .and_then(DeadlineInfo::next_not_elapsed)
+        .expect("deadline should be valid");
+
+        // duplicated loop (because of the count_sectors_...) but that's ok
+        for dl in sp.deadlines.due.iter() {
+            for (partition_number, _) in dl
+                .partitions
+                .iter()
+                .filter(|(_, partition)| partition.faults.len() == 1)
+            {
+                assert_eq!(
+                    dl.expirations_blocks
+                        .get(&(test_dl.last() + <Test as Config>::FaultMaxAge::get()))
+                        .expect("should exist"),
+                    partition_number
+                );
+            }
+        }
     });
 }
 
@@ -129,8 +160,7 @@ fn declare_single_fault_from_proving_period(#[case] proving_period_multiple: f64
         // The cron hook generates events between blocks, this removes those events
         System::reset_events();
 
-        let mut sectors = BoundedBTreeSet::new();
-        sectors.try_insert(0).expect("Programmer error");
+        let mut sectors = create_set(&[0]);
         let fault = FaultDeclaration {
             deadline: 0,
             partition: 0,
@@ -143,20 +173,11 @@ fn declare_single_fault_from_proving_period(#[case] proving_period_multiple: f64
             },
         ));
 
-        let mut updates = 0;
-
         // Second call because we've updated the state and StorageProviders returns a clone of the state
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
-        for dl in sp.deadlines.due.iter() {
-            for (_, partition) in dl.partitions.iter() {
-                if partition.faults.len() > 0 {
-                    updates += 1;
-                }
-            }
-        }
-
-        // One partitions fault should be added.
-        assert_eq!(updates, 1);
+        let (faults, _recoveries) = count_sector_faults_and_recoveries(&sp.deadlines);
+        // Check that partitions are set to faulty
+        assert_eq!(faults, 1);
         assert_eq!(
             events(),
             [RuntimeEvent::StorageProvider(Event::FaultsDeclared {
@@ -164,6 +185,34 @@ fn declare_single_fault_from_proving_period(#[case] proving_period_multiple: f64
                 faults: bounded_vec![fault]
             })]
         );
+
+        let test_dl = DeadlineInfo::new(
+            new_block,
+            sp.proving_period_start,
+            0,
+            <Test as Config>::FaultMaxAge::get(),
+            <Test as Config>::WPoStPeriodDeadlines::get(),
+            <Test as Config>::WPoStChallengeWindow::get(),
+            <Test as Config>::WPoStProvingPeriod::get(),
+            <Test as Config>::WPoStChallengeLookBack::get(),
+        )
+        .and_then(DeadlineInfo::next_not_elapsed)
+        .expect("deadline should be valid");
+
+        for dl in sp.deadlines.due.iter() {
+            for (partition_number, _) in dl
+                .partitions
+                .iter()
+                .filter(|(_, partition)| partition.faults.len() == 1)
+            {
+                assert_eq!(
+                    dl.expirations_blocks
+                        .get(&(test_dl.last() + <Test as Config>::FaultMaxAge::get()))
+                        .expect("should exist"),
+                    partition_number
+                );
+            }
+        }
     });
 }
 

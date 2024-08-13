@@ -491,7 +491,7 @@ impl Default for SubmitWindowedPoStBuilder {
 }
 
 struct DeclareFaultsBuilder {
-    faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>>,
+    pub faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>>,
 }
 
 impl Default for DeclareFaultsBuilder {
