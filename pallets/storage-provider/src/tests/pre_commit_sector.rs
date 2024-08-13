@@ -61,7 +61,7 @@ fn successfully_precommited() {
         assert_eq!(sp.pre_commit_deposits, 1);
         assert_eq!(
             Balances::free_balance(account(storage_provider)),
-            INITIAL_FUNDS - 70 - 1  // 1 for pre-commit deposit
+            INITIAL_FUNDS - 70 - 1 // 1 for pre-commit deposit
         );
     });
 }
