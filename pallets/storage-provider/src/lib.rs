@@ -63,16 +63,15 @@ pub mod pallet {
     use crate::{
         deadline::DeadlineInfo,
         fault::{DeclareFaultsParams, FaultDeclaration},
-        proofs::{
-            assign_proving_period_offset, current_deadline_index, current_proving_period_start,
-            SubmitWindowedPoStParams,
-        },
+        proofs::{assign_proving_period_offset, SubmitWindowedPoStParams},
         sector::{
             ProveCommitSector, SectorOnChainInfo, SectorPreCommitInfo, SectorPreCommitOnChainInfo,
             MAX_SECTORS,
         },
         sector_map::DeadlineSectorMap,
-        storage_provider::{StorageProviderInfo, StorageProviderState},
+        storage_provider::{
+            calculate_first_proving_period_start, StorageProviderInfo, StorageProviderState,
+        },
     };
 
     /// Allows to extract Balance of an account via the Config::Currency associated type.
@@ -166,7 +165,6 @@ pub mod pallet {
         ///
         /// References:
         /// * <https://spec.filecoin.io/#section-algorithms.pos.post.design>
-        /// Window PoSt challenge window (default 30 minutes in blocks)
         #[pallet::constant]
         type WPoStChallengeWindow: Get<BlockNumberFor<Self>>;
 
@@ -322,21 +320,27 @@ pub mod pallet {
                 Error::<T>::StorageProviderExists
             );
             let current_block = <frame_system::Pallet<T>>::block_number();
+            let proving_period = T::WPoStProvingPeriod::get();
+
             let offset = assign_proving_period_offset::<T::AccountId, BlockNumberFor<T>>(
                 &owner,
                 current_block,
                 T::WPoStProvingPeriod::get(),
             )
             .map_err(|_| Error::<T>::ConversionError)?;
-            let period_start =
-                current_proving_period_start(current_block, offset, T::WPoStProvingPeriod::get());
-            let deadline_idx =
-                current_deadline_index(current_block, period_start, T::WPoStChallengeWindow::get());
+
+            let local_proving_start = calculate_first_proving_period_start::<BlockNumberFor<T>>(
+                current_block,
+                offset,
+                proving_period,
+            );
             let info = StorageProviderInfo::new(peer_id, window_post_proof_type);
             let state = StorageProviderState::new(
-                &info,
-                period_start,
-                deadline_idx,
+                info.clone(),
+                local_proving_start,
+                // Always zero since we're calculating the absolute first start
+                // thus the deadline will always be zero
+                0,
                 T::WPoStPeriodDeadlines::get(),
             );
             StorageProviders::<T>::insert(&owner, state);
@@ -448,13 +452,13 @@ pub mod pallet {
                 sector_number <= MAX_SECTORS.into(),
                 Error::<T>::InvalidSector
             );
+
             let precommit = sp
                 .get_pre_committed_sector(sector_number)
                 .map_err(|e| Error::<T>::StorageProviderError(e))?;
             let current_block = <frame_system::Pallet<T>>::block_number();
             let prove_commit_due =
                 precommit.pre_commit_block_number + T::MaxProveCommitDuration::get();
-
             ensure!(
                 current_block < prove_commit_due,
                 Error::<T>::ProveCommitAfterDeadline
@@ -473,10 +477,12 @@ pub mod pallet {
                     .ok_or(Error::<T>::StorageProviderNotFound)?;
                 sp.activate_sector(sector_number, new_sector.clone())
                     .map_err(|e| Error::<T>::StorageProviderError(e))?;
+
                 let mut new_sectors = BoundedVec::new();
                 new_sectors
                     .try_push(new_sector)
                     .expect("Infallible since only 1 element is inserted");
+
                 sp.assign_sectors_to_deadlines(
                     current_block,
                     new_sectors,
@@ -489,6 +495,7 @@ pub mod pallet {
                     T::WPoStChallengeLookBack::get(),
                 )
                 .map_err(|e| Error::<T>::StorageProviderError(e))?;
+
                 sp.remove_pre_committed_sector(sector_number)
                     .map_err(|e| Error::<T>::StorageProviderError(e))?;
                 Ok(())
@@ -531,6 +538,17 @@ pub mod pallet {
                 log::error!(target: LOG_TARGET, "submit_window_post: PoSt submission is invalid {e:?}");
                 return Err(e.into());
             }
+
+            // If the proving period is in the future, we can't submit a proof yet
+            // Related issue: https://github.com/filecoin-project/specs-actors/issues/946
+            ensure!(current_block >= sp.proving_period_start, {
+                log::error!(target: LOG_TARGET,
+                    "proving period hasn't opened yet (current_block: {:?}, proving_period_start: {:?})",
+                    current_block,
+                    sp.proving_period_start
+                );
+                Error::<T>::InvalidDeadlineSubmission
+            });
 
             let current_deadline = sp
                 .deadline_info(
@@ -586,23 +604,18 @@ pub mod pallet {
                     .map_err(|e| Error::<T>::SectorMapError(e))?;
             }
 
-            let proving_period_start = sp
-                .current_proving_period_start(
-                    current_block,
-                    T::FaultMaxAge::get(),
-                    T::WPoStPeriodDeadlines::get(),
-                    T::WPoStProvingPeriod::get(),
-                    T::WPoStChallengeWindow::get(),
-                    T::WPoStChallengeLookBack::get(),
-                )
-                .map_err(|e| Error::<T>::DeadlineError(e))?;
-            let sectors = sp.sectors.clone();
             for (deadline_idx, partition_map) in to_process.into_iter() {
                 log::debug!(target: LOG_TARGET, "declare_faults: Processing deadline index: {deadline_idx}");
-                // Get the deadline
+                // Get the target deadline
+                // We're deviating from the original implementation by using the `sp.proving_period_start`
+                // instead of calculating it here, but we couldn't find a reason to do it in another way
+                //
+                // References:
+                // * https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L2436-L2449
+                // * https://github.com/eigerco/polka-storage/pull/192#discussion_r1715067288
                 let target_dl = DeadlineInfo::new(
                     current_block,
-                    proving_period_start,
+                    sp.proving_period_start,
                     *deadline_idx,
                     T::FaultMaxAge::get(),
                     T::WPoStPeriodDeadlines::get(),
@@ -610,18 +623,24 @@ pub mod pallet {
                     T::WPoStProvingPeriod::get(),
                     T::WPoStChallengeLookBack::get(),
                 )
+                // FIX(@jmg-duarte,#196,13/8/24): this is not 100% correct but I'm not fixing this now
+                // I'll address this following up the merge of this code
+                // The issue is that the target deadline is the NEXT NOT ELAPSED
+                // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L4949
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
+
                 ensure!(!target_dl.fault_cutoff_passed(), {
                     log::error!(target: LOG_TARGET, "declare_faults: Late fault declaration at deadline {deadline_idx}");
                     Error::<T>::FaultDeclarationTooLate
                 });
+
                 let fault_expiration_block = target_dl.last() + T::FaultMaxAge::get();
                 log::debug!(target: LOG_TARGET, "declare_faults: Getting deadline[{deadline_idx}]");
                 let dl = sp
                     .deadlines
                     .load_deadline_mut(*deadline_idx as usize)
                     .map_err(|e| Error::<T>::DeadlineError(e))?;
-                dl.record_faults(&sectors, partition_map, fault_expiration_block)
+                dl.record_faults(&sp.sectors, partition_map, fault_expiration_block)
                     .map_err(|e| Error::<T>::DeadlineError(e))?;
             }
             StorageProviders::<T>::insert(owner.clone(), sp);

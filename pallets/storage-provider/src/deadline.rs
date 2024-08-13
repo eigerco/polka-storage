@@ -191,7 +191,7 @@ where
         }
 
         let partitions = BoundedBTreeMap::try_from(partitions).map_err(|_| {
-            log::error!(target: LOG_TARGET, "add_sectors: could not convert partitions to BoundedBTreeMap, too many of them ({} -> {}).", 
+            log::error!(target: LOG_TARGET, "add_sectors: could not convert partitions to BoundedBTreeMap, too many of them ({} -> {}).",
                 initial_partitions,
                 partition_idx);
             DeadlineError::CouldNotAddSectors

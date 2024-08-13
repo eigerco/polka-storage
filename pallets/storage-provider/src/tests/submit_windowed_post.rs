@@ -12,9 +12,16 @@ use crate::{
         DealProposalBuilder, Market, RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder,
         StorageProvider, SubmitWindowedPoStBuilder, System, Test, ALICE, BOB,
     },
+    Config,
 };
 
-/// Setup the environment for the submit_windowed_post tests
+/// Setup the environment for the submit_windowed_post tests.
+///
+/// 1. Registers Alice as a storage provider
+/// 2. Adds balances
+///     1. 60 for the storage provider
+///     2. 70 for the storage client
+/// 3. Publishes one storage deal
 fn setup() {
     // Setup accounts
     let storage_provider = ALICE;
@@ -76,8 +83,7 @@ fn setup() {
 
     // Check if the sector was successfully committed
     let state = StorageProviders::<Test>::get(account(ALICE)).unwrap();
-    let deadlines = state.deadlines;
-    let new_dl = deadlines.due.first().expect("programmer error");
+    let new_dl = state.deadlines.due.first().expect("programmer error");
     assert_eq!(new_dl.live_sectors, 1);
     assert_eq!(new_dl.total_sectors, 1);
 }
@@ -104,8 +110,11 @@ fn submit_windowed_post() {
 
         let partition = 0;
 
-        // proving period is assigned based on hash(account_id, block_number) % wpost_proving_offset `assign_proving_period_offset`.
-        run_to_block(19);
+        // Run to block where the window post proof is to be submitted
+        let proving_period_start = StorageProviders::<Test>::get(account(ALICE))
+            .unwrap()
+            .proving_period_start;
+        run_to_block(proving_period_start);
 
         // Done with setup build window post proof
         let windowed_post = SubmitWindowedPoStBuilder::default()
@@ -143,8 +152,11 @@ fn submit_windowed_post_for_sector_twice() {
     new_test_ext().execute_with(|| {
         setup();
 
-        // proving period is assigned based on hash(account_id, block_number) % wpost_proving_offset `assign_proving_period_offset`.
-        run_to_block(19);
+        // Run to block where the window post proof is to be submitted
+        let proving_period_start = StorageProviders::<Test>::get(account(ALICE))
+            .unwrap()
+            .proving_period_start;
+        run_to_block(proving_period_start);
 
         // Build window post proof
         let windowed_post = SubmitWindowedPoStBuilder::default()
@@ -181,12 +193,39 @@ fn submit_windowed_post_for_sector_twice() {
 }
 
 #[test]
-fn should_fail_when_proving_wrong_partition() {
+fn should_fail_before_first_post() {
     new_test_ext().execute_with(|| {
         setup();
 
         // Run to block where the window post proof is to be submitted
         run_to_block(19);
+
+        // Build window post proof
+        let windowed_post = SubmitWindowedPoStBuilder::default()
+            .chain_commit_block(System::block_number() - 1)
+            .build();
+
+        // Run extrinsic
+        assert_noop!(
+            StorageProvider::submit_windowed_post(
+                RuntimeOrigin::signed(account(ALICE)),
+                windowed_post,
+            ),
+            Error::<Test>::InvalidDeadlineSubmission
+        );
+    });
+}
+
+#[test]
+fn should_fail_when_proving_wrong_partition() {
+    new_test_ext().execute_with(|| {
+        setup();
+
+        // Run to block where the window post proof is to be submitted
+        let proving_period_start = StorageProviders::<Test>::get(account(ALICE))
+            .unwrap()
+            .proving_period_start;
+        run_to_block(proving_period_start);
 
         // Build window post proof
         let windowed_post = SubmitWindowedPoStBuilder::default()
@@ -210,8 +249,11 @@ fn fail_windowed_post_deadline_not_opened() {
     new_test_ext().execute_with(|| {
         setup();
 
-        // On this block the deadline is not yet opened
-        run_to_block(5);
+        // Run to block where the window post proof is to be submitted
+        let proving_period_start = StorageProviders::<Test>::get(account(ALICE))
+            .unwrap()
+            .proving_period_start;
+        run_to_block(proving_period_start + <Test as Config>::WPoStChallengeWindow::get() * 3 - 1);
 
         // Build window post proof
         let windowed_post = SubmitWindowedPoStBuilder::default()
@@ -235,7 +277,10 @@ fn fail_windowed_post_wrong_deadline_index_used() {
         setup();
 
         // Run to block where the window post proof is to be submitted
-        run_to_block(19);
+        let proving_period_start = StorageProviders::<Test>::get(account(ALICE))
+            .unwrap()
+            .proving_period_start;
+        run_to_block(proving_period_start);
 
         // Build window post proof
         let windowed_post = SubmitWindowedPoStBuilder::default()
@@ -260,7 +305,10 @@ fn fail_windowed_post_wrong_signature() {
         setup();
 
         // Run to block where the window post proof is to be submitted
-        run_to_block(19);
+        let proving_period_start = StorageProviders::<Test>::get(account(ALICE))
+            .unwrap()
+            .proving_period_start;
+        run_to_block(proving_period_start);
 
         // Build window post proof
         let windowed_post = SubmitWindowedPoStBuilder::default()
@@ -279,28 +327,64 @@ fn fail_windowed_post_wrong_signature() {
     });
 }
 
+#[test]
+fn fail_windowed_post_future_commit_block() {
+    new_test_ext().execute_with(|| {
+        setup();
+
+        // Run to block where the window post proof is to be submitted
+        let proving_period_start = StorageProviders::<Test>::get(account(ALICE))
+            .unwrap()
+            .proving_period_start;
+        run_to_block(proving_period_start);
+
+        // Build window post proof
+        let windowed_post = SubmitWindowedPoStBuilder::default()
+            .deadline(0)
+            .chain_commit_block(System::block_number()) // Our block commitment should be in the past
+            .build();
+
+        // Run extrinsic
+        assert_noop!(
+            StorageProvider::submit_windowed_post(
+                RuntimeOrigin::signed(account(ALICE)),
+                windowed_post,
+            ),
+            Error::<Test>::PoStProofInvalid
+        );
+    });
+}
+
 #[rstest]
 // deadline is not opened
-#[case(10, 9, Err(Error::<Test>::InvalidDeadlineSubmission.into()))]
+#[case(-9, -10, Err(Error::<Test>::InvalidDeadlineSubmission.into()))]
 // deadline is opened. commit block is on the current block
-#[case(19, 19, Err(Error::<Test>::PoStProofInvalid.into()))]
+#[case(0, 0, Err(Error::<Test>::PoStProofInvalid.into()))]
 // commit block is set on the block before the deadline is officially opened
-#[case(19, 18, Ok(()))]
+#[case(0, -1, Ok(()))]
 // submit proof on the last allowed block for the deadline
-#[case(20, 19, Ok(()))]
+#[case(1, 0, Ok(()))]
 // deadline has passed
-#[case(21, 20, Err(Error::<Test>::InvalidDeadlineSubmission.into()))]
+#[case(2, 1, Err(Error::<Test>::InvalidDeadlineSubmission.into()))]
 fn windowed_post_commit_block(
-    #[case] block_number: u64,
-    #[case] chain_commit_block: u64,
+    #[case] block_offset: i64,
+    #[case] chain_commit_block_offset: i64,
     #[case] expected_extrinsic_result: Result<(), DispatchError>,
 ) {
     new_test_ext().execute_with(|| {
         // Setup environment
         setup();
 
-        // Run to block
-        run_to_block(block_number);
+        // Run to block where the window post proof is to be submitted
+        let proving_period_start = StorageProviders::<Test>::get(account(ALICE))
+            .unwrap()
+            .proving_period_start;
+
+        let target_block = ((proving_period_start as i64) + block_offset) as u64;
+        let chain_commit_block = ((proving_period_start as i64) + chain_commit_block_offset) as u64;
+
+        // Cast is safe for this test, CANNOT be generalized for other uses
+        run_to_block(target_block);
 
         // Build window post proof
         let windowed_post = SubmitWindowedPoStBuilder::default()
