@@ -613,7 +613,7 @@ pub mod pallet {
                     .map_err(|e| Error::<T>::SectorMapError(e))?;
             }
 
-            for (deadline_idx, partition_map) in to_process.into_iter() {
+            for (&deadline_idx, partition_map) in to_process.into_iter() {
                 log::debug!(target: LOG_TARGET, "declare_faults: Processing deadline index: {deadline_idx}");
                 // Get the target deadline
                 // We're deviating from the original implementation by using the `sp.proving_period_start`
@@ -625,7 +625,7 @@ pub mod pallet {
                 let target_dl = DeadlineInfo::new(
                     current_block,
                     sp.proving_period_start,
-                    *deadline_idx,
+                    deadline_idx,
                     T::FaultMaxAge::get(),
                     T::WPoStPeriodDeadlines::get(),
                     T::WPoStChallengeWindow::get(),
@@ -647,7 +647,7 @@ pub mod pallet {
                 log::debug!(target: LOG_TARGET, "declare_faults: Getting deadline[{deadline_idx}]");
                 let dl = sp
                     .deadlines
-                    .load_deadline_mut(*deadline_idx as usize)
+                    .load_deadline_mut(deadline_idx as usize)
                     .map_err(|e| Error::<T>::DeadlineError(e))?;
                 dl.record_faults(&sp.sectors, partition_map, fault_expiration_block)
                     .map_err(|e| Error::<T>::DeadlineError(e))?;
@@ -685,13 +685,13 @@ pub mod pallet {
                     .map_err(|e| Error::<T>::SectorMapError(e))?;
             }
 
-            for (deadline_idx, partition_map) in to_process.0.iter() {
+            for (&deadline_idx, partition_map) in to_process.0.iter() {
                 log::debug!(target: LOG_TARGET, "declare_faults_recovered: Processing deadline index: {deadline_idx}");
                 // Get the deadline
                 let target_dl = DeadlineInfo::new(
                     current_block,
                     sp.proving_period_start,
-                    *deadline_idx,
+                    deadline_idx,
                     T::FaultMaxAge::get(),
                     T::WPoStPeriodDeadlines::get(),
                     T::WPoStChallengeWindow::get(),
@@ -705,7 +705,7 @@ pub mod pallet {
                 });
                 let dl = sp
                     .deadlines
-                    .load_deadline_mut(*deadline_idx as usize)
+                    .load_deadline_mut(deadline_idx as usize)
                     .map_err(|e| Error::<T>::DeadlineError(e))?;
                 dl.declare_faults_recovered(partition_map)
                     .map_err(|e| Error::<T>::DeadlineError(e))?;
