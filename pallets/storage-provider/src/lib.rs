@@ -70,8 +70,7 @@ pub mod pallet {
         },
         sector_map::DeadlineSectorMap,
         storage_provider::{
-            calculate_first_proving_period_start, calculate_proving_period_start_with_seed,
-            StorageProviderInfo, StorageProviderState,
+            calculate_first_proving_period_start, StorageProviderInfo, StorageProviderState,
         },
     };
 
@@ -605,20 +604,18 @@ pub mod pallet {
                     .map_err(|e| Error::<T>::SectorMapError(e))?;
             }
 
-            let wpost_proving_period = T::WPoStProvingPeriod::get();
-            let proving_period_start = calculate_proving_period_start_with_seed(
-                current_block,
-                sp.proving_period_start,
-                wpost_proving_period,
-            );
-
-            let sectors = sp.sectors.clone();
             for (deadline_idx, partition_map) in to_process.into_iter() {
                 log::debug!(target: LOG_TARGET, "declare_faults: Processing deadline index: {deadline_idx}");
-                // Get the deadline
+                // Get the target deadline
+                // We're deviating from the original implementation by using the `sp.proving_period_start`
+                // instead of calculating it here, but we couldn't find a reason to do it in another way
+                //
+                // References:
+                // * https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L2436-L2449
+                // * https://github.com/eigerco/polka-storage/pull/192#discussion_r1715067288
                 let target_dl = DeadlineInfo::new(
                     current_block,
-                    proving_period_start,
+                    sp.proving_period_start,
                     *deadline_idx,
                     T::FaultMaxAge::get(),
                     T::WPoStPeriodDeadlines::get(),
@@ -626,18 +623,24 @@ pub mod pallet {
                     T::WPoStProvingPeriod::get(),
                     T::WPoStChallengeLookBack::get(),
                 )
+                // FIX(@jmg-duarte,#196,13/8/24): this is not 100% correct but I'm not fixing this now
+                // I'll address this following up the merge of this code
+                // The issue is that the target deadline is the NEXT NOT ELAPSED
+                // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L4949
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
+
                 ensure!(!target_dl.fault_cutoff_passed(), {
                     log::error!(target: LOG_TARGET, "declare_faults: Late fault declaration at deadline {deadline_idx}");
                     Error::<T>::FaultDeclarationTooLate
                 });
+
                 let fault_expiration_block = target_dl.last() + T::FaultMaxAge::get();
                 log::debug!(target: LOG_TARGET, "declare_faults: Getting deadline[{deadline_idx}]");
                 let dl = sp
                     .deadlines
                     .load_deadline_mut(*deadline_idx as usize)
                     .map_err(|e| Error::<T>::DeadlineError(e))?;
-                dl.record_faults(&sectors, partition_map, fault_expiration_block)
+                dl.record_faults(&sp.sectors, partition_map, fault_expiration_block)
                     .map_err(|e| Error::<T>::DeadlineError(e))?;
             }
             StorageProviders::<T>::insert(owner.clone(), sp);

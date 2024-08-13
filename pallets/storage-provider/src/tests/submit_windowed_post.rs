@@ -10,7 +10,7 @@ use crate::{
     tests::{
         account, events, new_test_ext, register_storage_provider, run_to_block,
         DealProposalBuilder, Market, RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder,
-        StorageProvider, SubmitWindowedPoStBuilder, System, Test, WpostChallengeWindow, ALICE, BOB,
+        StorageProvider, SubmitWindowedPoStBuilder, System, Test, ALICE, BOB,
     },
     Config,
 };
