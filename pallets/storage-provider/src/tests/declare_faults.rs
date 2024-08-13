@@ -7,9 +7,9 @@ use crate::{
     pallet::{Event, StorageProviders, DECLARATIONS_MAX},
     sector::ProveCommitSector,
     tests::{
-        account, events, new_test_ext, register_storage_provider, DealProposalBuilder,
-        DeclareFaultsBuilder, Market, RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder,
-        StorageProvider, System, Test, ALICE, BOB,
+        account, count_sector_faults_and_recoveries, events, new_test_ext,
+        register_storage_provider, DealProposalBuilder, DeclareFaultsBuilder, Market, RuntimeEvent,
+        RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System, Test, ALICE, BOB,
     },
 };
 
@@ -46,17 +46,10 @@ fn multiple_sector_faults() {
 
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
 
-        let mut updates = 0;
+        let (faults, _recoveries) = count_sector_faults_and_recoveries(&sp.deadlines);
 
-        for dl in sp.deadlines.due.iter() {
-            for (_, partition) in dl.partitions.iter() {
-                if partition.faults.len() > 0 {
-                    updates += partition.faults.len();
-                }
-            }
-        }
         // Check that partitions are set to faulty
-        assert_eq!(updates, 5);
+        assert_eq!(faults, 5);
         assert_eq!(
             events(),
             [RuntimeEvent::StorageProvider(Event::FaultsDeclared {
@@ -84,23 +77,16 @@ fn declare_single_fault() {
         assert_ok!(StorageProvider::declare_faults(
             RuntimeOrigin::signed(account(storage_provider)),
             DeclareFaultsBuilder::default()
-                .fault(deadline, partition, vsectors)
+                .fault(deadline, partition, sectors)
                 .build(),
         ));
 
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
 
-        let mut updates = 0;
+        let (faults, _recoveries) = count_sector_faults_and_recoveries(&sp.deadlines);
 
-        for dl in sp.deadlines.due.iter() {
-            for (_, partition) in dl.partitions.iter() {
-                if partition.faults.len() > 0 {
-                    updates += 1;
-                }
-            }
-        }
         // Check that partitions are set to faulty
-        assert_eq!(updates, 1);
+        assert_eq!(faults, 1);
         assert!(matches!(
             events()[..],
             [RuntimeEvent::StorageProvider(Event::FaultsDeclared { .. })]
@@ -172,7 +158,7 @@ fn multiple_deadline_faults() {
         default_fault_setup(storage_provider, storage_client);
 
         let partition = 0;
-        let deadlines = vec![0,1,2,3,4];
+        let deadlines = vec![0, 1, 2, 3, 4];
         let sectors = vec![1];
 
         // Fault declaration and extrinsic
@@ -185,17 +171,10 @@ fn multiple_deadline_faults() {
 
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
 
-        let mut updates = 0;
+        let (faults, _recoveries) = count_sector_faults_and_recoveries(&sp.deadlines);
 
-        for dl in sp.deadlines.due.iter() {
-            for (_, partition) in dl.partitions.iter() {
-                if partition.faults.len() > 0 {
-                    updates += partition.faults.len();
-                }
-            }
-        }
-        // Check that there are 5 faults
-        assert_eq!(updates, 5);
+        // Check that partitions are set to faulty
+        assert_eq!(faults, 5);
         assert!(matches!(
             events()[..],
             [RuntimeEvent::StorageProvider(Event::FaultsDeclared { .. })]

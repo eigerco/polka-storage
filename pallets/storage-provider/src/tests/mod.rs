@@ -18,6 +18,7 @@ use sp_runtime::{
 
 use crate::{
     self as pallet_storage_provider,
+    deadline::Deadlines,
     fault::{
         DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration, RecoveryDeclaration,
     },
@@ -269,6 +270,26 @@ fn publish_deals(storage_provider: &str) {
     )
     .expect("publish_storage_deals needs to work in order to call verify_deals_for_activation");
     System::reset_events();
+}
+
+/// Counts faults and recoveries
+fn count_sector_faults_and_recoveries<BlockNumber: sp_runtime::traits::BlockNumber>(
+    deadlines: &Deadlines<BlockNumber>,
+) -> (usize /* faults */, usize /* recoveries */) {
+    let mut faults = 0;
+    let mut recoveries = 0;
+    for dl in deadlines.due.iter() {
+        for (_, partition) in dl.partitions.iter() {
+            if partition.recoveries.len() > 0 {
+                recoveries += partition.recoveries.len();
+            }
+            if partition.faults.len() > 0 {
+                faults += partition.faults.len();
+            }
+        }
+    }
+
+    (faults, recoveries)
 }
 
 struct SectorPreCommitInfoBuilder {

@@ -4,15 +4,14 @@ use sp_core::bounded_vec;
 use sp_runtime::BoundedVec;
 
 use crate::{
-    deadline::Deadlines,
     fault::{
         DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration, RecoveryDeclaration,
     },
     pallet::{Event, StorageProviders, DECLARATIONS_MAX},
     sector::ProveCommitSector,
     tests::{
-        account, declare_faults::default_fault_setup, events, new_test_ext,
-        register_storage_provider, DealProposalBuilder, DeclareFaultsBuilder,
+        account, count_sector_faults_and_recoveries, declare_faults::default_fault_setup, events,
+        new_test_ext, register_storage_provider, DealProposalBuilder, DeclareFaultsBuilder,
         DeclareFaultsRecoveredBuilder, Market, RuntimeEvent, RuntimeOrigin,
         SectorPreCommitInfoBuilder, StorageProvider, System, Test, ALICE, BOB,
     },
@@ -214,26 +213,6 @@ fn multiple_sector_faults_recovered() {
             [RuntimeEvent::StorageProvider(Event::FaultsRecovered { .. })]
         ));
     });
-}
-
-/// Counts faults and recoveries
-fn count_sector_faults_and_recoveries<BlockNumber: sp_runtime::traits::BlockNumber>(
-    deadlines: &Deadlines<BlockNumber>,
-) -> (usize /* faults */, usize /* recoveries */) {
-    let mut faults = 0;
-    let mut recoveries = 0;
-    for dl in deadlines.due.iter() {
-        for (_, partition) in dl.partitions.iter() {
-            if partition.recoveries.len() > 0 {
-                recoveries += partition.recoveries.len();
-            }
-            if partition.faults.len() > 0 {
-                faults += partition.faults.len();
-            }
-        }
-    }
-
-    (faults, recoveries)
 }
 
 fn multi_sectors_setup(storage_provider: &str, storage_client: &str, sectors: &[SectorNumber]) {
