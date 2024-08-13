@@ -26,7 +26,7 @@ fn multiple_sector_faults() {
         let storage_client = BOB;
 
         // Setup
-        multi_sectors_setup(storage_provider, storage_client);
+        multi_sectors_setup_fault_declaration(storage_provider, storage_client);
 
         // Flush events before running extrinsic to check only relevant events
         System::reset_events();
@@ -245,7 +245,12 @@ pub(crate) fn default_fault_setup(storage_provider: &str, storage_client: &str) 
     System::reset_events();
 }
 
-fn multi_sectors_setup(storage_provider: &str, storage_client: &str) {
+
+/// This function sets up 5 deals thus creating 5 sectors.
+/// SP Extrinsics run:
+/// `pre_commit_sector`
+/// `prove_commit_sector`
+fn multi_sectors_setup_fault_declaration(storage_provider: &str, storage_client: &str) {
     // Register storage provider
     register_storage_provider(account(storage_provider));
 

@@ -193,7 +193,7 @@ fn multiple_sector_faults_recovered() {
         let sectors = vec![0, 1, 2, 3, 4];
 
         // Fault declaration setup
-        multi_sectors_setup(storage_provider, storage_client, &sectors);
+        multi_sectors_setup_fault_recovery(storage_provider, storage_client, &sectors);
 
         // setup recovery and run extrinsic
         assert_ok!(StorageProvider::declare_faults_recovered(
@@ -216,7 +216,13 @@ fn multiple_sector_faults_recovered() {
     });
 }
 
-fn multi_sectors_setup(storage_provider: &str, storage_client: &str, sectors: &[SectorNumber]) {
+/// This function sets up 5 deals thus creating 5 sectors. 
+/// Similar to `multi_sectors_setup_fault_declaration` in the declare faults test but it runs the `declare_faults` extrinsic too.
+/// SP Extrinsics run:
+/// `pre_commit_sector`
+/// `prove_commit_sector`
+/// `declare_faults`
+fn multi_sectors_setup_fault_recovery(storage_provider: &str, storage_client: &str, sectors: &[SectorNumber]) {
     // Register storage provider
     register_storage_provider(account(storage_provider));
 
