@@ -1,4 +1,9 @@
+extern crate alloc;
+
+use alloc::collections::BTreeSet;
+
 use frame_support::{assert_ok, pallet_prelude::*, BoundedBTreeSet};
+use primitives_proofs::MAX_TERMINATIONS_PER_CALL;
 use sp_core::bounded_vec;
 use sp_runtime::BoundedVec;
 
@@ -26,11 +31,12 @@ fn multiple_sector_faults() {
         // Flush events before running extrinsic to check only relevant events
         System::reset_events();
 
-        let mut sectors = BoundedBTreeSet::new();
+        let mut sectors = BTreeSet::new();
         // insert 5 sectors
         for i in 1..6 {
-            sectors.try_insert(i).expect("Programmer error");
+            sectors.insert(i);
         }
+        let sectors = sectors.try_into().expect(&format!("Failed trying to convert a BTreeSet of length 5 into a BoundedBTreeSet of length {MAX_TERMINATIONS_PER_CALL}, should be infallible"));
         let fault = FaultDeclaration {
             deadline: 0,
             partition: 0,
@@ -106,8 +112,8 @@ fn multiple_partition_faults() {
         default_fault_setup(storage_provider, storage_client);
 
         let mut sectors = BoundedBTreeSet::new();
-        let mut faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>> = bounded_vec![];
-        sectors.try_insert(1).expect("Programmer error");
+        let mut faults: Vec<FaultDeclaration> = vec![];
+        sectors.try_insert(1).expect(&format!("Inserting a single element into a BoundedBTreeSet with a capacity of {MAX_TERMINATIONS_PER_CALL} should be infallible"));
         // declare faults in 5 partitions
         for i in 1..6 {
             let fault = FaultDeclaration {
@@ -115,8 +121,9 @@ fn multiple_partition_faults() {
                 partition: i,
                 sectors: sectors.clone(),
             };
-            faults.try_push(fault).expect("Programmer error");
+            faults.push(fault);
         }
+        let faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>> = faults.try_into().expect(&format!("Converting a Vec with length 5 into a BoundedVec with a capacity of {MAX_TERMINATIONS_PER_CALL} should be infallible"));
 
         assert_ok!(StorageProvider::declare_faults(
             RuntimeOrigin::signed(account(storage_provider)),

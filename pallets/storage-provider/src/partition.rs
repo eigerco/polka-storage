@@ -217,7 +217,7 @@ where
             .copied()
             .collect::<BTreeSet<u64>>()
             .try_into()
-            .expect("Programmer error: BoundedBTreeSet should be able to be created from BTreeSet");
+            .expect("BoundedBTreeSet should be able to be created from BTreeSet");
     }
 }
 
@@ -264,14 +264,14 @@ mod test {
         partition
             .terminated
             .try_insert(1)
-            .expect("Programmer error");
+            .expect(&format!("Inserting a single element into terminated sectors of a partition, which is a BoundedBTreeMap with length {MAX_SECTORS}, should not fail (1 < {MAX_SECTORS})"));
         let live_sectors = partition.live_sectors();
         // Create expected result.
         let mut expected_live_sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>> =
             BoundedBTreeSet::new();
         expected_live_sectors
             .try_insert(2)
-            .expect("Programmer error");
+            .expect(&format!("Inserting a single element into expected_live_sectors, which is a BoundedBTreeMap with length {MAX_SECTORS}, should not fail (1 < {MAX_SECTORS})"));
         assert_eq!(live_sectors, expected_live_sectors);
         Ok(())
     }

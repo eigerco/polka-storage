@@ -1,5 +1,6 @@
 use frame_support::{assert_ok, pallet_prelude::*, BoundedBTreeSet};
 use primitives_proofs::SectorNumber;
+use primitives_proofs::MAX_TERMINATIONS_PER_CALL;
 use sp_core::bounded_vec;
 use sp_runtime::BoundedVec;
 
@@ -72,23 +73,23 @@ fn multiple_partition_faults_recovered() {
         let storage_client = BOB;
 
         let mut sectors = BoundedBTreeSet::new();
-        sectors.try_insert(1).expect("Programmer error");
+        sectors.try_insert(1).expect(&format!("Inserting a single element into a BoundedBTreeSet with a capacity of {MAX_TERMINATIONS_PER_CALL} should be infallible"));
 
         // Fault declaration setup, not relevant to this test that why it has its own scope
         {
             default_fault_setup(storage_provider, storage_client);
 
-            let mut faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>> =
-                bounded_vec![];
+            let mut faults: Vec<FaultDeclaration> = vec![];
             // declare faults in 5 partitions
-            for i in 0..5 {
+            for i in 1..6 {
                 let fault = FaultDeclaration {
                     deadline: 0,
                     partition: i,
                     sectors: sectors.clone(),
                 };
-                faults.try_push(fault).expect("Programmer error");
+                faults.push(fault);
             }
+            let faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>> = faults.try_into().expect(&format!("Converting a Vec with length 5 into a BoundedVec with a capacity of {MAX_TERMINATIONS_PER_CALL} should be infallible"));
 
             assert_ok!(StorageProvider::declare_faults(
                 RuntimeOrigin::signed(account(storage_provider)),
@@ -102,16 +103,16 @@ fn multiple_partition_faults_recovered() {
         }
 
         // setup recovery
-        let mut recoveries: BoundedVec<RecoveryDeclaration, ConstU32<DECLARATIONS_MAX>> =
-            bounded_vec![];
+        let mut recoveries: Vec<RecoveryDeclaration> = vec![];
         for i in 0..5 {
             let recovery = RecoveryDeclaration {
                 deadline: 0,
                 partition: i,
                 sectors: sectors.clone(),
             };
-            recoveries.try_push(recovery).expect("Programmer error");
+            recoveries.push(recovery);
         }
+        let recoveries: BoundedVec<RecoveryDeclaration, ConstU32<DECLARATIONS_MAX>> = recoveries.try_into().expect(&format!("Converting a Vec with length 5 into a BoundedVec with a capacity of {MAX_TERMINATIONS_PER_CALL} should be infallible"));
 
         // run extrinsic
         assert_ok!(StorageProvider::declare_faults_recovered(

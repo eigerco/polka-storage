@@ -1,3 +1,7 @@
+extern crate alloc;
+
+use alloc::collections::BTreeSet;
+
 use cid::Cid;
 use codec::Encode;
 use frame_support::{
@@ -9,6 +13,7 @@ use multihash_codetable::{Code, MultihashDigest};
 use pallet_market::{BalanceOf, ClientDealProposal, DealProposal, DealState};
 use primitives_proofs::{
     DealId, RegisteredPoStProof, RegisteredSealProof, SectorId, SectorNumber, MAX_DEALS_PER_SECTOR,
+    MAX_TERMINATIONS_PER_CALL,
 };
 use sp_core::{bounded_vec, Pair};
 use sp_runtime::{
@@ -495,12 +500,17 @@ impl DeclareFaultsBuilder {
         partition: PartitionNumber,
         sectors: Vec<SectorNumber>,
     ) -> Self {
-        let mut fault_sectors = BoundedBTreeSet::new();
-        sectors.iter().for_each(|sector_number| {
-            fault_sectors
-                .try_insert(*sector_number)
-                .expect("Programmer error");
-        });
+        let fault_sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_TERMINATIONS_PER_CALL>> =
+            sectors
+                .iter()
+                .copied()
+                .collect::<BTreeSet<_>>()
+                .try_into()
+                .expect(&format!(
+                    "Could not convert a Vec with length {} to a BoundedBTreeSet with length {}",
+                    sectors.len(),
+                    MAX_TERMINATIONS_PER_CALL
+                ));
         let fault = FaultDeclaration {
             deadline,
             partition,
@@ -518,23 +528,31 @@ impl DeclareFaultsBuilder {
         partition: PartitionNumber,
         sectors: Vec<SectorNumber>,
     ) -> Self {
-        let mut fault_sectors = BoundedBTreeSet::new();
-        sectors.iter().for_each(|sector_number| {
-            fault_sectors
-                .try_insert(*sector_number)
-                .expect("Programmer error");
-        });
-        let mut faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>> = bounded_vec![];
-        for deadline in deadlines {
-            faults
-                .try_push(FaultDeclaration {
-                    deadline,
-                    partition,
-                    sectors: fault_sectors.clone(),
-                })
-                .expect("Programmer error");
-        }
-        self.faults = faults;
+        let fault_sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_TERMINATIONS_PER_CALL>> =
+            sectors
+                .iter()
+                .copied()
+                .collect::<BTreeSet<_>>()
+                .try_into()
+                .expect(&format!(
+                    "Could not convert a Vec with length {} to a BoundedBTreeSet with length {}",
+                    sectors.len(),
+                    MAX_TERMINATIONS_PER_CALL
+                ));
+        self.faults = deadlines
+            .iter()
+            .map(|dl| FaultDeclaration {
+                deadline: *dl,
+                partition,
+                sectors: fault_sectors.clone(),
+            })
+            .collect::<Vec<_>>()
+            .try_into()
+            .expect(&format!(
+                "Could not convert a Vec with length {} to a BoundedVec with length {}",
+                deadlines.len(),
+                DECLARATIONS_MAX
+            ));
         self
     }
 
@@ -566,12 +584,17 @@ impl DeclareFaultsRecoveredBuilder {
         partition: PartitionNumber,
         sectors: Vec<SectorNumber>,
     ) -> Self {
-        let mut recovered_sectors = BoundedBTreeSet::new();
-        sectors.iter().for_each(|sector_number| {
-            recovered_sectors
-                .try_insert(*sector_number)
-                .expect("Programmer error");
-        });
+        let recovered_sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_TERMINATIONS_PER_CALL>> =
+            sectors
+                .iter()
+                .copied()
+                .collect::<BTreeSet<_>>()
+                .try_into()
+                .expect(&format!(
+                    "Could not convert a Vec with length {} to a BoundedBTreeSet with length {}",
+                    sectors.len(),
+                    MAX_TERMINATIONS_PER_CALL
+                ));
         let recovery = RecoveryDeclaration {
             deadline,
             partition,
@@ -589,24 +612,31 @@ impl DeclareFaultsRecoveredBuilder {
         partition: PartitionNumber,
         sectors: Vec<SectorNumber>,
     ) -> Self {
-        let mut recovered_sectors = BoundedBTreeSet::new();
-        sectors.iter().for_each(|sector_number| {
-            recovered_sectors
-                .try_insert(*sector_number)
-                .expect("Programmer error");
-        });
-        let mut recoveries: BoundedVec<RecoveryDeclaration, ConstU32<DECLARATIONS_MAX>> =
-            bounded_vec![];
-        for deadline in deadlines {
-            recoveries
-                .try_push(RecoveryDeclaration {
-                    deadline,
-                    partition,
-                    sectors: recovered_sectors.clone(),
-                })
-                .expect("Programmer error");
-        }
-        self.recoveries = recoveries;
+        let recovered_sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_TERMINATIONS_PER_CALL>> =
+            sectors
+                .iter()
+                .copied()
+                .collect::<BTreeSet<_>>()
+                .try_into()
+                .expect(&format!(
+                    "Could not convert a Vec with length {} to a BoundedBTreeSet with length {}",
+                    sectors.len(),
+                    MAX_TERMINATIONS_PER_CALL
+                ));
+        self.recoveries = deadlines
+            .iter()
+            .map(|dl| RecoveryDeclaration {
+                deadline: *dl,
+                partition,
+                sectors: recovered_sectors.clone(),
+            })
+            .collect::<Vec<_>>()
+            .try_into()
+            .expect(&format!(
+                "Could not convert a Vec with length {} to a BoundedVec with length {}",
+                deadlines.len(),
+                DECLARATIONS_MAX
+            ));
         self
     }
 
