@@ -655,12 +655,10 @@ pub mod pallet {
                     T::WPoStProvingPeriod::get(),
                     T::WPoStChallengeLookBack::get(),
                 )
-                // FIX(@jmg-duarte,#196,13/8/24): this is not 100% correct but I'm not fixing this now
-                // I'll address this following up the merge of this code
-                // The issue is that the target deadline is the NEXT NOT ELAPSED
-                // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L4949
+                .and_then(DeadlineInfo::next_not_elapsed)
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
 
+                // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L2451-L2458
                 ensure!(!target_dl.fault_cutoff_passed(), {
                     log::error!(target: LOG_TARGET, "declare_faults: Late fault declaration at deadline {deadline_idx}");
                     Error::<T>::FaultDeclarationTooLate
@@ -672,14 +670,17 @@ pub mod pallet {
                     .deadlines
                     .load_deadline_mut(deadline_idx as usize)
                     .map_err(|e| Error::<T>::DeadlineError(e))?;
+
                 dl.record_faults(&sp.sectors, partition_map, fault_expiration_block)
                     .map_err(|e| Error::<T>::DeadlineError(e))?;
             }
-            StorageProviders::<T>::insert(owner.clone(), sp);
+
+            StorageProviders::<T>::set(owner.clone(), Some(sp));
             Self::deposit_event(Event::FaultsDeclared {
                 owner,
                 faults: params.faults,
             });
+
             Ok(())
         }
 

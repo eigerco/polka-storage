@@ -115,7 +115,7 @@ where
     where
         BlockNumber: sp_runtime::traits::BlockNumber,
     {
-        log::debug!(target: LOG_TARGET, "record_faults: sector_number = {sector_numbers:#?}");
+        log::debug!(target: LOG_TARGET, "record_faults: sector_number = {sector_numbers:?}");
 
         // Split declarations into declarations of new faults, and retraction of declared recoveries.
         // recoveries & sector_numbers
@@ -136,7 +136,7 @@ where
             .copied()
             .collect();
 
-        log::debug!(target: LOG_TARGET, "record_faults: new_faults = {new_faults:#?}, amount = {:?}", new_faults.len());
+        log::debug!(target: LOG_TARGET, "record_faults: new_faults = {new_faults:?}, amount = {:?}", new_faults.len());
         let new_fault_sectors: Vec<(&SectorNumber, &SectorOnChainInfo<BlockNumber>)> = sectors
             .iter()
             .filter(|(sector_number, _info)| {
@@ -144,12 +144,14 @@ where
                 new_faults.contains(&sector_number)
             })
             .collect();
+
         // Add new faults to state, skip if no new faults.
         if !new_fault_sectors.is_empty() {
             self.add_faults(sector_numbers)?;
         } else {
             log::debug!(target: LOG_TARGET, "record_faults: No new faults detected");
         }
+
         // remove faulty recoveries from state, skip if no recoveries set to faulty.
         let retracted_recovery_sectors: BTreeSet<SectorNumber> = sectors
             .iter()

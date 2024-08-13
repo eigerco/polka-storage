@@ -1,7 +1,12 @@
-use frame_support::{assert_noop, assert_ok};
+extern crate alloc;
+
+use alloc::collections::BTreeSet;
+
+use frame_support::{assert_noop, assert_ok, pallet_prelude::*, BoundedBTreeSet};
+use primitives_proofs::MAX_TERMINATIONS_PER_CALL;
 use rstest::rstest;
-use sp_core::{bounded_vec, ConstU32};
-use sp_runtime::{BoundedVec, DispatchError};
+use sp_core::bounded_vec;
+use sp_runtime::BoundedVec;
 
 use crate::{
     deadline::{DeadlineError, Deadlines},
@@ -9,9 +14,10 @@ use crate::{
     pallet::{Error, Event, StorageProviders, DECLARATIONS_MAX},
     sector::ProveCommitSector,
     tests::{
-        account, create_set, events, new_test_ext, register_storage_provider, DealProposalBuilder,
-        DeclareFaultsBuilder, Market, RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder,
-        StorageProvider, System, Test, ALICE, BOB, CHARLIE,
+        account, count_sector_faults_and_recoveries, create_set, events, new_test_ext,
+        register_storage_provider, run_to_block, DealProposalBuilder, DeclareFaultsBuilder, Market,
+        RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System, Test,
+        ALICE, BOB, CHARLIE,
     },
 };
 
@@ -71,7 +77,7 @@ fn multiple_sector_faults() {
 }
 
 #[test]
-fn declare_single_fault() {
+fn declare_single_fault_before_proving_period_start() {
     new_test_ext().execute_with(|| {
         // Setup
         let storage_provider = ALICE;
@@ -97,6 +103,67 @@ fn declare_single_fault() {
             events()[..],
             [RuntimeEvent::StorageProvider(Event::FaultsDeclared { .. })]
         ));
+    });
+}
+
+// Using floats is the easiest way to specify a multiple of the proving period
+#[rstest]
+#[case(0.0)]
+#[case(0.1)]
+#[case(0.5)]
+#[case(1.0)]
+#[case(2.0)]
+fn declare_single_fault_from_proving_period(#[case] proving_period_multiple: f64) {
+    new_test_ext().execute_with(|| {
+        // Setup accounts
+        let storage_provider = ALICE;
+        let storage_client = BOB;
+
+        setup_sp_with_one_sector(storage_provider, storage_client);
+
+        let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
+        // Generally safe because we control test conditions, not really safe anywhere else
+        let offset = ((sp.proving_period_start as f64) * proving_period_multiple) as u64;
+        let new_block = sp.proving_period_start + offset;
+        run_to_block(new_block);
+        // The cron hook generates events between blocks, this removes those events
+        System::reset_events();
+
+        let mut sectors = BoundedBTreeSet::new();
+        sectors.try_insert(0).expect("Programmer error");
+        let fault = FaultDeclaration {
+            deadline: 0,
+            partition: 0,
+            sectors: sectors.clone(),
+        };
+        assert_ok!(StorageProvider::declare_faults(
+            RuntimeOrigin::signed(account(storage_provider)),
+            DeclareFaultsParams {
+                faults: bounded_vec![fault.clone()]
+            },
+        ));
+
+        let mut updates = 0;
+
+        // Second call because we've updated the state and StorageProviders returns a clone of the state
+        let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
+        for dl in sp.deadlines.due.iter() {
+            for (_, partition) in dl.partitions.iter() {
+                if partition.faults.len() > 0 {
+                    updates += 1;
+                }
+            }
+        }
+
+        // One partitions fault should be added.
+        assert_eq!(updates, 1);
+        assert_eq!(
+            events(),
+            [RuntimeEvent::StorageProvider(Event::FaultsDeclared {
+                owner: account(storage_provider),
+                faults: bounded_vec![fault]
+            })]
+        );
     });
 }
 
