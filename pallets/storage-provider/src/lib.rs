@@ -66,10 +66,7 @@ pub mod pallet {
             DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration,
             RecoveryDeclaration,
         },
-        proofs::{
-            assign_proving_period_offset, current_deadline_index, current_proving_period_start,
-            SubmitWindowedPoStParams,
-        },
+        proofs::{assign_proving_period_offset, SubmitWindowedPoStParams},
         sector::{
             ProveCommitSector, SectorOnChainInfo, SectorPreCommitInfo, SectorPreCommitOnChainInfo,
             MAX_SECTORS,
@@ -688,23 +685,12 @@ pub mod pallet {
                     .map_err(|e| Error::<T>::SectorMapError(e))?;
             }
 
-            let proving_period_start = sp
-                .current_proving_period_start(
-                    current_block,
-                    T::FaultMaxAge::get(),
-                    T::WPoStPeriodDeadlines::get(),
-                    T::WPoStProvingPeriod::get(),
-                    T::WPoStChallengeWindow::get(),
-                    T::WPoStChallengeLookBack::get(),
-                )
-                .map_err(|e| Error::<T>::DeadlineError(e))?;
-
             for (deadline_idx, partition_map) in to_process.0.iter() {
                 log::debug!(target: LOG_TARGET, "declare_faults_recovered: Processing deadline index: {deadline_idx}");
                 // Get the deadline
                 let target_dl = DeadlineInfo::new(
                     current_block,
-                    proving_period_start,
+                    sp.proving_period_start,
                     *deadline_idx,
                     T::FaultMaxAge::get(),
                     T::WPoStPeriodDeadlines::get(),
