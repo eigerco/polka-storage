@@ -176,7 +176,6 @@ fn multiple_deadline_faults_recovered() {
         System::reset_events();
 
         // setup recovery and run extrinsic
-        // setup recovery and run extrinsic
         assert_ok!(StorageProvider::declare_faults_recovered(
             RuntimeOrigin::signed(account(storage_provider)),
             DeclareFaultsRecoveredBuilder::default()
