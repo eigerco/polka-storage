@@ -466,6 +466,8 @@ impl Default for DeclareFaultsBuilder {
 }
 
 impl DeclareFaultsBuilder {
+    /// Build a fault declaration for a single deadline and partition.
+    /// Multiple sector numbers can be passed in.
     pub fn fault(
         mut self,
         deadline: u64,
@@ -487,6 +489,8 @@ impl DeclareFaultsBuilder {
         self
     }
 
+    /// Build a fault declaration for a multiple deadlines and a single partition.
+    /// Multiple sector numbers can be passed in.
     pub fn multiple_deadlines(
         mut self,
         deadlines: Vec<u64>,
@@ -533,6 +537,8 @@ impl Default for DeclareFaultsRecoveredBuilder {
 }
 
 impl DeclareFaultsRecoveredBuilder {
+    /// Build a fault recovery for a single deadline and partition.
+    /// Multiple sector numbers can be passed in.
     pub fn fault_recovery(
         mut self,
         deadline: u64,
@@ -554,6 +560,8 @@ impl DeclareFaultsRecoveredBuilder {
         self
     }
 
+    /// Build a fault recovery for a multiple deadlines and a single partition.
+    /// Multiple sector numbers can be passed in.
     pub fn multiple_deadlines_recovery(
         mut self,
         deadlines: Vec<u64>,
