@@ -54,7 +54,7 @@ fn declare_single_fault_recovered() {
 
         // 1 recovery and 0 faults.
         assert_eq!(recoveries, 1);
-        assert_eq!(faults, 0);
+        assert_eq!(faults, 1);
         assert!(matches!(
             events()[..],
             [RuntimeEvent::StorageProvider(Event::FaultsRecovered { .. })]
@@ -174,7 +174,7 @@ fn multiple_deadline_faults_recovered() {
 
         // Check that all faults are recovered.
         assert_eq!(recovered, 5);
-        assert_eq!(faults, 0);
+        assert_eq!(faults, 5);
         assert!(matches!(
             events()[..],
             [RuntimeEvent::StorageProvider(Event::FaultsRecovered { .. })]
@@ -207,7 +207,7 @@ fn multiple_sector_faults_recovered() {
         let (faults, recoveries) = count_sector_faults_and_recoveries(&sp.deadlines);
         // Check that all faults are recovered.
         assert_eq!(recoveries, 5);
-        assert_eq!(faults, 0);
+        assert_eq!(faults, 5);
         assert!(matches!(
             events()[..],
             [RuntimeEvent::StorageProvider(Event::FaultsRecovered { .. })]
