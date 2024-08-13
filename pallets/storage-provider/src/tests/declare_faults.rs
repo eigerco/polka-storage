@@ -55,7 +55,7 @@ fn multiple_sector_faults() {
                 }
             }
         }
-        // One partitions fault should be added.
+        // Check that partitions are set to faulty
         assert_eq!(updates, 5);
         assert_eq!(
             events(),
@@ -99,7 +99,7 @@ fn declare_single_fault() {
                 }
             }
         }
-        // One partitions fault should be added.
+        // Check that partitions are set to faulty
         assert_eq!(updates, 1);
         assert!(matches!(
             events()[..],
@@ -150,7 +150,7 @@ fn multiple_partition_faults() {
                 }
             }
         }
-        // One partitions fault should be added.
+        // Check that partitions are set to faulty
         assert_eq!(updates, 5);
         assert_eq!(
             events(),
