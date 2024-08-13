@@ -4,6 +4,7 @@ use sp_core::bounded_vec;
 use sp_runtime::BoundedVec;
 
 use crate::{
+    deadline::Deadlines,
     fault::{
         DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration, RecoveryDeclaration,
     },
@@ -49,18 +50,7 @@ fn declare_single_fault_recovered() {
 
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
 
-        let mut recoveries = 0;
-        let mut faults = 0;
-        for dl in sp.deadlines.due.iter() {
-            for (_, partition) in dl.partitions.iter() {
-                if partition.recoveries.len() > 0 {
-                    recoveries += 1;
-                }
-                if partition.faults.len() > 0 {
-                    faults += 1;
-                }
-            }
-        }
+        let (faults, recoveries) = count_sector_faults_and_recoveries(&sp.deadlines);
 
         // 1 recovery and 0 faults.
         assert_eq!(recoveries, 1);
@@ -185,18 +175,7 @@ fn multiple_deadline_faults_recovered() {
 
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
 
-        let mut recovered = 0;
-        let mut faults = 0;
-        for dl in sp.deadlines.due.iter() {
-            for (_, partition) in dl.partitions.iter() {
-                if partition.recoveries.len() > 0 {
-                    recovered += partition.recoveries.len();
-                }
-                if partition.faults.len() > 0 {
-                    faults += 1;
-                }
-            }
-        }
+        let (faults, recovered) = count_sector_faults_and_recoveries(&sp.deadlines);
 
         // Check that all faults are recovered.
         assert_eq!(recovered, 5);
@@ -230,26 +209,35 @@ fn multiple_sector_faults_recovered() {
 
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
 
-        let mut recovered = 0;
-        let mut faults = 0;
-        for dl in sp.deadlines.due.iter() {
-            for (_, partition) in dl.partitions.iter() {
-                if partition.recoveries.len() > 0 {
-                    recovered += partition.recoveries.len();
-                }
-                if partition.faults.len() > 0 {
-                    faults += 1;
-                }
-            }
-        }
+        let (faults, recoveries) = count_sector_faults_and_recoveries(&sp.deadlines);
         // Check that all faults are recovered.
-        assert_eq!(recovered, 5);
+        assert_eq!(recoveries, 5);
         assert_eq!(faults, 0);
         assert!(matches!(
             events()[..],
             [RuntimeEvent::StorageProvider(Event::FaultsRecovered { .. })]
         ));
     });
+}
+
+/// Counts faults and recoveries
+fn count_sector_faults_and_recoveries<BlockNumber: sp_runtime::traits::BlockNumber>(
+    deadlines: &Deadlines<BlockNumber>,
+) -> (usize /* faults */, usize /* recoveries */) {
+    let mut faults = 0;
+    let mut recoveries = 0;
+    for dl in deadlines.due.iter() {
+        for (_, partition) in dl.partitions.iter() {
+            if partition.recoveries.len() > 0 {
+                recoveries += partition.recoveries.len();
+            }
+            if partition.faults.len() > 0 {
+                faults += partition.faults.len();
+            }
+        }
+    }
+
+    (faults, recoveries)
 }
 
 fn multi_sectors_setup(storage_provider: &str, storage_client: &str, sectors: &[SectorNumber]) {
