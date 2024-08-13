@@ -1,18 +1,38 @@
-use frame_support::assert_ok;
+use frame_support::{assert_noop, assert_ok};
+use rstest::rstest;
 use sp_core::{bounded_vec, ConstU32};
-use sp_runtime::BoundedVec;
+use sp_runtime::{BoundedVec, DispatchError};
 
 use crate::{
-    deadline::Deadlines,
+    deadline::{DeadlineError, Deadlines},
     fault::{DeclareFaultsParams, FaultDeclaration},
-    pallet::{Event, StorageProviders, DECLARATIONS_MAX},
+    pallet::{Error, Event, StorageProviders, DECLARATIONS_MAX},
+    partition::PartitionError,
     sector::ProveCommitSector,
+    sector_map::SectorMapError,
     tests::{
         account, create_set, events, new_test_ext, register_storage_provider, DealProposalBuilder,
         Market, RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System,
         Test, ALICE, BOB, CHARLIE,
     },
 };
+
+#[test]
+fn fails_should_be_signed() {
+    new_test_ext().execute_with(|| {
+        // Build faults
+        let faults: BoundedVec<_, _> = bounded_vec![FaultDeclaration {
+            deadline: 0,
+            partition: 0,
+            sectors: create_set(&[1, 2, 3, 4, 5]),
+        }];
+
+        assert_noop!(
+            StorageProvider::declare_faults(RuntimeOrigin::none(), DeclareFaultsParams { faults },),
+            DispatchError::BadOrigin
+        );
+    });
+}
 
 #[test]
 fn multiple_sector_faults() {
@@ -103,7 +123,7 @@ fn declare_single_fault() {
         // Setup accounts
         let storage_provider = ALICE;
         let storage_client = BOB;
-        default_fault_setup(storage_provider, storage_client);
+        setup_sp_with_one_sector(storage_provider, storage_client);
 
         let faults: BoundedVec<_, _> = bounded_vec![FaultDeclaration {
             deadline: 0,
@@ -176,7 +196,7 @@ fn multiple_deadline_faults() {
         // Setup accounts
         let storage_provider = ALICE;
         let storage_client = BOB;
-        default_fault_setup(storage_provider, storage_client);
+        setup_sp_with_one_sector(storage_provider, storage_client);
 
         // declare faults in 5 partitions
         let mut faults: BoundedVec<_, _> = bounded_vec![];
@@ -208,7 +228,62 @@ fn multiple_deadline_faults() {
     });
 }
 
-fn default_fault_setup(storage_provider: &str, storage_client: &str) {
+#[rstest]
+// No sectors declared as faulty
+#[case(bounded_vec![
+    FaultDeclaration {
+        deadline: 0,
+        partition: 0,
+        sectors: create_set(&[]),
+    },
+], Error::<Test>::SectorMapError(SectorMapError::EmptySectors).into())]
+// Deadline specified is not valid
+#[case(bounded_vec![
+    FaultDeclaration {
+        deadline: 99,
+        partition: 0,
+        sectors: create_set(&[0]),
+    },
+], Error::<Test>::DeadlineError(DeadlineError::DeadlineIndexOutOfRange).into())]
+// Partition specified is not used
+#[case(bounded_vec![
+    FaultDeclaration {
+        deadline: 0,
+        partition: 99,
+        sectors: create_set(&[0]),
+    },
+], Error::<Test>::DeadlineError(DeadlineError::PartitionError(
+    PartitionError::FailedToAddFaults
+)).into())]
+fn fails_data_missing_malformed(
+    #[case] declared_faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>>,
+    #[case] expected_error: Error<Test>,
+) {
+    new_test_ext().execute_with(|| {
+        // Setup storage provider data
+        let storage_provider = CHARLIE;
+        let storage_client = ALICE;
+        setup_sp_with_one_sector(storage_provider, storage_client);
+
+        // Declare faults
+        assert_noop!(
+            StorageProvider::declare_faults(
+                RuntimeOrigin::signed(account(storage_provider)),
+                DeclareFaultsParams {
+                    faults: declared_faults
+                },
+            ),
+            expected_error,
+        );
+
+        // Not sure if this is needed. Does the `assert_noop` above also checks
+        // that no events were published?
+        assert_eq!(events(), []);
+    });
+}
+
+/// Setup storage provider with one sector.
+fn setup_sp_with_one_sector(storage_provider: &str, storage_client: &str) {
     // Register storage provider
     register_storage_provider(account(storage_provider));
 
@@ -264,6 +339,32 @@ fn default_fault_setup(storage_provider: &str, storage_client: &str) {
     System::reset_events();
 }
 
+/// Setup storage provider with many sectors and multiple partitions.
+///
+/// The storage provider has 10 deadlines with 2 partitions each. The first
+/// deadline has 3 partitions. The third partition is partially filled.
+///
+/// Deadlines:
+/// - Deadline 0:
+///     Partition 0:
+///         Sectors 0, 1
+///     Partition 1:
+///         Sectors 20, 21
+///     Partition 2:
+///        Sectors 40
+/// - Deadline 1:
+///     Partition 0:
+///         Sectors 2, 3
+///     Partition 1:
+///         Sectors 22, 23
+///
+/// ....................
+///
+/// - Deadline 10:
+///     Partition 0:
+///         Sectors 18, 19
+///     Partition 1:
+///         Sectors 38, 39
 fn setup_sp_with_many_sectors_multiple_partitions(storage_provider: &str, storage_client: &str) {
     // Register storage provider
     register_storage_provider(account(storage_provider));

@@ -232,8 +232,12 @@ where
         fault_expiration_block: BlockNumber,
     ) -> Result<(), DeadlineError> {
         for (partition_number, partition) in self.partitions.iter_mut() {
+            // Verify that the sector we are try to mark as faulty is in the
+            // partition
             if !partition_sectors.0.contains_key(&partition_number) {
-                continue;
+                return Err(DeadlineError::PartitionError(
+                    PartitionError::FailedToAddFaults,
+                ));
             }
 
             partition.record_faults(

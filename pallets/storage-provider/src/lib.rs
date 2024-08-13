@@ -608,9 +608,10 @@ pub mod pallet {
                     T::WPoStChallengeLookBack::get(),
                 )
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
-            let sectors = sp.sectors.clone();
+
             for (deadline_idx, partition_map) in to_process.into_iter() {
                 log::debug!(target: LOG_TARGET, "declare_faults: Processing deadline index: {deadline_idx}");
+
                 // Get the deadline
                 let target_dl = DeadlineInfo::new(
                     current_block,
@@ -629,18 +630,27 @@ pub mod pallet {
                 });
                 let fault_expiration_block = target_dl.last() + T::FaultMaxAge::get();
                 log::debug!(target: LOG_TARGET, "declare_faults: Getting deadline[{deadline_idx}]");
+
+                // Get the deadline
                 let dl = sp
                     .deadlines
                     .load_deadline_mut(*deadline_idx as usize)
                     .map_err(|e| Error::<T>::DeadlineError(e))?;
-                dl.record_faults(&sectors, partition_map, fault_expiration_block)
+
+                // Record sector faults on the deadline
+                dl.record_faults(&sp.sectors, partition_map, fault_expiration_block)
                     .map_err(|e| Error::<T>::DeadlineError(e))?;
             }
+
+            // Update the storage provider state
             StorageProviders::<T>::insert(owner.clone(), sp);
+
+            // Emit event with the faults declared
             Self::deposit_event(Event::FaultsDeclared {
                 owner,
                 faults: params.faults,
             });
+
             Ok(())
         }
     }
