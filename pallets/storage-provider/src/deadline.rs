@@ -267,6 +267,7 @@ where
     ) -> Result<(), DeadlineError> {
         for (partition_number, partition) in self.partitions.iter_mut() {
             let Some(sectors) = partition_sectors.0.get(partition_number) else {
+                log::error!(target: LOG_TARGET, "declare_faults_recovered: Could not find partition {partition_number}");
                 return Err(DeadlineError::PartitionNotFound);
             };
 
