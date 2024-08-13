@@ -1,6 +1,5 @@
 use frame_support::{assert_ok, pallet_prelude::*, BoundedBTreeSet};
-use primitives_proofs::SectorNumber;
-use primitives_proofs::MAX_TERMINATIONS_PER_CALL;
+use primitives_proofs::{SectorNumber, MAX_TERMINATIONS_PER_CALL};
 use sp_core::bounded_vec;
 use sp_runtime::BoundedVec;
 
@@ -216,13 +215,17 @@ fn multiple_sector_faults_recovered() {
     });
 }
 
-/// This function sets up 5 deals thus creating 5 sectors. 
+/// This function sets up 5 deals thus creating 5 sectors.
 /// Similar to `multi_sectors_setup_fault_declaration` in the declare faults test but it runs the `declare_faults` extrinsic too.
 /// SP Extrinsics run:
 /// `pre_commit_sector`
 /// `prove_commit_sector`
 /// `declare_faults`
-fn multi_sectors_setup_fault_recovery(storage_provider: &str, storage_client: &str, sectors: &[SectorNumber]) {
+fn multi_sectors_setup_fault_recovery(
+    storage_provider: &str,
+    storage_client: &str,
+    sectors: &[SectorNumber],
+) {
     // Register storage provider
     register_storage_provider(account(storage_provider));
 

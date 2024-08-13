@@ -245,7 +245,6 @@ pub(crate) fn default_fault_setup(storage_provider: &str, storage_client: &str) 
     System::reset_events();
 }
 
-
 /// This function sets up 5 deals thus creating 5 sectors.
 /// SP Extrinsics run:
 /// `pre_commit_sector`
