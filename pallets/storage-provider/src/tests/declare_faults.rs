@@ -1,5 +1,5 @@
-use frame_support::{assert_ok, pallet_prelude::*, BoundedBTreeSet};
-use sp_core::bounded_vec;
+use frame_support::assert_ok;
+use sp_core::{bounded_vec, ConstU32};
 use sp_runtime::BoundedVec;
 
 use crate::{
@@ -72,42 +72,26 @@ fn multiple_sector_faults() {
         // Flush events before running extrinsic to check only relevant events
         System::reset_events();
 
-        let mut sectors = BoundedBTreeSet::new();
-        // insert 5 sectors
-        for i in 1..6 {
-            sectors.try_insert(i).expect("Programmer error");
-        }
-        let fault = FaultDeclaration {
+        let faults: BoundedVec<_, _> = bounded_vec![FaultDeclaration {
             deadline: 0,
             partition: 0,
-            sectors,
-        };
+            sectors: create_set(&[1, 2, 3, 4, 5]),
+        }];
 
         assert_ok!(StorageProvider::declare_faults(
             RuntimeOrigin::signed(account(storage_provider)),
             DeclareFaultsParams {
-                faults: bounded_vec![fault.clone()]
+                faults: faults.clone()
             },
         ));
 
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
-
-        let mut updates = 0;
-
-        for dl in sp.deadlines.due.iter() {
-            for (_, partition) in dl.partitions.iter() {
-                if partition.faults.len() > 0 {
-                    updates += partition.faults.len();
-                }
-            }
-        }
-        // One partitions fault should be added.
-        assert_eq!(updates, 5);
+        assert_exact_faulty_sectors(&sp.deadlines, &faults);
         assert_eq!(
             events(),
             [RuntimeEvent::StorageProvider(Event::FaultsDeclared {
                 owner: account(storage_provider),
-                faults: bounded_vec![fault]
+                faults
             })]
         );
     });
@@ -119,41 +103,28 @@ fn declare_single_fault() {
         // Setup accounts
         let storage_provider = ALICE;
         let storage_client = BOB;
-
         default_fault_setup(storage_provider, storage_client);
 
-        let mut sectors = BoundedBTreeSet::new();
-        sectors.try_insert(1).expect("Programmer error");
-        let fault = FaultDeclaration {
+        let faults: BoundedVec<_, _> = bounded_vec![FaultDeclaration {
             deadline: 0,
             partition: 0,
-            sectors,
-        };
+            sectors: create_set(&[1]),
+        }];
+
         assert_ok!(StorageProvider::declare_faults(
             RuntimeOrigin::signed(account(storage_provider)),
             DeclareFaultsParams {
-                faults: bounded_vec![fault.clone()]
+                faults: faults.clone()
             },
         ));
 
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
-
-        let mut updates = 0;
-
-        for dl in sp.deadlines.due.iter() {
-            for (_, partition) in dl.partitions.iter() {
-                if partition.faults.len() > 0 {
-                    updates += 1;
-                }
-            }
-        }
-        // One partitions fault should be added.
-        assert_eq!(updates, 1);
+        assert_exact_faulty_sectors(&sp.deadlines, &faults);
         assert_eq!(
             events(),
             [RuntimeEvent::StorageProvider(Event::FaultsDeclared {
                 owner: account(storage_provider),
-                faults: bounded_vec![fault]
+                faults
             })]
         );
     });
@@ -165,29 +136,20 @@ fn multiple_partition_faults_in_same_deadline() {
         // Setup accounts
         let storage_provider = CHARLIE;
         let storage_client = ALICE;
-
         setup_sp_with_many_sectors_multiple_partitions(storage_provider, storage_client);
 
-        let mut faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>> = bounded_vec![];
-        faults
-            .try_push(FaultDeclaration {
+        let faults: BoundedVec<_, _> = bounded_vec![
+            FaultDeclaration {
                 deadline: 0,
                 partition: 0,
                 sectors: create_set(&[0, 1]),
-            })
-            .expect("Programmer error");
-        faults
-            .try_push(FaultDeclaration {
+            },
+            FaultDeclaration {
                 deadline: 0,
                 partition: 1,
                 sectors: create_set(&[20]),
-            })
-            .expect("Programmer error");
-        let faulty_sectors = faults
-            .clone()
-            .iter()
-            .map(|f| f.sectors.clone())
-            .collect::<Vec<_>>();
+            },
+        ];
 
         assert_ok!(StorageProvider::declare_faults(
             RuntimeOrigin::signed(account(storage_provider)),
@@ -197,8 +159,7 @@ fn multiple_partition_faults_in_same_deadline() {
         ));
 
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
-        expect_exact_faulty_sectors(&sp.deadlines, &faults);
-
+        assert_exact_faulty_sectors(&sp.deadlines, &faults);
         assert_eq!(
             events(),
             [RuntimeEvent::StorageProvider(Event::FaultsDeclared {
@@ -215,18 +176,15 @@ fn multiple_deadline_faults() {
         // Setup accounts
         let storage_provider = ALICE;
         let storage_client = BOB;
-
         default_fault_setup(storage_provider, storage_client);
 
-        let mut sectors = BoundedBTreeSet::new();
-        sectors.try_insert(1).expect("Programmer error");
-        let mut faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>> = bounded_vec![];
         // declare faults in 5 partitions
+        let mut faults: BoundedVec<_, _> = bounded_vec![];
         for i in 0..5 {
             let fault = FaultDeclaration {
                 deadline: i,
                 partition: 0,
-                sectors: sectors.clone(),
+                sectors: create_set(&[1]),
             };
             faults.try_push(fault).expect("Programmer error");
         }
@@ -239,18 +197,7 @@ fn multiple_deadline_faults() {
         ));
 
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
-
-        let mut updates = 0;
-
-        for dl in sp.deadlines.due.iter() {
-            for (_, partition) in dl.partitions.iter() {
-                if partition.faults.len() > 0 {
-                    updates += partition.faults.len();
-                }
-            }
-        }
-        // One partitions fault should be added.
-        assert_eq!(updates, 5);
+        assert_exact_faulty_sectors(&sp.deadlines, &faults);
         assert_eq!(
             events(),
             [RuntimeEvent::StorageProvider(Event::FaultsDeclared {
@@ -369,16 +316,16 @@ fn setup_sp_with_many_sectors_multiple_partitions(storage_provider: &str, storag
     };
 
     // Pre commit and prove commit sectors
-    for deal_id in deal_ids {
+    for id in deal_ids {
         // We are reusing deal_id as sector_number. In this case this is ok
         // because we wan't to have a unique sector for each deal. Usually
         // we would pack multiple deals in the same sector
-        let sector_number = deal_id;
+        let sector_number = id;
 
         // Sector data
         let sector = SectorPreCommitInfoBuilder::default()
             .sector_number(sector_number)
-            .deals(vec![deal_id])
+            .deals(vec![id])
             .build();
 
         // Run pre commit extrinsic
@@ -403,18 +350,19 @@ fn setup_sp_with_many_sectors_multiple_partitions(storage_provider: &str, storag
     System::reset_events();
 }
 
-/// Compare deadlines and faults. Panic if faults in both are not equal.
-fn expect_exact_faulty_sectors(
+/// Compare faults in deadlines and faults expected. Panic if faults in both are
+/// not equal.
+fn assert_exact_faulty_sectors(
     deadlines: &Deadlines<u64>,
-    faults: &BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>>,
+    expected_faults: &BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>>,
 ) {
     // Faulty sectors specified in the faults
-    let faults_sectors = faults
+    let faults_sectors = expected_faults
         .iter()
         .flat_map(|f| f.sectors.iter().collect::<Vec<_>>())
         .collect::<Vec<_>>();
 
-    // Faults sectors in the deadlines
+    // Faulted sectors in the deadlines
     let deadline_sectors = deadlines
         .due
         .iter()
