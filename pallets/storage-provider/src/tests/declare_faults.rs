@@ -76,6 +76,7 @@ fn declare_single_fault() {
 
         let deadline = 0;
         let partition = 0;
+        let sectors = vec![1];
 
         default_fault_setup(storage_provider, storage_client);
 
@@ -83,7 +84,7 @@ fn declare_single_fault() {
         assert_ok!(StorageProvider::declare_faults(
             RuntimeOrigin::signed(account(storage_provider)),
             DeclareFaultsBuilder::default()
-                .fault(deadline, partition, vec![1])
+                .fault(deadline, partition, vsectors)
                 .build(),
         ));
 
@@ -171,12 +172,14 @@ fn multiple_deadline_faults() {
         default_fault_setup(storage_provider, storage_client);
 
         let partition = 0;
+        let deadlines = vec![0,1,2,3,4];
+        let sectors = vec![1];
 
         // Fault declaration and extrinsic
         assert_ok!(StorageProvider::declare_faults(
             RuntimeOrigin::signed(account(storage_provider)),
             DeclareFaultsBuilder::default()
-                .multiple_deadlines(vec![0, 1, 2, 3, 4], partition, vec![1])
+                .multiple_deadlines(deadlines, partition, sectors)
                 .build(),
         ));
 

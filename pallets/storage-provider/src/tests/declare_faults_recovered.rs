@@ -28,12 +28,13 @@ fn declare_single_fault_recovered() {
         default_fault_setup(storage_provider, storage_client);
         let deadline = 0;
         let partition = 0;
+        let sectors = vec![1];
 
         // Fault declaration setup
         assert_ok!(StorageProvider::declare_faults(
             RuntimeOrigin::signed(account(storage_provider)),
             DeclareFaultsBuilder::default()
-                .fault(deadline, partition, vec![1])
+                .fault(deadline, partition, sectors.clone())
                 .build(),
         ));
 
@@ -44,7 +45,7 @@ fn declare_single_fault_recovered() {
         assert_ok!(StorageProvider::declare_faults_recovered(
             RuntimeOrigin::signed(account(storage_provider)),
             DeclareFaultsRecoveredBuilder::default()
-                .fault_recovery(deadline, partition, vec![1])
+                .fault_recovery(deadline, partition, sectors)
                 .build(),
         ));
 
@@ -144,6 +145,8 @@ fn multiple_deadline_faults_recovered() {
         let storage_client = BOB;
 
         let partition = 0;
+        let deadlines = vec![0, 1, 2, 3, 4];
+        let sectors = vec![1];
 
         default_fault_setup(storage_provider, storage_client);
 
@@ -151,7 +154,7 @@ fn multiple_deadline_faults_recovered() {
         assert_ok!(StorageProvider::declare_faults(
             RuntimeOrigin::signed(account(storage_provider)),
             DeclareFaultsBuilder::default()
-                .multiple_deadlines(vec![0, 1, 2, 3, 4], partition, vec![1])
+                .multiple_deadlines(deadlines.clone(), partition, sectors.clone())
                 .build(),
         ));
 
@@ -162,7 +165,7 @@ fn multiple_deadline_faults_recovered() {
         assert_ok!(StorageProvider::declare_faults_recovered(
             RuntimeOrigin::signed(account(storage_provider)),
             DeclareFaultsRecoveredBuilder::default()
-                .multiple_deadlines_recovery(vec![0, 1, 2, 3, 4], partition, vec![1])
+                .multiple_deadlines_recovery(deadlines, partition, sectors)
                 .build(),
         ));
 
