@@ -224,7 +224,7 @@ where
     ) -> Result<(), DeadlineError> {
         for (partition_number, partition) in self.partitions.iter_mut() {
             if !partition_sectors.0.contains_key(&partition_number) {
-                continue;
+                return Err(DeadlineError::PartitionNotFound);
             }
             partition.record_faults(
                 sectors,
@@ -254,6 +254,24 @@ where
                     DeadlineError::FailedToUpdateFaultExpiration
                 })?;
             }
+        }
+
+        Ok(())
+    }
+
+    /// Sets sectors as recovering.
+    /// Filecoin ref: <https://github.com/filecoin-project/builtin-actors/blob/0f205c378983ac6a08469b9f400cbb908eef64e2/actors/miner/src/deadline_state.rs#L818>
+    pub fn declare_faults_recovered(
+        &mut self,
+        partition_sectors: &PartitionMap,
+    ) -> Result<(), DeadlineError> {
+        for (partition_number, partition) in self.partitions.iter_mut() {
+            let Some(sectors) = partition_sectors.0.get(partition_number) else {
+                log::error!(target: LOG_TARGET, "declare_faults_recovered: Could not find partition {partition_number}");
+                return Err(DeadlineError::PartitionNotFound);
+            };
+
+            partition.declare_faults_recovered(sectors);
         }
 
         Ok(())
