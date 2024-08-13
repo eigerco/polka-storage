@@ -253,7 +253,7 @@ pub mod pallet {
         FaultsRecovered {
             owner: T::AccountId,
             recoveries: BoundedVec<RecoveryDeclaration, ConstU32<DECLARATIONS_MAX>>,
-        }
+        },
         /// Emitted when an SP doesn't submit Windowed PoSt in time and PoSt hook marks partitions as faulty
         PartitionFaulty {
             owner: T::AccountId,
@@ -949,10 +949,12 @@ pub mod pallet {
             // We cannot modify storage map while inside `iter_keys()` as docs say it's undefined results.
             // And we can use `alloc::Vec`, because it's bounded by StorageProviders data structure anyways.
             let storage_providers: Vec<_> = StorageProviders::<T>::iter_keys().collect();
+            // TODO(@th7nder,13/08/2024): this approach is suboptimal, as it's time complexity is O(StorageProviders * PreCommitedSectors).
+            // We can reduce this by indexing pre-committed sectors by BlockNumber in which they're supposed to be activated in PreCommit and remove them in ProveCommit.
             for storage_provider in storage_providers {
                 log::info!(target: LOG_TARGET, "block: {:?}, checking storage provider {:?}", current_block, storage_provider);
                 let Ok(mut state) = StorageProviders::<T>::try_get(storage_provider.clone()) else {
-                    log::error!(target: LOG_TARGET, "catastrophe, couldn't find a storage provider based on key. it should have been there...");
+                    log::error!(target: LOG_TARGET, "missing storage provider {:?} (should have been added before)", storage_provider);
                     continue;
                 };
 
@@ -973,12 +975,6 @@ pub mod pallet {
                     log::error!(target: LOG_TARGET, "block: {:?}, there are no deadlines for storage provider {:?}", current_block, storage_provider);
                     continue;
                 };
-
-                log::debug!(
-                    "current_deadline.idx: {:?}, sp.current_deadline: {:?}",
-                    current_deadline.idx,
-                    state.current_deadline
-                );
 
                 if !current_deadline.period_started() {
                     log::info!(target: LOG_TARGET, "block: {:?}, period for deadline {:?}, sp {:?} has not yet started...", current_block, current_deadline.idx, storage_provider);
@@ -1008,7 +1004,7 @@ pub mod pallet {
                     continue;
                 };
 
-                let mut slashed_partitions = 0;
+                let mut faulty_partitions = 0;
                 for (partition_number, partition) in deadline.partitions.iter_mut() {
                     if partition.sectors.len() == 0 {
                         continue;
@@ -1043,17 +1039,17 @@ pub mod pallet {
                             sectors: new_faults.try_into()
                                 .expect("new_faults.len() <= MAX_SECTORS, cannot be more new faults than all of the sectors in partition"),
                         });
-                        slashed_partitions += 1;
+                        faulty_partitions += 1;
                     }
                 }
 
                 // TODO(@th7nder,[#106,#187],08/08/2024): figure out slashing amounts (for continued faults, new faults).
-                if slashed_partitions > 0 {
-                    log::info!(target: LOG_TARGET, "block: {:?}, sp: {:?}, deadline: {:?} - should have slashed {} partitions...",
+                if faulty_partitions > 0 {
+                    log::warn!(target: LOG_TARGET, "block: {:?}, sp: {:?}, deadline: {:?} - should have slashed {} partitions...",
                         current_block,
                         storage_provider,
                         current_deadline.idx,
-                        slashed_partitions,
+                        faulty_partitions,
                     );
                 } else {
                     log::info!(target: LOG_TARGET, "block: {:?}, sp: {:?}, deadline: {:?} - all proofs submitted on time.",
@@ -1063,23 +1059,11 @@ pub mod pallet {
                     );
                 }
 
-                // Advance the proving period start of the storage provider if the next deadline is the first one.
-                state.current_deadline =
-                    (state.current_deadline + 1) % T::WPoStPeriodDeadlines::get();
-                log::debug!(
-                    "new deadline {:?}, period deadlines {:?}",
-                    state.current_deadline,
-                    T::WPoStPeriodDeadlines::get()
-                );
-
-                if state.current_deadline.is_zero() {
-                    state.proving_period_start =
-                        current_deadline.period_start + T::WPoStProvingPeriod::get();
-                }
-
                 // Reset posted partitions, as deadline has been processed.
                 // Next processing will happen in the next proving period.
                 deadline.partitions_posted = BoundedBTreeSet::new();
+                state
+                    .advance_deadline(T::WPoStPeriodDeadlines::get(), T::WPoStProvingPeriod::get());
                 StorageProviders::<T>::insert(storage_provider, state);
             }
         }

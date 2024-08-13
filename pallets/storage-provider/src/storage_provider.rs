@@ -97,6 +97,21 @@ where
         }
     }
 
+    /// Advance the proving period start of the storage provider if the next deadline is the first one.
+    pub fn advance_deadline(
+        &mut self,
+        w_post_period_deadlines: u64,
+        w_post_proving_period: BlockNumber,
+    ) {
+        self.current_deadline = (self.current_deadline + 1) % w_post_period_deadlines;
+        log::debug!(target: LOG_TARGET, "new deadline {:?}, period deadlines {:?}", 
+            self.current_deadline, w_post_period_deadlines);
+
+        if self.current_deadline == 0 {
+            self.proving_period_start = self.proving_period_start + w_post_proving_period;
+        }
+    }
+
     pub fn add_pre_commit_deposit(&mut self, amount: Balance) -> Result<(), ArithmeticError> {
         self.pre_commit_deposits = self
             .pre_commit_deposits

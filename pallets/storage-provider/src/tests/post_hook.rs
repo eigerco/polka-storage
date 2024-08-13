@@ -24,12 +24,12 @@ use crate::{
 #[test]
 fn advances_deadline() {
     new_test_ext().execute_with(|| {
+        let challenge_window = <<Test as Config>::WPoStChallengeWindow as Get<u64>>::get();
+        let period_deadlines = <<Test as Config>::WPoStPeriodDeadlines as Get<u64>>::get();
         let storage_provider = CHARLIE;
         register_storage_provider(account(storage_provider));
 
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
-        let challenge_window = <<Test as Config>::WPoStChallengeWindow as Get<u64>>::get();
-        let period_deadlines = <<Test as Config>::WPoStPeriodDeadlines as Get<u64>>::get();
         assert_eq!(sp.current_deadline, 0);
 
         for d in 0..(period_deadlines + 1) {
