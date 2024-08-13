@@ -98,7 +98,7 @@ fn multiple_partition_faults_recovered() {
             ));
 
             // flush events
-            events();
+            System::reset_events();
         }
 
         // setup recovery
@@ -123,14 +123,7 @@ fn multiple_partition_faults_recovered() {
 
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
 
-        let mut recovered = 0;
-        for dl in sp.deadlines.due.iter() {
-            for (_, partition) in dl.partitions.iter() {
-                if partition.recoveries.len() > 0 {
-                    recovered += 1;
-                }
-            }
-        }
+        let (_, recovered) = count_sector_faults_and_recoveries(&sp.deadlines);
 
         assert_eq!(recovered, 5);
         assert_eq!(
