@@ -7,7 +7,6 @@ use crate::{
     deadline::{DeadlineError, Deadlines},
     fault::{DeclareFaultsParams, FaultDeclaration},
     pallet::{Error, Event, StorageProviders, DECLARATIONS_MAX},
-    partition::PartitionError,
     sector::ProveCommitSector,
     sector_map::SectorMapError,
     tests::{
@@ -152,7 +151,7 @@ fn multiple_deadline_faults() {
 
         let partition = 0;
         let deadlines = vec![0, 1, 2, 3, 4];
-        let sectors = vec![1];
+        let sectors = vec![0];
 
         // Fault declaration and extrinsic
         let fault_declaration = DeclareFaultsBuilder::default()
@@ -197,6 +196,14 @@ fn multiple_deadline_faults() {
         sectors: create_set(&[0]),
     },
 ], Error::<Test>::DeadlineError(DeadlineError::PartitionNotFound).into())]
+// Sector specified is not used. This is currently not failing. Should it?
+// #[case(bounded_vec![
+//     FaultDeclaration {
+//         deadline: 0,
+//         partition: 0,
+//         sectors: create_set(&[99]),
+//     },
+// ], Error::<Test>::DeadlineError(DeadlineError::PartitionNotFound).into())]
 fn fails_data_missing_malformed(
     #[case] declared_faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>>,
     #[case] expected_error: Error<Test>,
