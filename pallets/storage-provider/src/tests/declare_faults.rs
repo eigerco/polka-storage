@@ -290,8 +290,9 @@ pub(crate) fn setup_sp_with_one_sector(storage_provider: &str, storage_client: &
 
 /// Setup storage provider with many sectors and multiple partitions.
 ///
-/// The storage provider has 10 deadlines with 2 partitions each. The first
-/// deadline has 3 partitions. The third partition is partially filled.
+/// The storage provider has 10 deadlines with at least 2 partitions in each
+/// deadline. The first deadline has 3 partitions. The third partition is
+/// partially filled.
 ///
 /// Deadlines:
 /// - Deadline 0:
