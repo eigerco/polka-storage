@@ -519,7 +519,10 @@ pub(crate) fn setup_sp_with_many_sectors_multiple_partitions(
 
 /// Compare faults in deadlines and faults expected. Panic if faults in both are
 /// not equal.
-fn assert_exact_faulty_sectors(deadlines: &Deadlines<u64>, expected_faults: &[FaultDeclaration]) {
+pub(crate) fn assert_exact_faulty_sectors(
+    deadlines: &Deadlines<u64>,
+    expected_faults: &[FaultDeclaration],
+) {
     // Faulty sectors specified in the faults
     let faults_sectors = expected_faults
         .iter()
