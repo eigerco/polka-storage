@@ -147,11 +147,11 @@ fn multiple_deadline_faults() {
         // Setup accounts
         let storage_provider = ALICE;
         let storage_client = BOB;
-        setup_sp_with_one_sector(storage_provider, storage_client);
+        setup_sp_with_many_sectors_multiple_partitions(storage_provider, storage_client);
 
         let partition = 0;
         let deadlines = vec![0, 1, 2, 3, 4];
-        let sectors = vec![0];
+        let sectors = vec![0, 1, 2, 3, 4];
 
         // Fault declaration and extrinsic
         let fault_declaration = DeclareFaultsBuilder::default()
