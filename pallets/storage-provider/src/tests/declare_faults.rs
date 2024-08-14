@@ -8,7 +8,6 @@ use crate::{
     fault::{DeclareFaultsParams, FaultDeclaration},
     pallet::{Error, Event, StorageProviders, DECLARATIONS_MAX},
     sector::ProveCommitSector,
-    sector_map::SectorMapError,
     tests::{
         account, create_set, events, new_test_ext, register_storage_provider, DealProposalBuilder,
         DeclareFaultsBuilder, Market, RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder,
