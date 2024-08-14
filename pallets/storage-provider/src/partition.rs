@@ -101,6 +101,7 @@ where
     /// Declares a set of sectors faulty. Already faulty sectors are ignored,
     /// terminated sectors are skipped, and recovering sectors are reverted to
     /// faulty.
+    /// Returns all sectors marked as faulty (including the previous ones), after the operation.
     /// Filecoin ref: <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/partition_state.rs#L225>
     pub fn record_faults(
         &mut self,
@@ -110,10 +111,12 @@ where
             ConstU32<MAX_SECTORS>,
         >,
         sector_numbers: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
-    ) -> Result<(), PartitionError>
+    ) -> Result<BTreeSet<SectorNumber>, PartitionError>
     where
         BlockNumber: sp_runtime::traits::BlockNumber,
     {
+        log::debug!(target: LOG_TARGET, "record_faults: sector_number = {sector_numbers:#?}");
+
         // Split declarations into declarations of new faults, and retraction of declared recoveries.
         // recoveries & sector_numbers
         let retracted_recoveries: BTreeSet<SectorNumber> = self
@@ -122,7 +125,7 @@ where
             .cloned()
             .collect();
         // sector_numbers - retracted_recoveries
-        let new_faults: BTreeSet<&SectorNumber> = sector_numbers
+        let new_faults: BTreeSet<SectorNumber> = sector_numbers
             .iter()
             .filter(|sector_number| {
                 !retracted_recoveries.contains(sector_number)
@@ -130,6 +133,7 @@ where
                 && !self.terminated.contains(&sector_number)
                     && !self.faults.contains(&sector_number)
             })
+            .copied()
             .collect();
 
         log::debug!(target: LOG_TARGET, "record_faults: new_faults = {new_faults:#?}, amount = {:?}", new_faults.len());
@@ -137,7 +141,7 @@ where
             .iter()
             .filter(|(sector_number, _info)| {
                 log::debug!(target: LOG_TARGET, "record_faults: checking sec_num {sector_number}");
-                new_faults.contains(sector_number)
+                new_faults.contains(&sector_number)
             })
             .collect();
         // Add new faults to state, skip if no new faults.
@@ -151,11 +155,14 @@ where
             .iter()
             .filter_map(|(sector_number, _info)| retracted_recoveries.get(&sector_number).copied())
             .collect();
-        if retracted_recovery_sectors.is_empty() {
+
+        if !retracted_recovery_sectors.is_empty() {
+            self.remove_recoveries(&retracted_recovery_sectors)?;
+        } else {
             log::debug!(target: LOG_TARGET, "record_faults: No retracted recoveries detected");
-            return Ok(());
         }
-        self.remove_recoveries(&retracted_recovery_sectors)
+
+        Ok(new_faults)
     }
 
     /// marks a set of sectors faulty

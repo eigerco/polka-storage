@@ -353,7 +353,6 @@ parameter_types! {
     pub const TimeUnitInBlocks: u64 = MINUTES;
     pub const MinDealDuration: u64 = 5;
     pub const MaxDealDuration: u64 = 180;
-    pub const WPoStPeriodDeadlines: u64 = 48;
 }
 
 impl pallet_storage_provider::Config for Runtime {

@@ -1,0 +1,8 @@
+{
+    "sector_number": 1,
+    "sealed_cid": "bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu",
+    "deal_ids": [0],
+    "expiration": 100,
+    "unsealed_cid": "bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu",
+    "seal_proof": "StackedDRG2KiBV1P1"
+}
