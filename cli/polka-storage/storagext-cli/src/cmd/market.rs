@@ -1,6 +1,6 @@
 use clap::{ArgGroup, Subcommand};
 use primitives_proofs::DealId;
-use storagext::{market::MarketClient, PolkaStorageConfig};
+use storagext::{clients::MarketClient, PolkaStorageConfig};
 use subxt::ext::sp_core::{
     crypto::Ss58Codec, ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair,
     sr25519::Pair as Sr25519Pair,

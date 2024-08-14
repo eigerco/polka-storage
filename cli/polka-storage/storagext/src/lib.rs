@@ -1,11 +1,13 @@
-pub mod market;
+pub mod clients;
 pub mod runtime;
-pub mod storage_provider;
+
+use std::collections::BTreeSet;
 
 use cid::Cid;
 use codec::Encode;
 use frame_support::CloneNoBound;
 use primitives_proofs::{DealId, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
+use runtime::runtime_types::bounded_collections::{bounded_btree_set, bounded_vec};
 use subxt::{self, ext::sp_runtime::MultiSignature, tx::Signer, utils::Static};
 
 pub use crate::runtime::{
@@ -160,5 +162,143 @@ impl From<ProveCommitSector>
             sector_number: value.sector_number,
             proof: value.proof.into_bounded_byte_vec(),
         }
+    }
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, serde::Deserialize)]
+pub struct FaultDeclaration {
+    pub deadline: u64,
+    pub partition: u32,
+    pub sectors: BTreeSet<u64>,
+}
+
+impl From<FaultDeclaration>
+    for runtime::runtime_types::pallet_storage_provider::fault::FaultDeclaration
+{
+    fn from(value: FaultDeclaration) -> Self {
+        Self {
+            deadline: value.deadline,
+            partition: value.partition,
+            // Converts from BTreeSet -> Vec -> BoundedBTreeSet because subxt...
+            sectors: bounded_btree_set::BoundedBTreeSet(value.sectors.into_iter().collect()),
+        }
+    }
+}
+
+impl From<Vec<FaultDeclaration>>
+    for runtime::runtime_types::pallet_storage_provider::fault::DeclareFaultsParams
+{
+    fn from(value: Vec<FaultDeclaration>) -> Self {
+        Self {
+            faults: bounded_vec::BoundedVec(value.into_iter().map(Into::into).collect()),
+        }
+    }
+}
+#[derive(PartialEq, Eq, Debug, Clone, serde::Deserialize)]
+pub struct RecoveryDeclaration {
+    pub deadline: u64,
+    pub partition: u32,
+    pub sectors: BTreeSet<u64>,
+}
+
+impl From<RecoveryDeclaration>
+    for runtime::runtime_types::pallet_storage_provider::fault::RecoveryDeclaration
+{
+    fn from(value: RecoveryDeclaration) -> Self {
+        Self {
+            deadline: value.deadline,
+            partition: value.partition,
+            // Converts from BTreeSet -> Vec -> BoundedBTreeSet because subxt...
+            sectors: bounded_btree_set::BoundedBTreeSet(value.sectors.into_iter().collect()),
+        }
+    }
+}
+
+impl From<Vec<RecoveryDeclaration>>
+    for runtime::runtime_types::pallet_storage_provider::fault::DeclareFaultsRecoveredParams
+{
+    fn from(value: Vec<RecoveryDeclaration>) -> Self {
+        Self {
+            recoveries: bounded_vec::BoundedVec(value.into_iter().map(Into::into).collect()),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+
+    use crate::{FaultDeclaration, RecoveryDeclaration};
+
+    #[test]
+    fn ensure_deserialization_faults() {
+        let declaration = r#"
+        {
+            "deadline": 0,
+            "partition": 0,
+            "sectors": [0, 1]
+        }
+        "#;
+        let result: FaultDeclaration = serde_json::from_str(declaration).unwrap();
+        let expected = FaultDeclaration {
+            deadline: 0,
+            partition: 0,
+            sectors: BTreeSet::from_iter([0, 1].into_iter()),
+        };
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn ensure_deserialization_faults_vec() {
+        let declaration = r#"
+        [{
+            "deadline": 0,
+            "partition": 0,
+            "sectors": [0, 1]
+        }]
+        "#;
+        let result: Vec<FaultDeclaration> = serde_json::from_str(declaration).unwrap();
+        let expected = vec![FaultDeclaration {
+            deadline: 0,
+            partition: 0,
+            sectors: BTreeSet::from_iter([0, 1].into_iter()),
+        }];
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn ensure_deserialization_recoveries() {
+        let declaration = r#"
+        {
+            "deadline": 0,
+            "partition": 0,
+            "sectors": [0, 1]
+        }
+        "#;
+        let result: RecoveryDeclaration = serde_json::from_str(declaration).unwrap();
+        let expected = RecoveryDeclaration {
+            deadline: 0,
+            partition: 0,
+            sectors: BTreeSet::from_iter([0, 1].into_iter()),
+        };
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn ensure_deserialization_recoveries_vec() {
+        let declaration = r#"
+        [{
+            "deadline": 0,
+            "partition": 0,
+            "sectors": [0, 1]
+        }]
+        "#;
+        let result: Vec<RecoveryDeclaration> = serde_json::from_str(declaration).unwrap();
+        let expected = vec![RecoveryDeclaration {
+            deadline: 0,
+            partition: 0,
+            sectors: BTreeSet::from_iter([0, 1].into_iter()),
+        }];
+        assert_eq!(expected, result);
     }
 }
