@@ -200,7 +200,7 @@ where
         }
 
         let partitions = BoundedBTreeMap::try_from(partitions).map_err(|_| {
-            log::error!(target: LOG_TARGET, "add_sectors: could not convert partitions to BoundedBTreeMap, too many of them ({} -> {}).", 
+            log::error!(target: LOG_TARGET, "add_sectors: could not convert partitions to BoundedBTreeMap, too many of them ({} -> {}).",
                 initial_partitions,
                 partition_idx);
             DeadlineError::CouldNotAddSectors
@@ -235,9 +235,7 @@ where
             // Verify that the sector we are try to mark as faulty is in the
             // partition
             if !partition_sectors.0.contains_key(&partition_number) {
-                return Err(DeadlineError::PartitionError(
-                    PartitionError::FailedToAddFaults,
-                ));
+                return Err(DeadlineError::PartitionNotFound);
             }
 
             partition.record_faults(
@@ -268,6 +266,24 @@ where
                     DeadlineError::FailedToUpdateFaultExpiration
                 })?;
             }
+        }
+
+        Ok(())
+    }
+
+    /// Sets sectors as recovering.
+    /// Filecoin ref: <https://github.com/filecoin-project/builtin-actors/blob/0f205c378983ac6a08469b9f400cbb908eef64e2/actors/miner/src/deadline_state.rs#L818>
+    pub fn declare_faults_recovered(
+        &mut self,
+        partition_sectors: &PartitionMap,
+    ) -> Result<(), DeadlineError> {
+        for (partition_number, partition) in self.partitions.iter_mut() {
+            let Some(sectors) = partition_sectors.0.get(partition_number) else {
+                log::error!(target: LOG_TARGET, "declare_faults_recovered: Could not find partition {partition_number}");
+                return Err(DeadlineError::PartitionNotFound);
+            };
+
+            partition.declare_faults_recovered(sectors);
         }
 
         Ok(())

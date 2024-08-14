@@ -159,7 +159,8 @@ where
     }
 
     /// marks a set of sectors faulty
-    /// Filecoin reference: <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/partition_state.rs#L155>
+    /// References:
+    /// * <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/partition_state.rs#L155>
     fn add_faults(
         &mut self,
         sector_numbers: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
@@ -195,6 +196,28 @@ where
         })?;
 
         Ok(())
+    }
+
+    /// Set sectors from faulty to recovering, skips any sectors already marked as non-faulty or recovering
+    ///
+    /// References:
+    /// * <https://github.com/filecoin-project/builtin-actors/blob/0f205c378983ac6a08469b9f400cbb908eef64e2/actors/miner/src/partition_state.rs#L317>
+    pub fn declare_faults_recovered(
+        &mut self,
+        sector_numbers: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
+    ) where
+        BlockNumber: sp_runtime::traits::BlockNumber,
+    {
+        // Recoveries = (sector_numbers & self.faults) - self.recoveries
+        let new_recoveries = sector_numbers.intersection(&self.faults).copied().collect();
+        // self.recoveries | recoveries
+        self.recoveries = self
+            .recoveries
+            .union(&new_recoveries)
+            .copied()
+            .collect::<BTreeSet<u64>>()
+            .try_into()
+            .expect("BoundedBTreeSet should be able to be created from BTreeSet");
     }
 }
 
@@ -241,14 +264,14 @@ mod test {
         partition
             .terminated
             .try_insert(1)
-            .expect("Programmer error");
+            .expect(&format!("Inserting a single element into terminated sectors of a partition, which is a BoundedBTreeMap with length {MAX_SECTORS}, should not fail (1 < {MAX_SECTORS})"));
         let live_sectors = partition.live_sectors();
         // Create expected result.
         let mut expected_live_sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>> =
             BoundedBTreeSet::new();
         expected_live_sectors
             .try_insert(2)
-            .expect("Programmer error");
+            .expect(&format!("Inserting a single element into expected_live_sectors, which is a BoundedBTreeMap with length {MAX_SECTORS}, should not fail (1 < {MAX_SECTORS})"));
         assert_eq!(live_sectors, expected_live_sectors);
         Ok(())
     }
