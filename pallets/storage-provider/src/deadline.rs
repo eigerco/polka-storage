@@ -234,6 +234,12 @@ where
                 .get_mut(partition_number)
                 .ok_or(DeadlineError::PartitionNotFound)?;
 
+            // Whether all sectors that we declare as faulty actually exist
+            ensure!(faulty_sectors.iter().all(|s| sectors.contains_key(&s)), {
+                log::error!(target: LOG_TARGET, "record_faults: sectors {:?} not found in the storage provider", faulty_sectors);
+                DeadlineError::SectorsNotFound
+            });
+
             partition.record_faults(
                 sectors,
                 faulty_sectors,
@@ -572,6 +578,8 @@ pub enum DeadlineError {
     MaxPartitionsReached,
     /// Emitted when trying to add sectors to a deadline fails.
     CouldNotAddSectors,
+    /// Emitted when trying to use sectors which haven't been prove committed yet.
+    SectorsNotFound,
     /// Emitted when assigning sectors to deadlines fails.
     CouldNotAssignSectorsToDeadlines,
     /// Emitted when updates to a partition fail.
