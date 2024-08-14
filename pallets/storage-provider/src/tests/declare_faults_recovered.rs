@@ -16,9 +16,10 @@ use crate::{
             assert_exact_faulty_sectors, setup_sp_with_many_sectors_multiple_partitions,
             setup_sp_with_one_sector,
         },
-        events, new_test_ext, register_storage_provider, DealProposalBuilder, DeclareFaultsBuilder,
-        DeclareFaultsRecoveredBuilder, Market, RuntimeEvent, RuntimeOrigin,
-        SectorPreCommitInfoBuilder, StorageProvider, System, Test, ALICE, BOB,
+        events, new_test_ext, register_storage_provider, run_to_block, DealProposalBuilder,
+        DeclareFaultsBuilder, DeclareFaultsRecoveredBuilder, Market, RuntimeEvent, RuntimeOrigin,
+        SectorPreCommitInfoBuilder, StorageProvider, SubmitWindowedPoStBuilder, System, Test,
+        ALICE, BOB,
     },
 };
 
@@ -57,13 +58,65 @@ fn declare_single_fault_recovered() {
 
         let (faults, recoveries) = count_sector_faults_and_recoveries(&sp.deadlines);
 
-        // 1 recovery and 0 faults.
+        // 1 recovery and 1 faults.
         assert_eq!(recoveries, 1);
         assert_eq!(faults, 1);
         assert!(matches!(
             events()[..],
             [RuntimeEvent::StorageProvider(Event::FaultsRecovered { .. })]
         ));
+    });
+}
+
+#[test]
+fn declare_single_fault_recovered_and_submitted() {
+    new_test_ext().execute_with(|| {
+        // Setup accounts
+        let storage_provider = ALICE;
+        let storage_client = BOB;
+
+        setup_sp_with_one_sector(storage_provider, storage_client);
+        let deadline = 0;
+        let partition = 0;
+        let sectors = vec![0];
+
+        // Fault declaration setup
+        assert_ok!(StorageProvider::declare_faults(
+            RuntimeOrigin::signed(account(storage_provider)),
+            DeclareFaultsBuilder::default()
+                .fault(deadline, partition, sectors.clone())
+                .build(),
+        ));
+        assert_ok!(StorageProvider::declare_faults_recovered(
+            RuntimeOrigin::signed(account(storage_provider)),
+            DeclareFaultsRecoveredBuilder::default()
+                .fault_recovery(deadline, partition, sectors)
+                .build(),
+        ));
+        let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
+        let (faults, recoveries) = count_sector_faults_and_recoveries(&sp.deadlines);
+        // 1 recovery and 1 faults.
+        assert_eq!(recoveries, 1);
+        assert_eq!(faults, 1);
+        run_to_block(sp.proving_period_start + 1);
+
+        // Flush events
+        System::reset_events();
+
+        let windowed_post = SubmitWindowedPoStBuilder::default()
+            .partition(partition)
+            .chain_commit_block(System::block_number() - 1)
+            .build();
+        assert_ok!(StorageProvider::submit_windowed_post(
+            RuntimeOrigin::signed(account(ALICE)),
+            windowed_post.clone(),
+        ));
+
+        let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
+        let (faults, recoveries) = count_sector_faults_and_recoveries(&sp.deadlines);
+        // 0 recovery and 0 faults.
+        assert_eq!(recoveries, 0);
+        assert_eq!(faults, 0);
     });
 }
 

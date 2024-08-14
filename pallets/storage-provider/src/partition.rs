@@ -228,6 +228,22 @@ where
             .try_into()
             .expect("BoundedBTreeSet should be able to be created from BTreeSet");
     }
+
+    /// Removes all previously faulty sectors, declared as recoveries, from faults and clears recoveries.
+    ///
+    /// References:
+    /// * <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/partition_state.rs#L271>
+    pub fn recover_all_declared_recoveries(&mut self) {
+        self.faults = self
+            .faults
+            .difference(&self.recoveries)
+            .copied()
+            .collect::<BTreeSet<u64>>()
+            .try_into()
+            .expect("(faults - recoveries).len() <= faults.len()");
+
+        self.recoveries.clear();
+    }
 }
 
 #[derive(Decode, Encode, PalletError, TypeInfo, RuntimeDebug)]
