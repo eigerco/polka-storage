@@ -1,10 +1,6 @@
 extern crate alloc;
 use alloc::collections::BTreeSet;
 
-extern crate alloc;
-
-use alloc::collections::BTreeSet;
-
 use cid::Cid;
 use codec::Encode;
 use frame_support::{

@@ -1,11 +1,7 @@
-extern crate alloc;
-
-use alloc::collections::BTreeSet;
-
-use frame_support::{assert_ok, pallet_prelude::*, BoundedBTreeSet};
-use primitives_proofs::MAX_TERMINATIONS_PER_CALL;
-use sp_core::bounded_vec;
-use sp_runtime::BoundedVec;
+use frame_support::{assert_noop, assert_ok};
+use rstest::rstest;
+use sp_core::{bounded_vec, ConstU32};
+use sp_runtime::{BoundedVec, DispatchError};
 
 use crate::{
     deadline::{DeadlineError, Deadlines},
@@ -15,9 +11,9 @@ use crate::{
     sector::ProveCommitSector,
     sector_map::SectorMapError,
     tests::{
-        account, count_sector_faults_and_recoveries, events, new_test_ext,
-        register_storage_provider, DealProposalBuilder, DeclareFaultsBuilder, Market, RuntimeEvent,
-        RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System, Test, ALICE, BOB,
+        account, create_set, events, new_test_ext, register_storage_provider, DealProposalBuilder,
+        DeclareFaultsBuilder, Market, RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder,
+        StorageProvider, System, Test, ALICE, BOB, CHARLIE,
     },
 };
 
@@ -46,7 +42,7 @@ fn multiple_sector_faults() {
         let storage_client = BOB;
 
         // Setup
-        multi_sectors_setup_fault_declaration(storage_provider, storage_client);
+        setup_sp_with_many_sectors_multiple_partitions(storage_provider, storage_client);
 
         // Flush events before running extrinsic to check only relevant events
         System::reset_events();
@@ -65,11 +61,7 @@ fn multiple_sector_faults() {
         ));
 
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
-
-        let (faults, _recoveries) = count_sector_faults_and_recoveries(&sp.deadlines);
-
-        // Check that partitions are set to faulty
-        assert_eq!(faults, 5);
+        assert_exact_faulty_sectors(&sp.deadlines, &faults);
         assert_eq!(
             events(),
             [RuntimeEvent::StorageProvider(Event::FaultsDeclared {
@@ -83,7 +75,7 @@ fn multiple_sector_faults() {
 #[test]
 fn declare_single_fault() {
     new_test_ext().execute_with(|| {
-        // Setup accounts
+        // Setup
         let storage_provider = ALICE;
         let storage_client = BOB;
         setup_sp_with_one_sector(storage_provider, storage_client);
@@ -92,28 +84,17 @@ fn declare_single_fault() {
         let partition = 0;
         let sectors = vec![1];
 
-        default_fault_setup(storage_provider, storage_client);
-
-        let faults: BoundedVec<_, _> = bounded_vec![FaultDeclaration {
-            deadline: 0,
-            partition: 0,
-            sectors: create_set(&[1]),
-        }];
-
         // Fault declaration setup
+        let fault_declaration = DeclareFaultsBuilder::default()
+            .fault(deadline, partition, sectors)
+            .build();
         assert_ok!(StorageProvider::declare_faults(
             RuntimeOrigin::signed(account(storage_provider)),
-            DeclareFaultsBuilder::default()
-                .fault(deadline, partition, sectors)
-                .build(),
+            fault_declaration.clone(),
         ));
 
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
-
-        let (faults, _recoveries) = count_sector_faults_and_recoveries(&sp.deadlines);
-
-        // Check that partitions are set to faulty
-        assert_eq!(faults, 1);
+        assert_exact_faulty_sectors(&sp.deadlines, &fault_declaration.faults);
         assert!(matches!(
             events()[..],
             [RuntimeEvent::StorageProvider(Event::FaultsDeclared { .. })]
@@ -174,19 +155,16 @@ fn multiple_deadline_faults() {
         let sectors = vec![1];
 
         // Fault declaration and extrinsic
+        let fault_declaration = DeclareFaultsBuilder::default()
+            .multiple_deadlines(deadlines, partition, sectors)
+            .build();
         assert_ok!(StorageProvider::declare_faults(
             RuntimeOrigin::signed(account(storage_provider)),
-            DeclareFaultsBuilder::default()
-                .multiple_deadlines(deadlines, partition, sectors)
-                .build(),
+            fault_declaration.clone(),
         ));
 
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
-
-        let (faults, _recoveries) = count_sector_faults_and_recoveries(&sp.deadlines);
-
-        // Check that partitions are set to faulty
-        assert_eq!(faults, 5);
+        assert_exact_faulty_sectors(&sp.deadlines, &fault_declaration.faults);
         assert!(matches!(
             events()[..],
             [RuntimeEvent::StorageProvider(Event::FaultsDeclared { .. })]
@@ -249,7 +227,7 @@ fn fails_data_missing_malformed(
 }
 
 /// Setup storage provider with one sector.
-fn setup_sp_with_one_sector(storage_provider: &str, storage_client: &str) {
+pub(crate) fn setup_sp_with_one_sector(storage_provider: &str, storage_client: &str) {
     // Register storage provider
     register_storage_provider(account(storage_provider));
 
@@ -331,7 +309,10 @@ fn setup_sp_with_one_sector(storage_provider: &str, storage_client: &str) {
 ///         Sectors 18, 19
 ///     Partition 1:
 ///         Sectors 38, 39
-fn setup_sp_with_many_sectors_multiple_partitions(storage_provider: &str, storage_client: &str) {
+pub(crate) fn setup_sp_with_many_sectors_multiple_partitions(
+    storage_provider: &str,
+    storage_client: &str,
+) {
     // Register storage provider
     register_storage_provider(account(storage_provider));
 
