@@ -296,25 +296,25 @@ pub(crate) fn setup_sp_with_one_sector(storage_provider: &str, storage_client: &
 ///
 /// Deadlines:
 /// - Deadline 0:
-///     Partition 0:
-///         Sectors 0, 1
-///     Partition 1:
-///         Sectors 20, 21
-///     Partition 2:
-///        Sectors 40
+///     - Partition 0:
+///         - Sectors 0, 1
+///     - Partition 1:
+///         - Sectors 20, 21
+///     - Partition 2:
+///        - Sectors 40
 /// - Deadline 1:
-///     Partition 0:
-///         Sectors 2, 3
-///     Partition 1:
-///         Sectors 22, 23
+///     - Partition 0:
+///         - Sectors 2, 3
+///     - Partition 1:
+///         - Sectors 22, 23
 ///
 /// ....................
 ///
 /// - Deadline 10:
-///     Partition 0:
-///         Sectors 18, 19
-///     Partition 1:
-///         Sectors 38, 39
+///     - Partition 0:
+///         - Sectors 18, 19
+///     - Partition 1:
+///         - Sectors 38, 39
 pub(crate) fn setup_sp_with_many_sectors_multiple_partitions(
     storage_provider: &str,
     storage_client: &str,
@@ -324,7 +324,9 @@ pub(crate) fn setup_sp_with_many_sectors_multiple_partitions(
 
     // We are making so that each deadline have at least two partitions. The
     // first deadline has three with third sector only partially filled.
-    let desired_sectors = 10 * (2 + 2) + 1; // 10 deadlines with 2 partitions each partition have 2 sectors
+    //
+    // 10 deadlines with 2 partitions each partition have 2 sectors
+    let desired_sectors = 10 * (2 + 2) + 1;
 
     // Publish as many deals as we need to fill the sectors. We are batching
     // deals so that the processing is a little faster.
@@ -406,10 +408,7 @@ pub(crate) fn setup_sp_with_many_sectors_multiple_partitions(
 
 /// Compare faults in deadlines and faults expected. Panic if faults in both are
 /// not equal.
-fn assert_exact_faulty_sectors(
-    deadlines: &Deadlines<u64>,
-    expected_faults: &BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>>,
-) {
+fn assert_exact_faulty_sectors(deadlines: &Deadlines<u64>, expected_faults: &[FaultDeclaration]) {
     // Faulty sectors specified in the faults
     let faults_sectors = expected_faults
         .iter()

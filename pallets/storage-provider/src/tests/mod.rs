@@ -223,8 +223,7 @@ fn run_to_block(n: u64) {
 
 /// This is a helper function to easily create a set of sectors.
 pub fn create_set<const T: u32>(sectors: &[u64]) -> BoundedBTreeSet<SectorNumber, ConstU32<T>> {
-    let sectors = sectors.iter().copied().collect::<BTreeSet<_>>();
-    BoundedBTreeSet::try_from(sectors).unwrap()
+    BoundedBTreeSet::try_from(BTreeSet<_>::from(sectors.clone())).unwrap()
 }
 
 /// Register account as a provider.

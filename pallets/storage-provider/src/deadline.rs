@@ -145,22 +145,22 @@ where
         let mut partitions = core::mem::take(&mut self.partitions).into_inner();
         let initial_partitions = partitions.len();
 
-        // We are starting at the last partition. That is because we know that
-        // all partitions before last are already full.
-        let mut partition_idx = partitions.len().saturating_sub(1);
+        // We can always start at the last partition. That is because we know
+        // that partitions before the last one are full. We achieve that by
+        // filling a new partition only when the current one is full.
+        let mut partition_idx = initial_partitions.saturating_sub(1);
         loop {
-            // Get partition to which we want to add sectors. If the partition
-            // does not exist, create a new one. The new partition is created
-            // when it's our first time adding sectors to it.
+            // Get the partition to which we want to add sectors. If the
+            // partition does not exist, create a new one. The new partition is
+            // created when it's our first time adding sectors to it.
             let partition = partitions
                 .entry(partition_idx as u32)
                 .or_insert(Partition::new());
 
-            // Get the current partition's sector count.
-            // If the current partition is full, move to the next one.
+            // Get the current partition's sector count. If the current
+            // partition is full, create a new one and start filling that one.
             let sector_count = partition.sectors.len() as u64;
             if sector_count >= partition_size {
-                // Create a new partition.
                 partition_idx += 1;
                 continue;
             }

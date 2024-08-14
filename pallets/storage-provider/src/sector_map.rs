@@ -57,7 +57,7 @@ impl PartitionMap {
     /// * If the partition did not exist, a new set of sectors will be created.
     /// * If the bounds are broken (partitions or sectors), the operation _IS NOT_ a no-op
     ///   and returns an error.
-    /// * If no sectors are passed to be inserted, the operation _IS NOT_ a no-op and returns an error.
+    /// * If no sectors are passed to be inserted, the operation returns an error and no changes are made.
     pub fn try_insert_sectors(
         &mut self,
         partition: PartitionNumber,
@@ -156,7 +156,7 @@ impl DeadlineSectorMap {
 
                 self.0
                     .try_insert(deadline_index, p_map)
-                    .map_err(|_| SectorMapError::FailedToInsertSector)?;
+                    .map_err(|_| SectorMapError::FailedToInsertPartition)?;
                 Ok(())
             }
         }
@@ -167,6 +167,8 @@ impl DeadlineSectorMap {
 pub enum SectorMapError {
     /// Emitted when trying to insert sector(s) fails.
     FailedToInsertSector,
+    /// Emitted when trying to insert partition fails.
+    FailedToInsertPartition,
     /// Emits when trying to insert an empty set of sectors.
     EmptySectors,
 }

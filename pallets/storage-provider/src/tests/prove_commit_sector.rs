@@ -75,7 +75,8 @@ fn successfully_prove_sector() {
         // check that the funds are still locked
         assert_eq!(
             Balances::free_balance(account(storage_provider)),
-            INITIAL_FUNDS - 71
+            // Provider reserved 70 tokens in the market pallet and 1 token is used for the pre-commit
+            INITIAL_FUNDS - 70 - 1
         );
         let sp_state = StorageProviders::<Test>::get(account(storage_provider))
             .expect("Should be able to get providers info");
