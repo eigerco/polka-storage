@@ -57,6 +57,7 @@ impl PartitionMap {
     /// * If the partition did not exist, a new set of sectors will be created.
     /// * If the bounds are broken (partitions or sectors), the operation _IS NOT_ a no-op
     ///   and returns an error.
+    /// * If no sectors are passed to be inserted, the operation returns an error and no changes are made.
     pub fn try_insert_sectors(
         &mut self,
         partition: PartitionNumber,
@@ -147,12 +148,11 @@ impl DeadlineSectorMap {
             None => {
                 // create new partition map entry
                 let mut p_map = PartitionMap::new();
-                p_map
-                    .try_insert_sectors(partition, sectors)
-                    .map_err(|_| SectorMapError::FailedToInsertSector)?;
+                p_map.try_insert_sectors(partition, sectors)?;
+
                 self.0
                     .try_insert(deadline_index, p_map)
-                    .map_err(|_| SectorMapError::FailedToInsertSector)?;
+                    .map_err(|_| SectorMapError::FailedToInsertPartition)?;
                 Ok(())
             }
         }
@@ -163,6 +163,8 @@ impl DeadlineSectorMap {
 pub enum SectorMapError {
     /// Emitted when trying to insert sector(s) fails.
     FailedToInsertSector,
+    /// Emitted when trying to insert partition fails.
+    FailedToInsertPartition,
 }
 
 #[cfg(test)]
@@ -174,6 +176,7 @@ mod test {
     use sp_core::bounded_btree_map;
 
     use super::*;
+    use crate::tests::create_set;
 
     #[test]
     fn partition_map_add_sectors() {
@@ -276,12 +279,6 @@ mod test {
         let sectors = [1, 2, 3];
         let _ = map.try_insert(deadline, partition, create_set(&sectors));
         expect_deadline_sectors_exact(&map, deadline, partition, &sectors);
-    }
-
-    /// This is a helper function to easily create a set of sectors.
-    fn create_set<const T: u32>(sectors: &[u64]) -> BoundedBTreeSet<SectorNumber, ConstU32<T>> {
-        let sectors = sectors.iter().copied().collect::<BTreeSet<_>>();
-        BoundedBTreeSet::try_from(sectors).unwrap()
     }
 
     /// Checks that items in `expected_sectors` are in the actual partition. Any

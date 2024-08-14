@@ -61,7 +61,7 @@ pub mod pallet {
     use sp_arithmetic::traits::Zero;
 
     use crate::{
-        deadline::DeadlineInfo,
+        deadline::{DeadlineError, DeadlineInfo},
         fault::{
             DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration,
             RecoveryDeclaration,
@@ -485,21 +485,29 @@ pub mod pallet {
                 Error::<T>::InvalidProofType,
             );
 
+            // Sector that will be activated and required to be periodically
+            // proven
             let new_sector =
                 SectorOnChainInfo::from_pre_commit(precommit.info.clone(), current_block);
 
+            // Mutate the storage provider state
             StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResult {
                 let sp = maybe_sp
                     .as_mut()
                     .ok_or(Error::<T>::StorageProviderNotFound)?;
+
+                // Activate the sector
                 sp.activate_sector(sector_number, new_sector.clone())
                     .map_err(|e| Error::<T>::StorageProviderError(e))?;
 
+                // Sectors which will be assigned to the deadlines
                 let mut new_sectors = BoundedVec::new();
                 new_sectors
                     .try_push(new_sector)
                     .expect("Infallible since only 1 element is inserted");
 
+                // Assign sectors to deadlines which specify when sectors needs
+                // to be proven
                 sp.assign_sectors_to_deadlines(
                     current_block,
                     new_sectors,
@@ -513,6 +521,7 @@ pub mod pallet {
                 )
                 .map_err(|e| Error::<T>::StorageProviderError(e))?;
 
+                // Remove sector from the pre-committed map
                 sp.remove_pre_committed_sector(sector_number)
                     .map_err(|e| Error::<T>::StorageProviderError(e))?;
                 Ok(())
@@ -616,6 +625,11 @@ pub mod pallet {
             for term in &params.faults {
                 let deadline = term.deadline;
                 let partition = term.partition;
+
+                // Check if the sectors passed are empty
+                if term.sectors.is_empty() {
+                    return Err(Error::<T>::DeadlineError(DeadlineError::CouldNotAddSectors).into());
+                }
 
                 to_process
                     .try_insert(deadline, partition, term.sectors.clone())
@@ -725,6 +739,7 @@ pub mod pallet {
                 owner,
                 recoveries: params.recoveries,
             });
+
             Ok(())
         }
     }

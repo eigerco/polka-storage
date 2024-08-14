@@ -82,11 +82,8 @@ where
 {
     /// Construct a new [`Deadline`] instance.
     pub fn new() -> Self {
-        let mut partitions = BoundedBTreeMap::new();
-        // create 1 initial partition because deadlines are tied to partition so at least 1 partition should be initialized.
-        let _ = partitions.try_insert(0, Partition::new());
         Self {
-            partitions,
+            partitions: BoundedBTreeMap::new(),
             expirations_blocks: BoundedBTreeMap::new(),
             partitions_posted: BoundedBTreeSet::new(),
             early_terminations: BoundedBTreeSet::new(),
@@ -148,31 +145,40 @@ where
         let mut partitions = core::mem::take(&mut self.partitions).into_inner();
         let initial_partitions = partitions.len();
 
-        // Needs to start at 1 because if we take the length of `self.partitions`
-        // it will always be `MAX_PARTITIONS_PER_DEADLINE` because the partitions are pre-initialized.
-        let mut partition_idx = 0;
+        // We can always start at the last partition. That is because we know
+        // that partitions before the last one are full. We achieve that by
+        // filling a new partition only when the current one is full.
+        let mut partition_idx = initial_partitions.saturating_sub(1);
         loop {
-            // Get/create partition to update.
+            // Get the partition to which we want to add sectors. If the
+            // partition does not exist, create a new one. The new partition is
+            // created when it's our first time adding sectors to it.
             let partition = partitions
                 .entry(partition_idx as u32)
                 .or_insert(Partition::new());
 
-            // Figure out which (if any) sectors we want to add to this partition.
+            // Get the current partition's sector count. If the current
+            // partition is full, create a new one and start filling that one.
             let sector_count = partition.sectors.len() as u64;
             if sector_count >= partition_size {
+                partition_idx += 1;
                 continue;
             }
 
+            // Calculate how many sectors we can add to current partition.
             let size = cmp::min(partition_size - sector_count, sectors.len() as u64) as usize;
 
+            // Split the sectors into two parts: one to add to the current
+            // partition and the rest which will be added to the next one.
             let (partition_new_sectors, sectors) = sectors.split_at(size);
 
+            // Extract the sector numbers from the new sectors.
             let new_partition_sectors: Vec<SectorNumber> = partition_new_sectors
                 .into_iter()
                 .map(|sector| sector.sector_number)
                 .collect();
 
-            // Add sectors to partition.
+            // Add new sector numbers to the current partition.
             partition
                 .add_sectors(&new_partition_sectors)
                 .map_err(|_| DeadlineError::CouldNotAddSectors)?;
@@ -184,10 +190,10 @@ where
                     .map(|s| (s.expiration, partition_idx as PartitionNumber)),
             );
 
+            // No more sectors to add
             if sectors.is_empty() {
                 break;
             }
-            partition_idx += 1;
         }
 
         let partitions = BoundedBTreeMap::try_from(partitions).map_err(|_| {
@@ -222,20 +228,20 @@ where
         partition_sectors: &mut PartitionMap,
         fault_expiration_block: BlockNumber,
     ) -> Result<(), DeadlineError> {
-        for (partition_number, partition) in self.partitions.iter_mut() {
-            if !partition_sectors.0.contains_key(&partition_number) {
-                return Err(DeadlineError::PartitionNotFound);
-            }
+        for (partition_number, faulty_sectors) in partition_sectors.0.iter() {
+            let partition = self
+                .partitions
+                .get_mut(partition_number)
+                .ok_or(DeadlineError::PartitionNotFound)?;
+
             partition.record_faults(
                 sectors,
-                partition_sectors
-                .0
-                .get(partition_number)
-                .expect("Infallible because of the above check"),
+                faulty_sectors,
             ).map_err(|e| {
                 log::error!(target: LOG_TARGET, "record_faults: Error while recording faults in a partition: {e:?}");
                 DeadlineError::PartitionError(e)
             })?;
+
             // Update expiration block
             if let Some((&block, _)) = self
                 .expirations_blocks
@@ -244,9 +250,9 @@ where
             {
                 self.expirations_blocks.remove(&block);
                 self.expirations_blocks.try_insert(fault_expiration_block, *partition_number).map_err(|_| {
-                        log::error!(target: LOG_TARGET, "record_faults: Could not insert new expiration");
-                        DeadlineError::FailedToUpdateFaultExpiration
-                    })?;
+                    log::error!(target: LOG_TARGET, "record_faults: Could not insert new expiration");
+                    DeadlineError::FailedToUpdateFaultExpiration
+                })?;
             } else {
                 log::debug!(target: LOG_TARGET, "record_faults: Inserting partition number {partition_number}");
                 self.expirations_blocks.try_insert(fault_expiration_block, *partition_number).map_err(|_| {
