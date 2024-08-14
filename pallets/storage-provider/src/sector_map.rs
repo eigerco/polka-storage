@@ -63,10 +63,6 @@ impl PartitionMap {
         partition: PartitionNumber,
         sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_TERMINATIONS_PER_CALL>>,
     ) -> Result<(), SectorMapError> {
-        if sectors.is_empty() {
-            return Err(SectorMapError::EmptySectors);
-        }
-
         if let Some(s) = self.0.get_mut(&partition) {
             // NOTE(@jmg-duarte,24/07/2024): to make the operation a no-op we need to merge both
             // sets into a single one and replace the original one if the bounds weren't broken
@@ -169,8 +165,6 @@ pub enum SectorMapError {
     FailedToInsertSector,
     /// Emitted when trying to insert partition fails.
     FailedToInsertPartition,
-    /// Emits when trying to insert an empty set of sectors.
-    EmptySectors,
 }
 
 #[cfg(test)]
@@ -219,18 +213,6 @@ mod test {
         let sectors = [4, 5, 6];
         let _ = map.try_insert_sectors(partition, create_set(&sectors));
         expect_sectors_exact(&map, partition, &sectors);
-    }
-
-    #[test]
-    fn partition_map_fail_empty_sectors() {
-        let mut map = PartitionMap::new();
-
-        let partition = 0;
-        let sectors = [];
-
-        assert!(map
-            .try_insert_sectors(partition, create_set(&sectors))
-            .is_err());
     }
 
     #[test]

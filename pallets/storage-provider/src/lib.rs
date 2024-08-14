@@ -61,7 +61,7 @@ pub mod pallet {
     use sp_arithmetic::traits::Zero;
 
     use crate::{
-        deadline::DeadlineInfo,
+        deadline::{DeadlineError, DeadlineInfo},
         fault::{
             DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration,
             RecoveryDeclaration,
@@ -625,6 +625,11 @@ pub mod pallet {
             for term in &params.faults {
                 let deadline = term.deadline;
                 let partition = term.partition;
+
+                // Check if the sectors passed are empty
+                if term.sectors.is_empty() {
+                    return Err(Error::<T>::DeadlineError(DeadlineError::CouldNotAddSectors).into());
+                }
 
                 to_process
                     .try_insert(deadline, partition, term.sectors.clone())

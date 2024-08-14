@@ -179,7 +179,7 @@ fn multiple_deadline_faults() {
         partition: 0,
         sectors: create_set(&[]),
     },
-], Error::<Test>::SectorMapError(SectorMapError::EmptySectors).into())]
+], Error::<Test>::DeadlineError(DeadlineError::CouldNotAddSectors).into())]
 // Deadline specified is not valid
 #[case(bounded_vec![
     FaultDeclaration {
