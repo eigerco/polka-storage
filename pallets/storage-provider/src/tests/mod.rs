@@ -35,6 +35,7 @@ use crate::{
 
 mod declare_faults;
 mod declare_faults_recovered;
+mod post_hook;
 mod pre_commit_sector;
 mod pre_commit_sector_hook;
 mod prove_commit_sector;

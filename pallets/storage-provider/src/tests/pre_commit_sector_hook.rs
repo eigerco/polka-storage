@@ -1,3 +1,7 @@
+extern crate alloc;
+
+use alloc::collections::BTreeSet;
+
 use sp_core::bounded_vec;
 
 use super::new_test_ext;
@@ -77,6 +81,11 @@ fn pre_commit_hook_slashed_deal() {
         assert_eq!(
             events(),
             [
+                RuntimeEvent::StorageProvider(Event::<Test>::PartitionFaulty {
+                    owner: account(storage_provider),
+                    partition: 0,
+                    sectors: BTreeSet::from([2]).try_into().unwrap()
+                }),
                 RuntimeEvent::StorageProvider(Event::<Test>::SectorSlashed {
                     owner: account(storage_provider),
                     sector_number: 1,
