@@ -50,7 +50,7 @@ fn multiple_sector_faults() {
         let faults: BoundedVec<_, _> = bounded_vec![FaultDeclaration {
             deadline: 0,
             partition: 0,
-            sectors: create_set(&[1, 2, 3, 4, 5]),
+            sectors: create_set(&[0, 1]),
         }];
 
         assert_ok!(StorageProvider::declare_faults(
@@ -82,7 +82,7 @@ fn declare_single_fault() {
 
         let deadline = 0;
         let partition = 0;
-        let sectors = vec![1];
+        let sectors = vec![0];
 
         // Fault declaration setup
         let fault_declaration = DeclareFaultsBuilder::default()
@@ -196,9 +196,7 @@ fn multiple_deadline_faults() {
         partition: 99,
         sectors: create_set(&[0]),
     },
-], Error::<Test>::DeadlineError(DeadlineError::PartitionError(
-    PartitionError::FailedToAddFaults
-)).into())]
+], Error::<Test>::DeadlineError(DeadlineError::PartitionNotFound).into())]
 fn fails_data_missing_malformed(
     #[case] declared_faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>>,
     #[case] expected_error: Error<Test>,
@@ -254,7 +252,7 @@ pub(crate) fn setup_sp_with_one_sector(storage_provider: &str, storage_client: &
     ));
 
     // Sector to be pre-committed and proven
-    let sector_number = 1;
+    let sector_number = 0;
 
     // Sector data
     let sector = SectorPreCommitInfoBuilder::default()

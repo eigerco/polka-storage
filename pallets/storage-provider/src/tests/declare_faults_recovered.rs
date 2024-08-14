@@ -27,7 +27,7 @@ fn declare_single_fault_recovered() {
 
         let deadline = 0;
         let partition = 0;
-        let sectors = vec![1];
+        let sectors = vec![0];
 
         // Fault declaration setup
         assert_ok!(StorageProvider::declare_faults(
@@ -145,7 +145,7 @@ fn multiple_deadline_faults_recovered() {
 
         let partition = 0;
         let deadlines = vec![0, 1, 2, 3, 4];
-        let sectors = vec![1];
+        let sectors = vec![0];
 
         setup_sp_with_one_sector(storage_provider, storage_client);
 

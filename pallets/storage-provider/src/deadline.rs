@@ -231,23 +231,20 @@ where
         partition_sectors: &mut PartitionMap,
         fault_expiration_block: BlockNumber,
     ) -> Result<(), DeadlineError> {
-        for (partition_number, partition) in self.partitions.iter_mut() {
-            // Verify that the sector we are try to mark as faulty is in the
-            // partition
-            if !partition_sectors.0.contains_key(&partition_number) {
-                return Err(DeadlineError::PartitionNotFound);
-            }
+        for (partition_number, faulty_sectors) in partition_sectors.0.iter() {
+            let partition = self
+                .partitions
+                .get_mut(partition_number)
+                .ok_or(DeadlineError::PartitionNotFound)?;
 
             partition.record_faults(
                 sectors,
-                partition_sectors
-                .0
-                .get(partition_number)
-                .expect("Infallible because of the above check"),
+                faulty_sectors,
             ).map_err(|e| {
                 log::error!(target: LOG_TARGET, "record_faults: Error while recording faults in a partition: {e:?}");
                 DeadlineError::PartitionError(e)
             })?;
+
             // Update expiration block
             if let Some((&block, _)) = self
                 .expirations_blocks
@@ -256,9 +253,9 @@ where
             {
                 self.expirations_blocks.remove(&block);
                 self.expirations_blocks.try_insert(fault_expiration_block, *partition_number).map_err(|_| {
-                        log::error!(target: LOG_TARGET, "record_faults: Could not insert new expiration");
-                        DeadlineError::FailedToUpdateFaultExpiration
-                    })?;
+                    log::error!(target: LOG_TARGET, "record_faults: Could not insert new expiration");
+                    DeadlineError::FailedToUpdateFaultExpiration
+                })?;
             } else {
                 log::debug!(target: LOG_TARGET, "record_faults: Inserting partition number {partition_number}");
                 self.expirations_blocks.try_insert(fault_expiration_block, *partition_number).map_err(|_| {
