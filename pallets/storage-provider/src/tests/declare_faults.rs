@@ -1,9 +1,6 @@
 extern crate alloc;
 
-use alloc::collections::BTreeSet;
-
-use frame_support::{assert_noop, assert_ok, pallet_prelude::*, BoundedBTreeSet};
-use primitives_proofs::MAX_TERMINATIONS_PER_CALL;
+use frame_support::{assert_noop, assert_ok, pallet_prelude::*};
 use rstest::rstest;
 use sp_core::bounded_vec;
 use sp_runtime::{traits::BlockNumberProvider, BoundedVec};
@@ -160,7 +157,7 @@ fn declare_single_fault_from_proving_period(#[case] proving_period_multiple: f64
         // The cron hook generates events between blocks, this removes those events
         System::reset_events();
 
-        let mut sectors = create_set(&[0]);
+        let sectors = create_set(&[0]);
         let fault = FaultDeclaration {
             deadline: 0,
             partition: 0,
