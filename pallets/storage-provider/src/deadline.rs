@@ -82,11 +82,8 @@ where
 {
     /// Construct a new [`Deadline`] instance.
     pub fn new() -> Self {
-        let mut partitions = BoundedBTreeMap::new();
-        // create 1 initial partition because deadlines are tied to partition so at least 1 partition should be initialized.
-        let _ = partitions.try_insert(0, Partition::new());
         Self {
-            partitions,
+            partitions: BoundedBTreeMap::new(),
             expirations_blocks: BoundedBTreeMap::new(),
             partitions_posted: BoundedBTreeSet::new(),
             early_terminations: BoundedBTreeSet::new(),

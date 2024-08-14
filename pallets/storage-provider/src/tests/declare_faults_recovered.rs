@@ -145,7 +145,7 @@ fn multiple_deadline_faults_recovered() {
 
         let partition = 0;
         let deadlines = vec![0, 1, 2, 3, 4];
-        let sectors = vec![1];
+        let sectors = vec![1, 2, 3, 4, 5];
 
         default_fault_setup(storage_provider, storage_client);
 

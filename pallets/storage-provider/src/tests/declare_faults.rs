@@ -166,7 +166,7 @@ fn multiple_deadline_faults() {
 
         let partition = 0;
         let deadlines = vec![0, 1, 2, 3, 4];
-        let sectors = vec![1];
+        let sectors = vec![1, 2, 3, 4, 5];
 
         // Fault declaration and extrinsic
         assert_ok!(StorageProvider::declare_faults(
