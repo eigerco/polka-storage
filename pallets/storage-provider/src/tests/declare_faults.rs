@@ -308,14 +308,13 @@ fn multiple_deadline_faults() {
         sectors: create_set(&[0]),
     },
 ], Error::<Test>::DeadlineError(DeadlineError::PartitionNotFound).into())]
-// Sector specified is not used. This is currently not failing. Should it?
-// #[case(bounded_vec![
-//     FaultDeclaration {
-//         deadline: 0,
-//         partition: 0,
-//         sectors: create_set(&[99]),
-//     },
-// ], Error::<Test>::DeadlineError(DeadlineError::PartitionNotFound).into())]
+#[case(bounded_vec![
+    FaultDeclaration {
+        deadline: 0,
+        partition: 0,
+        sectors: create_set(&[99]),
+     },
+], Error::<Test>::DeadlineError(DeadlineError::SectorsNotFound).into())]
 fn fails_data_missing_malformed(
     #[case] declared_faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>>,
     #[case] expected_error: Error<Test>,
