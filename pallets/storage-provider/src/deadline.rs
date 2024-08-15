@@ -93,16 +93,17 @@ where
     }
 
     /// Sets a given partition as proven.
+    /// Proving also recovers a partition (unmarks it as faulty),
+    /// if the partition was declared to recover before submitting a proof.
     ///
     /// If the partition has already been proven, an error is returned.
     pub fn record_proven(&mut self, partition_num: PartitionNumber) -> Result<(), DeadlineError> {
         log::debug!(target: LOG_TARGET, "record_proven: partition number = {partition_num:?}");
 
-        // Ensure the partition exists.
-        ensure!(self.partitions.contains_key(&partition_num), {
+        let partition = self.partitions.get_mut(&partition_num).ok_or_else(|| {
             log::error!(target: LOG_TARGET, "record_proven: partition {partition_num:?} not found");
             DeadlineError::PartitionNotFound
-        });
+        })?;
 
         // Ensure the partition hasn't already been proven.
         ensure!(!self.partitions_posted.contains(&partition_num), {
@@ -114,6 +115,8 @@ where
         self.partitions_posted
             .try_insert(partition_num)
             .map_err(|_| DeadlineError::ProofUpdateFailed)?;
+
+        partition.recover_all_declared_recoveries();
 
         Ok(())
     }
