@@ -277,13 +277,16 @@ where
         &mut self,
         partition_sectors: &PartitionMap,
     ) -> Result<(), DeadlineError> {
-        for (partition_number, partition) in self.partitions.iter_mut() {
-            let Some(sectors) = partition_sectors.0.get(partition_number) else {
-                log::error!(target: LOG_TARGET, "declare_faults_recovered: Could not find partition {partition_number}");
-                return Err(DeadlineError::PartitionNotFound);
-            };
+        for (partition_number, recovered_sectors) in partition_sectors.0.iter() {
+            let partition = self
+                .partitions
+                .get_mut(partition_number)
+                .ok_or_else(|| {
+                    log::error!(target: LOG_TARGET, "declare_faults_recovered: Could not find partition {partition_number}");
+                    DeadlineError::PartitionNotFound
+                })?;
 
-            partition.declare_faults_recovered(sectors);
+            partition.declare_faults_recovered(recovered_sectors);
         }
 
         Ok(())

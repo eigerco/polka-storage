@@ -4,6 +4,7 @@ use sp_core::bounded_vec;
 use sp_runtime::BoundedVec;
 
 use crate::{
+    deadline::Deadlines,
     fault::{
         DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration, RecoveryDeclaration,
     },
@@ -12,7 +13,8 @@ use crate::{
     tests::{
         account, count_sector_faults_and_recoveries,
         declare_faults::{
-            setup_sp_with_many_sectors_multiple_partitions, setup_sp_with_one_sector,
+            assert_exact_faulty_sectors, setup_sp_with_many_sectors_multiple_partitions,
+            setup_sp_with_one_sector,
         },
         events, new_test_ext, register_storage_provider, DealProposalBuilder, DeclareFaultsBuilder,
         DeclareFaultsRecoveredBuilder, Market, RuntimeEvent, RuntimeOrigin,
@@ -140,7 +142,6 @@ fn multiple_partition_faults_recovered() {
 }
 
 #[test]
-#[ignore = "This test is failing. It is not clear why."]
 fn multiple_deadline_faults_recovered() {
     new_test_ext().execute_with(|| {
         // Setup accounts
@@ -153,32 +154,34 @@ fn multiple_deadline_faults_recovered() {
 
         setup_sp_with_many_sectors_multiple_partitions(storage_provider, storage_client);
 
+        let fault_declaration = DeclareFaultsBuilder::default()
+            .multiple_deadlines(deadlines.clone(), partition, sectors.clone())
+            .build();
+
         // Fault declaration setup
         assert_ok!(StorageProvider::declare_faults(
             RuntimeOrigin::signed(account(storage_provider)),
-            DeclareFaultsBuilder::default()
-                .multiple_deadlines(deadlines.clone(), partition, sectors.clone())
-                .build(),
+            fault_declaration.clone(),
         ));
 
         // Flush events
         System::reset_events();
 
+        let recovery_declaration = DeclareFaultsRecoveredBuilder::default()
+            .multiple_deadlines_recovery(deadlines, partition, sectors)
+            .build();
+
         // setup recovery and run extrinsic
         assert_ok!(StorageProvider::declare_faults_recovered(
             RuntimeOrigin::signed(account(storage_provider)),
-            DeclareFaultsRecoveredBuilder::default()
-                .multiple_deadlines_recovery(deadlines, partition, sectors)
-                .build(),
+            recovery_declaration.clone()
         ));
 
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
 
-        let (faults, recovered) = count_sector_faults_and_recoveries(&sp.deadlines);
-
+        assert_exact_faulty_sectors(&sp.deadlines, &fault_declaration.faults);
+        assert_exact_recovered_sectors(&sp.deadlines, &recovery_declaration.recoveries);
         // Check that all faults are recovered.
-        assert_eq!(recovered, 5);
-        assert_eq!(faults, 5);
         assert!(matches!(
             events()[..],
             [RuntimeEvent::StorageProvider(Event::FaultsRecovered { .. })]
@@ -288,4 +291,31 @@ fn multi_sectors_setup_fault_recovery(
 
     // Flush events
     System::reset_events();
+}
+
+/// Compare faults in deadlines and faults expected. Panic if faults in both are
+/// not equal.
+pub(crate) fn assert_exact_recovered_sectors(
+    deadlines: &Deadlines<u64>,
+    expected_recoveries: &[RecoveryDeclaration],
+) {
+    // Faulty sectors specified in the faults
+    let recovered_sectors = expected_recoveries
+        .iter()
+        .flat_map(|f| f.sectors.iter().collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+
+    // Faulted sectors in the deadlines
+    let deadline_sectors = deadlines
+        .due
+        .iter()
+        .flat_map(|dl| {
+            dl.partitions
+                .iter()
+                .flat_map(|(_, p)| p.recoveries.iter().collect::<Vec<_>>())
+        })
+        .collect::<Vec<_>>();
+
+    // Should be equal
+    assert_eq!(recovered_sectors, deadline_sectors);
 }
