@@ -60,7 +60,8 @@ pub enum StorageProviderCommand {
     /// Declare faulty sectors.
     DeclareFaults {
         #[arg(value_parser = <Vec<FaultDeclaration> as ParseablePath>::parse_json)]
-        faults: Vec<FaultDeclaration>,
+        // Needs to be fully qualified due to https://github.com/clap-rs/clap/issues/4626
+        faults: std::vec::Vec<FaultDeclaration>,
     },
 
     /// Declare recovered faulty sectors.
