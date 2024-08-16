@@ -628,7 +628,7 @@ pub mod pallet {
 
                 // Check if the sectors passed are empty
                 if term.sectors.is_empty() {
-                    log::error!(target: LOG_TARGET, "declare_faults: [deadline: {}, partition: {}] cannot add empty sectors");
+                    log::error!(target: LOG_TARGET, "declare_faults: [deadline: {}, partition: {}] cannot add empty sectors", deadline, partition);
                     return Err(Error::<T>::DeadlineError(DeadlineError::CouldNotAddSectors).into());
                 }
 
