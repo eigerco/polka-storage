@@ -705,6 +705,12 @@ pub mod pallet {
                 let deadline = term.deadline;
                 let partition = term.partition;
 
+                // Check if the sectors passed are empty
+                if term.sectors.is_empty() {
+                    log::error!(target: LOG_TARGET, "declare_faults_recovered: sectors cannot be empty for deadline: {:?}, partition: {:?}", deadline, partition);
+                    return Err(Error::<T>::DeadlineError(DeadlineError::CouldNotAddSectors).into());
+                }
+
                 to_process
                     .try_insert(deadline, partition, term.sectors.clone())
                     .map_err(|e| Error::<T>::SectorMapError(e))?;
@@ -732,7 +738,7 @@ pub mod pallet {
                     .deadlines
                     .load_deadline_mut(deadline_idx as usize)
                     .map_err(|e| Error::<T>::DeadlineError(e))?;
-                dl.declare_faults_recovered(partition_map)
+                dl.declare_faults_recovered(&sp.sectors, partition_map)
                     .map_err(|e| Error::<T>::DeadlineError(e))?;
             }
 
