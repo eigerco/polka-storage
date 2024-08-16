@@ -2,10 +2,10 @@ use frame_support::{assert_noop, assert_ok, assert_err,pallet_prelude::*, Bounde
 use primitives_proofs::{SectorNumber, MAX_TERMINATIONS_PER_CALL};
 use rstest::rstest;
 use sp_core::bounded_vec;
-use sp_runtime::BoundedVec;
+use sp_runtime::{traits::BlockNumberProvider, BoundedVec};
 
 use crate::{
-    deadline::{DeadlineError, Deadlines},
+    deadline::{DeadlineError, DeadlineInfo, Deadlines},
     fault::{
         DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration, RecoveryDeclaration,
     },
@@ -22,6 +22,7 @@ use crate::{
         SectorPreCommitInfoBuilder, StorageProvider, SubmitWindowedPoStBuilder, System, Test,
         ALICE, BOB,
     },
+    Config,
 };
 
 #[test]
@@ -352,8 +353,21 @@ fn fault_recovery_past_cutoff_should_fail() {
 
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
 
-        sp.
-        run_to_block(63);
+        let test_dl = DeadlineInfo::new(
+            System::current_block_number(),
+            sp.proving_period_start,
+            0,
+            <Test as Config>::FaultDeclarationCutoff::get(),
+            <Test as Config>::WPoStPeriodDeadlines::get(),
+            <Test as Config>::WPoStChallengeWindow::get(),
+            <Test as Config>::WPoStProvingPeriod::get(),
+            <Test as Config>::WPoStChallengeLookBack::get(),
+        )
+        .and_then(DeadlineInfo::next_not_elapsed)
+        .expect("deadline should be valid");
+
+        // Run block to the fault declaration cutoff.
+        run_to_block(test_dl.fault_cutoff);
 
         let deadline = 0;
         let partition = 0;

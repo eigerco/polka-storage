@@ -391,10 +391,25 @@ fn fault_declaration_past_cutoff_should_fail() {
 
         setup_sp_with_one_sector(storage_provider, storage_client);
 
+        let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
+
+        let test_dl = DeadlineInfo::new(
+            System::current_block_number(),
+            sp.proving_period_start,
+            0,
+            <Test as Config>::FaultDeclarationCutoff::get(),
+            <Test as Config>::WPoStPeriodDeadlines::get(),
+            <Test as Config>::WPoStChallengeWindow::get(),
+            <Test as Config>::WPoStProvingPeriod::get(),
+            <Test as Config>::WPoStChallengeLookBack::get(),
+        )
+        .and_then(DeadlineInfo::next_not_elapsed)
+        .expect("deadline should be valid");
+        // Run block to the fault declaration cutoff.
+        run_to_block(test_dl.fault_cutoff);
+
         let deadline = 0;
         let partition = 0;
-
-        run_to_block(63);
         // Fault declaration setup
         assert_err!(
             StorageProvider::declare_faults(
