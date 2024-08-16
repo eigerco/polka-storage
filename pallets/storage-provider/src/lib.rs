@@ -696,7 +696,6 @@ pub mod pallet {
                 .and_then(DeadlineInfo::next_not_elapsed)
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
 
-                log::info!(target: LOG_TARGET, "declare_faults: cut off = {:?}", target_dl.fault_cutoff);
                 // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L2451-L2458
                 ensure!(!target_dl.fault_cutoff_passed(), {
                     log::error!(target: LOG_TARGET, "declare_faults: Late fault declaration at deadline {deadline_idx}");
@@ -768,7 +767,6 @@ pub mod pallet {
                     T::WPoStChallengeLookBack::get(),
                 )
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
-                log::info!(target: LOG_TARGET, "declare_faults_recovered: cut off = {:?}", target_dl.fault_cutoff);
                 ensure!(!target_dl.fault_cutoff_passed(), {
                     log::error!(target: LOG_TARGET, "declare_faults: Late fault declaration at deadline {deadline_idx}");
                     Error::<T>::FaultDeclarationTooLate
