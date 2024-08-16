@@ -359,7 +359,6 @@ fn fails_data_missing_malformed(
     });
 }
 
-/// Setup storage provider with one sector.
 #[test]
 fn declare_fault_non_existent_partition_should_fail() {
     new_test_ext().execute_with(|| {
