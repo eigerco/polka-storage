@@ -1,7 +1,9 @@
 use anyhow::bail;
 use clap::Subcommand;
 use primitives_proofs::RegisteredPoStProof;
-use storagext::{storage_provider::StorageProviderClient, PolkaStorageConfig};
+use storagext::{
+    clients::StorageProviderClient, FaultDeclaration, PolkaStorageConfig, RecoveryDeclaration,
+};
 use subxt::ext::sp_core::crypto::Ss58Codec;
 use url::Url;
 
@@ -53,6 +55,19 @@ pub enum StorageProviderCommand {
     SubmitWindowedProofOfSpaceTime {
         #[arg(value_parser = <SubmitWindowedPoStParams as ParseablePath>::parse_json)]
         windowed_post: SubmitWindowedPoStParams,
+    },
+
+    /// Declare faulty sectors.
+    DeclareFaults {
+        #[arg(value_parser = <Vec<FaultDeclaration> as ParseablePath>::parse_json)]
+        // Needs to be fully qualified due to https://github.com/clap-rs/clap/issues/4626
+        faults: std::vec::Vec<FaultDeclaration>,
+    },
+
+    /// Declare recovered faulty sectors.
+    DeclareFaultsRecovered {
+        #[arg(value_parser = <Vec<RecoveryDeclaration> as ParseablePath>::parse_json)]
+        recoveries: Vec<RecoveryDeclaration>,
     },
 }
 
@@ -123,7 +138,19 @@ impl StorageProviderCommand {
                     .submit_windowed_post(&account_keypair, windowed_post.into())
                     .await?;
 
-                tracing::info!("[{}] Successfully submitted proof.", block_hash,);
+                tracing::info!("[{}] Successfully submitted proof.", block_hash);
+            }
+            StorageProviderCommand::DeclareFaults { faults } => {
+                let block_hash = client.declare_faults(&account_keypair, faults).await?;
+
+                tracing::info!("[{}] Successfully declared faults.", block_hash);
+            }
+            StorageProviderCommand::DeclareFaultsRecovered { recoveries } => {
+                let block_hash = client
+                    .declare_faults_recovered(&account_keypair, recoveries)
+                    .await?;
+
+                tracing::info!("[{}] Successfully declared faults.", block_hash);
             }
         }
         Ok(())
