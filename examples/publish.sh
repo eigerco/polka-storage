@@ -1,4 +1,4 @@
-#!/bin/bash 
+#!/bin/bash -xe
 target/debug/storagext-cli --sr25519-key //Charlie storage-provider register charlie
 
 target/debug/storagext-cli --sr25519-key //Alice market add-balance 25100200300
