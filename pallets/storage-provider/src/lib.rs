@@ -208,6 +208,8 @@ pub mod pallet {
         #[pallet::constant]
         type FaultMaxAge: Get<BlockNumberFor<Self>>;
 
+        /// The period before a PoSt window closes its fault declaration and recovery
+        /// <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/runtime/src/runtime/policy.rs#L327-L328>
         #[pallet::constant]
         type FaultDeclarationCutoff: Get<BlockNumberFor<Self>>;
     }
