@@ -278,6 +278,11 @@ where
     /// Filecoin ref: <https://github.com/filecoin-project/builtin-actors/blob/0f205c378983ac6a08469b9f400cbb908eef64e2/actors/miner/src/deadline_state.rs#L818>
     pub fn declare_faults_recovered(
         &mut self,
+        sectors: &BoundedBTreeMap<
+            SectorNumber,
+            SectorOnChainInfo<BlockNumber>,
+            ConstU32<MAX_SECTORS>,
+        >,
         partition_sectors: &PartitionMap,
     ) -> Result<(), DeadlineError> {
         for (partition_number, recovered_sectors) in partition_sectors.0.iter() {
@@ -288,6 +293,26 @@ where
                     log::error!(target: LOG_TARGET, "declare_faults_recovered: Could not find partition {partition_number}");
                     DeadlineError::PartitionNotFound
                 })?;
+
+            // Whether all sectors that we declare as recovered actually exist
+            ensure!(
+                recovered_sectors.iter().all(|s| sectors.contains_key(&s)),
+                {
+                    log::error!(target: LOG_TARGET, "record_faults: sectors {:?} not found in the storage provider", recovered_sectors);
+                    DeadlineError::SectorsNotFound
+                }
+            );
+
+            // Whether all sectors that we declare as recovered were faulty previously
+            ensure!(
+                recovered_sectors
+                    .iter()
+                    .all(|s| partition.faults.contains(&s)),
+                {
+                    log::error!(target: LOG_TARGET, "record_faults: sectors {:?} were not all marked as faulty before", recovered_sectors);
+                    DeadlineError::SectorsNotFaulty
+                }
+            );
 
             partition.declare_faults_recovered(recovered_sectors);
         }
@@ -586,6 +611,8 @@ pub enum DeadlineError {
     CouldNotAddSectors,
     /// Emitted when trying to use sectors which haven't been prove committed yet.
     SectorsNotFound,
+    /// Emitted when trying to recover non-faulty sectors,
+    SectorsNotFaulty,
     /// Emitted when assigning sectors to deadlines fails.
     CouldNotAssignSectorsToDeadlines,
     /// Emitted when updates to a partition fail.

@@ -1,17 +1,18 @@
-use frame_support::{assert_ok, pallet_prelude::*, BoundedBTreeSet};
+use frame_support::{assert_noop, assert_ok, pallet_prelude::*, BoundedBTreeSet};
 use primitives_proofs::{SectorNumber, MAX_TERMINATIONS_PER_CALL};
+use rstest::rstest;
 use sp_core::bounded_vec;
 use sp_runtime::BoundedVec;
 
 use crate::{
-    deadline::Deadlines,
+    deadline::{DeadlineError, Deadlines},
     fault::{
         DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration, RecoveryDeclaration,
     },
-    pallet::{Event, StorageProviders, DECLARATIONS_MAX},
+    pallet::{Error, Event, StorageProviders, DECLARATIONS_MAX},
     sector::ProveCommitSector,
     tests::{
-        account, count_sector_faults_and_recoveries,
+        account, count_sector_faults_and_recoveries, create_set,
         declare_faults::{
             assert_exact_faulty_sectors, setup_sp_with_many_sectors_multiple_partitions,
             setup_sp_with_one_sector,
@@ -272,6 +273,72 @@ fn multiple_sector_faults_recovered() {
             events()[..],
             [RuntimeEvent::StorageProvider(Event::FaultsRecovered { .. })]
         ));
+    });
+}
+
+#[rstest]
+// No sectors declared as recovered
+#[case(bounded_vec![
+    RecoveryDeclaration {
+        deadline: 0,
+        partition: 0,
+        sectors: create_set(&[]),
+    },
+], Error::<Test>::DeadlineError(DeadlineError::CouldNotAddSectors).into())]
+// Deadline specified is not valid
+#[case(bounded_vec![
+    RecoveryDeclaration {
+        deadline: 99,
+        partition: 0,
+        sectors: create_set(&[0]),
+    },
+], Error::<Test>::DeadlineError(DeadlineError::DeadlineIndexOutOfRange).into())]
+// Partition specified is not used
+#[case(bounded_vec![
+    RecoveryDeclaration {
+        deadline: 0,
+        partition: 99,
+        sectors: create_set(&[0]),
+    },
+], Error::<Test>::DeadlineError(DeadlineError::PartitionNotFound).into())]
+#[case(bounded_vec![
+    RecoveryDeclaration {
+        deadline: 0,
+        partition: 0,
+        sectors: create_set(&[99]),
+     },
+], Error::<Test>::DeadlineError(DeadlineError::SectorsNotFound).into())]
+#[case(bounded_vec![
+    RecoveryDeclaration {
+        deadline: 0,
+        partition: 0,
+        sectors: create_set(&[0]),
+     },
+], Error::<Test>::DeadlineError(DeadlineError::SectorsNotFaulty).into())]
+fn fails_data_missing_malformed(
+    #[case] declared_recoveries: BoundedVec<RecoveryDeclaration, ConstU32<DECLARATIONS_MAX>>,
+    #[case] expected_error: Error<Test>,
+) {
+    new_test_ext().execute_with(|| {
+        // Setup storage provider data
+        let storage_provider = BOB;
+        let storage_client = ALICE;
+        setup_sp_with_one_sector(storage_provider, storage_client);
+
+        // Declare faults
+        assert_noop!(
+            StorageProvider::declare_faults_recovered(
+                RuntimeOrigin::signed(account(storage_provider)),
+                DeclareFaultsRecoveredParams {
+                    recoveries: declared_recoveries,
+                },
+            ),
+            expected_error,
+        );
+
+        // Not sure if this is needed. Does the `assert_noop` above also checks
+        // that no events were published?
+        assert_eq!(events(), []);
     });
 }
 
