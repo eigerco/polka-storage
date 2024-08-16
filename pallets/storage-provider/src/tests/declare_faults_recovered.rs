@@ -343,28 +343,28 @@ fn fails_data_missing_malformed(
 
 #[test]
 fn fault_recovery_past_cutoff_should_fail() {
-    // new_test_ext().execute_with(|| {
-    //     // Setup accounts
-    //     let storage_provider = ALICE;
-    //     let storage_client = BOB;
+    new_test_ext().execute_with(|| {
+        // Setup accounts
+        let storage_provider = ALICE;
+        let storage_client = BOB;
 
-    //     default_fault_setup(storage_provider, storage_client);
+        setup_sp_with_one_sector(storage_provider, storage_client);
 
-    //     let deadline = 0;
-    //     let partition = 0;
+        let deadline = 0;
+        let partition = 0;
 
-    //     run_to_block(250);
-    //     // Fault declaration setup
-    //     assert_err!(
-    //         StorageProvider::declare_faults_recovered(
-    //             RuntimeOrigin::signed(account(storage_provider)),
-    //             DeclareFaultsRecoveredBuilder::default()
-    //                 .fault_recovery(deadline, partition, vec![1])
-    //                 .build(),
-    //         ),
-    //         Error::<Test>::FaultDeclarationTooLate
-    //     );
-    // });
+        run_to_block(63);
+        // Fault declaration setup
+        assert_err!(
+            StorageProvider::declare_faults_recovered(
+                RuntimeOrigin::signed(account(storage_provider)),
+                DeclareFaultsRecoveredBuilder::default()
+                    .fault_recovery(deadline, partition, vec![1])
+                    .build(),
+            ),
+            Error::<Test>::FaultDeclarationTooLate
+        );
+    });
 }
 
 /// This function sets up 5 deals thus creating 5 sectors.

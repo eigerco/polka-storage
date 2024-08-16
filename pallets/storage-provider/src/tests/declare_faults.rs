@@ -364,31 +364,32 @@ fn declare_fault_non_existent_partition_should_fail() {
         );
     });
 }
-// #[test]
-// fn fault_declaration_past_cutoff_should_fail() {
-//     new_test_ext().execute_with(|| {
-//         // Setup accounts
-//         let storage_provider = ALICE;
-//         let storage_client = BOB;
 
-//         default_fault_setup(storage_provider, storage_client);
+#[test]
+fn fault_declaration_past_cutoff_should_fail() {
+    new_test_ext().execute_with(|| {
+        // Setup accounts
+        let storage_provider = ALICE;
+        let storage_client = BOB;
 
-//         let deadline = 0;
-//         let partition = 0;
+        setup_sp_with_one_sector(storage_provider, storage_client);
 
-//         run_to_block(672);
-//         // Fault declaration setup
-//         assert_err!(
-//             StorageProvider::declare_faults(
-//                 RuntimeOrigin::signed(account(storage_provider)),
-//                 DeclareFaultsBuilder::default()
-//                     .fault(deadline, partition, vec![1])
-//                     .build(),
-//             ),
-//             Error::<Test>::FaultDeclarationTooLate
-//         );
-//     });
-// }
+        let deadline = 0;
+        let partition = 0;
+
+        run_to_block(63);
+        // Fault declaration setup
+        assert_err!(
+            StorageProvider::declare_faults(
+                RuntimeOrigin::signed(account(storage_provider)),
+                DeclareFaultsBuilder::default()
+                    .fault(deadline, partition, vec![1])
+                    .build(),
+            ),
+            Error::<Test>::FaultDeclarationTooLate
+        );
+    });
+}
 
 pub(crate) fn setup_sp_with_one_sector(storage_provider: &str, storage_client: &str) {
     // Register storage provider

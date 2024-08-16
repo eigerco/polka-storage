@@ -207,6 +207,9 @@ pub mod pallet {
         /// The longest a faulty sector can live without being removed.
         #[pallet::constant]
         type FaultMaxAge: Get<BlockNumberFor<Self>>;
+
+        #[pallet::constant]
+        type FaultDeclarationCutoff: Get<BlockNumberFor<Self>>;
     }
 
     /// Need some storage type that keeps track of sectors, deadlines and terminations.
@@ -513,7 +516,7 @@ pub mod pallet {
                     new_sectors,
                     sp.info.window_post_partition_sectors,
                     T::MaxPartitionsPerDeadline::get(),
-                    T::FaultMaxAge::get(),
+                    T::FaultDeclarationCutoff::get(),
                     T::WPoStPeriodDeadlines::get(),
                     T::WPoStProvingPeriod::get(),
                     T::WPoStChallengeWindow::get(),
@@ -591,7 +594,7 @@ pub mod pallet {
             let current_deadline = sp
                 .deadline_info(
                     current_block,
-                    T::FaultMaxAge::get(),
+                    T::FaultDeclarationCutoff::get(),
                     T::WPoStPeriodDeadlines::get(),
                     T::WPoStProvingPeriod::get(),
                     T::WPoStChallengeWindow::get(),
@@ -684,7 +687,7 @@ pub mod pallet {
                     current_block,
                     sp.proving_period_start,
                     deadline_idx,
-                    T::FaultMaxAge::get(),
+                    T::FaultDeclarationCutoff::get(),
                     T::WPoStPeriodDeadlines::get(),
                     T::WPoStChallengeWindow::get(),
                     T::WPoStProvingPeriod::get(),
@@ -758,13 +761,14 @@ pub mod pallet {
                     current_block,
                     sp.proving_period_start,
                     deadline_idx,
-                    T::FaultMaxAge::get(),
+                    T::FaultDeclarationCutoff::get(),
                     T::WPoStPeriodDeadlines::get(),
                     T::WPoStChallengeWindow::get(),
                     T::WPoStProvingPeriod::get(),
                     T::WPoStChallengeLookBack::get(),
                 )
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
+                log::info!(target: LOG_TARGET, "declare_faults_recovered: cut off = {:?}", target_dl.fault_cutoff);
                 ensure!(!target_dl.fault_cutoff_passed(), {
                     log::error!(target: LOG_TARGET, "declare_faults: Late fault declaration at deadline {deadline_idx}");
                     Error::<T>::FaultDeclarationTooLate
@@ -992,7 +996,7 @@ pub mod pallet {
 
                 let Ok(current_deadline) = state.deadline_info(
                     current_block,
-                    T::FaultMaxAge::get(),
+                    T::FaultDeclarationCutoff::get(),
                     T::WPoStPeriodDeadlines::get(),
                     T::WPoStProvingPeriod::get(),
                     T::WPoStChallengeWindow::get(),
