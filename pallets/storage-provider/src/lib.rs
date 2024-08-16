@@ -322,6 +322,8 @@ pub mod pallet {
         InvalidUnsealedCidForSector,
         /// Emitted when SP calls declare_faults and the fault cutoff is passed.
         FaultDeclarationTooLate,
+        /// Emitted when SP calls declare_faults_recovered and the fault recovery cutoff is passed.
+        FaultRecoveryTooLate,
         /// Tried to slash reserved currency and burn it.
         SlashingFailed,
     }
@@ -769,7 +771,7 @@ pub mod pallet {
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
                 ensure!(!target_dl.fault_cutoff_passed(), {
                     log::error!(target: LOG_TARGET, "declare_faults: Late fault declaration at deadline {deadline_idx}");
-                    Error::<T>::FaultDeclarationTooLate
+                    Error::<T>::FaultRecoveryTooLate
                 });
                 let dl = sp
                     .deadlines

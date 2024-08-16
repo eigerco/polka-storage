@@ -350,10 +350,13 @@ fn fault_recovery_past_cutoff_should_fail() {
 
         setup_sp_with_one_sector(storage_provider, storage_client);
 
+        let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
+
+        sp.
+        run_to_block(63);
+
         let deadline = 0;
         let partition = 0;
-
-        run_to_block(63);
         // Fault declaration setup
         assert_err!(
             StorageProvider::declare_faults_recovered(
@@ -362,7 +365,7 @@ fn fault_recovery_past_cutoff_should_fail() {
                     .fault_recovery(deadline, partition, vec![1])
                     .build(),
             ),
-            Error::<Test>::FaultDeclarationTooLate
+            Error::<Test>::FaultRecoveryTooLate
         );
     });
 }
