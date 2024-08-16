@@ -628,6 +628,7 @@ pub mod pallet {
 
                 // Check if the sectors passed are empty
                 if term.sectors.is_empty() {
+                    log::error!(target: LOG_TARGET, "declare_faults: [deadline: {}, partition: {}] cannot add empty sectors", deadline, partition);
                     return Err(Error::<T>::DeadlineError(DeadlineError::CouldNotAddSectors).into());
                 }
 
@@ -1015,7 +1016,7 @@ pub mod pallet {
                 let Ok(deadline) =
                     (&mut state.deadlines).load_deadline_mut(current_deadline.idx as usize)
                 else {
-                    log::error!(target: LOG_TARGET, "block: {:?}, failed to get deadline {}, sp: {:?}", 
+                    log::error!(target: LOG_TARGET, "block: {:?}, failed to get deadline {}, sp: {:?}",
                         current_block, current_deadline.idx, storage_provider);
                     continue;
                 };
@@ -1036,7 +1037,7 @@ pub mod pallet {
                     let Ok(new_faults) =
                         partition.record_faults(&state.sectors, &partition.sectors.clone())
                     else {
-                        log::error!(target: LOG_TARGET, "block: {:?}, failed to mark {} sectors as faulty, deadline: {}, sp: {:?}", 
+                        log::error!(target: LOG_TARGET, "block: {:?}, failed to mark {} sectors as faulty, deadline: {}, sp: {:?}",
                             current_block, partition.sectors.len(), current_deadline.idx, storage_provider);
                         continue;
                     };
@@ -1045,7 +1046,7 @@ pub mod pallet {
                     // - process early terminations (we need ExpirationQueue for that)
                     // - https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/state.rs#L1182
 
-                    log::info!(target: LOG_TARGET, "block: {:?}, sp: {:?}, detected partition {} with {} new faults...", 
+                    log::info!(target: LOG_TARGET, "block: {:?}, sp: {:?}, detected partition {} with {} new faults...",
                         current_block, storage_provider, partition_number, new_faults.len());
 
                     if new_faults.len() > 0 {

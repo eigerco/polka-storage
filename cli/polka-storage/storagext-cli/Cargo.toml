@@ -15,7 +15,7 @@ storagext.workspace = true
 
 anyhow.workspace = true
 cid = { workspace = true, features = ["scale-codec"] }
-clap = { workspace = true, features = ["derive"] }
+clap = { workspace = true, features = ["derive", "env"] }
 codec.workspace = true
 frame-support = { workspace = true, features = ["std"] }
 hex = { workspace = true, features = ["serde", "std"] }

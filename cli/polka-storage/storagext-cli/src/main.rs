@@ -35,19 +35,19 @@ struct Cli {
     /// Sr25519 keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
     ///
     /// See `sp_core::crypto::Pair::from_string_with_seed` for more information.
-    #[arg(long, value_parser = DebugPair::<Sr25519Pair>::value_parser)]
+    #[arg(long, env, value_parser = DebugPair::<Sr25519Pair>::value_parser)]
     pub sr25519_key: Option<DebugPair<Sr25519Pair>>,
 
     /// ECDSA keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
     ///
     /// See `sp_core::crypto::Pair::from_string_with_seed` for more information.
-    #[arg(long, value_parser = DebugPair::<ECDSAPair>::value_parser)]
+    #[arg(long, env, value_parser = DebugPair::<ECDSAPair>::value_parser)]
     pub ecdsa_key: Option<DebugPair<ECDSAPair>>,
 
     /// Ed25519 keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
     ///
     /// See `sp_core::crypto::Pair::from_string_with_seed` for more information.
-    #[arg(long, value_parser = DebugPair::<Ed25519Pair>::value_parser)]
+    #[arg(long, env, value_parser = DebugPair::<Ed25519Pair>::value_parser)]
     pub ed25519_key: Option<DebugPair<Ed25519Pair>>,
 }
 

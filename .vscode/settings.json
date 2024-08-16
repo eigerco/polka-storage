@@ -1,4 +1,5 @@
 {
+    "files.trimTrailingWhitespace": true,
     "rust-analyzer.rustfmt.extraArgs": ["+nightly"],
     "rust-analyzer.checkOnSave": false,
     "coverage-gutters.coverageBaseDir": "coverage",
