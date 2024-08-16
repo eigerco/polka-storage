@@ -7,7 +7,7 @@ as such, if you want to interact with the `market` pallet, you can find it's fun
 
 ## Global Flags
 
-> [!INFO]
+> [!NOTE]
 > Commands that take in JSON objects as input, are also able to read in files with the provided content.
 >
 > Instead of passing the JSON object as a parameter, pass the JSON filename prefixed with an `@`.
@@ -31,7 +31,7 @@ Depending on the type of key you use, you should use a different flag as well:
 
 Example:
 
-```
+```bash
 storagext-cli --sr25519-key "//Alice" ...
 ```
 
@@ -41,13 +41,13 @@ If you so wish, you can also change the node RPC address, this is achieved throu
 
 Secure if, for example, you are running the node behind a reverse proxy (like Nginx) which enables TLS for your connections:
 
-```
+```bash
 storagext-cli --node-rpc wss://172.16.10.10:9944 ...
 ```
 
 Or insecure if, for example, you are running the node locally, using just the standard setup.
 
-```
+```bash
 storagext-cli --node-rpc ws://127.0.0.1:7331 ...
 ```
 
@@ -61,7 +61,7 @@ this is one of the entrypoints for the parachain as you need to add some balance
 Add a given amount of [Plancks](https://wiki.polkadot.network/docs/learn-DOT#the-planck-unit) to your free balance,
 this will enable you to store your files in providers or provide space to others.
 
-```
+```bash
 storagext-cli --sr25519-key <key> market add-balance <amount>
 ```
 
@@ -70,7 +70,7 @@ storagext-cli --sr25519-key <key> market add-balance <amount>
 The dual to `add-balance`, `withdraw-balance` allows you to reclaim back DOT from your free balance.
 You cannot reclaim DOT from the locked balance, as it is necessary to pay out for faults, etc.
 
-```
+```bash
 storagext-cli --sr25519-key <key> market withdraw-balance <amount>
 ```
 
@@ -80,7 +80,7 @@ As a storage provider, you are able to publish storage deals you have done off-c
 As this is an experimental CLI, you must provide Client's private key to sign a deal.
 Normally, you'd just publish a signed message which you received from a client.
 
-```
+```bash
 storagext-cli \
     --sr25519-key <key> \
     market publish-storage-deals \
@@ -139,7 +139,7 @@ list of IDs for the deals to be processed.
 > settle_deal_payments 1203 1243 1254
 > ```
 
-```
+```bash
 storagext-cli --sr25519-key <key> market settle-deal-payments <deal ids>
 ```
 
@@ -152,7 +152,7 @@ The `storage-provider` subcommand enables you to interact with the `storage-prov
 
 You need to register as a `Storage Provider` to be able to deal with the clients and perform any storage provider duties.
 
-```
+```bash
 storagext-cli --sr25519-key <key> storage-provider register <peer_id>
 ```
 
@@ -163,7 +163,7 @@ If the deals are not pre-commited in any sector and then proven, they'll be slas
 Deals in the sector are validated, so without calling `publish-storage-deals` it's not possible to execute this function.
 `seal-proof` must match the `post-proof` used in `register`.
 
-```
+```bash
 storagext-cli --sr25519-key <key> storage-provider pre-commit <pre-commit-sector>
 ```
 
@@ -192,7 +192,7 @@ This command takes `pre-commit-sector` as JSON Object.
 Storage Provider must prove commit a sector which has been pre-commited.
 If the sector is not proven, deal won't become `Active` and will be **slashed**.
 
-```
+```bash
 storagext-cli --sr25519-key <key> storage-provider prove-commit <prove-commit-sector>
 ```
 
@@ -218,7 +218,7 @@ Proof is accepted if it is any valid hex string of length >= 1.
 Submit a window [Proof-of-Spacetime](https://spec.filecoin.io/#section-algorithms.pos.post)
 to prove the storage provider is still storing the client data.
 
-```
+```bash
 storagext-cli --sr25519-key <key> storage-provider submit-windowed-post <window-proof>
 ```
 
@@ -241,6 +241,66 @@ and `proof_bytes` which expectes a valid hex string.
         "proof_bytes": "07482439"
     }
 }
+```
+
+</p>
+</details>
+
+### `declare-faults`
+
+Declare [faulty sectors](https://spec.filecoin.io/#section-systems.filecoin_mining.sector.lifecycle) to avoid harsh penalties.
+
+```bash
+storagext-cli --sr25519-key <key> storage-provider declare-faults <faults>
+```
+
+The command takes a list of JSON objects with the fields — `deadline` a number, `partition` a number and `sectors` an array of numbers.
+The `deadline` parameter specificies the deadline where to find the respective `partition` and `sectors`.
+
+<details>
+<summary>Example Declaration of Faults JSON</summary>
+<p>
+
+```json
+[
+    {
+        "deadline": 0,
+        "partition": 0,
+        "sectors": [
+            0
+        ]
+    }
+]
+```
+
+</p>
+</details>
+
+### `declare-faults-recovered`
+
+Declare [recovered faulty sectors](https://spec.filecoin.io/#section-systems.filecoin_mining.sector.lifecycle) to avoid penalties over sectors that have been recovered.
+
+```bash
+storagext-cli --sr25519-key <key> storage-provider declare-faults-recovered <recoveries>
+```
+
+The command takes a list of JSON objects with the fields — `deadline` a number, `partition` a number and `sectors` an array of numbers.
+The `deadline` parameter specificies the deadline where to find the respective `partition` and `sectors`.
+
+<details>
+<summary>Example Declaration of Recovered Faults JSON</summary>
+<p>
+
+```json
+[
+    {
+        "deadline": 0,
+        "partition": 0,
+        "sectors": [
+            0
+        ]
+    }
+]
 ```
 
 </p>
