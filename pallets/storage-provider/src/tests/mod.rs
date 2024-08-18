@@ -27,7 +27,7 @@ use crate::{
         DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration, RecoveryDeclaration,
     },
     pallet::{CID_CODEC, DECLARATIONS_MAX},
-    partition::PartitionNumber,
+    partition::{PartitionNumber, MAX_PARTITIONS_PER_DEADLINE},
     proofs::{PoStProof, SubmitWindowedPoStParams},
     sector::SectorPreCommitInfo,
 };
@@ -440,7 +440,7 @@ impl DealProposalBuilder {
 
 struct SubmitWindowedPoStBuilder {
     deadline: u64,
-    partition: PartitionNumber,
+    partitions: BoundedVec<PartitionNumber, ConstU32<MAX_PARTITIONS_PER_DEADLINE>>,
     proof: PoStProof,
     chain_commit_block: BlockNumber,
 }
@@ -457,7 +457,15 @@ impl SubmitWindowedPoStBuilder {
     }
 
     pub fn partition(mut self, partition: PartitionNumber) -> Self {
-        self.partition = partition;
+        self.partitions = bounded_vec![partition];
+        self
+    }
+
+    pub fn partitions(
+        mut self,
+        partitions: BoundedVec<PartitionNumber, ConstU32<MAX_PARTITIONS_PER_DEADLINE>>,
+    ) -> Self {
+        self.partitions = partitions;
         self
     }
 
@@ -469,7 +477,7 @@ impl SubmitWindowedPoStBuilder {
     pub fn build(self) -> SubmitWindowedPoStParams<BlockNumber> {
         SubmitWindowedPoStParams {
             deadline: self.deadline,
-            partition: self.partition,
+            partitions: self.partitions,
             proof: self.proof,
             chain_commit_block: self.chain_commit_block,
         }
@@ -480,7 +488,7 @@ impl Default for SubmitWindowedPoStBuilder {
     fn default() -> Self {
         Self {
             deadline: 0,
-            partition: 1,
+            partitions: bounded_vec![1],
             proof: PoStProof {
                 post_proof: RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
                 proof_bytes: bounded_vec![0x1, 0x2, 0x3],

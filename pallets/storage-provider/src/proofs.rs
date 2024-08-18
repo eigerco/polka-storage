@@ -7,7 +7,7 @@ use primitives_proofs::RegisteredPoStProof;
 use scale_info::TypeInfo;
 use sp_core::blake2_64;
 
-use crate::partition::PartitionNumber;
+use crate::partition::{PartitionNumber, MAX_PARTITIONS_PER_DEADLINE};
 
 /// Proof of Spacetime data stored on chain.
 #[derive(RuntimeDebug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone)]
@@ -27,7 +27,7 @@ pub struct SubmitWindowedPoStParams<BlockNumber> {
     /// The deadline index which the submission targets.
     pub deadline: u64,
     /// The partition being proven.
-    pub partition: PartitionNumber,
+    pub partitions: BoundedVec<PartitionNumber, ConstU32<MAX_PARTITIONS_PER_DEADLINE>>,
     /// The proof submission.
     pub proof: PoStProof,
     /// The block at which these proofs is being committed.

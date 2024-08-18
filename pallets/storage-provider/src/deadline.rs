@@ -97,26 +97,31 @@ where
     /// if the partition was declared to recover before submitting a proof.
     ///
     /// If the partition has already been proven, an error is returned.
-    pub fn record_proven(&mut self, partition_num: PartitionNumber) -> Result<(), DeadlineError> {
-        log::debug!(target: LOG_TARGET, "record_proven: partition number = {partition_num:?}");
+    pub fn record_proven(
+        &mut self,
+        partitions: BoundedVec<PartitionNumber, ConstU32<MAX_PARTITIONS_PER_DEADLINE>>,
+    ) -> Result<(), DeadlineError> {
+        for partition_num in partitions {
+            log::debug!(target: LOG_TARGET, "record_proven: partition number = {partition_num:?}");
 
-        let partition = self.partitions.get_mut(&partition_num).ok_or_else(|| {
-            log::error!(target: LOG_TARGET, "record_proven: partition {partition_num:?} not found");
-            DeadlineError::PartitionNotFound
-        })?;
+            let partition = self.partitions.get_mut(&partition_num).ok_or_else(|| {
+                log::error!(target: LOG_TARGET, "record_proven: partition {partition_num:?} not found");
+                DeadlineError::PartitionNotFound
+            })?;
 
-        // Ensure the partition hasn't already been proven.
-        ensure!(!self.partitions_posted.contains(&partition_num), {
-            log::error!(target: LOG_TARGET, "record_proven: partition {partition_num:?} already proven");
-            DeadlineError::PartitionAlreadyProven
-        });
+            // Ensure the partition hasn't already been proven.
+            ensure!(!self.partitions_posted.contains(&partition_num), {
+                log::error!(target: LOG_TARGET, "record_proven: partition {partition_num:?} already proven");
+                DeadlineError::PartitionAlreadyProven
+            });
 
-        // Record the partition as proven.
-        self.partitions_posted
-            .try_insert(partition_num)
-            .map_err(|_| DeadlineError::ProofUpdateFailed)?;
+            // Record the partition as proven.
+            self.partitions_posted
+                .try_insert(partition_num)
+                .map_err(|_| DeadlineError::ProofUpdateFailed)?;
 
-        partition.recover_all_declared_recoveries();
+            partition.recover_all_declared_recoveries();
+        }
 
         Ok(())
     }
@@ -382,11 +387,11 @@ where
     pub fn record_proven(
         &mut self,
         deadline_idx: usize,
-        partition_num: PartitionNumber,
+        partitions: BoundedVec<PartitionNumber, ConstU32<MAX_PARTITIONS_PER_DEADLINE>>,
     ) -> Result<(), DeadlineError> {
-        log::debug!(target: LOG_TARGET, "record_proven: partition number: {partition_num:?}");
+        log::debug!(target: LOG_TARGET, "record_proven: partition number: {partitions:?}");
         let deadline = self.load_deadline_mut(deadline_idx)?;
-        deadline.record_proven(partition_num)?;
+        deadline.record_proven(partitions)?;
         Ok(())
     }
 }
