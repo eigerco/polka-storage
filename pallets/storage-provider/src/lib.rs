@@ -207,11 +207,6 @@ pub mod pallet {
         /// The longest a faulty sector can live without being removed.
         #[pallet::constant]
         type FaultMaxAge: Get<BlockNumberFor<Self>>;
-
-        /// The period before a PoSt window closes its fault declaration and recovery
-        /// <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/runtime/src/runtime/policy.rs#L327-L328>
-        #[pallet::constant]
-        type FaultDeclarationCutoff: Get<BlockNumberFor<Self>>;
     }
 
     /// Need some storage type that keeps track of sectors, deadlines and terminations.
@@ -520,7 +515,6 @@ pub mod pallet {
                     new_sectors,
                     sp.info.window_post_partition_sectors,
                     T::MaxPartitionsPerDeadline::get(),
-                    T::FaultDeclarationCutoff::get(),
                     T::WPoStPeriodDeadlines::get(),
                     T::WPoStProvingPeriod::get(),
                     T::WPoStChallengeWindow::get(),
@@ -598,7 +592,6 @@ pub mod pallet {
             let current_deadline = sp
                 .deadline_info(
                     current_block,
-                    T::FaultDeclarationCutoff::get(),
                     T::WPoStPeriodDeadlines::get(),
                     T::WPoStProvingPeriod::get(),
                     T::WPoStChallengeWindow::get(),
@@ -691,10 +684,9 @@ pub mod pallet {
                     current_block,
                     sp.proving_period_start,
                     deadline_idx,
-                    T::FaultDeclarationCutoff::get(),
                     T::WPoStPeriodDeadlines::get(),
-                    T::WPoStChallengeWindow::get(),
                     T::WPoStProvingPeriod::get(),
+                    T::WPoStChallengeWindow::get(),
                     T::WPoStChallengeLookBack::get(),
                 )
                 .and_then(DeadlineInfo::next_not_elapsed)
@@ -764,10 +756,9 @@ pub mod pallet {
                     current_block,
                     sp.proving_period_start,
                     deadline_idx,
-                    T::FaultDeclarationCutoff::get(),
                     T::WPoStPeriodDeadlines::get(),
-                    T::WPoStChallengeWindow::get(),
                     T::WPoStProvingPeriod::get(),
+                    T::WPoStChallengeWindow::get(),
                     T::WPoStChallengeLookBack::get(),
                 )
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
@@ -998,7 +989,6 @@ pub mod pallet {
 
                 let Ok(current_deadline) = state.deadline_info(
                     current_block,
-                    T::FaultDeclarationCutoff::get(),
                     T::WPoStPeriodDeadlines::get(),
                     T::WPoStProvingPeriod::get(),
                     T::WPoStChallengeWindow::get(),

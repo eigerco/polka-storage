@@ -268,7 +268,6 @@ where
                     DeadlineError::FailedToUpdateFaultExpiration
                 })?;
             } else {
-                log::debug!(target: LOG_TARGET, "record_faults: Inserting partition number {partition_number}");
                 self.expirations_blocks.try_insert(fault_expiration_block, *partition_number).map_err(|_| {
                     log::error!(target: LOG_TARGET, "record_faults: Could not insert new expiration");
                     DeadlineError::FailedToUpdateFaultExpiration
@@ -420,9 +419,6 @@ pub struct DeadlineInfo<BlockNumber> {
     /// The first block number from which a proof can *no longer* be submitted.
     pub close_at: BlockNumber,
 
-    /// First block at which a fault declaration is rejected (< Open).
-    pub fault_cutoff: BlockNumber,
-
     /// The block number at which the randomness for the deadline proving is
     /// available.
     pub challenge: BlockNumber,
@@ -453,7 +449,6 @@ where
         block_number: BlockNumber,
         period_start: BlockNumber,
         idx: u64,
-        fault_declaration_cutoff: BlockNumber,
         w_post_period_deadlines: u64,
         w_post_proving_period: BlockNumber,
         w_post_challenge_window: BlockNumber,
@@ -470,18 +465,16 @@ where
             DeadlineError::CouldNotConstructDeadlineInfo
         })?;
 
-        let (open_at, close_at, challenge, fault_cutoff) = if idx_converted < period_deadlines {
+        let (open_at, close_at, challenge) = if idx_converted < period_deadlines {
             let open_at = period_start + (idx_converted * w_post_challenge_window);
             let close_at = open_at + w_post_challenge_window;
             let challenge = period_start - w_post_challenge_lookback;
-            let fault_cutoff = open_at + fault_declaration_cutoff;
-            (open_at, close_at, challenge, fault_cutoff)
+            (open_at, close_at, challenge)
         } else {
             let after_last_deadline = period_start + w_post_proving_period;
             (
                 after_last_deadline,
                 after_last_deadline,
-                BlockNumber::zero(),
                 after_last_deadline,
             )
         };
@@ -492,7 +485,6 @@ where
             idx,
             open_at,
             close_at,
-            fault_cutoff,
             challenge,
             w_post_period_deadlines,
             w_post_proving_period,
@@ -524,8 +516,9 @@ where
     }
 
     /// Whether the deadline's fault cutoff has passed.
+    /// The fault cutoff is at the open of a deadline
     pub fn fault_cutoff_passed(&self) -> bool {
-        self.block_number >= self.fault_cutoff
+        self.block_number >= self.open_at
     }
 
     /// Returns the next deadline that has not yet elapsed.
@@ -546,7 +539,6 @@ where
             self.block_number,
             self.period_start + self.w_post_proving_period * delta_periods,
             self.idx,
-            self.fault_cutoff,
             self.w_post_period_deadlines,
             self.w_post_proving_period,
             self.w_post_challenge_window,
@@ -564,7 +556,6 @@ pub fn deadline_is_mutable<BlockNumber>(
     proving_period_start: BlockNumber,
     deadline_idx: u64,
     current_block: BlockNumber,
-    fault_declaration_cutoff: BlockNumber,
     w_post_period_deadlines: u64,
     w_post_proving_period: BlockNumber,
     w_post_challenge_window: BlockNumber,
@@ -579,7 +570,6 @@ where
         current_block,
         proving_period_start,
         deadline_idx,
-        fault_declaration_cutoff,
         w_post_period_deadlines,
         w_post_proving_period,
         w_post_challenge_window,

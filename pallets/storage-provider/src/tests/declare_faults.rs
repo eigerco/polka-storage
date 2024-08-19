@@ -105,10 +105,9 @@ fn declare_single_fault_before_proving_period_start() {
             System::current_block_number(),
             sp.proving_period_start,
             0,
-            <Test as Config>::FaultMaxAge::get(),
             <Test as Config>::WPoStPeriodDeadlines::get(),
-            <Test as Config>::WPoStChallengeWindow::get(),
             <Test as Config>::WPoStProvingPeriod::get(),
+            <Test as Config>::WPoStChallengeWindow::get(),
             <Test as Config>::WPoStChallengeLookBack::get(),
         )
         .and_then(DeadlineInfo::next_not_elapsed)
@@ -134,7 +133,6 @@ fn declare_single_fault_before_proving_period_start() {
 
 // Using floats is the easiest way to specify a multiple of the proving period
 #[rstest]
-#[case(0.0)]
 #[case(0.1)]
 #[case(0.5)]
 #[case(1.0)]
@@ -186,7 +184,6 @@ fn declare_single_fault_from_proving_period(#[case] proving_period_multiple: f64
             new_block,
             sp.proving_period_start,
             0,
-            <Test as Config>::FaultDeclarationCutoff::get(),
             <Test as Config>::WPoStPeriodDeadlines::get(),
             <Test as Config>::WPoStProvingPeriod::get(),
             <Test as Config>::WPoStChallengeWindow::get(),
@@ -356,7 +353,6 @@ fn fault_declaration_past_cutoff_should_fail() {
             System::current_block_number(),
             sp.proving_period_start,
             0,
-            <Test as Config>::FaultDeclarationCutoff::get(),
             <Test as Config>::WPoStPeriodDeadlines::get(),
             <Test as Config>::WPoStProvingPeriod::get(),
             <Test as Config>::WPoStChallengeWindow::get(),
@@ -365,7 +361,7 @@ fn fault_declaration_past_cutoff_should_fail() {
         .and_then(DeadlineInfo::next_not_elapsed)
         .expect("deadline should be valid");
         // Run block to the fault declaration cutoff.
-        run_to_block(test_dl.fault_cutoff);
+        run_to_block(test_dl.open_at);
 
         let deadline = 0;
         let partition = 0;

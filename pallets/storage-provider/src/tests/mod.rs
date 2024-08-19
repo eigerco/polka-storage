@@ -103,7 +103,6 @@ parameter_types! {
     pub const MaxProveCommitDuration: BlockNumber = 5 * MINUTES;
     pub const MaxPartitionsPerDeadline: u64 = 3000;
     pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
-    pub const FaultDeclarationCutoff: BlockNumber = 2;
 
     // Market Pallet
     pub const TimeUnitInBlocks: u64 = MINUTES;
@@ -126,7 +125,6 @@ impl pallet_storage_provider::Config for Test {
     type WPoStPeriodDeadlines = WPoStPeriodDeadlines;
     type MaxPartitionsPerDeadline = MaxPartitionsPerDeadline;
     type FaultMaxAge = FaultMaxAge;
-    type FaultDeclarationCutoff = FaultDeclarationCutoff;
 }
 
 type AccountIdOf<Test> = <Test as frame_system::Config>::AccountId;
