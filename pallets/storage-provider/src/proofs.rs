@@ -23,15 +23,13 @@ pub struct PoStProof {
 // Reference: <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/types.rs#L114-L115>
 // We differ here from Filecoin and do not support registration of different proof types.
 #[derive(RuntimeDebug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone)]
-pub struct SubmitWindowedPoStParams<BlockNumber> {
+pub struct SubmitWindowedPoStParams {
     /// The deadline index which the submission targets.
     pub deadline: u64,
     /// The partition being proven.
     pub partitions: BoundedVec<PartitionNumber, ConstU32<MAX_PARTITIONS_PER_DEADLINE>>,
     /// The proof submission.
     pub proof: PoStProof,
-    /// The block at which these proofs is being committed.
-    pub chain_commit_block: BlockNumber,
 }
 
 /// Error type for proof operations.

@@ -114,10 +114,7 @@ fn does_not_mark_partitions_as_faulty() {
 
         assert_ok!(StorageProvider::submit_windowed_post(
             RuntimeOrigin::signed(account(storage_provider)),
-            SubmitWindowedPoStBuilder::default()
-                .chain_commit_block(System::block_number() - 1)
-                .partition(0)
-                .build()
+            SubmitWindowedPoStBuilder::default().partition(0).build()
         ));
         System::reset_events();
 

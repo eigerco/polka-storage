@@ -106,7 +106,6 @@ fn declare_single_fault_recovered_and_submitted() {
 
         let windowed_post = SubmitWindowedPoStBuilder::default()
             .partition(partition)
-            .chain_commit_block(System::block_number() - 1)
             .build();
         assert_ok!(StorageProvider::submit_windowed_post(
             RuntimeOrigin::signed(account(ALICE)),

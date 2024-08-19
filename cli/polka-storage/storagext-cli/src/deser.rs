@@ -175,16 +175,14 @@ pub(crate) struct SubmitWindowedPoStParams {
     pub deadline: u64,
     pub partition: u32,
     pub proof: PoStProof,
-    pub chain_commit_block: BlockNumber,
 }
 
-impl Into<storagext::SubmitWindowedPoStParams<BlockNumber>> for SubmitWindowedPoStParams {
-    fn into(self) -> storagext::SubmitWindowedPoStParams<BlockNumber> {
+impl Into<storagext::SubmitWindowedPoStParams> for SubmitWindowedPoStParams {
+    fn into(self) -> storagext::SubmitWindowedPoStParams {
         storagext::SubmitWindowedPoStParams {
             deadline: self.deadline,
             partition: self.partition,
             proof: self.proof.into(),
-            chain_commit_block: self.chain_commit_block,
         }
     }
 }
@@ -334,7 +332,6 @@ mod test {
             r#"{
                 "deadline": 10,
                 "partition": 10,
-                "chain_commit_block": 1,
                 "proof": {
                     "post_proof": "2KiB",
                     "proof_bytes": "1234567890"
@@ -347,7 +344,6 @@ mod test {
             SubmitWindowedPoStParams {
                 deadline: 10,
                 partition: 10,
-                chain_commit_block: 1,
                 proof: PoStProof {
                     post_proof: RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
                     proof_bytes: vec![0x12u8, 0x34, 0x56, 0x78, 0x90]

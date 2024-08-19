@@ -5,7 +5,7 @@ use crate::{
         self, bounded_vec::IntoBoundedByteVec,
         runtime_types::pallet_storage_provider::proofs::SubmitWindowedPoStParams,
     },
-    BlockNumber, FaultDeclaration, PolkaStorageConfig, ProveCommitSector, RecoveryDeclaration,
+    FaultDeclaration, PolkaStorageConfig, ProveCommitSector, RecoveryDeclaration,
     RegisteredPoStProof, SectorPreCommitInfo,
 };
 
@@ -109,7 +109,7 @@ impl StorageProviderClient {
     pub async fn submit_windowed_post<Keypair>(
         &self,
         account_keypair: &Keypair,
-        windowed_post: SubmitWindowedPoStParams<BlockNumber>,
+        windowed_post: SubmitWindowedPoStParams,
     ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
