@@ -34,6 +34,7 @@
           just
           taplo
           polkadot
+          mdbook
           # Due to zombienet's flake.nix, needs to be prefixed with pkg.zombienet
           pkgs.zombienet.default
         ] ++ lib.optionals stdenv.isDarwin [
