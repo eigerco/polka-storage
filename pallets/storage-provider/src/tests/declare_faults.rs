@@ -163,7 +163,7 @@ fn declare_single_fault_from_proving_period(#[case] proving_period_multiple: f64
         .and_then(DeadlineInfo::next_not_elapsed)
         .expect("deadline should be valid");
         // There is a small window for the fault cutoff.
-        // We are calculating a block by multiplying by a float, making it hard to find a block within that window. \
+        // We are calculating a block by multiplying by a float, making it hard to find a block within that window. 
         // This checks if the block we calculated is before the cutoff and otherwise sets it to 1 block before the cutoff
         let new_block = if (sp.proving_period_start + offset) <= dl_info.fault_cutoff {
             sp.proving_period_start + offset
