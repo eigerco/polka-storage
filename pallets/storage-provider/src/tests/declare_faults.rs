@@ -188,8 +188,8 @@ fn declare_single_fault_from_proving_period(#[case] proving_period_multiple: f64
             0,
             <Test as Config>::FaultDeclarationCutoff::get(),
             <Test as Config>::WPoStPeriodDeadlines::get(),
-            <Test as Config>::WPoStChallengeWindow::get(),
             <Test as Config>::WPoStProvingPeriod::get(),
+            <Test as Config>::WPoStChallengeWindow::get(),
             <Test as Config>::WPoStChallengeLookBack::get(),
         )
         .and_then(DeadlineInfo::next_not_elapsed)
@@ -358,8 +358,8 @@ fn fault_declaration_past_cutoff_should_fail() {
             0,
             <Test as Config>::FaultDeclarationCutoff::get(),
             <Test as Config>::WPoStPeriodDeadlines::get(),
-            <Test as Config>::WPoStChallengeWindow::get(),
             <Test as Config>::WPoStProvingPeriod::get(),
+            <Test as Config>::WPoStChallengeWindow::get(),
             <Test as Config>::WPoStChallengeLookBack::get(),
         )
         .and_then(DeadlineInfo::next_not_elapsed)

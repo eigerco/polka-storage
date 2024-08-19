@@ -359,8 +359,8 @@ fn fault_recovery_past_cutoff_should_fail() {
             0,
             <Test as Config>::FaultDeclarationCutoff::get(),
             <Test as Config>::WPoStPeriodDeadlines::get(),
-            <Test as Config>::WPoStChallengeWindow::get(),
             <Test as Config>::WPoStProvingPeriod::get(),
+            <Test as Config>::WPoStChallengeWindow::get(),
             <Test as Config>::WPoStChallengeLookBack::get(),
         )
         .and_then(DeadlineInfo::next_not_elapsed)
