@@ -1,16 +1,18 @@
 use frame_support::{assert_noop, assert_ok};
 use rstest::rstest;
 use sp_core::bounded_vec;
-use sp_runtime::DispatchError;
+use sp_runtime::{BoundedVec, DispatchError};
 
 use crate::{
     deadline::DeadlineError,
     pallet::{Error, Event, StorageProviders},
+    partition::PartitionNumber,
     sector::ProveCommitSector,
     tests::{
-        account, events, new_test_ext, register_storage_provider, run_to_block,
-        DealProposalBuilder, Market, RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder,
-        StorageProvider, SubmitWindowedPoStBuilder, System, Test, ALICE, BOB,
+        account, declare_faults::setup_sp_with_many_sectors_multiple_partitions, events,
+        new_test_ext, register_storage_provider, run_to_block, DealProposalBuilder, Market,
+        RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider,
+        SubmitWindowedPoStBuilder, System, Test, ALICE, BOB,
     },
     Config,
 };
@@ -144,6 +146,52 @@ fn submit_windowed_post() {
         let posted_partition = new_dl.partitions_posted.get(&partition).copied();
 
         assert_eq!(posted_partition, Some(partition));
+    });
+}
+
+#[test]
+fn submit_windowed_post_multiple_partitions() {
+    new_test_ext().execute_with(|| {
+        let storage_provider = ALICE;
+        let storage_client = BOB;
+        setup_sp_with_many_sectors_multiple_partitions(storage_provider, storage_client);
+        // Run to block where the window post proof is to be submitted
+        let proving_period_start = StorageProviders::<Test>::get(account(storage_provider))
+            .unwrap()
+            .proving_period_start;
+        run_to_block(proving_period_start);
+
+        let partitions: BoundedVec<PartitionNumber, _> = bounded_vec![0, 1, 2];
+
+        // Done with setup build window post proof
+        let windowed_post = SubmitWindowedPoStBuilder::default()
+            .chain_commit_block(System::block_number() - 1)
+            .partitions(partitions.clone())
+            .build();
+
+        // Run extrinsic and assert that the result is `Ok`
+        assert_ok!(StorageProvider::submit_windowed_post(
+            RuntimeOrigin::signed(account(ALICE)),
+            windowed_post,
+        ));
+
+        // Check that expected events were emitted
+        assert_eq!(
+            events(),
+            [RuntimeEvent::StorageProvider(
+                Event::<Test>::ValidPoStSubmitted {
+                    owner: account(ALICE)
+                }
+            )]
+        );
+
+        let state = StorageProviders::<Test>::get(account(ALICE)).unwrap();
+        let deadlines = state.deadlines;
+        let new_dl = deadlines.due.first().expect("Programmer error");
+        for partition in partitions {
+            let posted_partition = new_dl.partitions_posted.get(&partition).copied();
+            assert_eq!(posted_partition, Some(partition));
+        }
     });
 }
 

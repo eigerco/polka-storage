@@ -598,7 +598,7 @@ pub mod pallet {
 
                 // record sector as proven
                 deadlines
-                    .record_proven(windowed_post.deadline as usize, windowed_post.partition)
+                    .record_proven(windowed_post.deadline as usize, windowed_post.partitions)
                     .map_err(|e| Error::<T>::DeadlineError(e))?;
 
                 Ok(())
