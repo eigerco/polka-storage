@@ -150,26 +150,8 @@ fn declare_single_fault_from_proving_period(#[case] proving_period_multiple: f64
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
         // Generally safe because we control test conditions, not really safe anywhere else
         let offset = ((sp.proving_period_start as f64) * proving_period_multiple) as u64;
-        let dl_info = DeadlineInfo::new(
-            System::current_block_number(),
-            sp.proving_period_start,
-            0,
-            <Test as Config>::FaultDeclarationCutoff::get(),
-            <Test as Config>::WPoStPeriodDeadlines::get(),
-            <Test as Config>::WPoStChallengeWindow::get(),
-            <Test as Config>::WPoStProvingPeriod::get(),
-            <Test as Config>::WPoStChallengeLookBack::get(),
-        )
-        .and_then(DeadlineInfo::next_not_elapsed)
-        .expect("deadline should be valid");
-        // There is a small window for the fault cutoff.
-        // We are calculating a block by multiplying by a float, making it hard to find a block within that window. 
-        // This checks if the block we calculated is before the cutoff and otherwise sets it to 1 block before the cutoff
-        let new_block = if (sp.proving_period_start + offset) <= dl_info.fault_cutoff {
-            sp.proving_period_start + offset
-        } else {
-            dl_info.fault_cutoff - 1
-        };
+        let new_block = sp.proving_period_start + offset;
+
         run_to_block(new_block);
         // The cron hook generates events between blocks, this removes those events
         System::reset_events();
