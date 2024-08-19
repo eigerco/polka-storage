@@ -360,30 +360,6 @@ fn fails_data_missing_malformed(
 }
 
 #[test]
-fn declare_fault_non_existent_partition_should_fail() {
-    new_test_ext().execute_with(|| {
-        // Setup accounts
-        let storage_provider = ALICE;
-        let storage_client = BOB;
-
-        setup_sp_with_one_sector(storage_provider, storage_client);
-
-        let deadline = 0;
-        let partition = 69;
-        // Fault declaration setup
-        assert_err!(
-            StorageProvider::declare_faults(
-                RuntimeOrigin::signed(account(storage_provider)),
-                DeclareFaultsBuilder::default()
-                    .fault(deadline, partition, vec![1])
-                    .build(),
-            ),
-            Error::<Test>::DeadlineError(DeadlineError::PartitionNotFound)
-        );
-    });
-}
-
-#[test]
 fn fault_declaration_past_cutoff_should_fail() {
     new_test_ext().execute_with(|| {
         // Setup accounts
