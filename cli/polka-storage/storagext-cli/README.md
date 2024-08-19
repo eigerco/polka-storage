@@ -248,7 +248,7 @@ and `proof_bytes` which expectes a valid hex string.
 
 ### `declare-faults`
 
-Declare [faulty sectors](https://spec.filecoin.io/#section-systems.filecoin_mining.sector.lifecycle) to avoid harsh penalties.
+Declare [faulty sectors](https://spec.filecoin.io/#section-systems.filecoin_mining.sector.lifecycle) to avoid penalties for not submitting [Window PoSt](../../../docs/glossary.md#post) at the required time.
 
 ```bash
 storagext-cli --sr25519-key <key> storage-provider declare-faults <faults>
@@ -278,7 +278,7 @@ The `deadline` parameter specificies the deadline where to find the respective `
 
 ### `declare-faults-recovered`
 
-Declare [recovered faulty sectors](https://spec.filecoin.io/#section-systems.filecoin_mining.sector.lifecycle) to avoid penalties over sectors that have been recovered.
+Declare [recovered faulty sectors](https://spec.filecoin.io/#section-systems.filecoin_mining.sector.lifecycle) to avoid penalties over sectors that have been recovered. Note that a sector is only considered to be "fully-healed" (i.e. not suffer any penalties) after a new proof has been submitted.
 
 ```bash
 storagext-cli --sr25519-key <key> storage-provider declare-faults-recovered <recoveries>

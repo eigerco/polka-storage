@@ -1,0 +1,8 @@
+{
+    "deadline": 0,
+    "partition": 0,
+    "proof": {
+        "sector_number": 1,
+        "proof_bytes": "1230deadbeef"
+    }
+}
