@@ -440,8 +440,6 @@ pub mod pallet {
         SectorExpiresBeforeDeal,
         /// Deal needs to be [`DealState::Published`] if it's to be activated
         InvalidDealState,
-        /// Tried to activate a deal which is not in the system.
-        DealNotFound,
         /// Tried to activate a deal which is not in the Pending Proposals
         DealNotPending,
     }
@@ -460,9 +458,6 @@ pub mod pallet {
                 }
                 DealActivationError::InvalidDealState => {
                     write!(f, "DealActivationError: Invalid Deal State")
-                }
-                DealActivationError::DealNotFound => {
-                    write!(f, "DealActivationError: Deal Not Found")
                 }
                 DealActivationError::DealNotPending => {
                     write!(f, "DealActivationError: Deal Not Pending")
