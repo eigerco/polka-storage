@@ -1,9 +1,5 @@
 # The Market Pallet
 
-## Introduction
-
-TODO
-
 ## Design
 
 [link](./DESIGN.md)
