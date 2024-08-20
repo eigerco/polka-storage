@@ -326,9 +326,9 @@ parameter_types! {
     pub const MaxPartitionsPerDeadline: u64 = 3000;
     pub const DeclarationsMax: u64 = 3000;
     pub const FaultMaxAge: BlockNumber = DAYS * 42;
-    /// Copied from FileCoin
+    /// Copied from FileCoin and adapted to substrate block time.
     /// <https://github.com/filecoin-project/builtin-actors/blob/6906288334746318385cfd53edd7ea33ef03919f/runtime/src/runtime/policy.rs#L327>
-    pub const FaultDeclarationCutoff: BlockNumber = (10 * MINUTES) + 50;
+    pub const FaultDeclarationCutoff: BlockNumber = (10 * MINUTES) + 125;
 
     // Market Pallet
     /// Deal duration values copied from FileCoin.
