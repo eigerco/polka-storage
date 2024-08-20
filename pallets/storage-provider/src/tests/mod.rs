@@ -442,17 +442,11 @@ struct SubmitWindowedPoStBuilder {
     deadline: u64,
     partitions: BoundedVec<PartitionNumber, ConstU32<MAX_PARTITIONS_PER_DEADLINE>>,
     proof: PoStProof,
-    chain_commit_block: BlockNumber,
 }
 
 impl SubmitWindowedPoStBuilder {
     pub fn deadline(mut self, deadline: u64) -> Self {
         self.deadline = deadline;
-        self
-    }
-
-    pub fn chain_commit_block(mut self, chain_commit_block: BlockNumber) -> Self {
-        self.chain_commit_block = chain_commit_block;
         self
     }
 
@@ -474,12 +468,11 @@ impl SubmitWindowedPoStBuilder {
         self
     }
 
-    pub fn build(self) -> SubmitWindowedPoStParams<BlockNumber> {
+    pub fn build(self) -> SubmitWindowedPoStParams {
         SubmitWindowedPoStParams {
             deadline: self.deadline,
             partitions: self.partitions,
             proof: self.proof,
-            chain_commit_block: self.chain_commit_block,
         }
     }
 }
@@ -493,7 +486,6 @@ impl Default for SubmitWindowedPoStBuilder {
                 post_proof: RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
                 proof_bytes: bounded_vec![0x1, 0x2, 0x3],
             },
-            chain_commit_block: System::block_number(),
         }
     }
 }

@@ -94,9 +94,7 @@ fn setup() {
 fn fails_should_be_signed() {
     new_test_ext().execute_with(|| {
         // Build window post proof
-        let windowed_post = SubmitWindowedPoStBuilder::default()
-            .chain_commit_block(System::block_number() - 1) // Wrong proof
-            .build();
+        let windowed_post = SubmitWindowedPoStBuilder::default().build();
 
         assert_noop!(
             StorageProvider::submit_windowed_post(RuntimeOrigin::none(), windowed_post),
@@ -120,7 +118,6 @@ fn submit_windowed_post() {
 
         // Done with setup build window post proof
         let windowed_post = SubmitWindowedPoStBuilder::default()
-            .chain_commit_block(System::block_number() - 1)
             .partition(partition)
             .build();
 
@@ -165,7 +162,6 @@ fn submit_windowed_post_multiple_partitions() {
 
         // Done with setup build window post proof
         let windowed_post = SubmitWindowedPoStBuilder::default()
-            .chain_commit_block(System::block_number() - 1)
             .partitions(partitions.clone())
             .build();
 
@@ -207,10 +203,7 @@ fn submit_windowed_post_for_sector_twice() {
         run_to_block(proving_period_start);
 
         // Build window post proof
-        let windowed_post = SubmitWindowedPoStBuilder::default()
-            .partition(0)
-            .chain_commit_block(System::block_number() - 1)
-            .build();
+        let windowed_post = SubmitWindowedPoStBuilder::default().partition(0).build();
 
         // Run extrinsic and assert that the result is `Ok`
         assert_ok!(StorageProvider::submit_windowed_post(
@@ -249,9 +242,7 @@ fn should_fail_before_first_post() {
         run_to_block(19);
 
         // Build window post proof
-        let windowed_post = SubmitWindowedPoStBuilder::default()
-            .chain_commit_block(System::block_number() - 1)
-            .build();
+        let windowed_post = SubmitWindowedPoStBuilder::default().build();
 
         // Run extrinsic
         assert_noop!(
@@ -277,7 +268,6 @@ fn should_fail_when_proving_wrong_partition() {
 
         // Build window post proof
         let windowed_post = SubmitWindowedPoStBuilder::default()
-            .chain_commit_block(System::block_number() - 1)
             .partition(2) // This partition does not exist
             .build();
 
@@ -304,9 +294,7 @@ fn fail_windowed_post_deadline_not_opened() {
         run_to_block(proving_period_start + <Test as Config>::WPoStChallengeWindow::get() * 3 - 1);
 
         // Build window post proof
-        let windowed_post = SubmitWindowedPoStBuilder::default()
-            .chain_commit_block(System::block_number() - 1)
-            .build();
+        let windowed_post = SubmitWindowedPoStBuilder::default().build();
 
         // Run extrinsic
         assert_noop!(
@@ -333,7 +321,6 @@ fn fail_windowed_post_wrong_deadline_index_used() {
         // Build window post proof
         let windowed_post = SubmitWindowedPoStBuilder::default()
             .deadline(1) // This index is wrong because it is specifying the next deadline that will be opened
-            .chain_commit_block(System::block_number() - 1)
             .build();
 
         // Run extrinsic
@@ -360,36 +347,7 @@ fn fail_windowed_post_wrong_signature() {
 
         // Build window post proof
         let windowed_post = SubmitWindowedPoStBuilder::default()
-            .chain_commit_block(System::block_number() - 1)
             .proof_bytes(vec![]) // Wrong proof
-            .build();
-
-        // Run extrinsic
-        assert_noop!(
-            StorageProvider::submit_windowed_post(
-                RuntimeOrigin::signed(account(ALICE)),
-                windowed_post,
-            ),
-            Error::<Test>::PoStProofInvalid
-        );
-    });
-}
-
-#[test]
-fn fail_windowed_post_future_commit_block() {
-    new_test_ext().execute_with(|| {
-        setup();
-
-        // Run to block where the window post proof is to be submitted
-        let proving_period_start = StorageProviders::<Test>::get(account(ALICE))
-            .unwrap()
-            .proving_period_start;
-        run_to_block(proving_period_start);
-
-        // Build window post proof
-        let windowed_post = SubmitWindowedPoStBuilder::default()
-            .deadline(0)
-            .chain_commit_block(System::block_number()) // Our block commitment should be in the past
             .build();
 
         // Run extrinsic
@@ -405,18 +363,15 @@ fn fail_windowed_post_future_commit_block() {
 
 #[rstest]
 // deadline is not opened
-#[case(-9, -10, Err(Error::<Test>::InvalidDeadlineSubmission.into()))]
-// deadline is opened. commit block is on the current block
-#[case(0, 0, Err(Error::<Test>::PoStProofInvalid.into()))]
-// commit block is set on the block before the deadline is officially opened
-#[case(0, -1, Ok(()))]
+#[case(-9, Err(Error::<Test>::InvalidDeadlineSubmission.into()))]
+// commit block is set on the block the deadline is officially opened
+#[case(0, Ok(()))]
 // submit proof on the last allowed block for the deadline
-#[case(1, 0, Ok(()))]
+#[case(1, Ok(()))]
 // deadline has passed
-#[case(2, 1, Err(Error::<Test>::InvalidDeadlineSubmission.into()))]
+#[case(2, Err(Error::<Test>::InvalidDeadlineSubmission.into()))]
 fn windowed_post_commit_block(
     #[case] block_offset: i64,
-    #[case] chain_commit_block_offset: i64,
     #[case] expected_extrinsic_result: Result<(), DispatchError>,
 ) {
     new_test_ext().execute_with(|| {
@@ -429,16 +384,12 @@ fn windowed_post_commit_block(
             .proving_period_start;
 
         let target_block = ((proving_period_start as i64) + block_offset) as u64;
-        let chain_commit_block = ((proving_period_start as i64) + chain_commit_block_offset) as u64;
 
         // Cast is safe for this test, CANNOT be generalized for other uses
         run_to_block(target_block);
 
         // Build window post proof
-        let windowed_post = SubmitWindowedPoStBuilder::default()
-            .chain_commit_block(chain_commit_block)
-            .partition(0)
-            .build();
+        let windowed_post = SubmitWindowedPoStBuilder::default().partition(0).build();
 
         // Run extrinsic
         assert_eq!(

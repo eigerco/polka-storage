@@ -545,25 +545,37 @@ pub mod pallet {
 
         /// The SP uses this extrinsic to submit their Proof-of-Spacetime.
         ///
-        /// * Proofs are checked with `validate_windowed_post`.
         /// * Currently the proof is considered valid when `proof.len() > 0`.
         pub fn submit_windowed_post(
             origin: OriginFor<T>,
-            windowed_post: SubmitWindowedPoStParams<BlockNumberFor<T>>,
+            windowed_post: SubmitWindowedPoStParams,
         ) -> DispatchResult {
             let owner = ensure_signed(origin)?;
             let current_block = <frame_system::Pallet<T>>::block_number();
             let sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
 
-            if let Err(e) = Self::validate_windowed_post(
-                current_block,
-                &windowed_post,
-                sp.info.window_post_proof_type,
-            ) {
-                log::error!(target: LOG_TARGET, "submit_window_post: PoSt submission is invalid {e:?}");
-                return Err(e.into());
-            }
+            // Ensure proof matches the expected kind
+            ensure!(
+                windowed_post.proof.post_proof == sp.info.window_post_proof_type,
+                {
+                    log::error!(
+                        target: LOG_TARGET,
+                        "submit_window_post: expected PoSt type {:?} but received {:?} instead",
+                        sp.info.window_post_proof_type,
+                        windowed_post.proof.post_proof
+                    );
+                    Error::<T>::InvalidProofType
+                }
+            );
+
+            // Ensure a valid proof size
+            // TODO(@jmg-duarte,#91,19/8/24): correctly check the length
+            // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L565-L573
+            ensure!(windowed_post.proof.proof_bytes.len() > 0, {
+                log::error!("submit_window_post: invalid proof size");
+                Error::<T>::PoStProofInvalid
+            });
 
             // If the proving period is in the future, we can't submit a proof yet
             // Related issue: https://github.com/filecoin-project/specs-actors/issues/946
@@ -588,6 +600,28 @@ pub mod pallet {
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
 
             Self::validate_deadline(&current_deadline, &windowed_post)?;
+
+            // The `chain_commit_epoch` should be `current_deadline.challenge` as per:
+            //
+            // These issues that were filed against the original implementation:
+            // * https://github.com/filecoin-project/specs-actors/issues/1094
+            // * https://github.com/filecoin-project/specs-actors/issues/1376
+            //
+            // The Go actors have this note:
+            // https://github.com/filecoin-project/specs-actors/blob/985cd0fa04578e262d68e0ef196f17df6f2434f2/actors/builtin/miner/miner_actor.go#L329-L332
+            //
+            // The fact that both Go and Rust actor implementations use the deadline challenge:
+            // * https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/tests/miner_actor_test_wpost.rs#L99-L492
+            // * https://github.com/filecoin-project/specs-actors/blob/985cd0fa04578e262d68e0ef196f17df6f2434f2/actors/test/commit_post_test.go#L204-L215
+            // * https://github.com/filecoin-project/specs-actors/blob/985cd0fa04578e262d68e0ef196f17df6f2434f2/actors/test/terminate_sectors_scenario_test.go#L117-L128
+            //
+            // Further supported by the fact that Lotus and Curio (Lotus' replacement) don't use
+            // the ChainCommitEpoch variable from the SubmitWindowedPostParams
+            // * https://github.com/filecoin-project/lotus/blob/4f70204342ce83671a7a261147a18865f1618967/storage/wdpost/wdpost_run.go#L334-L338
+            // * https://github.com/filecoin-project/lotus/blob/4f70204342ce83671a7a261147a18865f1618967/curiosrc/window/compute_do.go#L68-L72
+            // * https://github.com/filecoin-project/curio/blob/45373f7fc0431e41f987ad348df7ae6e67beaff9/tasks/window/compute_do.go#L71-L75
+
+            // TODO(@aidan46, #91, 2024-07-03): Validate the proof after research is done
 
             // mutate provider state
             StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResult {
@@ -794,41 +828,18 @@ pub mod pallet {
             Ok(())
         }
 
-        /// Validates the SPs submitted PoSt by checking if:
-        /// - it has the correct proof type
-        /// - the proof length is > 0
-        /// - the chain commit block < current block
-        fn validate_windowed_post(
-            current_block: BlockNumberFor<T>,
-            windowed_post: &SubmitWindowedPoStParams<BlockNumberFor<T>>,
-            expected_proof: RegisteredPoStProof,
-        ) -> Result<(), Error<T>> {
-            ensure!(
-                windowed_post.proof.post_proof == expected_proof,
-                Error::<T>::InvalidProofType
-            );
-            // TODO(@aidan46, #91, 2024-07-03): Validate the proof after research is done
-            ensure!(
-                windowed_post.proof.proof_bytes.len() > 0,
-                Error::<T>::PoStProofInvalid
-            );
-            // chain commit block must be less than the current block
-            ensure!(
-                windowed_post.chain_commit_block < current_block,
-                Error::<T>::PoStProofInvalid
-            );
-            Ok(())
-        }
-
         /// Check whether the given deadline is valid for PoSt submission.
         ///
         /// Fails if:
         /// - The given deadline is not open.
         /// - There is and deadline index mismatch.
         /// - The block the deadline was committed at is after challenge height.
+        ///
+        /// Reference:
+        /// * <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L591-L626>
         fn validate_deadline(
             current_deadline: &DeadlineInfo<BlockNumberFor<T>>,
-            post_params: &SubmitWindowedPoStParams<BlockNumberFor<T>>,
+            post_params: &SubmitWindowedPoStParams,
         ) -> Result<(), Error<T>> {
             // Ensure the deadline is open
             ensure!(current_deadline.is_open(), {
@@ -842,15 +853,6 @@ pub mod pallet {
                 Error::<T>::InvalidDeadlineSubmission
             });
 
-            // Ensure the chain commit block is after or equal the challenge
-            // start height
-            ensure!(
-                post_params.chain_commit_block >= current_deadline.challenge,
-                {
-                    log::error!(target: LOG_TARGET, "validate_deadline: expected chain_commit_block {:?} to be >= {:?}", post_params.chain_commit_block, current_deadline.challenge);
-                    Error::<T>::InvalidDeadlineSubmission
-                }
-            );
             Ok(())
         }
 
