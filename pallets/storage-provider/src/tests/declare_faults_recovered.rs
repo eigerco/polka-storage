@@ -361,12 +361,13 @@ fn fault_recovery_past_cutoff_should_fail() {
             <Test as Config>::WPoStProvingPeriod::get(),
             <Test as Config>::WPoStChallengeWindow::get(),
             <Test as Config>::WPoStChallengeLookBack::get(),
+            <Test as Config>::FaultDeclarationCutoff::get(),
         )
         .and_then(DeadlineInfo::next_not_elapsed)
         .expect("deadline should be valid");
 
         // Run block to the fault declaration cutoff.
-        run_to_block(test_dl.open_at);
+        run_to_block(test_dl.fault_cutoff);
 
         let deadline = 0;
         let partition = 0;

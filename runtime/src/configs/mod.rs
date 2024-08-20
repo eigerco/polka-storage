@@ -326,6 +326,7 @@ parameter_types! {
     pub const MaxPartitionsPerDeadline: u64 = 3000;
     pub const DeclarationsMax: u64 = 3000;
     pub const FaultMaxAge: BlockNumber = DAYS * 42;
+    pub const FaultDeclarationCutoff: BlockNumber = (10 * MINUTES) + 50;
 
     // Market Pallet
     /// Deal duration values copied from FileCoin.
@@ -340,7 +341,7 @@ parameter_types! {
     // Storage Provider Pallet
     pub const WpostProvingPeriod: BlockNumber = 5 * MINUTES;
     pub const WpostChallengeWindow: BlockNumber = 2 * MINUTES;
-    pub const WPoStChallengeLookBack: BlockNumber = 1 * MINUTES;
+    pub const WPoStChallengeLookBack: BlockNumber = MINUTES;
     pub const MinSectorExpiration: BlockNumber = 5 * MINUTES;
     pub const MaxSectorExpirationExtension: BlockNumber = 60 * MINUTES;
     pub const SectorMaximumLifetime: BlockNumber = 120 * MINUTES;
@@ -348,6 +349,7 @@ parameter_types! {
     pub const WPoStPeriodDeadlines: u64 = 48;
     pub const MaxPartitionsPerDeadline: u64 = 3000;
     pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
+    pub const FaultDeclarationCutoff: BlockNumber = 2 * MINUTES;
 
     // Market Pallet
     pub const TimeUnitInBlocks: u64 = MINUTES;
@@ -370,6 +372,7 @@ impl pallet_storage_provider::Config for Runtime {
     type WPoStPeriodDeadlines = WPoStPeriodDeadlines;
     type MaxPartitionsPerDeadline = MaxPartitionsPerDeadline;
     type FaultMaxAge = FaultMaxAge;
+    type FaultDeclarationCutoff = FaultDeclarationCutoff;
 }
 
 parameter_types! {

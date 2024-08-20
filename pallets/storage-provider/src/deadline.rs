@@ -419,6 +419,9 @@ pub struct DeadlineInfo<BlockNumber> {
     /// The first block number from which a proof can *no longer* be submitted.
     pub close_at: BlockNumber,
 
+    /// First block at which a fault declaration is rejected (< Open).
+    pub fault_cutoff: BlockNumber,
+
     /// The block number at which the randomness for the deadline proving is
     /// available.
     pub challenge: BlockNumber,
@@ -436,6 +439,10 @@ pub struct DeadlineInfo<BlockNumber> {
     /// The duration of the lookback window for challenge responses. The period
     /// before a deadline when the randomness is available.
     pub w_post_challenge_lookback: BlockNumber,
+
+    /// The fault declaration cutoff amount, consistent with FaultDeclarationCutoff.
+    /// Stored here because it is used in the next_non_elapsed function.
+    pub fault_declaration_cutoff: BlockNumber,
 }
 
 impl<BlockNumber> DeadlineInfo<BlockNumber>
@@ -453,6 +460,7 @@ where
         w_post_proving_period: BlockNumber,
         w_post_challenge_window: BlockNumber,
         w_post_challenge_lookback: BlockNumber,
+        fault_declaration_cutoff: BlockNumber,
     ) -> Result<Self, DeadlineError> {
         // convert w_post_period_deadlines and idx so we can math
         let period_deadlines = BlockNumber::try_from(w_post_period_deadlines).map_err(|_| {
@@ -465,17 +473,19 @@ where
             DeadlineError::CouldNotConstructDeadlineInfo
         })?;
 
-        let (open_at, close_at, challenge) = if idx_converted < period_deadlines {
+        let (open_at, close_at, challenge, fault_cutoff) = if idx_converted < period_deadlines {
             let open_at = period_start + (idx_converted * w_post_challenge_window);
             let close_at = open_at + w_post_challenge_window;
             let challenge = period_start - w_post_challenge_lookback;
-            (open_at, close_at, challenge)
+            let fault_cutoff = open_at - fault_declaration_cutoff;
+            (open_at, close_at, challenge, fault_cutoff)
         } else {
             let after_last_deadline = period_start + w_post_proving_period;
             (
                 after_last_deadline,
                 after_last_deadline,
                 after_last_deadline,
+                BlockNumber::zero(),
             )
         };
 
@@ -490,6 +500,8 @@ where
             w_post_proving_period,
             w_post_challenge_window,
             w_post_challenge_lookback,
+            fault_cutoff,
+            fault_declaration_cutoff,
         })
     }
 
@@ -516,9 +528,8 @@ where
     }
 
     /// Whether the deadline's fault cutoff has passed.
-    /// The fault cutoff is at the open of a deadline
     pub fn fault_cutoff_passed(&self) -> bool {
-        self.block_number >= self.open_at
+        self.block_number >= self.fault_cutoff
     }
 
     /// Returns the next deadline that has not yet elapsed.
@@ -543,6 +554,7 @@ where
             self.w_post_proving_period,
             self.w_post_challenge_window,
             self.w_post_challenge_lookback,
+            self.fault_declaration_cutoff,
         )
     }
 }
@@ -560,6 +572,7 @@ pub fn deadline_is_mutable<BlockNumber>(
     w_post_proving_period: BlockNumber,
     w_post_challenge_window: BlockNumber,
     w_post_challenge_lookback: BlockNumber,
+    fault_declaration_cutoff: BlockNumber,
 ) -> Result<bool, DeadlineError>
 where
     BlockNumber: sp_runtime::traits::BlockNumber,
@@ -574,6 +587,7 @@ where
         w_post_proving_period,
         w_post_challenge_window,
         w_post_challenge_lookback,
+        fault_declaration_cutoff,
     )?
     .next_not_elapsed()?;
 

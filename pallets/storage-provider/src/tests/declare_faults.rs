@@ -109,6 +109,7 @@ fn declare_single_fault_before_proving_period_start() {
             <Test as Config>::WPoStProvingPeriod::get(),
             <Test as Config>::WPoStChallengeWindow::get(),
             <Test as Config>::WPoStChallengeLookBack::get(),
+            <Test as Config>::FaultDeclarationCutoff::get(),
         )
         .and_then(DeadlineInfo::next_not_elapsed)
         .expect("deadline should be valid");
@@ -149,7 +150,6 @@ fn declare_single_fault_from_proving_period(#[case] proving_period_multiple: f64
         // Generally safe because we control test conditions, not really safe anywhere else
         let offset = ((sp.proving_period_start as f64) * proving_period_multiple) as u64;
         let new_block = sp.proving_period_start + offset;
-
         run_to_block(new_block);
         // The cron hook generates events between blocks, this removes those events
         System::reset_events();
@@ -188,6 +188,7 @@ fn declare_single_fault_from_proving_period(#[case] proving_period_multiple: f64
             <Test as Config>::WPoStProvingPeriod::get(),
             <Test as Config>::WPoStChallengeWindow::get(),
             <Test as Config>::WPoStChallengeLookBack::get(),
+            <Test as Config>::FaultDeclarationCutoff::get(),
         )
         .and_then(DeadlineInfo::next_not_elapsed)
         .expect("deadline should be valid");
@@ -357,11 +358,12 @@ fn fault_declaration_past_cutoff_should_fail() {
             <Test as Config>::WPoStProvingPeriod::get(),
             <Test as Config>::WPoStChallengeWindow::get(),
             <Test as Config>::WPoStChallengeLookBack::get(),
+            <Test as Config>::FaultDeclarationCutoff::get(),
         )
         .and_then(DeadlineInfo::next_not_elapsed)
         .expect("deadline should be valid");
         // Run block to the fault declaration cutoff.
-        run_to_block(test_dl.open_at);
+        run_to_block(test_dl.fault_cutoff);
 
         let deadline = 0;
         let partition = 0;
