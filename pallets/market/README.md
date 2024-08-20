@@ -13,19 +13,12 @@ This pallet is part of the polka-storage project. The main purpose of the pallet
 The Market Pallet provides the following extrinsics (functions):
 
 - `add_balance` - Reserves a given amount of currency for usage in the system.
-
   - `amount` - The amount that is reserved
-
 - `withdraw_balance` - Withdraws funds from the system.
-
   - `amount` - The amount that is withdrawn
-
 - `settle_deal_payments` - Settle specified deals between providers and clients.
-
   - `deal_ids` - List of deal ids being settled
-
 - `publish_storage_deals` - Publishes list of agreed deals to the chain.
-
   - `proposal` - Specific deal proposal
     - `piece_cid` - Byte encoded cid
     - `piece_size` - Size of the piece
@@ -44,12 +37,28 @@ The Market Pallet provides the following extrinsics (functions):
 The Market Pallet emits the following events:
 
 - `BalanceAdded` - Indicates that some balance was reserved for the usage in the storage system.
-- `BalanceWithdrawn` - Some balance was unreserved.
+  - `who` - Account which added balance
+  - `amount` - Amount added
+- `BalanceWithdrawn` - Some balance was withdrawn.
+  - `who` - Account which had withdrawn balance
+  - `amount` - Amount withdrawn
 - `DealPublished` - Indicates that the deal was successfully published
+  - `deal_id` - Unique deal id
+  - `client` - Storage client
+  - `provider` - Storage provider
 - `DealActivated` - Published for the deals when they get activated.
+  - `deal_id` - Unique deal id
+  - `client` - Storage client
+  - `provider` - Storage provider
 - `DealsSettled` - Published after the `publish_storage_deals` extrinsic is called. Indicates which deals were successfully and unsuccessfully settled.
+  - `successful` - List of deal ids that were settled
+  - `unsuccessful` - List of deal ids with the corresponding errors
 - `DealSlashed` - Is emitted when some deal expired
+  - `deal_id` - Deal id that was slashed
 - `DealTerminated` - If emitted it indicates that the deal was voluntarily or involuntarily terminated.
+  - `deal_id` - Terminated deal id
+  - `client` - Storage client
+  - `provider` - Storage provider
 
 ### Errors
 
@@ -61,8 +70,8 @@ The Market Pallet actions can fail with following errors:
 - `AllProposalsInvalid` - `publish_storage_deals` call was supplied with `deals` which are all invalid.
 - `UnexpectedValidationError` - `publish_storage_deals`'s core logic was invoked with a broken invariant that should be called by `validate_deals`.
 - `DuplicateDeal` - There is more than 1 deal of this ID in the Sector.
-- `DealPreconditionFailed` - Due to a programmer bug, bounds on Bounded data structures were incorrect so couldn't insert into them.
 - `DealNotFound` - Tried to activate a deal which is not in the system.
 - `DealActivationError` - Tried to activate a deal, but data doesn't make sense. Details are in the logs.
 - `DealsTooLargeToFitIntoSector` - Sum of all of the deals piece sizes for a sector exceeds sector size.
 - `TooManyDealsPerBlock` - Tried to activate too many deals at a given `start_block`.
+- `DealPreconditionFailed` - Due to a programmer bug, bounds on Bounded data structures were incorrect so couldn't insert into them.
