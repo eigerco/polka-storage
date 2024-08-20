@@ -364,7 +364,7 @@ fn fail_windowed_post_wrong_signature() {
 #[rstest]
 // deadline is not opened
 #[case(-9, Err(Error::<Test>::InvalidDeadlineSubmission.into()))]
-// commit block is set on the block before the deadline is officially opened
+// commit block is set on the block the deadline is officially opened
 #[case(0, Ok(()))]
 // submit proof on the last allowed block for the deadline
 #[case(1, Ok(()))]
