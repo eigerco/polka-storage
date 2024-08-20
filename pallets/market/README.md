@@ -12,10 +12,32 @@ This pallet is part of the polka-storage project. The main purpose of the pallet
 
 The Market Pallet provides the following extrinsics (functions):
 
-- `add_balance` - Is used by the storage providers and clients to reserve some amount for the storage related actions. The amount tracked is spitted to the free and locked parts. The free funds are locked when the participants interact with the chain.
-- `withdraw_balance` - Participants can withdrawal the free funds anytime. That means that those funds are not intended for storage related actions anymore.
-- `settle_deal_payments` - When the settlement is executed it calculates the fees earned for the deals and transfers those fees to the storage provider.
-- `publish_storage_deals` - Used by the storage provider to publish multiple or a single deal to the chain.
+- `add_balance` - Reserves a given amount of currency for usage in the system.
+
+  - `amount` - The amount that is reserved
+
+- `withdraw_balance` - Withdraws funds from the system.
+
+  - `amount` - The amount that is withdrawn
+
+- `settle_deal_payments` - Settle specified deals between providers and clients.
+
+  - `deal_ids` - List of deal ids being settled
+
+- `publish_storage_deals` - Publishes list of agreed deals to the chain.
+
+  - `proposal` - Specific deal proposal
+    - `piece_cid` - Byte encoded cid
+    - `piece_size` - Size of the piece
+    - `client` - Account of the storage client
+    - `provider` - Account of the storage provider
+    - `label` - Arbitrary client chosen label
+    - `start_block` - Block number on which the deal might start
+    - `end_block` - Block number on which the deal is supposed to end
+    - `storage_price_per_block` - Price for the storage specified by block
+    - `provider_collateral` - Collateral which is slashed if the deal fails
+    - `state` - Deal state. Can only be set to `Published`
+  - `client_signature` - Client signature of this specific deal proposal
 
 ### Events
 
@@ -43,4 +65,4 @@ The Market Pallet actions can fail with following errors:
 - `DealNotFound` - Tried to activate a deal which is not in the system.
 - `DealActivationError` - Tried to activate a deal, but data doesn't make sense. Details are in the logs.
 - `DealsTooLargeToFitIntoSector` - Sum of all of the deals piece sizes for a sector exceeds sector size.
-- `TooManyDealsPerBlock` - Tried to activate too many deals at a given start_block.
+- `TooManyDealsPerBlock` - Tried to activate too many deals at a given `start_block`.
