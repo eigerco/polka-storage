@@ -124,11 +124,11 @@ maintaining data as promised.
 
 There are two main types of proofs:
 
-- <a name="porep"></a> **Proof-of-Replication (PoRep):** In order to register a sector with the network, the
+- <a id="porep"></a> **Proof-of-Replication (PoRep):** In order to register a sector with the network, the
   sector has to be sealed. Sealing is a computation-heavy process that produces a unique representation of the data in
   the form of a proof, called Proof-of-Replication or PoRep.
 
-- <a name="post"></a> **Proof-of-Spacetime (PoSt):** Used to verify that the storage provider continues to store the
+- <a id="post"></a> **Proof-of-Spacetime (PoSt):** Used to verify that the storage provider continues to store the
   data over time. [Storage providers](#storage-provider) must periodically generate and submit proofs to show that they
   are still maintaining the stored data as promised.
 

@@ -67,7 +67,7 @@ pub enum StorageProviderCommand {
     /// Declare recovered faulty sectors.
     DeclareFaultsRecovered {
         #[arg(value_parser = <Vec<RecoveryDeclaration> as ParseablePath>::parse_json)]
-        recoveries: Vec<RecoveryDeclaration>,
+        recoveries: std::vec::Vec<RecoveryDeclaration>,
     },
 }
 
