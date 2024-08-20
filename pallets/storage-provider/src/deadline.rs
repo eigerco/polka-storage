@@ -268,7 +268,6 @@ where
                     DeadlineError::FailedToUpdateFaultExpiration
                 })?;
             } else {
-                log::debug!(target: LOG_TARGET, "record_faults: Inserting partition number {partition_number}");
                 self.expirations_blocks.try_insert(fault_expiration_block, *partition_number).map_err(|_| {
                     log::error!(target: LOG_TARGET, "record_faults: Could not insert new expiration");
                     DeadlineError::FailedToUpdateFaultExpiration
@@ -440,6 +439,10 @@ pub struct DeadlineInfo<BlockNumber> {
     /// The duration of the lookback window for challenge responses. The period
     /// before a deadline when the randomness is available.
     pub w_post_challenge_lookback: BlockNumber,
+
+    /// The fault declaration cutoff amount, consistent with FaultDeclarationCutoff.
+    /// Stored here because it is used in the next_non_elapsed function.
+    pub fault_declaration_cutoff: BlockNumber,
 }
 
 impl<BlockNumber> DeadlineInfo<BlockNumber>
@@ -453,11 +456,11 @@ where
         block_number: BlockNumber,
         period_start: BlockNumber,
         idx: u64,
-        fault_declaration_cutoff: BlockNumber,
         w_post_period_deadlines: u64,
         w_post_proving_period: BlockNumber,
         w_post_challenge_window: BlockNumber,
         w_post_challenge_lookback: BlockNumber,
+        fault_declaration_cutoff: BlockNumber,
     ) -> Result<Self, DeadlineError> {
         // convert w_post_period_deadlines and idx so we can math
         let period_deadlines = BlockNumber::try_from(w_post_period_deadlines).map_err(|_| {
@@ -474,15 +477,15 @@ where
             let open_at = period_start + (idx_converted * w_post_challenge_window);
             let close_at = open_at + w_post_challenge_window;
             let challenge = period_start - w_post_challenge_lookback;
-            let fault_cutoff = open_at + fault_declaration_cutoff;
+            let fault_cutoff = open_at - fault_declaration_cutoff;
             (open_at, close_at, challenge, fault_cutoff)
         } else {
             let after_last_deadline = period_start + w_post_proving_period;
             (
                 after_last_deadline,
                 after_last_deadline,
-                BlockNumber::zero(),
                 after_last_deadline,
+                BlockNumber::zero(),
             )
         };
 
@@ -492,12 +495,13 @@ where
             idx,
             open_at,
             close_at,
-            fault_cutoff,
             challenge,
             w_post_period_deadlines,
             w_post_proving_period,
             w_post_challenge_window,
             w_post_challenge_lookback,
+            fault_cutoff,
+            fault_declaration_cutoff,
         })
     }
 
@@ -546,11 +550,11 @@ where
             self.block_number,
             self.period_start + self.w_post_proving_period * delta_periods,
             self.idx,
-            self.fault_cutoff,
             self.w_post_period_deadlines,
             self.w_post_proving_period,
             self.w_post_challenge_window,
             self.w_post_challenge_lookback,
+            self.fault_declaration_cutoff,
         )
     }
 }
@@ -564,11 +568,11 @@ pub fn deadline_is_mutable<BlockNumber>(
     proving_period_start: BlockNumber,
     deadline_idx: u64,
     current_block: BlockNumber,
-    fault_declaration_cutoff: BlockNumber,
     w_post_period_deadlines: u64,
     w_post_proving_period: BlockNumber,
     w_post_challenge_window: BlockNumber,
     w_post_challenge_lookback: BlockNumber,
+    fault_declaration_cutoff: BlockNumber,
 ) -> Result<bool, DeadlineError>
 where
     BlockNumber: sp_runtime::traits::BlockNumber,
@@ -579,11 +583,11 @@ where
         current_block,
         proving_period_start,
         deadline_idx,
-        fault_declaration_cutoff,
         w_post_period_deadlines,
         w_post_proving_period,
         w_post_challenge_window,
         w_post_challenge_lookback,
+        fault_declaration_cutoff,
     )?
     .next_not_elapsed()?;
 

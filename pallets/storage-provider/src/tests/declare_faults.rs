@@ -1,6 +1,4 @@
-extern crate alloc;
-
-use frame_support::{assert_noop, assert_ok, pallet_prelude::*};
+use frame_support::{assert_err, assert_noop, assert_ok, pallet_prelude::*};
 use rstest::rstest;
 use sp_core::bounded_vec;
 use sp_runtime::{traits::BlockNumberProvider, BoundedVec};
@@ -107,11 +105,11 @@ fn declare_single_fault_before_proving_period_start() {
             System::current_block_number(),
             sp.proving_period_start,
             0,
-            <Test as Config>::FaultMaxAge::get(),
             <Test as Config>::WPoStPeriodDeadlines::get(),
-            <Test as Config>::WPoStChallengeWindow::get(),
             <Test as Config>::WPoStProvingPeriod::get(),
+            <Test as Config>::WPoStChallengeWindow::get(),
             <Test as Config>::WPoStChallengeLookBack::get(),
+            <Test as Config>::FaultDeclarationCutoff::get(),
         )
         .and_then(DeadlineInfo::next_not_elapsed)
         .expect("deadline should be valid");
@@ -136,7 +134,6 @@ fn declare_single_fault_before_proving_period_start() {
 
 // Using floats is the easiest way to specify a multiple of the proving period
 #[rstest]
-#[case(0.0)]
 #[case(0.1)]
 #[case(0.5)]
 #[case(1.0)]
@@ -187,11 +184,11 @@ fn declare_single_fault_from_proving_period(#[case] proving_period_multiple: f64
             new_block,
             sp.proving_period_start,
             0,
-            <Test as Config>::FaultMaxAge::get(),
             <Test as Config>::WPoStPeriodDeadlines::get(),
-            <Test as Config>::WPoStChallengeWindow::get(),
             <Test as Config>::WPoStProvingPeriod::get(),
+            <Test as Config>::WPoStChallengeWindow::get(),
             <Test as Config>::WPoStChallengeLookBack::get(),
+            <Test as Config>::FaultDeclarationCutoff::get(),
         )
         .and_then(DeadlineInfo::next_not_elapsed)
         .expect("deadline should be valid");
@@ -342,7 +339,47 @@ fn fails_data_missing_malformed(
     });
 }
 
-/// Setup storage provider with one sector.
+#[test]
+fn fault_declaration_past_cutoff_should_fail() {
+    new_test_ext().execute_with(|| {
+        // Setup accounts
+        let storage_provider = ALICE;
+        let storage_client = BOB;
+
+        setup_sp_with_one_sector(storage_provider, storage_client);
+
+        let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
+
+        let test_dl = DeadlineInfo::new(
+            System::current_block_number(),
+            sp.proving_period_start,
+            0,
+            <Test as Config>::WPoStPeriodDeadlines::get(),
+            <Test as Config>::WPoStProvingPeriod::get(),
+            <Test as Config>::WPoStChallengeWindow::get(),
+            <Test as Config>::WPoStChallengeLookBack::get(),
+            <Test as Config>::FaultDeclarationCutoff::get(),
+        )
+        .and_then(DeadlineInfo::next_not_elapsed)
+        .expect("deadline should be valid");
+        // Run block to the fault declaration cutoff.
+        run_to_block(test_dl.fault_cutoff);
+
+        let deadline = 0;
+        let partition = 0;
+        // Fault declaration setup
+        assert_err!(
+            StorageProvider::declare_faults(
+                RuntimeOrigin::signed(account(storage_provider)),
+                DeclareFaultsBuilder::default()
+                    .fault(deadline, partition, vec![1])
+                    .build(),
+            ),
+            Error::<Test>::FaultDeclarationTooLate
+        );
+    });
+}
+
 pub(crate) fn setup_sp_with_one_sector(storage_provider: &str, storage_client: &str) {
     // Register storage provider
     register_storage_provider(account(storage_provider));

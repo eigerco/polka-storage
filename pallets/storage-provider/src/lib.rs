@@ -207,6 +207,11 @@ pub mod pallet {
         /// The longest a faulty sector can live without being removed.
         #[pallet::constant]
         type FaultMaxAge: Get<BlockNumberFor<Self>>;
+
+        /// The period before a PoSt window closes its fault declaration and recovery
+        /// <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/runtime/src/runtime/policy.rs#L327-L328>
+        #[pallet::constant]
+        type FaultDeclarationCutoff: Get<BlockNumberFor<Self>>;
     }
 
     /// Need some storage type that keeps track of sectors, deadlines and terminations.
@@ -319,6 +324,8 @@ pub mod pallet {
         InvalidUnsealedCidForSector,
         /// Emitted when SP calls declare_faults and the fault cutoff is passed.
         FaultDeclarationTooLate,
+        /// Emitted when SP calls declare_faults_recovered and the fault recovery cutoff is passed.
+        FaultRecoveryTooLate,
         /// Tried to slash reserved currency and burn it.
         SlashingFailed,
     }
@@ -513,11 +520,11 @@ pub mod pallet {
                     new_sectors,
                     sp.info.window_post_partition_sectors,
                     T::MaxPartitionsPerDeadline::get(),
-                    T::FaultMaxAge::get(),
                     T::WPoStPeriodDeadlines::get(),
                     T::WPoStProvingPeriod::get(),
                     T::WPoStChallengeWindow::get(),
                     T::WPoStChallengeLookBack::get(),
+                    T::FaultDeclarationCutoff::get(),
                 )
                 .map_err(|e| Error::<T>::StorageProviderError(e))?;
 
@@ -587,15 +594,14 @@ pub mod pallet {
                 );
                 Error::<T>::InvalidDeadlineSubmission
             });
-
             let current_deadline = sp
                 .deadline_info(
                     current_block,
-                    T::FaultMaxAge::get(),
                     T::WPoStPeriodDeadlines::get(),
                     T::WPoStProvingPeriod::get(),
                     T::WPoStChallengeWindow::get(),
                     T::WPoStChallengeLookBack::get(),
+                    T::FaultDeclarationCutoff::get(),
                 )
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
 
@@ -673,6 +679,11 @@ pub mod pallet {
 
             for (&deadline_idx, partition_map) in to_process.into_iter() {
                 log::debug!(target: LOG_TARGET, "declare_faults: Processing deadline index: {deadline_idx}");
+                // Check deadline index to avoid doing any work if it is wrong.
+                ensure!(
+                    (deadline_idx as usize) < sp.deadlines.due.len(),
+                    Error::<T>::DeadlineError(DeadlineError::DeadlineIndexOutOfRange)
+                );
                 // Get the target deadline
                 // We're deviating from the original implementation by using the `sp.proving_period_start`
                 // instead of calculating it here, but we couldn't find a reason to do it in another way
@@ -684,18 +695,18 @@ pub mod pallet {
                     current_block,
                     sp.proving_period_start,
                     deadline_idx,
-                    T::FaultMaxAge::get(),
                     T::WPoStPeriodDeadlines::get(),
-                    T::WPoStChallengeWindow::get(),
                     T::WPoStProvingPeriod::get(),
+                    T::WPoStChallengeWindow::get(),
                     T::WPoStChallengeLookBack::get(),
+                    T::FaultDeclarationCutoff::get(),
                 )
                 .and_then(DeadlineInfo::next_not_elapsed)
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
 
                 // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L2451-L2458
                 ensure!(!target_dl.fault_cutoff_passed(), {
-                    log::error!(target: LOG_TARGET, "declare_faults: Late fault declaration at deadline {deadline_idx}");
+                    log::error!(target: LOG_TARGET, "declare_faults: Late fault declaration at deadline {deadline_idx}. {current_block:?} >= {:?}", target_dl.fault_cutoff);
                     Error::<T>::FaultDeclarationTooLate
                 });
 
@@ -752,21 +763,26 @@ pub mod pallet {
 
             for (&deadline_idx, partition_map) in to_process.0.iter() {
                 log::debug!(target: LOG_TARGET, "declare_faults_recovered: Processing deadline index: {deadline_idx}");
+                // Check deadline index to avoid doing any work if it is wrong.
+                ensure!(
+                    (deadline_idx as usize) < sp.deadlines.due.len(),
+                    Error::<T>::DeadlineError(DeadlineError::DeadlineIndexOutOfRange)
+                );
                 // Get the deadline
                 let target_dl = DeadlineInfo::new(
                     current_block,
                     sp.proving_period_start,
                     deadline_idx,
-                    T::FaultMaxAge::get(),
                     T::WPoStPeriodDeadlines::get(),
-                    T::WPoStChallengeWindow::get(),
                     T::WPoStProvingPeriod::get(),
+                    T::WPoStChallengeWindow::get(),
                     T::WPoStChallengeLookBack::get(),
+                    T::FaultDeclarationCutoff::get(),
                 )
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
                 ensure!(!target_dl.fault_cutoff_passed(), {
                     log::error!(target: LOG_TARGET, "declare_faults: Late fault declaration at deadline {deadline_idx}");
-                    Error::<T>::FaultDeclarationTooLate
+                    Error::<T>::FaultRecoveryTooLate
                 });
                 let dl = sp
                     .deadlines
@@ -985,17 +1001,17 @@ pub mod pallet {
 
                 if current_block < state.proving_period_start {
                     log::info!(target: LOG_TARGET, "skipping checking sp: {:?} on block: {:?} < proving_start {:?}, because it hasn't started yet.",
-                        storage_provider, current_block, state.proving_period_start);
+                    storage_provider, current_block, state.proving_period_start);
                     continue;
                 }
 
                 let Ok(current_deadline) = state.deadline_info(
                     current_block,
-                    T::FaultMaxAge::get(),
                     T::WPoStPeriodDeadlines::get(),
                     T::WPoStProvingPeriod::get(),
                     T::WPoStChallengeWindow::get(),
                     T::WPoStChallengeLookBack::get(),
+                    T::FaultDeclarationCutoff::get(),
                 ) else {
                     log::error!(target: LOG_TARGET, "block: {:?}, there are no deadlines for storage provider {:?}", current_block, storage_provider);
                     continue;
@@ -1008,9 +1024,9 @@ pub mod pallet {
 
                 if !current_deadline.has_elapsed() {
                     log::info!(target: LOG_TARGET,
-                        "block: {:?}, deadline {:?} for sp {:?} not yet elapsed. open_at: {:?} < current {:?} < close_at {:?}",
-                        current_block,
-                        current_deadline.idx, storage_provider, current_deadline.open_at, current_block, current_deadline.close_at
+                    "block: {:?}, deadline {:?} for sp {:?} not yet elapsed. open_at: {:?} < current {:?} < close_at {:?}",
+                    current_block,
+                    current_deadline.idx, storage_provider, current_deadline.open_at, current_block, current_deadline.close_at
                     );
                     continue;
                 }
@@ -1055,7 +1071,7 @@ pub mod pallet {
                     // - https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/state.rs#L1182
 
                     log::info!(target: LOG_TARGET, "block: {:?}, sp: {:?}, detected partition {} with {} new faults...",
-                        current_block, storage_provider, partition_number, new_faults.len());
+                    current_block, storage_provider, partition_number, new_faults.len());
 
                     if new_faults.len() > 0 {
                         Self::deposit_event(Event::PartitionFaulty {

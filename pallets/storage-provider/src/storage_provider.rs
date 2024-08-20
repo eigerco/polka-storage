@@ -104,7 +104,7 @@ where
         w_post_proving_period: BlockNumber,
     ) {
         self.current_deadline = (self.current_deadline + 1) % w_post_period_deadlines;
-        log::debug!(target: LOG_TARGET, "new deadline {:?}, period deadlines {:?}", 
+        log::debug!(target: LOG_TARGET, "new deadline {:?}, period deadlines {:?}",
             self.current_deadline, w_post_period_deadlines);
 
         if self.current_deadline == 0 {
@@ -180,11 +180,11 @@ where
         mut sectors: BoundedVec<SectorOnChainInfo<BlockNumber>, ConstU32<MAX_SECTORS>>,
         partition_size: u64,
         max_partitions_per_deadline: u64,
-        fault_cutoff_declaration: BlockNumber,
         w_post_period_deadlines: u64,
         w_post_proving_period: BlockNumber,
         w_post_challenge_window: BlockNumber,
         w_post_challenge_lookback: BlockNumber,
+        fault_declaration_cutoff: BlockNumber,
     ) -> Result<(), StorageProviderError> {
         sectors.sort_by_key(|info| info.sector_number);
 
@@ -209,11 +209,11 @@ where
                     self.proving_period_start,
                     idx as u64,
                     current_block,
-                    fault_cutoff_declaration,
                     w_post_period_deadlines,
                     w_post_proving_period,
                     w_post_challenge_window,
                     w_post_challenge_lookback,
+                    fault_declaration_cutoff,
                 )?;
                 log::error!(target: LOG_TARGET, "is_deadline_mutable {}", is_deadline_mutable);
                 // Skip deadlines that aren't currently mutable.
@@ -259,23 +259,24 @@ where
     pub fn deadline_info(
         &self,
         current_block: BlockNumber,
-        fault_cutoff_declaration: BlockNumber,
         w_post_period_deadlines: u64,
         w_post_proving_period: BlockNumber,
         w_post_challenge_window: BlockNumber,
         w_post_challenge_lookback: BlockNumber,
+        fault_declaration_cutoff: BlockNumber,
     ) -> Result<DeadlineInfo<BlockNumber>, DeadlineError> {
+        log::info!(target: LOG_TARGET, "deadline_info: fault_declaration_cutoff = {fault_declaration_cutoff:?}");
         let current_deadline_index = self.current_deadline;
 
         DeadlineInfo::new(
             current_block,
             self.proving_period_start,
             current_deadline_index,
-            fault_cutoff_declaration,
             w_post_period_deadlines,
             w_post_proving_period,
             w_post_challenge_window,
             w_post_challenge_lookback,
+            fault_declaration_cutoff,
         )
     }
 }

@@ -1,11 +1,11 @@
-use frame_support::{assert_noop, assert_ok, pallet_prelude::*, BoundedBTreeSet};
+use frame_support::{assert_err, assert_noop, assert_ok, pallet_prelude::*, BoundedBTreeSet};
 use primitives_proofs::{SectorNumber, MAX_TERMINATIONS_PER_CALL};
 use rstest::rstest;
 use sp_core::bounded_vec;
-use sp_runtime::BoundedVec;
+use sp_runtime::{traits::BlockNumberProvider, BoundedVec};
 
 use crate::{
-    deadline::{DeadlineError, Deadlines},
+    deadline::{DeadlineError, DeadlineInfo, Deadlines},
     fault::{
         DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration, RecoveryDeclaration,
     },
@@ -22,6 +22,7 @@ use crate::{
         SectorPreCommitInfoBuilder, StorageProvider, SubmitWindowedPoStBuilder, System, Test,
         ALICE, BOB,
     },
+    Config,
 };
 
 #[test]
@@ -338,6 +339,48 @@ fn fails_data_missing_malformed(
         // Not sure if this is needed. Does the `assert_noop` above also checks
         // that no events were published?
         assert_eq!(events(), []);
+    });
+}
+
+#[test]
+fn fault_recovery_past_cutoff_should_fail() {
+    new_test_ext().execute_with(|| {
+        // Setup accounts
+        let storage_provider = ALICE;
+        let storage_client = BOB;
+
+        setup_sp_with_one_sector(storage_provider, storage_client);
+
+        let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
+
+        let test_dl = DeadlineInfo::new(
+            System::current_block_number(),
+            sp.proving_period_start,
+            0,
+            <Test as Config>::WPoStPeriodDeadlines::get(),
+            <Test as Config>::WPoStProvingPeriod::get(),
+            <Test as Config>::WPoStChallengeWindow::get(),
+            <Test as Config>::WPoStChallengeLookBack::get(),
+            <Test as Config>::FaultDeclarationCutoff::get(),
+        )
+        .and_then(DeadlineInfo::next_not_elapsed)
+        .expect("deadline should be valid");
+
+        // Run block to the fault declaration cutoff.
+        run_to_block(test_dl.fault_cutoff);
+
+        let deadline = 0;
+        let partition = 0;
+        // Fault declaration setup
+        assert_err!(
+            StorageProvider::declare_faults_recovered(
+                RuntimeOrigin::signed(account(storage_provider)),
+                DeclareFaultsRecoveredBuilder::default()
+                    .fault_recovery(deadline, partition, vec![1])
+                    .build(),
+            ),
+            Error::<Test>::FaultRecoveryTooLate
+        );
     });
 }
 
