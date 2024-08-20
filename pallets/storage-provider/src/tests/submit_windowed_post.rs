@@ -162,7 +162,6 @@ fn submit_windowed_post_multiple_partitions() {
 
         // Done with setup build window post proof
         let windowed_post = SubmitWindowedPoStBuilder::default()
-            .chain_commit_block(System::block_number() - 1)
             .partitions(partitions.clone())
             .build();
 
