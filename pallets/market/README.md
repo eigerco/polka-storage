@@ -36,26 +36,26 @@ The Market Pallet provides the following extrinsics (functions):
 
 The Market Pallet emits the following events:
 
-- `BalanceAdded` - Indicates that some balance was reserved for the usage in the storage system.
+- `BalanceAdded` - Indicates that some balance was added as _free_ to the Market Pallet account for the usage in the storage market.
   - `who` - Account which added balance
   - `amount` - Amount added
-- `BalanceWithdrawn` - Some balance was withdrawn.
+- `BalanceWithdrawn` - Some balance was transferred (free) from the Market Account to the Participant's account.
   - `who` - Account which had withdrawn balance
   - `amount` - Amount withdrawn
-- `DealPublished` - Indicates that the deal was successfully published
+- `DealPublished` - Indicates that a deal was successfully published with `publish_storage_deals`.
   - `deal_id` - Unique deal id
   - `client` - Storage client
   - `provider` - Storage provider
-- `DealActivated` - Published for the deals when they get activated.
+- `DealActivated` - Deal's state has changed to `Active`.
   - `deal_id` - Unique deal id
   - `client` - Storage client
   - `provider` - Storage provider
-- `DealsSettled` - Published after the `publish_storage_deals` extrinsic is called. Indicates which deals were successfully and unsuccessfully settled.
+- `DealsSettled` - Published after the `settle_deal_payments` extrinsic is called. Indicates which deals were successfully and unsuccessfully settled.
   - `successful` - List of deal ids that were settled
   - `unsuccessful` - List of deal ids with the corresponding errors
 - `DealSlashed` - Is emitted when some deal expired
   - `deal_id` - Deal id that was slashed
-- `DealTerminated` - If emitted it indicates that the deal was voluntarily or involuntarily terminated.
+- `DealTerminated` - Is emitted it indicates that the deal was voluntarily or involuntarily terminated.
   - `deal_id` - Terminated deal id
   - `client` - Storage client
   - `provider` - Storage provider
@@ -65,13 +65,19 @@ The Market Pallet emits the following events:
 The Market Pallet actions can fail with following errors:
 
 - `InsufficientFreeFunds` - Market participant does not have enough free funds.
-- `NoProposalsToBePublished` - `publish_storage_deals` was called with empty `deals` array.
-- `ProposalsNotPublishedByStorageProvider` - `publish_storage_deals` must be called by Storage Providers and it's a Provider of all of the deals.
-- `AllProposalsInvalid` - `publish_storage_deals` call was supplied with `deals` which are all invalid.
+- `NoProposalsToBePublished` - `publish_storage_deals` was called with empty list of `deals`.
+- `ProposalsNotPublishedByStorageProvider` - Is returned when calling `publish_storage_deals` and the deals in a list are not published by the same storage provider.
+- `AllProposalsInvalid` - `publish_storage_deals` call was supplied with a list of `deals` which are all invalid.
 - `UnexpectedValidationError` - `publish_storage_deals`'s core logic was invoked with a broken invariant that should be called by `validate_deals`.
-- `DuplicateDeal` - There is more than 1 deal of this ID in the Sector.
+- `DuplicateDeal` - There is more than one deal with this ID in the Sector.
 - `DealNotFound` - Tried to activate a deal which is not in the system.
-- `DealActivationError` - Tried to activate a deal, but data doesn't make sense. Details are in the logs.
+- `DealActivationError` - Tried to activate a deal, but data is malformed.
+  - Invalid specified provider.
+  - The deal already expired.
+  - Sector containing the deal expires before the deal.
+  - Invalid deal state.
+  - Deal is not found.
+  - Deal is not pending.
 - `DealsTooLargeToFitIntoSector` - Sum of all of the deals piece sizes for a sector exceeds sector size.
 - `TooManyDealsPerBlock` - Tried to activate too many deals at a given `start_block`.
-- `DealPreconditionFailed` - Due to a programmer bug, bounds on Bounded data structures were incorrect so couldn't insert into them.
+- `DealPreconditionFailed` - Due to a programmer bug. Report an issue if you receive this error.
