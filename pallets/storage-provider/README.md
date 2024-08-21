@@ -1,3 +1,3 @@
 # Storage Provider Pallet
 
-TODO(aidan46, no-ref, 2024-06-04): Add README docs for storage provider
+The up-to-date documentation for the Storage Provider Pallet can be found [in the docs folder](../../docs/src/pallets/storage-provider.md)
