@@ -2,7 +2,7 @@
 
 This pallet is part of the polka-storage project. The main purpose of the pallet is tracking funds of the storage market participants and managing storage deals between storage providers and clients.
 
-## Extrinsics<a href="../glossary.md#extrinsics"><sup>1</sup></a>
+## Extrinsics<a href="../glossary.md#extrinsics"><sup>*</sup></a>
 
 ### `add_balance`
 
