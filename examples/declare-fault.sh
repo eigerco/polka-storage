@@ -37,4 +37,4 @@ storagext-cli storage-provider declare-faults-recovered "@examples/fault-declara
 
 # To fully undo his oopsie, Charlie needs to submit a new proof for the previously faulty sector,
 # this ensures that Charlie isn't lying about the sector recovery!
-storagext-cli storage-provider submit-windowed-post "@examples/fault-declaration.json"
+storagext-cli storage-provider submit-windowed-post "@examples/windowed-proof.json"
