@@ -1,4 +1,4 @@
-# Wallet
+# Subcommand `wallet`
 
 The wallet command is a re-export of the Substrate CLI,
 for detailed documentation you can check the following links:
