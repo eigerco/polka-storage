@@ -1,5 +1,7 @@
 # Storage Provider Pallet
 
+## Table of Contents
+
 - [Storage Provider Pallet](#storage-provider-pallet)
   - [Overview](#overview)
     - [Constants \& Terminology](#constants--terminology)
