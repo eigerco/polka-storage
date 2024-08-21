@@ -2,31 +2,145 @@
 
 This pallet is part of the polka-storage project. The main purpose of the pallet is tracking funds of the storage market participants and managing storage deals between storage providers and clients.
 
-### Extrinsics
+## Extrinsics<a href="../glossary.md#extrinsics"><sup>1</sup></a>
 
-The Market Pallet provides the following extrinsics (functions):
+### `add_balance`
 
-- `add_balance` - Reserves a given amount of currency for usage in the system.
-  - `amount` - The amount that is reserved
-- `withdraw_balance` - Withdraws funds from the system.
-  - `amount` - The amount that is withdrawn
-- `settle_deal_payments` - Settle specified deals between providers and clients.
-  - `deal_ids` - List of deal IDs being settled
-- `publish_storage_deals` - Publishes list of agreed deals to the chain.
-  - `proposal` - Specific deal proposal
-    - `piece_cid` - Byte encoded CID
-    - `piece_size` - Size of the piece
-    - `client` - SS58 address of the storage client
-    - `provider` - SS58 address of the storage provider
-    - `label` - Arbitrary client chosen label
-    - `start_block` - Block number on which the deal might start
-    - `end_block` - Block number on which the deal is supposed to end
-    - `storage_price_per_block` - Price for the storage specified by block
-    - `provider_collateral` - Collateral which is slashed if the deal fails
-    - `state` - Deal state. Can only be set to `Published`
-  - `client_signature` - Client signature of this specific deal proposal
+Reserves a given amount of currency for usage in the system.
 
-### Events
+The reserved amount will be considered to be `free` until it is used in a deal,
+when it will be moved to `locked` and used to pay for the deal.
+
+| Name     | Description               |
+| -------- | ------------------------- |
+| `amount` | The amount to be reserved |
+
+#### Example
+
+Adding 10000 [Plancks](../glossary.md#planck) to Alice's account:
+
+```bash
+storagext-cli --sr25519-key "//Alice" market add-balance 10000
+```
+
+### `withdraw_balance`
+
+Withdraws funds from the system.
+
+The funds will be withdrawn from the `free` balance, meaning that `amount` must be
+lower than or equal to `free` and greater than 0 (\\({free} \ge {amount} \gt 0\\)).
+
+| Name     | Description                |
+| -------- | -------------------------- |
+| `amount` | The amount to be withdrawn |
+
+#### Example
+
+Withdrawing 10000 [Plancks](../glossary.md#planck) from Alice's `free` balance:
+
+```bash
+storagext-cli --sr25519-key "//Alice" market withdraw-balance 10000
+```
+
+### `settle_deal_payments`
+
+Settle specified deals between providers and clients.
+
+Both clients and providers can call this extrinsic, however,
+since the settlement is the mechanism through which the provider gets paid,
+there is no reason for a client to call this extrinsic.
+Non-existing deal IDs will not raise an error, but rather ignored.
+
+| Name       | Description                        |
+| ---------- | ---------------------------------- |
+| `deal_ids` | List of the deal IDs to be settled |
+
+#### Example
+
+Settling deal payments for IDs 97, 1010, 1337 and 42069:
+
+```bash
+storagext-cli --sr25519-key "//Alice" market settle-deal-payments 97 1010 1337 42069
+```
+
+### `publish_storage_deals`
+
+Publishes list of deals to the chain.
+
+This extrinsic _must_ be called by a storage provider.
+
+| Name               | Description                                     |
+| ------------------ | ----------------------------------------------- |
+| `proposal`         | Specific deal proposal, a JSON object                           |
+| `client_signature` | Client signature of this specific deal proposal |
+
+#### Deal Proposal Components
+
+| Name                      | Description                                       |
+| ------------------------- | ------------------------------------------------- |
+| `piece_cid`               | Byte encoded CID                                  |
+| `piece_size`              | Size of the piece                                 |
+| `client`                  | SS58 address of the storage client                |
+| `provider`                | SS58 address of the storage provider              |
+| `label`                   | Arbitrary client chosen label                     |
+| `start_block`             | Block number on which the deal might start        |
+| `end_block`               | Block number on which the deal is supposed to end |
+| `storage_price_per_block` | Price for the storage specified by block          |
+| `provider_collateral`     | Collateral which is slashed if the deal fails     |
+| `state`                   | Deal state. Can only be set to `Published`        |
+
+See the [original Filecoin specification](https://spec.filecoin.io/#section-systems.filecoin_markets.onchain_storage_market.storage_deal_flow) for details.
+
+#### Example
+
+Using the `storagext-cli` you can publish deals with `//Alice` as the storage provider and `//Charlie` as the client by running the following command:
+
+```bash
+storagext-cli --sr25519-key "//Alice" market publish-storage-deals \
+  --client-sr25519-key "//Charlie" \
+  "@deals.json"
+```
+
+Where `deals.json` is a file with contents similar to:
+
+```json
+[
+    {
+        "piece_cid": "bafk2bzacecg3xxc4f2ql2hreiuy767u6r72ekdz54k7luieknboaakhft5rgk",
+        "piece_size": 1337,
+        "client": "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y",
+        "provider": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+        "label": "Super Cool (but secret) Plans for a new Polkadot Storage Solution",
+        "start_block": 69,
+        "end_block": 420,
+        "storage_price_per_block": 15,
+        "provider_collateral": 2000,
+        "state": "Published"
+    },
+    {
+        "piece_cid": "bafybeih5zgcgqor3dv6kfdtv3lshv3yfkfewtx73lhedgihlmvpcmywmua",
+        "piece_size": 1143,
+        "client": "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y",
+        "provider": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+        "label": "List of problematic (but flying) Boeing planes",
+        "start_block": 1010,
+        "end_block": 1997,
+        "storage_price_per_block": 1,
+        "provider_collateral": 3900,
+        "state": "Published"
+    }
+]
+```
+
+<div class="warning">
+Notice how the CLI command doesn't take the <code>client_signature</code> parameter,
+but rather a keypair that is able to sign it.
+
+We are aware that this is **not secure** however, the system is still under development
+and this is **not final** but rather a testing tool.
+</div>
+
+## Events
 
 The Market Pallet emits the following events:
 
@@ -54,7 +168,7 @@ The Market Pallet emits the following events:
   - `client` - SS58 address of the storage client
   - `provider` - SS58 address of the storage provider
 
-### Errors
+## Errors
 
 The Market Pallet actions can fail with following errors:
 
