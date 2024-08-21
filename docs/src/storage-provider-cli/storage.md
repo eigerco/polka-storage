@@ -6,7 +6,7 @@ It has two parameters that you can customize:
 | Parameter              | Description                                             | Default value    |
 | ---------------------- | ------------------------------------------------------- | ---------------- |
 | `--listen-addr <ADDR>` | The address (including the port) for the storage server | `127.0.0.1:9000` |
-| `--storage-dir <DIR>`  | The directory where the files will be kept              | `$PWD/uploads`   |
+| `--storage-dir <DIR>`  | The directory where the files will be stored            | `$PWD/uploads`   |
 
 ### Start the Storage Server
 
