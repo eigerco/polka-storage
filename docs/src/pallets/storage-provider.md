@@ -3,6 +3,7 @@
 ## Table of Contents
 
 - [Storage Provider Pallet](#storage-provider-pallet)
+  - [Table of Contents](#table-of-contents)
   - [Overview](#overview)
   - [Usage](#usage)
     - [Registering storage providers](#registering-storage-providers)
@@ -139,10 +140,10 @@ Before a storage provider can register, they need to set up a [PeerId](todo: lin
 
 #### Example
 
-Registering a storage provider with keypair `//Charlie` and peer ID `charlie`
+Registering a storage provider with keypair `//Alice` and peer ID `charlie`
 
 ```bash
-storagext-cli --sr25519-key //Charlie storage-provider register charlie
+storagext-cli --sr25519-key "//Alice" storage-provider register charlie
 ```
 
 ### `pre_commit_sector`
@@ -163,7 +164,7 @@ After a deal has been published the storage provider needs to pre-commit the sec
 
 #### Example
 
-Storage provider `//Charlie` pre-committing a sector number 1, with a single deal ID 0.
+Storage provider `//Alice` pre-committing a sector number 1, with a single deal ID 0.
 
 JSON example `pre-commit-sector.json`:
 
@@ -179,7 +180,7 @@ JSON example `pre-commit-sector.json`:
 ```
 
 ```bash
-storagext-cli --sr25519-key //Charlie storage-provider pre-commit @pre-commit-sector.json
+storagext-cli --sr25519-key "//Alice" storage-provider pre-commit @pre-commit-sector.json
 ```
 
 ### `prove_commit_sector`
@@ -193,7 +194,7 @@ After pre-committing some new sectors the storage provider needs to supply proof
 
 #### Example
 
-This example follows up on the pre-commit example. Storage provider `//Charlie` is prove committing sector number 1.
+This example follows up on the pre-commit example. Storage provider `//Alice` is prove committing sector number 1.
 
 JSON example `prove-commit-sector.json`
 
@@ -205,7 +206,7 @@ JSON example `prove-commit-sector.json`
 ```
 
 ```bash
-storagext-cli --sr25519-key //Charlie storage-provider prove-commit @prove-commit-sector.json
+storagext-cli --sr25519-key "//Alice" storage-provider prove-commit @prove-commit-sector.json
 ```
 
 ### `submit_windowed_post`
@@ -221,7 +222,7 @@ A storage provider needs to periodically submit a Proof-of-Spacetime (PoSt) to p
 
 #### Example
 
-Storage provider `//Charlie` submitting proof for deadline 0, partition 0.
+Storage provider `//Alice` submitting proof for deadline 0, partition 0.
 
 JSON example `submit-windowed-post.json`:
 
@@ -237,7 +238,7 @@ JSON example `submit-windowed-post.json`:
 ```
 
 ```bash
-storagext-cli --sr25519-key //Charlie storage-provider submit-windowed-post @submit-windowed-post.json
+storagext-cli --sr25519-key "//Alice" storage-provider submit-windowed-post @submit-windowed-post.json
 ```
 
 ### `declare_faults`
@@ -260,7 +261,7 @@ Where the fault declarations contain:
 
 #### Example
 
-Storage provider `//Charlie` declaring faults on deadline 0, partition 0, sector 0.
+Storage provider `//Alice` declaring faults on deadline 0, partition 0, sector 0.
 
 JSON example `fault-declaration.json`:
 
@@ -277,7 +278,7 @@ JSON example `fault-declaration.json`:
 ```
 
 ```bash
-storagext-cli --sr25519-key //Charlie storage-provider declare-faults @fault-declaration.json
+storagext-cli --sr25519-key "//Alice" storage-provider declare-faults @fault-declaration.json
 ```
 
 ### `declare_faults_recovered`
@@ -303,7 +304,7 @@ Where the fault recoveries contain:
 
 #### Example
 
-Storage provider `//Charlie` declaring recoveries on deadline 0, partition 0, sector 0.
+Storage provider `//Alice` declaring recoveries on deadline 0, partition 0, sector 0.
 
 JSON example `fault-declaration.json`:
 
@@ -320,5 +321,5 @@ JSON example `fault-declaration.json`:
 ```
 
 ```bash
-storagext-cli --sr25519-key //Charlie storage-provider declare-faults-recovered @fault-declaration.json
+storagext-cli --sr25519-key "//Alice" storage-provider declare-faults-recovered @fault-declaration.json
 ```
