@@ -22,7 +22,42 @@ You can read more about `minikube` in its [Getting Started](https://minikube.sig
 
 ## Running the Parachain
 
-1. Copy the [local-kube-testnet.toml](../misc/local-kube-testnet.toml) file to your local machine.
+1. Create a `local-kube-testnet.toml` file on your machine with the following content.
+
+```toml
+[settings]
+image_pull_policy = "IfNotPresent"
+
+[relaychain]
+chain = "rococo-local"
+default_args = ["--detailed-log-output", "-lparachain=debug,xcm=trace,runtime=trace"]
+default_image = "docker.io/parity/polkadot:v1.13.0"
+
+[[relaychain.nodes]]
+name = "alice"
+validator = true
+
+[[relaychain.nodes]]
+name = "bob"
+validator = true
+
+[[parachains]]
+cumulus_based = true
+
+# We need to use a Parachain of an existing System Chain (https://github.com/paritytech/polkadot-sdk/blob/master/polkadot/runtime/rococo/src/xcm_config.rs).
+# The reason: being able to get native DOTs from Relay Chain to Parachain via XCM Teleport.
+# We'll have a proper Parachain ID in the *future*, but for now, let's stick to 1000 (which is AssetHub and trusted).
+id = 1000
+
+# run charlie as parachain collator
+[[parachains.collators]]
+args = ["--detailed-log-output", "-lparachain=debug,xcm=trace,runtime=trace"]
+command = "polka-storage-node"
+image = "polkadotstorage.azurecr.io/parachain-node:0.1.0"
+name = "charlie"
+rpc_port = 42069
+validator = true
+```
 
 2. Run the parachain, spawn the zombienet testnet in the Kubernetes cluster:
 
@@ -115,4 +150,4 @@ You can easily access the parachain using the Polkadot.js Apps interface by clic
 
 [https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A42069#/explorer](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A42069#/explorer)
 
-This link will automatically connect to Charlie's node running on your local machine at port `42069`. The port is configured in [local-kube-testnet.toml](../misc/local-kube-testnet.toml) under `rpc_port` for Charlie's node.
+This link will automatically connect to Charlie's node running on your local machine at port `42069`. The port is configured in `local-kube-testnet.toml` under `rpc_port` for Charlie's node.
