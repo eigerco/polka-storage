@@ -12,17 +12,21 @@ that should not be used.
     - [Collator](#collator)
     - [Committed Capacity](#committed-capacity)
     - [Crowdloan](#crowdloan)
+    - [Deadline](#deadline)
     - [Extrinsics](#extrinsics)
     - [Full Node](#full-node)
     - [Invulnerable](#invulnerable)
     - [Node](#node)
     - [Parachain](#parachain)
+    - [Partition](#partition)
     - [Planck](#planck)
     - [Polkadot](#polkadot)
     - [Proofs](#proofs)
         - [Proof-of-Replication (PoRep)](#porep)
         - [Proof-of-Spacetime (PoSt)](#post)
+    - [Proving Period](#proving-period)
     - [Relay Chain](#relay-chain)
+    - [Sector](#sector)
     - [Session](#session)
     - [Slashing](#slashing)
     - [Slot Auction](#slot-auction)
@@ -94,6 +98,13 @@ through [crowdloans](https://wiki.polkadot.network/docs/learn-crowdloans). Parti
 the project win a parachain slot auction. If successful, the tokens are locked up for the duration of the parachain
 lease, and participants might receive rewards or tokens from the project in return.
 
+### Deadline
+
+A deadline is one of the multiple points during a proving period when proofs for some partitions are due.
+
+For more information on deadlines, you can read the original Filecoin specification:
+<https://spec.filecoin.io/#section-algorithms.pos.post.design>
+
 ### Extrinsics
 
 From the [Polkadot Wiki][2]:
@@ -119,6 +130,19 @@ participant of the blockchain network who runs it locally.
 
 A parachain is a specialized blockchain that runs in parallel to other parachains within a larger network, benefiting
 from shared security and interoperability, and can be validated by the validators of the [Relay Chain](#relay-chain).
+
+### Partition
+
+Partitions are logical groups[^logical] of sectors to be proven together.
+
+The number of sectors to be proven at once is 2349[^computational_limit], as defined by Filecoin.
+
+For more information on partitions, you can read the original Filecoin specification:
+<https://spec.filecoin.io/#section-algorithms.pos.post.constants--terminology>
+
+[^logical]: They do not reflect the physical storage state, only existing in the context of deadlines and proofs.
+[^computational_limit]: Filecoin defined the limit at 2349 to cope with computational limits, [as described in the specification](https://spec.filecoin.io/#section-algorithms.pos.post.windowpost).
+
 
 ### Planck
 
@@ -148,10 +172,27 @@ There are two main types of proofs:
   data over time. [Storage providers](#storage-provider) must periodically generate and submit proofs to show that they
   are still maintaining the stored data as promised.
 
+### Proving Period
+
+A proving period is the period over which storage providers' commitments are audited,
+being required to prove they are still storing the data from the deals they signed.
+The average period for proving all sectors maintained by a provider (default set to 24 hours).
+
+For more information on proving periods, you can read the original Filecoin specification:
+- Proving periods in the context of Window Proof of Spacetime — <https://spec.filecoin.io/#section-algorithms.pos.post.windowpost>
+- Proving periods in the context of Filecoin's system design — <https://spec.filecoin.io/#section-algorithms.pos.post.design>
+
 ### Relay Chain
 
 The Relay Chain in [Polkadot](#polkadot) is the central chain (blockchain) responsible for the network's shared
 security, consensus, and cross-chain interoperability.
+
+### Sector
+
+The sector is the default unit of storage that providers put in the network. A sector is a contiguous array of bytes that a storage provider puts together, seals, and performs Proofs of Spacetime on. Storage providers store data on the network in fixed-size sectors.
+
+For more information on sectors, you can read the original Filecoin specification:
+<https://spec.filecoin.io/#section-glossary.sector>
 
 ### Session
 
