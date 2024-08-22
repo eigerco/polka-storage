@@ -23,17 +23,11 @@
   - [Storage provider pallet hooks](#storage-provider-pallet-hooks)
   - [Extrinsics](#extrinsics)
     - [`register_storage_provider`](#register_storage_provider)
-      - [Example](#register_storage_provider.example)
     - [`pre_commit_sector`](#pre_commit_sector)
-      - [Example](#pre_commit_sector.example)
     - [`prove_commit_sector`](#prove_commit_sector)
-      - [Example](#prove_commit_sector.example)
     - [`submit_windowed_post`](#submit_windowed_post)
-      - [Example](#submit_windowed_post.example)
     - [`declare_faults`](#declare_faults)
-      - [Example](#declare_faults.example)
     - [`declare_faults_recovered`](#declare_faults_recovered)
-      - [Example](#declare_faults_recovered.example)
 
 ## Overview
 
