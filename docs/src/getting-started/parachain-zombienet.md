@@ -1,4 +1,4 @@
-# Parachain zombienet
+# Local Testnet - Polka Storage Parachain
 
 This guide will help you to setup a local parachain network using zombienet. At the end we will have three nodes: Alice, Bob and Charlie. Alice and Bob will be running Polkadot relay chain nodes as validators, and Charlie will be running a relay chain and parachain node. Charlie will be our contact point to the parachain network.
 
@@ -6,7 +6,7 @@ This guide will help you to setup a local parachain network using zombienet. At 
 
 - [zombienet v1.3.106](https://github.com/paritytech/zombienet/releases/tag/v1.3.106) - cli tool to easily spawn ephemeral Polkadot/Substrate networks and perform tests against them.
 - [minikube](https://minikube.sigs.k8s.io/docs/start/) — to run the parachain nodes
-- a configured [kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl) — optional, but useful to check node's logs, etc
+- a configured [kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl) — used to setup the required kubernetes resources by `zombienet`
   - [https://minikube.sigs.k8s.io/docs/handbook/kubectl/](https://minikube.sigs.k8s.io/docs/handbook/kubectl/)
   - [https://kubernetes.io/docs/tasks/tools/#kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl)
 
