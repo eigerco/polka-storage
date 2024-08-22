@@ -126,7 +126,7 @@ Substrate pallet hooks execute some actions when certain conditions are met. We 
 
 ### `register_storage_provider`
 
-Storage Provider registration is the first extrinsic that any storage provider should call.
+Storage Provider registration is the first extrinsic that any storage provider has to call, without being registered, the other extrinsics will return an error.
 
 <div class="warning">
 
