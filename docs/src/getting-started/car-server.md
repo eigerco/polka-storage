@@ -2,13 +2,13 @@
 
 It is a simple server that enables us to convert arbitrary content into a CAR file and serve it over an HTTP. By following the next steps, you will be able to run the server locally and use it to upload and download files.
 
+> **_NOTE:_** Current server is proof of concept and is not intended to be used in production. If the server would be exposed to the external network anybody could upload and download files without any authorization.
+
 ## Start the server
 
-First, create a Docker volume that the storage provider will use to store uploaded files:
+First, create a Docker volume that the server will use to store uploaded files. We can achieve that with the following command:
 
 `docker volume create storage_provider`
-
-This command creates a volume named storage_provider.
 
 Next, start the storage server using the created volume:
 
