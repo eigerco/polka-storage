@@ -4,21 +4,24 @@ This guide will help you to setup a local parachain network using zombienet. At 
 
 ## Prerequisites
 
-- Kubernetes Cluster access - configured [kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl)
-- [minikube](https://minikube.sigs.k8s.io/docs/start/) (optional, but recommended for local testing)
-- NodeJS (LTS v20): preferably via [nvm](https://nodejs.org/en/download/package-manager)
+- [minikube](https://minikube.sigs.k8s.io/docs/start/)
+- Kubernetes Cluster access - configured [kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl) (optional, but recommended for local testing)
 
 ## Setting Up the Environment
 
-1. Start your Kubernetes cluster. If using minikube:
+Start your Kubernetes cluster. If using minikube:
 
-```bash
+```
 minikube start
 ```
 
 ## Running the Parachain
 
-TODO
+To run the parachain, spawn the zombienet testnet in the kubernetes cluster:
+
+```
+zombienet -p kubernetes spawn zombienet/local-kube-testnet.toml
+```
 
 ## Verifying the Setup
 
@@ -30,4 +33,4 @@ This command will show all pods from all namespaces along with their status.
 
 ## Accessing the Parachain
 
-To interact with the parachain, you'll need to connect to Charlie's node on port 42069.
+To interact with the parachain, you'll need to connect to Charlie's node on port 42069. The port is configured in `zombienet/local-kube-testnet.toml`.
