@@ -131,7 +131,7 @@ Storage Provider registration is the first extrinsic that any storage provider s
 > [!IMPORTANT]
 > All other storage provider extrinsics will be rejected if the storage provider is not registered.
 
-Before a storage provider can register, they need to set up a [PeerId](todo: link to peer id). This [PeerId](todo: link to peer id) is used in the p2p network to connect to the storage provider.
+Before a storage provider can register, they need to set up a [PeerId]([todo: link to peer id](https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id)). This [PeerId]([todo: link to peer id](https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id)) is used in the p2p network to connect to the storage provider.
 
 | Name                     | Description                          |
 | ------------------------ | ------------------------------------ |
@@ -140,10 +140,10 @@ Before a storage provider can register, they need to set up a [PeerId](todo: lin
 
 #### Example
 
-Registering a storage provider with keypair `//Alice` and peer ID `charlie`
+Registering a storage provider with keypair `//Alice` and peer ID `alice`
 
 ```bash
-storagext-cli --sr25519-key "//Alice" storage-provider register charlie
+storagext-cli --sr25519-key "//Alice" storage-provider register alice
 ```
 
 ### `pre_commit_sector`
