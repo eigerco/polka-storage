@@ -7,9 +7,9 @@ This guide will help you to setup a local parachain network using zombienet. At 
 - [minikube](https://minikube.sigs.k8s.io/docs/start/)
 - Kubernetes Cluster access - configured [kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl) (optional, but recommended for local testing)
 
-## Setting Up the Environment
+## Setting Up the Environment (minikube)
 
-Start your Kubernetes cluster. If using minikube:
+Start your Kubernetes cluster.
 
 ```
 minikube start
@@ -17,7 +17,7 @@ minikube start
 
 ## Running the Parachain
 
-To run the parachain, spawn the zombienet testnet in the kubernetes cluster:
+To run the parachain, spawn the zombienet testnet in the Kubernetes cluster:
 
 ```
 zombienet -p kubernetes spawn zombienet/local-kube-testnet.toml
