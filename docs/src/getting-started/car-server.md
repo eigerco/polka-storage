@@ -1,6 +1,6 @@
 # CAR server
 
-It is a HTTP server that enables us to convert arbitrary content into a [CARv2](https://ipld.io/specs/transport/car/carv2/) file and serve it over HTTP. Supporting the latest CARv2 format, which is not yet supported by other creates in the ecosystem. By following the next steps, you will be able to run the server locally and use it to upload and download files.
+It is a HTTP server that enables us to convert arbitrary content into a [CARv2](https://ipld.io/specs/transport/car/carv2/) file and serve it over HTTP. Supporting the latest CARv2 format, which is not yet entirely supported by other creates in the ecosystem. By following the next steps, you will be able to run the server locally and use it to upload and download files.
 
 <div class="warning">
 The server is a proof of concept, showcasing CARv2 implementation, and is not intended to be used in production. Anyone can upload and download files without authentication or authorization.
@@ -27,32 +27,14 @@ docker run \
 - `polkadotstorage.azurecr.io/polka-storage-provider:0.1.0 storage`: Runs the `polkadotstorage.azurecr.io/polka-storage-provider:0.1.0` image with the `storage` command.
 - `--listen-addr 0.0.0.0:9000`: Configures the server to listen on all available network interfaces.
 
-## Upload a file
+## Verifying the Setup
 
-The server exposes `POST /upload` which accepts arbitrary bytes.
+After setting up and starting the CAR server, it's important to verify that everything is working correctly. Follow these steps to ensure your setup is functioning as expected:
 
-Example usage with `curl`:
+1. Upload a test file using the instructions in the [Upload a file](../storage-provider-cli/storage.md#upload-a-file) section. Make sure to note the CID returned by the server.
 
-```
-curl \
-    -X POST \
-    --data-binary "@image.jpg" \
-    http://localhost:9000/upload
-```
+2. Download the CAR file using the CID you received, following the steps in the [Download the CAR File](../storage-provider-cli/storage.md#download-the-car-file) section.
 
-This command uploads the file `image.jpg` to the server running at `http://localhost:9000/upload`. The server converts the uploaded content to a CAR file and saves it to the mounted volume. The returned [Cid](https://github.com/multiformats/cid) can later be used to fetch a CAR file from the server.
+3. Verify the contents of the downloaded CAR file. You can use [go-car](https://github.com/ipld/go-car/tree/master/cmd/car)'s `extract` command.
 
-## Download the CAR File
-
-After uploading, you will receive a CID (Content Identifier) for the file. Use this CID to download the corresponding CAR file. Replace `:cid` with the actual CID provided:
-
-```
-curl \
-    -X GET \
-    --output ./content.car \
-    http://localhost:9000/download/:cid
-```
-
-- `-X GET`: Specifies the GET request method.
-- `http://localhost:9000/download/:cid`: The URL to download the CAR file, with :cid being the placeholder for the actual CID.
-- `--output ./content.car`: Saves the downloaded CAR file as content.car in the current directory.
+If you can successfully upload a file, receive a CID, download the corresponding CAR file, and verify its contents, your CAR server setup is working correctly.
