@@ -153,14 +153,14 @@ After a deal has been published the storage provider needs to pre-commit the sec
 > [!NOTE]
 > Sectors are not valid after pre-commit, the sectors need to be proven first.
 
-| Name            | Description                                    |
-| --------------- | ---------------------------------------------- |
-| `seal_proof`    | Seal proof type this storage provider is using |
-| `sector_number` | The sector number that is being pre-committed  |
-| `sealed_cid`    | Commitment of replication                      |
-| `deal_ids`      | Deal IDs that to be activated                  |
-| `expiration`    | Expiration of the pre-committed sector.        |
-| `unsealed_cid`  | Commitment of data                             |
+| Name            | Description                                                               |
+| --------------- | ------------------------------------------------------------------------- |
+| `seal_proof`    | Seal proof type this storage provider is using                            |
+| `sector_number` | The sector number that is being pre-committed                             |
+| `sealed_cid`    | Commitment of replication, more info in [sector sealing](#sector-sealing) |
+| `deal_ids`      | Deal IDs that to be activated                                             |
+| `expiration`    | Expiration of the pre-committed sector.                                   |
+| `unsealed_cid`  | Commitment of data, more info in [sector sealing](#sector-sealing)        |
 
 #### Example
 
