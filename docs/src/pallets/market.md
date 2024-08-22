@@ -95,7 +95,7 @@ This extrinsic _must_ be called by a storage provider.
 
 See the [original Filecoin specification](https://spec.filecoin.io/#section-systems.filecoin_markets.onchain_storage_market.storage_deal_flow) for details.
 
-[^storage_price_per_block]: The formula to calculate the total price is as follows: \\(total\\\_price = (end\\\_block - start\\\_block)\\)
+[^storage_price_per_block]: The formula to calculate the total price is as follows: \\[total\\\_price = (end\\\_block - start\\\_block) * storage\\_price\\_per\\_block\\]
 
 #### Example
 
