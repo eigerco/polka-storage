@@ -2,7 +2,7 @@
 
 This pallet is part of the polka-storage project. The main purpose of the pallet is tracking funds of the storage market participants and managing storage deals between storage providers and clients.
 
-## Extrinsics<a href="../glossary.md#extrinsics"><sup>*</sup></a>
+## Extrinsics<a href="../glossary.md#extrinsics"><sup>\*</sup></a>
 
 ### `add_balance`
 
@@ -23,8 +23,9 @@ Adding 1000000[^existential_deposit] [Plancks](../glossary.md#planck) to Alice's
 storagext-cli --sr25519-key "//Alice" market add-balance 1000000
 ```
 
-[^existential_deposit]: This value is the minimum amount due to Polkadot's existential deposit.
-  You can read more about it in <https://support.polkadot.network/support/solutions/articles/65000168651-what-is-the-existential-deposit->.
+[^existential_deposit]:
+    This value is the minimum amount due to Polkadot's existential deposit.
+    You can read more about it in <https://support.polkadot.network/support/solutions/articles/65000168651-what-is-the-existential-deposit->.
 
 ### `withdraw_balance`
 
@@ -74,25 +75,27 @@ This extrinsic _must_ be called by a storage provider.
 
 | Name               | Description                                     |
 | ------------------ | ----------------------------------------------- |
-| `proposal`         | Specific deal proposal, a JSON object                           |
+| `proposal`         | Specific deal proposal, a JSON object           |
 | `client_signature` | Client signature of this specific deal proposal |
 
 #### Deal Proposal Components
 
-| Name                      | Description                                       |
-| ------------------------- | ------------------------------------------------- |
-| `piece_cid`               | Byte encoded CID                                  |
-| `piece_size`              | Size of the piece                                 |
-| `client`                  | SS58 address of the storage client                |
-| `provider`                | SS58 address of the storage provider              |
-| `label`                   | Arbitrary client chosen label                     |
-| `start_block`             | Block number on which the deal might start        |
-| `end_block`               | Block number on which the deal is supposed to end |
-| `storage_price_per_block` | Price for the storage specified by block          |
-| `provider_collateral`     | Collateral which is slashed if the deal fails     |
-| `state`                   | Deal state. Can only be set to `Published`        |
+| Name                      | Description                                                         |
+| ------------------------- | ------------------------------------------------------------------- |
+| `piece_cid`               | Byte encoded CID                                                    |
+| `piece_size`              | Size of the piece                                                   |
+| `client`                  | SS58 address of the storage client                                  |
+| `provider`                | SS58 address of the storage provider                                |
+| `label`                   | Arbitrary client chosen label                                       |
+| `start_block`             | Block number on which the deal should start                         |
+| `end_block`               | Block number on which the deal should end                           |
+| `storage_price_per_block` | Price for the storage specified per block[^storage_price_per_block] |
+| `provider_collateral`     | Collateral which is slashed if the deal fails                       |
+| `state`                   | Deal state. Can only be set to `Published`                          |
 
 See the [original Filecoin specification](https://spec.filecoin.io/#section-systems.filecoin_markets.onchain_storage_market.storage_deal_flow) for details.
+
+[^storage_price_per_block]: The formula to calculate the total price is as follows: \\(total\\\_price = (end\\\_block - start\\\_block)\\)
 
 #### Example
 
@@ -108,30 +111,30 @@ Where `deals.json` is a file with contents similar to:
 
 ```json
 [
-    {
-        "piece_cid": "bafk2bzacecg3xxc4f2ql2hreiuy767u6r72ekdz54k7luieknboaakhft5rgk",
-        "piece_size": 1337,
-        "client": "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y",
-        "provider": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
-        "label": "Super Cool (but secret) Plans for a new Polkadot Storage Solution",
-        "start_block": 69,
-        "end_block": 420,
-        "storage_price_per_block": 15,
-        "provider_collateral": 2000,
-        "state": "Published"
-    },
-    {
-        "piece_cid": "bafybeih5zgcgqor3dv6kfdtv3lshv3yfkfewtx73lhedgihlmvpcmywmua",
-        "piece_size": 1143,
-        "client": "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y",
-        "provider": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
-        "label": "List of problematic (but flying) Boeing planes",
-        "start_block": 1010,
-        "end_block": 1997,
-        "storage_price_per_block": 1,
-        "provider_collateral": 3900,
-        "state": "Published"
-    }
+  {
+    "piece_cid": "bafk2bzacecg3xxc4f2ql2hreiuy767u6r72ekdz54k7luieknboaakhft5rgk",
+    "piece_size": 1337,
+    "client": "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y",
+    "provider": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+    "label": "Super Cool (but secret) Plans for a new Polkadot Storage Solution",
+    "start_block": 69,
+    "end_block": 420,
+    "storage_price_per_block": 15,
+    "provider_collateral": 2000,
+    "state": "Published"
+  },
+  {
+    "piece_cid": "bafybeih5zgcgqor3dv6kfdtv3lshv3yfkfewtx73lhedgihlmvpcmywmua",
+    "piece_size": 1143,
+    "client": "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y",
+    "provider": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+    "label": "List of problematic (but flying) Boeing planes",
+    "start_block": 1010,
+    "end_block": 1997,
+    "storage_price_per_block": 1,
+    "provider_collateral": 3900,
+    "state": "Published"
+  }
 ]
 ```
 
@@ -141,6 +144,7 @@ but rather a keypair that is able to sign it.
 
 We are aware that this is **not secure** however, the system is still under development
 and this is **not final** but rather a testing tool.
+
 </div>
 
 ## Events
