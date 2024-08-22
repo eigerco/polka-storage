@@ -4,7 +4,7 @@ image_pull_policy = "IfNotPresent"
 [relaychain]
 chain = "rococo-local"
 default_args = ["--detailed-log-output", "-lparachain=debug,xcm=trace,runtime=trace"]
-default_image = "docker.io/parity/polkadot:latest"
+default_image = "docker.io/parity/polkadot:v1.13.0"
 
 [[relaychain.nodes]]
 name = "alice"
