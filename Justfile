@@ -25,7 +25,14 @@ build-parachain-docker:
         -t polkadotstorage.azurecr.io/parachain-node:0.1.0 \
         --file ./docker/dockerfiles/parachain/Dockerfile \
         .
-        
+build-storage-provider-docker:
+    docker build \
+        --build-arg VCS_REF=$(git rev-parse HEAD) \
+        --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+        -t polkadotstorage.azurecr.io/polka-storage-provider:0.1.0 \
+        --file ./docker/dockerfiles/storage-provider/Dockerfile \
+        .
+
 load-to-minikube:
     # https://github.com/paritytech/zombienet/pull/1830
     # unless this is merged and we pull it in, launching it in local zombienet (without publicly publishing the docker image is impossible)
