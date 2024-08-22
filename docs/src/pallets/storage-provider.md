@@ -23,17 +23,17 @@
   - [Storage provider pallet hooks](#storage-provider-pallet-hooks)
   - [Extrinsics](#extrinsics)
     - [`register_storage_provider`](#register_storage_provider)
-      - [Example](#example)
+      - [Example](#register_storage_provider.example)
     - [`pre_commit_sector`](#pre_commit_sector)
-      - [Example](#example-1)
+      - [Example](#pre_commit_sector.example)
     - [`prove_commit_sector`](#prove_commit_sector)
-      - [Example](#example-2)
+      - [Example](#prove_commit_sector.example)
     - [`submit_windowed_post`](#submit_windowed_post)
-      - [Example](#example-3)
+      - [Example](#submit_windowed_post.example)
     - [`declare_faults`](#declare_faults)
-      - [Example](#example-4)
+      - [Example](#declare_faults.example)
     - [`declare_faults_recovered`](#declare_faults_recovered)
-      - [Example](#example-5)
+      - [Example](#declare_faults_recovered.example)
 
 ## Overview
 
@@ -141,7 +141,7 @@ Before a storage provider can register, they need to set up a [PeerId](https://d
 | `peer_id`                | libp2p ID                            |
 | `window_post_proof_type` | Proof type the storage provider uses |
 
-#### Example
+#### <a id="register_storage_provider.example"></a>Example
 
 Registering a storage provider with keypair `//Alice` and peer ID `alice`
 
@@ -171,7 +171,7 @@ Sectors are not valid after pre-commit, the sectors need to be proven first.
 
 [^note]: Only once seal proof type supported at the moment, `2KiB`.
 
-#### Example
+#### <a id="pre_commit_sector.example"></a>Example
 
 Storage provider `//Alice` pre-committing a sector number 1, with a single deal ID 0.
 
@@ -204,7 +204,7 @@ After pre-committing some new sectors the storage provider needs to supply a Pro
 
 [^note]: At the moment any non-zero length proof is accepted for PoRep.
 
-#### Example
+#### <a id="prove_commit_sector.example"></a>Example
 
 This example follows up on the pre-commit example. Storage provider `//Alice` is prove committing sector number 1.
 
@@ -232,7 +232,7 @@ A storage provider needs to periodically submit a (Proof-of-Spacetime (PoSt))[#p
 | `post_proof`  | The proof type, should be consistent with the proof type for registration |
 | `proof_bytes` | The proof submission, to be checked in the storage provider pallet.       |
 
-#### Example
+#### <a id="submit_windowed_post.example"></a>Example
 
 Storage provider `//Alice` submitting proof for deadline 0, partition 0.
 
@@ -271,7 +271,7 @@ Where the fault declarations contain:
 | `partition` | Partition index within the deadline containing the faulty sectors. |
 | `sectors`   | Sectors in the partition being declared faulty                     |
 
-#### Example
+#### <a id="declare_faults.example"></a>Example
 
 Storage provider `//Alice` declaring faults on deadline 0, partition 0, sector 0.
 
@@ -317,7 +317,7 @@ Where the fault recoveries contain:
 | `partition` | Partition index within the deadline containing the recovered sectors |
 | `sectors`   | Sectors in the partition being declared recovered                    |
 
-#### Example
+#### <a id="declare_faults_recovered.example"></a>Example
 
 Storage provider `//Alice` declaring recoveries on deadline 0, partition 0, sector 0.
 
