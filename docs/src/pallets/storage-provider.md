@@ -20,6 +20,19 @@
     - [Commit](#commit)
     - [Proof of Spacetime submission](#proof-of-spacetime-submission)
   - [Storage provider pallet hooks](#storage-provider-pallet-hooks)
+  - [Extrinsics](#extrinsics)
+    - [`register_storage_provider`](#register_storage_provider)
+      - [Example](#example)
+    - [`pre_commit_sector`](#pre_commit_sector)
+      - [Example](#example-1)
+    - [`prove_commit_sector`](#prove_commit_sector)
+      - [Example](#example-2)
+    - [`submit_windowed_post`](#submit_windowed_post)
+      - [Example](#example-3)
+    - [`declare_faults`](#declare_faults)
+      - [Example](#example-4)
+    - [`declare_faults_recovered`](#declare_faults_recovered)
+      - [Example](#example-5)
 
 ## Overview
 
@@ -107,3 +120,205 @@ When the storage provider has completed their PoSt, they must submit it to the n
 ## Storage provider pallet hooks
 
 Substrate pallet hooks execute some actions when certain conditions are met. We use these hooks, when a block finalizes, to check if storage providers are up to date with their proofs. If a proof needs to be submitted but isn't the storage provider pallet will penalize the storage provider accordingly [slash](#storage-fault-slashing) their collateral that the locked up during the [pre commit section](#commit).
+
+## Extrinsics
+
+### `register_storage_provider`
+
+Storage Provider registration is the first extrinsic that any storage provider should call.
+
+> [!IMPORTANT]
+> All other storage provider extrinsics will be rejected if the storage provider is not registered.
+
+Before a storage provider can register, they need to set up a [PeerId](todo: link to peer id). This [PeerId](todo: link to peer id) is used in the p2p network to connect to the storage provider.
+
+| Name                     | Description                          |
+| ------------------------ | ------------------------------------ |
+| `peer_id`                | libp2p ID                            |
+| `window_post_proof_type` | Proof type the storage provider uses |
+
+#### Example
+
+Registering a storage provider with keypair `//Charlie` and peer ID `charlie`
+
+```bash
+storagext-cli --sr25519-key //Charlie storage-provider register charlie
+```
+
+### `pre_commit_sector`
+
+After a deal has been published the storage provider needs to pre-commit the sector information to the chain.
+
+> [!NOTE]
+> Sectors are not valid after pre-commit, the sectors need to be proven first.
+
+| Name            | Description                                    |
+| --------------- | ---------------------------------------------- |
+| `seal_proof`    | Seal proof type this storage provider is using |
+| `sector_number` | The sector number that is being pre-committed  |
+| `sealed_cid`    | Commitment of replication                      |
+| `deal_ids`      | Deal IDs that to be activated                  |
+| `expiration`    | Expiration of the pre-committed sector.        |
+| `unsealed_cid`  | Commitment of data                             |
+
+#### Example
+
+Storage provider `//Charlie` pre-committing a sector number 1, with a single deal ID 0.
+
+JSON example `pre-commit-sector.json`:
+
+```json
+{
+    "sector_number": 1,
+    "sealed_cid": "bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu",
+    "deal_ids": [0],
+    "expiration": 100,
+    "unsealed_cid": "bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu",
+    "seal_proof": "StackedDRG2KiBV1P1"
+}
+```
+
+```bash
+storagext-cli --sr25519-key //Charlie storage-provider pre-commit @pre-commit-sector.json
+```
+
+### `prove_commit_sector`
+
+After pre-committing some new sectors the storage provider needs to supply proof for these sectors.
+
+| Name            | Description                                     |
+| --------------- | ----------------------------------------------- |
+| `sector_number` | The sector number that is being prove-committed |
+| `proof`         | The proof submission                            |
+
+#### Example
+
+This example follows up on the pre-commit example. Storage provider `//Charlie` is prove committing sector number 1.
+
+JSON example `prove-commit-sector.json`
+
+```json
+{
+    "sector_number": 1,
+    "proof": "1230deadbeef"
+}
+```
+
+```bash
+storagext-cli --sr25519-key //Charlie storage-provider prove-commit @prove-commit-sector.json
+```
+
+### `submit_windowed_post`
+
+A storage provider needs to periodically submit a Proof-of-Spacetime (PoSt) to prove that they are still storing the data they promised. Multiple proofs can be submitted at once.
+
+| Name          | Description                                                               |
+| ------------- | ------------------------------------------------------------------------- |
+| `deadline`    | The deadline index which the submission targets                           |
+| `partitions`  | The partition being proven                                                |
+| `post_proof`  | The proof type, should be consistent with the proof type for registration |
+| `proof_bytes` | The proof submission, to be checked in the storage provider pallet.       |
+
+#### Example
+
+Storage provider `//Charlie` submitting proof for deadline 0, partition 0.
+
+JSON example `submit-windowed-post.json`:
+
+```json
+{
+    "deadline": 0,
+    "partition": 0,
+    "proof": {
+        "post_proof": "2KiB",
+        "proof_bytes": "1230deadbeef"
+    }
+}
+```
+
+```bash
+storagext-cli --sr25519-key //Charlie storage-provider submit-windowed-post @submit-windowed-post.json
+```
+
+### `declare_faults`
+
+A storage provider can declare faults when they know that they cannot submit PoSt on time to prevent to get penalized. Faults have an expiry of 42 days. If the faults are not recovered before this time, the sectors will be terminated. Multiple faults can be declared at once.
+
+`declare_faults` can take in multiple fault declarations:
+
+| Name     | Description                    |
+| -------- | ------------------------------ |
+| `faults` | An array of fault declarations |
+
+Where the fault declarations contain:
+
+| Name        | Description                                                        |
+| ----------- | ------------------------------------------------------------------ |
+| `deadline`  | The deadline to which the faulty sectors are assigned              |
+| `partition` | Partition index within the deadline containing the faulty sectors. |
+| `sectors`   | Sectors in the partition being declared faulty                     |
+
+#### Example
+
+Storage provider `//Charlie` declaring faults on deadline 0, partition 0, sector 0.
+
+JSON example `fault-declaration.json`:
+
+```json
+[
+    {
+        "deadline": 0,
+        "partition": 0,
+        "sectors": [
+            1
+        ]
+    }
+]
+```
+
+```bash
+storagext-cli --sr25519-key //Charlie storage-provider declare-faults @fault-declaration.json
+```
+
+### `declare_faults_recovered`
+
+After declaring sectors as faulty a storage provider can recover the sectors. If the system has marked some sectors as faulty, due to a missing PoSt, the storage provider needs to recover the faults.
+
+> [!IMPORTANT]
+> Faults are not fully recovered until the storage provider submits a valid PoSt after the `declare_faults_recovered` extrinsic.
+
+`declare_faults_recovered` can take in multiple fault recoveries:
+
+| Name         | Description                  |
+| ------------ | ---------------------------- |
+| `recoveries` | An array of fault recoveries |
+
+Where the fault recoveries contain:
+
+| Name        | Description                                                          |
+| ----------- | -------------------------------------------------------------------- |
+| `deadline`  | The deadline to which the recovered sectors are assigned             |
+| `partition` | Partition index within the deadline containing the recovered sectors |
+| `sectors`   | Sectors in the partition being declared recovered                    |
+
+#### Example
+
+Storage provider `//Charlie` declaring recoveries on deadline 0, partition 0, sector 0.
+
+JSON example `fault-declaration.json`:
+
+```json
+[
+    {
+        "deadline": 0,
+        "partition": 0,
+        "sectors": [
+            1
+        ]
+    }
+]
+```
+
+```bash
+storagext-cli --sr25519-key //Charlie storage-provider declare-faults-recovered @fault-declaration.json
+```
