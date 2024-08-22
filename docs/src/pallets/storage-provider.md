@@ -194,7 +194,9 @@ storagext-cli --sr25519-key "//Alice" storage-provider pre-commit @pre-commit-se
 
 ### `prove_commit_sector`
 
-After pre-committing some new sectors the storage provider needs to supply a Proof-of-Replication (PoRep)] for these sectors. More info about the PoRep can be found in the [sector sealing section](#sector-sealing).
+After pre-committing some new sectors the storage provider needs to supply a Proof-of-Replication (PoRep)] for these sectors. More info about the PoRep can be found in the [sector sealing section](#sector-sealing).[^note]
+
+[^note]: At the moment any non-zero length proof is accepted for PoRep.
 
 | Name            | Description                                     |
 | --------------- | ----------------------------------------------- |
