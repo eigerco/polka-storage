@@ -11,5 +11,5 @@ Before proceeding with the setup, please ensure your system meets the following 
 
 ## Guides
 
-- [`Parachain`](parachain-zombienet.md) - Covers how to setup a local testnet for the Polka Storage parachain, using Zombienet and Kubernetes.
+- [`Local Testnet - Polka Storage Parachain`](local-testnet.md) - Covers how to setup a local testnet for the Polka Storage parachain, using Zombienet and Kubernetes.
 - [`CAR server`](car-server.md) - Covers how to setup and run the CARv2 server, which transforms files into `.car` archives.
