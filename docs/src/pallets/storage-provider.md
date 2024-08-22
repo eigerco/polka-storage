@@ -183,7 +183,7 @@ JSON example `pre-commit-sector.json`:
     "sealed_cid": "bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu",
     "deal_ids": [0],
     "expiration": 100,
-    "unsealed_cid": "bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu",
+    "unsealed_cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
     "seal_proof": "StackedDRG2KiBV1P1"
 }
 ```
