@@ -1,18 +1,18 @@
 # CAR server
 
-It is a simple server that enables us to convert arbitrary content into a CAR file and serve it over an HTTP. By following the next steps, you will be able to run the server locally and use it to upload and download files.
+It is a HTTP server that enables us to convert arbitrary content into a [CARv2](https://ipld.io/specs/transport/car/carv2/) file and serve it over HTTP. Supporting the latest CARv2 format, which is not yet supported by other creates in the ecosystem. By following the next steps, you will be able to run the server locally and use it to upload and download files.
 
 <div class="warning">
-Current server is a proof of concept and is not intended to be used in production. If the server would be exposed to the external network, anybody could upload and download files without any authorization.
+The server is a proof of concept, showcasing CARv2 implementation, and is not intended to be used in production. Anyone can upload and download files without authentication or authorization.
 </div>
 
 ## Start the server
 
-First, create a Docker volume that the server will use to store uploaded files. We can achieve that with the following command:
+1. Create a Docker volume to store uploaded files:
 
 `docker volume create storage_provider`
 
-Next, start the storage server using the created volume:
+2. Start the server:
 
 ```
 docker run \
@@ -22,14 +22,16 @@ docker run \
         --listen-addr 0.0.0.0:9000
 ```
 
-- `-p 127.0.0.1:9000:9000`: This maps port `9000` on the localhost to port `9000` on the container.
+- `-p 127.0.0.1:9000:9000`: Maps port `9000` on the localhost to port `9000` on the container.
 - `--mount source=storage_provider,destination=/app/uploads`: Mounts the `storage_provider` volume to `/app/uploads` inside the container.
 - `polkadotstorage.azurecr.io/polka-storage-provider:0.1.0 storage`: Runs the `polkadotstorage.azurecr.io/polka-storage-provider:0.1.0` image with the `storage` command.
 - `--listen-addr 0.0.0.0:9000`: Configures the server to listen on all available network interfaces.
 
 ## Upload a file
 
-To upload a file to the provider's server, use the following curl command. Replace image.jpg with the path to your file:
+The server exposes `POST /upload` which accepts arbitrary bytes.
+
+Example usage with `curl`:
 
 ```
 curl \
@@ -38,7 +40,7 @@ curl \
     http://localhost:9000/upload
 ```
 
-This command uploads the file `image.jpg` to the server running at `http://localhost:9000/upload`. The server converts the uploaded content to a CAR file and saves it to the mounted volume. The returned Cid can later be used to fetch a CAR file from the server.
+This command uploads the file `image.jpg` to the server running at `http://localhost:9000/upload`. The server converts the uploaded content to a CAR file and saves it to the mounted volume. The returned [Cid](https://github.com/multiformats/cid) can later be used to fetch a CAR file from the server.
 
 ## Download the CAR File
 
