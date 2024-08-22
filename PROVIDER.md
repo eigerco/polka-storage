@@ -2,13 +2,8 @@
 
 To build the Docker image for the provider, execute the following command in the project directory.
 
-```
-docker build \
-    --build-arg VCS_REF=$(git rev-parse HEAD) \
-    --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
-    -t polkadotstorage.azurecr.io/polka-storage-provider:0.1.0 \
-    --file ./docker/dockerfiles/storage-provider/Dockerfile \
-    .
+```bash
+just build-storage-provider-docker
 ```
 
 This command uses the custom Dockerfile located at `./docker/dockerfiles/storage-provider/Dockerfile` to create an image named `polkadotstorage.azurecr.io/polka-storage-provider:0.1.0`.
