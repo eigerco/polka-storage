@@ -5,7 +5,9 @@ This guide will help you to setup a local parachain network using zombienet. At 
 ## Prerequisites
 
 - [minikube](https://minikube.sigs.k8s.io/docs/start/)
-- Kubernetes Cluster access - configured [kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl) (optional, but recommended for local testing)
+- kubectl (optional):
+  - [https://minikube.sigs.k8s.io/docs/handbook/kubectl/](https://minikube.sigs.k8s.io/docs/handbook/kubectl/)
+  - [https://kubernetes.io/docs/tasks/tools/#kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl)
 
 ## Setting Up the Environment (minikube)
 
@@ -25,13 +27,40 @@ minikube start
 zombienet -p kubernetes spawn local-kube-testnet.toml
 ```
 
+<details>
+<summary>Click here to show the example output.</summary>
+
+```
+TODO
+```
+
+</details>
+
 ## Verifying the Setup
 
-To check the status of your Kubernetes cluster:
+Check if all zombienet pods were started successfully:
 
 `kubectl get pods --all-namespaces`
 
-This command will show all pods from all namespaces along with their status.
+<details>
+<summary>Click here to show the example output.</summary>
+
+```
+...
+zombie-01b7920d650c18d3d78f75fd8b0978af   alice                              1/1     Running     0               77s
+zombie-01b7920d650c18d3d78f75fd8b0978af   bob                                1/1     Running     0               62s
+zombie-01b7920d650c18d3d78f75fd8b0978af   charlie                            1/1     Running     0               49s
+zombie-01b7920d650c18d3d78f75fd8b0978af   fileserver                         1/1     Running     0               2m28s
+zombie-01b7920d650c18d3d78f75fd8b0978af   temp                               0/1     Completed   0               2m25s
+zombie-01b7920d650c18d3d78f75fd8b0978af   temp-1                             0/1     Completed   0               2m25s
+zombie-01b7920d650c18d3d78f75fd8b0978af   temp-2                             0/1     Completed   0               2m15s
+zombie-01b7920d650c18d3d78f75fd8b0978af   temp-3                             0/1     Completed   0               2m1s
+zombie-01b7920d650c18d3d78f75fd8b0978af   temp-4                             0/1     Completed   0               114s
+zombie-01b7920d650c18d3d78f75fd8b0978af   temp-5                             0/1     Completed   0               91s
+zombie-01b7920d650c18d3d78f75fd8b0978af   temp-collator                      0/1     Completed   0               104s
+```
+
+</details>
 
 ## Accessing the Parachain
 
