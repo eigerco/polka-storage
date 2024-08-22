@@ -162,7 +162,7 @@ Sectors are not valid after pre-commit, the sectors need to be proven first.
 
 | Name            | Description                                                               |
 | --------------- | ------------------------------------------------------------------------- |
-| `seal_proof`    | Seal proof type this storage provider is using [^note]                           |
+| `seal_proof`    | Seal proof type this storage provider is using [^note]                    |
 | `sector_number` | The sector number that is being pre-committed                             |
 | `sealed_cid`    | Commitment of replication, more info in [sector sealing](#sector-sealing) |
 | `deal_ids`      | Deal IDs to be pre-committed, from `publish_storage_deals`                |
@@ -175,7 +175,7 @@ Sectors are not valid after pre-commit, the sectors need to be proven first.
 
 Storage provider `//Alice` pre-committing a sector number 1, with a single deal ID 0.
 
-JSON example `pre-commit-sector.json`:
+Where `pre-commit-sector.json` is a file with contents similar to:
 
 ```json
 {
@@ -208,7 +208,7 @@ After pre-committing some new sectors the storage provider needs to supply a Pro
 
 This example follows up on the pre-commit example. Storage provider `//Alice` is prove committing sector number 1.
 
-JSON example `prove-commit-sector.json`
+Where `prove-commit-sector.json` is a file with contents similar to:
 
 ```json
 {
@@ -236,7 +236,7 @@ A storage provider needs to periodically submit a (Proof-of-Spacetime (PoSt))[#p
 
 Storage provider `//Alice` submitting proof for deadline 0, partition 0.
 
-JSON example `submit-windowed-post.json`:
+Where `submit-windowed-post.json` is a file with contents similar to:
 
 ```json
 {
@@ -275,7 +275,7 @@ Where the fault declarations contain:
 
 Storage provider `//Alice` declaring faults on deadline 0, partition 0, sector 0.
 
-JSON example `fault-declaration.json`:
+Where `fault-declaration.json` is a file with contents similar to:
 
 ```json
 [
@@ -321,7 +321,7 @@ Where the fault recoveries contain:
 
 Storage provider `//Alice` declaring recoveries on deadline 0, partition 0, sector 0.
 
-JSON example `fault-declaration.json`:
+Where `fault-declaration.json` is a file with contents similar to:
 
 ```json
 [
