@@ -17,10 +17,12 @@ minikube start
 
 ## Running the Parachain
 
-To run the parachain, spawn the zombienet testnet in the Kubernetes cluster:
+1. Copy the [local-kube-testnet.toml](../misc/local-kube-testnet.toml) file to your local machine.
+
+2. Run the parachain, spawn the zombienet testnet in the Kubernetes cluster:
 
 ```
-zombienet -p kubernetes spawn zombienet/local-kube-testnet.toml
+zombienet -p kubernetes spawn local-kube-testnet.toml
 ```
 
 ## Verifying the Setup
@@ -33,4 +35,4 @@ This command will show all pods from all namespaces along with their status.
 
 ## Accessing the Parachain
 
-To interact with the parachain, you'll need to connect to Charlie's node on port 42069. The port is configured in `zombienet/local-kube-testnet.toml`.
+To interact with the parachain, you'll need to connect to Charlie's node on port `42069`. The port is configured in [local-kube-testnet.toml](../misc/local-kube-testnet.toml) under `rpc_port` for Charlie's node.

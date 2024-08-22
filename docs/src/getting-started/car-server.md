@@ -1,9 +1,9 @@
 # CAR server
 
-It is a HTTP server that enables us to convert arbitrary content into a [CARv2](https://ipld.io/specs/transport/car/carv2/) file and serve it over HTTP. Supporting the latest CARv2 format, which is not yet entirely supported by other crates in the Rust ecosystem. By following the next steps, you will be able to run the server locally and use it to upload and download files.
+It is a HTTP server that converts arbitrary content into a [CARv2](https://ipld.io/specs/transport/car/carv2/) file and serve it over HTTP. Supporting the latest CARv2 format, which is not yet entirely supported by other crates in the Rust ecosystem. By following the next steps, you will be able to run the server locally and use it to upload and download files.
 
 <div class="warning">
-The server is a proof of concept, showcasing CARv2 implementation, and is not intended to be used in production. Anyone can upload and download files without authentication or authorization.
+The server is a proof of concept, showcasing our CARv2 implementation, it is not intended to be used in production. Anyone can upload and download files without authentication or authorization.
 </div>
 
 ## Start the server
@@ -35,6 +35,6 @@ After setting up and starting the CAR server, it's important to verify that ever
 
 2. Download the CAR file using the CID you received, following the steps in the [Download the CAR File](../storage-provider-cli/storage.md#download-the-car-file) section.
 
-3. Verify the contents of the downloaded CAR file. You can use [go-car](https://github.com/ipld/go-car/tree/master/cmd/car)'s `extract` command.
+3. [Optional] Verify the contents of the downloaded CAR file. You can use [go-car](https://github.com/ipld/go-car/tree/master/cmd/car#install)'s `extract` command.
 
 If you can successfully upload a file, receive a CID, download the corresponding CAR file, and verify its contents, your CAR server setup is working correctly.
