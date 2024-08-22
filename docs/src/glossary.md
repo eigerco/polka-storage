@@ -12,10 +12,12 @@ that should not be used.
     - [Collator](#collator)
     - [Committed Capacity](#committed-capacity)
     - [Crowdloan](#crowdloan)
+    - [Extrinsics](#extrinsics)
     - [Full Node](#full-node)
     - [Invulnerable](#invulnerable)
     - [Node](#node)
     - [Parachain](#parachain)
+    - [Planck](#planck)
     - [Polkadot](#polkadot)
     - [Proofs](#proofs)
         - [Proof-of-Replication (PoRep)](#porep)
@@ -92,6 +94,12 @@ through [crowdloans](https://wiki.polkadot.network/docs/learn-crowdloans). Parti
 the project win a parachain slot auction. If successful, the tokens are locked up for the duration of the parachain
 lease, and participants might receive rewards or tokens from the project in return.
 
+### Extrinsics
+
+From the [Polkadot Wiki][2]:
+
+> Within each functional pallet on the blockchain, one can call its functions and execute them successfully, provided they have the permission to do so. Because these calls originate **outside of the blockchain runtime**, such transactions are referred to as **extrinsics**.
+
 ### Full Node
 
 A device (computer) that fully downloads and stores the entire blockchain of the parachain, validating and relaying
@@ -111,6 +119,14 @@ participant of the blockchain network who runs it locally.
 
 A parachain is a specialized blockchain that runs in parallel to other parachains within a larger network, benefiting
 from shared security and interoperability, and can be validated by the validators of the [Relay Chain](#relay-chain).
+
+### Planck
+
+From the [Polkadot Wiki][1]:
+
+> The smallest unit for the account balance on Substrate based blockchains (Polkadot, Kusama, etc.) is Planck (a reference to Planck Length, the smallest possible distance in the physical Universe).
+> You can compare DOT's Planck to BTC's Satoshi or ETH's Wei. Polkadot's native token DOT equals to \\(10^{10}\\) Planck and Kusama's native token KSM equals to \\(10^{12}\\) Planck.
+
 
 ### Polkadot
 
@@ -214,3 +230,6 @@ with [staking](#staking), but they have distinct meanings.
 
 **Reason**: Pledging generally refers to locking up tokens as [collateral](#collateral) to participate in certain
 network activities or services like: [Parachain Slot Auctions](#slot-auction) and [Crowdloans](#crowdloan).
+
+[1]: https://wiki.polkadot.network/docs/learn-DOT#the-planck-unit
+[2]: https://wiki.polkadot.network/docs/learn-transactions#pallets-and-extrinsics

@@ -7,3 +7,4 @@
     - [Wallet](./storage-provider-cli/wallet.md)
 - [Pallets](./pallets/index.md)
   - [Storage Provider Pallet](./pallets/storage-provider.md)
+  - [Market Pallet](./pallets/market.md)
