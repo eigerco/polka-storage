@@ -1,6 +1,6 @@
 # Getting Started
 
-This chapter will guide you through the process of setting up and running the components that have been implemented so far in the project to showcase the functionality.
+This chapter will guide you through the process of setting up, running and trying out the components implemented so far.
 
-- [`Parachain Zombienet`](parachain-zombienet.md) - HOWTO: run a local testnet of Polka Storage using Zombienet and Kubernetes.
-- [`CAR server`](car-server.md) - HOWTO: run a CARv2 server transforming files into `.car` archives.
+- [`Parachain`](parachain-zombienet.md) - Covers how to setup a local testnet for the Polka Storage parachain, using Zombienet and Kubernetes.
+- [`CAR server`](car-server.md) - Covers how to setup and run the CARv2 server, which transforms files into `.car` archives.
