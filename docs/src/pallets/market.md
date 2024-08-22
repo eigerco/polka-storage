@@ -17,11 +17,14 @@ when it will be moved to `locked` and used to pay for the deal.
 
 #### Example
 
-Adding 10000 [Plancks](../glossary.md#planck) to Alice's account:
+Adding 1000000[^existential_deposit] [Plancks](../glossary.md#planck) to Alice's account:
 
 ```bash
-storagext-cli --sr25519-key "//Alice" market add-balance 10000
+storagext-cli --sr25519-key "//Alice" market add-balance 1000000
 ```
+
+[^existential_deposit]: This value is the minimum amount due to Polkadot's existential deposit.
+  You can read more about it in <https://support.polkadot.network/support/solutions/articles/65000168651-what-is-the-existential-deposit->.
 
 ### `withdraw_balance`
 
