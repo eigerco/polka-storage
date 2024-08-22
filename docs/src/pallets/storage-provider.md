@@ -128,12 +128,6 @@ Substrate pallet hooks execute some actions when certain conditions are met. We 
 
 Storage Provider registration is the first extrinsic that any storage provider has to call, without being registered, the other extrinsics will return an error.
 
-<div class="warning">
-
-All other storage provider extrinsics will be rejected if the storage provider is not registered.
-
-</div>
-
 Before a storage provider can register, they need to set up a [PeerId](https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id). This [PeerId](https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id)is used in the p2p network to connect to the storage provider.
 
 | Name                     | Description                          |
