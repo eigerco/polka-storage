@@ -128,8 +128,11 @@ Substrate pallet hooks execute some actions when certain conditions are met. We 
 
 Storage Provider registration is the first extrinsic that any storage provider should call.
 
-> [!IMPORTANT]
-> All other storage provider extrinsics will be rejected if the storage provider is not registered.
+<div class="warning">
+
+All other storage provider extrinsics will be rejected if the storage provider is not registered.
+
+</div>
 
 Before a storage provider can register, they need to set up a [PeerId]([todo: link to peer id](https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id)). This [PeerId]([todo: link to peer id](https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id)) is used in the p2p network to connect to the storage provider.
 
@@ -150,17 +153,23 @@ storagext-cli --sr25519-key "//Alice" storage-provider register alice
 
 After a deal has been published the storage provider needs to pre-commit the sector information to the chain.
 
-> [!NOTE]
-> Sectors are not valid after pre-commit, the sectors need to be proven first.
+<div class="warning">
+
+Sectors are not valid after pre-commit, the sectors need to be proven first.
+
+</div>
+</br>
 
 | Name            | Description                                                               |
 | --------------- | ------------------------------------------------------------------------- |
-| `seal_proof`    | Seal proof type this storage provider is using                            |
+| `seal_proof`    | Seal proof type this storage provider is using [^note]                           |
 | `sector_number` | The sector number that is being pre-committed                             |
 | `sealed_cid`    | Commitment of replication, more info in [sector sealing](#sector-sealing) |
-| `deal_ids`      | Deal IDs that to be activated                                             |
-| `expiration`    | Expiration of the pre-committed sector.                                   |
+| `deal_ids`      | Deal IDs to be pre-committed, from `publish_storage_deals`                |
+| `expiration`    | Expiration block of the pre-committed sector                              |
 | `unsealed_cid`  | Commitment of data, more info in [sector sealing](#sector-sealing)        |
+
+[^note]: Only once seal proof type supported at the moment, `2KiB`.
 
 #### Example
 
@@ -190,7 +199,7 @@ After pre-committing some new sectors the storage provider needs to supply proof
 | Name            | Description                                     |
 | --------------- | ----------------------------------------------- |
 | `sector_number` | The sector number that is being prove-committed |
-| `proof`         | The proof submission                            |
+| `proof`         | The hex-encoded bytes of a proof                |
 
 #### Example
 
@@ -211,7 +220,7 @@ storagext-cli --sr25519-key "//Alice" storage-provider prove-commit @prove-commi
 
 ### `submit_windowed_post`
 
-A storage provider needs to periodically submit a Proof-of-Spacetime (PoSt) to prove that they are still storing the data they promised. Multiple proofs can be submitted at once.
+A storage provider needs to periodically submit a (Proof-of-Spacetime (PoSt))[#proof-of-spacetime-submission] to prove that they are still storing the data they promised. Multiple proofs can be submitted at once.
 
 | Name          | Description                                                               |
 | ------------- | ------------------------------------------------------------------------- |
@@ -229,7 +238,7 @@ JSON example `submit-windowed-post.json`:
 ```json
 {
     "deadline": 0,
-    "partition": 0,
+    "partition": [0],
     "proof": {
         "post_proof": "2KiB",
         "proof_bytes": "1230deadbeef"
@@ -285,8 +294,11 @@ storagext-cli --sr25519-key "//Alice" storage-provider declare-faults @fault-dec
 
 After declaring sectors as faulty a storage provider can recover the sectors. If the system has marked some sectors as faulty, due to a missing PoSt, the storage provider needs to recover the faults.
 
-> [!IMPORTANT]
-> Faults are not fully recovered until the storage provider submits a valid PoSt after the `declare_faults_recovered` extrinsic.
+<div class="warning">
+
+Faults are not fully recovered until the storage provider submits a valid PoSt after the `declare_faults_recovered` extrinsic.
+
+</div>
 
 `declare_faults_recovered` can take in multiple fault recoveries:
 
