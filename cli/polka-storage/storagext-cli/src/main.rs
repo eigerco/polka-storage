@@ -82,9 +82,8 @@ impl SubCommand {
     }
 }
 
-#[tokio::main]
-async fn main() -> Result<(), anyhow::Error> {
-    // Logger initialization.
+/// Configure and initalize tracing.
+fn setup_tracing() -> Result<(), FromEnvError> {
     tracing_subscriber::registry()
         .with(
             fmt::layer()
@@ -102,6 +101,12 @@ async fn main() -> Result<(), anyhow::Error> {
                 })),
         )
         .init();
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<(), anyhow::Error> {
+    setup_tracing()?;
 
     let cli_arguments = Cli::parse();
 
