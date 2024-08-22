@@ -134,7 +134,7 @@ All other storage provider extrinsics will be rejected if the storage provider i
 
 </div>
 
-Before a storage provider can register, they need to set up a [PeerId]([todo: link to peer id](https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id)). This [PeerId]([todo: link to peer id](https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id)) is used in the p2p network to connect to the storage provider.
+Before a storage provider can register, they need to set up a [PeerId](https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id). This [PeerId](https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id)is used in the p2p network to connect to the storage provider.
 
 | Name                     | Description                          |
 | ------------------------ | ------------------------------------ |
