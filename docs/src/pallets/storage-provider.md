@@ -389,6 +389,6 @@ The Storage Provider Pallet actions can fail with following errors:
 - `StorageProviderError` - An error was encountered in the storage provider module. If you encounter this error please report an issue as this is a programmer error.
 - `SectorMapError` - An error was encountered in the sector map module. These errors can be:
 - `CouldNotActivateSector` - Failure during prove commit when trying to convert a previously pre-committed sector due to a programming error. Please report an issue if you receive this error.
-- `CouldNotVerifySectorForPreCommit` - Failure during pre-commit due to the commd calculation failing due to a programming error. Please report an issue if you receive this error.
+- `CouldNotVerifySectorForPreCommit` - Failure during pre-commit due to the [commd](#sector-sealing) calculation failing due to a programming error. Please report an issue if you receive this error.
 - `SlashingFailed` - Slashing of funds fails due to a programmer error. Please report an issue if you receive this error.
 - `ConversionError` - Due to a programmer error. Please report an issue if you receive this error.
