@@ -150,6 +150,10 @@ After a deal has been published the storage provider needs to pre-commit the sec
 | `expiration`    | Expiration block of the pre-committed sector                              |
 | `unsealed_cid`  | Commitment of data, more info in [sector sealing](#sector-sealing)        |
 
+<div class="warning">
+Sectors are not valid after pre-commit, the sectors need to be proven first.
+</div>
+
 [^note]: Only once seal proof type supported at the moment, `2KiB`.
 
 #### <a class="header" id="pre_commit_sector.example" href="#pre_commit_sector.example">Example</a>
