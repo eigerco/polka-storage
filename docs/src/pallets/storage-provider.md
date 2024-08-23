@@ -378,7 +378,7 @@ The Storage Provider Pallet actions can fail with following errors:
 - `ExpirationTooSoon` - A storage provider tries to pre-commit a sector with a total lifetime that is less that `MinSectorExpiration`.
 - `ExpirationTooLong` - A storage provider tries to pre-commit a sector with an expiration that exceeds `MaxSectorExpirationExtension`.
 - `MaxSectorLifetimeExceeded` - A storage provider tries to pre-commit a sector with a total lifetime that exceeds `SectorMaximumLifetime`.
-- `InvalidCid` - Emitted when a storage provider submits and invalid  unsealed CID when trying to pre-commit a sector.
+- `InvalidCid` - Emitted when a storage provider submits an invalid unsealed CID when trying to pre-commit a sector.
 - `ProveCommitAfterDeadline` - A storage provider has tried to prove a previously pre-committed sector after the proving deadline.
 - `PoStProofInvalid` - A proof that was submitted by the storage provider is invalid. Currently this error is emitted when the proof length is 0.
 - `InvalidUnsealedCidForSector` - This error is emitted when the declared unsealed_cid for pre_commit is different from the one calculated by the system.
