@@ -602,6 +602,10 @@ pub enum DeadlineError {
     DeadlineIndexOutOfRange,
     /// Emitted when a trying to get a deadline index but fails because that index does not exist.
     DeadlineNotFound,
+    /// Emitted when a given index in `Deadlines` already exists and try to insert a deadline on that index.
+    DeadlineIndexExists,
+    /// Emitted when trying to insert a new deadline fails.
+    CouldNotInsertDeadline,
     /// Emitted when constructing `DeadlineInfo` fails.
     CouldNotConstructDeadlineInfo,
     /// Emitted when a proof is submitted for a partition that is already proven.
@@ -620,6 +624,10 @@ pub enum DeadlineError {
     SectorsNotFaulty,
     /// Emitted when assigning sectors to deadlines fails.
     CouldNotAssignSectorsToDeadlines,
+    /// Emitted when updates to a partition fail.
+    FailedToUpdatePartition,
+    /// Emitted when trying to update a deadline fails.
+    FailedToUpdateDeadline,
     /// Emitted when trying to update fault expirations fails
     FailedToUpdateFaultExpiration,
     /// Wrapper around the partition error type

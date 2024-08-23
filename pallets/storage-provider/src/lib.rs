@@ -283,6 +283,10 @@ pub mod pallet {
         InvalidProofType,
         /// Emitted when there is not enough funds to run an extrinsic.
         NotEnoughFunds,
+        /// Emitted when a sector fails to activate.
+        SectorActivateFailed,
+        /// Emitted when removing a pre_committed sector after proving fails.
+        CouldNotRemoveSector,
         /// Emitted when trying to reuse a sector number
         SectorNumberAlreadyUsed,
         /// Emitted when expiration is after activation

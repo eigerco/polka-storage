@@ -248,6 +248,8 @@ where
 
 #[derive(Decode, Encode, PalletError, TypeInfo, RuntimeDebug)]
 pub enum PartitionError {
+    /// Emitted when trying to get the live sectors for a partition fails.
+    FailedToGetLiveSectors,
     /// Emitted when adding sectors fails
     FailedToAddSector,
     /// Emitted when trying to add a sector number that has already been used in this partition.
