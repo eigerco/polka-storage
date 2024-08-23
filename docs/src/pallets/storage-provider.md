@@ -3,6 +3,7 @@
 ## Table of Contents
 
 - [Storage Provider Pallet](#storage-provider-pallet)
+  - [Table of Contents](#table-of-contents)
   - [Overview](#overview)
   - [Usage](#usage)
     - [Registering storage providers](#registering-storage-providers)
@@ -20,6 +21,19 @@
     - [Commit](#commit)
     - [Proof of Spacetime submission](#proof-of-spacetime-submission)
   - [Storage provider pallet hooks](#storage-provider-pallet-hooks)
+  - [Extrinsics](#extrinsics)
+    - [`register_storage_provider`](#register_storage_provider)
+      - [Example](#register_storage_provider.example)
+    - [`pre_commit_sector`](#pre_commit_sector)
+      - [Example](#pre_commit_sector.example)
+    - [`prove_commit_sector`](#prove_commit_sector)
+      - [Example](#prove_commit_sector.example)
+    - [`submit_windowed_post`](#submit_windowed_post)
+      - [Example](#submit_windowed_post.example)
+    - [`declare_faults`](#declare_faults)
+      - [Example](#declare_faults.example)
+    - [`declare_faults_recovered`](#declare_faults_recovered)
+      - [Example](#declare_faults_recovered.example)
 
 ## Overview
 
@@ -107,3 +121,201 @@ When the storage provider has completed their PoSt, they must submit it to the n
 ## Storage provider pallet hooks
 
 Substrate pallet hooks execute some actions when certain conditions are met. We use these hooks, when a block finalizes, to check if storage providers are up to date with their proofs. If a proof needs to be submitted but isn't the storage provider pallet will penalize the storage provider accordingly [slash](#storage-fault-slashing) their collateral that the locked up during the [pre commit section](#commit).
+
+## Extrinsics
+
+### `register_storage_provider`
+
+Storage Provider registration is the first extrinsic that any storage provider has to call, without being registered, the other extrinsics will return an error.
+
+Before a storage provider can register, they need to set up a [PeerId](https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id). This [PeerId](https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id)is used in the p2p network to connect to the storage provider.
+
+| Name                     | Description                          |
+| ------------------------ | ------------------------------------ |
+| `peer_id`                | libp2p ID                            |
+| `window_post_proof_type` | Proof type the storage provider uses |
+
+#### <a class="header" id="register_storage_provider.example" href="#register_storage_provider.example">Example</a>
+
+Registering a storage provider with keypair `//Alice` and peer ID `alice`
+
+```bash
+storagext-cli --sr25519-key "//Alice" storage-provider register alice
+```
+
+### `pre_commit_sector`
+
+After a deal has been published the storage provider needs to pre-commit the sector information to the chain. Sectors are not valid after pre-commit, the sectors need to be proven first.
+
+| Name            | Description                                                               |
+| --------------- | ------------------------------------------------------------------------- |
+| `seal_proof`    | Seal proof type this storage provider is using [^note]                    |
+| `sector_number` | The sector number that is being pre-committed                             |
+| `sealed_cid`    | Commitment of replication, more info in [sector sealing](#sector-sealing) |
+| `deal_ids`      | Deal IDs to be pre-committed, from `publish_storage_deals`                |
+| `expiration`    | Expiration block of the pre-committed sector                              |
+| `unsealed_cid`  | Commitment of data, more info in [sector sealing](#sector-sealing)        |
+
+[^note]: Only once seal proof type supported at the moment, `2KiB`.
+
+#### <a class="header" id="pre_commit_sector.example" href="#pre_commit_sector.example">Example</a>
+
+Storage provider `//Alice` pre-committing a sector number 1, with a single deal ID 0.
+
+```bash
+storagext-cli --sr25519-key "//Alice" storage-provider pre-commit @pre-commit-sector.json
+```
+
+Where `pre-commit-sector.json` is a file with contents similar to:
+
+```json
+{
+    "sector_number": 1,
+    "sealed_cid": "bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu",
+    "deal_ids": [0],
+    "expiration": 100,
+    "unsealed_cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+    "seal_proof": "StackedDRG2KiBV1P1"
+}
+```
+
+### `prove_commit_sector`
+
+After pre-committing some new sectors the storage provider needs to supply a Proof-of-Replication (PoRep)] for these sectors. More info about the PoRep can be found in the [sector sealing section](#sector-sealing).[^note]
+
+
+| Name            | Description                                     |
+| --------------- | ----------------------------------------------- |
+| `sector_number` | The sector number that is being prove-committed |
+| `proof`         | The hex-encoded bytes of a proof                |
+
+[^note]: At the moment any non-zero length proof is accepted for PoRep.
+
+#### <a class="header" id="prove_commit_sector.example" href="#prove_commit_sector.example">Example</a>
+
+This example follows up on the pre-commit example. Storage provider `//Alice` is prove committing sector number 1.
+
+```bash
+storagext-cli --sr25519-key "//Alice" storage-provider prove-commit @prove-commit-sector.json
+```
+
+Where `prove-commit-sector.json` is a file with contents similar to:
+
+```json
+{
+    "sector_number": 1,
+    "proof": "1230deadbeef"
+}
+```
+
+### `submit_windowed_post`
+
+A storage provider needs to periodically submit a (Proof-of-Spacetime (PoSt))[#proof-of-spacetime-submission] to prove that they are still storing the data they promised. Multiple proofs can be submitted at once.
+
+| Name          | Description                                                               |
+| ------------- | ------------------------------------------------------------------------- |
+| `deadline`    | The deadline index which the submission targets                           |
+| `partitions`  | The partition being proven                                                |
+| `post_proof`  | The proof type, should be consistent with the proof type for registration |
+| `proof_bytes` | The proof submission, to be checked in the storage provider pallet.       |
+
+#### <a class="header" id="submit_windowed_post.example" href="#submit_windowed_post.example">Example</a>
+
+Storage provider `//Alice` submitting proof for deadline 0, partition 0.
+
+```bash
+storagext-cli --sr25519-key "//Alice" storage-provider submit-windowed-post @submit-windowed-post.json
+```
+
+Where `submit-windowed-post.json` is a file with contents similar to:
+
+```json
+{
+    "deadline": 0,
+    "partition": [0],
+    "proof": {
+        "post_proof": "2KiB",
+        "proof_bytes": "1230deadbeef"
+    }
+}
+```
+
+### `declare_faults`
+
+A storage provider can declare faults when they know that they cannot submit PoSt on time to prevent to get penalized. Faults have an expiry of 42 days. If the faults are not recovered before this time, the sectors will be terminated. Multiple faults can be declared at once.
+
+`declare_faults` can take in multiple fault declarations:
+
+| Name     | Description                    |
+| -------- | ------------------------------ |
+| `faults` | An array of fault declarations |
+
+Where the fault declarations contain:
+
+| Name        | Description                                                        |
+| ----------- | ------------------------------------------------------------------ |
+| `deadline`  | The deadline to which the faulty sectors are assigned              |
+| `partition` | Partition index within the deadline containing the faulty sectors. |
+| `sectors`   | Sectors in the partition being declared faulty                     |
+
+#### <a class="header" id="declare_faults.example" href="#declare_faults.example">Example</a>
+
+Storage provider `//Alice` declaring faults on deadline 0, partition 0, sector 0.
+
+```bash
+storagext-cli --sr25519-key "//Alice" storage-provider declare-faults @fault-declaration.json
+```
+
+Where `fault-declaration.json` is a file with contents similar to:
+
+```json
+[
+    {
+        "deadline": 0,
+        "partition": 0,
+        "sectors": [
+            1
+        ]
+    }
+]
+```
+
+### `declare_faults_recovered`
+
+After declaring sectors as faulty a storage provider can recover the sectors. If the system has marked some sectors as faulty, due to a missing PoSt, the storage provider needs to recover the faults. Faults are not fully recovered until the storage provider submits a valid PoSt after the `declare_faults_recovered` extrinsic.
+
+`declare_faults_recovered` can take in multiple fault recoveries:
+
+| Name         | Description                  |
+| ------------ | ---------------------------- |
+| `recoveries` | An array of fault recoveries |
+
+Where the fault recoveries contain:
+
+| Name        | Description                                                          |
+| ----------- | -------------------------------------------------------------------- |
+| `deadline`  | The deadline to which the recovered sectors are assigned             |
+| `partition` | Partition index within the deadline containing the recovered sectors |
+| `sectors`   | Sectors in the partition being declared recovered                    |
+
+#### <a class="header" id="declare_faults_recovered.example" href="#declare_faults_recovered.example">Example</a>
+
+Storage provider `//Alice` declaring recoveries on deadline 0, partition 0, sector 0.
+
+```bash
+storagext-cli --sr25519-key "//Alice" storage-provider declare-faults-recovered @fault-declaration.json
+```
+
+Where `fault-declaration.json` is a file with contents similar to:
+
+```json
+[
+    {
+        "deadline": 0,
+        "partition": 0,
+        "sectors": [
+            1
+        ]
+    }
+]
+```
