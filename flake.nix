@@ -38,6 +38,7 @@
           taplo
           # Due to zombienet's flake.nix, needs to be prefixed with pkg.zombienet
           pkgs.zombienet.default
+          ocl-icd
         ]
         ++ (lib.optionals stdenv.isDarwin [
           darwin.apple_sdk.frameworks.Security

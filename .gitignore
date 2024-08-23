@@ -28,3 +28,8 @@ target/
 
 # code coverage
 coverage/
+
+# temporary proof output files
+proof
+vkey
+inputs

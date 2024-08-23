@@ -21,7 +21,7 @@ mod tests;
 mod deadline;
 mod fault;
 mod partition;
-mod proofs;
+pub mod proofs;
 mod sector;
 mod sector_map;
 mod storage_provider;
@@ -39,6 +39,7 @@ pub mod pallet {
     use alloc::{vec, vec::Vec};
     use core::fmt::Debug;
 
+    use bls12_381::Bls12;
     use cid::{Cid, Version};
     use codec::{Decode, Encode};
     use frame_support::{
@@ -51,13 +52,10 @@ pub mod pallet {
             WithdrawReasons,
         },
     };
-    use frame_system::{
-        ensure_signed,
-        pallet_prelude::{BlockNumberFor, *},
-        Config as SystemConfig,
-    };
+    use frame_system::{ensure_signed, pallet_prelude::*, Config as SystemConfig};
     use primitives_proofs::{
-        Market, RegisteredPoStProof, RegisteredSealProof, SectorNumber, StorageProviderValidation,
+        Market, PreparedVerifyingKey, Proof, PublicInputs, RegisteredPoStProof,
+        RegisteredSealProof, SectorNumber, StorageProviderValidation, VerifyingKey,
         MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
@@ -70,7 +68,7 @@ pub mod pallet {
             RecoveryDeclaration,
         },
         partition::PartitionNumber,
-        proofs::{assign_proving_period_offset, SubmitWindowedPoStParams},
+        proofs::{assign_proving_period_offset, verify_proof, SubmitWindowedPoStParams},
         sector::{
             ProveCommitResult, ProveCommitSector, SectorOnChainInfo, SectorPreCommitInfo,
             SectorPreCommitOnChainInfo, MAX_SECTORS,
@@ -327,6 +325,16 @@ pub mod pallet {
         FaultRecoveryTooLate,
         /// Tried to slash reserved currency and burn it.
         SlashingFailed,
+        /// TODO: Temporary error type for a wrong verification key on proving.
+        InvalidVerifyingKey,
+        /// TODO: Temporary error type for an invalid public input parameter.
+        InvalidPublicInputParamter,
+        /// TODO: Temporary error type for a conversion error on proof.
+        ConversionProof,
+        /// TODO: Temporary error type for a conversion error on verifying-key.
+        ConversionVerifyingKey,
+        /// TODO: Temporary error type for a conversion error on public inputs.
+        ConversionPublicInputs,
     }
 
     #[pallet::call]
@@ -857,6 +865,30 @@ pub mod pallet {
                 owner,
                 recoveries: params.recoveries,
             });
+
+            Ok(())
+        }
+
+        /// Temporary testing extrinsic to trigger off-chain proof computation.
+        pub fn test_verify_porep_proof(
+            origin: OriginFor<T>,
+            proof_bytes: Vec<u8>,
+            vkey_bytes: Vec<u8>,
+            input_bytes: Vec<u8>,
+        ) -> DispatchResult {
+            ensure_root(origin)?;
+
+            // Deserialze bytes into `SnarkProofs` and `VerifyingKey`.
+            let proof = Proof::<Bls12>::from_bytes(&proof_bytes)
+                .map_err(|_| Error::<T>::ConversionProof)?;
+            let vkey = VerifyingKey::<Bls12>::from_bytes(&vkey_bytes)
+                .map_err(|_| Error::<T>::ConversionVerifyingKey)?;
+            let inputs = PublicInputs::from_bytes(&input_bytes)
+                .map_err(|_| Error::<T>::ConversionPublicInputs)?;
+
+            let prepared_vkey = PreparedVerifyingKey::<Bls12>::from(vkey);
+            verify_proof::<Bls12>(&prepared_vkey, &proof, &inputs)
+                .map_err(Into::<Error<T>>::into)?;
 
             Ok(())
         }

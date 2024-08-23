@@ -17,6 +17,7 @@ FROM chef AS builder
 RUN apt update && apt upgrade -y
 RUN apt install -y protobuf-compiler
 RUN apt install -y clang
+RUN apt install -y ocl-icd-opencl-dev
 
 # Copy required files
 COPY --from=planner /app/recipe.json recipe.json

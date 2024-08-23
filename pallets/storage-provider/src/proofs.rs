@@ -3,11 +3,19 @@ use frame_support::{
     pallet_prelude::{ConstU32, RuntimeDebug},
     sp_runtime::BoundedVec,
 };
-use primitives_proofs::RegisteredPoStProof;
+use pairing::{
+    group::{prime::PrimeCurveAffine, Curve},
+    MillerLoopResult, MultiMillerLoop,
+};
+use primitives_proofs::{PreparedVerifyingKey, Proof, PublicInputs, RegisteredPoStProof};
 use scale_info::TypeInfo;
 use sp_core::blake2_64;
+use sp_std::ops::AddAssign;
 
-use crate::partition::{PartitionNumber, MAX_PARTITIONS_PER_DEADLINE};
+use crate::{
+    pallet::Error,
+    partition::{PartitionNumber, MAX_PARTITIONS_PER_DEADLINE},
+};
 
 /// Proof of Spacetime data stored on chain.
 #[derive(RuntimeDebug, Decode, Encode, TypeInfo, PartialEq, Eq, Clone)]
@@ -15,7 +23,9 @@ pub struct PoStProof {
     /// The proof type, currently only one type is supported.
     pub post_proof: RegisteredPoStProof,
     /// The proof submission, to be checked in the storage provider pallet.
-    pub proof_bytes: BoundedVec<u8, ConstU32<256>>, // Arbitrary length
+    pub proof_bytes: BoundedVec<u8, ConstU32<384>>,
+    /// The verifying key for the given proof.
+    pub vkey_bytes: BoundedVec<u8, ConstU32<1056>>,
 }
 
 /// Parameter type for `submit_windowed_post` extrinsic.
@@ -35,7 +45,22 @@ pub struct SubmitWindowedPoStParams {
 /// Error type for proof operations.
 #[derive(RuntimeDebug)]
 pub enum ProofError {
+    /// Conversion error, e.g. from streamed bytes to struct definition.
     Conversion,
+    /// The given Windowed PoSt proof itself is not valid.
+    InvalidProof,
+    /// The given verification key is not valid.
+    InvalidVerifyingKey,
+}
+
+impl<T> From<ProofError> for Error<T> {
+    fn from(value: ProofError) -> Self {
+        match value {
+            ProofError::Conversion => Error::<T>::ConversionError,
+            ProofError::InvalidProof => Error::<T>::PoStProofInvalid, // TODO
+            ProofError::InvalidVerifyingKey => Error::<T>::InvalidVerifyingKey,
+        }
+    }
 }
 
 /// Assigns proving period offset randomly in the range [0, WPOST_PROVING_PERIOD)
@@ -67,4 +92,49 @@ where
     // Mod with the proving period so it is within the valid range of [0, WPOST_PROVING_PERIOD)
     offset %= wpost_proving_period;
     Ok(offset)
+}
+
+// fn get_inputs<'r, E>(inputs: &'r PublicInputs<E>) -> &'r [E::Fr]
+// where
+//     E: MultiMillerLoop,
+// {
+//     &inputs.0[..]
+// }
+
+/// TODO
+pub fn verify_proof<'a, E: MultiMillerLoop>(
+    pvk: &'a PreparedVerifyingKey<E>,
+    proof: &Proof<E>,
+    public_inputs: &PublicInputs<E>,
+) -> Result<(), ProofError> {
+    if (public_inputs.0.len() + 1) != pvk.ic.len() {
+        return Err(ProofError::InvalidVerifyingKey);
+    }
+
+    let mut acc = pvk.ic[0].to_curve();
+
+    for (i, b) in public_inputs.0.iter().zip(pvk.ic.iter().skip(1)) {
+        AddAssign::<&E::G1>::add_assign(&mut acc, &(*b * i));
+    }
+
+    // The original verification equation is:
+    // A * B = alpha * beta + inputs * gamma + C * delta
+    // ... however, we rearrange it so that it is:
+    // A * B - inputs * gamma - C * delta = alpha * beta
+    // or equivalently:
+    // A * B + inputs * (-gamma) + C * (-delta) = alpha * beta
+    // which allows us to do a single final exponentiation.
+
+    if pvk.alpha_g1_beta_g2
+        == E::multi_miller_loop(&[
+            (&proof.a, &proof.b.into()),
+            (&acc.to_affine(), &pvk.neg_gamma_g2),
+            (&proof.c, &pvk.neg_delta_g2),
+        ])
+        .final_exponentiation()
+    {
+        Ok(())
+    } else {
+        Err(ProofError::InvalidProof)
+    }
 }
