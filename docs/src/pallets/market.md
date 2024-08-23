@@ -1,6 +1,36 @@
-# The Market Pallet
+# Market Pallet
 
-This pallet is part of the polka-storage project. The main purpose of the pallet is tracking funds of the storage market participants and managing storage deals between storage providers and clients.
+## Table of Contents
+
+- [Storage Provider Pallet](#storage-provider-pallet)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [Usage](#usage)
+  - [Extrinsics](#extrinsics)
+    - [`add_balance`](#add_balance)
+    - [`withdraw_balance`](#withdraw_balance)
+    - [`settle_deal_payments`](#settle_deal_payments)
+    - [`publish_storage_deals`](#publish_storage_deals)
+  - [Events](#events)
+  - [Errors](#errors)
+
+## Overview
+
+The purpose of the pallet is to manage storage deals between storage market participants and to track their funds.
+Market Pallet is tightly coupled with [Storage Provider Pallet](./storage-provider.md) because it's used as a source of truth for deals.
+Storage Provider Pallet cannot exist without deal information from Market Pallet.
+
+## Usage
+
+A [Storage User](../glossary.md#storage-user) finds a [Storage Provider](../glossary.md#storage-provider) and they negotiate data storage off-chain.
+To record information on-chain, both participants need to [add balance](#add_balance) and then the storage provider [publishes the deal information](#publish_storage_deals) (signed by the client).
+By doing so, `free` funds are converted to `locked` and they can no longer be withdrawn until a deal has ended.
+
+After that the responsibility is shifted to the Storage Provider Pallet, which needs to **pre-commit** and **activate the deal**.
+If the deal was not **pre-committed**, the Market Pallet terminates the deal, slashes (removes and burns) the locked funds from the Storage Provider and gives the Storage User's funds back.
+If the deal has been completed successfully or is **Active**, a Storage Provider can [settle deal payments](#settle_deal_payments).
+
+<img src="../images/market-flow.svg" alt="Market Flow as described above but as a sequence diagram">
 
 ## Extrinsics<a href="../glossary.md#extrinsics"><sup>\*</sup></a>
 

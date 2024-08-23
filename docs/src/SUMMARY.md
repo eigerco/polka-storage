@@ -8,6 +8,6 @@
   - [Subcommand `storage`](./storage-provider-cli/storage.md)
   - [Subcommand `wallet`](./storage-provider-cli/wallet.md)
 - [Pallets](./pallets/index.md)
-  - [Storage Provider Pallet](./pallets/storage-provider.md)
-  - [Market Pallet](./pallets/market.md)
+  - [Storage Provider](./pallets/storage-provider.md)
+  - [Market](./pallets/market.md)
 - [Glossary](./glossary.md)
