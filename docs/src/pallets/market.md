@@ -30,6 +30,8 @@ After that the responsibility is shifted to the Storage Provider Pallet, which n
 If the deal was not **pre-committed**, the Market Pallet terminates the deal, slashes (removes and burns) the locked funds from the Storage Provider and gives the Storage User's funds back.
 If the deal has been completed successfully or is **Active**, a Storage Provider can [settle deal payments](#settle_deal_payments).
 
+<img src="../images/market-flow.svg" alt="Market Flow as described above but as a sequence diagram">
+
 ## Extrinsics<a href="../glossary.md#extrinsics"><sup>\*</sup></a>
 
 ### `add_balance`
