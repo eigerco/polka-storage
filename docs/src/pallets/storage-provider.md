@@ -133,11 +133,13 @@ Before a storage provider can register, they need to set up a [PeerId](https://d
 
 #### <a class="header" id="register_storage_provider.example" href="#register_storage_provider.example">Example</a>
 
-Registering a storage provider with keypair `//Alice` and peer ID `alice`
+Registering a storage provider with keypair `//Alice` and peer ID `alice` with the following command[^register_storage_provider]:
 
 ```bash
 storagext-cli --sr25519-key "//Alice" storage-provider register alice
 ```
+
+[^register_storage_provider]: Read more about the `register` command in [_Storagext CLI/Subcommand `storage-provider`/`register`_](../storagext-cli/storage-provider.md#register)
 
 ### `pre_commit_sector`
 
@@ -160,7 +162,7 @@ Sectors are not valid after pre-commit, the sectors need to be proven first.
 
 #### <a class="header" id="pre_commit_sector.example" href="#pre_commit_sector.example">Example</a>
 
-Storage provider `//Alice` pre-committing a sector number 1, with a single deal ID 0.
+Storage provider `//Alice` pre-committing[^pre_commit_sector] a sector number 1, with a single deal ID 0.
 
 ```bash
 storagext-cli --sr25519-key "//Alice" storage-provider pre-commit @pre-commit-sector.json
@@ -170,19 +172,20 @@ Where `pre-commit-sector.json` is a file with contents similar to:
 
 ```json
 {
-    "sector_number": 1,
-    "sealed_cid": "bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu",
-    "deal_ids": [0],
-    "expiration": 100,
-    "unsealed_cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
-    "seal_proof": "StackedDRG2KiBV1P1"
+  "sector_number": 1,
+  "sealed_cid": "bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu",
+  "deal_ids": [0],
+  "expiration": 100,
+  "unsealed_cid": "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+  "seal_proof": "StackedDRG2KiBV1P1"
 }
 ```
+
+[^pre_commit_sector]: Read more about the `pre-commit` command in [_Storagext CLI/Subcommand `storage-provider`/`pre-commit`_](../storagext-cli/storage-provider.md#pre-commit)
 
 ### `prove_commit_sector`
 
 After pre-committing some new sectors the storage provider needs to supply a Proof-of-Replication (PoRep)] for these sectors. More info about the PoRep can be found in the [sector sealing section](#sector-sealing).[^note]
-
 
 | Name            | Description                                     |
 | --------------- | ----------------------------------------------- |
@@ -193,7 +196,7 @@ After pre-committing some new sectors the storage provider needs to supply a Pro
 
 #### <a class="header" id="prove_commit_sector.example" href="#prove_commit_sector.example">Example</a>
 
-This example follows up on the pre-commit example. Storage provider `//Alice` is prove committing sector number 1.
+This example follows up on the pre-commit example. Storage provider `//Alice` is prove committing[^prove_commit_sector] sector number 1.
 
 ```bash
 storagext-cli --sr25519-key "//Alice" storage-provider prove-commit @prove-commit-sector.json
@@ -203,10 +206,12 @@ Where `prove-commit-sector.json` is a file with contents similar to:
 
 ```json
 {
-    "sector_number": 1,
-    "proof": "1230deadbeef"
+  "sector_number": 1,
+  "proof": "1230deadbeef"
 }
 ```
+
+[^prove_commit_sector]: Read more about the `prove-commit` command in [_Storagext CLI/Subcommand `storage-provider`/`prove-commit`_](../storagext-cli/storage-provider.md#prove-commit)
 
 ### `submit_windowed_post`
 
@@ -221,7 +226,7 @@ A storage provider needs to periodically submit a (Proof-of-Spacetime (PoSt))[#p
 
 #### <a class="header" id="submit_windowed_post.example" href="#submit_windowed_post.example">Example</a>
 
-Storage provider `//Alice` submitting proof for deadline 0, partition 0.
+Storage provider `//Alice` submitting[^submit_windowed_post] proof for deadline 0, partition 0.
 
 ```bash
 storagext-cli --sr25519-key "//Alice" storage-provider submit-windowed-post @submit-windowed-post.json
@@ -231,14 +236,16 @@ Where `submit-windowed-post.json` is a file with contents similar to:
 
 ```json
 {
-    "deadline": 0,
-    "partition": [0],
-    "proof": {
-        "post_proof": "2KiB",
-        "proof_bytes": "1230deadbeef"
-    }
+  "deadline": 0,
+  "partition": [0],
+  "proof": {
+    "post_proof": "2KiB",
+    "proof_bytes": "1230deadbeef"
+  }
 }
 ```
+
+[^submit_windowed_post]: Read more about the `submit-windowed-post` command in [_Storagext CLI/Subcommand `storage-provider`/`submit-windowed-post`_](../storagext-cli/storage-provider.md#submit-windowed-post)
 
 ### `declare_faults`
 
@@ -260,7 +267,7 @@ Where the fault declarations contain:
 
 #### <a class="header" id="declare_faults.example" href="#declare_faults.example">Example</a>
 
-Storage provider `//Alice` declaring faults on deadline 0, partition 0, sector 0.
+Storage provider `//Alice` declaring faults[^declare_faults] on deadline 0, partition 0, sector 0.
 
 ```bash
 storagext-cli --sr25519-key "//Alice" storage-provider declare-faults @fault-declaration.json
@@ -270,15 +277,15 @@ Where `fault-declaration.json` is a file with contents similar to:
 
 ```json
 [
-    {
-        "deadline": 0,
-        "partition": 0,
-        "sectors": [
-            1
-        ]
-    }
+  {
+    "deadline": 0,
+    "partition": 0,
+    "sectors": [1]
+  }
 ]
 ```
+
+[^declare_faults]: Read more about the `declare-faults` command in [_Storagext CLI/Subcommand `storage-provider`/`declare-faults`_](../storagext-cli/storage-provider.md#declare-faults)
 
 ### `declare_faults_recovered`
 
@@ -300,7 +307,7 @@ Where the fault recoveries contain:
 
 #### <a class="header" id="declare_faults_recovered.example" href="#declare_faults_recovered.example">Example</a>
 
-Storage provider `//Alice` declaring recoveries on deadline 0, partition 0, sector 0.
+Storage provider `//Alice` declaring recoveries[^declare_faults_recovered] on deadline 0, partition 0, sector 0.
 
 ```bash
 storagext-cli --sr25519-key "//Alice" storage-provider declare-faults-recovered @fault-declaration.json
@@ -310,15 +317,15 @@ Where `fault-declaration.json` is a file with contents similar to:
 
 ```json
 [
-    {
-        "deadline": 0,
-        "partition": 0,
-        "sectors": [
-            1
-        ]
-    }
+  {
+    "deadline": 0,
+    "partition": 0,
+    "sectors": [1]
+  }
 ]
 ```
+
+[^declare_faults_recovered]: Read more about the `declare-faults-recovered` command in [_Storagext CLI/Subcommand `storage-provider`/`declare-faults-recovered`_](../storagext-cli/storage-provider.md#declare-faults-recovered)
 
 ## Events
 

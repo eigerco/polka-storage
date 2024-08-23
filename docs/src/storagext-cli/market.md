@@ -67,11 +67,11 @@ we are aware this is <i>not secure</i> and <i>not realistic</i> in a production 
 
 The client keypair can be passed using `--client-<key kind>`, where `<key kind>` is one of the [three supported keys](index.md#getting-started), like the global keys, one is required.
 
-| Name                   | Description               | Type                                                                                                                         |
-| ---------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `--client-sr25519-key` | Sr25519 keypair           | String, encoded as hex, BIP-39 or a dev phrase like `//Charlie`                                                              |
-| `--client-ecdsa-key`   | ECDSA keypair             | String, encoded as hex, BIP-39 or a dev phrase like `//Charlie`                                                              |
-| `--client-ed25519-key` | Ed25519 keypair           | String, encoded as hex, BIP-39 or a dev phrase like `//Charlie`                                                              |
+| Name                   | Description               | Type                                                                                                                        |
+| ---------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `--client-sr25519-key` | Sr25519 keypair           | String, encoded as hex, BIP-39 or a dev phrase like `//Charlie`                                                             |
+| `--client-ecdsa-key`   | ECDSA keypair             | String, encoded as hex, BIP-39 or a dev phrase like `//Charlie`                                                             |
+| `--client-ed25519-key` | Ed25519 keypair           | String, encoded as hex, BIP-39 or a dev phrase like `//Charlie`                                                             |
 | `DEALS`                | The deals to be published | JSON array. Can be passed as a string, or as a file path prefixed with `@` pointing to the file containing the JSON object. |
 
 The `DEALS` JSON array is composed of objects with two keys:
@@ -137,7 +137,6 @@ Where `deals.json` is a file with contents similar to:
 ]
 ```
 
-
 > You can read more about this extrinsic in [_Pallets/Market Pallet/Publish Storage Deals_](../pallets/market.md#publish_storage_deals).
 
 ## `settle-deal-payments`
@@ -150,8 +149,8 @@ Anyone can settle anyone's deals, though there's little incentive to do so — i
 
 ### Parameters
 
-| Name | Description |
-| ---- | ----------- |
+| Name       | Description                         |
+| ---------- | ----------------------------------- |
 | `DEAL_IDS` | The IDs for the deals to be settled |
 
 ### <a class="header" id="settle-deal-payments.example" href="#settle-deal-payments.example">Example</a>
