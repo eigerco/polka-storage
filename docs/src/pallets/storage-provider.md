@@ -317,3 +317,42 @@ Where `fault-declaration.json` is a file with contents similar to:
     }
 ]
 ```
+
+## Events
+
+The Storage Provider Pallet emits the following events:
+
+- `StorageProviderRegistered` - Indicates that a new storage provider has been registered.
+  - `owner` - SS58 address of the storage provider.
+  - `info` - The static information about the new storage provider. This information includes:
+    - `peer_id` - Libp2p identity that should be used when connecting to the storage provider.
+    - `window_post_proof_type` - The proof type used by the storage provider for sealing sectors.
+    - `sector_size` - Amount of space in each sector committed to the network by the storage provider.
+    - `window_post_partition_sectors` - The number of sectors in each Window PoSt partition (proof).
+- `SectorPreCommitted` - A storage provider has pre-committed some new sector after publishing some new deal.
+  - `owner` - SS58 address of the storage provider.
+  - `sector` - The sector number being pre-committed.
+- `SectorProven` - A storage provider has proven a sector that they previously pre-committed.
+  - `owner` - SS58 address of the storage provider.
+  - `sector_number` - The sector number that was proven.
+- `SectorSlashed` - A sector that was previously pre-committed, but not proven, has been slashed by the system because it has expired.
+  - `owner` - SS58 address of the storage provider.
+  - `sector_number` - The sector number that has been slashed because of expiry.
+- `ValidPoStSubmitted` - A valid PoSt has been submitted by a storage provider.
+  - `owner` - SS58 address of the storage provider.
+- `FaultsDeclared` - A storage provider has declared some sectors as faulty.
+  - `owner` - SS58 address of the storage provider.
+  - `faults` - An array with information about the fault declarations. This information includes:
+    - `deadline` - The deadline to which the faulty sectors are assigned.
+    - `partition` - Partition number within the deadline containing the faulty sectors.
+    - `sectors` - Sectors in the partition being declared as faulty.
+- `FaultsRecovered` - A storage provider has recovered some sectors previously declared as faulty.
+  - `owner` - SS58 address of the storage provider.
+  - `recoveries` - An array with information about the fault recoveries. This information includes:
+    - `deadline` - The deadline to which the recovered sectors are assigned.
+    - `partition` - Partition number within the deadline containing the recovered sectors.
+    - `sectors` - Sectors in the partition being declared as recovered.
+- `PartitionFaulty` - The system has detected that a storage provider has not submitted their PoSt on time and has marked some sectors as faulty.
+  - `owner` - SS58 address of the storage provider.
+  - `partition` - Partition number for which the PoSt was missed.
+  - `sectors` - The sectors in the partition that were declared as faulty by the system.
