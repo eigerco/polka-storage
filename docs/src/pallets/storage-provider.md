@@ -135,7 +135,7 @@ Before a storage provider can register, they need to set up a [PeerId](https://d
 | `peer_id`                | libp2p ID                            |
 | `window_post_proof_type` | Proof type the storage provider uses |
 
-#### <a id="register_storage_provider.example"></a>Example
+#### <a class="header" id="register_storage_provider.example" href="#register_storage_provider.example">Example</a>
 
 Registering a storage provider with keypair `//Alice` and peer ID `alice`
 
@@ -145,14 +145,7 @@ storagext-cli --sr25519-key "//Alice" storage-provider register alice
 
 ### `pre_commit_sector`
 
-After a deal has been published the storage provider needs to pre-commit the sector information to the chain.
-
-<div class="warning">
-
-Sectors are not valid after pre-commit, the sectors need to be proven first.
-
-</div>
-</br>
+After a deal has been published the storage provider needs to pre-commit the sector information to the chain. Sectors are not valid after pre-commit, the sectors need to be proven first.
 
 | Name            | Description                                                               |
 | --------------- | ------------------------------------------------------------------------- |
@@ -165,9 +158,13 @@ Sectors are not valid after pre-commit, the sectors need to be proven first.
 
 [^note]: Only once seal proof type supported at the moment, `2KiB`.
 
-#### <a id="pre_commit_sector.example"></a>Example
+#### <a class="header" id="pre_commit_sector.example" href="#pre_commit_sector.example">Example</a>
 
 Storage provider `//Alice` pre-committing a sector number 1, with a single deal ID 0.
+
+```bash
+storagext-cli --sr25519-key "//Alice" storage-provider pre-commit @pre-commit-sector.json
+```
 
 Where `pre-commit-sector.json` is a file with contents similar to:
 
@@ -182,10 +179,6 @@ Where `pre-commit-sector.json` is a file with contents similar to:
 }
 ```
 
-```bash
-storagext-cli --sr25519-key "//Alice" storage-provider pre-commit @pre-commit-sector.json
-```
-
 ### `prove_commit_sector`
 
 After pre-committing some new sectors the storage provider needs to supply a Proof-of-Replication (PoRep)] for these sectors. More info about the PoRep can be found in the [sector sealing section](#sector-sealing).[^note]
@@ -198,9 +191,13 @@ After pre-committing some new sectors the storage provider needs to supply a Pro
 
 [^note]: At the moment any non-zero length proof is accepted for PoRep.
 
-#### <a id="prove_commit_sector.example"></a>Example
+#### <a class="header" id="prove_commit_sector.example" href="#prove_commit_sector.example">Example</a>
 
 This example follows up on the pre-commit example. Storage provider `//Alice` is prove committing sector number 1.
+
+```bash
+storagext-cli --sr25519-key "//Alice" storage-provider prove-commit @prove-commit-sector.json
+```
 
 Where `prove-commit-sector.json` is a file with contents similar to:
 
@@ -209,10 +206,6 @@ Where `prove-commit-sector.json` is a file with contents similar to:
     "sector_number": 1,
     "proof": "1230deadbeef"
 }
-```
-
-```bash
-storagext-cli --sr25519-key "//Alice" storage-provider prove-commit @prove-commit-sector.json
 ```
 
 ### `submit_windowed_post`
@@ -226,9 +219,13 @@ A storage provider needs to periodically submit a (Proof-of-Spacetime (PoSt))[#p
 | `post_proof`  | The proof type, should be consistent with the proof type for registration |
 | `proof_bytes` | The proof submission, to be checked in the storage provider pallet.       |
 
-#### <a id="submit_windowed_post.example"></a>Example
+#### <a class="header" id="submit_windowed_post.example" href="#submit_windowed_post.example">Example</a>
 
 Storage provider `//Alice` submitting proof for deadline 0, partition 0.
+
+```bash
+storagext-cli --sr25519-key "//Alice" storage-provider submit-windowed-post @submit-windowed-post.json
+```
 
 Where `submit-windowed-post.json` is a file with contents similar to:
 
@@ -241,10 +238,6 @@ Where `submit-windowed-post.json` is a file with contents similar to:
         "proof_bytes": "1230deadbeef"
     }
 }
-```
-
-```bash
-storagext-cli --sr25519-key "//Alice" storage-provider submit-windowed-post @submit-windowed-post.json
 ```
 
 ### `declare_faults`
@@ -265,9 +258,13 @@ Where the fault declarations contain:
 | `partition` | Partition index within the deadline containing the faulty sectors. |
 | `sectors`   | Sectors in the partition being declared faulty                     |
 
-#### <a id="declare_faults.example"></a>Example
+#### <a class="header" id="declare_faults.example" href="#declare_faults.example">Example</a>
 
 Storage provider `//Alice` declaring faults on deadline 0, partition 0, sector 0.
+
+```bash
+storagext-cli --sr25519-key "//Alice" storage-provider declare-faults @fault-declaration.json
+```
 
 Where `fault-declaration.json` is a file with contents similar to:
 
@@ -283,19 +280,9 @@ Where `fault-declaration.json` is a file with contents similar to:
 ]
 ```
 
-```bash
-storagext-cli --sr25519-key "//Alice" storage-provider declare-faults @fault-declaration.json
-```
-
 ### `declare_faults_recovered`
 
-After declaring sectors as faulty a storage provider can recover the sectors. If the system has marked some sectors as faulty, due to a missing PoSt, the storage provider needs to recover the faults.
-
-<div class="warning">
-
-Faults are not fully recovered until the storage provider submits a valid PoSt after the `declare_faults_recovered` extrinsic.
-
-</div>
+After declaring sectors as faulty a storage provider can recover the sectors. If the system has marked some sectors as faulty, due to a missing PoSt, the storage provider needs to recover the faults. Faults are not fully recovered until the storage provider submits a valid PoSt after the `declare_faults_recovered` extrinsic.
 
 `declare_faults_recovered` can take in multiple fault recoveries:
 
@@ -311,9 +298,13 @@ Where the fault recoveries contain:
 | `partition` | Partition index within the deadline containing the recovered sectors |
 | `sectors`   | Sectors in the partition being declared recovered                    |
 
-#### <a id="declare_faults_recovered.example"></a>Example
+#### <a class="header" id="declare_faults_recovered.example" href="#declare_faults_recovered.example">Example</a>
 
 Storage provider `//Alice` declaring recoveries on deadline 0, partition 0, sector 0.
+
+```bash
+storagext-cli --sr25519-key "//Alice" storage-provider declare-faults-recovered @fault-declaration.json
+```
 
 Where `fault-declaration.json` is a file with contents similar to:
 
@@ -327,8 +318,4 @@ Where `fault-declaration.json` is a file with contents similar to:
         ]
     }
 ]
-```
-
-```bash
-storagext-cli --sr25519-key "//Alice" storage-provider declare-faults-recovered @fault-declaration.json
 ```
