@@ -56,8 +56,8 @@ storagext-cli --sr25519-key "//Alice" market add-balance 1000000
 [^existential_deposit]:
     This value is the minimum amount due to Polkadot's existential deposit.
     You can read more about it in <https://support.polkadot.network/support/solutions/articles/65000168651-what-is-the-existential-deposit->.
-[^add_balance]: Read more about the `add-balance` command in [*Storagext CLI/Subcommand `market`/`add-balance`*](../storagext-cli/market.md#add-balance)
 
+[^add_balance]: Read more about the `add-balance` command in [_Storagext CLI/Subcommand `market`/`add-balance`_](../storagext-cli/market.md#add-balance)
 
 ### `withdraw_balance`
 
@@ -78,7 +78,7 @@ Using the `storagext-cli` you can withdraw 10000 [Plancks](../glossary.md#planck
 storagext-cli --sr25519-key "//Alice" market withdraw-balance 10000
 ```
 
-[^withdraw_balance]: Read more about the `withdraw-balance` command in [*Storagext CLI/Subcommand `market`/`withdraw-balance`*](../storagext-cli/market.md#withdraw-balance)
+[^withdraw_balance]: Read more about the `withdraw-balance` command in [_Storagext CLI/Subcommand `market`/`withdraw-balance`_](../storagext-cli/market.md#withdraw-balance)
 
 ### `publish_storage_deals`
 
@@ -107,7 +107,6 @@ This extrinsic _must_ be called by a storage provider.
 | `state`                   | Deal state. Can only be set to `Published`                          |
 
 See the [original Filecoin specification](https://spec.filecoin.io/#section-systems.filecoin_markets.onchain_storage_market.storage_deal_flow) for details.
-
 
 #### <a id="publish_storage_deals.example" href="#publish_storage_deals.example" class="header">Example</a>
 
@@ -156,10 +155,11 @@ but rather a keypair that is able to sign it.
 
 We are aware that this is **not secure** however, the system is still under development
 and this is **not final** but rather a testing tool.
+
 </div>
 
 [^storage_price_per_block]: The formula to calculate the total price is as follows: \\[total\\\_price = (end\\\_block - start\\\_block) * storage\\_price\\_per\\_block\\]
-[^publish_storage_deals]: Read more about the `publish-storage-deals` command in [*Storagext CLI/Subcommand `market`/`publish-storage-deals`*](../storagext-cli/market.md#publish-storage-deals)
+[^publish_storage_deals]: Read more about the `publish-storage-deals` command in [_Storagext CLI/Subcommand `market`/`publish-storage-deals`_](../storagext-cli/market.md#publish-storage-deals)
 
 ### `settle_deal_payments`
 
@@ -182,7 +182,7 @@ Using the `storagext-cli` you can settle deal payments for IDs 97, 1010, 1337 an
 storagext-cli --sr25519-key "//Alice" market settle-deal-payments 97 1010 1337 42069
 ```
 
-[^settle_deal_payments]: Read more about the `settle-deal-payments` command in [*Storagext CLI/Subcommand `market`/`settle-deal-payments`*](../storagext-cli/market.md#settle-deal-payments)
+[^settle_deal_payments]: Read more about the `settle-deal-payments` command in [_Storagext CLI/Subcommand `market`/`settle-deal-payments`_](../storagext-cli/market.md#settle-deal-payments)
 
 ## Events
 
