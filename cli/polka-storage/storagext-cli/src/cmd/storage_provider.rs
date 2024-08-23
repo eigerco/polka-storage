@@ -4,10 +4,12 @@ use primitives_proofs::RegisteredPoStProof;
 use storagext::{
     clients::StorageProviderClient, FaultDeclaration, PolkaStorageConfig, RecoveryDeclaration,
 };
-use subxt::ext::sp_core::crypto::Ss58Codec;
 use url::Url;
 
-use crate::deser::{ParseablePath, PreCommitSector, ProveCommitSector, SubmitWindowedPoStParams};
+use crate::{
+    deser::{ParseablePath, PreCommitSector, ProveCommitSector, SubmitWindowedPoStParams},
+    missing_keypair_error,
+};
 
 fn parse_post_proof(src: &str) -> Result<RegisteredPoStProof, anyhow::Error> {
     let post_proof = match src {
@@ -75,23 +77,19 @@ impl StorageProviderCommand {
     /// Run a `storage-provider` command.
     ///
     /// Requires the target RPC address and a keypair able to sign transactions.
-    #[tracing::instrument(
-        level = "info",
-        skip_all,
-        fields(
-            node_rpc,
-            address = account_keypair.account_id().to_ss58check()
-        )
-    )]
+    #[tracing::instrument(level = "info", skip_all)]
     pub async fn run<Keypair>(
         self,
         node_rpc: Url,
-        account_keypair: Keypair,
+        account_keypair: Option<Keypair>,
     ) -> Result<(), anyhow::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
         let client = StorageProviderClient::new(node_rpc).await?;
+        let Some(account_keypair) = account_keypair else {
+            return Err(missing_keypair_error::<Self>().into());
+        };
         match self {
             StorageProviderCommand::RegisterStorageProvider {
                 peer_id,

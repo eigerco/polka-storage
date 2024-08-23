@@ -2,26 +2,32 @@
 
 mod cmd;
 mod deser;
+mod pair;
 
 use std::fmt::Debug;
 
 use clap::{ArgGroup, Parser, Subcommand};
 use cmd::{market::MarketCommand, storage_provider::StorageProviderCommand};
-use deser::{DealProposal, DebugPair};
+use deser::DealProposal;
+use pair::{DebugPair, MultiPairSigner};
 use storagext::PolkaStorageConfig;
 use subxt::ext::sp_core::{
     ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair, sr25519::Pair as Sr25519Pair,
 };
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{
-    filter, fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer,
+    filter::{self, FromEnvError},
+    fmt,
+    layer::SubscriberExt,
+    util::SubscriberInitExt,
+    EnvFilter, Layer,
 };
 use url::Url;
 
 pub(crate) const FULL_NODE_DEFAULT_RPC_ADDR: &str = "ws://127.0.0.1:42069";
 
 #[derive(Debug, Parser)]
-#[command(group(ArgGroup::new("keypair").required(true).args(
+#[command(group(ArgGroup::new("keypair").args(
     &["sr25519_key", "ecdsa_key", "ed25519_key"]
 )))]
 struct Cli {
@@ -61,10 +67,10 @@ enum SubCommand {
 }
 
 impl SubCommand {
-    async fn run_with_keypair<Keypair>(
+    async fn run<Keypair>(
         self,
         node_rpc: Url,
-        account_keypair: Keypair,
+        account_keypair: Option<Keypair>,
     ) -> Result<(), anyhow::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
@@ -110,40 +116,31 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let cli_arguments = Cli::parse();
 
-    match (
-        cli_arguments.sr25519_key,
-        cli_arguments.ecdsa_key,
-        cli_arguments.ed25519_key,
-    ) {
-        (Some(account_keypair), _, _) => {
-            cli_arguments
-                .subcommand
-                .run_with_keypair(
-                    cli_arguments.node_rpc,
-                    subxt::tx::PairSigner::new(account_keypair.0),
-                )
-                .await?
-        }
-        (_, Some(account_keypair), _) => {
-            cli_arguments
-                .subcommand
-                .run_with_keypair(
-                    cli_arguments.node_rpc,
-                    subxt::tx::PairSigner::new(account_keypair.0),
-                )
-                .await?
-        }
-        (_, _, Some(account_keypair)) => {
-            cli_arguments
-                .subcommand
-                .run_with_keypair(
-                    cli_arguments.node_rpc,
-                    subxt::tx::PairSigner::new(account_keypair.0),
-                )
-                .await?
-        }
-        _ => unreachable!("should be handled by clap::ArgGroup"),
-    }
+    let multi_pair_signer = MultiPairSigner::new(
+        cli_arguments.sr25519_key.map(DebugPair::into_inner),
+        cli_arguments.ecdsa_key.map(DebugPair::into_inner),
+        cli_arguments.ed25519_key.map(DebugPair::into_inner),
+    );
 
+    cli_arguments
+        .subcommand
+        .run(cli_arguments.node_rpc, multi_pair_signer)
+        .await?;
     Ok(())
+}
+
+/// Return a `clap::error::Error` with the [`MissingRequiredArgument`] kind.
+///
+/// It is impossible to print a proper usage error because clap makes all those useful constructs private.
+///
+/// <https://github.com/clap-rs/clap/blob/fe810907bdba9c81b980ed340addace44cefd8ff/clap_builder/src/parser/validator.rs#L454-L458>
+/// <https://github.com/clap-rs/clap/blob/fe810907bdba9c81b980ed340addace44cefd8ff/clap_builder/src/output/usage.rs#L39-L58>
+fn missing_keypair_error<C>() -> clap::error::Error
+where
+    C: clap::Subcommand,
+{
+    C::augment_subcommands(<Cli as clap::CommandFactory>::command()).error(
+        clap::error::ErrorKind::MissingRequiredArgument,
+        "signed extrinsics require a keypair",
+    )
 }
