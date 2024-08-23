@@ -28,6 +28,8 @@
     - [`submit_windowed_post`](#submit_windowed_post)
     - [`declare_faults`](#declare_faults)
     - [`declare_faults_recovered`](#declare_faults_recovered)
+  - [Events](#events)
+  - [Errors](#errors)
 
 ## Overview
 
@@ -317,3 +319,76 @@ Where `fault-declaration.json` is a file with contents similar to:
     }
 ]
 ```
+
+## Events
+
+The Storage Provider Pallet emits the following events:
+
+- `StorageProviderRegistered` - Indicates that a new storage provider has been registered.
+  - `owner` - SS58 address of the storage provider.
+  - `info` - The static information about the new storage provider. This information includes:
+    - `peer_id` - Libp2p identity that should be used when connecting to the storage provider.
+    - `window_post_proof_type` - The proof type used by the storage provider for sealing sectors.
+    - `sector_size` - Amount of space in each sector committed to the network by the storage provider.
+    - `window_post_partition_sectors` - The number of sectors in each Window PoSt partition (proof).
+- `SectorPreCommitted` - A storage provider has pre-committed some new sector after publishing some new deal.
+  - `owner` - SS58 address of the storage provider.
+  - `sector` - The sector number being pre-committed.
+- `SectorProven` - A storage provider has proven a sector that they previously pre-committed.
+  - `owner` - SS58 address of the storage provider.
+  - `sector_number` - The sector number that was proven.
+- `SectorSlashed` - A sector that was previously pre-committed, but not proven, has been slashed by the system because it has expired.
+  - `owner` - SS58 address of the storage provider.
+  - `sector_number` - The sector number that has been slashed because of expiry.
+- `ValidPoStSubmitted` - A valid PoSt has been submitted by a storage provider.
+  - `owner` - SS58 address of the storage provider.
+- `FaultsDeclared` - A storage provider has declared some sectors as faulty.
+  - `owner` - SS58 address of the storage provider.
+  - `faults` - An array with information about the fault declarations. This information includes:
+    - `deadline` - The deadline to which the faulty sectors are assigned.
+    - `partition` - Partition number within the deadline containing the faulty sectors.
+    - `sectors` - Sectors in the partition being declared as faulty.
+- `FaultsRecovered` - A storage provider has recovered some sectors previously declared as faulty.
+  - `owner` - SS58 address of the storage provider.
+  - `recoveries` - An array with information about the fault recoveries. This information includes:
+    - `deadline` - The deadline to which the recovered sectors are assigned.
+    - `partition` - Partition number within the deadline containing the recovered sectors.
+    - `sectors` - Sectors in the partition being declared as recovered.
+- `PartitionFaulty` - The system has detected that a storage provider has not submitted their PoSt on time and has marked some sectors as faulty.
+  - `owner` - SS58 address of the storage provider.
+  - `partition` - Partition number for which the PoSt was missed.
+  - `sectors` - The sectors in the partition that were declared as faulty by the system.
+
+## Errors
+
+The Storage Provider Pallet actions can fail with following errors:
+
+- `StorageProviderExists` - A storage provider is already registered and tries to register again.
+- `StorageProviderNotFound` - This error is emitted by all extrinsics except registration in the storage provider pallet when a storage provider tries to call an extrinsic without registering first.
+- `InvalidSector` - This error can be emitted when:
+  - A storage provider supplies a sector number during pre-commit that exceeds the maximum amount of sectors.
+  - A storage provider supplies a sector number during prove commit that exceeds the maximum amount of sectors.
+- `InvalidProofType` - This error can be emitted when:
+  - A storage provider submits a seal proof type during pre-commit that is different than the one configured during registration.
+  - During a prove commit extrinsic the proof type that the storage provider has supplied in invalid.
+  - A storage provider submits a windowed PoSt proof type that is different than the one configured during registration.
+- `NotEnoughFunds` - Emitted when a storage provider does not have enough funds for the pre-commit deposit.
+- `SectorNumberAlreadyUsed` - A storage provider tries to pre-commit a sector number that has already been used.
+- `ExpirationBeforeActivation` - A storage provider tries to pre-commit a sector where the expiration of that sector is before the activation.
+- `ExpirationTooSoon` - A storage provider tries to pre-commit a sector with a total lifetime that is less that `MinSectorExpiration`.
+- `ExpirationTooLong` - A storage provider tries to pre-commit a sector with an expiration that exceeds `MaxSectorExpirationExtension`.
+- `MaxSectorLifetimeExceeded` - A storage provider tries to pre-commit a sector with a total lifetime that exceeds `SectorMaximumLifetime`.
+- `InvalidCid` - Emitted when a storage provider submits an invalid unsealed CID when trying to pre-commit a sector.
+- `ProveCommitAfterDeadline` - A storage provider has tried to prove a previously pre-committed sector after the proving deadline.
+- `PoStProofInvalid` - A proof that was submitted by the storage provider is invalid. Currently this error is emitted when the proof length is 0.
+- `InvalidUnsealedCidForSector` - This error is emitted when the declared unsealed_cid for pre_commit is different from the one calculated by the system.
+- `FaultDeclarationTooLate` - A fault declaration was submitted after the fault declaration cutoff. The fault declaration can be submitted after the upcoming deadline is closed.
+- `FaultRecoveryTooLate` - A fault recovery was submitted after the fault recovery cutoff. The fault recovery can be submitted after the upcoming deadline is closed.
+- `DeadlineError` - An error was encountered in the deadline module. If you encounter this error please report an issue as this is a programmer error.
+- `PartitionError` - An error was encountered in the partition module. If you encounter this error please report an issue as this is a programmer error.
+- `StorageProviderError` - An error was encountered in the storage provider module. If you encounter this error please report an issue as this is a programmer error.
+- `SectorMapError` - An error was encountered in the sector map module. These errors can be:
+- `CouldNotActivateSector` - Failure during prove commit when trying to convert a previously pre-committed sector due to a programming error. Please report an issue if you receive this error.
+- `CouldNotVerifySectorForPreCommit` - Failure during pre-commit due to the [commd](#sector-sealing) calculation failing due to a programming error. Please report an issue if you receive this error.
+- `SlashingFailed` - Slashing of funds fails due to a programmer error. Please report an issue if you receive this error.
+- `ConversionError` - Due to a programmer error. Please report an issue if you receive this error.
