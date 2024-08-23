@@ -20,7 +20,7 @@ the balance will be added to the `free` balance.
 | -------- | -------------------------------------------- | ---------------- |
 | `AMOUNT` | The amount to be added to the market balance | Positive integer |
 
-### Example
+### <a class="header" id="add-balance.example" href="#add-balance.example">Example</a>
 
 Adding 1000000 [Plancks](../glossary.md#planck) to Alice's account.
 
@@ -43,7 +43,7 @@ you can only withdraw a balance amount lesser than or equal to the `free` amount
 | -------- | ------------------------------------------------ | ---------------- |
 | `AMOUNT` | The amount to be withdrawn to the market balance | Positive integer |
 
-### Example
+### <a class="header" id="withdraw-balance.example" href="#withdraw-balance.example">Example</a>
 
 Withdrawing 10000 [Plancks](../glossary.md#planck) from Alice's account.
 
@@ -96,7 +96,7 @@ And the `proposal` object has the following keys:
 | `provider_collateral`     | Collateral which is slashed if the deal fails                       |
 | `state`                   | Deal state. Can only be set to `Published`                          |
 
-### Example
+### <a class="header" id="publish-storage-deals.example" href="#publish-storage-deals.example">Example</a>
 
 Publishing deals between Alice (the Storage Provider) and Charlie (the client).
 
@@ -154,7 +154,7 @@ Anyone can settle anyone's deals, though there's little incentive to do so — i
 | ---- | ----------- |
 | `DEAL_IDS` | The IDs for the deals to be settled |
 
-#### Example
+### <a class="header" id="settle-deal-payments.example" href="#settle-deal-payments.example">Example</a>
 
 Settling deals with the IDs 97, 1010, 1337, 42069:
 
