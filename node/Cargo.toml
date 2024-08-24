@@ -10,15 +10,13 @@ publish = false
 repository.workspace = true
 version = "0.0.0"
 
-[lints]
-workspace = true
-
 [[bin]]
 name = "polka-storage-node"
 
 [dependencies]
 clap = { workspace = true, features = ["derive"] }
 codec = { workspace = true }
+docify = { workspace = true }
 futures = { workspace = true }
 jsonrpsee = { workspace = true, features = ["server"] }
 log = { workspace = true, default-features = true }
@@ -81,7 +79,6 @@ cumulus-relay-chain-interface = { workspace = true }
 substrate-build-script-utils = { workspace = true }
 
 [features]
-default = []
 runtime-benchmarks = [
   "cumulus-primitives-core/runtime-benchmarks",
   "frame-benchmarking-cli/runtime-benchmarks",
