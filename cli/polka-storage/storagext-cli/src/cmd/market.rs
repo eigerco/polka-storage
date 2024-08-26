@@ -6,7 +6,9 @@ use subxt::ext::sp_core::{
 };
 use url::Url;
 
-use crate::{deser::ParseablePath, missing_keypair_error, pair::DebugPair, DealProposal};
+use crate::{
+    deser::ParseablePath, missing_keypair_error, pair::DebugPair, DealProposal, MultiPairSigner,
+};
 
 /// List of [`DealProposal`]s to publish.
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -69,15 +71,12 @@ impl MarketCommand {
     /// Run a `market` command.
     ///
     /// Requires the target RPC address and a keypair able to sign transactions.
-    #[tracing::instrument(level = "info", skip_all)]
-    pub async fn run<Keypair>(
+    #[tracing::instrument(level = "info", skip(self, node_rpc), fields(node_rpc = node_rpc.as_str()))]
+    pub async fn run(
         self,
         node_rpc: Url,
-        account_keypair: Option<Keypair>,
-    ) -> Result<(), anyhow::Error>
-    where
-        Keypair: subxt::tx::Signer<PolkaStorageConfig>,
-    {
+        account_keypair: Option<MultiPairSigner>,
+    ) -> Result<(), anyhow::Error> {
         let client = MarketClient::new(node_rpc).await?;
 
         match self {
@@ -109,14 +108,11 @@ impl MarketCommand {
         Ok(())
     }
 
-    async fn with_keypair<Keypair>(
+    async fn with_keypair(
         self,
         client: MarketClient,
-        account_keypair: Keypair,
-    ) -> Result<(), anyhow::Error>
-    where
-        Keypair: subxt::tx::Signer<PolkaStorageConfig>,
-    {
+        account_keypair: MultiPairSigner,
+    ) -> Result<(), anyhow::Error> {
         match self {
             MarketCommand::AddBalance { amount } => {
                 let block_hash = client.add_balance(&account_keypair, amount).await?;

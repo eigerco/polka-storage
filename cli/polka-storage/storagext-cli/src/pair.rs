@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use storagext::PolkaStorageConfig;
 use subxt::{
     ext::sp_core::{
@@ -64,6 +66,16 @@ impl MultiPairSigner {
             (_, Some(key), _) => Some(Self::ECDSA(PairSigner::new(key))),
             (_, _, Some(key)) => Some(Self::Ed25519(PairSigner::new(key))),
             _ => None,
+        }
+    }
+}
+
+impl Debug for MultiPairSigner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Sr25519(arg0) => f.debug_tuple("Sr25519").field(arg0.account_id()).finish(),
+            Self::ECDSA(arg0) => f.debug_tuple("ECDSA").field(arg0.account_id()).finish(),
+            Self::Ed25519(arg0) => f.debug_tuple("Ed25519").field(arg0.account_id()).finish(),
         }
     }
 }

@@ -10,7 +10,6 @@ use clap::{ArgGroup, Parser, Subcommand};
 use cmd::{market::MarketCommand, storage_provider::StorageProviderCommand};
 use deser::DealProposal;
 use pair::{DebugPair, MultiPairSigner};
-use storagext::PolkaStorageConfig;
 use subxt::ext::sp_core::{
     ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair, sr25519::Pair as Sr25519Pair,
 };
@@ -67,14 +66,12 @@ enum SubCommand {
 }
 
 impl SubCommand {
-    async fn run<Keypair>(
+    #[tracing::instrument(level = "info", skip(self, node_rpc), fields(node_rpc = node_rpc.as_str()))]
+    async fn run(
         self,
         node_rpc: Url,
-        account_keypair: Option<Keypair>,
-    ) -> Result<(), anyhow::Error>
-    where
-        Keypair: subxt::tx::Signer<PolkaStorageConfig>,
-    {
+        account_keypair: Option<MultiPairSigner>,
+    ) -> Result<(), anyhow::Error> {
         match self {
             SubCommand::Market(cmd) => {
                 cmd.run(node_rpc, account_keypair).await?;

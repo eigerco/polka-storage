@@ -1,14 +1,12 @@
 use anyhow::bail;
 use clap::Subcommand;
 use primitives_proofs::RegisteredPoStProof;
-use storagext::{
-    clients::StorageProviderClient, FaultDeclaration, PolkaStorageConfig, RecoveryDeclaration,
-};
+use storagext::{clients::StorageProviderClient, FaultDeclaration, RecoveryDeclaration};
 use url::Url;
 
 use crate::{
     deser::{ParseablePath, PreCommitSector, ProveCommitSector, SubmitWindowedPoStParams},
-    missing_keypair_error,
+    missing_keypair_error, MultiPairSigner,
 };
 
 fn parse_post_proof(src: &str) -> Result<RegisteredPoStProof, anyhow::Error> {
@@ -77,15 +75,12 @@ impl StorageProviderCommand {
     /// Run a `storage-provider` command.
     ///
     /// Requires the target RPC address and a keypair able to sign transactions.
-    #[tracing::instrument(level = "info", skip_all)]
-    pub async fn run<Keypair>(
+    #[tracing::instrument(level = "info", skip(self, node_rpc), fields(node_rpc = node_rpc.as_str()))]
+    pub async fn run(
         self,
         node_rpc: Url,
-        account_keypair: Option<Keypair>,
-    ) -> Result<(), anyhow::Error>
-    where
-        Keypair: subxt::tx::Signer<PolkaStorageConfig>,
-    {
+        account_keypair: Option<MultiPairSigner>,
+    ) -> Result<(), anyhow::Error> {
         let client = StorageProviderClient::new(node_rpc).await?;
         let Some(account_keypair) = account_keypair else {
             return Err(missing_keypair_error::<Self>().into());
