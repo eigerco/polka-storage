@@ -172,7 +172,10 @@ mod test {
         ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair, sr25519::Pair as Sr25519Pair,
     };
 
-    use super::{CidWrapper, DealProposal, DebugPair, PoStProof, SubmitWindowedPoStParams};
+    use crate::{
+        deser::{CidWrapper, DealProposal, PoStProof, SubmitWindowedPoStParams},
+        pair::DebugPair,
+    };
     #[track_caller]
     fn assert_debug_pair<P>(s: &str)
     where
