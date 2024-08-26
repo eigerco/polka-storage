@@ -32,6 +32,7 @@ wget https://s3.eu-central-1.amazonaws.com/polka-storage/macos_arm/polka-storage
 wget https://s3.eu-central-1.amazonaws.com/polka-storage/macos_arm/storagext-cli
 wget https://github.com/paritytech/zombienet/releases/download/v1.3.106/zombienet-macos-arm64 -O zombienet
 chmod +x zombienet polka-storage-node polka-storage-provider storagext-cli polkadot polkadot-prepare-worker polkadot-execute-worker
+xattr -d com.apple.quarantine zombienet polka-storage-node polka-storage-provider storagext-cli polkadot polkadot-prepare-worker polkadot-execute-worker
 export PATH=$(pwd):$PATH
 
 wget https://s3.eu-central-1.amazonaws.com/polka-storage/polka-storage-testnet.toml
