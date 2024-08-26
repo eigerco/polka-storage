@@ -14,6 +14,7 @@ that should not be used.
     - [Crowdloan](#crowdloan)
     - [Deadline](#deadline)
     - [Extrinsics](#extrinsics)
+    - [Fault](#fault)
     - [Full Node](#full-node)
     - [Invulnerable](#invulnerable)
     - [Node](#node)
@@ -110,6 +111,16 @@ For more information on deadlines, you can read the original Filecoin specificat
 From the [Polkadot Wiki][2]:
 
 > Within each functional pallet on the blockchain, one can call its functions and execute them successfully, provided they have the permission to do so. Because these calls originate **outside of the blockchain runtime**, such transactions are referred to as **extrinsics**.
+
+### Fault
+
+A fault happens when a proof is not submitted within the [proving period](#proving-period).
+For a sector to stop being considered in proving periods, it needs to be declared as faulty
+— indicating the storage provider is aware of the faulty sector and will be working to restore it.
+If a sector is faulty for too long, it will be terminated and the deal will be slashed.
+
+For more information on faults, you can read the original Filecoin specification:
+<https://spec.filecoin.io/#section-glossary.fault>
 
 ### Full Node
 
