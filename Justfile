@@ -18,6 +18,9 @@ release-testnet: lint
 testnet: release-testnet
     zombienet -p native spawn zombienet/local-testnet.toml
 
+test:
+    cargo test --locked --workspace
+
 build-parachain-docker:
     docker build \
         --build-arg VCS_REF="$(git rev-parse HEAD)" \
@@ -27,8 +30,8 @@ build-parachain-docker:
         .
 build-storage-provider-docker:
     docker build \
-        --build-arg VCS_REF=$(git rev-parse HEAD) \
-        --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+        --build-arg VCS_REF="$(git rev-parse HEAD)" \
+        --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
         -t polkadotstorage.azurecr.io/polka-storage-provider:0.1.0 \
         --file ./docker/dockerfiles/storage-provider/Dockerfile \
         .

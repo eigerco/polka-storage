@@ -2,6 +2,7 @@ use primitives_proofs::DealId;
 use subxt::ext::sp_core::crypto::Ss58Codec;
 
 use crate::{
+    market_pallet_types::BalanceEntry,
     runtime::{self},
     Currency, DealProposal, PolkaStorageConfig,
 };
@@ -122,7 +123,7 @@ impl MarketClient {
     )]
     pub async fn publish_storage_deals<Keypair, ClientKeypair>(
         &self,
-        account_keypair: &Keypair,
+        account_keypair: Keypair,
         client_keypair: &ClientKeypair,
         mut deals: Vec<DealProposal>,
     ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
@@ -153,7 +154,31 @@ impl MarketClient {
             .publish_storage_deals(bounded_unbounded_deals);
 
         self.client
-            .traced_submission(&payload, account_keypair)
+            .traced_submission(&payload, &account_keypair)
+            .await
+    }
+
+    /// Retrieve the balance for a given account (includes the `free` and `locked` balance).
+    #[tracing::instrument(
+        level = "trace",
+        skip_all,
+        fields(
+            address = account_id.to_ss58check()
+        )
+    )]
+    pub async fn retrieve_balance(
+        &self,
+        account_id: <PolkaStorageConfig as subxt::Config>::AccountId,
+    ) -> Result<Option<BalanceEntry<u128>>, subxt::Error> {
+        let balance_table_query = runtime::storage()
+            .market()
+            .balance_table(subxt::utils::AccountId32::from(account_id));
+        self.client
+            .client
+            .storage()
+            .at_latest()
+            .await?
+            .fetch(&balance_table_query)
             .await
     }
 }
