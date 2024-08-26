@@ -2,7 +2,64 @@
 
 This guide will help you to setup a local parachain network using zombienet. At the end we will have three nodes: Alice, Bob and Charlie. Alice and Bob will be running Polkadot relay chain nodes as validators, and Charlie will be running a relay chain and parachain node. Charlie will be our contact point to the parachain network.
 
-## Prerequisites
+## Native Binaries
+
+You can download our latest releases's binaries directly and run them on your machine without additional dependencies.
+We support `Linux x86_64` and `MacOS ARM x64`. The commands below will download:
+- [Relay Chain](https://github.com/paritytech/polkadot-sdk/releases) binaries (`polkadot`, `polkadot-prepare-worker`, `polkadot-execute-worker`),
+- Polka Storage Parachain binary (`polka-storage-node`),
+- [Polka Storage Provider](../storage-provider-cli/index.md) internal node (`polka-storage-provider`),
+- [CLI for interacting with the parachain](../storagext-cli/) (`storagext-cli`),
+- [zombienet](https://paritytech.github.io/zombienet/install.html) to spawn local testnets and orchestrate them (`zombienet`),
+- Polka Storage Parachain out-of-the-box zombienet's configuration (`polka-storage-testnet.toml`).
+
+### Linux x86_64
+
+```bash
+wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-v1.13.0/polkadot
+wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-v1.13.0/polkadot-prepare-worker
+wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-v1.13.0/polkadot-execute-worker
+wget https://s3.eu-central-1.amazonaws.com/polka-storage/linux_x86-64/polka-storage-node
+wget https://s3.eu-central-1.amazonaws.com/polka-storage/linux_x86-64/polka-storage-provider
+wget https://s3.eu-central-1.amazonaws.com/polka-storage/linux_x86-64/storagext-cli
+wget https://github.com/paritytech/zombienet/releases/download/v1.3.106/zombienet-linux-x64 -O zombienet
+chmod +x zombienet polka-storage-node polka-storage-provider storagext-cli polkadot polkadot-prepare-worker polkadot-execute-worker
+export PATH=$(pwd):$PATH
+
+wget https://s3.eu-central-1.amazonaws.com/polka-storage/polka-storage-testnet.toml
+zombienet -p native spawn polka-storage-testnet.toml
+```
+
+### MacOS ARM
+
+```bash
+wget https://s3.eu-central-1.amazonaws.com/polka-storage/macos_arm/polkadot
+wget https://s3.eu-central-1.amazonaws.com/polka-storage/macos_arm/polkadot-prepare-worker
+wget https://s3.eu-central-1.amazonaws.com/polka-storage/macos_arm/polkadot-execute-worker
+wget https://s3.eu-central-1.amazonaws.com/polka-storage/macos_arm/polka-storage-node
+wget https://s3.eu-central-1.amazonaws.com/polka-storage/macos_arm/polka-storage-provider
+wget https://s3.eu-central-1.amazonaws.com/polka-storage/macos_arm/storagext-cli
+wget https://github.com/paritytech/zombienet/releases/download/v1.3.106/zombienet-macos-arm64 -O zombienet
+chmod +x zombienet polka-storage-node polka-storage-provider storagext-cli polkadot polkadot-prepare-worker polkadot-execute-worker
+xattr -d com.apple.quarantine zombienet polka-storage-node polka-storage-provider storagext-cli polkadot polkadot-prepare-worker polkadot-execute-worker
+export PATH=$(pwd):$PATH
+
+wget https://s3.eu-central-1.amazonaws.com/polka-storage/polka-storage-testnet.toml
+zombienet -p native spawn polka-storage-testnet.toml
+```
+
+
+You can easily access the parachain using the Polkadot.js Apps interface by clicking on this link:
+[https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A42069#/explorer](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A42069#/explorer)
+Or you can interact with the chain via [`storagext-cli`](../storagext-cli/index.md).
+Example:
+```bash
+storagext-cli --sr25519-key "//Alice" storage-provider register Alice
+```
+
+## Kubernetes
+
+### Prerequisites
 
 - [zombienet v1.3.106](https://github.com/paritytech/zombienet/releases/tag/v1.3.106) - cli tool to easily spawn ephemeral Polkadot/Substrate networks and perform tests against them.
 - [minikube](https://minikube.sigs.k8s.io/docs/start/) — to run the parachain nodes
@@ -10,7 +67,7 @@ This guide will help you to setup a local parachain network using zombienet. At 
   - [https://minikube.sigs.k8s.io/docs/handbook/kubectl/](https://minikube.sigs.k8s.io/docs/handbook/kubectl/)
   - [https://kubernetes.io/docs/tasks/tools/#kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl)
 
-## Start up the Kubernetes cluster
+### Start up the Kubernetes cluster
 
 Using `minikube` you can start the cluster with the following command:
 
@@ -20,7 +77,7 @@ minikube start
 
 You can read more about `minikube` in its [Getting Started](https://minikube.sigs.k8s.io/docs/handbook/controls/) page.
 
-## Running the Parachain
+### Running the Parachain
 
 1. Create a `local-kube-testnet.toml` file on your machine with the following content.
 
@@ -118,7 +175,7 @@ zombienet -p kubernetes spawn local-kube-testnet.toml
 
 </details>
 
-## Verifying the Setup
+### Verifying the Setup
 
 Check if all zombienet pods were started successfully:
 
@@ -144,7 +201,7 @@ zombie-01b7920d650c18d3d78f75fd8b0978af   temp-collator                      0/1
 
 </details>
 
-## Accessing the Parachain
+### Accessing the Parachain
 
 You can easily access the parachain using the Polkadot.js Apps interface by clicking on this link:
 

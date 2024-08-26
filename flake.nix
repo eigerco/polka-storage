@@ -51,7 +51,6 @@
           LIBCLANG_PATH = "${llvmPackages.libclang.lib}/lib";
           PROTOC = "${protobuf}/bin/protoc";
           RUST_SRC_PATH = "${rustToolchain}/lib/rustlib/src/rust/library/";
-          ROCKSDB_LIB_DIR = "${rocksdb}/lib";
         };
       }
     );
