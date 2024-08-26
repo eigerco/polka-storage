@@ -234,7 +234,7 @@ and `proof_bytes` which expectes a valid hex string.
 ```json
 {
     "deadline": 10,
-    "partition": 10,
+    "partitions": [10],
     "chain_commit_block": 1,
     "proof": {
         "post_proof": "2KiB",
@@ -265,7 +265,7 @@ The `deadline` parameter specificies the deadline where to find the respective `
 [
     {
         "deadline": 0,
-        "partition": 0,
+        "partitions": 0,
         "sectors": [
             0
         ]

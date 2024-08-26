@@ -347,10 +347,10 @@ parameter_types! {
     pub const MaxSectorExpirationExtension: BlockNumber = 60 * MINUTES;
     pub const SectorMaximumLifetime: BlockNumber = 120 * MINUTES;
     pub const MaxProveCommitDuration: BlockNumber = 5 * MINUTES;
-    pub const WPoStPeriodDeadlines: u64 = 48;
+    pub const WPoStPeriodDeadlines: u64 = 2;
     pub const MaxPartitionsPerDeadline: u64 = 3000;
     pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
-    pub const FaultDeclarationCutoff: BlockNumber = 2 * MINUTES;
+    pub const FaultDeclarationCutoff: BlockNumber = 1 * MINUTES;
 
     // Market Pallet
     pub const MinDealDuration: u64 = 5 * MINUTES;

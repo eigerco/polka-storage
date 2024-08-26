@@ -3,7 +3,10 @@ use std::{fmt::Debug, path::PathBuf, str::FromStr};
 
 use cid::Cid;
 use primitives_proofs::{DealId, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
-use storagext::{BlockNumber, Currency, IntoBoundedByteVec, PolkaStorageConfig};
+use storagext::{
+    runtime::runtime_types::bounded_collections::bounded_vec, BlockNumber, Currency,
+    IntoBoundedByteVec, PolkaStorageConfig,
+};
 
 pub(crate) trait ParseablePath: serde::de::DeserializeOwned {
     fn parse_json(src: &str) -> Result<Self, anyhow::Error> {
@@ -145,7 +148,7 @@ impl Into<storagext::PoStProof> for PoStProof {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
 pub(crate) struct SubmitWindowedPoStParams {
     pub deadline: u64,
-    pub partition: u32,
+    pub partitions: Vec<u32>,
     pub proof: PoStProof,
 }
 
@@ -153,7 +156,7 @@ impl Into<storagext::SubmitWindowedPoStParams> for SubmitWindowedPoStParams {
     fn into(self) -> storagext::SubmitWindowedPoStParams {
         storagext::SubmitWindowedPoStParams {
             deadline: self.deadline,
-            partition: self.partition,
+            partitions: bounded_vec::BoundedVec(self.partitions),
             proof: self.proof.into(),
         }
     }
@@ -306,7 +309,7 @@ mod test {
         let proof = serde_json::from_str::<SubmitWindowedPoStParams>(
             r#"{
                 "deadline": 10,
-                "partition": 10,
+                "partitions": [10],
                 "proof": {
                     "post_proof": "2KiB",
                     "proof_bytes": "1234567890"
@@ -318,7 +321,7 @@ mod test {
             proof,
             SubmitWindowedPoStParams {
                 deadline: 10,
-                partition: 10,
+                partitions: vec![10],
                 proof: PoStProof {
                     post_proof: RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
                     proof_bytes: vec![0x12u8, 0x34, 0x56, 0x78, 0x90]
