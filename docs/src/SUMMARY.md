@@ -4,7 +4,7 @@
 - [Getting Started](./getting-started/index.md)
   - [Local Testnet - Polka Storage Parachain](./getting-started/local-testnet.md)
   - [CAR server](./getting-started/car-server.md)
-  - [Real-world scenario demo](./getting-started/demo.md)
+  - [Real-world use case demo](./getting-started/demo.md)
 - [Polka Storage Provider CLI](./storage-provider-cli/index.md)
   - [`storage`](./storage-provider-cli/storage.md)
   - [`wallet`](./storage-provider-cli/wallet.md)

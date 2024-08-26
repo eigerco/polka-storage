@@ -265,7 +265,7 @@ The `deadline` parameter specificies the deadline where to find the respective `
 [
     {
         "deadline": 0,
-        "partitions": 0,
+        "partition": 0,
         "sectors": [
             0
         ]
