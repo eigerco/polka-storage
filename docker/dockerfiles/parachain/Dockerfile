@@ -25,7 +25,8 @@ COPY --from=planner /app/rust-toolchain.toml rust-toolchain.toml
 RUN cargo chef cook --release --recipe-path recipe.json
 # Build application
 COPY . .
-RUN cargo build --release -p polka-storage-node
+RUN cargo build --release --features polka-storage-runtime/testnet -p polka-storage-node
+RUN cargo build --release --features storagext/insecure_url -p storagext-cli
 
 FROM debian:bookworm-slim AS runtime
 
@@ -38,20 +39,21 @@ ENV RUST_BACKTRACE=1
 USER root
 
 COPY --from=builder /app/target/release/polka-storage-node /usr/local/bin
+COPY --from=builder /app/target/release/storagext-cli /usr/local/bin
 RUN chmod -R a+rx "/usr/local/bin"
 
-RUN useradd -m -u 1000 -U -s /bin/sh -d /eiger eiger 
+RUN useradd -m -u 1000 -U -s /bin/sh -d /eiger eiger
 USER eiger
 # check if executable works in this container
 RUN /usr/local/bin/polka-storage-node --version
 
-# 30333 for parachain p2p 
-# 30334 for relaychain p2p 
+# 30333 for parachain p2p
+# 30334 for relaychain p2p
 # 9933 for RPC port
 # 9944 for Websocket
 # 9615 for Prometheus (metrics)
 
-EXPOSE 30333 30334 9933 9944 9615 
+EXPOSE 30333 30334 9933 9944 9615
 # mount-point for saving state of the parachain (not required for ZombieNet)
 VOLUME ["/eiger"]
 LABEL co.eiger.image.authors="releases@eiger.co" \
