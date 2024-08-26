@@ -11,7 +11,12 @@ this is our deliverable for Phase 1, composed of:
   - [Storage Provider](./pallets/storage-provider.md) — not including proving mechanisms
   - [Market](./pallets/market.md)
 - [CAR file conversion server](./storage-provider-cli/storage.md)
-- Decicated CLI to take the parachain for a spin <!-- TODO(@jmg-duarte,#243,22/08/24): add storagext CLI -->
+- [Dedicated CLI](./storage-provider-cli/index.md) to take the parachain for a spin, as shown below!
+<p>
+    <img
+        src="images/showcase/cli_basic.gif"
+        alt="Polka Storage CLI tooling showcase">
+</p>
 
 You can read more about it in:
 
