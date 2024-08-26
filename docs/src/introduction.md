@@ -14,7 +14,7 @@ this is our deliverable for Phase 1, composed of:
 - Dedicated CLI to take the parachain for a spin, as shown below!
 <p>
     <img
-        src="images/showcase/showcase.gif"
+        src="images/showcase/cli_basic.gif"
         alt="Polka Storage CLI tooling showcase">
 </p>
 
@@ -24,8 +24,6 @@ You can read more about it in:
 - OpenGov Referendum — <https://polkadot.polkassembly.io/referenda/494>
 - Research Report — <https://github.com/eigerco/polkadot-native-storage/blob/main/doc/report/polkadot-native-storage-v1.0.0.pdf>
 - Polkadot Forum News Post — <https://forum.polkadot.network/t/polkadot-native-storage/4551>
-
-Decicated CLI to take the parachain for a spin, as shown below!
 
 ---
 

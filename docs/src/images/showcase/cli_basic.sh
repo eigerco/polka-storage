@@ -1,3 +1,11 @@
+# This script demonstrates the basic workflow of a storage provider. It is used
+# by the asciinema_automation to automate the video session. It includes
+# registering a provider, adding balances, publishing storage deals,
+# pre-committing sectors, and proving commitments. It uses the storagext-cli
+# tool to interact with the network.
+
+# The script expecs the storagext-cli tool to be in the current directory.
+
 # mean of gaussian delay between key strokes, default to 50ms
 #$ delay 20
 
