@@ -13,6 +13,7 @@
     - [`publish_storage_deals`](#publish_storage_deals)
   - [Events](#events)
   - [Errors](#errors)
+  - [Constants](#constants)
 
 ## Overview
 
@@ -232,3 +233,12 @@ The Market Pallet actions can fail with following errors:
 - `TooManyDealsPerBlock` - Tried to activate too many deals at a given `start_block`.
 - `UnexpectedValidationError` - `publish_storage_deals`'s core logic was invoked with a broken invariant that should be called by `validate_deals`. Report an issue if you receive this error.
 - `DealPreconditionFailed` - Due to a programmer bug. Report an issue if you receive this error.
+
+## Constants
+
+| Name               | Description                                                                   | Value       |
+| ------------------ | ----------------------------------------------------------------------------- | ----------- |
+| `MaxDeals`         | How many deals can be published in a single batch of `publish_storage_deals`. | 128         |
+| `MaxDealsPerBlock` | Maximum deals that can be scheduled to start at the same block.               | 128         |
+| `MinDealDuration`  | Minimum time an activated deal should last.                                   | 5 Minutes   |
+| `MaxDealDuration`  | Maximum time an activated deal should last.                                   | 180 Minutes |
