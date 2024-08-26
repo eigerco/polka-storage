@@ -3,7 +3,7 @@ use thiserror::Error;
 use url::Url;
 
 use crate::{
-    commands::{InfoCommand, InitCommand, RunCommand, StorageCommand, WalletCommand},
+    commands::StorageCommand,
     rpc::{server::RPC_SERVER_DEFAULT_BIND_ADDR, ClientError},
 };
 
@@ -23,17 +23,17 @@ pub(crate) struct Cli {
 /// Supported sub-commands.
 #[derive(Debug, clap::Subcommand)]
 pub enum SubCommand {
-    /// Initialize the polka storage provider
-    Init(InitCommand),
-    /// Start a polka storage provider
-    Run(RunCommand),
+    // /// Initialize the polka storage provider
+    // Init(InitCommand),
+    // /// Start a polka storage provider
+    // Run(RunCommand),
     /// Command to start storage server.
     Storage(StorageCommand),
-    /// Info command to display information about the storage provider.
-    Info(InfoCommand),
-    /// Command to manage wallet operations.
-    #[command(subcommand)]
-    Wallet(WalletCommand),
+    // /// Info command to display information about the storage provider.
+    // Info(InfoCommand),
+    // /// Command to manage wallet operations.
+    // #[command(subcommand)]
+    // Wallet(WalletCommand),
 }
 
 /// CLI components error handling implementor.
