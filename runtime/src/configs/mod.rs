@@ -333,9 +333,8 @@ parameter_types! {
     // Market Pallet
     /// Deal duration values copied from FileCoin.
     /// <https://github.com/filecoin-project/builtin-actors/blob/c32c97229931636e3097d92cf4c43ac36a7b4b47/actors/market/src/policy.rs#L28>
-    pub const TimeUnitInBlocks: u64 = DAYS;
-    pub const MinDealDuration: u64 = 20;
-    pub const MaxDealDuration: u64 = 1278;
+    pub const MinDealDuration: u64 = 20 * DAYS;
+    pub const MaxDealDuration: u64 = 1278 * DAYS;
 }
 
 #[cfg(feature = "testnet")]
@@ -354,9 +353,8 @@ parameter_types! {
     pub const FaultDeclarationCutoff: BlockNumber = 2 * MINUTES;
 
     // Market Pallet
-    pub const TimeUnitInBlocks: u64 = MINUTES;
-    pub const MinDealDuration: u64 = 5;
-    pub const MaxDealDuration: u64 = 180;
+    pub const MinDealDuration: u64 = 5 * MINUTES;
+    pub const MaxDealDuration: u64 = 180 * MINUTES;
 }
 
 impl pallet_storage_provider::Config for Runtime {
@@ -392,7 +390,6 @@ impl pallet_market::Config for Runtime {
     type OffchainPublic = AccountPublic;
     type MaxDeals = ConstU32<128>;
     type MaxDealsPerBlock = ConstU32<128>;
-    type TimeUnitInBlocks = TimeUnitInBlocks;
     type MinDealDuration = MinDealDuration;
     type MaxDealDuration = MaxDealDuration;
 }

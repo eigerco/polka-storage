@@ -85,7 +85,6 @@ impl pallet_market::Config for Test {
     type OffchainPublic = AccountPublic;
     type MaxDeals = ConstU32<500>;
 
-    type TimeUnitInBlocks = TimeUnitInBlocks;
     type MinDealDuration = MinDealDuration;
     type MaxDealDuration = MaxDealDuration;
     type MaxDealsPerBlock = ConstU32<500>;
@@ -106,7 +105,6 @@ parameter_types! {
     pub const FaultDeclarationCutoff: BlockNumber = 2 * MINUTES;
 
     // Market Pallet
-    pub const TimeUnitInBlocks: u64 = MINUTES;
     pub const MinDealDuration: u64 = 2 * MINUTES;
     pub const MaxDealDuration: u64 = 30 * MINUTES;
 }
