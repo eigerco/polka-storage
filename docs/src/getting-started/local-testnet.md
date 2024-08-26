@@ -15,6 +15,7 @@ We support `Linux x86_64` and `MacOS ARM x64`. The commands below will download:
 
 ### Linux x86_64
 
+1. Download the binaries:
 ```bash
 wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-v1.13.0/polkadot
 wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-v1.13.0/polkadot-prepare-worker
@@ -23,7 +24,15 @@ wget https://s3.eu-central-1.amazonaws.com/polka-storage/linux_x86-64/polka-stor
 wget https://s3.eu-central-1.amazonaws.com/polka-storage/linux_x86-64/polka-storage-provider
 wget https://s3.eu-central-1.amazonaws.com/polka-storage/linux_x86-64/storagext-cli
 wget https://github.com/paritytech/zombienet/releases/download/v1.3.106/zombienet-linux-x64 -O zombienet
+```
+
+2. Setup permissions:
+```bash
 chmod +x zombienet polka-storage-node polka-storage-provider storagext-cli polkadot polkadot-prepare-worker polkadot-execute-worker
+```
+
+3. Run `zombienet`:
+```bash
 export PATH=$(pwd):$PATH
 
 wget https://s3.eu-central-1.amazonaws.com/polka-storage/polka-storage-testnet.toml
@@ -32,6 +41,7 @@ zombienet -p native spawn polka-storage-testnet.toml
 
 ### MacOS ARM
 
+1. Download the binaries:
 ```bash
 wget https://s3.eu-central-1.amazonaws.com/polka-storage/macos_arm/polkadot
 wget https://s3.eu-central-1.amazonaws.com/polka-storage/macos_arm/polkadot-prepare-worker
@@ -40,8 +50,16 @@ wget https://s3.eu-central-1.amazonaws.com/polka-storage/macos_arm/polka-storage
 wget https://s3.eu-central-1.amazonaws.com/polka-storage/macos_arm/polka-storage-provider
 wget https://s3.eu-central-1.amazonaws.com/polka-storage/macos_arm/storagext-cli
 wget https://github.com/paritytech/zombienet/releases/download/v1.3.106/zombienet-macos-arm64 -O zombienet
+```
+
+2. Setup permissions & de-quarantine:
+```bash
 chmod +x zombienet polka-storage-node polka-storage-provider storagext-cli polkadot polkadot-prepare-worker polkadot-execute-worker
 xattr -d com.apple.quarantine zombienet polka-storage-node polka-storage-provider storagext-cli polkadot polkadot-prepare-worker polkadot-execute-worker
+```
+
+3. Run `zombienet`:
+```bash
 export PATH=$(pwd):$PATH
 
 wget https://s3.eu-central-1.amazonaws.com/polka-storage/polka-storage-testnet.toml
@@ -50,9 +68,17 @@ zombienet -p native spawn polka-storage-testnet.toml
 
 
 You can easily access the parachain using the Polkadot.js Apps interface by clicking on this link:
-[https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A42069#/explorer](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A42069#/explorer)
-Or you can interact with the chain via [`storagext-cli`](../storagext-cli/index.md).
-Example:
+<https://polkadot.js.org/apps/?rpc=ws://127.0.0.1:42069#/explorer>
+
+Where you should be greeted by a page like so:
+<p>
+  <a href="https://polkadot.js.org/apps/?rpc=ws://127.0.0.1:42069#/explorer">
+    <img src="../images/polkadot_substrate_portal.png" alt="Polkadot/Subtrate Portal">
+  </a>
+</p>
+
+Or you can interact with the chain via [`storagext-cli`](../storagext-cli/index.md), for example:
+
 ```bash
 storagext-cli --sr25519-key "//Alice" storage-provider register Alice
 ```

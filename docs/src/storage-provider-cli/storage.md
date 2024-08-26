@@ -1,4 +1,4 @@
-# Subcommand `storage`
+# The `storage` command
 
 The `storage` command launches a server able to convert files into CAR files.
 It has two parameters that you can customize:

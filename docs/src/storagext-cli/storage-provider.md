@@ -1,9 +1,9 @@
-# Subcommand `storage-provider`
+# The `storage-provider` command
 
 Under the `storage-provider` subcommand you will find the [Storage Provider](../pallets/storage-provider.md) related extrinsics, in this chapter, we cover the provided commands and how to use them.
 
 <div class="warning">
-If you haven't done so before, you should read the `storagext-cli` getting started page,
+If you haven't done so before, you should read the <a href="./index.md"><code>storagext-cli</code> getting started</a> page,
 which covers the basic flags necessary to operate the CLI.
 </div>
 
