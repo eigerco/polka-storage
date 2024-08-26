@@ -11,7 +11,7 @@ this is our deliverable for Phase 1, composed of:
   - [Storage Provider](./pallets/storage-provider.md) — not including proving mechanisms
   - [Market](./pallets/market.md)
 - [CAR file conversion server](./storage-provider-cli/storage.md)
-- Decicated CLI to take the parachain for a spin, as shown below!
+- Dedicated CLI to take the parachain for a spin, as shown below!
 <p>
     <img
         src="images/showcase/showcase.gif"
