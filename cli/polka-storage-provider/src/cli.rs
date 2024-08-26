@@ -3,7 +3,7 @@ use thiserror::Error;
 use url::Url;
 
 use crate::{
-    commands::StorageCommand,
+    commands::{StorageCommand, WalletCommand},
     rpc::{server::RPC_SERVER_DEFAULT_BIND_ADDR, ClientError},
 };
 
@@ -31,9 +31,9 @@ pub enum SubCommand {
     Storage(StorageCommand),
     // /// Info command to display information about the storage provider.
     // Info(InfoCommand),
-    // /// Command to manage wallet operations.
-    // #[command(subcommand)]
-    // Wallet(WalletCommand),
+    /// Command to manage wallet operations.
+    #[command(subcommand)]
+    Wallet(WalletCommand),
 }
 
 /// CLI components error handling implementor.
