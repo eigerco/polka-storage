@@ -4,6 +4,15 @@ This guide will help you to setup a local parachain network using zombienet. At 
 
 ## Native Binaries
 
+You can download our latest releases's binaries directly and run them on your machine without additional dependencies.
+We support `Linux x86_64` and `MacOS ARM x64`. The commands below will download:
+- [Relay Chain](https://github.com/paritytech/polkadot-sdk/releases) binaries (`polkadot`, `polkadot-prepare-worker`, `polkadot-execute-worker`),
+- Polka Storage Parachain binary (`polka-storage-node`),
+- [Polka Storage Provider](../storage-provider-cli/index.md) internal node (`polka-storage-provider`),
+- [CLI for interacting with the parachain](../storagext-cli/) (`storagext-cli`),
+- [zombienet](https://paritytech.github.io/zombienet/install.html) to spawn local testnets and orchestrate them (`zombienet`),
+- Polka Storage Parachain out-of-the-box zombienet's configuration (`polka-storage-testnet.toml`).
+
 ### Linux x86_64
 
 ```bash
