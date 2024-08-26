@@ -4,6 +4,12 @@ Welcome to the Polka Storage project!
 
 This project's goal is to deliver a Polkadot-native system parachain for data storage.
 
+<p>
+    <img
+        src="images/showcase/showcase.gif"
+        alt="Eiger Oy">
+</p>
+
 Since the Referendum approval we've been busy developing the parachain,
 this is our deliverable for Phase 1, composed of:
 
