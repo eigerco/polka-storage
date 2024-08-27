@@ -1,7 +1,7 @@
 use anyhow::bail;
 use clap::Subcommand;
 use primitives_proofs::RegisteredPoStProof;
-use storagext::{clients::StorageProviderClient, FaultDeclaration, RecoveryDeclaration};
+use storagext::{clients::StorageProviderClient, runtime, FaultDeclaration, RecoveryDeclaration};
 use url::Url;
 
 use crate::{
@@ -90,60 +90,112 @@ impl StorageProviderCommand {
                 peer_id,
                 post_proof,
             } => {
-                let block_hash = client
+                let submission_result = client
                     .register_storage_provider(&account_keypair, peer_id.clone(), post_proof)
                     .await?;
                 tracing::info!(
                     "[{}] Successfully registered {}, seal: {:?} in Storage Provider Pallet",
-                    block_hash,
+                    submission_result.hash,
                     peer_id,
                     post_proof
                 );
+
+                for event in submission_result
+                    .events
+                    .find::<runtime::storage_provider::events::StorageProviderRegistered>()
+                {
+                    let event = event?;
+                    println!(
+                        "[{}] Storage provider registered: {:?}",
+                        submission_result.hash, event
+                    );
+                }
             }
             StorageProviderCommand::PreCommit { pre_commit_sector } => {
                 let sector_number = pre_commit_sector.sector_number;
-                let block_hash = client
+                let submission_result = client
                     .pre_commit_sector(&account_keypair, pre_commit_sector.into())
                     .await?;
-
                 tracing::info!(
                     "[{}] Successfully pre-commited sector {}.",
-                    block_hash,
+                    submission_result.hash,
                     sector_number
                 );
+
+                for event in submission_result
+                    .events
+                    .find::<runtime::storage_provider::events::SectorPreCommitted>()
+                {
+                    let event = event?;
+                    println!(
+                        "[{}] Sector pre-commited: {:?}",
+                        submission_result.hash, event
+                    );
+                }
             }
             StorageProviderCommand::ProveCommit {
                 prove_commit_sector,
             } => {
                 let sector_number = prove_commit_sector.sector_number;
-                let block_hash = client
+                let submission_result = client
                     .prove_commit_sector(&account_keypair, prove_commit_sector.into())
                     .await?;
-
                 tracing::info!(
                     "[{}] Successfully proven sector {}.",
-                    block_hash,
+                    submission_result.hash,
                     sector_number
                 );
+
+                for event in submission_result
+                    .events
+                    .find::<runtime::storage_provider::events::SectorProven>()
+                {
+                    let event = event?;
+                    println!("[{}] Sector proven: {:?}", submission_result.hash, event);
+                }
             }
             StorageProviderCommand::SubmitWindowedProofOfSpaceTime { windowed_post } => {
-                let block_hash = client
+                let submission_result = client
                     .submit_windowed_post(&account_keypair, windowed_post.into())
                     .await?;
+                tracing::info!("[{}] Successfully submitted proof.", submission_result.hash);
 
-                tracing::info!("[{}] Successfully submitted proof.", block_hash);
+                for event in submission_result
+                    .events
+                    .find::<runtime::storage_provider::events::ValidPoStSubmitted>()
+                {
+                    let event = event?;
+                    println!(
+                        "[{}] Valid PoSt submitted: {:?}",
+                        submission_result.hash, event
+                    );
+                }
             }
             StorageProviderCommand::DeclareFaults { faults } => {
-                let block_hash = client.declare_faults(&account_keypair, faults).await?;
+                let submission_result = client.declare_faults(&account_keypair, faults).await?;
+                tracing::info!("[{}] Successfully declared faults.", submission_result.hash);
 
-                tracing::info!("[{}] Successfully declared faults.", block_hash);
+                for event in submission_result
+                    .events
+                    .find::<runtime::storage_provider::events::FaultsDeclared>()
+                {
+                    let event = event?;
+                    println!("[{}] Faults declared: {:?}", submission_result.hash, event);
+                }
             }
             StorageProviderCommand::DeclareFaultsRecovered { recoveries } => {
-                let block_hash = client
+                let submission_result = client
                     .declare_faults_recovered(&account_keypair, recoveries)
                     .await?;
+                tracing::info!("[{}] Successfully declared faults.", submission_result.hash);
 
-                tracing::info!("[{}] Successfully declared faults.", block_hash);
+                for event in submission_result
+                    .events
+                    .find::<runtime::storage_provider::events::FaultsRecovered>()
+                {
+                    let event = event?;
+                    println!("[{}] Faults recovered: {:?}", submission_result.hash, event);
+                }
             }
         }
         Ok(())
