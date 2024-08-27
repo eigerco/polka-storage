@@ -10,7 +10,27 @@ Charlie heard that he can provide storage to people around the world and earn so
 
 ```bash
 $ storagext-cli --sr25519-key "//Charlie" storage-provider register Charlie
-2024-08-26T14:18:44.280186Z  INFO run{address="5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y"}: storagext_cli::cmd::storage_provider: [0x9a07…aaec] Successfully registered Charlie, seal: StackedDRGWindow2KiBV1P1 in Storage Provider Pallet
+[...]
+[0xf4af…591e] Storage provider registered: StorageProviderRegistered {
+[...]
+    info: StorageProviderInfo {
+        peer_id: BoundedVec(
+            [
+                67,
+                104,
+                97,
+                114,
+                108,
+                105,
+                101,
+            ],
+        ),
+        window_post_proof_type: StackedDRGWindow2KiBV1P1,
+        sector_size: _2KiB,
+        window_post_partition_sectors: 2,
+    },
+    proving_period_start: 21,
+}
 ```
 
 <img src="../images/demo/registered-charlie.PNG">
@@ -59,13 +79,28 @@ So here they go:
 ```bash
 # Adding balance to Alice's account
 $ storagext-cli --sr25519-key "//Alice" market add-balance 25000000000
-2024-08-26T13:08:27.090149Z  INFO run{address="5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"}: storagext_cli::cmd::market: [0x034f…b800] Successfully added 25000000000 to Market Balance
+[0x4117…1eaa] Balance added: BalanceAdded {
+[...]
+    amount: 25000000000,
+}
 # Adding balance to Charlie's account
 $ storagext-cli --sr25519-key "//Charlie" market add-balance 12500000000
-2024-08-26T13:09:51.130294Z  INFO run{address="5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y"}: storagext_cli::cmd::market: [0xdd8e…18f2] Successfully added 12500000000 to Market Balance
+[0x3d2d…94b5] Balance added: BalanceAdded {
+[...]
+    amount: 12500000000,
+}
 # Publishing their deal
 $ storagext-cli --sr25519-key  "//Charlie" market publish-storage-deals --client-sr25519-key  "//Alice" "@husky-deal.json"
-2024-08-26T13:10:21.260228Z  INFO run{address="5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y"}: storagext_cli::cmd::market: [0xd547…161d] Successfully published storage deals
+[...]
+[0xc2b3…a5d1] Deal published: DealPublished {
+    deal_id: 0,
+    client: AccountId32(
+        [...],
+    ),
+    provider: AccountId32(
+        [...],
+    ),
+}
 ```
 
 [^no-cid]: We have not provided a standalone command to generate CID out of file. The CAR server is a temporary showcase component.
@@ -111,9 +146,47 @@ So it's better he does his part!
 
 ```bash
 $ storagext-cli --sr25519-key "//Charlie" storage-provider pre-commit "@pre-commit-husky.json"
-2024-08-26T14:34:41.710197Z  INFO run{address="5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y"}: storagext_cli::cmd::storage_provider: [0x28ef…801e] Successfully pre-commited sector 1.
+[0xa7dc…ac7e] Sector pre-commited: SectorPreCommitted {
+    owner: AccountId32(
+        [
+            144,
+            [..]
+        ],
+    ),
+    sector: SectorPreCommitInfo {
+        seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
+        sector_number: 1,
+        sealed_cid: BoundedVec(
+            [
+                1,
+                85,
+                [..]
+            ],
+        ),
+        deal_ids: BoundedVec(
+            [
+                0,
+            ],
+        ),
+        expiration: 75,
+        unsealed_cid: BoundedVec(
+            [
+                1,
+                85,
+                160,
+                228,
+                [...]
+            ],
+        ),
+    },
+}
 $ storagext-cli --sr25519-key "//Charlie" storage-provider prove-commit "@prove-commit-husky.json"
-2024-08-26T14:36:41.780309Z  INFO run{address="5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y"}: storagext_cli::cmd::storage_provider: [0xbef5…a305] Successfully proven sector 1.
+[0xca4e…afd8] Sector proven: SectorProven {
+    [...]
+    sector_number: 1,
+    partition_number: 0,
+    deadline_idx: 0,
+}
 ```
 
 <img src="../images/demo/proven.PNG">
@@ -126,7 +199,7 @@ $ storagext-cli --sr25519-key "//Charlie" storage-provider prove-commit "@prove-
 
 There is a little something that Charlie needs to know about, and those are deadlines *(don't we all...)*.
 Each Storage Provider has a Proving Period, it's some time divided in segments (deadlines).
-To simplify, let's say a proving period lasts a day (24 hours) and between start end and of each hour there is a segment.
+To simplify, let's say a proving period lasts a day (24 hours) and the between start and end of each hour there is a segment
 Just like on a clock.
 Now, when Charlie gathers enough data and stores it in a sector, he needs to keep proving that he has some data.
 Charlie can have multiple sectors and he doesn't want to overload the system with proving all of them at the same time.
@@ -150,12 +223,12 @@ From now on, the sector will need to be proven during this lifetime, periodicall
 ```
 
 
-| Name          | Value        | Description                                                                   |
-| ------------- | ------------ | ----------------------------------------------------------------------------- |
-| `deadline`    | `0`          | the deadline index which has been assigned by Prove Commit                    |
-| `partitions`  | [0]          | the partitions which has been assigned by Prove Commit                        |
-| `post_proof`  | "2KiB"       | we only support sectors of size 2KiB for now, so it's the only possible value |
-| `proof_bytes` | 1230deadbeef | hex string of bytes of the proof, it's WIP, so any non-zero value works       |
+| Name          | Value            | Description                                                                   |
+| ------------- | ---------------- | ----------------------------------------------------------------------------- |
+| `deadline`    | `0`              | the deadline index which has been assigned by Prove Commit                    |
+| `partitions`  | `[0]`            | the partitions which has been assigned by Prove Commit                        |
+| `post_proof`  | "2KiB"           | we only support sectors of size 2KiB for now, so it's the only possible value |
+| `proof_bytes` | `0x1230deadbeef` | hex string of bytes of the proof, it's WIP, so any non-zero value works       |
 
 Now that the sector has been proven, Charlie needs to keep confirming that he stores the data.
 Charlie's proving period starts at block `21` (as `register-storage-provider` tells us) so the first deadline is between blocks `[21, 31)`, second `[31, 41)`.
@@ -164,7 +237,11 @@ Charlie got assigned the first deadline, so he waits until the block `21`, to se
 
 ```bash
 $ storagext-cli --sr25519-key "//Charlie" storage-provider submit-windowed-post "@windowed-post.json"
-2024-08-26T15:30:14.720225Z  INFO run{address="5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y"}: storagext_cli::cmd::storage_provider: [0xa233…1f9d] Successfully submitted proof.
+[0xbe11…230d] Valid PoSt submitted: ValidPoStSubmitted {
+    owner: AccountId32(
+        [...],
+    ),
+}
 ```
 
 <img src="../images/demo/post-submitted.PNG">
@@ -186,7 +263,24 @@ He knows that he won't be able to create a proof, as his hard drives went down, 
 
 ```bash
 $ storagext-cli --sr25519-key "//Charlie" storage-provider declare-faults "@fault-declaration.json"
-2024-08-27T09:30:05.860278Z  INFO run{address="5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y"}: storagext_cli::cmd::storage_provider: [0xbda5…a61f] Successfully declared faults.
+[0xff68…dd48] Faults declared: FaultsDeclared {
+    owner: AccountId32(
+        [...]
+    ),
+    faults: BoundedVec(
+        [
+            FaultDeclaration {
+                deadline: 0,
+                partition: 0,
+                sectors: BoundedBTreeSet(
+                    [
+                        1,
+                    ],
+                ),
+            },
+        ],
+    ),
+}
 ```
 
 <img src="../images/demo/faults-declared.PNG">
@@ -202,20 +296,23 @@ Caused by:
     Pallet error: StorageProvider::FaultRecoveryTooLate
 ```
 
-<!-- it doesn't work until: #281 is fixed -->
 
 If he does it at least a minute before, it succeeds:
 
+<!-- it doesn't work until: #281 is fixed -->
 ```bash
 $ storagext-cli --sr25519-key "//Charlie" storage-provider declare-faults-recovered "@fault-declaration.json"
-2024-08-27T09:31:05.860278Z  INFO run{address="5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y"}: storagext_cli::cmd::storage_provider: [0xbda5…a61f] Successfully declared faults.
 ```
 
 And then, at the next deadline, in the next proving period `[41, 51)` he needs to remember to submit windowed PoSt again.
 
 ```bash
 $ storagext-cli --sr25519-key "//Charlie" storage-provider submit-windowed-post "@windowed-post.json"
-2024-08-27T09:32:05.860278Z INFO run{address="5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y"}: storagext_cli::cmd::storage_provider: [0xa233…1f9d] Successfully submitted proof.
+[0xbe11…230d] Valid PoSt submitted: ValidPoStSubmitted {
+    owner: AccountId32(
+        [...],
+    ),
+}
 ```
 
 ## 4. Reaping the rewards
@@ -224,9 +321,7 @@ After the deal has ended (after block 75), Charlie goes to get his rewards!
 First he settles all of the locked funds, so his balance gets unlocked and then he withdraw balance to use his DOTs for a new shiny dumbbell.
 
 <!-- it ain't working yet, probably until: #278 is done -->
-
 ```bash
 $ storagext-cli --sr25519-key "//Charlie" market settle-deal-payments 0
-2024-08-26T15:33:26.820285Z  INFO run{address="5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y"}: storagext_cli::cmd::market: [0x9aa4…dcdd] Successfully settled deal payments
 $ storagext-cli --sr25519-key "//Charlie" market withdraw-balance 37500000000
 ```
