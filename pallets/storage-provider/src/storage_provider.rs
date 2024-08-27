@@ -223,6 +223,7 @@ where
             }
         }
 
+        // Assign sectors to deadlines.
         let deadline_to_sectors = assign_deadlines(
             max_partitions_per_deadline,
             partition_size,
@@ -230,7 +231,8 @@ where
             &sectors,
             w_post_period_deadlines,
         )?;
-        for (deadline_idx, deadline_sectors) in deadline_to_sectors.enumerate() {
+
+        for (deadline_idx, deadline_sectors) in deadline_to_sectors.iter().enumerate() {
             if deadline_sectors.is_empty() {
                 continue;
             }
@@ -242,9 +244,10 @@ where
                         DeadlineError::CouldNotAssignSectorsToDeadlines,
                     ))?;
 
-            deadline.add_sectors(partition_size, &deadline_sectors)?;
+            deadline.add_sectors(partition_size, deadline_sectors)?;
             self.deadlines.due[deadline_idx] = deadline.clone();
         }
+
         Ok(())
     }
 

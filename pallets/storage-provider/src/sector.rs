@@ -29,7 +29,7 @@ pub struct SectorPreCommitInfo<BlockNumber> {
 }
 
 /// Information stored on-chain for a pre-committed sector.
-#[derive(RuntimeDebug, Decode, Encode, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Decode, Encode, TypeInfo)]
 pub struct SectorPreCommitOnChainInfo<Balance, BlockNumber> {
     pub info: SectorPreCommitInfo<BlockNumber>,
     /// Total collateral for this sector

@@ -67,7 +67,9 @@ fn successfully_prove_sector() {
                 }),
                 RuntimeEvent::StorageProvider(Event::<Test>::SectorProven {
                     owner: account(storage_provider),
-                    sector_number: sector_number
+                    sector_number: sector_number,
+                    deadline_idx: 0,
+                    partition_number: 0,
                 })
             ]
         );

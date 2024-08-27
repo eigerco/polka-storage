@@ -241,6 +241,8 @@ pub mod pallet {
         SectorProven {
             owner: T::AccountId,
             sector_number: SectorNumber,
+            partition_number: PartitionNumber,
+            deadline_idx: u64,
         },
         /// Emitted when a sector was pre-committed, but not proven, so it got slashed in the pre-commit hook.
         SectorSlashed {
@@ -465,14 +467,17 @@ pub mod pallet {
             sector: ProveCommitSector,
         ) -> DispatchResult {
             let owner = ensure_signed(origin)?;
-            let sp = StorageProviders::<T>::try_get(&owner)
+            let mut sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
             let sector_number = sector.sector_number;
+
             ensure!(
                 sector_number <= MAX_SECTORS.into(),
                 Error::<T>::InvalidSector
             );
 
+            // Get pre-committed sector. This is the sector we are currently
+            // proving.
             let precommit = sp
                 .get_pre_committed_sector(sector_number)
                 .map_err(|e| Error::<T>::StorageProviderError(e))?;
@@ -488,59 +493,78 @@ pub mod pallet {
                 Error::<T>::InvalidProofType,
             );
 
+            // Sector deals that will be activated after the sector is
+            // successfully proven.
+            let mut sector_deals = BoundedVec::new();
+            sector_deals
+                .try_push(precommit.into())
+                .map_err(|_| Error::<T>::CouldNotActivateSector)?;
+            let deal_amount = sector_deals.len();
+            // Activate the deals for the sector that will be proven. This
+            // action is not applied if Err is returned from the extrinsic.
+            T::Market::activate_deals(&owner, sector_deals, deal_amount > 0)?;
+
             // Sector that will be activated and required to be periodically
             // proven
             let new_sector =
                 SectorOnChainInfo::from_pre_commit(precommit.info.clone(), current_block);
 
-            // Mutate the storage provider state
-            StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResult {
-                let sp = maybe_sp
-                    .as_mut()
-                    .ok_or(Error::<T>::StorageProviderNotFound)?;
-
-                // Activate the sector
-                sp.activate_sector(sector_number, new_sector.clone())
-                    .map_err(|e| Error::<T>::StorageProviderError(e))?;
-
-                // Sectors which will be assigned to the deadlines
-                let mut new_sectors = BoundedVec::new();
-                new_sectors
-                    .try_push(new_sector)
-                    .expect("Infallible since only 1 element is inserted");
-
-                // Assign sectors to deadlines which specify when sectors needs
-                // to be proven
-                sp.assign_sectors_to_deadlines(
-                    current_block,
-                    new_sectors,
-                    sp.info.window_post_partition_sectors,
-                    T::MaxPartitionsPerDeadline::get(),
-                    T::WPoStPeriodDeadlines::get(),
-                    T::WPoStProvingPeriod::get(),
-                    T::WPoStChallengeWindow::get(),
-                    T::WPoStChallengeLookBack::get(),
-                    T::FaultDeclarationCutoff::get(),
-                )
+            // Activate the sector
+            sp.activate_sector(sector_number, new_sector.clone())
                 .map_err(|e| Error::<T>::StorageProviderError(e))?;
 
-                // Remove sector from the pre-committed map
-                sp.remove_pre_committed_sector(sector_number)
-                    .map_err(|e| Error::<T>::StorageProviderError(e))?;
-                Ok(())
-            })?;
+            // Sectors which will be assigned to the deadlines
+            let mut new_sectors = BoundedVec::new();
+            new_sectors
+                .try_push(new_sector)
+                .expect("Infallible since only 1 element is inserted");
 
-            let mut sector_deals = BoundedVec::new();
-            sector_deals
-                .try_push(precommit.into())
-                .map_err(|_| Error::<T>::CouldNotActivateSector)?;
+            // Assign sectors to deadlines which specify when sectors needs
+            // to be proven
+            sp.assign_sectors_to_deadlines(
+                current_block,
+                new_sectors,
+                sp.info.window_post_partition_sectors,
+                T::MaxPartitionsPerDeadline::get(),
+                T::WPoStPeriodDeadlines::get(),
+                T::WPoStProvingPeriod::get(),
+                T::WPoStChallengeWindow::get(),
+                T::WPoStChallengeLookBack::get(),
+                T::FaultDeclarationCutoff::get(),
+            )
+            .map_err(|e| Error::<T>::StorageProviderError(e))?;
 
-            let deal_amount = sector_deals.len();
-            T::Market::activate_deals(&owner, sector_deals, deal_amount > 0)?;
+            // Remove sector from the pre-committed map
+            sp.remove_pre_committed_sector(sector_number)
+                .map_err(|e| Error::<T>::StorageProviderError(e))?;
 
+            // Find where the sector was placed. In worst case this goes through
+            // all deadlines. It starts to look in the last partition of the
+            // deadline. Usually the new sector will be there.
+            let (deadline_idx, partition_number) =
+                sp.deadlines
+                    .due
+                    .iter()
+                    .enumerate()
+                    .find_map(|(deadline_idx, deadline)| {
+                        deadline.partitions.iter().rev().find_map(
+                            |(partition_number, partition)| {
+                                if partition.sectors.contains(&sector_number) {
+                                    Some((deadline_idx as u64, *partition_number))
+                                } else {
+                                    None
+                                }
+                            },
+                        )
+                    })
+                    .expect("sector should be assigned to a deadline");
+
+            StorageProviders::<T>::set(owner.clone(), Some(sp));
             Self::deposit_event(Event::SectorProven {
                 owner,
                 sector_number,
+                deadline_idx,
+                partition_number,
             });
 
             Ok(())
@@ -555,7 +579,7 @@ pub mod pallet {
         ) -> DispatchResult {
             let owner = ensure_signed(origin)?;
             let current_block = <frame_system::Pallet<T>>::block_number();
-            let sp = StorageProviders::<T>::try_get(&owner)
+            let mut sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
 
             // Ensure proof matches the expected kind
@@ -625,20 +649,14 @@ pub mod pallet {
 
             // TODO(@aidan46, #91, 2024-07-03): Validate the proof after research is done
 
-            // mutate provider state
-            StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResult {
-                let sp = maybe_sp
-                    .as_mut()
-                    .ok_or(Error::<T>::StorageProviderNotFound)?;
-                let deadlines = sp.get_deadlines_mut();
+            // record sector as proven
+            let deadlines = sp.get_deadlines_mut();
+            deadlines
+                .record_proven(windowed_post.deadline as usize, windowed_post.partitions)
+                .map_err(|e| Error::<T>::DeadlineError(e))?;
 
-                // record sector as proven
-                deadlines
-                    .record_proven(windowed_post.deadline as usize, windowed_post.partitions)
-                    .map_err(|e| Error::<T>::DeadlineError(e))?;
-
-                Ok(())
-            })?;
+            // Store new storage provider state
+            StorageProviders::<T>::set(owner.clone(), Some(sp));
 
             log::debug!(target: LOG_TARGET, "submit_windowed_post: proof recorded");
 
