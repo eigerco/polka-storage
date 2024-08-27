@@ -1,7 +1,19 @@
 use hex::ToHex;
-use subxt::OnlineClient;
+use subxt::{blocks::ExtrinsicEvents, OnlineClient};
 
 use crate::PolkaStorageConfig;
+
+/// Helper type for [`Client::traced_submission`] successful results.
+pub struct SubmissionResult<Config>
+where
+    Config: subxt::Config,
+{
+    /// Submission block hash.
+    pub hash: Config::Hash,
+
+    /// Resulting extrinsic's events.
+    pub events: ExtrinsicEvents<Config>,
+}
 
 /// Client to interact with a pallet extrinsics.
 /// You can call any extrinsic via [`Client::traced_submission`].
@@ -32,7 +44,7 @@ impl Client {
         &self,
         call: &Call,
         account_keypair: &Keypair,
-    ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
     where
         Call: subxt::tx::Payload,
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
@@ -49,15 +61,18 @@ impl Client {
             "waiting for finalization"
         );
         let finalized_xt = submission_progress.wait_for_finalized().await?;
-
-        // Wait for a successful inclusion because finalization != success
-        finalized_xt.wait_for_success().await?;
-
         let block_hash = finalized_xt.block_hash();
         tracing::trace!(
             block_hash = block_hash.encode_hex::<String>(),
             "successfully submitted extrinsic"
         );
-        Ok(block_hash)
+
+        // finalized != successful
+        let xt_events = finalized_xt.wait_for_success().await?;
+
+        Ok(SubmissionResult {
+            hash: block_hash,
+            events: xt_events,
+        })
     }
 }

@@ -2,14 +2,13 @@ use subxt::ext::sp_core::crypto::Ss58Codec;
 
 use crate::{
     runtime::{
-        self, bounded_vec::IntoBoundedByteVec,
+        self, bounded_vec::IntoBoundedByteVec, client::SubmissionResult,
         runtime_types::pallet_storage_provider::proofs::SubmitWindowedPoStParams,
     },
     FaultDeclaration, PolkaStorageConfig, ProveCommitSector, RecoveryDeclaration,
     RegisteredPoStProof, SectorPreCommitInfo,
 };
 
-/// The maximum number of deal IDs supported.
 /// Client to interact with the market pallet extrinsics.
 pub struct StorageProviderClient {
     client: crate::runtime::client::Client,
@@ -38,7 +37,7 @@ impl StorageProviderClient {
         account_keypair: &Keypair,
         peer_id: String,
         post_proof: RegisteredPoStProof,
-    ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
@@ -62,7 +61,7 @@ impl StorageProviderClient {
         &self,
         account_keypair: &Keypair,
         sector: SectorPreCommitInfo,
-    ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
@@ -86,7 +85,7 @@ impl StorageProviderClient {
         &self,
         account_keypair: &Keypair,
         prove_commit_sector: ProveCommitSector,
-    ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
@@ -110,7 +109,7 @@ impl StorageProviderClient {
         &self,
         account_keypair: &Keypair,
         windowed_post: SubmitWindowedPoStParams,
-    ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
@@ -134,7 +133,7 @@ impl StorageProviderClient {
         &self,
         account_keypair: &Keypair,
         faults: Vec<FaultDeclaration>,
-    ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
@@ -158,7 +157,7 @@ impl StorageProviderClient {
         &self,
         account_keypair: &Keypair,
         recoveries: Vec<RecoveryDeclaration>,
-    ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {

@@ -3,7 +3,7 @@ use subxt::ext::sp_core::crypto::Ss58Codec;
 
 use crate::{
     market_pallet_types::BalanceEntry,
-    runtime::{self},
+    runtime::{self, client::SubmissionResult},
     Currency, DealProposal, PolkaStorageConfig,
 };
 
@@ -40,7 +40,7 @@ impl MarketClient {
         &self,
         account_keypair: &Keypair,
         amount: Currency,
-    ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
@@ -63,7 +63,7 @@ impl MarketClient {
         &self,
         account_keypair: &Keypair,
         amount: Currency,
-    ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
@@ -88,7 +88,7 @@ impl MarketClient {
         &self,
         account_keypair: &Keypair,
         mut deal_ids: Vec<DealId>,
-    ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
@@ -126,7 +126,7 @@ impl MarketClient {
         account_keypair: Keypair,
         client_keypair: &ClientKeypair,
         mut deals: Vec<DealProposal>,
-    ) -> Result<<PolkaStorageConfig as subxt::Config>::Hash, subxt::Error>
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
         ClientKeypair: subxt::tx::Signer<PolkaStorageConfig>,

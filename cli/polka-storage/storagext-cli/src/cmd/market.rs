@@ -1,6 +1,6 @@
 use clap::{ArgGroup, Subcommand};
 use primitives_proofs::DealId;
-use storagext::{clients::MarketClient, PolkaStorageConfig};
+use storagext::{clients::MarketClient, runtime, PolkaStorageConfig};
 use subxt::ext::sp_core::{
     ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair, sr25519::Pair as Sr25519Pair,
 };
@@ -115,12 +115,20 @@ impl MarketCommand {
     ) -> Result<(), anyhow::Error> {
         match self {
             MarketCommand::AddBalance { amount } => {
-                let block_hash = client.add_balance(&account_keypair, amount).await?;
+                let submission_result = client.add_balance(&account_keypair, amount).await?;
                 tracing::info!(
                     "[{}] Successfully added {} to Market Balance",
-                    block_hash,
+                    submission_result.hash,
                     amount
                 );
+
+                for event in submission_result
+                    .events
+                    .find::<runtime::market::events::BalanceAdded>()
+                {
+                    let event = event?;
+                    println!("[{}] Balance added: {:#?}", submission_result.hash, event);
+                }
             }
             MarketCommand::PublishStorageDeals {
                 deals,
@@ -128,57 +136,70 @@ impl MarketCommand {
                 client_ecdsa_key,
                 client_ed25519_key,
             } => {
-                let block_hash = match (client_sr25519_key, client_ecdsa_key, client_ed25519_key) {
-                    (Some(client_keypair), _, _) => {
-                        client
-                            .publish_storage_deals(
-                                account_keypair,
-                                &subxt::tx::PairSigner::new(client_keypair.0),
-                                deals.0.into_iter().map(Into::into).collect(),
-                            )
-                            .await?
-                    }
-                    (_, Some(client_keypair), _) => {
-                        client
-                            .publish_storage_deals(
-                                account_keypair,
-                                &subxt::tx::PairSigner::new(client_keypair.0),
-                                deals.0.into_iter().map(Into::into).collect(),
-                            )
-                            .await?
-                    }
-                    (_, _, Some(client_keypair)) => {
-                        client
-                            .publish_storage_deals(
-                                account_keypair,
-                                &subxt::tx::PairSigner::new(client_keypair.0),
-                                deals.0.into_iter().map(Into::into).collect(),
-                            )
-                            .await?
-                    }
-                    _ => unreachable!("should be handled by clap::ArgGroup"),
-                };
-                tracing::info!("[{}] Successfully published storage deals", block_hash);
+                let client_keypair =
+                    MultiPairSigner::new(
+                        client_sr25519_key.map(DebugPair::into_inner),
+                        client_ecdsa_key.map(DebugPair::into_inner),
+                        client_ed25519_key.map(DebugPair::into_inner)
+                    )
+                    .expect("client is required to submit at least one key, this should've been handled by clap's ArgGroup");
+                let submission_result = client
+                    .publish_storage_deals(
+                        account_keypair,
+                        &client_keypair,
+                        deals.0.into_iter().map(Into::into).collect(),
+                    )
+                    .await?;
+                tracing::info!(
+                    "[{}] Successfully published storage deals",
+                    submission_result.hash
+                );
+
+                for event in submission_result
+                    .events
+                    .find::<runtime::market::events::DealPublished>()
+                {
+                    let event = event?;
+                    println!("[{}] Deal published: {:#?}", submission_result.hash, event);
+                }
             }
             MarketCommand::SettleDealPayments { deal_ids } => {
-                let block_hash = client
+                let submission_result = client
                     .settle_deal_payments(&account_keypair, deal_ids)
                     .await?;
-                tracing::info!("[{}] Successfully settled deal payments", block_hash);
+                tracing::info!(
+                    "[{}] Successfully settled deal payments",
+                    submission_result.hash
+                );
+
+                for event in submission_result
+                    .events
+                    .find::<runtime::market::events::DealsSettled>()
+                {
+                    let event = event?;
+                    println!("[{}] Deals settled: {:#?}", submission_result.hash, event);
+                }
             }
             MarketCommand::WithdrawBalance { amount } => {
-                let block_hash = client.withdraw_balance(&account_keypair, amount).await?;
+                let submission_result = client.withdraw_balance(&account_keypair, amount).await?;
                 tracing::info!(
                     "[{}] Successfully withdrew {} from Market Balance",
-                    block_hash,
+                    submission_result.hash,
                     amount
                 );
+
+                for event in submission_result
+                    .events
+                    .find::<runtime::market::events::BalanceWithdrawn>()
+                {
+                    let event = event?;
+                    println!(
+                        "[{}] Balance withdrawn: {:#?}",
+                        submission_result.hash, event
+                    );
+                }
             }
-            _ => {
-                unreachable!(
-                    "should've been checked before, this branch is for unsigned extrinsics"
-                )
-            }
+            _unsigned => unreachable!("unsigned extrinsics should have been previously handled"),
         }
         Ok(())
     }
