@@ -579,7 +579,7 @@ pub mod pallet {
         ) -> DispatchResult {
             let owner = ensure_signed(origin)?;
             let current_block = <frame_system::Pallet<T>>::block_number();
-            let sp = StorageProviders::<T>::try_get(&owner)
+            let mut sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
 
             // Ensure proof matches the expected kind
@@ -649,20 +649,14 @@ pub mod pallet {
 
             // TODO(@aidan46, #91, 2024-07-03): Validate the proof after research is done
 
-            // mutate provider state
-            StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResult {
-                let sp = maybe_sp
-                    .as_mut()
-                    .ok_or(Error::<T>::StorageProviderNotFound)?;
-                let deadlines = sp.get_deadlines_mut();
+            // record sector as proven
+            let deadlines = sp.get_deadlines_mut();
+            deadlines
+                .record_proven(windowed_post.deadline as usize, windowed_post.partitions)
+                .map_err(|e| Error::<T>::DeadlineError(e))?;
 
-                // record sector as proven
-                deadlines
-                    .record_proven(windowed_post.deadline as usize, windowed_post.partitions)
-                    .map_err(|e| Error::<T>::DeadlineError(e))?;
-
-                Ok(())
-            })?;
+            // Store new storage provider state
+            StorageProviders::<T>::set(owner.clone(), Some(sp));
 
             log::debug!(target: LOG_TARGET, "submit_windowed_post: proof recorded");
 
