@@ -162,3 +162,21 @@ storagext-cli --sr25519-key "//Alice" market settle-deal-payments 97 1010 1337 4
 ```
 
 > You can read more about this extrinsic in [_Pallets/Market Pallet/Settle Deal Payments_](../pallets/market.md#settle_deal_payments).
+
+## `retrieve-balance`
+
+The `retrieve-balance` command allows you to check the balance of any market account.
+
+### Parameters
+
+| Name | Description |
+| --- | --- |
+| `ACCOUNT_ID` | The IDs of the account being checked |
+
+### <a class="header" id="settle-deal-payments.example" href="#settle-deal-payments.example">Example</a>
+
+```bash
+storagext-cli market retrieve-balance "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY" # Alice's account
+```
+
+> This extrinsic IS NOT signed, and as such, does not need to be called using the `--X-key` flag.
