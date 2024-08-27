@@ -32,14 +32,16 @@ The `Storage Provider Pallet` handles the creation of storage providers and faci
 
 Faulty sectors are subject to penalties, to minimize said penalties the storage provider should declare any sector for which they cannot
 generate a [PoSt](../glossary.md#post) as faulty, this will mask said sectors in future deadlines, minimizing the suffered penalties.
-A storage provider has to declare the sector as faulty **before** the challenge window.
+A storage provider has to declare the sector as faulty [**before**](#fault-declaration-cutoff) the challenge window.
 
 Through the [`declare_faults`](#declare_faults) and [`declare_faults_recovered`](#declare_faults_recovered) extrinsics
-the storage provider can declare sectors, respectively, as faulty or recovered.
+the storage provider can declare sectors, respectively, as faulty or recovered[^recovered].
 
 <img src="../images/storage-provider/faults.svg" alt="Declaring faults and recoveries">
 
-## Hooks
+[^recovered]: Recovered sectors still require being proven before they can become fully active again.
+
+Substrate pallet hooks execute actions when certain conditions are met.
 
 Substrate pallet hooks execute some actions when certain conditions are met.
 We use these hooks — when a block finalizes — to check if storage providers are up to date with their proofs.
@@ -344,4 +346,4 @@ The Storage Provider Pallet has the following constants:
 | `MaxProveCommitDuration`       | Maximum time between [pre-commit](#pre_commit_sector) and [proving](#prove_commit_sector) the committed sector.                                                                   | 5 Minutes   |
 | `MaxPartitionsPerDeadline`     | Maximum number of partitions that can be assigned to a single deadline.                                                                                                           | 3000        |
 | `FaultMaxAge`                  | Maximum time a [fault](../glossary.md#fault) can exist before being removed by the system.                                                                                        | 210 Minutes |
-| `FaultDeclarationCutoff`       | Time before a deadline opens that a storage provider can declare or recover a fault.                                                                                              | 2 Minutes   |
+| <code id="fault-declaration-cutoff">FaultDeclarationCutoff</code>       | Time before a deadline opens that a storage provider can declare or recover a fault.                                                                                              | 2 Minutes   |

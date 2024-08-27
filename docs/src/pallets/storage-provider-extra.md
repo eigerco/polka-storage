@@ -71,4 +71,4 @@ During this period, the storage provider may also commit to new sectors, but the
 When the storage provider has completed their PoSt, they must submit it to the network by calling `storage_provider.submit_windowed_post(deadline: u64, partitions: Vec<u64>, proofs: Vec<PostProof>)`. There are two different types of submissions:
 
 - **Standard Submission**: A standard submission is one that makes it on-chain before the end of the proving period.
-- **Penalize Submission**:A penalized submission is one that makes it on-chain after the end of the proving period, but before the generation attack threshold. These submissions count as valid PoSt submissions, but the miner must pay a penalty for their late submission. See [storage fault slashing](#storage-fault-slashing).
+- **Penalize Submission**: A penalized submission is one that makes it on-chain after the end of the proving period, but before the generation attack threshold. These submissions count as valid PoSt submissions, but the miner must pay a penalty for their late submission. See [storage fault slashing](#storage-fault-slashing).

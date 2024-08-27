@@ -6,6 +6,7 @@ This guide will help you to setup a local parachain network using zombienet. At 
 
 You can download our latest releases's binaries directly and run them on your machine without additional dependencies.
 We support `Linux x86_64` and `MacOS ARM x64`. The commands below will download:
+
 - [Relay Chain](https://github.com/paritytech/polkadot-sdk/releases) binaries (`polkadot`, `polkadot-prepare-worker`, `polkadot-execute-worker`),
 - Polka Storage Parachain binary (`polka-storage-node`),
 - [Polka Storage Provider](../storage-provider-cli/index.md) internal node (`polka-storage-provider`),
@@ -16,6 +17,7 @@ We support `Linux x86_64` and `MacOS ARM x64`. The commands below will download:
 ### Linux x86_64
 
 1. Download the binaries:
+
 ```bash
 wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-v1.13.0/polkadot
 wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-v1.13.0/polkadot-prepare-worker
@@ -27,11 +29,13 @@ wget https://github.com/paritytech/zombienet/releases/download/v1.3.106/zombiene
 ```
 
 2. Setup permissions:
+
 ```bash
 chmod +x zombienet polka-storage-node polka-storage-provider storagext-cli polkadot polkadot-prepare-worker polkadot-execute-worker
 ```
 
 3. Run `zombienet`:
+
 ```bash
 export PATH=$(pwd):$PATH
 
@@ -42,6 +46,7 @@ zombienet -p native spawn polka-storage-testnet.toml
 ### MacOS ARM
 
 1. Download the binaries:
+
 ```bash
 wget https://s3.eu-central-1.amazonaws.com/polka-storage/macos_arm/polkadot
 wget https://s3.eu-central-1.amazonaws.com/polka-storage/macos_arm/polkadot-prepare-worker
@@ -53,12 +58,14 @@ wget https://github.com/paritytech/zombienet/releases/download/v1.3.106/zombiene
 ```
 
 2. Setup permissions & de-quarantine:
+
 ```bash
 chmod +x zombienet polka-storage-node polka-storage-provider storagext-cli polkadot polkadot-prepare-worker polkadot-execute-worker
 xattr -d com.apple.quarantine zombienet polka-storage-node polka-storage-provider storagext-cli polkadot polkadot-prepare-worker polkadot-execute-worker
 ```
 
 3. Run `zombienet`:
+
 ```bash
 export PATH=$(pwd):$PATH
 
@@ -66,11 +73,11 @@ wget https://s3.eu-central-1.amazonaws.com/polka-storage/polka-storage-testnet.t
 zombienet -p native spawn polka-storage-testnet.toml
 ```
 
-
 You can easily access the parachain using the Polkadot.js Apps interface by clicking on this link:
 <https://polkadot.js.org/apps/?rpc=ws://127.0.0.1:42069#/explorer>
 
 Where you should be greeted by a page like so:
+
 <p>
   <a href="https://polkadot.js.org/apps/?rpc=ws://127.0.0.1:42069#/explorer">
     <img src="../images/polkadot_substrate_portal.png" alt="Polkadot/Subtrate Portal">
@@ -234,3 +241,58 @@ You can easily access the parachain using the Polkadot.js Apps interface by clic
 [https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A42069#/explorer](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A42069#/explorer)
 
 This link will automatically connect to Charlie's node running on your local machine at port `42069`. The port is configured in `local-kube-testnet.toml` under `rpc_port` for Charlie's node.
+
+## Zombienet Configuration Breakdown
+
+During setup you either download a file in the third step of [Linux](#linux-x86_64)/[MacOS](#macos-arm) — `polka-storage-testnet.toml` —
+or copy it from the first step of [Running the parachain](#running-the-parachain).
+
+### Similarities
+
+The two files share most of the contents, as such we'll start by covering their similarities,
+for more details you should refer to the [`zombienet` documentation](https://paritytech.github.io/zombienet/network-definition-spec.html):
+
+#### `relaychain`
+
+| Name              | Description                                   |
+| ----------------- | --------------------------------------------- |
+| `chain`           | The relaychain name                           |
+| `default_args`    | The default arguments passed to the `command` |
+| `default_command` | The default command to run the relaychain     |
+| `nodes`           | List of tables defining the nodes to run      |
+
+##### `nodes`
+
+| Name        | Description                            |
+| ----------- | -------------------------------------- |
+| `name`      | The node name                          |
+| `validator` | Whether the node is a validator or not |
+
+#### `parachains`
+
+A list of tables defining multiple parachains, in our case, we only care for our own parachain.
+
+| Name            | Description                                                   |
+| --------------- | ------------------------------------------------------------- |
+| `cumulus_based` | Whether to use `cumulus` based generation                     |
+| `id`            | The parachain ID, we're using `1000` as a placeholder for now |
+| `collators`     | List of tables defining the collators                         |
+
+##### `collators`
+
+| Name        | Description                              |
+| ----------- | ---------------------------------------- |
+| `args`      | The arguments passed to the `command`    |
+| `command`   | The command to run the collator          |
+| `name`      | The collator name                        |
+| `validator` | Whether the collator is also a validator |
+
+### Differences
+
+The difference between them lies in the usage of container configurations:
+
+| Name                 | Description                                                                                                                                                                   |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `image_pull_policy`  | Defines when `zombienet` should pull an image; read more about it in the [Kubernetes documentation](https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy) |
+| `image`              | Defines which image to pull                                                                                                                                                   |
+| `ws_port`/`rpc_port` | Depending on the type of configuration (Native or Kubernetes), this variable sets the port for the collator RPC service                                                       |

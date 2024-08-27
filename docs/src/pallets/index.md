@@ -29,7 +29,7 @@ At this point the remaining responsibility is shifted to the storage provider, w
 to do so, the storage provider first needs to [pre-commit](./storage-provider.md#pre_commit_sector) the deal's sectors,
 and then [prove](./storage-provider.md#prove_commit_sector) they stored the sectors — these two steps are done using the [`pre_commit_sector`](./storage-provider.md#pre_commit_sector) and [`prove_commit_sector`](./storage-provider.md#prove_commit_sector) extrinsics.
 
-Verification is done and reported to the Market pallet, as to terminate the deal, apply penalties to the storage provider
+Verification is done and reported to the Market pallet, as to terminate the deal and apply penalties to the storage provider
 (remove and burn its collateral — i.e. `locked` funds) if they fail to activate the deal on time and return the funds to the client.
 
 <img src="../images/storage-provider/sector_activation.svg" alt="Deal activation">
