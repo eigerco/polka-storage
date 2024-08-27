@@ -2,35 +2,25 @@
 
 ## Table of Contents
 
-- [Storage Provider Pallet](#storage-provider-pallet)
-  - [Table of Contents](#table-of-contents)
-  - [Overview](#overview)
-  - [Usage](#usage)
-    - [Registering storage providers](#registering-storage-providers)
-    - [Modifying storage provider information](#modifying-storage-provider-information)
-    - [Declaring storage faults](#declaring-storage-faults)
-    - [Declaring storage faults recovered](#declaring-storage-faults-recovered)
-  - [Storage fault slashing](#storage-fault-slashing)
-    - [Fault Fee (FF)](#fault-fee-ff)
-    - [Sector Penalty (SP)](#sector-penalty-sp)
-    - [Termination Penalty (TP)](#termination-penalty-tp)
-    - [State management for Storage Providers](#state-management-for-storage-providers)
-  - [Sector sealing](#sector-sealing)
-  - [Storage Provider Flow](#storage-provider-flow)
-    - [Registration](#registration)
-    - [Commit](#commit)
-    - [Proof of Spacetime submission](#proof-of-spacetime-submission)
-  - [Storage provider pallet hooks](#storage-provider-pallet-hooks)
-  - [Extrinsics](#extrinsics)
-    - [`register_storage_provider`](#register_storage_provider)
-    - [`pre_commit_sector`](#pre_commit_sector)
-    - [`prove_commit_sector`](#prove_commit_sector)
-    - [`submit_windowed_post`](#submit_windowed_post)
-    - [`declare_faults`](#declare_faults)
-    - [`declare_faults_recovered`](#declare_faults_recovered)
-  - [Events](#events)
-  - [Errors](#errors)
-  - [Constants](#constants)
+- [Overview](#overview)
+- [Usage](#usage)
+  - [Declaring storage faults](#declaring-storage-faults)
+  - [Declaring storage faults recovered](#declaring-storage-faults-recovered)
+- [Storage Provider Flow](#storage-provider-flow)
+  - [Registration](#registration)
+  - [Commit](#commit)
+  - [Proof of Spacetime submission](#proof-of-spacetime-submission)
+- [Hooks](#storage-provider-pallet-hooks)
+- [Extrinsics](#extrinsics)
+  - [`register_storage_provider`](#register_storage_provider)
+  - [`pre_commit_sector`](#pre_commit_sector)
+  - [`prove_commit_sector`](#prove_commit_sector)
+  - [`submit_windowed_post`](#submit_windowed_post)
+  - [`declare_faults`](#declare_faults)
+  - [`declare_faults_recovered`](#declare_faults_recovered)
+- [Events](#events)
+- [Errors](#errors)
+- [Constants](#constants)
 
 ## Overview
 
@@ -38,86 +28,25 @@ The `Storage Provider Pallet` handles the creation of storage providers and faci
 
 ## Usage
 
-### Registering storage providers
+### Declaring storage faults and recoveries
 
-A storage provider indexes in the storage provider pallet itself when it starts up by calling the `create_storage_provider` extrinsic with it's `PeerId` as an argument. The public key will be extracted from the origin and is used to modify on-chain information and receive rewards. The `PeerId` is given by the storage provider so clients can use that to connect to the storage provider.
+Faulty sectors are subject to penalties, to minimize said penalties the storage provider should declare any sector for which they cannot
+generate a [PoSt](../glossary.md#post) as faulty, this will mask said sectors in future deadlines, minimizing the suffered penalties.
+A storage provider has to declare the sector as faulty [**before**](#fault-declaration-cutoff) the challenge window.
 
-### Modifying storage provider information
+Through the [`declare_faults`](#declare_faults) and [`declare_faults_recovered`](#declare_faults_recovered) extrinsics
+the storage provider can declare sectors, respectively, as faulty or recovered[^recovered].
 
-The `Storage Provider Pallet` allows storage providers to modify their information such as changing the peer id, through `change_peer_id` and changing owners, through `change_owner_address`.
+<img src="../images/storage-provider/faults.svg" alt="Declaring faults and recoveries">
 
-### Declaring storage faults
+[^recovered]: Recovered sectors still require being proven before they can become fully active again.
 
-A storage provider can declare sectors as faulty, through the `declare_faults`, for any sectors that it cannot generate `WindowPoSt` proofs. A storage provider has to declare the sector as faulty **before** the challenge window. Until the sectors are recovered they will be masked from proofs in subsequent proving periods.
+Substrate pallet hooks execute actions when certain conditions are met.
 
-### Declaring storage faults recovered
-
-After a storage provider has declared some sectors as faulty, it can recover those sectors. The storage provider can use the `declare_faults_recovered` method to set the sectors it previously declared as faulty to recovering.
-
-## Storage fault slashing
-
-Storage Fault Slashing refers to a set of penalties that storage providers may incur if they fail to maintain sector reliability or choose to voluntarily exit the network. These penalties include Fault Fees, Sector Penalties, and Termination Fees. Below is a detailed explanation of each type of penalty.
-
-### Fault Fee (FF)
-
-- **Description**: A penalty incurred by a storage provider for each day that a sector is offline.
-- **Rationale**: Ensures that storage providers maintain high availability and reliability of their committed data.
-
-### Sector Penalty (SP)
-
-- **Description**: A penalty incurred by a storage provider for a sector that becomes faulted without being declared as such before a WindowPoSt (Proof-of-Spacetime) check.
-- **Rationale**: Encourages storage providers to promptly declare any faults to avoid more severe penalties.
-- **Details**: If a fault is detected during a WindowPoSt check, the sector will incur an SP and will continue to incur a FF until the fault is resolved.
-
-### Termination Penalty (TP)
-
-- **Description**: A penalty incurred when a sector is either voluntarily or involuntarily terminated and removed from the network.
-- **Rationale**: Discourages storage providers from arbitrarily terminating sectors and ensures they fulfill their storage commitments.
-
-By implementing these penalties, storage providers are incentivised to maintain the reliability and availability of the data they store. This system of Storage Fault Slashing helps maintain the integrity and reliability of our decentralized storage network.
-
-### State management for Storage Providers
-
-In our parachain, the state management for all storage providers is handled collectively, unlike Filecoin, which manages the state for individual storage providers.
-
-## Sector sealing
-
-Before a sector can be used, the storage provider must seal the sector, which involves encoding the data in the sector to prepare it for the proving process.
-
-- **Unsealed Sector**: An unsealed sector is a sector containing raw data that has not yet been sealed.
-- **UnsealedCID (CommD)**: The root hash of the unsealed sector’s Merkle tree, also referred to as CommD or "data commitment."
-- **Sealed Sector**: A sector that has been encoded and prepared for the proving process.
-- **SealedCID (CommR)**: The root hash of the sealed sector’s Merkle tree, also referred to as CommR or "replica commitment."
-
-By sealing sectors, storage providers ensure that data is properly encoded and ready for the proof-of-storage process, maintaining the integrity and security of the stored data in the network.
-
-Sealing a sector using Proof-of-Replication (PoRep) is a computation-intensive process that results in a unique encoding of the sector. Once the data is sealed, storage providers follow these steps:
-
-- **Generate a Proof**: Create a proof that the data has been correctly sealed.
-- **Run a SNARK on the Proof**: Compress the proof using a Succinct Non-interactive Argument of Knowledge (SNARK).
-- **Submit the Compressed Proof:** Submit the result of the compression to the blockchain as certification of the storage commitment.
-
-## Storage Provider Flow
-
-### Registration
-
-The first thing a storage provider must do is register itself by calling `storage_provider.create_storage_provider(peer_id: PeerId, window_post_proof_type: RegisteredPoStProof)`. At this point there are no funds locked in the storage provider pallet. The next step is to place storage market asks on the market, this is done through the market pallet. After that the storage provider needs to make deals with clients and begin filling up sectors with data. When they have a full sector they should seal the sector.
-
-### Commit
-
-When the storage provider has completed their first seal, they should post it to the storage provider pallet by calling `storage_provider.pre_commit_sector(sectors: SectorPreCommitInfo)`. If the storage provider had zero committed sectors before this call, this begins their proving period. The proving period is a fixed amount of time in which the storage provider must submit a Proof of Space Time to the network.
-During this period, the storage provider may also commit to new sectors, but they will not be included in proofs of space time until the next proving period starts. During the prove commit call, the storage provider pledges some collateral in case they fail to submit their PoSt on time.
-
-### Proof of Spacetime submission
-
-When the storage provider has completed their PoSt, they must submit it to the network by calling `storage_provider.submit_windowed_post(deadline: u64, partitions: Vec<u64>, proofs: Vec<PostProof>)`. There are two different types of submissions:
-
-- **Standard Submission**: A standard submission is one that makes it on-chain before the end of the proving period.
-- **Penalize Submission**:A penalized submission is one that makes it on-chain after the end of the proving period, but before the generation attack threshold. These submissions count as valid PoSt submissions, but the miner must pay a penalty for their late submission. See [storage fault slashing](#storage-fault-slashing).
-
-## Storage provider pallet hooks
-
-Substrate pallet hooks execute some actions when certain conditions are met. We use these hooks, when a block finalizes, to check if storage providers are up to date with their proofs. If a proof needs to be submitted but isn't the storage provider pallet will penalize the storage provider accordingly [slash](#storage-fault-slashing) their collateral that the locked up during the [pre commit section](#commit).
+Substrate pallet hooks execute some actions when certain conditions are met.
+We use these hooks — when a block finalizes — to check if storage providers are up to date with their proofs.
+If a storage provider fails to submit a proof on time, the Storage Provider pallet will signal the Market pallet to penalize the storage provider.
+accordingly removing and burning the collateral locked up during the pre-commit.
 
 ## Extrinsics
 
@@ -127,10 +56,10 @@ Storage Provider registration is the first extrinsic that any storage provider h
 
 Before a storage provider can register, they need to set up a [PeerId](https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id). This [PeerId](https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id)is used in the p2p network to connect to the storage provider.
 
-| Name                     | Description                          |
-| ------------------------ | ------------------------------------ |
-| `peer_id`                | libp2p ID                            |
-| `window_post_proof_type` | Proof type the storage provider uses |
+| Name                     | Description                                                                            |
+| ------------------------ | -------------------------------------------------------------------------------------- |
+| `peer_id`                | [libp2p](https://libp2p.io/) [ID](https://docs.libp2p.io/concepts/fundamentals/peers/) |
+| `window_post_proof_type` | Proof type the storage provider uses                                                   |
 
 #### <a class="header" id="register_storage_provider.example" href="#register_storage_provider.example">Example</a>
 
@@ -417,4 +346,4 @@ The Storage Provider Pallet has the following constants:
 | `MaxProveCommitDuration`       | Maximum time between [pre-commit](#pre_commit_sector) and [proving](#prove_commit_sector) the committed sector.                                                                   | 5 Minutes   |
 | `MaxPartitionsPerDeadline`     | Maximum number of partitions that can be assigned to a single deadline.                                                                                                           | 3000        |
 | `FaultMaxAge`                  | Maximum time a [fault](../glossary.md#fault) can exist before being removed by the system.                                                                                        | 210 Minutes |
-| `FaultDeclarationCutoff`       | Time before a deadline opens that a storage provider can declare or recover a fault.                                                                                              | 2 Minutes   |
+| <code id="fault-declaration-cutoff">FaultDeclarationCutoff</code>       | Time before a deadline opens that a storage provider can declare or recover a fault.                                                                                              | 2 Minutes   |

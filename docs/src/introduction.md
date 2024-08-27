@@ -8,17 +8,19 @@ Since the Referendum approval we've been busy developing the parachain,
 this is our deliverable for Phase 1, composed of:
 
 - Filecoin actor ports:
-  - [Storage Provider](./pallets/storage-provider.md) — not including proving mechanisms
+  - [Storage Provider](./pallets/storage-provider.md) — excluding proving mechanisms
   - [Market](./pallets/market.md)
 - [CAR file conversion server](./storage-provider-cli/storage.md)
-- [Dedicated CLI](./storage-provider-cli/index.md) to take the parachain for a spin, as shown below!
+- Dedicated CLIs
+  - [`storage-provider-cli`](./storage-provider-cli/storage.md) to generate keys and test our CARv2 Rust implementation!
+  - [`storagext-cli`](./storagext-cli/index.md) (shown below) to take the parachain for a spin!
 <p>
     <img
         src="images/showcase/cli_basic.gif"
         alt="Polka Storage CLI tooling showcase">
 </p>
 
-You can read more about it in:
+You can read more about the project in:
 
 - Treasury Proposal — <https://polkadot.polkassembly.io/post/2107>
 - OpenGov Referendum — <https://polkadot.polkassembly.io/referenda/494>
