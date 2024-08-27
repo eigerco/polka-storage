@@ -4,7 +4,6 @@ use std::{fmt::Debug, path::PathBuf, str::FromStr};
 use cid::Cid;
 use primitives_proofs::{DealId, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
 use storagext::{BlockNumber, Currency, IntoBoundedByteVec, PolkaStorageConfig};
-use subxt::ext::sp_core::crypto::Ss58Codec;
 
 pub(crate) trait ParseablePath: serde::de::DeserializeOwned {
     fn parse_json(src: &str) -> Result<Self, anyhow::Error> {
@@ -20,33 +19,6 @@ pub(crate) trait ParseablePath: serde::de::DeserializeOwned {
 }
 
 impl<T> ParseablePath for T where T: serde::de::DeserializeOwned {}
-
-#[derive(Clone, PartialEq, Eq)]
-pub(crate) struct DebugPair<Pair>(pub(crate) Pair)
-where
-    Pair: subxt::ext::sp_core::Pair;
-
-impl<Pair> Debug for DebugPair<Pair>
-where
-    Pair: subxt::ext::sp_core::Pair,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("DebugPair")
-            .field(&self.0.public().to_ss58check())
-            .finish()
-    }
-}
-
-impl<Pair> DebugPair<Pair>
-where
-    Pair: subxt::ext::sp_core::Pair,
-{
-    pub fn value_parser(src: &str) -> Result<Self, String> {
-        Ok(Self(Pair::from_string(&src, None).map_err(|err| {
-            format!("failed to parse pair from string: {}", err)
-        })?))
-    }
-}
 
 /// CID doesn't deserialize from a string, hence we need our work wrapper.
 ///
@@ -200,7 +172,10 @@ mod test {
         ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair, sr25519::Pair as Sr25519Pair,
     };
 
-    use super::{CidWrapper, DealProposal, DebugPair, PoStProof, SubmitWindowedPoStParams};
+    use crate::{
+        deser::{CidWrapper, DealProposal, PoStProof, SubmitWindowedPoStParams},
+        pair::DebugPair,
+    };
     #[track_caller]
     fn assert_debug_pair<P>(s: &str)
     where
