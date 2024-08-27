@@ -91,15 +91,15 @@ So it's better he does his part!
 }
 ```
 
-| Name                                       | Value    | Description                                                                                                       |
-| ------------------------------------------ | -------- | ----------------------------------------------------------------------------------------------------------------- |
-| [`sector_number`](../glossary.md#sector)   | 1        | The place where `husky.jpg` will be stored. Charlie decided it'll be on his 1st sector                            |
-| `deal_ids`                                 | `[0]`    | A sector can contain multiple deals, but it only contains the first one ever created (id: 0)                      |
-| `expiration`                               | `75`     | The 75th, which is 5 minutes after the `end_block`, so the sector expires only after the deal has been terminated |
-| `sealed_cid`, `unsealed_cid`, `seal_proof` | multiple | Currently placeholder values since the proof mechanism is a work-in-progress                                      |
+| Name                                                                                                           | Value                | Description                                                                                                        |
+| -------------------------------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| [`sector_number`](../glossary.md#sector)                                                                       | 1                    | The place where `husky.jpg` will be stored. Charlie decided it'll be on his 1st sector.                            |
+| `deal_ids`                                                                                                     | `[0]`                | A sector can contain multiple deals, but it only contains the first one ever created (id: 0).                      |
+| `expiration`                                                                                                   | `75`                 | The 75th, which is 5 minutes after the `end_block`, so the sector expires only after the deal has been terminated. |
+| [`sealed_cid`](../glossary.md#commitment-of-replication), [`unsealed_cid`](../glossary.md#commitment-of-data), | multiple             | Currently placeholder values (any CID) since the proof mechanism is a work-in-progress.                            |
+| `seal_proof`                                                                                                   | `StackedDRG2KiBV1P1` | Currently we only accept sector sizes of 2KiB, so this is the only value possible.                                 |
 
 `prove-commit-husky.json`
-
 ```json
 {
   "sector_number": 1,
@@ -107,7 +107,7 @@ So it's better he does his part!
 }
 ```
 
-- `proof`: hex string of bytes of the proof[^sealing-subsystem]
+- `proof`: hex string of bytes of the proof, it's WIP, so any non-zero value works.
 
 ```bash
 $ storagext-cli --sr25519-key "//Charlie" storage-provider pre-commit "@pre-commit-husky.json"
@@ -118,13 +118,26 @@ $ storagext-cli --sr25519-key "//Charlie" storage-provider prove-commit "@prove-
 
 <img src="../images/demo/proven.PNG">
 
-[^sealing-subsystem]: sealing and proving process are WIP, so just trust us on this one and use any valid CID values (the ones we provided are fine).
 [^slash]: You can just wait for 5 minutes and observe a `DealSlashed` [Event](../pallets/market.md#events) being published.
 
 ## 3. Proofs and faults
 
-`window-proof.json`
+### Aside on Deadlines
 
+There is a little something that Charlie needs to know about, and those are deadlines *(don't we all...)*.
+Each Storage Provider has a Proving Period, it's some time divided in segments (deadlines).
+To simplify, let's say a proving period lasts a day (24 hours) and between start end and of each hour there is a segment.
+Just like on a clock.
+Now, when Charlie gathers enough data and stores it in a sector, he needs to keep proving that he has some data.
+Charlie can have multiple sectors and he doesn't want to overload the system with proving all of them at the same time.
+So what if, each sector got assigned segment (1 hour) during the day and Charlie would need to submit proof that he has data roughly on the same hour each day?
+That'd work, right?
+So this is what a Proving Period and Deadlines are. We divide a proving period into deadlines and when we prove commit, we assign sector to a deadline.
+From now on, the sector will need to be proven during this lifetime, periodically, every day.
+
+
+
+`window-proof.json`
 ```json
 {
   "deadline": 0,
@@ -136,15 +149,17 @@ $ storagext-cli --sr25519-key "//Charlie" storage-provider prove-commit "@prove-
 }
 ```
 
-<!-- deadline is 0, until #277 (before that we need to query the state) -->
 
-- `deadline`: 0, don't worry about it.
-- `partitions`: [0] - always 0, don't worry about it
-- `post_proof`: "2KiB", don't worry about it
-- `proof_bytes`: hex string of bytes of the proof[^sealing-subsystem]
+| Name          | Value        | Description                                                                   |
+| ------------- | ------------ | ----------------------------------------------------------------------------- |
+| `deadline`    | `0`          | the deadline index which has been assigned by Prove Commit                    |
+| `partitions`  | [0]          | the partitions which has been assigned by Prove Commit                        |
+| `post_proof`  | "2KiB"       | we only support sectors of size 2KiB for now, so it's the only possible value |
+| `proof_bytes` | 1230deadbeef | hex string of bytes of the proof, it's WIP, so any non-zero value works       |
 
 Now that the sector has been proven, Charlie needs to keep confirming that he stores the data.
-Charlie's proving period starts at block `21`, so the first deadline is between blocks `[21, 31)`, second `[31, 41)`.
+Charlie's proving period starts at block `21` (as `register-storage-provider` tells us) so the first deadline is between blocks `[21, 31)`, second `[31, 41)`.
+That's because there are [2 deadlines](#const-period-deadlines) within a [proving period](#const-proving-period) and a deadline has a [window of 10 blocks](#const-challenge-window).
 Charlie got assigned the first deadline, so he waits until the block `21`, to send his proof that he stores the data.
 
 ```bash
@@ -206,12 +221,12 @@ $ storagext-cli --sr25519-key "//Charlie" storage-provider submit-windowed-post 
 ## 4. Reaping the rewards
 
 After the deal has ended (after block 75), Charlie goes to get his rewards!
-First he settles all of the collaterals, so his balance gets unlocked and then he withdraw balance to use his DOTs for a new shiny dumbbell.
+First he settles all of the locked funds, so his balance gets unlocked and then he withdraw balance to use his DOTs for a new shiny dumbbell.
 
 <!-- it ain't working yet, probably until: #278 is done -->
 
 ```bash
 $ storagext-cli --sr25519-key "//Charlie" market settle-deal-payments 0
 2024-08-26T15:33:26.820285Z  INFO run{address="5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y"}: storagext_cli::cmd::market: [0x9aa4…dcdd] Successfully settled deal payments
-$ storagext-cli --sr25519-key "//Charlie" market withdraw-balance 25000000000
+$ storagext-cli --sr25519-key "//Charlie" market withdraw-balance 37500000000
 ```
