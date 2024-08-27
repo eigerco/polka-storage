@@ -137,15 +137,24 @@ fn cmp(a: &DeadlineAssignmentInfo, b: &DeadlineAssignmentInfo, partition_size: u
         })
 }
 
-// Assigns partitions to deadlines, first filling partial partitions, then
-// adding new partitions to deadlines with the fewest live sectors.
+/// Assigns partitions to deadlines, first filling partial partitions, then
+/// adding new partitions to deadlines with the fewest live sectors.
+///
+/// ## Returns
+///
+/// - `Vec<Vec<SectorOnChainInfo<BlockNumber>>>`: A vector of vectors, where:
+///   - The outer vector has a length equal to the number of deadlines (`w_post_period_deadlines`).
+///   - Each inner vector contains the `SectorOnChainInfo` structures assigned to that deadline.
+///   - Deadlines that weren't assigned any sectors will have an empty inner vector.
+///
+/// The successful return value effectively represents a mapping of deadlines to their assigned sectors.
 pub fn assign_deadlines<BlockNumber>(
     max_partitions: u64,
     partition_size: u64,
     deadlines: &[Option<Deadline<BlockNumber>>],
     sectors: &[SectorOnChainInfo<BlockNumber>],
     w_post_period_deadlines: u64,
-) -> Result<impl Iterator<Item = Vec<SectorOnChainInfo<BlockNumber>>>, DeadlineError>
+) -> Result<Vec<Vec<SectorOnChainInfo<BlockNumber>>>, DeadlineError>
 where
     BlockNumber: sp_runtime::traits::BlockNumber,
 {
@@ -199,7 +208,7 @@ where
 
     assert!(!heap.is_empty());
 
-    let mut changes = vec![Vec::new(); w_post_period_deadlines as usize];
+    let mut deadlines = vec![Vec::new(); w_post_period_deadlines as usize];
 
     for sector in sectors {
         let info = &mut heap
@@ -211,12 +220,12 @@ where
             return Err(DeadlineError::MaxPartitionsReached);
         }
 
-        changes[info.index].push(sector.clone());
+        deadlines[info.index].push(sector.clone());
         info.live_sectors += 1;
         info.total_sectors += 1;
     }
 
-    Ok(changes.into_iter())
+    Ok(deadlines)
 }
 
 #[cfg(test)]
@@ -421,7 +430,7 @@ mod tests {
 
             let assignment =
                 assign_deadlines(MAX_PARTITIONS, PARTITION_SIZE, &deadlines, &sectors, 48).unwrap();
-            for (i, sectors) in assignment.enumerate() {
+            for (i, sectors) in assignment.iter().enumerate() {
                 if let Some(Some(dl)) = tc.deadlines.get(i) {
                     assert_eq!(
                         dl.expect_sectors.len(),
