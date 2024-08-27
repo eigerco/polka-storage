@@ -7,10 +7,12 @@ Before reading this guide, please ensure you've followed the <a href="./local-te
 </div>
 
 Charlie heard that he can provide storage to people around the world and earn some tokens doing it, so he decided to register as a [Storage Provider](../glossary.md).
+
 ```bash
 $ storagext-cli --sr25519-key "//Charlie" storage-provider register Charlie
 2024-08-26T14:18:44.280186Z  INFO run{address="5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y"}: storagext_cli::cmd::storage_provider: [0x9a07…aaec] Successfully registered Charlie, seal: StackedDRGWindow2KiBV1P1 in Storage Provider Pallet
 ```
+
 <img src="../images/demo/registered-charlie.PNG">
 
 Alice is a [Storage User](../glossary.md#storage-user) and wants to store an image of her lovely Husky (`husky.jpg`) in the Polka Storage [parachain](../glossary.md#parachain).
@@ -22,32 +24,34 @@ Alice heard somewhere[^no-sp-discovery] in the hallways of her favourite gym tha
 She calls him (off-chain) and they negotiate a deal:
 
 `husky-deal.json`
+
 ```json
 [
-    {
-        "piece_cid": "bafybeihxgc67fwhdoxo2klvmsetswdmwwz3brpwwl76qizbsl6ypro6vxq",
-        "piece_size": 1278,
-        "client": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
-        "provider": "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y",
-        "label": "My lovely Husky (husky.jpg)",
-        "start_block": 25,
-        "end_block": 50,
-        "storage_price_per_block": 1000000000,
-        "provider_collateral": 12500000000,
-        "state": "Published"
-    }
+  {
+    "piece_cid": "bafybeihxgc67fwhdoxo2klvmsetswdmwwz3brpwwl76qizbsl6ypro6vxq",
+    "piece_size": 1278,
+    "client": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+    "provider": "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y",
+    "label": "My lovely Husky (husky.jpg)",
+    "start_block": 25,
+    "end_block": 50,
+    "storage_price_per_block": 1000000000,
+    "provider_collateral": 12500000000,
+    "state": "Published"
+  }
 ]
 ```
 
-- `piece_cid`:  `husky.jpg`: `bafybeihxgc67fwhdoxo2klvmsetswdmwwz3brpwwl76qizbsl6ypro6vxq`
-- `piece_size`: `file(husky.jpg).size()` == `1278`,
-- `client`: Alice (`5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY`)
-- `provider`: Charlie (`5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y`)
-- `start_block`: 5 minutes from the testnet start (5 minutes == 25 blocks) == 25,
-- `end_block`: `start_block` + 5 minutes == 50,
-- `storage_price_per_block`: 1_000_000_000 [Plancks](../glossary.md#planck) for a block (12 sec),
-- so total price for storage of her husky for 5 minutes: 25_000_000_000 Plancks
-- `provider_collateral`: 12_500_000_000 Plancks, they agreed that Charlie loses this amount when he fails to deliver.
+| Name                      | Value                                                                                                                         | Description                                                                                                              |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `piece_cid`               | `bafybeihxgc67fwhdoxo2klvmsetswdmwwz3brpwwl76qizbsl6ypro6vxq`                                                                 | The submitted file's CID                                                                                                 |
+| `piece_size`              | `1278`                                                                                                                        | The submitted file's size                                                                                                |
+| `client`                  | [`//Alice`](https://docs.substrate.io/reference/glossary/#dev-phrase) or `5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY`   | The client's address                                                                                                     |
+| `provider`                | [`//Charlie`](https://docs.substrate.io/reference/glossary/#dev-phrase) or `5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y` | The providers's address                                                                                                  |
+| `start_block`             | `25`                                                                                                                          | When the deal should start                                                                                               |
+| `end_block`               | `50`                                                                                                                          | When the deal should end                                                                                                 |
+| `storage_price_per_block` | `1_000_000_000`                                                                                                               | In [Plancks](../glossary.md#planck), the storage price per block (12 sec)                                                |
+| `provider_collateral`     | `12_500_000_000`                                                                                                              | In [Plancks](../glossary.md#planck), the price paid by the storage provider if they fail to uphold their end of the deal |
 
 After the negotiation, they need to [add funds to the Pallet](../pallets/market.md#add_balance) and then [publish their intent](../pallets/market.md#publish_storage_deals) so it can be checked by the parachain.
 So here they go:
@@ -70,34 +74,39 @@ $ storagext-cli --sr25519-key  "//Charlie" market publish-storage-deals --client
 ## 2. Committing a deal
 
 After the deals have been published, the rest is up to Charlie.
-If Charlie does not behave properly *and* does not [pre-commit](../pallets/storage-provider.md#pre_commit_sector) and [prove](../pallets/storage-provider.md#prove_commit_sector) the deal by block 25 (`start_block`),
+If Charlie does not behave properly _and_ does not [pre-commit](../pallets/storage-provider.md#pre_commit_sector) and [prove](../pallets/storage-provider.md#prove_commit_sector) the deal by block 25 (`start_block`),
 he is going to be slashed and all of his funds [(`provider_collateral`)](../glossary.md#collateral) - gone.[^slash]
 So it's better he does his part!
 
 `pre-commit-husky.json`
+
 ```json
 {
-    "sector_number": 1,
-    "sealed_cid": "bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu",
-    "deal_ids": [0],
-    "expiration": 75,
-    "unsealed_cid": "bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu",
-    "seal_proof": "StackedDRG2KiBV1P1"
+  "sector_number": 1,
+  "sealed_cid": "bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu",
+  "deal_ids": [0],
+  "expiration": 75,
+  "unsealed_cid": "bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu",
+  "seal_proof": "StackedDRG2KiBV1P1"
 }
 ```
-- [sector_number](../glossary.md#sector) is a place, where `husky.jpg` will end up being stored. Charlie decided it'll be on his 1st sector.
-- `sealed_cid`, `unsealed_cid`, `seal_proof` are the magic values[^sealing-subsystem].
-- `deal_ids`: [0] - a sector can contain multiple deals, but it only contains the first one ever created (id: 0),
-- `expiration`: `75` -> 5 minutes after the `end_block`, so the sector expires only after the deal has been terminated.
 
+| Name                                       | Value    | Description                                                                                                       |
+| ------------------------------------------ | -------- | ----------------------------------------------------------------------------------------------------------------- |
+| [`sector_number`](../glossary.md#sector)   | 1        | The place where `husky.jpg` will be stored. Charlie decided it'll be on his 1st sector                            |
+| `deal_ids`                                 | `[0]`    | A sector can contain multiple deals, but it only contains the first one ever created (id: 0)                      |
+| `expiration`                               | `75`     | The 75th, which is 5 minutes after the `end_block`, so the sector expires only after the deal has been terminated |
+| `sealed_cid`, `unsealed_cid`, `seal_proof` | multiple | Currently placeholder values since the proof mechanism is a work-in-progress                                      |
 
 `prove-commit-husky.json`
+
 ```json
 {
-    "sector_number": 1,
-    "proof": "1230deadbeef"
+  "sector_number": 1,
+  "proof": "1230deadbeef"
 }
 ```
+
 - `proof`: hex string of bytes of the proof[^sealing-subsystem]
 
 ```bash
@@ -115,18 +124,20 @@ $ storagext-cli --sr25519-key "//Charlie" storage-provider prove-commit "@prove-
 ## 3. Proofs and faults
 
 `window-proof.json`
+
 ```json
 {
-    "deadline": 0,
-    "partitions": [0],
-    "proof": {
-        "post_proof": "2KiB",
-        "proof_bytes": "1230deadbeef"
-    }
+  "deadline": 0,
+  "partitions": [0],
+  "proof": {
+    "post_proof": "2KiB",
+    "proof_bytes": "1230deadbeef"
+  }
 }
 ```
 
 <!-- deadline is 0, until #277 (before that we need to query the state) -->
+
 - `deadline`: 0, don't worry about it.
 - `partitions`: [0] - always 0, don't worry about it
 - `post_proof`: "2KiB", don't worry about it
@@ -140,21 +151,21 @@ Charlie got assigned the first deadline, so he waits until the block `21`, to se
 $ storagext-cli --sr25519-key "//Charlie" storage-provider submit-windowed-post "@windowed-post.json"
 2024-08-26T15:30:14.720225Z  INFO run{address="5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y"}: storagext_cli::cmd::storage_provider: [0xa233…1f9d] Successfully submitted proof.
 ```
+
 <img src="../images/demo/post-submitted.PNG">
 
 The next proving period starts at block `41`, and deadline `[41, 51)`, so Charlie would need to submit his proof on this block.
 He knows that he won't be able to create a proof, as his hard drives went down, so he reports it. If he didn't report, he'd get slashed.
 
 `fault-declaration.json`
+
 ```json
 [
-    {
-        "deadline": 0,
-        "partition": 0,
-        "sectors": [
-            1
-        ]
-    }
+  {
+    "deadline": 0,
+    "partition": 0,
+    "sectors": [1]
+  }
 ]
 ```
 
@@ -167,6 +178,7 @@ $ storagext-cli --sr25519-key "//Charlie" storage-provider declare-faults "@faul
 
 Charlie fixed his issues with storage and now wants to declare that he's still able to provide data in this sector.
 If he does this too late (1 minute before the next deadline starts), he won't be able to.
+
 ```bash
 $ storagext-cli --sr25519-key "//Charlie" storage-provider declare-faults-recovered "@fault-declaration.json"
 Error: Runtime error: Pallet error: StorageProvider::FaultRecoveryTooLate
@@ -176,7 +188,9 @@ Caused by:
 ```
 
 <!-- it doesn't work until: #281 is fixed -->
+
 If he does it at least a minute before, it succeeds:
+
 ```bash
 $ storagext-cli --sr25519-key "//Charlie" storage-provider declare-faults-recovered "@fault-declaration.json"
 2024-08-27T09:31:05.860278Z  INFO run{address="5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y"}: storagext_cli::cmd::storage_provider: [0xbda5…a61f] Successfully declared faults.
@@ -193,7 +207,9 @@ $ storagext-cli --sr25519-key "//Charlie" storage-provider submit-windowed-post 
 
 After the deal has ended (after block 75), Charlie goes to get his rewards!
 First he settles all of the collaterals, so his balance gets unlocked and then he withdraw balance to use his DOTs for a new shiny dumbbell.
+
 <!-- it ain't working yet, probably until: #278 is done -->
+
 ```bash
 $ storagext-cli --sr25519-key "//Charlie" market settle-deal-payments 0
 2024-08-26T15:33:26.820285Z  INFO run{address="5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y"}: storagext_cli::cmd::market: [0x9aa4…dcdd] Successfully settled deal payments
