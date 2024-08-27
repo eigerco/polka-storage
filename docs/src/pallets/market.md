@@ -33,10 +33,10 @@ when it will be moved to `locked` and used to pay for the deal.
 
 #### <a id="add_balance.example" href="#add_balance.example" class="header">Example</a>
 
-Using the `storagext-cli` you can add 1000000[^existential_deposit] [Plancks](../glossary.md#planck) to Alice's account with the following command[^add_balance]:
+Using the `storagext-cli` you can add 1000000000[^existential_deposit] [Plancks](../glossary.md#planck) to Alice's account with the following command[^add_balance]:
 
 ```bash
-storagext-cli --sr25519-key "//Alice" market add-balance 1000000
+storagext-cli --sr25519-key "//Alice" market add-balance 1000000000
 ```
 
 [^existential_deposit]:

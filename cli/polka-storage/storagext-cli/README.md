@@ -234,7 +234,7 @@ and `proof_bytes` which expectes a valid hex string.
 ```json
 {
     "deadline": 10,
-    "partition": 10,
+    "partitions": [10],
     "chain_commit_block": 1,
     "proof": {
         "post_proof": "2KiB",

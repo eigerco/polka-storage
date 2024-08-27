@@ -974,7 +974,12 @@ fn verifies_deals_on_block_finalization() {
                     who: Market::account_id(),
                     amount: 15
                 }),
-                RuntimeEvent::Market(Event::<Test>::DealSlashed(bob_deal_id))
+                RuntimeEvent::Market(Event::<Test>::DealSlashed {
+                    deal_id: bob_deal_id,
+                    amount: 15,
+                    provider: account::<Test>(PROVIDER),
+                    client: account::<Test>(BOB),
+                })
             ]
         )
     });

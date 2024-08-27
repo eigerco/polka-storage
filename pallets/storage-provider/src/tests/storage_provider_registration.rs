@@ -51,6 +51,9 @@ fn successful_registration() {
                 Event::<Test>::StorageProviderRegistered {
                     owner: account(BOB),
                     info: expected_sp_info,
+                    // It's calculated according to `calculate_first_proving_period` and is random (because offset)
+                    // So first make the test fail, then put a correct value here.
+                    proving_period_start: 69,
                 },
             )]
         );

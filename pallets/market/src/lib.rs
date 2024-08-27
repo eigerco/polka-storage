@@ -372,7 +372,12 @@ pub mod pallet {
         ///
         /// Currently it's emitted only when a deal was supposed to be activated on a given block, but was not.
         /// [`Hooks::on_finalize`] checks deals and slashes them when necessary.
-        DealSlashed(DealId),
+        DealSlashed {
+            deal_id: DealId,
+            amount: BalanceOf<T>,
+            client: T::AccountId,
+            provider: T::AccountId,
+        },
 
         /// Deal has been terminated.
         ///
@@ -1517,7 +1522,12 @@ pub mod pallet {
                             continue;
                         };
 
-                        Self::deposit_event(Event::<T>::DealSlashed(deal_id));
+                        Self::deposit_event(Event::<T>::DealSlashed {
+                            deal_id,
+                            provider: proposal.provider.clone(),
+                            client: proposal.client.clone(),
+                            amount: proposal.provider_collateral,
+                        });
                     }
                     DealState::Active(_) => {
                         log::info!(

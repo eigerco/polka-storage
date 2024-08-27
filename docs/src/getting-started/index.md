@@ -6,7 +6,7 @@ This chapter will guide you through the process of setting up, running and tryin
 
 Before proceeding with the setup, please ensure your system meets the following requirements:
 
-- **OS**: Linux x86_64
+- **OS**: Linux x86_64/MacOS ARM x64
 - **RAM**: Minimum 8GB, recommended 16GB or more
 
 ## Guides

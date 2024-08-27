@@ -5,12 +5,16 @@ that should not be used.
 
 ## Table of Contents
 
-- [Glossary](#glossary)
+- [Glossary and Anti-Glossary](#glossary-and-anti-glossary)
+  - [Table of Contents](#table-of-contents)
+  - [Glossary](#glossary)
     - [Actor](#actor)
     - [Bond](#bond)
     - [Collateral](#collateral)
     - [Collator](#collator)
     - [Committed Capacity](#committed-capacity)
+    - [Commitment of Data](#commitment-of-data)
+    - [Commitment of Replication](#commitment-of-replication)
     - [Crowdloan](#crowdloan)
     - [Deadline](#deadline)
     - [Extrinsics](#extrinsics)
@@ -22,9 +26,7 @@ that should not be used.
     - [Partition](#partition)
     - [Planck](#planck)
     - [Polkadot](#polkadot)
-    - [Proofs](#proofs)
-        - [Proof-of-Replication (PoRep)](#porep)
-        - [Proof-of-Spacetime (PoSt)](#post)
+  - [Proofs](#proofs)
     - [Proving Period](#proving-period)
     - [Relay Chain](#relay-chain)
     - [Sector](#sector)
@@ -32,14 +34,12 @@ that should not be used.
     - [Slashing](#slashing)
     - [Slot Auction](#slot-auction)
     - [Staking](#staking)
-        - [Nominators](#nominators)
-        - [Validators](#validators)
     - [Storage Provider](#storage-provider)
     - [Storage User](#storage-user)
     - [System Parachain](#system-parachain)
-- [Anti-Glossary](#anti-glossary)
-    - [Miner](#term-to-avoid-miner)
-    - [Pledge](#term-to-avoid-pledge)
+  - [Anti-Glossary](#anti-glossary)
+    - [Term to Avoid: Miner](#term-to-avoid-miner)
+    - [Term to Avoid: Pledge](#term-to-avoid-pledge)
 
 ## Glossary
 
@@ -91,6 +91,24 @@ If a [storage provider](#storage-provider) doesn't find any available deal propo
 make a capacity commitment, filling a sector with arbitrary data, rather than with client data. Maintaining this sector
 allows the [storage provider](#storage-provider) to provably demonstrate that they are reserving space on behalf of the
 network.
+
+### Commitment of Data
+
+This value is also known as `commD` or `unsealed_cid`.
+As the storage miner receives each piece of client data, they place it into a sector. Sectors are the fundamental units of storage in Filecoin,
+and can contain pieces from multiple deals and clients.
+
+Once a sector is full, a CommD (Commitment of Data, aka UnsealedSectorCID) is produced, representing the root node of all the piece CIDs contained in the sector.
+
+### Commitment of Replication
+
+The terms `commR`, `sealed_cid`, `commitment of replication` are interchangeable.
+During sealing, the sector data (identified by the CommD) is encoded through a sequence of graph and hashing processes to create a unique replica.
+The root hash of the merkle tree of the resulting replica is the CommRLast.
+
+The CommRLast is then hashed together with the CommC (another merkle root output from Proof of Replication).
+This generates the CommR (Commitment of Replication, aka SealedSectorCID), which is recorded to the public blockchain.
+The CommRLast is saved privately by the miner for future use in Proof of Spacetime, but is not saved to the chain.
 
 ### Crowdloan
 

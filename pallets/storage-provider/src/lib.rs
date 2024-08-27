@@ -231,6 +231,7 @@ pub mod pallet {
         StorageProviderRegistered {
             owner: T::AccountId,
             info: StorageProviderInfo<T::PeerId>,
+            proving_period_start: BlockNumberFor<T>,
         },
         /// Emitted when a storage provider pre commits some sectors.
         SectorPreCommitted {
@@ -367,7 +368,11 @@ pub mod pallet {
             );
             StorageProviders::<T>::insert(&owner, state);
             // Emit event
-            Self::deposit_event(Event::StorageProviderRegistered { owner, info });
+            Self::deposit_event(Event::StorageProviderRegistered {
+                owner,
+                info,
+                proving_period_start: local_proving_start,
+            });
             Ok(())
         }
 
