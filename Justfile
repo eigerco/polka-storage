@@ -2,6 +2,9 @@ alias b := build
 alias r := release
 alias t := testnet
 
+generate-scale:
+    subxt metadata -a --url http://127.0.0.1:42069 > cli/artifacts/metadata.scale
+
 lint:
     cargo clippy --locked --no-deps -- -D warnings
     taplo lint && taplo fmt --check
