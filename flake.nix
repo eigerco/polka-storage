@@ -8,7 +8,7 @@
        };
     };
     zombienet = {
-      url = "github:paritytech/zombienet/dfc0f2e02dbab2361c3f2f983fe6e0f32261cc73"; # last known working version, because of: https://github.com/paritytech/zombienet/issues/1858
+      url = "github:paritytech/zombienet";
       inputs = {
         nixpkgs.follows = "nixpkgs";
       };
