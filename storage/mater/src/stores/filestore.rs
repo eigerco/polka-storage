@@ -75,6 +75,9 @@ where
     let header_v1 = CarV1Header::new(vec![root]);
     writer.write_v1_header(&header_v1).await?;
 
+    // Flush even if the caller doesn't - we did our best
+    writer.finish().await?;
+
     Ok(root)
 }
 
