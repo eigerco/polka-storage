@@ -1,3 +1,4 @@
+use anyhow::bail;
 use clap::{ArgGroup, Subcommand};
 use primitives_proofs::DealId;
 use storagext::{clients::MarketClient, runtime, PolkaStorageConfig};
@@ -165,7 +166,7 @@ impl MarketCommand {
             }
             MarketCommand::SettleDealPayments { deal_ids } => {
                 if deal_ids.is_empty() {
-                    return Err(anyhow::anyhow!("No deals provided to settle"));
+                    bail!("No deals provided to settle");
                 }
 
                 let submission_result = client
