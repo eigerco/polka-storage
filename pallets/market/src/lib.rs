@@ -363,7 +363,7 @@ pub mod pallet {
         /// Deals were settled.
         DealsSettled {
             /// Deal IDs for those that were successfully settled.
-            successful: BoundedVec<DealId, MaxSettleDeals<T>>,
+            successful: BoundedVec<SettledDealData<T>, MaxSettleDeals<T>>,
             /// Deal IDs for those that were not successfully settled along with the respective error.
             unsuccessful: BoundedVec<(DealId, DealSettlementError), MaxSettleDeals<T>>,
         },
@@ -394,6 +394,29 @@ pub mod pallet {
 
     /// Utility type to ensure that the bound for deal settlement is in sync.
     pub type MaxSettleDeals<T> = <T as Config>::MaxDeals;
+
+    /// The data part of the event pushed when the deal is successfully settled.
+    #[derive(TypeInfo, Encode, Decode, Clone, PartialEq)]
+    pub struct SettledDealData<T: Config> {
+        pub deal_id: DealId,
+        pub client: T::AccountId,
+        pub provider: T::AccountId,
+        pub amount: BalanceOf<T>,
+    }
+
+    impl<T> core::fmt::Debug for SettledDealData<T>
+    where
+        T: Config,
+    {
+        fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+            f.debug_struct("SettledDealData")
+                .field("deal_id", &self.deal_id)
+                .field("client", &self.client)
+                .field("provider", &self.provider)
+                .field("amount", &self.amount)
+                .finish()
+        }
+    }
 
     #[pallet::error]
     pub enum Error<T> {
@@ -535,6 +558,8 @@ pub mod pallet {
         EarlySettlement,
         /// The deal has expired
         ExpiredDeal,
+        /// Deal is not activated
+        DealNotActive,
     }
 
     impl core::fmt::Debug for DealSettlementError {
@@ -554,6 +579,9 @@ pub mod pallet {
                 }
                 DealSettlementError::ExpiredDeal => {
                     write!(f, "DealSettlementError: Expired Deal")
+                }
+                DealSettlementError::DealNotActive => {
+                    write!(f, "DealSettlementError: Deal Not Active")
                 }
             }
         }
@@ -665,7 +693,6 @@ pub mod pallet {
         /// In other cases, the function will return two lists, the successful settlements and the unsuccessful ones.
         ///
         /// A settlement is only fully performed when a deal is active.
-        /// If a deal is not active, its settlement is simply marked as successful but nothing happens.
         ///
         /// A settlement is unsuccessful when:
         /// * The deal was not found. The returned error is [`DealSettlementError::DealNotFound`].
@@ -674,6 +701,7 @@ pub mod pallet {
         /// * The deal has been slashed. The returned error is [`DealSettlementError::SlashedDeal`].
         /// * The deal's last update is after the current block, meaning the deal's last update is in the future.
         ///   The returned error is [`DealSettlementError::FutureLastUpdate`].
+        /// * The deal is not active
         pub fn settle_deal_payments(
             origin: OriginFor<T>,
             // The original `deals` structure is a bitfield from fvm-ipld-bitfield
@@ -716,7 +744,7 @@ pub mod pallet {
                     // NOTE(@jmg-duarte,28/06/2024): maybe we should handle deals where deal_proposal.start_block < current_block — i.e. expired
 
                     // SAFETY: Always succeeds because the upper bound on the vecs should be the same as the input vec
-                    let _ = successful.try_push(deal_id);
+                    let _ = unsuccessful.try_push((deal_id, DealSettlementError::DealNotActive));
                     continue;
                 };
 
@@ -779,6 +807,14 @@ pub mod pallet {
                     deal_settlement_amount,
                 )?;
 
+                // SAFETY: Always succeeds because the upper bound on the vecs should be the same as the input vec
+                let _ = successful.try_push(SettledDealData {
+                    deal_id,
+                    client: deal_proposal.client.clone(),
+                    provider: deal_proposal.provider.clone(),
+                    amount: deal_settlement_amount,
+                });
+
                 // NOTE(@jmg-duarte,28/06/2024): Maybe emit an event when the table is updated?
                 if complete_deal {
                     unlock_funds::<T>(&deal_proposal.provider, deal_proposal.provider_collateral)?;
@@ -788,8 +824,6 @@ pub mod pallet {
                     active_deal_state.last_updated_block = Some(current_block);
                     Proposals::<T>::insert(deal_id, deal_proposal);
                 }
-                // SAFETY: Always succeeds because the upper bound on the vecs should be the same as the input vec
-                let _ = successful.try_push(deal_id);
             }
 
             Self::deposit_event(Event::<T>::DealsSettled {
@@ -1534,6 +1568,7 @@ pub mod pallet {
                             "on_finalize: deal {} has been properly activated before, all good.",
                             deal_id
                         );
+                        continue;
                     }
                 }
 
