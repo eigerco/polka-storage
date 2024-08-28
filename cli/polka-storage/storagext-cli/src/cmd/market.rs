@@ -164,6 +164,10 @@ impl MarketCommand {
                 }
             }
             MarketCommand::SettleDealPayments { deal_ids } => {
+                if deal_ids.is_empty() {
+                    return Err(anyhow::anyhow!("No deals provided to settle"));
+                }
+
                 let submission_result = client
                     .settle_deal_payments(&account_keypair, deal_ids)
                     .await?;

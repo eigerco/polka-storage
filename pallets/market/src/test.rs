@@ -20,6 +20,7 @@ use crate::{
     pallet::{lock_funds, slash_and_burn, unlock_funds},
     ActiveDealState, BalanceEntry, BalanceTable, Config, DealSettlementError, DealState,
     DealsForBlock, Error, Event, PendingProposals, Proposals, SectorDeals, SectorTerminateError,
+    SettledDealData,
 };
 #[test]
 fn initial_state() {
@@ -1064,14 +1065,18 @@ fn settle_deal_payments_published() {
 
         assert_ok!(Market::settle_deal_payments(
             RuntimeOrigin::signed(account::<Test>(ALICE)),
-            bounded_vec!(0, 1)
+            bounded_vec!(0, 1, 2)
         ));
 
         assert_eq!(
             events(),
             [RuntimeEvent::Market(Event::<Test>::DealsSettled {
-                successful: bounded_vec!(0, 1),
-                unsuccessful: bounded_vec!()
+                successful: bounded_vec!(),
+                unsuccessful: bounded_vec!(
+                    (0, DealSettlementError::DealNotActive),
+                    (1, DealSettlementError::DealNotActive),
+                    (2, DealSettlementError::DealNotFound)
+                )
             })]
         )
     });
@@ -1201,7 +1206,12 @@ fn settle_deal_payments_success() {
         assert_eq!(
             events(),
             [RuntimeEvent::Market(Event::<Test>::DealsSettled {
-                successful: bounded_vec!(0),
+                successful: bounded_vec!(SettledDealData {
+                    deal_id: 0,
+                    amount: 25,
+                    client: account::<Test>(ALICE),
+                    provider: account::<Test>(PROVIDER)
+                }),
                 unsuccessful: bounded_vec!()
             })]
         );
@@ -1296,7 +1306,12 @@ fn settle_deal_payments_success_finished() {
         assert_eq!(
             events(),
             [RuntimeEvent::Market(Event::<Test>::DealsSettled {
-                successful: bounded_vec!(0),
+                successful: bounded_vec!(SettledDealData {
+                    deal_id: 0,
+                    amount: 50,
+                    client: account::<Test>(ALICE),
+                    provider: account::<Test>(PROVIDER)
+                }),
                 unsuccessful: bounded_vec!()
             })]
         );
