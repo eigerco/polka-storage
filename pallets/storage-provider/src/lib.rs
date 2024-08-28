@@ -725,7 +725,7 @@ pub mod pallet {
 
                 // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L2451-L2458
                 ensure!(!target_dl.fault_cutoff_passed(), {
-                    log::error!(target: LOG_TARGET, "declare_faults: Late fault declaration at deadline {deadline_idx}. {current_block:?} >= {:?}", target_dl.fault_cutoff);
+                    log::error!(target: LOG_TARGET, "declare_faults: Late fault declaration at deadline {:?}. {:?} >= {:?}", deadline_idx, current_block, target_dl.fault_cutoff);
                     Error::<T>::FaultDeclarationTooLate
                 });
 
@@ -781,7 +781,7 @@ pub mod pallet {
             }
 
             for (&deadline_idx, partition_map) in to_process.0.iter() {
-                log::debug!(target: LOG_TARGET, "declare_faults_recovered: Processing deadline index: {deadline_idx}");
+                log::debug!(target: LOG_TARGET, "declare_faults_recovered: processing deadline index: {deadline_idx}");
                 // Check deadline index to avoid doing any work if it is wrong.
                 ensure!(
                     (deadline_idx as usize) < sp.deadlines.due.len(),
@@ -798,9 +798,12 @@ pub mod pallet {
                     T::WPoStChallengeLookBack::get(),
                     T::FaultDeclarationCutoff::get(),
                 )
+                .and_then(DeadlineInfo::next_not_elapsed)
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
+
                 ensure!(!target_dl.fault_cutoff_passed(), {
-                    log::error!(target: LOG_TARGET, "declare_faults: Late fault declaration at deadline {deadline_idx}");
+                    log::error!(target: LOG_TARGET, "declare_faults: late fault declaration at deadline {:?}. {:?} >= {:?}",
+                        deadline_idx, current_block, target_dl.fault_cutoff);
                     Error::<T>::FaultRecoveryTooLate
                 });
                 let dl = sp

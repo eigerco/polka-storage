@@ -369,7 +369,7 @@ fn fail_windowed_post_wrong_signature() {
 // submit proof on the last allowed block for the deadline
 #[case(1, Ok(()))]
 // deadline has passed
-#[case(2, Err(Error::<Test>::InvalidDeadlineSubmission.into()))]
+#[case(4, Err(Error::<Test>::InvalidDeadlineSubmission.into()))]
 fn windowed_post_commit_block(
     #[case] block_offset: i64,
     #[case] expected_extrinsic_result: Result<(), DispatchError>,

@@ -89,6 +89,30 @@ fn declare_single_fault_recovered_and_submitted() {
                 .fault(deadline, partition, sectors.clone())
                 .build(),
         ));
+        let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
+        let (faults, recoveries) = count_sector_faults_and_recoveries(&sp.deadlines);
+        // 0 recovery and 1 faults.
+        assert_eq!(recoveries, 0);
+        assert_eq!(faults, 1);
+
+        run_to_block(sp.proving_period_start + 1);
+
+        // when the deadline started, it shouldn't be possible to recover it.
+        assert_err!(
+            StorageProvider::declare_faults_recovered(
+                RuntimeOrigin::signed(account(storage_provider)),
+                DeclareFaultsRecoveredBuilder::default()
+                    .fault_recovery(deadline, partition, sectors.clone())
+                    .build(),
+            ),
+            Error::<Test>::FaultRecoveryTooLate
+        );
+
+        let proving_period = <Test as Config>::WPoStProvingPeriod::get();
+        let fault_declaration_cuttoff = <Test as Config>::FaultDeclarationCutoff::get();
+
+        // before the next deadline happens and before the cutoff!
+        run_to_block(sp.proving_period_start + proving_period - fault_declaration_cuttoff - 1);
         assert_ok!(StorageProvider::declare_faults_recovered(
             RuntimeOrigin::signed(account(storage_provider)),
             DeclareFaultsRecoveredBuilder::default()
@@ -100,11 +124,9 @@ fn declare_single_fault_recovered_and_submitted() {
         // 1 recovery and 1 faults.
         assert_eq!(recoveries, 1);
         assert_eq!(faults, 1);
-        run_to_block(sp.proving_period_start + 1);
 
-        // Flush events
-        System::reset_events();
-
+        // the next deadline time!
+        run_to_block(sp.proving_period_start + proving_period + 1);
         let windowed_post = SubmitWindowedPoStBuilder::default()
             .partition(partition)
             .build();
