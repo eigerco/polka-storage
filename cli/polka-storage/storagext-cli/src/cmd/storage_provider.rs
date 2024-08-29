@@ -1,12 +1,12 @@
 use anyhow::bail;
 use clap::Subcommand;
 use primitives_proofs::RegisteredPoStProof;
-use storagext::{clients::StorageProviderClient, runtime, FaultDeclaration, RecoveryDeclaration};
+use storagext::{clients::StorageProviderClient, FaultDeclaration, RecoveryDeclaration};
 use url::Url;
 
 use crate::{
     deser::{ParseablePath, PreCommitSector, ProveCommitSector, SubmitWindowedPoStParams},
-    missing_keypair_error, MultiPairSigner,
+    missing_keypair_error, operation_takes_a_while, MultiPairSigner,
 };
 
 fn parse_post_proof(src: &str) -> Result<RegisteredPoStProof, anyhow::Error> {
@@ -82,10 +82,13 @@ impl StorageProviderCommand {
         account_keypair: Option<MultiPairSigner>,
     ) -> Result<(), anyhow::Error> {
         let client = StorageProviderClient::new(node_rpc).await?;
+
+        operation_takes_a_while();
+
         let Some(account_keypair) = account_keypair else {
             return Err(missing_keypair_error::<Self>().into());
         };
-        match self {
+        let submission_result = match self {
             StorageProviderCommand::RegisterStorageProvider {
                 peer_id,
                 post_proof,
@@ -93,45 +96,27 @@ impl StorageProviderCommand {
                 let submission_result = client
                     .register_storage_provider(&account_keypair, peer_id.clone(), post_proof)
                     .await?;
-                tracing::info!(
+                tracing::debug!(
                     "[{}] Successfully registered {}, seal: {:?} in Storage Provider Pallet",
                     submission_result.hash,
                     peer_id,
                     post_proof
                 );
 
-                for event in submission_result
-                    .events
-                    .find::<runtime::storage_provider::events::StorageProviderRegistered>()
-                {
-                    let event = event?;
-                    println!(
-                        "[{}] Storage provider registered: {}",
-                        submission_result.hash, event
-                    );
-                }
+                submission_result
             }
             StorageProviderCommand::PreCommit { pre_commit_sector } => {
                 let sector_number = pre_commit_sector.sector_number;
                 let submission_result = client
                     .pre_commit_sector(&account_keypair, pre_commit_sector.into())
                     .await?;
-                tracing::info!(
+                tracing::debug!(
                     "[{}] Successfully pre-commited sector {}.",
                     submission_result.hash,
                     sector_number
                 );
 
-                for event in submission_result
-                    .events
-                    .find::<runtime::storage_provider::events::SectorPreCommitted>()
-                {
-                    let event = event?;
-                    println!(
-                        "[{}] Sector pre-commited: {}",
-                        submission_result.hash, event
-                    );
-                }
+                submission_result
             }
             StorageProviderCommand::ProveCommit {
                 prove_commit_sector,
@@ -140,63 +125,55 @@ impl StorageProviderCommand {
                 let submission_result = client
                     .prove_commit_sector(&account_keypair, prove_commit_sector.into())
                     .await?;
-                tracing::info!(
+                tracing::debug!(
                     "[{}] Successfully proven sector {}.",
                     submission_result.hash,
                     sector_number
                 );
 
-                for event in submission_result
-                    .events
-                    .find::<runtime::storage_provider::events::SectorProven>()
-                {
-                    let event = event?;
-                    println!("[{}] Sector proven: {}", submission_result.hash, event);
-                }
+                submission_result
             }
             StorageProviderCommand::SubmitWindowedProofOfSpaceTime { windowed_post } => {
                 let submission_result = client
                     .submit_windowed_post(&account_keypair, windowed_post.into())
                     .await?;
-                tracing::info!("[{}] Successfully submitted proof.", submission_result.hash);
+                tracing::debug!("[{}] Successfully submitted proof.", submission_result.hash);
 
-                for event in submission_result
-                    .events
-                    .find::<runtime::storage_provider::events::ValidPoStSubmitted>()
-                {
-                    let event = event?;
-                    println!(
-                        "[{}] Valid PoSt submitted: {}",
-                        submission_result.hash, event
-                    );
-                }
+                submission_result
             }
             StorageProviderCommand::DeclareFaults { faults } => {
                 let submission_result = client.declare_faults(&account_keypair, faults).await?;
-                tracing::info!("[{}] Successfully declared faults.", submission_result.hash);
+                tracing::debug!("[{}] Successfully declared faults.", submission_result.hash);
 
-                for event in submission_result
-                    .events
-                    .find::<runtime::storage_provider::events::FaultsDeclared>()
-                {
-                    let event = event?;
-                    println!("[{}] Faults declared: {}", submission_result.hash, event);
-                }
+                submission_result
             }
             StorageProviderCommand::DeclareFaultsRecovered { recoveries } => {
                 let submission_result = client
                     .declare_faults_recovered(&account_keypair, recoveries)
                     .await?;
-                tracing::info!("[{}] Successfully declared faults.", submission_result.hash);
+                tracing::debug!("[{}] Successfully declared faults.", submission_result.hash);
 
-                for event in submission_result
-                    .events
-                    .find::<runtime::storage_provider::events::FaultsRecovered>()
-                {
-                    let event = event?;
-                    println!("[{}] Faults recovered: {}", submission_result.hash, event);
-                }
+                submission_result
             }
+        };
+
+        // This monstrosity first converts incoming events into a "generic" (subxt generated) event,
+        // and then we extract only the Market events. We could probably extract this into a proper
+        // iterator but the effort to improvement ratio seems low (for 2 pallets at least).
+        for event in submission_result
+            .events
+            .iter()
+            .flat_map(|event| {
+                event.map(|details| details.as_root_event::<storagext::runtime::Event>())
+            })
+            .filter_map(|event| match event {
+                Ok(storagext::runtime::Event::StorageProvider(e)) => Some(Ok(e)),
+                Err(err) => Some(Err(err)),
+                _ => None,
+            })
+        {
+            let event = event?;
+            println!("[{}] {}", submission_result.hash, event);
         }
         Ok(())
     }

@@ -1,12 +1,12 @@
 use crate::runtime::{
     runtime_types::pallet_storage_provider::{fault, sector},
-    storage_provider::events,
+    storage_provider::{events, Event},
 };
 
 impl std::fmt::Display for fault::FaultDeclaration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "FaultDeclaration {{ deadline: {}, partition: {}, sectors: [{}] }}",
+            "Fault Declaration: {{ deadline: {}, partition: {}, sectors: [{}] }}",
             self.deadline,
             self.partition,
             itertools::Itertools::intersperse(
@@ -21,7 +21,7 @@ impl std::fmt::Display for fault::FaultDeclaration {
 impl std::fmt::Display for fault::RecoveryDeclaration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "RecoveryDeclaration {{ deadline: {}, partition: {}, sectors: [{}] }}",
+            "Recovery Declaration: {{ deadline: {}, partition: {}, sectors: [{}] }}",
             self.deadline,
             self.partition,
             itertools::Itertools::intersperse(
@@ -39,7 +39,7 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "SectorPreCommitInfo {{ sector_number: {}, expiration: {}, seal_proof: {:?}, unsealed_cid: {}, sealed_cid: {} }}",
+            "Sector Pre-Commit Info: {{ sector_number: {}, expiration: {}, seal_proof: {:?}, unsealed_cid: {}, sealed_cid: {} }}",
             self.sector_number,
             self.expiration,
             self.seal_proof,
@@ -54,7 +54,7 @@ where
 impl std::fmt::Display for events::storage_provider_registered::Info {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "StorageProviderInfo {{ peer_id: {}, window_post_proof_type: {:?}, sector_size: {:?}, window_post_partition_sectors: {} }}",
+            "Storage Provider Info: {{ peer_id: {}, window_post_proof_type: {:?}, sector_size: {:?}, window_post_partition_sectors: {} }}",
             // This matches the libp2p implementation without requiring such a big dependency
             bs58::encode(self.peer_id.0.as_slice()).into_string(),
             self.window_post_proof_type,
@@ -64,111 +64,82 @@ impl std::fmt::Display for events::storage_provider_registered::Info {
     }
 }
 
-impl std::fmt::Display for events::FaultsDeclared {
+impl std::fmt::Display for Event {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!(
-            "{} {{ owner: {}, faults: [{}] }}",
-            <Self as subxt::ext::subxt_core::events::StaticEvent>::EVENT,
-            self.owner,
-            itertools::Itertools::intersperse(
-                self.faults.0.iter().map(|fault| format!("{}", fault)),
-                ", ".to_string()
-            )
-            .collect::<String>()
-        ))
-    }
-}
-
-impl std::fmt::Display for events::FaultsRecovered {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!(
-            "{} {{ owner: {}, recoveries: [{}] }}",
-            <Self as subxt::ext::subxt_core::events::StaticEvent>::EVENT,
-            self.owner,
-            itertools::Itertools::intersperse(
-                self.recoveries
-                    .0
-                    .iter()
-                    .map(|recovery| format!("{}", recovery)),
-                ", ".to_string()
-            )
-            .collect::<String>()
-        ))
-    }
-}
-
-impl std::fmt::Display for events::PartitionFaulty {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!(
-            "{} {{ owner: {}, partition: {}, sectors: [{}] }}",
-            <Self as subxt::ext::subxt_core::events::StaticEvent>::EVENT,
-            self.owner,
-            self.partition,
-            itertools::Itertools::intersperse(
-                self.sectors
-                    .0
-                    .iter()
-                    .map(|recovery| format!("{}", recovery)),
-                ", ".to_string()
-            )
-            .collect::<String>()
-        ))
-    }
-}
-
-impl std::fmt::Display for events::SectorPreCommitted {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!(
-            "{} {{ owner: {}, sector_number: {} }}",
-            <Self as subxt::ext::subxt_core::events::StaticEvent>::EVENT,
-            self.owner,
-            self.sector,
-        ))
-    }
-}
-
-impl std::fmt::Display for events::SectorProven {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!(
-            "{} {{ owner: {}, sector_number: {}, partition_number: {}, deadline_idx: {} }}",
-            <Self as subxt::ext::subxt_core::events::StaticEvent>::EVENT,
-            self.owner,
-            self.sector_number,
-            self.partition_number,
-            self.deadline_idx,
-        ))
-    }
-}
-
-impl std::fmt::Display for events::SectorSlashed {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!(
-            "{} {{ owner: {}, sector_number: {} }}",
-            <Self as subxt::ext::subxt_core::events::StaticEvent>::EVENT,
-            self.owner,
-            self.sector_number,
-        ))
-    }
-}
-
-impl std::fmt::Display for events::StorageProviderRegistered {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!(
-            "{} {{ owner: {}, info: {}, proving_period_start: {} }}",
-            <Self as subxt::ext::subxt_core::events::StaticEvent>::EVENT,
-            self.owner,
-            self.info,
-            self.proving_period_start,
-        ))
-    }
-}
-
-impl std::fmt::Display for events::ValidPoStSubmitted {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!(
-            "{} {{ owner: {} }}",
-            <Self as subxt::ext::subxt_core::events::StaticEvent>::EVENT,
-            self.owner,
-        ))
+        match self {
+            Event::StorageProviderRegistered {
+                owner,
+                info,
+                proving_period_start,
+            } => f.write_fmt(format_args!(
+                "Storage Provider Registered: {{ owner: {}, info: {}, proving_period_start: {} }}",
+                owner, info, proving_period_start,
+            )),
+            Event::SectorPreCommitted { owner, sector } => f.write_fmt(format_args!(
+                "Sector Pre-Committed: {{ owner: {}, sector_number: {} }}",
+                owner, sector,
+            )),
+            Event::SectorProven {
+                owner,
+                sector_number,
+                partition_number,
+                deadline_idx,
+            } => f.write_fmt(format_args!(
+                "Sector Proven: {{ owner: {}, sector_number: {}, partition_number: {}, deadline_idx: {} }}",
+                owner,
+                sector_number,
+                partition_number,
+                deadline_idx,
+            )),
+            Event::SectorSlashed {
+                owner,
+                sector_number,
+            } => f.write_fmt(format_args!(
+                "Sector Slashed: {{ owner: {}, sector_number: {} }}",
+                owner, sector_number,
+            )),
+            Event::ValidPoStSubmitted { owner } => f.write_fmt(format_args!(
+                "Valid PoSt Submitted: {{ owner: {} }}",
+                owner,
+            )),
+            Event::FaultsDeclared { owner, faults } => f.write_fmt(format_args!(
+                "Faults Declared: {{ owner: {}, faults: [{}] }}",
+                owner,
+                itertools::Itertools::intersperse(
+                    faults.0.iter().map(|fault| format!("{}", fault)),
+                    ", ".to_string()
+                )
+                .collect::<String>()
+            )),
+            Event::FaultsRecovered { owner, recoveries } => f.write_fmt(format_args!(
+                "Faults Recovered: {{ owner: {}, recoveries: [{}] }}",
+                owner,
+                itertools::Itertools::intersperse(
+                    recoveries
+                        .0
+                        .iter()
+                        .map(|recovery| format!("{}", recovery)),
+                    ", ".to_string()
+                )
+                .collect::<String>()
+            )),
+            Event::PartitionFaulty {
+                owner,
+                partition,
+                sectors,
+            } => f.write_fmt(format_args!(
+                "Faulty Partition: {{ owner: {}, partition: {}, sectors: [{}] }}",
+                owner,
+                partition,
+                itertools::Itertools::intersperse(
+                    sectors
+                        .0
+                        .iter()
+                        .map(|recovery| format!("{}", recovery)),
+                    ", ".to_string()
+                )
+                .collect::<String>()
+            )),
+        }
     }
 }
