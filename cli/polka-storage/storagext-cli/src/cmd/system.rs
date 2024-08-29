@@ -3,9 +3,9 @@ use storagext::clients::SystemClient;
 use url::Url;
 
 #[derive(Debug, Subcommand)]
-#[command(name = "chain", about = "Chain related actions", version)]
+#[command(name = "system", about = "System related actions", version)]
 pub(crate) enum SystemCommand {
-    /// Get information about the chain
+    /// Get current height
     GetHeight,
     /// Wait for a specific block height
     WaitForHeight {
