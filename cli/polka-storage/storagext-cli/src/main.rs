@@ -7,7 +7,7 @@ mod pair;
 use std::fmt::Debug;
 
 use clap::{ArgGroup, Parser, Subcommand};
-use cmd::{market::MarketCommand, storage_provider::StorageProviderCommand};
+use cmd::{market::MarketCommand, storage_provider::StorageProviderCommand, system::SystemCommand};
 use deser::DealProposal;
 use pair::{DebugPair, MultiPairSigner};
 use subxt::ext::sp_core::{
@@ -63,6 +63,8 @@ enum SubCommand {
     Market(MarketCommand),
     #[command(subcommand)]
     StorageProvider(StorageProviderCommand),
+    #[command(subcommand)]
+    System(SystemCommand),
 }
 
 impl SubCommand {
@@ -78,6 +80,9 @@ impl SubCommand {
             }
             SubCommand::StorageProvider(cmd) => {
                 cmd.run(node_rpc, account_keypair).await?;
+            }
+            SubCommand::System(cmd) => {
+                cmd.run(node_rpc).await?;
             }
         }
 
