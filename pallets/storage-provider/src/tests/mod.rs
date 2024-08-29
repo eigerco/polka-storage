@@ -94,7 +94,7 @@ parameter_types! {
     // Storage Provider Pallet
     pub const WPoStPeriodDeadlines: u64 = 10;
     pub const WpostProvingPeriod: BlockNumber = 40 * MINUTES;
-    pub const WpostChallengeWindow: BlockNumber = 2 * MINUTES;
+    pub const WpostChallengeWindow: BlockNumber = 4 * MINUTES;
     pub const WpostChallengeLookBack: BlockNumber = MINUTES;
     pub const MinSectorExpiration: BlockNumber = 5 * MINUTES;
     pub const MaxSectorExpirationExtension: BlockNumber = 360 * MINUTES;
