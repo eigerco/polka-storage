@@ -25,7 +25,7 @@ impl SystemCommand {
         match self {
             SystemCommand::GetHeight => match client.height().await? {
                 Some(height) => println!("Current height: {height:#?}"),
-                None => println!("No current height"),
+                None => println!("Could not fetch current height, may be unavailable"),
             },
             SystemCommand::WaitForHeight { height } => {
                 client.wait_for_height(height).await?;
