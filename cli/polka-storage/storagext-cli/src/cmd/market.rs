@@ -1,14 +1,15 @@
 use anyhow::bail;
 use clap::{ArgGroup, Subcommand};
 use primitives_proofs::DealId;
-use storagext::{clients::MarketClient, runtime, PolkaStorageConfig};
+use storagext::{clients::MarketClient, PolkaStorageConfig};
 use subxt::ext::sp_core::{
     ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair, sr25519::Pair as Sr25519Pair,
 };
 use url::Url;
 
 use crate::{
-    deser::ParseablePath, missing_keypair_error, pair::DebugPair, DealProposal, MultiPairSigner,
+    deser::ParseablePath, missing_keypair_error, operation_takes_a_while, pair::DebugPair,
+    DealProposal, MultiPairSigner,
 };
 
 /// List of [`DealProposal`]s to publish.
@@ -88,7 +89,7 @@ impl MarketCommand {
             // https://users.rust-lang.org/t/clap-ignore-global-argument-in-sub-command/101701/8
             MarketCommand::RetrieveBalance { account_id } => {
                 if let Some(balance) = client.retrieve_balance(account_id.clone()).await? {
-                    tracing::info!(
+                    tracing::debug!(
                         "Account {} {{ free: {}, locked: {} }}",
                         account_id,
                         balance.free,
@@ -114,22 +115,18 @@ impl MarketCommand {
         client: MarketClient,
         account_keypair: MultiPairSigner,
     ) -> Result<(), anyhow::Error> {
-        match self {
+        operation_takes_a_while();
+
+        let submission_result = match self {
             MarketCommand::AddBalance { amount } => {
                 let submission_result = client.add_balance(&account_keypair, amount).await?;
-                tracing::info!(
+                tracing::debug!(
                     "[{}] Successfully added {} to Market Balance",
                     submission_result.hash,
                     amount
                 );
 
-                for event in submission_result
-                    .events
-                    .find::<runtime::market::events::BalanceAdded>()
-                {
-                    let event = event?;
-                    println!("[{}] Balance added: {:#?}", submission_result.hash, event);
-                }
+                submission_result
             }
             MarketCommand::PublishStorageDeals {
                 deals,
@@ -151,18 +148,12 @@ impl MarketCommand {
                         deals.0.into_iter().map(Into::into).collect(),
                     )
                     .await?;
-                tracing::info!(
+                tracing::debug!(
                     "[{}] Successfully published storage deals",
                     submission_result.hash
                 );
 
-                for event in submission_result
-                    .events
-                    .find::<runtime::market::events::DealPublished>()
-                {
-                    let event = event?;
-                    println!("[{}] Deal published: {:#?}", submission_result.hash, event);
-                }
+                submission_result
             }
             MarketCommand::SettleDealPayments { deal_ids } => {
                 if deal_ids.is_empty() {
@@ -172,39 +163,42 @@ impl MarketCommand {
                 let submission_result = client
                     .settle_deal_payments(&account_keypair, deal_ids)
                     .await?;
-                tracing::info!(
+                tracing::debug!(
                     "[{}] Successfully settled deal payments",
                     submission_result.hash
                 );
 
-                for event in submission_result
-                    .events
-                    .find::<runtime::market::events::DealsSettled>()
-                {
-                    let event = event?;
-                    println!("[{}] Deals settled: {:#?}", submission_result.hash, event);
-                }
+                submission_result
             }
             MarketCommand::WithdrawBalance { amount } => {
                 let submission_result = client.withdraw_balance(&account_keypair, amount).await?;
-                tracing::info!(
+                tracing::debug!(
                     "[{}] Successfully withdrew {} from Market Balance",
                     submission_result.hash,
                     amount
                 );
-
-                for event in submission_result
-                    .events
-                    .find::<runtime::market::events::BalanceWithdrawn>()
-                {
-                    let event = event?;
-                    println!(
-                        "[{}] Balance withdrawn: {:#?}",
-                        submission_result.hash, event
-                    );
-                }
+                submission_result
             }
             _unsigned => unreachable!("unsigned extrinsics should have been previously handled"),
+        };
+
+        // This monstrosity first converts incoming events into a "generic" (subxt generated) event,
+        // and then we extract only the Market events. We could probably extract this into a proper
+        // iterator but the effort to improvement ratio seems low (for 2 pallets at least).
+        for event in submission_result
+            .events
+            .iter()
+            .flat_map(|event| {
+                event.map(|details| details.as_root_event::<storagext::runtime::Event>())
+            })
+            .filter_map(|event| match event {
+                Ok(storagext::runtime::Event::Market(e)) => Some(Ok(e)),
+                Err(err) => Some(Err(err)),
+                _ => None,
+            })
+        {
+            let event = event?;
+            println!("[{}] {}", submission_result.hash, event);
         }
         Ok(())
     }
