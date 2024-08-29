@@ -74,14 +74,7 @@ The client keypair can be passed using `--client-<key kind>`, where `<key kind>`
 | `--client-ed25519-key` | Ed25519 keypair           | String, encoded as hex, BIP-39 or a dev phrase like `//Charlie`                                                             |
 | `DEALS`                | The deals to be published | JSON array. Can be passed as a string, or as a file path prefixed with `@` pointing to the file containing the JSON object. |
 
-The `DEALS` JSON array is composed of objects with two keys:
-
-| Name               | Description                                     |
-| ------------------ | ----------------------------------------------- |
-| `proposal`         | Specific deal proposal, a JSON object           |
-| `client_signature` | Client signature of this specific deal proposal |
-
-And the `proposal` object has the following keys:
+The `DEALS` JSON array is composed of objects:
 
 | Name                      | Description                                                         |
 | ------------------------- | ------------------------------------------------------------------- |

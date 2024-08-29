@@ -92,6 +92,10 @@ storagext-cli --sr25519-key "//Alice" storage-provider register Alice
 
 ## Kubernetes
 
+<div class="warning">
+Docker Images were only published on x86_64 platforms! They won't work on Kubernetes on MacOS.
+</div>
+
 ### Prerequisites
 
 - [zombienet v1.3.106](https://github.com/paritytech/zombienet/releases/tag/v1.3.106) - cli tool to easily spawn ephemeral Polkadot/Substrate networks and perform tests against them.
