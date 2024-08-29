@@ -13,11 +13,13 @@ insecure_url = []
 
 [dependencies]
 anyhow.workspace = true
+bs58 = { workspace = true }
 cid = { workspace = true, features = ["scale-codec"] }
 clap = { workspace = true, features = ["derive"] }
 codec.workspace = true
 frame-support = { workspace = true, features = ["std"] }
 hex = { workspace = true, features = ["serde"] }
+itertools = { workspace = true }
 primitives-proofs = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
 subxt = { workspace = true, features = ["jsonrpsee", "substrate-compat"] }

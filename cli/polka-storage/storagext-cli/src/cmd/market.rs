@@ -128,7 +128,7 @@ impl MarketCommand {
                     .find::<runtime::market::events::BalanceAdded>()
                 {
                     let event = event?;
-                    println!("[{}] Balance added: {:#?}", submission_result.hash, event);
+                    println!("[{}] Balance added: {}", submission_result.hash, event);
                 }
             }
             MarketCommand::PublishStorageDeals {
@@ -161,7 +161,7 @@ impl MarketCommand {
                     .find::<runtime::market::events::DealPublished>()
                 {
                     let event = event?;
-                    println!("[{}] Deal published: {:#?}", submission_result.hash, event);
+                    println!("[{}] Deal published: {}", submission_result.hash, event);
                 }
             }
             MarketCommand::SettleDealPayments { deal_ids } => {
@@ -182,7 +182,7 @@ impl MarketCommand {
                     .find::<runtime::market::events::DealsSettled>()
                 {
                     let event = event?;
-                    println!("[{}] Deals settled: {:#?}", submission_result.hash, event);
+                    println!("[{}] Deals settled: {}", submission_result.hash, event);
                 }
             }
             MarketCommand::WithdrawBalance { amount } => {
@@ -198,10 +198,7 @@ impl MarketCommand {
                     .find::<runtime::market::events::BalanceWithdrawn>()
                 {
                     let event = event?;
-                    println!(
-                        "[{}] Balance withdrawn: {:#?}",
-                        submission_result.hash, event
-                    );
+                    println!("[{}] Balance withdrawn: {}", submission_result.hash, event);
                 }
             }
             _unsigned => unreachable!("unsigned extrinsics should have been previously handled"),

@@ -1,6 +1,7 @@
 alias b := build
 alias r := release
 alias t := testnet
+alias f := fmt
 
 generate-scale:
     subxt metadata -a --url http://127.0.0.1:42069 > cli/artifacts/metadata.scale
@@ -23,6 +24,10 @@ testnet: release-testnet
 
 test:
     cargo test --locked --workspace
+
+fmt:
+    taplo fmt
+    cargo +nightly fmt
 
 build-parachain-docker:
     docker build \

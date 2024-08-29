@@ -5,6 +5,7 @@
 
 pub mod bounded_vec;
 pub(crate) mod client;
+pub mod display;
 
 #[subxt::subxt(
     runtime_metadata_path = "../../artifacts/metadata.scale",

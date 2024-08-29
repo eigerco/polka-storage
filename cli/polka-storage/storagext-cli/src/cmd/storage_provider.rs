@@ -106,7 +106,7 @@ impl StorageProviderCommand {
                 {
                     let event = event?;
                     println!(
-                        "[{}] Storage provider registered: {:#?}",
+                        "[{}] Storage provider registered: {}",
                         submission_result.hash, event
                     );
                 }
@@ -128,7 +128,7 @@ impl StorageProviderCommand {
                 {
                     let event = event?;
                     println!(
-                        "[{}] Sector pre-commited: {:#?}",
+                        "[{}] Sector pre-commited: {}",
                         submission_result.hash, event
                     );
                 }
@@ -151,7 +151,7 @@ impl StorageProviderCommand {
                     .find::<runtime::storage_provider::events::SectorProven>()
                 {
                     let event = event?;
-                    println!("[{}] Sector proven: {:#?}", submission_result.hash, event);
+                    println!("[{}] Sector proven: {}", submission_result.hash, event);
                 }
             }
             StorageProviderCommand::SubmitWindowedProofOfSpaceTime { windowed_post } => {
@@ -166,7 +166,7 @@ impl StorageProviderCommand {
                 {
                     let event = event?;
                     println!(
-                        "[{}] Valid PoSt submitted: {:#?}",
+                        "[{}] Valid PoSt submitted: {}",
                         submission_result.hash, event
                     );
                 }
@@ -180,7 +180,7 @@ impl StorageProviderCommand {
                     .find::<runtime::storage_provider::events::FaultsDeclared>()
                 {
                     let event = event?;
-                    println!("[{}] Faults declared: {:#?}", submission_result.hash, event);
+                    println!("[{}] Faults declared: {}", submission_result.hash, event);
                 }
             }
             StorageProviderCommand::DeclareFaultsRecovered { recoveries } => {
@@ -194,10 +194,7 @@ impl StorageProviderCommand {
                     .find::<runtime::storage_provider::events::FaultsRecovered>()
                 {
                     let event = event?;
-                    println!(
-                        "[{}] Faults recovered: {:#?}",
-                        submission_result.hash, event
-                    );
+                    println!("[{}] Faults recovered: {}", submission_result.hash, event);
                 }
             }
         }

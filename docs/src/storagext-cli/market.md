@@ -162,8 +162,8 @@ The `retrieve-balance` command allows you to check the balance of any market acc
 
 ### Parameters
 
-| Name | Description |
-| --- | --- |
+| Name         | Description                          |
+| ------------ | ------------------------------------ |
 | `ACCOUNT_ID` | The IDs of the account being checked |
 
 ### <a class="header" id="settle-deal-payments.example" href="#settle-deal-payments.example">Example</a>
