@@ -9,8 +9,8 @@ The <a href="./index.md"><code>storagext-cli</code> getting started</a> page cov
 
 ## `add-balance`
 
-The `add-balance` adds balance to a market account.
-It takes a single `AMOUNT` argument, the balance, to add to the market account,
+The `add-balance` adds balance to the market account of the extrinsic signer.
+It takes a single `AMOUNT` argument, the balance to add to the market account,
 the balance will be added to the `free` balance.
 
 ### Parameters
@@ -30,7 +30,7 @@ storagext-cli --sr25519-key "//Alice" market add-balance 1000000000
 <div class="warning">
 The <code>1000000000</code> value is not arbitrary, it is the <a href="https://support.polkadot.network/support/solutions/articles/65000168651-what-is-the-existential-deposit-">minimum existential deposit</a> for any Polkadot account. As such, when the Market account is being setup, the first deposit ever needs to meet this minimum to <b>create</b> the Market account.
 
-An attempt to create a Market account with less than <code>1000000000</code>, produces the following error:
+An attempt to create a Market account with less than <code>1000000000</code>, will produce the following error:
 
 <pre>
 <code>Error: Runtime error: Token error: Account cannot exist with the funds that would be given.</code>
@@ -41,7 +41,7 @@ An attempt to create a Market account with less than <code>1000000000</code>, pr
 
 ## `withdraw-balance`
 
-The `withdraw-balance` withdraws balance from a market account.
+The `withdraw-balance` withdraws balance from the market account of the extrinsic signer.
 Like [`add-balance`](#add-balance), `withdraw-balance` takes a single `AMOUNT` argument;
 note that _only `free` balance can be withdrawn_.
 Likewise, withdrawal of a balance amount lesser than or equal to the `free` amount and greater than 0 (\\({free} \ge {amount} \gt 0\\)).
@@ -146,7 +146,7 @@ Where `deals.json` is a file with contents similar to:
 The `settle-deal-payments` command makes the storage provider receive the owed funds from storing data for their clients.
 Non-existing deal IDs will be ignored.
 
-Anyone can settle anyone's deals, though there's little incentive to do so as it costs gas, so Storage Provider usually ends up being the caller.
+Anyone can settle anyone's deals, though there's little incentive to do so as it costs gas, so the Storage Provider will end up being the caller most of the time.
 
 ### Parameters
 
@@ -166,7 +166,7 @@ storagext-cli --sr25519-key "//Alice" market settle-deal-payments 97 1010 1337 4
 
 ## `retrieve-balance`
 
-The `retrieve-balance` command checks the balance of any market account.
+The `retrieve-balance` command checks the balance of a given market account.
 
 ### Parameters
 

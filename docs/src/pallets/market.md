@@ -32,7 +32,7 @@ The reserved amount will be considered `free` until it is used in a deal when 
 
 #### <a id="add_balance.example" href="#add_balance.example" class="header">Example</a>
 
-Using the `storagext-cli` add 1000000000[^existential_deposit] [Plancks](../glossary.md#planck) to Alice's account with the following command[^add_balance]:
+Using the `storagext-cli` to add 1000000000[^existential_deposit] [Plancks](../glossary.md#planck) to Alice's account with the following command[^add_balance]:
 
 ```bash
 storagext-cli --sr25519-key "//Alice" market add-balance 1000000000
@@ -40,7 +40,7 @@ storagext-cli --sr25519-key "//Alice" market add-balance 1000000000
 
 [^existential_deposit]:
     This value is the minimum amount due to Polkadot's existential deposit.
-    More information available: <https://support.polkadot.network/support/solutions/articles/65000168651-what-is-the-existential-deposit->.
+    More information available in: <https://support.polkadot.network/support/solutions/articles/65000168651-what-is-the-existential-deposit->.
 
 [^add_balance]: Read more about the `add-balance` command in [_Storagext CLI/Subcommand `market`/`add-balance`_](../storagext-cli/market.md#add-balance)
 
@@ -57,7 +57,7 @@ lesser than or equal to `free` and greater than 0 (\\({free} \ge {amount} \gt 0\
 
 #### <a id="withdraw_balance.example" href="#withdraw_balance.example" class="header">Example</a>
 
-Using the `storagext-cli` withdraw 10000 [Plancks](../glossary.md#planck) from Alice's `free` balance using the following command[^withdraw_balance]:
+Using the `storagext-cli` to withdraw 10000 [Plancks](../glossary.md#planck) from Alice's `free` balance using the following command[^withdraw_balance]:
 
 ```bash
 storagext-cli --sr25519-key "//Alice" market withdraw-balance 10000
@@ -102,7 +102,7 @@ See the [original Filecoin specification](https://spec.filecoin.io/#section-syst
 
 #### <a id="publish_storage_deals.example" href="#publish_storage_deals.example" class="header">Example</a>
 
-Using the `storagext-cli` publish deals with `//Alice` as the storage provider and `//Charlie` as the client by running the following command[^publish_storage_deals]:
+Using the `storagext-cli` to publish deals with `//Alice` as the storage provider and `//Charlie` as the client by running the following command[^publish_storage_deals]:
 
 ```bash
 storagext-cli --sr25519-key "//Alice" market publish-storage-deals \
@@ -168,7 +168,7 @@ Non-existing deal IDs will be ignored.
 
 #### <a id="settle_deal_payments.example" href="#settle_deal_payments.example" class="header">Example</a>
 
-Using the `storagext-cli` settle deal payments for IDs 97, 1010, 1337 and 42069 using the following command[^settle_deal_payments]:
+Using the `storagext-cli` to settle deal payments for IDs 97, 1010, 1337 and 42069 using the following command[^settle_deal_payments]:
 
 ```bash
 storagext-cli --sr25519-key "//Alice" market settle-deal-payments 97 1010 1337 42069

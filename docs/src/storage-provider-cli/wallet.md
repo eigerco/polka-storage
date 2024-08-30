@@ -54,7 +54,7 @@ Secret phrase:       comfort distance rack number assist nasty young universe la
   SS58 Address:      5DPo4H1oPAQwReNVMi9XckSkvW4me1kJoageggJSMDF2EzjZ
 ```
 
-Or can be passed directly, beforehand:
+Or it can be passed directly, beforehand:
 
 ```bash
 > polka-storage-provider wallet generate --password <top secret password>

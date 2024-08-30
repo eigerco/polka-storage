@@ -30,8 +30,7 @@ storagext-cli --sr25519-key <key> storage-provider register <peer_id>
 
 ### `pre-commit`
 
-The `pre-commit` command pre-commits a sector with deals that `market publish-storage-deals` have published.
-The pre-committed sector has to be proven, or the deals will not activate and will be slashed.
+The `pre-commit` command [pre-commits](../pallets/storage-provider.md#pre_commit_sector) a sector with deals that have been published by `market publish-storage-deals`. The pre-committed sector has to be proven or the deals will not activate and will be slashed.
 
 ### Parameters
 
