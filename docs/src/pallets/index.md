@@ -45,6 +45,6 @@ Finally, storage providers can then settle deal payments to receive their fair s
 
 Putting it all together, we get the following:
 
-<img src="../images/overview_flow.svg" alt="The described flow">
+<img id="figure-overview" src="../images/overview_flow.svg" alt="The described flow">
 
 
