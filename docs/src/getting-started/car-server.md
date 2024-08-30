@@ -41,7 +41,7 @@ After setting up and starting the CAR server, it's important to verify that ever
    car inspect <target_file>
    ```
 
-   Or you can use `debug` for more detailed output:
+   The user can use `debug` for more detailed output:
 
    ```bash
    car debug <target_file>
