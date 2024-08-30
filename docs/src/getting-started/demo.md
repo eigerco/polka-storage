@@ -130,12 +130,17 @@ $ storagext-cli --sr25519-key "//Charlie" storage-provider prove-commit "@prove-
 ### Aside on Deadlines
 
 There is a little something that Charlie needs to know about: deadlines *(don't we all...)*.
+
 Each Storage Provider has a Proving Period, a time divided into segments (deadlines).
 To simplify, let's say a proving period lasts a day (24 hours), and between the start and end of each hour, there is a segment, just like on a clock.
+
+<img src="../images/proving-period-deadlines.svg">
+
 Now, when Charlie gathers enough data and stores it in a sector, he must keep proving that he has some data.
 Charlie can have multiple sectors and he doesn't want to overload the system by proving all of them simultaneously.
 So what if each sector got assigned a segment (1 hour) during the day, and Charlie would need to submit proof that he has data roughly on the same hour each day?
 That'd work, right?
+
 So this is what a Proving Period and Deadlines are.
 We divide a proving period into deadlines and when we prove commit, we assign a sector to a deadline.
 From now on, the sector must be proven periodically and daily during this lifetime.
