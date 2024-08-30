@@ -1,7 +1,6 @@
 # Glossary and Anti-Glossary
 
-This document provides definitions and explanations for terms used throughout the project, as well as a list of terms
-that should not be used.
+This document provides definitions and explanations for terms used throughout the project and a list of terms that should not be used.
 
 ## Table of Contents
 
@@ -48,13 +47,13 @@ This section lists terms used throughout the project.
 ### Actor
 
 In [Filecoin](https://spec.filecoin.io/#section-glossary.filecoin),
-an [actor](https://spec.filecoin.io/#section-glossary.actor) is an on-chain object with its own state and set of
+an [actor](https://spec.filecoin.io/#section-glossary.actor) is an on-chain object with its state and set of
 methods. [Actors](https://spec.filecoin.io/#section-glossary.actor) define how
-the [Filecoin](https://spec.filecoin.io/#section-glossary.filecoin) network manages and updates global state.
+the [Filecoin](https://spec.filecoin.io/#section-glossary.filecoin) network manages and updates its global state.
 
 ### Bond
 
-This term used in:
+This term is used in:
 
 - Parachain [Slot Auction](#slot-auction). To bid in an auction, [parachain](#parachain) teams agree to lock up (or
   bond) a portion of DOT tokens for the duration of the lease. While bonded for a lease, the DOT cannot be used for
@@ -62,13 +61,13 @@ This term used in:
 
 - [Collator](#collator) slot auction (selection mechanism). It is used as a deposit to become a collator. Candidates can
   register by placing the minimum bond. Then, if an account wants to participate in the [collator](#collator) slot
-  auction, they have to replace an existing candidate by placing a greater deposit (bond).
+  auction, they have to replace an existing candidate by placing a more significant deposit (bond).
 
 ### Collateral
 
-[Collaterals](https://spec.filecoin.io/#section-glossary.collateral) are assets that are locked up or deposited as a
-form of security to mitigate risks and ensure the performance of certain actions. Collateral acts as a guarantee that an
-individual will fulfill their obligations. Failing to meet obligations or behaving maliciously can result in the loss of
+[Collaterals](https://spec.filecoin.io/#section-glossary.collateral) are assets locked up or deposited as a form of security
+to mitigate risks and ensure the performance of specific actions. Collateral acts as a guarantee that an
+individual will fulfil their obligations. Failing to meet obligations or behaving maliciously can result in the loss of
 staked assets or collateral as a penalty for non-compliance or misconduct by [slashing](#slashing).
 
 ### Collator
@@ -77,9 +76,9 @@ staked assets or collateral as a penalty for non-compliance or misconduct by [sl
 collecting [parachain](#parachain) transactions from users and producing state transition proofs
 for [Relay Chain](#relay-chain) validators. In other words, collators maintain [parachains](#parachain) by
 aggregating [parachain](#parachain) transactions into [parachain](#parachain) block candidates and producing state
-transition proofs (Proof-of-Validity, PoV) for validators. They need to provide a financial
+transition proofs (Proof-of-Validity, PoV) for validators. They must provide a financial
 commitment ([collateral](#collateral)) to ensure they are incentivized to perform their duties correctly and
-to dissuade malicious behavior.
+to dissuade malicious behaviour.
 
 ### Committed Capacity
 
@@ -203,9 +202,9 @@ There are two main types of proofs:
 
 ### Proving Period
 
-A proving period is the period over which storage providers' commitments are audited,
-being required to prove they are still storing the data from the deals they signed.
-The average period for proving all sectors maintained by a provider (default set to 24 hours).
+A proving period is when storage providers' commitments are audited,
+and they must prove they are still storing the data from the deals they signed
+- the average period for proving all sectors maintained by a provider (default set to 24 hours).
 
 For more information on proving periods, you can read the original Filecoin specification:
 - Proving periods in the context of Window Proof of Spacetime — <https://spec.filecoin.io/#section-algorithms.pos.post.windowpost>
@@ -218,7 +217,9 @@ security, consensus, and cross-chain interoperability.
 
 ### Sector
 
-The sector is the default unit of storage that providers put in the network. A sector is a contiguous array of bytes that a storage provider puts together, seals, and performs Proofs of Spacetime on. Storage providers store data on the network in fixed-size sectors.
+The sector is the default unit of storage that providers put in the network.
+A sector is a contiguous array of bytes on which a storage provider puts together, seals,and performs Proofs of Spacetime on.
+Storage providers store data on the network in fixed-size sectors.
 
 For more information on sectors, you can read the original Filecoin specification:
 <https://spec.filecoin.io/#section-glossary.sector>
@@ -243,21 +244,21 @@ specified period. Once the slot is secured, the project can launch and operate i
 
 ### Staking
 
-Staking is the process where DOT holders lock up their tokens to support the network's security and operations. In
+Staking is when DOT holders lock up their tokens to support the network's security and operations. In
 return, they can earn rewards. There are two main roles involved in staking:
 
-- <a name="validators"></a>**Validators**
-  : Validators are responsible for producing new blocks, validating transactions, and securing the
-  network. They are selected based on their stake and performance. Validators need to run a [node](#node) and have the
-  technical capability to maintain it.
+- <a name="validators"></a>**Validators**: 
+  Validators produce new blocks, validate transactions, and secure the network.
+  They are selected based on their stake and performance.
+  Validators must run a [node](#node) and have the technical capability to maintain it.
 
 - <a name="nominators"></a>**Nominators**: Nominators support the network by backing (nominating) validators they trust
   with their DOT tokens. Nominators share in the rewards earned by the validators they support. This allows DOT holders
   who don't want to run a validator node to still participate in the network's security and earn rewards.
 
-Our parachain will use staking to back up the [collators](#collator) in a similar way as "Nominators" do.
-In this regard, the role of "Nominators" will fall to [Storage Providers](#storage-provider), while the role of "
-Validators" will be assigned to [Collators](#collator) accordingly.
+Our parachain will use staking to back up the [collators](#collator) similarly to "Nominators".
+In this regard, "Nominators" will fall to [Storage Providers](#storage-provider),
+while " Validators" will be assigned to [Collators](#collator) accordingly.
 
 ### Storage Provider
 
@@ -287,9 +288,9 @@ sectors ([PoRep (Proof-of-Replication)](https://spec.filecoin.io/#section-algori
 ([PoSt (Proof-of-Spacetime)](https://spec.filecoin.io/#section-algorithms.pos.post)), and participating in
 the [Filecoin](https://spec.filecoin.io/#section-glossary.filecoin) network as a storage miner.
 
-**Reason**: In the [Filecoin](https://spec.filecoin.io/#section-glossary.filecoin) network, the miner plays the roles of
-both [storage provider](#storage-provider) and block producer simultaneously. However, in the [Polkadot](#polkadot)
-ecosystem, this term cannot be used because there are no block producers in [parachains](#parachain);
+**Reason**: In the [Filecoin](https://spec.filecoin.io/#section-glossary.filecoin) network,
+the miner simultaneously plays the roles of [storage provider](#storage-provider) and block producer.
+However, this term cannot be used in the [Polkadot](#polkadot) ecosystem because there are no block producers in [parachains](#parachain);
 the [Relay Chain](#relay-chain) is responsible for block production. [Parachains](#parachain) can only prepare block
 candidates via the [Collator](#collator) node and pass them to the [Relay Chain](#relay-chain).
 

@@ -1,9 +1,10 @@
 # The `storage-provider` command
 
-Under the `storage-provider` subcommand you will find the [Storage Provider](../pallets/storage-provider.md) related extrinsics, in this chapter, we cover the provided commands and how to use them.
+Under the `storage-provider` subcommand, you will find the [Storage Provider](../pallets/storage-provider.md)-related extrinsics.
+This chapter covers the provided commands and how to use them.
 
 <div class="warning">
-If you haven't done so before, you should read the <a href="./index.md"><code>storagext-cli</code> getting started</a> page,
+If you haven't done so, you should read the <a href="./index.md"><code>storagext-cli</code> getting started</a> page,
 which covers the basic flags necessary to operate the CLI.
 </div>
 
@@ -30,7 +31,8 @@ storagext-cli --sr25519-key <key> storage-provider register <peer_id>
 
 ### `pre-commit`
 
-The `pre-commit` command allows you to pre-commit a sector with deals that have been published by `market publish-storage-deals`. The pre-committed sector has to be proven or the deals will not activate and will be slashed.
+The `pre-commit` command allows you to pre-commit a sector with deals that `market publish-storage-deals` have published.
+The pre-committed sector has to be proven, or the deals will not activate and will be slashed.
 
 ### Parameters
 
@@ -75,7 +77,8 @@ Where `pre-commit-sector.json` is a file with contents similar to:
 
 ### `prove-commit`
 
-The `prove-commit` command allows you to prove a sector commitment. Currently any proof is accepted that is hex encoded string of length >= 1. After the sector is proven, the deals will become `Active`.
+The `prove-commit` command allows you to prove a sector commitment. Currently, any proof that is a hex encoded string of length >= 1 is accepted.
+After the sector is proven, the deals will become `Active`.
 
 ### Parameters
 
@@ -112,7 +115,7 @@ Where `prove-commit-sector.json` is a file with contents similar to:
 
 ### `submit-windowed-post`
 
-The `submit-windowed-post` command allows you to submit a windowed PoSt proof. The post proof needs to be periodically submitted to prove that some sector is still stored. Sectors are proven in batches called partitions.
+The `submit-windowed-post` command allows you to submit a windowed PoSt proof. The PoSt proof needs to be periodically submitted to prove that some sector is still stored. Sectors are proven in a baches called partitions.
 
 ### Parameters
 

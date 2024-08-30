@@ -1,6 +1,6 @@
 # The `storage` command
 
-The `storage` command launches a server able to convert files into CAR files.
+The `storage` command launches a server that can convert files into CAR files.
 It has two parameters that you can customize:
 
 | Parameter              | Description                                             | Default value    |
