@@ -15,7 +15,7 @@
 ## Overview
 
 The purpose of the pallet is to manage storage deals between storage market participants and to track their funds.
-Market Pallet is tightly coupled with [Storage Provider Pallet](./storage-provider.md) because it's used as a source of truth for deals.
+Market Pallet is tightly coupled with [Storage Provider Pallet](./storage-provider.md) because it's a source of truth for deals.
 Storage Provider Pallet cannot exist without deal information from Market Pallet.
 
 ## Extrinsics<a href="../glossary.md#extrinsics"><sup>\*</sup></a>
@@ -24,8 +24,7 @@ Storage Provider Pallet cannot exist without deal information from Market Pallet
 
 Reserves a given amount of currency for usage in the Storage Market.
 
-The reserved amount will be considered to be `free` until it is used in a deal,
-when it will be moved to `locked` and used to pay for the deal.
+The reserved amount will be considered `free` until it is used in a deal when moved to `locked` and used to pay for the deal.
 
 | Name     | Description               |
 | -------- | ------------------------- |
@@ -41,7 +40,7 @@ storagext-cli --sr25519-key "//Alice" market add-balance 1000000000
 
 [^existential_deposit]:
     This value is the minimum amount due to Polkadot's existential deposit.
-    You can read more about it in <https://support.polkadot.network/support/solutions/articles/65000168651-what-is-the-existential-deposit->.
+    You can read more about it at <https://support.polkadot.network/support/solutions/articles/65000168651-what-is-the-existential-deposit->.
 
 [^add_balance]: Read more about the `add-balance` command in [_Storagext CLI/Subcommand `market`/`add-balance`_](../storagext-cli/market.md#add-balance)
 
@@ -49,7 +48,7 @@ storagext-cli --sr25519-key "//Alice" market add-balance 1000000000
 
 Withdraws funds from the Storage Market.
 
-The funds will be withdrawn from the `free` balance, meaning that `amount` must be
+The funds will be withdrawn from the `free` balance, meaning that the `amount` must be
 lesser than or equal to `free` and greater than 0 (\\({free} \ge {amount} \gt 0\\)).
 
 | Name     | Description                |
@@ -143,11 +142,10 @@ Where `deals.json` is a file with contents similar to:
 ```
 
 <div class="warning">
-Notice how the CLI command doesn't take the <code>client_signature</code> parameter,
-but rather a keypair that is able to sign it.
+Notice how the CLI command doesn't take the <code>client_signature</code> parameter but a keypair that can sign it.
 
-We are aware that this is **not secure** however, the parachain is still under development
-and this is **not final** but rather a testing tool.
+We are aware that this is **not secure**. However, the system is still under development
+and is **not final**; it is a testing tool.
 
 </div>
 
@@ -159,9 +157,9 @@ and this is **not final** but rather a testing tool.
 
 Settle specified deals between providers and clients.
 
-Both clients and providers can call this extrinsic, however,
-since the settlement is the mechanism through which the provider gets paid,
-there is no reason for a client to call this extrinsic.
+Both clients and providers can call this extrinsic. 
+However, since the settlement is the mechanism through which the provider gets paid,
+a client has no reason to call this extrinsic.
 Non-existing deal IDs will be ignored.
 
 | Name       | Description                        |
@@ -182,11 +180,11 @@ storagext-cli --sr25519-key "//Alice" market settle-deal-payments 97 1010 1337 4
 
 The Market Pallet emits the following events:
 
-- `BalanceAdded` - Indicates that some balance was added as _free_ to the Market Pallet account for the usage in the storage market.
+- `BalanceAdded` - Indicates that some balance was added as _free_ to the Market Pallet account for usage in the storage market.
   - `who` - SS58 address of then account which added balance
   - `amount` - Amount added
 - `BalanceWithdrawn` - Some balance was transferred (free) from the Market Account to the Participant's account.
-  - `who` - SS58 address of then account which had withdrawn balance
+  - `who` - SS58 address of the account which had withdrawn the balance
   - `amount` - Amount withdrawn
 - `DealPublished` - Indicates that a deal was successfully published with `publish_storage_deals`.
   - `deal_id` - Unique deal ID
@@ -210,21 +208,21 @@ The Market Pallet emits the following events:
 
 The Market Pallet actions can fail with following errors:
 
-- `InsufficientFreeFunds` - Market participant does not have enough free funds.
-- `NoProposalsToBePublished` - `publish_storage_deals` was called with empty list of `deals`.
+- `InsufficientFreeFunds` - Market participants do not have enough free funds.
+- `NoProposalsToBePublished` - `publish_storage_deals` was called with an empty list of `deals`.
 - `ProposalsNotPublishedByStorageProvider` - Is returned when calling `publish_storage_deals` and the deals in a list are not published by the same storage provider.
 - `AllProposalsInvalid` - `publish_storage_deals` call was supplied with a list of `deals` which are all invalid.
 - `DuplicateDeal` - There is more than one deal with this ID in the Sector.
-- `DealNotFound` - Tried to activate a deal which was not published (there is no deal such deal id).
-- `DealActivationError` - Tried to activate a deal, but data is malformed.
+- `DealNotFound` - Tried to activate a deal that is not in the system.
+- `DealActivationError` - Tried to activate a deal, but data was malformed.
   - Invalid specified provider.
   - The deal already expired.
   - Sector containing the deal expires before the deal.
   - Invalid deal state.
   - Deal is not pending.
-- `DealsTooLargeToFitIntoSector` - Sum of all of the deals piece sizes for a sector exceeds sector size. The sector size is based on the registered proof type. We currently only support registered `StackedDRG2KiBV1P1` proofs which have 2KiB sector sizes.
+- `DealsTooLargeToFitIntoSector` - Sum of all deals piece sizes for a sector exceeds sector size. The sector size is based on the registered proof type. We currently only support registered `StackedDRG2KiBV1P1` proofs, which have 2KiB sector sizes.
 - `TooManyDealsPerBlock` - Tried to activate too many deals at a given `start_block`.
-- `UnexpectedValidationError` - `publish_storage_deals`'s core logic was invoked with a broken invariant that should be called by `validate_deals`. Report an issue if you receive this error.
+- `UnexpectedValidationError` - `publish_storage_deals`'s core logic was invoked with a broken invariant that `validate_deals` should call. Report an issue if you receive this error.
 - `DealPreconditionFailed` - Due to a programmer bug. Report an issue if you receive this error.
 
 ## Constants

@@ -1,7 +1,7 @@
 # The `wallet` command
 
-The wallet command is a re-export of the Substrate CLI,
-for detailed documentation you can check the following links:
+The wallet command is a re-export of the Substrate CLI.
+For detailed documentation, you can check the following links:
 
 - [`sc_cli`](https://docs.rs/sc-cli/0.46.0/sc_cli/commands/index.html)
 - [`subkey` subcommands](https://docs.substrate.io/reference/command-line-tools/subkey/#subcommands)
@@ -14,9 +14,9 @@ You can use the following commands with the `wallet` subcommand:
 | ------------------- | ------------------------------------------------------------------------------------------------------ |
 | `generate-node-key` | Generate a random node key, write it to a file or stdout and write the corresponding peer-id to stderr |
 | `generate`          | Generate a random account                                                                              |
-| `inspect`           | Gets a public key and a SS58 address from the provided Secret URI                                      |
+| `inspect`           | Gets a public key and an SS58 address from the provided Secret URI                                     |
 | `inspect-node-key`  | Load a node key from a file or stdin and print the corresponding peer-id                               |
-| `sign`              | Sign a message, with a given (secret) key                                                              |
+| `sign`              | Sign a message with a given (secret) key                                                              |
 | `vanity`            | Generate a seed that provides a vanity address                                                         |
 | `verify`            | Verify a signature for a message, provided on STDIN, with a given (public or secret) key               |
 | `help`              | Print this message or the help of the given subcommand(s)                                              |
@@ -24,7 +24,7 @@ You can use the following commands with the `wallet` subcommand:
 ## Examples
 
 <div class="warning">
-Keys shown in this page are, by default, not secure! Do not use them in production!
+Keys shown on this page are, by default, not secure! Do not use them in production!
 </div>
 
 Generate a new random key to interact with the Polka Storage parachain:
@@ -54,7 +54,7 @@ Secret phrase:       comfort distance rack number assist nasty young universe la
   SS58 Address:      5DPo4H1oPAQwReNVMi9XckSkvW4me1kJoageggJSMDF2EzjZ
 ```
 
-Or you can just pass it before-hand:
+Or you can pass it beforehand:
 
 ```bash
 > polka-storage-provider wallet generate --password <top secret password>

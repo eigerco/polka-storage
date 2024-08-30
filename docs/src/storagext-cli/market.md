@@ -1,7 +1,7 @@
 # The `market` command
 
-Under the `market` subcommand you will find the [Market](../pallets/market.md) related extrinsics,
-in this chapter, we cover the provided commands and how to use them.
+Under the `market` subcommand, you will find the [Market](../pallets/market.md)-related extrinsics.
+This chapter covers the provided commands and how to use them.
 
 <div class="warning">
 If you haven't done so before, you should read the <a href="./index.md"><code>storagext-cli</code> getting started</a> page,
@@ -11,8 +11,8 @@ which covers the basic flags necessary to operate the CLI.
 ## `add-balance`
 
 The `add-balance` command allows you to add balance to your market account.
-It takes a single `AMOUNT` argument, the balance to add to the market account,
-the balance will be added to the `free` balance.
+It takes a single `AMOUNT` argument, the balance, to add to the market account,
+and the balance will be added to the `free` balance.
 
 ### Parameters
 
@@ -44,8 +44,8 @@ If you attempt to create the Market account with less than <code>1000000000</cod
 
 The `withdraw-balance` command allows you to withdraw balance from your market account.
 Like [`add-balance`](#add-balance), `withdraw-balance` takes a single `AMOUNT` argument;
-note that _only `free` balance can be withdrawn_, like wise,
-you can only withdraw a balance amount lesser than or equal to the `free` amount and greater than 0 (\\({free} \ge {amount} \gt 0\\)).
+note that _only the `free` balance can be withdrawn_.
+Likewise, you can only withdraw a balance amount lesser than or equal to the `free` amount and greater than 0 (\\({free} \ge {amount} \gt 0\\)).
 
 ### Parameters
 
@@ -69,8 +69,8 @@ The `publish-storage-deals` command allows you to publish storage deals that hav
 The deals are to be submitted by the storage provider, having been previously signed by the client.
 
 <div class="warning">
-Since this CLI is currently targetted at testing and demos, it requires the client keypair to sign the deal —
-we are aware this is <i>not secure</i> and <i>not realistic</i> in a production scenario (good thing this is a demo)!
+Since this CLI is currently targeted at testing and demos, the client keypair is required to sign the deal.
+We know this is <i>not secure</i> and <i>unrealistic</i> in a production scenario (it is a good thing this is a demo)!
 </div>
 
 ### Parameters
@@ -182,4 +182,4 @@ The `retrieve-balance` command allows you to check the balance of any market acc
 storagext-cli market retrieve-balance "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY" # Alice's account
 ```
 
-> This extrinsic **is not signed**, as such, it does not need to be called using any of the `--X-key` flags.
+> This extrinsic **is not signed**, and does not need to be called using any of the `--X-key` flags.

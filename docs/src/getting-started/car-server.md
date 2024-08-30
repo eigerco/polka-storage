@@ -1,9 +1,12 @@
 # CAR server
 
-It is a HTTP server that converts arbitrary content into a [CARv2](https://ipld.io/specs/transport/car/carv2/) file and serve it over HTTP. Supporting the latest CARv2 format, which is not yet entirely supported by other crates in the Rust ecosystem. By following the next steps, you will be able to run the server locally and use it to upload and download files.
+It is an HTTP server that converts arbitrary content into a [CARv2](https://ipld.io/specs/transport/car/carv2/) file and serves it over HTTP - supporting the latest CARv2 format,
+which is not yet entirely supported by other crates in the Rust ecosystem.
+Following the following steps, you can run the server locally and upload and download files.
 
 <div class="warning">
-The server is a proof of concept, showcasing our CARv2 implementation, it is not intended to be used in production. Anyone can upload and download files without authentication or authorization.
+The server is a proof of concept, showcasing our CARv2 implementation, but it is not intended to be used in production.
+Anyone can upload and download files without authentication or authorization.
 </div>
 
 ## Start the server
@@ -29,7 +32,8 @@ docker run \
 
 ## Verifying the Setup
 
-After setting up and starting the CAR server, it's important to verify that everything is working correctly. Follow these steps to ensure your setup works as expected:
+After setting up and starting the CAR server, it's essential to verify that everything works correctly.
+Follow these steps to ensure your setup works as expected:
 
 1. Upload a test file using the instructions in the [Upload a file](../storage-provider-cli/storage.md#upload-a-file) section. Make sure to note the CID returned by the server.
 

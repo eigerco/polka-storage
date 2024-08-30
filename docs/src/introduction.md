@@ -2,10 +2,10 @@
 
 Welcome to the Polka Storage project!
 
-This project's goal is to deliver a Polkadot-native system parachain for data storage.
+This project aims to deliver a Polkadot-native system parachain for data storage.
 
-Since the Referendum approval we've been busy developing the parachain,
-this is our deliverable for Phase 1, composed of:
+Since the Referendum approval, we've been busy developing the parachain,
+and this is our deliverable for Phase 1, composed of:
 
 - Filecoin actor ports:
   - [Storage Provider](./pallets/storage-provider.md) — excluding proving mechanisms
@@ -25,13 +25,13 @@ The following on-chain logic has been implemented:
 - Keeping track of [Storage Providers](./glossary.md#storage-provider),
 - [Publishing](./pallets/market.md#publish_storage_deals) Market Deals on-chain,
 - [Investing](./pallets/market.md#add_balance) tokens into the Storage Market,
-- [Receiving](./pallets/market.md#settle_deal_payments) funds after successfully completing a deal,
+- [Receiving](./pallets/market.md#settle_deal_payments) funds after completing a deal,
 - [Commiting](./pallets/storage-provider.md#pre_commit_sector) to the Storage and [Proving](./pallets/storage-provider.md#prove_commit_sector) the storage,
 - [Declaring](./pallets/storage-provider.md#prove_commit_sector) failures to deliver committed storage and [Recovering](./pallets/storage-provider.md#declaring-storage-faults-recovered) from it,
 - [Continuously proving](./pallets/storage-provider.md#submit_windowed_post) that the promise of storage has been kept up [PoSt proof](./glossary.md#proofs),
-- [Punishing](./pallets/storage-provider.md#events) for failing to deliver storage.
+- [Punishing](./pallets/storage-provider.md#events) for failing to provide storage.
 
-We present a full real-world scenario [(which you can run on your own!)](./getting-started/demo.md) in which [Storage Provider](./glossary.md#storage-provider) and a [Storage User](./glossary.md#storage-user) negotiate a deal, perform all the steps necessary to start the storage and then receive rewards (or punishments) for making it happen.
+We present a complete real-world scenario [(which you can run on your own!)](./getting-started/demo.md) in which a [Storage Provider](./glossary.md#storage-provider) and a [Storage User](./glossary.md#storage-user) negotiate a deal, perform all the steps necessary to start the storage and then receive rewards (or punishments) for making it happen.
 
 You can read more about the project's genesis in:
 

@@ -1,14 +1,16 @@
 # Real-world use case demo
 
 <div class="warning">
-Before reading this guide, please ensure you've followed the <a href="./local-testnet.md">local testnet</a> guide and have a working testnet running!
+Before reading this guide,
+please ensure you've followed the <a href="./local-testnet.md">local testnet</a> guide and that a working testnet is running!
 </div>
 
 A high-level overview with diagrams of the process described below can be found in <a href="../pallets/index.md">Pallets section</a>.
 
 ## 1. Publishing a deal
 
-Charlie heard that he can provide storage to people around the world and earn some tokens doing it, so he decided to register as a [Storage Provider](../glossary.md).
+Charlie heard he could provide storage to people worldwide and earn some tokens,
+so he decided to register as a [Storage Provider](../glossary.md).
 
 ```bash
 $ storagext-cli --sr25519-key "//Charlie" storage-provider register Charlie
@@ -19,11 +21,12 @@ $ storagext-cli --sr25519-key "//Charlie" storage-provider register Charlie
 
 Alice is a [Storage User](../glossary.md#storage-user) and wants to store an image of her lovely Husky (`husky.jpg`) in the Polka Storage [parachain](../glossary.md#parachain).
 
-Alice knows[^no-cid] that she needs to get a [CID](https://github.com/multiformats/cid) of the image, so she [uploaded it to the CAR server](../storage-provider-cli/storage.md#upload-a-file)
+Alice knows[^no-cid] that she needs to get a [CID](https://github.com/multiformats/cid) of the image,
+so she [uploaded it to the CAR server](../storage-provider-cli/storage.md#upload-a-file)
 and received the CID: `bafybeihxgc67fwhdoxo2klvmsetswdmwwz3brpwwl76qizbsl6ypro6vxq`.
 
 Alice heard somewhere[^no-sp-discovery] in the hallways of her favourite gym that Charlie is a Storage Provider.
-She calls him (off-chain) and they negotiate a deal:
+She calls him (off-chain), and they negotiate a deal:
 
 `husky-deal.json`
 
@@ -70,15 +73,15 @@ $ storagext-cli --sr25519-key  "//Charlie" market publish-storage-deals --client
 [0xd50b…dee6] Deal Published: { deal_id: 0, provider_account: 5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y, client_account: 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY }
 ```
 
-[^no-cid]: We have not provided a standalone command to generate CID out of file. The CAR server is a temporary showcase component.
-[^no-sp-discovery]: We have not implemented Storage Provider Discovery protocol yet.
+[^no-cid]: We have not provided a standalone command to generate CID out of the file. The CAR server is a temporary showcase component.
+[^no-sp-discovery]: We have not yet implemented Storage Provider Discovery protocol.
 
 ## 2. Committing a deal
 
 After the deals have been published, the rest is up to Charlie.
-If Charlie does not behave properly _and_ does not [pre-commit](../pallets/storage-provider.md#pre_commit_sector) and [prove](../pallets/storage-provider.md#prove_commit_sector) the deal by block 25 (`start_block`),
-he is going to be slashed and all of his funds [(`provider_collateral`)](../glossary.md#collateral) - gone.[^slash]
-So it's better he does his part!
+If Charlie does not behave appropriately, [pre-commit](../pallets/storage-provider.md#pre_commit_sector) and [prove](../pallets/storage-provider.md#prove_commit_sector) the deal by block 25 (`start_block`),
+he will be slashed, and all his funds [(`provider_collateral`)](../glossary.md#collateral) will be gone.[^slash]
+So he should do his part!
 
 `pre-commit-husky.json`
 
@@ -97,9 +100,9 @@ So it's better he does his part!
 | -------------------------------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | [`sector_number`](../glossary.md#sector)                                                                       | 1                    | The place where `husky.jpg` will be stored. Charlie decided it'll be on his 1st sector.                            |
 | `deal_ids`                                                                                                     | `[0]`                | A sector can contain multiple deals, but it only contains the first one ever created (id: 0).                      |
-| `expiration`                                                                                                   | `75`                 | The 75th, which is 5 minutes after the `end_block`, so the sector expires only after the deal has been terminated. |
-| [`sealed_cid`](../glossary.md#commitment-of-replication), [`unsealed_cid`](../glossary.md#commitment-of-data), | multiple             | Currently placeholder values (any CID) since the proof mechanism is a work-in-progress.                            |
-| `seal_proof`                                                                                                   | `StackedDRG2KiBV1P1` | Currently we only accept sector sizes of 2KiB, so this is the only value possible.                                 |
+| `expiration`                                                                                                   | `75`                 | The 75th block is 5 minutes after the `end_block`, so the sector expires only after the deal has been terminated. |
+| [`sealed_cid`](../glossary.md#commitment-of-replication), [`unsealed_cid`](../glossary.md#commitment-of-data), | multiple             | Currently, placeholder values (any CID) since the proof mechanism is a work-in-progress.                            |
+| `seal_proof`                                                                                                   | `StackedDRG2KiBV1P1` | Currently, we only accept sector sizes of 2KiB, so this is the only value possible.                                 |
 
 `prove-commit-husky.json`
 ```json
@@ -120,24 +123,22 @@ $ storagext-cli --sr25519-key "//Charlie" storage-provider prove-commit "@prove-
 
 <img src="../images/demo/proven.PNG">
 
-[^slash]: You can just wait for 5 minutes and observe a `DealSlashed` [Event](../pallets/market.md#events) being published.
+[^slash]: You can wait for 5 minutes and observe a `DealSlashed` [Event](../pallets/market.md#events) being published.
 
 ## 3. Proofs and faults
 
 ### Aside on Deadlines
 
-There is a little something that Charlie needs to know about, and those are deadlines *(don't we all...)*.
-Each Storage Provider has a Proving Period, it's some time divided in segments (deadlines).
-To simplify, let's say a proving period lasts a day (24 hours) and the between start and end of each hour there is a segment
-Just like on a clock.
-Now, when Charlie gathers enough data and stores it in a sector, he needs to keep proving that he has some data.
-Charlie can have multiple sectors and he doesn't want to overload the parachain with proving all of them at the same time.
-So what if, each sector got assigned segment (1 hour) during the day and Charlie would need to submit proof that he has data roughly on the same hour each day?
+There is a little something that Charlie needs to know about: deadlines *(don't we all...)*.
+Each Storage Provider has a Proving Period, a time divided into segments (deadlines).
+To simplify, let's say a proving period lasts a day (24 hours), and between the start and end of each hour, there is a segment, just like on a clock.
+Now, when Charlie gathers enough data and stores it in a sector, he must keep proving that he has some data.
+Charlie can have multiple sectors and he doesn't want to overload the system by proving all of them simultaneously.
+So what if each sector got assigned a segment (1 hour) during the day, and Charlie would need to submit proof that he has data roughly on the same hour each day?
 That'd work, right?
-So this is what a Proving Period and Deadlines are. We divide a proving period into deadlines and when we prove commit, we assign sector to a deadline.
-From now on, the sector will need to be proven during this lifetime, periodically, every day.
-
-
+So this is what a Proving Period and Deadlines are.
+We divide a proving period into deadlines and when we prove commit, we assign a sector to a deadline.
+From now on, the sector must be proven periodically and daily during this lifetime.
 
 `windowed-post.json`
 ```json
@@ -154,15 +155,15 @@ From now on, the sector will need to be proven during this lifetime, periodicall
 
 | Name          | Value            | Description                                                                   |
 | ------------- | ---------------- | ----------------------------------------------------------------------------- |
-| `deadline`    | `0`              | the deadline index which has been assigned by Prove Commit                    |
-| `partitions`  | `[0]`            | the partitions which has been assigned by Prove Commit                        |
+| `deadline`    | `0`              | the deadline index which has been assigned by the Prove Commit                |
+| `partitions`  | `[0]`            | the partitions which have been assigned by Prove Commit                       |
 | `post_proof`  | "2KiB"           | we only support sectors of size 2KiB for now, so it's the only possible value |
 | `proof_bytes` | `0x1230deadbeef` | hex string of bytes of the proof, it's WIP, so any non-zero value works       |
 
-Now that the sector has been proven, Charlie needs to keep confirming that he stores the data.
-Charlie's proving period starts at block `21` (as `register-storage-provider` tells us) so the first deadline is between blocks `[21, 31)`, second `[31, 41)`.
-That's because there are [2 deadlines](#const-period-deadlines) within a [proving period](#const-proving-period) and a deadline has a [window of 10 blocks](#const-challenge-window).
-Charlie got assigned the first deadline, so he waits until the block `21`, to send his proof that he stores the data.
+Now that the sector has been proven, Charlie must keep confirming that he stores the data.
+Charlie's proving period starts at block `21` (as `register-storage-provider` tells us), so the first deadline is between blocks `[21, 31)`, second `[31, 41)`.
+That's because there are [2 deadlines](#const-period-deadlines) within a [proving period](#const-proving-period), and a deadline has a [window of 10 blocks](#const-challenge-window).
+Charlie got assigned the first deadline, so he waits until block `21` to send the proof that he still stores the data.
 
 ```bash
 $ storagext-cli --sr25519-key "//Charlie" storage-provider submit-windowed-post "@windowed-post.json"
@@ -171,8 +172,8 @@ $ storagext-cli --sr25519-key "//Charlie" storage-provider submit-windowed-post 
 
 <img src="../images/demo/post-submitted.PNG">
 
-The next proving period starts at block `41`, and deadline `[41, 51)`, so Charlie would need to submit his proof on this block.
-He knows that he won't be able to create a proof, as his hard drives went down, so he reports it. If he didn't report, he'd get slashed.
+The next proving period starts at block `41`, with the deadline `[41, 51)`, so Charlie must submit his proof on this block.
+He knows he won't be able to create a proof, as his hard drives went down, so he reports it. If he didn't report, he'd get slashed.
 
 `fault-declaration.json`
 
@@ -193,7 +194,7 @@ $ storagext-cli --sr25519-key "//Charlie" storage-provider declare-faults "@faul
 
 <img src="../images/demo/faults-declared.PNG">
 
-Charlie fixed his issues with storage and now wants to declare that he's still able to provide data in this sector.
+Charlie fixed his issues with storage and now wants to declare that he can still provide data in this sector.
 If he does this too late (1 minute before the next deadline starts), he won't be able to.
 
 ```bash
@@ -221,8 +222,8 @@ $ storagext-cli --sr25519-key "//Charlie" storage-provider submit-windowed-post 
 
 ## 4. Reaping the rewards
 
-After the deal has ended (after block `50`), Charlie goes to get his rewards!
-First he settles all of the locked funds, so his balance gets unlocked and then he withdraw balance to use his DOTs for a new shiny dumbbell.
+After the deal ends (after block `50`), Charlie goes to get his rewards!
+First, he settles all of the locked funds, so his balance gets unlocked, and then he withdraws the balance from his Market account to use his DOTs for a new shiny dumbbell.
 
 ```bash
 $ storagext-cli --sr25519-key "//Charlie" market settle-deal-payments 0

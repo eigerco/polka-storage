@@ -18,20 +18,20 @@
 
 ## Overview
 
-The `Storage Provider Pallet` handles the creation of storage providers and facilitates storage providers and client in creating storage deals.
-Storage providers must provide [Proof of Space-time (PoSt)](../glossary.md#post) and [Proof of Replication (PoRep)](../glossary.md#porep) to the `Storage Provider Pallet`
-in order to prevent the pallet impose penalties on the storage providers through [slashing](../glossary.md#slashing).
+The `Storage Provider Pallet` handles the creation of storage providers and facilitates storage providers and clients in creating storage deals.
+Storage providers must provide the [Proof of Space-time (PoSt)](../glossary.md#post) and the [Proof of Replication (PoRep)](../glossary.md#porep)
+to the `Storage Provider Pallet` to prevent the pallet from imposing penalties on storage providers through [slashing](#storage-fault-slashing).
 
 ## Usage
 
 ### Declaring storage faults and recoveries
 
-Faulty sectors are subject to penalties, to minimize said penalties the storage provider should declare any sector for which they cannot
+Faulty sectors are subject to penalties. To minimize said penalties, the storage provider should declare any sector for which they cannot
 generate a [PoSt](../glossary.md#post) as faulty, this will mask said sectors in future deadlines, minimizing the suffered penalties.
-A storage provider has to declare the sector as faulty [**before**](#fault-declaration-cutoff) the challenge window.
+A storage provider must declare the sector as faulty [**before**](#fault-declaration-cutoff) the challenge window.
 
 Through the [`declare_faults`](#declare_faults) and [`declare_faults_recovered`](#declare_faults_recovered) extrinsics
-the storage provider can declare sectors, respectively, as faulty or recovered[^recovered].
+the storage provider can declare sectors as faulty or recovered[^recovered].
 
 <img src="../images/storage-provider/faults.svg" alt="Declaring faults and recoveries">
 
@@ -41,16 +41,16 @@ Substrate pallet hooks execute actions when certain conditions are met.
 
 Substrate pallet hooks execute some actions when certain conditions are met.
 We use these hooks — when a block finalizes — to check if storage providers are up to date with their proofs.
-If a storage provider fails to submit a proof on time, the Storage Provider pallet will signal the Market pallet to penalize the storage provider.
-After that, the Market pallet removes and burns the collateral locked up during the pre-commit.
+If a storage provider fails to submit proof on time, the Storage Provider pallet will signal the Market pallet to penalize the storage provider.
+Accordingly, removing and burning the collateral locked up during the pre-commit.
 
 ## Extrinsics
 
 ### `register_storage_provider`
 
-Storage Provider registration is the first extrinsic that any storage provider has to call, without being registered, the other extrinsics will return an error.
+Storage Provider registration is the first extrinsic any storage provider must call. Without being registered, other extrinsics will return an error.
 
-Before a storage provider can register, they need to set up a [PeerId](https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id). This [PeerId](https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id) is used in the p2p network to connect to the storage provider.
+Before a storage provider can register, they must set up a [PeerId](https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id). This [PeerId](https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id) is used in the p2p network to connect to the storage provider.
 
 | Name                     | Description                                                                            |
 | ------------------------ | -------------------------------------------------------------------------------------- |
@@ -69,7 +69,8 @@ storagext-cli --sr25519-key "//Alice" storage-provider register alice
 
 ### `pre_commit_sector`
 
-After a deal has been published the storage provider needs to pre-commit the sector information to the chain. Sectors are not valid after pre-commit, the sectors need to be proven first.
+After publishing a deal, the storage provider needs to pre-commit the sector information to the chain.
+Sectors are not valid after pre-commit. The sectors need to be proven first.
 
 | Name            | Description                                                            |
 | --------------- | ---------------------------------------------------------------------- |
@@ -81,10 +82,10 @@ After a deal has been published the storage provider needs to pre-commit the sec
 | `unsealed_cid`  | Commitment of data [sector sealing](../glossary.md#commitment-of-data) |
 
 <div class="warning">
-Sectors are not valid after pre-commit, the sectors need to be proven first.
+Sectors are not valid after pre-commit. The sectors need to be proven first.
 </div>
 
-[^note]: Only once seal proof type supported at the moment, `2KiB`.
+[^note]: Only one seal-proof type supported at the moment, `2KiB`.
 
 #### <a class="header" id="pre_commit_sector.example" href="#pre_commit_sector.example">Example</a>
 
@@ -118,11 +119,11 @@ After pre-committing some new sectors the storage provider needs to supply a [Pr
 | `sector_number` | The sector number that is being prove-committed |
 | `proof`         | The hex-encoded bytes of a proof                |
 
-[^note]: At the moment any non-zero length proof is accepted for PoRep.
+[^note]: At the moment, any proof of non-zero length is accepted for PoRep.
 
 #### <a class="header" id="prove_commit_sector.example" href="#prove_commit_sector.example">Example</a>
 
-This example follows up on the pre-commit example. Storage provider `//Alice` is prove committing[^prove_commit_sector] sector number 1.
+This example follows up on the pre-commit example. Storage provider `//Alice` is proven committing[^prove_commit_sector] sector number 1.
 
 ```bash
 storagext-cli --sr25519-key "//Alice" storage-provider prove-commit @prove-commit-sector.json
@@ -145,10 +146,10 @@ A storage provider needs to periodically submit a [Proof-of-Spacetime](../glossa
 
 | Name          | Description                                                               |
 | ------------- | ------------------------------------------------------------------------- |
-| `deadline`    | The deadline index which the submission targets                           |
+| `deadline`    | The deadline index that the submission targets                            |
 | `partitions`  | The partition being proven                                                |
-| `post_proof`  | The proof type, should be consistent with the proof type for registration |
-| `proof_bytes` | The proof submission, to be checked in the storage provider pallet.       |
+| `post_proof`  | The proof type; should be consistent with the proof type for registration |
+| `proof_bytes` | The proof submission; to be checked in the storage provider pallet.       |
 
 #### <a class="header" id="submit_windowed_post.example" href="#submit_windowed_post.example">Example</a>
 
@@ -175,7 +176,10 @@ Where `submit-windowed-post.json` is a file with contents similar to:
 
 ### `declare_faults`
 
-A storage provider can declare faults when they know that they cannot submit PoSt on time to prevent to get penalized. Faults have an expiry of 42 days. If the faults are not recovered before this time, the sectors will be terminated. Multiple faults can be declared at once.
+A storage provider can declare faults when they know they cannot submit PoSt on time to prevent getting penalized.
+Faults have an expiry of 42 days.
+The sectors will be terminated if the faults have not been recovered before this time.
+Multiple faults can be declared at once.
 
 `declare_faults` can take in multiple fault declarations:
 
@@ -215,8 +219,8 @@ Where `fault-declaration.json` is a file with contents similar to:
 
 ### `declare_faults_recovered`
 
-After declaring sectors as faulty a storage provider can recover the sectors.
-If some sectors were marked faulty, due to a missing PoSt or voluntarily by a provider, the storage provider needs to recover the faults.
+After declaring sectors as faulty, a storage provider can recover them.
+The storage provider must recover the faults if the system has marked some sectors as faulty due to a missing PoSt.
 Faults are not fully recovered until the storage provider submits a valid PoSt after the `declare_faults_recovered` extrinsic.
 
 `declare_faults_recovered` can take in multiple fault recoveries:
@@ -272,7 +276,7 @@ The Storage Provider Pallet emits the following events:
 - `SectorProven` - A storage provider has proven a sector that they previously pre-committed.
   - `owner` - SS58 address of the storage provider.
   - `sector_number` - The sector number that was proven.
-- `SectorSlashed` - A sector that was previously pre-committed, but not proven, has been slashed by the pallet because it has expired.
+- `SectorSlashed` - A previously pre-committed sector, but not proven, has been slashed by the system because it has expired.
   - `owner` - SS58 address of the storage provider.
   - `sector_number` - The sector number that has been slashed because of expiry.
 - `ValidPoStSubmitted` - A valid PoSt has been submitted by a storage provider.
@@ -292,36 +296,36 @@ The Storage Provider Pallet emits the following events:
 - `PartitionFaulty` - It was detected that a storage provider has not submitted their PoSt on time and has marked some sectors as faulty.
   - `owner` - SS58 address of the storage provider.
   - `partition` - Partition number for which the PoSt was missed.
-  - `sectors` - The sectors in the partition that were declared as faulty by the pallet.
+  - `sectors` - The sectors in the partition declared faulty by the system.
 
 ## Errors
 
-The Storage Provider Pallet actions can fail with following errors:
+The Storage Provider Pallet actions can fail with the following errors:
 
 - `StorageProviderExists` - A storage provider is already registered and tries to register again.
 - `StorageProviderNotFound` - This error is emitted by all extrinsics except registration in the storage provider pallet when a storage provider tries to call an extrinsic without registering first.
 - `InvalidSector` - This error can be emitted when:
-  - A storage provider supplies a sector number during pre-commit that exceeds the maximum amount of sectors.
-  - A storage provider supplies a sector number during prove commit that exceeds the maximum amount of sectors.
+  - A storage provider supplies a sector number during pre-commit exceeding the maximum number of sectors.
+  - A storage provider supplies a sector number during proof commit that exceeds the maximum amount of sectors.
 - `InvalidProofType` - This error can be emitted when:
-  - A storage provider submits a seal proof type during pre-commit that is different than the one configured during registration.
-  - During a prove commit extrinsic the proof type that the storage provider has supplied in invalid.
-  - A storage provider submits a windowed PoSt proof type that is different than the one configured during registration.
+  - A storage provider submits a seal-proof type during pre-commit that is different than the one configured during registration.
+  - During a prove commit extrinsic, the proof type supplied by the storage provider is invalid.
+  - A storage provider submits a windowed PoSt proof type that is different from the one configured during registration.
 - `NotEnoughFunds` - Emitted when a storage provider does not have enough funds for the pre-commit deposit.
 - `SectorNumberAlreadyUsed` - A storage provider tries to pre-commit a sector number that has already been used.
-- `ExpirationBeforeActivation` - A storage provider tries to pre-commit a sector where the expiration of that sector is before the activation.
-- `ExpirationTooSoon` - A storage provider tries to pre-commit a sector with a total lifetime that is less that `MinSectorExpiration`.
+- `ExpirationBeforeActivation` - A storage provider tries to pre-commit a sector where that sector expires before activation.
+- `ExpirationTooSoon` - A storage provider tries to pre-commit a sector with a total lifetime less than MinSectorExpiration.
 - `ExpirationTooLong` - A storage provider tries to pre-commit a sector with an expiration that exceeds `MaxSectorExpirationExtension`.
 - `MaxSectorLifetimeExceeded` - A storage provider tries to pre-commit a sector with a total lifetime that exceeds `SectorMaximumLifetime`.
 - `InvalidCid` - Emitted when a storage provider submits an invalid unsealed CID when trying to pre-commit a sector.
 - `ProveCommitAfterDeadline` - A storage provider has tried to prove a previously pre-committed sector after the proving deadline.
-- `PoStProofInvalid` - A proof that was submitted by the storage provider is invalid. Currently this error is emitted when the proof length is 0.
-- `InvalidUnsealedCidForSector` - This error is emitted when the declared unsealed_cid for pre_commit is different from the one calculated by the pallet.
+- `PoStProofInvalid` - A proof that the storage provider submitted is invalid. Currently, this error is emitted when the proof length is 0.
+- `InvalidUnsealedCidForSector` - This error is emitted when the declared unsealed_cid for pre_commit is different from the one calculated by the system.
 - `FaultDeclarationTooLate` - A fault declaration was submitted after the fault declaration cutoff. The fault declaration can be submitted after the upcoming deadline is closed.
 - `FaultRecoveryTooLate` - A fault recovery was submitted after the fault recovery cutoff. The fault recovery can be submitted after the upcoming deadline is closed.
-- `DeadlineError` - An error was encountered in the deadline module. If you encounter this error please report an issue as this is a programmer error.
-- `PartitionError` - An error was encountered in the partition module. If you encounter this error please report an issue as this is a programmer error.
-- `StorageProviderError` - An error was encountered in the storage provider module. If you encounter this error please report an issue as this is a programmer error.
+- `DeadlineError` - An error was encountered in the deadline module. If you encounter this error, please report an issue, as this is a programmer error.
+- `PartitionError` - An error was encountered in the partition module. If you encounter this error, please report an issue, as this is a programmer error.
+- `StorageProviderError` - An error was encountered in the storage provider module. If you encounter this error, please report an issue, as this is a programmer error.
 - `SectorMapError` - An error was encountered in the sector map module. These errors can be:
   - `FailedToInsertSector` - Internal bounds violation with Sectors. If you encounter this error please report an issue as this is a programmer error.
   - `FailedToInsertPartition` - Internal bounds violation with partitions. If you encounter this error please report an issue as this is a programmer error.
