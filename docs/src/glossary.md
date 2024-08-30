@@ -177,7 +177,7 @@ For more information on partitions, it's available in the original Filecoin spec
 From the [Polkadot Wiki][1]:
 
 > The smallest unit for the account balance on Substrate based blockchains (Polkadot, Kusama, etc.) is Planck (a reference to Planck Length, the smallest possible distance in the physical Universe).
-> DOT's Planck is like BTC's Satoshi or ETH's Wei. Polkadot's native token DOT equals to \\(10^{10}\\) Planck and Kusama's native token KSM equals to \\(10^{12}\\) Planck.
+> DOT's Planck is like BTC's [Satoshi](https://en.bitcoin.it/wiki/Satoshi_(unit)) or ETH's [Wei](https://ethereum.org/en/developers/docs/intro-to-ether/#denominations). Polkadot's native token DOT equals to \\(10^{10}\\) Planck and Kusama's native token KSM equals to \\(10^{12}\\) Planck.
 
 
 ### Polkadot
