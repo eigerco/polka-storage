@@ -45,3 +45,4 @@ SR25519_KEY="//Charlie" storagext-cli --node-rpc "supercooldomain.com:1337" <com
 
 - [Subcommand `market`](market.md)
 - [Subcommand `storage-provider`](storage-provider.md)
+- [Subcommand `system`](system.md)
