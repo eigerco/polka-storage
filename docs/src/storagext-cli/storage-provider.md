@@ -112,7 +112,7 @@ Where `prove-commit-sector.json` is a file with contents similar to:
 
 ### `submit-windowed-post`
 
-The `submit-windowed-post` command allows you to submit a windowed PoSt proof. The post proof needs to be periodically submitted to prove that some sector is still stored. Sectors are proven in a baches called partitions.
+The `submit-windowed-post` command allows you to submit a windowed PoSt proof. The post proof needs to be periodically submitted to prove that some sector is still stored. Sectors are proven in batches called partitions.
 
 ### Parameters
 

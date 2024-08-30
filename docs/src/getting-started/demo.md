@@ -1,10 +1,12 @@
 # Real-world use case demo
 
-## 1. Publishing a deal
-
 <div class="warning">
 Before reading this guide, please ensure you've followed the <a href="./local-testnet.md">local testnet</a> guide and have a working testnet running!
 </div>
+
+A high-level overview with diagrams of the process described below can be found in <a href="../pallets/index.md">Pallets section</a>.
+
+## 1. Publishing a deal
 
 Charlie heard that he can provide storage to people around the world and earn some tokens doing it, so he decided to register as a [Storage Provider](../glossary.md).
 
