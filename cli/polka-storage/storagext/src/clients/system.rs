@@ -2,8 +2,6 @@ use std::time::Duration;
 
 use tokio::time::sleep;
 
-use crate::runtime;
-
 pub struct SystemClient {
     client: crate::runtime::client::Client,
 }
@@ -20,21 +18,18 @@ impl SystemClient {
     }
 
     /// Get the current height of the chain.
-    pub async fn height(&self) -> Result<Option<u64>, subxt::Error> {
-        let system_height_query = runtime::storage().system().number();
-        self.client
-            .client
-            .storage()
-            .at_latest()
-            .await?
-            .fetch(&system_height_query)
-            .await
+    /// It returns latest non-finalized block.
+    pub async fn height(&self) -> Result<u64, subxt::Error> {
+        let mut best_stream = self.client.client.blocks().subscribe_best().await?;
+        let block = best_stream.next().await.expect("there always exists a block on a running chain")?;
+
+        Ok(block.header().number)
     }
 
     /// Wait for the chain to reach a specific height.
     pub async fn wait_for_height(&self, height: u64) -> Result<(), subxt::Error> {
         loop {
-            let current_height = self.height().await?.unwrap_or_default();
+            let current_height = self.height().await?;
             tracing::debug!("Current height: {current_height}");
 
             if current_height >= height {

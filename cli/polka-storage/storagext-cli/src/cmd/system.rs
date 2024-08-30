@@ -23,10 +23,10 @@ impl SystemCommand {
         let client = SystemClient::new(node_rpc).await?;
 
         match self {
-            SystemCommand::GetHeight => match client.height().await? {
-                Some(height) => println!("Current height: {height:#?}"),
-                None => println!("Could not fetch current height, may be unavailable"),
-            },
+            SystemCommand::GetHeight => {
+                let height = client.height().await?;
+                println!("Current height: {height:#?}");
+            }
             SystemCommand::WaitForHeight { height } => {
                 client.wait_for_height(height).await?;
                 println!("Reached desired height");
