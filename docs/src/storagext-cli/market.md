@@ -22,13 +22,23 @@ the balance will be added to the `free` balance.
 
 ### <a class="header" id="add-balance.example" href="#add-balance.example">Example</a>
 
-Adding 1000000 [Plancks](../glossary.md#planck) to Alice's account.
+Adding 1000000000 [Plancks](../glossary.md#planck) to Alice's account.
 
 ```bash
-storagext-cli --sr25519-key "//Alice" market add-balance 1000000
+storagext-cli --sr25519-key "//Alice" market add-balance 1000000000
 ```
 
-> You can read more about this extrinsic in [_Pallets/Market Pallet/Add Balance_](../pallets/market.md#add_balance).
+<div class="warning">
+The <code>1000000000</code> value is not arbitrary, it is the <a href="https://support.polkadot.network/support/solutions/articles/65000168651-what-is-the-existential-deposit-">minimum existential deposit</a> for any Polkadot account. As such, when the Market account is being setup, the first deposit ever needs to meet this minimum to <b>create</b> the Market account.
+
+If you attempt to create the Market account with less than <code>1000000000</code>, you will get the following error:
+
+<pre>
+<code>Error: Runtime error: Token error: Account cannot exist with the funds that would be given.</code>
+</pre>
+</div>
+
+> You can read more about the `add_balance` extrinsic in [_Pallets/Market Pallet/Add Balance_](../pallets/market.md#add_balance).
 
 ## `withdraw-balance`
 
@@ -51,7 +61,7 @@ Withdrawing 10000 [Plancks](../glossary.md#planck) from Alice's account.
 storagext-cli --sr25519-key "//Alice" market withdraw-balance 10000
 ```
 
-> You can read more about this extrinsic in [_Pallets/Market Pallet/Withdraw Balance_](../pallets/market.md#withdraw-balance).
+> You can read more about the `withdraw_balance` extrinsic in [_Pallets/Market Pallet/Withdraw Balance_](../pallets/market.md#withdraw-balance).
 
 ## `publish-storage-deals`
 
@@ -76,18 +86,18 @@ The client keypair can be passed using `--client-<key kind>`, where `<key kind>`
 
 The `DEALS` JSON array is composed of objects:
 
-| Name                      | Description                                                         |
-| ------------------------- | ------------------------------------------------------------------- |
-| `piece_cid`               | Byte encoded CID                                                    |
-| `piece_size`              | Size of the piece                                                   |
-| `client`                  | SS58 address of the storage client                                  |
-| `provider`                | SS58 address of the storage provider                                |
-| `label`                   | Arbitrary client chosen label                                       |
-| `start_block`             | Block number on which the deal should start                         |
-| `end_block`               | Block number on which the deal should end                           |
-| `storage_price_per_block` | Price for the storage specified per block[^storage_price_per_block] |
-| `provider_collateral`     | Collateral which is slashed if the deal fails                       |
-| `state`                   | Deal state. Can only be set to `Published`                          |
+| Name                      | Description                                                         | Type                                                                     |
+| ------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `piece_cid`               | Byte encoded CID                                                    | [CID](https://github.com/multiformats/cid)                               |
+| `piece_size`              | Size of the piece                                                   | Positive integer                                                         |
+| `client`                  | SS58 address of the storage client                                  | [SS58 address](https://docs.substrate.io/learn/accounts-addresses-keys/) |
+| `provider`                | SS58 address of the storage provider                                | [SS58 address](https://docs.substrate.io/learn/accounts-addresses-keys/) |
+| `label`                   | Arbitrary client chosen label                                       | String, with a maximum length of 128 characters                          |
+| `start_block`             | Block number on which the deal should start                         | Positive integer                                                         |
+| `end_block`               | Block number on which the deal should end                           | Positive integer, `end_block > start_block`                              |
+| `storage_price_per_block` | Price for the storage specified per block[^storage_price_per_block] | Positive integer, in [Plancks](../glossary.md#planck)                    |
+| `provider_collateral`     | Collateral which is slashed if the deal fails                       | Positive integer, in [Plancks](../glossary.md#planck)                    |
+| `state`                   | Deal state. Can only be set to `Published`                          | String                                                                   |
 
 ### <a class="header" id="publish-storage-deals.example" href="#publish-storage-deals.example">Example</a>
 
@@ -130,7 +140,7 @@ Where `deals.json` is a file with contents similar to:
 ]
 ```
 
-> You can read more about this extrinsic in [_Pallets/Market Pallet/Publish Storage Deals_](../pallets/market.md#publish_storage_deals).
+> You can read more about the `publish_storage_deals` extrinsic in [_Pallets/Market Pallet/Publish Storage Deals_](../pallets/market.md#publish_storage_deals).
 
 ## `settle-deal-payments`
 
@@ -154,7 +164,7 @@ Settling deals with the IDs 97, 1010, 1337, 42069:
 storagext-cli --sr25519-key "//Alice" market settle-deal-payments 97 1010 1337 42069
 ```
 
-> You can read more about this extrinsic in [_Pallets/Market Pallet/Settle Deal Payments_](../pallets/market.md#settle_deal_payments).
+> You can read more about the `publish_storage_deals` extrinsic in [_Pallets/Market Pallet/Settle Deal Payments_](../pallets/market.md#settle_deal_payments).
 
 ## `retrieve-balance`
 
@@ -172,4 +182,4 @@ The `retrieve-balance` command allows you to check the balance of any market acc
 storagext-cli market retrieve-balance "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY" # Alice's account
 ```
 
-> This extrinsic IS NOT signed, and as such, does not need to be called using the `--X-key` flag.
+> This extrinsic **is not signed**, as such, it does not need to be called using any of the `--X-key` flags.
