@@ -26,7 +26,8 @@
 
 ## Overview
 
-The `Storage Provider Pallet` handles the creation of storage providers and facilitates storage providers and client in creating storage deals. Storage providers must provide Proof of Spacetime and Proof of Replication to the `Storage Provider Pallet`
+The `Storage Provider Pallet` handles the creation of storage providers and facilitates storage providers and client in creating storage deals.
+Storage providers must provide [Proof of Space-time (PoSt)](../glossary.md#post) and [Proof of Replication (PoRep)](../glossary.md#porep) to the `Storage Provider Pallet`
 in order to prevent the pallet impose penalties on the storage providers through [slashing](../glossary.md#slashing).
 
 ## Usage
