@@ -139,7 +139,7 @@ From now on, the sector will need to be proven during this lifetime, periodicall
 
 
 
-`window-proof.json`
+`windowed-post.json`
 ```json
 {
   "deadline": 0,
