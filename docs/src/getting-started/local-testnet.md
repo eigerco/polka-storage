@@ -65,7 +65,7 @@ xattr -d com.apple.quarantine zombienet polka-storage-node polka-storage-provide
 ```
 
 <div class="warning">
-When running <code>xattr</code> command and receiving <code>No such attr: com.apple.quarantine</code>, that's fine. It means downloaded binaries were not quarantined.
+If, when running the <code>xattr</code> command, it outputs <code>No such attr: com.apple.quarantine</code>, there's nothing to worry about. It means the downloaded binaries were not quarantined.
 </div>
 
 3. Run `zombienet`:
