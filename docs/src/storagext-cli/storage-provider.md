@@ -26,7 +26,7 @@ Registering the provider with the specific `peer_id`
 storagext-cli --sr25519-key <key> storage-provider register <peer_id>
 ```
 
-> You can read more about this extrinsic in [_Pallets/Storage Provider/Register_](../pallets/storage-provider.md#register_storage_provider).
+> You can read more about the `register` extrinsic in [_Pallets/Storage Provider/Register_](../pallets/storage-provider.md#register_storage_provider).
 
 ### `pre-commit`
 
@@ -71,7 +71,7 @@ Where `pre-commit-sector.json` is a file with contents similar to:
 }
 ```
 
-> You can read more about this extrinsic in [_Pallets/Storage Provider/Pre-commit sector_](../pallets/storage-provider.md#pre_commit_sector).
+> You can read more about the `pre_commit` extrinsic in [_Pallets/Storage Provider/Pre-commit sector_](../pallets/storage-provider.md#pre_commit_sector).
 
 ### `prove-commit`
 
@@ -108,7 +108,7 @@ Where `prove-commit-sector.json` is a file with contents similar to:
 }
 ```
 
-> You can read more about this extrinsic in [_Pallets/Storage Provider/Prove-commit sector_](../pallets/storage-provider.md#prove_commit_sector).
+> You can read more about `prove_commit` extrinsic in [_Pallets/Storage Provider/Prove-commit sector_](../pallets/storage-provider.md#prove_commit_sector).
 
 ### `submit-windowed-post`
 
@@ -157,7 +157,7 @@ Where `window-proof.json` is a file with contents similar to:
 }
 ```
 
-> You can read more about this extrinsic in [_Pallets/Storage Provider/Submit Windowed Post_](../pallets/storage-provider.md#submit_windowed_post).
+> You can read more about the `submit_windowed_post` extrinsic in [_Pallets/Storage Provider/Submit Windowed Post_](../pallets/storage-provider.md#submit_windowed_post).
 
 ### `declare-faults`
 
@@ -198,7 +198,7 @@ Where `faults.json` is a file with contents similar to:
 ]
 ```
 
-> You can read more about this extrinsic in [_Pallets/Storage Provider/Declare Faults_](../pallets/storage-provider.md#declare_faults).
+> You can read more about the `declare_faults` extrinsic in [_Pallets/Storage Provider/Declare Faults_](../pallets/storage-provider.md#declare_faults).
 
 ### `declare-faults-recovered`
 
@@ -239,4 +239,4 @@ Where `recoveries.json` is a file with contents similar to:
 ]
 ```
 
-> You can read more about this extrinsic in [_Pallets/Storage Provider/Declare Faults Recovered_](../pallets/storage-provider.md#declare_faults_recovered).
+> You can read more about the `declare_faults_recovered` extrinsic in [_Pallets/Storage Provider/Declare Faults Recovered_](../pallets/storage-provider.md#declare_faults_recovered).
