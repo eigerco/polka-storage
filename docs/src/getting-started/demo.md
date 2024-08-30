@@ -131,7 +131,7 @@ Each Storage Provider has a Proving Period, it's some time divided in segments (
 To simplify, let's say a proving period lasts a day (24 hours) and the between start and end of each hour there is a segment
 Just like on a clock.
 Now, when Charlie gathers enough data and stores it in a sector, he needs to keep proving that he has some data.
-Charlie can have multiple sectors and he doesn't want to overload the system with proving all of them at the same time.
+Charlie can have multiple sectors and he doesn't want to overload the parachain with proving all of them at the same time.
 So what if, each sector got assigned segment (1 hour) during the day and Charlie would need to submit proof that he has data roughly on the same hour each day?
 That'd work, right?
 So this is what a Proving Period and Deadlines are. We divide a proving period into deadlines and when we prove commit, we assign sector to a deadline.

@@ -215,7 +215,9 @@ Where `fault-declaration.json` is a file with contents similar to:
 
 ### `declare_faults_recovered`
 
-After declaring sectors as faulty a storage provider can recover the sectors. If the system has marked some sectors as faulty, due to a missing PoSt, the storage provider needs to recover the faults. Faults are not fully recovered until the storage provider submits a valid PoSt after the `declare_faults_recovered` extrinsic.
+After declaring sectors as faulty a storage provider can recover the sectors.
+If some sectors were marked faulty, due to a missing PoSt or voluntarily by a provider, the storage provider needs to recover the faults.
+Faults are not fully recovered until the storage provider submits a valid PoSt after the `declare_faults_recovered` extrinsic.
 
 `declare_faults_recovered` can take in multiple fault recoveries:
 
@@ -270,7 +272,7 @@ The Storage Provider Pallet emits the following events:
 - `SectorProven` - A storage provider has proven a sector that they previously pre-committed.
   - `owner` - SS58 address of the storage provider.
   - `sector_number` - The sector number that was proven.
-- `SectorSlashed` - A sector that was previously pre-committed, but not proven, has been slashed by the system because it has expired.
+- `SectorSlashed` - A sector that was previously pre-committed, but not proven, has been slashed by the pallet because it has expired.
   - `owner` - SS58 address of the storage provider.
   - `sector_number` - The sector number that has been slashed because of expiry.
 - `ValidPoStSubmitted` - A valid PoSt has been submitted by a storage provider.
@@ -287,10 +289,10 @@ The Storage Provider Pallet emits the following events:
     - `deadline` - The deadline to which the recovered sectors are assigned.
     - `partition` - Partition number within the deadline containing the recovered sectors.
     - `sectors` - Sectors in the partition being declared as recovered.
-- `PartitionFaulty` - The system has detected that a storage provider has not submitted their PoSt on time and has marked some sectors as faulty.
+- `PartitionFaulty` - It was detected that a storage provider has not submitted their PoSt on time and has marked some sectors as faulty.
   - `owner` - SS58 address of the storage provider.
   - `partition` - Partition number for which the PoSt was missed.
-  - `sectors` - The sectors in the partition that were declared as faulty by the system.
+  - `sectors` - The sectors in the partition that were declared as faulty by the pallet.
 
 ## Errors
 
@@ -314,7 +316,7 @@ The Storage Provider Pallet actions can fail with following errors:
 - `InvalidCid` - Emitted when a storage provider submits an invalid unsealed CID when trying to pre-commit a sector.
 - `ProveCommitAfterDeadline` - A storage provider has tried to prove a previously pre-committed sector after the proving deadline.
 - `PoStProofInvalid` - A proof that was submitted by the storage provider is invalid. Currently this error is emitted when the proof length is 0.
-- `InvalidUnsealedCidForSector` - This error is emitted when the declared unsealed_cid for pre_commit is different from the one calculated by the system.
+- `InvalidUnsealedCidForSector` - This error is emitted when the declared unsealed_cid for pre_commit is different from the one calculated by the pallet.
 - `FaultDeclarationTooLate` - A fault declaration was submitted after the fault declaration cutoff. The fault declaration can be submitted after the upcoming deadline is closed.
 - `FaultRecoveryTooLate` - A fault recovery was submitted after the fault recovery cutoff. The fault recovery can be submitted after the upcoming deadline is closed.
 - `DeadlineError` - An error was encountered in the deadline module. If you encounter this error please report an issue as this is a programmer error.
@@ -343,5 +345,5 @@ The Storage Provider Pallet has the following constants:
 | `SectorMaximumLifetime`                                           | Maximum time a sector can stay in pre-committed state.                                                                                                                            | 120 Minutes |
 | `MaxProveCommitDuration`                                          | Maximum time between [pre-commit](#pre_commit_sector) and [proving](#prove_commit_sector) the committed sector.                                                                   | 5 Minutes   |
 | `MaxPartitionsPerDeadline`                                        | Maximum number of partitions that can be assigned to a single deadline.                                                                                                           | 3000        |
-| `FaultMaxAge`                                                     | Maximum time a [fault](../glossary.md#fault) can exist before being removed by the system.                                                                                        | 210 Minutes |
+| `FaultMaxAge`                                                     | Maximum time a [fault](../glossary.md#fault) can exist before being removed by the pallet.                                                                                        | 210 Minutes |
 | <code id="fault-declaration-cutoff">FaultDeclarationCutoff</code> | Time before a deadline opens that a storage provider can declare or recover a fault.                                                                                              | 2 Minutes   |
