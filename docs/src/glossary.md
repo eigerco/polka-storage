@@ -120,7 +120,7 @@ lease, and participants might receive rewards or tokens from the project in retu
 
 A deadline is one of the multiple points during a proving period when proofs for some partitions are due.
 
-For more information on deadlines, it's available in the original Filecoin specification:
+For more information on deadlines, read the original Filecoin specification:
 <https://spec.filecoin.io/#section-algorithms.pos.post.design>
 
 ### Extrinsics
@@ -136,7 +136,7 @@ For a sector to stop being considered in proving periods, it needs to be declare
 — indicating the storage provider is aware of the faulty sector and will be working to restore it.
 If a sector is faulty for too long, it will be terminated and the deal will be slashed.
 
-For more information on faults, it's available in the original Filecoin specification:
+For more information on faults, read the original Filecoin specification:
 <https://spec.filecoin.io/#section-glossary.fault>
 
 ### Full Node
@@ -165,7 +165,7 @@ Partitions are logical groups[^logical] of sectors to be proven together.
 
 The number of sectors to be proven at once is 2349[^computational_limit], as defined by Filecoin.
 
-For more information on partitions, it's available in the original Filecoin specification:
+For more information on partitions, read the original Filecoin specification:
 <https://spec.filecoin.io/#section-algorithms.pos.post.constants--terminology>
 
 [^logical]: They do not reflect the physical storage state, only existing in the context of deadlines and proofs.
@@ -206,7 +206,7 @@ A proving period is when storage providers' commitments are audited,
 and they must prove they are still storing the data from the deals they signed
 - the average period for proving all sectors maintained by a provider (default set to 24 hours).
 
-For more information on proving periods, it's available in the original Filecoin specification:
+For more information on proving periods, read the original Filecoin specification:
 - Proving periods in the context of Window Proof of Spacetime — <https://spec.filecoin.io/#section-algorithms.pos.post.windowpost>
 - Proving periods in the context of Filecoin's system design — <https://spec.filecoin.io/#section-algorithms.pos.post.design>
 
@@ -221,7 +221,7 @@ The sector is the default unit of storage that providers put in the network.
 A sector is a contiguous array of bytes on which a storage provider puts together, seals,and performs Proofs of Spacetime on.
 Storage providers store data on the network in fixed-size sectors.
 
-For more information on sectors, it's available in the original Filecoin specification:
+For more information on sectors, read the original Filecoin specification:
 <https://spec.filecoin.io/#section-glossary.sector>
 
 ### Session
