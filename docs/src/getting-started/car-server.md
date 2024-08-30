@@ -35,6 +35,22 @@ After setting up and starting the CAR server, it's important to verify that ever
 
 2. Download the CAR file using the CID you received, following the steps in the [Download the CAR File](../storage-provider-cli/storage.md#download-the-car-file) section.
 
-3. [Optional] Verify the contents of the downloaded CAR file. You can use [go-car](https://github.com/ipld/go-car/tree/master/cmd/car#install)'s `extract` command.
+3. [Optional] Verify the contents of the downloaded CAR file. You can use [go-car](https://github.com/ipld/go-car/tree/master/cmd/car#install)'s `inspect` command. Like so.
+
+   ```bash
+   car inspect <target_file>
+   ```
+
+   The user can use `debug` for more detailed output:
+
+   ```bash
+   car debug <target_file>
+   ```
+
+   If the user desires, they can extract the contents of the file:
+
+   ```bash
+   car extract <target_file>
+   ```
 
 If you can successfully upload a file, receive a CID, download the corresponding CAR file, and verify its contents, your CAR server setup is working correctly.
