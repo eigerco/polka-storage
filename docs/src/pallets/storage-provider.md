@@ -49,7 +49,7 @@ Substrate pallet hooks execute actions when certain conditions are met.
 Substrate pallet hooks execute some actions when certain conditions are met.
 We use these hooks — when a block finalizes — to check if storage providers are up to date with their proofs.
 If a storage provider fails to submit a proof on time, the Storage Provider pallet will signal the Market pallet to penalize the storage provider.
-After that, Market pallet removes and burns the collateral locked up during the pre-commit.
+After that, the Market pallet removes and burns the collateral locked up during the pre-commit.
 
 ## Extrinsics
 
