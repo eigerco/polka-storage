@@ -64,6 +64,10 @@ chmod +x zombienet polka-storage-node polka-storage-provider storagext-cli polka
 xattr -d com.apple.quarantine zombienet polka-storage-node polka-storage-provider storagext-cli polkadot polkadot-prepare-worker polkadot-execute-worker
 ```
 
+<div class="warning">
+When running <code>xattr</code> command and receiving <code>No such attr: com.apple.quarantine</code>, that's fine. It means downloaded binaries were not quarantined.
+</div>
+
 3. Run `zombienet`:
 
 ```bash

@@ -26,7 +26,8 @@
 
 ## Overview
 
-The `Storage Provider Pallet` handles the creation of storage providers and facilitates storage providers and client in creating storage deals. Storage providers must provide Proof of Spacetime and Proof of Replication to the `Storage Provider Pallet` in order to prevent the pallet impose penalties on the storage providers through [slashing](#storage-fault-slashing).
+The `Storage Provider Pallet` handles the creation of storage providers and facilitates storage providers and client in creating storage deals. Storage providers must provide Proof of Spacetime and Proof of Replication to the `Storage Provider Pallet`
+in order to prevent the pallet impose penalties on the storage providers through [slashing](../glossary.md#slashing).
 
 ## Usage
 
@@ -48,7 +49,7 @@ Substrate pallet hooks execute actions when certain conditions are met.
 Substrate pallet hooks execute some actions when certain conditions are met.
 We use these hooks — when a block finalizes — to check if storage providers are up to date with their proofs.
 If a storage provider fails to submit a proof on time, the Storage Provider pallet will signal the Market pallet to penalize the storage provider.
-accordingly removing and burning the collateral locked up during the pre-commit.
+After that, Market pallet removes and burns the collateral locked up during the pre-commit.
 
 ## Extrinsics
 
@@ -56,7 +57,7 @@ accordingly removing and burning the collateral locked up during the pre-commit.
 
 Storage Provider registration is the first extrinsic that any storage provider has to call, without being registered, the other extrinsics will return an error.
 
-Before a storage provider can register, they need to set up a [PeerId](https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id). This [PeerId](https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id)is used in the p2p network to connect to the storage provider.
+Before a storage provider can register, they need to set up a [PeerId](https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id). This [PeerId](https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id) is used in the p2p network to connect to the storage provider.
 
 | Name                     | Description                                                                            |
 | ------------------------ | -------------------------------------------------------------------------------------- |
@@ -77,14 +78,14 @@ storagext-cli --sr25519-key "//Alice" storage-provider register alice
 
 After a deal has been published the storage provider needs to pre-commit the sector information to the chain. Sectors are not valid after pre-commit, the sectors need to be proven first.
 
-| Name            | Description                                                               |
-| --------------- | ------------------------------------------------------------------------- |
-| `seal_proof`    | Seal proof type this storage provider is using [^note]                    |
-| `sector_number` | The sector number that is being pre-committed                             |
-| `sealed_cid`    | Commitment of replication, more info in [sector sealing](#sector-sealing) |
-| `deal_ids`      | Deal IDs to be pre-committed, from `publish_storage_deals`                |
-| `expiration`    | Expiration block of the pre-committed sector                              |
-| `unsealed_cid`  | Commitment of data, more info in [sector sealing](#sector-sealing)        |
+| Name            | Description                                                            |
+| --------------- | ---------------------------------------------------------------------- |
+| `seal_proof`    | Seal proof type this storage provider is using [^note]                 |
+| `sector_number` | The sector number that is being pre-committed                          |
+| `sealed_cid`    | [Commitment of replication](../glossary.md#commitment-of-replication)  |
+| `deal_ids`      | Deal IDs to be pre-committed, from `publish_storage_deals`             |
+| `expiration`    | Expiration block of the pre-committed sector                           |
+| `unsealed_cid`  | Commitment of data [sector sealing](../glossary.md#commitment-of-data) |
 
 <div class="warning">
 Sectors are not valid after pre-commit, the sectors need to be proven first.
@@ -117,7 +118,7 @@ Where `pre-commit-sector.json` is a file with contents similar to:
 
 ### `prove_commit_sector`
 
-After pre-committing some new sectors the storage provider needs to supply a Proof-of-Replication (PoRep)] for these sectors. More info about the PoRep can be found in the [sector sealing section](#sector-sealing).[^note]
+After pre-committing some new sectors the storage provider needs to supply a [Proof-of-Replication](../glossary.md#commitment-of-replication) for these sectors [^note].
 
 | Name            | Description                                     |
 | --------------- | ----------------------------------------------- |
@@ -147,7 +148,7 @@ Where `prove-commit-sector.json` is a file with contents similar to:
 
 ### `submit_windowed_post`
 
-A storage provider needs to periodically submit a (Proof-of-Spacetime (PoSt))[#proof-of-spacetime-submission] to prove that they are still storing the data they promised. Multiple proofs can be submitted at once.
+A storage provider needs to periodically submit a [Proof-of-Spacetime](../glossary.md#proofs) to prove that they are still storing the data they promised. Multiple proofs can be submitted at once.
 
 | Name          | Description                                                               |
 | ------------- | ------------------------------------------------------------------------- |
@@ -199,7 +200,7 @@ Where the fault declarations contain:
 
 #### <a class="header" id="declare_faults.example" href="#declare_faults.example">Example</a>
 
-Storage provider `//Alice` declaring faults[^declare_faults] on deadline 0, partition 0, sector 0.
+Storage provider `//Alice` declaring faults[^declare_faults] on deadline 0, partition 0, sector 1.
 
 ```bash
 storagext-cli --sr25519-key "//Alice" storage-provider declare-faults @fault-declaration.json
@@ -239,7 +240,7 @@ Where the fault recoveries contain:
 
 #### <a class="header" id="declare_faults_recovered.example" href="#declare_faults_recovered.example">Example</a>
 
-Storage provider `//Alice` declaring recoveries[^declare_faults_recovered] on deadline 0, partition 0, sector 0.
+Storage provider `//Alice` declaring recoveries[^declare_faults_recovered] on deadline 0, partition 0, sector 1.
 
 ```bash
 storagext-cli --sr25519-key "//Alice" storage-provider declare-faults-recovered @fault-declaration.json
@@ -327,8 +328,10 @@ The Storage Provider Pallet actions can fail with following errors:
 - `PartitionError` - An error was encountered in the partition module. If you encounter this error please report an issue as this is a programmer error.
 - `StorageProviderError` - An error was encountered in the storage provider module. If you encounter this error please report an issue as this is a programmer error.
 - `SectorMapError` - An error was encountered in the sector map module. These errors can be:
+  - `FailedToInsertSector` - Internal bounds violation with Sectors. If you encounter this error please report an issue as this is a programmer error.
+  - `FailedToInsertPartition` - Internal bounds violation with partitions. If you encounter this error please report an issue as this is a programmer error.
 - `CouldNotActivateSector` - Failure during prove commit when trying to convert a previously pre-committed sector due to a programming error. Please report an issue if you receive this error.
-- `CouldNotVerifySectorForPreCommit` - Failure during pre-commit due to the [commd](#sector-sealing) calculation failing due to a programming error. Please report an issue if you receive this error.
+- `CouldNotVerifySectorForPreCommit` - Failure during pre-commit due to the [commd](../glossary.md#commitment-of-data) calculation failing due to a programming error. Please report an issue if you receive this error.
 - `SlashingFailed` - Slashing of funds fails due to a programmer error. Please report an issue if you receive this error.
 - `ConversionError` - Due to a programmer error. Please report an issue if you receive this error.
 
