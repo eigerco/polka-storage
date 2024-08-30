@@ -246,7 +246,7 @@ zombie-01b7920d650c18d3d78f75fd8b0978af   temp-collator                      0/1
 
 ### Accessing the Parachain
 
-The parachain is available through Polkadot.js Apps interface by clicking on this link:
+The parachain is available through the Polkadot.js Apps interface by clicking on this link:
 
 [https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A42069#/explorer](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A42069#/explorer)
 

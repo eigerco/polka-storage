@@ -2,7 +2,7 @@
 
 It is an HTTP server that converts arbitrary content into a [CARv2](https://ipld.io/specs/transport/car/carv2/) file and serves it over HTTP - supporting the latest CARv2 format,
 which is not yet entirely supported by other crates in the Rust ecosystem.
-Following the next steps will allow to run the server locally and use it to upload and download files.
+The next steps describe how to run the server locally and use it to upload and download files.
 
 <div class="warning">
 The server is a proof of concept, showcasing our CARv2 implementation, but it is not intended to be used in production.
@@ -39,7 +39,7 @@ Follow these steps to ensure your setup works as expected:
 
 2. Download the CAR file using the retrieved CID, following the steps in the [Download the CAR File](../storage-provider-cli/storage.md#download-the-car-file) section.
 
-3. [Optional] Verify the contents of the downloaded CAR file. For example: [go-car](https://github.com/ipld/go-car/tree/master/cmd/car#install)'s `inspect` command:
+3. [Optional] Verify the contents of the downloaded CAR file. Using, for example, [go-car](https://github.com/ipld/go-car/tree/master/cmd/car#install)'s `inspect` command:
 
    ```bash
    car inspect <target_file>

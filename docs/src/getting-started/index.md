@@ -1,6 +1,6 @@
 # Getting Started
 
-This chapter guides through the process of setting up, running, and trying out the components implemented so far.
+This chapter goes through the process of setting up, running, and trying out the components implemented so far.
 
 ## System Requirements
 
