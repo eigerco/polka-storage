@@ -40,7 +40,7 @@ Secret phrase:       offer payment boost boy manage car asset lock cousin mounta
   SS58 Address:      5DPwBLBRGunws9T2aF59cht37HeBg9aSTAc6Fh2aFBJPSsr6
 ```
 
-Password may be added interactively, using `--password-interactive` flag:
+The password may be added interactively, using `--password-interactive` flag:
 
 ```bash
 > polka-storage-provider wallet generate --password-interactive
