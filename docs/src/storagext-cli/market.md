@@ -1,18 +1,17 @@
 # The `market` command
 
-Under the `market` subcommand, you will find the [Market](../pallets/market.md)-related extrinsics.
+Under the `market` subcommand [Market](../pallets/market.md) related extrinsics are available.
 This chapter covers the provided commands and how to use them.
 
 <div class="warning">
-If you haven't done so before, you should read the <a href="./index.md"><code>storagext-cli</code> getting started</a> page,
-which covers the basic flags necessary to operate the CLI.
+The <a href="./index.md"><code>storagext-cli</code> getting started</a> page covers the basic flags necessary to operate the CLI and should be read first.
 </div>
 
 ## `add-balance`
 
-The `add-balance` command allows you to add balance to your market account.
-It takes a single `AMOUNT` argument, the balance, to add to the market account,
-and the balance will be added to the `free` balance.
+The `add-balance` adds balance to a market account.
+It takes a single `AMOUNT` argument, the balance, to add to the market account,
+the balance will be added to the `free` balance.
 
 ### Parameters
 
@@ -31,21 +30,21 @@ storagext-cli --sr25519-key "//Alice" market add-balance 1000000000
 <div class="warning">
 The <code>1000000000</code> value is not arbitrary, it is the <a href="https://support.polkadot.network/support/solutions/articles/65000168651-what-is-the-existential-deposit-">minimum existential deposit</a> for any Polkadot account. As such, when the Market account is being setup, the first deposit ever needs to meet this minimum to <b>create</b> the Market account.
 
-If you attempt to create the Market account with less than <code>1000000000</code>, you will get the following error:
+An attempt to create a Market account with less than <code>1000000000</code>, produces the following error:
 
 <pre>
 <code>Error: Runtime error: Token error: Account cannot exist with the funds that would be given.</code>
 </pre>
 </div>
 
-> You can read more about the `add_balance` extrinsic in [_Pallets/Market Pallet/Add Balance_](../pallets/market.md#add_balance).
+> More information about the `add_balance` extrinsic is available in [_Pallets/Market Pallet/Add Balance_](../pallets/market.md#add_balance).
 
 ## `withdraw-balance`
 
-The `withdraw-balance` command allows you to withdraw balance from your market account.
+The `withdraw-balance` withdraws balance from a market account.
 Like [`add-balance`](#add-balance), `withdraw-balance` takes a single `AMOUNT` argument;
-note that _only the `free` balance can be withdrawn_.
-Likewise, you can only withdraw a balance amount lesser than or equal to the `free` amount and greater than 0 (\\({free} \ge {amount} \gt 0\\)).
+note that _only `free` balance can be withdrawn_.
+Likewise, withdrawal of a balance amount lesser than or equal to the `free` amount and greater than 0 (\\({free} \ge {amount} \gt 0\\)).
 
 ### Parameters
 
@@ -61,11 +60,11 @@ Withdrawing 10000 [Plancks](../glossary.md#planck) from Alice's account.
 storagext-cli --sr25519-key "//Alice" market withdraw-balance 10000
 ```
 
-> You can read more about the `withdraw_balance` extrinsic in [_Pallets/Market Pallet/Withdraw Balance_](../pallets/market.md#withdraw-balance).
+> More about the `withdraw_balance` extrinsic is available in [_Pallets/Market Pallet/Withdraw Balance_](../pallets/market.md#withdraw-balance).
 
 ## `publish-storage-deals`
 
-The `publish-storage-deals` command allows you to publish storage deals that have been agreed upon off-chain.
+The `publish-storage-deals` publishes storage deals that have been agreed upon off-chain.
 The deals are to be submitted by the storage provider, having been previously signed by the client.
 
 <div class="warning">
@@ -140,15 +139,14 @@ Where `deals.json` is a file with contents similar to:
 ]
 ```
 
-> You can read more about the `publish_storage_deals` extrinsic in [_Pallets/Market Pallet/Publish Storage Deals_](../pallets/market.md#publish_storage_deals).
+> More information about the `publish_storage_deals` extrinsic is available in [_Pallets/Market Pallet/Publish Storage Deals_](../pallets/market.md#publish_storage_deals).
 
 ## `settle-deal-payments`
 
-The `settle-deal-payments` command allows you to settle deal payments,
-that is, have the storage provider receive the owed funds from storing data for their clients.
+The `settle-deal-payments` command makes the storage provider receive the owed funds from storing data for their clients.
 Non-existing deal IDs will be ignored.
 
-Anyone can settle anyone's deals, though there's little incentive to do so — if you're feeling charitable, who are we to stop you?!
+Anyone can settle anyone's deals, though there's little incentive to do so as it costs gas, so Storage Provider usually ends up being the caller.
 
 ### Parameters
 
@@ -164,11 +162,11 @@ Settling deals with the IDs 97, 1010, 1337, 42069:
 storagext-cli --sr25519-key "//Alice" market settle-deal-payments 97 1010 1337 42069
 ```
 
-> You can read more about the `publish_storage_deals` extrinsic in [_Pallets/Market Pallet/Settle Deal Payments_](../pallets/market.md#settle_deal_payments).
+> More information about the `publish_storage_deals` extrinsic is available in [_Pallets/Market Pallet/Settle Deal Payments_](../pallets/market.md#settle_deal_payments).
 
 ## `retrieve-balance`
 
-The `retrieve-balance` command allows you to check the balance of any market account.
+The `retrieve-balance` command checks the balance of any market account.
 
 ### Parameters
 

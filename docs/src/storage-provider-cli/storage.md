@@ -1,7 +1,7 @@
 # The `storage` command
 
 The `storage` command launches a server that can convert files into CAR files.
-It has two parameters that you can customize:
+It has two customizable parameters:
 
 | Parameter              | Description                                             | Default value    |
 | ---------------------- | ------------------------------------------------------- | ---------------- |
@@ -20,7 +20,7 @@ polka-storage-provider storage --listen-addr 0.0.0.0:9000
 
 ## Upload a file
 
-To upload a file to the provider's server, use the following curl command. Replace `image.jpg` with the path to your file:
+To upload a file to the provider's server, use the following curl command.
 
 ```bash
 curl \
@@ -33,7 +33,7 @@ This command uploads the file `image.jpg` to the server running at `http://local
 
 ## Download the CAR File
 
-After uploading, you will receive a CID (Content Identifier) for the file. Use this CID to download the corresponding CAR file. Replace `:cid` with the actual CID provided:
+After uploading, a CID (Content Identifier) for the file will be produced. Use this CID to download the corresponding CAR file. Replace `:cid` with the actual CID provided:
 
 ```bash
 curl \

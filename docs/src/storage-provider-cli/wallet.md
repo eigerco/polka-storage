@@ -1,14 +1,14 @@
 # The `wallet` command
 
 The wallet command is a re-export of the Substrate CLI.
-For detailed documentation, you can check the following links:
+The detailed documentation is available under:
 
 - [`sc_cli`](https://docs.rs/sc-cli/0.46.0/sc_cli/commands/index.html)
 - [`subkey` subcommands](https://docs.substrate.io/reference/command-line-tools/subkey/#subcommands)
 
 ## Subcommands
 
-You can use the following commands with the `wallet` subcommand:
+The following commands are available with the `wallet` subcommand:
 
 | Command             | Description                                                                                            |
 | ------------------- | ------------------------------------------------------------------------------------------------------ |
@@ -40,7 +40,7 @@ Secret phrase:       offer payment boost boy manage car asset lock cousin mounta
   SS58 Address:      5DPwBLBRGunws9T2aF59cht37HeBg9aSTAc6Fh2aFBJPSsr6
 ```
 
-If you want to add parameters like a password, you may do so using the `--password-interactive` flag:
+Password may be added interactively, using `--password-interactive` flag:
 
 ```bash
 > polka-storage-provider wallet generate --password-interactive
@@ -54,7 +54,7 @@ Secret phrase:       comfort distance rack number assist nasty young universe la
   SS58 Address:      5DPo4H1oPAQwReNVMi9XckSkvW4me1kJoageggJSMDF2EzjZ
 ```
 
-Or you can pass it beforehand:
+Or can be passed directly, beforehand:
 
 ```bash
 > polka-storage-provider wallet generate --password <top secret password>

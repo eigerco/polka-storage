@@ -1,8 +1,7 @@
 # Real-world use case demo
 
 <div class="warning">
-Before reading this guide,
-please ensure you've followed the <a href="./local-testnet.md">local testnet</a> guide and that a working testnet is running!
+Before reading this guide, please follow the <a href="./local-testnet.md">local testnet</a> guide and have a working testnet running!
 </div>
 
 A high-level overview with diagrams of the process described below can be found in <a href="../pallets/index.md">Pallets section</a>.
@@ -123,7 +122,7 @@ $ storagext-cli --sr25519-key "//Charlie" storage-provider prove-commit "@prove-
 
 <img src="../images/demo/proven.PNG">
 
-[^slash]: You can wait for 5 minutes and observe a `DealSlashed` [Event](../pallets/market.md#events) being published.
+[^slash]: Wait for 5 minutes and observe a `DealSlashed` [Event](../pallets/market.md#events) being published.
 
 ## 3. Proofs and faults
 

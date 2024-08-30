@@ -31,9 +31,9 @@ The following on-chain logic has been implemented:
 - [Continuously proving](./pallets/storage-provider.md#submit_windowed_post) that the promise of storage has been kept up [PoSt proof](./glossary.md#proofs),
 - [Punishing](./pallets/storage-provider.md#events) for failing to provide storage.
 
-We present a complete real-world scenario [(which you can run on your own!)](./getting-started/demo.md) in which a [Storage Provider](./glossary.md#storage-provider) and a [Storage User](./glossary.md#storage-user) negotiate a deal, perform all the steps necessary to start the storage and then receive rewards (or punishments) for making it happen.
+We present a complete real-world scenario (./getting-started/demo.md) in which a [Storage Provider](./glossary.md#storage-provider) and a [Storage User](./glossary.md#storage-user) negotiate a deal, perform all the steps necessary to start the storage and then receive rewards (or punishments) for making it happen.
 
-You can read more about the project's genesis in:
+More information available about the project's genesis in:
 
 - Treasury Proposal — <https://polkadot.polkassembly.io/post/2107>
 - OpenGov Referendum — <https://polkadot.polkassembly.io/referenda/494>
