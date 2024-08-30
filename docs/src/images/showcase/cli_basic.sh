@@ -11,15 +11,15 @@
 
 ./storagext-cli --sr25519-key "//Alice" \
     market add-balance 1000000000000
-#$ expect Successfully added
+#$ expect Balance Added
 
 ./storagext-cli --sr25519-key "//Charlie" \
     market add-balance 1000000000000
-#$ expect Successfully added
+#$ expect Balance Added
 
 ./storagext-cli --sr25519-key "//Alice" \
     storage-provider register alice
-#$ expect Successfully registered alice
+#$ expect Storage Provider Registered
 
 ./storagext-cli --sr25519-key "//Alice" \
     market publish-storage-deals --client-sr25519-key "//Charlie" '
@@ -37,7 +37,7 @@
     "state": "Published"
   }
 ]'
-#$ expect Successfully published
+#$ expect Deal Published
 
 ./storagext-cli --sr25519-key "//Alice" \
     storage-provider pre-commit '
@@ -49,7 +49,7 @@
   "unsealed_cid": "bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu",
   "seal_proof": "StackedDRG2KiBV1P1"
 }'
-#$ expect Successfully pre-commited
+#$ expect Sector Pre-Committed
 
 ./storagext-cli --sr25519-key "//Alice" \
     storage-provider prove-commit '
@@ -57,4 +57,4 @@
   "sector_number": 0,
   "proof": "64756D6D792070726F6F66"
 }'
-#$ expect Successfully proven
+#$ expect Sector Proven
