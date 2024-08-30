@@ -157,7 +157,7 @@ and is **not final**; it is a testing tool.
 
 Settle specified deals between providers and clients.
 
-Both clients and providers can call this extrinsic. 
+Both clients and providers can call this extrinsic.
 However, since the settlement is the mechanism through which the provider gets paid,
 a client has no reason to call this extrinsic.
 Non-existing deal IDs will be ignored.
@@ -227,9 +227,9 @@ The Market Pallet actions can fail with following errors:
 
 ## Constants
 
-| Name               | Description                                                                   | Value       | Type             |
-| ------------------ | ----------------------------------------------------------------------------- | ----------- | ---------------- |
-| `MaxDeals`         | How many deals can be published in a single batch of `publish_storage_deals`. | 128         | Positive integer |
-| `MaxDealsPerBlock` | Maximum deals that can be scheduled to start at the same block.               | 128         | Positive integer |
-| `MinDealDuration`  | Minimum time an activated deal should last.                                   | 5 Minutes   | Positive integer |
-| `MaxDealDuration`  | Maximum time an activated deal should last.                                   | 180 Minutes | Positive integer |
+| Name               | Description                                                                   | Value       |
+| ------------------ | ----------------------------------------------------------------------------- | ----------- |
+| `MaxDeals`         | How many deals can be published in a single batch of `publish_storage_deals`. | 128         |
+| `MaxDealsPerBlock` | Maximum deals that can be scheduled to start at the same block.               | 128         |
+| `MinDealDuration`  | Minimum time an activated deal should last.                                   | 5 Minutes   |
+| `MaxDealDuration`  | Maximum time an activated deal should last.                                   | 180 Minutes |
