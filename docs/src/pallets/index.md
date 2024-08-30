@@ -11,7 +11,7 @@ Before anything else, [Storage Providers](../glossary.md#storage-provider) need 
 
 <img src="../images/storage-provider/register_storage_provider.svg" alt="Storage Provider registration">
 
-Now that storage providers can be registered in the system, we need to add some balance to both the
+Now that storage providers can be registered in the storage provider pallet, we need to add some balance to both the
 [Storage User's](../glossary.md#storage-user) and the Provider's accounts,
 that is done using the Market's [`add_balance`](./market.md#add_balance) extrinsic.
 

@@ -22,7 +22,7 @@ Storage Provider Pallet cannot exist without deal information from Market Pallet
 
 ### `add_balance`
 
-Reserves a given amount of currency for usage in the system.
+Reserves a given amount of currency for usage in the Storage Market.
 
 The reserved amount will be considered to be `free` until it is used in a deal,
 when it will be moved to `locked` and used to pay for the deal.
@@ -47,7 +47,7 @@ storagext-cli --sr25519-key "//Alice" market add-balance 1000000000
 
 ### `withdraw_balance`
 
-Withdraws funds from the system.
+Withdraws funds from the Storage Market.
 
 The funds will be withdrawn from the `free` balance, meaning that `amount` must be
 lesser than or equal to `free` and greater than 0 (\\({free} \ge {amount} \gt 0\\)).
@@ -146,7 +146,7 @@ Where `deals.json` is a file with contents similar to:
 Notice how the CLI command doesn't take the <code>client_signature</code> parameter,
 but rather a keypair that is able to sign it.
 
-We are aware that this is **not secure** however, the system is still under development
+We are aware that this is **not secure** however, the parachain is still under development
 and this is **not final** but rather a testing tool.
 
 </div>
@@ -215,7 +215,7 @@ The Market Pallet actions can fail with following errors:
 - `ProposalsNotPublishedByStorageProvider` - Is returned when calling `publish_storage_deals` and the deals in a list are not published by the same storage provider.
 - `AllProposalsInvalid` - `publish_storage_deals` call was supplied with a list of `deals` which are all invalid.
 - `DuplicateDeal` - There is more than one deal with this ID in the Sector.
-- `DealNotFound` - Tried to activate a deal which is not in the system.
+- `DealNotFound` - Tried to activate a deal which was not published (there is no deal such deal id).
 - `DealActivationError` - Tried to activate a deal, but data is malformed.
   - Invalid specified provider.
   - The deal already expired.
