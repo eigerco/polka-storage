@@ -52,10 +52,10 @@ Storage Provider registration is the first extrinsic any storage provider must c
 
 Before a storage provider can register, they must set up a [PeerId](https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id). This [PeerId](https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id) is used in the p2p network to connect to the storage provider.
 
-| Name                     | Description                                                                            |
-| ------------------------ | -------------------------------------------------------------------------------------- |
-| `peer_id`                | [libp2p](https://libp2p.io/) [ID](https://docs.libp2p.io/concepts/fundamentals/peers/) |
-| `window_post_proof_type` | Proof type the storage provider uses                                                   |
+| Name                     | Description                                                                            | Type                                                           |
+| ------------------------ | -------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `peer_id`                | [libp2p](https://libp2p.io/) [ID](https://docs.libp2p.io/concepts/fundamentals/peers/) | Hex string of the PeerId bytes                                 |
+| `window_post_proof_type` | Proof type the storage provider uses                                                   | String, currently only `StackedDRGWindow2KiBV1P1` is available |
 
 #### <a class="header" id="register_storage_provider.example" href="#register_storage_provider.example">Example</a>
 
@@ -72,14 +72,14 @@ storagext-cli --sr25519-key "//Alice" storage-provider register alice
 After publishing a deal, the storage provider needs to pre-commit the sector information to the chain.
 Sectors are not valid after pre-commit. The sectors need to be proven first.
 
-| Name            | Description                                                            |
-| --------------- | ---------------------------------------------------------------------- |
-| `seal_proof`    | Seal proof type this storage provider is using [^note]                 |
-| `sector_number` | The sector number that is being pre-committed                          |
-| `sealed_cid`    | [Commitment of replication](../glossary.md#commitment-of-replication)  |
-| `deal_ids`      | Deal IDs to be pre-committed, from `publish_storage_deals`             |
-| `expiration`    | Expiration block of the pre-committed sector                           |
-| `unsealed_cid`  | Commitment of data [sector sealing](../glossary.md#commitment-of-data) |
+| Name            | Description                                                            | Type                                                           |
+| --------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `seal_proof`    | Seal proof type this storage provider is using [^note]                 | String, currently only `StackedDRGWindow2KiBV1P1` is available |
+| `sector_number` | The sector number that is being pre-committed                          | Positive integer                                               |
+| `sealed_cid`    | [Commitment of replication](../glossary.md#commitment-of-replication)  | Hex string of the sealed CID bytes                             |
+| `deal_ids`      | Deal IDs to be pre-committed, from `publish_storage_deals`             | Array of integers                                              |
+| `expiration`    | Expiration block of the pre-committed sector                           | Positive integer                                               |
+| `unsealed_cid`  | Commitment of data [sector sealing](../glossary.md#commitment-of-data) | Hex string of the unsealed CID bytes                           |
 
 <div class="warning">
 Sectors are not valid after pre-commit. The sectors need to be proven first.
@@ -114,10 +114,10 @@ Where `pre-commit-sector.json` is a file with contents similar to:
 
 After pre-committing some new sectors the storage provider needs to supply a [Proof-of-Replication](../glossary.md#commitment-of-replication) for these sectors [^note].
 
-| Name            | Description                                     |
-| --------------- | ----------------------------------------------- |
-| `sector_number` | The sector number that is being prove-committed |
-| `proof`         | The hex-encoded bytes of a proof                |
+| Name            | Description                                                          | Type                          |
+| --------------- | -------------------------------------------------------------------- | ----------------------------- |
+| `sector_number` | The sector number that is being prove-committed                      | Positive integer              |
+| `proof`         | The [proof of replication](../glossary.md#commitment-of-replication) | Hex string of the proof bytes |
 
 [^note]: At the moment, any proof of non-zero length is accepted for PoRep.
 
@@ -144,12 +144,12 @@ Where `prove-commit-sector.json` is a file with contents similar to:
 
 A storage provider needs to periodically submit a [Proof-of-Spacetime](../glossary.md#proofs) to prove that they are still storing the data they promised. Multiple proofs can be submitted at once.
 
-| Name          | Description                                                               |
-| ------------- | ------------------------------------------------------------------------- |
-| `deadline`    | The deadline index that the submission targets                            |
-| `partitions`  | The partition being proven                                                |
-| `post_proof`  | The proof type; should be consistent with the proof type for registration |
-| `proof_bytes` | The proof submission; to be checked in the storage provider pallet.       |
+| Name          | Description                                                               | Type                                                           |
+| ------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `deadline`    | The deadline index which the submission targets                           | Positive integer                                               |
+| `partitions`  | The partitions being proven                                               | Array of positive integers                                     |
+| `post_proof`  | The proof type, should be consistent with the proof type for registration | String, currently only `StackedDRGWindow2KiBV1P1` is available |
+| `proof_bytes` | The proof submission, to be checked in the storage provider pallet.       | Hex string of the proof bytes                                  |
 
 #### <a class="header" id="submit_windowed_post.example" href="#submit_windowed_post.example">Example</a>
 
@@ -183,17 +183,17 @@ Multiple faults can be declared at once.
 
 `declare_faults` can take in multiple fault declarations:
 
-| Name     | Description                    |
-| -------- | ------------------------------ |
-| `faults` | An array of fault declarations |
+| Name     | Description            | Type                                             |
+| -------- | ---------------------- | ------------------------------------------------ |
+| `faults` | The fault declarations | Array of the fault declarations, described below |
 
 Where the fault declarations contain:
 
-| Name        | Description                                                        |
-| ----------- | ------------------------------------------------------------------ |
-| `deadline`  | The deadline to which the faulty sectors are assigned              |
-| `partition` | Partition index within the deadline containing the faulty sectors. |
-| `sectors`   | Sectors in the partition being declared faulty                     |
+| Name        | Description                                                        | Type                     |
+| ----------- | ------------------------------------------------------------------ | ------------------------ |
+| `deadline`  | The deadline to which the faulty sectors are assigned              | Positive integer         |
+| `partition` | Partition index within the deadline containing the faulty sectors. | Positive integer         |
+| `sectors`   | Sectors in the partition being declared faulty                     | Set of positive integers |
 
 #### <a class="header" id="declare_faults.example" href="#declare_faults.example">Example</a>
 
@@ -225,17 +225,17 @@ Faults are not fully recovered until the storage provider submits a valid PoSt a
 
 `declare_faults_recovered` can take in multiple fault recoveries:
 
-| Name         | Description                  |
-| ------------ | ---------------------------- |
-| `recoveries` | An array of fault recoveries |
+| Name         | Description          | Type                                                      |
+| ------------ | -------------------- | --------------------------------------------------------- |
+| `recoveries` | The fault recoveries | Array of the fault recovery declarations, described below |
 
 Where the fault recoveries contain:
 
-| Name        | Description                                                          |
-| ----------- | -------------------------------------------------------------------- |
-| `deadline`  | The deadline to which the recovered sectors are assigned             |
-| `partition` | Partition index within the deadline containing the recovered sectors |
-| `sectors`   | Sectors in the partition being declared recovered                    |
+| Name        | Description                                                          | Type                     |
+| ----------- | -------------------------------------------------------------------- | ------------------------ |
+| `deadline`  | The deadline to which the recovered sectors are assigned             | Positive integer         |
+| `partition` | Partition index within the deadline containing the recovered sectors | Positive integer         |
+| `sectors`   | Sectors in the partition being declared recovered                    | Set of positive integers |
 
 #### <a class="header" id="declare_faults_recovered.example" href="#declare_faults_recovered.example">Example</a>
 
