@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use clap::Subcommand;
 use storagext::clients::SystemClient;
 use url::Url;
@@ -27,8 +29,13 @@ impl SystemCommand {
     ///
     /// Requires the target RPC address .
     #[tracing::instrument(level = "info", skip(self, node_rpc), fields(node_rpc = node_rpc.as_str()))]
-    pub async fn run(self, node_rpc: Url) -> Result<(), anyhow::Error> {
-        let client = SystemClient::new(node_rpc).await?;
+    pub async fn run(
+        self,
+        node_rpc: Url,
+        n_retries: u32,
+        retry_interval: Duration,
+    ) -> Result<(), anyhow::Error> {
+        let client = SystemClient::new(node_rpc, n_retries, retry_interval).await?;
 
         match self {
             SystemCommand::GetHeight {

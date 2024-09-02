@@ -4,7 +4,7 @@ mod cmd;
 mod deser;
 mod pair;
 
-use std::fmt::Debug;
+use std::{fmt::Debug, time::Duration};
 
 use clap::{ArgGroup, Parser, Subcommand};
 use cmd::{market::MarketCommand, storage_provider::StorageProviderCommand, system::SystemCommand};
@@ -24,6 +24,23 @@ use tracing_subscriber::{
 use url::Url;
 
 pub(crate) const FULL_NODE_DEFAULT_RPC_ADDR: &str = "ws://127.0.0.1:42069";
+
+/// The default value for the number of connection retries.
+const DEFAULT_N_RETRIES: u32 = 10;
+
+/// The default interval between connection retries.
+///
+/// It's a string because `clap` requires `Display` when using `default_value_t`,
+/// which `std::time::Duration` does not implement.
+const DEFAULT_RETRY_INTERVAL: &str = "3000";
+
+/// Parse milliseconds into [`Duration`].
+fn parse_ms(s: &str) -> Result<Duration, String> {
+    match s.parse() {
+        Ok(ms) => Ok(Duration::from_millis(ms)),
+        Err(err) => Err(err.to_string()),
+    }
+}
 
 #[derive(Debug, Parser)]
 #[command(group(ArgGroup::new("keypair").args(
@@ -54,6 +71,14 @@ struct Cli {
     /// See `sp_core::crypto::Pair::from_string_with_seed` for more information.
     #[arg(long, env, value_parser = DebugPair::<Ed25519Pair>::value_parser)]
     pub ed25519_key: Option<DebugPair<Ed25519Pair>>,
+
+    /// The number of connection retries.
+    #[arg(long, env, default_value_t = DEFAULT_N_RETRIES)]
+    pub n_retries: u32,
+
+    /// The interval between connection retries, in milliseconds.
+    #[arg(long, env, default_value = DEFAULT_RETRY_INTERVAL, value_parser = parse_ms)]
+    pub retry_interval: Duration,
 }
 
 #[derive(Debug, Subcommand)]
@@ -73,16 +98,20 @@ impl SubCommand {
         self,
         node_rpc: Url,
         account_keypair: Option<MultiPairSigner>,
+        n_retries: u32,
+        retry_interval: Duration,
     ) -> Result<(), anyhow::Error> {
         match self {
             SubCommand::Market(cmd) => {
-                cmd.run(node_rpc, account_keypair).await?;
+                cmd.run(node_rpc, account_keypair, n_retries, retry_interval)
+                    .await?;
             }
             SubCommand::StorageProvider(cmd) => {
-                cmd.run(node_rpc, account_keypair).await?;
+                cmd.run(node_rpc, account_keypair, n_retries, retry_interval)
+                    .await?;
             }
             SubCommand::System(cmd) => {
-                cmd.run(node_rpc).await?;
+                cmd.run(node_rpc, n_retries, retry_interval).await?;
             }
         }
 
@@ -130,7 +159,12 @@ async fn main() -> Result<(), anyhow::Error> {
 
     cli_arguments
         .subcommand
-        .run(cli_arguments.node_rpc, multi_pair_signer)
+        .run(
+            cli_arguments.node_rpc,
+            multi_pair_signer,
+            cli_arguments.n_retries,
+            cli_arguments.retry_interval,
+        )
         .await?;
     Ok(())
 }

@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use primitives_proofs::DealId;
 use subxt::ext::sp_core::crypto::Ss58Codec;
 
@@ -21,9 +23,14 @@ impl MarketClient {
     ///
     /// By default, this function does not support insecure URLs,
     /// to enable support for them, use the `insecure_url` feature.
-    pub async fn new(rpc_address: impl AsRef<str>) -> Result<Self, subxt::Error> {
+    pub async fn new(
+        rpc_address: impl AsRef<str>,
+        n_retries: u32,
+        retry_interval: Duration,
+    ) -> Result<Self, subxt::Error> {
         Ok(Self {
-            client: crate::runtime::client::Client::new(rpc_address).await?,
+            client: crate::runtime::client::Client::new(rpc_address, n_retries, retry_interval)
+                .await?,
         })
     }
 

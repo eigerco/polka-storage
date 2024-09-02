@@ -1,12 +1,9 @@
 use std::time::Duration;
 
 use hex::ToHex;
-use subxt::{backend::rpc, blocks::ExtrinsicEvents, OnlineClient};
+use subxt::{blocks::ExtrinsicEvents, OnlineClient};
 
 use crate::PolkaStorageConfig;
-
-const ATTEMPTS: usize = 5;
-const ATTEMPT_INTERVAL: Duration = Duration::from_secs(1);
 
 /// Helper type for [`Client::traced_submission`] successful results.
 pub struct SubmissionResult<Config>
@@ -32,9 +29,13 @@ impl Client {
     /// By default, this function does not support insecure URLs,
     /// to enable support for them, use the `insecure_url` feature.
     #[tracing::instrument(skip_all, fields(rpc_address = rpc_address.as_ref()))]
-    pub async fn new(rpc_address: impl AsRef<str>) -> Result<Self, subxt::Error> {
-        let mut n_attempts = 0;
+    pub async fn new(
+        rpc_address: impl AsRef<str>,
+        mut n_retries: u32,
+        retry_interval: Duration,
+    ) -> Result<Self, subxt::Error> {
         let rpc_address = rpc_address.as_ref();
+
         loop {
             let client = if cfg!(feature = "insecure_url") {
                 OnlineClient::<_>::from_insecure_url(rpc_address).await
@@ -46,15 +47,15 @@ impl Client {
                 Ok(client) => return Ok(Self { client }),
                 Err(err) => {
                     tracing::error!(
-                        attempt = n_attempts,
+                        attempt = n_retries,
                         "failed to connect to node, error: {}",
                         err
                     );
-                    if n_attempts >= ATTEMPTS {
+                    if n_retries <= 0 {
                         return Err(err);
                     }
-                    n_attempts += 1;
-                    tokio::time::sleep(ATTEMPT_INTERVAL).await;
+                    n_retries -= 1;
+                    tokio::time::sleep(retry_interval).await;
                 }
             }
         }
