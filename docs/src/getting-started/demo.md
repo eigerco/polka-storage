@@ -4,20 +4,31 @@
 Before reading this guide, please follow the <a href="./local-testnet.md">local testnet</a> guide and have a working testnet running!
 </div>
 
-> For convenience's sake, we have a script that automates the actions in this guide.
-> The script is available at the following link:
-> <https://polka-storage.s3.eu-central-1.amazonaws.com/demo.sh>
->
-> Alternatively, download and run in a single step:
->
-> ```bash
-> wget https://polka-storage.s3.eu-central-1.amazonaws.com/demo.sh
-> chmod +x demo.sh
-> ./demo.sh
-> ```
->
-> The script requires the `storagext-cli` binary to exist and be present in the `$PATH`.
-> Instructions on how to achieve that are available in the [*Local Testnet - Polka Storage Parachain*](../getting-started/local-testnet.md) chapter.
+<blockquote>
+
+For convenience's sake, we have a script that automates the actions in this guide.
+The script is available at the following link:
+<https://polka-storage.s3.eu-central-1.amazonaws.com/demo.sh>
+
+Alternatively, download and run in a single step:
+
+```bash
+wget https://polka-storage.s3.eu-central-1.amazonaws.com/demo.sh
+chmod +x demo.sh
+./demo.sh
+```
+
+<div class="warning">
+
+The script has some pre-requisites:
+* The <code>storagext-cli</code> binary *must* exist and be present in the <code>$PATH</code> —
+  instructions on how to achieve that are available in the <a href="../getting-started/local-testnet.md"><i>Local Testnet - Polka Storage Parachain</i></a> chapter.
+* You need to launch a *fresh* parachain, as the script needs to be run while the Charlie node is booting up;
+  the script will wait for the first block before starting. *This process may need more than one attempt.*
+
+</div>
+
+</blockquote>
 
 A high-level overview with diagrams of the process described below can be found in <a href="../pallets/index.md">Pallets section</a>.
 
@@ -110,15 +121,16 @@ So he should do his part!
 }
 ```
 
-| Name                                                                                                           | Value                | Description                                                                                                        |
-| -------------------------------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| [`sector_number`](../glossary.md#sector)                                                                       | 1                    | The place where `husky.jpg` will be stored. Charlie decided it'll be on his 1st sector.                            |
-| `deal_ids`                                                                                                     | `[0]`                | A sector can contain multiple deals, but it only contains the first one ever created (id: 0).                      |
+| Name                                                                                                           | Value                | Description                                                                                                       |
+| -------------------------------------------------------------------------------------------------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| [`sector_number`](../glossary.md#sector)                                                                       | 1                    | The place where `husky.jpg` will be stored. Charlie decided it'll be on his 1st sector.                           |
+| `deal_ids`                                                                                                     | `[0]`                | A sector can contain multiple deals, but it only contains the first one ever created (id: 0).                     |
 | `expiration`                                                                                                   | `75`                 | The 75th block is 5 minutes after the `end_block`, so the sector expires only after the deal has been terminated. |
-| [`sealed_cid`](../glossary.md#commitment-of-replication), [`unsealed_cid`](../glossary.md#commitment-of-data), | multiple             | Currently, placeholder values (any CID) since the proof mechanism is a work-in-progress.                            |
-| `seal_proof`                                                                                                   | `StackedDRG2KiBV1P1` | Currently, we only accept sector sizes of 2KiB, so this is the only value possible.                                 |
+| [`sealed_cid`](../glossary.md#commitment-of-replication), [`unsealed_cid`](../glossary.md#commitment-of-data), | multiple             | Currently, placeholder values (any CID) since the proof mechanism is a work-in-progress.                          |
+| `seal_proof`                                                                                                   | `StackedDRG2KiBV1P1` | Currently, we only accept sector sizes of 2KiB, so this is the only value possible.                               |
 
 `prove-commit-husky.json`
+
 ```json
 {
   "sector_number": 1,
@@ -143,7 +155,7 @@ $ storagext-cli --sr25519-key "//Charlie" storage-provider prove-commit "@prove-
 
 ### Aside on Deadlines
 
-There is a little something that Charlie needs to know about: deadlines *(don't we all...)*.
+There is a little something that Charlie needs to know about: deadlines _(don't we all...)_.
 
 Each Storage Provider has a Proving Period, a time divided into segments (deadlines).
 To simplify, let's say a proving period lasts a day (24 hours), and between the start and end of each hour, there is a segment, just like on a clock.
@@ -160,6 +172,7 @@ We divide a proving period into deadlines and when we prove commit, we assign a 
 From now on, the sector must be proven periodically and daily during this lifetime.
 
 `windowed-post.json`
+
 ```json
 {
   "deadline": 0,
@@ -170,7 +183,6 @@ From now on, the sector must be proven periodically and daily during this lifeti
   }
 }
 ```
-
 
 | Name          | Value            | Description                                                                   |
 | ------------- | ---------------- | ----------------------------------------------------------------------------- |
@@ -223,7 +235,6 @@ Error: Runtime error: Pallet error: StorageProvider::FaultRecoveryTooLate
 Caused by:
     Pallet error: StorageProvider::FaultRecoveryTooLate
 ```
-
 
 If he does it at least a minute before, it succeeds:
 
