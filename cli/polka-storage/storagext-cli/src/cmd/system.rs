@@ -6,11 +6,19 @@ use url::Url;
 #[command(name = "system", about = "System related actions", version)]
 pub(crate) enum SystemCommand {
     /// Get current height
-    GetHeight,
+    GetHeight {
+        /// Wait for finalized blocks only
+        #[arg(long, default_value_t = false)]
+        wait_for_finalization: bool,
+    },
     /// Wait for a specific block height
     WaitForHeight {
         /// Block heights to wait for
         height: u64,
+
+        /// Wait for finalized blocks only
+        #[arg(long, default_value_t = false)]
+        wait_for_finalization: bool,
     },
 }
 
@@ -23,12 +31,19 @@ impl SystemCommand {
         let client = SystemClient::new(node_rpc).await?;
 
         match self {
-            SystemCommand::GetHeight => {
-                let height = client.height().await?;
+            SystemCommand::GetHeight {
+                wait_for_finalization,
+            } => {
+                let height = client.height(wait_for_finalization).await?;
                 println!("Current height: {height:#?}");
             }
-            SystemCommand::WaitForHeight { height } => {
-                client.wait_for_height(height).await?;
+            SystemCommand::WaitForHeight {
+                height,
+                wait_for_finalization,
+            } => {
+                client
+                    .wait_for_height(height, wait_for_finalization)
+                    .await?;
                 println!("Reached desired height");
             }
         };
