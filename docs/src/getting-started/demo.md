@@ -4,6 +4,21 @@
 Before reading this guide, please follow the <a href="./local-testnet.md">local testnet</a> guide and have a working testnet running!
 </div>
 
+> For convenience's sake, we have a script that automates the actions in this guide.
+> The script is available at the following link:
+> <https://polka-storage.s3.eu-central-1.amazonaws.com/demo.sh>
+>
+> Alternatively, download and run in a single step:
+>
+> ```bash
+> wget https://polka-storage.s3.eu-central-1.amazonaws.com/demo.sh
+> chmod +x demo.sh
+> ./demo.sh
+> ```
+>
+> The script requires the `storagext-cli` binary to exist and be present in the `$PATH`.
+> Instructions on how to achieve that are available in the [*Local Testnet - Polka Storage Parachain*](../getting-started/local-testnet.md) chapter.
+
 A high-level overview with diagrams of the process described below can be found in <a href="../pallets/index.md">Pallets section</a>.
 
 ## 1. Publishing a deal
