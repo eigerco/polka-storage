@@ -31,10 +31,11 @@ impl Client {
     #[tracing::instrument(skip_all, fields(rpc_address = rpc_address.as_ref()))]
     pub async fn new(
         rpc_address: impl AsRef<str>,
-        mut n_retries: u32,
+        n_retries: u32,
         retry_interval: Duration,
     ) -> Result<Self, subxt::Error> {
         let rpc_address = rpc_address.as_ref();
+        let mut current_retries = 0;
 
         loop {
             let client = if cfg!(feature = "insecure_url") {
@@ -47,14 +48,14 @@ impl Client {
                 Ok(client) => return Ok(Self { client }),
                 Err(err) => {
                     tracing::error!(
-                        attempt = n_retries,
+                        attempt = current_retries,
                         "failed to connect to node, error: {}",
                         err
                     );
-                    if n_retries <= 0 {
+                    if current_retries >= n_retries {
                         return Err(err);
                     }
-                    n_retries -= 1;
+                    current_retries += 1;
                     tokio::time::sleep(retry_interval).await;
                 }
             }
