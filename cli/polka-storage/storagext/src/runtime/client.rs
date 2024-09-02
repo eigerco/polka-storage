@@ -31,6 +31,7 @@ impl Client {
     ///
     /// By default, this function does not support insecure URLs,
     /// to enable support for them, use the `insecure_url` feature.
+    #[tracing::instrument(skip_all, fields(rpc_address = rpc_address.as_ref()))]
     pub async fn new(rpc_address: impl AsRef<str>) -> Result<Self, subxt::Error> {
         let mut n_attempts = 0;
         let rpc_address = rpc_address.as_ref();
@@ -46,8 +47,7 @@ impl Client {
                 Err(err) => {
                     tracing::error!(
                         attempt = n_attempts,
-                        "failed to connect to {}, error: {}",
-                        rpc_address,
+                        "failed to connect to node, error: {}",
                         err
                     );
                     if n_attempts >= ATTEMPTS {
