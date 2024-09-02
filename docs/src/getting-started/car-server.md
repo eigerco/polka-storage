@@ -2,7 +2,7 @@
 
 It is an HTTP server that converts arbitrary content into a [CARv2](https://ipld.io/specs/transport/car/carv2/) file and serves it over HTTP - supporting the latest CARv2 format,
 which is not yet entirely supported by other crates in the Rust ecosystem.
-Following the following steps, you can run the server locally and upload and download files.
+The next steps describe how to run the server locally and use it to upload and download files.
 
 <div class="warning">
 The server is a proof of concept, showcasing our CARv2 implementation, but it is not intended to be used in production.
@@ -37,9 +37,9 @@ Follow these steps to ensure your setup works as expected:
 
 1. Upload a test file using the instructions in the [Upload a file](../storage-provider-cli/storage.md#upload-a-file) section. Make sure to note the CID returned by the server.
 
-2. Download the CAR file using the CID you received, following the steps in the [Download the CAR File](../storage-provider-cli/storage.md#download-the-car-file) section.
+2. Download the CAR file using the retrieved CID, following the steps in the [Download the CAR File](../storage-provider-cli/storage.md#download-the-car-file) section.
 
-3. [Optional] Verify the contents of the downloaded CAR file. You can use [go-car](https://github.com/ipld/go-car/tree/master/cmd/car#install)'s `inspect` command. Like so.
+3. [Optional] Verify the contents of the downloaded CAR file. Using, for example, [go-car](https://github.com/ipld/go-car/tree/master/cmd/car#install)'s `inspect` command:
 
    ```bash
    car inspect <target_file>
@@ -57,4 +57,4 @@ Follow these steps to ensure your setup works as expected:
    car extract <target_file>
    ```
 
-If you can successfully upload a file, receive a CID, download the corresponding CAR file, and verify its contents, your CAR server setup is working correctly.
+If a file can be successfully uploaded, the server produces a CID, allows download the corresponding CAR file, and verify its contents, the CAR server setup is working correctly.

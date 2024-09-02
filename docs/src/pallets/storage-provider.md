@@ -323,16 +323,16 @@ The Storage Provider Pallet actions can fail with the following errors:
 - `InvalidUnsealedCidForSector` - This error is emitted when the declared unsealed_cid for pre_commit is different from the one calculated by the system.
 - `FaultDeclarationTooLate` - A fault declaration was submitted after the fault declaration cutoff. The fault declaration can be submitted after the upcoming deadline is closed.
 - `FaultRecoveryTooLate` - A fault recovery was submitted after the fault recovery cutoff. The fault recovery can be submitted after the upcoming deadline is closed.
-- `DeadlineError` - An error was encountered in the deadline module. If you encounter this error, please report an issue, as this is a programmer error.
-- `PartitionError` - An error was encountered in the partition module. If you encounter this error, please report an issue, as this is a programmer error.
-- `StorageProviderError` - An error was encountered in the storage provider module. If you encounter this error, please report an issue, as this is a programmer error.
+- `DeadlineError` - An error was encountered in the deadline module. Please report an issue to the developers.
+- `PartitionError` - An error was encountered in the partition module. Please report an issue to the developers.
+- `StorageProviderError` - An error was encountered in the storage provider module. Please report an issue to the developers.
 - `SectorMapError` - An error was encountered in the sector map module. These errors can be:
-  - `FailedToInsertSector` - Internal bounds violation with Sectors. If you encounter this error please report an issue as this is a programmer error.
-  - `FailedToInsertPartition` - Internal bounds violation with partitions. If you encounter this error please report an issue as this is a programmer error.
-- `CouldNotActivateSector` - Failure during prove commit when trying to convert a previously pre-committed sector due to a programming error. Please report an issue if you receive this error.
-- `CouldNotVerifySectorForPreCommit` - Failure during pre-commit due to the [commd](../glossary.md#commitment-of-data) calculation failing due to a programming error. Please report an issue if you receive this error.
-- `SlashingFailed` - Slashing of funds fails due to a programmer error. Please report an issue if you receive this error.
-- `ConversionError` - Due to a programmer error. Please report an issue if you receive this error.
+  - `FailedToInsertSector` - Internal bounds violation with Sectors. Please report an issue to the developers.
+  - `FailedToInsertPartition` - Internal bounds violation with partitions. Please report an issue to the developers.
+- `CouldNotActivateSector` - Failure during prove commit when trying to convert a previously pre-committed sector due to a programming error. Please report an issue to the developers.
+- `CouldNotVerifySectorForPreCommit` - Failure during pre-commit due to the [commd](../glossary.md#commitment-of-data) calculation failing due to a programming error. Please report an issue to the developers.
+- `SlashingFailed` - Slashing of funds fails due to a programmer error. Please report an issue to the developers.
+- `ConversionError` - Due to a programmer error. Please report an issue to the developers.
 
 ## Pallet constants
 

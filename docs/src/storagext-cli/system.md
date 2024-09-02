@@ -1,15 +1,14 @@
 # The `system` command
 
-The command provides various utilities for interacting with the blockchain. It allows you to retrieve information about the current state of the chain.
+The command provides various utilities for interacting with the blockchain. It retrieves information about the current state of the chain.
 
 <div class="warning">
-If you haven't done so before, you should read the <a href="./index.md"><code>storagext-cli</code> getting started</a> page,
-which covers the basic flags necessary to operate the CLI.
+The <a href="./index.md"><code>storagext-cli</code> getting started</a> page covers the basic flags necessary to operate the CLI and should be read first.
 </div>
 
 ## `get-height`
 
-The command allows you to get the current block height of the chain.
+The command gets the current block height of the chain.
 
 ### <a class="header" id="get-height.example" href="#get-height.example">Example</a>
 
@@ -21,7 +20,7 @@ storagext-cli system get-height
 
 ## `wait-for-height`
 
-The command allows you to wait for the chain to reach a specific block height. It will exit once the chain has reached the specified height.
+The command awaits for the chain to reach a specific block height. It will exit once the chain has reached the specified height.
 
 ### Parameters
 

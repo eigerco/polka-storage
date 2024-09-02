@@ -4,7 +4,8 @@ Alongside the pallets, we've also developed a CLI to enable calling extrinsics w
 
 The CLI's goal is to ease development and testing and to sidestep some limitations of the Polkadot.js visual interface.
 
-This chapter covers how to use the `storagext-cli`, and you will find several examples of usage throughout the book.
+This chapter covers how to use the `storagext-cli`, along with that,
+there are several usage examples available throughout the book.
 
 ## Getting started
 
@@ -16,7 +17,7 @@ the latter is split into three kinds, and **one is required** for most operation
 - [ECDSA](https://en.bitcoin.it/wiki/Secp256k1) — `--ecdsa-key` or the `ECDSA_KEY` environment variable
 - [Ed25519](https://en.wikipedia.org/wiki/EdDSA#Ed25519) — `--ed25519-key` or the `ED25519_KEY` environment variable
 
-For example, to connect to a node at `supercooldomain.com:1337` using Charlie's Sr25519 key, you would run the following command:
+For example, to connect to a node at `supercooldomain.com:1337` using Charlie's Sr25519 key:
 
 ```bash
 storagext-cli --node-rpc "supercooldomain.com:1337" --sr25519-key "//Charlie" <commands>

@@ -1,16 +1,15 @@
 # The `storage-provider` command
 
-Under the `storage-provider` subcommand, you will find the [Storage Provider](../pallets/storage-provider.md)-related extrinsics.
+Under the `storage-provider` subcommand [Storage Provider](../pallets/storage-provider.md) related extrinsics are available.
 This chapter covers the provided commands and how to use them.
 
 <div class="warning">
-If you haven't done so, you should read the <a href="./index.md"><code>storagext-cli</code> getting started</a> page,
-which covers the basic flags necessary to operate the CLI.
+The <a href="./index.md"><code>storagext-cli</code> getting started</a> page covers the basic flags necessary to operate the CLI and should be read first.
 </div>
 
 ### `register`
 
-The `register` command allows you to register as a storage provider. Before you can start providing storage, you need to register to be able to deal with the clients and perform any storage provider duties.
+The `register` command registers as a storage provider. Before a user can start providing storage, they need to register to be able to deal with the clients and perform any storage provider duties.
 
 ### Parameters
 
@@ -27,12 +26,11 @@ Registering the provider with the specific `peer_id`
 storagext-cli --sr25519-key <key> storage-provider register <peer_id>
 ```
 
-> You can read more about the `register` extrinsic in [_Pallets/Storage Provider/Register_](../pallets/storage-provider.md#register_storage_provider).
+> More information about the `register` extrinsic is available in [_Pallets/Storage Provider/Register_](../pallets/storage-provider.md#register_storage_provider).
 
 ### `pre-commit`
 
-The `pre-commit` command allows you to pre-commit a sector with deals that `market publish-storage-deals` have published.
-The pre-committed sector has to be proven, or the deals will not activate and will be slashed.
+The `pre-commit` command [pre-commits](../pallets/storage-provider.md#pre_commit_sector) a sector with deals that have been published by `market publish-storage-deals`. The pre-committed sector has to be proven or the deals will not activate and will be slashed.
 
 ### Parameters
 
@@ -73,11 +71,11 @@ Where `pre-commit-sector.json` is a file with contents similar to:
 }
 ```
 
-> You can read more about the `pre_commit` extrinsic in [_Pallets/Storage Provider/Pre-commit sector_](../pallets/storage-provider.md#pre_commit_sector).
+> More information about the `pre_commit` extrinsic is available in [_Pallets/Storage Provider/Pre-commit sector_](../pallets/storage-provider.md#pre_commit_sector).
 
 ### `prove-commit`
 
-The `prove-commit` command allows you to prove a sector commitment. Currently, any proof that is a hex encoded string of length >= 1 is accepted.
+The `prove-commit` command proves a sector commitment. Currently, any proof that is a hex encoded string of length >= 1 is accepted.
 After the sector is proven, the deals will become `Active`.
 
 ### Parameters
@@ -111,11 +109,11 @@ Where `prove-commit-sector.json` is a file with contents similar to:
 }
 ```
 
-> You can read more about `prove_commit` extrinsic in [_Pallets/Storage Provider/Prove-commit sector_](../pallets/storage-provider.md#prove_commit_sector).
+> More information about `prove_commit` extrinsic is available in [_Pallets/Storage Provider/Prove-commit sector_](../pallets/storage-provider.md#prove_commit_sector).
 
 ### `submit-windowed-post`
 
-The `submit-windowed-post` command allows you to submit a windowed PoSt proof. The PoSt proof needs to be periodically submitted to prove that some sector is still stored. Sectors are proven in a baches called partitions.
+The `submit-windowed-post` command submits a windowed PoSt proof. The post proof needs to be periodically submitted to prove that some sector is still stored. Sectors are proven in batches called partitions.
 
 ### Parameters
 
@@ -160,11 +158,11 @@ Where `window-proof.json` is a file with contents similar to:
 }
 ```
 
-> You can read more about the `submit_windowed_post` extrinsic in [_Pallets/Storage Provider/Submit Windowed Post_](../pallets/storage-provider.md#submit_windowed_post).
+> More information about the `submit_windowed_post` extrinsic is available in [_Pallets/Storage Provider/Submit Windowed Post_](../pallets/storage-provider.md#submit_windowed_post).
 
 ### `declare-faults`
 
-The `declare-faults` command allows you to declare faulty sectors. This is required to avoid penalties for not submitting [Window PoSt](../glossary.md#post) at the required time.
+The `declare-faults` command declares faulty sectors. This is required to avoid penalties for not submitting [Window PoSt](../glossary.md#post) at the required time.
 
 ### Parameters
 
@@ -201,11 +199,11 @@ Where `faults.json` is a file with contents similar to:
 ]
 ```
 
-> You can read more about the `declare_faults` extrinsic in [_Pallets/Storage Provider/Declare Faults_](../pallets/storage-provider.md#declare_faults).
+> More information about the `declare_faults` extrinsic is available in [_Pallets/Storage Provider/Declare Faults_](../pallets/storage-provider.md#declare_faults).
 
 ### `declare-faults-recovered`
 
-The `declare-faults-recovered` command allows you to declare recovered faulty sectors.
+The `declare-faults-recovered` command declares recovered faulty sectors.
 
 ### Parameters
 
@@ -242,4 +240,4 @@ Where `recoveries.json` is a file with contents similar to:
 ]
 ```
 
-> You can read more about the `declare_faults_recovered` extrinsic in [_Pallets/Storage Provider/Declare Faults Recovered_](../pallets/storage-provider.md#declare_faults_recovered).
+> More information about the `declare_faults_recovered` extrinsic is available in [_Pallets/Storage Provider/Declare Faults Recovered_](../pallets/storage-provider.md#declare_faults_recovered).

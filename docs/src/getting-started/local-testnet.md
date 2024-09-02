@@ -1,6 +1,6 @@
 # Local Testnet - Polka Storage Parachain
 
-This guide will help you set up a local parachain network using zombienet.
+This guide helps to set up a local parachain network using zombienet.
 At the end, we will have three nodes: Alice, Bob and Charlie.
 Alice and Bob will be running Polkadot relay chain nodes as validators,
 and Charlie will run a relay chain and parachain node.
@@ -8,7 +8,7 @@ Charlie will be our contact point to the parachain network.
 
 ## Native Binaries
 
-You can download our latest releases's binaries directly and run them on your machine without additional dependencies.
+Our latest releases's binaries are available to download and can be run without additional dependencies.
 We support `Linux x86_64` and `MacOS ARM x64`. The commands below will download:
 
 - [Relay Chain](https://github.com/paritytech/polkadot-sdk/releases) binaries (`polkadot`, `polkadot-prepare-worker`, `polkadot-execute-worker`),
@@ -81,10 +81,8 @@ wget https://s3.eu-central-1.amazonaws.com/polka-storage/polka-storage-testnet.t
 zombienet -p native spawn polka-storage-testnet.toml
 ```
 
-You can easily access the parachain using the Polkadot.js Apps interface by clicking on this link:
+The parachain is also accessible using the Polkadot.js Apps interface by clicking on this link:
 <https://polkadot.js.org/apps/?rpc=ws://127.0.0.1:42069#/explorer>
-
-Where you should be greeted by a page like this:
 
 <p>
   <a href="https://polkadot.js.org/apps/?rpc=ws://127.0.0.1:42069#/explorer">
@@ -92,7 +90,7 @@ Where you should be greeted by a page like this:
   </a>
 </p>
 
-Or you can interact with the chain via [`storagext-cli`](../storagext-cli/index.md), for example:
+Or interact with the chain via [`storagext-cli`](../storagext-cli/index.md), for example:
 
 ```bash
 storagext-cli --sr25519-key "//Alice" storage-provider register Alice
@@ -114,17 +112,17 @@ Docker Images were only published on x86_64 platforms! They won't work on Kubern
 
 ### Start up the Kubernetes cluster
 
-Using `minikube`, you can start the cluster with the following command:
+Using `minikube`, start the cluster with the following command:
 
 ```
 minikube start
 ```
 
-You can read more about `minikube` on its [Getting Started](https://minikube.sigs.k8s.io/docs/handbook/controls/) page.
+More information about `minikube` is available on its [Getting Started](https://minikube.sigs.k8s.io/docs/handbook/controls/) page.
 
 ### Running the Parachain
 
-1. Create a `local-kube-testnet.toml` file on your machine with the following content.
+1. Create a `local-kube-testnet.toml` file with the following content:
 
 ```toml
 [settings]
@@ -248,21 +246,21 @@ zombie-01b7920d650c18d3d78f75fd8b0978af   temp-collator                      0/1
 
 ### Accessing the Parachain
 
-You can easily access the parachain using the Polkadot.js Apps interface by clicking on this link:
+The parachain is available through the Polkadot.js Apps interface by clicking on this link:
 
 [https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A42069#/explorer](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A42069#/explorer)
 
-This link will automatically connect to Charlie's node running on your local machine at port `42069`. The port is configured in `local-kube-testnet.toml` under `rpc_port` for Charlie's node.
+This link will automatically connect to Charlie's node running on a local machine at port `42069`. The port is configured in `local-kube-testnet.toml` under `rpc_port` for Charlie's node.
 
 ## Zombienet Configuration Breakdown
 
-During the setup, you either download a file in the third step of [Linux](#linux-x86_64)/[MacOS](#macos-arm) — `polka-storage-testnet.toml` —
+During the setup either download a file in the third step of [Linux](#linux-x86_64)/[MacOS](#macos-arm) — `polka-storage-testnet.toml` —
 or copy it from the first step of [Running the parachain](#running-the-parachain).
 
 ### Similarities
 
 The two files share most of the contents, so we'll start by covering their similarities.
-For more details, you should refer to the [`zombienet` documentation](https://paritytech.github.io/zombienet/network-definition-spec.html):
+For more details refer to the [`zombienet` documentation](https://paritytech.github.io/zombienet/network-definition-spec.html):
 
 #### `relaychain`
 
