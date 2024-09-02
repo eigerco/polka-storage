@@ -1,7 +1,12 @@
+use std::time::Duration;
+
 use hex::ToHex;
-use subxt::{blocks::ExtrinsicEvents, OnlineClient};
+use subxt::{backend::rpc, blocks::ExtrinsicEvents, OnlineClient};
 
 use crate::PolkaStorageConfig;
+
+const ATTEMPTS: usize = 5;
+const ATTEMPT_INTERVAL: Duration = Duration::from_secs(1);
 
 /// Helper type for [`Client::traced_submission`] successful results.
 pub struct SubmissionResult<Config>
@@ -27,13 +32,32 @@ impl Client {
     /// By default, this function does not support insecure URLs,
     /// to enable support for them, use the `insecure_url` feature.
     pub async fn new(rpc_address: impl AsRef<str>) -> Result<Self, subxt::Error> {
-        let client = if cfg!(feature = "insecure_url") {
-            OnlineClient::<_>::from_insecure_url(rpc_address).await?
-        } else {
-            OnlineClient::<_>::from_url(rpc_address).await?
-        };
+        let mut n_attempts = 0;
+        let rpc_address = rpc_address.as_ref();
+        loop {
+            let client = if cfg!(feature = "insecure_url") {
+                OnlineClient::<_>::from_insecure_url(rpc_address).await
+            } else {
+                OnlineClient::<_>::from_url(rpc_address).await
+            };
 
-        Ok(Self { client })
+            match client {
+                Ok(client) => return Ok(Self { client }),
+                Err(err) => {
+                    tracing::error!(
+                        attempt = n_attempts,
+                        "failed to connect to {}, error: {}",
+                        rpc_address,
+                        err
+                    );
+                    if n_attempts >= ATTEMPTS {
+                        return Err(err);
+                    }
+                    n_attempts += 1;
+                    tokio::time::sleep(ATTEMPT_INTERVAL).await;
+                }
+            }
+        }
     }
 
     /// Submit an extrinsic and wait for finalization, returning the block hash it was included in.
