@@ -21,7 +21,10 @@ impl SystemClient {
     /// It returns latest non-finalized block.
     pub async fn height(&self) -> Result<u64, subxt::Error> {
         let mut best_stream = self.client.client.blocks().subscribe_best().await?;
-        let block = best_stream.next().await.expect("there always exists a block on a running chain")?;
+        let block = best_stream
+            .next()
+            .await
+            .expect("there always exists a block on a running chain")?;
 
         Ok(block.header().number)
     }
