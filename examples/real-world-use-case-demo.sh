@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -e
 
+if ! command -v storagext-cli >/dev/null 2>&1; then
+    echo "Make sure to follow https://eigerco.github.io/polka-storage-book/getting-started/local-testnet.html#native-binaries."
+    echo "This script relies on having a fresh testnet running and 'storagext-cli' in the PATH."
+    exit 1
+fi
+
 # Execute command with the descrption
 execute() {
     # Print description
