@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    types: [ labeled ]
+    types: [labeled]
   push:
-    branches: [ develop, main ]
+    branches: [develop, main]
 
 concurrency:
   group: ${{ github.ref }}
@@ -34,6 +34,20 @@ jobs:
             echo "Some files changed. Running CI."
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jontze/action-mdbook@v3
+        with:
+          token: ${{secrets.GITHUB_TOKEN}}
+          mdbook-version: "~0.4.0" # Use a semver compatible string
+          use-linkcheck: true
+          linkcheck-version: "~0.7.0"
+      - name: Build the book
+        run: mdbook build
+
   toml:
     if: ${{ needs.check-files.outputs.skip == 'false' && ((github.event.label.name == 'ready for review') || (github.ref_name == 'develop') || (github.ref_name == 'master')) }}
     runs-on: self-hosted
