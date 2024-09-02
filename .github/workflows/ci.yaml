@@ -46,7 +46,7 @@ jobs:
           use-linkcheck: true
           linkcheck-version: "~0.7.0"
       - name: Build the book
-        run: mdbook build
+        run: mdbook build docs
 
   toml:
     if: ${{ needs.check-files.outputs.skip == 'false' && ((github.event.label.name == 'ready for review') || (github.ref_name == 'develop') || (github.ref_name == 'master')) }}
