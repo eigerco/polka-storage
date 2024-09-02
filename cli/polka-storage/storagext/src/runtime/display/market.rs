@@ -63,7 +63,7 @@ impl std::fmt::Display for Event {
                 .collect::<String>();
 
                 f.write_fmt(format_args!(
-                    "Deals Slashed: {{ successful: [{}], unsuccessful: [{}] }}",
+                    "Deals Settled: {{ successful: [{}], unsuccessful: [{}] }}",
                     successful, unsuccessful
                 ))
             }
