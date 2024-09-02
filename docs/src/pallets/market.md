@@ -149,7 +149,7 @@ and is **not final**; it is a testing tool.
 
 </div>
 
-[^storage_price_per_block]: The formula to calculate the total price is as follows: \\[total\\\_price = (end\\\_block - start\\\_block) * storage\\_price\\_per\\_block\\]
+[^storage_price_per_block]: The formula to calculate the total price is as follows: \\\[total\\\_price = (end\\\_block - start\\\_block) \* storage\\\_price\\\_per\\\_block\\]
 [^publish_storage_deals]: Read more about the `publish-storage-deals` command in [_Storagext CLI/Subcommand `market`/`publish-storage-deals`_](../storagext-cli/market.md#publish-storage-deals)
 [^warn]: Take into account that the CLI is currently for demo purposes, the authors are aware that the command isn't safe since it requires the private keys of both parties.
 
