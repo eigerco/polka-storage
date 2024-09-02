@@ -36,15 +36,9 @@ jobs:
           fi
 
   docs:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
-      - uses: jontze/action-mdbook@v3
-        with:
-          token: ${{secrets.GITHUB_TOKEN}}
-          mdbook-version: "~0.4.0" # Use a semver compatible string
-          use-linkcheck: true
-          linkcheck-version: "~0.7.0"
       - name: Build the book
         run: mdbook build docs
 
