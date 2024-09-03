@@ -36,6 +36,7 @@ build-parachain-docker:
         -t polkadotstorage.azurecr.io/parachain-node:0.1.0 \
         --file ./docker/dockerfiles/parachain/Dockerfile \
         .
+
 build-storage-provider-docker:
     docker build \
         --build-arg VCS_REF="$(git rev-parse HEAD)" \
@@ -51,20 +52,24 @@ load-to-minikube:
 
 kube-testnet:
     zombienet -p kubernetes spawn zombienet/local-kube-testnet.toml
+
+# The tarpaulin calls for test coverage have the following options:
+# --locked: To not update the Cargo.lock file.
+# --skip-clean: Prevents tarpaulin from running `cargo clean` to reduce runtime.
+# --fail-immediately: Makes tarpaulin stop when a test fails.
+# --out: Specifies the output type, html for humans, lcov for Coverage Gutters.
+# --output-dir: Specifies the output directory, these must be in sync with .vscode/settings.json and have extension Coverage Gutters to display it in VS Code.
+
 pallet-storage-provider-coverage:
     mkdir -p coverage
-    cargo llvm-cov -p pallet-storage-provider --ignore-filename-regex "(mock|test)"
-    cargo llvm-cov -p pallet-storage-provider report --ignore-filename-regex "(mock|test)" --html --output-dir coverage/pallet-storage-provider
-    cargo llvm-cov -p pallet-storage-provider report --ignore-filename-regex "(mock|test)" --lcov --output-path coverage/pallet-storage-provider.lcov.info
+    cargo tarpaulin -p pallet-storage-provider --locked --skip-clean --fail-immediately --out html lcov --output-dir coverage/pallet-storage-provider
 
-# Must be in sync with .vscode/settings.json and have extension Coverage Gutters to display it in VS Code.
 market-coverage:
     mkdir -p coverage
-    cargo llvm-cov -p pallet-market --ignore-filename-regex "(mock|test)"
-    cargo llvm-cov -p pallet-market report --ignore-filename-regex "(mock|test)" --html --output-dir coverage/pallet-market
-    cargo llvm-cov -p pallet-market report --ignore-filename-regex "(mock|test)" --lcov --output-path coverage/pallet-market.lcov.info
+    cargo tarpaulin -p pallet-market --locked --skip-clean --fail-immediately --out html lcov --output-dir coverage/pallet-market
 
 mater-coverage:
-    cargo llvm-cov -p mater --ignore-filename-regex "(mock|test)"
-    cargo llvm-cov -p mater report --ignore-filename-regex "(mock|test)" --html --output-dir coverage/mater
-    cargo llvm-cov -p mater report --ignore-filename-regex "(mock|test)" --lcov --output-path coverage/mater.lcov.info
+    mkdir -p coverage
+    cargo tarpaulin -p mater --locked --skip-clean --fail-immediately --out html lcov --output-dir coverage/mater
+
+full-coverage: pallet-storage-provider-coverage market-coverage mater-coverage
