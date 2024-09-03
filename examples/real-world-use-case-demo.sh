@@ -24,7 +24,7 @@ startup_validate() {
     execute 'Wait until the chain starts' "storagext-cli system wait-for-height 1"
     height=$(storagext-cli system get-height | awk '{print $3}')
     if [[ $height -ne 1 ]]; then
-        echo "For this script to work, it needs to be run exactly at the first block. Current: $height"
+        echo "For this script to work, it needs to be run exactly at the second block. Current: $height"
         exit 0
     fi
 }
@@ -39,9 +39,9 @@ HUSKY_DEAL='[
         "client": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
         "provider": "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y",
         "label": "My lovely Husky (husky.jpg)",
-        "start_block": 25,
-        "end_block": 50,
-        "storage_price_per_block": 1000000000,
+        "start_block": 65,
+        "end_block": 115,
+        "storage_price_per_block": 500000000,
         "provider_collateral": 12500000000,
         "state": "Published"
 
@@ -53,7 +53,7 @@ PRE_COMMIT_HUSKY='{
     "sector_number": 1,
     "sealed_cid": "bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu",
     "deal_ids": [0],
-    "expiration": 75,
+    "expiration": 165,
     "unsealed_cid": "bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu",
     "seal_proof": "StackedDRG2KiBV1P1"
 
@@ -87,11 +87,11 @@ FAULT_DECLARATION='[
 '
 echo "$FAULT_DECLARATION" >fault-declaration.json
 
-PROVING_PERIOD_START=21
-FIRST_DEADLINE_END=31
-SECOND_DEADLINE_START=41
+PROVING_PERIOD_START=61
+FIRST_DEADLINE_END=81
+SECOND_DEADLINE_START=101
 DEAL_ID=0
-DEAL_END=50
+DEAL_END=115
 
 execute "Registering Charlie as a storage provider" 'storagext-cli --sr25519-key "//Charlie" storage-provider register Charlie'
 execute 'Adding balance to Alice`s account' 'storagext-cli --sr25519-key "//Alice" market add-balance 25000000000'
