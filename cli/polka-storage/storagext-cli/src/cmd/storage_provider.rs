@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use anyhow::bail;
 use clap::Subcommand;
 use primitives_proofs::RegisteredPoStProof;
@@ -80,8 +82,10 @@ impl StorageProviderCommand {
         self,
         node_rpc: Url,
         account_keypair: Option<MultiPairSigner>,
+        n_retries: u32,
+        retry_interval: Duration,
     ) -> Result<(), anyhow::Error> {
-        let client = StorageProviderClient::new(node_rpc).await?;
+        let client = StorageProviderClient::new(node_rpc, n_retries, retry_interval).await?;
 
         operation_takes_a_while();
 

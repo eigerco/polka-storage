@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use hex::ToHex;
 use subxt::{blocks::ExtrinsicEvents, OnlineClient};
 
@@ -26,14 +28,38 @@ impl Client {
     ///
     /// By default, this function does not support insecure URLs,
     /// to enable support for them, use the `insecure_url` feature.
-    pub async fn new(rpc_address: impl AsRef<str>) -> Result<Self, subxt::Error> {
-        let client = if cfg!(feature = "insecure_url") {
-            OnlineClient::<_>::from_insecure_url(rpc_address).await?
-        } else {
-            OnlineClient::<_>::from_url(rpc_address).await?
-        };
+    #[tracing::instrument(skip_all, fields(rpc_address = rpc_address.as_ref()))]
+    pub async fn new(
+        rpc_address: impl AsRef<str>,
+        n_retries: u32,
+        retry_interval: Duration,
+    ) -> Result<Self, subxt::Error> {
+        let rpc_address = rpc_address.as_ref();
 
-        Ok(Self { client })
+        let mut current_retries = 0;
+        loop {
+            let client = if cfg!(feature = "insecure_url") {
+                OnlineClient::<_>::from_insecure_url(rpc_address).await
+            } else {
+                OnlineClient::<_>::from_url(rpc_address).await
+            };
+
+            match client {
+                Ok(client) => return Ok(Self { client }),
+                Err(err) => {
+                    tracing::error!(
+                        attempt = current_retries,
+                        "failed to connect to node, error: {}",
+                        err
+                    );
+                    current_retries += 1;
+                    if current_retries >= n_retries {
+                        return Err(err);
+                    }
+                    tokio::time::sleep(retry_interval).await;
+                }
+            }
+        }
     }
 
     /// Submit an extrinsic and wait for finalization, returning the block hash it was included in.

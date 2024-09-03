@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use anyhow::bail;
 use clap::{ArgGroup, Subcommand};
 use primitives_proofs::DealId;
@@ -78,8 +80,10 @@ impl MarketCommand {
         self,
         node_rpc: Url,
         account_keypair: Option<MultiPairSigner>,
+        n_retries: u32,
+        retry_interval: Duration,
     ) -> Result<(), anyhow::Error> {
-        let client = MarketClient::new(node_rpc).await?;
+        let client = MarketClient::new(node_rpc, n_retries, retry_interval).await?;
 
         match self {
             // Only command that doesn't need a key.
