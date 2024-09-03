@@ -79,6 +79,10 @@ struct Cli {
     /// The interval between connection retries, in milliseconds.
     #[arg(long, env, default_value = DEFAULT_RETRY_INTERVAL_MS, value_parser = parse_ms)]
     pub retry_interval: Duration,
+
+    /// Output format.
+    #[arg(long, env, value_parser = OutputFormat::value_parser, default_value_t = OutputFormat::Plain)]
+    pub format: OutputFormat,
 }
 
 #[derive(Debug, Subcommand)]
@@ -100,18 +104,32 @@ impl SubCommand {
         account_keypair: Option<MultiPairSigner>,
         n_retries: u32,
         retry_interval: Duration,
+        output_format: OutputFormat,
     ) -> Result<(), anyhow::Error> {
         match self {
             SubCommand::Market(cmd) => {
-                cmd.run(node_rpc, account_keypair, n_retries, retry_interval)
-                    .await?;
+                cmd.run(
+                    node_rpc,
+                    account_keypair,
+                    n_retries,
+                    retry_interval,
+                    output_format,
+                )
+                .await?;
             }
             SubCommand::StorageProvider(cmd) => {
-                cmd.run(node_rpc, account_keypair, n_retries, retry_interval)
-                    .await?;
+                cmd.run(
+                    node_rpc,
+                    account_keypair,
+                    n_retries,
+                    retry_interval,
+                    output_format,
+                )
+                .await?;
             }
             SubCommand::System(cmd) => {
-                cmd.run(node_rpc, n_retries, retry_interval).await?;
+                cmd.run(node_rpc, n_retries, retry_interval, output_format)
+                    .await?;
             }
         }
 
@@ -164,6 +182,7 @@ async fn main() -> Result<(), anyhow::Error> {
             multi_pair_signer,
             cli_arguments.n_retries,
             cli_arguments.retry_interval,
+            cli_arguments.format,
         )
         .await?;
     Ok(())
@@ -193,5 +212,43 @@ fn operation_takes_a_while() {
             "This operation takes a while — we're submitting your transaction to the chain and ensuring all goes according to plan.\n",
             "Close your eyes, take a deep breath and think about blocks, running wild and free in a green field of bits.\n",
         ));
+    }
+}
+
+/// Supported output formats.
+#[derive(Debug, Clone)]
+pub(crate) enum OutputFormat {
+    /// Plaintext output, free-form, does not provide any format guarantees.
+    Plain,
+    /// JSON output.
+    Json,
+}
+
+impl std::fmt::Display for OutputFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Plain => f.write_str("Plain"),
+            Self::Json => f.write_str("Json"),
+        }
+    }
+}
+
+impl OutputFormat {
+    fn value_parser(s: &str) -> Result<OutputFormat, String> {
+        match s.to_lowercase().as_str() {
+            "plain" => Ok(OutputFormat::Plain),
+            "json" => Ok(OutputFormat::Json),
+            format => Err(format!("unknown format: {}", format)),
+        }
+    }
+
+    pub fn format<T>(&self, value: &T) -> Result<String, serde_json::Error>
+    where
+        T: std::fmt::Display + serde::Serialize,
+    {
+        match self {
+            OutputFormat::Plain => Ok(value.to_string()),
+            OutputFormat::Json => serde_json::to_string(value),
+        }
     }
 }

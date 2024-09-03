@@ -4,6 +4,8 @@ use clap::Subcommand;
 use storagext::clients::SystemClient;
 use url::Url;
 
+use crate::OutputFormat;
+
 #[derive(Debug, Subcommand)]
 #[command(name = "system", about = "System related actions", version)]
 pub(crate) enum SystemCommand {
@@ -34,6 +36,7 @@ impl SystemCommand {
         node_rpc: Url,
         n_retries: u32,
         retry_interval: Duration,
+        output_format: OutputFormat,
     ) -> Result<(), anyhow::Error> {
         let client = SystemClient::new(node_rpc, n_retries, retry_interval).await?;
 
@@ -42,7 +45,16 @@ impl SystemCommand {
                 wait_for_finalization,
             } => {
                 let height = client.height(wait_for_finalization).await?;
-                println!("Current height: {height:#?}");
+                match output_format {
+                    OutputFormat::Plain => {
+                        println!("Current height: {height:#?}");
+                    }
+                    OutputFormat::Json => {
+                        // The number is already a valid JSON,
+                        // hence we can avoid the whole serialization by just printing it
+                        println!("{}", height)
+                    }
+                }
             }
             SystemCommand::WaitForHeight {
                 height,
@@ -51,7 +63,13 @@ impl SystemCommand {
                 client
                     .wait_for_height(height, wait_for_finalization)
                     .await?;
-                println!("Reached desired height");
+                match output_format {
+                    OutputFormat::Plain => println!("Reached desired height"),
+                    OutputFormat::Json => {
+                        // Like above, but in this case we print the block we were supposed to reach
+                        println!("{}", height)
+                    }
+                }
             }
         };
 

@@ -1,6 +1,9 @@
-use crate::runtime::{
-    market::Event,
-    runtime_types::{pallet_market::pallet, polka_storage_runtime::Runtime},
+use crate::{
+    market_pallet_types::BalanceEntry,
+    runtime::{
+        market::Event,
+        runtime_types::{pallet_market::pallet, polka_storage_runtime::Runtime},
+    },
 };
 
 impl std::fmt::Display for pallet::SettledDealData<Runtime> {
@@ -88,5 +91,17 @@ impl std::fmt::Display for Event {
                 deal_id, provider, client
             )),
         }
+    }
+}
+
+impl<T> std::fmt::Display for BalanceEntry<T>
+where
+    T: std::fmt::Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "Balance {{ free: {}, locked: {} }}",
+            self.free, self.locked
+        ))
     }
 }

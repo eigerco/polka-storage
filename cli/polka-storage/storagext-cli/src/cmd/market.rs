@@ -3,7 +3,7 @@ use std::time::Duration;
 use anyhow::bail;
 use clap::{ArgGroup, Subcommand};
 use primitives_proofs::DealId;
-use storagext::{clients::MarketClient, PolkaStorageConfig};
+use storagext::{clients::MarketClient, runtime::SubmissionResult, PolkaStorageConfig};
 use subxt::ext::sp_core::{
     ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair, sr25519::Pair as Sr25519Pair,
 };
@@ -11,9 +11,8 @@ use url::Url;
 
 use crate::{
     deser::ParseablePath, missing_keypair_error, operation_takes_a_while, pair::DebugPair,
-    DealProposal, MultiPairSigner,
+    DealProposal, MultiPairSigner, OutputFormat,
 };
-
 /// List of [`DealProposal`]s to publish.
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct DealProposals(Vec<DealProposal>);
@@ -82,6 +81,7 @@ impl MarketCommand {
         account_keypair: Option<MultiPairSigner>,
         n_retries: u32,
         retry_interval: Duration,
+        output_format: OutputFormat,
     ) -> Result<(), anyhow::Error> {
         let client = MarketClient::new(node_rpc, n_retries, retry_interval).await?;
 
@@ -99,6 +99,8 @@ impl MarketCommand {
                         balance.free,
                         balance.locked
                     );
+
+                    println!("{}", output_format.format(&balance)?);
                 } else {
                     tracing::error!("Could not find account {}", account_id);
                 }
@@ -107,7 +109,9 @@ impl MarketCommand {
                 let Some(account_keypair) = account_keypair else {
                     return Err(missing_keypair_error::<Self>().into());
                 };
-                else_.with_keypair(client, account_keypair).await?;
+                else_
+                    .with_keypair(client, account_keypair, output_format)
+                    .await?;
             }
         };
 
@@ -118,19 +122,23 @@ impl MarketCommand {
         self,
         client: MarketClient,
         account_keypair: MultiPairSigner,
+        output_format: OutputFormat,
     ) -> Result<(), anyhow::Error> {
         operation_takes_a_while();
 
         let submission_result = match self {
             MarketCommand::AddBalance { amount } => {
-                let submission_result = client.add_balance(&account_keypair, amount).await?;
-                tracing::debug!(
-                    "[{}] Successfully added {} to Market Balance",
-                    submission_result.hash,
-                    amount
-                );
+                Self::add_balance(client, account_keypair, amount).await?
+            }
+            MarketCommand::SettleDealPayments { deal_ids } => {
+                if deal_ids.is_empty() {
+                    bail!("No deals provided to settle");
+                }
 
-                submission_result
+                Self::settle_deal_payments(client, account_keypair, deal_ids).await?
+            }
+            MarketCommand::WithdrawBalance { amount } => {
+                Self::withdraw_balance(client, account_keypair, amount).await?
             }
             MarketCommand::PublishStorageDeals {
                 deals,
@@ -145,51 +153,16 @@ impl MarketCommand {
                         client_ed25519_key.map(DebugPair::into_inner)
                     )
                     .expect("client is required to submit at least one key, this should've been handled by clap's ArgGroup");
-                let submission_result = client
-                    .publish_storage_deals(
-                        account_keypair,
-                        &client_keypair,
-                        deals.0.into_iter().map(Into::into).collect(),
-                    )
-                    .await?;
-                tracing::debug!(
-                    "[{}] Successfully published storage deals",
-                    submission_result.hash
-                );
-
-                submission_result
-            }
-            MarketCommand::SettleDealPayments { deal_ids } => {
-                if deal_ids.is_empty() {
-                    bail!("No deals provided to settle");
-                }
-
-                let submission_result = client
-                    .settle_deal_payments(&account_keypair, deal_ids)
-                    .await?;
-                tracing::debug!(
-                    "[{}] Successfully settled deal payments",
-                    submission_result.hash
-                );
-
-                submission_result
-            }
-            MarketCommand::WithdrawBalance { amount } => {
-                let submission_result = client.withdraw_balance(&account_keypair, amount).await?;
-                tracing::debug!(
-                    "[{}] Successfully withdrew {} from Market Balance",
-                    submission_result.hash,
-                    amount
-                );
-                submission_result
+                Self::publish_storage_deals(client, account_keypair, client_keypair, deals).await?
             }
             _unsigned => unreachable!("unsigned commands should have been previously handled"),
         };
 
+        let hash = submission_result.hash;
         // This monstrosity first converts incoming events into a "generic" (subxt generated) event,
         // and then we extract only the Market events. We could probably extract this into a proper
         // iterator but the effort to improvement ratio seems low (for 2 pallets at least).
-        for event in submission_result
+        let submission_results = submission_result
             .events
             .iter()
             .flat_map(|event| {
@@ -199,11 +172,82 @@ impl MarketCommand {
                 Ok(storagext::runtime::Event::Market(e)) => Some(Ok(e)),
                 Err(err) => Some(Err(err)),
                 _ => None,
-            })
-        {
+            });
+        for event in submission_results {
             let event = event?;
-            println!("[{}] {}", submission_result.hash, event);
+            let output = output_format.format(&event)?;
+            match output_format {
+                OutputFormat::Plain => println!("[{}] {}", hash, output),
+                OutputFormat::Json => println!("{}", output),
+            }
         }
         Ok(())
+    }
+
+    async fn add_balance(
+        client: MarketClient,
+        account_keypair: MultiPairSigner,
+        amount: u128,
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error> {
+        let submission_result = client.add_balance(&account_keypair, amount).await?;
+        tracing::debug!(
+            "[{}] Successfully added {} to Market Balance",
+            submission_result.hash,
+            amount
+        );
+
+        Ok(submission_result)
+    }
+
+    async fn publish_storage_deals(
+        client: MarketClient,
+        account_keypair: MultiPairSigner,
+        client_keypair: MultiPairSigner,
+        deals: DealProposals,
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error> {
+        let submission_result = client
+            .publish_storage_deals(
+                account_keypair,
+                &client_keypair,
+                deals.0.into_iter().map(Into::into).collect(),
+            )
+            .await?;
+        tracing::debug!(
+            "[{}] Successfully published storage deals",
+            submission_result.hash
+        );
+
+        Ok(submission_result)
+    }
+
+    async fn settle_deal_payments(
+        client: MarketClient,
+        account_keypair: MultiPairSigner,
+        deal_ids: Vec<u64>,
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error> {
+        let submission_result = client
+            .settle_deal_payments(&account_keypair, deal_ids)
+            .await?;
+        tracing::debug!(
+            "[{}] Successfully settled deal payments",
+            submission_result.hash
+        );
+
+        Ok(submission_result)
+    }
+
+    async fn withdraw_balance(
+        client: MarketClient,
+        account_keypair: MultiPairSigner,
+        amount: u128,
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error> {
+        let submission_result = client.withdraw_balance(&account_keypair, amount).await?;
+        tracing::debug!(
+            "[{}] Successfully withdrew {} from Market Balance",
+            submission_result.hash,
+            amount
+        );
+
+        Ok(submission_result)
     }
 }
