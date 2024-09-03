@@ -7,3 +7,5 @@ title = "Polka Storage"
 
 [output.html]
 mathjax-support = true
+
+[output.linkcheck]

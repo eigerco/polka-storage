@@ -39,7 +39,7 @@ Follow these steps to ensure your setup works as expected:
 
 2. Download the CAR file using the retrieved CID, following the steps in the [Download the CAR File](../storage-provider-cli/storage.md#download-the-car-file) section.
 
-3. [Optional] Verify the contents of the downloaded CAR file. Using, for example, [go-car](https://github.com/ipld/go-car/tree/master/cmd/car#install)'s `inspect` command:
+3. \[Optional\] Verify the contents of the downloaded CAR file. Using, for example, [go-car](https://github.com/ipld/go-car/tree/master/cmd/car#install)'s `inspect` command:
 
    ```bash
    car inspect <target_file>

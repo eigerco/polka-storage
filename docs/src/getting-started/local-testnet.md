@@ -14,7 +14,7 @@ We support `Linux x86_64` and `MacOS ARM x64`. The commands below will download:
 - [Relay Chain](https://github.com/paritytech/polkadot-sdk/releases) binaries (`polkadot`, `polkadot-prepare-worker`, `polkadot-execute-worker`),
 - Polka Storage Parachain binary (`polka-storage-node`),
 - [Polka Storage Provider](../storage-provider-cli/index.md) internal node (`polka-storage-provider`),
-- [CLI for interacting with the parachain](../storagext-cli/) (`storagext-cli`),
+- [CLI for interacting with the parachain](../storagext-cli/index.md) (`storagext-cli`),
 - [zombienet](https://paritytech.github.io/zombienet/install.html) to spawn local testnets and orchestrate them (`zombienet`),
 - Polka Storage Parachain out-of-the-box zombienet's configuration (`polka-storage-testnet.toml`).
 
