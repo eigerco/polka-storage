@@ -35,8 +35,8 @@ impl Client {
         retry_interval: Duration,
     ) -> Result<Self, subxt::Error> {
         let rpc_address = rpc_address.as_ref();
-        let mut current_retries = 0;
 
+        let mut current_retries = 0;
         loop {
             let client = if cfg!(feature = "insecure_url") {
                 OnlineClient::<_>::from_insecure_url(rpc_address).await
@@ -52,10 +52,10 @@ impl Client {
                         "failed to connect to node, error: {}",
                         err
                     );
+                    current_retries += 1;
                     if current_retries >= n_retries {
                         return Err(err);
                     }
-                    current_retries += 1;
                     tokio::time::sleep(retry_interval).await;
                 }
             }

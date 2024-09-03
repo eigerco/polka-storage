@@ -32,7 +32,7 @@ const DEFAULT_N_RETRIES: u32 = 10;
 ///
 /// It's a string because `clap` requires `Display` when using `default_value_t`,
 /// which `std::time::Duration` does not implement.
-const DEFAULT_RETRY_INTERVAL: &str = "3000";
+const DEFAULT_RETRY_INTERVAL_MS: &str = "3000";
 
 /// Parse milliseconds into [`Duration`].
 fn parse_ms(s: &str) -> Result<Duration, String> {
@@ -72,12 +72,12 @@ struct Cli {
     #[arg(long, env, value_parser = DebugPair::<Ed25519Pair>::value_parser)]
     pub ed25519_key: Option<DebugPair<Ed25519Pair>>,
 
-    /// The number of connection retries.
+    /// The number of connection retries when trying to initially connect to the parachain.
     #[arg(long, env, default_value_t = DEFAULT_N_RETRIES)]
     pub n_retries: u32,
 
     /// The interval between connection retries, in milliseconds.
-    #[arg(long, env, default_value = DEFAULT_RETRY_INTERVAL, value_parser = parse_ms)]
+    #[arg(long, env, default_value = DEFAULT_RETRY_INTERVAL_MS, value_parser = parse_ms)]
     pub retry_interval: Duration,
 }
 
