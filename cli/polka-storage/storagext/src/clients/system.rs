@@ -19,9 +19,14 @@ impl SystemClient {
 
     /// Get the current height of the chain.
     /// It returns latest non-finalized block.
-    pub async fn height(&self) -> Result<u64, subxt::Error> {
-        let mut best_stream = self.client.client.blocks().subscribe_best().await?;
-        let block = best_stream
+    pub async fn height(&self, wait_for_finalization: bool) -> Result<u64, subxt::Error> {
+        let mut block_stream = if wait_for_finalization {
+            self.client.client.blocks().subscribe_finalized().await?
+        } else {
+            self.client.client.blocks().subscribe_best().await?
+        };
+
+        let block = block_stream
             .next()
             .await
             .expect("there always exists a block on a running chain")?;
@@ -30,9 +35,13 @@ impl SystemClient {
     }
 
     /// Wait for the chain to reach a specific height.
-    pub async fn wait_for_height(&self, height: u64) -> Result<(), subxt::Error> {
+    pub async fn wait_for_height(
+        &self,
+        height: u64,
+        wait_for_finalization: bool,
+    ) -> Result<(), subxt::Error> {
         loop {
-            let current_height = self.height().await?;
+            let current_height = self.height(wait_for_finalization).await?;
             tracing::debug!("Current height: {current_height}");
 
             if current_height >= height {
