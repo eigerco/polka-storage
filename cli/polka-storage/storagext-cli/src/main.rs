@@ -213,7 +213,7 @@ fn operation_takes_a_while() {
         eprintln!(concat!(
             "This operation takes a while — we're submitting your transaction to the chain and ensuring all goes according to plan.\n",
             "If you're curious about what's going on under the hood, try using `RUST_LOG=trace` on your next submission.\n",
-            "To disable this message, set the environment variable `DISABLE_XT_WAIT_WARNING` to any value!\n\n"
+            "To disable this message, set the environment variable `DISABLE_XT_WAIT_WARNING` to any value!\n\n",
             "Close your eyes, take a deep breath and think about blocks, running wild and free in a green field of bits.\n",
         ));
     }
@@ -230,10 +230,7 @@ pub(crate) enum OutputFormat {
 
 impl std::fmt::Display for OutputFormat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Plain => f.write_str("Plain"),
-            Self::Json => f.write_str("Json"),
-        }
+        <Self as std::fmt::Debug>::fmt(&self, f)
     }
 }
 

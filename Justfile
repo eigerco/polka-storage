@@ -29,6 +29,9 @@ fmt:
     taplo fmt
     cargo +nightly fmt
 
+docs:
+    mdbook serve -d docs/book docs/
+
 build-parachain-docker:
     docker build \
         --build-arg VCS_REF="$(git rev-parse HEAD)" \

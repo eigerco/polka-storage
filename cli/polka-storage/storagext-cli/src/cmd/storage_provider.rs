@@ -99,13 +99,24 @@ impl StorageProviderCommand {
             // https://users.rust-lang.org/t/clap-ignore-global-argument-in-sub-command/101701/8
             StorageProviderCommand::RetrieveStorageProviders => {
                 let storage_providers = client.retrieve_registered_storage_providers().await?;
-                tracing::debug!("Registered Storage Providers: {:?}", storage_providers);
+                // Vec<String> does not implement Display and we can't implement it either
+                // for now, this works well enough
+                match output_format {
+                    OutputFormat::Plain => {
+                        println!("Registered Storage Providers: {:?}", storage_providers)
+                    }
+                    OutputFormat::Json => {
+                        println!("{}", serde_json::to_string(&storage_providers)?)
+                    }
+                }
             }
             else_ => {
                 let Some(account_keypair) = account_keypair else {
                     return Err(missing_keypair_error::<Self>().into());
                 };
-                else_.with_keypair(client, account_keypair).await?;
+                else_
+                    .with_keypair(client, account_keypair, output_format)
+                    .await?;
             }
         };
 
@@ -116,6 +127,7 @@ impl StorageProviderCommand {
         self,
         client: StorageProviderClient,
         account_keypair: MultiPairSigner,
+        output_format: OutputFormat,
     ) -> Result<(), anyhow::Error> {
         operation_takes_a_while();
 
