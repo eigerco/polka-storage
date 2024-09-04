@@ -241,3 +241,17 @@ Where `recoveries.json` is a file with contents similar to:
 ```
 
 > More information about the `declare_faults_recovered` extrinsic is available in [_Pallets/Storage Provider/Declare Faults Recovered_](../pallets/storage-provider.md#declare_faults_recovered).
+
+### `retrieve-storage-providers`
+
+The `retrieve-storage-providers` command retrieves all registered storage providers.
+
+### <a class="header" id="retrieve-storage-providers.example" href="#retrieve-storage-providers.example">Example</a>
+
+Retrieving all registered storage providers
+
+```bash
+storagext-cli storage-provider retrieve-storage-providers
+```
+
+> This command **is not signed**, and does not need to be called using any of the `--X-key` flags.

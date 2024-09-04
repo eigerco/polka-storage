@@ -38,6 +38,9 @@ pub enum StorageProviderCommand {
         post_proof: RegisteredPoStProof,
     },
 
+    /// Retrieve all registered Storage Providers.
+    RetrieveStorageProviders,
+
     /// Pre-commit sector containing deals, so they can be proven.
     /// If deals have been published and not pre-commited and proven, they'll be slashed by Market Pallet.
     PreCommit {
@@ -87,11 +90,34 @@ impl StorageProviderCommand {
     ) -> Result<(), anyhow::Error> {
         let client = StorageProviderClient::new(node_rpc, n_retries, retry_interval).await?;
 
+        match self {
+            // Only command that doesn't need a key.
+            //
+            // NOTE: subcommand_negates_reqs does not work for this since it only negates the parents'
+            // requirements, and the global arguments (keys) are at the grandparent level
+            // https://users.rust-lang.org/t/clap-ignore-global-argument-in-sub-command/101701/8
+            StorageProviderCommand::RetrieveStorageProviders => {
+                let storage_providers = client.retrieve_registered_storage_providers().await?;
+                tracing::debug!("Registered Storage Providers: {:?}", storage_providers);
+            }
+            else_ => {
+                let Some(account_keypair) = account_keypair else {
+                    return Err(missing_keypair_error::<Self>().into());
+                };
+                else_.with_keypair(client, account_keypair).await?;
+            }
+        };
+
+        Ok(())
+    }
+
+    async fn with_keypair(
+        self,
+        client: StorageProviderClient,
+        account_keypair: MultiPairSigner,
+    ) -> Result<(), anyhow::Error> {
         operation_takes_a_while();
 
-        let Some(account_keypair) = account_keypair else {
-            return Err(missing_keypair_error::<Self>().into());
-        };
         let submission_result = match self {
             StorageProviderCommand::RegisterStorageProvider {
                 peer_id,
@@ -159,6 +185,7 @@ impl StorageProviderCommand {
 
                 submission_result
             }
+            _unsigned => unreachable!("unsigned commands should have been previously handled"),
         };
 
         // This monstrosity first converts incoming events into a "generic" (subxt generated) event,

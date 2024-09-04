@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use subxt::ext::sp_core::crypto::Ss58Codec;
+use subxt::ext::{futures::TryStreamExt, sp_core::crypto::Ss58Codec};
 
 use crate::{
     runtime::{
@@ -54,6 +54,27 @@ impl StorageProviderClient {
 
         self.client
             .traced_submission(&payload, account_keypair)
+            .await
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub async fn retrieve_registered_storage_providers(&self) -> Result<Vec<String>, subxt::Error> {
+        let storage_providers = runtime::storage()
+            .storage_provider()
+            .storage_providers_iter();
+        let storage_providers = self
+            .client
+            .client
+            .storage()
+            .at_latest()
+            .await?
+            // The iter uses pagination under the hood
+            .iter(storage_providers)
+            .await?;
+
+        storage_providers
+            .map_ok(|kv| bs58::encode(kv.value.info.peer_id.0.as_slice()).into_string())
+            .try_collect()
             .await
     }
 
