@@ -23,6 +23,7 @@ substrate-wasm-builder = { workspace = true, optional = true }
 pallet-storage-provider = { workspace = true, default-features = false }
 
 codec = { workspace = true, default-features = false, features = ["derive"] }
+docify = { workspace = true }
 hex-literal = { workspace = true, optional = true }
 log = { workspace = true }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
@@ -79,6 +80,7 @@ cumulus-pallet-parachain-system = { workspace = true, default-features = false }
 cumulus-pallet-session-benchmarking = { workspace = true, default-features = false }
 cumulus-pallet-xcm = { workspace = true, default-features = false }
 cumulus-pallet-xcmp-queue = { workspace = true, default-features = false }
+cumulus-primitives-aura.workspace = true
 cumulus-primitives-core = { workspace = true, default-features = false }
 cumulus-primitives-storage-weight-reclaim = { workspace = true, default-features = false }
 cumulus-primitives-utility = { workspace = true, default-features = false }
@@ -95,6 +97,7 @@ std = [
   "cumulus-pallet-session-benchmarking/std",
   "cumulus-pallet-xcm/std",
   "cumulus-pallet-xcmp-queue/std",
+  "cumulus-primitives-aura/std",
   "cumulus-primitives-core/std",
   "cumulus-primitives-storage-weight-reclaim/std",
   "cumulus-primitives-utility/std",

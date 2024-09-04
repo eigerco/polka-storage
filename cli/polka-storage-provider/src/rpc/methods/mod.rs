@@ -43,7 +43,7 @@ where
     Request: RpcRequest<Version>,
 {
     module
-        .register_async_method(Request::NAME, move |params, ctx| async move {
+        .register_async_method(Request::NAME, move |params, ctx, _| async move {
             // Try to deserialize the params
             let span =
                 debug_span!("method", id = %Uuid::new_v4(), method = Request::NAME, params = ?params);

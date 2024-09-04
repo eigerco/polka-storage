@@ -53,7 +53,7 @@ impl SubstrateCli for Cli {
     }
 
     fn support_url() -> String {
-        format!("{}/issues/new", env!("CARGO_PKG_REPOSITORY")).into()
+        format!("{}/issues/new", env!("CARGO_PKG_REPOSITORY"))
     }
 
     fn copyright_start_year() -> i32 {
@@ -90,7 +90,7 @@ impl SubstrateCli for RelayChainCli {
     }
 
     fn support_url() -> String {
-        format!("{}/issues/new", env!("CARGO_PKG_REPOSITORY")).into()
+        format!("{}/issues/new", env!("CARGO_PKG_REPOSITORY"))
     }
 
     fn copyright_start_year() -> i32 {
@@ -201,14 +201,11 @@ pub fn run() -> Result<()> {
                     cmd.run(partials.client)
                 }),
                 #[cfg(not(feature = "runtime-benchmarks"))]
-                BenchmarkCmd::Storage(_) => {
-                    return Err(sc_cli::Error::Input(
-                        "Compile with --features=runtime-benchmarks \
+                BenchmarkCmd::Storage(_) => Err(sc_cli::Error::Input(
+                    "Compile with --features=runtime-benchmarks \
                         to enable storage benchmarks."
-                            .into(),
-                    )
-                    .into())
-                }
+                        .into(),
+                )),
                 #[cfg(feature = "runtime-benchmarks")]
                 BenchmarkCmd::Storage(cmd) => runner.sync_run(|config| {
                     let partials = new_partial(&config)?;
