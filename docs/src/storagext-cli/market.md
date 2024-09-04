@@ -180,4 +180,4 @@ The `retrieve-balance` command checks the balance of a given market account.
 storagext-cli market retrieve-balance "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY" # Alice's account
 ```
 
-> This extrinsic **is not signed**, and does not need to be called using any of the `--X-key` flags.
+> This command **is not signed**, and does not need to be called using any of the `--X-key` flags.
