@@ -28,6 +28,18 @@ storagext-cli --sr25519-key <key> storage-provider register <peer_id>
 
 > More information about the `register` extrinsic is available in [_Pallets/Storage Provider/Register_](../pallets/storage-provider.md#register_storage_provider).
 
+### `retrieve-storage-providers`
+
+The `retrieve-storage-providers` command retrieves all registered storage providers.
+
+### <a class="header" id="retrieve-storage-providers.example" href="#retrieve-storage-providers.example">Example</a>
+
+Retrieving all registered storage providers
+
+```bash
+storagext-cli storage-provider retrieve-storage-providers
+```
+
 ### `pre-commit`
 
 The `pre-commit` command [pre-commits](../pallets/storage-provider.md#pre_commit_sector) a sector with deals that have been published by `market publish-storage-deals`. The pre-committed sector has to be proven or the deals will not activate and will be slashed.
