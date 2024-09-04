@@ -238,7 +238,8 @@ pub mod pallet {
         },
         SectorsPreCommitted {
             owner: T::AccountId,
-            sectors: BoundedVec<SectorPreCommitInfo<BlockNumberFor<T>>, ConstU32<MAX_SECTORS>>,
+            sectors:
+                BoundedVec<SectorPreCommitInfo<BlockNumberFor<T>>, ConstU32<MAX_SECTORS_PER_CALL>>,
         },
         /// Emitted when a storage provider pre commits some sectors.
         SectorPreCommitted {
@@ -383,7 +384,13 @@ pub mod pallet {
             Ok(())
         }
 
-        /// TODO: Add docs
+        /// The Storage Provider uses this extrinsic to pledge and seal X amount of sectors at once.
+        /// If a single sector fails to pre commit for whatever reason, the whole extrinsic will fail.
+        ///
+        /// The deposit amount is calculated by `calculate_pre_commit_deposit`.
+        /// The deposited amount is locked until the sector has been terminated.
+        /// A hook will check pre-committed sectors `expiration` and
+        /// if that sector has not been proven by that time the deposit will be slashed.
         pub fn pre_commit_sector_batch(
             origin: OriginFor<T>,
             sectors: BoundedVec<
@@ -474,7 +481,6 @@ pub mod pallet {
         /// The deposited amount is locked until the sector has been terminated.
         /// A hook will check pre-committed sectors `expiration` and
         /// if that sector has not been proven by that time the deposit will be slashed.
-        // TODO(@aidan46, #107, 2024-06-20): Add functionality to allow for batch pre commit
         pub fn pre_commit_sector(
             origin: OriginFor<T>,
             sector: SectorPreCommitInfo<BlockNumberFor<T>>,
