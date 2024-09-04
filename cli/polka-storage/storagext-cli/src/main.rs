@@ -206,10 +206,14 @@ where
 
 /// Print a message for the user warning the operation will take a bit.
 fn operation_takes_a_while() {
-    if !tracing::event_enabled!(tracing::Level::TRACE) {
-        println!(concat!(
-            "If you're curious about what's going on under the hood, try using `RUST_LOG=trace` on your next submission.\n\n",
+    // You can't trust the tracing enabled level for this purpose
+    // https://docs.rs/tracing/latest/tracing/macro.enabled.html
+    // https://users.rust-lang.org/t/how-to-get-to-tracing-subscriber-pub-fn-current-levelfilter-please/101575/3
+    if std::env::var_os("DISABLE_XT_WAIT_WARNING").is_none() {
+        eprintln!(concat!(
             "This operation takes a while — we're submitting your transaction to the chain and ensuring all goes according to plan.\n",
+            "If you're curious about what's going on under the hood, try using `RUST_LOG=trace` on your next submission.\n",
+            "To disable this message, set the environment variable `DISABLE_XT_WAIT_WARNING` to any value!\n\n"
             "Close your eyes, take a deep breath and think about blocks, running wild and free in a green field of bits.\n",
         ));
     }
