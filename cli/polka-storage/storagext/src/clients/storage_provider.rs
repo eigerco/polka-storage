@@ -68,6 +68,7 @@ impl StorageProviderClient {
             .storage()
             .at_latest()
             .await?
+            // The iter uses pagination under the hood
             .iter(storage_providers)
             .await?;
 
