@@ -6,7 +6,6 @@
 pub mod bounded_vec;
 pub(crate) mod client;
 pub mod display;
-// pub mod serde;
 
 // NOTE: you'll need to reload the window if the underlying SCALE file changes
 // https://github.com/rust-lang/rust-analyzer/issues/10719

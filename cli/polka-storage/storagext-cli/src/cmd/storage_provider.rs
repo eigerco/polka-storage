@@ -15,8 +15,8 @@ use crate::{
 
 fn parse_post_proof(src: &str) -> Result<RegisteredPoStProof, String> {
     match src {
-        "2KiB" => return Ok(RegisteredPoStProof::StackedDRGWindow2KiBV1P1),
-        unknown => return Err(format!("Unknown PoSt Proof type: {}", unknown)),
+        "2KiB" => Ok(RegisteredPoStProof::StackedDRGWindow2KiBV1P1),
+        unknown => Err(format!("Unknown PoSt Proof type: {}", unknown)),
     }
 }
 
