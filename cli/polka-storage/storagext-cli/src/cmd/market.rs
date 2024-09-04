@@ -183,7 +183,7 @@ impl MarketCommand {
                 );
                 submission_result
             }
-            _unsigned => unreachable!("unsigned extrinsics should have been previously handled"),
+            _unsigned => unreachable!("unsigned commands should have been previously handled"),
         };
 
         // This monstrosity first converts incoming events into a "generic" (subxt generated) event,
