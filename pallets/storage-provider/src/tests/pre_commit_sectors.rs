@@ -1,11 +1,13 @@
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{assert_noop, assert_ok, pallet_prelude::*};
+use frame_system::pallet_prelude::BlockNumberFor;
+use primitives_proofs::MAX_SECTORS_PER_CALL;
 use sp_core::bounded_vec;
 use sp_runtime::{BoundedVec, DispatchError};
 
 use super::new_test_ext;
 use crate::{
     pallet::{Error, Event, StorageProviders},
-    sector::MAX_SECTORS,
+    sector::{SectorPreCommitInfo, MAX_SECTORS},
     tests::{
         account, cid_of, events, publish_deals, register_storage_provider, run_to_block, Balances,
         MaxProveCommitDuration, MaxSectorExpirationExtension, RuntimeEvent, RuntimeOrigin,
@@ -32,9 +34,9 @@ fn successfully_precommited() {
         );
 
         // Run pre commit extrinsic
-        StorageProvider::pre_commit_sector(
+        StorageProvider::pre_commit_sectors(
             RuntimeOrigin::signed(account(storage_provider)),
-            sector.clone(),
+            bounded_vec![sector.clone()],
         )
         .expect("Pre commit failed");
 
@@ -46,9 +48,9 @@ fn successfully_precommited() {
                     who: account(storage_provider),
                     amount: 1
                 },),
-                RuntimeEvent::StorageProvider(Event::<Test>::SectorPreCommitted {
+                RuntimeEvent::StorageProvider(Event::<Test>::SectorsPreCommitted {
                     owner: account(storage_provider),
-                    sector: sector.clone(),
+                    sectors: bounded_vec![sector],
                 })
             ]
         );
@@ -86,9 +88,9 @@ fn successfully_precommited_no_deals() {
             .build();
 
         // Run pre commit extrinsic
-        StorageProvider::pre_commit_sector(
+        StorageProvider::pre_commit_sectors(
             RuntimeOrigin::signed(account(storage_provider)),
-            sector.clone(),
+            bounded_vec![sector.clone()],
         )
         .expect("Pre commit failed");
 
@@ -100,9 +102,9 @@ fn successfully_precommited_no_deals() {
                     who: account(storage_provider),
                     amount: 1
                 },),
-                RuntimeEvent::StorageProvider(Event::<Test>::SectorPreCommitted {
+                RuntimeEvent::StorageProvider(Event::<Test>::SectorsPreCommitted {
                     owner: account(storage_provider),
-                    sector,
+                    sectors: bounded_vec![sector],
                 })
             ]
         );
@@ -122,6 +124,65 @@ fn successfully_precommited_no_deals() {
 }
 
 #[test]
+fn successfully_precommited_batch() {
+    new_test_ext().execute_with(|| {
+        // Register CHARLIE as a storage provider.
+        let storage_provider = CHARLIE;
+        register_storage_provider(account(storage_provider));
+        // Publish deals for verification before pre-commit.
+        publish_deals(storage_provider);
+
+        // Create 6 sectors in pre-commit
+        let mut sectors: BoundedVec<
+            SectorPreCommitInfo<BlockNumberFor<Test>>,
+            ConstU32<MAX_SECTORS_PER_CALL>,
+        > = bounded_vec![];
+        for sector_number in 0..=5 {
+            sectors
+                .try_push(
+                    SectorPreCommitInfoBuilder::default()
+                        .sector_number(sector_number)
+                        .build(),
+                )
+                .expect("BoundedVec should fit all 6 elements");
+        }
+
+        // Run pre commit extrinsic
+        StorageProvider::pre_commit_sectors(
+            RuntimeOrigin::signed(account(storage_provider)),
+            sectors.clone(),
+        )
+        .expect("Pre commit failed");
+
+        // Check that the events were triggered
+        assert_eq!(
+            events(),
+            [
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Reserved {
+                    who: account(storage_provider),
+                    amount: 6
+                },),
+                RuntimeEvent::StorageProvider(Event::<Test>::SectorsPreCommitted {
+                    owner: account(storage_provider),
+                    sectors,
+                })
+            ]
+        );
+
+        let sp = StorageProviders::<Test>::get(account(storage_provider))
+            .expect("SP should be present because of the pre-check");
+
+        assert!(sp.sectors.is_empty()); // not yet proven
+        assert!(!sp.pre_committed_sectors.is_empty());
+        assert_eq!(sp.pre_commit_deposits, 6);
+        assert_eq!(
+            Balances::free_balance(account(storage_provider)),
+            INITIAL_FUNDS - 70 - 6 // 1 for each pre-commit deposit
+        );
+    });
+}
+
+#[test]
 fn fails_should_be_signed() {
     new_test_ext().execute_with(|| {
         // Sector to be pre-committed
@@ -129,7 +190,7 @@ fn fails_should_be_signed() {
 
         // Run pre commit extrinsic
         assert_noop!(
-            StorageProvider::pre_commit_sector(RuntimeOrigin::none(), sector.clone()),
+            StorageProvider::pre_commit_sectors(RuntimeOrigin::none(), bounded_vec![sector]),
             DispatchError::BadOrigin,
         );
     });
@@ -143,9 +204,9 @@ fn fails_storage_provider_not_found() {
 
         // Run pre commit extrinsic
         assert_noop!(
-            StorageProvider::pre_commit_sector(
+            StorageProvider::pre_commit_sectors(
                 RuntimeOrigin::signed(account(ALICE)),
-                sector.clone()
+                bounded_vec![sector]
             ),
             Error::<Test>::StorageProviderNotFound,
         );
@@ -164,15 +225,15 @@ fn fails_sector_number_already_used() {
         let sector = SectorPreCommitInfoBuilder::default().build();
 
         // Run pre commit extrinsic
-        assert_ok!(StorageProvider::pre_commit_sector(
+        assert_ok!(StorageProvider::pre_commit_sectors(
             RuntimeOrigin::signed(account(storage_provider)),
-            sector.clone()
+            bounded_vec![sector.clone()]
         ));
         // Run same extrinsic, this should fail
         assert_noop!(
-            StorageProvider::pre_commit_sector(
+            StorageProvider::pre_commit_sectors(
                 RuntimeOrigin::signed(account(storage_provider)),
-                sector
+                bounded_vec![sector]
             ),
             Error::<Test>::SectorNumberAlreadyUsed,
         );
@@ -198,9 +259,9 @@ fn fails_declared_commd_not_matching() {
             .build();
 
         assert_noop!(
-            StorageProvider::pre_commit_sector(
+            StorageProvider::pre_commit_sectors(
                 RuntimeOrigin::signed(account(storage_provider)),
-                sector
+                bounded_vec![sector]
             ),
             Error::<Test>::InvalidUnsealedCidForSector,
         );
@@ -221,9 +282,9 @@ fn fails_invalid_sector() {
 
         // Run pre commit extrinsic
         assert_noop!(
-            StorageProvider::pre_commit_sector(
+            StorageProvider::pre_commit_sectors(
                 RuntimeOrigin::signed(account(storage_provider)),
-                sector.clone()
+                bounded_vec![sector]
             ),
             Error::<Test>::InvalidSector,
         );
@@ -245,9 +306,9 @@ fn fails_invalid_cid() {
 
         // Run pre commit extrinsic
         assert_noop!(
-            StorageProvider::pre_commit_sector(
+            StorageProvider::pre_commit_sectors(
                 RuntimeOrigin::signed(account(storage_provider)),
-                sector.clone()
+                bounded_vec![sector]
             ),
             Error::<Test>::InvalidCid,
         );
@@ -270,9 +331,9 @@ fn fails_expiration_before_activation() {
 
         // Run pre commit extrinsic
         assert_noop!(
-            StorageProvider::pre_commit_sector(
+            StorageProvider::pre_commit_sectors(
                 RuntimeOrigin::signed(account(storage_provider)),
-                sector.clone()
+                bounded_vec![sector]
             ),
             Error::<Test>::ExpirationBeforeActivation,
         );
@@ -298,9 +359,9 @@ fn fails_expiration_too_soon() {
             .build();
 
         assert_noop!(
-            StorageProvider::pre_commit_sector(
+            StorageProvider::pre_commit_sectors(
                 RuntimeOrigin::signed(account(storage_provider)),
-                sector.clone()
+                bounded_vec![sector]
             ),
             Error::<Test>::ExpirationTooSoon,
         );
@@ -327,41 +388,11 @@ fn fails_expiration_too_long() {
 
         // Run pre commit extrinsic
         assert_noop!(
-            StorageProvider::pre_commit_sector(
+            StorageProvider::pre_commit_sectors(
                 RuntimeOrigin::signed(account(storage_provider)),
-                sector.clone()
+                bounded_vec![sector]
             ),
             Error::<Test>::ExpirationTooLong,
         );
     });
 }
-
-// TODO(no-ref,@cernicc,11/07/2024): Based on the current setup I can't get
-// this test to pass. That is because the `SectorMaximumLifetime` is longer
-// then the bound for `ExpirationTooLong`. Is the test wrong? is the
-// implementation wrong?
-//
-// #[test]
-// fn fails_max_sector_lifetime_exceeded() {
-//     let current_height = 1000;
-
-//     new_test_ext_with_block(current_height).execute_with(|| {
-//         // Register ALICE as a storage provider.
-//         let storage_provider = ALICE;
-//         register_storage_provider(account(storage_provider));
-
-//         // Sector to be pre-committed
-//         let sector = SectorPreCommitInfoBuilder::default()
-//             .expiration(current_height + MaxProveCommitDuration::get() + SectorMaximumLifetime::get())
-//             .build();
-
-//         // Run pre commit extrinsic
-//         assert_noop!(
-//             StorageProvider::pre_commit_sector(
-//                 RuntimeOrigin::signed(account(storage_provider)),
-//                 sector.clone()
-//             ),
-//             Error::<Test>::MaxSectorLifetimeExceeded,
-//         );
-//     });
-// }

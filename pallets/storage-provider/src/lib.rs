@@ -236,15 +236,11 @@ pub mod pallet {
             info: StorageProviderInfo<T::PeerId>,
             proving_period_start: BlockNumberFor<T>,
         },
+        /// Emitted when a storage provider pre commits some sectors.
         SectorsPreCommitted {
             owner: T::AccountId,
             sectors:
                 BoundedVec<SectorPreCommitInfo<BlockNumberFor<T>>, ConstU32<MAX_SECTORS_PER_CALL>>,
-        },
-        /// Emitted when a storage provider pre commits some sectors.
-        SectorPreCommitted {
-            owner: T::AccountId,
-            sector: SectorPreCommitInfo<BlockNumberFor<T>>,
         },
         /// Emitted when a storage provider successfully proves pre committed sectors.
         SectorProven {
@@ -391,7 +387,7 @@ pub mod pallet {
         /// The deposited amount is locked until the sector has been terminated.
         /// A hook will check pre-committed sectors `expiration` and
         /// if that sector has not been proven by that time the deposit will be slashed.
-        pub fn pre_commit_sector_batch(
+        pub fn pre_commit_sectors(
             origin: OriginFor<T>,
             sectors: BoundedVec<
                 SectorPreCommitInfo<BlockNumberFor<T>>,
@@ -472,61 +468,6 @@ pub mod pallet {
                 sectors: pre_committed_sectors,
             });
 
-            Ok(())
-        }
-
-        /// The Storage Provider uses this extrinsic to pledge and seal a new sector.
-        ///
-        /// The deposit amount is calculated by `calculate_pre_commit_deposit`.
-        /// The deposited amount is locked until the sector has been terminated.
-        /// A hook will check pre-committed sectors `expiration` and
-        /// if that sector has not been proven by that time the deposit will be slashed.
-        pub fn pre_commit_sector(
-            origin: OriginFor<T>,
-            sector: SectorPreCommitInfo<BlockNumberFor<T>>,
-        ) -> DispatchResult {
-            let owner = ensure_signed(origin)?;
-            let sp = StorageProviders::<T>::try_get(&owner)
-                .map_err(|_| Error::<T>::StorageProviderNotFound)?;
-            let current_block = <frame_system::Pallet<T>>::block_number();
-
-            // Basic pre-commit validation.
-            Self::validate_sector_for_pre_commit(&sp, &sector)?;
-
-            // Check that the expiration set by the SP makes sense.
-            Self::validate_expiration(
-                current_block,
-                current_block + T::MaxProveCommitDuration::get(),
-                sector.expiration,
-            )?;
-
-            let unsealed_cid = validate_cid::<T>(&sector.unsealed_cid[..])?;
-            let deposit = Self::check_balance_for_pre_commit_deposit(&owner)?;
-            let sector_on_chain = SectorPreCommitOnChainInfo::new(
-                sector.clone(),
-                deposit,
-                <frame_system::Pallet<T>>::block_number(),
-            );
-            let sector_deals = Self::create_sector_deals_for_pre_commit(&sector_on_chain)?;
-
-            let calculated_commds = T::Market::verify_deals_for_activation(&owner, sector_deals)?;
-            Self::check_commd_for_pre_commit(
-                calculated_commds,
-                sector.deal_ids.len(),
-                unsealed_cid,
-            )?;
-
-            T::Currency::reserve(&owner, deposit)?;
-            StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResult {
-                let sp = maybe_sp
-                    .as_mut()
-                    .ok_or(Error::<T>::StorageProviderNotFound)?;
-                sp.add_pre_commit_deposit(deposit)?;
-                sp.put_pre_committed_sector(sector_on_chain)
-                    .map_err(|e| Error::<T>::StorageProviderError(e))?;
-                Ok(())
-            })?;
-            Self::deposit_event(Event::SectorPreCommitted { owner, sector });
             Ok(())
         }
 

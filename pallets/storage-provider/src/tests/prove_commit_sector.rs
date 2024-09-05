@@ -34,9 +34,9 @@ fn successfully_prove_sector() {
             .build();
 
         // Run pre commit extrinsic
-        assert_ok!(StorageProvider::pre_commit_sector(
+        assert_ok!(StorageProvider::pre_commit_sectors(
             RuntimeOrigin::signed(account(storage_provider)),
-            sector.clone()
+            bounded_vec![sector.clone()]
         ));
 
         // Remove any events that were triggered until now.
@@ -101,7 +101,10 @@ fn fails_should_be_signed() {
 
         // Run pre commit extrinsic
         assert_noop!(
-            StorageProvider::pre_commit_sector(RuntimeOrigin::none(), sector.clone()),
+            StorageProvider::pre_commit_sectors(
+                RuntimeOrigin::none(),
+                bounded_vec![sector.clone()]
+            ),
             DispatchError::BadOrigin,
         );
     });
@@ -172,9 +175,9 @@ fn fails_prove_commit_after_deadline() {
             .build();
 
         // Run pre commit extrinsic
-        assert_ok!(StorageProvider::pre_commit_sector(
+        assert_ok!(StorageProvider::pre_commit_sectors(
             RuntimeOrigin::signed(account(storage_provider)),
-            sector.clone()
+            bounded_vec![sector.clone()]
         ));
 
         // Test prove commits
