@@ -431,10 +431,10 @@ pub mod pallet {
                 );
                 let sector_deals = Self::create_sector_deals_for_pre_commit(&sector_on_chain)?;
 
-                let calculated_commds =
+                let calculated_unsealed_cid =
                     T::Market::verify_deals_for_activation(&owner, sector_deals)?;
                 Self::check_commd_for_pre_commit(
-                    calculated_commds,
+                    calculated_unsealed_cid,
                     sector.deal_ids.len(),
                     unsealed_cid,
                 )?;
@@ -1146,21 +1146,21 @@ pub mod pallet {
             }
         }
 
-        /// Verifies that the CommD and checks that it matches the given unsealed CID.
+        /// Verifies that the unsealed_cid (CommD) and checks that it matches the given unsealed CID.
         fn check_commd_for_pre_commit(
-            calculated_commds: BoundedVec<Option<Cid>, ConstU32<MAX_SECTORS_PER_CALL>>,
+            calculated_unsealed_cid: BoundedVec<Option<Cid>, ConstU32<MAX_SECTORS_PER_CALL>>,
             deal_amount: usize,
             unsealed_cid: cid::Cid,
         ) -> Result<(), Error<T>> {
-            ensure!(calculated_commds.len() == 1, {
-                log::error!(target: LOG_TARGET, "pre_commit_sector: failed to verify deals, invalid calculated_commd length: {}", calculated_commds.len());
+            ensure!(calculated_unsealed_cid.len() == 1, {
+                log::error!(target: LOG_TARGET, "pre_commit_sector: failed to verify deals, invalid calculated_commd length: {}", calculated_unsealed_cid.len());
                 Error::<T>::CouldNotVerifySectorForPreCommit
             });
 
             // We need to verify CommD only if there are deals in the sector, otherwise it's a Committed Capacity sector.
             if deal_amount > 0 {
                 // PRE-COND: verify_deals_for_activation is called with a single sector, so a single CommD should always be returned
-                let Some(calculated_commd) = calculated_commds[0] else {
+                let Some(calculated_commd) = calculated_unsealed_cid[0] else {
                     log::error!(target: LOG_TARGET, "pre_commit_sector: commd from verify_deals is None...");
                     fail!(Error::<T>::CouldNotVerifySectorForPreCommit)
                 };
