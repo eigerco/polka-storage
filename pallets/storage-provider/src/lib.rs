@@ -387,6 +387,8 @@ pub mod pallet {
         /// The deposited amount is locked until the sector has been terminated.
         /// A hook will check pre-committed sectors `expiration` and
         /// if that sector has not been proven by that time the deposit will be slashed.
+        /// Reference implementation:
+        /// * <https://github.com/filecoin-project/builtin-actors/blob/6906288334746318385cfd53edd7ea33ef03919f/actors/miner/src/lib.rs#L1453>
         pub fn pre_commit_sectors(
             origin: OriginFor<T>,
             sectors: BoundedVec<
