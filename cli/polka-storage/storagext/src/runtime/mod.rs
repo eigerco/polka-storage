@@ -24,6 +24,10 @@ pub mod display;
         path = "primitives_proofs::types::RegisteredPoStProof",
         with = "::primitives_proofs::RegisteredPoStProof",
     ),
+    substitute_type(
+        path = "primitives_proofs::types::SectorSize",
+        with = "::primitives_proofs::SectorSize",
+    ),
     derive_for_type(
         path = "pallet_market::pallet::ActiveDealState",
         derive = "::serde::Deserialize"
@@ -31,11 +35,54 @@ pub mod display;
     derive_for_type(
         path = "pallet_market::pallet::DealState",
         derive = "::serde::Deserialize"
+    ),
+    derive_for_type(
+        path = "pallet_market::pallet::BalanceEntry",
+        derive = "::serde::Serialize"
+    ),
+    derive_for_type(path = "pallet_market::pallet::Event", derive = "::serde::Serialize"),
+    derive_for_type(
+        path = "pallet_storage_provider::pallet::Event",
+        derive = "::serde::Serialize"
+    ),
+    derive_for_type(
+        path = "bounded_collections::bounded_vec::BoundedVec",
+        derive = "::serde::Serialize"
+    ),
+    derive_for_type(
+        path = "bounded_collections::bounded_btree_set::BoundedBTreeSet",
+        derive = "::serde::Serialize"
+    ),
+    derive_for_type(
+        path = "pallet_market::pallet::SettledDealData",
+        derive = "::serde::Serialize"
+    ),
+    derive_for_type(
+        path = "pallet_market::pallet::DealSettlementError",
+        derive = "::serde::Serialize"
+    ),
+    derive_for_type(
+        path = "pallet_storage_provider::storage_provider::StorageProviderInfo",
+        derive = "::serde::Serialize"
+    ),
+    derive_for_type(
+        path = "pallet_storage_provider::sector::SectorPreCommitInfo",
+        derive = "::serde::Serialize"
+    ),
+    derive_for_type(
+        path = "pallet_storage_provider::fault::FaultDeclaration",
+        derive = "::serde::Serialize"
+    ),
+    derive_for_type(
+        path = "pallet_storage_provider::fault::RecoveryDeclaration",
+        derive = "::serde::Serialize"
     )
 )]
 mod polka_storage_runtime {}
 
 // Using self keeps the import separate from the others
+pub use client::SubmissionResult;
+
 pub use self::polka_storage_runtime::*;
 
 #[cfg(test)]

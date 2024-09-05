@@ -23,19 +23,18 @@
         };
         rustToolchain = pkgs.pkgsBuildHost.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
         buildInputs = with pkgs; [
-          # Building Docker images and publishing to Azure Container Registry
-          azure-cli
+          azure-cli # Building Docker images and publishing to Azure Container Registry
           cargo-expand
+          cargo-tarpaulin
           clang
-          pkg-config
-          rustToolchain
-          subxt
           just
-          taplo
-          polkadot
           mdbook
           mdbook-linkcheck
-          cargo-tarpaulin
+          pkg-config
+          polkadot
+          rustToolchain
+          subxt
+          taplo
           # Due to zombienet's flake.nix, needs to be prefixed with pkg.zombienet
           pkgs.zombienet.default
         ]
@@ -43,10 +42,6 @@
           darwin.apple_sdk.frameworks.Security
           darwin.apple_sdk.frameworks.CoreServices
           darwin.apple_sdk.frameworks.SystemConfiguration
-        ])
-        ++ (lib.optionals stdenv.isLinux [
-          # TODO(@th7nder,#264, 24/08/2024): migrate to tarpaulin, because it's multiplatform:
-          cargo-llvm-cov
         ]);
       in
       with pkgs;

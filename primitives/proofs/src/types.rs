@@ -11,7 +11,13 @@ pub type DealId = u64;
 pub type SectorNumber = u64;
 
 /// SectorSize indicates one of a set of possible sizes in the network.
-#[derive(Encode, Decode, TypeInfo, Clone, RuntimeDebug, PartialEq, Eq, Copy)]
+#[derive(
+    Encode, Decode, DecodeAsType, EncodeAsType, TypeInfo, Clone, RuntimeDebug, PartialEq, Eq, Copy,
+)]
+#[cfg_attr(feature = "serde", derive(::serde::Deserialize, ::serde::Serialize))]
+#[codec(crate = ::codec)]
+#[decode_as_type(crate_path = "::scale_decode")]
+#[encode_as_type(crate_path = "::scale_encode")]
 pub enum SectorSize {
     _2KiB,
 }
@@ -27,10 +33,8 @@ impl SectorSize {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(
-    RuntimeDebug, Decode, Encode, DecodeAsType, EncodeAsType, TypeInfo, Eq, PartialEq, Clone,
-)]
-#[cfg_attr(feature = "serde", derive(::serde::Deserialize))]
+#[derive(Debug, Decode, Encode, DecodeAsType, EncodeAsType, TypeInfo, Eq, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(::serde::Deserialize, ::serde::Serialize))]
 #[codec(crate = ::codec)]
 #[decode_as_type(crate_path = "::scale_decode")]
 #[encode_as_type(crate_path = "::scale_encode")]
@@ -59,7 +63,7 @@ impl RegisteredSealProof {
 #[derive(
     Debug, Decode, Encode, DecodeAsType, EncodeAsType, TypeInfo, PartialEq, Eq, Clone, Copy,
 )]
-#[cfg_attr(feature = "serde", derive(::serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(::serde::Deserialize, ::serde::Serialize))]
 #[codec(crate = ::codec)]
 #[decode_as_type(crate_path = "::scale_decode")]
 #[encode_as_type(crate_path = "::scale_encode")]

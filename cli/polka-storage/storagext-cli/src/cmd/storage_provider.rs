@@ -1,23 +1,23 @@
 use std::time::Duration;
 
-use anyhow::bail;
 use clap::Subcommand;
 use primitives_proofs::RegisteredPoStProof;
-use storagext::{clients::StorageProviderClient, FaultDeclaration, RecoveryDeclaration};
+use storagext::{
+    clients::StorageProviderClient, runtime::SubmissionResult, FaultDeclaration,
+    PolkaStorageConfig, RecoveryDeclaration,
+};
 use url::Url;
 
 use crate::{
     deser::{ParseablePath, PreCommitSector, ProveCommitSector, SubmitWindowedPoStParams},
-    missing_keypair_error, operation_takes_a_while, MultiPairSigner,
+    missing_keypair_error, operation_takes_a_while, MultiPairSigner, OutputFormat,
 };
 
-fn parse_post_proof(src: &str) -> Result<RegisteredPoStProof, anyhow::Error> {
-    let post_proof = match src {
-        "2KiB" => RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
-        unknown => bail!("Unknown PoSt Proof type: {}", unknown),
-    };
-
-    Ok(post_proof)
+fn parse_post_proof(src: &str) -> Result<RegisteredPoStProof, String> {
+    match src {
+        "2KiB" => Ok(RegisteredPoStProof::StackedDRGWindow2KiBV1P1),
+        unknown => Err(format!("Unknown PoSt Proof type: {}", unknown)),
+    }
 }
 
 #[derive(Debug, Subcommand)]
@@ -87,6 +87,7 @@ impl StorageProviderCommand {
         account_keypair: Option<MultiPairSigner>,
         n_retries: u32,
         retry_interval: Duration,
+        output_format: OutputFormat,
     ) -> Result<(), anyhow::Error> {
         let client = StorageProviderClient::new(node_rpc, n_retries, retry_interval).await?;
 
@@ -98,13 +99,24 @@ impl StorageProviderCommand {
             // https://users.rust-lang.org/t/clap-ignore-global-argument-in-sub-command/101701/8
             StorageProviderCommand::RetrieveStorageProviders => {
                 let storage_providers = client.retrieve_registered_storage_providers().await?;
-                tracing::debug!("Registered Storage Providers: {:?}", storage_providers);
+                // Vec<String> does not implement Display and we can't implement it either
+                // for now, this works well enough
+                match output_format {
+                    OutputFormat::Plain => {
+                        println!("Registered Storage Providers: {:?}", storage_providers)
+                    }
+                    OutputFormat::Json => {
+                        println!("{}", serde_json::to_string(&storage_providers)?)
+                    }
+                }
             }
             else_ => {
                 let Some(account_keypair) = account_keypair else {
                     return Err(missing_keypair_error::<Self>().into());
                 };
-                else_.with_keypair(client, account_keypair).await?;
+                else_
+                    .with_keypair(client, account_keypair, output_format)
+                    .await?;
             }
         };
 
@@ -115,6 +127,7 @@ impl StorageProviderCommand {
         self,
         client: StorageProviderClient,
         account_keypair: MultiPairSigner,
+        output_format: OutputFormat,
     ) -> Result<(), anyhow::Error> {
         operation_takes_a_while();
 
@@ -123,67 +136,23 @@ impl StorageProviderCommand {
                 peer_id,
                 post_proof,
             } => {
-                let submission_result = client
-                    .register_storage_provider(&account_keypair, peer_id.clone(), post_proof)
-                    .await?;
-                tracing::debug!(
-                    "[{}] Successfully registered {}, seal: {:?} in Storage Provider Pallet",
-                    submission_result.hash,
-                    peer_id,
-                    post_proof
-                );
-
-                submission_result
+                Self::register_storage_provider(client, account_keypair, peer_id, post_proof)
+                    .await?
             }
             StorageProviderCommand::PreCommit { pre_commit_sector } => {
-                let sector_number = pre_commit_sector.sector_number;
-                let submission_result = client
-                    .pre_commit_sector(&account_keypair, pre_commit_sector.into())
-                    .await?;
-                tracing::debug!(
-                    "[{}] Successfully pre-commited sector {}.",
-                    submission_result.hash,
-                    sector_number
-                );
-
-                submission_result
+                Self::pre_commit(client, account_keypair, pre_commit_sector).await?
             }
             StorageProviderCommand::ProveCommit {
                 prove_commit_sector,
-            } => {
-                let sector_number = prove_commit_sector.sector_number;
-                let submission_result = client
-                    .prove_commit_sector(&account_keypair, prove_commit_sector.into())
-                    .await?;
-                tracing::debug!(
-                    "[{}] Successfully proven sector {}.",
-                    submission_result.hash,
-                    sector_number
-                );
-
-                submission_result
-            }
+            } => Self::prove_commit(client, account_keypair, prove_commit_sector).await?,
             StorageProviderCommand::SubmitWindowedProofOfSpaceTime { windowed_post } => {
-                let submission_result = client
-                    .submit_windowed_post(&account_keypair, windowed_post.into())
-                    .await?;
-                tracing::debug!("[{}] Successfully submitted proof.", submission_result.hash);
-
-                submission_result
+                Self::submit_windowed_post(client, account_keypair, windowed_post).await?
             }
             StorageProviderCommand::DeclareFaults { faults } => {
-                let submission_result = client.declare_faults(&account_keypair, faults).await?;
-                tracing::debug!("[{}] Successfully declared faults.", submission_result.hash);
-
-                submission_result
+                Self::declare_faults(client, account_keypair, faults).await?
             }
             StorageProviderCommand::DeclareFaultsRecovered { recoveries } => {
-                let submission_result = client
-                    .declare_faults_recovered(&account_keypair, recoveries)
-                    .await?;
-                tracing::debug!("[{}] Successfully declared faults.", submission_result.hash);
-
-                submission_result
+                Self::declare_faults_recovered(client, account_keypair, recoveries).await?
             }
             _unsigned => unreachable!("unsigned commands should have been previously handled"),
         };
@@ -191,7 +160,7 @@ impl StorageProviderCommand {
         // This monstrosity first converts incoming events into a "generic" (subxt generated) event,
         // and then we extract only the Market events. We could probably extract this into a proper
         // iterator but the effort to improvement ratio seems low (for 2 pallets at least).
-        for event in submission_result
+        let submission_results = submission_result
             .events
             .iter()
             .flat_map(|event| {
@@ -201,11 +170,107 @@ impl StorageProviderCommand {
                 Ok(storagext::runtime::Event::StorageProvider(e)) => Some(Ok(e)),
                 Err(err) => Some(Err(err)),
                 _ => None,
-            })
-        {
+            });
+        for event in submission_results {
             let event = event?;
-            println!("[{}] {}", submission_result.hash, event);
+            let output = output_format.format(&event)?;
+            match output_format {
+                OutputFormat::Plain => println!("[{}] {}", submission_result.hash, output),
+                OutputFormat::Json => println!("{}", output),
+            }
         }
         Ok(())
+    }
+
+    async fn register_storage_provider(
+        client: StorageProviderClient,
+        account_keypair: MultiPairSigner,
+        peer_id: String,
+        post_proof: RegisteredPoStProof,
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error> {
+        let submission_result = client
+            .register_storage_provider(&account_keypair, peer_id.clone(), post_proof)
+            .await?;
+        tracing::debug!(
+            "[{}] Successfully registered {}, seal: {:?} in Storage Provider Pallet",
+            submission_result.hash,
+            peer_id,
+            post_proof
+        );
+
+        Ok(submission_result)
+    }
+
+    async fn pre_commit(
+        client: StorageProviderClient,
+        account_keypair: MultiPairSigner,
+        pre_commit_sector: PreCommitSector,
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error> {
+        let sector_number = pre_commit_sector.sector_number;
+        let submission_result = client
+            .pre_commit_sector(&account_keypair, pre_commit_sector.into())
+            .await?;
+        tracing::debug!(
+            "[{}] Successfully pre-commited sector {}.",
+            submission_result.hash,
+            sector_number
+        );
+
+        Ok(submission_result)
+    }
+
+    async fn prove_commit(
+        client: StorageProviderClient,
+        account_keypair: MultiPairSigner,
+        prove_commit_sector: ProveCommitSector,
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error> {
+        let sector_number = prove_commit_sector.sector_number;
+        let submission_result = client
+            .prove_commit_sector(&account_keypair, prove_commit_sector.into())
+            .await?;
+        tracing::debug!(
+            "[{}] Successfully proven sector {}.",
+            submission_result.hash,
+            sector_number
+        );
+
+        Ok(submission_result)
+    }
+
+    async fn submit_windowed_post(
+        client: StorageProviderClient,
+        account_keypair: MultiPairSigner,
+        windowed_post: SubmitWindowedPoStParams,
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error> {
+        let submission_result = client
+            .submit_windowed_post(&account_keypair, windowed_post.into())
+            .await?;
+        tracing::debug!("[{}] Successfully submitted proof.", submission_result.hash);
+
+        Ok(submission_result)
+    }
+
+    async fn declare_faults(
+        client: StorageProviderClient,
+        account_keypair: MultiPairSigner,
+        faults: Vec<FaultDeclaration>,
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error> {
+        let submission_result = client.declare_faults(&account_keypair, faults).await?;
+        tracing::debug!("[{}] Successfully declared faults.", submission_result.hash);
+
+        Ok(submission_result)
+    }
+
+    async fn declare_faults_recovered(
+        client: StorageProviderClient,
+        account_keypair: MultiPairSigner,
+        recoveries: Vec<RecoveryDeclaration>,
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error> {
+        let submission_result = client
+            .declare_faults_recovered(&account_keypair, recoveries)
+            .await?;
+        tracing::debug!("[{}] Successfully declared faults.", submission_result.hash);
+
+        Ok(submission_result)
     }
 }

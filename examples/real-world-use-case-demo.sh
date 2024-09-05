@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
+export DISABLE_XT_WAIT_WARNING=1
+
 if ! command -v storagext-cli >/dev/null 2>&1; then
     echo "Make sure to follow https://eigerco.github.io/polka-storage-book/getting-started/local-testnet.html#native-binaries."
     echo "This script relies on having a fresh testnet running and 'storagext-cli' in the PATH."
