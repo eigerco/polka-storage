@@ -59,7 +59,7 @@ fn successfully_precommited() {
             .expect("SP should be present because of the pre-check");
 
         assert!(sp.sectors.is_empty()); // not yet proven
-        assert!(!sp.pre_committed_sectors.is_empty());
+        assert_eq!(sp.pre_committed_sectors.len(), 1);
         assert_eq!(sp.pre_commit_deposits, 1);
         assert_eq!(
             Balances::free_balance(account(storage_provider)),
@@ -113,7 +113,7 @@ fn successfully_precommited_no_deals() {
             .expect("SP should be present because of the pre-check");
 
         assert!(sp.sectors.is_empty()); // not yet proven
-        assert!(!sp.pre_committed_sectors.is_empty());
+        assert_eq!(sp.pre_committed_sectors.len(), 1);
         assert_eq!(sp.pre_commit_deposits, 1);
 
         assert_eq!(
@@ -173,7 +173,7 @@ fn successfully_precommited_batch() {
             .expect("SP should be present because of the pre-check");
 
         assert!(sp.sectors.is_empty()); // not yet proven
-        assert!(!sp.pre_committed_sectors.is_empty());
+        assert_eq!(sp.pre_committed_sectors.len(), 6);
         assert_eq!(sp.pre_commit_deposits, 6);
         assert_eq!(
             Balances::free_balance(account(storage_provider)),
