@@ -3,7 +3,8 @@ authors = ["Eiger"]
 language = "en"
 multilingual = false
 src = "src"
-title = "Polka Storage"
+title = "The Polka Storage Book"
+description = "The Polka Storage project aims to bring Filecoin-like storage to Polkadot!"
 
 [output.html]
 mathjax-support = true

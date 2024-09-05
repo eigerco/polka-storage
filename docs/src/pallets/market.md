@@ -222,8 +222,8 @@ The Market Pallet actions can fail with following errors:
   - Deal is not pending.
 - `DealsTooLargeToFitIntoSector` - Sum of all deals piece sizes for a sector exceeds sector size. The sector size is based on the registered proof type. We currently only support registered `StackedDRG2KiBV1P1` proofs, which have 2KiB sector sizes.
 - `TooManyDealsPerBlock` - Tried to activate too many deals at a given `start_block`.
-- `UnexpectedValidationError` - `publish_storage_deals`'s core logic was invoked with a broken invariant that should be called by `validate_deals`. Please report an issue to the developers.
-- `DealPreconditionFailed` - Due to a programmer bug. Please report an issue to the developers.
+- `UnexpectedValidationError` - `publish_storage_deals`'s core logic was invoked with a broken invariant that should be called by `validate_deals`. Please [report an issue](https://github.com/eigerco/polka-storage-book/issues/new) to the developers.
+- `DealPreconditionFailed` - Due to a programmer bug. Please [report an issue](https://github.com/eigerco/polka-storage-book/issues/new) to the developers.
 
 ## Constants
 
