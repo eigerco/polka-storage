@@ -388,6 +388,7 @@ impl pallet_market::Config for Runtime {
     type PalletId = MarketPalletId;
     type OffchainSignature = MultiSignature;
     type OffchainPublic = AccountPublic;
+    type StorageProvider = crate::StorageProvider;
     type MaxDeals = ConstU32<128>;
     type MaxDealsPerBlock = ConstU32<128>;
     type MinDealDuration = MinDealDuration;

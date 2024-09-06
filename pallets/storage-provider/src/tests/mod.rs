@@ -83,8 +83,8 @@ impl pallet_market::Config for Test {
     type Currency = Balances;
     type OffchainSignature = Signature;
     type OffchainPublic = AccountPublic;
+    type StorageProvider = StorageProvider;
     type MaxDeals = ConstU32<500>;
-
     type MinDealDuration = MinDealDuration;
     type MaxDealDuration = MaxDealDuration;
     type MaxDealsPerBlock = ConstU32<500>;

@@ -39,7 +39,7 @@ pub mod pallet {
     use multihash_codetable::{Code, MultihashDigest};
     use primitives_proofs::{
         ActiveDeal, ActiveSector, DealId, Market, RegisteredSealProof, SectorDeal, SectorId,
-        SectorNumber, SectorSize, MAX_DEALS_FOR_ALL_SECTORS, MAX_DEALS_PER_SECTOR,
+        SectorNumber, SectorSize, StorageProvider, MAX_DEALS_FOR_ALL_SECTORS, MAX_DEALS_PER_SECTOR,
         MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
@@ -75,6 +75,9 @@ pub mod pallet {
         ///
         /// Must identify as an on-chain `Self::AccountId`.
         type OffchainPublic: IdentifyAccount<AccountId = Self::AccountId>;
+
+        /// Storage Provider trait implementation for SP validation to validate that given account id's are registered as SP.
+        type StorageProvider: StorageProvider<Self::AccountId>;
 
         /// How many deals can be published in a single batch of `publish_storage_deals`.
         #[pallet::constant]
@@ -445,6 +448,8 @@ pub mod pallet {
         DealsTooLargeToFitIntoSector,
         /// Tried to activate too many deals at a given start_block.
         TooManyDealsPerBlock,
+        /// Try to call an operation as a storage provider but the account is not registered as a storage provider.
+        StorageProviderNotRegistered,
     }
 
     pub enum DealActivationError {
@@ -1142,7 +1147,10 @@ pub mod pallet {
                 Error::<T>::ProposalsNotPublishedByStorageProvider
             );
 
-            // TODO(@th7nder,#87,17/06/2024): validate a Storage Provider's Account (whether the account was registered as Storage Provider)
+            ensure!(
+                T::StorageProvider::is_registered_storage_provider(&caller),
+                Error::<T>::StorageProviderNotRegistered
+            );
 
             let mut total_client_lockup: BoundedBTreeMap<T::AccountId, BalanceOf<T>, T::MaxDeals> =
                 BoundedBTreeMap::new();
@@ -1277,7 +1285,10 @@ pub mod pallet {
             BoundedVec<ActiveSector<T::AccountId>, ConstU32<MAX_SECTORS_PER_CALL>>,
             DispatchError,
         > {
-            // TODO(@th7nder,#87,17/06/2024): validate a Storage Provider's Account (whether the account was registered as Storage Provider)
+            ensure!(
+                T::StorageProvider::is_registered_storage_provider(storage_provider),
+                Error::<T>::StorageProviderNotRegistered
+            );
             let mut activations = BoundedVec::new();
             let curr_block = System::<T>::block_number();
             let mut activated_deal_ids: BoundedBTreeSet<

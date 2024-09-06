@@ -62,6 +62,11 @@ pub trait Market<AccountId, BlockNumber> {
     ) -> DispatchResult;
 }
 
+pub trait StorageProvider<AccountId> {
+    /// Checks that the storage provider is registered.
+    fn is_registered_storage_provider(storage_provider: &AccountId) -> bool;
+}
+
 /// Binds given Sector with the Deals that it should contain
 /// It's used as a data transfer object for extrinsics `verify_deals_for_activation`
 /// as well as `activate deals`.
