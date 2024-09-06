@@ -57,7 +57,7 @@ pub mod pallet {
         Config as SystemConfig,
     };
     use primitives_proofs::{
-        Market, RegisteredPoStProof, RegisteredSealProof, SectorNumber, StorageProvider,
+        Market, RegisteredPoStProof, RegisteredSealProof, SectorNumber, StorageProviderValidation,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::Zero;
@@ -839,7 +839,7 @@ pub mod pallet {
         }
     }
 
-    impl<T: Config> StorageProvider<T::AccountId> for Pallet<T> {
+    impl<T: Config> StorageProviderValidation<T::AccountId> for Pallet<T> {
         fn is_registered_storage_provider(storage_provider: &T::AccountId) -> bool {
             StorageProviders::<T>::contains_key(storage_provider)
         }

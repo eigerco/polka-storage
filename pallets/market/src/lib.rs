@@ -39,8 +39,8 @@ pub mod pallet {
     use multihash_codetable::{Code, MultihashDigest};
     use primitives_proofs::{
         ActiveDeal, ActiveSector, DealId, Market, RegisteredSealProof, SectorDeal, SectorId,
-        SectorNumber, SectorSize, StorageProvider, MAX_DEALS_FOR_ALL_SECTORS, MAX_DEALS_PER_SECTOR,
-        MAX_SECTORS_PER_CALL,
+        SectorNumber, SectorSize, StorageProviderValidation, MAX_DEALS_FOR_ALL_SECTORS,
+        MAX_DEALS_PER_SECTOR, MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::BaseArithmetic;
@@ -77,7 +77,7 @@ pub mod pallet {
         type OffchainPublic: IdentifyAccount<AccountId = Self::AccountId>;
 
         /// Storage Provider trait implementation for SP validation to validate that given account id's are registered as SP.
-        type StorageProvider: StorageProvider<Self::AccountId>;
+        type StorageProviderValidation: StorageProviderValidation<Self::AccountId>;
 
         /// How many deals can be published in a single batch of `publish_storage_deals`.
         #[pallet::constant]
@@ -1148,7 +1148,7 @@ pub mod pallet {
             );
 
             ensure!(
-                T::StorageProvider::is_registered_storage_provider(&caller),
+                T::StorageProviderValidation::is_registered_storage_provider(&caller),
                 Error::<T>::StorageProviderNotRegistered
             );
 
@@ -1286,7 +1286,7 @@ pub mod pallet {
             DispatchError,
         > {
             ensure!(
-                T::StorageProvider::is_registered_storage_provider(storage_provider),
+                T::StorageProviderValidation::is_registered_storage_provider(storage_provider),
                 Error::<T>::StorageProviderNotRegistered
             );
             let mut activations = BoundedVec::new();

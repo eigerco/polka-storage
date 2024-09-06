@@ -62,7 +62,7 @@ pub trait Market<AccountId, BlockNumber> {
     ) -> DispatchResult;
 }
 
-pub trait StorageProvider<AccountId> {
+pub trait StorageProviderValidation<AccountId> {
     /// Checks that the storage provider is registered.
     fn is_registered_storage_provider(storage_provider: &AccountId) -> bool;
 }

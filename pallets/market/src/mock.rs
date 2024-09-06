@@ -74,7 +74,7 @@ impl crate::Config for Test {
     type Currency = Balances;
     type OffchainSignature = Signature;
     type OffchainPublic = AccountPublic;
-    type StorageProvider = StorageProvider;
+    type StorageProviderValidation = StorageProvider;
     type MaxDeals = ConstU32<32>;
     type MinDealDuration = ConstU64<2>;
     type MaxDealDuration = ConstU64<30>;
