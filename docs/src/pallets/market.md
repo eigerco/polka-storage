@@ -210,7 +210,7 @@ The Market Pallet actions can fail with following errors:
 
 - `InsufficientFreeFunds` - Market participants do not have enough free funds.
 - `NoProposalsToBePublished` - `publish_storage_deals` was called with an empty list of `deals`.
-- `ProposalsNotPublishedByStorageProvider` - Is returned when calling `publish_storage_deals` and the deals in a list are not published by the same storage provider.
+- `ProposalsPublishedByIncorrectStorageProvider` - Is returned when calling `publish_storage_deals` and the deals in a list are not published by the same storage provider.
 - `AllProposalsInvalid` - `publish_storage_deals` call was supplied with a list of `deals` which are all invalid.
 - `DuplicateDeal` - There is more than one deal with this ID in the Sector.
 - `DealNotFound` - Tried to activate a deal that is not in the system.

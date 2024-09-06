@@ -235,12 +235,13 @@ fn publish_storage_deals_fails_empty_deals() {
 #[test]
 fn publish_storage_deals_fails_caller_not_provider() {
     new_test_ext().execute_with(|| {
+        register_storage_provider(account::<Test>(ALICE));
         assert_noop!(
             Market::publish_storage_deals(
                 RuntimeOrigin::signed(account::<Test>(ALICE)),
                 bounded_vec![DealProposalBuilder::<Test>::default().signed(ALICE)]
             ),
-            Error::<Test>::ProposalsNotPublishedByStorageProvider
+            Error::<Test>::ProposalsPublishedByIncorrectStorageProvider
         );
     });
 }
