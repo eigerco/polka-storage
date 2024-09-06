@@ -213,18 +213,19 @@ impl StorageProviderCommand {
         account_keypair: MultiPairSigner,
         pre_commit_sectors: Vec<PreCommitSector>,
     ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error> {
-        let sector_numbers: Vec<SectorNumber> =
-            pre_commit_sectors.iter().map(|s| s.sector_number).collect();
-        let pre_commit_sectors = BoundedVec(
-            pre_commit_sectors
-                .into_iter()
-                .map(|s| {
-                    let sxt_sector: storagext::SectorPreCommitInfo = s.into();
-                    let sector: SectorPreCommitInfo<BlockNumber> = sxt_sector.into();
-                    sector
-                })
-                .collect::<Vec<SectorPreCommitInfo<BlockNumber>>>(),
-        );
+        let (sector_numbers, pre_commit_sectors): (
+            Vec<SectorNumber>,
+            Vec<SectorPreCommitInfo<BlockNumber>>,
+        ) = pre_commit_sectors
+            .into_iter()
+            .map(|s| {
+                let sector_number = s.sector_number;
+                let sxt_sector: storagext::SectorPreCommitInfo = s.into();
+                let sector: SectorPreCommitInfo<BlockNumber> = sxt_sector.into();
+                (sector_number, sector)
+            })
+            .unzip();
+        let pre_commit_sectors = BoundedVec(pre_commit_sectors);
         let submission_result = client
             .pre_commit_sectors(&account_keypair, pre_commit_sectors)
             .await?;
