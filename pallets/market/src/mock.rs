@@ -83,7 +83,7 @@ impl crate::Config for Test {
 
 impl pallet_storage_provider::Config for Test {
     type RuntimeEvent = RuntimeEvent;
-    type PeerId = BoundedVec<u8, ConstU32<256>>; // Arbitrary length
+    type PeerId = BoundedVec<u8, ConstU32<32>>; // Max length of SHA256 hash
     type Currency = Balances;
     type Market = Market;
     type WPoStProvingPeriod = WpostProvingPeriod;
