@@ -1,6 +1,7 @@
 # Summary
 
 - [Introduction](./introduction.md)
+- [Architecture](./architecture.md)
 - [Getting Started](./getting-started/index.md)
   - [Local Testnet - Polka Storage Parachain](./getting-started/local-testnet.md)
   - [CAR server](./getting-started/car-server.md)
