@@ -34,3 +34,15 @@ first registering themselves in the network, registering deals and eventually su
 The validation of the proofs is not done by the collator per-se, but rather by an offchain worker,
 that can be hosted along with the collator or not. This is due to the WASM runtime limitations —
 we cannot run proof verification inside it.
+
+## Resources on Parachains
+
+Reading:
+* [Parachains' Protocol Overview](https://wiki.polkadot.network/docs/learn-parachains-protocol)
+* [The Path of a Parachain Block](https://polkadot.com/blog/the-path-of-a-parachain-block)
+
+Videos:
+* [Introduction to Polkadot, Parachains, and Substrate](https://www.youtube.com/live/gT-9r1bcVHY?si=dmCJyWB5w2NY1bnu&t=1670)
+* [The Path of a Parachain Block - Joe Petrowski](https://www.youtube.com/watch?v=vRsBlVELQEo)
+* [The Path of a Parachain Block on Polkadot and Kusama Network](https://www.youtube.com/watch?v=m0vxqWwFfDs)
+
