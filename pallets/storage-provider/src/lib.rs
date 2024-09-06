@@ -400,6 +400,7 @@ pub mod pallet {
             let sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
             let current_block = <frame_system::Pallet<T>>::block_number();
+            let sector_amount = sectors.len();
 
             // Pre-committed sectors for emitting the event.
             let mut pre_committed_sectors = BoundedVec::new();
@@ -410,6 +411,12 @@ pub mod pallet {
             > = BoundedVec::new();
             // Total deposit amount to avoid mutating the SP multiple times and reserve only once.
             let mut total_deposit = BalanceOf::<T>::zero();
+            // sector deals for all pre commits
+            let mut all_sector_deals = BoundedVec::new();
+            // unsealed_cids for all sectors
+            let mut unsealed_cids = BoundedVec::new();
+            // deal amounts for each sector
+            let mut deal_amounts = BoundedVec::new();
 
             for sector in sectors {
                 // Basic pre-commit validation.
@@ -431,27 +438,36 @@ pub mod pallet {
                 );
                 let sector_deals = Self::create_sector_deals_for_pre_commit(&sector_on_chain)?;
 
-                let calculated_unsealed_cid =
-                    T::Market::verify_deals_for_activation(&owner, sector_deals)?;
-                Self::check_commd_for_pre_commit(
-                    calculated_unsealed_cid,
-                    sector.deal_ids.len(),
-                    unsealed_cid,
-                )?;
-
+                // Push deal amounts for later verification
+                deal_amounts.try_push(sector_on_chain.info.deal_ids.len()).expect("Programmer error: cannot have more that MAX_SECTORS_PER_CALL deal_amount because of previous bounds");
+                // Push all unsealed_cids and deal amount to verify later.
+                unsealed_cids.try_push(unsealed_cid).expect("Programmer error: cannot have more that MAX_SECTORS_PER_CALL unsealed_cids because of previous bounds");
+                // Push all deals to verify in one go later.
+                for deal in sector_deals {
+                    all_sector_deals.try_push(deal).expect(
+                        "Programmer error: sector deals cannot be more that MAX_SECTORS_PER_CALL because of previous bounds",
+                    );
+                }
                 // Add deposit to total deposit and push sector_on_chain to on_chain_sectors
                 // to avoid mutation of the SP for every sector.
                 total_deposit += deposit;
                 on_chain_sectors
                     .try_push(sector_on_chain)
                     .expect("Programmer error: on chain sectors should fit in this BoundedVec due to previous validation");
-
                 // Push sector to BoundedVec for deposit event at the end
                 pre_committed_sectors
                     .try_push(sector)
                     .expect("Programmer error: sectors should fit in this BoundedVec due to previous validation");
             }
 
+            let calculated_unsealed_cids =
+                T::Market::verify_deals_for_activation(&owner, all_sector_deals)?;
+            Self::check_commd_for_pre_commit(
+                calculated_unsealed_cids,
+                sector_amount,
+                unsealed_cids,
+                deal_amounts,
+            )?;
             T::Currency::reserve(&owner, total_deposit)?;
             StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResult {
                 let sp = maybe_sp
@@ -1149,26 +1165,28 @@ pub mod pallet {
         /// Verifies that the unsealed_cid (CommD) and checks that it matches the given unsealed CID.
         fn check_commd_for_pre_commit(
             calculated_unsealed_cid: BoundedVec<Option<Cid>, ConstU32<MAX_SECTORS_PER_CALL>>,
-            deal_amount: usize,
-            unsealed_cid: cid::Cid,
+            sector_amount: usize,
+            unsealed_cids: BoundedVec<cid::Cid, ConstU32<MAX_SECTORS_PER_CALL>>,
+            deal_amounts: BoundedVec<usize, ConstU32<MAX_SECTORS_PER_CALL>>,
         ) -> Result<(), Error<T>> {
-            ensure!(calculated_unsealed_cid.len() == 1, {
+            ensure!(calculated_unsealed_cid.len() == sector_amount, {
                 log::error!(target: LOG_TARGET, "pre_commit_sector: failed to verify deals, invalid calculated_commd length: {}", calculated_unsealed_cid.len());
                 Error::<T>::CouldNotVerifySectorForPreCommit
             });
 
-            // We need to verify CommD only if there are deals in the sector, otherwise it's a Committed Capacity sector.
-            if deal_amount > 0 {
+            for (i, unsealed_cid) in unsealed_cids.into_iter().enumerate() {
                 // PRE-COND: verify_deals_for_activation is called with a single sector, so a single CommD should always be returned
-                let Some(calculated_commd) = calculated_unsealed_cid[0] else {
-                    log::error!(target: LOG_TARGET, "pre_commit_sector: commd from verify_deals is None...");
-                    fail!(Error::<T>::CouldNotVerifySectorForPreCommit)
-                };
+                if deal_amounts[i] > 0 {
+                    let Some(calculated_commd) = calculated_unsealed_cid[i] else {
+                        log::error!(target: LOG_TARGET, "pre_commit_sector: commd from verify_deals is None...");
+                        fail!(Error::<T>::CouldNotVerifySectorForPreCommit)
+                    };
 
-                ensure!(calculated_commd == unsealed_cid, {
-                    log::error!(target: LOG_TARGET, "pre_commit_sector: calculated_commd != sector.unsealed_cid, {:?} != {:?}", calculated_commd, unsealed_cid);
-                    Error::<T>::InvalidUnsealedCidForSector
-                });
+                    ensure!(calculated_commd == unsealed_cid, {
+                        log::error!(target: LOG_TARGET, "pre_commit_sector: calculated_commd != sector.unsealed_cid, {:?} != {:?}", calculated_commd, unsealed_cid);
+                        Error::<T>::InvalidUnsealedCidForSector
+                    });
+                }
             }
             Ok(())
         }
