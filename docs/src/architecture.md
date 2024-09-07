@@ -35,6 +35,17 @@ The validation of the proofs is not done by the collator per-se, but rather by a
 that can be hosted along with the collator or not. This is due to the WASM runtime limitations —
 we cannot run proof verification inside it.
 
+## Storage Provider Overview
+
+<img src="images/architecture/storage_provider_overview.svg">
+
+The storage provider is composed of the proof subsystem which proves the storage,
+a cron-like service that schedules the proving process and the CAR library that validates CAR files submitted by the user.
+
+The client submits prepared CAR files over Graphsync, which the CAR library then validates — verifies the contents match the CID.
+
+After the data has been submitted, it needs to be proven, the cron will schedule the proving process for each deal accepted from the clients.
+
 ## Resources on Parachains
 
 Reading:
