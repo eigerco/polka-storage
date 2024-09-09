@@ -434,7 +434,7 @@ pub mod pallet {
                 let sector_on_chain = SectorPreCommitOnChainInfo::new(
                     sector.clone(),
                     deposit,
-                    <frame_system::Pallet<T>>::block_number(),
+                    current_block,
                 );
                 let sector_deals = Self::create_sector_deals_for_pre_commit(&sector_on_chain)?;
 
