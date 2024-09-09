@@ -20,7 +20,7 @@ use crate::{self as pallet_market, BalanceOf, ClientDealProposal, DealProposal, 
 type Block = frame_system::mocking::MockBlock<Test>;
 type BlockNumber = u64;
 
-const MINUTES: BlockNumber = 1;
+const MINUTES: BlockNumber = 10;
 
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
