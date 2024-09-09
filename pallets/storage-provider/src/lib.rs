@@ -381,7 +381,7 @@ pub mod pallet {
         }
 
         /// The Storage Provider uses this extrinsic to pledge and seal X sectors at once.
-        /// If a single sector fails to pre commit for whatever reason, the whole extrinsic will fail.
+        /// If a single sector fails to pre commit for whatever reason, the extrinsic will fail.
         ///
         /// The deposit amount is calculated by `calculate_pre_commit_deposit`.
         /// The deposited amount is locked until the sector has been terminated.
