@@ -431,11 +431,8 @@ pub mod pallet {
 
                 let unsealed_cid = validate_cid::<T>(&sector.unsealed_cid[..])?;
                 let deposit = calculate_pre_commit_deposit::<T>();
-                let sector_on_chain = SectorPreCommitOnChainInfo::new(
-                    sector.clone(),
-                    deposit,
-                    current_block,
-                );
+                let sector_on_chain =
+                    SectorPreCommitOnChainInfo::new(sector.clone(), deposit, current_block);
                 let sector_deals = Self::create_sector_deals_for_pre_commit(&sector_on_chain)?;
 
                 // Push deal amounts for later verification
@@ -443,11 +440,9 @@ pub mod pallet {
                 // Push all unsealed_cids and deal amount to verify later.
                 unsealed_cids.try_push(unsealed_cid).expect("Programmer error: cannot have more that MAX_SECTORS_PER_CALL unsealed_cids because of previous bounds");
                 // Push all deals to verify in one go later.
-                for deal in sector_deals {
-                    all_sector_deals.try_push(deal).expect(
-                        "Programmer error: sector deals cannot be more that MAX_SECTORS_PER_CALL because of previous bounds",
-                    );
-                }
+                all_sector_deals.try_extend(sector_deals.into_iter()).expect(
+                    "Programmer error: sector deals cannot be more that MAX_SECTORS_PER_CALL because of previous bounds",
+                );
                 // Add deposit to total deposit and push sector_on_chain to on_chain_sectors
                 // to avoid mutation of the SP for every sector.
                 total_deposit = total_deposit
