@@ -205,6 +205,8 @@ fn fails_to_withdraw_balance() {
     });
 }
 
+/// NOTE: Success case should be tested but cannot be isolated.
+/// Deal functionality with a registered storage provider is tested in success cases.
 #[test]
 fn publish_storage_deals_fails_sp_not_registered() {
     new_test_ext().execute_with(|| {
