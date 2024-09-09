@@ -1180,7 +1180,6 @@ pub mod pallet {
             });
 
             for (i, unsealed_cid) in unsealed_cids.into_iter().enumerate() {
-                // PRE-COND: verify_deals_for_activation is called with a single sector, so a single CommD should always be returned
                 if deal_amounts[i] > 0 {
                     let Some(calculated_commd) = calculated_unsealed_cid[i] else {
                         log::error!(target: LOG_TARGET, "pre_commit_sector: commd from verify_deals is None...");
