@@ -30,15 +30,15 @@ storagext-cli --sr25519-key <key> storage-provider register <peer_id>
 
 ### `pre-commit`
 
-The `pre-commit` command [pre-commits](../pallets/storage-provider.md#pre_commit_sector) a sector with deals that have been published by `market publish-storage-deals`. The pre-committed sector has to be proven or the deals will not activate and will be slashed.
+The `pre-commit` command [pre-commits](../pallets/storage-provider.md#pre_commit_sectors) a sector with deals that have been published by `market publish-storage-deals`. The pre-committed sector has to be proven or the deals will not activate and will be slashed.
 
 ### Parameters
 
-| Name                | Description                     | Type                                                                                                                         |
-| ------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `PRE_COMMIT_SECTOR` | The sector we are committing to | JSON object. Can be passed as a string, or as a file path prefixed with `@` pointing to the file containing the JSON object. |
+| Name                 | Description                     | Type                                                                                                                         |
+| -------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `PRE_COMMIT_SECTORS` | The sector we are committing to | JSON object. Can be passed as a string, or as a file path prefixed with `@` pointing to the file containing the JSON object. |
 
-The `PRE_COMMIT_SECTOR` JSON object has the following structure:
+The `PRE_COMMIT_SECTORs` JSON object has the following structure:
 
 | Name            | Description       |
 | --------------- | ----------------- |
@@ -61,17 +61,19 @@ storagext-cli --sr25519-key <key> storage-provider pre-commit \
 Where `pre-commit-sector.json` is a file with contents similar to:
 
 ```json
-{
-  "sector_number": 0,
-  "sealed_cid": "bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu",
-  "deal_ids": [0],
-  "expiration": 100,
-  "unsealed_cid": "bafkreibme22gw2h7y2h7tg2fhqotaqjucnbc24deqo72b6mkl2egezxhvy",
-  "seal_proof": "StackedDRG2KiBV1P1"
-}
+[
+  {
+    "sector_number": 0,
+    "sealed_cid": "bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu",
+    "deal_ids": [0],
+    "expiration": 100,
+    "unsealed_cid": "bafkreibme22gw2h7y2h7tg2fhqotaqjucnbc24deqo72b6mkl2egezxhvy",
+    "seal_proof": "StackedDRG2KiBV1P1"
+  }
+]
 ```
 
-> More information about the `pre_commit` extrinsic is available in [_Pallets/Storage Provider/Pre-commit sector_](../pallets/storage-provider.md#pre_commit_sector).
+> More information about the `pre_commit` extrinsic is available in [_Pallets/Storage Provider/Pre-commit sector_](../pallets/storage-provider.md#pre_commit_sectors).
 
 ### `prove-commit`
 

@@ -51,8 +51,8 @@ pub enum StorageProviderCommand {
     /// Pre-commit sector containing deals, so they can be proven.
     /// If deals have been published and not pre-commited and proven, they'll be slashed by Market Pallet.
     PreCommit {
-        #[arg(value_parser = <PreCommitSector as ParseablePath>::parse_json)]
-        pre_commit_sectors: Vec<PreCommitSector>,
+        #[arg(value_parser = <Vec<PreCommitSector> as ParseablePath>::parse_json)]
+        pre_commit_sectors: std::vec::Vec<PreCommitSector>,
     },
 
     /// Proves sector that has been previously pre-committed.

@@ -7,7 +7,7 @@
   - [Declaring storage faults and recoveries](#declaring-storage-faults-and-recoveries)
 - [Extrinsics](#extrinsics)
   - [`register_storage_provider`](#register_storage_provider)
-  - [`pre_commit_sector`](#pre_commit_sector)
+  - [`pre_commit_sectors`](#pre_commit_sectors)
   - [`prove_commit_sector`](#prove_commit_sector)
   - [`submit_windowed_post`](#submit_windowed_post)
   - [`declare_faults`](#declare_faults)
@@ -67,10 +67,11 @@ storagext-cli --sr25519-key "//Alice" storage-provider register alice
 
 [^register_storage_provider]: Read more about the `register` command in [_Storagext CLI/Subcommand `storage-provider`/`register`_](../storagext-cli/storage-provider.md#register)
 
-### `pre_commit_sector`
+### `pre_commit_sectors`
 
 After publishing a deal, the storage provider needs to pre-commit the sector information to the chain.
-Sectors are not valid after pre-commit. The sectors need to be proven first.
+Sectors are not valid after pre-commit. The sectors need to be proven first. 
+The pre-commit extrinsic takes in an array of the following values:
 
 | Name            | Description                                                            | Type                                                           |
 | --------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------- |
@@ -87,9 +88,9 @@ Sectors are not valid after pre-commit. The sectors need to be proven first.
 
 [^note]: Only one seal-proof type supported at the moment, `2KiB`.
 
-#### <a class="header" id="pre_commit_sector.example" href="#pre_commit_sector.example">Example</a>
+#### <a class="header" id="pre_commit_sectors.example" href="#pre_commit_sectors.example">Example</a>
 
-Storage provider `//Alice` pre-committing[^pre_commit_sector] a sector number 1, with a single deal ID 0.
+Storage provider `//Alice` pre-committing[^pre_commit_sectors] a sector number 1, with a single deal ID 0.
 
 ```bash
 storagext-cli --sr25519-key "//Alice" storage-provider pre-commit @pre-commit-sector.json
@@ -108,7 +109,7 @@ Where `pre-commit-sector.json` is a file with contents similar to:
 }
 ```
 
-[^pre_commit_sector]: Read more about the `pre-commit` command in [_Storagext CLI/Subcommand `storage-provider`/`pre-commit`_](../storagext-cli/storage-provider.md#pre-commit)
+[^pre_commit_sectors]: Read more about the `pre-commit` command in [_Storagext CLI/Subcommand `storage-provider`/`pre-commit`_](../storagext-cli/storage-provider.md#pre-commit)
 
 ### `prove_commit_sector`
 
@@ -347,7 +348,7 @@ The Storage Provider Pallet has the following constants:
 | `MinSectorExpiration`                                             | Minimum time past the current block a sector may be set to expire.                                                                                                                | 5 Minutes   |
 | `MaxSectorExpirationExtension`                                    | Maximum time past the current block a sector may be set to expire.                                                                                                                | 60 Minutes  |
 | `SectorMaximumLifetime`                                           | Maximum time a sector can stay in pre-committed state.                                                                                                                            | 120 Minutes |
-| `MaxProveCommitDuration`                                          | Maximum time between [pre-commit](#pre_commit_sector) and [proving](#prove_commit_sector) the committed sector.                                                                   | 5 Minutes   |
+| `MaxProveCommitDuration`                                          | Maximum time between [pre-commit](#pre_commit_sectors) and [proving](#prove_commit_sector) the committed sector.                                                                   | 5 Minutes   |
 | `MaxPartitionsPerDeadline`                                        | Maximum number of partitions that can be assigned to a single deadline.                                                                                                           | 3000        |
 | `FaultMaxAge`                                                     | Maximum time a [fault](../glossary.md#fault) can exist before being removed by the pallet.                                                                                        | 210 Minutes |
 | <code id="fault-declaration-cutoff">FaultDeclarationCutoff</code> | Time before a deadline opens that a storage provider can declare or recover a fault.                                                                                              | 2 Minutes   |
