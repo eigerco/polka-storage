@@ -124,6 +124,7 @@ fn successfully_precommited_no_deals() {
 #[test]
 fn successfully_precommited_batch() {
     new_test_ext().execute_with(|| {
+        const SECTORS_TO_PRECOMMIT: u64 = 6;
         // Register CHARLIE as a storage provider.
         let storage_provider = CHARLIE;
         register_storage_provider(account(storage_provider));
@@ -135,7 +136,7 @@ fn successfully_precommited_batch() {
             SectorPreCommitInfo<BlockNumberFor<Test>>,
             ConstU32<MAX_SECTORS_PER_CALL>,
         > = bounded_vec![];
-        for sector_number in 0..=5 {
+        for sector_number in 0..SECTORS_TO_PRECOMMIT {
             sectors
                 .try_push(
                     SectorPreCommitInfoBuilder::default()
@@ -157,7 +158,7 @@ fn successfully_precommited_batch() {
             [
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Reserved {
                     who: account(storage_provider),
-                    amount: 6
+                    amount: SECTORS_TO_PRECOMMIT
                 },),
                 RuntimeEvent::StorageProvider(Event::<Test>::SectorsPreCommitted {
                     owner: account(storage_provider),
@@ -170,11 +171,14 @@ fn successfully_precommited_batch() {
             .expect("SP should be present because of the pre-check");
 
         assert!(sp.sectors.is_empty()); // not yet proven
-        assert_eq!(sp.pre_committed_sectors.len(), 6);
-        assert_eq!(sp.pre_commit_deposits, 6);
+        assert_eq!(
+            sp.pre_committed_sectors.len(),
+            (SECTORS_TO_PRECOMMIT as usize)
+        );
+        assert_eq!(sp.pre_commit_deposits, SECTORS_TO_PRECOMMIT);
         assert_eq!(
             Balances::free_balance(account(storage_provider)),
-            INITIAL_FUNDS - 70 - 6 // 1 for each pre-commit deposit
+            INITIAL_FUNDS - 70 - SECTORS_TO_PRECOMMIT
         );
     });
 }
