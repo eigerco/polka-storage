@@ -7,7 +7,7 @@ and through them perform state transitions.
 
 <img src="images/architecture/system_overview.svg" >
 
-From left to right, we have validators (represented by a single one as only one validates blocks at a time),
+From left to right, we have validators (represented by a single node as only one validates blocks at a time),
 collators, storage providers and their respective storage.
 
 The validators handled by Polkadot itself, validating the blocks submitted by a collator selected at random
@@ -15,7 +15,7 @@ The validators handled by Polkadot itself, validating the blocks submitted by a 
 
 The collators run our parachain runtime and process extrinsic calls from the storage providers —
 such as proof of storage submissions.
-The storage providers are independent of the collators, being controlled by arbitrary people that provide storage to the system.
+The storage providers are independent of the collators and are controlled by arbitrary people who provide storage to the system.
 Storage management is left to the storage providers, being responsible to keep their physical system in good shape to serve clients.
 
 ## Collator Overview
