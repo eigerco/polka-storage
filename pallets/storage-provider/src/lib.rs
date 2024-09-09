@@ -57,8 +57,8 @@ pub mod pallet {
         Config as SystemConfig,
     };
     use primitives_proofs::{
-        Market, RegisteredPoStProof, RegisteredSealProof, SectorDeal, SectorNumber,
-        StorageProviderValidation, MAX_SECTORS_PER_CALL,
+        Market, RegisteredPoStProof, RegisteredSealProof, SectorNumber, StorageProviderValidation,
+        MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::Zero;
@@ -433,14 +433,13 @@ pub mod pallet {
                 let deposit = calculate_pre_commit_deposit::<T>();
                 let sector_on_chain =
                     SectorPreCommitOnChainInfo::new(sector.clone(), deposit, current_block);
-                let sector_deals = Self::create_sector_deals_for_pre_commit(&sector_on_chain)?;
 
                 // Push deal amounts for later verification
                 deal_amounts.try_push(sector_on_chain.info.deal_ids.len()).expect("Programmer error: cannot have more that MAX_SECTORS_PER_CALL deal_amount because of previous bounds");
                 // Push all unsealed_cids and deal amount to verify later.
                 unsealed_cids.try_push(unsealed_cid).expect("Programmer error: cannot have more that MAX_SECTORS_PER_CALL unsealed_cids because of previous bounds");
                 // Push all deals to verify in one go later.
-                all_sector_deals.try_extend(sector_deals.into_iter()).expect(
+                all_sector_deals.try_push((&sector_on_chain).into()).expect(
                     "Programmer error: sector deals cannot be more that MAX_SECTORS_PER_CALL because of previous bounds",
                 );
                 // Add deposit to total deposit and push sector_on_chain to on_chain_sectors
@@ -1188,22 +1187,6 @@ pub mod pallet {
                 }
             }
             Ok(())
-        }
-
-        /// Creates sector deals from the on-chain pre-commit information.
-        fn create_sector_deals_for_pre_commit(
-            sector_on_chain: &SectorPreCommitOnChainInfo<BalanceOf<T>, BlockNumberFor<T>>,
-        ) -> Result<
-            BoundedVec<SectorDeal<BlockNumberFor<T>>, ConstU32<MAX_SECTORS_PER_CALL>>,
-            Error<T>,
-        > {
-            let mut sector_deals = BoundedVec::new();
-            sector_deals.try_push((sector_on_chain).into())
-                .map_err(|_| {
-                    log::error!(target: LOG_TARGET, "pre_commit_sector: failed to push into sector deals, shouldn't ever happen");
-                    Error::<T>::CouldNotVerifySectorForPreCommit
-                })?;
-            Ok(sector_deals)
         }
 
         /// Checks if the sectors submitted for pre-commit by the SP are valid.
