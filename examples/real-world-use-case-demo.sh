@@ -35,7 +35,6 @@ startup_validate
 
 HUSKY_DEAL='[
     {
-
         "piece_cid": "bafybeihxgc67fwhdoxo2klvmsetswdmwwz3brpwwl76qizbsl6ypro6vxq",
         "piece_size": 1278,
         "client": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
@@ -46,7 +45,6 @@ HUSKY_DEAL='[
         "storage_price_per_block": 500000000,
         "provider_collateral": 12500000000,
         "state": "Published"
-
     }
 ]'
 echo "$HUSKY_DEAL" > husky-deal.json

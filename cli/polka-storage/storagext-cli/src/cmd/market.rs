@@ -216,7 +216,7 @@ impl MarketCommand {
     {
         let submission_result = client
             .publish_storage_deals(
-                account_keypair,
+                &account_keypair,
                 &client_keypair,
                 deals.0.into_iter().map(Into::into).collect(),
             )

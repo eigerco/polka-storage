@@ -7,7 +7,7 @@
 # For team-wide VS Code configuration, like code-coverage extensions and previews
 !.vscode/settings.json
 # Recommended extensions for VS Code
-!.vscode/extensions.json 
+!.vscode/extensions.json
 
 # Rust .gitignore
 # https://github.com/github/gitignore/blob/main/Rust.gitignore

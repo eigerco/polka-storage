@@ -23,6 +23,8 @@ impl SystemClientExt for crate::runtime::client::Client {
     /// It returns latest non-finalized block.
     async fn height(&self, wait_for_finalization: bool) -> Result<u64, subxt::Error> {
         let mut block_stream = if wait_for_finalization {
+            // NOTE: This is not the best way to implement this
+            // see the source for .at_latest() for a possibly better version
             self.client.blocks().subscribe_finalized().await?
         } else {
             self.client.blocks().subscribe_best().await?
@@ -42,15 +44,21 @@ impl SystemClientExt for crate::runtime::client::Client {
         height: u64,
         wait_for_finalization: bool,
     ) -> Result<(), subxt::Error> {
-        loop {
-            let current_height = self.height(wait_for_finalization).await?;
-            tracing::debug!("Current height: {current_height}");
+        let mut block_stream = if wait_for_finalization {
+            self.client.blocks().subscribe_finalized().await?
+        } else {
+            self.client.blocks().subscribe_best().await?
+        };
 
-            if current_height >= height {
+        while let Some(block) = block_stream.next().await {
+            let block = block?;
+            if block.number() >= height {
                 return Ok(());
             }
-
-            sleep(Duration::from_secs(2)).await;
         }
+
+        Err(subxt::Error::Rpc(
+            subxt::error::RpcError::SubscriptionDropped,
+        ))
     }
 }

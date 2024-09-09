@@ -1,17 +1,29 @@
 use std::future::Future;
 
+use primitives_proofs::RegisteredPoStProof;
 use runtime::runtime_types::bounded_collections::bounded_vec::BoundedVec;
-use subxt::ext::{futures::TryStreamExt, sp_core::crypto::Ss58Codec};
+use subxt::{
+    ext::{futures::TryStreamExt, sp_core::crypto::Ss58Codec},
+    utils::AccountId32,
+};
 
 use crate::{
     runtime::{
-        self, bounded_vec::IntoBoundedByteVec, client::SubmissionResult,
-        runtime_types::pallet_storage_provider::proofs::SubmitWindowedPoStParams,
+        self,
+        bounded_vec::IntoBoundedByteVec,
+        client::SubmissionResult,
+        runtime_types::pallet_storage_provider::{
+            fault::{
+                FaultDeclaration as RuntimeFaultDeclaration,
+                RecoveryDeclaration as RuntimeRecoveryDeclaration,
+            },
+            proofs::SubmitWindowedPoStParams,
+            sector::ProveCommitSector,
+        },
     },
-    FaultDeclaration, PolkaStorageConfig, ProveCommitSector, RecoveryDeclaration,
-    RegisteredPoStProof, SectorPreCommitInfo,
+    types::storage_provider::{FaultDeclaration, RecoveryDeclaration, SectorPreCommitInfo},
+    PolkaStorageConfig,
 };
-
 pub trait StorageProviderClientExt {
     fn register_storage_provider<Keypair>(
         &self,
@@ -62,6 +74,11 @@ pub trait StorageProviderClientExt {
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>;
 
+    fn retrieve_storage_provider(
+        &self,
+        account_id: &AccountId32,
+    ) -> impl Future<Output = Result<Option<String>, subxt::Error>>;
+
     fn retrieve_registered_storage_providers(
         &self,
     ) -> impl Future<Output = Result<Vec<String>, subxt::Error>>;
@@ -69,7 +86,7 @@ pub trait StorageProviderClientExt {
 
 impl StorageProviderClientExt for crate::runtime::client::Client {
     #[tracing::instrument(
-        level = "trace",
+        level = "debug",
         skip_all,
         fields(
             address = account_keypair.account_id().to_ss58check(),
@@ -92,7 +109,7 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
     }
 
     #[tracing::instrument(
-        level = "trace",
+        level = "debug",
         skip_all,
         fields(
             address = account_keypair.account_id().to_ss58check(),
@@ -113,7 +130,7 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
     }
 
     #[tracing::instrument(
-        level = "trace",
+        level = "debug",
         skip_all,
         fields(
             address = account_keypair.account_id().to_ss58check(),
@@ -136,7 +153,7 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
     }
 
     #[tracing::instrument(
-        level = "trace",
+        level = "debug",
         skip_all,
         fields(
             address = account_keypair.account_id().to_ss58check(),
@@ -158,7 +175,7 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
     }
 
     #[tracing::instrument(
-        level = "trace",
+        level = "debug",
         skip_all,
         fields(
             address = account_keypair.account_id().to_ss58check(),
@@ -180,7 +197,7 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
     }
 
     #[tracing::instrument(
-        level = "trace",
+        level = "debug",
         skip_all,
         fields(
             address = account_keypair.account_id().to_ss58check(),
@@ -201,7 +218,25 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
         self.traced_submission(&payload, account_keypair).await
     }
 
-    #[tracing::instrument(level = "trace", skip_all)]
+    #[tracing::instrument(level = "debug", skip_all)]
+    async fn retrieve_storage_provider(
+        &self,
+        account_id: &AccountId32,
+    ) -> Result<Option<String>, subxt::Error> {
+        let storage_provider = runtime::storage()
+            .storage_provider()
+            .storage_providers(account_id);
+
+        self.client
+            .storage()
+            .at_latest()
+            .await?
+            .fetch(&storage_provider)
+            .await
+            .map(|sp| sp.map(|sp| bs58::encode(sp.info.peer_id.0.as_slice()).into_string()))
+    }
+
+    #[tracing::instrument(level = "debug", skip_all)]
     async fn retrieve_registered_storage_providers(&self) -> Result<Vec<String>, subxt::Error> {
         let storage_providers = runtime::storage()
             .storage_provider()

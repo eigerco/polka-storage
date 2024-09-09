@@ -1,0 +1,384 @@
+use std::{collections::BTreeSet, time::Duration};
+
+use maat::*;
+use primitives_proofs::SectorSize;
+use storagext::{
+    runtime::{
+        runtime_types::{
+            bounded_collections::bounded_vec::BoundedVec,
+            pallet_market::pallet::DealState,
+            pallet_storage_provider::{
+                proofs::SubmitWindowedPoStParams, sector::ProveCommitResult,
+            },
+        },
+        storage_provider::calls::types::register_storage_provider::PeerId,
+    },
+    types::{
+        market::DealProposal,
+        storage_provider::{
+            FaultDeclaration, ProveCommitSector, RecoveryDeclaration, SectorPreCommitInfo,
+        },
+    },
+    IntoBoundedByteVec, MarketClientExt, PolkaStorageConfig, StorageProviderClientExt,
+    SystemClientExt,
+};
+use subxt::{
+    ext::{
+        sp_core::{sr25519::Pair as Sr25519Pair, Pair},
+        sp_runtime::{traits::Verify, MultiSignature as SpMultiSignature},
+    },
+    tx::{PairSigner, Signer},
+};
+use zombienet_sdk::NetworkConfigExt;
+
+/// Network's collator name. Used for logs and so on.
+const COLLATOR_NAME: &str = "collator";
+
+fn pair_signer_from_str<P>(s: &str) -> PairSigner<PolkaStorageConfig, P>
+where
+    P: Pair,
+    <SpMultiSignature as Verify>::Signer: From<P::Public>,
+{
+    let keypair = Pair::from_string(s, None).unwrap();
+    PairSigner::<PolkaStorageConfig, P>::new(keypair)
+}
+
+const STRATEGIC_SLEEP: Duration = Duration::from_secs(6);
+
+async fn strategic_sleep() {
+    tracing::warn!(
+        "sleeping for {:?}, for more information, see subxt#1668",
+        STRATEGIC_SLEEP
+    );
+    tokio::time::sleep(STRATEGIC_SLEEP).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn real_world_use_case() {
+    setup_logging();
+    let network = local_testnet_config().spawn_native().await.unwrap();
+
+    tracing::debug!("base dir: {:?}", network.base_dir());
+
+    let collator = network.get_node(COLLATOR_NAME).unwrap();
+    let client =
+        storagext::Client::from(collator.wait_client::<PolkaStorageConfig>().await.unwrap());
+
+    let alice_kp = pair_signer_from_str::<Sr25519Pair>("//Alice");
+    let charlie_kp = pair_signer_from_str::<Sr25519Pair>("//Charlie");
+
+    register_storage_provider(&client, &charlie_kp).await;
+
+    // Add balance to Charlie
+    let balance = 12_500_000_000;
+    tracing::debug!("adding {} balance to charlie", balance);
+    client.add_balance(&charlie_kp, balance).await.unwrap();
+
+    let balance_entry = client
+        .retrieve_balance(charlie_kp.account_id().clone())
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(balance_entry.free, balance);
+    assert_eq!(balance_entry.locked, 0);
+
+    strategic_sleep().await;
+
+    // Add balance to Alice
+    let balance = 25_000_000_000;
+    tracing::debug!("adding {} balance to alice", balance);
+    client.add_balance(&alice_kp, balance).await.unwrap();
+
+    let balance_entry = client
+        .retrieve_balance(alice_kp.account_id().clone())
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(balance_entry.free, balance);
+    assert_eq!(balance_entry.locked, 0);
+
+    publish_storage_deals(&client, &charlie_kp, &alice_kp).await;
+
+    pre_commit_sectors(&client, &charlie_kp).await;
+    strategic_sleep().await;
+
+    prove_commit_sectors(&client, &charlie_kp).await;
+
+    // These ones wait for a specific block so the strategic sleep shouldn't be needed
+    client.wait_for_height(63, true).await.unwrap();
+    submit_windowed_post(&client, &charlie_kp).await;
+
+    client.wait_for_height(83, true).await.unwrap();
+    declare_faults(&client, &charlie_kp).await;
+
+    declare_recoveries(&client, &charlie_kp).await;
+
+    client.wait_for_height(103, true).await.unwrap();
+    submit_windowed_post(&client, &charlie_kp).await;
+
+    client.wait_for_height(115, true).await.unwrap();
+    let settle_result = client
+        .settle_deal_payments(&charlie_kp, vec![0])
+        .await
+        .unwrap();
+
+    for event in settle_result
+        .events
+        .find::<storagext::runtime::market::events::DealsSettled>()
+    {
+        let event = event.unwrap();
+        assert!(event.unsuccessful.0.is_empty());
+        assert_eq!(event.successful.0[0].deal_id, 0);
+        assert_eq!(event.successful.0[0].amount, 25_000_000_000);
+        assert_eq!(
+            event.successful.0[0].provider,
+            charlie_kp.account_id().clone().into()
+        );
+        assert_eq!(
+            event.successful.0[0].client,
+            alice_kp.account_id().clone().into()
+        );
+    }
+}
+
+async fn declare_recoveries<Keypair>(client: &storagext::Client, charlie: &Keypair)
+where
+    Keypair: subxt::tx::Signer<PolkaStorageConfig>,
+{
+    let recovery_declarations = vec![RecoveryDeclaration {
+        deadline: 0,
+        partition: 0,
+        sectors: BTreeSet::from_iter([1u64].into_iter()),
+    }];
+    let faults_recovered_result = client
+        .declare_faults_recovered(charlie, recovery_declarations.clone())
+        .await
+        .unwrap();
+
+    for event in faults_recovered_result
+        .events
+        .find::<storagext::runtime::storage_provider::events::FaultsRecovered>()
+    {
+        let event = event.unwrap();
+        assert_eq!(event.owner, charlie.account_id().clone().into());
+        assert_eq!(event.recoveries.0, recovery_declarations);
+    }
+}
+
+async fn declare_faults<Keypair>(client: &storagext::Client, charlie: &Keypair)
+where
+    Keypair: subxt::tx::Signer<PolkaStorageConfig>,
+{
+    let fault_declarations = vec![FaultDeclaration {
+        deadline: 0,
+        partition: 0,
+        sectors: BTreeSet::from_iter([1u64].into_iter()),
+    }];
+    let fault_declaration_result = client
+        .declare_faults(charlie, fault_declarations.clone())
+        .await
+        .unwrap();
+
+    for event in fault_declaration_result
+        .events
+        .find::<storagext::runtime::storage_provider::events::FaultsDeclared>()
+    {
+        let event = event.unwrap();
+        assert_eq!(event.owner, charlie.account_id().clone().into());
+        assert_eq!(event.faults.0, fault_declarations);
+    }
+}
+
+async fn submit_windowed_post<Keypair>(client: &storagext::Client, charlie: &Keypair)
+where
+    Keypair: subxt::tx::Signer<PolkaStorageConfig>,
+{
+    let windowed_post_result = client
+        .submit_windowed_post(
+            charlie,
+            SubmitWindowedPoStParams {
+                deadline: 0,
+                partitions: BoundedVec(vec![0]),
+                proof:
+                    storagext::runtime::runtime_types::pallet_storage_provider::proofs::PoStProof {
+                        post_proof:
+                            primitives_proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+                        proof_bytes: "beef".to_string().into_bounded_byte_vec(),
+                    },
+            },
+        )
+        .await
+        .unwrap();
+
+    for event in windowed_post_result
+        .events
+        .find::<storagext::runtime::storage_provider::events::ValidPoStSubmitted>()
+    {
+        let event = event.unwrap();
+
+        assert_eq!(event.owner, charlie.account_id().clone().into());
+    }
+}
+
+async fn register_storage_provider<Keypair>(client: &storagext::Client, charlie: &Keypair)
+where
+    Keypair: subxt::tx::Signer<PolkaStorageConfig>,
+{
+    // Register Charlie as a Storage Provider
+    let peer_id = "dummy_peer_id".to_string();
+    let peer_id_bs58 = bs58::encode(peer_id.as_bytes()).into_string();
+
+    let result = client
+        .register_storage_provider(
+            charlie,
+            peer_id.clone(),
+            primitives_proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+        )
+        .await
+        .unwrap();
+
+    for event in result
+        .events
+        .find::<storagext::runtime::storage_provider::events::StorageProviderRegistered>()
+    {
+        let event = event.unwrap();
+
+        assert_eq!(event.owner, charlie.account_id().clone().into());
+        assert_eq!(event.proving_period_start, 63);
+        assert_eq!(event.info.peer_id.0, peer_id.clone().into_bytes());
+        assert_eq!(event.info.sector_size, SectorSize::_2KiB);
+        assert_eq!(
+            event.info.window_post_proof_type,
+            primitives_proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1
+        );
+        assert_eq!(
+            event.info.window_post_partition_sectors,
+            primitives_proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1
+                .window_post_partitions_sector()
+        );
+    }
+
+    let retrieved_peer_id = client
+        .retrieve_storage_provider(&subxt::utils::AccountId32::from(
+            charlie.account_id().clone(),
+        ))
+        .await
+        .unwrap()
+        // this last unwrap ensures there's something there
+        .unwrap();
+
+    assert_eq!(retrieved_peer_id, peer_id_bs58);
+}
+
+async fn publish_storage_deals<Keypair>(
+    client: &storagext::Client,
+    charlie: &Keypair,
+    alice: &Keypair,
+) where
+    Keypair: subxt::tx::Signer<PolkaStorageConfig>,
+{
+    // Publish a storage deal
+    let husky_storage_deal = DealProposal {
+        piece_cid: cid::Cid::try_from(
+            "bafybeihxgc67fwhdoxo2klvmsetswdmwwz3brpwwl76qizbsl6ypro6vxq",
+        )
+        .expect("valid CID"),
+        piece_size: 1278,
+        client: alice.account_id().clone(),
+        provider: charlie.account_id().clone(),
+        label: "My lovely Husky (husky.jpg)".to_owned(),
+        start_block: 65,
+        end_block: 115,
+        storage_price_per_block: 500000000,
+        provider_collateral: 12500000000,
+        state: DealState::Published,
+    };
+
+    let deal_result = client
+        .publish_storage_deals(charlie, alice, vec![husky_storage_deal])
+        .await
+        .unwrap();
+
+    for event in deal_result
+        .events
+        .find::<storagext::runtime::market::events::DealPublished>()
+    {
+        let event = event.unwrap();
+        tracing::debug!(?event);
+
+        assert_eq!(event.client, alice.account_id().clone().into());
+        assert_eq!(event.provider, charlie.account_id().clone().into());
+        assert_eq!(event.deal_id, 0); // first deal ever
+    }
+}
+
+async fn pre_commit_sectors<Keypair>(client: &storagext::Client, charlie: &Keypair)
+where
+    Keypair: subxt::tx::Signer<PolkaStorageConfig>,
+{
+    // Pre commit sectors
+    let placeholder_cid =
+        cid::Cid::try_from("bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu")
+            .unwrap();
+
+    let sectors_pre_commit_info = vec![SectorPreCommitInfo {
+        seal_proof: primitives_proofs::RegisteredSealProof::StackedDRG2KiBV1P1,
+        sector_number: 1,
+        sealed_cid: placeholder_cid.clone(),
+        deal_ids: vec![0],
+        expiration: 165,
+        unsealed_cid: placeholder_cid,
+    }];
+
+    let result = client
+        .pre_commit_sectors(charlie, sectors_pre_commit_info.clone())
+        .await
+        .unwrap();
+
+    for event in result
+        .events
+        .find::<storagext::runtime::storage_provider::events::SectorsPreCommitted>()
+    {
+        let event = event.unwrap();
+        tracing::debug!(?event);
+
+        assert_eq!(event.owner, charlie.account_id().clone().into());
+        assert_eq!(event.sectors.0, sectors_pre_commit_info);
+    }
+}
+
+async fn prove_commit_sectors<Keypair>(client: &storagext::Client, charlie: &Keypair)
+where
+    Keypair: subxt::tx::Signer<PolkaStorageConfig>,
+{
+    let expected_results = vec![ProveCommitResult {
+        sector_number: 1,
+        partition_number: 0,
+        deadline_idx: 0,
+    }];
+
+    let result = client
+        .prove_commit_sectors(
+            charlie,
+            vec![ProveCommitSector {
+                sector_number: 1,
+                proof: vec![0u8; 4],
+            }
+            .into()],
+        )
+        .await
+        .unwrap();
+
+    for event in result
+        .events
+        .find::<storagext::runtime::storage_provider::events::SectorsProven>()
+    {
+        let event = event.unwrap();
+        tracing::debug!(?event);
+
+        assert_eq!(event.owner, charlie.account_id().clone().into());
+        assert_eq!(event.sectors.0, expected_results);
+    }
+}
