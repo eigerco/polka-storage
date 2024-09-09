@@ -83,8 +83,8 @@ impl pallet_market::Config for Test {
     type Currency = Balances;
     type OffchainSignature = Signature;
     type OffchainPublic = AccountPublic;
+    type StorageProviderValidation = StorageProvider;
     type MaxDeals = ConstU32<500>;
-
     type MinDealDuration = MinDealDuration;
     type MaxDealDuration = MaxDealDuration;
     type MaxDealsPerBlock = ConstU32<500>;
@@ -111,7 +111,7 @@ parameter_types! {
 
 impl pallet_storage_provider::Config for Test {
     type RuntimeEvent = RuntimeEvent;
-    type PeerId = BoundedVec<u8, ConstU32<256>>; // Arbitrary length
+    type PeerId = BoundedVec<u8, ConstU32<32>>; // Max length of SHA256 hash
     type Currency = Balances;
     type Market = Market;
     type WPoStProvingPeriod = WpostProvingPeriod;

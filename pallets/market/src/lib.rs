@@ -39,8 +39,8 @@ pub mod pallet {
     use multihash_codetable::{Code, MultihashDigest};
     use primitives_proofs::{
         ActiveDeal, ActiveSector, DealId, Market, RegisteredSealProof, SectorDeal, SectorId,
-        SectorNumber, SectorSize, MAX_DEALS_FOR_ALL_SECTORS, MAX_DEALS_PER_SECTOR,
-        MAX_SECTORS_PER_CALL,
+        SectorNumber, SectorSize, StorageProviderValidation, MAX_DEALS_FOR_ALL_SECTORS,
+        MAX_DEALS_PER_SECTOR, MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::BaseArithmetic;
@@ -75,6 +75,9 @@ pub mod pallet {
         ///
         /// Must identify as an on-chain `Self::AccountId`.
         type OffchainPublic: IdentifyAccount<AccountId = Self::AccountId>;
+
+        /// Storage Provider trait implementation for SP validation to validate that given account id's are registered as SP.
+        type StorageProviderValidation: StorageProviderValidation<Self::AccountId>;
 
         /// How many deals can be published in a single batch of `publish_storage_deals`.
         #[pallet::constant]
@@ -428,7 +431,8 @@ pub mod pallet {
         /// `publish_storage_deals` was called with empty `deals` array.
         NoProposalsToBePublished,
         /// `publish_storage_deals` must be called by Storage Providers and it's a Provider of all of the deals.
-        ProposalsNotPublishedByStorageProvider,
+        /// This error is emitted when a storage provider tries to publish deals that to not belong to them.
+        ProposalsPublishedByIncorrectStorageProvider,
         /// `publish_storage_deals` call was supplied with `deals` which are all invalid.
         AllProposalsInvalid,
         /// `publish_storage_deals`'s core logic was invoked with a broken invariant that should be called by `validate_deals`.
@@ -445,6 +449,8 @@ pub mod pallet {
         DealsTooLargeToFitIntoSector,
         /// Tried to activate too many deals at a given start_block.
         TooManyDealsPerBlock,
+        /// Try to call an operation as a storage provider but the account is not registered as a storage provider.
+        StorageProviderNotRegistered,
     }
 
     pub enum DealActivationError {
@@ -853,6 +859,10 @@ pub mod pallet {
             >,
         ) -> DispatchResult {
             let provider = ensure_signed(origin)?;
+            ensure!(
+                T::StorageProviderValidation::is_registered_storage_provider(&provider),
+                Error::<T>::StorageProviderNotRegistered
+            );
             let current_block = <frame_system::Pallet<T>>::block_number();
             let (valid_deals, total_provider_lockup) =
                 Self::validate_deals(provider.clone(), deals, current_block)?;
@@ -1139,10 +1149,8 @@ pub mod pallet {
             let provider = deals[0].proposal.provider.clone();
             ensure!(
                 caller == provider,
-                Error::<T>::ProposalsNotPublishedByStorageProvider
+                Error::<T>::ProposalsPublishedByIncorrectStorageProvider
             );
-
-            // TODO(@th7nder,#87,17/06/2024): validate a Storage Provider's Account (whether the account was registered as Storage Provider)
 
             let mut total_client_lockup: BoundedBTreeMap<T::AccountId, BalanceOf<T>, T::MaxDeals> =
                 BoundedBTreeMap::new();
@@ -1269,6 +1277,7 @@ pub mod pallet {
         /// Each sector's deals are activated or fail as a group, but independently of other sectors.
         /// Note that confirming all deals fit within a sector is the caller's responsibility
         /// (and is implied by confirming the sector's data commitment is derived from the deal pieces).
+        /// PRE-COND: The caller of this function needs to make sure that the `storage_provider` account that is passed in is a registered storage provider.
         fn activate_deals(
             storage_provider: &T::AccountId,
             sector_deals: BoundedVec<SectorDeal<BlockNumberFor<T>>, ConstU32<MAX_SECTORS_PER_CALL>>,
@@ -1277,7 +1286,6 @@ pub mod pallet {
             BoundedVec<ActiveSector<T::AccountId>, ConstU32<MAX_SECTORS_PER_CALL>>,
             DispatchError,
         > {
-            // TODO(@th7nder,#87,17/06/2024): validate a Storage Provider's Account (whether the account was registered as Storage Provider)
             let mut activations = BoundedVec::new();
             let curr_block = System::<T>::block_number();
             let mut activated_deal_ids: BoundedBTreeSet<

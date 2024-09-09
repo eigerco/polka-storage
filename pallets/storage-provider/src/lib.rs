@@ -56,7 +56,9 @@ pub mod pallet {
         pallet_prelude::{BlockNumberFor, *},
         Config as SystemConfig,
     };
-    use primitives_proofs::{Market, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
+    use primitives_proofs::{
+        Market, RegisteredPoStProof, RegisteredSealProof, SectorNumber, StorageProviderValidation,
+    };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::Zero;
 
@@ -834,6 +836,12 @@ pub mod pallet {
         fn on_finalize(current_block: BlockNumberFor<T>) {
             Self::check_precommited_sectors(current_block);
             Self::check_deadlines(current_block);
+        }
+    }
+
+    impl<T: Config> StorageProviderValidation<T::AccountId> for Pallet<T> {
+        fn is_registered_storage_provider(storage_provider: &T::AccountId) -> bool {
+            StorageProviders::<T>::contains_key(storage_provider)
         }
     }
 

@@ -359,7 +359,7 @@ parameter_types! {
 
 impl pallet_storage_provider::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
-    type PeerId = BoundedVec<u8, ConstU32<256>>; // Arbitrary length
+    type PeerId = BoundedVec<u8, ConstU32<32>>; // Max length of SHA256 hash
     type Currency = Balances;
     type Market = crate::Market;
     type WPoStProvingPeriod = WpostProvingPeriod;
@@ -388,6 +388,7 @@ impl pallet_market::Config for Runtime {
     type PalletId = MarketPalletId;
     type OffchainSignature = MultiSignature;
     type OffchainPublic = AccountPublic;
+    type StorageProviderValidation = crate::StorageProvider;
     type MaxDeals = ConstU32<128>;
     type MaxDealsPerBlock = ConstU32<128>;
     type MinDealDuration = MinDealDuration;
