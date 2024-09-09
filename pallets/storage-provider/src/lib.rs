@@ -430,7 +430,7 @@ pub mod pallet {
                 )?;
 
                 let unsealed_cid = validate_cid::<T>(&sector.unsealed_cid[..])?;
-                let deposit = Self::check_balance_for_pre_commit_deposit(&owner)?;
+                let deposit = calculate_pre_commit_deposit::<T>();
                 let sector_on_chain = SectorPreCommitOnChainInfo::new(
                     sector.clone(),
                     deposit,
@@ -450,7 +450,9 @@ pub mod pallet {
                 }
                 // Add deposit to total deposit and push sector_on_chain to on_chain_sectors
                 // to avoid mutation of the SP for every sector.
-                total_deposit += deposit;
+                total_deposit = total_deposit
+                    .checked_add(&deposit)
+                    .expect("Programmer error: Total deposit overflow should not happen because MAX_SECTORS_PER_CALL bound is lower than Balance::MAX");
                 on_chain_sectors
                     .try_push(sector_on_chain)
                     .expect("Programmer error: on chain sectors should fit in this BoundedVec due to previous validation");
@@ -468,6 +470,9 @@ pub mod pallet {
                 unsealed_cids,
                 deal_amounts,
             )?;
+            // Check balance for deposit
+            let balance = T::Currency::total_balance(&owner);
+            ensure!(balance >= total_deposit, Error::<T>::NotEnoughFunds);
             T::Currency::reserve(&owner, total_deposit)?;
             StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResult {
                 let sp = maybe_sp
@@ -1205,17 +1210,6 @@ pub mod pallet {
                     Error::<T>::CouldNotVerifySectorForPreCommit
                 })?;
             Ok(sector_deals)
-        }
-
-        /// Checks that the SP has enough funds to cover the pre-commit deposit.
-        /// Returns the deposit amount on success.
-        fn check_balance_for_pre_commit_deposit(
-            owner: &T::AccountId,
-        ) -> Result<BalanceOf<T>, Error<T>> {
-            let balance = T::Currency::total_balance(owner);
-            let deposit = calculate_pre_commit_deposit::<T>();
-            ensure!(balance >= deposit, Error::<T>::NotEnoughFunds);
-            Ok(deposit)
         }
 
         /// Checks if the sectors submitted for pre-commit by the SP are valid.
