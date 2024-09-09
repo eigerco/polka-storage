@@ -1166,7 +1166,7 @@ pub mod pallet {
         fn check_commd_for_pre_commit(
             calculated_unsealed_cid: BoundedVec<Option<Cid>, ConstU32<MAX_SECTORS_PER_CALL>>,
             sector_amount: usize,
-            unsealed_cids: BoundedVec<cid::Cid, ConstU32<MAX_SECTORS_PER_CALL>>,
+            unsealed_cids: BoundedVec<Cid, ConstU32<MAX_SECTORS_PER_CALL>>,
             deal_amounts: BoundedVec<usize, ConstU32<MAX_SECTORS_PER_CALL>>,
         ) -> Result<(), Error<T>> {
             ensure!(calculated_unsealed_cid.len() == sector_amount, {
@@ -1234,7 +1234,7 @@ pub mod pallet {
     }
 
     // Adapted from filecoin reference here: https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/miner/src/commd.rs#L51-L56
-    fn validate_cid<T: Config>(bytes: &[u8]) -> Result<cid::Cid, Error<T>> {
+    fn validate_cid<T: Config>(bytes: &[u8]) -> Result<Cid, Error<T>> {
         let c = Cid::try_from(bytes).map_err(|e| {
             log::error!(target: LOG_TARGET, "failed to validate cid: {:?}", e);
             Error::<T>::InvalidCid
