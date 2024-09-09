@@ -34,11 +34,10 @@ fn successfully_precommited() {
         );
 
         // Run pre commit extrinsic
-        StorageProvider::pre_commit_sectors(
+        assert_ok!(StorageProvider::pre_commit_sectors(
             RuntimeOrigin::signed(account(storage_provider)),
             bounded_vec![sector.clone()],
-        )
-        .expect("Pre commit failed");
+        ));
 
         // Check that the events were triggered
         assert_eq!(
@@ -88,11 +87,10 @@ fn successfully_precommited_no_deals() {
             .build();
 
         // Run pre commit extrinsic
-        StorageProvider::pre_commit_sectors(
+        assert_ok!(StorageProvider::pre_commit_sectors(
             RuntimeOrigin::signed(account(storage_provider)),
             bounded_vec![sector.clone()],
-        )
-        .expect("Pre commit failed");
+        ));
 
         // Check that the events were triggered
         assert_eq!(
@@ -148,11 +146,10 @@ fn successfully_precommited_batch() {
         }
 
         // Run pre commit extrinsic
-        StorageProvider::pre_commit_sectors(
+        assert_ok!(StorageProvider::pre_commit_sectors(
             RuntimeOrigin::signed(account(storage_provider)),
             sectors.clone(),
-        )
-        .expect("Pre commit failed");
+        ));
 
         // Check that the events were triggered
         assert_eq!(
