@@ -1175,19 +1175,19 @@ pub mod pallet {
             deal_amounts: BoundedVec<usize, ConstU32<MAX_SECTORS_PER_CALL>>,
         ) -> Result<(), Error<T>> {
             ensure!(calculated_unsealed_cid.len() == sector_amount, {
-                log::error!(target: LOG_TARGET, "pre_commit_sector: failed to verify deals, invalid calculated_commd length: {}", calculated_unsealed_cid.len());
+                log::error!(target: LOG_TARGET, "check_commd_for_pre_commit: failed to verify deals, invalid calculated_commd length: {}", calculated_unsealed_cid.len());
                 Error::<T>::CouldNotVerifySectorForPreCommit
             });
 
             for (i, unsealed_cid) in unsealed_cids.into_iter().enumerate() {
                 if deal_amounts[i] > 0 {
                     let Some(calculated_commd) = calculated_unsealed_cid[i] else {
-                        log::error!(target: LOG_TARGET, "pre_commit_sector: commd from verify_deals is None...");
+                        log::error!(target: LOG_TARGET, "check_commd_for_pre_commit: commd for the deals at index {i} from verify_deals is None...");
                         fail!(Error::<T>::CouldNotVerifySectorForPreCommit)
                     };
 
                     ensure!(calculated_commd == unsealed_cid, {
-                        log::error!(target: LOG_TARGET, "pre_commit_sector: calculated_commd != sector.unsealed_cid, {:?} != {:?}", calculated_commd, unsealed_cid);
+                        log::error!(target: LOG_TARGET, "check_commd_for_pre_commit: calculated_commd at index {i} != sector.unsealed_cid, {:?} != {:?}", calculated_commd, unsealed_cid);
                         Error::<T>::InvalidUnsealedCidForSector
                     });
                 }
