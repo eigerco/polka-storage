@@ -31,7 +31,8 @@ or even just with raw HTTP and JSON-RPC payloads.
 The storage provider interacts with the collator through the defined extrinsics,
 first registering themselves in the network, registering deals and eventually submitting proofs for validation.
 
-Proof validation is done on the collator, inside the WASM runtime through the Storage Provider Pallet.
+Proof validation is done on the collator, inside the WASM runtime;
+this is triggered by the Storage Provider Pallet and handled by the Proofs Pallet.
 
 ## Storage Provider Overview
 
