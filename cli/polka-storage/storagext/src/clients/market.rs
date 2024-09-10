@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::future::Future;
 
 use primitives_proofs::DealId;
 use subxt::ext::sp_core::crypto::Ss58Codec;
@@ -14,27 +14,57 @@ use crate::{
 const MAX_N_DEALS: usize = 32;
 
 /// Client to interact with the market pallet extrinsics.
-pub struct MarketClient {
-    client: crate::runtime::client::Client,
+pub trait MarketClientExt {
+    /// Withdraw the given `amount` of balance.
+    fn withdraw_balance<Keypair>(
+        &self,
+        account_keypair: &Keypair,
+        amount: Currency,
+    ) -> impl Future<Output = Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>>
+    where
+        Keypair: subxt::tx::Signer<PolkaStorageConfig>;
+
+    /// Add the given `amount` of balance.
+    fn add_balance<Keypair>(
+        &self,
+        account_keypair: &Keypair,
+        amount: Currency,
+    ) -> impl Future<Output = Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>>
+    where
+        Keypair: subxt::tx::Signer<PolkaStorageConfig>;
+
+    /// Settle deal payments for the provided [`DealId`]s.
+    ///
+    /// If `deal_ids` length is bigger than [`MAX_DEAL_IDS`], it will get truncated.
+    fn settle_deal_payments<Keypair>(
+        &self,
+        account_keypair: &Keypair,
+        deal_ids: Vec<DealId>,
+    ) -> impl Future<Output = Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>>
+    where
+        Keypair: subxt::tx::Signer<PolkaStorageConfig>;
+
+    /// Publish the given storage deals.
+    ///
+    /// If `deals` length is bigger than [`MAX_DEAL_IDS`], it will get truncated.
+    fn publish_storage_deals<Keypair, ClientKeypair>(
+        &self,
+        account_keypair: Keypair,
+        client_keypair: &ClientKeypair,
+        deals: Vec<DealProposal>,
+    ) -> impl Future<Output = Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>>
+    where
+        Keypair: subxt::tx::Signer<PolkaStorageConfig>,
+        ClientKeypair: subxt::tx::Signer<PolkaStorageConfig>;
+
+    /// Retrieve the balance for a given account (includes the `free` and `locked` balance).
+    fn retrieve_balance(
+        &self,
+        account_id: <PolkaStorageConfig as subxt::Config>::AccountId,
+    ) -> impl Future<Output = Result<Option<BalanceEntry<u128>>, subxt::Error>>;
 }
 
-impl MarketClient {
-    /// Create a new [`MarketClient`] from a target `rpc_address`.
-    ///
-    /// By default, this function does not support insecure URLs,
-    /// to enable support for them, use the `insecure_url` feature.
-    pub async fn new(
-        rpc_address: impl AsRef<str>,
-        n_retries: u32,
-        retry_interval: Duration,
-    ) -> Result<Self, subxt::Error> {
-        Ok(Self {
-            client: crate::runtime::client::Client::new(rpc_address, n_retries, retry_interval)
-                .await?,
-        })
-    }
-
-    /// Withdraw the given `amount` of balance.
+impl MarketClientExt for crate::runtime::client::Client {
     #[tracing::instrument(
         level = "trace",
         skip_all,
@@ -43,7 +73,7 @@ impl MarketClient {
             amount = amount
         )
     )]
-    pub async fn withdraw_balance<Keypair>(
+    async fn withdraw_balance<Keypair>(
         &self,
         account_keypair: &Keypair,
         amount: Currency,
@@ -52,12 +82,9 @@ impl MarketClient {
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
         let payload = runtime::tx().market().withdraw_balance(amount);
-        self.client
-            .traced_submission(&payload, account_keypair)
-            .await
+        self.traced_submission(&payload, account_keypair).await
     }
 
-    /// Add the given `amount` of balance.
     #[tracing::instrument(
         level = "trace",
         skip_all,
@@ -66,7 +93,7 @@ impl MarketClient {
             amount = amount
         )
     )]
-    pub async fn add_balance<Keypair>(
+    async fn add_balance<Keypair>(
         &self,
         account_keypair: &Keypair,
         amount: Currency,
@@ -75,14 +102,9 @@ impl MarketClient {
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
         let payload = runtime::tx().market().add_balance(amount);
-        self.client
-            .traced_submission(&payload, account_keypair)
-            .await
+        self.traced_submission(&payload, account_keypair).await
     }
 
-    /// Settle deal payments for the provided [`DealId`]s.
-    ///
-    /// If `deal_ids` length is bigger than [`MAX_DEAL_IDS`], it will get truncated.
     #[tracing::instrument(
         level = "trace",
         skip_all,
@@ -91,7 +113,7 @@ impl MarketClient {
             deal_ids = ?deal_ids
         )
     )]
-    pub async fn settle_deal_payments<Keypair>(
+    async fn settle_deal_payments<Keypair>(
         &self,
         account_keypair: &Keypair,
         mut deal_ids: Vec<DealId>,
@@ -113,14 +135,9 @@ impl MarketClient {
             .market()
             .settle_deal_payments(bounded_unbounded_deal_ids);
 
-        self.client
-            .traced_submission(&payload, account_keypair)
-            .await
+        self.traced_submission(&payload, account_keypair).await
     }
 
-    /// Publish the given storage deals.
-    ///
-    /// If `deals` length is bigger than [`MAX_DEAL_IDS`], it will get truncated.
     #[tracing::instrument(
         level = "trace",
         skip_all,
@@ -128,7 +145,7 @@ impl MarketClient {
             address = account_keypair.account_id().to_ss58check()
         )
     )]
-    pub async fn publish_storage_deals<Keypair, ClientKeypair>(
+    async fn publish_storage_deals<Keypair, ClientKeypair>(
         &self,
         account_keypair: Keypair,
         client_keypair: &ClientKeypair,
@@ -160,12 +177,9 @@ impl MarketClient {
             .market()
             .publish_storage_deals(bounded_unbounded_deals);
 
-        self.client
-            .traced_submission(&payload, &account_keypair)
-            .await
+        self.traced_submission(&payload, &account_keypair).await
     }
 
-    /// Retrieve the balance for a given account (includes the `free` and `locked` balance).
     #[tracing::instrument(
         level = "trace",
         skip_all,
@@ -173,7 +187,7 @@ impl MarketClient {
             address = account_id.to_ss58check()
         )
     )]
-    pub async fn retrieve_balance(
+    async fn retrieve_balance(
         &self,
         account_id: <PolkaStorageConfig as subxt::Config>::AccountId,
     ) -> Result<Option<BalanceEntry<u128>>, subxt::Error> {
@@ -181,7 +195,6 @@ impl MarketClient {
             .market()
             .balance_table(subxt::utils::AccountId32::from(account_id));
         self.client
-            .client
             .storage()
             .at_latest()
             .await?

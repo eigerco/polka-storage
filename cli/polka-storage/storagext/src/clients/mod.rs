@@ -2,6 +2,6 @@ mod market;
 mod storage_provider;
 mod system;
 
-pub use market::MarketClient;
-pub use storage_provider::StorageProviderClient;
-pub use system::SystemClient;
+pub use market::MarketClientExt;
+pub use storage_provider::StorageProviderClientExt;
+pub use system::SystemClientExt;
