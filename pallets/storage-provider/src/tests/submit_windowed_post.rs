@@ -64,9 +64,9 @@ fn setup() {
         .build();
 
     // Run pre commit extrinsic
-    assert_ok!(StorageProvider::pre_commit_sector(
+    assert_ok!(StorageProvider::pre_commit_sectors(
         RuntimeOrigin::signed(account(storage_provider)),
-        sector.clone()
+        bounded_vec![sector.clone()]
     ));
 
     // Prove commit sector

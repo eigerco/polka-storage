@@ -1,10 +1,17 @@
 use std::time::Duration;
 
 use clap::Subcommand;
-use primitives_proofs::RegisteredPoStProof;
+use primitives_proofs::{RegisteredPoStProof, SectorNumber};
 use storagext::{
-    clients::StorageProviderClient, runtime::SubmissionResult, FaultDeclaration,
-    PolkaStorageConfig, RecoveryDeclaration,
+    clients::StorageProviderClient,
+    runtime::{
+        runtime_types::{
+            bounded_collections::bounded_vec::BoundedVec,
+            pallet_storage_provider::sector::SectorPreCommitInfo,
+        },
+        SubmissionResult,
+    },
+    BlockNumber, FaultDeclaration, PolkaStorageConfig, RecoveryDeclaration,
 };
 use url::Url;
 
@@ -44,8 +51,8 @@ pub enum StorageProviderCommand {
     /// Pre-commit sector containing deals, so they can be proven.
     /// If deals have been published and not pre-commited and proven, they'll be slashed by Market Pallet.
     PreCommit {
-        #[arg(value_parser = <PreCommitSector as ParseablePath>::parse_json)]
-        pre_commit_sector: PreCommitSector,
+        #[arg(value_parser = <Vec<PreCommitSector> as ParseablePath>::parse_json)]
+        pre_commit_sectors: std::vec::Vec<PreCommitSector>,
     },
 
     /// Proves sector that has been previously pre-committed.
@@ -139,8 +146,8 @@ impl StorageProviderCommand {
                 Self::register_storage_provider(client, account_keypair, peer_id, post_proof)
                     .await?
             }
-            StorageProviderCommand::PreCommit { pre_commit_sector } => {
-                Self::pre_commit(client, account_keypair, pre_commit_sector).await?
+            StorageProviderCommand::PreCommit { pre_commit_sectors } => {
+                Self::pre_commit(client, account_keypair, pre_commit_sectors).await?
             }
             StorageProviderCommand::ProveCommit {
                 prove_commit_sector,
@@ -204,16 +211,28 @@ impl StorageProviderCommand {
     async fn pre_commit(
         client: StorageProviderClient,
         account_keypair: MultiPairSigner,
-        pre_commit_sector: PreCommitSector,
+        pre_commit_sectors: Vec<PreCommitSector>,
     ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error> {
-        let sector_number = pre_commit_sector.sector_number;
+        let (sector_numbers, pre_commit_sectors): (
+            Vec<SectorNumber>,
+            Vec<SectorPreCommitInfo<BlockNumber>>,
+        ) = pre_commit_sectors
+            .into_iter()
+            .map(|s| {
+                let sector_number = s.sector_number;
+                let sxt_sector: storagext::SectorPreCommitInfo = s.into();
+                let sector: SectorPreCommitInfo<BlockNumber> = sxt_sector.into();
+                (sector_number, sector)
+            })
+            .unzip();
+        let pre_commit_sectors = BoundedVec(pre_commit_sectors);
         let submission_result = client
-            .pre_commit_sector(&account_keypair, pre_commit_sector.into())
+            .pre_commit_sectors(&account_keypair, pre_commit_sectors)
             .await?;
         tracing::debug!(
-            "[{}] Successfully pre-commited sector {}.",
+            "[{}] Successfully pre-commited sectors {:?}.",
             submission_result.hash,
-            sector_number
+            sector_numbers
         );
 
         Ok(submission_result)

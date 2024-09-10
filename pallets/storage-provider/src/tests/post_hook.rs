@@ -150,9 +150,9 @@ fn precommit_and_prove(
         .deals(bounded_vec![deal_id])
         .build();
 
-    StorageProvider::pre_commit_sector(
+    StorageProvider::pre_commit_sectors(
         RuntimeOrigin::signed(account(storage_provider)),
-        sector.clone(),
+        bounded_vec![sector.clone()],
     )
     .unwrap();
     StorageProvider::prove_commit_sector(

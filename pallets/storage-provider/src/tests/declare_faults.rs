@@ -416,9 +416,9 @@ pub(crate) fn setup_sp_with_one_sector(storage_provider: &str, storage_client: &
         .build();
 
     // Run pre commit extrinsic
-    assert_ok!(StorageProvider::pre_commit_sector(
+    assert_ok!(StorageProvider::pre_commit_sectors(
         RuntimeOrigin::signed(account(storage_provider)),
-        sector.clone()
+        bounded_vec![sector.clone()]
     ));
 
     // Prove commit sector
@@ -533,9 +533,9 @@ pub(crate) fn setup_sp_with_many_sectors_multiple_partitions(
             .build();
 
         // Run pre commit extrinsic
-        assert_ok!(StorageProvider::pre_commit_sector(
+        assert_ok!(StorageProvider::pre_commit_sectors(
             RuntimeOrigin::signed(account(storage_provider)),
-            sector.clone()
+            bounded_vec![sector.clone()]
         ));
 
         // Prove commit sector

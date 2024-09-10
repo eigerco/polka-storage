@@ -75,9 +75,9 @@ impl std::fmt::Display for Event {
                 "Storage Provider Registered: {{ owner: {}, info: {}, proving_period_start: {} }}",
                 owner, info, proving_period_start,
             )),
-            Event::SectorPreCommitted { owner, sector } => f.write_fmt(format_args!(
-                "Sector Pre-Committed: {{ owner: {}, sector_number: {} }}",
-                owner, sector,
+            Event::SectorsPreCommitted { owner, sectors } => f.write_fmt(format_args!(
+                "Sector Pre-Committed: {{ owner: {}, sector_number: {:?} }}",
+                owner, sectors,
             )),
             Event::SectorProven {
                 owner,

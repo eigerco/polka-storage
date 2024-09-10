@@ -41,14 +41,14 @@ fn pre_commit_hook_slashed_deal() {
             .sector_number(2)
             .build();
 
-        StorageProvider::pre_commit_sector(
+        StorageProvider::pre_commit_sectors(
             RuntimeOrigin::signed(account(storage_provider)),
-            first_sector.clone(),
+            bounded_vec![first_sector.clone()],
         )
         .unwrap();
-        StorageProvider::pre_commit_sector(
+        StorageProvider::pre_commit_sectors(
             RuntimeOrigin::signed(account(storage_provider)),
-            second_sector.clone(),
+            bounded_vec![second_sector.clone()],
         )
         .unwrap();
 

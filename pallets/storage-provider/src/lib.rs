@@ -58,6 +58,7 @@ pub mod pallet {
     };
     use primitives_proofs::{
         Market, RegisteredPoStProof, RegisteredSealProof, SectorNumber, StorageProviderValidation,
+        MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::Zero;
@@ -236,9 +237,10 @@ pub mod pallet {
             proving_period_start: BlockNumberFor<T>,
         },
         /// Emitted when a storage provider pre commits some sectors.
-        SectorPreCommitted {
+        SectorsPreCommitted {
             owner: T::AccountId,
-            sector: SectorPreCommitInfo<BlockNumberFor<T>>,
+            sectors:
+                BoundedVec<SectorPreCommitInfo<BlockNumberFor<T>>, ConstU32<MAX_SECTORS_PER_CALL>>,
         },
         /// Emitted when a storage provider successfully proves pre committed sectors.
         SectorProven {
@@ -378,91 +380,111 @@ pub mod pallet {
             Ok(())
         }
 
-        /// The Storage Provider uses this extrinsic to pledge and seal a new sector.
+        /// The Storage Provider uses this extrinsic to pledge and seal X sectors at once.
+        /// If a single sector fails to pre commit for whatever reason, the extrinsic will fail.
         ///
         /// The deposit amount is calculated by `calculate_pre_commit_deposit`.
         /// The deposited amount is locked until the sector has been terminated.
         /// A hook will check pre-committed sectors `expiration` and
         /// if that sector has not been proven by that time the deposit will be slashed.
-        // TODO(@aidan46, #107, 2024-06-20): Add functionality to allow for batch pre commit
-        pub fn pre_commit_sector(
+        /// Reference implementation:
+        /// * <https://github.com/filecoin-project/builtin-actors/blob/6906288334746318385cfd53edd7ea33ef03919f/actors/miner/src/lib.rs#L1453>
+        pub fn pre_commit_sectors(
             origin: OriginFor<T>,
-            sector: SectorPreCommitInfo<BlockNumberFor<T>>,
+            sectors: BoundedVec<
+                SectorPreCommitInfo<BlockNumberFor<T>>,
+                ConstU32<MAX_SECTORS_PER_CALL>,
+            >,
         ) -> DispatchResult {
             let owner = ensure_signed(origin)?;
             let sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
-            let sector_number = sector.sector_number;
             let current_block = <frame_system::Pallet<T>>::block_number();
+            let sector_amount = sectors.len();
 
-            ensure!(
-                sector_number <= MAX_SECTORS.into(),
-                Error::<T>::InvalidSector
-            );
-            ensure!(
-                sp.info.window_post_proof_type == sector.seal_proof.registered_window_post_proof(),
-                Error::<T>::InvalidProofType
-            );
-            ensure!(
-                !sp.pre_committed_sectors.contains_key(&sector_number)
-                    && !sp.sectors.contains_key(&sector_number),
-                Error::<T>::SectorNumberAlreadyUsed
-            );
+            // Pre-committed sectors for emitting the event.
+            let mut pre_committed_sectors = BoundedVec::new();
+            // All sectors in the batch to avoid mutating the SP multiple times.
+            let mut on_chain_sectors: BoundedVec<
+                SectorPreCommitOnChainInfo<BalanceOf<T>, BlockNumberFor<T>>,
+                ConstU32<MAX_SECTORS_PER_CALL>,
+            > = BoundedVec::new();
+            // Total deposit amount to avoid mutating the SP multiple times and reserve only once.
+            let mut total_deposit = BalanceOf::<T>::zero();
+            // sector deals for all pre commits
+            let mut all_sector_deals = BoundedVec::new();
+            // unsealed_cids for all sectors
+            let mut unsealed_cids = BoundedVec::new();
+            // deal amounts for each sector
+            let mut deal_amounts = BoundedVec::new();
 
-            let unsealed_cid = validate_cid::<T>(&sector.unsealed_cid[..])?;
-            let balance = T::Currency::total_balance(&owner);
-            let deposit = calculate_pre_commit_deposit::<T>();
-            Self::validate_expiration(
-                current_block,
-                current_block + T::MaxProveCommitDuration::get(),
-                sector.expiration,
-            )?;
-            ensure!(balance >= deposit, Error::<T>::NotEnoughFunds);
+            for sector in sectors {
+                // Basic pre-commit validation.
+                Self::validate_sector_for_pre_commit(&sp, &sector)?;
 
-            let sector_on_chain = SectorPreCommitOnChainInfo::new(
-                sector.clone(),
-                deposit,
-                <frame_system::Pallet<T>>::block_number(),
-            );
+                // Check that the expiration set by the SP makes sense.
+                Self::validate_expiration(
+                    current_block,
+                    current_block + T::MaxProveCommitDuration::get(),
+                    sector.expiration,
+                )?;
 
-            let mut sector_deals = BoundedVec::new();
-            sector_deals.try_push((&sector_on_chain).into())
-                .map_err(|_| {
-                    log::error!(target: LOG_TARGET, "pre_commit_sector: failed to push into sector deals, shouldn't ever happen");
-                    Error::<T>::CouldNotVerifySectorForPreCommit
-                })?;
-            let calculated_commds = T::Market::verify_deals_for_activation(&owner, sector_deals)?;
+                let unsealed_cid = validate_cid::<T>(&sector.unsealed_cid[..])?;
+                let deposit = calculate_pre_commit_deposit::<T>();
+                let sector_on_chain =
+                    SectorPreCommitOnChainInfo::new(sector.clone(), deposit, current_block);
 
-            ensure!(calculated_commds.len() == 1, {
-                log::error!(target: LOG_TARGET, "pre_commit_sector: failed to verify deals, invalid calculated_commd length: {}", calculated_commds.len());
-                Error::<T>::CouldNotVerifySectorForPreCommit
-            });
-
-            // We need to verify CommD only if there are deals in the sector, otherwise it's a Committed Capacity sector.
-            if sector.deal_ids.len() > 0 {
-                // PRE-COND: verify_deals_for_activation is called with a single sector, so a single CommD should always be returned
-                let Some(calculated_commd) = calculated_commds[0] else {
-                    log::error!(target: LOG_TARGET, "pre_commit_sector: commd from verify_deals is None...");
-                    fail!(Error::<T>::CouldNotVerifySectorForPreCommit)
-                };
-
-                ensure!(calculated_commd == unsealed_cid, {
-                    log::error!(target: LOG_TARGET, "pre_commit_sector: calculated_commd != sector.unsealed_cid, {:?} != {:?}", calculated_commd, unsealed_cid);
-                    Error::<T>::InvalidUnsealedCidForSector
-                });
+                // Push deal amounts for later verification
+                deal_amounts.try_push(sector_on_chain.info.deal_ids.len()).expect("Programmer error: cannot have more that MAX_SECTORS_PER_CALL deal_amount because of previous bounds");
+                // Push all unsealed_cids and deal amount to verify later.
+                unsealed_cids.try_push(unsealed_cid).expect("Programmer error: cannot have more that MAX_SECTORS_PER_CALL unsealed_cids because of previous bounds");
+                // Push all deals to verify in one go later.
+                all_sector_deals.try_push((&sector_on_chain).into()).expect(
+                    "Programmer error: sector deals cannot be more that MAX_SECTORS_PER_CALL because of previous bounds",
+                );
+                // Add deposit to total deposit and push sector_on_chain to on_chain_sectors
+                // to avoid mutation of the SP for every sector.
+                total_deposit = total_deposit
+                    .checked_add(&deposit)
+                    .expect("Programmer error: Total deposit overflow should not happen because MAX_SECTORS_PER_CALL bound is lower than Balance::MAX");
+                on_chain_sectors
+                    .try_push(sector_on_chain)
+                    .expect("Programmer error: on chain sectors should fit in this BoundedVec due to previous validation");
+                // Push sector to BoundedVec for deposit event at the end
+                pre_committed_sectors
+                    .try_push(sector)
+                    .expect("Programmer error: sectors should fit in this BoundedVec due to previous validation");
             }
 
-            T::Currency::reserve(&owner, deposit)?;
+            let calculated_unsealed_cids =
+                T::Market::verify_deals_for_activation(&owner, all_sector_deals)?;
+            Self::check_commd_for_pre_commit(
+                calculated_unsealed_cids,
+                sector_amount,
+                unsealed_cids,
+                deal_amounts,
+            )?;
+            // Check balance for deposit
+            let balance = T::Currency::total_balance(&owner);
+            ensure!(balance >= total_deposit, Error::<T>::NotEnoughFunds);
+            T::Currency::reserve(&owner, total_deposit)?;
             StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResult {
                 let sp = maybe_sp
                     .as_mut()
                     .ok_or(Error::<T>::StorageProviderNotFound)?;
-                sp.add_pre_commit_deposit(deposit)?;
-                sp.put_pre_committed_sector(sector_on_chain)
-                    .map_err(|e| Error::<T>::StorageProviderError(e))?;
+                sp.add_pre_commit_deposit(total_deposit)?;
+                for sector_on_chain in on_chain_sectors {
+                    sp.put_pre_committed_sector(sector_on_chain)
+                        .map_err(|e| Error::<T>::StorageProviderError(e))?;
+                }
                 Ok(())
             })?;
-            Self::deposit_event(Event::SectorPreCommitted { owner, sector });
+
+            Self::deposit_event(Event::SectorsPreCommitted {
+                owner,
+                sectors: pre_committed_sectors,
+            });
+
             Ok(())
         }
 
@@ -1138,10 +1160,64 @@ pub mod pallet {
                 StorageProviders::<T>::insert(storage_provider, state);
             }
         }
+
+        /// Verifies that the unsealed_cid (CommD) and checks that it matches the given unsealed CID.
+        fn check_commd_for_pre_commit(
+            calculated_unsealed_cid: BoundedVec<Option<Cid>, ConstU32<MAX_SECTORS_PER_CALL>>,
+            sector_amount: usize,
+            unsealed_cids: BoundedVec<Cid, ConstU32<MAX_SECTORS_PER_CALL>>,
+            deal_amounts: BoundedVec<usize, ConstU32<MAX_SECTORS_PER_CALL>>,
+        ) -> Result<(), Error<T>> {
+            ensure!(calculated_unsealed_cid.len() == sector_amount, {
+                log::error!(target: LOG_TARGET, "check_commd_for_pre_commit: failed to verify deals, invalid calculated_commd length: {}", calculated_unsealed_cid.len());
+                Error::<T>::CouldNotVerifySectorForPreCommit
+            });
+
+            for (i, unsealed_cid) in unsealed_cids.into_iter().enumerate() {
+                if deal_amounts[i] > 0 {
+                    let Some(calculated_commd) = calculated_unsealed_cid[i] else {
+                        log::error!(target: LOG_TARGET, "check_commd_for_pre_commit: commd for the deals at index {i} from verify_deals is None...");
+                        fail!(Error::<T>::CouldNotVerifySectorForPreCommit)
+                    };
+
+                    ensure!(calculated_commd == unsealed_cid, {
+                        log::error!(target: LOG_TARGET, "check_commd_for_pre_commit: calculated_commd at index {i} != sector.unsealed_cid, {:?} != {:?}", calculated_commd, unsealed_cid);
+                        Error::<T>::InvalidUnsealedCidForSector
+                    });
+                }
+            }
+            Ok(())
+        }
+
+        /// Checks if the sectors submitted for pre-commit by the SP are valid.
+        /// Checks are
+        /// - Sector number limit (cannot be higher than MAX_SECTORS)
+        /// - The proof type must correspond to the proof type submitted during registration.
+        /// - The sector number must not be used previously.
+        fn validate_sector_for_pre_commit(
+            sp: &StorageProviderState<T::PeerId, BalanceOf<T>, BlockNumberFor<T>>,
+            sector: &SectorPreCommitInfo<BlockNumberFor<T>>,
+        ) -> Result<(), Error<T>> {
+            let sector_number = sector.sector_number;
+            ensure!(
+                sector_number <= MAX_SECTORS.into(),
+                Error::<T>::InvalidSector
+            );
+            ensure!(
+                sp.info.window_post_proof_type == sector.seal_proof.registered_window_post_proof(),
+                Error::<T>::InvalidProofType
+            );
+            ensure!(
+                !sp.pre_committed_sectors.contains_key(&sector_number)
+                    && !sp.sectors.contains_key(&sector_number),
+                Error::<T>::SectorNumberAlreadyUsed
+            );
+            Ok(())
+        }
     }
 
     // Adapted from filecoin reference here: https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/miner/src/commd.rs#L51-L56
-    fn validate_cid<T: Config>(bytes: &[u8]) -> Result<cid::Cid, Error<T>> {
+    fn validate_cid<T: Config>(bytes: &[u8]) -> Result<Cid, Error<T>> {
         let c = Cid::try_from(bytes).map_err(|e| {
             log::error!(target: LOG_TARGET, "failed to validate cid: {:?}", e);
             Error::<T>::InvalidCid
