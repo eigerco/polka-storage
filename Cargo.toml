@@ -12,6 +12,7 @@ members = [
   "cli/polka-storage/storagext-cli",
   "node",
   "pallets/market",
+  "pallets/proofs",
   "pallets/storage-provider",
   "primitives/proofs",
   "runtime",
