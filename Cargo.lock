@@ -7636,6 +7636,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-proofs"
+version = "0.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core 34.0.0",
+ "sp-io 38.0.0",
+ "sp-runtime 39.0.0",
+]
+
+[[package]]
 name = "pallet-proxy"
 version = "37.0.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2407-1#16b0fd09d9e9281c20ee0c1d8b87d011e3e3454e"
