@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use clap::Subcommand;
-use storagext::clients::SystemClient;
+use storagext::clients::SystemClientExt;
 use url::Url;
 
 use crate::OutputFormat;
@@ -38,7 +38,7 @@ impl SystemCommand {
         retry_interval: Duration,
         output_format: OutputFormat,
     ) -> Result<(), anyhow::Error> {
-        let client = SystemClient::new(node_rpc, n_retries, retry_interval).await?;
+        let client = storagext::Client::new(node_rpc, n_retries, retry_interval).await?;
 
         match self {
             SystemCommand::GetHeight {

@@ -3,7 +3,7 @@ use std::time::Duration;
 use anyhow::bail;
 use clap::{ArgGroup, Subcommand};
 use primitives_proofs::DealId;
-use storagext::{clients::MarketClient, runtime::SubmissionResult, PolkaStorageConfig};
+use storagext::{runtime::SubmissionResult, MarketClientExt, PolkaStorageConfig};
 use subxt::ext::sp_core::{
     ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair, sr25519::Pair as Sr25519Pair,
 };
@@ -83,7 +83,7 @@ impl MarketCommand {
         retry_interval: Duration,
         output_format: OutputFormat,
     ) -> Result<(), anyhow::Error> {
-        let client = MarketClient::new(node_rpc, n_retries, retry_interval).await?;
+        let client = storagext::Client::new(node_rpc, n_retries, retry_interval).await?;
 
         match self {
             // Only command that doesn't need a key.
@@ -118,12 +118,15 @@ impl MarketCommand {
         Ok(())
     }
 
-    async fn with_keypair(
+    async fn with_keypair<Client>(
         self,
-        client: MarketClient,
+        client: Client,
         account_keypair: MultiPairSigner,
         output_format: OutputFormat,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), anyhow::Error>
+    where
+        Client: MarketClientExt,
+    {
         operation_takes_a_while();
 
         let submission_result = match self {
@@ -184,11 +187,14 @@ impl MarketCommand {
         Ok(())
     }
 
-    async fn add_balance(
-        client: MarketClient,
+    async fn add_balance<Client>(
+        client: Client,
         account_keypair: MultiPairSigner,
         amount: u128,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error> {
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+    where
+        Client: MarketClientExt,
+    {
         let submission_result = client.add_balance(&account_keypair, amount).await?;
         tracing::debug!(
             "[{}] Successfully added {} to Market Balance",
@@ -199,12 +205,15 @@ impl MarketCommand {
         Ok(submission_result)
     }
 
-    async fn publish_storage_deals(
-        client: MarketClient,
+    async fn publish_storage_deals<Client>(
+        client: Client,
         account_keypair: MultiPairSigner,
         client_keypair: MultiPairSigner,
         deals: DealProposals,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error> {
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+    where
+        Client: MarketClientExt,
+    {
         let submission_result = client
             .publish_storage_deals(
                 account_keypair,
@@ -220,11 +229,14 @@ impl MarketCommand {
         Ok(submission_result)
     }
 
-    async fn settle_deal_payments(
-        client: MarketClient,
+    async fn settle_deal_payments<Client>(
+        client: Client,
         account_keypair: MultiPairSigner,
         deal_ids: Vec<u64>,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error> {
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+    where
+        Client: MarketClientExt,
+    {
         let submission_result = client
             .settle_deal_payments(&account_keypair, deal_ids)
             .await?;
@@ -236,11 +248,14 @@ impl MarketCommand {
         Ok(submission_result)
     }
 
-    async fn withdraw_balance(
-        client: MarketClient,
+    async fn withdraw_balance<Client>(
+        client: Client,
         account_keypair: MultiPairSigner,
         amount: u128,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error> {
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+    where
+        Client: MarketClientExt,
+    {
         let submission_result = client.withdraw_balance(&account_keypair, amount).await?;
         tracing::debug!(
             "[{}] Successfully withdrew {} from Market Balance",

@@ -3,15 +3,8 @@ use std::time::Duration;
 use clap::Subcommand;
 use primitives_proofs::{RegisteredPoStProof, SectorNumber};
 use storagext::{
-    clients::StorageProviderClient,
-    runtime::{
-        runtime_types::{
-            bounded_collections::bounded_vec::BoundedVec,
-            pallet_storage_provider::sector::SectorPreCommitInfo,
-        },
-        SubmissionResult,
-    },
-    BlockNumber, FaultDeclaration, PolkaStorageConfig, RecoveryDeclaration,
+    runtime::SubmissionResult, FaultDeclaration, PolkaStorageConfig, RecoveryDeclaration,
+    SectorPreCommitInfo, StorageProviderClientExt,
 };
 use url::Url;
 
@@ -96,7 +89,7 @@ impl StorageProviderCommand {
         retry_interval: Duration,
         output_format: OutputFormat,
     ) -> Result<(), anyhow::Error> {
-        let client = StorageProviderClient::new(node_rpc, n_retries, retry_interval).await?;
+        let client = storagext::Client::new(node_rpc, n_retries, retry_interval).await?;
 
         match self {
             // Only command that doesn't need a key.
@@ -130,12 +123,15 @@ impl StorageProviderCommand {
         Ok(())
     }
 
-    async fn with_keypair(
+    async fn with_keypair<Client>(
         self,
-        client: StorageProviderClient,
+        client: Client,
         account_keypair: MultiPairSigner,
         output_format: OutputFormat,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), anyhow::Error>
+    where
+        Client: StorageProviderClientExt,
+    {
         operation_takes_a_while();
 
         let submission_result = match self {
@@ -189,12 +185,15 @@ impl StorageProviderCommand {
         Ok(())
     }
 
-    async fn register_storage_provider(
-        client: StorageProviderClient,
+    async fn register_storage_provider<Client>(
+        client: Client,
         account_keypair: MultiPairSigner,
         peer_id: String,
         post_proof: RegisteredPoStProof,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error> {
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+    where
+        Client: StorageProviderClientExt,
+    {
         let submission_result = client
             .register_storage_provider(&account_keypair, peer_id.clone(), post_proof)
             .await?;
@@ -208,24 +207,20 @@ impl StorageProviderCommand {
         Ok(submission_result)
     }
 
-    async fn pre_commit(
-        client: StorageProviderClient,
+    async fn pre_commit<Client>(
+        client: Client,
         account_keypair: MultiPairSigner,
         pre_commit_sectors: Vec<PreCommitSector>,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error> {
-        let (sector_numbers, pre_commit_sectors): (
-            Vec<SectorNumber>,
-            Vec<SectorPreCommitInfo<BlockNumber>>,
-        ) = pre_commit_sectors
-            .into_iter()
-            .map(|s| {
-                let sector_number = s.sector_number;
-                let sxt_sector: storagext::SectorPreCommitInfo = s.into();
-                let sector: SectorPreCommitInfo<BlockNumber> = sxt_sector.into();
-                (sector_number, sector)
-            })
-            .unzip();
-        let pre_commit_sectors = BoundedVec(pre_commit_sectors);
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+    where
+        Client: StorageProviderClientExt,
+    {
+        let (sector_numbers, pre_commit_sectors): (Vec<SectorNumber>, Vec<SectorPreCommitInfo>) =
+            pre_commit_sectors
+                .into_iter()
+                .map(|s| (s.sector_number, s.into()))
+                .unzip();
+
         let submission_result = client
             .pre_commit_sectors(&account_keypair, pre_commit_sectors)
             .await?;
@@ -238,11 +233,14 @@ impl StorageProviderCommand {
         Ok(submission_result)
     }
 
-    async fn prove_commit(
-        client: StorageProviderClient,
+    async fn prove_commit<Client>(
+        client: Client,
         account_keypair: MultiPairSigner,
         prove_commit_sector: ProveCommitSector,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error> {
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+    where
+        Client: StorageProviderClientExt,
+    {
         let sector_number = prove_commit_sector.sector_number;
         let submission_result = client
             .prove_commit_sector(&account_keypair, prove_commit_sector.into())
@@ -256,11 +254,14 @@ impl StorageProviderCommand {
         Ok(submission_result)
     }
 
-    async fn submit_windowed_post(
-        client: StorageProviderClient,
+    async fn submit_windowed_post<Client>(
+        client: Client,
         account_keypair: MultiPairSigner,
         windowed_post: SubmitWindowedPoStParams,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error> {
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+    where
+        Client: StorageProviderClientExt,
+    {
         let submission_result = client
             .submit_windowed_post(&account_keypair, windowed_post.into())
             .await?;
@@ -269,22 +270,28 @@ impl StorageProviderCommand {
         Ok(submission_result)
     }
 
-    async fn declare_faults(
-        client: StorageProviderClient,
+    async fn declare_faults<Client>(
+        client: Client,
         account_keypair: MultiPairSigner,
         faults: Vec<FaultDeclaration>,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error> {
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+    where
+        Client: StorageProviderClientExt,
+    {
         let submission_result = client.declare_faults(&account_keypair, faults).await?;
         tracing::debug!("[{}] Successfully declared faults.", submission_result.hash);
 
         Ok(submission_result)
     }
 
-    async fn declare_faults_recovered(
-        client: StorageProviderClient,
+    async fn declare_faults_recovered<Client>(
+        client: Client,
         account_keypair: MultiPairSigner,
         recoveries: Vec<RecoveryDeclaration>,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error> {
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+    where
+        Client: StorageProviderClientExt,
+    {
         let submission_result = client
             .declare_faults_recovered(&account_keypair, recoveries)
             .await?;

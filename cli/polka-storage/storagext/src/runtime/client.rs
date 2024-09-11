@@ -66,7 +66,7 @@ impl Client {
     ///
     /// Equivalent to performing [`OnlineClient::sign_and_submit_then_watch_default`],
     /// followed by [`TxInBlock::wait_for_finalized`] and [`TxInBlock::wait_for_success`].
-    pub async fn traced_submission<Call, Keypair>(
+    pub(crate) async fn traced_submission<Call, Keypair>(
         &self,
         call: &Call,
         account_keypair: &Keypair,
@@ -100,5 +100,11 @@ impl Client {
             hash: block_hash,
             events: xt_events,
         })
+    }
+}
+
+impl From<OnlineClient<PolkaStorageConfig>> for Client {
+    fn from(client: OnlineClient<PolkaStorageConfig>) -> Self {
+        Self { client }
     }
 }

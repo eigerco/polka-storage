@@ -14,7 +14,7 @@ insecure_url = ["storagext/insecure_url"]
 storagext.workspace = true
 
 anyhow.workspace = true
-cid = { workspace = true, features = ["scale-codec"] }
+cid = { workspace = true, features = ["scale-codec"], default-features = true }
 clap = { workspace = true, features = ["derive", "env"] }
 codec.workspace = true
 frame-support = { workspace = true, features = ["std"] }

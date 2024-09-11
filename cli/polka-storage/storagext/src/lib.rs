@@ -10,14 +10,18 @@ use primitives_proofs::{DealId, RegisteredPoStProof, RegisteredSealProof, Sector
 use runtime::runtime_types::bounded_collections::{bounded_btree_set, bounded_vec};
 use subxt::{self, ext::sp_runtime::MultiSignature, tx::Signer, utils::Static};
 
-pub use crate::runtime::{
-    bounded_vec::IntoBoundedByteVec,
-    runtime_types::{
-        pallet_market::{
-            pallet as market_pallet_types,
-            pallet::{ActiveDealState, DealState},
+pub use crate::{
+    clients::{MarketClientExt, StorageProviderClientExt, SystemClientExt},
+    runtime::{
+        bounded_vec::IntoBoundedByteVec,
+        client::Client,
+        runtime_types::{
+            pallet_market::{
+                pallet as market_pallet_types,
+                pallet::{ActiveDealState, DealState},
+            },
+            pallet_storage_provider::proofs::{PoStProof, SubmitWindowedPoStParams},
         },
-        pallet_storage_provider::proofs::{PoStProof, SubmitWindowedPoStParams},
     },
 };
 

@@ -14,7 +14,7 @@ insecure_url = []
 [dependencies]
 anyhow.workspace = true
 bs58 = { workspace = true }
-cid = { workspace = true, features = ["scale-codec"] }
+cid = { workspace = true, features = ["scale-codec"], default-features = true }
 clap = { workspace = true, features = ["derive"] }
 codec.workspace = true
 frame-support = { workspace = true, features = ["std"] }
