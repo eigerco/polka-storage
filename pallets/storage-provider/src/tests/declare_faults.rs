@@ -427,9 +427,9 @@ pub(crate) fn setup_sp_with_one_sector(storage_provider: &str, storage_client: &
         proof: bounded_vec![0xd, 0xe, 0xa, 0xd],
     };
 
-    assert_ok!(StorageProvider::prove_commit_sector(
+    assert_ok!(StorageProvider::prove_commit_sectors(
         RuntimeOrigin::signed(account(storage_provider)),
-        sector
+        bounded_vec![sector]
     ));
 
     // Flush events before running extrinsic to check only relevant events
@@ -544,9 +544,9 @@ pub(crate) fn setup_sp_with_many_sectors_multiple_partitions(
             proof: bounded_vec![0xb, 0xe, 0xe, 0xf],
         };
 
-        assert_ok!(StorageProvider::prove_commit_sector(
+        assert_ok!(StorageProvider::prove_commit_sectors(
             RuntimeOrigin::signed(account(storage_provider)),
-            sector
+            bounded_vec![sector]
         ));
     }
 

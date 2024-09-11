@@ -1,11 +1,10 @@
 use frame_support::{assert_noop, assert_ok};
 use sp_core::bounded_vec;
-use sp_runtime::DispatchError;
 
 use super::{new_test_ext, MaxProveCommitDuration};
 use crate::{
     pallet::{Error, Event, StorageProviders},
-    sector::ProveCommitSector,
+    sector::{ProveCommitResult, ProveCommitSector},
     storage_provider::StorageProviderError,
     tests::{
         account, events, publish_deals, register_storage_provider, run_to_block, Balances,
@@ -48,9 +47,9 @@ fn successfully_prove_sector() {
             proof: bounded_vec![0xd, 0xe, 0xa, 0xd],
         };
 
-        assert_ok!(StorageProvider::prove_commit_sector(
+        assert_ok!(StorageProvider::prove_commit_sectors(
             RuntimeOrigin::signed(account(storage_provider)),
-            sector
+            bounded_vec![sector]
         ));
         assert_eq!(
             events(),
@@ -65,11 +64,13 @@ fn successfully_prove_sector() {
                     client: account(BOB),
                     provider: account(storage_provider)
                 }),
-                RuntimeEvent::StorageProvider(Event::<Test>::SectorProven {
+                RuntimeEvent::StorageProvider(Event::<Test>::SectorsProven {
                     owner: account(storage_provider),
-                    sector_number: sector_number,
-                    deadline_idx: 0,
-                    partition_number: 0,
+                    sectors: bounded_vec![ProveCommitResult {
+                        sector_number,
+                        deadline_idx: 0,
+                        partition_number: 0,
+                    }]
                 })
             ]
         );
@@ -94,23 +95,6 @@ fn successfully_prove_sector() {
 }
 
 #[test]
-fn fails_should_be_signed() {
-    new_test_ext().execute_with(|| {
-        // Sector to be pre-committed
-        let sector = SectorPreCommitInfoBuilder::default().build();
-
-        // Run pre commit extrinsic
-        assert_noop!(
-            StorageProvider::pre_commit_sectors(
-                RuntimeOrigin::none(),
-                bounded_vec![sector.clone()]
-            ),
-            DispatchError::BadOrigin,
-        );
-    });
-}
-
-#[test]
 fn fails_storage_provider_not_found() {
     new_test_ext().execute_with(|| {
         // Test prove commits
@@ -120,7 +104,10 @@ fn fails_storage_provider_not_found() {
         };
 
         assert_noop!(
-            StorageProvider::prove_commit_sector(RuntimeOrigin::signed(account(ALICE)), sector),
+            StorageProvider::prove_commit_sectors(
+                RuntimeOrigin::signed(account(ALICE)),
+                bounded_vec![sector]
+            ),
             Error::<Test>::StorageProviderNotFound,
         );
     });
@@ -142,9 +129,9 @@ fn fails_storage_precommit_missing() {
         };
 
         assert_noop!(
-            StorageProvider::prove_commit_sector(
+            StorageProvider::prove_commit_sectors(
                 RuntimeOrigin::signed(account(storage_provider)),
-                sector
+                bounded_vec![sector]
             ),
             Error::<Test>::StorageProviderError(StorageProviderError::SectorNotFound),
         );
@@ -189,9 +176,9 @@ fn fails_prove_commit_after_deadline() {
         run_to_block(proving_at_block_number);
 
         assert_noop!(
-            StorageProvider::prove_commit_sector(
+            StorageProvider::prove_commit_sectors(
                 RuntimeOrigin::signed(account(storage_provider)),
-                sector
+                bounded_vec![sector]
             ),
             Error::<Test>::ProveCommitAfterDeadline,
         );

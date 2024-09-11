@@ -38,7 +38,7 @@ The `pre-commit` command [pre-commits](../pallets/storage-provider.md#pre_commit
 | -------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | `PRE_COMMIT_SECTORS` | The sector we are committing to | JSON object. Can be passed as a string, or as a file path prefixed with `@` pointing to the file containing the JSON object. |
 
-The `PRE_COMMIT_SECTORs` JSON object has the following structure:
+The `PRE_COMMIT_SECTORS` JSON object has the following structure:
 
 | Name            | Description       |
 | --------------- | ----------------- |
@@ -84,9 +84,9 @@ After the sector is proven, the deals will become `Active`.
 
 | Name                  | Description               | Type                                                                                                                         |
 | --------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `PROVE_COMMIT_SECTOR` | The sector we are proving | JSON object. Can be passed as a string, or as a file path prefixed with `@` pointing to the file containing the JSON object. |
+| `PROVE_COMMIT_SECTORS` | The sector we are proving | JSON object. Can be passed as a string, or as a file path prefixed with `@` pointing to the file containing the JSON object. |
 
-The `PROVE_COMMIT_SECTOR` JSON object has the following structure:
+The `PROVE_COMMIT_SECTORS` JSON object has the following structure:
 
 | Name            | Description       |
 | --------------- | ----------------- |
@@ -105,13 +105,15 @@ storagext-cli --sr25519-key <key> storage-provider prove-commit \
 Where `prove-commit-sector.json` is a file with contents similar to:
 
 ```json
-{
-  "sector_number": 0,
-  "proof": "beef"
-}
+[
+  {
+    "sector_number": 0,
+    "proof": "beef"
+  }
+]
 ```
 
-> More information about `prove_commit` extrinsic is available in [_Pallets/Storage Provider/Prove-commit sector_](../pallets/storage-provider.md#prove_commit_sector).
+> More information about `prove_commit` extrinsic is available in [_Pallets/Storage Provider/Prove-commit sector_](../pallets/storage-provider.md#prove_commit_sectors).
 
 ### `submit-windowed-post`
 

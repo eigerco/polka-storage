@@ -37,7 +37,7 @@ mod declare_faults_recovered;
 mod post_hook;
 mod pre_commit_sector_hook;
 mod pre_commit_sectors;
-mod prove_commit_sector;
+mod prove_commit_sectors;
 mod state;
 mod storage_provider_registration;
 mod submit_windowed_post;

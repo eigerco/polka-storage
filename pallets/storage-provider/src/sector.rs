@@ -5,6 +5,8 @@ use primitives_proofs::{
 };
 use scale_info::TypeInfo;
 
+use crate::partition::PartitionNumber;
+
 // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/runtime/src/runtime/policy.rs#L262
 pub const MAX_SECTORS: u32 = 32 << 20;
 
@@ -112,4 +114,29 @@ where
 pub struct ProveCommitSector {
     pub sector_number: SectorNumber,
     pub proof: BoundedVec<u8, ConstU32<256>>, // Arbitrary length
+}
+
+/// Type that is emitted after a successful prove commit extrinsic.
+#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
+pub struct ProveCommitResult {
+    /// The sector number that is proven.
+    pub sector_number: SectorNumber,
+    /// The partition number the proven sector is in.
+    pub partition_number: PartitionNumber,
+    //// The deadline index assigned to the proven sector.
+    pub deadline_idx: u64,
+}
+
+impl ProveCommitResult {
+    pub fn new(
+        sector_number: SectorNumber,
+        partition_number: PartitionNumber,
+        deadline_idx: u64,
+    ) -> Self {
+        Self {
+            sector_number,
+            partition_number,
+            deadline_idx,
+        }
+    }
 }

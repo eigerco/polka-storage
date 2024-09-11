@@ -459,9 +459,9 @@ fn multi_sectors_setup_fault_recovery(
             proof: bounded_vec![0xd, 0xe, 0xa, 0xd],
         };
 
-        assert_ok!(StorageProvider::prove_commit_sector(
+        assert_ok!(StorageProvider::prove_commit_sectors(
             RuntimeOrigin::signed(account(storage_provider)),
-            sector
+            bounded_vec![sector]
         ));
     }
 

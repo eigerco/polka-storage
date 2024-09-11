@@ -155,12 +155,12 @@ fn precommit_and_prove(
         bounded_vec![sector.clone()],
     )
     .unwrap();
-    StorageProvider::prove_commit_sector(
+    StorageProvider::prove_commit_sectors(
         RuntimeOrigin::signed(account(storage_provider)),
-        ProveCommitSector {
+        bounded_vec![ProveCommitSector {
             sector_number,
             proof: bounded_vec![0xde],
-        },
+        }],
     )
     .unwrap();
 }

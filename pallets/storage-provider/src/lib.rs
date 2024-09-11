@@ -72,8 +72,8 @@ pub mod pallet {
         partition::PartitionNumber,
         proofs::{assign_proving_period_offset, SubmitWindowedPoStParams},
         sector::{
-            ProveCommitSector, SectorOnChainInfo, SectorPreCommitInfo, SectorPreCommitOnChainInfo,
-            MAX_SECTORS,
+            ProveCommitResult, ProveCommitSector, SectorOnChainInfo, SectorPreCommitInfo,
+            SectorPreCommitOnChainInfo, MAX_SECTORS,
         },
         sector_map::DeadlineSectorMap,
         storage_provider::{
@@ -243,11 +243,9 @@ pub mod pallet {
                 BoundedVec<SectorPreCommitInfo<BlockNumberFor<T>>, ConstU32<MAX_SECTORS_PER_CALL>>,
         },
         /// Emitted when a storage provider successfully proves pre committed sectors.
-        SectorProven {
+        SectorsProven {
             owner: T::AccountId,
-            sector_number: SectorNumber,
-            partition_number: PartitionNumber,
-            deadline_idx: u64,
+            sectors: BoundedVec<ProveCommitResult, ConstU32<MAX_SECTORS_PER_CALL>>,
         },
         /// Emitted when a sector was pre-committed, but not proven, so it got slashed in the pre-commit hook.
         SectorSlashed {
@@ -489,64 +487,77 @@ pub mod pallet {
         }
 
         /// Allows the storage providers to submit proof for their pre-committed sectors.
-        // TODO(@aidan46, no-ref, 2024-06-24): Add functionality to allow for batch pre commit
         // TODO(@aidan46, no-ref, 2024-06-24): Actually check proof, currently the proof validation is stubbed out.
-        pub fn prove_commit_sector(
+        pub fn prove_commit_sectors(
             origin: OriginFor<T>,
-            sector: ProveCommitSector,
+            sectors: BoundedVec<ProveCommitSector, ConstU32<MAX_SECTORS_PER_CALL>>,
         ) -> DispatchResult {
             let owner = ensure_signed(origin)?;
             let mut sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
-            let sector_number = sector.sector_number;
-
-            ensure!(
-                sector_number <= MAX_SECTORS.into(),
-                Error::<T>::InvalidSector
-            );
-
-            // Get pre-committed sector. This is the sector we are currently
-            // proving.
-            let precommit = sp
-                .get_pre_committed_sector(sector_number)
-                .map_err(|e| Error::<T>::StorageProviderError(e))?;
             let current_block = <frame_system::Pallet<T>>::block_number();
-            let prove_commit_due =
-                precommit.pre_commit_block_number + T::MaxProveCommitDuration::get();
-            ensure!(
-                current_block < prove_commit_due,
-                Error::<T>::ProveCommitAfterDeadline
-            );
-            ensure!(
-                validate_seal_proof(&precommit.info.seal_proof, sector.proof),
-                Error::<T>::InvalidProofType,
-            );
-
-            // Sector deals that will be activated after the sector is
-            // successfully proven.
+            // Create vectors for activating all prove commits at once.
             let mut sector_deals = BoundedVec::new();
-            sector_deals
-                .try_push(precommit.into())
-                .map_err(|_| Error::<T>::CouldNotActivateSector)?;
-            let deal_amount = sector_deals.len();
-            // Activate the deals for the sector that will be proven. This
-            // action is not applied if Err is returned from the extrinsic.
-            T::Market::activate_deals(&owner, sector_deals, deal_amount > 0)?;
-
-            // Sector that will be activated and required to be periodically
-            // proven
-            let new_sector =
-                SectorOnChainInfo::from_pre_commit(precommit.info.clone(), current_block);
-
-            // Activate the sector
-            sp.activate_sector(sector_number, new_sector.clone())
-                .map_err(|e| Error::<T>::StorageProviderError(e))?;
-
-            // Sectors which will be assigned to the deadlines
             let mut new_sectors = BoundedVec::new();
-            new_sectors
-                .try_push(new_sector)
-                .expect("Infallible since only 1 element is inserted");
+            let mut sector_numbers: BoundedVec<SectorNumber, ConstU32<MAX_SECTORS_PER_CALL>> =
+                BoundedVec::new();
+
+            for sector in sectors {
+                ensure!(
+                    sector.sector_number <= MAX_SECTORS.into(),
+                    Error::<T>::InvalidSector
+                );
+                // Get pre-committed sector. This is the sector we are currently
+                // proving.
+                let precommit = sp
+                    .get_pre_committed_sector(sector.sector_number)
+                    .map_err(|e| Error::<T>::StorageProviderError(e))?;
+                let prove_commit_due =
+                    precommit.pre_commit_block_number + T::MaxProveCommitDuration::get();
+                ensure!(
+                    current_block < prove_commit_due,
+                    Error::<T>::ProveCommitAfterDeadline
+                );
+                ensure!(
+                    validate_seal_proof(&precommit.info.seal_proof, sector.proof),
+                    Error::<T>::InvalidProofType,
+                );
+
+                // Sector deals that will be activated after the sector is
+                // successfully proven.
+                sector_deals
+                    .try_push(precommit.into())
+                    .map_err(|_| Error::<T>::CouldNotActivateSector)?;
+                sector_numbers
+                    .try_push(sector.sector_number)
+                    .map_err(|_| Error::<T>::CouldNotActivateSector)?;
+                // Sector that will be activated and required to be periodically
+                // proven
+                let new_sector =
+                    SectorOnChainInfo::from_pre_commit(precommit.info.clone(), current_block);
+                new_sectors
+                    .try_push(new_sector)
+                    .map_err(|_| Error::<T>::CouldNotActivateSector)?;
+            }
+
+            // Activate the deals for the sectors that will be proven. This
+            // action is not applied if Err is returned from the extrinsic.
+            let compute_commd = sector_deals.len() > 0;
+            T::Market::activate_deals(&owner, sector_deals, compute_commd)?;
+
+            // Activate the new sectors and remove from pre-committed sectors.
+            sector_numbers.iter().zip(&new_sectors).try_for_each(
+                |(&sector_number, new_sector)| -> Result<(), Error<T>> {
+                    // Activate the new sector
+                    sp.activate_sector(sector_number, new_sector.clone())
+                        .map_err(|e| Error::<T>::StorageProviderError(e))?;
+                    // Remove sector from the pre-committed map
+                    sp.remove_pre_committed_sector(sector_number)
+                        .map_err(|e| Error::<T>::StorageProviderError(e))?;
+
+                    Ok(())
+                },
+            )?;
 
             // Assign sectors to deadlines which specify when sectors needs
             // to be proven
@@ -563,39 +574,41 @@ pub mod pallet {
             )
             .map_err(|e| Error::<T>::StorageProviderError(e))?;
 
-            // Remove sector from the pre-committed map
-            sp.remove_pre_committed_sector(sector_number)
-                .map_err(|e| Error::<T>::StorageProviderError(e))?;
-
-            // Find where the sector was placed. In worst case this goes through
-            // all deadlines. It starts to look in the last partition of the
-            // deadline. Usually the new sector will be there.
-            let (deadline_idx, partition_number) =
-                sp.deadlines
-                    .due
-                    .iter()
-                    .enumerate()
-                    .find_map(|(deadline_idx, deadline)| {
-                        deadline.partitions.iter().rev().find_map(
-                            |(partition_number, partition)| {
-                                if partition.sectors.contains(&sector_number) {
-                                    Some((deadline_idx as u64, *partition_number))
-                                } else {
-                                    None
-                                }
-                            },
-                        )
-                    })
-                    .expect("sector should be assigned to a deadline");
+            let sectors_proven = sector_numbers
+                .iter()
+                .map(|&sector_number| {
+                    // Find where the sector was placed. In worst case this goes through
+                    // all deadlines. It starts to look in the last partition of the
+                    // deadline. Usually the new sector will be there.
+                    // This seems inefficient, is there a better way?
+                    let (deadline_idx, partition_number) = sp
+                        .deadlines
+                        .due
+                        .iter()
+                        .enumerate()
+                        .find_map(|(deadline_idx, deadline)| {
+                            deadline.partitions.iter().rev().find_map(
+                                |(partition_number, partition)| {
+                                    if partition.sectors.contains(&sector_number) {
+                                        Some((deadline_idx as u64, *partition_number))
+                                    } else {
+                                        None
+                                    }
+                                },
+                            )
+                        })
+                        .expect("sector should be assigned to a deadline");
+                    ProveCommitResult::new(sector_number, partition_number, deadline_idx)
+                })
+                .collect::<Vec<ProveCommitResult>>()
+                .try_into()
+                .expect("Programmer error: ProveCommitResult's should fit in bound of MAX_SECTORS");
 
             StorageProviders::<T>::set(owner.clone(), Some(sp));
-            Self::deposit_event(Event::SectorProven {
+            Self::deposit_event(Event::SectorsProven {
                 owner,
-                sector_number,
-                deadline_idx,
-                partition_number,
+                sectors: sectors_proven,
             });
-
             Ok(())
         }
 
