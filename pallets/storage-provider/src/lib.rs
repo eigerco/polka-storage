@@ -300,8 +300,6 @@ pub mod pallet {
         MaxSectorLifetimeExceeded,
         /// Emitted when a CID is invalid
         InvalidCid,
-        /// Emitted when a sector fails to activate
-        CouldNotActivateSector,
         /// Emitted when a prove commit is sent after the deadline.
         /// These pre-commits will be cleaned up in the hook.
         ProveCommitAfterDeadline,
@@ -503,10 +501,10 @@ pub mod pallet {
                 BoundedVec::new();
 
             for sector in sectors {
-                ensure!(
-                    sector.sector_number <= MAX_SECTORS.into(),
+                ensure!(sector.sector_number <= MAX_SECTORS.into(), {
+                    log::error!(target: LOG_TARGET, "prove_commit_sectors: Sector number ({}) may not exceed MAX_SECTORS", sector.sector_number);
                     Error::<T>::InvalidSector
-                );
+                });
                 // Get pre-committed sector. This is the sector we are currently
                 // proving.
                 let precommit = sp
@@ -514,30 +512,33 @@ pub mod pallet {
                     .map_err(|e| Error::<T>::StorageProviderError(e))?;
                 let prove_commit_due =
                     precommit.pre_commit_block_number + T::MaxProveCommitDuration::get();
-                ensure!(
-                    current_block < prove_commit_due,
+                ensure!(current_block < prove_commit_due, {
+                    log::error!(target: LOG_TARGET, "prove_commit_sectors: Prove commit submitted after the deadline. {current_block:?} > {prove_commit_due:?}");
                     Error::<T>::ProveCommitAfterDeadline
-                );
+                });
                 ensure!(
                     validate_seal_proof(&precommit.info.seal_proof, sector.proof),
-                    Error::<T>::InvalidProofType,
+                    {
+                        log::error!(target: LOG_TARGET, "prove_commit_sectors: Invalid proof type submitted");
+                        Error::<T>::InvalidProofType
+                    },
                 );
 
                 // Sector deals that will be activated after the sector is
                 // successfully proven.
                 sector_deals
                     .try_push(precommit.into())
-                    .map_err(|_| Error::<T>::CouldNotActivateSector)?;
+                    .expect("Programmer error: Sector deals should fit in bound of MAX_SECTORS");
                 sector_numbers
                     .try_push(sector.sector_number)
-                    .map_err(|_| Error::<T>::CouldNotActivateSector)?;
+                    .expect("Programmer error: Sector numbers should fit in bound of MAX_SECTORS");
                 // Sector that will be activated and required to be periodically
                 // proven
                 let new_sector =
                     SectorOnChainInfo::from_pre_commit(precommit.info.clone(), current_block);
                 new_sectors
                     .try_push(new_sector)
-                    .map_err(|_| Error::<T>::CouldNotActivateSector)?;
+                    .expect("Programmer error: New sectors should fit in bound of MAX_SECTORS");
             }
 
             // Activate the deals for the sectors that will be proven. This
