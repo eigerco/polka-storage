@@ -10,7 +10,7 @@ use crate::{
     sector::{SectorPreCommitInfo, MAX_SECTORS},
     tests::{
         account, cid_of, events, publish_deals, register_storage_provider, run_to_block, Balances,
-        MaxProveCommitDuration, MaxSectorExpirationExtension, RuntimeEvent, RuntimeOrigin,
+        MaxProveCommitDuration, MaxSectorExpiration, RuntimeEvent, RuntimeOrigin,
         SectorPreCommitInfoBuilder, StorageProvider, Test, ALICE, CHARLIE, INITIAL_FUNDS,
     },
 };
@@ -384,7 +384,7 @@ fn fails_expiration_too_long() {
         let sector = SectorPreCommitInfoBuilder::default()
             // Set expiration to be in the next block after the maximum
             // allowed
-            .expiration(current_height + MaxSectorExpirationExtension::get() + 1)
+            .expiration(current_height + MaxSectorExpiration::get() + 1)
             .build();
 
         // Run pre commit extrinsic

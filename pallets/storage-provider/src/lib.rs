@@ -189,7 +189,7 @@ pub mod pallet {
 
         /// Maximum number of blocks past the current block a sector may be set to expire.
         #[pallet::constant]
-        type MaxSectorExpirationExtension: Get<BlockNumberFor<Self>>;
+        type MaxSectorExpiration: Get<BlockNumberFor<Self>>;
 
         /// Maximum number of blocks a sector can stay in pre-committed state
         #[pallet::constant]
@@ -296,7 +296,7 @@ pub mod pallet {
         ExpirationBeforeActivation,
         /// Emitted when expiration is less than minimum after activation
         ExpirationTooSoon,
-        /// Emitted when the expiration exceeds MaxSectorExpirationExtension
+        /// Emitted when the expiration exceeds MaxSectorExpiration
         ExpirationTooLong,
         /// Emitted when a sectors lifetime exceeds SectorMaximumLifetime
         MaxSectorLifetimeExceeded,
@@ -883,9 +883,9 @@ pub mod pallet {
                 expiration - activation > T::MinSectorExpiration::get(),
                 Error::<T>::ExpirationTooSoon
             );
-            // expiration cannot exceed MaxSectorExpirationExtension from now
+            // expiration cannot exceed MaxSectorExpiration from now
             ensure!(
-                expiration < curr_block + T::MaxSectorExpirationExtension::get(),
+                expiration < curr_block + T::MaxSectorExpiration::get(),
                 Error::<T>::ExpirationTooLong,
             );
             // total sector lifetime cannot exceed SectorMaximumLifetime for the sector's seal proof
