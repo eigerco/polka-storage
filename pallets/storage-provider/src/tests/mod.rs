@@ -97,7 +97,7 @@ parameter_types! {
     pub const WpostChallengeWindow: BlockNumber = 4 * MINUTES;
     pub const WpostChallengeLookBack: BlockNumber = MINUTES;
     pub const MinSectorExpiration: BlockNumber = 5 * MINUTES;
-    pub const MaxSectorExpirationExtension: BlockNumber = 360 * MINUTES;
+    pub const MaxSectorExpiration: BlockNumber = 360 * MINUTES;
     pub const SectorMaximumLifetime: BlockNumber = 120 * MINUTES;
     pub const MaxProveCommitDuration: BlockNumber = 5 * MINUTES;
     pub const MaxPartitionsPerDeadline: u64 = 3000;
@@ -118,7 +118,7 @@ impl pallet_storage_provider::Config for Test {
     type WPoStChallengeWindow = WpostChallengeWindow;
     type WPoStChallengeLookBack = WpostChallengeLookBack;
     type MinSectorExpiration = MinSectorExpiration;
-    type MaxSectorExpirationExtension = MaxSectorExpirationExtension;
+    type MaxSectorExpiration = MaxSectorExpiration;
     type SectorMaximumLifetime = SectorMaximumLifetime;
     type MaxProveCommitDuration = MaxProveCommitDuration;
     type WPoStPeriodDeadlines = WPoStPeriodDeadlines;

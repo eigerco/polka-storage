@@ -70,7 +70,7 @@ storagext-cli --sr25519-key "//Alice" storage-provider register alice
 ### `pre_commit_sectors`
 
 After publishing a deal, the storage provider needs to pre-commit the sector information to the chain.
-Sectors are not valid after pre-commit. The sectors need to be proven first. 
+Sectors are not valid after pre-commit. The sectors need to be proven first.
 The pre-commit extrinsic takes in an array of the following values:
 
 | Name            | Description                                                            | Type                                                           |
@@ -316,7 +316,7 @@ The Storage Provider Pallet actions can fail with the following errors:
 - `SectorNumberAlreadyUsed` - A storage provider tries to pre-commit a sector number that has already been used.
 - `ExpirationBeforeActivation` - A storage provider tries to pre-commit a sector where that sector expires before activation.
 - `ExpirationTooSoon` - A storage provider tries to pre-commit a sector with a total lifetime less than MinSectorExpiration.
-- `ExpirationTooLong` - A storage provider tries to pre-commit a sector with an expiration that exceeds `MaxSectorExpirationExtension`.
+- `ExpirationTooLong` - A storage provider tries to pre-commit a sector with an expiration that exceeds `MaxSectorExpiration`.
 - `MaxSectorLifetimeExceeded` - A storage provider tries to pre-commit a sector with a total lifetime that exceeds `SectorMaximumLifetime`.
 - `InvalidCid` - Emitted when a storage provider submits an invalid unsealed CID when trying to pre-commit a sector.
 - `ProveCommitAfterDeadline` - A storage provider has tried to prove a previously pre-committed sector after the proving deadline.
@@ -346,9 +346,9 @@ The Storage Provider Pallet has the following constants:
 | `WPoStChallengeLookBack`                                          | This period allows the storage providers to start working on the [PoSt](../glossary.md#post) before the deadline is officially opened to receiving a [PoSt](../glossary.md#post). | 1 Minute    |
 | <code id="const-period-deadlines">`WPoStPeriodDeadlines`</code>   | Represents how many challenge deadlines there are in one proving period. Closely tied to `WPoStChallengeWindow`.                                                                  | 48          |
 | `MinSectorExpiration`                                             | Minimum time past the current block a sector may be set to expire.                                                                                                                | 5 Minutes   |
-| `MaxSectorExpirationExtension`                                    | Maximum time past the current block a sector may be set to expire.                                                                                                                | 60 Minutes  |
+| `MaxSectorExpiration`                                             | Maximum time past the current block a sector may be set to expire.                                                                                                                | 60 Minutes  |
 | `SectorMaximumLifetime`                                           | Maximum time a sector can stay in pre-committed state.                                                                                                                            | 120 Minutes |
-| `MaxProveCommitDuration`                                          | Maximum time between [pre-commit](#pre_commit_sectors) and [proving](#prove_commit_sector) the committed sector.                                                                   | 5 Minutes   |
+| `MaxProveCommitDuration`                                          | Maximum time between [pre-commit](#pre_commit_sectors) and [proving](#prove_commit_sector) the committed sector.                                                                  | 5 Minutes   |
 | `MaxPartitionsPerDeadline`                                        | Maximum number of partitions that can be assigned to a single deadline.                                                                                                           | 3000        |
 | `FaultMaxAge`                                                     | Maximum time a [fault](../glossary.md#fault) can exist before being removed by the pallet.                                                                                        | 210 Minutes |
 | <code id="fault-declaration-cutoff">FaultDeclarationCutoff</code> | Time before a deadline opens that a storage provider can declare or recover a fault.                                                                                              | 2 Minutes   |
