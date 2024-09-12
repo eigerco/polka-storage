@@ -22,6 +22,11 @@ frame-support.workspace = true
 frame-system.workspace = true
 scale-info = { features = ["derive"], workspace = true }
 sp-runtime.workspace = true
+rand = { workspace = true, features = ["alloc"] }
+rand_chacha = { workspace = true }
+sha2 = { workspace = true }
+digest = { workspace = true }
+primitives-proofs = { workspace = true}
 
 [dev-dependencies]
 sp-core = { default-features = true, workspace = true }
