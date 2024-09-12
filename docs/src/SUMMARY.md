@@ -13,6 +13,7 @@
   - [`market`](./storagext-cli/market.md)
   - [`storage-provider`](./storagext-cli/storage-provider.md)
   - [`system`](./storagext-cli/system.md)
+- [Mater CLI](./mater-cli/index.md)
 - [Pallets](./pallets/index.md)
   - [Market](./pallets/market.md)
   - [Storage Provider](./pallets/storage-provider.md)

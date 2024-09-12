@@ -6049,6 +6049,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "mater-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "mater",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "matrixmultiply"
 version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
