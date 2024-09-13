@@ -101,11 +101,11 @@ fn main() {
         replica_id,
         seed: Some(rng.gen()),
         tau: Some(tau),
-        k: None,
+        k: Some(0),
     };
     let priv_inputs = PrivateInputs { p_aux, t_aux };
     // 3. Generate the proof and verifying-key (TODO).
-    let partitions = 2;
+    let partitions = 1;
     let proofs = StackedDrg::prove_all_partitions(
         &pub_params.vanilla_params,
         &pub_inputs,
@@ -129,12 +129,9 @@ fn main() {
     let proofs =
         StackedCompound::prove(&pub_params, &pub_inputs, &priv_inputs, &blank_groth_params)
             .unwrap();
-    let verifying_key = StackedCompound::<TTree, THasher>::verifying_key::<XorShiftRng>(
-        None,
-        &pub_params.vanilla_params,
-    )
-    .unwrap();
-    let prepared_verifying_key = groth16::prepare_verifying_key(&verifying_key);
+
+    let verifying_key = blank_groth_params.vk;
+    let prepared_verifying_key = blank_groth_params.pvk;
     let multi_proof = MultiProof::new(proofs.clone(), &prepared_verifying_key);
 
     // This needs to be done on-chain. Optional: Prepare the key here as well.
@@ -152,15 +149,16 @@ fn main() {
     // The real publix input parameters look a bit different.
     println!("Converting outputs to pallet-compatible format... 💻");
     let mut real_pub_inputs =
-        generate_public_inputs(&pub_inputs, &pub_params.vanilla_params, Some(1)).unwrap();
+        generate_public_inputs(&pub_inputs, &pub_params.vanilla_params, Some(0)).unwrap();
 
     // Serialise and send to pallet storage-provider.
     let pt_vkey = pallet::into_pallet_verifying_key(&verifying_key).unwrap();
     let pt_proof = pallet::into_pallet_proof(&multi_proof.circuit_proofs).unwrap();
     let pt_proof = pt_proof[0].clone();
-    real_pub_inputs.truncate(pt_vkey.ic.len() - 1); // TODO: Check this issue
     let pt_pub_inputs = pallet::into_pallet_public_inputs(&real_pub_inputs).unwrap();
 
+    println!("real_pub_inputs: {}, verifying_key: {}", real_pub_inputs.len(), verifying_key.ic.len());
+    println!("pt_pub_inputs: {}, pt_vkey: {}", pt_pub_inputs.0.len() +  1, pt_vkey.ic.len());
     assert!(
         pt_pub_inputs.0.len() + 1 == pt_vkey.ic.len(),
         "Invalid VerifyingKey, num(pub-inputs) + 1 != num(vkey.ic) ❌"
@@ -237,7 +235,7 @@ fn generate_public_inputs(
             k,
         )?);
 
-        let mut drg_parents = vec![0; graph.degree()];
+        let mut drg_parents = vec![0; graph.base_graph().degree()];
         graph.base_graph().parents(challenge, &mut drg_parents)?;
 
         for parent in drg_parents.into_iter() {
