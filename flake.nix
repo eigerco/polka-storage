@@ -39,11 +39,13 @@
           # Due to zombienet's flake.nix, needs to be prefixed with pkg.zombienet
           pkgs.zombienet.default
           ocl-icd
+          hwloc
         ]
         ++ (lib.optionals stdenv.isDarwin [
           darwin.apple_sdk.frameworks.Security
           darwin.apple_sdk.frameworks.CoreServices
           darwin.apple_sdk.frameworks.SystemConfiguration
+          darwin.apple_sdk.frameworks.OpenCL
         ]);
       in
       with pkgs;
