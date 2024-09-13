@@ -21,7 +21,7 @@ mod tests;
 mod deadline;
 mod fault;
 mod partition;
-pub mod proofs;
+mod proofs;
 mod sector;
 mod sector_map;
 mod storage_provider;
@@ -39,7 +39,6 @@ pub mod pallet {
     use alloc::{vec, vec::Vec};
     use core::fmt::Debug;
 
-    use bls12_381::Bls12;
     use cid::{Cid, Version};
     use codec::{Decode, Encode};
     use frame_support::{
@@ -53,9 +52,9 @@ pub mod pallet {
         },
     };
     use frame_system::{ensure_signed, pallet_prelude::*, Config as SystemConfig};
+    use polka_storage_proofs::{Bls12, PreparedVerifyingKey, Proof, PublicInputs, VerifyingKey};
     use primitives_proofs::{
-        Market, PreparedVerifyingKey, Proof, PublicInputs, RegisteredPoStProof,
-        RegisteredSealProof, SectorNumber, StorageProviderValidation, VerifyingKey,
+        Market, RegisteredPoStProof, RegisteredSealProof, SectorNumber, StorageProviderValidation,
         MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
@@ -887,8 +886,7 @@ pub mod pallet {
                 .map_err(|_| Error::<T>::ConversionPublicInputs)?;
 
             let prepared_vkey = PreparedVerifyingKey::<Bls12>::from(vkey);
-            verify_proof::<Bls12>(&prepared_vkey, &proof, &inputs)
-                .map_err(Into::<Error<T>>::into)?;
+            verify_proof(&prepared_vkey, &proof, &inputs).map_err(Into::<Error<T>>::into)?;
 
             Ok(())
         }

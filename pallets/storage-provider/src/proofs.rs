@@ -3,11 +3,11 @@ use frame_support::{
     pallet_prelude::{ConstU32, RuntimeDebug},
     sp_runtime::BoundedVec,
 };
-use pairing::{
-    group::{prime::PrimeCurveAffine, Curve},
-    MillerLoopResult, MultiMillerLoop,
+use polka_storage_proofs::{
+    Bls12, Curve, Engine, MultiMillerLoop, PreparedVerifyingKey, PrimeCurveAffine, Proof,
+    PublicInputs,
 };
-use primitives_proofs::{PreparedVerifyingKey, Proof, PublicInputs, RegisteredPoStProof};
+use primitives_proofs::RegisteredPoStProof;
 use scale_info::TypeInfo;
 use sp_core::blake2_64;
 use sp_std::ops::AddAssign;
@@ -23,9 +23,7 @@ pub struct PoStProof {
     /// The proof type, currently only one type is supported.
     pub post_proof: RegisteredPoStProof,
     /// The proof submission, to be checked in the storage provider pallet.
-    pub proof_bytes: BoundedVec<u8, ConstU32<384>>,
-    /// The verifying key for the given proof.
-    pub vkey_bytes: BoundedVec<u8, ConstU32<1056>>,
+    pub proof_bytes: BoundedVec<u8, ConstU32<256>>, // Arbitrary length
 }
 
 /// Parameter type for `submit_windowed_post` extrinsic.
@@ -94,18 +92,11 @@ where
     Ok(offset)
 }
 
-// fn get_inputs<'r, E>(inputs: &'r PublicInputs<E>) -> &'r [E::Fr]
-// where
-//     E: MultiMillerLoop,
-// {
-//     &inputs.0[..]
-// }
-
 /// TODO
-pub fn verify_proof<'a, E: MultiMillerLoop>(
-    pvk: &'a PreparedVerifyingKey<E>,
-    proof: &Proof<E>,
-    public_inputs: &PublicInputs<E>,
+pub fn verify_proof(
+    pvk: &PreparedVerifyingKey<Bls12>,
+    proof: &Proof<Bls12>,
+    public_inputs: &PublicInputs<Bls12>,
 ) -> Result<(), ProofError> {
     if (public_inputs.0.len() + 1) != pvk.ic.len() {
         return Err(ProofError::InvalidVerifyingKey);
@@ -114,7 +105,7 @@ pub fn verify_proof<'a, E: MultiMillerLoop>(
     let mut acc = pvk.ic[0].to_curve();
 
     for (i, b) in public_inputs.0.iter().zip(pvk.ic.iter().skip(1)) {
-        AddAssign::<&E::G1>::add_assign(&mut acc, &(*b * i));
+        AddAssign::<&<Bls12 as Engine>::G1>::add_assign(&mut acc, &(*b * i));
     }
 
     // The original verification equation is:
@@ -126,7 +117,7 @@ pub fn verify_proof<'a, E: MultiMillerLoop>(
     // which allows us to do a single final exponentiation.
 
     if pvk.alpha_g1_beta_g2
-        == E::multi_miller_loop(&[
+        == Bls12::multi_miller_loop(&[
             (&proof.a, &proof.b.into()),
             (&acc.to_affine(), &pvk.neg_gamma_g2),
             (&proof.c, &pvk.neg_delta_g2),

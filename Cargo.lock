@@ -8667,7 +8667,6 @@ dependencies = [
 name = "pallet-storage-provider"
 version = "0.0.0"
 dependencies = [
- "bls12_381",
  "cid 0.11.1",
  "env_logger 0.11.5",
  "frame-benchmarking",
@@ -8675,10 +8674,10 @@ dependencies = [
  "frame-system",
  "log",
  "multihash-codetable",
- "pairing",
  "pallet-balances",
  "pallet-market",
  "parity-scale-codec",
+ "polka-storage-proofs",
  "primitives-proofs",
  "rstest",
  "scale-info",
@@ -9347,6 +9346,18 @@ dependencies = [
  "substrate-build-script-utils",
  "substrate-frame-rpc-system",
  "substrate-prometheus-endpoint",
+]
+
+[[package]]
+name = "polka-storage-proofs"
+version = "0.1.0"
+dependencies = [
+ "bls12_381",
+ "pairing",
+ "parity-scale-codec",
+ "rand",
+ "scale-info",
+ "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2407-1)",
 ]
 
 [[package]]
@@ -10811,19 +10822,15 @@ dependencies = [
 name = "primitives-proofs"
 version = "0.1.0"
 dependencies = [
- "bls12_381",
  "cid 0.11.1",
- "frame-support",
- "pairing",
  "parity-scale-codec",
- "rand",
  "scale-decode",
  "scale-encode",
  "scale-info",
  "serde",
  "serde_json",
  "sp-core 34.0.0",
- "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2407-1)",
+ "sp-runtime 39.0.0",
 ]
 
 [[package]]
@@ -10963,7 +10970,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "proof-generator"
+name = "proof-utilities"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -10974,19 +10981,14 @@ dependencies = [
  "filecoin-hashers",
  "filecoin-proofs",
  "fr32",
- "frame-support",
- "hex",
  "merkletree",
- "pairing",
  "pallet-storage-provider",
- "primitives-proofs",
+ "polka-storage-proofs",
  "rand",
  "rand_xorshift",
- "rayon",
  "sha2 0.10.8",
  "storage-proofs-core",
  "storage-proofs-porep",
- "storage-proofs-update",
  "tempfile",
 ]
 

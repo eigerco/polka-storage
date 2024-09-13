@@ -1,6 +1,6 @@
 use cid::Cid;
-use frame_support::sp_runtime::{BoundedVec, DispatchError, DispatchResult, RuntimeDebug};
 use sp_core::ConstU32;
+use sp_runtime::{BoundedVec, DispatchError, DispatchResult, RuntimeDebug};
 
 use crate::types::{DealId, RegisteredSealProof, SectorNumber};
 

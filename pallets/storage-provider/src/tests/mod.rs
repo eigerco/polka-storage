@@ -484,7 +484,6 @@ impl Default for SubmitWindowedPoStBuilder {
             proof: PoStProof {
                 post_proof: RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
                 proof_bytes: bounded_vec![0x1, 0x2, 0x3],
-                vkey_bytes: bounded_vec![0x1, 0x2, 0x3],
             },
         }
     }

@@ -10,8 +10,8 @@ members = [
   "cli/polka-storage-provider",
   "cli/polka-storage/storagext",
   "cli/polka-storage/storagext-cli",
-  "cli/proof-generator",
-  "cli/proof-generator",
+  "libs/polka-storage-proofs",
+  "libs/proof-utilities",
   "maat",
   "node",
   "pallets/market",
@@ -123,8 +123,10 @@ cli-primitives = { path = "primitives/cli" }
 mater = { path = "storage/mater" }
 pallet-market = { path = "pallets/market", default-features = false }
 pallet-storage-provider = { path = "pallets/storage-provider", default-features = false }
+polka-storage-proofs = { path = "libs/polka-storage-proofs", default-features = false }
 polka-storage-runtime = { path = "runtime" }
 primitives-proofs = { path = "primitives/proofs", default-features = false }
+proof-utilities = { path = "libs/proof-utilities" }
 storagext = { path = "cli/polka-storage/storagext" }
 
 # Substrate
@@ -153,7 +155,7 @@ sp-consensus-aura = { git = "https://github.com/paritytech/polkadot-sdk", tag = 
 sp-core = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2407-1", default-features = false }
 sp-genesis-builder = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2407-1", default-features = false }
 sp-inherents = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2407-1", default-features = false }
-sp-io = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2407-1" }
+sp-io = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2407-1", default-features = false }
 sp-keystore = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2407-1" }
 sp-offchain = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2407-1", default-features = false }
 sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2407-1", default-features = false }

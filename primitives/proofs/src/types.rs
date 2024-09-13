@@ -1,7 +1,8 @@
-use frame_support::pallet_prelude::{Decode, Encode, RuntimeDebug};
+use codec::{Decode, Encode};
 use scale_decode::DecodeAsType;
 use scale_encode::EncodeAsType;
 use scale_info::TypeInfo;
+use sp_runtime::RuntimeDebug;
 
 pub type DealId = u64;
 

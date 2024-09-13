@@ -3,7 +3,7 @@ authors.workspace = true
 edition.workspace = true
 homepage.workspace = true
 license-file.workspace = true
-name = "proof-generator"
+name = "proof-utilities"
 repository.workspace = true
 version = "0.1.0"
 
@@ -19,17 +19,14 @@ ff = "0.13"
 filecoin-hashers = "13.1"
 filecoin-proofs = "18.1"
 fr32 = "11.1"
-frame-support = { workspace = true, default-features = true }
-hex.workspace = true
 merkletree = "0.23"
-pairing.workspace = true
-pallet-storage-provider = { workspace = true, default-features = true }
-primitives-proofs = { workspace = true, default-features = true }
+polka-storage-proofs = { workspace = true, default-features = true }
 rand = { workspace = true }
 rand_xorshift = "0.3"
-rayon = "1.10.0"
 sha2 = { workspace = true }
 storage-proofs-core = "18.1"
 storage-proofs-porep = "18.1"
-storage-proofs-update = "18.1"
 tempfile = "3.0"
+
+[dev-dependencies]
+pallet-storage-provider = { workspace = true, default-features = true }
