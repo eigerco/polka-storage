@@ -1,4 +1,6 @@
-{
-    "sector_number": 1,
-    "proof": "1230deadbeef"
-}
+[
+    {
+        "sector_number": 1,
+        "proof": "1230deadbeef"
+    }
+]

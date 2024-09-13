@@ -8,7 +8,7 @@
 - [Extrinsics](#extrinsics)
   - [`register_storage_provider`](#register_storage_provider)
   - [`pre_commit_sectors`](#pre_commit_sectors)
-  - [`prove_commit_sector`](#prove_commit_sector)
+  - [`prove_commit_sectors`](#prove_commit_sectors)
   - [`submit_windowed_post`](#submit_windowed_post)
   - [`declare_faults`](#declare_faults)
   - [`declare_faults_recovered`](#declare_faults_recovered)
@@ -111,9 +111,10 @@ Where `pre-commit-sector.json` is a file with contents similar to:
 
 [^pre_commit_sectors]: Read more about the `pre-commit` command in [_Storagext CLI/Subcommand `storage-provider`/`pre-commit`_](../storagext-cli/storage-provider.md#pre-commit)
 
-### `prove_commit_sector`
+### `prove_commit_sectors`
 
 After pre-committing some new sectors the storage provider needs to supply a [Proof-of-Replication](../glossary.md#commitment-of-replication) for these sectors [^note].
+The prove-commit extrinsic takes in an array of the following values:
 
 | Name            | Description                                                          | Type                          |
 | --------------- | -------------------------------------------------------------------- | ----------------------------- |
@@ -122,9 +123,9 @@ After pre-committing some new sectors the storage provider needs to supply a [Pr
 
 [^note]: At the moment, any proof of non-zero length is accepted for PoRep.
 
-#### <a class="header" id="prove_commit_sector.example" href="#prove_commit_sector.example">Example</a>
+#### <a class="header" id="prove_commit_sectors.example" href="#prove_commit_sectors.example">Example</a>
 
-This example follows up on the pre-commit example. Storage provider `//Alice` is proven committing[^prove_commit_sector] sector number 1.
+This example follows up on the pre-commit example. Storage provider `//Alice` is proven committing[^prove_commit_sectors] sector number 1.
 
 ```bash
 storagext-cli --sr25519-key "//Alice" storage-provider prove-commit @prove-commit-sector.json
@@ -139,7 +140,7 @@ Where `prove-commit-sector.json` is a file with contents similar to:
 }
 ```
 
-[^prove_commit_sector]: Read more about the `prove-commit` command in [_Storagext CLI/Subcommand `storage-provider`/`prove-commit`_](../storagext-cli/storage-provider.md#prove-commit)
+[^prove_commit_sectors]: Read more about the `prove-commit` command in [_Storagext CLI/Subcommand `storage-provider`/`prove-commit`_](../storagext-cli/storage-provider.md#prove-commit)
 
 ### `submit_windowed_post`
 
@@ -271,12 +272,21 @@ The Storage Provider Pallet emits the following events:
     - `window_post_proof_type` - The proof type used by the storage provider for sealing sectors.
     - `sector_size` - Amount of space in each sector committed to the network by the storage provider.
     - `window_post_partition_sectors` - The number of sectors in each Window PoSt partition (proof).
-- `SectorPreCommitted` - A storage provider has pre-committed some new sector after publishing some new deal.
+- `SectorsPreCommitted` - A storage provider has pre-committed some new sectors after publishing some new deal.
   - `owner` - SS58 address of the storage provider.
-  - `sector` - The sector number being pre-committed.
-- `SectorProven` - A storage provider has proven a sector that they previously pre-committed.
+  - `sectors` - An array with information about the sectors that are pre-committed. This information includes:
+    - `seal_proof` - The seal proof type used.
+    - `sector_number` - The sector number that is pre-committed.
+    - `sealed_cid` - Commitment of replication.
+    - `deal_ids` - Deal IDs that are activated during pre-commit.
+    - `expiration` - Expiration of the pre-committed sector.
+    - `unsealed_cid` - Commitment of data.
+- `SectorsProven` - A storage provider has proven a sectors that they previously pre-committed.
   - `owner` - SS58 address of the storage provider.
-  - `sector_number` - The sector number that was proven.
+  - `sectors` - An array with information about the sectors that are proven. This information includes:
+    - `sector_number` - The sector number that is proven.
+    - `partition_number` - The partition number the proven sector is in.
+    - `deadline_idx` - The deadline index assigned to the proven sector.
 - `SectorSlashed` - A previously pre-committed sector, but not proven, has been slashed by the system because it has expired.
   - `owner` - SS58 address of the storage provider.
   - `sector_number` - The sector number that has been slashed because of expiry.
@@ -348,7 +358,7 @@ The Storage Provider Pallet has the following constants:
 | `MinSectorExpiration`                                             | Minimum time past the current block a sector may be set to expire.                                                                                                                | 5 Minutes   |
 | `MaxSectorExpiration`                                             | Maximum time past the current block a sector may be set to expire.                                                                                                                | 60 Minutes  |
 | `SectorMaximumLifetime`                                           | Maximum time a sector can stay in pre-committed state.                                                                                                                            | 120 Minutes |
-| `MaxProveCommitDuration`                                          | Maximum time between [pre-commit](#pre_commit_sectors) and [proving](#prove_commit_sector) the committed sector.                                                                  | 5 Minutes   |
+| `MaxProveCommitDuration`                                          | Maximum time between [pre-commit](#pre_commit_sectors) and [proving](#prove_commit_sectors) the committed sector.                                                                 | 5 Minutes   |
 | `MaxPartitionsPerDeadline`                                        | Maximum number of partitions that can be assigned to a single deadline.                                                                                                           | 3000        |
 | `FaultMaxAge`                                                     | Maximum time a [fault](../glossary.md#fault) can exist before being removed by the pallet.                                                                                        | 210 Minutes |
 | <code id="fault-declaration-cutoff">FaultDeclarationCutoff</code> | Time before a deadline opens that a storage provider can declare or recover a fault.                                                                                              | 2 Minutes   |

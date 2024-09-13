@@ -70,6 +70,14 @@ pub mod display;
         derive = "::serde::Serialize"
     ),
     derive_for_type(
+        path = "pallet_storage_provider::sector::ProveCommitSector",
+        derive = "::serde::Serialize"
+    ),
+    derive_for_type(
+        path = "pallet_storage_provider::sector::ProveCommitResult",
+        derive = "::serde::Serialize"
+    ),
+    derive_for_type(
         path = "pallet_storage_provider::fault::FaultDeclaration",
         derive = "::serde::Serialize"
     ),

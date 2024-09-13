@@ -75,9 +75,9 @@ fn setup() {
         proof: bounded_vec![0xd, 0xe, 0xa, 0xd],
     };
 
-    assert_ok!(StorageProvider::prove_commit_sector(
+    assert_ok!(StorageProvider::prove_commit_sectors(
         RuntimeOrigin::signed(account(storage_provider)),
-        sector
+        bounded_vec![sector]
     ));
 
     // Remove any events that were triggered until now.

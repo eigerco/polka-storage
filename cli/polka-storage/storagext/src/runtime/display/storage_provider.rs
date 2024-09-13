@@ -76,20 +76,12 @@ impl std::fmt::Display for Event {
                 owner, info, proving_period_start,
             )),
             Event::SectorsPreCommitted { owner, sectors } => f.write_fmt(format_args!(
-                "Sector Pre-Committed: {{ owner: {}, sector_number: {:?} }}",
+                "Sectors Pre-Committed: {{ owner: {}, sector_number: {:?} }}",
                 owner, sectors,
             )),
-            Event::SectorProven {
-                owner,
-                sector_number,
-                partition_number,
-                deadline_idx,
-            } => f.write_fmt(format_args!(
-                "Sector Proven: {{ owner: {}, sector_number: {}, partition_number: {}, deadline_idx: {} }}",
-                owner,
-                sector_number,
-                partition_number,
-                deadline_idx,
+            Event::SectorsProven { owner, sectors } => f.write_fmt(format_args!(
+                "Sectors Proven: {{ owner: {}, sectors: {:?} }}",
+                owner, sectors,
             )),
             Event::SectorSlashed {
                 owner,
@@ -98,10 +90,9 @@ impl std::fmt::Display for Event {
                 "Sector Slashed: {{ owner: {}, sector_number: {} }}",
                 owner, sector_number,
             )),
-            Event::ValidPoStSubmitted { owner } => f.write_fmt(format_args!(
-                "Valid PoSt Submitted: {{ owner: {} }}",
-                owner,
-            )),
+            Event::ValidPoStSubmitted { owner } => {
+                f.write_fmt(format_args!("Valid PoSt Submitted: {{ owner: {} }}", owner,))
+            }
             Event::FaultsDeclared { owner, faults } => f.write_fmt(format_args!(
                 "Faults Declared: {{ owner: {}, faults: [{}] }}",
                 owner,
@@ -115,10 +106,7 @@ impl std::fmt::Display for Event {
                 "Faults Recovered: {{ owner: {}, recoveries: [{}] }}",
                 owner,
                 itertools::Itertools::intersperse(
-                    recoveries
-                        .0
-                        .iter()
-                        .map(|recovery| format!("{}", recovery)),
+                    recoveries.0.iter().map(|recovery| format!("{}", recovery)),
                     ", ".to_string()
                 )
                 .collect::<String>()
@@ -132,10 +120,7 @@ impl std::fmt::Display for Event {
                 owner,
                 partition,
                 itertools::Itertools::intersperse(
-                    sectors
-                        .0
-                        .iter()
-                        .map(|recovery| format!("{}", recovery)),
+                    sectors.0.iter().map(|recovery| format!("{}", recovery)),
                     ", ".to_string()
                 )
                 .collect::<String>()

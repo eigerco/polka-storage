@@ -26,9 +26,9 @@ After publishing, the funds allocated for the deal will be moved from `free` to 
 <img src="../images/market/publish_storage_deals.svg" alt="Publishing storage deals">
 
 At this point, the remaining responsibility is shifted to the storage provider, which needs to activate the deal;
-to do so, the storage provider first needs to [pre-commit](./storage-provider.md#pre_commit_sector) the deal's sectors,
-and then [prove](./storage-provider.md#prove_commit_sector) they stored the sectors 
-— these two steps are done using the [`pre_commit_sector`](./storage-provider.md#pre_commit_sector) and [`prove_commit_sector`](./storage-provider.md#prove_commit_sector) extrinsics.
+to do so, the storage provider first needs to [pre-commit](./storage-provider.md#pre_commit_sectors) the deal's sectors,
+and then [prove](./storage-provider.md#prove_commit_sectors) they stored the sectors
+— these two steps are done using the [`pre_commit_sectors`](./storage-provider.md#pre_commit_sectors) and [`prove_commit_sectors`](./storage-provider.md#prove_commit_sectors) extrinsics.
 
 Verification is done and reported to the Market pallet to terminate the deal and apply penalties to the storage provider
 (remove and burn its collateral — i.e. `locked` funds) if they fail to activate the deal on time and return the funds to the client.

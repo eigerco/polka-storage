@@ -52,12 +52,12 @@ fn pre_commit_hook_slashed_deal() {
         )
         .unwrap();
 
-        StorageProvider::prove_commit_sector(
+        StorageProvider::prove_commit_sectors(
             RuntimeOrigin::signed(account(storage_provider)),
-            ProveCommitSector {
+            bounded_vec![ProveCommitSector {
                 sector_number: 2,
                 proof: bounded_vec![0xde],
-            },
+            }],
         )
         .unwrap();
 

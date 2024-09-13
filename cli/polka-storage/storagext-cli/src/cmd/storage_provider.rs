@@ -3,8 +3,9 @@ use std::time::Duration;
 use clap::Subcommand;
 use primitives_proofs::{RegisteredPoStProof, SectorNumber};
 use storagext::{
-    runtime::SubmissionResult, FaultDeclaration, PolkaStorageConfig, RecoveryDeclaration,
-    SectorPreCommitInfo, StorageProviderClientExt,
+    runtime::SubmissionResult, FaultDeclaration, PolkaStorageConfig,
+    ProveCommitSector as SxtProveCommitSector, RecoveryDeclaration, SectorPreCommitInfo,
+    StorageProviderClientExt,
 };
 use url::Url;
 
@@ -51,8 +52,8 @@ pub enum StorageProviderCommand {
     /// Proves sector that has been previously pre-committed.
     /// After proving, a deal in a sector is considered Active.
     ProveCommit {
-        #[arg(value_parser = <ProveCommitSector as ParseablePath>::parse_json)]
-        prove_commit_sector: ProveCommitSector,
+        #[arg(value_parser = <Vec<ProveCommitSector> as ParseablePath>::parse_json)]
+        prove_commit_sectors: std::vec::Vec<ProveCommitSector>,
     },
 
     /// Submit a Proof-of-SpaceTime (PoST).
@@ -146,8 +147,8 @@ impl StorageProviderCommand {
                 Self::pre_commit(client, account_keypair, pre_commit_sectors).await?
             }
             StorageProviderCommand::ProveCommit {
-                prove_commit_sector,
-            } => Self::prove_commit(client, account_keypair, prove_commit_sector).await?,
+                prove_commit_sectors,
+            } => Self::prove_commit(client, account_keypair, prove_commit_sectors).await?,
             StorageProviderCommand::SubmitWindowedProofOfSpaceTime { windowed_post } => {
                 Self::submit_windowed_post(client, account_keypair, windowed_post).await?
             }
@@ -236,19 +237,28 @@ impl StorageProviderCommand {
     async fn prove_commit<Client>(
         client: Client,
         account_keypair: MultiPairSigner,
-        prove_commit_sector: ProveCommitSector,
+        prove_commit_sectors: Vec<ProveCommitSector>,
     ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
     where
         Client: StorageProviderClientExt,
     {
-        let sector_number = prove_commit_sector.sector_number;
+        let (sector_numbers, prove_commit_sectors): (Vec<SectorNumber>, Vec<SxtProveCommitSector>) =
+            prove_commit_sectors
+                .into_iter()
+                .map(|s| {
+                    let sector_number = s.sector_number;
+                    let sxt_sector: storagext::ProveCommitSector = s.into();
+                    let sector: SxtProveCommitSector = sxt_sector.into();
+                    (sector_number, sector)
+                })
+                .unzip();
         let submission_result = client
-            .prove_commit_sector(&account_keypair, prove_commit_sector.into())
+            .prove_commit_sectors(&account_keypair, prove_commit_sectors)
             .await?;
         tracing::debug!(
-            "[{}] Successfully proven sector {}.",
+            "[{}] Successfully proven sector {:?}.",
             submission_result.hash,
-            sector_number
+            sector_numbers
         );
 
         Ok(submission_result)

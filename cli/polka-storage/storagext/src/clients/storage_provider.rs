@@ -30,10 +30,10 @@ pub trait StorageProviderClientExt {
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>;
 
-    fn prove_commit_sector<Keypair>(
+    fn prove_commit_sectors<Keypair>(
         &self,
         account_keypair: &Keypair,
-        prove_commit_sector: ProveCommitSector,
+        sectors: Vec<ProveCommitSector>,
     ) -> impl Future<Output = Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>;
@@ -119,17 +119,18 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
             address = account_keypair.account_id().to_ss58check(),
         )
     )]
-    async fn prove_commit_sector<Keypair>(
+    async fn prove_commit_sectors<Keypair>(
         &self,
         account_keypair: &Keypair,
-        prove_commit_sector: ProveCommitSector,
+        sectors: Vec<ProveCommitSector>,
     ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
+        let sectors = BoundedVec(sectors.into_iter().map(Into::into).collect());
         let payload = runtime::tx()
             .storage_provider()
-            .prove_commit_sector(prove_commit_sector.into());
+            .prove_commit_sectors(sectors);
 
         self.traced_submission(&payload, account_keypair).await
     }

@@ -104,7 +104,7 @@ $ storagext-cli --sr25519-key  "//Charlie" market publish-storage-deals --client
 ## 2. Committing a deal
 
 After the deals have been published, the rest is up to Charlie.
-If Charlie does not behave appropriately, [pre-commit](../pallets/storage-provider.md#pre_commit_sector) and [prove](../pallets/storage-provider.md#prove_commit_sector) the deal by block 25 (`start_block`),
+If Charlie does not behave appropriately, [pre-commit](../pallets/storage-provider.md#pre_commit_sector) and [prove](../pallets/storage-provider.md#prove_commit_sectors) the deal by block 25 (`start_block`),
 he will be slashed, and all his funds [(`provider_collateral`)](../glossary.md#collateral) will be gone.[^slash]
 So he should do his part!
 
