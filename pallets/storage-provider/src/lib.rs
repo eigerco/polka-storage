@@ -581,7 +581,7 @@ pub mod pallet {
                     // Find where the sector was placed. In worst case this goes through
                     // all deadlines. It starts to look in the last partition of the
                     // deadline. Usually the new sector will be there.
-                    // This seems inefficient, is there a better way?
+                    // TODO(#375, @aidan46, 2024/09/13): Optimize this search pattern.
                     let (deadline_idx, partition_number) = sp
                         .deadlines
                         .due
