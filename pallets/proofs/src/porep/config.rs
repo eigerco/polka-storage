@@ -5,6 +5,8 @@ use primitives_proofs::RegisteredSealProof;
 /// The PoRepID used for Proof generation must be the same as the one used for Proof verification (here).
 pub type PoRepID = [u8; 32];
 
+/// Configuration used for Proof of Replication.
+/// It contains all the necessary data required to construct a PoRep proof scheme that is able to validate the proof.
 pub struct Config {
     porep_id: PoRepID,
     nodes: usize,
