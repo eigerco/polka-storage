@@ -68,7 +68,7 @@ where
 {
     pub map: BoundedBTreeMap<
         BlockNumber,
-        BoundedBTreeSet<ExpirationSet, ConstU32<MAX_SECTORS>>,
+        ExpirationSet,
         ConstU32<MAX_SECTORS>, // TODO: What should be the bound?
     >,
 }
