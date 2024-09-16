@@ -34,6 +34,7 @@ use crate::{
 
 mod declare_faults;
 mod declare_faults_recovered;
+mod expiration_queue;
 mod post_hook;
 mod pre_commit_sector_hook;
 mod pre_commit_sectors;
