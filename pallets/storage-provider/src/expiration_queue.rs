@@ -1,5 +1,5 @@
 extern crate alloc;
-use alloc::{collections::BTreeMap, vec::Vec};
+use alloc::collections::BTreeMap;
 
 use codec::{Decode, Encode};
 use frame_support::PalletError;
@@ -113,30 +113,6 @@ where
         Ok(())
     }
 
-    /// Reschedules specified sectors to a new expiration block number. The
-    /// sectors being rescheduled are assumed to be not faulty, and hence are
-    /// re-scheduled for on-time rather than early expiration.
-    ///
-    /// https://github.com/filecoin-project/builtin-actors/blob/c3c41c5d06fe78c88d4d05eb81b749a6586a5c9f/actors/miner/src/expiration_queue.rs#L206
-    pub fn reschedule_expirations(
-        &mut self,
-        new_expiration: BlockNumber,
-        sectors: &[SectorOnChainInfo<BlockNumber>],
-    ) -> Result<(), ExpirationQueueError> {
-        if sectors.is_empty() {
-            return Ok(());
-        }
-
-        // Remove sectors from their current expiration entries.
-        self.remove_active_sectors(sectors)?;
-
-        // Add sectors to their new expiration entries.
-        let sector_numbers = sectors.iter().map(|s| s.sector_number).collect::<Vec<_>>();
-        self.add_to_expiration_set(new_expiration, &sector_numbers, &[])?;
-
-        Ok(())
-    }
-
     /// Re-schedules sectors to expire at an early expiration heigh, if they
     /// wouldn't expire before then anyway. The sectors must not be currently
     /// faulty, so must be registered as expiring on-time rather than early. The
@@ -162,34 +138,15 @@ where
     /// https://github.com/filecoin-project/builtin-actors/blob/c3c41c5d06fe78c88d4d05eb81b749a6586a5c9f/actors/miner/src/expiration_queue.rs#L361
     pub fn reschedule_recovered(
         &mut self,
-        sectors: &[SectorOnChainInfo<BlockNumber>],
+        sectors: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
     ) -> Result<(), ExpirationQueueError> {
-        todo!()
-    }
-
-    /// https://github.com/filecoin-project/builtin-actors/blob/c3c41c5d06fe78c88d4d05eb81b749a6586a5c9f/actors/miner/src/expiration_queue.rs#L441
-    pub fn replace_sectors(
-        &mut self,
-        old_sectors: &[SectorOnChainInfo<BlockNumber>],
-        new_sectors: &[SectorOnChainInfo<BlockNumber>],
-    ) -> Result<(), ExpirationQueueError> {
-        todo!()
-    }
-
-    /// https://github.com/filecoin-project/builtin-actors/blob/c3c41c5d06fe78c88d4d05eb81b749a6586a5c9f/actors/miner/src/expiration_queue.rs#L467
-    pub fn remove_sectors(&mut self) -> Result<(), ExpirationQueueError> {
-        todo!()
-    }
-
-    /// https://github.com/filecoin-project/builtin-actors/blob/c3c41c5d06fe78c88d4d05eb81b749a6586a5c9f/actors/miner/src/expiration_queue.rs#L592
-    pub fn pop_until(&mut self, until: BlockNumber) -> Result<ExpirationSet, ExpirationQueueError> {
         todo!()
     }
 
     /// Add sectors to the specific expiration set.
     ///
     /// https://github.com/filecoin-project/builtin-actors/blob/c3c41c5d06fe78c88d4d05eb81b749a6586a5c9f/actors/miner/src/expiration_queue.rs#L626
-    pub fn add_to_expiration_set(
+    fn add_to_expiration_set(
         &mut self,
         expiration: BlockNumber,
         on_time_sectors: &[SectorNumber],

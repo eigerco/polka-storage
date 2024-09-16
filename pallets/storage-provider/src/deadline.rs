@@ -123,7 +123,10 @@ where
                 .try_insert(partition_num)
                 .map_err(|_| DeadlineError::ProofUpdateFailed)?;
 
-            partition.recover_all_declared_recoveries();
+            partition.recover_all_declared_recoveries().map_err(|err| {
+                log::error!(target: LOG_TARGET, "record_proven: failed to recover all declared recoveries for partition {partition_num:?}");
+                DeadlineError::PartitionError(err)
+            })?;
         }
 
         Ok(())
