@@ -27,6 +27,7 @@
           cargo-expand
           cargo-tarpaulin
           clang
+          openssl
           just
           mdbook
           mdbook-linkcheck
@@ -49,6 +50,7 @@
         devShells.default = mkShell {
           inherit buildInputs;
 
+          OPENSSL_NO_VENDOR = 1;
           LIBCLANG_PATH = "${llvmPackages.libclang.lib}/lib";
           PROTOC = "${protobuf}/bin/protoc";
           RUST_SRC_PATH = "${rustToolchain}/lib/rustlib/src/rust/library/";
