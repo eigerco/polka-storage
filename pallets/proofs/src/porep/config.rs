@@ -1,4 +1,4 @@
-use primitives_proofs::{RegisteredSealProof, SectorSize};
+use primitives_proofs::RegisteredSealProof;
 
 /// Identificator of a proof version.
 /// There are multiple of those of FileCoin and we need to be compatible with them.
@@ -6,9 +6,6 @@ use primitives_proofs::{RegisteredSealProof, SectorSize};
 pub type PoRepID = [u8; 32];
 
 pub struct Config {
-    seal_proof: RegisteredSealProof,
-    sector_size: SectorSize,
-    partitions: u8,
     porep_id: PoRepID,
     nodes: usize,
 }
@@ -16,9 +13,6 @@ pub struct Config {
 impl Config {
     pub fn new(seal_proof: RegisteredSealProof) -> Self {
         Self {
-            seal_proof,
-            sector_size: seal_proof.sector_size(),
-            partitions: partitions(seal_proof),
             porep_id: porep_id(seal_proof),
             // PRE-COND: sector size must be divisible by 32
             nodes: (seal_proof.sector_size().bytes() / 32) as usize,
@@ -27,10 +21,6 @@ impl Config {
 
     pub fn porep_id(&self) -> PoRepID {
         self.porep_id
-    }
-
-    pub fn sector_size(&self) -> SectorSize {
-        self.sector_size
     }
 
     /// Expected number of nodes in the base Depth Robust Graph
@@ -68,13 +58,5 @@ pub fn porep_id(seal_proof: RegisteredSealProof) -> PoRepID {
 fn proof_id(seal_proof: RegisteredSealProof) -> u64 {
     match seal_proof {
         RegisteredSealProof::StackedDRG2KiBV1P1 => 0,
-    }
-}
-
-/// Reference:
-/// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/filecoin-proofs/src/constants.rs#L65>
-fn partitions(seal_proof: RegisteredSealProof) -> u8 {
-    match seal_proof {
-        RegisteredSealProof::StackedDRG2KiBV1P1 => 1,
     }
 }

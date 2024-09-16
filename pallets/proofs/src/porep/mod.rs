@@ -4,7 +4,7 @@ use config::{Config, PoRepID};
 use primitives_proofs::RegisteredSealProof;
 use sha2::{Digest, Sha256};
 
-use crate::graphs::bucket::{BucketGraph, BucketGraphSeed};
+use crate::graphs::bucket::{BucketGraph, BucketGraphSeed, BASE_DEGREE};
 
 /// Serves as a separator for random number generator used for construction of graphs.
 /// It makes sure that different seed is used for the same [`PoRepID`], but different Graph construction.
@@ -13,7 +13,6 @@ use crate::graphs::bucket::{BucketGraph, BucketGraphSeed};
 struct DomainSeparationTag(&'static str);
 
 const DRSAMPLE_DST: DomainSeparationTag = DomainSeparationTag("Filecoin_DRSample");
-const FEISTEL_DST: DomainSeparationTag = DomainSeparationTag("Filecoin_Feistel");
 
 /// Creates a seed for RNG, used for [`BucketGraph`] generation.
 /// References:
@@ -39,37 +38,6 @@ fn derive_porep_domain_seed(
         .into()
 }
 
-/// Feistel Cipher is used for [`StackedBucketGraph`] generation.
-/// Keys are derived deterministically based on `porep_id`.
-/// References:
-/// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/storage-proofs-porep/src/stacked/vanilla/graph.rs#L80C1-L91C2>
-/// * <https://en.wikipedia.org/wiki/Feistel_cipher#Theoretical_work>
-fn derive_feistel_keys(porep_id: PoRepID) -> [u64; 4] {
-    let mut feistel_keys = [0u64; 4];
-    let raw_seed = derive_porep_domain_seed(FEISTEL_DST, porep_id);
-    feistel_keys[0] = u64::from_le_bytes(
-        raw_seed[0..8]
-            .try_into()
-            .expect("seed to have 32 bytes"),
-    );
-    feistel_keys[1] = u64::from_le_bytes(
-        raw_seed[8..16]
-            .try_into()
-            .expect("seed to have 32 bytes"),
-    );
-    feistel_keys[2] = u64::from_le_bytes(
-        raw_seed[16..24]
-            .try_into()
-            .expect("seed to have 32 bytes"),
-    );
-    feistel_keys[3] = u64::from_le_bytes(
-        raw_seed[24..32]
-            .try_into()
-            .expect("seed to have 32 bytes"),
-    );
-    feistel_keys
-}
-
 pub struct ProofScheme;
 
 impl ProofScheme {
@@ -79,7 +47,11 @@ impl ProofScheme {
     pub fn setup(registered_seal: RegisteredSealProof) -> Self {
         let config = Config::new(registered_seal);
 
-        let _drg = BucketGraph::new(config.nodes(), derive_drg_seed(config.porep_id()));
+        let drg = BucketGraph::new(config.nodes(), derive_drg_seed(config.porep_id()))
+            .expect("properly configured graph");
+        // Just as showcase to ignore unused warnings for now.
+        let mut parents = [0; BASE_DEGREE];
+        drg.parents(0, &mut parents);
 
         Self
     }

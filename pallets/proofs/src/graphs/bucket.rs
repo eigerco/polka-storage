@@ -3,20 +3,6 @@ use core::cmp::{max, min};
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 
-/// Bucket Graph
-/// Constructs a Depth Robust Graph via [Alwen et. al](https://acmccs.github.io/papers/p1001-alwenA.pdf>) DR Sample algorithm.
-/// References:
-/// * <https://spec.filecoin.io/algorithms/porep-old/stacked_drg/#section-algorithms.porep-old.stacked_drg.bucketsample-depth-robust-graphs-algorithm>
-/// * <https://acmccs.github.io/papers/p1001-alwenA.pdf>
-/// * <https://eprint.iacr.org/2018/678.pdf>
-/// * <http://web.archive.org/web/20220623220540/https://web.stanford.edu/~bfisch/porep_short.pdf>
-/// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/storage-proofs-core/src/drgraph.rs#L111>
-pub struct BucketGraph {
-    nodes: usize,
-    base_degree: usize,
-    seed: BucketGraphSeed,
-}
-
 /// Main part of the seed used for calculting parents of a node.
 /// The seed is 32 bytes, 28 bytes are shared between nodes, last 4 bytes is a node id.
 /// Reference:
@@ -26,11 +12,27 @@ pub type BucketGraphSeed = [u8; 28];
 /// The base degree used for all DRG graphs. One degree from this value is used to ensure that a
 /// given node always has its immediate predecessor as a parent, thus ensuring unique topological
 /// ordering of the graph nodes.
+/// Reference:
+/// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/storage-proofs-core/src/drgraph.rs#L25-L28>
 pub const BASE_DEGREE: usize = 6;
+
+/// A Depth Robust Graph constructed via [Alwen et. al](https://acmccs.github.io/papers/p1001-alwenA.pdf>) DR Sample algorithm.
+/// References:
+/// * <https://spec.filecoin.io/algorithms/porep-old/stacked_drg/#section-algorithms.porep-old.stacked_drg.bucketsample-depth-robust-graphs-algorithm>
+/// * <https://acmccs.github.io/papers/p1001-alwenA.pdf>
+/// * <https://eprint.iacr.org/2018/678.pdf>
+/// * <http://web.archive.org/web/20220623220540/https://web.stanford.edu/~bfisch/porep_short.pdf>
+/// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/storage-proofs-core/src/drgraph.rs#L111>
+pub struct BucketGraph {
+    base_degree: usize,
+    seed: BucketGraphSeed,
+}
 
 impl BucketGraph {
     /// Creates a new BucketGraph initialized with seed.
+    ///
     /// It doesn't perform any calculations other than sanity checks.
+    ///
     /// References:
     /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/storage-proofs-core/src/drgraph.rs#L217>
     pub fn new(nodes: usize, seed: BucketGraphSeed) -> Result<Self, BucketGraphError> {
@@ -43,15 +45,9 @@ impl BucketGraph {
         }
 
         Ok(Self {
-            nodes,
             base_degree: BASE_DEGREE,
             seed,
         })
-    }
-
-    #[inline]
-    fn size(&self) -> usize {
-        self.nodes
     }
 
     /// Returns a sorted list of all parents of this node. The parents may be repeated.
@@ -65,7 +61,7 @@ impl BucketGraph {
     /// References:
     /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/storage-proofs-core/src/drgraph.rs#L138>
     #[inline]
-    fn parents(&self, node: usize, parents: &mut [u32]) {
+    pub fn parents(&self, node: usize, parents: &mut [u32]) {
         let m = self.base_degree;
 
         match node {
@@ -126,8 +122,9 @@ impl BucketGraph {
 }
 
 pub enum BucketGraphError {
-    // The number of metagraph nodes must be less than `2u64^54` as to not incur rounding errors
-    // when casting metagraph node indexes from `u64` to `f64` during parent generation.
+    /// Number of nodes in the graph is too big to construct a metagraph with degree [`BASE_DEGREE`].
+    /// The number of metagraph nodes must be less than `2u64^54` as to not incur rounding errors
+    /// when casting metagraph node indexes from `u64` to `f64` during parent generation.
     TooManyMetagraphNodes(u64),
 }
 
@@ -149,7 +146,6 @@ mod test {
     fn constructs_graph() {
         for &nodes in &[4, 16, 256, 2048] {
             let g = BucketGraph::new(nodes, [7u8; 28]).unwrap();
-            assert_eq!(g.size(), nodes, "unexpected number of nodes");
 
             let mut parents = vec![0; BASE_DEGREE];
             g.parents(0, &mut parents);
