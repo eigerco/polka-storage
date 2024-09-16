@@ -30,14 +30,24 @@ impl ExpirationSet {
     }
 
     /// Adds sectors to the expiration set in place.
-    pub fn add(&mut self, on_time_sectors: &[SectorNumber], early_sectors: &[SectorNumber]) {
+    pub fn add(
+        &mut self,
+        on_time_sectors: &[SectorNumber],
+        early_sectors: &[SectorNumber],
+    ) -> Result<(), ExpirationQueueError> {
         for sector in on_time_sectors {
-            self.on_time_sectors.try_insert(*sector); // TODO: handle error
+            self.on_time_sectors
+                .try_insert(*sector)
+                .map_err(|_| ExpirationQueueError::InsertionFailed)?;
         }
 
         for sector in early_sectors {
-            self.early_sectors.try_insert(*sector); // TODO: handle error
+            self.early_sectors
+                .try_insert(*sector)
+                .map_err(|_| ExpirationQueueError::InsertionFailed)?;
         }
+
+        Ok(())
     }
 
     /// Removes sectors from the expiration set in place.
@@ -193,9 +203,11 @@ where
             .unwrap_or_else(|| ExpirationSet::new());
 
         // Add sectors to a set
-        expiration_set.add(on_time_sectors, early_sectors);
+        expiration_set.add(on_time_sectors, early_sectors)?;
 
-        self.map.try_insert(expiration, expiration_set); // TODO: handle error
+        self.map
+            .try_insert(expiration, expiration_set)
+            .map_err(|_| ExpirationQueueError::InsertionFailed)?;
 
         Ok(())
     }
@@ -238,7 +250,9 @@ where
         if expiration_set.is_empty() {
             self.map.remove(&expiration);
         } else {
-            self.map.try_insert(expiration, expiration_set); // TODO: handle error
+            self.map
+                .try_insert(expiration, expiration_set)
+                .map_err(|_| ExpirationQueueError::InsertionFailed)?;
         }
 
         Ok(())
@@ -257,7 +271,11 @@ where
     }
 }
 
+/// Errors that can occur when interacting with the expiration queue.
 #[derive(Decode, Encode, PalletError, TypeInfo, RuntimeDebug)]
 pub enum ExpirationQueueError {
+    /// Expiration set not found
     ExpirationSetNotFound,
+    /// Insertion failed
+    InsertionFailed,
 }

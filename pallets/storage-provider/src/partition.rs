@@ -96,7 +96,10 @@ where
         sectors: &[SectorOnChainInfo<BlockNumber>],
     ) -> Result<(), PartitionError> {
         // Add sectors to the expirations queue.
-        self.expirations.add_active_sectors(sectors);
+        self.expirations.add_active_sectors(sectors).map_err(|_| {
+            log::error!(target: LOG_TARGET, "add_sectors: Failed to add sectors to the expirations");
+            PartitionError::FailedToAddSector
+        })?;
 
         for sector in sectors {
             // Ensure that the sector number has not been used before.
@@ -193,7 +196,10 @@ where
         fault_expiration: BlockNumber,
     ) -> Result<(), PartitionError> {
         self.expirations
-            .reschedule_as_faults(fault_expiration, sectors);
+            .reschedule_as_faults(fault_expiration, sectors).map_err(|_|{
+                log::error!(target: LOG_TARGET, "add_faults: Failed to add faults to the expirations");
+                PartitionError::FailedToAddFaults
+            })?;
 
         // Update partition metadata
         let sector_numbers = sectors
