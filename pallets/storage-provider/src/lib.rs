@@ -19,6 +19,7 @@ mod benchmarks;
 mod tests;
 
 mod deadline;
+mod expiration_queue;
 mod fault;
 mod partition;
 mod proofs;

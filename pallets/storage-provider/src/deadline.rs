@@ -24,7 +24,10 @@ const LOG_TARGET: &'static str = "runtime::storage_provider::deadline";
 /// A deadline exists along side 47 other deadlines (1 for every 30 minutes in a day).
 /// Only one deadline may be active for a given proving window.
 #[derive(Clone, RuntimeDebug, Default, Decode, Encode, PartialEq, TypeInfo)]
-pub struct Deadline<BlockNumber: sp_runtime::traits::BlockNumber> {
+pub struct Deadline<BlockNumber>
+where
+    BlockNumber: sp_runtime::traits::BlockNumber,
+{
     /// Partitions in this deadline. Indexed by partition number.
     pub partitions: BoundedBTreeMap<
         PartitionNumber,
@@ -180,15 +183,9 @@ where
             // partition and the rest which will be added to the next one.
             let (partition_new_sectors, sectors) = sectors.split_at(size);
 
-            // Extract the sector numbers from the new sectors.
-            let new_partition_sectors: Vec<SectorNumber> = partition_new_sectors
-                .into_iter()
-                .map(|sector| sector.sector_number)
-                .collect();
-
             // Add new sector numbers to the current partition.
             partition
-                .add_sectors(&new_partition_sectors)
+                .add_sectors(&partition_new_sectors)
                 .map_err(|_| DeadlineError::CouldNotAddSectors)?;
 
             // Record deadline -> partition mapping so we can later update the deadlines.
@@ -326,7 +323,10 @@ where
 }
 
 #[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
-pub struct Deadlines<BlockNumber: sp_runtime::traits::BlockNumber> {
+pub struct Deadlines<BlockNumber>
+where
+    BlockNumber: sp_runtime::traits::BlockNumber,
+{
     /// Deadlines indexed by their proving periods — e.g. for proving period 7, find it in
     /// `deadlines[7]` — proving periods are present in the interval `[0, 47]`.
     ///
