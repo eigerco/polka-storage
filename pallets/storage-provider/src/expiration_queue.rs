@@ -127,14 +127,6 @@ where
         todo!()
     }
 
-    /// https://github.com/filecoin-project/builtin-actors/blob/c3c41c5d06fe78c88d4d05eb81b749a6586a5c9f/actors/miner/src/expiration_queue.rs#L294
-    pub fn reschedule_all_as_faults(
-        &mut self,
-        new_expiration: BlockNumber,
-    ) -> Result<(), ExpirationQueueError> {
-        todo!()
-    }
-
     /// https://github.com/filecoin-project/builtin-actors/blob/c3c41c5d06fe78c88d4d05eb81b749a6586a5c9f/actors/miner/src/expiration_queue.rs#L361
     pub fn reschedule_recovered(
         &mut self,
@@ -220,11 +212,57 @@ where
     /// (i.e. they have been rescheduled) traverse expiration sets for groups
     /// where these sectors actually expire. Groups will be returned in
     /// expiration order, earliest first.
+    ///
+    /// Note: An implicit assumption of grouping is that it only returns active
+    /// sectors.
     fn find_sectors_by_expiration(
         &self,
         sectors: &[SectorOnChainInfo<BlockNumber>],
     ) -> Result<BTreeMap<BlockNumber, ExpirationSet>, ExpirationQueueError> {
-        todo!()
+        // Group sectors by their expiration, then remove from existing queue
+        // entries according to those groups.
+        let mut groups = BTreeMap::new();
+
+        // Iterate sectors we are searching for
+        for sector in sectors {
+            // Try to find the sector in the expiration set corresponding to
+            // its expiration field.
+            if let Some(expiration_set) = self.map.get(&sector.expiration) {
+                if expiration_set
+                    .on_time_sectors
+                    .contains(&sector.sector_number)
+                {
+                    // If the sector is found, add it to the group.
+                    groups
+                        .entry(sector.expiration)
+                        .or_insert_with(|| ExpirationSet::new())
+                        .add(&[sector.sector_number], &[])?;
+                }
+            } else {
+                // If the sector is not found, traverse expiration sets for
+                // groups where these sectors actually expire. This happens
+                // when the sector has been rescheduled.
+                let expiration_set = self
+                    .map
+                    .iter()
+                    .find(|(_, set)| set.on_time_sectors.contains(&sector.sector_number));
+
+                match expiration_set {
+                    Some((expiration_height, expiration_set)) => {
+                        // If the sector is found, add it to the group.
+                        groups
+                            .entry(*expiration_height)
+                            .or_insert_with(|| ExpirationSet::new())
+                            .add(&[sector.sector_number], &[])?;
+                    }
+                    None => {
+                        return Err(ExpirationQueueError::SectorNotFound);
+                    }
+                }
+            }
+        }
+
+        Ok(groups)
     }
 }
 
@@ -233,6 +271,8 @@ where
 pub enum ExpirationQueueError {
     /// Expiration set not found
     ExpirationSetNotFound,
+    /// Sector not found in expiration set
+    SectorNotFound,
     /// Insertion failed
     InsertionFailed,
 }
