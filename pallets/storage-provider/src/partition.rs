@@ -1,7 +1,6 @@
 extern crate alloc;
 
 use alloc::{collections::BTreeSet, vec::Vec};
-use core::cmp::Ord;
 
 use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeSet, PalletError};
@@ -96,6 +95,7 @@ where
         &mut self,
         sectors: &[SectorOnChainInfo<BlockNumber>],
     ) -> Result<(), PartitionError> {
+        // Add sectors to the expirations queue.
         self.expirations.add_active_sectors(sectors);
 
         for sector in sectors {
@@ -127,6 +127,7 @@ where
             ConstU32<MAX_SECTORS>,
         >,
         sector_numbers: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
+        fault_expiration: BlockNumber,
     ) -> Result<BTreeSet<SectorNumber>, PartitionError>
     where
         BlockNumber: sp_runtime::traits::BlockNumber,
@@ -153,17 +154,17 @@ where
             .collect();
 
         log::debug!(target: LOG_TARGET, "record_faults: new_faults = {new_faults:?}, amount = {:?}", new_faults.len());
-        let new_fault_sectors: Vec<(&SectorNumber, &SectorOnChainInfo<BlockNumber>)> = sectors
+        let new_fault_sectors: Vec<&SectorOnChainInfo<BlockNumber>> = sectors
             .iter()
-            .filter(|(sector_number, _info)| {
+            .filter_map(|(sector_number, info)| {
                 log::debug!(target: LOG_TARGET, "record_faults: checking sec_num {sector_number}");
-                new_faults.contains(&sector_number)
+                new_faults.contains(&sector_number).then_some(info)
             })
             .collect();
 
         // Add new faults to state, skip if no new faults.
         if !new_fault_sectors.is_empty() {
-            self.add_faults(sector_numbers)?;
+            self.add_faults(&new_fault_sectors, fault_expiration)?;
         } else {
             log::debug!(target: LOG_TARGET, "record_faults: No new faults detected");
         }
@@ -188,11 +189,19 @@ where
     /// * <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/partition_state.rs#L155>
     fn add_faults(
         &mut self,
-        sector_numbers: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
+        sectors: &[&SectorOnChainInfo<BlockNumber>],
+        fault_expiration: BlockNumber,
     ) -> Result<(), PartitionError> {
+        self.expirations
+            .reschedule_as_faults(fault_expiration, sectors);
+
         // Update partition metadata
+        let sector_numbers = sectors
+            .iter()
+            .map(|sector| sector.sector_number)
+            .collect::<BTreeSet<_>>();
         self.faults = self.faults
-            .union(sector_numbers)
+            .union(&sector_numbers)
             .cloned()
             .collect::<BTreeSet<_>>()
             .try_into()
@@ -205,7 +214,7 @@ where
 
         // Once marked faulty, sectors are moved out of the unproven set.
         for sector_number in sector_numbers {
-            self.unproven.remove(sector_number);
+            self.unproven.remove(&sector_number);
         }
         Ok(())
     }

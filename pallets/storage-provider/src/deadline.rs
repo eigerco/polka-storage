@@ -248,6 +248,7 @@ where
             partition.record_faults(
                 sectors,
                 faulty_sectors,
+                fault_expiration_block
             ).map_err(|e| {
                 log::error!(target: LOG_TARGET, "record_faults: Error while recording faults in a partition: {e:?}");
                 DeadlineError::PartitionError(e)

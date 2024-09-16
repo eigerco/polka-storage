@@ -1125,9 +1125,12 @@ pub mod pallet {
                     log::debug!(target: LOG_TARGET, "block: {:?}, going through partition: {:?}", current_block, partition);
 
                     // Mark all Sectors in a partition as faulty
-                    let Ok(new_faults) =
-                        partition.record_faults(&state.sectors, &partition.sectors.clone())
-                    else {
+                    let fault_expiration_block = current_deadline.last() + T::FaultMaxAge::get();
+                    let Ok(new_faults) = partition.record_faults(
+                        &state.sectors,
+                        &partition.sectors.clone(),
+                        fault_expiration_block,
+                    ) else {
                         log::error!(target: LOG_TARGET, "block: {:?}, failed to mark {} sectors as faulty, deadline: {}, sp: {:?}",
                             current_block, partition.sectors.len(), current_deadline.idx, storage_provider);
                         continue;
