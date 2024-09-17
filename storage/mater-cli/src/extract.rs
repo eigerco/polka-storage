@@ -144,4 +144,28 @@ mod tests {
         remove_file(output_path).await?;
         Ok(())
     }
+
+    /// Tests that extraction fails if the supplied car file is invalid (missing header and pragma)
+    #[tokio::test]
+    async fn error_extract_invalid_car_file() -> Result<()> {
+        // Setup input and output paths
+        let temp_dir = tempdir()?;
+        let output_path = temp_dir.path().join("output_file");
+        let input_path = temp_dir.path().join("test_input.car");
+
+        // Create empty file
+        File::create_new(&input_path).await?;
+
+        // Call the function under test
+        let result = extract_file_from_car(&input_path, &output_path).await;
+
+        // Assert the function returns an error
+        assert!(result.is_err());
+        assert!(matches!(result, Err(Error::InvalidCarFile)));
+
+        // Remove files
+        remove_file(output_path).await?;
+        remove_file(input_path).await?;
+        Ok(())
+    }
 }

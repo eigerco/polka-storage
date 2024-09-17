@@ -26,7 +26,7 @@ mod tests {
     use anyhow::Result;
     use mater::Cid;
     use tempfile::tempdir;
-    use tokio::fs::File;
+    use tokio::{fs::File, io::AsyncWriteExt};
 
     use crate::{convert::convert_file_to_car, error::Error};
 
@@ -36,7 +36,7 @@ mod tests {
         let temp_dir = tempdir()?;
         let input_path = temp_dir.path().join("test_input.txt");
         let mut input_file = File::create(&input_path).await?;
-        tokio::io::AsyncWriteExt::write_all(&mut input_file, b"test data").await?;
+        input_file.write_all(b"test data").await?;
 
         let expected_cid =
             Cid::from_str("bafkreiern4acpjlva5gookrtc534gr4nmuj7pbvfsg6yslnbuv336izv7e")?;
