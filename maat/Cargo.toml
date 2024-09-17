@@ -21,8 +21,8 @@ target-release = []
 [dependencies]
 bs58.workspace = true
 cid.workspace = true
-futures-util = "0.3.30"
 futures.workspace = true
+futures-util = "0.3.30"
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["std"] }
 subxt = { workspace = true, features = ["substrate-compat"] }
