@@ -93,7 +93,6 @@ mod tests {
         // Call the function under test
         let result = convert_file_to_car(input_path.clone(), output_path.clone()).await;
 
-        println!("{result:?}");
         // Assert the result is an error
         assert!(result.is_err());
         assert!(matches!(result, Err(Error::IoError(..))));

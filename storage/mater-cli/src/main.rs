@@ -26,7 +26,7 @@ enum MaterCli {
         /// Path to CARv2 file
         input_path: PathBuf,
         /// Path to output file
-        output_path: PathBuf,
+        output_path: Option<PathBuf>,
     },
 }
 
@@ -37,20 +37,24 @@ async fn main() -> Result<(), Error> {
             input_path,
             output_path,
         } => {
-            let output_path = match output_path {
-                Some(path) => path,
-                None => {
-                    let mut new_path = input_path.clone();
-                    new_path.set_extension("car");
-                    new_path
-                }
-            };
+            let output_path = output_path.unwrap_or_else(|| {
+                let mut new_path = input_path.clone();
+                new_path.set_extension("car");
+                new_path
+            });
             convert_file_to_car(input_path, output_path).await?
         }
         MaterCli::Extract {
             input_path,
             output_path,
-        } => extract_file_from_car(input_path, output_path).await?,
+        } => {
+            let output_path = output_path.unwrap_or_else(|| {
+                let mut new_path = input_path.clone();
+                new_path.set_extension("");
+                new_path
+            });
+            extract_file_from_car(input_path, output_path).await?
+        }
     }
 
     Ok(())

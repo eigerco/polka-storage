@@ -17,9 +17,9 @@ The convert command converts a file to CARv2 format.
 
 Convert a CARv2 file to its original format.
 
-`mater-cli extract <INPUT_PATH> <OUTPUT_PATH>`
+`mater-cli extract <INPUT_PATH> [OUTPUT_PATH]`
 
-| Argument      | Description         |
-| ------------- | ------------------- |
-| <INPUT_PATH>  | Path to CARv2 file  |
-| <OUTPUT_PATH> | Path to output file |
+| Argument      | Description                                                                                                                    |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| <INPUT_PATH>  | Path to CARv2 file                                                                                                             |
+| [OUTPUT_PATH] | Optional path to output file. If no output path is given it will remove the extension and store the file in the same location. |
