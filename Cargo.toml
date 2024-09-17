@@ -102,11 +102,17 @@ tracing-subscriber = "0.3.18"
 url = "2.5.0"
 uuid = "1.8.0"
 
+
 scale-decode = { version = "0.13.1", default-features = false }
 scale-encode = { version = "0.7.1", default-features = false }
 
 # Testing
 rstest = { version = "0.22.0" }
+
+# Zombienet SDK for testing
+zombienet-configuration = "0.2.9"
+zombienet-sdk = "0.2.9"
+zombienet-support = "0.2.9"
 
 # Local
 cli-primitives = { path = "primitives/cli" }

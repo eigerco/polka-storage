@@ -22,7 +22,6 @@ target-release = []
 bs58.workspace = true
 cid.workspace = true
 futures.workspace = true
-futures-util = "0.3.30"
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["std"] }
 subxt = { workspace = true, features = ["substrate-compat"] }
@@ -34,9 +33,9 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 primitives-proofs = { workspace = true, features = ["serde"] }
 storagext = { workspace = true, features = ["insecure_url"] }
 
-zombienet-configuration = "0.2.9"
-zombienet-sdk = "0.2.9"
-zombienet-support = "0.2.9"
+zombienet-configuration.workspace = true
+zombienet-sdk.workspace = true
+zombienet-support.workspace = true
 
 [lints]
 workspace = true
