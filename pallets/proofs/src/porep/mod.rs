@@ -4,7 +4,10 @@ use config::{Config, PoRepID};
 use primitives_proofs::RegisteredSealProof;
 use sha2::{Digest, Sha256};
 
-use crate::graphs::bucket::{BucketGraph, BucketGraphSeed, BASE_DEGREE};
+use crate::graphs::{
+    bucket::{BucketGraph, BucketGraphSeed},
+    stacked::{StackedBucketGraph, DEGREE},
+};
 
 /// Serves as a separator for random number generator used for construction of graphs.
 /// It makes sure that different seed is used for the same [`PoRepID`], but different Graph construction.
@@ -68,11 +71,9 @@ impl ProofScheme {
 
         let drg = BucketGraph::new(config.nodes(), derive_drg_seed(config.porep_id()))
             .expect("properly configured graph");
-        // Just as showcase to ignore unused warnings for now.
-        let mut parents = [0; BASE_DEGREE];
-        drg.parents(0, &mut parents);
-
-        let _feistel_keys = derive_feistel_keys(config.porep_id());
+        let graph = StackedBucketGraph::new(drg, derive_feistel_keys(config.porep_id()));
+        let mut parents = [0; DEGREE];
+        graph.parents(0, &mut parents);
 
         Self
     }
