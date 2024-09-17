@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use mater::CarV2Reader;
 use tokio::{
     fs::File,
-    io::{AsyncSeekExt, AsyncWriteExt, BufReader},
+    io::{AsyncWriteExt, BufReader},
 };
 
 use crate::error::Error;
@@ -23,24 +23,8 @@ pub(crate) async fn extract_file_from_car(
     }
 
     let mut reader = CarV2Reader::new(BufReader::new(source_file));
-    reader.read_pragma().await?;
-    let header = reader.read_header().await?;
-    let _v1_header = reader.read_v1_header().await?;
-    let mut written = 0;
+    reader.extract_content(&mut output_file).await?;
 
-    while let Ok((_cid, contents)) = reader.read_block().await {
-        // CAR file contents is empty
-        if contents.len() == 0 {
-            break;
-        }
-        let position = reader.get_inner_mut().stream_position().await?;
-        let data_end = header.data_offset + header.data_size;
-        // Add the `written != 0` clause for files that are less than a single block.
-        if position >= data_end && written != 0 {
-            break;
-        }
-        written += output_file.write(&contents).await?;
-    }
     output_file.flush().await?;
 
     Ok(())
