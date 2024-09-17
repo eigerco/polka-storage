@@ -1,5 +1,5 @@
 use ipld_core::cid::Cid;
-use tokio::io::{AsyncRead, AsyncReadExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 use super::index::read_index;
 use crate::{
@@ -23,6 +23,34 @@ impl<R> Reader<R>
 where
     R: AsyncRead + Unpin,
 {
+    /// Reads the contents of the CARv2 file and puts the contents into the supplied output file.
+    pub async fn extract_content<W>(&mut self, output_file: &mut W) -> Result<(), Error>
+    where
+        W: AsyncWriteExt + Unpin,
+        R: AsyncSeekExt,
+    {
+        self.read_pragma().await?;
+        let header = self.read_header().await?;
+        let _v1_header = self.read_v1_header().await?;
+        let mut written = 0;
+
+        while let Ok((_cid, contents)) = self.read_block().await {
+            // CAR file contents is empty
+            if contents.len() == 0 {
+                break;
+            }
+            let position = self.get_inner_mut().stream_position().await?;
+            let data_end = header.data_offset + header.data_size;
+            // Add the `written != 0` clause for files that are less than a single block.
+            if position >= data_end && written != 0 {
+                break;
+            }
+            written += output_file.write(&contents).await?;
+        }
+
+        Ok(())
+    }
+
     /// Read the CARv2 pragma.
     ///
     /// This function fails if the pragma does not match the one defined in the

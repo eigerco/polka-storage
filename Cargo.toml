@@ -17,6 +17,7 @@ members = [
   "primitives/proofs",
   "runtime",
   "storage/mater",
+  "storage/mater-cli",
   "storage/polka-index",
 ]
 resolver = "2"

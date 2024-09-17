@@ -13,7 +13,9 @@ and this is our deliverable for Phase 1, composed of:
 - [CAR file conversion server](./storage-provider-cli/storage.md)
 - Dedicated CLIs
   - [`storage-provider-cli`](./storage-provider-cli/storage.md) to generate keys and test our CARv2 Rust implementation!
+  - [`mater-cli`](./mater-cli/index.md) for storage clients to convert or extract files.
   - [`storagext-cli`](./storagext-cli/index.md) (shown below) to take the parachain for a spin!
+
 <p>
     <img
         src="images/showcase/cli_basic.gif"
