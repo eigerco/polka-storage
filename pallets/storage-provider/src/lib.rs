@@ -696,7 +696,11 @@ pub mod pallet {
             // record sector as proven
             let deadlines = sp.get_deadlines_mut();
             deadlines
-                .record_proven(windowed_post.deadline as usize, windowed_post.partitions)
+                .record_proven(
+                    windowed_post.deadline as usize,
+                    &sp.sectors,
+                    windowed_post.partitions,
+                )
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
 
             // Store new storage provider state

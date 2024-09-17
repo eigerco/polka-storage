@@ -1,5 +1,9 @@
 extern crate alloc;
-use alloc::collections::BTreeMap;
+use alloc::{
+    collections::{BTreeMap, BTreeSet},
+    vec::Vec,
+};
+use core::ops::Not;
 
 use codec::{Decode, Encode};
 use frame_support::PalletError;
@@ -9,6 +13,8 @@ use sp_core::{ConstU32, RuntimeDebug};
 use sp_runtime::{BoundedBTreeMap, BoundedBTreeSet};
 
 use crate::sector::{SectorOnChainInfo, MAX_SECTORS};
+
+const LOG_TARGET: &'static str = "runtime::storage_provider::expiration_queue";
 
 /// ExpirationSet is a collection of sector numbers that are expiring, either
 /// due to expected "on-time" expiration at the end of their life, or unexpected
@@ -29,7 +35,7 @@ impl ExpirationSet {
         }
     }
 
-    /// Adds sectors to the expiration set in place.
+    /// Adds sectors to the expiration set.
     pub fn add(
         &mut self,
         on_time_sectors: &[SectorNumber],
@@ -50,12 +56,8 @@ impl ExpirationSet {
         Ok(())
     }
 
-    /// Removes sectors from the expiration set in place.
-    pub fn remove(
-        &mut self,
-        on_time_sectors: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
-        early_sectors: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
-    ) {
+    /// Removes sectors from the expiration set.
+    pub fn remove(&mut self, on_time_sectors: &[SectorNumber], early_sectors: &[SectorNumber]) {
         for sector in on_time_sectors {
             self.on_time_sectors.remove(sector);
         }
@@ -113,7 +115,7 @@ where
         Ok(())
     }
 
-    /// Re-schedules sectors to expire at an early expiration heigh, if they
+    /// Re-schedules sectors to expire at an early expiration height, if they
     /// wouldn't expire before then anyway. The sectors must not be currently
     /// faulty, so must be registered as expiring on-time rather than early. The
     /// pledge for the now-early sectors is removed from the queue.
@@ -124,18 +126,57 @@ where
         new_expiration: BlockNumber,
         sectors: &[&SectorOnChainInfo<BlockNumber>],
     ) -> Result<(), ExpirationQueueError> {
-        todo!()
+        // Sectors grouped by the expiration they currently have.
+        let groups = self.find_sectors_by_expiration(sectors)?;
+
+        // Sectors that are rescheduled for early expiration
+        let mut early_sectors = Vec::new();
+
+        // Remove sectors from active
+        for (expiration_height, mut set) in groups {
+            if expiration_height <= new_expiration {
+                // Sector is already expiring before the new expiration height,
+                // so it can't be rescheduled as faulty.
+                continue;
+            } else {
+                // Remove sectors from on-time expiry
+                set.expiration_set.remove(&set.sectors, &[]);
+                early_sectors.extend(set.sectors);
+            }
+
+            self.must_update_or_delete(expiration_height, set.expiration_set)?;
+        }
+
+        // Reschedule faulty sectors
+        self.add_to_expiration_set(new_expiration, &[], &early_sectors)?;
+
+        Ok(())
     }
 
+    /// Removes sectors from any queue entries in which they appear that are
+    /// earlier then their scheduled expiration height, and schedules them at
+    /// their expected termination height.
+    ///
     /// https://github.com/filecoin-project/builtin-actors/blob/c3c41c5d06fe78c88d4d05eb81b749a6586a5c9f/actors/miner/src/expiration_queue.rs#L361
     pub fn reschedule_recovered(
         &mut self,
-        sectors: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
+        all_sectors: &BoundedBTreeMap<
+            SectorNumber,
+            SectorOnChainInfo<BlockNumber>,
+            ConstU32<MAX_SECTORS>,
+        >,
+        reschedule: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
     ) -> Result<(), ExpirationQueueError> {
+        let mut remaining = reschedule
+            .iter()
+            .map(|s| (s, all_sectors.get(s).unwrap()))
+            .collect::<BTreeMap<_, _>>();
+
         todo!()
     }
 
-    /// Add sectors to the specific expiration set.
+    /// Add sectors to the specific expiration set. The operation is a no-op if
+    /// both slices are empty.
     ///
     /// https://github.com/filecoin-project/builtin-actors/blob/c3c41c5d06fe78c88d4d05eb81b749a6586a5c9f/actors/miner/src/expiration_queue.rs#L626
     fn add_to_expiration_set(
@@ -144,7 +185,10 @@ where
         on_time_sectors: &[SectorNumber],
         early_sectors: &[SectorNumber],
     ) -> Result<(), ExpirationQueueError> {
-        // TODO: Try to update in place
+        if on_time_sectors.is_empty() && early_sectors.is_empty() {
+            return Ok(());
+        }
+
         let mut expiration_set = self
             .map
             .get(&expiration)
@@ -166,21 +210,21 @@ where
     /// https://github.com/filecoin-project/builtin-actors/blob/c3c41c5d06fe78c88d4d05eb81b749a6586a5c9f/actors/miner/src/expiration_queue.rs#L672
     fn remove_active_sectors(
         &mut self,
-        sectors: &[SectorOnChainInfo<BlockNumber>],
+        sectors: &[&SectorOnChainInfo<BlockNumber>],
     ) -> Result<(), ExpirationQueueError> {
         // Group sectors by their expiration, then remove from existing queue
         // entries according to those groups.
         let groups = self.find_sectors_by_expiration(sectors)?;
 
-        for (expiration_height, expiration_set) in groups {
-            let mut set = self
+        for (expiration_height, set) in groups {
+            let mut expiration_set = self
                 .map
                 .get(&expiration_height)
                 .ok_or(ExpirationQueueError::ExpirationSetNotFound)?
                 .clone();
 
             // Remove sectors from the set
-            set.remove(&expiration_set.on_time_sectors, &BoundedBTreeSet::new());
+            expiration_set.remove(&set.sectors, &[]);
 
             // Update the expiration set
             self.must_update_or_delete(expiration_height, expiration_set)?;
@@ -213,57 +257,104 @@ where
     /// where these sectors actually expire. Groups will be returned in
     /// expiration order, earliest first.
     ///
-    /// Note: An implicit assumption of grouping is that it only returns active
-    /// sectors.
+    /// Note: The function only searches for active sectors.
     fn find_sectors_by_expiration(
         &self,
-        sectors: &[SectorOnChainInfo<BlockNumber>],
-    ) -> Result<BTreeMap<BlockNumber, ExpirationSet>, ExpirationQueueError> {
-        // Group sectors by their expiration, then remove from existing queue
-        // entries according to those groups.
+        sectors: &[&SectorOnChainInfo<BlockNumber>],
+    ) -> Result<BTreeMap<BlockNumber, SectorExpirationSet>, ExpirationQueueError> {
+        // `declared_expirations` expirations we are searching for sectors in
+        // `all_remaining` sector numbers we are searching for. we are removing
+        // them from the set when we find them
+        let (declared_expirations, mut all_remaining) = sectors.iter().fold(
+            (BTreeSet::new(), BTreeSet::new()),
+            |(mut expirations, mut remaining), sector| {
+                expirations.insert(sector.expiration);
+                remaining.insert(sector.sector_number);
+                (expirations, remaining)
+            },
+        );
+
+        // SectorExpirationSets indexed by the expiration height.
         let mut groups = BTreeMap::new();
 
-        // Iterate sectors we are searching for
-        for sector in sectors {
-            // Try to find the sector in the expiration set corresponding to
-            // its expiration field.
-            if let Some(expiration_set) = self.map.get(&sector.expiration) {
-                if expiration_set
-                    .on_time_sectors
-                    .contains(&sector.sector_number)
-                {
-                    // If the sector is found, add it to the group.
-                    groups
-                        .entry(sector.expiration)
-                        .or_insert_with(|| ExpirationSet::new())
-                        .add(&[sector.sector_number], &[])?;
-                }
-            } else {
-                // If the sector is not found, traverse expiration sets for
-                // groups where these sectors actually expire. This happens
-                // when the sector has been rescheduled.
-                let expiration_set = self
-                    .map
-                    .iter()
-                    .find(|(_, set)| set.on_time_sectors.contains(&sector.sector_number));
+        // Iterate all declared expirations and try to find the sectors
+        for expiration in &declared_expirations {
+            let expiration_set = self
+                .map
+                .get(&expiration)
+                .ok_or(ExpirationQueueError::ExpirationSetNotFound)?;
 
-                match expiration_set {
-                    Some((expiration_height, expiration_set)) => {
-                        // If the sector is found, add it to the group.
-                        groups
-                            .entry(*expiration_height)
-                            .or_insert_with(|| ExpirationSet::new())
-                            .add(&[sector.sector_number], &[])?;
-                    }
-                    None => {
-                        return Err(ExpirationQueueError::SectorNotFound);
-                    }
-                }
+            if let Some(group) = group_expiration_set(&mut all_remaining, expiration_set.clone()) {
+                groups.insert(*expiration, group);
             }
+        }
+
+        // Traverse expiration sets and try to find the remaining sectors.
+        // Remaining sectors should be rescheduled to expire soon, so this
+        // traversal should exit early.
+        for (expiration, expiration_set) in self.map.iter() {
+            // If this set's height is one of our declared expirations, we've
+            // already processed it above. Sectors rescheduled to this height
+            // would have been included in the earlier processing.
+            if declared_expirations.contains(expiration) {
+                continue;
+            }
+
+            // Check if any of the remaining sectors are in this set.
+            if let Some(group) = group_expiration_set(&mut all_remaining, expiration_set.clone()) {
+                groups.insert(*expiration, group);
+            }
+
+            // All sectors were found
+            if all_remaining.is_empty() {
+                break;
+            }
+        }
+
+        // There are still some sectors not found
+        if !all_remaining.is_empty() {
+            log::error!(target: LOG_TARGET, "find_sectors_by_expiration: Some sectors not found {all_remaining:?}");
+            return Err(ExpirationQueueError::SectorNotFound);
         }
 
         Ok(groups)
     }
+}
+
+/// Extract sector numbers from the set if they should be included. None is
+/// returned of no sector numbers are found in the current set.
+fn group_expiration_set(
+    include_set: &mut BTreeSet<SectorNumber>,
+    expiration_set: ExpirationSet,
+) -> Option<SectorExpirationSet> {
+    // Get sector numbers which are in the set that should be included. If any
+    // sector is found we remove it from the set.
+    let sector_numbers = expiration_set
+        .on_time_sectors
+        .iter()
+        .filter_map(|u| include_set.remove(u).then(|| u).copied())
+        .collect::<Vec<_>>();
+
+    // Return `Some` if any sector number from the `expiration_set` was in the
+    // `include_set`
+    sector_numbers
+        .is_empty()
+        .not()
+        .then(|| SectorExpirationSet {
+            sectors: sector_numbers,
+            expiration_set,
+        })
+}
+
+/// Result of the [`ExpirationQueue::find_sectors_by_expiration`] function.
+/// Represents a search result.
+#[derive(Clone)]
+struct SectorExpirationSet {
+    /// The sectors we were searching for and are part of the expiration set.
+    sectors: Vec<SectorNumber>,
+    // Expiration set as found in the expiration queue. This set can be modified
+    // and saved back to the [`ExpirationQueue`] when needed.
+    expiration_set: ExpirationSet,
 }
 
 /// Errors that can occur when interacting with the expiration queue.

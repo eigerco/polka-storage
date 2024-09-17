@@ -102,6 +102,11 @@ where
     /// If the partition has already been proven, an error is returned.
     pub fn record_proven(
         &mut self,
+        all_sectors: &BoundedBTreeMap<
+            SectorNumber,
+            SectorOnChainInfo<BlockNumber>,
+            ConstU32<MAX_SECTORS>,
+        >,
         partitions: BoundedVec<PartitionNumber, ConstU32<MAX_PARTITIONS_PER_DEADLINE>>,
     ) -> Result<(), DeadlineError> {
         for partition_num in partitions {
@@ -123,7 +128,7 @@ where
                 .try_insert(partition_num)
                 .map_err(|_| DeadlineError::ProofUpdateFailed)?;
 
-            partition.recover_all_declared_recoveries().map_err(|err| {
+            partition.recover_all_declared_recoveries(all_sectors).map_err(|err| {
                 log::error!(target: LOG_TARGET, "record_proven: failed to recover all declared recoveries for partition {partition_num:?}");
                 DeadlineError::PartitionError(err)
             })?;
@@ -390,11 +395,16 @@ where
     pub fn record_proven(
         &mut self,
         deadline_idx: usize,
+        all_sectors: &BoundedBTreeMap<
+            SectorNumber,
+            SectorOnChainInfo<BlockNumber>,
+            ConstU32<MAX_SECTORS>,
+        >,
         partitions: BoundedVec<PartitionNumber, ConstU32<MAX_PARTITIONS_PER_DEADLINE>>,
     ) -> Result<(), DeadlineError> {
         log::debug!(target: LOG_TARGET, "record_proven: partition number: {partitions:?}");
         let deadline = self.load_deadline_mut(deadline_idx)?;
-        deadline.record_proven(partitions)?;
+        deadline.record_proven(all_sectors, partitions)?;
         Ok(())
     }
 }

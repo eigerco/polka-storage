@@ -267,12 +267,18 @@ where
     ///
     /// References:
     /// * <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/partition_state.rs#L271>
-    pub fn recover_all_declared_recoveries(&mut self) -> Result<(), PartitionError> {
-        // let recovered_sectors = self.recoveries.clone();
-        // self.expirations.reschedule_recovered(&recovered_sectors).map_err(|err| {
-        //     log::error!(target: LOG_TARGET, "recover_all_declared_recoveries: Failed to reschedule recoveries");
-        //     PartitionError::ExpirationQueueError(err)
-        // })?;
+    pub fn recover_all_declared_recoveries(
+        &mut self,
+        all_sectors: &BoundedBTreeMap<
+            SectorNumber,
+            SectorOnChainInfo<BlockNumber>,
+            ConstU32<MAX_SECTORS>,
+        >,
+    ) -> Result<(), PartitionError> {
+        self.expirations.reschedule_recovered(all_sectors, &self.recoveries).map_err(|err| {
+            log::error!(target: LOG_TARGET, "recover_all_declared_recoveries: Failed to reschedule recoveries");
+            PartitionError::FailedToRemoveRecoveries
+        })?;
 
         self.faults = self
             .faults
@@ -298,8 +304,6 @@ pub enum PartitionError {
     FailedToAddFaults,
     /// Emitted when removing recovering sectors fails
     FailedToRemoveRecoveries,
-    // /// Wrapper around the ExpirationQueueError error type
-    // ExpirationQueueError(ExpirationQueueError),
 }
 
 #[cfg(test)]
