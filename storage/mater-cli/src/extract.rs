@@ -17,11 +17,9 @@ pub(crate) async fn extract_file_from_car(
     let mut output_file = File::create_new(&output_path).await?;
     let size = source_file.metadata().await?.len();
 
-    // Avoid doing any work if the file is empty.
-    // Still create CAR file and inform the user.
+    // Return error if the file is empty (no headers, pragma)
     if size == 0 {
-        println!("Supplied CAR file is empty");
-        return Ok(());
+        return Err(Error::InvalidCarFile);
     }
 
     let mut reader = CarV2Reader::new(BufReader::new(source_file));
@@ -31,6 +29,10 @@ pub(crate) async fn extract_file_from_car(
     let mut written = 0;
 
     while let Ok((_cid, contents)) = reader.read_block().await {
+        // CAR file contents is empty
+        if contents.len() == 0 {
+            break;
+        }
         let position = reader.get_inner_mut().stream_position().await?;
         let data_end = header.data_offset + header.data_size;
         // Add the `written != 0` clause for files that are less than a single block.
@@ -84,6 +86,33 @@ mod tests {
 
         // Verify the output file is created and contains expected data
         assert_eq!(output_contents, original_contents);
+
+        // Close temporary directory
+        temp_dir.close()?;
+
+        Ok(())
+    }
+
+    /// Tests successful extraction of an empty CAR file.
+    #[tokio::test]
+    async fn extract_file_success_empty_file() -> Result<()> {
+        // Setup input and output paths
+        let temp_dir = tempdir()?;
+        let input_path = PathBuf::from("../mater/tests/fixtures/car_v2/empty.car");
+        let output_path = temp_dir.path().join("output_file");
+
+        // Call the function under test
+        let result = extract_file_from_car(&input_path, &output_path).await;
+        // Assert the function succeeded
+        assert!(result.is_ok());
+
+        // extract output file
+        let mut output_file = File::open(output_path).await?;
+        let mut output_contents = vec![];
+        output_file.read_to_end(&mut output_contents).await?;
+
+        // Verify the output file is created and contains expected data
+        assert_eq!(output_contents, b"");
 
         // Close temporary directory
         temp_dir.close()?;

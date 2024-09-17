@@ -21,12 +21,12 @@ pub(crate) async fn convert_file_to_car(
 /// MaterError cases are not handled because these are tested in the mater library.
 #[cfg(test)]
 mod tests {
-    use std::{path::PathBuf, str::FromStr};
+    use std::str::FromStr;
 
     use anyhow::Result;
     use mater::Cid;
     use tempfile::tempdir;
-    use tokio::fs::{remove_file, File};
+    use tokio::fs::File;
 
     use crate::{convert::convert_file_to_car, error::Error};
 
@@ -90,8 +90,9 @@ mod tests {
         tokio::io::AsyncWriteExt::write_all(&mut input_file, b"test data").await?;
 
         // Create output file
-        let output_path = PathBuf::from("output_file");
-        File::create(&output_path).await?;
+        let output_path = temp_dir.path().join("output_file");
+        File::create_new(&output_path).await?;
+        println!("gets here");
 
         // Call the function under test
         let result = convert_file_to_car(&input_path, &output_path).await;
@@ -102,9 +103,6 @@ mod tests {
 
         // Close temporary directory
         temp_dir.close()?;
-
-        // Remove output file
-        remove_file(output_path).await?;
 
         Ok(())
     }

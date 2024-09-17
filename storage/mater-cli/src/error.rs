@@ -6,4 +6,6 @@ pub(crate) enum Error {
     MaterError(#[from] mater::Error),
     #[error("{0}")]
     IoError(#[from] io::Error),
+    #[error("Supplied file does not have the appropriate metadata")]
+    InvalidCarFile,
 }
