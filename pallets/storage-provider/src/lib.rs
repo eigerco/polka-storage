@@ -694,11 +694,12 @@ pub mod pallet {
             // TODO(@aidan46, #91, 2024-07-03): Validate the proof after research is done
 
             // record sector as proven
+            let all_sectors = sp.sectors.clone();
             let deadlines = sp.get_deadlines_mut();
             deadlines
                 .record_proven(
                     windowed_post.deadline as usize,
-                    &sp.sectors,
+                    &all_sectors,
                     windowed_post.partitions,
                 )
                 .map_err(|e| Error::<T>::DeadlineError(e))?;

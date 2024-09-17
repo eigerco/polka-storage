@@ -57,6 +57,9 @@ impl ExpirationSet {
     }
 
     /// Removes sectors from the expiration set.
+    ///
+    /// # Note
+    /// Operation is a no-op if the sector is not in the set.
     pub fn remove(&mut self, on_time_sectors: &[SectorNumber], early_sectors: &[SectorNumber]) {
         for sector in on_time_sectors {
             self.on_time_sectors.remove(sector);
@@ -167,11 +170,22 @@ where
         >,
         reschedule: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
     ) -> Result<(), ExpirationQueueError> {
-        let mut remaining = reschedule
+        // Sectors remaining to be rescheduled.
+        let mut _remaining = reschedule
             .iter()
             .map(|s| (s, all_sectors.get(s).unwrap()))
             .collect::<BTreeMap<_, _>>();
 
+        // TODO(no-ref,@cernicc,17/09/2024): Implement rescheduling of recovered sectors
+        Ok(())
+    }
+
+    /// Remove some sectors from the queue. The sectors may be active or faulty,
+    /// and scheduled either for on-time or early termination. Fails if any
+    /// sectors are not found in the queue.
+    pub fn remove_sectors(
+        _sectors: &[SectorOnChainInfo<BlockNumber>],
+    ) -> Result<(), ExpirationQueueError> {
         todo!()
     }
 
@@ -208,7 +222,7 @@ where
     /// Removes active sectors from the queue.
     ///
     /// https://github.com/filecoin-project/builtin-actors/blob/c3c41c5d06fe78c88d4d05eb81b749a6586a5c9f/actors/miner/src/expiration_queue.rs#L672
-    fn remove_active_sectors(
+    fn _remove_active_sectors(
         &mut self,
         sectors: &[&SectorOnChainInfo<BlockNumber>],
     ) -> Result<(), ExpirationQueueError> {

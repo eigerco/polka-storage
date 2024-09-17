@@ -8,7 +8,7 @@ use primitives_proofs::SectorNumber;
 use scale_info::TypeInfo;
 
 use crate::{
-    expiration_queue::{ExpirationQueue, ExpirationQueueError},
+    expiration_queue::ExpirationQueue,
     sector::{SectorOnChainInfo, MAX_SECTORS},
 };
 
@@ -276,7 +276,7 @@ where
         >,
     ) -> Result<(), PartitionError> {
         self.expirations.reschedule_recovered(all_sectors, &self.recoveries).map_err(|err| {
-            log::error!(target: LOG_TARGET, "recover_all_declared_recoveries: Failed to reschedule recoveries");
+            log::error!(target: LOG_TARGET, "recover_all_declared_recoveries: Failed to reschedule recoveries. error {err:?}");
             PartitionError::FailedToRemoveRecoveries
         })?;
 
