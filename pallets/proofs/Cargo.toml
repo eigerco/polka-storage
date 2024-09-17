@@ -17,10 +17,15 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 codec = { features = ["derive"], workspace = true }
+digest = { workspace = true }
 frame-benchmarking = { optional = true, workspace = true }
 frame-support.workspace = true
 frame-system.workspace = true
+primitives-proofs = { workspace = true }
+rand = { workspace = true, features = ["alloc"] }
+rand_chacha = { workspace = true }
 scale-info = { features = ["derive"], workspace = true }
+sha2 = { workspace = true }
 sp-runtime.workspace = true
 
 [dev-dependencies]

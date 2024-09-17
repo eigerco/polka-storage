@@ -5,6 +5,9 @@
 
 pub use pallet::*;
 
+mod graphs;
+mod porep;
+
 #[cfg(test)]
 mod mock;
 
@@ -15,6 +18,9 @@ mod tests;
 pub mod pallet {
     use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
+    use primitives_proofs::RegisteredSealProof;
+
+    use crate::porep;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -44,6 +50,17 @@ pub mod pallet {
             let who = ensure_signed(origin)?;
             let block_number: BlockNumberFor<T> = bn.into();
             Self::deposit_event(Event::SomethingStored { block_number, who });
+
+            Ok(().into())
+        }
+
+        pub fn verify_porep(
+            _origin: OriginFor<T>,
+            seal_proof: RegisteredSealProof,
+        ) -> DispatchResultWithPostInfo {
+            let proof_scheme = porep::ProofScheme::setup(seal_proof);
+
+            proof_scheme.verify();
 
             Ok(().into())
         }

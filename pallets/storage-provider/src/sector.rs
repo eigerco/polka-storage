@@ -63,7 +63,7 @@ where
         Self {
             sector_number: precommit.info.sector_number,
             sector_expiry: precommit.info.expiration,
-            sector_type: precommit.info.seal_proof.clone(),
+            sector_type: precommit.info.seal_proof,
             deal_ids: precommit.info.deal_ids.clone(),
         }
     }
