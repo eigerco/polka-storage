@@ -1,33 +1,30 @@
 use std::path::PathBuf;
 
-use mater::{create_filestore, Config};
+use mater::{create_filestore, Cid, Config};
 use tokio::fs::File;
 
 use crate::error::Error;
 
 /// Converts a file at location `input_path` to a CARv2 file at `output_path`
 pub(crate) async fn convert_file_to_car(
-    input_path: PathBuf,
-    output_path: PathBuf,
-) -> Result<(), Error> {
-    let source_file = File::open(&input_path).await?;
-    let output_file = File::create_new(&output_path).await?;
-    let _cid = create_filestore(source_file, output_file, Config::default()).await?;
-    println!(
-        "Converted {} and saved the CARv2 file at {}",
-        input_path.display(),
-        output_path.display()
-    );
-    Ok(())
+    input_path: &PathBuf,
+    output_path: &PathBuf,
+) -> Result<Cid, Error> {
+    let source_file = File::open(input_path).await?;
+    let output_file = File::create_new(output_path).await?;
+    let cid = create_filestore(source_file, output_file, Config::default()).await?;
+
+    Ok(cid)
 }
 
 /// Tests for file conversion.
 /// MaterError cases are not handled because these are tested in the mater library.
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::{path::PathBuf, str::FromStr};
 
     use anyhow::Result;
+    use mater::Cid;
     use tempfile::tempdir;
     use tokio::fs::{remove_file, File};
 
@@ -41,14 +38,20 @@ mod tests {
         let mut input_file = File::create(&input_path).await?;
         tokio::io::AsyncWriteExt::write_all(&mut input_file, b"test data").await?;
 
+        let expected_cid =
+            Cid::from_str("bafkreiern4acpjlva5gookrtc534gr4nmuj7pbvfsg6yslnbuv336izv7e")?;
+
         // Define output path
         let output_path = temp_dir.path().join("test_output.car");
 
         // Call the function under test
-        let result = convert_file_to_car(input_path.clone(), output_path.clone()).await;
+        let result = convert_file_to_car(&input_path, &output_path).await;
 
         // Assert the result is Ok
         assert!(result.is_ok());
+
+        // Verify that the CID is as expected
+        assert_eq!(result?, expected_cid);
 
         // Close temporary directory
         temp_dir.close()?;
@@ -66,7 +69,7 @@ mod tests {
         let output_path = temp_dir.path().join("test_output.car");
 
         // Call the function under test
-        let result = convert_file_to_car(input_path.clone(), output_path.clone()).await;
+        let result = convert_file_to_car(&input_path, &output_path).await;
 
         // Assert the result is an error
         assert!(result.is_err());
@@ -88,10 +91,10 @@ mod tests {
 
         // Create output file
         let output_path = PathBuf::from("output_file");
-        File::create(output_path.clone()).await?;
+        File::create(&output_path).await?;
 
         // Call the function under test
-        let result = convert_file_to_car(input_path.clone(), output_path.clone()).await;
+        let result = convert_file_to_car(&input_path, &output_path).await;
 
         // Assert the result is an error
         assert!(result.is_err());

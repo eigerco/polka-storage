@@ -42,7 +42,13 @@ async fn main() -> Result<(), Error> {
                 new_path.set_extension("car");
                 new_path
             });
-            convert_file_to_car(input_path, output_path).await?
+            let cid = convert_file_to_car(&input_path, &output_path).await?;
+
+            println!(
+                "Converted {} and saved the CARv2 file at {} with a CID of {cid}",
+                input_path.display(),
+                output_path.display()
+            );
         }
         MaterCli::Extract {
             input_path,
@@ -53,7 +59,13 @@ async fn main() -> Result<(), Error> {
                 new_path.set_extension("");
                 new_path
             });
-            extract_file_from_car(input_path, output_path).await?
+            extract_file_from_car(&input_path, &output_path).await?;
+
+            println!(
+                "Successfully converted CARv2 file {} and saved it to to {}",
+                input_path.display(),
+                output_path.display()
+            );
         }
     }
 

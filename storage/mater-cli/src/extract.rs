@@ -10,8 +10,8 @@ use crate::error::Error;
 
 /// Extracts a file to `output_path` from the CARv2 file at `input_path`
 pub(crate) async fn extract_file_from_car(
-    input_path: PathBuf,
-    output_path: PathBuf,
+    input_path: &PathBuf,
+    output_path: &PathBuf,
 ) -> Result<(), Error> {
     let source_file = File::open(&input_path).await?;
     let mut output_file = File::create_new(&output_path).await?;
@@ -21,7 +21,6 @@ pub(crate) async fn extract_file_from_car(
     // Still create CAR file and inform the user.
     if size == 0 {
         println!("Supplied CAR file is empty");
-        print_successful_extraction(input_path, output_path);
         return Ok(());
     }
 
@@ -41,16 +40,8 @@ pub(crate) async fn extract_file_from_car(
         written += output_file.write(&contents).await?;
     }
     output_file.flush().await?;
-    print_successful_extraction(input_path, output_path);
-    Ok(())
-}
 
-fn print_successful_extraction(input_path: PathBuf, output_path: PathBuf) {
-    println!(
-        "Successfully converted CARv2 file {} and saved it to to {}",
-        input_path.display(),
-        output_path.display()
-    );
+    Ok(())
 }
 
 /// Tests for file extraction.
@@ -77,7 +68,7 @@ mod tests {
         let output_path = temp_dir.path().join("output_file");
 
         // Call the function under test
-        let result = extract_file_from_car(input_path, output_path.clone()).await;
+        let result = extract_file_from_car(&input_path, &output_path).await;
         // Assert the function succeeded
         assert!(result.is_ok());
 
@@ -109,7 +100,7 @@ mod tests {
         let output_path = temp_dir.path().join("test_output/output_file");
 
         // Call the function under test
-        let result = extract_file_from_car(input_path.clone(), output_path.clone()).await;
+        let result = extract_file_from_car(&input_path, &output_path).await;
 
         // Assert the function returns an error
         assert!(result.is_err());
@@ -127,10 +118,10 @@ mod tests {
         let output_path = PathBuf::from("output_file");
 
         // Create a file at ouput path
-        File::create(output_path.clone()).await?;
+        File::create(&output_path).await?;
 
         // Call the function under test
-        let result = extract_file_from_car(input_path.clone(), output_path.clone()).await;
+        let result = extract_file_from_car(&input_path, &output_path).await;
 
         // Assert the function returns an error
         assert!(result.is_err());
