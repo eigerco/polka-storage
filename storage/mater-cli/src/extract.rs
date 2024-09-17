@@ -14,7 +14,7 @@ pub(crate) async fn extract_file_from_car(
     output_path: PathBuf,
 ) -> Result<(), Error> {
     let source_file = File::open(&input_path).await?;
-    let mut output_file = File::create(&output_path).await?;
+    let mut output_file = File::create_new(&output_path).await?;
     let size = source_file.metadata().await?.len();
 
     // Avoid doing any work if the file is empty.
@@ -61,7 +61,10 @@ mod tests {
 
     use anyhow::Result;
     use tempfile::tempdir;
-    use tokio::{fs::File, io::AsyncReadExt};
+    use tokio::{
+        fs::{remove_file, File},
+        io::AsyncReadExt,
+    };
 
     use crate::{error::Error, extract_file_from_car};
 
@@ -113,6 +116,28 @@ mod tests {
         // Verify the error is of type Error
         assert!(matches!(result, Err(Error::IoError(..))));
 
+        Ok(())
+    }
+
+    /// Tests that extraction fails if the file already exists.
+    #[tokio::test]
+    async fn io_error_extract_output_path_exists() -> Result<()> {
+        // Setup input and output paths
+        let input_path = PathBuf::from("../mater/tests/fixtures/car_v2/lorem.car");
+        let output_path = PathBuf::from("output_file");
+
+        // Create a file at ouput path
+        File::create(output_path.clone()).await?;
+
+        // Call the function under test
+        let result = extract_file_from_car(input_path.clone(), output_path.clone()).await;
+
+        // Assert the function returns an error
+        assert!(result.is_err());
+        assert!(matches!(result, Err(Error::IoError(..))));
+
+        // Remove output file
+        remove_file(output_path).await?;
         Ok(())
     }
 }

@@ -11,7 +11,7 @@ pub(crate) async fn convert_file_to_car(
     output_path: PathBuf,
 ) -> Result<(), Error> {
     let source_file = File::open(&input_path).await?;
-    let output_file = File::create(&output_path).await?;
+    let output_file = File::create_new(&output_path).await?;
     let _cid = create_filestore(source_file, output_file, Config::default()).await?;
     println!(
         "Converted {} and saved the CARv2 file at {}",
@@ -25,9 +25,11 @@ pub(crate) async fn convert_file_to_car(
 /// MaterError cases are not handled because these are tested in the mater library.
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use anyhow::Result;
     use tempfile::tempdir;
-    use tokio::fs::File;
+    use tokio::fs::{remove_file, File};
 
     use crate::{convert::convert_file_to_car, error::Error};
 
@@ -72,6 +74,35 @@ mod tests {
 
         // Close temporary directory
         temp_dir.close()?;
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn io_error_convert_file_exists() -> Result<()> {
+        // Setup: Create a dummy input file
+        let temp_dir = tempdir()?;
+        let input_path = temp_dir.path().join("test_input.txt");
+        let mut input_file = File::create(&input_path).await?;
+        tokio::io::AsyncWriteExt::write_all(&mut input_file, b"test data").await?;
+
+        // Create output file
+        let output_path = PathBuf::from("output_file");
+        File::create(output_path.clone()).await?;
+
+        // Call the function under test
+        let result = convert_file_to_car(input_path.clone(), output_path.clone()).await;
+
+        println!("{result:?}");
+        // Assert the result is an error
+        assert!(result.is_err());
+        assert!(matches!(result, Err(Error::IoError(..))));
+
+        // Close temporary directory
+        temp_dir.close()?;
+
+        // Remove output file
+        remove_file(output_path).await?;
 
         Ok(())
     }
