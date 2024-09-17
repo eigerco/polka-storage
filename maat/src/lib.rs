@@ -5,6 +5,9 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilte
 use zombienet_configuration::shared::node::{Buildable, Initial, NodeConfigBuilder};
 use zombienet_sdk::{NetworkConfig, NetworkConfigBuilder};
 
+/// Find the the `polka_storage_node` in the current project.
+///
+/// If the feature
 pub fn find_polka_storage_node() -> Option<PathBuf> {
     // We're expecting the test binary to always be under /target/X/...
     let current_exe = std::env::current_exe()
@@ -22,43 +25,61 @@ pub fn find_polka_storage_node() -> Option<PathBuf> {
     }
     let target_folder = target_folder.expect("no target/ directory found");
 
-    let release_polka_storage_node = target_folder.join("release").join("polka-storage-node");
-    tracing::debug!(
-        "searching for polka-storage-node in {}",
-        release_polka_storage_node.display()
-    );
-    if release_polka_storage_node.exists() {
-        return Some(release_polka_storage_node);
+    if cfg!(feature = "target-release") {
+        let release_polka_storage_node = target_folder.join("release").join("polka-storage-node");
+        if release_polka_storage_node.exists() {
+            tracing::info!("found {}, using it", release_polka_storage_node.display());
+            return Some(release_polka_storage_node);
+        }
     }
 
-    let debug_polka_storage_node = target_folder.join("debug").join("polka-storage-node");
-    tracing::debug!(
-        "searching for polka-storage-node in {}",
-        debug_polka_storage_node.display()
-    );
-    if debug_polka_storage_node.exists() {
-        return Some(debug_polka_storage_node);
+    if cfg!(feature = "target-release") {
+        let debug_polka_storage_node = target_folder.join("debug").join("polka-storage-node");
+        if debug_polka_storage_node.exists() {
+            tracing::info!("found {}, using it", debug_polka_storage_node.display());
+            return Some(debug_polka_storage_node);
+        }
     }
 
     return None;
 }
 
 pub trait NodeConfigBuilderExt {
+    /// Build a node with the given name.
     fn polkadot_node(self, name: &str) -> NodeConfigBuilder<Buildable>;
+
+    /// Build a Polka Storage collator with the given name.
+    fn polka_storage_collator(self, name: &str) -> NodeConfigBuilder<Buildable>;
 }
 
 impl NodeConfigBuilderExt for NodeConfigBuilder<Initial> {
-    /// Build a node with the given name.
     fn polkadot_node(self, name: &str) -> NodeConfigBuilder<Buildable> {
         self.with_name(name)
             .validator(true)
             .with_command("polkadot")
+            // You can customize the log level for a given module using
+            // -lpackage1=level1,package2=level2
+            // You can read more about the available targets in:
+            // https://wiki.polkadot.network/docs/build-node-management#monitoring-and-telemetry
             .with_args(vec!["-lparachain=trace,runtime=trace".into()])
+    }
+
+    fn polka_storage_collator(self, name: &str) -> NodeConfigBuilder<Buildable> {
+        self.with_name("collator")
+            .with_command(polka_storage_node_binary_path)
+            .with_args(vec![
+                "--detailed-log-output".into(),
+                "-lparachain=trace,runtime=trace".into(),
+            ])
+            .validator(true)
     }
 }
 
+/// This configuration is supposed to be a 1:1 copy of `zombienet/local-testnet.toml`.
+///
+/// We could use the TOML file if wasn't for not having the same requirements as this description,
+/// for example, when reading the TOML file, [you need to explicitly set a timeout](https://github.com/paritytech/zombienet-sdk/issues/254)
 pub fn local_testnet_config() -> NetworkConfig {
-    // No comments... Just parity being parity...
     let binding = find_polka_storage_node()
         .expect("couldn't find the polka-storage-node binary")
         .display()
@@ -76,37 +97,29 @@ pub fn local_testnet_config() -> NetworkConfig {
             parachain
                 .with_id(1000)
                 .cumulus_based(true)
-                .with_collator(|collator| {
-                    collator
-                        .with_name("collator")
-                        .with_command(polka_storage_node_binary_path)
-                        .with_args(vec![
-                            "--detailed-log-output".into(),
-                            "-lparachain=trace,runtime=trace".into(),
-                        ])
-                        .validator(true)
-                })
+                .with_collator(|collator| collator.polka_storage_node("collator"))
         })
         .build()
         .unwrap()
 }
 
+/// Setup logging for tests. Will panic if called multiple times!
 pub fn setup_logging() {
     let env_filter = EnvFilter::builder()
         .with_default_directive(LevelFilter::DEBUG.into())
         .from_env()
         .expect("valid level should be set");
-    // let module_filter = filter_fn(|metadata| {
-    //     metadata
-    //         .module_path()
-    //         .map(|path| {
-    //             path.starts_with("storagext") || path.starts_with("maat")
-    //             // || path.starts_with("zombienet")
-    //         })
-    //         .unwrap_or(true)
-    // });
 
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer().with_filter(env_filter))
         .init();
+}
+
+pub fn pair_signer_from_str<P>(s: &str) -> PairSigner<PolkaStorageConfig, P>
+where
+    P: Pair,
+    <SpMultiSignature as Verify>::Signer: From<P::Public>,
+{
+    let keypair = Pair::from_string(s, None).unwrap();
+    PairSigner::<PolkaStorageConfig, P>::new(keypair)
 }

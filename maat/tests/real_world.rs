@@ -34,192 +34,19 @@ use zombienet_sdk::NetworkConfigExt;
 /// Network's collator name. Used for logs and so on.
 const COLLATOR_NAME: &str = "collator";
 
-fn pair_signer_from_str<P>(s: &str) -> PairSigner<PolkaStorageConfig, P>
-where
-    P: Pair,
-    <SpMultiSignature as Verify>::Signer: From<P::Public>,
-{
-    let keypair = Pair::from_string(s, None).unwrap();
-    PairSigner::<PolkaStorageConfig, P>::new(keypair)
-}
-
 const STRATEGIC_SLEEP: Duration = Duration::from_secs(6);
 
+/// Strategic sleep is a band-aid for [subxt#1668](https://github.com/paritytech/subxt/issues/1668).
+///
+/// The proper fix is to way for an event that actually reflects the success status of the operation.
+/// A possible fix is shown in [polkadot-sdk#4883](https://github.com/paritytech/polkadot-sdk/pull/4883/files#diff-275b35fb5cb16898b64ab5ba6b7da61a5107b3941aee88303cc298e735acbaa7R131-R151),
+/// however, it is not very ergonomic.
 async fn strategic_sleep() {
     tracing::warn!(
-        "sleeping for {:?}, for more information, see subxt#1668",
+        "sleeping for {:?}, for more information, see https://github.com/paritytech/subxt/issues/1668",
         STRATEGIC_SLEEP
     );
     tokio::time::sleep(STRATEGIC_SLEEP).await;
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn real_world_use_case() {
-    setup_logging();
-    let network = local_testnet_config().spawn_native().await.unwrap();
-
-    tracing::debug!("base dir: {:?}", network.base_dir());
-
-    let collator = network.get_node(COLLATOR_NAME).unwrap();
-    let client =
-        storagext::Client::from(collator.wait_client::<PolkaStorageConfig>().await.unwrap());
-
-    let alice_kp = pair_signer_from_str::<Sr25519Pair>("//Alice");
-    let charlie_kp = pair_signer_from_str::<Sr25519Pair>("//Charlie");
-
-    register_storage_provider(&client, &charlie_kp).await;
-
-    // Add balance to Charlie
-    let balance = 12_500_000_000;
-    tracing::debug!("adding {} balance to charlie", balance);
-    client.add_balance(&charlie_kp, balance).await.unwrap();
-
-    let balance_entry = client
-        .retrieve_balance(charlie_kp.account_id().clone())
-        .await
-        .unwrap()
-        .unwrap();
-
-    assert_eq!(balance_entry.free, balance);
-    assert_eq!(balance_entry.locked, 0);
-
-    strategic_sleep().await;
-
-    // Add balance to Alice
-    let balance = 25_000_000_000;
-    tracing::debug!("adding {} balance to alice", balance);
-    client.add_balance(&alice_kp, balance).await.unwrap();
-
-    let balance_entry = client
-        .retrieve_balance(alice_kp.account_id().clone())
-        .await
-        .unwrap()
-        .unwrap();
-
-    assert_eq!(balance_entry.free, balance);
-    assert_eq!(balance_entry.locked, 0);
-
-    publish_storage_deals(&client, &charlie_kp, &alice_kp).await;
-
-    pre_commit_sectors(&client, &charlie_kp).await;
-    strategic_sleep().await;
-
-    prove_commit_sectors(&client, &charlie_kp).await;
-
-    // These ones wait for a specific block so the strategic sleep shouldn't be needed
-    client.wait_for_height(63, true).await.unwrap();
-    submit_windowed_post(&client, &charlie_kp).await;
-
-    client.wait_for_height(83, true).await.unwrap();
-    declare_faults(&client, &charlie_kp).await;
-
-    declare_recoveries(&client, &charlie_kp).await;
-
-    client.wait_for_height(103, true).await.unwrap();
-    submit_windowed_post(&client, &charlie_kp).await;
-
-    client.wait_for_height(115, true).await.unwrap();
-    let settle_result = client
-        .settle_deal_payments(&charlie_kp, vec![0])
-        .await
-        .unwrap();
-
-    for event in settle_result
-        .events
-        .find::<storagext::runtime::market::events::DealsSettled>()
-    {
-        let event = event.unwrap();
-        assert!(event.unsuccessful.0.is_empty());
-        assert_eq!(event.successful.0[0].deal_id, 0);
-        assert_eq!(event.successful.0[0].amount, 25_000_000_000);
-        assert_eq!(
-            event.successful.0[0].provider,
-            charlie_kp.account_id().clone().into()
-        );
-        assert_eq!(
-            event.successful.0[0].client,
-            alice_kp.account_id().clone().into()
-        );
-    }
-}
-
-async fn declare_recoveries<Keypair>(client: &storagext::Client, charlie: &Keypair)
-where
-    Keypair: subxt::tx::Signer<PolkaStorageConfig>,
-{
-    let recovery_declarations = vec![RecoveryDeclaration {
-        deadline: 0,
-        partition: 0,
-        sectors: BTreeSet::from_iter([1u64].into_iter()),
-    }];
-    let faults_recovered_result = client
-        .declare_faults_recovered(charlie, recovery_declarations.clone())
-        .await
-        .unwrap();
-
-    for event in faults_recovered_result
-        .events
-        .find::<storagext::runtime::storage_provider::events::FaultsRecovered>()
-    {
-        let event = event.unwrap();
-        assert_eq!(event.owner, charlie.account_id().clone().into());
-        assert_eq!(event.recoveries.0, recovery_declarations);
-    }
-}
-
-async fn declare_faults<Keypair>(client: &storagext::Client, charlie: &Keypair)
-where
-    Keypair: subxt::tx::Signer<PolkaStorageConfig>,
-{
-    let fault_declarations = vec![FaultDeclaration {
-        deadline: 0,
-        partition: 0,
-        sectors: BTreeSet::from_iter([1u64].into_iter()),
-    }];
-    let fault_declaration_result = client
-        .declare_faults(charlie, fault_declarations.clone())
-        .await
-        .unwrap();
-
-    for event in fault_declaration_result
-        .events
-        .find::<storagext::runtime::storage_provider::events::FaultsDeclared>()
-    {
-        let event = event.unwrap();
-        assert_eq!(event.owner, charlie.account_id().clone().into());
-        assert_eq!(event.faults.0, fault_declarations);
-    }
-}
-
-async fn submit_windowed_post<Keypair>(client: &storagext::Client, charlie: &Keypair)
-where
-    Keypair: subxt::tx::Signer<PolkaStorageConfig>,
-{
-    let windowed_post_result = client
-        .submit_windowed_post(
-            charlie,
-            SubmitWindowedPoStParams {
-                deadline: 0,
-                partitions: BoundedVec(vec![0]),
-                proof:
-                    storagext::runtime::runtime_types::pallet_storage_provider::proofs::PoStProof {
-                        post_proof:
-                            primitives_proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
-                        proof_bytes: "beef".to_string().into_bounded_byte_vec(),
-                    },
-            },
-        )
-        .await
-        .unwrap();
-
-    for event in windowed_post_result
-        .events
-        .find::<storagext::runtime::storage_provider::events::ValidPoStSubmitted>()
-    {
-        let event = event.unwrap();
-
-        assert_eq!(event.owner, charlie.account_id().clone().into());
-    }
 }
 
 async fn register_storage_provider<Keypair>(client: &storagext::Client, charlie: &Keypair)
@@ -272,6 +99,46 @@ where
     assert_eq!(retrieved_peer_id, peer_id_bs58);
 }
 
+async fn add_balance<Keypair>(client: &storagext::Client, account: &Keypair, balance: u128)
+where
+    Keypair: subxt::tx::Signer<PolkaStorageConfig>,
+{
+    client.add_balance(account, balance).await.unwrap();
+
+    let balance_entry = client
+        .retrieve_balance(account.account_id().clone())
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(balance_entry.free, balance);
+    assert_eq!(balance_entry.locked, 0);
+}
+
+async fn settle_deal_payments<Keypair>(client: &storagext::Client, charlie: &Keypair)
+where
+    Keypair: subxt::tx::Signer<PolkaStorageConfig>,
+{
+    let settle_result = client.settle_deal_payments(charlie, vec![0]).await.unwrap();
+
+    for event in settle_result
+        .events
+        .find::<storagext::runtime::market::events::DealsSettled>()
+    {
+        let event = event.unwrap();
+        assert!(event.unsuccessful.0.is_empty());
+        assert_eq!(event.successful.0[0].deal_id, 0);
+        assert_eq!(event.successful.0[0].amount, 25_000_000_000);
+        assert_eq!(
+            event.successful.0[0].provider,
+            charlie.account_id().clone().into()
+        );
+        assert_eq!(
+            event.successful.0[0].client,
+            alice_kp.account_id().clone().into()
+        );
+    }
+}
 async fn publish_storage_deals<Keypair>(
     client: &storagext::Client,
     charlie: &Keypair,
@@ -381,4 +248,139 @@ where
         assert_eq!(event.owner, charlie.account_id().clone().into());
         assert_eq!(event.sectors.0, expected_results);
     }
+}
+
+async fn submit_windowed_post<Keypair>(client: &storagext::Client, charlie: &Keypair)
+where
+    Keypair: subxt::tx::Signer<PolkaStorageConfig>,
+{
+    let windowed_post_result = client
+        .submit_windowed_post(
+            charlie,
+            SubmitWindowedPoStParams {
+                deadline: 0,
+                partitions: BoundedVec(vec![0]),
+                proof:
+                    storagext::runtime::runtime_types::pallet_storage_provider::proofs::PoStProof {
+                        post_proof:
+                            primitives_proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+                        proof_bytes: "beef".to_string().into_bounded_byte_vec(),
+                    },
+            },
+        )
+        .await
+        .unwrap();
+
+    for event in windowed_post_result
+        .events
+        .find::<storagext::runtime::storage_provider::events::ValidPoStSubmitted>()
+    {
+        let event = event.unwrap();
+
+        assert_eq!(event.owner, charlie.account_id().clone().into());
+    }
+}
+
+async fn declare_recoveries<Keypair>(client: &storagext::Client, charlie: &Keypair)
+where
+    Keypair: subxt::tx::Signer<PolkaStorageConfig>,
+{
+    let recovery_declarations = vec![RecoveryDeclaration {
+        deadline: 0,
+        partition: 0,
+        sectors: BTreeSet::from_iter([1u64].into_iter()),
+    }];
+    let faults_recovered_result = client
+        .declare_faults_recovered(charlie, recovery_declarations.clone())
+        .await
+        .unwrap();
+
+    for event in faults_recovered_result
+        .events
+        .find::<storagext::runtime::storage_provider::events::FaultsRecovered>()
+    {
+        let event = event.unwrap();
+        assert_eq!(event.owner, charlie.account_id().clone().into());
+        assert_eq!(event.recoveries.0, recovery_declarations);
+    }
+}
+
+async fn declare_faults<Keypair>(client: &storagext::Client, charlie: &Keypair)
+where
+    Keypair: subxt::tx::Signer<PolkaStorageConfig>,
+{
+    let fault_declarations = vec![FaultDeclaration {
+        deadline: 0,
+        partition: 0,
+        sectors: BTreeSet::from_iter([1u64].into_iter()),
+    }];
+    let fault_declaration_result = client
+        .declare_faults(charlie, fault_declarations.clone())
+        .await
+        .unwrap();
+
+    for event in fault_declaration_result
+        .events
+        .find::<storagext::runtime::storage_provider::events::FaultsDeclared>()
+    {
+        let event = event.unwrap();
+        assert_eq!(event.owner, charlie.account_id().clone().into());
+        assert_eq!(event.faults.0, fault_declarations);
+    }
+}
+
+/// This test was adapted from a bash script and is timing sensitive.
+/// While it works right now, it still needs some work to better test the parachain,
+/// like reading the sector deadlines and so on.
+///
+// TODO(@jmg-duarte,#381,17/09/2024): Remove the timing dependencies
+#[tokio::test]
+async fn real_world_use_case() {
+    setup_logging();
+    let network = local_testnet_config().spawn_native().await.unwrap();
+
+    tracing::debug!("base dir: {:?}", network.base_dir());
+
+    let collator = network.get_node(COLLATOR_NAME).unwrap();
+    let client =
+        storagext::Client::from(collator.wait_client::<PolkaStorageConfig>().await.unwrap());
+
+    let alice_kp = pair_signer_from_str::<Sr25519Pair>("//Alice");
+    let charlie_kp = pair_signer_from_str::<Sr25519Pair>("//Charlie");
+
+    register_storage_provider(&client, &charlie_kp).await;
+
+    // Add balance to Charlie
+    let balance = 12_500_000_000;
+    tracing::debug!("adding {} balance to charlie", balance);
+    add_balance(&client, &charlie_kp, balance).await;
+
+    strategic_sleep().await;
+
+    // Add balance to Alice
+    let balance = 25_000_000_000;
+    tracing::debug!("adding {} balance to alice", balance);
+    add_balance(&client, &alice_kp, balance).await;
+
+    publish_storage_deals(&client, &charlie_kp, &alice_kp).await;
+
+    pre_commit_sectors(&client, &charlie_kp).await;
+    strategic_sleep().await;
+
+    prove_commit_sectors(&client, &charlie_kp).await;
+
+    // These ones wait for a specific block so the strategic sleep shouldn't be needed
+    client.wait_for_height(63, true).await.unwrap();
+    submit_windowed_post(&client, &charlie_kp).await;
+
+    client.wait_for_height(83, true).await.unwrap();
+    declare_faults(&client, &charlie_kp).await;
+
+    declare_recoveries(&client, &charlie_kp).await;
+
+    client.wait_for_height(103, true).await.unwrap();
+    submit_windowed_post(&client, &charlie_kp).await;
+
+    client.wait_for_height(115, true).await.unwrap();
+    settle_deal_payments(&client, &charlie_kp).await;
 }

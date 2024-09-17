@@ -1,8 +1,8 @@
 /// This module contains trait implementation for storage provider related types.
 ///
 /// Since `storagext` declares some "duplicate" types from the runtime to be more ergonomic,
-/// types imported from the runtime that have dopplegangers, should be imported using `as` and
-/// prefixed with `Runtime`, making them easily distinguishable from their dopplegangers.
+/// types imported from the runtime that have doppelgangers, should be imported using `as` and
+/// prefixed with `Runtime`, making them easily distinguishable from their doppelgangers.
 use std::collections::BTreeSet;
 
 use cid::Cid;

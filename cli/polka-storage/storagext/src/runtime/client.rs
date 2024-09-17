@@ -28,7 +28,7 @@ impl Client {
     ///
     /// By default, this function does not support insecure URLs,
     /// to enable support for them, use the `insecure_url` feature.
-    // #[tracing::instrument(skip_all, fields(rpc_address = rpc_address.as_ref()))]
+    #[tracing::instrument(skip_all, fields(rpc_address = rpc_address.as_ref()))]
     pub async fn new(
         rpc_address: impl AsRef<str>,
         n_retries: u32,

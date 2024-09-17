@@ -23,18 +23,15 @@
         };
         rustToolchain = pkgs.pkgsBuildHost.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
         buildInputs = with pkgs; [
-          openssl_3_3
           azure-cli # Building Docker images and publishing to Azure Container Registry
           cargo-expand
           cargo-tarpaulin
           clang
-          openssl
           just
           mdbook
           mdbook-linkcheck
-          nodejs-slim_22
+          openssl
           pkg-config
-          pnpm
           polkadot
           rustToolchain
           subxt

@@ -7,7 +7,16 @@ name = "maat"
 repository.workspace = true
 version = "0.1.0"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = ["target-debug", "target-release"]
+# Target the polka-storage-node in `target/debug` or `target/release`
+# if *both* flags are enabled, it will first check for `target/release`
+# and if not found, check for `target-debug`
+#
+# To forcefully test one of them only, run `cargo test` with the
+# `--no-default-features` flag and `--features` with your desired feature
+target-debug = []
+target-release = []
 
 [dependencies]
 bs58.workspace = true

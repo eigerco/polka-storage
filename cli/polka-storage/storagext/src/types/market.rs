@@ -14,7 +14,7 @@ use crate::{
     BlockNumber, Currency, PolkaStorageConfig,
 };
 
-/// Doppleganger of `RuntimeDealProposal` but with more ergonomic types and no generics.
+/// Doppelganger of `RuntimeDealProposal` but with more ergonomic types and no generics.
 #[derive(CloneNoBound)]
 pub struct DealProposal {
     pub piece_cid: Cid,
