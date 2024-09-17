@@ -1,6 +1,4 @@
-use std::{future::Future, time::Duration};
-
-use tokio::time::sleep;
+use std::future::Future;
 
 pub trait SystemClientExt {
     /// Get the current height of the chain.

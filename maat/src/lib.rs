@@ -1,5 +1,13 @@
 use std::path::PathBuf;
 
+use storagext::PolkaStorageConfig;
+use subxt::{
+    ext::{
+        sp_core::Pair,
+        sp_runtime::{traits::Verify, MultiSignature as SpMultiSignature},
+    },
+    tx::PairSigner,
+};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer};
 use zombienet_configuration::shared::node::{Buildable, Initial, NodeConfigBuilder};
@@ -49,7 +57,7 @@ pub trait NodeConfigBuilderExt {
     fn polkadot_node(self, name: &str) -> NodeConfigBuilder<Buildable>;
 
     /// Build a Polka Storage collator with the given name.
-    fn polka_storage_collator(self, name: &str) -> NodeConfigBuilder<Buildable>;
+    fn polka_storage_collator(self, name: &str, command: &str) -> NodeConfigBuilder<Buildable>;
 }
 
 impl NodeConfigBuilderExt for NodeConfigBuilder<Initial> {
@@ -64,9 +72,9 @@ impl NodeConfigBuilderExt for NodeConfigBuilder<Initial> {
             .with_args(vec!["-lparachain=trace,runtime=trace".into()])
     }
 
-    fn polka_storage_collator(self, name: &str) -> NodeConfigBuilder<Buildable> {
-        self.with_name("collator")
-            .with_command(polka_storage_node_binary_path)
+    fn polka_storage_collator(self, name: &str, command: &str) -> NodeConfigBuilder<Buildable> {
+        self.with_name(name)
+            .with_command(command)
             .with_args(vec![
                 "--detailed-log-output".into(),
                 "-lparachain=trace,runtime=trace".into(),
@@ -97,7 +105,9 @@ pub fn local_testnet_config() -> NetworkConfig {
             parachain
                 .with_id(1000)
                 .cumulus_based(true)
-                .with_collator(|collator| collator.polka_storage_node("collator"))
+                .with_collator(|collator| {
+                    collator.polka_storage_collator("collator", polka_storage_node_binary_path)
+                })
         })
         .build()
         .unwrap()

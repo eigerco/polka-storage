@@ -28,6 +28,7 @@ pub mod display;
         path = "primitives_proofs::types::SectorSize",
         with = "::primitives_proofs::SectorSize",
     ),
+    // impl Deserialize
     derive_for_type(
         path = "pallet_market::pallet::ActiveDealState",
         derive = "::serde::Deserialize"
@@ -36,6 +37,7 @@ pub mod display;
         path = "pallet_market::pallet::DealState",
         derive = "::serde::Deserialize"
     ),
+    // impl Serialize
     derive_for_type(
         path = "pallet_market::pallet::BalanceEntry",
         derive = "::serde::Serialize"
@@ -95,7 +97,8 @@ pub use self::polka_storage_runtime::*;
 
 #[cfg(test)]
 mod test {
-    use crate::{ActiveDealState, DealState};
+
+    use crate::runtime::runtime_types::pallet_market::pallet::{ActiveDealState, DealState};
 
     #[test]
     fn ensure_serde_for_active_deal_state() {

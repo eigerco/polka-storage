@@ -13,12 +13,7 @@ use crate::{
         bounded_vec::IntoBoundedByteVec,
         client::SubmissionResult,
         runtime_types::pallet_storage_provider::{
-            fault::{
-                FaultDeclaration as RuntimeFaultDeclaration,
-                RecoveryDeclaration as RuntimeRecoveryDeclaration,
-            },
-            proofs::SubmitWindowedPoStParams,
-            sector::ProveCommitSector,
+            proofs::SubmitWindowedPoStParams, sector::ProveCommitSector,
         },
     },
     types::storage_provider::{FaultDeclaration, RecoveryDeclaration, SectorPreCommitInfo},

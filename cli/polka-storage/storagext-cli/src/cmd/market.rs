@@ -3,7 +3,10 @@ use std::time::Duration;
 use anyhow::bail;
 use clap::{ArgGroup, Subcommand};
 use primitives_proofs::DealId;
-use storagext::{runtime::SubmissionResult, MarketClientExt, PolkaStorageConfig};
+use storagext::{
+    runtime::SubmissionResult, types::market::DealProposal as SxtDealProposal, MarketClientExt,
+    PolkaStorageConfig,
+};
 use subxt::ext::sp_core::{
     ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair, sr25519::Pair as Sr25519Pair,
 };
@@ -11,11 +14,8 @@ use url::Url;
 
 use crate::{
     deser::ParseablePath, missing_keypair_error, operation_takes_a_while, pair::DebugPair,
-    DealProposal, MultiPairSigner, OutputFormat,
+    MultiPairSigner, OutputFormat,
 };
-/// List of [`DealProposal`]s to publish.
-#[derive(Debug, Clone, serde::Deserialize)]
-pub struct DealProposals(Vec<DealProposal>);
 
 #[derive(Debug, Subcommand)]
 #[command(name = "market", about = "CLI Client to the Market Pallet", version)]
@@ -30,8 +30,8 @@ pub(crate) enum MarketCommand {
     #[command(group(ArgGroup::new("client_keypair").required(true).args(&["client_sr25519_key", "client_ecdsa_key", "client_ed25519_key"])))]
     PublishStorageDeals {
         /// Storage deals to publish. Either JSON or a file path, prepended with an @.
-        #[arg(value_parser = <DealProposals as ParseablePath>::parse_json)]
-        deals: DealProposals,
+        #[arg(value_parser = <Vec<SxtDealProposal> as ParseablePath>::parse_json)]
+        deals: std::vec::Vec<SxtDealProposal>,
         /// Sr25519 keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
         ///
         /// See `sp_core::crypto::Pair::from_string_with_seed` for more information.
@@ -209,7 +209,7 @@ impl MarketCommand {
         client: Client,
         account_keypair: MultiPairSigner,
         client_keypair: MultiPairSigner,
-        deals: DealProposals,
+        deals: Vec<SxtDealProposal>,
     ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
     where
         Client: MarketClientExt,
@@ -218,7 +218,7 @@ impl MarketCommand {
             .publish_storage_deals(
                 &account_keypair,
                 &client_keypair,
-                deals.0.into_iter().map(Into::into).collect(),
+                deals.into_iter().map(Into::into).collect(),
             )
             .await?;
         tracing::debug!(

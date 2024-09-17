@@ -1,6 +1,5 @@
 use cid::Cid;
 use codec::Encode;
-use frame_support::CloneNoBound;
 use subxt::{ext::sp_runtime::MultiSignature, tx::Signer, utils::Static};
 
 use crate::{
@@ -15,8 +14,9 @@ use crate::{
 };
 
 /// Doppelganger of `RuntimeDealProposal` but with more ergonomic types and no generics.
-#[derive(CloneNoBound)]
+#[derive(Debug, Clone, serde::Deserialize, PartialEq, Eq)]
 pub struct DealProposal {
+    #[serde(deserialize_with = "crate::types::deserialize_string_to_cid")]
     pub piece_cid: Cid,
     pub piece_size: u64,
     pub client: <PolkaStorageConfig as subxt::Config>::AccountId,

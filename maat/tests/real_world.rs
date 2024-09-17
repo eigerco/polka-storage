@@ -3,15 +3,10 @@ use std::{collections::BTreeSet, time::Duration};
 use maat::*;
 use primitives_proofs::SectorSize;
 use storagext::{
-    runtime::{
-        runtime_types::{
-            bounded_collections::bounded_vec::BoundedVec,
-            pallet_market::pallet::DealState,
-            pallet_storage_provider::{
-                proofs::SubmitWindowedPoStParams, sector::ProveCommitResult,
-            },
-        },
-        storage_provider::calls::types::register_storage_provider::PeerId,
+    runtime::runtime_types::{
+        bounded_collections::bounded_vec::BoundedVec,
+        pallet_market::pallet::DealState,
+        pallet_storage_provider::{proofs::SubmitWindowedPoStParams, sector::ProveCommitResult},
     },
     types::{
         market::DealProposal,
@@ -22,13 +17,7 @@ use storagext::{
     IntoBoundedByteVec, MarketClientExt, PolkaStorageConfig, StorageProviderClientExt,
     SystemClientExt,
 };
-use subxt::{
-    ext::{
-        sp_core::{sr25519::Pair as Sr25519Pair, Pair},
-        sp_runtime::{traits::Verify, MultiSignature as SpMultiSignature},
-    },
-    tx::{PairSigner, Signer},
-};
+use subxt::ext::sp_core::sr25519::Pair as Sr25519Pair;
 use zombienet_sdk::NetworkConfigExt;
 
 /// Network's collator name. Used for logs and so on.
@@ -115,8 +104,11 @@ where
     assert_eq!(balance_entry.locked, 0);
 }
 
-async fn settle_deal_payments<Keypair>(client: &storagext::Client, charlie: &Keypair)
-where
+async fn settle_deal_payments<Keypair>(
+    client: &storagext::Client,
+    charlie: &Keypair,
+    alice: &Keypair,
+) where
     Keypair: subxt::tx::Signer<PolkaStorageConfig>,
 {
     let settle_result = client.settle_deal_payments(charlie, vec![0]).await.unwrap();
@@ -135,7 +127,7 @@ where
         );
         assert_eq!(
             event.successful.0[0].client,
-            alice_kp.account_id().clone().into()
+            alice.account_id().clone().into()
         );
     }
 }
@@ -382,5 +374,5 @@ async fn real_world_use_case() {
     submit_windowed_post(&client, &charlie_kp).await;
 
     client.wait_for_height(115, true).await.unwrap();
-    settle_deal_payments(&client, &charlie_kp).await;
+    settle_deal_payments(&client, &charlie_kp, &alice_kp).await;
 }
