@@ -29,7 +29,6 @@ pub fn find_polka_storage_node() -> Option<PathBuf> {
 
     let target_folder = current_exe
         .ancestors()
-        .iter()
         .find(|parent| parent.ends_with("target"))
         .expect("no target/ directory found");
 
