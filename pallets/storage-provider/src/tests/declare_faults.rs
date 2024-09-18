@@ -9,10 +9,9 @@ use crate::{
     pallet::{Error, Event, StorageProviders, DECLARATIONS_MAX},
     sector::ProveCommitSector,
     tests::{
-        account, count_sector_faults_and_recoveries, create_set, events, new_test_ext,
-        register_storage_provider, run_to_block, DealProposalBuilder, DeclareFaultsBuilder, Market,
-        RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System, Test,
-        ALICE, BOB, CHARLIE,
+        account, create_set, events, new_test_ext, register_storage_provider, run_to_block,
+        DealProposalBuilder, DeclareFaultsBuilder, Market, RuntimeEvent, RuntimeOrigin,
+        SectorPreCommitInfoBuilder, StorageProvider, System, Test, ALICE, BOB, CHARLIE,
     },
     Config,
 };
@@ -169,9 +168,7 @@ fn declare_single_fault_from_proving_period(#[case] proving_period_multiple: f64
 
         // Second call because we've updated the state and StorageProviders returns a clone of the state
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
-        let (faults, _recoveries) = count_sector_faults_and_recoveries(&sp.deadlines);
-        // Check that partitions are set to faulty
-        assert_eq!(faults, 1);
+        assert_exact_faulty_sectors(&sp.deadlines, &[fault.clone()]);
         assert_eq!(
             events(),
             [RuntimeEvent::StorageProvider(Event::FaultsDeclared {

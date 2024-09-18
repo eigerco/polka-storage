@@ -58,7 +58,6 @@ impl ExpirationSet {
 
     /// Removes sectors from the expiration set.
     ///
-    /// # Note
     /// Operation is a no-op if the sector is not in the set.
     pub fn remove(&mut self, on_time_sectors: &[SectorNumber], early_sectors: &[SectorNumber]) {
         for sector in on_time_sectors {

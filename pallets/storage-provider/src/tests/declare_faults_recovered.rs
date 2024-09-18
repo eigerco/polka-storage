@@ -8,7 +8,7 @@ use crate::{
     fault::{DeclareFaultsRecoveredParams, RecoveryDeclaration},
     pallet::{Error, Event, StorageProviders, DECLARATIONS_MAX},
     tests::{
-        account, count_sector_faults_and_recoveries, create_set,
+        account, create_set,
         declare_faults::{
             assert_exact_faulty_sectors, setup_sp_with_many_sectors_multiple_partitions,
             setup_sp_with_one_sector,
@@ -33,31 +33,29 @@ fn declare_single_fault_recovered() {
         let sectors = vec![0];
 
         // Fault declaration setup
+        let fault_declaration = DeclareFaultsBuilder::default()
+            .fault(deadline, partition, &sectors)
+            .build();
         assert_ok!(StorageProvider::declare_faults(
             RuntimeOrigin::signed(account(storage_provider)),
-            DeclareFaultsBuilder::default()
-                .fault(deadline, partition, &sectors)
-                .build(),
+            fault_declaration.clone(),
         ));
 
         // Flush events
         System::reset_events();
 
         // setup recovery and run extrinsic
+        let recovery_declaration = DeclareFaultsRecoveredBuilder::default()
+            .fault_recovery(deadline, partition, &sectors)
+            .build();
         assert_ok!(StorageProvider::declare_faults_recovered(
             RuntimeOrigin::signed(account(storage_provider)),
-            DeclareFaultsRecoveredBuilder::default()
-                .fault_recovery(deadline, partition, &sectors)
-                .build(),
+            recovery_declaration.clone(),
         ));
 
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
-
-        let (faults, recoveries) = count_sector_faults_and_recoveries(&sp.deadlines);
-
-        // 1 recovery and 1 faults.
-        assert_eq!(recoveries, 1);
-        assert_eq!(faults, 1);
+        assert_exact_faulty_sectors(&sp.deadlines, &fault_declaration.faults);
+        assert_exact_recovered_sectors(&sp.deadlines, &recovery_declaration.recoveries);
         assert!(matches!(
             events()[..],
             [RuntimeEvent::StorageProvider(Event::FaultsRecovered { .. })]
@@ -78,50 +76,48 @@ fn declare_single_fault_recovered_and_submitted() {
         let sectors = vec![0];
 
         // Fault declaration setup
+        let fault_declaration = DeclareFaultsBuilder::default()
+            .fault(deadline, partition, &sectors)
+            .build();
         assert_ok!(StorageProvider::declare_faults(
             RuntimeOrigin::signed(account(storage_provider)),
-            DeclareFaultsBuilder::default()
-                .fault(deadline, partition, &sectors)
-                .build(),
+            fault_declaration.clone(),
         ));
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
-        let (faults, recoveries) = count_sector_faults_and_recoveries(&sp.deadlines);
-        // 0 recovery and 1 faults.
-        assert_eq!(recoveries, 0);
-        assert_eq!(faults, 1);
+        assert_exact_faulty_sectors(&sp.deadlines, &fault_declaration.faults);
+        assert_exact_recovered_sectors(&sp.deadlines, &[]);
 
         run_to_block(sp.proving_period_start + 1);
 
         // when the deadline started, it shouldn't be possible to recover it.
+        let recovery_declaration = DeclareFaultsRecoveredBuilder::default()
+            .fault_recovery(deadline, partition, &sectors)
+            .build();
         assert_err!(
             StorageProvider::declare_faults_recovered(
                 RuntimeOrigin::signed(account(storage_provider)),
-                DeclareFaultsRecoveredBuilder::default()
-                    .fault_recovery(deadline, partition, &sectors)
-                    .build(),
+                recovery_declaration.clone(),
             ),
             Error::<Test>::FaultRecoveryTooLate
         );
 
+        // before the next deadline happens and before the cutoff!
         let proving_period = <Test as Config>::WPoStProvingPeriod::get();
         let fault_declaration_cuttoff = <Test as Config>::FaultDeclarationCutoff::get();
-
-        // before the next deadline happens and before the cutoff!
         run_to_block(sp.proving_period_start + proving_period - fault_declaration_cuttoff - 1);
+
         assert_ok!(StorageProvider::declare_faults_recovered(
             RuntimeOrigin::signed(account(storage_provider)),
-            DeclareFaultsRecoveredBuilder::default()
-                .fault_recovery(deadline, partition, &sectors)
-                .build(),
+            recovery_declaration.clone(),
         ));
+
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
-        let (faults, recoveries) = count_sector_faults_and_recoveries(&sp.deadlines);
-        // 1 recovery and 1 faults.
-        assert_eq!(recoveries, 1);
-        assert_eq!(faults, 1);
+        assert_exact_faulty_sectors(&sp.deadlines, &fault_declaration.faults);
+        assert_exact_recovered_sectors(&sp.deadlines, &recovery_declaration.recoveries);
 
         // the next deadline time!
         run_to_block(sp.proving_period_start + proving_period + 1);
+
         let windowed_post = SubmitWindowedPoStBuilder::default()
             .partition(partition)
             .build();
@@ -130,11 +126,10 @@ fn declare_single_fault_recovered_and_submitted() {
             windowed_post.clone(),
         ));
 
+        // should have no recoveries and no faults
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
-        let (faults, recoveries) = count_sector_faults_and_recoveries(&sp.deadlines);
-        // 0 recovery and 0 faults.
-        assert_eq!(recoveries, 0);
-        assert_eq!(faults, 0);
+        assert_exact_faulty_sectors(&sp.deadlines, &[]);
+        assert_exact_recovered_sectors(&sp.deadlines, &[]);
     });
 }
 

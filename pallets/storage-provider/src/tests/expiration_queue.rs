@@ -127,48 +127,24 @@ fn reschedules_sectors_as_faults() {
     queue.reschedule_as_faults(6, &reschedule_sectors).unwrap();
 
     // Check that the sectors are in the right place:
-    // - sector 1 was not rescheduled.
-    // - sector 2 already expires before the new expiration
-    // - sector 3 expiration changed to the new expiration
-    // - sector 4 expiration changed to the new expiration
-    // - sector 5 expiration changed to the new expiration
-    // - sector 6 was not rescheduled.
+    let checks = [
+        // - sector 1 was not rescheduled.
+        (2, vec![1], vec![]),
+        // - sector 2 already expires before the new expiration
+        (3, vec![2], vec![]),
+        // - sector 3 expiration changed to the new expiration
+        // - sector 4 expiration changed to the new expiration
+        // - sector 5 expiration changed to the new expiration
+        (6, vec![], vec![3, 4, 5]),
+        // - sector 6 was not rescheduled.
+        (13, vec![6], vec![]),
+    ];
 
-    assert_eq!(
-        queue.map.get(&2).unwrap().on_time_sectors,
-        create_set::<MAX_SECTORS>(&[1])
-    );
-    assert_eq!(
-        queue.map.get(&2).unwrap().early_sectors,
-        create_set::<MAX_SECTORS>(&[])
-    );
-
-    assert_eq!(
-        queue.map.get(&3).unwrap().on_time_sectors,
-        create_set::<MAX_SECTORS>(&[2])
-    );
-    assert_eq!(
-        queue.map.get(&3).unwrap().early_sectors,
-        create_set::<MAX_SECTORS>(&[])
-    );
-
-    assert_eq!(
-        queue.map.get(&6).unwrap().on_time_sectors,
-        create_set::<MAX_SECTORS>(&[])
-    );
-    assert_eq!(
-        queue.map.get(&6).unwrap().early_sectors,
-        create_set::<MAX_SECTORS>(&[3, 4, 5])
-    );
-
-    assert_eq!(
-        queue.map.get(&13).unwrap().on_time_sectors,
-        create_set::<MAX_SECTORS>(&[6])
-    );
-    assert_eq!(
-        queue.map.get(&13).unwrap().early_sectors,
-        create_set::<MAX_SECTORS>(&[])
-    );
+    for (expiration_height, on_time, early) in checks {
+        let set = queue.map.get(&expiration_height).unwrap();
+        assert_eq!(set.on_time_sectors, create_set::<MAX_SECTORS>(&on_time));
+        assert_eq!(set.early_sectors, create_set::<MAX_SECTORS>(&early));
+    }
 }
 
 #[ignore]
