@@ -284,6 +284,9 @@ fn publish_deals(storage_provider: &str) {
 }
 
 /// Counts faults and recoveries
+#[deprecated(
+    note = "Prefer usage of `assert_exact_recovered_sectors` and `assert_exact_faulty_sectors`"
+)]
 fn count_sector_faults_and_recoveries<BlockNumber: sp_runtime::traits::BlockNumber>(
     deadlines: &Deadlines<BlockNumber>,
 ) -> (usize /* faults */, usize /* recoveries */) {
@@ -509,7 +512,7 @@ impl DeclareFaultsBuilder {
         mut self,
         deadline: u64,
         partition: PartitionNumber,
-        sectors: Vec<SectorNumber>,
+        sectors: &[SectorNumber],
     ) -> Self {
         let fault_sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_TERMINATIONS_PER_CALL>> =
             sectors
@@ -527,43 +530,8 @@ impl DeclareFaultsBuilder {
             partition,
             sectors: fault_sectors,
         };
-        self.faults = bounded_vec![fault];
-        self
-    }
 
-    /// Build a fault declaration for a multiple deadlines and a single partition.
-    /// Multiple sector numbers can be passed in.
-    pub fn multiple_deadlines(
-        mut self,
-        deadlines: Vec<u64>,
-        partition: PartitionNumber,
-        sectors: Vec<SectorNumber>,
-    ) -> Self {
-        let fault_sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_TERMINATIONS_PER_CALL>> =
-            sectors
-                .iter()
-                .copied()
-                .collect::<BTreeSet<_>>()
-                .try_into()
-                .expect(&format!(
-                    "Could not convert a Vec with length {} to a BoundedBTreeSet with length {}",
-                    sectors.len(),
-                    MAX_TERMINATIONS_PER_CALL
-                ));
-        self.faults = deadlines
-            .iter()
-            .map(|dl| FaultDeclaration {
-                deadline: *dl,
-                partition,
-                sectors: fault_sectors.clone(),
-            })
-            .collect::<Vec<_>>()
-            .try_into()
-            .expect(&format!(
-                "Could not convert a Vec with length {} to a BoundedVec with length {}",
-                deadlines.len(),
-                DECLARATIONS_MAX
-            ));
+        self.faults.try_push(fault).unwrap();
         self
     }
 
@@ -593,7 +561,7 @@ impl DeclareFaultsRecoveredBuilder {
         mut self,
         deadline: u64,
         partition: PartitionNumber,
-        sectors: Vec<SectorNumber>,
+        sectors: &[SectorNumber],
     ) -> Self {
         let recovered_sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_TERMINATIONS_PER_CALL>> =
             sectors
@@ -611,43 +579,8 @@ impl DeclareFaultsRecoveredBuilder {
             partition,
             sectors: recovered_sectors,
         };
-        self.recoveries = bounded_vec![recovery];
-        self
-    }
 
-    /// Build a fault recovery for a multiple deadlines and a single partition.
-    /// Multiple sector numbers can be passed in.
-    pub fn multiple_deadlines_recovery(
-        mut self,
-        deadlines: Vec<u64>,
-        partition: PartitionNumber,
-        sectors: Vec<SectorNumber>,
-    ) -> Self {
-        let recovered_sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_TERMINATIONS_PER_CALL>> =
-            sectors
-                .iter()
-                .copied()
-                .collect::<BTreeSet<_>>()
-                .try_into()
-                .expect(&format!(
-                    "Could not convert a Vec with length {} to a BoundedBTreeSet with length {}",
-                    sectors.len(),
-                    MAX_TERMINATIONS_PER_CALL
-                ));
-        self.recoveries = deadlines
-            .iter()
-            .map(|dl| RecoveryDeclaration {
-                deadline: *dl,
-                partition,
-                sectors: recovered_sectors.clone(),
-            })
-            .collect::<Vec<_>>()
-            .try_into()
-            .expect(&format!(
-                "Could not convert a Vec with length {} to a BoundedVec with length {}",
-                deadlines.len(),
-                DECLARATIONS_MAX
-            ));
+        self.recoveries.try_push(recovery).unwrap();
         self
     }
 
