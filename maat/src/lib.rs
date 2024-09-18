@@ -15,7 +15,10 @@ use zombienet_sdk::{NetworkConfig, NetworkConfigBuilder};
 
 /// Find the the `polka_storage_node` in the current project.
 ///
-/// If the feature
+/// If the feature `target-release` is enabled, this function will look for the `release` build,
+/// likewise, if the `target-debug` feature is enabled it will look for the `debug` build.
+/// If both are enabled, the `release` build takes priority, if none are enabled, this function
+/// returns `None`, effectively failing.
 pub fn find_polka_storage_node() -> Option<PathBuf> {
     // We're expecting the test binary to always be under /target/X/...
     let current_exe = std::env::current_exe()
@@ -24,14 +27,11 @@ pub fn find_polka_storage_node() -> Option<PathBuf> {
         .canonicalize()
         .unwrap();
 
-    let mut target_folder: Option<PathBuf> = None;
-    for parent in current_exe.ancestors() {
-        if parent.ends_with("target") {
-            target_folder = Some(parent.to_path_buf());
-            break;
-        }
-    }
-    let target_folder = target_folder.expect("no target/ directory found");
+    let target_folder = current_exe
+        .ancestors()
+        .iter()
+        .find(|parent| parent.ends_with("target"))
+        .expect("no target/ directory found");
 
     if cfg!(feature = "target-release") {
         let release_polka_storage_node = target_folder.join("release").join("polka-storage-node");
