@@ -8,7 +8,6 @@ use std::{fmt::Debug, time::Duration};
 
 use clap::{ArgGroup, Parser, Subcommand};
 use cmd::{market::MarketCommand, storage_provider::StorageProviderCommand, system::SystemCommand};
-use deser::DealProposal;
 use pair::{DebugPair, MultiPairSigner};
 use subxt::ext::sp_core::{
     ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair, sr25519::Pair as Sr25519Pair,

@@ -1,8 +1,8 @@
-use crate::{
-    market_pallet_types::BalanceEntry,
-    runtime::{
-        market::Event,
-        runtime_types::{pallet_market::pallet, polka_storage_runtime::Runtime},
+use crate::runtime::{
+    market::Event,
+    runtime_types::{
+        pallet_market::{pallet, pallet::BalanceEntry},
+        polka_storage_runtime::Runtime,
     },
 };
 

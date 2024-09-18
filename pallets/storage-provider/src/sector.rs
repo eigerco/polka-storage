@@ -11,7 +11,7 @@ use crate::partition::PartitionNumber;
 pub const MAX_SECTORS: u32 = 32 << 20;
 
 /// This type is passed into the pre commit function on the storage provider pallet
-#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo)]
 pub struct SectorPreCommitInfo<BlockNumber> {
     pub seal_proof: RegisteredSealProof,
     /// Which sector number this SP is pre-committing.

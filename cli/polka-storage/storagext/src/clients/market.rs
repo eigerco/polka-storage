@@ -4,9 +4,9 @@ use primitives_proofs::DealId;
 use subxt::ext::sp_core::crypto::Ss58Codec;
 
 use crate::{
-    market_pallet_types::BalanceEntry,
-    runtime::{self, client::SubmissionResult},
-    Currency, DealProposal, PolkaStorageConfig,
+    runtime::{self, client::SubmissionResult, runtime_types::pallet_market::pallet::BalanceEntry},
+    types::market::DealProposal,
+    Currency, PolkaStorageConfig,
 };
 
 /// The maximum number of deal IDs supported.
@@ -49,7 +49,7 @@ pub trait MarketClientExt {
     /// If `deals` length is bigger than [`MAX_DEAL_IDS`], it will get truncated.
     fn publish_storage_deals<Keypair, ClientKeypair>(
         &self,
-        account_keypair: Keypair,
+        account_keypair: &Keypair,
         client_keypair: &ClientKeypair,
         deals: Vec<DealProposal>,
     ) -> impl Future<Output = Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>>
@@ -66,7 +66,7 @@ pub trait MarketClientExt {
 
 impl MarketClientExt for crate::runtime::client::Client {
     #[tracing::instrument(
-        level = "trace",
+        level = "debug",
         skip_all,
         fields(
             address = account_keypair.account_id().to_ss58check(),
@@ -86,7 +86,7 @@ impl MarketClientExt for crate::runtime::client::Client {
     }
 
     #[tracing::instrument(
-        level = "trace",
+        level = "debug",
         skip_all,
         fields(
             address = account_keypair.account_id().to_ss58check(),
@@ -106,7 +106,7 @@ impl MarketClientExt for crate::runtime::client::Client {
     }
 
     #[tracing::instrument(
-        level = "trace",
+        level = "debug",
         skip_all,
         fields(
             address = account_keypair.account_id().to_ss58check(),
@@ -139,7 +139,7 @@ impl MarketClientExt for crate::runtime::client::Client {
     }
 
     #[tracing::instrument(
-        level = "trace",
+        level = "debug",
         skip_all,
         fields(
             address = account_keypair.account_id().to_ss58check()
@@ -147,7 +147,7 @@ impl MarketClientExt for crate::runtime::client::Client {
     )]
     async fn publish_storage_deals<Keypair, ClientKeypair>(
         &self,
-        account_keypair: Keypair,
+        account_keypair: &Keypair,
         client_keypair: &ClientKeypair,
         mut deals: Vec<DealProposal>,
     ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
@@ -177,11 +177,11 @@ impl MarketClientExt for crate::runtime::client::Client {
             .market()
             .publish_storage_deals(bounded_unbounded_deals);
 
-        self.traced_submission(&payload, &account_keypair).await
+        self.traced_submission(&payload, account_keypair).await
     }
 
     #[tracing::instrument(
-        level = "trace",
+        level = "debug",
         skip_all,
         fields(
             address = account_id.to_ss58check()

@@ -18,6 +18,7 @@ cid = { workspace = true, features = ["scale-codec"], default-features = true }
 clap = { workspace = true, features = ["derive"] }
 codec.workspace = true
 frame-support = { workspace = true, features = ["std"] }
+futures.workspace = true
 hex = { workspace = true, features = ["serde"] }
 itertools = { workspace = true }
 primitives-proofs = { workspace = true, features = ["serde"] }

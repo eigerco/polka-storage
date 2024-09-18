@@ -3,15 +3,23 @@ use std::time::Duration;
 use clap::Subcommand;
 use primitives_proofs::{RegisteredPoStProof, SectorNumber};
 use storagext::{
-    runtime::SubmissionResult, FaultDeclaration, PolkaStorageConfig,
-    ProveCommitSector as SxtProveCommitSector, RecoveryDeclaration, SectorPreCommitInfo,
-    StorageProviderClientExt,
+    runtime::{
+        runtime_types::pallet_storage_provider::sector::ProveCommitSector as RuntimeProveCommitSector,
+        SubmissionResult,
+    },
+    types::storage_provider::{
+        FaultDeclaration as SxtFaultDeclaration, ProveCommitSector as SxtProveCommitSector,
+        RecoveryDeclaration as SxtRecoveryDeclaration,
+        SectorPreCommitInfo as SxtSectorPreCommitInfo,
+        SubmitWindowedPoStParams as SxtSubmitWindowedPoStParams,
+    },
+    PolkaStorageConfig, StorageProviderClientExt,
 };
 use url::Url;
 
 use crate::{
-    deser::{ParseablePath, PreCommitSector, ProveCommitSector, SubmitWindowedPoStParams},
-    missing_keypair_error, operation_takes_a_while, MultiPairSigner, OutputFormat,
+    deser::ParseablePath, missing_keypair_error, operation_takes_a_while, MultiPairSigner,
+    OutputFormat,
 };
 
 fn parse_post_proof(src: &str) -> Result<RegisteredPoStProof, String> {
@@ -45,35 +53,35 @@ pub enum StorageProviderCommand {
     /// Pre-commit sector containing deals, so they can be proven.
     /// If deals have been published and not pre-commited and proven, they'll be slashed by Market Pallet.
     PreCommit {
-        #[arg(value_parser = <Vec<PreCommitSector> as ParseablePath>::parse_json)]
-        pre_commit_sectors: std::vec::Vec<PreCommitSector>,
+        #[arg(value_parser = <Vec<SxtSectorPreCommitInfo> as ParseablePath>::parse_json)]
+        pre_commit_sectors: std::vec::Vec<SxtSectorPreCommitInfo>,
     },
 
     /// Proves sector that has been previously pre-committed.
     /// After proving, a deal in a sector is considered Active.
     ProveCommit {
-        #[arg(value_parser = <Vec<ProveCommitSector> as ParseablePath>::parse_json)]
-        prove_commit_sectors: std::vec::Vec<ProveCommitSector>,
+        #[arg(value_parser = <Vec<SxtProveCommitSector> as ParseablePath>::parse_json)]
+        prove_commit_sectors: std::vec::Vec<SxtProveCommitSector>,
     },
 
     /// Submit a Proof-of-SpaceTime (PoST).
     #[command(name = "submit-windowed-post")]
     SubmitWindowedProofOfSpaceTime {
-        #[arg(value_parser = <SubmitWindowedPoStParams as ParseablePath>::parse_json)]
-        windowed_post: SubmitWindowedPoStParams,
+        #[arg(value_parser = <SxtSubmitWindowedPoStParams as ParseablePath>::parse_json)]
+        windowed_post: SxtSubmitWindowedPoStParams,
     },
 
     /// Declare faulty sectors.
     DeclareFaults {
-        #[arg(value_parser = <Vec<FaultDeclaration> as ParseablePath>::parse_json)]
+        #[arg(value_parser = <Vec<SxtFaultDeclaration> as ParseablePath>::parse_json)]
         // Needs to be fully qualified due to https://github.com/clap-rs/clap/issues/4626
-        faults: std::vec::Vec<FaultDeclaration>,
+        faults: std::vec::Vec<SxtFaultDeclaration>,
     },
 
     /// Declare recovered faulty sectors.
     DeclareFaultsRecovered {
-        #[arg(value_parser = <Vec<RecoveryDeclaration> as ParseablePath>::parse_json)]
-        recoveries: std::vec::Vec<RecoveryDeclaration>,
+        #[arg(value_parser = <Vec<SxtRecoveryDeclaration> as ParseablePath>::parse_json)]
+        recoveries: std::vec::Vec<SxtRecoveryDeclaration>,
     },
 }
 
@@ -211,12 +219,12 @@ impl StorageProviderCommand {
     async fn pre_commit<Client>(
         client: Client,
         account_keypair: MultiPairSigner,
-        pre_commit_sectors: Vec<PreCommitSector>,
+        pre_commit_sectors: Vec<SxtSectorPreCommitInfo>,
     ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
     where
         Client: StorageProviderClientExt,
     {
-        let (sector_numbers, pre_commit_sectors): (Vec<SectorNumber>, Vec<SectorPreCommitInfo>) =
+        let (sector_numbers, pre_commit_sectors): (Vec<SectorNumber>, Vec<SxtSectorPreCommitInfo>) =
             pre_commit_sectors
                 .into_iter()
                 .map(|s| (s.sector_number, s.into()))
@@ -237,21 +245,21 @@ impl StorageProviderCommand {
     async fn prove_commit<Client>(
         client: Client,
         account_keypair: MultiPairSigner,
-        prove_commit_sectors: Vec<ProveCommitSector>,
+        prove_commit_sectors: Vec<SxtProveCommitSector>,
     ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
     where
         Client: StorageProviderClientExt,
     {
-        let (sector_numbers, prove_commit_sectors): (Vec<SectorNumber>, Vec<SxtProveCommitSector>) =
-            prove_commit_sectors
-                .into_iter()
-                .map(|s| {
-                    let sector_number = s.sector_number;
-                    let sxt_sector: storagext::ProveCommitSector = s.into();
-                    let sector: SxtProveCommitSector = sxt_sector.into();
-                    (sector_number, sector)
-                })
-                .unzip();
+        let (sector_numbers, prove_commit_sectors): (
+            Vec<SectorNumber>,
+            Vec<RuntimeProveCommitSector>,
+        ) = prove_commit_sectors
+            .into_iter()
+            .map(|s| {
+                let sector_number = s.sector_number;
+                (sector_number, s.into())
+            })
+            .unzip();
         let submission_result = client
             .prove_commit_sectors(&account_keypair, prove_commit_sectors)
             .await?;
@@ -267,7 +275,7 @@ impl StorageProviderCommand {
     async fn submit_windowed_post<Client>(
         client: Client,
         account_keypair: MultiPairSigner,
-        windowed_post: SubmitWindowedPoStParams,
+        windowed_post: SxtSubmitWindowedPoStParams,
     ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
     where
         Client: StorageProviderClientExt,
@@ -283,7 +291,7 @@ impl StorageProviderCommand {
     async fn declare_faults<Client>(
         client: Client,
         account_keypair: MultiPairSigner,
-        faults: Vec<FaultDeclaration>,
+        faults: Vec<SxtFaultDeclaration>,
     ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
     where
         Client: StorageProviderClientExt,
@@ -297,7 +305,7 @@ impl StorageProviderCommand {
     async fn declare_faults_recovered<Client>(
         client: Client,
         account_keypair: MultiPairSigner,
-        recoveries: Vec<RecoveryDeclaration>,
+        recoveries: Vec<SxtRecoveryDeclaration>,
     ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
     where
         Client: StorageProviderClientExt,

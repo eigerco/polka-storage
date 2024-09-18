@@ -27,10 +27,10 @@
           cargo-expand
           cargo-tarpaulin
           clang
-          openssl
           just
           mdbook
           mdbook-linkcheck
+          openssl
           pkg-config
           polkadot
           rustToolchain
