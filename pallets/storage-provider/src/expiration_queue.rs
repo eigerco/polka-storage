@@ -81,16 +81,20 @@ impl ExpirationSet {
     }
 }
 
+/// ExpirationQueue represents a queue of sector expirations.
+///
+/// It maintains a map of block numbers to expiration sets, where each
+/// expiration set contains sectors that are due to expire at that block.
+///
+/// The queue is bounded by the maximum number of sectors that can be stored
+/// by a single storage provider. This means that the map could hold max
+/// sectors even if each sector would expire in each own block.
 #[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct ExpirationQueue<BlockNumber>
 where
     BlockNumber: sp_runtime::traits::BlockNumber,
 {
-    pub map: BoundedBTreeMap<
-        BlockNumber,
-        ExpirationSet,
-        ConstU32<MAX_SECTORS>, // TODO: What should be the bound?
-    >,
+    pub map: BoundedBTreeMap<BlockNumber, ExpirationSet, ConstU32<MAX_SECTORS>>,
 }
 
 impl<BlockNumber> ExpirationQueue<BlockNumber>
