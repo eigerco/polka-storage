@@ -1,0 +1,28 @@
+[package]
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+name = "polka-storage-proofs"
+repository.workspace = true
+version = "0.1.0"
+
+[dependencies]
+bellperson = { workspace = true, optional = true }
+bls12_381 = { workspace = true }
+blstrs = { workspace = true, optional = true }
+codec = { workspace = true, features = ["derive"], optional = true }
+pairing = { workspace = true }
+scale-info = { workspace = true, features = ["derive"], optional = true }
+sp-std = { workspace = true, optional = true }
+
+[dev-dependencies]
+rand = { workspace = true, features = ["alloc"] }
+
+[lints]
+workspace = true
+
+[features]
+default = ["std"]
+std = ["codec/std", "dep:bellperson", "dep:blstrs", "scale-info/std", "sp-std/std"]
+substrate = ["dep:codec", "dep:scale-info", "dep:sp-std"]
