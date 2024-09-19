@@ -7914,6 +7914,7 @@ dependencies = [
 name = "pallet-proofs"
 version = "0.0.0"
 dependencies = [
+ "blake2b_simd",
  "digest 0.10.7",
  "frame-benchmarking",
  "frame-support",

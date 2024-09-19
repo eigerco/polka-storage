@@ -32,7 +32,7 @@ sp-arithmetic = { workspace = true, default-features = false }
 sp-std = { workspace = true, default-features = false }
 
 [dev-dependencies]
-blake2b_simd = { workspace = true }
+blake2b_simd = { workspace = true, default-features = true }
 cid = { workspace = true, default-features = false, features = ["alloc", "scale-codec"] }
 env_logger = { workspace = true }
 pallet-balances = { workspace = true, default-features = false }
