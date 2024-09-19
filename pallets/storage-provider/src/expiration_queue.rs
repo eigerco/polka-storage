@@ -20,11 +20,11 @@ const LOG_TARGET: &'static str = "runtime::storage_provider::expiration_queue";
 /// due to expected "on-time" expiration at the end of their life, or unexpected
 /// "early" termination due to being faulty for too long consecutively.
 #[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
-pub struct ExpirationSet {
+struct ExpirationSet {
     /// Sectors expiring "on time" at the end of their committed life
-    pub on_time_sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
+    on_time_sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
     /// Sectors expiring "early" due to being faulty for too long
-    pub early_sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
+    early_sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
 }
 
 impl ExpirationSet {
@@ -75,7 +75,7 @@ impl ExpirationSet {
     }
 
     /// Counts all sectors in the expiration set.
-    pub fn len(&self) -> usize {
+    pub fn _len(&self) -> usize {
         self.on_time_sectors.len() + self.early_sectors.len()
     }
 }
@@ -93,7 +93,7 @@ pub struct ExpirationQueue<BlockNumber>
 where
     BlockNumber: sp_runtime::traits::BlockNumber,
 {
-    pub map: BoundedBTreeMap<BlockNumber, ExpirationSet, ConstU32<MAX_SECTORS>>,
+    map: BoundedBTreeMap<BlockNumber, ExpirationSet, ConstU32<MAX_SECTORS>>,
 }
 
 impl<BlockNumber> ExpirationQueue<BlockNumber>
