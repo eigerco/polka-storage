@@ -1,5 +1,5 @@
 use ipld_core::cid::Cid;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeekExt, AsyncWriteExt, BufReader};
 
 use super::index::read_index;
 use crate::{
@@ -23,6 +23,15 @@ impl<R> Reader<R>
 where
     R: AsyncRead + Unpin,
 {
+    /// Takes in a CID and checks that the contents in the reader matches this CID
+    pub async fn verify_cid(&mut self, contents_cid: Cid) -> Result<bool, Error> {
+        let _pragma = self.read_pragma().await?;
+        let _header = self.read_header().await?;
+        let v1_header = self.read_v1_header().await?;
+
+        Ok(vec![contents_cid] == v1_header.roots)
+    }
+
     /// Reads the contents of the CARv2 file and puts the contents into the supplied output file.
     pub async fn extract_content<W>(&mut self, output_file: &mut W) -> Result<(), Error>
     where
@@ -119,9 +128,16 @@ where
     }
 }
 
+/// Function verifies that a given CID matches the CID for the CAR file at the given path
+pub async fn verify_cid<F: AsyncRead + Unpin>(file: F, contents_cid: Cid) -> Result<bool, Error> {
+    let mut reader = Reader::new(BufReader::new(file));
+
+    reader.verify_cid(contents_cid).await
+}
+
 #[cfg(test)]
 mod tests {
-    use std::io::Cursor;
+    use std::{io::Cursor, path::PathBuf, str::FromStr};
 
     use ipld_core::cid::Cid;
     use sha2::Sha256;
@@ -130,8 +146,18 @@ mod tests {
     use crate::{
         multicodec::{generate_multihash, RAW_CODE, SHA_256_CODE},
         v2::{index::Index, reader::Reader},
-        Error,
+        verify_cid, Error,
     };
+
+    #[tokio::test]
+    async fn test_verify_cid() {
+        let path = PathBuf::from("tests/fixtures/car_v2/lorem.car");
+        let file = File::open(&path).await.unwrap();
+        // Taken from `car inspect tests/fixtures/car_v2/lorem.car`
+        let contents_cid =
+            Cid::from_str("bafkreidnmi5roys6exf5urwrplejyjvt3nrviryb4lafsjrggig357krlm").unwrap();
+        assert_eq!(verify_cid(file, contents_cid).await.unwrap(), true)
+    }
 
     #[tokio::test]
     async fn pragma() {
