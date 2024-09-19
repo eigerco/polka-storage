@@ -1,8 +1,8 @@
 //! # Feistel Network
+//!
 //! References:
 //! * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/storage-proofs-core/src/crypto/feistel.rs#L111>
 //! * <https://en.wikipedia.org/wiki/Feistel_cipher>
-//!
 use blake2b_simd::blake2b;
 
 // 3 rounds is an acceptable value for a pseudo-random permutation,
