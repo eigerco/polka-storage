@@ -179,7 +179,7 @@ where
             .map(|s| (s, all_sectors.get(s).unwrap()))
             .collect::<BTreeMap<_, _>>();
 
-        // TODO(no-ref,@cernicc,17/09/2024): Implement rescheduling of recovered sectors
+        // TODO(385,@cernicc,17/09/2024): Implement rescheduling of recovered sectors
         Ok(())
     }
 
@@ -189,6 +189,7 @@ where
     pub fn remove_sectors(
         _sectors: &[SectorOnChainInfo<BlockNumber>],
     ) -> Result<(), ExpirationQueueError> {
+        // TODO(109,@cernicc,19/09/2024): This is needed by terminate_sector
         todo!()
     }
 

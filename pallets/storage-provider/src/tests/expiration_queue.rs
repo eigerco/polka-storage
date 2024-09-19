@@ -174,13 +174,13 @@ fn reschedule_recover_restores_sectors() {
         )
         .unwrap();
 
-    // TODO(no-ref,@cernicc,17/09/2024): Check that the sectors were restored to
+    // TODO(385,@cernicc,17/09/2024): Check that the sectors were restored to
     // correct expiration
 }
 
 #[ignore]
 #[test]
 fn removes_sectors() {
-    // TODO(no-ref,@cernicc,17/09/2024): Test `remove_sectors` on the ExpirationQueue
+    // TODO(109,@cernicc,17/09/2024): Test `remove_sectors` on the ExpirationQueue
     todo!()
 }
