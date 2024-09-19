@@ -8,7 +8,6 @@ use uuid::Uuid;
 use super::server::{RpcServerState, ServerError};
 
 pub mod common;
-pub mod wallet;
 
 /// A trait for defining a versioned RPC request.
 pub trait RpcRequest<Version> {

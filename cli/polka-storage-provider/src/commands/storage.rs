@@ -5,8 +5,8 @@ use tokio::{signal, sync::oneshot};
 use tracing::info;
 
 use crate::{
-    cli::CliError,
     storage::{start_upload_server, StorageServerState},
+    CliError,
 };
 
 /// Creates a path relative to the current directory in the format `./uploads`
@@ -21,7 +21,7 @@ pub const STORAGE_SERVER_DEFAULT_BIND_ADDR: &str = "127.0.0.1:9000";
 
 /// Command to start the storage provider.
 #[derive(Debug, Clone, Parser)]
-pub(crate) struct StorageCommand {
+pub struct StorageCommand {
     /// Address and port used for storage server.
     #[arg(long, default_value = STORAGE_SERVER_DEFAULT_BIND_ADDR)]
     pub listen_addr: SocketAddr,
