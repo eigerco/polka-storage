@@ -45,11 +45,9 @@ async-stream = "0.3.5"
 async-trait = "0.1.80"
 axum = "0.7.5"
 base64 = "0.22.1"
-bellperson = "0.26"
 bitflags = "2.5.0"
 blake2b_simd = { version = "1.0.2", default-features = false }
 bls12_381 = "0.8"
-blstrs = "0.7"
 bs58 = "0.5.1"
 byteorder = "1.5.0"
 bytes = "1.6.0"
@@ -63,8 +61,7 @@ criterion = "0.5.1"
 digest = "0.10.7"
 docify = { version = "0.2.8" }
 env_logger = "0.11.2"
-filecoin-hashers = { version = "13.1.0", default-features = false }
-fr32 = { version = "11.1.0", default-features = false }
+ff = "0.13.0"
 futures = "0.3.28"
 hex = { version = "0.4.3", default-features = false }
 hex-literal = { version = "0.4.1" }
@@ -76,6 +73,7 @@ itertools = "0.13.0"
 jsonrpsee = { version = "0.23.2" }
 log = { version = "0.4.21", default-features = false }
 multihash-codetable = { version = "0.1.1", default-features = false }
+num-bigint = { version = "0.4.5", default-features = false }
 pairing = "0.23"
 polkavm = "0.9.3"
 polkavm-derive = "0.9.1"
@@ -96,7 +94,6 @@ serde_json = { version = "1.0.121", default-features = false }
 serde_yaml = { version = "0.9" }
 sha2 = { version = "0.10.8", default-features = false }
 smallvec = "1.11.0"
-storage-proofs-core = { version = "18.1.0", default-features = false }
 subxt = { version = "0.37.0" }
 subxt-signer = "0.37.0"
 syn = { version = "2.0.53" }
@@ -110,7 +107,6 @@ tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
 url = "2.5.0"
 uuid = "1.8.0"
-
 
 scale-decode = { version = "0.13.1", default-features = false }
 scale-encode = { version = "0.7.1", default-features = false }
@@ -132,6 +128,16 @@ polka-storage-proofs = { path = "lib/polka-storage-proofs", default-features = f
 polka-storage-runtime = { path = "runtime" }
 primitives-proofs = { path = "primitives/proofs", default-features = false }
 storagext = { path = "cli/polka-storage/storagext" }
+
+# FileCoin proofs
+bellperson = "0.26"
+blstrs = "0.7"
+filecoin-hashers = "13.1.0"
+filecoin-proofs = "18.1.0"
+fr32 = "11.1.0"
+generic-array = "1.1.0"
+storage-proofs-core = "18.1.0"
+storage-proofs-porep = "18.1.0"
 
 # Substrate
 pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2407-1" }

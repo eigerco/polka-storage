@@ -6,6 +6,7 @@
 pub use pallet::*;
 
 mod crypto;
+mod fr32;
 mod graphs;
 mod porep;
 
@@ -19,7 +20,7 @@ mod tests;
 pub mod pallet {
     use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
     use frame_system::pallet_prelude::*;
-    use primitives_proofs::RegisteredSealProof;
+    use primitives_proofs::{RegisteredSealProof, SectorNumber};
 
     use crate::porep;
 
@@ -43,6 +44,7 @@ pub mod pallet {
     #[pallet::error]
     pub enum Error<T> {
         NoneValue,
+        InvalidProof,
     }
 
     #[pallet::call]
@@ -56,13 +58,25 @@ pub mod pallet {
         }
 
         pub fn verify_porep(
-            _origin: OriginFor<T>,
+            origin: OriginFor<T>,
             seal_proof: RegisteredSealProof,
+            comm_r: porep::Commitment,
+            comm_d: porep::Commitment,
+            sector: SectorNumber,
+            ticket: porep::Ticket,
+            seed: porep::Ticket,
         ) -> DispatchResultWithPostInfo {
+            let _who = ensure_signed(origin)?;
             let proof_scheme = porep::ProofScheme::setup(seal_proof);
 
-            proof_scheme.verify();
+            // TODO(@th7nder,23/09/2024): not sure how to convert generic Account into [u8; 32]. It is AccountId32, but at this point we don't know it.
+            let account = [0u8; 32];
 
+            let _result = proof_scheme
+                .verify(&comm_r, &comm_d, &account, sector, &ticket, &seed)
+                .map_err(|_| Error::<T>::InvalidProof)?;
+
+            // TODO(@th7nder,23/09/2024): verify_porep ain't an extrinsic, this is just a method which will be called by Storage Provider Pallet via a Trait (in primitives-proofs).
             Ok(().into())
         }
     }

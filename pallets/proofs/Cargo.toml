@@ -17,11 +17,15 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 blake2b_simd = { workspace = true, default-features = false }
+bls12_381 = { workspace = true }
 codec = { features = ["derive"], workspace = true }
 digest = { workspace = true }
+ff = { workspace = true }
 frame-benchmarking = { optional = true, workspace = true }
 frame-support.workspace = true
 frame-system.workspace = true
+num-bigint = { workspace = true }
+pairing = { workspace = true }
 primitives-proofs = { workspace = true }
 rand = { workspace = true, features = ["alloc"] }
 rand_chacha = { workspace = true }
@@ -30,8 +34,15 @@ sha2 = { workspace = true }
 sp-runtime.workspace = true
 
 [dev-dependencies]
+blstrs = { workspace = true }
+filecoin-hashers = { workspace = true }
+filecoin-proofs = { workspace = true }
+fr32 = { workspace = true }
+generic-array = { workspace = true }
 sp-core = { default-features = true, workspace = true }
 sp-io = { default-features = true, workspace = true }
+storage-proofs-core = { workspace = true }
+storage-proofs-porep = { workspace = true }
 
 [features]
 default = ["std"]

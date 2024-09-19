@@ -1,7 +1,4 @@
-use crate::{
-    crypto::feistel,
-    graphs::bucket::{BucketGraph, BASE_DEGREE},
-};
+use crate::{crypto::feistel, graphs::bucket::BucketGraph};
 
 /// Expansion degree used for Stacked Graphs.
 ///
@@ -9,7 +6,6 @@ use crate::{
 /// * <https://github.com/filecoin-project/research/issues/144>
 /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/storage-proofs-porep/src/stacked/vanilla/graph.rs#L27>
 pub const EXP_DEGREE: usize = 8;
-pub const DEGREE: usize = BASE_DEGREE + EXP_DEGREE;
 
 /// Zig-Zag graph constructed via Chung's construction and pseudo-random function.
 ///
@@ -35,19 +31,8 @@ impl StackedBucketGraph {
     }
 
     /// References:
-    /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/storage-proofs-porep/src/stacked/vanilla/graph.rs#L295>
-    #[inline]
-    pub fn parents(&self, node: usize, parents: &mut [u32]) {
-        self.base_parents(node, &mut parents[..self.base_graph.degree()]);
-        self.expanded_parents(
-            node,
-            &mut parents[self.base_graph.degree()..self.base_graph.degree() + EXP_DEGREE],
-        );
-    }
-
-    /// References:
     /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/storage-proofs-porep/src/stacked/vanilla/graph.rs#L420>
-    fn base_parents(&self, node: usize, parents: &mut [u32]) {
+    pub fn base_parents(&self, node: usize, parents: &mut [u32]) {
         // No cache usage, generate on demand.
         self.base_graph.parents(node, parents)
     }
@@ -113,8 +98,12 @@ impl StackedBucketGraph {
 
     /// References:
     /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/storage-proofs-porep/src/stacked/vanilla/graph.rs#L286C5-L288C6>
-    fn size(&self) -> usize {
+    pub fn size(&self) -> usize {
         self.base_graph.size()
+    }
+
+    pub fn base_degree(&self) -> usize {
+        self.base_graph.degree()
     }
 }
 
