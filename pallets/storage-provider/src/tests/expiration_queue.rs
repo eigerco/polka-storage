@@ -147,18 +147,20 @@ fn reschedules_sectors_as_faults() {
     }
 }
 
-#[ignore]
 #[test]
 fn reschedule_recover_restores_sectors() {
     let sectors = sectors();
     let mut queue = ExpirationQueue::<BlockNumber>::new();
     queue.add_active_sectors(&sectors).unwrap();
 
+    // Queue before the faults and recoveries
+    let queue_before = queue.clone();
+
     // Fault middle sectors to expire at height 6
     let reschedule_sectors = sectors[1..5].iter().collect::<Vec<_>>();
     queue.reschedule_as_faults(6, &reschedule_sectors).unwrap();
 
-    // Mark faulted sectors as recovered
+    // Mark faulty sectors as recovered
     let reschedule_sectors = reschedule_sectors
         .iter()
         .map(|s| s.sector_number)
@@ -174,8 +176,7 @@ fn reschedule_recover_restores_sectors() {
         )
         .unwrap();
 
-    // TODO(385,@cernicc,17/09/2024): Check that the sectors were restored to
-    // correct expiration
+    assert_eq!(queue_before, queue);
 }
 
 #[ignore]
