@@ -9,10 +9,9 @@ use crate::{
     pallet::{Error, Event, StorageProviders, DECLARATIONS_MAX},
     sector::ProveCommitSector,
     tests::{
-        account, count_sector_faults_and_recoveries, create_set, events, new_test_ext,
-        register_storage_provider, run_to_block, DealProposalBuilder, DeclareFaultsBuilder, Market,
-        RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System, Test,
-        ALICE, BOB, CHARLIE,
+        account, create_set, events, new_test_ext, register_storage_provider, run_to_block,
+        DealProposalBuilder, DeclareFaultsBuilder, Market, RuntimeEvent, RuntimeOrigin,
+        SectorPreCommitInfoBuilder, StorageProvider, System, Test, ALICE, BOB, CHARLIE,
     },
     Config,
 };
@@ -86,7 +85,7 @@ fn declare_single_fault_before_proving_period_start() {
 
         // Fault declaration setup
         let fault_declaration = DeclareFaultsBuilder::default()
-            .fault(deadline, partition, sectors)
+            .fault(deadline, partition, &sectors)
             .build();
         assert_ok!(StorageProvider::declare_faults(
             RuntimeOrigin::signed(account(storage_provider)),
@@ -169,9 +168,7 @@ fn declare_single_fault_from_proving_period(#[case] proving_period_multiple: f64
 
         // Second call because we've updated the state and StorageProviders returns a clone of the state
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
-        let (faults, _recoveries) = count_sector_faults_and_recoveries(&sp.deadlines);
-        // Check that partitions are set to faulty
-        assert_eq!(faults, 1);
+        assert_exact_faulty_sectors(&sp.deadlines, &[fault.clone()]);
         assert_eq!(
             events(),
             [RuntimeEvent::StorageProvider(Event::FaultsDeclared {
@@ -258,13 +255,14 @@ fn multiple_deadline_faults() {
         let storage_client = BOB;
         setup_sp_with_many_sectors_multiple_partitions(storage_provider, storage_client);
 
-        let partition = 0;
-        let deadlines = vec![0, 1, 2, 3, 4];
-        let sectors = vec![0, 1, 2, 3, 4];
-
-        // Fault declaration and extrinsic
+        // We should specify a correct partition and deadline for the sector
+        // when specifying the faults
         let fault_declaration = DeclareFaultsBuilder::default()
-            .multiple_deadlines(deadlines, partition, sectors)
+            .fault(0, 0, &[0])
+            .fault(1, 0, &[2])
+            .fault(2, 0, &[4])
+            .fault(3, 0, &[6])
+            .fault(4, 0, &[8])
             .build();
         assert_ok!(StorageProvider::declare_faults(
             RuntimeOrigin::signed(account(storage_provider)),
@@ -372,7 +370,7 @@ fn fault_declaration_past_cutoff_should_fail() {
             StorageProvider::declare_faults(
                 RuntimeOrigin::signed(account(storage_provider)),
                 DeclareFaultsBuilder::default()
-                    .fault(deadline, partition, vec![1])
+                    .fault(deadline, partition, &[1])
                     .build(),
             ),
             Error::<Test>::FaultDeclarationTooLate

@@ -22,7 +22,6 @@ use sp_runtime::{
 
 use crate::{
     self as pallet_storage_provider,
-    deadline::Deadlines,
     fault::{
         DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration, RecoveryDeclaration,
     },
@@ -34,6 +33,7 @@ use crate::{
 
 mod declare_faults;
 mod declare_faults_recovered;
+mod expiration_queue;
 mod post_hook;
 mod pre_commit_sector_hook;
 mod pre_commit_sectors;
@@ -282,26 +282,6 @@ fn publish_deals(storage_provider: &str) {
     System::reset_events();
 }
 
-/// Counts faults and recoveries
-fn count_sector_faults_and_recoveries<BlockNumber: sp_runtime::traits::BlockNumber>(
-    deadlines: &Deadlines<BlockNumber>,
-) -> (usize /* faults */, usize /* recoveries */) {
-    let mut faults = 0;
-    let mut recoveries = 0;
-    for dl in deadlines.due.iter() {
-        for (_, partition) in dl.partitions.iter() {
-            if partition.recoveries.len() > 0 {
-                recoveries += partition.recoveries.len();
-            }
-            if partition.faults.len() > 0 {
-                faults += partition.faults.len();
-            }
-        }
-    }
-
-    (faults, recoveries)
-}
-
 struct SectorPreCommitInfoBuilder {
     seal_proof: RegisteredSealProof,
     sector_number: SectorNumber,
@@ -508,7 +488,7 @@ impl DeclareFaultsBuilder {
         mut self,
         deadline: u64,
         partition: PartitionNumber,
-        sectors: Vec<SectorNumber>,
+        sectors: &[SectorNumber],
     ) -> Self {
         let fault_sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_TERMINATIONS_PER_CALL>> =
             sectors
@@ -526,43 +506,8 @@ impl DeclareFaultsBuilder {
             partition,
             sectors: fault_sectors,
         };
-        self.faults = bounded_vec![fault];
-        self
-    }
 
-    /// Build a fault declaration for a multiple deadlines and a single partition.
-    /// Multiple sector numbers can be passed in.
-    pub fn multiple_deadlines(
-        mut self,
-        deadlines: Vec<u64>,
-        partition: PartitionNumber,
-        sectors: Vec<SectorNumber>,
-    ) -> Self {
-        let fault_sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_TERMINATIONS_PER_CALL>> =
-            sectors
-                .iter()
-                .copied()
-                .collect::<BTreeSet<_>>()
-                .try_into()
-                .expect(&format!(
-                    "Could not convert a Vec with length {} to a BoundedBTreeSet with length {}",
-                    sectors.len(),
-                    MAX_TERMINATIONS_PER_CALL
-                ));
-        self.faults = deadlines
-            .iter()
-            .map(|dl| FaultDeclaration {
-                deadline: *dl,
-                partition,
-                sectors: fault_sectors.clone(),
-            })
-            .collect::<Vec<_>>()
-            .try_into()
-            .expect(&format!(
-                "Could not convert a Vec with length {} to a BoundedVec with length {}",
-                deadlines.len(),
-                DECLARATIONS_MAX
-            ));
+        self.faults.try_push(fault).unwrap();
         self
     }
 
@@ -592,7 +537,7 @@ impl DeclareFaultsRecoveredBuilder {
         mut self,
         deadline: u64,
         partition: PartitionNumber,
-        sectors: Vec<SectorNumber>,
+        sectors: &[SectorNumber],
     ) -> Self {
         let recovered_sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_TERMINATIONS_PER_CALL>> =
             sectors
@@ -610,43 +555,8 @@ impl DeclareFaultsRecoveredBuilder {
             partition,
             sectors: recovered_sectors,
         };
-        self.recoveries = bounded_vec![recovery];
-        self
-    }
 
-    /// Build a fault recovery for a multiple deadlines and a single partition.
-    /// Multiple sector numbers can be passed in.
-    pub fn multiple_deadlines_recovery(
-        mut self,
-        deadlines: Vec<u64>,
-        partition: PartitionNumber,
-        sectors: Vec<SectorNumber>,
-    ) -> Self {
-        let recovered_sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_TERMINATIONS_PER_CALL>> =
-            sectors
-                .iter()
-                .copied()
-                .collect::<BTreeSet<_>>()
-                .try_into()
-                .expect(&format!(
-                    "Could not convert a Vec with length {} to a BoundedBTreeSet with length {}",
-                    sectors.len(),
-                    MAX_TERMINATIONS_PER_CALL
-                ));
-        self.recoveries = deadlines
-            .iter()
-            .map(|dl| RecoveryDeclaration {
-                deadline: *dl,
-                partition,
-                sectors: recovered_sectors.clone(),
-            })
-            .collect::<Vec<_>>()
-            .try_into()
-            .expect(&format!(
-                "Could not convert a Vec with length {} to a BoundedVec with length {}",
-                deadlines.len(),
-                DECLARATIONS_MAX
-            ));
+        self.recoveries.try_push(recovery).unwrap();
         self
     }
 

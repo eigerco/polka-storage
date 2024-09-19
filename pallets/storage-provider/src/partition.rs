@@ -1,14 +1,16 @@
 extern crate alloc;
 
 use alloc::{collections::BTreeSet, vec::Vec};
-use core::cmp::Ord;
 
 use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeSet, PalletError};
 use primitives_proofs::SectorNumber;
 use scale_info::TypeInfo;
 
-use crate::sector::{SectorOnChainInfo, MAX_SECTORS};
+use crate::{
+    expiration_queue::ExpirationQueue,
+    sector::{SectorOnChainInfo, MAX_SECTORS},
+};
 
 /// Max amount of partitions per deadline.
 /// ref: <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/runtime/src/runtime/policy.rs#L283>
@@ -17,7 +19,10 @@ const LOG_TARGET: &'static str = "runtime::storage_provider::partition";
 pub type PartitionNumber = u32;
 
 #[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
-pub struct Partition<BlockNumber> {
+pub struct Partition<BlockNumber>
+where
+    BlockNumber: sp_runtime::traits::BlockNumber,
+{
     /// All sector numbers in this partition, including faulty, unproven and terminated sectors.
     pub sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
 
@@ -45,6 +50,11 @@ pub struct Partition<BlockNumber> {
     /// TODO: Add helper method for adding terminated sectors.
     pub terminated: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
 
+    /// All sectors mapped by the expiration. The sectors are indexed by the
+    /// expiration block. An expiration may be an "on-time" scheduled
+    /// expiration, or early "faulty" expiration.
+    pub expirations: ExpirationQueue<BlockNumber>,
+
     /// Sectors that were terminated before their committed expiration, indexed by termination block.
     pub early_terminations: BoundedBTreeMap<
         BlockNumber,
@@ -55,7 +65,7 @@ pub struct Partition<BlockNumber> {
 
 impl<BlockNumber> Partition<BlockNumber>
 where
-    BlockNumber: Ord,
+    BlockNumber: sp_runtime::traits::BlockNumber,
 {
     pub fn new() -> Self {
         Self {
@@ -64,6 +74,7 @@ where
             faults: BoundedBTreeSet::new(),
             recoveries: BoundedBTreeSet::new(),
             terminated: BoundedBTreeSet::new(),
+            expirations: ExpirationQueue::new(),
             early_terminations: BoundedBTreeMap::new(),
         }
     }
@@ -83,18 +94,29 @@ where
     ///
     /// condition: the sector numbers cannot be in any of the `BoundedBTreeSet`'s
     /// fails if any of the given sector numbers are a duplicate
-    pub fn add_sectors(&mut self, sectors: &[SectorNumber]) -> Result<(), PartitionError> {
-        for sector_number in sectors {
+    pub fn add_sectors(
+        &mut self,
+        sectors: &[SectorOnChainInfo<BlockNumber>],
+    ) -> Result<(), PartitionError> {
+        // Add sectors to the expirations queue.
+        self.expirations.add_active_sectors(sectors).map_err(|_| {
+            log::error!(target: LOG_TARGET, "add_sectors: Failed to add sectors to the expirations");
+            PartitionError::FailedToAddSector
+        })?;
+
+        for sector in sectors {
             // Ensure that the sector number has not been used before.
             // All sector number (including faulty, terminated and unproven) are contained in `sectors` so we only need to check in there.
-            ensure!(!self.sectors.contains(&sector_number), {
-                log::error!(target: LOG_TARGET, "check_sector_number_duplicate: sector_number {sector_number:?} duplicate in sectors");
+            ensure!(!self.sectors.contains(&sector.sector_number), {
+                log::error!(target: LOG_TARGET, "check_sector_number_duplicate: sector {:?} duplicate in sectors",sector.sector_number);
                 PartitionError::DuplicateSectorNumber
             });
+
             self.sectors
-                .try_insert(*sector_number)
+                .try_insert(sector.sector_number)
                 .map_err(|_| PartitionError::FailedToAddSector)?;
         }
+
         Ok(())
     }
 
@@ -111,6 +133,7 @@ where
             ConstU32<MAX_SECTORS>,
         >,
         sector_numbers: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
+        fault_expiration: BlockNumber,
     ) -> Result<BTreeSet<SectorNumber>, PartitionError>
     where
         BlockNumber: sp_runtime::traits::BlockNumber,
@@ -137,17 +160,17 @@ where
             .collect();
 
         log::debug!(target: LOG_TARGET, "record_faults: new_faults = {new_faults:?}, amount = {:?}", new_faults.len());
-        let new_fault_sectors: Vec<(&SectorNumber, &SectorOnChainInfo<BlockNumber>)> = sectors
+        let new_fault_sectors: Vec<&SectorOnChainInfo<BlockNumber>> = sectors
             .iter()
-            .filter(|(sector_number, _info)| {
+            .filter_map(|(sector_number, info)| {
                 log::debug!(target: LOG_TARGET, "record_faults: checking sec_num {sector_number}");
-                new_faults.contains(&sector_number)
+                new_faults.contains(&sector_number).then_some(info)
             })
             .collect();
 
         // Add new faults to state, skip if no new faults.
         if !new_fault_sectors.is_empty() {
-            self.add_faults(sector_numbers)?;
+            self.add_faults(&new_fault_sectors, fault_expiration)?;
         } else {
             log::debug!(target: LOG_TARGET, "record_faults: No new faults detected");
         }
@@ -172,11 +195,22 @@ where
     /// * <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/partition_state.rs#L155>
     fn add_faults(
         &mut self,
-        sector_numbers: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
+        sectors: &[&SectorOnChainInfo<BlockNumber>],
+        fault_expiration: BlockNumber,
     ) -> Result<(), PartitionError> {
+        self.expirations
+            .reschedule_as_faults(fault_expiration, sectors).map_err(|_|{
+                log::error!(target: LOG_TARGET, "add_faults: Failed to add faults to the expirations");
+                PartitionError::FailedToAddFaults
+            })?;
+
         // Update partition metadata
+        let sector_numbers = sectors
+            .iter()
+            .map(|sector| sector.sector_number)
+            .collect::<BTreeSet<_>>();
         self.faults = self.faults
-            .union(sector_numbers)
+            .union(&sector_numbers)
             .cloned()
             .collect::<BTreeSet<_>>()
             .try_into()
@@ -189,7 +223,7 @@ where
 
         // Once marked faulty, sectors are moved out of the unproven set.
         for sector_number in sector_numbers {
-            self.unproven.remove(sector_number);
+            self.unproven.remove(&sector_number);
         }
         Ok(())
     }
@@ -233,7 +267,19 @@ where
     ///
     /// References:
     /// * <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/partition_state.rs#L271>
-    pub fn recover_all_declared_recoveries(&mut self) {
+    pub fn recover_all_declared_recoveries(
+        &mut self,
+        all_sectors: &BoundedBTreeMap<
+            SectorNumber,
+            SectorOnChainInfo<BlockNumber>,
+            ConstU32<MAX_SECTORS>,
+        >,
+    ) -> Result<(), PartitionError> {
+        self.expirations.reschedule_recovered(all_sectors, &self.recoveries).map_err(|err| {
+            log::error!(target: LOG_TARGET, "recover_all_declared_recoveries: Failed to reschedule recoveries. error {err:?}");
+            PartitionError::FailedToRemoveRecoveries
+        })?;
+
         self.faults = self
             .faults
             .difference(&self.recoveries)
@@ -243,6 +289,8 @@ where
             .expect("(faults - recoveries).len() <= faults.len()");
 
         self.recoveries.clear();
+
+        Ok(())
     }
 }
 
@@ -260,7 +308,7 @@ pub enum PartitionError {
 
 #[cfg(test)]
 mod test {
-    use frame_support::sp_runtime::bounded_vec;
+    use primitives_proofs::RegisteredSealProof;
 
     use super::*;
 
@@ -269,11 +317,37 @@ mod test {
         // Set up partition, using `u64` for block number because it is not relevant to this test.
         let mut partition: Partition<u64> = Partition::new();
         // Add some sectors
-        let sectors_to_add: BoundedVec<SectorNumber, ConstU32<MAX_SECTORS>> = bounded_vec![1, 2];
+        let sectors_to_add = vec![
+            SectorOnChainInfo {
+                sector_number: 1,
+                seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
+                sealed_cid: Default::default(),
+                activation: Default::default(),
+                expiration: 1000,
+                unsealed_cid: Default::default(),
+            },
+            SectorOnChainInfo {
+                sector_number: 2,
+                seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
+                sealed_cid: Default::default(),
+                activation: Default::default(),
+                expiration: 1100,
+                unsealed_cid: Default::default(),
+            },
+        ];
+
+        // Add sectors to the partition
         partition.add_sectors(&sectors_to_add)?;
-        for sector_number in sectors_to_add {
-            assert!(partition.sectors.contains(&sector_number));
+
+        for sector in sectors_to_add {
+            // 1. Check that sector is in active sectors
+            assert!(partition.sectors.contains(&sector.sector_number));
+
+            // 2. Check that sector will expire
+            let expiration = partition.expirations.map.get(&sector.expiration).unwrap();
+            assert!(expiration.on_time_sectors.contains(&sector.sector_number));
         }
+
         Ok(())
     }
 
@@ -281,17 +355,38 @@ mod test {
     fn live_sectors() -> Result<(), PartitionError> {
         // Set up partition, using `u64` for block number because it is not relevant to this test.
         let mut partition: Partition<u64> = Partition::new();
+
         // Add some sectors
-        partition.add_sectors(&[1, 2])?;
+        partition.add_sectors(&[
+            SectorOnChainInfo {
+                sector_number: 1,
+                seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
+                sealed_cid: Default::default(),
+                activation: Default::default(),
+                expiration: Default::default(),
+                unsealed_cid: Default::default(),
+            },
+            SectorOnChainInfo {
+                sector_number: 2,
+                seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
+                sealed_cid: Default::default(),
+                activation: Default::default(),
+                expiration: Default::default(),
+                unsealed_cid: Default::default(),
+            },
+        ])?;
+
         // Terminate a sector that is in the active sectors.
         partition
             .terminated
             .try_insert(1)
             .expect(&format!("Inserting a single element into terminated sectors of a partition, which is a BoundedBTreeMap with length {MAX_SECTORS}, should not fail (1 < {MAX_SECTORS})"));
         let live_sectors = partition.live_sectors();
+
         // Create expected result.
         let mut expected_live_sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>> =
             BoundedBTreeSet::new();
+
         expected_live_sectors
             .try_insert(2)
             .expect(&format!("Inserting a single element into expected_live_sectors, which is a BoundedBTreeMap with length {MAX_SECTORS}, should not fail (1 < {MAX_SECTORS})"));

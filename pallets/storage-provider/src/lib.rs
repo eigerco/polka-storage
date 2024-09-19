@@ -19,6 +19,7 @@ mod benchmarks;
 mod tests;
 
 mod deadline;
+mod expiration_queue;
 mod fault;
 mod partition;
 mod proofs;
@@ -693,9 +694,14 @@ pub mod pallet {
             // TODO(@aidan46, #91, 2024-07-03): Validate the proof after research is done
 
             // record sector as proven
+            let all_sectors = sp.sectors.clone();
             let deadlines = sp.get_deadlines_mut();
             deadlines
-                .record_proven(windowed_post.deadline as usize, windowed_post.partitions)
+                .record_proven(
+                    windowed_post.deadline as usize,
+                    &all_sectors,
+                    windowed_post.partitions,
+                )
                 .map_err(|e| Error::<T>::DeadlineError(e))?;
 
             // Store new storage provider state
@@ -1124,9 +1130,12 @@ pub mod pallet {
                     log::debug!(target: LOG_TARGET, "block: {:?}, going through partition: {:?}", current_block, partition);
 
                     // Mark all Sectors in a partition as faulty
-                    let Ok(new_faults) =
-                        partition.record_faults(&state.sectors, &partition.sectors.clone())
-                    else {
+                    let fault_expiration_block = current_deadline.last() + T::FaultMaxAge::get();
+                    let Ok(new_faults) = partition.record_faults(
+                        &state.sectors,
+                        &partition.sectors.clone(),
+                        fault_expiration_block,
+                    ) else {
                         log::error!(target: LOG_TARGET, "block: {:?}, failed to mark {} sectors as faulty, deadline: {}, sp: {:?}",
                             current_block, partition.sectors.len(), current_deadline.idx, storage_provider);
                         continue;
