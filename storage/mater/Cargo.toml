@@ -29,7 +29,7 @@ tokio-util = { workspace = true, features = ["io"] }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio", "html_reports"] }
-rand = { workspace = true, features = ["std"] }
+rand = { workspace = true, features = ["std", "std_rng"] }
 tempfile.workspace = true
 
 [lints]
