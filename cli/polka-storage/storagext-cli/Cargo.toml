@@ -11,7 +11,7 @@ version = "0.1.0"
 insecure_url = ["storagext/insecure_url"]
 
 [dependencies]
-storagext.workspace = true
+storagext = { workspace = true, features = ["clap"] }
 
 anyhow.workspace = true
 cid = { workspace = true, features = ["scale-codec"], default-features = true }

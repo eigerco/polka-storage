@@ -4,18 +4,17 @@ use anyhow::bail;
 use clap::{ArgGroup, Subcommand};
 use primitives_proofs::DealId;
 use storagext::{
-    runtime::SubmissionResult, types::market::DealProposal as SxtDealProposal, MarketClientExt,
-    PolkaStorageConfig,
+    multipair::{DebugPair, MultiPairSigner},
+    runtime::SubmissionResult,
+    types::market::DealProposal as SxtDealProposal,
+    MarketClientExt, PolkaStorageConfig,
 };
 use subxt::ext::sp_core::{
     ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair, sr25519::Pair as Sr25519Pair,
 };
 use url::Url;
 
-use crate::{
-    deser::ParseablePath, missing_keypair_error, operation_takes_a_while, pair::DebugPair,
-    MultiPairSigner, OutputFormat,
-};
+use crate::{deser::ParseablePath, missing_keypair_error, operation_takes_a_while, OutputFormat};
 
 #[derive(Debug, Subcommand)]
 #[command(name = "market", about = "CLI Client to the Market Pallet", version)]

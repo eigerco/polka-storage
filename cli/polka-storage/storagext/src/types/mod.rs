@@ -1,10 +1,11 @@
 pub mod market;
 pub mod storage_provider;
 
-use serde::de::Deserialize;
+use serde::{de::Deserialize, Serializer};
 
 // The CID has some issues that require a workaround for strings.
 // For more details, see: <https://github.com/multiformats/rust-cid/issues/162>
+
 fn deserialize_string_to_cid<'de, D>(deserializer: D) -> Result<cid::Cid, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -16,4 +17,11 @@ where
         ))
     })?;
     Ok(cid)
+}
+
+fn serialize_cid_to_string<S>(cid: &cid::Cid, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(cid.to_string().as_str())
 }

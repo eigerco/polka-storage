@@ -86,7 +86,15 @@ pub mod display;
     derive_for_type(
         path = "pallet_storage_provider::fault::RecoveryDeclaration",
         derive = "::serde::Serialize"
-    )
+    ),
+    derive_for_type(
+        path = "pallet_market::pallet::ActiveDealState",
+        derive = "::serde::Serialize"
+    ),
+    derive_for_type(
+        path = "pallet_market::pallet::DealState",
+        derive = "::serde::Serialize"
+    ),
 )]
 mod polka_storage_runtime {}
 
@@ -94,15 +102,17 @@ mod polka_storage_runtime {}
 pub use client::SubmissionResult;
 
 pub use self::polka_storage_runtime::*;
-
 #[cfg(test)]
 mod test {
 
-    use crate::runtime::runtime_types::pallet_market::pallet::{ActiveDealState, DealState};
+    use crate::{
+        runtime::runtime_types::pallet_market::pallet::{ActiveDealState, DealState},
+        BlockNumber,
+    };
 
     #[test]
     fn ensure_serde_for_active_deal_state() {
-        let active_deal_state = serde_json::from_str::<ActiveDealState<u64>>(
+        let active_deal_state = serde_json::from_str::<ActiveDealState<BlockNumber>>(
             r#"{
                 "sector_number": 1,
                 "sector_start_block": 10,
@@ -120,14 +130,14 @@ mod test {
 
     #[test]
     fn ensure_serde_for_deal_state_published() {
-        let deal_state = serde_json::from_str::<DealState<u64>>(r#""Published""#).unwrap();
+        let deal_state = serde_json::from_str::<DealState<BlockNumber>>(r#""Published""#).unwrap();
 
         assert_eq!(deal_state, DealState::Published);
     }
 
     #[test]
     fn ensure_serde_for_deal_state_active() {
-        let deal_state = serde_json::from_str::<DealState<u64>>(
+        let deal_state = serde_json::from_str::<DealState<BlockNumber>>(
             r#"{
                 "Active": {
                     "sector_number": 1,

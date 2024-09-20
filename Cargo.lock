@@ -8985,9 +8985,11 @@ dependencies = [
 name = "polka-storage-provider"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "axum",
  "chrono",
+ "cid 0.11.1",
  "clap",
  "futures",
  "jsonrpsee 0.23.2",
@@ -8996,6 +8998,7 @@ dependencies = [
  "sealed",
  "serde",
  "serde_json",
+ "storagext",
  "subxt",
  "tempfile",
  "thiserror",

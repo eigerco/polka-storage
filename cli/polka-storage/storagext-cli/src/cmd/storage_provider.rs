@@ -3,6 +3,7 @@ use std::time::Duration;
 use clap::Subcommand;
 use primitives_proofs::{RegisteredPoStProof, SectorNumber};
 use storagext::{
+    multipair::MultiPairSigner,
     runtime::{
         runtime_types::pallet_storage_provider::sector::ProveCommitSector as RuntimeProveCommitSector,
         SubmissionResult,
@@ -17,10 +18,7 @@ use storagext::{
 };
 use url::Url;
 
-use crate::{
-    deser::ParseablePath, missing_keypair_error, operation_takes_a_while, MultiPairSigner,
-    OutputFormat,
-};
+use crate::{deser::ParseablePath, missing_keypair_error, operation_takes_a_while, OutputFormat};
 
 fn parse_post_proof(src: &str) -> Result<RegisteredPoStProof, String> {
     match src {

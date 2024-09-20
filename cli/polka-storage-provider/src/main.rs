@@ -12,15 +12,14 @@ use clap::Parser;
 use thiserror::Error;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
-use url::Url;
 
 use crate::{
-    commands::{InfoCommand, StorageCommand, WalletCommand},
-    rpc::{server::RPC_SERVER_DEFAULT_BIND_ADDR, ClientError},
+    commands::{RpcCommand, StorageCommand, WalletCommand},
+    rpc::client::ClientError,
 };
 
 #[tokio::main]
-async fn main() -> Result<(), CliError> {
+async fn main() -> Result<(), anyhow::Error> {
     // Logger initialization.
     tracing_subscriber::registry()
         .with(fmt::layer())
@@ -42,23 +41,21 @@ async fn main() -> Result<(), CliError> {
 pub(crate) struct Cli {
     #[command(subcommand)]
     pub subcommand: SubCommand,
-
-    /// URL of the providers RPC server.
-    #[arg(long, default_value_t = Url::parse(&format!("http://{RPC_SERVER_DEFAULT_BIND_ADDR}")).unwrap())]
-    pub rpc_server_url: Url,
 }
 
 /// Supported sub-commands.
 #[derive(Debug, clap::Subcommand)]
 pub enum SubCommand {
+    /// Launch the storage server.
     Storage(StorageCommand),
-
-    /// Info command to display information about the storage provider.
-    Info(InfoCommand),
 
     /// Command to manage wallet operations.
     #[command(subcommand)]
     Wallet(WalletCommand),
+
+    /// RPC related commands, namely the `server` and `client`.
+    #[command(subcommand)]
+    Rpc(RpcCommand),
 }
 
 /// CLI components error handling implementor.

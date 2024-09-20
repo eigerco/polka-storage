@@ -18,7 +18,7 @@ use thiserror::Error;
 use tracing::{debug, instrument};
 use url::Url;
 
-use super::{methods::RpcRequest, version::ApiVersion};
+use super::{requests::RpcRequest, version::ApiVersion};
 
 /// Errors that can occur when working with the client
 #[derive(Debug, Error)]

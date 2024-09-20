@@ -8,13 +8,15 @@ repository.workspace = true
 version = "0.1.0"
 
 [dependencies]
+# TODO: remove
+anyhow.workspace = true
 async-trait = { workspace = true }
 axum = { workspace = true, features = ["macros", "multipart"] }
 chrono = { workspace = true, features = ["serde"] }
+cid = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 futures = { workspace = true }
 jsonrpsee = { workspace = true, features = ["http-client", "server", "ws-client"] }
-mater = { workspace = true }
 sc-cli = { workspace = true }
 sealed = { workspace = true }
 serde = { workspace = true }
@@ -29,6 +31,10 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 url = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
+
+# "Homegrown" crates
+mater = { workspace = true }
+storagext = { workspace = true, features = ["clap", "insecure_url"] }
 
 [lints]
 workspace = true
