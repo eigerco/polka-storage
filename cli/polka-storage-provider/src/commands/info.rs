@@ -4,13 +4,13 @@ use chrono::{DateTime, Utc};
 use clap::Parser;
 
 use crate::{
-    cli::CliError,
     rpc::{methods::common::InfoRequest, version::V0, Client},
+    CliError,
 };
 
 /// Command to display information about the storage provider.
 #[derive(Debug, Clone, Parser)]
-pub(crate) struct InfoCommand;
+pub struct InfoCommand;
 
 impl InfoCommand {
     pub async fn run(&self, client: &Client<V0>) -> Result<(), CliError> {

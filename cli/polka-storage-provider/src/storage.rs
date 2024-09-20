@@ -21,7 +21,7 @@ use tower_http::trace::TraceLayer;
 use tracing::{error, info, info_span, instrument};
 use uuid::Uuid;
 
-use crate::cli::CliError;
+use crate::CliError;
 
 /// Shared state of the storage server.
 pub struct StorageServerState {
