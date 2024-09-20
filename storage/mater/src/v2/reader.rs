@@ -29,7 +29,7 @@ where
         let _header = self.read_header().await?;
         let v1_header = self.read_v1_header().await?;
 
-        if vec![contents_cid] != v1_header.roots {
+        if [contents_cid] != *v1_header.roots {
             return Ok(false);
         }
 
