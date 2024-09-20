@@ -159,13 +159,26 @@ mod tests {
     };
 
     #[tokio::test]
+    async fn failure_verifying_cid() {
+        let path = PathBuf::from("tests/fixtures/car_v2/spaceglenda.car");
+        let file = File::open(&path).await.unwrap();
+
+        let wrong_cid =
+            Cid::from_str("bafkreidnmi5roys6exf5urwrplejyjvt3nrviryb4lafsjrggig357krlm").unwrap();
+
+        let result = verify_cid(file, wrong_cid).await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
     async fn test_verify_cid_spaceglenda() {
         let path = PathBuf::from("tests/fixtures/car_v2/spaceglenda.car");
         let file = File::open(&path).await.unwrap();
         // Taken from `car inspect tests/fixtures/car_v2/spaceglenda.car`
         let contents_cid =
             Cid::from_str("bafybeiefli7iugocosgirzpny4t6yxw5zehy6khtao3d252pbf352xzx5q").unwrap();
-        assert_eq!(verify_cid(file, contents_cid).await.unwrap(), true)
+        assert!(verify_cid(file, contents_cid).await.is_ok());
     }
 
     #[tokio::test]
@@ -175,7 +188,7 @@ mod tests {
         // Taken from `car inspect tests/fixtures/car_v2/lorem.car`
         let contents_cid =
             Cid::from_str("bafkreidnmi5roys6exf5urwrplejyjvt3nrviryb4lafsjrggig357krlm").unwrap();
-        assert_eq!(verify_cid(file, contents_cid).await.unwrap(), true)
+        assert!(verify_cid(file, contents_cid).await.is_ok());
     }
 
     #[tokio::test]
