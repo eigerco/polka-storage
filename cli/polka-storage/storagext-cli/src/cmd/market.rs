@@ -4,6 +4,7 @@ use anyhow::bail;
 use clap::{ArgGroup, Subcommand};
 use primitives_proofs::DealId;
 use storagext::{
+    deser::DeserializablePath,
     multipair::{DebugPair, MultiPairSigner},
     runtime::SubmissionResult,
     types::market::DealProposal as SxtDealProposal,
@@ -14,7 +15,7 @@ use subxt::ext::sp_core::{
 };
 use url::Url;
 
-use crate::{deser::ParseablePath, missing_keypair_error, operation_takes_a_while, OutputFormat};
+use crate::{missing_keypair_error, operation_takes_a_while, OutputFormat};
 
 #[derive(Debug, Subcommand)]
 #[command(name = "market", about = "CLI Client to the Market Pallet", version)]
@@ -29,7 +30,7 @@ pub(crate) enum MarketCommand {
     #[command(group(ArgGroup::new("client_keypair").required(true).args(&["client_sr25519_key", "client_ecdsa_key", "client_ed25519_key"])))]
     PublishStorageDeals {
         /// Storage deals to publish. Either JSON or a file path, prepended with an @.
-        #[arg(value_parser = <Vec<SxtDealProposal> as ParseablePath>::parse_json)]
+        #[arg(value_parser = <Vec<SxtDealProposal> as DeserializablePath>::deserialize_json)]
         deals: std::vec::Vec<SxtDealProposal>,
         /// Sr25519 keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
         ///

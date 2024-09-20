@@ -13,6 +13,15 @@ use crate::{
     BlockNumber, Currency, PolkaStorageConfig,
 };
 
+#[derive(Debug, thiserror::Error)]
+pub enum ConversionError {
+    #[error(transparent)]
+    Cid(#[from] cid::Error),
+
+    #[error(transparent)]
+    Utf8(#[from] std::string::FromUtf8Error),
+}
+
 /// Doppelganger of `RuntimeDealProposal` but with more ergonomic types and no generics.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct DealProposal {
@@ -49,6 +58,33 @@ impl From<DealProposal>
     }
 }
 
+impl TryFrom<RuntimeDealProposal<subxt::ext::subxt_core::utils::AccountId32, Currency, BlockNumber>>
+    for DealProposal
+{
+    type Error = ConversionError;
+
+    fn try_from(
+        value: RuntimeDealProposal<
+            subxt::ext::subxt_core::utils::AccountId32,
+            Currency,
+            BlockNumber,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            piece_cid: Cid::read_bytes(value.piece_cid.0.as_slice())?,
+            piece_size: value.piece_size,
+            client: <PolkaStorageConfig as subxt::Config>::AccountId::new(value.client.0),
+            provider: <PolkaStorageConfig as subxt::Config>::AccountId::new(value.provider.0),
+            label: String::from_utf8(value.label.0)?,
+            start_block: value.start_block,
+            end_block: value.end_block,
+            storage_price_per_block: value.storage_price_per_block,
+            provider_collateral: value.provider_collateral,
+            state: value.state,
+        })
+    }
+}
+
 impl DealProposal {
     /// Consumes the [`DealProposal`], signs it using the provided keypair
     /// and returns a deal proposal ready to be submitted.
@@ -74,12 +110,33 @@ impl DealProposal {
             client_signature,
         }
     }
+
+    pub fn sign_serializable<Keypair>(self, keypair: &Keypair) -> ClientDealProposal
+    where
+        Keypair: Signer<PolkaStorageConfig>,
+    {
+        // I know this performs a big ass roundtrip but with `into` consuming `self`,
+        // I'd need to encode the values individually to squeeze more performance
+        // for now, this will do more than ok
+        let proposal: RuntimeDealProposal<_, _, _> = self.into();
+        let encoded = &proposal.encode();
+
+        tracing::trace!("deal_proposal: encoded proposal: {}", hex::encode(&encoded));
+        let client_signature = keypair.sign(encoded);
+
+        ClientDealProposal {
+            deal_proposal: proposal
+                .try_into()
+                .expect("`self` should have been previously validated"),
+            client_signature,
+        }
+    }
 }
 
 /// A client-signed [`DealProposal`].
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct ClientDealProposal {
-    /// The deal proposal content.
+    /// The deal proposal contents.
     pub deal_proposal: DealProposal,
 
     /// The signature of the [`DealProposal`].
