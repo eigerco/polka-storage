@@ -22,8 +22,8 @@ pub use ipld_core::cid::Cid;
 pub use stores::{create_filestore, Blockstore, Config};
 pub use v1::{Header as CarV1Header, Reader as CarV1Reader, Writer as CarV1Writer};
 pub use v2::{
-    Characteristics, Header as CarV2Header, Index, IndexEntry, IndexSorted, MultihashIndexSorted,
-    Reader as CarV2Reader, SingleWidthIndex, Writer as CarV2Writer,
+    verify_cid, Characteristics, Header as CarV2Header, Index, IndexEntry, IndexSorted,
+    MultihashIndexSorted, Reader as CarV2Reader, SingleWidthIndex, Writer as CarV2Writer,
 };
 
 /// CAR handling errors.
@@ -77,6 +77,10 @@ pub enum Error {
     /// if the received pragma is not the same, we return an error.
     #[error("received an invalid pragma: {0:?}")]
     InvalidPragmaError(Vec<u8>),
+
+    /// Error returned when CID verification fails
+    #[error("CID is not as expected")]
+    InvalidCid,
 
     /// See [`CodecError`](serde_ipld_dagcbor::error::CodecError) for more information.
     #[error(transparent)]
