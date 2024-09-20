@@ -137,9 +137,9 @@ where
     }
 }
 
-/// Function verifies that a given CID matches the CID for the CAR file at the given path
-pub async fn verify_cid<F: AsyncRead + Unpin>(file: F, contents_cid: Cid) -> Result<bool, Error> {
-    let mut reader = Reader::new(BufReader::new(file));
+/// Function verifies that a given CID matches the CID for the CAR file in the given reader
+pub async fn verify_cid<R: AsyncRead + Unpin>(reader: R, contents_cid: Cid) -> Result<bool, Error> {
+    let mut reader = Reader::new(BufReader::new(reader));
 
     reader.verify_cid(contents_cid).await
 }
