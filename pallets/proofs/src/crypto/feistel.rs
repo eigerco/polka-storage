@@ -12,12 +12,12 @@ pub const FEISTEL_ROUNDS: usize = 3;
 
 pub type Index = u64;
 
-pub type FeistelPrecomputed = (Index, Index, Index);
+pub type Precomputed = (Index, Index, Index);
 
 // Find the minimum number of even bits to represent `num_elements`
 // within a `u32` maximum. Returns the left and right masks evenly
 // distributed that together add up to that minimum number of bits.
-pub fn precompute(num_elements: Index) -> FeistelPrecomputed {
+pub fn precompute(num_elements: Index) -> Precomputed {
     let mut next_pow4: Index = 4;
     let mut log4 = 1;
     while next_pow4 < num_elements {
@@ -39,7 +39,7 @@ pub fn permute(
     num_elements: Index,
     index: Index,
     keys: &[Index],
-    precomputed: FeistelPrecomputed,
+    precomputed: Precomputed,
 ) -> Index {
     let mut u = encode(index, keys, precomputed);
 
@@ -54,11 +54,12 @@ pub fn permute(
 }
 
 // Inverts the `permute` result to its starting value for the same `key`.
+#[allow(dead_code)]
 pub fn invert_permute(
     num_elements: Index,
     index: Index,
     keys: &[Index],
-    precomputed: FeistelPrecomputed,
+    precomputed: Precomputed,
 ) -> Index {
     let mut u = decode(index, keys, precomputed);
 
@@ -72,7 +73,7 @@ pub fn invert_permute(
 /// Decompress the `precomputed` part of the algorithm into the initial `left` and
 /// `right` pieces `(L_0, R_0)` with the `right_mask` and `half_bits` to manipulate
 /// them.
-fn common_setup(index: Index, precomputed: FeistelPrecomputed) -> (Index, Index, Index, Index) {
+fn common_setup(index: Index, precomputed: Precomputed) -> (Index, Index, Index, Index) {
     let (left_mask, right_mask, half_bits) = precomputed;
 
     let left = (index & left_mask) >> half_bits;
@@ -81,7 +82,7 @@ fn common_setup(index: Index, precomputed: FeistelPrecomputed) -> (Index, Index,
     (left, right, right_mask, half_bits)
 }
 
-fn encode(index: Index, keys: &[Index], precomputed: FeistelPrecomputed) -> Index {
+fn encode(index: Index, keys: &[Index], precomputed: Precomputed) -> Index {
     let (mut left, mut right, right_mask, half_bits) = common_setup(index, precomputed);
 
     for key in keys.iter().take(FEISTEL_ROUNDS) {
@@ -93,7 +94,8 @@ fn encode(index: Index, keys: &[Index], precomputed: FeistelPrecomputed) -> Inde
     (left << half_bits) | right
 }
 
-fn decode(index: Index, keys: &[Index], precomputed: FeistelPrecomputed) -> Index {
+#[allow(dead_code)]
+fn decode(index: Index, keys: &[Index], precomputed: Precomputed) -> Index {
     let (mut left, mut right, right_mask, half_bits) = common_setup(index, precomputed);
 
     for i in (0..FEISTEL_ROUNDS).rev() {

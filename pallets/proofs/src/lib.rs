@@ -5,6 +5,7 @@
 
 pub use pallet::*;
 
+mod crypto;
 mod graphs;
 mod porep;
 

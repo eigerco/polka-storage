@@ -26,6 +26,7 @@ pub const BASE_DEGREE: usize = 6;
 pub struct BucketGraph {
     base_degree: usize,
     seed: BucketGraphSeed,
+    nodes: usize,
 }
 
 impl BucketGraph {
@@ -47,6 +48,7 @@ impl BucketGraph {
         Ok(Self {
             base_degree: BASE_DEGREE,
             seed,
+            nodes,
         })
     }
 
@@ -118,6 +120,18 @@ impl BucketGraph {
                 parents[predecessor_index] = node - 1;
             }
         }
+    }
+
+    /// References:
+    /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/storage-proofs-core/src/drgraph.rs#L202C5-L205C6>
+    #[inline]
+    pub fn size(&self) -> usize {
+        self.nodes
+    }
+
+    #[inline]
+    pub const fn degree(&self) -> usize {
+        BASE_DEGREE
     }
 }
 
