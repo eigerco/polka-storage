@@ -174,12 +174,62 @@ where
         reschedule: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
     ) -> Result<(), ExpirationQueueError> {
         // Sectors remaining to be rescheduled.
-        let mut _remaining = reschedule
+        let mut remaining = reschedule
             .iter()
-            .map(|s| (s, all_sectors.get(s).unwrap()))
+            .map(|s| (*s, all_sectors.get(s).expect("sector should exist").clone()))
             .collect::<BTreeMap<_, _>>();
 
-        // TODO(385,@cernicc,17/09/2024): Implement rescheduling of recovered sectors
+        // All sectors rescheduled
+        let mut sectors_rescheduled = Vec::new();
+
+        // Traverse the expiration queue once to find each recovering sector and
+        // remove it from early/faulty.
+        for (_, expiration_set) in self.map.iter_mut() {
+            // Sectors that were rescheduled from this set
+            let mut early_unset = Vec::new();
+
+            // In some cases the sector can be faulty at the end of its normal
+            // lifetime. In those cases the early expiration would be after
+            // on_time expiration. If that happens the on_time is used as the
+            // expiration height. The loop below removes those cases from the
+            // `remaining``.
+            for sector_number in expiration_set.on_time_sectors.iter() {
+                remaining.remove(&sector_number);
+            }
+
+            // Remove the remaining sectors from the early set
+            for sector_number in expiration_set.early_sectors.iter() {
+                let sector = match remaining.remove(&sector_number) {
+                    Some(s) => s,
+                    None => continue,
+                };
+
+                early_unset.push(*sector_number);
+                sectors_rescheduled.push(sector);
+            }
+
+            // Remove early expiration sectors from this set
+            expiration_set.remove(&[], &early_unset);
+
+            // Break when we rescheduled all early sectors
+            if remaining.is_empty() {
+                break;
+            }
+        }
+
+        // Remove sets that were emptied from the queue
+        self.map
+            .retain(|_, expiration_set| !expiration_set.is_empty());
+
+        // There are still some sectors not found
+        if !remaining.is_empty() {
+            log::error!(target: LOG_TARGET, "reschedule_recovered: Some sectors not found {remaining:?}");
+            return Err(ExpirationQueueError::SectorNotFound);
+        }
+
+        // Re-schedule the removed sectors to their target expiration.
+        self.add_active_sectors(&sectors_rescheduled)?;
+
         Ok(())
     }
 
