@@ -234,13 +234,79 @@ where
     }
 
     /// Remove some sectors from the queue. The sectors may be active or faulty,
-    /// and scheduled either for on-time or early termination. Fails if any
-    /// sectors are not found in the queue.
+    /// and scheduled either for on-time or early termination.
+    /// Fails if any sectors are not found in the queue.
+    /// In Filecoin this function takes in recoveries. We do not need these as they are only used for power recovery.
     pub fn remove_sectors(
-        _sectors: &[SectorOnChainInfo<BlockNumber>],
-    ) -> Result<(), ExpirationQueueError> {
-        // TODO(109,@cernicc,19/09/2024): This is needed by terminate_sector
-        todo!()
+        &mut self,
+        sectors: &[SectorOnChainInfo<BlockNumber>],
+        faults: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
+    ) -> Result<ExpirationSet, ExpirationQueueError> {
+        let mut remaining: BTreeSet<SectorNumber> =
+            sectors.iter().map(|s| s.sector_number).collect();
+        let mut removed = ExpirationSet::new();
+
+        // Split into faulty and non-faulty. We process non-faulty sectors first
+        // because they always expire on-time so we know where to find them.
+        let mut non_faulty_sectors = Vec::<&SectorOnChainInfo<BlockNumber>>::new();
+        let mut faulty_sectors = Vec::<&SectorOnChainInfo<BlockNumber>>::new();
+
+        sectors.iter().for_each(|sector| {
+            if faults.contains(&sector.sector_number) {
+                faulty_sectors.push(sector);
+            } else {
+                non_faulty_sectors.push(sector);
+
+                // remove them from "remaining", we're going to process them below.
+                remaining.remove(&sector.sector_number);
+            }
+        });
+
+        let removed_sector_numbers = self.remove_active_sectors(&non_faulty_sectors)?;
+        removed.on_time_sectors = BoundedBTreeSet::try_from(removed_sector_numbers)
+            .expect("Critical error: sectors may not exceed MAX_SECTORS. This error should not occur with the set bounds");
+
+        // Finally, remove faulty sectors (on time and not). These sectors can
+        // only appear within the first 14 days (fault max age). Given that this
+        // queue is quantized, we should be able to stop traversing the queue
+        // after 14 entries.
+        self.map.iter_mut().try_for_each(
+            |(_block, expiration_set)| -> Result<(), ExpirationQueueError> {
+                for sector in &faulty_sectors {
+                    let sector_number = sector.sector_number;
+                    let mut found = false;
+
+                    if expiration_set.on_time_sectors.contains(&sector_number) {
+                        found = true;
+                        expiration_set.on_time_sectors.remove(&sector_number);
+                        removed
+                            .on_time_sectors
+                            .try_insert(sector_number)
+                            .expect("Critical error: sectors may not exceed MAX_SECTORS. This error should not occur with the set bounds");
+                    } else if expiration_set.early_sectors.contains(&sector_number) {
+                        found = true;
+                        expiration_set.early_sectors.remove(&sector_number);
+                        removed
+                            .early_sectors
+                            .try_insert(sector_number)
+                            .expect("Critical error: sectors may not exceed MAX_SECTORS. This error should not occur with the set bounds");
+                    }
+
+                    if found {
+                        remaining.remove(&sector_number);
+                    }
+                }
+
+                Ok(())
+            },
+        )?;
+
+        if !remaining.is_empty() {
+            log::error!(target: LOG_TARGET, "reschedule_recovered: Some sectors not found {remaining:?}");
+            return Err(ExpirationQueueError::SectorNotFound);
+        } else {
+            Ok(removed)
+        }
     }
 
     /// Add sectors to the specific expiration set. The operation is a no-op if
@@ -276,10 +342,11 @@ where
     /// Removes active sectors from the queue.
     ///
     /// https://github.com/filecoin-project/builtin-actors/blob/c3c41c5d06fe78c88d4d05eb81b749a6586a5c9f/actors/miner/src/expiration_queue.rs#L672
-    fn _remove_active_sectors(
+    fn remove_active_sectors(
         &mut self,
         sectors: &[&SectorOnChainInfo<BlockNumber>],
-    ) -> Result<(), ExpirationQueueError> {
+    ) -> Result<BTreeSet<SectorNumber>, ExpirationQueueError> {
+        let mut removed_sector_numbers = BTreeSet::new();
         // Group sectors by their expiration, then remove from existing queue
         // entries according to those groups.
         let groups = self.find_sectors_by_expiration(sectors)?;
@@ -296,9 +363,11 @@ where
 
             // Update the expiration set
             self.must_update_or_delete(expiration_height, expiration_set)?;
+
+            removed_sector_numbers.extend(&set.sectors);
         }
 
-        Ok(())
+        Ok(removed_sector_numbers)
     }
 
     /// Updates the expiration set for a given expiration block number, or
@@ -434,4 +503,71 @@ pub enum ExpirationQueueError {
     SectorNotFound,
     /// Insertion failed
     InsertionFailed,
+}
+
+#[cfg(test)]
+mod tests {
+    extern crate alloc;
+
+    use alloc::collections::btree_set::BTreeSet;
+    use primitives_proofs::SectorNumber;
+    use sp_runtime::BoundedBTreeSet;
+
+    use crate::{expiration_queue::ExpirationQueue, sector::SectorOnChainInfo};
+
+    #[test]
+    fn remove_sectors() {
+        let mut q = ExpirationQueue::new();
+        // Add sectors to queue
+        q.add_active_sectors(&sectors()).unwrap();
+
+        // put queue in a state where some sectors are early and some are faulty
+        q.reschedule_as_faults(
+            8, // run to block 8 so sector 1 and 4 are on time and sector 5 and 6 are early
+            &sectors()[1..]
+                .iter()
+                .collect::<Vec<&SectorOnChainInfo<u64>>>(),
+        )
+        .unwrap();
+
+        // remove an active sector from first set, faulty sector and early faulty sector from second set,
+        let to_remove = [
+            sectors()[0].clone(),
+            sectors()[3].clone(),
+            sectors()[4].clone(),
+            sectors()[5].clone(),
+        ];
+
+        // and only sector from last set
+        let faults = BoundedBTreeSet::try_from(BTreeSet::from([4, 5, 6])).unwrap();
+
+        let result = q.remove_sectors(&to_remove, &faults);
+        assert!(result.is_ok());
+        let removed = result.unwrap();
+
+        // assert all return values are correct
+        assert!(removed.on_time_sectors.contains(&1));
+        assert!(removed.on_time_sectors.contains(&4));
+        assert!(removed.early_sectors.contains(&5));
+        assert!(removed.early_sectors.contains(&6));
+    }
+
+    fn sectors() -> [SectorOnChainInfo<u64>; 6] {
+        [
+            test_sector(2, 1),
+            test_sector(3, 2),
+            test_sector(7, 3),
+            test_sector(8, 4),
+            test_sector(11, 5),
+            test_sector(13, 6),
+        ]
+    }
+
+    fn test_sector(expiration: u64, sector_number: SectorNumber) -> SectorOnChainInfo<u64> {
+        SectorOnChainInfo {
+            expiration,
+            sector_number,
+            ..Default::default()
+        }
+    }
 }
