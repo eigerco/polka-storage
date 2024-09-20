@@ -33,20 +33,16 @@ where
             return Err(Error::InvalidCid);
         }
 
-        let mut cids = vec![];
+        let mut cid_sum = Cid::default();
+        // Loop thru all CIDs to get the last one, which is the sum.
         while let Ok((cid, _contents)) = self.read_block().await {
-            cids.push(cid);
+            cid_sum = cid
         }
 
-        match cids.last() {
-            None => Err(Error::InvalidCid),
-            Some(&cid_sum) => {
-                if cid_sum == contents_cid {
-                    Ok(())
-                } else {
-                    Err(Error::InvalidCid)
-                }
-            }
+        if cid_sum == contents_cid {
+            Ok(())
+        } else {
+            Err(Error::InvalidCid)
         }
     }
 
@@ -178,6 +174,16 @@ mod tests {
         let result = verify_cid(file, wrong_cid).await;
 
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_verify_cid_empty() {
+        let path = PathBuf::from("tests/fixtures/car_v2/empty.car");
+        let file = File::open(&path).await.unwrap();
+        // Taken from `car inspect tests/fixtures/car_v2/spaceglenda.car`
+        let contents_cid =
+            Cid::from_str("bafybeib37argqu7zjibjqwiekvvjtv6lby76ruft4dkysyfqdhvk4o3gvy").unwrap();
+        assert!(verify_cid(file, contents_cid).await.is_ok());
     }
 
     #[tokio::test]
