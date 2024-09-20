@@ -24,21 +24,21 @@ where
     R: AsyncRead + Unpin,
 {
     /// Takes in a CID and checks that the contents in the reader matches this CID
-    pub async fn verify_cid(&mut self, contents_cid: Cid) -> Result<bool, Error> {
+    pub async fn verify_cid(&mut self, contents_cid: Cid) -> Result<(), Error> {
         let _pragma = self.read_pragma().await?;
         let _header = self.read_header().await?;
         let v1_header = self.read_v1_header().await?;
 
         if [contents_cid] != *v1_header.roots {
-            return Ok(false);
+            return Err(Error::InvalidCid);
         }
 
         while let Ok((cid, _contents)) = self.read_block().await {
             if cid == contents_cid {
-                return Ok(true);
+                return Ok(());
             }
         }
-        Ok(false)
+        Err(Error::InvalidCid)
     }
 
     /// Reads the contents of the CARv2 file and puts the contents into the supplied output file.
@@ -138,7 +138,7 @@ where
 }
 
 /// Function verifies that a given CID matches the CID for the CAR file in the given reader
-pub async fn verify_cid<R: AsyncRead + Unpin>(reader: R, contents_cid: Cid) -> Result<bool, Error> {
+pub async fn verify_cid<R: AsyncRead + Unpin>(reader: R, contents_cid: Cid) -> Result<(), Error> {
     let mut reader = Reader::new(BufReader::new(reader));
 
     reader.verify_cid(contents_cid).await

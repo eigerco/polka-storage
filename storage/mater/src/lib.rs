@@ -78,6 +78,10 @@ pub enum Error {
     #[error("received an invalid pragma: {0:?}")]
     InvalidPragmaError(Vec<u8>),
 
+    /// Error returned when CID verification fails
+    #[error("CID is not as expected")]
+    InvalidCid,
+
     /// See [`CodecError`](serde_ipld_dagcbor::error::CodecError) for more information.
     #[error(transparent)]
     CodecError(#[from] serde_ipld_dagcbor::error::CodecError),
