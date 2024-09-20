@@ -188,10 +188,10 @@ where
             // Sectors that were rescheduled from this set
             let mut early_unset = Vec::new();
 
-            // The faulty sectors on time are the ones that were not rescheduled
-            // because the on time expiration would be before the early
-            // expiration. Those will not be rescheduled because they are
-            // already expiring on time.
+            // We might have some faulty sectors that are expiring on time. This
+            // happens when on time expiration height is before the early
+            // expiration height. In those cases the recovered sector already
+            // expires at the correct height and we don't have to do anything.
             for sector_number in expiration_set.on_time_sectors.iter() {
                 remaining.remove(&sector_number);
             }
