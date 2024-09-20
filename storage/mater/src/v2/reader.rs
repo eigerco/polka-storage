@@ -29,7 +29,16 @@ where
         let _header = self.read_header().await?;
         let v1_header = self.read_v1_header().await?;
 
-        Ok(vec![contents_cid] == v1_header.roots)
+        if vec![contents_cid] != v1_header.roots {
+            return Ok(false);
+        }
+
+        while let Ok((cid, _contents)) = self.read_block().await {
+            if cid == contents_cid {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     /// Reads the contents of the CARv2 file and puts the contents into the supplied output file.
@@ -150,7 +159,17 @@ mod tests {
     };
 
     #[tokio::test]
-    async fn test_verify_cid() {
+    async fn test_verify_cid_spaceglenda() {
+        let path = PathBuf::from("tests/fixtures/car_v2/spaceglenda.car");
+        let file = File::open(&path).await.unwrap();
+        // Taken from `car inspect tests/fixtures/car_v2/spaceglenda.car`
+        let contents_cid =
+            Cid::from_str("bafybeiefli7iugocosgirzpny4t6yxw5zehy6khtao3d252pbf352xzx5q").unwrap();
+        assert_eq!(verify_cid(file, contents_cid).await.unwrap(), true)
+    }
+
+    #[tokio::test]
+    async fn test_verify_cid_lorem() {
         let path = PathBuf::from("tests/fixtures/car_v2/lorem.car");
         let file = File::open(&path).await.unwrap();
         // Taken from `car inspect tests/fixtures/car_v2/lorem.car`
