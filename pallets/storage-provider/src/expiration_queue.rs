@@ -188,10 +188,11 @@ where
             // Sectors that were rescheduled from this set
             let mut early_unset = Vec::new();
 
-            // We might have some faulty sectors that are expiring on time. This
-            // happens when on time expiration height is before the early
-            // expiration height. In those cases the recovered sector already
-            // expires at the correct height and we don't have to do anything.
+            // In some cases the sector can be faulty at the end of its normal
+            // lifetime. In those cases the early expiration would be after
+            // on_time expiration. If that happens the on_time is used as the
+            // expiration height. The loop below removes those cases from the
+            // `remaining``.
             for sector_number in expiration_set.on_time_sectors.iter() {
                 remaining.remove(&sector_number);
             }
