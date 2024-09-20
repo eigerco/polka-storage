@@ -33,12 +33,21 @@ where
             return Err(Error::InvalidCid);
         }
 
+        let mut cids = vec![];
         while let Ok((cid, _contents)) = self.read_block().await {
-            if cid == contents_cid {
-                return Ok(());
+            cids.push(cid);
+        }
+
+        match cids.last() {
+            None => Err(Error::InvalidCid),
+            Some(&cid_sum) => {
+                if cid_sum == contents_cid {
+                    Ok(())
+                } else {
+                    Err(Error::InvalidCid)
+                }
             }
         }
-        Err(Error::InvalidCid)
     }
 
     /// Reads the contents of the CARv2 file and puts the contents into the supplied output file.
