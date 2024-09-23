@@ -8,13 +8,17 @@ repository.workspace = true
 version = "0.1.0"
 
 [dependencies]
-bellperson = { workspace = true, optional = true }
+# Permanently used crates.
 bls12_381 = { workspace = true }
-blstrs = { workspace = true, optional = true }
-codec = { workspace = true, features = ["derive"], optional = true }
 pairing = { workspace = true }
+
+# Crates are only imported on feature 'std'.
+bellperson = { workspace = true, optional = true }
+blstrs = { workspace = true, optional = true }
+
+# Crates are only imported on feature 'substrate'.
+codec = { workspace = true, features = ["derive"], optional = true }
 scale-info = { workspace = true, features = ["derive"], optional = true }
-sp-std = { workspace = true, optional = true }
 
 [dev-dependencies]
 rand = { workspace = true, features = ["alloc"] }
@@ -24,5 +28,5 @@ workspace = true
 
 [features]
 default = ["std"]
-std = ["codec/std", "dep:bellperson", "dep:blstrs", "scale-info/std", "sp-std/std"]
-substrate = ["dep:codec", "dep:scale-info", "dep:sp-std"]
+std = ["dep:bellperson", "dep:blstrs"]
+substrate = ["dep:codec", "dep:scale-info"]

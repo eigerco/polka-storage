@@ -5612,7 +5612,7 @@ dependencies = [
  "libp2p-wasm-ext",
  "libp2p-websocket",
  "libp2p-yamux",
- "multiaddr 0.18.1",
+ "multiaddr 0.18.2",
  "pin-project",
  "rw-stream-sink",
  "thiserror",
@@ -5655,7 +5655,7 @@ dependencies = [
  "instant",
  "libp2p-identity",
  "log",
- "multiaddr 0.18.1",
+ "multiaddr 0.18.2",
  "multihash 0.19.1",
  "multistream-select",
  "once_cell",
@@ -5806,7 +5806,7 @@ dependencies = [
  "libp2p-core",
  "libp2p-identity",
  "log",
- "multiaddr 0.18.1",
+ "multiaddr 0.18.2",
  "multihash 0.19.1",
  "once_cell",
  "quick-protobuf",
@@ -6700,9 +6700,9 @@ dependencies = [
 
 [[package]]
 name = "multiaddr"
-version = "0.18.1"
+version = "0.18.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b852bc02a2da5feed68cd14fa50d0774b92790a5bdbfa932a813926c8472070"
+checksum = "fe6351f60b488e04c1d21bc69e56b89cb3f5e8f5d22557d6e8031bdfd79b6961"
 dependencies = [
  "arrayref",
  "byteorder",
@@ -6713,7 +6713,7 @@ dependencies = [
  "percent-encoding",
  "serde",
  "static_assertions",
- "unsigned-varint 0.7.2",
+ "unsigned-varint 0.8.0",
  "url",
 ]
 
@@ -8979,7 +8979,6 @@ dependencies = [
  "parity-scale-codec",
  "rand",
  "scale-info",
- "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2407-1)",
 ]
 
 [[package]]
@@ -12267,7 +12266,7 @@ dependencies = [
  "futures-timer",
  "log",
  "mixnet",
- "multiaddr 0.18.1",
+ "multiaddr 0.18.2",
  "parity-scale-codec",
  "parking_lot 0.12.3",
  "sc-client-api",
@@ -12458,7 +12457,7 @@ dependencies = [
  "libp2p-identity",
  "litep2p",
  "log",
- "multiaddr 0.18.1",
+ "multiaddr 0.18.2",
  "multihash 0.19.1",
  "rand",
  "thiserror",
@@ -17600,7 +17599,7 @@ checksum = "d20a7c88bdc730f4b4040428dab165035fd6466965cb2cc8f03da607d4c3e3db"
 dependencies = [
  "anyhow",
  "lazy_static",
- "multiaddr 0.18.1",
+ "multiaddr 0.18.2",
  "regex",
  "reqwest",
  "serde",
@@ -17625,7 +17624,7 @@ dependencies = [
  "hex",
  "libp2p",
  "libsecp256k1",
- "multiaddr 0.18.1",
+ "multiaddr 0.18.2",
  "rand",
  "regex",
  "reqwest",
