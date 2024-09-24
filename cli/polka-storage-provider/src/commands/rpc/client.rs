@@ -1,12 +1,16 @@
-use std::fmt::{self, Display, Formatter};
-
-use chrono::{DateTime, Utc};
 use url::Url;
 
-use crate::{
-    rpc::{client::Client, requests::info::InfoRequest, version::V0},
-    CliError,
+use crate::rpc::{
+    client::{Client, ClientError},
+    requests::info::InfoRequest,
+    version::V0,
 };
+
+#[derive(Debug, thiserror::Error)]
+pub enum ClientCommandError {
+    #[error("the RPC client failed: {0}")]
+    RpcClient(#[from] ClientError),
+}
 
 #[derive(Debug, clap::Parser)]
 pub struct ClientCommand {
@@ -25,7 +29,7 @@ pub enum ClientSubcommand {
 }
 
 impl ClientCommand {
-    pub async fn run(self) -> Result<(), anyhow::Error> {
+    pub async fn run(self) -> Result<(), ClientCommandError> {
         let client = Client::new(self.rpc_server_url).await?;
         match self.command {
             ClientSubcommand::Info(cmd) => Ok(cmd.run(&client).await?),
@@ -38,28 +42,13 @@ impl ClientCommand {
 pub struct InfoCommand;
 
 impl InfoCommand {
-    pub async fn run(self, client: &Client<V0>) -> Result<(), CliError> {
+    pub async fn run(self, client: &Client<V0>) -> Result<(), ClientCommandError> {
         // TODO(#67,@cernicc,07/06/2024): Print polkadot address used by the provider
 
         // Get server info
         let server_info = client.execute(InfoRequest).await?;
-
-        let node_status_info = NodeStatusInfo {
-            start_time: server_info.start_time,
-        };
-
-        println!("{}", node_status_info);
+        println!("Started at: {}", server_info.start_time);
 
         Ok(())
-    }
-}
-
-struct NodeStatusInfo {
-    start_time: DateTime<Utc>,
-}
-
-impl Display for NodeStatusInfo {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        writeln!(f, "Started at: {}", self.start_time)
     }
 }

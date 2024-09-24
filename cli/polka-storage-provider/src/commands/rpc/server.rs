@@ -13,6 +13,24 @@ use crate::{
     rpc::server::{start_rpc_server, RpcServerState},
 };
 
+/// Wait time for a graceful shutdown.
+const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// Retry interval to connect to the parachain RPC.
+const RETRY_INTERVAL: Duration = Duration::from_secs(10);
+
+/// Number of retries to connect to the parachain RPC.
+const RETRY_NUMBER: u32 = 5;
+
+#[derive(Debug, thiserror::Error)]
+pub enum ServerCommandError {
+    #[error("no signer keypair was passed")]
+    MissingKeypair,
+
+    #[error(transparent)]
+    Subxt(#[from] subxt::Error),
+}
+
 #[derive(Debug, clap::Parser)]
 pub struct ServerCommand {
     /// The server's listen address.
@@ -43,20 +61,23 @@ pub struct ServerCommand {
 }
 
 impl ServerCommand {
-    pub async fn run(self) -> Result<(), anyhow::Error> {
+    pub async fn run(self) -> Result<(), ServerCommandError> {
         // NOTE: maybe try to register / check if the provider is registered?
+        // once we try to run the server, we need to make sure its actually registered
+        // otherwise, all interactions will just return something akin to (or just it)
+        // "storage provider not registered"
 
         let Some(xt_keypair) = MultiPairSigner::new(
             self.sr25519_key.map(DebugPair::<Sr25519Pair>::into_inner),
             self.ecdsa_key.map(DebugPair::<ECDSAPair>::into_inner),
             self.ed25519_key.map(DebugPair::<Ed25519Pair>::into_inner),
         ) else {
-            // TODO: replace with a proper error
-            return Err(anyhow::Error::msg("no signer key was passed"));
+            return Err(ServerCommandError::MissingKeypair);
         };
 
         let xt_client =
-            storagext::Client::new(self.node_address.as_str(), 5, Duration::from_secs(10)).await?;
+            storagext::Client::new(self.node_address.as_str(), RETRY_NUMBER, RETRY_INTERVAL)
+                .await?;
 
         let state = Arc::new(RpcServerState {
             start_time: Utc::now(),
@@ -81,7 +102,7 @@ impl ServerCommand {
 
         // Give server some time to finish
         tracing::info!("shutting down server, killing it in 10sec");
-        let _ = tokio::time::timeout(std::time::Duration::from_secs(10), rpc_handler).await;
+        let _ = tokio::time::timeout(SHUTDOWN_TIMEOUT, rpc_handler).await;
 
         tracing::info!("storage provider stopped");
 

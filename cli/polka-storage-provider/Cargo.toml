@@ -8,8 +8,6 @@ repository.workspace = true
 version = "0.1.0"
 
 [dependencies]
-# TODO: remove
-anyhow.workspace = true
 async-trait = { workspace = true }
 axum = { workspace = true, features = ["macros", "multipart"] }
 chrono = { workspace = true, features = ["serde"] }

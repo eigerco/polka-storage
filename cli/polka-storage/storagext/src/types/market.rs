@@ -79,6 +79,7 @@ impl DealProposal {
 /// A client-signed [`DealProposal`].
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct ClientDealProposal {
+    /// The deal proposal content.
     pub deal_proposal: DealProposal,
 
     /// The signature of the [`DealProposal`].
