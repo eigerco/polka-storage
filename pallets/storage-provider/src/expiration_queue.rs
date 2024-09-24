@@ -266,10 +266,7 @@ where
         removed.on_time_sectors = BoundedBTreeSet::try_from(removed_sector_numbers)
             .expect("Critical error: sectors may not exceed MAX_SECTORS. This error should not occur with the set bounds");
 
-        // Finally, remove faulty sectors (on time and not). These sectors can
-        // only appear within the first 14 days (fault max age). Given that this
-        // queue is quantized, we should be able to stop traversing the queue
-        // after 14 entries.
+        // Finally, remove faulty sectors (on time and not).
         self.map.iter_mut().try_for_each(
             |(_block, expiration_set)| -> Result<(), ExpirationQueueError> {
                 for sector in &faulty_sectors {
