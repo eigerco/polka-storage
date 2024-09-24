@@ -541,12 +541,15 @@ mod tests {
         let result = q.remove_sectors(&to_remove, &faults);
         assert!(result.is_ok());
         let removed = result.unwrap();
+        let expected_on_time_sectors = BTreeSet::from([1, 4]);
+        let expected_early_sectors = BTreeSet::from([5, 6]);
 
         // assert all return values are correct
-        assert!(removed.on_time_sectors.contains(&1));
-        assert!(removed.on_time_sectors.contains(&4));
-        assert!(removed.early_sectors.contains(&5));
-        assert!(removed.early_sectors.contains(&6));
+        assert_eq!(
+            removed.on_time_sectors.into_inner(),
+            expected_on_time_sectors
+        );
+        assert_eq!(removed.early_sectors.into_inner(), expected_early_sectors);
     }
 
     fn sectors() -> [SectorOnChainInfo<u64>; 6] {
