@@ -1,0 +1,32 @@
+[package]
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+name = "polka-storage-proofs"
+repository.workspace = true
+version = "0.1.0"
+
+[dependencies]
+# Permanently used crates.
+bls12_381 = { workspace = true }
+pairing = { workspace = true }
+
+# Crates are only imported on feature 'std'.
+bellperson = { workspace = true, optional = true }
+blstrs = { workspace = true, optional = true }
+
+# Crates are only imported on feature 'substrate'.
+codec = { workspace = true, features = ["derive"], optional = true }
+scale-info = { workspace = true, features = ["derive"], optional = true }
+
+[dev-dependencies]
+rand = { workspace = true, features = ["alloc"] }
+
+[lints]
+workspace = true
+
+[features]
+default = ["std"]
+std = ["dep:bellperson", "dep:blstrs"]
+substrate = ["dep:codec", "dep:scale-info"]
