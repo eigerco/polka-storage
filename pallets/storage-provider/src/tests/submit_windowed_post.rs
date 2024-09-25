@@ -4,7 +4,7 @@ use sp_core::bounded_vec;
 use sp_runtime::{BoundedVec, DispatchError};
 
 use crate::{
-    deadline::DeadlineError,
+    error::GeneralPalletError,
     pallet::{Error, Event, StorageProviders},
     partition::PartitionNumber,
     sector::ProveCommitSector,
@@ -226,7 +226,9 @@ fn submit_windowed_post_for_sector_twice() {
                 RuntimeOrigin::signed(account(ALICE)),
                 windowed_post,
             ),
-            Error::<Test>::DeadlineError(DeadlineError::PartitionAlreadyProven)
+            Error::<Test>::GeneralPalletError(
+                GeneralPalletError::DeadlineErrorPartitionAlreadyProven
+            )
         );
         // Check that nothing was emitted
         assert_eq!(events(), []);
@@ -277,7 +279,7 @@ fn should_fail_when_proving_wrong_partition() {
                 RuntimeOrigin::signed(account(ALICE)),
                 windowed_post,
             ),
-            Error::<Test>::DeadlineError(DeadlineError::PartitionNotFound)
+            Error::<Test>::GeneralPalletError(GeneralPalletError::DeadlineErrorPartitionNotFound)
         );
     });
 }

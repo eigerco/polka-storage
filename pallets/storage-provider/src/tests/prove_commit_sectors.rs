@@ -5,9 +5,9 @@ use sp_core::bounded_vec;
 
 use super::{new_test_ext, MaxProveCommitDuration};
 use crate::{
+    error::GeneralPalletError,
     pallet::{Error, Event, StorageProviders},
     sector::{ProveCommitResult, ProveCommitSector, SectorPreCommitInfo},
-    storage_provider::StorageProviderError,
     tests::{
         account, events, publish_deals, register_storage_provider, run_to_block, Balances,
         RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System, Test,
@@ -240,7 +240,9 @@ fn fails_storage_precommit_missing() {
                 RuntimeOrigin::signed(account(storage_provider)),
                 bounded_vec![sector]
             ),
-            Error::<Test>::StorageProviderError(StorageProviderError::SectorNotFound),
+            Error::<Test>::GeneralPalletError(
+                GeneralPalletError::StorageProviderErrorSectorNotFound
+            ),
         );
     });
 }

@@ -4,7 +4,8 @@ use sp_core::{bounded_vec, ConstU32};
 use sp_runtime::{traits::BlockNumberProvider, BoundedVec};
 
 use crate::{
-    deadline::{DeadlineError, DeadlineInfo, Deadlines},
+    deadline::{DeadlineInfo, Deadlines},
+    error::GeneralPalletError,
     fault::{DeclareFaultsRecoveredParams, RecoveryDeclaration},
     pallet::{Error, Event, StorageProviders, DECLARATIONS_MAX},
     tests::{
@@ -190,7 +191,7 @@ fn successfully_recover_multiple_sector_faults() {
         partition: 0,
         sectors: create_set(&[]),
     },
-], Error::<Test>::DeadlineError(DeadlineError::CouldNotAddSectors).into())]
+], Error::<Test>::GeneralPalletError(GeneralPalletError::DeadlineErrorCouldNotAddSectors).into())]
 // Deadline specified is not valid
 #[case(bounded_vec![
     RecoveryDeclaration {
@@ -198,7 +199,7 @@ fn successfully_recover_multiple_sector_faults() {
         partition: 0,
         sectors: create_set(&[0]),
     },
-], Error::<Test>::DeadlineError(DeadlineError::DeadlineIndexOutOfRange).into())]
+], Error::<Test>::GeneralPalletError(GeneralPalletError::DeadlineErrorDeadlineIndexOutOfRange).into())]
 // Partition specified is not used
 #[case(bounded_vec![
     RecoveryDeclaration {
@@ -206,21 +207,21 @@ fn successfully_recover_multiple_sector_faults() {
         partition: 99,
         sectors: create_set(&[0]),
     },
-], Error::<Test>::DeadlineError(DeadlineError::PartitionNotFound).into())]
+], Error::<Test>::GeneralPalletError(GeneralPalletError::DeadlineErrorPartitionNotFound).into())]
 #[case(bounded_vec![
     RecoveryDeclaration {
         deadline: 0,
         partition: 0,
         sectors: create_set(&[99]),
      },
-], Error::<Test>::DeadlineError(DeadlineError::SectorsNotFound).into())]
+], Error::<Test>::GeneralPalletError(GeneralPalletError::DeadlineErrorSectorsNotFound).into())]
 #[case(bounded_vec![
     RecoveryDeclaration {
         deadline: 0,
         partition: 0,
         sectors: create_set(&[0]),
      },
-], Error::<Test>::DeadlineError(DeadlineError::SectorsNotFaulty).into())]
+], Error::<Test>::GeneralPalletError(GeneralPalletError::DeadlineErrorSectorsNotFaulty).into())]
 fn fails_data_missing_malformed(
     #[case] declared_recoveries: BoundedVec<RecoveryDeclaration, ConstU32<DECLARATIONS_MAX>>,
     #[case] expected_error: Error<Test>,

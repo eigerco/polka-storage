@@ -6,16 +6,14 @@ use codec::{Decode, Encode};
 use frame_support::{
     pallet_prelude::{ConstU32, RuntimeDebug},
     sp_runtime::{BoundedBTreeMap, BoundedVec},
-    PalletError,
 };
 use primitives_proofs::{RegisteredPoStProof, SectorNumber, SectorSize};
 use scale_info::TypeInfo;
 use sp_arithmetic::{traits::BaseArithmetic, ArithmeticError};
 
 use crate::{
-    deadline::{
-        assign_deadlines, deadline_is_mutable, Deadline, DeadlineError, DeadlineInfo, Deadlines,
-    },
+    deadline::{assign_deadlines, deadline_is_mutable, Deadline, DeadlineInfo, Deadlines},
+    error::GeneralPalletError,
     sector::{SectorOnChainInfo, SectorPreCommitOnChainInfo, MAX_SECTORS},
 };
 
@@ -126,11 +124,14 @@ where
     pub fn put_pre_committed_sector(
         &mut self,
         precommit: SectorPreCommitOnChainInfo<Balance, BlockNumber>,
-    ) -> Result<(), StorageProviderError> {
+    ) -> Result<(), GeneralPalletError> {
         let sector_number = precommit.info.sector_number;
         self.pre_committed_sectors
             .try_insert(sector_number, precommit)
-            .map_err(|_| StorageProviderError::MaxPreCommittedSectorExceeded)?;
+            .map_err(|_| {
+                log::error!(target: LOG_TARGET, "put_pre_committed_sector: Failed to insert pre committed sector {sector_number:?}");
+                GeneralPalletError::StorageProviderErrorMaxPreCommittedSectorExceeded
+            })?;
 
         Ok(())
     }
@@ -139,20 +140,26 @@ where
     pub fn get_pre_committed_sector(
         &self,
         sector_number: SectorNumber,
-    ) -> Result<&SectorPreCommitOnChainInfo<Balance, BlockNumber>, StorageProviderError> {
+    ) -> Result<&SectorPreCommitOnChainInfo<Balance, BlockNumber>, GeneralPalletError> {
         self.pre_committed_sectors
             .get(&sector_number)
-            .ok_or(StorageProviderError::SectorNotFound)
+            .ok_or({
+                log::error!(target: LOG_TARGET, "get_pre_committed_sector: Failed to get pre committed sector {sector_number:?}");
+                GeneralPalletError::StorageProviderErrorSectorNotFound
+            })
     }
 
     /// Removes a pre committed sector from the given sector number.
     pub fn remove_pre_committed_sector(
         &mut self,
         sector_num: SectorNumber,
-    ) -> Result<(), StorageProviderError> {
+    ) -> Result<(), GeneralPalletError> {
         self.pre_committed_sectors
             .remove(&sector_num)
-            .ok_or(StorageProviderError::SectorNotFound)?;
+            .ok_or({
+                log::error!(target: LOG_TARGET, "remove_pre_committed_sector: Failed to remove pre committed sector {sector_num:?}");
+                GeneralPalletError::StorageProviderErrorSectorNotFound
+            })?;
         Ok(())
     }
 
@@ -163,10 +170,13 @@ where
         &mut self,
         sector_num: SectorNumber,
         info: SectorOnChainInfo<BlockNumber>,
-    ) -> Result<(), StorageProviderError> {
+    ) -> Result<(), GeneralPalletError> {
         self.sectors
             .try_insert(sector_num, info)
-            .map_err(|_| StorageProviderError::SectorNumberInUse)?;
+            .map_err(|_| {
+                log::error!(target: LOG_TARGET, "activate_sector: Failed to activate {sector_num:?} because that sector number is in use");
+                GeneralPalletError::StorageProviderErrorSectorNumberInUse
+            })?;
         Ok(())
     }
 
@@ -185,7 +195,7 @@ where
         w_post_challenge_window: BlockNumber,
         w_post_challenge_lookback: BlockNumber,
         fault_declaration_cutoff: BlockNumber,
-    ) -> Result<(), StorageProviderError> {
+    ) -> Result<(), GeneralPalletError> {
         sectors.sort_by_key(|info| info.sector_number);
 
         log::debug!(target: LOG_TARGET,
@@ -237,12 +247,9 @@ where
                 continue;
             }
 
-            let deadline =
-                deadline_vec[deadline_idx]
-                    .as_mut()
-                    .ok_or(StorageProviderError::DeadlineError(
-                        DeadlineError::CouldNotAssignSectorsToDeadlines,
-                    ))?;
+            let deadline = deadline_vec[deadline_idx]
+                .as_mut()
+                .ok_or(GeneralPalletError::DeadlineErrorCouldNotAssignSectorsToDeadlines)?;
 
             deadline.add_sectors(partition_size, deadline_sectors)?;
             self.deadlines.due[deadline_idx] = deadline.clone();
@@ -267,7 +274,7 @@ where
         w_post_challenge_window: BlockNumber,
         w_post_challenge_lookback: BlockNumber,
         fault_declaration_cutoff: BlockNumber,
-    ) -> Result<DeadlineInfo<BlockNumber>, DeadlineError> {
+    ) -> Result<DeadlineInfo<BlockNumber>, GeneralPalletError> {
         log::info!(target: LOG_TARGET, "deadline_info: fault_declaration_cutoff = {fault_declaration_cutoff:?}");
         let current_deadline_index = self.current_deadline;
 
@@ -281,25 +288,6 @@ where
             w_post_challenge_lookback,
             fault_declaration_cutoff,
         )
-    }
-}
-
-/// Errors that can occur while interacting with the storage provider state.
-#[derive(Decode, Encode, PalletError, TypeInfo, RuntimeDebug)]
-pub enum StorageProviderError {
-    /// Happens when an SP tries to pre-commit more sectors than SECTOR_MAX.
-    MaxPreCommittedSectorExceeded,
-    /// Happens when trying to access a sector that does not exist.
-    SectorNotFound,
-    /// Happens when a sector number is already in use.
-    SectorNumberInUse,
-    /// Wrapper around [`DeadlineError`]
-    DeadlineError(crate::deadline::DeadlineError),
-}
-
-impl From<DeadlineError> for StorageProviderError {
-    fn from(dl_err: DeadlineError) -> Self {
-        Self::DeadlineError(dl_err)
     }
 }
 

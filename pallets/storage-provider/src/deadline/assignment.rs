@@ -3,10 +3,7 @@ extern crate alloc;
 use alloc::{collections::BinaryHeap, vec, vec::Vec};
 use core::cmp::Ordering;
 
-use crate::{
-    deadline::{Deadline, DeadlineError},
-    sector::SectorOnChainInfo,
-};
+use crate::{deadline::Deadline, error::GeneralPalletError, sector::SectorOnChainInfo};
 
 const LOG_TARGET: &'static str = "runtime::storage_provider::assignment";
 
@@ -154,7 +151,7 @@ pub fn assign_deadlines<BlockNumber>(
     deadlines: &[Option<Deadline<BlockNumber>>],
     sectors: &[SectorOnChainInfo<BlockNumber>],
     w_post_period_deadlines: u64,
-) -> Result<Vec<Vec<SectorOnChainInfo<BlockNumber>>>, DeadlineError>
+) -> Result<Vec<Vec<SectorOnChainInfo<BlockNumber>>>, GeneralPalletError>
 where
     BlockNumber: sp_runtime::traits::BlockNumber,
 {
@@ -213,11 +210,11 @@ where
     for sector in sectors {
         let info = &mut heap
             .peek_mut()
-            .ok_or(DeadlineError::CouldNotConstructDeadlineInfo)?
+            .ok_or(GeneralPalletError::DeadlineErrorCouldNotConstructDeadlineInfo)?
             .info;
 
         if info.max_partitions_reached(partition_size, max_partitions) {
-            return Err(DeadlineError::MaxPartitionsReached);
+            return Err(GeneralPalletError::DeadlineErrorMaxPartitionsReached);
         }
 
         deadlines[info.index].push(sector.clone());

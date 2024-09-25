@@ -3,12 +3,13 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use codec::{Decode, Encode};
-use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeMap, PalletError};
+use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeMap};
 use primitives_proofs::SectorNumber;
 use scale_info::{prelude::cmp, TypeInfo};
 
 use crate::{
-    partition::{Partition, PartitionError, PartitionNumber, MAX_PARTITIONS_PER_DEADLINE},
+    error::GeneralPalletError,
+    partition::{Partition, PartitionNumber, MAX_PARTITIONS_PER_DEADLINE},
     sector::{SectorOnChainInfo, MAX_SECTORS},
     sector_map::PartitionMap,
 };
@@ -108,29 +109,32 @@ where
             ConstU32<MAX_SECTORS>,
         >,
         partitions: BoundedVec<PartitionNumber, ConstU32<MAX_PARTITIONS_PER_DEADLINE>>,
-    ) -> Result<(), DeadlineError> {
+    ) -> Result<(), GeneralPalletError> {
         for partition_num in partitions {
             log::debug!(target: LOG_TARGET, "record_proven: partition number = {partition_num:?}");
 
             let partition = self.partitions.get_mut(&partition_num).ok_or_else(|| {
                 log::error!(target: LOG_TARGET, "record_proven: partition {partition_num:?} not found");
-                DeadlineError::PartitionNotFound
+                GeneralPalletError::DeadlineErrorPartitionNotFound
             })?;
 
             // Ensure the partition hasn't already been proven.
             ensure!(!self.partitions_posted.contains(&partition_num), {
                 log::error!(target: LOG_TARGET, "record_proven: partition {partition_num:?} already proven");
-                DeadlineError::PartitionAlreadyProven
+                GeneralPalletError::DeadlineErrorPartitionAlreadyProven
             });
 
             // Record the partition as proven.
             self.partitions_posted
                 .try_insert(partition_num)
-                .map_err(|_| DeadlineError::ProofUpdateFailed)?;
+                .map_err(|e| {
+                    log::error!(target:LOG_TARGET, "record_proven: Error while trying to insert partitions {e:?}");
+                    GeneralPalletError::DeadlineErrorProofUpdateFailed
+                })?;
 
             partition.recover_all_declared_recoveries(all_sectors).map_err(|err| {
-                log::error!(target: LOG_TARGET, "record_proven: failed to recover all declared recoveries for partition {partition_num:?}");
-                DeadlineError::PartitionError(err)
+                log::error!(target: LOG_TARGET, "record_proven: failed to recover all declared recoveries for partition {partition_num:?} {err:?}");
+                err
             })?;
         }
 
@@ -148,7 +152,7 @@ where
         &mut self,
         partition_size: u64,
         sectors: &[SectorOnChainInfo<BlockNumber>],
-    ) -> Result<(), DeadlineError> {
+    ) -> Result<(), GeneralPalletError> {
         if sectors.is_empty() {
             return Ok(());
         }
@@ -192,9 +196,7 @@ where
             let (partition_new_sectors, sectors) = sectors.split_at(size);
 
             // Add new sector numbers to the current partition.
-            partition
-                .add_sectors(&partition_new_sectors)
-                .map_err(|_| DeadlineError::CouldNotAddSectors)?;
+            partition.add_sectors(&partition_new_sectors)?;
 
             // Record deadline -> partition mapping so we can later update the deadlines.
             partition_deadline_updates.extend(
@@ -213,7 +215,7 @@ where
             log::error!(target: LOG_TARGET, "add_sectors: could not convert partitions to BoundedBTreeMap, too many of them ({} -> {}).",
                 initial_partitions,
                 partition_idx);
-            DeadlineError::CouldNotAddSectors
+            GeneralPalletError::DeadlineErrorCouldNotAddSectors
         })?;
         // Ignore the default value placed by `take`
         let _ = core::mem::replace(&mut self.partitions, partitions);
@@ -222,7 +224,7 @@ where
         for (block, partition_index) in partition_deadline_updates {
             self.expirations_blocks.try_insert(block, partition_index).map_err(|_| {
                 log::error!(target: LOG_TARGET, "add_sectors: Cannot update expiration queue at index {partition_idx}");
-                DeadlineError::CouldNotAddSectors
+                GeneralPalletError::DeadlineErrorCouldNotAddSectors
             })?;
         }
 
@@ -240,17 +242,17 @@ where
         >,
         partition_sectors: &mut PartitionMap,
         fault_expiration_block: BlockNumber,
-    ) -> Result<(), DeadlineError> {
+    ) -> Result<(), GeneralPalletError> {
         for (partition_number, faulty_sectors) in partition_sectors.0.iter() {
             let partition = self
                 .partitions
                 .get_mut(partition_number)
-                .ok_or(DeadlineError::PartitionNotFound)?;
+                .ok_or(GeneralPalletError::DeadlineErrorPartitionNotFound)?;
 
             // Whether all sectors that we declare as faulty actually exist
             ensure!(faulty_sectors.iter().all(|s| sectors.contains_key(&s)), {
                 log::error!(target: LOG_TARGET, "record_faults: sectors {:?} not found in the storage provider", faulty_sectors);
-                DeadlineError::SectorsNotFound
+                GeneralPalletError::DeadlineErrorSectorsNotFound
             });
 
             partition.record_faults(
@@ -259,7 +261,7 @@ where
                 fault_expiration_block
             ).map_err(|e| {
                 log::error!(target: LOG_TARGET, "record_faults: Error while recording faults in a partition: {e:?}");
-                DeadlineError::PartitionError(e)
+                e
             })?;
 
             // Update expiration block
@@ -271,12 +273,12 @@ where
                 self.expirations_blocks.remove(&block);
                 self.expirations_blocks.try_insert(fault_expiration_block, *partition_number).map_err(|_| {
                     log::error!(target: LOG_TARGET, "record_faults: Could not insert new expiration");
-                    DeadlineError::FailedToUpdateFaultExpiration
+                    GeneralPalletError::DeadlineErrorFailedToUpdateFaultExpiration
                 })?;
             } else {
                 self.expirations_blocks.try_insert(fault_expiration_block, *partition_number).map_err(|_| {
                     log::error!(target: LOG_TARGET, "record_faults: Could not insert new expiration");
-                    DeadlineError::FailedToUpdateFaultExpiration
+                    GeneralPalletError::DeadlineErrorFailedToUpdateFaultExpiration
                 })?;
             }
         }
@@ -294,14 +296,14 @@ where
             ConstU32<MAX_SECTORS>,
         >,
         partition_sectors: &PartitionMap,
-    ) -> Result<(), DeadlineError> {
+    ) -> Result<(), GeneralPalletError> {
         for (partition_number, recovered_sectors) in partition_sectors.0.iter() {
             let partition = self
                 .partitions
                 .get_mut(partition_number)
                 .ok_or_else(|| {
                     log::error!(target: LOG_TARGET, "declare_faults_recovered: Could not find partition {partition_number}");
-                    DeadlineError::PartitionNotFound
+                    GeneralPalletError::DeadlineErrorPartitionNotFound
                 })?;
 
             // Whether all sectors that we declare as recovered actually exist
@@ -309,7 +311,7 @@ where
                 recovered_sectors.iter().all(|s| sectors.contains_key(&s)),
                 {
                     log::error!(target: LOG_TARGET, "record_faults: sectors {:?} not found in the storage provider", recovered_sectors);
-                    DeadlineError::SectorsNotFound
+                    GeneralPalletError::DeadlineErrorSectorsNotFound
                 }
             );
 
@@ -320,7 +322,7 @@ where
                     .all(|s| partition.faults.contains(&s)),
                 {
                     log::error!(target: LOG_TARGET, "record_faults: sectors {:?} were not all marked as faulty before", recovered_sectors);
-                    DeadlineError::SectorsNotFaulty
+                    GeneralPalletError::DeadlineErrorSectorsNotFaulty
                 }
             );
 
@@ -377,15 +379,18 @@ where
     pub fn load_deadline_mut(
         &mut self,
         idx: usize,
-    ) -> Result<&mut Deadline<BlockNumber>, DeadlineError> {
+    ) -> Result<&mut Deadline<BlockNumber>, GeneralPalletError> {
         log::debug!(target: LOG_TARGET, "load_deadline_mut: getting deadline at index {idx}");
         // Ensure the provided index is within range.
-        ensure!(self.len() > idx, DeadlineError::DeadlineIndexOutOfRange);
+        ensure!(
+            self.len() > idx,
+            GeneralPalletError::DeadlineErrorDeadlineIndexOutOfRange
+        );
         if let Some(deadline) = self.due.get_mut(idx) {
             Ok(deadline)
         } else {
             log::error!(target: LOG_TARGET, "load_deadline_mut: Failed to get deadline at index {idx}");
-            Err(DeadlineError::DeadlineNotFound)
+            Err(GeneralPalletError::DeadlineErrorDeadlineNotFound)
         }
     }
 
@@ -401,7 +406,7 @@ where
             ConstU32<MAX_SECTORS>,
         >,
         partitions: BoundedVec<PartitionNumber, ConstU32<MAX_PARTITIONS_PER_DEADLINE>>,
-    ) -> Result<(), DeadlineError> {
+    ) -> Result<(), GeneralPalletError> {
         log::debug!(target: LOG_TARGET, "record_proven: partition number: {partitions:?}");
         let deadline = self.load_deadline_mut(deadline_idx)?;
         deadline.record_proven(all_sectors, partitions)?;
@@ -475,16 +480,16 @@ where
         w_post_challenge_window: BlockNumber,
         w_post_challenge_lookback: BlockNumber,
         fault_declaration_cutoff: BlockNumber,
-    ) -> Result<Self, DeadlineError> {
+    ) -> Result<Self, GeneralPalletError> {
         // convert w_post_period_deadlines and idx so we can math
         let period_deadlines = BlockNumber::try_from(w_post_period_deadlines).map_err(|_| {
             log::error!(target: LOG_TARGET, "failed to convert {w_post_period_deadlines:?} to BlockNumber");
-            DeadlineError::CouldNotConstructDeadlineInfo
+            GeneralPalletError::DeadlineErrorCouldNotConstructDeadlineInfo
         })?;
 
         let idx_converted = BlockNumber::try_from(idx).map_err(|_| {
             log::error!(target: LOG_TARGET, "failed to convert {idx:?} to BlockNumber");
-            DeadlineError::CouldNotConstructDeadlineInfo
+            GeneralPalletError::DeadlineErrorCouldNotConstructDeadlineInfo
         })?;
 
         let (open_at, close_at, challenge, fault_cutoff) = if idx_converted < period_deadlines {
@@ -551,7 +556,7 @@ where
     /// If the current deadline has not elapsed yet then it returns the current deadline.
     /// Otherwise it calculates the next period start by getting the gap between the current block number and the closing block number
     /// and adding 1. Making sure it is a multiple of proving period by dividing by `w_post_proving_period`.
-    pub fn next_not_elapsed(self) -> Result<Self, DeadlineError> {
+    pub fn next_not_elapsed(self) -> Result<Self, GeneralPalletError> {
         if !self.has_elapsed() {
             return Ok(self);
         }
@@ -587,7 +592,7 @@ pub fn deadline_is_mutable<BlockNumber>(
     w_post_challenge_window: BlockNumber,
     w_post_challenge_lookback: BlockNumber,
     fault_declaration_cutoff: BlockNumber,
-) -> Result<bool, DeadlineError>
+) -> Result<bool, GeneralPalletError>
 where
     BlockNumber: sp_runtime::traits::BlockNumber,
 {
@@ -608,34 +613,4 @@ where
     // Ensure that the current block is at least one challenge window before
     // that deadline opens.
     Ok(current_block < dl_info.open_at - w_post_challenge_window)
-}
-
-#[derive(Decode, Encode, PalletError, TypeInfo, RuntimeDebug)]
-pub enum DeadlineError {
-    /// Emitted when the passed in deadline index supplied for `submit_windowed_post` is out of range.
-    DeadlineIndexOutOfRange,
-    /// Emitted when a trying to get a deadline index but fails because that index does not exist.
-    DeadlineNotFound,
-    /// Emitted when constructing `DeadlineInfo` fails.
-    CouldNotConstructDeadlineInfo,
-    /// Emitted when a proof is submitted for a partition that is already proven.
-    PartitionAlreadyProven,
-    /// Emitted when trying to retrieve a partition that does not exit.
-    PartitionNotFound,
-    /// Emitted when trying to update proven partitions fails.
-    ProofUpdateFailed,
-    /// Emitted when max partition for a given deadline have been reached.
-    MaxPartitionsReached,
-    /// Emitted when trying to add sectors to a deadline fails.
-    CouldNotAddSectors,
-    /// Emitted when trying to use sectors which haven't been prove committed yet.
-    SectorsNotFound,
-    /// Emitted when trying to recover non-faulty sectors,
-    SectorsNotFaulty,
-    /// Emitted when assigning sectors to deadlines fails.
-    CouldNotAssignSectorsToDeadlines,
-    /// Emitted when trying to update fault expirations fails
-    FailedToUpdateFaultExpiration,
-    /// Wrapper around the partition error type
-    PartitionError(PartitionError),
 }

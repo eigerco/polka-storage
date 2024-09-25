@@ -19,6 +19,7 @@ mod benchmarks;
 mod tests;
 
 mod deadline;
+mod error;
 mod expiration_queue;
 mod fault;
 mod partition;
@@ -65,7 +66,7 @@ pub mod pallet {
     use sp_arithmetic::traits::Zero;
 
     use crate::{
-        deadline::{DeadlineError, DeadlineInfo},
+        deadline::DeadlineInfo,
         fault::{
             DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration,
             RecoveryDeclaration,
@@ -308,14 +309,6 @@ pub mod pallet {
         PoStProofInvalid,
         /// Emitted when an error occurs when submitting PoSt.
         InvalidDeadlineSubmission,
-        /// Wrapper around the [`DeadlineError`] type.
-        DeadlineError(crate::deadline::DeadlineError),
-        /// Wrapper around the [`PartitionError`] type.
-        PartitionError(crate::partition::PartitionError),
-        /// Wrapper around the [`StorageProviderError`] type.
-        StorageProviderError(crate::storage_provider::StorageProviderError),
-        /// Wrapper around the [`SectorMapError`] type.
-        SectorMapError(crate::sector_map::SectorMapError),
         /// Emitted when Market::verify_deals_for_activation fails for an unexpected reason.
         /// Verification happens in pre_commit, to make sure a sector is precommited with valid deals.
         CouldNotVerifySectorForPreCommit,
@@ -328,6 +321,14 @@ pub mod pallet {
         FaultRecoveryTooLate,
         /// Tried to slash reserved currency and burn it.
         SlashingFailed,
+        /// Inner pallet errors
+        GeneralPalletError(crate::error::GeneralPalletError),
+    }
+
+    impl<T> From<crate::error::GeneralPalletError> for Error<T> {
+        fn from(err: crate::error::GeneralPalletError) -> Error<T> {
+            Error::<T>::GeneralPalletError(err)
+        }
     }
 
     #[pallet::call]
@@ -472,7 +473,7 @@ pub mod pallet {
                 sp.add_pre_commit_deposit(total_deposit)?;
                 for sector_on_chain in on_chain_sectors {
                     sp.put_pre_committed_sector(sector_on_chain)
-                        .map_err(|e| Error::<T>::StorageProviderError(e))?;
+                        .map_err(|e| Error::<T>::GeneralPalletError(e))?;
                 }
                 Ok(())
             })?;
@@ -510,7 +511,7 @@ pub mod pallet {
                 // proving.
                 let precommit = sp
                     .get_pre_committed_sector(sector.sector_number)
-                    .map_err(|e| Error::<T>::StorageProviderError(e))?;
+                    .map_err(|e| Error::<T>::GeneralPalletError(e))?;
                 let prove_commit_due =
                     precommit.pre_commit_block_number + T::MaxProveCommitDuration::get();
                 ensure!(current_block < prove_commit_due, {
@@ -551,11 +552,9 @@ pub mod pallet {
             sector_numbers.iter().zip(&new_sectors).try_for_each(
                 |(&sector_number, new_sector)| -> Result<(), Error<T>> {
                     // Activate the new sector
-                    sp.activate_sector(sector_number, new_sector.clone())
-                        .map_err(|e| Error::<T>::StorageProviderError(e))?;
+                    sp.activate_sector(sector_number, new_sector.clone())?;
                     // Remove sector from the pre-committed map
-                    sp.remove_pre_committed_sector(sector_number)
-                        .map_err(|e| Error::<T>::StorageProviderError(e))?;
+                    sp.remove_pre_committed_sector(sector_number)?;
 
                     Ok(())
                 },
@@ -574,7 +573,7 @@ pub mod pallet {
                 T::WPoStChallengeLookBack::get(),
                 T::FaultDeclarationCutoff::get(),
             )
-            .map_err(|e| Error::<T>::StorageProviderError(e))?;
+            .map_err(|e| Error::<T>::GeneralPalletError(e))?;
 
             let sectors_proven = sector_numbers
                 .iter()
@@ -667,7 +666,7 @@ pub mod pallet {
                     T::WPoStChallengeLookBack::get(),
                     T::FaultDeclarationCutoff::get(),
                 )
-                .map_err(|e| Error::<T>::DeadlineError(e))?;
+                .map_err(|e| Error::<T>::GeneralPalletError(e))?;
 
             Self::validate_deadline(&current_deadline, &windowed_post)?;
 
@@ -702,7 +701,7 @@ pub mod pallet {
                     &all_sectors,
                     windowed_post.partitions,
                 )
-                .map_err(|e| Error::<T>::DeadlineError(e))?;
+                .map_err(|e| Error::<T>::GeneralPalletError(e))?;
 
             // Store new storage provider state
             StorageProviders::<T>::set(owner.clone(), Some(sp));
@@ -732,12 +731,15 @@ pub mod pallet {
                 // Check if the sectors passed are empty
                 if term.sectors.is_empty() {
                     log::error!(target: LOG_TARGET, "declare_faults: [deadline: {}, partition: {}] cannot add empty sectors", deadline, partition);
-                    return Err(Error::<T>::DeadlineError(DeadlineError::CouldNotAddSectors).into());
+                    return Err(Error::<T>::GeneralPalletError(
+                        crate::error::GeneralPalletError::DeadlineErrorCouldNotAddSectors,
+                    )
+                    .into());
                 }
 
                 to_process
                     .try_insert(deadline, partition, term.sectors.clone())
-                    .map_err(|e| Error::<T>::SectorMapError(e))?;
+                    .map_err(|e| Error::<T>::GeneralPalletError(e))?;
             }
 
             for (&deadline_idx, partition_map) in to_process.into_iter() {
@@ -745,7 +747,9 @@ pub mod pallet {
                 // Check deadline index to avoid doing any work if it is wrong.
                 ensure!(
                     (deadline_idx as usize) < sp.deadlines.due.len(),
-                    Error::<T>::DeadlineError(DeadlineError::DeadlineIndexOutOfRange)
+                    Error::<T>::GeneralPalletError(
+                        crate::error::GeneralPalletError::DeadlineErrorDeadlineIndexOutOfRange
+                    )
                 );
                 // Get the target deadline
                 // We're deviating from the original implementation by using the `sp.proving_period_start`
@@ -765,7 +769,7 @@ pub mod pallet {
                     T::FaultDeclarationCutoff::get(),
                 )
                 .and_then(DeadlineInfo::next_not_elapsed)
-                .map_err(|e| Error::<T>::DeadlineError(e))?;
+                .map_err(|e| Error::<T>::GeneralPalletError(e))?;
 
                 // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L2451-L2458
                 ensure!(!target_dl.fault_cutoff_passed(), {
@@ -778,10 +782,10 @@ pub mod pallet {
                 let dl = sp
                     .deadlines
                     .load_deadline_mut(deadline_idx as usize)
-                    .map_err(|e| Error::<T>::DeadlineError(e))?;
+                    .map_err(|e| Error::<T>::GeneralPalletError(e))?;
 
                 dl.record_faults(&sp.sectors, partition_map, fault_expiration_block)
-                    .map_err(|e| Error::<T>::DeadlineError(e))?;
+                    .map_err(|e| Error::<T>::GeneralPalletError(e))?;
             }
 
             StorageProviders::<T>::set(owner.clone(), Some(sp));
@@ -816,12 +820,15 @@ pub mod pallet {
                 // Check if the sectors passed are empty
                 if term.sectors.is_empty() {
                     log::error!(target: LOG_TARGET, "declare_faults_recovered: sectors cannot be empty for deadline: {:?}, partition: {:?}", deadline, partition);
-                    return Err(Error::<T>::DeadlineError(DeadlineError::CouldNotAddSectors).into());
+                    return Err(Error::<T>::GeneralPalletError(
+                        crate::error::GeneralPalletError::DeadlineErrorCouldNotAddSectors,
+                    )
+                    .into());
                 }
 
                 to_process
                     .try_insert(deadline, partition, term.sectors.clone())
-                    .map_err(|e| Error::<T>::SectorMapError(e))?;
+                    .map_err(|e| Error::<T>::GeneralPalletError(e))?;
             }
 
             for (&deadline_idx, partition_map) in to_process.0.iter() {
@@ -829,7 +836,9 @@ pub mod pallet {
                 // Check deadline index to avoid doing any work if it is wrong.
                 ensure!(
                     (deadline_idx as usize) < sp.deadlines.due.len(),
-                    Error::<T>::DeadlineError(DeadlineError::DeadlineIndexOutOfRange)
+                    Error::<T>::GeneralPalletError(
+                        crate::error::GeneralPalletError::DeadlineErrorDeadlineIndexOutOfRange
+                    )
                 );
                 // Get the deadline
                 let target_dl = DeadlineInfo::new(
@@ -843,7 +852,7 @@ pub mod pallet {
                     T::FaultDeclarationCutoff::get(),
                 )
                 .and_then(DeadlineInfo::next_not_elapsed)
-                .map_err(|e| Error::<T>::DeadlineError(e))?;
+                .map_err(|e| Error::<T>::GeneralPalletError(e))?;
 
                 ensure!(!target_dl.fault_cutoff_passed(), {
                     log::error!(target: LOG_TARGET, "declare_faults: late fault declaration at deadline {:?}. {:?} >= {:?}",
@@ -853,9 +862,9 @@ pub mod pallet {
                 let dl = sp
                     .deadlines
                     .load_deadline_mut(deadline_idx as usize)
-                    .map_err(|e| Error::<T>::DeadlineError(e))?;
+                    .map_err(|e| Error::<T>::GeneralPalletError(e))?;
                 dl.declare_faults_recovered(&sp.sectors, partition_map)
-                    .map_err(|e| Error::<T>::DeadlineError(e))?;
+                    .map_err(|e| Error::<T>::GeneralPalletError(e))?;
             }
 
             StorageProviders::<T>::insert(owner.clone(), sp);
