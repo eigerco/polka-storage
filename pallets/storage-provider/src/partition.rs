@@ -9,7 +9,7 @@ use scale_info::TypeInfo;
 
 use crate::{
     error::GeneralPalletError,
-    expiration_queue::ExpirationQueue,
+    expiration_queue::{ExpirationQueue, ExpirationSet},
     sector::{SectorOnChainInfo, MAX_SECTORS},
 };
 
@@ -291,37 +291,120 @@ where
 
         Ok(())
     }
+
+    /// Marks a collection of sectors as terminated.
+    /// The sectors are removed from Faults and Recoveries.
+    pub fn terminate_sectors(
+        &mut self,
+        block_number: BlockNumber,
+        sectors: &[SectorOnChainInfo<BlockNumber>],
+    ) -> Result<ExpirationSet, GeneralPalletError> {
+        let sector_numbers: BTreeSet<_> = sectors.iter().map(|s| s.sector_number).collect();
+        // Ensure that all given sectors are live
+        ensure!(
+            sector_numbers
+                .difference(&self.live_sectors())
+                .collect::<BTreeSet<&SectorNumber>>()
+                .is_empty(),
+            {
+                log::error!(target: LOG_TARGET, "can only terminate live sectors");
+                GeneralPalletError::PartitionErrorSectorsNotLive
+            }
+        );
+
+        let removed = self.expirations.remove_sectors(sectors, &self.faults)?;
+        let removed_sectors = removed
+            .on_time_sectors
+            .union(&removed.early_sectors)
+            .copied()
+            .collect::<BTreeSet<_>>()
+            .try_into()
+            .expect("Critical error: Conversion to a set bounded at MAX_SECTORS should always be possible");
+
+        // Record early terminations
+        self.record_early_terminations(block_number, &removed_sectors)?;
+        let unproven_nos = removed_sectors
+            .intersection(&self.unproven)
+            .copied()
+            .collect::<BTreeSet<_>>();
+
+        // Update partition metadata
+        self.faults = self
+            .faults
+            .difference(&removed_sectors)
+            .copied()
+            .collect::<BTreeSet<_>>()
+            .try_into()
+            .expect("Critical error: Conversion to a set bounded at MAX_SECTORS should always be possible");
+        self.recoveries = self
+            .recoveries
+            .difference(&removed_sectors)
+            .copied()
+            .collect::<BTreeSet<_>>()
+            .try_into()
+            .expect("Critical error: Conversion to a set bounded at MAX_SECTORS should always be possible");
+        self.terminated = self
+            .terminated
+            .union(&removed_sectors)
+            .copied()
+            .collect::<BTreeSet<_>>()
+            .try_into()
+            .expect("Critical error: Conversion to a set bounded at MAX_SECTORS should always be possible");
+        self.unproven = self
+            .unproven
+            .difference(&unproven_nos)
+            .copied()
+            .collect::<BTreeSet<_>>()
+            .try_into()
+            .expect("Critical error: Conversion to a set bounded at MAX_SECTORS should always be possible");
+        Ok(removed)
+    }
+
+    pub fn record_early_terminations(
+        &mut self,
+        block_number: BlockNumber,
+        sectors: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
+    ) -> Result<(), GeneralPalletError> {
+        self.early_terminations
+            .try_insert(block_number, sectors.clone())
+            .expect("Critical error: Conversion to a set bounded at MAX_SECTORS should always be possible");
+        Ok(())
+    }
 }
 
 #[cfg(test)]
-mod test {
-    use primitives_proofs::RegisteredSealProof;
+mod tests {
+    extern crate alloc;
+
+    use alloc::collections::BTreeMap;
 
     use super::*;
+
+    fn sectors() -> Vec<SectorOnChainInfo<u64>> {
+        vec![
+            test_sector(2, 1),
+            test_sector(3, 2),
+            test_sector(7, 3),
+            test_sector(8, 4),
+            test_sector(11, 5),
+            test_sector(13, 6),
+        ]
+    }
+
+    fn test_sector(expiration: u64, sector_number: SectorNumber) -> SectorOnChainInfo<u64> {
+        SectorOnChainInfo {
+            expiration,
+            sector_number,
+            ..Default::default()
+        }
+    }
 
     #[test]
     fn add_sectors() -> Result<(), GeneralPalletError> {
         // Set up partition, using `u64` for block number because it is not relevant to this test.
         let mut partition: Partition<u64> = Partition::new();
         // Add some sectors
-        let sectors_to_add = vec![
-            SectorOnChainInfo {
-                sector_number: 1,
-                seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
-                sealed_cid: Default::default(),
-                activation: Default::default(),
-                expiration: 1000,
-                unsealed_cid: Default::default(),
-            },
-            SectorOnChainInfo {
-                sector_number: 2,
-                seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
-                sealed_cid: Default::default(),
-                activation: Default::default(),
-                expiration: 1100,
-                unsealed_cid: Default::default(),
-            },
-        ];
+        let sectors_to_add = sectors();
 
         // Add sectors to the partition
         partition.add_sectors(&sectors_to_add)?;
@@ -343,41 +426,104 @@ mod test {
         // Set up partition, using `u64` for block number because it is not relevant to this test.
         let mut partition: Partition<u64> = Partition::new();
 
+        let sectors_to_add = sectors();
         // Add some sectors
-        partition.add_sectors(&[
-            SectorOnChainInfo {
-                sector_number: 1,
-                seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
-                sealed_cid: Default::default(),
-                activation: Default::default(),
-                expiration: Default::default(),
-                unsealed_cid: Default::default(),
-            },
-            SectorOnChainInfo {
-                sector_number: 2,
-                seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
-                sealed_cid: Default::default(),
-                activation: Default::default(),
-                expiration: Default::default(),
-                unsealed_cid: Default::default(),
-            },
-        ])?;
+        partition.add_sectors(&sectors_to_add)?;
 
         // Terminate a sector that is in the active sectors.
         partition
             .terminated
-            .try_insert(1)
+            .try_insert(sectors_to_add[0].sector_number)
             .expect(&format!("Inserting a single element into terminated sectors of a partition, which is a BoundedBTreeMap with length {MAX_SECTORS}, should not fail (1 < {MAX_SECTORS})"));
         let live_sectors = partition.live_sectors();
 
         // Create expected result.
         let mut expected_live_sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>> =
-            BoundedBTreeSet::new();
+            BoundedBTreeSet::try_from(
+                sectors_to_add
+                    .iter()
+                    .filter_map(|s| {
+                        if s.sector_number != 1 {
+                            Some(s.sector_number)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<BTreeSet<_>>(),
+            )
+            .unwrap();
 
         expected_live_sectors
             .try_insert(2)
             .expect(&format!("Inserting a single element into expected_live_sectors, which is a BoundedBTreeMap with length {MAX_SECTORS}, should not fail (1 < {MAX_SECTORS})"));
         assert_eq!(live_sectors, expected_live_sectors);
+        Ok(())
+    }
+
+    #[test]
+    fn terminate_sectors() -> Result<(), GeneralPalletError> {
+        // Set up partition, using `u64` for block number because it is not relevant to this test.
+        let mut partition: Partition<u64> = Partition::new();
+        let all_sectors = sectors();
+
+        // Add sectors
+        partition.add_sectors(&all_sectors)?;
+
+        let all_sectors_map = BoundedBTreeMap::try_from(
+            all_sectors
+                .iter()
+                .map(|s| (s.sector_number, s.clone()))
+                .collect::<BTreeMap<SectorNumber, SectorOnChainInfo<u64>>>(),
+        )
+        .unwrap();
+        // fault sector 3, 4, 5 and 6
+        let faults = BoundedBTreeSet::try_from(BTreeSet::from([3, 4, 5, 6])).unwrap();
+        partition.record_faults(&all_sectors_map, &faults, 7)?;
+
+        // mark 4 and 5 as a recoveries
+        let recoveries = BoundedBTreeSet::try_from(BTreeSet::from([4, 5])).unwrap();
+        partition.declare_faults_recovered(&recoveries);
+
+        // now terminate 1, 3, 5, and 6
+        let terminations = [
+            all_sectors[0].clone(), // on time
+            all_sectors[2].clone(), // on time
+            all_sectors[4].clone(), // early
+            all_sectors[5].clone(), // early
+        ];
+        let termination_block = 3;
+        let removed = partition.terminate_sectors(termination_block, &terminations)?;
+
+        let expected_terminations: BTreeSet<_> =
+            terminations.iter().map(|s| s.sector_number).collect();
+        let expected_sectors: BTreeSet<_> = all_sectors.iter().map(|s| s.sector_number).collect();
+
+        // Assert that the returned expiration set is as expected
+        assert_eq!(removed.on_time_sectors.into_inner(), BTreeSet::from([1, 3]));
+        assert_eq!(removed.early_sectors.into_inner(), BTreeSet::from([5, 6]));
+
+        // Assert the partition metadata is as expected
+        assert_eq!(partition.faults.into_inner(), BTreeSet::from([4]));
+        assert_eq!(partition.recoveries.into_inner(), BTreeSet::from([4]));
+        assert_eq!(partition.terminated.into_inner(), expected_terminations);
+        assert_eq!(partition.sectors.into_inner(), expected_sectors);
+        assert_eq!(partition.unproven.into_inner(), BTreeSet::new());
+
+        Ok(())
+    }
+
+    #[test]
+    fn terminate_sectors_fail_sector_not_live() -> Result<(), GeneralPalletError> {
+        // Set up partition, using `u64` for block number because it is not relevant to this test.
+        let mut partition: Partition<u64> = Partition::new();
+
+        // Terminate a sector that is not live
+        let result = partition.terminate_sectors(1, &[test_sector(1, 6)]);
+
+        assert!(matches!(
+            result,
+            Err(GeneralPalletError::PartitionErrorSectorsNotLive)
+        ));
         Ok(())
     }
 }

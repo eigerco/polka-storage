@@ -331,6 +331,35 @@ where
 
         Ok(())
     }
+
+    pub fn terminate_sectors(
+        &mut self,
+        block_number: BlockNumber,
+        sectors: &[SectorOnChainInfo<BlockNumber>],
+        partition_sectors: &mut PartitionMap,
+    ) -> Result<(), GeneralPalletError> {
+        for (partition_number, _sector_numbers) in partition_sectors.0.iter() {
+            let partition = self
+                .partitions
+                .get_mut(partition_number).map_err(|_| {
+                    log::error!(target: LOG_TARGET, "terminate_sectors: Cannot find partition {partition_number}");
+                    GeneralPalletError::DeadlineErrorPartitionNotFound
+                });
+
+            let removed = partition.terminate_sectors(block_number, sectors)?;
+
+            if removed.is_empty() {
+                // Record that partition now has pending early terminations.
+                self.early_terminations
+                    .try_insert(*partition_number)
+                    .expect("Critical error: Cannot have more terminations than MAX_PARTITIONS_PER_DEADLINE");
+
+                // Record change to sectors
+                self.live_sectors -= removed.len() as u64;
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]

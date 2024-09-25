@@ -13,6 +13,8 @@ pub enum GeneralPalletError {
     PartitionErrorFailedToAddFaults,
     /// Emitted when removing recovering sectors fails
     PartitionErrorFailedToRemoveRecoveries,
+    /// Emitted when trying to remove sectors that are not live
+    PartitionErrorSectorsNotLive,
 
     /// Deadline error module types
     /// Emitted when the passed in deadline index supplied for `submit_windowed_post` is out of range.

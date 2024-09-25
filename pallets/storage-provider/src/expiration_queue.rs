@@ -158,7 +158,6 @@ where
 
             self.must_update_or_delete(expiration_height, set.expiration_set)?;
         }
-
         // Reschedule faulty sectors
         self.add_to_expiration_set(new_expiration, &[], &early_sectors)?;
 
@@ -361,7 +360,10 @@ where
             let mut expiration_set = self
                 .map
                 .get(&expiration_height)
-                .ok_or(GeneralPalletError::ExpirationQueueErrorExpirationSetNotFound)?
+                .ok_or({
+                    log::error!(target: LOG_TARGET, "remove_active_sectors: Could not find expiration set at {expiration_height:?}");
+                    GeneralPalletError::ExpirationQueueErrorExpirationSetNotFound
+                })?
                 .clone();
 
             // Remove sectors from the set
@@ -428,7 +430,10 @@ where
             let expiration_set = self
                 .map
                 .get(&expiration)
-                .ok_or(GeneralPalletError::ExpirationQueueErrorExpirationSetNotFound)?;
+                .ok_or({
+                    log::error!(target: LOG_TARGET, "find_sectors_by_expiration: Could not find expiration set at {expiration:?}");
+                    GeneralPalletError::ExpirationQueueErrorExpirationSetNotFound
+                })?;
 
             if let Some(group) = group_expiration_set(&mut all_remaining, expiration_set.clone()) {
                 groups.insert(*expiration, group);
