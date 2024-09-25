@@ -1,9 +1,15 @@
-use std::path::PathBuf;
+use std::{fs::File, path::PathBuf};
 
 use clap::Parser;
 
-use crate::{convert::convert_file_to_car, error::Error, extract::extract_file_from_car};
+use crate::{
+    commp::{calculate_piece_commitment, piece_commitment_cid},
+    convert::convert_file_to_car,
+    error::Error,
+    extract::extract_file_from_car,
+};
 
+mod commp;
 mod convert;
 mod error;
 mod extract;
@@ -27,6 +33,11 @@ enum MaterCli {
         input_path: PathBuf,
         /// Path to output file
         output_path: Option<PathBuf>,
+    },
+    /// Calculate a piece commitment for the provided data stored at the a given path
+    CalculatePieceCommitment {
+        /// Path to the data
+        input_path: PathBuf,
     },
 }
 
@@ -66,6 +77,15 @@ async fn main() -> Result<(), Error> {
                 input_path.display(),
                 output_path.display()
             );
+        }
+        MaterCli::CalculatePieceCommitment { input_path } => {
+            let mut source_file = File::open(&input_path)?;
+            let file_size = source_file.metadata()?.len();
+
+            let commitment = calculate_piece_commitment(&mut source_file, file_size).unwrap();
+            let cid = piece_commitment_cid(commitment);
+
+            println!("Piece commitment CID: {cid}");
         }
     }
 
