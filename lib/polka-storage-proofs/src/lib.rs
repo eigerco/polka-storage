@@ -3,5 +3,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 mod groth16;
+mod filecoin;
 
 pub use groth16::*;
+pub use filecoin::*;

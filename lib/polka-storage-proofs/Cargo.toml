@@ -15,6 +15,8 @@ pairing = { workspace = true }
 # Crates are only imported on feature 'std'.
 bellperson = { workspace = true, optional = true }
 blstrs = { workspace = true, optional = true }
+merkletree = { workspace = true, optional = true }
+storage-proofs-core = { workspace = true, optional = true }
 
 # Crates are only imported on feature 'substrate'.
 codec = { workspace = true, features = ["derive"], optional = true }
@@ -28,5 +30,5 @@ workspace = true
 
 [features]
 default = ["std"]
-std = ["dep:bellperson", "dep:blstrs"]
+std = ["dep:bellperson", "dep:blstrs", "dep:merkletree", "dep:storage-proofs-core"]
 substrate = ["dep:codec", "dep:scale-info"]
