@@ -111,7 +111,7 @@ pub fn calculate_piece_commitment<R: Read>(
     let mut commitment = [0; NODE_SIZE];
     tree.root()
         .write_bytes(&mut commitment)
-        .expect("destination large enough"); // This is safe because our `comm_p_bytes` is 32 bytes long
+        .expect("destination buffer large enough");
 
     Ok(commitment)
 }
