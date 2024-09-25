@@ -18,20 +18,16 @@ use tokio::sync::oneshot::Receiver;
 use tracing::{info, instrument};
 
 use super::{
-    methods::{common::InfoRequest, register_async},
+    requests::{deal_proposal::RegisterDealProposalRequest, info::InfoRequest, register_async},
     version::V0,
 };
 use crate::CliError;
 
-/// Default address to bind the RPC server to.
-pub const RPC_SERVER_DEFAULT_BIND_ADDR: &str = "127.0.0.1:8000";
-
 /// RPC server shared state.
 pub struct RpcServerState {
     pub start_time: chrono::DateTime<Utc>,
-    // NOTE: this will be "added back" in #388
-    // but instead of a generic client, its storagext
-    // pub substrate_client: substrate::Client,
+    pub xt_client: storagext::Client,
+    pub xt_keypair: storagext::multipair::MultiPairSigner,
 }
 
 /// Start the RPC server.
@@ -68,6 +64,7 @@ pub fn create_module(state: Arc<RpcServerState>) -> RpcModule<RpcServerState> {
     let mut module = RpcModule::from_arc(state);
 
     register_async::<InfoRequest, V0>(&mut module);
+    register_async::<RegisterDealProposalRequest, V0>(&mut module);
 
     module
 }

@@ -7,7 +7,8 @@ use uuid::Uuid;
 
 use super::server::{RpcServerState, ServerError};
 
-pub mod common;
+pub mod deal_proposal;
+pub mod info;
 
 /// A trait for defining a versioned RPC request.
 pub trait RpcRequest<Version> {
@@ -44,26 +45,26 @@ where
     module
         .register_async_method(Request::NAME, move |params, ctx, _| async move {
             // Try to deserialize the params
-            let span =
-                debug_span!("method", id = %Uuid::new_v4(), method = Request::NAME, params = ?params);
-            let params = params.parse().map_err(|err| {
-                error!(parent: span.clone(), ?err, ?params, "failed to parse params");
-                ServerError::invalid_params("Failed to parse params", None)
-            })?;
+            let span = debug_span!("method", id = %Uuid::new_v4(), method = Request::NAME);
 
-            // Handle the method
-            let result = Request::handle(ctx, params).instrument(span.clone()).await;
+            async move {
+                let params = params.parse().map_err(|err| {
+                    error!(?err, ?params, "failed to parse params");
+                    ServerError::invalid_params("Failed to parse params", None)
+                })?;
 
-            match &result {
-                Ok(ok) => {
-                    debug!(parent: span, response = ?ok, "handled successfully");
+                // Handle the method
+                let result = Request::handle(ctx, params).await;
+
+                match &result {
+                    Ok(ok) => debug!(response = ?ok, "handled successfully"),
+                    Err(err) => error!(err = ?err, "error ocurred while handling"),
                 }
-                Err(err) => {
-                    error!(parent: span, err = ?err, "error ocurred while handling")
-                }
+
+                Result::<_, jsonrpsee::types::ErrorObjectOwned>::Ok(result?)
             }
-
-            Result::<_, jsonrpsee::types::ErrorObjectOwned>::Ok(result?)
+            .instrument(span)
+            .await
         })
         .expect("method should be valid") // This is safe because we know the method registered is valid.
 }

@@ -2,13 +2,12 @@
 
 mod cmd;
 mod deser;
-mod pair;
 
 use std::{fmt::Debug, time::Duration};
 
 use clap::{ArgGroup, Parser, Subcommand};
 use cmd::{market::MarketCommand, storage_provider::StorageProviderCommand, system::SystemCommand};
-use pair::{DebugPair, MultiPairSigner};
+use storagext::multipair::{DebugPair, MultiPairSigner};
 use subxt::ext::sp_core::{
     ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair, sr25519::Pair as Sr25519Pair,
 };

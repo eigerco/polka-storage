@@ -14,9 +14,10 @@ use crate::{
 };
 
 /// Doppelganger of `RuntimeDealProposal` but with more ergonomic types and no generics.
-#[derive(Debug, Clone, serde::Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct DealProposal {
     #[serde(deserialize_with = "crate::types::deserialize_string_to_cid")]
+    #[serde(serialize_with = "crate::types::serialize_cid_to_string")]
     pub piece_cid: Cid,
     pub piece_size: u64,
     pub client: <PolkaStorageConfig as subxt::Config>::AccountId,
@@ -62,9 +63,6 @@ impl DealProposal {
     >
     where
         Keypair: Signer<PolkaStorageConfig>,
-        Self: Into<
-            RuntimeDealProposal<subxt::ext::subxt_core::utils::AccountId32, Currency, BlockNumber>,
-        >,
     {
         let proposal: RuntimeDealProposal<_, _, _> = self.into();
         let encoded = &proposal.encode();
@@ -74,6 +72,33 @@ impl DealProposal {
         RuntimeClientDealProposal {
             proposal,
             client_signature,
+        }
+    }
+}
+
+/// A client-signed [`DealProposal`].
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct ClientDealProposal {
+    /// The deal proposal content.
+    pub deal_proposal: DealProposal,
+
+    /// The signature of the [`DealProposal`].
+    #[serde(alias = "signature")]
+    pub client_signature: subxt::ext::sp_runtime::MultiSignature,
+}
+
+impl From<ClientDealProposal>
+    for RuntimeClientDealProposal<
+        subxt::ext::subxt_core::utils::AccountId32,
+        Currency,
+        BlockNumber,
+        Static<subxt::ext::sp_runtime::MultiSignature>,
+    >
+{
+    fn from(value: ClientDealProposal) -> Self {
+        Self {
+            proposal: value.deal_proposal.into(),
+            client_signature: Static(value.client_signature),
         }
     }
 }

@@ -1,4 +1,5 @@
 pub mod clients;
+pub mod multipair;
 pub mod runtime;
 pub mod types;
 

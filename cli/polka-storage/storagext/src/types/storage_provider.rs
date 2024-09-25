@@ -281,7 +281,7 @@ mod tests {
     use primitives_proofs::RegisteredPoStProof;
 
     use crate::{
-        runtime::runtime_types::pallet_market::pallet::DealState,
+        runtime::runtime_types::pallet_market::pallet::DealState as RuntimeDealState,
         types::{
             market::DealProposal,
             storage_provider::{
@@ -399,7 +399,7 @@ mod tests {
             end_block: 55,
             storage_price_per_block: 1,
             provider_collateral: 1,
-            state: DealState::Published,
+            state: RuntimeDealState::Published,
         };
 
         assert_eq!(result_deal_proposal, expect_deal_proposal);

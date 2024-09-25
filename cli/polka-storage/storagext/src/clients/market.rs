@@ -1,13 +1,27 @@
 use std::future::Future;
 
 use primitives_proofs::DealId;
-use subxt::ext::sp_core::crypto::Ss58Codec;
+use subxt::{ext::sp_core::crypto::Ss58Codec, utils::Static};
 
 use crate::{
-    runtime::{self, client::SubmissionResult, runtime_types::pallet_market::pallet::BalanceEntry},
-    types::market::DealProposal,
-    Currency, PolkaStorageConfig,
+    runtime::{
+        self,
+        client::SubmissionResult,
+        runtime_types::pallet_market::pallet::{
+            BalanceEntry, ClientDealProposal as RuntimeClientDealProposal,
+        },
+    },
+    types::market::{ClientDealProposal, DealProposal},
+    BlockNumber, Currency, PolkaStorageConfig,
 };
+
+/// Specialized version of [`RuntimeClientDealProposal`] for convenience's sake.
+type SpecializedRuntimeClientDealProposal = RuntimeClientDealProposal<
+    subxt::ext::subxt_core::utils::AccountId32,
+    Currency,
+    BlockNumber,
+    Static<subxt::ext::sp_runtime::MultiSignature>,
+>;
 
 /// The maximum number of deal IDs supported.
 // NOTE(@jmg-duarte,17/07/2024): ideally, should be read from the primitives or something
@@ -56,6 +70,17 @@ pub trait MarketClientExt {
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
         ClientKeypair: subxt::tx::Signer<PolkaStorageConfig>;
+
+    /// Publish the given *signed* storage deals.
+    ///
+    /// If `deals` length is bigger than [`MAX_DEAL_IDS`], it will get truncated.
+    fn publish_signed_storage_deals<Keypair>(
+        &self,
+        account_keypair: &Keypair,
+        deals: Vec<ClientDealProposal>,
+    ) -> impl Future<Output = Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>>
+    where
+        Keypair: subxt::tx::Signer<PolkaStorageConfig>;
 
     /// Retrieve the balance for a given account (includes the `free` and `locked` balance).
     fn retrieve_balance(
@@ -172,6 +197,44 @@ impl MarketClientExt for crate::runtime::client::Client {
             runtime::runtime_types::bounded_collections::bounded_vec::BoundedVec(
                 signed_deal_proposals,
             );
+
+        let payload = runtime::tx()
+            .market()
+            .publish_storage_deals(bounded_unbounded_deals);
+
+        self.traced_submission(&payload, account_keypair).await
+    }
+
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        fields(
+            address = account_keypair.account_id().to_ss58check()
+        )
+    )]
+    async fn publish_signed_storage_deals<Keypair>(
+        &self,
+        account_keypair: &Keypair,
+        mut deals: Vec<ClientDealProposal>,
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+    where
+        Keypair: subxt::tx::Signer<PolkaStorageConfig>,
+    {
+        if deals.len() > MAX_N_DEALS {
+            tracing::warn!("more than {} deals, truncating", MAX_N_DEALS);
+            deals.truncate(MAX_N_DEALS);
+        }
+
+        let deals = deals
+            .into_iter()
+            .map(|deal| SpecializedRuntimeClientDealProposal::from(deal))
+            .collect();
+
+        // `deals` has been truncated to fit the proper bound, however,
+        // the `BoundedVec` defined in the `runtime::runtime_types` is actually just a newtype
+        // making the `BoundedVec` actually unbounded
+        let bounded_unbounded_deals =
+            runtime::runtime_types::bounded_collections::bounded_vec::BoundedVec(deals);
 
         let payload = runtime::tx()
             .market()

@@ -15,7 +15,6 @@ insecure_url = []
 anyhow.workspace = true
 bs58 = { workspace = true }
 cid = { workspace = true, features = ["scale-codec"], default-features = true }
-clap = { workspace = true, features = ["derive"] }
 codec.workspace = true
 frame-support = { workspace = true, features = ["std"] }
 futures.workspace = true
@@ -31,8 +30,13 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 url = { workspace = true }
 
+# Optional dependencies
+clap = { workspace = true, optional = true, features = ["derive"] }
+
 [dev-dependencies]
 serde_json = { workspace = true }
+# "Duplicated" so we can always test clap-dependent things
+clap = { workspace = true, features = ["derive"] }
 
 [lints]
 workspace = true

@@ -1,6 +1,4 @@
-mod client;
-pub mod methods;
+pub mod client;
+pub mod requests;
 pub mod server;
 pub mod version;
-
-pub use client::{Client, ClientError};
