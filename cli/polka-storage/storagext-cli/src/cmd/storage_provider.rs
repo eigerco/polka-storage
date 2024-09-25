@@ -3,6 +3,7 @@ use std::time::Duration;
 use clap::Subcommand;
 use primitives_proofs::{RegisteredPoStProof, SectorNumber};
 use storagext::{
+    deser::DeserializablePath,
     multipair::MultiPairSigner,
     runtime::{
         runtime_types::pallet_storage_provider::sector::ProveCommitSector as RuntimeProveCommitSector,
@@ -18,7 +19,7 @@ use storagext::{
 };
 use url::Url;
 
-use crate::{deser::ParseablePath, missing_keypair_error, operation_takes_a_while, OutputFormat};
+use crate::{missing_keypair_error, operation_takes_a_while, OutputFormat};
 
 fn parse_post_proof(src: &str) -> Result<RegisteredPoStProof, String> {
     match src {
@@ -51,34 +52,34 @@ pub enum StorageProviderCommand {
     /// Pre-commit sector containing deals, so they can be proven.
     /// If deals have been published and not pre-commited and proven, they'll be slashed by Market Pallet.
     PreCommit {
-        #[arg(value_parser = <Vec<SxtSectorPreCommitInfo> as ParseablePath>::parse_json)]
+        #[arg(value_parser = <Vec<SxtSectorPreCommitInfo> as DeserializablePath>::deserialize_json)]
         pre_commit_sectors: std::vec::Vec<SxtSectorPreCommitInfo>,
     },
 
     /// Proves sector that has been previously pre-committed.
     /// After proving, a deal in a sector is considered Active.
     ProveCommit {
-        #[arg(value_parser = <Vec<SxtProveCommitSector> as ParseablePath>::parse_json)]
+        #[arg(value_parser = <Vec<SxtProveCommitSector> as DeserializablePath>::deserialize_json)]
         prove_commit_sectors: std::vec::Vec<SxtProveCommitSector>,
     },
 
     /// Submit a Proof-of-SpaceTime (PoST).
     #[command(name = "submit-windowed-post")]
     SubmitWindowedProofOfSpaceTime {
-        #[arg(value_parser = <SxtSubmitWindowedPoStParams as ParseablePath>::parse_json)]
+        #[arg(value_parser = <SxtSubmitWindowedPoStParams as DeserializablePath>::deserialize_json)]
         windowed_post: SxtSubmitWindowedPoStParams,
     },
 
     /// Declare faulty sectors.
     DeclareFaults {
-        #[arg(value_parser = <Vec<SxtFaultDeclaration> as ParseablePath>::parse_json)]
+        #[arg(value_parser = <Vec<SxtFaultDeclaration> as DeserializablePath>::deserialize_json)]
         // Needs to be fully qualified due to https://github.com/clap-rs/clap/issues/4626
         faults: std::vec::Vec<SxtFaultDeclaration>,
     },
 
     /// Declare recovered faulty sectors.
     DeclareFaultsRecovered {
-        #[arg(value_parser = <Vec<SxtRecoveryDeclaration> as ParseablePath>::parse_json)]
+        #[arg(value_parser = <Vec<SxtRecoveryDeclaration> as DeserializablePath>::deserialize_json)]
         recoveries: std::vec::Vec<SxtRecoveryDeclaration>,
     },
 }

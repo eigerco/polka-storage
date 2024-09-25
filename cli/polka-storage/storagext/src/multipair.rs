@@ -94,7 +94,8 @@ where
     Pair: subxt::ext::sp_core::Pair,
 {
     /// `clap`'s custom parsing function.
-    #[cfg(any(feature = "clap", test))] // requires "clap" to be available as a dev-dep
+    // NOTE(@jmg-duarte): not added to the `clap` module since we always want to test this
+    #[cfg(any(feature = "clap", test))]
     pub fn value_parser(src: &str) -> Result<Self, String> {
         Ok(Self(Pair::from_string(&src, None).map_err(|err| {
             format!("failed to parse pair from string: {}", err)
@@ -109,6 +110,46 @@ where
         self.0
     }
 }
+
+#[cfg(feature = "clap")]
+mod clap {
+    use super::{DebugPair, ECDSAPair, Ed25519Pair, MultiPairSigner, Sr25519Pair};
+
+    #[derive(Debug, Clone, clap::Args)]
+    pub struct MultiPairArgs {
+        /// Sr25519 keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
+        ///
+        /// See `sp_core::crypto::Pair::from_string_with_seed` for more information.
+        #[arg(long, value_parser = DebugPair::<Sr25519Pair>::value_parser)]
+        pub sr25519_key: Option<DebugPair<Sr25519Pair>>,
+
+        /// ECDSA keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
+        ///
+        /// See `sp_core::crypto::Pair::from_string_with_seed` for more information.
+        #[arg(long, value_parser = DebugPair::<ECDSAPair>::value_parser)]
+        pub ecdsa_key: Option<DebugPair<ECDSAPair>>,
+
+        /// Ed25519 keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
+        ///
+        /// See `sp_core::crypto::Pair::from_string_with_seed` for more information.
+        #[arg(long, value_parser = DebugPair::<Ed25519Pair>::value_parser)]
+        pub ed25519_key: Option<DebugPair<Ed25519Pair>>,
+    }
+
+    impl From<MultiPairArgs> for Option<MultiPairSigner> {
+        fn from(value: MultiPairArgs) -> Self {
+            MultiPairSigner::new(
+                value.sr25519_key.map(DebugPair::into_inner),
+                value.ecdsa_key.map(DebugPair::into_inner),
+                value.ed25519_key.map(DebugPair::into_inner),
+            )
+        }
+    }
+}
+
+// Export this as part of the current module if `clap` is enabled
+#[cfg(feature = "clap")]
+pub use self::clap::*;
 
 #[cfg(test)]
 mod test {

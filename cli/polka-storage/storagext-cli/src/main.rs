@@ -1,7 +1,6 @@
 #![deny(clippy::unwrap_used)]
 
 mod cmd;
-mod deser;
 
 use std::{fmt::Debug, time::Duration};
 

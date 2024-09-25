@@ -3,6 +3,10 @@ pub mod multipair;
 pub mod runtime;
 pub mod types;
 
+// Adds `DeserializablePath`, mostly useful for `clap`
+#[cfg(feature = "clap")]
+pub mod deser;
+
 pub use crate::{
     clients::{MarketClientExt, StorageProviderClientExt, SystemClientExt},
     runtime::{bounded_vec::IntoBoundedByteVec, client::Client},

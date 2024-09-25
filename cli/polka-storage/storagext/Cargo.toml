@@ -8,6 +8,7 @@ repository.workspace = true
 version = "0.1.0"
 
 [features]
+clap = ["dep:clap", "dep:serde_json"]
 default = []
 insecure_url = []
 
@@ -32,6 +33,7 @@ url = { workspace = true }
 
 # Optional dependencies
 clap = { workspace = true, optional = true, features = ["derive"] }
+serde_json = { workspace = true, optional = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }
