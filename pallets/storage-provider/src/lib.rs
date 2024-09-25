@@ -35,7 +35,7 @@ pub mod pallet {
 
     extern crate alloc;
 
-    use alloc::{vec, vec::Vec};
+    use alloc::{collections::BTreeMap, vec::Vec};
     use core::fmt::Debug;
 
     use cid::Cid;
@@ -64,7 +64,7 @@ pub mod pallet {
     use sp_arithmetic::traits::Zero;
 
     use crate::{
-        deadline::DeadlineInfo,
+        deadline::{deadline_is_mutable, DeadlineInfo},
         fault::{
             DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration,
             RecoveryDeclaration,
@@ -73,7 +73,7 @@ pub mod pallet {
         proofs::{assign_proving_period_offset, SubmitWindowedPoStParams},
         sector::{
             ProveCommitResult, ProveCommitSector, SectorOnChainInfo, SectorPreCommitInfo,
-            SectorPreCommitOnChainInfo, MAX_SECTORS,
+            SectorPreCommitOnChainInfo, TerminateSectorsParams, MAX_SECTORS,
         },
         sector_map::DeadlineSectorMap,
         storage_provider::{
@@ -329,6 +329,8 @@ pub mod pallet {
         SlashingFailed,
         /// Emitted when trying to terminate sector deals fails.
         CouldNotTerminateDeals,
+        /// Tried to terminate sectors that are not mutable.
+        CannotTerminateImmutableDeadline,
         /// Inner pallet errors
         GeneralPalletError(crate::error::GeneralPalletError),
     }
@@ -873,6 +875,71 @@ pub mod pallet {
                 recoveries: params.recoveries,
             });
 
+            Ok(())
+        }
+
+        /// Marks some sectors as terminated at the present block, earlier than their
+        /// scheduled termination, and adds these sectors to the early termination queue.
+        ///
+        /// References:
+        /// * https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/actors/miner/src/lib.rs#L2488-L2505
+        pub fn terminate_sectors(
+            origin: OriginFor<T>,
+            params: TerminateSectorsParams,
+        ) -> DispatchResult {
+            let owner = ensure_signed(origin)?;
+            let current_block = <frame_system::Pallet<T>>::block_number();
+            let mut sp = StorageProviders::<T>::try_get(&owner)
+                .map_err(|_| Error::<T>::StorageProviderNotFound)?;
+
+            let mut to_process: BTreeMap<u64, Vec<PartitionNumber>> = BTreeMap::new();
+
+            for term in params.terminations {
+                let deadline = term.deadline;
+                let partition = term.partition;
+
+                to_process
+                    .entry(deadline)
+                    .and_modify(|entry| entry.push(partition))
+                    .or_insert(Vec::from([partition]));
+            }
+
+            let sectors = sp
+                .sectors
+                .iter()
+                .map(|(_sector_number, info)| info)
+                .cloned()
+                .collect::<Vec<_>>();
+            for (deadline_idx, partition_sectors) in to_process.into_iter() {
+                ensure!(
+                    !deadline_is_mutable(
+                        sp.proving_period_start,
+                        deadline_idx,
+                        current_block,
+                        T::WPoStPeriodDeadlines::get(),
+                        T::WPoStProvingPeriod::get(),
+                        T::WPoStChallengeWindow::get(),
+                        T::WPoStChallengeLookBack::get(),
+                        T::FaultDeclarationCutoff::get(),
+                    )
+                    .map_err(|e| Error::<T>::GeneralPalletError(e))?,
+                    {
+                        log::error!(target: LOG_TARGET, "cannot terminate sectors in immutable deadline {}", deadline_idx);
+                        Error::<T>::CannotTerminateImmutableDeadline
+                    }
+                );
+
+                let deadlines = sp.get_deadlines_mut();
+                let deadline = deadlines
+                    .load_deadline_mut(deadline_idx as usize)
+                    .map_err(|e| Error::<T>::GeneralPalletError(e))?;
+
+                deadline
+                    .terminate_sectors(current_block, &sectors, &partition_sectors)
+                    .map_err(|e| Error::<T>::GeneralPalletError(e))?;
+            }
+
+            // TODO(@aidan46, #167, 2024/10/01): Process early terminations
             Ok(())
         }
     }
