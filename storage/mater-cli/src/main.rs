@@ -35,6 +35,7 @@ enum MaterCli {
         output_path: Option<PathBuf>,
     },
     /// Calculate a piece commitment for the provided data stored at the a given path
+    #[clap(alias = "commp")]
     CalculatePieceCommitment {
         /// Path to the data
         input_path: PathBuf,

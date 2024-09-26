@@ -23,7 +23,9 @@ pub const FIL_COMMITMENT_UNSEALED: u64 = 0xf101;
 
 /// Reader that returns zeros if the inner reader is empty.
 struct ZeroPaddingReader<R: Read> {
+    /// The inner reader to read from.
     inner: R,
+    /// The number of bytes this 0-padding reader has left to produce.
     remaining: usize,
 }
 
@@ -42,19 +44,26 @@ impl<R: Read> Read for ZeroPaddingReader<R> {
             return Ok(0);
         }
 
+        // Number ob bytes that the reader will produce in this execution
         let to_read = buf.len().min(self.remaining);
+        // Number ob bytes that we read from the inner reader
         let read = self.inner.read(&mut buf[..to_read])?;
 
+        // If we read from the inner reader less then the required bytes, 0-pad
+        // the rest of the buffer.
         if read < to_read {
             buf[read..to_read].fill(0);
         }
 
+        // Decrease the number of bytes this 0-padding reader has left to produce.
         self.remaining -= to_read;
+
+        // Return the number of bytes that we wrote to the buffer.
         Ok(to_read)
     }
 }
 
-/// Ensure that the padded piece size is valid before
+// Ensure that the padded piece size is valid.
 fn ensure_piece_size(padded_piece_size: usize) -> Result<(), CommPError> {
     if padded_piece_size < NODE_SIZE {
         return Err(CommPError::PieceTooSmall);
@@ -71,7 +80,7 @@ fn ensure_piece_size(padded_piece_size: usize) -> Result<(), CommPError> {
 
 /// Calculate the piece commitment for a given data source.
 ///
-/// https://spec.filecoin.io/systems/filecoin_files/piece/#section-systems.filecoin_files.piece.data-representation
+///  Reference — <https://spec.filecoin.io/systems/filecoin_files/piece/#section-systems.filecoin_files.piece.data-representation>
 pub fn calculate_piece_commitment<R: Read>(
     source: R,
     unpadded_piece_size: u64,
