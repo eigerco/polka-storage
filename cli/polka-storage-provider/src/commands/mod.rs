@@ -26,8 +26,8 @@ pub enum CliError {
     #[error(transparent)]
     SubstrateCli(#[from] sc_cli::Error),
 
-    #[error("Supplied file does not have the appropriate metadata")]
-    InvalidCarFile,
+    #[error("Error occurred while working with a car file: {0}")]
+    MaterError(#[from] mater::Error),
 
     #[error("Rpc Client error: {0}")]
     RpcClient(#[from] crate::rpc::client::ClientError),

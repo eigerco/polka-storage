@@ -28,9 +28,7 @@ impl UtilsCommand {
                 // Check if the file is a CARv2 file. If it is, we can't calculate the piece commitment.
                 let mut source_file = tokio::fs::File::open(&input_path).await?;
                 let mut car_v2_reader = CarV2Reader::new(&mut source_file);
-                if !car_v2_reader.is_car_file().await {
-                    return Err(CliError::InvalidCarFile);
-                }
+                car_v2_reader.is_car_file().await?;
 
                 // Calculate the piece commitment.
                 let mut source_file = File::open(&input_path)?;
