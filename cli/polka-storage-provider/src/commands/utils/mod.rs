@@ -35,6 +35,11 @@ impl UtilsCommand {
                 // Calculate the piece commitment.
                 let mut source_file = File::open(&input_path)?;
                 let file_size = source_file.metadata()?.len();
+
+                // The calculate_piece_commitment blocks the thread. We could
+                // use tokio::task::spawn_blocking to avoid this, but in this
+                // case it doesn't matter because this is the only thing we are
+                // working on.
                 let commitment = calculate_piece_commitment(&mut source_file, file_size)
                     .map_err(|err| UtilsCommandError::CommPError(err))?;
                 let cid = piece_commitment_cid(commitment);
