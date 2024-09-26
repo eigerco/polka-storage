@@ -11,6 +11,8 @@ version = "0.1.0"
 # Permanently used crates.
 bls12_381 = { workspace = true }
 pairing = { workspace = true }
+rand = { workspace = true }
+rand_xorshift = { workspace = true }
 
 # Crates are only imported on feature 'std'.
 bellperson = { workspace = true, optional = true }

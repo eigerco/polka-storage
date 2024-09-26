@@ -31,6 +31,21 @@ where
     }
 }
 
+impl<E> TryFrom<bp_g16::Proof<blstrs::Bls12>> for Proof<E>
+where
+    E: Engine<G1Affine = G1Affine, G2Affine = G2Affine>,
+{
+    type Error = FromBytesError;
+
+    fn try_from(vkey: bp_g16::Proof<blstrs::Bls12>) -> Result<Self, Self::Error> {
+        Ok(Proof::<E> {
+            a: g1affine(&vkey.a)?,
+            b: g2affine(&vkey.b)?,
+            c: g1affine(&vkey.c)?,
+        })
+    }
+}
+
 impl std::io::Read for ByteBuffer {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let n = std::cmp::min(self.0.len(), buf.len());
@@ -66,15 +81,6 @@ fn g2affine(affine: &blstrs::G2Affine) -> Result<G2Affine, FromBytesError> {
         .ok_or(FromBytesError::G2AffineConversion)
 }
 
-/// Method transforms a `blstrs::Scalar` into a `bls12_381::Scalar`.
-// TODO: (395,@neutrinoks,20/10/2024): Remove allow dead_code.
-#[allow(dead_code)]
-fn scalar(scalar: &blstrs::Scalar) -> Result<Scalar, FromBytesError> {
-    Scalar::from_bytes(&scalar.to_bytes_le())
-        .into_option()
-        .ok_or(FromBytesError::ScalarConversion)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -92,6 +98,14 @@ mod tests {
                 blstrs::G1Affine::generator(),
                 blstrs::G1Affine::generator(),
             ],
+        }
+    }
+
+    fn random_bellperson_proof() -> bp_g16::Proof<blstrs::Bls12> {
+        bp_g16::Proof::<blstrs::Bls12> {
+            a: blstrs::G1Affine::generator(),
+            b: blstrs::G2Affine::generator(),
+            c: blstrs::G1Affine::generator(),
         }
     }
 
@@ -143,7 +157,7 @@ mod tests {
         // Generate a verifying key with bellperson crate.
         let bp_vkey = random_bellperson_verifying_key();
         // Serialise it by using its `Read` implementation.
-        let bytes = VERIFYINGKEY_MIN_BYTES + bp_vkey.ic.len() * G1AFFINE_BYTES;
+        let bytes = VERIFYINGKEY_MIN_BYTES + bp_vkey.ic.len() * G1AFFINE_UNCOMPRESSED_BYTES;
         let mut bytes = ByteBuffer::new_with_size(bytes);
         bp_vkey.write(bytes.0.as_mut_slice()).unwrap();
         // Try to deserialise it by using `VerifyingKey::from_bytes()`.
@@ -187,5 +201,41 @@ mod tests {
         let bp_vkey_result = bp_g16::VerifyingKey::<blstrs::Bls12>::read(bytes).unwrap();
         // Compare initial struct with this one.
         assert_eq!(bp_vkey, bp_vkey_result);
+    }
+
+    /// This test is about testing the deserialisation of `Proof` with bytes that have been
+    /// serialised from `bellperson::Proof`.
+    #[test]
+    fn proof_from_bytes_from_bellperson() {
+        // Generate a proof with bellperson crate.
+        let bp_proof = random_bellperson_proof();
+        // Smoke test about converting it directly to our implemmentation.
+        let proof = Proof::<Bls12>::try_from(bp_proof.clone()).expect("expect Proof::from");
+        // Compare each single fields by their bytes to make sure conversion was correct.
+        assert_eq!(bp_proof.a.to_compressed(), proof.a.to_compressed());
+        assert_eq!(bp_proof.b.to_compressed(), proof.b.to_compressed());
+        assert_eq!(bp_proof.c.to_compressed(), proof.c.to_compressed());
+    }
+
+    #[test]
+    fn proof_serialise_and_deserialise_direct_bellperson() {
+        // Generate a verifying key with bellperson crate.
+        let bp_proof = random_bellperson_proof();
+        // Serialise it by using its `Read` implementation.
+        let mut bytes = ByteBuffer::new_with_size(PROOF_BYTES);
+        bp_proof.write(bytes.0.as_mut_slice()).unwrap();
+        // Try to deserialise it by using `Proof::from_bytes()`.
+        let proof = Proof::<Bls12>::from_bytes(bytes.as_slice()).unwrap();
+        // Compare their values.
+        assert_eq!(bp_proof.a.to_compressed(), proof.a.to_compressed());
+        assert_eq!(bp_proof.b.to_compressed(), proof.b.to_compressed());
+        assert_eq!(bp_proof.c.to_compressed(), proof.c.to_compressed());
+        // Serialise our implementation as well by using `Proof::into_bytes()'.
+        let mut bytes = ByteBuffer::new_with_size(PROOF_BYTES);
+        proof.into_bytes(bytes.as_mut_slice()).unwrap();
+        // Deserialise bytes to bellperson's VerifyingKey by using its `Write` implementation.
+        let bp_proof_result = bp_g16::Proof::<blstrs::Bls12>::read(bytes).unwrap();
+        // Compare initial struct with this one.
+        assert_eq!(bp_proof, bp_proof_result);
     }
 }
