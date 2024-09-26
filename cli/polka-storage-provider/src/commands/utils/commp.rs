@@ -44,9 +44,9 @@ impl<R: Read> Read for ZeroPaddingReader<R> {
             return Ok(0);
         }
 
-        // Number ob bytes that the reader will produce in this execution
+        // Number of bytes that the reader will produce in this execution
         let to_read = buf.len().min(self.remaining);
-        // Number ob bytes that we read from the inner reader
+        // Number of bytes that we read from the inner reader
         let read = self.inner.read(&mut buf[..to_read])?;
 
         // If we read from the inner reader less then the required bytes, 0-pad
