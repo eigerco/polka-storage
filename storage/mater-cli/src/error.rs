@@ -1,5 +1,7 @@
 use std::io;
 
+use crate::commp::CommPError;
+
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum Error {
     #[error("{0}")]
@@ -8,4 +10,6 @@ pub(crate) enum Error {
     IoError(#[from] io::Error),
     #[error("Supplied file does not have the appropriate metadata")]
     InvalidCarFile,
+    #[error("CommPError: {0}")]
+    CommPError(#[from] CommPError),
 }

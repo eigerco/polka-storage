@@ -83,7 +83,7 @@ async fn main() -> Result<(), Error> {
             let mut source_file = File::open(&input_path)?;
             let file_size = source_file.metadata()?.len();
 
-            let commitment = calculate_piece_commitment(&mut source_file, file_size).unwrap();
+            let commitment = calculate_piece_commitment(&mut source_file, file_size)?;
             let cid = piece_commitment_cid(commitment);
 
             println!("Piece commitment CID: {cid}");

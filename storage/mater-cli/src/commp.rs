@@ -104,7 +104,7 @@ pub fn calculate_piece_commitment<R: Read>(
     // Buffer used for reading data used for leafs.
     let mut buffer = [0; NODE_SIZE];
     // Number of leafs
-    let num_leafs = (padded_piece_size as f64 / NODE_SIZE as f64).ceil() as usize;
+    let num_leafs = padded_piece_size.div_ceil(NODE_SIZE) as usize;
 
     // Elements iterator used by the MerkleTree. The elements returned by the
     // iterator represent leafs of the tree
