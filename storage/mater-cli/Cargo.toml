@@ -15,10 +15,6 @@ mater.workspace = true
 
 # Crates.io
 clap = { workspace = true, features = ["derive"] }
-filecoin-hashers.workspace = true
-fr32.workspace = true
-ipld-core.workspace = true
-storage-proofs-core.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["fs", "macros", "rt-multi-thread"] }
 

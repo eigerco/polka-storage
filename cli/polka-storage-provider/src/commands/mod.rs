@@ -1,9 +1,11 @@
 mod rpc;
 mod storage;
+mod utils;
 mod wallet;
 
 use clap::Parser;
 
+use self::utils::UtilsCommand;
 pub(super) use crate::commands::{rpc::RpcCommand, storage::StorageCommand, wallet::WalletCommand};
 
 /// CLI components error handling implementor.
@@ -24,11 +26,17 @@ pub enum CliError {
     #[error(transparent)]
     SubstrateCli(#[from] sc_cli::Error),
 
+    #[error("Supplied file does not have the appropriate metadata")]
+    InvalidCarFile,
+
     #[error("Rpc Client error: {0}")]
     RpcClient(#[from] crate::rpc::client::ClientError),
 
     #[error(transparent)]
     RpcCommand(#[from] crate::commands::rpc::RpcCommandError),
+
+    #[error(transparent)]
+    UtilsCommand(#[from] crate::commands::utils::UtilsCommandError),
 }
 
 /// A CLI application that facilitates management operations over a running full
@@ -46,6 +54,10 @@ pub(crate) enum Cli {
     /// RPC related commands, namely the `server` and `client`.
     #[command(subcommand)]
     Rpc(RpcCommand),
+
+    /// Utility commands for storage related actions.
+    #[command(subcommand)]
+    Utils(UtilsCommand),
 }
 
 impl Cli {
@@ -67,6 +79,7 @@ impl Cli {
                 WalletCommand::Sign(cmd) => Ok(cmd.run()?),
             },
             Self::Rpc(rpc) => Ok(rpc.run().await?),
+            Self::Utils(utils) => Ok(utils.run().await?),
         }
     }
 }
