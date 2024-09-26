@@ -13,12 +13,16 @@ axum = { workspace = true, features = ["macros", "multipart"] }
 chrono = { workspace = true, features = ["serde"] }
 cid = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
+filecoin-hashers.workspace = true
+fr32.workspace = true
 futures = { workspace = true }
+ipld-core.workspace = true
 jsonrpsee = { workspace = true, features = ["http-client", "server", "ws-client"] }
 sc-cli = { workspace = true }
 sealed = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+storage-proofs-core.workspace = true
 subxt = { workspace = true }
 tempfile = { workspace = true }
 thiserror = { workspace = true }

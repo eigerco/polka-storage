@@ -46,6 +46,14 @@ where
         }
     }
 
+    /// Checks if the contents of the reader is a CARv2 file.
+    pub async fn is_car_file(&mut self) -> Result<(), Error> {
+        let _pragma = self.read_pragma().await?;
+        let _header = self.read_header().await?;
+        let _v1_header = self.read_v1_header().await?;
+        Ok(())
+    }
+
     /// Reads the contents of the CARv2 file and puts the contents into the supplied output file.
     pub async fn extract_content<W>(&mut self, output_file: &mut W) -> Result<(), Error>
     where
