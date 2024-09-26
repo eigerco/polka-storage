@@ -1251,7 +1251,7 @@ pub mod pallet {
     // Adapted from filecoin reference here: https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/miner/src/commd.rs#L51-L56
     fn validate_cid<T: Config>(bytes: &[u8]) -> Result<Cid, Error<T>> {
         let c = Cid::try_from(bytes).map_err(|e| {
-            log::error!(target: LOG_TARGET, "failed to validate cid: {:?}", e);
+            log::error!(target: LOG_TARGET, e:?; "failed to validate cid");
             Error::<T>::InvalidCid
         })?;
         // these values should be consistent with the cid's created by the SP.

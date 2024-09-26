@@ -69,8 +69,8 @@ impl PartitionMap {
             // NOTE(@jmg-duarte,24/07/2024): to make the operation a no-op we need to merge both
             // sets into a single one and replace the original one if the bounds weren't broken
             for sector in sectors {
-                s.try_insert(sector).map_err(|e| {
-                    log::error!(target: LOG_TARGET, "[{e:?}] try_insert_sectors: Could not insert {sector:?} into sectors");
+                s.try_insert(sector).map_err(|_| {
+                    log::error!(target: LOG_TARGET, "try_insert_sectors: Could not insert {sector:?} into sectors");
                     GeneralPalletError::SectorMapErrorFailedToInsertSector
                 })?;
             }
@@ -79,7 +79,7 @@ impl PartitionMap {
             // the error should be caught by the compiler
             self.insert_sectors_into_new_partition(partition, sectors)
                 .map_err(|e| {
-                    log::error!(target: LOG_TARGET, "[{e:?}] try_insert_sectors: Could not insert sectors into new partition {partition:?}");
+                    log::error!(target: LOG_TARGET, e:?; "try_insert_sectors: Could not insert sectors into new partition {partition:?}");
                     GeneralPalletError::SectorMapErrorFailedToInsertSector
                 })?;
         }
@@ -94,15 +94,15 @@ impl PartitionMap {
     ) -> Result<(), GeneralPalletError> {
         let mut new_sectors = BoundedBTreeSet::new();
         for sector in sectors {
-            new_sectors.try_insert(sector).map_err(|e| {
-                log::error!(target: LOG_TARGET, "[{e:?}] insert_sectors_into_new_partition: Could not insert sector {sector:?} into new sectors");
+            new_sectors.try_insert(sector).map_err(|_| {
+                log::error!(target: LOG_TARGET, "insert_sectors_into_new_partition: Could not insert sector {sector:?} into new sectors");
                 GeneralPalletError::SectorMapErrorFailedToInsertSector
             })?;
         }
         self.0
             .try_insert(partition_number, new_sectors)
-            .map_err(|e| {
-                log::error!(target: LOG_TARGET, "[{e:?}] insert_sectors_into_new_partition: Could not insert new sectors into partition {partition_number:?}");
+            .map_err(|_| {
+                log::error!(target: LOG_TARGET, "insert_sectors_into_new_partition: Could not insert new sectors into partition {partition_number:?}");
                 GeneralPalletError::SectorMapErrorFailedToInsertSector
             })?;
         Ok(())
@@ -163,8 +163,8 @@ impl DeadlineSectorMap {
 
                 self.0
                     .try_insert(deadline_index, p_map)
-                    .map_err(|e| {
-                        log::error!(target: LOG_TARGET, "[{e:?}] try_insert: Could not insert partition map into deadline index {deadline_index}");
+                    .map_err(|_| {
+                        log::error!(target: LOG_TARGET, "try_insert: Could not insert partition map into deadline index {deadline_index}");
                         GeneralPalletError::SectorMapErrorFailedToInsertPartition
                     })?;
                 Ok(())

@@ -127,14 +127,14 @@ where
             // Record the partition as proven.
             self.partitions_posted
                 .try_insert(partition_num)
-                .map_err(|e| {
-                    log::error!(target: LOG_TARGET, "[{e:?}] record_proven: Error while trying to insert partitions");
+                .map_err(|_| {
+                    log::error!(target: LOG_TARGET, "record_proven: Error while trying to insert partitions");
                     GeneralPalletError::DeadlineErrorProofUpdateFailed
                 })?;
 
-            partition.recover_all_declared_recoveries(all_sectors).map_err(|err| {
-                log::error!(target: LOG_TARGET, "{err:?}: record_proven: failed to recover all declared recoveries for partition {partition_num:?}");
-                err
+            partition.recover_all_declared_recoveries(all_sectors).map_err(|e| {
+                log::error!(target: LOG_TARGET, e:?; "record_proven: failed to recover all declared recoveries for partition {partition_num:?}");
+                e
             })?;
         }
 
@@ -211,8 +211,8 @@ where
             }
         }
 
-        let partitions = BoundedBTreeMap::try_from(partitions).map_err(|e| {
-            log::error!(target: LOG_TARGET, "[{e:?}] add_sectors: could not convert partitions to BoundedBTreeMap, too many of them ({} -> {}).",
+        let partitions = BoundedBTreeMap::try_from(partitions).map_err(|_| {
+            log::error!(target: LOG_TARGET, "add_sectors: could not convert partitions to BoundedBTreeMap, too many of them ({} -> {}).",
                 initial_partitions,
                 partition_idx);
             GeneralPalletError::DeadlineErrorCouldNotAddSectors
@@ -222,8 +222,8 @@ where
 
         // Next, update the expiration queue.
         for (block, partition_index) in partition_deadline_updates {
-            self.expirations_blocks.try_insert(block, partition_index).map_err(|e| {
-                log::error!(target: LOG_TARGET, "[{e:?}] add_sectors: Cannot update expiration queue at index {partition_idx}");
+            self.expirations_blocks.try_insert(block, partition_index).map_err(|_| {
+                log::error!(target: LOG_TARGET, "add_sectors: Cannot update expiration queue at index {partition_idx}");
                 GeneralPalletError::DeadlineErrorCouldNotAddSectors
             })?;
         }
@@ -260,7 +260,7 @@ where
                 faulty_sectors,
                 fault_expiration_block
             ).map_err(|e| {
-                log::error!(target: LOG_TARGET, "record_faults: Error while recording faults in a partition: {e:?}");
+                log::error!(target: LOG_TARGET, e:?; "record_faults: Error while recording faults in a partition");
                 e
             })?;
 
@@ -271,13 +271,13 @@ where
                 .find(|(_, partition_num)| partition_num == &partition_number)
             {
                 self.expirations_blocks.remove(&block);
-                self.expirations_blocks.try_insert(fault_expiration_block, *partition_number).map_err(|e| {
-                    log::error!(target: LOG_TARGET, "[{e:?}] record_faults: Could not insert new expiration");
+                self.expirations_blocks.try_insert(fault_expiration_block, *partition_number).map_err(|_| {
+                    log::error!(target: LOG_TARGET, "record_faults: Could not insert new expiration");
                     GeneralPalletError::DeadlineErrorFailedToUpdateFaultExpiration
                 })?;
             } else {
-                self.expirations_blocks.try_insert(fault_expiration_block, *partition_number).map_err(|e| {
-                    log::error!(target: LOG_TARGET, "[{e:?}] record_faults: Could not insert new expiration");
+                self.expirations_blocks.try_insert(fault_expiration_block, *partition_number).map_err(|_| {
+                    log::error!(target: LOG_TARGET, "record_faults: Could not insert new expiration");
                     GeneralPalletError::DeadlineErrorFailedToUpdateFaultExpiration
                 })?;
             }
