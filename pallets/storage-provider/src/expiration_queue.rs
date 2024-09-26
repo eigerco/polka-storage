@@ -46,15 +46,15 @@ impl ExpirationSet {
         for sector in on_time_sectors {
             self.on_time_sectors
                 .try_insert(*sector)
-                .map_err(|_| {
-                    log::error!(target: LOG_TARGET, "add: Could not insert sector into on time sectors"); 
+                .map_err(|e| {
+                    log::error!(target: LOG_TARGET, "[{e:?}] add: Could not insert sector into on time sectors"); 
                     GeneralPalletError::ExpirationQueueErrorInsertionFailed
                 })?;
         }
 
         for sector in early_sectors {
-            self.early_sectors.try_insert(*sector).map_err(|_| {
-                log::error!(target: LOG_TARGET, "add: Could not insert sector into early sectors");
+            self.early_sectors.try_insert(*sector).map_err(|e| {
+                log::error!(target: LOG_TARGET, "[{e:?}] add: Could not insert sector into early sectors");
                 GeneralPalletError::ExpirationQueueErrorInsertionFailed
             })?;
         }
@@ -337,8 +337,8 @@ where
 
         self.map
             .try_insert(expiration, expiration_set)
-            .map_err(|_| {
-                log::error!(target: LOG_TARGET, "add_to_expiration: Could not insert expiration set into queue");
+            .map_err(|e| {
+                log::error!(target: LOG_TARGET, "[{e:?}] add_to_expiration: Could not insert expiration set into queue");
                 GeneralPalletError::ExpirationQueueErrorInsertionFailed
             })?;
 
@@ -388,8 +388,8 @@ where
         } else {
             self.map
                 .try_insert(expiration, expiration_set)
-                .map_err(|_| {
-                    log::error!(target: LOG_TARGET, "add_to_expiration: Could not insert expiration set into queue");
+                .map_err(|e| {
+                    log::error!(target: LOG_TARGET, "[{e:?}] add_to_expiration: Could not insert expiration set into queue");
                     GeneralPalletError::ExpirationQueueErrorInsertionFailed
                 })?;
         }

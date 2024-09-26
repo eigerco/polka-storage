@@ -110,8 +110,8 @@ where
                 GeneralPalletError::PartitionErrorDuplicateSectorNumber
             });
 
-            self.sectors.try_insert(sector.sector_number).map_err(|_| {
-                log::error!(target: LOG_TARGET, "add_sectors: Failed to add sectors");
+            self.sectors.try_insert(sector.sector_number).map_err(|e| {
+                log::error!(target: LOG_TARGET, "[{e:?}] add_sectors: Failed to add sectors");
                 GeneralPalletError::PartitionErrorFailedToAddSector
             })?;
         }
@@ -198,8 +198,8 @@ where
         fault_expiration: BlockNumber,
     ) -> Result<(), GeneralPalletError> {
         self.expirations
-            .reschedule_as_faults(fault_expiration, sectors).map_err(|_|{
-                log::error!(target: LOG_TARGET, "add_faults: Failed to add faults to the expirations");
+            .reschedule_as_faults(fault_expiration, sectors).map_err(|e|{
+                log::error!(target: LOG_TARGET, "[{e:?}] add_faults: Failed to add faults to the expirations");
                 GeneralPalletError::PartitionErrorFailedToAddFaults
             })?;
 
@@ -213,8 +213,8 @@ where
             .cloned()
             .collect::<BTreeSet<_>>()
             .try_into()
-            .map_err(|_|{
-                log::error!(target: LOG_TARGET, "add_faults: Failed to add sector numbers to faults");
+            .map_err(|e|{
+                log::error!(target: LOG_TARGET, "[{e:?}] add_faults: Failed to add sector numbers to faults");
                 GeneralPalletError::PartitionErrorFailedToAddFaults
             })?;
 
@@ -232,8 +232,8 @@ where
         &mut self,
         sector_numbers: &BTreeSet<SectorNumber>,
     ) -> Result<(), GeneralPalletError> {
-        self.recoveries = self.recoveries.difference(sector_numbers).cloned().collect::<BTreeSet<_>>().try_into().map_err(|_| {
-            log::error!(target: LOG_TARGET, "remove_recoveries: Failed to remove sectors from recovering");
+        self.recoveries = self.recoveries.difference(sector_numbers).cloned().collect::<BTreeSet<_>>().try_into().map_err(|e| {
+            log::error!(target: LOG_TARGET, "[{e:?}] remove_recoveries: Failed to remove sectors from recovering");
             GeneralPalletError::PartitionErrorFailedToRemoveRecoveries
         })?;
 

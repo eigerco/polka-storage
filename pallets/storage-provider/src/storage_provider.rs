@@ -173,8 +173,8 @@ where
     ) -> Result<(), GeneralPalletError> {
         self.sectors
             .try_insert(sector_num, info)
-            .map_err(|_| {
-                log::error!(target: LOG_TARGET, "activate_sector: Failed to activate {sector_num:?} because that sector number is in use");
+            .map_err(|e| {
+                log::error!(target: LOG_TARGET, "[{e:?}] activate_sector: Failed to activate {sector_num:?} because that sector number is in use");
                 GeneralPalletError::StorageProviderErrorSectorNumberInUse
             })?;
         Ok(())
