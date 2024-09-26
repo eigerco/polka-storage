@@ -1,6 +1,7 @@
 use std::{fs::File, path::PathBuf};
 
 use clap::Parser;
+use mater::CarV2Reader;
 
 use crate::{
     commp::{calculate_piece_commitment, piece_commitment_cid},
@@ -80,9 +81,16 @@ async fn main() -> Result<(), Error> {
             );
         }
         MaterCli::CalculatePieceCommitment { input_path } => {
+            // Check if the file is a CARv2 file. If it is, we can't calculate the piece commitment.
+            let mut source_file = tokio::fs::File::open(&input_path).await?;
+            let mut car_v2_reader = CarV2Reader::new(&mut source_file);
+            if !car_v2_reader.is_car_file().await {
+                return Err(Error::InvalidCarFile);
+            }
+
+            // Calculate the piece commitment.
             let mut source_file = File::open(&input_path)?;
             let file_size = source_file.metadata()?.len();
-
             let commitment = calculate_piece_commitment(&mut source_file, file_size)?;
             let cid = piece_commitment_cid(commitment);
 
