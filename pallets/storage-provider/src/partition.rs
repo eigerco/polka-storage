@@ -3,11 +3,12 @@ extern crate alloc;
 use alloc::{collections::BTreeSet, vec::Vec};
 
 use codec::{Decode, Encode};
-use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeSet, PalletError};
+use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeSet};
 use primitives_proofs::SectorNumber;
 use scale_info::TypeInfo;
 
 use crate::{
+    error::GeneralPalletError,
     expiration_queue::ExpirationQueue,
     sector::{SectorOnChainInfo, MAX_SECTORS},
 };
@@ -97,24 +98,22 @@ where
     pub fn add_sectors(
         &mut self,
         sectors: &[SectorOnChainInfo<BlockNumber>],
-    ) -> Result<(), PartitionError> {
+    ) -> Result<(), GeneralPalletError> {
         // Add sectors to the expirations queue.
-        self.expirations.add_active_sectors(sectors).map_err(|_| {
-            log::error!(target: LOG_TARGET, "add_sectors: Failed to add sectors to the expirations");
-            PartitionError::FailedToAddSector
-        })?;
+        self.expirations.add_active_sectors(sectors)?;
 
         for sector in sectors {
             // Ensure that the sector number has not been used before.
             // All sector number (including faulty, terminated and unproven) are contained in `sectors` so we only need to check in there.
             ensure!(!self.sectors.contains(&sector.sector_number), {
                 log::error!(target: LOG_TARGET, "check_sector_number_duplicate: sector {:?} duplicate in sectors",sector.sector_number);
-                PartitionError::DuplicateSectorNumber
+                GeneralPalletError::PartitionErrorDuplicateSectorNumber
             });
 
-            self.sectors
-                .try_insert(sector.sector_number)
-                .map_err(|_| PartitionError::FailedToAddSector)?;
+            self.sectors.try_insert(sector.sector_number).map_err(|_| {
+                log::error!(target: LOG_TARGET, "add_sectors: Failed to add sectors");
+                GeneralPalletError::PartitionErrorFailedToAddSector
+            })?;
         }
 
         Ok(())
@@ -134,7 +133,7 @@ where
         >,
         sector_numbers: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
         fault_expiration: BlockNumber,
-    ) -> Result<BTreeSet<SectorNumber>, PartitionError>
+    ) -> Result<BTreeSet<SectorNumber>, GeneralPalletError>
     where
         BlockNumber: sp_runtime::traits::BlockNumber,
     {
@@ -197,11 +196,11 @@ where
         &mut self,
         sectors: &[&SectorOnChainInfo<BlockNumber>],
         fault_expiration: BlockNumber,
-    ) -> Result<(), PartitionError> {
+    ) -> Result<(), GeneralPalletError> {
         self.expirations
-            .reschedule_as_faults(fault_expiration, sectors).map_err(|_|{
-                log::error!(target: LOG_TARGET, "add_faults: Failed to add faults to the expirations");
-                PartitionError::FailedToAddFaults
+            .reschedule_as_faults(fault_expiration, sectors).map_err(|e| {
+                log::error!(target: LOG_TARGET, e:?; "add_faults: Failed to add faults to the expirations");
+                GeneralPalletError::PartitionErrorFailedToAddFaults
             })?;
 
         // Update partition metadata
@@ -216,7 +215,7 @@ where
             .try_into()
             .map_err(|_|{
                 log::error!(target: LOG_TARGET, "add_faults: Failed to add sector numbers to faults");
-                PartitionError::FailedToAddFaults
+                GeneralPalletError::PartitionErrorFailedToAddFaults
             })?;
 
         log::debug!(target: LOG_TARGET, "add_faults: new faults {:?}", self.faults);
@@ -232,10 +231,10 @@ where
     fn remove_recoveries(
         &mut self,
         sector_numbers: &BTreeSet<SectorNumber>,
-    ) -> Result<(), PartitionError> {
+    ) -> Result<(), GeneralPalletError> {
         self.recoveries = self.recoveries.difference(sector_numbers).cloned().collect::<BTreeSet<_>>().try_into().map_err(|_| {
             log::error!(target: LOG_TARGET, "remove_recoveries: Failed to remove sectors from recovering");
-            PartitionError::FailedToRemoveRecoveries
+            GeneralPalletError::PartitionErrorFailedToRemoveRecoveries
         })?;
 
         Ok(())
@@ -274,10 +273,10 @@ where
             SectorOnChainInfo<BlockNumber>,
             ConstU32<MAX_SECTORS>,
         >,
-    ) -> Result<(), PartitionError> {
+    ) -> Result<(), GeneralPalletError> {
         self.expirations.reschedule_recovered(all_sectors, &self.recoveries).map_err(|err| {
             log::error!(target: LOG_TARGET, "recover_all_declared_recoveries: Failed to reschedule recoveries. error {err:?}");
-            PartitionError::FailedToRemoveRecoveries
+            GeneralPalletError::PartitionErrorFailedToRemoveRecoveries
         })?;
 
         self.faults = self
@@ -294,18 +293,6 @@ where
     }
 }
 
-#[derive(Decode, Encode, PalletError, TypeInfo, RuntimeDebug)]
-pub enum PartitionError {
-    /// Emitted when adding sectors fails
-    FailedToAddSector,
-    /// Emitted when trying to add a sector number that has already been used in this partition.
-    DuplicateSectorNumber,
-    /// Emitted when adding faults fails
-    FailedToAddFaults,
-    /// Emitted when removing recovering sectors fails
-    FailedToRemoveRecoveries,
-}
-
 #[cfg(test)]
 mod test {
     use primitives_proofs::RegisteredSealProof;
@@ -313,7 +300,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn add_sectors() -> Result<(), PartitionError> {
+    fn add_sectors() -> Result<(), GeneralPalletError> {
         // Set up partition, using `u64` for block number because it is not relevant to this test.
         let mut partition: Partition<u64> = Partition::new();
         // Add some sectors
@@ -352,7 +339,7 @@ mod test {
     }
 
     #[test]
-    fn live_sectors() -> Result<(), PartitionError> {
+    fn live_sectors() -> Result<(), GeneralPalletError> {
         // Set up partition, using `u64` for block number because it is not relevant to this test.
         let mut partition: Partition<u64> = Partition::new();
 

@@ -6,13 +6,15 @@ use alloc::{
 use core::ops::Not;
 
 use codec::{Decode, Encode};
-use frame_support::PalletError;
 use primitives_proofs::SectorNumber;
 use scale_info::TypeInfo;
 use sp_core::{ConstU32, RuntimeDebug};
 use sp_runtime::{BoundedBTreeMap, BoundedBTreeSet};
 
-use crate::sector::{SectorOnChainInfo, MAX_SECTORS};
+use crate::{
+    error::GeneralPalletError,
+    sector::{SectorOnChainInfo, MAX_SECTORS},
+};
 
 const LOG_TARGET: &'static str = "runtime::storage_provider::expiration_queue";
 
@@ -40,17 +42,21 @@ impl ExpirationSet {
         &mut self,
         on_time_sectors: &[SectorNumber],
         early_sectors: &[SectorNumber],
-    ) -> Result<(), ExpirationQueueError> {
+    ) -> Result<(), GeneralPalletError> {
         for sector in on_time_sectors {
             self.on_time_sectors
                 .try_insert(*sector)
-                .map_err(|_| ExpirationQueueError::InsertionFailed)?;
+                .map_err(|_| {
+                    log::error!(target: LOG_TARGET, "add: Could not insert sector into on time sectors"); 
+                    GeneralPalletError::ExpirationQueueErrorInsertionFailed
+                })?;
         }
 
         for sector in early_sectors {
-            self.early_sectors
-                .try_insert(*sector)
-                .map_err(|_| ExpirationQueueError::InsertionFailed)?;
+            self.early_sectors.try_insert(*sector).map_err(|_| {
+                log::error!(target: LOG_TARGET, "add: Could not insert sector into early sectors");
+                GeneralPalletError::ExpirationQueueErrorInsertionFailed
+            })?;
         }
 
         Ok(())
@@ -113,7 +119,7 @@ where
     pub fn add_active_sectors(
         &mut self,
         sectors: &[SectorOnChainInfo<BlockNumber>],
-    ) -> Result<(), ExpirationQueueError> {
+    ) -> Result<(), GeneralPalletError> {
         for sector in sectors {
             self.add_to_expiration_set(sector.expiration, &[sector.sector_number], &[])?;
         }
@@ -131,7 +137,7 @@ where
         &mut self,
         new_expiration: BlockNumber,
         sectors: &[&SectorOnChainInfo<BlockNumber>],
-    ) -> Result<(), ExpirationQueueError> {
+    ) -> Result<(), GeneralPalletError> {
         // Sectors grouped by the expiration they currently have.
         let groups = self.find_sectors_by_expiration(sectors)?;
 
@@ -172,7 +178,7 @@ where
             ConstU32<MAX_SECTORS>,
         >,
         reschedule: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
-    ) -> Result<(), ExpirationQueueError> {
+    ) -> Result<(), GeneralPalletError> {
         // Sectors remaining to be rescheduled.
         let mut remaining = reschedule
             .iter()
@@ -224,7 +230,7 @@ where
         // There are still some sectors not found
         if !remaining.is_empty() {
             log::error!(target: LOG_TARGET, "reschedule_recovered: Some sectors not found {remaining:?}");
-            return Err(ExpirationQueueError::SectorNotFound);
+            return Err(GeneralPalletError::ExpirationQueueErrorSectorNotFound);
         }
 
         // Re-schedule the removed sectors to their target expiration.
@@ -241,7 +247,7 @@ where
         &mut self,
         sectors: &[SectorOnChainInfo<BlockNumber>],
         faults: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
-    ) -> Result<ExpirationSet, ExpirationQueueError> {
+    ) -> Result<ExpirationSet, GeneralPalletError> {
         let mut remaining: BTreeSet<SectorNumber> =
             sectors.iter().map(|s| s.sector_number).collect();
         let mut removed = ExpirationSet::new();
@@ -268,7 +274,7 @@ where
 
         // Finally, remove faulty sectors (on time and not).
         self.map.iter_mut().try_for_each(
-            |(_block, expiration_set)| -> Result<(), ExpirationQueueError> {
+            |(_block, expiration_set)| -> Result<(), GeneralPalletError> {
                 for sector in &faulty_sectors {
                     let sector_number = sector.sector_number;
                     let mut found = false;
@@ -300,7 +306,7 @@ where
 
         if !remaining.is_empty() {
             log::error!(target: LOG_TARGET, "reschedule_recovered: Some sectors not found {remaining:?}");
-            return Err(ExpirationQueueError::SectorNotFound);
+            return Err(GeneralPalletError::ExpirationQueueErrorSectorNotFound);
         } else {
             Ok(removed)
         }
@@ -315,7 +321,7 @@ where
         expiration: BlockNumber,
         on_time_sectors: &[SectorNumber],
         early_sectors: &[SectorNumber],
-    ) -> Result<(), ExpirationQueueError> {
+    ) -> Result<(), GeneralPalletError> {
         if on_time_sectors.is_empty() && early_sectors.is_empty() {
             return Ok(());
         }
@@ -331,7 +337,10 @@ where
 
         self.map
             .try_insert(expiration, expiration_set)
-            .map_err(|_| ExpirationQueueError::InsertionFailed)?;
+            .map_err(|_| {
+                log::error!(target: LOG_TARGET, "add_to_expiration: Could not insert expiration set into queue");
+                GeneralPalletError::ExpirationQueueErrorInsertionFailed
+            })?;
 
         Ok(())
     }
@@ -342,7 +351,7 @@ where
     fn remove_active_sectors(
         &mut self,
         sectors: &[&SectorOnChainInfo<BlockNumber>],
-    ) -> Result<BTreeSet<SectorNumber>, ExpirationQueueError> {
+    ) -> Result<BTreeSet<SectorNumber>, GeneralPalletError> {
         let mut removed_sector_numbers = BTreeSet::new();
         // Group sectors by their expiration, then remove from existing queue
         // entries according to those groups.
@@ -352,7 +361,7 @@ where
             let mut expiration_set = self
                 .map
                 .get(&expiration_height)
-                .ok_or(ExpirationQueueError::ExpirationSetNotFound)?
+                .ok_or(GeneralPalletError::ExpirationQueueErrorExpirationSetNotFound)?
                 .clone();
 
             // Remove sectors from the set
@@ -373,13 +382,16 @@ where
         &mut self,
         expiration: BlockNumber,
         expiration_set: ExpirationSet,
-    ) -> Result<(), ExpirationQueueError> {
+    ) -> Result<(), GeneralPalletError> {
         if expiration_set.is_empty() {
             self.map.remove(&expiration);
         } else {
             self.map
                 .try_insert(expiration, expiration_set)
-                .map_err(|_| ExpirationQueueError::InsertionFailed)?;
+                .map_err(|_| {
+                    log::error!(target: LOG_TARGET, "add_to_expiration: Could not insert expiration set into queue");
+                    GeneralPalletError::ExpirationQueueErrorInsertionFailed
+                })?;
         }
 
         Ok(())
@@ -395,7 +407,7 @@ where
     fn find_sectors_by_expiration(
         &self,
         sectors: &[&SectorOnChainInfo<BlockNumber>],
-    ) -> Result<BTreeMap<BlockNumber, SectorExpirationSet>, ExpirationQueueError> {
+    ) -> Result<BTreeMap<BlockNumber, SectorExpirationSet>, GeneralPalletError> {
         // `declared_expirations` expirations we are searching for sectors in
         // `all_remaining` sector numbers we are searching for. we are removing
         // them from the set when we find them
@@ -416,7 +428,7 @@ where
             let expiration_set = self
                 .map
                 .get(&expiration)
-                .ok_or(ExpirationQueueError::ExpirationSetNotFound)?;
+                .ok_or(GeneralPalletError::ExpirationQueueErrorExpirationSetNotFound)?;
 
             if let Some(group) = group_expiration_set(&mut all_remaining, expiration_set.clone()) {
                 groups.insert(*expiration, group);
@@ -448,7 +460,7 @@ where
         // There are still some sectors not found
         if !all_remaining.is_empty() {
             log::error!(target: LOG_TARGET, "find_sectors_by_expiration: Some sectors not found {all_remaining:?}");
-            return Err(ExpirationQueueError::SectorNotFound);
+            return Err(GeneralPalletError::ExpirationQueueErrorSectorNotFound);
         }
 
         Ok(groups)
@@ -489,17 +501,6 @@ struct SectorExpirationSet {
     // Expiration set as found in the expiration queue. This set can be modified
     // and saved back to the [`ExpirationQueue`] when needed.
     expiration_set: ExpirationSet,
-}
-
-/// Errors that can occur when interacting with the expiration queue.
-#[derive(Decode, Encode, PalletError, TypeInfo, RuntimeDebug)]
-pub enum ExpirationQueueError {
-    /// Expiration set not found
-    ExpirationSetNotFound,
-    /// Sector not found in expiration set
-    SectorNotFound,
-    /// Insertion failed
-    InsertionFailed,
 }
 
 #[cfg(test)]
