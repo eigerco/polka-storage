@@ -9360,14 +9360,21 @@ dependencies = [
 name = "polka-storage-proofs"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "bellpepper-core",
  "bellperson",
  "bls12_381",
  "blstrs",
+ "filecoin-proofs",
  "pairing",
  "parity-scale-codec",
+ "primitives-proofs",
  "rand",
  "rand_xorshift",
  "scale-info",
+ "storage-proofs-core",
+ "storage-proofs-porep",
+ "thiserror",
 ]
 
 [[package]]
@@ -9376,6 +9383,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "axum",
+ "bls12_381",
  "chrono",
  "cid 0.11.1",
  "clap",
@@ -9385,6 +9393,9 @@ dependencies = [
  "ipld-core",
  "jsonrpsee 0.23.2",
  "mater",
+ "parity-scale-codec",
+ "polka-storage-proofs",
+ "primitives-proofs",
  "sc-cli",
  "serde",
  "serde_json",

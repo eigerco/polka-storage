@@ -129,6 +129,7 @@ primitives-proofs = { path = "primitives/proofs", default-features = false }
 storagext = { path = "cli/polka-storage/storagext" }
 
 # FileCoin proofs
+bellpepper-core = "0.2"
 bellperson = "0.26"
 blstrs = "0.7"
 filecoin-hashers = "13.1.0"

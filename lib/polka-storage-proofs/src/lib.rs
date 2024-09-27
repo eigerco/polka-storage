@@ -3,5 +3,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 mod groth16;
+pub mod porep;
 
 pub use groth16::*;
