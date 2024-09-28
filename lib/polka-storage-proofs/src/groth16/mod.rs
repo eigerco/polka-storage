@@ -17,7 +17,7 @@
 //!
 //! Note, that crate `bls12_381` is currently not audited.
 
-// TODO: (395,@neutrinoks,20/10/2024): Check if we can fix to Bls12 (VerifyingKey<Bls12>).
+// TODO: (@neutrinoks,20/10/2024): Check if we can fix to Bls12 (VerifyingKey<Bls12>).
 
 mod std;
 mod substrate;
@@ -29,22 +29,50 @@ use core::fmt::Debug;
 
 pub use bls12_381::{Bls12, G1Affine, G2Affine, Scalar};
 pub use pairing::{
-    group::{ff::PrimeField, prime::PrimeCurveAffine, Curve},
+    group::{
+        ff::{Field, PrimeField},
+        prime::PrimeCurveAffine,
+        Curve,
+    },
     Engine, MultiMillerLoop,
 };
+#[cfg(test)]
+use rand::SeedableRng;
+#[cfg(test)]
+use rand_xorshift::XorShiftRng;
 
-/// This constant specifies the minimum number of bytes of a serialized `VerifyingKey`.
+/// The number of bytes when serialising a `G1Affine` by using `G1Affine::to_compressed()`.
+const G1AFFINE_COMPRESSED_BYTES: usize = 48;
+/// The number of bytes when serialising a `G1Affine` by using `G1Affine::to_compressed()`.
+const G2AFFINE_COMPRESSED_BYTES: usize = 96;
+/// The number of bytes when serialising a `G1Affine` by using `G1Affine::to_uncompressed()`.
+const G1AFFINE_UNCOMPRESSED_BYTES: usize = 96;
+/// The number of bytes when serialising a `G1Affine` by using `G1Affine::to_uncompressed()`.
+const G2AFFINE_UNCOMPRESSED_BYTES: usize = 192;
+
+/// This constant specifies the minimum number of bytes of a serialised `VerifyingKey`.
 ///
-/// It gets calculated by the defined number of serialised bytes of `G1Affine` and `G2Affine`. A
-/// serialised `G1Affine` are 96 bytes, a serialised `G2Affine` are 192 bytes. In `VerifyingKey` we
-/// have for sure 3 x `G1Affine` and 3 x `G2Affine`. One serialised `u32` variable will be added.
+/// It gets calculated by the defined number of serialised bytes of `G1Affine` and `G2Affine` in
+/// uncompressed format. An uncompressed serialised `G1Affine` are 96 bytes, an uncompressed
+/// serialised `G2Affine` are 192 bytes. In `VerifyingKey` we have for sure 3 x `G1Affine` and
+/// 3 x `G2Affine`. One serialised `u32` variable will be added.
 /// That computes to: 3 x 96 + 3 * 192 + 4 = 868.
-pub const VERIFYINGKEY_MIN_BYTES: usize = 868;
+pub const VERIFYINGKEY_MIN_BYTES: usize =
+    3 * G1AFFINE_UNCOMPRESSED_BYTES + 3 * G2AFFINE_UNCOMPRESSED_BYTES + 4;
+/// This constant specifies the maximum number of bytes of a serialised `VerifyingKey`.
+///
+/// The maximum number of parameters in field `ic` is 40 because its depedency can be resolved to
+/// possible sector sizes. This computes to: 3 * 96 + 3 * 192 + 4 + 40 * 96 = 4704.
+pub const VERIFYINGKEY_MAX_BYTES: usize =
+    43 * G1AFFINE_UNCOMPRESSED_BYTES + 3 * G2AFFINE_UNCOMPRESSED_BYTES + 4;
 
-/// The number of bytes when serialising a `G1Affine` by using `G1Affine::to_uncompressed()`.
-const G1AFFINE_BYTES: usize = 96;
-/// The number of bytes when serialising a `G1Affine` by using `G1Affine::to_uncompressed()`.
-const G2AFFINE_BYTES: usize = 192;
+/// This constant specifies the number of bytes of a serialised `Proof`.
+///
+/// It gets calculated by the defined nubmer of compressed serialised bytes of `G1Affine` and
+/// `G2Affine`. A compressed serialised `G1Affine` are 48 bytes, a compressed serialised `G2Affine`
+/// are 96 bytes.
+/// That computes to: 2 * 48 + 96 = 192.
+pub const PROOF_BYTES: usize = 2 * G1AFFINE_COMPRESSED_BYTES + 1 * G2AFFINE_COMPRESSED_BYTES;
 
 /// The Verifying-Key data type definition for a ZK-SNARK verification. This type definition is
 /// `std`- and `no-std`-compatible, and Substrate-runtime-compatible as well.
@@ -54,7 +82,7 @@ const G2AFFINE_BYTES: usize = 192;
 /// * <https://github.com/filecoin-project/bellperson/blob/master/src/groth16/verifying_key.rs#L14-L39>
 /// * <https://github.com/zkcrypto/bellman/blob/main/groth16/src/lib.rs#L103-L128>
 #[derive(Clone, Debug, Eq)]
-#[cfg_attr(feature = "substrate", derive(Default, ::scale_info::TypeInfo))]
+#[cfg_attr(feature = "substrate", derive(::scale_info::TypeInfo))]
 pub struct VerifyingKey<E: Engine> {
     /// Alpha in g1 for verifying and for creating A/C elements of proof.
     /// Never the point at infinity.
@@ -99,7 +127,7 @@ impl<E> VerifyingKey<E>
 where
     E: Engine<G1Affine = G1Affine, G2Affine = G2Affine>,
 {
-    /// Serialises the `VerifiyingKey` into a byte stream.
+    /// Serialises the `VerifiyingKey` into a byte stream and writes it to the given buffer.
     pub fn into_bytes(&self, buf: &mut [u8]) -> Result<(), IntoBytesError> {
         if buf.len() < self.serialised_bytes() {
             return Err(IntoBytesError::InsufficientBufferLength);
@@ -107,15 +135,15 @@ where
 
         let mut idx = 0;
 
-        idx = copy_from_buffer(buf, idx, &self.alpha_g1.to_uncompressed());
-        idx = copy_from_buffer(buf, idx, &self.beta_g1.to_uncompressed());
-        idx = copy_from_buffer(buf, idx, &self.beta_g2.to_uncompressed());
-        idx = copy_from_buffer(buf, idx, &self.gamma_g2.to_uncompressed());
-        idx = copy_from_buffer(buf, idx, &self.delta_g1.to_uncompressed());
-        idx = copy_from_buffer(buf, idx, &self.delta_g2.to_uncompressed());
-        idx = copy_from_buffer(buf, idx, &(self.ic.len() as u32).to_be_bytes());
+        idx = from_fixed_buffer(buf, idx, &self.alpha_g1.to_uncompressed());
+        idx = from_fixed_buffer(buf, idx, &self.beta_g1.to_uncompressed());
+        idx = from_fixed_buffer(buf, idx, &self.beta_g2.to_uncompressed());
+        idx = from_fixed_buffer(buf, idx, &self.gamma_g2.to_uncompressed());
+        idx = from_fixed_buffer(buf, idx, &self.delta_g1.to_uncompressed());
+        idx = from_fixed_buffer(buf, idx, &self.delta_g2.to_uncompressed());
+        idx = from_fixed_buffer(buf, idx, &(self.ic.len() as u32).to_be_bytes());
         for ic in &self.ic {
-            idx = copy_from_buffer(buf, idx, &ic.to_uncompressed());
+            idx = from_fixed_buffer(buf, idx, &ic.to_uncompressed());
         }
 
         Ok(())
@@ -129,50 +157,50 @@ where
             return Err(FromBytesError::NumberOfSerialisedBytes);
         }
 
-        let mut g1_chunk = [0u8; G1AFFINE_BYTES];
-        let mut g2_chunk = [0u8; G2AFFINE_BYTES];
+        let mut g1_chunk = [0u8; G1AFFINE_UNCOMPRESSED_BYTES];
+        let mut g2_chunk = [0u8; G2AFFINE_UNCOMPRESSED_BYTES];
         let mut u32_chunk = [0u8; 4];
         let mut idx = 0;
 
-        idx = copy_to_buffer(&mut g1_chunk, idx, bytes);
+        idx = to_fixed_buffer(&mut g1_chunk, idx, bytes);
         let alpha_g1 = G1Affine::from_uncompressed(&g1_chunk)
             .into_option()
             .ok_or(FromBytesError::G1AffineConversion)?;
 
-        idx = copy_to_buffer(&mut g1_chunk, idx, bytes);
+        idx = to_fixed_buffer(&mut g1_chunk, idx, bytes);
         let beta_g1 = G1Affine::from_uncompressed(&g1_chunk)
             .into_option()
             .ok_or(FromBytesError::G1AffineConversion)?;
 
-        idx = copy_to_buffer(&mut g2_chunk, idx, bytes);
+        idx = to_fixed_buffer(&mut g2_chunk, idx, bytes);
         let beta_g2 = G2Affine::from_uncompressed(&g2_chunk)
             .into_option()
             .ok_or(FromBytesError::G2AffineConversion)?;
 
-        idx = copy_to_buffer(&mut g2_chunk, idx, bytes);
+        idx = to_fixed_buffer(&mut g2_chunk, idx, bytes);
         let gamma_g2 = G2Affine::from_uncompressed(&g2_chunk)
             .into_option()
             .ok_or(FromBytesError::G2AffineConversion)?;
 
-        idx = copy_to_buffer(&mut g1_chunk, idx, bytes);
+        idx = to_fixed_buffer(&mut g1_chunk, idx, bytes);
         let delta_g1 = G1Affine::from_uncompressed(&g1_chunk)
             .into_option()
             .ok_or(FromBytesError::G1AffineConversion)?;
 
-        idx = copy_to_buffer(&mut g2_chunk, idx, bytes);
+        idx = to_fixed_buffer(&mut g2_chunk, idx, bytes);
         let delta_g2 = G2Affine::from_uncompressed(&g2_chunk)
             .into_option()
             .ok_or(FromBytesError::G2AffineConversion)?;
 
-        idx = copy_to_buffer(&mut u32_chunk, idx, bytes);
+        idx = to_fixed_buffer(&mut u32_chunk, idx, bytes);
         let ic_len = u32::from_be_bytes(u32_chunk) as usize;
-        if bytes.len() - idx != ic_len * G1AFFINE_BYTES {
+        if bytes.len() - idx != ic_len * G1AFFINE_UNCOMPRESSED_BYTES {
             return Err(FromBytesError::NumberOfSerialisedBytes);
         }
 
         let mut ic = Vec::<G1Affine>::new();
-        while idx <= bytes.len() - G1AFFINE_BYTES {
-            idx = copy_to_buffer(&mut g1_chunk, idx, bytes);
+        while idx <= bytes.len() - G1AFFINE_UNCOMPRESSED_BYTES {
+            idx = to_fixed_buffer(&mut g1_chunk, idx, bytes);
             ic.push(
                 G1Affine::from_uncompressed(&g1_chunk)
                     .into_option()
@@ -193,19 +221,101 @@ where
 
     /// Method returns the number of bytes when serialised.
     pub fn serialised_bytes(&self) -> usize {
-        VERIFYINGKEY_MIN_BYTES + self.ic.len() * G1AFFINE_BYTES
+        VERIFYINGKEY_MIN_BYTES + self.ic.len() * G1AFFINE_UNCOMPRESSED_BYTES
     }
 
+    /// Method generates a `VerifyingKey` with random numbers.
     #[cfg(test)]
-    fn random() -> VerifyingKey<E> {
+    pub fn random(rng: &mut XorShiftRng) -> VerifyingKey<E> {
         VerifyingKey::<E> {
-            alpha_g1: G1Affine::generator(),
-            beta_g1: G1Affine::generator(),
-            beta_g2: G2Affine::generator(),
-            gamma_g2: G2Affine::generator(),
-            delta_g1: G1Affine::generator(),
-            delta_g2: G2Affine::generator(),
-            ic: alloc::vec![G1Affine::generator(), G1Affine::generator()],
+            alpha_g1: rand_g1affine(rng),
+            beta_g1: rand_g1affine(rng),
+            beta_g2: rand_g2affine(rng),
+            gamma_g2: rand_g2affine(rng),
+            delta_g1: rand_g1affine(rng),
+            delta_g2: rand_g2affine(rng),
+            ic: alloc::vec![rand_g1affine(rng), rand_g1affine(rng)],
+        }
+    }
+}
+
+/// The Proof type definition for a ZK-SNARK verification. This type definition is `std`- and
+/// `no-std`-compatible, and Substrate-runtime-compatible as well.
+///
+/// References:
+/// - <https://github.com/eigerco/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/storage-proofs-core/src/multi_proof.rs#L10>
+/// - <https://github.com/filecoin-project/bellperson/blob/1264fa12bc2b79cdfbb1f5764349c9a22f2d8ea3/src/groth16/proof.rs#L14>
+/// - <https://github.com/zkcrypto/bellman/blob/9bb30a7bd261f2aa62840b80ed6750c622bebec3/src/groth16/mod.rs#L27>
+#[derive(Clone, Debug, Eq)]
+#[cfg_attr(feature = "substrate", derive(::scale_info::TypeInfo))]
+pub struct Proof<E: Engine> {
+    pub a: E::G1Affine,
+    pub b: E::G2Affine,
+    pub c: E::G1Affine,
+}
+
+impl<E: Engine> PartialEq for Proof<E> {
+    fn eq(&self, other: &Self) -> bool {
+        self.a == other.a && self.b == other.b && self.c == other.c
+    }
+}
+
+impl<E> Proof<E>
+where
+    E: Engine<G1Affine = G1Affine, G2Affine = G2Affine>,
+{
+    /// Serialises the `Proof` into a byte stream and writes it to the given buffer.
+    pub fn into_bytes(&self, buf: &mut [u8]) -> Result<(), IntoBytesError> {
+        if buf.len() < PROOF_BYTES {
+            return Err(IntoBytesError::InsufficientBufferLength);
+        }
+
+        let mut idx = 0;
+
+        idx = from_fixed_buffer(buf, idx, &self.a.to_compressed());
+        idx = from_fixed_buffer(buf, idx, &self.b.to_compressed());
+        from_fixed_buffer(buf, idx, &self.c.to_compressed());
+
+        Ok(())
+    }
+
+    /// Tries to deserialise a given byte stream into `Proof`.
+    pub fn from_bytes(bytes: &[u8]) -> Result<Proof<E>, FromBytesError> {
+        // G1Affine::to_uncompressed() transforms it into 96 bytes.
+        // G2Affine::to_uncompressed() transforms it into 192 bytes.
+        if bytes.len() < PROOF_BYTES {
+            return Err(FromBytesError::NumberOfSerialisedBytes);
+        }
+
+        let mut g1_chunk = [0u8; G1AFFINE_COMPRESSED_BYTES];
+        let mut g2_chunk = [0u8; G2AFFINE_COMPRESSED_BYTES];
+        let mut idx = 0;
+
+        idx = to_fixed_buffer(&mut g1_chunk, idx, bytes);
+        let a = G1Affine::from_compressed(&g1_chunk)
+            .into_option()
+            .ok_or(FromBytesError::G1AffineConversion)?;
+
+        idx = to_fixed_buffer(&mut g2_chunk, idx, bytes);
+        let b = G2Affine::from_compressed(&g2_chunk)
+            .into_option()
+            .ok_or(FromBytesError::G2AffineConversion)?;
+
+        to_fixed_buffer(&mut g1_chunk, idx, bytes);
+        let c = G1Affine::from_compressed(&g1_chunk)
+            .into_option()
+            .ok_or(FromBytesError::G1AffineConversion)?;
+
+        Ok(Proof::<E> { a, b, c })
+    }
+
+    /// Method generates a `Proof` with random numbers.
+    #[cfg(test)]
+    pub fn random(rng: &mut XorShiftRng) -> Proof<E> {
+        Proof::<E> {
+            a: rand_g1affine(rng),
+            b: rand_g2affine(rng),
+            c: rand_g1affine(rng),
         }
     }
 }
@@ -257,20 +367,30 @@ impl FromBytesError {
     }
 }
 
-/// Locally used method to copy bytes to fixed sized buffers, step by step.
-fn copy_to_buffer(buffer: &mut [u8], idx: usize, bytes: &[u8]) -> usize {
+/// Locally used method to copy bytes to a fixed sized buffers, step by step.
+fn to_fixed_buffer(buffer: &mut [u8], idx: usize, bytes: &[u8]) -> usize {
     let len = buffer.len();
     let end = idx + len;
     buffer.copy_from_slice(&bytes[idx..end]);
     end
 }
 
-/// Locally used method to copy bytes to fixed sized buffers, step by step.
-fn copy_from_buffer(bytes: &mut [u8], idx: usize, buffer: &[u8]) -> usize {
+/// Locally used method to copy bytes from a fixed sized buffers, step by step.
+fn from_fixed_buffer(bytes: &mut [u8], idx: usize, buffer: &[u8]) -> usize {
     let len = buffer.len();
     let end = idx + len;
     bytes[idx..end].copy_from_slice(&buffer);
     end
+}
+
+#[cfg(test)]
+pub fn rand_g1affine(rng: &mut XorShiftRng) -> G1Affine {
+    (G1Affine::generator() * Scalar::random(rng)).into()
+}
+
+#[cfg(test)]
+pub fn rand_g2affine(rng: &mut XorShiftRng) -> G2Affine {
+    (G2Affine::generator() * Scalar::random(rng)).into()
 }
 
 /// Helper definition that implements `codec::Output`.
@@ -311,10 +431,17 @@ impl ByteBuffer {
 mod tests {
     use super::*;
 
+    /// Locally used test seed for random number generation.
+    pub(crate) const TEST_SEED: [u8; 16] = [
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
+        0xe5,
+    ];
+
     /// This test is about the serialisation and deserialisation of `VerifyingKey`.
     #[test]
-    fn verifying_key_into_bytes_and_from_bytes() {
-        let vkey = VerifyingKey::<Bls12>::random();
+    fn verifyingkey_into_bytes_and_from_bytes() {
+        let mut rng = XorShiftRng::from_seed(TEST_SEED);
+        let vkey = VerifyingKey::<Bls12>::random(&mut rng);
         let mut vkey_bytes = ByteBuffer::new_with_size(vkey.serialised_bytes());
         vkey.clone()
             .into_bytes(&mut vkey_bytes.as_mut_slice())
@@ -323,5 +450,35 @@ mod tests {
             vkey,
             VerifyingKey::<Bls12>::from_bytes(&vkey_bytes.as_slice()).unwrap()
         );
+    }
+
+    /// This test is about the serialisation and deserialisation of `Proof`.
+    #[test]
+    fn proof_into_bytes_and_from_bytes() {
+        let mut rng = XorShiftRng::from_seed(TEST_SEED);
+        let proof = Proof::<Bls12>::random(&mut rng);
+        let mut proof_bytes = ByteBuffer::new_with_size(PROOF_BYTES);
+        proof
+            .clone()
+            .into_bytes(&mut proof_bytes.as_mut_slice())
+            .unwrap();
+        assert_eq!(
+            proof,
+            Proof::<Bls12>::from_bytes(&proof_bytes.as_slice()).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_random_numbers_are_not_the_same() {
+        let mut rng = XorShiftRng::from_seed(TEST_SEED);
+        let mut last = rand_g1affine(&mut rng);
+        let mut next = rand_g1affine(&mut rng);
+        assert_ne!(last, next);
+        last = next;
+        next = rand_g1affine(&mut rng);
+        assert_ne!(last, next);
+        last = next;
+        next = rand_g1affine(&mut rng);
+        assert_ne!(last, next);
     }
 }
