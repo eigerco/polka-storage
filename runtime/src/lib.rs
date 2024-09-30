@@ -299,6 +299,8 @@ mod runtime {
     pub type StorageProvider = pallet_storage_provider::pallet;
     #[runtime::pallet_index(35)]
     pub type Market = pallet_market;
+    #[runtime::pallet_index(36)]
+    pub type Proofs = pallet_proofs;
 }
 
 #[docify::export(register_validate_block)]

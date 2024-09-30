@@ -122,6 +122,7 @@ zombienet-support = "0.2.9"
 cli-primitives = { path = "primitives/cli" }
 mater = { path = "storage/mater" }
 pallet-market = { path = "pallets/market", default-features = false }
+pallet-proofs = { path = "pallets/proofs", default-features = false }
 pallet-storage-provider = { path = "pallets/storage-provider", default-features = false }
 polka-storage-proofs = { path = "lib/polka-storage-proofs", default-features = false }
 polka-storage-runtime = { path = "runtime" }

@@ -88,7 +88,9 @@ impl BucketGraph {
                 let m_prime = m - 1;
                 // Large sector sizes require that metagraph node indexes are `u64`.
                 let metagraph_node = node as u64 * m_prime as u64;
-                let n_buckets = (metagraph_node as f64).log2().ceil() as u64;
+                // In Filecoin this is originally (see notes about this method above):
+                // let n_buckets = (metagraph_node as f64).log2().ceil() as u64;
+                let n_buckets = ceil_log2(metagraph_node);
 
                 let (predecessor_index, other_drg_parents) = (0, &mut parents[1..]);
 
@@ -149,6 +151,18 @@ impl core::fmt::Debug for BucketGraphError {
                 write!(f, "too many metagraph nodes {}", nodes)
             }
         }
+    }
+}
+
+/// In Filecoin the computation `(n_u64 as f64).log2().ceil() as u64` is need. Currently, in Rust
+/// it is not possible to compute f64::log2 in `no-std` environment. This method is an alternative
+/// implementation.
+pub(crate) const fn ceil_log2(n: u64) -> u64 {
+    if n == 0 {
+        0
+    } else {
+        let n_new = n - 1u64;
+        (u64::BITS - n_new.leading_zeros()) as u64
     }
 }
 
