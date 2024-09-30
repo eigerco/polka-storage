@@ -38,11 +38,15 @@
           taplo
           # Due to zombienet's flake.nix, needs to be prefixed with pkg.zombienet
           pkgs.zombienet.default
+          # rust-fil-proofs OpenCL dependencies (https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/README.md?plain=1#L74)
+          ocl-icd
+          hwloc
         ]
         ++ (lib.optionals stdenv.isDarwin [
           darwin.apple_sdk.frameworks.Security
           darwin.apple_sdk.frameworks.CoreServices
           darwin.apple_sdk.frameworks.SystemConfiguration
+          darwin.apple_sdk.frameworks.OpenCL
         ]);
       in
       with pkgs;
