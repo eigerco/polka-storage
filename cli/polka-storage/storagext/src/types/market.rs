@@ -1,5 +1,6 @@
 use cid::Cid;
 use codec::Encode;
+use sha2::Digest;
 use subxt::{ext::sp_runtime::MultiSignature, tx::Signer, utils::Static};
 
 use crate::{
@@ -13,6 +14,10 @@ use crate::{
     BlockNumber, Currency, PolkaStorageConfig,
 };
 
+// Reference: <https://github.com/multiformats/multicodec/blob/master/table.csv>
+const SHA2_256_MULTICODEC_CODE: u64 = 0x12;
+const JSON_MULTICODEC_CODE: u64 = 0x0200;
+
 #[derive(Debug, thiserror::Error)]
 pub enum ConversionError {
     #[error(transparent)]
@@ -20,6 +25,12 @@ pub enum ConversionError {
 
     #[error(transparent)]
     Utf8(#[from] std::string::FromUtf8Error),
+
+    #[error(transparent)]
+    Multihash(#[from] cid::multihash::Error),
+
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
 }
 
 /// Doppelganger of `RuntimeDealProposal` but with more ergonomic types and no generics.
@@ -130,6 +141,15 @@ impl DealProposal {
                 .expect("`self` should have been previously validated"),
             client_signature,
         }
+    }
+
+    /// Get the CID of this deal proposal, as serialized into JSON.
+    pub fn cid(&self) -> Result<cid::Cid, ConversionError> {
+        let deal_proposal_json = serde_json::to_string(self)?;
+        let deal_proposal_sha256 = sha2::Sha256::digest(&deal_proposal_json);
+        let deal_proposal_multihash =
+            cid::multihash::Multihash::wrap(SHA2_256_MULTICODEC_CODE, &deal_proposal_sha256)?;
+        Ok(Cid::new_v1(JSON_MULTICODEC_CODE, deal_proposal_multihash))
     }
 }
 

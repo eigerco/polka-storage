@@ -5,35 +5,43 @@ use axum::{
     extract::{MatchedPath, Path, Request, State},
     http::{header, StatusCode},
     response::{IntoResponse, Response},
-    routing::{get, post},
+    routing::{get, put},
     Router,
 };
-use futures::TryStreamExt;
-use mater::{create_filestore, Cid, Config};
-use tempfile::tempdir_in;
+use futures::{TryFutureExt, TryStreamExt};
+use mater::Cid;
 use tokio::{
     fs::{self, File},
-    io::{AsyncRead, BufWriter},
-    sync::oneshot::Receiver,
+    io::BufWriter,
 };
-use tokio_util::io::{ReaderStream, StreamReader};
+use tokio_util::{
+    io::{ReaderStream, StreamReader},
+    sync::CancellationToken,
+};
 use tower_http::trace::TraceLayer;
 use tracing::{error, info, info_span, instrument};
 use uuid::Uuid;
 
-use crate::CliError;
+use crate::db::DealDB;
 
 /// Shared state of the storage server.
 pub struct StorageServerState {
-    pub storage_dir: PathBuf,
+    pub storage_dir: Arc<PathBuf>,
+    pub deal_db: Arc<DealDB>,
 }
 
 #[instrument(skip_all)]
 pub async fn start_upload_server(
     state: Arc<StorageServerState>,
     listen_addr: SocketAddr,
-    notify_shutdown_rx: Receiver<()>,
-) -> Result<(), CliError> {
+    token: CancellationToken,
+) -> Result<(), std::io::Error> {
+    // Create a storage folder if it doesn't exist.
+    if !state.storage_dir.exists() {
+        info!(folder = ?state.storage_dir, "creating storage folder");
+        fs::create_dir_all(state.storage_dir.as_ref()).await?;
+    }
+
     // Configure router
     let router = configure_router(state);
     let listener = tokio::net::TcpListener::bind(listen_addr).await?;
@@ -42,16 +50,18 @@ pub async fn start_upload_server(
     info!("upload server started at: {listen_addr}");
     axum::serve(listener, router)
         .with_graceful_shutdown(async move {
-            let _ = notify_shutdown_rx.await;
+            token.cancelled_owned().await;
+            tracing::trace!("shutdown received");
         })
-        .await?;
-
-    Ok(())
+        .await
 }
 
 fn configure_router(state: Arc<StorageServerState>) -> Router {
     Router::new()
-        .route("/upload", post(upload))
+        // NOTE(@jmg-duarte,02/10/2024): not only I am trusting the absolute GOAT (Daniel Stenberg)
+        // https://curl.se/docs/httpscripting.html#put
+        // This also worked "first try" while multi-part did not work at all!
+        .route("/upload/:cid", put(upload))
         .route("/download/:cid", get(download))
         .with_state(state)
         // Tracing layer
@@ -78,26 +88,93 @@ fn configure_router(state: Arc<StorageServerState>) -> Router {
 /// to a CAR file and returns the CID of the CAR file to the user.
 async fn upload(
     State(state): State<Arc<StorageServerState>>,
+    Path(cid): Path<String>,
     request: Request,
 ) -> Result<String, (StatusCode, String)> {
-    // Body reader
-    let body_reader = StreamReader::new(
+    let deal_cid = match cid::Cid::from_str(&cid) {
+        Ok(cid) => cid,
+        Err(err) => return Err((StatusCode::BAD_REQUEST, err.to_string())),
+    };
+
+    // If the deal hasn't been accepted, reject the upload
+    let proposed_deal = match state.deal_db.get_proposed_deal(deal_cid) {
+        Ok(Some(proposed_deal)) => proposed_deal,
+        Ok(None) => {
+            return Err((
+                StatusCode::NOT_FOUND,
+                format!("cid \"{}\" was not found", cid),
+            ));
+        }
+        Err(err) => return Err((StatusCode::INTERNAL_SERVER_ERROR, err.to_string())),
+    };
+
+    let mut body_reader = StreamReader::new(
         request
             .into_body()
             .into_data_stream()
             .map_err(|err| io::Error::new(io::ErrorKind::Other, err)),
     );
 
-    stream_contents_to_car(&state.storage_dir, body_reader)
+    // We first write the file to disk and then verify it,
+    // it's wasteful but mater does not have a "passthrough" mode
+    // i.e. reads and verifies the CAR as it goes, outputting the original bytes
+    let piece_path = state.storage_dir.join(proposed_deal.piece_cid.to_string());
+
+    // Opening the file a single time with OpenOptions::new().create(true).read(true).write(true)
+    // does not work to write and read for some reason...
+    // The tokio::io::copy doesn't close the handler, neither into_inner() or a &mut ref worked
+    // So that's why there's a "double open"
+
+    let read = File::create(&piece_path)
+        .and_then(|file| async move {
+            let mut writer = BufWriter::new(file);
+            tracing::trace!("copying files");
+            // tokio::io::copy flushes for us!
+            tokio::io::copy(&mut body_reader, &mut writer).await
+        })
         .await
         .map_err(|err| {
-            error!(?err, "failed to create a CAR file");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "failed to create a CAR file".to_string(),
-            )
-        })
-        .map(|cid| cid.to_string())
+            tracing::error!(%err, "failed to open the file");
+            (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
+        })?;
+
+    if read != proposed_deal.piece_size {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "piece size does not match proposed deal".to_string(),
+        ));
+    }
+
+    let piece = File::open(&piece_path).await.map_err(|err| {
+        tracing::error!(%err, "failed to open the file");
+        (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
+    })?;
+
+    // Check that the file has the right CID
+    tracing::trace!("verifying cid");
+    if let Err(err) = mater::verify_cid(piece, proposed_deal.piece_cid).await {
+        tracing::error!(%err, deal_cid=%proposed_deal.piece_cid, "piece verification failed");
+
+        // Try to remove the file since if the CID does not match there's no point in keeping it around
+        if let Err(err) = tokio::fs::remove_file(&piece_path).await {
+            // We log instead of returning an error since:
+            // * this is not critical for the user
+            // * this is not something the user should even know about
+            tracing::error!(path = %piece_path.display(), %err, "failed to remove uploaded file");
+        }
+
+        if let mater::Error::IoError(err) = err {
+            return Err((StatusCode::INTERNAL_SERVER_ERROR, err.to_string()));
+        } else {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                // Q: should we show the CIDs?
+                "uploaded car file does not match the deal's piece cid".to_string(),
+            ));
+        }
+    }
+
+    Ok(proposed_deal.piece_cid.to_string())
 }
 
 /// Handler for the download endpoint. It receives a CID and streams the CAR
@@ -144,40 +221,6 @@ async fn download(
     ];
 
     Ok((headers, body).into_response())
-}
-
-/// Reads bytes from the source and writes them to a CAR file.
-async fn stream_contents_to_car<R>(
-    folder: &std::path::Path,
-    source: R,
-) -> Result<Cid, Box<dyn std::error::Error>>
-where
-    R: AsyncRead + Unpin,
-{
-    // Create a storage folder if it doesn't exist.
-    if !folder.exists() {
-        info!(?folder, "creating storage folder");
-        fs::create_dir_all(folder).await?;
-    }
-
-    // Temp file which will be used to store the CAR file content. The temp
-    // director has a randomized name and is created in the same folder as the
-    // finalized uploads are stored.
-    let temp_dir = tempdir_in(folder)?;
-    let temp_file_path = temp_dir.path().join("temp.car");
-
-    // Stream the body from source to the temp file.
-    let file = File::create(&temp_file_path).await?;
-    let writer = BufWriter::new(file);
-    let cid = create_filestore(source, writer, Config::default()).await?;
-
-    // If the file is successfully written, we can now move it to the final
-    // location.
-    let (_, final_content_path) = content_path(folder, cid);
-    fs::rename(temp_file_path, &final_content_path).await?;
-    info!(?final_content_path, "CAR file created");
-
-    Ok(cid)
 }
 
 /// Returns the tuple of file name and path for a specified Cid.

@@ -32,6 +32,12 @@ pub struct ClientCommand {
 pub enum ClientSubcommand {
     /// Retrieve information about the provider's node.
     Info,
+    /// Propose a storage deal.
+    ProposeDeal {
+        /// Storage deal to propose. Either JSON or a file path, prepended with an @.
+        #[arg(value_parser = <SxtDealProposal as DeserializablePath>::deserialize_json )]
+        deal_proposal: SxtDealProposal,
+    },
     /// Publish a signed storage deal.
     PublishDeal {
         /// Storage deal to publish. Either JSON or a file path, prepended with an @.
@@ -60,14 +66,16 @@ impl ClientCommand {
                     serde_json::to_string_pretty(&info)
                         .expect("type is serializable so this call should never fail")
                 );
-                Ok(())
+            }
+            ClientSubcommand::ProposeDeal { deal_proposal } => {
+                let result = client.propose_deal(deal_proposal).await?;
+                println!("{}", result);
             }
             ClientSubcommand::PublishDeal {
                 client_deal_proposal,
             } => {
                 let result = client.publish_deal(client_deal_proposal).await?;
-                println!("{}", result.to_string());
-                Ok(())
+                println!("{}", result);
             }
             ClientSubcommand::SignDeal {
                 deal_proposal,
@@ -84,8 +92,8 @@ impl ClientCommand {
                     serde_json::to_string_pretty(&signature)
                         .expect("the type is serializable, so this should never fail")
                 );
-                Ok(())
             }
-        }
+        };
+        Ok(())
     }
 }
