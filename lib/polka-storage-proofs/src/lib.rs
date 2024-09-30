@@ -4,5 +4,7 @@
 
 mod groth16;
 pub mod porep;
+pub mod types;
+pub mod padding;
 
 pub use groth16::*;
