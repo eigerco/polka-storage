@@ -1,46 +1,112 @@
 use std::{
     fmt::{Debug, Display},
     net::SocketAddr,
-    sync::Arc,
 };
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use jsonrpsee::{
+    proc_macros::rpc as jsonrpsee_rpc,
     server::Server,
     types::{
         error::{INTERNAL_ERROR_CODE, INVALID_PARAMS_CODE},
         ErrorObjectOwned,
     },
-    RpcModule,
 };
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use storagext::{types::market::ClientDealProposal as SxtClientDealProposal, MarketClientExt};
+use subxt::ext::sp_core::crypto::Ss58Codec;
 use tokio::sync::oneshot::Receiver;
 use tracing::{info, instrument};
 
-use super::{
-    requests::{deal_proposal::RegisterDealProposalRequest, info::InfoRequest, register_async},
-    version::V0,
-};
 use crate::CliError;
 
 /// RPC server shared state.
 pub struct RpcServerState {
-    pub start_time: chrono::DateTime<Utc>,
+    pub server_info: ServerInfo,
     pub xt_client: storagext::Client,
     pub xt_keypair: storagext::multipair::MultiPairSigner,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServerInfo {
+    /// The server's start time.
+    pub start_time: DateTime<Utc>,
+
+    /// The server's account ID.
+    #[serde(deserialize_with = "deserialize_address")]
+    #[serde(serialize_with = "serialize_address")]
+    pub address: <storagext::PolkaStorageConfig as subxt::Config>::AccountId,
+}
+
+impl ServerInfo {
+    /// Construct a new [`ServerInfo`] instance, start time will be set to [`Utc::now`].
+    pub fn new(address: <storagext::PolkaStorageConfig as subxt::Config>::AccountId) -> Self {
+        Self {
+            start_time: Utc::now(),
+            address,
+        }
+    }
+}
+
+fn serialize_address<S>(
+    address: &<storagext::PolkaStorageConfig as subxt::Config>::AccountId,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.serialize_str(&address.to_ss58check())
+}
+
+fn deserialize_address<'de, D>(
+    deserializer: D,
+) -> Result<<storagext::PolkaStorageConfig as subxt::Config>::AccountId, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    <storagext::PolkaStorageConfig as subxt::Config>::AccountId::from_ss58check(&s)
+        .map_err(|err| serde::de::Error::custom(format!("invalid ss58 string: {}", err)))
+}
+
+#[jsonrpsee_rpc(server, client, namespace = "v0")]
+pub trait StorageProviderRpc {
+    /// Fetch server information.
+    #[method(name = "info")]
+    async fn info(&self) -> Result<ServerInfo, ServerError>;
+
+    /// Publish a deal, the CID of the deal is returned if the deal is accepted.
+    #[method(name = "publish_deal")]
+    async fn publish_deal(&self, deal: SxtClientDealProposal) -> Result<cid::Cid, ServerError>;
+}
+
+#[async_trait::async_trait]
+impl StorageProviderRpcServer for RpcServerState {
+    async fn info(&self) -> Result<ServerInfo, ServerError> {
+        Ok(self.server_info.clone())
+    }
+
+    async fn publish_deal(&self, deal: SxtClientDealProposal) -> Result<cid::Cid, ServerError> {
+        let cid = deal.deal_proposal.piece_cid;
+        let _result = self
+            .xt_client
+            .publish_signed_storage_deals(&self.xt_keypair, vec![deal])
+            .await?;
+        Ok(cid)
+    }
 }
 
 /// Start the RPC server.
 #[instrument(skip_all)]
 pub async fn start_rpc_server(
-    state: Arc<RpcServerState>,
+    state: RpcServerState,
     listen_addr: SocketAddr,
     notify_shutdown_rx: Receiver<()>,
 ) -> Result<(), CliError> {
     let server = Server::builder().build(listen_addr).await?;
 
-    let module = create_module(state);
-    let server_handle = server.start(module);
+    let server_handle = server.start(state.into_rpc());
     info!("RPC server started at {}", listen_addr);
 
     // Wait for shutdown signal. No need to handle the error. We stop the server
@@ -55,18 +121,6 @@ pub async fn start_rpc_server(
     server_handle.stopped().await;
 
     Ok(())
-}
-
-/// Initialize [`RpcModule`] and register the handlers
-/// [`super::methods::RpcRequest::handle`] which are specifying how requests
-/// should be processed.
-pub fn create_module(state: Arc<RpcServerState>) -> RpcModule<RpcServerState> {
-    let mut module = RpcModule::from_arc(state);
-
-    register_async::<InfoRequest, V0>(&mut module);
-    register_async::<RegisterDealProposalRequest, V0>(&mut module);
-
-    module
 }
 
 /// Error type for RPC server errors.

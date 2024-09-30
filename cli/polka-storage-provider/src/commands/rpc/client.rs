@@ -1,3 +1,4 @@
+use jsonrpsee::core::ClientError;
 use storagext::{
     deser::DeserializablePath,
     multipair::{MultiPairArgs, MultiPairSigner},
@@ -5,11 +6,7 @@ use storagext::{
 };
 use url::Url;
 
-use crate::rpc::{
-    client::{Client, ClientError},
-    requests::{deal_proposal::RegisterDealProposalRequest, info::InfoRequest},
-    version::V0,
-};
+use crate::rpc::{client::PolkaStorageRpcClient, server::StorageProviderRpcClient};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ClientCommandError {
@@ -33,7 +30,8 @@ pub struct ClientCommand {
 
 #[derive(Debug, clap::Subcommand)]
 pub enum ClientSubcommand {
-    Info(InfoCommand),
+    /// Retrieve information about the provider's node.
+    Info,
     /// Publish a signed storage deal.
     PublishDeal {
         /// Storage deal to publish. Either JSON or a file path, prepended with an @.
@@ -53,15 +51,21 @@ pub enum ClientSubcommand {
 
 impl ClientCommand {
     pub async fn run(self) -> Result<(), ClientCommandError> {
-        let client = Client::new(self.rpc_server_url).await?;
+        let client = PolkaStorageRpcClient::new(&self.rpc_server_url).await?;
         match self.command {
-            ClientSubcommand::Info(cmd) => Ok(cmd.run(&client).await?),
+            ClientSubcommand::Info => {
+                let info = client.info().await?;
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&info)
+                        .expect("type is serializable so this call should never fail")
+                );
+                Ok(())
+            }
             ClientSubcommand::PublishDeal {
                 client_deal_proposal,
             } => {
-                let result = client
-                    .execute(RegisterDealProposalRequest::from(client_deal_proposal))
-                    .await?;
+                let result = client.publish_deal(client_deal_proposal).await?;
                 println!("{}", result.to_string());
                 Ok(())
             }
@@ -83,21 +87,5 @@ impl ClientCommand {
                 Ok(())
             }
         }
-    }
-}
-
-/// Command to display information about the storage provider.
-#[derive(Debug, Clone, clap::Parser)]
-pub struct InfoCommand;
-
-impl InfoCommand {
-    pub async fn run(self, client: &Client<V0>) -> Result<(), ClientCommandError> {
-        // TODO(#67,@cernicc,07/06/2024): Print polkadot address used by the provider
-
-        // Get server info
-        let server_info = client.execute(InfoRequest).await?;
-        println!("Started at: {}", server_info.start_time);
-
-        Ok(())
     }
 }

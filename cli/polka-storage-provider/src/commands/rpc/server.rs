@@ -1,16 +1,19 @@
-use std::{net::SocketAddr, sync::Arc, time::Duration};
+use std::{net::SocketAddr, time::Duration};
 
-use chrono::Utc;
+
 use storagext::multipair::{DebugPair, MultiPairSigner};
-use subxt::ext::sp_core::{
-    ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair, sr25519::Pair as Sr25519Pair,
+use subxt::{
+    ext::sp_core::{
+        ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair, sr25519::Pair as Sr25519Pair,
+    },
+    tx::Signer,
 };
 use tokio::{signal, sync::oneshot};
 use url::Url;
 
 use crate::{
     commands::rpc::{DEFAULT_LISTEN_ADDRESS, DEFAULT_NODE_ADDRESS},
-    rpc::server::{start_rpc_server, RpcServerState},
+    rpc::server::{start_rpc_server, RpcServerState, ServerInfo},
 };
 
 /// Wait time for a graceful shutdown.
@@ -79,18 +82,18 @@ impl ServerCommand {
             storagext::Client::new(self.node_address.as_str(), RETRY_NUMBER, RETRY_INTERVAL)
                 .await?;
 
-        let state = Arc::new(RpcServerState {
-            start_time: Utc::now(),
+        let state = RpcServerState {
+            server_info: ServerInfo::new(xt_keypair.account_id()),
             xt_client,
             xt_keypair,
-        });
+        };
 
         // Setup shutdown channel
         let (notify_shutdown_tx, notify_shutdown_rx) = oneshot::channel();
 
         // Start the server in the background
         let rpc_handler = tokio::spawn(start_rpc_server(
-            state.clone(),
+            state,
             self.listen_address,
             notify_shutdown_rx,
         ));
