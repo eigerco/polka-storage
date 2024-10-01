@@ -1,6 +1,5 @@
 use std::{net::SocketAddr, time::Duration};
 
-
 use storagext::multipair::{DebugPair, MultiPairSigner};
 use subxt::{
     ext::sp_core::{
