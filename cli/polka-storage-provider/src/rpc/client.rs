@@ -1,128 +1,39 @@
-use std::{
-    fmt::{self, Debug},
-    marker::PhantomData,
-};
-
 use jsonrpsee::{
     core::{
         client::{BatchResponse, ClientT, Subscription, SubscriptionClientT},
-        params::{ArrayParams, BatchRequestBuilder, ObjectParams},
+        params::BatchRequestBuilder,
         traits::ToRpcParams,
     },
     http_client::HttpClientBuilder,
     ws_client::WsClientBuilder,
 };
 use serde::de::DeserializeOwned;
-use serde_json::Value;
-use thiserror::Error;
-use tracing::{debug, instrument};
 use url::Url;
 
-use super::{requests::RpcRequest, version::ApiVersion};
-
-/// Errors that can occur when working with the client
-#[derive(Debug, Error)]
-pub enum ClientError {
-    #[error("Unsupported scheme error: {0}")]
-    UnsupportedUrlScheme(String),
-
-    #[error("Invalid parameter type: {0}")]
-    InvalidParameter(Value),
-
-    #[error(transparent)]
-    Url(#[from] url::ParseError),
-
-    #[error(transparent)]
-    JsonRpcClient(#[from] jsonrpsee::core::ClientError),
-
-    #[error(transparent)]
-    Json(#[from] serde_json::Error),
-}
-
-/// Represents a single connection to the URL server
-pub struct Client<Version> {
-    url: Url,
-    inner: ClientInner,
-    _version: PhantomData<Version>,
-}
-
-impl<Version> Debug for Client<Version> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("InnerClient")
-            .field("url", &self.url)
-            .finish_non_exhaustive()
-    }
-}
-
-impl<Version> Client<Version>
-where
-    Version: ApiVersion,
-{
-    /// Create a new client instance with the given base URL
-    pub async fn new(base_url: Url) -> Result<Self, ClientError> {
-        let url = base_url.join(Version::version())?;
-        let inner = match url.scheme() {
-            "ws" | "wss" => ClientInner::Ws(WsClientBuilder::new().build(&url).await?),
-            "http" | "https" => ClientInner::Https(HttpClientBuilder::new().build(&url)?),
-            scheme => return Err(ClientError::UnsupportedUrlScheme(scheme.to_string())),
-        };
-
-        Ok(Self {
-            url,
-            inner,
-            _version: PhantomData,
-        })
-    }
-
-    /// Execute a JSON-RPC request
-    #[instrument(skip_all, fields(url = %self.url, method = %Request::NAME))]
-    pub async fn execute<Request>(&self, request: Request) -> Result<Request::Ok, ClientError>
-    where
-        Request: RpcRequest<Version>,
-        Version: ApiVersion,
-    {
-        let method_name = Request::NAME;
-        let params = serde_json::to_value(request.params())?;
-
-        let result = match params {
-            Value::Null => self.inner.request(method_name, ArrayParams::new()),
-            Value::Array(arr) => {
-                let mut params = ArrayParams::new();
-                for param in arr {
-                    params.insert(param)?
-                }
-
-                self.inner.request(method_name, params)
-            }
-            Value::Object(obj) => {
-                let mut params = ObjectParams::new();
-                for (name, param) in obj {
-                    params.insert(&name, param)?
-                }
-
-                self.inner.request(method_name, params)
-            }
-            param @ (Value::Bool(_) | Value::Number(_) | Value::String(_)) => {
-                return Err(ClientError::InvalidParameter(param))
-            }
-        }
-        .await;
-
-        debug!(?result, "response received");
-
-        // We cant return result directly because compiler needs some help to
-        // understand the types
-        Ok(result?)
-    }
-}
-
-enum ClientInner {
+pub enum PolkaStorageRpcClient {
     Ws(jsonrpsee::ws_client::WsClient),
     Https(jsonrpsee::http_client::HttpClient),
 }
 
+impl PolkaStorageRpcClient {
+    pub async fn new(url: &Url) -> Result<Self, jsonrpsee::core::ClientError> {
+        match url.scheme() {
+            "ws" | "wss" => Ok(PolkaStorageRpcClient::Ws(
+                WsClientBuilder::new().build(url).await?,
+            )),
+            "http" | "https" => Ok(PolkaStorageRpcClient::Https(
+                HttpClientBuilder::new().build(url)?,
+            )),
+            scheme => Err(jsonrpsee::core::ClientError::Custom(format!(
+                "unsupported url scheme: {}",
+                scheme
+            ))),
+        }
+    }
+}
+
 #[async_trait::async_trait]
-impl ClientT for ClientInner {
+impl ClientT for PolkaStorageRpcClient {
     async fn notification<Params>(
         &self,
         method: &str,
@@ -132,8 +43,8 @@ impl ClientT for ClientInner {
         Params: ToRpcParams + Send,
     {
         match &self {
-            ClientInner::Ws(client) => client.notification(method, params).await,
-            ClientInner::Https(client) => client.notification(method, params).await,
+            PolkaStorageRpcClient::Ws(client) => client.notification(method, params).await,
+            PolkaStorageRpcClient::Https(client) => client.notification(method, params).await,
         }
     }
 
@@ -147,8 +58,8 @@ impl ClientT for ClientInner {
         Params: ToRpcParams + Send,
     {
         match &self {
-            ClientInner::Ws(client) => client.request(method, params).await,
-            ClientInner::Https(client) => client.request(method, params).await,
+            PolkaStorageRpcClient::Ws(client) => client.request(method, params).await,
+            PolkaStorageRpcClient::Https(client) => client.request(method, params).await,
         }
     }
 
@@ -157,17 +68,17 @@ impl ClientT for ClientInner {
         batch: BatchRequestBuilder<'a>,
     ) -> Result<BatchResponse<'a, R>, jsonrpsee::core::ClientError>
     where
-        R: DeserializeOwned + fmt::Debug + 'a,
+        R: DeserializeOwned + std::fmt::Debug + 'a,
     {
         match &self {
-            ClientInner::Ws(client) => client.batch_request(batch).await,
-            ClientInner::Https(client) => client.batch_request(batch).await,
+            PolkaStorageRpcClient::Ws(client) => client.batch_request(batch).await,
+            PolkaStorageRpcClient::Https(client) => client.batch_request(batch).await,
         }
     }
 }
 
 #[async_trait::async_trait]
-impl SubscriptionClientT for ClientInner {
+impl SubscriptionClientT for PolkaStorageRpcClient {
     async fn subscribe<'a, Notif, Params>(
         &self,
         subscribe_method: &'a str,
@@ -179,11 +90,11 @@ impl SubscriptionClientT for ClientInner {
         Notif: DeserializeOwned,
     {
         match &self {
-            ClientInner::Ws(it) => {
+            PolkaStorageRpcClient::Ws(it) => {
                 it.subscribe(subscribe_method, params, unsubscribe_method)
                     .await
             }
-            ClientInner::Https(it) => {
+            PolkaStorageRpcClient::Https(it) => {
                 it.subscribe(subscribe_method, params, unsubscribe_method)
                     .await
             }
@@ -198,8 +109,8 @@ impl SubscriptionClientT for ClientInner {
         Notif: DeserializeOwned,
     {
         match &self {
-            ClientInner::Ws(it) => it.subscribe_to_method(method).await,
-            ClientInner::Https(it) => it.subscribe_to_method(method).await,
+            PolkaStorageRpcClient::Ws(it) => it.subscribe_to_method(method).await,
+            PolkaStorageRpcClient::Https(it) => it.subscribe_to_method(method).await,
         }
     }
 }

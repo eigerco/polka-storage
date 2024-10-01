@@ -17,9 +17,8 @@ filecoin-hashers.workspace = true
 fr32.workspace = true
 futures = { workspace = true }
 ipld-core.workspace = true
-jsonrpsee = { workspace = true, features = ["http-client", "server", "ws-client"] }
+jsonrpsee = { workspace = true, features = ["http-client", "macros", "server", "ws-client"] }
 sc-cli = { workspace = true }
-sealed = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 storage-proofs-core.workspace = true
