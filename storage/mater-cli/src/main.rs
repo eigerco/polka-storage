@@ -17,9 +17,18 @@ enum MaterCli {
     Convert {
         /// Path to input file
         input_path: PathBuf,
+
         /// Optional path to output CARv2 file.
         /// If no output path is given it will store the `.car` file in the same location.
         output_path: Option<PathBuf>,
+
+        /// If enabled, only the resulting CID will be printed.
+        #[arg(short, long, action)]
+        quiet: bool,
+
+        /// If enabled, the output will overwrite any existing files.
+        #[arg(long, action)]
+        overwrite: bool,
     },
     /// Convert a CARv2 file to its original format
     Extract {
@@ -36,19 +45,25 @@ async fn main() -> Result<(), Error> {
         MaterCli::Convert {
             input_path,
             output_path,
+            quiet,
+            overwrite,
         } => {
             let output_path = output_path.unwrap_or_else(|| {
                 let mut new_path = input_path.clone();
                 new_path.set_extension("car");
                 new_path
             });
-            let cid = convert_file_to_car(&input_path, &output_path).await?;
+            let cid = convert_file_to_car(&input_path, &output_path, overwrite).await?;
 
-            println!(
-                "Converted {} and saved the CARv2 file at {} with a CID of {cid}",
-                input_path.display(),
-                output_path.display()
-            );
+            if quiet {
+                println!("{}", cid);
+            } else {
+                println!(
+                    "Converted {} and saved the CARv2 file at {} with a CID of {cid}",
+                    input_path.display(),
+                    output_path.display()
+                );
+            }
         }
         MaterCli::Extract {
             input_path,

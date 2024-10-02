@@ -9,9 +9,14 @@ use crate::error::Error;
 pub(crate) async fn convert_file_to_car(
     input_path: &PathBuf,
     output_path: &PathBuf,
+    overwrite: bool,
 ) -> Result<Cid, Error> {
     let source_file = File::open(input_path).await?;
-    let output_file = File::create_new(output_path).await?;
+    let output_file = if overwrite {
+        File::create(output_path).await
+    } else {
+        File::create_new(output_path).await
+    }?;
     let cid = create_filestore(source_file, output_file, Config::default()).await?;
 
     Ok(cid)
@@ -45,7 +50,7 @@ mod tests {
         let output_path = temp_dir.path().join("test_output.car");
 
         // Call the function under test
-        let result = convert_file_to_car(&input_path, &output_path).await;
+        let result = convert_file_to_car(&input_path, &output_path, false).await;
 
         // Assert the result is Ok
         assert!(result.is_ok());
@@ -69,7 +74,7 @@ mod tests {
         let output_path = temp_dir.path().join("test_output.car");
 
         // Call the function under test
-        let result = convert_file_to_car(&input_path, &output_path).await;
+        let result = convert_file_to_car(&input_path, &output_path, false).await;
 
         // Assert the result is an error
         assert!(result.is_err());
@@ -95,7 +100,7 @@ mod tests {
         println!("gets here");
 
         // Call the function under test
-        let result = convert_file_to_car(&input_path, &output_path).await;
+        let result = convert_file_to_car(&input_path, &output_path, false).await;
 
         // Assert the result is an error
         assert!(result.is_err());
