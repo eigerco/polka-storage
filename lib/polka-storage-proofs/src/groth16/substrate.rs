@@ -43,6 +43,7 @@ where
         self.serialised_bytes()
     }
 
+    // TODO(@th7nder,#408, 28/09/2024): Encode/Decode, make it use `to_compressed` to reduce the bytes stored on-chain.
     fn encode_to<T: ::codec::Output + ?Sized>(&self, dest: &mut T) {
         dest.write(&self.alpha_g1.to_uncompressed()[..]);
         dest.write(&self.beta_g1.to_uncompressed()[..]);
@@ -108,6 +109,9 @@ where
     }
 }
 
+// `parity_scale_codec` has a blanket implementation for `::codec::Output` if something implements `std::io::Write`
+// Hence, if we use both feature flags `std` and `substrate` there are conflicting implementations.
+#[cfg(not(feature = "std"))]
 impl ::codec::Output for ByteBuffer {
     fn write(&mut self, bytes: &[u8]) {
         for b in bytes.iter() {

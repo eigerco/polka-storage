@@ -46,6 +46,14 @@ where
     }
 }
 
+impl std::fmt::Display for FromBytesError {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        write!(f, "{}", self.as_static_str())
+    }
+}
+
+impl std::error::Error for FromBytesError {}
+
 impl std::io::Read for ByteBuffer {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let n = std::cmp::min(self.0.len(), buf.len());
