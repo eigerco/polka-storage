@@ -1,6 +1,11 @@
 extern crate alloc;
 
-use alloc::{collections::BTreeSet, vec::Vec};
+use core::ops::AddAssign;
+
+use alloc::{
+    collections::{BTreeMap, BTreeSet},
+    vec::Vec,
+};
 
 use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeSet};
@@ -291,37 +296,161 @@ where
 
         Ok(())
     }
+
+    /// Pops early terminations until `max_sectors` or until there are none left
+    ///
+    /// Reference implementation:
+    /// * <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/actors/miner/src/partition_state.rs#L640>
+    pub fn pop_early_terminations(
+        &mut self,
+        max_sectors: u64,
+    ) -> Result<(TerminationResult<BlockNumber>, /* has more */ bool), GeneralPalletError> {
+        let mut processed = BTreeSet::new();
+        let mut remaining = None;
+        let mut result = TerminationResult::new();
+        result.partitions_processed = 1;
+
+        for (&block_number, sectors) in &self.early_terminations {
+            let count = sectors.len() as u64;
+            let limit = max_sectors - result.sectors_processed;
+
+            let to_process = if limit < count {
+                let to_process = sectors
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(i, sector_number)| {
+                        if (i as u64) < limit {
+                            Some(sector_number)
+                        } else {
+                            None
+                        }
+                    })
+                    .copied()
+                    .collect::<BTreeSet<_>>();
+                let rest = sectors
+                    .iter()
+                    .copied()
+                    .filter(|sector_number| !to_process.contains(&sector_number))
+                    .collect::<BTreeSet<_>>();
+                remaining = Some((rest, block_number));
+                result.sectors_processed += limit;
+                to_process.clone()
+            } else {
+                processed.insert(block_number);
+                result.sectors_processed += count;
+                sectors.clone().into_inner()
+            };
+
+            result.sectors.insert(block_number, to_process);
+
+            if result.sectors_processed < max_sectors {
+                break;
+            }
+        }
+
+        if let Some((remaining_sectors, remaining_block)) = remaining {
+            self.early_terminations
+                .try_insert(
+                    remaining_block,
+                    remaining_sectors
+                        .try_into()
+                        .expect("Critical error: Cannot convert remaining sectors"),
+                )
+                .expect("Critical error: Failed to add remaining sectors to early terminations");
+        }
+
+        // Update early terminations
+        self.early_terminations = self
+            .early_terminations
+            .iter()
+            .filter_map(|(block_number, sectors)| {
+                if !processed.contains(block_number) {
+                    Some((*block_number, sectors.clone()))
+                } else {
+                    None
+                }
+            })
+            .collect::<BTreeMap<_, _>>()
+            .try_into()
+            .expect("Critical error: Failed to remove entries from early terminations");
+
+        let has_more = self.early_terminations.iter().count() > 0;
+        Ok((result, has_more))
+    }
+}
+
+pub struct TerminationResult<BlockNumber> {
+    /// Sectors maps block numbers at which sectors expired, to sector numbers.
+    pub sectors: BTreeMap<BlockNumber, BTreeSet<SectorNumber>>,
+    pub partitions_processed: u64,
+    pub sectors_processed: u64,
+}
+
+impl<BlockNumber> AddAssign for TerminationResult<BlockNumber>
+where
+    BlockNumber: sp_runtime::traits::BlockNumber,
+{
+    fn add_assign(&mut self, rhs: Self) {
+        self.partitions_processed += rhs.partitions_processed;
+        self.sectors_processed += rhs.sectors_processed;
+
+        for (block_number, new_sectors) in rhs.sectors.into_iter() {
+            self.sectors
+                .entry(block_number)
+                .and_modify(|sectors| *sectors = sectors.union(&new_sectors).copied().collect())
+                .or_insert(new_sectors);
+        }
+    }
+}
+
+impl<BlockNumber> TerminationResult<BlockNumber>
+where
+    BlockNumber: sp_runtime::traits::BlockNumber,
+{
+    pub fn new() -> Self {
+        Self {
+            sectors: BTreeMap::new(),
+            partitions_processed: 0,
+            sectors_processed: 0,
+        }
+    }
+
+    /// Returns true if we're below the partition/sector limit. Returns false if
+    /// we're at (or above) the limit.
+    pub fn below_limit(&self, partition_limit: u64, sector_limit: u64) -> bool {
+        self.partitions_processed < partition_limit && self.sectors_processed < sector_limit
+    }
 }
 
 #[cfg(test)]
-mod test {
-    use primitives_proofs::RegisteredSealProof;
-
+mod tests {
     use super::*;
+
+    fn sectors() -> Vec<SectorOnChainInfo<u64>> {
+        vec![
+            test_sector(2, 1),
+            test_sector(3, 2),
+            test_sector(7, 3),
+            test_sector(8, 4),
+            test_sector(11, 5),
+            test_sector(13, 6),
+        ]
+    }
+
+    fn test_sector(expiration: u64, sector_number: SectorNumber) -> SectorOnChainInfo<u64> {
+        SectorOnChainInfo {
+            expiration,
+            sector_number,
+            ..Default::default()
+        }
+    }
 
     #[test]
     fn add_sectors() -> Result<(), GeneralPalletError> {
         // Set up partition, using `u64` for block number because it is not relevant to this test.
         let mut partition: Partition<u64> = Partition::new();
         // Add some sectors
-        let sectors_to_add = vec![
-            SectorOnChainInfo {
-                sector_number: 1,
-                seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
-                sealed_cid: Default::default(),
-                activation: Default::default(),
-                expiration: 1000,
-                unsealed_cid: Default::default(),
-            },
-            SectorOnChainInfo {
-                sector_number: 2,
-                seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
-                sealed_cid: Default::default(),
-                activation: Default::default(),
-                expiration: 1100,
-                unsealed_cid: Default::default(),
-            },
-        ];
+        let sectors_to_add = sectors();
 
         // Add sectors to the partition
         partition.add_sectors(&sectors_to_add)?;
@@ -343,41 +472,74 @@ mod test {
         // Set up partition, using `u64` for block number because it is not relevant to this test.
         let mut partition: Partition<u64> = Partition::new();
 
+        let sectors_to_add = sectors();
         // Add some sectors
-        partition.add_sectors(&[
-            SectorOnChainInfo {
-                sector_number: 1,
-                seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
-                sealed_cid: Default::default(),
-                activation: Default::default(),
-                expiration: Default::default(),
-                unsealed_cid: Default::default(),
-            },
-            SectorOnChainInfo {
-                sector_number: 2,
-                seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
-                sealed_cid: Default::default(),
-                activation: Default::default(),
-                expiration: Default::default(),
-                unsealed_cid: Default::default(),
-            },
-        ])?;
+        partition.add_sectors(&sectors_to_add)?;
 
         // Terminate a sector that is in the active sectors.
         partition
             .terminated
-            .try_insert(1)
+            .try_insert(sectors_to_add[0].sector_number)
             .expect(&format!("Inserting a single element into terminated sectors of a partition, which is a BoundedBTreeMap with length {MAX_SECTORS}, should not fail (1 < {MAX_SECTORS})"));
         let live_sectors = partition.live_sectors();
 
         // Create expected result.
         let mut expected_live_sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>> =
-            BoundedBTreeSet::new();
+            BoundedBTreeSet::try_from(
+                sectors_to_add
+                    .iter()
+                    .filter_map(|s| {
+                        if s.sector_number != 1 {
+                            Some(s.sector_number)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<BTreeSet<_>>(),
+            )
+            .unwrap();
 
         expected_live_sectors
             .try_insert(2)
             .expect(&format!("Inserting a single element into expected_live_sectors, which is a BoundedBTreeMap with length {MAX_SECTORS}, should not fail (1 < {MAX_SECTORS})"));
         assert_eq!(live_sectors, expected_live_sectors);
+        Ok(())
+    }
+
+    #[test]
+    fn pop_early_terminations() -> Result<(), GeneralPalletError> {
+        // Set up partition, using `u64` for block number because it is not relevant to this test.
+        let mut partition: Partition<u64> = Partition::new();
+        let sectors = sectors();
+        let sector_map = sectors
+            .iter()
+            .map(|s| (s.sector_number, s.clone()))
+            .collect::<BTreeMap<_, _>>()
+            .try_into()
+            .unwrap();
+
+        // Add sectors to the partition
+        partition.add_sectors(&sectors)?;
+
+        // fault sector 3, 4, 5 and 6
+        let fault_set = BTreeSet::from([3, 4, 5, 6]).try_into().unwrap();
+        partition.record_faults(&sector_map, &fault_set, 7)?;
+
+        // TODO(@aidan46, #109, 2024-10-02): This test requires terminate_sectors to be implemented in the partition.
+        // now terminate 1, 3 and 5
+        // let terminations = [sectors[0], sectors[2], sectors[4]];
+        // let termination_block = 3;
+        // partition.terminate_sectors(termination_block, &terminations)?;
+
+        // // pop first termination
+        // let (result, has_more) = partition.pop_early_terminations(1)?;
+
+        // assert!(has_more);
+        // let terminated_sector = result.sectors.get(&termination_block);
+        // assert!(terminated_sector.is_some());
+        // let terminated_sector = terminated_sector.unwrap();
+        // assert_eq!(terminated_sector, &BTreeSet::from([1]));
+
         Ok(())
     }
 }

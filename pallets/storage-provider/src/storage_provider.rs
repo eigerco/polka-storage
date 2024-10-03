@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 use codec::{Decode, Encode};
 use frame_support::{
     pallet_prelude::{ConstU32, RuntimeDebug},
-    sp_runtime::{BoundedBTreeMap, BoundedVec},
+    sp_runtime::{BoundedBTreeMap, BoundedBTreeSet, BoundedVec},
 };
 use primitives_proofs::{RegisteredPoStProof, SectorNumber, SectorSize};
 use scale_info::TypeInfo;
@@ -14,6 +14,7 @@ use sp_arithmetic::{traits::BaseArithmetic, ArithmeticError};
 use crate::{
     deadline::{assign_deadlines, deadline_is_mutable, Deadline, DeadlineInfo, Deadlines},
     error::GeneralPalletError,
+    partition::TerminationResult,
     sector::{SectorOnChainInfo, SectorPreCommitOnChainInfo, MAX_SECTORS},
 };
 
@@ -70,6 +71,9 @@ where
     /// * <https://spec.filecoin.io/#section-algorithms.pos.post.constants--terminology>
     /// * <https://spec.filecoin.io/#section-algorithms.pos.post.design>
     pub deadlines: Deadlines<BlockNumber>,
+
+    /// Deadlines with outstanding fees for early sector termination.
+    pub early_terminations: BoundedBTreeSet<u64, ConstU32<MAX_SECTORS>>,
 }
 
 impl<PeerId, Balance, BlockNumber> StorageProviderState<PeerId, Balance, BlockNumber>
@@ -92,6 +96,7 @@ where
             proving_period_start: period_start,
             current_deadline: deadline_idx,
             deadlines: Deadlines::new(w_post_period_deadlines),
+            early_terminations: BoundedBTreeSet::new(),
         }
     }
 
@@ -288,6 +293,50 @@ where
             w_post_challenge_lookback,
             fault_declaration_cutoff,
         )
+    }
+
+    /// Pops up to `max_sectors` early terminated sectors from all deadlines.
+    ///
+    /// Returns `true` if we still have more early terminations to process.
+    /// Reference implementation:
+    /// * <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/actors/miner/src/state.rs#L608>
+    pub fn pop_early_terminations(
+        &mut self,
+        max_partitions: u64,
+        max_sectors: u64,
+    ) -> Result<(TerminationResult<BlockNumber>, /* has more */ bool), GeneralPalletError> {
+        // Anything to do? This lets us avoid loading the deadlines if there's nothing to do.
+        if self.early_terminations.is_empty() {
+            return Ok((TerminationResult::new(), false));
+        }
+
+        let mut result = TerminationResult::new();
+        let mut to_unset = Vec::new();
+
+        for deadline_idx in self.early_terminations.iter() {
+            let deadline = self.deadlines.load_deadline_mut(*deadline_idx as usize)?;
+            let (deadline_result, more) =
+                deadline.pop_early_terminations(max_partitions, max_sectors)?;
+
+            result += deadline_result;
+
+            if !more {
+                to_unset.push(*deadline_idx);
+            }
+
+            if !result.below_limit(max_partitions, max_sectors) {
+                break;
+            }
+        }
+
+        for deadline_idx in to_unset {
+            self.early_terminations.remove(&deadline_idx);
+        }
+
+        // Ok, check to see if we've handled all early terminations.
+        let no_early_terminations = self.early_terminations.is_empty();
+
+        Ok((result, !no_early_terminations))
     }
 }
 
