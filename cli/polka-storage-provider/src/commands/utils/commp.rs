@@ -5,7 +5,11 @@ use filecoin_hashers::{
     Domain,
 };
 use fr32::Fr32Reader;
-use primitives_shared::{commitment::{Commitment, CommitmentKind}, piece::PaddedPieceSize, NODE_SIZE};
+use primitives_shared::{
+    commitment::{Commitment, CommitmentKind},
+    piece::PaddedPieceSize,
+    NODE_SIZE,
+};
 use storage_proofs_core::merkle::BinaryMerkleTree;
 use thiserror::Error;
 
@@ -14,11 +18,11 @@ pub struct ZeroPaddingReader<R: Read> {
     /// The inner reader to read from.
     inner: R,
     /// The number of bytes this 0-padding reader has left to produce.
-    remaining: usize,
+    remaining: u64,
 }
 
 impl<R: Read> ZeroPaddingReader<R> {
-    pub fn new(inner: R, total_size: usize) -> Self {
+    pub fn new(inner: R, total_size: u64) -> Self {
         Self {
             inner,
             remaining: total_size,
@@ -33,7 +37,7 @@ impl<R: Read> Read for ZeroPaddingReader<R> {
         }
 
         // Number of bytes that the reader will produce in this execution
-        let to_read = buf.len().min(self.remaining);
+        let to_read = buf.len().min(self.remaining as usize);
         // Number of bytes that we read from the inner reader
         let read = self.inner.read(&mut buf[..to_read])?;
 
@@ -44,7 +48,7 @@ impl<R: Read> Read for ZeroPaddingReader<R> {
         }
 
         // Decrease the number of bytes this 0-padding reader has left to produce.
-        self.remaining -= to_read;
+        self.remaining -= to_read as u64;
 
         // Return the number of bytes that we wrote to the buffer.
         Ok(to_read)
@@ -136,11 +140,11 @@ mod tests {
     fn test_calculate_piece_commitment() {
         use std::io::Cursor;
 
-        let data_size: usize = 200;
-        let data = vec![2u8; data_size];
+        let data_size: u64 = 200;
+        let data = vec![2u8; data_size as usize];
         let cursor = Cursor::new(data.clone());
-        let padded_piece_size = PaddedPieceSize::new(data_size.next_power_of_two() as u64).unwrap();
-        let zero_padding_reader = ZeroPaddingReader::new(cursor, *padded_piece_size as usize);
+        let padded_piece_size = PaddedPieceSize::from_arbitrary_size(data_size);
+        let zero_padding_reader = ZeroPaddingReader::new(cursor, *padded_piece_size);
 
         let commitment =
             calculate_piece_commitment(zero_padding_reader, padded_piece_size).unwrap();

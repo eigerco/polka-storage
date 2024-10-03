@@ -3,10 +3,12 @@ use alloc::vec::Vec;
 
 use cid::Cid;
 use primitives_proofs::SectorSize;
-use primitives_shared::{commitment::Commitment, piece::PaddedPieceSize, NODE_SIZE};
+use primitives_shared::{
+    commitment::{zero_piece_commitment, Commitment, CommitmentKind},
+    piece::PaddedPieceSize,
+    NODE_SIZE,
+};
 use sha2::{Digest, Sha256};
-use primitives_shared::commitment::CommitmentKind;
-use primitives_shared::commitment::zero_piece_commitment;
 
 // Ensure that the pieces are correct sizes
 fn ensure_piece_sizes(
@@ -32,8 +34,7 @@ pub fn compute_unsealed_sector_commitment(
 
     // In case of no pieces, return the zero commitment for the whole sector.
     if piece_infos.is_empty() {
-        let comm =
-        return Ok(zero_piece_commitment(padded_sector_size));
+        let comm = return Ok(zero_piece_commitment(padded_sector_size));
     }
 
     // Check if pieces are correct sizes.
@@ -149,7 +150,6 @@ impl Stack {
     }
 }
 
-
 /// Create a padding `PieceInfo` of size `size`.
 pub fn zero_padding(piece_size: PaddedPieceSize) -> Result<PieceInfo, CommDError> {
     let mut commitment = [0u8; 32];
@@ -171,7 +171,7 @@ pub fn zero_padding(piece_size: PaddedPieceSize) -> Result<PieceInfo, CommDError
 
     Ok(PieceInfo {
         commitment: Commitment::new(commitment, CommitmentKind::Piece),
-        size: piece_size
+        size: piece_size,
     })
 }
 
@@ -190,7 +190,7 @@ fn join_piece_infos(left: PieceInfo, right: PieceInfo) -> Result<PieceInfo, Comm
 
     Ok(PieceInfo {
         commitment: Commitment::new(comm, CommitmentKind::Piece),
-        size
+        size,
     })
 }
 
@@ -209,7 +209,7 @@ pub fn piece_hash(a: &[u8], b: &[u8]) -> Vec<u8> {
 pub enum CommDError {
     PieceSizeTooLarge,
     InvalidPieceSize,
-    InvalidStackSize
+    InvalidStackSize,
 }
 
 #[cfg(test)]
@@ -255,37 +255,67 @@ mod tests {
     #[test]
     fn compute_unsealed_sector_cid() {
         let pieces = vec![
-            (Some("baga6ea4seaqknzm22isnhsxt2s4dnw45kfywmhenngqq3nc7jvecakoca6ksyhy"), 256 << 20),
-            (Some("baga6ea4seaqnq6o5wuewdpviyoafno4rdpqnokz6ghvg2iyeyfbqxgcwdlj2egi"), 1024 << 20),
-            (Some("baga6ea4seaqpixk4ifbkzato3huzycj6ty6gllqwanhdpsvxikawyl5bg2h44mq"), 512 << 20),
-            (Some("baga6ea4seaqaxwe5dy6nt3ko5tngtmzvpqxqikw5mdwfjqgaxfwtzenc6bgzajq"), 512 << 20),
-            (Some("baga6ea4seaqpy33nbesa4d6ot2ygeuy43y4t7amc4izt52mlotqenwcmn2kyaai"), 1024 << 20),
-            (Some("baga6ea4seaqphvv4x2s2v7ykgc3ugs2kkltbdeg7icxstklkrgqvv72m2v3i2aa"), 256 << 20),
-            (Some("baga6ea4seaqf5u55znk6jwhdsrhe37emzhmehiyvjxpsww274f6fiy3h4yctady"), 512 << 20),
-            (Some("baga6ea4seaqa3qbabsbmvk5er6rhsjzt74beplzgulthamm22jue4zgqcuszofi"), 1024 << 20),
-            (Some("baga6ea4seaqiekvf623muj6jpxg6vsqaikyw3r4ob5u7363z7zcaixqvfqsc2ji"), 256 << 20),
-            (Some("baga6ea4seaqhsewv65z2d4m5o4vo65vl5o6z4bcegdvgnusvlt7rao44gro36pi"), 512 << 20),
+            (
+                Some("baga6ea4seaqknzm22isnhsxt2s4dnw45kfywmhenngqq3nc7jvecakoca6ksyhy"),
+                256 << 20,
+            ),
+            (
+                Some("baga6ea4seaqnq6o5wuewdpviyoafno4rdpqnokz6ghvg2iyeyfbqxgcwdlj2egi"),
+                1024 << 20,
+            ),
+            (
+                Some("baga6ea4seaqpixk4ifbkzato3huzycj6ty6gllqwanhdpsvxikawyl5bg2h44mq"),
+                512 << 20,
+            ),
+            (
+                Some("baga6ea4seaqaxwe5dy6nt3ko5tngtmzvpqxqikw5mdwfjqgaxfwtzenc6bgzajq"),
+                512 << 20,
+            ),
+            (
+                Some("baga6ea4seaqpy33nbesa4d6ot2ygeuy43y4t7amc4izt52mlotqenwcmn2kyaai"),
+                1024 << 20,
+            ),
+            (
+                Some("baga6ea4seaqphvv4x2s2v7ykgc3ugs2kkltbdeg7icxstklkrgqvv72m2v3i2aa"),
+                256 << 20,
+            ),
+            (
+                Some("baga6ea4seaqf5u55znk6jwhdsrhe37emzhmehiyvjxpsww274f6fiy3h4yctady"),
+                512 << 20,
+            ),
+            (
+                Some("baga6ea4seaqa3qbabsbmvk5er6rhsjzt74beplzgulthamm22jue4zgqcuszofi"),
+                1024 << 20,
+            ),
+            (
+                Some("baga6ea4seaqiekvf623muj6jpxg6vsqaikyw3r4ob5u7363z7zcaixqvfqsc2ji"),
+                256 << 20,
+            ),
+            (
+                Some("baga6ea4seaqhsewv65z2d4m5o4vo65vl5o6z4bcegdvgnusvlt7rao44gro36pi"),
+                512 << 20,
+            ),
             // The sector has to be filled entirely, before we can calculate the
             // commitment, so we add two more empty pieces here.
             (None, 8 << 30),
-            (None, 16 << 30)
+            (None, 16 << 30),
         ];
 
-        let pieces = pieces.into_iter().map(|(cid, size)| {
-            let size = PaddedPieceSize::new(size).unwrap();
-            let commitment = match cid {
-                Some(cid) => {
-                    let cid = Cid::from_str(cid).unwrap();
-                    Commitment::from_cid(&cid, CommitmentKind::Piece).unwrap()
-                },
-                None => zero_piece_commitment(size),
-            };
+        let pieces = pieces
+            .into_iter()
+            .map(|(cid, size)| {
+                let size = PaddedPieceSize::new(size).unwrap();
+                let commitment = match cid {
+                    Some(cid) => {
+                        let cid = Cid::from_str(cid).unwrap();
+                        Commitment::from_cid(&cid, CommitmentKind::Piece).unwrap()
+                    }
+                    None => zero_piece_commitment(size),
+                };
 
-            PieceInfo {
-                commitment,
-                size,
-            }
-        }).collect::<Vec<_>>();
+                PieceInfo { commitment, size }
+            })
+            .collect::<Vec<_>>();
 
         let comm_d = compute_unsealed_sector_commitment(SectorSize::_32GiB, &pieces).unwrap();
         let cid = comm_d.cid();

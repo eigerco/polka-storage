@@ -1,14 +1,15 @@
 mod commp;
 
-use std::{fs::File, io::Write, path::PathBuf};
+use std::{
+    fs::File,
+    io::{BufReader, Write},
+    path::PathBuf,
+};
 
 use mater::CarV2Reader;
 use polka_storage_proofs::porep;
 use primitives_proofs::RegisteredSealProof;
-use primitives_shared::{
-    piece::PaddedPieceSize
-};
-use std::io::BufReader;
+use primitives_shared::piece::PaddedPieceSize;
 
 use crate::{
     commands::utils::commp::{calculate_piece_commitment, CommPError, ZeroPaddingReader},
@@ -52,10 +53,8 @@ impl UtilsCommand {
                 let file_size = source_file.metadata()?.len();
 
                 let buffered = BufReader::new(source_file);
-                let padded_piece_size = PaddedPieceSize::new(file_size.next_power_of_two() as u64)
-                    .expect("is power of two");
-                let mut zero_padding_reader =
-                    ZeroPaddingReader::new(buffered, *padded_piece_size as usize);
+                let padded_piece_size = PaddedPieceSize::from_arbitrary_size(file_size as u64);
+                let mut zero_padding_reader = ZeroPaddingReader::new(buffered, *padded_piece_size);
 
                 // The calculate_piece_commitment blocks the thread. We could
                 // use tokio::task::spawn_blocking to avoid this, but in this
