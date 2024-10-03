@@ -31,6 +31,12 @@ impl UnpaddedPieceSize {
     }
 }
 
+impl core::fmt::Display for UnpaddedPieceSize {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 impl Deref for UnpaddedPieceSize {
     type Target = u64;
 
@@ -81,6 +87,12 @@ impl PaddedPieceSize {
     pub fn from_arbitrary_size(size: u64) -> Self {
         let padded = to_padded_bytes(size as usize).next_power_of_two();
         Self::new(padded as u64).expect("the padded piece size is correct")
+    }
+}
+
+impl core::fmt::Display for PaddedPieceSize {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 

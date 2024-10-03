@@ -66,6 +66,7 @@ impl UtilsCommand {
                 let cid = commitment.cid();
 
                 println!("Piece commitment CID: {cid}");
+                println!("Padded size: {padded_piece_size}");
             }
             UtilsCommand::GeneratePoRepParams {
                 seal_proof,
