@@ -5,7 +5,7 @@ use filecoin_hashers::{
     Domain,
 };
 use fr32::Fr32Reader;
-use primitives_shared::{commcid::Commitment, piece::PaddedPieceSize, NODE_SIZE};
+use primitives_shared::{commitment::{Commitment, CommitmentKind}, piece::PaddedPieceSize, NODE_SIZE};
 use storage_proofs_core::merkle::BinaryMerkleTree;
 use thiserror::Error;
 
@@ -82,6 +82,8 @@ pub fn calculate_piece_commitment<R: Read>(
         .write_bytes(&mut commitment)
         .expect("destination buffer large enough");
 
+    let commitment = Commitment::new(commitment, CommitmentKind::Piece);
+
     Ok(commitment)
 }
 
@@ -143,7 +145,7 @@ mod tests {
         let commitment =
             calculate_piece_commitment(zero_padding_reader, padded_piece_size).unwrap();
         assert_eq!(
-            commitment,
+            commitment.raw(),
             [
                 152, 58, 157, 235, 187, 58, 81, 61, 113, 252, 178, 149, 158, 13, 242, 24, 54, 98,
                 148, 15, 250, 217, 3, 24, 152, 110, 93, 173, 117, 209, 251, 37,

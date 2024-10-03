@@ -39,13 +39,15 @@ pub mod pallet {
     };
     use frame_system::{pallet_prelude::*, Config as SystemConfig, Pallet as System};
     use multihash_codetable::{Code, MultihashDigest};
-    use primitives_shared::commcid::cid_to_commitment;
+    use primitives_shared::{
+        piece::PaddedPieceSize,
+        commitment::{Commitment, CommitmentKind}
+    };
     use primitives_proofs::{
         ActiveDeal, ActiveSector, DealId, Market, RegisteredSealProof, SectorDeal, SectorId,
         SectorNumber, SectorSize, StorageProviderValidation, MAX_DEALS_FOR_ALL_SECTORS,
         MAX_DEALS_PER_SECTOR, MAX_SECTORS_PER_CALL,
     };
-    use primitives_shared::{commcid::data_commitment_to_cid, piece::PaddedPieceSize};
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::BaseArithmetic;
     use sp_std::vec::Vec;
@@ -965,8 +967,7 @@ pub mod pallet {
                 .into_iter()
                 .map(|p| {
                     let cid = p.cid().unwrap();
-                    // TODO: Check the codec and hash type
-                    let (_, _, commitment) = cid_to_commitment(&cid).unwrap();
+                    let commitment = Commitment::from_cid(&cid, CommitmentKind::Piece).unwrap();
 
                     crate::commd::PieceInfo {
                         size: PaddedPieceSize::new(p.piece_size).unwrap(),
@@ -977,9 +978,8 @@ pub mod pallet {
 
             let sector_size = sector_type.sector_size();
             let comm_d = compute_unsealed_sector_commitment(sector_size, &pieces).unwrap();
-            let cid = data_commitment_to_cid(comm_d)?;
 
-            Ok(cid)
+            Ok(comm_d.cid())
         }
 
         /// <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L1388>

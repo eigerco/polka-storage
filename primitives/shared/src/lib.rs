@@ -1,6 +1,6 @@
 #![no_std]
 
-pub mod commcid;
+pub mod commitment;
 pub mod piece;
 
 /// Merkle tree node size in bytes.

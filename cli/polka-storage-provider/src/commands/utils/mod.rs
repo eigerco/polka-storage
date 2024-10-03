@@ -6,7 +6,6 @@ use mater::CarV2Reader;
 use polka_storage_proofs::porep;
 use primitives_proofs::RegisteredSealProof;
 use primitives_shared::{
-    commcid::piece_commitment_to_cid,
     piece::PaddedPieceSize
 };
 use std::io::BufReader;
@@ -49,7 +48,7 @@ impl UtilsCommand {
                 car_v2_reader.is_car_file().await?;
 
                 // Calculate the piece commitment.
-                let mut source_file = File::open(&input_path)?;
+                let source_file = File::open(&input_path)?;
                 let file_size = source_file.metadata()?.len();
 
                 let buffered = BufReader::new(source_file);
@@ -65,8 +64,7 @@ impl UtilsCommand {
                 let commitment =
                     calculate_piece_commitment(&mut zero_padding_reader, padded_piece_size)
                         .map_err(|err| UtilsCommandError::CommPError(err))?;
-                let cid = piece_commitment_to_cid(commitment)
-                    .map_err(|err| UtilsCommandError::CidError(err.to_string()))?;
+                let cid = commitment.cid();
 
                 println!("Piece commitment CID: {cid}");
             }

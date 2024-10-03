@@ -1,14 +1,12 @@
 extern crate alloc;
 use alloc::vec::Vec;
 
-mod zero;
-
 use cid::Cid;
 use primitives_proofs::SectorSize;
-use primitives_shared::{commcid::Commitment, piece::PaddedPieceSize, NODE_SIZE};
+use primitives_shared::{commitment::Commitment, piece::PaddedPieceSize, NODE_SIZE};
 use sha2::{Digest, Sha256};
-
-use crate::commd::zero::zero_piece_commitment;
+use primitives_shared::commitment::CommitmentKind;
+use primitives_shared::commitment::zero_piece_commitment;
 
 // Ensure that the pieces are correct sizes
 fn ensure_piece_sizes(
@@ -34,6 +32,7 @@ pub fn compute_unsealed_sector_commitment(
 
     // In case of no pieces, return the zero commitment for the whole sector.
     if piece_infos.is_empty() {
+        let comm =
         return Ok(zero_piece_commitment(padded_sector_size));
     }
 
@@ -121,13 +120,16 @@ fn join_piece_infos(left: PieceInfo, right: PieceInfo) -> Result<PieceInfo, Comm
         return Err(CommDError::InvalidPieceSize);
     }
 
-    let hash = piece_hash(&left.commitment, &right.commitment);
-    let mut commitment = Commitment::default();
-    commitment.copy_from_slice(&hash);
+    let hash = piece_hash(&left.commitment.raw(), &right.commitment.raw());
+    let mut comm = [0; 32];
+    comm.copy_from_slice(&hash);
 
     let size = left.size + right.size;
 
-    Ok(PieceInfo { commitment, size })
+    Ok(PieceInfo {
+        commitment: Commitment::new(comm, CommitmentKind::Piece),
+        size
+    })
 }
 
 /// Calculate Hash of two 32-byte arrays.
@@ -152,7 +154,6 @@ mod tests {
     use std::str::FromStr;
 
     use primitives_proofs::SectorSize;
-    use primitives_shared::commcid::{data_commitment_to_cid, cid_to_commitment};
 
     use super::*;
 
@@ -161,7 +162,7 @@ mod tests {
         let comm_d = compute_unsealed_sector_commitment(SectorSize::_2KiB, &[])
             .expect("failed to verify pieces, empty piece infos");
         assert_eq!(
-            comm_d,
+            comm_d.raw(),
             [
                 252, 126, 146, 130, 150, 229, 22, 250, 173, 233, 134, 178, 143, 146, 212, 74, 79,
                 36, 185, 53, 72, 82, 35, 55, 106, 121, 144, 39, 188, 24, 248, 51
@@ -170,7 +171,7 @@ mod tests {
 
         let comm_d = zero_piece_commitment(PaddedPieceSize::new(2048).unwrap());
         assert_eq!(
-            comm_d,
+            comm_d.raw(),
             [
                 252, 126, 146, 130, 150, 229, 22, 250, 173, 233, 134, 178, 143, 146, 212, 74, 79,
                 36, 185, 53, 72, 82, 35, 55, 106, 121, 144, 39, 188, 24, 248, 51
@@ -179,7 +180,7 @@ mod tests {
 
         let comm_d = zero_piece_commitment(PaddedPieceSize::new(128).unwrap());
         assert_eq!(
-            comm_d,
+            comm_d.raw(),
             [
                 55, 49, 187, 153, 172, 104, 159, 102, 238, 245, 151, 62, 74, 148, 218, 24, 143, 77,
                 220, 174, 88, 7, 36, 252, 111, 63, 214, 13, 253, 72, 131, 51
@@ -212,8 +213,7 @@ mod tests {
             let commitment = match cid {
                 Some(cid) => {
                     let cid = Cid::from_str(cid).unwrap();
-                    let (_, _, commitment) = cid_to_commitment(&cid).unwrap();
-                    commitment
+                    Commitment::from_cid(&cid, CommitmentKind::Piece).unwrap()
                 },
                 None => zero_piece_commitment(size),
             };
@@ -225,7 +225,7 @@ mod tests {
         }).collect::<Vec<_>>();
 
         let comm_d = compute_unsealed_sector_commitment(SectorSize::_32GiB, &pieces).unwrap();
-        let cid = data_commitment_to_cid(comm_d).unwrap();
+        let cid = comm_d.cid();
 
         assert_eq!(
             cid.to_string(),

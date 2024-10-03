@@ -1,16 +1,16 @@
-use primitives_shared::{commcid::Commitment, piece::PaddedPieceSize};
+use crate::piece::PaddedPieceSize;
 
 const LEVELS: usize = 37;
 const SKIP: usize = 2; // can't generate for 32, 64b
 
 /// Returns a zero piece commitment based on the amount of space needed to pad.
-pub fn zero_piece_commitment(sz: PaddedPieceSize) -> Commitment {
+pub fn zero_piece_commitment(sz: PaddedPieceSize) -> [u8; 32] {
     let level: usize = sz.trailing_zeros() as usize - SKIP - 5; // 2^5 = 32
     PIECE_COMMS[level]
 }
 
 /// Zero piece commitments. This is statically defined to be able to pad remaining space with.
-const PIECE_COMMS: [Commitment; LEVELS - SKIP] = [
+const PIECE_COMMS: [[u8; 32]; LEVELS - SKIP] = [
     [
         0x37, 0x31, 0xbb, 0x99, 0xac, 0x68, 0x9f, 0x66, 0xee, 0xf5, 0x97, 0x3e, 0x4a, 0x94, 0xda,
         0x18, 0x8f, 0x4d, 0xdc, 0xae, 0x58, 0x7, 0x24, 0xfc, 0x6f, 0x3f, 0xd6, 0xd, 0xfd, 0x48,
