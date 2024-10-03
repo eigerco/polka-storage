@@ -61,7 +61,7 @@ impl PaddedPieceSize {
             return Err("padded piece size must be a power of 2");
         }
 
-        if size % NODE_SIZE != 0 {
+        if size % NODE_SIZE as u64 != 0 {
             return Err("padded_piece_size is not multiple of NODE_SIZE");
         }
 

@@ -5,7 +5,7 @@ mod zero;
 
 use cid::Cid;
 use primitives_proofs::SectorSize;
-use primitives_shared::{commcid::Commitment, piece::PaddedPieceSize};
+use primitives_shared::{commcid::Commitment, piece::PaddedPieceSize, NODE_SIZE};
 use sha2::{Digest, Sha256};
 
 use crate::commd::zero::zero_piece_commitment;
@@ -48,8 +48,8 @@ pub fn compute_unsealed_sector_commitment(
 
 #[derive(Debug, Clone, Copy)]
 pub struct PieceInfo {
-    /// Piece cid
-    pub cid: Cid,
+    /// Piece commitment
+    pub commitment: Commitment,
     /// Piece size
     pub size: PaddedPieceSize,
 }
@@ -121,25 +121,25 @@ fn join_piece_infos(left: PieceInfo, right: PieceInfo) -> Result<PieceInfo, Comm
         return Err(CommDError::InvalidPieceSize);
     }
 
-    todo!()
+    let hash = piece_hash(&left.commitment, &right.commitment);
+    let mut commitment = Commitment::default();
+    commitment.copy_from_slice(&hash);
 
-    // let commitment = piece_hash(&left.commitment, &right.commitment);
-    // let size = left.size + right.size;
+    let size = left.size + right.size;
 
-    // Ok(PieceInfo { commitment, size })
+    Ok(PieceInfo { commitment, size })
 }
 
 /// Calculate Hash of two 32-byte arrays.
-// pub fn piece_hash(a: &[u8], b: &[u8]) -> Sha256Domain {
-//     let mut buf = [0u8; NODE_SIZE * 2];
-//     buf[..NODE_SIZE].copy_from_slice(a);
-//     buf[NODE_SIZE..].copy_from_slice(b);
+pub fn piece_hash(a: &[u8], b: &[u8]) -> Vec<u8> {
+    let mut buf = [0u8; NODE_SIZE * 2];
+    buf[..NODE_SIZE].copy_from_slice(a);
+    buf[NODE_SIZE..].copy_from_slice(b);
 
-//     // create a Sha256 object
-//     let mut hasher = Sha256::new();
-//     hasher.update(buf);
-//     hasher.finalize()
-// }
+    let mut hasher = Sha256::new();
+    hasher.update(buf);
+    hasher.finalize().to_vec()
+}
 
 #[derive(Debug)]
 pub enum CommDError {
@@ -152,7 +152,7 @@ mod tests {
     use std::str::FromStr;
 
     use primitives_proofs::SectorSize;
-    use primitives_shared::commcid::data_commitment_to_cid;
+    use primitives_shared::commcid::{data_commitment_to_cid, cid_to_commitment};
 
     use super::*;
 
@@ -191,93 +191,38 @@ mod tests {
     #[test]
     fn compute_unsealed_sector_cid() {
         let pieces = vec![
-            PieceInfo {
-                cid: Cid::from_str(
-                    "baga6ea4seaqknzm22isnhsxt2s4dnw45kfywmhenngqq3nc7jvecakoca6ksyhy",
-                )
-                .unwrap(),
-                size: PaddedPieceSize::new(256 << 20).unwrap(),
-            },
-            PieceInfo {
-                cid: Cid::from_str(
-                    "baga6ea4seaqnq6o5wuewdpviyoafno4rdpqnokz6ghvg2iyeyfbqxgcwdlj2egi",
-                )
-                .unwrap(),
-                size: PaddedPieceSize::new(1024 << 20).unwrap(),
-            },
-            PieceInfo {
-                cid: Cid::from_str(
-                    "baga6ea4seaqpixk4ifbkzato3huzycj6ty6gllqwanhdpsvxikawyl5bg2h44mq",
-                )
-                .unwrap(),
-                size: PaddedPieceSize::new(512 << 20).unwrap(),
-            },
-            PieceInfo {
-                cid: Cid::from_str(
-                    "baga6ea4seaqaxwe5dy6nt3ko5tngtmzvpqxqikw5mdwfjqgaxfwtzenc6bgzajq",
-                )
-                .unwrap(),
-                size: PaddedPieceSize::new(512 << 20).unwrap(),
-            },
-            PieceInfo {
-                cid: Cid::from_str(
-                    "baga6ea4seaqpy33nbesa4d6ot2ygeuy43y4t7amc4izt52mlotqenwcmn2kyaai",
-                )
-                .unwrap(),
-                size: PaddedPieceSize::new(1024 << 20).unwrap(),
-            },
-            PieceInfo {
-                cid: Cid::from_str(
-                    "baga6ea4seaqphvv4x2s2v7ykgc3ugs2kkltbdeg7icxstklkrgqvv72m2v3i2aa",
-                )
-                .unwrap(),
-                size: PaddedPieceSize::new(256 << 20).unwrap(),
-            },
-            PieceInfo {
-                cid: Cid::from_str(
-                    "baga6ea4seaqf5u55znk6jwhdsrhe37emzhmehiyvjxpsww274f6fiy3h4yctady",
-                )
-                .unwrap(),
-                size: PaddedPieceSize::new(512 << 20).unwrap(),
-            },
-            PieceInfo {
-                cid: Cid::from_str(
-                    "baga6ea4seaqa3qbabsbmvk5er6rhsjzt74beplzgulthamm22jue4zgqcuszofi",
-                )
-                .unwrap(),
-                size: PaddedPieceSize::new(1024 << 20).unwrap(),
-            },
-            PieceInfo {
-                cid: Cid::from_str(
-                    "baga6ea4seaqiekvf623muj6jpxg6vsqaikyw3r4ob5u7363z7zcaixqvfqsc2ji",
-                )
-                .unwrap(),
-                size: PaddedPieceSize::new(256 << 20).unwrap(),
-            },
-            PieceInfo {
-                cid: Cid::from_str(
-                    "baga6ea4seaqhsewv65z2d4m5o4vo65vl5o6z4bcegdvgnusvlt7rao44gro36pi",
-                )
-                .unwrap(),
-                size: PaddedPieceSize::new(512 << 20).unwrap(),
-            },
+            (Some("baga6ea4seaqknzm22isnhsxt2s4dnw45kfywmhenngqq3nc7jvecakoca6ksyhy"), 256 << 20),
+            (Some("baga6ea4seaqnq6o5wuewdpviyoafno4rdpqnokz6ghvg2iyeyfbqxgcwdlj2egi"), 1024 << 20),
+            (Some("baga6ea4seaqpixk4ifbkzato3huzycj6ty6gllqwanhdpsvxikawyl5bg2h44mq"), 512 << 20),
+            (Some("baga6ea4seaqaxwe5dy6nt3ko5tngtmzvpqxqikw5mdwfjqgaxfwtzenc6bgzajq"), 512 << 20),
+            (Some("baga6ea4seaqpy33nbesa4d6ot2ygeuy43y4t7amc4izt52mlotqenwcmn2kyaai"), 1024 << 20),
+            (Some("baga6ea4seaqphvv4x2s2v7ykgc3ugs2kkltbdeg7icxstklkrgqvv72m2v3i2aa"), 256 << 20),
+            (Some("baga6ea4seaqf5u55znk6jwhdsrhe37emzhmehiyvjxpsww274f6fiy3h4yctady"), 512 << 20),
+            (Some("baga6ea4seaqa3qbabsbmvk5er6rhsjzt74beplzgulthamm22jue4zgqcuszofi"), 1024 << 20),
+            (Some("baga6ea4seaqiekvf623muj6jpxg6vsqaikyw3r4ob5u7363z7zcaixqvfqsc2ji"), 256 << 20),
+            (Some("baga6ea4seaqhsewv65z2d4m5o4vo65vl5o6z4bcegdvgnusvlt7rao44gro36pi"), 512 << 20),
             // The sector has to be filled entirely, before we can calculate the
             // commitment, so we add two more empty pieces here.
-            PieceInfo {
-                cid: data_commitment_to_cid(zero_piece_commitment(
-                    PaddedPieceSize::new(8 << 30).unwrap(),
-                ))
-                .unwrap(),
-                size: PaddedPieceSize::new(8 << 30).unwrap(),
-            },
-            PieceInfo {
-                cid: data_commitment_to_cid(zero_piece_commitment(
-                    PaddedPieceSize::new(16 << 30).unwrap(),
-                ))
-                .unwrap(),
-                size: PaddedPieceSize::new(16 << 30).unwrap(),
-            },
+            (None, 8 << 30),
+            (None, 16 << 30)
         ];
+
+        let pieces = pieces.into_iter().map(|(cid, size)| {
+            let size = PaddedPieceSize::new(size).unwrap();
+            let commitment = match cid {
+                Some(cid) => {
+                    let cid = Cid::from_str(cid).unwrap();
+                    let (_, _, commitment) = cid_to_commitment(&cid).unwrap();
+                    commitment
+                },
+                None => zero_piece_commitment(size),
+            };
+
+            PieceInfo {
+                commitment,
+                size,
+            }
+        }).collect::<Vec<_>>();
 
         let comm_d = compute_unsealed_sector_commitment(SectorSize::_32GiB, &pieces).unwrap();
         let cid = data_commitment_to_cid(comm_d).unwrap();

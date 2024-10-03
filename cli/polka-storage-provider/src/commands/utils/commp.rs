@@ -62,9 +62,9 @@ pub fn calculate_piece_commitment<R: Read>(
     let mut fr32_reader = Fr32Reader::new(source);
 
     // Buffer used for reading data used for leafs.
-    let mut buffer = [0; NODE_SIZE as usize];
+    let mut buffer = [0; NODE_SIZE];
     // Number of leafs
-    let num_leafs = piece_size.div_ceil(NODE_SIZE) as usize;
+    let num_leafs = piece_size.div_ceil(NODE_SIZE as u64) as usize;
 
     // Elements iterator used by the MerkleTree. The elements returned by the
     // iterator represent leafs of the tree
@@ -77,7 +77,7 @@ pub fn calculate_piece_commitment<R: Read>(
         .map_err(|err| CommPError::TreeBuildError(err.to_string()))?;
 
     // Read and return the root of the tree
-    let mut commitment = [0; NODE_SIZE as usize];
+    let mut commitment = [0; NODE_SIZE];
     tree.root()
         .write_bytes(&mut commitment)
         .expect("destination buffer large enough");

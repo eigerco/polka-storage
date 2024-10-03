@@ -39,6 +39,7 @@ pub mod pallet {
     };
     use frame_system::{pallet_prelude::*, Config as SystemConfig, Pallet as System};
     use multihash_codetable::{Code, MultihashDigest};
+    use primitives_shared::commcid::cid_to_commitment;
     use primitives_proofs::{
         ActiveDeal, ActiveSector, DealId, Market, RegisteredSealProof, SectorDeal, SectorId,
         SectorNumber, SectorSize, StorageProviderValidation, MAX_DEALS_FOR_ALL_SECTORS,
@@ -962,9 +963,15 @@ pub mod pallet {
         ) -> Result<Cid, DispatchError> {
             let pieces = proposals
                 .into_iter()
-                .map(|p| crate::commd::PieceInfo {
-                    size: PaddedPieceSize::new(p.piece_size).unwrap(),
-                    cid: p.cid().unwrap(),
+                .map(|p| {
+                    let cid = p.cid().unwrap();
+                    // TODO: Check the codec and hash type
+                    let (_, _, commitment) = cid_to_commitment(&cid).unwrap();
+
+                    crate::commd::PieceInfo {
+                        size: PaddedPieceSize::new(p.piece_size).unwrap(),
+                        commitment,
+                    }
                 })
                 .collect::<Vec<_>>();
 
