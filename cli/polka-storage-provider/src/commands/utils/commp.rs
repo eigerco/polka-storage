@@ -1,28 +1,16 @@
-use std::io::{BufReader, Read};
+use std::io::Read;
 
 use filecoin_hashers::{
     sha256::{Sha256Domain, Sha256Hasher},
     Domain,
 };
-use fr32::{to_padded_bytes, Fr32Reader};
-use ipld_core::cid::multihash::Multihash;
-use mater::Cid;
-use storage_proofs_core::{merkle::BinaryMerkleTree, util::NODE_SIZE};
+use fr32::Fr32Reader;
+use primitives_shared::{commcid::Commitment, piece::PaddedPieceSize, NODE_SIZE};
+use storage_proofs_core::merkle::BinaryMerkleTree;
 use thiserror::Error;
 
-/// SHA2-256 with the two most significant bits from the last byte zeroed (as
-/// via a mask with 0b00111111) - used for proving trees as in Filecoin.
-///
-/// https://github.com/multiformats/multicodec/blob/badcfe56bb7e0bbb06b60d57565186cd6be1f932/table.csv#L153
-pub const SHA2_256_TRUNC254_PADDED: u64 = 0x1012;
-
-/// Filecoin piece or sector data commitment merkle node/root (CommP & CommD)
-///
-/// https://github.com/multiformats/multicodec/blob/badcfe56bb7e0bbb06b60d57565186cd6be1f932/table.csv#L554
-pub const FIL_COMMITMENT_UNSEALED: u64 = 0xf101;
-
 /// Reader that returns zeros if the inner reader is empty.
-struct ZeroPaddingReader<R: Read> {
+pub struct ZeroPaddingReader<R: Read> {
     /// The inner reader to read from.
     inner: R,
     /// The number of bytes this 0-padding reader has left to produce.
@@ -30,7 +18,7 @@ struct ZeroPaddingReader<R: Read> {
 }
 
 impl<R: Read> ZeroPaddingReader<R> {
-    fn new(inner: R, total_size: usize) -> Self {
+    pub fn new(inner: R, total_size: usize) -> Self {
         Self {
             inner,
             remaining: total_size,
@@ -63,53 +51,25 @@ impl<R: Read> Read for ZeroPaddingReader<R> {
     }
 }
 
-// Ensure that the padded piece size is valid.
-fn ensure_piece_size(padded_piece_size: usize) -> Result<(), CommPError> {
-    if padded_piece_size < NODE_SIZE {
-        return Err(CommPError::PieceTooSmall);
-    }
-
-    if padded_piece_size % NODE_SIZE != 0 {
-        return Err(CommPError::InvalidPieceSize(format!(
-            "padded_piece_size is not multiple of {NODE_SIZE}"
-        )));
-    }
-
-    Ok(())
-}
-
 /// Calculate the piece commitment for a given data source.
 ///
 ///  Reference — <https://spec.filecoin.io/systems/filecoin_files/piece/#section-systems.filecoin_files.piece.data-representation>
 pub fn calculate_piece_commitment<R: Read>(
     source: R,
-    unpadded_piece_size: u64,
-) -> Result<[u8; 32], CommPError> {
-    // Wrap the source in a BufReader for efficient reading.
-    let source = BufReader::new(source);
+    piece_size: PaddedPieceSize,
+) -> Result<Commitment, CommPError> {
     // This reader adds two zero bits to each 254 bits of data read from the source.
-    let fr32_reader = Fr32Reader::new(source);
-    // This is the padded piece size after we add 2 zero bits to each 254 bits of data.
-    let padded_piece_size = to_padded_bytes(unpadded_piece_size as usize);
-    // Final padded piece size should be 2^n where n is a positive integer. That
-    // is because we are using MerkleTree to calculate the piece commitment.
-    let padded_piece_size = padded_piece_size.next_power_of_two();
-
-    // Ensure that the piece size is valid, before generating a MerkeTree.
-    ensure_piece_size(padded_piece_size)?;
-
-    // The reader that pads the source with zeros
-    let mut zero_padding_reader = ZeroPaddingReader::new(fr32_reader, padded_piece_size);
+    let mut fr32_reader = Fr32Reader::new(source);
 
     // Buffer used for reading data used for leafs.
-    let mut buffer = [0; NODE_SIZE];
+    let mut buffer = [0; NODE_SIZE as usize];
     // Number of leafs
-    let num_leafs = padded_piece_size.div_ceil(NODE_SIZE) as usize;
+    let num_leafs = piece_size.div_ceil(NODE_SIZE) as usize;
 
     // Elements iterator used by the MerkleTree. The elements returned by the
     // iterator represent leafs of the tree
     let elements_iterator = (0..num_leafs).map(|_| {
-        zero_padding_reader.read_exact(&mut buffer)?;
+        fr32_reader.read_exact(&mut buffer)?;
         let hash = Sha256Domain::try_from_bytes(&buffer)?;
         Ok(hash)
     });
@@ -117,19 +77,12 @@ pub fn calculate_piece_commitment<R: Read>(
         .map_err(|err| CommPError::TreeBuildError(err.to_string()))?;
 
     // Read and return the root of the tree
-    let mut commitment = [0; NODE_SIZE];
+    let mut commitment = [0; NODE_SIZE as usize];
     tree.root()
         .write_bytes(&mut commitment)
         .expect("destination buffer large enough");
 
     Ok(commitment)
-}
-
-/// Generate Cid from the piece commitment
-pub fn piece_commitment_cid(piece_commitment: [u8; 32]) -> Cid {
-    let hash = Multihash::wrap(SHA2_256_TRUNC254_PADDED, &piece_commitment)
-        .expect("piece commitment not more than 64 bytes");
-    Cid::new_v1(FIL_COMMITMENT_UNSEALED, hash)
 }
 
 #[derive(Debug, Error)]
@@ -148,9 +101,9 @@ pub enum CommPError {
 mod tests {
     use std::io::Read;
 
-    use crate::commands::utils::commp::{
-        calculate_piece_commitment, CommPError, ZeroPaddingReader,
-    };
+    use primitives_shared::piece::PaddedPieceSize;
+
+    use crate::commands::utils::commp::{calculate_piece_commitment, ZeroPaddingReader};
 
     #[test]
     fn test_zero_padding_reader() {
@@ -181,10 +134,14 @@ mod tests {
     fn test_calculate_piece_commitment() {
         use std::io::Cursor;
 
-        let data = vec![2u8; 200];
+        let data_size: usize = 200;
+        let data = vec![2u8; data_size];
         let cursor = Cursor::new(data.clone());
+        let padded_piece_size = PaddedPieceSize::new(data_size.next_power_of_two() as u64).unwrap();
+        let zero_padding_reader = ZeroPaddingReader::new(cursor, *padded_piece_size as usize);
 
-        let commitment = calculate_piece_commitment(cursor, data.len() as u64).unwrap();
+        let commitment =
+            calculate_piece_commitment(zero_padding_reader, padded_piece_size).unwrap();
         assert_eq!(
             commitment,
             [
@@ -192,12 +149,5 @@ mod tests {
                 148, 15, 250, 217, 3, 24, 152, 110, 93, 173, 117, 209, 251, 37,
             ]
         );
-
-        // Test with zero-length data
-        let empty_data = Vec::new();
-        let empty_cursor = Cursor::new(empty_data);
-
-        let empty_commitment = calculate_piece_commitment(empty_cursor, 0);
-        assert!(matches!(empty_commitment, Err(CommPError::PieceTooSmall)));
     }
 }

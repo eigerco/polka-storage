@@ -7,6 +7,8 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+mod commd;
+
 pub use pallet::*;
 
 #[cfg(test)]
@@ -42,9 +44,12 @@ pub mod pallet {
         SectorNumber, SectorSize, StorageProviderValidation, MAX_DEALS_FOR_ALL_SECTORS,
         MAX_DEALS_PER_SECTOR, MAX_SECTORS_PER_CALL,
     };
+    use primitives_shared::{commcid::data_commitment_to_cid, piece::PaddedPieceSize};
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::BaseArithmetic;
     use sp_std::vec::Vec;
+
+    use crate::commd::compute_unsealed_sector_commitment;
 
     pub const CID_CODEC: u64 = 0x55;
     pub const LOG_TARGET: &'static str = "runtime::market";
@@ -213,6 +218,9 @@ pub mod pallet {
         // It maybe doable using newtype pattern, however not sure how the UI on the frontend side would handle that anyways.
         // There is Encode/Decode implementation though, through the feature flag: `scale-codec`.
         pub piece_cid: BoundedVec<u8, ConstU32<128>>,
+        /// The value represents the size of the data piece after padding to the
+        /// nearest power of two. Padding ensures that all pieces can be
+        /// efficiently arranged in a binary tree structure for Merkle proofs.
         pub piece_size: u64,
         /// Storage Client's Account Id
         pub client: Address,
@@ -244,8 +252,10 @@ pub mod pallet {
         pub state: DealState<BlockNumber>,
     }
 
-    impl<Address, Balance: BaseArithmetic + Copy, BlockNumber: BaseArithmetic + Copy>
-        DealProposal<Address, Balance, BlockNumber>
+    impl<Address, Balance, BlockNumber> DealProposal<Address, Balance, BlockNumber>
+    where
+        Balance: BaseArithmetic + Copy,
+        BlockNumber: BaseArithmetic + Copy,
     {
         fn duration(&self) -> BlockNumber {
             self.end_block - self.start_block
@@ -947,15 +957,20 @@ pub mod pallet {
 
         /// <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L1370>
         fn compute_commd<'a>(
-            _proposals: impl IntoIterator<Item = &'a DealProposalOf<T>>,
-            _sector_type: RegisteredSealProof,
+            proposals: impl IntoIterator<Item = &'a DealProposalOf<T>>,
+            sector_type: RegisteredSealProof,
         ) -> Result<Cid, DispatchError> {
-            // TODO(@th7nder,#92,21/06/2024):
-            // https://github.com/filecoin-project/rust-fil-proofs/blob/daec42b64ae6bf9a537545d5f116d57b9a29cc11/filecoin-proofs/src/pieces.rs#L85
-            let cid = Cid::new_v1(
-                CID_CODEC,
-                Code::Blake2b256.digest(b"placeholder-to-be-done"),
-            );
+            let pieces = proposals
+                .into_iter()
+                .map(|p| crate::commd::PieceInfo {
+                    size: PaddedPieceSize::new(p.piece_size).unwrap(),
+                    cid: p.cid().unwrap(),
+                })
+                .collect::<Vec<_>>();
+
+            let sector_size = sector_type.sector_size();
+            let comm_d = compute_unsealed_sector_commitment(sector_size, &pieces).unwrap();
+            let cid = data_commitment_to_cid(comm_d)?;
 
             Ok(cid)
         }

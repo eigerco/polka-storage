@@ -5,9 +5,14 @@ use std::{fs::File, io::Write, path::PathBuf};
 use mater::CarV2Reader;
 use polka_storage_proofs::porep;
 use primitives_proofs::RegisteredSealProof;
+use primitives_shared::{
+    commcid::piece_commitment_to_cid,
+    piece::PaddedPieceSize
+};
+use std::io::BufReader;
 
 use crate::{
-    commands::utils::commp::{calculate_piece_commitment, piece_commitment_cid, CommPError},
+    commands::utils::commp::{calculate_piece_commitment, CommPError, ZeroPaddingReader},
     CliError,
 };
 
@@ -47,13 +52,21 @@ impl UtilsCommand {
                 let mut source_file = File::open(&input_path)?;
                 let file_size = source_file.metadata()?.len();
 
+                let buffered = BufReader::new(source_file);
+                let padded_piece_size = PaddedPieceSize::new(file_size.next_power_of_two() as u64)
+                    .expect("is power of two");
+                let mut zero_padding_reader =
+                    ZeroPaddingReader::new(buffered, *padded_piece_size as usize);
+
                 // The calculate_piece_commitment blocks the thread. We could
                 // use tokio::task::spawn_blocking to avoid this, but in this
                 // case it doesn't matter because this is the only thing we are
                 // working on.
-                let commitment = calculate_piece_commitment(&mut source_file, file_size)
-                    .map_err(|err| UtilsCommandError::CommPError(err))?;
-                let cid = piece_commitment_cid(commitment);
+                let commitment =
+                    calculate_piece_commitment(&mut zero_padding_reader, padded_piece_size)
+                        .map_err(|err| UtilsCommandError::CommPError(err))?;
+                let cid = piece_commitment_to_cid(commitment)
+                    .map_err(|err| UtilsCommandError::CidError(err.to_string()))?;
 
                 println!("Piece commitment CID: {cid}");
             }
@@ -106,6 +119,8 @@ impl UtilsCommand {
 pub enum UtilsCommandError {
     #[error("the commp command failed because: {0}")]
     CommPError(#[from] CommPError),
+    #[error("CidError: {0}")]
+    CidError(String),
     #[error("failed to create a file '{0}' because: {1}")]
     FileCreateError(PathBuf, std::io::Error),
     #[error("failed to convert from rust-fil-proofs to polka-storage-proofs: {0}")]

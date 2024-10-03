@@ -17,6 +17,7 @@ members = [
   "pallets/proofs",
   "pallets/storage-provider",
   "primitives/proofs",
+  "primitives/shared",
   "runtime",
   "storage/mater",
   "storage/mater-cli",
@@ -126,6 +127,7 @@ pallet-storage-provider = { path = "pallets/storage-provider", default-features 
 polka-storage-proofs = { path = "lib/polka-storage-proofs", default-features = false }
 polka-storage-runtime = { path = "runtime" }
 primitives-proofs = { path = "primitives/proofs", default-features = false }
+primitives-shared = { path = "primitives/shared" }
 storagext = { path = "cli/polka-storage/storagext" }
 
 # FileCoin proofs

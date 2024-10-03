@@ -20,6 +20,10 @@ pub type SectorNumber = u64;
 #[encode_as_type(crate_path = "::scale_encode")]
 pub enum SectorSize {
     _2KiB,
+    _8MiB,
+    _512MiB,
+    _32GiB,
+    _64GiB,
 }
 
 impl SectorSize {
@@ -28,6 +32,10 @@ impl SectorSize {
     pub fn bytes(&self) -> u64 {
         match self {
             SectorSize::_2KiB => 2 << 10,
+            SectorSize::_8MiB => 8 << 20,
+            SectorSize::_512MiB => 512 << 20,
+            SectorSize::_32GiB => 32 << 30,
+            SectorSize::_64GiB => 2 * (32 << 30),
         }
     }
 }

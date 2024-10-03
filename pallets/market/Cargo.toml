@@ -22,7 +22,9 @@ hex = { workspace = true, default-features = false, features = ["alloc"] }
 log = { workspace = true }
 multihash-codetable = { workspace = true, features = ["blake2b"] }
 primitives-proofs = { workspace = true, default-features = false }
+primitives-shared = { workspace = true }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
+sha2 = { workspace = true }
 
 # frame deps
 frame-benchmarking = { workspace = true, default-features = false, optional = true }

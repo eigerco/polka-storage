@@ -1,0 +1,18 @@
+[package]
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+name = "primitives-shared"
+repository.workspace = true
+version = "0.1.0"
+
+[dependencies]
+cid.workspace = true
+
+[dev-dependencies]
+
+[lints]
+workspace = true
+
+[features]
