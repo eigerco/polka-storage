@@ -103,7 +103,8 @@ impl Commitment {
     pub fn cid(&self) -> Cid {
         let multihash = self.kind.multihash();
         let multicodec = self.kind.multicodec();
-        let hash = Multihash::wrap(multihash, &self.commitment).expect("correct commitment");
+        let hash = Multihash::wrap(multihash, &self.commitment)
+            .expect("multihash is large enough so it can wrap the commitment");
         Cid::new_v1(multicodec, hash)
     }
 }

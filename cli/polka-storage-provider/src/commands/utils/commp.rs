@@ -105,8 +105,9 @@ pub enum CommPError {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Read;
+    use std::io::{Cursor, Read};
 
+    use primitives_proofs::SectorSize;
     use primitives_shared::piece::PaddedPieceSize;
 
     use crate::commands::utils::commp::{calculate_piece_commitment, ZeroPaddingReader};
@@ -138,8 +139,6 @@ mod tests {
 
     #[test]
     fn test_calculate_piece_commitment() {
-        use std::io::Cursor;
-
         let data_size: u64 = 200;
         let data = vec![2u8; data_size as usize];
         let cursor = Cursor::new(data.clone());
@@ -153,6 +152,26 @@ mod tests {
             [
                 152, 58, 157, 235, 187, 58, 81, 61, 113, 252, 178, 149, 158, 13, 242, 24, 54, 98,
                 148, 15, 250, 217, 3, 24, 152, 110, 93, 173, 117, 209, 251, 37,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_zero_piece_commitment() {
+        let size = SectorSize::_2KiB;
+        let padded_piece_size = PaddedPieceSize::new(size.bytes()).unwrap();
+        let cursor = Cursor::new(vec![]);
+        let zero_padding_reader = ZeroPaddingReader::new(cursor, *padded_piece_size);
+
+        let commitment =
+            calculate_piece_commitment(zero_padding_reader, padded_piece_size).unwrap();
+        dbg!(commitment.raw());
+
+        assert_eq!(
+            commitment.raw(),
+            [
+                252, 126, 146, 130, 150, 229, 22, 250, 173, 233, 134, 178, 143, 146, 212, 74, 79,
+                36, 185, 53, 72, 82, 35, 55, 106, 121, 144, 39, 188, 24, 248, 51
             ]
         );
     }

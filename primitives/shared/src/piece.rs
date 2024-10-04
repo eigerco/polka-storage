@@ -8,6 +8,9 @@ use crate::NODE_SIZE;
 pub struct UnpaddedPieceSize(u64);
 
 impl UnpaddedPieceSize {
+    /// The minimum pice size
+    pub const MIN: UnpaddedPieceSize = UnpaddedPieceSize(127);
+
     /// Initialize new unpadded piece size. Error is returned if the size is
     /// invalid.
     pub fn new(size: u64) -> Result<Self, &'static str> {

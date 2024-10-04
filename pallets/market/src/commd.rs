@@ -4,7 +4,7 @@ use alloc::vec::Vec;
 use primitives_proofs::SectorSize;
 use primitives_shared::{
     commitment::{zero_piece_commitment, Commitment, CommitmentKind},
-    piece::PaddedPieceSize,
+    piece::{PaddedPieceSize, UnpaddedPieceSize},
     NODE_SIZE,
 };
 use sha2::{Digest, Sha256};
@@ -14,10 +14,18 @@ fn ensure_piece_sizes(
     sector_size: SectorSize,
     piece_infos: &[PieceInfo],
 ) -> Result<(), CommDError> {
+    // Sector should be able to hold all pieces
     let size_sum = piece_infos.iter().map(|piece| *piece.size).sum::<u64>();
-
     if size_sum > sector_size.bytes() {
         return Err(CommDError::PieceSizeTooLarge);
+    }
+
+    // Check if there are too many pieces for a sector of this size
+    let sector_size = PaddedPieceSize::new(sector_size.bytes()).unwrap();
+    let num_of_pieces = piece_infos.len() as u64;
+    let max_pieces = *sector_size.unpadded() / *UnpaddedPieceSize::MIN;
+    if num_of_pieces > max_pieces {
+        return Err(CommDError::TooManyPieces);
     }
 
     Ok(())
@@ -30,7 +38,8 @@ pub fn compute_unsealed_sector_commitment(
 ) -> Result<Commitment, CommDError> {
     let padded_sector_size = PaddedPieceSize::new(sector_size.bytes()).unwrap();
 
-    // In case of no pieces, return the zero commitment for the whole sector.
+    // In case of no pieces, return the piece zero commitment for the whole
+    // sector size.
     if piece_infos.is_empty() {
         return Ok(zero_piece_commitment(padded_sector_size));
     }
@@ -38,40 +47,12 @@ pub fn compute_unsealed_sector_commitment(
     // Check if pieces are correct sizes.
     ensure_piece_sizes(sector_size, piece_infos)?;
 
-    // Stack used for piece reduction
-    let mut stack = Stack::new();
-
-    // We first load the first piece into the stack. That first element is
-    // removed from the stack
-    let first = piece_infos.first().expect("unreachable: !is_empty()");
-    // Push the first element on the stack
-    stack.shift(*first);
-
-    // Iterate all pieces
-    for piece_info in piece_infos.iter().skip(1) {
-        // Check if the last element of the stack is smaller than the current
-        // piece. If it is, add a padding piece to the stack. This is needed
-        // because when we reduce two pieces they have to be the same size.
-        while *stack.peek().size < *piece_info.size {
-            stack.shift_reduce(zero_padding(stack.peek().size)?)?
-        }
-
-        // Push the actual piece onto the stack
-        stack.shift_reduce(*piece_info)?;
-    }
-
-    // If we had odd number of pieces. add a 0 padded piece to the end of the stack
-    while stack.len() > 1 {
-        stack.shift_reduce(zero_padding(stack.peek().size)?)?;
-    }
-
-    // Stacks size must be 1.
-    if stack.len() != 1 {
-        return Err(CommDError::InvalidStackSize);
-    }
-
-    // Last element on the stack is the actual comm_d of the piece
-    let commitment = stack.pop()?.commitment;
+    // Reduce the pieces to the 1-piece commitment
+    let mut reduction = CommDPieceReduction::new();
+    piece_infos.iter().for_each(|piece_info| {
+        reduction.add_piece(*piece_info);
+    });
+    let commitment = reduction.finish().expect("at least one piece was added");
 
     Ok(commitment)
 }
@@ -84,95 +65,113 @@ pub struct PieceInfo {
     pub size: PaddedPieceSize,
 }
 
-/// Stack used for piece reduction.
-/// TODO: Temporary implementation copied from the filecoin
-struct Stack(Vec<PieceInfo>);
+struct CommDPieceReduction {
+    /// Pieces in queue that will be reduced
+    pieces: Vec<PieceInfo>,
+}
 
-impl Stack {
-    /// Creates a new stack.
+impl CommDPieceReduction {
     fn new() -> Self {
-        Stack(Vec::new())
+        CommDPieceReduction { pieces: Vec::new() }
     }
 
-    /// Pushes a single element onto the stack.
-    fn shift(&mut self, el: PieceInfo) {
-        self.0.push(el)
-    }
-
-    /// Look at the last element of the stack.
-    fn peek(&self) -> &PieceInfo {
-        &self.0[self.0.len() - 1]
-    }
-
-    /// Look at the second to last element of the stack.
-    fn peek2(&self) -> &PieceInfo {
-        &self.0[self.0.len() - 2]
-    }
-
-    /// Pop the last element of the stack.
-    fn pop(&mut self) -> Result<PieceInfo, CommDError> {
-        Ok(self.0.pop().unwrap())
-    }
-
-    fn reduce1(&mut self) -> Result<bool, CommDError> {
-        if self.len() < 2 {
-            return Ok(false);
+    // Add new piece
+    fn add_piece(&mut self, piece: PieceInfo) {
+        // Handle first piece
+        if self.pieces.is_empty() {
+            self.pieces.push(piece);
+            return;
         }
 
-        if self.peek().size == self.peek2().size {
-            let right = self.pop()?;
-            let left = self.pop()?;
-            let joined = join_piece_infos(left, right)?;
-            self.shift(joined);
-            return Ok(true);
+        // Add padding pieces to the stack until we reduce the current pieces to
+        // the size that is equal to the new piece. With this we achieve that
+        // the new piece will be reduced to a single piece after adding it to
+        // the stack.
+        loop {
+            let last_added_piece_size = self.pieces.last().expect("at least one piece exists").size;
+            if *last_added_piece_size >= *piece.size {
+                break;
+            }
+
+            let padding_piece = padding_piece(last_added_piece_size);
+            self.pieces.push(padding_piece);
+
+            // We need to reduce the pieces before the next iteration. Because
+            // we are always adding the padding to the last piece. And the last
+            // piece changes based on the result of reduction.
+            self.reduce();
         }
 
-        Ok(false)
+        // Add the new piece to the queue
+        self.pieces.push(piece);
+
+        // Reduce the pieces
+        self.reduce();
     }
 
-    fn reduce(&mut self) -> Result<(), CommDError> {
-        while self.reduce1()? {}
-        Ok(())
+    /// Combine pieces until there are any in the queue available to combine
+    fn reduce(&mut self) {
+        loop {
+            // If there is only a single piece on the stack we break the loop
+            let pieces_len = self.pieces.len();
+            if pieces_len < 2 {
+                break;
+            }
+
+            // If the two pieces on top of the stack are not the same size, we
+            // can't reduce them
+            let last_piece_size = self.pieces[pieces_len - 1].size;
+            let second_last_piece_size = self.pieces[pieces_len - 2].size;
+            if last_piece_size != second_last_piece_size {
+                break;
+            }
+
+            // Pop and join the two pieces on top of the stack. Push the
+            // combined piece back to the stack
+            let last_piece = self
+                .pieces
+                .pop()
+                .expect("we know there are at least two pieces");
+            let second_last_piece = self
+                .pieces
+                .pop()
+                .expect("we know there are at least two pieces");
+            let joined =
+                join_piece_infos(second_last_piece, last_piece).expect("pieces are the same size");
+            self.pieces.push(joined);
+        }
     }
 
-    fn shift_reduce(&mut self, piece: PieceInfo) -> Result<(), CommDError> {
-        self.shift(piece);
-        self.reduce()
-    }
+    /// Finish the reduction of all pieces. Result is a data commitment for the
+    /// pieces added.
+    fn finish(mut self) -> Option<Commitment> {
+        // Check if we still have more then one piece on the stack. If we do,
+        // that means that we should add some additional padding pieces at the
+        // end until we can reduce them to a single piece
+        while self.pieces.len() > 1 {
+            let last_added_piece_size = self.pieces.last().expect("at least one piece exists").size;
+            self.pieces.push(padding_piece(last_added_piece_size));
+            self.reduce();
+        }
 
-    fn len(&self) -> usize {
-        self.0.len()
+        // Finally a single piece with the commitment that represents all
+        // reduced pieces
+        Some(self.pieces.pop()?.commitment)
     }
 }
 
-/// Create a padding `PieceInfo` of size `size`.
-pub fn zero_padding(piece_size: PaddedPieceSize) -> Result<PieceInfo, CommDError> {
-    let mut commitment = [0u8; 32];
-
-    // TODO: cache common piece hashes
-    let mut hashed_size = 64;
-    let h1 = piece_hash(&commitment, &commitment);
-    commitment.copy_from_slice(h1.as_ref());
-
-    while hashed_size < *piece_size {
-        let h = piece_hash(&commitment, &commitment);
-        commitment.copy_from_slice(h.as_ref());
-        hashed_size *= 2;
-    }
-
-    if hashed_size != *piece_size {
-        return Err(CommDError::InvalidPieceSize);
-    }
-
-    Ok(PieceInfo {
-        commitment: Commitment::new(commitment, CommitmentKind::Piece),
+/// Create a piece of specific size used as a padding.
+fn padding_piece(piece_size: PaddedPieceSize) -> PieceInfo {
+    PieceInfo {
+        commitment: zero_piece_commitment(piece_size),
         size: piece_size,
-    })
+    }
 }
 
 /// Join two equally sized `PieceInfo`s together, by hashing them and adding
 /// their sizes.
 fn join_piece_infos(left: PieceInfo, right: PieceInfo) -> Result<PieceInfo, CommDError> {
+    // The pieces passed should be same size
     if left.size != right.size {
         return Err(CommDError::InvalidPieceSize);
     }
@@ -189,22 +188,27 @@ fn join_piece_infos(left: PieceInfo, right: PieceInfo) -> Result<PieceInfo, Comm
     })
 }
 
-/// Calculate Hash of two 32-byte arrays.
-pub fn piece_hash(a: &[u8], b: &[u8]) -> Vec<u8> {
+/// Calculate Hash of two raw piece commitments
+pub fn piece_hash(a: &[u8], b: &[u8]) -> [u8; 32] {
     let mut buf = [0u8; NODE_SIZE * 2];
     buf[..NODE_SIZE].copy_from_slice(a);
     buf[NODE_SIZE..].copy_from_slice(b);
 
-    let mut hasher = Sha256::new();
-    hasher.update(buf);
-    hasher.finalize().to_vec()
+    let hashed = Sha256::digest(buf);
+    let mut result = [0u8; 32];
+    result.copy_from_slice(&hashed);
+
+    // strip last two bits, to ensure result is in Fr.
+    result[31] &= 0b0011_1111;
+
+    result
 }
 
 #[derive(Debug)]
 pub enum CommDError {
-    PieceSizeTooLarge,
     InvalidPieceSize,
-    InvalidStackSize,
+    PieceSizeTooLarge,
+    TooManyPieces,
 }
 
 #[cfg(test)]
@@ -225,24 +229,6 @@ mod tests {
             [
                 252, 126, 146, 130, 150, 229, 22, 250, 173, 233, 134, 178, 143, 146, 212, 74, 79,
                 36, 185, 53, 72, 82, 35, 55, 106, 121, 144, 39, 188, 24, 248, 51
-            ]
-        );
-
-        let comm_d = zero_piece_commitment(PaddedPieceSize::new(2048).unwrap());
-        assert_eq!(
-            comm_d.raw(),
-            [
-                252, 126, 146, 130, 150, 229, 22, 250, 173, 233, 134, 178, 143, 146, 212, 74, 79,
-                36, 185, 53, 72, 82, 35, 55, 106, 121, 144, 39, 188, 24, 248, 51
-            ]
-        );
-
-        let comm_d = zero_piece_commitment(PaddedPieceSize::new(128).unwrap());
-        assert_eq!(
-            comm_d.raw(),
-            [
-                55, 49, 187, 153, 172, 104, 159, 102, 238, 245, 151, 62, 74, 148, 218, 24, 143, 77,
-                220, 174, 88, 7, 36, 252, 111, 63, 214, 13, 253, 72, 131, 51
             ]
         );
     }
