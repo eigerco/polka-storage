@@ -975,21 +975,24 @@ pub mod pallet {
                     let cid = p.cid()?;
                     let commitment = Commitment::from_cid(&cid, CommitmentKind::Piece)
                         .map_err(|err| ProposalError::CommD(err))?;
+                    let size = PaddedPieceSize::new(p.piece_size)
+                        .map_err(|err| ProposalError::CommD(err))?;
 
-                    Ok(crate::commd::PieceInfo {
-                        size: PaddedPieceSize::new(p.piece_size).unwrap(),
-                        commitment,
-                    })
+                    Ok(crate::commd::PieceInfo { size, commitment })
                 })
                 .collect::<Result<Vec<_>, ProposalError>>();
 
             let pieces = pieces.map_err(|err| {
-                log::error!("error occurred while calculating commd: {}", err);
+                log::error!("error occurred while processing pieces: {:?}", err);
                 Error::<T>::CommD
             })?;
 
             let sector_size = sector_type.sector_size();
-            let comm_d = compute_unsealed_sector_commitment(sector_size, &pieces).unwrap();
+            let comm_d =
+                compute_unsealed_sector_commitment(sector_size, &pieces).map_err(|err| {
+                    log::error!("error occurred while computing commd: {:?}", err);
+                    Error::<T>::CommD
+                })?;
 
             Ok(comm_d.cid())
         }
