@@ -11,6 +11,7 @@ version = "0.1.0"
 cid.workspace = true
 
 [dev-dependencies]
+rand = { workspace = true, features = ["std", "std_rng"] }
 
 [lints]
 workspace = true

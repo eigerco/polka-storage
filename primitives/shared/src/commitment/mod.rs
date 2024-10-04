@@ -26,7 +26,7 @@ pub const SHA2_256_TRUNC254_PADDED: u64 = 0x1012;
 /// https://github.com/multiformats/multicodec/blob/badcfe56bb7e0bbb06b60d57565186cd6be1f932/table.csv#L537
 pub const POSEIDON_BLS12_381_A1_FC1: u64 = 0xb401;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CommitmentKind {
     // CommP - Piece commitment
     Piece,
@@ -52,7 +52,7 @@ impl CommitmentKind {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Commitment {
     commitment: [u8; 32],
     kind: CommitmentKind,
@@ -84,6 +84,10 @@ impl Commitment {
                 if multicodec != FIL_COMMITMENT_SEALED {
                     return Err("invalid multicodec for commitment");
                 }
+
+                if multihash != POSEIDON_BLS12_381_A1_FC1 {
+                    return Err("invalid multihash for commitment");
+                }
             }
         }
 
@@ -109,5 +113,119 @@ pub fn zero_piece_commitment(size: PaddedPieceSize) -> Commitment {
     Commitment {
         commitment: zero::zero_piece_commitment(size),
         kind: CommitmentKind::Piece,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use cid::{multihash::Multihash, Cid};
+
+    // use rand::thread_rng;
+    use crate::commitment::{
+        Commitment, CommitmentKind, FIL_COMMITMENT_SEALED, FIL_COMMITMENT_UNSEALED,
+        POSEIDON_BLS12_381_A1_FC1, SHA2_256_TRUNC254_PADDED,
+    };
+
+    fn rand_comm() -> [u8; 32] {
+        rand::random::<[u8; 32]>()
+    }
+
+    #[test]
+    fn comm_d_to_cid() {
+        let comm = rand_comm();
+
+        let cid = Commitment::new(comm, CommitmentKind::Data).cid();
+        assert_eq!(cid.codec(), FIL_COMMITMENT_UNSEALED);
+        assert_eq!(cid.hash().code(), SHA2_256_TRUNC254_PADDED);
+        assert_eq!(cid.hash().digest(), comm);
+    }
+
+    #[test]
+    fn cid_to_comm_d() {
+        let comm = rand_comm();
+
+        // Correct hash format
+        let mh = Multihash::wrap(SHA2_256_TRUNC254_PADDED, &comm).unwrap();
+        let c = Cid::new_v1(FIL_COMMITMENT_UNSEALED, mh);
+        let commitment = Commitment::from_cid(&c, CommitmentKind::Data).unwrap();
+        assert_eq!(commitment.raw(), comm);
+
+        // Should fail with incorrect codec
+        let c = Cid::new_v1(FIL_COMMITMENT_SEALED, mh);
+        let commitment = Commitment::from_cid(&c, CommitmentKind::Data);
+        assert!(commitment.is_err());
+
+        // Incorrect hash format
+        let mh = Multihash::wrap(0x9999, &comm).unwrap();
+        let c = Cid::new_v1(FIL_COMMITMENT_UNSEALED, mh);
+        let commitment = Commitment::from_cid(&c, CommitmentKind::Data);
+        assert!(commitment.is_err());
+    }
+
+    #[test]
+    fn comm_r_to_cid() {
+        let comm = rand_comm();
+        let cid = Commitment::new(comm, CommitmentKind::Replica).cid();
+
+        assert_eq!(cid.codec(), FIL_COMMITMENT_SEALED);
+        assert_eq!(cid.hash().code(), POSEIDON_BLS12_381_A1_FC1);
+        assert_eq!(cid.hash().digest(), comm);
+    }
+
+    #[test]
+    fn cid_to_comm_r() {
+        let comm = rand_comm();
+
+        // Correct hash format
+        let mh = Multihash::wrap(POSEIDON_BLS12_381_A1_FC1, &comm).unwrap();
+        let c = Cid::new_v1(FIL_COMMITMENT_SEALED, mh);
+        let commitment = Commitment::from_cid(&c, CommitmentKind::Replica).unwrap();
+        assert_eq!(commitment.raw(), comm);
+
+        // Should fail with incorrect codec
+        let c = Cid::new_v1(FIL_COMMITMENT_UNSEALED, mh);
+        let commitment = Commitment::from_cid(&c, CommitmentKind::Replica);
+        assert!(commitment.is_err());
+
+        // Incorrect hash format
+        let mh = Multihash::wrap(0x9999, &comm).unwrap();
+        let c = Cid::new_v1(FIL_COMMITMENT_SEALED, mh);
+        let commitment = Commitment::from_cid(&c, CommitmentKind::Replica);
+        assert!(commitment.is_err());
+    }
+
+    #[test]
+    fn symmetric_conversion() {
+        let comm = rand_comm();
+
+        // piece
+        let cid = Commitment::new(comm, CommitmentKind::Piece).cid();
+        assert_eq!(
+            Commitment::from_cid(&cid, CommitmentKind::Piece).unwrap(),
+            Commitment {
+                commitment: comm,
+                kind: CommitmentKind::Piece
+            }
+        );
+
+        // data
+        let cid = Commitment::new(comm, CommitmentKind::Data).cid();
+        assert_eq!(
+            Commitment::from_cid(&cid, CommitmentKind::Data).unwrap(),
+            Commitment {
+                commitment: comm,
+                kind: CommitmentKind::Data
+            }
+        );
+
+        // replica
+        let cid = Commitment::new(comm, CommitmentKind::Replica).cid();
+        assert_eq!(
+            Commitment::from_cid(&cid, CommitmentKind::Replica).unwrap(),
+            Commitment {
+                commitment: comm,
+                kind: CommitmentKind::Replica
+            }
+        );
     }
 }
