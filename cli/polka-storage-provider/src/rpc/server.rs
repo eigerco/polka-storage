@@ -114,7 +114,7 @@ impl StorageProviderRpcServer for RpcServerState {
 
         // Check if the respective piece has been uploaded, error if not
         let piece_cid = deal.deal_proposal.piece_cid;
-        let piece_path = self.storage_dir.join(piece_cid.to_string());
+        let piece_path = self.storage_dir.join(format!("{piece_cid}.car"));
         if !piece_path.exists() || !piece_path.is_file() {
             return Err(RpcError::internal_error(
                 "piece has not been uploaded yet",
@@ -122,6 +122,7 @@ impl StorageProviderRpcServer for RpcServerState {
             ));
         }
 
+        // TODO(@jmg-duarte,#428,04/10/2024):
         // There's a small bug here, currently, xt_client waits for a "full extrisic submission"
         // meaning that it will wait until the block where it is included in is finalized
         // however, due to https://github.com/paritytech/subxt/issues/1668 it may wrongly fail.

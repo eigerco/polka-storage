@@ -12,17 +12,19 @@ use futures::{TryFutureExt, TryStreamExt};
 use mater::Cid;
 use tokio::{
     fs::{self, File},
-    io::BufWriter,
+    io::{AsyncRead, BufWriter},
 };
 use tokio_util::{
     io::{ReaderStream, StreamReader},
     sync::CancellationToken,
 };
 use tower_http::trace::TraceLayer;
-use tracing::{error, info, info_span, instrument};
 use uuid::Uuid;
 
-use crate::db::DealDB;
+use crate::{
+    commp::{calculate_piece_commitment, piece_commitment_cid, CommPError},
+    db::DealDB,
+};
 
 /// Shared state of the storage server.
 pub struct StorageServerState {
@@ -30,7 +32,7 @@ pub struct StorageServerState {
     pub deal_db: Arc<DealDB>,
 }
 
-#[instrument(skip_all)]
+#[tracing::instrument(skip_all)]
 pub async fn start_upload_server(
     state: Arc<StorageServerState>,
     listen_addr: SocketAddr,
@@ -38,7 +40,7 @@ pub async fn start_upload_server(
 ) -> Result<(), std::io::Error> {
     // Create a storage folder if it doesn't exist.
     if !state.storage_dir.exists() {
-        info!(folder = ?state.storage_dir, "creating storage folder");
+        tracing::info!(folder = ?state.storage_dir, "creating storage folder");
         fs::create_dir_all(state.storage_dir.as_ref()).await?;
     }
 
@@ -47,7 +49,7 @@ pub async fn start_upload_server(
     let listener = tokio::net::TcpListener::bind(listen_addr).await?;
 
     // Start server
-    info!("upload server started at: {listen_addr}");
+    tracing::info!("upload server started at: {listen_addr}");
     axum::serve(listener, router)
         .with_graceful_shutdown(async move {
             token.cancelled_owned().await;
@@ -58,8 +60,8 @@ pub async fn start_upload_server(
 
 fn configure_router(state: Arc<StorageServerState>) -> Router {
     Router::new()
-        // NOTE(@jmg-duarte,02/10/2024): not only I am trusting the absolute GOAT (Daniel Stenberg)
-        // https://curl.se/docs/httpscripting.html#put
+        // NOTE(@jmg-duarte,02/10/2024): I am trusting the HTTP GOAT (Daniel Stenberg)
+        // for more info: https://curl.se/docs/httpscripting.html#put
         // This also worked "first try" while multi-part did not work at all!
         .route("/upload/:cid", put(upload))
         .route("/download/:cid", get(download))
@@ -74,7 +76,7 @@ fn configure_router(state: Arc<StorageServerState>) -> Router {
                     .get::<MatchedPath>()
                     .map(MatchedPath::as_str);
 
-                info_span!(
+                tracing::info_span!(
                     "request",
                     method = ?request.method(),
                     matched_path,
@@ -86,95 +88,141 @@ fn configure_router(state: Arc<StorageServerState>) -> Router {
 
 /// Handler for the upload endpoint. It receives a stream of bytes, coverts them
 /// to a CAR file and returns the CID of the CAR file to the user.
+#[tracing::instrument(skip_all, fields(cid))]
 async fn upload(
     State(state): State<Arc<StorageServerState>>,
     Path(cid): Path<String>,
     request: Request,
 ) -> Result<String, (StatusCode, String)> {
-    let deal_cid = match cid::Cid::from_str(&cid) {
-        Ok(cid) => cid,
-        Err(err) => return Err((StatusCode::BAD_REQUEST, err.to_string())),
-    };
+    let deal_cid = cid::Cid::from_str(&cid).map_err(|err| {
+        tracing::error!(cid, "failed to parse cid");
+        (StatusCode::BAD_REQUEST, err.to_string())
+    })?;
 
+    let deal_db_conn = state.deal_db.clone();
     // If the deal hasn't been accepted, reject the upload
-    let proposed_deal = match state.deal_db.get_proposed_deal(deal_cid) {
-        Ok(Some(proposed_deal)) => proposed_deal,
-        Ok(None) => {
-            return Err((
-                StatusCode::NOT_FOUND,
-                format!("cid \"{}\" was not found", cid),
-            ));
-        }
-        Err(err) => return Err((StatusCode::INTERNAL_SERVER_ERROR, err.to_string())),
-    };
+    let proposed_deal =
+        // Move the fetch to the blocking pool since the RocksDB API is sync
+        tokio::task::spawn_blocking(move || match deal_db_conn.get_proposed_deal(deal_cid) {
+            Ok(Some(proposed_deal)) => Ok(proposed_deal),
+            Ok(None) => {
+                tracing::error!(cid = %deal_cid, "deal proposal was not found");
+                Err((
+                    StatusCode::NOT_FOUND,
+                    format!("cid \"{}\" was not found", cid),
+                ))
+            }
+            Err(err) => {
+                tracing::error!(%err, "failed to fetch proposed deal");
+                Err((StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))
+            }
+        }).await.map_err(|err| {
+            tracing::error!(%err, "failed to execute blocking task");
+            (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
+        })??;
 
-    let mut body_reader = StreamReader::new(
+    // Read the request body into a CAR archive
+    let body_reader = StreamReader::new(
         request
             .into_body()
             .into_data_stream()
             .map_err(|err| io::Error::new(io::ErrorKind::Other, err)),
     );
-
-    // We first write the file to disk and then verify it,
-    // it's wasteful but mater does not have a "passthrough" mode
-    // i.e. reads and verifies the CAR as it goes, outputting the original bytes
-    let piece_path = state.storage_dir.join(proposed_deal.piece_cid.to_string());
-
-    // Opening the file a single time with OpenOptions::new().create(true).read(true).write(true)
-    // does not work to write and read for some reason...
-    // The tokio::io::copy doesn't close the handler, neither into_inner() or a &mut ref worked
-    // So that's why there's a "double open"
-
-    let read = File::create(&piece_path)
-        .and_then(|file| async move {
-            let mut writer = BufWriter::new(file);
-            tracing::trace!("copying files");
-            // tokio::io::copy flushes for us!
-            tokio::io::copy(&mut body_reader, &mut writer).await
-        })
+    let file_cid = stream_contents_to_car(state.storage_dir.clone().as_ref(), body_reader)
         .await
         .map_err(|err| {
-            tracing::error!(%err, "failed to open the file");
+            tracing::error!(%err, "failed to store file into CAR archive");
             (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
         })?;
 
-    if read != proposed_deal.piece_size {
+    // NOTE(@jmg-duarte,03/10/2024): Maybe we should just register the file in RocksDB and keep a
+    // background process that vacuums the disk as necessary to simplify error handling here
+
+    let (_, file_path) = content_path(&state.storage_dir, file_cid);
+    // Check if the piece size matches
+    let size_matches = check_file_size(&file_path, proposed_deal.piece_size)
+        .map_err(|err| {
+            tracing::error!(%err, path = %file_path.display(), "failed to check the file size");
+            (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
+        })
+        .await?;
+    if !size_matches {
         return Err((
             StatusCode::BAD_REQUEST,
-            "piece size does not match proposed deal".to_string(),
+            "piece size does not match proposal".to_string(),
         ));
     }
 
-    let piece = File::open(&piece_path).await.map_err(|err| {
-        tracing::error!(%err, "failed to open the file");
+    let piece_path = file_path.clone();
+    // Calculate the piece commitment in the blocking thread pool since `calculate_piece_commitment`
+    // is CPU intensive — i.e. blocking — potentially improvement is to move this completely out of
+    // the tokio runtime into an OS thread
+    let piece_commitment_cid = tokio::task::spawn_blocking(move || -> Result<_, CommPError> {
+        let file = std::fs::File::open(&piece_path).map_err(CommPError::Io)?;
+        let file_size = file.metadata().map_err(CommPError::Io)?.len();
+        let piece_commitment = calculate_piece_commitment(file, file_size)?;
+        let piece_commitment_cid = piece_commitment_cid(piece_commitment);
+        tracing::debug!(path = %piece_path.display(), commp = %piece_commitment_cid, "calculated piece commitment");
+        Ok(piece_commitment_cid)
+    })
+    .await
+    .map_err(|err| {
+        tracing::error!(%err, "failed to execute blocking task");
+        (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
+    })?
+    .map_err(|err| {
+        tracing::error!(%err, path = %file_path.display(), "failed to calculate piece commitment");
         (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
     })?;
 
-    // Check that the file has the right CID
-    tracing::trace!("verifying cid");
-    if let Err(err) = mater::verify_cid(piece, proposed_deal.piece_cid).await {
-        tracing::error!(%err, deal_cid=%proposed_deal.piece_cid, "piece verification failed");
-
-        // Try to remove the file since if the CID does not match there's no point in keeping it around
-        if let Err(err) = tokio::fs::remove_file(&piece_path).await {
+    if proposed_deal.piece_cid != piece_commitment_cid {
+        if let Err(err) = tokio::fs::remove_file(&file_path).await {
             // We log instead of returning an error since:
             // * this is not critical for the user
             // * this is not something the user should even know about
-            tracing::error!(path = %piece_path.display(), %err, "failed to remove uploaded file");
+            tracing::error!(%err, path = %file_path.display(), "failed to remove uploaded piece");
         }
 
-        if let mater::Error::IoError(err) = err {
-            return Err((StatusCode::INTERNAL_SERVER_ERROR, err.to_string()));
-        } else {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                // Q: should we show the CIDs?
-                "uploaded car file does not match the deal's piece cid".to_string(),
-            ));
-        }
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "calculated piece cid does not match the proposed deal".to_string(),
+        ));
     }
 
+    tracing::trace!("renaming car file");
+    tokio::fs::rename(
+        file_path,
+        content_path(&state.storage_dir, piece_commitment_cid).1,
+    )
+    .map_err(|err| {
+        tracing::error!(%err, "failed to rename the CAR file");
+        (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
+    })
+    .await?;
+
     Ok(proposed_deal.piece_cid.to_string())
+}
+
+/// Checks if the piece size matches the expected size, deleting the file if it doesn't.
+// NOTE(@jmg-duarte): I've used `bool` as the Ok type to separate the io::Error from HTTP response
+async fn check_file_size<P>(path: P, expected_size: u64) -> Result<bool, std::io::Error>
+where
+    P: AsRef<std::path::Path>,
+{
+    let file = File::open(path.as_ref()).await?;
+    let file_size = file.metadata().map_ok(|metadata| metadata.len()).await?;
+
+    // Check the piece size first since it's the cheap check
+    let sizes_match = expected_size == file_size;
+    if !sizes_match {
+        tracing::trace!(
+            expected = expected_size,
+            actual = file_size,
+            "file sizes of the CAR file and the deal proposal do not match"
+        );
+        tokio::fs::remove_file(path.as_ref()).await?
+    }
+    Ok(sizes_match)
 }
 
 /// Handler for the download endpoint. It receives a CID and streams the CAR
@@ -185,22 +233,22 @@ async fn download(
 ) -> Result<Response, (StatusCode, String)> {
     // Path to a CAR file
     let cid = Cid::from_str(&cid).map_err(|e| {
-        error!(?e, cid, "cid incorrect format");
+        tracing::error!(?e, cid, "cid incorrect format");
         (StatusCode::BAD_REQUEST, "cid incorrect format".to_string())
     })?;
 
     let (file_name, path) = content_path(&state.storage_dir, cid);
-    info!(?path, "file requested");
+    tracing::info!(?path, "file requested");
 
     // Check if the file exists
     if !path.exists() {
-        error!(?path, "file not found");
+        tracing::error!(?path, "file not found");
         return Err((StatusCode::NOT_FOUND, "file not found".to_string()));
     }
 
     // Open car file
     let file = File::open(&path).await.map_err(|e| {
-        error!(?e, ?path, "failed to open file");
+        tracing::error!(?e, ?path, "failed to open file");
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             "failed to open file".to_string(),
@@ -228,4 +276,34 @@ fn content_path(folder: &std::path::Path, cid: Cid) -> (String, PathBuf) {
     let name = format!("{cid}.car");
     let path = folder.join(&name);
     (name, path)
+}
+
+/// Reads bytes from the source and writes them to a CAR file.
+async fn stream_contents_to_car<R>(
+    folder: &std::path::Path,
+    source: R,
+) -> Result<Cid, Box<dyn std::error::Error>>
+where
+    R: AsyncRead + Unpin,
+{
+    // Temp file which will be used to store the CAR file content. The temp
+    // director has a randomized name and is created in the same folder as the
+    // finalized uploads are stored.
+    let temp_dir = tempfile::tempdir_in(folder)?;
+    let temp_file_path = temp_dir.path().join("temp.car");
+    tracing::trace!("writing file to {}", temp_file_path.display());
+
+    // Stream the body from source to the temp file.
+    let file = File::create(&temp_file_path).await?;
+    let writer = BufWriter::new(file);
+    let cid = mater::create_filestore(source, writer, mater::Config::default()).await?;
+    tracing::trace!("finished writing the CAR archive");
+
+    // If the file is successfully written, we can now move it to the final
+    // location.
+    let (_, final_content_path) = content_path(folder, cid);
+    fs::rename(temp_file_path, &final_content_path).await?;
+    tracing::info!(?final_content_path, "CAR file created");
+
+    Ok(cid)
 }

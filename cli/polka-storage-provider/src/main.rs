@@ -3,6 +3,7 @@
 #![deny(clippy::unwrap_used)]
 
 pub(crate) mod commands;
+mod commp;
 mod db;
 mod rpc;
 mod storage;

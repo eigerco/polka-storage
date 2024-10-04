@@ -91,8 +91,9 @@ impl DealDB {
             return Ok(None);
         };
         let deal_proposal = serde_json::from_reader(deal_proposal_slice.as_ref())
-            // TODO: replace with proper error
-            .expect("invalid content was placed in the database");
+            // SAFETY: this should never fail since the API derives a proper CID from the deal
+            // if this happens, it means that someone wrote it from a side channel
+            .expect("invalid content was placed in the database from outside this API");
         Ok(deal_proposal)
     }
 
@@ -104,4 +105,6 @@ impl DealDB {
             deal_proposal_cid.to_bytes(),
         )?)
     }
+
+    // NOTE(@jmg-duarte,03/10/2024): I think that from here onwards we're very close of reinventing the LID, but so be it
 }

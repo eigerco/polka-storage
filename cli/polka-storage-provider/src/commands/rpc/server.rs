@@ -1,5 +1,6 @@
-use std::{net::SocketAddr, sync::Arc, time::Duration};
+use std::{cell::OnceCell, net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 
+use rand::Rng;
 use storagext::{
     multipair::{DebugPair, MultiPairSigner},
     StorageProviderClientExt,
@@ -23,7 +24,7 @@ use crate::{
 const DEFAULT_NODE_ADDRESS: &str = "ws://127.0.0.1:42069";
 
 /// Default address to bind the RPC server to.
-const DEFAULT_RPC_LISTEN_ADDRESS: &str = "127.0.0.1:8000";
+pub(crate) const DEFAULT_RPC_LISTEN_ADDRESS: &str = "127.0.0.1:8000";
 
 /// Default address to bind the RPC server to.
 const DEFAULT_UPLOAD_LISTEN_ADDRESS: &str = "127.0.0.1:8001";
@@ -33,6 +34,36 @@ const RETRY_INTERVAL: Duration = Duration::from_secs(10);
 
 /// Number of retries to connect to the parachain RPC.
 const RETRY_NUMBER: u32 = 5;
+
+const RANDOM_ROOT: OnceCell<String> = OnceCell::new();
+
+/// Get a "common" temporary folder.
+///
+/// This is, admitedly, a contrived way of reimplementing a tempdir mechanism, however,
+/// tempdir works per instance (which we could probably resolve using the [`OnceCell`] trick too)
+/// and deletes the folder when dropped, which is not helpful at all when running a test instance.
+fn get_common_folder() -> PathBuf {
+    let cell = RANDOM_ROOT;
+    let root = cell.get_or_init(|| {
+        rand::thread_rng()
+            .sample_iter(&rand::distributions::Alphanumeric)
+            .take(7)
+            .map(char::from)
+            .collect()
+    });
+
+    PathBuf::new().join("/tmp").join(root)
+}
+
+/// Get the default database directory — i.e. `/tmp/<random 7 characters>/deals_database`.
+fn default_database_dir() -> PathBuf {
+    get_common_folder().join("deals_database")
+}
+
+/// Get the default storage directory — i.e. `/tmp/<random 7 characters>/deals_storage`.
+fn default_storage_dir() -> PathBuf {
+    get_common_folder().join("deals_storage")
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum ServerCommandError {
@@ -72,24 +103,36 @@ pub struct ServerCommand {
     /// Sr25519 keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
     ///
     /// See `sp_core::crypto::Pair::from_string_with_seed` for more information.
-    #[arg(long,  value_parser = DebugPair::<Sr25519Pair>::value_parser)]
+    #[arg(long, value_parser = DebugPair::<Sr25519Pair>::value_parser)]
     sr25519_key: Option<DebugPair<Sr25519Pair>>,
 
     /// ECDSA keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
     ///
     /// See `sp_core::crypto::Pair::from_string_with_seed` for more information.
-    #[arg(long,  value_parser = DebugPair::<ECDSAPair>::value_parser)]
+    #[arg(long, value_parser = DebugPair::<ECDSAPair>::value_parser)]
     ecdsa_key: Option<DebugPair<ECDSAPair>>,
 
     /// Ed25519 keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
     ///
     /// See `sp_core::crypto::Pair::from_string_with_seed` for more information.
-    #[arg(long,  value_parser = DebugPair::<Ed25519Pair>::value_parser)]
+    #[arg(long, value_parser = DebugPair::<Ed25519Pair>::value_parser)]
     ed25519_key: Option<DebugPair<Ed25519Pair>>,
+
+    /// RocksDB storage directory.
+    #[arg(alias = "database_dir", long, default_value = default_database_dir().into_os_string())]
+    database_directory: PathBuf,
+
+    /// Piece storage directory.
+    #[arg(alias = "storage_dir", long, default_value = default_storage_dir().into_os_string())]
+    storage_directory: PathBuf,
 }
 
 impl ServerCommand {
     pub async fn run(self) -> Result<(), ServerCommandError> {
+        let storage_dir = Arc::new(self.storage_directory);
+        tracing::debug!("storage directory: {}", storage_dir.display());
+        tracing::debug!("database directory: {}", self.database_directory.display());
+
         let Some(xt_keypair) = MultiPairSigner::new(
             self.sr25519_key.map(DebugPair::<Sr25519Pair>::into_inner),
             self.ecdsa_key.map(DebugPair::<ECDSAPair>::into_inner),
@@ -99,8 +142,7 @@ impl ServerCommand {
         };
 
         let xt_client =
-            storagext::Client::new(self.node_address.as_str(), RETRY_NUMBER, RETRY_INTERVAL)
-                .await?;
+            storagext::Client::new(self.node_address, RETRY_NUMBER, RETRY_INTERVAL).await?;
 
         // Check if the storage provider has been registered to the chain
         if let None = xt_client
@@ -120,19 +162,7 @@ impl ServerCommand {
             return Err(ServerCommandError::UnregisteredStorageProvider);
         }
 
-        let deal_db = Arc::new(DealDB::new(
-            // TODO: provider option and find a better path
-            std::env::current_dir()
-                .expect("valid current directory")
-                .join("deals_db"),
-        )?);
-
-        // TODO: provider option and find a better path
-        let storage_dir = Arc::new(
-            std::env::current_dir()
-                .expect("valid current directory")
-                .join("deal_files"),
-        );
+        let deal_db = Arc::new(DealDB::new(self.database_directory)?);
 
         let upload_state = StorageServerState {
             storage_dir: storage_dir.clone(),

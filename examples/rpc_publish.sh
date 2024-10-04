@@ -1,5 +1,16 @@
 #!/usr/bin/env bash
+set -x
 # set -e
+
+if [ "$#" -ne 1 ]; then
+    echo "$0: input file required"
+    exit 1
+fi
+
+if [ -z "$1" ]; then
+    echo "$0: input file cannot be empty"
+    exit 1
+fi
 
 trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 
@@ -9,26 +20,30 @@ export DISABLE_XT_WAIT_WARNING=1
 CLIENT="//Alice"
 PROVIDER="//Charlie"
 
-SCRIPT_CAR="/tmp/$(basename "$0").car"
-SCRIPT_CID="$(target/release/mater-cli convert -q --overwrite "$0" "$SCRIPT_CAR")"
+INPUT_FILE="$1"
+INPUT_TMP_FILE="/tmp/$INPUT_FILE.car"
 
-echo "$SCRIPT_CAR" "$SCRIPT_CID"
+target/release/mater-cli convert -q --overwrite "$INPUT_FILE" "$INPUT_TMP_FILE" &&
+INPUT_COMMP="$(target/release/polka-storage-provider utils commp "$INPUT_TMP_FILE")"
 
 # Setup balances
 target/release/storagext-cli --sr25519-key "$CLIENT" market add-balance 250000000000 &
 target/release/storagext-cli --sr25519-key "$PROVIDER" market add-balance 250000000000 &
+# We can process a transaction by charlie and alice, but we can't in the same transaction
+# register one of them as the storage provider
 wait
 
 # Register the SP
 target/release/storagext-cli --sr25519-key "//Charlie" storage-provider register "peer_id"
+
 
 (RUST_LOG=trace target/release/polka-storage-provider rpc server --sr25519-key "$PROVIDER") &
 sleep 5
 
 DEAL_JSON=$(
     jq -n \
-   --arg piece_cid "$SCRIPT_CID" \
-   --argjson piece_size "$(stat --printf="%s" "$SCRIPT_CAR")" \
+   --arg piece_cid "$INPUT_COMMP" \
+   --argjson piece_size "$(stat --printf="%s" "$INPUT_TMP_FILE")" \
    '{
         "piece_cid": $piece_cid,
         "piece_size": $piece_size,
@@ -47,8 +62,7 @@ echo "$DEAL_JSON"
 DEAL_CID="$(target/release/polka-storage-provider rpc client propose-deal "$DEAL_JSON")"
 echo "$DEAL_CID"
 
-echo "$SCRIPT_CAR"
-curl --upload-file "$SCRIPT_CAR" "http://localhost:8001/upload/$DEAL_CID"
+curl --upload-file "$INPUT_FILE" "http://localhost:8001/upload/$DEAL_CID"
 
 SIGNED_DEAL_JSON="$(target/release/polka-storage-provider rpc client sign-deal --sr25519-key "$CLIENT" "$DEAL_JSON")"
 echo "$SIGNED_DEAL_JSON"

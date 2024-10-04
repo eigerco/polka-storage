@@ -1,5 +1,3 @@
-mod commp;
-
 use std::{fs::File, io::Write, path::PathBuf, str::FromStr};
 
 use mater::CarV2Reader;
@@ -10,7 +8,7 @@ use polka_storage_proofs::{
 use primitives_proofs::RegisteredSealProof;
 
 use crate::{
-    commands::utils::commp::{calculate_piece_commitment, piece_commitment_cid, CommPError},
+    commp::{calculate_piece_commitment, piece_commitment_cid, CommPError},
     CliError,
 };
 
@@ -80,7 +78,7 @@ impl UtilsCommand {
                     .map_err(|err| UtilsCommandError::CommPError(err))?;
                 let cid = piece_commitment_cid(commitment);
 
-                println!("Piece commitment CID: {cid}");
+                println!("{cid}");
             }
             UtilsCommand::GeneratePoRepParams {
                 seal_proof,
