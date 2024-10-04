@@ -1,6 +1,7 @@
 mod zero;
 
 use cid::{multihash::Multihash, Cid};
+
 use crate::piece::PaddedPieceSize;
 
 /// Filecoin piece or sector data commitment merkle node/root (CommP & CommD)
@@ -30,19 +31,23 @@ pub enum CommitmentKind {
     // CommP - Piece commitment
     Piece,
     // CommD - Data commitment
-    Data
+    Data,
+    // CommR - Replica commitment
+    Replica,
 }
 
 impl CommitmentKind {
     fn multicodec(&self) -> u64 {
         match self {
             CommitmentKind::Piece | CommitmentKind::Data => FIL_COMMITMENT_UNSEALED,
+            CommitmentKind::Replica => FIL_COMMITMENT_SEALED,
         }
     }
 
     fn multihash(&self) -> u64 {
         match self {
             CommitmentKind::Piece | CommitmentKind::Data => SHA2_256_TRUNC254_PADDED,
+            CommitmentKind::Replica => POSEIDON_BLS12_381_A1_FC1,
         }
     }
 }
@@ -50,15 +55,12 @@ impl CommitmentKind {
 #[derive(Debug, Clone, Copy)]
 pub struct Commitment {
     commitment: [u8; 32],
-    kind: CommitmentKind
+    kind: CommitmentKind,
 }
 
 impl Commitment {
     pub fn new(commitment: [u8; 32], kind: CommitmentKind) -> Self {
-        Self {
-            commitment,
-            kind
-        }
+        Self { commitment, kind }
     }
 
     pub fn from_cid(cid: &Cid, kind: CommitmentKind) -> Result<Self, &'static str> {
@@ -78,12 +80,14 @@ impl Commitment {
                     return Err("invalid multihash for commitment");
                 }
             }
+            CommitmentKind::Replica => {
+                if multicodec != FIL_COMMITMENT_SEALED {
+                    return Err("invalid multicodec for commitment");
+                }
+            }
         }
 
-        Ok(Self {
-            commitment,
-            kind
-        })
+        Ok(Self { commitment, kind })
     }
 
     /// Returns the raw commitment bytes.
@@ -104,6 +108,6 @@ impl Commitment {
 pub fn zero_piece_commitment(size: PaddedPieceSize) -> Commitment {
     Commitment {
         commitment: zero::zero_piece_commitment(size),
-        kind: CommitmentKind::Piece
+        kind: CommitmentKind::Piece,
     }
 }
