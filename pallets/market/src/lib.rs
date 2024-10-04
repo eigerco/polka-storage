@@ -463,6 +463,8 @@ pub mod pallet {
         TooManyDealsPerBlock,
         /// Try to call an operation as a storage provider but the account is not registered as a storage provider.
         StorageProviderNotRegistered,
+        /// CommD related error
+        CommD,
     }
 
     pub enum DealActivationError {
@@ -527,6 +529,8 @@ pub mod pallet {
         DealDurationOutOfBounds,
         /// Deal's piece_cid is invalid.
         InvalidPieceCid(cid::Error),
+        /// CommD related error
+        CommD(&'static str),
     }
 
     impl core::fmt::Debug for ProposalError {
@@ -552,6 +556,9 @@ pub mod pallet {
                 }
                 ProposalError::InvalidPieceCid(_err) => {
                     write!(f, "ProposalError::InvalidPieceCid")
+                }
+                ProposalError::CommD(err) => {
+                    write!(f, "ProposalError::CommD: {}", err)
                 }
             }
         }
@@ -965,15 +972,21 @@ pub mod pallet {
             let pieces = proposals
                 .into_iter()
                 .map(|p| {
-                    let cid = p.cid().unwrap();
-                    let commitment = Commitment::from_cid(&cid, CommitmentKind::Piece).unwrap();
+                    let cid = p.cid()?;
+                    let commitment = Commitment::from_cid(&cid, CommitmentKind::Piece)
+                        .map_err(|err| ProposalError::CommD(err))?;
 
-                    crate::commd::PieceInfo {
+                    Ok(crate::commd::PieceInfo {
                         size: PaddedPieceSize::new(p.piece_size).unwrap(),
                         commitment,
-                    }
+                    })
                 })
-                .collect::<Vec<_>>();
+                .collect::<Result<Vec<_>, ProposalError>>();
+
+            let pieces = pieces.map_err(|err| {
+                log::error!("error occurred while calculating commd: {}", err);
+                Error::<T>::CommD
+            })?;
 
             let sector_size = sector_type.sector_size();
             let comm_d = compute_unsealed_sector_commitment(sector_size, &pieces).unwrap();
