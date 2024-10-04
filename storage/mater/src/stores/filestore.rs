@@ -39,17 +39,27 @@ where
                 buf.reserve(chunk_size - buf.capacity());
             }
 
-            let read = source.read_buf(&mut buf).await?;
-            // If we're at capacity *or* we didn't read anything but the buffer isn't empty
-            if (buf.len() == buf.capacity()) || (read == 0 && buf.len() > 0) {
-                // We split the buffer, freeze it and yield it off
-                let chunk = buf.split();
-                yield chunk.freeze();
-            } else if read == 0 && buf.len() == 0 {
-                // If we didn't read a thing and the buffer is empty
-                // we're good to go
+            // If the read length is 0, we *assume* we reached EOF
+            // tokio's docs state that this does not mean we exhausted the reader,
+            // as it may be able to return more bytes later, *however*,
+            // this means there is no right way of knowing when the reader is fully exhausted!
+            // If we need to support a case like that, we just need to track how many times
+            // the reader returned 0 and break at a certain point
+            if source.read_buf(&mut buf).await? == 0 {
+                // EOF but there's still content to yield -> yield it
+                if buf.len() > 0 {
+                    let chunk = buf.split();
+                    yield chunk.freeze();
+                }
                 break
-            }
+            } else if buf.len() >= chunk_size {
+                // The buffer may have a larger capacity than chunk_size due to reserve
+                // this also means that our read may have read more bytes than we expected,
+                // thats why we check if the length if bigger than the chunk_size and if so
+                // we split the buffer to the chunk_size, then freeze and return
+                let chunk = buf.split_to(chunk_size);
+                yield chunk.freeze();
+            } // otherwise, the buffer is not full, so we don't do a thing
         }
     };
 
