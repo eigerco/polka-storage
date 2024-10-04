@@ -1,7 +1,6 @@
 extern crate alloc;
 use alloc::vec::Vec;
 
-use cid::Cid;
 use primitives_proofs::SectorSize;
 use primitives_shared::{
     commitment::{zero_piece_commitment, Commitment, CommitmentKind},
@@ -30,11 +29,10 @@ pub fn compute_unsealed_sector_commitment(
     piece_infos: &[PieceInfo],
 ) -> Result<Commitment, CommDError> {
     let padded_sector_size = PaddedPieceSize::new(sector_size.bytes()).unwrap();
-    let unpadded_sector_size = padded_sector_size.unpadded();
 
     // In case of no pieces, return the zero commitment for the whole sector.
     if piece_infos.is_empty() {
-        let comm = return Ok(zero_piece_commitment(padded_sector_size));
+        return Ok(zero_piece_commitment(padded_sector_size));
     }
 
     // Check if pieces are correct sizes.
@@ -45,12 +43,9 @@ pub fn compute_unsealed_sector_commitment(
 
     // We first load the first piece into the stack. That first element is
     // removed from the stack
-    let first = piece_infos
-        .first()
-        .expect("unreachable: !is_empty()")
-        .clone();
+    let first = piece_infos.first().expect("unreachable: !is_empty()");
     // Push the first element on the stack
-    stack.shift(first);
+    stack.shift(*first);
 
     // Iterate all pieces
     for piece_info in piece_infos.iter().skip(1) {
@@ -62,7 +57,7 @@ pub fn compute_unsealed_sector_commitment(
         }
 
         // Push the actual piece onto the stack
-        stack.shift_reduce(piece_info.clone())?;
+        stack.shift_reduce(*piece_info)?;
     }
 
     // If we had odd number of pieces. add a 0 padded piece to the end of the stack
@@ -216,6 +211,7 @@ pub enum CommDError {
 mod tests {
     use std::str::FromStr;
 
+    use cid::Cid;
     use primitives_proofs::SectorSize;
 
     use super::*;

@@ -10865,7 +10865,6 @@ name = "primitives-shared"
 version = "0.1.0"
 dependencies = [
  "cid 0.11.1",
- "fr32",
 ]
 
 [[package]]

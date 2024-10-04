@@ -38,15 +38,14 @@ pub mod pallet {
         PalletId,
     };
     use frame_system::{pallet_prelude::*, Config as SystemConfig, Pallet as System};
-    use multihash_codetable::{Code, MultihashDigest};
-    use primitives_shared::{
-        piece::PaddedPieceSize,
-        commitment::{Commitment, CommitmentKind}
-    };
     use primitives_proofs::{
         ActiveDeal, ActiveSector, DealId, Market, RegisteredSealProof, SectorDeal, SectorId,
         SectorNumber, SectorSize, StorageProviderValidation, MAX_DEALS_FOR_ALL_SECTORS,
         MAX_DEALS_PER_SECTOR, MAX_SECTORS_PER_CALL,
+    };
+    use primitives_shared::{
+        commitment::{Commitment, CommitmentKind},
+        piece::PaddedPieceSize,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::BaseArithmetic;

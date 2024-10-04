@@ -1,7 +1,5 @@
 use core::ops::{Add, AddAssign, Deref};
 
-use fr32::{to_padded_bytes, to_unpadded_bytes};
-
 use crate::NODE_SIZE;
 
 /// Size of a piece in bytes. Unpadded piece size should be power of two
@@ -27,7 +25,8 @@ impl UnpaddedPieceSize {
 
     /// Converts unpadded piece size into padded piece size.
     pub fn padded(self) -> PaddedPieceSize {
-        PaddedPieceSize(to_padded_bytes(self.0 as usize) as u64)
+        let padded_bytes = self.0 + (self.0 / 127);
+        PaddedPieceSize(padded_bytes)
     }
 }
 
@@ -78,15 +77,17 @@ impl PaddedPieceSize {
 
     /// Converts padded piece size into an unpadded piece size.
     pub fn unpadded(self) -> UnpaddedPieceSize {
-        UnpaddedPieceSize(to_unpadded_bytes(self.0))
+        let unpadded_bytes = self.0 - (self.0 / 128);
+        UnpaddedPieceSize(unpadded_bytes)
     }
 
     /// The function accepts arbitrary size and transforms it to the
     /// PaddedPieceSize. We first pad the size. After that we take the first
     /// power of 2 number.
     pub fn from_arbitrary_size(size: u64) -> Self {
-        let padded = to_padded_bytes(size as usize).next_power_of_two();
-        Self::new(padded as u64).expect("the padded piece size is correct")
+        let padded_bytes = size + (size / 127);
+        let padded_bytes = padded_bytes.next_power_of_two();
+        Self::new(padded_bytes as u64).expect("the padded piece size is correct")
     }
 }
 
