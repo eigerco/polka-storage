@@ -49,9 +49,7 @@ pub fn compute_unsealed_sector_commitment(
 
     // Reduce the pieces to the 1-piece commitment
     let mut reduction = CommDPieceReduction::new();
-    piece_infos.iter().for_each(|piece_info| {
-        reduction.add_piece(*piece_info);
-    });
+    reduction.add_many_pieces(piece_infos);
     let commitment = reduction.finish().expect("at least one piece was added");
 
     Ok(commitment)
@@ -75,7 +73,12 @@ impl CommDPieceReduction {
         CommDPieceReduction { pieces: Vec::new() }
     }
 
-    // Add new piece
+    // Add many pieces pieces
+    fn add_many_pieces(&mut self, pieces: &[PieceInfo]) {
+        pieces.iter().for_each(|piece| self.add_piece(*piece));
+    }
+
+    // Add a single piece
     fn add_piece(&mut self, piece: PieceInfo) {
         // Handle first piece
         if self.pieces.is_empty() {
