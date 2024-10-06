@@ -64,7 +64,7 @@ pub struct PieceInfo {
 }
 
 struct CommDPieceReduction {
-    /// Pieces in queue that will be reduced
+    /// Pieces stack
     pieces: Vec<PieceInfo>,
 }
 
@@ -105,14 +105,14 @@ impl CommDPieceReduction {
             self.reduce();
         }
 
-        // Add the new piece to the queue
+        // Add the new piece to the stack
         self.pieces.push(piece);
 
         // Reduce the pieces
         self.reduce();
     }
 
-    /// Combine pieces until there are any in the queue available to combine
+    /// Combine pieces until there are any on the stack available to combine
     fn reduce(&mut self) {
         loop {
             // If there is only a single piece on the stack we break the loop
