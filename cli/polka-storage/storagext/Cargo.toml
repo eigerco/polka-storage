@@ -23,6 +23,7 @@ hex = { workspace = true, features = ["serde"] }
 itertools = { workspace = true }
 primitives-proofs = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
+sha2 = { workspace = true }
 subxt = { workspace = true, features = ["jsonrpsee", "substrate-compat"] }
 subxt-signer = { workspace = true, features = ["subxt"] }
 thiserror = { workspace = true }
