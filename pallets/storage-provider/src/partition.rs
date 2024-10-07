@@ -374,7 +374,7 @@ where
     ) -> Result<(), GeneralPalletError> {
         self.early_terminations
             .try_insert(block_number, sectors.clone())
-            .expect("Critical error: Conversion to a set bounded at MAX_SECTORS should always be possible");
+            .expect("Critical error: Reached the limit for early terminations");
         Ok(())
     }
     /// Pops early terminations until `max_sectors` or until there are none left
