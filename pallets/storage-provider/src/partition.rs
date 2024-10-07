@@ -312,12 +312,13 @@ where
                 .collect::<BTreeSet<&SectorNumber>>()
                 .is_empty(),
             {
-                log::error!(target: LOG_TARGET, "can only terminate live sectors");
+                log::error!(target: LOG_TARGET, "terminate_sectors: can only terminate live sectors");
                 GeneralPalletError::PartitionErrorSectorsNotLive
             }
         );
 
         let removed = self.expirations.remove_sectors(sectors, &self.faults)?;
+        // Since the `on_time_sectors` in the `ExpirationSet` are bounded to `MAX_SECTORS` this conversion will never be > MAX_SECTORS.
         let removed_sectors = removed
             .on_time_sectors
             .union(&removed.early_sectors)
@@ -334,6 +335,7 @@ where
             .collect::<BTreeSet<_>>();
 
         // Update partition metadata
+        // All these conversion are unwrapped with expect because they are being created from a subset of sets bounded by MAX_SECTORS.
         self.faults = self
             .faults
             .difference(&removed_sectors)
