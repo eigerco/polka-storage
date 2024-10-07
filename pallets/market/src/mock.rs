@@ -7,7 +7,7 @@ use frame_support::{
     PalletId,
 };
 use frame_system::{self as system, pallet_prelude::BlockNumberFor};
-use multihash_codetable::{Code, MultihashDigest};
+use multihash_codetable::{Code, Multihash, MultihashDigest};
 use primitives_proofs::RegisteredPoStProof;
 use sp_core::Pair;
 use sp_runtime::{
@@ -113,6 +113,15 @@ pub fn account<T: frame_system::Config>(name: &str) -> AccountId32 {
 
 pub fn sign(pair: &sp_core::sr25519::Pair, bytes: &[u8]) -> MultiSignature {
     MultiSignature::Sr25519(pair.sign(bytes))
+}
+
+/// Generate dummy cid for piece
+pub fn piece_cid(data: &str) -> cid::Cid {
+    let multihash = 0x1012;
+    let multicodec = 0xf101;
+    let hash = Multihash::wrap(multihash, data.as_bytes())
+        .expect("multihash is large enough so it can wrap the commitment");
+    Cid::new_v1(multicodec, hash)
 }
 
 pub fn cid_of(data: &str) -> cid::Cid {
