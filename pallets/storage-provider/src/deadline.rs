@@ -334,7 +334,7 @@ where
 
     /// Terminates sectors in the given partitions at the given block number
     /// Fails if any of the partitions given in the `partition_sectors` is not found.
-    /// 
+    ///
     /// Reference implementation:
     /// * <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/actors/miner/src/deadline_state.rs#L568>
     pub fn terminate_sectors(
@@ -388,7 +388,8 @@ where
             };
 
             // Pop early terminations
-            let (partition_result, more) = partition.pop_early_terminations(max_sectors)?;
+            let (partition_result, more) =
+                partition.pop_early_terminations(max_sectors - result.sectors_processed)?;
 
             result += partition_result;
 
