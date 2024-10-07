@@ -328,7 +328,7 @@ where
 
         // Record early terminations
         self.record_early_terminations(block_number, &removed_sectors)?;
-        let unproven_nos = removed_sectors
+        let unproven_sectors = removed_sectors
             .intersection(&self.unproven)
             .copied()
             .collect::<BTreeSet<_>>();
@@ -357,7 +357,7 @@ where
             .expect("Critical error: Conversion to a set bounded at MAX_SECTORS should always be possible");
         self.unproven = self
             .unproven
-            .difference(&unproven_nos)
+            .difference(&unproven_sectors)
             .copied()
             .collect::<BTreeSet<_>>()
             .try_into()
