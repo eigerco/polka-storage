@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-set -x
-# set -e
 
 if [ "$#" -ne 1 ]; then
     echo "$0: input file required"
@@ -36,10 +34,6 @@ wait
 # Register the SP
 target/release/storagext-cli --sr25519-key "//Charlie" storage-provider register "peer_id"
 
-
-(RUST_LOG=trace target/release/polka-storage-provider rpc server --sr25519-key "$PROVIDER") &
-sleep 5
-
 DEAL_JSON=$(
     jq -n \
    --arg piece_cid "$INPUT_COMMP" \
@@ -57,15 +51,19 @@ DEAL_JSON=$(
         "state": "Published"
     }'
 )
-echo "$DEAL_JSON"
+SIGNED_DEAL_JSON="$(RUST_LOG=error target/release/polka-storage-provider rpc client sign-deal --sr25519-key "$CLIENT" "$DEAL_JSON")"
 
-DEAL_CID="$(target/release/polka-storage-provider rpc client propose-deal "$DEAL_JSON")"
+(RUST_LOG=trace target/release/polka-storage-provider rpc server --sr25519-key "$PROVIDER") &
+sleep 5 # gives time for the server to start
+
+DEAL_CID="$(RUST_LOG=error target/release/polka-storage-provider rpc client propose-deal "$DEAL_JSON")"
 echo "$DEAL_CID"
 
-curl --upload-file "$INPUT_FILE" "http://localhost:8001/upload/$DEAL_CID"
+# Regular upload
+# curl --upload-file "$INPUT_FILE" "http://localhost:8001/upload/$DEAL_CID"
 
-SIGNED_DEAL_JSON="$(target/release/polka-storage-provider rpc client sign-deal --sr25519-key "$CLIENT" "$DEAL_JSON")"
-echo "$SIGNED_DEAL_JSON"
+# Multipart upload
+curl -X PUT -F "upload=@$INPUT_FILE" "http://localhost:8001/upload/$DEAL_CID"
 
 target/release/polka-storage-provider rpc client publish-deal "$SIGNED_DEAL_JSON"
-echo "finished"
+

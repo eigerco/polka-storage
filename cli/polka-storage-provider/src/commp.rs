@@ -148,9 +148,7 @@ pub enum CommPError {
 mod tests {
     use std::io::Read;
 
-    use crate::commands::utils::commp::{
-        calculate_piece_commitment, CommPError, ZeroPaddingReader,
-    };
+    use super::{calculate_piece_commitment, CommPError, ZeroPaddingReader};
 
     #[test]
     fn test_zero_padding_reader() {

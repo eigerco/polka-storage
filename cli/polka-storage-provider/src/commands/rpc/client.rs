@@ -6,10 +6,10 @@ use storagext::{
 };
 use url::Url;
 
-use crate::{
-    commands::rpc::server::DEFAULT_RPC_LISTEN_ADDRESS,
-    rpc::{client::PolkaStorageRpcClient, server::StorageProviderRpcClient},
-};
+use crate::rpc::{client::PolkaStorageRpcClient, server::StorageProviderRpcClient};
+
+/// Default RPC server's URL.
+const DEFAULT_RPC_SERVER_URL: &str = "http://127.0.0.1:8000";
 
 #[derive(Debug, thiserror::Error)]
 pub enum ClientCommandError {
@@ -23,7 +23,7 @@ pub enum ClientCommandError {
 #[derive(Debug, clap::Parser)]
 pub struct ClientCommand {
     /// URL of the providers RPC server.
-    #[arg(long, default_value = DEFAULT_RPC_LISTEN_ADDRESS)]
+    #[arg(long, default_value = DEFAULT_RPC_SERVER_URL)]
     pub rpc_server_url: Url,
 
     #[clap(subcommand)]

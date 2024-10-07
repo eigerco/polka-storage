@@ -1,4 +1,4 @@
-use std::{cell::OnceCell, net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
+use std::{net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 
 use rand::Rng;
 use storagext::{
@@ -34,36 +34,6 @@ const RETRY_INTERVAL: Duration = Duration::from_secs(10);
 
 /// Number of retries to connect to the parachain RPC.
 const RETRY_NUMBER: u32 = 5;
-
-const RANDOM_ROOT: OnceCell<String> = OnceCell::new();
-
-/// Get a "common" temporary folder.
-///
-/// This is, admitedly, a contrived way of reimplementing a tempdir mechanism, however,
-/// tempdir works per instance (which we could probably resolve using the [`OnceCell`] trick too)
-/// and deletes the folder when dropped, which is not helpful at all when running a test instance.
-fn get_common_folder() -> PathBuf {
-    let cell = RANDOM_ROOT;
-    let root = cell.get_or_init(|| {
-        rand::thread_rng()
-            .sample_iter(&rand::distributions::Alphanumeric)
-            .take(7)
-            .map(char::from)
-            .collect()
-    });
-
-    PathBuf::new().join("/tmp").join(root)
-}
-
-/// Get the default database directory — i.e. `/tmp/<random 7 characters>/deals_database`.
-fn default_database_dir() -> PathBuf {
-    get_common_folder().join("deals_database")
-}
-
-/// Get the default storage directory — i.e. `/tmp/<random 7 characters>/deals_storage`.
-fn default_storage_dir() -> PathBuf {
-    get_common_folder().join("deals_storage")
-}
 
 #[derive(Debug, thiserror::Error)]
 pub enum ServerCommandError {
@@ -119,19 +89,48 @@ pub struct ServerCommand {
     ed25519_key: Option<DebugPair<Ed25519Pair>>,
 
     /// RocksDB storage directory.
-    #[arg(alias = "database_dir", long, default_value = default_database_dir().into_os_string())]
-    database_directory: PathBuf,
+    #[arg(long)]
+    database_directory: Option<PathBuf>,
 
     /// Piece storage directory.
-    #[arg(alias = "storage_dir", long, default_value = default_storage_dir().into_os_string())]
-    storage_directory: PathBuf,
+    #[arg(long)]
+    storage_directory: Option<PathBuf>,
 }
 
 impl ServerCommand {
     pub async fn run(self) -> Result<(), ServerCommandError> {
-        let storage_dir = Arc::new(self.storage_directory);
+        let common_folder = PathBuf::new().join("/tmp").join(
+            rand::thread_rng()
+                .sample_iter(&rand::distributions::Alphanumeric)
+                .take(7)
+                .map(char::from)
+                .collect::<String>(),
+        );
+        let database_dir = match self.database_directory {
+            Some(database_dir) => database_dir,
+            None => {
+                let path = common_folder.join("deals_database");
+                tracing::warn!(
+                    "no database directory was defined, using a temporary location: {}",
+                    path.display()
+                );
+                path
+            }
+        };
+        tracing::debug!("database directory: {}", database_dir.display());
+
+        let storage_dir = Arc::new(match self.storage_directory {
+            Some(storage_dir) => storage_dir,
+            None => {
+                let path = common_folder.join("deals_storage");
+                tracing::warn!(
+                    "no storage directory was defined, using a temporary location: {}",
+                    path.display()
+                );
+                path
+            }
+        });
         tracing::debug!("storage directory: {}", storage_dir.display());
-        tracing::debug!("database directory: {}", self.database_directory.display());
 
         let Some(xt_keypair) = MultiPairSigner::new(
             self.sr25519_key.map(DebugPair::<Sr25519Pair>::into_inner),
@@ -162,7 +161,7 @@ impl ServerCommand {
             return Err(ServerCommandError::UnregisteredStorageProvider);
         }
 
-        let deal_db = Arc::new(DealDB::new(self.database_directory)?);
+        let deal_db = Arc::new(DealDB::new(database_dir)?);
 
         let upload_state = StorageServerState {
             storage_dir: storage_dir.clone(),

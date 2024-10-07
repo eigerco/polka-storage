@@ -2,7 +2,7 @@ use std::{io, net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
 
 use axum::{
     body::Body,
-    extract::{MatchedPath, Path, Request, State},
+    extract::{FromRequest, MatchedPath, Multipart, Path, Request, State},
     http::{header, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, put},
@@ -60,9 +60,6 @@ pub async fn start_upload_server(
 
 fn configure_router(state: Arc<StorageServerState>) -> Router {
     Router::new()
-        // NOTE(@jmg-duarte,02/10/2024): I am trusting the HTTP GOAT (Daniel Stenberg)
-        // for more info: https://curl.se/docs/httpscripting.html#put
-        // This also worked "first try" while multi-part did not work at all!
         .route("/upload/:cid", put(upload))
         .route("/download/:cid", get(download))
         .with_state(state)
@@ -88,9 +85,19 @@ fn configure_router(state: Arc<StorageServerState>) -> Router {
 
 /// Handler for the upload endpoint. It receives a stream of bytes, coverts them
 /// to a CAR file and returns the CID of the CAR file to the user.
+///
+/// This method supports both `multipart/form-data` and direct uploads.
+///
+/// For example:
+/// ```bash
+/// # Multipart form uploads
+/// curl -X PUT -F "upload=@<filename>" "http://localhost:8001/upload/<file_cid>"
+/// # Direct uploads
+/// curl --file-upload "http://localhost:8001/upload/<file_cid>"
+/// ```
 #[tracing::instrument(skip_all, fields(cid))]
 async fn upload(
-    State(state): State<Arc<StorageServerState>>,
+    ref s @ State(ref state): State<Arc<StorageServerState>>,
     Path(cid): Path<String>,
     request: Request,
 ) -> Result<String, (StatusCode, String)> {
@@ -121,32 +128,71 @@ async fn upload(
             (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
         })??;
 
-    // Read the request body into a CAR archive
-    let body_reader = StreamReader::new(
-        request
-            .into_body()
-            .into_data_stream()
-            .map_err(|err| io::Error::new(io::ErrorKind::Other, err)),
-    );
-    let file_cid = stream_contents_to_car(state.storage_dir.clone().as_ref(), body_reader)
-        .await
-        .map_err(|err| {
-            tracing::error!(%err, "failed to store file into CAR archive");
-            (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
-        })?;
+    // Branching needed here since the resulting `StreamReader`s don't have the same type
+    let file_cid = if request.headers().contains_key("Content-Type") {
+        // Handle multipart forms
+        let mut multipart = Multipart::from_request(request, &s)
+            .await
+            .map_err(|err| (StatusCode::BAD_REQUEST, err.to_string()))?;
+        let Some(field) = multipart
+            .next_field()
+            .map_err(|err| (StatusCode::BAD_REQUEST, err.to_string()))
+            .await?
+        else {
+            return Err((StatusCode::BAD_REQUEST, "empty request".to_string()));
+        };
+
+        let field_reader = StreamReader::new(field.map_err(std::io::Error::other));
+        stream_contents_to_car(state.storage_dir.clone().as_ref(), field_reader)
+            .await
+            .map_err(|err| {
+                tracing::error!(%err, "failed to store file into CAR archive");
+                (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
+            })?
+    } else {
+        // Read the request body into a CAR archive
+        let body_reader = StreamReader::new(
+            request
+                .into_body()
+                .into_data_stream()
+                .map_err(|err| io::Error::new(io::ErrorKind::Other, err)),
+        );
+        stream_contents_to_car(state.storage_dir.clone().as_ref(), body_reader)
+            .await
+            .map_err(|err| {
+                tracing::error!(%err, "failed to store file into CAR archive");
+                (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
+            })?
+    };
+    tracing::debug!("generated cid: {file_cid}");
 
     // NOTE(@jmg-duarte,03/10/2024): Maybe we should just register the file in RocksDB and keep a
     // background process that vacuums the disk as necessary to simplify error handling here
 
     let (_, file_path) = content_path(&state.storage_dir, file_cid);
-    // Check if the piece size matches
-    let size_matches = check_file_size(&file_path, proposed_deal.piece_size)
-        .map_err(|err| {
-            tracing::error!(%err, path = %file_path.display(), "failed to check the file size");
-            (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
-        })
-        .await?;
-    if !size_matches {
+    let file = File::open(&file_path).await.map_err(|err| {
+        tracing::error!(%err, path = %file_path.display(), "failed to open file");
+        (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
+    })?;
+    let file_size = file
+        .metadata()
+        .map_ok(|metadata| metadata.len())
+        .await
+        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+
+    // Check the piece size first since it's the cheap check
+    if !(proposed_deal.piece_size == file_size) {
+        tracing::trace!(
+            expected = proposed_deal.piece_size,
+            actual = file_size,
+            "file sizes of the CAR file and the deal proposal do not match"
+        );
+
+        // Not handling the error since there's little to be done here...
+        let _ = tokio::fs::remove_file(&file_path).await.inspect_err(
+            |err| tracing::error!(%err, path = %file_path.display(), "failed to delete file"),
+        );
+
         return Err((
             StatusCode::BAD_REQUEST,
             "piece size does not match proposal".to_string(),
@@ -201,28 +247,6 @@ async fn upload(
     .await?;
 
     Ok(proposed_deal.piece_cid.to_string())
-}
-
-/// Checks if the piece size matches the expected size, deleting the file if it doesn't.
-// NOTE(@jmg-duarte): I've used `bool` as the Ok type to separate the io::Error from HTTP response
-async fn check_file_size<P>(path: P, expected_size: u64) -> Result<bool, std::io::Error>
-where
-    P: AsRef<std::path::Path>,
-{
-    let file = File::open(path.as_ref()).await?;
-    let file_size = file.metadata().map_ok(|metadata| metadata.len()).await?;
-
-    // Check the piece size first since it's the cheap check
-    let sizes_match = expected_size == file_size;
-    if !sizes_match {
-        tracing::trace!(
-            expected = expected_size,
-            actual = file_size,
-            "file sizes of the CAR file and the deal proposal do not match"
-        );
-        tokio::fs::remove_file(path.as_ref()).await?
-    }
-    Ok(sizes_match)
 }
 
 /// Handler for the download endpoint. It receives a CID and streams the CAR
