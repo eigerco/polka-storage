@@ -58,9 +58,56 @@ where
     }
 
     fn using_encoded<R, F: FnOnce(&[u8]) -> R>(&self, f: F) -> R {
-        let mut buffer = ByteBuffer::new();
+        let mut buffer = Vec::<u8>::new();
         self.encode_to(&mut buffer);
         f(buffer.as_slice())
+    }
+}
+
+impl<E: Engine> ::scale_info::TypeInfo for VerifyingKey<E> {
+    type Identity = Self;
+
+    fn type_info() -> ::scale_info::Type {
+        ::scale_info::Type::builder()
+            .path(::scale_info::Path::new("VerifyingKey", module_path!()))
+            .composite(
+                scale_info::build::Fields::named()
+                    .field(|f| {
+                        f.ty::<[u8; G1AFFINE_UNCOMPRESSED_BYTES]>()
+                            .name("alpha_g1")
+                            .type_name("G1Affine")
+                    })
+                    .field(|f| {
+                        f.ty::<[u8; G1AFFINE_UNCOMPRESSED_BYTES]>()
+                            .name("beta_g1")
+                            .type_name("G1Affine")
+                    })
+                    .field(|f| {
+                        f.ty::<[u8; G2AFFINE_UNCOMPRESSED_BYTES]>()
+                            .name("beta_g2")
+                            .type_name("G2Affine")
+                    })
+                    .field(|f| {
+                        f.ty::<[u8; G2AFFINE_UNCOMPRESSED_BYTES]>()
+                            .name("gamma_g2")
+                            .type_name("G2Affine")
+                    })
+                    .field(|f| {
+                        f.ty::<[u8; G1AFFINE_UNCOMPRESSED_BYTES]>()
+                            .name("delta_g1")
+                            .type_name("G1Affine")
+                    })
+                    .field(|f| {
+                        f.ty::<[u8; G2AFFINE_UNCOMPRESSED_BYTES]>()
+                            .name("delta_g2")
+                            .type_name("G2Affine")
+                    })
+                    .field(|f| {
+                        f.ty::<Vec<[u8; G1AFFINE_UNCOMPRESSED_BYTES]>>()
+                            .name("ic")
+                            .type_name("Vec<G1Affine>")
+                    }),
+            )
     }
 }
 
@@ -103,48 +150,46 @@ where
     }
 
     fn using_encoded<R, F: FnOnce(&[u8]) -> R>(&self, f: F) -> R {
-        let mut buffer = ByteBuffer::new();
+        let mut buffer = Vec::new();
         self.encode_to(&mut buffer);
         f(buffer.as_slice())
     }
 }
 
-// `parity_scale_codec` has a blanket implementation for `::codec::Output` if something implements `std::io::Write`
-// Hence, if we use both feature flags `std` and `substrate` there are conflicting implementations.
-#[cfg(not(feature = "std"))]
-impl ::codec::Output for ByteBuffer {
-    fn write(&mut self, bytes: &[u8]) {
-        for b in bytes.iter() {
-            self.0.push(*b);
-        }
-    }
-}
+impl<E: Engine> ::scale_info::TypeInfo for Proof<E> {
+    type Identity = Self;
 
-impl ::codec::Input for ByteBuffer {
-    fn remaining_len(&mut self) -> Result<Option<usize>, ::codec::Error> {
-        Ok(Some(self.bytes_to_read()))
-    }
-
-    fn read(&mut self, into: &mut [u8]) -> Result<(), ::codec::Error> {
-        let max = self.bytes_to_read();
-        let n = core::cmp::min(into.len(), max);
-        self.1 = to_fixed_buffer(&mut into[..n], self.1, &self.0[..]);
-        Ok(())
+    fn type_info() -> ::scale_info::Type {
+        ::scale_info::Type::builder()
+            .path(::scale_info::Path::new("VerifyingKey", module_path!()))
+            .composite(
+                scale_info::build::Fields::named()
+                    .field(|f| {
+                        f.ty::<[u8; G1AFFINE_UNCOMPRESSED_BYTES]>()
+                            .name("a")
+                            .type_name("G1Affine")
+                    })
+                    .field(|f| {
+                        f.ty::<[u8; G2AFFINE_UNCOMPRESSED_BYTES]>()
+                            .name("b")
+                            .type_name("G2Affine")
+                    })
+                    .field(|f| {
+                        f.ty::<[u8; G1AFFINE_UNCOMPRESSED_BYTES]>()
+                            .name("c")
+                            .type_name("G1Affine")
+                    }),
+            )
     }
 }
 
 #[cfg(test)]
 mod tests {
     use codec::{Decode, Encode};
+    use rand::SeedableRng;
 
     use super::*;
     use crate::groth16::tests::TEST_SEED;
-
-    impl From<Vec<u8>> for ByteBuffer {
-        fn from(vec: Vec<u8>) -> ByteBuffer {
-            ByteBuffer(vec, 0)
-        }
-    }
 
     /// This is a smoke test of the `codec::Encode` and `codec::Decode` implementation.
     #[test]
@@ -152,10 +197,10 @@ mod tests {
         let mut rng = XorShiftRng::from_seed(TEST_SEED);
         let vkey = VerifyingKey::<Bls12>::random(&mut rng);
         let vkey_bytes = vkey.encode();
-        let mut output = ByteBuffer::from(vkey_bytes);
+        let output = Vec::from(vkey_bytes);
         assert_eq!(
             vkey,
-            VerifyingKey::decode(&mut output).expect("VerifyingKey::decode failed")
+            VerifyingKey::decode(&mut output.as_slice()).expect("VerifyingKey::decode failed")
         );
     }
 
@@ -165,10 +210,21 @@ mod tests {
         let mut rng = XorShiftRng::from_seed(TEST_SEED);
         let proof = Proof::<Bls12>::random(&mut rng);
         let proof_bytes = proof.encode();
-        let mut output = ByteBuffer::from(proof_bytes);
+        let output = Vec::from(proof_bytes);
         assert_eq!(
             proof,
-            Proof::decode(&mut output).expect("Proof::decode failed")
+            Proof::decode(&mut output.as_slice()).expect("Proof::decode failed")
         );
+    }
+
+    /// Tests the serialisation compatibility between scale codec and own implementation.
+    #[test]
+    fn scale_and_regular_serialisation() {
+        let mut rng = XorShiftRng::from_seed(TEST_SEED);
+        let proof = Proof::<Bls12>::random(&mut rng);
+        let bytes_scale = proof.encode();
+        let mut bytes_regular = vec![0u8; Proof::<Bls12>::serialised_bytes()];
+        proof.into_bytes(&mut bytes_regular.as_mut_slice()).unwrap();
+        assert_eq!(bytes_regular.as_slice(), bytes_scale.as_slice());
     }
 }

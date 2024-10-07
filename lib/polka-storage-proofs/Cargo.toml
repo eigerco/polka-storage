@@ -39,6 +39,7 @@ workspace = true
 [features]
 default = ["std"]
 std = [
+  "codec?/std",
   "dep:anyhow",
   "dep:bellpepper-core",
   "dep:bellperson",
@@ -50,5 +51,6 @@ std = [
   "dep:thiserror",
   "primitives-proofs/std",
   "rand/std",
+  "scale-info?/std",
 ]
 substrate = ["dep:codec", "dep:scale-info"]
