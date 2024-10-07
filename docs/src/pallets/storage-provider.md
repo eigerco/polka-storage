@@ -12,6 +12,7 @@
   - [`submit_windowed_post`](#submit_windowed_post)
   - [`declare_faults`](#declare_faults)
   - [`declare_faults_recovered`](#declare_faults_recovered)
+  - [`terminate_sectors`](#terminate_sectors)
 - [Events](#events)
 - [Errors](#errors)
 - [Pallet constants](#pallet-constants)
@@ -260,6 +261,27 @@ Where `fault-declaration.json` is a file with contents similar to:
 ```
 
 [^declare_faults_recovered]: Read more about the `declare-faults-recovered` command in [_Storagext CLI/Subcommand `storage-provider`/`declare-faults-recovered`_](../storagext-cli/storage-provider.md#declare-faults-recovered)
+
+### `terminate_sectors`
+
+A storage provider can terminate sectors with the `terminate_sectors` extrinsic. This requires the storage provider to have no unproven sectors.
+`terminate_sectors` can process multiple terminations in a single extrinsic.
+
+| Name           | Description                             | Type                                  |
+| -------------- | --------------------------------------- | ------------------------------------- |
+| `terminations` | The sectors and partitions to terminate | An array of termination declarations. |
+
+Where the termination declarations contain:
+
+| Name        | Description                                                                | Type                     |
+| ----------- | -------------------------------------------------------------------------- | ------------------------ |
+| `deadline`  | The deadline the termination is targeting                                  | Positive integer.        |
+| `partition` | Partition index within the deadline containing the sector to be terminated | Positive integer.        |
+| `sectors`   | Sectors in the partition being terminated                                  | Set of positive integers |
+
+#### <a class="header" id="declare_faults_recovered.example" href="#declare_faults_recovered.example">Example</a>
+
+TODO(@aidan46, #463, 2024/10/18): Add storagext example after implementation
 
 ## Events
 

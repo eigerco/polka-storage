@@ -510,6 +510,7 @@ where
     }
 }
 
+#[derive(Clone, RuntimeDebug, Default, Decode, Encode, PartialEq, TypeInfo)]
 pub struct TerminationResult<BlockNumber> {
     /// Sectors maps block numbers at which sectors expired, to sector numbers.
     pub sectors: BTreeMap<BlockNumber, BTreeSet<SectorNumber>>,

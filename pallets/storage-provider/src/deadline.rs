@@ -346,12 +346,13 @@ where
         partition_numbers: &[PartitionNumber],
     ) -> Result<(), GeneralPalletError> {
         for &partition_number in partition_numbers {
-            let partition = self
-                .partitions
-                .get_mut(&partition_number).ok_or({
-                    log::error!(target: LOG_TARGET, "terminate_sectors: Cannot find partition {partition_number}");
-                    GeneralPalletError::DeadlineErrorPartitionNotFound
-                })?;
+            let mut partition = if let Some(partition) = self.partitions.get_mut(&partition_number)
+            {
+                partition.clone()
+            } else {
+                log::error!(target: LOG_TARGET, "terminate_sectors: Cannot find partition {partition_number}");
+                return Err(GeneralPalletError::DeadlineErrorPartitionNotFound);
+            };
 
             let removed = partition.terminate_sectors(block_number, sectors)?;
 
@@ -364,6 +365,10 @@ where
                 // Record change to sectors
                 self.live_sectors -= removed.len() as u64;
             }
+            // Save partition
+            self.partitions
+                .try_insert(partition_number, partition)
+                .expect("Could not replace existing partition");
         }
         Ok(())
     }
