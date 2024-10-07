@@ -22,7 +22,7 @@ pub const SHA2_256_TRUNC254_PADDED: u64 = 0x1012;
 pub const FIL_COMMITMENT_UNSEALED: u64 = 0xf101;
 
 /// Reader that returns zeros if the inner reader is empty.
-struct ZeroPaddingReader<R: Read> {
+pub struct ZeroPaddingReader<R: Read> {
     /// The inner reader to read from.
     inner: R,
     /// The number of bytes this 0-padding reader has left to produce.
@@ -30,7 +30,7 @@ struct ZeroPaddingReader<R: Read> {
 }
 
 impl<R: Read> ZeroPaddingReader<R> {
-    fn new(inner: R, total_size: usize) -> Self {
+    pub fn new(inner: R, total_size: usize) -> Self {
         Self {
             inner,
             remaining: total_size,
@@ -64,7 +64,7 @@ impl<R: Read> Read for ZeroPaddingReader<R> {
 }
 
 // Ensure that the padded piece size is valid.
-fn ensure_piece_size(padded_piece_size: usize) -> Result<(), CommPError> {
+pub fn ensure_piece_size(padded_piece_size: usize) -> Result<(), CommPError> {
     if padded_piece_size < NODE_SIZE {
         return Err(CommPError::PieceTooSmall);
     }
