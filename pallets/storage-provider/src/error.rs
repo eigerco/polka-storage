@@ -15,6 +15,12 @@ pub enum GeneralPalletError {
     PartitionErrorFailedToRemoveRecoveries,
     /// Emitted when trying to remove sectors that are not live
     PartitionErrorSectorsNotLive,
+    /// Emitted when trying to pop expired sectors from a partition that has unproven sectors.
+    PartitionErrorCannotPopUnprovenSectors,
+    /// Emitted when encountering unexpected recoveries while popping expired sectors.
+    PartitionErrorUnexpectedRecoveries,
+    /// Emitted when trying to pop expired sectors that are already terminated.
+    PartitionErrorExpiredSectorsAlreadyTerminated,
 
     /// Deadline error module types
     /// Emitted when the passed in deadline index supplied for `submit_windowed_post` is out of range.

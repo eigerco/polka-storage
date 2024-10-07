@@ -1,6 +1,6 @@
 extern crate alloc;
 
-use alloc::vec::Vec;
+use alloc::{collections::BTreeSet, vec::Vec};
 
 use codec::{Decode, Encode};
 use frame_support::{
@@ -14,6 +14,7 @@ use sp_arithmetic::{traits::BaseArithmetic, ArithmeticError};
 use crate::{
     deadline::{assign_deadlines, deadline_is_mutable, Deadline, DeadlineInfo, Deadlines},
     error::GeneralPalletError,
+    partition::TerminationResult,
     sector::{SectorOnChainInfo, SectorPreCommitOnChainInfo, MAX_SECTORS},
 };
 
@@ -70,6 +71,12 @@ where
     /// * <https://spec.filecoin.io/#section-algorithms.pos.post.constants--terminology>
     /// * <https://spec.filecoin.io/#section-algorithms.pos.post.design>
     pub deadlines: Deadlines<BlockNumber>,
+
+    /// Deadlines with outstanding fees for early sector termination.
+    pub early_terminations: BTreeSet<u64>,
+
+    /// Storage provider pallet constants
+    pub policy: Policy<BlockNumber>,
 }
 
 impl<PeerId, Balance, BlockNumber> StorageProviderState<PeerId, Balance, BlockNumber>
@@ -82,7 +89,12 @@ where
         info: StorageProviderInfo<PeerId>,
         period_start: BlockNumber,
         deadline_idx: u64,
+        max_partitions_per_deadline: u64,
         w_post_period_deadlines: u64,
+        w_post_proving_period: BlockNumber,
+        w_post_challenge_window: BlockNumber,
+        w_post_challenge_lookback: BlockNumber,
+        fault_declaration_cutoff: BlockNumber,
     ) -> Self {
         Self {
             info,
@@ -92,22 +104,41 @@ where
             proving_period_start: period_start,
             current_deadline: deadline_idx,
             deadlines: Deadlines::new(w_post_period_deadlines),
+            early_terminations: BTreeSet::new(),
+            policy: Policy::new(
+                max_partitions_per_deadline,
+                w_post_period_deadlines,
+                w_post_proving_period,
+                w_post_challenge_window,
+                w_post_challenge_lookback,
+                fault_declaration_cutoff,
+            ),
         }
     }
 
     /// Advance the proving period start of the storage provider if the next deadline is the first one.
     pub fn advance_deadline(
         &mut self,
-        w_post_period_deadlines: u64,
-        w_post_proving_period: BlockNumber,
-    ) {
-        self.current_deadline = (self.current_deadline + 1) % w_post_period_deadlines;
+        current_block: BlockNumber,
+    ) -> Result<(), GeneralPalletError> {
+        self.current_deadline = (self.current_deadline + 1) % self.policy.w_post_period_deadlines;
         log::debug!(target: LOG_TARGET, "new deadline {:?}, period deadlines {:?}",
-            self.current_deadline, w_post_period_deadlines);
+        self.current_deadline, self.policy.w_post_period_deadlines);
 
         if self.current_deadline == 0 {
-            self.proving_period_start = self.proving_period_start + w_post_proving_period;
+            self.proving_period_start =
+                self.proving_period_start + self.policy.w_post_proving_period;
         }
+
+        let dl_info = self.deadline_info(current_block)?;
+        let deadline = self.deadlines.load_deadline_mut(dl_info.idx as usize)?;
+        // Expire sectors that are due, either for on-time expiration or "early" faulty-for-too-long.
+        let expired = deadline.pop_expired_sectors(dl_info.last())?;
+        let no_early_terminations = expired.early_sectors.is_empty();
+        if !no_early_terminations {
+            self.early_terminations.insert(dl_info.idx);
+        }
+        Ok(())
     }
 
     pub fn add_pre_commit_deposit(&mut self, amount: Balance) -> Result<(), ArithmeticError> {
@@ -189,12 +220,6 @@ where
         current_block: BlockNumber,
         mut sectors: BoundedVec<SectorOnChainInfo<BlockNumber>, ConstU32<MAX_SECTORS>>,
         partition_size: u64,
-        max_partitions_per_deadline: u64,
-        w_post_period_deadlines: u64,
-        w_post_proving_period: BlockNumber,
-        w_post_challenge_window: BlockNumber,
-        w_post_challenge_lookback: BlockNumber,
-        fault_declaration_cutoff: BlockNumber,
     ) -> Result<(), GeneralPalletError> {
         sectors.sort_by_key(|info| info.sector_number);
 
@@ -204,7 +229,9 @@ where
         );
 
         let mut deadline_vec: Vec<Option<Deadline<BlockNumber>>> =
-            (0..w_post_period_deadlines).map(|_| None).collect();
+            (0..self.policy.w_post_period_deadlines)
+                .map(|_| None)
+                .collect();
 
         // required otherwise the logic gets complicated really fast
         // the issue is that filecoin supports negative epoch numbers
@@ -219,11 +246,11 @@ where
                     self.proving_period_start,
                     idx as u64,
                     current_block,
-                    w_post_period_deadlines,
-                    w_post_proving_period,
-                    w_post_challenge_window,
-                    w_post_challenge_lookback,
-                    fault_declaration_cutoff,
+                    self.policy.w_post_period_deadlines,
+                    self.policy.w_post_proving_period,
+                    self.policy.w_post_challenge_window,
+                    self.policy.w_post_challenge_lookback,
+                    self.policy.fault_declaration_cutoff,
                 )?;
                 log::error!(target: LOG_TARGET, "is_deadline_mutable {}", is_deadline_mutable);
                 // Skip deadlines that aren't currently mutable.
@@ -235,11 +262,11 @@ where
 
         // Assign sectors to deadlines.
         let deadline_to_sectors = assign_deadlines(
-            max_partitions_per_deadline,
+            self.policy.max_partitions_per_deadline,
             partition_size,
             &deadline_vec,
             &sectors,
-            w_post_period_deadlines,
+            self.policy.w_post_period_deadlines,
         )?;
 
         for (deadline_idx, deadline_sectors) in deadline_to_sectors.iter().enumerate() {
@@ -269,25 +296,94 @@ where
     pub fn deadline_info(
         &self,
         current_block: BlockNumber,
-        w_post_period_deadlines: u64,
-        w_post_proving_period: BlockNumber,
-        w_post_challenge_window: BlockNumber,
-        w_post_challenge_lookback: BlockNumber,
-        fault_declaration_cutoff: BlockNumber,
     ) -> Result<DeadlineInfo<BlockNumber>, GeneralPalletError> {
-        log::info!(target: LOG_TARGET, "deadline_info: fault_declaration_cutoff = {fault_declaration_cutoff:?}");
         let current_deadline_index = self.current_deadline;
 
         DeadlineInfo::new(
             current_block,
             self.proving_period_start,
             current_deadline_index,
+            self.policy.w_post_period_deadlines,
+            self.policy.w_post_proving_period,
+            self.policy.w_post_challenge_window,
+            self.policy.w_post_challenge_lookback,
+            self.policy.fault_declaration_cutoff,
+        )
+    }
+
+    /// Pops up to `max_sectors` early terminated sectors from all deadlines.
+    ///
+    /// Returns `true` if we still have more early terminations to process.
+    pub fn pop_early_terminations(
+        &mut self,
+        max_partitions: u64,
+        max_sectors: u64,
+    ) -> Result<(TerminationResult<BlockNumber>, /* has more */ bool), GeneralPalletError> {
+        // Anything to do? This lets us avoid loading the deadlines if there's nothing to do.
+        if self.early_terminations.is_empty() {
+            return Ok((TerminationResult::new(), false));
+        }
+
+        let mut result = TerminationResult::new();
+        let mut to_unset = Vec::new();
+
+        for &dl_idx in self.early_terminations.iter() {
+            let deadline = self.deadlines.load_deadline_mut(dl_idx as usize)?;
+
+            let (deadline_result, more) = deadline.pop_early_terminations(
+                max_partitions - result.partitions_processed,
+                max_sectors - result.sectors_processed,
+            )?;
+
+            result += deadline_result;
+
+            if !more {
+                to_unset.push(dl_idx);
+            }
+
+            if !result.below_limit(max_partitions, max_sectors) {
+                break;
+            }
+        }
+
+        for deadline_idx in to_unset {
+            self.early_terminations.remove(&deadline_idx);
+        }
+
+        // Ok, check to see if we've handled all early terminations.
+        let no_early_terminations = self.early_terminations.is_empty();
+
+        Ok((result, !no_early_terminations))
+    }
+}
+
+#[derive(RuntimeDebug, Clone, Copy, Decode, Encode, TypeInfo)]
+pub struct Policy<BlockNumber> {
+    max_partitions_per_deadline: u64,
+    w_post_period_deadlines: u64,
+    w_post_proving_period: BlockNumber,
+    w_post_challenge_window: BlockNumber,
+    w_post_challenge_lookback: BlockNumber,
+    fault_declaration_cutoff: BlockNumber,
+}
+
+impl<BlockNumber> Policy<BlockNumber> {
+    pub fn new(
+        max_partitions_per_deadline: u64,
+        w_post_period_deadlines: u64,
+        w_post_proving_period: BlockNumber,
+        w_post_challenge_window: BlockNumber,
+        w_post_challenge_lookback: BlockNumber,
+        fault_declaration_cutoff: BlockNumber,
+    ) -> Self {
+        Self {
+            max_partitions_per_deadline,
             w_post_period_deadlines,
             w_post_proving_period,
             w_post_challenge_window,
             w_post_challenge_lookback,
             fault_declaration_cutoff,
-        )
+        }
     }
 }
 

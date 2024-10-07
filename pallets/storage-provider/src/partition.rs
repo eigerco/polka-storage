@@ -451,6 +451,60 @@ where
         let has_more = self.early_terminations.iter().next().is_some();
         Ok((result, has_more))
     }
+
+    /// PopExpiredSectors traverses the expiration queue up to and including some block, and marks all expiring
+    /// sectors as terminated.
+    /// Returns the expired sector aggregates.
+    pub fn pop_expired_sectors(
+        &mut self,
+        until: BlockNumber,
+    ) -> Result<ExpirationSet, GeneralPalletError> {
+        // This is a sanity check to make sure we handle proofs _before_
+        // handling sector expirations.
+        ensure!(self.unproven.is_empty(), {
+            log::error!(target: LOG_TARGET, "pop_expired_sectors: Cannot pop expired sectors from a partition with unproven sectors");
+            GeneralPalletError::PartitionErrorCannotPopUnprovenSectors
+        });
+
+        let popped = self.expirations.pop_until(until)?;
+        let expired_sectors = popped
+            .on_time_sectors
+            .union(&popped.early_sectors)
+            .copied()
+            .collect();
+
+        // There shouldn't be any recovering sectors if this is invoked at deadline end.
+        // Either the partition was PoSted and the recovering became recovered, or the partition was not PoSted
+        // and all recoveries retracted.
+        // No recoveries may be posted until the deadline is closed.
+        ensure!(self.recoveries.is_empty(), {
+            log::error!(target: LOG_TARGET, "pop_expired_sectors: Unexpected recoveries while processing expirations");
+            GeneralPalletError::PartitionErrorUnexpectedRecoveries
+        });
+
+        // Nothing expiring now should have already terminated.
+        ensure!(
+            self.terminated.intersection(&expired_sectors).count() == 0,
+            {
+                log::error!("expiring sectors already terminated");
+                GeneralPalletError::PartitionErrorExpiredSectorsAlreadyTerminated
+            }
+        );
+
+        // Mark the sectors as terminated
+        self.terminated = self
+            .terminated
+            .union(&expired_sectors)
+            .copied()
+            .collect::<BTreeSet<_>>()
+            .try_into()
+            .expect("Should be able to add expired sectors to terminated");
+        for sector_number in expired_sectors {
+            self.faults.remove(&sector_number);
+        }
+
+        Ok(popped)
+    }
 }
 
 pub struct TerminationResult<BlockNumber> {
@@ -493,6 +547,10 @@ where
     /// we're at (or above) the limit.
     pub fn below_limit(&self, partition_limit: u64, sector_limit: u64) -> bool {
         self.partitions_processed < partition_limit && self.sectors_processed < sector_limit
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.sectors.is_empty()
     }
 }
 
@@ -777,6 +835,50 @@ mod tests {
 
         // expect early terminations to be empty
         assert!(partition.early_terminations.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn pop_expired_sectors() -> Result<(), GeneralPalletError> {
+        // Set up partition, using `u64` for block number because it is not relevant to this test.
+        let mut partition: Partition<u64> = Partition::new();
+        // Add some sectors
+        let sectors_to_add = sectors();
+        let all_sectors = sectors_to_add
+            .iter()
+            .cloned()
+            .map(|s| (s.sector_number, s))
+            .collect::<BTreeMap<SectorNumber, SectorOnChainInfo<u64>>>()
+            .try_into()
+            .unwrap();
+
+        // Add sectors to the partition
+        partition.add_sectors(&sectors_to_add)?;
+
+        // add one fault with early termination
+        let fault_set = BoundedBTreeSet::try_from(BTreeSet::from([4])).unwrap();
+        partition.record_faults(&all_sectors, &fault_set, 2)?;
+
+        // pop first expiration set
+        let expiration_block = 5;
+        let expset = partition.pop_expired_sectors(expiration_block)?;
+
+        let expected_on_time = BTreeSet::from([1, 2]);
+        let expected_early = BTreeSet::from([4]);
+        let expected_terminated = BTreeSet::from([1, 2, 4]);
+        let expected_sectors = BTreeSet::from([1, 2, 3, 4, 5, 6]);
+
+        // Assert that the returned expiration set is as expected
+        assert_eq!(expset.on_time_sectors.into_inner(), expected_on_time);
+        assert_eq!(expset.early_sectors.into_inner(), expected_early);
+
+        // Assert the partition metadata is as expected
+        assert_eq!(partition.faults.into_inner(), BTreeSet::new());
+        assert_eq!(partition.recoveries.into_inner(), BTreeSet::new());
+        assert_eq!(partition.terminated.into_inner(), expected_terminated);
+        assert_eq!(partition.sectors.into_inner(), expected_sectors);
+        assert_eq!(partition.unproven.into_inner(), BTreeSet::new());
+
         Ok(())
     }
 }

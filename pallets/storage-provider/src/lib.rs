@@ -215,6 +215,14 @@ pub mod pallet {
         /// <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/runtime/src/runtime/policy.rs#L327-L328>
         #[pallet::constant]
         type FaultDeclarationCutoff: Get<BlockNumberFor<Self>>;
+
+        /// The maximum number of partitions that may be required to be loaded in a single invocation.
+        /// This limits the number of simultaneous fault, recovery, or sector-extension declarations.
+        type AddressedPartitionsMax: Get<u64>;
+
+        /// The maximum number of sector numbers addressable in a single invocation
+        /// (which implies also the max infos that may be loaded at once).
+        type AddressedSectorsMax: Get<u64>;
     }
 
     /// Need some storage type that keeps track of sectors, deadlines and terminations.
@@ -364,7 +372,12 @@ pub mod pallet {
                 // Always zero since we're calculating the absolute first start
                 // thus the deadline will always be zero
                 0,
+                T::MaxPartitionsPerDeadline::get(),
                 T::WPoStPeriodDeadlines::get(),
+                T::WPoStProvingPeriod::get(),
+                T::WPoStChallengeWindow::get(),
+                T::WPoStChallengeLookBack::get(),
+                T::FaultDeclarationCutoff::get(),
             );
             StorageProviders::<T>::insert(&owner, state);
             // Emit event
@@ -564,12 +577,6 @@ pub mod pallet {
                 current_block,
                 new_sectors,
                 sp.info.window_post_partition_sectors,
-                T::MaxPartitionsPerDeadline::get(),
-                T::WPoStPeriodDeadlines::get(),
-                T::WPoStProvingPeriod::get(),
-                T::WPoStChallengeWindow::get(),
-                T::WPoStChallengeLookBack::get(),
-                T::FaultDeclarationCutoff::get(),
             )
             .map_err(|e| Error::<T>::GeneralPalletError(e))?;
 
@@ -656,14 +663,7 @@ pub mod pallet {
                 Error::<T>::InvalidDeadlineSubmission
             });
             let current_deadline = sp
-                .deadline_info(
-                    current_block,
-                    T::WPoStPeriodDeadlines::get(),
-                    T::WPoStProvingPeriod::get(),
-                    T::WPoStChallengeWindow::get(),
-                    T::WPoStChallengeLookBack::get(),
-                    T::FaultDeclarationCutoff::get(),
-                )
+                .deadline_info(current_block)
                 .map_err(|e| Error::<T>::GeneralPalletError(e))?;
 
             Self::validate_deadline(&current_deadline, &windowed_post)?;
@@ -1084,14 +1084,7 @@ pub mod pallet {
                     continue;
                 }
 
-                let Ok(current_deadline) = state.deadline_info(
-                    current_block,
-                    T::WPoStPeriodDeadlines::get(),
-                    T::WPoStProvingPeriod::get(),
-                    T::WPoStChallengeWindow::get(),
-                    T::WPoStChallengeLookBack::get(),
-                    T::FaultDeclarationCutoff::get(),
-                ) else {
+                let Ok(current_deadline) = state.deadline_info(current_block) else {
                     log::error!(target: LOG_TARGET, "block: {:?}, there are no deadlines for storage provider {:?}", current_block, storage_provider);
                     continue;
                 };
@@ -1186,7 +1179,8 @@ pub mod pallet {
                 // Next processing will happen in the next proving period.
                 deadline.partitions_posted = BoundedBTreeSet::new();
                 state
-                    .advance_deadline(T::WPoStPeriodDeadlines::get(), T::WPoStProvingPeriod::get());
+                    .advance_deadline(current_block)
+                    .expect("Could not advance deadline");
                 StorageProviders::<T>::insert(storage_provider, state);
             }
         }
@@ -1243,6 +1237,54 @@ pub mod pallet {
                 Error::<T>::SectorNumberAlreadyUsed
             );
             Ok(())
+        }
+
+        /// Processes terminations for the given account (should be a registered SP).
+        /// Clears all early terminations and calls `on_sectors_terminate` when finished.
+        #[allow(dead_code)]
+        fn process_early_terminations(
+            current_block: BlockNumberFor<T>,
+            owner: T::AccountId,
+        ) -> Result</* has more */ bool, Error<T>> {
+            let mut state = StorageProviders::<T>::try_get(&owner)
+                .map_err(|_| Error::<T>::StorageProviderNotFound)?;
+            let mut sectors_with_data = vec![];
+            let (result, more) = state
+                .pop_early_terminations(
+                    T::AddressedPartitionsMax::get(),
+                    T::AddressedSectorsMax::get(),
+                )
+                .map_err(|e| Error::<T>::GeneralPalletError(e))?;
+
+            // Nothing to do, don't waste any time.
+            // This can happen if we end up processing early terminations
+            // before the cron callback fires.
+            if result.is_empty() {
+                log::info!("no early terminations");
+                return Ok(more);
+            }
+
+            // Check whether sectors have expired, if not push to sectors_with_data for later processing.
+            // Process in Market pallet `on_sectors_terminate`.
+            // TODO(@aidan46, no-ref, 2024-10-14): Figure out economics to apply early termination penalty.
+            for (&expiry, sector_numbers) in result.sectors.iter() {
+                for sector_number in sector_numbers {
+                    // I am not 100% sure this is correct. In FC they use deal weight to determine.
+                    // Deal weight is a function of space times the duration of a deal.
+                    if expiry < current_block {
+                        sectors_with_data.push(*sector_number);
+                    }
+                }
+            }
+
+            // Terminate deals
+            let terminated_data = sectors_with_data.try_into().expect(
+                "Could not convert terminated sectors to BoundedVec. len > MAX_DEALS_PER_SECTOR",
+            );
+
+            let _ = T::Market::on_sectors_terminate(&owner, terminated_data);
+
+            Ok(more)
         }
     }
 

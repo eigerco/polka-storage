@@ -1,6 +1,6 @@
 extern crate alloc;
 
-use alloc::vec::Vec;
+use alloc::{collections::BTreeSet, vec::Vec};
 
 use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeMap};
@@ -9,6 +9,7 @@ use scale_info::{prelude::cmp, TypeInfo};
 
 use crate::{
     error::GeneralPalletError,
+    expiration_queue::ExpirationSet,
     partition::{Partition, PartitionNumber, TerminationResult, MAX_PARTITIONS_PER_DEADLINE},
     sector::{SectorOnChainInfo, MAX_SECTORS},
     sector_map::PartitionMap,
@@ -417,6 +418,94 @@ where
         let no_early_terminations = self.early_terminations.iter().next().is_none();
 
         Ok((result, !no_early_terminations))
+    }
+
+    /// Pops expired partitions until a given block.
+    pub fn pop_expired_partitions(
+        &mut self,
+        until: BlockNumber,
+    ) -> Result<(Vec<PartitionNumber>, bool), GeneralPalletError> {
+        let mut to_pop = vec![];
+        let mut popped_partitions = vec![];
+
+        for (&block, &partition_number) in &self.expirations_blocks {
+            if block > until {
+                break;
+            }
+            to_pop.push(block);
+            popped_partitions.push(partition_number);
+        }
+
+        if to_pop.is_empty() {
+            return Ok((vec![], false));
+        }
+
+        to_pop.iter().for_each(|block_number| {
+            self.expirations_blocks.remove(&block_number);
+        });
+        Ok((popped_partitions, true))
+    }
+
+    /// PopExpiredSectors terminates expired sectors from all partitions.
+    /// Returns the expired sector aggregates.
+    pub fn pop_expired_sectors(
+        &mut self,
+        until: BlockNumber,
+    ) -> Result<ExpirationSet, GeneralPalletError> {
+        let (expired_partitions, modified) = self.pop_expired_partitions(until)?;
+
+        if !modified {
+            // nothing to do.
+            return Ok(ExpirationSet::new());
+        }
+
+        let mut partitions_with_early_terminations = BTreeSet::new();
+        let mut on_time_sectors = BTreeSet::new();
+        let mut early_sectors = BTreeSet::new();
+
+        for partition_number in expired_partitions {
+            let partition = self
+                    .partitions
+                    .get_mut(&partition_number)
+                    .ok_or({
+                        log::error!(target: LOG_TARGET, "pop_expired_sectors: Could not find partition number {partition_number:?}");
+                        GeneralPalletError::DeadlineErrorPartitionNotFound
+                    })?;
+
+            let partition_expiration = partition.pop_expired_sectors(until)?;
+
+            if !partition_expiration.early_sectors.is_empty() {
+                partitions_with_early_terminations.insert(partition_number);
+            }
+
+            on_time_sectors.append(&mut partition_expiration.on_time_sectors.into_inner());
+            early_sectors.append(&mut partition_expiration.early_sectors.into_inner());
+        }
+
+        // Update early terminations
+        self.early_terminations = self
+            .early_terminations
+            .union(&partitions_with_early_terminations)
+            .copied()
+            .collect::<BTreeSet<_>>()
+            .try_into()
+            .expect("Should be able to create early_terminations from a subset of itself");
+
+        // Update live sector count.
+        let on_time_count = on_time_sectors.len() as u64;
+        let early_count = early_sectors.len() as u64;
+        self.live_sectors -= on_time_count + early_count;
+
+        let on_time_sectors = on_time_sectors
+            .try_into()
+            .expect("On time sectors should not be able to be more than MAX_SECTORS");
+        let early_sectors = early_sectors
+            .try_into()
+            .expect("Early sectors should not be able to be more than MAX_SECTORS");
+        Ok(ExpirationSet {
+            on_time_sectors,
+            early_sectors,
+        })
     }
 }
 
