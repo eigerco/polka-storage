@@ -395,6 +395,7 @@ where
             let limit = max_sectors - result.sectors_processed;
 
             let to_process = if limit < count {
+                // Filter out sector number that are < limit
                 let to_process = sectors
                     .iter()
                     .enumerate()
@@ -407,6 +408,8 @@ where
                     })
                     .copied()
                     .collect::<BTreeSet<_>>();
+                // Filter out the rest of the sectors that are not processed.
+                // Remaining is sectors - to_process
                 let rest = sectors
                     .iter()
                     .copied()
