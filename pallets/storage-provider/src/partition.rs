@@ -446,11 +446,7 @@ where
             .early_terminations
             .iter()
             .filter_map(|(block_number, sectors)| {
-                if !processed.contains(block_number) {
-                    Some((*block_number, sectors.clone()))
-                } else {
-                    None
-                }
+                (!processed.contains(block_number)).then(|| (*block_number, sectors.clone()))
             })
             .collect::<BTreeMap<_, _>>()
             .try_into()
