@@ -3,7 +3,9 @@ use crate::piece::PaddedPieceSize;
 /// Can't generate for: 1, 2, 4, 8, 16, 32, 64 bytes
 const SKIP: u32 = 7;
 
-/// Returns a zero piece commitment for a specified piece size
+/// Returns a zero piece commitment for a specified piece size. Zero piece
+/// commitment is a calculated piece commitment for a 0-filled piece. This
+/// commitment is usually used when adding pieces to a sector as a padding.
 pub fn zero_piece_commitment(size: PaddedPieceSize) -> [u8; 32] {
     let level = size.trailing_zeros() - SKIP;
     PIECE_COMMS[level as usize]

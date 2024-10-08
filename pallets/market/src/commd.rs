@@ -1,12 +1,11 @@
 extern crate alloc;
 use alloc::vec::Vec;
 
-use primitives_proofs::SectorSize;
-use primitives_shared::{
-    commitment::{zero_piece_commitment, Commitment, CommitmentKind},
+use primitives_commitment::{
     piece::{PaddedPieceSize, UnpaddedPieceSize},
-    NODE_SIZE,
+    zero_piece_commitment, Commitment, CommitmentKind, NODE_SIZE,
 };
+use primitives_proofs::SectorSize;
 use sha2::{Digest, Sha256};
 
 // Ensure that the pieces are correct sizes

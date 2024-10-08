@@ -10,7 +10,7 @@ use axum::{
 };
 use futures::{TryFutureExt, TryStreamExt};
 use mater::Cid;
-use primitives_shared::piece::PaddedPieceSize;
+use primitives_commitment::piece::PaddedPieceSize;
 use tokio::{
     fs::{self, File},
     io::{AsyncRead, BufWriter},

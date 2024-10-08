@@ -25,8 +25,8 @@ futures = { workspace = true }
 hex = { workspace = true }
 jsonrpsee = { workspace = true, features = ["http-client", "macros", "server", "ws-client"] }
 polka-storage-proofs = { workspace = true, features = ["std", "substrate"] }
+primitives-commitment = { workspace = true }
 primitives-proofs = { workspace = true, features = ["std"] }
-primitives-shared = { workspace = true }
 rand = { workspace = true }
 rocksdb = { workspace = true }
 sc-cli = { workspace = true }

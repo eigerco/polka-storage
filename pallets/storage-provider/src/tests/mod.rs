@@ -10,11 +10,11 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 use pallet_market::{BalanceOf, ClientDealProposal, DealProposal, DealState};
+use primitives_commitment::{Commitment, CommitmentKind};
 use primitives_proofs::{
     DealId, RegisteredPoStProof, RegisteredSealProof, SectorId, SectorNumber, MAX_DEALS_PER_SECTOR,
     MAX_TERMINATIONS_PER_CALL,
 };
-use primitives_shared::commitment::{Commitment, CommitmentKind};
 use sp_core::{bounded_vec, Pair};
 use sp_runtime::{
     traits::{IdentifyAccount, IdentityLookup, Verify},

@@ -1,8 +1,14 @@
+#![no_std]
+
+pub mod piece;
 mod zero;
 
 use cid::{multihash::Multihash, Cid};
 
 use crate::piece::PaddedPieceSize;
+
+/// Merkle tree node size in bytes.
+pub const NODE_SIZE: usize = 32;
 
 /// Filecoin piece or sector data commitment merkle node/root (CommP & CommD)
 ///
@@ -37,6 +43,7 @@ pub enum CommitmentKind {
 }
 
 impl CommitmentKind {
+    /// Returns the [Multicodec](https://github.com/multiformats/multicodec/blob/master/table.csv) code for the commitment kind.
     fn multicodec(&self) -> u64 {
         match self {
             CommitmentKind::Piece | CommitmentKind::Data => FIL_COMMITMENT_UNSEALED,
@@ -44,6 +51,7 @@ impl CommitmentKind {
         }
     }
 
+    /// Returns the [Multihash](https://github.com/multiformats/multicodec/blob/master/table.csv) code for the commitment kind.
     fn multihash(&self) -> u64 {
         match self {
             CommitmentKind::Piece | CommitmentKind::Data => SHA2_256_TRUNC254_PADDED,
@@ -121,8 +129,7 @@ pub fn zero_piece_commitment(size: PaddedPieceSize) -> Commitment {
 mod tests {
     use cid::{multihash::Multihash, Cid};
 
-    // use rand::thread_rng;
-    use crate::commitment::{
+    use crate::{
         Commitment, CommitmentKind, FIL_COMMITMENT_SEALED, FIL_COMMITMENT_UNSEALED,
         POSEIDON_BLS12_381_A1_FC1, SHA2_256_TRUNC254_PADDED,
     };

@@ -10,8 +10,8 @@ use polka_storage_proofs::{
     porep::{self, sealer::Sealer},
     types::PieceInfo,
 };
+use primitives_commitment::piece::PaddedPieceSize;
 use primitives_proofs::RegisteredSealProof;
-use primitives_shared::piece::PaddedPieceSize;
 
 use crate::{
     commp::{calculate_piece_commitment, CommPError, ZeroPaddingReader},

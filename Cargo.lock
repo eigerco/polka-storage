@@ -8223,8 +8223,8 @@ dependencies = [
  "pallet-balances",
  "pallet-storage-provider",
  "parity-scale-codec",
+ "primitives-commitment",
  "primitives-proofs",
- "primitives-shared",
  "scale-info",
  "sha2 0.10.8",
  "sp-arithmetic 26.0.0",
@@ -8700,8 +8700,8 @@ dependencies = [
  "pallet-balances",
  "pallet-market",
  "parity-scale-codec",
+ "primitives-commitment",
  "primitives-proofs",
- "primitives-shared",
  "rstest",
  "scale-info",
  "sp-arithmetic 26.0.0",
@@ -9410,8 +9410,8 @@ dependencies = [
  "mater",
  "parity-scale-codec",
  "polka-storage-proofs",
+ "primitives-commitment",
  "primitives-proofs",
- "primitives-shared",
  "rand",
  "rocksdb",
  "sc-cli",
@@ -10863,6 +10863,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "primitives-commitment"
+version = "0.1.0"
+dependencies = [
+ "cid 0.11.1",
+ "rand",
+]
+
+[[package]]
 name = "primitives-proofs"
 version = "0.1.0"
 dependencies = [
@@ -10875,14 +10883,6 @@ dependencies = [
  "serde_json",
  "sp-core 34.0.0",
  "sp-runtime 39.0.0",
-]
-
-[[package]]
-name = "primitives-shared"
-version = "0.1.0"
-dependencies = [
- "cid 0.11.1",
- "rand",
 ]
 
 [[package]]

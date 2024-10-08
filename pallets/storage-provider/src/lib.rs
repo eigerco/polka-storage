@@ -55,11 +55,11 @@ pub mod pallet {
         pallet_prelude::{BlockNumberFor, *},
         Config as SystemConfig,
     };
+    use primitives_commitment::{Commitment, CommitmentKind};
     use primitives_proofs::{
         Market, RegisteredPoStProof, RegisteredSealProof, SectorNumber, StorageProviderValidation,
         MAX_SECTORS_PER_CALL,
     };
-    use primitives_shared::commitment::{Commitment, CommitmentKind};
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::Zero;
 

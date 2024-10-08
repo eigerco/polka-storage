@@ -12,7 +12,6 @@ use primitives_proofs::{
     ActiveDeal, ActiveSector, DealId, Market as MarketTrait, RegisteredSealProof, SectorDeal,
     MAX_DEALS_PER_SECTOR,
 };
-use primitives_shared::commitment::Commitment;
 use sp_core::H256;
 use sp_runtime::AccountId32;
 
@@ -1775,7 +1774,7 @@ impl<T: frame_system::Config<AccountId = AccountId32>> Default for DealProposalB
     fn default() -> Self {
         let piece_commitment = Commitment::new(
             *b"dummydummydummydummydummydummydu",
-            primitives_shared::commitment::CommitmentKind::Piece,
+            CommitmentKind::Piece,
         );
 
         Self {

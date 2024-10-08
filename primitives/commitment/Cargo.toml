@@ -3,7 +3,7 @@ authors.workspace = true
 edition.workspace = true
 homepage.workspace = true
 license-file.workspace = true
-name = "primitives-shared"
+name = "primitives-commitment"
 repository.workspace = true
 version = "0.1.0"
 
@@ -15,5 +15,3 @@ rand = { workspace = true, features = ["std", "std_rng"] }
 
 [lints]
 workspace = true
-
-[features]
