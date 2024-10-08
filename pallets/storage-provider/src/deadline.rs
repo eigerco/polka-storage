@@ -333,7 +333,7 @@ where
     }
 
     /// Terminates sectors in the given partitions at the given block number
-    /// Fails if any of the partitions given in the `partition_sectors` is not found.
+    /// Fails if any of the partitions given in the `partition_numbers` is not found.
     ///
     /// Reference implementation:
     /// * <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/actors/miner/src/deadline_state.rs#L568>
@@ -341,12 +341,12 @@ where
         &mut self,
         block_number: BlockNumber,
         sectors: &[SectorOnChainInfo<BlockNumber>],
-        partition_sectors: &mut PartitionMap,
+        partition_numbers: &[PartitionNumber],
     ) -> Result<(), GeneralPalletError> {
-        for (partition_number, _sector_numbers) in partition_sectors.0.iter() {
+        for &partition_number in partition_numbers {
             let partition = self
                 .partitions
-                .get_mut(partition_number).ok_or({
+                .get_mut(&partition_number).ok_or({
                     log::error!(target: LOG_TARGET, "terminate_sectors: Cannot find partition {partition_number}");
                     GeneralPalletError::DeadlineErrorPartitionNotFound
                 })?;
@@ -356,7 +356,7 @@ where
             if !removed.is_empty() {
                 // Record that partition now has pending early terminations.
                 self.early_terminations
-                    .try_insert(*partition_number)
+                    .try_insert(partition_number)
                     .expect("Cannot have more terminations than MAX_PARTITIONS_PER_DEADLINE");
 
                 // Record change to sectors
