@@ -334,6 +334,7 @@ where
 
     /// Terminates sectors in the given partitions at the given block number
     /// Fails if any of the partitions given in the `partition_numbers` is not found.
+    /// This functions is invoked by the `terminate_sectors` extrinsic when an SP calls that extrinsic
     ///
     /// Reference implementation:
     /// * <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/actors/miner/src/deadline_state.rs#L568>
