@@ -298,6 +298,9 @@ where
 
     /// Marks a collection of sectors as terminated.
     /// The sectors are removed from Faults and Recoveries.
+    ///
+    ///  Reference implementation:
+    /// * <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/actors/miner/src/partition_state.rs#L480>
     pub fn terminate_sectors(
         &mut self,
         block_number: BlockNumber,
