@@ -308,8 +308,8 @@ where
         ensure!(
             sector_numbers
                 .difference(&self.live_sectors())
-                .collect::<BTreeSet<&SectorNumber>>()
-                .is_empty(),
+                .next()
+                .is_none(),
             {
                 log::error!(target: LOG_TARGET, "terminate_sectors: can only terminate live sectors");
                 GeneralPalletError::PartitionErrorSectorsNotLive

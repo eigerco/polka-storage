@@ -269,8 +269,9 @@ where
         });
 
         let removed_sector_numbers = self.remove_active_sectors(&non_faulty_sectors)?;
-        removed.on_time_sectors = BoundedBTreeSet::try_from(removed_sector_numbers)
-            .expect("sectors may not exceed MAX_SECTORS. This error should not occur with the set bounds");
+        removed.on_time_sectors = BoundedBTreeSet::try_from(removed_sector_numbers).expect(
+            "sectors may not exceed MAX_SECTORS. This error should not occur with the set bounds",
+        );
 
         // Finally, remove faulty sectors (on time and not).
         self.map.iter_mut().try_for_each(
