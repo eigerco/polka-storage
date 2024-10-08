@@ -425,7 +425,7 @@ where
 
             result.sectors.insert(block_number, to_process);
 
-            if result.sectors_processed < max_sectors {
+            if result.sectors_processed >= max_sectors {
                 break;
             }
         }
