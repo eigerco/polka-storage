@@ -357,7 +357,7 @@ where
                 // Record that partition now has pending early terminations.
                 self.early_terminations
                     .try_insert(*partition_number)
-                    .expect("Critical error: Cannot have more terminations than MAX_PARTITIONS_PER_DEADLINE");
+                    .expect("Cannot have more terminations than MAX_PARTITIONS_PER_DEADLINE");
 
                 // Record change to sectors
                 self.live_sectors -= removed.len() as u64;
@@ -401,7 +401,7 @@ where
             // Save partition
             self.partitions
                 .try_insert(partition_number, partition)
-                .expect("Critical error: Could not replace exisiting partition");
+                .expect("Could not replace exisiting partition");
 
             if !result.below_limit(max_partitions, max_sectors) {
                 break;

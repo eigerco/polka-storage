@@ -270,7 +270,7 @@ where
 
         let removed_sector_numbers = self.remove_active_sectors(&non_faulty_sectors)?;
         removed.on_time_sectors = BoundedBTreeSet::try_from(removed_sector_numbers)
-            .expect("Critical error: sectors may not exceed MAX_SECTORS. This error should not occur with the set bounds");
+            .expect("sectors may not exceed MAX_SECTORS. This error should not occur with the set bounds");
 
         // Finally, remove faulty sectors (on time and not).
         self.map.iter_mut().try_for_each(
@@ -285,14 +285,14 @@ where
                         removed
                             .on_time_sectors
                             .try_insert(sector_number)
-                            .expect("Critical error: sectors may not exceed MAX_SECTORS. This error should not occur with the set bounds");
+                            .expect("sectors may not exceed MAX_SECTORS. This error should not occur with the set bounds");
                     } else if expiration_set.early_sectors.contains(&sector_number) {
                         found = true;
                         expiration_set.early_sectors.remove(&sector_number);
                         removed
                             .early_sectors
                             .try_insert(sector_number)
-                            .expect("Critical error: sectors may not exceed MAX_SECTORS. This error should not occur with the set bounds");
+                            .expect("sectors may not exceed MAX_SECTORS. This error should not occur with the set bounds");
                     }
 
                     if found {

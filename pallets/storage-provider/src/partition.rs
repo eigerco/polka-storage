@@ -324,7 +324,7 @@ where
             .copied()
             .collect::<BTreeSet<_>>()
             .try_into()
-            .expect("Critical error: Conversion to a set bounded at MAX_SECTORS should always be possible");
+            .expect("Conversion to a set bounded at MAX_SECTORS should always be possible");
 
         // Record early terminations
         self.record_early_terminations(block_number, &removed_sectors)?;
@@ -341,28 +341,28 @@ where
             .copied()
             .collect::<BTreeSet<_>>()
             .try_into()
-            .expect("Critical error: Conversion to a set bounded at MAX_SECTORS should always be possible");
+            .expect("Conversion to a set bounded at MAX_SECTORS should always be possible");
         self.recoveries = self
             .recoveries
             .difference(&removed_sectors)
             .copied()
             .collect::<BTreeSet<_>>()
             .try_into()
-            .expect("Critical error: Conversion to a set bounded at MAX_SECTORS should always be possible");
+            .expect("Conversion to a set bounded at MAX_SECTORS should always be possible");
         self.terminated = self
             .terminated
             .union(&removed_sectors)
             .copied()
             .collect::<BTreeSet<_>>()
             .try_into()
-            .expect("Critical error: Conversion to a set bounded at MAX_SECTORS should always be possible");
+            .expect("Conversion to a set bounded at MAX_SECTORS should always be possible");
         self.unproven = self
             .unproven
             .difference(&unproven_sectors)
             .copied()
             .collect::<BTreeSet<_>>()
             .try_into()
-            .expect("Critical error: Conversion to a set bounded at MAX_SECTORS should always be possible");
+            .expect("Conversion to a set bounded at MAX_SECTORS should always be possible");
         Ok(removed)
     }
 
@@ -373,7 +373,7 @@ where
     ) -> Result<(), GeneralPalletError> {
         self.early_terminations
             .try_insert(block_number, sectors.clone())
-            .expect("Critical error: Reached the limit for early terminations");
+            .expect("Reached the limit for early terminations");
         Ok(())
     }
     /// Pops early terminations until `max_sectors` or until there are none left
@@ -436,9 +436,9 @@ where
                     remaining_block,
                     remaining_sectors
                         .try_into()
-                        .expect("Critical error: Cannot convert remaining sectors"),
+                        .expect("Cannot convert remaining sectors"),
                 )
-                .expect("Critical error: Failed to add remaining sectors to early terminations");
+                .expect("Failed to add remaining sectors to early terminations");
         }
 
         // Update early terminations
@@ -454,7 +454,7 @@ where
             })
             .collect::<BTreeMap<_, _>>()
             .try_into()
-            .expect("Critical error: Failed to remove entries from early terminations");
+            .expect("Failed to remove entries from early terminations");
 
         let has_more = self.early_terminations.iter().count() > 0;
         Ok((result, has_more))
