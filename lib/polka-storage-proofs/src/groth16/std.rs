@@ -70,29 +70,42 @@ fn g2affine(affine: &blstrs::G2Affine) -> Result<G2Affine, FromBytesError> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use rand::SeedableRng;
 
-    fn random_bellperson_verifying_key() -> bp_g16::VerifyingKey<blstrs::Bls12> {
+    use super::*;
+    use crate::groth16::tests::TEST_SEED;
+
+    fn blstrs_rand_g1affine(rng: &mut XorShiftRng) -> blstrs::G1Affine {
+        (blstrs::G1Affine::generator() * blstrs::Scalar::random(rng)).into()
+    }
+
+    fn blstrs_rand_g2affine(rng: &mut XorShiftRng) -> blstrs::G2Affine {
+        (blstrs::G2Affine::generator() * blstrs::Scalar::random(rng)).into()
+    }
+
+    fn random_bellperson_verifying_key(
+        rng: &mut XorShiftRng,
+    ) -> bp_g16::VerifyingKey<blstrs::Bls12> {
         bp_g16::VerifyingKey::<blstrs::Bls12> {
-            alpha_g1: blstrs::G1Affine::generator(),
-            beta_g1: blstrs::G1Affine::generator(),
-            beta_g2: blstrs::G2Affine::generator(),
-            gamma_g2: blstrs::G2Affine::generator(),
-            delta_g1: blstrs::G1Affine::generator(),
-            delta_g2: blstrs::G2Affine::generator(),
+            alpha_g1: blstrs_rand_g1affine(rng),
+            beta_g1: blstrs_rand_g1affine(rng),
+            beta_g2: blstrs_rand_g2affine(rng),
+            gamma_g2: blstrs_rand_g2affine(rng),
+            delta_g1: blstrs_rand_g1affine(rng),
+            delta_g2: blstrs_rand_g2affine(rng),
             ic: vec![
-                blstrs::G1Affine::generator(),
-                blstrs::G1Affine::generator(),
-                blstrs::G1Affine::generator(),
+                blstrs_rand_g1affine(rng),
+                blstrs_rand_g1affine(rng),
+                blstrs_rand_g1affine(rng),
             ],
         }
     }
 
-    fn random_bellperson_proof() -> bp_g16::Proof<blstrs::Bls12> {
+    fn random_bellperson_proof(rng: &mut XorShiftRng) -> bp_g16::Proof<blstrs::Bls12> {
         bp_g16::Proof::<blstrs::Bls12> {
-            a: blstrs::G1Affine::generator(),
-            b: blstrs::G2Affine::generator(),
-            c: blstrs::G1Affine::generator(),
+            a: blstrs_rand_g1affine(rng),
+            b: blstrs_rand_g2affine(rng),
+            c: blstrs_rand_g1affine(rng),
         }
     }
 
@@ -100,8 +113,9 @@ mod tests {
     /// serialised from `bellperson::VerifyingKey`.
     #[test]
     fn verifying_key_from_bytes_from_bellperson() {
+        let mut rng = XorShiftRng::from_seed(TEST_SEED);
         // Generate a verifying key with bellperson crate.
-        let bp_vkey = random_bellperson_verifying_key();
+        let bp_vkey = random_bellperson_verifying_key(&mut rng);
         // Smoke test about converting it directly to our implemmentation.
         let vkey =
             VerifyingKey::<Bls12>::try_from(bp_vkey.clone()).expect("expect VerifiyingKey::from");
@@ -141,8 +155,9 @@ mod tests {
 
     #[test]
     fn verifyingkey_serialise_and_deserialise_direct_bellperson() {
+        let mut rng = XorShiftRng::from_seed(TEST_SEED);
         // Generate a verifying key with bellperson crate.
-        let bp_vkey = random_bellperson_verifying_key();
+        let bp_vkey = random_bellperson_verifying_key(&mut rng);
         // Serialise it by using its `Read` implementation.
         let bytes = VERIFYINGKEY_MIN_BYTES + bp_vkey.ic.len() * G1AFFINE_UNCOMPRESSED_BYTES;
         let mut bytes = vec![0u8; bytes];
@@ -194,8 +209,9 @@ mod tests {
     /// serialised from `bellperson::Proof`.
     #[test]
     fn proof_from_bytes_from_bellperson() {
+        let mut rng = XorShiftRng::from_seed(TEST_SEED);
         // Generate a proof with bellperson crate.
-        let bp_proof = random_bellperson_proof();
+        let bp_proof = random_bellperson_proof(&mut rng);
         // Smoke test about converting it directly to our implemmentation.
         let proof = Proof::<Bls12>::try_from(bp_proof.clone()).expect("expect Proof::from");
         // Compare each single fields by their bytes to make sure conversion was correct.
@@ -206,8 +222,9 @@ mod tests {
 
     #[test]
     fn proof_serialise_and_deserialise_direct_bellperson() {
+        let mut rng = XorShiftRng::from_seed(TEST_SEED);
         // Generate a verifying key with bellperson crate.
-        let bp_proof = random_bellperson_proof();
+        let bp_proof = random_bellperson_proof(&mut rng);
         // Serialise it by using its `Read` implementation.
         let mut bytes = vec![0u8; PROOF_BYTES];
         bp_proof.write(bytes.as_mut_slice()).unwrap();
