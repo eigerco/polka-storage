@@ -8701,6 +8701,7 @@ dependencies = [
  "pallet-market",
  "parity-scale-codec",
  "primitives-proofs",
+ "primitives-shared",
  "rstest",
  "scale-info",
  "sp-arithmetic 26.0.0",

@@ -1,5 +1,6 @@
 extern crate alloc;
 use alloc::collections::BTreeSet;
+use core::str::FromStr;
 
 use cid::Cid;
 use codec::Encode;
@@ -8,12 +9,12 @@ use frame_support::{
     traits::Hooks, PalletId,
 };
 use frame_system::pallet_prelude::BlockNumberFor;
-use multihash_codetable::{Code, MultihashDigest};
 use pallet_market::{BalanceOf, ClientDealProposal, DealProposal, DealState};
 use primitives_proofs::{
     DealId, RegisteredPoStProof, RegisteredSealProof, SectorId, SectorNumber, MAX_DEALS_PER_SECTOR,
     MAX_TERMINATIONS_PER_CALL,
 };
+use primitives_shared::commitment::{Commitment, CommitmentKind};
 use sp_core::{bounded_vec, Pair};
 use sp_runtime::{
     traits::{IdentifyAccount, IdentityLookup, Verify},
@@ -25,7 +26,7 @@ use crate::{
     fault::{
         DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration, RecoveryDeclaration,
     },
-    pallet::{CID_CODEC, DECLARATIONS_MAX},
+    pallet::DECLARATIONS_MAX,
     partition::{PartitionNumber, MAX_PARTITIONS_PER_DEADLINE},
     proofs::{PoStProof, SubmitWindowedPoStParams},
     sector::SectorPreCommitInfo,
@@ -178,10 +179,6 @@ fn events() -> Vec<RuntimeEvent> {
     evt
 }
 
-fn cid_of(data: &str) -> cid::Cid {
-    Cid::new_v1(CID_CODEC, Code::Blake2b256.digest(data.as_bytes()))
-}
-
 fn sign(pair: &sp_core::sr25519::Pair, bytes: &[u8]) -> MultiSignature {
     MultiSignature::Sr25519(pair.sign(bytes))
 }
@@ -293,20 +290,28 @@ struct SectorPreCommitInfoBuilder {
 
 impl Default for SectorPreCommitInfoBuilder {
     fn default() -> Self {
+        let unsealed_cid =
+            Cid::from_str("baga6ea4seaqgi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5i")
+                .unwrap()
+                .to_bytes()
+                .try_into()
+                .expect("hash is always 32 bytes");
+
+        // TODO: This cid is not correct and it's only used as a place holder for the correct one
+        let sealed_cid =
+            Cid::from_str("baga6ea4seaqgi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5i")
+                .unwrap()
+                .to_bytes()
+                .try_into()
+                .expect("hash is always 32 bytes");
+
         Self {
             seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
             sector_number: 1,
-            sealed_cid: cid_of("sealed_cid")
-                .to_bytes()
-                .try_into()
-                .expect("hash is always 32 bytes"),
+            sealed_cid,
             deal_ids: bounded_vec![0, 1],
             expiration: 120 * MINUTES,
-            // TODO(@th7nder,#92,19/07/2024): compute_commd not yet implemented.
-            unsealed_cid: cid_of("placeholder-to-be-done")
-                .to_bytes()
-                .try_into()
-                .expect("hash is always 32 bytes"),
+            unsealed_cid,
         }
     }
 }
@@ -327,8 +332,9 @@ impl SectorPreCommitInfoBuilder {
         self
     }
 
-    pub fn unsealed_cid(mut self, unsealed_cid: SectorId) -> Self {
-        self.unsealed_cid = unsealed_cid;
+    pub fn unsealed_cid(mut self, unsealed_cid: &str) -> Self {
+        let cid = Cid::from_str(unsealed_cid).expect("valid unsealed_cid");
+        self.unsealed_cid = BoundedVec::try_from(cid.to_bytes()).unwrap();
         self
     }
 
@@ -361,12 +367,16 @@ struct DealProposalBuilder {
 
 impl Default for DealProposalBuilder {
     fn default() -> Self {
+        let piece_commitment =
+            Commitment::new(*b"dummydummydummydummydummydummydu", CommitmentKind::Piece);
+
         Self {
-            piece_cid: cid_of("polka-storage-data")
+            piece_cid: piece_commitment
+                .cid()
                 .to_bytes()
                 .try_into()
                 .expect("hash is always 32 bytes"),
-            piece_size: 18,
+            piece_size: 128, // Smallest piece size available for sector
             client: account(BOB),
             provider: account(ALICE),
             label: bounded_vec![0xb, 0xe, 0xe, 0xf],

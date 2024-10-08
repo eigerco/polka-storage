@@ -63,6 +63,7 @@ pub struct PieceInfo {
     pub size: PaddedPieceSize,
 }
 
+/// Reduces the pieces to the data commitment of those pieces.
 struct CommDPieceReduction {
     /// Pieces stack
     pieces: Vec<PieceInfo>,

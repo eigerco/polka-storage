@@ -32,6 +32,7 @@ fn successfully_prove_sector() {
         // Sector data
         let sector = SectorPreCommitInfoBuilder::default()
             .sector_number(sector_number)
+            .unsealed_cid("baga6ea4seaqeqgpphr6lmjhddjprb2etcfiml4sgr2kpju7kscfdj7227itm4hq")
             .build();
 
         // Run pre commit extrinsic
@@ -116,6 +117,9 @@ fn successfully_prove_multiple_sectors() {
                 .try_push(
                     SectorPreCommitInfoBuilder::default()
                         .sector_number(sector_number)
+                        .unsealed_cid(
+                            "baga6ea4seaqeqgpphr6lmjhddjprb2etcfiml4sgr2kpju7kscfdj7227itm4hq",
+                        )
                         .build(),
                 )
                 .expect("BoundedVec should fit all 6 elements");
@@ -268,6 +272,7 @@ fn fails_prove_commit_after_deadline() {
         // Sector data
         let sector = SectorPreCommitInfoBuilder::default()
             .sector_number(sector_number)
+            .unsealed_cid("baga6ea4seaqeqgpphr6lmjhddjprb2etcfiml4sgr2kpju7kscfdj7227itm4hq")
             .build();
 
         // Run pre commit extrinsic

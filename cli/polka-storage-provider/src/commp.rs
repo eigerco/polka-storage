@@ -108,8 +108,7 @@ mod tests {
     use primitives_proofs::SectorSize;
     use primitives_shared::piece::PaddedPieceSize;
 
-    use super::{calculate_piece_commitment, CommPError, ZeroPaddingReader};
-    use crate::commands::utils::commp::{calculate_piece_commitment, ZeroPaddingReader};
+    use super::{calculate_piece_commitment, ZeroPaddingReader};
 
     #[test]
     fn test_zero_padding_reader() {

@@ -30,9 +30,6 @@ mod storage_provider;
 
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
-    pub const CID_CODEC: u64 = 0x55;
-    /// Sourced from multihash code table <https://github.com/multiformats/rust-multihash/blob/b321afc11e874c08735671ebda4d8e7fcc38744c/codetable/src/lib.rs#L108>
-    pub const BLAKE2B_MULTIHASH_CODE: u64 = 0xB220;
     pub(crate) const DECLARATIONS_MAX: u32 = 3000;
     const LOG_TARGET: &'static str = "runtime::storage_provider";
 
@@ -41,7 +38,7 @@ pub mod pallet {
     use alloc::{vec, vec::Vec};
     use core::fmt::Debug;
 
-    use cid::{Cid, Version};
+    use cid::Cid;
     use codec::{Decode, Encode};
     use frame_support::{
         dispatch::DispatchResult,
@@ -62,6 +59,7 @@ pub mod pallet {
         Market, RegisteredPoStProof, RegisteredSealProof, SectorNumber, StorageProviderValidation,
         MAX_SECTORS_PER_CALL,
     };
+    use primitives_shared::commitment::{Commitment, CommitmentKind};
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::Zero;
 
@@ -427,7 +425,7 @@ pub mod pallet {
                     sector.expiration,
                 )?;
 
-                let unsealed_cid = validate_cid::<T>(&sector.unsealed_cid[..])?;
+                let unsealed_cid = validate_data_commitment_cid::<T>(&sector.unsealed_cid[..])?;
                 let deposit = calculate_pre_commit_deposit::<T>();
                 let sector_on_chain =
                     SectorPreCommitOnChainInfo::new(sector.clone(), deposit, current_block);
@@ -1249,22 +1247,16 @@ pub mod pallet {
     }
 
     // Adapted from filecoin reference here: https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/miner/src/commd.rs#L51-L56
-    fn validate_cid<T: Config>(bytes: &[u8]) -> Result<Cid, Error<T>> {
-        let c = Cid::try_from(bytes).map_err(|e| {
+    fn validate_data_commitment_cid<T: Config>(bytes: &[u8]) -> Result<Cid, Error<T>> {
+        let cid = Cid::try_from(bytes).map_err(|e| {
             log::error!(target: LOG_TARGET, e:?; "failed to validate cid");
             Error::<T>::InvalidCid
         })?;
-        // these values should be consistent with the cid's created by the SP.
-        // They could change in the future when we make a definitive decision on what hashing algorithm to use and such
-        ensure!(
-            c.version() == Version::V1
-                && c.codec() == CID_CODEC // The codec should align with our CID_CODEC value.
-                && c.hash().code() == BLAKE2B_MULTIHASH_CODE // The CID should be hashed using blake2b
-                && c.hash().size() == 32,
-            Error::<T>::InvalidCid
-        );
 
-        Ok(c)
+        // This checks if the cid represents correct commitment
+        Commitment::from_cid(&cid, CommitmentKind::Data).map_err(|_| Error::<T>::InvalidCid)?;
+
+        Ok(cid)
     }
 
     /// Calculate the required pre commit deposit amount

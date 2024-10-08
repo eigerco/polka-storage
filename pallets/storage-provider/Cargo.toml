@@ -19,6 +19,7 @@ cid = { workspace = true, features = ["alloc"] }
 codec = { workspace = true, default-features = false, features = ["derive"] }
 log = { workspace = true, features = ["kv"] }
 primitives-proofs = { workspace = true, default-features = false }
+primitives-shared = { workspace = true }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 sp-arithmetic = { workspace = true, default-features = false }
 sp-core = { workspace = true, default-features = false }

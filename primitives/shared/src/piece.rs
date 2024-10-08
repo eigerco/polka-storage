@@ -60,6 +60,9 @@ impl Add for UnpaddedPieceSize {
 pub struct PaddedPieceSize(u64);
 
 impl PaddedPieceSize {
+    /// The minimum pice size
+    pub const MIN: PaddedPieceSize = PaddedPieceSize(128);
+
     /// Initialize new padded piece size. Error is returned if the size is
     /// invalid.
     pub fn new(size: u64) -> Result<Self, &'static str> {

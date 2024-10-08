@@ -53,7 +53,6 @@ pub mod pallet {
 
     use crate::commd::compute_unsealed_sector_commitment;
 
-    pub const CID_CODEC: u64 = 0x55;
     pub const LOG_TARGET: &'static str = "runtime::market";
 
     /// Allows to extract Balance of an account via the Config::Currency associated type.

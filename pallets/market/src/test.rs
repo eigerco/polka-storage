@@ -12,6 +12,7 @@ use primitives_proofs::{
     ActiveDeal, ActiveSector, DealId, Market as MarketTrait, RegisteredSealProof, SectorDeal,
     MAX_DEALS_PER_SECTOR,
 };
+use primitives_shared::commitment::Commitment;
 use sp_core::H256;
 use sp_runtime::AccountId32;
 
@@ -625,8 +626,10 @@ fn verify_deals_for_activation() {
         assert_eq!(
             Ok(bounded_vec![
                 Some(
-                    Cid::from_str("baga6ea4seaqgi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5i")
-                        .unwrap()
+                    Cid::from_str(
+                        "baga6ea4seaqgi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5i"
+                    )
+                    .unwrap()
                 ),
                 None,
             ]),
@@ -1770,8 +1773,14 @@ pub struct DealProposalBuilder<T: frame_system::Config> {
 
 impl<T: frame_system::Config<AccountId = AccountId32>> Default for DealProposalBuilder<T> {
     fn default() -> Self {
+        let piece_commitment = Commitment::new(
+            *b"dummydummydummydummydummydummydu",
+            primitives_shared::commitment::CommitmentKind::Piece,
+        );
+
         Self {
-            piece_cid: piece_cid("dummydummydummydummydummydummydu")
+            piece_cid: piece_commitment
+                .cid()
                 .to_bytes()
                 .try_into()
                 .expect("hash is always 32 bytes"),
