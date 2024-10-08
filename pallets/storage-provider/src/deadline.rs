@@ -353,7 +353,7 @@ where
 
             let removed = partition.terminate_sectors(block_number, sectors)?;
 
-            if removed.is_empty() {
+            if !removed.is_empty() {
                 // Record that partition now has pending early terminations.
                 self.early_terminations
                     .try_insert(*partition_number)
@@ -401,7 +401,7 @@ where
             // Save partition
             self.partitions
                 .try_insert(partition_number, partition)
-                .expect("Could not replace exisiting partition");
+                .expect("Could not replace existing partition");
 
             if !result.below_limit(max_partitions, max_sectors) {
                 break;
@@ -413,9 +413,9 @@ where
             self.early_terminations.remove(&finished);
         }
 
-        let no_early_terminations = self.early_terminations.is_empty();
+        let no_early_terminations = self.early_terminations.iter().next().is_none();
 
-        Ok((result, no_early_terminations))
+        Ok((result, !no_early_terminations))
     }
 }
 
