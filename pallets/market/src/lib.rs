@@ -900,18 +900,20 @@ pub mod pallet {
 
                 let deal_id = Self::generate_deal_id();
 
-                Self::deposit_event(Event::<T>::DealPublished {
-                    client: deal.client.clone(),
-                    provider: provider.clone(),
-                    deal_id,
-                });
                 let mut deals_for_block = DealsForBlock::<T>::get(&deal.start_block);
                 deals_for_block.try_insert(deal_id).map_err(|_| {
                     log::error!("there is not enough space to activate all of the deals at the given block {:?}", deal.start_block);
                     Error::<T>::TooManyDealsPerBlock
                 })?;
                 DealsForBlock::<T>::insert(deal.start_block, deals_for_block);
-                Proposals::<T>::insert(deal_id, deal);
+                Proposals::<T>::insert(deal_id, deal.clone());
+
+                // Only deposit the event after storing everything
+                Self::deposit_event(Event::<T>::DealPublished {
+                    client: deal.client,
+                    provider: provider.clone(),
+                    deal_id,
+                });
             }
 
             // Lock up funds for the Storage Provider

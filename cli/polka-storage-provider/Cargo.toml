@@ -8,20 +8,27 @@ repository.workspace = true
 version = "0.1.0"
 
 [dependencies]
+# "Homegrown" crates
+mater = { workspace = true }
+storagext = { workspace = true, features = ["clap", "insecure_url"] }
+
 async-trait = { workspace = true }
 axum = { workspace = true, features = ["macros", "multipart"] }
 bls12_381 = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
-cid = { workspace = true }
+cid = { workspace = true, features = ["std"] }
 clap = { workspace = true, features = ["derive"] }
 codec = { workspace = true }
 filecoin-hashers.workspace = true
 fr32.workspace = true
 futures = { workspace = true }
+hex = { workspace = true }
 jsonrpsee = { workspace = true, features = ["http-client", "macros", "server", "ws-client"] }
 polka-storage-proofs = { workspace = true, features = ["std", "substrate"] }
 primitives-proofs = { workspace = true, features = ["std"] }
 primitives-shared = { workspace = true }
+rand = { workspace = true }
+rocksdb = { workspace = true }
 sc-cli = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -30,16 +37,13 @@ subxt = { workspace = true }
 tempfile = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
-tokio-util = { workspace = true }
+tokio-util.workspace = true
 tower-http = { workspace = true, features = ["trace"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 url = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 
-# "Homegrown" crates
-mater = { workspace = true }
-storagext = { workspace = true, features = ["clap", "insecure_url"] }
 
 [lints]
 workspace = true

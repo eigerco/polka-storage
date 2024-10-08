@@ -1,21 +1,19 @@
-extern crate alloc;
-
 mod config;
 
-use alloc::vec::Vec;
-
-use bls12_381::Scalar as Fr;
 use config::{Config, PoRepID};
-use ff::PrimeField;
 use primitives_proofs::RegisteredSealProof;
 use sha2::{Digest, Sha256};
 
 use crate::{
+    crypto::groth16::{
+        verify_proof, Bls12, Fr, PreparedVerifyingKey, PrimeField, Proof, VerificationError,
+    },
     fr32,
     graphs::{
         bucket::{BucketGraph, BucketGraphSeed},
         stacked::{StackedBucketGraph, EXP_DEGREE},
     },
+    vec, Error, Vec,
 };
 
 /// Byte representation of the entity that was signing the proof.
@@ -87,7 +85,31 @@ pub struct ProofScheme {
 
 #[derive(core::fmt::Debug)]
 pub enum ProofError {
-    Unknown,
+    /// Returned when the given proof was invalid in a verification.
+    InvalidProof,
+    /// Returned when the given verifying key was invalid.
+    InvalidVerifyingKey,
+    /// Returned in case of failed conversion, i.e. in `bytes_into_fr()`.
+    Conversion,
+}
+
+impl From<VerificationError> for ProofError {
+    fn from(value: VerificationError) -> Self {
+        match value {
+            VerificationError::InvalidProof => ProofError::InvalidProof,
+            VerificationError::InvalidVerifyingKey => ProofError::InvalidVerifyingKey,
+        }
+    }
+}
+
+impl<T> From<ProofError> for Error<T> {
+    fn from(value: ProofError) -> Self {
+        match value {
+            ProofError::InvalidProof => Error::<T>::InvalidPoRepProof,
+            ProofError::InvalidVerifyingKey => Error::<T>::InvalidVerifyingKey,
+            ProofError::Conversion => Error::<T>::Conversion,
+        }
+    }
 }
 
 pub struct Tau {
@@ -122,9 +144,11 @@ impl ProofScheme {
         sector: u64,
         ticket: &Ticket,
         seed: &Ticket,
-    ) -> Result<bool, ProofError> {
-        let comm_d_fr = fr32::bytes_into_fr(comm_d).map_err(|_| ProofError::Unknown)?;
-        let comm_r_fr = fr32::bytes_into_fr(comm_r).map_err(|_| ProofError::Unknown)?;
+        pvk: &PreparedVerifyingKey<Bls12>,
+        proof: &Proof<Bls12>,
+    ) -> Result<(), ProofError> {
+        let comm_d_fr = fr32::bytes_into_fr(comm_d).map_err(|_| ProofError::Conversion)?;
+        let comm_r_fr = fr32::bytes_into_fr(comm_r).map_err(|_| ProofError::Conversion)?;
 
         let replica_id = self.generate_replica_id(prover_id, sector, ticket, comm_d);
         let public_inputs = PublicInputs {
@@ -136,9 +160,9 @@ impl ProofScheme {
             seed: *seed,
         };
 
-        let _public_inputs = self.generate_public_inputs(public_inputs, None);
+        let public_inputs = self.generate_public_inputs(public_inputs, None)?;
 
-        todo!();
+        verify_proof(pvk, proof, public_inputs.as_slice()).map_err(Into::<ProofError>::into)
     }
 
     /// References:

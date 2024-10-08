@@ -1,12 +1,6 @@
 pub mod client;
 pub mod server;
 
-/// Default parachain node adress.
-pub(self) const DEFAULT_NODE_ADDRESS: &str = "ws://127.0.0.1:42069";
-
-/// Default address to bind the RPC server to.
-pub(self) const DEFAULT_LISTEN_ADDRESS: &str = "127.0.0.1:8000";
-
 #[derive(Debug, thiserror::Error)]
 pub enum RpcCommandError {
     #[error("the RPC server command failed with the following error: {0}")]

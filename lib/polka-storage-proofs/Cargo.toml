@@ -19,6 +19,7 @@ anyhow = { workspace = true, optional = true }
 bellpepper-core = { workspace = true, optional = true }
 bellperson = { workspace = true, optional = true }
 blstrs = { workspace = true, optional = true }
+filecoin-hashers = { workspace = true, optional = true }
 filecoin-proofs = { workspace = true, optional = true }
 rand = { workspace = true, default-features = false, optional = true }
 storage-proofs-core = { workspace = true, optional = true }
@@ -38,15 +39,18 @@ workspace = true
 [features]
 default = ["std"]
 std = [
+  "codec?/std",
   "dep:anyhow",
   "dep:bellpepper-core",
   "dep:bellperson",
   "dep:blstrs",
+  "dep:filecoin-hashers",
   "dep:filecoin-proofs",
   "dep:storage-proofs-core",
   "dep:storage-proofs-porep",
   "dep:thiserror",
   "primitives-proofs/std",
   "rand/std",
+  "scale-info?/std",
 ]
 substrate = ["dep:codec", "dep:scale-info"]

@@ -3,6 +3,8 @@ use num_bigint::BigUint;
 use primitives_proofs::RegisteredSealProof;
 use sha2::{Digest, Sha256};
 
+use crate::Vec;
+
 /// Identificator of a proof version.
 /// There are multiple of those of FileCoin and we need to be compatible with them.
 /// The PoRepID used for Proof generation must be the same as the one used for Proof verification (here).

@@ -54,27 +54,6 @@ impl std::fmt::Display for FromBytesError {
 
 impl std::error::Error for FromBytesError {}
 
-impl std::io::Read for ByteBuffer {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        let n = std::cmp::min(self.0.len(), buf.len());
-        buf.copy_from_slice(&self.0[self.1..self.1 + n]);
-        self.1 += n;
-        Ok(n)
-    }
-}
-
-impl std::io::Write for ByteBuffer {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.0.extend_from_slice(buf);
-        assert!(buf.len() > 0, "{}", buf.len());
-        Ok(buf.len())
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        Ok(())
-    }
-}
-
 /// Method transforms a `blstrs::G1Affine` into a `bls12_381::G1Affine`.
 fn g1affine(affine: &blstrs::G1Affine) -> Result<G1Affine, FromBytesError> {
     G1Affine::from_uncompressed(&affine.to_uncompressed())
@@ -166,8 +145,8 @@ mod tests {
         let bp_vkey = random_bellperson_verifying_key();
         // Serialise it by using its `Read` implementation.
         let bytes = VERIFYINGKEY_MIN_BYTES + bp_vkey.ic.len() * G1AFFINE_UNCOMPRESSED_BYTES;
-        let mut bytes = ByteBuffer::new_with_size(bytes);
-        bp_vkey.write(bytes.0.as_mut_slice()).unwrap();
+        let mut bytes = vec![0u8; bytes];
+        bp_vkey.write(bytes.as_mut_slice()).unwrap();
         // Try to deserialise it by using `VerifyingKey::from_bytes()`.
         let vkey = VerifyingKey::<Bls12>::from_bytes(bytes.as_slice()).unwrap();
         // Compare their values.
@@ -203,10 +182,10 @@ mod tests {
             );
         }
         // Serialise our implementation as well by using `VerifyingKey::into_bytes()'.
-        let mut bytes = ByteBuffer::new_with_size(vkey.serialised_bytes());
+        let mut bytes = vec![0u8; vkey.serialised_bytes()];
         vkey.into_bytes(bytes.as_mut_slice()).unwrap();
         // Deserialise bytes to bellperson's VerifyingKey by using its `Write` implementation.
-        let bp_vkey_result = bp_g16::VerifyingKey::<blstrs::Bls12>::read(bytes).unwrap();
+        let bp_vkey_result = bp_g16::VerifyingKey::<blstrs::Bls12>::read(bytes.as_slice()).unwrap();
         // Compare initial struct with this one.
         assert_eq!(bp_vkey, bp_vkey_result);
     }
@@ -230,8 +209,8 @@ mod tests {
         // Generate a verifying key with bellperson crate.
         let bp_proof = random_bellperson_proof();
         // Serialise it by using its `Read` implementation.
-        let mut bytes = ByteBuffer::new_with_size(PROOF_BYTES);
-        bp_proof.write(bytes.0.as_mut_slice()).unwrap();
+        let mut bytes = vec![0u8; PROOF_BYTES];
+        bp_proof.write(bytes.as_mut_slice()).unwrap();
         // Try to deserialise it by using `Proof::from_bytes()`.
         let proof = Proof::<Bls12>::from_bytes(bytes.as_slice()).unwrap();
         // Compare their values.
@@ -239,10 +218,10 @@ mod tests {
         assert_eq!(bp_proof.b.to_compressed(), proof.b.to_compressed());
         assert_eq!(bp_proof.c.to_compressed(), proof.c.to_compressed());
         // Serialise our implementation as well by using `Proof::into_bytes()'.
-        let mut bytes = ByteBuffer::new_with_size(PROOF_BYTES);
+        let mut bytes = vec![0u8; PROOF_BYTES];
         proof.into_bytes(bytes.as_mut_slice()).unwrap();
         // Deserialise bytes to bellperson's VerifyingKey by using its `Write` implementation.
-        let bp_proof_result = bp_g16::Proof::<blstrs::Bls12>::read(bytes).unwrap();
+        let bp_proof_result = bp_g16::Proof::<blstrs::Bls12>::read(bytes.as_slice()).unwrap();
         // Compare initial struct with this one.
         assert_eq!(bp_proof, bp_proof_result);
     }

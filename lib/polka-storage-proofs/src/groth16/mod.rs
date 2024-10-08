@@ -34,11 +34,8 @@ pub use pairing::{
         prime::PrimeCurveAffine,
         Curve,
     },
-    Engine, MultiMillerLoop,
+    Engine, MillerLoopResult, MultiMillerLoop,
 };
-#[cfg(test)]
-use rand::SeedableRng;
-#[cfg(test)]
 use rand_xorshift::XorShiftRng;
 
 /// The number of bytes when serialising a `G1Affine` by using `G1Affine::to_compressed()`.
@@ -82,7 +79,6 @@ pub const PROOF_BYTES: usize = 2 * G1AFFINE_COMPRESSED_BYTES + 1 * G2AFFINE_COMP
 /// * <https://github.com/filecoin-project/bellperson/blob/master/src/groth16/verifying_key.rs#L14-L39>
 /// * <https://github.com/zkcrypto/bellman/blob/main/groth16/src/lib.rs#L103-L128>
 #[derive(Clone, Debug, Eq)]
-#[cfg_attr(feature = "substrate", derive(::scale_info::TypeInfo))]
 pub struct VerifyingKey<E: Engine> {
     /// Alpha in g1 for verifying and for creating A/C elements of proof.
     /// Never the point at infinity.
@@ -225,7 +221,6 @@ where
     }
 
     /// Method generates a `VerifyingKey` with random numbers.
-    #[cfg(test)]
     pub fn random(rng: &mut XorShiftRng) -> VerifyingKey<E> {
         VerifyingKey::<E> {
             alpha_g1: rand_g1affine(rng),
@@ -247,7 +242,6 @@ where
 /// - <https://github.com/filecoin-project/bellperson/blob/1264fa12bc2b79cdfbb1f5764349c9a22f2d8ea3/src/groth16/proof.rs#L14>
 /// - <https://github.com/zkcrypto/bellman/blob/9bb30a7bd261f2aa62840b80ed6750c622bebec3/src/groth16/mod.rs#L27>
 #[derive(Clone, Debug, Eq)]
-#[cfg_attr(feature = "substrate", derive(::scale_info::TypeInfo))]
 pub struct Proof<E: Engine> {
     pub a: E::G1Affine,
     pub b: E::G2Affine,
@@ -309,8 +303,12 @@ where
         Ok(Proof::<E> { a, b, c })
     }
 
+    /// Method returns the number of bytes when serialised.
+    pub const fn serialised_bytes() -> usize {
+        PROOF_BYTES
+    }
+
     /// Method generates a `Proof` with random numbers.
-    #[cfg(test)]
     pub fn random(rng: &mut XorShiftRng) -> Proof<E> {
         Proof::<E> {
             a: rand_g1affine(rng),
@@ -383,52 +381,18 @@ fn from_fixed_buffer(bytes: &mut [u8], idx: usize, buffer: &[u8]) -> usize {
     end
 }
 
-#[cfg(test)]
-pub fn rand_g1affine(rng: &mut XorShiftRng) -> G1Affine {
+fn rand_g1affine(rng: &mut XorShiftRng) -> G1Affine {
     (G1Affine::generator() * Scalar::random(rng)).into()
 }
 
-#[cfg(test)]
-pub fn rand_g2affine(rng: &mut XorShiftRng) -> G2Affine {
+fn rand_g2affine(rng: &mut XorShiftRng) -> G2Affine {
     (G2Affine::generator() * Scalar::random(rng)).into()
-}
-
-/// Helper definition that implements `codec::Output`.
-pub struct ByteBuffer(Vec<u8>, usize);
-
-impl ByteBuffer {
-    /// New type pattern. Initialises an empty buffer.
-    pub fn new() -> ByteBuffer {
-        ByteBuffer(Vec::<u8>::new(), 0)
-    }
-
-    /// New type patterns with pre-initialised given size.
-    pub fn new_with_size(len: usize) -> ByteBuffer {
-        let mut vec = Vec::<u8>::with_capacity(len);
-        for _ in 0..len {
-            vec.push(0);
-        }
-        ByteBuffer(vec, 0)
-    }
-
-    /// Returns the internal buffer as a non-mutable slice.
-    pub fn as_slice(&self) -> &[u8] {
-        self.0.as_slice()
-    }
-
-    /// Returns the internal buffer as a mutable slice.
-    pub fn as_mut_slice(&mut self) -> &mut [u8] {
-        self.0.as_mut_slice()
-    }
-
-    /// When reading from the buffer, this method returns how many bytes are left to be read.
-    pub fn bytes_to_read(&self) -> usize {
-        self.0.len() - self.1
-    }
 }
 
 #[cfg(test)]
 mod tests {
+    use rand::SeedableRng;
+
     use super::*;
 
     /// Locally used test seed for random number generation.
@@ -442,7 +406,7 @@ mod tests {
     fn verifyingkey_into_bytes_and_from_bytes() {
         let mut rng = XorShiftRng::from_seed(TEST_SEED);
         let vkey = VerifyingKey::<Bls12>::random(&mut rng);
-        let mut vkey_bytes = ByteBuffer::new_with_size(vkey.serialised_bytes());
+        let mut vkey_bytes = vec![0u8; vkey.serialised_bytes()];
         vkey.clone()
             .into_bytes(&mut vkey_bytes.as_mut_slice())
             .unwrap();
@@ -457,7 +421,7 @@ mod tests {
     fn proof_into_bytes_and_from_bytes() {
         let mut rng = XorShiftRng::from_seed(TEST_SEED);
         let proof = Proof::<Bls12>::random(&mut rng);
-        let mut proof_bytes = ByteBuffer::new_with_size(PROOF_BYTES);
+        let mut proof_bytes = vec![0u8; PROOF_BYTES];
         proof
             .clone()
             .into_bytes(&mut proof_bytes.as_mut_slice())

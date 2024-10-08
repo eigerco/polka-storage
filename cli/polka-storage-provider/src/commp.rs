@@ -78,7 +78,7 @@ pub fn calculate_piece_commitment<R: Read>(
         Ok(hash)
     });
     let tree = BinaryMerkleTree::<Sha256Hasher>::try_from_iter(elements_iterator)
-        .map_err(|err| CommPError::TreeBuildError(err.to_string()))?;
+        .map_err(|err| CommPError::TreeBuild(err.to_string()))?;
 
     // Read and return the root of the tree
     let mut commitment = [0; NODE_SIZE];
@@ -93,14 +93,12 @@ pub fn calculate_piece_commitment<R: Read>(
 
 #[derive(Debug, Error)]
 pub enum CommPError {
-    #[error("Piece is too small")]
-    PieceTooSmall,
     #[error("Piece is not valid size: {0}")]
     InvalidPieceSize(String),
     #[error("Tree build error: {0}")]
-    TreeBuildError(String),
+    TreeBuild(String),
     #[error("IOError: {0}")]
-    IOError(#[from] std::io::Error),
+    Io(#[from] std::io::Error),
 }
 
 #[cfg(test)]
@@ -110,6 +108,7 @@ mod tests {
     use primitives_proofs::SectorSize;
     use primitives_shared::piece::PaddedPieceSize;
 
+    use super::{calculate_piece_commitment, CommPError, ZeroPaddingReader};
     use crate::commands::utils::commp::{calculate_piece_commitment, ZeroPaddingReader};
 
     #[test]

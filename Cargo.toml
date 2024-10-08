@@ -42,7 +42,7 @@ substrate-wasm-builder = { git = "https://github.com/paritytech/polkadot-sdk", t
 
 anyhow = "1.0.86"
 async-channel = "2.3.1"
-async-stream = "0.3.5"
+async-stream = "0.3.6"
 async-trait = "0.1.80"
 axum = "0.7.5"
 base64 = "0.22.1"
@@ -123,6 +123,7 @@ zombienet-support = "0.2.9"
 cli-primitives = { path = "primitives/cli" }
 mater = { path = "storage/mater" }
 pallet-market = { path = "pallets/market", default-features = false }
+pallet-proofs = { path = "pallets/proofs", default-features = false }
 pallet-storage-provider = { path = "pallets/storage-provider", default-features = false }
 polka-storage-proofs = { path = "lib/polka-storage-proofs", default-features = false }
 polka-storage-runtime = { path = "runtime" }

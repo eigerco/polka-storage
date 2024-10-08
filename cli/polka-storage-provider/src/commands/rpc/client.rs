@@ -8,6 +8,9 @@ use url::Url;
 
 use crate::rpc::{client::PolkaStorageRpcClient, server::StorageProviderRpcClient};
 
+/// Default RPC server's URL.
+const DEFAULT_RPC_SERVER_URL: &str = "http://127.0.0.1:8000";
+
 #[derive(Debug, thiserror::Error)]
 pub enum ClientCommandError {
     #[error("the RPC client failed: {0}")]
@@ -20,8 +23,7 @@ pub enum ClientCommandError {
 #[derive(Debug, clap::Parser)]
 pub struct ClientCommand {
     /// URL of the providers RPC server.
-    // TODO(#398): replace the address with a constant
-    #[arg(long, default_value = "http://127.0.0.1:8000")]
+    #[arg(long, default_value = DEFAULT_RPC_SERVER_URL)]
     pub rpc_server_url: Url,
 
     #[clap(subcommand)]
@@ -32,6 +34,12 @@ pub struct ClientCommand {
 pub enum ClientSubcommand {
     /// Retrieve information about the provider's node.
     Info,
+    /// Propose a storage deal.
+    ProposeDeal {
+        /// Storage deal to propose. Either JSON or a file path, prepended with an @.
+        #[arg(value_parser = <SxtDealProposal as DeserializablePath>::deserialize_json )]
+        deal_proposal: SxtDealProposal,
+    },
     /// Publish a signed storage deal.
     PublishDeal {
         /// Storage deal to publish. Either JSON or a file path, prepended with an @.
@@ -60,14 +68,16 @@ impl ClientCommand {
                     serde_json::to_string_pretty(&info)
                         .expect("type is serializable so this call should never fail")
                 );
-                Ok(())
+            }
+            ClientSubcommand::ProposeDeal { deal_proposal } => {
+                let result = client.propose_deal(deal_proposal).await?;
+                println!("{}", result);
             }
             ClientSubcommand::PublishDeal {
                 client_deal_proposal,
             } => {
                 let result = client.publish_deal(client_deal_proposal).await?;
-                println!("{}", result.to_string());
-                Ok(())
+                println!("{}", result);
             }
             ClientSubcommand::SignDeal {
                 deal_proposal,
@@ -84,8 +94,8 @@ impl ClientCommand {
                     serde_json::to_string_pretty(&signature)
                         .expect("the type is serializable, so this should never fail")
                 );
-                Ok(())
             }
-        }
+        };
+        Ok(())
     }
 }

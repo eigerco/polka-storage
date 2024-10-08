@@ -394,3 +394,7 @@ impl pallet_market::Config for Runtime {
     type MinDealDuration = MinDealDuration;
     type MaxDealDuration = MaxDealDuration;
 }
+
+impl pallet_proofs::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+}

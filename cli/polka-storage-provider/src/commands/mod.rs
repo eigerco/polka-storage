@@ -1,12 +1,11 @@
 mod rpc;
-mod storage;
 mod utils;
 mod wallet;
 
 use clap::Parser;
 
 use self::utils::UtilsCommand;
-pub(super) use crate::commands::{rpc::RpcCommand, storage::StorageCommand, wallet::WalletCommand};
+pub(super) use crate::commands::{rpc::RpcCommand, wallet::WalletCommand};
 
 /// CLI components error handling implementor.
 #[derive(Debug, thiserror::Error)]
@@ -41,9 +40,6 @@ pub enum CliError {
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub(crate) enum Cli {
-    /// Launch the storage server.
-    Storage(StorageCommand),
-
     /// Command to manage wallet operations.
     #[command(subcommand)]
     Wallet(WalletCommand),
@@ -65,7 +61,6 @@ impl Cli {
         let cli_arguments: Cli = Cli::parse();
 
         match cli_arguments {
-            Self::Storage(cmd) => Ok(cmd.run().await?),
             Self::Wallet(cmd) => match cmd {
                 WalletCommand::GenerateNodeKey(cmd) => Ok(cmd.run()?),
                 WalletCommand::Generate(cmd) => Ok(cmd.run()?),
