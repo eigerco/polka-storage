@@ -103,6 +103,7 @@ mod tests {
 
     use primitives_proofs::SectorSize;
 
+    use primitives_commitment::piece::PaddedPieceSize;
     use super::{calculate_piece_commitment, ZeroPaddingReader};
 
     #[test]
