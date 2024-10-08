@@ -176,7 +176,7 @@ impl UtilsCommand {
 
                 println!("Creating sector...");
                 let sealer = Sealer::new(seal_proof.0);
-                sealer
+                let piece_infos = sealer
                     .create_sector(
                         vec![(piece_file, piece_info.clone())],
                         unsealed_sector.as_file_mut(),
@@ -189,7 +189,6 @@ impl UtilsCommand {
                 let prover_id = [0u8; 32];
                 let ticket = [12u8; 32];
                 let seed = [13u8; 32];
-                let piece_infos = vec![piece_info];
 
                 println!("Precommitting...");
                 let cache_directory =
