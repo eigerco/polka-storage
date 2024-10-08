@@ -197,14 +197,12 @@ pub fn piece_hash(a: &[u8], b: &[u8]) -> [u8; 32] {
     buf[..NODE_SIZE].copy_from_slice(a);
     buf[NODE_SIZE..].copy_from_slice(b);
 
-    let hashed = Sha256::digest(buf);
-    let mut result = [0u8; 32];
-    result.copy_from_slice(&hashed);
+    let mut hashed = Sha256::digest(buf);
 
     // strip last two bits, to ensure result is in Fr.
-    result[31] &= 0b0011_1111;
+    hashed[31] &= 0b0011_1111;
 
-    result
+    hashed.into()
 }
 
 #[derive(Debug)]

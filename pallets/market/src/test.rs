@@ -12,6 +12,7 @@ use primitives_proofs::{
     ActiveDeal, ActiveSector, DealId, Market as MarketTrait, RegisteredSealProof, SectorDeal,
     MAX_DEALS_PER_SECTOR,
 };
+use primitives_commitment::{Commitment, CommitmentKind};
 use sp_core::H256;
 use sp_runtime::AccountId32;
 
