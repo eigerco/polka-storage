@@ -416,7 +416,7 @@ where
                     .collect::<BTreeSet<_>>();
                 remaining = Some((rest, block_number));
                 result.sectors_processed += limit;
-                to_process.clone()
+                to_process
             } else {
                 processed.insert(block_number);
                 result.sectors_processed += count;
