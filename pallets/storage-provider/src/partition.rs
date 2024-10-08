@@ -384,7 +384,7 @@ where
         &mut self,
         max_sectors: u64,
     ) -> Result<(TerminationResult<BlockNumber>, /* has more */ bool), GeneralPalletError> {
-        let mut processed = BTreeSet::new();
+        let mut processed = Vec::new();
         let mut remaining = None;
         let mut result = TerminationResult::new();
         result.partitions_processed = 1;
@@ -397,14 +397,7 @@ where
                 // Filter out sector number that are < limit
                 let to_process = sectors
                     .iter()
-                    .enumerate()
-                    .filter_map(|(i, sector_number)| {
-                        if (i as u64) < limit {
-                            Some(sector_number)
-                        } else {
-                            None
-                        }
-                    })
+                    .take(limit as usize)
                     .copied()
                     .collect::<BTreeSet<_>>();
                 // Filter out the rest of the sectors that are not processed.
@@ -418,7 +411,7 @@ where
                 result.sectors_processed += limit;
                 to_process
             } else {
-                processed.insert(block_number);
+                processed.push(block_number);
                 result.sectors_processed += count;
                 sectors.clone().into_inner()
             };
