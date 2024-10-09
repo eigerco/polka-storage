@@ -89,8 +89,8 @@ impl UtilsCommand {
                         .map_err(|err| UtilsCommandError::CommPError(err))?;
                 let cid = commitment.cid();
 
-                println!("Piece commitment CID: {cid}");
-                println!("Padded size: {padded_piece_size}");
+                // NOTE(@jmg-duarte,09/10/2024): too lazy for proper json
+                println!("{{\n\t\"cid\": \"{cid}\",\n\t\"size\": {padded_piece_size}\n}}");
             }
             UtilsCommand::GeneratePoRepParams {
                 seal_proof,
