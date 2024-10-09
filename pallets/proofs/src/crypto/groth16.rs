@@ -15,7 +15,7 @@ use crate::Vec;
 /// - <https://github.com/zkcrypto/bellman/blob/3a1c43b01a89d426842df39b432de979917951e6/groth16/src/lib.rs#L400>
 /// - <https://github.com/filecoin-project/bellperson/blob/a594f329b05b6224047903fb51658e8a35a12fbd/src/groth16/verifying_key.rs#L200>
 #[derive(Clone, Decode, Default, Encode)]
-pub(crate) struct PreparedVerifyingKey<E: MultiMillerLoop> {
+struct PreparedVerifyingKey<E: MultiMillerLoop> {
     pub alpha_g1_beta_g2: E::Gt,
     pub neg_gamma_g2: E::G2Prepared,
     pub neg_delta_g2: E::G2Prepared,
@@ -40,9 +40,7 @@ impl<E: MultiMillerLoop> From<VerifyingKey<E>> for PreparedVerifyingKey<E> {
 ///
 /// References:
 /// - <https://github.com/zkcrypto/bellman/blob/3a1c43b01a89d426842df39b432de979917951e6/groth16/src/verifier.rs#L11>
-pub(crate) fn prepare_verifying_key<E: MultiMillerLoop>(
-    vkey: VerifyingKey<E>,
-) -> PreparedVerifyingKey<E> {
+fn prepare_verifying_key<E: MultiMillerLoop>(vkey: VerifyingKey<E>) -> PreparedVerifyingKey<E> {
     PreparedVerifyingKey::<E>::from(vkey)
 }
 
@@ -53,11 +51,13 @@ pub(crate) fn prepare_verifying_key<E: MultiMillerLoop>(
 /// References:
 /// - <https://github.com/zkcrypto/bellman/blob/3a1c43b01a89d426842df39b432de979917951e6/groth16/src/verifier.rs#L23>
 /// - <https://github.com/filecoin-project/bellperson/blob/a594f329b05b6224047903fb51658e8a35a12fbd/src/groth16/verifier.rs#L38>
-pub(crate) fn verify_proof<'a, E: MultiMillerLoop>(
-    pvk: &'a PreparedVerifyingKey<E>,
+pub fn verify_proof<E: MultiMillerLoop>(
+    vk: VerifyingKey<E>,
     proof: &Proof<E>,
     public_inputs: &[E::Fr],
 ) -> Result<(), VerificationError> {
+    let pvk = prepare_verifying_key(vk);
+
     if (public_inputs.len() + 1) != pvk.ic.len() {
         return Err(VerificationError::InvalidVerifyingKey);
     }

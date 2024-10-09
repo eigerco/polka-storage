@@ -10,6 +10,16 @@ pub type DealId = u64;
 // always be between 0 and SECTORS_MAX (32 << 20).
 pub type SectorNumber = u64;
 
+/// Byte representation of the entity that was signing the proof.
+/// It must match the ProverId used for Proving.
+pub type ProverId = [u8; 32];
+
+/// Byte representation of a commitment - CommR or CommD.
+pub type RawCommitment = [u8; 32];
+
+/// Byte representation of randomness seed, it's used for challenge generation.
+pub type Ticket = [u8; 32];
+
 /// SectorSize indicates one of a set of possible sizes in the network.
 #[derive(
     Encode, Decode, DecodeAsType, EncodeAsType, TypeInfo, Clone, RuntimeDebug, PartialEq, Eq, Copy,

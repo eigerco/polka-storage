@@ -1,12 +1,12 @@
 mod config;
 
 use config::{Config, PoRepID};
-use primitives_proofs::RegisteredSealProof;
+use primitives_proofs::{ProverId, RawCommitment, RegisteredSealProof, Ticket};
 use sha2::{Digest, Sha256};
 
 use crate::{
     crypto::groth16::{
-        verify_proof, Bls12, Fr, PreparedVerifyingKey, PrimeField, Proof, VerificationError,
+        verify_proof, Bls12, Fr, PrimeField, Proof, VerificationError, VerifyingKey,
     },
     fr32,
     graphs::{
@@ -16,13 +16,6 @@ use crate::{
     vec, Error, Vec,
 };
 
-/// Byte representation of the entity that was signing the proof.
-/// It must match the ProverId used for Proving.
-pub type ProverId = [u8; 32];
-/// Byte representation of a commitment - CommR or CommD.
-pub type Commitment = [u8; 32];
-/// Byte representation of randomness seed, it's used for challenge generation.
-pub type Ticket = [u8; 32];
 /// A unique 32-byte ID assigned to each distinct replica.
 /// Replication is the entire process by which a sector is uniquely encoded into a replica.
 pub type ReplicaId = Fr;
@@ -138,13 +131,13 @@ impl ProofScheme {
 
     pub fn verify(
         &self,
-        comm_r: &Commitment,
-        comm_d: &Commitment,
+        comm_r: &RawCommitment,
+        comm_d: &RawCommitment,
         prover_id: &ProverId,
         sector: u64,
         ticket: &Ticket,
         seed: &Ticket,
-        pvk: &PreparedVerifyingKey<Bls12>,
+        vk: VerifyingKey<Bls12>,
         proof: &Proof<Bls12>,
     ) -> Result<(), ProofError> {
         let comm_d_fr = fr32::bytes_into_fr(comm_d).map_err(|_| ProofError::Conversion)?;
@@ -162,7 +155,7 @@ impl ProofScheme {
 
         let public_inputs = self.generate_public_inputs(public_inputs, None)?;
 
-        verify_proof(pvk, proof, public_inputs.as_slice()).map_err(Into::<ProofError>::into)
+        verify_proof(vk, proof, public_inputs.as_slice()).map_err(Into::<ProofError>::into)
     }
 
     /// References:
@@ -172,7 +165,7 @@ impl ProofScheme {
         prover_id: &ProverId,
         sector: u64,
         ticket: &Ticket,
-        comm_d: &Commitment,
+        comm_d: &RawCommitment,
     ) -> ReplicaId {
         let hash = Sha256::new()
             .chain_update(prover_id)

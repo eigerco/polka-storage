@@ -171,6 +171,16 @@ mod test {
     use super::*;
 
     #[test]
+    fn ceil_log2_computation_same_as_filecoin() {
+        for n in 0..10001 {
+            let n_u64 = n as u64;
+            let n_buckets_fc = (n_u64 as f64).log2().ceil() as u64;
+            let n_buckets_we = crate::graphs::bucket::ceil_log2(n_u64);
+            assert_eq!(n_buckets_fc, n_buckets_we);
+        }
+    }
+
+    #[test]
     fn constructs_graph() {
         for &nodes in &[4, 16, 256, 2048] {
             let g = BucketGraph::new(nodes, [7u8; 28]).unwrap();
