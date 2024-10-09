@@ -1,4 +1,5 @@
 use jsonrpsee::core::ClientError;
+use polka_storage_provider_common::rpc::StorageProviderRpcClient;
 use storagext::{
     deser::DeserializablePath,
     multipair::{MultiPairArgs, MultiPairSigner},
@@ -6,7 +7,7 @@ use storagext::{
 };
 use url::Url;
 
-use crate::rpc::{client::PolkaStorageRpcClient, server::StorageProviderRpcClient};
+use crate::rpc_client::PolkaStorageRpcClient;
 
 /// Default RPC server's URL.
 const DEFAULT_RPC_SERVER_URL: &str = "http://127.0.0.1:8000";

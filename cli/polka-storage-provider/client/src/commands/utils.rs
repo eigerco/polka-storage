@@ -10,13 +10,13 @@ use polka_storage_proofs::{
     porep::{self, sealer::Sealer},
     types::PieceInfo,
 };
+use polka_storage_provider_common::commp::{
+    calculate_piece_commitment, CommPError, ZeroPaddingReader,
+};
 use primitives_commitment::piece::PaddedPieceSize;
 use primitives_proofs::RegisteredSealProof;
 
-use crate::{
-    commp::{calculate_piece_commitment, CommPError, ZeroPaddingReader},
-    CliError,
-};
+use crate::CliError;
 
 /// Utils sub-commands.
 #[derive(Debug, clap::Subcommand)]

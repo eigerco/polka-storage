@@ -9395,25 +9395,69 @@ dependencies = [
 ]
 
 [[package]]
-name = "polka-storage-provider"
+name = "polka-storage-provider-client"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "bls12_381",
+ "cid 0.11.1",
+ "clap",
+ "hex",
+ "jsonrpsee 0.23.2",
+ "mater",
+ "parity-scale-codec",
+ "polka-storage-proofs",
+ "polka-storage-provider-common",
+ "primitives-commitment",
+ "primitives-proofs",
+ "sc-cli",
+ "serde",
+ "serde_json",
+ "storagext",
+ "subxt",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber 0.3.18",
+ "url",
+]
+
+[[package]]
+name = "polka-storage-provider-common"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "cid 0.11.1",
+ "filecoin-hashers",
+ "fr32",
+ "jsonrpsee 0.23.2",
+ "primitives-commitment",
+ "serde",
+ "serde_json",
+ "storage-proofs-core",
+ "storagext",
+ "subxt",
+ "thiserror",
+]
+
+[[package]]
+name = "polka-storage-provider-server"
 version = "0.1.0"
 dependencies = [
  "async-trait",
  "axum",
- "bls12_381",
  "chrono",
  "cid 0.11.1",
  "clap",
  "filecoin-hashers",
  "fr32",
  "futures",
- "hex",
+ "ipld-core",
  "jsonrpsee 0.23.2",
  "mater",
- "parity-scale-codec",
- "polka-storage-proofs",
+ "polka-storage-provider-common",
  "primitives-commitment",
- "primitives-proofs",
  "rand",
  "rocksdb",
  "sc-cli",

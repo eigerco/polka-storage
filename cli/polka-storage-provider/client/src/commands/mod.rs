@@ -1,11 +1,11 @@
-mod rpc;
+mod client;
 mod utils;
 mod wallet;
 
 use clap::Parser;
 
-use self::utils::UtilsCommand;
-pub(super) use crate::commands::{rpc::RpcCommand, wallet::WalletCommand};
+use self::{client::ClientCommand, utils::UtilsCommand};
+pub(super) use crate::commands::wallet::WalletCommand;
 
 /// CLI components error handling implementor.
 #[derive(Debug, thiserror::Error)]
@@ -29,7 +29,7 @@ pub enum CliError {
     MaterError(#[from] mater::Error),
 
     #[error(transparent)]
-    RpcCommand(#[from] crate::commands::rpc::RpcCommandError),
+    RpcCommand(#[from] crate::commands::client::ClientCommandError),
 
     #[error(transparent)]
     UtilsCommand(#[from] crate::commands::utils::UtilsCommandError),
@@ -45,8 +45,7 @@ pub(crate) enum Cli {
     Wallet(WalletCommand),
 
     /// RPC related commands, namely the `server` and `client`.
-    #[command(subcommand)]
-    Rpc(RpcCommand),
+    Client(ClientCommand),
 
     /// Utility commands for storage related actions.
     #[command(subcommand)]
@@ -70,7 +69,7 @@ impl Cli {
                 WalletCommand::Verify(cmd) => Ok(cmd.run()?),
                 WalletCommand::Sign(cmd) => Ok(cmd.run()?),
             },
-            Self::Rpc(rpc) => Ok(rpc.run().await?),
+            Self::Client(cmd) => Ok(cmd.run().await?),
             Self::Utils(utils) => Ok(utils.run().await?),
         }
     }

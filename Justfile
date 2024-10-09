@@ -16,7 +16,7 @@ build: lint
 release: lint
     cargo build --release
 
-release-testnet: lint
+release-testnet: 
     cargo build --release --features polka-storage-runtime/testnet
 
 testnet: release-testnet

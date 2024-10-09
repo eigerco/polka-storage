@@ -1,3 +1,9 @@
+//! This module contains the RPC client implementation.
+//!
+//! When using [`jsonrpsee`] one needs to implement [`ClientT`],
+//! this module covers that, furthermore, the client it provides
+//! supports both WebSockets and HTTP.
+
 use jsonrpsee::{
     core::{
         client::{BatchResponse, ClientT, Subscription, SubscriptionClientT},

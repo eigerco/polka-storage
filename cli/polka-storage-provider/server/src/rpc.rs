@@ -1,17 +1,15 @@
-use std::{fmt::Debug, net::SocketAddr, path::PathBuf, sync::Arc};
+use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 
-use chrono::{DateTime, Utc};
-use jsonrpsee::{proc_macros::rpc as jsonrpsee_rpc, server::Server};
-use serde::{Deserialize, Serialize};
+use jsonrpsee::server::Server;
+use polka_storage_provider_common::rpc::{RpcError, ServerInfo, StorageProviderRpcServer};
 use storagext::{
     types::market::{ClientDealProposal as SxtClientDealProposal, DealProposal as SxtDealProposal},
     MarketClientExt,
 };
-use subxt::ext::sp_core::crypto::Ss58Codec;
 use tokio_util::sync::CancellationToken;
 use tracing::{info, instrument};
 
-use crate::{db::DealDB, rpc::RpcError};
+use crate::db::DealDB;
 
 /// RPC server shared state.
 pub struct RpcServerState {
@@ -21,62 +19,6 @@ pub struct RpcServerState {
     pub storage_dir: Arc<PathBuf>,
     pub xt_client: storagext::Client,
     pub xt_keypair: storagext::multipair::MultiPairSigner,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ServerInfo {
-    /// The server's start time.
-    pub start_time: DateTime<Utc>,
-
-    /// The server's account ID.
-    #[serde(deserialize_with = "deserialize_address")]
-    #[serde(serialize_with = "serialize_address")]
-    pub address: <storagext::PolkaStorageConfig as subxt::Config>::AccountId,
-}
-
-impl ServerInfo {
-    /// Construct a new [`ServerInfo`] instance, start time will be set to [`Utc::now`].
-    pub fn new(address: <storagext::PolkaStorageConfig as subxt::Config>::AccountId) -> Self {
-        Self {
-            start_time: Utc::now(),
-            address,
-        }
-    }
-}
-
-fn serialize_address<S>(
-    address: &<storagext::PolkaStorageConfig as subxt::Config>::AccountId,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    serializer.serialize_str(&address.to_ss58check())
-}
-
-fn deserialize_address<'de, D>(
-    deserializer: D,
-) -> Result<<storagext::PolkaStorageConfig as subxt::Config>::AccountId, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let s = String::deserialize(deserializer)?;
-    <storagext::PolkaStorageConfig as subxt::Config>::AccountId::from_ss58check(&s)
-        .map_err(|err| serde::de::Error::custom(format!("invalid ss58 string: {}", err)))
-}
-
-#[jsonrpsee_rpc(server, client, namespace = "v0")]
-pub trait StorageProviderRpc {
-    /// Fetch server information.
-    #[method(name = "info")]
-    async fn info(&self) -> Result<ServerInfo, RpcError>;
-
-    #[method(name = "propose_deal")]
-    async fn propose_deal(&self, deal: SxtDealProposal) -> Result<cid::Cid, RpcError>;
-
-    /// Publish a deal, the published deal ID will be returned.
-    #[method(name = "publish_deal")]
-    async fn publish_deal(&self, deal: SxtClientDealProposal) -> Result<u64, RpcError>;
 }
 
 #[async_trait::async_trait]

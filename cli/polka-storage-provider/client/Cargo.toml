@@ -1,0 +1,39 @@
+[package]
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+name = "polka-storage-provider-client"
+repository.workspace = true
+version = "0.1.0"
+
+[dependencies]
+# "Homegrown" crates
+mater = { workspace = true }
+polka-storage-provider-common = { workspace = true }
+storagext = { workspace = true, features = ["clap", "insecure_url"] }
+
+async-trait = { workspace = true }
+bls12_381 = { workspace = true }
+cid = { workspace = true, features = ["std"] }
+clap = { workspace = true, features = ["derive"] }
+codec = { workspace = true }
+hex = { workspace = true }
+jsonrpsee = { workspace = true, features = ["http-client", "macros", "server", "ws-client"] }
+polka-storage-proofs = { workspace = true, features = ["std", "substrate"] }
+primitives-commitment = { workspace = true }
+primitives-proofs = { workspace = true, features = ["std"] }
+sc-cli = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+subxt = { workspace = true }
+tempfile = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+url = { workspace = true }
+
+
+[lints]
+workspace = true

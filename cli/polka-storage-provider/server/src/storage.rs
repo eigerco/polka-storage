@@ -10,6 +10,7 @@ use axum::{
 };
 use futures::{TryFutureExt, TryStreamExt};
 use mater::Cid;
+use polka_storage_provider_common::commp::{calculate_piece_commitment, CommPError};
 use primitives_commitment::piece::PaddedPieceSize;
 use tokio::{
     fs::{self, File},
@@ -22,10 +23,7 @@ use tokio_util::{
 use tower_http::trace::TraceLayer;
 use uuid::Uuid;
 
-use crate::{
-    commp::{calculate_piece_commitment, CommPError},
-    db::DealDB,
-};
+use crate::db::DealDB;
 
 /// Shared state of the storage server.
 pub struct StorageServerState {
