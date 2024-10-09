@@ -9383,6 +9383,7 @@ dependencies = [
  "primitives-proofs",
  "rand",
  "rand_xorshift",
+ "rstest",
  "scale-info",
  "storage-proofs-core",
  "storage-proofs-porep",
