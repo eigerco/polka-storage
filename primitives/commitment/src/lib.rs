@@ -1,5 +1,6 @@
 #![no_std]
 
+pub mod commd;
 pub mod piece;
 mod zero;
 

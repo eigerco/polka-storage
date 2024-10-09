@@ -1,12 +1,14 @@
 extern crate alloc;
 use alloc::vec::Vec;
+use core::ops::Deref;
 
-use primitives_commitment::{
-    piece::{PaddedPieceSize, UnpaddedPieceSize},
-    zero_piece_commitment, Commitment, CommitmentKind, NODE_SIZE,
-};
 use primitives_proofs::SectorSize;
 use sha2::{Digest, Sha256};
+
+use crate::{
+    piece::{PaddedPieceSize, PieceInfo, UnpaddedPieceSize},
+    zero_piece_commitment, Commitment, CommitmentKind, NODE_SIZE,
+};
 
 // Ensure that the pieces are correct sizes
 fn ensure_piece_sizes(
@@ -48,18 +50,10 @@ pub fn compute_unsealed_sector_commitment(
 
     // Reduce the pieces to the 1-piece commitment
     let mut reduction = CommDPieceReduction::new();
-    reduction.add_many_pieces(piece_infos);
+    reduction.add_pieces(piece_infos.iter().copied());
     let commitment = reduction.finish().expect("at least one piece was added");
 
     Ok(commitment)
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct PieceInfo {
-    /// Piece commitment
-    pub commitment: Commitment,
-    /// Piece size
-    pub size: PaddedPieceSize,
 }
 
 /// Reduces the pieces to the data commitment of those pieces.
@@ -73,9 +67,12 @@ impl CommDPieceReduction {
         CommDPieceReduction { pieces: Vec::new() }
     }
 
-    // Add many pieces pieces
-    fn add_many_pieces(&mut self, pieces: &[PieceInfo]) {
-        pieces.iter().for_each(|piece| self.add_piece(*piece));
+    // Add many pieces
+    fn add_pieces<P>(&mut self, pieces: P)
+    where
+        P: Iterator<Item = PieceInfo>,
+    {
+        pieces.for_each(|p| self.add_piece(p));
     }
 
     // Add a single piece
@@ -89,10 +86,13 @@ impl CommDPieceReduction {
         // Add padding pieces to the stack until we reduce the current pieces to
         // the size that is equal to the new piece. With this we achieve that
         // the new piece will be reduced to a single piece after adding it to
-        // the stack.
-        loop {
-            let last_added_piece_size = self.pieces.last().expect("at least one piece exists").size;
-            if *last_added_piece_size >= *piece.size {
+        // the stack. Will always iterate at least once since if it was empty
+        // the first condition would have triggered and returned.
+        while let Some(last_piece) = self.pieces.last() {
+            let last_added_piece_size = last_piece.size;
+            // We can stop stop adding padding pieces if the last added padding
+            // piece is the same size as the actual piece.
+            if last_added_piece_size.deref() >= piece.size.deref() {
                 break;
             }
 

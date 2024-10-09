@@ -9,6 +9,8 @@ version = "0.1.0"
 
 [dependencies]
 cid.workspace = true
+primitives-proofs.workspace = true
+sha2.workspace = true
 
 [dev-dependencies]
 rand = { workspace = true, features = ["std", "std_rng"] }

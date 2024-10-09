@@ -7,8 +7,6 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-mod commd;
-
 pub use pallet::*;
 
 #[cfg(test)]
@@ -38,7 +36,11 @@ pub mod pallet {
         PalletId,
     };
     use frame_system::{pallet_prelude::*, Config as SystemConfig, Pallet as System};
-    use primitives_commitment::{piece::PaddedPieceSize, Commitment, CommitmentKind};
+    use primitives_commitment::{
+        commd::compute_unsealed_sector_commitment,
+        piece::{PaddedPieceSize, PieceInfo},
+        Commitment, CommitmentKind,
+    };
     use primitives_proofs::{
         ActiveDeal, ActiveSector, DealId, Market, RegisteredSealProof, SectorDeal, SectorId,
         SectorNumber, SectorSize, StorageProviderValidation, MAX_DEALS_FOR_ALL_SECTORS,
@@ -47,8 +49,6 @@ pub mod pallet {
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::BaseArithmetic;
     use sp_std::vec::Vec;
-
-    use crate::commd::compute_unsealed_sector_commitment;
 
     pub const LOG_TARGET: &'static str = "runtime::market";
 
@@ -969,11 +969,10 @@ pub mod pallet {
 
         /// <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L1370>
         fn compute_commd<'a>(
-            proposals: impl IntoIterator<Item = &'a DealProposalOf<T>>,
+            proposals: impl Iterator<Item = &'a DealProposalOf<T>>,
             sector_type: RegisteredSealProof,
         ) -> Result<Cid, DispatchError> {
             let pieces = proposals
-                .into_iter()
                 .map(|p| {
                     let cid = p.cid()?;
                     let commitment = Commitment::from_cid(&cid, CommitmentKind::Piece)
@@ -981,7 +980,7 @@ pub mod pallet {
                     let size = PaddedPieceSize::new(p.piece_size)
                         .map_err(|err| ProposalError::InvalidPieceSize(err))?;
 
-                    Ok(crate::commd::PieceInfo { size, commitment })
+                    Ok(PieceInfo { size, commitment })
                 })
                 .collect::<Result<Vec<_>, ProposalError>>();
 

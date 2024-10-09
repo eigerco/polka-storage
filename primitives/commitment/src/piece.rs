@@ -1,6 +1,15 @@
 use core::ops::{Add, AddAssign, Deref};
 
-use crate::NODE_SIZE;
+use crate::{Commitment, NODE_SIZE};
+
+/// Piece info contains piece commitment and piece size.
+#[derive(Debug, Clone, Copy)]
+pub struct PieceInfo {
+    /// Piece commitment
+    pub commitment: Commitment,
+    /// Piece size
+    pub size: PaddedPieceSize,
+}
 
 /// Size of a piece in bytes. Unpadded piece size should be power of two
 /// multiple of 127.

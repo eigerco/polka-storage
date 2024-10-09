@@ -115,9 +115,9 @@ pub fn sign(pair: &sp_core::sr25519::Pair, bytes: &[u8]) -> MultiSignature {
     MultiSignature::Sr25519(pair.sign(bytes))
 }
 
-// TODO: Remove this function. The codec and hashing is not correct. This is
-// still here because I don't want to make the PR even bigger by changing parts
-// of the implementations that are relying on this.
+// TODO(#442,@cernicc,09/10/2024): Remove this function. The codec and hashing
+// is not correct. This is still here because I don't want to make the PR even
+// bigger by changing parts of the implementations that are relying on this.
 pub fn cid_of(data: &str) -> cid::Cid {
     let cid_codec = 0x55;
     Cid::new_v1(cid_codec, Code::Blake2b256.digest(data.as_bytes()))
