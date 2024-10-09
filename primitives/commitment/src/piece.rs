@@ -64,7 +64,8 @@ impl Add for UnpaddedPieceSize {
     }
 }
 
-/// Size of a piece in bytes with padding. The size should be power of two.
+/// Size of a piece in bytes with padding. The size is always a power of two
+/// number.
 #[derive(PartialEq, Debug, Eq, Clone, Copy)]
 pub struct PaddedPieceSize(u64);
 
@@ -97,8 +98,14 @@ impl PaddedPieceSize {
     }
 
     /// The function accepts arbitrary size and transforms it to the
-    /// PaddedPieceSize. We first pad the size. After that we take the first
-    /// power of 2 number.
+    /// PaddedPieceSize:
+    ///
+    /// 1. We first add as many bytes as we get when we add "0" byte after each
+    ///    127 bytes. That is because we are padding the sector content with
+    ///    "Fr32 padding".
+    /// 2. We "round" the padded size to the first power of two number. That is
+    ///    needed because we use Binary Merkle Tree for the CommD/CommP
+    ///    computation.
     pub fn from_arbitrary_size(size: u64) -> Self {
         let padded_bytes = size + (size / 127);
         let padded_bytes = padded_bytes.next_power_of_two();

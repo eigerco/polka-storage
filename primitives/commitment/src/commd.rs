@@ -56,7 +56,20 @@ pub fn compute_unsealed_sector_commitment(
     Ok(commitment)
 }
 
-/// Reduces the pieces to the data commitment of those pieces.
+/// Reduces pieces passed to their data commitment. The process of the reduction
+/// is following:
+///
+/// 1. Pieces are added to the stack one by one.
+/// 2. After each piece is added, the stack is reduced by combining pieces of
+///    the same size.
+/// 3. If a piece to be added is larger than the last piece on the stack,
+///    padding pieces are added until the last piece on the stack is at least as
+///    large as the piece to be added.
+/// 4. The process continues until all pieces have been added and reduced.
+/// 5. At the end, if there is more than one piece on the stack, padding pieces
+///    are added until the stack can be reduced to a single piece.
+/// 6. The final single piece represents the data commitment for all the input
+///    pieces.
 struct CommDPieceReduction {
     /// Pieces stack
     pieces: Vec<PieceInfo>,
@@ -214,7 +227,8 @@ pub enum CommDError {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
+    use alloc::string::ToString;
+    use core::str::FromStr;
 
     use cid::Cid;
     use primitives_proofs::SectorSize;
@@ -237,7 +251,7 @@ mod tests {
     /// Reference: <https://github.com/ChainSafe/fil-actor-states/blob/9a508dbdd5d5049b135fbf908caa6cf18007a208/fil_actors_shared/src/abi/commp.rs#L145>
     #[test]
     fn compute_unsealed_sector_cid() {
-        let pieces = vec![
+        let pieces = [
             (
                 Some("baga6ea4seaqknzm22isnhsxt2s4dnw45kfywmhenngqq3nc7jvecakoca6ksyhy"),
                 256 << 20,
