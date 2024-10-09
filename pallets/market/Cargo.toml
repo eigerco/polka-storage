@@ -21,6 +21,7 @@ codec = { workspace = true, default-features = false, features = ["derive"] }
 hex = { workspace = true, default-features = false, features = ["alloc"] }
 log = { workspace = true }
 multihash-codetable = { workspace = true, features = ["blake2b"] }
+primitives-commitment = { workspace = true }
 primitives-proofs = { workspace = true, default-features = false }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 

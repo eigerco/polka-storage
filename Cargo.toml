@@ -16,6 +16,7 @@ members = [
   "pallets/market",
   "pallets/proofs",
   "pallets/storage-provider",
+  "primitives/commitment",
   "primitives/proofs",
   "runtime",
   "storage/mater",
@@ -126,6 +127,7 @@ pallet-proofs = { path = "pallets/proofs", default-features = false }
 pallet-storage-provider = { path = "pallets/storage-provider", default-features = false }
 polka-storage-proofs = { path = "lib/polka-storage-proofs", default-features = false }
 polka-storage-runtime = { path = "runtime" }
+primitives-commitment = { path = "primitives/commitment" }
 primitives-proofs = { path = "primitives/proofs", default-features = false }
 storagext = { path = "cli/polka-storage/storagext" }
 

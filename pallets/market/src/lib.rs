@@ -36,7 +36,11 @@ pub mod pallet {
         PalletId,
     };
     use frame_system::{pallet_prelude::*, Config as SystemConfig, Pallet as System};
-    use multihash_codetable::{Code, MultihashDigest};
+    use primitives_commitment::{
+        commd::compute_unsealed_sector_commitment,
+        piece::{PaddedPieceSize, PieceInfo},
+        Commitment, CommitmentKind,
+    };
     use primitives_proofs::{
         ActiveDeal, ActiveSector, DealId, Market, RegisteredSealProof, SectorDeal, SectorId,
         SectorNumber, SectorSize, StorageProviderValidation, MAX_DEALS_FOR_ALL_SECTORS,
@@ -46,7 +50,6 @@ pub mod pallet {
     use sp_arithmetic::traits::BaseArithmetic;
     use sp_std::vec::Vec;
 
-    pub const CID_CODEC: u64 = 0x55;
     pub const LOG_TARGET: &'static str = "runtime::market";
 
     /// Allows to extract Balance of an account via the Config::Currency associated type.
@@ -213,6 +216,9 @@ pub mod pallet {
         // It maybe doable using newtype pattern, however not sure how the UI on the frontend side would handle that anyways.
         // There is Encode/Decode implementation though, through the feature flag: `scale-codec`.
         pub piece_cid: BoundedVec<u8, ConstU32<128>>,
+        /// The value represents the size of the data piece after padding to the
+        /// nearest power of two. Padding ensures that all pieces can be
+        /// efficiently arranged in a binary tree structure for Merkle proofs.
         pub piece_size: u64,
         /// Storage Client's Account Id
         pub client: Address,
@@ -244,8 +250,10 @@ pub mod pallet {
         pub state: DealState<BlockNumber>,
     }
 
-    impl<Address, Balance: BaseArithmetic + Copy, BlockNumber: BaseArithmetic + Copy>
-        DealProposal<Address, Balance, BlockNumber>
+    impl<Address, Balance, BlockNumber> DealProposal<Address, Balance, BlockNumber>
+    where
+        Balance: BaseArithmetic + Copy,
+        BlockNumber: BaseArithmetic + Copy,
     {
         fn duration(&self) -> BlockNumber {
             self.end_block - self.start_block
@@ -451,6 +459,8 @@ pub mod pallet {
         TooManyDealsPerBlock,
         /// Try to call an operation as a storage provider but the account is not registered as a storage provider.
         StorageProviderNotRegistered,
+        /// CommD related error
+        CommD,
     }
 
     pub enum DealActivationError {
@@ -515,6 +525,10 @@ pub mod pallet {
         DealDurationOutOfBounds,
         /// Deal's piece_cid is invalid.
         InvalidPieceCid(cid::Error),
+        /// Deal's piece_size is invalid.
+        InvalidPieceSize(&'static str),
+        /// CommD related error
+        CommD(&'static str),
     }
 
     impl core::fmt::Debug for ProposalError {
@@ -540,6 +554,12 @@ pub mod pallet {
                 }
                 ProposalError::InvalidPieceCid(_err) => {
                     write!(f, "ProposalError::InvalidPieceCid")
+                }
+                ProposalError::InvalidPieceSize(err) => {
+                    write!(f, "ProposalError::InvalidPieceSize: {}", err)
+                }
+                ProposalError::CommD(err) => {
+                    write!(f, "ProposalError::CommD: {}", err)
                 }
             }
         }
@@ -949,17 +969,34 @@ pub mod pallet {
 
         /// <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L1370>
         fn compute_commd<'a>(
-            _proposals: impl IntoIterator<Item = &'a DealProposalOf<T>>,
-            _sector_type: RegisteredSealProof,
+            proposals: impl Iterator<Item = &'a DealProposalOf<T>>,
+            sector_type: RegisteredSealProof,
         ) -> Result<Cid, DispatchError> {
-            // TODO(@th7nder,#92,21/06/2024):
-            // https://github.com/filecoin-project/rust-fil-proofs/blob/daec42b64ae6bf9a537545d5f116d57b9a29cc11/filecoin-proofs/src/pieces.rs#L85
-            let cid = Cid::new_v1(
-                CID_CODEC,
-                Code::Blake2b256.digest(b"placeholder-to-be-done"),
-            );
+            let pieces = proposals
+                .map(|p| {
+                    let cid = p.cid()?;
+                    let commitment = Commitment::from_cid(&cid, CommitmentKind::Piece)
+                        .map_err(|err| ProposalError::CommD(err))?;
+                    let size = PaddedPieceSize::new(p.piece_size)
+                        .map_err(|err| ProposalError::InvalidPieceSize(err))?;
 
-            Ok(cid)
+                    Ok(PieceInfo { size, commitment })
+                })
+                .collect::<Result<Vec<_>, ProposalError>>();
+
+            let pieces = pieces.map_err(|err| {
+                log::error!("error occurred while processing pieces: {:?}", err);
+                Error::<T>::CommD
+            })?;
+
+            let sector_size = sector_type.sector_size();
+            let comm_d =
+                compute_unsealed_sector_commitment(sector_size, &pieces).map_err(|err| {
+                    log::error!("error occurred while computing commd: {:?}", err);
+                    Error::<T>::CommD
+                })?;
+
+            Ok(comm_d.cid())
         }
 
         /// <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L1388>

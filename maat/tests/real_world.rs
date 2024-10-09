@@ -141,10 +141,10 @@ async fn publish_storage_deals<Keypair>(
     // Publish a storage deal
     let husky_storage_deal = DealProposal {
         piece_cid: cid::Cid::try_from(
-            "bafybeihxgc67fwhdoxo2klvmsetswdmwwz3brpwwl76qizbsl6ypro6vxq",
+            "baga6ea4seaqgi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5i",
         )
         .expect("valid CID"),
-        piece_size: 1278,
+        piece_size: 2048,
         client: alice.account_id().clone(),
         provider: charlie.account_id().clone(),
         label: "My lovely Husky (husky.jpg)".to_owned(),
@@ -177,18 +177,24 @@ async fn pre_commit_sectors<Keypair>(client: &storagext::Client, charlie: &Keypa
 where
     Keypair: subxt::tx::Signer<PolkaStorageConfig>,
 {
-    // Pre commit sectors
+    // Unsealed sector commitment
+    let unsealed_cid =
+        cid::Cid::try_from("baga6ea4seaqgi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5i")
+            .expect("valid CID");
+
+    // Sealed sector commitment.
+    // Currently a placeholder value.
     let placeholder_cid =
         cid::Cid::try_from("bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu")
-            .unwrap();
+            .expect("valid CID");
 
     let sectors_pre_commit_info = vec![SectorPreCommitInfo {
         seal_proof: primitives_proofs::RegisteredSealProof::StackedDRG2KiBV1P1,
         sector_number: 1,
-        sealed_cid: placeholder_cid.clone(),
+        sealed_cid: placeholder_cid,
         deal_ids: vec![0],
         expiration: 165,
-        unsealed_cid: placeholder_cid,
+        unsealed_cid,
     }];
 
     let result = client

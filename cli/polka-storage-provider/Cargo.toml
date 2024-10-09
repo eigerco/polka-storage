@@ -23,9 +23,9 @@ filecoin-hashers.workspace = true
 fr32.workspace = true
 futures = { workspace = true }
 hex = { workspace = true }
-ipld-core.workspace = true
 jsonrpsee = { workspace = true, features = ["http-client", "macros", "server", "ws-client"] }
 polka-storage-proofs = { workspace = true, features = ["std", "substrate"] }
+primitives-commitment = { workspace = true }
 primitives-proofs = { workspace = true, features = ["std"] }
 rand = { workspace = true }
 rocksdb = { workspace = true }

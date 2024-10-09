@@ -1,11 +1,11 @@
 {
-    "files.trimTrailingWhitespace": true,
-    "rust-analyzer.rustfmt.extraArgs": ["+nightly"],
-    "rust-analyzer.checkOnSave": false,
-    "coverage-gutters.coverageBaseDir": "coverage",
-    "coverage-gutters.coverageFileNames": [
-        "pallet-storage-provider/lcov.info",
-        "pallet-market/lcov.info",
-        "mater/lcov.info"
-    ]
+  "files.trimTrailingWhitespace": true,
+  "rust-analyzer.rustfmt.extraArgs": ["+nightly"],
+  "rust-analyzer.checkOnSave": false,
+  "coverage-gutters.coverageBaseDir": "coverage",
+  "coverage-gutters.coverageFileNames": [
+    "pallet-storage-provider/lcov.info",
+    "pallet-market/lcov.info",
+    "mater/lcov.info"
+  ]
 }

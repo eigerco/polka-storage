@@ -8223,6 +8223,7 @@ dependencies = [
  "pallet-balances",
  "pallet-storage-provider",
  "parity-scale-codec",
+ "primitives-commitment",
  "primitives-proofs",
  "scale-info",
  "sp-arithmetic 26.0.0",
@@ -8698,6 +8699,7 @@ dependencies = [
  "pallet-balances",
  "pallet-market",
  "parity-scale-codec",
+ "primitives-commitment",
  "primitives-proofs",
  "rstest",
  "scale-info",
@@ -9404,11 +9406,11 @@ dependencies = [
  "fr32",
  "futures",
  "hex",
- "ipld-core",
  "jsonrpsee 0.23.2",
  "mater",
  "parity-scale-codec",
  "polka-storage-proofs",
+ "primitives-commitment",
  "primitives-proofs",
  "rand",
  "rocksdb",
@@ -10858,6 +10860,16 @@ dependencies = [
  "impl-serde",
  "scale-info",
  "uint",
+]
+
+[[package]]
+name = "primitives-commitment"
+version = "0.1.0"
+dependencies = [
+ "cid 0.11.1",
+ "primitives-proofs",
+ "rand",
+ "sha2 0.10.8",
 ]
 
 [[package]]

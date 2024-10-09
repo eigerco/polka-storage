@@ -15,7 +15,7 @@ use sp_runtime::{
     AccountId32, BuildStorage, MultiSignature, MultiSigner,
 };
 
-use crate::{self as pallet_market, BalanceOf, ClientDealProposal, DealProposal, CID_CODEC};
+use crate::{self as pallet_market, BalanceOf, ClientDealProposal, DealProposal};
 
 type Block = frame_system::mocking::MockBlock<Test>;
 type BlockNumber = u64;
@@ -115,8 +115,12 @@ pub fn sign(pair: &sp_core::sr25519::Pair, bytes: &[u8]) -> MultiSignature {
     MultiSignature::Sr25519(pair.sign(bytes))
 }
 
+// TODO(#442,@cernicc,09/10/2024): Remove this function. The codec and hashing
+// is not correct. This is still here because I don't want to make the PR even
+// bigger by changing parts of the implementations that are relying on this.
 pub fn cid_of(data: &str) -> cid::Cid {
-    Cid::new_v1(CID_CODEC, Code::Blake2b256.digest(data.as_bytes()))
+    let cid_codec = 0x55;
+    Cid::new_v1(cid_codec, Code::Blake2b256.digest(data.as_bytes()))
 }
 
 pub(crate) type DealProposalOf<T> =

@@ -10,6 +10,7 @@ use axum::{
 };
 use futures::{TryFutureExt, TryStreamExt};
 use mater::Cid;
+use primitives_commitment::piece::PaddedPieceSize;
 use tokio::{
     fs::{self, File},
     io::{AsyncRead, BufWriter},
@@ -22,7 +23,7 @@ use tower_http::trace::TraceLayer;
 use uuid::Uuid;
 
 use crate::{
-    commp::{calculate_piece_commitment, piece_commitment_cid, CommPError},
+    commp::{calculate_piece_commitment, CommPError},
     db::DealDB,
 };
 
@@ -206,8 +207,9 @@ async fn upload(
     let piece_commitment_cid = tokio::task::spawn_blocking(move || -> Result<_, CommPError> {
         let file = std::fs::File::open(&piece_path).map_err(CommPError::Io)?;
         let file_size = file.metadata().map_err(CommPError::Io)?.len();
+        let file_size = PaddedPieceSize::new(file_size).map_err(|err| CommPError::InvalidPieceSize(err.to_string()))?;
         let piece_commitment = calculate_piece_commitment(file, file_size)?;
-        let piece_commitment_cid = piece_commitment_cid(piece_commitment);
+        let piece_commitment_cid = piece_commitment.cid();
         tracing::debug!(path = %piece_path.display(), commp = %piece_commitment_cid, "calculated piece commitment");
         Ok(piece_commitment_cid)
     })

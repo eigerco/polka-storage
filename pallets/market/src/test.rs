@@ -8,6 +8,7 @@ use frame_support::{
     traits::Currency,
     BoundedVec,
 };
+use primitives_commitment::{Commitment, CommitmentKind};
 use primitives_proofs::{
     ActiveDeal, ActiveSector, DealId, Market as MarketTrait, RegisteredSealProof, SectorDeal,
     MAX_DEALS_PER_SECTOR,
@@ -625,8 +626,10 @@ fn verify_deals_for_activation() {
         assert_eq!(
             Ok(bounded_vec![
                 Some(
-                    Cid::from_str("bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu")
-                        .unwrap()
+                    Cid::from_str(
+                        "baga6ea4seaqgi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5i"
+                    )
+                    .unwrap()
                 ),
                 None,
             ]),
@@ -809,11 +812,12 @@ fn activate_deals() {
                 .build()
         ];
 
+        // Piece cid and commd cid are the same if only one piece is in a deal.
         let piece_cid =
-            Cid::from_str("bafk2bzacecg3xxc4f2ql2hreiuy767u6r72ekdz54k7luieknboaakhft5rgk")
+            Cid::from_str("baga6ea4seaqgi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5i")
                 .unwrap();
-        let placeholder_commd_cid =
-            Cid::from_str("bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu")
+        let commd_cid =
+            Cid::from_str("baga6ea4seaqgi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5i")
                 .unwrap();
         assert_eq!(
             Ok(bounded_vec![
@@ -821,9 +825,9 @@ fn activate_deals() {
                     active_deals: bounded_vec![ActiveDeal {
                         client: account::<Test>(ALICE),
                         piece_cid: piece_cid,
-                        piece_size: 18
+                        piece_size: 128
                     }],
-                    unsealed_cid: Some(placeholder_commd_cid),
+                    unsealed_cid: Some(commd_cid),
                 },
                 ActiveSector {
                     active_deals: bounded_vec![],
@@ -863,10 +867,10 @@ fn activate_deals_fails_for_1_sector_but_succeeds_for_others() {
         ];
 
         let piece_cid =
-            Cid::from_str("bafk2bzacecg3xxc4f2ql2hreiuy767u6r72ekdz54k7luieknboaakhft5rgk")
+            Cid::from_str("baga6ea4seaqgi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5i")
                 .unwrap();
         let placeholder_commd_cid =
-            Cid::from_str("bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu")
+            Cid::from_str("baga6ea4seaqgi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5i")
                 .unwrap();
         assert_eq!(
             Ok(bounded_vec![
@@ -874,7 +878,7 @@ fn activate_deals_fails_for_1_sector_but_succeeds_for_others() {
                     active_deals: bounded_vec![ActiveDeal {
                         client: account::<Test>(ALICE),
                         piece_cid: piece_cid,
-                        piece_size: 18
+                        piece_size: 128
                     }],
                     unsealed_cid: Some(placeholder_commd_cid),
                 },
@@ -1769,12 +1773,16 @@ pub struct DealProposalBuilder<T: frame_system::Config> {
 
 impl<T: frame_system::Config<AccountId = AccountId32>> Default for DealProposalBuilder<T> {
     fn default() -> Self {
+        let piece_commitment =
+            Commitment::new(*b"dummydummydummydummydummydummydu", CommitmentKind::Piece);
+
         Self {
-            piece_cid: cid_of("polka-storage-data")
+            piece_cid: piece_commitment
+                .cid()
                 .to_bytes()
                 .try_into()
                 .expect("hash is always 32 bytes"),
-            piece_size: 18,
+            piece_size: 128,
             client: account::<Test>(ALICE),
             provider: account::<Test>(PROVIDER),
             label: bounded_vec![0xb, 0xe, 0xe, 0xf],

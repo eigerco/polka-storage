@@ -9,7 +9,7 @@ use crate::{
     pallet::{Error, Event, StorageProviders},
     sector::{SectorPreCommitInfo, MAX_SECTORS},
     tests::{
-        account, cid_of, events, publish_deals, register_storage_provider, run_to_block, Balances,
+        account, events, publish_deals, register_storage_provider, run_to_block, Balances,
         MaxProveCommitDuration, MaxSectorExpiration, RuntimeEvent, RuntimeOrigin,
         SectorPreCommitInfoBuilder, StorageProvider, Test, ALICE, CHARLIE, INITIAL_FUNDS,
     },
@@ -25,7 +25,9 @@ fn successfully_precommited() {
         publish_deals(storage_provider);
 
         // Sector to be pre-committed.
-        let sector = SectorPreCommitInfoBuilder::default().build();
+        let sector = SectorPreCommitInfoBuilder::default()
+            .unsealed_cid("baga6ea4seaqeqgpphr6lmjhddjprb2etcfiml4sgr2kpju7kscfdj7227itm4hq")
+            .build();
 
         // Check starting balance
         assert_eq!(
@@ -78,12 +80,6 @@ fn successfully_precommited_no_deals() {
         let sector = SectorPreCommitInfoBuilder::default()
             // No sectors -> No CommD verification
             .deals(bounded_vec![])
-            .unsealed_cid(
-                cid_of("cc-unsealed-cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-            )
             .build();
 
         // Run pre commit extrinsic
@@ -141,6 +137,9 @@ fn successfully_precommited_batch() {
                 .try_push(
                     SectorPreCommitInfoBuilder::default()
                         .sector_number(sector_number)
+                        .unsealed_cid(
+                            "baga6ea4seaqeqgpphr6lmjhddjprb2etcfiml4sgr2kpju7kscfdj7227itm4hq",
+                        )
                         .build(),
                 )
                 .expect("BoundedVec should fit all 6 elements");
@@ -223,7 +222,9 @@ fn fails_sector_number_already_used() {
         publish_deals(storage_provider);
 
         // Sector to be pre-committed
-        let sector = SectorPreCommitInfoBuilder::default().build();
+        let sector = SectorPreCommitInfoBuilder::default()
+            .unsealed_cid("baga6ea4seaqeqgpphr6lmjhddjprb2etcfiml4sgr2kpju7kscfdj7227itm4hq")
+            .build();
 
         // Run pre commit extrinsic
         assert_ok!(StorageProvider::pre_commit_sectors(
@@ -251,12 +252,8 @@ fn fails_declared_commd_not_matching() {
 
         // Sector to be pre-committed
         let sector = SectorPreCommitInfoBuilder::default()
-            .unsealed_cid(
-                cid_of("different-unsealed-cid")
-                    .to_bytes()
-                    .try_into()
-                    .expect("hash is always 32 bytes"),
-            )
+            // wrong cid for for the sector
+            .unsealed_cid("baga6ea4seaqgi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5i")
             .build();
 
         assert_noop!(
