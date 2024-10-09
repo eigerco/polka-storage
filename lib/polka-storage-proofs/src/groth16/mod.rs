@@ -15,6 +15,9 @@
 //! * <https://github.com/VegeBun-csj/substrate-zk>
 //! * <https://github.com/bright/zk-snarks-with-substrate>
 //!
+//! Compared to `bellman`'s or `bellperson`'s implementations of the `VerifyingKey`, we use the
+//! compressed byte variant of `G1Affine` and `G2Affine` types instead.
+//!
 //! Note, that crate `bls12_381` is currently not audited.
 
 // TODO: (@neutrinoks,20/10/2024): Check if we can fix to Bls12 (VerifyingKey<Bls12>).
@@ -50,11 +53,22 @@ const G2AFFINE_UNCOMPRESSED_BYTES: usize = 192;
 /// This constant specifies the minimum number of bytes of a serialised `VerifyingKey`.
 ///
 /// It gets calculated by the defined number of serialised bytes of `G1Affine` and `G2Affine` in
-/// uncompressed format. An uncompressed serialised `G1Affine` are 96 bytes, an uncompressed
+/// compressed format. An compressed serialised `G1Affine` are 48 bytes, an compressed
+/// serialised `G2Affine` are 96 bytes. In `VerifyingKey` we have for sure 3 x `G1Affine` and
+/// 3 x `G2Affine`. One serialised `u32` variable will be added.
+/// That computes to: 3 x 48 + 3 * 96 + 4 = 436.
+pub const VERIFYINGKEY_MIN_BYTES: usize =
+    3 * G1AFFINE_COMPRESSED_BYTES + 3 * G2AFFINE_COMPRESSED_BYTES + 4;
+/// This constant specifies the minimum number of bytes of a serialised `VerifyingKey` of usual
+/// public implementations. Usual public implementations means similar implementations in crates
+/// `bellman` or `bellperson` based on `blstrs`s `Engine` implementation.
+///
+/// It gets calculated by the defined number of serialised bytes of `G1Affine` and `G2Affine` in
+/// compressed format. An compressed serialised `G1Affine` are 96 bytes, an compressed
 /// serialised `G2Affine` are 192 bytes. In `VerifyingKey` we have for sure 3 x `G1Affine` and
 /// 3 x `G2Affine`. One serialised `u32` variable will be added.
 /// That computes to: 3 x 96 + 3 * 192 + 4 = 868.
-pub const VERIFYINGKEY_MIN_BYTES: usize =
+pub const VERIFYINGKEY_MIN_BYTES_STD: usize =
     3 * G1AFFINE_UNCOMPRESSED_BYTES + 3 * G2AFFINE_UNCOMPRESSED_BYTES + 4;
 /// This constant specifies the maximum number of bytes of a serialised `VerifyingKey`.
 ///
@@ -131,15 +145,15 @@ where
 
         let mut idx = 0;
 
-        idx = from_fixed_buffer(buf, idx, &self.alpha_g1.to_uncompressed());
-        idx = from_fixed_buffer(buf, idx, &self.beta_g1.to_uncompressed());
-        idx = from_fixed_buffer(buf, idx, &self.beta_g2.to_uncompressed());
-        idx = from_fixed_buffer(buf, idx, &self.gamma_g2.to_uncompressed());
-        idx = from_fixed_buffer(buf, idx, &self.delta_g1.to_uncompressed());
-        idx = from_fixed_buffer(buf, idx, &self.delta_g2.to_uncompressed());
+        idx = from_fixed_buffer(buf, idx, &self.alpha_g1.to_compressed());
+        idx = from_fixed_buffer(buf, idx, &self.beta_g1.to_compressed());
+        idx = from_fixed_buffer(buf, idx, &self.beta_g2.to_compressed());
+        idx = from_fixed_buffer(buf, idx, &self.gamma_g2.to_compressed());
+        idx = from_fixed_buffer(buf, idx, &self.delta_g1.to_compressed());
+        idx = from_fixed_buffer(buf, idx, &self.delta_g2.to_compressed());
         idx = from_fixed_buffer(buf, idx, &(self.ic.len() as u32).to_be_bytes());
         for ic in &self.ic {
-            idx = from_fixed_buffer(buf, idx, &ic.to_uncompressed());
+            idx = from_fixed_buffer(buf, idx, &ic.to_compressed());
         }
 
         Ok(())
@@ -153,52 +167,52 @@ where
             return Err(FromBytesError::NumberOfSerialisedBytes);
         }
 
-        let mut g1_chunk = [0u8; G1AFFINE_UNCOMPRESSED_BYTES];
-        let mut g2_chunk = [0u8; G2AFFINE_UNCOMPRESSED_BYTES];
+        let mut g1_chunk = [0u8; G1AFFINE_COMPRESSED_BYTES];
+        let mut g2_chunk = [0u8; G2AFFINE_COMPRESSED_BYTES];
         let mut u32_chunk = [0u8; 4];
         let mut idx = 0;
 
         idx = to_fixed_buffer(&mut g1_chunk, idx, bytes);
-        let alpha_g1 = G1Affine::from_uncompressed(&g1_chunk)
+        let alpha_g1 = G1Affine::from_compressed(&g1_chunk)
             .into_option()
             .ok_or(FromBytesError::G1AffineConversion)?;
 
         idx = to_fixed_buffer(&mut g1_chunk, idx, bytes);
-        let beta_g1 = G1Affine::from_uncompressed(&g1_chunk)
+        let beta_g1 = G1Affine::from_compressed(&g1_chunk)
             .into_option()
             .ok_or(FromBytesError::G1AffineConversion)?;
 
         idx = to_fixed_buffer(&mut g2_chunk, idx, bytes);
-        let beta_g2 = G2Affine::from_uncompressed(&g2_chunk)
+        let beta_g2 = G2Affine::from_compressed(&g2_chunk)
             .into_option()
             .ok_or(FromBytesError::G2AffineConversion)?;
 
         idx = to_fixed_buffer(&mut g2_chunk, idx, bytes);
-        let gamma_g2 = G2Affine::from_uncompressed(&g2_chunk)
+        let gamma_g2 = G2Affine::from_compressed(&g2_chunk)
             .into_option()
             .ok_or(FromBytesError::G2AffineConversion)?;
 
         idx = to_fixed_buffer(&mut g1_chunk, idx, bytes);
-        let delta_g1 = G1Affine::from_uncompressed(&g1_chunk)
+        let delta_g1 = G1Affine::from_compressed(&g1_chunk)
             .into_option()
             .ok_or(FromBytesError::G1AffineConversion)?;
 
         idx = to_fixed_buffer(&mut g2_chunk, idx, bytes);
-        let delta_g2 = G2Affine::from_uncompressed(&g2_chunk)
+        let delta_g2 = G2Affine::from_compressed(&g2_chunk)
             .into_option()
             .ok_or(FromBytesError::G2AffineConversion)?;
 
         idx = to_fixed_buffer(&mut u32_chunk, idx, bytes);
         let ic_len = u32::from_be_bytes(u32_chunk) as usize;
-        if bytes.len() - idx != ic_len * G1AFFINE_UNCOMPRESSED_BYTES {
+        if bytes.len() - idx != ic_len * G1AFFINE_COMPRESSED_BYTES {
             return Err(FromBytesError::NumberOfSerialisedBytes);
         }
 
         let mut ic = Vec::<G1Affine>::new();
-        while idx <= bytes.len() - G1AFFINE_UNCOMPRESSED_BYTES {
+        while idx <= bytes.len() - G1AFFINE_COMPRESSED_BYTES {
             idx = to_fixed_buffer(&mut g1_chunk, idx, bytes);
             ic.push(
-                G1Affine::from_uncompressed(&g1_chunk)
+                G1Affine::from_compressed(&g1_chunk)
                     .into_option()
                     .ok_or(FromBytesError::G1AffineConversion)?,
             );
@@ -217,7 +231,7 @@ where
 
     /// Method returns the number of bytes when serialised.
     pub fn serialised_bytes(&self) -> usize {
-        VERIFYINGKEY_MIN_BYTES + self.ic.len() * G1AFFINE_UNCOMPRESSED_BYTES
+        VERIFYINGKEY_MIN_BYTES + self.ic.len() * G1AFFINE_COMPRESSED_BYTES
     }
 
     /// Method generates a `VerifyingKey` with random numbers.
@@ -275,8 +289,8 @@ where
 
     /// Tries to deserialise a given byte stream into `Proof`.
     pub fn from_bytes(bytes: &[u8]) -> Result<Proof<E>, FromBytesError> {
-        // G1Affine::to_uncompressed() transforms it into 96 bytes.
-        // G2Affine::to_uncompressed() transforms it into 192 bytes.
+        // G1Affine::to_compressed() transforms it into 48 bytes.
+        // G2Affine::to_compressed() transforms it into 96 bytes.
         if bytes.len() < PROOF_BYTES {
             return Err(FromBytesError::NumberOfSerialisedBytes);
         }
@@ -340,11 +354,11 @@ pub enum IntoBytesError {
 pub enum FromBytesError {
     /// The given number of bytes is not valid.
     NumberOfSerialisedBytes,
-    /// A conversion error when using `G1Affine::from_uncompressed()`.
+    /// A conversion error when using `G1Affine::from_compressed()`.
     G1AffineConversion,
-    /// A conversion error when using `G2Affine::from_uncompressed()`.
+    /// A conversion error when using `G2Affine::from_compressed()`.
     G2AffineConversion,
-    /// A conversion error when using 'Scalar::from_uncompressed()`.
+    /// A conversion error when using 'Scalar::from_compressed()`.
     ScalarConversion,
 }
 
