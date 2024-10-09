@@ -35,6 +35,11 @@ where
     }
 }
 
+impl<E> ::codec::EncodeLike for VerifyingKey<E> where
+    E: Engine<G1Affine = G1Affine, G2Affine = G2Affine>
+{
+}
+
 impl<E> ::codec::Encode for VerifyingKey<E>
 where
     E: Engine<G1Affine = G1Affine, G2Affine = G2Affine>,

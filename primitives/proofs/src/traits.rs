@@ -1,8 +1,10 @@
+extern crate alloc;
+
 use cid::Cid;
 use sp_core::ConstU32;
 use sp_runtime::{BoundedVec, DispatchError, DispatchResult, RuntimeDebug};
 
-use crate::types::{DealId, RegisteredSealProof, SectorNumber};
+use crate::types::{DealId, ProverId, RawCommitment, RegisteredSealProof, SectorNumber, Ticket};
 
 /// Size of a CID with a 512-bit multihash — i.e. the default CID size.
 const CID_SIZE_IN_BYTES: u32 = 64;
@@ -65,6 +67,20 @@ pub trait Market<AccountId, BlockNumber> {
 pub trait StorageProviderValidation<AccountId> {
     /// Checks that the storage provider is registered.
     fn is_registered_storage_provider(storage_provider: &AccountId) -> bool;
+}
+
+/// Entrypoint for proof verification implemented by Pallet Proofs.
+pub trait ProofVerification {
+    fn verify_porep(
+        prover_id: ProverId,
+        seal_proof: RegisteredSealProof,
+        comm_r: RawCommitment,
+        comm_d: RawCommitment,
+        sector: SectorNumber,
+        ticket: Ticket,
+        seed: Ticket,
+        proof: alloc::vec::Vec<u8>,
+    ) -> DispatchResult;
 }
 
 /// Binds given Sector with the Deals that it should contain
