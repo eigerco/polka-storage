@@ -525,6 +525,8 @@ pub mod pallet {
         DealDurationOutOfBounds,
         /// Deal's piece_cid is invalid.
         InvalidPieceCid(cid::Error),
+        /// Deal's piece_size is invalid.
+        InvalidPieceSize(&'static str),
         /// CommD related error
         CommD(&'static str),
     }
@@ -552,6 +554,9 @@ pub mod pallet {
                 }
                 ProposalError::InvalidPieceCid(_err) => {
                     write!(f, "ProposalError::InvalidPieceCid")
+                }
+                ProposalError::InvalidPieceSize(err) => {
+                    write!(f, "ProposalError::InvalidPieceSize: {}", err)
                 }
                 ProposalError::CommD(err) => {
                     write!(f, "ProposalError::CommD: {}", err)
@@ -974,7 +979,7 @@ pub mod pallet {
                     let commitment = Commitment::from_cid(&cid, CommitmentKind::Piece)
                         .map_err(|err| ProposalError::CommD(err))?;
                     let size = PaddedPieceSize::new(p.piece_size)
-                        .map_err(|err| ProposalError::CommD(err))?;
+                        .map_err(|err| ProposalError::InvalidPieceSize(err))?;
 
                     Ok(crate::commd::PieceInfo { size, commitment })
                 })
