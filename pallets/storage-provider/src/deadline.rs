@@ -9,7 +9,7 @@ use scale_info::{prelude::cmp, TypeInfo};
 
 use crate::{
     error::GeneralPalletError,
-    partition::{Partition, PartitionNumber, MAX_PARTITIONS_PER_DEADLINE},
+    partition::{Partition, PartitionNumber, TerminationResult, MAX_PARTITIONS_PER_DEADLINE},
     sector::{SectorOnChainInfo, MAX_SECTORS},
     sector_map::PartitionMap,
 };
@@ -330,6 +330,93 @@ where
         }
 
         Ok(())
+    }
+
+    /// Terminates sectors in the given partitions at the given block number
+    /// Fails if any of the partitions given in the `partition_numbers` is not found.
+    /// This functions is invoked by the `terminate_sectors` extrinsic when an SP calls that extrinsic
+    ///
+    /// Reference implementation:
+    /// * <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/actors/miner/src/deadline_state.rs#L568>
+    pub fn terminate_sectors(
+        &mut self,
+        block_number: BlockNumber,
+        sectors: &[SectorOnChainInfo<BlockNumber>],
+        partition_numbers: &[PartitionNumber],
+    ) -> Result<(), GeneralPalletError> {
+        for &partition_number in partition_numbers {
+            let partition = self
+                .partitions
+                .get_mut(&partition_number).ok_or({
+                    log::error!(target: LOG_TARGET, "terminate_sectors: Cannot find partition {partition_number}");
+                    GeneralPalletError::DeadlineErrorPartitionNotFound
+                })?;
+
+            let removed = partition.terminate_sectors(block_number, sectors)?;
+
+            if !removed.is_empty() {
+                // Record that partition now has pending early terminations.
+                self.early_terminations
+                    .try_insert(partition_number)
+                    .expect("Cannot have more terminations than MAX_PARTITIONS_PER_DEADLINE");
+
+                // Record change to sectors
+                self.live_sectors -= removed.len() as u64;
+            }
+        }
+        Ok(())
+    }
+
+    /// Pops early terminations until `max_sectors`, `max_partitions` or until there are none left
+    ///
+    /// Reference implementation:
+    /// * <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/actors/miner/src/deadline_state.rs#L489>
+    pub fn pop_early_terminations(
+        &mut self,
+        max_partitions: u64,
+        max_sectors: u64,
+    ) -> Result<(TerminationResult<BlockNumber>, /* has more */ bool), GeneralPalletError> {
+        let mut partitions_finished = Vec::new();
+        let mut result = TerminationResult::new();
+
+        for &partition_number in self.early_terminations.iter() {
+            let mut partition = match self.partitions.get_mut(&partition_number) {
+                Some(partition) => partition.clone(),
+                None => {
+                    partitions_finished.push(partition_number);
+                    continue;
+                }
+            };
+
+            // Pop early terminations
+            let (partition_result, more) =
+                partition.pop_early_terminations(max_sectors - result.sectors_processed)?;
+
+            result += partition_result;
+
+            // If we've processed all of them for this partition, unmark it in the deadline.
+            if !more {
+                partitions_finished.push(partition_number);
+            }
+
+            // Save partition
+            self.partitions
+                .try_insert(partition_number, partition)
+                .expect("Could not replace existing partition");
+
+            if !result.below_limit(max_partitions, max_sectors) {
+                break;
+            }
+        }
+
+        // Removed finished partitions
+        for finished in partitions_finished {
+            self.early_terminations.remove(&finished);
+        }
+
+        let no_early_terminations = self.early_terminations.iter().next().is_none();
+
+        Ok((result, !no_early_terminations))
     }
 }
 
