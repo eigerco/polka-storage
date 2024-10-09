@@ -8,11 +8,11 @@ use frame_support::{
     traits::Currency,
     BoundedVec,
 };
+use primitives_commitment::{Commitment, CommitmentKind};
 use primitives_proofs::{
     ActiveDeal, ActiveSector, DealId, Market as MarketTrait, RegisteredSealProof, SectorDeal,
     MAX_DEALS_PER_SECTOR,
 };
-use primitives_commitment::{Commitment, CommitmentKind};
 use sp_core::H256;
 use sp_runtime::AccountId32;
 
@@ -1773,10 +1773,8 @@ pub struct DealProposalBuilder<T: frame_system::Config> {
 
 impl<T: frame_system::Config<AccountId = AccountId32>> Default for DealProposalBuilder<T> {
     fn default() -> Self {
-        let piece_commitment = Commitment::new(
-            *b"dummydummydummydummydummydummydu",
-            CommitmentKind::Piece,
-        );
+        let piece_commitment =
+            Commitment::new(*b"dummydummydummydummydummydummydu", CommitmentKind::Piece);
 
         Self {
             piece_cid: piece_commitment
