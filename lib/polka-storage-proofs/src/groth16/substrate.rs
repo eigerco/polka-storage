@@ -48,17 +48,16 @@ where
         self.serialised_bytes()
     }
 
-    // TODO(@th7nder,#408, 28/09/2024): Encode/Decode, make it use `to_compressed` to reduce the bytes stored on-chain.
     fn encode_to<T: ::codec::Output + ?Sized>(&self, dest: &mut T) {
-        dest.write(&self.alpha_g1.to_uncompressed()[..]);
-        dest.write(&self.beta_g1.to_uncompressed()[..]);
-        dest.write(&self.beta_g2.to_uncompressed()[..]);
-        dest.write(&self.gamma_g2.to_uncompressed()[..]);
-        dest.write(&self.delta_g1.to_uncompressed()[..]);
-        dest.write(&self.delta_g2.to_uncompressed()[..]);
+        dest.write(&self.alpha_g1.to_compressed()[..]);
+        dest.write(&self.beta_g1.to_compressed()[..]);
+        dest.write(&self.beta_g2.to_compressed()[..]);
+        dest.write(&self.gamma_g2.to_compressed()[..]);
+        dest.write(&self.delta_g1.to_compressed()[..]);
+        dest.write(&self.delta_g2.to_compressed()[..]);
         dest.write(&(self.ic.len() as u32).to_be_bytes()[..]);
         for ic in &self.ic {
-            dest.write(&ic.to_uncompressed()[..]);
+            dest.write(&ic.to_compressed()[..]);
         }
     }
 
@@ -78,37 +77,37 @@ impl<E: Engine> ::scale_info::TypeInfo for VerifyingKey<E> {
             .composite(
                 scale_info::build::Fields::named()
                     .field(|f| {
-                        f.ty::<[u8; G1AFFINE_UNCOMPRESSED_BYTES]>()
+                        f.ty::<[u8; G1AFFINE_COMPRESSED_BYTES]>()
                             .name("alpha_g1")
                             .type_name("G1Affine")
                     })
                     .field(|f| {
-                        f.ty::<[u8; G1AFFINE_UNCOMPRESSED_BYTES]>()
+                        f.ty::<[u8; G1AFFINE_COMPRESSED_BYTES]>()
                             .name("beta_g1")
                             .type_name("G1Affine")
                     })
                     .field(|f| {
-                        f.ty::<[u8; G2AFFINE_UNCOMPRESSED_BYTES]>()
+                        f.ty::<[u8; G2AFFINE_COMPRESSED_BYTES]>()
                             .name("beta_g2")
                             .type_name("G2Affine")
                     })
                     .field(|f| {
-                        f.ty::<[u8; G2AFFINE_UNCOMPRESSED_BYTES]>()
+                        f.ty::<[u8; G2AFFINE_COMPRESSED_BYTES]>()
                             .name("gamma_g2")
                             .type_name("G2Affine")
                     })
                     .field(|f| {
-                        f.ty::<[u8; G1AFFINE_UNCOMPRESSED_BYTES]>()
+                        f.ty::<[u8; G1AFFINE_COMPRESSED_BYTES]>()
                             .name("delta_g1")
                             .type_name("G1Affine")
                     })
                     .field(|f| {
-                        f.ty::<[u8; G2AFFINE_UNCOMPRESSED_BYTES]>()
+                        f.ty::<[u8; G2AFFINE_COMPRESSED_BYTES]>()
                             .name("delta_g2")
                             .type_name("G2Affine")
                     })
                     .field(|f| {
-                        f.ty::<Vec<[u8; G1AFFINE_UNCOMPRESSED_BYTES]>>()
+                        f.ty::<Vec<[u8; G1AFFINE_COMPRESSED_BYTES]>>()
                             .name("ic")
                             .type_name("Vec<G1Affine>")
                     }),
@@ -170,17 +169,17 @@ impl<E: Engine> ::scale_info::TypeInfo for Proof<E> {
             .composite(
                 scale_info::build::Fields::named()
                     .field(|f| {
-                        f.ty::<[u8; G1AFFINE_UNCOMPRESSED_BYTES]>()
+                        f.ty::<[u8; G1AFFINE_COMPRESSED_BYTES]>()
                             .name("a")
                             .type_name("G1Affine")
                     })
                     .field(|f| {
-                        f.ty::<[u8; G2AFFINE_UNCOMPRESSED_BYTES]>()
+                        f.ty::<[u8; G2AFFINE_COMPRESSED_BYTES]>()
                             .name("b")
                             .type_name("G2Affine")
                     })
                     .field(|f| {
-                        f.ty::<[u8; G1AFFINE_UNCOMPRESSED_BYTES]>()
+                        f.ty::<[u8; G1AFFINE_COMPRESSED_BYTES]>()
                             .name("c")
                             .type_name("G1Affine")
                     }),

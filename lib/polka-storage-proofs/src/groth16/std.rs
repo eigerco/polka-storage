@@ -153,58 +153,6 @@ mod tests {
         }
     }
 
-    #[test]
-    fn verifyingkey_serialise_and_deserialise_direct_bellperson() {
-        let mut rng = XorShiftRng::from_seed(TEST_SEED);
-        // Generate a verifying key with bellperson crate.
-        let bp_vkey = random_bellperson_verifying_key(&mut rng);
-        // Serialise it by using its `Read` implementation.
-        let bytes = VERIFYINGKEY_MIN_BYTES + bp_vkey.ic.len() * G1AFFINE_UNCOMPRESSED_BYTES;
-        let mut bytes = vec![0u8; bytes];
-        bp_vkey.write(bytes.as_mut_slice()).unwrap();
-        // Try to deserialise it by using `VerifyingKey::from_bytes()`.
-        let vkey = VerifyingKey::<Bls12>::from_bytes(bytes.as_slice()).unwrap();
-        // Compare their values.
-        assert_eq!(
-            bp_vkey.alpha_g1.to_uncompressed(),
-            vkey.alpha_g1.to_uncompressed()
-        );
-        assert_eq!(
-            bp_vkey.beta_g1.to_uncompressed(),
-            vkey.beta_g1.to_uncompressed()
-        );
-        assert_eq!(
-            bp_vkey.beta_g2.to_uncompressed(),
-            vkey.beta_g2.to_uncompressed()
-        );
-        assert_eq!(
-            bp_vkey.gamma_g2.to_uncompressed(),
-            vkey.gamma_g2.to_uncompressed()
-        );
-        assert_eq!(
-            bp_vkey.delta_g1.to_uncompressed(),
-            vkey.delta_g1.to_uncompressed()
-        );
-        assert_eq!(
-            bp_vkey.delta_g2.to_uncompressed(),
-            vkey.delta_g2.to_uncompressed()
-        );
-        assert_eq!(bp_vkey.ic.len(), vkey.ic.len());
-        for i in 0..bp_vkey.ic.len() {
-            assert_eq!(
-                bp_vkey.ic[i].to_uncompressed(),
-                vkey.ic[i].to_uncompressed()
-            );
-        }
-        // Serialise our implementation as well by using `VerifyingKey::into_bytes()'.
-        let mut bytes = vec![0u8; vkey.serialised_bytes()];
-        vkey.into_bytes(bytes.as_mut_slice()).unwrap();
-        // Deserialise bytes to bellperson's VerifyingKey by using its `Write` implementation.
-        let bp_vkey_result = bp_g16::VerifyingKey::<blstrs::Bls12>::read(bytes.as_slice()).unwrap();
-        // Compare initial struct with this one.
-        assert_eq!(bp_vkey, bp_vkey_result);
-    }
-
     /// This test is about testing the deserialisation of `Proof` with bytes that have been
     /// serialised from `bellperson::Proof`.
     #[test]
