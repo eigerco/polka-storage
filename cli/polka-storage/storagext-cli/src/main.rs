@@ -77,6 +77,10 @@ struct Cli {
     #[arg(long, env, default_value = DEFAULT_RETRY_INTERVAL_MS, value_parser = parse_ms)]
     pub retry_interval: Duration,
 
+    /// Shall the CLI skip waiting for the extrinsic's finalization?. By default, we wait.
+    #[arg(long, env)]
+    pub skip_finalization: bool,
+
     /// Output format.
     #[arg(long, env, value_parser = OutputFormat::value_parser, default_value_t = OutputFormat::Plain)]
     pub format: OutputFormat,
@@ -101,6 +105,7 @@ impl SubCommand {
         account_keypair: Option<MultiPairSigner>,
         n_retries: u32,
         retry_interval: Duration,
+        wait_for_finalization: bool,
         output_format: OutputFormat,
     ) -> Result<(), anyhow::Error> {
         match self {
@@ -110,6 +115,7 @@ impl SubCommand {
                     account_keypair,
                     n_retries,
                     retry_interval,
+                    wait_for_finalization,
                     output_format,
                 )
                 .await?;
@@ -120,6 +126,7 @@ impl SubCommand {
                     account_keypair,
                     n_retries,
                     retry_interval,
+                    wait_for_finalization,
                     output_format,
                 )
                 .await?;
@@ -179,6 +186,7 @@ async fn main() -> Result<(), anyhow::Error> {
             multi_pair_signer,
             cli_arguments.n_retries,
             cli_arguments.retry_interval,
+            !cli_arguments.skip_finalization,
             cli_arguments.format,
         )
         .await?;

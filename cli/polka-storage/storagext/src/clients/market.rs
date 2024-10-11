@@ -6,7 +6,8 @@ use subxt::{ext::sp_core::crypto::Ss58Codec, utils::Static};
 use crate::{
     runtime::{
         self,
-        client::SubmissionResult,
+        client::{HashOfPsc, SubmissionResult},
+        market::events as MarketEvents,
         runtime_types::pallet_market::pallet::{
             BalanceEntry, ClientDealProposal as RuntimeClientDealProposal,
         },
@@ -34,7 +35,13 @@ pub trait MarketClientExt {
         &self,
         account_keypair: &Keypair,
         amount: Currency,
-    ) -> impl Future<Output = Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>>
+        wait_for_finalization: bool,
+    ) -> impl Future<
+        Output = Result<
+            Option<SubmissionResult<HashOfPsc, MarketEvents::BalanceWithdrawn>>,
+            subxt::Error,
+        >,
+    >
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>;
 
@@ -43,7 +50,13 @@ pub trait MarketClientExt {
         &self,
         account_keypair: &Keypair,
         amount: Currency,
-    ) -> impl Future<Output = Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>>
+        wait_for_finalization: bool,
+    ) -> impl Future<
+        Output = Result<
+            Option<SubmissionResult<HashOfPsc, MarketEvents::BalanceAdded>>,
+            subxt::Error,
+        >,
+    >
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>;
 
@@ -54,7 +67,13 @@ pub trait MarketClientExt {
         &self,
         account_keypair: &Keypair,
         deal_ids: Vec<DealId>,
-    ) -> impl Future<Output = Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>>
+        wait_for_finalization: bool,
+    ) -> impl Future<
+        Output = Result<
+            Option<SubmissionResult<HashOfPsc, MarketEvents::DealsSettled>>,
+            subxt::Error,
+        >,
+    >
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>;
 
@@ -66,7 +85,13 @@ pub trait MarketClientExt {
         account_keypair: &Keypair,
         client_keypair: &ClientKeypair,
         deals: Vec<DealProposal>,
-    ) -> impl Future<Output = Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>>
+        wait_for_finalization: bool,
+    ) -> impl Future<
+        Output = Result<
+            Option<SubmissionResult<HashOfPsc, MarketEvents::DealPublished>>,
+            subxt::Error,
+        >,
+    >
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
         ClientKeypair: subxt::tx::Signer<PolkaStorageConfig>;
@@ -78,7 +103,13 @@ pub trait MarketClientExt {
         &self,
         account_keypair: &Keypair,
         deals: Vec<ClientDealProposal>,
-    ) -> impl Future<Output = Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>>
+        wait_for_finalization: bool,
+    ) -> impl Future<
+        Output = Result<
+            Option<SubmissionResult<HashOfPsc, MarketEvents::DealPublished>>,
+            subxt::Error,
+        >,
+    >
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>;
 
@@ -102,12 +133,14 @@ impl MarketClientExt for crate::runtime::client::Client {
         &self,
         account_keypair: &Keypair,
         amount: Currency,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<HashOfPsc, MarketEvents::BalanceWithdrawn>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
         let payload = runtime::tx().market().withdraw_balance(amount);
-        self.traced_submission(&payload, account_keypair).await
+        self.traced_submission(&payload, account_keypair, wait_for_finalization, 1)
+            .await
     }
 
     #[tracing::instrument(
@@ -122,12 +155,14 @@ impl MarketClientExt for crate::runtime::client::Client {
         &self,
         account_keypair: &Keypair,
         amount: Currency,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<HashOfPsc, MarketEvents::BalanceAdded>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
         let payload = runtime::tx().market().add_balance(amount);
-        self.traced_submission(&payload, account_keypair).await
+        self.traced_submission(&payload, account_keypair, wait_for_finalization, 1)
+            .await
     }
 
     #[tracing::instrument(
@@ -142,7 +177,8 @@ impl MarketClientExt for crate::runtime::client::Client {
         &self,
         account_keypair: &Keypair,
         mut deal_ids: Vec<DealId>,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<HashOfPsc, MarketEvents::DealsSettled>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
@@ -150,6 +186,7 @@ impl MarketClientExt for crate::runtime::client::Client {
             tracing::warn!("more than {} deal ids, truncating", MAX_N_DEALS);
             deal_ids.truncate(MAX_N_DEALS);
         }
+        let n_deal_ids = deal_ids.len();
         // `deal_ids` has been truncated to fit the proper bound, however,
         // the `BoundedVec` defined in the `runtime::runtime_types` is actually just a newtype
         // making the `BoundedVec` actually unbounded
@@ -160,7 +197,8 @@ impl MarketClientExt for crate::runtime::client::Client {
             .market()
             .settle_deal_payments(bounded_unbounded_deal_ids);
 
-        self.traced_submission(&payload, account_keypair).await
+        self.traced_submission(&payload, account_keypair, wait_for_finalization, n_deal_ids)
+            .await
     }
 
     #[tracing::instrument(
@@ -175,7 +213,8 @@ impl MarketClientExt for crate::runtime::client::Client {
         account_keypair: &Keypair,
         client_keypair: &ClientKeypair,
         mut deals: Vec<DealProposal>,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<HashOfPsc, MarketEvents::DealPublished>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
         ClientKeypair: subxt::tx::Signer<PolkaStorageConfig>,
@@ -185,6 +224,7 @@ impl MarketClientExt for crate::runtime::client::Client {
             deals.truncate(MAX_N_DEALS);
         }
 
+        let n_deals = deals.len();
         let signed_deal_proposals = deals
             .into_iter()
             .map(|deal| deal.sign(client_keypair))
@@ -202,7 +242,8 @@ impl MarketClientExt for crate::runtime::client::Client {
             .market()
             .publish_storage_deals(bounded_unbounded_deals);
 
-        self.traced_submission(&payload, account_keypair).await
+        self.traced_submission(&payload, account_keypair, wait_for_finalization, n_deals)
+            .await
     }
 
     #[tracing::instrument(
@@ -216,7 +257,8 @@ impl MarketClientExt for crate::runtime::client::Client {
         &self,
         account_keypair: &Keypair,
         mut deals: Vec<ClientDealProposal>,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<HashOfPsc, MarketEvents::DealPublished>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
@@ -225,6 +267,7 @@ impl MarketClientExt for crate::runtime::client::Client {
             deals.truncate(MAX_N_DEALS);
         }
 
+        let n_deals = deals.len();
         let deals = deals
             .into_iter()
             .map(|deal| SpecializedRuntimeClientDealProposal::from(deal))
@@ -240,7 +283,8 @@ impl MarketClientExt for crate::runtime::client::Client {
             .market()
             .publish_storage_deals(bounded_unbounded_deals);
 
-        self.traced_submission(&payload, account_keypair).await
+        self.traced_submission(&payload, account_keypair, wait_for_finalization, n_deals)
+            .await
     }
 
     #[tracing::instrument(

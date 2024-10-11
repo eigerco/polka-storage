@@ -6,7 +6,7 @@ use primitives_proofs::DealId;
 use storagext::{
     deser::DeserializablePath,
     multipair::{DebugPair, MultiPairSigner},
-    runtime::SubmissionResult,
+    runtime::{market::events as MarketEvents, HashOfPsc, SubmissionResult},
     types::market::DealProposal as SxtDealProposal,
     MarketClientExt, PolkaStorageConfig,
 };
@@ -15,6 +15,7 @@ use subxt::ext::sp_core::{
 };
 use url::Url;
 
+use super::display_submission_result;
 use crate::{missing_keypair_error, operation_takes_a_while, OutputFormat};
 
 #[derive(Debug, Subcommand)]
@@ -81,6 +82,7 @@ impl MarketCommand {
         account_keypair: Option<MultiPairSigner>,
         n_retries: u32,
         retry_interval: Duration,
+        wait_for_finalization: bool,
         output_format: OutputFormat,
     ) -> Result<(), anyhow::Error> {
         let client = storagext::Client::new(node_rpc, n_retries, retry_interval).await?;
@@ -110,7 +112,12 @@ impl MarketCommand {
                     return Err(missing_keypair_error::<Self>().into());
                 };
                 else_
-                    .with_keypair(client, account_keypair, output_format)
+                    .with_keypair(
+                        client,
+                        account_keypair,
+                        wait_for_finalization,
+                        output_format,
+                    )
                     .await?;
             }
         };
@@ -122,6 +129,7 @@ impl MarketCommand {
         self,
         client: Client,
         account_keypair: MultiPairSigner,
+        wait_for_finalization: bool,
         output_format: OutputFormat,
     ) -> Result<(), anyhow::Error>
     where
@@ -129,19 +137,32 @@ impl MarketCommand {
     {
         operation_takes_a_while();
 
-        let submission_result = match self {
+        match self {
             MarketCommand::AddBalance { amount } => {
-                Self::add_balance(client, account_keypair, amount).await?
+                let opt_result =
+                    Self::add_balance(client, account_keypair, amount, wait_for_finalization)
+                        .await?;
+                display_submission_result::<_>(opt_result, output_format)?;
             }
             MarketCommand::SettleDealPayments { deal_ids } => {
                 if deal_ids.is_empty() {
                     bail!("No deals provided to settle");
                 }
 
-                Self::settle_deal_payments(client, account_keypair, deal_ids).await?
+                let opt_result = Self::settle_deal_payments(
+                    client,
+                    account_keypair,
+                    deal_ids,
+                    wait_for_finalization,
+                )
+                .await?;
+                display_submission_result::<_>(opt_result, output_format)?;
             }
             MarketCommand::WithdrawBalance { amount } => {
-                Self::withdraw_balance(client, account_keypair, amount).await?
+                let opt_result =
+                    Self::withdraw_balance(client, account_keypair, amount, wait_for_finalization)
+                        .await?;
+                display_submission_result::<_>(opt_result, output_format)?;
             }
             MarketCommand::PublishStorageDeals {
                 deals,
@@ -156,34 +177,19 @@ impl MarketCommand {
                         client_ed25519_key.map(DebugPair::into_inner)
                     )
                     .expect("client is required to submit at least one key, this should've been handled by clap's ArgGroup");
-                Self::publish_storage_deals(client, account_keypair, client_keypair, deals).await?
+                let opt_result = Self::publish_storage_deals(
+                    client,
+                    account_keypair,
+                    client_keypair,
+                    deals,
+                    wait_for_finalization,
+                )
+                .await?;
+                display_submission_result::<_>(opt_result, output_format)?;
             }
             _unsigned => unreachable!("unsigned commands should have been previously handled"),
         };
 
-        let hash = submission_result.hash;
-        // This monstrosity first converts incoming events into a "generic" (subxt generated) event,
-        // and then we extract only the Market events. We could probably extract this into a proper
-        // iterator but the effort to improvement ratio seems low (for 2 pallets at least).
-        let submission_results = submission_result
-            .events
-            .iter()
-            .flat_map(|event| {
-                event.map(|details| details.as_root_event::<storagext::runtime::Event>())
-            })
-            .filter_map(|event| match event {
-                Ok(storagext::runtime::Event::Market(e)) => Some(Ok(e)),
-                Err(err) => Some(Err(err)),
-                _ => None,
-            });
-        for event in submission_results {
-            let event = event?;
-            let output = output_format.format(&event)?;
-            match output_format {
-                OutputFormat::Plain => println!("[{}] {}", hash, output),
-                OutputFormat::Json => println!("{}", output),
-            }
-        }
         Ok(())
     }
 
@@ -191,18 +197,24 @@ impl MarketCommand {
         client: Client,
         account_keypair: MultiPairSigner,
         amount: u128,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<HashOfPsc, MarketEvents::BalanceAdded>>, subxt::Error>
     where
         Client: MarketClientExt,
     {
-        let submission_result = client.add_balance(&account_keypair, amount).await?;
-        tracing::debug!(
-            "[{}] Successfully added {} to Market Balance",
-            submission_result.hash,
-            amount
-        );
-
-        Ok(submission_result)
+        let submission_result = client
+            .add_balance(&account_keypair, amount, wait_for_finalization)
+            .await?;
+        if let Some(result) = submission_result {
+            tracing::debug!(
+                "[{}] Successfully added {} to Market Balance",
+                result.hash[0],
+                amount
+            );
+            Ok(Some(result))
+        } else {
+            Ok(None)
+        }
     }
 
     async fn publish_storage_deals<Client>(
@@ -210,7 +222,8 @@ impl MarketCommand {
         account_keypair: MultiPairSigner,
         client_keypair: MultiPairSigner,
         deals: Vec<SxtDealProposal>,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<HashOfPsc, MarketEvents::DealPublished>>, subxt::Error>
     where
         Client: MarketClientExt,
     {
@@ -219,50 +232,66 @@ impl MarketCommand {
                 &account_keypair,
                 &client_keypair,
                 deals.into_iter().map(Into::into).collect(),
+                wait_for_finalization,
             )
             .await?;
-        tracing::debug!(
-            "[{}] Successfully published storage deals",
-            submission_result.hash
-        );
-
-        Ok(submission_result)
+        if let Some(result) = submission_result {
+            tracing::debug!(
+                "[{}] Successfully published {} storage deals",
+                result.hash[0],
+                result.len()
+            );
+            Ok(Some(result))
+        } else {
+            Ok(None)
+        }
     }
 
     async fn settle_deal_payments<Client>(
         client: Client,
         account_keypair: MultiPairSigner,
         deal_ids: Vec<u64>,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<HashOfPsc, MarketEvents::DealsSettled>>, subxt::Error>
     where
         Client: MarketClientExt,
     {
         let submission_result = client
-            .settle_deal_payments(&account_keypair, deal_ids)
+            .settle_deal_payments(&account_keypair, deal_ids, wait_for_finalization)
             .await?;
-        tracing::debug!(
-            "[{}] Successfully settled deal payments",
-            submission_result.hash
-        );
-
-        Ok(submission_result)
+        if let Some(result) = submission_result {
+            tracing::debug!(
+                "[{}] Successfully settled {} deal payments",
+                result.hash[0],
+                result.len()
+            );
+            Ok(Some(result))
+        } else {
+            Ok(None)
+        }
     }
 
     async fn withdraw_balance<Client>(
         client: Client,
         account_keypair: MultiPairSigner,
         amount: u128,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<HashOfPsc, MarketEvents::BalanceWithdrawn>>, subxt::Error>
     where
         Client: MarketClientExt,
     {
-        let submission_result = client.withdraw_balance(&account_keypair, amount).await?;
-        tracing::debug!(
-            "[{}] Successfully withdrew {} from Market Balance",
-            submission_result.hash,
-            amount
-        );
-
-        Ok(submission_result)
+        let submission_result = client
+            .withdraw_balance(&account_keypair, amount, wait_for_finalization)
+            .await?;
+        if let Some(result) = submission_result {
+            tracing::debug!(
+                "[{}] Successfully withdrew {} from Market Balance",
+                result.hash[0],
+                amount
+            );
+            Ok(Some(result))
+        } else {
+            Ok(None)
+        }
     }
 }

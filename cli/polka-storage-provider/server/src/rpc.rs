@@ -108,26 +108,15 @@ impl StorageProviderRpcServer for RpcServerState {
             ));
         }
 
-        // TODO(@jmg-duarte,#428,04/10/2024):
-        // There's a small bug here, currently, xt_client waits for a "full extrisic submission"
-        // meaning that it will wait until the block where it is included in is finalized
-        // however, due to https://github.com/paritytech/subxt/issues/1668 it may wrongly fail.
-        // Fixing this requires the xt_client not wait for the finalization, it's not hard to do
-        // it just requires some API design
         let result = self
             .xt_client
-            .publish_signed_storage_deals(&self.xt_keypair, vec![deal])
-            .await?;
-
-        let published_deals = result
-            .events
-            .find::<storagext::runtime::market::events::DealPublished>()
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|err| RpcError::internal_error(err, None))?;
+            .publish_signed_storage_deals(&self.xt_keypair, vec![deal], true)
+            .await?
+            .expect("requested to return submission-result");
 
         // We currently just support a single deal and if there's no published deals,
         // an error MUST've happened
-        debug_assert_eq!(published_deals.len(), 1);
+        debug_assert_eq!(result.len(), 1);
 
         let unsealed_dir = self.unsealed_piece_storage_dir.clone();
         let sealed_dir = self.sealed_piece_storage_dir.clone();
@@ -173,7 +162,7 @@ impl StorageProviderRpcServer for RpcServerState {
             tracing::info!("{:?}", precommit_result);
         });
 
-        Ok(published_deals[0].deal_id)
+        Ok(result.event[0].deal_id)
     }
 }
 

@@ -19,7 +19,7 @@ pub type Currency = u128;
 pub type BlockNumber = u64;
 
 /// Parachain configuration for subxt.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum PolkaStorageConfig {}
 
 // Types are fully qualified ON PURPOSE!

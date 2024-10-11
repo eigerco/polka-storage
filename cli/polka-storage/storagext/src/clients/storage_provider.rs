@@ -11,25 +11,32 @@ use crate::{
     runtime::{
         self,
         bounded_vec::IntoBoundedByteVec,
-        client::SubmissionResult,
+        client::{HashOfPsc, SubmissionResult},
         runtime_types::pallet_storage_provider::{
             proofs::SubmitWindowedPoStParams, sector::ProveCommitSector,
             storage_provider::StorageProviderState,
         },
-        storage_provider::calls::types::register_storage_provider::PeerId,
+        storage_provider::{calls::types::register_storage_provider::PeerId, events as SpEvents},
     },
     types::storage_provider::{
         FaultDeclaration, RecoveryDeclaration, SectorPreCommitInfo, TerminationDeclaration,
     },
     BlockNumber, Currency, PolkaStorageConfig,
 };
+
 pub trait StorageProviderClientExt {
     fn register_storage_provider<Keypair>(
         &self,
         account_keypair: &Keypair,
         peer_id: String,
         post_proof: RegisteredPoStProof,
-    ) -> impl Future<Output = Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>>
+        wait_for_finalization: bool,
+    ) -> impl Future<
+        Output = Result<
+            Option<SubmissionResult<HashOfPsc, SpEvents::StorageProviderRegistered>>,
+            subxt::Error,
+        >,
+    >
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>;
 
@@ -37,7 +44,13 @@ pub trait StorageProviderClientExt {
         &self,
         account_keypair: &Keypair,
         sectors: Vec<SectorPreCommitInfo>,
-    ) -> impl Future<Output = Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>>
+        wait_for_finalization: bool,
+    ) -> impl Future<
+        Output = Result<
+            Option<SubmissionResult<HashOfPsc, SpEvents::SectorsPreCommitted>>,
+            subxt::Error,
+        >,
+    >
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>;
 
@@ -45,7 +58,10 @@ pub trait StorageProviderClientExt {
         &self,
         account_keypair: &Keypair,
         sectors: Vec<ProveCommitSector>,
-    ) -> impl Future<Output = Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>>
+        wait_for_finalization: bool,
+    ) -> impl Future<
+        Output = Result<Option<SubmissionResult<HashOfPsc, SpEvents::SectorsProven>>, subxt::Error>,
+    >
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>;
 
@@ -53,7 +69,13 @@ pub trait StorageProviderClientExt {
         &self,
         account_keypair: &Keypair,
         windowed_post: SubmitWindowedPoStParams,
-    ) -> impl Future<Output = Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>>
+        wait_for_finalization: bool,
+    ) -> impl Future<
+        Output = Result<
+            Option<SubmissionResult<HashOfPsc, SpEvents::ValidPoStSubmitted>>,
+            subxt::Error,
+        >,
+    >
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>;
 
@@ -61,7 +83,13 @@ pub trait StorageProviderClientExt {
         &self,
         account_keypair: &Keypair,
         faults: Vec<FaultDeclaration>,
-    ) -> impl Future<Output = Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>>
+        wait_for_finalization: bool,
+    ) -> impl Future<
+        Output = Result<
+            Option<SubmissionResult<HashOfPsc, SpEvents::FaultsDeclared>>,
+            subxt::Error,
+        >,
+    >
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>;
 
@@ -69,7 +97,13 @@ pub trait StorageProviderClientExt {
         &self,
         account_keypair: &Keypair,
         recoveries: Vec<RecoveryDeclaration>,
-    ) -> impl Future<Output = Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>>
+        wait_for_finalization: bool,
+    ) -> impl Future<
+        Output = Result<
+            Option<SubmissionResult<HashOfPsc, SpEvents::FaultsRecovered>>,
+            subxt::Error,
+        >,
+    >
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>;
 
@@ -77,7 +111,13 @@ pub trait StorageProviderClientExt {
         &self,
         account_keypair: &Keypair,
         terminations: Vec<TerminationDeclaration>,
-    ) -> impl Future<Output = Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>>
+        wait_for_finalization: bool,
+    ) -> impl Future<
+        Output = Result<
+            Option<SubmissionResult<HashOfPsc, SpEvents::SectorsTerminated>>,
+            subxt::Error,
+        >,
+    >
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>;
 
@@ -106,7 +146,11 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
         account_keypair: &Keypair,
         peer_id: String,
         post_proof: RegisteredPoStProof,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<
+        Option<SubmissionResult<HashOfPsc, SpEvents::StorageProviderRegistered>>,
+        subxt::Error,
+    >
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
@@ -114,7 +158,8 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
             .storage_provider()
             .register_storage_provider(peer_id.into_bounded_byte_vec(), post_proof);
 
-        self.traced_submission(&payload, account_keypair).await
+        self.traced_submission(&payload, account_keypair, wait_for_finalization, 1)
+            .await
     }
 
     #[tracing::instrument(
@@ -128,14 +173,17 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
         &self,
         account_keypair: &Keypair,
         sectors: Vec<SectorPreCommitInfo>,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<HashOfPsc, SpEvents::SectorsPreCommitted>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
+        let n_sectors = sectors.len();
         let sectors = BoundedVec(sectors.into_iter().map(Into::into).collect());
         let payload = runtime::tx().storage_provider().pre_commit_sectors(sectors);
 
-        self.traced_submission(&payload, account_keypair).await
+        self.traced_submission(&payload, account_keypair, wait_for_finalization, n_sectors)
+            .await
     }
 
     #[tracing::instrument(
@@ -149,16 +197,19 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
         &self,
         account_keypair: &Keypair,
         sectors: Vec<ProveCommitSector>,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<HashOfPsc, SpEvents::SectorsProven>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
+        let n_sectors = sectors.len();
         let sectors = BoundedVec(sectors.into_iter().map(Into::into).collect());
         let payload = runtime::tx()
             .storage_provider()
             .prove_commit_sectors(sectors);
 
-        self.traced_submission(&payload, account_keypair).await
+        self.traced_submission(&payload, account_keypair, wait_for_finalization, n_sectors)
+            .await
     }
 
     #[tracing::instrument(
@@ -172,7 +223,8 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
         &self,
         account_keypair: &Keypair,
         windowed_post: SubmitWindowedPoStParams,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<HashOfPsc, SpEvents::ValidPoStSubmitted>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
@@ -180,7 +232,8 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
             .storage_provider()
             .submit_windowed_post(windowed_post);
 
-        self.traced_submission(&payload, account_keypair).await
+        self.traced_submission(&payload, account_keypair, wait_for_finalization, 1)
+            .await
     }
 
     #[tracing::instrument(
@@ -194,15 +247,18 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
         &self,
         account_keypair: &Keypair,
         faults: Vec<FaultDeclaration>,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<HashOfPsc, SpEvents::FaultsDeclared>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
+        let n_faults = faults.len();
         let payload = runtime::tx()
             .storage_provider()
             .declare_faults(faults.into());
 
-        self.traced_submission(&payload, account_keypair).await
+        self.traced_submission(&payload, account_keypair, wait_for_finalization, n_faults)
+            .await
     }
 
     #[tracing::instrument(
@@ -216,15 +272,23 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
         &self,
         account_keypair: &Keypair,
         recoveries: Vec<RecoveryDeclaration>,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<HashOfPsc, SpEvents::FaultsRecovered>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
+        let n_recoveries = recoveries.len();
         let payload = runtime::tx()
             .storage_provider()
             .declare_faults_recovered(recoveries.into());
 
-        self.traced_submission(&payload, account_keypair).await
+        self.traced_submission(
+            &payload,
+            account_keypair,
+            wait_for_finalization,
+            n_recoveries,
+        )
+        .await
     }
 
     #[tracing::instrument(level = "debug", skip_all)]
@@ -232,15 +296,23 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
         &self,
         account_keypair: &Keypair,
         terminations: Vec<TerminationDeclaration>,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<HashOfPsc, SpEvents::SectorsTerminated>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
+        let n_terminations = terminations.len();
         let payload = runtime::tx()
             .storage_provider()
             .terminate_sectors(terminations.into());
 
-        self.traced_submission(&payload, account_keypair).await
+        self.traced_submission(
+            &payload,
+            account_keypair,
+            wait_for_finalization,
+            n_terminations,
+        )
+        .await
     }
 
     #[tracing::instrument(level = "debug", skip_all)]

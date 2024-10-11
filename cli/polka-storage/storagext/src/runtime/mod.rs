@@ -103,7 +103,7 @@ pub mod display;
 mod polka_storage_runtime {}
 
 // Using self keeps the import separate from the others
-pub use client::SubmissionResult;
+pub use client::{HashOfPsc, SubmissionResult};
 
 pub use self::polka_storage_runtime::*;
 #[cfg(test)]
