@@ -12,8 +12,8 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use pallet_market::{BalanceOf, ClientDealProposal, DealProposal, DealState};
 use primitives_commitment::{Commitment, CommitmentKind};
 use primitives_proofs::{
-    DealId, RegisteredPoStProof, RegisteredSealProof, SectorId, SectorNumber, MAX_DEALS_PER_SECTOR,
-    MAX_TERMINATIONS_PER_CALL,
+    DealId, RegisteredPoStProof, RegisteredSealProof, SectorNumber, CID_SIZE_IN_BYTES,
+    MAX_DEALS_PER_SECTOR, MAX_TERMINATIONS_PER_CALL,
 };
 use sp_core::{bounded_vec, Pair};
 use sp_runtime::{
@@ -282,10 +282,10 @@ fn publish_deals(storage_provider: &str) {
 struct SectorPreCommitInfoBuilder {
     seal_proof: RegisteredSealProof,
     sector_number: SectorNumber,
-    sealed_cid: SectorId,
+    sealed_cid: BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>,
     deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
     expiration: u64,
-    unsealed_cid: SectorId,
+    unsealed_cid: BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>,
 }
 
 impl Default for SectorPreCommitInfoBuilder {

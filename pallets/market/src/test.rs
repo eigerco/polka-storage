@@ -1542,10 +1542,9 @@ fn on_sector_terminate_unknown_deals() {
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
         System::reset_events();
 
-        let cid = BoundedVec::try_from(cid_of("polka_storage_cid").to_bytes()).unwrap();
         assert_ok!(Market::on_sectors_terminate(
             &account::<Test>(PROVIDER),
-            bounded_vec![cid],
+            bounded_vec![0],
         ));
 
         assert_eq!(events(), []);
@@ -1559,13 +1558,14 @@ fn on_sector_terminate_deal_not_found() {
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
         System::reset_events();
 
-        let cid = BoundedVec::try_from(cid_of("polka_storage_cid").to_bytes()).unwrap();
+        let storage_provider = account::<Test>(PROVIDER);
+        let sector_number = 0;
         let sector_deal_ids: BoundedVec<_, ConstU32<MAX_DEALS_PER_SECTOR>> = bounded_vec![1];
 
-        SectorDeals::<Test>::insert(cid.clone(), sector_deal_ids);
+        SectorDeals::<Test>::insert((storage_provider.clone(), sector_number), sector_deal_ids);
 
         assert_err!(
-            Market::on_sectors_terminate(&account::<Test>(PROVIDER), bounded_vec![cid]),
+            Market::on_sectors_terminate(&storage_provider, bounded_vec![sector_number]),
             DispatchError::from(SectorTerminateError::DealNotFound)
         );
 
@@ -1580,10 +1580,10 @@ fn on_sector_terminate_invalid_caller() {
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
         System::reset_events();
 
-        let cid = BoundedVec::try_from(cid_of("polka_storage_cid").to_bytes()).unwrap();
+        let sector_number = 0;
         let sector_deal_ids: BoundedVec<_, ConstU32<MAX_DEALS_PER_SECTOR>> = bounded_vec![1];
 
-        SectorDeals::<Test>::insert(cid.clone(), sector_deal_ids);
+        SectorDeals::<Test>::insert((account::<Test>(PROVIDER), sector_number), sector_deal_ids);
         Proposals::<Test>::insert(
             1,
             DealProposalBuilder::<Test>::default()
@@ -1591,10 +1591,10 @@ fn on_sector_terminate_invalid_caller() {
                 .unsigned(),
         );
 
-        assert_err!(
-            Market::on_sectors_terminate(&account::<Test>(BOB), bounded_vec![cid],),
-            DispatchError::from(SectorTerminateError::InvalidCaller)
-        );
+        assert_ok!(Market::on_sectors_terminate(
+            &account::<Test>(BOB),
+            bounded_vec![sector_number]
+        ),);
 
         assert_eq!(events(), []);
     });
@@ -1607,10 +1607,11 @@ fn on_sector_terminate_not_active() {
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
         System::reset_events();
 
-        let cid = BoundedVec::try_from(cid_of("polka_storage_cid").to_bytes()).unwrap();
+        let storage_provider = account::<Test>(PROVIDER);
+        let sector_number = 0;
         let sector_deal_ids: BoundedVec<_, ConstU32<MAX_DEALS_PER_SECTOR>> = bounded_vec![1];
 
-        SectorDeals::<Test>::insert(cid.clone(), sector_deal_ids);
+        SectorDeals::<Test>::insert((storage_provider.clone(), sector_number), sector_deal_ids);
         Proposals::<Test>::insert(
             1,
             DealProposalBuilder::<Test>::default()
@@ -1623,7 +1624,7 @@ fn on_sector_terminate_not_active() {
         );
 
         assert_err!(
-            Market::on_sectors_terminate(&account::<Test>(PROVIDER), bounded_vec![cid],),
+            Market::on_sectors_terminate(&storage_provider, bounded_vec![sector_number]),
             DispatchError::from(SectorTerminateError::DealIsNotActive)
         );
 
@@ -1638,7 +1639,8 @@ fn on_sector_terminate_active() {
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(BOB)), 75);
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
 
-        let cid = BoundedVec::try_from(cid_of("polka_storage_cid").to_bytes()).unwrap();
+        let storage_provider = account::<Test>(PROVIDER);
+        let sector_number = 0;
         let sector_deal_ids: BoundedVec<_, ConstU32<MAX_DEALS_PER_SECTOR>> = bounded_vec![1];
         let deal_proposal = DealProposalBuilder::<Test>::default()
             .client(BOB)
@@ -1650,7 +1652,7 @@ fn on_sector_terminate_active() {
             .unsigned();
 
         assert_ok!(lock_funds::<Test>(&account::<Test>(BOB), 5 * 10));
-        assert_ok!(lock_funds::<Test>(&account::<Test>(PROVIDER), 15));
+        assert_ok!(lock_funds::<Test>(&storage_provider, 15));
 
         let hash_proposal = Market::hash_proposal(&deal_proposal);
         let mut pending = PendingProposals::<Test>::get();
@@ -1659,14 +1661,14 @@ fn on_sector_terminate_active() {
             .expect("should have enough space");
         PendingProposals::<Test>::set(pending);
 
-        SectorDeals::<Test>::insert(cid.clone(), sector_deal_ids);
+        SectorDeals::<Test>::insert((storage_provider.clone(), sector_number), sector_deal_ids);
         Proposals::<Test>::insert(1, deal_proposal);
 
         System::reset_events();
 
         assert_ok!(Market::on_sectors_terminate(
-            &account::<Test>(PROVIDER),
-            bounded_vec![cid],
+            &storage_provider,
+            bounded_vec![sector_number],
         ));
 
         assert_eq!(
@@ -1678,7 +1680,7 @@ fn on_sector_terminate_active() {
         );
 
         assert_eq!(
-            BalanceTable::<Test>::get(&account::<Test>(PROVIDER)),
+            BalanceTable::<Test>::get(&storage_provider),
             BalanceEntry {
                 free: 65,  // the original 60 + 5 for the storage payment of a single block
                 locked: 0, // lost the 15 collateral

@@ -40,7 +40,7 @@ pub fn find_polka_storage_node() -> Option<PathBuf> {
         }
     }
 
-    if cfg!(feature = "target-release") {
+    if cfg!(feature = "target-debug") {
         let debug_polka_storage_node = target_folder.join("debug").join("polka-storage-node");
         if debug_polka_storage_node.exists() {
             tracing::info!("found {}, using it", debug_polka_storage_node.display());

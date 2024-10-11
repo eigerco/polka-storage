@@ -42,9 +42,8 @@ pub mod pallet {
         Commitment, CommitmentKind,
     };
     use primitives_proofs::{
-        ActiveDeal, ActiveSector, DealId, Market, RegisteredSealProof, SectorDeal, SectorId,
-        SectorNumber, SectorSize, StorageProviderValidation, MAX_DEALS_FOR_ALL_SECTORS,
-        MAX_DEALS_PER_SECTOR, MAX_SECTORS_PER_CALL,
+        ActiveDeal, ActiveSector, DealId, Market, RegisteredSealProof, SectorDeal, SectorNumber,
+        SectorSize, StorageProviderValidation, MAX_DEALS_PER_SECTOR, MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::BaseArithmetic;
@@ -341,10 +340,14 @@ pub mod pallet {
         ValueQuery,
     >;
 
-    /// Holds a mapping from [`SectorId`] to its respective [`DealId`]s.
+    /// Holds a mapping from ([`Provider`] [`SectorNumber`]) to its respective [`DealId`]s.
     #[pallet::storage]
-    pub type SectorDeals<T: Config> =
-        StorageMap<_, _, SectorId, BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>>;
+    pub type SectorDeals<T: Config> = StorageMap<
+        _,
+        _,
+        (T::AccountId, SectorNumber),
+        BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
+    >;
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -1327,13 +1330,14 @@ pub mod pallet {
         > {
             let mut activations = BoundedVec::new();
             let curr_block = System::<T>::block_number();
-            let mut activated_deal_ids: BoundedBTreeSet<
-                DealId,
-                ConstU32<MAX_DEALS_FOR_ALL_SECTORS>,
-            > = BoundedBTreeSet::new();
 
             let mut pending_proposals = PendingProposals::<T>::get();
             for sector in sector_deals {
+                let mut sector_activated_deal_ids: BoundedVec<
+                    SectorNumber,
+                    ConstU32<MAX_DEALS_PER_SECTOR>,
+                > = BoundedVec::new();
+
                 let Ok(proposals) = Self::proposals_for_deals(sector.deal_ids) else {
                     log::error!("failed to find deals for sector: {}", sector.sector_number);
                     continue;
@@ -1390,7 +1394,7 @@ pub mod pallet {
                             log::error!("failed to insert into `activated`, programmer's error");
                             Error::<T>::DealPreconditionFailed
                         })?;
-                    activated_deal_ids.try_insert(deal_id).map_err(|_| {
+                    sector_activated_deal_ids.try_push(deal_id).map_err(|_| {
                         log::error!(
                             "failed to insert into `activated_deal_ids`, programmer's error"
                         );
@@ -1404,6 +1408,12 @@ pub mod pallet {
                     });
                     Proposals::<T>::insert(deal_id, proposal);
                 }
+
+                // Insert activated deals for a sector
+                SectorDeals::<T>::insert(
+                    (storage_provider.clone(), sector.sector_number),
+                    sector_activated_deal_ids,
+                );
 
                 activations
                     .try_push(ActiveSector {
@@ -1427,7 +1437,7 @@ pub mod pallet {
         /// Source: <https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/market/src/lib.rs#L786-L876>
         fn on_sectors_terminate(
             storage_provider: &T::AccountId,
-            sector_ids: BoundedVec<SectorId, ConstU32<MAX_DEALS_PER_SECTOR>>,
+            sectors: BoundedVec<SectorNumber, ConstU32<MAX_DEALS_PER_SECTOR>>,
         ) -> DispatchResult {
             // TODO(@jmg-duarte,04/07/2024): check that the caller is actually a storage provider (?)
 
@@ -1437,9 +1447,9 @@ pub mod pallet {
             // through a chain of calls that start on deferred cron events
             let current_block = <frame_system::Pallet<T>>::block_number();
 
-            for sector_id in sector_ids {
+            for sector_id in sectors {
                 // In the original implementation, all sectors are popped, here, we take them all
-                let Some(deal_ids) = SectorDeals::<T>::take(sector_id) else {
+                let Some(deal_ids) = SectorDeals::<T>::take((storage_provider, sector_id)) else {
                     // Not found sectors are ignored, if we don't find any, we don't do anything
                     continue;
                 };
@@ -1450,6 +1460,8 @@ pub mod pallet {
                         return Err(SectorTerminateError::DealNotFound)?;
                     };
 
+                    // This should never happen, because we are getting deals
+                    // the storage provider with which we called the extrinsic.
                     if *storage_provider != deal_proposal.provider {
                         return Err(SectorTerminateError::InvalidCaller)?;
                     }
