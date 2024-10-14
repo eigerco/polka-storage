@@ -24,6 +24,7 @@ filecoin-proofs = { workspace = true, optional = true }
 rand = { workspace = true, default-features = false, optional = true }
 storage-proofs-core = { workspace = true, optional = true }
 storage-proofs-porep = { workspace = true, optional = true }
+storage-proofs-post = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }
 
 # Crates are only imported on feature 'substrate'.
@@ -49,6 +50,7 @@ std = [
   "dep:filecoin-proofs",
   "dep:storage-proofs-core",
   "dep:storage-proofs-porep",
+  "dep:storage-proofs-post",
   "dep:thiserror",
   "primitives-proofs/std",
   "rand/std",

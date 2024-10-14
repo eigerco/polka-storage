@@ -9391,6 +9391,7 @@ dependencies = [
  "scale-info",
  "storage-proofs-core",
  "storage-proofs-porep",
+ "storage-proofs-post",
  "thiserror",
 ]
 
