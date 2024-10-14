@@ -23,6 +23,8 @@ storage-proofs-core.workspace = true
 subxt = { workspace = true }
 thiserror = { workspace = true }
 
+[dev-dependencies]
+primitives-proofs = { workspace = true }
 
 [lints]
 workspace = true

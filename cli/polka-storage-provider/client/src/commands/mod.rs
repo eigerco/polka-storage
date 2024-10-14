@@ -44,7 +44,7 @@ pub(crate) enum Cli {
     #[command(subcommand)]
     Wallet(WalletCommand),
 
-    /// RPC related commands, namely the `server` and `client`.
+    /// Client RPC commands.
     Client(ClientCommand),
 
     /// Utility commands for storage related actions.

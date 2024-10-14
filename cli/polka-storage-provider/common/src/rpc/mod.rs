@@ -16,6 +16,8 @@ pub trait StorageProviderRpc {
     #[method(name = "info")]
     async fn info(&self) -> Result<ServerInfo, RpcError>;
 
+    /// Propose a deal, the CID of the deal will be returned,
+    /// the CID is part of the path for file uploads.
     #[method(name = "propose_deal")]
     async fn propose_deal(&self, deal: SxtDealProposal) -> Result<cid::Cid, RpcError>;
 

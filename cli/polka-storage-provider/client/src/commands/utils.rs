@@ -90,6 +90,7 @@ impl UtilsCommand {
                 let cid = commitment.cid();
 
                 // NOTE(@jmg-duarte,09/10/2024): too lazy for proper json
+                // plus adding an extra structure for such a small thing seems wasteful
                 println!("{{\n\t\"cid\": \"{cid}\",\n\t\"size\": {padded_piece_size}\n}}");
             }
             UtilsCommand::GeneratePoRepParams {
