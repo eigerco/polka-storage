@@ -10,13 +10,13 @@ use polka_storage_proofs::{
     porep::{self, sealer::Sealer},
     types::PieceInfo,
 };
+use polka_storage_provider_common::commp::{
+    calculate_piece_commitment, CommPError, ZeroPaddingReader,
+};
 use primitives_commitment::piece::PaddedPieceSize;
 use primitives_proofs::RegisteredSealProof;
 
-use crate::{
-    commp::{calculate_piece_commitment, CommPError, ZeroPaddingReader},
-    CliError,
-};
+use crate::CliError;
 
 /// Utils sub-commands.
 #[derive(Debug, clap::Subcommand)]
@@ -89,8 +89,9 @@ impl UtilsCommand {
                         .map_err(|err| UtilsCommandError::CommPError(err))?;
                 let cid = commitment.cid();
 
-                println!("Piece commitment CID: {cid}");
-                println!("Padded size: {padded_piece_size}");
+                // NOTE(@jmg-duarte,09/10/2024): too lazy for proper json
+                // plus adding an extra structure for such a small thing seems wasteful
+                println!("{{\n\t\"cid\": \"{cid}\",\n\t\"size\": {padded_piece_size}\n}}");
             }
             UtilsCommand::GeneratePoRepParams {
                 seal_proof,

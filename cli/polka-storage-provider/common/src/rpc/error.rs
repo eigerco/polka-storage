@@ -6,9 +6,6 @@ use jsonrpsee::types::{
 };
 use serde_json::Value;
 
-pub mod client;
-pub mod server;
-
 /// Error type for RPC errors (client and server).
 #[derive(Debug)]
 pub struct RpcError {

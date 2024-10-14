@@ -9395,31 +9395,70 @@ dependencies = [
 ]
 
 [[package]]
-name = "polka-storage-provider"
+name = "polka-storage-provider-client"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "axum",
  "bls12_381",
- "chrono",
  "cid 0.11.1",
  "clap",
- "filecoin-hashers",
- "fr32",
- "futures",
  "hex",
  "jsonrpsee 0.23.2",
  "mater",
  "parity-scale-codec",
  "polka-storage-proofs",
+ "polka-storage-provider-common",
  "primitives-commitment",
  "primitives-proofs",
- "rand",
- "rocksdb",
  "sc-cli",
  "serde",
  "serde_json",
+ "storagext",
+ "subxt",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber 0.3.18",
+ "url",
+]
+
+[[package]]
+name = "polka-storage-provider-common"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "cid 0.11.1",
+ "filecoin-hashers",
+ "fr32",
+ "jsonrpsee 0.23.2",
+ "primitives-commitment",
+ "primitives-proofs",
+ "serde",
+ "serde_json",
  "storage-proofs-core",
+ "storagext",
+ "subxt",
+ "thiserror",
+]
+
+[[package]]
+name = "polka-storage-provider-server"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "cid 0.11.1",
+ "clap",
+ "futures",
+ "jsonrpsee 0.23.2",
+ "mater",
+ "polka-storage-provider-common",
+ "primitives-commitment",
+ "rand",
+ "rocksdb",
+ "sc-cli",
+ "serde_json",
  "storagext",
  "subxt",
  "tempfile",

@@ -1,5 +1,15 @@
+//! A CLI application that facilitates management operations over a running full node and other components.
+#![warn(unused_crate_dependencies)]
+#![deny(clippy::unwrap_used)]
+
+mod db;
+mod rpc;
+mod storage;
+
 use std::{net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 
+use clap::Parser;
+use polka_storage_provider_common::rpc::ServerInfo;
 use rand::Rng;
 use storagext::{
     multipair::{DebugPair, MultiPairSigner},
@@ -12,13 +22,31 @@ use subxt::{
     tx::Signer,
 };
 use tokio::task::JoinError;
+use tracing::level_filters::LevelFilter;
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use url::Url;
 
 use crate::{
     db::{DBError, DealDB},
-    rpc::server::{start_rpc_server, RpcServerState, ServerInfo},
+    rpc::{start_rpc_server, RpcServerState},
     storage::{start_upload_server, StorageServerState},
 };
+
+#[tokio::main]
+async fn main() -> Result<(), ServerError> {
+    // Logger initialization.
+    tracing_subscriber::registry()
+        .with(fmt::layer())
+        .with(
+            EnvFilter::builder()
+                .with_default_directive(LevelFilter::INFO.into())
+                .from_env()?,
+        )
+        .init();
+
+    // Run requested command.
+    Server::parse().run().await
+}
 
 /// Default parachain node adress.
 const DEFAULT_NODE_ADDRESS: &str = "ws://127.0.0.1:42069";
@@ -35,8 +63,21 @@ const RETRY_INTERVAL: Duration = Duration::from_secs(10);
 /// Number of retries to connect to the parachain RPC.
 const RETRY_NUMBER: u32 = 5;
 
+/// CLI components error handling implementor.
 #[derive(Debug, thiserror::Error)]
-pub enum ServerCommandError {
+pub enum ServerError {
+    #[error("FromEnv error: {0}")]
+    EnvFilter(#[from] tracing_subscriber::filter::FromEnvError),
+
+    #[error("URL parse error: {0}")]
+    ParseUrl(#[from] url::ParseError),
+
+    #[error(transparent)]
+    SubstrateCli(#[from] sc_cli::Error),
+
+    #[error("Error occurred while working with a car file: {0}")]
+    Mater(#[from] mater::Error),
+
     #[error("no signer keypair was passed")]
     MissingKeypair,
 
@@ -56,8 +97,9 @@ pub enum ServerCommandError {
     Join(#[from] JoinError),
 }
 
-#[derive(Debug, clap::Parser)]
-pub struct ServerCommand {
+#[derive(Debug, Parser)]
+#[command(author, version, about, long_about = None)]
+pub struct Server {
     /// The server's listen address.
     #[arg(long, default_value = DEFAULT_UPLOAD_LISTEN_ADDRESS)]
     upload_listen_address: SocketAddr,
@@ -97,8 +139,8 @@ pub struct ServerCommand {
     storage_directory: Option<PathBuf>,
 }
 
-impl ServerCommand {
-    pub async fn run(self) -> Result<(), ServerCommandError> {
+impl Server {
+    pub async fn run(self) -> Result<(), ServerError> {
         let common_folder = PathBuf::new().join("/tmp").join(
             rand::thread_rng()
                 .sample_iter(&rand::distributions::Alphanumeric)
@@ -137,7 +179,7 @@ impl ServerCommand {
             self.ecdsa_key.map(DebugPair::<ECDSAPair>::into_inner),
             self.ed25519_key.map(DebugPair::<Ed25519Pair>::into_inner),
         ) else {
-            return Err(ServerCommandError::MissingKeypair);
+            return Err(ServerError::MissingKeypair);
         };
 
         let xt_client =
@@ -158,7 +200,7 @@ impl ServerCommand {
                 "you can register your account using the ",
                 "`storagext-cli storage-provider register`"
             ));
-            return Err(ServerCommandError::UnregisteredStorageProvider);
+            return Err(ServerError::UnregisteredStorageProvider);
         }
 
         let deal_db = Arc::new(DealDB::new(database_dir)?);
