@@ -7,12 +7,7 @@ use sp_runtime::{BoundedVec, DispatchError, DispatchResult, RuntimeDebug};
 use crate::types::{DealId, ProverId, RawCommitment, RegisteredSealProof, SectorNumber, Ticket};
 
 /// Size of a CID with a 512-bit multihash — i.e. the default CID size.
-const CID_SIZE_IN_BYTES: u32 = 64;
-
-// TODO(#129,@cernicc,11/07/2024): Refactor to a new-type. SectorId should
-// always be a valid CID. That should be checked before initializing it.
-/// The CID (in bytes) of a given sector.
-pub type SectorId = BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>;
+pub const CID_SIZE_IN_BYTES: u32 = 64;
 
 /// Number of Sectors that can be provided in a single extrinsics call.
 /// Required for BoundedVec.
@@ -60,7 +55,7 @@ pub trait Market<AccountId, BlockNumber> {
     /// Source: <https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/market/src/lib.rs#L786-L876>
     fn on_sectors_terminate(
         storage_provider: &AccountId,
-        sector_ids: BoundedVec<SectorId, ConstU32<MAX_DEALS_PER_SECTOR>>,
+        sectors: BoundedVec<SectorNumber, ConstU32<MAX_DEALS_PER_SECTOR>>,
     ) -> DispatchResult;
 }
 

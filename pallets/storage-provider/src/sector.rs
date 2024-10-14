@@ -1,7 +1,7 @@
 use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::*, BoundedVec};
 use primitives_proofs::{
-    DealId, RegisteredSealProof, SectorDeal, SectorId, SectorNumber, MAX_DEALS_PER_SECTOR,
+    DealId, RegisteredSealProof, SectorDeal, SectorNumber, CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR,
 };
 use scale_info::TypeInfo;
 
@@ -19,7 +19,7 @@ pub struct SectorPreCommitInfo<BlockNumber> {
     /// This value is also known as `commR` or "commitment of replication". The terms `commR` and `sealed_cid` are interchangeable.
     /// Using sealed_cid as I think that is more descriptive.
     /// Some docs on commR here: <https://proto.school/verifying-storage-on-filecoin/03>
-    pub sealed_cid: SectorId,
+    pub sealed_cid: BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>,
     /// Deals Ids that are supposed to be activated.
     /// If any of those is invalid, whole activation is rejected.
     pub deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
@@ -27,7 +27,7 @@ pub struct SectorPreCommitInfo<BlockNumber> {
     pub expiration: BlockNumber,
     /// This value is also known as `commD` or "commitment of data".
     /// Once a sector is full `commD` is produced representing the root node of all of the piece CIDs contained in the sector.
-    pub unsealed_cid: SectorId,
+    pub unsealed_cid: BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>,
 }
 
 /// Information stored on-chain for a pre-committed sector.
@@ -81,13 +81,13 @@ where
     /// This value is also known as 'commR', Commitment of replication. The terms commR and sealed_cid are interchangeable.
     /// Using sealed_cid as I think that is more descriptive.
     /// Some docs on commR here: <https://proto.school/verifying-storage-on-filecoin/03>
-    pub sealed_cid: SectorId,
+    pub sealed_cid: BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>,
     /// Block number during which the sector proof was accepted
     pub activation: BlockNumber,
     /// Block number during which the sector expires
     pub expiration: BlockNumber,
     /// CommD
-    pub unsealed_cid: SectorId,
+    pub unsealed_cid: BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>,
 }
 
 impl<BlockNumber> SectorOnChainInfo<BlockNumber>
