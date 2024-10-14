@@ -27,6 +27,11 @@ pub mod pallet {
         ProofVerification, ProverId, RawCommitment, RegisteredSealProof, SectorNumber, Ticket,
     };
 
+    use bls12_381::Scalar as Fr;
+    use ff::Field;
+    use generic_array::typenum::U8;
+    use neptune::{poseidon::Poseidon, poseidon::PoseidonConstants};
+
     use crate::{
         crypto::groth16::{Bls12, Proof, VerifyingKey},
         porep,
@@ -73,6 +78,19 @@ pub mod pallet {
             PoRepVerifyingKey::<T>::set(Some(vkey));
 
             Self::deposit_event(Event::PoRepVerifyingKeyChanged { who: caller });
+
+            Ok(())
+        }
+
+        pub fn test_neptune(origin: OriginFor<T>) -> DispatchResult {
+            let _caller = ensure_signed(origin)?;
+
+            let constants: PoseidonConstants<Fr, U8> = PoseidonConstants::new();
+            let mut preimage = [Fr::ZERO; 8];
+            preimage[0] = <Fr as Field>::ONE;
+
+            let mut h = Poseidon::<Fr, U8>::new_with_preimage(&preimage, &constants);
+            let _aa = h.hash();
 
             Ok(())
         }

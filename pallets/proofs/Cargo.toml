@@ -24,6 +24,8 @@ ff = { workspace = true }
 frame-benchmarking = { optional = true, workspace = true }
 frame-support.workspace = true
 frame-system.workspace = true
+generic-array = { workspace = true }
+neptune = { workspace = true }
 num-bigint = { workspace = true }
 polka-storage-proofs = { workspace = true, features = ["substrate"] }
 primitives-proofs = { workspace = true }

@@ -3693,7 +3693,7 @@ dependencies = [
  "hex",
  "lazy_static",
  "merkletree",
- "neptune",
+ "neptune 11.0.0",
  "rand",
  "serde",
  "sha2 0.10.8",
@@ -7228,6 +7228,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "neptune"
+version = "13.0.0"
+dependencies = [
+ "blake2s_simd 1.0.2",
+ "blstrs",
+ "ff",
+ "generic-array 1.1.0",
+ "libm",
+ "pasta_curves",
+ "trait-set",
+]
+
+[[package]]
 name = "netlink-packet-core"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8452,6 +8465,7 @@ dependencies = [
  "frame-system",
  "generic-array 1.1.0",
  "hex",
+ "neptune 13.0.0",
  "num-bigint",
  "parity-scale-codec",
  "polka-storage-proofs",
@@ -15575,7 +15589,7 @@ dependencies = [
  "log",
  "memmap2 0.5.10",
  "merkletree",
- "neptune",
+ "neptune 11.0.0",
  "num-bigint",
  "num-traits",
  "num_cpus",
@@ -15627,7 +15641,7 @@ dependencies = [
  "log",
  "memmap2 0.5.10",
  "merkletree",
- "neptune",
+ "neptune 11.0.0",
  "rayon",
  "serde",
  "storage-proofs-core",
