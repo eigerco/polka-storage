@@ -327,6 +327,8 @@ pub mod pallet {
         FaultRecoveryTooLate,
         /// Tried to slash reserved currency and burn it.
         SlashingFailed,
+        /// Emitted when trying to terminate sector deals fails.
+        CouldNotTerminateDeals,
         /// Inner pallet errors
         GeneralPalletError(crate::error::GeneralPalletError),
     }
@@ -1282,7 +1284,8 @@ pub mod pallet {
                 "Could not convert terminated sectors to BoundedVec. len > MAX_DEALS_PER_SECTOR",
             );
 
-            let _ = T::Market::on_sectors_terminate(&owner, terminated_data);
+            T::Market::on_sectors_terminate(&owner, terminated_data)
+                .map_err(|_| Error::<T>::CouldNotTerminateDeals)?;
 
             Ok(more)
         }
