@@ -144,6 +144,7 @@ fr32 = "11.1.0"
 generic-array = "1.1.0"
 storage-proofs-core = "18.1.0"
 storage-proofs-porep = "18.1.0"
+storage-proofs-post = "18.1.0"
 
 # Substrate
 pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2407-1" }

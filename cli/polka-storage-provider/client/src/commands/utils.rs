@@ -8,13 +8,14 @@ use std::{
 use mater::CarV2Reader;
 use polka_storage_proofs::{
     porep::{self, sealer::Sealer},
+    post,
     types::PieceInfo,
 };
 use polka_storage_provider_common::commp::{
     calculate_piece_commitment, CommPError, ZeroPaddingReader,
 };
 use primitives_commitment::piece::PaddedPieceSize;
-use primitives_proofs::RegisteredSealProof;
+use primitives_proofs::{RegisteredPoStProof, RegisteredSealProof};
 
 use crate::CliError;
 
@@ -30,11 +31,11 @@ pub enum UtilsCommand {
     /// Generates PoRep verifying key and proving parameters for zk-SNARK workflows (prove commit)
     #[clap(name = "porep-params")]
     GeneratePoRepParams {
-        /// PoRep has multiple variants dependant on the sector size.
+        /// PoRep has multiple variants dependent on the sector size.
         /// Parameters are required for each sector size and its corresponding PoRep.
         #[arg(short, long, default_value = "2KiB")]
         seal_proof: PoRepSealProof,
-        /// Directory where the params files will be put. Defaults to current directory.
+        /// Directory where the params files will be put. Defaults to the current directory.
         #[arg(short, long)]
         output_path: Option<PathBuf>,
     },
@@ -42,7 +43,7 @@ pub enum UtilsCommand {
     /// Generates PoRep for a piece file.
     /// Takes a piece file (in a CARv2 archive, unpadded), puts it into a sector (temp file), seals and proves it.
     PoRep {
-        /// PoRep has multiple variants dependant on the sector size.
+        /// PoRep has multiple variants dependent on the sector size.
         /// Parameters are required for each sector size and its corresponding PoRep Params.
         #[arg(short, long, default_value = "2KiB")]
         seal_proof: PoRepSealProof,
@@ -53,11 +54,30 @@ pub enum UtilsCommand {
         input_path: PathBuf,
         /// CommP of a file, calculated with `commp` command.
         commp: String,
-        /// Directory where the proof files will be put. Defaults to current directory.
+        /// Directory where the proof files will be put. Defaults to the current directory.
+        #[arg(short, long)]
+        output_path: Option<PathBuf>,
+    },
+    /// Generates PoSt verifying key and proving parameters for zk-SNARK workflows (submit windowed PoSt)
+    #[clap(name = "post-params")]
+    GeneratePoStParams {
+        /// PoSt has multiple variants dependant on the sector size.
+        /// Parameters are required for each sector size and its corresponding PoSt.
+        #[arg(short, long, default_value = "2KiB")]
+        post_type: PoStProof,
+        /// Directory where the params files will be put. Defaults to current directory.
         #[arg(short, long)]
         output_path: Option<PathBuf>,
     },
 }
+
+const POREP_PARAMS_EXT: &str = ".porep.params";
+const POREP_VK_EXT: &str = ".porep.vk";
+const POREP_VK_EXT_SCALE: &str = ".porep.vk.scale";
+
+const POST_PARAMS_EXT: &str = ".post.params";
+const POST_VK_EXT: &str = ".post.vk";
+const POST_VK_EXT_SCALE: &str = ".post.vk.scale";
 
 impl UtilsCommand {
     /// Run the command.
@@ -106,18 +126,18 @@ impl UtilsCommand {
                 let file_name: String = seal_proof.clone().into();
 
                 let (parameters_file_name, mut parameters_file) =
-                    file_with_extension(&output_path, file_name.as_str(), "params")?;
+                    file_with_extension(&output_path, file_name.as_str(), POREP_PARAMS_EXT)?;
                 let (vk_file_name, mut vk_file) =
-                    file_with_extension(&output_path, file_name.as_str(), "vk")?;
+                    file_with_extension(&output_path, file_name.as_str(), POREP_VK_EXT)?;
                 let (vk_scale_file_name, mut vk_scale_file) =
-                    file_with_extension(&output_path, file_name.as_str(), "vk.scale")?;
+                    file_with_extension(&output_path, file_name.as_str(), POREP_VK_EXT_SCALE)?;
 
                 println!(
                     "Generating params for {} sectors... It can take a couple of minutes ⌛",
                     file_name
                 );
-                let parameters =
-                    porep::generate_random_groth16_parameters(seal_proof.0).expect("work pls");
+                let parameters = porep::generate_random_groth16_parameters(seal_proof.0)
+                    .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
                 parameters.write(&mut parameters_file)?;
                 parameters.vk.write(&mut vk_file)?;
 
@@ -246,6 +266,45 @@ impl UtilsCommand {
 
                 println!("Wrote proof to {}", proof_scale_filename.display());
             }
+            UtilsCommand::GeneratePoStParams {
+                post_type,
+                output_path,
+            } => {
+                let output_path = if let Some(output_path) = output_path {
+                    output_path
+                } else {
+                    std::env::current_dir()?
+                };
+
+                let file_name: String = post_type.clone().into();
+
+                let (parameters_file_name, mut parameters_file) =
+                    file_with_extension(&output_path, file_name.as_str(), POST_PARAMS_EXT)?;
+                let (vk_file_name, mut vk_file) =
+                    file_with_extension(&output_path, file_name.as_str(), POST_VK_EXT)?;
+                let (vk_scale_file_name, mut vk_scale_file) =
+                    file_with_extension(&output_path, file_name.as_str(), POST_VK_EXT_SCALE)?;
+
+                println!(
+                    "Generating PoSt params for {} sectors... It can take a few secs ⌛",
+                    file_name
+                );
+                let parameters = post::generate_random_groth16_parameters(post_type.0)
+                    .map_err(|e| UtilsCommandError::GeneratePoStError(e))?;
+                parameters.write(&mut parameters_file)?;
+                parameters.vk.write(&mut vk_file)?;
+
+                let vk =
+                    polka_storage_proofs::VerifyingKey::<bls12_381::Bls12>::try_from(parameters.vk)
+                        .map_err(|e| UtilsCommandError::FromBytesError(e))?;
+                let bytes = codec::Encode::encode(&vk);
+                vk_scale_file.write_all(&bytes)?;
+
+                println!("Generated parameters: ");
+                println!("{}", parameters_file_name.display());
+                println!("{}", vk_file_name.display());
+                println!("{}", vk_scale_file_name.display());
+            }
         }
 
         Ok(())
@@ -262,6 +321,8 @@ pub enum UtilsCommandError {
     FromBytesError(#[from] polka_storage_proofs::FromBytesError),
     #[error("failed to generate a porep: {0}")]
     GeneratePoRepError(#[from] porep::PoRepError),
+    #[error("failed to generate a post: {0}")]
+    GeneratePoStError(#[from] post::PoStError),
     #[error("failed to load piece file at path: {0}")]
     InvalidPieceFile(PathBuf, std::io::Error),
     #[error("provided invalid CommP {0}, error: {1}")]
@@ -290,6 +351,28 @@ impl Into<String> for PoRepSealProof {
     fn into(self) -> String {
         match self.0 {
             RegisteredSealProof::StackedDRG2KiBV1P1 => "2KiB".into(),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct PoStProof(RegisteredPoStProof);
+
+impl std::str::FromStr for PoStProof {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "2KiB" => Ok(PoStProof(RegisteredPoStProof::StackedDRGWindow2KiBV1P1)),
+            v => Err(format!("unknown value for RegisteredPoStProof: {}", v)),
+        }
+    }
+}
+
+impl Into<String> for PoStProof {
+    fn into(self) -> String {
+        match self.0 {
+            RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => "2KiB".into(),
         }
     }
 }

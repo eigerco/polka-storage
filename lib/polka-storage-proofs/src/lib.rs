@@ -4,6 +4,7 @@
 
 mod groth16;
 pub mod porep;
+pub mod post;
 pub mod types;
 
 pub use groth16::*;
