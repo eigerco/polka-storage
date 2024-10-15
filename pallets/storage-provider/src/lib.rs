@@ -1281,7 +1281,7 @@ pub mod pallet {
 
             // Terminate deals
             let terminated_data = sectors_with_data.try_into().expect(
-                "Could not convert terminated sectors to BoundedVec. len > MAX_DEALS_PER_SECTOR",
+                "The sectors in the result can never be more than MAX_DEALS_PER_SECTOR due to previous bounds, this should not fail",
             );
 
             T::Market::on_sectors_terminate(&owner, terminated_data)
