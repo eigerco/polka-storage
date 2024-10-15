@@ -428,13 +428,13 @@ where
         let mut to_pop = vec![];
         let mut popped_partitions = vec![];
 
-        for (&block, &partition_number) in &self.expirations_blocks {
-            if block > until {
-                break;
-            }
-            to_pop.push(block);
-            popped_partitions.push(partition_number);
-        }
+        self.expirations_blocks
+            .iter()
+            .take_while(|(&block, _partition_number)| block > until)
+            .for_each(|(&block, &partition_number)| {
+                to_pop.push(block);
+                popped_partitions.push(partition_number);
+            });
 
         if to_pop.is_empty() {
             return Ok((vec![], false));

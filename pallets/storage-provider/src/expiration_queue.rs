@@ -320,11 +320,9 @@ where
         let mut on_time_sectors = BoundedBTreeSet::new();
         let mut early_sectors = BoundedBTreeSet::new();
 
-        for (&block, expiration_set) in self.map.iter() {
-            if block > until {
-                break;
-            }
-
+        self.map.iter().take_while(|(&block, _expiration_set)| {
+            block > until
+        }).try_for_each(|(&block, expiration_set)| -> Result<(), GeneralPalletError>{
             popped_keys.push(block);
             for sector in expiration_set.on_time_sectors.iter() {
                 on_time_sectors
@@ -341,7 +339,8 @@ where
                     GeneralPalletError::ExpirationQueueErrorInsertionFailed
                 })?;
             }
-        }
+            Ok(())
+        })?;
 
         for block_number in popped_keys {
             self.map.remove(&block_number);
