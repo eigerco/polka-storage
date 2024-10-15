@@ -452,8 +452,8 @@ where
         Ok((result, has_more))
     }
 
-    /// PopExpiredSectors traverses the expiration queue up to and including some block, and marks all expiring
-    /// sectors as terminated.
+    /// PopExpiredSectors traverses the expiration queue up to and including some block,
+    /// and marks all expiring sectors as terminated.
     /// Returns the expired sector aggregates.
     pub fn pop_expired_sectors(
         &mut self,
@@ -474,8 +474,8 @@ where
             .collect();
 
         // There shouldn't be any recovering sectors if this is invoked at deadline end.
-        // Either the partition was PoSted and the recovering became recovered, or the partition was not PoSted
-        // and all recoveries retracted.
+        // Either the partition was PoSted and the recovering became recovered,
+        // or the partition was not PoSted and all recoveries retracted.
         // No recoveries may be posted until the deadline is closed.
         ensure!(self.recoveries.is_empty(), {
             log::error!(target: LOG_TARGET, "pop_expired_sectors: Unexpected recoveries while processing expirations");
