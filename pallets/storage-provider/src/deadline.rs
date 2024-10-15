@@ -421,29 +421,25 @@ where
     }
 
     /// Pops expired partitions until a given block.
+    /// Returns the popped partition numbers
     pub fn pop_expired_partitions(
         &mut self,
         until: BlockNumber,
-    ) -> Result<(Vec<PartitionNumber>, bool), GeneralPalletError> {
-        let mut to_pop = vec![];
-        let mut popped_partitions = vec![];
-
-        self.expirations_blocks
+    ) -> Result<Vec<PartitionNumber>, GeneralPalletError> {
+        let (to_pop, popped_partitions): (Vec<BlockNumber>, Vec<PartitionNumber>) = self
+            .expirations_blocks
             .iter()
             .take_while(|(&block, _partition_number)| block > until)
-            .for_each(|(&block, &partition_number)| {
-                to_pop.push(block);
-                popped_partitions.push(partition_number);
-            });
+            .unzip();
 
-        if to_pop.is_empty() {
-            return Ok((vec![], false));
+        if to_pop.iter().peekable().peek().is_none() {
+            return Ok(vec![]);
         }
 
         to_pop.iter().for_each(|block_number| {
             self.expirations_blocks.remove(&block_number);
         });
-        Ok((popped_partitions, true))
+        Ok(popped_partitions)
     }
 
     /// PopExpiredSectors terminates expired sectors from all partitions.
@@ -452,9 +448,9 @@ where
         &mut self,
         until: BlockNumber,
     ) -> Result<ExpirationSet, GeneralPalletError> {
-        let (expired_partitions, modified) = self.pop_expired_partitions(until)?;
+        let expired_partitions = self.pop_expired_partitions(until)?;
 
-        if !modified {
+        if expired_partitions.iter().peekable().peek().is_none() {
             // nothing to do.
             return Ok(ExpirationSet::new());
         }
