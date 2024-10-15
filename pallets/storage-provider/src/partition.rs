@@ -454,6 +454,7 @@ where
 
     /// PopExpiredSectors traverses the expiration queue up to and including some block,
     /// and marks all expiring sectors as terminated.
+    /// PRE-CONDITION: The must be no unproven sectors before popping.
     /// Returns the expired sector aggregates.
     pub fn pop_expired_sectors(
         &mut self,
