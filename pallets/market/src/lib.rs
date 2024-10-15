@@ -1154,11 +1154,17 @@ pub mod pallet {
             );
 
             let min_dur = T::MinDealDuration::get();
-            let max_dur = T::MaxDealDuration::get();
-            ensure!(
-                deal.proposal.duration() >= min_dur && deal.proposal.duration() <= max_dur,
+            let deal_duration = deal.proposal.duration();
+            ensure!(deal_duration >= min_dur, {
+                log::error!(target: LOG_TARGET, "deal duration too short: {deal_duration:?} < {min_dur:?}");
                 ProposalError::DealDurationOutOfBounds
-            );
+            });
+
+            let max_dur = T::MaxDealDuration::get();
+            ensure!(deal_duration <= max_dur, {
+                log::error!(target: LOG_TARGET, "deal_duration too long: {deal_duration:?} > {max_dur:?}");
+                ProposalError::DealDurationOutOfBounds
+            });
 
             // TODO(@th7nder,#81,18/06/2024): figure out the minimum collateral limits
             // <https://spec.filecoin.io/#section-systems.filecoin_markets.onchain_storage_market.storage_market_actor.storage-deal-collateral>

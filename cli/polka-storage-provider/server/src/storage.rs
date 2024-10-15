@@ -10,7 +10,9 @@ use axum::{
 };
 use futures::{TryFutureExt, TryStreamExt};
 use mater::Cid;
-use polka_storage_provider_common::commp::{calculate_piece_commitment, CommPError};
+use polka_storage_provider_common::commp::{
+    calculate_piece_commitment, CommPError, ZeroPaddingReader,
+};
 use primitives_commitment::piece::PaddedPieceSize;
 use tokio::{
     fs::{self, File},
@@ -180,11 +182,12 @@ async fn upload(
         .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
 
     // Check the piece size first since it's the cheap check
-    if !(proposed_deal.piece_size == file_size) {
+    let piece_size = PaddedPieceSize::from_arbitrary_size(file_size);
+    if !(proposed_deal.piece_size == *piece_size) {
         tracing::trace!(
             expected = proposed_deal.piece_size,
-            actual = file_size,
-            "file sizes of the CAR file and the deal proposal do not match"
+            actual = *piece_size,
+            "piece size does not match the proposal piece size"
         );
 
         // Not handling the error since there's little to be done here...
@@ -203,10 +206,13 @@ async fn upload(
     // is CPU intensive — i.e. blocking — potentially improvement is to move this completely out of
     // the tokio runtime into an OS thread
     let piece_commitment_cid = tokio::task::spawn_blocking(move || -> Result<_, CommPError> {
-        let file = std::fs::File::open(&piece_path).map_err(CommPError::Io)?;
-        let file_size = file.metadata().map_err(CommPError::Io)?.len();
-        let file_size = PaddedPieceSize::new(file_size).map_err(|err| CommPError::InvalidPieceSize(err.to_string()))?;
-        let piece_commitment = calculate_piece_commitment(file, file_size)?;
+        // Yes, we're reloading the file, this requires the std version
+        let file = std::fs::File::open(&piece_path)?;
+        let file_size = file.metadata()?.len();
+        let piece_size = PaddedPieceSize::from_arbitrary_size(file_size);
+        let buffered = std::io::BufReader::new(file);
+        let reader = ZeroPaddingReader::new(buffered, *piece_size);
+        let piece_commitment = calculate_piece_commitment(reader, piece_size)?;
         let piece_commitment_cid = piece_commitment.cid();
         tracing::debug!(path = %piece_path.display(), commp = %piece_commitment_cid, "calculated piece commitment");
         Ok(piece_commitment_cid)
@@ -231,7 +237,10 @@ async fn upload(
 
         return Err((
             StatusCode::BAD_REQUEST,
-            "calculated piece cid does not match the proposed deal".to_string(),
+            format!(
+                "calculated piece cid does not match the proposed deal; expected: {}, received: {}",
+                proposed_deal.piece_cid, piece_commitment_cid
+            ),
         ));
     }
 
