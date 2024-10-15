@@ -1,10 +1,13 @@
 #![cfg(feature = "std")]
 
+use crate::types::{Commitment, ProverId, Ticket};
+
 use bellperson::groth16;
 use blstrs::Bls12;
-use filecoin_proofs::{DefaultOctTree, PoStType};
-use primitives_proofs::RegisteredPoStProof;
+use filecoin_proofs::{DefaultOctTree, PoStType, PrivateReplicaInfo};
+use primitives_proofs::{SectorNumber, RegisteredPoStProof};
 use rand::rngs::OsRng;
+use std::{path::{PathBuf, Path}, collections::BTreeMap};
 use storage_proofs_core::compound_proof::CompoundProof;
 
 /// Generates parameters for proving and verifying PoSt.
@@ -24,6 +27,33 @@ pub fn generate_random_groth16_parameters(
         );
 
     Ok(groth16::generate_random_parameters(circuit, &mut OsRng)?)
+}
+
+#[derive(Debug)]
+pub struct ReplicaInfo {
+    pub sector_id: SectorNumber,
+    pub comm_r: Commitment,
+    pub replica_path: PathBuf,
+}
+
+pub fn generate_window_post<CacheDirectory: AsRef<Path>>(
+    proof_type: RegisteredPoStProof,
+    randomness: Ticket,
+    prover_id: ProverId,
+    partition_replicas: Vec<ReplicaInfo>,
+    cache_dir: CacheDirectory,
+) -> Result<Vec<u8>, PoStError> {
+    let config = seal_to_config(proof_type);
+    let mut replicas = BTreeMap::new();
+    for replica in partition_replicas {
+        replicas.insert(replica.sector_id.into(), PrivateReplicaInfo::<DefaultOctTree>::new(
+            replica.replica_path,
+            replica.comm_r,
+            cache_dir.as_ref().to_path_buf()
+        )?);
+    }
+
+    Ok(filecoin_proofs::generate_window_post(&config, &randomness, &replicas, prover_id)?)
 }
 
 /// References:

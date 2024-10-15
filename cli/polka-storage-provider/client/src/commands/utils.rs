@@ -216,8 +216,11 @@ impl UtilsCommand {
                 let mut unsealed_sector =
                     tempfile::NamedTempFile::new().map_err(|e| UtilsCommandError::IOError(e))?;
 
-                let (sealed_sector_path, _) =
-                    file_with_extension(&output_path, format!("{}", sector_id).as_str(), "sector.sealed")?;
+                let (sealed_sector_path, _) = file_with_extension(
+                    &output_path,
+                    format!("{}", sector_id).as_str(),
+                    "sector.sealed",
+                )?;
 
                 println!("Creating sector...");
                 let sealer = Sealer::new(seal_proof.0);
