@@ -50,11 +50,14 @@ pub enum UtilsCommand {
         /// Path to where parameters to corresponding `seal_proof` are stored.
         #[arg(short, long)]
         proof_parameters_path: PathBuf,
+        /// Directory where sector data like PersistentAux and TemporaryAux are stored.
+        #[arg(short, long)]
+        cache_directory: PathBuf,
         /// Piece file, CARv2 archive created with `mater-cli convert`.
         input_path: PathBuf,
         /// CommP of a file, calculated with `commp` command.
         commp: String,
-        /// Directory where the proof files will be put. Defaults to the current directory.
+        /// Directory where the proof files and the sector will be put. Defaults to the current directory.
         #[arg(short, long)]
         output_path: Option<PathBuf>,
     },
@@ -158,6 +161,7 @@ impl UtilsCommand {
                 input_path,
                 commp,
                 output_path,
+                cache_directory,
             } => {
                 let output_path = if let Some(output_path) = output_path {
                     output_path
@@ -202,10 +206,18 @@ impl UtilsCommand {
                     size: piece_file_length,
                 };
 
+                // Those are hardcoded for the showcase only.
+                // They should come from Storage Provider Node, precommits and other information.
+                let sector_id = 77;
+                let prover_id = [0u8; 32];
+                let ticket = [12u8; 32];
+                let seed = [13u8; 32];
+
                 let mut unsealed_sector =
                     tempfile::NamedTempFile::new().map_err(|e| UtilsCommandError::IOError(e))?;
-                let sealed_sector =
-                    tempfile::NamedTempFile::new().map_err(|e| UtilsCommandError::IOError(e))?;
+
+                let (sealed_sector_path, _) =
+                    file_with_extension(&output_path, format!("{}", sector_id).as_str(), "sector.sealed")?;
 
                 println!("Creating sector...");
                 let sealer = Sealer::new(seal_proof.0);
@@ -216,21 +228,12 @@ impl UtilsCommand {
                     )
                     .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
 
-                // Those are hardcoded for the showcase only.
-                // They should come from Storage Provider Node, precommits and other information.
-                let sector_id = 77;
-                let prover_id = [0u8; 32];
-                let ticket = [12u8; 32];
-                let seed = [13u8; 32];
-
                 println!("Precommitting...");
-                let cache_directory =
-                    tempfile::tempdir().map_err(|e| UtilsCommandError::IOError(e))?;
                 let precommit = sealer
                     .precommit_sector(
-                        cache_directory.path(),
+                        &cache_directory,
                         unsealed_sector.path(),
-                        sealed_sector.path(),
+                        &sealed_sector_path,
                         prover_id,
                         sector_id,
                         ticket,
@@ -242,8 +245,8 @@ impl UtilsCommand {
                 let proofs = sealer
                     .prove_sector(
                         &proof_parameters,
-                        cache_directory.path(),
-                        sealed_sector.path(),
+                        &cache_directory,
+                        &sealed_sector_path,
                         prover_id,
                         sector_id,
                         ticket,
