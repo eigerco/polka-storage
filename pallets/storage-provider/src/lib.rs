@@ -1268,7 +1268,7 @@ pub mod pallet {
 
             // Check whether sectors have expired, if not push to sectors_with_data for later processing.
             // Process in Market pallet `on_sectors_terminate`.
-            // TODO(@aidan46, no-ref, 2024-10-14): Figure out economics to apply early termination penalty.
+            // TODO(@aidan46, #452, 2024-10-14): Figure out economics to apply early termination penalty.
             for (&expiry, sector_numbers) in result.sectors.iter() {
                 for sector_number in sector_numbers {
                     // I am not 100% sure this is correct. In FC they use deal weight to determine.
