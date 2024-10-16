@@ -85,11 +85,13 @@ impl RegisteredSealProof {
 #[derive(
     Debug, Decode, Encode, DecodeAsType, EncodeAsType, TypeInfo, PartialEq, Eq, Clone, Copy,
 )]
+#[cfg_attr(feature = "clap", derive(::clap::ValueEnum))]
 #[cfg_attr(feature = "serde", derive(::serde::Deserialize, ::serde::Serialize))]
 #[codec(crate = ::codec)]
 #[decode_as_type(crate_path = "::scale_decode")]
 #[encode_as_type(crate_path = "::scale_encode")]
 pub enum RegisteredPoStProof {
+    #[cfg_attr(feature = "clap", clap(name = "2KiB"))]
     #[cfg_attr(feature = "serde", serde(alias = "2KiB"))]
     StackedDRGWindow2KiBV1P1,
 }

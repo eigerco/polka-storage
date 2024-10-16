@@ -66,7 +66,7 @@ impl DealDB {
 
         // We could avoid this allocation by passing the CID as a key
         // but that opens the API to be more error prone :(
-        let deal_proposal_cid = deal_proposal.cid()?;
+        let deal_proposal_cid = deal_proposal.json_cid()?;
         let deal_proposal_key = deal_proposal_cid.to_bytes();
         let deal_proposal_json = serde_json::to_vec(deal_proposal)?;
 

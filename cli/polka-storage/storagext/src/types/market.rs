@@ -144,7 +144,7 @@ impl DealProposal {
     }
 
     /// Get the CID of this deal proposal, as serialized into JSON.
-    pub fn cid(&self) -> Result<cid::Cid, ConversionError> {
+    pub fn json_cid(&self) -> Result<cid::Cid, ConversionError> {
         let deal_proposal_json = serde_json::to_string(self)?;
         let deal_proposal_sha256 = sha2::Sha256::digest(&deal_proposal_json);
         let deal_proposal_multihash =

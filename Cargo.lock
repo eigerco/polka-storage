@@ -9456,6 +9456,7 @@ dependencies = [
  "mater",
  "polka-storage-provider-common",
  "primitives-commitment",
+ "primitives-proofs",
  "rand",
  "rocksdb",
  "sc-cli",
@@ -10919,6 +10920,7 @@ name = "primitives-proofs"
 version = "0.1.0"
 dependencies = [
  "cid 0.11.1",
+ "clap",
  "parity-scale-codec",
  "scale-decode",
  "scale-encode",
