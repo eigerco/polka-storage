@@ -432,11 +432,12 @@ where
             .take_while(|(&block, _partition_number)| block > until)
             .unzip();
 
-        if to_pop.iter().peekable().peek().is_none() {
+        let mut to_pop = to_pop.into_iter().peekable();
+        if to_pop.peek().is_none() {
             return Ok(Vec::new());
         }
 
-        to_pop.iter().for_each(|block_number| {
+        to_pop.for_each(|block_number| {
             self.expirations_blocks.remove(&block_number);
         });
         Ok(popped_partitions)
