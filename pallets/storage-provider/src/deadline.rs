@@ -433,7 +433,7 @@ where
             .unzip();
 
         if to_pop.iter().peekable().peek().is_none() {
-            return Ok(vec![]);
+            return Ok(Vec::new());
         }
 
         to_pop.iter().for_each(|block_number| {

@@ -316,7 +316,7 @@ where
     /// Pops expiration sets from the queue until the given block number.
     /// Returns an expiration set with the popped sectors, on time and early.
     pub fn pop_until(&mut self, until: BlockNumber) -> Result<ExpirationSet, GeneralPalletError> {
-        let mut popped_keys = vec![];
+        let mut popped_keys = Vec::new();
         let mut on_time_sectors = BoundedBTreeSet::new();
         let mut early_sectors = BoundedBTreeSet::new();
 

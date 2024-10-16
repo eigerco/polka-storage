@@ -1250,7 +1250,7 @@ pub mod pallet {
         ) -> Result</* has more */ bool, Error<T>> {
             let mut state = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
-            let mut sectors_with_data = vec![];
+            let mut sectors_with_data = Vec::new();
             let (result, more) = state
                 .pop_early_terminations(
                     T::AddressedPartitionsMax::get(),
