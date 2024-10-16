@@ -379,6 +379,7 @@ where
             .expect("Reached the limit for early terminations");
         Ok(())
     }
+
     /// Pops early terminations until `max_sectors` or until there are none left
     ///
     /// Reference implementation:
