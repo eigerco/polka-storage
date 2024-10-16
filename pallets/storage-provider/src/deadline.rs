@@ -449,9 +449,9 @@ where
         &mut self,
         until: BlockNumber,
     ) -> Result<ExpirationSet, GeneralPalletError> {
-        let expired_partitions = self.pop_expired_partitions(until)?;
+        let mut expired_partitions = self.pop_expired_partitions(until)?.into_iter().peekable();
 
-        if expired_partitions.iter().peekable().peek().is_none() {
+        if expired_partitions.peek().is_none() {
             // nothing to do.
             return Ok(ExpirationSet::new());
         }
