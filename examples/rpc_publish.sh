@@ -48,7 +48,7 @@ DEAL_JSON=$(
         "provider": "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y",
         "label": "",
         "start_block": 100000,
-        "end_block": 100100,
+        "end_block": 100050,
         "storage_price_per_block": 500,
         "provider_collateral": 1250,
         "state": "Published"
