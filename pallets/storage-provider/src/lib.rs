@@ -1262,7 +1262,7 @@ pub mod pallet {
             // This can happen if we end up processing early terminations
             // before the cron callback fires.
             if result.is_empty() {
-                log::info!("no early terminations");
+                log::info!(target: LOG_TARGET, "no early terminations");
                 return Ok(more);
             }
 

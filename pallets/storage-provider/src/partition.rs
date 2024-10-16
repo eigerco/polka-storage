@@ -452,10 +452,11 @@ where
         Ok((result, has_more))
     }
 
-    /// PopExpiredSectors traverses the expiration queue up to and including some block,
-    /// and marks all expiring sectors as terminated.
-    /// PRE-CONDITION: The must be no unproven sectors before popping.
+    /// Traverses the expiration queue up to and including the given block,
+    /// marking all expiring sectors as terminated. 
     /// Returns the expired sector aggregates.
+    ///
+    /// PRE-CONDITION: There must be no unproven sectors before popping.
     pub fn pop_expired_sectors(
         &mut self,
         until: BlockNumber,
@@ -487,7 +488,7 @@ where
         ensure!(
             self.terminated.intersection(&expired_sectors).count() == 0,
             {
-                log::error!("expiring sectors already terminated");
+                log::error!(target: LOG_TARGET, "expiring sectors already terminated");
                 GeneralPalletError::PartitionErrorExpiredSectorsAlreadyTerminated
             }
         );
