@@ -119,8 +119,8 @@ where
         let deadline = self.deadlines.load_deadline_mut(dl_info.idx as usize)?;
         // Expire sectors that are due, either for on-time expiration or "early" faulty-for-too-long.
         let expired = deadline.pop_expired_sectors(dl_info.last())?;
-        let no_early_terminations = expired.early_sectors.is_empty();
-        if !no_early_terminations {
+        let early_terminations = !expired.early_sectors.is_empty();
+        if early_terminations {
             self.early_terminations.insert(dl_info.idx);
         }
         Ok(())
