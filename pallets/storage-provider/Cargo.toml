@@ -35,6 +35,7 @@ env_logger = { workspace = true }
 multihash-codetable = { workspace = true, features = ["blake2b"] }
 pallet-balances = { workspace = true, default-features = false }
 pallet-market = { workspace = true, default-features = false }
+pallet-proofs = { workspace = true, default-features = false }
 rstest = { workspace = true }
 sp-io = { workspace = true }
 

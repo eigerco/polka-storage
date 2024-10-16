@@ -329,6 +329,8 @@ parameter_types! {
     /// Copied from FileCoin and adapted to substrate block time. WPoStChallengeLookBack + 125 blocks
     /// <https://github.com/filecoin-project/builtin-actors/blob/6906288334746318385cfd53edd7ea33ef03919f/runtime/src/runtime/policy.rs#L327>
     pub const FaultDeclarationCutoff: BlockNumber = (10 * MINUTES) + 125;
+    /// <https://github.com/filecoin-project/builtin-actors/blob/a45fb87910bca74d62215b0d58ed90cf78b6c8ff/runtime/src/runtime/policy.rs#L306>
+    pub const PreCommitChallengeDelay: BlockNumber = 75 * MINUTES;
 
     // Market Pallet
     /// Deal duration values copied from FileCoin.
@@ -351,6 +353,7 @@ parameter_types! {
     pub const MaxPartitionsPerDeadline: u64 = 3000;
     pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
     pub const FaultDeclarationCutoff: BlockNumber = 1 * MINUTES;
+    pub const PreCommitChallengeDelay: BlockNumber = 5 * MINUTES;
 
     // Market Pallet
     pub const MinDealDuration: u64 = 5 * MINUTES;
@@ -362,6 +365,7 @@ impl pallet_storage_provider::Config for Runtime {
     type PeerId = BoundedVec<u8, ConstU32<32>>; // Max length of SHA256 hash
     type Currency = Balances;
     type Market = crate::Market;
+    type ProofVerificationPallet = crate::Proofs;
     type WPoStProvingPeriod = WpostProvingPeriod;
     type WPoStChallengeWindow = WpostChallengeWindow;
     type WPoStChallengeLookBack = WPoStChallengeLookBack;
@@ -373,6 +377,7 @@ impl pallet_storage_provider::Config for Runtime {
     type MaxPartitionsPerDeadline = MaxPartitionsPerDeadline;
     type FaultMaxAge = FaultMaxAge;
     type FaultDeclarationCutoff = FaultDeclarationCutoff;
+    type PreCommitChallengeDelay = PreCommitChallengeDelay;
 }
 
 parameter_types! {

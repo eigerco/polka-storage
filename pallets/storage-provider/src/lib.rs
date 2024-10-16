@@ -57,8 +57,7 @@ pub mod pallet {
     };
     use primitives_commitment::{Commitment, CommitmentKind};
     use primitives_proofs::{
-        Market, RegisteredPoStProof, RegisteredSealProof, SectorNumber, StorageProviderValidation,
-        MAX_SECTORS_PER_CALL,
+        Market, ProofVerification, RegisteredPoStProof, RegisteredSealProof, SectorNumber, StorageProviderValidation, MAX_SECTORS_PER_CALL
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::Zero;
@@ -106,6 +105,9 @@ pub mod pallet {
 
         /// Market trait implementation for activating deals
         type Market: Market<Self::AccountId, BlockNumberFor<Self>>;
+
+        /// Proof verification trait implementation for verifying proofs
+        type ProofVerificationPallet: ProofVerification;
 
         /// Window PoSt proving period — equivalent to 24 hours worth of blocks.
         ///
@@ -215,6 +217,12 @@ pub mod pallet {
         /// <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/runtime/src/runtime/policy.rs#L327-L328>
         #[pallet::constant]
         type FaultDeclarationCutoff: Get<BlockNumberFor<Self>>;
+
+        /// Number of epochs between publishing the precommit and when the
+        /// challenge for interactive PoRep is drawn used to ensure it is not
+        /// predictable by miner.
+        #[pallet::constant]
+        type PreCommitChallengeDelay: Get<BlockNumberFor<Self>>;
     }
 
     /// Need some storage type that keeps track of sectors, deadlines and terminations.
@@ -286,6 +294,8 @@ pub mod pallet {
         InvalidSector,
         /// Emitted when submitting an invalid proof type.
         InvalidProofType,
+        /// Emitted when the proof is invalid
+        InvalidProof,
         /// Emitted when there is not enough funds to run an extrinsic.
         NotEnoughFunds,
         /// Emitted when trying to reuse a sector number
@@ -484,8 +494,8 @@ pub mod pallet {
             Ok(())
         }
 
-        /// Allows the storage providers to submit proof for their pre-committed sectors.
-        // TODO(@aidan46, no-ref, 2024-06-24): Actually check proof, currently the proof validation is stubbed out.
+        /// Allows the storage providers to submit proof for their pre-committed
+        /// sectors.
         pub fn prove_commit_sectors(
             origin: OriginFor<T>,
             sectors: BoundedVec<ProveCommitSector, ConstU32<MAX_SECTORS_PER_CALL>>,
@@ -516,13 +526,9 @@ pub mod pallet {
                     log::error!(target: LOG_TARGET, "prove_commit_sectors: Prove commit submitted after the deadline. {current_block:?} > {prove_commit_due:?}");
                     Error::<T>::ProveCommitAfterDeadline
                 });
-                ensure!(
-                    validate_seal_proof(&precommit.info.seal_proof, sector.proof),
-                    {
-                        log::error!(target: LOG_TARGET, "prove_commit_sectors: Invalid proof type submitted");
-                        Error::<T>::InvalidProofType
-                    },
-                );
+
+                // Validate the proof
+                validate_seal_proof::<T>(&owner, &precommit, sector.proof)?;
 
                 // Sector deals that will be activated after the sector is
                 // successfully proven.
@@ -1289,10 +1295,41 @@ pub mod pallet {
         Ok(())
     }
 
-    fn validate_seal_proof(
-        _seal_proof_type: &RegisteredSealProof,
-        proofs: BoundedVec<u8, ConstU32<256>>,
-    ) -> bool {
-        proofs.len() != 0 // TODO(@aidan46, no-ref, 2024-06-24): Actually check proof
+    fn validate_seal_proof<T: Config>(
+        owner: &T::AccountId,
+        precommit: &SectorPreCommitOnChainInfo<BalanceOf<T>, BlockNumberFor<T>>,
+        proof: BoundedVec<u8, ConstU32<256>>,
+    ) -> Result<(), DispatchError> {
+        let max_proof_size = precommit.info.seal_proof.proof_size();
+
+        // Check proof size
+        if proof.len() > max_proof_size {
+            log::error!(target: LOG_TARGET, "sector proof size {} exceeds max {}", proof.len(), max_proof_size);
+            return Err(Error::<T>::InvalidProof)?;
+        }
+
+        // Ensure proof is submitted after the challenge delay
+        let current_block_number = <frame_system::Pallet<T>>::block_number();
+        let interactive_block_number = precommit.pre_commit_block_number + T::PreCommitChallengeDelay::get();
+        if current_block_number <= interactive_block_number {
+            log::error!(target: LOG_TARGET, "too early to prove sector: {current_block_number:?} !<= {interactive_block_number:?}");
+            return Err(Error::<T>::InvalidProof)?;
+        }
+
+        // TODO: Generate entropy
+        // TODO: generate randomness
+        // TODO: GEnerate interactive_randomness
+
+        // Verify the porep proof
+        T::ProofVerificationPallet::verify_porep(
+            todo!(),
+            todo!(),
+            todo!(),
+            todo!(),
+            todo!(),
+            todo!(),
+            todo!(),
+            todo!()
+        )
     }
 }

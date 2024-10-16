@@ -79,6 +79,13 @@ impl RegisteredSealProof {
             }
         }
     }
+
+    /// Proof size for each SealProof type
+    pub fn proof_size(self) -> usize {
+        match self {
+            RegisteredSealProof::StackedDRG2KiBV1P1 => 192,
+        }
+    }
 }
 
 /// Proof of Spacetime type, indicating version and sector size of the proof.

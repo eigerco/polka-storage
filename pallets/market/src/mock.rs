@@ -28,6 +28,7 @@ frame_support::construct_runtime!(
         Balances: pallet_balances,
         StorageProvider: pallet_storage_provider::pallet,
         Market: pallet_market,
+        Proofs: pallet_proofs::pallet,
     }
 );
 
@@ -64,6 +65,7 @@ parameter_types! {
     pub const MaxPartitionsPerDeadline: u64 = 3000;
     pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
     pub const FaultDeclarationCutoff: BlockNumber = 2 * MINUTES;
+    pub const PreCommitChallengeDelay: BlockNumber = 5 * MINUTES;
 }
 
 impl crate::Config for Test {
@@ -84,6 +86,7 @@ impl pallet_storage_provider::Config for Test {
     type PeerId = BoundedVec<u8, ConstU32<32>>; // Max length of SHA256 hash
     type Currency = Balances;
     type Market = Market;
+    type ProofVerificationPallet = Proofs;
     type WPoStProvingPeriod = WpostProvingPeriod;
     type WPoStChallengeWindow = WpostChallengeWindow;
     type WPoStChallengeLookBack = WpostChallengeLookBack;
@@ -95,6 +98,11 @@ impl pallet_storage_provider::Config for Test {
     type MaxPartitionsPerDeadline = MaxPartitionsPerDeadline;
     type FaultMaxAge = FaultMaxAge;
     type FaultDeclarationCutoff = FaultDeclarationCutoff;
+    type PreCommitChallengeDelay = PreCommitChallengeDelay;
+}
+
+impl pallet_proofs::Config for Test {
+    type RuntimeEvent = RuntimeEvent;
 }
 
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;

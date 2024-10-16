@@ -54,6 +54,7 @@ frame_support::construct_runtime!(
         Balances: pallet_balances,
         StorageProvider: pallet_storage_provider::pallet,
         Market: pallet_market,
+        Proofs: pallet_proofs::pallet,
     }
 );
 
@@ -74,10 +75,6 @@ impl pallet_balances::Config for Test {
     type AccountStore = System;
 }
 
-parameter_types! {
-    pub const MarketPalletId: PalletId = PalletId(*b"spMarket");
-}
-
 impl pallet_market::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type PalletId = MarketPalletId;
@@ -89,6 +86,10 @@ impl pallet_market::Config for Test {
     type MinDealDuration = MinDealDuration;
     type MaxDealDuration = MaxDealDuration;
     type MaxDealsPerBlock = ConstU32<500>;
+}
+
+impl pallet_proofs::Config for Test {
+    type RuntimeEvent = RuntimeEvent;
 }
 
 parameter_types! {
@@ -104,8 +105,10 @@ parameter_types! {
     pub const MaxPartitionsPerDeadline: u64 = 3000;
     pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
     pub const FaultDeclarationCutoff: BlockNumber = 2 * MINUTES;
+    pub const PreCommitChallengeDelay: BlockNumber = 5 * MINUTES;
 
     // Market Pallet
+    pub const MarketPalletId: PalletId = PalletId(*b"spMarket");
     pub const MinDealDuration: u64 = 2 * MINUTES;
     pub const MaxDealDuration: u64 = 30 * MINUTES;
 }
@@ -115,6 +118,7 @@ impl pallet_storage_provider::Config for Test {
     type PeerId = BoundedVec<u8, ConstU32<32>>; // Max length of SHA256 hash
     type Currency = Balances;
     type Market = Market;
+    type ProofVerificationPallet = Proofs;
     type WPoStProvingPeriod = WpostProvingPeriod;
     type WPoStChallengeWindow = WpostChallengeWindow;
     type WPoStChallengeLookBack = WpostChallengeLookBack;
@@ -126,6 +130,7 @@ impl pallet_storage_provider::Config for Test {
     type MaxPartitionsPerDeadline = MaxPartitionsPerDeadline;
     type FaultMaxAge = FaultMaxAge;
     type FaultDeclarationCutoff = FaultDeclarationCutoff;
+    type PreCommitChallengeDelay = PreCommitChallengeDelay;
 }
 
 type AccountIdOf<Test> = <Test as frame_system::Config>::AccountId;
