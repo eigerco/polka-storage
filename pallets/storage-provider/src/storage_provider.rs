@@ -14,6 +14,7 @@ use sp_arithmetic::{traits::BaseArithmetic, ArithmeticError};
 use crate::{
     deadline::{assign_deadlines, deadline_is_mutable, Deadline, DeadlineInfo, Deadlines},
     error::GeneralPalletError,
+    pallet::Policy,
     partition::TerminationResult,
     sector::{SectorOnChainInfo, SectorPreCommitOnChainInfo, MAX_SECTORS},
 };
@@ -74,9 +75,6 @@ where
 
     /// Deadlines with outstanding fees for early sector termination.
     pub early_terminations: BTreeSet<u64>,
-
-    /// Storage provider pallet constants
-    pub policy: Policy<BlockNumber>,
 }
 
 impl<PeerId, Balance, BlockNumber> StorageProviderState<PeerId, Balance, BlockNumber>
@@ -89,12 +87,7 @@ where
         info: StorageProviderInfo<PeerId>,
         period_start: BlockNumber,
         deadline_idx: u64,
-        max_partitions_per_deadline: u64,
         w_post_period_deadlines: u64,
-        w_post_proving_period: BlockNumber,
-        w_post_challenge_window: BlockNumber,
-        w_post_challenge_lookback: BlockNumber,
-        fault_declaration_cutoff: BlockNumber,
     ) -> Self {
         Self {
             info,
@@ -105,14 +98,6 @@ where
             current_deadline: deadline_idx,
             deadlines: Deadlines::new(w_post_period_deadlines),
             early_terminations: BTreeSet::new(),
-            policy: Policy::new(
-                max_partitions_per_deadline,
-                w_post_period_deadlines,
-                w_post_proving_period,
-                w_post_challenge_window,
-                w_post_challenge_lookback,
-                fault_declaration_cutoff,
-            ),
         }
     }
 
@@ -120,17 +105,17 @@ where
     pub fn advance_deadline(
         &mut self,
         current_block: BlockNumber,
+        policy: Policy<BlockNumber>,
     ) -> Result<(), GeneralPalletError> {
-        self.current_deadline = (self.current_deadline + 1) % self.policy.w_post_period_deadlines;
+        self.current_deadline = (self.current_deadline + 1) % policy.w_post_period_deadlines;
         log::debug!(target: LOG_TARGET, "new deadline {:?}, period deadlines {:?}",
-        self.current_deadline, self.policy.w_post_period_deadlines);
+        self.current_deadline, policy.w_post_period_deadlines);
 
         if self.current_deadline == 0 {
-            self.proving_period_start =
-                self.proving_period_start + self.policy.w_post_proving_period;
+            self.proving_period_start = self.proving_period_start + policy.w_post_proving_period;
         }
 
-        let dl_info = self.deadline_info(current_block)?;
+        let dl_info = self.deadline_info(current_block, policy)?;
         let deadline = self.deadlines.load_deadline_mut(dl_info.idx as usize)?;
         // Expire sectors that are due, either for on-time expiration or "early" faulty-for-too-long.
         let expired = deadline.pop_expired_sectors(dl_info.last())?;
@@ -220,6 +205,7 @@ where
         current_block: BlockNumber,
         mut sectors: BoundedVec<SectorOnChainInfo<BlockNumber>, ConstU32<MAX_SECTORS>>,
         partition_size: u64,
+        policy: Policy<BlockNumber>,
     ) -> Result<(), GeneralPalletError> {
         sectors.sort_by_key(|info| info.sector_number);
 
@@ -229,9 +215,7 @@ where
         );
 
         let mut deadline_vec: Vec<Option<Deadline<BlockNumber>>> =
-            (0..self.policy.w_post_period_deadlines)
-                .map(|_| None)
-                .collect();
+            (0..policy.w_post_period_deadlines).map(|_| None).collect();
 
         // required otherwise the logic gets complicated really fast
         // the issue is that filecoin supports negative epoch numbers
@@ -246,11 +230,11 @@ where
                     self.proving_period_start,
                     idx as u64,
                     current_block,
-                    self.policy.w_post_period_deadlines,
-                    self.policy.w_post_proving_period,
-                    self.policy.w_post_challenge_window,
-                    self.policy.w_post_challenge_lookback,
-                    self.policy.fault_declaration_cutoff,
+                    policy.w_post_period_deadlines,
+                    policy.w_post_proving_period,
+                    policy.w_post_challenge_window,
+                    policy.w_post_challenge_lookback,
+                    policy.fault_declaration_cutoff,
                 )?;
                 log::error!(target: LOG_TARGET, "is_deadline_mutable {}", is_deadline_mutable);
                 // Skip deadlines that aren't currently mutable.
@@ -262,11 +246,11 @@ where
 
         // Assign sectors to deadlines.
         let deadline_to_sectors = assign_deadlines(
-            self.policy.max_partitions_per_deadline,
+            policy.max_partitions_per_deadline,
             partition_size,
             &deadline_vec,
             &sectors,
-            self.policy.w_post_period_deadlines,
+            policy.w_post_period_deadlines,
         )?;
 
         for (deadline_idx, deadline_sectors) in deadline_to_sectors.iter().enumerate() {
@@ -296,6 +280,7 @@ where
     pub fn deadline_info(
         &self,
         current_block: BlockNumber,
+        policy: Policy<BlockNumber>,
     ) -> Result<DeadlineInfo<BlockNumber>, GeneralPalletError> {
         let current_deadline_index = self.current_deadline;
 
@@ -303,11 +288,11 @@ where
             current_block,
             self.proving_period_start,
             current_deadline_index,
-            self.policy.w_post_period_deadlines,
-            self.policy.w_post_proving_period,
-            self.policy.w_post_challenge_window,
-            self.policy.w_post_challenge_lookback,
-            self.policy.fault_declaration_cutoff,
+            policy.w_post_period_deadlines,
+            policy.w_post_proving_period,
+            policy.w_post_challenge_window,
+            policy.w_post_challenge_lookback,
+            policy.fault_declaration_cutoff,
         )
     }
 
@@ -354,36 +339,6 @@ where
         let no_early_terminations = self.early_terminations.is_empty();
 
         Ok((result, !no_early_terminations))
-    }
-}
-
-#[derive(RuntimeDebug, Clone, Copy, Decode, Encode, TypeInfo)]
-pub struct Policy<BlockNumber> {
-    max_partitions_per_deadline: u64,
-    w_post_period_deadlines: u64,
-    w_post_proving_period: BlockNumber,
-    w_post_challenge_window: BlockNumber,
-    w_post_challenge_lookback: BlockNumber,
-    fault_declaration_cutoff: BlockNumber,
-}
-
-impl<BlockNumber> Policy<BlockNumber> {
-    pub fn new(
-        max_partitions_per_deadline: u64,
-        w_post_period_deadlines: u64,
-        w_post_proving_period: BlockNumber,
-        w_post_challenge_window: BlockNumber,
-        w_post_challenge_lookback: BlockNumber,
-        fault_declaration_cutoff: BlockNumber,
-    ) -> Self {
-        Self {
-            max_partitions_per_deadline,
-            w_post_period_deadlines,
-            w_post_proving_period,
-            w_post_challenge_window,
-            w_post_challenge_lookback,
-            fault_declaration_cutoff,
-        }
     }
 }
 

@@ -453,7 +453,7 @@ where
     }
 
     /// Traverses the expiration queue up to and including the given block,
-    /// marking all expiring sectors as terminated. 
+    /// marking all expiring sectors as terminated.
     /// Returns the expired sector aggregates.
     ///
     /// PRE-CONDITION: There must be no unproven sectors before popping.

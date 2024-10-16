@@ -339,6 +339,36 @@ pub mod pallet {
         }
     }
 
+    #[derive(RuntimeDebug, Clone, Copy, Decode, Encode, TypeInfo)]
+    pub struct Policy<BlockNumber> {
+        pub max_partitions_per_deadline: u64,
+        pub w_post_period_deadlines: u64,
+        pub w_post_proving_period: BlockNumber,
+        pub w_post_challenge_window: BlockNumber,
+        pub w_post_challenge_lookback: BlockNumber,
+        pub fault_declaration_cutoff: BlockNumber,
+    }
+
+    impl<BlockNumber> Policy<BlockNumber> {
+        pub fn new(
+            max_partitions_per_deadline: u64,
+            w_post_period_deadlines: u64,
+            w_post_proving_period: BlockNumber,
+            w_post_challenge_window: BlockNumber,
+            w_post_challenge_lookback: BlockNumber,
+            fault_declaration_cutoff: BlockNumber,
+        ) -> Self {
+            Self {
+                max_partitions_per_deadline,
+                w_post_period_deadlines,
+                w_post_proving_period,
+                w_post_challenge_window,
+                w_post_challenge_lookback,
+                fault_declaration_cutoff,
+            }
+        }
+    }
+
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         pub fn register_storage_provider(
@@ -374,12 +404,7 @@ pub mod pallet {
                 // Always zero since we're calculating the absolute first start
                 // thus the deadline will always be zero
                 0,
-                T::MaxPartitionsPerDeadline::get(),
                 T::WPoStPeriodDeadlines::get(),
-                T::WPoStProvingPeriod::get(),
-                T::WPoStChallengeWindow::get(),
-                T::WPoStChallengeLookBack::get(),
-                T::FaultDeclarationCutoff::get(),
             );
             StorageProviders::<T>::insert(&owner, state);
             // Emit event
@@ -579,6 +604,14 @@ pub mod pallet {
                 current_block,
                 new_sectors,
                 sp.info.window_post_partition_sectors,
+                Policy::new(
+                    T::MaxPartitionsPerDeadline::get(),
+                    T::WPoStPeriodDeadlines::get(),
+                    T::WPoStProvingPeriod::get(),
+                    T::WPoStChallengeWindow::get(),
+                    T::WPoStChallengeLookBack::get(),
+                    T::FaultDeclarationCutoff::get(),
+                ),
             )
             .map_err(|e| Error::<T>::GeneralPalletError(e))?;
 
@@ -665,7 +698,17 @@ pub mod pallet {
                 Error::<T>::InvalidDeadlineSubmission
             });
             let current_deadline = sp
-                .deadline_info(current_block)
+                .deadline_info(
+                    current_block,
+                    Policy::new(
+                        T::MaxPartitionsPerDeadline::get(),
+                        T::WPoStPeriodDeadlines::get(),
+                        T::WPoStProvingPeriod::get(),
+                        T::WPoStChallengeWindow::get(),
+                        T::WPoStChallengeLookBack::get(),
+                        T::FaultDeclarationCutoff::get(),
+                    ),
+                )
                 .map_err(|e| Error::<T>::GeneralPalletError(e))?;
 
             Self::validate_deadline(&current_deadline, &windowed_post)?;
@@ -1086,7 +1129,17 @@ pub mod pallet {
                     continue;
                 }
 
-                let Ok(current_deadline) = state.deadline_info(current_block) else {
+                let Ok(current_deadline) = state.deadline_info(
+                    current_block,
+                    Policy::new(
+                        T::MaxPartitionsPerDeadline::get(),
+                        T::WPoStPeriodDeadlines::get(),
+                        T::WPoStProvingPeriod::get(),
+                        T::WPoStChallengeWindow::get(),
+                        T::WPoStChallengeLookBack::get(),
+                        T::FaultDeclarationCutoff::get(),
+                    ),
+                ) else {
                     log::error!(target: LOG_TARGET, "block: {:?}, there are no deadlines for storage provider {:?}", current_block, storage_provider);
                     continue;
                 };
@@ -1181,7 +1234,17 @@ pub mod pallet {
                 // Next processing will happen in the next proving period.
                 deadline.partitions_posted = BoundedBTreeSet::new();
                 state
-                    .advance_deadline(current_block)
+                    .advance_deadline(
+                        current_block,
+                        Policy::new(
+                            T::MaxPartitionsPerDeadline::get(),
+                            T::WPoStPeriodDeadlines::get(),
+                            T::WPoStProvingPeriod::get(),
+                            T::WPoStChallengeWindow::get(),
+                            T::WPoStChallengeLookBack::get(),
+                            T::FaultDeclarationCutoff::get(),
+                        ),
+                    )
                     .expect("Could not advance deadline");
                 StorageProviders::<T>::insert(storage_provider, state);
             }
@@ -1250,7 +1313,6 @@ pub mod pallet {
         ) -> Result</* has more */ bool, Error<T>> {
             let mut state = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
-            let mut sectors_with_data = Vec::new();
             let (result, more) = state
                 .pop_early_terminations(
                     T::AddressedPartitionsMax::get(),
@@ -1266,6 +1328,7 @@ pub mod pallet {
                 return Ok(more);
             }
 
+            let mut sectors_with_data = Vec::new();
             // Check whether sectors have expired, if not push to sectors_with_data for later processing.
             // Process in Market pallet `on_sectors_terminate`.
             // TODO(@aidan46, #452, 2024-10-14): Figure out economics to apply early termination penalty.
