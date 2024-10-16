@@ -1350,6 +1350,9 @@ pub mod pallet {
             T::Market::on_sectors_terminate(&owner, terminated_data)
                 .map_err(|_| Error::<T>::CouldNotTerminateDeals)?;
 
+            // Update storage provider state
+            StorageProviders::<T>::insert(&owner, state);
+
             Ok(more)
         }
     }
