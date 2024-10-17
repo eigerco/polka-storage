@@ -329,6 +329,8 @@ parameter_types! {
     /// Copied from FileCoin and adapted to substrate block time. WPoStChallengeLookBack + 125 blocks
     /// <https://github.com/filecoin-project/builtin-actors/blob/6906288334746318385cfd53edd7ea33ef03919f/runtime/src/runtime/policy.rs#L327>
     pub const FaultDeclarationCutoff: BlockNumber = (10 * MINUTES) + 125;
+    // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L299>
+    pub const AddressedSectorsMax: u64 = 25_000;
 
     // Market Pallet
     /// Deal duration values copied from FileCoin.
@@ -351,6 +353,8 @@ parameter_types! {
     pub const MaxPartitionsPerDeadline: u64 = 3000;
     pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
     pub const FaultDeclarationCutoff: BlockNumber = 1 * MINUTES;
+    // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L299>
+    pub const AddressedSectorsMax: u64 = 25_000;
 
     // Market Pallet
     pub const MinDealDuration: u64 = 5 * MINUTES;
@@ -373,6 +377,9 @@ impl pallet_storage_provider::Config for Runtime {
     type MaxPartitionsPerDeadline = MaxPartitionsPerDeadline;
     type FaultMaxAge = FaultMaxAge;
     type FaultDeclarationCutoff = FaultDeclarationCutoff;
+    // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L295>
+    type AddressedPartitionsMax = MaxPartitionsPerDeadline;
+    type AddressedSectorsMax = AddressedSectorsMax;
 }
 
 parameter_types! {

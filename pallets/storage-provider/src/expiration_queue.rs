@@ -47,7 +47,7 @@ impl ExpirationSet {
             self.on_time_sectors
                 .try_insert(*sector)
                 .map_err(|_| {
-                    log::error!(target: LOG_TARGET, "add: Could not insert sector into on time sectors"); 
+                    log::error!(target: LOG_TARGET, "add: Could not insert sector into on time sectors");
                     GeneralPalletError::ExpirationQueueErrorInsertionFailed
                 })?;
         }
@@ -311,6 +311,45 @@ where
         } else {
             Ok(removed)
         }
+    }
+
+    /// Pops expiration sets from the queue until the given block number.
+    /// Returns an expiration set with the popped sectors, on time and early.
+    pub fn pop_until(&mut self, until: BlockNumber) -> Result<ExpirationSet, GeneralPalletError> {
+        let mut popped_keys = Vec::new();
+        let mut on_time_sectors = BoundedBTreeSet::new();
+        let mut early_sectors = BoundedBTreeSet::new();
+
+        self.map.iter().take_while(|(&block, _expiration_set)| {
+            block < until
+        }).try_for_each(|(&block, expiration_set)| -> Result<(), GeneralPalletError>{
+            popped_keys.push(block);
+            for sector in expiration_set.on_time_sectors.iter() {
+                on_time_sectors
+                    .try_insert(*sector)
+                    .map_err(|_| {
+                        log::error!(target: LOG_TARGET, "add: Could not insert sector into on time sectors");
+                        GeneralPalletError::ExpirationQueueErrorInsertionFailed
+                    })?;
+            }
+
+            for sector in expiration_set.early_sectors.iter() {
+                early_sectors.try_insert(*sector).map_err(|_| {
+                    log::error!(target: LOG_TARGET, "add: Could not insert sector into early sectors");
+                    GeneralPalletError::ExpirationQueueErrorInsertionFailed
+                })?;
+            }
+            Ok(())
+        })?;
+
+        for block_number in popped_keys {
+            self.map.remove(&block_number);
+        }
+
+        Ok(ExpirationSet {
+            on_time_sectors,
+            early_sectors,
+        })
     }
 
     /// Add sectors to the specific expiration set. The operation is a no-op if
