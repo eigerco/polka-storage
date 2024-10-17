@@ -6,6 +6,7 @@ use frame_support::{
     PalletId,
 };
 use frame_system::{self as system, pallet_prelude::BlockNumberFor};
+use pallet_insecure_randomness_collective_flip as pallet_randomness;
 use primitives_proofs::RegisteredPoStProof;
 use sp_core::Pair;
 use sp_runtime::{
@@ -80,6 +81,8 @@ impl crate::Config for Test {
     type MaxDealDuration = ConstU64<30>;
     type MaxDealsPerBlock = ConstU32<32>;
 }
+
+impl pallet_randomness::Config for Test {}
 
 impl pallet_storage_provider::Config for Test {
     type RuntimeEvent = RuntimeEvent;

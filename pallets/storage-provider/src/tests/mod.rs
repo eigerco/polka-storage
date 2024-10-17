@@ -9,6 +9,7 @@ use frame_support::{
     traits::Hooks, PalletId,
 };
 use frame_system::pallet_prelude::BlockNumberFor;
+use pallet_insecure_randomness_collective_flip as pallet_randomness;
 use pallet_market::{BalanceOf, ClientDealProposal, DealProposal, DealState};
 use primitives_commitment::{Commitment, CommitmentKind};
 use primitives_proofs::{
@@ -74,6 +75,8 @@ impl frame_system::Config for Test {
 impl pallet_balances::Config for Test {
     type AccountStore = System;
 }
+
+impl pallet_randomness::Config for Test {}
 
 impl pallet_market::Config for Test {
     type RuntimeEvent = RuntimeEvent;

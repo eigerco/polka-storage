@@ -46,7 +46,7 @@ pub mod pallet {
         pallet_prelude::*,
         sp_runtime::traits::{CheckedAdd, CheckedSub, One},
         traits::{
-            Currency, ExistenceRequirement::KeepAlive, Imbalance, ReservableCurrency,
+            Currency, ExistenceRequirement::KeepAlive, Imbalance, Randomness, ReservableCurrency,
             WithdrawReasons,
         },
     };
@@ -55,9 +55,11 @@ pub mod pallet {
         pallet_prelude::{BlockNumberFor, *},
         Config as SystemConfig,
     };
+    use pallet_insecure_randomness_collective_flip as pallet_randomness;
     use primitives_commitment::{Commitment, CommitmentKind};
     use primitives_proofs::{
-        Market, ProofVerification, RegisteredPoStProof, RegisteredSealProof, SectorNumber, StorageProviderValidation, MAX_SECTORS_PER_CALL
+        Market, ProofVerification, RegisteredPoStProof, SectorNumber, StorageProviderValidation,
+        MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::Zero;
@@ -90,7 +92,7 @@ pub mod pallet {
     pub struct Pallet<T>(_);
 
     #[pallet::config]
-    pub trait Config: frame_system::Config {
+    pub trait Config: frame_system::Config + pallet_randomness::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -1310,13 +1312,19 @@ pub mod pallet {
 
         // Ensure proof is submitted after the challenge delay
         let current_block_number = <frame_system::Pallet<T>>::block_number();
-        let interactive_block_number = precommit.pre_commit_block_number + T::PreCommitChallengeDelay::get();
+        let interactive_block_number =
+            precommit.pre_commit_block_number + T::PreCommitChallengeDelay::get();
         if current_block_number <= interactive_block_number {
             log::error!(target: LOG_TARGET, "too early to prove sector: {current_block_number:?} !<= {interactive_block_number:?}");
             return Err(Error::<T>::InvalidProof)?;
         }
 
+        // Random value
+        let _random_value = pallet_randomness::Pallet::<T>::random(&b"my context"[..]);
+
         // TODO: Generate entropy
+        // let entropy =
+
         // TODO: generate randomness
         // TODO: GEnerate interactive_randomness
 
@@ -1329,7 +1337,7 @@ pub mod pallet {
             todo!(),
             todo!(),
             todo!(),
-            todo!()
+            todo!(),
         )
     }
 }
