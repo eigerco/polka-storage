@@ -10,7 +10,10 @@ version = "0.1.0"
 [dependencies]
 # "Homegrown" crates
 mater = { workspace = true }
+polka-storage-proofs = { workspace = true, features = ["std", "substrate"] }
 polka-storage-provider-common = { workspace = true }
+primitives-commitment = { workspace = true }
+primitives-proofs = { workspace = true, features = ["clap", "std"] }
 storagext = { workspace = true, features = ["clap", "insecure_url"] }
 
 async-trait = { workspace = true }
@@ -20,9 +23,6 @@ clap = { workspace = true, features = ["derive"] }
 codec = { workspace = true }
 hex = { workspace = true }
 jsonrpsee = { workspace = true, features = ["http-client", "macros", "server", "ws-client"] }
-polka-storage-proofs = { workspace = true, features = ["std", "substrate"] }
-primitives-commitment = { workspace = true }
-primitives-proofs = { workspace = true, features = ["std"] }
 sc-cli = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

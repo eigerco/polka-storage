@@ -34,7 +34,7 @@ pub enum UtilsCommand {
         /// PoRep has multiple variants dependent on the sector size.
         /// Parameters are required for each sector size and its corresponding PoRep.
         #[arg(short, long, default_value = "2KiB")]
-        seal_proof: PoRepSealProof,
+        seal_proof: RegisteredSealProof,
         /// Directory where the params files will be put. Defaults to the current directory.
         #[arg(short, long)]
         output_path: Option<PathBuf>,
@@ -46,7 +46,7 @@ pub enum UtilsCommand {
         /// PoRep has multiple variants dependent on the sector size.
         /// Parameters are required for each sector size and its corresponding PoRep Params.
         #[arg(short, long, default_value = "2KiB")]
-        seal_proof: PoRepSealProof,
+        seal_proof: RegisteredSealProof,
         /// Path to where parameters to corresponding `seal_proof` are stored.
         #[arg(short, long)]
         proof_parameters_path: PathBuf,
@@ -67,7 +67,7 @@ pub enum UtilsCommand {
         /// PoSt has multiple variants dependant on the sector size.
         /// Parameters are required for each sector size and its corresponding PoSt.
         #[arg(short, long, default_value = "2KiB")]
-        post_type: PoStProof,
+        post_type: RegisteredPoStProof,
         /// Directory where the params files will be put. Defaults to current directory.
         #[arg(short, long)]
         output_path: Option<PathBuf>,
@@ -77,7 +77,7 @@ pub enum UtilsCommand {
         /// PoSt has multiple variants dependant on the sector size.
         /// Parameters are required for each sector size and its corresponding PoSt.
         #[arg(long, default_value = "2KiB")]
-        post_type: PoStProof,
+        post_type: RegisteredPoStProof,
         /// Path to where parameters to corresponding `post_type` are stored.
         #[arg(short, long)]
         proof_parameters_path: PathBuf,
@@ -150,7 +150,7 @@ impl UtilsCommand {
                     std::env::current_dir()?
                 };
 
-                let file_name: String = seal_proof.clone().into();
+                let file_name: String = seal_proof.sector_size().to_string();
 
                 let (parameters_file_name, mut parameters_file) =
                     file_with_extension(&output_path, file_name.as_str(), POREP_PARAMS_EXT)?;
@@ -163,7 +163,7 @@ impl UtilsCommand {
                     "Generating params for {} sectors... It can take a couple of minutes ⌛",
                     file_name
                 );
-                let parameters = porep::generate_random_groth16_parameters(seal_proof.0)
+                let parameters = porep::generate_random_groth16_parameters(seal_proof)
                     .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
                 parameters.write(&mut parameters_file)?;
                 parameters.vk.write(&mut vk_file)?;
@@ -247,7 +247,7 @@ impl UtilsCommand {
                 )?;
 
                 println!("Creating sector...");
-                let sealer = Sealer::new(seal_proof.0);
+                let sealer = Sealer::new(seal_proof);
                 let piece_infos = sealer
                     .create_sector(
                         vec![(piece_file, piece_info.clone())],
@@ -306,7 +306,7 @@ impl UtilsCommand {
                     std::env::current_dir()?
                 };
 
-                let file_name: String = post_type.clone().into();
+                let file_name: String = post_type.sector_size().to_string();
 
                 let (parameters_file_name, mut parameters_file) =
                     file_with_extension(&output_path, file_name.as_str(), POST_PARAMS_EXT)?;
@@ -319,7 +319,7 @@ impl UtilsCommand {
                     "Generating PoSt params for {} sectors... It can take a few secs ⌛",
                     file_name
                 );
-                let parameters = post::generate_random_groth16_parameters(post_type.0)
+                let parameters = post::generate_random_groth16_parameters(post_type)
                     .map_err(|e| UtilsCommandError::GeneratePoStError(e))?;
                 parameters.write(&mut parameters_file)?;
                 parameters.vk.write(&mut vk_file)?;
@@ -378,7 +378,7 @@ impl UtilsCommand {
                     .map_err(|e| UtilsCommandError::GeneratePoStError(e))?;
 
                 let proofs = post::generate_window_post(
-                    post_type.0,
+                    post_type,
                     &proof_parameters,
                     randomness,
                     prover_id,
@@ -424,50 +424,6 @@ pub enum UtilsCommandError {
     IOError(std::io::Error),
     #[error("file {0} is invalid CARv2 file {1}")]
     InvalidCARv2(PathBuf, mater::Error),
-}
-
-#[derive(Clone, Debug)]
-pub struct PoRepSealProof(RegisteredSealProof);
-
-impl std::str::FromStr for PoRepSealProof {
-    type Err = String;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value {
-            "2KiB" => Ok(PoRepSealProof(RegisteredSealProof::StackedDRG2KiBV1P1)),
-            v => Err(format!("unknown value for RegisteredSealProof: {}", v)),
-        }
-    }
-}
-
-impl Into<String> for PoRepSealProof {
-    fn into(self) -> String {
-        match self.0 {
-            RegisteredSealProof::StackedDRG2KiBV1P1 => "2KiB".into(),
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct PoStProof(RegisteredPoStProof);
-
-impl std::str::FromStr for PoStProof {
-    type Err = String;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value {
-            "2KiB" => Ok(PoStProof(RegisteredPoStProof::StackedDRGWindow2KiBV1P1)),
-            v => Err(format!("unknown value for RegisteredPoStProof: {}", v)),
-        }
-    }
-}
-
-impl Into<String> for PoStProof {
-    fn into(self) -> String {
-        match self.0 {
-            RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => "2KiB".into(),
-        }
-    }
 }
 
 fn file_with_extension(

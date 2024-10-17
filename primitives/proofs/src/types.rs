@@ -50,6 +50,21 @@ impl SectorSize {
     }
 }
 
+impl core::fmt::Display for SectorSize {
+    fn fmt(
+        &self,
+        f: &mut scale_info::prelude::fmt::Formatter<'_>,
+    ) -> scale_info::prelude::fmt::Result {
+        match self {
+            SectorSize::_2KiB => write!(f, "2KiB"),
+            SectorSize::_8MiB => write!(f, "8MiB"),
+            SectorSize::_512MiB => write!(f, "512MiB"),
+            SectorSize::_32GiB => write!(f, "32GiB"),
+            SectorSize::_64GiB => write!(f, "64GiB"),
+        }
+    }
+}
+
 #[allow(non_camel_case_types)]
 #[derive(
     Debug, Decode, Encode, DecodeAsType, EncodeAsType, TypeInfo, Eq, PartialEq, Clone, Copy,
