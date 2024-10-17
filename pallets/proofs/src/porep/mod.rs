@@ -129,6 +129,8 @@ impl ProofScheme {
         Self { config, graph }
     }
 
+    /// References:
+    /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/266acc39a3ebd6f3d28c6ee335d78e2b7cea06bc/storage-proofs-core/src/compound_proof.rs#L148>
     pub fn verify(
         &self,
         comm_r: &RawCommitment,

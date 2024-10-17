@@ -12,6 +12,7 @@ mod crypto;
 mod fr32;
 mod graphs;
 mod porep;
+mod post;
 
 #[cfg(test)]
 mod mock;
