@@ -34,6 +34,7 @@ pub struct StorageServerState {
     pub deal_db: Arc<DealDB>,
 
     pub listen_address: SocketAddr,
+    // I think this just needs the sector size actually
     pub post_proof: RegisteredPoStProof,
 }
 

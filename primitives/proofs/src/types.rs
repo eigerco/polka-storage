@@ -54,6 +54,7 @@ impl SectorSize {
 #[derive(
     Debug, Decode, Encode, DecodeAsType, EncodeAsType, TypeInfo, Eq, PartialEq, Clone, Copy,
 )]
+#[cfg_attr(feature = "clap", derive(::clap::ValueEnum))]
 #[cfg_attr(feature = "serde", derive(::serde::Deserialize, ::serde::Serialize))]
 #[codec(crate = ::codec)]
 #[decode_as_type(crate_path = "::scale_decode")]
@@ -61,6 +62,7 @@ impl SectorSize {
 /// References:
 /// * <https://github.com/filecoin-project/rust-filecoin-proofs-api/blob/b44e7cecf2a120aa266b6886628e869ba67252af/src/registry.rs#L18>
 pub enum RegisteredSealProof {
+    #[cfg_attr(feature = "clap", clap(name = "2KiB"))]
     #[cfg_attr(feature = "serde", serde(alias = "2KiB"))]
     StackedDRG2KiBV1P1,
 }
@@ -98,7 +100,7 @@ pub enum RegisteredPoStProof {
 
 impl RegisteredPoStProof {
     /// Returns the sector size of the proof type, which is measured in bytes.
-    pub fn sector_size(self) -> SectorSize {
+    pub fn sector_size(&self) -> SectorSize {
         match self {
             RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => SectorSize::_2KiB,
         }
@@ -106,7 +108,7 @@ impl RegisteredPoStProof {
 
     /// Returns the partition size, in sectors, associated with a proof type.
     /// The partition size is the number of sectors proven in a single PoSt proof.
-    pub fn window_post_partitions_sector(self) -> u64 {
+    pub fn window_post_partitions_sector(&self) -> u64 {
         // Resolve to post proof and then compute size from that.
         match self {
             RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => 2,

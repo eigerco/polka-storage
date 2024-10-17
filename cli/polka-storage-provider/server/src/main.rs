@@ -6,11 +6,11 @@ mod db;
 mod rpc;
 mod storage;
 
-use std::{net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
+use std::{env::temp_dir, net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 
 use clap::Parser;
 use polka_storage_provider_common::rpc::ServerInfo;
-use primitives_proofs::RegisteredPoStProof;
+use primitives_proofs::{RegisteredPoStProof, RegisteredSealProof};
 use rand::Rng;
 use storagext::{
     multipair::{DebugPair, MultiPairSigner},
@@ -47,7 +47,7 @@ async fn main() -> Result<(), ServerError> {
         .init();
 
     // Run requested command.
-    let args = Server::parse();
+    let args = ServerArguments::parse();
     ServerConfiguration::try_from(args)?.run().await
 }
 
@@ -78,6 +78,9 @@ pub enum ServerError {
     #[error("registered proof does not match the configuration")]
     ProofMismatch,
 
+    #[error("proof sectors sizes do not match")]
+    SectorSizeMismatch,
+
     #[error("FromEnv error: {0}")]
     EnvFilter(#[from] tracing_subscriber::filter::FromEnvError),
 
@@ -103,9 +106,10 @@ pub enum ServerError {
     Join(#[from] JoinError),
 }
 
+/// The server arguments, as passed by the user, unvalidated.
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
-pub struct Server {
+pub struct ServerArguments {
     /// The server's listen address.
     #[arg(long, default_value = DEFAULT_UPLOAD_LISTEN_ADDRESS)]
     upload_listen_address: SocketAddr,
@@ -144,6 +148,10 @@ pub struct Server {
     #[arg(long)]
     storage_directory: Option<PathBuf>,
 
+    /// Proof of Replication proof type.
+    #[arg(long)]
+    seal_proof: RegisteredSealProof,
+
     /// Proof of Spacetime proof type.
     #[arg(long)]
     post_proof: RegisteredPoStProof,
@@ -173,12 +181,16 @@ pub struct ServerConfiguration {
     /// Storage root directory.
     storage_directory: PathBuf,
 
+    /// Proof of Replication proof type.
+    #[allow(dead_code)] // to be removed, in the sealer implementation
+    seal_proof: RegisteredSealProof,
+
     /// Proof of Spacetime proof type.
     post_proof: RegisteredPoStProof,
 }
 
 fn get_random_temporary_folder() -> PathBuf {
-    PathBuf::new().join("/tmp").join(
+    temp_dir().join(
         rand::thread_rng()
             .sample_iter(&rand::distributions::Alphanumeric)
             .take(7)
@@ -187,10 +199,14 @@ fn get_random_temporary_folder() -> PathBuf {
     )
 }
 
-impl TryFrom<Server> for ServerConfiguration {
+impl TryFrom<ServerArguments> for ServerConfiguration {
     type Error = ServerError;
 
-    fn try_from(value: Server) -> Result<Self, Self::Error> {
+    fn try_from(value: ServerArguments) -> Result<Self, Self::Error> {
+        if value.post_proof.sector_size() != value.seal_proof.sector_size() {
+            return Err(ServerError::SectorSizeMismatch);
+        }
+
         let multi_pair_signer = MultiPairSigner::new(
             value.sr25519_key.map(DebugPair::<Sr25519Pair>::into_inner),
             value.ecdsa_key.map(DebugPair::<ECDSAPair>::into_inner),
@@ -223,6 +239,7 @@ impl TryFrom<Server> for ServerConfiguration {
             multi_pair_signer,
             database_directory,
             storage_directory,
+            seal_proof: value.seal_proof,
             post_proof: value.post_proof,
         })
     }
