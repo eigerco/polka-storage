@@ -321,7 +321,7 @@ where
         let mut early_sectors = BoundedBTreeSet::new();
 
         self.map.iter().take_while(|(&block, _expiration_set)| {
-            block > until
+            block < until
         }).try_for_each(|(&block, expiration_set)| -> Result<(), GeneralPalletError>{
             popped_keys.push(block);
             for sector in expiration_set.on_time_sectors.iter() {
