@@ -14,10 +14,12 @@ use crate::{
         client::SubmissionResult,
         runtime_types::pallet_storage_provider::{
             proofs::SubmitWindowedPoStParams, sector::ProveCommitSector,
+            storage_provider::StorageProviderState,
         },
+        storage_provider::calls::types::register_storage_provider::PeerId,
     },
     types::storage_provider::{FaultDeclaration, RecoveryDeclaration, SectorPreCommitInfo},
-    PolkaStorageConfig,
+    BlockNumber, Currency, PolkaStorageConfig,
 };
 pub trait StorageProviderClientExt {
     fn register_storage_provider<Keypair>(
@@ -72,7 +74,9 @@ pub trait StorageProviderClientExt {
     fn retrieve_storage_provider(
         &self,
         account_id: &AccountId32,
-    ) -> impl Future<Output = Result<Option<String>, subxt::Error>>;
+    ) -> impl Future<
+        Output = Result<Option<StorageProviderState<PeerId, Currency, BlockNumber>>, subxt::Error>,
+    >;
 
     fn retrieve_registered_storage_providers(
         &self,
@@ -217,7 +221,7 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
     async fn retrieve_storage_provider(
         &self,
         account_id: &AccountId32,
-    ) -> Result<Option<String>, subxt::Error> {
+    ) -> Result<Option<StorageProviderState<PeerId, Currency, BlockNumber>>, subxt::Error> {
         let storage_provider = runtime::storage()
             .storage_provider()
             .storage_providers(account_id);
@@ -228,7 +232,6 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
             .await?
             .fetch(&storage_provider)
             .await
-            .map(|sp| sp.map(|sp| bs58::encode(sp.info.peer_id.0.as_slice()).into_string()))
     }
 
     #[tracing::instrument(level = "debug", skip_all)]

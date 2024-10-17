@@ -16,8 +16,8 @@ build: lint
 release: lint
     cargo build --release
 
-release-testnet: 
-    cargo build --release --features polka-storage-runtime/testnet
+release-testnet:
+    cargo build --release --features polka-storage-runtime/testnet --bin polka-storage-node
 
 testnet: release-testnet
     zombienet -p native spawn zombienet/local-testnet.toml

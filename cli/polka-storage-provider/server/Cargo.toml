@@ -11,6 +11,7 @@ version = "0.1.0"
 # "Homegrown" crates
 mater = { workspace = true }
 polka-storage-provider-common = { workspace = true }
+primitives-proofs = { workspace = true, features = ["clap"] }
 storagext = { workspace = true, features = ["clap", "insecure_url"] }
 
 async-trait = { workspace = true }
