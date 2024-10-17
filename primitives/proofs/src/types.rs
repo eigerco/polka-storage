@@ -57,10 +57,10 @@ impl core::fmt::Display for SectorSize {
     ) -> scale_info::prelude::fmt::Result {
         match self {
             SectorSize::_2KiB => write!(f, "2KiB"),
-            SectorSize::_8MiB => write!(f, "2KiB"),
-            SectorSize::_512MiB => write!(f, "2KiB"),
-            SectorSize::_32GiB => write!(f, "2KiB"),
-            SectorSize::_64GiB => write!(f, "2KiB"),
+            SectorSize::_8MiB => write!(f, "8MiB"),
+            SectorSize::_512MiB => write!(f, "512MiB"),
+            SectorSize::_32GiB => write!(f, "32GiB"),
+            SectorSize::_64GiB => write!(f, "64GiB"),
         }
     }
 }
