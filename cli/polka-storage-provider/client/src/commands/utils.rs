@@ -8,7 +8,7 @@ use std::{
 use mater::CarV2Reader;
 use polka_storage_proofs::{
     porep::{self, sealer::Sealer},
-    post,
+    post::{self, ReplicaInfo},
     types::PieceInfo,
 };
 use polka_storage_provider_common::commp::{
@@ -50,11 +50,14 @@ pub enum UtilsCommand {
         /// Path to where parameters to corresponding `seal_proof` are stored.
         #[arg(short, long)]
         proof_parameters_path: PathBuf,
+        /// Directory where sector data like PersistentAux and TemporaryAux are stored.
+        #[arg(short, long)]
+        cache_directory: PathBuf,
         /// Piece file, CARv2 archive created with `mater-cli convert`.
         input_path: PathBuf,
         /// CommP of a file, calculated with `commp` command.
         commp: String,
-        /// Directory where the proof files will be put. Defaults to the current directory.
+        /// Directory where the proof files and the sector will be put. Defaults to the current directory.
         #[arg(short, long)]
         output_path: Option<PathBuf>,
     },
@@ -69,15 +72,39 @@ pub enum UtilsCommand {
         #[arg(short, long)]
         output_path: Option<PathBuf>,
     },
+    /// Creates a PoSt for a single sector.
+    PoSt {
+        /// PoSt has multiple variants dependant on the sector size.
+        /// Parameters are required for each sector size and its corresponding PoSt.
+        #[arg(long, default_value = "2KiB")]
+        post_type: PoStProof,
+        /// Path to where parameters to corresponding `post_type` are stored.
+        #[arg(short, long)]
+        proof_parameters_path: PathBuf,
+        /// Directory where cache data from `po-rep` for the `replica_path` sector command has been stored.
+        /// It must be the same, or else it won't work.
+        #[arg(short, long)]
+        cache_directory: PathBuf,
+        /// Replica file generated with `po-rep` command e.g. `77.sector.sealed`.
+        replica_path: PathBuf,
+        /// Hex-encoded CommR of a replica (output of `po-rep` command)
+        comm_r: String,
+        #[arg(short, long)]
+        /// Directory where the PoSt proof will be stored. Defaults to the current directory.
+        output_path: Option<PathBuf>,
+    },
 }
 
-const POREP_PARAMS_EXT: &str = ".porep.params";
-const POREP_VK_EXT: &str = ".porep.vk";
-const POREP_VK_EXT_SCALE: &str = ".porep.vk.scale";
+const POREP_PARAMS_EXT: &str = "porep.params";
+const POREP_VK_EXT: &str = "porep.vk";
+const POREP_VK_EXT_SCALE: &str = "porep.vk.scale";
 
-const POST_PARAMS_EXT: &str = ".post.params";
-const POST_VK_EXT: &str = ".post.vk";
-const POST_VK_EXT_SCALE: &str = ".post.vk.scale";
+const POST_PARAMS_EXT: &str = "post.params";
+const POST_VK_EXT: &str = "post.vk";
+const POST_VK_EXT_SCALE: &str = "post.vk.scale";
+
+const POREP_PROOF_EXT: &str = "proof.porep.scale";
+const POST_PROOF_EXT: &str = "proof.post.scale";
 
 impl UtilsCommand {
     /// Run the command.
@@ -158,6 +185,7 @@ impl UtilsCommand {
                 input_path,
                 commp,
                 output_path,
+                cache_directory,
             } => {
                 let output_path = if let Some(output_path) = output_path {
                     output_path
@@ -171,7 +199,7 @@ impl UtilsCommand {
                         .expect("input file to have a name")
                         .to_str()
                         .expect("to be convertable to str"),
-                    "proof.scale",
+                    POREP_PROOF_EXT,
                 )?;
 
                 let mut source_file = tokio::fs::File::open(&input_path).await?;
@@ -202,10 +230,21 @@ impl UtilsCommand {
                     size: piece_file_length,
                 };
 
+                // Those are hardcoded for the showcase only.
+                // They should come from Storage Provider Node, precommits and other information.
+                let sector_id = 77;
+                let prover_id = [0u8; 32];
+                let ticket = [12u8; 32];
+                let seed = [13u8; 32];
+
                 let mut unsealed_sector =
                     tempfile::NamedTempFile::new().map_err(|e| UtilsCommandError::IOError(e))?;
-                let sealed_sector =
-                    tempfile::NamedTempFile::new().map_err(|e| UtilsCommandError::IOError(e))?;
+
+                let (sealed_sector_path, _) = file_with_extension(
+                    &output_path,
+                    format!("{}", sector_id).as_str(),
+                    "sector.sealed",
+                )?;
 
                 println!("Creating sector...");
                 let sealer = Sealer::new(seal_proof.0);
@@ -216,21 +255,12 @@ impl UtilsCommand {
                     )
                     .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
 
-                // Those are hardcoded for the showcase only.
-                // They should come from Storage Provider Node, precommits and other information.
-                let sector_id = 77;
-                let prover_id = [0u8; 32];
-                let ticket = [12u8; 32];
-                let seed = [13u8; 32];
-
                 println!("Precommitting...");
-                let cache_directory =
-                    tempfile::tempdir().map_err(|e| UtilsCommandError::IOError(e))?;
                 let precommit = sealer
                     .precommit_sector(
-                        cache_directory.path(),
+                        &cache_directory,
                         unsealed_sector.path(),
-                        sealed_sector.path(),
+                        &sealed_sector_path,
                         prover_id,
                         sector_id,
                         ticket,
@@ -242,8 +272,8 @@ impl UtilsCommand {
                 let proofs = sealer
                     .prove_sector(
                         &proof_parameters,
-                        cache_directory.path(),
-                        sealed_sector.path(),
+                        &cache_directory,
+                        &sealed_sector_path,
                         prover_id,
                         sector_id,
                         ticket,
@@ -305,6 +335,67 @@ impl UtilsCommand {
                 println!("{}", vk_file_name.display());
                 println!("{}", vk_scale_file_name.display());
             }
+            UtilsCommand::PoSt {
+                post_type,
+                proof_parameters_path,
+                cache_directory,
+                replica_path,
+                comm_r,
+                output_path,
+            } => {
+                let output_path = if let Some(output_path) = output_path {
+                    output_path
+                } else {
+                    std::env::current_dir()?
+                };
+
+                let (proof_scale_filename, mut proof_scale_file) = file_with_extension(
+                    &output_path,
+                    replica_path
+                        .file_name()
+                        .expect("input file to have a name")
+                        .to_str()
+                        .expect("to be convertable to str"),
+                    POST_PROOF_EXT,
+                )?;
+
+                // Those are hardcoded for the showcase only.
+                // They should come from Storage Provider Node, precommits and other information.
+                let sector_id = 77;
+                let randomness = [1u8; 32];
+                let prover_id = [0u8; 32];
+                let replicas = vec![ReplicaInfo {
+                    sector_id,
+                    comm_r: hex::decode(comm_r)
+                        .map_err(|_| UtilsCommandError::CommRError)?
+                        .try_into()
+                        .map_err(|_| UtilsCommandError::CommRError)?,
+                    replica_path,
+                }];
+
+                println!("Loading parameters...");
+                let proof_parameters = post::load_groth16_parameters(proof_parameters_path)
+                    .map_err(|e| UtilsCommandError::GeneratePoStError(e))?;
+
+                let proofs = post::generate_window_post(
+                    post_type.0,
+                    &proof_parameters,
+                    randomness,
+                    prover_id,
+                    replicas,
+                    cache_directory,
+                )
+                .map_err(|e| UtilsCommandError::GeneratePoStError(e))?;
+
+                println!("Proving...");
+                // We only prove a single sector here, so it'll only be 1 proof.
+                let proof_scale: polka_storage_proofs::Proof<bls12_381::Bls12> = proofs[0]
+                    .clone()
+                    .try_into()
+                    .expect("converstion between rust-fil-proofs and polka-storage-proofs to work");
+                proof_scale_file.write_all(&codec::Encode::encode(&proof_scale))?;
+                println!("Wrote proof to {}", proof_scale_filename.display());
+            }
         }
 
         Ok(())
@@ -323,6 +414,8 @@ pub enum UtilsCommandError {
     GeneratePoRepError(#[from] porep::PoRepError),
     #[error("failed to generate a post: {0}")]
     GeneratePoStError(#[from] post::PoStError),
+    #[error("CommR must be 32 bytes and generated by `po-rep` command")]
+    CommRError,
     #[error("failed to load piece file at path: {0}")]
     InvalidPieceFile(PathBuf, std::io::Error),
     #[error("provided invalid CommP {0}, error: {1}")]
