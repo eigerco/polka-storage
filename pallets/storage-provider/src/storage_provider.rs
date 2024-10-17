@@ -107,6 +107,12 @@ where
         current_block: BlockNumber,
         policy: Policy<BlockNumber>,
     ) -> Result<(), GeneralPalletError> {
+        let dl_info = self.deadline_info(current_block, policy)?;
+
+        if !dl_info.period_started() {
+            return Ok(());
+        }
+
         self.current_deadline = (self.current_deadline + 1) % policy.w_post_period_deadlines;
         log::debug!(target: LOG_TARGET, "new deadline {:?}, period deadlines {:?}",
         self.current_deadline, policy.w_post_period_deadlines);
@@ -115,8 +121,8 @@ where
             self.proving_period_start = self.proving_period_start + policy.w_post_proving_period;
         }
 
-        let dl_info = self.deadline_info(current_block, policy)?;
         let deadline = self.deadlines.load_deadline_mut(dl_info.idx as usize)?;
+
         // Expire sectors that are due, either for on-time expiration or "early" faulty-for-too-long.
         let expired = deadline.pop_expired_sectors(dl_info.last())?;
         let early_terminations = !expired.early_sectors.is_empty();

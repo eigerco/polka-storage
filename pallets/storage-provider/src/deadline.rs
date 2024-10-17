@@ -461,13 +461,12 @@ where
         let mut early_sectors = BTreeSet::new();
 
         for partition_number in expired_partitions {
-            let partition = self
-                    .partitions
-                    .get_mut(&partition_number)
-                    .ok_or({
-                        log::error!(target: LOG_TARGET, "pop_expired_sectors: Could not find partition number {partition_number:?}");
-                        GeneralPalletError::DeadlineErrorPartitionNotFound
-                    })?;
+            let partition = if let Some(partition) = self.partitions.get_mut(&partition_number) {
+                partition
+            } else {
+                log::error!(target: LOG_TARGET, "pop_expired_sectors: Could not find partition number {partition_number:?}");
+                return Err(GeneralPalletError::DeadlineErrorPartitionNotFound);
+            };
 
             let partition_expiration = partition.pop_expired_sectors(until)?;
 
