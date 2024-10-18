@@ -163,12 +163,12 @@ where
         &self,
         sector_number: SectorNumber,
     ) -> Result<&SectorPreCommitOnChainInfo<Balance, BlockNumber>, GeneralPalletError> {
-        if let Some(sector) = self.pre_committed_sectors.get(&sector_number) {
-            Ok(sector)
-        } else {
-            log::error!(target: LOG_TARGET, "get_pre_committed_sector: Failed to get pre committed sector {sector_number:?}");
-            Err(GeneralPalletError::StorageProviderErrorSectorNotFound)
-        }
+        self.pre_committed_sectors
+            .get(&sector_number)
+            .ok_or_else(|| {
+                log::error!(target: LOG_TARGET, "get_pre_committed_sector: Failed to get pre committed sector {sector_number:?}");
+                GeneralPalletError::StorageProviderErrorSectorNotFound
+            })
     }
 
     /// Removes a pre committed sector from the given sector number.
@@ -176,12 +176,11 @@ where
         &mut self,
         sector_num: SectorNumber,
     ) -> Result<(), GeneralPalletError> {
-        if let None = self.pre_committed_sectors.remove(&sector_num) {
+        if self.pre_committed_sectors.remove(&sector_num).is_none() {
             log::error!(target: LOG_TARGET, "remove_pre_committed_sector: Failed to remove pre committed sector {sector_num:?}");
-            Err(GeneralPalletError::StorageProviderErrorSectorNotFound)
-        } else {
-            Ok(())
+            return Err(GeneralPalletError::StorageProviderErrorSectorNotFound);
         }
+        Ok(())
     }
 
     /// Activates a given sector according to the sector number
