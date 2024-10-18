@@ -47,8 +47,8 @@ mod tests {
     #[test]
     fn draw_randomness_test() {
         let expected_randomness = [
-            140, 200, 74, 146, 51, 100, 10, 170, 108, 137, 128, 227, 6, 228, 100, 1, 137, 133, 222,
-            5, 250, 41, 152, 9, 229, 132, 167, 239, 215, 24, 223, 165,
+            16, 4, 148, 26, 85, 39, 23, 237, 122, 218, 235, 235, 69, 17, 177, 142, 200, 107, 127,
+            84, 189, 40, 145, 187, 205, 159, 58, 161, 209, 57, 226, 68,
         ];
 
         let digest = [
@@ -63,7 +63,7 @@ mod tests {
             draw_randomness(
                 &digest,
                 DomainSeparationTag::SealRandomness,
-                2797727_u64,
+                0_u64,
                 entropy.as_slice(),
             )
         );
