@@ -987,7 +987,7 @@ pub mod pallet {
             // Update storage provider state
             StorageProviders::<T>::insert(&owner, sp);
 
-            let _ = Self::process_early_terminations(current_block, &owner)?;
+            Self::process_early_terminations(current_block, &owner)?;
 
             Ok(())
         }
@@ -1382,10 +1382,10 @@ pub mod pallet {
         fn process_early_terminations(
             current_block: BlockNumberFor<T>,
             owner: &T::AccountId,
-        ) -> Result</* has more */ bool, Error<T>> {
+        ) -> Result<(), Error<T>> {
             let mut state = StorageProviders::<T>::try_get(owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
-            let (result, more) = state
+            let result = state
                 .pop_early_terminations(
                     T::AddressedPartitionsMax::get(),
                     T::AddressedSectorsMax::get(),
@@ -1397,7 +1397,7 @@ pub mod pallet {
             // before the cron callback fires.
             if result.is_empty() {
                 log::info!(target: LOG_TARGET, "no early terminations");
-                return Ok(more);
+                return Ok(());
             }
 
             let mut sectors_with_data = Vec::new();
@@ -1425,7 +1425,7 @@ pub mod pallet {
             // Update storage provider state
             StorageProviders::<T>::insert(owner, state);
 
-            Ok(more)
+            Ok(())
         }
     }
 

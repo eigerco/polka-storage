@@ -308,11 +308,11 @@ where
         &mut self,
         max_partitions: u64,
         max_sectors: u64,
-    ) -> Result<(TerminationResult<BlockNumber>, /* has more */ bool), GeneralPalletError> {
+    ) -> Result<TerminationResult<BlockNumber>, GeneralPalletError> {
         // Anything to do? This lets us avoid loading the deadlines if there's nothing to do.
         if self.early_terminations.is_empty() {
             log::info!("early terminations empty");
-            return Ok((TerminationResult::new(), false));
+            return Ok(TerminationResult::new());
         }
 
         let mut result = TerminationResult::new();
@@ -341,10 +341,7 @@ where
             self.early_terminations.remove(&deadline_idx);
         }
 
-        // Ok, check to see if we've handled all early terminations.
-        let no_early_terminations = self.early_terminations.is_empty();
-
-        Ok((result, !no_early_terminations))
+        Ok(result)
     }
 }
 
