@@ -356,7 +356,7 @@ parameter_types! {
     pub const MaxPartitionsPerDeadline: u64 = 3000;
     pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
     pub const FaultDeclarationCutoff: BlockNumber = 1 * MINUTES;
-    pub const PreCommitChallengeDelay: BlockNumber = 5 * MINUTES;
+    pub const PreCommitChallengeDelay: BlockNumber = 2 * MINUTES;
 
     // Market Pallet
     pub const MinDealDuration: u64 = 5 * MINUTES;

@@ -50,6 +50,9 @@ fn successfully_prove_sector() {
             proof: bounded_vec![0xd, 0xe, 0xa, 0xd],
         };
 
+        // Run to the block, where we will be able to prove commit the sector.
+        run_to_block(4);
+
         assert_ok!(StorageProvider::prove_commit_sectors(
             RuntimeOrigin::signed(account(storage_provider)),
             bounded_vec![sector]

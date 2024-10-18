@@ -1311,12 +1311,14 @@ pub mod pallet {
             return Err(Error::<T>::InvalidProof)?;
         }
 
+        // TODO: Check if proof is too old
+
         // Ensure proof is submitted after the challenge delay
         let current_block_number = <frame_system::Pallet<T>>::block_number();
         let interactive_block_number =
             precommit.pre_commit_block_number + T::PreCommitChallengeDelay::get();
         if current_block_number <= interactive_block_number {
-            log::error!(target: LOG_TARGET, "too early to prove sector: {current_block_number:?} !<= {interactive_block_number:?}");
+            log::error!(target: LOG_TARGET, "too early to prove sector: current_block_number: {current_block_number:?} <= interactive_block_number: {interactive_block_number:?}");
             return Err(Error::<T>::InvalidProof)?;
         }
 
@@ -1329,14 +1331,22 @@ pub mod pallet {
             randomness,
             block_number
         );
+        let randomness: [u8; 32] = randomness.as_ref().try_into().map_err(|_| {
+            log::error!(target: LOG_TARGET, "failed to convert randomness to [u8; 32]");
+            Error::<T>::ConversionError
+        })?;
 
         let (interactive_randomness, block_number) =
             pallet_randomness::Pallet::<T>::random(entropy);
         log::info!(
-            "[validate_seal_proof] randomness: {:?}, block_number: {:?}",
-            randomness,
+            "[validate_seal_proof] interactive_randomness: {:?}, block_number: {:?}",
+            interactive_randomness,
             block_number
         );
+        let interactive_randomness: [u8; 32] = interactive_randomness.as_ref().try_into().map_err(|_| {
+            log::error!(target: LOG_TARGET, "failed to convert interactive randomness to [u8; 32]");
+            Error::<T>::ConversionError
+        })?;
 
         let unsealed_cid =
             Cid::read_bytes(precommit.info.unsealed_cid.as_slice()).map_err(|_| {
@@ -1354,8 +1364,8 @@ pub mod pallet {
             todo!(),
             todo!(),
             precommit.info.sector_number,
-            todo!(),
-            todo!(),
+            interactive_randomness,
+            randomness,
             proof.into_inner(),
         )
     }

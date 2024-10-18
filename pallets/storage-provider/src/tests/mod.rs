@@ -56,6 +56,7 @@ frame_support::construct_runtime!(
         StorageProvider: pallet_storage_provider::pallet,
         Market: pallet_market,
         Proofs: pallet_proofs::pallet,
+        Randomness: pallet_randomness::pallet,
     }
 );
 
@@ -108,7 +109,7 @@ parameter_types! {
     pub const MaxPartitionsPerDeadline: u64 = 3000;
     pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
     pub const FaultDeclarationCutoff: BlockNumber = 2 * MINUTES;
-    pub const PreCommitChallengeDelay: BlockNumber = 5 * MINUTES;
+    pub const PreCommitChallengeDelay: BlockNumber = 2 * MINUTES;
 
     // Market Pallet
     pub const MarketPalletId: PalletId = PalletId(*b"spMarket");
@@ -213,15 +214,18 @@ fn account(name: &str) -> AccountIdOf<Test> {
 /// Run until a particular block.
 ///
 /// Stolen't from: <https://github.com/paritytech/polkadot-sdk/blob/7df94a469e02e1d553bd4050b0e91870d6a4c31b/substrate/frame/lottery/src/mock.rs#L87-L98>
-fn run_to_block(n: u64) {
+pub fn run_to_block(n: u64) {
     while System::block_number() < n {
         if System::block_number() > 1 {
             StorageProvider::on_finalize(System::block_number());
+            Market::on_finalize(System::block_number());
             System::on_finalize(System::block_number());
         }
 
         System::set_block_number(System::block_number() + 1);
         System::on_initialize(System::block_number());
+        Randomness::on_initialize(System::block_number());
+        Market::on_initialize(System::block_number());
         StorageProvider::on_initialize(System::block_number());
     }
 }
