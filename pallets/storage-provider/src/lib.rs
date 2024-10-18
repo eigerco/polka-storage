@@ -73,7 +73,7 @@ pub mod pallet {
         },
         partition::PartitionNumber,
         proofs::{assign_proving_period_offset, SubmitWindowedPoStParams},
-        randomness::DomainSeparationTag,
+        randomness::{draw_randomness, DomainSeparationTag},
         sector::{
             ProveCommitResult, ProveCommitSector, SectorOnChainInfo, SectorPreCommitInfo,
             SectorPreCommitOnChainInfo, MAX_SECTORS,
@@ -1379,14 +1379,17 @@ pub mod pallet {
         // TODO: Check if we already have a randomness for the block_height. If
         // not. Generate a new one and save.
 
-        // Get randomness
-        let (randomness, block_number) = pallet_randomness::Pallet::<T>::random(entropy);
+        // Get randomness from chain
+        let (digest, block_number) = pallet_randomness::Pallet::<T>::random(entropy);
 
-        // Convert randomness to 32 bytes
-        let randomness: [u8; 32] = randomness.as_ref().try_into().map_err(|_| {
+        // Convert digest to 32 bytes
+        let digest: [u8; 32] = digest.as_ref().try_into().map_err(|_| {
             log::error!(target: LOG_TARGET, "failed to convert randomness to [u8; 32]");
             Error::<T>::ConversionError
         })?;
+
+        // Randomness with the bias
+        let randomness = draw_randomness(&digest, personalization, block_height, entropy);
 
         Ok((block_number, randomness))
     }
