@@ -150,7 +150,7 @@ pub struct TerminateSectorsParams {
 
 #[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct TerminationDeclaration {
-    pub deadline: SectorNumber,
+    pub deadline: u64,
     pub partition: PartitionNumber,
     pub sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_TERMINATIONS_PER_CALL>>,
 }

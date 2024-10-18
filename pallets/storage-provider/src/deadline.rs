@@ -346,10 +346,7 @@ where
         partition_numbers: &[PartitionNumber],
     ) -> Result<(), GeneralPalletError> {
         for &partition_number in partition_numbers {
-            let mut partition = if let Some(partition) = self.partitions.get_mut(&partition_number)
-            {
-                partition.clone()
-            } else {
+            let Some(partition) = self.partitions.get_mut(&partition_number) else {
                 log::error!(target: LOG_TARGET, "terminate_sectors: Cannot find partition {partition_number}");
                 return Err(GeneralPalletError::DeadlineErrorPartitionNotFound);
             };
@@ -365,10 +362,6 @@ where
                 // Record change to sectors
                 self.live_sectors -= removed.len() as u64;
             }
-            // Save partition
-            self.partitions
-                .try_insert(partition_number, partition)
-                .expect("Could not replace existing partition");
         }
         Ok(())
     }
@@ -466,9 +459,7 @@ where
         let mut early_sectors = BTreeSet::new();
 
         for partition_number in expired_partitions {
-            let partition = if let Some(partition) = self.partitions.get_mut(&partition_number) {
-                partition
-            } else {
+            let Some(partition) = self.partitions.get_mut(&partition_number) else {
                 log::error!(target: LOG_TARGET, "pop_expired_sectors: Could not find partition number {partition_number:?}");
                 return Err(GeneralPalletError::DeadlineErrorPartitionNotFound);
             };
