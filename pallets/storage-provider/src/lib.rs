@@ -936,6 +936,7 @@ pub mod pallet {
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
 
             let mut to_process: BTreeMap<u64, Vec<PartitionNumber>> = BTreeMap::new();
+            let mut sectors_to_process = Vec::new();
 
             for term in params.terminations {
                 let deadline = term.deadline;
@@ -945,15 +946,22 @@ pub mod pallet {
                     .entry(deadline)
                     .and_modify(|entry| entry.push(partition))
                     .or_insert(Vec::from([partition]));
+                sectors_to_process.extend(term.sectors);
             }
 
             let sectors = sp
                 .sectors
                 .iter()
-                .map(|(_sector_number, info)| info)
+                .filter_map(|(sector_number, info)| {
+                    if sectors_to_process.contains(sector_number) {
+                        Some(info)
+                    } else {
+                        None
+                    }
+                })
                 .cloned()
                 .collect::<Vec<_>>();
-            for (deadline_idx, partition_sectors) in to_process.into_iter() {
+            for (deadline_idx, partition_numbers) in to_process.into_iter() {
                 ensure!(
                     deadline_is_mutable(
                         sp.proving_period_start,
@@ -978,7 +986,7 @@ pub mod pallet {
                     .map_err(|e| Error::<T>::GeneralPalletError(e))?;
 
                 deadline
-                    .terminate_sectors(current_block, &sectors, &partition_sectors)
+                    .terminate_sectors(current_block, &sectors, &partition_numbers)
                     .map_err(|e| Error::<T>::GeneralPalletError(e))?;
 
                 sp.early_terminations.insert(deadline_idx);
