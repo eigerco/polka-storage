@@ -73,6 +73,7 @@ pub mod pallet {
         },
         partition::PartitionNumber,
         proofs::{assign_proving_period_offset, SubmitWindowedPoStParams},
+        randomness::DomainSeparationTag,
         sector::{
             ProveCommitResult, ProveCommitSector, SectorOnChainInfo, SectorPreCommitInfo,
             SectorPreCommitOnChainInfo, MAX_SECTORS,
@@ -1368,5 +1369,25 @@ pub mod pallet {
             randomness,
             proof.into_inner(),
         )
+    }
+
+    fn get_randomness<T: Config>(
+        personalization: DomainSeparationTag,
+        block_height: BlockNumberFor<T>,
+        entropy: &[u8],
+    ) -> Result<(BlockNumberFor<T>, [u8; 32]), DispatchError> {
+        // TODO: Check if we already have a randomness for the block_height. If
+        // not. Generate a new one and save.
+
+        // Get randomness
+        let (randomness, block_number) = pallet_randomness::Pallet::<T>::random(entropy);
+
+        // Convert randomness to 32 bytes
+        let randomness: [u8; 32] = randomness.as_ref().try_into().map_err(|_| {
+            log::error!(target: LOG_TARGET, "failed to convert randomness to [u8; 32]");
+            Error::<T>::ConversionError
+        })?;
+
+        Ok((block_number, randomness))
     }
 }
