@@ -5,6 +5,7 @@ pub mod piece;
 mod zero;
 
 use cid::{multihash::Multihash, Cid};
+use primitives_proofs::RegisteredSealProof;
 
 use crate::piece::PaddedPieceSize;
 
@@ -123,6 +124,19 @@ pub fn zero_piece_commitment(size: PaddedPieceSize) -> Commitment {
     Commitment {
         commitment: zero::zero_piece_commitment(size),
         kind: CommitmentKind::Piece,
+    }
+}
+
+/// Return a zero data commitment for specific seal proof.
+pub fn zero_data_commitment(seal_proof: RegisteredSealProof) -> Commitment {
+    let size = seal_proof.sector_size().bytes();
+    let size = PaddedPieceSize::new(size).expect("sector size is a valid padded size");
+
+    Commitment {
+        // Zero data commitment is same as zero piece comment of the same size.
+        // That is because we have only zero is the sector that iz zeroed out.
+        commitment: zero::zero_piece_commitment(size),
+        kind: CommitmentKind::Data,
     }
 }
 

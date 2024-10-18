@@ -24,6 +24,7 @@ mod expiration_queue;
 mod fault;
 mod partition;
 mod proofs;
+mod randomness;
 mod sector;
 mod sector_map;
 mod storage_provider;
@@ -530,7 +531,7 @@ pub mod pallet {
                 });
 
                 // Validate the proof
-                validate_seal_proof::<T>(&owner, &precommit, sector.proof)?;
+                validate_seal_proof::<T>(&sp, &precommit, sector.proof)?;
 
                 // Sector deals that will be activated after the sector is
                 // successfully proven.
@@ -1298,7 +1299,7 @@ pub mod pallet {
     }
 
     fn validate_seal_proof<T: Config>(
-        owner: &T::AccountId,
+        sp: &StorageProviderState<T::PeerId, BalanceOf<T>, BlockNumberFor<T>>,
         precommit: &SectorPreCommitOnChainInfo<BalanceOf<T>, BlockNumberFor<T>>,
         proof: BoundedVec<u8, ConstU32<256>>,
     ) -> Result<(), DispatchError> {
@@ -1319,25 +1320,43 @@ pub mod pallet {
             return Err(Error::<T>::InvalidProof)?;
         }
 
-        // Random value
-        let _random_value = pallet_randomness::Pallet::<T>::random(&b"my context"[..]);
+        // TODO: Specify correct entropy
+        let entropy = b"some entropy";
 
-        // TODO: Generate entropy
-        // let entropy =
+        let (randomness, block_number) = pallet_randomness::Pallet::<T>::random(entropy);
+        log::info!(
+            "[validate_seal_proof] randomness: {:?}, block_number: {:?}",
+            randomness,
+            block_number
+        );
 
-        // TODO: generate randomness
-        // TODO: GEnerate interactive_randomness
+        let (interactive_randomness, block_number) =
+            pallet_randomness::Pallet::<T>::random(entropy);
+        log::info!(
+            "[validate_seal_proof] randomness: {:?}, block_number: {:?}",
+            randomness,
+            block_number
+        );
+
+        let unsealed_cid =
+            Cid::read_bytes(precommit.info.unsealed_cid.as_slice()).map_err(|_| {
+                log::error!(target: LOG_TARGET, "invalid unsealed cid: {:?}", precommit.info.unsealed_cid);
+                Error::<T>::InvalidCid
+            })?;
+
+        // TODO: What is the correct prover id?
+        let prover_id = [0u8; 32];
 
         // Verify the porep proof
         T::ProofVerificationPallet::verify_porep(
+            prover_id,
+            precommit.info.seal_proof,
             todo!(),
             todo!(),
+            precommit.info.sector_number,
             todo!(),
             todo!(),
-            todo!(),
-            todo!(),
-            todo!(),
-            todo!(),
+            proof.into_inner(),
         )
     }
 }
