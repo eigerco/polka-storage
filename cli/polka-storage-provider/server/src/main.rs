@@ -4,6 +4,7 @@
 
 mod db;
 mod rpc;
+mod sealer;
 mod storage;
 
 use std::{env::temp_dir, net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
@@ -34,8 +35,38 @@ use crate::{
     storage::{start_upload_server, StorageServerState},
 };
 
-#[tokio::main]
-async fn main() -> Result<(), ServerError> {
+/// Default address to bind the RPC server to.
+pub(crate) const DEFAULT_RPC_LISTEN_ADDRESS: &str = "127.0.0.1:8000";
+
+/// Default parachain node adress.
+const DEFAULT_NODE_ADDRESS: &str = "ws://127.0.0.1:42069";
+
+/// Default address to bind the RPC server to.
+const DEFAULT_UPLOAD_LISTEN_ADDRESS: &str = "127.0.0.1:8001";
+
+/// Retry interval to connect to the parachain RPC.
+const RETRY_INTERVAL: Duration = Duration::from_secs(10);
+
+/// Number of retries to connect to the parachain RPC.
+const RETRY_NUMBER: u32 = 5;
+
+/// Name for the directory where the CAR wrapped pieces are kept.
+const CAR_PIECE_DIRECTORY_NAME: &str = "car";
+
+/// Name for the directory where the sealed pieces are kept.
+const SEALED_PIECE_DIRECTORY_NAME: &str = "sealed";
+
+fn get_random_temporary_folder() -> PathBuf {
+    temp_dir().join(
+        rand::thread_rng()
+            .sample_iter(&rand::distributions::Alphanumeric)
+            .take(7)
+            .map(char::from)
+            .collect::<String>(),
+    )
+}
+
+fn main() -> Result<(), ServerError> {
     // Logger initialization.
     tracing_subscriber::registry()
         .with(fmt::layer())
@@ -47,24 +78,16 @@ async fn main() -> Result<(), ServerError> {
         .init();
 
     // Run requested command.
-    let args = ServerArguments::parse();
-    ServerConfiguration::try_from(args)?.run().await
+    let configuration: ServerConfiguration = ServerArguments::parse().try_into()?;
+
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("failed to build the runtime")
+        .block_on(configuration.run())?;
+
+    Ok(())
 }
-
-/// Default parachain node adress.
-const DEFAULT_NODE_ADDRESS: &str = "ws://127.0.0.1:42069";
-
-/// Default address to bind the RPC server to.
-pub(crate) const DEFAULT_RPC_LISTEN_ADDRESS: &str = "127.0.0.1:8000";
-
-/// Default address to bind the RPC server to.
-const DEFAULT_UPLOAD_LISTEN_ADDRESS: &str = "127.0.0.1:8001";
-
-/// Retry interval to connect to the parachain RPC.
-const RETRY_INTERVAL: Duration = Duration::from_secs(10);
-
-/// Number of retries to connect to the parachain RPC.
-const RETRY_NUMBER: u32 = 5;
 
 /// CLI components error handling implementor.
 #[derive(Debug, thiserror::Error)]
@@ -189,16 +212,6 @@ pub struct ServerConfiguration {
     post_proof: RegisteredPoStProof,
 }
 
-fn get_random_temporary_folder() -> PathBuf {
-    temp_dir().join(
-        rand::thread_rng()
-            .sample_iter(&rand::distributions::Alphanumeric)
-            .take(7)
-            .map(char::from)
-            .collect::<String>(),
-    )
-}
-
 impl TryFrom<ServerArguments> for ServerConfiguration {
     type Error = ServerError;
 
@@ -223,6 +236,8 @@ impl TryFrom<ServerArguments> for ServerConfiguration {
             );
             path
         });
+        std::fs::create_dir_all(&database_directory)?;
+
         let storage_directory = value.storage_directory.unwrap_or_else(|| {
             let path = common_folder.join("deals_storage");
             tracing::warn!(
@@ -231,6 +246,7 @@ impl TryFrom<ServerArguments> for ServerConfiguration {
             );
             path
         });
+        std::fs::create_dir_all(&storage_directory)?;
 
         Ok(Self {
             upload_listen_address: value.upload_listen_address,
@@ -300,18 +316,31 @@ impl ServerConfiguration {
         .await?;
         let deal_database = Arc::new(DealDB::new(self.database_directory)?);
 
-        let storage_directory = Arc::new(self.storage_directory);
+        // Car piece storage directory — i.e. the CAR archives from the input streams
+        let car_piece_storage_dir = Arc::new(self.storage_directory.join(CAR_PIECE_DIRECTORY_NAME));
+        let sealed_piece_storage_dir =
+            Arc::new(self.storage_directory.join(SEALED_PIECE_DIRECTORY_NAME));
+
+        // Create the storage directories
+        tokio::fs::create_dir_all(car_piece_storage_dir.as_ref()).await?;
+        tokio::fs::create_dir_all(sealed_piece_storage_dir.as_ref()).await?;
+
         let storage_state = StorageServerState {
-            storage_dir: storage_directory.clone(),
+            car_piece_storage_dir: car_piece_storage_dir.clone(),
             deal_db: deal_database.clone(),
             listen_address: self.upload_listen_address,
             post_proof: self.post_proof,
         };
 
         let rpc_state = RpcServerState {
-            server_info: ServerInfo::new(self.multi_pair_signer.account_id(), self.post_proof),
+            server_info: ServerInfo::new(
+                self.multi_pair_signer.account_id(),
+                self.seal_proof,
+                self.post_proof,
+            ),
             deal_db: deal_database.clone(),
-            storage_dir: storage_directory.clone(),
+            car_piece_storage_dir: car_piece_storage_dir.clone(),
+            sealed_piece_storage_dir: sealed_piece_storage_dir.clone(),
             xt_client,
             xt_keypair: self.multi_pair_signer,
             listen_address: self.rpc_listen_address,
