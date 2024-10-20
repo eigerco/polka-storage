@@ -304,9 +304,9 @@ where
     pub fn terminate_sectors(
         &mut self,
         block_number: BlockNumber,
-        sectors: &[SectorOnChainInfo<BlockNumber>],
+        sectors: &[SectorOnChainInfo<BlockNumber>], // all sectors
+        sector_numbers: &BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
     ) -> Result<ExpirationSet, GeneralPalletError> {
-        let sector_numbers: BTreeSet<_> = sectors.iter().map(|s| s.sector_number).collect();
         // Ensure that all given sectors are live
         ensure!(
             sector_numbers
@@ -319,7 +319,15 @@ where
             }
         );
 
-        let removed = self.expirations.remove_sectors(sectors, &self.faults)?;
+        // Get sector info for sectors to remove
+        let sectors_to_remove = sectors
+            .iter()
+            .cloned()
+            .filter(|s| sector_numbers.contains(&s.sector_number))
+            .collect::<Vec<_>>();
+        let removed = self
+            .expirations
+            .remove_sectors(&sectors_to_remove, &self.faults)?;
         // Since the `on_time_sectors` in the `ExpirationSet` are bounded to `MAX_SECTORS` this conversion will never be > MAX_SECTORS.
         let removed_sectors = removed
             .on_time_sectors
@@ -671,17 +679,17 @@ mod tests {
         partition.declare_faults_recovered(&recoveries);
 
         // now terminate 1, 3, 5, and 6
-        let terminations = [
-            all_sectors[0].clone(), // on time
-            all_sectors[2].clone(), // on time
-            all_sectors[4].clone(), // early
-            all_sectors[5].clone(), // early
-        ];
+        let terminations = BTreeSet::from([
+            all_sectors[0].sector_number, // on time
+            all_sectors[2].sector_number, // on time
+            all_sectors[4].sector_number, // early
+            all_sectors[5].sector_number, // early
+        ])
+        .try_into()
+        .unwrap();
         let termination_block = 3;
-        let removed = partition.terminate_sectors(termination_block, &terminations)?;
-
-        let expected_terminations: BTreeSet<_> =
-            terminations.iter().map(|s| s.sector_number).collect();
+        let removed = partition.terminate_sectors(termination_block, &sectors(), &terminations)?;
+        let expected_terminations = terminations.into_inner();
         let expected_sectors: BTreeSet<_> = all_sectors.iter().map(|s| s.sector_number).collect();
 
         // Assert that the returned expiration set is as expected
@@ -704,7 +712,13 @@ mod tests {
         let mut partition: Partition<u64> = Partition::new();
 
         // Terminate a sector that is not live
-        let result = partition.terminate_sectors(1, &[test_sector(1, 6)]);
+        let result = partition.terminate_sectors(
+            1,
+            &sectors(),
+            &BTreeSet::from([test_sector(1, 6).sector_number])
+                .try_into()
+                .unwrap(),
+        );
 
         assert!(matches!(
             result,
@@ -734,9 +748,15 @@ mod tests {
         partition.record_faults(&sector_map, &fault_set, 7)?;
 
         // now terminate 1, 3 and 5
-        let terminations = [sectors[0].clone(), sectors[2].clone(), sectors[4].clone()];
+        let terminations = BTreeSet::from([
+            sectors[0].sector_number,
+            sectors[2].sector_number,
+            sectors[4].sector_number,
+        ])
+        .try_into()
+        .unwrap();
         let termination_block = 3;
-        partition.terminate_sectors(termination_block, &terminations)?;
+        partition.terminate_sectors(termination_block, &sectors, &terminations)?;
 
         // pop first termination
         let (result, has_more) = partition.pop_early_terminations(max_sectors)?;
@@ -808,9 +828,15 @@ mod tests {
         partition.record_faults(&sector_map, &fault_set, 7)?;
 
         // now terminate 1, 3 and 5
-        let terminations = [sectors[0].clone(), sectors[2].clone(), sectors[4].clone()];
+        let terminations = BTreeSet::from([
+            sectors[0].sector_number,
+            sectors[2].sector_number,
+            sectors[4].sector_number,
+        ])
+        .try_into()
+        .unwrap();
         let termination_block = 3;
-        partition.terminate_sectors(termination_block, &terminations)?;
+        partition.terminate_sectors(termination_block, &sectors, &terminations)?;
 
         // pop first termination
         let (result, has_more) = partition.pop_early_terminations(1)?;

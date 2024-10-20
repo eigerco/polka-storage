@@ -11,8 +11,11 @@ use crate::{
     pallet::{Error, StorageProviders},
     sector::{TerminateSectorsParams, TerminationDeclaration, MAX_SECTORS},
     tests::{
-        account, declare_faults::setup_sp_with_one_sector, new_test_ext, run_to_block,
-        RuntimeOrigin, StorageProvider, Test, ALICE, BOB,
+        account,
+        declare_faults::{
+            setup_sp_with_many_sectors_multiple_partitions, setup_sp_with_one_sector,
+        },
+        new_test_ext, run_to_block, RuntimeOrigin, StorageProvider, Test, ALICE, BOB,
     },
 };
 
@@ -80,9 +83,9 @@ fn terminate_sectors_fails_deadline_not_mutable() {
     })
 }
 
-/// Successful terminate sectors extrinsic
+/// Successful terminate sectors extrinsic with a single sector
 #[test]
-fn terminate_sectors_success() {
+fn terminate_sectors_success_single_sector() {
     new_test_ext().execute_with(|| {
         // Setup accounts
         let storage_provider = ALICE;
@@ -108,18 +111,106 @@ fn terminate_sectors_success() {
         let mut sp = StorageProviders::<Test>::get(account(storage_provider))
             .expect("Should be able to get providers info");
         // Get first deadline
+        // Clone needed to check `pop_early_terminations` from the partition which takes in `&mut self`
         let deadline = sp
             .get_deadlines_mut()
             .load_deadline_mut(deadline as usize)
             .unwrap()
-            .clone(); // Clone needed to check `pop_early_terminations` from the partition which takes in `&mut self`
-                      // Get partition
-        let mut partition = deadline.partitions[&partition_num].clone(); // Clone needed to check `pop_early_terminations` from the partition which takes in `&mut self`
+            .clone();
+        // Get partition
+        // Clone needed to check `pop_early_terminations` from the partition which takes in `&mut self`
+        let mut partition = deadline.partitions[&partition_num].clone();
         let expected_terminated: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>> =
             BTreeSet::from([sector]).try_into().unwrap();
         assert_eq!(partition.terminated, expected_terminated);
 
-        let (result, _) = partition.pop_early_terminations(1000).unwrap();
+        let (result, has_more) = partition.pop_early_terminations(1000).unwrap();
         assert!(result.is_empty());
-    })
+        assert_eq!(has_more, false);
+    });
+}
+
+#[test]
+fn terminate_sectors_success_multiple_sectors() {
+    new_test_ext().execute_with(|| {
+        // Setup accounts
+        let storage_provider = ALICE;
+        let storage_client = BOB;
+        setup_sp_with_many_sectors_multiple_partitions(storage_provider, storage_client);
+
+        // Terminate a subset of sectors in the first deadline
+        // Deadline 0 after setup:
+        // live sectors: 5
+        //      Partition 0:
+        //          sector: 0 <- terminate
+        //          sector: 1 <- keep
+        //      Partition 1:
+        //          sector: 20 <- terminate
+        //          sector: 21 <- keep
+        //      Partition 2:
+        //          sector: 40 <- terminate
+        let deadline = 0;
+        let params = TerminateSectorsParams {
+            terminations: bounded_vec![
+                TerminationDeclaration {
+                    deadline,
+                    partition: 0,
+                    sectors: BTreeSet::from([0]).try_into().unwrap(),
+                },
+                TerminationDeclaration {
+                    deadline,
+                    partition: 1,
+                    sectors: BTreeSet::from([20]).try_into().unwrap(),
+                },
+                TerminationDeclaration {
+                    deadline,
+                    partition: 2,
+                    sectors: BTreeSet::from([40]).try_into().unwrap(),
+                },
+            ],
+        };
+
+        assert_ok!(StorageProvider::terminate_sectors(
+            RuntimeOrigin::signed(account(ALICE)),
+            params
+        ));
+
+        let mut sp = StorageProviders::<Test>::get(account(storage_provider))
+            .expect("Should be able to get providers info");
+
+        let deadline_idx = deadline as usize;
+        // Check state for first partition
+        // Clone needed to check `pop_early_terminations` from the partition which takes in `&mut self`
+        let deadline = sp
+            .get_deadlines_mut()
+            .load_deadline_mut(deadline_idx)
+            .unwrap()
+            .clone();
+        let partition = deadline.partitions[&0].clone();
+        let expected_terminated: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>> =
+            BTreeSet::from([0]).try_into().unwrap();
+        assert_eq!(partition.terminated, expected_terminated);
+
+        // Check state for second partition
+        let deadline = sp
+            .get_deadlines_mut()
+            .load_deadline_mut(deadline_idx)
+            .unwrap()
+            .clone();
+        let partition = deadline.partitions[&1].clone();
+        let expected_terminated: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>> =
+            BTreeSet::from([20]).try_into().unwrap();
+        assert_eq!(partition.terminated, expected_terminated);
+
+        // Check state for last partition
+        let deadline = sp
+            .get_deadlines_mut()
+            .load_deadline_mut(deadline_idx)
+            .unwrap()
+            .clone();
+        let partition = deadline.partitions[&2].clone();
+        let expected_terminated: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>> =
+            BTreeSet::from([40]).try_into().unwrap();
+        assert_eq!(partition.terminated, expected_terminated);
+    });
 }

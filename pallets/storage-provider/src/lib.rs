@@ -35,7 +35,7 @@ pub mod pallet {
 
     extern crate alloc;
 
-    use alloc::{collections::BTreeMap, vec, vec::Vec};
+    use alloc::{vec, vec::Vec};
     use core::fmt::Debug;
 
     use cid::Cid;
@@ -935,33 +935,24 @@ pub mod pallet {
             let mut sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
 
-            let mut to_process: BTreeMap<u64, Vec<PartitionNumber>> = BTreeMap::new();
-            let mut sectors_to_process = Vec::new();
+            let mut to_process = DeadlineSectorMap::new();
 
             for term in params.terminations {
                 let deadline = term.deadline;
                 let partition = term.partition;
 
                 to_process
-                    .entry(deadline)
-                    .and_modify(|entry| entry.push(partition))
-                    .or_insert(Vec::from([partition]));
-                sectors_to_process.extend(term.sectors);
+                    .try_insert(deadline, partition, term.sectors.clone())
+                    .map_err(|e| Error::<T>::GeneralPalletError(e))?;
             }
 
             let sectors = sp
                 .sectors
                 .iter()
-                .filter_map(|(sector_number, info)| {
-                    if sectors_to_process.contains(sector_number) {
-                        Some(info)
-                    } else {
-                        None
-                    }
-                })
+                .map(|(_sector_number, info)| info)
                 .cloned()
                 .collect::<Vec<_>>();
-            for (deadline_idx, partition_numbers) in to_process.into_iter() {
+            for (&deadline_idx, partition_sectors) in to_process.into_iter() {
                 ensure!(
                     deadline_is_mutable(
                         sp.proving_period_start,
@@ -980,13 +971,13 @@ pub mod pallet {
                     }
                 );
 
-                let deadlines = sp.get_deadlines_mut();
-                let deadline = deadlines
+                let deadline = sp
+                    .deadlines
                     .load_deadline_mut(deadline_idx as usize)
                     .map_err(|e| Error::<T>::GeneralPalletError(e))?;
 
                 deadline
-                    .terminate_sectors(current_block, &sectors, &partition_numbers)
+                    .terminate_sectors(current_block, &sectors, partition_sectors)
                     .map_err(|e| Error::<T>::GeneralPalletError(e))?;
 
                 sp.early_terminations.insert(deadline_idx);
