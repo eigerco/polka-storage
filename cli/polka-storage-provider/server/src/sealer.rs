@@ -67,7 +67,7 @@ where
     for (idx, (reader, piece)) in pieces.into_iter().enumerate() {
         let piece: FcPieceInfo = piece.into();
         let (calculated_piece_info, written_bytes) =
-            add_piece(reader, &mut sector_writer, piece.size, &piece_lengths).unwrap();
+            add_piece(reader, &mut sector_writer, piece.size, &piece_lengths)?;
 
         piece_lengths.push(piece.size);
 
