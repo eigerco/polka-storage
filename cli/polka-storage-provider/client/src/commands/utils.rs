@@ -187,6 +187,13 @@ impl UtilsCommand {
                 output_path,
                 cache_directory,
             } => {
+                // Those are hardcoded for the showcase only.
+                // They should come from Storage Provider Node, precommits and other information.
+                let sector_id = 77;
+                let prover_id = [0u8; 32];
+                let ticket = [12u8; 32];
+                let seed = [13u8; 32];
+
                 let output_path = if let Some(output_path) = output_path {
                     output_path
                 } else {
@@ -194,11 +201,7 @@ impl UtilsCommand {
                 };
                 let (proof_scale_filename, mut proof_scale_file) = file_with_extension(
                     &output_path,
-                    input_path
-                        .file_name()
-                        .expect("input file to have a name")
-                        .to_str()
-                        .expect("to be convertable to str"),
+                    format!("{}.sector", sector_id).as_str(),
                     POREP_PROOF_EXT,
                 )?;
 
@@ -235,12 +238,6 @@ impl UtilsCommand {
                     size: *piece_file_length,
                 };
 
-                // Those are hardcoded for the showcase only.
-                // They should come from Storage Provider Node, precommits and other information.
-                let sector_id = 77;
-                let prover_id = [0u8; 32];
-                let ticket = [12u8; 32];
-                let seed = [13u8; 32];
 
                 let mut unsealed_sector =
                     tempfile::NamedTempFile::new().map_err(|e| UtilsCommandError::IOError(e))?;
@@ -440,7 +437,7 @@ fn file_with_extension(
     new_path.push(file_name);
     new_path.set_extension(extension);
 
-    let file = std::fs::File::create_new(new_path.clone())
+    let file = std::fs::File::create(new_path.clone())
         .map_err(|e| UtilsCommandError::FileCreateError(new_path.clone(), e))?;
     Ok((new_path, file))
 }
