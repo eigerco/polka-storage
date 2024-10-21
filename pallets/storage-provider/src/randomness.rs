@@ -8,7 +8,6 @@ use sp_core::blake2_256;
 #[repr(i64)]
 pub enum DomainSeparationTag {
     SealRandomness = 1,
-    InteractiveSealChallengeSeed = 2,
 }
 
 pub fn draw_randomness<BlocKNumber>(

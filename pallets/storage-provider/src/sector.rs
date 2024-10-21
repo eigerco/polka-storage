@@ -38,6 +38,8 @@ pub struct SectorPreCommitOnChainInfo<Balance, BlockNumber> {
     pub pre_commit_deposit: Balance,
     /// Block number this was pre-committed
     pub pre_commit_block_number: BlockNumber,
+    /// Seal randomness used when sealing the sector
+    pub randomness: [u8; 32],
 }
 
 impl<Balance, BlockNumber> SectorPreCommitOnChainInfo<Balance, BlockNumber> {
@@ -45,11 +47,13 @@ impl<Balance, BlockNumber> SectorPreCommitOnChainInfo<Balance, BlockNumber> {
         info: SectorPreCommitInfo<BlockNumber>,
         pre_commit_deposit: Balance,
         pre_commit_block_number: BlockNumber,
+        randomness: [u8; 32],
     ) -> Self {
         Self {
             info,
             pre_commit_deposit,
             pre_commit_block_number,
+            randomness,
         }
     }
 }

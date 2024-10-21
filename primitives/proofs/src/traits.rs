@@ -72,7 +72,6 @@ pub trait ProofVerification {
         comm_r: RawCommitment,
         comm_d: RawCommitment,
         sector: SectorNumber,
-        ticket: Ticket,
         seed: Ticket,
         proof: alloc::vec::Vec<u8>,
     ) -> DispatchResult;

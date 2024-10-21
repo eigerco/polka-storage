@@ -441,8 +441,20 @@ pub mod pallet {
 
                 let unsealed_cid = validate_data_commitment_cid::<T>(&sector.unsealed_cid[..])?;
                 let deposit = calculate_pre_commit_deposit::<T>();
-                let sector_on_chain =
-                    SectorPreCommitOnChainInfo::new(sector.clone(), deposit, current_block);
+
+                let entropy = owner.encode();
+                let randomness = get_randomness::<T>(
+                    DomainSeparationTag::SealRandomness,
+                    current_block,
+                    &entropy,
+                )?;
+
+                let sector_on_chain = SectorPreCommitOnChainInfo::new(
+                    sector.clone(),
+                    deposit,
+                    current_block,
+                    randomness,
+                );
 
                 // Push deal amounts for later verification
                 deal_amounts.try_push(sector_on_chain.info.deal_ids.len()).expect("Programmer error: cannot have more that MAX_SECTORS_PER_CALL deal_amount because of previous bounds");
@@ -532,7 +544,7 @@ pub mod pallet {
                 });
 
                 // Validate the proof
-                validate_seal_proof::<T>(&sp, &precommit, sector.proof)?;
+                validate_seal_proof::<T>(&owner, &precommit, sector.proof)?;
 
                 // Sector deals that will be activated after the sector is
                 // successfully proven.
@@ -1300,7 +1312,7 @@ pub mod pallet {
     }
 
     fn validate_seal_proof<T: Config>(
-        sp: &StorageProviderState<T::PeerId, BalanceOf<T>, BlockNumberFor<T>>,
+        _owner: &T::AccountId,
         precommit: &SectorPreCommitOnChainInfo<BalanceOf<T>, BlockNumberFor<T>>,
         proof: BoundedVec<u8, ConstU32<256>>,
     ) -> Result<(), DispatchError> {
@@ -1312,10 +1324,9 @@ pub mod pallet {
             return Err(Error::<T>::InvalidProof)?;
         }
 
-        // TODO: Check if proof is too old
-
-        // Ensure proof is submitted after the challenge delay
         let current_block_number = <frame_system::Pallet<T>>::block_number();
+
+        // Check if we are too early with the proof submit
         let interactive_block_number =
             precommit.pre_commit_block_number + T::PreCommitChallengeDelay::get();
         if current_block_number <= interactive_block_number {
@@ -1323,64 +1334,39 @@ pub mod pallet {
             return Err(Error::<T>::InvalidProof)?;
         }
 
-        // TODO: Specify correct entropy
-        let entropy = b"some entropy";
-
-        let (randomness, block_number) = pallet_randomness::Pallet::<T>::random(entropy);
-        log::info!(
-            "[validate_seal_proof] randomness: {:?}, block_number: {:?}",
-            randomness,
-            block_number
-        );
-        let randomness: [u8; 32] = randomness.as_ref().try_into().map_err(|_| {
-            log::error!(target: LOG_TARGET, "failed to convert randomness to [u8; 32]");
-            Error::<T>::ConversionError
+        let sealed_cid: [u8; 32] = precommit.info.sealed_cid.as_slice().try_into().map_err(|_| {
+            log::error!(target: LOG_TARGET, "invalid sealed cid: {:?}", precommit.info.sealed_cid);
+            Error::<T>::InvalidCid
         })?;
 
-        let (interactive_randomness, block_number) =
-            pallet_randomness::Pallet::<T>::random(entropy);
-        log::info!(
-            "[validate_seal_proof] interactive_randomness: {:?}, block_number: {:?}",
-            interactive_randomness,
-            block_number
-        );
-        let interactive_randomness: [u8; 32] = interactive_randomness.as_ref().try_into().map_err(|_| {
-            log::error!(target: LOG_TARGET, "failed to convert interactive randomness to [u8; 32]");
-            Error::<T>::ConversionError
+        let unsealed_cid: [u8; 32] = precommit.info.unsealed_cid.as_slice().try_into().map_err(|_| {
+            log::error!(target: LOG_TARGET, "invalid unsealed cid: {:?}", precommit.info.unsealed_cid);
+            Error::<T>::InvalidCid
         })?;
 
-        let unsealed_cid =
-            Cid::read_bytes(precommit.info.unsealed_cid.as_slice()).map_err(|_| {
-                log::error!(target: LOG_TARGET, "invalid unsealed cid: {:?}", precommit.info.unsealed_cid);
-                Error::<T>::InvalidCid
-            })?;
-
-        // TODO: What is the correct prover id?
+        // TODO(#412,@cernicc,21/10/2024): Generate a correct Prover Id
         let prover_id = [0u8; 32];
 
         // Verify the porep proof
         T::ProofVerificationPallet::verify_porep(
             prover_id,
             precommit.info.seal_proof,
-            todo!(),
-            todo!(),
+            sealed_cid,
+            unsealed_cid,
             precommit.info.sector_number,
-            interactive_randomness,
-            randomness,
+            precommit.randomness,
             proof.into_inner(),
         )
     }
 
+    /// Get randomness from the chain and process it with domain separation.
     fn get_randomness<T: Config>(
         personalization: DomainSeparationTag,
         block_height: BlockNumberFor<T>,
         entropy: &[u8],
-    ) -> Result<(BlockNumberFor<T>, [u8; 32]), DispatchError> {
-        // TODO: Check if we already have a randomness for the block_height. If
-        // not. Generate a new one and save.
-
+    ) -> Result<[u8; 32], DispatchError> {
         // Get randomness from chain
-        let (digest, block_number) = pallet_randomness::Pallet::<T>::random(entropy);
+        let (digest, _block_number) = pallet_randomness::Pallet::<T>::random(entropy);
 
         // Convert digest to 32 bytes
         let digest: [u8; 32] = digest.as_ref().try_into().map_err(|_| {
@@ -1391,6 +1377,6 @@ pub mod pallet {
         // Randomness with the bias
         let randomness = draw_randomness(&digest, personalization, block_height, entropy);
 
-        Ok((block_number, randomness))
+        Ok(randomness)
     }
 }

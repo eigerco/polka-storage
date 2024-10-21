@@ -85,7 +85,6 @@ pub mod pallet {
             comm_r: RawCommitment,
             comm_d: RawCommitment,
             sector: SectorNumber,
-            ticket: Ticket,
             seed: Ticket,
             proof: crate::Vec<u8>,
         ) -> DispatchResult {
@@ -96,7 +95,7 @@ pub mod pallet {
             let vkey = PoRepVerifyingKey::<T>::get().ok_or(Error::<T>::MissingPoRepVerifyingKey)?;
             proof_scheme
                 .verify(
-                    &comm_r, &comm_d, &prover_id, sector, &ticket, &seed, vkey, &proof,
+                    &comm_r, &comm_d, &prover_id, sector, &seed, &seed, vkey, &proof,
                 )
                 .map_err(Into::<Error<T>>::into)?;
 
