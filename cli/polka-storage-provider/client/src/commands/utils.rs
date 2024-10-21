@@ -219,6 +219,11 @@ impl UtilsCommand {
                     .metadata()
                     .map_err(|e| UtilsCommandError::InvalidPieceFile(input_path, e))?
                     .len();
+
+                let piece_file_length =
+                    PaddedPieceSize::from_arbitrary_size(piece_file_length).unpadded();
+                let piece_file = ZeroPaddingReader::new(piece_file, *piece_file_length);
+
                 let commp = cid::Cid::from_str(commp.as_str())
                     .map_err(|e| UtilsCommandError::InvalidPieceCommP(commp, e))?;
                 let piece_info = PieceInfo {
@@ -227,7 +232,7 @@ impl UtilsCommand {
                         .digest()
                         .try_into()
                         .expect("CommPs guaranteed to be 32 bytes"),
-                    size: piece_file_length,
+                    size: *piece_file_length,
                 };
 
                 // Those are hardcoded for the showcase only.
