@@ -334,6 +334,8 @@ parameter_types! {
     pub const FaultDeclarationCutoff: BlockNumber = (10 * MINUTES) + 125;
     /// <https://github.com/filecoin-project/builtin-actors/blob/a45fb87910bca74d62215b0d58ed90cf78b6c8ff/runtime/src/runtime/policy.rs#L306>
     pub const PreCommitChallengeDelay: BlockNumber = 75 * MINUTES;
+    // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L299>
+    pub const AddressedSectorsMax: u64 = 25_000;
 
     // Market Pallet
     /// Deal duration values copied from FileCoin.
@@ -357,6 +359,8 @@ parameter_types! {
     pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
     pub const FaultDeclarationCutoff: BlockNumber = 1 * MINUTES;
     pub const PreCommitChallengeDelay: BlockNumber = 2 * MINUTES;
+    // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L299>
+    pub const AddressedSectorsMax: u64 = 25_000;
 
     // Market Pallet
     pub const MinDealDuration: u64 = 5 * MINUTES;
@@ -381,6 +385,9 @@ impl pallet_storage_provider::Config for Runtime {
     type FaultMaxAge = FaultMaxAge;
     type FaultDeclarationCutoff = FaultDeclarationCutoff;
     type PreCommitChallengeDelay = PreCommitChallengeDelay;
+    // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L295>
+    type AddressedPartitionsMax = MaxPartitionsPerDeadline;
+    type AddressedSectorsMax = AddressedSectorsMax;
 }
 
 parameter_types! {

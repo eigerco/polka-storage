@@ -4,9 +4,9 @@ use bellperson::groth16;
 use blstrs::Bls12;
 use filecoin_hashers::Domain;
 use filecoin_proofs::{
-    add_piece, as_safe_commitment, parameters::setup_params, DefaultBinaryTree, DefaultPieceDomain,
+    add_piece, as_safe_commitment, parameters::setup_params, DefaultPieceDomain,
     DefaultPieceHasher, PaddedBytesAmount, PoRepConfig, SealCommitPhase1Output,
-    SealPreCommitOutput, SealPreCommitPhase1Output, UnpaddedBytesAmount,
+    SealPreCommitOutput, SealPreCommitPhase1Output, SectorShapeBase, UnpaddedBytesAmount,
 };
 use primitives_proofs::{RegisteredSealProof, SectorNumber};
 use storage_proofs_core::{compound_proof, compound_proof::CompoundProof};
@@ -113,7 +113,7 @@ impl Sealer {
             .map(|p| p.clone().into())
             .collect::<Vec<filecoin_proofs::PieceInfo>>();
 
-        let p1_output: SealPreCommitPhase1Output<DefaultBinaryTree> =
+        let p1_output: SealPreCommitPhase1Output<SectorShapeBase> =
             filecoin_proofs::seal_pre_commit_phase1(
                 &self.porep_config,
                 cache_directory,
@@ -171,7 +171,7 @@ impl Sealer {
             .map(|p| p.clone().into())
             .collect::<Vec<filecoin_proofs::PieceInfo>>();
 
-        let scp1: filecoin_proofs::SealCommitPhase1Output<filecoin_proofs::DefaultBinaryTree> =
+        let scp1: filecoin_proofs::SealCommitPhase1Output<SectorShapeBase> =
             filecoin_proofs::seal_commit_phase1_inner(
                 &self.porep_config,
                 cache_path,
@@ -217,19 +217,18 @@ impl Sealer {
         };
 
         let compound_public_params =
-            <StackedCompound<DefaultBinaryTree, DefaultPieceHasher> as CompoundProof<
-                StackedDrg<'_, DefaultBinaryTree, DefaultPieceHasher>,
+            <StackedCompound<SectorShapeBase, DefaultPieceHasher> as CompoundProof<
+                StackedDrg<'_, SectorShapeBase, DefaultPieceHasher>,
                 _,
             >>::setup(&compound_setup_params)?;
 
-        let groth_proofs =
-            StackedCompound::<DefaultBinaryTree, DefaultPieceHasher>::circuit_proofs(
-                &public_inputs,
-                vanilla_proofs,
-                &compound_public_params.vanilla_params,
-                proving_parameters,
-                compound_public_params.priority,
-            )?;
+        let groth_proofs = StackedCompound::<SectorShapeBase, DefaultPieceHasher>::circuit_proofs(
+            &public_inputs,
+            vanilla_proofs,
+            &compound_public_params.vanilla_params,
+            proving_parameters,
+            compound_public_params.priority,
+        )?;
 
         Ok(groth_proofs)
     }

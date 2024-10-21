@@ -14,6 +14,7 @@ use polka_storage_provider_common::commp::{
     calculate_piece_commitment, CommPError, ZeroPaddingReader,
 };
 use primitives_commitment::piece::PaddedPieceSize;
+use primitives_proofs::RegisteredPoStProof;
 use tokio::{
     fs::{self, File},
     io::{AsyncRead, BufWriter},
@@ -31,12 +32,15 @@ use crate::db::DealDB;
 pub struct StorageServerState {
     pub storage_dir: Arc<PathBuf>,
     pub deal_db: Arc<DealDB>,
+
+    pub listen_address: SocketAddr,
+    // I think this just needs the sector size actually
+    pub post_proof: RegisteredPoStProof,
 }
 
 #[tracing::instrument(skip_all)]
 pub async fn start_upload_server(
     state: Arc<StorageServerState>,
-    listen_addr: SocketAddr,
     token: CancellationToken,
 ) -> Result<(), std::io::Error> {
     // Create a storage folder if it doesn't exist.
@@ -45,12 +49,12 @@ pub async fn start_upload_server(
         fs::create_dir_all(state.storage_dir.as_ref()).await?;
     }
 
+    tracing::info!("Starting HTTP storage server at: {}", state.listen_address);
+    let listener = tokio::net::TcpListener::bind(state.listen_address).await?;
+
     // Configure router
     let router = configure_router(state);
-    let listener = tokio::net::TcpListener::bind(listen_addr).await?;
-
     // Start server
-    tracing::info!("upload server started at: {listen_addr}");
     axum::serve(listener, router)
         .with_graceful_shutdown(async move {
             token.cancelled_owned().await;

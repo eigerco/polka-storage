@@ -19,6 +19,8 @@ pub struct RpcServerState {
     pub storage_dir: Arc<PathBuf>,
     pub xt_client: storagext::Client,
     pub xt_keypair: storagext::multipair::MultiPairSigner,
+
+    pub listen_address: SocketAddr,
 }
 
 #[async_trait::async_trait]
@@ -28,7 +30,14 @@ impl StorageProviderRpcServer for RpcServerState {
     }
 
     async fn propose_deal(&self, deal: SxtDealProposal) -> Result<cid::Cid, RpcError> {
-        // We currently accept all deals
+        if deal.piece_size > self.server_info.post_proof.sector_size().bytes() {
+            // once again, the rpc error is wrong, we'll need to fix that
+            return Err(RpcError::invalid_params(
+                "Piece size cannot be larger than the registered sector size",
+                None,
+            ));
+        }
+
         Ok(self
             .deal_db
             .add_accepted_proposed_deal(&deal)
@@ -36,9 +45,17 @@ impl StorageProviderRpcServer for RpcServerState {
     }
 
     async fn publish_deal(&self, deal: SxtClientDealProposal) -> Result<u64, RpcError> {
+        if deal.deal_proposal.piece_size > self.server_info.post_proof.sector_size().bytes() {
+            // once again, the rpc error is wrong, we'll need to fix that
+            return Err(RpcError::invalid_params(
+                "Piece size cannot be larger than the registered sector size",
+                None,
+            ));
+        }
+
         let deal_proposal_cid = deal
             .deal_proposal
-            .cid()
+            .json_cid()
             .map_err(|err| RpcError::internal_error(err, None))?;
 
         // Check if this deal proposal has been accepted or not, error if not
@@ -93,13 +110,12 @@ impl StorageProviderRpcServer for RpcServerState {
 #[instrument(skip_all)]
 pub async fn start_rpc_server(
     state: RpcServerState,
-    listen_addr: SocketAddr,
     token: CancellationToken,
 ) -> Result<(), std::io::Error> {
-    let server = Server::builder().build(listen_addr).await?;
+    info!("Starting RPC server at {}", state.listen_address);
+    let server = Server::builder().build(state.listen_address).await?;
     let server_handle = server.start(state.into_rpc());
-
-    info!("RPC server started at {}", listen_addr);
+    info!("RPC server started");
 
     token.cancelled_owned().await;
     tracing::trace!("shutdown signal received, stopping the RPC server");

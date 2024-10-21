@@ -19,7 +19,8 @@ CLIENT="//Alice"
 PROVIDER="//Charlie"
 
 INPUT_FILE="$1"
-INPUT_TMP_FILE="/tmp/$INPUT_FILE.car"
+INPUT_FILE_NAME="$(basename "$INPUT_FILE")"
+INPUT_TMP_FILE="/tmp/$INPUT_FILE_NAME.car"
 
 target/release/mater-cli convert -q --overwrite "$INPUT_FILE" "$INPUT_TMP_FILE" &&
 INPUT_COMMP="$(target/release/polka-storage-provider-client utils commp "$INPUT_TMP_FILE")"
@@ -56,7 +57,7 @@ DEAL_JSON=$(
 )
 SIGNED_DEAL_JSON="$(RUST_LOG=error target/release/polka-storage-provider-client client sign-deal --sr25519-key "$CLIENT" "$DEAL_JSON")"
 
-(RUST_LOG=trace target/release/polka-storage-provider-server --sr25519-key "$PROVIDER") &
+(RUST_LOG=trace target/release/polka-storage-provider-server --sr25519-key "$PROVIDER" --seal-proof "2KiB" --post-proof "2KiB") &
 sleep 5 # gives time for the server to start
 
 DEAL_CID="$(RUST_LOG=error target/release/polka-storage-provider-client client propose-deal "$DEAL_JSON")"

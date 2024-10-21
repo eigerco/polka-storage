@@ -6,7 +6,7 @@ pub mod sealer;
 
 use bellperson::groth16;
 use blstrs::Bls12;
-use filecoin_proofs::{DefaultBinaryTree, DefaultPieceHasher};
+use filecoin_proofs::{DefaultPieceHasher, SectorShapeBase};
 use primitives_proofs::RegisteredSealProof;
 use rand::rngs::OsRng;
 use storage_proofs_core::{compound_proof::CompoundProof, proof::ProofScheme};
@@ -22,10 +22,10 @@ pub fn generate_random_groth16_parameters(
 ) -> Result<groth16::Parameters<Bls12>, PoRepError> {
     let porep_config = seal_to_config(seal_proof);
     let setup_params = filecoin_proofs::parameters::setup_params(&porep_config)?;
-    let public_params = StackedDrg::<DefaultBinaryTree, DefaultPieceHasher>::setup(&setup_params)?;
+    let public_params = StackedDrg::<SectorShapeBase, DefaultPieceHasher>::setup(&setup_params)?;
 
     let circuit = storage_proofs_porep::stacked::StackedCompound::<
-        DefaultBinaryTree,
+        SectorShapeBase,
         DefaultPieceHasher,
     >::blank_circuit(&public_params);
 
