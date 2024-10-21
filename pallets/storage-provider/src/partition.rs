@@ -48,11 +48,9 @@ where
     /// The intersection of `recoveries` and `terminated` is always empty.
     ///
     /// Used in the `declare_faults_recovered` extrinsic
-    /// TODO: Add helper method for adding recoveries.
     pub recoveries: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
 
     /// Subset of sectors terminated but not yet removed from partition (excl. from PoSt)
-    /// TODO: Add helper method for adding terminated sectors.
     pub terminated: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
 
     /// All sectors mapped by the expiration. The sectors are indexed by the
