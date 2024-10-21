@@ -5,12 +5,14 @@ use crate::Vec;
 use config::Config;
 use polka_storage_proofs::post::get_partitions_for_window_post;
 use primitives_commitment::NODE_SIZE;
-use primitives_proofs::{ProverId, RawCommitment, RegisteredPoStProof, SectorNumber, Ticket};
+use primitives_proofs::{
+    PublicReplicaInfo, RawCommitment, RegisteredPoStProof, SectorNumber, Ticket,
+};
 use sha2::{Digest, Sha256};
 use sp_std::collections::btree_map::BTreeMap;
 
 use crate::{
-    crypto::groth16::{verify_proof, Bls12, Fr, Proof, VerifyingKey, VerificationError},
+    crypto::groth16::{verify_proof, Bls12, Fr, Proof, VerificationError, VerifyingKey},
     fr32,
 };
 
@@ -31,16 +33,12 @@ impl ProofScheme {
     /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/266acc39a3ebd6f3d28c6ee335d78e2b7cea06bc/storage-proofs-core/src/compound_proof.rs#L148>
     pub fn verify(
         &self,
-        randomness: &Ticket,
-        prover_id: &ProverId,
+        randomness: Ticket,
         replicas: BTreeMap<SectorNumber, PublicReplicaInfo>,
         vk: VerifyingKey<Bls12>,
         proof: Proof<Bls12>,
     ) -> Result<(), ProofError> {
-        let randomness = fr32::bytes_into_fr(randomness)
-            .map_err(|_| ProofError::Conversion)?
-            .into();
-        let prover_id = fr32::bytes_into_fr(prover_id)
+        let randomness = fr32::bytes_into_fr(&randomness)
             .map_err(|_| ProofError::Conversion)?
             .into();
 
@@ -59,14 +57,14 @@ impl ProofScheme {
             .map(|(sector_id, replica)| {
                 Ok(PublicSector {
                     id: *sector_id,
-                    comm_r: replica.safe_comm_r()?,
+                    comm_r: fr32::bytes_into_fr(&replica.comm_r)
+                        .map_err(|_| ProofError::Conversion)?,
                 })
             })
             .collect::<Result<_, ProofError>>()?;
 
         let public_inputs = PublicInputs {
             randomness,
-            prover_id,
             sectors: pub_sectors,
         };
 
@@ -92,7 +90,7 @@ impl ProofScheme {
             .ok_or(ProofError::InvalidNumberOfSectors)?;
 
         let mut inputs = Vec::new();
-        for (i, sector) in sectors.iter().enumerate() {
+        for sector in sectors {
             inputs.push(sector.comm_r);
 
             let mut challenge_hasher = Sha256::new();
@@ -100,8 +98,8 @@ impl ProofScheme {
             challenge_hasher.update(&u64::from(sector.id).to_le_bytes()[..]);
 
             for n in 0..self.config.challenges_per_sector {
-                let sector_index =
-                    partition_index * self.config.challenged_sectors_per_partition + i;
+                // let sector_index =
+                //     partition_index * self.config.challenged_sectors_per_partition + i;
                 let challenge_index = n as u64;
                 let challenged_leaf =
                     self.generate_leaf_challenge_inner(challenge_hasher.clone(), challenge_index);
@@ -140,8 +138,6 @@ impl ProofScheme {
 pub enum ProofError {
     InvalidNumberOfSectors,
     InvalidNumberOfProofs,
-    ///
-    InvalidCommR,
     /// Returned when the given proof was invalid in a verification.
     InvalidProof,
     /// Returned when the given verifying key was invalid.
@@ -161,33 +157,10 @@ impl From<VerificationError> for ProofError {
 
 struct PublicInputs {
     randomness: RawCommitment,
-    prover_id: ProverId,
     sectors: Vec<PublicSector>,
 }
 
 struct PublicSector {
     id: SectorNumber,
     comm_r: Fr,
-}
-
-/// The minimal information required about a replica, in order to be able to verify
-/// a PoSt over it.
-#[derive(Clone, core::fmt::Debug, PartialEq, Eq)]
-pub struct PublicReplicaInfo {
-    /// The replica commitment.
-    comm_r: RawCommitment,
-}
-
-impl PublicReplicaInfo {
-    pub fn new(comm_r: RawCommitment) -> Result<Self, ProofError> {
-        if comm_r == [0; 32] {
-            return Err(ProofError::InvalidCommR);
-        }
-
-        Ok(PublicReplicaInfo { comm_r })
-    }
-
-    pub fn safe_comm_r(&self) -> Result<Fr, ProofError> {
-        fr32::bytes_into_fr(&self.comm_r).map_err(|_| ProofError::Conversion)
-    }
 }

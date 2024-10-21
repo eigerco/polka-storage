@@ -16,6 +16,7 @@ scale-info = { workspace = true, default-features = false, features = ["derive"]
 
 sp-core = { workspace = true, default-features = false }
 sp-runtime = { workspace = true, default-features = false }
+sp-std = { workspace = true, default-features = false }
 
 clap = { workspace = true, features = ["derive"], optional = true }
 serde = { workspace = true, features = ["derive"], optional = true }
