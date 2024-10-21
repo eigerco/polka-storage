@@ -3,7 +3,8 @@ use frame_support::{assert_noop, assert_ok};
 use hex::FromHex;
 use polka_storage_proofs::{Bls12, VerifyingKey};
 use primitives_proofs::{
-    ProofVerification, ProverId, PublicReplicaInfo, RawCommitment, RegisteredPoStProof, RegisteredSealProof, SectorNumber, Ticket
+    ProofVerification, ProverId, PublicReplicaInfo, RawCommitment, RegisteredPoStProof,
+    RegisteredSealProof, SectorNumber, Ticket,
 };
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
@@ -103,7 +104,6 @@ fn porep_verification_succeeds() {
     });
 }
 
-
 #[test]
 fn post_verification_succeeds() {
     new_test_ext().execute_with(|| {
@@ -113,23 +113,26 @@ fn post_verification_succeeds() {
         let sector_id = 77;
         let randomness = [1u8; 32];
         let mut replicas = BTreeMap::new();
-        replicas.insert(sector_id, PublicReplicaInfo {
-            comm_r: default_porep_comm_r(),
-        });
+        replicas.insert(
+            sector_id,
+            PublicReplicaInfo {
+                comm_r: default_porep_comm_r(),
+            },
+        );
 
         assert_ok!(ProofsModule::set_post_verifying_key(
             RuntimeOrigin::signed(1),
             vkey_bytes
         ));
 
-        assert_ok!(<ProofsModule as ProofVerification>::verify_post(post_type,
+        assert_ok!(<ProofsModule as ProofVerification>::verify_post(
+            post_type,
             randomness,
             replicas,
             proof_bytes,
         ));
     });
 }
-
 
 // Values hardcoded in this function are matching the ones in https://github.com/eigerco/polka-storage/blob/9433eb81bfa76a30fbac1f8f79101ab6359f4f3e/cli/polka-storage-provider/src/commands/utils.rs#L188.
 // This is because those values are coming from the clients of this pallet and are related to the proof system.

@@ -103,8 +103,8 @@ const POST_PARAMS_EXT: &str = "post.params";
 const POST_VK_EXT: &str = "post.vk";
 const POST_VK_EXT_SCALE: &str = "post.vk.scale";
 
-const POREP_PROOF_EXT: &str = "proof.porep.scale";
-const POST_PROOF_EXT: &str = "proof.post.scale";
+const POREP_PROOF_EXT: &str = "sector.proof.porep.scale";
+const POST_PROOF_EXT: &str = "sector.proof.post.scale";
 
 impl UtilsCommand {
     /// Run the command.
@@ -201,7 +201,7 @@ impl UtilsCommand {
                 };
                 let (proof_scale_filename, mut proof_scale_file) = file_with_extension(
                     &output_path,
-                    format!("{}.sector", sector_id).as_str(),
+                    format!("{}", sector_id).as_str(),
                     POREP_PROOF_EXT,
                 )?;
 
@@ -237,7 +237,6 @@ impl UtilsCommand {
                         .expect("CommPs guaranteed to be 32 bytes"),
                     size: *piece_file_length,
                 };
-
 
                 let mut unsealed_sector =
                     tempfile::NamedTempFile::new().map_err(|e| UtilsCommandError::IOError(e))?;
@@ -345,6 +344,12 @@ impl UtilsCommand {
                 comm_r,
                 output_path,
             } => {
+                // Those are hardcoded for the showcase only.
+                // They should come from Storage Provider Node, precommits and other information.
+                let sector_id = 77;
+                let randomness = [1u8; 32];
+                let prover_id = [0u8; 32];
+
                 let output_path = if let Some(output_path) = output_path {
                     output_path
                 } else {
@@ -353,19 +358,10 @@ impl UtilsCommand {
 
                 let (proof_scale_filename, mut proof_scale_file) = file_with_extension(
                     &output_path,
-                    replica_path
-                        .file_name()
-                        .expect("input file to have a name")
-                        .to_str()
-                        .expect("to be convertable to str"),
+                    format!("{}", sector_id).as_str(),
                     POST_PROOF_EXT,
                 )?;
 
-                // Those are hardcoded for the showcase only.
-                // They should come from Storage Provider Node, precommits and other information.
-                let sector_id = 77;
-                let randomness = [1u8; 32];
-                let prover_id = [0u8; 32];
                 let replicas = vec![ReplicaInfo {
                     sector_id,
                     comm_r: hex::decode(comm_r)

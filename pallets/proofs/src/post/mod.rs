@@ -1,7 +1,5 @@
 mod config;
 
-use crate::Vec;
-
 use config::Config;
 use polka_storage_proofs::post::get_partitions_for_window_post;
 use primitives_commitment::NODE_SIZE;
@@ -13,7 +11,7 @@ use sp_std::collections::btree_map::BTreeMap;
 
 use crate::{
     crypto::groth16::{verify_proof, Bls12, Fr, Proof, VerificationError, VerifyingKey},
-    fr32,
+    fr32, Vec,
 };
 
 pub struct ProofScheme {
