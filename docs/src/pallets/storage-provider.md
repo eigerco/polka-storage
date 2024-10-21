@@ -281,7 +281,26 @@ Where the termination declarations contain:
 
 #### <a class="header" id="terminate_sectors.example" href="#terminate_sectors.example">Example</a>
 
-TODO(@aidan46, #463, 2024/10/18): Add storagext example after implementation
+Storage provider `//Alice` terminating sectors[^terminate_sectors] on deadline 0, partition 0, sector 1.
+
+
+```bash
+storagext-cli --sr25519-key "//Alice" storage-provider terminate-sectors @terminate-sectors.json
+```
+
+Where `terminate-sectors.json` is a file with contents similar to:
+
+```json
+[
+  {
+    "deadline": 0,
+    "partition": 0,
+    "sectors": [1]
+  }
+]
+```
+
+[^terminate_sectors]: Read more about the `terminate-sectors` command in [_Storagext CLI/Subcommand `storage-provider`/`terminate-sectors`_](../storagext-cli/storage-provider.md#terminate-sectors)
 
 ## Events
 
