@@ -1354,6 +1354,10 @@ pub mod pallet {
             sealed_cid,
             unsealed_cid,
             precommit.info.sector_number,
+            // We are using `precommit.randomness` as a seed and ticket. This is
+            // desired because we don't need multiple random values, but the
+            // FileCoin's proofs are expecting two values.
+            precommit.randomness,
             precommit.randomness,
             proof.into_inner(),
         )

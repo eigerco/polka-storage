@@ -19,6 +19,7 @@ use frame_support::weights::{
     constants::WEIGHT_REF_TIME_PER_SECOND, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
     WeightToFeePolynomial,
 };
+use pallet_insecure_randomness_collective_flip as pallet_randomness;
 use smallvec::smallvec;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 #[cfg(any(feature = "std", test))]
@@ -301,6 +302,8 @@ mod runtime {
     pub type Market = pallet_market;
     #[runtime::pallet_index(36)]
     pub type Proofs = pallet_proofs;
+    #[runtime::pallet_index(37)]
+    pub type Randomness = pallet_randomness;
 }
 
 #[docify::export(register_validate_block)]
