@@ -10,7 +10,7 @@ use filecoin_proofs::{
 use polka_storage_proofs::porep::{sealer::filler_pieces, PoRepError};
 use polka_storage_provider_common::commp::ZeroPaddingReader;
 use primitives_commitment::piece::PaddedPieceSize;
-use primitives_proofs::SectorSize;
+use primitives_proofs::{RawCommitment, SectorSize};
 
 #[derive(Debug, thiserror::Error)]
 pub enum SealerError {
@@ -24,9 +24,14 @@ pub enum SealerError {
     PoRep(#[from] PoRepError),
 }
 
+/// Prepares an arbitrary piece to be used by [`create_sector`].
+///
+/// It does so by calculating the proper size for the padded reader
+/// (by means of converting the raw size into a padded size and then into an unpadded size),
+/// and then by wrapping the respective file reader with a [`ZeroPaddingReader`].
 pub fn prepare_piece<P>(
     piece_path: P,
-    piece_comm_p: [u8; 32],
+    piece_comm_p: RawCommitment,
 ) -> Result<(ZeroPaddingReader<File>, FcPieceInfo), std::io::Error>
 where
     P: AsRef<Path>,
@@ -34,6 +39,9 @@ where
     let piece_file = File::open(piece_path)?;
     let piece_raw_size = piece_file.metadata()?.len();
 
+    // If a file is unpadded, we can calculate its final size with Fr32 Padding and next power of two padding via
+    // `PaddedPieceSize::from_arbitrary_size`. E.g. 900 bytes -> 1024 bytes. However, Filecoin's `add_piece` methods
+    // requires size, to be before `Fr32` padding, so we call `.unpadded()` to get the `Fr32 unpadded`.
     // Required because of Filecoin magic, we'll probably need to change our Unpadded/Padded
     // into Filecoin implementations and instead write extensions for them to make them ergonomic
     let piece_padded_unpadded_length =
@@ -48,6 +56,7 @@ where
     Ok((piece_padded_file, piece_info))
 }
 
+/// Create a sector from several pieces. The resulting sector will be written into `sector_writer`.
 pub fn create_sector<PieceReader, SectorWriter>(
     pieces: Vec<(PieceReader, FcPieceInfo)>,
     mut sector_writer: SectorWriter,
@@ -61,9 +70,10 @@ where
         return Err(SealerError::PoRep(PoRepError::EmptySector));
     }
 
-    let mut result_pieces: Vec<FcPieceInfo> = Vec::new();
-    let mut piece_lengths: Vec<UnpaddedBytesAmount> = Vec::new();
+    let mut result_pieces: Vec<FcPieceInfo> = Vec::with_capacity(pieces.len());
+    let mut piece_lengths: Vec<UnpaddedBytesAmount> = Vec::with_capacity(pieces.len());
     let mut unpadded_occupied_space: UnpaddedBytesAmount = UnpaddedBytesAmount(0);
+
     for (idx, (reader, piece)) in pieces.into_iter().enumerate() {
         let piece: FcPieceInfo = piece.into();
         let (calculated_piece_info, written_bytes) =

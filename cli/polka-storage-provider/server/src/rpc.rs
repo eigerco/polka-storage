@@ -35,7 +35,7 @@ pub struct RpcServerState {
 
     /// The file storage directory. Used to check if a given piece has been uploaded or not.
     pub car_piece_storage_dir: Arc<PathBuf>,
-    pub sealed_piece_storage_dir: Arc<PathBuf>,
+    pub unsealed_piece_storage_dir: Arc<PathBuf>,
 
     pub xt_client: storagext::Client,
     pub xt_keypair: storagext::multipair::MultiPairSigner,
@@ -122,15 +122,18 @@ impl StorageProviderRpcServer for RpcServerState {
         // an error MUST've happened
         debug_assert_eq!(published_deals.len(), 1);
 
-        let sealed_dir = self.sealed_piece_storage_dir.clone();
+        let unsealed_dir = self.unsealed_piece_storage_dir.clone();
         let sector_size = self.server_info.seal_proof.sector_size();
 
+        // Questions to be answered:
+        // * what happens if some of it fails? SP will be slashed, and there is no error reporting?
+        // * where do we save the state of a sector/deals, how do we keep track of it?
         tokio::task::spawn_blocking(move || {
             let piece_commitment: [u8; 32] = ok_or_return!(piece_cid.hash().digest().try_into());
             let prepared_piece = ok_or_return!(prepare_piece(piece_path, piece_commitment));
 
             let sector_writer = ok_or_return!(std::fs::File::create(
-                sealed_dir.join(piece_cid.to_string())
+                unsealed_dir.join(piece_cid.to_string())
             ));
 
             let piece_infos = ok_or_return!(create_sector(

@@ -54,7 +54,7 @@ const RETRY_NUMBER: u32 = 5;
 const CAR_PIECE_DIRECTORY_NAME: &str = "car";
 
 /// Name for the directory where the sealed pieces are kept.
-const SEALED_PIECE_DIRECTORY_NAME: &str = "sealed";
+const UNSEALED_PIECE_DIRECTORY_NAME: &str = "unsealed";
 
 fn get_random_temporary_folder() -> PathBuf {
     temp_dir().join(
@@ -318,12 +318,12 @@ impl ServerConfiguration {
 
         // Car piece storage directory — i.e. the CAR archives from the input streams
         let car_piece_storage_dir = Arc::new(self.storage_directory.join(CAR_PIECE_DIRECTORY_NAME));
-        let sealed_piece_storage_dir =
-            Arc::new(self.storage_directory.join(SEALED_PIECE_DIRECTORY_NAME));
+        let unsealed_piece_storage_dir =
+            Arc::new(self.storage_directory.join(UNSEALED_PIECE_DIRECTORY_NAME));
 
         // Create the storage directories
         tokio::fs::create_dir_all(car_piece_storage_dir.as_ref()).await?;
-        tokio::fs::create_dir_all(sealed_piece_storage_dir.as_ref()).await?;
+        tokio::fs::create_dir_all(unsealed_piece_storage_dir.as_ref()).await?;
 
         let storage_state = StorageServerState {
             car_piece_storage_dir: car_piece_storage_dir.clone(),
@@ -340,7 +340,7 @@ impl ServerConfiguration {
             ),
             deal_db: deal_database.clone(),
             car_piece_storage_dir: car_piece_storage_dir.clone(),
-            sealed_piece_storage_dir: sealed_piece_storage_dir.clone(),
+            unsealed_piece_storage_dir: unsealed_piece_storage_dir.clone(),
             xt_client,
             xt_keypair: self.multi_pair_signer,
             listen_address: self.rpc_listen_address,
