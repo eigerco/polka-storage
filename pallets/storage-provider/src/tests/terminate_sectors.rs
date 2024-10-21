@@ -8,14 +8,15 @@ use sp_core::bounded_vec;
 
 use crate::{
     error::GeneralPalletError,
-    pallet::{Error, StorageProviders},
+    pallet::{Error, Event, StorageProviders},
     sector::{TerminateSectorsParams, TerminationDeclaration, MAX_SECTORS},
     tests::{
         account,
         declare_faults::{
             setup_sp_with_many_sectors_multiple_partitions, setup_sp_with_one_sector,
         },
-        new_test_ext, run_to_block, RuntimeOrigin, StorageProvider, Test, ALICE, BOB,
+        events, new_test_ext, run_to_block, RuntimeEvent, RuntimeOrigin, StorageProvider, Test,
+        ALICE, BOB,
     },
 };
 
@@ -157,40 +158,50 @@ fn terminate_sectors_success_multiple_sectors_partitions_and_deadlines() {
         //      Partition 1:
         //          sector: 22 <- keep
         //          sector: 23 <- terminate
+        let terminations: BoundedVec<TerminationDeclaration, _> = bounded_vec![
+            TerminationDeclaration {
+                deadline: 0,
+                partition: 0,
+                sectors: BTreeSet::from([0]).try_into().unwrap(),
+            },
+            TerminationDeclaration {
+                deadline: 0,
+                partition: 1,
+                sectors: BTreeSet::from([20]).try_into().unwrap(),
+            },
+            TerminationDeclaration {
+                deadline: 0,
+                partition: 2,
+                sectors: BTreeSet::from([40]).try_into().unwrap(),
+            },
+            TerminationDeclaration {
+                deadline: 1,
+                partition: 0,
+                sectors: BTreeSet::from([3]).try_into().unwrap(),
+            },
+            TerminationDeclaration {
+                deadline: 1,
+                partition: 1,
+                sectors: BTreeSet::from([23]).try_into().unwrap(),
+            },
+        ];
         let params = TerminateSectorsParams {
-            terminations: bounded_vec![
-                TerminationDeclaration {
-                    deadline: 0,
-                    partition: 0,
-                    sectors: BTreeSet::from([0]).try_into().unwrap(),
-                },
-                TerminationDeclaration {
-                    deadline: 0,
-                    partition: 1,
-                    sectors: BTreeSet::from([20]).try_into().unwrap(),
-                },
-                TerminationDeclaration {
-                    deadline: 0,
-                    partition: 2,
-                    sectors: BTreeSet::from([40]).try_into().unwrap(),
-                },
-                TerminationDeclaration {
-                    deadline: 1,
-                    partition: 0,
-                    sectors: BTreeSet::from([3]).try_into().unwrap(),
-                },
-                TerminationDeclaration {
-                    deadline: 1,
-                    partition: 1,
-                    sectors: BTreeSet::from([23]).try_into().unwrap(),
-                },
-            ],
+            terminations: terminations.clone(), // need clone here to check event later
         };
 
         assert_ok!(StorageProvider::terminate_sectors(
             RuntimeOrigin::signed(account(ALICE)),
             params
         ));
+
+        // Check that the expected event is emitted
+        assert_eq!(
+            events(),
+            [RuntimeEvent::StorageProvider(Event::SectorsTerminated {
+                owner: account(storage_provider),
+                terminations
+            })]
+        );
 
         let mut sp = StorageProviders::<Test>::get(account(storage_provider))
             .expect("Should be able to get providers info");

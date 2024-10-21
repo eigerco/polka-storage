@@ -73,7 +73,8 @@ pub mod pallet {
         proofs::{assign_proving_period_offset, SubmitWindowedPoStParams},
         sector::{
             ProveCommitResult, ProveCommitSector, SectorOnChainInfo, SectorPreCommitInfo,
-            SectorPreCommitOnChainInfo, TerminateSectorsParams, MAX_SECTORS,
+            SectorPreCommitOnChainInfo, TerminateSectorsParams, TerminationDeclaration,
+            MAX_SECTORS,
         },
         sector_map::DeadlineSectorMap,
         storage_provider::{
@@ -277,6 +278,11 @@ pub mod pallet {
             owner: T::AccountId,
             partition: PartitionNumber,
             sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
+        },
+        /// Emitted when an SP terminates some sectors.
+        SectorsTerminated {
+            owner: T::AccountId,
+            terminations: BoundedVec<TerminationDeclaration, ConstU32<DECLARATIONS_MAX>>,
         },
     }
 
@@ -937,7 +943,7 @@ pub mod pallet {
 
             let mut to_process = DeadlineSectorMap::new();
 
-            for term in params.terminations {
+            for term in params.terminations.iter() {
                 let deadline = term.deadline;
                 let partition = term.partition;
 
@@ -988,6 +994,10 @@ pub mod pallet {
 
             Self::process_early_terminations(current_block, &owner)?;
 
+            Self::deposit_event(Event::SectorsTerminated {
+                owner,
+                terminations: params.terminations,
+            });
             Ok(())
         }
     }
