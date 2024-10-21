@@ -1,7 +1,7 @@
 mod config;
 
 use config::Config;
-use polka_storage_proofs::post::get_partitions_for_window_post;
+use polka_storage_proofs::get_partitions_for_window_post;
 use primitives_commitment::NODE_SIZE;
 use primitives_proofs::{
     PublicReplicaInfo, RawCommitment, RegisteredPoStProof, SectorNumber, Ticket,

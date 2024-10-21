@@ -18,7 +18,10 @@ use storage_proofs_post::fallback::{
     self, FallbackPoSt, FallbackPoStCompound, PrivateSector, PublicSector,
 };
 
-use crate::types::{Commitment, ProverId, Ticket};
+use crate::{
+    get_partitions_for_window_post,
+    types::{Commitment, ProverId, Ticket},
+};
 
 /// Generates parameters for proving and verifying PoSt.
 /// It should be called once and then reused across provers and the verifier.
@@ -164,14 +167,4 @@ pub enum PoStError {
     Anyhow(#[from] anyhow::Error),
     #[error("failed to load groth16 parameters from path: {0}, because {1}")]
     FailedToLoadGrothParameters(std::path::PathBuf, std::io::Error),
-}
-
-/// Reference:
-/// * <https://github.com/filecoin-project/rust-fil-proofs/blob/266acc39a3ebd6f3d28c6ee335d78e2b7cea06bc/filecoin-proofs/src/api/post_util.rs#L217>
-pub fn get_partitions_for_window_post(
-    total_sector_count: usize,
-    sector_count: usize,
-) -> Option<usize> {
-    let partitions = total_sector_count.div_ceil(sector_count);
-    (partitions > 1).then_some(partitions)
 }

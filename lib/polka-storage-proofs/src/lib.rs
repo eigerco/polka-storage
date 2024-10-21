@@ -10,3 +10,13 @@ pub use groth16::*;
 
 #[cfg(feature = "std")]
 pub mod porep;
+
+/// Reference:
+/// * <https://github.com/filecoin-project/rust-fil-proofs/blob/266acc39a3ebd6f3d28c6ee335d78e2b7cea06bc/filecoin-proofs/src/api/post_util.rs#L217>
+pub fn get_partitions_for_window_post(
+    total_sector_count: usize,
+    sector_count: usize,
+) -> Option<usize> {
+    let partitions = total_sector_count.div_ceil(sector_count);
+    (partitions > 1).then_some(partitions)
+}
