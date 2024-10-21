@@ -26,8 +26,8 @@ frame-support.workspace = true
 frame-system.workspace = true
 num-bigint = { workspace = true }
 polka-storage-proofs = { workspace = true, features = ["substrate"] }
-primitives-proofs = { workspace = true }
 primitives-commitment = { workspace = true }
+primitives-proofs = { workspace = true }
 rand = { workspace = true, features = ["alloc"] }
 rand_chacha = { workspace = true }
 scale-info = { features = ["derive"], workspace = true }
@@ -64,6 +64,6 @@ std = [
   "polka-storage-proofs/std",
   "scale-info/std",
   "sp-runtime/std",
-  "sp-std/std"
+  "sp-std/std",
 ]
 try-runtime = ["frame-support/try-runtime", "frame-system/try-runtime", "sp-runtime/try-runtime"]
