@@ -19,10 +19,15 @@ impl Config {
     }
 }
 
+/// The number of challenges generated for a single sector.
+///
 /// References:
 /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/266acc39a3ebd6f3d28c6ee335d78e2b7cea06bc/filecoin-proofs/src/constants.rs#L32>
 const WINDOW_POST_CHALLENGE_COUNT: usize = 10;
 
+
+/// Number of sectors challenged in a replica.
+///
 /// References:
 /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/266acc39a3ebd6f3d28c6ee335d78e2b7cea06bc/filecoin-proofs/src/constants.rs#L102>
 fn sector_count(post_type: RegisteredPoStProof) -> usize {
