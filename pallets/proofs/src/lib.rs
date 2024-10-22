@@ -43,9 +43,21 @@ pub mod pallet {
     #[pallet::pallet]
     pub struct Pallet<T>(_);
 
+    /// Verifying Key for verifying all of the PoRep proofs generated for 2KiB sectors.
+    /// One per runtime.
+    ///
+    /// It should be set via some kind of trusted setup procedure.
+    /// /// Test key can be generated via `polka-storage-provider-client utils porep-params`.
+    /// To support more sector sizes for proofs, this data structure would need to be a Map from Sector Size to a Verifying Key.
     #[pallet::storage]
     pub type PoRepVerifyingKey<T: Config> = StorageValue<_, VerifyingKey<Bls12>, OptionQuery>;
 
+    /// Verifying Key for verifying all of the PoSt proofs generated for 2KiB sectors.
+    /// One per runtime.
+    ///
+    /// It should be set via some kind of trusted setup procedure.
+    /// Test key can be generated via `polka-storage-provider-client utils post-params`.
+    /// To support more sector sizes for proofs, this data structure would need to be a Map from Sector Size to a Verifying Key.
     #[pallet::storage]
     pub type PoStVerifyingKey<T: Config> = StorageValue<_, VerifyingKey<Bls12>, OptionQuery>;
 
