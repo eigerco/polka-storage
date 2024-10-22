@@ -26,9 +26,13 @@ impl ProofScheme {
     }
 
     /// Verifies PoSt for all of the replicas.
+    ///
+    /// Currently the replicas are unbounded, that's because it's dependent on the sector size used and number of proofs.
+    /// I.e. when we have a one proof, replicas can be: 2 for sector size of 2KiB, but 2349 for sector size of 32GiB.
     /// References:
     /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/filecoin-proofs/src/api/window_post.rs#L181>
     /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/266acc39a3ebd6f3d28c6ee335d78e2b7cea06bc/storage-proofs-core/src/compound_proof.rs#L148>
+    // TODO(@th7nder,#467, 22/10/2024): figure out the proper bounds
     pub fn verify(
         &self,
         randomness: Ticket,
