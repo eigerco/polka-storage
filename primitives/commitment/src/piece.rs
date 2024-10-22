@@ -1,7 +1,5 @@
 use core::ops::{Add, AddAssign, Deref};
 
-use filecoin_proofs::UnpaddedBytesAmount;
-
 use crate::{Commitment, CommitmentKind, NODE_SIZE};
 
 /// Piece info contains piece commitment and piece size.
@@ -36,7 +34,7 @@ impl Into<filecoin_proofs::PieceInfo> for PieceInfo {
     fn into(self) -> filecoin_proofs::PieceInfo {
         filecoin_proofs::PieceInfo {
             commitment: self.commitment.commitment,
-            size: UnpaddedBytesAmount(self.size.unpadded().0),
+            size: filecoin_proofs::UnpaddedBytesAmount(self.size.unpadded().0),
         }
     }
 }

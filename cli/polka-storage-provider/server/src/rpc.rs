@@ -143,7 +143,10 @@ impl StorageProviderRpcServer for RpcServerState {
                 sector_size
             ));
 
-            let comm_d = compute_unsealed_sector_commitment(sector_size, &piece_infos).unwrap();
+            let comm_d = ok_or_return!(compute_unsealed_sector_commitment(
+                sector_size,
+                &piece_infos
+            ));
 
             tracing::info!("{:?}", comm_d);
         });
