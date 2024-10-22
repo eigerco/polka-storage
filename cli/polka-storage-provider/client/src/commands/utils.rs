@@ -238,8 +238,11 @@ impl UtilsCommand {
                     size: *piece_file_length,
                 };
 
-                let mut unsealed_sector =
-                    tempfile::NamedTempFile::new().map_err(|e| UtilsCommandError::IOError(e))?;
+                let (unsealed_sector_path, unsealed_sector) = file_with_extension(
+                    &output_path,
+                    format!("{}", sector_id).as_str(),
+                    "sector.unsealed",
+                )?;
 
                 let (sealed_sector_path, _) = file_with_extension(
                     &output_path,
@@ -252,7 +255,7 @@ impl UtilsCommand {
                 let piece_infos = sealer
                     .create_sector(
                         vec![(piece_file, piece_info.clone())],
-                        unsealed_sector.as_file_mut(),
+                        unsealed_sector
                     )
                     .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
 
@@ -260,7 +263,7 @@ impl UtilsCommand {
                 let precommit = sealer
                     .precommit_sector(
                         &cache_directory,
-                        unsealed_sector.path(),
+                        unsealed_sector_path,
                         &sealed_sector_path,
                         prover_id,
                         sector_id,
@@ -418,8 +421,6 @@ pub enum UtilsCommandError {
     InvalidPieceFile(PathBuf, std::io::Error),
     #[error("provided invalid CommP {0}, error: {1}")]
     InvalidPieceCommP(String, cid::Error),
-    #[error(transparent)]
-    IOError(std::io::Error),
     #[error("file {0} is invalid CARv2 file {1}")]
     InvalidCARv2(PathBuf, mater::Error),
 }

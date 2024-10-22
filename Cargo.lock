@@ -9418,7 +9418,6 @@ dependencies = [
  "serde_json",
  "storagext",
  "subxt",
- "tempfile",
  "thiserror",
  "tokio",
  "tracing",
