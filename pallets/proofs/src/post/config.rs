@@ -10,6 +10,8 @@ pub struct Config {
 }
 
 impl Config {
+    /// Creates a new config based on `RegisteredPoStProof`.
+    /// `challenges_per_sector` is equal to `WINDOW_POST_CHALLENGE_COUNT` for all sector sizes.
     pub fn new(post_type: RegisteredPoStProof) -> Self {
         Self {
             sector_size: post_type.sector_size().bytes(),
