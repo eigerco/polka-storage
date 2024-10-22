@@ -279,7 +279,7 @@ Where the termination declarations contain:
 | `partition` | Partition index within the deadline containing the sector to be terminated | Positive integer.        |
 | `sectors`   | Sectors in the partition being terminated                                  | Set of positive integers |
 
-#### <a class="header" id="declare_faults_recovered.example" href="#declare_faults_recovered.example">Example</a>
+#### <a class="header" id="terminate_sectors.example" href="#terminate_sectors.example">Example</a>
 
 TODO(@aidan46, #463, 2024/10/18): Add storagext example after implementation
 
