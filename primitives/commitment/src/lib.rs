@@ -73,6 +73,15 @@ impl Commitment {
         Self { commitment, kind }
     }
 
+    /// Creates a new `Commitment` from bytes. Returns an error if the bytes
+    /// passed do not represent a valid commitment.
+    pub fn from_bytes(bytes: &[u8], kind: CommitmentKind) -> Result<Self, &'static str> {
+        let cid = Cid::try_from(bytes).map_err(|_| "bytes not a valid cid")?;
+        Self::from_cid(&cid, kind)
+    }
+
+    /// Creates a new `Commitment` from a CID. Returns an error if the CID
+    /// passed does not represent a commitment kind.
     pub fn from_cid(cid: &Cid, kind: CommitmentKind) -> Result<Self, &'static str> {
         let mut commitment = [0; 32];
         commitment.copy_from_slice(cid.hash().digest());
@@ -83,20 +92,20 @@ impl Commitment {
         match kind {
             CommitmentKind::Piece | CommitmentKind::Data => {
                 if multicodec != FIL_COMMITMENT_UNSEALED {
-                    return Err("invalid multicodec for commitment");
+                    return Err("invalid multicodec for piece/data commitment");
                 }
 
                 if multihash != SHA2_256_TRUNC254_PADDED {
-                    return Err("invalid multihash for commitment");
+                    return Err("invalid multihash for piece/data commitment");
                 }
             }
             CommitmentKind::Replica => {
                 if multicodec != FIL_COMMITMENT_SEALED {
-                    return Err("invalid multicodec for commitment");
+                    return Err("invalid multicodec for replica commitment");
                 }
 
                 if multihash != POSEIDON_BLS12_381_A1_FC1 {
-                    return Err("invalid multihash for commitment");
+                    return Err("invalid multihash for replica commitment");
                 }
             }
         }

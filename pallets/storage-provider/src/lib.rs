@@ -479,27 +479,32 @@ pub mod pallet {
                     sector.expiration,
                 )?;
 
-                let unsealed_cid = validate_data_commitment_cid::<T>(&sector.unsealed_cid[..])?;
-                let deposit = calculate_pre_commit_deposit::<T>();
+                // Validate the data commitment
+                let commd = Commitment::from_bytes(&sector.unsealed_cid[..], CommitmentKind::Data)
+                    .map_err(|err| {
+                        log::error!(target: LOG_TARGET, err:?; "pre_commit_sectors: invalid unsealed_cid");
+                        Error::<T>::InvalidCid
+                    })?;
 
-                let entropy = owner.encode();
-                let randomness = get_randomness::<T>(
-                    DomainSeparationTag::SealRandomness,
-                    current_block,
-                    &entropy,
-                )?;
+                // Validate the replica commitment
+                let _ = Commitment::from_bytes(&sector.sealed_cid[..], CommitmentKind::Replica)
+                    .map_err(|err| {
+                        log::error!(target: LOG_TARGET, err:?; "pre_commit_sectors: invalid sealed_cid");
+                        Error::<T>::InvalidCid
+                    })?;
+
+                let deposit = calculate_pre_commit_deposit::<T>();
 
                 let sector_on_chain = SectorPreCommitOnChainInfo::new(
                     sector.clone(),
                     deposit,
                     current_block,
-                    randomness,
                 );
 
                 // Push deal amounts for later verification
                 deal_amounts.try_push(sector_on_chain.info.deal_ids.len()).expect("Programmer error: cannot have more that MAX_SECTORS_PER_CALL deal_amount because of previous bounds");
                 // Push all unsealed_cids and deal amount to verify later.
-                unsealed_cids.try_push(unsealed_cid).expect("Programmer error: cannot have more that MAX_SECTORS_PER_CALL unsealed_cids because of previous bounds");
+                unsealed_cids.try_push(commd.cid()).expect("Programmer error: cannot have more that MAX_SECTORS_PER_CALL unsealed_cids because of previous bounds");
                 // Push all deals to verify in one go later.
                 all_sector_deals.try_push((&sector_on_chain).into()).expect(
                     "Programmer error: sector deals cannot be more that MAX_SECTORS_PER_CALL because of previous bounds",
@@ -1379,19 +1384,6 @@ pub mod pallet {
         }
     }
 
-    // Adapted from filecoin reference here: https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/miner/src/commd.rs#L51-L56
-    fn validate_data_commitment_cid<T: Config>(bytes: &[u8]) -> Result<Cid, Error<T>> {
-        let cid = Cid::try_from(bytes).map_err(|e| {
-            log::error!(target: LOG_TARGET, e:?; "failed to validate cid");
-            Error::<T>::InvalidCid
-        })?;
-
-        // This checks if the cid represents correct commitment
-        Commitment::from_cid(&cid, CommitmentKind::Data).map_err(|_| Error::<T>::InvalidCid)?;
-
-        Ok(cid)
-    }
-
     /// Calculate the required pre commit deposit amount
     fn calculate_pre_commit_deposit<T: Config>() -> BalanceOf<T> {
         BalanceOf::<T>::one() // TODO(@aidan46, #106, 2024-06-24): Set a logical value or calculation
@@ -1445,15 +1437,26 @@ pub mod pallet {
             return Err(Error::<T>::InvalidProof)?;
         }
 
-        let sealed_cid: [u8; 32] = precommit.info.sealed_cid.as_slice().try_into().map_err(|_| {
-            log::error!(target: LOG_TARGET, "invalid sealed cid: {:?}", precommit.info.sealed_cid);
-            Error::<T>::InvalidCid
-        })?;
+        // Validate the data commitment
+        let commd = Commitment::from_bytes(&precommit.info.unsealed_cid[..], CommitmentKind::Data)
+            .map_err(|err| {
+                log::error!(target: LOG_TARGET, err:?; "validate_seal_proof: invalid unsealed_cid {:?}", &precommit.info.unsealed_cid);
+                Error::<T>::InvalidCid
+            })?;
 
-        let unsealed_cid: [u8; 32] = precommit.info.unsealed_cid.as_slice().try_into().map_err(|_| {
-            log::error!(target: LOG_TARGET, "invalid unsealed cid: {:?}", precommit.info.unsealed_cid);
-            Error::<T>::InvalidCid
-        })?;
+        // Validate the replica commitment
+        let commr = Commitment::from_bytes(&precommit.info.sealed_cid[..], CommitmentKind::Replica)
+            .map_err(|err| {
+                log::error!(target: LOG_TARGET, err:?; "validate_seal_proof: invalid sealed_cid {:?}", &precommit.info.sealed_cid);
+                Error::<T>::InvalidCid
+            })?;
+
+        // let entropy = owner.encode();
+        // let randomness = get_randomness::<T>(
+        //     DomainSeparationTag::SealRandomness,
+        //     current_block,
+        //     &entropy,
+        // )?;
 
         // TODO(#412,@cernicc,21/10/2024): Generate a correct Prover Id
         let prover_id = [0u8; 32];
@@ -1462,14 +1465,11 @@ pub mod pallet {
         T::ProofVerificationPallet::verify_porep(
             prover_id,
             precommit.info.seal_proof,
-            sealed_cid,
-            unsealed_cid,
+            commr.raw(),
+            commd.raw(),
             precommit.info.sector_number,
-            // We are using `precommit.randomness` as a seed and ticket. This is
-            // desired because we don't need multiple random values, but the
-            // FileCoin's proofs are expecting two values.
-            precommit.randomness,
-            precommit.randomness,
+            todo!(),
+            todo!(),
             proof.into_inner(),
         )
     }

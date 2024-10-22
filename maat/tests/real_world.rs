@@ -185,15 +185,14 @@ where
             .expect("valid CID");
 
     // Sealed sector commitment.
-    // Currently a placeholder value.
-    let placeholder_cid =
-        cid::Cid::try_from("bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu")
+    let sealed_cid =
+        cid::Cid::try_from("bagboea4b5abcahzgmrmzan2urtn5qobkffrkaxwbc7iesqt6o7wgwr4hrwget7n4")
             .expect("valid CID");
 
     let sectors_pre_commit_info = vec![SectorPreCommitInfo {
         seal_proof: primitives_proofs::RegisteredSealProof::StackedDRG2KiBV1P1,
         sector_number: 1,
-        sealed_cid: placeholder_cid,
+        sealed_cid,
         deal_ids: vec![0],
         expiration: 165,
         unsealed_cid,
