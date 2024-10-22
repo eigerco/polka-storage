@@ -4,12 +4,13 @@ use std::{
     path::Path,
 };
 
-use filecoin_proofs::{
-    add_piece, PaddedBytesAmount, PieceInfo as FcPieceInfo, UnpaddedBytesAmount,
-};
+use filecoin_proofs::{add_piece, PaddedBytesAmount, UnpaddedBytesAmount};
 use polka_storage_proofs::porep::{sealer::filler_pieces, PoRepError};
 use polka_storage_provider_common::commp::ZeroPaddingReader;
-use primitives_commitment::piece::PaddedPieceSize;
+use primitives_commitment::{
+    piece::{PaddedPieceSize, PieceInfo},
+    Commitment,
+};
 use primitives_proofs::{RawCommitment, SectorSize};
 
 #[derive(Debug, thiserror::Error)]
@@ -32,7 +33,7 @@ pub enum SealerError {
 pub fn prepare_piece<P>(
     piece_path: P,
     piece_comm_p: RawCommitment,
-) -> Result<(ZeroPaddingReader<File>, FcPieceInfo), std::io::Error>
+) -> Result<(ZeroPaddingReader<File>, PieceInfo), std::io::Error>
 where
     P: AsRef<Path>,
 {
@@ -44,13 +45,13 @@ where
     // requires size, to be before `Fr32` padding, so we call `.unpadded()` to get the `Fr32 unpadded`.
     // Required because of Filecoin magic, we'll probably need to change our Unpadded/Padded
     // into Filecoin implementations and instead write extensions for them to make them ergonomic
-    let piece_padded_unpadded_length =
-        PaddedPieceSize::from_arbitrary_size(piece_raw_size).unpadded();
+    let piece_padded_length = PaddedPieceSize::from_arbitrary_size(piece_raw_size);
+    let piece_padded_unpadded_length = piece_padded_length.unpadded();
     let piece_padded_file = ZeroPaddingReader::new(piece_file, *piece_padded_unpadded_length);
 
-    let piece_info = FcPieceInfo {
-        commitment: piece_comm_p,
-        size: UnpaddedBytesAmount(*piece_padded_unpadded_length),
+    let piece_info = PieceInfo {
+        commitment: Commitment::piece(piece_comm_p),
+        size: piece_padded_length,
     };
 
     Ok((piece_padded_file, piece_info))
@@ -58,10 +59,10 @@ where
 
 /// Create a sector from several pieces. The resulting sector will be written into `sector_writer`.
 pub fn create_sector<PieceReader, SectorWriter>(
-    pieces: Vec<(PieceReader, FcPieceInfo)>,
+    pieces: Vec<(PieceReader, PieceInfo)>,
     mut sector_writer: SectorWriter,
     sector_size: SectorSize,
-) -> Result<Vec<FcPieceInfo>, SealerError>
+) -> Result<Vec<PieceInfo>, SealerError>
 where
     PieceReader: Read,
     SectorWriter: Write,
@@ -70,24 +71,29 @@ where
         return Err(SealerError::PoRep(PoRepError::EmptySector));
     }
 
-    let mut result_pieces: Vec<FcPieceInfo> = Vec::with_capacity(pieces.len());
+    let mut result_pieces: Vec<PieceInfo> = Vec::with_capacity(pieces.len());
     let mut piece_lengths: Vec<UnpaddedBytesAmount> = Vec::with_capacity(pieces.len());
     let mut unpadded_occupied_space: UnpaddedBytesAmount = UnpaddedBytesAmount(0);
 
     for (idx, (reader, piece)) in pieces.into_iter().enumerate() {
-        let piece: FcPieceInfo = piece.into();
-        let (calculated_piece_info, written_bytes) =
-            add_piece(reader, &mut sector_writer, piece.size, &piece_lengths)?;
+        let piece: PieceInfo = piece.into();
+        let unpadded_piece_size = piece.size.unpadded().into();
+        let (calculated_piece_info, written_bytes) = add_piece(
+            reader,
+            &mut sector_writer,
+            unpadded_piece_size,
+            &piece_lengths,
+        )?;
 
-        piece_lengths.push(piece.size);
+        piece_lengths.push(unpadded_piece_size);
 
         // We need to add `written_bytes` not `piece.size`, as `add_piece` adds padding.
         unpadded_occupied_space = unpadded_occupied_space + written_bytes;
 
-        if piece.commitment != calculated_piece_info.commitment {
+        if piece.commitment.raw() != calculated_piece_info.commitment {
             return Err(PoRepError::InvalidPieceCid(
                 idx,
-                piece.commitment,
+                piece.commitment.raw(),
                 calculated_piece_info.commitment,
             ))?;
         }
@@ -96,8 +102,15 @@ where
     }
 
     let sector_size: UnpaddedBytesAmount = PaddedBytesAmount(sector_size.bytes()).into();
-    let padding_pieces = filler_pieces(sector_size - unpadded_occupied_space);
-    result_pieces.extend(padding_pieces.into_iter().map(Into::into));
+    let padding_pieces = filler_pieces(sector_size - unpadded_occupied_space)
+        .into_iter()
+        .map(|fc_piece_info| {
+            PieceInfo::from_filecoin_piece_info(
+                fc_piece_info,
+                primitives_commitment::CommitmentKind::Piece,
+            )
+        });
+    result_pieces.extend(padding_pieces);
 
     Ok(result_pieces)
 }

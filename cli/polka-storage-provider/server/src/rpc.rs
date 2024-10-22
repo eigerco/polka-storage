@@ -2,6 +2,7 @@ use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 
 use jsonrpsee::server::Server;
 use polka_storage_provider_common::rpc::{RpcError, ServerInfo, StorageProviderRpcServer};
+use primitives_commitment::commd::compute_unsealed_sector_commitment;
 use storagext::{
     types::market::{ClientDealProposal as SxtClientDealProposal, DealProposal as SxtDealProposal},
     MarketClientExt,
@@ -142,12 +143,9 @@ impl StorageProviderRpcServer for RpcServerState {
                 sector_size
             ));
 
-            let comm_d = ok_or_return!(filecoin_proofs::compute_comm_d(
-                filecoin_proofs::SectorSize(sector_size.bytes()),
-                &piece_infos
-            ));
+            let comm_d = compute_unsealed_sector_commitment(sector_size, &piece_infos).unwrap();
 
-            tracing::info!("{:x?}", comm_d);
+            tracing::info!("{:?}", comm_d);
         });
 
         Ok(published_deals[0].deal_id)

@@ -7,10 +7,16 @@ name = "primitives-commitment"
 repository.workspace = true
 version = "0.1.0"
 
+[features]
+std = ["dep:filecoin-proofs"]
+
 [dependencies]
-cid.workspace = true
 primitives-proofs.workspace = true
+
+cid.workspace = true
 sha2.workspace = true
+
+filecoin-proofs = { optional = true, workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true, features = ["std", "std_rng"] }

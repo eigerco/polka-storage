@@ -3,23 +3,33 @@ alias r := release
 alias t := testnet
 alias f := fmt
 
+# Generate the `metadata.scale` file, requires the node to be up and running at `127.0.0.1:42069`
 generate-scale:
     subxt metadata -a --url http://127.0.0.1:42069 > cli/artifacts/metadata.scale
 
+# Lint the project
 lint:
     cargo clippy --locked --no-deps -- -D warnings
     taplo lint && taplo fmt --check
 
+# Build the project in debug mode, linting it before
 build: lint
     cargo build
 
+# Build the project in release mode, linting it before
 release: lint
     cargo build --release
 
+# Build the testnet binaries in release mode
 release-testnet:
     cargo build --release --features polka-storage-runtime/testnet --bin polka-storage-node
 
+# Run the testing building it before
 testnet: release-testnet
+    zombienet -p native spawn zombienet/local-testnet.toml
+
+# Run the testnet without building
+run-testnet:
     zombienet -p native spawn zombienet/local-testnet.toml
 
 test:

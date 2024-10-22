@@ -1,6 +1,8 @@
 use core::ops::{Add, AddAssign, Deref};
 
-use crate::{Commitment, NODE_SIZE};
+use filecoin_proofs::UnpaddedBytesAmount;
+
+use crate::{Commitment, CommitmentKind, NODE_SIZE};
 
 /// Piece info contains piece commitment and piece size.
 #[derive(Debug, Clone, Copy)]
@@ -9,6 +11,34 @@ pub struct PieceInfo {
     pub commitment: Commitment,
     /// Piece size
     pub size: PaddedPieceSize,
+}
+
+#[cfg(feature = "std")]
+impl PieceInfo {
+    /// Convert a [`filecoin_proofs::PieceInfo`] into a [`PieceInfo`].
+    ///
+    /// With some generics trickery we could move the CommitmentKind to a compile-time thing
+    /// and further get more safety out of the Commitment type; additionally, this method
+    /// could be turned into a `from`.
+    pub fn from_filecoin_piece_info(
+        piece_info: filecoin_proofs::PieceInfo,
+        kind: CommitmentKind,
+    ) -> Self {
+        Self {
+            commitment: Commitment::new(piece_info.commitment, kind),
+            size: PaddedPieceSize::from_arbitrary_size(piece_info.size.0),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl Into<filecoin_proofs::PieceInfo> for PieceInfo {
+    fn into(self) -> filecoin_proofs::PieceInfo {
+        filecoin_proofs::PieceInfo {
+            commitment: self.commitment.commitment,
+            size: UnpaddedBytesAmount(self.size.unpadded().0),
+        }
+    }
 }
 
 /// Size of a piece in bytes. Unpadded piece size should be power of two
@@ -61,6 +91,20 @@ impl Add for UnpaddedPieceSize {
 
     fn add(self, other: Self) -> Self::Output {
         UnpaddedPieceSize(self.0 + other.0)
+    }
+}
+
+#[cfg(feature = "std")]
+impl From<filecoin_proofs::UnpaddedBytesAmount> for UnpaddedPieceSize {
+    fn from(value: filecoin_proofs::UnpaddedBytesAmount) -> Self {
+        Self(value.0)
+    }
+}
+
+#[cfg(feature = "std")]
+impl Into<filecoin_proofs::UnpaddedBytesAmount> for UnpaddedPieceSize {
+    fn into(self) -> filecoin_proofs::UnpaddedBytesAmount {
+        filecoin_proofs::UnpaddedBytesAmount(self.0)
     }
 }
 
@@ -147,6 +191,19 @@ impl core::iter::Sum for PaddedPieceSize {
     }
 }
 
+#[cfg(feature = "std")]
+impl From<filecoin_proofs::PaddedBytesAmount> for PaddedPieceSize {
+    fn from(value: filecoin_proofs::PaddedBytesAmount) -> Self {
+        Self(value.0)
+    }
+}
+
+#[cfg(feature = "std")]
+impl Into<filecoin_proofs::PaddedBytesAmount> for PaddedPieceSize {
+    fn into(self) -> filecoin_proofs::PaddedBytesAmount {
+        filecoin_proofs::PaddedBytesAmount(self.0)
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
