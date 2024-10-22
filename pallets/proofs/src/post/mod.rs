@@ -47,8 +47,7 @@ impl ProofScheme {
         let required_partitions = get_partitions_for_window_post(
             replicas.len(),
             self.config.challenged_sectors_per_partition,
-        )
-        .ok_or(ProofError::InvalidNumberOfSectors);
+        ).unwrap_or(1);
 
         if required_partitions != 1 {
             // We don't support more than 1 partition in this method right now.
