@@ -48,7 +48,8 @@ impl ProofScheme {
             replicas.len(),
             self.config.challenged_sectors_per_partition,
         )
-        .unwrap_or(1);
+        .ok_or(ProofError::InvalidNumberOfSectors);
+
         if required_partitions != 1 {
             // We don't support more than 1 partition in this method right now.
             return Err(ProofError::InvalidNumberOfProofs);
