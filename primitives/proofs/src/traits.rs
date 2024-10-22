@@ -78,6 +78,11 @@ pub trait ProofVerification {
     ) -> DispatchResult;
 }
 
+/// Represents functions that are provided by the Randomness Pallet
+pub trait Randomness {
+    fn get_randomness() -> DispatchResult;
+}
+
 /// Binds given Sector with the Deals that it should contain
 /// It's used as a data transfer object for extrinsics `verify_deals_for_activation`
 /// as well as `activate deals`.

@@ -17,6 +17,7 @@ members = [
   "node",
   "pallets/market",
   "pallets/proofs",
+  "pallets/randomness",
   "pallets/storage-provider",
   "primitives/commitment",
   "primitives/proofs",
@@ -126,6 +127,7 @@ cli-primitives = { path = "primitives/cli" }
 mater = { path = "storage/mater" }
 pallet-market = { path = "pallets/market", default-features = false }
 pallet-proofs = { path = "pallets/proofs", default-features = false }
+pallet-randomness = { path = "pallets/randomness", default-features = false }
 pallet-storage-provider = { path = "pallets/storage-provider", default-features = false }
 polka-storage-proofs = { path = "lib/polka-storage-proofs", default-features = false }
 polka-storage-provider-common = { path = "cli/polka-storage-provider/common" }
