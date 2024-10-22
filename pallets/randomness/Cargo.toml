@@ -20,6 +20,8 @@ codec = { features = ["derive"], workspace = true }
 frame-benchmarking = { optional = true, workspace = true }
 frame-support.workspace = true
 frame-system.workspace = true
+log = { workspace = true }
+pallet-insecure-randomness-collective-flip = { workspace = true, default-features = false }
 primitives-proofs = { workspace = true }
 scale-info = { features = ["derive"], workspace = true }
 sp-runtime.workspace = true

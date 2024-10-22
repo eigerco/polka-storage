@@ -79,8 +79,8 @@ pub trait ProofVerification {
 }
 
 /// Represents functions that are provided by the Randomness Pallet
-pub trait Randomness {
-    fn get_randomness() -> DispatchResult;
+pub trait Randomness<BlockNumber> {
+    fn get_randomness(block_number: BlockNumber) -> Result<[u8; 32], DispatchError>;
 }
 
 /// Binds given Sector with the Deals that it should contain
