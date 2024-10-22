@@ -253,10 +253,7 @@ impl UtilsCommand {
                 println!("Creating sector...");
                 let sealer = Sealer::new(seal_proof);
                 let piece_infos = sealer
-                    .create_sector(
-                        vec![(piece_file, piece_info.clone())],
-                        unsealed_sector
-                    )
+                    .create_sector(vec![(piece_file, piece_info.clone())], unsealed_sector)
                     .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
 
                 println!("Precommitting...");
