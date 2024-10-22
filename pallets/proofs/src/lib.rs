@@ -22,6 +22,8 @@ mod tests;
 
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
+    pub const LOG_TARGET: &'static str = "runtime::proofs";
+
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
     use primitives_proofs::{
@@ -86,8 +88,11 @@ pub mod pallet {
             verifying_key: crate::Vec<u8>,
         ) -> DispatchResult {
             let caller = ensure_signed(origin)?;
-            let vkey = VerifyingKey::<Bls12>::decode(&mut verifying_key.as_slice())
-                .map_err(|_| Error::<T>::Conversion)?;
+            let vkey =
+                VerifyingKey::<Bls12>::decode(&mut verifying_key.as_slice()).map_err(|e| {
+                    log::error!(target: LOG_TARGET, "failed to parse PoRep verifying key {:?}", e);
+                    Error::<T>::Conversion
+                })?;
 
             PoRepVerifyingKey::<T>::set(Some(vkey));
 
@@ -101,8 +106,11 @@ pub mod pallet {
             verifying_key: crate::Vec<u8>,
         ) -> DispatchResult {
             let caller = ensure_signed(origin)?;
-            let vkey = VerifyingKey::<Bls12>::decode(&mut verifying_key.as_slice())
-                .map_err(|_| Error::<T>::Conversion)?;
+            let vkey =
+                VerifyingKey::<Bls12>::decode(&mut verifying_key.as_slice()).map_err(|e| {
+                    log::error!(target: LOG_TARGET, "failed to parse PoSt verifying key {:?}", e);
+                    Error::<T>::Conversion
+                })?;
 
             PoStVerifyingKey::<T>::set(Some(vkey));
 
@@ -123,8 +131,10 @@ pub mod pallet {
             seed: Ticket,
             proof: crate::Vec<u8>,
         ) -> DispatchResult {
-            let proof = Proof::<Bls12>::decode(&mut proof.as_slice())
-                .map_err(|_| Error::<T>::Conversion)?;
+            let proof = Proof::<Bls12>::decode(&mut proof.as_slice()).map_err(|e| {
+                log::error!(target: LOG_TARGET, "failed to parse PoRep proof {:?}", e);
+                Error::<T>::Conversion
+            })?;
             let proof_scheme = porep::ProofScheme::setup(seal_proof);
 
             let vkey = PoRepVerifyingKey::<T>::get().ok_or(Error::<T>::MissingPoRepVerifyingKey)?;
@@ -143,14 +153,19 @@ pub mod pallet {
             replicas: BTreeMap<SectorNumber, PublicReplicaInfo>,
             proof: alloc::vec::Vec<u8>,
         ) -> DispatchResult {
-            let proof = Proof::<Bls12>::decode(&mut proof.as_slice())
-                .map_err(|_| Error::<T>::Conversion)?;
+            let proof = Proof::<Bls12>::decode(&mut proof.as_slice()).map_err(|e| {
+                log::error!(target: LOG_TARGET, "failed to parse PoSt proof {:?}", e);
+                Error::<T>::Conversion
+            })?;
             let proof_scheme = post::ProofScheme::setup(post_type);
 
             let vkey = PoStVerifyingKey::<T>::get().ok_or(Error::<T>::MissingPoStVerifyingKey)?;
             proof_scheme
-                .verify(randomness, replicas, vkey, proof)
-                .map_err(|_| Error::<T>::InvalidPoStProof)?;
+                .verify(randomness, replicas.clone(), vkey, proof)
+                .map_err(|e| {
+                    log::warn!(target: LOG_TARGET, "failed to verify PoSt proof: {:?}, for replicas: {:?}", e, replicas);
+                    Error::<T>::InvalidPoStProof
+                })?;
 
             Ok(())
         }

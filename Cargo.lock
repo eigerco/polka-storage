@@ -8454,6 +8454,7 @@ dependencies = [
  "frame-system",
  "generic-array 1.1.0",
  "hex",
+ "log",
  "num-bigint",
  "parity-scale-codec",
  "polka-storage-proofs",
