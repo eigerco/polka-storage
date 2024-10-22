@@ -1,4 +1,3 @@
-#![cfg(feature = "std")]
 //! This module should work only as a facade separating our codebase from `rust-fil-proofs`.
 //! Only things that have direct `TryFrom`/`From` in the codebase, should leak from this thing.
 

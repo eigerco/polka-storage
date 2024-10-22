@@ -2,6 +2,7 @@ use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 
 use jsonrpsee::server::Server;
 use polka_storage_provider_common::rpc::{RpcError, ServerInfo, StorageProviderRpcServer};
+use primitives_commitment::commd::compute_unsealed_sector_commitment;
 use storagext::{
     types::market::{ClientDealProposal as SxtClientDealProposal, DealProposal as SxtDealProposal},
     MarketClientExt,
@@ -9,14 +10,34 @@ use storagext::{
 use tokio_util::sync::CancellationToken;
 use tracing::{info, instrument};
 
-use crate::db::DealDB;
+use crate::{
+    db::DealDB,
+    sealer::{create_sector, prepare_piece},
+};
+
+/// Unwraps a `Result<T>` logging and returning if `Err`.
+/// Currently a bandaid solution while the pipeline doesn't get properly fleshed out.
+macro_rules! ok_or_return {
+    ($e:expr) => {
+        match $e {
+            Ok(ok) => ok,
+            Err(err) => {
+                tracing::error!(%err);
+                return;
+            }
+        }
+    }
+}
 
 /// RPC server shared state.
 pub struct RpcServerState {
     pub server_info: ServerInfo,
     pub deal_db: Arc<DealDB>,
+
     /// The file storage directory. Used to check if a given piece has been uploaded or not.
-    pub storage_dir: Arc<PathBuf>,
+    pub car_piece_storage_dir: Arc<PathBuf>,
+    pub unsealed_piece_storage_dir: Arc<PathBuf>,
+
     pub xt_client: storagext::Client,
     pub xt_keypair: storagext::multipair::MultiPairSigner,
 
@@ -73,7 +94,7 @@ impl StorageProviderRpcServer for RpcServerState {
 
         // Check if the respective piece has been uploaded, error if not
         let piece_cid = deal.deal_proposal.piece_cid;
-        let piece_path = self.storage_dir.join(format!("{piece_cid}.car"));
+        let piece_path = self.car_piece_storage_dir.join(format!("{piece_cid}.car"));
         if !piece_path.exists() || !piece_path.is_file() {
             return Err(RpcError::internal_error(
                 "piece has not been uploaded yet",
@@ -99,8 +120,36 @@ impl StorageProviderRpcServer for RpcServerState {
             .map_err(|err| RpcError::internal_error(err, None))?;
 
         // We currently just support a single deal and if there's no published deals,
-        // and error MUST've happened
+        // an error MUST've happened
         debug_assert_eq!(published_deals.len(), 1);
+
+        let unsealed_dir = self.unsealed_piece_storage_dir.clone();
+        let sector_size = self.server_info.seal_proof.sector_size();
+
+        // Questions to be answered:
+        // * what happens if some of it fails? SP will be slashed, and there is no error reporting?
+        // * where do we save the state of a sector/deals, how do we keep track of it?
+        tokio::task::spawn_blocking(move || {
+            let piece_commitment: [u8; 32] = ok_or_return!(piece_cid.hash().digest().try_into());
+            let prepared_piece = ok_or_return!(prepare_piece(piece_path, piece_commitment));
+
+            let sector_writer = ok_or_return!(std::fs::File::create(
+                unsealed_dir.join(piece_cid.to_string())
+            ));
+
+            let piece_infos = ok_or_return!(create_sector(
+                vec![prepared_piece],
+                sector_writer,
+                sector_size
+            ));
+
+            let comm_d = ok_or_return!(compute_unsealed_sector_commitment(
+                sector_size,
+                &piece_infos
+            ));
+
+            tracing::info!("{:?}", comm_d);
+        });
 
         Ok(published_deals[0].deal_id)
     }

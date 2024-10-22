@@ -248,7 +248,7 @@ impl Sealer {
 /// * <https://github.com/filecoin-project/lotus/blob/471819bf1ef8a4d5c7c0476a38ce9f5e23c59bfc/lib/filler/filler.go#L9>
 /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/266acc39a3ebd6f3d28c6ee335d78e2b7cea06bc/filecoin-proofs/src/constants.rs#L164>
 /// * <https://github.com/filecoin-project/go-commp-utils/blob/master/zerocomm/zerocomm.go>
-fn filler_pieces(remaining_space: UnpaddedBytesAmount) -> Vec<filecoin_proofs::PieceInfo> {
+pub fn filler_pieces(remaining_space: UnpaddedBytesAmount) -> Vec<filecoin_proofs::PieceInfo> {
     // We convert it to `PaddedBytesAmount` as it makes calculations (on the powers of 2) easier (see below).
     let mut remaining_space: PaddedBytesAmount = remaining_space.into();
 
@@ -335,9 +335,6 @@ mod test {
     #[case(vec![2048])]
     fn padding_for_sector(#[case] piece_sizes: Vec<usize>) {
         let sealer = Sealer::new(RegisteredSealProof::StackedDRG2KiBV1P1);
-        // Create a file-like sector where non-occupied bytes are 0
-        let sector_size = sealer.porep_config.sector_size.0 as usize;
-        let mut staged_sector = vec![0u8; sector_size];
 
         let piece_infos: Vec<(Cursor<Vec<u8>>, PieceInfo)> = piece_sizes
             .into_iter()
@@ -348,6 +345,10 @@ mod test {
                 (Cursor::new(piece_bytes), piece_info.into())
             })
             .collect();
+
+        // Create a file-like sector where non-occupied bytes are 0
+        let sector_size = sealer.porep_config.sector_size.0 as usize;
+        let mut staged_sector = vec![0u8; sector_size];
 
         let pieces: Vec<filecoin_proofs::PieceInfo> = sealer
             .create_sector(piece_infos, Cursor::new(&mut staged_sector))

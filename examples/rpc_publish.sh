@@ -71,3 +71,5 @@ curl -X PUT -F "upload=@$INPUT_FILE" "http://localhost:8001/upload/$DEAL_CID"
 
 target/release/polka-storage-provider-client client publish-deal "$SIGNED_DEAL_JSON"
 
+# wait until user Ctrl+Cs so that the commitment can actually be calculated
+wait

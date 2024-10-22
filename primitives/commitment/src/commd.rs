@@ -1,6 +1,6 @@
 extern crate alloc;
 use alloc::vec::Vec;
-use core::ops::Deref;
+use core::{fmt::write, ops::Deref};
 
 use primitives_proofs::SectorSize;
 use sha2::{Digest, Sha256};
@@ -223,6 +223,16 @@ pub enum CommDError {
     InvalidPieceSize,
     PieceSizeTooLarge,
     TooManyPieces,
+}
+
+impl core::fmt::Display for CommDError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            CommDError::InvalidPieceSize => write(f, format_args!("Invalid piece size")),
+            CommDError::PieceSizeTooLarge => write(f, format_args!("Invalid piece size")),
+            CommDError::TooManyPieces => write(f, format_args!("Invalid piece size")),
+        }
+    }
 }
 
 #[cfg(test)]

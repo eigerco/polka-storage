@@ -2,7 +2,7 @@ mod error;
 
 use chrono::{DateTime, Utc};
 use jsonrpsee::proc_macros::rpc;
-use primitives_proofs::RegisteredPoStProof;
+use primitives_proofs::{RegisteredPoStProof, RegisteredSealProof};
 use serde::Deserialize;
 use storagext::types::market::{
     ClientDealProposal as SxtClientDealProposal, DealProposal as SxtDealProposal,
@@ -38,7 +38,8 @@ pub struct ServerInfo {
     #[serde(serialize_with = "serialize_address")]
     pub address: <storagext::PolkaStorageConfig as subxt::Config>::AccountId,
 
-    /// The registered kind of proof.
+    pub seal_proof: RegisteredSealProof,
+
     pub post_proof: RegisteredPoStProof,
 }
 
@@ -46,11 +47,13 @@ impl ServerInfo {
     /// Construct a new [`ServerInfo`] instance, start time will be set to [`Utc::now`].
     pub fn new(
         address: <storagext::PolkaStorageConfig as subxt::Config>::AccountId,
+        seal_proof: RegisteredSealProof,
         post_proof: RegisteredPoStProof,
     ) -> Self {
         Self {
             start_time: Utc::now(),
             address,
+            seal_proof,
             post_proof,
         }
     }

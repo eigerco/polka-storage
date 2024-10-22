@@ -30,7 +30,8 @@ use crate::db::DealDB;
 
 /// Shared state of the storage server.
 pub struct StorageServerState {
-    pub storage_dir: Arc<PathBuf>,
+    pub car_piece_storage_dir: Arc<PathBuf>,
+
     pub deal_db: Arc<DealDB>,
 
     pub listen_address: SocketAddr,
@@ -44,9 +45,9 @@ pub async fn start_upload_server(
     token: CancellationToken,
 ) -> Result<(), std::io::Error> {
     // Create a storage folder if it doesn't exist.
-    if !state.storage_dir.exists() {
-        tracing::info!(folder = ?state.storage_dir, "creating storage folder");
-        fs::create_dir_all(state.storage_dir.as_ref()).await?;
+    if !state.car_piece_storage_dir.exists() {
+        tracing::info!(folder = ?state.car_piece_storage_dir, "creating storage folder");
+        fs::create_dir_all(state.car_piece_storage_dir.as_ref()).await?;
     }
 
     tracing::info!("Starting HTTP storage server at: {}", state.listen_address);
@@ -148,7 +149,7 @@ async fn upload(
         };
 
         let field_reader = StreamReader::new(field.map_err(std::io::Error::other));
-        stream_contents_to_car(state.storage_dir.clone().as_ref(), field_reader)
+        stream_contents_to_car(state.car_piece_storage_dir.clone().as_ref(), field_reader)
             .await
             .map_err(|err| {
                 tracing::error!(%err, "failed to store file into CAR archive");
@@ -162,7 +163,7 @@ async fn upload(
                 .into_data_stream()
                 .map_err(|err| io::Error::new(io::ErrorKind::Other, err)),
         );
-        stream_contents_to_car(state.storage_dir.clone().as_ref(), body_reader)
+        stream_contents_to_car(state.car_piece_storage_dir.clone().as_ref(), body_reader)
             .await
             .map_err(|err| {
                 tracing::error!(%err, "failed to store file into CAR archive");
@@ -174,7 +175,7 @@ async fn upload(
     // NOTE(@jmg-duarte,03/10/2024): Maybe we should just register the file in RocksDB and keep a
     // background process that vacuums the disk as necessary to simplify error handling here
 
-    let (_, file_path) = content_path(&state.storage_dir, file_cid);
+    let (_, file_path) = content_path(&state.car_piece_storage_dir, file_cid);
     let file = File::open(&file_path).await.map_err(|err| {
         tracing::error!(%err, path = %file_path.display(), "failed to open file");
         (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
@@ -249,9 +250,11 @@ async fn upload(
     }
 
     tracing::trace!("renaming car file");
+    // We need to rename the file since the original storage name is based on the whole deal proposal CID,
+    // however, the piece is stored based on its piece_cid
     tokio::fs::rename(
         file_path,
-        content_path(&state.storage_dir, piece_commitment_cid).1,
+        content_path(&state.car_piece_storage_dir, piece_commitment_cid).1,
     )
     .map_err(|err| {
         tracing::error!(%err, "failed to rename the CAR file");
@@ -274,7 +277,7 @@ async fn download(
         (StatusCode::BAD_REQUEST, "cid incorrect format".to_string())
     })?;
 
-    let (file_name, path) = content_path(&state.storage_dir, cid);
+    let (file_name, path) = content_path(&state.car_piece_storage_dir, cid);
     tracing::info!(?path, "file requested");
 
     // Check if the file exists
