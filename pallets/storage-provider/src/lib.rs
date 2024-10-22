@@ -64,7 +64,7 @@ pub mod pallet {
     use sp_arithmetic::traits::Zero;
 
     use crate::{
-        deadline::DeadlineInfo,
+        deadline::{deadline_is_mutable, DeadlineInfo},
         fault::{
             DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration,
             RecoveryDeclaration,
@@ -73,7 +73,8 @@ pub mod pallet {
         proofs::{assign_proving_period_offset, SubmitWindowedPoStParams},
         sector::{
             ProveCommitResult, ProveCommitSector, SectorOnChainInfo, SectorPreCommitInfo,
-            SectorPreCommitOnChainInfo, MAX_SECTORS,
+            SectorPreCommitOnChainInfo, TerminateSectorsParams, TerminationDeclaration,
+            MAX_SECTORS,
         },
         sector_map::DeadlineSectorMap,
         storage_provider::{
@@ -278,6 +279,11 @@ pub mod pallet {
             partition: PartitionNumber,
             sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
         },
+        /// Emitted when an SP terminates some sectors.
+        SectorsTerminated {
+            owner: T::AccountId,
+            terminations: BoundedVec<TerminationDeclaration, ConstU32<DECLARATIONS_MAX>>,
+        },
     }
 
     #[pallet::error]
@@ -329,6 +335,8 @@ pub mod pallet {
         SlashingFailed,
         /// Emitted when trying to terminate sector deals fails.
         CouldNotTerminateDeals,
+        /// Tried to terminate sectors that are not mutable.
+        CannotTerminateImmutableDeadline,
         /// Inner pallet errors
         GeneralPalletError(crate::error::GeneralPalletError),
     }
@@ -918,6 +926,80 @@ pub mod pallet {
 
             Ok(())
         }
+
+        /// Marks some sectors as terminated at the present block, earlier than their
+        /// scheduled termination, and adds these sectors to the early termination queue.
+        ///
+        /// References:
+        /// * https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/actors/miner/src/lib.rs#L2488-L2505
+        pub fn terminate_sectors(
+            origin: OriginFor<T>,
+            params: TerminateSectorsParams,
+        ) -> DispatchResult {
+            let owner = ensure_signed(origin)?;
+            let current_block = <frame_system::Pallet<T>>::block_number();
+            let mut sp = StorageProviders::<T>::try_get(&owner)
+                .map_err(|_| Error::<T>::StorageProviderNotFound)?;
+
+            let mut to_process = DeadlineSectorMap::new();
+
+            for term in params.terminations.iter() {
+                let deadline = term.deadline;
+                let partition = term.partition;
+
+                to_process
+                    .try_insert(deadline, partition, term.sectors.clone())
+                    .map_err(|e| Error::<T>::GeneralPalletError(e))?;
+            }
+
+            let sectors = sp
+                .sectors
+                .iter()
+                .map(|(_sector_number, info)| info)
+                .cloned()
+                .collect::<Vec<_>>();
+            for (&deadline_idx, partition_sectors) in to_process.into_iter() {
+                ensure!(
+                    deadline_is_mutable(
+                        sp.proving_period_start,
+                        deadline_idx,
+                        current_block,
+                        T::WPoStPeriodDeadlines::get(),
+                        T::WPoStProvingPeriod::get(),
+                        T::WPoStChallengeWindow::get(),
+                        T::WPoStChallengeLookBack::get(),
+                        T::FaultDeclarationCutoff::get(),
+                    )
+                    .map_err(|e| Error::<T>::GeneralPalletError(e))?,
+                    {
+                        log::error!(target: LOG_TARGET, "cannot terminate sectors in immutable deadline {}", deadline_idx);
+                        Error::<T>::CannotTerminateImmutableDeadline
+                    }
+                );
+
+                let deadline = sp
+                    .deadlines
+                    .load_deadline_mut(deadline_idx as usize)
+                    .map_err(|e| Error::<T>::GeneralPalletError(e))?;
+
+                deadline
+                    .terminate_sectors(current_block, &sectors, partition_sectors)
+                    .map_err(|e| Error::<T>::GeneralPalletError(e))?;
+
+                sp.early_terminations.insert(deadline_idx);
+            }
+
+            // Update storage provider state
+            StorageProviders::<T>::insert(&owner, sp);
+
+            Self::process_early_terminations(current_block, &owner)?;
+
+            Self::deposit_event(Event::SectorsTerminated {
+                owner,
+                terminations: params.terminations,
+            });
+            Ok(())
+        }
     }
 
     #[pallet::hooks]
@@ -1306,14 +1388,13 @@ pub mod pallet {
 
         /// Processes terminations for the given account (should be a registered SP).
         /// Clears all early terminations and calls `on_sectors_terminate` when finished.
-        #[allow(dead_code)]
         fn process_early_terminations(
             current_block: BlockNumberFor<T>,
-            owner: T::AccountId,
-        ) -> Result</* has more */ bool, Error<T>> {
-            let mut state = StorageProviders::<T>::try_get(&owner)
+            owner: &T::AccountId,
+        ) -> Result<(), Error<T>> {
+            let mut state = StorageProviders::<T>::try_get(owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
-            let (result, more) = state
+            let result = state
                 .pop_early_terminations(
                     T::AddressedPartitionsMax::get(),
                     T::AddressedSectorsMax::get(),
@@ -1325,7 +1406,7 @@ pub mod pallet {
             // before the cron callback fires.
             if result.is_empty() {
                 log::info!(target: LOG_TARGET, "no early terminations");
-                return Ok(more);
+                return Ok(());
             }
 
             let mut sectors_with_data = Vec::new();
@@ -1347,13 +1428,13 @@ pub mod pallet {
                 "The sectors in the result can never be more than MAX_DEALS_PER_SECTOR due to previous bounds, this should not fail",
             );
 
-            T::Market::on_sectors_terminate(&owner, terminated_data)
+            T::Market::on_sectors_terminate(owner, terminated_data)
                 .map_err(|_| Error::<T>::CouldNotTerminateDeals)?;
 
             // Update storage provider state
-            StorageProviders::<T>::insert(&owner, state);
+            StorageProviders::<T>::insert(owner, state);
 
-            Ok(more)
+            Ok(())
         }
     }
 

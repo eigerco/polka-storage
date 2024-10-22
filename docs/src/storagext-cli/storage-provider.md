@@ -82,8 +82,8 @@ After the sector is proven, the deals will become `Active`.
 
 ### Parameters
 
-| Name                  | Description               | Type                                                                                                                         |
-| --------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Name                   | Description               | Type                                                                                                                         |
+| ---------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | `PROVE_COMMIT_SECTORS` | The sector we are proving | JSON object. Can be passed as a string, or as a file path prefixed with `@` pointing to the file containing the JSON object. |
 
 The `PROVE_COMMIT_SECTORS` JSON object has the following structure:
@@ -245,6 +245,47 @@ Where `recoveries.json` is a file with contents similar to:
 ```
 
 > More information about the `declare_faults_recovered` extrinsic is available in [_Pallets/Storage Provider/Declare Faults Recovered_](../pallets/storage-provider.md#declare_faults_recovered).
+
+### `terminate-sectors`
+
+The `terminate-sectors` command terminates sectors and fully removes them.
+
+### Parameters
+
+| Name           | Description                   | Type                                                                                                                       |
+| -------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `TERMINATIONS` | List of declared TERMINATIONS | JSON array. Can be passed as a string, or as a file path prefixed with `@` pointing to the file containing the JSON array. |
+
+The `RECOVERIES` JSON object has the following structure:
+
+| Name        | Description                     |
+| ----------- | ------------------------------- |
+| `deadline`  | Deadline ID                     |
+| `partition` | Partition ID                    |
+| `sectors`   | IDs of sectors to be terminated |
+
+### <a class="header" id="terminate-sectors.example" href="#terminate-sectors.example">Example</a>
+
+Declares a list of sectors as recovered in a specific deadline and partition.
+
+```bash
+storagext-cli --sr25519-key <key> storage-provider terminate-sectors \
+    "@terminations.json"
+```
+
+Where `terminations.json` is a file with contents similar to:
+
+```json
+[
+  {
+    "deadline": 0,
+    "partition": 0,
+    "sectors": [0]
+  }
+]
+```
+
+> More information about the `terminate_sectors` extrinsic is available in [_Pallets/Storage Provider/Terminate Sectors_](../pallets/storage-provider.md#terminate_sectors).
 
 ### `retrieve-storage-providers`
 

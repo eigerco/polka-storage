@@ -28,9 +28,10 @@ The following on-chain logic has been implemented:
 - [Publishing](./pallets/market.md#publish_storage_deals) Market Deals on-chain,
 - [Investing](./pallets/market.md#add_balance) tokens into the Storage Market,
 - [Receiving](./pallets/market.md#settle_deal_payments) funds after completing a deal,
-- [Commiting](./pallets/storage-provider.md#pre_commit_sector) to the Storage and [Proving](./pallets/storage-provider.md#prove_commit_sectors) the storage,
+- [Committing](./pallets/storage-provider.md#pre_commit_sector) to the Storage and [Proving](./pallets/storage-provider.md#prove_commit_sectors) the storage,
 - [Declaring](./pallets/storage-provider.md#prove_commit_sectors) failures to deliver committed storage and [Recovering](./pallets/storage-provider.md#declaring-storage-faults-recovered) from it,
 - [Continuously proving](./pallets/storage-provider.md#submit_windowed_post) that the promise of storage has been kept up [PoSt proof](./glossary.md#proofs),
+- [Terminating](./pallets/storage-provider.md#terminate_sectors) sectors by the storage provider.
 - [Punishing](./pallets/storage-provider.md#events) for failing to provide storage.
 
 We present a complete [real-world scenario](./getting-started/demo.md) in which a [Storage Provider](./glossary.md#storage-provider) and a [Storage User](./glossary.md#storage-user) negotiate a deal, perform all the steps necessary to start the storage and then receive rewards (or punishments) for making it happen.

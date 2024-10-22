@@ -342,19 +342,16 @@ where
     pub fn terminate_sectors(
         &mut self,
         block_number: BlockNumber,
-        sectors: &[SectorOnChainInfo<BlockNumber>],
-        partition_numbers: &[PartitionNumber],
+        sectors: &[SectorOnChainInfo<BlockNumber>], // all sectors
+        partition_sectors: &mut PartitionMap,
     ) -> Result<(), GeneralPalletError> {
-        for &partition_number in partition_numbers {
-            let partition = self
-                .partitions
-                .get_mut(&partition_number).ok_or({
-                    log::error!(target: LOG_TARGET, "terminate_sectors: Cannot find partition {partition_number}");
-                    GeneralPalletError::DeadlineErrorPartitionNotFound
-                })?;
+        for (&partition_number, sector_numbers) in partition_sectors.0.iter() {
+            let Some(partition) = self.partitions.get_mut(&partition_number) else {
+                log::error!(target: LOG_TARGET, "terminate_sectors: Cannot find partition {partition_number}");
+                return Err(GeneralPalletError::DeadlineErrorPartitionNotFound);
+            };
 
-            let removed = partition.terminate_sectors(block_number, sectors)?;
-
+            let removed = partition.terminate_sectors(block_number, sectors, sector_numbers)?;
             if !removed.is_empty() {
                 // Record that partition now has pending early terminations.
                 self.early_terminations
@@ -461,9 +458,7 @@ where
         let mut early_sectors = BTreeSet::new();
 
         for partition_number in expired_partitions {
-            let partition = if let Some(partition) = self.partitions.get_mut(&partition_number) {
-                partition
-            } else {
+            let Some(partition) = self.partitions.get_mut(&partition_number) else {
                 log::error!(target: LOG_TARGET, "pop_expired_sectors: Could not find partition number {partition_number:?}");
                 return Err(GeneralPalletError::DeadlineErrorPartitionNotFound);
             };
