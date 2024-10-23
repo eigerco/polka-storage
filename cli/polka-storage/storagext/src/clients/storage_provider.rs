@@ -18,7 +18,9 @@ use crate::{
         },
         storage_provider::calls::types::register_storage_provider::PeerId,
     },
-    types::storage_provider::{FaultDeclaration, RecoveryDeclaration, SectorPreCommitInfo},
+    types::storage_provider::{
+        FaultDeclaration, RecoveryDeclaration, SectorPreCommitInfo, TerminationDeclaration,
+    },
     BlockNumber, Currency, PolkaStorageConfig,
 };
 pub trait StorageProviderClientExt {
@@ -67,6 +69,14 @@ pub trait StorageProviderClientExt {
         &self,
         account_keypair: &Keypair,
         recoveries: Vec<RecoveryDeclaration>,
+    ) -> impl Future<Output = Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>>
+    where
+        Keypair: subxt::tx::Signer<PolkaStorageConfig>;
+
+    fn terminate_sectors<Keypair>(
+        &self,
+        account_keypair: &Keypair,
+        terminations: Vec<TerminationDeclaration>,
     ) -> impl Future<Output = Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>;
@@ -213,6 +223,22 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
         let payload = runtime::tx()
             .storage_provider()
             .declare_faults_recovered(recoveries.into());
+
+        self.traced_submission(&payload, account_keypair).await
+    }
+
+    #[tracing::instrument(level = "debug", skip_all)]
+    async fn terminate_sectors<Keypair>(
+        &self,
+        account_keypair: &Keypair,
+        terminations: Vec<TerminationDeclaration>,
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+    where
+        Keypair: subxt::tx::Signer<PolkaStorageConfig>,
+    {
+        let payload = runtime::tx()
+            .storage_provider()
+            .terminate_sectors(terminations.into());
 
         self.traced_submission(&payload, account_keypair).await
     }
