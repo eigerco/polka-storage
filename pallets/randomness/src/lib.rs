@@ -14,14 +14,16 @@ mod tests;
 pub mod pallet {
     use frame_support::{pallet_prelude::*, traits::Randomness as SubstrateRandomness};
     use frame_system::pallet_prelude::*;
-    use pallet_insecure_randomness_collective_flip as substrate_randomness;
     use primitives_proofs::Randomness;
     use sp_runtime::traits::Zero;
 
     pub const LOG_TARGET: &'static str = "runtime::randomness";
 
     #[pallet::config]
-    pub trait Config: frame_system::Config + substrate_randomness::Config {}
+    pub trait Config: frame_system::Config {
+        /// Underlying randomness generator
+        type Generator: SubstrateRandomness<Self::Hash, BlockNumberFor<Self>>;
+    }
 
     #[pallet::pallet]
     pub struct Pallet<T>(_);
@@ -45,7 +47,7 @@ pub mod pallet {
             // the current seed is determinable by chain observers. The returned
             // seed should only be used to distinguish commitments made before
             // the returned determinable_after.
-            let (seed, determinable_after) = substrate_randomness::Pallet::<T>::random_seed();
+            let (seed, determinable_after) = T::Generator::random_seed();
             let seed: [u8; 32] = seed.as_ref().try_into().expect("seed should be 32 bytes");
 
             // We are not saving the seed for the zeroth block. This is an edge

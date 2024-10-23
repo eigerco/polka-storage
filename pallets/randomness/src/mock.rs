@@ -39,7 +39,9 @@ impl frame_system::Config for Test {
     type Nonce = u64;
 }
 
-impl crate::Config for Test {}
+impl crate::Config for Test {
+    type Generator = SubstrateRandomness;
+}
 
 impl substrate_randomness::Config for Test {}
 
