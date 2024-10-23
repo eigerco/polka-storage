@@ -1,9 +1,10 @@
-use crate::mock::{new_test_ext, run_to_block};
-use primitives_proofs::Randomness;
-use crate::mock::{BlockNumber, RandomnessModule};
 use frame_support::{assert_err, assert_ok};
-use crate::mock::Test;
-use crate::Error;
+use primitives_proofs::Randomness;
+
+use crate::{
+    mock::{new_test_ext, run_to_block, BlockNumber, RandomnessModule, Test},
+    Error,
+};
 
 #[test]
 fn test_randomness_availability() {

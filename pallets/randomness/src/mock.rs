@@ -1,8 +1,10 @@
-use frame_support::{derive_impl, traits::{OnFinalize, OnInitialize}};
+use frame_support::{
+    derive_impl,
+    traits::{OnFinalize, OnInitialize},
+};
 use frame_system::{self as system, mocking::MockBlock};
-use sp_runtime::BuildStorage;
-use sp_runtime::traits::Header;
 use pallet_insecure_randomness_collective_flip as substrate_randomness;
+use sp_runtime::{traits::Header, BuildStorage};
 
 pub type BlockNumber = u64;
 

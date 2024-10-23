@@ -15,10 +15,10 @@ pub mod pallet {
     use frame_support::{
         dispatch::DispatchResult, pallet_prelude::*, traits::Randomness as SubstrateRandomness,
     };
-    use sp_runtime::traits::Zero;
     use frame_system::pallet_prelude::*;
     use pallet_insecure_randomness_collective_flip as substrate_randomness;
     use primitives_proofs::Randomness;
+    use sp_runtime::traits::Zero;
 
     pub const LOG_TARGET: &'static str = "runtime::randomness";
 
@@ -38,7 +38,7 @@ pub mod pallet {
     pub enum Event<T: Config> {
         Randomness {
             block_number: BlockNumberFor<T>,
-            randomness: [u8; 32]
+            randomness: [u8; 32],
         },
     }
 
@@ -82,7 +82,9 @@ pub mod pallet {
     }
 
     impl<T: Config> Pallet<T> {
-        fn get_randomness_internal(block_number: BlockNumberFor<T>) -> Result<[u8; 32], DispatchError> {
+        fn get_randomness_internal(
+            block_number: BlockNumberFor<T>,
+        ) -> Result<[u8; 32], DispatchError> {
             // Get the seed for the given block number
             let seed = SeedsMap::<T>::get(block_number).ok_or(Error::<T>::SeedNotAvailable)?;
 
@@ -105,7 +107,7 @@ pub mod pallet {
             // caller?
             Self::deposit_event(Event::Randomness {
                 block_number,
-                randomness: seed
+                randomness: seed,
             });
 
             Ok(())
@@ -115,7 +117,6 @@ pub mod pallet {
     impl<T: Config> Randomness<BlockNumberFor<T>> for Pallet<T> {
         fn get_randomness(block_number: BlockNumberFor<T>) -> Result<[u8; 32], DispatchError> {
             Self::get_randomness_internal(block_number)
-
         }
     }
 }
