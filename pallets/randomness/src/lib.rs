@@ -71,7 +71,11 @@ pub mod pallet {
     impl<T: Config> Randomness<BlockNumberFor<T>> for Pallet<T> {
         fn get_randomness(block_number: BlockNumberFor<T>) -> Result<[u8; 32], DispatchError> {
             // Get the seed for the given block number
-            let seed = SeedsMap::<T>::get(block_number).ok_or(Error::<T>::SeedNotAvailable)?;
+            let seed = SeedsMap::<T>::get(block_number).ok_or_else(|| {
+                log::error!(target: LOG_TARGET, "get_randomness: No seed available for {block_number:?}");
+                Error::<T>::SeedNotAvailable
+            })?;
+
             Ok(seed)
         }
     }

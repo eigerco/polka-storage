@@ -64,8 +64,8 @@ pub fn run_to_block(n: u64) {
         let block_number = System::block_number();
 
         if System::block_number() > 1 {
-            let finalizing_blok_number = block_number - 1;
-            System::on_finalize(finalizing_blok_number);
+            let finalizing_block_number = block_number - 1;
+            System::on_finalize(finalizing_block_number);
         }
 
         System::initialize(&block_number, &parent_hash, &Default::default());

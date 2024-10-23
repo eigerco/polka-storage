@@ -2,7 +2,7 @@ use std::future::Future;
 
 use crate::{runtime, BlockNumber};
 
-// Client to interact with the randomness pallet.
+/// Client to interact with the randomness pallet.
 pub trait RandomnessClientExt {
     /// Get randomness for a specific block
     fn get_randomness(
