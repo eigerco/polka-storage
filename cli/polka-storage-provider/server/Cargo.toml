@@ -16,7 +16,6 @@ primitives-commitment = { workspace = true, features = ["std"] }
 primitives-proofs = { workspace = true, features = ["clap"] }
 storagext = { workspace = true, features = ["clap", "insecure_url"] }
 
-anyhow = { workspace = true }
 async-trait = { workspace = true }
 axum = { workspace = true, features = ["macros", "multipart"] }
 cid = { workspace = true, features = ["std"] }
@@ -37,8 +36,6 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 url = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
-
-filecoin-proofs = { workspace = true }
 
 
 [lints]

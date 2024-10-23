@@ -10,10 +10,9 @@ use polka_storage_proofs::{
     porep::{self, sealer::Sealer},
     post::{self, ReplicaInfo},
     types::PieceInfo,
+    ZeroPaddingReader,
 };
-use polka_storage_provider_common::commp::{
-    calculate_piece_commitment, CommPError, ZeroPaddingReader,
-};
+use polka_storage_provider_common::commp::{calculate_piece_commitment, CommPError};
 use primitives_commitment::piece::PaddedPieceSize;
 use primitives_proofs::{RegisteredPoStProof, RegisteredSealProof};
 
