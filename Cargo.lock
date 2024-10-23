@@ -8454,9 +8454,11 @@ dependencies = [
  "frame-system",
  "generic-array 1.1.0",
  "hex",
+ "log",
  "num-bigint",
  "parity-scale-codec",
  "polka-storage-proofs",
+ "primitives-commitment",
  "primitives-proofs",
  "rand",
  "rand_chacha",
@@ -8466,6 +8468,7 @@ dependencies = [
  "sp-core 34.0.0",
  "sp-io 38.0.0",
  "sp-runtime 39.0.0",
+ "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2407-1)",
  "storage-proofs-core",
  "storage-proofs-porep",
 ]
@@ -9416,7 +9419,6 @@ dependencies = [
  "serde_json",
  "storagext",
  "subxt",
- "tempfile",
  "thiserror",
  "tokio",
  "tracing",
@@ -10933,6 +10935,7 @@ dependencies = [
  "serde_json",
  "sp-core 34.0.0",
  "sp-runtime 39.0.0",
+ "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2407-1)",
 ]
 
 [[package]]

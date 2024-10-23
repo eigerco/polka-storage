@@ -76,14 +76,20 @@ where
         );
     }
 
-    let retrieved_peer_id = client
-        .retrieve_storage_provider(&subxt::utils::AccountId32::from(
-            charlie.account_id().clone(),
-        ))
-        .await
-        .unwrap()
-        // this last unwrap ensures there's something there
-        .unwrap();
+    let retrieved_peer_id = String::from_utf8(
+        client
+            .retrieve_storage_provider(&subxt::utils::AccountId32::from(
+                charlie.account_id().clone(),
+            ))
+            .await
+            .unwrap()
+            // this last unwrap ensures there's something there
+            .unwrap()
+            .info
+            .peer_id
+            .0,
+    )
+    .unwrap();
 
     assert_eq!(retrieved_peer_id, peer_id_bs58);
 }
