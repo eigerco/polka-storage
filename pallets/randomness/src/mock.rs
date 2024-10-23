@@ -1,5 +1,5 @@
 use frame_support::{derive_impl, traits::{OnFinalize, OnInitialize}};
-use frame_system::{self as system, mocking::MockBlock, GenesisConfig};
+use frame_system::{self as system, mocking::MockBlock};
 use sp_runtime::BuildStorage;
 use sp_runtime::traits::Header;
 use pallet_insecure_randomness_collective_flip as substrate_randomness;
@@ -45,7 +45,7 @@ impl substrate_randomness::Config for Test {}
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    let mut t = system::GenesisConfig::<Test>::default()
+    let t = system::GenesisConfig::<Test>::default()
         .build_storage()
         .unwrap()
         .into();
@@ -73,5 +73,6 @@ pub fn run_to_block(n: u64) {
         let header = System::finalize();
         parent_hash = header.hash();
         System::set_block_number(*header.number() + 1);
+        System::set_parent_hash(parent_hash);
     }
 }
