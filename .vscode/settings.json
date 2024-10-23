@@ -2,6 +2,7 @@
   "files.trimTrailingWhitespace": true,
   "rust-analyzer.rustfmt.extraArgs": ["+nightly"],
   "rust-analyzer.check.workspace": false,
+  "rust-analyzer.checkOnSave": true,
   "coverage-gutters.coverageBaseDir": "coverage",
   "coverage-gutters.coverageFileNames": [
     "pallet-storage-provider/lcov.info",

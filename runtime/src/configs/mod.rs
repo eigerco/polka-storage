@@ -405,3 +405,9 @@ impl pallet_market::Config for Runtime {
 impl pallet_proofs::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
 }
+
+/// Config for our randomness pallet
+impl pallet_randomness::Config for Runtime {}
+
+/// Config for insecure randomness
+impl pallet_insecure_randomness_collective_flip::Config for Runtime {}

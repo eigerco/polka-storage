@@ -39,9 +39,7 @@ impl frame_system::Config for Test {
     type Nonce = u64;
 }
 
-impl crate::Config for Test {
-    type RuntimeEvent = RuntimeEvent;
-}
+impl crate::Config for Test {}
 
 impl substrate_randomness::Config for Test {}
 
