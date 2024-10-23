@@ -46,7 +46,7 @@ pub mod pallet {
             // seed should only be used to distinguish commitments made before
             // the returned determinable_after.
             let (seed, determinable_after) = substrate_randomness::Pallet::<T>::random_seed();
-            let seed: [u8; 32] = seed.as_ref().try_into().unwrap();
+            let seed: [u8; 32] = seed.as_ref().try_into().expect("seed should be 32 bytes");
 
             // We are not saving the seed for the zeroth block. This is an edge
             // case when trying to use randomness at the network genesis.
@@ -59,8 +59,8 @@ pub mod pallet {
             // and we can safely use it.
             SeedsMap::<T>::insert(determinable_after, seed);
 
-            // TODO(no-ref,@cernicc,23/10/2024): Should we remove seeds from the
-            // cache after some specified time?
+            // TODO(no-ref,@cernicc,23/10/2024): Should we remove seeds that are
+            // older then some specified number of blocks?
 
             weight
         }
