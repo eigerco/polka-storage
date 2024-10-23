@@ -18,7 +18,10 @@ use storage_proofs_post::fallback::{
     self, FallbackPoSt, FallbackPoStCompound, PrivateSector, PublicSector,
 };
 
-use crate::types::{Commitment, ProverId, Ticket};
+use crate::{
+    get_partitions_for_window_post,
+    types::{Commitment, ProverId, Ticket},
+};
 
 /// Generates parameters for proving and verifying PoSt.
 /// It should be called once and then reused across provers and the verifier.
@@ -86,7 +89,7 @@ pub fn generate_window_post<CacheDirectory: AsRef<Path>>(
     let prover_id_safe = as_safe_commitment(&prover_id, "prover_id")?;
 
     let vanilla_params = window_post_setup_params(&post_config);
-    let partitions = get_partitions_for_window_post(replicas.len(), &post_config);
+    let partitions = get_partitions_for_window_post(replicas.len(), post_config.sector_count);
 
     let sector_count = vanilla_params.sector_count;
     let setup_params = compound_proof::SetupParams {
@@ -164,15 +167,4 @@ pub enum PoStError {
     Anyhow(#[from] anyhow::Error),
     #[error("failed to load groth16 parameters from path: {0}, because {1}")]
     FailedToLoadGrothParameters(std::path::PathBuf, std::io::Error),
-}
-
-/// Reference:
-/// * <https://github.com/filecoin-project/rust-fil-proofs/blob/266acc39a3ebd6f3d28c6ee335d78e2b7cea06bc/filecoin-proofs/src/api/post_util.rs#L217>
-fn get_partitions_for_window_post(
-    total_sector_count: usize,
-    post_config: &filecoin_proofs::PoStConfig,
-) -> Option<usize> {
-    let partitions = (total_sector_count as f32 / post_config.sector_count as f32).ceil() as usize;
-
-    (partitions > 1).then_some(partitions)
 }

@@ -125,6 +125,21 @@ impl std::fmt::Display for Event {
                 )
                 .collect::<String>()
             )),
+            Event::SectorsTerminated {
+                owner,
+                terminations,
+            } => f.write_fmt(format_args!(
+                "Sectors terminated: {{ owner: {}, terminations: [{}]",
+                owner,
+                itertools::Itertools::intersperse(
+                    terminations
+                        .0
+                        .iter()
+                        .map(|termination| format!("{termination:?}")),
+                    ", ".to_string()
+                )
+                .collect::<String>()
+            )),
         }
     }
 }
