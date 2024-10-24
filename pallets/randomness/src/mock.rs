@@ -4,6 +4,7 @@ use frame_support::{
 };
 use frame_system::{self as system, mocking::MockBlock};
 use pallet_insecure_randomness_collective_flip as substrate_randomness;
+use sp_core::parameter_types;
 use sp_runtime::{traits::Header, BuildStorage};
 
 pub type BlockNumber = u64;
@@ -39,8 +40,15 @@ impl frame_system::Config for Test {
     type Nonce = u64;
 }
 
+parameter_types! {
+    pub const CleanupInterval: BlockNumber = 1;
+    pub const SeedAgeLimit: BlockNumber =  200;
+}
+
 impl crate::Config for Test {
     type Generator = SubstrateRandomness;
+    type CleanupInterval = CleanupInterval;
+    type SeedAgeLimit = SeedAgeLimit;
 }
 
 impl substrate_randomness::Config for Test {}
@@ -66,6 +74,7 @@ pub fn run_to_block(n: u64) {
         if System::block_number() > 1 {
             let finalizing_block_number = block_number - 1;
             System::on_finalize(finalizing_block_number);
+            RandomnessModule::on_finalize(finalizing_block_number);
         }
 
         System::initialize(&block_number, &parent_hash, &Default::default());
