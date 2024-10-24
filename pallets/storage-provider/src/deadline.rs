@@ -792,6 +792,7 @@ mod tests {
 
     use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeSet};
     use primitives_proofs::{SectorNumber, MAX_TERMINATIONS_PER_CALL};
+    use rstest::rstest;
 
     use crate::{
         deadline::Deadline,
@@ -815,14 +816,6 @@ mod tests {
             test_sector(8, 8),
             test_sector(8, 9),
         ]
-    }
-
-    fn extra_sectors() -> Vec<SectorOnChainInfo<u64>> {
-        vec![test_sector(8, 10)]
-    }
-
-    fn all_sectors() -> Vec<SectorOnChainInfo<u64>> {
-        [sectors(), extra_sectors()].concat()
     }
 
     fn test_sector(expiration: u64, sector_number: SectorNumber) -> SectorOnChainInfo<u64> {
@@ -1088,36 +1081,22 @@ mod tests {
         deadline.terminate_sectors(block_number, &sectors, &mut partition_sector_map)
     }
 
-    #[test]
-    fn adds_sectors() -> Result<(), GeneralPalletError> {
+    #[rstest]
+    #[case(false)] // without proving
+    #[case(true)] // with proving
+    fn adds_sectors(#[case] prove: bool) {
         let mut deadline = Deadline::new();
 
-        add_sectors(&mut deadline, false)?;
-        Ok(())
+        add_sectors(&mut deadline, prove).expect("Adding sectors failed");
     }
 
-    #[test]
-    fn adds_sectors_and_proves() -> Result<(), GeneralPalletError> {
+    #[rstest]
+    #[case(false)] // without proving
+    #[case(true)] // with proving
+    fn terminates_sectors(#[case] prove: bool) {
         let mut deadline = Deadline::new();
 
-        add_sectors(&mut deadline, true)?;
-        Ok(())
-    }
-
-    #[test]
-    fn terminates_sectors() -> Result<(), GeneralPalletError> {
-        let mut deadline = Deadline::new();
-
-        add_then_terminate(&mut deadline, true)?;
-        Ok(())
-    }
-
-    #[test]
-    fn terminates_unproven_sectors() -> Result<(), GeneralPalletError> {
-        let mut deadline = Deadline::new();
-
-        add_then_terminate(&mut deadline, false)?;
-        Ok(())
+        add_then_terminate(&mut deadline, prove).expect("Terminating sectors failed");
     }
 
     #[test]
@@ -1128,20 +1107,13 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn marks_faulty() -> Result<(), GeneralPalletError> {
+    #[rstest]
+    #[case(false)] // without proving
+    #[case(true)] // with proving
+    fn marks_faulty(#[case] prove: bool) {
         let mut deadline = Deadline::new();
 
-        add_then_mark_faulty(&mut deadline, true)?;
-        Ok(())
-    }
-
-    #[test]
-    fn marks_unproven_sectors_faulty() -> Result<(), GeneralPalletError> {
-        let mut deadline = Deadline::new();
-
-        add_then_mark_faulty(&mut deadline, false)?;
-        Ok(())
+        add_then_mark_faulty(&mut deadline, prove).expect("Marking sectors as faulty failed");
     }
 
     #[test]
@@ -1198,124 +1170,83 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn terminate_proven_and_faulty() -> Result<(), GeneralPalletError> {
+    #[rstest]
+    #[case(true, BTreeSet::from([1, 3, 6]), BTreeSet::from([5]), BTreeSet::from([]))]
+    #[case(false, BTreeSet::from([1, 3, 6]), BTreeSet::from([5]), BTreeSet::from([2, 4, 7, 8, 9]))]
+    fn terminate_proven_and_faulty(
+        #[case] prove: bool,
+        #[case] expected_terminated: BTreeSet<SectorNumber>,
+        #[case] expected_faults: BTreeSet<SectorNumber>,
+        #[case] expected_unproven: BTreeSet<SectorNumber>,
+    ) {
         let mut deadline = Deadline::new();
 
-        let sectors = add_then_mark_faulty(&mut deadline, true)?; // 1,5,6 faulty
+        let expected_sectors = BTreeSet::from([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        let sectors =
+            add_then_mark_faulty(&mut deadline, prove).expect("Could not mark sectors as faulty"); // 1,5,6 faulty
         let partition_sectors = BTreeMap::from([
             (0, BTreeSet::from([1, 3]).try_into().unwrap()),
             (1, BTreeSet::from([6]).try_into().unwrap()),
         ]);
-        terminate_sectors(15, &mut deadline, sectors, partition_sectors)?;
+        terminate_sectors(15, &mut deadline, sectors, partition_sectors)
+            .expect("Could not terminate sectors");
 
-        // Check state of partition 0
-        let partition = deadline
+        let partition_sectors = deadline
             .partitions
-            .get(&0)
-            .expect("Should be able to get recently added partition");
-        assert_eq!(partition.sectors, BTreeSet::from([1, 2, 3, 4]));
-        assert_eq!(partition.terminated, BTreeSet::from([1, 3]));
-        assert_eq!(partition.faults, BTreeSet::new());
-
-        // Check state of partition 1
-        let partition = deadline
+            .iter()
+            .flat_map(|(_, partition)| partition.sectors.iter().cloned())
+            .collect::<BTreeSet<SectorNumber>>();
+        let partition_terminated = deadline
             .partitions
-            .get(&1)
-            .expect("Should be able to get recently added partition");
-        assert_eq!(partition.sectors, BTreeSet::from([5, 6, 7, 8]));
-        assert_eq!(partition.terminated, BTreeSet::from([6]));
-        assert_eq!(partition.faults, BTreeSet::from([5]));
-
-        // Check state of partition 2
-        let partition = deadline
+            .iter()
+            .flat_map(|(_, partition)| partition.terminated.iter().cloned())
+            .collect::<BTreeSet<SectorNumber>>();
+        let partition_faults = deadline
             .partitions
-            .get(&2)
-            .expect("Should be able to get recently added partition");
-        assert_eq!(partition.sectors, BTreeSet::from([9]));
-        assert_eq!(partition.terminated, BTreeSet::new());
-        assert_eq!(partition.faults, BTreeSet::new());
-        Ok(())
+            .iter()
+            .flat_map(|(_, partition)| partition.faults.iter().cloned())
+            .collect::<BTreeSet<SectorNumber>>();
+        let partition_unproven = deadline
+            .partitions
+            .iter()
+            .flat_map(|(_, partition)| partition.unproven.iter().cloned())
+            .collect::<BTreeSet<SectorNumber>>();
+        assert_eq!(partition_sectors, expected_sectors);
+        assert_eq!(partition_terminated, expected_terminated);
+        assert_eq!(partition_faults, expected_faults);
+        assert_eq!(partition_unproven, expected_unproven);
     }
 
-    #[test]
-    fn terminate_unproven_and_faulty() -> Result<(), GeneralPalletError> {
+    #[rstest]
+    #[case(BTreeMap::from([(0, BTreeSet::from([6]).try_into().unwrap())]), Err(GeneralPalletError::PartitionErrorSectorsNotLive))]
+    #[case(BTreeMap::from([(4, BTreeSet::from([6]).try_into().unwrap())]), Err(GeneralPalletError::DeadlineErrorPartitionNotFound))]
+    fn fails_to_terminate_missing_sector(
+        #[case] partition_sectors: BTreeMap<
+            PartitionNumber,
+            BoundedBTreeSet<SectorNumber, ConstU32<MAX_TERMINATIONS_PER_CALL>>,
+        >,
+        #[case] expected_error: Result<(), GeneralPalletError>,
+    ) {
         let mut deadline = Deadline::new();
 
-        let sectors = add_then_mark_faulty(&mut deadline, false)?; // 1,5,6 faulty
-        let partition_sectors = BTreeMap::from([
-            (0, BTreeSet::from([1, 3]).try_into().unwrap()),
-            (1, BTreeSet::from([6]).try_into().unwrap()),
-        ]);
-        terminate_sectors(15, &mut deadline, sectors, partition_sectors)?;
-
-        // Check state of partition 0
-        let partition = deadline
-            .partitions
-            .get(&0)
-            .expect("Should be able to get recently added partition");
-        assert_eq!(partition.sectors, BTreeSet::from([1, 2, 3, 4]));
-        assert_eq!(partition.terminated, BTreeSet::from([1, 3]));
-        assert_eq!(partition.faults, BTreeSet::new());
-        assert_eq!(partition.unproven, BTreeSet::from([2, 4]));
-
-        // Check state of partition 1
-        let partition = deadline
-            .partitions
-            .get(&1)
-            .expect("Should be able to get recently added partition");
-        assert_eq!(partition.sectors, BTreeSet::from([5, 6, 7, 8]));
-        assert_eq!(partition.terminated, BTreeSet::from([6]));
-        assert_eq!(partition.faults, BTreeSet::from([5]));
-        assert_eq!(partition.unproven, BTreeSet::from([7, 8]));
-
-        // Check state of partition 2
-        let partition = deadline
-            .partitions
-            .get(&2)
-            .expect("Should be able to get recently added partition");
-        assert_eq!(partition.sectors, BTreeSet::from([9]));
-        assert_eq!(partition.terminated, BTreeSet::new());
-        assert_eq!(partition.faults, BTreeSet::new());
-        assert_eq!(partition.unproven, BTreeSet::from([9]));
-        Ok(())
+        let sectors =
+            add_then_mark_faulty(&mut deadline, false).expect("Could not mark sectors as faulty"); // 1,5,6 faulty
+        let res = terminate_sectors(15, &mut deadline, sectors, partition_sectors);
+        assert!(res.is_err());
+        assert_eq!(res, expected_error);
     }
 
     #[test]
-    fn fails_to_terminate_missing_sector() -> Result<(), GeneralPalletError> {
-        let mut deadline = Deadline::new();
-
-        let sectors = add_then_mark_faulty(&mut deadline, false)?; // 1,5,6 faulty
-        let partition_sectors = BTreeMap::from([(0, BTreeSet::from([6]).try_into().unwrap())]);
-        assert!(matches!(
-            terminate_sectors(15, &mut deadline, sectors, partition_sectors),
-            Err(GeneralPalletError::PartitionErrorSectorsNotLive)
-        ));
-        Ok(())
-    }
-
-    #[test]
-    fn fails_to_terminate_missing_partition() -> Result<(), GeneralPalletError> {
-        let mut deadline = Deadline::new();
-
-        let sectors = add_then_mark_faulty(&mut deadline, false)?; // 1,5,6 faulty
-        let partition_sectors = BTreeMap::from([(4, BTreeSet::from([6]).try_into().unwrap())]);
-        assert!(matches!(
-            terminate_sectors(15, &mut deadline, sectors, partition_sectors),
-            Err(GeneralPalletError::DeadlineErrorPartitionNotFound)
-        ));
-        Ok(())
-    }
-
-    #[test]
-    fn faulty_sectors_expire() -> Result<(), GeneralPalletError> {
+    fn faulty_sectors_expire() {
         let mut deadline = Deadline::new();
 
         // mark sectors 5&6 faulty, expiring at block 9
-        add_then_mark_faulty(&mut deadline, true)?;
+        add_then_mark_faulty(&mut deadline, true).expect("Could not mark sectors as faulty");
 
         // we expect all sectors but 7 to have expired at this point
-        let expired = deadline.pop_expired_sectors(9)?;
+        let expired = deadline
+            .pop_expired_sectors(9)
+            .expect("Could not pop expired sectors");
         assert_eq!(
             expired.on_time_sectors,
             BTreeSet::from([1, 2, 3, 4, 5, 8, 9])
@@ -1350,7 +1281,9 @@ mod tests {
         assert_eq!(partition.faults, BTreeSet::new());
 
         // check early terminations
-        let (early_terminations, has_more) = deadline.pop_early_terminations(100, 100)?;
+        let (early_terminations, has_more) = deadline
+            .pop_early_terminations(100, 100)
+            .expect("Could not pop early terminations");
         assert!(!has_more);
         assert_eq!(early_terminations.partitions_processed, 1);
         assert_eq!(early_terminations.sectors_processed, 1);
@@ -1387,30 +1320,27 @@ mod tests {
         assert_eq!(partition.sectors, BTreeSet::from([9]));
         assert_eq!(partition.terminated, BTreeSet::from([9]));
         assert_eq!(partition.faults, BTreeSet::new());
-        Ok(())
     }
 
     #[test]
-    fn cannot_pop_expired_sectors_before_proving() -> Result<(), GeneralPalletError> {
+    fn cannot_pop_expired_sectors_before_proving() {
         let mut deadline = Deadline::new();
 
         // add sectors, but don't prove
-        add_sectors(&mut deadline, false)?;
+        add_sectors(&mut deadline, false).expect("Could not add sectors");
 
         // try to pop some expirations
         assert!(matches!(
             deadline.pop_expired_sectors(9),
             Err(GeneralPalletError::PartitionErrorCannotPopUnprovenSectors)
         ));
-
-        Ok(())
     }
 
     #[test]
-    fn cannot_declare_faults_in_missing_partitions() -> Result<(), GeneralPalletError> {
+    fn cannot_declare_faults_in_missing_partitions() {
         let mut deadline = Deadline::new();
 
-        let sectors = add_sectors(&mut deadline, true)?;
+        let sectors = add_sectors(&mut deadline, true).expect("Could not add sectors");
 
         // declare sectors 1 & 6 faulty
         let fault_expiration_block = 17;
@@ -1421,8 +1351,12 @@ mod tests {
             .try_into()
             .unwrap();
         let mut partition_sector_map = PartitionMap::new();
-        partition_sector_map.try_insert_sectors(0, BTreeSet::from([1]).try_into().unwrap())?;
-        partition_sector_map.try_insert_sectors(4, BTreeSet::from([6]).try_into().unwrap())?;
+        partition_sector_map
+            .try_insert_sectors(0, BTreeSet::from([1]).try_into().unwrap())
+            .expect("Could not insert sectors into partition map");
+        partition_sector_map
+            .try_insert_sectors(4, BTreeSet::from([6]).try_into().unwrap())
+            .expect("Could not insert sectors into partition map");
         assert!(matches!(
             deadline.record_faults(
                 &sector_map,
@@ -1431,16 +1365,14 @@ mod tests {
             ),
             Err(GeneralPalletError::DeadlineErrorPartitionNotFound)
         ));
-
-        Ok(())
     }
 
     #[test]
-    fn cannot_declare_faults_recovered_in_missing_partitions() -> Result<(), GeneralPalletError> {
+    fn cannot_declare_faults_recovered_in_missing_partitions() {
         let mut deadline = Deadline::new();
 
         // Marks sectors 1 (partition 0), 5 & 6 (partition 1) as faulty.
-        let sectors = add_then_mark_faulty(&mut deadline, true)?;
+        let sectors = add_then_mark_faulty(&mut deadline, true).expect("Could not add sectors");
 
         // declare sectors 1 & 6 recovered
         let sector_map = sectors
@@ -1450,22 +1382,24 @@ mod tests {
             .try_into()
             .unwrap();
         let mut partition_sector_map = PartitionMap::default();
-        partition_sector_map.try_insert_sectors(0, BTreeSet::from([1]).try_into().unwrap())?;
-        partition_sector_map.try_insert_sectors(4, BTreeSet::from([6]).try_into().unwrap())?;
+        partition_sector_map
+            .try_insert_sectors(0, BTreeSet::from([1]).try_into().unwrap())
+            .expect("Could not insert sectors into partition map");
+        partition_sector_map
+            .try_insert_sectors(4, BTreeSet::from([6]).try_into().unwrap())
+            .expect("Could not insert sectors into partition map");
         assert!(matches!(
             deadline.declare_faults_recovered(&sector_map, &mut partition_sector_map),
             Err(GeneralPalletError::DeadlineErrorPartitionNotFound)
         ));
-
-        Ok(())
     }
 
     #[test]
-    fn post_missing_partition() -> Result<(), GeneralPalletError> {
+    fn post_missing_partition() {
         let mut deadline = Deadline::new();
 
         // Add and prove sectors
-        add_sectors(&mut deadline, true)?;
+        add_sectors(&mut deadline, true).expect("Could not add sectors");
 
         // Try to prove unknown sector
         let sector_map = sectors()
@@ -1479,16 +1413,14 @@ mod tests {
             deadline.record_proven(&sector_map, partitions),
             Err(GeneralPalletError::DeadlineErrorPartitionNotFound)
         ));
-
-        Ok(())
     }
 
     #[test]
-    fn post_partition_twice() -> Result<(), GeneralPalletError> {
+    fn post_partition_twice() {
         let mut deadline = Deadline::new();
 
         // Add and prove sectors
-        add_sectors(&mut deadline, true)?;
+        add_sectors(&mut deadline, true).expect("Could not add sectors");
 
         // Try to reprove partitions previously proven
         let sector_map = sectors()
@@ -1502,6 +1434,5 @@ mod tests {
             deadline.record_proven(&sector_map, partitions),
             Err(GeneralPalletError::DeadlineErrorPartitionAlreadyProven)
         ));
-        Ok(())
     }
 }
