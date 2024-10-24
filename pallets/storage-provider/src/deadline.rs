@@ -429,11 +429,7 @@ where
             .iter()
             // take_while does not work here because we cannot ensure that `self.expirations_blocks` is ordered
             .filter_map(|(&block, partition_number)| {
-                if block <= until {
-                    Some((block, partition_number.clone()))
-                } else {
-                    None
-                }
+                (block <= until).then(|| (block, partition_number.clone()))
             })
             .unzip();
         let mut to_pop = to_pop.into_iter().peekable();
