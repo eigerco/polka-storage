@@ -323,11 +323,7 @@ where
         // take_while does not work here because we cannot ensure that `self.map` is ordered
         self.map.iter()
         .filter_map(|(&block, expiration_set)| {
-            if block <= until {
-                Some((block, expiration_set.clone()))
-            } else {
-                None
-            }
+             (block <= until).then(|| (block, expiration_set.clone()))
         })
         .try_for_each(|(block, expiration_set)| -> Result<(), GeneralPalletError>{
             popped_keys.push(block);
