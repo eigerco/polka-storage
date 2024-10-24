@@ -169,10 +169,12 @@ pub struct ServerArguments {
     ed25519_key: Option<DebugPair<Ed25519Pair>>,
 
     /// RocksDB storage directory.
+    /// Defaults to a temporary random directory, like `/tmp/<random>/deals_database`.
     #[arg(long)]
     database_directory: Option<PathBuf>,
 
     /// Piece storage directory.
+    /// Defaults to a temporary random directory, like `/tmp/<random>/...`.
     #[arg(long)]
     storage_directory: Option<PathBuf>,
 
