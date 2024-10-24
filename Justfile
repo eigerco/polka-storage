@@ -24,13 +24,12 @@ release: lint
 release-testnet:
     cargo build --release --features polka-storage-runtime/testnet --bin polka-storage-node
 
-# Run the testing building it before
-testnet: release-testnet
-    zombienet -p native spawn zombienet/local-testnet.toml
-
 # Run the testnet without building
 run-testnet:
     zombienet -p native spawn zombienet/local-testnet.toml
+
+# Run the testing building it before
+testnet: release-testnet run-testnet
 
 test:
     cargo test --locked --workspace

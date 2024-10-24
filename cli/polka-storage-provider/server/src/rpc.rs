@@ -1,8 +1,8 @@
 use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 
 use jsonrpsee::server::Server;
+use polka_storage_proofs::porep::sealer::{prepare_piece, Sealer};
 use polka_storage_provider_common::rpc::{RpcError, ServerInfo, StorageProviderRpcServer};
-use primitives_commitment::commd::compute_unsealed_sector_commitment;
 use storagext::{
     types::market::{ClientDealProposal as SxtClientDealProposal, DealProposal as SxtDealProposal},
     MarketClientExt,
@@ -10,10 +10,7 @@ use storagext::{
 use tokio_util::sync::CancellationToken;
 use tracing::{info, instrument};
 
-use crate::{
-    db::DealDB,
-    sealer::{create_sector, prepare_piece},
-};
+use crate::db::DealDB;
 
 /// Unwraps a `Result<T>` logging and returning if `Err`.
 /// Currently a bandaid solution while the pipeline doesn't get properly fleshed out.
@@ -29,6 +26,12 @@ macro_rules! ok_or_return {
     }
 }
 
+// PLACEHOLDERS!!!!!
+const SECTOR_ID: u64 = 77;
+const PROVER_ID: [u8; 32] = [0u8; 32];
+const TICKET: [u8; 32] = [12u8; 32];
+// const SEED: [u8; 32] = [13u8; 32];
+
 /// RPC server shared state.
 pub struct RpcServerState {
     pub server_info: ServerInfo,
@@ -37,6 +40,8 @@ pub struct RpcServerState {
     /// The file storage directory. Used to check if a given piece has been uploaded or not.
     pub car_piece_storage_dir: Arc<PathBuf>,
     pub unsealed_piece_storage_dir: Arc<PathBuf>,
+    pub sealed_piece_storage_dir: Arc<PathBuf>,
+    pub sealing_cache_dir: Arc<PathBuf>,
 
     pub xt_client: storagext::Client,
     pub xt_keypair: storagext::multipair::MultiPairSigner,
@@ -124,31 +129,46 @@ impl StorageProviderRpcServer for RpcServerState {
         debug_assert_eq!(published_deals.len(), 1);
 
         let unsealed_dir = self.unsealed_piece_storage_dir.clone();
-        let sector_size = self.server_info.seal_proof.sector_size();
+        let sealed_dir = self.sealed_piece_storage_dir.clone();
+        let cache_dir = self.sealing_cache_dir.clone();
+        let seal_proof = self.server_info.seal_proof;
 
         // Questions to be answered:
         // * what happens if some of it fails? SP will be slashed, and there is no error reporting?
         // * where do we save the state of a sector/deals, how do we keep track of it?
         tokio::task::spawn_blocking(move || {
             let piece_commitment: [u8; 32] = ok_or_return!(piece_cid.hash().digest().try_into());
+
+            let unsealed_sector_path = unsealed_dir.join(piece_cid.to_string());
+            let sealed_sector_path = {
+                let path = sealed_dir.join(piece_cid.to_string());
+                // We need to create the file ourselves, even though that's not documented
+                ok_or_return!(std::fs::File::create(&path));
+                path
+            };
+
+            let sealer = Sealer::new(seal_proof);
+
             let prepared_piece = ok_or_return!(prepare_piece(piece_path, piece_commitment));
 
-            let sector_writer = ok_or_return!(std::fs::File::create(
-                unsealed_dir.join(piece_cid.to_string())
+            let piece_infos = {
+                // The scope creates an implicit drop of the file handler
+                // avoiding reading issues later on
+                let sector_writer = ok_or_return!(std::fs::File::create(&unsealed_sector_path));
+                ok_or_return!(sealer.create_sector(vec![prepared_piece], sector_writer))
+            };
+
+            let precommit_result = ok_or_return!(sealer.precommit_sector(
+                cache_dir.as_ref(),
+                unsealed_sector_path,
+                sealed_sector_path,
+                PROVER_ID,
+                SECTOR_ID,
+                TICKET,
+                &piece_infos,
             ));
 
-            let piece_infos = ok_or_return!(create_sector(
-                vec![prepared_piece],
-                sector_writer,
-                sector_size
-            ));
-
-            let comm_d = ok_or_return!(compute_unsealed_sector_commitment(
-                sector_size,
-                &piece_infos
-            ));
-
-            tracing::info!("{:?}", comm_d);
+            tracing::info!("{:?}", precommit_result);
         });
 
         Ok(published_deals[0].deal_id)

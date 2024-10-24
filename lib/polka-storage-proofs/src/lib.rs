@@ -11,6 +11,11 @@ pub use groth16::*;
 #[cfg(feature = "std")]
 pub mod porep;
 
+#[cfg(feature = "std")]
+pub mod zero_reader;
+#[cfg(feature = "std")]
+pub use zero_reader::ZeroPaddingReader;
+
 /// Calculates the number of partitions existing in `total_sector_count` for `sector_count`.
 ///
 /// Reference:

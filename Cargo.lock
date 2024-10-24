@@ -9417,6 +9417,7 @@ dependencies = [
  "filecoin-proofs",
  "pairing",
  "parity-scale-codec",
+ "primitives-commitment",
  "primitives-proofs",
  "rand",
  "rand_xorshift",
@@ -9465,6 +9466,7 @@ dependencies = [
  "filecoin-hashers",
  "fr32",
  "jsonrpsee 0.23.2",
+ "polka-storage-proofs",
  "primitives-commitment",
  "primitives-proofs",
  "serde",
@@ -9479,12 +9481,10 @@ dependencies = [
 name = "polka-storage-provider-server"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "axum",
  "cid 0.11.1",
  "clap",
- "filecoin-proofs",
  "futures",
  "jsonrpsee 0.23.2",
  "mater",

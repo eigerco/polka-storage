@@ -4,7 +4,6 @@
 
 mod db;
 mod rpc;
-mod sealer;
 mod storage;
 
 use std::{env::temp_dir, net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
@@ -53,8 +52,14 @@ const RETRY_NUMBER: u32 = 5;
 /// Name for the directory where the CAR wrapped pieces are kept.
 const CAR_PIECE_DIRECTORY_NAME: &str = "car";
 
-/// Name for the directory where the sealed pieces are kept.
+/// Name for the directory where the unsealed pieces are kept.
 const UNSEALED_PIECE_DIRECTORY_NAME: &str = "unsealed";
+
+/// Name for the directory where the sealed pieces are kept.
+const SEALED_PIECE_DIRECTORY_NAME: &str = "sealed";
+
+/// Name for the directory where the sealing cache is kept.
+const SEALING_CACHE_DIRECTORY_NANE: &str = "cache";
 
 fn get_random_temporary_folder() -> PathBuf {
     temp_dir().join(
@@ -320,10 +325,14 @@ impl ServerConfiguration {
         let car_piece_storage_dir = Arc::new(self.storage_directory.join(CAR_PIECE_DIRECTORY_NAME));
         let unsealed_piece_storage_dir =
             Arc::new(self.storage_directory.join(UNSEALED_PIECE_DIRECTORY_NAME));
+        let sealed_piece_storage_dir =
+            Arc::new(self.storage_directory.join(SEALED_PIECE_DIRECTORY_NAME));
+        let sealing_cache_dir = Arc::new(self.storage_directory.join(SEALING_CACHE_DIRECTORY_NANE));
 
         // Create the storage directories
         tokio::fs::create_dir_all(car_piece_storage_dir.as_ref()).await?;
         tokio::fs::create_dir_all(unsealed_piece_storage_dir.as_ref()).await?;
+        tokio::fs::create_dir_all(sealed_piece_storage_dir.as_ref()).await?;
 
         let storage_state = StorageServerState {
             car_piece_storage_dir: car_piece_storage_dir.clone(),
@@ -340,7 +349,9 @@ impl ServerConfiguration {
             ),
             deal_db: deal_database.clone(),
             car_piece_storage_dir: car_piece_storage_dir.clone(),
-            unsealed_piece_storage_dir: unsealed_piece_storage_dir.clone(),
+            unsealed_piece_storage_dir,
+            sealed_piece_storage_dir,
+            sealing_cache_dir,
             xt_client,
             xt_keypair: self.multi_pair_signer,
             listen_address: self.rpc_listen_address,
