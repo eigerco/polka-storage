@@ -66,7 +66,7 @@ pub mod pallet {
 
             // Save the seed
             SeedsMap::<T>::insert(block_number, seed);
-            log::info!(target: LOG_TARGET, "on_initialize: height: {block_number}, seed: {seed:?}");
+            log::info!(target: LOG_TARGET, "on_initialize: height: {block_number:?}, seed: {seed:?}");
 
             weight
         }
