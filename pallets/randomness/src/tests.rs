@@ -25,15 +25,8 @@ fn test_randomness_availability() {
             // Check availability
             match block_number {
                 // Seeds older than SeedAgeLimit should not be available. They
-                // were cleaned up. We are subtracting 1 from the limit because
-                // the seeds are cleaned up after finalizing a current block.
-                block_number if block_number < n_blocks - SeedAgeLimit::get() - 1 => {
-                    assert_err!(seed, Error::<Test>::SeedNotAvailable);
-                }
-                // Seeds for the last 81 blocks should not be available. That
-                // will probably change when we change the underlying randomness
-                // generator.
-                block_number if block_number > n_blocks - (81 + 1) => {
+                // were cleaned up.
+                block_number if block_number < n_blocks - SeedAgeLimit::get() => {
                     assert_err!(seed, Error::<Test>::SeedNotAvailable);
                 }
                 // Other seeds should be available

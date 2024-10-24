@@ -68,7 +68,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 pub fn run_to_block(n: u64) {
     let mut parent_hash = System::parent_hash();
 
-    while System::block_number() < n {
+    while System::block_number() <= n {
         let block_number = System::block_number();
 
         if System::block_number() > 1 {

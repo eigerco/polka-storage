@@ -49,14 +49,12 @@ pub mod pallet {
 
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-        fn on_initialize(_: BlockNumberFor<T>) -> Weight {
+        fn on_initialize(block_number: BlockNumberFor<T>) -> Weight {
             // TODO(no-ref,@cernicc,22/10/2024): Set proper weights
             let weight = T::DbWeight::get().reads(1);
 
             // The determinable_after is a block number in the past since which
-            // the current seed is determinable by chain observers. The returned
-            // seed should only be used to distinguish commitments made before
-            // the returned determinable_after.
+            // the current seed is determinable by chain observers.
             let (seed, determinable_after) = T::Generator::random_seed();
             let seed: [u8; 32] = seed.as_ref().try_into().expect("seed should be 32 bytes");
 
@@ -66,10 +64,9 @@ pub mod pallet {
                 return weight;
             }
 
-            // We are saving the seed under the determinable_after height. We
-            // know that at that height the current seed was not determinable
-            // and we can safely use it.
-            SeedsMap::<T>::insert(determinable_after, seed);
+            // Save the seed
+            SeedsMap::<T>::insert(block_number, seed);
+            log::info!(target: LOG_TARGET, "on_initialize: height: {block_number}, seed: {seed:?}");
 
             weight
         }
