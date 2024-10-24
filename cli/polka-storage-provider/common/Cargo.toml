@@ -25,7 +25,7 @@ subxt = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-primitives-proofs = { workspace = true }
+polka-storage-proofs = { workspace = true, features = ["std"] }
 
 [lints]
 workspace = true

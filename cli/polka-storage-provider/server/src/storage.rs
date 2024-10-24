@@ -10,9 +10,8 @@ use axum::{
 };
 use futures::{TryFutureExt, TryStreamExt};
 use mater::Cid;
-use polka_storage_provider_common::commp::{
-    calculate_piece_commitment, CommPError, ZeroPaddingReader,
-};
+use polka_storage_proofs::ZeroPaddingReader;
+use polka_storage_provider_common::commp::{calculate_piece_commitment, CommPError};
 use primitives_commitment::piece::PaddedPieceSize;
 use primitives_proofs::RegisteredPoStProof;
 use tokio::{

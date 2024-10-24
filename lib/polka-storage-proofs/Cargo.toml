@@ -11,6 +11,7 @@ version = "0.1.0"
 # Permanently used crates.
 bls12_381 = { workspace = true }
 pairing = { workspace = true }
+primitives-commitment = { workspace = true }
 primitives-proofs = { workspace = true }
 rand_xorshift = { workspace = true }
 
@@ -52,6 +53,7 @@ std = [
   "dep:storage-proofs-porep",
   "dep:storage-proofs-post",
   "dep:thiserror",
+  "primitives-commitment/std",
   "primitives-proofs/std",
   "rand/std",
   "scale-info?/std",
