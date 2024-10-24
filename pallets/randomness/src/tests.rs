@@ -55,14 +55,12 @@ fn test_randomness_uniqueness() {
         // before
         let mut previous_seed = None;
         for block_number in 0..=n_blocks {
-            // Current seed
             let Ok(current_seed) =
                 <RandomnessModule as Randomness<BlockNumber>>::get_randomness(block_number)
             else {
                 continue;
             };
 
-            // previous seed
             if let Some(previous_seed) = previous_seed {
                 assert_ne!(previous_seed, current_seed);
             }
