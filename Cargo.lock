@@ -9436,6 +9436,7 @@ dependencies = [
  "filecoin-hashers",
  "fr32",
  "jsonrpsee 0.23.2",
+ "polka-storage-proofs",
  "primitives-commitment",
  "primitives-proofs",
  "serde",
