@@ -429,7 +429,7 @@ where
             .iter()
             // take_while does not work here because we cannot ensure that `self.expirations_blocks` is ordered
             .filter_map(|(&block, partition_number)| {
-                (block <= until).then(|| (block, partition_number.clone()))
+                (block <= until).then(|| (block, *partition_number))
             })
             .unzip();
         let mut to_pop = to_pop.into_iter().peekable();
@@ -872,7 +872,7 @@ mod tests {
         // prove everything
         let all_sectors = sectors
             .iter()
-            .filter_map(|sector_info| Some((sector_info.sector_number, sector_info.clone())))
+            .map(|sector_info| (sector_info.sector_number, sector_info.clone()))
             .collect::<BTreeMap<SectorNumber, SectorOnChainInfo<u64>>>()
             .try_into()
             .unwrap();
