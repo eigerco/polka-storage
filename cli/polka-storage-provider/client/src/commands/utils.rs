@@ -10,10 +10,9 @@ use polka_storage_proofs::{
     porep::{self, sealer::Sealer},
     post::{self, ReplicaInfo},
     types::PieceInfo,
+    ZeroPaddingReader,
 };
-use polka_storage_provider_common::commp::{
-    calculate_piece_commitment, CommPError, ZeroPaddingReader,
-};
+use polka_storage_provider_common::commp::{calculate_piece_commitment, CommPError};
 use primitives_commitment::piece::PaddedPieceSize;
 use primitives_proofs::{RegisteredPoStProof, RegisteredSealProof};
 
@@ -103,8 +102,8 @@ const POST_PARAMS_EXT: &str = "post.params";
 const POST_VK_EXT: &str = "post.vk";
 const POST_VK_EXT_SCALE: &str = "post.vk.scale";
 
-const POREP_PROOF_EXT: &str = "proof.porep.scale";
-const POST_PROOF_EXT: &str = "proof.post.scale";
+const POREP_PROOF_EXT: &str = "sector.proof.porep.scale";
+const POST_PROOF_EXT: &str = "sector.proof.post.scale";
 
 impl UtilsCommand {
     /// Run the command.
@@ -187,6 +186,13 @@ impl UtilsCommand {
                 output_path,
                 cache_directory,
             } => {
+                // Those are hardcoded for the showcase only.
+                // They should come from Storage Provider Node, precommits and other information.
+                let sector_id = 77;
+                let prover_id = [0u8; 32];
+                let ticket = [12u8; 32];
+                let seed = [13u8; 32];
+
                 let output_path = if let Some(output_path) = output_path {
                     output_path
                 } else {
@@ -194,11 +200,7 @@ impl UtilsCommand {
                 };
                 let (proof_scale_filename, mut proof_scale_file) = file_with_extension(
                     &output_path,
-                    input_path
-                        .file_name()
-                        .expect("input file to have a name")
-                        .to_str()
-                        .expect("to be convertable to str"),
+                    format!("{}", sector_id).as_str(),
                     POREP_PROOF_EXT,
                 )?;
 
@@ -235,15 +237,11 @@ impl UtilsCommand {
                     size: *piece_file_length,
                 };
 
-                // Those are hardcoded for the showcase only.
-                // They should come from Storage Provider Node, precommits and other information.
-                let sector_id = 77;
-                let prover_id = [0u8; 32];
-                let ticket = [12u8; 32];
-                let seed = [13u8; 32];
-
-                let mut unsealed_sector =
-                    tempfile::NamedTempFile::new().map_err(|e| UtilsCommandError::IOError(e))?;
+                let (unsealed_sector_path, unsealed_sector) = file_with_extension(
+                    &output_path,
+                    format!("{}", sector_id).as_str(),
+                    "sector.unsealed",
+                )?;
 
                 let (sealed_sector_path, _) = file_with_extension(
                     &output_path,
@@ -254,17 +252,14 @@ impl UtilsCommand {
                 println!("Creating sector...");
                 let sealer = Sealer::new(seal_proof);
                 let piece_infos = sealer
-                    .create_sector(
-                        vec![(piece_file, piece_info.clone())],
-                        unsealed_sector.as_file_mut(),
-                    )
+                    .create_sector(vec![(piece_file, piece_info.clone())], unsealed_sector)
                     .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
 
                 println!("Precommitting...");
                 let precommit = sealer
                     .precommit_sector(
                         &cache_directory,
-                        unsealed_sector.path(),
+                        unsealed_sector_path,
                         &sealed_sector_path,
                         prover_id,
                         sector_id,
@@ -348,6 +343,12 @@ impl UtilsCommand {
                 comm_r,
                 output_path,
             } => {
+                // Those are hardcoded for the showcase only.
+                // They should come from Storage Provider Node, precommits and other information.
+                let sector_id = 77;
+                let randomness = [1u8; 32];
+                let prover_id = [0u8; 32];
+
                 let output_path = if let Some(output_path) = output_path {
                     output_path
                 } else {
@@ -356,19 +357,10 @@ impl UtilsCommand {
 
                 let (proof_scale_filename, mut proof_scale_file) = file_with_extension(
                     &output_path,
-                    replica_path
-                        .file_name()
-                        .expect("input file to have a name")
-                        .to_str()
-                        .expect("to be convertable to str"),
+                    format!("{}", sector_id).as_str(),
                     POST_PROOF_EXT,
                 )?;
 
-                // Those are hardcoded for the showcase only.
-                // They should come from Storage Provider Node, precommits and other information.
-                let sector_id = 77;
-                let randomness = [1u8; 32];
-                let prover_id = [0u8; 32];
                 let replicas = vec![ReplicaInfo {
                     sector_id,
                     comm_r: hex::decode(comm_r)
@@ -425,8 +417,6 @@ pub enum UtilsCommandError {
     InvalidPieceFile(PathBuf, std::io::Error),
     #[error("provided invalid CommP {0}, error: {1}")]
     InvalidPieceCommP(String, cid::Error),
-    #[error(transparent)]
-    IOError(std::io::Error),
     #[error("file {0} is invalid CARv2 file {1}")]
     InvalidCARv2(PathBuf, mater::Error),
 }
@@ -440,7 +430,7 @@ fn file_with_extension(
     new_path.push(file_name);
     new_path.set_extension(extension);
 
-    let file = std::fs::File::create_new(new_path.clone())
+    let file = std::fs::File::create(new_path.clone())
         .map_err(|e| UtilsCommandError::FileCreateError(new_path.clone(), e))?;
     Ok((new_path, file))
 }

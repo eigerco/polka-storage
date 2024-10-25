@@ -136,6 +136,16 @@ impl RegisteredPoStProof {
             RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => 2,
         }
     }
+
+    /// Number of sectors challenged in a replica.
+    ///
+    /// References:
+    /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/266acc39a3ebd6f3d28c6ee335d78e2b7cea06bc/filecoin-proofs/src/constants.rs#L102>
+    pub fn sector_count(&self) -> usize {
+        match self {
+            RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => 2,
+        }
+    }
 }
 
 // serde_json requires std, hence, to test the serialization, we need:

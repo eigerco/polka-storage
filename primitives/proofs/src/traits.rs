@@ -3,8 +3,11 @@ extern crate alloc;
 use cid::Cid;
 use sp_core::ConstU32;
 use sp_runtime::{BoundedVec, DispatchError, DispatchResult, RuntimeDebug};
+use sp_std::collections::btree_map::BTreeMap;
 
-use crate::types::{DealId, ProverId, RawCommitment, RegisteredSealProof, SectorNumber, Ticket};
+use crate::types::{
+    DealId, ProverId, RawCommitment, RegisteredPoStProof, RegisteredSealProof, SectorNumber, Ticket,
+};
 
 /// Size of a CID with a 512-bit multihash — i.e. the default CID size.
 pub const CID_SIZE_IN_BYTES: u32 = 64;
@@ -64,6 +67,14 @@ pub trait StorageProviderValidation<AccountId> {
     fn is_registered_storage_provider(storage_provider: &AccountId) -> bool;
 }
 
+/// The minimal information required about a replica, in order to be able to verify
+/// a PoSt over it.
+#[derive(Clone, core::fmt::Debug, PartialEq, Eq)]
+pub struct PublicReplicaInfo {
+    /// The replica commitment.
+    pub comm_r: RawCommitment,
+}
+
 /// Entrypoint for proof verification implemented by Pallet Proofs.
 pub trait ProofVerification {
     fn verify_porep(
@@ -76,6 +87,18 @@ pub trait ProofVerification {
         seed: Ticket,
         proof: alloc::vec::Vec<u8>,
     ) -> DispatchResult;
+
+    fn verify_post(
+        post_type: RegisteredPoStProof,
+        randomness: Ticket,
+        replicas: BTreeMap<SectorNumber, PublicReplicaInfo>,
+        proof: alloc::vec::Vec<u8>,
+    ) -> DispatchResult;
+}
+
+/// Represents functions that are provided by the Randomness Pallet
+pub trait Randomness<BlockNumber> {
+    fn get_randomness(block_number: BlockNumber) -> Result<[u8; 32], DispatchError>;
 }
 
 /// Binds given Sector with the Deals that it should contain

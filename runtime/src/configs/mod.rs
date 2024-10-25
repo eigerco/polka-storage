@@ -58,11 +58,11 @@ use super::DAYS;
 use super::{
     weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight},
     AccountId, Aura, Balance, Balances, Block, BlockNumber, CollatorSelection, Hash, MessageQueue,
-    Nonce, PalletInfo, ParachainSystem, Runtime, RuntimeCall, RuntimeEvent, RuntimeFreezeReason,
-    RuntimeHoldReason, RuntimeOrigin, RuntimeTask, Session, SessionKeys, System, WeightToFee,
-    XcmpQueue, AVERAGE_ON_INITIALIZE_RATIO, BLOCK_PROCESSING_VELOCITY, EXISTENTIAL_DEPOSIT, HOURS,
-    MAXIMUM_BLOCK_WEIGHT, MICROUNIT, NORMAL_DISPATCH_RATIO, RELAY_CHAIN_SLOT_DURATION_MILLIS,
-    SLOT_DURATION, UNINCLUDED_SEGMENT_CAPACITY, VERSION,
+    Nonce, PalletInfo, ParachainSystem, RandomnessSource, Runtime, RuntimeCall, RuntimeEvent,
+    RuntimeFreezeReason, RuntimeHoldReason, RuntimeOrigin, RuntimeTask, Session, SessionKeys,
+    System, WeightToFee, XcmpQueue, AVERAGE_ON_INITIALIZE_RATIO, BLOCK_PROCESSING_VELOCITY,
+    EXISTENTIAL_DEPOSIT, HOURS, MAXIMUM_BLOCK_WEIGHT, MICROUNIT, NORMAL_DISPATCH_RATIO,
+    RELAY_CHAIN_SLOT_DURATION_MILLIS, SLOT_DURATION, UNINCLUDED_SEGMENT_CAPACITY, VERSION,
 };
 use crate::MINUTES;
 
@@ -342,6 +342,10 @@ parameter_types! {
     /// <https://github.com/filecoin-project/builtin-actors/blob/c32c97229931636e3097d92cf4c43ac36a7b4b47/actors/market/src/policy.rs#L28>
     pub const MinDealDuration: u64 = 20 * DAYS;
     pub const MaxDealDuration: u64 = 1278 * DAYS;
+
+    // Randomness pallet
+    pub const CleanupInterval: BlockNumber = 6 * HOURS;
+    pub const SeedAgeLimit: BlockNumber = 1 * DAYS;
 }
 
 #[cfg(feature = "testnet")]
@@ -365,6 +369,10 @@ parameter_types! {
     // Market Pallet
     pub const MinDealDuration: u64 = 5 * MINUTES;
     pub const MaxDealDuration: u64 = 180 * MINUTES;
+
+    // Randomness pallet
+    pub const CleanupInterval: BlockNumber = DAYS;
+    pub const SeedAgeLimit: BlockNumber = 30 * DAYS;
 }
 
 impl pallet_storage_provider::Config for Runtime {
@@ -413,3 +421,13 @@ impl pallet_market::Config for Runtime {
 impl pallet_proofs::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
 }
+
+/// Config for our randomness pallet
+impl pallet_randomness::Config for Runtime {
+    type Generator = RandomnessSource;
+    type CleanupInterval = CleanupInterval;
+    type SeedAgeLimit = SeedAgeLimit;
+}
+
+/// Config for insecure randomness
+impl pallet_insecure_randomness_collective_flip::Config for Runtime {}

@@ -10,7 +10,9 @@ version = "0.1.0"
 [dependencies]
 # "Homegrown" crates
 mater = { workspace = true }
+polka-storage-proofs = { workspace = true, features = ["std"] }
 polka-storage-provider-common = { workspace = true }
+primitives-commitment = { workspace = true, features = ["std"] }
 primitives-proofs = { workspace = true, features = ["clap"] }
 storagext = { workspace = true, features = ["clap", "insecure_url"] }
 
@@ -20,7 +22,6 @@ cid = { workspace = true, features = ["std"] }
 clap = { workspace = true, features = ["derive"] }
 futures = { workspace = true }
 jsonrpsee = { workspace = true, features = ["http-client", "macros", "server", "ws-client"] }
-primitives-commitment = { workspace = true }
 rand = { workspace = true }
 rocksdb = { workspace = true }
 sc-cli = { workspace = true }

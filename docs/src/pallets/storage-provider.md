@@ -12,6 +12,7 @@
   - [`submit_windowed_post`](#submit_windowed_post)
   - [`declare_faults`](#declare_faults)
   - [`declare_faults_recovered`](#declare_faults_recovered)
+  - [`terminate_sectors`](#terminate_sectors)
 - [Events](#events)
 - [Errors](#errors)
 - [Pallet constants](#pallet-constants)
@@ -260,6 +261,46 @@ Where `fault-declaration.json` is a file with contents similar to:
 ```
 
 [^declare_faults_recovered]: Read more about the `declare-faults-recovered` command in [_Storagext CLI/Subcommand `storage-provider`/`declare-faults-recovered`_](../storagext-cli/storage-provider.md#declare-faults-recovered)
+
+### `terminate_sectors`
+
+A storage provider can terminate sectors with the `terminate_sectors` extrinsic. This requires the storage provider to have no unproven sectors.
+`terminate_sectors` can process multiple terminations in a single extrinsic.
+
+| Name           | Description                             | Type                                  |
+| -------------- | --------------------------------------- | ------------------------------------- |
+| `terminations` | The sectors and partitions to terminate | An array of termination declarations. |
+
+Where the termination declarations contain:
+
+| Name        | Description                                                                | Type                     |
+| ----------- | -------------------------------------------------------------------------- | ------------------------ |
+| `deadline`  | The deadline the termination is targeting                                  | Positive integer.        |
+| `partition` | Partition index within the deadline containing the sector to be terminated | Positive integer.        |
+| `sectors`   | Sectors in the partition being terminated                                  | Set of positive integers |
+
+#### <a class="header" id="terminate_sectors.example" href="#terminate_sectors.example">Example</a>
+
+Storage provider `//Alice` terminating sectors[^terminate_sectors] on deadline 0, partition 0, sector 1.
+
+
+```bash
+storagext-cli --sr25519-key "//Alice" storage-provider terminate-sectors @terminate-sectors.json
+```
+
+Where `terminate-sectors.json` is a file with contents similar to:
+
+```json
+[
+  {
+    "deadline": 0,
+    "partition": 0,
+    "sectors": [1]
+  }
+]
+```
+
+[^terminate_sectors]: Read more about the `terminate-sectors` command in [_Storagext CLI/Subcommand `storage-provider`/`terminate-sectors`_](../storagext-cli/storage-provider.md#terminate-sectors)
 
 ## Events
 

@@ -2,10 +2,11 @@ use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::*, BoundedVec};
 use primitives_proofs::{
     DealId, RegisteredSealProof, SectorDeal, SectorNumber, CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR,
+    MAX_TERMINATIONS_PER_CALL,
 };
 use scale_info::TypeInfo;
 
-use crate::partition::PartitionNumber;
+use crate::{pallet::DECLARATIONS_MAX, partition::PartitionNumber};
 
 // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/runtime/src/runtime/policy.rs#L262
 pub const MAX_SECTORS: u32 = 32 << 20;
@@ -142,4 +143,17 @@ impl ProveCommitResult {
             deadline_idx,
         }
     }
+}
+
+/// Argument used for the `terminate_sectors` extrinsic
+#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
+pub struct TerminateSectorsParams {
+    pub terminations: BoundedVec<TerminationDeclaration, ConstU32<DECLARATIONS_MAX>>,
+}
+
+#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
+pub struct TerminationDeclaration {
+    pub deadline: u64,
+    pub partition: PartitionNumber,
+    pub sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_TERMINATIONS_PER_CALL>>,
 }

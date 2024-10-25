@@ -14,6 +14,7 @@ use storagext::{
         RecoveryDeclaration as SxtRecoveryDeclaration,
         SectorPreCommitInfo as SxtSectorPreCommitInfo,
         SubmitWindowedPoStParams as SxtSubmitWindowedPoStParams,
+        TerminationDeclaration as SxtTerminationDeclaration,
     },
     PolkaStorageConfig, StorageProviderClientExt,
 };
@@ -81,6 +82,12 @@ pub enum StorageProviderCommand {
     DeclareFaultsRecovered {
         #[arg(value_parser = <Vec<SxtRecoveryDeclaration> as DeserializablePath>::deserialize_json)]
         recoveries: std::vec::Vec<SxtRecoveryDeclaration>,
+    },
+
+    /// Terminate sectors.
+    TerminateSectors {
+        #[arg(value_parser = <Vec<SxtTerminationDeclaration> as DeserializablePath>::deserialize_json)]
+        terminations: std::vec::Vec<SxtTerminationDeclaration>,
     },
 }
 
@@ -164,6 +171,9 @@ impl StorageProviderCommand {
             }
             StorageProviderCommand::DeclareFaultsRecovered { recoveries } => {
                 Self::declare_faults_recovered(client, account_keypair, recoveries).await?
+            }
+            StorageProviderCommand::TerminateSectors { terminations } => {
+                Self::terminate_sectors(client, account_keypair, terminations).await?
             }
             _unsigned => unreachable!("unsigned commands should have been previously handled"),
         };
@@ -313,6 +323,25 @@ impl StorageProviderCommand {
             .declare_faults_recovered(&account_keypair, recoveries)
             .await?;
         tracing::debug!("[{}] Successfully declared faults.", submission_result.hash);
+
+        Ok(submission_result)
+    }
+
+    async fn terminate_sectors<Client>(
+        client: Client,
+        account_keypair: MultiPairSigner,
+        terminations: Vec<SxtTerminationDeclaration>,
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+    where
+        Client: StorageProviderClientExt,
+    {
+        let submission_result = client
+            .terminate_sectors(&account_keypair, terminations)
+            .await?;
+        tracing::debug!(
+            "[{}] Successfully terminated sectors.",
+            submission_result.hash
+        );
 
         Ok(submission_result)
     }

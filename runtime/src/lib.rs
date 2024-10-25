@@ -263,6 +263,9 @@ mod runtime {
     pub type Timestamp = pallet_timestamp;
     #[runtime::pallet_index(3)]
     pub type ParachainInfo = parachain_info;
+    // Temporary. Will be removed after we switch to babe
+    #[runtime::pallet_index(4)]
+    pub type RandomnessSource = pallet_insecure_randomness_collective_flip;
 
     // Monetary stuff.
     #[runtime::pallet_index(10)]

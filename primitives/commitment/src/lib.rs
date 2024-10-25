@@ -1,4 +1,4 @@
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)] // no_std by default, requires "std" for std-support
 
 pub mod commd;
 pub mod piece;
@@ -71,6 +71,11 @@ pub struct Commitment {
 impl Commitment {
     pub fn new(commitment: [u8; 32], kind: CommitmentKind) -> Self {
         Self { commitment, kind }
+    }
+
+    /// Create a new piece commitment.
+    pub fn piece(commitment: [u8; 32]) -> Self {
+        Self::new(commitment, CommitmentKind::Piece)
     }
 
     /// Creates a new `Commitment` from bytes. Returns an error if the bytes

@@ -8469,9 +8469,11 @@ dependencies = [
  "frame-system",
  "generic-array 1.1.0",
  "hex",
+ "log",
  "num-bigint",
  "parity-scale-codec",
  "polka-storage-proofs",
+ "primitives-commitment",
  "primitives-proofs",
  "rand",
  "rand_chacha",
@@ -8481,6 +8483,7 @@ dependencies = [
  "sp-core 34.0.0",
  "sp-io 38.0.0",
  "sp-runtime 39.0.0",
+ "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2407-1)",
  "storage-proofs-core",
  "storage-proofs-porep",
 ]
@@ -8495,6 +8498,23 @@ dependencies = [
  "frame-system",
  "parity-scale-codec",
  "scale-info",
+ "sp-io 38.0.0",
+ "sp-runtime 39.0.0",
+]
+
+[[package]]
+name = "pallet-randomness"
+version = "0.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-insecure-randomness-collective-flip",
+ "parity-scale-codec",
+ "primitives-proofs",
+ "scale-info",
+ "sp-core 34.0.0",
  "sp-io 38.0.0",
  "sp-runtime 39.0.0",
 ]
@@ -9401,6 +9421,7 @@ dependencies = [
  "filecoin-proofs",
  "pairing",
  "parity-scale-codec",
+ "primitives-commitment",
  "primitives-proofs",
  "rand",
  "rand_xorshift",
@@ -9433,7 +9454,6 @@ dependencies = [
  "serde_json",
  "storagext",
  "subxt",
- "tempfile",
  "thiserror",
  "tokio",
  "tracing",
@@ -9450,6 +9470,7 @@ dependencies = [
  "filecoin-hashers",
  "fr32",
  "jsonrpsee 0.23.2",
+ "polka-storage-proofs",
  "primitives-commitment",
  "primitives-proofs",
  "serde",
@@ -9471,6 +9492,7 @@ dependencies = [
  "futures",
  "jsonrpsee 0.23.2",
  "mater",
+ "polka-storage-proofs",
  "polka-storage-provider-common",
  "primitives-commitment",
  "primitives-proofs",
@@ -9522,6 +9544,7 @@ dependencies = [
  "pallet-market",
  "pallet-message-queue",
  "pallet-proofs",
+ "pallet-randomness",
  "pallet-session",
  "pallet-storage-provider",
  "pallet-sudo",
@@ -10928,6 +10951,7 @@ name = "primitives-commitment"
 version = "0.1.0"
 dependencies = [
  "cid 0.11.1",
+ "filecoin-proofs",
  "primitives-proofs",
  "rand",
  "sha2 0.10.8",
@@ -10947,6 +10971,7 @@ dependencies = [
  "serde_json",
  "sp-core 34.0.0",
  "sp-runtime 39.0.0",
+ "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2407-1)",
 ]
 
 [[package]]

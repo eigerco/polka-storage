@@ -1,7 +1,6 @@
 {
   "files.trimTrailingWhitespace": true,
   "rust-analyzer.rustfmt.extraArgs": ["+nightly"],
-  "rust-analyzer.checkOnSave": true,
   "rust-analyzer.check.workspace": false,
   "coverage-gutters.coverageBaseDir": "coverage",
   "coverage-gutters.coverageFileNames": [

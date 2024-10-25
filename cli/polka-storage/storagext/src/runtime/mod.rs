@@ -88,6 +88,10 @@ pub mod display;
         derive = "::serde::Serialize"
     ),
     derive_for_type(
+        path = "pallet_storage_provider::sector::TerminationDeclaration",
+        derive = "::serde::Serialize"
+    ),
+    derive_for_type(
         path = "pallet_market::pallet::ActiveDealState",
         derive = "::serde::Serialize"
     ),

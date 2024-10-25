@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{fs::File, path::Path};
 
 use bellperson::groth16;
 use blstrs::Bls12;
@@ -8,13 +8,48 @@ use filecoin_proofs::{
     DefaultPieceHasher, PaddedBytesAmount, PoRepConfig, SealCommitPhase1Output,
     SealPreCommitOutput, SealPreCommitPhase1Output, SectorShapeBase, UnpaddedBytesAmount,
 };
+use primitives_commitment::piece::PaddedPieceSize;
 use primitives_proofs::{RegisteredSealProof, SectorNumber};
 use storage_proofs_core::{compound_proof, compound_proof::CompoundProof};
 use storage_proofs_porep::stacked::{self, StackedCompound, StackedDrg};
 
 use super::{seal_to_config, PoRepError};
-use crate::types::{Commitment, PieceInfo, ProverId, Ticket};
+use crate::{
+    types::{Commitment, PieceInfo, ProverId, Ticket},
+    ZeroPaddingReader,
+};
 
+/// Prepares an arbitrary piece to be used by [`Sealer::create_sector`].
+///
+/// It does so by calculating the proper size for the padded reader
+/// (by means of converting the raw size into a padded size and then into an unpadded size),
+/// and then by wrapping the respective file reader with a [`ZeroPaddingReader`].
+pub fn prepare_piece<P>(
+    piece_path: P,
+    piece_comm_p: Commitment,
+) -> Result<(ZeroPaddingReader<File>, PieceInfo), std::io::Error>
+where
+    P: AsRef<Path>,
+{
+    let piece_file = File::open(piece_path)?;
+    let piece_raw_size = piece_file.metadata()?.len();
+
+    // If a file is unpadded, we can calculate its final size with Fr32 Padding and next power of two padding via
+    // `PaddedPieceSize::from_arbitrary_size`. E.g. 900 bytes -> 1024 bytes. However, Filecoin's `add_piece` methods
+    // requires size, to be before `Fr32` padding, so we call `.unpadded()` to get the `Fr32 unpadded`.
+    // Required because of Filecoin magic, we'll probably need to change our Unpadded/Padded
+    // into Filecoin implementations and instead write extensions for them to make them ergonomic
+    let piece_padded_unpadded_length =
+        PaddedPieceSize::from_arbitrary_size(piece_raw_size).unpadded();
+    let piece_padded_file = ZeroPaddingReader::new(piece_file, *piece_padded_unpadded_length);
+
+    let piece_info = PieceInfo {
+        commitment: piece_comm_p,
+        size: *piece_padded_unpadded_length,
+    };
+
+    Ok((piece_padded_file, piece_info))
+}
 pub struct Sealer {
     porep_config: PoRepConfig,
 }
@@ -41,12 +76,12 @@ impl Sealer {
         pieces: Vec<(R, PieceInfo)>,
         mut unsealed_sector: W,
     ) -> Result<Vec<PieceInfo>, PoRepError> {
-        if pieces.len() == 0 {
+        if pieces.is_empty() {
             return Err(PoRepError::EmptySector);
         }
 
-        let mut result_pieces: Vec<PieceInfo> = Vec::new();
-        let mut piece_lengths: Vec<UnpaddedBytesAmount> = Vec::new();
+        let mut result_pieces: Vec<PieceInfo> = Vec::with_capacity(pieces.len());
+        let mut piece_lengths: Vec<UnpaddedBytesAmount> = Vec::with_capacity(pieces.len());
         let mut unpadded_occupied_space: UnpaddedBytesAmount = UnpaddedBytesAmount(0);
         for (idx, (reader, piece)) in pieces.into_iter().enumerate() {
             let piece: filecoin_proofs::PieceInfo = piece.into();
@@ -248,7 +283,7 @@ impl Sealer {
 /// * <https://github.com/filecoin-project/lotus/blob/471819bf1ef8a4d5c7c0476a38ce9f5e23c59bfc/lib/filler/filler.go#L9>
 /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/266acc39a3ebd6f3d28c6ee335d78e2b7cea06bc/filecoin-proofs/src/constants.rs#L164>
 /// * <https://github.com/filecoin-project/go-commp-utils/blob/master/zerocomm/zerocomm.go>
-fn filler_pieces(remaining_space: UnpaddedBytesAmount) -> Vec<filecoin_proofs::PieceInfo> {
+pub fn filler_pieces(remaining_space: UnpaddedBytesAmount) -> Vec<filecoin_proofs::PieceInfo> {
     // We convert it to `PaddedBytesAmount` as it makes calculations (on the powers of 2) easier (see below).
     let mut remaining_space: PaddedBytesAmount = remaining_space.into();
 
@@ -335,9 +370,6 @@ mod test {
     #[case(vec![2048])]
     fn padding_for_sector(#[case] piece_sizes: Vec<usize>) {
         let sealer = Sealer::new(RegisteredSealProof::StackedDRG2KiBV1P1);
-        // Create a file-like sector where non-occupied bytes are 0
-        let sector_size = sealer.porep_config.sector_size.0 as usize;
-        let mut staged_sector = vec![0u8; sector_size];
 
         let piece_infos: Vec<(Cursor<Vec<u8>>, PieceInfo)> = piece_sizes
             .into_iter()
@@ -348,6 +380,10 @@ mod test {
                 (Cursor::new(piece_bytes), piece_info.into())
             })
             .collect();
+
+        // Create a file-like sector where non-occupied bytes are 0
+        let sector_size = sealer.porep_config.sector_size.0 as usize;
+        let mut staged_sector = vec![0u8; sector_size];
 
         let pieces: Vec<filecoin_proofs::PieceInfo> = sealer
             .create_sector(piece_infos, Cursor::new(&mut staged_sector))

@@ -27,6 +27,8 @@ use crate::{
                 sector::{
                     ProveCommitSector as RuntimeProveCommitSector,
                     SectorPreCommitInfo as RuntimeSectorPreCommitInfo,
+                    TerminateSectorsParams as RuntimeTerminateSectorsParams,
+                    TerminationDeclaration as RuntimeTerminationDeclaration,
                 },
             },
         },
@@ -273,6 +275,32 @@ impl Into<RuntimeSubmitWindowedPoStParams> for SubmitWindowedPoStParams {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+pub struct TerminationDeclaration {
+    pub deadline: u64,
+    pub partition: u32,
+    pub sectors: BTreeSet<u64>,
+}
+
+impl From<TerminationDeclaration> for RuntimeTerminationDeclaration {
+    fn from(value: TerminationDeclaration) -> Self {
+        Self {
+            deadline: value.deadline,
+            partition: value.partition,
+            // Converts from BTreeSet -> Vec -> BoundedBTreeSet because subxt...
+            sectors: bounded_btree_set::BoundedBTreeSet(value.sectors.into_iter().collect()),
+        }
+    }
+}
+
+impl From<Vec<TerminationDeclaration>> for RuntimeTerminateSectorsParams {
+    fn from(value: Vec<TerminationDeclaration>) -> Self {
+        Self {
+            terminations: bounded_vec::BoundedVec(value.into_iter().map(Into::into).collect()),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{collections::BTreeSet, str::FromStr};
@@ -286,6 +314,7 @@ mod tests {
             market::DealProposal,
             storage_provider::{
                 FaultDeclaration, PoStProof, RecoveryDeclaration, SubmitWindowedPoStParams,
+                TerminationDeclaration,
             },
         },
         PolkaStorageConfig,
@@ -447,5 +476,25 @@ mod tests {
                 }
             }
         );
+    }
+
+    #[test]
+    fn ensure_serde_for_termination_declaration() {
+        let termination = serde_json::from_str::<Vec<TerminationDeclaration>>(
+            r#"[{
+                "deadline": 69,
+                "partition": 420,
+                "sectors": [1, 2]
+            }]"#,
+        )
+        .unwrap();
+        assert_eq!(
+            termination,
+            vec![TerminationDeclaration {
+                deadline: 69,
+                partition: 420,
+                sectors: BTreeSet::from([1, 2]),
+            }]
+        )
     }
 }
