@@ -536,9 +536,6 @@ pub(crate) fn setup_sp_with_many_sectors_multiple_partitions(
             bounded_vec![sector.clone()]
         ));
 
-        // Advance to a block where we can prove commit the sector
-        // run_to_block(System::block_number() + 2);
-
         // Prove commit sector
         let sector = ProveCommitSector {
             sector_number,
