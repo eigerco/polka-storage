@@ -9,7 +9,6 @@ use frame_support::{
     traits::Hooks, PalletId,
 };
 use frame_system::pallet_prelude::BlockNumberFor;
-use pallet_insecure_randomness_collective_flip as pallet_randomness;
 use pallet_market::{BalanceOf, ClientDealProposal, DealProposal, DealState};
 use primitives_commitment::{Commitment, CommitmentKind};
 use primitives_proofs::{
@@ -58,6 +57,7 @@ frame_support::construct_runtime!(
         Market: pallet_market,
         Proofs: pallet_proofs::pallet,
         Randomness: pallet_randomness::pallet,
+        RandomnessGenerator: pallet_insecure_randomness_collective_flip,
     }
 );
 
@@ -78,7 +78,13 @@ impl pallet_balances::Config for Test {
     type AccountStore = System;
 }
 
-impl pallet_randomness::Config for Test {}
+impl pallet_insecure_randomness_collective_flip::Config for Test {}
+
+impl pallet_randomness::Config for Test {
+    type Generator = RandomnessGenerator;
+    type CleanupInterval = CleanupInterval;
+    type SeedAgeLimit = SeedAgeLimit;
+}
 
 impl pallet_market::Config for Test {
     type RuntimeEvent = RuntimeEvent;
@@ -118,10 +124,15 @@ parameter_types! {
     pub const MarketPalletId: PalletId = PalletId(*b"spMarket");
     pub const MinDealDuration: u64 = 2 * MINUTES;
     pub const MaxDealDuration: u64 = 30 * MINUTES;
+
+    // Randomness Pallet
+    pub const CleanupInterval: BlockNumber = 1;
+    pub const SeedAgeLimit: BlockNumber = 60 * MINUTES;
 }
 
 impl pallet_storage_provider::Config for Test {
     type RuntimeEvent = RuntimeEvent;
+    type Randomness = Randomness;
     type PeerId = BoundedVec<u8, ConstU32<32>>; // Max length of SHA256 hash
     type Currency = Balances;
     type Market = Market;
@@ -304,6 +315,7 @@ struct SectorPreCommitInfoBuilder {
     deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
     expiration: u64,
     unsealed_cid: BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>,
+    seal_randomness_height: u64,
 }
 
 impl Default for SectorPreCommitInfoBuilder {
@@ -330,6 +342,7 @@ impl Default for SectorPreCommitInfoBuilder {
             deal_ids: bounded_vec![0, 1],
             expiration: 120 * MINUTES,
             unsealed_cid,
+            seal_randomness_height: 1
         }
     }
 }
@@ -356,6 +369,11 @@ impl SectorPreCommitInfoBuilder {
         self
     }
 
+    pub fn seal_randomness_height(mut self, seal_randomness_height: u64) -> Self {
+        self.seal_randomness_height = seal_randomness_height;
+        self
+    }
+
     pub fn build(self) -> SectorPreCommitInfo<u64> {
         SectorPreCommitInfo {
             seal_proof: self.seal_proof,
@@ -364,6 +382,7 @@ impl SectorPreCommitInfoBuilder {
             deal_ids: self.deal_ids,
             expiration: self.expiration,
             unsealed_cid: self.unsealed_cid,
+            seal_randomness_height: self.seal_randomness_height
         }
     }
 }

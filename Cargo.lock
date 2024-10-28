@@ -8738,6 +8738,7 @@ dependencies = [
  "pallet-insecure-randomness-collective-flip",
  "pallet-market",
  "pallet-proofs",
+ "pallet-randomness",
  "parity-scale-codec",
  "primitives-commitment",
  "primitives-proofs",
