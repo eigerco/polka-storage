@@ -19,6 +19,8 @@ cid = { workspace = true, features = ["alloc"] }
 codec = { workspace = true, default-features = false, features = ["derive"] }
 log = { workspace = true, features = ["kv"] }
 pallet-insecure-randomness-collective-flip = { workspace = true, default-features = false }
+pallet-proofs = { workspace = true, default-features = false }
+pallet-randomness = { workspace = true, default-features = false }
 primitives-commitment = { workspace = true }
 primitives-proofs = { workspace = true, default-features = false }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
@@ -36,8 +38,6 @@ env_logger = { workspace = true }
 multihash-codetable = { workspace = true, features = ["blake2b"] }
 pallet-balances = { workspace = true, default-features = false }
 pallet-market = { workspace = true, default-features = false }
-pallet-proofs = { workspace = true, default-features = false }
-pallet-randomness = { workspace = true, default-features = false }
 rstest = { workspace = true }
 sp-io = { workspace = true }
 

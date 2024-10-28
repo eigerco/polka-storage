@@ -379,6 +379,7 @@ fn fault_declaration_past_cutoff_should_fail() {
     });
 }
 
+// This setup function is used to create a storage provider with one sector.
 pub(crate) fn setup_sp_with_one_sector(storage_provider: &str, storage_client: &str) {
     // Register storage provider
     register_storage_provider(account(storage_provider));
@@ -419,6 +420,8 @@ pub(crate) fn setup_sp_with_one_sector(storage_provider: &str, storage_client: &
         RuntimeOrigin::signed(account(storage_provider)),
         bounded_vec![sector.clone()]
     ));
+
+    run_to_block(2);
 
     // Prove commit sector
     let sector = ProveCommitSector {

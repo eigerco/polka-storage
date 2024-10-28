@@ -12,7 +12,7 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use pallet_market::{BalanceOf, ClientDealProposal, DealProposal, DealState};
 use primitives_commitment::{Commitment, CommitmentKind};
 use primitives_proofs::{
-    DealId, RegisteredPoStProof, RegisteredSealProof, SectorNumber, CID_SIZE_IN_BYTES,
+    DealId, Randomness, RegisteredPoStProof, RegisteredSealProof, SectorNumber, CID_SIZE_IN_BYTES,
     MAX_DEALS_PER_SECTOR, MAX_TERMINATIONS_PER_CALL,
 };
 use sp_core::{bounded_vec, Pair};
@@ -56,8 +56,6 @@ frame_support::construct_runtime!(
         StorageProvider: pallet_storage_provider::pallet,
         Market: pallet_market,
         Proofs: pallet_proofs::pallet,
-        Randomness: pallet_randomness::pallet,
-        RandomnessGenerator: pallet_insecure_randomness_collective_flip,
     }
 );
 
@@ -78,12 +76,12 @@ impl pallet_balances::Config for Test {
     type AccountStore = System;
 }
 
-impl pallet_insecure_randomness_collective_flip::Config for Test {}
-
-impl pallet_randomness::Config for Test {
-    type Generator = RandomnessGenerator;
-    type CleanupInterval = CleanupInterval;
-    type SeedAgeLimit = SeedAgeLimit;
+/// Randomness generator used by tests.
+pub struct DummyRandomnessGenerator;
+impl<BlockNumber> Randomness<BlockNumber> for DummyRandomnessGenerator {
+    fn get_randomness(_: BlockNumber) -> Result<[u8; 32], sp_runtime::DispatchError> {
+        Ok([0; 32])
+    }
 }
 
 impl pallet_market::Config for Test {
@@ -132,7 +130,7 @@ parameter_types! {
 
 impl pallet_storage_provider::Config for Test {
     type RuntimeEvent = RuntimeEvent;
-    type Randomness = Randomness;
+    type Randomness = DummyRandomnessGenerator;
     type PeerId = BoundedVec<u8, ConstU32<32>>; // Max length of SHA256 hash
     type Currency = Balances;
     type Market = Market;
@@ -241,7 +239,6 @@ pub fn run_to_block(n: u64) {
 
         System::set_block_number(System::block_number() + 1);
         System::on_initialize(System::block_number());
-        Randomness::on_initialize(System::block_number());
         Market::on_initialize(System::block_number());
         StorageProvider::on_initialize(System::block_number());
     }
@@ -327,9 +324,8 @@ impl Default for SectorPreCommitInfoBuilder {
                 .try_into()
                 .expect("hash is always 32 bytes");
 
-        // TODO: This cid is not correct and it's only used as a place holder for the correct one
         let sealed_cid =
-            Cid::from_str("baga6ea4seaqgi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5i")
+            Cid::from_str("bagboea4b5abcamxmh7exq7vrvacvajooeapagr3a4g3tpjhw73iny47hvafw76gr")
                 .unwrap()
                 .to_bytes()
                 .try_into()
@@ -342,7 +338,7 @@ impl Default for SectorPreCommitInfoBuilder {
             deal_ids: bounded_vec![0, 1],
             expiration: 120 * MINUTES,
             unsealed_cid,
-            seal_randomness_height: 1
+            seal_randomness_height: 1,
         }
     }
 }
@@ -382,7 +378,7 @@ impl SectorPreCommitInfoBuilder {
             deal_ids: self.deal_ids,
             expiration: self.expiration,
             unsealed_cid: self.unsealed_cid,
-            seal_randomness_height: self.seal_randomness_height
+            seal_randomness_height: self.seal_randomness_height,
         }
     }
 }

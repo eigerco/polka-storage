@@ -137,6 +137,9 @@ fn successfully_prove_multiple_sectors() {
         // Remove any events that were triggered until now.
         System::reset_events();
 
+        // Run to the block where we can prove commit the sector.
+        run_to_block(System::block_number() + 2);
+
         // Create 6 prove commits and the expected result
         let mut sectors: BoundedVec<ProveCommitSector, ConstU32<MAX_SECTORS_PER_CALL>> =
             bounded_vec![];

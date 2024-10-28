@@ -6,7 +6,7 @@ use frame_support::{
     PalletId,
 };
 use frame_system::{self as system, pallet_prelude::BlockNumberFor};
-use primitives_proofs::RegisteredPoStProof;
+use primitives_proofs::{Randomness, RegisteredPoStProof};
 use sp_core::Pair;
 use sp_runtime::{
     traits::{ConstU32, ConstU64, IdentifyAccount, IdentityLookup, Verify},
@@ -29,8 +29,6 @@ frame_support::construct_runtime!(
         StorageProvider: pallet_storage_provider::pallet,
         Market: pallet_market,
         Proofs: pallet_proofs::pallet,
-        Randomness: pallet_randomness::pallet,
-        RandomnessGenerator: pallet_insecure_randomness_collective_flip,
     }
 );
 
@@ -90,17 +88,17 @@ impl crate::Config for Test {
     type MaxDealsPerBlock = ConstU32<32>;
 }
 
-impl pallet_insecure_randomness_collective_flip::Config for Test {}
-
-impl pallet_randomness::Config for Test {
-    type Generator = RandomnessGenerator;
-    type CleanupInterval = CleanupInterval;
-    type SeedAgeLimit = SeedAgeLimit;
+/// Randomness generator used by tests.
+pub struct DummyRandomnessGenerator;
+impl<BlockNumber> Randomness<BlockNumber> for DummyRandomnessGenerator {
+    fn get_randomness(_: BlockNumber) -> Result<[u8; 32], sp_runtime::DispatchError> {
+        Ok([0; 32])
+    }
 }
 
 impl pallet_storage_provider::Config for Test {
     type RuntimeEvent = RuntimeEvent;
-    type Randomness = Randomness;
+    type Randomness = DummyRandomnessGenerator;
     type PeerId = BoundedVec<u8, ConstU32<32>>; // Max length of SHA256 hash
     type Currency = Balances;
     type Market = Market;
@@ -210,7 +208,6 @@ pub fn run_to_block(n: u64) {
 
         System::set_block_number(System::block_number() + 1);
         System::on_initialize(System::block_number());
-        Randomness::on_initialize(System::block_number());
         Market::on_initialize(System::block_number());
         StorageProvider::on_initialize(System::block_number());
     }
