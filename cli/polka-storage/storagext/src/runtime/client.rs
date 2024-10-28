@@ -2,54 +2,37 @@ use std::{sync::Arc, time::Duration, vec::Vec};
 
 use hex::ToHex;
 use subxt::{
-    ext::subxt_core::error::{CustomError, Error as SxtCoreError, ExtrinsicParamsError},
-    utils::AccountId32,
+    blocks::ExtrinsicEvents,
+    error::BlockError,
+    ext::subxt_core::error::{CustomError, ExtrinsicParamsError},
     OnlineClient,
 };
-use tokio::{select, sync::RwLock};
+use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
-use crate::{
-    runtime::{market::events as MarketEvents, storage_provider::events as SpEvents},
-    PolkaStorageConfig,
-};
+use crate::PolkaStorageConfig;
 
 type HashOf<C> = <C as subxt::Config>::Hash;
 pub type HashOfPsc = HashOf<PolkaStorageConfig>;
 
-type ParaEvents<C> = Arc<RwLock<Vec<(u64, HashOf<C>, subxt::events::EventDetails<C>)>>>;
+type ParaEvents<C> = Arc<RwLock<Vec<(HashOf<C>, ExtrinsicEvents<C>)>>>;
 type ParaErrors = Arc<RwLock<Vec<Box<dyn CustomError>>>>;
 
-/// Helper type for [`Client::traced_submission`] successful results.
+/// This definition defines one single, successful event of an extrinsic execution. For example,
+/// one published deal, or one settled deal.
 #[derive(Debug)]
-pub struct SubmissionResult<Hash, Event> {
+pub struct ExtrinsicEvent<Hash, Event, Variant> {
     /// Submission block hash.
-    pub hash: Vec<Hash>,
-    /// Resulting extrinsic's events.
-    pub event: Vec<Event>,
+    pub hash: Hash,
+    /// Resulting extrinsic's event.
+    pub event: Event,
+    /// Resulting extrinsic's event-variant.
+    pub variant: Variant,
 }
 
-impl<Hash, Event> SubmissionResult<Hash, Event> {
-    /// New type pattern with empty vectors.
-    pub fn new() -> Self {
-        Self {
-            hash: Vec::new(),
-            event: Vec::new(),
-        }
-    }
-
-    // Like any len() method.
-    pub fn len(&self) -> usize {
-        debug_assert_eq!(self.hash.len(), self.event.len());
-        self.hash.len()
-    }
-}
-
-impl<Hash, Event> Default for SubmissionResult<Hash, Event> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+/// Helper type for [`Client::traced_submission`] successful results.
+pub type SubmissionResult<Hash, Event, Variant> =
+    Result<Vec<ExtrinsicEvent<Hash, Event, Variant>>, Box<dyn CustomError>>;
 
 /// Client to interact with a pallet extrinsics.
 /// You can call any extrinsic via [`Client::traced_submission`].
@@ -100,22 +83,21 @@ impl Client {
     ///
     /// Equivalent to performing [`OnlineClient::sign_and_submit_then_watch_default`],
     /// followed by [`TxInBlock::wait_for_finalized`] and [`TxInBlock::wait_for_success`].
-    pub(crate) async fn traced_submission<Call, Keypair, Event>(
+    pub(crate) async fn traced_submission<Call, Keypair, Event, Variant>(
         &self,
         call: &Call,
         account_keypair: &Keypair,
         wait_for_finalization: bool,
-        n_events: usize,
-    ) -> Result<Option<SubmissionResult<HashOfPsc, Event>>, subxt::Error>
+        expected_results: usize,
+    ) -> Result<Option<SubmissionResult<HashOfPsc, Event, Variant>>, subxt::Error>
     where
         Call: subxt::tx::Payload + std::fmt::Debug,
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
-        Event: subxt::events::StaticEvent + std::fmt::Debug,
-        EventFilterProvider: EventFilterType<Event>,
+        Event: scale_decode::DecodeAsType + std::fmt::Display,
+        Variant: subxt::events::StaticEvent,
     {
         let para_events: ParaEvents<PolkaStorageConfig> = Arc::new(RwLock::new(Vec::new()));
         let para_errors: ParaErrors = Arc::new(RwLock::new(Vec::new()));
-        let account_id = AccountId32::from(account_keypair.account_id());
         let cancel_token = CancellationToken::new();
 
         let p_api = self.client.clone();
@@ -141,22 +123,17 @@ impl Client {
         if !wait_for_finalization {
             return Ok(None);
         }
+        let extrinsic_hash = submission_progress.extrinsic_hash();
         tracing::trace!(
-            extrinsic_hash = submission_progress.extrinsic_hash().encode_hex::<String>(),
-            "waiting for finalization"
+            "waiting for finalization {}",
+            extrinsic_hash.encode_hex::<String>(),
         );
 
-        static EVENT_META_PROVIDER: EventFilterProvider = EventFilterProvider;
-        let submission_result = wait_for_para_event::<PolkaStorageConfig, Event>(
+        let submission_result = wait_for_para_event::<PolkaStorageConfig, Event, Variant>(
             para_events.clone(),
             para_errors.clone(),
-            <EventFilterProvider as EventFilterType<Event>>::pallet_name(&EVENT_META_PROVIDER),
-            <EventFilterProvider as EventFilterType<Event>>::event_name(&EVENT_META_PROVIDER),
-            <EventFilterProvider as EventFilterType<Event>>::filter_fn(
-                &EVENT_META_PROVIDER,
-                account_id,
-            ),
-            n_events,
+            extrinsic_hash,
+            expected_results,
         )
         .await?;
         cancel_token.cancel();
@@ -177,54 +154,56 @@ impl From<OnlineClient<PolkaStorageConfig>> for Client {
 /// Methods iterates through the given stack of collected events from the listener and compares for
 /// a given expected event type, for example `pallet_market::Event::BalanceAdded`. If the event has
 /// been found it will be returned.
-async fn wait_for_para_event<C, E>(
-    events: ParaEvents<C>,
-    _errors: ParaErrors,
-    pallet: &'static str,
-    variant: &'static str,
-    predicate: impl Fn(&E) -> bool,
-    n_events: usize,
-) -> Result<SubmissionResult<HashOf<C>, E>, subxt::Error>
+async fn wait_for_para_event<C, E, V>(
+    event_stack: ParaEvents<C>,
+    _error_stack: ParaErrors,
+    extrinsic_hash: HashOf<C>,
+    expected_results: usize,
+) -> Result<SubmissionResult<HashOf<C>, E, V>, subxt::Error>
 where
     C: subxt::Config + Clone + std::fmt::Debug,
-    E: subxt::events::StaticEvent + std::fmt::Debug,
+    E: scale_decode::DecodeAsType + std::fmt::Display,
+    V: subxt::events::StaticEvent,
 {
-    let mut result = SubmissionResult::<HashOf<C>, E>::new();
+    let mut catched_events = Vec::<ExtrinsicEvent<HashOf<C>, E, V>>::new();
 
     loop {
         // Check for new events from a finalised block.
-        let mut events = events.write().await;
-        if let Some(entry) = events
-            .iter()
-            .find(|&e| e.2.pallet_name() == pallet && e.2.variant_name() == variant)
-        {
-            let event_variant = entry
-                .2
-                .as_event::<E>()
-                .map_err(|e| subxt::Error::Other(format!("{entry:?}: {e:?}")))?
-                .ok_or(subxt::Error::Other(format!(
-                    "{entry:?}: inner Option::None"
-                )))?;
-            if !predicate(&event_variant) {
-                continue;
-            }
-            let entry = entry.clone();
-            events.retain(|e| e.0 > entry.0);
-            tracing::trace!(
-                "Found related event {}::{} on block {}",
-                pallet,
-                variant,
-                entry.0
-            );
-            result.hash.push(entry.1);
-            result.event.push(event_variant);
-            if result.len() == n_events {
-                return Ok(result);
+        let mut events_lock = event_stack.write().await;
+        while let Some((hash, ex_events)) = events_lock.pop() {
+            if ex_events.extrinsic_hash() == extrinsic_hash {
+                // Currently, it is assumed only one event to be contained, because only one event
+                // will be emitted in case of a successful extrinsoc.
+                if let Some(entry) = ex_events.iter().find(|_| true) {
+                    let entry = entry?;
+                    let event = entry
+                        .as_root_event::<E>()
+                        .map_err(|e| subxt::Error::Other(format!("{entry:?}: {e:?}")))?;
+                    let variant = entry
+                        .as_event::<V>()
+                        .map_err(|e| subxt::Error::Other(format!("{entry:?}: {e:?}")))?
+                        .ok_or(subxt::Error::Other(format!(
+                            "{entry:?}: inner option error"
+                        )))?;
+                    tracing::trace!(
+                        "Found related event to extrinsic with hash {:?}",
+                        extrinsic_hash
+                    );
+                    catched_events.push(ExtrinsicEvent::<HashOf<C>, E, V> {
+                        hash,
+                        event,
+                        variant,
+                    });
+                    if catched_events.len() == expected_results {
+                        return Ok(Ok(catched_events));
+                    }
+                }
             }
         }
-        drop(events);
+        drop(events_lock);
 
         // Check for new collected custom errors (extrinsic errors).
+        // Check if one error is sufficient for compound exeuctions (i.e. multiple sectors).
         // TODO(@neutrinoks,25.10.24): Implement error filtering and test it.
         // let mut errors = errors.write().await;
         // while let Some(error) = errors.pop() {
@@ -255,7 +234,7 @@ where
     let mut blocks_sub = api.blocks().subscribe_finalized().await?;
 
     loop {
-        let block = select! {
+        let block = tokio::select! {
             _ = token.cancelled() => {
                 break
             }
@@ -263,23 +242,21 @@ where
                 if let Some(block) = block {
                     block?
                 } else {
-                    continue
+                    return Err(subxt::Error::Block(BlockError::NotFound("blocks_sub::next() returned None".to_string())))
                 }
             }
         };
 
-        let hash = block.hash();
+        let block_hash = block.hash();
 
-        for event in block.events().await?.iter() {
-            match event {
-                Ok(event) => {
-                    events
-                        .write()
-                        .await
-                        .push((block.number().into(), hash, event.clone()));
+        for extrinsic in block.extrinsics().await?.iter() {
+            match extrinsic {
+                Ok(extrinsic) => {
+                    let ex_events = extrinsic.events().await?;
+                    events.write().await.push((block_hash, ex_events));
                 }
                 Err(error) => {
-                    if let SxtCoreError::ExtrinsicParams(ExtrinsicParamsError::Custom(
+                    if let subxt::Error::ExtrinsicParams(ExtrinsicParamsError::Custom(
                         boxed_custom_err,
                     )) = error
                     {
@@ -292,93 +269,4 @@ where
 
     tracing::trace!("stopped event-listener");
     Ok(())
-}
-
-// TODO(@neutrinoks,25.10.24): Check whether we can search for that event/extrinsic by comparing
-// the hash or bytes instead, to avoid all the following definitions.
-/// There is `subxt::events::StaticEvent` which provides the pallet's name and its event's name. On
-/// top we need individualized filter methods to check whether the event in focus is exactly ours
-/// (consider a situation with multiple events of same type but from different users). This trait
-/// extends the existing `StaticEvent` by that filter function which can be specified here
-/// individually to adapt to polka-storage needs.
-pub trait EventFilterType<Event: subxt::events::StaticEvent> {
-    fn pallet_name(&self) -> &str {
-        <Event as subxt::events::StaticEvent>::PALLET
-    }
-
-    fn event_name(&self) -> &str {
-        <Event as subxt::events::StaticEvent>::EVENT
-    }
-
-    fn filter_fn(&self, acc: AccountId32) -> impl Fn(&Event) -> bool;
-}
-
-/// A default implementation of `EventFilterType` that implements every `Event` variant in
-/// polka-storage.
-pub struct EventFilterProvider;
-
-impl EventFilterType<MarketEvents::BalanceAdded> for EventFilterProvider {
-    fn filter_fn(&self, acc: AccountId32) -> impl Fn(&MarketEvents::BalanceAdded) -> bool {
-        move |e: &MarketEvents::BalanceAdded| e.who == acc
-    }
-}
-
-impl EventFilterType<MarketEvents::BalanceWithdrawn> for EventFilterProvider {
-    fn filter_fn(&self, acc: AccountId32) -> impl Fn(&MarketEvents::BalanceWithdrawn) -> bool {
-        move |e: &MarketEvents::BalanceWithdrawn| e.who == acc
-    }
-}
-
-impl EventFilterType<MarketEvents::DealsSettled> for EventFilterProvider {
-    fn filter_fn(&self, _: AccountId32) -> impl Fn(&MarketEvents::DealsSettled) -> bool {
-        move |_: &MarketEvents::DealsSettled| true
-    }
-}
-
-impl EventFilterType<MarketEvents::DealPublished> for EventFilterProvider {
-    fn filter_fn(&self, _: AccountId32) -> impl Fn(&MarketEvents::DealPublished) -> bool {
-        move |_: &MarketEvents::DealPublished| true
-    }
-}
-
-impl EventFilterType<SpEvents::StorageProviderRegistered> for EventFilterProvider {
-    fn filter_fn(&self, acc: AccountId32) -> impl Fn(&SpEvents::StorageProviderRegistered) -> bool {
-        move |e: &SpEvents::StorageProviderRegistered| e.owner == acc
-    }
-}
-
-impl EventFilterType<SpEvents::SectorsPreCommitted> for EventFilterProvider {
-    fn filter_fn(&self, acc: AccountId32) -> impl Fn(&SpEvents::SectorsPreCommitted) -> bool {
-        move |e: &SpEvents::SectorsPreCommitted| e.owner == acc
-    }
-}
-
-impl EventFilterType<SpEvents::SectorsProven> for EventFilterProvider {
-    fn filter_fn(&self, acc: AccountId32) -> impl Fn(&SpEvents::SectorsProven) -> bool {
-        move |e: &SpEvents::SectorsProven| e.owner == acc
-    }
-}
-
-impl EventFilterType<SpEvents::ValidPoStSubmitted> for EventFilterProvider {
-    fn filter_fn(&self, acc: AccountId32) -> impl Fn(&SpEvents::ValidPoStSubmitted) -> bool {
-        move |e: &SpEvents::ValidPoStSubmitted| e.owner == acc
-    }
-}
-
-impl EventFilterType<SpEvents::FaultsDeclared> for EventFilterProvider {
-    fn filter_fn(&self, acc: AccountId32) -> impl Fn(&SpEvents::FaultsDeclared) -> bool {
-        move |e: &SpEvents::FaultsDeclared| e.owner == acc
-    }
-}
-
-impl EventFilterType<SpEvents::FaultsRecovered> for EventFilterProvider {
-    fn filter_fn(&self, acc: AccountId32) -> impl Fn(&SpEvents::FaultsRecovered) -> bool {
-        move |e: &SpEvents::FaultsRecovered| e.owner == acc
-    }
-}
-
-impl EventFilterType<SpEvents::SectorsTerminated> for EventFilterProvider {
-    fn filter_fn(&self, acc: AccountId32) -> impl Fn(&SpEvents::SectorsTerminated) -> bool {
-        move |e: &SpEvents::SectorsTerminated| e.owner == acc
-    }
 }

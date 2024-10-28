@@ -7,7 +7,8 @@ use storagext::{
     multipair::MultiPairSigner,
     runtime::{
         runtime_types::pallet_storage_provider::sector::ProveCommitSector as RuntimeProveCommitSector,
-        storage_provider::events as SpEvents, HashOfPsc, SubmissionResult,
+        storage_provider::{events as SpEvents, Event as SpEvent},
+        HashOfPsc, SubmissionResult,
     },
     types::storage_provider::{
         FaultDeclaration as SxtFaultDeclaration, ProveCommitSector as SxtProveCommitSector,
@@ -22,6 +23,25 @@ use url::Url;
 
 use super::display_submission_result;
 use crate::{missing_keypair_error, operation_takes_a_while, OutputFormat};
+
+macro_rules! trace_submission_result {
+    ($submission_result:expr, $format:expr $(,$par1:expr)*) => (
+        if let Some(result) = $submission_result {
+            if let Ok(events) = result {
+                tracing::debug!(
+                    $format,
+                    events[0].hash,
+                    $($par1),*
+                );
+                Ok(Some(Ok(events)))
+            } else {
+                Ok(Some(result))
+            }
+        } else {
+            Ok(None)
+        }
+    )
+}
 
 fn parse_post_proof(src: &str) -> Result<RegisteredPoStProof, String> {
     match src {
@@ -155,7 +175,9 @@ impl StorageProviderCommand {
     where
         Client: StorageProviderClientExt,
     {
-        operation_takes_a_while();
+        if wait_for_finalization {
+            operation_takes_a_while();
+        }
 
         match self {
             StorageProviderCommand::RegisterStorageProvider {
@@ -170,7 +192,7 @@ impl StorageProviderCommand {
                     wait_for_finalization,
                 )
                 .await?;
-                display_submission_result::<_>(opt_result, output_format)?;
+                display_submission_result::<_, _>(opt_result, output_format)?;
             }
             StorageProviderCommand::PreCommit { pre_commit_sectors } => {
                 let opt_result = Self::pre_commit(
@@ -180,7 +202,7 @@ impl StorageProviderCommand {
                     wait_for_finalization,
                 )
                 .await?;
-                display_submission_result::<_>(opt_result, output_format)?;
+                display_submission_result::<_, _>(opt_result, output_format)?;
             }
             StorageProviderCommand::ProveCommit {
                 prove_commit_sectors,
@@ -192,7 +214,7 @@ impl StorageProviderCommand {
                     wait_for_finalization,
                 )
                 .await?;
-                display_submission_result::<_>(opt_result, output_format)?;
+                display_submission_result::<_, _>(opt_result, output_format)?;
             }
             StorageProviderCommand::SubmitWindowedProofOfSpaceTime { windowed_post } => {
                 let opt_result = Self::submit_windowed_post(
@@ -202,13 +224,13 @@ impl StorageProviderCommand {
                     wait_for_finalization,
                 )
                 .await?;
-                display_submission_result::<_>(opt_result, output_format)?;
+                display_submission_result::<_, _>(opt_result, output_format)?;
             }
             StorageProviderCommand::DeclareFaults { faults } => {
                 let opt_result =
                     Self::declare_faults(client, account_keypair, faults, wait_for_finalization)
                         .await?;
-                display_submission_result::<_>(opt_result, output_format)?;
+                display_submission_result::<_, _>(opt_result, output_format)?;
             }
             StorageProviderCommand::DeclareFaultsRecovered { recoveries } => {
                 let opt_result = Self::declare_faults_recovered(
@@ -218,7 +240,7 @@ impl StorageProviderCommand {
                     wait_for_finalization,
                 )
                 .await?;
-                display_submission_result::<_>(opt_result, output_format)?;
+                display_submission_result::<_, _>(opt_result, output_format)?;
             }
             StorageProviderCommand::TerminateSectors { terminations } => {
                 let opt_result = Self::terminate_sectors(
@@ -228,7 +250,7 @@ impl StorageProviderCommand {
                     wait_for_finalization,
                 )
                 .await?;
-                display_submission_result::<_>(opt_result, output_format)?;
+                display_submission_result::<_, _>(opt_result, output_format)?;
             }
             _unsigned => unreachable!("unsigned commands should have been previously handled"),
         }
@@ -243,7 +265,7 @@ impl StorageProviderCommand {
         post_proof: RegisteredPoStProof,
         wait_for_finalization: bool,
     ) -> Result<
-        Option<SubmissionResult<HashOfPsc, SpEvents::StorageProviderRegistered>>,
+        Option<SubmissionResult<HashOfPsc, SpEvent, SpEvents::StorageProviderRegistered>>,
         subxt::Error,
     >
     where
@@ -257,17 +279,12 @@ impl StorageProviderCommand {
                 wait_for_finalization,
             )
             .await?;
-        if let Some(result) = submission_result {
-            tracing::debug!(
-                "[{}] Successfully registered {}, seal: {:?} in Storage Provider Pallet",
-                result.hash[0],
-                peer_id,
-                post_proof
-            );
-            Ok(Some(result))
-        } else {
-            Ok(None)
-        }
+        trace_submission_result!(
+            submission_result,
+            "[{}] Successfully registered {}, seal: {:?} in Storage Provider Pallet",
+            peer_id,
+            post_proof
+        )
     }
 
     async fn pre_commit<Client>(
@@ -275,7 +292,10 @@ impl StorageProviderCommand {
         account_keypair: MultiPairSigner,
         pre_commit_sectors: Vec<SxtSectorPreCommitInfo>,
         wait_for_finalization: bool,
-    ) -> Result<Option<SubmissionResult<HashOfPsc, SpEvents::SectorsPreCommitted>>, subxt::Error>
+    ) -> Result<
+        Option<SubmissionResult<HashOfPsc, SpEvent, SpEvents::SectorsPreCommitted>>,
+        subxt::Error,
+    >
     where
         Client: StorageProviderClientExt,
     {
@@ -288,16 +308,11 @@ impl StorageProviderCommand {
         let submission_result = client
             .pre_commit_sectors(&account_keypair, pre_commit_sectors, wait_for_finalization)
             .await?;
-        if let Some(result) = submission_result {
-            tracing::debug!(
-                "[{}] Successfully pre-commited sectors {:?}.",
-                result.hash[0],
-                sector_numbers
-            );
-            Ok(Some(result))
-        } else {
-            Ok(None)
-        }
+        trace_submission_result!(
+            submission_result,
+            "[{}] Successfully pre-commited sectors {:?}.",
+            sector_numbers
+        )
     }
 
     async fn prove_commit<Client>(
@@ -305,7 +320,7 @@ impl StorageProviderCommand {
         account_keypair: MultiPairSigner,
         prove_commit_sectors: Vec<SxtProveCommitSector>,
         wait_for_finalization: bool,
-    ) -> Result<Option<SubmissionResult<HashOfPsc, SpEvents::SectorsProven>>, subxt::Error>
+    ) -> Result<Option<SubmissionResult<HashOfPsc, SpEvent, SpEvents::SectorsProven>>, subxt::Error>
     where
         Client: StorageProviderClientExt,
     {
@@ -326,16 +341,11 @@ impl StorageProviderCommand {
                 wait_for_finalization,
             )
             .await?;
-        if let Some(result) = submission_result {
-            tracing::debug!(
-                "[{}] Successfully proven sector {:?}.",
-                result.hash[0],
-                sector_numbers
-            );
-            Ok(Some(result))
-        } else {
-            Ok(None)
-        }
+        trace_submission_result!(
+            submission_result,
+            "[{}] Successfully proven sector {:?}.",
+            sector_numbers
+        )
     }
 
     async fn submit_windowed_post<Client>(
@@ -343,7 +353,10 @@ impl StorageProviderCommand {
         account_keypair: MultiPairSigner,
         windowed_post: SxtSubmitWindowedPoStParams,
         wait_for_finalization: bool,
-    ) -> Result<Option<SubmissionResult<HashOfPsc, SpEvents::ValidPoStSubmitted>>, subxt::Error>
+    ) -> Result<
+        Option<SubmissionResult<HashOfPsc, SpEvent, SpEvents::ValidPoStSubmitted>>,
+        subxt::Error,
+    >
     where
         Client: StorageProviderClientExt,
     {
@@ -354,12 +367,7 @@ impl StorageProviderCommand {
                 wait_for_finalization,
             )
             .await?;
-        if let Some(result) = submission_result {
-            tracing::debug!("[{}] Successfully submitted proof.", result.hash[0]);
-            Ok(Some(result))
-        } else {
-            Ok(None)
-        }
+        trace_submission_result!(submission_result, "[{}] Successfully submitted proof.")
     }
 
     async fn declare_faults<Client>(
@@ -367,23 +375,19 @@ impl StorageProviderCommand {
         account_keypair: MultiPairSigner,
         faults: Vec<SxtFaultDeclaration>,
         wait_for_finalization: bool,
-    ) -> Result<Option<SubmissionResult<HashOfPsc, SpEvents::FaultsDeclared>>, subxt::Error>
+    ) -> Result<Option<SubmissionResult<HashOfPsc, SpEvent, SpEvents::FaultsDeclared>>, subxt::Error>
     where
         Client: StorageProviderClientExt,
     {
+        let n_faults = faults.len();
         let submission_result = client
             .declare_faults(&account_keypair, faults, wait_for_finalization)
             .await?;
-        if let Some(result) = submission_result {
-            tracing::debug!(
-                "[{}] Successfully declared {} faults.",
-                result.hash[0],
-                result.len()
-            );
-            Ok(Some(result))
-        } else {
-            Ok(None)
-        }
+        trace_submission_result!(
+            submission_result,
+            "[{}] Successfully declared {} faults.",
+            n_faults
+        )
     }
 
     async fn declare_faults_recovered<Client>(
@@ -391,23 +395,19 @@ impl StorageProviderCommand {
         account_keypair: MultiPairSigner,
         recoveries: Vec<SxtRecoveryDeclaration>,
         wait_for_finalization: bool,
-    ) -> Result<Option<SubmissionResult<HashOfPsc, SpEvents::FaultsRecovered>>, subxt::Error>
+    ) -> Result<Option<SubmissionResult<HashOfPsc, SpEvent, SpEvents::FaultsRecovered>>, subxt::Error>
     where
         Client: StorageProviderClientExt,
     {
+        let n_recoveries = recoveries.len();
         let submission_result = client
             .declare_faults_recovered(&account_keypair, recoveries, wait_for_finalization)
             .await?;
-        if let Some(result) = submission_result {
-            tracing::debug!(
-                "[{}] Successfully declared {} faults.",
-                result.hash[0],
-                result.len()
-            );
-            Ok(Some(result))
-        } else {
-            Ok(None)
-        }
+        trace_submission_result!(
+            submission_result,
+            "[{}] Successfully declared {} faults.",
+            n_recoveries
+        )
     }
 
     async fn terminate_sectors<Client>(
@@ -415,22 +415,21 @@ impl StorageProviderCommand {
         account_keypair: MultiPairSigner,
         terminations: Vec<SxtTerminationDeclaration>,
         wait_for_finalization: bool,
-    ) -> Result<Option<SubmissionResult<HashOfPsc, SpEvents::SectorsTerminated>>, subxt::Error>
+    ) -> Result<
+        Option<SubmissionResult<HashOfPsc, SpEvent, SpEvents::SectorsTerminated>>,
+        subxt::Error,
+    >
     where
         Client: StorageProviderClientExt,
     {
+        let n_terminations = terminations.len();
         let submission_result = client
             .terminate_sectors(&account_keypair, terminations, wait_for_finalization)
             .await?;
-        if let Some(result) = submission_result {
-            tracing::debug!(
-                "[{}] Successfully terminated {} sectors.",
-                result.hash[0],
-                result.len()
-            );
-            Ok(Some(result))
-        } else {
-            Ok(None)
-        }
+        trace_submission_result!(
+            submission_result,
+            "[{}] Successfully terminated {} sectors.",
+            n_terminations
+        )
     }
 }

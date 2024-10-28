@@ -7,7 +7,7 @@ use crate::{
     runtime::{
         self,
         client::{HashOfPsc, SubmissionResult},
-        market::events as MarketEvents,
+        market::{events as MktEvents, Event as MktEvent},
         runtime_types::pallet_market::pallet::{
             BalanceEntry, ClientDealProposal as RuntimeClientDealProposal,
         },
@@ -38,7 +38,7 @@ pub trait MarketClientExt {
         wait_for_finalization: bool,
     ) -> impl Future<
         Output = Result<
-            Option<SubmissionResult<HashOfPsc, MarketEvents::BalanceWithdrawn>>,
+            Option<SubmissionResult<HashOfPsc, MktEvent, MktEvents::BalanceWithdrawn>>,
             subxt::Error,
         >,
     >
@@ -53,7 +53,7 @@ pub trait MarketClientExt {
         wait_for_finalization: bool,
     ) -> impl Future<
         Output = Result<
-            Option<SubmissionResult<HashOfPsc, MarketEvents::BalanceAdded>>,
+            Option<SubmissionResult<HashOfPsc, MktEvent, MktEvents::BalanceAdded>>,
             subxt::Error,
         >,
     >
@@ -70,7 +70,7 @@ pub trait MarketClientExt {
         wait_for_finalization: bool,
     ) -> impl Future<
         Output = Result<
-            Option<SubmissionResult<HashOfPsc, MarketEvents::DealsSettled>>,
+            Option<SubmissionResult<HashOfPsc, MktEvent, MktEvents::DealsSettled>>,
             subxt::Error,
         >,
     >
@@ -88,7 +88,7 @@ pub trait MarketClientExt {
         wait_for_finalization: bool,
     ) -> impl Future<
         Output = Result<
-            Option<SubmissionResult<HashOfPsc, MarketEvents::DealPublished>>,
+            Option<SubmissionResult<HashOfPsc, MktEvent, MktEvents::DealPublished>>,
             subxt::Error,
         >,
     >
@@ -106,7 +106,7 @@ pub trait MarketClientExt {
         wait_for_finalization: bool,
     ) -> impl Future<
         Output = Result<
-            Option<SubmissionResult<HashOfPsc, MarketEvents::DealPublished>>,
+            Option<SubmissionResult<HashOfPsc, MktEvent, MktEvents::DealPublished>>,
             subxt::Error,
         >,
     >
@@ -134,7 +134,10 @@ impl MarketClientExt for crate::runtime::client::Client {
         account_keypair: &Keypair,
         amount: Currency,
         wait_for_finalization: bool,
-    ) -> Result<Option<SubmissionResult<HashOfPsc, MarketEvents::BalanceWithdrawn>>, subxt::Error>
+    ) -> Result<
+        Option<SubmissionResult<HashOfPsc, MktEvent, MktEvents::BalanceWithdrawn>>,
+        subxt::Error,
+    >
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
@@ -156,7 +159,7 @@ impl MarketClientExt for crate::runtime::client::Client {
         account_keypair: &Keypair,
         amount: Currency,
         wait_for_finalization: bool,
-    ) -> Result<Option<SubmissionResult<HashOfPsc, MarketEvents::BalanceAdded>>, subxt::Error>
+    ) -> Result<Option<SubmissionResult<HashOfPsc, MktEvent, MktEvents::BalanceAdded>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
@@ -178,15 +181,15 @@ impl MarketClientExt for crate::runtime::client::Client {
         account_keypair: &Keypair,
         mut deal_ids: Vec<DealId>,
         wait_for_finalization: bool,
-    ) -> Result<Option<SubmissionResult<HashOfPsc, MarketEvents::DealsSettled>>, subxt::Error>
+    ) -> Result<Option<SubmissionResult<HashOfPsc, MktEvent, MktEvents::DealsSettled>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
+        let n_deal_ids = deal_ids.len();
         if deal_ids.len() > MAX_N_DEALS {
             tracing::warn!("more than {} deal ids, truncating", MAX_N_DEALS);
             deal_ids.truncate(MAX_N_DEALS);
         }
-        let n_deal_ids = deal_ids.len();
         // `deal_ids` has been truncated to fit the proper bound, however,
         // the `BoundedVec` defined in the `runtime::runtime_types` is actually just a newtype
         // making the `BoundedVec` actually unbounded
@@ -214,17 +217,17 @@ impl MarketClientExt for crate::runtime::client::Client {
         client_keypair: &ClientKeypair,
         mut deals: Vec<DealProposal>,
         wait_for_finalization: bool,
-    ) -> Result<Option<SubmissionResult<HashOfPsc, MarketEvents::DealPublished>>, subxt::Error>
+    ) -> Result<Option<SubmissionResult<HashOfPsc, MktEvent, MktEvents::DealPublished>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
         ClientKeypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
+        let n_deals = deals.len();
         if deals.len() > MAX_N_DEALS {
             tracing::warn!("more than {} deals, truncating", MAX_N_DEALS);
             deals.truncate(MAX_N_DEALS);
         }
 
-        let n_deals = deals.len();
         let signed_deal_proposals = deals
             .into_iter()
             .map(|deal| deal.sign(client_keypair))
@@ -258,7 +261,7 @@ impl MarketClientExt for crate::runtime::client::Client {
         account_keypair: &Keypair,
         mut deals: Vec<ClientDealProposal>,
         wait_for_finalization: bool,
-    ) -> Result<Option<SubmissionResult<HashOfPsc, MarketEvents::DealPublished>>, subxt::Error>
+    ) -> Result<Option<SubmissionResult<HashOfPsc, MktEvent, MktEvents::DealPublished>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {

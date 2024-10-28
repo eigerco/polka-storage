@@ -108,15 +108,20 @@ impl StorageProviderRpcServer for RpcServerState {
             ));
         }
 
-        let result = self
+        let submission_result = self
             .xt_client
             .publish_signed_storage_deals(&self.xt_keypair, vec![deal], true)
             .await?
             .expect("requested to return submission-result");
+        let events = if let Ok(events) = submission_result {
+            events
+        } else {
+            return Err(RpcError::internal_error("pallet returned an error", None));
+        };
 
         // We currently just support a single deal and if there's no published deals,
         // an error MUST've happened
-        debug_assert_eq!(result.len(), 1);
+        debug_assert_eq!(events.len(), 1);
 
         let unsealed_dir = self.unsealed_piece_storage_dir.clone();
         let sealed_dir = self.sealed_piece_storage_dir.clone();
@@ -162,7 +167,7 @@ impl StorageProviderRpcServer for RpcServerState {
             tracing::info!("{:?}", precommit_result);
         });
 
-        Ok(result.event[0].deal_id)
+        Ok(events[0].variant.deal_id)
     }
 }
 
