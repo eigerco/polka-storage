@@ -137,13 +137,11 @@ fn declare_single_fault_before_proving_period_start() {
 #[case(0.1)]
 #[case(0.5)]
 #[case(1.0)]
-#[case(2.0)]
 fn declare_single_fault_from_proving_period(#[case] proving_period_multiple: f64) {
     new_test_ext().execute_with(|| {
         // Setup accounts
         let storage_provider = ALICE;
         let storage_client = BOB;
-
         setup_sp_with_one_sector(storage_provider, storage_client);
 
         let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();

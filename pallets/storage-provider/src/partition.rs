@@ -116,6 +116,13 @@ where
                 log::error!(target: LOG_TARGET, "add_sectors: Failed to add sectors");
                 GeneralPalletError::PartitionErrorFailedToAddSector
             })?;
+
+            self.unproven
+                .try_insert(sector.sector_number)
+                .map_err(|_| {
+                    log::error!(target: LOG_TARGET, "add_sectors: Failed to add unproven sectors");
+                    GeneralPalletError::PartitionErrorFailedToAddSector
+                })?;
         }
 
         Ok(())
@@ -140,7 +147,6 @@ where
         BlockNumber: sp_runtime::traits::BlockNumber,
     {
         log::debug!(target: LOG_TARGET, "record_faults: sector_number = {sector_numbers:?}");
-
         // Split declarations into declarations of new faults, and retraction of declared recoveries.
         // recoveries & sector_numbers
         let retracted_recoveries: BTreeSet<SectorNumber> = self
@@ -159,7 +165,6 @@ where
             })
             .copied()
             .collect();
-
         log::debug!(target: LOG_TARGET, "record_faults: new_faults = {new_faults:?}, amount = {:?}", new_faults.len());
         let new_fault_sectors: Vec<&SectorOnChainInfo<BlockNumber>> = sectors
             .iter()
@@ -204,7 +209,6 @@ where
                 log::error!(target: LOG_TARGET, e:?; "add_faults: Failed to add faults to the expirations");
                 GeneralPalletError::PartitionErrorFailedToAddFaults
             })?;
-
         // Update partition metadata
         let sector_numbers = sectors
             .iter()
@@ -512,7 +516,14 @@ where
             self.faults.remove(&sector_number);
         }
 
+        // Record the block of any sectors expiring early
+        self.record_early_terminations(until, &popped.early_sectors)?;
         Ok(popped)
+    }
+
+    /// Activates unproven sectors by clearing the unproven set
+    pub fn activate_unproven(&mut self) {
+        self.unproven.clear();
     }
 }
 
@@ -699,7 +710,7 @@ mod tests {
         assert_eq!(partition.recoveries.into_inner(), BTreeSet::from([4]));
         assert_eq!(partition.terminated.into_inner(), expected_terminations);
         assert_eq!(partition.sectors.into_inner(), expected_sectors);
-        assert_eq!(partition.unproven.into_inner(), BTreeSet::new());
+        assert_eq!(partition.unproven.into_inner(), BTreeSet::from([2]));
 
         Ok(())
     }
@@ -882,6 +893,9 @@ mod tests {
 
         // Add sectors to the partition
         partition.add_sectors(&sectors_to_add)?;
+
+        // Activate unproven sectors
+        partition.activate_unproven();
 
         // add one fault with early termination
         let fault_set = BoundedBTreeSet::try_from(BTreeSet::from([4])).unwrap();
