@@ -375,16 +375,39 @@ The Storage Provider Pallet actions can fail with the following errors:
 - `InvalidUnsealedCidForSector` - This error is emitted when the declared unsealed_cid for pre_commit is different from the one calculated by the system.
 - `FaultDeclarationTooLate` - A fault declaration was submitted after the fault declaration cutoff. The fault declaration can be submitted after the upcoming deadline is closed.
 - `FaultRecoveryTooLate` - A fault recovery was submitted after the fault recovery cutoff. The fault recovery can be submitted after the upcoming deadline is closed.
-- `DeadlineError` - An error was encountered in the deadline module. Please [report an issue](https://github.com/eigerco/polka-storage-book/issues/new) to the developers.
-- `PartitionError` - An error was encountered in the partition module. Please [report an issue](https://github.com/eigerco/polka-storage-book/issues/new) to the developers.
-- `StorageProviderError` - An error was encountered in the storage provider module. Please [report an issue](https://github.com/eigerco/polka-storage-book/issues/new) to the developers.
-- `SectorMapError` - An error was encountered in the sector map module. These errors can be:
-  - `FailedToInsertSector` - Internal bounds violation with Sectors. Please [report an issue](https://github.com/eigerco/polka-storage-book/issues/new) to the developers.
-  - `FailedToInsertPartition` - Internal bounds violation with partitions. Please [report an issue](https://github.com/eigerco/polka-storage-book/issues/new) to the developers.
-- `CouldNotActivateSector` - Failure during prove commit when trying to convert a previously pre-committed sector due to a programming error. Please [report an issue](https://github.com/eigerco/polka-storage-book/issues/new) to the developers.
+- `CouldNotTerminateDeals` - Emitted when trying to terminate sector deals fails.
+- `InvalidDeadlineSubmission` - Emitted when an error occurs when submitting PoSt.
 - `CouldNotVerifySectorForPreCommit` - Failure during pre-commit due to the [commd](../glossary.md#commitment-of-data) calculation failing due to a programming error. Please [report an issue](https://github.com/eigerco/polka-storage-book/issues/new) to the developers.
 - `SlashingFailed` - Slashing of funds fails due to a programmer error. Please [report an issue](https://github.com/eigerco/polka-storage-book/issues/new) to the developers.
 - `ConversionError` - Due to a programmer error. Please [report an issue](https://github.com/eigerco/polka-storage-book/issues/new) to the developers.
+- `GeneralPalletError` - An error ocurred in on of the pallet modules. These errors can be:
+  - `PartitionErrorFailedToAddSector` - Emitted when adding sectors fails.
+  - `PartitionErrorDuplicateSectorNumber` - Emitted when trying to add a sector number that has already been used in this partition.
+  - `PartitionErrorFailedToAddFaults` - Emitted when adding in the partition faults fails.
+  - `PartitionErrorSectorsNotLive` - Emitted when trying to remove sectors that are not live.
+  - `PartitionErrorFailedToRemoveRecoveries` - Emitted when removing recovering sectors from the partition fails.
+  - `PartitionErrorUnexpectedRecoveries` - Emitted when encountering unexpected recoveries while popping expired sectors.
+  - `PartitionErrorExpiredSectorsAlreadyTerminated` - Emitted when trying to pop expired sectors that are already terminated.
+  - `DeadlineErrorDeadlineIndexOutOfRange` - Emitted when the passed in deadline index supplied for `submit_windowed_post` is out of range.
+  - `DeadlineErrorDeadlineNotFound` - Emitted when a trying to get a deadline index but fails because that index does not exist.
+  - `DeadlineErrorCouldNotConstructDeadlineInfo` - Emitted when constructing `DeadlineInfo` fails.
+  - `DeadlineErrorPartitionAlreadyProven` - Emitted when a proof is submitted for a partition that is already proven.
+  - `DeadlineErrorPartitionNotFound` - Emitted when trying to retrieve a partition that does not exit.
+  - `DeadlineErrorProofUpdateFailed` - Emitted when trying to update proven partitions fails.
+  - `DeadlineErrorMaxPartitionsReached` - Emitted when max partition for a given deadline have been reached.
+  - `DeadlineErrorCouldNotAddSectors` - Emitted when trying to add sectors to a deadline fails.
+  - `DeadlineErrorSectorsNotFound` - Emitted when trying to use sectors which haven't been prove committed yet.
+  - `DeadlineErrorSectorsNotFaulty` - Emitted when trying to recover non-faulty sectors.
+  - `DeadlineErrorCouldNotAssignSectorsToDeadlines` - Emitted when assigning sectors to deadlines fails.
+  - `DeadlineErrorFailedToUpdateFaultExpiration` - Emitted when trying to update fault expirations fails
+  - `StorageProviderErrorMaxPreCommittedSectorExceeded` - Happens when an SP tries to pre-commit more sectors than SECTOR_MAX.
+  - `StorageProviderErrorSectorNotFound` - Happens when trying to access a sector that does not exist.
+  - `StorageProviderErrorSectorNumberInUse` - Happens when a sector number is already in use.
+  - `SectorMapErrorFailedToInsertSector` - Emitted when trying to insert sector(s) fails.
+  - `SectorMapErrorFailedToInsertPartition` - Emitted when trying to insert partition fails.
+  - `ExpirationQueueErrorExpirationSetNotFound` - Expiration set not found.
+  - `ExpirationQueueErrorSectorNotFound` - Sector not found in expiration set.
+  - `ExpirationQueueErrorInsertionFailed` - Insertion into the expiration queue failed.
 
 ## Pallet constants
 
