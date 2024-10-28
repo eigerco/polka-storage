@@ -147,8 +147,8 @@ pub fn zero_data_commitment(seal_proof: RegisteredSealProof) -> Commitment {
     let size = PaddedPieceSize::new(size).expect("sector size is a valid padded size");
 
     Commitment {
-        // Zero data commitment is same as zero piece comment of the same size.
-        // That is because we have only zero is the sector that iz zeroed out.
+        // Zero data commitment is the same as zero piece commitment of the same
+        // size.
         commitment: zero::zero_piece_commitment(size),
         kind: CommitmentKind::Data,
     }
