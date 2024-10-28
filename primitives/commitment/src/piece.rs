@@ -1,6 +1,8 @@
 use core::ops::{Add, AddAssign, Deref};
 
-use crate::{Commitment, CommitmentKind, NODE_SIZE};
+#[cfg(feature = "std")]
+use crate::CommitmentKind;
+use crate::{Commitment, NODE_SIZE};
 
 /// Piece info contains piece commitment and piece size.
 #[derive(Debug, Clone, Copy)]

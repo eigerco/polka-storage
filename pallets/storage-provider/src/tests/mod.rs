@@ -12,8 +12,8 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use pallet_market::{BalanceOf, ClientDealProposal, DealProposal, DealState};
 use primitives_commitment::{Commitment, CommitmentKind};
 use primitives_proofs::{
-    DealId, Randomness, RegisteredPoStProof, RegisteredSealProof, SectorNumber, CID_SIZE_IN_BYTES,
-    MAX_DEALS_PER_SECTOR, MAX_TERMINATIONS_PER_CALL,
+    DealId, ProofVerification, Randomness, RegisteredPoStProof, RegisteredSealProof, SectorNumber,
+    CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR, MAX_TERMINATIONS_PER_CALL,
 };
 use sp_core::{bounded_vec, Pair};
 use sp_runtime::{
@@ -55,7 +55,6 @@ frame_support::construct_runtime!(
         Balances: pallet_balances,
         StorageProvider: pallet_storage_provider::pallet,
         Market: pallet_market,
-        Proofs: pallet_proofs::pallet,
     }
 );
 
@@ -74,6 +73,35 @@ impl frame_system::Config for Test {
 #[derive_impl(pallet_balances::config_preludes::TestDefaultConfig)]
 impl pallet_balances::Config for Test {
     type AccountStore = System;
+}
+
+/// This is dummy proofs pallet implementation. All proofs are accepted as valid
+pub struct DummyProofsVerification;
+impl ProofVerification for DummyProofsVerification {
+    fn verify_porep(
+        _prover_id: primitives_proofs::ProverId,
+        _seal_proof: RegisteredSealProof,
+        _comm_r: primitives_proofs::RawCommitment,
+        _comm_d: primitives_proofs::RawCommitment,
+        _sector: SectorNumber,
+        _ticket: primitives_proofs::Ticket,
+        _seed: primitives_proofs::Ticket,
+        _proof: alloc::vec::Vec<u8>,
+    ) -> sp_runtime::DispatchResult {
+        Ok(())
+    }
+
+    fn verify_post(
+        _post_type: RegisteredPoStProof,
+        _randomness: primitives_proofs::Ticket,
+        _replicas: scale_info::prelude::collections::BTreeMap<
+            SectorNumber,
+            primitives_proofs::PublicReplicaInfo,
+        >,
+        _proof: alloc::vec::Vec<u8>,
+    ) -> sp_runtime::DispatchResult {
+        Ok(())
+    }
 }
 
 /// Randomness generator used by tests.
@@ -95,10 +123,6 @@ impl pallet_market::Config for Test {
     type MinDealDuration = MinDealDuration;
     type MaxDealDuration = MaxDealDuration;
     type MaxDealsPerBlock = ConstU32<500>;
-}
-
-impl pallet_proofs::Config for Test {
-    type RuntimeEvent = RuntimeEvent;
 }
 
 parameter_types! {
@@ -134,7 +158,7 @@ impl pallet_storage_provider::Config for Test {
     type PeerId = BoundedVec<u8, ConstU32<32>>; // Max length of SHA256 hash
     type Currency = Balances;
     type Market = Market;
-    type ProofVerificationPallet = Proofs;
+    type ProofVerificationPallet = DummyProofsVerification;
     type WPoStProvingPeriod = WpostProvingPeriod;
     type WPoStChallengeWindow = WpostChallengeWindow;
     type WPoStChallengeLookBack = WpostChallengeLookBack;

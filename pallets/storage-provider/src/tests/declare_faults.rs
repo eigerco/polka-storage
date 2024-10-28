@@ -421,7 +421,8 @@ pub(crate) fn setup_sp_with_one_sector(storage_provider: &str, storage_client: &
         bounded_vec![sector.clone()]
     ));
 
-    run_to_block(2);
+    // Run to the block where we can submit proof
+    run_to_block(3);
 
     // Prove commit sector
     let sector = ProveCommitSector {
@@ -539,6 +540,9 @@ pub(crate) fn setup_sp_with_many_sectors_multiple_partitions(
             RuntimeOrigin::signed(account(storage_provider)),
             bounded_vec![sector.clone()]
         ));
+
+        // Advance to a block where we can prove commit the sector
+        run_to_block(System::block_number() + 2);
 
         // Prove commit sector
         let sector = ProveCommitSector {

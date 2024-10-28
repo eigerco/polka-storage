@@ -538,6 +538,7 @@ pub mod pallet {
                 unsealed_cids,
                 deal_amounts,
             )?;
+
             // Check balance for deposit
             let balance = T::Currency::total_balance(&owner);
             ensure!(balance >= total_deposit, Error::<T>::NotEnoughFunds);

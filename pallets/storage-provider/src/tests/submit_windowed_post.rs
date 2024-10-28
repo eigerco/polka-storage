@@ -69,6 +69,9 @@ fn setup() {
         bounded_vec![sector.clone()]
     ));
 
+    // Run to the block where we can submit proof
+    run_to_block(3);
+
     // Prove commit sector
     let sector = ProveCommitSector {
         sector_number,
