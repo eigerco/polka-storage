@@ -71,7 +71,7 @@ If this `--ed25519-key` is not used, either [`--ecdsa-key`](#--ecdsa-key) or [`-
 
 The RocksDB storage directory, where deal information will be kept.
 
-It takes in a valid folder path, the directory does not exist, it will be created along with all intermediate paths.
+It takes in a valid folder path, if the directory does not exist, it will be created along with all intermediate paths.
 Defaults to a pseudo-random temporary directory — `/tmp/<random string>/deals_database`.
 
 ### `--storage-directory`
