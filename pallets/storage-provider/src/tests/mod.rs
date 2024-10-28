@@ -148,10 +148,6 @@ parameter_types! {
     pub const MarketPalletId: PalletId = PalletId(*b"spMarket");
     pub const MinDealDuration: u64 = 2 * MINUTES;
     pub const MaxDealDuration: u64 = 30 * MINUTES;
-
-    // Randomness Pallet
-    pub const CleanupInterval: BlockNumber = 1;
-    pub const SeedAgeLimit: BlockNumber = 60 * MINUTES;
 }
 
 impl pallet_storage_provider::Config for Test {

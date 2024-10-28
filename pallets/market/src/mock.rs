@@ -68,11 +68,6 @@ parameter_types! {
     pub const PreCommitChallengeDelay: BlockNumber = 1 * MINUTES;
     // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L299>
     pub const AddressedSectorsMax: u64 = 25_000;
-
-    // Randomness Pallet
-    pub const CleanupInterval: BlockNumber = 1;
-    pub const SeedAgeLimit: BlockNumber = 60 * MINUTES;
-
 }
 
 impl crate::Config for Test {
