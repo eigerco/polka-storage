@@ -97,7 +97,10 @@ impl RegisteredSealProof {
         }
     }
 
-    /// Proof size for each SealProof type
+    /// Proof size for each SealProof type.
+    ///
+    /// Reference:
+    /// * <https://github.com/filecoin-project/ref-fvm/blob/b72a51084f3b65f8bd41f4a9a733d43bb4b1d6f7/shared/src/sector/registered_proof.rs#L90>
     pub fn proof_size(self) -> usize {
         match self {
             RegisteredSealProof::StackedDRG2KiBV1P1 => 192,
