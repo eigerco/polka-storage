@@ -6,7 +6,6 @@ use frame_support::{
     PalletId,
 };
 use frame_system::{self as system, pallet_prelude::BlockNumberFor};
-use pallet_insecure_randomness_collective_flip as pallet_randomness;
 use primitives_proofs::RegisteredPoStProof;
 use sp_core::Pair;
 use sp_runtime::{
@@ -31,6 +30,7 @@ frame_support::construct_runtime!(
         Market: pallet_market,
         Proofs: pallet_proofs::pallet,
         Randomness: pallet_randomness::pallet,
+        RandomnessGenerator: pallet_insecure_randomness_collective_flip,
     }
 );
 
@@ -70,6 +70,11 @@ parameter_types! {
     pub const PreCommitChallengeDelay: BlockNumber = 1 * MINUTES;
     // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L299>
     pub const AddressedSectorsMax: u64 = 25_000;
+
+    // Randomness Pallet
+    pub const CleanupInterval: BlockNumber = 1;
+    pub const SeedAgeLimit: BlockNumber = 60 * MINUTES;
+
 }
 
 impl crate::Config for Test {
@@ -85,10 +90,17 @@ impl crate::Config for Test {
     type MaxDealsPerBlock = ConstU32<32>;
 }
 
-impl pallet_randomness::Config for Test {}
+impl pallet_insecure_randomness_collective_flip::Config for Test {}
+
+impl pallet_randomness::Config for Test {
+    type Generator = RandomnessGenerator;
+    type CleanupInterval = CleanupInterval;
+    type SeedAgeLimit = SeedAgeLimit;
+}
 
 impl pallet_storage_provider::Config for Test {
     type RuntimeEvent = RuntimeEvent;
+    type Randomness = Randomness;
     type PeerId = BoundedVec<u8, ConstU32<32>>; // Max length of SHA256 hash
     type Currency = Balances;
     type Market = Market;
