@@ -40,7 +40,6 @@ use frame_system::{
     limits::{BlockLength, BlockWeights},
     EnsureRoot,
 };
-use pallet_insecure_randomness_collective_flip as pallet_randomness;
 use pallet_xcm::{EnsureXcm, IsVoiceOfBody};
 use parachains_common::message_queue::{NarrowOriginToSibling, ParaIdToSibling};
 use polkadot_runtime_common::{
@@ -52,8 +51,6 @@ use sp_version::RuntimeVersion;
 use xcm::latest::prelude::BodyId;
 use xcm_config::{RelayLocation, XcmOriginToTransactDispatchOrigin};
 
-#[cfg(not(feature = "testnet"))]
-use super::DAYS;
 // Local module imports
 use super::{
     weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight},
@@ -64,7 +61,7 @@ use super::{
     EXISTENTIAL_DEPOSIT, HOURS, MAXIMUM_BLOCK_WEIGHT, MICROUNIT, NORMAL_DISPATCH_RATIO,
     RELAY_CHAIN_SLOT_DURATION_MILLIS, SLOT_DURATION, UNINCLUDED_SEGMENT_CAPACITY, VERSION,
 };
-use crate::MINUTES;
+use crate::{DAYS, MINUTES};
 
 parameter_types! {
     pub const Version: RuntimeVersion = VERSION;
@@ -140,8 +137,6 @@ impl pallet_authorship::Config for Runtime {
     type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
     type EventHandler = (CollatorSelection,);
 }
-
-impl pallet_randomness::Config for Runtime {}
 
 parameter_types! {
     pub const ExistentialDeposit: Balance = EXISTENTIAL_DEPOSIT;
@@ -377,6 +372,7 @@ parameter_types! {
 
 impl pallet_storage_provider::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
+    type Randomness = crate::Randomness;
     type PeerId = BoundedVec<u8, ConstU32<32>>; // Max length of SHA256 hash
     type Currency = Balances;
     type Market = crate::Market;

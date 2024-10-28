@@ -47,7 +47,7 @@ pub mod pallet {
         pallet_prelude::*,
         sp_runtime::traits::{CheckedAdd, CheckedSub, One},
         traits::{
-            Currency, ExistenceRequirement::KeepAlive, Imbalance, Randomness, ReservableCurrency,
+            Currency, ExistenceRequirement::KeepAlive, Imbalance, ReservableCurrency,
             WithdrawReasons,
         },
     };
@@ -56,11 +56,10 @@ pub mod pallet {
         pallet_prelude::{BlockNumberFor, *},
         Config as SystemConfig,
     };
-    use pallet_insecure_randomness_collective_flip as pallet_randomness;
     use primitives_commitment::{Commitment, CommitmentKind};
     use primitives_proofs::{
-        Market, ProofVerification, RegisteredPoStProof, SectorNumber, StorageProviderValidation,
-        MAX_SECTORS_PER_CALL,
+        Market, ProofVerification, Randomness, RegisteredPoStProof, SectorNumber,
+        StorageProviderValidation, MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::Zero;
@@ -95,9 +94,12 @@ pub mod pallet {
     pub struct Pallet<T>(_);
 
     #[pallet::config]
-    pub trait Config: frame_system::Config + pallet_randomness::Config {
+    pub trait Config: frame_system::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
+        /// Randomness generator
+        type Randomness: Randomness<BlockNumberFor<Self>>;
 
         /// Peer ID is derived by hashing an encoded public key.
         /// Usually represented in bytes.
@@ -503,11 +505,8 @@ pub mod pallet {
 
                 let deposit = calculate_pre_commit_deposit::<T>();
 
-                let sector_on_chain = SectorPreCommitOnChainInfo::new(
-                    sector.clone(),
-                    deposit,
-                    current_block,
-                );
+                let sector_on_chain =
+                    SectorPreCommitOnChainInfo::new(sector.clone(), deposit, current_block);
 
                 // Push deal amounts for later verification
                 deal_amounts.try_push(sector_on_chain.info.deal_ids.len()).expect("Programmer error: cannot have more that MAX_SECTORS_PER_CALL deal_amount because of previous bounds");
@@ -1496,7 +1495,7 @@ pub mod pallet {
     }
 
     fn validate_seal_proof<T: Config>(
-        _owner: &T::AccountId,
+        owner: &T::AccountId,
         precommit: &SectorPreCommitOnChainInfo<BalanceOf<T>, BlockNumberFor<T>>,
         proof: BoundedVec<u8, ConstU32<256>>,
     ) -> Result<(), DispatchError> {
@@ -1532,12 +1531,17 @@ pub mod pallet {
                 Error::<T>::InvalidCid
             })?;
 
-        // let entropy = owner.encode();
-        // let randomness = get_randomness::<T>(
-        //     DomainSeparationTag::SealRandomness,
-        //     current_block,
-        //     &entropy,
-        // )?;
+        let entropy = owner.encode();
+        let randomness = get_randomness::<T>(
+            DomainSeparationTag::SealRandomness,
+            precommit.info.seal_randomness_height,
+            &entropy,
+        )?;
+        let interactive_randomness = get_randomness::<T>(
+            DomainSeparationTag::InteractiveSealChallengeSeed,
+            interactive_block_number,
+            &entropy,
+        )?;
 
         // TODO(#412,@cernicc,21/10/2024): Generate a correct Prover Id
         let prover_id = [0u8; 32];
@@ -1549,8 +1553,8 @@ pub mod pallet {
             commr.raw(),
             commd.raw(),
             precommit.info.sector_number,
-            todo!(),
-            todo!(),
+            randomness,
+            interactive_randomness,
             proof.into_inner(),
         )
     }
@@ -1562,13 +1566,7 @@ pub mod pallet {
         entropy: &[u8],
     ) -> Result<[u8; 32], DispatchError> {
         // Get randomness from chain
-        let (digest, _block_number) = pallet_randomness::Pallet::<T>::random(entropy);
-
-        // Convert digest to 32 bytes
-        let digest: [u8; 32] = digest.as_ref().try_into().map_err(|_| {
-            log::error!(target: LOG_TARGET, "failed to convert randomness to [u8; 32]");
-            Error::<T>::ConversionError
-        })?;
+        let digest = T::Randomness::get_randomness(block_height)?;
 
         // Randomness with the bias
         let randomness = draw_randomness(&digest, personalization, block_height, entropy);

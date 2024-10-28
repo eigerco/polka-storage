@@ -39,6 +39,7 @@ pub mod pallet {
     pub struct Pallet<T>(_);
 
     #[pallet::storage]
+    #[pallet::getter(fn seeds)]
     pub type SeedsMap<T: Config> = StorageMap<_, _, BlockNumberFor<T>, [u8; 32]>;
 
     #[pallet::error]

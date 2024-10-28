@@ -19,7 +19,6 @@ use frame_support::weights::{
     constants::WEIGHT_REF_TIME_PER_SECOND, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
     WeightToFeePolynomial,
 };
-use pallet_insecure_randomness_collective_flip as pallet_randomness;
 use smallvec::smallvec;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 #[cfg(any(feature = "std", test))]

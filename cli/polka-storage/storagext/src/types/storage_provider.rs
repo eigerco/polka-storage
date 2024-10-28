@@ -67,6 +67,9 @@ pub struct SectorPreCommitInfo {
     /// Some docs on `commR` here: <https://proto.school/verifying-storage-on-filecoin/03>
     #[serde(deserialize_with = "crate::types::deserialize_string_to_cid")]
     pub sealed_cid: cid::Cid,
+
+    /// The blocknumber used in the porep proof.
+    pub seal_randomness_height: BlockNumber,
 }
 
 impl From<SectorPreCommitInfo> for RuntimeSectorPreCommitInfo<BlockNumber> {
@@ -78,6 +81,7 @@ impl From<SectorPreCommitInfo> for RuntimeSectorPreCommitInfo<BlockNumber> {
             deal_ids: crate::runtime::polka_storage_runtime::runtime_types::bounded_collections::bounded_vec::BoundedVec(value.deal_ids),
             expiration: value.expiration,
             unsealed_cid: value.unsealed_cid.into_bounded_byte_vec(),
+            seal_randomness_height: value.seal_randomness_height,
         }
     }
 }
@@ -93,6 +97,7 @@ impl From<RuntimeSectorPreCommitInfo<BlockNumber>> for SectorPreCommitInfo {
             expiration: value.expiration,
             unsealed_cid: Cid::read_bytes(value.unsealed_cid.0.as_slice())
                 .expect("a proper value to have been stored on chain"),
+            seal_randomness_height: value.seal_randomness_height,
         }
     }
 }
@@ -105,6 +110,7 @@ impl PartialEq<RuntimeSectorPreCommitInfo<BlockNumber>> for SectorPreCommitInfo 
             && self.sealed_cid.to_bytes() == other.sealed_cid.0
             && self.unsealed_cid.to_bytes() == other.unsealed_cid.0
             && self.sector_number == other.sector_number
+            && self.seal_randomness_height == other.seal_randomness_height
     }
 }
 
@@ -116,6 +122,7 @@ impl PartialEq<SectorPreCommitInfo> for RuntimeSectorPreCommitInfo<BlockNumber> 
             && self.sealed_cid.0 == other.sealed_cid.to_bytes()
             && self.unsealed_cid.0 == other.unsealed_cid.to_bytes()
             && self.sector_number == other.sector_number
+            && self.seal_randomness_height == other.seal_randomness_height
     }
 }
 
