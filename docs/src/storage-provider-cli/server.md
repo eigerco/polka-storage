@@ -78,7 +78,7 @@ Defaults to a pseudo-random temporary directory — `/tmp/<random string>/deals_
 
 The piece storage directory, where pieces will be kept stored in.
 
-It takes in a valid folder path, the directory does not exist, it will be created along with all intermediate paths.
+It takes in a valid folder path, if the directory does not exist, it will be created along with all intermediate paths.
 Defaults to a pseudo-random temporary directory — `/tmp/<random string>/...`.
 
 Storage directories like the pieces, unsealed and sealed directories will be created under it.
