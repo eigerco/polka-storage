@@ -389,11 +389,6 @@ impl SectorPreCommitInfoBuilder {
         self
     }
 
-    pub fn seal_randomness_height(mut self, seal_randomness_height: u64) -> Self {
-        self.seal_randomness_height = seal_randomness_height;
-        self
-    }
-
     pub fn build(self) -> SectorPreCommitInfo<u64> {
         SectorPreCommitInfo {
             seal_proof: self.seal_proof,
