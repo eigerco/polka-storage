@@ -2,7 +2,7 @@ use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::RuntimeDebug, PalletError};
 use scale_info::TypeInfo;
 
-#[derive(Decode, Encode, PalletError, TypeInfo, RuntimeDebug)]
+#[derive(Decode, Encode, PalletError, TypeInfo, RuntimeDebug, PartialEq)]
 pub enum GeneralPalletError {
     /// Partition error module types
     /// Emitted when adding sectors fails

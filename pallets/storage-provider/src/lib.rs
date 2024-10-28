@@ -656,7 +656,6 @@ pub mod pallet {
                     // Find where the sector was placed. In worst case this goes through
                     // all deadlines. It starts to look in the last partition of the
                     // deadline. Usually the new sector will be there.
-                    // TODO(#375, @aidan46, 2024/09/13): Optimize this search pattern.
                     let (deadline_idx, partition_number) = sp
                         .deadlines
                         .due
@@ -1305,10 +1304,12 @@ pub mod pallet {
                         continue;
                     };
 
-                    // TODO(@th7nder,#167,08/08/2024):
-                    // - process early terminations (we need ExpirationQueue for that)
-                    // - https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/state.rs#L1182
-
+                    if let Err(e) =
+                        Self::process_early_terminations(current_block, &storage_provider)
+                    {
+                        log::error!(target: LOG_TARGET, "could not process early terminations for {storage_provider:?}: {e:?}");
+                        continue;
+                    }
                     log::info!(target: LOG_TARGET, "block: {:?}, sp: {:?}, detected partition {} with {} new faults...",
                     current_block, storage_provider, partition_number, new_faults.len());
 

@@ -320,9 +320,12 @@ where
         let mut on_time_sectors = BoundedBTreeSet::new();
         let mut early_sectors = BoundedBTreeSet::new();
 
-        self.map.iter().take_while(|(&block, _expiration_set)| {
-            block < until
-        }).try_for_each(|(&block, expiration_set)| -> Result<(), GeneralPalletError>{
+        // take_while does not work here because we cannot ensure that `self.map` is ordered
+        self.map.iter()
+        .filter_map(|(&block, expiration_set)| {
+             (block <= until).then(|| (block, expiration_set.clone()))
+        })
+        .try_for_each(|(block, expiration_set)| -> Result<(), GeneralPalletError>{
             popped_keys.push(block);
             for sector in expiration_set.on_time_sectors.iter() {
                 on_time_sectors
@@ -462,13 +465,12 @@ where
 
         // SectorExpirationSets indexed by the expiration height.
         let mut groups = BTreeMap::new();
-
         // Iterate all declared expirations and try to find the sectors
         for expiration in &declared_expirations {
             let expiration_set = self
                 .map
                 .get(&expiration)
-                .ok_or(GeneralPalletError::ExpirationQueueErrorExpirationSetNotFound)?;
+                .ok_or_else(|| GeneralPalletError::ExpirationQueueErrorExpirationSetNotFound)?;
 
             if let Some(group) = group_expiration_set(&mut all_remaining, expiration_set.clone()) {
                 groups.insert(*expiration, group);
