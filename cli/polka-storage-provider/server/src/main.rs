@@ -3,12 +3,14 @@
 #![deny(clippy::unwrap_used)]
 
 mod db;
+mod pipeline;
 mod rpc;
 mod storage;
 
 use std::{env::temp_dir, net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 
 use clap::Parser;
+use pipeline::PipelineMessage;
 use polka_storage_provider_common::rpc::ServerInfo;
 use primitives_proofs::{RegisteredPoStProof, RegisteredSealProof};
 use rand::Rng;
@@ -22,7 +24,7 @@ use subxt::{
     },
     tx::Signer,
 };
-use tokio::task::JoinError;
+use tokio::{sync::mpsc::UnboundedReceiver, task::JoinError};
 use tokio_util::sync::CancellationToken;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
@@ -30,6 +32,7 @@ use url::Url;
 
 use crate::{
     db::{DBError, DealDB},
+    pipeline::{start_pipeline, PipelineState},
     rpc::{start_rpc_server, RpcServerState},
     storage::{start_upload_server, StorageServerState},
 };
@@ -270,7 +273,7 @@ impl TryFrom<ServerArguments> for ServerConfiguration {
 
 impl ServerConfiguration {
     pub async fn run(self) -> Result<(), ServerError> {
-        let (storage_state, rpc_state) = self.setup().await?;
+        let (storage_state, rpc_state, pipeline_state, rx) = self.setup().await?;
 
         let cancellation_token = CancellationToken::new();
 
@@ -280,6 +283,11 @@ impl ServerConfiguration {
         ));
         let storage_task = tokio::spawn(start_upload_server(
             Arc::new(storage_state),
+            cancellation_token.child_token(),
+        ));
+        let pipeline_task = tokio::spawn(start_pipeline(
+            Arc::new(pipeline_state),
+            rx,
             cancellation_token.child_token(),
         ));
 
@@ -293,7 +301,8 @@ impl ServerConfiguration {
         tracing::info!("sent shutdown signal");
 
         // Wait for the tasks to finish
-        let (upload_result, rpc_task) = tokio::join!(storage_task, rpc_task);
+        let (upload_result, rpc_task, pipeline_task) =
+            tokio::join!(storage_task, rpc_task, pipeline_task);
 
         // Log errors
         let upload_result = upload_result
@@ -307,20 +316,39 @@ impl ServerConfiguration {
                 let _ = ok.as_ref().inspect_err(|err| tracing::error!(%err));
             });
 
+        let pipeline_task = pipeline_task
+            .inspect_err(|err| tracing::error!(%err))
+            .inspect(|ok| {
+                let _ = ok.as_ref().inspect_err(|err| tracing::error!(%err));
+            });
+
         // Exit with error
         upload_result??;
         rpc_task??;
+        pipeline_task??;
 
         Ok(())
     }
 
-    async fn setup(self) -> Result<(StorageServerState, RpcServerState), ServerError> {
-        let xt_client = ServerConfiguration::setup_storagext_client(
-            self.node_url,
-            &self.multi_pair_signer,
-            &self.post_proof,
-        )
-        .await?;
+    async fn setup(
+        self,
+    ) -> Result<
+        (
+            StorageServerState,
+            RpcServerState,
+            PipelineState,
+            UnboundedReceiver<PipelineMessage>,
+        ),
+        ServerError,
+    > {
+        let xt_client = Arc::new(
+            ServerConfiguration::setup_storagext_client(
+                self.node_url,
+                &self.multi_pair_signer,
+                &self.post_proof,
+            )
+            .await?,
+        );
         let deal_database = Arc::new(DealDB::new(self.database_directory)?);
 
         // Car piece storage directory — i.e. the CAR archives from the input streams
@@ -335,6 +363,8 @@ impl ServerConfiguration {
         tokio::fs::create_dir_all(car_piece_storage_dir.as_ref()).await?;
         tokio::fs::create_dir_all(unsealed_piece_storage_dir.as_ref()).await?;
         tokio::fs::create_dir_all(sealed_piece_storage_dir.as_ref()).await?;
+
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<PipelineMessage>();
 
         let storage_state = StorageServerState {
             car_piece_storage_dir: car_piece_storage_dir.clone(),
@@ -351,15 +381,22 @@ impl ServerConfiguration {
             ),
             deal_db: deal_database.clone(),
             car_piece_storage_dir: car_piece_storage_dir.clone(),
+            xt_client: xt_client.clone(),
+            xt_keypair: self.multi_pair_signer.clone(),
+            listen_address: self.rpc_listen_address,
+            pipeline_sender: tx,
+        };
+
+        let pipeline_state = PipelineState {
+            server_info: rpc_state.server_info.clone(),
             unsealed_piece_storage_dir,
             sealed_piece_storage_dir,
             sealing_cache_dir,
-            xt_client,
+            xt_client: xt_client,
             xt_keypair: self.multi_pair_signer,
-            listen_address: self.rpc_listen_address,
         };
 
-        Ok((storage_state, rpc_state))
+        Ok((storage_state, rpc_state, pipeline_state, rx))
     }
 
     async fn setup_storagext_client(

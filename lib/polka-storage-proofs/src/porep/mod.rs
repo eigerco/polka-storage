@@ -55,6 +55,8 @@ pub enum PoRepError {
     #[error("failed to load groth16 parameters from path: {0}, because {1}")]
     FailedToLoadGrothParameters(std::path::PathBuf, std::io::Error),
     #[error(transparent)]
+    IoError(#[from] std::io::Error),
+    #[error(transparent)]
     Anyhow(#[from] anyhow::Error),
 }
 
