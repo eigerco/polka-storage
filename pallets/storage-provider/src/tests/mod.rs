@@ -138,7 +138,9 @@ parameter_types! {
     pub const MaxPartitionsPerDeadline: u64 = 3000;
     pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
     pub const FaultDeclarationCutoff: BlockNumber = 2 * MINUTES;
-    pub const PreCommitChallengeDelay: BlockNumber = 1 * MINUTES;
+    // 0 allows us to publish the prove-commit on the same block as the
+    // pre-commit.
+    pub const PreCommitChallengeDelay: BlockNumber = 0;
     // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L299>
     pub const AddressedSectorsMax: u64 = 25_000;
 
@@ -257,13 +259,11 @@ pub fn run_to_block(n: u64) {
     while System::block_number() < n {
         if System::block_number() > 1 {
             StorageProvider::on_finalize(System::block_number());
-            Market::on_finalize(System::block_number());
             System::on_finalize(System::block_number());
         }
 
         System::set_block_number(System::block_number() + 1);
         System::on_initialize(System::block_number());
-        Market::on_initialize(System::block_number());
         StorageProvider::on_initialize(System::block_number());
     }
 }
