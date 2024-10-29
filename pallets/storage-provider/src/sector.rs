@@ -21,8 +21,7 @@ pub struct SectorPreCommitInfo<BlockNumber> {
     /// Using sealed_cid as I think that is more descriptive.
     /// Some docs on commR here: <https://proto.school/verifying-storage-on-filecoin/03>
     pub sealed_cid: BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>,
-    /// The block number at which we requested the randomness when sealing the
-    /// sector.
+    /// The block number at which we requested the randomness when sealing the sector.
     pub seal_randomness_height: BlockNumber,
     /// Deals Ids that are supposed to be activated.
     /// If any of those is invalid, whole activation is rejected.

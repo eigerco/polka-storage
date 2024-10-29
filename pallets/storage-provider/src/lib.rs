@@ -225,8 +225,7 @@ pub mod pallet {
         type FaultDeclarationCutoff: Get<BlockNumberFor<Self>>;
 
         /// Number of blocks between publishing the precommit and when the
-        /// challenge for interactive PoRep can be first drawn from the
-        /// randomness.
+        /// challenge for interactive PoRep can be first drawn from the randomness.
         #[pallet::constant]
         type PreCommitChallengeDelay: Get<BlockNumberFor<Self>>;
 
