@@ -595,7 +595,7 @@ pub mod pallet {
                 });
 
                 // Validate the proof
-                validate_seal_proof::<T>(&owner, &precommit, sector.proof)?;
+                validate_seal_proof::<T>(&owner, &precommit, sector.proof.into_inner())?;
 
                 // Sector deals that will be activated after the sector is
                 // successfully proven.
@@ -1497,7 +1497,7 @@ pub mod pallet {
     fn validate_seal_proof<T: Config>(
         owner: &T::AccountId,
         precommit: &SectorPreCommitOnChainInfo<BalanceOf<T>, BlockNumberFor<T>>,
-        proof: BoundedVec<u8, ConstU32<256>>,
+        proof: Vec<u8>,
     ) -> Result<(), DispatchError> {
         let max_proof_size = precommit.info.seal_proof.proof_size();
 
@@ -1555,7 +1555,7 @@ pub mod pallet {
             precommit.info.sector_number,
             randomness,
             interactive_randomness,
-            proof.into_inner(),
+            proof,
         )
     }
 
