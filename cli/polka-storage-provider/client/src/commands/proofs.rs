@@ -20,7 +20,7 @@ use crate::CliError;
 
 /// Utils sub-commands.
 #[derive(Debug, clap::Subcommand)]
-pub enum UtilsCommand {
+pub enum ProofsCommand {
     /// Calculate a piece commitment for the provided data stored at the a given path
     #[clap(alias = "commp")]
     CalculatePieceCommitment {
@@ -41,6 +41,7 @@ pub enum UtilsCommand {
     /// **DEMO COMMAND** IT SHOULD NOT BE USED IN PRODUCTION AND ITS FLOW IS SKEWED!
     /// Generates PoRep for a piece file.
     /// Takes a piece file (in a CARv2 archive, unpadded), puts it into a sector (temp file), seals and proves it.
+    #[clap(name = "porep")]
     PoRep {
         /// PoRep has multiple variants dependent on the sector size.
         /// Parameters are required for each sector size and its corresponding PoRep Params.
@@ -72,6 +73,7 @@ pub enum UtilsCommand {
         output_path: Option<PathBuf>,
     },
     /// Creates a PoSt for a single sector.
+    #[clap(name = "post")]
     PoSt {
         /// PoSt has multiple variants dependant on the sector size.
         /// Parameters are required for each sector size and its corresponding PoSt.
@@ -105,11 +107,11 @@ const POST_VK_EXT_SCALE: &str = "post.vk.scale";
 const POREP_PROOF_EXT: &str = "sector.proof.porep.scale";
 const POST_PROOF_EXT: &str = "sector.proof.post.scale";
 
-impl UtilsCommand {
+impl ProofsCommand {
     /// Run the command.
     pub async fn run(self) -> Result<(), CliError> {
         match self {
-            UtilsCommand::CalculatePieceCommitment { input_path } => {
+            ProofsCommand::CalculatePieceCommitment { input_path } => {
                 // Check if the file is a CARv2 file. If it is, we can't calculate the piece commitment.
                 let mut source_file = tokio::fs::File::open(&input_path).await?;
                 let mut car_v2_reader = CarV2Reader::new(&mut source_file);
@@ -139,7 +141,7 @@ impl UtilsCommand {
                 // plus adding an extra structure for such a small thing seems wasteful
                 println!("{{\n\t\"cid\": \"{cid}\",\n\t\"size\": {padded_piece_size}\n}}");
             }
-            UtilsCommand::GeneratePoRepParams {
+            ProofsCommand::GeneratePoRepParams {
                 seal_proof,
                 output_path,
             } => {
@@ -178,7 +180,7 @@ impl UtilsCommand {
                 println!("{}", vk_file_name.display());
                 println!("{}", vk_scale_file_name.display());
             }
-            UtilsCommand::PoRep {
+            ProofsCommand::PoRep {
                 seal_proof,
                 proof_parameters_path,
                 input_path,
@@ -296,7 +298,7 @@ impl UtilsCommand {
 
                 println!("Wrote proof to {}", proof_scale_filename.display());
             }
-            UtilsCommand::GeneratePoStParams {
+            ProofsCommand::GeneratePoStParams {
                 post_type,
                 output_path,
             } => {
@@ -335,7 +337,7 @@ impl UtilsCommand {
                 println!("{}", vk_file_name.display());
                 println!("{}", vk_scale_file_name.display());
             }
-            UtilsCommand::PoSt {
+            ProofsCommand::PoSt {
                 post_type,
                 proof_parameters_path,
                 cache_directory,
