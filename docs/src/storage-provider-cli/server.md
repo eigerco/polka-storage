@@ -10,7 +10,7 @@ In this chapter we'll cover the server's architecture as well as the CLI's optio
 
 <p><img src="../images/architecture/storage-provider-server.svg" style="height: 500px; display: block; margin-left: auto; margin-right: auto;"/></p>
 
-The server has two main fronts, the JSON-RPC API which provides an "interactive" interface for users to submit deal proposals to the storage provider,
+The server has two main fronts, the JSON-RPC API which provides an interface for users to submit deal proposals to the storage provider,
 and the HTTP API which consists of a single endpoint where users are to submit their data.
 
 The user is first required to propose a deal, which once accepted (signaled by the return of a CID) allows the user to submit a file
@@ -24,7 +24,7 @@ The responsibility then falls on to the storage provider to seal, publish and ac
 
 #### `--upload-listen-address`
 
-The storage server's endpoint address — i.e. where you will upload your files to.
+The storage server's endpoint address — i.e. where the client will upload their files to.
 
 It takes in an IP address along with a port in the format: `<ip>:<port>`.
 Defaults to `127.0.0.1:8001`.
