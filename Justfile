@@ -38,6 +38,7 @@ fmt:
     taplo fmt
     cargo +nightly fmt
 
+# Serve the MDBook
 docs:
     mdbook serve -d docs/book docs/
 

@@ -1,16 +1,12 @@
 # Polka Storage Provider
 
-The Polka Storage Provider CLI provides two commands — `wallet` and `storage`.
+The Polka Storage Provider is comprised of two different binaries, one for the server and one for the client.
 
-## `storage`
+The server binary is fairly straight forward, providing a single binary to run all components necessary for running a storage provider,
+such as the RPC and HTTP APIs, as well as the proving pipeline.
+The client binary provides tools for the server's administration, client's dealings and some demos.
 
-The `storage` command launches a server that converts arbitrary files into CARv2 files
-— it does so using our CARv2 Rust library (the first Rust CARv2 implementation).
+Do not worry, this chapter will go over all that!
 
-More information available on the [`storage`](./storage.md) page.
 
-## `wallet`
 
-The `wallet` command is a thin wrapper over the [`subkey`](https://docs.substrate.io/reference/command-line-tools/subkey/) utility provided by Polkadot.
-
-More information available on the [`wallet`](./wallet.md) page.

@@ -1,5 +1,7 @@
 # Mater CLI
 
+ <!-- NOTE(@jmg-duarte,24/10/2024): ideally we'd point to the docs.rs of mater too, hopefully we can get mater and the cli published asides from this -->
+
 The Mater CLI is used by storage clients to convert files to CARv2 format and extract CARv2 content.
 
 ## Convert
