@@ -24,7 +24,6 @@ mod expiration_queue;
 mod fault;
 mod partition;
 mod proofs;
-mod randomness;
 mod sector;
 mod sector_map;
 mod storage_provider;
@@ -58,6 +57,7 @@ pub mod pallet {
     };
     use primitives_commitment::{Commitment, CommitmentKind};
     use primitives_proofs::{
+        randomness::{draw_randomness, DomainSeparationTag},
         Market, ProofVerification, Randomness, RegisteredPoStProof, SectorNumber,
         StorageProviderValidation, MAX_SECTORS_PER_CALL,
     };
@@ -72,7 +72,6 @@ pub mod pallet {
         },
         partition::PartitionNumber,
         proofs::{assign_proving_period_offset, SubmitWindowedPoStParams},
-        randomness::{draw_randomness, DomainSeparationTag},
         sector::{
             ProveCommitResult, ProveCommitSector, SectorOnChainInfo, SectorPreCommitInfo,
             SectorPreCommitOnChainInfo, TerminateSectorsParams, TerminationDeclaration,
@@ -1564,14 +1563,22 @@ pub mod pallet {
     /// Get randomness from the chain and process it with domain separation.
     fn get_randomness<T: Config>(
         personalization: DomainSeparationTag,
-        block_height: BlockNumberFor<T>,
+        block_number: BlockNumberFor<T>,
         entropy: &[u8],
     ) -> Result<[u8; 32], DispatchError> {
         // Get randomness from chain
-        let digest = T::Randomness::get_randomness(block_height)?;
+        let digest = T::Randomness::get_randomness(block_number)?;
+
+        // Converting block_height to the type accepted by draw_randomness
+        let block_number = block_number
+            .try_into()
+            .map_err(|_| {
+                log::error!(target: LOG_TARGET, "get_randomness: failed to convert block_height to u64");
+                Error::<T>::ConversionError
+            })?;
 
         // Randomness with the bias
-        let randomness = draw_randomness(&digest, personalization, block_height, entropy);
+        let randomness = draw_randomness(&digest, personalization, block_number, entropy);
 
         Ok(randomness)
     }
