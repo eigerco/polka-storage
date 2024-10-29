@@ -1,10 +1,10 @@
 mod client;
-mod utils;
+mod proofs;
 mod wallet;
 
 use clap::Parser;
 
-use self::{client::ClientCommand, utils::UtilsCommand};
+use self::{client::ClientCommand, proofs::ProofsCommand};
 pub(super) use crate::commands::wallet::WalletCommand;
 
 /// CLI components error handling implementor.
@@ -32,7 +32,7 @@ pub enum CliError {
     RpcCommand(#[from] crate::commands::client::ClientCommandError),
 
     #[error(transparent)]
-    UtilsCommand(#[from] crate::commands::utils::UtilsCommandError),
+    UtilsCommand(#[from] crate::commands::proofs::UtilsCommandError),
 }
 
 /// A CLI application that facilitates management operations over a running full
@@ -49,7 +49,7 @@ pub(crate) enum Cli {
 
     /// Utility commands for storage related actions.
     #[command(subcommand)]
-    Utils(UtilsCommand),
+    Proofs(ProofsCommand),
 }
 
 impl Cli {
@@ -70,7 +70,7 @@ impl Cli {
                 WalletCommand::Sign(cmd) => Ok(cmd.run()?),
             },
             Self::Client(cmd) => Ok(cmd.run().await?),
-            Self::Utils(utils) => Ok(utils.run().await?),
+            Self::Proofs(utils) => Ok(utils.run().await?),
         }
     }
 }
