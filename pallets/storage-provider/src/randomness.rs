@@ -5,10 +5,21 @@ use sp_core::blake2_256;
 
 /// Specifies a domain for randomness generation.
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
-#[repr(i64)]
 pub enum DomainSeparationTag {
-    SealRandomness = 1,
-    InteractiveSealChallengeSeed = 2,
+    SealRandomness,
+    InteractiveSealChallengeSeed,
+}
+
+impl DomainSeparationTag {
+    /// Returns the domain separation tag as a byte array.
+    pub fn as_bytes(&self) -> [u8; 8] {
+        let value: i64 = match self {
+            DomainSeparationTag::SealRandomness => 1,
+            DomainSeparationTag::InteractiveSealChallengeSeed => 2,
+        };
+
+        value.to_be_bytes()
+    }
 }
 
 pub fn draw_randomness<BlockNumber>(
@@ -24,7 +35,7 @@ where
     let mut data = Vec::with_capacity(8 + 32 + 8 + entropy.len());
 
     // Append the personalization value
-    let pers = (pers as i64).to_be_bytes();
+    let pers = pers.as_bytes();
     data.extend_from_slice(&pers);
 
     // Append the randomness
