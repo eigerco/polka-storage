@@ -44,7 +44,7 @@ where
 {
     // Register Charlie as a Storage Provider
     let peer_id = "dummy_peer_id".to_string();
-    let peer_id_bs58 = bs58::encode(peer_id.as_bytes()).into_string();
+    let peer_id_bytes = peer_id.as_bytes();
 
     let result = client
         .register_storage_provider(
@@ -76,22 +76,18 @@ where
         );
     }
 
-    let retrieved_peer_id = String::from_utf8(
-        client
-            .retrieve_storage_provider(&subxt::utils::AccountId32::from(
-                charlie.account_id().clone(),
-            ))
-            .await
-            .unwrap()
-            // this last unwrap ensures there's something there
-            .unwrap()
-            .info
-            .peer_id
-            .0,
-    )
-    .unwrap();
+    let retrieved_peer_info = client
+        .retrieve_storage_provider(&subxt::utils::AccountId32::from(
+            charlie.account_id().clone(),
+        ))
+        .await
+        .unwrap()
+        // this last unwrap ensures there's something there
+        .unwrap()
+        .info;
+    let retrieved_peer_id = retrieved_peer_info.peer_id.0.as_slice();
 
-    assert_eq!(retrieved_peer_id, peer_id_bs58);
+    assert_eq!(retrieved_peer_id, peer_id_bytes);
 }
 
 async fn add_balance<Keypair>(client: &storagext::Client, account: &Keypair, balance: u128)
@@ -189,15 +185,14 @@ where
             .expect("valid CID");
 
     // Sealed sector commitment.
-    // Currently a placeholder value.
-    let placeholder_cid =
-        cid::Cid::try_from("bafk2bzaceajreoxfdcpdvitpvxm7vkpvcimlob5ejebqgqidjkz4qoug4q6zu")
+    let sealed_cid =
+        cid::Cid::try_from("bagboea4b5abcahzgmrmzan2urtn5qobkffrkaxwbc7iesqt6o7wgwr4hrwget7n4")
             .expect("valid CID");
 
     let sectors_pre_commit_info = vec![SectorPreCommitInfo {
         seal_proof: primitives_proofs::RegisteredSealProof::StackedDRG2KiBV1P1,
         sector_number: 1,
-        sealed_cid: placeholder_cid,
+        sealed_cid,
         deal_ids: vec![0],
         expiration: 165,
         unsealed_cid,
@@ -369,7 +364,7 @@ async fn real_world_use_case() {
     publish_storage_deals(&client, &charlie_kp, &alice_kp).await;
 
     pre_commit_sectors(&client, &charlie_kp).await;
-    strategic_sleep().await;
+    client.wait_for_height(40, true).await.unwrap();
 
     prove_commit_sectors(&client, &charlie_kp).await;
 

@@ -51,8 +51,6 @@ use sp_version::RuntimeVersion;
 use xcm::latest::prelude::BodyId;
 use xcm_config::{RelayLocation, XcmOriginToTransactDispatchOrigin};
 
-#[cfg(not(feature = "testnet"))]
-use super::DAYS;
 // Local module imports
 use super::{
     weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight},
@@ -63,7 +61,7 @@ use super::{
     EXISTENTIAL_DEPOSIT, HOURS, MAXIMUM_BLOCK_WEIGHT, MICROUNIT, NORMAL_DISPATCH_RATIO,
     RELAY_CHAIN_SLOT_DURATION_MILLIS, SLOT_DURATION, UNINCLUDED_SEGMENT_CAPACITY, VERSION,
 };
-use crate::MINUTES;
+use crate::{DAYS, MINUTES};
 
 parameter_types! {
     pub const Version: RuntimeVersion = VERSION;
@@ -329,6 +327,8 @@ parameter_types! {
     /// Copied from FileCoin and adapted to substrate block time. WPoStChallengeLookBack + 125 blocks
     /// <https://github.com/filecoin-project/builtin-actors/blob/6906288334746318385cfd53edd7ea33ef03919f/runtime/src/runtime/policy.rs#L327>
     pub const FaultDeclarationCutoff: BlockNumber = (10 * MINUTES) + 125;
+    /// <https://github.com/filecoin-project/builtin-actors/blob/a45fb87910bca74d62215b0d58ed90cf78b6c8ff/runtime/src/runtime/policy.rs#L306>
+    pub const PreCommitChallengeDelay: BlockNumber = 75 * MINUTES;
     // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L299>
     pub const AddressedSectorsMax: u64 = 25_000;
 
@@ -357,6 +357,7 @@ parameter_types! {
     pub const MaxPartitionsPerDeadline: u64 = 3000;
     pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
     pub const FaultDeclarationCutoff: BlockNumber = 1 * MINUTES;
+    pub const PreCommitChallengeDelay: BlockNumber = 1 * MINUTES;
     // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L299>
     pub const AddressedSectorsMax: u64 = 25_000;
 
@@ -371,9 +372,11 @@ parameter_types! {
 
 impl pallet_storage_provider::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
+    type Randomness = crate::Randomness;
     type PeerId = BoundedVec<u8, ConstU32<32>>; // Max length of SHA256 hash
     type Currency = Balances;
     type Market = crate::Market;
+    type ProofVerification = crate::Proofs;
     type WPoStProvingPeriod = WpostProvingPeriod;
     type WPoStChallengeWindow = WpostChallengeWindow;
     type WPoStChallengeLookBack = WPoStChallengeLookBack;
@@ -385,6 +388,7 @@ impl pallet_storage_provider::Config for Runtime {
     type MaxPartitionsPerDeadline = MaxPartitionsPerDeadline;
     type FaultMaxAge = FaultMaxAge;
     type FaultDeclarationCutoff = FaultDeclarationCutoff;
+    type PreCommitChallengeDelay = PreCommitChallengeDelay;
     // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L295>
     type AddressedPartitionsMax = MaxPartitionsPerDeadline;
     type AddressedSectorsMax = AddressedSectorsMax;

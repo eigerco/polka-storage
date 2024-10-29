@@ -12,8 +12,8 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use pallet_market::{BalanceOf, ClientDealProposal, DealProposal, DealState};
 use primitives_commitment::{Commitment, CommitmentKind};
 use primitives_proofs::{
-    DealId, RegisteredPoStProof, RegisteredSealProof, SectorNumber, CID_SIZE_IN_BYTES,
-    MAX_DEALS_PER_SECTOR, MAX_TERMINATIONS_PER_CALL,
+    DealId, ProofVerification, Randomness, RegisteredPoStProof, RegisteredSealProof, SectorNumber,
+    CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR, MAX_TERMINATIONS_PER_CALL,
 };
 use sp_core::{bounded_vec, Pair};
 use sp_runtime::{
@@ -75,8 +75,41 @@ impl pallet_balances::Config for Test {
     type AccountStore = System;
 }
 
-parameter_types! {
-    pub const MarketPalletId: PalletId = PalletId(*b"spMarket");
+/// This is dummy proofs pallet implementation. All proofs are accepted as valid
+pub struct DummyProofsVerification;
+impl ProofVerification for DummyProofsVerification {
+    fn verify_porep(
+        _prover_id: primitives_proofs::ProverId,
+        _seal_proof: RegisteredSealProof,
+        _comm_r: primitives_proofs::RawCommitment,
+        _comm_d: primitives_proofs::RawCommitment,
+        _sector: SectorNumber,
+        _ticket: primitives_proofs::Ticket,
+        _seed: primitives_proofs::Ticket,
+        _proof: alloc::vec::Vec<u8>,
+    ) -> sp_runtime::DispatchResult {
+        Ok(())
+    }
+
+    fn verify_post(
+        _post_type: RegisteredPoStProof,
+        _randomness: primitives_proofs::Ticket,
+        _replicas: scale_info::prelude::collections::BTreeMap<
+            SectorNumber,
+            primitives_proofs::PublicReplicaInfo,
+        >,
+        _proof: alloc::vec::Vec<u8>,
+    ) -> sp_runtime::DispatchResult {
+        Ok(())
+    }
+}
+
+/// Randomness generator used by tests.
+pub struct DummyRandomnessGenerator;
+impl<BlockNumber> Randomness<BlockNumber> for DummyRandomnessGenerator {
+    fn get_randomness(_: BlockNumber) -> Result<[u8; 32], sp_runtime::DispatchError> {
+        Ok([0; 32])
+    }
 }
 
 impl pallet_market::Config for Test {
@@ -105,19 +138,25 @@ parameter_types! {
     pub const MaxPartitionsPerDeadline: u64 = 3000;
     pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
     pub const FaultDeclarationCutoff: BlockNumber = 2 * MINUTES;
+    // 0 allows us to publish the prove-commit on the same block as the
+    // pre-commit.
+    pub const PreCommitChallengeDelay: BlockNumber = 0;
     // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L299>
     pub const AddressedSectorsMax: u64 = 25_000;
 
     // Market Pallet
+    pub const MarketPalletId: PalletId = PalletId(*b"spMarket");
     pub const MinDealDuration: u64 = 2 * MINUTES;
     pub const MaxDealDuration: u64 = 30 * MINUTES;
 }
 
 impl pallet_storage_provider::Config for Test {
     type RuntimeEvent = RuntimeEvent;
+    type Randomness = DummyRandomnessGenerator;
     type PeerId = BoundedVec<u8, ConstU32<32>>; // Max length of SHA256 hash
     type Currency = Balances;
     type Market = Market;
+    type ProofVerification = DummyProofsVerification;
     type WPoStProvingPeriod = WpostProvingPeriod;
     type WPoStChallengeWindow = WpostChallengeWindow;
     type WPoStChallengeLookBack = WpostChallengeLookBack;
@@ -129,6 +168,7 @@ impl pallet_storage_provider::Config for Test {
     type MaxPartitionsPerDeadline = MaxPartitionsPerDeadline;
     type FaultMaxAge = FaultMaxAge;
     type FaultDeclarationCutoff = FaultDeclarationCutoff;
+    type PreCommitChallengeDelay = PreCommitChallengeDelay;
     // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L295>
     type AddressedPartitionsMax = MaxPartitionsPerDeadline;
     type AddressedSectorsMax = AddressedSectorsMax;
@@ -211,7 +251,7 @@ fn account(name: &str) -> AccountIdOf<Test> {
 /// Run until a particular block.
 ///
 /// Stolen't from: <https://github.com/paritytech/polkadot-sdk/blob/7df94a469e02e1d553bd4050b0e91870d6a4c31b/substrate/frame/lottery/src/mock.rs#L87-L98>
-fn run_to_block(n: u64) {
+pub fn run_to_block(n: u64) {
     while System::block_number() < n {
         if System::block_number() > 1 {
             StorageProvider::on_finalize(System::block_number());
@@ -292,6 +332,7 @@ struct SectorPreCommitInfoBuilder {
     deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
     expiration: u64,
     unsealed_cid: BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>,
+    seal_randomness_height: u64,
 }
 
 impl Default for SectorPreCommitInfoBuilder {
@@ -303,9 +344,8 @@ impl Default for SectorPreCommitInfoBuilder {
                 .try_into()
                 .expect("hash is always 32 bytes");
 
-        // TODO: This cid is not correct and it's only used as a place holder for the correct one
         let sealed_cid =
-            Cid::from_str("baga6ea4seaqgi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5i")
+            Cid::from_str("bagboea4b5abcamxmh7exq7vrvacvajooeapagr3a4g3tpjhw73iny47hvafw76gr")
                 .unwrap()
                 .to_bytes()
                 .try_into()
@@ -318,6 +358,7 @@ impl Default for SectorPreCommitInfoBuilder {
             deal_ids: bounded_vec![0, 1],
             expiration: 120 * MINUTES,
             unsealed_cid,
+            seal_randomness_height: 1,
         }
     }
 }
@@ -352,6 +393,7 @@ impl SectorPreCommitInfoBuilder {
             deal_ids: self.deal_ids,
             expiration: self.expiration,
             unsealed_cid: self.unsealed_cid,
+            seal_randomness_height: self.seal_randomness_height,
         }
     }
 }

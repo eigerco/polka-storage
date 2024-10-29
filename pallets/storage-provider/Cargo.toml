@@ -18,6 +18,9 @@ targets = ["x86_64-unknown-linux-gnu"]
 cid = { workspace = true, features = ["alloc"] }
 codec = { workspace = true, default-features = false, features = ["derive"] }
 log = { workspace = true, features = ["kv"] }
+pallet-insecure-randomness-collective-flip = { workspace = true, default-features = false }
+pallet-proofs = { workspace = true, default-features = false }
+pallet-randomness = { workspace = true, default-features = false }
 primitives-commitment = { workspace = true }
 primitives-proofs = { workspace = true, default-features = false }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }

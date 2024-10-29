@@ -57,8 +57,9 @@ pub mod pallet {
     };
     use primitives_commitment::{Commitment, CommitmentKind};
     use primitives_proofs::{
-        Market, RegisteredPoStProof, RegisteredSealProof, SectorNumber, StorageProviderValidation,
-        MAX_SECTORS_PER_CALL,
+        randomness::{draw_randomness, DomainSeparationTag},
+        Market, ProofVerification, Randomness, RegisteredPoStProof, SectorNumber,
+        StorageProviderValidation, MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::Zero;
@@ -96,6 +97,9 @@ pub mod pallet {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
+        /// Randomness generator
+        type Randomness: Randomness<BlockNumberFor<Self>>;
+
         /// Peer ID is derived by hashing an encoded public key.
         /// Usually represented in bytes.
         /// https://github.com/libp2p/specs/blob/2ea41e8c769f1bead8e637a9d4ebf8c791976e8a/peer-ids/peer-ids.md#peer-ids
@@ -107,6 +111,9 @@ pub mod pallet {
 
         /// Market trait implementation for activating deals
         type Market: Market<Self::AccountId, BlockNumberFor<Self>>;
+
+        /// Proof verification trait implementation for verifying proofs
+        type ProofVerification: ProofVerification;
 
         /// Window PoSt proving period — equivalent to 24 hours worth of blocks.
         ///
@@ -217,6 +224,11 @@ pub mod pallet {
         #[pallet::constant]
         type FaultDeclarationCutoff: Get<BlockNumberFor<Self>>;
 
+        /// Number of blocks between publishing the precommit and when the
+        /// challenge for interactive PoRep can be first drawn from the randomness.
+        #[pallet::constant]
+        type PreCommitChallengeDelay: Get<BlockNumberFor<Self>>;
+
         /// The maximum number of partitions that may be required to be loaded in a single invocation.
         /// This limits the number of simultaneous fault, recovery, or sector-extension declarations.
         type AddressedPartitionsMax: Get<u64>;
@@ -300,6 +312,8 @@ pub mod pallet {
         InvalidSector,
         /// Emitted when submitting an invalid proof type.
         InvalidProofType,
+        /// Emitted when the proof is invalid
+        InvalidProof,
         /// Emitted when there is not enough funds to run an extrinsic.
         NotEnoughFunds,
         /// Emitted when trying to reuse a sector number
@@ -473,15 +487,29 @@ pub mod pallet {
                     sector.expiration,
                 )?;
 
-                let unsealed_cid = validate_data_commitment_cid::<T>(&sector.unsealed_cid[..])?;
+                // Validate the data commitment
+                let commd = Commitment::from_cid_bytes(&sector.unsealed_cid[..], CommitmentKind::Data)
+                    .map_err(|err| {
+                        log::error!(target: LOG_TARGET, err:?; "pre_commit_sectors: invalid unsealed_cid");
+                        Error::<T>::InvalidCid
+                    })?;
+
+                // Validate the replica commitment
+                let _ = Commitment::from_cid_bytes(&sector.sealed_cid[..], CommitmentKind::Replica)
+                    .map_err(|err| {
+                        log::error!(target: LOG_TARGET, err:?; "pre_commit_sectors: invalid sealed_cid");
+                        Error::<T>::InvalidCid
+                    })?;
+
                 let deposit = calculate_pre_commit_deposit::<T>();
+
                 let sector_on_chain =
                     SectorPreCommitOnChainInfo::new(sector.clone(), deposit, current_block);
 
                 // Push deal amounts for later verification
                 deal_amounts.try_push(sector_on_chain.info.deal_ids.len()).expect("Programmer error: cannot have more that MAX_SECTORS_PER_CALL deal_amount because of previous bounds");
                 // Push all unsealed_cids and deal amount to verify later.
-                unsealed_cids.try_push(unsealed_cid).expect("Programmer error: cannot have more that MAX_SECTORS_PER_CALL unsealed_cids because of previous bounds");
+                unsealed_cids.try_push(commd.cid()).expect("Programmer error: cannot have more that MAX_SECTORS_PER_CALL unsealed_cids because of previous bounds");
                 // Push all deals to verify in one go later.
                 all_sector_deals.try_push((&sector_on_chain).into()).expect(
                     "Programmer error: sector deals cannot be more that MAX_SECTORS_PER_CALL because of previous bounds",
@@ -508,6 +536,7 @@ pub mod pallet {
                 unsealed_cids,
                 deal_amounts,
             )?;
+
             // Check balance for deposit
             let balance = T::Currency::total_balance(&owner);
             ensure!(balance >= total_deposit, Error::<T>::NotEnoughFunds);
@@ -532,8 +561,8 @@ pub mod pallet {
             Ok(())
         }
 
-        /// Allows the storage providers to submit proof for their pre-committed sectors.
-        // TODO(@aidan46, no-ref, 2024-06-24): Actually check proof, currently the proof validation is stubbed out.
+        /// Allows the storage providers to submit proof for their pre-committed
+        /// sectors.
         pub fn prove_commit_sectors(
             origin: OriginFor<T>,
             sectors: BoundedVec<ProveCommitSector, ConstU32<MAX_SECTORS_PER_CALL>>,
@@ -564,13 +593,9 @@ pub mod pallet {
                     log::error!(target: LOG_TARGET, "prove_commit_sectors: Prove commit submitted after the deadline. {current_block:?} > {prove_commit_due:?}");
                     Error::<T>::ProveCommitAfterDeadline
                 });
-                ensure!(
-                    validate_seal_proof(&precommit.info.seal_proof, sector.proof),
-                    {
-                        log::error!(target: LOG_TARGET, "prove_commit_sectors: Invalid proof type submitted");
-                        Error::<T>::InvalidProofType
-                    },
-                );
+
+                // Validate the proof
+                validate_seal_proof::<T>(&owner, &precommit, sector.proof.into_inner())?;
 
                 // Sector deals that will be activated after the sector is
                 // successfully proven.
@@ -1439,19 +1464,6 @@ pub mod pallet {
         }
     }
 
-    // Adapted from filecoin reference here: https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/miner/src/commd.rs#L51-L56
-    fn validate_data_commitment_cid<T: Config>(bytes: &[u8]) -> Result<Cid, Error<T>> {
-        let cid = Cid::try_from(bytes).map_err(|e| {
-            log::error!(target: LOG_TARGET, e:?; "failed to validate cid");
-            Error::<T>::InvalidCid
-        })?;
-
-        // This checks if the cid represents correct commitment
-        Commitment::from_cid(&cid, CommitmentKind::Data).map_err(|_| Error::<T>::InvalidCid)?;
-
-        Ok(cid)
-    }
-
     /// Calculate the required pre commit deposit amount
     fn calculate_pre_commit_deposit<T: Config>() -> BalanceOf<T> {
         BalanceOf::<T>::one() // TODO(@aidan46, #106, 2024-06-24): Set a logical value or calculation
@@ -1482,10 +1494,91 @@ pub mod pallet {
         Ok(())
     }
 
-    fn validate_seal_proof(
-        _seal_proof_type: &RegisteredSealProof,
-        proofs: BoundedVec<u8, ConstU32<256>>,
-    ) -> bool {
-        proofs.len() != 0 // TODO(@aidan46, no-ref, 2024-06-24): Actually check proof
+    fn validate_seal_proof<T: Config>(
+        owner: &T::AccountId,
+        precommit: &SectorPreCommitOnChainInfo<BalanceOf<T>, BlockNumberFor<T>>,
+        proof: Vec<u8>,
+    ) -> Result<(), DispatchError> {
+        let max_proof_size = precommit.info.seal_proof.proof_size();
+
+        // Check proof size
+        if proof.len() > max_proof_size {
+            log::error!(target: LOG_TARGET, "sector proof size {} exceeds max {}", proof.len(), max_proof_size);
+            return Err(Error::<T>::InvalidProof)?;
+        }
+
+        let current_block_number = <frame_system::Pallet<T>>::block_number();
+
+        // Check if we are too early with the proof submit
+        let interactive_block_number =
+            precommit.pre_commit_block_number + T::PreCommitChallengeDelay::get();
+        if current_block_number < interactive_block_number {
+            log::error!(target: LOG_TARGET, "too early to prove sector: current_block_number: {current_block_number:?} < interactive_block_number: {interactive_block_number:?}");
+            return Err(Error::<T>::InvalidProof)?;
+        }
+
+        // Validate the data commitment
+        let commd = Commitment::from_cid_bytes(&precommit.info.unsealed_cid[..], CommitmentKind::Data)
+            .map_err(|err| {
+                log::error!(target: LOG_TARGET, err:?; "validate_seal_proof: invalid unsealed_cid {:?}", &precommit.info.unsealed_cid);
+                Error::<T>::InvalidCid
+            })?;
+
+        // Validate the replica commitment
+        let commr = Commitment::from_cid_bytes(&precommit.info.sealed_cid[..], CommitmentKind::Replica)
+            .map_err(|err| {
+                log::error!(target: LOG_TARGET, err:?; "validate_seal_proof: invalid sealed_cid {:?}", &precommit.info.sealed_cid);
+                Error::<T>::InvalidCid
+            })?;
+
+        let entropy = owner.encode();
+        let randomness = get_randomness::<T>(
+            DomainSeparationTag::SealRandomness,
+            precommit.info.seal_randomness_height,
+            &entropy,
+        )?;
+        let interactive_randomness = get_randomness::<T>(
+            DomainSeparationTag::InteractiveSealChallengeSeed,
+            interactive_block_number,
+            &entropy,
+        )?;
+
+        // TODO(#412,@cernicc,21/10/2024): Generate a correct Prover Id
+        let prover_id = [0u8; 32];
+
+        // Verify the porep proof
+        T::ProofVerification::verify_porep(
+            prover_id,
+            precommit.info.seal_proof,
+            commr.raw(),
+            commd.raw(),
+            precommit.info.sector_number,
+            randomness,
+            interactive_randomness,
+            proof,
+        )
+    }
+
+    /// Get randomness from the chain and process it with domain separation.
+    fn get_randomness<T: Config>(
+        personalization: DomainSeparationTag,
+        block_number: BlockNumberFor<T>,
+        entropy: &[u8],
+    ) -> Result<[u8; 32], DispatchError> {
+        // Get randomness from chain
+        let digest = T::Randomness::get_randomness(block_number)?;
+
+        // Converting block_height to the type accepted by draw_randomness
+        let block_number = block_number
+            .try_into()
+            .map_err(|_| {
+                log::error!(target: LOG_TARGET, "get_randomness: failed to convert block_height to u64");
+                Error::<T>::ConversionError
+            })?;
+
+        // Randomness with the bias
+        let randomness = draw_randomness(&digest, personalization, block_number, entropy);
+
+        Ok(randomness)
     }
 }

@@ -5,6 +5,7 @@ pub mod piece;
 mod zero;
 
 use cid::{multihash::Multihash, Cid};
+use primitives_proofs::RegisteredSealProof;
 
 use crate::piece::PaddedPieceSize;
 
@@ -77,6 +78,15 @@ impl Commitment {
         Self::new(commitment, CommitmentKind::Piece)
     }
 
+    /// Creates a new `Commitment` from bytes of a valid CID.
+    /// Returns an error if the bytes passed do not represent a valid commitment.
+    pub fn from_cid_bytes(bytes: &[u8], kind: CommitmentKind) -> Result<Self, &'static str> {
+        let cid = Cid::try_from(bytes).map_err(|_| "bytes not a valid cid")?;
+        Self::from_cid(&cid, kind)
+    }
+
+    /// Creates a new `Commitment` from a CID. Returns an error if the CID
+    /// passed does not represent a commitment kind.
     pub fn from_cid(cid: &Cid, kind: CommitmentKind) -> Result<Self, &'static str> {
         let mut commitment = [0; 32];
         commitment.copy_from_slice(cid.hash().digest());
@@ -87,20 +97,20 @@ impl Commitment {
         match kind {
             CommitmentKind::Piece | CommitmentKind::Data => {
                 if multicodec != FIL_COMMITMENT_UNSEALED {
-                    return Err("invalid multicodec for commitment");
+                    return Err("invalid multicodec for piece/data commitment");
                 }
 
                 if multihash != SHA2_256_TRUNC254_PADDED {
-                    return Err("invalid multihash for commitment");
+                    return Err("invalid multihash for piece/data commitment");
                 }
             }
             CommitmentKind::Replica => {
                 if multicodec != FIL_COMMITMENT_SEALED {
-                    return Err("invalid multicodec for commitment");
+                    return Err("invalid multicodec for replica commitment");
                 }
 
                 if multihash != POSEIDON_BLS12_381_A1_FC1 {
-                    return Err("invalid multihash for commitment");
+                    return Err("invalid multihash for replica commitment");
                 }
             }
         }
@@ -128,6 +138,19 @@ pub fn zero_piece_commitment(size: PaddedPieceSize) -> Commitment {
     Commitment {
         commitment: zero::zero_piece_commitment(size),
         kind: CommitmentKind::Piece,
+    }
+}
+
+/// Return a zero data commitment for specific seal proof.
+pub fn zero_data_commitment(seal_proof: RegisteredSealProof) -> Commitment {
+    let size = seal_proof.sector_size().bytes();
+    let size = PaddedPieceSize::new(size).expect("sector size is a valid padded size");
+
+    Commitment {
+        // Zero data commitment is the same as zero piece commitment of the same
+        // size.
+        commitment: zero::zero_piece_commitment(size),
+        kind: CommitmentKind::Data,
     }
 }
 

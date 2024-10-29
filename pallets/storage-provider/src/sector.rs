@@ -21,6 +21,8 @@ pub struct SectorPreCommitInfo<BlockNumber> {
     /// Using sealed_cid as I think that is more descriptive.
     /// Some docs on commR here: <https://proto.school/verifying-storage-on-filecoin/03>
     pub sealed_cid: BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>,
+    /// The block number at which we requested the randomness when sealing the sector.
+    pub seal_randomness_height: BlockNumber,
     /// Deals Ids that are supposed to be activated.
     /// If any of those is invalid, whole activation is rejected.
     pub deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
@@ -37,7 +39,7 @@ pub struct SectorPreCommitOnChainInfo<Balance, BlockNumber> {
     pub info: SectorPreCommitInfo<BlockNumber>,
     /// Total collateral for this sector
     pub pre_commit_deposit: Balance,
-    /// Block number this was pre-committed
+    /// Block number at which the sector was pre-committed
     pub pre_commit_block_number: BlockNumber,
 }
 

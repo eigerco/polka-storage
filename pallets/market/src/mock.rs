@@ -6,7 +6,7 @@ use frame_support::{
     PalletId,
 };
 use frame_system::{self as system, pallet_prelude::BlockNumberFor};
-use primitives_proofs::RegisteredPoStProof;
+use primitives_proofs::{Randomness, RegisteredPoStProof};
 use sp_core::Pair;
 use sp_runtime::{
     traits::{ConstU32, ConstU64, IdentifyAccount, IdentityLookup, Verify},
@@ -28,6 +28,7 @@ frame_support::construct_runtime!(
         Balances: pallet_balances,
         StorageProvider: pallet_storage_provider::pallet,
         Market: pallet_market,
+        Proofs: pallet_proofs::pallet,
     }
 );
 
@@ -64,6 +65,7 @@ parameter_types! {
     pub const MaxPartitionsPerDeadline: u64 = 3000;
     pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
     pub const FaultDeclarationCutoff: BlockNumber = 2 * MINUTES;
+    pub const PreCommitChallengeDelay: BlockNumber = 1 * MINUTES;
     // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L299>
     pub const AddressedSectorsMax: u64 = 25_000;
 }
@@ -81,11 +83,21 @@ impl crate::Config for Test {
     type MaxDealsPerBlock = ConstU32<32>;
 }
 
+/// Randomness generator used by tests.
+pub struct DummyRandomnessGenerator;
+impl<BlockNumber> Randomness<BlockNumber> for DummyRandomnessGenerator {
+    fn get_randomness(_: BlockNumber) -> Result<[u8; 32], sp_runtime::DispatchError> {
+        Ok([0; 32])
+    }
+}
+
 impl pallet_storage_provider::Config for Test {
     type RuntimeEvent = RuntimeEvent;
+    type Randomness = DummyRandomnessGenerator;
     type PeerId = BoundedVec<u8, ConstU32<32>>; // Max length of SHA256 hash
     type Currency = Balances;
     type Market = Market;
+    type ProofVerification = Proofs;
     type WPoStProvingPeriod = WpostProvingPeriod;
     type WPoStChallengeWindow = WpostChallengeWindow;
     type WPoStChallengeLookBack = WpostChallengeLookBack;
@@ -97,9 +109,14 @@ impl pallet_storage_provider::Config for Test {
     type MaxPartitionsPerDeadline = MaxPartitionsPerDeadline;
     type FaultMaxAge = FaultMaxAge;
     type FaultDeclarationCutoff = FaultDeclarationCutoff;
+    type PreCommitChallengeDelay = PreCommitChallengeDelay;
     // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L295>
     type AddressedPartitionsMax = MaxPartitionsPerDeadline;
     type AddressedSectorsMax = AddressedSectorsMax;
+}
+
+impl pallet_proofs::Config for Test {
+    type RuntimeEvent = RuntimeEvent;
 }
 
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
@@ -179,12 +196,15 @@ pub fn events() -> Vec<RuntimeEvent> {
 pub fn run_to_block(n: u64) {
     while System::block_number() < n {
         if System::block_number() > 1 {
+            StorageProvider::on_finalize(System::block_number());
             Market::on_finalize(System::block_number());
             System::on_finalize(System::block_number());
         }
+
         System::set_block_number(System::block_number() + 1);
         System::on_initialize(System::block_number());
         Market::on_initialize(System::block_number());
+        StorageProvider::on_initialize(System::block_number());
     }
 }
 
