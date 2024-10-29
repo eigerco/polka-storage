@@ -13,7 +13,7 @@ In this chapter we'll cover the server's architecture as well as the CLI's optio
 The server has two main fronts, the JSON-RPC API which provides an interface for users to submit deal proposals to the storage provider,
 and the HTTP API which consists of a single endpoint where users are to submit their data.
 
-The user is first required to propose a deal, which once accepted (signaled by the return of a CID) allows the user to submit a file
+The user is first required to propose a deal, which once accepted by the storage provider (signaled by the return of a CID) allows the user to submit a file
 (using `curl` for example) to the server; finally the user can then publish a signed deal to the storage provider.
 
 The responsibility then falls on to the storage provider to seal, publish and activate the deal on the Polka Storage parachain.
