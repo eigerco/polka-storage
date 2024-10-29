@@ -196,6 +196,9 @@ where
         deal_ids: vec![0],
         expiration: 165,
         unsealed_cid,
+        // TODO: This height depends on the block of the randomness fetched from
+        // the network when sealing a sector.
+        seal_randomness_height: 0,
     }];
 
     let result = client

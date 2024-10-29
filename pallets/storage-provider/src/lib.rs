@@ -57,6 +57,7 @@ pub mod pallet {
     };
     use primitives_commitment::{Commitment, CommitmentKind};
     use primitives_proofs::{
+        derive_prover_id,
         randomness::{draw_randomness, DomainSeparationTag},
         Market, ProofVerification, Randomness, RegisteredPoStProof, SectorNumber,
         StorageProviderValidation, MAX_SECTORS_PER_CALL,
@@ -1543,8 +1544,7 @@ pub mod pallet {
             &entropy,
         )?;
 
-        // TODO(#412,@cernicc,21/10/2024): Generate a correct Prover Id
-        let prover_id = [0u8; 32];
+        let prover_id = derive_prover_id(owner);
 
         // Verify the porep proof
         T::ProofVerification::verify_porep(
