@@ -11,7 +11,10 @@ use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
 use tracing::{info, instrument};
 
-use crate::{db::DealDB, pipeline::PipelineMessage};
+use crate::{
+    db::DealDB,
+    pipeline::{PipelineMessage, PreCommitMessage},
+};
 
 /// RPC server shared state.
 pub struct RpcServerState {
@@ -111,12 +114,12 @@ impl StorageProviderRpcServer for RpcServerState {
         let deal_id = published_deals[0].deal_id;
 
         self.pipeline_sender
-            .send(PipelineMessage::PreCommit {
+            .send(PipelineMessage::PreCommit(PreCommitMessage {
                 deal,
                 published_deal_id: deal_id,
                 piece_path,
                 piece_cid,
-            })
+            }))
             .map_err(|e| RpcError::internal_error(e, None))?;
 
         Ok(deal_id)

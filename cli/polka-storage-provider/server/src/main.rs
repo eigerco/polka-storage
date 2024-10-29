@@ -364,7 +364,7 @@ impl ServerConfiguration {
         tokio::fs::create_dir_all(unsealed_sector_storage_dir.as_ref()).await?;
         tokio::fs::create_dir_all(sealed_sector_storage_dir.as_ref()).await?;
 
-        let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<PipelineMessage>();
+        let (pipeline_tx, pipeline_rx) = tokio::sync::mpsc::unbounded_channel::<PipelineMessage>();
 
         let storage_state = StorageServerState {
             car_piece_storage_dir: car_piece_storage_dir.clone(),
@@ -384,7 +384,7 @@ impl ServerConfiguration {
             xt_client: xt_client.clone(),
             xt_keypair: self.multi_pair_signer.clone(),
             listen_address: self.rpc_listen_address,
-            pipeline_sender: tx,
+            pipeline_sender: pipeline_tx,
         };
 
         let pipeline_state = PipelineState {
@@ -392,11 +392,11 @@ impl ServerConfiguration {
             unsealed_sectors_dir: unsealed_sector_storage_dir,
             sealed_sectors_dir: sealed_sector_storage_dir,
             sealing_cache_dir,
-            xt_client: xt_client,
+            xt_client,
             xt_keypair: self.multi_pair_signer,
         };
 
-        Ok((storage_state, rpc_state, pipeline_state, rx))
+        Ok((storage_state, rpc_state, pipeline_state, pipeline_rx))
     }
 
     async fn setup_storagext_client(
