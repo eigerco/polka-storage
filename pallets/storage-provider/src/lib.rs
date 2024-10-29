@@ -114,7 +114,7 @@ pub mod pallet {
         type Market: Market<Self::AccountId, BlockNumberFor<Self>>;
 
         /// Proof verification trait implementation for verifying proofs
-        type ProofVerificationPallet: ProofVerification;
+        type ProofVerification: ProofVerification;
 
         /// Window PoSt proving period — equivalent to 24 hours worth of blocks.
         ///
@@ -490,14 +490,14 @@ pub mod pallet {
                 )?;
 
                 // Validate the data commitment
-                let commd = Commitment::from_bytes(&sector.unsealed_cid[..], CommitmentKind::Data)
+                let commd = Commitment::from_cid_bytes(&sector.unsealed_cid[..], CommitmentKind::Data)
                     .map_err(|err| {
                         log::error!(target: LOG_TARGET, err:?; "pre_commit_sectors: invalid unsealed_cid");
                         Error::<T>::InvalidCid
                     })?;
 
                 // Validate the replica commitment
-                let _ = Commitment::from_bytes(&sector.sealed_cid[..], CommitmentKind::Replica)
+                let _ = Commitment::from_cid_bytes(&sector.sealed_cid[..], CommitmentKind::Replica)
                     .map_err(|err| {
                         log::error!(target: LOG_TARGET, err:?; "pre_commit_sectors: invalid sealed_cid");
                         Error::<T>::InvalidCid
@@ -1520,14 +1520,14 @@ pub mod pallet {
         }
 
         // Validate the data commitment
-        let commd = Commitment::from_bytes(&precommit.info.unsealed_cid[..], CommitmentKind::Data)
+        let commd = Commitment::from_cid_bytes(&precommit.info.unsealed_cid[..], CommitmentKind::Data)
             .map_err(|err| {
                 log::error!(target: LOG_TARGET, err:?; "validate_seal_proof: invalid unsealed_cid {:?}", &precommit.info.unsealed_cid);
                 Error::<T>::InvalidCid
             })?;
 
         // Validate the replica commitment
-        let commr = Commitment::from_bytes(&precommit.info.sealed_cid[..], CommitmentKind::Replica)
+        let commr = Commitment::from_cid_bytes(&precommit.info.sealed_cid[..], CommitmentKind::Replica)
             .map_err(|err| {
                 log::error!(target: LOG_TARGET, err:?; "validate_seal_proof: invalid sealed_cid {:?}", &precommit.info.sealed_cid);
                 Error::<T>::InvalidCid
@@ -1549,7 +1549,7 @@ pub mod pallet {
         let prover_id = [0u8; 32];
 
         // Verify the porep proof
-        T::ProofVerificationPallet::verify_porep(
+        T::ProofVerification::verify_porep(
             prover_id,
             precommit.info.seal_proof,
             commr.raw(),

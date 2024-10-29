@@ -80,7 +80,7 @@ impl Commitment {
 
     /// Creates a new `Commitment` from bytes. Returns an error if the bytes
     /// passed do not represent a valid commitment.
-    pub fn from_bytes(bytes: &[u8], kind: CommitmentKind) -> Result<Self, &'static str> {
+    pub fn from_cid_bytes(bytes: &[u8], kind: CommitmentKind) -> Result<Self, &'static str> {
         let cid = Cid::try_from(bytes).map_err(|_| "bytes not a valid cid")?;
         Self::from_cid(&cid, kind)
     }

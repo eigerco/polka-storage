@@ -11,14 +11,14 @@ pub enum DomainSeparationTag {
     InteractiveSealChallengeSeed = 2,
 }
 
-pub fn draw_randomness<BlocKNumber>(
+pub fn draw_randomness<BlockNumber>(
     rbase: &[u8; 32],
     pers: DomainSeparationTag,
-    round: BlocKNumber,
+    round: BlockNumber,
     entropy: &[u8],
 ) -> [u8; 32]
 where
-    BlocKNumber: sp_runtime::traits::BlockNumber,
+    BlockNumber: sp_runtime::traits::BlockNumber,
 {
     // 8(pers) + 32(rbase) + 8(round) + entropy.len()
     let mut data = Vec::with_capacity(8 + 32 + 8 + entropy.len());

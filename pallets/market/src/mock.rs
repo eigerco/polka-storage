@@ -97,7 +97,7 @@ impl pallet_storage_provider::Config for Test {
     type PeerId = BoundedVec<u8, ConstU32<32>>; // Max length of SHA256 hash
     type Currency = Balances;
     type Market = Market;
-    type ProofVerificationPallet = Proofs;
+    type ProofVerification = Proofs;
     type WPoStProvingPeriod = WpostProvingPeriod;
     type WPoStChallengeWindow = WpostChallengeWindow;
     type WPoStChallengeLookBack = WpostChallengeLookBack;

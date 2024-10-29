@@ -376,7 +376,7 @@ impl pallet_storage_provider::Config for Runtime {
     type PeerId = BoundedVec<u8, ConstU32<32>>; // Max length of SHA256 hash
     type Currency = Balances;
     type Market = crate::Market;
-    type ProofVerificationPallet = crate::Proofs;
+    type ProofVerification = crate::Proofs;
     type WPoStProvingPeriod = WpostProvingPeriod;
     type WPoStChallengeWindow = WpostChallengeWindow;
     type WPoStChallengeLookBack = WPoStChallengeLookBack;

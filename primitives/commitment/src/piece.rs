@@ -1,7 +1,5 @@
 use core::ops::{Add, AddAssign, Deref};
 
-#[cfg(feature = "std")]
-use crate::CommitmentKind;
 use crate::{Commitment, NODE_SIZE};
 
 /// Piece info contains piece commitment and piece size.
@@ -22,7 +20,7 @@ impl PieceInfo {
     /// could be turned into a `from`.
     pub fn from_filecoin_piece_info(
         piece_info: filecoin_proofs::PieceInfo,
-        kind: CommitmentKind,
+        kind: crate::CommitmentKind,
     ) -> Self {
         Self {
             commitment: Commitment::new(piece_info.commitment, kind),
