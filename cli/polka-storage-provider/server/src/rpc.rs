@@ -3,10 +3,12 @@ use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 use jsonrpsee::server::Server;
 use polka_storage_proofs::porep::sealer::{prepare_piece, Sealer};
 use polka_storage_provider_common::rpc::{RpcError, ServerInfo, StorageProviderRpcServer};
+use primitives_proofs::derive_prover_id;
 use storagext::{
     types::market::{ClientDealProposal as SxtClientDealProposal, DealProposal as SxtDealProposal},
     MarketClientExt,
 };
+use subxt::tx::Signer;
 use tokio_util::sync::CancellationToken;
 use tracing::{info, instrument};
 
@@ -28,7 +30,6 @@ macro_rules! ok_or_return {
 
 // PLACEHOLDERS!!!!!
 const SECTOR_ID: u64 = 77;
-const PROVER_ID: [u8; 32] = [0u8; 32];
 const TICKET: [u8; 32] = [12u8; 32];
 // const SEED: [u8; 32] = [13u8; 32];
 
@@ -132,6 +133,7 @@ impl StorageProviderRpcServer for RpcServerState {
         let sealed_dir = self.sealed_piece_storage_dir.clone();
         let cache_dir = self.sealing_cache_dir.clone();
         let seal_proof = self.server_info.seal_proof;
+        let prover_id = derive_prover_id(self.xt_keypair.account_id());
 
         // Questions to be answered:
         // * what happens if some of it fails? SP will be slashed, and there is no error reporting?
@@ -162,7 +164,7 @@ impl StorageProviderRpcServer for RpcServerState {
                 cache_dir.as_ref(),
                 unsealed_sector_path,
                 sealed_sector_path,
-                PROVER_ID,
+                prover_id,
                 SECTOR_ID,
                 TICKET,
                 &piece_infos,

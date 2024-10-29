@@ -14,7 +14,9 @@ use polka_storage_proofs::{
 };
 use polka_storage_provider_common::commp::{calculate_piece_commitment, CommPError};
 use primitives_commitment::piece::PaddedPieceSize;
-use primitives_proofs::{RegisteredPoStProof, RegisteredSealProof};
+use primitives_proofs::{derive_prover_id, RegisteredPoStProof, RegisteredSealProof};
+use storagext::multipair::{MultiPairArgs, MultiPairSigner};
+use subxt::tx::Signer;
 
 use crate::CliError;
 
@@ -43,6 +45,9 @@ pub enum ProofsCommand {
     /// Takes a piece file (in a CARv2 archive, unpadded), puts it into a sector (temp file), seals and proves it.
     #[clap(name = "porep")]
     PoRep {
+        /// Key of the entity generating the proof.
+        #[command(flatten)]
+        signer_key: MultiPairArgs,
         /// PoRep has multiple variants dependent on the sector size.
         /// Parameters are required for each sector size and its corresponding PoRep Params.
         #[arg(short, long, default_value = "2KiB")]
@@ -75,6 +80,9 @@ pub enum ProofsCommand {
     /// Creates a PoSt for a single sector.
     #[clap(name = "post")]
     PoSt {
+        /// Key of the entity generating the proof.
+        #[command(flatten)]
+        signer_key: MultiPairArgs,
         /// PoSt has multiple variants dependant on the sector size.
         /// Parameters are required for each sector size and its corresponding PoSt.
         #[arg(long, default_value = "2KiB")]
@@ -181,6 +189,7 @@ impl ProofsCommand {
                 println!("{}", vk_scale_file_name.display());
             }
             ProofsCommand::PoRep {
+                signer_key,
                 seal_proof,
                 proof_parameters_path,
                 input_path,
@@ -188,10 +197,14 @@ impl ProofsCommand {
                 output_path,
                 cache_directory,
             } => {
+                let Some(signer) = Option::<MultiPairSigner>::from(signer_key) else {
+                    return Err(UtilsCommandError::NoSigner)?;
+                };
+                let prover_id = derive_prover_id(signer.account_id());
+
                 // Those are hardcoded for the showcase only.
                 // They should come from Storage Provider Node, precommits and other information.
                 let sector_id = 77;
-                let prover_id = [0u8; 32];
                 let ticket = [12u8; 32];
                 let seed = [13u8; 32];
 
@@ -338,6 +351,7 @@ impl ProofsCommand {
                 println!("{}", vk_scale_file_name.display());
             }
             ProofsCommand::PoSt {
+                signer_key,
                 post_type,
                 proof_parameters_path,
                 cache_directory,
@@ -345,11 +359,15 @@ impl ProofsCommand {
                 comm_r,
                 output_path,
             } => {
+                let Some(signer) = Option::<MultiPairSigner>::from(signer_key) else {
+                    return Err(UtilsCommandError::NoSigner)?;
+                };
+                let prover_id = derive_prover_id(signer.account_id());
+
                 // Those are hardcoded for the showcase only.
                 // They should come from Storage Provider Node, precommits and other information.
                 let sector_id = 77;
                 let randomness = [1u8; 32];
-                let prover_id = [0u8; 32];
 
                 let output_path = if let Some(output_path) = output_path {
                     output_path
@@ -421,6 +439,8 @@ pub enum UtilsCommandError {
     InvalidPieceCommP(String, cid::Error),
     #[error("file {0} is invalid CARv2 file {1}")]
     InvalidCARv2(PathBuf, mater::Error),
+    #[error("no signer key was provider")]
+    NoSigner,
 }
 
 fn file_with_extension(
