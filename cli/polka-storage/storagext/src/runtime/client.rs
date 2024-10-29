@@ -1,38 +1,39 @@
 use std::{sync::Arc, time::Duration, vec::Vec};
 
 use hex::ToHex;
-use subxt::{
-    blocks::ExtrinsicEvents,
-    error::BlockError,
-    ext::subxt_core::error::{CustomError, ExtrinsicParamsError},
-    OnlineClient,
-};
+use subxt::{blocks::ExtrinsicEvents, error::BlockError, OnlineClient};
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
 use crate::PolkaStorageConfig;
 
+/// Helper type to access the hash type of a given subxt configuration.
 type HashOf<C> = <C as subxt::Config>::Hash;
+/// Hash type of our default used subxt configuration.
 pub type HashOfPsc = HashOf<PolkaStorageConfig>;
 
+/// Helper definition to define a stack for storing collected events with block hash.
 type ParaEvents<C> = Arc<RwLock<Vec<(HashOf<C>, ExtrinsicEvents<C>)>>>;
-type ParaErrors = Arc<RwLock<Vec<Box<dyn CustomError>>>>;
 
 /// This definition defines one single, successful event of an extrinsic execution. For example,
 /// one published deal, or one settled deal.
 #[derive(Debug)]
-pub struct ExtrinsicEvent<Hash, Event, Variant> {
-    /// Submission block hash.
+pub struct ExtrinsicEvent<Hash, Variant> {
+    /// Submission block hash, final enum variant.
     pub hash: Hash,
     /// Resulting extrinsic's event.
-    pub event: Event,
+    /// This additional more complex type is needed by the formatter `OutputFormat`.
+    pub event: crate::runtime::Event,
     /// Resulting extrinsic's event-variant.
     pub variant: Variant,
 }
 
 /// Helper type for [`Client::traced_submission`] successful results.
-pub type SubmissionResult<Hash, Event, Variant> =
-    Result<Vec<ExtrinsicEvent<Hash, Event, Variant>>, Box<dyn CustomError>>;
+///
+/// Currently, our pallet's extrinsic calls do emit either a single event or multiple events. For
+/// that reason we need here `Vec<ExtrinsicEvent<...>>`. If we would harmonize that that way
+/// extrinsics are emitting pnly one event per extrinsic call, we could remove the `Vec`.
+pub type SubmissionResult<Hash, Variant> = Result<Vec<ExtrinsicEvent<Hash, Variant>>, ()>;
 
 /// Client to interact with a pallet extrinsics.
 /// You can call any extrinsic via [`Client::traced_submission`].
@@ -83,65 +84,61 @@ impl Client {
     ///
     /// Equivalent to performing [`OnlineClient::sign_and_submit_then_watch_default`],
     /// followed by [`TxInBlock::wait_for_finalized`] and [`TxInBlock::wait_for_success`].
-    pub(crate) async fn traced_submission<Call, Keypair, Event, Variant>(
+    pub(crate) async fn traced_submission<Call, Keypair, Variant>(
         &self,
         call: &Call,
         account_keypair: &Keypair,
         wait_for_finalization: bool,
-        expected_results: usize,
-    ) -> Result<Option<SubmissionResult<HashOfPsc, Event, Variant>>, subxt::Error>
+        expected_events: usize,
+    ) -> Result<Option<SubmissionResult<HashOfPsc, Variant>>, subxt::Error>
     where
         Call: subxt::tx::Payload + std::fmt::Debug,
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
-        Event: scale_decode::DecodeAsType + std::fmt::Display,
-        Variant: subxt::events::StaticEvent,
+        Variant: subxt::events::StaticEvent + std::fmt::Debug,
     {
-        let para_events: ParaEvents<PolkaStorageConfig> = Arc::new(RwLock::new(Vec::new()));
-        let para_errors: ParaErrors = Arc::new(RwLock::new(Vec::new()));
-        let cancel_token = CancellationToken::new();
+        if wait_for_finalization {
+            let para_events: ParaEvents<PolkaStorageConfig> = Arc::new(RwLock::new(Vec::new()));
+            let cancel_token = CancellationToken::new();
 
-        let p_api = self.client.clone();
-        let p_events = para_events.clone();
-        let p_errors = para_errors.clone();
-        let p_cancel = cancel_token.clone();
+            let p_api = self.client.clone();
+            let p_events = para_events.clone();
+            let p_cancel = cancel_token.clone();
 
-        let pw_handle = if wait_for_finalization {
-            // Start parachain-event listener for collecting all events of finalised blocks.
-            tokio::spawn(async move { para_watcher(p_api, p_cancel, p_events, p_errors).await })
-        } else {
-            // Run dummy task that does nothing except for being Ok.
-            tokio::spawn(async move { Ok(()) })
-        };
+            let pw_handle =
+                tokio::spawn(async move { para_watcher(p_api, p_cancel, p_events).await });
 
-        tracing::trace!("submitting extrinsic");
-        let submission_progress = self
-            .client
-            .tx()
-            .sign_and_submit_then_watch_default(call, account_keypair)
+            tracing::trace!("submitting extrinsic");
+            let submission_progress = self
+                .client
+                .tx()
+                .sign_and_submit_then_watch_default(call, account_keypair)
+                .await?;
+
+            let extrinsic_hash = submission_progress.extrinsic_hash();
+            tracing::trace!(
+                "waiting for finalization {}",
+                extrinsic_hash.encode_hex::<String>(),
+            );
+
+            let submission_result = wait_for_para_event::<PolkaStorageConfig, Variant>(
+                para_events.clone(),
+                extrinsic_hash,
+                expected_events,
+            )
             .await?;
+            cancel_token.cancel();
+            pw_handle
+                .await
+                .map_err(|e| subxt::Error::Other(format!("JoinHandle: {e:?}")))??;
 
-        if !wait_for_finalization {
-            return Ok(None);
+            Ok(Some(submission_result))
+        } else {
+            self.client
+                .tx()
+                .sign_and_submit_then_watch_default(call, account_keypair)
+                .await?;
+            Ok(None)
         }
-        let extrinsic_hash = submission_progress.extrinsic_hash();
-        tracing::trace!(
-            "waiting for finalization {}",
-            extrinsic_hash.encode_hex::<String>(),
-        );
-
-        let submission_result = wait_for_para_event::<PolkaStorageConfig, Event, Variant>(
-            para_events.clone(),
-            para_errors.clone(),
-            extrinsic_hash,
-            expected_results,
-        )
-        .await?;
-        cancel_token.cancel();
-        pw_handle
-            .await
-            .map_err(|e| subxt::Error::Other(format!("JoinHandle: {e:?}")))??;
-
-        Ok(Some(submission_result))
     }
 }
 
@@ -154,66 +151,65 @@ impl From<OnlineClient<PolkaStorageConfig>> for Client {
 /// Methods iterates through the given stack of collected events from the listener and compares for
 /// a given expected event type, for example `pallet_market::Event::BalanceAdded`. If the event has
 /// been found it will be returned.
-async fn wait_for_para_event<C, E, V>(
+async fn wait_for_para_event<C, V>(
     event_stack: ParaEvents<C>,
-    _error_stack: ParaErrors,
     extrinsic_hash: HashOf<C>,
-    expected_results: usize,
-) -> Result<SubmissionResult<HashOf<C>, E, V>, subxt::Error>
+    expected_events: usize,
+) -> Result<SubmissionResult<HashOf<C>, V>, subxt::Error>
 where
     C: subxt::Config + Clone + std::fmt::Debug,
-    E: scale_decode::DecodeAsType + std::fmt::Display,
-    V: subxt::events::StaticEvent,
+    V: subxt::events::StaticEvent + std::fmt::Debug,
 {
-    let mut catched_events = Vec::<ExtrinsicEvent<HashOf<C>, E, V>>::new();
+    let mut catched_events = Vec::<ExtrinsicEvent<HashOf<C>, V>>::new();
 
     loop {
         // Check for new events from a finalised block.
         let mut events_lock = event_stack.write().await;
         while let Some((hash, ex_events)) = events_lock.pop() {
             if ex_events.extrinsic_hash() == extrinsic_hash {
-                // Currently, it is assumed only one event to be contained, because only one event
-                // will be emitted in case of a successful extrinsoc.
-                if let Some(entry) = ex_events.iter().find(|_| true) {
+                for entry in ex_events.iter() {
                     let entry = entry?;
-                    let event = entry
-                        .as_root_event::<E>()
-                        .map_err(|e| subxt::Error::Other(format!("{entry:?}: {e:?}")))?;
-                    let variant = entry
-                        .as_event::<V>()
-                        .map_err(|e| subxt::Error::Other(format!("{entry:?}: {e:?}")))?
-                        .ok_or(subxt::Error::Other(format!(
-                            "{entry:?}: inner option error"
-                        )))?;
-                    tracing::trace!(
-                        "Found related event to extrinsic with hash {:?}",
-                        extrinsic_hash
-                    );
-                    catched_events.push(ExtrinsicEvent::<HashOf<C>, E, V> {
-                        hash,
-                        event,
-                        variant,
-                    });
-                    if catched_events.len() == expected_results {
+                    let event_name = format!("{}::{}", entry.pallet_name(), entry.variant_name());
+
+                    if entry.pallet_name() == V::PALLET && entry.variant_name() == V::EVENT {
+                        let event =
+                            entry
+                                .as_root_event::<crate::runtime::Event>()
+                                .map_err(|e| {
+                                    subxt::Error::Other(format!(
+                                        "{event_name}.as_root_event(): {e:?}"
+                                    ))
+                                })?;
+                        let variant = entry
+                            .as_event::<V>()
+                            .map_err(|e| {
+                                subxt::Error::Other(format!("{event_name}.as_event() {e:?}"))
+                            })?
+                            .ok_or(subxt::Error::Other(format!(
+                                "{event_name}: inner option error"
+                            )))?;
+                        tracing::trace!(
+                            "Found related event {event_name} to extrinsic with hash {:?}",
+                            extrinsic_hash
+                        );
+                        catched_events.push(ExtrinsicEvent::<HashOf<C>, V> {
+                            hash,
+                            event,
+                            variant,
+                        });
+                    } else if entry.pallet_name() == "System"
+                        && entry.variant_name() == "ExtrinsicFailed"
+                    {
+                        return Ok(Err(()));
+                    }
+
+                    if catched_events.len() == expected_events {
                         return Ok(Ok(catched_events));
                     }
                 }
             }
         }
         drop(events_lock);
-
-        // Check for new collected custom errors (extrinsic errors).
-        // Check if one error is sufficient for compound exeuctions (i.e. multiple sectors).
-        // TODO(@neutrinoks,25.10.24): Implement error filtering and test it.
-        // let mut errors = errors.write().await;
-        // while let Some(error) = errors.pop() {
-        //     let error = match error.downcast_ref::<ErrorType>() {
-        //         Some(e) => e,
-        //         None => continue,
-        //     };
-        //     // Push found pallet-related error somewhere.
-        // }
-        // drop(errors);
 
         // Blocks are generated only every couple of seconds, so don't waste CPU time.
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -225,7 +221,6 @@ async fn para_watcher<C: subxt::Config + Clone>(
     api: OnlineClient<C>,
     token: CancellationToken,
     events: ParaEvents<C>,
-    errors: ParaErrors,
 ) -> Result<(), subxt::Error>
 where
     <C::Header as subxt::config::Header>::Number: std::fmt::Display,
@@ -256,12 +251,7 @@ where
                     events.write().await.push((block_hash, ex_events));
                 }
                 Err(error) => {
-                    if let subxt::Error::ExtrinsicParams(ExtrinsicParamsError::Custom(
-                        boxed_custom_err,
-                    )) = error
-                    {
-                        errors.write().await.push(boxed_custom_err);
-                    }
+                    tracing::trace!("found error: {:?}", error);
                 }
             }
         }

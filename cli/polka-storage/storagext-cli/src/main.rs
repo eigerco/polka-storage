@@ -77,7 +77,7 @@ struct Cli {
     #[arg(long, env, default_value = DEFAULT_RETRY_INTERVAL_MS, value_parser = parse_ms)]
     pub retry_interval: Duration,
 
-    /// Shall the CLI skip waiting for the extrinsic's finalization?. By default, we wait.
+    /// Skip waiting for the extrinsic to be included in a finalized block.
     #[arg(long, env)]
     pub skip_finalization: bool,
 

@@ -502,7 +502,7 @@ dependencies = [
  "async-task",
  "concurrent-queue",
  "fastrand 2.1.1",
- "futures-lite 2.3.0",
+ "futures-lite 2.4.0",
  "slab",
 ]
 
@@ -526,7 +526,7 @@ checksum = "ebcd09b382f40fcd159c2d695175b2ae620ffa5f3bd6f664131efff4e8b9e04a"
 dependencies = [
  "async-lock 3.4.0",
  "blocking",
- "futures-lite 2.3.0",
+ "futures-lite 2.4.0",
 ]
 
 [[package]]
@@ -559,10 +559,10 @@ dependencies = [
  "cfg-if",
  "concurrent-queue",
  "futures-io",
- "futures-lite 2.3.0",
+ "futures-lite 2.4.0",
  "parking",
  "polling 3.7.3",
- "rustix 0.38.37",
+ "rustix 0.38.38",
  "slab",
  "tracing",
  "windows-sys 0.59.0",
@@ -607,7 +607,7 @@ checksum = "b948000fad4873c1c9339d60f2623323a0cfd3816e5181033c6a5cb68b2accf7"
 dependencies = [
  "async-io 2.3.4",
  "blocking",
- "futures-lite 2.3.0",
+ "futures-lite 2.4.0",
 ]
 
 [[package]]
@@ -623,7 +623,7 @@ dependencies = [
  "cfg-if",
  "event-listener 3.1.0",
  "futures-lite 1.13.0",
- "rustix 0.38.37",
+ "rustix 0.38.38",
  "windows-sys 0.48.0",
 ]
 
@@ -641,8 +641,8 @@ dependencies = [
  "blocking",
  "cfg-if",
  "event-listener 5.3.1",
- "futures-lite 2.3.0",
- "rustix 0.38.37",
+ "futures-lite 2.4.0",
+ "rustix 0.38.38",
  "tracing",
 ]
 
@@ -658,7 +658,7 @@ dependencies = [
  "cfg-if",
  "futures-core",
  "futures-io",
- "rustix 0.38.37",
+ "rustix 0.38.38",
  "signal-hook-registry",
  "slab",
  "windows-sys 0.59.0",
@@ -1154,7 +1154,7 @@ dependencies = [
  "async-channel 2.3.1",
  "async-task",
  "futures-io",
- "futures-lite 2.3.0",
+ "futures-lite 2.4.0",
  "piper",
 ]
 
@@ -4224,7 +4224,7 @@ version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29f9df8a11882c4e3335eb2d18a0137c505d9ca927470b0cac9c6f0ae07d28f7"
 dependencies = [
- "rustix 0.38.37",
+ "rustix 0.38.38",
  "windows-sys 0.48.0",
 ]
 
@@ -4310,9 +4310,9 @@ dependencies = [
 
 [[package]]
 name = "futures-lite"
-version = "2.3.0"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "52527eb5074e35e9339c6b4e8d12600c7128b68fb25dcb9fa9dec18f7c25f3a5"
+checksum = "3f1fa2f9765705486b33fd2acf1577f8ec449c2ba1f318ae5447697b7c08d210"
 dependencies = [
  "fastrand 2.1.1",
  "futures-core",
@@ -4926,7 +4926,7 @@ dependencies = [
  "hyper 1.5.0",
  "hyper-util",
  "log",
- "rustls 0.23.15",
+ "rustls 0.23.16",
  "rustls-pki-types",
  "tokio",
  "tokio-rustls 0.26.0",
@@ -4960,9 +4960,9 @@ dependencies = [
 
 [[package]]
 name = "hyper-util"
-version = "0.1.9"
+version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41296eb09f183ac68eec06e03cdbea2e759633d4067b2f6552fc2e009bcad08b"
+checksum = "df2dcfbe0677734ab2f3ffa7fa7bfd4706bfdc1ef393f2ee30184aed67e631b4"
 dependencies = [
  "bytes",
  "futures-channel",
@@ -5470,7 +5470,7 @@ dependencies = [
  "http 1.1.0",
  "jsonrpsee-core 0.23.2",
  "pin-project",
- "rustls 0.23.15",
+ "rustls 0.23.16",
  "rustls-pki-types",
  "rustls-platform-verifier",
  "soketto 0.8.0",
@@ -5567,7 +5567,7 @@ dependencies = [
  "hyper-util",
  "jsonrpsee-core 0.23.2",
  "jsonrpsee-types 0.23.2",
- "rustls 0.23.15",
+ "rustls 0.23.16",
  "rustls-platform-verifier",
  "serde",
  "serde_json",
@@ -5881,9 +5881,9 @@ dependencies = [
 
 [[package]]
 name = "libm"
-version = "0.2.9"
+version = "0.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3bda4c6077b0b08da2c48b172195795498381a7c8988c9e6212a6c55c5b9bd70"
+checksum = "8355be11b20d696c8f18f6cc018c4e372165b1fa8126cef092399c9951984ffa"
 
 [[package]]
 name = "libp2p"
@@ -6758,7 +6758,7 @@ version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b2cffa4ad52c6f791f4f8b15f0c05f9824b2ced1160e88cc393d64fff9a8ac64"
 dependencies = [
- "rustix 0.38.37",
+ "rustix 0.38.38",
 ]
 
 [[package]]
@@ -7172,9 +7172,9 @@ dependencies = [
 
 [[package]]
 name = "nalgebra"
-version = "0.33.1"
+version = "0.33.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3bf139e93ad757869338ad85239cb1d6c067b23b94e5846e637ca6328ee4be60"
+checksum = "26aecdf64b707efd1310e3544d709c5c0ac61c13756046aaaba41be5c4f66a3b"
 dependencies = [
  "approx",
  "matrixmultiply",
@@ -10810,7 +10810,7 @@ dependencies = [
  "concurrent-queue",
  "hermit-abi 0.4.0",
  "pin-project-lite",
- "rustix 0.38.37",
+ "rustix 0.38.38",
  "tracing",
  "windows-sys 0.59.0",
 ]
@@ -12021,9 +12021,9 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "0.38.37"
+version = "0.38.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8acb788b847c24f28525660c4d7758620a7210875711f79e7f663cc152726811"
+checksum = "aa260229e6538e52293eeb577aabd09945a09d6d9cc0fc550ed7529056c2e32a"
 dependencies = [
  "bitflags 2.6.0",
  "errno 0.3.9",
@@ -12071,9 +12071,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.15"
+version = "0.23.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5fbb44d7acc4e873d613422379f69f237a1b141928c02f6bc6ccfddddc2d7993"
+checksum = "eee87ff5d9b36712a58574e12e9f0ea80f915a5b0ac518d322b24a465617925e"
 dependencies = [
  "log",
  "once_cell",
@@ -12144,7 +12144,7 @@ dependencies = [
  "jni",
  "log",
  "once_cell",
- "rustls 0.23.15",
+ "rustls 0.23.16",
  "rustls-native-certs 0.7.3",
  "rustls-platform-verifier-android",
  "rustls-webpki 0.102.8",
@@ -13779,9 +13779,9 @@ checksum = "cd0b0ec5f1c1ca621c432a25813d8d60c88abe6d3e08a3eb9cf37d97a0fe3d73"
 
 [[package]]
 name = "serde"
-version = "1.0.213"
+version = "1.0.214"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ea7893ff5e2466df8d720bb615088341b295f849602c6956047f8f80f0e9bc1"
+checksum = "f55c3193aca71c12ad7890f1785d2b73e1b9f63a0bbc353c08ef26fe03fc56b5"
 dependencies = [
  "serde_derive",
 ]
@@ -13807,9 +13807,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.213"
+version = "1.0.214"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e85ad2009c50b58e87caa8cd6dac16bdf511bbfb7af6c33df902396aa480fa5"
+checksum = "de523f781f095e28fa605cdce0f8307e451cc0fd14e2eb4cd2e98a355b147766"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -14144,7 +14144,7 @@ dependencies = [
  "async-net 2.0.0",
  "async-process 2.3.0",
  "blocking",
- "futures-lite 2.3.0",
+ "futures-lite 2.4.0",
 ]
 
 [[package]]
@@ -14221,7 +14221,7 @@ dependencies = [
  "either",
  "event-listener 4.0.3",
  "fnv",
- "futures-lite 2.3.0",
+ "futures-lite 2.4.0",
  "futures-util",
  "hashbrown 0.14.5",
  "hex",
@@ -14307,7 +14307,7 @@ dependencies = [
  "event-listener 4.0.3",
  "fnv",
  "futures-channel",
- "futures-lite 2.3.0",
+ "futures-lite 2.4.0",
  "futures-util",
  "hashbrown 0.14.5",
  "hex",
@@ -15760,7 +15760,6 @@ dependencies = [
  "itertools 0.13.0",
  "parity-scale-codec",
  "primitives-proofs",
- "scale-decode",
  "serde",
  "serde_json",
  "sha2 0.10.8",
@@ -15785,7 +15784,6 @@ dependencies = [
  "hex",
  "parity-scale-codec",
  "primitives-proofs",
- "scale-decode",
  "serde",
  "serde_json",
  "storagext",
@@ -16261,7 +16259,7 @@ dependencies = [
  "cfg-if",
  "fastrand 2.1.1",
  "once_cell",
- "rustix 0.38.37",
+ "rustix 0.38.38",
  "windows-sys 0.59.0",
 ]
 
@@ -16280,7 +16278,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4f599bd7ca042cfdf8f4512b277c02ba102247820f9d9d4a9f521f496751a6ef"
 dependencies = [
- "rustix 0.38.37",
+ "rustix 0.38.38",
  "windows-sys 0.59.0",
 ]
 
@@ -16530,7 +16528,7 @@ version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c7bc40d0e5a97695bb96e27995cd3a08538541b0a846f65bba7a359f36700d4"
 dependencies = [
- "rustls 0.23.15",
+ "rustls 0.23.16",
  "rustls-pki-types",
  "tokio",
 ]
@@ -17195,9 +17193,9 @@ checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
 
 [[package]]
 name = "w3f-bls"
-version = "0.1.6"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a48c48447120a85b0bdb897ba9426a7aa15b4229498a2e19103e8c9368dd4b2"
+checksum = "b2a73d66caed54f10eefbfdaee07baa2ce398a1252ad06cc4fdf99668e36fccf"
 dependencies = [
  "ark-bls12-377",
  "ark-bls12-381",
@@ -17799,7 +17797,7 @@ dependencies = [
  "either",
  "home",
  "once_cell",
- "rustix 0.38.37",
+ "rustix 0.38.38",
 ]
 
 [[package]]
@@ -18209,7 +18207,7 @@ checksum = "8da84f1a25939b27f6820d92aed108f83ff920fdf11a7b19366c27c4cda81d4f"
 dependencies = [
  "libc",
  "linux-raw-sys 0.4.14",
- "rustix 0.38.37",
+ "rustix 0.38.38",
 ]
 
 [[package]]

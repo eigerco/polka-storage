@@ -16,9 +16,7 @@ use crate::{
             proofs::SubmitWindowedPoStParams, sector::ProveCommitSector,
             storage_provider::StorageProviderState,
         },
-        storage_provider::{
-            calls::types::register_storage_provider::PeerId, events as SpEvents, Event as SpEvent,
-        },
+        storage_provider::{calls::types::register_storage_provider::PeerId, events as SpEvents},
     },
     types::storage_provider::{
         FaultDeclaration, RecoveryDeclaration, SectorPreCommitInfo, TerminationDeclaration,
@@ -35,7 +33,7 @@ pub trait StorageProviderClientExt {
         wait_for_finalization: bool,
     ) -> impl Future<
         Output = Result<
-            Option<SubmissionResult<HashOfPsc, SpEvent, SpEvents::StorageProviderRegistered>>,
+            Option<SubmissionResult<HashOfPsc, SpEvents::StorageProviderRegistered>>,
             subxt::Error,
         >,
     >
@@ -49,7 +47,7 @@ pub trait StorageProviderClientExt {
         wait_for_finalization: bool,
     ) -> impl Future<
         Output = Result<
-            Option<SubmissionResult<HashOfPsc, SpEvent, SpEvents::SectorsPreCommitted>>,
+            Option<SubmissionResult<HashOfPsc, SpEvents::SectorsPreCommitted>>,
             subxt::Error,
         >,
     >
@@ -62,10 +60,7 @@ pub trait StorageProviderClientExt {
         sectors: Vec<ProveCommitSector>,
         wait_for_finalization: bool,
     ) -> impl Future<
-        Output = Result<
-            Option<SubmissionResult<HashOfPsc, SpEvent, SpEvents::SectorsProven>>,
-            subxt::Error,
-        >,
+        Output = Result<Option<SubmissionResult<HashOfPsc, SpEvents::SectorsProven>>, subxt::Error>,
     >
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>;
@@ -77,7 +72,7 @@ pub trait StorageProviderClientExt {
         wait_for_finalization: bool,
     ) -> impl Future<
         Output = Result<
-            Option<SubmissionResult<HashOfPsc, SpEvent, SpEvents::ValidPoStSubmitted>>,
+            Option<SubmissionResult<HashOfPsc, SpEvents::ValidPoStSubmitted>>,
             subxt::Error,
         >,
     >
@@ -91,7 +86,7 @@ pub trait StorageProviderClientExt {
         wait_for_finalization: bool,
     ) -> impl Future<
         Output = Result<
-            Option<SubmissionResult<HashOfPsc, SpEvent, SpEvents::FaultsDeclared>>,
+            Option<SubmissionResult<HashOfPsc, SpEvents::FaultsDeclared>>,
             subxt::Error,
         >,
     >
@@ -105,7 +100,7 @@ pub trait StorageProviderClientExt {
         wait_for_finalization: bool,
     ) -> impl Future<
         Output = Result<
-            Option<SubmissionResult<HashOfPsc, SpEvent, SpEvents::FaultsRecovered>>,
+            Option<SubmissionResult<HashOfPsc, SpEvents::FaultsRecovered>>,
             subxt::Error,
         >,
     >
@@ -119,7 +114,7 @@ pub trait StorageProviderClientExt {
         wait_for_finalization: bool,
     ) -> impl Future<
         Output = Result<
-            Option<SubmissionResult<HashOfPsc, SpEvent, SpEvents::SectorsTerminated>>,
+            Option<SubmissionResult<HashOfPsc, SpEvents::SectorsTerminated>>,
             subxt::Error,
         >,
     >
@@ -153,7 +148,7 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
         post_proof: RegisteredPoStProof,
         wait_for_finalization: bool,
     ) -> Result<
-        Option<SubmissionResult<HashOfPsc, SpEvent, SpEvents::StorageProviderRegistered>>,
+        Option<SubmissionResult<HashOfPsc, SpEvents::StorageProviderRegistered>>,
         subxt::Error,
     >
     where
@@ -179,10 +174,7 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
         account_keypair: &Keypair,
         sectors: Vec<SectorPreCommitInfo>,
         wait_for_finalization: bool,
-    ) -> Result<
-        Option<SubmissionResult<HashOfPsc, SpEvent, SpEvents::SectorsPreCommitted>>,
-        subxt::Error,
-    >
+    ) -> Result<Option<SubmissionResult<HashOfPsc, SpEvents::SectorsPreCommitted>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
@@ -206,7 +198,7 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
         account_keypair: &Keypair,
         sectors: Vec<ProveCommitSector>,
         wait_for_finalization: bool,
-    ) -> Result<Option<SubmissionResult<HashOfPsc, SpEvent, SpEvents::SectorsProven>>, subxt::Error>
+    ) -> Result<Option<SubmissionResult<HashOfPsc, SpEvents::SectorsProven>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
@@ -232,10 +224,7 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
         account_keypair: &Keypair,
         windowed_post: SubmitWindowedPoStParams,
         wait_for_finalization: bool,
-    ) -> Result<
-        Option<SubmissionResult<HashOfPsc, SpEvent, SpEvents::ValidPoStSubmitted>>,
-        subxt::Error,
-    >
+    ) -> Result<Option<SubmissionResult<HashOfPsc, SpEvents::ValidPoStSubmitted>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
@@ -259,7 +248,7 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
         account_keypair: &Keypair,
         faults: Vec<FaultDeclaration>,
         wait_for_finalization: bool,
-    ) -> Result<Option<SubmissionResult<HashOfPsc, SpEvent, SpEvents::FaultsDeclared>>, subxt::Error>
+    ) -> Result<Option<SubmissionResult<HashOfPsc, SpEvents::FaultsDeclared>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
@@ -284,7 +273,7 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
         account_keypair: &Keypair,
         recoveries: Vec<RecoveryDeclaration>,
         wait_for_finalization: bool,
-    ) -> Result<Option<SubmissionResult<HashOfPsc, SpEvent, SpEvents::FaultsRecovered>>, subxt::Error>
+    ) -> Result<Option<SubmissionResult<HashOfPsc, SpEvents::FaultsRecovered>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
@@ -308,10 +297,7 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
         account_keypair: &Keypair,
         terminations: Vec<TerminationDeclaration>,
         wait_for_finalization: bool,
-    ) -> Result<
-        Option<SubmissionResult<HashOfPsc, SpEvent, SpEvents::SectorsTerminated>>,
-        subxt::Error,
-    >
+    ) -> Result<Option<SubmissionResult<HashOfPsc, SpEvents::SectorsTerminated>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {

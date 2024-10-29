@@ -6,10 +6,7 @@ use primitives_proofs::DealId;
 use storagext::{
     deser::DeserializablePath,
     multipair::{DebugPair, MultiPairSigner},
-    runtime::{
-        market::{events as MktEvents, Event as MktEvent},
-        HashOfPsc, SubmissionResult,
-    },
+    runtime::{market::events as MktEvents, HashOfPsc, SubmissionResult},
     types::market::DealProposal as SxtDealProposal,
     MarketClientExt, PolkaStorageConfig,
 };
@@ -20,25 +17,6 @@ use url::Url;
 
 use super::display_submission_result;
 use crate::{missing_keypair_error, operation_takes_a_while, OutputFormat};
-
-macro_rules! trace_submission_result {
-    ($submission_result:expr, $format:expr $(,$par1:expr)*) => (
-        if let Some(result) = $submission_result {
-            if let Ok(events) = result {
-                tracing::debug!(
-                    $format,
-                    events[0].hash,
-                    $($par1),*
-                );
-                Ok(Some(Ok(events)))
-            } else {
-                Ok(Some(result))
-            }
-        } else {
-            Ok(None)
-        }
-    )
-}
 
 #[derive(Debug, Subcommand)]
 #[command(name = "market", about = "CLI Client to the Market Pallet", version)]
@@ -166,7 +144,7 @@ impl MarketCommand {
                 let opt_result =
                     Self::add_balance(client, account_keypair, amount, wait_for_finalization)
                         .await?;
-                display_submission_result::<_, _>(opt_result, output_format)?;
+                display_submission_result::<_>(opt_result, output_format)?;
             }
             MarketCommand::SettleDealPayments { deal_ids } => {
                 if deal_ids.is_empty() {
@@ -180,13 +158,13 @@ impl MarketCommand {
                     wait_for_finalization,
                 )
                 .await?;
-                display_submission_result::<_, _>(opt_result, output_format)?;
+                display_submission_result::<_>(opt_result, output_format)?;
             }
             MarketCommand::WithdrawBalance { amount } => {
                 let opt_result =
                     Self::withdraw_balance(client, account_keypair, amount, wait_for_finalization)
                         .await?;
-                display_submission_result::<_, _>(opt_result, output_format)?;
+                display_submission_result::<_>(opt_result, output_format)?;
             }
             MarketCommand::PublishStorageDeals {
                 deals,
@@ -209,7 +187,7 @@ impl MarketCommand {
                     wait_for_finalization,
                 )
                 .await?;
-                display_submission_result::<_, _>(opt_result, output_format)?;
+                display_submission_result::<_>(opt_result, output_format)?;
             }
             _unsigned => unreachable!("unsigned commands should have been previously handled"),
         };
@@ -222,18 +200,22 @@ impl MarketCommand {
         account_keypair: MultiPairSigner,
         amount: u128,
         wait_for_finalization: bool,
-    ) -> Result<Option<SubmissionResult<HashOfPsc, MktEvent, MktEvents::BalanceAdded>>, subxt::Error>
+    ) -> Result<Option<SubmissionResult<HashOfPsc, MktEvents::BalanceAdded>>, subxt::Error>
     where
         Client: MarketClientExt,
     {
         let submission_result = client
             .add_balance(&account_keypair, amount, wait_for_finalization)
             .await?;
-        trace_submission_result!(
-            submission_result,
-            "[{}] Successfully added {} to Market Balance",
-            amount
-        )
+        Ok(submission_result.inspect(|sr| {
+            let _ = sr.as_ref().inspect(|events| {
+                tracing::trace!(
+                    "[{}] Successfully added {} to Market Balance",
+                    events[0].hash,
+                    amount
+                )
+            });
+        }))
     }
 
     async fn publish_storage_deals<Client>(
@@ -242,7 +224,7 @@ impl MarketCommand {
         client_keypair: MultiPairSigner,
         deals: Vec<SxtDealProposal>,
         wait_for_finalization: bool,
-    ) -> Result<Option<SubmissionResult<HashOfPsc, MktEvent, MktEvents::DealPublished>>, subxt::Error>
+    ) -> Result<Option<SubmissionResult<HashOfPsc, MktEvents::DealPublished>>, subxt::Error>
     where
         Client: MarketClientExt,
     {
@@ -255,11 +237,15 @@ impl MarketCommand {
                 wait_for_finalization,
             )
             .await?;
-        trace_submission_result!(
-            submission_result,
-            "[{}] Successfully published {} storage deals",
-            n_deals
-        )
+        Ok(submission_result.inspect(|sr| {
+            let _ = sr.as_ref().inspect(|events| {
+                tracing::trace!(
+                    "[{}] Successfully published {} storage deals",
+                    events[0].hash,
+                    n_deals
+                )
+            });
+        }))
     }
 
     async fn settle_deal_payments<Client>(
@@ -267,7 +253,7 @@ impl MarketCommand {
         account_keypair: MultiPairSigner,
         deal_ids: Vec<u64>,
         wait_for_finalization: bool,
-    ) -> Result<Option<SubmissionResult<HashOfPsc, MktEvent, MktEvents::DealsSettled>>, subxt::Error>
+    ) -> Result<Option<SubmissionResult<HashOfPsc, MktEvents::DealsSettled>>, subxt::Error>
     where
         Client: MarketClientExt,
     {
@@ -275,11 +261,15 @@ impl MarketCommand {
         let submission_result = client
             .settle_deal_payments(&account_keypair, deal_ids, wait_for_finalization)
             .await?;
-        trace_submission_result!(
-            submission_result,
-            "[{}] Successfully settled {} deal payments",
-            n_deal_ids
-        )
+        Ok(submission_result.inspect(|sr| {
+            let _ = sr.as_ref().inspect(|events| {
+                tracing::trace!(
+                    "[{}] Successfully settled {} deal payments",
+                    events[0].hash,
+                    n_deal_ids
+                )
+            });
+        }))
     }
 
     async fn withdraw_balance<Client>(
@@ -287,20 +277,21 @@ impl MarketCommand {
         account_keypair: MultiPairSigner,
         amount: u128,
         wait_for_finalization: bool,
-    ) -> Result<
-        Option<SubmissionResult<HashOfPsc, MktEvent, MktEvents::BalanceWithdrawn>>,
-        subxt::Error,
-    >
+    ) -> Result<Option<SubmissionResult<HashOfPsc, MktEvents::BalanceWithdrawn>>, subxt::Error>
     where
         Client: MarketClientExt,
     {
         let submission_result = client
             .withdraw_balance(&account_keypair, amount, wait_for_finalization)
             .await?;
-        trace_submission_result!(
-            submission_result,
-            "[{}] Successfully withdrew {} from Market Balance",
-            amount
-        )
+        Ok(submission_result.inspect(|sr| {
+            let _ = sr.as_ref().inspect(|events| {
+                tracing::trace!(
+                    "[{}] Successfully withdrew {} from Market Balance",
+                    events[0].hash,
+                    amount
+                )
+            });
+        }))
     }
 }
