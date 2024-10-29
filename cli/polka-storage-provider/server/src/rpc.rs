@@ -94,7 +94,7 @@ impl StorageProviderRpcServer for RpcServerState {
         // it just requires some API design
         let result = self
             .xt_client
-            .publish_signed_storage_deals(&self.xt_keypair, vec![deal])
+            .publish_signed_storage_deals(&self.xt_keypair, vec![deal.clone()])
             .await?;
 
         let published_deals = result
@@ -107,12 +107,18 @@ impl StorageProviderRpcServer for RpcServerState {
         // an error MUST've happened
         debug_assert_eq!(published_deals.len(), 1);
 
-        self.pipeline_sender
-            .send(PipelineMessage::PreCommit)
-            .map_err(|e| RpcError::internal_error(e, None))?;
-
         // We always publish only 1 deal
         let deal_id = published_deals[0].deal_id;
+
+        self.pipeline_sender
+            .send(PipelineMessage::PreCommit {
+                deal,
+                published_deal_id: deal_id,
+                piece_path,
+                piece_cid,
+            })
+            .map_err(|e| RpcError::internal_error(e, None))?;
+
         Ok(deal_id)
     }
 }
