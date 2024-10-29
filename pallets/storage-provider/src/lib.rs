@@ -225,9 +225,9 @@ pub mod pallet {
         #[pallet::constant]
         type FaultDeclarationCutoff: Get<BlockNumberFor<Self>>;
 
-        /// Number of epochs between publishing the precommit and when the
-        /// challenge for interactive PoRep is drawn used to ensure it is not
-        /// predictable by miner.
+        /// Number of blocks between publishing the precommit and when the
+        /// challenge for interactive PoRep can be first drawn from the
+        /// randomness.
         #[pallet::constant]
         type PreCommitChallengeDelay: Get<BlockNumberFor<Self>>;
 
