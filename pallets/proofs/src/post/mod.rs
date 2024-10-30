@@ -59,7 +59,7 @@ impl ProofScheme {
         }
 
         // NOTE:
-        //  * This is purposely checked after the required partitions.
+        //  * This is checked after the required partitions on purpose!
         //  * Once we support verification of multiple partitions this check should be done for every partition
         let replica_count = replicas.len();
         ensure!(

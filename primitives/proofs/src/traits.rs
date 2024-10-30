@@ -31,7 +31,6 @@ pub const MAX_TERMINATIONS_PER_CALL: u32 = 32; // TODO(@jmg-duarte,25/07/2024): 
 /// Proofs and replicas are still dynamically checked for their size depending on the sector size.
 ///
 /// References:
-///
 /// * Filecoin docs about PoSt: <https://spec.filecoin.io/algorithms/pos/post/#section-algorithms.pos.post.windowpost>
 pub const MAX_SECTORS_PER_PROOF: u32 = 2349;
 
@@ -40,7 +39,6 @@ pub const MAX_SECTORS_PER_PROOF: u32 = 2349;
 /// which is not the biggest seal proof type but we do not plan on supporting non-interactive proof types at this time.
 ///
 /// References:
-///
 /// * <https://github.com/filecoin-project/ref-fvm/blob/32583cc05aa422c8e1e7ba81d56a888ac9d90e61/shared/src/sector/registered_proof.rs#L90>
 pub const MAX_SEAL_PROOF_LEN: u32 = 1_920;
 
