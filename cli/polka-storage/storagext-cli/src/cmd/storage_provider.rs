@@ -103,6 +103,7 @@ impl StorageProviderCommand {
         n_retries: u32,
         retry_interval: Duration,
         output_format: OutputFormat,
+        wait_for_finalization: bool,
     ) -> Result<(), anyhow::Error> {
         let client = storagext::Client::new(node_rpc, n_retries, retry_interval).await?;
 
@@ -130,7 +131,12 @@ impl StorageProviderCommand {
                     return Err(missing_keypair_error::<Self>().into());
                 };
                 else_
-                    .with_keypair(client, account_keypair, output_format)
+                    .with_keypair(
+                        client,
+                        account_keypair,
+                        output_format,
+                        wait_for_finalization,
+                    )
                     .await?;
             }
         };
@@ -143,6 +149,7 @@ impl StorageProviderCommand {
         client: Client,
         account_keypair: MultiPairSigner,
         output_format: OutputFormat,
+        wait_for_finalization: bool,
     ) -> Result<(), anyhow::Error>
     where
         Client: StorageProviderClientExt,
@@ -154,28 +161,70 @@ impl StorageProviderCommand {
                 peer_id,
                 post_proof,
             } => {
-                Self::register_storage_provider(client, account_keypair, peer_id, post_proof)
-                    .await?
+                Self::register_storage_provider(
+                    client,
+                    account_keypair,
+                    peer_id,
+                    post_proof,
+                    wait_for_finalization,
+                )
+                .await?
             }
             StorageProviderCommand::PreCommit { pre_commit_sectors } => {
-                Self::pre_commit(client, account_keypair, pre_commit_sectors).await?
+                Self::pre_commit(
+                    client,
+                    account_keypair,
+                    pre_commit_sectors,
+                    wait_for_finalization,
+                )
+                .await?
             }
             StorageProviderCommand::ProveCommit {
                 prove_commit_sectors,
-            } => Self::prove_commit(client, account_keypair, prove_commit_sectors).await?,
+            } => {
+                Self::prove_commit(
+                    client,
+                    account_keypair,
+                    prove_commit_sectors,
+                    wait_for_finalization,
+                )
+                .await?
+            }
             StorageProviderCommand::SubmitWindowedProofOfSpaceTime { windowed_post } => {
-                Self::submit_windowed_post(client, account_keypair, windowed_post).await?
+                Self::submit_windowed_post(
+                    client,
+                    account_keypair,
+                    windowed_post,
+                    wait_for_finalization,
+                )
+                .await?
             }
             StorageProviderCommand::DeclareFaults { faults } => {
-                Self::declare_faults(client, account_keypair, faults).await?
+                Self::declare_faults(client, account_keypair, faults, wait_for_finalization).await?
             }
             StorageProviderCommand::DeclareFaultsRecovered { recoveries } => {
-                Self::declare_faults_recovered(client, account_keypair, recoveries).await?
+                Self::declare_faults_recovered(
+                    client,
+                    account_keypair,
+                    recoveries,
+                    wait_for_finalization,
+                )
+                .await?
             }
             StorageProviderCommand::TerminateSectors { terminations } => {
-                Self::terminate_sectors(client, account_keypair, terminations).await?
+                Self::terminate_sectors(
+                    client,
+                    account_keypair,
+                    terminations,
+                    wait_for_finalization,
+                )
+                .await?
             }
             _unsigned => unreachable!("unsigned commands should have been previously handled"),
+        };
+
+        let Some(submission_result) = submission_result else {
+            return Ok(());
         };
 
         // This monstrosity first converts incoming events into a "generic" (subxt generated) event,
@@ -208,19 +257,27 @@ impl StorageProviderCommand {
         account_keypair: MultiPairSigner,
         peer_id: String,
         post_proof: RegisteredPoStProof,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
         Client: StorageProviderClientExt,
     {
         let submission_result = client
-            .register_storage_provider(&account_keypair, peer_id.clone(), post_proof)
-            .await?;
-        tracing::debug!(
-            "[{}] Successfully registered {}, seal: {:?} in Storage Provider Pallet",
-            submission_result.hash,
-            peer_id,
-            post_proof
-        );
+            .register_storage_provider(
+                &account_keypair,
+                peer_id.clone(),
+                post_proof,
+                wait_for_finalization,
+            )
+            .await?
+            .inspect(|result| {
+                tracing::debug!(
+                    "[{}] Successfully registered {}, seal: {:?} in Storage Provider Pallet",
+                    result.hash,
+                    peer_id,
+                    post_proof
+                )
+            });
 
         Ok(submission_result)
     }
@@ -229,7 +286,8 @@ impl StorageProviderCommand {
         client: Client,
         account_keypair: MultiPairSigner,
         pre_commit_sectors: Vec<SxtSectorPreCommitInfo>,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
         Client: StorageProviderClientExt,
     {
@@ -240,13 +298,15 @@ impl StorageProviderCommand {
                 .unzip();
 
         let submission_result = client
-            .pre_commit_sectors(&account_keypair, pre_commit_sectors)
-            .await?;
-        tracing::debug!(
-            "[{}] Successfully pre-commited sectors {:?}.",
-            submission_result.hash,
-            sector_numbers
-        );
+            .pre_commit_sectors(&account_keypair, pre_commit_sectors, wait_for_finalization)
+            .await?
+            .inspect(|result| {
+                tracing::debug!(
+                    "[{}] Successfully pre-commited sectors {:?}.",
+                    result.hash,
+                    sector_numbers
+                )
+            });
 
         Ok(submission_result)
     }
@@ -255,7 +315,8 @@ impl StorageProviderCommand {
         client: Client,
         account_keypair: MultiPairSigner,
         prove_commit_sectors: Vec<SxtProveCommitSector>,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
         Client: StorageProviderClientExt,
     {
@@ -269,14 +330,21 @@ impl StorageProviderCommand {
                 (sector_number, s.into())
             })
             .unzip();
+
         let submission_result = client
-            .prove_commit_sectors(&account_keypair, prove_commit_sectors)
-            .await?;
-        tracing::debug!(
-            "[{}] Successfully proven sector {:?}.",
-            submission_result.hash,
-            sector_numbers
-        );
+            .prove_commit_sectors(
+                &account_keypair,
+                prove_commit_sectors,
+                wait_for_finalization,
+            )
+            .await?
+            .inspect(|result| {
+                tracing::debug!(
+                    "[{}] Successfully proven sector {:?}.",
+                    result.hash,
+                    sector_numbers
+                )
+            });
 
         Ok(submission_result)
     }
@@ -285,14 +353,19 @@ impl StorageProviderCommand {
         client: Client,
         account_keypair: MultiPairSigner,
         windowed_post: SxtSubmitWindowedPoStParams,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
         Client: StorageProviderClientExt,
     {
         let submission_result = client
-            .submit_windowed_post(&account_keypair, windowed_post.into())
-            .await?;
-        tracing::debug!("[{}] Successfully submitted proof.", submission_result.hash);
+            .submit_windowed_post(
+                &account_keypair,
+                windowed_post.into(),
+                wait_for_finalization,
+            )
+            .await?
+            .inspect(|result| tracing::debug!("[{}] Successfully submitted proof.", result.hash));
 
         Ok(submission_result)
     }
@@ -301,12 +374,15 @@ impl StorageProviderCommand {
         client: Client,
         account_keypair: MultiPairSigner,
         faults: Vec<SxtFaultDeclaration>,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
         Client: StorageProviderClientExt,
     {
-        let submission_result = client.declare_faults(&account_keypair, faults).await?;
-        tracing::debug!("[{}] Successfully declared faults.", submission_result.hash);
+        let submission_result = client
+            .declare_faults(&account_keypair, faults, wait_for_finalization)
+            .await?
+            .inspect(|result| tracing::debug!("[{}] Successfully declared faults.", result.hash));
 
         Ok(submission_result)
     }
@@ -315,14 +391,15 @@ impl StorageProviderCommand {
         client: Client,
         account_keypair: MultiPairSigner,
         recoveries: Vec<SxtRecoveryDeclaration>,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
         Client: StorageProviderClientExt,
     {
         let submission_result = client
-            .declare_faults_recovered(&account_keypair, recoveries)
-            .await?;
-        tracing::debug!("[{}] Successfully declared faults.", submission_result.hash);
+            .declare_faults_recovered(&account_keypair, recoveries, wait_for_finalization)
+            .await?
+            .inspect(|result| tracing::debug!("[{}] Successfully declared faults.", result.hash));
 
         Ok(submission_result)
     }
@@ -331,17 +408,17 @@ impl StorageProviderCommand {
         client: Client,
         account_keypair: MultiPairSigner,
         terminations: Vec<SxtTerminationDeclaration>,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
         Client: StorageProviderClientExt,
     {
         let submission_result = client
-            .terminate_sectors(&account_keypair, terminations)
-            .await?;
-        tracing::debug!(
-            "[{}] Successfully terminated sectors.",
-            submission_result.hash
-        );
+            .terminate_sectors(&account_keypair, terminations, wait_for_finalization)
+            .await?
+            .inspect(|result| {
+                tracing::debug!("[{}] Successfully terminated sectors.", result.hash)
+            });
 
         Ok(submission_result)
     }

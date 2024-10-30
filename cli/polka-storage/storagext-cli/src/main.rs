@@ -4,7 +4,7 @@ mod cmd;
 
 use std::{fmt::Debug, time::Duration};
 
-use clap::{ArgGroup, Parser, Subcommand};
+use clap::{ArgAction, ArgGroup, Parser, Subcommand};
 use cmd::{market::MarketCommand, storage_provider::StorageProviderCommand, system::SystemCommand};
 use storagext::multipair::{DebugPair, MultiPairSigner};
 use subxt::ext::sp_core::{
@@ -80,6 +80,10 @@ struct Cli {
     /// Output format.
     #[arg(long, env, value_parser = OutputFormat::value_parser, default_value_t = OutputFormat::Plain)]
     pub format: OutputFormat,
+
+    /// Wait for inclusion of the extrinsic call in a finalized block.
+    #[arg(long, env, action = ArgAction::SetTrue)]
+    pub wait_for_finalization: bool,
 }
 
 #[derive(Debug, Subcommand)]
@@ -102,6 +106,7 @@ impl SubCommand {
         n_retries: u32,
         retry_interval: Duration,
         output_format: OutputFormat,
+        wait_for_finalization: bool,
     ) -> Result<(), anyhow::Error> {
         match self {
             SubCommand::Market(cmd) => {
@@ -111,6 +116,7 @@ impl SubCommand {
                     n_retries,
                     retry_interval,
                     output_format,
+                    wait_for_finalization,
                 )
                 .await?;
             }
@@ -121,6 +127,7 @@ impl SubCommand {
                     n_retries,
                     retry_interval,
                     output_format,
+                    wait_for_finalization,
                 )
                 .await?;
             }
@@ -180,6 +187,7 @@ async fn main() -> Result<(), anyhow::Error> {
             cli_arguments.n_retries,
             cli_arguments.retry_interval,
             cli_arguments.format,
+            cli_arguments.wait_for_finalization,
         )
         .await?;
     Ok(())

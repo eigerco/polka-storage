@@ -70,7 +70,8 @@ impl Client {
         &self,
         call: &Call,
         account_keypair: &Keypair,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
         Call: subxt::tx::Payload,
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
@@ -86,20 +87,25 @@ impl Client {
             extrinsic_hash = submission_progress.extrinsic_hash().encode_hex::<String>(),
             "waiting for finalization"
         );
-        let finalized_xt = submission_progress.wait_for_finalized().await?;
-        let block_hash = finalized_xt.block_hash();
-        tracing::trace!(
-            block_hash = block_hash.encode_hex::<String>(),
-            "successfully submitted extrinsic"
-        );
 
-        // finalized != successful
-        let xt_events = finalized_xt.wait_for_success().await?;
+        if wait_for_finalization {
+            let finalized_xt = submission_progress.wait_for_finalized().await?;
+            let block_hash = finalized_xt.block_hash();
+            tracing::trace!(
+                block_hash = block_hash.encode_hex::<String>(),
+                "successfully submitted extrinsic"
+            );
 
-        Ok(SubmissionResult {
-            hash: block_hash,
-            events: xt_events,
-        })
+            // finalized != successful
+            let xt_events = finalized_xt.wait_for_success().await?;
+
+            return Ok(Some(SubmissionResult {
+                hash: block_hash,
+                events: xt_events,
+            }));
+        }
+
+        Ok(None)
     }
 }
 

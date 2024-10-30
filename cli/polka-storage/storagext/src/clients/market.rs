@@ -34,7 +34,8 @@ pub trait MarketClientExt {
         &self,
         account_keypair: &Keypair,
         amount: Currency,
-    ) -> impl Future<Output = Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>>
+        wait_for_finalization: bool,
+    ) -> impl Future<Output = Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>;
 
@@ -43,7 +44,8 @@ pub trait MarketClientExt {
         &self,
         account_keypair: &Keypair,
         amount: Currency,
-    ) -> impl Future<Output = Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>>
+        wait_for_finalization: bool,
+    ) -> impl Future<Output = Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>;
 
@@ -54,7 +56,8 @@ pub trait MarketClientExt {
         &self,
         account_keypair: &Keypair,
         deal_ids: Vec<DealId>,
-    ) -> impl Future<Output = Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>>
+        wait_for_finalization: bool,
+    ) -> impl Future<Output = Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>;
 
@@ -66,7 +69,8 @@ pub trait MarketClientExt {
         account_keypair: &Keypair,
         client_keypair: &ClientKeypair,
         deals: Vec<DealProposal>,
-    ) -> impl Future<Output = Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>>
+        wait_for_finalization: bool,
+    ) -> impl Future<Output = Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
         ClientKeypair: subxt::tx::Signer<PolkaStorageConfig>;
@@ -78,7 +82,8 @@ pub trait MarketClientExt {
         &self,
         account_keypair: &Keypair,
         deals: Vec<ClientDealProposal>,
-    ) -> impl Future<Output = Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>>
+        wait_for_finalization: bool,
+    ) -> impl Future<Output = Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>;
 
@@ -102,12 +107,14 @@ impl MarketClientExt for crate::runtime::client::Client {
         &self,
         account_keypair: &Keypair,
         amount: Currency,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
         let payload = runtime::tx().market().withdraw_balance(amount);
-        self.traced_submission(&payload, account_keypair).await
+        self.traced_submission(&payload, account_keypair, wait_for_finalization)
+            .await
     }
 
     #[tracing::instrument(
@@ -122,12 +129,14 @@ impl MarketClientExt for crate::runtime::client::Client {
         &self,
         account_keypair: &Keypair,
         amount: Currency,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
         let payload = runtime::tx().market().add_balance(amount);
-        self.traced_submission(&payload, account_keypair).await
+        self.traced_submission(&payload, account_keypair, wait_for_finalization)
+            .await
     }
 
     #[tracing::instrument(
@@ -142,7 +151,8 @@ impl MarketClientExt for crate::runtime::client::Client {
         &self,
         account_keypair: &Keypair,
         mut deal_ids: Vec<DealId>,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
@@ -160,7 +170,8 @@ impl MarketClientExt for crate::runtime::client::Client {
             .market()
             .settle_deal_payments(bounded_unbounded_deal_ids);
 
-        self.traced_submission(&payload, account_keypair).await
+        self.traced_submission(&payload, account_keypair, wait_for_finalization)
+            .await
     }
 
     #[tracing::instrument(
@@ -175,7 +186,8 @@ impl MarketClientExt for crate::runtime::client::Client {
         account_keypair: &Keypair,
         client_keypair: &ClientKeypair,
         mut deals: Vec<DealProposal>,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
         ClientKeypair: subxt::tx::Signer<PolkaStorageConfig>,
@@ -202,7 +214,8 @@ impl MarketClientExt for crate::runtime::client::Client {
             .market()
             .publish_storage_deals(bounded_unbounded_deals);
 
-        self.traced_submission(&payload, account_keypair).await
+        self.traced_submission(&payload, account_keypair, wait_for_finalization)
+            .await
     }
 
     #[tracing::instrument(
@@ -216,7 +229,8 @@ impl MarketClientExt for crate::runtime::client::Client {
         &self,
         account_keypair: &Keypair,
         mut deals: Vec<ClientDealProposal>,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
@@ -240,7 +254,8 @@ impl MarketClientExt for crate::runtime::client::Client {
             .market()
             .publish_storage_deals(bounded_unbounded_deals);
 
-        self.traced_submission(&payload, account_keypair).await
+        self.traced_submission(&payload, account_keypair, wait_for_finalization)
+            .await
     }
 
     #[tracing::instrument(
