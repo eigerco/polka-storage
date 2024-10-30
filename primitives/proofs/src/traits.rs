@@ -40,7 +40,7 @@ pub const MAX_SECTORS_PER_PROOF: u32 = 2349;
 ///
 /// References:
 /// * <https://github.com/filecoin-project/ref-fvm/blob/32583cc05aa422c8e1e7ba81d56a888ac9d90e61/shared/src/sector/registered_proof.rs#L90>
-pub const MAX_SEAL_PROOF_LEN: u32 = 1_920;
+pub const MAX_SEAL_PROOF_BYTES: u32 = 1_920;
 
 /// The fixed length, in bytes, of a PoSt proof.
 /// This value is the same as `PROOF_BYTES` in the `polka-storage-proofs` library.
@@ -48,7 +48,7 @@ pub const MAX_SEAL_PROOF_LEN: u32 = 1_920;
 ///
 /// References:
 /// * <https://github.com/filecoin-project/ref-fvm/blob/32583cc05aa422c8e1e7ba81d56a888ac9d90e61/shared/src/sector/registered_proof.rs#L159>
-pub const POST_PROOF_LEN: u32 = 192;
+pub const MAX_POST_PROOF_BYTES: u32 = 192;
 
 /// Represents functions that are provided by the Market Provider Pallet
 pub trait Market<AccountId, BlockNumber> {
@@ -108,14 +108,14 @@ pub trait ProofVerification {
         sector: SectorNumber,
         ticket: Ticket,
         seed: Ticket,
-        proof: BoundedVec<u8, ConstU32<MAX_SEAL_PROOF_LEN>>,
+        proof: BoundedVec<u8, ConstU32<MAX_SEAL_PROOF_BYTES>>,
     ) -> DispatchResult;
 
     fn verify_post(
         post_type: RegisteredPoStProof,
         randomness: Ticket,
         replicas: BoundedBTreeMap<SectorNumber, PublicReplicaInfo, ConstU32<MAX_SECTORS_PER_PROOF>>,
-        proof: BoundedVec<u8, ConstU32<POST_PROOF_LEN>>,
+        proof: BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>,
     ) -> DispatchResult;
 }
 

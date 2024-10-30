@@ -28,8 +28,8 @@ pub mod pallet {
     use frame_system::pallet_prelude::*;
     use primitives_proofs::{
         ProofVerification, ProverId, PublicReplicaInfo, RawCommitment, RegisteredPoStProof,
-        RegisteredSealProof, SectorNumber, Ticket, MAX_SEAL_PROOF_LEN, MAX_SECTORS_PER_PROOF,
-        POST_PROOF_LEN,
+        RegisteredSealProof, SectorNumber, Ticket, MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_PROOF,
+        MAX_POST_PROOF_BYTES,
     };
 
     use crate::{
@@ -129,7 +129,7 @@ pub mod pallet {
             sector: SectorNumber,
             ticket: Ticket,
             seed: Ticket,
-            proof: BoundedVec<u8, ConstU32<MAX_SEAL_PROOF_LEN>>,
+            proof: BoundedVec<u8, ConstU32<MAX_SEAL_PROOF_BYTES>>,
         ) -> DispatchResult {
             let proof_len = proof.len();
             ensure!(proof_len >= seal_proof.proof_size(), {
@@ -164,7 +164,7 @@ pub mod pallet {
                 PublicReplicaInfo,
                 ConstU32<MAX_SECTORS_PER_PROOF>,
             >,
-            proof: BoundedVec<u8, ConstU32<POST_PROOF_LEN>>,
+            proof: BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>,
         ) -> DispatchResult {
             let replica_count = replicas.len();
             ensure!(replica_count <= post_type.sector_count(), {
