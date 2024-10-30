@@ -5,15 +5,20 @@ use core::str::FromStr;
 use cid::Cid;
 use codec::Encode;
 use frame_support::{
-    assert_ok, derive_impl, pallet_prelude::ConstU32, parameter_types, sp_runtime::BoundedVec,
-    traits::Hooks, PalletId,
+    assert_ok, derive_impl,
+    pallet_prelude::ConstU32,
+    parameter_types,
+    sp_runtime::{BoundedBTreeMap, BoundedVec},
+    traits::Hooks,
+    PalletId,
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 use pallet_market::{BalanceOf, ClientDealProposal, DealProposal, DealState};
 use primitives_commitment::{Commitment, CommitmentKind};
 use primitives_proofs::{
-    DealId, ProofVerification, Randomness, RegisteredPoStProof, RegisteredSealProof, SectorNumber,
-    CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR, MAX_TERMINATIONS_PER_CALL,
+    DealId, ProofVerification, PublicReplicaInfo, Randomness, RegisteredPoStProof,
+    RegisteredSealProof, SectorNumber, CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR,
+    MAX_POST_PROOF_BYTES, MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_PROOF, MAX_TERMINATIONS_PER_CALL,
 };
 use sp_core::{bounded_vec, Pair};
 use sp_runtime::{
@@ -86,7 +91,7 @@ impl ProofVerification for DummyProofsVerification {
         _sector: SectorNumber,
         _ticket: primitives_proofs::Ticket,
         _seed: primitives_proofs::Ticket,
-        _proof: alloc::vec::Vec<u8>,
+        _proof: BoundedVec<u8, ConstU32<MAX_SEAL_PROOF_BYTES>>,
     ) -> sp_runtime::DispatchResult {
         Ok(())
     }
@@ -94,11 +99,12 @@ impl ProofVerification for DummyProofsVerification {
     fn verify_post(
         _post_type: RegisteredPoStProof,
         _randomness: primitives_proofs::Ticket,
-        _replicas: scale_info::prelude::collections::BTreeMap<
+        _replicas: BoundedBTreeMap<
             SectorNumber,
-            primitives_proofs::PublicReplicaInfo,
+            PublicReplicaInfo,
+            ConstU32<MAX_SECTORS_PER_PROOF>,
         >,
-        _proof: alloc::vec::Vec<u8>,
+        _proof: BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>,
     ) -> sp_runtime::DispatchResult {
         Ok(())
     }

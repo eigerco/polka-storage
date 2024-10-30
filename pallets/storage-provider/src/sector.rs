@@ -2,7 +2,7 @@ use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::*, BoundedVec};
 use primitives_proofs::{
     DealId, RegisteredSealProof, SectorDeal, SectorNumber, CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR,
-    MAX_TERMINATIONS_PER_CALL,
+    MAX_SEAL_PROOF_BYTES, MAX_TERMINATIONS_PER_CALL,
 };
 use scale_info::TypeInfo;
 
@@ -116,7 +116,7 @@ where
 #[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct ProveCommitSector {
     pub sector_number: SectorNumber,
-    pub proof: BoundedVec<u8, ConstU32<256>>, // Arbitrary length
+    pub proof: BoundedVec<u8, ConstU32<MAX_SEAL_PROOF_BYTES>>,
 }
 
 /// Type that is emitted after a successful prove commit extrinsic.
