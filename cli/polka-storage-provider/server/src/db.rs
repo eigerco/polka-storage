@@ -1,12 +1,15 @@
 use std::{path::Path, sync::atomic::AtomicU64};
 
-use serde::{Serialize, Deserialize};
-use primitives_proofs::SectorNumber;
+use primitives_commitment::piece::{PieceInfo, UnpaddedPieceSize};
+use primitives_proofs::{DealId, RawCommitment, SectorNumber};
 use rocksdb::{ColumnFamily, ColumnFamilyDescriptor, Options as DBOptions, DB as RocksDB};
+use serde::{Deserialize, Serialize};
 use storagext::{
     runtime::runtime_types::pallet_storage_provider::sector,
     types::market::{ConversionError, DealProposal},
 };
+
+use crate::pipeline::types::Sector;
 
 #[derive(Debug, thiserror::Error)]
 pub enum DBError {
@@ -162,49 +165,19 @@ impl DealDB {
             biggest_sector_id = std::cmp::max(biggest_sector_id, sector_id);
         }
 
-        self.last_sector_id.store(biggest_sector_id, std::sync::atomic::Ordering::Relaxed);
+        self.last_sector_id
+            .store(biggest_sector_id, std::sync::atomic::Ordering::Relaxed);
         Ok(())
     }
 
     /// Atomically increments sector_id counter, so it can be used as an identifier by a sector.
     /// Prior to all of the calls to this function, `initialize_biggest_sector_id` must be called.
     pub fn next_sector_id(&self) -> u64 {
-        let previous = self.last_sector_id.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let previous = self
+            .last_sector_id
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         previous + 1
     }
 
-    /// Creates a new sector, with a proper id, but DOES NOT persist it.
-    /// Persisting the sector is on the caller.
-    pub fn create_new_sector(&self) -> Sector {
-        Sector {
-            id: self.next_sector_id(),
-            state: SectorState::Unsealed,
-            deals: vec![]
-        }
-    }
-
     // NOTE(@jmg-duarte,03/10/2024): I think that from here onwards we're very close of reinventing the LID, but so be it
-}
-
-
-
-#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub struct Sector {
-    id: SectorNumber,
-    pub state: SectorState,
-    pub deals: Vec<(u64, DealProposal)>,
-}
-
-impl Sector {
-    pub fn id(&self) -> SectorNumber {
-        self.id
-    }
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub enum SectorState {
-    Unsealed,
-    Sealed,
-    Precommitted,
-    Proven,
 }

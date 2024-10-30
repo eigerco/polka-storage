@@ -10955,6 +10955,7 @@ dependencies = [
  "filecoin-proofs",
  "primitives-proofs",
  "rand",
+ "serde",
  "sha2 0.10.8",
 ]
 

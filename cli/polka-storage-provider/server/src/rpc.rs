@@ -2,6 +2,7 @@ use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 
 use jsonrpsee::server::Server;
 use polka_storage_provider_common::rpc::{RpcError, ServerInfo, StorageProviderRpcServer};
+use primitives_commitment::Commitment;
 use storagext::{
     types::market::{ClientDealProposal as SxtClientDealProposal, DealProposal as SxtDealProposal},
     MarketClientExt,
@@ -118,7 +119,15 @@ impl StorageProviderRpcServer for RpcServerState {
                 deal: deal.deal_proposal,
                 published_deal_id: deal_id,
                 piece_path,
-                piece_cid,
+                piece_cid: Commitment::new(
+                    piece_cid.hash().digest().try_into().map_err(|e| {
+                        RpcError::invalid_params(
+                            e,
+                            Some(serde_json::to_value(piece_cid).expect("cid to be serializable")),
+                        )
+                    })?,
+                    primitives_commitment::CommitmentKind::Piece,
+                ),
             }))
             .map_err(|e| RpcError::internal_error(e, None))?;
 

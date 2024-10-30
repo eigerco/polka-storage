@@ -12,13 +12,13 @@ version = "0.1.0"
 mater = { workspace = true }
 polka-storage-proofs = { workspace = true, features = ["std"] }
 polka-storage-provider-common = { workspace = true }
-primitives-commitment = { workspace = true, features = ["std"] }
+primitives-commitment = { workspace = true, features = ["std", "serde"] }
 primitives-proofs = { workspace = true, features = ["clap"] }
 storagext = { workspace = true, features = ["clap", "insecure_url"] }
 
 async-trait = { workspace = true }
 axum = { workspace = true, features = ["macros", "multipart"] }
-cid = { workspace = true, features = ["std"] }
+cid = { workspace = true, features = ["std", "serde"] }
 clap = { workspace = true, features = ["derive"] }
 futures = { workspace = true }
 jsonrpsee = { workspace = true, features = ["http-client", "macros", "server", "ws-client"] }
