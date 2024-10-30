@@ -12,11 +12,7 @@ use subxt::ext::sp_core::{
 };
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{
-    filter::{self, FromEnvError},
-    fmt,
-    layer::SubscriberExt,
-    util::SubscriberInitExt,
-    EnvFilter, Layer,
+    filter::FromEnvError, fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer,
 };
 use url::Url;
 
@@ -145,23 +141,15 @@ impl SubCommand {
 fn setup_tracing() -> Result<(), FromEnvError> {
     tracing_subscriber::registry()
         .with(
-            fmt::layer()
-                .with_filter(
-                    EnvFilter::builder()
-                        .with_default_directive(if cfg!(debug_assertions) {
-                            LevelFilter::DEBUG.into()
-                        } else {
-                            LevelFilter::WARN.into()
-                        })
-                        .from_env()?,
-                )
-                .with_filter(filter::filter_fn(|metadata| {
-                    if let Some(module_path) = metadata.module_path() {
-                        module_path.starts_with("storagext")
+            fmt::layer().with_filter(
+                EnvFilter::builder()
+                    .with_default_directive(if cfg!(debug_assertions) {
+                        LevelFilter::DEBUG.into()
                     } else {
-                        true
-                    }
-                })),
+                        LevelFilter::WARN.into()
+                    })
+                    .from_env()?,
+            ),
         )
         .init();
     Ok(())

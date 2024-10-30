@@ -1,7 +1,14 @@
 use std::time::Duration;
 
+use codec::Encode;
 use hex::ToHex;
-use subxt::{blocks::ExtrinsicEvents, OnlineClient};
+use subxt::{
+    blocks::{Block, ExtrinsicDetails},
+    client::OfflineClientT,
+    config::Hasher,
+    events::Events,
+    OnlineClient,
+};
 
 use crate::PolkaStorageConfig;
 
@@ -14,7 +21,7 @@ where
     pub hash: Config::Hash,
 
     /// Resulting extrinsic's events.
-    pub events: ExtrinsicEvents<Config>,
+    pub events: Events<Config>,
 }
 
 /// Client to interact with a pallet extrinsics.
@@ -76,36 +83,116 @@ impl Client {
         Call: subxt::tx::Payload,
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
+        if wait_for_finalization {
+            self.traced_submission_with_finalization(call, account_keypair)
+                .await
+                .map(Option::Some)
+        } else {
+            tracing::trace!("submitting extrinsic");
+            let extrinsic_hash = self
+                .client
+                .tx()
+                .sign_and_submit_default(call, account_keypair)
+                .await?;
+
+            tracing::trace!(
+                extrinsic_hash = extrinsic_hash.encode_hex::<String>(),
+                "waiting for finalization"
+            );
+            Ok(None)
+        }
+    }
+
+    pub(crate) async fn traced_submission_with_finalization<Call, Keypair>(
+        &self,
+        call: &Call,
+        account_keypair: &Keypair,
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
+    where
+        Call: subxt::tx::Payload,
+        Keypair: subxt::tx::Signer<PolkaStorageConfig>,
+    {
         tracing::trace!("submitting extrinsic");
-        let submission_progress = self
+
+        let mut finalized_block_stream = self.client.blocks().subscribe_finalized().await?;
+
+        let submitted_extrinsic_hash = self
             .client
             .tx()
-            .sign_and_submit_then_watch_default(call, account_keypair)
+            .sign_and_submit_default(call, account_keypair)
             .await?;
 
-        tracing::trace!(
-            extrinsic_hash = submission_progress.extrinsic_hash().encode_hex::<String>(),
+        tracing::error!(
+            extrinsic_hash = submitted_extrinsic_hash.encode_hex::<String>(),
             "waiting for finalization"
         );
 
-        if wait_for_finalization {
-            let finalized_xt = submission_progress.wait_for_finalized().await?;
-            let block_hash = finalized_xt.block_hash();
-            tracing::trace!(
-                block_hash = block_hash.encode_hex::<String>(),
-                "successfully submitted extrinsic"
-            );
+        let metadata = self.client.metadata();
 
-            // finalized != successful
-            let xt_events = finalized_xt.wait_for_success().await?;
+        tracing::error!("ext metadata {:?}", metadata.extrinsic());
 
-            return Ok(Some(SubmissionResult {
-                hash: block_hash,
-                events: xt_events,
-            }));
+        let finalized_block = tokio::task::spawn(async move {
+            'outer: loop {
+                let block = tokio::select! {
+                    block = finalized_block_stream.next() => {
+                        if let Some(block) = block {
+                            block
+                        } else {
+                            break Err(subxt::Error::Io(std::io::Error::new(std::io::ErrorKind::BrokenPipe, "stream was closed")));
+                        }
+                    }
+                };
+                let block: Block<PolkaStorageConfig, _> = block?;
+                tracing::error!("checking block {}", block.hash());
+
+                for extrinsic in block.extrinsics().await?.iter() {
+                    let extrinsic = extrinsic?;
+
+                    // for some reason, the extrinsic that goes, isnt the same as the extrinsic that gets registered
+                    // even though this hash is the way they do it in 0.38, it doesnt work in 0.37
+                    let extrinsic_hash = extrinsic.events().await?.extrinsic_hash();
+
+                    if submitted_extrinsic_hash == extrinsic_hash {
+                        // Extrinsic failures are placed in the same block as the extrinsic.
+
+                        let failed_extrinsic_event: Option<
+                            crate::runtime::system::events::ExtrinsicFailed,
+                        > = block.events().await?.find_first()?;
+
+                        if let Some(event) = failed_extrinsic_event {
+                            tracing::error!("found a failing extrinsic: {:?}", event);
+                            // this weird encode/decode is the shortest and simplest way to convert the
+                            // generated subxt types into the canonical types since we can't replace them
+                            // with the proper ones
+                            let encoded_event = event.encode();
+                            let dispatch_error =
+                                subxt::error::DispatchError::decode_from(encoded_event, metadata)?;
+                            return Err(dispatch_error.into());
+                        }
+
+                        break 'outer Ok(block);
+                    }
+                }
+            }
+        });
+
+        // 1 block = 6 seconds -> 120 seconds = 20 blocks
+        // since the subscription has like a ~6 block delay
+        let timeout = tokio::time::timeout(Duration::from_secs(120), finalized_block).await;
+
+        match timeout {
+            Ok(Ok(result)) => {
+                let result = result?;
+                Ok(SubmissionResult {
+                    hash: result.hash(),
+                    events: result.events().await?,
+                })
+            }
+            Ok(Err(_)) => Err(subxt::Error::Other("failed to join tasks".to_string())),
+            Err(_) => Err(subxt::Error::Other(
+                "timeout while waiting for the extrinsic call to be finalized".to_string(),
+            )),
         }
-
-        Ok(None)
     }
 }
 
