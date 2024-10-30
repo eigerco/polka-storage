@@ -135,7 +135,7 @@ pub mod pallet {
             ensure!(proof_len >= seal_proof.proof_size(), {
                 log::error!(
                     target: LOG_TARGET,
-                    "PoRep proof submission does not contain enough bytes. Expected minimum length is {} got {}"
+                    "PoRep proof submission does not contain enough bytes. Expected minimum length is {} got {}",
                     seal_proof.proof_size(), proof_len
                 );
                 Error::<T>::InvalidPoRepProof
