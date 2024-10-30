@@ -9499,6 +9499,7 @@ dependencies = [
  "rand",
  "rocksdb",
  "sc-cli",
+ "serde",
  "serde_json",
  "storagext",
  "subxt",

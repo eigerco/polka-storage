@@ -10,7 +10,7 @@ mod storage;
 use std::{env::temp_dir, net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 
 use clap::Parser;
-use pipeline::PipelineMessage;
+use pipeline::types::PipelineMessage;
 use polka_storage_provider_common::rpc::ServerInfo;
 use primitives_proofs::{RegisteredPoStProof, RegisteredSealProof};
 use rand::Rng;
@@ -384,16 +384,18 @@ impl ServerConfiguration {
             xt_client: xt_client.clone(),
             xt_keypair: self.multi_pair_signer.clone(),
             listen_address: self.rpc_listen_address,
-            pipeline_sender: pipeline_tx,
+            pipeline_sender: pipeline_tx.clone(),
         };
 
         let pipeline_state = PipelineState {
+            db: deal_database.clone(),
             server_info: rpc_state.server_info.clone(),
             unsealed_sectors_dir: unsealed_sector_storage_dir,
             sealed_sectors_dir: sealed_sector_storage_dir,
             sealing_cache_dir,
             xt_client,
             xt_keypair: self.multi_pair_signer,
+            pipeline_sender: pipeline_tx,
         };
 
         Ok((storage_state, rpc_state, pipeline_state, pipeline_rx))

@@ -13,7 +13,7 @@ use tracing::{info, instrument};
 
 use crate::{
     db::DealDB,
-    pipeline::{PipelineMessage, PreCommitMessage},
+    pipeline::types::{AddPieceMessage, PipelineMessage},
 };
 
 /// RPC server shared state.
@@ -114,8 +114,8 @@ impl StorageProviderRpcServer for RpcServerState {
         let deal_id = published_deals[0].deal_id;
 
         self.pipeline_sender
-            .send(PipelineMessage::PreCommit(PreCommitMessage {
-                deal,
+            .send(PipelineMessage::AddPiece(AddPieceMessage {
+                deal: deal.deal_proposal,
                 published_deal_id: deal_id,
                 piece_path,
                 piece_cid,

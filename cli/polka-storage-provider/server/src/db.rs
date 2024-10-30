@@ -1,7 +1,12 @@
-use std::path::Path;
+use std::{path::Path, sync::atomic::AtomicU64};
 
+use serde::{Serialize, Deserialize};
+use primitives_proofs::SectorNumber;
 use rocksdb::{ColumnFamily, ColumnFamilyDescriptor, Options as DBOptions, DB as RocksDB};
-use storagext::types::market::{ConversionError, DealProposal};
+use storagext::{
+    runtime::runtime_types::pallet_storage_provider::sector,
+    types::market::{ConversionError, DealProposal},
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum DBError {
@@ -22,11 +27,13 @@ pub enum DBError {
 }
 
 const ACCEPTED_DEAL_PROPOSALS_CF: &str = "accepted_deal_proposals";
+const SECTORS: &str = "sectors";
 
-const COLUMN_FAMILIES: [&str; 1] = [ACCEPTED_DEAL_PROPOSALS_CF];
+const COLUMN_FAMILIES: [&str; 2] = [ACCEPTED_DEAL_PROPOSALS_CF, SECTORS];
 
 pub struct DealDB {
     database: RocksDB,
+    last_sector_id: AtomicU64,
 }
 
 impl DealDB {
@@ -42,9 +49,13 @@ impl DealDB {
             .into_iter()
             .map(|cf_name| ColumnFamilyDescriptor::new(cf_name, DBOptions::default()));
 
-        Ok(Self {
+        let db = Self {
             database: RocksDB::open_cf_descriptors(&opts, path, cfs)?,
-        })
+            last_sector_id: AtomicU64::new(0),
+        };
+
+        db.initialize_biggest_sector_id()?;
+        Ok(db)
     }
 
     fn cf_handle(&self, name: &str) -> &ColumnFamily {
@@ -106,5 +117,94 @@ impl DealDB {
         )?)
     }
 
+    pub fn get_sector(&self, sector_id: SectorNumber) -> Result<Option<Sector>, DBError> {
+        let Some(sector_slice) = self
+            .database
+            .get_pinned_cf(self.cf_handle(SECTORS), sector_id.to_le_bytes())?
+        else {
+            return Ok(None);
+        };
+
+        let sector = serde_json::from_reader(sector_slice.as_ref())
+            // SAFETY: this should never fail since the API sets a sector
+            // if this happens, it means that someone wrote it from a side channel
+            .expect("invalid content was placed in the database from outside this API");
+
+        Ok(Some(sector))
+    }
+
+    pub fn save_sector(&self, sector: &Sector) -> Result<(), DBError> {
+        let cf_handle = self.cf_handle(SECTORS);
+        let key = sector.id.to_le_bytes();
+        let json = serde_json::to_vec(&sector)?;
+
+        self.database.put_cf(cf_handle, key, json)?;
+
+        Ok(())
+    }
+
+    /// Takes all of the existing sectors, finds the maximum sector id.
+    /// The simplest way possible of generating an id.
+    /// It is used to generate sector id, don't use it directly as it can create sector id overlaps.
+    /// I.e. when 2 threads call the `find_biggest_sector_id` and use its result at the same time, the sector can be lost.
+    fn initialize_biggest_sector_id(&self) -> Result<(), DBError> {
+        let mut biggest_sector_id = 0;
+        for item in self
+            .database
+            .iterator_cf(self.cf_handle(SECTORS), rocksdb::IteratorMode::Start)
+        {
+            let (key, _) = item?;
+            let key: [u8; 8] = key
+                .as_ref()
+                .try_into()
+                .expect("sector's key to be u64 le bytes");
+            let sector_id = SectorNumber::from_le_bytes(key);
+            biggest_sector_id = std::cmp::max(biggest_sector_id, sector_id);
+        }
+
+        self.last_sector_id.store(biggest_sector_id, std::sync::atomic::Ordering::Relaxed);
+        Ok(())
+    }
+
+    /// Atomically increments sector_id counter, so it can be used as an identifier by a sector.
+    /// Prior to all of the calls to this function, `initialize_biggest_sector_id` must be called.
+    pub fn next_sector_id(&self) -> u64 {
+        let previous = self.last_sector_id.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        previous + 1
+    }
+
+    /// Creates a new sector, with a proper id, but DOES NOT persist it.
+    /// Persisting the sector is on the caller.
+    pub fn create_new_sector(&self) -> Sector {
+        Sector {
+            id: self.next_sector_id(),
+            state: SectorState::Unsealed,
+            deals: vec![]
+        }
+    }
+
     // NOTE(@jmg-duarte,03/10/2024): I think that from here onwards we're very close of reinventing the LID, but so be it
+}
+
+
+
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
+pub struct Sector {
+    id: SectorNumber,
+    pub state: SectorState,
+    pub deals: Vec<(u64, DealProposal)>,
+}
+
+impl Sector {
+    pub fn id(&self) -> SectorNumber {
+        self.id
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
+pub enum SectorState {
+    Unsealed,
+    Sealed,
+    Precommitted,
+    Proven,
 }

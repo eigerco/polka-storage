@@ -1,3 +1,5 @@
+pub mod types;
+
 use std::{path::PathBuf, sync::Arc};
 
 use cid::Cid;
@@ -6,38 +8,26 @@ use polka_storage_proofs::porep::{
     PoRepError,
 };
 use polka_storage_provider_common::rpc::ServerInfo;
-use primitives_proofs::{derive_prover_id, RegisteredSealProof, SectorNumber};
+use primitives_proofs::{derive_prover_id, RawCommitment, RegisteredSealProof, SectorNumber};
 use storagext::{
-    types::{market::ClientDealProposal, storage_provider::SectorPreCommitInfo},
+    types::{market::DealProposal, storage_provider::SectorPreCommitInfo},
     StorageProviderClientExt, SystemClientExt,
 };
 use subxt::tx::Signer;
 use tokio::{
-    sync::mpsc::UnboundedReceiver,
+    sync::mpsc::{UnboundedReceiver, UnboundedSender, error::SendError},
     task::{JoinError, JoinHandle},
 };
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 
+use crate::db::{DBError, DealDB};
+use types::{AddPieceMessage, PipelineMessage, PreCommitMessage};
+
 // PLACEHOLDERS!!!!!
-// TODO(@th7nder,29/10/2024): #474
-const SECTOR_ID: u64 = 77;
 // TODO(@th7nder,29/10/2024): get from pallet randomness
 const TICKET: [u8; 32] = [12u8; 32];
 // const SEED: [u8; 32] = [13u8; 32];
 const SECTOR_EXPIRATION_MARGIN: u64 = 20;
-
-#[derive(Debug)]
-pub struct PreCommitMessage {
-    pub deal: ClientDealProposal,
-    pub published_deal_id: u64,
-    pub piece_path: PathBuf,
-    pub piece_cid: Cid,
-}
-
-#[derive(Debug)]
-pub enum PipelineMessage {
-    PreCommit(PreCommitMessage),
-}
 
 #[derive(Debug, thiserror::Error)]
 pub enum PipelineError {
@@ -45,20 +35,28 @@ pub enum PipelineError {
     PoRepError(#[from] PoRepError),
     #[error(transparent)]
     Join(#[from] JoinError),
-    #[error("Pre-commit took too much time... Cannot start pre-commit now, current_block: {0}, deal_start: {1}")]
-    SealingTooSlow(u64, u64),
     #[error(transparent)]
     Subxt(#[from] subxt::Error),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+    #[error(transparent)]
+    DBError(#[from] DBError),
+    #[error("sector does not exist")]
+    NotExistentSector,
+    #[error(transparent)]
+    SendError(#[from] SendError<PipelineMessage>)
 }
 /// Pipeline shared state.
 pub struct PipelineState {
     pub server_info: ServerInfo,
+    pub db: Arc<DealDB>,
     pub unsealed_sectors_dir: Arc<PathBuf>,
     pub sealed_sectors_dir: Arc<PathBuf>,
     pub sealing_cache_dir: Arc<PathBuf>,
 
     pub xt_client: Arc<storagext::Client>,
     pub xt_keypair: storagext::multipair::MultiPairSigner,
+    pub pipeline_sender: UnboundedSender<PipelineMessage>,
 }
 
 #[tracing::instrument(skip_all)]
@@ -103,7 +101,7 @@ fn process(
     token: CancellationToken,
 ) {
     match msg {
-        PipelineMessage::PreCommit(PreCommitMessage {
+        PipelineMessage::AddPiece(AddPieceMessage {
             deal,
             published_deal_id,
             piece_path,
@@ -111,9 +109,24 @@ fn process(
         }) => {
             tracker.spawn(async move {
                 tokio::select! {
-                    res = precommit(state, deal, published_deal_id, SECTOR_ID, piece_path, piece_cid, token.clone()) => {
+                    res = add_piece(state, piece_path, piece_cid, deal, published_deal_id, token.clone()) => {
                         match res {
-                            Ok(_) => tracing::info!("Precommit finished successfully."),
+                            Ok(_) => tracing::info!("Add Piece for piece {}, deal id {}, finished successfully.", piece_cid, published_deal_id),
+                            Err(err) => tracing::error!(%err),
+                        }
+                    },
+                    () = token.cancelled() => {
+                        tracing::warn!("AddPiece has been cancelled.");
+                    }
+                }
+            });
+        }
+        PipelineMessage::PreCommit(PreCommitMessage { sector_id }) => {
+            tracker.spawn(async move {
+                tokio::select! {
+                    res = precommit(state, sector_id, token.clone()) => {
+                        match res {
+                            Ok(_) => tracing::info!("Precommit for sector {} finished successfully.", sector_id),
                             Err(err) => tracing::error!(%err),
                         }
                     },
@@ -126,20 +139,58 @@ fn process(
     }
 }
 
-async fn precommit(
+#[tracing::instrument(skip_all, fields(piece_cid, deal_id))]
+async fn add_piece(
     state: Arc<PipelineState>,
-    deal: ClientDealProposal,
-    deal_id: u64,
-    sector_id: SectorNumber,
     piece_path: PathBuf,
     piece_cid: Cid,
+    deal: DealProposal,
+    deal_id: u64,
     token: CancellationToken,
 ) -> Result<(), PipelineError> {
-    tracing::debug!(
-        "Starting pre-commit task for deal {}, sector, {}",
-        deal_id,
-        sector_id
-    );
+    // TODO(@th7nder,30/10/2024): simplification, we're always creating a new sector for storing a piece.
+    // It should not work like that, sectors should be filled with pieces according to *some* algorithm.
+    let mut sector = state.db.create_new_sector();
+    sector.deals.push((deal_id, deal));
+
+
+    let piece_commitment: RawCommitment = piece_cid
+        .hash()
+        .digest()
+        .try_into()
+        .expect("piece_cid should have been validated on proposal");
+
+    // TODO: tokio::spawn_blocking
+    let (padded_reader, piece_info) = prepare_piece(piece_path, piece_commitment)?;
+
+    state.db.save_sector(&sector)?;
+    // TODO(@th7nder,30/10/2024): simplification, as we're always scheduling a precommit just after adding a piece and creating a new sector.
+    // Ideally sector won't be finalized after one piece has been added and the precommit will depend on the start_block?
+    state.pipeline_sender.send(PipelineMessage::PreCommit(PreCommitMessage {
+        sector_id: sector.id(),
+    }))?;
+
+    Ok(())
+}
+
+#[tracing::instrument(skip_all, fields(sector_id))]
+async fn precommit(
+    state: Arc<PipelineState>,
+    sector_id: SectorNumber,
+    token: CancellationToken,
+) -> Result<(), PipelineError> {
+    tracing::debug!("Starting pre-commit task for sector {}", sector_id);
+
+    let Some(sector) = state.db.get_sector(sector_id)? else {
+        tracing::error!("tried to precommit non-existing sector");
+        return Err(PipelineError::NotExistentSector);
+    };
+
+    // TODO(@th7nder,30/10/2024):
+    // - get all of the piece infos which were saved in the sector
+    // - pad it finally
+    // - start sealing
+
     // Questions to be answered:
     // * what happens if some of it fails? SP will be slashed, and there is no error reporting?
     // * where do we save the state of a sector/deals, how do we keep track of it?
@@ -156,9 +207,7 @@ async fn precommit(
                 unsealed_dir,
                 sealed_dir,
                 cache_dir,
-                piece_path,
                 state.server_info.seal_proof,
-                piece_cid,
             )
         })
     };
@@ -174,25 +223,13 @@ async fn precommit(
     };
     tracing::info!("Created sector's replica: {:?}", sealing_output);
 
-    let deal_start = deal.deal_proposal.start_block;
-    let deal_duration = deal.deal_proposal.end_block - deal_start;
-    let current_block = state.xt_client.height(false).await?;
-    if current_block > deal_start {
-        tracing::error!(
-            "Cannot pre-commit sector, sealing was too slow: current_block: {}, deal_start: {}",
-            current_block,
-            deal_start
-        );
-        return Err(PipelineError::SealingTooSlow(current_block, deal_start));
-    }
-
     let result = state
         .xt_client
         .pre_commit_sectors(
             &state.xt_keypair,
             vec![SectorPreCommitInfo {
-                deal_ids: vec![deal_id],
-                expiration: deal_start + deal_duration + SECTOR_EXPIRATION_MARGIN,
+                deal_ids: sector.deals.into_iter().map(|(id, _)| id).collect(),
+                expiration: 1000,
                 sector_number: sector_id,
                 seal_proof: state.server_info.seal_proof,
                 sealed_cid: primitives_commitment::Commitment::new(
@@ -227,43 +264,38 @@ async fn precommit(
 fn create_replica(
     sector_id: SectorNumber,
     prover_id: [u8; 32],
-    unsealed_dir: Arc<PathBuf>,
-    sealed_dir: Arc<PathBuf>,
+    unsealed_sector_path: Arc<PathBuf>,
+    sealed_sector_path: Arc<PathBuf>,
     cache_dir: Arc<PathBuf>,
-    piece_path: PathBuf,
     seal_proof: RegisteredSealProof,
-    piece_cid: Cid,
 ) -> Result<PreCommitOutput, polka_storage_proofs::porep::PoRepError> {
-    let piece_commitment: [u8; 32] = piece_cid
-        .hash()
-        .digest()
-        .try_into()
-        .expect("piece_cid should have been validated on proposal");
+    // let unsealed_sector_path = unsealed_dir.join(sector_id.to_string());
+    // let sealer = Sealer::new(seal_proof);
+    //
+    // let piece_infos = {
+    //     // The scope creates an implicit drop of the file handler
+    //     // avoiding reading issues later on
+    //     let sector_writer = std::fs::File::create(&unsealed_sector_path)?;
+    //     sealer.create_sector(vec![prepared_piece], sector_writer)?
+    // };
 
-    let unsealed_sector_path = unsealed_dir.join(sector_id.to_string());
-    let sealed_sector_path = {
-        let path = sealed_dir.join(sector_id.to_string());
-        // We need to create the file ourselves, even though that's not documented
-        std::fs::File::create(&path)?;
-        path
-    };
+    // let sealed_sector_path = {
+    //     let path = sealed_dir.join(sector_id.to_string());
+    //     // We need to create the file ourselves, even though that's not documented
+    //     std::fs::File::create(&path)?;
+    //     path
+    // }
 
-    let sealer = Sealer::new(seal_proof);
-    let prepared_piece = prepare_piece(piece_path, piece_commitment)?;
-    let piece_infos = {
-        // The scope creates an implicit drop of the file handler
-        // avoiding reading issues later on
-        let sector_writer = std::fs::File::create(&unsealed_sector_path)?;
-        sealer.create_sector(vec![prepared_piece], sector_writer)?
-    };
+    // let sealer = Sealer::new(seal_proof);
+    // sealer.precommit_sector(
+    //     *cache_dir,
+    //     *unsealed_sector_path,
+    //     *sealed_sector_path,
+    //     prover_id,
+    //     sector_id,
+    //     TICKET,
+    //     &piece_infos,
+    // )
 
-    sealer.precommit_sector(
-        cache_dir.as_ref(),
-        unsealed_sector_path,
-        sealed_sector_path,
-        prover_id,
-        SECTOR_ID,
-        TICKET,
-        &piece_infos,
-    )
+    todo!()
 }
