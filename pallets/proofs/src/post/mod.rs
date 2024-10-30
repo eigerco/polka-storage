@@ -1,18 +1,21 @@
 mod config;
 
 use config::Config;
+use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeMap};
 use polka_storage_proofs::get_partitions_for_window_post;
 use primitives_commitment::NODE_SIZE;
 use primitives_proofs::{
     PublicReplicaInfo, RawCommitment, RegisteredPoStProof, SectorNumber, Ticket,
+    MAX_SECTORS_PER_PROOF,
 };
 use sha2::{Digest, Sha256};
-use sp_std::collections::btree_map::BTreeMap;
 
 use crate::{
     crypto::groth16::{verify_proof, Bls12, Fr, Proof, VerificationError, VerifyingKey},
     fr32, Vec,
 };
+
+const LOG_TARGET: &'static str = "runtime::proofs::post";
 
 pub struct ProofScheme {
     config: Config,
@@ -27,16 +30,16 @@ impl ProofScheme {
 
     /// Verifies PoSt for all of the replicas.
     ///
-    /// Currently the replicas are unbounded, that's because it's dependent on the sector size used and number of proofs.
-    /// I.e. when we have a one proof, replicas can be: 2 for sector size of 2KiB, but 2349 for sector size of 32GiB.
+    /// Replicas are bounded to the largest possible amount, 2349 for 32GiB.
+    /// For other proof size the length of the input map is checked.
+    ///
     /// References:
     /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/filecoin-proofs/src/api/window_post.rs#L181>
     /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/266acc39a3ebd6f3d28c6ee335d78e2b7cea06bc/storage-proofs-core/src/compound_proof.rs#L148>
-    // TODO(@th7nder,#467, 22/10/2024): figure out the proper bounds
     pub fn verify(
         &self,
         randomness: Ticket,
-        replicas: BTreeMap<SectorNumber, PublicReplicaInfo>,
+        replicas: BoundedBTreeMap<SectorNumber, PublicReplicaInfo, ConstU32<MAX_SECTORS_PER_PROOF>>,
         vk: VerifyingKey<Bls12>,
         proof: Proof<Bls12>,
     ) -> Result<(), ProofError> {
@@ -55,6 +58,21 @@ impl ProofScheme {
             return Err(ProofError::InvalidNumberOfProofs);
         }
 
+        // NOTE:
+        //  * This is purposely checked after the required partitions.
+        //  * Once we support verification of multiple partitions this check should be done for every partition
+        let replica_count = replicas.len();
+        ensure!(
+            replica_count <= self.config.challenged_sectors_per_partition,
+            {
+                log::error!(
+                    target: LOG_TARGET,
+                    "Got more replicas than expected. Expected max replicas = {}, submitted replicas = {replica_count}",
+                    self.config.challenged_sectors_per_partition
+                );
+                ProofError::InvalidNumberOfReplicas
+            }
+        );
         let pub_sectors: Vec<_> = replicas
             .iter()
             .map(|(sector_id, replica)| {
@@ -141,6 +159,8 @@ impl ProofScheme {
 pub enum ProofError {
     InvalidNumberOfSectors,
     InvalidNumberOfProofs,
+    /// Returned when the given replicas exceeds the maximum amount set by the SP.
+    InvalidNumberOfReplicas,
     /// Returned when the given proof was invalid in a verification.
     InvalidProof,
     /// Returned when the given verifying key was invalid.

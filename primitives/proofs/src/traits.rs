@@ -2,8 +2,7 @@ extern crate alloc;
 
 use cid::Cid;
 use sp_core::ConstU32;
-use sp_runtime::{BoundedVec, DispatchError, DispatchResult, RuntimeDebug};
-use sp_std::collections::btree_map::BTreeMap;
+use sp_runtime::{BoundedBTreeMap, BoundedVec, DispatchError, DispatchResult, RuntimeDebug};
 
 use crate::types::{
     DealId, ProverId, RawCommitment, RegisteredPoStProof, RegisteredSealProof, SectorNumber, Ticket,
@@ -24,8 +23,34 @@ pub const MAX_DEALS_PER_SECTOR: u32 = 128;
 /// Required for BoundedVec.
 pub const MAX_DEALS_FOR_ALL_SECTORS: u32 = MAX_SECTORS_PER_CALL * MAX_DEALS_PER_SECTOR;
 
-/// The maximum number of terminations for a single extrinsics call.
+/// The maximum number of terminations for a single extrinsic call.
 pub const MAX_TERMINATIONS_PER_CALL: u32 = 32; // TODO(@jmg-duarte,25/07/2024): change for a better value
+
+/// The maximum amount of sectors allowed in proofs and replicas.
+/// This value is the absolute max, when the sector size is 32 GiB.
+/// Proofs and replicas are still dynamically checked for their size depending on the sector size.
+///
+/// References:
+///
+/// * Filecoin docs about PoSt: <https://spec.filecoin.io/algorithms/pos/post/#section-algorithms.pos.post.windowpost>
+pub const MAX_SECTORS_PER_PROOF: u32 = 2349;
+
+/// The absolute maximum length, in bytes, a seal proof should be for the largest sector size.
+/// NOTE: Taken the value from `StackedDRG32GiBV1`,
+/// which is not the biggest seal proof type but we do not plan on supporting non-interactive proof types at this time.
+///
+/// References:
+///
+/// * <https://github.com/filecoin-project/ref-fvm/blob/32583cc05aa422c8e1e7ba81d56a888ac9d90e61/shared/src/sector/registered_proof.rs#L90>
+pub const MAX_SEAL_PROOF_LEN: u32 = 1_920;
+
+/// The fixed length, in bytes, of a PoSt proof.
+/// This value is the same as `PROOF_BYTES` in the `polka-storage-proofs` library.
+/// It is redefined to avoid import the whole library for 1 constant.
+///
+/// References:
+/// * <https://github.com/filecoin-project/ref-fvm/blob/32583cc05aa422c8e1e7ba81d56a888ac9d90e61/shared/src/sector/registered_proof.rs#L159>
+pub const POST_PROOF_LEN: u32 = 192;
 
 /// Represents functions that are provided by the Market Provider Pallet
 pub trait Market<AccountId, BlockNumber> {
@@ -85,14 +110,14 @@ pub trait ProofVerification {
         sector: SectorNumber,
         ticket: Ticket,
         seed: Ticket,
-        proof: alloc::vec::Vec<u8>,
+        proof: BoundedVec<u8, ConstU32<MAX_SEAL_PROOF_LEN>>,
     ) -> DispatchResult;
 
     fn verify_post(
         post_type: RegisteredPoStProof,
         randomness: Ticket,
-        replicas: BTreeMap<SectorNumber, PublicReplicaInfo>,
-        proof: alloc::vec::Vec<u8>,
+        replicas: BoundedBTreeMap<SectorNumber, PublicReplicaInfo, ConstU32<MAX_SECTORS_PER_PROOF>>,
+        proof: BoundedVec<u8, ConstU32<POST_PROOF_LEN>>,
     ) -> DispatchResult;
 }
 

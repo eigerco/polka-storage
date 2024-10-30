@@ -79,10 +79,14 @@ pub const VERIFYINGKEY_MAX_BYTES: usize =
 
 /// This constant specifies the number of bytes of a serialised `Proof`.
 ///
-/// It gets calculated by the defined nubmer of compressed serialised bytes of `G1Affine` and
+/// It gets calculated by the defined number of compressed serialised bytes of `G1Affine` and
 /// `G2Affine`. A compressed serialised `G1Affine` are 48 bytes, a compressed serialised `G2Affine`
 /// are 96 bytes.
 /// That computes to: 2 * 48 + 96 = 192.
+/// This value equates to the same length as the Filecoin PoSt proof size.
+///
+/// References:
+/// * <https://github.com/filecoin-project/ref-fvm/blob/32583cc05aa422c8e1e7ba81d56a888ac9d90e61/shared/src/sector/registered_proof.rs#L159>
 pub const PROOF_BYTES: usize = 2 * G1AFFINE_COMPRESSED_BYTES + 1 * G2AFFINE_COMPRESSED_BYTES;
 
 /// The Verifying-Key data type definition for a ZK-SNARK verification. This type definition is
