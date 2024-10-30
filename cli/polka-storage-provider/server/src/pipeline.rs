@@ -14,9 +14,9 @@ use storagext::{
 use subxt::tx::Signer;
 use tokio::{
     sync::mpsc::UnboundedReceiver,
-    task::{JoinError, JoinHandle, JoinSet},
+    task::{JoinError, JoinHandle},
 };
-use tokio_util::sync::CancellationToken;
+use tokio_util::{sync::CancellationToken, task::TaskTracker};
 
 // PLACEHOLDERS!!!!!
 // TODO(@th7nder,29/10/2024): #474
@@ -67,15 +67,15 @@ pub async fn start_pipeline(
     mut receiver: UnboundedReceiver<PipelineMessage>,
     token: CancellationToken,
 ) -> Result<(), std::io::Error> {
-    let mut futs = JoinSet::new();
+    let tracker = TaskTracker::new();
 
     loop {
         tokio::select! {
             msg = receiver.recv() => {
-                tracing::info!("Received msg: {:?}", msg);
+                tracing::debug!("Received msg: {:?}", msg);
                 match msg {
                     Some(msg) => {
-                        process(&mut futs, msg, state.clone(), token.clone());
+                        process(&tracker, msg, state.clone(), token.clone());
                     },
                     None => {
                         tracing::info!("Channel has been closed...");
@@ -90,18 +90,14 @@ pub async fn start_pipeline(
         }
     }
 
-    // TODO: should we propgate somehow inner errors to the main thread?
-    while let Some(res) = futs.join_next().await {
-        let _ = res.inspect_err(|err| tracing::error!(%err)).inspect(|ok| {
-            let _ = ok.as_ref().inspect_err(|err| tracing::error!(%err));
-        });
-    }
+    tracker.close();
+    tracker.wait().await;
 
     Ok(())
 }
 
 fn process(
-    futs: &mut JoinSet<Result<(), PipelineError>>,
+    tracker: &TaskTracker,
     msg: PipelineMessage,
     state: Arc<PipelineState>,
     token: CancellationToken,
@@ -113,15 +109,19 @@ fn process(
             piece_path,
             piece_cid,
         }) => {
-            futs.spawn(precommit(
-                state,
-                deal,
-                published_deal_id,
-                SECTOR_ID,
-                piece_path,
-                piece_cid,
-                token,
-            ));
+            tracker.spawn(async move {
+                tokio::select! {
+                    res = precommit(state, deal, published_deal_id, SECTOR_ID, piece_path, piece_cid, token.clone()) => {
+                        match res {
+                            Ok(_) => tracing::info!("Precommit finished successfully."),
+                            Err(err) => tracing::error!(%err),
+                        }
+                    },
+                    () = token.cancelled() => {
+                        tracing::warn!("PreCommit has been cancelled.");
+                    }
+                }
+            });
         }
     }
 }
