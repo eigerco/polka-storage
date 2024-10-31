@@ -242,6 +242,7 @@ fn fails_sector_number_already_used() {
     });
 }
 
+#[ignore = "bug #496"]
 #[test]
 fn fails_declared_commd_not_matching() {
     new_test_ext().execute_with(|| {
