@@ -8,8 +8,8 @@ repository.workspace = true
 version = "0.1.0"
 
 [features]
-std = ["dep:filecoin-proofs"]
 serde = ["dep:serde"]
+std = ["dep:filecoin-proofs"]
 
 [dependencies]
 primitives-proofs.workspace = true
