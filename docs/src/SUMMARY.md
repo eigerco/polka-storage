@@ -6,6 +6,7 @@
 - [Getting Started](./getting-started/index.md)
   - [Local Testnet - Polka Storage Parachain](./getting-started/local-testnet.md)
   - [Real-world use case demo](./getting-started/demo.md)
+  - [File upload](./getting-started/file-upload.md)
 - [Polka Storage Provider CLI](./storage-provider-cli/index.md)
   - [`server`](./storage-provider-cli/server.md)
   - [`client`](./storage-provider-cli/client/index.md)

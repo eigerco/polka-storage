@@ -23,7 +23,7 @@ INPUT_FILE_NAME="$(basename "$INPUT_FILE")"
 INPUT_TMP_FILE="/tmp/$INPUT_FILE_NAME.car"
 
 target/release/mater-cli convert -q --overwrite "$INPUT_FILE" "$INPUT_TMP_FILE" &&
-INPUT_COMMP="$(target/release/polka-storage-provider-client utils commp "$INPUT_TMP_FILE")"
+INPUT_COMMP="$(target/release/polka-storage-provider-client proofs commp "$INPUT_TMP_FILE")"
 PIECE_CID="$(echo "$INPUT_COMMP" | jq -r ".cid")"
 PIECE_SIZE="$(echo "$INPUT_COMMP" | jq ".size")"
 
