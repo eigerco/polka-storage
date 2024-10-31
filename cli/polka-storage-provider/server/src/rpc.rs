@@ -90,6 +90,7 @@ impl StorageProviderRpcServer for RpcServerState {
             ));
         }
 
+        let deal_proposal = deal.deal_proposal.clone();
         // TODO(@jmg-duarte,#428,04/10/2024):
         // There's a small bug here, currently, xt_client waits for a "full extrisic submission"
         // meaning that it will wait until the block where it is included in is finalized
@@ -98,7 +99,7 @@ impl StorageProviderRpcServer for RpcServerState {
         // it just requires some API design
         let result = self
             .xt_client
-            .publish_signed_storage_deals(&self.xt_keypair, vec![deal.clone()])
+            .publish_signed_storage_deals(&self.xt_keypair, vec![deal])
             .await?;
 
         let published_deals = result
@@ -116,7 +117,7 @@ impl StorageProviderRpcServer for RpcServerState {
 
         self.pipeline_sender
             .send(PipelineMessage::AddPiece(AddPieceMessage {
-                deal: deal.deal_proposal,
+                deal: deal_proposal,
                 published_deal_id: deal_id,
                 piece_path,
                 piece_cid: Commitment::new(

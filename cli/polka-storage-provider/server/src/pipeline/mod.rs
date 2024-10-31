@@ -1,15 +1,14 @@
 pub mod types;
 
-use std::{io, path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc};
 
-use cid::Cid;
 use polka_storage_proofs::porep::{
     sealer::{prepare_piece, PreCommitOutput, Sealer},
     PoRepError,
 };
 use polka_storage_provider_common::rpc::ServerInfo;
 use primitives_commitment::Commitment;
-use primitives_proofs::{derive_prover_id, RawCommitment, RegisteredSealProof, SectorNumber};
+use primitives_proofs::{derive_prover_id, SectorNumber};
 use storagext::{
     types::{market::DealProposal, storage_provider::SectorPreCommitInfo},
     StorageProviderClientExt, SystemClientExt,
@@ -127,7 +126,9 @@ fn process(
                 }
             });
         }
-        PipelineMessage::PreCommit(PreCommitMessage { sector_id }) => {
+        PipelineMessage::PreCommit(PreCommitMessage {
+            sector_number: sector_id,
+        }) => {
             tracker.spawn(async move {
                 tokio::select! {
                     res = precommit(state, sector_id) => {
@@ -148,10 +149,10 @@ fn process(
 async fn find_sector_for_piece(state: &Arc<PipelineState>) -> Result<Sector, PipelineError> {
     // TODO(@th7nder,30/10/2024): simplification, we're always creating a new sector for storing a piece.
     // It should not work like that, sectors should be filled with pieces according to *some* algorithm.
-    let sector_id = state.db.next_sector_id();
-    let unsealed_path = state.unsealed_sectors_dir.join(sector_id.to_string());
-    let sealed_path = state.sealed_sectors_dir.join(sector_id.to_string());
-    let sector = Sector::create(sector_id, unsealed_path, sealed_path).await?;
+    let sector_number = state.db.next_sector_number();
+    let unsealed_path = state.unsealed_sectors_dir.join(sector_number.to_string());
+    let sealed_path = state.sealed_sectors_dir.join(sector_number.to_string());
+    let sector = Sector::create(sector_number, unsealed_path, sealed_path).await?;
 
     Ok(sector)
 }
@@ -193,25 +194,25 @@ async fn add_piece(
     state
         .pipeline_sender
         .send(PipelineMessage::PreCommit(PreCommitMessage {
-            sector_id: sector.id,
+            sector_number: sector.sector_number,
         }))?;
 
     Ok(())
 }
 
-#[tracing::instrument(skip_all, fields(sector_id))]
+#[tracing::instrument(skip_all, fields(sector_number))]
 async fn precommit(
     state: Arc<PipelineState>,
-    sector_id: SectorNumber,
+    sector_number: SectorNumber,
 ) -> Result<(), PipelineError> {
     tracing::info!("Starting pre-commit");
 
-    let Some(mut sector) = state.db.get_sector(sector_id)? else {
+    let sealer = Sealer::new(state.server_info.seal_proof);
+    let Some(mut sector) = state.db.get_sector(sector_number)? else {
         tracing::error!("Tried to precommit non-existing sector");
         return Err(PipelineError::NotExistentSector);
     };
 
-    let sealer = Sealer::new(state.server_info.seal_proof);
     sector.state = SectorState::Sealing;
     sector.piece_infos = sealer.pad_sector(&sector.piece_infos, sector.occupied_sector_space)?;
     state.db.save_sector(&sector)?;
@@ -221,26 +222,24 @@ async fn precommit(
     let sealing_handle: JoinHandle<Result<PreCommitOutput, _>> = {
         let prover_id = derive_prover_id(state.xt_keypair.account_id());
         let cache_dir = state.sealing_cache_dir.clone();
+        let unsealed_path = sector.unsealed_path.clone();
+        let sealed_path = sector.sealed_path.clone();
+        let piece_infos = sector.piece_infos.clone();
         tokio::task::spawn_blocking(move || {
             sealer.precommit_sector(
                 cache_dir.as_ref(),
-                &sector.unsealed_path,
-                &sector.sealed_path,
+                unsealed_path,
+                sealed_path,
                 prover_id,
-                sector_id,
+                sector_number,
                 TICKET,
-                &sector.piece_infos,
+                &piece_infos,
             )
         })
     };
     let sealing_output = sealing_handle.await??;
     tracing::info!("Created sector's replica: {:?}", sealing_output);
 
-    // Need to fetch it again as it was moved to sealing task.
-    let Some(mut sector) = state.db.get_sector(sector_id)? else {
-        tracing::error!("Sector was deleted during the sealing process");
-        return Err(PipelineError::NotExistentSector);
-    };
     sector.state = SectorState::Sealed;
     state.db.save_sector(&sector)?;
 
@@ -258,9 +257,9 @@ async fn precommit(
                     .iter()
                     .map(|(_, deal)| deal.end_block)
                     .max()
-                    .expect("we always precommit non-empty sectors")
+                    .expect("always at least 1 deal in a sector")
                     + 10,
-                sector_number: sector_id,
+                sector_number: sector_number,
                 seal_proof: state.server_info.seal_proof,
                 sealed_cid: primitives_commitment::Commitment::new(
                     sealing_output.comm_r,

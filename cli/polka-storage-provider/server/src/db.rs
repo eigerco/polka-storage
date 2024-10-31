@@ -30,13 +30,13 @@ pub enum DBError {
 }
 
 const ACCEPTED_DEAL_PROPOSALS_CF: &str = "accepted_deal_proposals";
-const SECTORS: &str = "sectors";
+const SECTORS_CF: &str = "sectors";
 
-const COLUMN_FAMILIES: [&str; 2] = [ACCEPTED_DEAL_PROPOSALS_CF, SECTORS];
+const COLUMN_FAMILIES: [&str; 2] = [ACCEPTED_DEAL_PROPOSALS_CF, SECTORS_CF];
 
 pub struct DealDB {
     database: RocksDB,
-    last_sector_id: AtomicU64,
+    last_sector_number: AtomicU64,
 }
 
 impl DealDB {
@@ -54,10 +54,10 @@ impl DealDB {
 
         let db = Self {
             database: RocksDB::open_cf_descriptors(&opts, path, cfs)?,
-            last_sector_id: AtomicU64::new(0),
+            last_sector_number: AtomicU64::new(0),
         };
 
-        db.initialize_biggest_sector_id()?;
+        db.initialize_biggest_sector_number()?;
         Ok(db)
     }
 
@@ -123,7 +123,7 @@ impl DealDB {
     pub fn get_sector(&self, sector_id: SectorNumber) -> Result<Option<Sector>, DBError> {
         let Some(sector_slice) = self
             .database
-            .get_pinned_cf(self.cf_handle(SECTORS), sector_id.to_le_bytes())?
+            .get_pinned_cf(self.cf_handle(SECTORS_CF), sector_id.to_le_bytes())?
         else {
             return Ok(None);
         };
@@ -137,8 +137,8 @@ impl DealDB {
     }
 
     pub fn save_sector(&self, sector: &Sector) -> Result<(), DBError> {
-        let cf_handle = self.cf_handle(SECTORS);
-        let key = sector.id.to_le_bytes();
+        let cf_handle = self.cf_handle(SECTORS_CF);
+        let key = sector.sector_number.to_le_bytes();
         let json = serde_json::to_vec(&sector)?;
 
         self.database.put_cf(cf_handle, key, json)?;
@@ -148,13 +148,14 @@ impl DealDB {
 
     /// Takes all of the existing sectors, finds the maximum sector id.
     /// The simplest way possible of generating an id.
-    /// It is used to generate sector id, don't use it directly as it can create sector id overlaps.
-    /// I.e. when 2 threads call the `find_biggest_sector_id` and use its result at the same time, the sector can be lost.
-    fn initialize_biggest_sector_id(&self) -> Result<(), DBError> {
-        let mut biggest_sector_id = 0;
+    /// This function is private for a reason. It should only be called once at the DealDB initialization.
+    /// And then `last_sector_number` is incremented by `next_sector_number` only
+    /// If it was called by multiple threads later than initialization, it could cause a race condition and data erasure.
+    fn initialize_biggest_sector_number(&self) -> Result<(), DBError> {
+        let mut biggest_sector_number = 0;
         for item in self
             .database
-            .iterator_cf(self.cf_handle(SECTORS), rocksdb::IteratorMode::Start)
+            .iterator_cf(self.cf_handle(SECTORS_CF), rocksdb::IteratorMode::Start)
         {
             let (key, _) = item?;
             let key: [u8; 8] = key
@@ -162,19 +163,19 @@ impl DealDB {
                 .try_into()
                 .expect("sector's key to be u64 le bytes");
             let sector_id = SectorNumber::from_le_bytes(key);
-            biggest_sector_id = std::cmp::max(biggest_sector_id, sector_id);
+            biggest_sector_number = std::cmp::max(biggest_sector_number, sector_id);
         }
 
-        self.last_sector_id
-            .store(biggest_sector_id, std::sync::atomic::Ordering::Relaxed);
+        self.last_sector_number
+            .store(biggest_sector_number, std::sync::atomic::Ordering::Relaxed);
         Ok(())
     }
 
     /// Atomically increments sector_id counter, so it can be used as an identifier by a sector.
     /// Prior to all of the calls to this function, `initialize_biggest_sector_id` must be called.
-    pub fn next_sector_id(&self) -> u64 {
+    pub fn next_sector_number(&self) -> SectorNumber {
         let previous = self
-            .last_sector_id
+            .last_sector_number
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         previous + 1
     }

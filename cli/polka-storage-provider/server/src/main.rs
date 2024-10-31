@@ -74,6 +74,12 @@ fn get_random_temporary_folder() -> PathBuf {
     )
 }
 
+struct SetupOutput {
+    storage_state: StorageServerState,
+    rpc_state: RpcServerState,
+    pipeline_state: PipelineState,
+    pipeline_rx: UnboundedReceiver<PipelineMessage>,
+}
 fn main() -> Result<(), ServerError> {
     // Logger initialization.
     tracing_subscriber::registry()
@@ -273,7 +279,12 @@ impl TryFrom<ServerArguments> for ServerConfiguration {
 
 impl ServerConfiguration {
     pub async fn run(self) -> Result<(), ServerError> {
-        let (storage_state, rpc_state, pipeline_state, rx) = self.setup().await?;
+        let SetupOutput {
+            storage_state,
+            rpc_state,
+            pipeline_state,
+            pipeline_rx,
+        } = self.setup().await?;
 
         let cancellation_token = CancellationToken::new();
 
@@ -287,7 +298,7 @@ impl ServerConfiguration {
         ));
         let pipeline_task = tokio::spawn(start_pipeline(
             Arc::new(pipeline_state),
-            rx,
+            pipeline_rx,
             cancellation_token.child_token(),
         ));
 
@@ -330,17 +341,7 @@ impl ServerConfiguration {
         Ok(())
     }
 
-    async fn setup(
-        self,
-    ) -> Result<
-        (
-            StorageServerState,
-            RpcServerState,
-            PipelineState,
-            UnboundedReceiver<PipelineMessage>,
-        ),
-        ServerError,
-    > {
+    async fn setup(self) -> Result<SetupOutput, ServerError> {
         let xt_client = Arc::new(
             ServerConfiguration::setup_storagext_client(
                 self.node_url,
@@ -398,7 +399,12 @@ impl ServerConfiguration {
             pipeline_sender: pipeline_tx,
         };
 
-        Ok((storage_state, rpc_state, pipeline_state, pipeline_rx))
+        Ok(SetupOutput {
+            storage_state,
+            rpc_state,
+            pipeline_state,
+            pipeline_rx,
+        })
     }
 
     async fn setup_storagext_client(
