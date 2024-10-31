@@ -9,7 +9,7 @@ use filecoin_proofs::{
     SealPreCommitOutput, SealPreCommitPhase1Output, SectorShapeBase, UnpaddedBytesAmount,
 };
 use primitives_commitment::{
-    piece::{PaddedPieceSize, UnpaddedPieceSize},
+    piece::{PaddedPieceSize, PieceInfo, UnpaddedPieceSize},
     Commitment,
 };
 use primitives_proofs::{RawCommitment, RegisteredSealProof, SectorNumber};
@@ -33,7 +33,7 @@ pub fn prepare_piece<P>(
 ) -> Result<
     (
         ZeroPaddingReader<File>,
-        primitives_commitment::piece::PieceInfo,
+        PieceInfo,
     ),
     std::io::Error,
 >
@@ -52,7 +52,7 @@ where
     let piece_padded_unpadded_length = padded_piece_size.unpadded();
     let piece_padded_file = ZeroPaddingReader::new(piece_file, *piece_padded_unpadded_length);
 
-    let piece_info = primitives_commitment::piece::PieceInfo {
+    let piece_info = PieceInfo {
         commitment: piece_comm_p,
         size: padded_piece_size,
     };
@@ -76,8 +76,8 @@ impl Sealer {
     pub fn add_piece<R: std::io::Read, W: std::io::Write>(
         &self,
         piece_data: R,
-        piece: primitives_commitment::piece::PieceInfo,
-        current_pieces: &Vec<primitives_commitment::piece::PieceInfo>,
+        piece: PieceInfo,
+        current_pieces: &Vec<PieceInfo>,
         mut unsealed_sector: W,
     ) -> Result<UnpaddedPieceSize, PoRepError> {
         let current_pieces_lengths: Vec<UnpaddedBytesAmount> = current_pieces
@@ -109,14 +109,14 @@ impl Sealer {
     /// E.g. when sector of size 2048 has a pieces which are 1024 + 256, it'll add zero-commitment pieces so it sums up to 2048.
     pub fn pad_sector(
         &self,
-        current_pieces: &Vec<primitives_commitment::piece::PieceInfo>,
+        current_pieces: &Vec<PieceInfo>,
         sector_occupied_space: UnpaddedPieceSize,
-    ) -> Result<Vec<primitives_commitment::piece::PieceInfo>, PoRepError> {
+    ) -> Result<Vec<PieceInfo>, PoRepError> {
         let mut result_pieces = current_pieces.clone();
         let sector_size: UnpaddedBytesAmount = self.porep_config.sector_size.into();
         let padding_pieces = filler_pieces(sector_size - sector_occupied_space.into());
         result_pieces.extend(padding_pieces.into_iter().map(|p| {
-            primitives_commitment::piece::PieceInfo::from_filecoin_piece_info(
+            PieceInfo::from_filecoin_piece_info(
                 p,
                 primitives_commitment::CommitmentKind::Piece,
             )
@@ -137,14 +137,14 @@ impl Sealer {
     /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/master/fil-proofs-tooling/src/shared.rs#L103>
     pub fn create_sector<R: std::io::Read, W: std::io::Write>(
         &self,
-        pieces: Vec<(R, primitives_commitment::piece::PieceInfo)>,
+        pieces: Vec<(R, PieceInfo)>,
         mut unsealed_sector: W,
-    ) -> Result<Vec<primitives_commitment::piece::PieceInfo>, PoRepError> {
+    ) -> Result<Vec<PieceInfo>, PoRepError> {
         if pieces.is_empty() {
             return Err(PoRepError::EmptySector);
         }
 
-        let mut result_pieces: Vec<primitives_commitment::piece::PieceInfo> =
+        let mut result_pieces: Vec<PieceInfo> =
             Vec::with_capacity(pieces.len());
         let mut piece_lengths: Vec<UnpaddedBytesAmount> = Vec::with_capacity(pieces.len());
         let mut sector_occupied_space: UnpaddedBytesAmount = UnpaddedBytesAmount(0);
@@ -201,7 +201,7 @@ impl Sealer {
         prover_id: ProverId,
         sector_id: SectorNumber,
         ticket: Ticket,
-        piece_infos: &[primitives_commitment::piece::PieceInfo],
+        piece_infos: &[PieceInfo],
     ) -> Result<PreCommitOutput, PoRepError> {
         let cache_directory = cache_directory.as_ref();
         let sealed_sector = sealed_sector.as_ref();
@@ -259,7 +259,7 @@ impl Sealer {
         ticket: Ticket,
         seed: Option<Ticket>,
         pre_commit: PreCommitOutput,
-        piece_infos: &[primitives_commitment::piece::PieceInfo],
+        piece_infos: &[PieceInfo],
     ) -> Result<Vec<groth16::Proof<Bls12>>, PoRepError> {
         let cache_path = cache_path.as_ref();
         let replica_path = replica_path.as_ref();
