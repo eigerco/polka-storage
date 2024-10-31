@@ -70,6 +70,9 @@ impl Sealer {
         }
     }
 
+    /// Adds a Piece and padding to already existing sector file and returns how many bytes were written.
+    /// It can return more bytes than the piece size, as it adds padding so a proper Merkle Tree can be created out of the sector.
+    /// You need to supply current pieces which are already in the sector, otherwise they'll be overriten.
     pub fn add_piece<R: std::io::Read, W: std::io::Write>(
         &self,
         piece_data: R,
@@ -100,6 +103,10 @@ impl Sealer {
         Ok(written_bytes.into())
     }
 
+    /// Adds zero-piece padding to the sector, to fill it out completely, so a proper CommD merkle tree can be calculated.
+    /// Accepts current pieces in the sector and how much space they occupy. The space occupied can be calculated by storing results
+    /// of [`Self::add_piece`] outputs.
+    /// E.g. when sector of size 2048 has a pieces which are 1024 + 256, it'll add zero-commitment pieces so it sums up to 2048.
     pub fn pad_sector(
         &self,
         current_pieces: &Vec<primitives_commitment::piece::PieceInfo>,

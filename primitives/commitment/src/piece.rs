@@ -3,8 +3,8 @@ use core::ops::{Add, AddAssign, Deref};
 use crate::{Commitment, NODE_SIZE};
 
 /// Piece info contains piece commitment and piece size.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(::serde::Deserialize, ::serde::Serialize))]
+#[derive(PartialEq, Debug, Eq, Clone, Copy)]
 pub struct PieceInfo {
     /// Piece commitment
     pub commitment: Commitment,
