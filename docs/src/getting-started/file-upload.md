@@ -162,7 +162,7 @@ polka-storage-provider-client client publish-deal \
 
 * `--rpc-server-url` — the RPC endpoint URL
   * `<storage-provider-ip>` — the Storage Provider's IP address.
-  * `<post>` — the Storage Provider's port serving the uploads, by default it is port 8001, but it can be changed.
+  * `<port>` — the Storage Provider's port serving the uploads, by default it is port 8001, but it can be changed.
 * `<your-signed-deal>` — the deal you just signed.
 
 You can read more about it in [*Polka Storage Provider CLI/`client`/`client`*](../storage-provider-cli/client/client.md).
