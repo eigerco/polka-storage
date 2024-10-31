@@ -1,6 +1,7 @@
 # Summary
 
 - [Introduction](./introduction.md)
+- [Background](./background.md)
 - [Architecture](./architecture.md)
 - [Getting Started](./getting-started/index.md)
   - [Local Testnet - Polka Storage Parachain](./getting-started/local-testnet.md)
@@ -10,7 +11,7 @@
   - [`client`](./storage-provider-cli/client/index.md)
     - [`wallet`](./storage-provider-cli/client/wallet.md)
     - [`client`](./storage-provider-cli/client/client.md)
-    - [`utils`](./storage-provider-cli/client/utils.md)
+    - [`proofs`](./storage-provider-cli/client/proofs.md)
 - [Storagext CLI](./storagext-cli/index.md)
   - [`market`](./storagext-cli/market.md)
   - [`storage-provider`](./storagext-cli/storage-provider.md)
