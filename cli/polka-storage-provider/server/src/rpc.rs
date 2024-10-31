@@ -7,7 +7,6 @@ use storagext::{
     types::market::{ClientDealProposal as SxtClientDealProposal, DealProposal as SxtDealProposal},
     MarketClientExt,
 };
-
 use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
 use tracing::{info, instrument};

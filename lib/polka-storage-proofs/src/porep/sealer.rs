@@ -30,13 +30,7 @@ use crate::{
 pub fn prepare_piece<P>(
     piece_path: P,
     piece_comm_p: Commitment,
-) -> Result<
-    (
-        ZeroPaddingReader<File>,
-        PieceInfo,
-    ),
-    std::io::Error,
->
+) -> Result<(ZeroPaddingReader<File>, PieceInfo), std::io::Error>
 where
     P: AsRef<Path>,
 {
@@ -116,10 +110,7 @@ impl Sealer {
         let sector_size: UnpaddedBytesAmount = self.porep_config.sector_size.into();
         let padding_pieces = filler_pieces(sector_size - sector_occupied_space.into());
         result_pieces.extend(padding_pieces.into_iter().map(|p| {
-            PieceInfo::from_filecoin_piece_info(
-                p,
-                primitives_commitment::CommitmentKind::Piece,
-            )
+            PieceInfo::from_filecoin_piece_info(p, primitives_commitment::CommitmentKind::Piece)
         }));
 
         Ok(result_pieces)
@@ -144,8 +135,7 @@ impl Sealer {
             return Err(PoRepError::EmptySector);
         }
 
-        let mut result_pieces: Vec<PieceInfo> =
-            Vec::with_capacity(pieces.len());
+        let mut result_pieces: Vec<PieceInfo> = Vec::with_capacity(pieces.len());
         let mut piece_lengths: Vec<UnpaddedBytesAmount> = Vec::with_capacity(pieces.len());
         let mut sector_occupied_space: UnpaddedBytesAmount = UnpaddedBytesAmount(0);
         for (idx, (reader, piece)) in pieces.into_iter().enumerate() {

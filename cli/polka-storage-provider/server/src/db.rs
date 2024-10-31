@@ -1,13 +1,8 @@
 use std::{path::Path, sync::atomic::AtomicU64};
 
-use primitives_commitment::piece::{PieceInfo, UnpaddedPieceSize};
-use primitives_proofs::{DealId, RawCommitment, SectorNumber};
+use primitives_proofs::SectorNumber;
 use rocksdb::{ColumnFamily, ColumnFamilyDescriptor, Options as DBOptions, DB as RocksDB};
-use serde::{Deserialize, Serialize};
-use storagext::{
-    runtime::runtime_types::pallet_storage_provider::sector,
-    types::market::{ConversionError, DealProposal},
-};
+use storagext::types::market::{ConversionError, DealProposal};
 
 use crate::pipeline::types::Sector;
 

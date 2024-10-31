@@ -19,14 +19,13 @@ use tokio::{
     task::{JoinError, JoinHandle},
 };
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
+use types::{AddPieceMessage, PipelineMessage, PreCommitMessage};
 
+use self::types::Sector;
 use crate::{
     db::{DBError, DealDB},
     pipeline::types::SectorState,
 };
-use types::{AddPieceMessage, PipelineMessage, PreCommitMessage};
-
-use self::types::Sector;
 
 // PLACEHOLDERS!!!!!
 // TODO(@th7nder,29/10/2024): get from pallet randomness
@@ -257,7 +256,7 @@ async fn precommit(
                     .map(|(_, deal)| deal.end_block)
                     .max()
                     .expect("always at least 1 deal in a sector")
-                    + 10,
+                    + SECTOR_EXPIRATION_MARGIN,
                 sector_number: sector_number,
                 seal_proof: state.server_info.seal_proof,
                 sealed_cid: primitives_commitment::Commitment::new(

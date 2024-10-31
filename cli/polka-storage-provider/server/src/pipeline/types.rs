@@ -1,10 +1,11 @@
+use std::path::PathBuf;
+
 use primitives_commitment::{
     piece::{PieceInfo, UnpaddedPieceSize},
     Commitment,
 };
 use primitives_proofs::{DealId, SectorNumber};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 use storagext::types::market::DealProposal;
 
 /// Represents a task to be executed on the Storage Provider Pipeline
