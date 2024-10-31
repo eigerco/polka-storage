@@ -90,7 +90,7 @@ polka-storage-provider-client client propose-deal \
 * `<your-deal>` — is the JSON for the deal, fully filled in. You can use the path to a file containing the deal by prefixing it with `@` — e.g. `@/home/user/deal.json`.
 * `--rpc-server-url` — the RPC endpoint URL
   * `<storage-provider-ip>` — the Storage Provider's IP address.
-  * `<post>` — the Storage Provider's port serving the uploads, by default it is port 8001, but it can be changed.
+  * `<port>` — the Storage Provider's port serving the uploads, by default it is port 8001, but it can be changed.
 
 The tool will reply with a CID — the CID of the deal you just sent — you need to keep this CID for the next steps!
 
