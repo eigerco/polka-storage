@@ -133,7 +133,9 @@ fn process(
             tracker.spawn(async move {
                 // Precommit is not cancellation safe.
                 match precommit(state, sector_id).await {
-                    Ok(_) => tracing::info!("Precommit for sector {} finished successfully.", sector_id),
+                    Ok(_) => {
+                        tracing::info!("Precommit for sector {} finished successfully.", sector_id)
+                    }
                     Err(err) => tracing::error!(%err),
                 }
             });

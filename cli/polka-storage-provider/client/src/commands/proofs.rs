@@ -9,11 +9,10 @@ use mater::CarV2Reader;
 use polka_storage_proofs::{
     porep::{self, sealer::Sealer},
     post::{self, ReplicaInfo},
-    types::PieceInfo,
     ZeroPaddingReader,
 };
 use polka_storage_provider_common::commp::{calculate_piece_commitment, CommPError};
-use primitives_commitment::piece::PaddedPieceSize;
+use primitives_commitment::piece::{PaddedPieceSize, PieceInfo};
 use primitives_proofs::{derive_prover_id, RegisteredPoStProof, RegisteredSealProof};
 use storagext::multipair::{MultiPairArgs, MultiPairSigner};
 use subxt::tx::Signer;
@@ -237,19 +236,18 @@ impl ProofsCommand {
                     .map_err(|e| UtilsCommandError::InvalidPieceFile(input_path, e))?
                     .len();
 
-                let piece_file_length =
-                    PaddedPieceSize::from_arbitrary_size(piece_file_length).unpadded();
-                let piece_file = ZeroPaddingReader::new(piece_file, *piece_file_length);
+                let piece_file_length = PaddedPieceSize::from_arbitrary_size(piece_file_length);
+                let piece_file = ZeroPaddingReader::new(piece_file, *piece_file_length.unpadded());
 
                 let commp = cid::Cid::from_str(commp.as_str())
                     .map_err(|e| UtilsCommandError::InvalidPieceCommP(commp, e))?;
                 let piece_info = PieceInfo {
-                    commitment: commp
-                        .hash()
-                        .digest()
-                        .try_into()
-                        .expect("CommPs guaranteed to be 32 bytes"),
-                    size: *piece_file_length,
+                    commitment: primitives_commitment::Commitment::from_cid(
+                        &commp,
+                        primitives_commitment::CommitmentKind::Piece,
+                    )
+                    .map_err(|e| UtilsCommandError::InvalidPieceType(commp.to_string(), e))?,
+                    size: piece_file_length,
                 };
 
                 let (unsealed_sector_path, unsealed_sector) = file_with_extension(
@@ -437,6 +435,8 @@ pub enum UtilsCommandError {
     InvalidPieceFile(PathBuf, std::io::Error),
     #[error("provided invalid CommP {0}, error: {1}")]
     InvalidPieceCommP(String, cid::Error),
+    #[error("invalid piece type")]
+    InvalidPieceType(String, &'static str),
     #[error("file {0} is invalid CARv2 file {1}")]
     InvalidCARv2(PathBuf, mater::Error),
     #[error("no signer key was provider")]
