@@ -224,8 +224,9 @@ async fn precommit(
     };
     // Pad sector so CommD can be properly calculated.
     sector.piece_infos = sealer.pad_sector(&sector.piece_infos, sector.occupied_sector_space)?;
+    tracing::debug!("piece_infos: {:?}", sector.piece_infos);
 
-    tracing::debug!("Padded sector, commencing pre-commit.");
+    tracing::info!("Padded sector, commencing pre-commit.");
     // TODO(@th7nder,31/10/2024): what happens if some of the process fails? SP will be slashed, and there is no error reporting? what about retries?
     let sealing_handle: JoinHandle<Result<PreCommitOutput, _>> = {
         let prover_id = derive_prover_id(state.xt_keypair.account_id());
