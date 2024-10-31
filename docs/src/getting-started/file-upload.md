@@ -156,7 +156,7 @@ All that's left is to publish the deal, you can do so using the following comman
 
 ```bash
 polka-storage-provider-client client publish-deal \
-  --rpc-server-url "" \
+  --rpc-server-url "http://<storage-provider-ip>:<port>" \
   <your-signed-deal>
 ```
 
