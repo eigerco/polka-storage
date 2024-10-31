@@ -10,8 +10,7 @@ use polka_storage_provider_common::rpc::ServerInfo;
 use primitives_commitment::Commitment;
 use primitives_proofs::{derive_prover_id, SectorNumber};
 use storagext::{
-    types::{market::DealProposal, storage_provider::SectorPreCommitInfo},
-    StorageProviderClientExt, SystemClientExt,
+    types::{market::DealProposal, storage_provider::SectorPreCommitInfo}, StorageProviderClientExt, SystemClientExt
 };
 use subxt::tx::Signer;
 use tokio::{
@@ -127,15 +126,15 @@ fn process(
             });
         }
         PipelineMessage::PreCommit(PreCommitMessage {
-            sector_number: sector_id,
+            sector_number,
         }) => {
             tracker.spawn(async move {
                 // Precommit is not cancellation safe.
-                match precommit(state, sector_id).await {
+                match precommit(state, sector_number).await {
                     Ok(_) => {
-                        tracing::info!("Precommit for sector {} finished successfully.", sector_id)
+                        tracing::info!("Precommit for sector {} finished successfully.", sector_number)
                     }
-                    Err(err) => tracing::error!(%err),
+                    Err(err) => tracing::error!(%err, "Failed PreCommit for Sector: {}", sector_number),
                 }
             });
         }
@@ -168,12 +167,18 @@ async fn add_piece(
     let mut sector = find_sector_for_piece(&state).await?;
     sector.deals.push((deal_id, deal));
 
+    tracing::info!("Adding a piece...");
+
     let sealer = Sealer::new(state.server_info.seal_proof);
     let handle: JoinHandle<Result<Sector, PipelineError>> =
         tokio::task::spawn_blocking(move || {
-            let unsealed_sector = std::fs::File::open(&sector.unsealed_path)?;
+            let unsealed_sector = std::fs::File::options()
+                .append(true)
+                .open(&sector.unsealed_path)?;
 
+            tracing::info!("Preparing piece...");
             let (padded_reader, piece_info) = prepare_piece(piece_path, piece_cid)?;
+            tracing::info!("Adding piece...");
             let occupied_piece_space = sealer.add_piece(
                 padded_reader,
                 piece_info,
@@ -187,6 +192,8 @@ async fn add_piece(
             Ok(sector)
         });
     let sector: Sector = handle.await??;
+
+    tracing::info!("Finished adding a piece");
     state.db.save_sector(&sector)?;
 
     // TODO(@th7nder,30/10/2024): simplification, as we're always scheduling a precommit just after adding a piece and creating a new sector.

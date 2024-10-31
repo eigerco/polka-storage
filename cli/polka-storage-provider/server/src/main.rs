@@ -364,6 +364,7 @@ impl ServerConfiguration {
         tokio::fs::create_dir_all(car_piece_storage_dir.as_ref()).await?;
         tokio::fs::create_dir_all(unsealed_sector_storage_dir.as_ref()).await?;
         tokio::fs::create_dir_all(sealed_sector_storage_dir.as_ref()).await?;
+        tokio::fs::create_dir_all(sealing_cache_dir.as_ref()).await?;
 
         let (pipeline_tx, pipeline_rx) = tokio::sync::mpsc::unbounded_channel::<PipelineMessage>();
 
