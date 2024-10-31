@@ -100,15 +100,20 @@ impl Sealer {
         Ok(written_bytes.into())
     }
 
-    pub fn pad_sector<W: std::io::Write>(
+    pub fn pad_sector(
         &self,
-        current_pieces: &Vec<PieceInfo>,
+        current_pieces: &Vec<primitives_commitment::piece::PieceInfo>,
         sector_occupied_space: UnpaddedPieceSize,
-    ) -> Result<Vec<PieceInfo>, PoRepError> {
+    ) -> Result<Vec<primitives_commitment::piece::PieceInfo>, PoRepError> {
         let mut result_pieces = current_pieces.clone();
         let sector_size: UnpaddedBytesAmount = self.porep_config.sector_size.into();
         let padding_pieces = filler_pieces(sector_size - sector_occupied_space.into());
-        result_pieces.extend(padding_pieces.into_iter().map(Into::into));
+        result_pieces.extend(padding_pieces.into_iter().map(|p| {
+            primitives_commitment::piece::PieceInfo::from_filecoin_piece_info(
+                p,
+                primitives_commitment::CommitmentKind::Piece,
+            )
+        }));
 
         Ok(result_pieces)
     }
@@ -190,7 +195,7 @@ impl Sealer {
         prover_id: ProverId,
         sector_id: SectorNumber,
         ticket: Ticket,
-        piece_infos: &[PieceInfo],
+        piece_infos: &[primitives_commitment::piece::PieceInfo],
     ) -> Result<PreCommitOutput, PoRepError> {
         let cache_directory = cache_directory.as_ref();
         let sealed_sector = sealed_sector.as_ref();

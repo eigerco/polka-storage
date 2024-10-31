@@ -21,7 +21,10 @@ use tokio::{
 };
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 
-use crate::db::{DBError, DealDB};
+use crate::{
+    db::{DBError, DealDB},
+    pipeline::types::SectorState,
+};
 use types::{AddPieceMessage, PipelineMessage, PreCommitMessage};
 
 use self::types::Sector;
@@ -127,7 +130,7 @@ fn process(
         PipelineMessage::PreCommit(PreCommitMessage { sector_id }) => {
             tracker.spawn(async move {
                 tokio::select! {
-                    res = precommit(state, sector_id, token.clone()) => {
+                    res = precommit(state, sector_id) => {
                         match res {
                             Ok(_) => tracing::info!("Precommit for sector {} finished successfully.", sector_id),
                             Err(err) => tracing::error!(%err),
@@ -200,47 +203,49 @@ async fn add_piece(
 async fn precommit(
     state: Arc<PipelineState>,
     sector_id: SectorNumber,
-    token: CancellationToken,
 ) -> Result<(), PipelineError> {
-    tracing::debug!("Starting pre-commit task for sector {}", sector_id);
+    tracing::info!("Starting pre-commit");
 
-    let Some(sector) = state.db.get_sector(sector_id)? else {
-        tracing::error!("tried to precommit non-existing sector");
+    let Some(mut sector) = state.db.get_sector(sector_id)? else {
+        tracing::error!("Tried to precommit non-existing sector");
         return Err(PipelineError::NotExistentSector);
     };
 
-    // TODO(@th7nder,30/10/2024):
-    // - state.db.get_sector(sector_id)
-    // - pad it, change state, save state
-    // - pad it finally
-    // - start sealing
+    let sealer = Sealer::new(state.server_info.seal_proof);
+    sector.state = SectorState::Sealing;
+    sector.piece_infos = sealer.pad_sector(&sector.piece_infos, sector.occupied_sector_space)?;
+    state.db.save_sector(&sector)?;
 
-    // Questions to be answered:
-    // * what happens if some of it fails? SP will be slashed, and there is no error reporting?
-    // * where do we save the state of a sector/deals, how do we keep track of it?
+    tracing::debug!("Padded sector, commencing pre-commit.");
+    // TODO(@th7nder,31/10/2024): what happens if some of the process fails? SP will be slashed, and there is no error reporting? what about retries?
     let sealing_handle: JoinHandle<Result<PreCommitOutput, _>> = {
-        let state = state.clone();
         let prover_id = derive_prover_id(state.xt_keypair.account_id());
         let cache_dir = state.sealing_cache_dir.clone();
-        let unsealed_dir = state.sealed_sectors_dir.clone();
-        let sealed_dir = state.sealed_sectors_dir.clone();
         tokio::task::spawn_blocking(move || {
-            create_replica(
-                sector_id,
+            sealer.precommit_sector(
+                cache_dir.as_ref(),
+                &sector.unsealed_path,
+                &sector.sealed_path,
                 prover_id,
-                unsealed_dir,
-                sealed_dir,
-                cache_dir,
-                state.server_info.seal_proof,
+                sector_id,
+                TICKET,
+                &sector.piece_infos,
             )
         })
     };
-
     let sealing_output = sealing_handle.await??;
     tracing::info!("Created sector's replica: {:?}", sealing_output);
 
+    // Need to fetch it again as it was moved to sealing task.
+    let Some(mut sector) = state.db.get_sector(sector_id)? else {
+        tracing::error!("Sector was deleted during the sealing process");
+        return Err(PipelineError::NotExistentSector);
+    };
+    sector.state = SectorState::Sealed;
+    state.db.save_sector(&sector)?;
+
     let current_block = state.xt_client.height(false).await?;
-    tracing::info!("Precommiting at block: {}", current_block);
+    tracing::debug!("Precommiting at block: {}", current_block);
 
     let result = state
         .xt_client
@@ -283,26 +288,4 @@ async fn precommit(
     );
 
     Ok(())
-}
-
-fn create_replica(
-    sector_id: SectorNumber,
-    prover_id: [u8; 32],
-    unsealed_sector_path: Arc<PathBuf>,
-    sealed_sector_path: Arc<PathBuf>,
-    cache_dir: Arc<PathBuf>,
-    seal_proof: RegisteredSealProof,
-) -> Result<PreCommitOutput, polka_storage_proofs::porep::PoRepError> {
-    // let sealer = Sealer::new(seal_proof);
-    // sealer.precommit_sector(
-    //     *cache_dir,
-    //     *unsealed_sector_path,
-    //     *sealed_sector_path,
-    //     prover_id,
-    //     sector_id,
-    //     TICKET,
-    //     &piece_infos,
-    // )
-
-    todo!()
 }
