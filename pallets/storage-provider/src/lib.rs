@@ -60,7 +60,7 @@ pub mod pallet {
         derive_prover_id,
         randomness::{draw_randomness, DomainSeparationTag},
         Market, ProofVerification, Randomness, RegisteredPoStProof, SectorNumber,
-        StorageProviderValidation, MAX_SECTORS_PER_CALL,
+        StorageProviderValidation, MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::Zero;
@@ -596,7 +596,7 @@ pub mod pallet {
                 });
 
                 // Validate the proof
-                validate_seal_proof::<T>(&owner, &precommit, sector.proof.into_inner())?;
+                validate_seal_proof::<T>(&owner, &precommit, sector.proof)?;
 
                 // Sector deals that will be activated after the sector is
                 // successfully proven.
@@ -1498,7 +1498,7 @@ pub mod pallet {
     fn validate_seal_proof<T: Config>(
         owner: &T::AccountId,
         precommit: &SectorPreCommitOnChainInfo<BalanceOf<T>, BlockNumberFor<T>>,
-        proof: Vec<u8>,
+        proof: BoundedVec<u8, ConstU32<MAX_SEAL_PROOF_BYTES>>,
     ) -> Result<(), DispatchError> {
         let max_proof_size = precommit.info.seal_proof.proof_size();
 

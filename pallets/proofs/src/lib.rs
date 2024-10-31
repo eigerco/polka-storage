@@ -24,13 +24,13 @@ mod tests;
 pub mod pallet {
     pub const LOG_TARGET: &'static str = "runtime::proofs";
 
-    use frame_support::pallet_prelude::*;
+    use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeMap};
     use frame_system::pallet_prelude::*;
     use primitives_proofs::{
         ProofVerification, ProverId, PublicReplicaInfo, RawCommitment, RegisteredPoStProof,
-        RegisteredSealProof, SectorNumber, Ticket,
+        RegisteredSealProof, SectorNumber, Ticket, MAX_POST_PROOF_BYTES, MAX_SEAL_PROOF_BYTES,
+        MAX_SECTORS_PER_PROOF,
     };
-    use sp_std::collections::btree_map::BTreeMap;
 
     use crate::{
         crypto::groth16::{Bls12, Proof, VerifyingKey},
@@ -129,8 +129,17 @@ pub mod pallet {
             sector: SectorNumber,
             ticket: Ticket,
             seed: Ticket,
-            proof: crate::Vec<u8>,
+            proof: BoundedVec<u8, ConstU32<MAX_SEAL_PROOF_BYTES>>,
         ) -> DispatchResult {
+            let proof_len = proof.len();
+            ensure!(proof_len >= seal_proof.proof_size(), {
+                log::error!(
+                    target: LOG_TARGET,
+                    "PoRep proof submission does not contain enough bytes. Expected minimum length is {} got {}",
+                    seal_proof.proof_size(), proof_len
+                );
+                Error::<T>::InvalidPoRepProof
+            });
             let proof = Proof::<Bls12>::decode(&mut proof.as_slice()).map_err(|e| {
                 log::error!(target: LOG_TARGET, "failed to parse PoRep proof {:?}", e);
                 Error::<T>::Conversion
@@ -150,9 +159,22 @@ pub mod pallet {
         fn verify_post(
             post_type: RegisteredPoStProof,
             randomness: Ticket,
-            replicas: BTreeMap<SectorNumber, PublicReplicaInfo>,
-            proof: alloc::vec::Vec<u8>,
+            replicas: BoundedBTreeMap<
+                SectorNumber,
+                PublicReplicaInfo,
+                ConstU32<MAX_SECTORS_PER_PROOF>,
+            >,
+            proof: BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>,
         ) -> DispatchResult {
+            let replica_count = replicas.len();
+            ensure!(replica_count <= post_type.sector_count(), {
+                log::error!(
+                    target: LOG_TARGET,
+                    "Got more replicas than expected. Expected max replicas = {}, submitted replicas = {replica_count}",
+                    post_type.sector_count()
+                );
+                Error::<T>::InvalidPoStProof
+            });
             let proof = Proof::<Bls12>::decode(&mut proof.as_slice()).map_err(|e| {
                 log::error!(target: LOG_TARGET, "failed to parse PoSt proof {:?}", e);
                 Error::<T>::Conversion

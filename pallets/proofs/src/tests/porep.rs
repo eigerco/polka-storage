@@ -7,6 +7,7 @@ use primitives_proofs::{
 };
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
+use sp_runtime::BoundedVec;
 
 use crate::{mock::*, tests::TEST_SEED, Error, PoRepVerifyingKey};
 
@@ -50,7 +51,7 @@ fn verification_invalid_verifyingkey() {
                 sector,
                 ticket,
                 seed,
-                proof_bytes,
+                BoundedVec::try_from(proof_bytes).expect("proof bytes should be valid"),
             ),
             Error::<Test>::InvalidVerifyingKey,
         );
@@ -78,7 +79,7 @@ fn porep_verification_succeeds() {
             sector,
             ticket,
             seed,
-            proof_bytes,
+            BoundedVec::try_from(proof_bytes).expect("proof bytes should be valid"),
         ));
     });
 }
