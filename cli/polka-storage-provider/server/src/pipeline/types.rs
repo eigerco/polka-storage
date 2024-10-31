@@ -88,7 +88,6 @@ impl Sector {
 pub enum SectorState {
     Unsealed,
     Sealed,
-    Sealing,
     Precommitted,
     Proven,
 }
