@@ -7,6 +7,7 @@ use primitives_proofs::{
 };
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
+use sp_runtime::{BoundedBTreeMap, BoundedVec};
 use sp_std::collections::btree_map::BTreeMap;
 
 use crate::{mock::*, tests::TEST_SEED, Error, PoRepVerifyingKey, PoStVerifyingKey};
@@ -39,8 +40,8 @@ fn post_verification_succeeds() {
         assert_ok!(<ProofsModule as ProofVerification>::verify_post(
             post_type,
             randomness,
-            replicas,
-            proof_bytes,
+            BoundedBTreeMap::try_from(replicas).expect("replicas should be valid"),
+            BoundedVec::try_from(proof_bytes).expect("proof_bytes should be valid"),
         ));
     });
 }
@@ -61,8 +62,8 @@ fn post_verification_fails() {
             <ProofsModule as ProofVerification>::verify_post(
                 post_type,
                 randomness,
-                replicas,
-                proof_bytes,
+                BoundedBTreeMap::try_from(replicas).expect("replicas should be valid"),
+                BoundedVec::try_from(proof_bytes).expect("proof_bytes should be valid"),
             ),
             Error::<Test>::InvalidPoStProof
         );
