@@ -213,8 +213,11 @@ async fn add_piece(
 
 #[tracing::instrument(skip_all, fields(sector_number))]
 /// Creates a replica and calls pre-commit on-chain.
-/// This is *NOT CANCELLATION SAFE*.
-/// I.e. when interrupted when waiting for extrinsic call to return, the state on-chain will be inconsistent with state in Storage Provider.
+///
+/// This method is *NOT CANCELLATION SAFE*.
+/// When interrupted while waiting for the extrinsic call to return,
+/// the Storage Provider is not consistent of the on-chain state,
+/// cancelling this task effectively breaks the state sync.
 async fn precommit(
     state: Arc<PipelineState>,
     sector_number: SectorNumber,

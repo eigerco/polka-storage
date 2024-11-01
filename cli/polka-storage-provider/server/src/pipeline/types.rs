@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use primitives_commitment::{
-    piece::{PieceInfo, UnpaddedPieceSize},
+    piece::PieceInfo,
     Commitment,
 };
 use primitives_proofs::{DealId, SectorNumber};
