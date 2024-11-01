@@ -379,7 +379,9 @@ pub fn filler_pieces(remaining_space: UnpaddedBytesAmount) -> Vec<filecoin_proof
 /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/266acc39a3ebd6f3d28c6ee335d78e2b7cea06bc/filecoin-proofs/src/types/mod.rs#L53>
 #[derive(Debug, Clone)]
 pub struct PreCommitOutput {
+    /// Sealed Sector (Replica) Commitment, after padding and processing it.
     pub comm_r: RawCommitment,
+    /// Data commitment, after padding, before processing it into a replica.
     pub comm_d: RawCommitment,
 }
 
