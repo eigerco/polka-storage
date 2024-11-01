@@ -9,7 +9,7 @@ use filecoin_proofs::{
     SealPreCommitOutput, SealPreCommitPhase1Output, SectorShapeBase, UnpaddedBytesAmount,
 };
 use primitives_commitment::{
-    piece::{PaddedPieceSize, PieceInfo, UnpaddedPieceSize},
+    piece::{PaddedPieceSize, PieceInfo},
     Commitment,
 };
 use primitives_proofs::{RawCommitment, RegisteredSealProof, SectorNumber};
@@ -73,7 +73,7 @@ impl Sealer {
         piece: PieceInfo,
         current_pieces: &Vec<PieceInfo>,
         mut unsealed_sector: W,
-    ) -> Result<UnpaddedPieceSize, PoRepError> {
+    ) -> Result<u64, PoRepError> {
         let current_pieces_lengths: Vec<UnpaddedBytesAmount> = current_pieces
             .into_iter()
             .map(|p| p.size.unpadded().into())
@@ -104,11 +104,11 @@ impl Sealer {
     pub fn pad_sector(
         &self,
         current_pieces: &Vec<PieceInfo>,
-        sector_occupied_space: UnpaddedPieceSize,
+        sector_occupied_space: u64,
     ) -> Result<Vec<PieceInfo>, PoRepError> {
         let mut result_pieces = current_pieces.clone();
         let sector_size: UnpaddedBytesAmount = self.porep_config.sector_size.into();
-        let padding_pieces = filler_pieces(sector_size - sector_occupied_space.into());
+        let padding_pieces = filler_pieces(sector_size - UnpaddedBytesAmount(sector_occupied_space));
         result_pieces.extend(padding_pieces.into_iter().map(|p| {
             PieceInfo::from_filecoin_piece_info(p, primitives_commitment::CommitmentKind::Piece)
         }));

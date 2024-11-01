@@ -48,7 +48,7 @@ pub struct Sector {
     pub state: SectorState,
     /// Tracks how much bytes has been written into [`Sector::unsealed_path`] by [`polka_storage_proofs::porep::sealer::Sealer::add_piece`] which adds padding.
     /// It is used before precomit to calculate padding with zero pieces by [`polka_storage_proofs::porep::sealer::Sealer::pad_sector`].
-    pub occupied_sector_space: UnpaddedPieceSize,
+    pub occupied_sector_space: u64,
     /// Tracks all of the pieces that has been added to the sector. Indexes match with corresponding deals in [`Sector::deals`].
     pub piece_infos: Vec<PieceInfo>,
     /// Tracks all of the deals that has been added to the sector.
@@ -76,7 +76,7 @@ impl Sector {
         Ok(Self {
             sector_number,
             state: SectorState::Unsealed,
-            occupied_sector_space: UnpaddedPieceSize::ZERO,
+            occupied_sector_space: 0,
             piece_infos: vec![],
             deals: vec![],
             unsealed_path,

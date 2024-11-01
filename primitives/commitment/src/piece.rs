@@ -47,7 +47,6 @@ impl Into<filecoin_proofs::PieceInfo> for PieceInfo {
 pub struct UnpaddedPieceSize(u64);
 
 impl UnpaddedPieceSize {
-    pub const ZERO: UnpaddedPieceSize = UnpaddedPieceSize(0);
     /// The minimum pice size
     pub const MIN: UnpaddedPieceSize = UnpaddedPieceSize(127);
 
