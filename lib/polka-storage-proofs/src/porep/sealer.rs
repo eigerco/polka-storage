@@ -108,7 +108,8 @@ impl Sealer {
     ) -> Result<Vec<PieceInfo>, PoRepError> {
         let mut result_pieces = current_pieces.clone();
         let sector_size: UnpaddedBytesAmount = self.porep_config.sector_size.into();
-        let padding_pieces = filler_pieces(sector_size - UnpaddedBytesAmount(sector_occupied_space));
+        let padding_pieces =
+            filler_pieces(sector_size - UnpaddedBytesAmount(sector_occupied_space));
         result_pieces.extend(padding_pieces.into_iter().map(|p| {
             PieceInfo::from_filecoin_piece_info(p, primitives_commitment::CommitmentKind::Piece)
         }));
