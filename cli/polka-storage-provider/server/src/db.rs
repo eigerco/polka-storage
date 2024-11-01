@@ -1,4 +1,7 @@
-use std::{path::Path, sync::atomic::AtomicU64};
+use std::{
+    path::Path,
+    sync::atomic::{AtomicU64, Ordering},
+};
 
 use primitives_proofs::SectorNumber;
 use rocksdb::{ColumnFamily, ColumnFamilyDescriptor, Options as DBOptions, DB as RocksDB};
@@ -161,17 +164,20 @@ impl DealDB {
             biggest_sector_number = std::cmp::max(biggest_sector_number, sector_id);
         }
 
+        // [`Ordering::Relaxed`] can be used here as this function is executed only on start-up and once.
+        // We don't mind, it's just a initialization.
         self.last_sector_number
-            .store(biggest_sector_number, std::sync::atomic::Ordering::Relaxed);
+            .store(biggest_sector_number, Ordering::Relaxed);
         Ok(())
     }
 
     /// Atomically increments sector_id counter, so it can be used as an identifier by a sector.
-    /// Prior to all of the calls to this function, `initialize_biggest_sector_id` must be called.
+    /// Prior to all of the calls to this function, `initialize_biggest_sector_id` must be called at the node start-up.
     pub fn next_sector_number(&self) -> SectorNumber {
-        let previous = self
-            .last_sector_number
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        // [`Ordering::Relaxed`] can be used here, as it's an update on a single variable.
+        // It does not depend on other Atomic variables and it does not matter which thread makes it first.
+        // We just need it to be different on every thread that calls it concurrently, so the ids are not duplicated.
+        let previous = self.last_sector_number.fetch_add(1, Ordering::Relaxed);
         previous + 1
     }
 

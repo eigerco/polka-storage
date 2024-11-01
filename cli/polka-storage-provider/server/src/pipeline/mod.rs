@@ -10,7 +10,8 @@ use polka_storage_provider_common::rpc::ServerInfo;
 use primitives_commitment::Commitment;
 use primitives_proofs::{derive_prover_id, SectorNumber};
 use storagext::{
-    types::{market::DealProposal, storage_provider::SectorPreCommitInfo}, StorageProviderClientExt, SystemClientExt
+    types::{market::DealProposal, storage_provider::SectorPreCommitInfo},
+    StorageProviderClientExt, SystemClientExt,
 };
 use subxt::tx::Signer;
 use tokio::{
@@ -125,16 +126,19 @@ fn process(
                 }
             });
         }
-        PipelineMessage::PreCommit(PreCommitMessage {
-            sector_number,
-        }) => {
+        PipelineMessage::PreCommit(PreCommitMessage { sector_number }) => {
             tracker.spawn(async move {
                 // Precommit is not cancellation safe.
                 match precommit(state, sector_number).await {
                     Ok(_) => {
-                        tracing::info!("Precommit for sector {} finished successfully.", sector_number)
+                        tracing::info!(
+                            "Precommit for sector {} finished successfully.",
+                            sector_number
+                        )
                     }
-                    Err(err) => tracing::error!(%err, "Failed PreCommit for Sector: {}", sector_number),
+                    Err(err) => {
+                        tracing::error!(%err, "Failed PreCommit for Sector: {}", sector_number)
+                    }
                 }
             });
         }
