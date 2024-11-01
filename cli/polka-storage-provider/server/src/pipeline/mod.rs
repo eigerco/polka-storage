@@ -151,7 +151,7 @@ async fn find_sector_for_piece(state: &Arc<PipelineState>) -> Result<Sector, Pip
     let sector_number = state.db.next_sector_number();
     let unsealed_path = state.unsealed_sectors_dir.join(sector_number.to_string());
     let sealed_path = state.sealed_sectors_dir.join(sector_number.to_string());
-    let sector = Sector::create(sector_number, unsealed_path, sealed_path).await?;
+    let sector = Sector::create_unsealed(sector_number, unsealed_path, sealed_path).await?;
 
     Ok(sector)
 }
