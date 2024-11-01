@@ -66,7 +66,7 @@ impl Sealer {
 
     /// Adds a Piece and padding to already existing sector file and returns how many bytes were written.
     /// It can return more bytes than the piece size, as it adds padding so a proper Merkle Tree can be created out of the sector.
-    /// You need to supply current pieces which are already in the sector, otherwise they'll be overriten.
+    /// You need to supply current pieces which are already in the sector, otherwise they'll be overwritten.
     pub fn add_piece<R: std::io::Read, W: std::io::Write>(
         &self,
         piece_data: R,
