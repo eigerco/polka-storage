@@ -253,6 +253,9 @@ async fn precommit(
     let sealing_output = sealing_handle.await??;
     tracing::info!("Created sector's replica: {:?}", sealing_output);
 
+    sector.state = SectorState::Sealed;
+    state.db.save_sector(&sector)?;
+
     let current_block = state.xt_client.height(false).await?;
     tracing::debug!("Precommiting at block: {}", current_block);
 
@@ -286,7 +289,7 @@ async fn precommit(
         )
         .await?;
 
-    sector.state = SectorState::Sealed;
+    sector.state = SectorState::Precommitted;
     state.db.save_sector(&sector)?;
 
     let precommited_sectors = result

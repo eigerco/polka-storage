@@ -87,8 +87,12 @@ impl Sector {
 
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum SectorState {
+    /// When sector still has remaining space to add pieces or has not been sealed yet.
     Unsealed,
+    /// After sector has been filled with pieces, padded and replica with CommR has been created out of it.
     Sealed,
+    /// Sealed sector has been published on-chain, so the chain requires to prove it now.
     Precommitted,
+    /// After a PoRep for a sector has been created and publish on-chain.
     Proven,
 }
