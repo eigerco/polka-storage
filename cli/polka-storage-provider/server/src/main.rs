@@ -11,6 +11,7 @@ use std::{env::temp_dir, net::SocketAddr, path::PathBuf, sync::Arc, time::Durati
 
 use clap::Parser;
 use pipeline::types::PipelineMessage;
+use polka_storage_proofs::porep::{self, PoRepParameters};
 use polka_storage_provider_common::rpc::ServerInfo;
 use primitives_proofs::{RegisteredPoStProof, RegisteredSealProof};
 use rand::Rng;
@@ -118,6 +119,9 @@ pub enum ServerError {
     #[error("proof sectors sizes do not match")]
     SectorSizeMismatch,
 
+    #[error("failed to load PoRep parameters from: {0}, because: {1}")]
+    InvalidPoRepParameters(std::path::PathBuf, porep::PoRepError),
+
     #[error("FromEnv error: {0}")]
     EnvFilter(#[from] tracing_subscriber::filter::FromEnvError),
 
@@ -194,13 +198,22 @@ pub struct ServerArguments {
     /// Proof of Spacetime proof type.
     #[arg(long)]
     post_proof: RegisteredPoStProof,
+
+    /// Proving Parameters for PoRep proof, corresponding to given `seal_proof` sector size.
+    /// They are shared across all of the nodes in the network, as the chain stores corresponding Verifying Key parameters.
+    /// Shared parameters available to get in the [root repo](http://github.com/eigerco/polka-storage/README.md#Parameters).
+    ///
+    /// Testing/temporary parameters can be also generated via `polka-storage-provider-client proofs porep-params` command.
+    /// Note that when you generate keys, for local testnet,
+    /// **they need to be set** via an extrinsic pallet-proofs::set_porep_verifyingkey.
+    #[arg(long)]
+    porep_parameters: PathBuf,
 }
 
 /// A valid server configuration. To be created using [`ServerConfiguration::try_from`].
 ///
 /// The main difference to [`Server`] is that this structure only contains validated and
 /// ready to use parameters.
-#[derive(Debug)]
 pub struct ServerConfiguration {
     /// Storage server listen address.
     upload_listen_address: SocketAddr,
@@ -226,6 +239,11 @@ pub struct ServerConfiguration {
 
     /// Proof of Spacetime proof type.
     post_proof: RegisteredPoStProof,
+
+    /// Proving Parameters for PoRep proof
+    /// For 2KiB sectors they're ~1GiB of data.
+    /// We may load them on demand someday.
+    porep_parameters: PoRepParameters,
 }
 
 impl TryFrom<ServerArguments> for ServerConfiguration {
@@ -264,6 +282,9 @@ impl TryFrom<ServerArguments> for ServerConfiguration {
         });
         std::fs::create_dir_all(&storage_directory)?;
 
+        let porep_parameters = porep::load_groth16_parameters(value.porep_parameters.clone())
+            .map_err(|e| ServerError::InvalidPoRepParameters(value.porep_parameters, e))?;
+
         Ok(Self {
             upload_listen_address: value.upload_listen_address,
             rpc_listen_address: value.rpc_listen_address,
@@ -273,6 +294,7 @@ impl TryFrom<ServerArguments> for ServerConfiguration {
             storage_directory,
             seal_proof: value.seal_proof,
             post_proof: value.post_proof,
+            porep_parameters,
         })
     }
 }
