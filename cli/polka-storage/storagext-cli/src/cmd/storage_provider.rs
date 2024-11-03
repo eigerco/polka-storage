@@ -5,10 +5,7 @@ use primitives_proofs::{RegisteredPoStProof, SectorNumber};
 use storagext::{
     deser::DeserializablePath,
     multipair::MultiPairSigner,
-    runtime::{
-        runtime_types::pallet_storage_provider::sector::ProveCommitSector as RuntimeProveCommitSector,
-        SubmissionResult,
-    },
+    runtime:: SubmissionResult,
     types::storage_provider::{
         FaultDeclaration as SxtFaultDeclaration, ProveCommitSector as SxtProveCommitSector,
         RecoveryDeclaration as SxtRecoveryDeclaration,
