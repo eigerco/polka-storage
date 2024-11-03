@@ -3,14 +3,17 @@ pub mod types;
 use std::{path::PathBuf, sync::Arc};
 
 use polka_storage_proofs::porep::{
-    sealer::{prepare_piece, PreCommitOutput, Sealer},
-    PoRepError,
+    sealer::{prepare_piece, PreCommitOutput, Proof, Sealer, SubstrateProof},
+    PoRepError, PoRepParameters,
 };
 use polka_storage_provider_common::rpc::ServerInfo;
 use primitives_commitment::Commitment;
 use primitives_proofs::{derive_prover_id, SectorNumber};
 use storagext::{
-    types::{market::DealProposal, storage_provider::SectorPreCommitInfo},
+    types::{
+        market::DealProposal,
+        storage_provider::{ProveCommitSector, SectorPreCommitInfo},
+    },
     StorageProviderClientExt, SystemClientExt,
 };
 use subxt::tx::Signer;
@@ -24,13 +27,13 @@ use types::{AddPieceMessage, PipelineMessage, PreCommitMessage};
 use self::types::Sector;
 use crate::{
     db::{DBError, DealDB},
-    pipeline::types::SectorState,
+    pipeline::types::{ProveCommitMessage, SectorState},
 };
 
 // PLACEHOLDERS!!!!!
 // TODO(@th7nder,29/10/2024): get from pallet randomness
 const TICKET: [u8; 32] = [12u8; 32];
-// const SEED: [u8; 32] = [13u8; 32];
+const SEED: [u8; 32] = [13u8; 32];
 const SECTOR_EXPIRATION_MARGIN: u64 = 20;
 
 #[derive(Debug, thiserror::Error)]
@@ -57,6 +60,7 @@ pub struct PipelineState {
     pub unsealed_sectors_dir: Arc<PathBuf>,
     pub sealed_sectors_dir: Arc<PathBuf>,
     pub sealing_cache_dir: Arc<PathBuf>,
+    pub porep_parameters: Arc<PoRepParameters>,
 
     pub xt_client: Arc<storagext::Client>,
     pub xt_keypair: storagext::multipair::MultiPairSigner,
@@ -141,6 +145,22 @@ fn process(
                     }
                     Err(err) => {
                         tracing::error!(%err, "Failed PreCommit for Sector: {}", sector_number)
+                    }
+                }
+            });
+        }
+        PipelineMessage::ProveCommit(ProveCommitMessage { sector_number }) => {
+            tracker.spawn(async move {
+                // ProveCommit is not cancellation safe.
+                match prove_commit(state, sector_number).await {
+                    Ok(_) => {
+                        tracing::info!(
+                            "ProveCommit for sector {} finished successfully.",
+                            sector_number
+                        )
+                    }
+                    Err(err) => {
+                        tracing::error!(%err, "Failed ProveCommit for Sector: {}", sector_number)
                     }
                 }
             });
@@ -260,6 +280,8 @@ async fn precommit(
     tracing::info!("Created sector's replica: {:?}", sealing_output);
 
     sector.state = SectorState::Sealed;
+    sector.comm_r = Some(Commitment::replica(sealing_output.comm_r));
+    sector.comm_d = Some(Commitment::data(sealing_output.comm_d));
     state.db.save_sector(&sector)?;
 
     let current_block = state.xt_client.height(false).await?;
@@ -313,6 +335,85 @@ async fn precommit(
         "Successfully pre-commited sectors on-chain: {:?}",
         precommited_sectors
     );
+
+    state
+        .pipeline_sender
+        .send(PipelineMessage::ProveCommit(ProveCommitMessage {
+            sector_number: sector.sector_number,
+        }))?;
+
+    Ok(())
+}
+
+#[tracing::instrument(skip_all, fields(sector_number))]
+async fn prove_commit(
+    state: Arc<PipelineState>,
+    sector_number: SectorNumber,
+) -> Result<(), PipelineError> {
+    tracing::info!("Starting prove commit");
+
+    let sealer = Sealer::new(state.server_info.seal_proof);
+    let Some(mut sector) = state.db.get_sector(sector_number)? else {
+        tracing::error!("Tried to precommit non-existing sector");
+        return Err(PipelineError::NotExistentSector);
+    };
+
+    let sealing_handle: JoinHandle<Result<Vec<Proof>, _>> = {
+        let porep_params = state.porep_parameters.clone();
+        let prover_id = derive_prover_id(state.xt_keypair.account_id());
+        let cache_dir = state.sealing_cache_dir.clone();
+        let sealed_path = sector.sealed_path.clone();
+        let piece_infos = sector.piece_infos.clone();
+        let comm_r = sector.comm_r.unwrap().raw();
+        let comm_d = sector.comm_d.unwrap().raw();
+        tokio::task::spawn_blocking(move || {
+            sealer.prove_sector(
+                porep_params.as_ref(),
+                cache_dir.as_ref(),
+                sealed_path,
+                prover_id,
+                sector_number,
+                TICKET,
+                Some(SEED),
+                PreCommitOutput { comm_r, comm_d },
+                &piece_infos,
+            )
+        })
+    };
+    let proofs = sealing_handle.await??;
+
+    // We use sector size 2KiB only at this point, which guarantees to have 1 proof, because it has 1 partition in the config.
+    // That's why `prove_commit` will always generate a 1 proof.
+    let proof: SubstrateProof = proofs[0]
+        .clone()
+        .try_into()
+        .expect("converstion between rust-fil-proofs and polka-storage-proofs to work");
+    let proof = codec::Encode::encode(&proof);
+    tracing::info!("Proven sector: {}", sector_number);
+
+    sector.state = SectorState::Proven;
+    state.db.save_sector(&sector)?;
+
+    let result = state
+        .xt_client
+        .prove_commit_sectors(
+            &state.xt_keypair,
+            vec![ProveCommitSector {
+                sector_number,
+                proof,
+            }],
+        )
+        .await?;
+
+    let proven_sectors = result
+        .events
+        .find::<storagext::runtime::storage_provider::events::SectorsProven>()
+        .collect::<Result<Vec<_>, _>>()?;
+
+    tracing::info!("Successfully proven sectors on-chain: {:?}", proven_sectors);
+
+    sector.state = SectorState::ProveCommitted;
+    state.db.save_sector(&sector)?;
 
     Ok(())
 }

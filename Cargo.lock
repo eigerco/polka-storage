@@ -9499,6 +9499,7 @@ dependencies = [
  "futures",
  "jsonrpsee 0.23.2",
  "mater",
+ "parity-scale-codec",
  "polka-storage-proofs",
  "polka-storage-provider-common",
  "primitives-commitment",

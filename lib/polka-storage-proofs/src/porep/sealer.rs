@@ -22,6 +22,9 @@ use crate::{
     ZeroPaddingReader,
 };
 
+pub type Proof = groth16::Proof<Bls12>;
+pub type SubstrateProof = crate::Proof<bls12_381::Bls12>;
+
 /// Prepares an arbitrary piece to be used by [`Sealer::create_sector`].
 ///
 /// It does so by calculating the proper size for the padded reader

@@ -12,6 +12,7 @@ pub enum PipelineMessage {
     AddPiece(AddPieceMessage),
     /// Pads, seals the sector and pre-commits it on chain
     PreCommit(PreCommitMessage),
+    ProveCommit(ProveCommitMessage),
 }
 
 /// Deal to be added to a sector with its contents.
@@ -31,6 +32,12 @@ pub struct AddPieceMessage {
 #[derive(Debug)]
 pub struct PreCommitMessage {
     /// Number of an existing sector
+    pub sector_number: SectorNumber,
+}
+
+#[derive(Debug)]
+pub struct ProveCommitMessage {
+    /// Number of an existing, pre-committed sector
     pub sector_number: SectorNumber,
 }
 
@@ -66,6 +73,8 @@ pub struct Sector {
     /// Only after pipeline [`PipelineMessage::PreCommit`],
     /// the file has contents which should not be touched and are used for later steps.
     pub sealed_path: std::path::PathBuf,
+    pub comm_r: Option<Commitment>,
+    pub comm_d: Option<Commitment>,
 }
 
 impl Sector {
@@ -89,6 +98,8 @@ impl Sector {
             deals: vec![],
             unsealed_path,
             sealed_path,
+            comm_r: None,
+            comm_d: None,
         })
     }
 }
@@ -104,4 +115,5 @@ pub enum SectorState {
     Precommitted,
     /// After a PoRep for a sector has been created and publish on-chain.
     Proven,
+    ProveCommitted,
 }

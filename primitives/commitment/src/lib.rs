@@ -80,6 +80,16 @@ impl Commitment {
         Self::new(commitment, CommitmentKind::Piece)
     }
 
+    /// Create a new data commitment.
+    pub fn data(commitment: [u8; 32]) -> Self {
+        Self::new(commitment, CommitmentKind::Data)
+    }
+
+    /// Create a new replica commitment.
+    pub fn replica(commitment: [u8; 32]) -> Self {
+        Self::new(commitment, CommitmentKind::Replica)
+    }
+
     /// Creates a new `Commitment` from bytes of a valid CID.
     /// Returns an error if the bytes passed do not represent a valid commitment.
     pub fn from_cid_bytes(bytes: &[u8], kind: CommitmentKind) -> Result<Self, &'static str> {

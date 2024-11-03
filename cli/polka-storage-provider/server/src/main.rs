@@ -417,6 +417,7 @@ impl ServerConfiguration {
             unsealed_sectors_dir: unsealed_sector_storage_dir,
             sealed_sectors_dir: sealed_sector_storage_dir,
             sealing_cache_dir,
+            porep_parameters: Arc::new(self.porep_parameters),
             xt_client,
             xt_keypair: self.multi_pair_signer,
             pipeline_sender: pipeline_tx,

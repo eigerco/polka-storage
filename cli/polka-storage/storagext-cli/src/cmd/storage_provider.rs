@@ -320,17 +320,14 @@ impl StorageProviderCommand {
     where
         Client: StorageProviderClientExt,
     {
-        let (sector_numbers, prove_commit_sectors): (
-            Vec<SectorNumber>,
-            Vec<RuntimeProveCommitSector>,
-        ) = prove_commit_sectors
-            .into_iter()
-            .map(|s| {
-                let sector_number = s.sector_number;
-                (sector_number, s.into())
-            })
-            .unzip();
-
+        let (sector_numbers, prove_commit_sectors): (Vec<SectorNumber>, Vec<SxtProveCommitSector>) =
+            prove_commit_sectors
+                .into_iter()
+                .map(|s| {
+                    let sector_number = s.sector_number;
+                    (sector_number, s.into())
+                })
+                .unzip();
         let submission_result = client
             .prove_commit_sectors(
                 &account_keypair,
