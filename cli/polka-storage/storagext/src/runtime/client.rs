@@ -127,23 +127,22 @@ impl Client {
 
         let finalized_block = tokio::task::spawn(async move {
             'outer: loop {
-                let block = tokio::select! {
-                    block = finalized_block_stream.next() => {
-                        if let Some(block) = block {
-                            block
-                        } else {
-                            break Err(subxt::Error::Io(std::io::Error::new(std::io::ErrorKind::BrokenPipe, "stream was closed")));
-                        }
-                    }
+                let Some(block) = finalized_block_stream.next().await else {
+                    return Err(subxt::Error::Io(std::io::Error::new(
+                        std::io::ErrorKind::BrokenPipe,
+                        "stream was closed",
+                    )));
                 };
+
                 let block: Block<PolkaStorageConfig, _> = block?;
                 tracing::error!("checking block {}", block.hash());
 
                 for extrinsic in block.extrinsics().await?.iter() {
                     let extrinsic = extrinsic?;
 
-                    // for some reason, the extrinsic that goes, isnt the same as the extrinsic that gets registered
-                    // even though this hash is the way they do it in 0.38, it doesnt work in 0.37
+                    // There's a bug on subxt that forces us to use this thing,
+                    // in 0.38 we can just use .hash(), in fact, in 0.38 this line doesn't work!
+                    // https://github.com/paritytech/subxt/discussions/1851#discussioncomment-11133684
                     let extrinsic_hash = extrinsic.events().await?.extrinsic_hash();
 
                     if submitted_extrinsic_hash == extrinsic_hash {
