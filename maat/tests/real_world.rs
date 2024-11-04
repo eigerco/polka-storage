@@ -17,7 +17,7 @@ use storagext::{
     IntoBoundedByteVec, MarketClientExt, PolkaStorageConfig, StorageProviderClientExt,
     SystemClientExt,
 };
-use subxt::{ext::sp_core::sr25519::Pair as Sr25519Pair, Config};
+use subxt::ext::sp_core::sr25519::Pair as Sr25519Pair;
 use zombienet_sdk::NetworkConfigExt;
 
 /// Network's collator name. Used for logs and so on.
