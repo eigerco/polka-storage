@@ -2,13 +2,7 @@ use std::time::Duration;
 
 use codec::Encode;
 use hex::ToHex;
-use subxt::{
-    blocks::{Block, ExtrinsicDetails},
-    client::OfflineClientT,
-    config::Hasher,
-    events::Events,
-    OnlineClient,
-};
+use subxt::{blocks::Block, events::Events, OnlineClient};
 
 use crate::PolkaStorageConfig;
 
