@@ -8,15 +8,19 @@ use polka_storage_proofs::porep::{
 };
 use polka_storage_provider_common::rpc::ServerInfo;
 use primitives_commitment::Commitment;
-use primitives_proofs::{derive_prover_id, SectorNumber};
+use primitives_proofs::{
+    derive_prover_id,
+    randomness::{draw_randomness, DomainSeparationTag},
+    SectorNumber,
+};
 use storagext::{
     types::{
         market::DealProposal,
         storage_provider::{ProveCommitSector, SectorPreCommitInfo},
     },
-    StorageProviderClientExt, SystemClientExt,
+    RandomnessClientExt, StorageProviderClientExt, SystemClientExt,
 };
-use subxt::tx::Signer;
+use subxt::{ext::codec::Encode, tx::Signer};
 use tokio::{
     sync::mpsc::{error::SendError, UnboundedReceiver, UnboundedSender},
     task::{JoinError, JoinHandle},
@@ -30,10 +34,6 @@ use crate::{
     pipeline::types::{ProveCommitMessage, SectorState},
 };
 
-// PLACEHOLDERS!!!!!
-// TODO(@th7nder,29/10/2024): get from pallet randomness
-const TICKET: [u8; 32] = [12u8; 32];
-const SEED: [u8; 32] = [13u8; 32];
 const SECTOR_EXPIRATION_MARGIN: u64 = 20;
 
 #[derive(Debug, thiserror::Error)]
@@ -50,6 +50,8 @@ pub enum PipelineError {
     DBError(#[from] DBError),
     #[error("sector does not exist")]
     NotExistentSector,
+    #[error("precommit scheduled too early, randomness not available")]
+    NotAvailableRandomness,
     #[error(transparent)]
     SendError(#[from] SendError<PipelineMessage>),
 }
@@ -256,7 +258,25 @@ async fn precommit(
     sector.piece_infos = sealer.pad_sector(&sector.piece_infos, sector.occupied_sector_space)?;
     tracing::debug!("piece_infos: {:?}", sector.piece_infos);
 
-    tracing::info!("Padded sector, commencing pre-commit.");
+    tracing::info!("Padded sector, commencing pre-commit and getting last finalized block");
+
+    let current_block = state.xt_client.height(true).await?;
+    tracing::info!("Current block: {current_block}");
+
+    let Some(digest) = state.xt_client.get_randomness(current_block).await? else {
+        tracing::error!("Precommit was scheduled too early, when the randomness on-chain was not yet available...");
+        return Err(PipelineError::NotAvailableRandomness);
+    };
+    let entropy = state.xt_keypair.account_id().encode();
+    // Must match pallet's logic or otherwise proof won't be verified:
+    // https://github.com/eigerco/polka-storage/blob/af51a9b121c9b02e0bf6f02f5e835091ab46af76/pallets/storage-provider/src/lib.rs#L1539
+    let ticket = draw_randomness(
+        &digest,
+        DomainSeparationTag::SealRandomness,
+        current_block,
+        &entropy,
+    );
+
     // TODO(@th7nder,31/10/2024): what happens if some of the process fails? SP will be slashed, and there is no error reporting? what about retries?
     let sealing_handle: JoinHandle<Result<PreCommitOutput, _>> = {
         let prover_id = derive_prover_id(state.xt_keypair.account_id());
@@ -271,7 +291,7 @@ async fn precommit(
                 sealed_path,
                 prover_id,
                 sector_number,
-                TICKET,
+                ticket,
                 &piece_infos,
             )
         })
@@ -284,7 +304,6 @@ async fn precommit(
     sector.comm_d = Some(Commitment::data(sealing_output.comm_d));
     state.db.save_sector(&sector)?;
 
-    let current_block = state.xt_client.height(false).await?;
     tracing::debug!("Precommiting at block: {}", current_block);
 
     let result = state
