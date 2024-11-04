@@ -42,6 +42,35 @@ fmt:
 docs:
     mdbook serve -d docs/book docs/
 
+# Build the polka storage node binary
+build-polka-storage-node:
+  cargo build --release --features polka-storage-runtime/testnet -p polka-storage-node
+
+# Build the polka storage provider client
+build-polka-storage-provider-client:
+  cargo build --release -p polka-storage-provider-client
+
+# Build the polka storage provider server
+build-polka-storage-provider-server:
+  cargo build --release -p polka-storage-provider-server
+
+# Build the storagext cli binary
+build-storagext-cli:
+  cargo build --release --features storagext/insecure_url -p storagext-cli
+
+# Build the mater cli binary
+build-mater-cli:
+  cargo build --release -p mater-cli
+
+# Build all storage client related
+build-client-binaries: build-mater-cli build-polka-storage-provider-client build-storagext-cli
+
+# Build all storage provider binaries
+build-provider-binaries: build-polka-storage-node build-polka-storage-provider-server
+
+# Build all the binaries
+build-binaries: build-client-binaries build-provider-binaries
+
 build-parachain-docker:
     docker build \
         --build-arg VCS_REF="$(git rev-parse HEAD)" \
