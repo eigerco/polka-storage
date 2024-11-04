@@ -20,14 +20,21 @@ Some users experience issue with the shell command. If you experience any issue 
 Clone the repository and go into the directory:
 
 ```shell
-git clone <public-repo-url>
+git clone git@github.com:eigerco/polka-storage.git
 cd polka-storage
 ```
 
 When going into the cloned directory for the first time the required packages will be installed in the Nix environment, this make take some time.
 This Nix setup only needs to be done once.
 
-Once the Nix setup has completed we can start building the binaries.
+Once the Nix setup has completed we're ready to start building the binaries.
+
+> If you didn't install `direnv` you won't automatically enter the Nix environment.
+> To do so, you'll need to run the following command:
+> ```
+> nix develop
+> ```
+> For more information, refer to the official Nix guide — https://nix.dev/manual/nix/2.17/command-ref/new-cli/nix3-develop
 
 To make building simple there are [Just](https://github.com/casey/just) commands setup to get you started.
 
