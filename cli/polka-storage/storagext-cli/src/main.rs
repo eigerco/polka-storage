@@ -4,7 +4,7 @@ mod cmd;
 
 use std::{fmt::Debug, time::Duration};
 
-use clap::{ArgGroup, Parser, Subcommand};
+use clap::{ArgAction, ArgGroup, Parser, Subcommand};
 use cmd::{market::MarketCommand, storage_provider::StorageProviderCommand, system::SystemCommand};
 use storagext::multipair::{DebugPair, MultiPairSigner};
 use subxt::ext::sp_core::{
@@ -12,11 +12,7 @@ use subxt::ext::sp_core::{
 };
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{
-    filter::{self, FromEnvError},
-    fmt,
-    layer::SubscriberExt,
-    util::SubscriberInitExt,
-    EnvFilter, Layer,
+    filter::FromEnvError, fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer,
 };
 use url::Url;
 
@@ -80,6 +76,10 @@ struct Cli {
     /// Output format.
     #[arg(long, env, value_parser = OutputFormat::value_parser, default_value_t = OutputFormat::Plain)]
     pub format: OutputFormat,
+
+    /// Wait for inclusion of the extrinsic call in a finalized block.
+    #[arg(long, env, action = ArgAction::SetTrue)]
+    pub wait_for_finalization: bool,
 }
 
 #[derive(Debug, Subcommand)]
@@ -102,6 +102,7 @@ impl SubCommand {
         n_retries: u32,
         retry_interval: Duration,
         output_format: OutputFormat,
+        wait_for_finalization: bool,
     ) -> Result<(), anyhow::Error> {
         match self {
             SubCommand::Market(cmd) => {
@@ -111,6 +112,7 @@ impl SubCommand {
                     n_retries,
                     retry_interval,
                     output_format,
+                    wait_for_finalization,
                 )
                 .await?;
             }
@@ -121,6 +123,7 @@ impl SubCommand {
                     n_retries,
                     retry_interval,
                     output_format,
+                    wait_for_finalization,
                 )
                 .await?;
             }
@@ -138,23 +141,15 @@ impl SubCommand {
 fn setup_tracing() -> Result<(), FromEnvError> {
     tracing_subscriber::registry()
         .with(
-            fmt::layer()
-                .with_filter(
-                    EnvFilter::builder()
-                        .with_default_directive(if cfg!(debug_assertions) {
-                            LevelFilter::DEBUG.into()
-                        } else {
-                            LevelFilter::WARN.into()
-                        })
-                        .from_env()?,
-                )
-                .with_filter(filter::filter_fn(|metadata| {
-                    if let Some(module_path) = metadata.module_path() {
-                        module_path.starts_with("storagext")
+            fmt::layer().with_filter(
+                EnvFilter::builder()
+                    .with_default_directive(if cfg!(debug_assertions) {
+                        LevelFilter::DEBUG.into()
                     } else {
-                        true
-                    }
-                })),
+                        LevelFilter::WARN.into()
+                    })
+                    .from_env()?,
+            ),
         )
         .init();
     Ok(())
@@ -180,6 +175,7 @@ async fn main() -> Result<(), anyhow::Error> {
             cli_arguments.n_retries,
             cli_arguments.retry_interval,
             cli_arguments.format,
+            cli_arguments.wait_for_finalization,
         )
         .await?;
     Ok(())

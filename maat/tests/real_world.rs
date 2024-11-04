@@ -35,7 +35,7 @@ async fn strategic_sleep() {
         "sleeping for {:?}, for more information, see https://github.com/paritytech/subxt/issues/1668",
         STRATEGIC_SLEEP
     );
-    tokio::time::sleep(STRATEGIC_SLEEP).await;
+    // tokio::time::sleep(STRATEGIC_SLEEP).await;
 }
 
 async fn register_storage_provider<Keypair>(client: &storagext::Client, charlie: &Keypair)
@@ -51,8 +51,10 @@ where
             charlie,
             peer_id.clone(),
             primitives_proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+            true,
         )
         .await
+        .unwrap()
         .unwrap();
 
     for event in result
@@ -94,7 +96,11 @@ async fn add_balance<Keypair>(client: &storagext::Client, account: &Keypair, bal
 where
     Keypair: subxt::tx::Signer<PolkaStorageConfig>,
 {
-    client.add_balance(account, balance).await.unwrap();
+    client
+        .add_balance(account, balance, true)
+        .await
+        .unwrap()
+        .unwrap();
 
     let balance_entry = client
         .retrieve_balance(account.account_id().clone())
@@ -113,7 +119,11 @@ async fn settle_deal_payments<Keypair>(
 ) where
     Keypair: subxt::tx::Signer<PolkaStorageConfig>,
 {
-    let settle_result = client.settle_deal_payments(charlie, vec![0]).await.unwrap();
+    let settle_result = client
+        .settle_deal_payments(charlie, vec![0], true)
+        .await
+        .unwrap()
+        .unwrap();
 
     for event in settle_result
         .events
@@ -158,8 +168,9 @@ async fn publish_storage_deals<Keypair>(
     };
 
     let deal_result = client
-        .publish_storage_deals(charlie, alice, vec![husky_storage_deal])
+        .publish_storage_deals(charlie, alice, vec![husky_storage_deal], true)
         .await
+        .unwrap()
         .unwrap();
 
     for event in deal_result
@@ -202,8 +213,9 @@ where
     }];
 
     let result = client
-        .pre_commit_sectors(charlie, sectors_pre_commit_info.clone())
+        .pre_commit_sectors(charlie, sectors_pre_commit_info.clone(), true)
         .await
+        .unwrap()
         .unwrap();
 
     for event in result
@@ -236,8 +248,10 @@ where
                 proof: vec![0u8; 4],
             }
             .into()],
+            true,
         )
         .await
+        .unwrap()
         .unwrap();
 
     for event in result
@@ -269,8 +283,10 @@ where
                         proof_bytes: "beef".to_string().into_bounded_byte_vec(),
                     },
             },
+            true,
         )
         .await
+        .unwrap()
         .unwrap();
 
     for event in windowed_post_result
@@ -293,8 +309,9 @@ where
         sectors: BTreeSet::from_iter([1u64].into_iter()),
     }];
     let faults_recovered_result = client
-        .declare_faults_recovered(charlie, recovery_declarations.clone())
+        .declare_faults_recovered(charlie, recovery_declarations.clone(), true)
         .await
+        .unwrap()
         .unwrap();
 
     for event in faults_recovered_result
@@ -317,8 +334,9 @@ where
         sectors: BTreeSet::from_iter([1u64].into_iter()),
     }];
     let fault_declaration_result = client
-        .declare_faults(charlie, fault_declarations.clone())
+        .declare_faults(charlie, fault_declarations.clone(), true)
         .await
+        .unwrap()
         .unwrap();
 
     for event in fault_declaration_result

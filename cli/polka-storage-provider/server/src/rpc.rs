@@ -98,8 +98,9 @@ impl StorageProviderRpcServer for RpcServerState {
         // it just requires some API design
         let result = self
             .xt_client
-            .publish_signed_storage_deals(&self.xt_keypair, vec![deal])
-            .await?;
+            .publish_signed_storage_deals(&self.xt_keypair, vec![deal], true)
+            .await?
+            .expect("we're waiting for the finalization so it should NEVER be None");
 
         let published_deals = result
             .events

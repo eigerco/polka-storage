@@ -292,8 +292,10 @@ async fn precommit(
                 .cid(),
                 seal_randomness_height: current_block,
             }],
+            true,
         )
-        .await?;
+        .await?
+        .expect("we're waiting for the result");
 
     sector.state = SectorState::Precommitted;
     state.db.save_sector(&sector)?;
@@ -301,6 +303,10 @@ async fn precommit(
     let precommited_sectors = result
         .events
         .find::<storagext::runtime::storage_provider::events::SectorsPreCommitted>()
+        // `.find` returns subxt_core::Error which while it is convertible to subxt::Error as shown
+        // it can't be converted by a single ? on the collect, so the type system tries instead
+        // subxt_core::Error -> PipelineError
+        .map(|result| result.map_err(|err| subxt::Error::from(err)))
         .collect::<Result<Vec<_>, _>>()?;
 
     tracing::info!(
