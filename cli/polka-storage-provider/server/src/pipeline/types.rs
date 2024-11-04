@@ -75,6 +75,7 @@ pub struct Sector {
     pub sealed_path: std::path::PathBuf,
     pub comm_r: Option<Commitment>,
     pub comm_d: Option<Commitment>,
+    pub precommit_block: Option<u64>,
 }
 
 impl Sector {
@@ -100,6 +101,7 @@ impl Sector {
             sealed_path,
             comm_r: None,
             comm_d: None,
+            precommit_block: None,
         })
     }
 }

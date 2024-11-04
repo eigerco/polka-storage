@@ -302,6 +302,7 @@ async fn precommit(
     sector.state = SectorState::Sealed;
     sector.comm_r = Some(Commitment::replica(sealing_output.comm_r));
     sector.comm_d = Some(Commitment::data(sealing_output.comm_d));
+    sector.precommit_block = Some(current_block);
     state.db.save_sector(&sector)?;
 
     tracing::debug!("Precommiting at block: {}", current_block);
@@ -377,6 +378,40 @@ async fn prove_commit(
         return Err(PipelineError::NotExistentSector);
     };
 
+    let precommit_block = sector.precommit_block.unwrap();
+    let Some(digest) = state.xt_client.get_randomness(precommit_block).await? else {
+        tracing::error!("Out-of-the-state transition, this SHOULD not happen");
+        return Err(PipelineError::NotAvailableRandomness);
+    };
+    let entropy = state.xt_keypair.account_id().encode();
+    // Must match pallet's logic or otherwise proof won't be verified:
+    // https://github.com/eigerco/polka-storage/blob/af51a9b121c9b02e0bf6f02f5e835091ab46af76/pallets/storage-provider/src/lib.rs#L1539
+    let ticket = draw_randomness(
+        &digest,
+        DomainSeparationTag::SealRandomness,
+        precommit_block,
+        &entropy,
+    );
+
+    // TODO(@th7nder,04/11/2024):
+    // https://github.com/eigerco/polka-storage/blob/5edd4194f08f29d769c277577ccbb70bb6ff63bc/runtime/src/configs/mod.rs#L360
+    // 10 blocks = 1 minute, only testnet
+    const PRECOMMIT_CHALLENGE_DELAY: u64 = 10;
+    let prove_commit_block = precommit_block + PRECOMMIT_CHALLENGE_DELAY;
+
+    tracing::info!("Wait for block {} to get randomness", prove_commit_block);
+    state.xt_client.wait_for_height(prove_commit_block, true).await?;
+    let Some(digest) = state.xt_client.get_randomness(prove_commit_block).await? else {
+        tracing::error!("Randomness for the block not available.");
+        return Err(PipelineError::NotAvailableRandomness);
+    };
+    let seed = draw_randomness(
+        &digest,
+        DomainSeparationTag::InteractiveSealChallengeSeed,
+        precommit_block,
+        &entropy,
+    );
+
     let sealing_handle: JoinHandle<Result<Vec<Proof>, _>> = {
         let porep_params = state.porep_parameters.clone();
         let prover_id = derive_prover_id(state.xt_keypair.account_id());
@@ -392,8 +427,8 @@ async fn prove_commit(
                 sealed_path,
                 prover_id,
                 sector_number,
-                TICKET,
-                Some(SEED),
+                ticket,
+                Some(seed),
                 PreCommitOutput { comm_r, comm_d },
                 &piece_infos,
             )
