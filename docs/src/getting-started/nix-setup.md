@@ -5,11 +5,9 @@ This guide will outline how to setup your environment using Nix to get started w
 ## Pre-requisites
 
 Installing direnv on your system is not required but recommended.
-Install direnv by following the install instructions on their website for your system.
+Install direnv by following the [install instructions](https://direnv.net/docs/installation.html) on their website for your system.
 
-[direnv website](https://direnv.net/docs/installation.html)
-
-Install [Nix]((https://nixos.org/download/)) on your system.
+Install [Nix](https://nixos.org/download/) on your system.
 
 Shell command to install Nix:
 
