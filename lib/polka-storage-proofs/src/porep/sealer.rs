@@ -199,7 +199,7 @@ impl Sealer {
 
         let piece_infos = piece_infos
             .into_iter()
-            .map(|p| p.clone().into())
+            .map(|p| (*p).into())
             .collect::<Vec<filecoin_proofs::PieceInfo>>();
 
         let p1_output: SealPreCommitPhase1Output<SectorShapeBase> =
@@ -257,7 +257,7 @@ impl Sealer {
 
         let piece_infos = piece_infos
             .into_iter()
-            .map(|p| p.clone().into())
+            .map(|p| (*p).into())
             .collect::<Vec<filecoin_proofs::PieceInfo>>();
 
         let scp1: filecoin_proofs::SealCommitPhase1Output<SectorShapeBase> =
