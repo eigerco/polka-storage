@@ -1,9 +1,15 @@
 use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 
+use async_trait::async_trait;
 use jsonrpsee::server::Server;
-use polka_storage_provider_common::rpc::{RpcError, ServerInfo, StorageProviderRpcServer};
-use primitives_commitment::Commitment;
+use parity_scale_codec::Encode;
+use polka_storage_provider_common::{
+    commp::calculate_piece_commitment,
+    rpc::{RpcError, ServerInfo, StorageProviderRpcServer},
+};
+use primitives_commitment::{piece::PaddedPieceSize, Commitment};
 use storagext::{
+    runtime::runtime_types::pallet_market::pallet::DealProposal as RuntimeDealProposal,
     types::market::{ClientDealProposal as SxtClientDealProposal, DealProposal as SxtDealProposal},
     MarketClientExt,
 };
@@ -31,7 +37,7 @@ pub struct RpcServerState {
     pub pipeline_sender: UnboundedSender<PipelineMessage>,
 }
 
-#[async_trait::async_trait]
+#[async_trait]
 impl StorageProviderRpcServer for RpcServerState {
     async fn info(&self) -> Result<ServerInfo, RpcError> {
         Ok(self.server_info.clone())
@@ -134,6 +140,24 @@ impl StorageProviderRpcServer for RpcServerState {
             .map_err(|e| RpcError::internal_error(e, None))?;
 
         Ok(deal_id)
+    }
+
+    async fn calculate_piece_cid(&self, data: Vec<u8>) -> Result<cid::Cid, RpcError> {
+        tokio::task::spawn_blocking(move || -> Result<_, RpcError> {
+            let piece_size = PaddedPieceSize::from_arbitrary_size(data.len() as u64);
+            let reader = std::io::Cursor::new(data);
+            calculate_piece_commitment(reader, piece_size)
+                .map(|pc| pc.cid())
+                .map_err(|e| RpcError::internal_error(e, None))
+        })
+        .await
+        .map_err(|e| RpcError::internal_error(e, None))?
+    }
+
+    async fn encode_proposal(&self, proposal: SxtDealProposal) -> Result<String, RpcError> {
+        let runtime_proposal: RuntimeDealProposal<_, _, _> = proposal.into();
+        let encoded = runtime_proposal.encode();
+        Ok(format!("0x{}", hex::encode(&encoded)))
     }
 }
 

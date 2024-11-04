@@ -3,12 +3,12 @@ use std::{io, net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
 use axum::{
     body::Body,
     extract::{FromRequest, MatchedPath, Multipart, Path, Request, State},
-    http::{header, StatusCode},
+    http::{header, Method, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, put},
     Router,
 };
-use futures::{TryFutureExt, TryStreamExt};
+use futures::TryStreamExt;
 use mater::Cid;
 use polka_storage_proofs::ZeroPaddingReader;
 use polka_storage_provider_common::commp::{calculate_piece_commitment, CommPError};
@@ -22,7 +22,7 @@ use tokio_util::{
     io::{ReaderStream, StreamReader},
     sync::CancellationToken,
 };
-use tower_http::trace::TraceLayer;
+use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use uuid::Uuid;
 
 use crate::db::DealDB;
@@ -64,10 +64,17 @@ pub async fn start_upload_server(
 }
 
 fn configure_router(state: Arc<StorageServerState>) -> Router {
+    let cors = CorsLayer::new()
+        .allow_origin(tower_http::cors::Any)
+        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::OPTIONS])
+        .allow_headers([header::CONTENT_TYPE])
+        .max_age(std::time::Duration::from_secs(3600));
+
     Router::new()
         .route("/upload/:cid", put(upload))
         .route("/download/:cid", get(download))
         .with_state(state)
+        .layer(cors)
         // Tracing layer
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
@@ -141,8 +148,8 @@ async fn upload(
             .map_err(|err| (StatusCode::BAD_REQUEST, err.to_string()))?;
         let Some(field) = multipart
             .next_field()
-            .map_err(|err| (StatusCode::BAD_REQUEST, err.to_string()))
-            .await?
+            .await
+            .map_err(|err| (StatusCode::BAD_REQUEST, err.to_string()))?
         else {
             return Err((StatusCode::BAD_REQUEST, "empty request".to_string()));
         };
@@ -181,9 +188,9 @@ async fn upload(
     })?;
     let file_size = file
         .metadata()
-        .map_ok(|metadata| metadata.len())
         .await
-        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?
+        .len();
 
     // Check the piece size first since it's the cheap check
     let piece_size = PaddedPieceSize::from_arbitrary_size(file_size);
@@ -255,11 +262,11 @@ async fn upload(
         file_path,
         content_path(&state.car_piece_storage_dir, piece_commitment_cid).1,
     )
+    .await
     .map_err(|err| {
         tracing::error!(%err, "failed to rename the CAR file");
         (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
-    })
-    .await?;
+    })?;
 
     Ok(proposed_deal.piece_cid.to_string())
 }
@@ -285,7 +292,6 @@ async fn download(
         return Err((StatusCode::NOT_FOUND, "file not found".to_string()));
     }
 
-    // Open car file
     let file = File::open(&path).await.map_err(|e| {
         tracing::error!(?e, ?path, "failed to open file");
         (
@@ -303,7 +309,7 @@ async fn download(
         (header::CONTENT_TYPE, "application/octet-stream"),
         (
             header::CONTENT_DISPOSITION,
-            &format!("attachment; filename=\"{:?}\"", file_name),
+            &format!("attachment; filename=\"{}\"", file_name),
         ),
     ];
 

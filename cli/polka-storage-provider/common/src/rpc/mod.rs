@@ -25,6 +25,14 @@ pub trait StorageProviderRpc {
     /// Publish a deal, the published deal ID will be returned.
     #[method(name = "publish_deal")]
     async fn publish_deal(&self, deal: SxtClientDealProposal) -> Result<u64, RpcError>;
+
+    /// Calculate the piece CID for given data.
+    #[method(name = "calculatePieceCid")]
+    async fn calculate_piece_cid(&self, data: Vec<u8>) -> Result<cid::Cid, RpcError>;
+
+    /// Encode a deal proposal into its runtime representation.
+    #[method(name = "encodeProposal")]
+    async fn encode_proposal(&self, proposal: SxtDealProposal) -> Result<String, RpcError>;
 }
 
 /// Storage Provider server information, such as start time and on-chain address.
