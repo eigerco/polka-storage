@@ -129,6 +129,9 @@ fn process(
         PipelineMessage::PreCommit(PreCommitMessage { sector_number }) => {
             tracker.spawn(async move {
                 // Precommit is not cancellation safe.
+                // TODO(@th7nder,#501, 04/11/2024): when it's cancelled, it can hang and user will have to wait for it to finish.
+                // If they don't the state can be corrupted, we could improve that situation.
+                // One of the ideas is to store state as 'Precommitting' so then we know we can retry that after some time.
                 match precommit(state, sector_number).await {
                     Ok(_) => {
                         tracing::info!(
