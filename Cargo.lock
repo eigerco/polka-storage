@@ -9499,6 +9499,7 @@ dependencies = [
  "rand",
  "rocksdb",
  "sc-cli",
+ "serde",
  "serde_json",
  "storagext",
  "subxt",
@@ -10954,6 +10955,7 @@ dependencies = [
  "filecoin-proofs",
  "primitives-proofs",
  "rand",
+ "serde",
  "sha2 0.10.8",
 ]
 
@@ -16571,6 +16573,8 @@ dependencies = [
  "futures-core",
  "futures-io",
  "futures-sink",
+ "futures-util",
+ "hashbrown 0.14.5",
  "pin-project-lite",
  "slab",
  "tokio",

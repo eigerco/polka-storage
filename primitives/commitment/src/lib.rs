@@ -34,6 +34,7 @@ pub const SHA2_256_TRUNC254_PADDED: u64 = 0x1012;
 /// https://github.com/multiformats/multicodec/blob/badcfe56bb7e0bbb06b60d57565186cd6be1f932/table.csv#L537
 pub const POSEIDON_BLS12_381_A1_FC1: u64 = 0xb401;
 
+#[cfg_attr(feature = "serde", derive(::serde::Deserialize, ::serde::Serialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CommitmentKind {
     // CommP - Piece commitment
@@ -62,6 +63,7 @@ impl CommitmentKind {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(::serde::Deserialize, ::serde::Serialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Commitment {
     commitment: [u8; 32],

@@ -12,6 +12,7 @@ use crate::PolkaStorageConfig;
 
 /// Similar to other `Multi` types from Polkadot, this one wraps over [`PairSigner`],
 /// allowing keypairs to sign data.
+#[derive(Clone)]
 pub enum MultiPairSigner {
     Sr25519(PairSigner<PolkaStorageConfig, Sr25519Pair>),
     ECDSA(PairSigner<PolkaStorageConfig, ECDSAPair>),

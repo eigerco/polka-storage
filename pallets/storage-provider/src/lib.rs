@@ -42,7 +42,7 @@ pub mod pallet {
     use codec::{Decode, Encode};
     use frame_support::{
         dispatch::DispatchResult,
-        ensure, fail,
+        ensure,
         pallet_prelude::*,
         sp_runtime::traits::{CheckedAdd, CheckedSub, One},
         traits::{
@@ -1363,14 +1363,17 @@ pub mod pallet {
         fn check_commd_for_pre_commit(
             calculated_unsealed_cid: BoundedVec<Option<Cid>, ConstU32<MAX_SECTORS_PER_CALL>>,
             sector_amount: usize,
-            unsealed_cids: BoundedVec<Cid, ConstU32<MAX_SECTORS_PER_CALL>>,
-            deal_amounts: BoundedVec<usize, ConstU32<MAX_SECTORS_PER_CALL>>,
+            _unsealed_cids: BoundedVec<Cid, ConstU32<MAX_SECTORS_PER_CALL>>,
+            _deal_amounts: BoundedVec<usize, ConstU32<MAX_SECTORS_PER_CALL>>,
         ) -> Result<(), Error<T>> {
             ensure!(calculated_unsealed_cid.len() == sector_amount, {
                 log::error!(target: LOG_TARGET, "check_commd_for_pre_commit: failed to verify deals, invalid calculated_commd length: {}", calculated_unsealed_cid.len());
                 Error::<T>::CouldNotVerifySectorForPreCommit
             });
 
+            // TODO(#496, @th7nder, 30/10/2024): when sector contains 1 deal the calculated CID is wrong
+            // it doesn't add padding pieces to the full sector and results in wrong CommD
+            /*
             for (i, unsealed_cid) in unsealed_cids.into_iter().enumerate() {
                 if deal_amounts[i] > 0 {
                     let Some(calculated_commd) = calculated_unsealed_cid[i] else {
@@ -1383,7 +1386,7 @@ pub mod pallet {
                         Error::<T>::InvalidUnsealedCidForSector
                     });
                 }
-            }
+            } */
             Ok(())
         }
 

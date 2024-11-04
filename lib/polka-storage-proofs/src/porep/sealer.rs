@@ -8,14 +8,17 @@ use filecoin_proofs::{
     DefaultPieceHasher, PaddedBytesAmount, PoRepConfig, SealCommitPhase1Output,
     SealPreCommitOutput, SealPreCommitPhase1Output, SectorShapeBase, UnpaddedBytesAmount,
 };
-use primitives_commitment::piece::PaddedPieceSize;
-use primitives_proofs::{RegisteredSealProof, SectorNumber};
+use primitives_commitment::{
+    piece::{PaddedPieceSize, PieceInfo},
+    Commitment,
+};
+use primitives_proofs::{RawCommitment, RegisteredSealProof, SectorNumber};
 use storage_proofs_core::{compound_proof, compound_proof::CompoundProof};
 use storage_proofs_porep::stacked::{self, StackedCompound, StackedDrg};
 
 use super::{seal_to_config, PoRepError};
 use crate::{
-    types::{Commitment, PieceInfo, ProverId, Ticket},
+    types::{ProverId, Ticket},
     ZeroPaddingReader,
 };
 
@@ -39,13 +42,13 @@ where
     // requires size, to be before `Fr32` padding, so we call `.unpadded()` to get the `Fr32 unpadded`.
     // Required because of Filecoin magic, we'll probably need to change our Unpadded/Padded
     // into Filecoin implementations and instead write extensions for them to make them ergonomic
-    let piece_padded_unpadded_length =
-        PaddedPieceSize::from_arbitrary_size(piece_raw_size).unpadded();
+    let padded_piece_size = PaddedPieceSize::from_arbitrary_size(piece_raw_size);
+    let piece_padded_unpadded_length = padded_piece_size.unpadded();
     let piece_padded_file = ZeroPaddingReader::new(piece_file, *piece_padded_unpadded_length);
 
     let piece_info = PieceInfo {
         commitment: piece_comm_p,
-        size: *piece_padded_unpadded_length,
+        size: padded_piece_size,
     };
 
     Ok((piece_padded_file, piece_info))
@@ -59,6 +62,59 @@ impl Sealer {
         Self {
             porep_config: seal_to_config(seal_proof),
         }
+    }
+
+    /// Adds a Piece and padding to already existing sector file and returns how many bytes were written.
+    /// It can return more bytes than the piece size, as it adds padding so a proper Merkle Tree can be created out of the sector.
+    /// You need to supply current pieces which are already in the sector, otherwise they'll be overwritten.
+    pub fn add_piece<R: std::io::Read, W: std::io::Write>(
+        &self,
+        piece_data: R,
+        piece: PieceInfo,
+        current_pieces: &Vec<PieceInfo>,
+        mut unsealed_sector: W,
+    ) -> Result<u64, PoRepError> {
+        let current_pieces_lengths: Vec<UnpaddedBytesAmount> = current_pieces
+            .into_iter()
+            .map(|p| p.size.unpadded().into())
+            .collect();
+
+        let (calculated_piece_info, written_bytes) = add_piece(
+            piece_data,
+            &mut unsealed_sector,
+            piece.size.unpadded().into(),
+            &current_pieces_lengths,
+        )?;
+
+        if piece.commitment.cid().hash().digest() != calculated_piece_info.commitment {
+            return Err(PoRepError::InvalidPieceCid(
+                0,
+                piece.commitment.cid().hash().digest().try_into().unwrap(),
+                calculated_piece_info.commitment,
+            ));
+        }
+
+        Ok(written_bytes.into())
+    }
+
+    /// Adds zero-piece padding to the sector, to fill it out completely, so a proper CommD merkle tree can be calculated.
+    /// Accepts current pieces in the sector and how much space they occupy. The space occupied can be calculated by storing results
+    /// of [`Self::add_piece`] outputs.
+    /// E.g. when sector of size 2048 has a pieces which are 1024 + 256, it'll add zero-commitment pieces so it sums up to 2048.
+    pub fn pad_sector(
+        &self,
+        current_pieces: &Vec<PieceInfo>,
+        sector_occupied_space: u64,
+    ) -> Result<Vec<PieceInfo>, PoRepError> {
+        let mut result_pieces = current_pieces.clone();
+        let sector_size: UnpaddedBytesAmount = self.porep_config.sector_size.into();
+        let padding_pieces =
+            filler_pieces(sector_size - UnpaddedBytesAmount(sector_occupied_space));
+        result_pieces.extend(padding_pieces.into_iter().map(|p| {
+            PieceInfo::from_filecoin_piece_info(p, primitives_commitment::CommitmentKind::Piece)
+        }));
+
+        Ok(result_pieces)
     }
 
     /// Takes all of the pieces and puts them in a sector with padding.
@@ -82,31 +138,29 @@ impl Sealer {
 
         let mut result_pieces: Vec<PieceInfo> = Vec::with_capacity(pieces.len());
         let mut piece_lengths: Vec<UnpaddedBytesAmount> = Vec::with_capacity(pieces.len());
-        let mut unpadded_occupied_space: UnpaddedBytesAmount = UnpaddedBytesAmount(0);
+        let mut sector_occupied_space: UnpaddedBytesAmount = UnpaddedBytesAmount(0);
         for (idx, (reader, piece)) in pieces.into_iter().enumerate() {
-            let piece: filecoin_proofs::PieceInfo = piece.into();
+            let fc_piece: filecoin_proofs::PieceInfo = piece.into();
             let (calculated_piece_info, written_bytes) =
-                add_piece(reader, &mut unsealed_sector, piece.size, &piece_lengths).unwrap();
+                add_piece(reader, &mut unsealed_sector, fc_piece.size, &piece_lengths)?;
 
-            piece_lengths.push(piece.size);
+            piece_lengths.push(fc_piece.size);
 
             // We need to add `written_bytes` not `piece.size`, as `add_piece` adds padding.
-            unpadded_occupied_space = unpadded_occupied_space + written_bytes;
+            sector_occupied_space = sector_occupied_space + written_bytes;
 
-            if piece.commitment != calculated_piece_info.commitment {
+            if fc_piece.commitment != calculated_piece_info.commitment {
                 return Err(PoRepError::InvalidPieceCid(
                     idx,
-                    piece.commitment,
+                    fc_piece.commitment,
                     calculated_piece_info.commitment,
                 ));
             }
 
-            result_pieces.push(piece.into());
+            result_pieces.push(piece);
         }
 
-        let sector_size: UnpaddedBytesAmount = self.porep_config.sector_size.into();
-        let padding_pieces = filler_pieces(sector_size - unpadded_occupied_space);
-        result_pieces.extend(padding_pieces.into_iter().map(Into::into));
+        let result_pieces = self.pad_sector(&result_pieces, sector_occupied_space.into())?;
 
         Ok(result_pieces)
     }
@@ -145,7 +199,7 @@ impl Sealer {
 
         let piece_infos = piece_infos
             .into_iter()
-            .map(|p| p.clone().into())
+            .map(|p| (*p).into())
             .collect::<Vec<filecoin_proofs::PieceInfo>>();
 
         let p1_output: SealPreCommitPhase1Output<SectorShapeBase> =
@@ -203,7 +257,7 @@ impl Sealer {
 
         let piece_infos = piece_infos
             .into_iter()
-            .map(|p| p.clone().into())
+            .map(|p| (*p).into())
             .collect::<Vec<filecoin_proofs::PieceInfo>>();
 
         let scp1: filecoin_proofs::SealCommitPhase1Output<SectorShapeBase> =
@@ -326,8 +380,10 @@ pub fn filler_pieces(remaining_space: UnpaddedBytesAmount) -> Vec<filecoin_proof
 /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/266acc39a3ebd6f3d28c6ee335d78e2b7cea06bc/filecoin-proofs/src/types/mod.rs#L53>
 #[derive(Debug, Clone)]
 pub struct PreCommitOutput {
-    pub comm_r: Commitment,
-    pub comm_d: Commitment,
+    /// Sealed Sector (Replica) Commitment, after padding and processing it.
+    pub comm_r: RawCommitment,
+    /// Data commitment, after padding, before processing it into a replica.
+    pub comm_d: RawCommitment,
 }
 
 #[cfg(test)]
@@ -371,15 +427,16 @@ mod test {
     fn padding_for_sector(#[case] piece_sizes: Vec<usize>) {
         let sealer = Sealer::new(RegisteredSealProof::StackedDRG2KiBV1P1);
 
-        let piece_infos: Vec<(Cursor<Vec<u8>>, PieceInfo)> = piece_sizes
-            .into_iter()
-            .map(|size| {
-                let (piece_bytes, piece_info) =
-                    piece_with_random_data(PaddedBytesAmount(size as u64));
+        let piece_infos: Vec<(Cursor<Vec<u8>>, primitives_commitment::piece::PieceInfo)> =
+            piece_sizes
+                .into_iter()
+                .map(|size| {
+                    let (piece_bytes, piece_info) =
+                        piece_with_random_data(PaddedBytesAmount(size as u64));
 
-                (Cursor::new(piece_bytes), piece_info.into())
-            })
-            .collect();
+                    (Cursor::new(piece_bytes), piece_info)
+                })
+                .collect();
 
         // Create a file-like sector where non-occupied bytes are 0
         let sector_size = sealer.porep_config.sector_size.0 as usize;
@@ -399,7 +456,9 @@ mod test {
     }
 
     /// Generates a piece of `size` and a PieceInfo for it
-    fn piece_with_random_data(size: PaddedBytesAmount) -> (Vec<u8>, filecoin_proofs::PieceInfo) {
+    fn piece_with_random_data(
+        size: PaddedBytesAmount,
+    ) -> (Vec<u8>, primitives_commitment::piece::PieceInfo) {
         let rng = &mut XorShiftRng::from_seed(filecoin_proofs::TEST_SEED);
 
         let piece_size: UnpaddedBytesAmount = size.into();
@@ -409,7 +468,13 @@ mod test {
             filecoin_proofs::generate_piece_commitment(Cursor::new(&mut piece_bytes), piece_size)
                 .unwrap();
 
-        (piece_bytes, piece_info)
+        (
+            piece_bytes,
+            primitives_commitment::piece::PieceInfo::from_filecoin_piece_info(
+                piece_info,
+                primitives_commitment::CommitmentKind::Piece,
+            ),
+        )
     }
 
     /// Computes CommD from the raw data, not from the pieces.

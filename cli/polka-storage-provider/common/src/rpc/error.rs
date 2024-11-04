@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, io};
 
 use jsonrpsee::types::{
     error::{INTERNAL_ERROR_CODE, INVALID_PARAMS_CODE},
@@ -49,6 +49,12 @@ impl RpcError {
 
 impl From<subxt::Error> for RpcError {
     fn from(err: subxt::Error) -> Self {
+        Self::internal_error(err, None)
+    }
+}
+
+impl From<io::Error> for RpcError {
+    fn from(err: io::Error) -> Self {
         Self::internal_error(err, None)
     }
 }

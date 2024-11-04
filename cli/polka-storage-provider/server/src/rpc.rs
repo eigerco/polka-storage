@@ -1,37 +1,20 @@
 use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 
 use jsonrpsee::server::Server;
-use polka_storage_proofs::porep::sealer::{prepare_piece, Sealer};
 use polka_storage_provider_common::rpc::{RpcError, ServerInfo, StorageProviderRpcServer};
-use primitives_proofs::derive_prover_id;
+use primitives_commitment::Commitment;
 use storagext::{
     types::market::{ClientDealProposal as SxtClientDealProposal, DealProposal as SxtDealProposal},
     MarketClientExt,
 };
-use subxt::tx::Signer;
+use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
 use tracing::{info, instrument};
 
-use crate::db::DealDB;
-
-/// Unwraps a `Result<T>` logging and returning if `Err`.
-/// Currently a bandaid solution while the pipeline doesn't get properly fleshed out.
-macro_rules! ok_or_return {
-    ($e:expr) => {
-        match $e {
-            Ok(ok) => ok,
-            Err(err) => {
-                tracing::error!(%err);
-                return;
-            }
-        }
-    }
-}
-
-// PLACEHOLDERS!!!!!
-const SECTOR_ID: u64 = 77;
-const TICKET: [u8; 32] = [12u8; 32];
-// const SEED: [u8; 32] = [13u8; 32];
+use crate::{
+    db::DealDB,
+    pipeline::types::{AddPieceMessage, PipelineMessage},
+};
 
 /// RPC server shared state.
 pub struct RpcServerState {
@@ -40,14 +23,12 @@ pub struct RpcServerState {
 
     /// The file storage directory. Used to check if a given piece has been uploaded or not.
     pub car_piece_storage_dir: Arc<PathBuf>,
-    pub unsealed_piece_storage_dir: Arc<PathBuf>,
-    pub sealed_piece_storage_dir: Arc<PathBuf>,
-    pub sealing_cache_dir: Arc<PathBuf>,
 
-    pub xt_client: storagext::Client,
+    pub xt_client: Arc<storagext::Client>,
     pub xt_keypair: storagext::multipair::MultiPairSigner,
 
     pub listen_address: SocketAddr,
+    pub pipeline_sender: UnboundedSender<PipelineMessage>,
 }
 
 #[async_trait::async_trait]
@@ -108,6 +89,7 @@ impl StorageProviderRpcServer for RpcServerState {
             ));
         }
 
+        let deal_proposal = deal.deal_proposal.clone();
         // TODO(@jmg-duarte,#428,04/10/2024):
         // There's a small bug here, currently, xt_client waits for a "full extrisic submission"
         // meaning that it will wait until the block where it is included in is finalized
@@ -129,51 +111,29 @@ impl StorageProviderRpcServer for RpcServerState {
         // an error MUST've happened
         debug_assert_eq!(published_deals.len(), 1);
 
-        let unsealed_dir = self.unsealed_piece_storage_dir.clone();
-        let sealed_dir = self.sealed_piece_storage_dir.clone();
-        let cache_dir = self.sealing_cache_dir.clone();
-        let seal_proof = self.server_info.seal_proof;
-        let prover_id = derive_prover_id(self.xt_keypair.account_id());
+        // We always publish only 1 deal
+        let deal_id = published_deals[0].deal_id;
 
-        // Questions to be answered:
-        // * what happens if some of it fails? SP will be slashed, and there is no error reporting?
-        // * where do we save the state of a sector/deals, how do we keep track of it?
-        tokio::task::spawn_blocking(move || {
-            let piece_commitment: [u8; 32] = ok_or_return!(piece_cid.hash().digest().try_into());
+        let piece_cid = Commitment::new(
+            piece_cid.hash().digest().try_into().map_err(|e| {
+                RpcError::invalid_params(
+                    e,
+                    Some(serde_json::to_value(piece_cid).expect("cid to be serializable")),
+                )
+            })?,
+            primitives_commitment::CommitmentKind::Piece,
+        );
 
-            let unsealed_sector_path = unsealed_dir.join(piece_cid.to_string());
-            let sealed_sector_path = {
-                let path = sealed_dir.join(piece_cid.to_string());
-                // We need to create the file ourselves, even though that's not documented
-                ok_or_return!(std::fs::File::create(&path));
-                path
-            };
+        self.pipeline_sender
+            .send(PipelineMessage::AddPiece(AddPieceMessage {
+                deal: deal_proposal,
+                published_deal_id: deal_id,
+                piece_path,
+                piece_cid,
+            }))
+            .map_err(|e| RpcError::internal_error(e, None))?;
 
-            let sealer = Sealer::new(seal_proof);
-
-            let prepared_piece = ok_or_return!(prepare_piece(piece_path, piece_commitment));
-
-            let piece_infos = {
-                // The scope creates an implicit drop of the file handler
-                // avoiding reading issues later on
-                let sector_writer = ok_or_return!(std::fs::File::create(&unsealed_sector_path));
-                ok_or_return!(sealer.create_sector(vec![prepared_piece], sector_writer))
-            };
-
-            let precommit_result = ok_or_return!(sealer.precommit_sector(
-                cache_dir.as_ref(),
-                unsealed_sector_path,
-                sealed_sector_path,
-                prover_id,
-                SECTOR_ID,
-                TICKET,
-                &piece_infos,
-            ));
-
-            tracing::info!("{:?}", precommit_result);
-        });
-
-        Ok(published_deals[0].deal_id)
+        Ok(deal_id)
     }
 }
 

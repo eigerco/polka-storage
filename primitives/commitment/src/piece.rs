@@ -3,7 +3,8 @@ use core::ops::{Add, AddAssign, Deref};
 use crate::{Commitment, NODE_SIZE};
 
 /// Piece info contains piece commitment and piece size.
-#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(::serde::Deserialize, ::serde::Serialize))]
+#[derive(PartialEq, Debug, Eq, Clone, Copy)]
 pub struct PieceInfo {
     /// Piece commitment
     pub commitment: Commitment,
@@ -41,6 +42,7 @@ impl Into<filecoin_proofs::PieceInfo> for PieceInfo {
 
 /// Size of a piece in bytes. Unpadded piece size should be power of two
 /// multiple of 127.
+#[cfg_attr(feature = "serde", derive(::serde::Deserialize, ::serde::Serialize))]
 #[derive(PartialEq, Debug, Eq, Clone, Copy)]
 pub struct UnpaddedPieceSize(u64);
 
@@ -108,6 +110,7 @@ impl Into<filecoin_proofs::UnpaddedBytesAmount> for UnpaddedPieceSize {
 
 /// Size of a piece in bytes with padding. The size is always a power of two
 /// number.
+#[cfg_attr(feature = "serde", derive(::serde::Deserialize, ::serde::Serialize))]
 #[derive(PartialEq, Debug, Eq, Clone, Copy)]
 pub struct PaddedPieceSize(u64);
 
