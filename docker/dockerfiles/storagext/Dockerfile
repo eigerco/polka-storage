@@ -8,23 +8,22 @@ WORKDIR /app
 ##### Planner
 FROM chef AS planner
 COPY . .
-RUN cargo chef prepare --recipe-path recipe.json
+RUN cargo chef prepare --bin storagext-cli --recipe-path recipe.json
 
 ################
 ##### Builder
 FROM chef AS builder
 
 RUN apt update && apt upgrade -y
-RUN apt install -y opencl-headers ocl-icd-opencl-dev protobuf-compiler clang git
 
 # Copy required files
 COPY --from=planner /app/recipe.json recipe.json
 COPY --from=planner /app/rust-toolchain.toml rust-toolchain.toml
 # Build dependencies - this is the caching Docker layer!
-RUN cargo chef cook --release --recipe-path recipe.json
+RUN cargo chef cook --bin storagext-cli --release --recipe-path recipe.json
 # Build application
 COPY . .
-RUN cargo build --release --features storagext/insecure_url -p storagext-cli
+RUN cargo build --release --features storagext/insecure_url --bin storagext-cli
 
 ################
 ##### Runtime
