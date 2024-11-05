@@ -40,14 +40,15 @@ The `pre-commit` command [pre-commits](../pallets/storage-provider.md#pre_commit
 
 The `PRE_COMMIT_SECTORS` JSON object has the following structure:
 
-| Name            | Description       |
-| --------------- | ----------------- |
-| `sector_number` | Sector number     |
-| `sealed_cid`    | Byte encoded CID  |
-| `deal_ids`      | List of deal IDs  |
-| `expiration`    | Sector expiration |
-| `unsealed_cid`  | Byte encoded CID  |
-| `seal_proof`    | Sector seal proof |
+| Name                     | Description                              |
+| ------------------------ | ---------------------------------------- |
+| `sector_number`          | Sector number                            |
+| `sealed_cid`             | Byte encoded CID                         |
+| `deal_ids`               | List of deal IDs                         |
+| `expiration`             | Sector expiration                        |
+| `unsealed_cid`           | Byte encoded CID                         |
+| `seal_proof`             | Sector seal proof                        |
+| `seal_randomness_height` | The block number used in the PoRep proof |
 
 ### <a class="header" id="pre-commit.example" href="#pre-commit.example">Example</a>
 
@@ -68,7 +69,8 @@ Where `pre-commit-sector.json` is a file with contents similar to:
     "deal_ids": [0],
     "expiration": 100,
     "unsealed_cid": "bafkreibme22gw2h7y2h7tg2fhqotaqjucnbc24deqo72b6mkl2egezxhvy",
-    "seal_proof": "StackedDRG2KiBV1P1"
+    "seal_proof": "StackedDRG2KiBV1P1",
+    "seal_randomness_height": 85,
   }
 ]
 ```
