@@ -8,7 +8,11 @@ Install docker on your system by following the [docker install instructions](htt
 
 ## Dockerfile setup
 
-All docker builds are in 4 stages. The first stage is setting up [cargo chef](https://github.com/LukeMathWalker/cargo-chef), this caches the Rust dependencies for faster builds. The next stage is the planning stage where cargo chef analyzes the current project to determine the minimum subset of file required to build it an cache the dependencies. The build stage is where cargo chef checks the project skeleton identified in the planner stage and builds it to cache dependencies. The final stage, runtime, sets up the runtime with debian and imports the binary build in the previous stage.
+All docker builds are in 4 stages. 
+1. Set up [`cargo chef`](https://github.com/LukeMathWalker/cargo-chef), this caches the Rust dependencies for faster builds. 
+2. Planning — `cargo chef` analyzes the current project to determine the minimum subset of file required to build it an cache the dependencies. 
+3. Build — `cargo chef` checks the project skeleton identified in the planner stage and builds it to cache dependencies. 
+4. Runtime — sets up the runtime with Debian and imports the binary build in the previous stage.
 
 ## Building
 
