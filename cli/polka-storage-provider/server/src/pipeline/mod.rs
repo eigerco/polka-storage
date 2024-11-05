@@ -408,7 +408,7 @@ async fn prove_commit(
     let seed = draw_randomness(
         &digest,
         DomainSeparationTag::InteractiveSealChallengeSeed,
-        precommit_block,
+        prove_commit_block,
         &entropy,
     );
 
