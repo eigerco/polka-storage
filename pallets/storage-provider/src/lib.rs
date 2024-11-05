@@ -1554,8 +1554,9 @@ pub mod pallet {
 
         let prover_id = derive_prover_id(owner);
 
-        log::info!("Performing prove commit for, seal_randomness_height {:?}, pre_commit_block: {:?}, prove_commit_block: {:?}, entropy: {}, ticket: {}, seed: {}",
+        log::debug!(target: LOG_TARGET, "Performing prove commit for, seal_randomness_height {:?}, pre_commit_block: {:?}, prove_commit_block: {:?}, entropy: {}, ticket: {}, seed: {}",
             precommit.info.seal_randomness_height, precommit.pre_commit_block_number, interactive_block_number, hex::encode(entropy), hex::encode(randomness), hex::encode(interactive_randomness));
+        log::debug!(target: LOG_TARGET, "Prover Id: {}, Sector Number: {}", hex::encode(prover_id), precommit.info.sector_number);
 
         // Verify the porep proof
         T::ProofVerification::verify_porep(

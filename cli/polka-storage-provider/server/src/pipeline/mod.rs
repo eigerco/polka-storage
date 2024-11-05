@@ -420,12 +420,13 @@ async fn prove_commit(
         &entropy,
     );
 
-    tracing::info!("Performing prove commit for, seal_randomness_height {}, pre_commit_block: {}, prove_commit_block: {}, entropy: {}, ticket: {}, seed: {}",
+    let prover_id = derive_prover_id(state.xt_keypair.account_id());
+    tracing::debug!("Performing prove commit for, seal_randomness_height {}, pre_commit_block: {}, prove_commit_block: {}, entropy: {}, ticket: {}, seed: {}",
         seal_randomness_height, sector.precommit_block.unwrap(), prove_commit_block, hex::encode(entropy), hex::encode(ticket), hex::encode(seed));
+    tracing::debug!("Prover Id: {}, Sector Number: {}", hex::encode(prover_id), sector_number);
 
     let sealing_handle: JoinHandle<Result<Vec<Proof>, _>> = {
         let porep_params = state.porep_parameters.clone();
-        let prover_id = derive_prover_id(state.xt_keypair.account_id());
         let cache_dir = state.sealing_cache_dir.clone();
         let sealed_path = sector.sealed_path.clone();
         let piece_infos = sector.piece_infos.clone();
