@@ -1519,8 +1519,6 @@ pub mod pallet {
         let interactive_block_number =
             precommit.pre_commit_block_number + T::PreCommitChallengeDelay::get();
 
-        // check out this interactive block number cause i'm confused
-        // would need to fetch it after pre-commit
         if current_block_number < interactive_block_number {
             log::error!(target: LOG_TARGET, "too early to prove sector: current_block_number: {current_block_number:?} < interactive_block_number: {interactive_block_number:?}");
             return Err(Error::<T>::InvalidProof)?;
