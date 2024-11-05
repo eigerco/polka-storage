@@ -1059,7 +1059,7 @@ pub mod pallet {
             );
             // expiration cannot be less than minimum after activation
             ensure!(
-                expiration - activation > T::MinSectorExpiration::get(),
+                expiration - activation >= T::MinSectorExpiration::get(),
                 Error::<T>::ExpirationTooSoon
             );
             // expiration cannot exceed MaxSectorExpiration from now

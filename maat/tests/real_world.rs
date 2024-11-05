@@ -1,4 +1,4 @@
-use std::{collections::BTreeSet, time::Duration};
+use std::collections::BTreeSet;
 
 use maat::*;
 use primitives_proofs::SectorSize;
@@ -22,21 +22,6 @@ use zombienet_sdk::NetworkConfigExt;
 
 /// Network's collator name. Used for logs and so on.
 const COLLATOR_NAME: &str = "collator";
-
-const STRATEGIC_SLEEP: Duration = Duration::from_secs(6);
-
-/// Strategic sleep is a band-aid for [subxt#1668](https://github.com/paritytech/subxt/issues/1668).
-///
-/// The proper fix is to way for an event that actually reflects the success status of the operation.
-/// A possible fix is shown in [polkadot-sdk#4883](https://github.com/paritytech/polkadot-sdk/pull/4883/files#diff-275b35fb5cb16898b64ab5ba6b7da61a5107b3941aee88303cc298e735acbaa7R131-R151),
-/// however, it is not very ergonomic.
-async fn strategic_sleep() {
-    tracing::warn!(
-        "sleeping for {:?}, for more information, see https://github.com/paritytech/subxt/issues/1668",
-        STRATEGIC_SLEEP
-    );
-    // tokio::time::sleep(STRATEGIC_SLEEP).await;
-}
 
 async fn register_storage_provider<Keypair>(client: &storagext::Client, charlie: &Keypair)
 where
@@ -160,8 +145,8 @@ async fn publish_storage_deals<Keypair>(
         client: alice.account_id().clone(),
         provider: charlie.account_id().clone(),
         label: "My lovely Husky (husky.jpg)".to_owned(),
-        start_block: 65,
-        end_block: 115,
+        start_block: 146,
+        end_block: 196,
         storage_price_per_block: 500000000,
         provider_collateral: 12500000000,
         state: DealState::Published,
@@ -205,11 +190,11 @@ where
         sector_number: 1,
         sealed_cid,
         deal_ids: vec![0],
-        expiration: 165,
+        expiration: 264,
         unsealed_cid,
         // TODO: This height depends on the block of the randomness fetched from
         // the network when sealing a sector.
-        seal_randomness_height: 0,
+        seal_randomness_height: 82,
     }];
 
     let result = client
@@ -375,32 +360,32 @@ async fn real_world_use_case() {
     tracing::debug!("adding {} balance to charlie", balance);
     add_balance(&client, &charlie_kp, balance).await;
 
-    strategic_sleep().await;
-
     // Add balance to Alice
     let balance = 25_000_000_000;
     tracing::debug!("adding {} balance to alice", balance);
     add_balance(&client, &alice_kp, balance).await;
 
+    // 81 minimum blocks for the randomness to be available
+    client.wait_for_height(81, true).await.unwrap();
+
     publish_storage_deals(&client, &charlie_kp, &alice_kp).await;
 
     pre_commit_sectors(&client, &charlie_kp).await;
-    client.wait_for_height(40, true).await.unwrap();
+    client.wait_for_height(121, true).await.unwrap();
 
     prove_commit_sectors(&client, &charlie_kp).await;
 
-    // These ones wait for a specific block so the strategic sleep shouldn't be needed
-    client.wait_for_height(63, true).await.unwrap();
+    client.wait_for_height(144, true).await.unwrap();
     submit_windowed_post(&client, &charlie_kp).await;
 
-    client.wait_for_height(83, true).await.unwrap();
+    client.wait_for_height(164, true).await.unwrap();
     declare_faults(&client, &charlie_kp).await;
 
     declare_recoveries(&client, &charlie_kp).await;
 
-    client.wait_for_height(103, true).await.unwrap();
+    client.wait_for_height(184, true).await.unwrap();
     submit_windowed_post(&client, &charlie_kp).await;
 
-    client.wait_for_height(115, true).await.unwrap();
+    client.wait_for_height(196, true).await.unwrap();
     settle_deal_payments(&client, &charlie_kp, &alice_kp).await;
 }
