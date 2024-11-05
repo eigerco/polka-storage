@@ -344,7 +344,7 @@ struct SectorPreCommitInfoBuilder {
 impl Default for SectorPreCommitInfoBuilder {
     fn default() -> Self {
         let unsealed_cid =
-            Cid::from_str("baga6ea4seaqgi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5i")
+            Cid::from_str("baga6ea4seaqmruupwrxaeck7m3f5jtswpr7jv6bvwqeu5jinzjlcybh6er3ficq")
                 .unwrap()
                 .to_bytes()
                 .try_into()

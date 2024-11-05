@@ -627,7 +627,7 @@ fn verify_deals_for_activation() {
             Ok(bounded_vec![
                 Some(
                     Cid::from_str(
-                        "baga6ea4seaqgi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5i"
+                        "baga6ea4seaqmruupwrxaeck7m3f5jtswpr7jv6bvwqeu5jinzjlcybh6er3ficq"
                     )
                     .unwrap()
                 ),
@@ -812,12 +812,11 @@ fn activate_deals() {
                 .build()
         ];
 
-        // Piece cid and commd cid are the same if only one piece is in a deal.
         let piece_cid =
             Cid::from_str("baga6ea4seaqgi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5i")
                 .unwrap();
         let commd_cid =
-            Cid::from_str("baga6ea4seaqgi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5i")
+            Cid::from_str("baga6ea4seaqmruupwrxaeck7m3f5jtswpr7jv6bvwqeu5jinzjlcybh6er3ficq")
                 .unwrap();
         assert_eq!(
             Ok(bounded_vec![
@@ -869,8 +868,8 @@ fn activate_deals_fails_for_1_sector_but_succeeds_for_others() {
         let piece_cid =
             Cid::from_str("baga6ea4seaqgi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5i")
                 .unwrap();
-        let placeholder_commd_cid =
-            Cid::from_str("baga6ea4seaqgi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5i")
+        let commd_cid =
+            Cid::from_str("baga6ea4seaqmruupwrxaeck7m3f5jtswpr7jv6bvwqeu5jinzjlcybh6er3ficq")
                 .unwrap();
         assert_eq!(
             Ok(bounded_vec![
@@ -880,7 +879,7 @@ fn activate_deals_fails_for_1_sector_but_succeeds_for_others() {
                         piece_cid: piece_cid,
                         piece_size: 128
                     }],
-                    unsealed_cid: Some(placeholder_commd_cid),
+                    unsealed_cid: Some(commd_cid),
                 },
                 ActiveSector {
                     active_deals: bounded_vec![],

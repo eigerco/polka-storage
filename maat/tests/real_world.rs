@@ -177,7 +177,7 @@ where
 {
     // Unsealed sector commitment
     let unsealed_cid =
-        cid::Cid::try_from("baga6ea4seaqgi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5i")
+        cid::Cid::try_from("baga6ea4seaqmruupwrxaeck7m3f5jtswpr7jv6bvwqeu5jinzjlcybh6er3ficq")
             .expect("valid CID");
 
     // Sealed sector commitment.

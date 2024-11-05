@@ -32,7 +32,7 @@ fn successfully_prove_sector() {
         // Sector data
         let sector = SectorPreCommitInfoBuilder::default()
             .sector_number(sector_number)
-            .unsealed_cid("baga6ea4seaqeqgpphr6lmjhddjprb2etcfiml4sgr2kpju7kscfdj7227itm4hq")
+            .unsealed_cid("baga6ea4seaqhdbbdnon7gkuquzw6waekzqx5lbuio6a6wjie22pgfmwnv3a3wfi")
             .build();
 
         // Run pre commit extrinsic
@@ -121,7 +121,7 @@ fn successfully_prove_multiple_sectors() {
                     SectorPreCommitInfoBuilder::default()
                         .sector_number(sector_number)
                         .unsealed_cid(
-                            "baga6ea4seaqeqgpphr6lmjhddjprb2etcfiml4sgr2kpju7kscfdj7227itm4hq",
+                            "baga6ea4seaqhdbbdnon7gkuquzw6waekzqx5lbuio6a6wjie22pgfmwnv3a3wfi",
                         )
                         .build(),
                 )
@@ -278,7 +278,7 @@ fn fails_prove_commit_after_deadline() {
         // Sector data
         let sector = SectorPreCommitInfoBuilder::default()
             .sector_number(sector_number)
-            .unsealed_cid("baga6ea4seaqeqgpphr6lmjhddjprb2etcfiml4sgr2kpju7kscfdj7227itm4hq")
+            .unsealed_cid("baga6ea4seaqhdbbdnon7gkuquzw6waekzqx5lbuio6a6wjie22pgfmwnv3a3wfi")
             .build();
 
         // Run pre commit extrinsic

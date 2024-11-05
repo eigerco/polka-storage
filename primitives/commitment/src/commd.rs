@@ -32,7 +32,9 @@ fn ensure_piece_sizes(
     Ok(())
 }
 
-/// Computes an unsealed sector CID (CommD) from its constituent piece CIDs (CommPs) and sizes.
+/// Computes an unsealed sector CID (CommD) from its constituent piece CIDs
+/// (CommPs) and sizes. If the sector is not entirely filled with pieces, the
+/// remaining space is filled with zero pieces.
 pub fn compute_unsealed_sector_commitment(
     sector_size: SectorSize,
     piece_infos: &[PieceInfo],
@@ -51,7 +53,9 @@ pub fn compute_unsealed_sector_commitment(
     // Reduce the pieces to the 1-piece commitment
     let mut reduction = CommDPieceReduction::new();
     reduction.add_pieces(piece_infos.iter().copied());
-    let commitment = reduction.finish().expect("at least one piece was added");
+    let commitment = reduction
+        .finish(sector_size)
+        .expect("at least one piece was added");
 
     Ok(commitment)
 }
@@ -103,8 +107,8 @@ impl CommDPieceReduction {
         // the first condition would have triggered and returned.
         while let Some(last_piece) = self.pieces.last() {
             let last_added_piece_size = last_piece.size;
-            // We can stop stop adding padding pieces if the last added padding
-            // piece is the same size as the actual piece.
+            // We can stop adding padding pieces if the last added padding piece
+            // is the same size as the actual piece.
             if last_added_piece_size.deref() >= piece.size.deref() {
                 break;
             }
@@ -160,13 +164,16 @@ impl CommDPieceReduction {
 
     /// Finish the reduction of all pieces. Result is a data commitment for the
     /// pieces added.
-    fn finish(mut self) -> Option<Commitment> {
-        // Check if we still have more then one piece on the stack. If we do,
-        // that means that we should add some additional padding pieces at the
-        // end until we can reduce them to a single piece
-        while self.pieces.len() > 1 {
-            let last_added_piece_size = self.pieces.last().expect("at least one piece exists").size;
-            self.pieces.push(padding_piece(last_added_piece_size));
+    fn finish(mut self, sector_size: SectorSize) -> Option<Commitment> {
+        // Add padding pieces to the end until the sector size is reached and we
+        // have only a single piece left on the stack.
+        loop {
+            let current_piece_size = self.pieces.last().expect("at least one piece exists").size;
+            if *current_piece_size >= sector_size.bytes() && self.pieces.len() == 1 {
+                break;
+            }
+
+            self.pieces.push(padding_piece(current_piece_size));
             self.reduce();
         }
 
@@ -258,67 +265,63 @@ mod tests {
         );
     }
 
-    /// Reference: <https://github.com/ChainSafe/fil-actor-states/blob/9a508dbdd5d5049b135fbf908caa6cf18007a208/fil_actors_shared/src/abi/commp.rs#L145>
+    /// The difference from the reference is that our
+    /// `compute_unsealed_sector_commitment` takes care of the zero padding
+    /// after the actual pieces.
+    ///
+    /// Reference:
+    /// <https://github.com/ChainSafe/fil-actor-states/blob/9a508dbdd5d5049b135fbf908caa6cf18007a208/fil_actors_shared/src/abi/commp.rs#L145>
     #[test]
     fn compute_unsealed_sector_cid() {
         let pieces = [
             (
-                Some("baga6ea4seaqknzm22isnhsxt2s4dnw45kfywmhenngqq3nc7jvecakoca6ksyhy"),
+                "baga6ea4seaqknzm22isnhsxt2s4dnw45kfywmhenngqq3nc7jvecakoca6ksyhy",
                 256 << 20,
             ),
             (
-                Some("baga6ea4seaqnq6o5wuewdpviyoafno4rdpqnokz6ghvg2iyeyfbqxgcwdlj2egi"),
+                "baga6ea4seaqnq6o5wuewdpviyoafno4rdpqnokz6ghvg2iyeyfbqxgcwdlj2egi",
                 1024 << 20,
             ),
             (
-                Some("baga6ea4seaqpixk4ifbkzato3huzycj6ty6gllqwanhdpsvxikawyl5bg2h44mq"),
+                "baga6ea4seaqpixk4ifbkzato3huzycj6ty6gllqwanhdpsvxikawyl5bg2h44mq",
                 512 << 20,
             ),
             (
-                Some("baga6ea4seaqaxwe5dy6nt3ko5tngtmzvpqxqikw5mdwfjqgaxfwtzenc6bgzajq"),
+                "baga6ea4seaqaxwe5dy6nt3ko5tngtmzvpqxqikw5mdwfjqgaxfwtzenc6bgzajq",
                 512 << 20,
             ),
             (
-                Some("baga6ea4seaqpy33nbesa4d6ot2ygeuy43y4t7amc4izt52mlotqenwcmn2kyaai"),
+                "baga6ea4seaqpy33nbesa4d6ot2ygeuy43y4t7amc4izt52mlotqenwcmn2kyaai",
                 1024 << 20,
             ),
             (
-                Some("baga6ea4seaqphvv4x2s2v7ykgc3ugs2kkltbdeg7icxstklkrgqvv72m2v3i2aa"),
+                "baga6ea4seaqphvv4x2s2v7ykgc3ugs2kkltbdeg7icxstklkrgqvv72m2v3i2aa",
                 256 << 20,
             ),
             (
-                Some("baga6ea4seaqf5u55znk6jwhdsrhe37emzhmehiyvjxpsww274f6fiy3h4yctady"),
+                "baga6ea4seaqf5u55znk6jwhdsrhe37emzhmehiyvjxpsww274f6fiy3h4yctady",
                 512 << 20,
             ),
             (
-                Some("baga6ea4seaqa3qbabsbmvk5er6rhsjzt74beplzgulthamm22jue4zgqcuszofi"),
+                "baga6ea4seaqa3qbabsbmvk5er6rhsjzt74beplzgulthamm22jue4zgqcuszofi",
                 1024 << 20,
             ),
             (
-                Some("baga6ea4seaqiekvf623muj6jpxg6vsqaikyw3r4ob5u7363z7zcaixqvfqsc2ji"),
+                "baga6ea4seaqiekvf623muj6jpxg6vsqaikyw3r4ob5u7363z7zcaixqvfqsc2ji",
                 256 << 20,
             ),
             (
-                Some("baga6ea4seaqhsewv65z2d4m5o4vo65vl5o6z4bcegdvgnusvlt7rao44gro36pi"),
+                "baga6ea4seaqhsewv65z2d4m5o4vo65vl5o6z4bcegdvgnusvlt7rao44gro36pi",
                 512 << 20,
             ),
-            // The sector has to be filled entirely, before we can calculate the
-            // commitment, so we add two more empty pieces here.
-            (None, 8 << 30),
-            (None, 16 << 30),
         ];
 
         let pieces = pieces
             .into_iter()
             .map(|(cid, size)| {
                 let size = PaddedPieceSize::new(size).unwrap();
-                let commitment = match cid {
-                    Some(cid) => {
-                        let cid = Cid::from_str(cid).unwrap();
-                        Commitment::from_cid(&cid, CommitmentKind::Piece).unwrap()
-                    }
-                    None => zero_piece_commitment(size),
-                };
+                let cid = Cid::from_str(cid).unwrap();
+                let commitment = Commitment::from_cid(&cid, CommitmentKind::Piece).unwrap();
 
                 PieceInfo { commitment, size }
             })
