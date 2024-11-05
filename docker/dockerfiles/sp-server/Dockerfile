@@ -8,23 +8,29 @@ WORKDIR /app
 ##### Planner
 FROM chef AS planner
 COPY . .
-RUN cargo chef prepare --recipe-path recipe.json
+RUN cargo chef prepare --bin polka-storage-provider-server --recipe-path recipe.json
 
 ################
 ##### Builder
 FROM chef AS builder
 
 RUN apt update && apt upgrade -y
-RUN apt install -y hwloc opencl-headers ocl-icd-opencl-dev protobuf-compiler clang git
+RUN apt install -y libhwloc-dev \
+    opencl-headers \
+    ocl-icd-opencl-dev \
+    protobuf-compiler \
+    clang \
+    build-essential \
+    git
 
 # Copy required files
 COPY --from=planner /app/recipe.json recipe.json
 COPY --from=planner /app/rust-toolchain.toml rust-toolchain.toml
 # Build dependencies - this is the caching Docker layer!
-RUN cargo chef cook --release --recipe-path recipe.json
+RUN cargo chef cook --bin polka-storage-provider-server --release --recipe-path recipe.json
 # Build application
 COPY . .
-RUN cargo build --release -p polka-storage-provider-server
+RUN cargo build --release --bin polka-storage-provider-server
 
 ################
 ##### Runtime
