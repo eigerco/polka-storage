@@ -302,7 +302,7 @@ async fn precommit(
     sector.state = SectorState::Sealed;
     sector.comm_r = Some(Commitment::replica(sealing_output.comm_r));
     sector.comm_d = Some(Commitment::data(sealing_output.comm_d));
-    sector.precommit_block = Some(current_block);
+    sector.seal_randomness_height = Some(current_block);
     state.db.save_sector(&sector)?;
 
     tracing::debug!("Precommiting at block: {}", current_block);
@@ -339,9 +339,6 @@ async fn precommit(
         .await?
         .expect("we're waiting for the result");
 
-    sector.state = SectorState::Precommitted;
-    state.db.save_sector(&sector)?;
-
     let precommited_sectors = result
         .events
         .find::<storagext::runtime::storage_provider::events::SectorsPreCommitted>()
@@ -350,6 +347,10 @@ async fn precommit(
         // subxt_core::Error -> PipelineError
         .map(|result| result.map_err(|err| subxt::Error::from(err)))
         .collect::<Result<Vec<_>, _>>()?;
+
+    sector.precommit_block = Some(precommited_sectors[0].block);
+    sector.state = SectorState::Precommitted;
+    state.db.save_sector(&sector)?;
 
     tracing::info!(
         "Successfully pre-commited sectors on-chain: {:?}",
@@ -378,8 +379,12 @@ async fn prove_commit(
         return Err(PipelineError::NotExistentSector);
     };
 
-    let precommit_block = sector.precommit_block.unwrap();
-    let Some(digest) = state.xt_client.get_randomness(precommit_block).await? else {
+    let seal_randomness_height = sector.seal_randomness_height.unwrap();
+    let Some(digest) = state
+        .xt_client
+        .get_randomness(seal_randomness_height)
+        .await?
+    else {
         tracing::error!("Out-of-the-state transition, this SHOULD not happen");
         return Err(PipelineError::NotAvailableRandomness);
     };
@@ -389,7 +394,7 @@ async fn prove_commit(
     let ticket = draw_randomness(
         &digest,
         DomainSeparationTag::SealRandomness,
-        precommit_block,
+        seal_randomness_height,
         &entropy,
     );
 
@@ -397,10 +402,13 @@ async fn prove_commit(
     // https://github.com/eigerco/polka-storage/blob/5edd4194f08f29d769c277577ccbb70bb6ff63bc/runtime/src/configs/mod.rs#L360
     // 10 blocks = 1 minute, only testnet
     const PRECOMMIT_CHALLENGE_DELAY: u64 = 10;
-    let prove_commit_block = precommit_block + PRECOMMIT_CHALLENGE_DELAY;
+    let prove_commit_block = sector.precommit_block.unwrap() + PRECOMMIT_CHALLENGE_DELAY;
 
     tracing::info!("Wait for block {} to get randomness", prove_commit_block);
-    state.xt_client.wait_for_height(prove_commit_block, true).await?;
+    state
+        .xt_client
+        .wait_for_height(prove_commit_block, true)
+        .await?;
     let Some(digest) = state.xt_client.get_randomness(prove_commit_block).await? else {
         tracing::error!("Randomness for the block not available.");
         return Err(PipelineError::NotAvailableRandomness);
@@ -411,6 +419,9 @@ async fn prove_commit(
         prove_commit_block,
         &entropy,
     );
+
+    tracing::info!("Performing prove commit for, seal_randomness_height {}, pre_commit_block: {}, prove_commit_block: {}, entropy: {}, ticket: {}, seed: {}",
+        seal_randomness_height, sector.precommit_block.unwrap(), prove_commit_block, hex::encode(entropy), hex::encode(ticket), hex::encode(seed));
 
     let sealing_handle: JoinHandle<Result<Vec<Proof>, _>> = {
         let porep_params = state.porep_parameters.clone();

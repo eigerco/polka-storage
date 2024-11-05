@@ -26,6 +26,7 @@ jsonrpsee = { workspace = true, features = ["http-client", "macros", "server", "
 rand = { workspace = true }
 rocksdb = { workspace = true }
 sc-cli = { workspace = true }
+hex = { workspace = true, features = ["std"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 subxt = { workspace = true }

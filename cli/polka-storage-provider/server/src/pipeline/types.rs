@@ -75,6 +75,7 @@ pub struct Sector {
     pub sealed_path: std::path::PathBuf,
     pub comm_r: Option<Commitment>,
     pub comm_d: Option<Commitment>,
+    pub seal_randomness_height: Option<u64>,
     pub precommit_block: Option<u64>,
 }
 
@@ -101,6 +102,7 @@ impl Sector {
             sealed_path,
             comm_r: None,
             comm_d: None,
+            seal_randomness_height: None,
             precommit_block: None,
         })
     }

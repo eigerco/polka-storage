@@ -50,6 +50,7 @@ fn successfully_precommited() {
                     amount: 1
                 },),
                 RuntimeEvent::StorageProvider(Event::<Test>::SectorsPreCommitted {
+                    block: 1,
                     owner: account(storage_provider),
                     sectors: bounded_vec![sector],
                 })
@@ -97,6 +98,7 @@ fn successfully_precommited_no_deals() {
                     amount: 1
                 },),
                 RuntimeEvent::StorageProvider(Event::<Test>::SectorsPreCommitted {
+                    block: 1,
                     owner: account(storage_provider),
                     sectors: bounded_vec![sector],
                 })
@@ -160,6 +162,7 @@ fn successfully_precommited_batch() {
                     amount: SECTORS_TO_PRECOMMIT
                 },),
                 RuntimeEvent::StorageProvider(Event::<Test>::SectorsPreCommitted {
+                    block: 1,
                     owner: account(storage_provider),
                     sectors,
                 })
