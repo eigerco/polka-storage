@@ -456,12 +456,15 @@ async fn prove_commit(
                 sector_number,
                 proof,
             }],
+            true,
         )
-        .await?;
+        .await?
+        .unwrap();
 
     let proven_sectors = result
         .events
         .find::<storagext::runtime::storage_provider::events::SectorsProven>()
+        .map(|result| result.map_err(|err| subxt::Error::from(err)))
         .collect::<Result<Vec<_>, _>>()?;
 
     tracing::info!("Successfully proven sectors on-chain: {:?}", proven_sectors);
