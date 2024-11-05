@@ -26,7 +26,7 @@ fn successfully_precommited() {
 
         // Sector to be pre-committed.
         let sector = SectorPreCommitInfoBuilder::default()
-            .unsealed_cid("baga6ea4seaqeqgpphr6lmjhddjprb2etcfiml4sgr2kpju7kscfdj7227itm4hq")
+            .unsealed_cid("baga6ea4seaqhdbbdnon7gkuquzw6waekzqx5lbuio6a6wjie22pgfmwnv3a3wfi")
             .build();
 
         // Check starting balance
@@ -138,7 +138,7 @@ fn successfully_precommited_batch() {
                     SectorPreCommitInfoBuilder::default()
                         .sector_number(sector_number)
                         .unsealed_cid(
-                            "baga6ea4seaqeqgpphr6lmjhddjprb2etcfiml4sgr2kpju7kscfdj7227itm4hq",
+                            "baga6ea4seaqhdbbdnon7gkuquzw6waekzqx5lbuio6a6wjie22pgfmwnv3a3wfi",
                         )
                         .build(),
                 )
@@ -223,7 +223,7 @@ fn fails_sector_number_already_used() {
 
         // Sector to be pre-committed
         let sector = SectorPreCommitInfoBuilder::default()
-            .unsealed_cid("baga6ea4seaqeqgpphr6lmjhddjprb2etcfiml4sgr2kpju7kscfdj7227itm4hq")
+            .unsealed_cid("baga6ea4seaqhdbbdnon7gkuquzw6waekzqx5lbuio6a6wjie22pgfmwnv3a3wfi")
             .build();
 
         // Run pre commit extrinsic
@@ -242,7 +242,6 @@ fn fails_sector_number_already_used() {
     });
 }
 
-#[ignore = "bug #496"]
 #[test]
 fn fails_declared_commd_not_matching() {
     new_test_ext().execute_with(|| {
@@ -254,7 +253,7 @@ fn fails_declared_commd_not_matching() {
         // Sector to be pre-committed
         let sector = SectorPreCommitInfoBuilder::default()
             // wrong cid for for the sector
-            .unsealed_cid("baga6ea4seaqgi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5lnnv4wi5i")
+            .unsealed_cid("baga6ea4seaqmruupwrxaeck7m3f5jtswpr7jv6bvwqeu5jinzjlcybh6er3ficq")
             .build();
 
         assert_noop!(
