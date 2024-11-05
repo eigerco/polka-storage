@@ -104,6 +104,76 @@ pub async fn start_pipeline(
     Ok(())
 }
 
+trait PipelineOperations {
+    fn add_piece(msg: AddPieceMessage);
+    fn precommit(msg: PreCommitMessage);
+    fn prove_commit(msg: ProveCommitMessage);
+}
+
+impl PipelineOperations for TaskTracker {
+    fn add_piece(&self, msg: AddPieceMessage) {
+        let AddPieceMessage {
+            deal,
+            published_deal_id,
+            piece_path,
+            piece_cid,
+        } = msg;
+        self.spawn(async move {
+            tokio::select! {
+                // AddPiece is cancellation safe, as it can be retried and the state will be fine.
+                res = add_piece(state, piece_path, piece_cid, deal, published_deal_id) => {
+                    match res {
+                        Ok(_) => tracing::info!("Add Piece for piece {:?}, deal id {}, finished successfully.", piece_cid, published_deal_id),
+                        Err(err) => tracing::error!(%err, "Add Piece for piece {:?}, deal id {}, failed!", piece_cid, published_deal_id),
+                    }
+                },
+                () = token.cancelled() => {
+                    tracing::warn!("AddPiece has been cancelled.");
+                }
+            }
+        });
+    }
+
+    fn precommit(msg: PreCommitMessage) {
+        let PreCommitMessage { sector_number } = msg;
+        self.spawn(async move {
+            // Precommit is not cancellation safe.
+            // TODO(@th7nder,#501, 04/11/2024): when it's cancelled, it can hang and user will have to wait for it to finish.
+            // If they don't the state can be corrupted, we could improve that situation.
+            // One of the ideas is to store state as 'Precommitting' so then we know we can retry that after some time.
+            match precommit(state, sector_number).await {
+                Ok(_) => {
+                    tracing::info!(
+                        "Precommit for sector {} finished successfully.",
+                        sector_number
+                    )
+                }
+                Err(err) => {
+                    tracing::error!(%err, "Failed PreCommit for Sector: {}", sector_number)
+                }
+            }
+        });
+    }
+
+    fn prove_commit(&self, msg: ProveCommitMessage) {
+        let ProveCommitMessage { sector_number } = msg;
+        self.spawn(async move {
+            // ProveCommit is not cancellation safe.
+            match prove_commit(state, sector_number).await {
+                Ok(_) => {
+                    tracing::info!(
+                        "ProveCommit for sector {} finished successfully.",
+                        sector_number
+                    )
+                }
+                Err(err) => {
+                    tracing::error!(%err, "Failed ProveCommit for Sector: {}", sector_number)
+                }
+            }
+        });
+    }
+}
+
 fn process(
     tracker: &TaskTracker,
     msg: PipelineMessage,
@@ -111,62 +181,9 @@ fn process(
     token: CancellationToken,
 ) {
     match msg {
-        PipelineMessage::AddPiece(AddPieceMessage {
-            deal,
-            published_deal_id,
-            piece_path,
-            piece_cid,
-        }) => {
-            tracker.spawn(async move {
-                tokio::select! {
-                    // AddPiece is cancellation safe, as it can be retried and the state will be fine.
-                    res = add_piece(state, piece_path, piece_cid, deal, published_deal_id) => {
-                        match res {
-                            Ok(_) => tracing::info!("Add Piece for piece {:?}, deal id {}, finished successfully.", piece_cid, published_deal_id),
-                            Err(err) => tracing::error!(%err, "Add Piece for piece {:?}, deal id {}, failed!", piece_cid, published_deal_id),
-                        }
-                    },
-                    () = token.cancelled() => {
-                        tracing::warn!("AddPiece has been cancelled.");
-                    }
-                }
-            });
-        }
-        PipelineMessage::PreCommit(PreCommitMessage { sector_number }) => {
-            tracker.spawn(async move {
-                // Precommit is not cancellation safe.
-                // TODO(@th7nder,#501, 04/11/2024): when it's cancelled, it can hang and user will have to wait for it to finish.
-                // If they don't the state can be corrupted, we could improve that situation.
-                // One of the ideas is to store state as 'Precommitting' so then we know we can retry that after some time.
-                match precommit(state, sector_number).await {
-                    Ok(_) => {
-                        tracing::info!(
-                            "Precommit for sector {} finished successfully.",
-                            sector_number
-                        )
-                    }
-                    Err(err) => {
-                        tracing::error!(%err, "Failed PreCommit for Sector: {}", sector_number)
-                    }
-                }
-            });
-        }
-        PipelineMessage::ProveCommit(ProveCommitMessage { sector_number }) => {
-            tracker.spawn(async move {
-                // ProveCommit is not cancellation safe.
-                match prove_commit(state, sector_number).await {
-                    Ok(_) => {
-                        tracing::info!(
-                            "ProveCommit for sector {} finished successfully.",
-                            sector_number
-                        )
-                    }
-                    Err(err) => {
-                        tracing::error!(%err, "Failed ProveCommit for Sector: {}", sector_number)
-                    }
-                }
-            });
-        }
+        PipelineMessage::AddPiece(msg) => tracker.add_piece(msg),
+        PipelineMessage::PreCommit(msg) => tracker.precommit(msg),
+        PipelineMessage::ProveCommit(msg) => tracker.prove_commit(msg),
     }
 }
 
