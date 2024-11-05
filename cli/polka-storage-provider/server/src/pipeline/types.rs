@@ -8,10 +8,11 @@ use storagext::types::market::DealProposal;
 /// Represents a task to be executed on the Storage Provider Pipeline
 #[derive(Debug)]
 pub enum PipelineMessage {
-    /// Adds a deal to a sector selected by the storage provider
+    /// Adds a deal to a sector selected by the storage provider.
     AddPiece(AddPieceMessage),
-    /// Pads, seals the sector and pre-commits it on chain
+    /// Pads, seals a sector and pre-commits it on-chain.
     PreCommit(PreCommitMessage),
+    /// Generates a PoRep for a sector and verifies the proof on-chain.
     ProveCommit(ProveCommitMessage),
 }
 
@@ -73,9 +74,23 @@ pub struct Sector {
     /// Only after pipeline [`PipelineMessage::PreCommit`],
     /// the file has contents which should not be touched and are used for later steps.
     pub sealed_path: std::path::PathBuf,
+    /// CID of the sealed sector.
+    ///
+    /// Available at [`SectorState::Sealed`]/[`PipelineMessage::PreCommit`] and later.
     pub comm_r: Option<Commitment>,
+    /// CID of the unsealed data of the sector.
+    ///
+    /// Available at [`SectorState::Sealed`]/[`PipelineMessage::PreCommit`] and later.
     pub comm_d: Option<Commitment>,
+    /// Block at which randomness has been fetched to perform [`PipelineMessage::PreCommit`].
+    ///
+    /// It is used as a randomness seed to create a replica.
+    /// Available at [`SectorState::Sealed`] and later.
     pub seal_randomness_height: Option<u64>,
+    /// Block at which the sector was precommitted (extrinsic submitted on-chain).
+    ///
+    /// It is used as a randomness seed to create a PoRep.
+    /// Available at [`SectorState::Precommitted`] and later.
     pub precommit_block: Option<u64>,
 }
 
@@ -117,7 +132,8 @@ pub enum SectorState {
     Sealed,
     /// Sealed sector has been published on-chain, so now the PoRep must be generated for it.
     Precommitted,
-    /// After a PoRep for a sector has been created and publish on-chain.
+    /// After a PoRep for a sector has been generated.
     Proven,
+    /// Generated PoRep for a sector has been published and verified on-chain.
     ProveCommitted,
 }

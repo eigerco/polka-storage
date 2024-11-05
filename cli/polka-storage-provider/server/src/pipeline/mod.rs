@@ -3,7 +3,7 @@ pub mod types;
 use std::{path::PathBuf, sync::Arc};
 
 use polka_storage_proofs::porep::{
-    sealer::{prepare_piece, PreCommitOutput, Proof, Sealer, SubstrateProof},
+    sealer::{prepare_piece, BlstrsProof, PreCommitOutput, Sealer, SubstrateProof},
     PoRepError, PoRepParameters,
 };
 use polka_storage_provider_common::rpc::ServerInfo;
@@ -49,9 +49,9 @@ pub enum PipelineError {
     #[error(transparent)]
     DBError(#[from] DBError),
     #[error("sector does not exist")]
-    NotExistentSector,
+    SectorNotFound,
     #[error("precommit scheduled too early, randomness not available")]
-    NotAvailableRandomness,
+    RandomnessNotAvailable,
     #[error(transparent)]
     SendError(#[from] SendError<PipelineMessage>),
 }
@@ -252,7 +252,7 @@ async fn precommit(
     let sealer = Sealer::new(state.server_info.seal_proof);
     let Some(mut sector) = state.db.get_sector(sector_number)? else {
         tracing::error!("Tried to precommit non-existing sector");
-        return Err(PipelineError::NotExistentSector);
+        return Err(PipelineError::SectorNotFound);
     };
     // Pad sector so CommD can be properly calculated.
     sector.piece_infos = sealer.pad_sector(&sector.piece_infos, sector.occupied_sector_space)?;
@@ -265,7 +265,7 @@ async fn precommit(
 
     let Some(digest) = state.xt_client.get_randomness(current_block).await? else {
         tracing::error!("Precommit was scheduled too early, when the randomness on-chain was not yet available...");
-        return Err(PipelineError::NotAvailableRandomness);
+        return Err(PipelineError::RandomnessNotAvailable);
     };
     let entropy = state.xt_keypair.account_id().encode();
     // Must match pallet's logic or otherwise proof won't be verified:
@@ -376,17 +376,19 @@ async fn prove_commit(
     let sealer = Sealer::new(state.server_info.seal_proof);
     let Some(mut sector) = state.db.get_sector(sector_number)? else {
         tracing::error!("Tried to precommit non-existing sector");
-        return Err(PipelineError::NotExistentSector);
+        return Err(PipelineError::SectorNotFound);
     };
 
-    let seal_randomness_height = sector.seal_randomness_height.unwrap();
+    let seal_randomness_height = sector
+        .seal_randomness_height
+        .expect("sector to be sealed before proving using randomness from the chain");
     let Some(digest) = state
         .xt_client
         .get_randomness(seal_randomness_height)
         .await?
     else {
         tracing::error!("Out-of-the-state transition, this SHOULD not happen");
-        return Err(PipelineError::NotAvailableRandomness);
+        return Err(PipelineError::RandomnessNotAvailable);
     };
     let entropy = state.xt_keypair.account_id().encode();
     // Must match pallet's logic or otherwise proof won't be verified:
@@ -402,7 +404,10 @@ async fn prove_commit(
     // https://github.com/eigerco/polka-storage/blob/5edd4194f08f29d769c277577ccbb70bb6ff63bc/runtime/src/configs/mod.rs#L360
     // 10 blocks = 1 minute, only testnet
     const PRECOMMIT_CHALLENGE_DELAY: u64 = 10;
-    let prove_commit_block = sector.precommit_block.unwrap() + PRECOMMIT_CHALLENGE_DELAY;
+    let precommit_block = sector
+        .precommit_block
+        .expect("sector to be pre-committed on-chain before proving");
+    let prove_commit_block = precommit_block + PRECOMMIT_CHALLENGE_DELAY;
 
     tracing::info!("Wait for block {} to get randomness", prove_commit_block);
     state
@@ -411,7 +416,7 @@ async fn prove_commit(
         .await?;
     let Some(digest) = state.xt_client.get_randomness(prove_commit_block).await? else {
         tracing::error!("Randomness for the block not available.");
-        return Err(PipelineError::NotAvailableRandomness);
+        return Err(PipelineError::RandomnessNotAvailable);
     };
     let seed = draw_randomness(
         &digest,
@@ -422,16 +427,26 @@ async fn prove_commit(
 
     let prover_id = derive_prover_id(state.xt_keypair.account_id());
     tracing::debug!("Performing prove commit for, seal_randomness_height {}, pre_commit_block: {}, prove_commit_block: {}, entropy: {}, ticket: {}, seed: {}",
-        seal_randomness_height, sector.precommit_block.unwrap(), prove_commit_block, hex::encode(entropy), hex::encode(ticket), hex::encode(seed));
-    tracing::debug!("Prover Id: {}, Sector Number: {}", hex::encode(prover_id), sector_number);
+        seal_randomness_height, precommit_block, prove_commit_block, hex::encode(entropy), hex::encode(ticket), hex::encode(seed));
+    tracing::debug!(
+        "Prover Id: {}, Sector Number: {}",
+        hex::encode(prover_id),
+        sector_number
+    );
 
-    let sealing_handle: JoinHandle<Result<Vec<Proof>, _>> = {
+    let sealing_handle: JoinHandle<Result<Vec<BlstrsProof>, _>> = {
         let porep_params = state.porep_parameters.clone();
         let cache_dir = state.sealing_cache_dir.clone();
         let sealed_path = sector.sealed_path.clone();
         let piece_infos = sector.piece_infos.clone();
-        let comm_r = sector.comm_r.unwrap().raw();
-        let comm_d = sector.comm_d.unwrap().raw();
+        let comm_r = sector
+            .comm_r
+            .expect("sector to be sealed and it's comm_r set before proving")
+            .raw();
+        let comm_d = sector
+            .comm_d
+            .expect("sector to be sealed and it's comm_d set before proving")
+            .raw();
         tokio::task::spawn_blocking(move || {
             sealer.prove_sector(
                 porep_params.as_ref(),
@@ -471,7 +486,7 @@ async fn prove_commit(
             true,
         )
         .await?
-        .unwrap();
+        .expect("waiting for finalization should always give results");
 
     let proven_sectors = result
         .events

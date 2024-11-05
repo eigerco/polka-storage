@@ -22,7 +22,13 @@ use crate::{
     ZeroPaddingReader,
 };
 
-pub type Proof = groth16::Proof<Bls12>;
+/// Proof using [`blstrs::Bls12`] as finite field elements.
+///
+/// It's the output of PoRep and PoSt proof generation and CANNOT be used in no_std.
+pub type BlstrsProof = groth16::Proof<Bls12>;
+/// Proof using [`bls12_381::Bls12`] as finite field elements.
+///
+/// It is used in no_std to verify proofs, converted from [`BlstrsProof`].
 pub type SubstrateProof = crate::Proof<bls12_381::Bls12>;
 
 /// Prepares an arbitrary piece to be used by [`Sealer::create_sector`].

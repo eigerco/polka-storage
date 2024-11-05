@@ -242,7 +242,6 @@ pub struct ServerConfiguration {
 
     /// Proving Parameters for PoRep proof
     /// For 2KiB sectors they're ~1GiB of data.
-    /// We may load them on demand someday.
     porep_parameters: PoRepParameters,
 }
 
