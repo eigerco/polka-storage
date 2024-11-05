@@ -266,7 +266,7 @@ mod tests {
     }
 
     /// The difference from the reference is that our
-    /// `compute_unsealed_sector_commitment` take cares of the zero padding
+    /// `compute_unsealed_sector_commitment` takes care of the zero padding
     /// after the actual pieces.
     ///
     /// Reference:
