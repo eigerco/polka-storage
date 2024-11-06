@@ -55,12 +55,12 @@ DEAL_JSON=$(
         "state": "Published"
     }'
 )
-SIGNED_DEAL_JSON="$(RUST_LOG=error target/release/polka-storage-provider-client client sign-deal --sr25519-key "$CLIENT" "$DEAL_JSON")"
+SIGNED_DEAL_JSON="$(RUST_LOG=error target/release/polka-storage-provider-client sign-deal --sr25519-key "$CLIENT" "$DEAL_JSON")"
 
 (RUST_LOG=debug target/release/polka-storage-provider-server --sr25519-key "$PROVIDER" --seal-proof "2KiB" --post-proof "2KiB") &
 sleep 5 # gives time for the server to start
 
-DEAL_CID="$(RUST_LOG=error target/release/polka-storage-provider-client client propose-deal "$DEAL_JSON")"
+DEAL_CID="$(RUST_LOG=error target/release/polka-storage-provider-client propose-deal "$DEAL_JSON")"
 echo "$DEAL_CID"
 
 # Regular upload
@@ -69,7 +69,7 @@ echo "$DEAL_CID"
 # Multipart upload
 curl -X PUT -F "upload=@$INPUT_FILE" "http://localhost:8001/upload/$DEAL_CID"
 
-target/release/polka-storage-provider-client client publish-deal "$SIGNED_DEAL_JSON"
+target/release/polka-storage-provider-client publish-deal "$SIGNED_DEAL_JSON"
 
 # wait until user Ctrl+Cs so that the commitment can actually be calculated
 wait
