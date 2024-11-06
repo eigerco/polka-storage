@@ -26,15 +26,16 @@ use tokio::{
     task::{JoinError, JoinHandle},
 };
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
-use types::{AddPieceMessage, PipelineMessage, PreCommitMessage};
-
-use self::types::Sector;
-use crate::{
-    db::{DBError, DealDB},
-    pipeline::types::{ProveCommitMessage, SectorState},
+use types::{
+    AddPieceMessage, PipelineMessage, PreCommitMessage, PreCommittedSector, ProveCommitMessage,
+    ProvenSector, UnsealedSector,
 };
 
+use crate::db::{DBError, DealDB};
+
 const SECTOR_EXPIRATION_MARGIN: u64 = 20;
+/// TODO(@th7nder,[#457, #458], 06/11/2024): Blockchain cannot give randomness until block 82.
+const MINIMUM_BLOCK_WITH_RANDOMNESS_AVAILABLE: u64 = 82;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PipelineError {
@@ -187,13 +188,14 @@ fn process(
     }
 }
 
-async fn find_sector_for_piece(state: &Arc<PipelineState>) -> Result<Sector, PipelineError> {
+async fn find_sector_for_piece(
+    state: &Arc<PipelineState>,
+) -> Result<UnsealedSector, PipelineError> {
     // TODO(@th7nder,30/10/2024): simplification, we're always creating a new sector for storing a piece.
     // It should not work like that, sectors should be filled with pieces according to *some* algorithm.
     let sector_number = state.db.next_sector_number();
     let unsealed_path = state.unsealed_sectors_dir.join(sector_number.to_string());
-    let sealed_path = state.sealed_sectors_dir.join(sector_number.to_string());
-    let sector = Sector::create_unsealed(sector_number, unsealed_path, sealed_path).await?;
+    let sector = UnsealedSector::create(sector_number, unsealed_path).await?;
 
     Ok(sector)
 }
@@ -216,7 +218,7 @@ async fn add_piece(
     tracing::info!("Adding a piece...");
 
     let sealer = Sealer::new(state.server_info.seal_proof);
-    let handle: JoinHandle<Result<Sector, PipelineError>> =
+    let handle: JoinHandle<Result<UnsealedSector, PipelineError>> =
         tokio::task::spawn_blocking(move || {
             let unsealed_sector = std::fs::File::options()
                 .append(true)
@@ -237,7 +239,7 @@ async fn add_piece(
 
             Ok(sector)
         });
-    let sector: Sector = handle.await??;
+    let sector: UnsealedSector = handle.await??;
 
     tracing::info!("Finished adding a piece");
     state.db.save_sector(sector.sector_number, &sector)?;
@@ -267,7 +269,7 @@ async fn precommit(
     tracing::info!("Starting pre-commit");
 
     let sealer = Sealer::new(state.server_info.seal_proof);
-    let Some(mut sector) = state.db.get_sector::<Sector>(sector_number)? else {
+    let Some(mut sector) = state.db.get_sector::<UnsealedSector>(sector_number)? else {
         tracing::error!("Tried to precommit non-existing sector");
         return Err(PipelineError::SectorNotFound);
     };
@@ -277,8 +279,20 @@ async fn precommit(
 
     tracing::info!("Padded sector, commencing pre-commit and getting last finalized block");
 
-    let current_block = state.xt_client.height(true).await?;
+    let mut current_block = state.xt_client.height(true).await?;
     tracing::info!("Current block: {current_block}");
+
+    if current_block < MINIMUM_BLOCK_WITH_RANDOMNESS_AVAILABLE {
+        tracing::info!(
+            "Waiting for randomness to be available at block: {}",
+            MINIMUM_BLOCK_WITH_RANDOMNESS_AVAILABLE
+        );
+        state
+            .xt_client
+            .wait_for_height(MINIMUM_BLOCK_WITH_RANDOMNESS_AVAILABLE, true)
+            .await?;
+        current_block = MINIMUM_BLOCK_WITH_RANDOMNESS_AVAILABLE;
+    }
 
     let Some(digest) = state.xt_client.get_randomness(current_block).await? else {
         tracing::error!("Precommit was scheduled too early, when the randomness on-chain was not yet available...");
@@ -294,12 +308,16 @@ async fn precommit(
         &entropy,
     );
 
+    let sealed_path = state.sealed_sectors_dir.join(sector_number.to_string());
+    tokio::fs::File::create_new(&sealed_path).await?;
+
     // TODO(@th7nder,31/10/2024): what happens if some of the process fails? SP will be slashed, and there is no error reporting? what about retries?
     let sealing_handle: JoinHandle<Result<PreCommitOutput, _>> = {
         let prover_id = derive_prover_id(state.xt_keypair.account_id());
         let cache_dir = state.sealing_cache_dir.clone();
         let unsealed_path = sector.unsealed_path.clone();
-        let sealed_path = sector.sealed_path.clone();
+        let sealed_path = sealed_path.clone();
+
         let piece_infos = sector.piece_infos.clone();
         tokio::task::spawn_blocking(move || {
             sealer.precommit_sector(
@@ -316,14 +334,7 @@ async fn precommit(
     let sealing_output = sealing_handle.await??;
     tracing::info!("Created sector's replica: {:?}", sealing_output);
 
-    sector.state = SectorState::Sealed;
-    sector.comm_r = Some(Commitment::replica(sealing_output.comm_r));
-    sector.comm_d = Some(Commitment::data(sealing_output.comm_d));
-    sector.seal_randomness_height = Some(current_block);
-    state.db.save_sector(sector.sector_number, &sector)?;
-
     tracing::debug!("Precommiting at block: {}", current_block);
-
     let result = state
         .xt_client
         .pre_commit_sectors(
@@ -365,8 +376,15 @@ async fn precommit(
         .map(|result| result.map_err(|err| subxt::Error::from(err)))
         .collect::<Result<Vec<_>, _>>()?;
 
-    sector.precommit_block = Some(precommited_sectors[0].block);
-    sector.state = SectorState::Precommitted;
+    let sector = PreCommittedSector::create(
+        sector,
+        sealed_path,
+        Commitment::replica(sealing_output.comm_r),
+        Commitment::data(sealing_output.comm_d),
+        current_block,
+        precommited_sectors[0].block,
+    )
+    .await?;
     state.db.save_sector(sector.sector_number, &sector)?;
 
     tracing::info!(
@@ -391,20 +409,18 @@ async fn prove_commit(
     tracing::info!("Starting prove commit");
 
     let sealer = Sealer::new(state.server_info.seal_proof);
-    let Some(mut sector) = state.db.get_sector::<Sector>(sector_number)? else {
+    let Some(sector) = state.db.get_sector::<PreCommittedSector>(sector_number)? else {
         tracing::error!("Tried to precommit non-existing sector");
         return Err(PipelineError::SectorNotFound);
     };
 
-    let seal_randomness_height = sector
-        .seal_randomness_height
-        .expect("sector to be sealed before proving using randomness from the chain");
+    let seal_randomness_height = sector.seal_randomness_height;
     let Some(digest) = state
         .xt_client
         .get_randomness(seal_randomness_height)
         .await?
     else {
-        tracing::error!("Out-of-the-state transition, this SHOULD not happen");
+        tracing::error!("Out-of-the-state transition, this SHOULD NOT happen");
         return Err(PipelineError::RandomnessNotAvailable);
     };
     let entropy = state.xt_keypair.account_id().encode();
@@ -421,10 +437,7 @@ async fn prove_commit(
     // https://github.com/eigerco/polka-storage/blob/5edd4194f08f29d769c277577ccbb70bb6ff63bc/runtime/src/configs/mod.rs#L360
     // 10 blocks = 1 minute, only testnet
     const PRECOMMIT_CHALLENGE_DELAY: u64 = 10;
-    let precommit_block = sector
-        .precommit_block
-        .expect("sector to be pre-committed on-chain before proving");
-    let prove_commit_block = precommit_block + PRECOMMIT_CHALLENGE_DELAY;
+    let prove_commit_block = sector.precommit_block + PRECOMMIT_CHALLENGE_DELAY;
 
     tracing::info!("Wait for block {} to get randomness", prove_commit_block);
     state
@@ -444,7 +457,7 @@ async fn prove_commit(
 
     let prover_id = derive_prover_id(state.xt_keypair.account_id());
     tracing::debug!("Performing prove commit for, seal_randomness_height {}, pre_commit_block: {}, prove_commit_block: {}, entropy: {}, ticket: {}, seed: {}",
-        seal_randomness_height, precommit_block, prove_commit_block, hex::encode(entropy), hex::encode(ticket), hex::encode(seed));
+        seal_randomness_height, sector.precommit_block, prove_commit_block, hex::encode(entropy), hex::encode(ticket), hex::encode(seed));
     tracing::debug!(
         "Prover Id: {}, Sector Number: {}",
         hex::encode(prover_id),
@@ -456,14 +469,8 @@ async fn prove_commit(
         let cache_dir = state.sealing_cache_dir.clone();
         let sealed_path = sector.sealed_path.clone();
         let piece_infos = sector.piece_infos.clone();
-        let comm_r = sector
-            .comm_r
-            .expect("sector to be sealed and it's comm_r set before proving")
-            .raw();
-        let comm_d = sector
-            .comm_d
-            .expect("sector to be sealed and it's comm_d set before proving")
-            .raw();
+        let comm_r = sector.comm_r.raw();
+        let comm_d = sector.comm_d.raw();
         tokio::task::spawn_blocking(move || {
             sealer.prove_sector(
                 porep_params.as_ref(),
@@ -489,9 +496,6 @@ async fn prove_commit(
     let proof = codec::Encode::encode(&proof);
     tracing::info!("Proven sector: {}", sector_number);
 
-    sector.state = SectorState::Proven;
-    state.db.save_sector(sector.sector_number, &sector)?;
-
     let result = state
         .xt_client
         .prove_commit_sectors(
@@ -513,7 +517,7 @@ async fn prove_commit(
 
     tracing::info!("Successfully proven sectors on-chain: {:?}", proven_sectors);
 
-    sector.state = SectorState::ProveCommitted;
+    let sector = ProvenSector::create(sector);
     state.db.save_sector(sector.sector_number, &sector)?;
 
     Ok(())
