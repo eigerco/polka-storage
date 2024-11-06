@@ -40,8 +40,13 @@ pub enum ProofsCommand {
         output_path: Option<PathBuf>,
     },
     /// **DEMO COMMAND** IT SHOULD NOT BE USED IN PRODUCTION AND ITS FLOW IS SKEWED!
+    ///
     /// Generates PoRep for a piece file.
+    ///
     /// Takes a piece file (in a CARv2 archive, unpadded), puts it into a sector (temp file), seals and proves it.
+    ///
+    /// When you run the command for the first time on a clean `cache_directory` it will fail,
+    /// because of `rust-fil-proofs.config.toml` and cache verification.
     #[clap(name = "porep")]
     PoRep {
         /// Key of the entity generating the proof.
