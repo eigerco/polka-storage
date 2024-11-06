@@ -4,6 +4,9 @@
 # Allow files and directories
 !/api
 !/cli
+!/Justfile
+!/lib
+!/maat
 !/node
 !/pallets
 !/primitives

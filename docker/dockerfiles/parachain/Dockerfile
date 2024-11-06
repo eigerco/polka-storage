@@ -15,8 +15,7 @@ RUN cargo chef prepare --recipe-path recipe.json
 FROM chef AS builder
 
 RUN apt update && apt upgrade -y
-RUN apt install -y protobuf-compiler
-RUN apt install -y clang
+RUN apt install -y opencl-headers ocl-icd-opencl-dev protobuf-compiler clang git
 
 # Copy required files
 COPY --from=planner /app/recipe.json recipe.json

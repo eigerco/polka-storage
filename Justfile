@@ -54,11 +54,11 @@ build-polka-storage-provider-client:
 build-polka-storage-provider-server:
   cargo build --release -p polka-storage-provider-server
 
-# Build the storagext cli binary
+# Build the storagext CLI binary
 build-storagext-cli:
   cargo build --release --features storagext/insecure_url -p storagext-cli
 
-# Build the mater cli binary
+# Build the mater CLI binary
 build-mater-cli:
   cargo build --release -p mater-cli
 
@@ -71,26 +71,84 @@ build-provider-binaries: build-polka-storage-node build-polka-storage-provider-s
 # Build all the binaries
 build-binaries: build-client-binaries build-provider-binaries
 
+# Build the mater CLI binary
+build-mater-docker:
+  docker build \
+        --build-arg VCS_REF="$(git rev-parse HEAD)" \
+        --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+        -t polkadotstorage.azurecr.io/mater-cli:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')" \
+        --file ./docker/dockerfiles/mater/Dockerfile \
+        .
+
+# Build the polka storage node docker image
 build-parachain-docker:
     docker build \
         --build-arg VCS_REF="$(git rev-parse HEAD)" \
         --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-        -t polkadotstorage.azurecr.io/parachain-node:0.1.0 \
+        -t polkadotstorage.azurecr.io/parachain-node:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')" \
         --file ./docker/dockerfiles/parachain/Dockerfile \
         .
 
-build-storage-provider-docker:
-    docker build \
+# Build the polka storage provider client docker image
+build-sp-client-docker:
+  docker build \
         --build-arg VCS_REF="$(git rev-parse HEAD)" \
         --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-        -t polkadotstorage.azurecr.io/polka-storage-provider:0.1.0 \
-        --file ./docker/dockerfiles/storage-provider/Dockerfile \
+        -t polkadotstorage.azurecr.io/sp-client:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')" \
+        --file ./docker/dockerfiles/sp-client/Dockerfile \
         .
+
+# Build the polka storage provider server docker image
+build-sp-server-docker:
+  docker build \
+        --build-arg VCS_REF="$(git rev-parse HEAD)" \
+        --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+        -t polkadotstorage.azurecr.io/sp-server:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')" \
+        --file ./docker/dockerfiles/sp-server/Dockerfile \
+        .
+
+# Build the storagext CLI docker image
+build-storagext-docker:
+  docker build \
+        --build-arg VCS_REF="$(git rev-parse HEAD)" \
+        --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+        -t polkadotstorage.azurecr.io/storagext-cli:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')" \
+        --file ./docker/dockerfiles/storagext/Dockerfile \
+        .
+
+# Builds all docker image.
+# This operation will take a while
+build-docker: build-parachain-docker build-sp-client-docker build-sp-server-docker build-storagext-docker build-mater-docker
+
+# Run the mater CLI docker image
+# This only works if the image is already built
+docker-run-mater:
+    docker run -it polkadotstorage.azurecr.io/mater-cli:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')"
+
+# Run the parachain node docker image
+# This only works if the image is already built
+docker-run-parachain-node:
+    docker run -it polkadotstorage.azurecr.io/parachain-node:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')"
+
+# Run the storage provider client docker image
+# This only works if the image is already built
+docker-run-sp-client:
+    docker run -it polkadotstorage.azurecr.io/sp-client:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')"
+
+# Run the storage provider server docker image
+# This only works if the image is already built
+docker-run-sp-server:
+    docker run -it polkadotstorage.azurecr.io/sp-server:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')"
+
+# Run the storagext CLI docker image
+# This only works if the image is already built
+docker-run-storagext:
+    docker run -it polkadotstorage.azurecr.io/storagext-cli:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')"
 
 load-to-minikube:
     # https://github.com/paritytech/zombienet/pull/1830
     # unless this is merged and we pull it in, launching it in local zombienet (without publicly publishing the docker image is impossible)
-    minikube image load polkadotstorage.azurecr.io/parachain-node:0.1.0
+    minikube image load polkadotstorage.azurecr.io/parachain-node:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')"
 
 kube-testnet:
     zombienet -p kubernetes spawn zombienet/local-kube-testnet.toml
