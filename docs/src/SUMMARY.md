@@ -11,7 +11,6 @@
   - [`server`](./storage-provider-cli/server.md)
   - [`client`](./storage-provider-cli/client/index.md)
     - [`wallet`](./storage-provider-cli/client/wallet.md)
-    - [`client`](./storage-provider-cli/client/client.md)
     - [`proofs`](./storage-provider-cli/client/proofs.md)
 - [Storagext CLI](./storagext-cli/index.md)
   - [`market`](./storagext-cli/market.md)
