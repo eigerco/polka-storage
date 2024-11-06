@@ -82,7 +82,7 @@ Let's walk throught the fields:
 When you have your deal ready, you can propose it using the following command:
 
 ```bash
-polka-storage-provider-client client propose-deal \
+polka-storage-provider-client propose-deal \
   --rpc-server-url "http://<storage-provider-ip>:<port>" \
   "<your-deal>"
 ```
@@ -123,7 +123,7 @@ Finally, you can publish the deal by submitting your deal proposal along with yo
 To sign your deal proposal you can run the following command:
 
 ```bash
-polka-storage-provider-client client sign-deal \
+polka-storage-provider-client sign-deal \
     --sr25519-key "<your-key>" \
     "<your-deal-proposal>"
 ```
@@ -155,7 +155,7 @@ The output should be similar to the following:
 All that's left is to publish the deal, you can do so using the following command:
 
 ```bash
-polka-storage-provider-client client publish-deal \
+polka-storage-provider-client publish-deal \
   --rpc-server-url "http://<storage-provider-ip>:<port>" \
   <your-signed-deal>
 ```
@@ -165,5 +165,5 @@ polka-storage-provider-client client publish-deal \
   * `<port>` — the Storage Provider's port serving the uploads, by default it is port 8001, but it can be changed.
 * `<your-signed-deal>` — the deal you just signed.
 
-You can read more about it in [*Polka Storage Provider CLI/`client`/`client`*](../storage-provider-cli/client/client.md).
+You can read more about it in [*Polka Storage Provider CLI/`client`*](../storage-provider-cli/client/index.md#publish-deal).
 

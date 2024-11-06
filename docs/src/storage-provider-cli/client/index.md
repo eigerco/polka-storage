@@ -1,12 +1,6 @@
 # client
-The Polka Storage Provider CLI provides two commands — `wallet` and `storage`.
 
-## `storage`
-
-The `storage` command launches a server that converts arbitrary files into CARv2 files
-— it does so using our CARv2 Rust library (the first Rust CARv2 implementation).
-
-More information available on the [`storage`](./storage.md) page.
+We cover the commands provided by the `polka-storage-provider-client` CLI tool.
 
 ## `wallet`
 

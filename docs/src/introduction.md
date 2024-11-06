@@ -10,9 +10,8 @@ and this is our deliverable for Phase 1, composed of:
 - Filecoin actor ports:
   - [Storage Provider](./pallets/storage-provider.md) — excluding proving mechanisms
   - [Market](./pallets/market.md)
-- [CAR file conversion server](./storage-provider-cli/storage.md)
 - Dedicated CLIs
-  - [`storage-provider-cli`](./storage-provider-cli/storage.md) to generate keys and test our CARv2 Rust implementation!
+  - [`polka-storage-provider-client`](./storage-provider-cli/index.md) to generate keys and test our CARv2 Rust implementation!
   - [`mater-cli`](./mater-cli/index.md) for storage clients to convert or extract files.
   - [`storagext-cli`](./storagext-cli/index.md) (shown below) to take the parachain for a spin!
 
