@@ -14,8 +14,8 @@ RUN cargo chef prepare --recipe-path recipe.json
 ##### Builder
 FROM chef AS builder
 
-RUN apt update && apt upgrade -y
-RUN apt install -y opencl-headers ocl-icd-opencl-dev protobuf-compiler clang git
+RUN apt-get update && apt-get upgrade -y
+RUN apt-get install -y opencl-headers ocl-icd-opencl-dev protobuf-compiler clang git
 
 # Copy required files
 COPY --from=planner /app/recipe.json recipe.json

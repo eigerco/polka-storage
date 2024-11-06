@@ -1,20 +1,23 @@
 # Docker Setup
 
-This guide will outline how to setup your environment using Docker to get started with the polka-storage project.
+This guide will outline how to setup your environment using Docker to get started with the Polka Storage parachain.
 
 ## Pre-requisites
 
-Install docker on your system by following the [docker install instructions](https://docs.docker.com/engine/install/)
+Install Docker on your system by following the [Docker install instructions](https://docs.docker.com/engine/install/).
+
+> Podman _may_ work, however, we do not provide any guarantees.
 
 ## Dockerfile setup
 
-All docker builds are in 4 stages. 
-1. Set up [`cargo chef`](https://github.com/LukeMathWalker/cargo-chef), this caches the Rust dependencies for faster builds. 
-2. Planning — `cargo chef` analyzes the current project to determine the minimum subset of file required to build it an cache the dependencies. 
-3. Build — `cargo chef` checks the project skeleton identified in the planner stage and builds it to cache dependencies. 
+All docker builds are composed of 4 stages.
+
+1. Set up [`cargo chef`](https://github.com/LukeMathWalker/cargo-chef), this caches the Rust dependencies for faster builds.
+2. Planning — `cargo chef` analyzes the current project to determine the minimum subset of file required to build it an cache the dependencies.
+3. Build — `cargo chef` checks the project skeleton identified in the planner stage and builds it to cache dependencies.
 4. Runtime — sets up the runtime with Debian and imports the binary build in the previous stage.
 
-## Building
+## Building & Running
 
 Clone the repository and go into the directory:
 
@@ -23,17 +26,46 @@ git clone git@github.com:eigerco/polka-storage.git
 cd polka-storage
 ```
 
-A Dockerfile for each binary has been created and can be found in the `docker/` folder.
+You can find Dockerfiles for each binary under the `docker/` folder.
+To build the images manually you can use the following command:
 
-To make building simple there are [Just](https://github.com/casey/just) commands setup to get you started on building docker images.
+```bash
+docker build \
+        --build-arg VCS_REF="$(git rev-parse HEAD)" \
+        --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+        -t <DOCKERFILE-NAME>:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')" \
+        --file ./docker/dockerfiles/<DOCKERFILE-NAME>.Dockerfile \
+        .
+```
 
-### Just building commands
+Where you can replace `<DOCKERFILE-NAME>` by one of the following:
 
-| Command                  | Description                                                                                                                         |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `build-mater-docker`     | This command builds the mater CLI image which is used by storage clients to convert files to CARv2 format and extract CARv2 content |
-| `build-parachain-docker` | This command builds the storage chain node image                                                                                    |
-| `build-sp-client`        | This command builds the image with the binary that storage clients use to interact with the chain                                   |
-| `build-sp-server`        | This command builds the image with the binary for the RPC server used by the storage provider                                       |
-| `build-storagext-docker` | This command builds the storagext CLI image used to execute extrinsics.                                                             |
-| `build-docker`           | This command builds all images, this might take a while to complete.                                                                |
+- `parachain`
+- `sp-client`
+- `sp-server`
+- `mater-cli`
+- `storagext-cli`
+
+To run the images manually, you apply the same pattern to the following command:
+
+```bash
+docker run -it polkadotstorage.azurecr.io/<DOCKERFILE-NAME>:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')"
+```
+
+### Just recipes
+
+To simplify the building process, we've written some [Just](https://github.com/casey/just) recipes.
+
+| Command                                      | Description                                                                                                               |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `build-mater-docker`                         | Builds the `mater` CLI image which is used by storage clients to convert files to CARv2 format and extract CARv2 content. |
+| `build-polka-storage-node-docker`            | Builds the Polka Storage parachain node image.                                                                            |
+| `build-polka-storage-provider-server-docker` | Builds the Storage Provider server image.                                                                                 |
+| `build-polka-storage-provider-client-docker` | Builds the Storage Provider client image.                                                                                 |
+| `build-storagext-docker`                     | Builds the `storagext` CLI image used to execute extrinsics.                                                              |
+| `build-docker-all`                           | Builds all the images above, this might take a while to complete.                                                         |
+| `run-mater-docker`                           | Runs the image, opening a shell with access to the `mater-cli` binary.                                                    |
+| `run-polka-storage-node-docker`              | Runs the `polka-storage-node` inside the built Docker image.                                                              |
+| `run-polka-storage-provider-server-docker`   | Runs the image, opening a shell with access to the `polka-storage-provider-server` binary.                                |
+| `run-polka-storage-provider-client-docker`   | Runs the image, opening a shell with access to the `polka-storage-provider-client` binary.                                |
+| `run-storagext-docker`                       | Runs the image, opening a shell with access to the `storagext-cli` binary.                                                |

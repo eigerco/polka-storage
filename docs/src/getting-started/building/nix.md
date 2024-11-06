@@ -1,53 +1,96 @@
-# Nix Setup
+# Building from source
 
-This guide will outline how to setup your environment using Nix to get started with the polka-storage project.
+This guide will outline how to setup your environment to build the Polka Storage parachain.
+We cover building directly on your system or using [Nix](https://nixos.org/download/) to ease the process.
 
-## Pre-requisites
+## Get the code
 
-> Installing direnv on your system is not required but recommended.
+To get started, first clone the repository and enter the repository's directory:
 
-Install direnv by following the [install instructions](https://direnv.net/docs/installation.html) on their website for your system.
-
-Install [Nix](https://nixos.org/download/) on your system.
-
-Shell command to install Nix:
-
-`sh <(curl -L https://nixos.org/nix/install)`
-
-Some users experience issue with the shell command. If you experience any issue installing Nix try to install Nix with the [Determinate Nix Installer](https://github.com/DeterminateSystems/nix-installer).
-
-## Building
-
-Clone the repository and go into the directory:
-
-```shell
+```bash
 git clone git@github.com:eigerco/polka-storage.git
 cd polka-storage
 ```
 
-When going into the cloned directory for the first time the required packages will be installed in the Nix environment, this make take some time.
-This Nix setup only needs to be done once.
+<!-- I'm not sure about this section name -->
+## System Pre-requisites
 
-Once the Nix setup has completed we're ready to start building the binaries.
+To build the binaries directly on your system you will need the following tools:
 
-> If you didn't install `direnv` you won't automatically enter the Nix environment.
-> To do so, you'll need to run the following command:
-> ```
-> nix develop
-> ```
-> For more information, refer to the official Nix guide — https://nix.dev/manual/nix/2.17/command-ref/new-cli/nix3-develop
+* Rust 1.77 — you can install it using [`rustup`](https://rustup.rs/) and its [guide](https://rust-lang.github.io/rustup/installation/other.html) for help.
+* Other dependencies — keep reading, we'll get to it after the end of this list!
+* `just` (optional) — (after installing Rust) you can use `cargo install just` or check the [official list of packages](https://just.systems/man/en/packages.html).
 
-To make building simple there are [Just](https://github.com/casey/just) commands setup to get you started.
+Assuming you're using a Debian-like system — if you're not, you can try to replace `apt` with your respective package manager (no promises though).
+To install the required dependencies run the following commands:
 
-### Just building commands
+```shell
+$ sudo apt update
+$ sudo apt install -y libhwloc-dev \
+    opencl-headers \
+    ocl-icd-opencl-dev \
+    protobuf-compiler \
+    clang \
+    build-essential \
+    git \
+    curl
+```
 
-| Command                               | Description                                                                                                                   |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `build-polka-storage-node`            | This command builds the storage chain node                                                                                    |
-| `build-polka-storage-provider-client` | This command builds the binary that storage clients use to interact with the chain                                            |
-| `build-polka-storage-provider-server` | This command builds the RPC server used by the storage provider                                                               |
-| `build-storagext-cli`                 | This command builds the storagext CLI used to execute extrinsics                                                              |
-| `build-mater-cli`                     | This command builds the mater CLI which is used by storage clients to convert files to CARv2 format and extract CARv2 content |
-| `build-client-binaries`               | This command builds all the storage client binaries                                                                           |
-| `build-provider-binaries`             | This command builds all the storage provider binaries                                                                         |
-| `build-binaries`                      | This command builds all binaries                                                                                              |
+## Using Nix
+
+You can use Nix to simplify the building process,
+if you're just taking the network for test-drive this is a great method to get started.
+
+Nix will take care of setting up all the dependencies for you!
+If you're curious, you can read more about using Nix in [fasterthanlime's blog](https://fasterthanli.me/series/building-a-rust-service-with-nix/part-9),
+the [official Nix guide](https://nixos.org/learn/) or [Determinate Systems' Zero to Nix guide](https://zero-to-nix.com/).
+
+<div class="warning">
+Binaries built using Nix <b>will not</b> work on other systems since they will be linked with Nix specific paths.
+</div>
+
+### Pre-requisites
+
+- `nix` — which you can install by following the [official guide](https://nixos.org/download/)
+  or using the [Determinate Systems installer](https://github.com/DeterminateSystems/nix-installer) — the latter being usually more reliable on MacOS systems.
+- `direnv` (optional) — which you can install by following the [official guide](https://direnv.net/docs/installation.html)
+
+If you're using `direnv`, when going into the cloned directory for the first time `nix` will activate automatically and
+install the required packages, this make take some time.
+
+If you're _not_ using `direnv`, you will need to run `nix develop` to achieve the same effect —
+for more information refer to the official Nix guide — https://nix.dev/manual/nix/2.17/command-ref/new-cli/nix3-develop.
+
+## Building
+
+After all this setup, it is time to start building the binaries, which you can do manually using the following command:
+
+```bash
+cargo build --release -p <BINARY-NAME>
+```
+
+Where `<BINARY-NAME>` is one of:
+
+- `polka-storage-node`
+- `polka-storage-provider-client`
+- `polka-storage-provider-server`
+- `storagext-cli`
+- `mater-cli`
+
+Additionally, if you're building `polka-storage-node` or `storagext-cli` there are features that you may want to enable:
+
+- For `polka-storage-node` you may want to add `--features polka-storage-runtime/testnet` which enables the testnet configuration
+- For `storagext-cli` you may want to add `--features storagext/insecure_url` which enables using non-TLS HTTP and WebSockets
+
+### Just recipes
+
+To simplify the building process, we've written some [Just](https://github.com/casey/just) recipes.
+
+| Command                               | Description                                                                                                         |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `build-polka-storage-node`            | Builds the Polka Storage parachain node.                                                                            |
+| `build-polka-storage-provider-server` | Builds the Storage Provider server binary.                                                                          |
+| `build-polka-storage-provider-client` | Builds the Storage Provider client binary.                                                                          |
+| `build-storagext-cli`                 | Builds the `storagext` CLI used to execute extrinsics.                                                              |
+| `build-mater-cli`                     | Builds the `mater` CLI which is used by storage clients to convert files to CARv2 format and extract CARv2 content. |
+| `build-binaries-all`                  | Builds all the binaries above, this may take a while (but at least `cargo` reuses artifacts).                       |

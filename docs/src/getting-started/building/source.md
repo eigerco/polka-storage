@@ -34,17 +34,17 @@ git clone git@github.com:eigerco/polka-storage.git
 cd polka-storage
 ```
 
-If you installed [Just](https://github.com/casey/just) the following table shows which building commands are supported. If you choose not to use Just the build commands can be found in the Justfile in the root of the directory.
 
 ### Just building commands
 
-| Command                               | Description                                                                                                                   |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `build-polka-storage-node`            | This command builds the storage chain node                                                                                    |
-| `build-polka-storage-provider-client` | This command builds the binary that storage clients use to interact with the chain                                            |
-| `build-polka-storage-provider-server` | This command builds the RPC server used by the storage provider                                                               |
-| `build-storagext-cli`                 | This command builds the storagext CLI used to execute extrinsics                                                              |
-| `build-mater-cli`                     | This command builds the mater CLI which is used by storage clients to convert files to CARv2 format and extract CARv2 content |
-| `build-client-binaries`               | This command builds all the storage client binaries                                                                           |
-| `build-provider-binaries`             | This command builds all the storage provider binaries                                                                         |
-| `build-binaries`                      | This command builds all binaries                                                                                              |
+To simplify the building process, we've written some [Just](https://github.com/casey/just) recipes.
+
+| Command                               | Description                                                                                                         |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `build-polka-storage-node`            | Builds the Polka Storage parachain node.                                                                            |
+| `build-polka-storage-provider-server` | Builds the Storage Provider server binary.                                                                          |
+| `build-polka-storage-provider-client` | Builds the Storage Provider client binary.                                                                          |
+| `build-storagext-cli`                 | Builds the `storagext` CLI used to execute extrinsics.                                                              |
+| `build-mater-cli`                     | Builds the `mater` CLI which is used by storage clients to convert files to CARv2 format and extract CARv2 content. |
+| `build-binaries-all`                  | Builds all the binaries above, this may take a while (but at least `cargo` reuses artifacts).                       |
+
