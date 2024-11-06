@@ -39,9 +39,14 @@ pub enum ProofsCommand {
         #[arg(short, long)]
         output_path: Option<PathBuf>,
     },
-    /// **DEMO COMMAND** IT SHOULD NOT BE USED IN PRODUCTION AND ITS FLOW IS SKEWED!
-    /// Generates PoRep for a piece file.
+    /// DEMO COMMAND - Generates PoRep for a piece file.
+    ///
     /// Takes a piece file (in a CARv2 archive, unpadded), puts it into a sector (temp file), seals and proves it.
+    ///
+    /// When you run the command for the first time on a clean `cache_directory` it will fail,
+    /// because `rust-fil-proofs` tries to validate cache based on https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/storage-proofs-porep/parent_cache.json.
+    ///
+    /// When you run the command for the second time, the cache is recreated and there are no verification issues.
     #[clap(name = "porep")]
     PoRep {
         /// Key of the entity generating the proof.
