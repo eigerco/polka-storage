@@ -20,7 +20,7 @@ The convert command converts a file to CARv2 format.
 | Argument        | Description                                                                                                        |
 | --------------- | ------------------------------------------------------------------------------------------------------------------ |
 | `<INPUT_PATH>`  | Path to input file                                                                                                 |
-| `[OUTPUT_PATH]` | Optional path to output CARv2 file. If no output path is given it will store the `.car` file in the same location. |
+| `[OUTPUT_PATH]` | Optional path to output CARv2 file. If no output path is given it will store the `.car` file in the same location as the input file. |
 | `-q`/`--quiet` | If enabled, only the resulting CID will be printed. |
 | `--overwrite` | If enabled, the output will overwrite any existing files. |
 
