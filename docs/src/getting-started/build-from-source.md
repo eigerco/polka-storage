@@ -1,6 +1,8 @@
 # Build from source
 
 This guide will outline how to setup your environment on a debian based machine to get started with the polka-storage project.
+This guide only covers how to setup the binaries used to interact with the testnet.
+For setting up the testnet please refer to the [local testnet documentation](local-testnet.md) to get started.
 
 ## Installing dependencies
 
