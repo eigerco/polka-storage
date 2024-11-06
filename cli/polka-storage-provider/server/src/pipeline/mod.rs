@@ -294,10 +294,12 @@ async fn precommit(
         current_block = MINIMUM_BLOCK_WITH_RANDOMNESS_AVAILABLE;
     }
 
-    let Some(digest) = state.xt_client.get_randomness(current_block).await? else {
-        tracing::error!("Precommit was scheduled too early, when the randomness on-chain was not yet available...");
-        return Err(PipelineError::RandomnessNotAvailable);
-    };
+    let digest = state
+        .xt_client
+        .get_randomness(current_block)
+        .await?
+        .expect("randomness to be available as we wait for it");
+
     let entropy = state.xt_keypair.account_id().encode();
     // Must match pallet's logic or otherwise proof won't be verified:
     // https://github.com/eigerco/polka-storage/blob/af51a9b121c9b02e0bf6f02f5e835091ab46af76/pallets/storage-provider/src/lib.rs#L1539

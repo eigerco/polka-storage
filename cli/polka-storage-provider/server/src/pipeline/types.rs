@@ -163,7 +163,7 @@ impl PreCommittedSector {
     }
 }
 
-// Sector which has been sealed, precommitted and proven on-chain.
+/// Sector which has been sealed, precommitted and proven on-chain.
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct ProvenSector {
     /// [`SectorNumber`] which identifies a sector in the Storage Provider.
