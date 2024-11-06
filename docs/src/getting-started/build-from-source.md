@@ -6,8 +6,7 @@ For setting up the testnet please refer to the [local testnet documentation](loc
 
 ## Installing dependencies
 
-Use the `install-deps.sh` script to install the required and optional packages.
-In the section below you can read what is being installed with the script.
+The section below runs you through the steps to install all required and optional dependencies.
 
 Run the following command to install the required packages to build the polka-storage project.
 
