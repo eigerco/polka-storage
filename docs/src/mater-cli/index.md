@@ -4,12 +4,13 @@
 
 The Mater CLI is used by storage clients to convert files to the CARv2 format and extract CARv2 content.
 
-> Currently only the CARv2 format is supported in the binary since the network requires the CARv2 format.
-> However, *the `mater` library has full support for CARv1*.
+> Currently, the `mater-cli` only supports the CARv2 format.
+> However, _the `mater` library has full support for CARv1_.
 
 To learn more about the CAR format, please refer to the official specifications:
-* CARv1 — <https://ipld.io/specs/transport/car/carv1/>
-* CARv2 — <https://ipld.io/specs/transport/car/carv2/>
+
+- CARv1 — <https://ipld.io/specs/transport/car/carv1/>
+- CARv2 — <https://ipld.io/specs/transport/car/carv2/>
 
 ## `convert`
 
@@ -17,12 +18,12 @@ The convert command converts a file to CARv2 format.
 
 `mater-cli convert <INPUT_PATH> [OUTPUT_PATH]`
 
-| Argument        | Description                                                                                                        |
-| --------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `<INPUT_PATH>`  | Path to input file                                                                                                 |
+| Argument        | Description                                                                                                                          |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `<INPUT_PATH>`  | Path to input file                                                                                                                   |
 | `[OUTPUT_PATH]` | Optional path to output CARv2 file. If no output path is given it will store the `.car` file in the same location as the input file. |
-| `-q`/`--quiet` | If enabled, only the resulting CID will be printed. |
-| `--overwrite` | If enabled, the output will overwrite any existing files. |
+| `-q`/`--quiet`  | If enabled, only the resulting CID will be printed.                                                                                  |
+| `--overwrite`   | If enabled, the output will overwrite any existing files.                                                                            |
 
 ### Example
 
@@ -52,7 +53,6 @@ CID count per multihash:
         sha2-256: 1
 ```
 
-
 ## `extract`
 
 Convert a CARv2 file to its original format.
@@ -72,6 +72,7 @@ Successfully converted CARv2 file examples/random1024.car and saved it to to exa
 ```
 
 Conversly, you can also extract files generated using `car`:
+
 ```bash
 # --no-wrap is necessary since mater does not perform wrapping
 $ car create --no-wrap -f examples/random1024.go.car examples/random1024.piece
