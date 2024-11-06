@@ -240,7 +240,7 @@ async fn add_piece(
     let sector: Sector = handle.await??;
 
     tracing::info!("Finished adding a piece");
-    state.db.save_sector(&sector)?;
+    state.db.save_sector(sector.sector_number, &sector)?;
 
     // TODO(@th7nder,30/10/2024): simplification, as we're always scheduling a precommit just after adding a piece and creating a new sector.
     // Ideally sector won't be finalized after one piece has been added and the precommit will depend on the start_block?
@@ -267,7 +267,7 @@ async fn precommit(
     tracing::info!("Starting pre-commit");
 
     let sealer = Sealer::new(state.server_info.seal_proof);
-    let Some(mut sector) = state.db.get_sector(sector_number)? else {
+    let Some(mut sector) = state.db.get_sector::<Sector>(sector_number)? else {
         tracing::error!("Tried to precommit non-existing sector");
         return Err(PipelineError::SectorNotFound);
     };
@@ -320,7 +320,7 @@ async fn precommit(
     sector.comm_r = Some(Commitment::replica(sealing_output.comm_r));
     sector.comm_d = Some(Commitment::data(sealing_output.comm_d));
     sector.seal_randomness_height = Some(current_block);
-    state.db.save_sector(&sector)?;
+    state.db.save_sector(sector.sector_number, &sector)?;
 
     tracing::debug!("Precommiting at block: {}", current_block);
 
@@ -367,7 +367,7 @@ async fn precommit(
 
     sector.precommit_block = Some(precommited_sectors[0].block);
     sector.state = SectorState::Precommitted;
-    state.db.save_sector(&sector)?;
+    state.db.save_sector(sector.sector_number, &sector)?;
 
     tracing::info!(
         "Successfully pre-commited sectors on-chain: {:?}",
@@ -391,7 +391,7 @@ async fn prove_commit(
     tracing::info!("Starting prove commit");
 
     let sealer = Sealer::new(state.server_info.seal_proof);
-    let Some(mut sector) = state.db.get_sector(sector_number)? else {
+    let Some(mut sector) = state.db.get_sector::<Sector>(sector_number)? else {
         tracing::error!("Tried to precommit non-existing sector");
         return Err(PipelineError::SectorNotFound);
     };
@@ -490,7 +490,7 @@ async fn prove_commit(
     tracing::info!("Proven sector: {}", sector_number);
 
     sector.state = SectorState::Proven;
-    state.db.save_sector(&sector)?;
+    state.db.save_sector(sector.sector_number, &sector)?;
 
     let result = state
         .xt_client
@@ -514,7 +514,7 @@ async fn prove_commit(
     tracing::info!("Successfully proven sectors on-chain: {:?}", proven_sectors);
 
     sector.state = SectorState::ProveCommitted;
-    state.db.save_sector(&sector)?;
+    state.db.save_sector(sector.sector_number, &sector)?;
 
     Ok(())
 }
