@@ -28,7 +28,8 @@ use crate::{
 pub type BlstrsProof = groth16::Proof<Bls12>;
 /// Proof using [`bls12_381::Bls12`] as finite field elements.
 ///
-/// It is used in no_std to verify proofs, converted from [`BlstrsProof`].
+/// It is reexported so we don't need to add a dependencies in `polka-storage-provider-*` crates.
+/// Used to convert into `no_std` version of proof, to call extrinsic to verify proof.
 pub type SubstrateProof = crate::Proof<bls12_381::Bls12>;
 
 /// Prepares an arbitrary piece to be used by [`Sealer::create_sector`].

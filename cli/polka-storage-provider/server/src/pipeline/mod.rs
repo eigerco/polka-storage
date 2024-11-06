@@ -105,13 +105,13 @@ pub async fn start_pipeline(
 }
 
 trait PipelineOperations {
-    fn add_piece(msg: AddPieceMessage);
-    fn precommit(msg: PreCommitMessage);
-    fn prove_commit(msg: ProveCommitMessage);
+    fn add_piece(&self, state: Arc<PipelineState>, msg: AddPieceMessage, token: CancellationToken);
+    fn precommit(&self, state: Arc<PipelineState>, msg: PreCommitMessage);
+    fn prove_commit(&self, state: Arc<PipelineState>, msg: ProveCommitMessage);
 }
 
 impl PipelineOperations for TaskTracker {
-    fn add_piece(&self, msg: AddPieceMessage) {
+    fn add_piece(&self, state: Arc<PipelineState>, msg: AddPieceMessage, token: CancellationToken) {
         let AddPieceMessage {
             deal,
             published_deal_id,
@@ -134,7 +134,7 @@ impl PipelineOperations for TaskTracker {
         });
     }
 
-    fn precommit(msg: PreCommitMessage) {
+    fn precommit(&self, state: Arc<PipelineState>, msg: PreCommitMessage) {
         let PreCommitMessage { sector_number } = msg;
         self.spawn(async move {
             // Precommit is not cancellation safe.
@@ -155,7 +155,7 @@ impl PipelineOperations for TaskTracker {
         });
     }
 
-    fn prove_commit(&self, msg: ProveCommitMessage) {
+    fn prove_commit(&self, state: Arc<PipelineState>, msg: ProveCommitMessage) {
         let ProveCommitMessage { sector_number } = msg;
         self.spawn(async move {
             // ProveCommit is not cancellation safe.
@@ -181,9 +181,9 @@ fn process(
     token: CancellationToken,
 ) {
     match msg {
-        PipelineMessage::AddPiece(msg) => tracker.add_piece(msg),
-        PipelineMessage::PreCommit(msg) => tracker.precommit(msg),
-        PipelineMessage::ProveCommit(msg) => tracker.prove_commit(msg),
+        PipelineMessage::AddPiece(msg) => tracker.add_piece(state.clone(), msg, token.clone()),
+        PipelineMessage::PreCommit(msg) => tracker.precommit(state.clone(), msg),
+        PipelineMessage::ProveCommit(msg) => tracker.prove_commit(state.clone(), msg),
     }
 }
 
