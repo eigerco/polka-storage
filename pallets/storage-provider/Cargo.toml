@@ -17,6 +17,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 cid = { workspace = true, features = ["alloc"] }
 codec = { workspace = true, default-features = false, features = ["derive"] }
+hex = { workspace = true, default-features = false, features = ["alloc"] }
 log = { workspace = true, features = ["kv"] }
 pallet-insecure-randomness-collective-flip = { workspace = true, default-features = false }
 pallet-proofs = { workspace = true, default-features = false }
@@ -27,7 +28,6 @@ scale-info = { workspace = true, default-features = false, features = ["derive"]
 sp-arithmetic = { workspace = true, default-features = false }
 sp-core = { workspace = true, default-features = false }
 sp-runtime = { workspace = true, default-features = false }
-hex = { workspace = true, default-features = false, features = ["alloc"] }
 
 
 # Frame deps

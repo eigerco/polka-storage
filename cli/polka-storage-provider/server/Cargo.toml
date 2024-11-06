@@ -22,11 +22,11 @@ cid = { workspace = true, features = ["serde", "std"] }
 clap = { workspace = true, features = ["derive"] }
 codec = { workspace = true }
 futures = { workspace = true }
+hex = { workspace = true, features = ["std"] }
 jsonrpsee = { workspace = true, features = ["http-client", "macros", "server", "ws-client"] }
 rand = { workspace = true }
 rocksdb = { workspace = true }
 sc-cli = { workspace = true }
-hex = { workspace = true, features = ["std"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 subxt = { workspace = true }
