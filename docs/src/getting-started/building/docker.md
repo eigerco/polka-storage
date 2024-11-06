@@ -40,9 +40,9 @@ docker build \
 
 Where you can replace `<DOCKERFILE-NAME>` by one of the following:
 
-- `parachain`
-- `sp-client`
-- `sp-server`
+- `polka-storage-node`
+- `polka-storage-provider-server`
+- `polka-storage-provider-client`
 - `mater-cli`
 - `storagext-cli`
 

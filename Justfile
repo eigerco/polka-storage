@@ -82,8 +82,8 @@ build-polka-storage-node-docker:
     docker build \
         --build-arg VCS_REF="$(git rev-parse HEAD)" \
         --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-        -t polkadotstorage.azurecr.io/parachain-node:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')" \
-        --file ./docker/dockerfiles/parachain.Dockerfile \
+        -t polkadotstorage.azurecr.io/polka-storage-node:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')" \
+        --file ./docker/dockerfiles/polka-storage-node.Dockerfile \
         .
 
 # Build the polka storage provider client docker image
@@ -91,8 +91,8 @@ build-polka-storage-provider-client-docker:
   docker build \
         --build-arg VCS_REF="$(git rev-parse HEAD)" \
         --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-        -t polkadotstorage.azurecr.io/sp-client:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')" \
-        --file ./docker/dockerfiles/sp-client.Dockerfile \
+        -t polkadotstorage.azurecr.io/polka-storage-provider-client:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')" \
+        --file ./docker/dockerfiles/polka-storage-provider-client.Dockerfile \
         .
 
 # Build the polka storage provider server docker image
@@ -100,8 +100,8 @@ build-polka-storage-provider-server-docker:
   docker build \
         --build-arg VCS_REF="$(git rev-parse HEAD)" \
         --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-        -t polkadotstorage.azurecr.io/sp-server:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')" \
-        --file ./docker/dockerfiles/sp-server.Dockerfile \
+        -t polkadotstorage.azurecr.io/polka-storage-provider-server:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')" \
+        --file ./docker/dockerfiles/polka-storage-provider-server.Dockerfile \
         .
 
 # Build the storagext CLI docker image
