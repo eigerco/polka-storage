@@ -36,9 +36,13 @@ jobs:
           fi
 
   docs:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Setup mdBook
+        uses: peaceiris/actions-mdbook@v2
+        with:
+          mdbook-version: '0.4.40'
       - name: Build the book
         run: mdbook build docs
 
