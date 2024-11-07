@@ -1,9 +1,8 @@
 use std::{io, net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
 
-use axum::extract::MatchedPath;
 use axum::{
     body::Body,
-    extract::{FromRequest, Multipart, Path, Request, State},
+    extract::{FromRequest, MatchedPath, Multipart, Path, Request, State},
     http::{header, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, put},
