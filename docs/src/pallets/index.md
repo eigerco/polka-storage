@@ -2,6 +2,7 @@
 
 - [`storage-provider`](storage-provider.md) - A pallet that manages storage providers and their associated data.
 - [`market`](market.md) - A pallet that handles the storage market operations.
+- [`proofs`](proofs.md) - A pallet responsible for verifying [PoRep](../glossary.md#porep) and [PoSt](../glossary.md#post).
 
 ## Overview
 
