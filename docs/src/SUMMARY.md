@@ -29,7 +29,7 @@
   - [Market](./pallets/market.md)
   - [Storage Provider](./pallets/storage-provider.md)
   - [Proofs](./pallets/proofs.md)
-
+  - [Randomness](./pallets/randomness.md)
 ---
 
 [Glossary](./glossary.md)
