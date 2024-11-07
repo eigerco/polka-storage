@@ -16,7 +16,7 @@
 
 The `Proofs Pallet` handles all the logic related to verifying [PoRep](../glossary.md#porep) and [PoSt](../glossary.md#post) proofs on-chain.
 It's called by [`Storage Provider Pallet`](./storage-provider.md) when verifying proofs during the extrinsics: [`prove_commit_sectors`](./storage-provider.md#prove_commit_sectors)
-and [`submit_windowed_post`](./storage-provider.md#submit_windowed_post). The Pallet **DOES NOT** expose any extrinsic for proofs verification, it only implements a trait that can be coupled to other pallets.
+and [`submit_windowed_post`](./storage-provider.md#submit_windowed_post). The Pallet **DOES NOT** expose any extrinsic for proofs verification, it only implements a trait that can be [coupled to other pallets](https://education.web3.foundation/docs/Substrate/section8/pallet-coupling).
 
 To verify the proofs properly it needs to have the verifying keys parameters set for the sector size via [`set_porep_verifying_key`](#set_porep_verifying_key) and [`set_post_verifying_key](#set_post_verifying_key).
 
