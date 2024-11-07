@@ -6590,6 +6590,7 @@ dependencies = [
  "bs58 0.5.1",
  "cid 0.11.1",
  "futures",
+ "hex",
  "primitives-proofs",
  "serde",
  "serde_json",

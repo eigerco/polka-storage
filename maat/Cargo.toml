@@ -22,6 +22,7 @@ target-release = []
 bs58.workspace = true
 cid.workspace = true
 futures.workspace = true
+hex = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["std"] }
 subxt = { workspace = true, features = ["substrate-compat"] }
