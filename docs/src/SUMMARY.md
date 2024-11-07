@@ -20,4 +20,5 @@
 - [Pallets](./pallets/index.md)
   - [Market](./pallets/market.md)
   - [Storage Provider](./pallets/storage-provider.md)
+  - [Proofs](./pallets/proofs.md)
 - [Glossary](./glossary.md)
