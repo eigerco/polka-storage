@@ -87,4 +87,22 @@ jobs:
         run: RUSTFLAGS="-D warnings" cargo clippy --profile ci --locked
       - name: Run tests
         run: RUSTFLAGS="-D warnings" cargo tarpaulin --profile ci --locked --workspace --exclude maat
-      # FIXME(#35,@serhii,27/5/2024): Revert the commit from the issue to restore the full set of CI steps.
+
+  release:
+    runs-on: self-hosted
+    if: (github.event.label.name == 'release' && startsWith(github.ref, 'refs/tags/')) # checks for release label and existing tag
+    steps:
+      - name: Build in release mode
+        run: RUSTFLAGS="-D warnings" cargo build --release --locked
+      - name: Release binaries
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # set github token for rw right on repo
+        with:
+          tag_name: ${{ github.ref_name }} # set the release tag to the
+          files: |
+            target/release/mater-cli
+            target/release/polka-storage-node
+            target/release/polka-storage-provider-client
+            target/release/polka-storage-provider-server
+            target/release/storagext-cli
