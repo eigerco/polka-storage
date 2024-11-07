@@ -260,6 +260,9 @@ pub mod pallet {
         },
         /// Emitted when a storage provider pre commits some sectors.
         SectorsPreCommitted {
+            /// Block at which sectors have been precommitted.
+            /// It is used for `interactive_randomness` generation in `ProveCommit`.
+            block: BlockNumberFor<T>,
             owner: T::AccountId,
             sectors:
                 BoundedVec<SectorPreCommitInfo<BlockNumberFor<T>>, ConstU32<MAX_SECTORS_PER_CALL>>,
@@ -555,6 +558,7 @@ pub mod pallet {
             })?;
 
             Self::deposit_event(Event::SectorsPreCommitted {
+                block: current_block,
                 owner,
                 sectors: pre_committed_sectors,
             });
@@ -1510,9 +1514,11 @@ pub mod pallet {
 
         let current_block_number = <frame_system::Pallet<T>>::block_number();
 
+        // https://github.com/filecoin-project/builtin-actors/blob/a45fb87910bca74d62215b0d58ed90cf78b6c8ff/actors/miner/src/lib.rs#L4865
         // Check if we are too early with the proof submit
         let interactive_block_number =
             precommit.pre_commit_block_number + T::PreCommitChallengeDelay::get();
+
         if current_block_number < interactive_block_number {
             log::error!(target: LOG_TARGET, "too early to prove sector: current_block_number: {current_block_number:?} < interactive_block_number: {interactive_block_number:?}");
             return Err(Error::<T>::InvalidProof)?;
@@ -1545,6 +1551,10 @@ pub mod pallet {
         )?;
 
         let prover_id = derive_prover_id(owner);
+
+        log::debug!(target: LOG_TARGET, "Performing prove commit for, seal_randomness_height {:?}, pre_commit_block: {:?}, prove_commit_block: {:?}, entropy: {}, ticket: {}, seed: {}",
+            precommit.info.seal_randomness_height, precommit.pre_commit_block_number, interactive_block_number, hex::encode(entropy), hex::encode(randomness), hex::encode(interactive_randomness));
+        log::debug!(target: LOG_TARGET, "Prover Id: {}, Sector Number: {}", hex::encode(prover_id), precommit.info.sector_number);
 
         // Verify the porep proof
         T::ProofVerification::verify_porep(

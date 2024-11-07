@@ -13,13 +13,13 @@ use crate::{
         bounded_vec::IntoBoundedByteVec,
         client::SubmissionResult,
         runtime_types::pallet_storage_provider::{
-            proofs::SubmitWindowedPoStParams, sector::ProveCommitSector,
-            storage_provider::StorageProviderState,
+            proofs::SubmitWindowedPoStParams, storage_provider::StorageProviderState,
         },
         storage_provider::calls::types::register_storage_provider::PeerId,
     },
     types::storage_provider::{
-        FaultDeclaration, RecoveryDeclaration, SectorPreCommitInfo, TerminationDeclaration,
+        FaultDeclaration, ProveCommitSector, RecoveryDeclaration, SectorPreCommitInfo,
+        TerminationDeclaration,
     },
     BlockNumber, Currency, PolkaStorageConfig,
 };

@@ -147,6 +147,7 @@ pub mod pallet {
             let proof_scheme = porep::ProofScheme::setup(seal_proof);
 
             let vkey = PoRepVerifyingKey::<T>::get().ok_or(Error::<T>::MissingPoRepVerifyingKey)?;
+            log::info!(target: LOG_TARGET, "Verifying PoRep proof for sector: {}...", sector);
             proof_scheme
                 .verify(
                     &comm_r, &comm_d, &prover_id, sector, &ticket, &seed, vkey, &proof,

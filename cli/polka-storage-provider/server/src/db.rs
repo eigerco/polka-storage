@@ -5,9 +5,8 @@ use std::{
 
 use primitives_proofs::SectorNumber;
 use rocksdb::{ColumnFamily, ColumnFamilyDescriptor, Options as DBOptions, DB as RocksDB};
+use serde::{de::DeserializeOwned, Serialize};
 use storagext::types::market::{ConversionError, DealProposal};
-
-use crate::pipeline::types::Sector;
 
 #[derive(Debug, thiserror::Error)]
 pub enum DBError {
@@ -25,6 +24,9 @@ pub enum DBError {
 
     #[error(transparent)]
     Json(#[from] serde_json::Error),
+
+    #[error("unexpected data when trying to serialize given sector type: {0}")]
+    InvalidSectorData(serde_json::Error),
 }
 
 const ACCEPTED_DEAL_PROPOSALS_CF: &str = "accepted_deal_proposals";
@@ -118,25 +120,30 @@ impl DealDB {
         )?)
     }
 
-    pub fn get_sector(&self, sector_id: SectorNumber) -> Result<Option<Sector>, DBError> {
+    pub fn get_sector<SectorType: DeserializeOwned>(
+        &self,
+        sector_number: SectorNumber,
+    ) -> Result<Option<SectorType>, DBError> {
         let Some(sector_slice) = self
             .database
-            .get_pinned_cf(self.cf_handle(SECTORS_CF), sector_id.to_le_bytes())?
+            .get_pinned_cf(self.cf_handle(SECTORS_CF), sector_number.to_le_bytes())?
         else {
             return Ok(None);
         };
 
         let sector = serde_json::from_reader(sector_slice.as_ref())
-            // SAFETY: this should never fail since the API sets a sector
-            // if this happens, it means that someone wrote it from a side channel
-            .expect("invalid content was placed in the database from outside this API");
+            .map_err(|e| DBError::InvalidSectorData(e))?;
 
         Ok(Some(sector))
     }
 
-    pub fn save_sector(&self, sector: &Sector) -> Result<(), DBError> {
+    pub fn save_sector<SectorType: Serialize>(
+        &self,
+        sector_number: SectorNumber,
+        sector: &SectorType,
+    ) -> Result<(), DBError> {
         let cf_handle = self.cf_handle(SECTORS_CF);
-        let key = sector.sector_number.to_le_bytes();
+        let key = sector_number.to_le_bytes();
         let json = serde_json::to_vec(&sector)?;
 
         self.database.put_cf(cf_handle, key, json)?;

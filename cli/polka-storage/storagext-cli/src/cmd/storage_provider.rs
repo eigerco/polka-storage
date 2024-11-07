@@ -5,10 +5,7 @@ use primitives_proofs::{RegisteredPoStProof, SectorNumber};
 use storagext::{
     deser::DeserializablePath,
     multipair::MultiPairSigner,
-    runtime::{
-        runtime_types::pallet_storage_provider::sector::ProveCommitSector as RuntimeProveCommitSector,
-        SubmissionResult,
-    },
+    runtime::SubmissionResult,
     types::storage_provider::{
         FaultDeclaration as SxtFaultDeclaration, ProveCommitSector as SxtProveCommitSector,
         RecoveryDeclaration as SxtRecoveryDeclaration,
@@ -320,17 +317,14 @@ impl StorageProviderCommand {
     where
         Client: StorageProviderClientExt,
     {
-        let (sector_numbers, prove_commit_sectors): (
-            Vec<SectorNumber>,
-            Vec<RuntimeProveCommitSector>,
-        ) = prove_commit_sectors
-            .into_iter()
-            .map(|s| {
-                let sector_number = s.sector_number;
-                (sector_number, s.into())
-            })
-            .unzip();
-
+        let (sector_numbers, prove_commit_sectors): (Vec<SectorNumber>, Vec<SxtProveCommitSector>) =
+            prove_commit_sectors
+                .into_iter()
+                .map(|s| {
+                    let sector_number = s.sector_number;
+                    (sector_number, s.into())
+                })
+                .unzip();
         let submission_result = client
             .prove_commit_sectors(
                 &account_keypair,

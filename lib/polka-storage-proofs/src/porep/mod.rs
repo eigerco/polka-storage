@@ -13,6 +13,8 @@ use storage_proofs_porep::stacked::StackedDrg;
 
 use crate::types::Commitment;
 
+pub type PoRepParameters = groth16::MappedParameters<Bls12>;
+
 /// Generates parameters for proving and verifying PoRep.
 /// It should be called once and then reused across provers and the verifier.
 /// Verifying Key is only needed for verification (no_std), rest of the params are required for proving (std).
@@ -35,9 +37,7 @@ pub fn generate_random_groth16_parameters(
 
 /// Loads Groth16 parameters from the specified path.
 /// Parameters needed to be serialized with [`groth16::Paramters::<Bls12>::write_bytes`].
-pub fn load_groth16_parameters(
-    path: std::path::PathBuf,
-) -> Result<groth16::MappedParameters<Bls12>, PoRepError> {
+pub fn load_groth16_parameters(path: std::path::PathBuf) -> Result<PoRepParameters, PoRepError> {
     groth16::Parameters::<Bls12>::build_mapped_parameters(path.clone(), false)
         .map_err(|e| PoRepError::FailedToLoadGrothParameters(path, e))
 }
