@@ -65,7 +65,7 @@ build-mater-cli:
 # Build all the binaries
 build-binaries-all: build-polka-storage-node build-polka-storage-provider-client build-polka-storage-provider-server build-storagext-cli build-mater-cli
 
-# TODO: the docker builds point to the azure container registry — they shouldnt
+# TODO: the docker builds point to the azure container registry — they shouldn't
 # we should be using the GHCR this time
 
 # Build the mater CLI binary

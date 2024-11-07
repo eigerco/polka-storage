@@ -3,6 +3,12 @@
 This guide will outline how to setup your environment to build the Polka Storage parachain,
 we cover how to build the binaries directly on your system or using [Nix](https://nixos.org/download/) to ease the process.
 
+* [Get the code](#get-the-code)
+* [System dependencies](#system-dependencies)
+* [Using Nix](#using-nix)
+  * [Pre-requisites](#pre-requisites)
+* [Building](#building)
+
 ## Get the code
 
 To get started, first clone the repository and enter the repository's directory:
@@ -13,7 +19,7 @@ cd polka-storage
 ```
 
 <!-- I'm not sure about this section name -->
-## Native Pre-requisites
+## System dependencies
 
 To build the binaries directly on your system you will need the following tools:
 
@@ -79,8 +85,11 @@ Where `<BINARY-NAME>` is one of:
 
 Additionally, if you're building `polka-storage-node` or `storagext-cli` there are features that you may want to enable:
 
-- For `polka-storage-node` you may want to add `--features polka-storage-runtime/testnet` which enables the testnet configuration
+- For `polka-storage-node` you should add `--features polka-storage-runtime/testnet` which enables the testnet configuration;
+  all the code in the repo is currently targetting this feature, not including it may lead to unexpected behavior.
 - For `storagext-cli` you may want to add `--features storagext/insecure_url` which enables using non-TLS HTTP and WebSockets
+
+For more information on what each binary does, refer to [Building](./index.md).
 
 ### Just recipes
 
@@ -112,3 +121,5 @@ Where `<BINARY-NAME>` is one of:
 * `polka-storage-provider-client`
 * `mater-cli`
 * `storagext-cli`
+
+> Additionally, you can move them to a folder under your `$PATH` and run them as you would with any other binary.

@@ -6,7 +6,7 @@ This guide will outline how to setup your environment using Docker to get starte
 
 Install Docker on your system by following the [Docker install instructions](https://docs.docker.com/engine/install/).
 
-> Podman _may_ work, however, we do not provide any guarantees.
+> Using Podman instead of Docker **may** work, however, we **do not support** Podman!
 
 ## Dockerfile setup
 
@@ -56,6 +56,8 @@ docker run -it polkadotstorage.azurecr.io/<DOCKERFILE-NAME>:"$(cargo metadata --
 
 To simplify the building process, we've written some [Just](https://github.com/casey/just) recipes.
 
+#### Build recipes
+
 | Command                                      | Description                                                                                                               |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | `build-mater-docker`                         | Builds the `mater` CLI image which is used by storage clients to convert files to CARv2 format and extract CARv2 content. |
@@ -64,8 +66,13 @@ To simplify the building process, we've written some [Just](https://github.com/c
 | `build-polka-storage-provider-client-docker` | Builds the Storage Provider client image.                                                                                 |
 | `build-storagext-docker`                     | Builds the `storagext` CLI image used to execute extrinsics.                                                              |
 | `build-docker-all`                           | Builds all the images above, this might take a while to complete.                                                         |
-| `run-mater-docker`                           | Runs the image, opening a shell with access to the `mater-cli` binary.                                                    |
-| `run-polka-storage-node-docker`              | Runs the `polka-storage-node` inside the built Docker image.                                                              |
-| `run-polka-storage-provider-server-docker`   | Runs the image, opening a shell with access to the `polka-storage-provider-server` binary.                                |
-| `run-polka-storage-provider-client-docker`   | Runs the image, opening a shell with access to the `polka-storage-provider-client` binary.                                |
-| `run-storagext-docker`                       | Runs the image, opening a shell with access to the `storagext-cli` binary.                                                |
+
+#### Running recipes
+
+| Command                                    | Description                                                                                |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| `run-mater-docker`                         | Runs the image, opening a shell with access to the `mater-cli` binary.                     |
+| `run-polka-storage-node-docker`            | Runs the `polka-storage-node` inside the built Docker image.                               |
+| `run-polka-storage-provider-server-docker` | Runs the image, opening a shell with access to the `polka-storage-provider-server` binary. |
+| `run-polka-storage-provider-client-docker` | Runs the image, opening a shell with access to the `polka-storage-provider-client` binary. |
+| `run-storagext-docker`                     | Runs the image, opening a shell with access to the `storagext-cli` binary.                 |
