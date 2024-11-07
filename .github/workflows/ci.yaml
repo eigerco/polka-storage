@@ -92,7 +92,7 @@ jobs:
 
   release:
     runs-on: self-hosted
-    if: (github.event.label.name == 'release' && startsWith(github.ref, 'refs/tags/')) # checks for release label and existing tag
+    if: (github.event.label.name == 'release') # checks for release label and existing tag
     steps:
       - name: Build in release mode
         run: RUSTFLAGS="-D warnings" cargo build --release --locked
