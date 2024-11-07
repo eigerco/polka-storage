@@ -1,9 +1,11 @@
 mod error;
 
+use std::fmt;
+
 use chrono::{DateTime, Utc};
 use jsonrpsee::proc_macros::rpc;
 use primitives_proofs::{RegisteredPoStProof, RegisteredSealProof};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use storagext::types::market::{
     ClientDealProposal as SxtClientDealProposal, DealProposal as SxtDealProposal,
 };
@@ -20,7 +22,7 @@ pub trait StorageProviderRpc {
     /// Propose a deal, the CID of the deal will be returned,
     /// the CID is part of the path for file uploads.
     #[method(name = "propose_deal")]
-    async fn propose_deal(&self, deal: SxtDealProposal) -> Result<cid::Cid, RpcError>;
+    async fn propose_deal(&self, deal: SxtDealProposal) -> Result<CidString, RpcError>;
 
     /// Publish a deal, the published deal ID will be returned.
     #[method(name = "publish_deal")]
@@ -80,4 +82,35 @@ where
     let s = String::deserialize(deserializer)?;
     <storagext::PolkaStorageConfig as subxt::Config>::AccountId::from_ss58check(&s)
         .map_err(|err| serde::de::Error::custom(format!("invalid ss58 string: {}", err)))
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CidString(String);
+
+impl From<cid::Cid> for CidString {
+    fn from(cid: cid::Cid) -> Self {
+        CidString(cid.to_string())
+    }
+}
+
+impl TryFrom<String> for CidString {
+    type Error = cid::Error;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        // Validate the string is a valid CID
+        let _: cid::Cid = s.parse()?;
+        Ok(CidString(s))
+    }
+}
+
+impl fmt::Display for CidString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl AsRef<str> for CidString {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
 }
