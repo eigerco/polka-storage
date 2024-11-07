@@ -2,15 +2,13 @@
 
 ## Table of Contents
 
-- [Proofs Pallet](#proofs-pallet)
-  - [Table of Contents](#table-of-contents)
-  - [Overview](#overview)
-  - [Usage](#usage)
-  - [Extrinsics](#extrinsics)
-    - [`set_porep_verifying_key`](#set_porep_verifying_key)
-    - [`set_post_verifying_key`](#set_post_verifying_key)
-  - [Events](#events)
-  - [Errors](#errors)
+- [Overview](#overview)
+- [Usage](#usage)
+- [Extrinsics](#extrinsics)
+  - [`set_porep_verifying_key`](#set_porep_verifying_key)
+  - [`set_post_verifying_key`](#set_post_verifying_key)
+- [Events](#events)
+- [Errors](#errors)
 
 ## Overview
 
