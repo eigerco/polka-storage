@@ -240,7 +240,7 @@ pub struct ServerConfiguration {
     /// Proof of Spacetime proof type.
     post_proof: RegisteredPoStProof,
 
-    /// Proving Parameters for PoRep proof
+    /// Proving Parameters for PoRep proof.
     /// For 2KiB sectors they're ~1GiB of data.
     porep_parameters: PoRepParameters,
 }

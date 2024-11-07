@@ -458,13 +458,8 @@ async fn prove_commit(
     );
 
     let prover_id = derive_prover_id(state.xt_keypair.account_id());
-    tracing::debug!("Performing prove commit for, seal_randomness_height {}, pre_commit_block: {}, prove_commit_block: {}, entropy: {}, ticket: {}, seed: {}",
-        seal_randomness_height, sector.precommit_block, prove_commit_block, hex::encode(entropy), hex::encode(ticket), hex::encode(seed));
-    tracing::debug!(
-        "Prover Id: {}, Sector Number: {}",
-        hex::encode(prover_id),
-        sector_number
-    );
+    tracing::debug!("Performing prove commit for, seal_randomness_height {}, pre_commit_block: {}, prove_commit_block: {}, entropy: {}, ticket: {}, seed: {}, prover id: {}, sector_number: {}",
+        seal_randomness_height, sector.precommit_block, prove_commit_block, hex::encode(entropy), hex::encode(ticket), hex::encode(seed), hex::encode(prover_id), sector_number);
 
     let sealing_handle: JoinHandle<Result<Vec<BlstrsProof>, _>> = {
         let porep_params = state.porep_parameters.clone();
