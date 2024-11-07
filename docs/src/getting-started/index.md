@@ -11,8 +11,8 @@ Before proceeding with the setup, please ensure the host system meets the follow
 
 ## Guides
 
-- [*Local Testnet - Polka Storage Parachain*](local-testnet.md) — Covers how to setup a local testnet for the Polka Storage parachain, using Zombienet.
-- [*Real-world use case demo*](demo.md) — Covers a real-world use case, adding balances, submitting sectors, and more!
-- [*Setting up and building in Nix*](nix-setup.md) - Covers how to setup the Nix environment and how to build components of the project.
-- [*Setting up and building with Docker*](docker-setup.md) - Covers how to setup and build the Docker images for the components of the project.
-- [*Building from source*](build-from-source.md) - Covers how to setup the required dependencies on your machine and build components of the project.
+- [_Building Polka Storage_](./building/index.md)
+  - [_Building from source_](./building/source.md) - Covers how to setup the required dependencies on your machine and build components of the project.
+  - [_Setting up and building with Docker_](./building/docker.md) - Covers how to setup and build the Docker images for the components of the project.
+- [_Local Testnet - Polka Storage Parachain_](local-testnet.md) — Covers how to setup a local testnet for the Polka Storage parachain, using Zombienet.
+- [_Real-world use case demo_](demo.md) — Covers a real-world use case, adding balances, submitting sectors, and more!
