@@ -26,12 +26,13 @@ After publishing, the funds allocated for the deal will be moved from `free` to 
 
 <img src="../../images/market/publish_storage_deals.svg" alt="Publishing storage deals">
 
-At this point, the remaining responsibility is shifted to the storage provider, which needs to activate the deal;
-to do so, the storage provider first needs to [pre-commit](./storage-provider.md#pre_commit_sectors) the deal's sectors,
-and then [prove](./storage-provider.md#prove_commit_sectors) they stored the sectors
-— these two steps are done using the [`pre_commit_sectors`](./storage-provider.md#pre_commit_sectors) and [`prove_commit_sectors`](./storage-provider.md#prove_commit_sectors) extrinsics.
+At this point, the remaining responsibility is shifted to the storage provider, which needs to activate the deal.
+First, the storage provider needs to get_randomness from [Randomness Pallet](./randonmness.md) in order to create a replica and
+[pre-commit](./storage-provider.md#pre_commit_sectors) the deal's sectors.
+The sealing and pre-comitting takes some time, after that the storage provider needs to fetch yet another randomness seed to create a proof.
+After that, they [prove](./storage-provider.md#prove_commit_sectors) they stored the sectors by calling [`prove_commit_sectors`](./storage-provider.md#prove_commit_sectors) extrinsics.
 
-Verification is done and reported to the Market pallet to terminate the deal and apply penalties to the storage provider
+Verification is done via [Proofs Pallet](./proofs.md) and reported to the Market pallet to terminate the deal and apply penalties to the storage provider
 (remove and burn its collateral — i.e. `locked` funds) if they fail to activate the deal on time and return the funds to the client.
 
 <img src="../../images/storage-provider/sector_activation.svg" alt="Deal activation">
