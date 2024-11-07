@@ -5,7 +5,7 @@ and through them perform state transitions.
 
 ## System Overview
 
-<img src="images/architecture/system_overview.svg" >
+<img src="../images/architecture/system_overview.svg" >
 
 From left to right, we have validators (represented by a single node as only one validates blocks at a time),
 collators, storage providers and their respective storage.
@@ -20,7 +20,7 @@ Storage management is left to the storage providers, being responsible to keep t
 
 ## Collator Overview
 
-<img src="images/architecture/collator_overview.svg" >
+<img src="../images/architecture/collator_overview.svg" >
 
 Taking a deeper dive into the collator architecture, our main focus is on developing the core parachain pallets —
 currently, the storage provider and market pallets.
@@ -36,7 +36,7 @@ this is triggered by the Storage Provider Pallet and handled by the Proofs Palle
 
 ## Storage Provider Overview
 
-<img src="images/architecture/storage_provider_overview.svg">
+<img src="../images/architecture/storage_provider_overview.svg">
 
 The storage provider is composed of the proof subsystem which proves the storage,
 a cron-like service that schedules the proving process and the CAR library that validates CAR files submitted by the user.
