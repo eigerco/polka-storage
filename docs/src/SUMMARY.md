@@ -6,6 +6,10 @@
 # Guides
 - [Architecture](./architecture/index.md)
   - [Polka Storage Provider Server](./architecture/polka-storage-provider-server.md)
+  - [Pallets](./architecture/pallets/index.md)
+    - [Market](./architecture/pallets/market.md)
+    - [Storage Provider](./architecture/pallets/storage-provider.md)
+    - [Proofs](./architecture/pallets/proofs.md)
 - [Getting Started](./getting-started/index.md)
   - [Building](./getting-started/building/index.md)
     - [From Source](./getting-started/building/source.md)
@@ -25,11 +29,15 @@
   - [`storage-provider`](./storagext-cli/storage-provider.md)
   - [`system`](./storagext-cli/system.md)
 - [Mater CLI](./mater-cli/index.md)
+<<<<<<< HEAD
 - [Pallets](./pallets/index.md)
   - [Market](./pallets/market.md)
   - [Storage Provider](./pallets/storage-provider.md)
   - [Proofs](./pallets/proofs.md)
   - [Randomness](./pallets/randomness.md)
+=======
+
+>>>>>>> c0737a9 (docs: move pallets under architecture)
 ---
 
 [Glossary](./glossary.md)
