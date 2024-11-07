@@ -1,26 +1,8 @@
 # Polka Storage Provider — Server
 
-In this chapter we'll cover the server's architecture as well as the CLI's options.
+This chapter covers the available CLI options for the Polka Storage Provider server.
 
 <!-- Sadly, tables will not cut it here, since the text is just too big for the table. -->
-
-## Server Architecture
-
-<!-- NOTE: the image gets f'd up in dark backgrounds and css isn't helping, ill need to make a new svg, for now just use a lighter mode -->
-
-<p><img src="../images/architecture/storage-provider-server.svg" style="height: 500px; display: block; margin-left: auto; margin-right: auto;"/></p>
-
-The server has two main fronts, the JSON-RPC API which provides an interface for users to submit deal proposals to the storage provider,
-and the HTTP API which consists of a single endpoint where users are to submit their data.
-
-The user is first required to propose a deal, which once accepted by the storage provider (signaled by the return of a CID) allows the user to submit a file
-(using `curl` for example) to the server; finally the user can then publish a signed deal to the storage provider.
-
-The responsibility then falls on to the storage provider to seal, publish and activate the deal on the Polka Storage parachain.
-
-<!-- TODO: remove the download API from the server until we implement deal retrieval -->
-
-### CLI Options
 
 #### `--upload-listen-address`
 

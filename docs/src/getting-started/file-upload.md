@@ -1,8 +1,7 @@
 # File upload
 
-> This guide assumes you're connecting to a running Polka Storage Provider Server
-
-<!-- TODO: add a server setup guide -->
+> This guide assumes there is a Parachain Node and a Polka Storage Provider Server running.
+<!-- TODO: point to the setup guides -->
 
 
 This guide will walk the client through the process of uploading a file to a Polka Storage Provider.
@@ -98,7 +97,7 @@ The tool will reply with a CID — the CID of the deal you just sent — you nee
 
 Once the server has replied with the CID, you're ready to upload the file we have been working with.
 This can be done with just any tool that can upload a file over HTTP.
-The server supports both [`multipart forms`](https://curl.se/docs/httpscripting.html#file-upload-post) and [`PUT`](https://curl.se/docs/httpscripting.html#put).
+The server supports both [multipart forms](https://curl.se/docs/httpscripting.html#file-upload-post) and [`PUT`](https://curl.se/docs/httpscripting.html#put).
 
 ```bash
 curl -X PUT -F "upload=@<your-file>" "http://<storage-provider-ip>:<port>/upload/<deal-cid>"
