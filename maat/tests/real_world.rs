@@ -430,9 +430,6 @@ async fn real_world_use_case() {
     tracing::debug!("adding {} balance to alice", balance);
     add_balance(&client, &alice_kp, balance).await;
 
-    // 81 minimum blocks for the randomness to be available
-    // client.wait_for_height(81, true).await.unwrap();
-
     publish_storage_deals(&client, &charlie_kp, &alice_kp).await;
 
     let pre_commit_block_number = pre_commit_sector(&client, &charlie_kp).await;
