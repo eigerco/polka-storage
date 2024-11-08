@@ -29,15 +29,7 @@
   - [`storage-provider`](./storagext-cli/storage-provider.md)
   - [`system`](./storagext-cli/system.md)
 - [Mater CLI](./mater-cli/index.md)
-<<<<<<< HEAD
-- [Pallets](./pallets/index.md)
-  - [Market](./pallets/market.md)
-  - [Storage Provider](./pallets/storage-provider.md)
-  - [Proofs](./pallets/proofs.md)
-  - [Randomness](./pallets/randomness.md)
-=======
 
->>>>>>> c0737a9 (docs: move pallets under architecture)
 ---
 
 [Glossary](./glossary.md)
