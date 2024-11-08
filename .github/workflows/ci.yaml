@@ -91,4 +91,3 @@ jobs:
         run: RUSTFLAGS="-D warnings" cargo clippy --profile ci --locked
       - name: Run tests
         run: RUSTFLAGS="-D warnings" cargo tarpaulin --profile ci --locked --workspace --exclude maat
-      # FIXME(#35,@serhii,27/5/2024): Revert the commit from the issue to restore the full set of CI steps.
