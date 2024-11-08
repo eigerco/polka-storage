@@ -1,7 +1,10 @@
 use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 
+use axum::http::Method;
 use jsonrpsee::server::Server;
-use polka_storage_provider_common::rpc::{RpcError, ServerInfo, StorageProviderRpcServer};
+use polka_storage_provider_common::rpc::{
+    CidString, RpcError, ServerInfo, StorageProviderRpcServer,
+};
 use primitives_commitment::Commitment;
 use storagext::{
     types::market::{ClientDealProposal as SxtClientDealProposal, DealProposal as SxtDealProposal},
@@ -9,6 +12,7 @@ use storagext::{
 };
 use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
+use tower_http::cors::{Any, CorsLayer};
 use tracing::{info, instrument};
 
 use crate::{
@@ -37,7 +41,7 @@ impl StorageProviderRpcServer for RpcServerState {
         Ok(self.server_info.clone())
     }
 
-    async fn propose_deal(&self, deal: SxtDealProposal) -> Result<cid::Cid, RpcError> {
+    async fn propose_deal(&self, deal: SxtDealProposal) -> Result<CidString, RpcError> {
         if deal.piece_size > self.server_info.post_proof.sector_size().bytes() {
             // once again, the rpc error is wrong, we'll need to fix that
             return Err(RpcError::invalid_params(
@@ -46,10 +50,12 @@ impl StorageProviderRpcServer for RpcServerState {
             ));
         }
 
-        Ok(self
+        let cid = self
             .deal_db
             .add_accepted_proposed_deal(&deal)
-            .map_err(|err| RpcError::internal_error(err, None))?)
+            .map_err(|err| RpcError::internal_error(err, None))?;
+
+        Ok(CidString::from(cid))
     }
 
     async fn publish_deal(&self, deal: SxtClientDealProposal) -> Result<u64, RpcError> {
@@ -145,8 +151,21 @@ pub async fn start_rpc_server(
     token: CancellationToken,
 ) -> Result<(), std::io::Error> {
     info!("Starting RPC server at {}", state.listen_address);
-    let server = Server::builder().build(state.listen_address).await?;
-    let server_handle = server.start(state.into_rpc());
+
+    let cors = CorsLayer::new()
+        .allow_methods([Method::POST])
+        .allow_origin(Any)
+        .allow_headers([hyper::header::CONTENT_TYPE]);
+
+    let middleware = tower::ServiceBuilder::new().layer(cors);
+
+    let server = Server::builder()
+        .set_http_middleware(middleware)
+        .build(state.listen_address)
+        .await?;
+
+    let rpc = StorageProviderRpcServer::into_rpc(state);
+    let server_handle = server.start(rpc);
     info!("RPC server started");
 
     token.cancelled_owned().await;

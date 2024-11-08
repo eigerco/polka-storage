@@ -7,6 +7,10 @@ name = "polka-storage-provider-server"
 repository.workspace = true
 version = "0.1.0"
 
+[features]
+default = []
+delia = []
+
 [dependencies]
 # "Homegrown" crates
 mater = { workspace = true }
@@ -23,6 +27,7 @@ clap = { workspace = true, features = ["derive"] }
 codec = { workspace = true }
 futures = { workspace = true }
 hex = { workspace = true, features = ["std"] }
+hyper = { workspace = true }
 jsonrpsee = { workspace = true, features = ["http-client", "macros", "server", "ws-client"] }
 rand = { workspace = true }
 rocksdb = { workspace = true }
@@ -34,12 +39,12 @@ tempfile = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tokio-util = { workspace = true, features = ["rt"] }
+tower = { workspace = true }
 tower-http = { workspace = true, features = ["trace"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 url = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
-
 
 [lints]
 workspace = true
