@@ -25,7 +25,7 @@ Storage management is left to the storage providers, being responsible to keep t
 Taking a deeper dive into the collator architecture, our main focus is on developing the core parachain pallets —
 currently, the storage provider and market pallets.
 The collator automatically exposes a JSON-RPC API for the extrinsics calls,
-this API can then be called from a library such as [`storagext`](./storagext-cli/index.md), Polkadot.js,
+this API can then be called from a library such as [`storagext`](../storagext-cli/index.md), Polkadot.js,
 or even just with raw HTTP and JSON-RPC payloads.
 
 The storage provider interacts with the collator through the defined extrinsics,
