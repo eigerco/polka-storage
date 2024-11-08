@@ -5,45 +5,33 @@ and through them perform state transitions.
 
 ## System Overview
 
-<img src="../images/architecture/system_overview.svg" >
+![](../images/architecture/system_overview.png)
 
 From left to right, we have validators (represented by a single node as only one validates blocks at a time),
-collators, storage providers and their respective storage.
+collators and the storage providers.
 
-The validators handled by Polkadot itself, validating the blocks submitted by a collator selected at random
-(the selection process is not covered here).
+The validators are handled by Polkadot itself — i.e. who gets to check the validity proofs is randomly selected by the network.
 
-The collators run our parachain runtime and process extrinsic calls from the storage providers —
-such as proof of storage submissions.
-The storage providers are independent of the collators and are controlled by arbitrary people who provide storage to the system.
+The collators execute our parachain runtime and process extrinsic calls from the storage providers — such as proof of storage submissions.
+
+The storage providers are independent of the collators and are controlled by people like you, who provide storage to the system.
 Storage management is left to the storage providers, being responsible to keep their physical system in good shape to serve clients.
+We do provide an implementation of the storage provider, you can read more about it in the [Polka Storage Provider Server chapter](./polka-storage-provider-server.md).
 
-## Collator Overview
+## Pallets Overview
 
-<img src="../images/architecture/collator_overview.svg" >
+![](../images/architecture/pallets_overview.png)
 
-Taking a deeper dive into the collator architecture, our main focus is on developing the core parachain pallets —
-currently, the storage provider and market pallets.
-The collator automatically exposes a JSON-RPC API for the extrinsics calls,
-this API can then be called from a library such as [`storagext`](./storagext-cli/index.md), Polkadot.js,
-or even just with raw HTTP and JSON-RPC payloads.
+Going over to the pallets, we've focused on the core functionality —
+to that end, we've implemented the market, storage provider, proofs and randomness pallets.
 
-The storage provider interacts with the collator through the defined extrinsics,
-first registering themselves in the network, registering deals and eventually submitting proofs for validation.
+The market pallet handles all things related to deal payments and slashing,
+being informed by the storage provider when deals haven't been proven and applying slashing in those cases.
+The storage provider handles the registering of storage providers and the proof submission,
+the latter is checked inside the collator's WASM runtime, using the proofs pallet.
+Finally, the proofs pallet makes use of randomness for challenges, ensuring the storage providers can't cheat the system.
 
-Proof validation is done on the collator, inside the WASM runtime;
-this is triggered by the Storage Provider Pallet and handled by the Proofs Pallet.
-
-## Storage Provider Overview
-
-<img src="../images/architecture/storage_provider_overview.svg">
-
-The storage provider is composed of the proof subsystem which proves the storage,
-a cron-like service that schedules the proving process and the CAR library that validates CAR files submitted by the user.
-
-The client submits prepared CAR files over Graphsync, which the CAR library then validates — verifies the contents match the CID.
-
-After the data has been submitted, it needs to be proven, the cron will schedule the proving process for each deal accepted from the clients.
+For a deeper dive on the pallets, you can read the [Pallets chapter](./pallets/index.md).
 
 ## Resources on Parachains
 
