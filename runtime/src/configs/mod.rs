@@ -55,11 +55,11 @@ use xcm_config::{RelayLocation, XcmOriginToTransactDispatchOrigin};
 use super::{
     weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight},
     AccountId, Aura, Balance, Balances, Block, BlockNumber, CollatorSelection, Hash, MessageQueue,
-    Nonce, PalletInfo, ParachainSystem, Runtime, RuntimeCall, RuntimeEvent,
-    RuntimeFreezeReason, RuntimeHoldReason, RuntimeOrigin, RuntimeTask, Session, SessionKeys,
-    System, WeightToFee, XcmpQueue, AVERAGE_ON_INITIALIZE_RATIO, BLOCK_PROCESSING_VELOCITY,
-    EXISTENTIAL_DEPOSIT, HOURS, MAXIMUM_BLOCK_WEIGHT, MICROUNIT, NORMAL_DISPATCH_RATIO,
-    RELAY_CHAIN_SLOT_DURATION_MILLIS, SLOT_DURATION, UNINCLUDED_SEGMENT_CAPACITY, VERSION,
+    Nonce, PalletInfo, ParachainSystem, Runtime, RuntimeCall, RuntimeEvent, RuntimeFreezeReason,
+    RuntimeHoldReason, RuntimeOrigin, RuntimeTask, Session, SessionKeys, System, WeightToFee,
+    XcmpQueue, AVERAGE_ON_INITIALIZE_RATIO, BLOCK_PROCESSING_VELOCITY, EXISTENTIAL_DEPOSIT, HOURS,
+    MAXIMUM_BLOCK_WEIGHT, MICROUNIT, NORMAL_DISPATCH_RATIO, RELAY_CHAIN_SLOT_DURATION_MILLIS,
+    SLOT_DURATION, UNINCLUDED_SEGMENT_CAPACITY, VERSION,
 };
 use crate::{DAYS, MINUTES};
 
@@ -436,9 +436,7 @@ impl pallet_randomness::Config for Runtime {
 mod randomness_source_testnet {
     use frame_support::traits::Randomness;
     use frame_system::{pallet_prelude::BlockNumberFor, Config, Pallet};
-    use sp_runtime::{
-        traits::{Hash},
-    };
+    use sp_runtime::traits::Hash;
     use sp_std::marker::PhantomData;
 
     /// Randomness source that always returns same random value.
