@@ -7,6 +7,26 @@
 Setting up the Storage Provider doesn't have a lot of science, but isn't automatic either!
 In this guide, we'll cover how to get up and running with the Storage Provider.
 
+## Generating the PoRep Parameters
+
+First and foremost, to allow the Storage Provider to generate [PoRep](https://docs.filecoin.io/basics/the-blockchain/proofs#proof-of-replication-porep) proofs,
+we need to first generate their parameters, we do that with the following command:
+
+```bash
+$ polka-storage-provider-client proofs porep-params
+Generating params for 2KiB sectors... It can take a couple of minutes ⌛
+Generated parameters:
+/home/user/polka-storage/2KiB.porep.params
+/home/user/polka-storage/2KiB.porep.vk
+/home/user/polka-storage/2KiB.porep.vk.scale
+```
+
+As advertised, the command has generated the following files:
+
+* `2KiB.porep.params` — The PoRep parameters
+* `2KiB.porep.vk` — The verifying key
+* `2KiB.porep.vk.scale` - The verifying key, encoded in SCALE format
+
 ## Registering the Storage Provider
 
 Logically, if you want to participate in the network, you need to register.
@@ -34,11 +54,15 @@ The following is the *minimal* command:
 polka-storage-provider-server \
   --seal-proof 2KiB \
   --post-proof 2KiB \
+  --porep-parameters <POREP-PARAMS> \
   --X-key <KEY>
 ```
 
-Where `--X-key <KEY>` matches the key you used to register yourself with the network, in the previous step.
+Where `--X-key <KEY>` matches the key type you used to register yourself with the network, in the previous step.
 Note that currently, `--seal-proof` and `--post-proof` only support `2KiB`.
+
+`<POREP-PARAMS>` is the resulting `*.porep.params` file from the [first steps](#generating-the-porep-parameters),
+in this case, `2KiB.porep.params`.
 
 When ran like this, the server will assume a random directory for the database and the storage, however,
 you can change that through the `--database-directory` and `--storage-directory`, respectively,
