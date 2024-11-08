@@ -1,0 +1,166 @@
+name: Release
+
+# READ THIS FIRST
+#
+# This process is by no means perfect, but it currently achieves our goals
+#
+# There's some magic in the `Check version match` step for each job,
+# but it's there's a reason — i.e. GHA sucks — and we want to only build the package for the respective tag
+# this allows us to perform individual releases instead of launching them all one by one.
+#
+# Now, on to the magic:
+# 1 - Start by fetching the workspace metadata
+# 2 - Using `jq`, get the package name and version
+#     and then format them into a string that should match the tag
+# 4 - If it does not match the tag, fail the build
+
+on:
+  push:
+    tags:
+      # We match on all tags and filter them later
+      - "**"
+
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build_and_release_mater_cli:
+    runs-on: self-hosted
+
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'mater-cli-v')
+
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - name: Check version match
+        run: |
+          PACKAGE_VERSION="$(cargo metadata --no-deps --color never --format-version 1 --locked |
+            jq -r '.packages[] | select(.name == "mater-cli") | "\(.name)-v\(.version)"')"
+          if [[ "$PACKAGE_VERSION" != "$GITHUB_REF_NAME" ]]; then
+            exit 1;
+          fi
+
+      - name: Build in release mode
+        run: RUSTFLAGS="-D warnings" cargo build --release --locked --package mater-cli
+
+      - name: Release binaries
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # set github token for rw rights on repo
+        with:
+          tag_name: ${{ github.ref_name }} # set the name of the release the tag
+          files: |
+            target/release/mater-cli
+
+  build_and_release_storagext_cli:
+    runs-on: self-hosted
+
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'storagext-cli-v')
+
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - name: Check version match
+        run: |
+          PACKAGE_VERSION="$(cargo metadata --no-deps --color never --format-version 1 --locked |
+            jq -r '.packages[] | select(.name == "storagext-cli") | "\(.name)-v\(.version)"')"
+          if [[ "$PACKAGE_VERSION" != "$GITHUB_REF_NAME" ]]; then
+            exit 1;
+          fi
+
+      - name: Build in release mode
+        run: RUSTFLAGS="-D warnings" cargo build --release --locked --package storagext-cli
+
+      - name: Release binaries
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # set github token for rw rights on repo
+        with:
+          tag_name: ${{ github.ref_name }} # set the name of the release the tag
+          files: |
+            target/release/storagext-cli
+
+  build_and_release_polka_storage_node:
+    runs-on: self-hosted
+
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'polka-storage-node-v')
+
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - name: Check version match
+        run: |
+          PACKAGE_VERSION="$(cargo metadata --no-deps --color never --format-version 1 --locked |
+            jq -r '.packages[] | select(.name == "polka-storage-node") | "\(.name)-v\(.version)"')"
+          if [[ "$PACKAGE_VERSION" != "$GITHUB_REF_NAME" ]]; then
+            exit 1;
+          fi
+
+      - name: Build in release mode
+        run: RUSTFLAGS="-D warnings" cargo build --release --locked --package polka-storage-node
+
+      - name: Release binaries
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # set github token for rw rights on repo
+        with:
+          tag_name: ${{ github.ref_name }} # set the name of the release the tag
+          files: |
+            target/release/polka-storage-node
+
+  build_and_release_polka_storage_provider_server:
+    runs-on: self-hosted
+
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'polka-storage-provider-server-v')
+
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - name: Check version match
+        run: |
+          PACKAGE_VERSION="$(cargo metadata --no-deps --color never --format-version 1 --locked |
+            jq -r '.packages[] | select(.name == "polka-storage-server") | "\(.name)-v\(.version)"')"
+          if [[ "$PACKAGE_VERSION" != "$GITHUB_REF_NAME" ]]; then
+            exit 1;
+          fi
+
+      - name: Build in release mode
+        run: RUSTFLAGS="-D warnings" cargo build --release --locked --package polka-storage-provider-server
+
+      - name: Release binaries
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # set github token for rw rights on repo
+        with:
+          tag_name: ${{ github.ref_name }} # set the name of the release the tag
+          files: |
+            target/release/polka-storage-provider-server
+
+  build_and_release_polka_storage_provider_client:
+    runs-on: self-hosted
+
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'polka-storage-provider-client-v')
+
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - name: Check version match
+        run: |
+          PACKAGE_VERSION="$(cargo metadata --no-deps --color never --format-version 1 --locked |
+            jq -r '.packages[] | select(.name == "polka-storage-client") | "\(.name)-v\(.version)"')"
+          if [[ "$PACKAGE_VERSION" != "$GITHUB_REF_NAME" ]]; then
+            exit 1;
+          fi
+
+      - name: Build in release mode
+        run: RUSTFLAGS="-D warnings" cargo build --release --locked --package polka-storage-provider-client
+
+      - name: Release binaries
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # set github token for rw rights on repo
+        with:
+          tag_name: ${{ github.ref_name }} # set the name of the release the tag
+          files: |
+            target/release/polka-storage-provider-client
