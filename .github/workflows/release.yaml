@@ -24,7 +24,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # set github token for rw rights on repo
         with:
-          tag_name: ${{ github.ref_name }} # set the name of the release to
+          tag_name: ${{ github.ref_name }} # set the name of the release the tag
           files: |
             target/release/mater-cli
             target/release/polka-storage-node
