@@ -4,7 +4,7 @@ mod cmd;
 
 use std::{fmt::Debug, time::Duration};
 
-use clap::{ArgAction, ArgGroup, Parser, Subcommand};
+use clap::{ArgGroup, Parser, Subcommand};
 use cmd::{market::MarketCommand, storage_provider::StorageProviderCommand, system::SystemCommand};
 use storagext::multipair::{DebugPair, MultiPairSigner};
 use subxt::ext::sp_core::{
@@ -78,7 +78,9 @@ struct Cli {
     pub format: OutputFormat,
 
     /// Wait for inclusion of the extrinsic call in a finalized block. Defaults to waiting.
-    #[arg(long, env, default_value_t = true)]
+    // NOTE: for anyone curious about the ArgAction::Set, it's the sane way to parse --flag=true/false
+    // https://github.com/clap-rs/clap/issues/1649#issuecomment-1156638220
+    #[arg(long, env, default_value_t = true, action = clap::ArgAction::Set)]
     pub wait_for_finalization: bool,
 }
 
