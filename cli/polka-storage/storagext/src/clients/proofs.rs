@@ -3,6 +3,7 @@ use subxt::ext::sp_core::crypto::Ss58Codec;
 
 use crate::{
     runtime::{self, SubmissionResult},
+    types::proofs::VerifyingKey,
     PolkaStorageConfig,
 };
 
@@ -10,7 +11,7 @@ pub trait ProofsClientExt {
     fn set_porep_verifying_key<Keypair>(
         &self,
         account_keypair: &Keypair,
-        verifying_key: Vec<u8>,
+        verifying_key: VerifyingKey,
         wait_for_finalization: bool,
     ) -> impl Future<Output = Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>>
     where
@@ -28,7 +29,7 @@ impl ProofsClientExt for crate::runtime::client::Client {
     async fn set_porep_verifying_key<Keypair>(
         &self,
         account_keypair: &Keypair,
-        verifying_key: Vec<u8>,
+        verifying_key: VerifyingKey,
         wait_for_finalization: bool,
     ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
@@ -36,7 +37,7 @@ impl ProofsClientExt for crate::runtime::client::Client {
     {
         let payload = runtime::tx()
             .proofs()
-            .set_porep_verifying_key(verifying_key);
+            .set_porep_verifying_key(verifying_key.into());
 
         self.traced_submission(&payload, account_keypair, wait_for_finalization)
             .await

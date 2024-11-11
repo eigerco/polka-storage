@@ -180,7 +180,6 @@ impl MarketCommand {
             // Didn't wait for finalization
             return Ok(());
         };
-        let hash = submission_result.hash;
 
         // This monstrosity first converts incoming events into a "generic" (subxt generated) event,
         // and then we extract only the Market events. We could probably extract this into a proper
@@ -200,7 +199,7 @@ impl MarketCommand {
             let event = event?;
             let output = output_format.format(&event)?;
             match output_format {
-                OutputFormat::Plain => println!("[{}] {}", hash, output),
+                OutputFormat::Plain => println!("[{}] {}", submission_result.hash, output),
                 OutputFormat::Json => println!("{}", output),
             }
         }

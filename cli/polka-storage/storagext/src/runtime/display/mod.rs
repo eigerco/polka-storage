@@ -1,4 +1,5 @@
 mod market;
+mod proofs;
 mod storage_provider;
 
 #[cfg(test)]

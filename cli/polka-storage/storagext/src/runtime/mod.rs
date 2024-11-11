@@ -47,6 +47,11 @@ pub mod display;
         path = "pallet_storage_provider::pallet::Event",
         derive = "::serde::Serialize"
     ),
+    derive_for_type(path = "pallet_proofs::pallet::Event", derive = "::serde::Serialize"),
+    derive_for_type(
+        path = "pallet_proofs::pallet::Event",
+        derive = "::serde::Serialize"
+    ),
     derive_for_type(
         path = "bounded_collections::bounded_vec::BoundedVec",
         derive = "::serde::Serialize"
