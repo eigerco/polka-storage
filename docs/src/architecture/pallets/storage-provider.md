@@ -349,6 +349,12 @@ The Storage Provider Pallet emits the following events:
   - `owner` - SS58 address of the storage provider.
   - `partition` - Partition number for which the PoSt was missed.
   - `sectors` - The sectors in the partition declared faulty by the system.
+- `SectorsTerminated` - A storage provider has terminated some sectors.
+  - `owner` - SS58 address of the storage provider.
+  - `terminations` - An array with information about the terminated sectors. This information includes:
+    - `deadline` - The deadline to which the terminated sectors were assigned.
+    - `partition` - The partition number within the deadline containing the terminated sectors.
+    - `sectors` - The sectors in the partition that have been terminated.
 
 ## Errors
 
