@@ -3,7 +3,7 @@ use std::time::Duration;
 use clap::Subcommand;
 use storagext::{
     clients::ProofsClientExt, multipair::MultiPairSigner, runtime::SubmissionResult,
-    PolkaStorageConfig,
+    types::proofs::VerifyingKey, PolkaStorageConfig,
 };
 use url::Url;
 
@@ -14,8 +14,9 @@ use crate::{missing_keypair_error, OutputFormat};
 pub(crate) enum ProofsCommand {
     /// Set PoRep verifying key
     SetPorepVerifyingKey {
-        /// Verifying key hex encoded.
-        verifying_key: String,
+        /// Verifying key. Either hex encoded as string or a file path to a raw bytes, prepended with an @.
+        #[arg(value_parser = VerifyingKey::value_parser)]
+        verifying_key: VerifyingKey,
     },
 }
 
@@ -47,7 +48,7 @@ impl ProofsCommand {
                 Self::set_porep_verifying_key(
                     client,
                     account_keypair,
-                    &verifying_key,
+                    verifying_key,
                     wait_for_finalization,
                 )
                 .await?
@@ -87,15 +88,12 @@ impl ProofsCommand {
     async fn set_porep_verifying_key<Client>(
         client: Client,
         account_keypair: MultiPairSigner,
-        verifying_key_hex: &str,
+        verifying_key: VerifyingKey,
         wait_for_finalization: bool,
     ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
         Client: ProofsClientExt,
     {
-        let verifying_key = hex::decode(verifying_key_hex)
-            .map_err(|err| subxt::Error::Other(format!("Failed to decode verifying key: {err}")))?;
-
         let submission_result = client
             .set_porep_verifying_key(&account_keypair, verifying_key, wait_for_finalization)
             .await?

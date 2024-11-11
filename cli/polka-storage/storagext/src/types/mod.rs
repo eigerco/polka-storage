@@ -1,4 +1,5 @@
 pub mod market;
+pub mod proofs;
 pub mod storage_provider;
 
 use serde::{de::Deserialize, Serializer};
