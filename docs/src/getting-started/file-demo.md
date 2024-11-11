@@ -21,6 +21,8 @@ $ storagext-cli --sr25519-key "//Charlie" market add-balance 12500000000
 ```
 
 ### Storage Client
+<img class="right" src="../images/polkadot.svg" alt="The Polkadot logo" style="height: 100px; padding: 4px 8px 4px;">
+
 Alice is a [Storage User](../glossary.md#storage-user) and wants to store an image of her lovely Polkadot logo [`polkadot.svg`](../images/polkadot.svg) in the Polka Storage [parachain](../glossary.md#parachain).
 
 Alice knows that she needs to prepare an image for storage and get its [CID](https://github.com/multiformats/cid).
