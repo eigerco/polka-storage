@@ -6,6 +6,9 @@ This document covers getting funds into an account that is generated externally.
 
 In this guide we will be covering getting funds into a externally generated account. The recommended way to generate an account is by using the [polkadot.js wallet extension](https://github.com/polkadot-js/extension). Please make sure to follow the instructions on how to generate a new account if you have not done so already.
 
+[How to create a polkadot account](https://support.polkadot.network/support/solutions/articles/65000098878-how-to-create-a-dot-account)
+[Creating a polkadot account (video)](https://www.youtube.com/watch?v=DNU0p5G0Gqc)
+
 ## Transferring funds
 
 Make sure to run the local testnet, you can find how to do so in the [local testnet guide](local-testnet.md). Once the local testnet is up and running navigate to the polkadot-js web app interface by going to the [default polkadot.js web interface url](https://polkadot.js.org/apps/?rpc=ws://127.0.0.1:42069).
