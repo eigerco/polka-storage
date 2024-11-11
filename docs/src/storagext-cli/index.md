@@ -69,4 +69,6 @@ and will report it's result — whether the call was successful or not.
 
 - [Subcommand `market`](market.md)
 - [Subcommand `storage-provider`](storage-provider.md)
+- [Subcommand `proofs`](proofs.md)
+- [Subcommand `randomness`](randomness.md)
 - [Subcommand `system`](system.md)

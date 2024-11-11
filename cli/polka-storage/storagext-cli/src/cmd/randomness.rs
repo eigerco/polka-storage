@@ -14,7 +14,7 @@ use crate::OutputFormat;
 )]
 pub(crate) enum RandomnessCommand {
     /// Get random value from a block in hex format.
-    GetRandomness {
+    Get {
         /// Block number
         block: storagext::BlockNumber,
     },
@@ -39,7 +39,7 @@ impl RandomnessCommand {
             // NOTE: subcommand_negates_reqs does not work for this since it only negates the parents'
             // requirements, and the global arguments (keys) are at the grandparent level
             // https://users.rust-lang.org/t/clap-ignore-global-argument-in-sub-command/101701/8
-            RandomnessCommand::GetRandomness { block } => {
+            RandomnessCommand::Get { block } => {
                 if let Some(randomness) = client.get_randomness(block).await? {
                     let randomness = hex::encode(randomness);
 

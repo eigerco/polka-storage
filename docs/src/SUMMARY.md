@@ -4,6 +4,7 @@
 [Background](./background.md)
 
 # Guides
+
 - [Architecture](./architecture/index.md)
   - [Polka Storage Provider Server](./architecture/polka-storage-provider-server.md)
   - [Pallets](./architecture/pallets/index.md)
@@ -19,6 +20,7 @@
   - [File upload](./getting-started/file-upload.md)
 
 # Tools
+
 - [Polka Storage Provider CLI](./storage-provider-cli/index.md)
   - [`server`](./storage-provider-cli/server.md)
   - [`client`](./storage-provider-cli/client/index.md)
@@ -27,11 +29,11 @@
 - [Storagext CLI](./storagext-cli/index.md)
   - [`market`](./storagext-cli/market.md)
   - [`storage-provider`](./storagext-cli/storage-provider.md)
+  - [`proofs`](./storagext-cli/proofs.md)
+  - [`randomness`](./storagext-cli/randomness.md)
   - [`system`](./storagext-cli/system.md)
 - [Mater CLI](./mater-cli/index.md)
 
 ---
 
 [Glossary](./glossary.md)
-
-

@@ -12,10 +12,10 @@ use crate::{missing_keypair_error, OutputFormat};
 #[derive(Debug, Subcommand)]
 #[command(name = "proofs", about = "CLI Client to the Proofs Pallet", version)]
 pub(crate) enum ProofsCommand {
-    /// Set porep verifying key
+    /// Set PoRep verifying key
     SetPorepVerifyingKey {
-        /// Verifying key encoded as hex.
-        verifying_key_hex: Vec<u8>,
+        /// Verifying key hex encoded.
+        verifying_key: String,
     },
 }
 
@@ -39,7 +39,7 @@ impl ProofsCommand {
             // NOTE: subcommand_negates_reqs does not work for this since it only negates the parents'
             // requirements, and the global arguments (keys) are at the grandparent level
             // https://users.rust-lang.org/t/clap-ignore-global-argument-in-sub-command/101701/8
-            ProofsCommand::SetPorepVerifyingKey { verifying_key_hex } => {
+            ProofsCommand::SetPorepVerifyingKey { verifying_key } => {
                 let Some(account_keypair) = account_keypair else {
                     return Err(missing_keypair_error::<Self>().into());
                 };
@@ -47,7 +47,7 @@ impl ProofsCommand {
                 Self::set_porep_verifying_key(
                     client,
                     account_keypair,
-                    verifying_key_hex,
+                    &verifying_key,
                     wait_for_finalization,
                 )
                 .await?
@@ -87,7 +87,7 @@ impl ProofsCommand {
     async fn set_porep_verifying_key<Client>(
         client: Client,
         account_keypair: MultiPairSigner,
-        verifying_key_hex: Vec<u8>,
+        verifying_key_hex: &str,
         wait_for_finalization: bool,
     ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
