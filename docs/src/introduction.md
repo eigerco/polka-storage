@@ -64,7 +64,8 @@ Filecoin actor ports:
 
 **More information available about the project's genesis in:**
 
-- OpenGov Referendum — <https://polkadot.polkassembly.io/referenda/494>
+- OpenGov Referendum - Part 1 — <https://polkadot.polkassembly.io/referenda/494>
+- OpenGov Referendum - Part 2 — <https://polkadot.polkassembly.io/referenda/1150>
 - Research Report — <https://github.com/eigerco/polkadot-native-storage/blob/main/doc/report/polkadot-native-storage-v1.0.0.pdf>
 - Polkadot Forum News Post — <https://forum.polkadot.network/t/polkadot-native-storage/4551>
 
