@@ -1,6 +1,6 @@
 # Getting funds
 
-This document covers getting funds into an account that is generated externally.
+This document covers getting funds into an account that has been generated externally.
 
 ## Setting up your account
 

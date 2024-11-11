@@ -14,6 +14,7 @@ Before proceeding with the setup, please ensure the host system meets the follow
 - [_Building Polka Storage_](./building/index.md)
   - [_Building from source_](./building/source.md) - Covers how to setup the required dependencies on your machine and build components of the project.
   - [_Setting up and building with Docker_](./building/docker.md) - Covers how to setup and build the Docker images for the components of the project.
-- [_Local Testnet - Polka Storage Parachain_](local-testnet.md) — Covers how to setup a local testnet for the Polka Storage parachain, using Zombienet.
+- [_Local Testnet - Polka Storage Parachain_](local-testnet/index.md) — Covers how to setup a local testnet for the Polka Storage parachain, using Zombienet.
+  - [_Getting funds_](local-testnet/getting-funds.md) - Covers how to get funds into an account that has been generated externally.
 - [_Real-world use case demo_](demo.md) — Covers a real-world use case, adding balances, submitting sectors, and more!
-- [_Getting funds_](getting-funds.md) - Covers how to get funds into a user-generated wallet.
+
