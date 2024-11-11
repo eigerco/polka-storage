@@ -40,7 +40,7 @@ SR25519_KEY="//Charlie" storagext-cli --node-rpc "supercooldomain.com:1337" <com
 | `--format`                | The output format, either `json` or `plain` (case insensitive), defaults to `plain`                |
 | `--n-retries`             | The number of connection retries when trying to initially connect to the parachain, defaults to 10 |
 | `--retry-interval`        | The retry interval between connection retries, in milliseconds, defaults to 3000 (3 seconds)       |
-| `--wait-for-finalization` | Wait for the inclusion of the extrinsic call in a finalized block, default behavior is to not wait |
+| `--wait-for-finalization` | Wait for the inclusion of the extrinsic call in a finalized block, will wait by default            |
 
 #### `--format`
 
@@ -61,8 +61,10 @@ this allows you to "actively wait" for the node to come online.
 #### `--wait-for-finalization`
 
 If you want to see the result of your extrinsic call, this flag is for you.
-By default, `storagext-cli` will not wait for the result of the extrinsic,
-when this flag is enabled, `storagext-cli` will wait until the extrinsic makes it to a finalized block
+By default, `storagext-cli` will wait for the result of the extrinsic,
+to disable this behaviour use `--wait-for-finalization=false`.
+
+When enabled, `storagext-cli` will wait until the extrinsic makes it to a finalized block
 and will report it's result — whether the call was successful or not.
 
 ## Sub-chapters

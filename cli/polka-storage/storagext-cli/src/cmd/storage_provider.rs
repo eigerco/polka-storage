@@ -151,7 +151,7 @@ impl StorageProviderCommand {
     where
         Client: StorageProviderClientExt,
     {
-        operation_takes_a_while();
+        operation_takes_a_while(wait_for_finalization);
 
         let submission_result = match self {
             StorageProviderCommand::RegisterStorageProvider {

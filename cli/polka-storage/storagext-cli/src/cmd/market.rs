@@ -134,7 +134,7 @@ impl MarketCommand {
     where
         Client: MarketClientExt,
     {
-        operation_takes_a_while();
+        operation_takes_a_while(wait_for_finalization);
 
         let submission_result = match self {
             MarketCommand::AddBalance { amount } => {

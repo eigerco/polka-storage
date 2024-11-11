@@ -29,14 +29,14 @@ PIECE_SIZE="$(echo "$INPUT_COMMP" | jq ".size")"
 
 
 # Setup balances
-target/release/storagext-cli --wait-for-finalization --sr25519-key "$CLIENT" market add-balance 250000000000 &
-target/release/storagext-cli --wait-for-finalization --sr25519-key "$PROVIDER" market add-balance 250000000000 &
+target/release/storagext-cli --sr25519-key "$CLIENT" market add-balance 250000000000 &
+target/release/storagext-cli --sr25519-key "$PROVIDER" market add-balance 250000000000 &
 # We can process a transaction by charlie and alice, but we can't in the same transaction
 # register one of them as the storage provider
 wait
 
 # Register the SP
-target/release/storagext-cli --wait-for-finalization --sr25519-key "//Charlie" storage-provider register "peer_id"
+target/release/storagext-cli --sr25519-key "//Charlie" storage-provider register "peer_id"
 
 DEAL_JSON=$(
     jq -n \

@@ -120,14 +120,14 @@ impl Client {
             .sign_and_submit_default(call, account_keypair)
             .await?;
 
-        tracing::error!(
+        tracing::debug!(
             extrinsic_hash = submitted_extrinsic_hash.encode_hex::<String>(),
             "waiting for finalization"
         );
 
         let metadata = self.client.metadata();
 
-        tracing::error!("ext metadata {:?}", metadata.extrinsic());
+        tracing::debug!("ext metadata {:?}", metadata.extrinsic());
 
         let finalized_block = tokio::task::spawn(async move {
             'outer: loop {
@@ -160,7 +160,8 @@ impl Client {
                         > = block.events().await?.find_first()?;
 
                         if let Some(event) = failed_extrinsic_event {
-                            tracing::error!("found a failing extrinsic: {:?}", event);
+                            // debug level since we're returning the error upwards
+                            tracing::debug!("found a failing extrinsic: {:?}", event);
                             // this weird encode/decode is the shortest and simplest way to convert the
                             // generated subxt types into the canonical types since we can't replace them
                             // with the proper ones
