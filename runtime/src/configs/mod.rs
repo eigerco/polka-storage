@@ -55,11 +55,11 @@ use xcm_config::{RelayLocation, XcmOriginToTransactDispatchOrigin};
 use super::{
     weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight},
     AccountId, Aura, Balance, Balances, Block, BlockNumber, CollatorSelection, Hash, MessageQueue,
-    Nonce, PalletInfo, ParachainSystem, RandomnessSource, Runtime, RuntimeCall, RuntimeEvent,
-    RuntimeFreezeReason, RuntimeHoldReason, RuntimeOrigin, RuntimeTask, Session, SessionKeys,
-    System, WeightToFee, XcmpQueue, AVERAGE_ON_INITIALIZE_RATIO, BLOCK_PROCESSING_VELOCITY,
-    EXISTENTIAL_DEPOSIT, HOURS, MAXIMUM_BLOCK_WEIGHT, MICROUNIT, NORMAL_DISPATCH_RATIO,
-    RELAY_CHAIN_SLOT_DURATION_MILLIS, SLOT_DURATION, UNINCLUDED_SEGMENT_CAPACITY, VERSION,
+    Nonce, PalletInfo, ParachainSystem, Runtime, RuntimeCall, RuntimeEvent, RuntimeFreezeReason,
+    RuntimeHoldReason, RuntimeOrigin, RuntimeTask, Session, SessionKeys, System, WeightToFee,
+    XcmpQueue, AVERAGE_ON_INITIALIZE_RATIO, BLOCK_PROCESSING_VELOCITY, EXISTENTIAL_DEPOSIT, HOURS,
+    MAXIMUM_BLOCK_WEIGHT, MICROUNIT, NORMAL_DISPATCH_RATIO, RELAY_CHAIN_SLOT_DURATION_MILLIS,
+    SLOT_DURATION, UNINCLUDED_SEGMENT_CAPACITY, VERSION,
 };
 use crate::{DAYS, MINUTES};
 
@@ -418,12 +418,37 @@ impl pallet_proofs::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
 }
 
+/// Config for insecure randomness
+impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
+
 /// Config for our randomness pallet
 impl pallet_randomness::Config for Runtime {
-    type Generator = RandomnessSource;
+    #[cfg(not(feature = "testnet"))]
+    type Generator = super::RandomnessSource;
+    #[cfg(feature = "testnet")]
+    type Generator = randomness_source_testnet::PredictableRandomnessSource<Self>;
+
     type CleanupInterval = CleanupInterval;
     type SeedAgeLimit = SeedAgeLimit;
 }
 
-/// Config for insecure randomness
-impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
+#[cfg(feature = "testnet")]
+mod randomness_source_testnet {
+    use frame_support::traits::Randomness;
+    use frame_system::{pallet_prelude::BlockNumberFor, Config, Pallet};
+    use sp_runtime::traits::Hash;
+    use sp_std::marker::PhantomData;
+
+    /// Randomness source that always returns same random value.
+    /// ! USE THIS ONLY IN TESTNET !
+    pub struct PredictableRandomnessSource<T>(PhantomData<T>);
+    impl<T: Config> Randomness<T::Hash, BlockNumberFor<T>> for PredictableRandomnessSource<T> {
+        fn random(_: &[u8]) -> (T::Hash, BlockNumberFor<T>) {
+            (
+                T::Hashing::hash(&[]),
+                // This means the the randomness can be used immediately.
+                <Pallet<T>>::block_number(),
+            )
+        }
+    }
+}

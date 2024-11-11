@@ -7,12 +7,16 @@ use subxt::{blocks::Block, events::Events, OnlineClient};
 use crate::PolkaStorageConfig;
 
 /// Helper type for [`Client::traced_submission`] successful results.
+#[derive(Debug)]
 pub struct SubmissionResult<Config>
 where
     Config: subxt::Config,
 {
     /// Submission block hash.
     pub hash: Config::Hash,
+
+    /// Submission block height.
+    pub height: u64,
 
     /// Resulting extrinsic's events.
     pub events: Events<Config>,
@@ -135,7 +139,11 @@ impl Client {
                 };
 
                 let block: Block<PolkaStorageConfig, _> = block?;
-                tracing::debug!("checking block {}", block.hash());
+                tracing::debug!(
+                    "checking block number: {} hash: {}",
+                    block.number(),
+                    block.hash()
+                );
 
                 for extrinsic in block.extrinsics().await?.iter() {
                     let extrinsic = extrinsic?;
@@ -147,7 +155,6 @@ impl Client {
 
                     if submitted_extrinsic_hash == extrinsic_hash {
                         // Extrinsic failures are placed in the same block as the extrinsic.
-
                         let failed_extrinsic_event: Option<
                             crate::runtime::system::events::ExtrinsicFailed,
                         > = block.events().await?.find_first()?;
@@ -179,6 +186,7 @@ impl Client {
                 let result = result?;
                 Ok(SubmissionResult {
                     hash: result.hash(),
+                    height: result.number(),
                     events: result.events().await?,
                 })
             }

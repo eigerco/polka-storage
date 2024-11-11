@@ -12,7 +12,10 @@ use polka_storage_proofs::{
     ZeroPaddingReader,
 };
 use polka_storage_provider_common::commp::{calculate_piece_commitment, CommPError};
-use primitives_commitment::piece::{PaddedPieceSize, PieceInfo};
+use primitives_commitment::{
+    piece::{PaddedPieceSize, PieceInfo},
+    Commitment, CommitmentKind,
+};
 use primitives_proofs::{derive_prover_id, RegisteredPoStProof, RegisteredSealProof};
 use storagext::multipair::{MultiPairArgs, MultiPairSigner};
 use subxt::tx::Signer;
@@ -249,7 +252,7 @@ impl ProofsCommand {
                 let piece_info = PieceInfo {
                     commitment: primitives_commitment::Commitment::from_cid(
                         &commp,
-                        primitives_commitment::CommitmentKind::Piece,
+                        CommitmentKind::Piece,
                     )
                     .map_err(|e| UtilsCommandError::InvalidPieceType(commp.to_string(), e))?,
                     size: piece_file_length,
@@ -301,8 +304,8 @@ impl ProofsCommand {
                     )
                     .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
 
-                println!("CommR: {:?}", hex::encode(&precommit.comm_r));
-                println!("CommD: {:?}", hex::encode(&precommit.comm_d));
+                println!("CommD: {:?}", Commitment::data(precommit.comm_d).cid());
+                println!("CommR: {:?}", Commitment::replica(precommit.comm_r).cid());
                 println!("Proof: {:?}", proofs);
                 // We use sector size 2KiB only at this point, which guarantees to have 1 proof, because it has 1 partition in the config.
                 // That's why `prove_commit` will always generate a 1 proof.
