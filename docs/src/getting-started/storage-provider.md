@@ -43,7 +43,14 @@ Where `<KEY>` has been replaced accordingly to its key type.
 
 For example: `storagext-cli --sr25519-key "//Charlie" storage-provider register "placeholder"`
 
-After registering, you're ready to move on.
+After registering, there is one more thing to be done, to be able to verify proofs in local testnet.
+We need to set the global verifying key in the network, so it's compatible with the proving parameters:
+
+```bash
+storagext-cli --sr25519-key "//Charlie" proofs set-porep-verifying-key 2KiB.vk.scale
+```
+
+And you're ready!
 
 ## Launching the server 🚀
 

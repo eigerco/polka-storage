@@ -19,8 +19,8 @@
   - [Local Testnet - Polka Storage Parachain](./getting-started/local-testnet/index.md)
     - [Getting funds](./getting-started/local-testnet/getting-funds.md)
   - [Launching the Storage Provider](./getting-started/storage-provider.md)
-  - [Real-world use case demo](./getting-started/demo.md)
-  - [File upload](./getting-started/file-upload.md)
+  - [Storing and proving a file](./getting-started/file-demo.md)
+>>>>>>> 839acdd (docs)
 
 # Tools
 

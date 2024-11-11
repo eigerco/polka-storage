@@ -16,5 +16,6 @@ Before proceeding with the setup, please ensure the host system meets the follow
   - [_Setting up and building with Docker_](./building/docker.md) - Covers how to setup and build the Docker images for the components of the project.
 - [_Local Testnet - Polka Storage Parachain_](local-testnet/index.md) — Covers how to setup a local testnet for the Polka Storage parachain, using Zombienet.
   - [_Getting funds_](local-testnet/getting-funds.md) - Covers how to get funds into an account that has been generated externally.
-- [_Real-world use case demo_](demo.md) — Covers a real-world use case, adding balances, submitting sectors, and more!
+- [_Local Testnet - Polka Storage Parachain_](local-testnet.md) — Covers how to setup a local testnet for the Polka Storage parachain, using Zombienet.
+- [_Storing a provinge a file demo_](file-demo.md) — Covers how to store and prove a file, consists of adding balances, submitting sectors, and more!
 
