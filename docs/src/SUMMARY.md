@@ -16,6 +16,7 @@
     - [From Source](./getting-started/building/source.md)
     - [Using Docker](./getting-started/building/docker.md)
   - [Local Testnet - Polka Storage Parachain](./getting-started/local-testnet.md)
+  - [Launching the Storage Provider](./getting-started/storage-provider.md)
   - [Real-world use case demo](./getting-started/demo.md)
   - [File upload](./getting-started/file-upload.md)
 
