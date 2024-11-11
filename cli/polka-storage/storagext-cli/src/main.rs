@@ -5,7 +5,10 @@ mod cmd;
 use std::{fmt::Debug, time::Duration};
 
 use clap::{ArgAction, ArgGroup, Parser, Subcommand};
-use cmd::{market::MarketCommand, storage_provider::StorageProviderCommand, system::SystemCommand};
+use cmd::{
+    market::MarketCommand, proofs::ProofsCommand, randomness::RandomnessCommand,
+    storage_provider::StorageProviderCommand, system::SystemCommand,
+};
 use storagext::multipair::{DebugPair, MultiPairSigner};
 use subxt::ext::sp_core::{
     ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair, sr25519::Pair as Sr25519Pair,
@@ -90,6 +93,10 @@ enum SubCommand {
     #[command(subcommand)]
     StorageProvider(StorageProviderCommand),
     #[command(subcommand)]
+    Proofs(ProofsCommand),
+    #[command(subcommand)]
+    Randomness(RandomnessCommand),
+    #[command(subcommand)]
     System(SystemCommand),
 }
 
@@ -120,6 +127,27 @@ impl SubCommand {
                 cmd.run(
                     node_rpc,
                     account_keypair,
+                    n_retries,
+                    retry_interval,
+                    output_format,
+                    wait_for_finalization,
+                )
+                .await?;
+            }
+            SubCommand::Proofs(cmd) => {
+                cmd.run(
+                    node_rpc,
+                    account_keypair,
+                    n_retries,
+                    retry_interval,
+                    output_format,
+                    wait_for_finalization,
+                )
+                .await?;
+            }
+            SubCommand::Randomness(cmd) => {
+                cmd.run(
+                    node_rpc,
                     n_retries,
                     retry_interval,
                     output_format,
