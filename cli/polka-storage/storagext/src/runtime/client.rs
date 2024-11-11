@@ -139,7 +139,7 @@ impl Client {
                 };
 
                 let block: Block<PolkaStorageConfig, _> = block?;
-                tracing::error!(
+                tracing::debug!(
                     "checking block number: {} hash: {}",
                     block.number(),
                     block.hash()

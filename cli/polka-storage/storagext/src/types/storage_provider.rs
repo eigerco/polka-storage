@@ -130,7 +130,8 @@ impl PartialEq<SectorPreCommitInfo> for RuntimeSectorPreCommitInfo<BlockNumber> 
 pub struct ProveCommitSector {
     /// Number of a sector that has been previously pre-committed.
     pub sector_number: SectorNumber,
-    /// Raw proof bytes.
+    /// Raw proof bytes serialized with [`parity_scale_codec::Encode::encode`]
+    /// and using [`bls12_381::Bls12`] as a curve.
     #[serde(with = "hex")]
     pub proof: Vec<u8>,
 }
