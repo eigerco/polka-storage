@@ -20,7 +20,6 @@
     - [Getting funds](./getting-started/local-testnet/getting-funds.md)
   - [Launching the Storage Provider](./getting-started/storage-provider.md)
   - [Storing and proving a file](./getting-started/file-demo.md)
->>>>>>> 839acdd (docs)
 
 # Tools
 
