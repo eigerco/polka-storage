@@ -77,8 +77,8 @@ struct Cli {
     #[arg(long, env, value_parser = OutputFormat::value_parser, default_value_t = OutputFormat::Plain)]
     pub format: OutputFormat,
 
-    /// Wait for inclusion of the extrinsic call in a finalized block.
-    #[arg(long, env, action = ArgAction::SetTrue)]
+    /// Wait for inclusion of the extrinsic call in a finalized block. Defaults to waiting.
+    #[arg(long, env, default_value_t = true)]
     pub wait_for_finalization: bool,
 }
 
