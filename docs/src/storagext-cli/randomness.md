@@ -1,5 +1,9 @@
 # The `randomness` command
 
+<div class="warning">
+Random value returned by testnet node is same for all blocks.
+</div>
+
 Under the `randomness` subcommand [Randomness](../pallets/randomness.md) related extrinsics are available.
 This chapter covers the provided commands and how to use them.
 
@@ -24,6 +28,3 @@ Fetching random value for block 100.
 ```bash
 storagext-cli randomness get 100
 ```
-
-<div class="warning">
-Random value returned by testnet node is same for all blocks.
