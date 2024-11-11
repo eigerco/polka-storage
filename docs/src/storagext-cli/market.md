@@ -1,6 +1,6 @@
 # The `market` command
 
-Under the `market` subcommand [Market](../pallets/market.md) related extrinsics are available.
+Under the `market` subcommand [Market](../architecture/pallets/market.md) related extrinsics are available.
 This chapter covers the provided commands and how to use them.
 
 <div class="warning">
@@ -37,7 +37,7 @@ An attempt to create a Market account with less than <code>1000000000</code>, wi
 </pre>
 </div>
 
-> More information about the `add_balance` extrinsic is available in [_Pallets/Market Pallet/Add Balance_](../pallets/market.md#add_balance).
+> More information about the `add_balance` extrinsic is available in [_Pallets/Market Pallet/Add Balance_](../architecture/pallets/market.md#add_balance).
 
 ## `withdraw-balance`
 
@@ -60,7 +60,7 @@ Withdrawing 10000 [Plancks](../glossary.md#planck) from Alice's account.
 storagext-cli --sr25519-key "//Alice" market withdraw-balance 10000
 ```
 
-> More about the `withdraw_balance` extrinsic is available in [_Pallets/Market Pallet/Withdraw Balance_](../pallets/market.md#withdraw-balance).
+> More about the `withdraw_balance` extrinsic is available in [_Pallets/Market Pallet/Withdraw Balance_](../architecture/pallets/market.md#withdraw-balance).
 
 ## `publish-storage-deals`
 
@@ -139,7 +139,7 @@ Where `deals.json` is a file with contents similar to:
 ]
 ```
 
-> More information about the `publish_storage_deals` extrinsic is available in [_Pallets/Market Pallet/Publish Storage Deals_](../pallets/market.md#publish_storage_deals).
+> More information about the `publish_storage_deals` extrinsic is available in [_Pallets/Market Pallet/Publish Storage Deals_](../architecture/pallets/market.md#publish_storage_deals).
 
 ## `settle-deal-payments`
 
@@ -162,7 +162,7 @@ Settling deals with the IDs 97, 1010, 1337, 42069:
 storagext-cli --sr25519-key "//Alice" market settle-deal-payments 97 1010 1337 42069
 ```
 
-> More information about the `publish_storage_deals` extrinsic is available in [_Pallets/Market Pallet/Settle Deal Payments_](../pallets/market.md#settle_deal_payments).
+> More information about the `publish_storage_deals` extrinsic is available in [_Pallets/Market Pallet/Settle Deal Payments_](../architecture/pallets/market.md#settle_deal_payments).
 
 ## `retrieve-balance`
 

@@ -5,15 +5,43 @@ Welcome to the Polka Storage project!
 This project aims to deliver a Polkadot-native system parachain for data storage.
 
 Since the Referendum approval, we've been busy developing the parachain,
-and this is our deliverable for Phase 1, composed of:
+and this is our deliverable for Phase 2, composed of:
 
-- Filecoin actor ports:
-  - [Storage Provider](./pallets/storage-provider.md) — excluding proving mechanisms
-  - [Market](./pallets/market.md)
-- Dedicated CLIs
-  - [`polka-storage-provider-client`](./storage-provider-cli/index.md) to generate keys and test our CARv2 Rust implementation!
-  - [`mater-cli`](./mater-cli/index.md) for storage clients to convert or extract files.
-  - [`storagext-cli`](./storagext-cli/index.md) (shown below) to take the parachain for a spin!
+**For [**Phase 2**](https://polkadot.polkassembly.io/referenda/1150), we have implemented:**
+
+- Storage Provider Pallet
+  - [`terminate_sectors`](./architecture/pallets/storage-provider.md#terminate_sectors)
+  - `process_early_terminations` (internal)
+  - Batch support
+    - [Pre-commit](./architecture/pallets/storage-provider.md#pre_commit_sectors)
+    - [Prove-commit](./architecture/pallets/storage-provider.md#prove_commit_sectors)
+- [Storage Provider Server](./architecture/polka-storage-provider-server.md)
+  - [File upload](./getting-started/file-upload.md)
+  - [Proving Pipeline](./architecture/polka-storage-provider-server.md#sealing-pipeline)
+    - Pre-commit
+    - PoRep
+- On-chain proof validation
+  - Proof of Replication
+  - Proof of Spacetime
+
+<!-- TODO: pending change from konrads PR -->
+We also present a complete [real-world scenario](./getting-started/demo.md) in which a [Storage Provider](./glossary.md#storage-provider) and a [Storage User](./glossary.md#storage-user) negotiate a deal, perform all the steps necessary to start the storage and then receive rewards (or punishments) for making it happen.
+
+
+**The Polka Storage project currently provides:**
+
+Dedicated CLIs
+- [Polka Storage Provider CLI](./storage-provider-cli/index.md)
+  - [`polka-storage-provider-server`](./storage-provider-cli/server.md) to launch the Storage Provider server.
+  - [`polka-storage-provider-client`](./storage-provider-cli/client/index.md) to manage the wallet, propose & publish deals and do proof demos.
+- [`mater-cli`](./mater-cli/index.md) to convert or extract CARv2 files.
+- [`storagext-cli`](./storagext-cli/index.md) (shown below) to interact **directly** with the parachain — watch out, this is a low-level tool!
+
+Filecoin actor ports:
+- [Storage Provider](./architecture/pallets/storage-provider.md)
+- [Market](./architecture/pallets/market.md)
+- [Proofs](./architecture/pallets/proofs.md)
+- [Randomness](./architecture/pallets/randomness.md)
 
 <p>
     <img
@@ -21,21 +49,20 @@ and this is our deliverable for Phase 1, composed of:
         alt="Polka Storage CLI tooling showcase">
 </p>
 
-The following on-chain logic has been implemented:
+**As a refresher, for [Phase 1](https://polkadot.polkassembly.io/referenda/494), we implemented the following:**
 
 - Keeping track of [Storage Providers](./glossary.md#storage-provider),
-- [Publishing](./pallets/market.md#publish_storage_deals) Market Deals on-chain,
-- [Investing](./pallets/market.md#add_balance) tokens into the Storage Market,
-- [Receiving](./pallets/market.md#settle_deal_payments) funds after completing a deal,
-- [Committing](./pallets/storage-provider.md#pre_commit_sector) to the Storage and [Proving](./pallets/storage-provider.md#prove_commit_sectors) the storage,
-- [Declaring](./pallets/storage-provider.md#prove_commit_sectors) failures to deliver committed storage and [Recovering](./pallets/storage-provider.md#declaring-storage-faults-recovered) from it,
-- [Continuously proving](./pallets/storage-provider.md#submit_windowed_post) that the promise of storage has been kept up [PoSt proof](./glossary.md#proofs),
-- [Terminating](./pallets/storage-provider.md#terminate_sectors) sectors by the storage provider.
-- [Punishing](./pallets/storage-provider.md#events) for failing to provide storage.
+- [Publishing](./architecture/pallets/market.md#publish_storage_deals) Market Deals on-chain,
+- [Investing](./architecture/pallets/market.md#add_balance) tokens into the Storage Market,
+- [Receiving](./architecture/pallets/market.md#settle_deal_payments) funds after completing a deal,
+- [Committing](./architecture/pallets/storage-provider.md#pre_commit_sector) to the Storage and [Proving](./architecture/pallets/storage-provider.md#prove_commit_sectors) the storage,
+- [Declaring](./architecture/pallets/storage-provider.md#prove_commit_sectors) failures to deliver committed storage and [Recovering](./architecture/pallets/storage-provider.md#declaring-storage-faults-recovered) from it,
+- [Continuously proving](./architecture/pallets/storage-provider.md#submit_windowed_post) that the promise of storage has been kept up [PoSt proof](./glossary.md#proofs),
+- [Terminating](./architecture/pallets/storage-provider.md#terminate_sectors) sectors by the storage provider.
+- [Punishing](./architecture/pallets/storage-provider.md#events) for failing to provide storage.
 
-We present a complete [real-world scenario](./getting-started/demo.md) in which a [Storage Provider](./glossary.md#storage-provider) and a [Storage User](./glossary.md#storage-user) negotiate a deal, perform all the steps necessary to start the storage and then receive rewards (or punishments) for making it happen.
 
-More information available about the project's genesis in:
+**More information available about the project's genesis in:**
 
 - OpenGov Referendum — <https://polkadot.polkassembly.io/referenda/494>
 - Research Report — <https://github.com/eigerco/polkadot-native-storage/blob/main/doc/report/polkadot-native-storage-v1.0.0.pdf>

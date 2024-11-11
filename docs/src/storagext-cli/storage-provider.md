@@ -1,6 +1,6 @@
 # The `storage-provider` command
 
-Under the `storage-provider` subcommand [Storage Provider](../pallets/storage-provider.md) related extrinsics are available.
+Under the `storage-provider` subcommand [Storage Provider](../architecture/pallets/storage-provider.md) related extrinsics are available.
 This chapter covers the provided commands and how to use them.
 
 <div class="warning">
@@ -26,11 +26,11 @@ Registering the provider with the specific `peer_id`
 storagext-cli --sr25519-key <key> storage-provider register <peer_id>
 ```
 
-> More information about the `register` extrinsic is available in [_Pallets/Storage Provider/Register_](../pallets/storage-provider.md#register_storage_provider).
+> More information about the `register` extrinsic is available in [_Pallets/Storage Provider/Register_](../architecture/pallets/storage-provider.md#register_storage_provider).
 
 ### `pre-commit`
 
-The `pre-commit` command [pre-commits](../pallets/storage-provider.md#pre_commit_sectors) a sector with deals that have been published by `market publish-storage-deals`. The pre-committed sector has to be proven or the deals will not activate and will be slashed.
+The `pre-commit` command [pre-commits](../architecture/pallets/storage-provider.md#pre_commit_sectors) a sector with deals that have been published by `market publish-storage-deals`. The pre-committed sector has to be proven or the deals will not activate and will be slashed.
 
 ### Parameters
 
@@ -75,7 +75,7 @@ Where `pre-commit-sector.json` is a file with contents similar to:
 ]
 ```
 
-> More information about the `pre_commit` extrinsic is available in [_Pallets/Storage Provider/Pre-commit sector_](../pallets/storage-provider.md#pre_commit_sectors).
+> More information about the `pre_commit` extrinsic is available in [_Pallets/Storage Provider/Pre-commit sector_](../architecture/pallets/storage-provider.md#pre_commit_sectors).
 
 ### `prove-commit`
 
@@ -115,7 +115,7 @@ Where `prove-commit-sector.json` is a file with contents similar to:
 ]
 ```
 
-> More information about `prove_commit` extrinsic is available in [_Pallets/Storage Provider/Prove-commit sector_](../pallets/storage-provider.md#prove_commit_sectors).
+> More information about `prove_commit` extrinsic is available in [_Pallets/Storage Provider/Prove-commit sector_](../architecture/pallets/storage-provider.md#prove_commit_sectors).
 
 ### `submit-windowed-post`
 
@@ -164,7 +164,7 @@ Where `window-proof.json` is a file with contents similar to:
 }
 ```
 
-> More information about the `submit_windowed_post` extrinsic is available in [_Pallets/Storage Provider/Submit Windowed Post_](../pallets/storage-provider.md#submit_windowed_post).
+> More information about the `submit_windowed_post` extrinsic is available in [_Pallets/Storage Provider/Submit Windowed Post_](../architecture/pallets/storage-provider.md#submit_windowed_post).
 
 ### `declare-faults`
 
@@ -205,7 +205,7 @@ Where `faults.json` is a file with contents similar to:
 ]
 ```
 
-> More information about the `declare_faults` extrinsic is available in [_Pallets/Storage Provider/Declare Faults_](../pallets/storage-provider.md#declare_faults).
+> More information about the `declare_faults` extrinsic is available in [_Pallets/Storage Provider/Declare Faults_](../architecture/pallets/storage-provider.md#declare_faults).
 
 ### `declare-faults-recovered`
 
@@ -246,7 +246,7 @@ Where `recoveries.json` is a file with contents similar to:
 ]
 ```
 
-> More information about the `declare_faults_recovered` extrinsic is available in [_Pallets/Storage Provider/Declare Faults Recovered_](../pallets/storage-provider.md#declare_faults_recovered).
+> More information about the `declare_faults_recovered` extrinsic is available in [_Pallets/Storage Provider/Declare Faults Recovered_](../architecture/pallets/storage-provider.md#declare_faults_recovered).
 
 ### `terminate-sectors`
 
@@ -287,7 +287,7 @@ Where `terminations.json` is a file with contents similar to:
 ]
 ```
 
-> More information about the `terminate_sectors` extrinsic is available in [_Pallets/Storage Provider/Terminate Sectors_](../pallets/storage-provider.md#terminate_sectors).
+> More information about the `terminate_sectors` extrinsic is available in [_Pallets/Storage Provider/Terminate Sectors_](../architecture/pallets/storage-provider.md#terminate_sectors).
 
 ### `retrieve-storage-providers`
 

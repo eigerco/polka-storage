@@ -3,6 +3,7 @@
 - [`storage-provider`](storage-provider.md) - A pallet that manages storage providers and their associated data.
 - [`market`](market.md) - A pallet that handles the storage market operations.
 - [`proofs`](proofs.md) - A pallet responsible for verifying [PoRep](../../glossary.md#porep) and [PoSt](../../glossary.md#post).
+- [`randomness`](randomness.md) - A pallet providing randomness source for blocks, mainly used by Proofs.
 
 ## Overview
 
@@ -27,7 +28,7 @@ After publishing, the funds allocated for the deal will be moved from `free` to 
 <img src="../../images/market/publish_storage_deals.svg" alt="Publishing storage deals">
 
 At this point, the remaining responsibility is shifted to the storage provider, which needs to activate the deal.
-First, the storage provider needs to get_randomness from [Randomness Pallet](./randonmness.md) in order to create a replica and
+First, the storage provider needs to get_randomness from [Randomness Pallet](./randomness.md) in order to create a replica and
 [pre-commit](./storage-provider.md#pre_commit_sectors) the deal's sectors.
 The sealing and pre-comitting takes some time, after that the storage provider needs to fetch yet another randomness seed to create a proof.
 After that, they [prove](./storage-provider.md#prove_commit_sectors) they stored the sectors by calling [`prove_commit_sectors`](./storage-provider.md#prove_commit_sectors) extrinsics.

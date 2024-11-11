@@ -10,6 +10,7 @@
     - [Market](./architecture/pallets/market.md)
     - [Storage Provider](./architecture/pallets/storage-provider.md)
     - [Proofs](./architecture/pallets/proofs.md)
+    - [Randomness](./architecture/pallets/randomness.md)
 - [Getting Started](./getting-started/index.md)
   - [Building](./getting-started/building/index.md)
     - [From Source](./getting-started/building/source.md)
