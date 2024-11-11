@@ -61,6 +61,7 @@ Filecoin actor ports:
 - [Terminating](./architecture/pallets/storage-provider.md#terminate_sectors) sectors by the storage provider.
 - [Punishing](./architecture/pallets/storage-provider.md#events) for failing to provide storage.
 
+We present a complete [real-world scenario](./getting-started/file-demo.md) in which a [Storage Provider](./glossary.md#storage-provider) and a [Storage User](./glossary.md#storage-user) negotiate a deal, perform all the steps necessary to start the storage and then receive rewards (or punishments) for making it happen.
 
 **More information available about the project's genesis in:**
 
