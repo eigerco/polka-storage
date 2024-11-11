@@ -1,13 +1,8 @@
 # Proving a file
 
-<div class="warning">
-Before reading this guide, please follow the <a href="./local-testnet.md">local testnet</a> guide and <a href="./storage-provider.md">storage provider guide</a>.
-You should have a working testnet and a Storage Provider running!
-</div>
-
 To store the file according to the protocol, Storage Provider has to assign it to a sector, pre-commit and then prove it!
-That's a lot of things, but this is handled automatically, behind the scenes when the file is eventually published.
-Here are excerpts from Storage Provider Node:
+That's a lot of things, but this is handled automatically, behind the scenes when the file is eventually [published](../storage-provider-cli/client/index.md#publish-deal).
+Here are excerpts from Storage Provider Node after executing the [store a file scenario](./demo-file-store.md):
 
 ```log
 2024-11-11T12:34:21.430693Z  INFO start_rpc_server: polka_storage_provider_server::rpc: Starting RPC server at 127.0.0.1:8000
