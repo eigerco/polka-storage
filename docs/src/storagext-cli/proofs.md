@@ -2,13 +2,11 @@
 
 <div class="warning">
 This command will be removed in the future. It's currently provided for easier testing.
+<br>
+The <a href="./index.md"><code>storagext-cli</code> getting started</a> page covers the basic flags necessary to operate the CLI and should be read first.
 </div>
 
 Under the `proofs` subcommand [Proofs](../pallets/proofs.md) related extrinsics are available. This chapter covers the provided commands and how to use them.
-
-<div class="warning">
-The <a href="./index.md"><code>storagext-cli</code> getting started</a> page covers the basic flags necessary to operate the CLI and should be read first.
-</div>
 
 ## `set-porep-verifying-key`
 

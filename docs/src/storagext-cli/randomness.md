@@ -1,7 +1,7 @@
 # The `randomness` command
 
 <div class="warning">
-Random value returned by testnet node is same for all blocks.
+Currently, the random value returned by the testnet node is same for all blocks.
 </div>
 
 Under the `randomness` subcommand [Randomness](../pallets/randomness.md) related extrinsics are available.
