@@ -47,7 +47,7 @@ After registering, there is one more thing to be done, to be able to verify proo
 We need to set the global verifying key in the network, so it's compatible with the proving parameters:
 
 ```bash
-storagext-cli --sr25519-key "//Charlie" proofs set-porep-verifying-key 2KiB.vk.scale
+storagext-cli --sr25519-key "//Charlie" proofs set-porep-verifying-key @2KiB.vk.scale
 ```
 
 And you're ready!
