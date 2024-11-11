@@ -34,8 +34,6 @@ use types::{
 use crate::db::{DBError, DealDB};
 
 const SECTOR_EXPIRATION_MARGIN: u64 = 20;
-/// TODO(@th7nder,[#457, #458], 06/11/2024): Blockchain cannot give randomness until block 82.
-const MINIMUM_BLOCK_WITH_RANDOMNESS_AVAILABLE: u64 = 82;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PipelineError {
@@ -279,20 +277,8 @@ async fn precommit(
 
     tracing::info!("Padded sector, commencing pre-commit and getting last finalized block");
 
-    let mut current_block = state.xt_client.height(true).await?;
+    let current_block = state.xt_client.height(true).await?;
     tracing::info!("Current block: {current_block}");
-
-    if current_block < MINIMUM_BLOCK_WITH_RANDOMNESS_AVAILABLE {
-        tracing::info!(
-            "Waiting for randomness to be available at block: {}",
-            MINIMUM_BLOCK_WITH_RANDOMNESS_AVAILABLE
-        );
-        state
-            .xt_client
-            .wait_for_height(MINIMUM_BLOCK_WITH_RANDOMNESS_AVAILABLE, true)
-            .await?;
-        current_block = MINIMUM_BLOCK_WITH_RANDOMNESS_AVAILABLE;
-    }
 
     let digest = state
         .xt_client
