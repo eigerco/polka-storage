@@ -41,7 +41,7 @@ storagext-cli --ecdsa-key <KEY> storage-provider register "<peer_id>"
 Where `<KEY>` has been replaced accordingly to its key type.
 `<peer_id>` can be anything as it is currently used as a placeholder.
 
-For example: `storagext-cli --sr25519 "//Charlie" storage-provider register "placeholder"`
+For example: `storagext-cli --sr25519-key "//Charlie" storage-provider register "placeholder"`
 
 After registering, you're ready to move on.
 
