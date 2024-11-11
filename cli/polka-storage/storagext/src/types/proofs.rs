@@ -37,7 +37,9 @@ mod clap {
             use std::{path::PathBuf, str::FromStr};
 
             if let Some(stripped) = src.strip_prefix('@') {
-                let path = PathBuf::from_str(stripped)?.canonicalize()?;
+                let path = PathBuf::from_str(stripped)
+                    .expect("infallible")
+                    .canonicalize()?;
                 let key = std::fs::read(path)?;
 
                 Ok(VerifyingKey::from_raw_bytes(key))

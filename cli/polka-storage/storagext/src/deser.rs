@@ -7,7 +7,9 @@ pub trait DeserializablePath: serde::de::DeserializeOwned {
     /// Parse a `&str` as a path if it starts with an `@` symbol, or as JSON otherwise.
     fn deserialize_json(src: &str) -> Result<Self, anyhow::Error> {
         Ok(if let Some(stripped) = src.strip_prefix('@') {
-            let path = PathBuf::from_str(stripped)?.canonicalize()?;
+            let path = PathBuf::from_str(stripped)
+                .expect("infallible")
+                .canonicalize()?;
             let file = std::fs::File::open(path)?;
             let mut buffered_file = std::io::BufReader::new(file);
             serde_json::from_reader(&mut buffered_file)

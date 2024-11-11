@@ -14,7 +14,7 @@ use crate::{missing_keypair_error, OutputFormat};
 pub(crate) enum ProofsCommand {
     /// Set PoRep verifying key
     SetPorepVerifyingKey {
-        /// Verifying key. Either hex encoded as string or a file path to a raw bytes, prepended with an @.
+        /// Verifying key. Either hex encoded as string or, if prepended with @, a path to a file containing the key's raw bytes.
         #[arg(value_parser = VerifyingKey::value_parser)]
         verifying_key: VerifyingKey,
     },
