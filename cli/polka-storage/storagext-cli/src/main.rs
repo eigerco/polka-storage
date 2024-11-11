@@ -4,7 +4,7 @@ mod cmd;
 
 use std::{fmt::Debug, time::Duration};
 
-use clap::{ArgAction, ArgGroup, Parser, Subcommand};
+use clap::{ArgGroup, Parser, Subcommand};
 use cmd::{market::MarketCommand, storage_provider::StorageProviderCommand, system::SystemCommand};
 use storagext::multipair::{DebugPair, MultiPairSigner};
 use subxt::ext::sp_core::{
@@ -77,8 +77,10 @@ struct Cli {
     #[arg(long, env, value_parser = OutputFormat::value_parser, default_value_t = OutputFormat::Plain)]
     pub format: OutputFormat,
 
-    /// Wait for inclusion of the extrinsic call in a finalized block.
-    #[arg(long, env, action = ArgAction::SetTrue)]
+    /// Wait for inclusion of the extrinsic call in a finalized block. Defaults to waiting.
+    // NOTE: for anyone curious about the ArgAction::Set, it's the sane way to parse --flag=true/false
+    // https://github.com/clap-rs/clap/issues/1649#issuecomment-1156638220
+    #[arg(long, env, default_value_t = true, action = clap::ArgAction::Set)]
     pub wait_for_finalization: bool,
 }
 
@@ -198,16 +200,11 @@ where
 }
 
 /// Print a message for the user warning the operation will take a bit.
-fn operation_takes_a_while() {
-    // You can't trust the tracing enabled level for this purpose
-    // https://docs.rs/tracing/latest/tracing/macro.enabled.html
-    // https://users.rust-lang.org/t/how-to-get-to-tracing-subscriber-pub-fn-current-levelfilter-please/101575/3
-    if std::env::var_os("DISABLE_XT_WAIT_WARNING").is_none() {
+fn operation_takes_a_while(wait: bool) {
+    if wait {
         eprintln!(concat!(
             "This operation takes a while — we're submitting your transaction to the chain and ensuring all goes according to plan.\n",
-            "If you're curious about what's going on under the hood, try using `RUST_LOG=trace` on your next submission.\n",
-            "To disable this message, set the environment variable `DISABLE_XT_WAIT_WARNING` to any value!\n\n",
-            "Close your eyes, take a deep breath and think about blocks, running wild and free in a green field of bits.\n",
+            "If you're curious about what's going on under the hood, try using `RUST_LOG=trace` on your next submission.",
         ));
     }
 }
