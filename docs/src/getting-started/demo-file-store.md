@@ -131,7 +131,7 @@ All that's left is to [publish the deal](../storage-provider-cli/client/index.md
 
 ```bash
 polka-storage-provider-client publish-deal --rpc-server-url "http://localhost:8000" @signed-logo-deal.json
-0
+Successfully published deal of id: 0
 ```
 
 On Alice's side, that's it!

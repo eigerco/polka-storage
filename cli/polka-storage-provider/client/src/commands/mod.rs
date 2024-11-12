@@ -161,7 +161,7 @@ impl Cli {
     ) -> Result<(), CliError> {
         let client = PolkaStorageRpcClient::new(&rpc_server_url).await?;
         let result = client.publish_deal(client_deal_proposal).await?;
-        println!("{}", result);
+        println!("Successfully published deal of id: {}", result);
         Ok(())
     }
 
