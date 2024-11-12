@@ -346,8 +346,8 @@ parameter_types! {
 #[cfg(feature = "testnet")]
 parameter_types! {
     // Storage Provider Pallet
-    pub const WpostProvingPeriod: BlockNumber = 4 * MINUTES;
-    pub const WPoStPeriodDeadlines: u64 = 2;
+    pub const WpostProvingPeriod: BlockNumber = 6 * MINUTES;
+    pub const WPoStPeriodDeadlines: u64 = 3;
     pub const WpostChallengeWindow: BlockNumber = 2 * MINUTES;
     pub const WPoStChallengeLookBack: BlockNumber = MINUTES;
     pub const MinSectorExpiration: BlockNumber = 5 * MINUTES;

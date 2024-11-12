@@ -210,6 +210,9 @@ pub mod pallet {
 
         /// Represents how many challenge deadline there are in 1 proving period.
         /// Closely tied to `WPoStChallengeWindow`
+        /// It needs to be at least 3, because if we prove commit at a deadline,
+        /// the system cannot assign a sector directly to a next one.
+        /// https://github.com/eigerco/polka-storage/blob/8c01c3cf65e5caee7a191df367dda4a66e27594b/pallets/storage-provider/src/deadline.rs#L784
         #[pallet::constant]
         type WPoStPeriodDeadlines: Get<u64>;
 
