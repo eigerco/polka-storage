@@ -10,4 +10,5 @@ title = "The Polka Storage Book"
 mathjax-support = true
 
 [output.linkcheck]
+optional = true
 warning-policy = "warn"
