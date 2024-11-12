@@ -14,9 +14,9 @@ The `set-porep-verifying-key` adds PoRep verifying key to the chain.
 
 ### Parameters
 
-| Name  | Description   | Type   |
-| ----- | ------------- | ------ |
-| `KEY` | Verifying key | String |
+| Name  | Description               | Type   |
+| ----- | ------------------------- | ------ |
+| `KEY` | Hex encoded verifying key | String |
 
 ### <a class="header" id="set-porep-verifying-key.example" href="#set-porep-verifying-key.example">Example File</a>
 
