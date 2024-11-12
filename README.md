@@ -1,22 +1,29 @@
-# Substrate Cumulus Parachain Template
+# Polka Storage
 
-A new [Cumulus](https://github.com/paritytech/polkadot-sdk/tree/master/cumulus)-based Substrate node, ready for hacking ☁️..
+Welcome to the Polka Storage project repo!
 
-This project is originally a fork of the
-[Substrate Node Template](https://github.com/substrate-developer-hub/substrate-node-template)
-modified to include dependencies required for registering this node as a **parathread** or
-**parachain** to a **relay chain**.
+This project aims to deliver a Polkadot-native system parachain for data storage.
 
-The stand-alone version of this template is hosted on the
-[Substrate Devhub Parachain Template](https://github.com/substrate-developer-hub/substrate-parachain-template/)
-for each release of Polkadot. It is generated directly to the upstream
-[Parachain Template in Cumulus](https://github.com/paritytech/polkadot-sdk/tree/master/cumulus/parachain-template)
-at each release branch using the
-[Substrate Template Generator](https://github.com/paritytech/substrate-template-generator/).
+You can find our in-depth documentation at <https://eigerco.github.io/polka-storage>.
 
-👉 Learn more about parachains [here](https://wiki.polkadot.network/docs/learn-parachains), and
-parathreads [here](https://wiki.polkadot.network/docs/learn-parathreads).
+* If you're looking to test the project, check out [Getting Started guide](https://eigerco.github.io/polka-storage/getting-started/index.html).
+* If you're looking to get your hands dirty and help with development, take a look at [`DEVELOPMENT.md`](./DEVELOPMENT.md) to get started.
 
 
-🧙 Learn about how to use this template and run your own parachain testnet for it in the
-[Devhub Cumulus Tutorial](https://docs.substrate.io/tutorials/v3/cumulus/start-relay/).
+More information available about the project's genesis in:
+
+- OpenGov Referendum - Part 1 — <https://polkadot.polkassembly.io/referenda/494>
+- OpenGov Referendum - Part 2 — <https://polkadot.polkassembly.io/referenda/1150>
+- Research Report — <https://github.com/eigerco/polkadot-native-storage/blob/main/doc/report/polkadot-native-storage-v1.0.0.pdf>
+- Polkadot Forum News Post — <https://forum.polkadot.network/t/polkadot-native-storage/4551>
+
+---
+
+<p>
+    <a href="https://eiger.co">
+        <img
+            src="docs/src/images/logo.svg"
+            alt="Eiger Oy"
+            style="height: 50px; display: block; margin-left: auto; margin-right: auto; width: 50%;">
+    </a>
+</p>
