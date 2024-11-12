@@ -85,7 +85,7 @@ This can be done with just any tool that can upload a file over HTTP.
 The server supports both [multipart forms](https://curl.se/docs/httpscripting.html#file-upload-post) and [`PUT`](https://curl.se/docs/httpscripting.html#put).
 
 ```bash
-curl --upload-file "polkadot.svg" "http://localhost:8001/upload/bagaaierab543mpropvi5mnmtptytnnlbr2j7vea7lowcugrqt7epanybw7ta"
+$ curl --upload-file "polkadot.svg" "http://localhost:8001/upload/bagaaierab543mpropvi5mnmtptytnnlbr2j7vea7lowcugrqt7epanybw7ta"
 baga6ea4seaqabpfwrqjcwrb4pxmo2d3dyrgj24kt4vqqqcbjoph4flpj2e5lyoq
 ```
 
@@ -130,7 +130,7 @@ $ polka-storage-provider-client sign-deal --sr25519-key "//Alice" @polka-logo-de
 All that's left is to [publish the deal](../storage-provider-cli/client/index.md#publish-deal):
 
 ```bash
-polka-storage-provider-client publish-deal --rpc-server-url "http://localhost:8000" @signed-logo-deal.json
+$ polka-storage-provider-client publish-deal --rpc-server-url "http://localhost:8000" @signed-logo-deal.json
 0
 ```
 
