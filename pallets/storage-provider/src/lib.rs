@@ -210,6 +210,8 @@ pub mod pallet {
 
         /// Represents how many challenge deadline there are in 1 proving period.
         /// Closely tied to `WPoStChallengeWindow`
+        /// It needs to be at least 3, because if we prove commit at a deadline,
+        /// the system cannot assign a sector directly to a next one.
         #[pallet::constant]
         type WPoStPeriodDeadlines: Get<u64>;
 
