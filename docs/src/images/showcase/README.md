@@ -3,12 +3,12 @@ The tools used for the showcase are [asciinema](https://asciinema.org/), [asciin
 Steps to record a new asciinema session:
 
 1. Install asciinema or use the docker image
-2. Start the Local Testnet - Polka Storage Parachain
-3. Update the `cli_basic.sh` with the commands you want to showcase
+2. Check the README.md of the specific showcase for any additional steps
+3. Update the `showcase.sh` with the commands you want to showcase
 4. Start the asciinema recording
 
-   `asciinema-automation --timeout 300 ./cli_basic.sh prod.cast`
+   `asciinema-automation --timeout 300 ./showcase.sh showcase.cast`
 
 5. Convert the `.cast` to `.gif`
 
-   `agg prod.cast prod.gif`
+   `agg showcase.cast showcase.gif`

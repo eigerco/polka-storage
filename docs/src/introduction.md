@@ -25,12 +25,13 @@ and this is our deliverable for Phase 2, composed of:
   - Proof of Spacetime
 
 <!-- TODO: pending change from konrads PR -->
-We also present a complete [real-world scenario](./getting-started/demo-file-store.md) in which a [Storage Provider](./glossary.md#storage-provider) and a [Storage User](./glossary.md#storage-user) negotiate a deal, perform all the steps necessary to start the storage and then receive rewards (or punishments) for making it happen.
 
+We also present a complete [real-world scenario](./getting-started/demo-file-store.md) in which a [Storage Provider](./glossary.md#storage-provider) and a [Storage User](./glossary.md#storage-user) negotiate a deal, perform all the steps necessary to start the storage and then receive rewards (or punishments) for making it happen.
 
 **The Polka Storage project currently provides:**
 
 Dedicated CLIs
+
 - [Polka Storage Provider CLI](./storage-provider-cli/index.md)
   - [`polka-storage-provider-server`](./storage-provider-cli/server.md) to launch the Storage Provider server.
   - [`polka-storage-provider-client`](./storage-provider-cli/client/index.md) to manage the wallet, propose & publish deals and do proof demos.
@@ -38,6 +39,7 @@ Dedicated CLIs
 - [`storagext-cli`](./storagext-cli/index.md) (shown below) to interact **directly** with the parachain — watch out, this is a low-level tool!
 
 Filecoin actor ports:
+
 - [Storage Provider](./architecture/pallets/storage-provider.md)
 - [Market](./architecture/pallets/market.md)
 - [Proofs](./architecture/pallets/proofs.md)
@@ -45,8 +47,8 @@ Filecoin actor ports:
 
 <p>
     <img
-        src="images/showcase/cli_basic.gif"
-        alt="Polka Storage CLI tooling showcase">
+        src="images/showcase/client_upload/showcase.gif"
+        alt="Polka Storage Client Upload">
 </p>
 
 **As a refresher, for [Phase 1](https://polkadot.polkassembly.io/referenda/494), we implemented the following:**
