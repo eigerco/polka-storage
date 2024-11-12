@@ -27,7 +27,7 @@ $ polka-storage-provider-client info --rpc-server-address "http://127.0.0.1:8000
 The `propose-deal` command sends an *unsigned* deal to the storage provider,
 if the storage provider accepts the deal, a CID will be returned,
 that CID can then be used to upload a file to the storage provider —
-for details on this process, refer to the [File Upload chapter](../../getting-started/file-upload.md).
+for details on this process, refer to the [File Upload chapter](../../getting-started/demo-file-store.md).
 
 > For the current MVP, the storage provider accepts all valid deals!
 

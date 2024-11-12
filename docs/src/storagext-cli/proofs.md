@@ -6,7 +6,7 @@ This command will be removed in the future. It's currently provided for easier t
 The <a href="./index.md"><code>storagext-cli</code> getting started</a> page covers the basic flags necessary to operate the CLI and should be read first.
 </div>
 
-Under the `proofs` subcommand [Proofs](../arhitecture/pallets/proofs.md) related extrinsics are available. This chapter covers the provided commands and how to use them.
+Under the `proofs` subcommand [Proofs](../architecture/pallets/proofs.md) related extrinsics are available. This chapter covers the provided commands and how to use them.
 
 ## `set-porep-verifying-key`
 

@@ -1,7 +1,7 @@
 # Launching the Storage Provider
 
 > This guide assumes you have read the [Building](./building/index.md)
-> and the [Local Testnet - Polka Storage](./local-testnet.md) guides
+> and the [Local Testnet - Polka Storage](./local-testnet/index.md) guides
 > and have a running testnet to connect to.
 
 Setting up the Storage Provider doesn't have a lot of science, but isn't automatic either!

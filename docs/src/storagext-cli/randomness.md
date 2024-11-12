@@ -6,7 +6,7 @@ Currently, the random value returned by the testnet node is same for all blocks.
 The <a href="./index.md"><code>storagext-cli</code> getting started</a> page covers the basic flags necessary to operate the CLI and should be read first.
 </div>
 
-Under the `randomness` subcommand [Randomness](../arhitecture/pallets/randomness.md) related extrinsics are available.
+Under the `randomness` subcommand [Randomness](../architecture/pallets/randomness.md) related extrinsics are available.
 This chapter covers the provided commands and how to use them.
 
 ## `get`

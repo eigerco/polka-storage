@@ -16,7 +16,7 @@ and this is our deliverable for Phase 2, composed of:
     - [Pre-commit](./architecture/pallets/storage-provider.md#pre_commit_sectors)
     - [Prove-commit](./architecture/pallets/storage-provider.md#prove_commit_sectors)
 - [Storage Provider Server](./architecture/polka-storage-provider-server.md)
-  - [File upload](./getting-started/file-upload.md)
+  - [File upload](./getting-started/demo-file-store.md)
   - [Proving Pipeline](./architecture/polka-storage-provider-server.md#sealing-pipeline)
     - Pre-commit
     - PoRep
@@ -25,7 +25,7 @@ and this is our deliverable for Phase 2, composed of:
   - Proof of Spacetime
 
 <!-- TODO: pending change from konrads PR -->
-We also present a complete [real-world scenario](./getting-started/demo.md) in which a [Storage Provider](./glossary.md#storage-provider) and a [Storage User](./glossary.md#storage-user) negotiate a deal, perform all the steps necessary to start the storage and then receive rewards (or punishments) for making it happen.
+We also present a complete [real-world scenario](./getting-started/demo-file-store.md) in which a [Storage Provider](./glossary.md#storage-provider) and a [Storage User](./glossary.md#storage-user) negotiate a deal, perform all the steps necessary to start the storage and then receive rewards (or punishments) for making it happen.
 
 
 **The Polka Storage project currently provides:**
