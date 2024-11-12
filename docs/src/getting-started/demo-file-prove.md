@@ -1,7 +1,7 @@
 # Proving a file
 
 To store the file according to the protocol, Storage Provider has to assign it to a sector, pre-commit and then prove it!
-That's a lot of things, but this is handled automatically, behind the scenes when the file is eventually [published](../storage-provider-cli/client/index.md#publish-deal).
+That's a lot of steps, but this is handled automatically, behind the scenes by the [pipeline](../architecture/polka-storage-provider-server.md#sealing-pipeline), then the file is eventually [published](../storage-provider-cli/client/index.md#publish-deal).
 Here are excerpts from Storage Provider Node after executing the [store a file scenario](./demo-file-store.md):
 
 ```log
@@ -50,6 +50,6 @@ Here are excerpts from Storage Provider Node after executing the [store a file s
 2024-11-11T12:39:23.737186Z  INFO prove_commit: polka_storage_provider_server::pipeline: Proven sector: 1
 ```
 
-After that, Storage Provider needs to continously submit a PoSt to prove that they are still storing the file. If they do not, they'll be slashed.
+After that, Storage Provider needs to continously [submit a PoSt](../architecture/pallets/storage-provider.md#submit_windowed_post) to prove that they are still storing the file. If they do not, they'll be slashed.
 We have not yet integrated the logic for PoSt verification with Storage Provider node, but the logic on-chain has been implemented.
 
