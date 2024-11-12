@@ -20,18 +20,8 @@
 ./polka-storage-provider-client proofs commp data.car
 #$ expect cid
 
-DEAL_JSON='{
-    "piece_cid": "baga6ea4seaqbfhdvmk5qygevit25ztjwl7voyikb5k2fqcl2lsuefhaqtukuiii",
-    "piece_size": 2048,
-    "client": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
-    "provider": "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y",
-    "label": "custom label",
-    "start_block": 200,
-    "end_block": 250,
-    "storage_price_per_block": 500,
-    "provider_collateral": 1250,
-    "state": "Published"
-}'
+DEAL_JSON="$(cat ./deal.json)"
+echo "$DEAL_JSON"
 
 SIGNED_DEAL_JSON="$(./polka-storage-provider-client sign-deal --sr25519-key //Alice "$DEAL_JSON")"
 #$ expect
@@ -47,6 +37,9 @@ echo "$DEAL_CID"
 
 curl -X PUT -F "upload=@data.txt" "http://localhost:8001/upload/$DEAL_CID"
 #$ expect baga6ea4seaqbfhdvmk5qygevit25ztjwl7voyikb5k2fqcl2lsuefhaqtukuiii
+
+# wait instructions change the time between instructions, default to 80ms
+#$ wait 1000
 
 ./polka-storage-provider-client publish-deal "$SIGNED_DEAL_JSON"
 #$ expect 0
