@@ -22,8 +22,7 @@ We do provide an implementation of the storage provider, you can read more about
 
 ![](../images/architecture/pallets_overview.png)
 
-Going over to the pallets, we've focused on the core functionality —
-to that end, we've implemented the market, storage provider, proofs and randomness pallets.
+We've been focusing on implementing the core functionality by developing the market, storage provider, proofs and randomness pallets.
 
 The market pallet handles all things related to deal payments and slashing,
 being informed by the storage provider when deals haven't been proven and applying slashing in those cases.

@@ -4,8 +4,7 @@ Welcome to the Polka Storage project!
 
 This project aims to deliver a Polkadot-native system parachain for data storage.
 
-Since the Referendum approval, we've been busy developing the parachain,
-and this is our deliverable for Phase 2, composed of:
+Since the Referendum approval, we've been busy developing the deliverables for Phase 2.
 
 **For [**Phase 2**](https://polkadot.polkassembly.io/referenda/1150), we have implemented:**
 
@@ -57,13 +56,13 @@ Filecoin actor ports:
 - [Publishing](./architecture/pallets/market.md#publish_storage_deals) Market Deals on-chain,
 - [Investing](./architecture/pallets/market.md#add_balance) tokens into the Storage Market,
 - [Receiving](./architecture/pallets/market.md#settle_deal_payments) funds after completing a deal,
-- [Committing](./architecture/pallets/storage-provider.md#pre_commit_sector) to the Storage and [Proving](./architecture/pallets/storage-provider.md#prove_commit_sectors) the storage,
+- [Committing](./architecture/pallets/storage-provider.md#pre_commit_sectors) to the Storage and [Proving](./architecture/pallets/storage-provider.md#prove_commit_sectors) the storage,
 - [Declaring](./architecture/pallets/storage-provider.md#prove_commit_sectors) failures to deliver committed storage and [Recovering](./architecture/pallets/storage-provider.md#declaring-storage-faults-recovered) from it,
 - [Continuously proving](./architecture/pallets/storage-provider.md#submit_windowed_post) that the promise of storage has been kept up [PoSt proof](./glossary.md#proofs),
-- [Terminating](./architecture/pallets/storage-provider.md#terminate_sectors) sectors by the storage provider.
+- [Terminating](./architecture/pallets/storage-provider.md#terminate_sectors) sectors by the storage provider,
 - [Punishing](./architecture/pallets/storage-provider.md#events) for failing to provide storage.
 
-We present how to [store a file](./getting-started/demo-file-store.md) in which a [Storage Provider](./glossary.md#storage-provider) and a [Storage User](./glossary.md#storage-user) negotiate a deal, perform all the steps necessary to start the file storage. The details about proving a file are presented [here](./getting-started/demo-file-prove.md),.
+We present how to [store a file](./getting-started/demo-file-store.md) in which a [Storage Provider](./glossary.md#storage-provider) and a [Storage User](./glossary.md#storage-user) negotiate a deal and perform all the steps necessary to start the file storage. The details about proving a file are presented [here](./getting-started/demo-file-prove.md).
 
 **More information available about the project's genesis in:**
 

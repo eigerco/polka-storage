@@ -14,7 +14,7 @@ Achieving storage native to Polkadot means using DOT as *the* token for our solu
 
 We've decided to build our storage solution based on the ideas behind Filecoin, not because it's different from the other available networks in Polkadot, but rather because Filecoin does a lot of things right, and we want to bring them to Polkadot.
 
-For those unfamiliar with Filecoin, it is a blockchain network that provides a *file* storage marketplace. In a nutshell, people provide storage space (a storage provider), creating several offers (distinguished by price, reputation, etc) and clients pick one from the bunch, storing their data with.
+For those unfamiliar with Filecoin, it is a blockchain network that provides a *file* storage marketplace. In a nutshell, people provide storage space (a storage provider), creating several offers (distinguished by price, reputation, etc) and clients can pick one of these storage providers to store their data for them.
 
 This raises the question — *How does the network know that the storage provider does have my data?*
 
@@ -54,7 +54,7 @@ With this in mind, you can challenge storage providers holding a given file by s
 
 At the same time you, the challenger, must also build a Merkle tree on your end, you do this by receiving the random data leaf that you selected and building the tree, in the end, if they do not match, the storage provider is cheating you!
 
-This is illustrated in the following picture, you — the verifier — just received the leaf `D3` and the random number `R`, you concatenate them together (`D3||R`) and you’re ready to recompute the tree. In red, you find the nodes directly affected by the change, these are the ones that **must** to be recomputed — of course, you can always compute the tree from scratch; using `h(D1), h(D2), ...` but that is wasteful as the nodes marked in blue and their children did not change, and as such, you can just reuse them.
+This is illustrated in the following picture, you — the verifier — just received the leaf `D3` and the random number `R`, you concatenate them together (`D3||R`) and you’re ready to recompute the tree. In red, you find the nodes directly affected by the change, these are the ones that **must** be recomputed — of course, you can always compute the tree from scratch; using `h(D1), h(D2), ...` but that is wasteful as the nodes marked in blue and their children did not change, and as such, you can just reuse them.
 
 <img
     src="images/background/merkle_tree_verifier.png"
@@ -83,7 +83,7 @@ So, we've established that we can't transfer much data through the network, but 
 
 The generation of these proofs do not require special hardware features like trusted platform modules — you can generate a proof using your CPU, however, you will need a GPU if you want to generate proofs for larger files in practical time.
 
-In Filecoin, uploaded files (or deals) are combined into sectors, which the zero knowledge proofs are based on (and [directed acyclic graphs](https://www.youtube.com/watch?v=8_9ONpyRZEI), but we’re not covering that here); at this point Merkle trees are built over the original file, and the final sector, both in its unsealed and sealed state; the root of each tree is then used when constructing the replication proof, similarly, the root of the sealed sector is used for the proofs of storage over time.
+In Filecoin, uploaded files (or deals) are combined into sectors, which the zero knowledge proofs are based on (and [directed acyclic graphs](https://www.youtube.com/watch?v=8_9ONpyRZEI), but we’re not covering that here). At this point Merkle trees are built over the original file and the final sector, both in its unsealed and sealed state. The root of each tree is then used when constructing the replication proof, similarly, the root of the sealed sector is used for the proofs of storage over time.
 
 Proof validation requires fewer resources than the generation step, enabling us to verify the storage proofs inside the Polkadot runtime. Their small size translates to less stress on the network; for example, Filecoin proofs can go from 192 bytes to a few KB in size, in comparison, a 1080p video frame, encoded using H.264 will be between 100 and 500 KB — note that video will usually be streamed at 24 frames per second or higher, the proof size pales in comparison!
 
