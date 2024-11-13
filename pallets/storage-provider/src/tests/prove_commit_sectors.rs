@@ -5,6 +5,7 @@ use sp_core::bounded_vec;
 
 use super::{new_test_ext, MaxProveCommitDuration};
 use crate::{
+    deadline::deadline_is_mutable,
     error::GeneralPalletError,
     pallet::{Error, Event, StorageProviders},
     sector::{ProveCommitResult, ProveCommitSector, SectorPreCommitInfo},
@@ -13,7 +14,6 @@ use crate::{
         RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System, Test,
         ALICE, BOB, CHARLIE, INITIAL_FUNDS,
     },
-    deadline::deadline_is_mutable,
 };
 
 #[test]
@@ -275,7 +275,8 @@ fn successfully_prove_after_period_start_and_check_mutability() {
                 <Test as crate::Config>::WPoStChallengeWindow::get(),
                 <Test as crate::Config>::WPoStChallengeLookBack::get(),
                 <Test as crate::Config>::FaultDeclarationCutoff::get(),
-            ).unwrap();
+            )
+            .unwrap();
 
             if idx == 2 || idx == 3 {
                 assert!(!is_mutable);
