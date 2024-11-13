@@ -65,15 +65,17 @@ build-mater-cli:
 # Build all the binaries
 build-binaries-all: build-polka-storage-node build-polka-storage-provider-client build-polka-storage-provider-server build-storagext-cli build-mater-cli
 
-# TODO: the docker builds point to the azure container registry — they shouldn't
-# we should be using the GHCR this time
+
+# NOTE: Docker builds have no ghcr prefix because these are built locally.
+# The Docker images built in the CI will point to the ghcr.
+# Done to differenciate between local images and pulled images.
 
 # Build the mater CLI binary
 build-mater-docker:
   docker build \
         --build-arg VCS_REF="$(git rev-parse HEAD)" \
         --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-        -t polkadotstorage.azurecr.io/mater-cli:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')" \
+        -t mater-cli:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[] | select(.name == "mater-cli") | .version')" \
         --file ./docker/dockerfiles/mater-cli.Dockerfile \
         .
 
@@ -82,7 +84,7 @@ build-polka-storage-node-docker:
     docker build \
         --build-arg VCS_REF="$(git rev-parse HEAD)" \
         --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-        -t polkadotstorage.azurecr.io/polka-storage-node:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')" \
+        -t polka-storage-node:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[] | select(.name == "polka-storage-node")| .version')" \
         --file ./docker/dockerfiles/polka-storage-node.Dockerfile \
         .
 
@@ -91,7 +93,7 @@ build-polka-storage-provider-client-docker:
   docker build \
         --build-arg VCS_REF="$(git rev-parse HEAD)" \
         --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-        -t polkadotstorage.azurecr.io/polka-storage-provider-client:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')" \
+        -t polka-storage-provider-client:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[] | select(.name == "polka-storage-provider-client")| .version')" \
         --file ./docker/dockerfiles/polka-storage-provider-client.Dockerfile \
         .
 
@@ -100,7 +102,7 @@ build-polka-storage-provider-server-docker:
   docker build \
         --build-arg VCS_REF="$(git rev-parse HEAD)" \
         --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-        -t polkadotstorage.azurecr.io/polka-storage-provider-server:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')" \
+        -t polka-storage-provider-server:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[] | select(.name == "polka-storage-provider-server")| .version')" \
         --file ./docker/dockerfiles/polka-storage-provider-server.Dockerfile \
         .
 
@@ -109,7 +111,7 @@ build-storagext-docker:
   docker build \
         --build-arg VCS_REF="$(git rev-parse HEAD)" \
         --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-        -t polkadotstorage.azurecr.io/storagext-cli:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')" \
+        -t storagext-cli:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[] | select(.name == "storagext-cli")| .version')" \
         --file ./docker/dockerfiles/storagext-cli.Dockerfile \
         .
 
@@ -120,32 +122,32 @@ build-docker-all: build-polka-storage-node-docker build-polka-storage-provider-c
 # Run the mater CLI docker image
 # This only works if the image is already built
 run-mater-docker:
-    docker run -it polkadotstorage.azurecr.io/mater-cli:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')"
+    docker run -it mater-cli:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[] | select(.name == "mater-cli")| .version')"
 
 # Run the parachain node docker image
 # This only works if the image is already built
 run-polka-storage-node-docker:
-    docker run -it polkadotstorage.azurecr.io/parachain-node:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')"
+    docker run -it parachain-node:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[] | select(.name == "polka-storage-node")| .version')"
 
 # Run the storage provider client docker image
 # This only works if the image is already built
 run-polka-storage-client-docker:
-    docker run -it polkadotstorage.azurecr.io/sp-client:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')"
+    docker run -it sp-client:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[] | select(.name == "polka-storage-provider-client")| .version')"
 
 # Run the storage provider server docker image
 # This only works if the image is already built
 run-polka-storage-server-docker:
-    docker run -it polkadotstorage.azurecr.io/sp-server:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')"
+    docker run -it sp-server:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[] | select(.name == "polka-storage-provider-server")| .version')"
 
 # Run the storagext CLI docker image
 # This only works if the image is already built
 run-storagext-docker:
-    docker run -it polkadotstorage.azurecr.io/storagext-cli:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')"
+    docker run -it storagext-cli:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[] | select(.name == "storagext-cli")| .version')"
 
 load-to-minikube:
     # https://github.com/paritytech/zombienet/pull/1830
     # unless this is merged and we pull it in, launching it in local zombienet (without publicly publishing the docker image is impossible)
-    minikube image load polkadotstorage.azurecr.io/parachain-node:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')"
+    minikube image load ghcr.io/polka-storage-node:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[] | select(.name == "polka-storage-node") | .version')"
 
 kube-testnet:
     zombienet -p kubernetes spawn zombienet/local-kube-testnet.toml
