@@ -28,11 +28,11 @@ We support `Linux x86_64` and `MacOS ARM x64`. The commands below will download:
 wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-stable2407-1/polkadot
 wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-stable2407-1/polkadot-prepare-worker
 wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-stable2407-1/polkadot-execute-worker
-wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-node-v0.0.0/polka-storage-node
-wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-provider-client-v0.1.0/polka-storage-provider-client
-wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-provider-server-v0.1.0/polka-storage-provider-server
-wget https://github.com/eigerco/polka-storage/releases/download/storagext-cli-v0.1.0/storagext-cli
-wget https://github.com/eigerco/polka-storage/releases/download/mater-cli-v0.1.0/mater-cli
+wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-node-v0.0.0/polka-storage-node-linux-x86 -O polka-storage-node
+wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-provider-client-v0.1.0/polka-storage-provider-client-linux-x86 -O polka-storage-provider-client
+wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-provider-server-v0.1.0/polka-storage-provider-server-linux-x86 -O polka-storage-provider-server
+wget https://github.com/eigerco/polka-storage/releases/download/storagext-cli-v0.1.0/storagext-cli-linux-x86 -O storagext-cli
+wget https://github.com/eigerco/polka-storage/releases/download/mater-cli-v0.1.0/mater-cli-linux-x86 -O mater-cli
 wget https://github.com/paritytech/zombienet/releases/download/v1.3.106/zombienet-linux-x64 -O zombienet
 ```
 
@@ -56,9 +56,9 @@ zombienet -p native spawn polka-storage-testnet.toml
 1. Download the binaries:
 
 ```bash
-wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-node-v0.0.0/polkadot-macos-arm64 -O polkadot
-wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-node-v0.0.0/polkadot-prepare-worker-macos-arm64 -O polkadot-prepare-worker
-wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-node-v0.0.0/polkadot-execute-worker-macos-arm64 -O polkadot-execute-worker
+wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-node-v0.0.0/polkadot-2407-1-macos-arm64 -O polkadot
+wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-node-v0.0.0/polkadot-2407-1-prepare-worker-macos-arm64 -O polkadot-prepare-worker
+wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-node-v0.0.0/polkadot-2407-1-execute-worker-macos-arm64 -O polkadot-execute-worker
 wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-node-v0.0.0/polka-storage-node-macos-arm64 -O polka-storage-node
 wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-provider-server-v0.1.0/polka-storage-provider-server-macos-arm64 -O polka-storage-provider-server
 wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-provider-client-v0.1.0/polka-storage-provider-client-macos-arm64 -O polka-storage-provider-client
