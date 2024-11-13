@@ -574,7 +574,7 @@ impl Service for RocksDBLid {
         records
             .into_iter()
             .map(|record| self.add_index_record(&cursor_prefix, record))
-            .collect::<Result<_, _>>()?;
+            .collect::<Result<(), _>>()?;
 
         metadata.indexed_at = chrono::Utc::now().into();
         self.set_piece_cid_to_metadata(piece_cid, &metadata)
