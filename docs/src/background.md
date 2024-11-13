@@ -16,7 +16,7 @@ We've decided to build our storage solution based on the ideas behind Filecoin, 
 
 For those unfamiliar with Filecoin, it is a blockchain network that provides a *file* storage marketplace. In a nutshell, people provide storage space (a storage provider), creating several offers (distinguished by price, reputation, etc) and clients can pick one of these storage providers to store their data for them.
 
-This raises the question — *How does the network know that the storage provider does have my data?*
+This raises the question — *How does the network know that the storage provider has my data?*
 
 Therein lies the crux of Filecoin! You can solve this in multiple ways, each with different levels of flexibility, but we will outline two.
 
