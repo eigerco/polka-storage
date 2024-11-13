@@ -58,7 +58,7 @@ jobs:
         name: Build in release mode
         run: |
           RUSTFLAGS="-D warnings" cargo build --release --locked --package mater-cli
-          echo "PACKAGE_SHA256=$(sha256sum target/release/mater-cli)" >> "$GITHUB_OUTPUT"
+          echo "PACKAGE_SHA256=$(sha256sum target/release/mater-cli | sed 's/\(.*\) .*/\1/')" >> "$GITHUB_OUTPUT"
 
       - name: Login to Github Container Registry
         uses: docker/login-action@v3
@@ -125,7 +125,7 @@ jobs:
         name: Build in release mode
         run: |
           RUSTFLAGS="-D warnings" cargo build --release --locked --package storagext-cli
-          echo "PACKAGE_SHA256=$(sha256sum target/release/storagext-cli)" >> "$GITHUB_OUTPUT"
+          echo "PACKAGE_SHA256=$(sha256sum target/release/storagext-cli | sed 's/\(.*\) .*/\1/')" >> "$GITHUB_OUTPUT"
 
       - name: Login to Github Container Registry
         uses: docker/login-action@v3
@@ -192,7 +192,7 @@ jobs:
         name: Build in release mode
         run: |
           RUSTFLAGS="-D warnings" cargo build --release --locked --package polka-storage-node --features polka-storage-runtime/testnet
-          echo "PACKAGE_SHA256=$(sha256sum target/release/polka-storage-node)" >> "$GITHUB_OUTPUT"
+          echo "PACKAGE_SHA256=$(sha256sum target/release/polka-storage-node | sed 's/\(.*\) .*/\1/')" >> "$GITHUB_OUTPUT"
 
       - name: Login to Github Container Registry
         uses: docker/login-action@v3
@@ -259,7 +259,7 @@ jobs:
         name: Build in release mode
         run: |
           RUSTFLAGS="-D warnings" cargo build --release --locked --package polka-storage-provider-server
-          echo "PACKAGE_SHA256=$(sha256sum target/release/polka-storage-provider-server)" >> "$GITHUB_OUTPUT"
+          echo "PACKAGE_SHA256=$(sha256sum target/release/polka-storage-provider-server | sed 's/\(.*\) .*/\1/')" >> "$GITHUB_OUTPUT"
 
       - name: Login to Github Container Registry
         uses: docker/login-action@v3
@@ -326,7 +326,7 @@ jobs:
         name: Build in release mode
         run: |
           RUSTFLAGS="-D warnings" cargo build --release --locked --package polka-storage-provider-client
-          echo "PACKAGE_SHA256=$(sha256sum target/release/polka-storage-provider-client)" >> "$GITHUB_OUTPUT"
+          echo "PACKAGE_SHA256=$(sha256sum target/release/polka-storage-provider-client | sed 's/\(.*\) .*/\1/')" >> "$GITHUB_OUTPUT"
 
       - name: Login to Github Container Registry
         uses: docker/login-action@v3
