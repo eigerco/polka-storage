@@ -134,9 +134,9 @@ impl pallet_market::Config for Test {
 parameter_types! {
     // Storage Provider Pallet
     pub const WPoStPeriodDeadlines: u64 = 10;
-    pub const WpostProvingPeriod: BlockNumber = 40 * MINUTES;
-    pub const WpostChallengeWindow: BlockNumber = 4 * MINUTES;
-    pub const WpostChallengeLookBack: BlockNumber = MINUTES;
+    pub const WPoStProvingPeriod: BlockNumber = 40 * MINUTES;
+    pub const WPoStChallengeWindow: BlockNumber = 4 * MINUTES;
+    pub const WPoStChallengeLookBack: BlockNumber = MINUTES;
     pub const MinSectorExpiration: BlockNumber = 5 * MINUTES;
     pub const MaxSectorExpiration: BlockNumber = 360 * MINUTES;
     pub const SectorMaximumLifetime: BlockNumber = 120 * MINUTES;
@@ -163,9 +163,9 @@ impl pallet_storage_provider::Config for Test {
     type Currency = Balances;
     type Market = Market;
     type ProofVerification = DummyProofsVerification;
-    type WPoStProvingPeriod = WpostProvingPeriod;
-    type WPoStChallengeWindow = WpostChallengeWindow;
-    type WPoStChallengeLookBack = WpostChallengeLookBack;
+    type WPoStProvingPeriod = WPoStProvingPeriod;
+    type WPoStChallengeWindow = WPoStChallengeWindow;
+    type WPoStChallengeLookBack = WPoStChallengeLookBack;
     type MinSectorExpiration = MinSectorExpiration;
     type MaxSectorExpiration = MaxSectorExpiration;
     type SectorMaximumLifetime = SectorMaximumLifetime;
