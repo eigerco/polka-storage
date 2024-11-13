@@ -13,8 +13,10 @@ We support `Linux x86_64` and `MacOS ARM x64`. The commands below will download:
 
 - [Relay Chain](https://github.com/paritytech/polkadot-sdk/releases) binaries (`polkadot`, `polkadot-prepare-worker`, `polkadot-execute-worker`),
 - Polka Storage Parachain binary (`polka-storage-node`),
-- [Polka Storage Provider](../../storage-provider-cli/index.md) internal node (`polka-storage-provider`),
-- [CLI for interacting with the parachain](../../storagext-cli/index.md) (`storagext-cli`),
+- [Polka Storage Provider](../../storage-provider-cli/server.md) internal node (`polka-storage-provider-server`),
+- [Polka Storage Provider Client](../../storage-provider-cli/client/index.md) internal node's RPC client and proving tools (`polka-storage-provider-client`),
+- [Storagext CLI](../../storagext-cli/index.md) to interact with a chain by sending extrinsics (`storagext-cli`),
+- [Mater CLI](../../mater-cli/index.md) for CARv2 file archive operations (`mater-cli`),
 - [zombienet](https://paritytech.github.io/zombienet/install.html) to spawn local testnets and orchestrate them (`zombienet`),
 - Polka Storage Parachain out-of-the-box zombienet's configuration (`polka-storage-testnet.toml`).
 
@@ -23,19 +25,21 @@ We support `Linux x86_64` and `MacOS ARM x64`. The commands below will download:
 1. Download the binaries:
 
 ```bash
-wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-v1.13.0/polkadot
-wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-v1.13.0/polkadot-prepare-worker
-wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-v1.13.0/polkadot-execute-worker
-wget https://s3.eu-central-1.amazonaws.com/polka-storage/linux_x86-64/polka-storage-node
-wget https://s3.eu-central-1.amazonaws.com/polka-storage/linux_x86-64/polka-storage-provider
-wget https://s3.eu-central-1.amazonaws.com/polka-storage/linux_x86-64/storagext-cli
+wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-stable2407-1/polkadot
+wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-stable2407-1/polkadot-prepare-worker
+wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-stable2407-1/polkadot-execute-worker
+wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-node-v0.0.0/polka-storage-node-linux-x86 -O polka-storage-node
+wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-provider-client-v0.1.0/polka-storage-provider-client-linux-x86 -O polka-storage-provider-client
+wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-provider-server-v0.1.0/polka-storage-provider-server-linux-x86 -O polka-storage-provider-server
+wget https://github.com/eigerco/polka-storage/releases/download/storagext-cli-v0.1.0/storagext-cli-linux-x86 -O storagext-cli
+wget https://github.com/eigerco/polka-storage/releases/download/mater-cli-v0.1.0/mater-cli-linux-x86 -O mater-cli
 wget https://github.com/paritytech/zombienet/releases/download/v1.3.106/zombienet-linux-x64 -O zombienet
 ```
 
 2. Setup permissions:
 
 ```bash
-chmod +x zombienet polka-storage-node polka-storage-provider storagext-cli polkadot polkadot-prepare-worker polkadot-execute-worker
+chmod +x zombienet polka-storage-node polka-storage-provider-client polka-storage-provider-server storagext-cli mater-cli polkadot polkadot-prepare-worker polkadot-execute-worker
 ```
 
 3. Run `zombienet`:
@@ -52,20 +56,22 @@ zombienet -p native spawn polka-storage-testnet.toml
 1. Download the binaries:
 
 ```bash
-wget https://s3.eu-central-1.amazonaws.com/polka-storage/macos_arm/polkadot
-wget https://s3.eu-central-1.amazonaws.com/polka-storage/macos_arm/polkadot-prepare-worker
-wget https://s3.eu-central-1.amazonaws.com/polka-storage/macos_arm/polkadot-execute-worker
-wget https://s3.eu-central-1.amazonaws.com/polka-storage/macos_arm/polka-storage-node
-wget https://s3.eu-central-1.amazonaws.com/polka-storage/macos_arm/polka-storage-provider
-wget https://s3.eu-central-1.amazonaws.com/polka-storage/macos_arm/storagext-cli
+wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-node-v0.0.0/polkadot-2407-1-macos-arm64 -O polkadot
+wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-node-v0.0.0/polkadot-2407-1-prepare-worker-macos-arm64 -O polkadot-prepare-worker
+wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-node-v0.0.0/polkadot-2407-1-execute-worker-macos-arm64 -O polkadot-execute-worker
+wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-node-v0.0.0/polka-storage-node-macos-arm64 -O polka-storage-node
+wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-provider-server-v0.1.0/polka-storage-provider-server-macos-arm64 -O polka-storage-provider-server
+wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-provider-client-v0.1.0/polka-storage-provider-client-macos-arm64 -O polka-storage-provider-client
+wget https://github.com/eigerco/polka-storage/releases/download/storagext-cli-v0.1.0/storagext-cli-macos-arm64 -O storagext-cli
+wget https://github.com/eigerco/polka-storage/releases/download/mater-cli-v0.1.0/mater-cli-macos-arm64 -O mater-cli
 wget https://github.com/paritytech/zombienet/releases/download/v1.3.106/zombienet-macos-arm64 -O zombienet
 ```
 
 2. Setup permissions & de-quarantine:
 
 ```bash
-chmod +x zombienet polka-storage-node polka-storage-provider storagext-cli polkadot polkadot-prepare-worker polkadot-execute-worker
-xattr -d com.apple.quarantine zombienet polka-storage-node polka-storage-provider storagext-cli polkadot polkadot-prepare-worker polkadot-execute-worker
+chmod +x zombienet polka-storage-node polka-storage-provider-server polka-storage-provider-client storagext-cli mater-cli polkadot polkadot-prepare-worker polkadot-execute-worker
+xattr -d com.apple.quarantine zombienet polka-storage-node polka-storage-provider-server polka-storage-provider-client storagext-cli mater-cli polkadot polkadot-prepare-worker polkadot-execute-worker
 ```
 
 <div class="warning">
@@ -131,7 +137,7 @@ image_pull_policy = "IfNotPresent"
 [relaychain]
 chain = "rococo-local"
 default_args = ["--detailed-log-output", "-lparachain=debug,xcm=trace,runtime=trace"]
-default_image = "docker.io/parity/polkadot:v1.13.0"
+default_image = "docker.io/parity/polkadot:stable2407-1"
 
 [[relaychain.nodes]]
 name = "alice"
@@ -153,7 +159,7 @@ id = 1000
 [[parachains.collators]]
 args = ["--detailed-log-output", "-lparachain=debug,xcm=trace,runtime=trace"]
 command = "polka-storage-node"
-image = "polkadotstorage.azurecr.io/parachain-node:0.1.0"
+image = "ghcr.io/eigerco/polka-storage-node:0.0.0"
 name = "charlie"
 rpc_port = 42069
 validator = true
