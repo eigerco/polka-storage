@@ -240,7 +240,11 @@ where
                     policy.w_post_challenge_lookback,
                     policy.fault_declaration_cutoff,
                 )?;
-                log::error!(target: LOG_TARGET, "is_deadline_mutable {}", is_deadline_mutable);
+                if is_deadline_mutable {
+                    log::debug!(target: LOG_TARGET, "deadline[{idx}] is mutable");
+                } else {
+                    log::debug!(target: LOG_TARGET, "deadline[{idx}] is not mutable");
+                }
                 // Skip deadlines that aren't currently mutable.
                 if is_deadline_mutable {
                     deadline_vec[idx as usize] = Some(deadline.clone());
