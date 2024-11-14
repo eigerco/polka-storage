@@ -52,7 +52,7 @@ where
         let event = event.unwrap();
 
         assert_eq!(event.owner, charlie.account_id().clone().into());
-        assert_eq!(event.proving_period_start, 63);
+        assert_eq!(event.proving_period_start, 83);
         assert_eq!(event.info.peer_id.0, peer_id.clone().into_bytes());
         assert_eq!(event.info.sector_size, SectorSize::_2KiB);
         assert_eq!(
@@ -145,7 +145,7 @@ async fn settle_deal_payments<Keypair>(
         let event = event.unwrap();
         assert!(event.unsuccessful.0.is_empty());
         assert_eq!(event.successful.0[0].deal_id, 0);
-        assert_eq!(event.successful.0[0].amount, 25_000_000_000);
+        assert_eq!(event.successful.0[0].amount, 24_000_000_000);
         assert_eq!(
             event.successful.0[0].provider,
             charlie.account_id().clone().into()
@@ -176,9 +176,9 @@ async fn publish_storage_deals<Keypair>(
         client: alice.account_id().clone(),
         provider: charlie.account_id().clone(),
         label,
-        start_block: 65,
-        end_block: 115,
-        storage_price_per_block: 500000000,
+        start_block: 85,
+        end_block: 165,
+        storage_price_per_block: 300000000,
         provider_collateral: 12500000000,
         state: DealState::Published,
     };
@@ -235,7 +235,7 @@ where
         sector_number: 1,
         sealed_cid,
         deal_ids: vec![0],
-        expiration: 165,
+        expiration: 195,
         unsealed_cid,
         seal_randomness_height,
     }];
@@ -442,17 +442,17 @@ async fn real_world_use_case() {
 
     prove_commit_sector(&client, &charlie_kp, pre_commit_block_number).await;
 
-    client.wait_for_height(63, true).await.unwrap();
+    client.wait_for_height(83, true).await.unwrap();
     submit_windowed_post(&client, &charlie_kp).await;
 
-    client.wait_for_height(83, true).await.unwrap();
+    client.wait_for_height(103, true).await.unwrap();
     declare_faults(&client, &charlie_kp).await;
 
     declare_recoveries(&client, &charlie_kp).await;
 
-    client.wait_for_height(103, true).await.unwrap();
+    client.wait_for_height(143, true).await.unwrap();
     submit_windowed_post(&client, &charlie_kp).await;
 
-    client.wait_for_height(115, true).await.unwrap();
+    client.wait_for_height(165, true).await.unwrap();
     settle_deal_payments(&client, &charlie_kp, &alice_kp).await;
 }
