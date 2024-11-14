@@ -9,7 +9,7 @@ and the HTTP API which consists of a single endpoint where users are to submit t
 The user is first required to propose a deal, which once accepted by the storage provider (signaled by the return of a CID) allows the user to submit a file
 (using `curl` for example) to the server; finally the user can then publish a signed deal to the storage provider. For more details, see the [File Upload Demo](../getting-started/demo-file-store.md).
 
-The responsibility then falls on to the storage provider to seal, publish and activate the deal on the Polka Storage parachain.
+The responsibility then falls on the storage provider to seal, publish and activate the deal on the Polka Storage parachain.
 
 ## JSON-RPC API
 
@@ -98,7 +98,7 @@ To achieve that, the pipeline is (currently) composed of 3 main stages.
 
 ### Add Piece
 
-The Add Piece stage gathers pieces into unsealed sectors, preparing them for the following steps.
+The Add Piece stage gathers pieces into unsealed sectors, preparing them for the next steps.
 
 Given we're currently only supporting sectors with 2KiB size, we're converting single pieces into sectors —
 when a piece comes in, we convert it to a single sector, without gathering multiple pieces.
