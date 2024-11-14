@@ -21,7 +21,7 @@
 
 The `Storage Provider Pallet` handles the creation of storage providers and facilitates storage providers and clients in creating storage deals.
 Storage providers must provide the [Proof of Space-time (PoSt)](../../glossary.md#post) and the [Proof of Replication (PoRep)](../../glossary.md#porep)
-to the `Storage Provider Pallet` to prevent the pallet from imposing penalties on storage providers through [slashing](#storage-fault-slashing).
+to the `Storage Provider Pallet` to prevent the pallet from imposing penalties on storage providers through [slashing](../../glossary.md#slashing).
 
 ## Usage
 
@@ -37,8 +37,6 @@ the storage provider can declare sectors as faulty or recovered[^recovered].
 <img src="../../images/storage-provider/faults.svg" alt="Declaring faults and recoveries">
 
 [^recovered]: Recovered sectors still require being proven before they can become fully active again.
-
-Substrate pallet hooks execute actions when certain conditions are met.
 
 Substrate pallet hooks execute some actions when certain conditions are met.
 We use these hooks — when a block finalizes — to check if storage providers are up to date with their proofs.
@@ -91,7 +89,7 @@ Sectors are not valid after pre-commit. The sectors need to be proven first.
 
 #### <a class="header" id="pre_commit_sectors.example" href="#pre_commit_sectors.example">Example</a>
 
-Storage provider `//Alice` pre-committing[^pre_commit_sectors] a sector number 1, with a single deal ID 0.
+Storage provider `//Alice` pre-committing[^pre-committing] a sector number 1, with a single deal ID 0.
 
 ```bash
 storagext-cli --sr25519-key "//Alice" storage-provider pre-commit @pre-commit-sector.json
@@ -110,7 +108,7 @@ Where `pre-commit-sector.json` is a file with contents similar to:
 }
 ```
 
-[^pre_commit_sectors]: Read more about the `pre-commit` command in [_Storagext CLI/Subcommand `storage-provider`/`pre-commit`_](../../storagext-cli/storage-provider.md#pre-commit)
+[^pre-committing]: Read more about the `pre-commit` command in [_Storagext CLI/Subcommand `storage-provider`/`pre-commit`_](../../storagext-cli/storage-provider.md#pre-commit)
 
 ### `prove_commit_sectors`
 
@@ -275,8 +273,8 @@ Where the termination declarations contain:
 
 | Name        | Description                                                                | Type                     |
 | ----------- | -------------------------------------------------------------------------- | ------------------------ |
-| `deadline`  | The deadline the termination is targeting                                  | Positive integer.        |
-| `partition` | Partition index within the deadline containing the sector to be terminated | Positive integer.        |
+| `deadline`  | The deadline the termination is targeting                                  | Positive integer        |
+| `partition` | Partition index within the deadline containing the sector to be terminated | Positive integer        |
 | `sectors`   | Sectors in the partition being terminated                                  | Set of positive integers |
 
 #### <a class="header" id="terminate_sectors.example" href="#terminate_sectors.example">Example</a>
@@ -405,7 +403,7 @@ The Storage Provider Pallet actions can fail with the following errors:
   - `DeadlineErrorSectorsNotFound` - Emitted when trying to use sectors which haven't been prove committed yet.
   - `DeadlineErrorSectorsNotFaulty` - Emitted when trying to recover non-faulty sectors.
   - `DeadlineErrorCouldNotAssignSectorsToDeadlines` - Emitted when assigning sectors to deadlines fails.
-  - `DeadlineErrorFailedToUpdateFaultExpiration` - Emitted when trying to update fault expirations fails
+  - `DeadlineErrorFailedToUpdateFaultExpiration` - Emitted when trying to update fault expirations fails.
   - `StorageProviderErrorMaxPreCommittedSectorExceeded` - Happens when an SP tries to pre-commit more sectors than SECTOR_MAX.
   - `StorageProviderErrorSectorNotFound` - Happens when trying to access a sector that does not exist.
   - `StorageProviderErrorSectorNumberInUse` - Happens when a sector number is already in use.
