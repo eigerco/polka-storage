@@ -50,6 +50,13 @@ We need to set the global verifying key in the network, so it's compatible with 
 storagext-cli --sr25519-key "//Charlie" proofs set-porep-verifying-key @2KiB.porep.vk.scale
 ```
 
+> Additionally, you will need to add some balance to your Polka Storage escrow account, like so:
+> ```
+> $ storagext-cli --sr25519-key "//Charlie" market add-balance 12500000000
+> [0x809d…8f10] Balance Added: { account: 5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y, amount: 12500000000 }
+> ```
+> You can use other balance values! There's a minimum though — `1_000_000_000` (without the `_`).
+
 And you're ready!
 
 ## Launching the server 🚀
