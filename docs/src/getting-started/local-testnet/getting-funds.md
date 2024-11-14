@@ -7,8 +7,7 @@ This document covers getting funds into an account that has been generated exter
 In this guide we will be covering getting funds into a externally generated account. The recommended way to generate an account is by using the [polkadot.js wallet extension](https://github.com/polkadot-js/extension).
 
 Please make sure to follow the instructions on how to generate a new account if you have not done so already.
-You can read more about creating a Polkadot account using the extension in the following link —
-<https://support.polkadot.network/support/solutions/articles/65000098878-how-to-create-a-dot-account#How-to-create-an-account-with-the-Polkadot-extension>
+You can read more about creating a Polkadot account using the extension in the following [link](https://support.polkadot.network/support/solutions/articles/65000098878-how-to-create-a-dot-account#How-to-create-an-account-with-the-Polkadot-extension)
 
 Or you can watch the following video:
 <iframe
@@ -32,7 +31,7 @@ Under the developer tab, navigate to *Sudo*.
 
 ![sudo selection](../../images/transfer-funds/developer-sudo.png)
 
-Once you are in *Sudo* you should run the `forceSetBalance` extrinsic in the the `balances` pallet,
+Once you are in *Sudo* you should select `balances` from the submit dropdown, then, on the box to the right, select `forceSetBalance` from the dropdown,
 setting the `Id` field to your generated address and the `newFree` field to the amount in [plancks](../../glossary.md#planck),
 as shown in the image below.
 If your polkadot.js extension is injected into the polkadot.js web interface it will recognize the injection and you can select the desired account.
@@ -49,6 +48,6 @@ Sign and submit your transaction, the caller will automatically be set to Alice,
 
 ![sign and submit](../../images/transfer-funds/sign-and-submit.png)
 
-After the block has been finalized, the balance show up in the generated account under the accounts tab and you are ready to start using the polka-storage chain with your own account.
+After the block has been finalized, the balance will show up in the generated account under the accounts tab and you are ready to start using the polka-storage chain with your own account.
 
 ![account balance](../../images/transfer-funds/account-balance.png)

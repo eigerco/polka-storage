@@ -27,7 +27,7 @@ To build the binaries directly on your system you will need the following tools:
 * Other dependencies — keep reading, we'll get to it after the end of this list!
 * `just` (optional) — (after installing Rust) you can use `cargo install just` or check the [official list of packages](https://just.systems/man/en/packages.html).
 
-Assuming you're using a Debian-like system — if you're not, you can try to replace `apt` with your respective package manager (no promises though).
+The dependencies mentioned are for are compatible with any `apt`-based package manager. Dependency installs done for systems using different package managers might require finding the appropriate package name on your part.
 To install the required dependencies run the following commands:
 
 ```shell
@@ -71,6 +71,12 @@ for more information refer to the official Nix guide — https://nix.dev/manual/
 
 After all this setup, it is time to start building the binaries, which you can do manually using the following command:
 
+<div class="warning">
+When building `polka-storage-node` you should add `--features polka-storage-runtime/testnet` which enables the testnet configuration; all the code in the repo is currently targeting this feature, not including it may lead to unexpected behavior.
+
+When building `storagext-cli` you may want to add `--features storagext/insecure_url` which enables using non-TLS HTTP and WebSockets.
+</div>
+
 ```bash
 cargo build --release -p <BINARY-NAME>
 ```
@@ -84,10 +90,6 @@ Where `<BINARY-NAME>` is one of:
 - `mater-cli`
 
 Additionally, if you're building `polka-storage-node` or `storagext-cli` there are features that you may want to enable:
-
-- For `polka-storage-node` you should add `--features polka-storage-runtime/testnet` which enables the testnet configuration;
-  all the code in the repo is currently targetting this feature, not including it may lead to unexpected behavior.
-- For `storagext-cli` you may want to add `--features storagext/insecure_url` which enables using non-TLS HTTP and WebSockets
 
 For more information on what each binary does, refer to [Building](./index.md).
 

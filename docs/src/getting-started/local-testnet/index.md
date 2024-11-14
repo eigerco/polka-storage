@@ -8,7 +8,7 @@ Charlie will be our contact point to the parachain network.
 
 ## Native Binaries
 
-Our latest releases's binaries are available to download and can be run without additional dependencies.
+The binaries for the latest releases are available to download and can be ran without any additional dependencies.
 We support `Linux x86_64` and `MacOS ARM x64`. The commands below will download:
 
 - [Relay Chain](https://github.com/paritytech/polkadot-sdk/releases) binaries (`polkadot`, `polkadot-prepare-worker`, `polkadot-execute-worker`),
@@ -260,8 +260,7 @@ This link will automatically connect to Charlie's node running on a local machin
 
 ## Zombienet Configuration Breakdown
 
-During the setup either download a file in the third step of [Linux](#linux-x86_64)/[MacOS](#macos-arm) — `polka-storage-testnet.toml` —
-or copy it from the first step of [Running the parachain](#running-the-parachain).
+Running the Zombienet requires a configuration file. This configuration file is downloaded during the third step of [Linux](#linux-x86_64)/[MacOS](#macos-arm) or can be copied from the first step of [Running the parachain](#running-the-parachain).
 
 ### Similarities
 
