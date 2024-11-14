@@ -13,17 +13,16 @@
 ## Overview
 
 The `Proofs Pallet` handles all the logic related to verifying [PoRep](../../glossary.md#porep) and [PoSt](../../glossary.md#post) proofs on-chain.
-It's called by [`Storage Provider Pallet`](./storage-provider.md) when verifying proofs during the extrinsics: [`prove_commit_sectors`](./storage-provider.md#prove_commit_sectors)
+It's called by [`Storage Provider Pallet`](./storage-provider.md) when verifying proofs during the extrinsics [`prove_commit_sectors`](./storage-provider.md#prove_commit_sectors)
 and [`submit_windowed_post`](./storage-provider.md#submit_windowed_post). The Pallet **DOES NOT** expose any extrinsic for proofs verification, it only implements a trait that can be [coupled to other pallets](https://education.web3.foundation/docs/Substrate/section8/pallet-coupling).
 
-To verify the proofs properly it needs to have the verifying keys parameters set for the sector size via [`set_porep_verifying_key`](#set_porep_verifying_key) and [`set_post_verifying_key](#set_post_verifying_key).
-
+To verify the proofs properly it needs to have the verifying keys parameters set for the sector size via [`set_porep_verifying_key`](#set_porep_verifying_key) and [`set_post_verifying_key`](#set_post_verifying_key).
 
 ## Usage
 
-This pallet can only be directly used via a trait `primitives_proofs::ProofVerification`. However, for the trait to work and not fail with `Error::MisingPoRepVerifyingKey`/`Error::MissingPoStVerifingKey`, first the verifying keys need to be set via extrinsics `set_porep_verifying_key`/`set_post_verifying_key`.
+This pallet can only be directly used via the trait `primitives_proofs::ProofVerification`. However, for the trait to work and not fail with `Error::MisingPoRepVerifyingKey`/`Error::MissingPoStVerifingKey`, the verifying keys need to be set via extrinsics `set_porep_verifying_key`/`set_post_verifying_key`.
 
-Ideally, users shouldn't worry about it, as it will be set by the governance during a trusted setup procedure and then Storage Providers will download proof generation parameters from somewhere. However, in the MVP phase, those keys need to be set with the extrinsics after starting a testnet.
+Ideally, users shouldn't worry about it, as it will be set by the governance during a trusted setup procedure and then Storage Providers will download the proof generation parameters. However, in the MVP phase, those keys need to be set with the extrinsics after starting a testnet.
 
 Verifying Keys are set for a Sector Size once and then shared across all proof verifications.
 Currently, the network only supports 2KiB sector sizes, so parameters need to be generated and set for it.
@@ -32,7 +31,7 @@ Currently, the network only supports 2KiB sector sizes, so parameters need to be
 
 ### `set_porep_verifying_key`
 
-Verifying Key is a set of shared parameters used for zk-SNARK proof verification. It can be generated via [`polka-storage-provider-client proofs porep-params`](../../storage-provider-cli/client/proofs.md#porep-params) command. The verifying key used in the verification must match proving parameters used in the proof generation.
+Verifying Key is a set of shared parameters used for zk-SNARK proof verification. It can be generated via [`polka-storage-provider-client proofs porep-params`](../../storage-provider-cli/client/proofs.md#porep-params) command. The verifying key used in the verification must match the proving parameters used in the proof generation.
 
 The extrinsic sets the verifying key received in the SCALE-encoded format and then uses it for all the subsequent verification.
 Verifying Key is used to verify every PoRep proof across the network.
@@ -43,7 +42,7 @@ Verifying Key is used to verify every PoRep proof across the network.
 
 #### <a class="header" id="set_porep_verifying_key.example" href="#set_porep_verifying_key.example">Example</a>
 
-Setting a verifying key from an [^account] `//Alice` where proof is stored in `./2KiB.porep.vk.scale` file.
+Setting a verifying key from the [^account] `//Alice` account where proof is stored in the `./2KiB.porep.vk.scale` file.
 
 ```bash
 storagext-cli --sr25519-key "//Alice" proofs set-porep-verifying-key 2KiB.vk.scale
@@ -64,7 +63,7 @@ Verifying Key is used to verify every PoSt proof across the network.
 
 #### <a class="header" id="set_post_verifying_key.example" href="#set_post_verifying_key.example">Example</a>
 
-Setting a verifying key from an [^account] `//Alice` where proof is stored in `./2KiB.post.vk.scale` file.
+Setting a verifying key from the [^account] `//Alice` account where proof is stored in the `./2KiB.post.vk.scale` file.
 
 ```bash
 storagext-cli --sr25519-key "//Alice" proofs set-post-verifying-key 2KiB.vk.scale

@@ -2,24 +2,26 @@
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Usage](#usage)
-- [Extrinsics](#extrinsics)
-- [Events](#events)
-- [Errors](#errors)
-- [Constants](#constants)
+- [Randomness Pallet](#randomness-pallet)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [Usage](#usage)
+  - [Extrinsics](#extrinsics)
+  - [Events](#events)
+  - [Errors](#errors)
+  - [Constants](#constants)
 
 ## Overview
 
-The randomness pallet saves a random seed for each block when its finalized and allows to get this randomness later.
-There is a limitation - the randomness is available only after 81st block of the chain, due to randomness predictability earlier.
-Currently, the seeds are used for sealing pipeline's pre-commit and prove commit, so for generating a replica and proving a sector.
+The randomness pallet saves a random seed for each block when it's finalized and allows retrieval of this randomness at a later time.
+There is a limitation - the randomness is available only after the 81st block of the chain, due to randomness predictability earlier.
+Currently, the seeds are used for the sealing pipeline's pre-commit and prove commit, in other words generating a replica and proving a sector.
 
 ## Usage
 
-This pallet exposes the interface to get randomness on-chain for a certain block via a trait `primitives_proofs::Randomness`
+This pallet exposes the interface to get randomness on-chain for a certain block via the trait `primitives_proofs::Randomness`
 or chain state query `pallet_randomness:SeedsMap`.
-Note that, you can only get a randomness for a `current_block - 1` and dependent on the configuration, the old randomness seed are being removed.
+Note that, you can only get a randomness for the `current_block - 1` and depending on the configuration, the old randomness seed will be removed after the associated block has passed.
 
 ## Extrinsics
 

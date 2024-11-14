@@ -7,6 +7,3 @@ such as the RPC and HTTP APIs, as well as the proving pipeline.
 The client binary provides tools for the server's administration, client's dealings and some demos.
 
 Do not worry, this chapter will go over all that!
-
-
-
