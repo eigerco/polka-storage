@@ -36,6 +36,7 @@
   - [`randomness`](./storagext-cli/randomness.md)
   - [`system`](./storagext-cli/system.md)
 - [Mater CLI](./mater-cli/index.md)
+- [Zombienet Configuration](./zombienet-config.md)
 
 ---
 

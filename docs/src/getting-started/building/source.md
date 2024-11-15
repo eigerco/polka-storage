@@ -27,7 +27,9 @@ To build the binaries directly on your system you will need the following tools:
 * Other dependencies — keep reading, we'll get to it after the end of this list!
 * `just` (optional) — (after installing Rust) you can use `cargo install just` or check the [official list of packages](https://just.systems/man/en/packages.html).
 
-The dependencies mentioned are for are compatible with any `apt`-based package manager. Dependency installs done for systems using different package managers might require finding the appropriate package name on your part.
+The dependencies mentioned are for Linux distros using the `apt` family of package managers.
+Different systems may use different package managers, as such, they may require you to find the equivalent package.
+
 To install the required dependencies run the following commands:
 
 ```shell

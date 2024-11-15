@@ -165,6 +165,8 @@ rpc_port = 42069
 validator = true
 ```
 
+> For details on this configuration, refer to the [Zombienet Configuration](../../zombienet-config.md) chapter.
+
 2. Run the Parachain, and spawn the zombienet testnet in the Kubernetes cluster:
 
 ```
@@ -228,7 +230,9 @@ zombienet -p kubernetes spawn local-kube-testnet.toml
 
 Check if all zombienet pods were started successfully:
 
-`kubectl get pods --all-namespaces`
+```bash
+kubectl get pods --all-namespaces
+```
 
 <details>
 <summary>Click here to show the example output.</summary>
@@ -258,7 +262,7 @@ The parachain is available through the Polkadot.js Apps interface by clicking on
 
 This link will automatically connect to Charlie's node running on a local machine at port `42069`. The port is configured in `local-kube-testnet.toml` under `rpc_port` for Charlie's node.
 
-### Checking the logs
+## Checking the logs
 
 At the end of the `zombienet` output you should see a table like so:
 ```
@@ -288,56 +292,36 @@ We strongly recommend you check the logs for the collator (in this case Charlie)
 > $ ls /tmp | grep zombie-bcb786e1748ff0a6becd28289e1f70b9
 > ```
 
-## Zombienet Configuration Breakdown
+After finding the `charlie.log` file, you should `grep` for errors relating to the extrinsic you just ran,
+for example, if you ran a `market` extrinsic, like `add-balance`, you would run:
 
-Running the Zombienet requires a configuration file. This configuration file is downloaded during the third step of [Linux](#linux-x86_64)/[MacOS](#macos-arm) or can be copied from the first step of [Running the parachain](#running-the-parachain).
+```bash
+$ grep "ERROR.*runtime::market" charlie.log
+```
 
-### Similarities
+Or, more generally:
 
-The two files share most of the contents, so we'll start by covering their similarities.
-For more details refer to the [`zombienet` documentation](https://paritytech.github.io/zombienet/network-definition-spec.html):
+```bash
+$ grep "<LOG_LEVEL>.*runtime::<EXTRINSIC_PALLET>" charlie.log
+```
 
-#### `relaychain`
+Where `LOG_LEVEL` is one of:
+* `DEBUG`
+* `INFO`
+* `WARN`
+* `ERROR`
 
-| Name              | Description                                   |
-| ----------------- | --------------------------------------------- |
-| `chain`           | The relaychain name                           |
-| `default_args`    | The default arguments passed to the `command` |
-| `default_command` | The default command to run the relaychain     |
-| `nodes`           | List of tables defining the nodes to run      |
+And the extrinsic pallet, is one of:
+* `storage_provider`
+* `market`
+* `proofs`
 
-##### `nodes`
-
-| Name        | Description                            |
-| ----------- | -------------------------------------- |
-| `name`      | The node name                          |
-| `validator` | Whether the node is a validator or not |
-
-#### `parachains`
-
-A list of tables defining multiple parachains, in our case, we only care for our own parachain.
-
-| Name            | Description                                                   |
-| --------------- | ------------------------------------------------------------- |
-| `cumulus_based` | Whether to use `cumulus` based generation                     |
-| `id`            | The parachain ID, we're using `1000` as a placeholder for now |
-| `collators`     | List of tables defining the collators                         |
-
-##### `collators`
-
-| Name        | Description                              |
-| ----------- | ---------------------------------------- |
-| `args`      | The arguments passed to the `command`    |
-| `command`   | The command to run the collator          |
-| `name`      | The collator name                        |
-| `validator` | Whether the collator is also a validator |
-
-### Differences
-
-The difference between them lies in the usage of container configurations:
-
-| Name                 | Description                                                                                                                                                                   |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `image_pull_policy`  | Defines when `zombienet` should pull an image; read more about it in the [Kubernetes documentation](https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy) |
-| `image`              | Defines which image to pull                                                                                                                                                   |
-| `ws_port`/`rpc_port` | Depending on the type of configuration (Native or Kubernetes), this variable sets the port for the collator RPC service                                                       |
+> **Tip:** if you are running into the `AllProposalsInvalid` error,
+> try searching for `insane deal` in the logs, you should find the cause faster!
+>
+> For example:
+> ```bash
+> $ grep "insane deal" -B 1 charlie.log
+> 2024-11-14 13:24:24.019 ERROR tokio-runtime-worker runtime::market: [Parachain] deal duration too short: 100 < 288000
+> 2024-11-14 13:24:24.019 ERROR tokio-runtime-worker runtime::market: [Parachain] insane deal: idx 0, error: ProposalError::DealDurationOutOfBounds
+> ```
