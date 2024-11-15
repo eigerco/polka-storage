@@ -20,8 +20,8 @@ use crate::{
     mock::*,
     pallet::{lock_funds, slash_and_burn, unlock_funds},
     ActiveDealState, BalanceEntry, BalanceTable, Config, DealSettlementError, DealState,
-    DealsForBlock, Error, Event, PendingProposals, Proposals, SectorDeals, SectorTerminateError,
-    SettledDealData,
+    DealsForBlock, Error, Event, PendingProposals, Proposals, PublishedDeal, SectorDeals,
+    SectorTerminateError, SettledDealData,
 };
 #[test]
 fn initial_state() {
@@ -391,10 +391,12 @@ fn publish_storage_deals_fails_different_providers() {
         ));
         assert_eq!(
             events(),
-            [RuntimeEvent::Market(Event::<Test>::DealPublished {
-                deal_id: 0,
-                client: account::<Test>(ALICE),
+            [RuntimeEvent::Market(Event::<Test>::DealsPublished {
                 provider: account::<Test>(PROVIDER),
+                deals: bounded_vec!(PublishedDeal {
+                    deal_id: 0,
+                    client: account::<Test>(ALICE),
+                })
             })]
         );
     });
@@ -421,10 +423,12 @@ fn publish_storage_deals_fails_client_not_enough_funds_for_second_deal() {
         ));
         assert_eq!(
             events(),
-            [RuntimeEvent::Market(Event::<Test>::DealPublished {
-                deal_id: 0,
-                client: account::<Test>(ALICE),
+            [RuntimeEvent::Market(Event::<Test>::DealsPublished {
                 provider: account::<Test>(PROVIDER),
+                deals: bounded_vec!(PublishedDeal {
+                    deal_id: 0,
+                    client: account::<Test>(ALICE),
+                })
             })]
         );
     });
@@ -453,10 +457,12 @@ fn publish_storage_deals_fails_provider_not_enough_funds_for_second_deal() {
         ));
         assert_eq!(
             events(),
-            [RuntimeEvent::Market(Event::<Test>::DealPublished {
-                deal_id: 0,
-                client: account::<Test>(ALICE),
+            [RuntimeEvent::Market(Event::<Test>::DealsPublished {
                 provider: account::<Test>(PROVIDER),
+                deals: bounded_vec!(PublishedDeal {
+                    deal_id: 0,
+                    client: account::<Test>(ALICE),
+                })
             })]
         );
     });
@@ -483,10 +489,12 @@ fn publish_storage_deals_fails_duplicate_deal_in_message() {
         ));
         assert_eq!(
             events(),
-            [RuntimeEvent::Market(Event::<Test>::DealPublished {
-                deal_id: 0,
-                client: account::<Test>(ALICE),
+            [RuntimeEvent::Market(Event::<Test>::DealsPublished {
                 provider: account::<Test>(PROVIDER),
+                deals: bounded_vec!(PublishedDeal {
+                    deal_id: 0,
+                    client: account::<Test>(ALICE),
+                })
             })]
         );
     });
@@ -508,10 +516,12 @@ fn publish_storage_deals_fails_duplicate_deal_in_state() {
         ));
         assert_eq!(
             events(),
-            [RuntimeEvent::Market(Event::<Test>::DealPublished {
-                deal_id: 0,
-                client: account::<Test>(ALICE),
+            [RuntimeEvent::Market(Event::<Test>::DealsPublished {
                 provider: account::<Test>(PROVIDER),
+                deals: bounded_vec!(PublishedDeal {
+                    deal_id: 0,
+                    client: account::<Test>(ALICE),
+                })
             })]
         );
         assert_noop!(
@@ -583,18 +593,19 @@ fn publish_storage_deals() {
 
         assert_eq!(
             events(),
-            [
-                RuntimeEvent::Market(Event::<Test>::DealPublished {
-                    deal_id: alice_deal_id,
-                    client: account::<Test>(ALICE),
-                    provider: account::<Test>(PROVIDER),
-                }),
-                RuntimeEvent::Market(Event::<Test>::DealPublished {
-                    deal_id: bob_deal_id,
-                    client: account::<Test>(BOB),
-                    provider: account::<Test>(PROVIDER),
-                }),
-            ]
+            [RuntimeEvent::Market(Event::<Test>::DealsPublished {
+                provider: account::<Test>(PROVIDER),
+                deals: bounded_vec!(
+                    PublishedDeal {
+                        deal_id: alice_deal_id,
+                        client: account::<Test>(ALICE),
+                    },
+                    PublishedDeal {
+                        deal_id: bob_deal_id,
+                        client: account::<Test>(BOB),
+                    }
+                )
+            }),]
         );
         assert!(PendingProposals::<Test>::get().contains(&alice_hash));
         assert!(PendingProposals::<Test>::get().contains(&bob_hash));
