@@ -307,6 +307,10 @@ mod runtime {
     pub type Proofs = pallet_proofs;
     #[runtime::pallet_index(37)]
     pub type Randomness = pallet_randomness;
+
+    #[cfg(feature = "testnet")]
+    #[runtime::pallet_index(38)]
+    pub type Faucet = pallet_faucet;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
