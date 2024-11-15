@@ -5,18 +5,6 @@ Before reading this guide, please follow the <a href="./local-testnet.md">local 
 You should have a working testnet and a Storage Provider running!
 </div>
 
-## Storage Provider
-
-Charlie heard he could provide storage to people worldwide and earn some tokens,
-so he decided to register as a [Storage Provider](../glossary.md).
-Charlie [also adds some funds](../architecture/pallets/market.md#add_balance) so he can use them as collateral.
-
-```bash
-$ storagext-cli --sr25519-key "//Charlie" storage-provider register Charlie
-[0xb637…7fd2] Storage Provider Registered: { owner: 5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y, info: Storage Provider Info: { peer_id: 3ZAB4sc5BS, window_post_proof_type: StackedDRGWindow2KiBV1P1, sector_size: SectorSize::_2KiB, window_post_partition_sectors: 2 }, proving_period_start: 61 }
-$ storagext-cli --sr25519-key "//Charlie" market add-balance 12500000000
-[0x809d…8f10] Balance Added: { account: 5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y, amount: 12500000000 }
-```
 
 ## Storage Client
 <img class="right" src="../images/polkadot.svg" alt="The Polkadot logo" style="height: 100px; padding: 4px 8px 4px;">
@@ -31,18 +19,19 @@ $ mater-cli convert -q --overwrite polkadot.svg polkadot.car
 bafkreihoxd7eg2domoh2fxqae35t7ihbonyzcdzh5baevxzrzkaakevuvy
 $ polka-storage-provider-client proofs commp polkadot.car
 {
-	"cid": "baga6ea4seaqabpfwrqjcwrb4pxmo2d3dyrgj24kt4vqqqcbjoph4flpj2e5lyoq",
-	"size": 2048
+  "cid": "baga6ea4seaqabpfwrqjcwrb4pxmo2d3dyrgj24kt4vqqqcbjoph4flpj2e5lyoq",
+  "size": 2048
 }
 ```
-
 
 ### Proposing a deal
 
 Afterwards, it's time to propose a deal, currently — i.e. while the network isn't live —
 any deals will be accepted by Charlie (the Storage Provider).
 
+
 Alice fills out the deal form according to a JSON template (`polka-logo-deal.json`):
+
 ```json
 {
   "piece_cid": "baga6ea4seaqabpfwrqjcwrb4pxmo2d3dyrgj24kt4vqqqcbjoph4flpj2e5lyoq",
@@ -70,6 +59,25 @@ Alice fills out the deal form according to a JSON template (`polka-logo-deal.jso
 * `storage_price_per_block` — the storage price over the duration of a single block — e.g. if your deal is 20 blocks long, it will cost `20 * storage_price_per_block` in total.
 * `provider_collateral` — the price to pay *by the storage provider* if they fail to uphold the deal.
 * `state` — the deal state, only `Published` is accepted.
+
+
+<div class="warning">
+
+The `start_block` and `end_block` fields may need to be changed depending on the current block you are on.
+The values `200` and `250` are solely for demonstration purposes and we encourage you to try other values!
+
+</div>
+
+<details>
+<summary><b>Variables subject to change depending on the chains state</b></summary>
+
+`start_block` - The start block **must** be after the current block. Check the polka storage node logs or use the polkadot.js UI for the current block and adjust the start_block value accordingly.
+
+`end_block` - The end block **must** be between 50 and 1800 blocks after `start_block`.
+
+See the [Storage Provider Constants](../architecture/pallets/storage-provider.md#pallet-constants) and the [Market Constant](../architecture/pallets/market.md#constants) for more information about the configuration variables
+
+</details>
 
 When the deal is ready, she proposes it:
 
@@ -124,8 +132,12 @@ $ polka-storage-provider-client sign-deal --sr25519-key "//Alice" @polka-logo-de
     "Sr25519": "7eb8597441711984b7352bd4a118eac57341296724c20d98a76ff8d01ee64038f6a9881e492a98c3a190e7b600a8313d72e9f0edacb3e6df6b0b4507dabb9580"
   }
 }
-
 ```
+
+> Hint: you can write the following command to *just* get the file:
+> ```
+> polka-storage-provider-client sign-deal --sr25519-key "//Alice" @polka-logo-deal.json > signed-logo-deal.json
+> ```
 
 All that's left is to [publish the deal](../storage-provider-cli/client/index.md#publish-deal):
 

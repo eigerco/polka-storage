@@ -25,9 +25,13 @@ As advertised, the command has generated the following files:
 
 * `2KiB.porep.params` — The PoRep parameters
 * `2KiB.porep.vk` — The verifying key
-* `2KiB.porep.vk.scale` - The verifying key, encoded in SCALE format
+* `2KiB.porep.vk.scale` — The verifying key, encoded in SCALE format
 
 ## Registering the Storage Provider
+
+> If you encounter errors while running extrinsics, check the parachain logs.
+> Refer to the [Checking the logs](./local-testnet/index.md#checking-the-logs) section under the
+> [Local Testnet - Polka Storage Provider](./local-testnet/index.md) chapter.
 
 Logically, if you want to participate in the network, you need to register.
 To do so, you need to run one of the following commands:
@@ -38,10 +42,12 @@ storagext-cli --ed25519-key <KEY> storage-provider register "<peer_id>"
 storagext-cli --ecdsa-key <KEY> storage-provider register "<peer_id>"
 ```
 
-Where `<KEY>` has been replaced accordingly to its key type.
-`<peer_id>` can be anything as it is currently used as a placeholder.
 
-For example: `storagext-cli --sr25519-key "//Charlie" storage-provider register "placeholder"`
+Where `<KEY>` has been replaced accordingly to its key type.
+`<peer_id>` can be anything as it is currently used as a placeholder. *For example:*
+```
+storagext-cli --sr25519-key "//Charlie" storage-provider register "placeholder"
+```
 
 After registering, there is one more thing to be done, to be able to verify proofs in local testnet.
 We need to set the global verifying key in the network, so it's compatible with the proving parameters:
@@ -49,6 +55,13 @@ We need to set the global verifying key in the network, so it's compatible with 
 ```bash
 storagext-cli --sr25519-key "//Charlie" proofs set-porep-verifying-key @2KiB.porep.vk.scale
 ```
+
+> Additionally, you will need to add some balance to your Polka Storage escrow account, like so:
+> ```
+> $ storagext-cli --sr25519-key "//Charlie" market add-balance 12500000000
+> [0x809d…8f10] Balance Added: { account: 5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y, amount: 12500000000 }
+> ```
+> You can use other balance values! There's a minimum though — `1_000_000_000` (without the `_`).
 
 And you're ready!
 
