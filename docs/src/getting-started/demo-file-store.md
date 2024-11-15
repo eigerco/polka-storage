@@ -71,9 +71,9 @@ The values `200` and `250` are solely for demonstration purposes and we encourag
 <details>
 <summary><b>Variables subject to change depending on the chains state</b></summary>
 
-`start_block` - The start block must be <b>after</b> the current block. Check the polka storage node logs or use the polkadot.js UI for the current block and adjust the start_block value accordingly.
+`start_block` - The start block **must** be after the current block. Check the polka storage node logs or use the polkadot.js UI for the current block and adjust the start_block value accordingly.
 
-`end_block` - The end block can be 1800 blocks <!-- 180*MINUTES (10) --> ahead of the `start_block` **and** should be at least 50 blocks <!-- 5*MINUTES (10) --> ahead of `start_block`.
+`end_block` - The end block **must** be between 50 and 1800 blocks after `start_block`.
 
 See the [Storage Provider Constants](../architecture/pallets/storage-provider.md#pallet-constants) and the [Market Constant](../architecture/pallets/market.md#constants) for more information about the configuration variables
 
