@@ -28,7 +28,7 @@ After publishing, the funds allocated for the deal will be moved from `free` to 
 <img src="../../images/market/publish_storage_deals.svg" alt="Publishing storage deals">
 
 At this point, the remaining responsibility is shifted to the storage provider, which needs to activate the deal.
-First, the storage provider needs to call `get_randomness` from the[Randomness Pallet](./randomness.md) in order to create a replica and
+First, the storage provider needs to call `get_randomness` from the [Randomness Pallet](./randomness.md) in order to create a replica and
 [pre-commit](./storage-provider.md#pre_commit_sectors) the deal's sectors.
 The sealing and pre-committing takes some time, after that the storage provider needs to fetch yet another randomness seed to create a proof.
 Subsequently, they [prove](./storage-provider.md#prove_commit_sectors) they stored the sectors by calling [`prove_commit_sectors`](./storage-provider.md#prove_commit_sectors) extrinsics.

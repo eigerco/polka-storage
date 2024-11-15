@@ -74,6 +74,7 @@ for more information refer to the official Nix guide — https://nix.dev/manual/
 After all this setup, it is time to start building the binaries, which you can do manually using the following command:
 
 <div class="warning">
+
 When building `polka-storage-node` you should add `--features polka-storage-runtime/testnet` which enables the testnet configuration; all the code in the repo is currently targeting this feature, not including it may lead to unexpected behavior.
 
 When building `storagext-cli` you may want to add `--features storagext/insecure_url` which enables using non-TLS HTTP and WebSockets.
@@ -91,7 +92,6 @@ Where `<BINARY-NAME>` is one of:
 - `storagext-cli`
 - `mater-cli`
 
-Additionally, if you're building `polka-storage-node` or `storagext-cli` there are features that you may want to enable:
 
 For more information on what each binary does, refer to [Building](./index.md).
 

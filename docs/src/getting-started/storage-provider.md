@@ -78,7 +78,15 @@ polka-storage-provider-server \
   --X-key <KEY>
 ```
 
-Where `--X-key <KEY>` matches the key type you used to register yourself with the network, in the previous step.
+Where `--X-key <KEY>` matches the key type you used to register yourself with the network, in the previous step. For example:
+```bash
+polka-storage-provider-server \
+  --seal-proof 2KiB \
+  --post-proof 2KiB \
+  --porep-parameters "2KiB.porep.params" \
+  --sr25519-key "//Charlie"
+```
+
 Note that currently, `--seal-proof` and `--post-proof` only support `2KiB`.
 
 `<POREP-PARAMS>` is the resulting `*.porep.params` file from the [first steps](#generating-the-porep-parameters),

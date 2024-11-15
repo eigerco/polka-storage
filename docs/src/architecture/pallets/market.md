@@ -197,7 +197,7 @@ The Market Pallet emits the following events:
 - `DealsSettled` - Published after the `settle_deal_payments` extrinsic is called. Indicates which deals were successfully and unsuccessfully settled.
   - `successful` - List of deal IDs that were settled
   - `unsuccessful` - List of deal IDs with the corresponding errors
-- `DealSlashed` - Is emitted when some deal expired
+- `DealSlashed` - Is emitted when some deal expired.
   - `deal_id` - Deal ID that was slashed
 - `DealTerminated` - A deal was voluntarily or involuntarily terminated.
   - `deal_id` - Terminated deal ID
