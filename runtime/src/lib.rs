@@ -306,6 +306,10 @@ mod runtime {
     pub type Proofs = pallet_proofs;
     #[runtime::pallet_index(37)]
     pub type Randomness = pallet_randomness;
+
+    #[cfg(feature = "testnet")]
+    #[runtime::pallet_index(38)]
+    pub type Faucet = pallet_faucet;
 }
 
 #[docify::export(register_validate_block)]

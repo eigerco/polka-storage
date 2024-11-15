@@ -368,6 +368,10 @@ parameter_types! {
     // Randomness pallet
     pub const CleanupInterval: BlockNumber = DAYS;
     pub const SeedAgeLimit: BlockNumber = 30 * DAYS;
+
+    // Faucet pallet
+    pub const FaucetAmount: Balance = 10_000_000_000_000;
+    pub const FaucetDelay: BlockNumber = DAYS;
 }
 
 impl pallet_storage_provider::Config for Runtime {
@@ -416,6 +420,14 @@ impl pallet_market::Config for Runtime {
 
 impl pallet_proofs::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
+}
+
+#[cfg(feature = "testnet")]
+impl pallet_faucet::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type Currency = Balances;
+    type FaucetAmount = FaucetAmount;
+    type FaucetDelay = FaucetDelay;
 }
 
 /// Config for insecure randomness
