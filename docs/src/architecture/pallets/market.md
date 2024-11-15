@@ -227,9 +227,9 @@ The Market Pallet actions can fail with following errors:
 
 ## Constants
 
-| Name               | Description                                                                   | Value       |
-| ------------------ | ----------------------------------------------------------------------------- | ----------- |
-| `MaxDeals`         | How many deals can be published in a single batch of `publish_storage_deals`. | 128         |
-| `MaxDealsPerBlock` | Maximum deals that can be scheduled to start at the same block.               | 128         |
-| `MinDealDuration`  | Minimum time an activated deal should last.                                   | 5 Minutes   |
-| `MaxDealDuration`  | Maximum time an activated deal should last.                                   | 180 Minutes |
+| Name               | Description                                                                   | Value                     |
+| ------------------ | ----------------------------------------------------------------------------- | ------------------------- |
+| `MaxDeals`         | How many deals can be published in a single batch of `publish_storage_deals`. | 128                       |
+| `MaxDealsPerBlock` | Maximum deals that can be scheduled to start at the same block.               | 128                       |
+| `MinDealDuration`  | Minimum time an activated deal should last.                                   | 5 Minutes (50 Blocks)    |
+| `MaxDealDuration`  | Maximum time an activated deal should last.                                   | 180 Minutes (1800 Blocks) |

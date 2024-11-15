@@ -72,13 +72,13 @@ After publishing a deal, the storage provider needs to pre-commit the sector inf
 Sectors are not valid after pre-commit. The sectors need to be proven first.
 The pre-commit extrinsic takes in an array of the following values:
 
-| Name            | Description                                                            | Type                                                           |
-| --------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `seal_proof`    | Seal proof type this storage provider is using [^note]                 | String, currently only `StackedDRGWindow2KiBV1P1` is available |
-| `sector_number` | The sector number that is being pre-committed                          | Positive integer                                               |
+| Name            | Description                                                               | Type                                                           |
+| --------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `seal_proof`    | Seal proof type this storage provider is using [^note]                    | String, currently only `StackedDRGWindow2KiBV1P1` is available |
+| `sector_number` | The sector number that is being pre-committed                             | Positive integer                                               |
 | `sealed_cid`    | [Commitment of replication](../../glossary.md#commitment-of-replication)  | Hex string of the sealed CID bytes                             |
-| `deal_ids`      | Deal IDs to be pre-committed, from `publish_storage_deals`             | Array of integers                                              |
-| `expiration`    | Expiration block of the pre-committed sector                           | Positive integer                                               |
+| `deal_ids`      | Deal IDs to be pre-committed, from `publish_storage_deals`                | Array of integers                                              |
+| `expiration`    | Expiration block of the pre-committed sector                              | Positive integer                                               |
 | `unsealed_cid`  | Commitment of data [sector sealing](../../glossary.md#commitment-of-data) | Hex string of the unsealed CID bytes                           |
 
 <div class="warning">
@@ -115,9 +115,9 @@ Where `pre-commit-sector.json` is a file with contents similar to:
 After pre-committing some new sectors the storage provider needs to supply a [Proof-of-Replication](../../glossary.md#commitment-of-replication) for these sectors [^note].
 The prove-commit extrinsic takes in an array of the following values:
 
-| Name            | Description                                                          | Type                          |
-| --------------- | -------------------------------------------------------------------- | ----------------------------- |
-| `sector_number` | The sector number that is being prove-committed                      | Positive integer              |
+| Name            | Description                                                             | Type                          |
+| --------------- | ----------------------------------------------------------------------- | ----------------------------- |
+| `sector_number` | The sector number that is being prove-committed                         | Positive integer              |
 | `proof`         | The [proof of replication](../../glossary.md#commitment-of-replication) | Hex string of the proof bytes |
 
 [^note]: At the moment, any proof of non-zero length is accepted for PoRep.
@@ -273,8 +273,8 @@ Where the termination declarations contain:
 
 | Name        | Description                                                                | Type                     |
 | ----------- | -------------------------------------------------------------------------- | ------------------------ |
-| `deadline`  | The deadline the termination is targeting                                  | Positive integer        |
-| `partition` | Partition index within the deadline containing the sector to be terminated | Positive integer        |
+| `deadline`  | The deadline the termination is targeting                                  | Positive integer         |
+| `partition` | Partition index within the deadline containing the sector to be terminated | Positive integer         |
 | `sectors`   | Sectors in the partition being terminated                                  | Set of positive integers |
 
 #### <a class="header" id="terminate_sectors.example" href="#terminate_sectors.example">Example</a>
@@ -417,16 +417,16 @@ The Storage Provider Pallet actions can fail with the following errors:
 
 The Storage Provider Pallet has the following constants:
 
-| Name                                                              | Description                                                                                                                                                                       | Value       |
-| ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| <code id="const-proving-period">`WPoStProvingPeriod`</code>       | The average [period](../../glossary.md#proving-period) for proving all sectors maintained by a storage provider.                                                                     | 4 Minutes   |
-| <code id="const-challenge-window">`WPoStChallengeWindow`</code>   | The period immediately before a deadline during which a challenge can be generated by the chain and the requisite proofs computed.                                                | 2 Minutes   |
-| `WPoStChallengeLookBack`                                          | This period allows the storage providers to start working on the [PoSt](../../glossary.md#post) before the deadline is officially opened to receiving a [PoSt](../../glossary.md#post). | 1 Minute    |
-| <code id="const-period-deadlines">`WPoStPeriodDeadlines`</code>   | Represents how many challenge deadlines there are in one proving period. Closely tied to `WPoStChallengeWindow`.                                                                  | 48          |
-| `MinSectorExpiration`                                             | Minimum time past the current block a sector may be set to expire.                                                                                                                | 5 Minutes   |
-| `MaxSectorExpiration`                                             | Maximum time past the current block a sector may be set to expire.                                                                                                                | 60 Minutes  |
-| `SectorMaximumLifetime`                                           | Maximum time a sector can stay in pre-committed state.                                                                                                                            | 120 Minutes |
-| `MaxProveCommitDuration`                                          | Maximum time between [pre-commit](#pre_commit_sectors) and [proving](#prove_commit_sectors) the committed sector.                                                                 | 5 Minutes   |
-| `MaxPartitionsPerDeadline`                                        | Maximum number of partitions that can be assigned to a single deadline.                                                                                                           | 3000        |
-| `FaultMaxAge`                                                     | Maximum time a [fault](../../glossary.md#fault) can exist before being removed by the pallet.                                                                                        | 210 Minutes |
-| <code id="fault-declaration-cutoff">FaultDeclarationCutoff</code> | Time before a deadline opens that a storage provider can declare or recover a fault.                                                                                              | 2 Minutes   |
+| Name                                                              | Description                                                                                                                                                                             | Value                     |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| <code id="const-proving-period">`WPoStProvingPeriod`</code>       | The average [period](../../glossary.md#proving-period) for proving all sectors maintained by a storage provider.                                                                        | 4 Minutes (40 Blocks)     |
+| <code id="const-challenge-window">`WPoStChallengeWindow`</code>   | The period immediately before a deadline during which a challenge can be generated by the chain and the requisite proofs computed.                                                      | 2 Minutes (20 Blocks)     |
+| `WPoStChallengeLookBack`                                          | This period allows the storage providers to start working on the [PoSt](../../glossary.md#post) before the deadline is officially opened to receiving a [PoSt](../../glossary.md#post). | 1 Minute (10 Blocks)      |
+| <code id="const-period-deadlines">`WPoStPeriodDeadlines`</code>   | Represents how many challenge deadlines there are in one proving period. Closely tied to `WPoStChallengeWindow`.                                                                        | 48                        |
+| `MinSectorExpiration`                                             | Minimum time past the current block a sector may be set to expire.                                                                                                                      | 5 Minutes (50 Blocks)     |
+| `MaxSectorExpiration`                                             | Maximum time past the current block a sector may be set to expire.                                                                                                                      | 60 Minutes (600 Blocks)   |
+| `SectorMaximumLifetime`                                           | Maximum time a sector can stay in pre-committed state.                                                                                                                                  | 120 Minutes (1200 Blocks) |
+| `MaxProveCommitDuration`                                          | Maximum time between [pre-commit](#pre_commit_sectors) and [proving](#prove_commit_sectors) the committed sector.                                                                       | 5 Minutes (50 Blocks)     |
+| `MaxPartitionsPerDeadline`                                        | Maximum number of partitions that can be assigned to a single deadline.                                                                                                                 | 3000                      |
+| `FaultMaxAge`                                                     | Maximum time a [fault](../../glossary.md#fault) can exist before being removed by the pallet.                                                                                           | 210 Minutes (2100 Blocks) |
+| <code id="fault-declaration-cutoff">FaultDeclarationCutoff</code> | Time before a deadline opens that a storage provider can declare or recover a fault.                                                                                                    | 2 Minutes (20 Blocks)     |

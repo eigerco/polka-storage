@@ -19,11 +19,10 @@ $ mater-cli convert -q --overwrite polkadot.svg polkadot.car
 bafkreihoxd7eg2domoh2fxqae35t7ihbonyzcdzh5baevxzrzkaakevuvy
 $ polka-storage-provider-client proofs commp polkadot.car
 {
-	"cid": "baga6ea4seaqabpfwrqjcwrb4pxmo2d3dyrgj24kt4vqqqcbjoph4flpj2e5lyoq",
-	"size": 2048
+  "cid": "baga6ea4seaqabpfwrqjcwrb4pxmo2d3dyrgj24kt4vqqqcbjoph4flpj2e5lyoq",
+  "size": 2048
 }
 ```
-
 
 ### Proposing a deal
 
@@ -32,6 +31,7 @@ any deals will be accepted by Charlie (the Storage Provider).
 
 
 Alice fills out the deal form according to a JSON template (`polka-logo-deal.json`):
+
 ```json
 {
   "piece_cid": "baga6ea4seaqabpfwrqjcwrb4pxmo2d3dyrgj24kt4vqqqcbjoph4flpj2e5lyoq",
@@ -60,8 +60,20 @@ Alice fills out the deal form according to a JSON template (`polka-logo-deal.jso
 * `provider_collateral` — the price to pay *by the storage provider* if they fail to uphold the deal.
 * `state` — the deal state, only `Published` is accepted.
 
-> The `start_block` and `end_block` fields may need to be changed depending on the current block you are on.
-> The values `200` and `250` are solely for demonstration purposes and we encourage you to try other values!
+
+<div class="warning">
+The `start_block` and `end_block` fields may need to be changed depending on the current block you are on.
+The values `200` and `250` are solely for demonstration purposes and we encourage you to try other values!
+</div>
+
+<details>
+<summary><b>Variables subject to change depending on the chains state</b></summary>
+start_block - The start block must be <b>after</b> the current block. Check the polka storage node logs or use the polkadot.js UI for the current block and adjust the start_block value accordingly.
+
+end_block - The end block can be 1800 <!--> 180*MINUTES (10) <!--> ahead of the start_block and should be at least 50 <!--> 5*MINUTES (10) <!--> blocks ahead of start_block.
+
+See the [Storage Provider Constants](../architecture/pallets/storage-provider.md#pallet-constants) and the [Market Constant](../architecture/pallets/market.md#constants) for more information about the configuration variables
+</details>
 
 When the deal is ready, she proposes it:
 
