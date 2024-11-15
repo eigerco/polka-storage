@@ -13,7 +13,7 @@ More information available on the [`wallet`](./wallet.md) page.
 The `info` command retrieves information about the storage provider it connects to.
 
 ```bash
-$ polka-storage-provider-client info --rpc-server-address "http://127.0.0.1:8000"
+$ polka-storage-provider-client info --rpc-server-url "http://127.0.0.1:8000"
 {
   "start_time": "2024-11-06T11:29:06.058967136Z",
   "address": "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y",

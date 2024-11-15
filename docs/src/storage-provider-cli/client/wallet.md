@@ -30,7 +30,7 @@ Keys shown on this page are, by default, not secure! Do not use them in producti
 Generate a new random key to interact with the Polka Storage parachain:
 
 ```bash
-> polka-storage-provider wallet generate
+> polka-storage-provider-client wallet generate
 Secret phrase:       offer payment boost boy manage car asset lock cousin mountain vehicle setup
   Network ID:        substrate
   Secret seed:       0xfe36ee692552b0ce54de06ce4f5cc152fe2fa808cb40f58c81168bc1237208bb
@@ -43,7 +43,7 @@ Secret phrase:       offer payment boost boy manage car asset lock cousin mounta
 The password may be added interactively, using `--password-interactive` flag:
 
 ```bash
-> polka-storage-provider wallet generate --password-interactive
+> polka-storage-provider-client wallet generate --password-interactive
 Key password: <top secret hidden password>
 Secret phrase:       comfort distance rack number assist nasty young universe lamp advice neglect ladder
   Network ID:        substrate
@@ -57,7 +57,7 @@ Secret phrase:       comfort distance rack number assist nasty young universe la
 Or it can be passed directly, beforehand:
 
 ```bash
-> polka-storage-provider wallet generate --password <top secret password>
+> polka-storage-provider-client wallet generate --password <top secret password>
 Secret phrase:       cactus art crime burden hope also thought asset lake only cheese obtain
   Network ID:        substrate
   Secret seed:       0xb69c2d238fa7641f0d69911ca8f107f1b97a51cfc71e8a06e0ec9c7329d69ff7

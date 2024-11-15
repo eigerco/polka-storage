@@ -44,7 +44,7 @@ An attempt to create a Market account with less than <code>1000000000</code>, wi
 The `withdraw-balance` withdraws balance from the market account of the extrinsic signer.
 Like [`add-balance`](#add-balance), `withdraw-balance` takes a single `AMOUNT` argument;
 note that _only `free` balance can be withdrawn_.
-Likewise, withdrawal of a balance amount lesser than or equal to the `free` amount and greater than 0 (\\({free} \ge {amount} \gt 0\\)).
+Likewise, withdrawal of a balance amount must be less than or equal to the `free` amount and greater than 0 (\\({free} \ge {amount} \gt 0\\)).
 
 ### Parameters
 
@@ -74,7 +74,7 @@ We know this is <i>not secure</i> and <i>unrealistic</i> in a production sce
 
 ### Parameters
 
-The client keypair can be passed using `--client-<key kind>`, where `<key kind>` is one of the [three supported keys](index.md#getting-started), like the global keys, one is required.
+> The client keypair can be passed using `--client-<key kind>`, where `<key kind>` is one of the [three supported keys](index.md#getting-started), like the global keys, one is required.
 
 | Name                   | Description               | Type                                                                                                                        |
 | ---------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------- |

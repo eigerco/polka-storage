@@ -11,7 +11,7 @@ This chapter covers the provided commands and how to use them.
 
 ## `get`
 
-The `get` fetches random value for a specific block height. The returned value is hex encoded.
+The `get` command fetches random value for a specific block height. The returned value is hex encoded.
 
 ### Parameters
 

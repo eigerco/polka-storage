@@ -70,7 +70,7 @@ Where `pre-commit-sector.json` is a file with contents similar to:
     "expiration": 100,
     "unsealed_cid": "bafkreibme22gw2h7y2h7tg2fhqotaqjucnbc24deqo72b6mkl2egezxhvy",
     "seal_proof": "StackedDRG2KiBV1P1",
-    "seal_randomness_height": 85,
+    "seal_randomness_height": 85
   }
 ]
 ```
@@ -144,7 +144,7 @@ The `PROOF` JSON object has the following structure:
 
 ### <a class="header" id="submit-windowed-post.example" href="#submit-windowed-post.example">Example</a>
 
-Proves a partition in a specific deadline.
+Proves partitions in a specific deadline.
 
 ```bash
 storagext-cli --sr25519-key <key> storage-provider submit-windowed-post \
@@ -156,7 +156,7 @@ Where `window-proof.json` is a file with contents similar to:
 ```json
 {
   "deadline": 0,
-  "partition": 0,
+  "partitions": [0],
   "proof": {
     "post_proof": "2KiB",
     "proof_bytes": "07482439"
