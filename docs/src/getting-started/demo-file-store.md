@@ -62,17 +62,21 @@ Alice fills out the deal form according to a JSON template (`polka-logo-deal.jso
 
 
 <div class="warning">
+
 The `start_block` and `end_block` fields may need to be changed depending on the current block you are on.
 The values `200` and `250` are solely for demonstration purposes and we encourage you to try other values!
+
 </div>
 
 <details>
 <summary><b>Variables subject to change depending on the chains state</b></summary>
-start_block - The start block must be <b>after</b> the current block. Check the polka storage node logs or use the polkadot.js UI for the current block and adjust the start_block value accordingly.
 
-end_block - The end block can be 1800 <!--> 180*MINUTES (10) <!--> ahead of the start_block and should be at least 50 <!--> 5*MINUTES (10) <!--> blocks ahead of start_block.
+`start_block` - The start block must be <b>after</b> the current block. Check the polka storage node logs or use the polkadot.js UI for the current block and adjust the start_block value accordingly.
+
+`end_block` - The end block can be 1800 blocks <!-- 180*MINUTES (10) --> ahead of the `start_block` **and** should be at least 50 blocks <!-- 5*MINUTES (10) --> ahead of `start_block`.
 
 See the [Storage Provider Constants](../architecture/pallets/storage-provider.md#pallet-constants) and the [Market Constant](../architecture/pallets/market.md#constants) for more information about the configuration variables
+
 </details>
 
 When the deal is ready, she proposes it:

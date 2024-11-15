@@ -31,8 +31,15 @@ Under the developer tab, navigate to *Sudo*.
 
 ![sudo selection](../../images/transfer-funds/developer-sudo.png)
 
-Once you are in *Sudo* you should select `balances` from the submit dropdown, then, on the box to the right, select `forceSetBalance` from the dropdown,
-setting the `Id` field to your generated address and the `newFree` field to the amount in [plancks](../../glossary.md#planck),
+Once you are in *Sudo* you should select `balances` from the submit dropdown.
+
+![balance selection](../../images/transfer-funds/select-balance.png)
+
+Then, on the box to the right, select `forceSetBalance` from the dropdown.
+
+![force selection](../../images/transfer-funds/select-force.png)
+
+Setting the `Id` field to your generated address and the `newFree` field to the amount in [plancks](../../glossary.md#planck),
 as shown in the image below.
 If your polkadot.js extension is injected into the polkadot.js web interface it will recognize the injection and you can select the desired account.
 

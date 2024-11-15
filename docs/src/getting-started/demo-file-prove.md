@@ -2,6 +2,7 @@
 
 To store the file according to the protocol, Storage Provider has to assign it to a sector, pre-commit and then prove it!
 That's a lot of steps, but this is handled automatically, behind the scenes by the [pipeline](../architecture/polka-storage-provider-server.md#sealing-pipeline), then the file is eventually [published](../storage-provider-cli/client/index.md#publish-deal).
+
 Here are excerpts from Storage Provider Node after executing the [store a file scenario](./demo-file-store.md):
 
 ```log

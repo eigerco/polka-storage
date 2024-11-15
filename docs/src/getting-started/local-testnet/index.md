@@ -258,6 +258,36 @@ The parachain is available through the Polkadot.js Apps interface by clicking on
 
 This link will automatically connect to Charlie's node running on a local machine at port `42069`. The port is configured in `local-kube-testnet.toml` under `rpc_port` for Charlie's node.
 
+### Checking the logs
+
+At the end of the `zombienet` output you should see a table like so:
+```
+┌───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                         Node Information                                                          │
+├──────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Name                         │ charlie                                                                                            │
+├──────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Direct Link                  │ https://polkadot.js.org/apps/?rpc=ws://127.0.0.1:42069#/explorer                                   │
+├──────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Prometheus Link              │ http://127.0.0.1:44955/metrics                                                                     │
+├──────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Log Cmd                      │ tail -f                                                                                            │
+│                              │ /tmp/nix-shell.gQQj4Y/zombie-bcb786e1748ff0a6becd28289e1f70b9_-677866-G8ea9Qqs65DB/charlie.log     │
+├──────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Parachain ID                 │ 1000                                                                                               │
+├──────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ ChainSpec Path               │ /tmp/nix-shell.gQQj4Y/zombie-bcb786e1748ff0a6becd28289e1f70b9_-677866-G8ea9Qqs65DB/1000-rococo-lo… │
+└──────────────────────────────┴────────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+We strongly recommend you check the logs for the collator (in this case Charlie), using a text editor of your choice.
+
+> If the **Log Cmd** is shortened with `...`, try to search for the folder using the zombienet namespace, available at the top of the table.
+> For example:
+> ```bash
+> $ ls /tmp | grep zombie-bcb786e1748ff0a6becd28289e1f70b9
+> ```
+
 ## Zombienet Configuration Breakdown
 
 Running the Zombienet requires a configuration file. This configuration file is downloaded during the third step of [Linux](#linux-x86_64)/[MacOS](#macos-arm) or can be copied from the first step of [Running the parachain](#running-the-parachain).
