@@ -9585,7 +9585,6 @@ dependencies = [
  "bls12_381",
  "cid 0.11.1",
  "clap",
- "hex",
  "jsonrpsee 0.23.2",
  "mater",
  "parity-scale-codec",

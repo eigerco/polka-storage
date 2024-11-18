@@ -97,13 +97,13 @@ pub enum ProofsCommand {
         /// Path to where parameters to corresponding `post_type` are stored.
         #[arg(short, long)]
         proof_parameters_path: PathBuf,
-        /// Directory where cache data from `po-rep` for the `replica_path` sector command has been stored.
+        /// Directory where cache data from `porep` for the `replica_path` sector command has been stored.
         /// It must be the same, or else it won't work.
         #[arg(short, long)]
         cache_directory: PathBuf,
-        /// Replica file generated with `po-rep` command e.g. `77.sector.sealed`.
+        /// Replica file generated with `porep` command e.g. `77.sector.sealed`.
         replica_path: PathBuf,
-        /// Hex-encoded CommR of a replica (output of `po-rep` command)
+        /// CID - CommR of a replica (output of `porep` command)
         comm_r: String,
         #[arg(short, long)]
         /// Directory where the PoSt proof will be stored. Defaults to the current directory.
@@ -387,10 +387,14 @@ impl ProofsCommand {
                     POST_PROOF_EXT,
                 )?;
 
+                let comm_r =
+                    cid::Cid::from_str(&comm_r).map_err(|_| UtilsCommandError::CommRError)?;
+
                 let replicas = vec![ReplicaInfo {
                     sector_id,
-                    comm_r: hex::decode(comm_r)
-                        .map_err(|_| UtilsCommandError::CommRError)?
+                    comm_r: comm_r
+                        .hash()
+                        .digest()
                         .try_into()
                         .map_err(|_| UtilsCommandError::CommRError)?,
                     replica_path,
