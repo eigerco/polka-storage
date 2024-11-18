@@ -29,9 +29,6 @@ pub const MAX_SECTORS: u32 = 32 << 20;
     MaxEncodedLen,
 )]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize))]
-// #[codec(crate = ::codec)]
-// #[decode_as_type(crate_path = "::scale_decode")]
-// #[encode_as_type(crate_path = "::scale_encode")]
 pub struct SectorNumber(u64);
 
 impl SectorNumber {
