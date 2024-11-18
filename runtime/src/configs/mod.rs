@@ -370,8 +370,8 @@ parameter_types! {
     pub const SeedAgeLimit: BlockNumber = 30 * DAYS;
 
     // Faucet pallet
-    pub const FaucetAmount: Balance = 10_000_000_000_000;
-    pub const FaucetDelay: BlockNumber = DAYS;
+    pub const FaucetDripAmount: Balance = 10_000_000_000_000;
+    pub const FaucetDripDelay: BlockNumber = DAYS;
 }
 
 impl pallet_storage_provider::Config for Runtime {
@@ -426,8 +426,8 @@ impl pallet_proofs::Config for Runtime {
 impl pallet_faucet::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
-    type FaucetAmount = FaucetAmount;
-    type FaucetDelay = FaucetDelay;
+    type FaucetDripAmount = FaucetDripAmount;
+    type FaucetDripDelay = FaucetDripDelay;
 }
 
 /// Config for insecure randomness

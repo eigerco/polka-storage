@@ -16,14 +16,14 @@ fn drip() {
             [
                 RuntimeEvent::Balances(BalanceEvent::Deposit {
                     who: account.clone(),
-                    amount: <Test as crate::Config>::FaucetAmount::get()
+                    amount: <Test as crate::Config>::FaucetDripAmount::get()
                 }),
                 RuntimeEvent::System(SystemEvent::NewAccount {
                     account: account.clone()
                 }),
                 RuntimeEvent::Balances(BalanceEvent::Endowed {
                     account: account.clone(),
-                    free_balance: <Test as crate::Config>::FaucetAmount::get()
+                    free_balance: <Test as crate::Config>::FaucetDripAmount::get()
                 }),
                 RuntimeEvent::Faucet(Event::Dripped {
                     who: account.clone(),
@@ -34,7 +34,7 @@ fn drip() {
 
         assert_eq!(
             Balances::free_balance(account.clone()),
-            <Test as crate::Config>::FaucetAmount::get()
+            <Test as crate::Config>::FaucetDripAmount::get()
         );
 
         // Check that dripping at the same block is blocked
@@ -44,7 +44,7 @@ fn drip() {
         );
 
         // Run to block_number + faucet_delay
-        run_to_block(System::block_number() + <Test as crate::Config>::FaucetDelay::get());
+        run_to_block(System::block_number() + <Test as crate::Config>::FaucetDripDelay::get());
 
         // Rerun drip, should be successful
         assert_ok!(Faucet::drip(RuntimeOrigin::none(), account.clone()));
@@ -55,7 +55,7 @@ fn drip() {
             [
                 RuntimeEvent::Balances(BalanceEvent::Deposit {
                     who: account.clone(),
-                    amount: <Test as crate::Config>::FaucetAmount::get()
+                    amount: <Test as crate::Config>::FaucetDripAmount::get()
                 }),
                 RuntimeEvent::Faucet(Event::Dripped {
                     who: account.clone(),
@@ -66,7 +66,7 @@ fn drip() {
 
         assert_eq!(
             Balances::free_balance(account.clone()),
-            <Test as crate::Config>::FaucetAmount::get() * 2
+            <Test as crate::Config>::FaucetDripAmount::get() * 2
         );
     });
 }

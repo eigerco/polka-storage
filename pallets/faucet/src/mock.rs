@@ -39,15 +39,15 @@ impl pallet_balances::Config for Test {
 }
 
 parameter_types! {
-    pub const FaucetAmount: BalanceOf<Test> = 10_000_000_000_000;
-    pub const FaucetDelay: BlockNumber = 1;
+    pub const FaucetDripAmount: BalanceOf<Test> = 10_000_000_000_000;
+    pub const FaucetDripDelay: BlockNumber = 1;
 }
 
 impl crate::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
-    type FaucetAmount = FaucetAmount;
-    type FaucetDelay = FaucetDelay;
+    type FaucetDripAmount = FaucetDripAmount;
+    type FaucetDripDelay = FaucetDripDelay;
 }
 
 pub fn key_pair(name: &str) -> sp_core::sr25519::Pair {

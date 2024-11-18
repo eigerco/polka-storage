@@ -33,11 +33,11 @@ pub mod pallet {
 
         /// The amount that is dispensed in planck's
         #[pallet::constant]
-        type FaucetAmount: Get<BalanceOf<Self>>;
+        type FaucetDripAmount: Get<BalanceOf<Self>>;
 
         /// How often an account can use the drip function (1 day on testnet)
         #[pallet::constant]
-        type FaucetDelay: Get<BlockNumberFor<Self>>;
+        type FaucetDripDelay: Get<BlockNumberFor<Self>>;
     }
 
     /// By default pallet do no allow for unsigned transactions.
@@ -86,13 +86,13 @@ pub mod pallet {
             let _ = ensure_none(origin)?;
             let current_block = <frame_system::Pallet<T>>::block_number();
             if let Some(faucet_block) = Self::drips(&account) {
-                ensure!(current_block >= (faucet_block + T::FaucetDelay::get()), {
+                ensure!(current_block >= (faucet_block + T::FaucetDripDelay::get()), {
                     log::error!("{account:?} has recently used the faucet");
                     Error::<T>::FaucetUsedRecently
                 });
             }
-            log::info!("Dripping {:?} to {account:?}", T::FaucetAmount::get());
-            let imbalance = T::Currency::deposit_creating(&account, T::FaucetAmount::get());
+            log::info!("Dripping {:?} to {account:?}", T::FaucetDripAmount::get());
+            let imbalance = T::Currency::deposit_creating(&account, T::FaucetDripAmount::get());
             drop(imbalance);
             Drips::<T>::insert(account.clone(), current_block);
             Self::deposit_event(Event::<T>::Dripped {
