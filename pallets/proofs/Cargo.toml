@@ -1,0 +1,70 @@
+[package]
+authors.workspace = true
+description = "handles proof verification"
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+name = "pallet-proofs"
+publish = false
+repository.workspace = true
+version = "0.0.0"
+
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+blake2b_simd = { workspace = true, default-features = false }
+bls12_381 = { workspace = true }
+codec = { features = ["derive"], workspace = true }
+digest = { workspace = true }
+ff = { workspace = true }
+frame-benchmarking = { optional = true, workspace = true }
+frame-support.workspace = true
+frame-system.workspace = true
+log = { workspace = true }
+num-bigint = { workspace = true }
+polka-storage-proofs = { workspace = true, features = ["substrate"] }
+primitives-commitment = { workspace = true }
+primitives-proofs = { workspace = true }
+rand = { workspace = true, features = ["alloc"] }
+rand_chacha = { workspace = true }
+scale-info = { features = ["derive"], workspace = true }
+sha2 = { workspace = true }
+sp-runtime.workspace = true
+sp-std.workspace = true
+
+[dev-dependencies]
+blstrs = { workspace = true }
+filecoin-hashers = { workspace = true }
+filecoin-proofs = { workspace = true }
+fr32 = { workspace = true }
+generic-array = { workspace = true }
+hex = { workspace = true }
+rand_xorshift = { workspace = true }
+sp-core = { default-features = true, workspace = true }
+sp-io = { default-features = true, workspace = true }
+storage-proofs-core = { workspace = true }
+storage-proofs-porep = { workspace = true }
+
+[features]
+default = ["std"]
+runtime-benchmarks = [
+  "frame-benchmarking/runtime-benchmarks",
+  "frame-support/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
+  "sp-runtime/runtime-benchmarks",
+]
+std = [
+  "codec/std",
+  "frame-benchmarking?/std",
+  "frame-support/std",
+  "frame-system/std",
+  "polka-storage-proofs/std",
+  "scale-info/std",
+  "sp-runtime/std",
+  "sp-std/std",
+]
+try-runtime = ["frame-support/try-runtime", "frame-system/try-runtime", "sp-runtime/try-runtime"]

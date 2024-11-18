@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  pull_request:
+    types: [labeled]
+  push:
+    branches: [develop, main]
+
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-files:
+    runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.check-files.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: tj-actions/changed-files@c65cd883420fd2eb864698a825fc4162dd94482c #v44.5.7
+        id: changed-files
+        with:
+          files: |
+            **/*.rs
+            **/Cargo.toml
+            **/*.scale
+      - name: Check if proper files changed
+        id: check-files
+        run: |
+          if [[ "${{ steps.changed-files.outputs.any_changed }}" == "false" ]]; then
+            echo "No files changed. Skipping CI."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Some files changed. Running CI."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup mdBook
+        uses: peaceiris/actions-mdbook@v2
+        with:
+          mdbook-version: '0.4.40'
+      - name: Build the book
+        run: mdbook build docs
+
+  toml:
+    if: ${{ needs.check-files.outputs.skip == 'false' && ((github.event.label.name == 'ready for review') || (github.ref_name == 'develop') || (github.ref_name == 'master')) }}
+    runs-on: self-hosted
+    needs: check-files
+    steps:
+      - uses: actions/checkout@v4
+      - name: List versions
+        run: |
+          cargo --version
+          taplo --version
+      - name: Run taplo
+        run: |
+          taplo lint
+          taplo fmt --check
+
+  format:
+    runs-on: self-hosted
+    needs: toml
+    steps:
+      - uses: actions/checkout@v4
+      - name: List version
+        run: |
+          cargo +nightly --version
+          cargo +nightly fmt --version
+      - name: Cargo format
+        run: cargo +nightly fmt --all -- --check
+
+  clippy_build_and_test:
+    runs-on: self-hosted
+    needs:
+      - format
+    steps:
+      - uses: actions/checkout@v4
+      - name: List version
+        run: |
+          rustup show
+          cargo --version
+          cargo clippy --version
+          cargo tarpaulin --version
+      - name: Build in dev mode
+        run: RUSTFLAGS="-D warnings" cargo build --profile ci --locked
+      - name: Cargo clippy
+        run: RUSTFLAGS="-D warnings" cargo clippy --profile ci --locked
+      - name: Run tests
+        run: RUSTFLAGS="-D warnings" cargo tarpaulin --profile ci --locked --workspace --exclude maat

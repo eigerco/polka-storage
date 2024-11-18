@@ -1,0 +1,61 @@
+[package]
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+name = "polka-storage-proofs"
+repository.workspace = true
+version = "0.1.0"
+
+[dependencies]
+# Permanently used crates.
+bls12_381 = { workspace = true }
+pairing = { workspace = true }
+primitives-commitment = { workspace = true }
+primitives-proofs = { workspace = true }
+rand_xorshift = { workspace = true }
+
+# Crates are only imported on feature 'std'.
+anyhow = { workspace = true, optional = true }
+bellpepper-core = { workspace = true, optional = true }
+bellperson = { workspace = true, optional = true }
+blstrs = { workspace = true, optional = true }
+filecoin-hashers = { workspace = true, optional = true }
+filecoin-proofs = { workspace = true, optional = true }
+rand = { workspace = true, default-features = false, optional = true }
+storage-proofs-core = { workspace = true, optional = true }
+storage-proofs-porep = { workspace = true, optional = true }
+storage-proofs-post = { workspace = true, optional = true }
+thiserror = { workspace = true, optional = true }
+
+# Crates are only imported on feature 'substrate'.
+codec = { workspace = true, features = ["derive"], optional = true }
+scale-info = { workspace = true, features = ["derive"], optional = true }
+
+[dev-dependencies]
+rand = { workspace = true, features = ["alloc"] }
+rstest = { workspace = true }
+
+[lints]
+workspace = true
+
+[features]
+default = ["std"]
+std = [
+  "codec?/std",
+  "dep:anyhow",
+  "dep:bellpepper-core",
+  "dep:bellperson",
+  "dep:blstrs",
+  "dep:filecoin-hashers",
+  "dep:filecoin-proofs",
+  "dep:storage-proofs-core",
+  "dep:storage-proofs-porep",
+  "dep:storage-proofs-post",
+  "dep:thiserror",
+  "primitives-commitment/std",
+  "primitives-proofs/std",
+  "rand/std",
+  "scale-info?/std",
+]
+substrate = ["dep:codec", "dep:scale-info"]

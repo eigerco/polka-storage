@@ -1,0 +1,42 @@
+[package]
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+name = "maat"
+repository.workspace = true
+version = "0.1.0"
+
+[features]
+default = ["target-debug", "target-release"]
+# Target the polka-storage-node in `target/debug` or `target/release`
+# if *both* flags are enabled, it will first check for `target/release`
+# and if not found, check for `target-debug`
+#
+# To forcefully test one of them only, run `cargo test` with the
+# `--no-default-features` flag and `--features` with your desired feature
+target-debug = []
+target-release = []
+
+[dependencies]
+bs58.workspace = true
+cid.workspace = true
+futures.workspace = true
+hex = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["std"] }
+subxt = { workspace = true, features = ["substrate-compat"] }
+thiserror.workspace = true
+tokio = { workspace = true, features = ["full"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+
+primitives-proofs = { workspace = true, features = ["serde"] }
+storagext = { workspace = true, features = ["insecure_url"] }
+
+zombienet-configuration.workspace = true
+zombienet-sdk.workspace = true
+zombienet-support.workspace = true
+
+[lints]
+workspace = true

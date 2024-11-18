@@ -1,0 +1,8 @@
+sequenceDiagram
+    Storage Provider->>+Randomness Pallet: get_randomness(seal_block)
+    Storage Provider->>+Storage Provider Pallet: pre_commit
+    Storage Provider Pallet->>+Market Pallet: verify_deals
+    Storage Provider->>+Randomness Pallet: get_porep_randomness(precommit_block)
+    Storage Provider->>+Storage Provider Pallet: prove_commit_sectors
+    Storage Provider Pallet->>+Proofs Pallet: verify_porep
+    Storage Provider Pallet->>+Market Pallet: activate_deals

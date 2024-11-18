@@ -1,0 +1,40 @@
+[package]
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+name = "mater"                # name WIP
+repository.workspace = true
+version = "0.1.0"
+
+[dependencies]
+async-stream.workspace = true
+bitflags.workspace = true
+byteorder = { workspace = true, features = ["i128"] }
+bytes.workspace = true
+digest.workspace = true
+futures.workspace = true
+indexmap.workspace = true
+integer-encoding = { workspace = true, features = ["tokio_async"] }
+ipld-core = { workspace = true, features = ["serde"] }
+ipld-dagpb.workspace = true
+quick-protobuf.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_ipld_dagcbor.workspace = true
+sha2 = { workspace = true, default-features = true }
+thiserror.workspace = true
+tokio = { workspace = true, features = ["fs", "macros", "rt-multi-thread"] }
+tokio-stream.workspace = true
+tokio-util = { workspace = true, features = ["io"] }
+
+[dev-dependencies]
+criterion = { workspace = true, features = ["async_tokio", "html_reports"] }
+rand = { workspace = true, default_features = true }
+tempfile.workspace = true
+
+[lints]
+workspace = true
+
+[[bench]]
+harness = false
+name = "benchmark"

@@ -1,0 +1,326 @@
+name: Release
+
+# READ THIS FIRST
+#
+# This process is by no means perfect, but it currently achieves our goals
+#
+# There's some magic in the `Check version match` step for each job,
+# but it's there's a reason — i.e. GHA sucks — and we want to only build the package for the respective tag
+# this allows us to perform individual releases instead of launching them all one by one.
+#
+# Now, on to the magic:
+# 1 - Start by fetching the workspace metadata
+# 2 - Using `jq`, get the package name and version
+#     and then format them into a string that should match the tag
+# 4 - If it does not match the tag, fail the build
+
+on:
+  push:
+    tags:
+      # We match on all tags and filter them later
+      - "**"
+
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build_and_release_mater_cli:
+    runs-on: self-hosted
+
+    permissions:
+      contents: write
+      packages: write
+
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'mater-cli-v')
+
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - id: check-version
+        name: Check version match
+        run: |
+          # used later in the build for docker tagging
+          PACKAGE_VERSION="$(cargo metadata --no-deps --color never --format-version 1 --locked |
+            jq -r '.packages[] | select(.name == "mater-cli") | .version')"
+
+          # used for checking the tag
+          PACKAGE_VERSION_WITH_NAME=$(echo "mater-cli-v$PACKAGE_VERSION")
+
+          if [[ "$PACKAGE_VERSION_WITH_NAME" != "$GITHUB_REF_NAME" ]]; then
+            exit 1;
+          fi
+
+          # make the version available as a "checked" output in later steps
+          echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build in release mode
+        run: RUSTFLAGS="-D warnings" cargo build --release --locked --package mater-cli
+
+      - name: Login to Github Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish image
+        run: |
+          docker build \
+            --build-arg VCS_REF="$(git rev-parse HEAD)" \
+            --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            --tag ghcr.io/eigerco/mater-cli:"${{ steps.check-version.outputs.PACKAGE_VERSION }}" \
+            --file ./docker/dockerfiles/mater-cli.Dockerfile \
+            .
+          docker push ghcr.io/eigerco/mater-cli:"${{ steps.check-version.outputs.PACKAGE_VERSION }}"
+
+      - name: Perform release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # set github token for rw rights on repo
+        with:
+          tag_name: ${{ github.ref_name }} # set the name of the release the tag
+          body: |
+            Docker container release: https://github.com/eigerco/polka-storage/pkgs/container/mater-cli/?tag=${{ steps.check-version.outputs.PACKAGE_VERSION }}
+          files: |
+            target/release/mater-cli
+
+  build_and_release_storagext_cli:
+    runs-on: self-hosted
+
+    permissions:
+      contents: write
+      packages: write
+
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'storagext-cli-v')
+
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - id: check-version
+        name: Check version match
+        run: |
+          # used later in the build for docker tagging
+          PACKAGE_VERSION="$(cargo metadata --no-deps --color never --format-version 1 --locked |
+            jq -r '.packages[] | select(.name == "storagext-cli") | .version')"
+
+          # used for checking the tag
+          PACKAGE_VERSION_WITH_NAME=$(echo "storagext-cli-v$PACKAGE_VERSION")
+
+          if [[ "$PACKAGE_VERSION_WITH_NAME" != "$GITHUB_REF_NAME" ]]; then
+            exit 1;
+          fi
+
+          # make the version available as a "checked" output in later steps
+          echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build in release mode
+        run: RUSTFLAGS="-D warnings" cargo build --release --locked --package storagext-cli
+
+      - name: Login to Github Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish image
+        run: |
+          docker build \
+            --build-arg VCS_REF="$(git rev-parse HEAD)" \
+            --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            --tag ghcr.io/eigerco/storagext-cli:"${{ steps.check-version.outputs.PACKAGE_VERSION }}" \
+            --file ./docker/dockerfiles/storagext-cli.Dockerfile \
+            .
+          docker push ghcr.io/eigerco/storagext-cli:"${{ steps.check-version.outputs.PACKAGE_VERSION }}"
+
+      - name: Perform release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # set github token for rw rights on repo
+        with:
+          tag_name: ${{ github.ref_name }} # set the name of the release the tag
+          body: |
+            Docker container release: https://github.com/eigerco/polka-storage/pkgs/container/storagext-cli/?tag=${{ steps.check-version.outputs.PACKAGE_VERSION }}
+          files: |
+            target/release/storagext-cli
+
+  build_and_release_polka_storage_node:
+    runs-on: self-hosted
+
+    permissions:
+      contents: write
+      packages: write
+
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'polka-storage-node-v')
+
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - id: check-version
+        name: Check version match
+        run: |
+          # used later in the build for docker tagging
+          PACKAGE_VERSION="$(cargo metadata --no-deps --color never --format-version 1 --locked |
+            jq -r '.packages[] | select(.name == "polka-storage-node") | .version')"
+
+          # used for checking the tag
+          PACKAGE_VERSION_WITH_NAME=$(echo "polka-storage-node-v$PACKAGE_VERSION")
+
+          if [[ "$PACKAGE_VERSION_WITH_NAME" != "$GITHUB_REF_NAME" ]]; then
+            exit 1;
+          fi
+
+          # make the version available as a "checked" output in later steps
+          echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build in release mode
+        run: RUSTFLAGS="-D warnings" cargo build --release --locked --package polka-storage-node --features polka-storage-runtime/testnet
+
+      - name: Login to Github Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish image
+        run: |
+          docker build \
+            --build-arg VCS_REF="$(git rev-parse HEAD)" \
+            --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            --tag ghcr.io/eigerco/polka-storage-node:"${{ steps.check-version.outputs.PACKAGE_VERSION }}" \
+            --file ./docker/dockerfiles/polka-storage-node.Dockerfile \
+            .
+          docker push ghcr.io/eigerco/polka-storage-node:"${{ steps.check-version.outputs.PACKAGE_VERSION }}"
+
+      - name: Perform release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # set github token for rw rights on repo
+        with:
+          tag_name: ${{ github.ref_name }} # set the name of the release the tag
+          body: |
+            Docker container release: https://github.com/eigerco/polka-storage/pkgs/container/polka-storage-node/?tag=${{ steps.check-version.outputs.PACKAGE_VERSION }}
+          files: |
+            target/release/polka-storage-node
+
+  build_and_release_polka_storage_provider_server:
+    runs-on: self-hosted
+
+    permissions:
+      contents: write
+      packages: write
+
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'polka-storage-provider-server-v')
+
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - id: check-version
+        name: Check version match
+        run: |
+          # used later in the build for docker tagging
+          PACKAGE_VERSION="$(cargo metadata --no-deps --color never --format-version 1 --locked |
+            jq -r '.packages[] | select(.name == "polka-storage-provider-server") | .version')"
+
+          # used for checking the tag
+          PACKAGE_VERSION_WITH_NAME=$(echo "polka-storage-provider-server-v$PACKAGE_VERSION")
+
+          if [[ "$PACKAGE_VERSION_WITH_NAME" != "$GITHUB_REF_NAME" ]]; then
+            exit 1;
+          fi
+
+          # make the version available as a "checked" output in later steps
+          echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build in release mode
+        run: RUSTFLAGS="-D warnings" cargo build --release --locked --package polka-storage-provider-server
+
+      - name: Login to Github Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish image
+        run: |
+          docker build \
+            --build-arg VCS_REF="$(git rev-parse HEAD)" \
+            --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            --tag ghcr.io/eigerco/polka-storage-provider-server:"${{ steps.check-version.outputs.PACKAGE_VERSION }}" \
+            --file ./docker/dockerfiles/polka-storage-provider-server.Dockerfile \
+            .
+          docker push ghcr.io/eigerco/polka-storage-provider-server:"${{ steps.check-version.outputs.PACKAGE_VERSION }}"
+
+      - name: Perform release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # set github token for rw rights on repo
+        with:
+          tag_name: ${{ github.ref_name }} # set the name of the release the tag
+          body: |
+            Docker container release: https://github.com/eigerco/polka-storage/pkgs/container/polka-storage-provider-server/?tag=${{ steps.check-version.outputs.PACKAGE_VERSION }}
+          files: |
+            target/release/polka-storage-provider-server
+
+  build_and_release_polka_storage_provider_client:
+    runs-on: self-hosted
+
+    permissions:
+      contents: write
+      packages: write
+
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'polka-storage-provider-client-v')
+
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - id: check-version
+        name: Check version match
+        run: |
+          # used later in the build for docker tagging
+          PACKAGE_VERSION="$(cargo metadata --no-deps --color never --format-version 1 --locked |
+            jq -r '.packages[] | select(.name == "polka-storage-provider-client") | .version')"
+
+          # used for checking the tag
+          PACKAGE_VERSION_WITH_NAME=$(echo "polka-storage-provider-client-v$PACKAGE_VERSION")
+
+          if [[ "$PACKAGE_VERSION_WITH_NAME" != "$GITHUB_REF_NAME" ]]; then
+            exit 1;
+          fi
+
+          # make the version available as a "checked" output in later steps
+          echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build in release mode
+        run: RUSTFLAGS="-D warnings" cargo build --release --locked --package polka-storage-provider-client
+
+      - name: Login to Github Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish image
+        run: |
+          docker build \
+            --build-arg VCS_REF="$(git rev-parse HEAD)" \
+            --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            --tag ghcr.io/eigerco/polka-storage-provider-client:"${{ steps.check-version.outputs.PACKAGE_VERSION }}" \
+            --file ./docker/dockerfiles/polka-storage-provider-client.Dockerfile \
+            .
+          docker push ghcr.io/eigerco/polka-storage-provider-client:"${{ steps.check-version.outputs.PACKAGE_VERSION }}"
+
+      - name: Perform release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # set github token for rw rights on repo
+        with:
+          tag_name: ${{ github.ref_name }} # set the name of the release the tag
+          body: |
+            Docker container release: https://github.com/eigerco/polka-storage/pkgs/container/polka-storage-provider-client/?tag=${{ steps.check-version.outputs.PACKAGE_VERSION }}
+          files: |
+            target/release/polka-storage-provider-client
