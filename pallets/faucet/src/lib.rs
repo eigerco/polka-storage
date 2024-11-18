@@ -21,7 +21,6 @@ pub mod pallet {
         <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
     #[pallet::pallet]
-    #[pallet::without_storage_info] // Allows to define storage items without fixed size
     pub struct Pallet<T>(_);
 
     #[pallet::config]
