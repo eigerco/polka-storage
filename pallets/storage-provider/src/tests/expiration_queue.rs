@@ -2,21 +2,28 @@ extern crate alloc;
 use alloc::collections::{BTreeMap, BTreeSet};
 
 use primitives_proofs::{RegisteredSealProof, SectorNumber};
-use sp_core::ConstU32;
 use sp_runtime::{BoundedBTreeMap, BoundedBTreeSet};
 
 use super::BlockNumber;
 use crate::{
     expiration_queue::{ExpirationQueue, ExpirationSet},
     sector::{SectorOnChainInfo, MAX_SECTORS},
+    tests::sector_set,
 };
 
-fn on_time_sectors() -> [u64; 3] {
-    [5, 8, 9]
+fn on_time_sectors() -> [SectorNumber; 3] {
+    [
+        SectorNumber::try_from(5).unwrap(),
+        SectorNumber::try_from(8).unwrap(),
+        SectorNumber::try_from(9).unwrap(),
+    ]
 }
 
-fn early_sectors() -> [u64; 2] {
-    [2, 3]
+fn early_sectors() -> [SectorNumber; 2] {
+    [
+        SectorNumber::try_from(2).unwrap(),
+        SectorNumber::try_from(3).unwrap(),
+    ]
 }
 
 fn default_set() -> ExpirationSet {
@@ -25,17 +32,9 @@ fn default_set() -> ExpirationSet {
     set
 }
 
-/// This is a helper function to easily create a set of sectors.
-pub fn create_set<const T: u32>(sectors: &[u64]) -> BoundedBTreeSet<SectorNumber, ConstU32<T>> {
-    let sectors = sectors.iter().copied().collect::<BTreeSet<_>>();
-    BoundedBTreeSet::try_from(sectors).unwrap()
-}
-
 /// Create a single sector used in tests
-fn test_sector(
-    expiration: BlockNumber,
-    sector_number: SectorNumber,
-) -> SectorOnChainInfo<BlockNumber> {
+fn test_sector(expiration: BlockNumber, sector_number: u64) -> SectorOnChainInfo<BlockNumber> {
+    let sector_number = SectorNumber::try_from(sector_number).unwrap();
     SectorOnChainInfo {
         sector_number,
         seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
@@ -64,33 +63,56 @@ fn add_sectors_to_empty_set() {
 
     assert_eq!(
         set.on_time_sectors,
-        create_set::<MAX_SECTORS>(&on_time_sectors())
+        sector_set::<MAX_SECTORS, _>(on_time_sectors().into_iter())
     );
     assert_eq!(
         set.early_sectors,
-        create_set::<MAX_SECTORS>(&early_sectors())
+        sector_set::<MAX_SECTORS, _>(early_sectors().into_iter())
     );
 }
 
 #[test]
 fn add_sectors_to_non_empty_set() {
     let mut set = default_set();
-    set.add(&[6, 7, 11], &[1, 4]).unwrap();
+    set.add(
+        &[
+            SectorNumber::try_from(6).unwrap(),
+            SectorNumber::try_from(7).unwrap(),
+            SectorNumber::try_from(11).unwrap(),
+        ],
+        &[
+            SectorNumber::try_from(1).unwrap(),
+            SectorNumber::try_from(4).unwrap(),
+        ],
+    )
+    .unwrap();
 
     assert_eq!(
         set.on_time_sectors,
-        create_set::<MAX_SECTORS>(&[5, 6, 7, 8, 9, 11])
+        sector_set::<MAX_SECTORS, _>([5, 6, 7, 8, 9, 11].into_iter())
     );
-    assert_eq!(set.early_sectors, create_set::<MAX_SECTORS>(&[1, 2, 3, 4]));
+    assert_eq!(
+        set.early_sectors,
+        sector_set::<MAX_SECTORS, _>([1, 2, 3, 4].into_iter())
+    );
 }
 
 #[test]
 fn remove_sectors_from_set() {
     let mut set = default_set();
-    set.remove(&[9], &[2]);
+    set.remove(
+        &[SectorNumber::try_from(9).unwrap()],
+        &[SectorNumber::try_from(2).unwrap()],
+    );
 
-    assert_eq!(set.on_time_sectors, create_set::<MAX_SECTORS>(&[5, 8,]));
-    assert_eq!(set.early_sectors, create_set::<MAX_SECTORS>(&[3]));
+    assert_eq!(
+        set.on_time_sectors,
+        sector_set::<MAX_SECTORS, _>([5, 8].into_iter())
+    );
+    assert_eq!(
+        set.early_sectors,
+        sector_set::<MAX_SECTORS, _>([3].into_iter())
+    );
 }
 
 #[test]
@@ -142,8 +164,14 @@ fn reschedules_sectors_as_faults() {
 
     for (expiration_height, on_time, early) in checks {
         let set = queue.map.get(&expiration_height).unwrap();
-        assert_eq!(set.on_time_sectors, create_set::<MAX_SECTORS>(&on_time));
-        assert_eq!(set.early_sectors, create_set::<MAX_SECTORS>(&early));
+        assert_eq!(
+            set.on_time_sectors,
+            sector_set::<MAX_SECTORS, _>(on_time.into_iter())
+        );
+        assert_eq!(
+            set.early_sectors,
+            sector_set::<MAX_SECTORS, _>(early.into_iter())
+        );
     }
 }
 

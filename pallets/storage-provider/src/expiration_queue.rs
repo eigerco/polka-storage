@@ -549,12 +549,9 @@ struct SectorExpirationSet {
 mod tests {
     extern crate alloc;
 
-    use alloc::collections::btree_set::BTreeSet;
+    use primitives_proofs::{SectorNumber, MAX_SECTORS};
 
-    use primitives_proofs::SectorNumber;
-    use sp_runtime::BoundedBTreeSet;
-
-    use crate::{expiration_queue::ExpirationQueue, sector::SectorOnChainInfo};
+    use crate::{expiration_queue::ExpirationQueue, sector::SectorOnChainInfo, tests::sector_set};
 
     #[test]
     fn remove_sectors() {
@@ -580,20 +577,17 @@ mod tests {
         ];
 
         // and only sector from last set
-        let faults = BoundedBTreeSet::try_from(BTreeSet::from([4, 5, 6])).unwrap();
+        let faults = sector_set([4, 5, 6].into_iter());
 
         let result = q.remove_sectors(&to_remove, &faults);
         assert!(result.is_ok());
         let removed = result.unwrap();
-        let expected_on_time_sectors = BTreeSet::from([1, 4]);
-        let expected_early_sectors = BTreeSet::from([5, 6]);
+        let expected_on_time_sectors = sector_set::<MAX_SECTORS, _>([1, 4].into_iter());
+        let expected_early_sectors = sector_set::<MAX_SECTORS, _>([5, 6].into_iter());
 
         // assert all return values are correct
-        assert_eq!(
-            removed.on_time_sectors.into_inner(),
-            expected_on_time_sectors
-        );
-        assert_eq!(removed.early_sectors.into_inner(), expected_early_sectors);
+        assert_eq!(removed.on_time_sectors, expected_on_time_sectors);
+        assert_eq!(removed.early_sectors, expected_early_sectors);
     }
 
     fn sectors() -> [SectorOnChainInfo<u64>; 6] {
@@ -607,10 +601,10 @@ mod tests {
         ]
     }
 
-    fn test_sector(expiration: u64, sector_number: SectorNumber) -> SectorOnChainInfo<u64> {
+    fn test_sector(expiration: u64, sector_number: u64) -> SectorOnChainInfo<u64> {
         SectorOnChainInfo {
             expiration,
-            sector_number,
+            sector_number: SectorNumber::new(sector_number).unwrap(),
             ..Default::default()
         }
     }

@@ -1,4 +1,7 @@
+use core::iter::{empty, once};
+
 use frame_support::{assert_err, assert_noop, assert_ok, pallet_prelude::*};
+use primitives_proofs::SectorNumber;
 use rstest::rstest;
 use sp_core::bounded_vec;
 use sp_runtime::{traits::BlockNumberProvider, BoundedVec};
@@ -10,7 +13,7 @@ use crate::{
     pallet::{Error, Event, StorageProviders, DECLARATIONS_MAX},
     sector::ProveCommitSector,
     tests::{
-        account, create_set, events, new_test_ext, register_storage_provider, run_to_block,
+        account, events, new_test_ext, register_storage_provider, run_to_block, sector_set,
         DealProposalBuilder, DeclareFaultsBuilder, Market, RuntimeEvent, RuntimeOrigin,
         SectorPreCommitInfoBuilder, StorageProvider, System, Test, ALICE, BOB, CHARLIE,
     },
@@ -24,7 +27,7 @@ fn fails_should_be_signed() {
         let faults: BoundedVec<_, _> = bounded_vec![FaultDeclaration {
             deadline: 0,
             partition: 0,
-            sectors: create_set(&[1, 2, 3, 4, 5]),
+            sectors: sector_set([1, 2, 3, 4, 5].into_iter()),
         }];
 
         assert_noop!(
@@ -50,7 +53,7 @@ fn multiple_sector_faults() {
         let faults: BoundedVec<_, _> = bounded_vec![FaultDeclaration {
             deadline: 0,
             partition: 0,
-            sectors: create_set(&[0, 1]),
+            sectors: sector_set([0, 1].into_iter()),
         }];
 
         assert_ok!(StorageProvider::declare_faults(
@@ -82,7 +85,7 @@ fn declare_single_fault_before_proving_period_start() {
 
         let deadline = 0;
         let partition = 0;
-        let sectors = vec![0];
+        let sectors = vec![SectorNumber::try_from(0).unwrap()];
 
         // Fault declaration setup
         let fault_declaration = DeclareFaultsBuilder::default()
@@ -152,7 +155,7 @@ fn declare_single_fault_from_proving_period(#[case] proving_period_multiple: f64
         // The cron hook generates events between blocks, this removes those events
         System::reset_events();
 
-        let sectors = create_set(&[0]);
+        let sectors = sector_set(once(0));
         let fault = FaultDeclaration {
             deadline: 0,
             partition: 0,
@@ -218,12 +221,12 @@ fn multiple_partition_faults_in_same_deadline() {
             FaultDeclaration {
                 deadline: 0,
                 partition: 0,
-                sectors: create_set(&[0, 1]),
+                sectors: sector_set([0, 1].into_iter()),
             },
             FaultDeclaration {
                 deadline: 0,
                 partition: 1,
-                sectors: create_set(&[20]),
+                sectors: sector_set(once(20)),
             },
         ];
 
@@ -257,11 +260,11 @@ fn multiple_deadline_faults() {
         // We should specify a correct partition and deadline for the sector
         // when specifying the faults
         let fault_declaration = DeclareFaultsBuilder::default()
-            .fault(0, 0, &[0])
-            .fault(1, 0, &[2])
-            .fault(2, 0, &[4])
-            .fault(3, 0, &[6])
-            .fault(4, 0, &[8])
+            .fault(0, 0, &[SectorNumber::try_from(0).unwrap()])
+            .fault(1, 0, &[SectorNumber::try_from(2).unwrap()])
+            .fault(2, 0, &[SectorNumber::try_from(4).unwrap()])
+            .fault(3, 0, &[SectorNumber::try_from(6).unwrap()])
+            .fault(4, 0, &[SectorNumber::try_from(8).unwrap()])
             .build();
         assert_ok!(StorageProvider::declare_faults(
             RuntimeOrigin::signed(account(storage_provider)),
@@ -283,7 +286,7 @@ fn multiple_deadline_faults() {
     FaultDeclaration {
         deadline: 0,
         partition: 0,
-        sectors: create_set(&[]),
+        sectors: sector_set(empty::<u64>()),
     },
 ], Error::<Test>::GeneralPalletError(GeneralPalletError::DeadlineErrorCouldNotAddSectors).into())]
 // Deadline specified is not valid
@@ -291,7 +294,7 @@ fn multiple_deadline_faults() {
     FaultDeclaration {
         deadline: 99,
         partition: 0,
-        sectors: create_set(&[0]),
+        sectors: sector_set(once(0)),
     },
 ], Error::<Test>::GeneralPalletError(GeneralPalletError::DeadlineErrorDeadlineIndexOutOfRange).into())]
 // Partition specified is not used
@@ -299,14 +302,14 @@ fn multiple_deadline_faults() {
     FaultDeclaration {
         deadline: 0,
         partition: 99,
-        sectors: create_set(&[0]),
+        sectors: sector_set(once(0)),
     },
 ], Error::<Test>::GeneralPalletError(GeneralPalletError::DeadlineErrorPartitionNotFound).into())]
 #[case(bounded_vec![
     FaultDeclaration {
         deadline: 0,
         partition: 0,
-        sectors: create_set(&[99]),
+        sectors: sector_set(once(99)),
      },
 ], Error::<Test>::GeneralPalletError(GeneralPalletError::DeadlineErrorSectorsNotFound).into())]
 fn fails_data_missing_malformed(
@@ -369,7 +372,7 @@ fn fault_declaration_past_cutoff_should_fail() {
             StorageProvider::declare_faults(
                 RuntimeOrigin::signed(account(storage_provider)),
                 DeclareFaultsBuilder::default()
-                    .fault(deadline, partition, &[1])
+                    .fault(deadline, partition, &[SectorNumber::try_from(1).unwrap()])
                     .build(),
             ),
             Error::<Test>::FaultDeclarationTooLate
@@ -421,7 +424,7 @@ pub(crate) fn setup_sp_with_one_sector(storage_provider: &str, storage_client: &
 
     // Prove commit sector
     let sector = ProveCommitSector {
-        sector_number,
+        sector_number: SectorNumber::try_from(sector_number).unwrap(),
         proof: bounded_vec![0xd, 0xe, 0xa, 0xd],
     };
 
@@ -538,7 +541,7 @@ pub(crate) fn setup_sp_with_many_sectors_multiple_partitions(
 
         // Prove commit sector
         let sector = ProveCommitSector {
-            sector_number,
+            sector_number: SectorNumber::try_from(sector_number).unwrap(),
             proof: bounded_vec![0xb, 0xe, 0xe, 0xf],
         };
 

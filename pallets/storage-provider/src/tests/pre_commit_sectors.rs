@@ -7,7 +7,7 @@ use sp_runtime::{BoundedVec, DispatchError};
 use super::new_test_ext;
 use crate::{
     pallet::{Error, Event, StorageProviders},
-    sector::{SectorPreCommitInfo, MAX_SECTORS},
+    sector::SectorPreCommitInfo,
     tests::{
         account, events, publish_deals, register_storage_provider, run_to_block, Balances,
         MaxProveCommitDuration, MaxSectorExpiration, RuntimeEvent, RuntimeOrigin,
@@ -265,29 +265,6 @@ fn fails_declared_commd_not_matching() {
                 bounded_vec![sector]
             ),
             Error::<Test>::InvalidUnsealedCidForSector,
-        );
-    });
-}
-
-#[test]
-fn fails_invalid_sector() {
-    new_test_ext().execute_with(|| {
-        // Register ALICE as a storage provider.
-        let storage_provider = ALICE;
-        register_storage_provider(account(storage_provider));
-
-        // Sector to be pre-committed
-        let sector = SectorPreCommitInfoBuilder::default()
-            .sector_number(MAX_SECTORS as u64 + 1)
-            .build();
-
-        // Run pre commit extrinsic
-        assert_noop!(
-            StorageProvider::pre_commit_sectors(
-                RuntimeOrigin::signed(account(storage_provider)),
-                bounded_vec![sector]
-            ),
-            Error::<Test>::InvalidSector,
         );
     });
 }

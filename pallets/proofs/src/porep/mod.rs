@@ -1,7 +1,7 @@
 mod config;
 
 use config::{Config, PoRepID};
-use primitives_proofs::{ProverId, RawCommitment, RegisteredSealProof, Ticket};
+use primitives_proofs::{ProverId, RawCommitment, RegisteredSealProof, SectorNumber, Ticket};
 use sha2::{Digest, Sha256};
 
 use crate::{
@@ -136,7 +136,7 @@ impl ProofScheme {
         comm_r: &RawCommitment,
         comm_d: &RawCommitment,
         prover_id: &ProverId,
-        sector: u64,
+        sector: SectorNumber,
         ticket: &Ticket,
         seed: &Ticket,
         vk: VerifyingKey<Bls12>,
@@ -165,13 +165,13 @@ impl ProofScheme {
     pub fn generate_replica_id(
         &self,
         prover_id: &ProverId,
-        sector: u64,
+        sector: SectorNumber,
         ticket: &Ticket,
         comm_d: &RawCommitment,
     ) -> ReplicaId {
         let hash = Sha256::new()
             .chain_update(prover_id)
-            .chain_update(sector.to_be_bytes())
+            .chain_update(u64::from(sector).to_be_bytes())
             .chain_update(ticket)
             .chain_update(comm_d)
             .chain_update(self.config.porep_id())
@@ -248,7 +248,7 @@ fn generate_inclusion_input(challenge: usize) -> Fr {
 
 #[cfg(test)]
 mod tests {
-    use primitives_proofs::RegisteredSealProof;
+    use primitives_proofs::{RegisteredSealProof, SectorNumber};
 
     use super::{ProofScheme, PublicInputs, Tau};
 
@@ -258,7 +258,7 @@ mod tests {
     fn generates_public_inputs_the_same_as_reference_impl_2kb_sector() {
         // random numbers, not 0
         let prover_id = [77u8; 32];
-        let sector_id = 123;
+        let sector_id = SectorNumber::new(123).unwrap();
         let ticket = [10u8; 32];
         let seed = [10u8; 32];
         let comm_d = [15u8; 32];
@@ -281,7 +281,7 @@ mod tests {
 
     fn ported_generate_public_inputs(
         prover_id: &[u8; 32],
-        sector_id: u64,
+        sector_id: SectorNumber,
         ticket: &[u8; 32],
         seed: &[u8; 32],
         comm_d: &[u8; 32],
@@ -311,7 +311,7 @@ mod tests {
 
     fn reference_generate_public_inputs(
         prover_id: [u8; 32],
-        sector_id: u64,
+        sector_id: SectorNumber,
         ticket: [u8; 32],
         seed: [u8; 32],
         comm_d: [u8; 32],
@@ -350,7 +350,11 @@ mod tests {
         let porep_id = [0u8; 32];
 
         let replica_id = generate_replica_id::<PoseidonHasher, _>(
-            &prover_id, sector_id, &ticket, comm_d, &porep_id,
+            &prover_id,
+            sector_id.into(),
+            &ticket,
+            comm_d,
+            &porep_id,
         );
 
         let comm_r_safe = fr32::bytes_into_fr_repr_safe(&comm_r).into();

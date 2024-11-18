@@ -263,7 +263,7 @@ where
             .recoveries
             .union(&new_recoveries)
             .copied()
-            .collect::<BTreeSet<u64>>()
+            .collect::<BTreeSet<_>>()
             .try_into()
             .expect("BoundedBTreeSet should be able to be created from BTreeSet");
     }
@@ -289,7 +289,7 @@ where
             .faults
             .difference(&self.recoveries)
             .copied()
-            .collect::<BTreeSet<u64>>()
+            .collect::<BTreeSet<_>>()
             .try_into()
             .expect("(faults - recoveries).len() <= faults.len()");
 
@@ -580,8 +580,10 @@ mod tests {
     extern crate alloc;
 
     use alloc::collections::BTreeMap;
+    use core::iter::once;
 
     use super::*;
+    use crate::tests::sector_set;
 
     fn sectors() -> Vec<SectorOnChainInfo<u64>> {
         vec![
@@ -594,10 +596,10 @@ mod tests {
         ]
     }
 
-    fn test_sector(expiration: u64, sector_number: SectorNumber) -> SectorOnChainInfo<u64> {
+    fn test_sector(expiration: u64, sector_number: u64) -> SectorOnChainInfo<u64> {
         SectorOnChainInfo {
             expiration,
-            sector_number,
+            sector_number: SectorNumber::try_from(sector_number).unwrap(),
             ..Default::default()
         }
     }
@@ -646,7 +648,7 @@ mod tests {
                 sectors_to_add
                     .iter()
                     .filter_map(|s| {
-                        if s.sector_number != 1 {
+                        if s.sector_number != SectorNumber::try_from(1).unwrap() {
                             Some(s.sector_number)
                         } else {
                             None
@@ -657,7 +659,7 @@ mod tests {
             .unwrap();
 
         expected_live_sectors
-            .try_insert(2)
+            .try_insert(2.try_into().unwrap())
             .expect(&format!("Inserting a single element into expected_live_sectors, which is a BoundedBTreeMap with length {MAX_SECTORS}, should not fail (1 < {MAX_SECTORS})"));
         assert_eq!(live_sectors, expected_live_sectors);
         Ok(())
@@ -680,11 +682,11 @@ mod tests {
         )
         .unwrap();
         // fault sector 3, 4, 5 and 6
-        let faults = BoundedBTreeSet::try_from(BTreeSet::from([3, 4, 5, 6])).unwrap();
+        let faults = sector_set([3, 4, 5, 6].into_iter());
         partition.record_faults(&all_sectors_map, &faults, 7)?;
 
         // mark 4 and 5 as a recoveries
-        let recoveries = BoundedBTreeSet::try_from(BTreeSet::from([4, 5])).unwrap();
+        let recoveries = sector_set([4, 5].into_iter());
         partition.declare_faults_recovered(&recoveries);
 
         // now terminate 1, 3, 5, and 6
@@ -702,15 +704,21 @@ mod tests {
         let expected_sectors: BTreeSet<_> = all_sectors.iter().map(|s| s.sector_number).collect();
 
         // Assert that the returned expiration set is as expected
-        assert_eq!(removed.on_time_sectors.into_inner(), BTreeSet::from([1, 3]));
-        assert_eq!(removed.early_sectors.into_inner(), BTreeSet::from([5, 6]));
+        assert_eq!(
+            removed.on_time_sectors,
+            sector_set::<MAX_SECTORS, _>([1, 3].into_iter())
+        );
+        assert_eq!(
+            removed.early_sectors,
+            sector_set::<MAX_SECTORS, _>([5, 6].into_iter())
+        );
 
         // Assert the partition metadata is as expected
-        assert_eq!(partition.faults.into_inner(), BTreeSet::from([4]));
-        assert_eq!(partition.recoveries.into_inner(), BTreeSet::from([4]));
-        assert_eq!(partition.terminated.into_inner(), expected_terminations);
-        assert_eq!(partition.sectors.into_inner(), expected_sectors);
-        assert_eq!(partition.unproven.into_inner(), BTreeSet::from([2]));
+        assert_eq!(partition.faults, sector_set::<MAX_SECTORS, _>(once(4)));
+        assert_eq!(partition.recoveries, sector_set::<MAX_SECTORS, _>(once(4)));
+        assert_eq!(partition.terminated, expected_terminations);
+        assert_eq!(partition.sectors, expected_sectors);
+        assert_eq!(partition.unproven, sector_set::<MAX_SECTORS, _>(once(2)));
 
         Ok(())
     }
@@ -753,7 +761,7 @@ mod tests {
         partition.add_sectors(&sectors)?;
 
         // fault sector 3, 4, 5 and 6
-        let fault_set = BTreeSet::from([3, 4, 5, 6]).try_into().unwrap();
+        let fault_set = sector_set([3, 4, 5, 6].into_iter());
         partition.record_faults(&sector_map, &fault_set, 7)?;
 
         // now terminate 1, 3 and 5
@@ -776,7 +784,7 @@ mod tests {
         let terminated_sector = result.sectors.get(&termination_block);
         assert!(terminated_sector.is_some());
         let terminated_sector = terminated_sector.unwrap();
-        assert_eq!(terminated_sector, &BTreeSet::from([1]));
+        assert_eq!(terminated_sector, &BTreeSet::from([1.try_into().unwrap()]));
         let early_termination_sectors = partition
             .early_terminations
             .get(&termination_block)
@@ -793,7 +801,7 @@ mod tests {
         let terminated_sector = result.sectors.get(&termination_block);
         assert!(terminated_sector.is_some());
         let terminated_sector = terminated_sector.unwrap();
-        assert_eq!(terminated_sector, &BTreeSet::from([3]));
+        assert_eq!(terminated_sector, &BTreeSet::from([3.try_into().unwrap()]));
         let early_termination_sectors = partition
             .early_terminations
             .get(&termination_block)
@@ -810,7 +818,7 @@ mod tests {
         let terminated_sector = result.sectors.get(&termination_block);
         assert!(terminated_sector.is_some());
         let terminated_sector = terminated_sector.unwrap();
-        assert_eq!(terminated_sector, &BTreeSet::from([5]));
+        assert_eq!(terminated_sector, &BTreeSet::from([5.try_into().unwrap()]));
 
         // expect early terminations to be empty
         assert!(partition.early_terminations.is_empty());
@@ -833,7 +841,7 @@ mod tests {
         partition.add_sectors(&sectors)?;
 
         // fault sector 3, 4, 5 and 6
-        let fault_set = BTreeSet::from([3, 4, 5, 6]).try_into().unwrap();
+        let fault_set = sector_set([3, 4, 5, 6].into_iter());
         partition.record_faults(&sector_map, &fault_set, 7)?;
 
         // now terminate 1, 3 and 5
@@ -856,7 +864,7 @@ mod tests {
         let terminated_sector = result.sectors.get(&termination_block);
         assert!(terminated_sector.is_some());
         let terminated_sector = terminated_sector.unwrap();
-        assert_eq!(terminated_sector, &BTreeSet::from([1]));
+        assert_eq!(terminated_sector, &BTreeSet::from([1.try_into().unwrap()]));
 
         // pop the rest, max_sectors set to 5 but only 2 terminations left, should exit early
         let (result, has_more) = partition.pop_early_terminations(5).unwrap();
@@ -865,7 +873,10 @@ mod tests {
         let terminated_sector = result.sectors.get(&termination_block);
         assert!(terminated_sector.is_some());
         let terminated_sector = terminated_sector.unwrap();
-        assert_eq!(terminated_sector, &BTreeSet::from([3, 5]));
+        assert_eq!(
+            terminated_sector,
+            &BTreeSet::from([3.try_into().unwrap(), 5.try_into().unwrap()])
+        );
         assert_eq!(result.sectors_processed, 2);
         assert_eq!(result.partitions_processed, 1);
 
@@ -898,28 +909,28 @@ mod tests {
         partition.activate_unproven();
 
         // add one fault with early termination
-        let fault_set = BoundedBTreeSet::try_from(BTreeSet::from([4])).unwrap();
+        let fault_set = sector_set(once(4));
         partition.record_faults(&all_sectors, &fault_set, 2)?;
 
         // pop first expiration set
         let expiration_block = 5;
         let expset = partition.pop_expired_sectors(expiration_block)?;
 
-        let expected_on_time = BTreeSet::from([1, 2]);
-        let expected_early = BTreeSet::from([4]);
-        let expected_terminated = BTreeSet::from([1, 2, 4]);
-        let expected_sectors = BTreeSet::from([1, 2, 3, 4, 5, 6]);
+        let expected_on_time = sector_set::<MAX_SECTORS, _>([1, 2].into_iter());
+        let expected_early = sector_set::<MAX_SECTORS, _>(once(4));
+        let expected_terminated = sector_set::<MAX_SECTORS, _>([1, 2, 4].into_iter());
+        let expected_sectors = sector_set::<MAX_SECTORS, _>([1, 2, 3, 4, 5, 6].into_iter());
 
         // Assert that the returned expiration set is as expected
-        assert_eq!(expset.on_time_sectors.into_inner(), expected_on_time);
-        assert_eq!(expset.early_sectors.into_inner(), expected_early);
+        assert_eq!(expset.on_time_sectors, expected_on_time);
+        assert_eq!(expset.early_sectors, expected_early);
 
         // Assert the partition metadata is as expected
-        assert_eq!(partition.faults.into_inner(), BTreeSet::new());
-        assert_eq!(partition.recoveries.into_inner(), BTreeSet::new());
-        assert_eq!(partition.terminated.into_inner(), expected_terminated);
-        assert_eq!(partition.sectors.into_inner(), expected_sectors);
-        assert_eq!(partition.unproven.into_inner(), BTreeSet::new());
+        assert_eq!(partition.faults, BTreeSet::new());
+        assert_eq!(partition.recoveries, BTreeSet::new());
+        assert_eq!(partition.terminated, expected_terminated);
+        assert_eq!(partition.sectors, expected_sectors);
+        assert_eq!(partition.unproven, BTreeSet::new());
 
         Ok(())
     }

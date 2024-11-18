@@ -28,6 +28,10 @@ pub mod display;
         path = "primitives_proofs::types::SectorSize",
         with = "::primitives_proofs::SectorSize",
     ),
+    substitute_type(
+        path = "primitives_proofs::types::SectorNumber",
+        with = "::primitives_proofs::SectorNumber",
+    ),
     // impl Deserialize
     derive_for_type(
         path = "pallet_market::pallet::ActiveDealState",
@@ -131,7 +135,7 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(active_deal_state.sector_number, 1);
+        assert_eq!(active_deal_state.sector_number, 1.try_into().unwrap());
         assert_eq!(active_deal_state.sector_start_block, 10);
         assert_eq!(active_deal_state.last_updated_block, Some(20));
         assert_eq!(active_deal_state.slash_block, None);
@@ -161,7 +165,7 @@ mod test {
         assert_eq!(
             deal_state,
             DealState::Active(ActiveDealState {
-                sector_number: 1,
+                sector_number: 1.try_into().unwrap(),
                 sector_start_block: 10,
                 last_updated_block: Some(20),
                 slash_block: None

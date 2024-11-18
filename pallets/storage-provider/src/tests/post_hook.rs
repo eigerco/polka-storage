@@ -1,12 +1,6 @@
 extern crate alloc;
 
-use alloc::collections::BTreeSet;
-
-use frame_support::{
-    assert_ok,
-    pallet_prelude::{ConstU32, Get},
-    sp_runtime::BoundedBTreeSet,
-};
+use frame_support::{assert_ok, pallet_prelude::Get};
 use primitives_proofs::{DealId, SectorNumber};
 use sp_core::bounded_vec;
 
@@ -15,9 +9,9 @@ use crate::{
     pallet::{Config, Event, StorageProviders},
     sector::{ProveCommitSector, MAX_SECTORS},
     tests::{
-        account, events, publish_deals, register_storage_provider, run_to_block, RuntimeEvent,
-        RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, SubmitWindowedPoStBuilder,
-        System, Test, CHARLIE,
+        account, events, publish_deals, register_storage_provider, run_to_block, sector_set,
+        RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider,
+        SubmitWindowedPoStBuilder, System, Test, CHARLIE,
     },
 };
 
@@ -72,10 +66,9 @@ fn marks_partitions_as_faulty() {
         let deadline = &sp.deadlines.due[0];
         // Partitions are filled up from the first partition
         let partition = &deadline.partitions[&0];
-        let expected_sectors: BoundedBTreeSet<SectorNumber, _> =
-            BTreeSet::from([first_sector_number, second_sector_number])
-                .try_into()
-                .unwrap();
+        let expected_sectors =
+            sector_set::<MAX_SECTORS, _>([first_sector_number, second_sector_number].into_iter());
+
         assert_eq!(partition.faults.len(), 2);
         assert_eq!(expected_sectors, partition.faults);
         assert_eq!(
@@ -130,21 +123,16 @@ fn does_not_mark_partitions_as_faulty() {
         let deadline = &sp.deadlines.due[0];
         // Partitions are filled up from the first partition
         let partition = &deadline.partitions[&0];
-        let expected_sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>> =
-            BTreeSet::from([first_sector_number, second_sector_number])
-                .try_into()
-                .unwrap();
+        let expected_sectors =
+            sector_set::<MAX_SECTORS, _>([first_sector_number, second_sector_number].into_iter());
+
         assert_eq!(partition.faults.len(), 0);
         assert_eq!(expected_sectors, partition.sectors);
         assert_eq!(events(), []);
     });
 }
 
-fn precommit_and_prove(
-    storage_provider: &'static str,
-    deal_id: DealId,
-    sector_number: SectorNumber,
-) {
+fn precommit_and_prove(storage_provider: &'static str, deal_id: DealId, sector_number: u64) {
     let sector = SectorPreCommitInfoBuilder::default()
         .sector_number(sector_number)
         .deals(bounded_vec![deal_id])
@@ -158,7 +146,7 @@ fn precommit_and_prove(
     StorageProvider::prove_commit_sectors(
         RuntimeOrigin::signed(account(storage_provider)),
         bounded_vec![ProveCommitSector {
-            sector_number,
+            sector_number: SectorNumber::try_from(sector_number).unwrap(),
             proof: bounded_vec![0xde],
         }],
     )

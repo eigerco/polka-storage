@@ -1,9 +1,8 @@
 extern crate alloc;
 
-use alloc::collections::BTreeSet;
+use core::iter::once;
 
-use frame_support::{assert_err, assert_ok, pallet_prelude::*, sp_runtime::BoundedBTreeSet};
-use primitives_proofs::SectorNumber;
+use frame_support::{assert_err, assert_ok, pallet_prelude::*};
 use sp_core::bounded_vec;
 
 use crate::{
@@ -15,8 +14,8 @@ use crate::{
         declare_faults::{
             setup_sp_with_many_sectors_multiple_partitions, setup_sp_with_one_sector,
         },
-        events, new_test_ext, run_to_block, RuntimeEvent, RuntimeOrigin, StorageProvider, Test,
-        ALICE, BOB,
+        events, new_test_ext, run_to_block, sector_set, RuntimeEvent, RuntimeOrigin,
+        StorageProvider, Test, ALICE, BOB,
     },
 };
 
@@ -46,7 +45,7 @@ fn terminate_sectors_fails_non_existent_partition() {
             terminations: bounded_vec![TerminationDeclaration {
                 deadline: 0,
                 partition: 2, // Does not exist
-                sectors: BTreeSet::from([0]).try_into().unwrap()
+                sectors: sector_set(once(0))
             }],
         };
         assert_err!(
@@ -73,7 +72,7 @@ fn terminate_sectors_fails_deadline_not_mutable() {
             terminations: bounded_vec![TerminationDeclaration {
                 deadline: 0,
                 partition: 0,
-                sectors: BTreeSet::from([0]).try_into().unwrap()
+                sectors: sector_set(once(0))
             }],
         };
 
@@ -100,7 +99,7 @@ fn terminate_sectors_success_single_sector() {
             terminations: bounded_vec![TerminationDeclaration {
                 deadline,
                 partition: partition_num,
-                sectors: BTreeSet::from([sector]).try_into().unwrap()
+                sectors: sector_set(once(sector))
             }],
         };
 
@@ -121,8 +120,7 @@ fn terminate_sectors_success_single_sector() {
         // Get partition
         // Clone needed to check `pop_early_terminations` from the partition which takes in `&mut self`
         let mut partition = deadline.partitions[&partition_num].clone();
-        let expected_terminated: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>> =
-            BTreeSet::from([sector]).try_into().unwrap();
+        let expected_terminated = sector_set::<MAX_SECTORS, _>(once(sector));
         assert_eq!(partition.terminated, expected_terminated);
 
         let (result, has_more) = partition.pop_early_terminations(1000).unwrap();
@@ -162,27 +160,27 @@ fn terminate_sectors_success_multiple_sectors_partitions_and_deadlines() {
             TerminationDeclaration {
                 deadline: 0,
                 partition: 0,
-                sectors: BTreeSet::from([0]).try_into().unwrap(),
+                sectors: sector_set(once(0)),
             },
             TerminationDeclaration {
                 deadline: 0,
                 partition: 1,
-                sectors: BTreeSet::from([20]).try_into().unwrap(),
+                sectors: sector_set(once(20)),
             },
             TerminationDeclaration {
                 deadline: 0,
                 partition: 2,
-                sectors: BTreeSet::from([40]).try_into().unwrap(),
+                sectors: sector_set(once(40)),
             },
             TerminationDeclaration {
                 deadline: 1,
                 partition: 0,
-                sectors: BTreeSet::from([3]).try_into().unwrap(),
+                sectors: sector_set(once(3)),
             },
             TerminationDeclaration {
                 deadline: 1,
                 partition: 1,
-                sectors: BTreeSet::from([23]).try_into().unwrap(),
+                sectors: sector_set(once(23)),
             },
         ];
         let params = TerminateSectorsParams {
@@ -214,8 +212,7 @@ fn terminate_sectors_success_multiple_sectors_partitions_and_deadlines() {
             .load_deadline_mut(deadline_idx)
             .unwrap();
         let partition = &deadline.partitions[&0];
-        let expected_terminated: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>> =
-            BTreeSet::from([0]).try_into().unwrap();
+        let expected_terminated = sector_set::<MAX_SECTORS, _>(once(0));
         assert_eq!(partition.terminated, expected_terminated);
 
         // Check state for second partition
@@ -224,8 +221,7 @@ fn terminate_sectors_success_multiple_sectors_partitions_and_deadlines() {
             .load_deadline_mut(deadline_idx)
             .unwrap();
         let partition = &deadline.partitions[&1];
-        let expected_terminated: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>> =
-            BTreeSet::from([20]).try_into().unwrap();
+        let expected_terminated = sector_set::<MAX_SECTORS, _>(once(20));
         assert_eq!(partition.terminated, expected_terminated);
 
         // Check state for last partition
@@ -234,8 +230,7 @@ fn terminate_sectors_success_multiple_sectors_partitions_and_deadlines() {
             .load_deadline_mut(deadline_idx)
             .unwrap();
         let partition = &deadline.partitions[&2];
-        let expected_terminated: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>> =
-            BTreeSet::from([40]).try_into().unwrap();
+        let expected_terminated = sector_set::<MAX_SECTORS, _>(once(40));
         assert_eq!(partition.terminated, expected_terminated);
 
         // Check state of second deadline
@@ -246,8 +241,7 @@ fn terminate_sectors_success_multiple_sectors_partitions_and_deadlines() {
             .load_deadline_mut(deadline_idx)
             .unwrap();
         let partition = &deadline.partitions[&0];
-        let expected_terminated: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>> =
-            BTreeSet::from([3]).try_into().unwrap();
+        let expected_terminated = sector_set::<MAX_SECTORS, _>(once(3));
         assert_eq!(partition.terminated, expected_terminated);
 
         // Check state for second partition
@@ -256,8 +250,7 @@ fn terminate_sectors_success_multiple_sectors_partitions_and_deadlines() {
             .load_deadline_mut(deadline_idx)
             .unwrap();
         let partition = &deadline.partitions[&1];
-        let expected_terminated: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>> =
-            BTreeSet::from([23]).try_into().unwrap();
+        let expected_terminated = sector_set::<MAX_SECTORS, _>(once(23));
         assert_eq!(partition.terminated, expected_terminated);
     });
 }

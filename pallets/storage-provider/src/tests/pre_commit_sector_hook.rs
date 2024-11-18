@@ -1,7 +1,8 @@
 extern crate alloc;
 
-use alloc::collections::BTreeSet;
+use core::iter::once;
 
+use primitives_proofs::SectorNumber;
 use sp_core::bounded_vec;
 
 use super::new_test_ext;
@@ -9,9 +10,9 @@ use crate::{
     pallet::{Event, StorageProviders},
     sector::ProveCommitSector,
     tests::{
-        account, events, publish_deals, register_storage_provider, run_to_block, Balances,
-        RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System, Test,
-        CHARLIE,
+        account, events, publish_deals, register_storage_provider, run_to_block, sector_set,
+        Balances, RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System,
+        Test, CHARLIE,
     },
 };
 
@@ -55,7 +56,7 @@ fn pre_commit_hook_slashed_deal() {
         StorageProvider::prove_commit_sectors(
             RuntimeOrigin::signed(account(storage_provider)),
             bounded_vec![ProveCommitSector {
-                sector_number: 2,
+                sector_number: SectorNumber::try_from(2).unwrap(),
                 proof: bounded_vec![0xde],
             }],
         )
@@ -84,11 +85,11 @@ fn pre_commit_hook_slashed_deal() {
                 RuntimeEvent::StorageProvider(Event::<Test>::PartitionFaulty {
                     owner: account(storage_provider),
                     partition: 0,
-                    sectors: BTreeSet::from([2]).try_into().unwrap()
+                    sectors: sector_set(once(2))
                 }),
                 RuntimeEvent::StorageProvider(Event::<Test>::SectorSlashed {
                     owner: account(storage_provider),
-                    sector_number: 1,
+                    sector_number: SectorNumber::try_from(1).unwrap(),
                 }),
                 // the slash -> withdraw is related to the usage of slash_and_burn
                 // when slashing the SP for a failed pre_commit

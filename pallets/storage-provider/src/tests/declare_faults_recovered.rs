@@ -1,4 +1,7 @@
+use core::iter::{empty, once};
+
 use frame_support::{assert_err, assert_noop, assert_ok};
+use primitives_proofs::SectorNumber;
 use rstest::rstest;
 use sp_core::{bounded_vec, ConstU32};
 use sp_runtime::{traits::BlockNumberProvider, BoundedVec};
@@ -9,14 +12,14 @@ use crate::{
     fault::{DeclareFaultsRecoveredParams, RecoveryDeclaration},
     pallet::{Error, Event, StorageProviders, DECLARATIONS_MAX},
     tests::{
-        account, create_set,
+        account,
         declare_faults::{
             assert_exact_faulty_sectors, setup_sp_with_many_sectors_multiple_partitions,
             setup_sp_with_one_sector,
         },
-        events, new_test_ext, run_to_block, DeclareFaultsBuilder, DeclareFaultsRecoveredBuilder,
-        RuntimeEvent, RuntimeOrigin, StorageProvider, SubmitWindowedPoStBuilder, System, Test,
-        ALICE, BOB,
+        events, new_test_ext, run_to_block, sector_set, DeclareFaultsBuilder,
+        DeclareFaultsRecoveredBuilder, RuntimeEvent, RuntimeOrigin, StorageProvider,
+        SubmitWindowedPoStBuilder, System, Test, ALICE, BOB,
     },
     Config,
 };
@@ -31,7 +34,7 @@ fn declare_single_fault_recovered() {
 
         let deadline = 0;
         let partition = 0;
-        let sectors = vec![0];
+        let sectors = vec![SectorNumber::try_from(0).unwrap()];
 
         // Fault declaration setup
         let fault_declaration = DeclareFaultsBuilder::default()
@@ -74,7 +77,7 @@ fn declare_single_fault_recovered_and_submitted() {
         setup_sp_with_one_sector(storage_provider, storage_client);
         let deadline = 0;
         let partition = 0;
-        let sectors = vec![0];
+        let sectors = vec![SectorNumber::try_from(0).unwrap()];
 
         // Fault declaration setup
         let fault_declaration = DeclareFaultsBuilder::default()
@@ -147,10 +150,31 @@ fn successfully_recover_multiple_sector_faults() {
         // We should specify a correct partition and deadline for the sector
         // when specifying the faults
         let fault_declaration = DeclareFaultsBuilder::default()
-            .fault(0, 0, &[0, 1])
-            .fault(0, 1, &[20, 21])
-            .fault(1, 0, &[2, 3])
-            .fault(2, 0, &[4])
+            .fault(
+                0,
+                0,
+                &[
+                    SectorNumber::try_from(0).unwrap(),
+                    SectorNumber::try_from(1).unwrap(),
+                ],
+            )
+            .fault(
+                0,
+                1,
+                &[
+                    SectorNumber::try_from(20).unwrap(),
+                    SectorNumber::try_from(21).unwrap(),
+                ],
+            )
+            .fault(
+                1,
+                0,
+                &[
+                    SectorNumber::try_from(2).unwrap(),
+                    SectorNumber::try_from(3).unwrap(),
+                ],
+            )
+            .fault(2, 0, &[SectorNumber::try_from(4).unwrap()])
             .build();
         assert_ok!(StorageProvider::declare_faults(
             RuntimeOrigin::signed(account(storage_provider)),
@@ -163,10 +187,31 @@ fn successfully_recover_multiple_sector_faults() {
         // We should specify a correct partition and deadline for the sector
         // when specifying the faults recovered
         let recovery_declaration = DeclareFaultsRecoveredBuilder::default()
-            .fault_recovery(0, 0, &[0, 1])
-            .fault_recovery(0, 1, &[20, 21])
-            .fault_recovery(1, 0, &[2, 3])
-            .fault_recovery(2, 0, &[4])
+            .fault_recovery(
+                0,
+                0,
+                &[
+                    SectorNumber::try_from(0).unwrap(),
+                    SectorNumber::try_from(1).unwrap(),
+                ],
+            )
+            .fault_recovery(
+                0,
+                1,
+                &[
+                    SectorNumber::try_from(20).unwrap(),
+                    SectorNumber::try_from(21).unwrap(),
+                ],
+            )
+            .fault_recovery(
+                1,
+                0,
+                &[
+                    SectorNumber::try_from(2).unwrap(),
+                    SectorNumber::try_from(3).unwrap(),
+                ],
+            )
+            .fault_recovery(2, 0, &[SectorNumber::try_from(4).unwrap()])
             .build();
         assert_ok!(StorageProvider::declare_faults_recovered(
             RuntimeOrigin::signed(account(storage_provider)),
@@ -189,7 +234,7 @@ fn successfully_recover_multiple_sector_faults() {
     RecoveryDeclaration {
         deadline: 0,
         partition: 0,
-        sectors: create_set(&[]),
+        sectors: sector_set(empty::<u64>()),
     },
 ], Error::<Test>::GeneralPalletError(GeneralPalletError::DeadlineErrorCouldNotAddSectors).into())]
 // Deadline specified is not valid
@@ -197,7 +242,7 @@ fn successfully_recover_multiple_sector_faults() {
     RecoveryDeclaration {
         deadline: 99,
         partition: 0,
-        sectors: create_set(&[0]),
+        sectors: sector_set(once(0)),
     },
 ], Error::<Test>::GeneralPalletError(GeneralPalletError::DeadlineErrorDeadlineIndexOutOfRange).into())]
 // Partition specified is not used
@@ -205,21 +250,21 @@ fn successfully_recover_multiple_sector_faults() {
     RecoveryDeclaration {
         deadline: 0,
         partition: 99,
-        sectors: create_set(&[0]),
+        sectors: sector_set(once(0)),
     },
 ], Error::<Test>::GeneralPalletError(GeneralPalletError::DeadlineErrorPartitionNotFound).into())]
 #[case(bounded_vec![
     RecoveryDeclaration {
         deadline: 0,
         partition: 0,
-        sectors: create_set(&[99]),
+        sectors: sector_set(once(99)),
      },
 ], Error::<Test>::GeneralPalletError(GeneralPalletError::DeadlineErrorSectorsNotFound).into())]
 #[case(bounded_vec![
     RecoveryDeclaration {
         deadline: 0,
         partition: 0,
-        sectors: create_set(&[0]),
+        sectors: sector_set(once(0)),
      },
 ], Error::<Test>::GeneralPalletError(GeneralPalletError::DeadlineErrorSectorsNotFaulty).into())]
 fn fails_data_missing_malformed(
@@ -283,7 +328,7 @@ fn fault_recovery_past_cutoff_should_fail() {
             StorageProvider::declare_faults_recovered(
                 RuntimeOrigin::signed(account(storage_provider)),
                 DeclareFaultsRecoveredBuilder::default()
-                    .fault_recovery(deadline, partition, &[1])
+                    .fault_recovery(deadline, partition, &[SectorNumber::try_from(1).unwrap()])
                     .build(),
             ),
             Error::<Test>::FaultRecoveryTooLate

@@ -1,4 +1,6 @@
-use codec::{Decode, Encode};
+use core::fmt::Display;
+
+use codec::{Decode, Encode, MaxEncodedLen};
 use scale_decode::DecodeAsType;
 use scale_encode::EncodeAsType;
 use scale_info::TypeInfo;
@@ -6,9 +8,88 @@ use sp_runtime::RuntimeDebug;
 
 pub type DealId = u64;
 
-// TODO(#129,@cernicc,11/07/2024): Refactor to new type. Sector number should
-// always be between 0 and SECTORS_MAX (32 << 20).
-pub type SectorNumber = u64;
+/// Max number of sectors.
+/// <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/runtime/src/runtime/policy.rs#L262>
+pub const MAX_SECTORS: u32 = 32 << 20;
+
+/// SectorNumber is a unique identifier for a sector.
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    Eq,
+    Encode,
+    Decode,
+    DecodeAsType,
+    EncodeAsType,
+    TypeInfo,
+    RuntimeDebug,
+    MaxEncodedLen,
+)]
+#[cfg_attr(feature = "serde", derive(::serde::Serialize))]
+// #[codec(crate = ::codec)]
+// #[decode_as_type(crate_path = "::scale_decode")]
+// #[encode_as_type(crate_path = "::scale_encode")]
+pub struct SectorNumber(u64);
+
+impl SectorNumber {
+    /// Creates a new `SectorNumber` instance.
+    ///
+    /// Returns a `Result` containing the new `SectorNumber` if valid,
+    /// or an error message if the sector number exceeds `MAX_SECTORS`.
+    pub fn new(sector_number: u64) -> Result<Self, &'static str> {
+        if sector_number > MAX_SECTORS as u64 {
+            return Err("Sector number is too large");
+        }
+
+        Ok(Self(sector_number))
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> ::serde::Deserialize<'de> for SectorNumber {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+    {
+        let value = u64::deserialize(deserializer)?;
+        SectorNumber::new(value).map_err(|_| {
+            ::serde::de::Error::invalid_value(
+                ::serde::de::Unexpected::Unsigned(value),
+                &"an integer between 0 and MAX_SECTORS",
+            )
+        })
+    }
+}
+
+impl TryFrom<u64> for SectorNumber {
+    type Error = &'static str;
+
+    fn try_from(value: u64) -> Result<Self, Self::Error> {
+        Self::new(value)
+    }
+}
+
+impl From<SectorNumber> for u64 {
+    fn from(value: SectorNumber) -> Self {
+        value.0
+    }
+}
+
+impl Display for SectorNumber {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[cfg(feature = "std")]
+impl From<SectorNumber> for storage_proofs_core::sector::SectorId {
+    fn from(sector_number: SectorNumber) -> Self {
+        Self::from(sector_number.0)
+    }
+}
 
 /// Byte representation of the entity that was signing the proof.
 /// It must match the ProverId used for Proving.

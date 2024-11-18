@@ -257,7 +257,7 @@ impl Sealer {
         cache_path: CacheDirectory,
         replica_path: SealedSector,
         prover_id: ProverId,
-        sector_id: u64,
+        sector_id: SectorNumber,
         ticket: Ticket,
         seed: Option<Ticket>,
         pre_commit: PreCommitOutput,
