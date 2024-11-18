@@ -18,5 +18,8 @@ where
     AccountId: Encode,
 {
     let encoded = account_id.encode();
-    sp_core::blake2_256(&encoded)
+    let mut encoded = sp_core::blake2_256(&encoded);
+    // Necessary to be valid bls12 381 element.
+    encoded[31] &= 0x3f;
+    encoded
 }
