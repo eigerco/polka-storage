@@ -33,7 +33,7 @@ $ polka-storage-provider-client proofs commp polkadot.car
 
 ## `porep-params`
 
-Generates a [PoRep](../../glossary.md#proofs) parameters which consist of Proving Params (\*.porep.params file) and Verifying Key (\*.porep.vk, \*.porep.vk.scale).
+Generates a [PoRep](../../glossary.md#proofs) parameters which consist of Proving Params (`*.porep.params` file) and Verifying Key (`*.porep.vk`, `*.porep.vk.scale`).
 Proving Parameters are used by the Storage Provider to generate a PoRep and the corresponding Verifying Key is used to [verify proofs on chain](../../architecture/pallets/proofs.md#set_porep_verifying_key) by pallet-proofs and [pallet-storage-provider](../../architecture/pallets/storage-provider.md#prove_commit_sectors).
 
 ### Example
@@ -49,7 +49,7 @@ Generated parameters:
 
 ## `post-params`
 
-Generates a [PoSt](../../glossary.md#proofs) parameters which consist of Proving Params (\*.post.params file) and Verifying Key (\*.post.vk, \*.post.vk.scale).
+Generates a [PoSt](../../glossary.md#proofs) parameters which consist of Proving Params (`*.post.params` file) and Verifying Key (`*.post.vk`, `*.post.vk.scale`).
 Proving Parameters are used by the Storage Provider to generate a PoSt and the corresponding Verifying Key is used to [verify proofs on chain](../../architecture/pallets/proofs.md#set_post_verifying_key) by pallet-proofs and [pallet-storage-provider](../../architecture/pallets/storage-provider.md#submit_windowed_post).
 
 ### Example
@@ -68,15 +68,15 @@ Generated parameters:
 Generates a 2KiB sector-size PoRep proof for an input file and its piece commitment.
 Creates the sector containing only 1 piece, [seals it](https://spec.filecoin.io/#section-algorithms.pos.porep) by creating a replica and then creates a proof for it.
 
-This is a *demo command*, showcasing the ability to generate a PoRep
-given the proving parameters so it can later be used to verify proof on-chain.
-It uses hardcoded values, which normally would be sourced from the chain i.e:
-
-```rust
-let sector_id = 77;
-let ticket = [12u8; 32];
-let seed = [13u8; 32];
-```
+> This is a *demo command*, showcasing the ability to generate a PoRep
+> given the proving parameters so it can later be used to verify proof on-chain.
+> It uses hardcoded values, which normally would be sourced from the chain i.e:
+>
+> ```rust
+> let sector_id = 77;
+> let ticket = [12u8; 32];
+> let seed = [13u8; 32];
+> ```
 
 ```bash
 polka-storage-provider-client proofs porep \
@@ -120,14 +120,14 @@ Wrote proof to [...]/polka-storage/77.sector.proof.porep.scale
 Generates a 2KiB sector-sized PoSt proof.
 To be able to create a PoSt proof, first you need to generate a PoRep proof and a replica via `porep` command.
 
-This is a *demo command*, showcasing the ability to generate a PoSt,
-given the proving parameters so it can later be used to verify proof on-chain.
-It uses hardcoded values, which normally would be sourced from the chain i.e:
-
-```rust
-let sector_id = 77;
-let randomness = [1u8; 32];
-```
+> This is a *demo command*, showcasing the ability to generate a PoSt,
+> given the proving parameters so it can later be used to verify proof on-chain.
+> It uses hardcoded values, which normally would be sourced from the chain i.e:
+>
+> ```rust
+> let sector_id = 77;
+> let randomness = [1u8; 32];
+> ```
 
 ```bash
 polka-storage-provider-client proofs post
