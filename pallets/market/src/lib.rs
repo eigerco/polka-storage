@@ -39,7 +39,7 @@ pub mod pallet {
     use primitives_commitment::{
         commd::compute_unsealed_sector_commitment,
         piece::{PaddedPieceSize, PieceInfo},
-        Commitment, CommitmentKind,
+        Commitment,
     };
     use primitives_proofs::{
         ActiveDeal, ActiveSector, DealId, Market, RegisteredSealProof, SectorDeal, SectorNumber,
@@ -978,8 +978,8 @@ pub mod pallet {
             let pieces = proposals
                 .map(|p| {
                     let cid = p.cid()?;
-                    let commitment = Commitment::from_cid(&cid, CommitmentKind::Piece)
-                        .map_err(|err| ProposalError::CommD(err))?;
+                    let commitment =
+                        Commitment::from_cid(&cid).map_err(|err| ProposalError::CommD(err))?;
                     let size = PaddedPieceSize::new(p.piece_size)
                         .map_err(|err| ProposalError::InvalidPieceSize(err))?;
 

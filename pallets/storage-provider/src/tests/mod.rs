@@ -14,7 +14,7 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 use pallet_market::{BalanceOf, ClientDealProposal, DealProposal, DealState};
-use primitives_commitment::{Commitment, CommitmentKind};
+use primitives_commitment::{CommP, Commitment};
 use primitives_proofs::{
     DealId, ProofVerification, PublicReplicaInfo, Randomness, RegisteredPoStProof,
     RegisteredSealProof, SectorNumber, CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR,
@@ -421,8 +421,7 @@ struct DealProposalBuilder {
 
 impl Default for DealProposalBuilder {
     fn default() -> Self {
-        let piece_commitment =
-            Commitment::new(*b"dummydummydummydummydummydummydu", CommitmentKind::Piece);
+        let piece_commitment = Commitment::<CommP>::from(*b"dummydummydummydummydummydummydu");
 
         Self {
             piece_cid: piece_commitment

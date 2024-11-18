@@ -7,7 +7,7 @@ use polka_storage_proofs::porep::{
     PoRepError, PoRepParameters,
 };
 use polka_storage_provider_common::rpc::ServerInfo;
-use primitives_commitment::Commitment;
+use primitives_commitment::{CommD, CommP, CommR, Commitment};
 use primitives_proofs::{
     derive_prover_id,
     randomness::{draw_randomness, DomainSeparationTag},
@@ -115,15 +115,15 @@ impl PipelineOperations for TaskTracker {
             deal,
             published_deal_id,
             piece_path,
-            piece_cid,
+            commitment,
         } = msg;
         self.spawn(async move {
             tokio::select! {
                 // AddPiece is cancellation safe, as it can be retried and the state will be fine.
-                res = add_piece(state, piece_path, piece_cid, deal, published_deal_id) => {
+                res = add_piece(state, piece_path, commitment, deal, published_deal_id) => {
                     match res {
-                        Ok(_) => tracing::info!("Add Piece for piece {:?}, deal id {}, finished successfully.", piece_cid, published_deal_id),
-                        Err(err) => tracing::error!(%err, "Add Piece for piece {:?}, deal id {}, failed!", piece_cid, published_deal_id),
+                        Ok(_) => tracing::info!("Add Piece for piece {}, deal id {}, finished successfully.", commitment, published_deal_id),
+                        Err(err) => tracing::error!(%err, "Add Piece for piece {}, deal id {}, failed!", commitment, published_deal_id),
                     }
                 },
                 () = token.cancelled() => {
@@ -206,7 +206,7 @@ async fn find_sector_for_piece(
 async fn add_piece(
     state: Arc<PipelineState>,
     piece_path: PathBuf,
-    piece_cid: Commitment,
+    commitment: Commitment<CommP>,
     deal: DealProposal,
     deal_id: u64,
 ) -> Result<(), PipelineError> {
@@ -223,7 +223,7 @@ async fn add_piece(
                 .open(&sector.unsealed_path)?;
 
             tracing::info!("Preparing piece...");
-            let (padded_reader, piece_info) = prepare_piece(piece_path, piece_cid)?;
+            let (padded_reader, piece_info) = prepare_piece(piece_path, commitment)?;
             tracing::info!("Adding piece...");
             let occupied_piece_space = sealer.add_piece(
                 padded_reader,
@@ -322,6 +322,9 @@ async fn precommit(
     let sealing_output = sealing_handle.await??;
     tracing::info!("Created sector's replica: {:?}", sealing_output);
 
+    let sealing_output_commr = Commitment::<CommR>::from(sealing_output.comm_r);
+    let sealing_output_commd = Commitment::<CommD>::from(sealing_output.comm_d);
+
     tracing::debug!("Precommiting at block: {}", current_block);
     let result = state
         .xt_client
@@ -338,16 +341,8 @@ async fn precommit(
                     + SECTOR_EXPIRATION_MARGIN,
                 sector_number: sector_number,
                 seal_proof: state.server_info.seal_proof,
-                sealed_cid: primitives_commitment::Commitment::new(
-                    sealing_output.comm_r,
-                    primitives_commitment::CommitmentKind::Replica,
-                )
-                .cid(),
-                unsealed_cid: primitives_commitment::Commitment::new(
-                    sealing_output.comm_d,
-                    primitives_commitment::CommitmentKind::Data,
-                )
-                .cid(),
+                sealed_cid: sealing_output_commr.cid(),
+                unsealed_cid: sealing_output_commd.cid(),
                 seal_randomness_height: current_block,
             }],
             true,
@@ -367,8 +362,8 @@ async fn precommit(
     let sector = PreCommittedSector::create(
         sector,
         sealed_path,
-        Commitment::replica(sealing_output.comm_r),
-        Commitment::data(sealing_output.comm_d),
+        sealing_output_commr,
+        sealing_output_commd,
         current_block,
         precommited_sectors[0].block,
     )
@@ -452,8 +447,7 @@ async fn prove_commit(
         let cache_dir = state.sealing_cache_dir.clone();
         let sealed_path = sector.sealed_path.clone();
         let piece_infos = sector.piece_infos.clone();
-        let comm_r = sector.comm_r.raw();
-        let comm_d = sector.comm_d.raw();
+
         tokio::task::spawn_blocking(move || {
             sealer.prove_sector(
                 porep_params.as_ref(),
@@ -463,7 +457,10 @@ async fn prove_commit(
                 sector_number,
                 ticket,
                 Some(seed),
-                PreCommitOutput { comm_r, comm_d },
+                PreCommitOutput {
+                    comm_r: sector.comm_r,
+                    comm_d: sector.comm_d,
+                },
                 &piece_infos,
             )
         })

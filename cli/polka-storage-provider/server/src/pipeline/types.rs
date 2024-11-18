@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use primitives_commitment::{piece::PieceInfo, Commitment};
+use primitives_commitment::{piece::PieceInfo, CommD, CommP, CommR, Commitment};
 use primitives_proofs::{DealId, SectorNumber};
 use serde::{Deserialize, Serialize};
 use storagext::types::market::DealProposal;
@@ -26,7 +26,7 @@ pub struct AddPieceMessage {
     /// Path where the deal data (.car archive) is stored
     pub piece_path: PathBuf,
     /// CommP of the .car archive stored at `piece_path`
-    pub piece_cid: Commitment,
+    pub commitment: Commitment<CommP>,
 }
 
 /// Sector to be sealed and pre-commited to the chain
@@ -95,11 +95,11 @@ pub struct PreCommittedSector {
     /// the file has contents which should not be touched and are used for later steps.
     pub sealed_path: std::path::PathBuf,
 
-    /// CID of the sealed sector.
-    pub comm_r: Commitment,
+    /// Sealed sector commitment.
+    pub comm_r: Commitment<CommR>,
 
-    /// CID of the unsealed data of the sector.
-    pub comm_d: Commitment,
+    /// Data commitment of the sector.
+    pub comm_d: Commitment<CommD>,
 
     /// Block at which randomness has been fetched to perform [`PipelineMessage::PreCommit`].
     ///
@@ -143,8 +143,8 @@ impl PreCommittedSector {
     pub async fn create(
         unsealed: UnsealedSector,
         sealed_path: std::path::PathBuf,
-        comm_r: Commitment,
-        comm_d: Commitment,
+        comm_r: Commitment<CommR>,
+        comm_d: Commitment<CommD>,
         seal_randomness_height: u64,
         precommit_block: u64,
     ) -> Result<Self, std::io::Error> {
@@ -181,11 +181,11 @@ pub struct ProvenSector {
     /// Path of an existing file where the sealed sector data is stored.
     pub sealed_path: std::path::PathBuf,
 
-    /// CID of the sealed sector.
-    pub comm_r: Commitment,
+    /// Sealed sector commitment.
+    pub comm_r: Commitment<CommR>,
 
-    /// CID of the unsealed data of the sector.
-    pub comm_d: Commitment,
+    /// Data commitment of the sector.
+    pub comm_d: Commitment<CommD>,
 }
 
 impl ProvenSector {

@@ -10,9 +10,9 @@ use filecoin_proofs::{
 };
 use primitives_commitment::{
     piece::{PaddedPieceSize, PieceInfo},
-    Commitment,
+    CommD, CommP, CommR, Commitment,
 };
-use primitives_proofs::{RawCommitment, RegisteredSealProof, SectorNumber};
+use primitives_proofs::{RegisteredSealProof, SectorNumber};
 use storage_proofs_core::{compound_proof, compound_proof::CompoundProof};
 use storage_proofs_porep::stacked::{self, StackedCompound, StackedDrg};
 
@@ -39,7 +39,7 @@ pub type SubstrateProof = crate::Proof<bls12_381::Bls12>;
 /// and then by wrapping the respective file reader with a [`ZeroPaddingReader`].
 pub fn prepare_piece<P>(
     piece_path: P,
-    piece_comm_p: Commitment,
+    commitment: Commitment<CommP>,
 ) -> Result<(ZeroPaddingReader<File>, PieceInfo), std::io::Error>
 where
     P: AsRef<Path>,
@@ -57,7 +57,7 @@ where
     let piece_padded_file = ZeroPaddingReader::new(piece_file, *piece_padded_unpadded_length);
 
     let piece_info = PieceInfo {
-        commitment: piece_comm_p,
+        commitment,
         size: padded_piece_size,
     };
 
@@ -120,9 +120,7 @@ impl Sealer {
         let sector_size: UnpaddedBytesAmount = self.porep_config.sector_size.into();
         let padding_pieces =
             filler_pieces(sector_size - UnpaddedBytesAmount(sector_occupied_space));
-        result_pieces.extend(padding_pieces.into_iter().map(|p| {
-            PieceInfo::from_filecoin_piece_info(p, primitives_commitment::CommitmentKind::Piece)
-        }));
+        result_pieces.extend(padding_pieces.into_iter().map(PieceInfo::from));
 
         Ok(result_pieces)
     }
@@ -231,7 +229,10 @@ impl Sealer {
             sealed_sector,
         )?;
 
-        Ok(PreCommitOutput { comm_r, comm_d })
+        Ok(PreCommitOutput {
+            comm_r: Commitment::from(comm_r),
+            comm_d: Commitment::from(comm_d),
+        })
     }
 
     /// Generates a zk-SNARK proof guaranteeing a sealed_sector at `replica_path` is being stored.
@@ -267,8 +268,9 @@ impl Sealer {
 
         let piece_infos = piece_infos
             .into_iter()
-            .map(|p| (*p).into())
-            .collect::<Vec<filecoin_proofs::PieceInfo>>();
+            .copied()
+            .map(filecoin_proofs::PieceInfo::from)
+            .collect::<Vec<_>>();
 
         let scp1: filecoin_proofs::SealCommitPhase1Output<SectorShapeBase> =
             filecoin_proofs::seal_commit_phase1_inner(
@@ -279,10 +281,7 @@ impl Sealer {
                 sector_id.into(),
                 ticket,
                 seed,
-                SealPreCommitOutput {
-                    comm_d: pre_commit.comm_d,
-                    comm_r: pre_commit.comm_r,
-                },
+                pre_commit.into(),
                 &piece_infos,
                 false,
             )?;
@@ -388,12 +387,21 @@ pub fn filler_pieces(remaining_space: UnpaddedBytesAmount) -> Vec<filecoin_proof
 /// References:
 /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/266acc39a3ebd6f3d28c6ee335d78e2b7cea06bc/storage-proofs-porep/src/stacked/vanilla/params.rs#L832>]
 /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/266acc39a3ebd6f3d28c6ee335d78e2b7cea06bc/filecoin-proofs/src/types/mod.rs#L53>
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct PreCommitOutput {
     /// Sealed Sector (Replica) Commitment, after padding and processing it.
-    pub comm_r: RawCommitment,
+    pub comm_r: Commitment<CommR>,
     /// Data commitment, after padding, before processing it into a replica.
-    pub comm_d: RawCommitment,
+    pub comm_d: Commitment<CommD>,
+}
+
+impl From<PreCommitOutput> for filecoin_proofs::SealPreCommitOutput {
+    fn from(value: PreCommitOutput) -> Self {
+        Self {
+            comm_r: value.comm_r.raw(),
+            comm_d: value.comm_d.raw(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -478,13 +486,7 @@ mod test {
             filecoin_proofs::generate_piece_commitment(Cursor::new(&mut piece_bytes), piece_size)
                 .unwrap();
 
-        (
-            piece_bytes,
-            primitives_commitment::piece::PieceInfo::from_filecoin_piece_info(
-                piece_info,
-                primitives_commitment::CommitmentKind::Piece,
-            ),
-        )
+        (piece_bytes, piece_info.into())
     }
 
     /// Computes CommD from the raw data, not from the pieces.
