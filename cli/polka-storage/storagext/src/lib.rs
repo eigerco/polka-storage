@@ -8,7 +8,10 @@ pub mod types;
 pub mod deser;
 
 pub use crate::{
-    clients::{MarketClientExt, RandomnessClientExt, StorageProviderClientExt, SystemClientExt},
+    clients::{
+        FaucetClientExt, MarketClientExt, RandomnessClientExt, StorageProviderClientExt,
+        SystemClientExt,
+    },
     runtime::{bounded_vec::IntoBoundedByteVec, client::Client},
 };
 
