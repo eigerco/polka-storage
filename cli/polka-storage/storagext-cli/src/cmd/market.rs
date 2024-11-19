@@ -17,12 +17,28 @@ use url::Url;
 
 use crate::{missing_keypair_error, operation_takes_a_while, OutputFormat};
 
+/// Removes the `_` from a the input before calling [`parse`](std::std::FromStr::parse).
+fn parse_without_underscore<T>(s: &str) -> Result<T, T::Err>
+where
+    T: std::str::FromStr,
+{
+    s.replace('_', "").parse()
+}
+
 #[derive(Debug, Subcommand)]
 #[command(name = "market", about = "CLI Client to the Market Pallet", version)]
 pub(crate) enum MarketCommand {
     /// Add balance to an account.
     AddBalance {
         /// Amount to add to the account.
+        #[arg(value_parser=parse_without_underscore::<storagext::Currency>)]
+        amount: storagext::Currency,
+    },
+
+    /// Withdraw balance from an account.
+    WithdrawBalance {
+        /// Amount to withdraw from the account.
+        #[arg(value_parser=parse_without_underscore::<storagext::Currency>)]
         amount: storagext::Currency,
     },
 
@@ -55,12 +71,6 @@ pub(crate) enum MarketCommand {
     SettleDealPayments {
         /// The IDs for the deals to settle.
         deal_ids: Vec<DealId>,
-    },
-
-    /// Withdraw balance from an account.
-    WithdrawBalance {
-        /// Amount to withdraw from the account.
-        amount: storagext::Currency,
     },
 
     /// Retrieve the balance for a given account.
@@ -294,5 +304,16 @@ impl MarketCommand {
             });
 
         Ok(submission_result)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::parse_without_underscore;
+
+    #[test]
+    fn test_parse() {
+        let parsed = parse_without_underscore::<u128>("1_000_0").unwrap();
+        assert_eq!(parsed, 1_000_0);
     }
 }
