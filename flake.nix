@@ -23,7 +23,6 @@
         };
         rustToolchain = pkgs.pkgsBuildHost.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
         buildInputs = with pkgs; [
-          azure-cli # Building Docker images and publishing to Azure Container Registry
           cargo-expand
           cargo-tarpaulin
           clang

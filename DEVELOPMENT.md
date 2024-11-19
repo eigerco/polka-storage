@@ -31,7 +31,7 @@ $ polkadot --version
 polkadot 1.11.0-0bb6249
 
 $ cargo --version
-cargo 1.77.0 (3fe68eabf 2024-02-29)
+cargo 1.81.0 (3fe68eabf 2024-02-29)
 
 $ zombienet version
 1.3.103
