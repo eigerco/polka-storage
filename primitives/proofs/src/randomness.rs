@@ -8,6 +8,7 @@ use sp_core::blake2_256;
 pub enum DomainSeparationTag {
     SealRandomness,
     InteractiveSealChallengeSeed,
+    WindowedPoStChallengeSeed,
 }
 
 impl DomainSeparationTag {
@@ -16,6 +17,7 @@ impl DomainSeparationTag {
         let value: i64 = match self {
             DomainSeparationTag::SealRandomness => 1,
             DomainSeparationTag::InteractiveSealChallengeSeed => 2,
+            DomainSeparationTag::WindowedPoStChallengeSeed => 3,
         };
 
         value.to_be_bytes()

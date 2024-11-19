@@ -3,7 +3,7 @@ use frame_support::{
     pallet_prelude::{ConstU32, RuntimeDebug},
     sp_runtime::BoundedVec,
 };
-use primitives_proofs::RegisteredPoStProof;
+use primitives_proofs::{RegisteredPoStProof, MAX_POST_PROOF_BYTES};
 use scale_info::TypeInfo;
 use sp_core::blake2_64;
 
@@ -15,7 +15,7 @@ pub struct PoStProof {
     /// The proof type, currently only one type is supported.
     pub post_proof: RegisteredPoStProof,
     /// The proof submission, to be checked in the storage provider pallet.
-    pub proof_bytes: BoundedVec<u8, ConstU32<256>>, // Arbitrary length
+    pub proof_bytes: BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>,
 }
 
 /// Parameter type for `submit_windowed_post` extrinsic.
