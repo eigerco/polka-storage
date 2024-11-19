@@ -126,7 +126,7 @@ impl DealDB {
     ) -> Result<Option<SectorType>, DBError> {
         let Some(sector_slice) = self.database.get_pinned_cf(
             self.cf_handle(SECTORS_CF),
-            u64::from(sector_number).to_le_bytes(),
+            u32::from(sector_number).to_le_bytes(),
         )?
         else {
             return Ok(None);
@@ -144,7 +144,7 @@ impl DealDB {
         sector: &SectorType,
     ) -> Result<(), DBError> {
         let cf_handle = self.cf_handle(SECTORS_CF);
-        let key = u64::from(sector_number).to_le_bytes();
+        let key = u32::from(sector_number).to_le_bytes();
         let json = serde_json::to_vec(&sector)?;
 
         self.database.put_cf(cf_handle, key, json)?;
@@ -167,7 +167,7 @@ impl DealDB {
             let key: [u8; 4] = key
                 .as_ref()
                 .try_into()
-                .expect("sector's key to be u64 le bytes");
+                .expect("sector's key to be u32 le bytes");
             // Unwrap safe. Can only fail if the sector number was manually
             // inserted in the database.
             let sector_id =

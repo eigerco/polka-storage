@@ -1317,25 +1317,25 @@ mod tests {
             .iter()
             .flat_map(|(_, partition)| partition.sectors.iter().cloned())
             .map(|s| s.into())
-            .collect::<BTreeSet<u64>>();
+            .collect::<BTreeSet<u32>>();
         let partition_terminated = deadline
             .partitions
             .iter()
             .flat_map(|(_, partition)| partition.terminated.iter().cloned())
             .map(|s| s.into())
-            .collect::<BTreeSet<u64>>();
+            .collect::<BTreeSet<u32>>();
         let partition_faults = deadline
             .partitions
             .iter()
             .flat_map(|(_, partition)| partition.faults.iter().cloned())
             .map(|s| s.into())
-            .collect::<BTreeSet<u64>>();
+            .collect::<BTreeSet<u32>>();
         let partition_unproven = deadline
             .partitions
             .iter()
             .flat_map(|(_, partition)| partition.unproven.iter().cloned())
             .map(|s| s.into())
-            .collect::<BTreeSet<u64>>();
+            .collect::<BTreeSet<u32>>();
         assert_eq!(partition_sectors, expected_sectors);
         assert_eq!(partition_terminated, expected_terminated);
         assert_eq!(partition_faults, expected_faults);
