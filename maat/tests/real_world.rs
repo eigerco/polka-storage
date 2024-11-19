@@ -178,8 +178,8 @@ async fn publish_storage_deals<Keypair>(
         label,
         start_block: 85,
         end_block: 165,
-        storage_price_per_block: 300000000,
-        provider_collateral: 12500000000,
+        storage_price_per_block: 300_000_000,
+        provider_collateral: 12_500_000_000,
         state: DealState::Published,
     };
 

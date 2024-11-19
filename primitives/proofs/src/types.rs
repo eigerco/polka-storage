@@ -1,7 +1,10 @@
-use core::fmt::Display;
+use core::{fmt::Display, marker::PhantomData};
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use scale_decode::DecodeAsType;
+use scale_decode::{
+    visitor::{self},
+    DecodeAsType, ToString, TypeResolver, Visitor,
+};
 use scale_encode::EncodeAsType;
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
@@ -21,8 +24,6 @@ pub const MAX_SECTORS: u32 = 32 << 20;
     PartialOrd,
     Eq,
     Encode,
-    Decode,
-    DecodeAsType,
     EncodeAsType,
     TypeInfo,
     RuntimeDebug,
@@ -58,6 +59,67 @@ impl<'de> ::serde::Deserialize<'de> for SectorNumber {
                 &"an integer between 0 and MAX_SECTORS",
             )
         })
+    }
+}
+
+impl Decode for SectorNumber {
+    fn decode<I: codec::Input>(input: &mut I) -> Result<Self, codec::Error> {
+        let value = u64::decode(input)?;
+        SectorNumber::new(value).map_err(|_| "Sector number is too large".into())
+    }
+}
+
+// Implement the `Visitor` trait to define how to go from SCALE
+// values into this type.
+pub struct SectorNumberVisitor<R>(PhantomData<R>);
+
+impl<R> SectorNumberVisitor<R> {
+    fn new() -> Self {
+        Self(PhantomData)
+    }
+}
+
+impl<R: TypeResolver> Visitor for SectorNumberVisitor<R> {
+    type Value<'scale, 'resolver> = SectorNumber;
+    type Error = scale_decode::Error;
+    type TypeResolver = R;
+
+    fn visit_u64<'scale, 'resolver>(
+        self,
+        value: u64,
+        _type_id: visitor::TypeIdFor<Self>,
+    ) -> Result<Self::Value<'scale, 'resolver>, Self::Error> {
+        SectorNumber::new(value).map_err(|_| {
+            scale_decode::Error::new(scale_decode::error::ErrorKind::NumberOutOfRange {
+                value: value.to_string(),
+            })
+        })
+    }
+
+    fn visit_composite<'scale, 'resolver>(
+        self,
+        value: &mut visitor::types::Composite<'scale, 'resolver, Self::TypeResolver>,
+        _type_id: visitor::TypeIdFor<Self>,
+    ) -> Result<Self::Value<'scale, 'resolver>, Self::Error> {
+        // `visit_composite` is called when the type is part of some other
+        // composite type.
+        match value.decode_item(self) {
+            Some(item) => item,
+            None => {
+                return Err(scale_decode::Error::new(
+                    scale_decode::error::ErrorKind::CannotFindField {
+                        name: "".to_string(),
+                    },
+                ))
+            }
+        }
+    }
+}
+
+impl scale_decode::IntoVisitor for SectorNumber {
+    type AnyVisitor<R: TypeResolver> = SectorNumberVisitor<R>;
+    fn into_visitor<R: TypeResolver>() -> Self::AnyVisitor<R> {
+        SectorNumberVisitor::new()
     }
 }
 
