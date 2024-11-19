@@ -7,7 +7,6 @@ use frame_support::{
     pallet_prelude::{ConstU32, RuntimeDebug},
     sp_runtime::{BoundedBTreeMap, BoundedVec},
 };
-use frame_system::pallet_prelude::BlockNumberFor;
 use primitives_proofs::{RegisteredPoStProof, SectorNumber, SectorSize};
 use scale_info::TypeInfo;
 use sp_arithmetic::{traits::BaseArithmetic, ArithmeticError};
@@ -17,7 +16,6 @@ use crate::{
     error::GeneralPalletError,
     partition::TerminationResult,
     sector::{SectorOnChainInfo, SectorPreCommitOnChainInfo, MAX_SECTORS},
-    Config,
 };
 
 const LOG_TARGET: &'static str = "runtime::storage_provider::storage_provider";
@@ -103,7 +101,7 @@ where
     }
 
     /// Advance the proving period start of the storage provider if the next deadline is the first one.
-    pub fn advance_deadline<C>(
+    pub fn advance_deadline(
         &mut self,
         current_block: BlockNumber,
         w_post_period_deadlines: u64,
@@ -111,12 +109,8 @@ where
         w_post_challenge_window: BlockNumber,
         w_post_challenge_lookback: BlockNumber,
         fault_declaration_cutoff: BlockNumber,
-    ) -> Result<(), GeneralPalletError>
-    where
-        C: Config,
-        BlockNumberFor<C>: sp_runtime::traits::BlockNumber,
-    {
-        let dl_info = self.deadline_info::<C>(
+    ) -> Result<(), GeneralPalletError> {
+        let dl_info = self.deadline_info(
             current_block,
             w_post_period_deadlines,
             w_post_proving_period,
@@ -220,7 +214,7 @@ where
     ///
     /// Reference:
     /// * <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/state.rs#L489-L554>
-    pub fn assign_sectors_to_deadlines<C>(
+    pub fn assign_sectors_to_deadlines(
         &mut self,
         current_block: BlockNumber,
         mut sectors: BoundedVec<SectorOnChainInfo<BlockNumber>, ConstU32<MAX_SECTORS>>,
@@ -231,11 +225,7 @@ where
         w_post_challenge_window: BlockNumber,
         w_post_challenge_lookback: BlockNumber,
         fault_declaration_cutoff: BlockNumber,
-    ) -> Result<(), GeneralPalletError>
-    where
-        C: Config,
-        BlockNumberFor<C>: sp_runtime::traits::BlockNumber,
-    {
+    ) -> Result<(), GeneralPalletError> {
         sectors.sort_by_key(|info| info.sector_number);
 
         log::debug!(target: LOG_TARGET,
@@ -310,7 +300,7 @@ where
     /// Returns deadline calculations for the current (according to state) proving period.
     ///
     /// **Pre-condition**: `current_block > self.proving_period_start`
-    pub fn deadline_info<C>(
+    pub fn deadline_info(
         &self,
         current_block: BlockNumber,
         w_post_period_deadlines: u64,
@@ -318,11 +308,7 @@ where
         w_post_challenge_window: BlockNumber,
         w_post_challenge_lookback: BlockNumber,
         fault_declaration_cutoff: BlockNumber,
-    ) -> Result<DeadlineInfo<BlockNumber>, GeneralPalletError>
-    where
-        C: Config,
-        BlockNumberFor<C>: sp_runtime::traits::BlockNumber,
-    {
+    ) -> Result<DeadlineInfo<BlockNumber>, GeneralPalletError> {
         let current_deadline_index = self.current_deadline;
 
         DeadlineInfo::new(

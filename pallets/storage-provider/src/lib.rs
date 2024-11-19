@@ -611,7 +611,7 @@ pub mod pallet {
 
             // Assign sectors to deadlines which specify when sectors needs
             // to be proven
-            sp.assign_sectors_to_deadlines::<T>(
+            sp.assign_sectors_to_deadlines(
                 current_block,
                 new_sectors,
                 sp.info.window_post_partition_sectors,
@@ -706,7 +706,7 @@ pub mod pallet {
                 Error::<T>::InvalidDeadlineSubmission
             });
             let current_deadline = sp
-                .deadline_info::<T>(
+                .deadline_info(
                     current_block,
                     T::WPoStPeriodDeadlines::get(),
                     T::WPoStProvingPeriod::get(),
@@ -1208,7 +1208,7 @@ pub mod pallet {
                     continue;
                 }
 
-                let Ok(current_deadline) = state.deadline_info::<T>(
+                let Ok(current_deadline) = state.deadline_info(
                     current_block,
                     T::WPoStPeriodDeadlines::get(),
                     T::WPoStProvingPeriod::get(),
@@ -1312,7 +1312,7 @@ pub mod pallet {
                 // Next processing will happen in the next proving period.
                 deadline.partitions_posted = BoundedBTreeSet::new();
                 state
-                    .advance_deadline::<T>(
+                    .advance_deadline(
                         current_block,
                         T::WPoStPeriodDeadlines::get(),
                         T::WPoStProvingPeriod::get(),
