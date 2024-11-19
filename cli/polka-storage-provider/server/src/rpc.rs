@@ -121,22 +121,19 @@ impl StorageProviderRpcServer for RpcServerState {
         // We always publish only 1 deal
         let deal_id = published_deals[0].deal_id;
 
-        let piece_cid = Commitment::new(
-            piece_cid.hash().digest().try_into().map_err(|e| {
-                RpcError::invalid_params(
-                    e,
-                    Some(serde_json::to_value(piece_cid).expect("cid to be serializable")),
-                )
-            })?,
-            primitives_commitment::CommitmentKind::Piece,
-        );
+        let commitment = Commitment::from_cid(&piece_cid).map_err(|e| {
+            RpcError::invalid_params(
+                e,
+                Some(serde_json::to_value(piece_cid).expect("cid to be serializable")),
+            )
+        })?;
 
         self.pipeline_sender
             .send(PipelineMessage::AddPiece(AddPieceMessage {
                 deal: deal_proposal,
                 published_deal_id: deal_id,
                 piece_path,
-                piece_cid,
+                commitment,
             }))
             .map_err(|e| RpcError::internal_error(e, None))?;
 

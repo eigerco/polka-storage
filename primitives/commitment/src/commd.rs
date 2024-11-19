@@ -7,7 +7,7 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     piece::{PaddedPieceSize, PieceInfo, UnpaddedPieceSize},
-    zero_piece_commitment, Commitment, CommitmentKind, NODE_SIZE,
+    CommD, CommP, Commitment, NODE_SIZE,
 };
 
 // Ensure that the pieces are correct sizes
@@ -38,13 +38,14 @@ fn ensure_piece_sizes(
 pub fn compute_unsealed_sector_commitment(
     sector_size: SectorSize,
     piece_infos: &[PieceInfo],
-) -> Result<Commitment, CommDError> {
+) -> Result<Commitment<CommD>, CommDError> {
     let padded_sector_size = PaddedPieceSize::new(sector_size.bytes()).unwrap();
 
     // In case of no pieces, return the piece zero commitment for the whole
     // sector size.
     if piece_infos.is_empty() {
-        return Ok(zero_piece_commitment(padded_sector_size));
+        let piece_commitment = Commitment::<CommP>::zero(padded_sector_size);
+        return Ok(Commitment::from(piece_commitment.raw()));
     }
 
     // Check if pieces are correct sizes.
@@ -164,7 +165,7 @@ impl CommDPieceReduction {
 
     /// Finish the reduction of all pieces. Result is a data commitment for the
     /// pieces added.
-    fn finish(mut self, sector_size: SectorSize) -> Option<Commitment> {
+    fn finish(mut self, sector_size: SectorSize) -> Option<Commitment<CommD>> {
         // Add padding pieces to the end until the sector size is reached and we
         // have only a single piece left on the stack.
         loop {
@@ -179,14 +180,14 @@ impl CommDPieceReduction {
 
         // Finally a single piece with the commitment that represents all
         // reduced pieces
-        Some(self.pieces.pop()?.commitment)
+        Some(Commitment::from(self.pieces.pop()?.commitment.raw()))
     }
 }
 
 /// Create a piece of specific size used as a padding.
 fn padding_piece(piece_size: PaddedPieceSize) -> PieceInfo {
     PieceInfo {
-        commitment: zero_piece_commitment(piece_size),
+        commitment: Commitment::<CommP>::zero(piece_size),
         size: piece_size,
     }
 }
@@ -206,7 +207,7 @@ fn join_piece_infos(left: PieceInfo, right: PieceInfo) -> Result<PieceInfo, Comm
     let size = left.size + right.size;
 
     Ok(PieceInfo {
-        commitment: Commitment::new(comm, CommitmentKind::Piece),
+        commitment: Commitment::<CommP>::from(comm),
         size,
     })
 }
@@ -321,7 +322,7 @@ mod tests {
             .map(|(cid, size)| {
                 let size = PaddedPieceSize::new(size).unwrap();
                 let cid = Cid::from_str(cid).unwrap();
-                let commitment = Commitment::from_cid(&cid, CommitmentKind::Piece).unwrap();
+                let commitment = Commitment::from_cid(&cid).unwrap();
 
                 PieceInfo { commitment, size }
             })

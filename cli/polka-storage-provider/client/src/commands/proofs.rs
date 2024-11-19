@@ -14,7 +14,7 @@ use polka_storage_proofs::{
 use polka_storage_provider_common::commp::{calculate_piece_commitment, CommPError};
 use primitives_commitment::{
     piece::{PaddedPieceSize, PieceInfo},
-    Commitment, CommitmentKind,
+    Commitment,
 };
 use primitives_proofs::{derive_prover_id, RegisteredPoStProof, RegisteredSealProof};
 use storagext::multipair::{MultiPairArgs, MultiPairSigner};
@@ -247,14 +247,11 @@ impl ProofsCommand {
                 let piece_file_length = PaddedPieceSize::from_arbitrary_size(piece_file_length);
                 let piece_file = ZeroPaddingReader::new(piece_file, *piece_file_length.unpadded());
 
-                let commp = cid::Cid::from_str(commp.as_str())
+                let commp = cid::Cid::from_str(&commp)
                     .map_err(|e| UtilsCommandError::InvalidPieceCommP(commp, e))?;
                 let piece_info = PieceInfo {
-                    commitment: primitives_commitment::Commitment::from_cid(
-                        &commp,
-                        CommitmentKind::Piece,
-                    )
-                    .map_err(|e| UtilsCommandError::InvalidPieceType(commp.to_string(), e))?,
+                    commitment: Commitment::try_from(commp)
+                        .map_err(|e| UtilsCommandError::InvalidPieceType(commp.to_string(), e))?,
                     size: piece_file_length,
                 };
 
@@ -299,13 +296,13 @@ impl ProofsCommand {
                         sector_id,
                         ticket,
                         Some(seed),
-                        precommit.clone(),
+                        precommit,
                         &piece_infos,
                     )
                     .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
 
-                println!("CommD: {:?}", Commitment::data(precommit.comm_d).cid());
-                println!("CommR: {:?}", Commitment::replica(precommit.comm_r).cid());
+                println!("CommD: {}", precommit.comm_d.cid());
+                println!("CommR: {}", precommit.comm_r.cid());
                 println!("Proof: {:?}", proofs);
                 // We use sector size 2KiB only at this point, which guarantees to have 1 proof, because it has 1 partition in the config.
                 // That's why `prove_commit` will always generate a 1 proof.

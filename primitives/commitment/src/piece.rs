@@ -1,41 +1,33 @@
 use core::ops::{Add, AddAssign, Deref};
 
-use crate::{Commitment, NODE_SIZE};
+use crate::{CommP, Commitment, NODE_SIZE};
 
 /// Piece info contains piece commitment and piece size.
 #[cfg_attr(feature = "serde", derive(::serde::Deserialize, ::serde::Serialize))]
 #[derive(PartialEq, Debug, Eq, Clone, Copy)]
 pub struct PieceInfo {
     /// Piece commitment
-    pub commitment: Commitment,
+    pub commitment: Commitment<CommP>,
     /// Piece size
     pub size: PaddedPieceSize,
 }
 
 #[cfg(feature = "std")]
-impl PieceInfo {
-    /// Convert a [`filecoin_proofs::PieceInfo`] into a [`PieceInfo`].
-    ///
-    /// With some generics trickery we could move the CommitmentKind to a compile-time thing
-    /// and further get more safety out of the Commitment type; additionally, this method
-    /// could be turned into a `from`.
-    pub fn from_filecoin_piece_info(
-        piece_info: filecoin_proofs::PieceInfo,
-        kind: crate::CommitmentKind,
-    ) -> Self {
+impl From<filecoin_proofs::PieceInfo> for PieceInfo {
+    fn from(piece_info: filecoin_proofs::PieceInfo) -> Self {
         Self {
-            commitment: Commitment::new(piece_info.commitment, kind),
+            commitment: Commitment::<CommP>::from(piece_info.commitment),
             size: PaddedPieceSize::from_arbitrary_size(piece_info.size.0),
         }
     }
 }
 
 #[cfg(feature = "std")]
-impl Into<filecoin_proofs::PieceInfo> for PieceInfo {
-    fn into(self) -> filecoin_proofs::PieceInfo {
+impl From<PieceInfo> for filecoin_proofs::PieceInfo {
+    fn from(value: PieceInfo) -> Self {
         filecoin_proofs::PieceInfo {
-            commitment: self.commitment.commitment,
-            size: filecoin_proofs::UnpaddedBytesAmount(self.size.unpadded().0),
+            commitment: value.commitment.raw,
+            size: filecoin_proofs::UnpaddedBytesAmount(value.size.unpadded().0),
         }
     }
 }

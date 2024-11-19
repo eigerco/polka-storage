@@ -55,7 +55,7 @@ pub mod pallet {
         pallet_prelude::{BlockNumberFor, *},
         Config as SystemConfig,
     };
-    use primitives_commitment::{Commitment, CommitmentKind};
+    use primitives_commitment::{CommD, CommR, Commitment};
     use primitives_proofs::{
         derive_prover_id,
         randomness::{draw_randomness, DomainSeparationTag},
@@ -495,14 +495,14 @@ pub mod pallet {
                 )?;
 
                 // Validate the data commitment
-                let commd = Commitment::from_cid_bytes(&sector.unsealed_cid[..], CommitmentKind::Data)
+                let commd = Commitment::<CommD>::from_cid_bytes(&sector.unsealed_cid[..])
                     .map_err(|err| {
                         log::error!(target: LOG_TARGET, err:?; "pre_commit_sectors: invalid unsealed_cid");
                         Error::<T>::InvalidCid
                     })?;
 
                 // Validate the replica commitment
-                let _ = Commitment::from_cid_bytes(&sector.sealed_cid[..], CommitmentKind::Replica)
+                let _ = Commitment::<CommR>::from_cid_bytes(&sector.sealed_cid[..])
                     .map_err(|err| {
                         log::error!(target: LOG_TARGET, err:?; "pre_commit_sectors: invalid sealed_cid");
                         Error::<T>::InvalidCid
@@ -1528,14 +1528,14 @@ pub mod pallet {
         }
 
         // Validate the data commitment
-        let commd = Commitment::from_cid_bytes(&precommit.info.unsealed_cid[..], CommitmentKind::Data)
+        let commd = Commitment::<CommD>::from_cid_bytes(&precommit.info.unsealed_cid[..])
             .map_err(|err| {
                 log::error!(target: LOG_TARGET, err:?; "validate_seal_proof: invalid unsealed_cid {:?}", &precommit.info.unsealed_cid);
                 Error::<T>::InvalidCid
             })?;
 
         // Validate the replica commitment
-        let commr = Commitment::from_cid_bytes(&precommit.info.sealed_cid[..], CommitmentKind::Replica)
+        let commr = Commitment::<CommR>::from_cid_bytes(&precommit.info.sealed_cid[..])
             .map_err(|err| {
                 log::error!(target: LOG_TARGET, err:?; "validate_seal_proof: invalid sealed_cid {:?}", &precommit.info.sealed_cid);
                 Error::<T>::InvalidCid

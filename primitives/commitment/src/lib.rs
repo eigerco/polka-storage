@@ -4,8 +4,11 @@ pub mod commd;
 pub mod piece;
 mod zero;
 
+use core::{fmt::Display, marker::PhantomData};
+
 use cid::{multihash::Multihash, Cid};
 use primitives_proofs::RegisteredSealProof;
+use sealed::sealed;
 
 use crate::piece::PaddedPieceSize;
 
@@ -34,144 +37,176 @@ pub const SHA2_256_TRUNC254_PADDED: u64 = 0x1012;
 /// https://github.com/multiformats/multicodec/blob/badcfe56bb7e0bbb06b60d57565186cd6be1f932/table.csv#L537
 pub const POSEIDON_BLS12_381_A1_FC1: u64 = 0xb401;
 
-#[cfg_attr(feature = "serde", derive(::serde::Deserialize, ::serde::Serialize))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CommitmentKind {
-    // CommP - Piece commitment
-    Piece,
-    // CommD - Data commitment
-    Data,
-    // CommR - Replica commitment
-    Replica,
-}
-
-impl CommitmentKind {
+#[sealed]
+pub trait CommitmentKind {
     /// Returns the [Multicodec](https://github.com/multiformats/multicodec/blob/master/table.csv) code for the commitment kind.
-    fn multicodec(&self) -> u64 {
-        match self {
-            CommitmentKind::Piece | CommitmentKind::Data => FIL_COMMITMENT_UNSEALED,
-            CommitmentKind::Replica => FIL_COMMITMENT_SEALED,
-        }
+    fn multicodec() -> u64;
+    /// Returns the [Multihash](https://github.com/multiformats/multicodec/blob/master/table.csv) code for the commitment kind.
+    fn multihash() -> u64;
+}
+
+/// Data commitment
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CommD;
+
+#[sealed]
+impl CommitmentKind for CommD {
+    fn multicodec() -> u64 {
+        FIL_COMMITMENT_UNSEALED
     }
 
-    /// Returns the [Multihash](https://github.com/multiformats/multicodec/blob/master/table.csv) code for the commitment kind.
-    fn multihash(&self) -> u64 {
-        match self {
-            CommitmentKind::Piece | CommitmentKind::Data => SHA2_256_TRUNC254_PADDED,
-            CommitmentKind::Replica => POSEIDON_BLS12_381_A1_FC1,
-        }
+    fn multihash() -> u64 {
+        SHA2_256_TRUNC254_PADDED
+    }
+}
+
+/// Piece commitment
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CommP;
+
+#[sealed]
+impl CommitmentKind for CommP {
+    fn multicodec() -> u64 {
+        FIL_COMMITMENT_UNSEALED
+    }
+
+    fn multihash() -> u64 {
+        SHA2_256_TRUNC254_PADDED
+    }
+}
+
+/// Replica commitment
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CommR;
+
+#[sealed]
+impl CommitmentKind for CommR {
+    fn multicodec() -> u64 {
+        FIL_COMMITMENT_SEALED
+    }
+
+    fn multihash() -> u64 {
+        POSEIDON_BLS12_381_A1_FC1
     }
 }
 
 #[cfg_attr(feature = "serde", derive(::serde::Deserialize, ::serde::Serialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Commitment {
-    commitment: [u8; 32],
-    kind: CommitmentKind,
+pub struct Commitment<Kind>
+where
+    Kind: CommitmentKind,
+{
+    raw: [u8; 32],
+    kind: PhantomData<Kind>,
 }
 
-impl Commitment {
-    pub fn new(commitment: [u8; 32], kind: CommitmentKind) -> Self {
-        Self { commitment, kind }
-    }
-
-    /// Create a new piece commitment.
-    pub fn piece(commitment: [u8; 32]) -> Self {
-        Self::new(commitment, CommitmentKind::Piece)
-    }
-
-    /// Create a new data commitment.
-    pub fn data(commitment: [u8; 32]) -> Self {
-        Self::new(commitment, CommitmentKind::Data)
-    }
-
-    /// Create a new replica commitment.
-    pub fn replica(commitment: [u8; 32]) -> Self {
-        Self::new(commitment, CommitmentKind::Replica)
-    }
-
-    /// Creates a new `Commitment` from bytes of a valid CID.
-    /// Returns an error if the bytes passed do not represent a valid commitment.
-    pub fn from_cid_bytes(bytes: &[u8], kind: CommitmentKind) -> Result<Self, &'static str> {
+impl<Kind> Commitment<Kind>
+where
+    Kind: CommitmentKind,
+{
+    /// Creates a new `Commitment` from bytes of a valid CID. Returns an error
+    /// if the bytes passed do not represent a valid commitment.
+    pub fn from_cid_bytes(bytes: &[u8]) -> Result<Self, &'static str> {
         let cid = Cid::try_from(bytes).map_err(|_| "bytes not a valid cid")?;
-        Self::from_cid(&cid, kind)
+        Self::from_cid(&cid)
     }
 
     /// Creates a new `Commitment` from a CID. Returns an error if the CID
     /// passed does not represent a commitment kind.
-    pub fn from_cid(cid: &Cid, kind: CommitmentKind) -> Result<Self, &'static str> {
-        let mut commitment = [0; 32];
-        commitment.copy_from_slice(cid.hash().digest());
+    pub fn from_cid(cid: &Cid) -> Result<Self, &'static str> {
+        let mut raw = [0; 32];
+        raw.copy_from_slice(cid.hash().digest());
 
-        let multicodec = cid.codec();
-        let multihash = cid.hash().code();
-
-        match kind {
-            CommitmentKind::Piece | CommitmentKind::Data => {
-                if multicodec != FIL_COMMITMENT_UNSEALED {
-                    return Err("invalid multicodec for piece/data commitment");
-                }
-
-                if multihash != SHA2_256_TRUNC254_PADDED {
-                    return Err("invalid multihash for piece/data commitment");
-                }
-            }
-            CommitmentKind::Replica => {
-                if multicodec != FIL_COMMITMENT_SEALED {
-                    return Err("invalid multicodec for replica commitment");
-                }
-
-                if multihash != POSEIDON_BLS12_381_A1_FC1 {
-                    return Err("invalid multihash for replica commitment");
-                }
-            }
+        // Check multicodec of the cid
+        if cid.codec() != Kind::multicodec() {
+            return Err("invalid multicodec for commitment");
         }
 
-        Ok(Self { commitment, kind })
+        // Check multihash of the cid
+        if cid.hash().code() != Kind::multihash() {
+            return Err("invalid multihash for commitment");
+        }
+
+        Ok(Self {
+            raw,
+            kind: PhantomData,
+        })
     }
 
     /// Returns the raw commitment bytes.
     pub fn raw(&self) -> [u8; 32] {
-        self.commitment
+        self.raw
     }
 
     /// Converts the commitment to a CID.
     pub fn cid(&self) -> Cid {
-        let multihash = self.kind.multihash();
-        let multicodec = self.kind.multicodec();
-        let hash = Multihash::wrap(multihash, &self.commitment)
+        let multihash = Kind::multihash();
+        let multicodec = Kind::multicodec();
+        let hash = Multihash::wrap(multihash, &self.raw)
             .expect("multihash is large enough so it can wrap the commitment");
         Cid::new_v1(multicodec, hash)
     }
 }
 
-/// Returns a zero-piece commitment for a given piece size.
-pub fn zero_piece_commitment(size: PaddedPieceSize) -> Commitment {
-    Commitment {
-        commitment: zero::zero_piece_commitment(size),
-        kind: CommitmentKind::Piece,
+impl<Kind> Display for Commitment<Kind>
+where
+    Kind: CommitmentKind,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.cid())
     }
 }
 
-/// Return a zero data commitment for specific seal proof.
-pub fn zero_data_commitment(seal_proof: RegisteredSealProof) -> Commitment {
-    let size = seal_proof.sector_size().bytes();
-    let size = PaddedPieceSize::new(size).expect("sector size is a valid padded size");
+impl<Kind> TryFrom<Cid> for Commitment<Kind>
+where
+    Kind: CommitmentKind,
+{
+    type Error = &'static str;
 
-    Commitment {
-        // Zero data commitment is the same as zero piece commitment of the same
-        // size.
-        commitment: zero::zero_piece_commitment(size),
-        kind: CommitmentKind::Data,
+    fn try_from(value: Cid) -> Result<Self, Self::Error> {
+        Self::from_cid(&value)
+    }
+}
+
+impl<Kind> From<[u8; 32]> for Commitment<Kind>
+where
+    Kind: CommitmentKind,
+{
+    fn from(value: [u8; 32]) -> Self {
+        Self {
+            raw: value,
+            kind: PhantomData,
+        }
+    }
+}
+
+impl Commitment<CommP> {
+    /// Returns a zero piece commitment for a given piece size.
+    pub fn zero(size: PaddedPieceSize) -> Self {
+        Commitment::from(zero::zero_piece_commitment(size))
+    }
+}
+
+impl Commitment<CommD> {
+    /// Return a zero data commitment for specific seal proof.
+    pub fn zero(seal_proof: RegisteredSealProof) -> Self {
+        let size = seal_proof.sector_size().bytes();
+        let size = PaddedPieceSize::new(size).expect("sector size is a valid padded size");
+
+        // Zero data commitment is the same as zero piece commitment of the
+        // same size.
+        Commitment::from(zero::zero_piece_commitment(size))
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use core::marker::PhantomData;
+
     use cid::{multihash::Multihash, Cid};
 
     use crate::{
-        Commitment, CommitmentKind, FIL_COMMITMENT_SEALED, FIL_COMMITMENT_UNSEALED,
+        CommD, CommP, CommR, Commitment, FIL_COMMITMENT_SEALED, FIL_COMMITMENT_UNSEALED,
         POSEIDON_BLS12_381_A1_FC1, SHA2_256_TRUNC254_PADDED,
     };
 
@@ -181,40 +216,40 @@ mod tests {
 
     #[test]
     fn comm_d_to_cid() {
-        let comm = rand_comm();
+        let raw = rand_comm();
 
-        let cid = Commitment::new(comm, CommitmentKind::Data).cid();
+        let cid = Commitment::<CommD>::from(raw).cid();
         assert_eq!(cid.codec(), FIL_COMMITMENT_UNSEALED);
         assert_eq!(cid.hash().code(), SHA2_256_TRUNC254_PADDED);
-        assert_eq!(cid.hash().digest(), comm);
+        assert_eq!(cid.hash().digest(), raw);
     }
 
     #[test]
     fn cid_to_comm_d() {
-        let comm = rand_comm();
+        let raw = rand_comm();
 
         // Correct hash format
-        let mh = Multihash::wrap(SHA2_256_TRUNC254_PADDED, &comm).unwrap();
+        let mh = Multihash::wrap(SHA2_256_TRUNC254_PADDED, &raw).unwrap();
         let c = Cid::new_v1(FIL_COMMITMENT_UNSEALED, mh);
-        let commitment = Commitment::from_cid(&c, CommitmentKind::Data).unwrap();
-        assert_eq!(commitment.raw(), comm);
+        let commitment = Commitment::<CommD>::from_cid(&c).unwrap();
+        assert_eq!(commitment.raw(), raw);
 
         // Should fail with incorrect codec
         let c = Cid::new_v1(FIL_COMMITMENT_SEALED, mh);
-        let commitment = Commitment::from_cid(&c, CommitmentKind::Data);
+        let commitment = Commitment::<CommD>::from_cid(&c);
         assert!(commitment.is_err());
 
         // Incorrect hash format
-        let mh = Multihash::wrap(0x9999, &comm).unwrap();
+        let mh = Multihash::wrap(0x9999, &raw).unwrap();
         let c = Cid::new_v1(FIL_COMMITMENT_UNSEALED, mh);
-        let commitment = Commitment::from_cid(&c, CommitmentKind::Data);
+        let commitment = Commitment::<CommD>::from_cid(&c);
         assert!(commitment.is_err());
     }
 
     #[test]
     fn comm_r_to_cid() {
         let comm = rand_comm();
-        let cid = Commitment::new(comm, CommitmentKind::Replica).cid();
+        let cid = Commitment::<CommR>::from(comm).cid();
 
         assert_eq!(cid.codec(), FIL_COMMITMENT_SEALED);
         assert_eq!(cid.hash().code(), POSEIDON_BLS12_381_A1_FC1);
@@ -228,52 +263,52 @@ mod tests {
         // Correct hash format
         let mh = Multihash::wrap(POSEIDON_BLS12_381_A1_FC1, &comm).unwrap();
         let c = Cid::new_v1(FIL_COMMITMENT_SEALED, mh);
-        let commitment = Commitment::from_cid(&c, CommitmentKind::Replica).unwrap();
+        let commitment = Commitment::<CommR>::from_cid(&c).unwrap();
         assert_eq!(commitment.raw(), comm);
 
         // Should fail with incorrect codec
         let c = Cid::new_v1(FIL_COMMITMENT_UNSEALED, mh);
-        let commitment = Commitment::from_cid(&c, CommitmentKind::Replica);
+        let commitment = Commitment::<CommR>::from_cid(&c);
         assert!(commitment.is_err());
 
         // Incorrect hash format
         let mh = Multihash::wrap(0x9999, &comm).unwrap();
         let c = Cid::new_v1(FIL_COMMITMENT_SEALED, mh);
-        let commitment = Commitment::from_cid(&c, CommitmentKind::Replica);
+        let commitment = Commitment::<CommR>::from_cid(&c);
         assert!(commitment.is_err());
     }
 
     #[test]
     fn symmetric_conversion() {
-        let comm = rand_comm();
+        let raw = rand_comm();
 
         // piece
-        let cid = Commitment::new(comm, CommitmentKind::Piece).cid();
+        let cid = Commitment::<CommP>::from(raw).cid();
         assert_eq!(
-            Commitment::from_cid(&cid, CommitmentKind::Piece).unwrap(),
-            Commitment {
-                commitment: comm,
-                kind: CommitmentKind::Piece
+            Commitment::<CommP>::from_cid(&cid).unwrap(),
+            Commitment::<CommP> {
+                raw,
+                kind: PhantomData
             }
         );
 
         // data
-        let cid = Commitment::new(comm, CommitmentKind::Data).cid();
+        let cid = Commitment::<CommD>::from(raw).cid();
         assert_eq!(
-            Commitment::from_cid(&cid, CommitmentKind::Data).unwrap(),
-            Commitment {
-                commitment: comm,
-                kind: CommitmentKind::Data
+            Commitment::<CommD>::from_cid(&cid).unwrap(),
+            Commitment::<CommD> {
+                raw,
+                kind: PhantomData
             }
         );
 
         // replica
-        let cid = Commitment::new(comm, CommitmentKind::Replica).cid();
+        let cid = Commitment::<CommR>::from(raw).cid();
         assert_eq!(
-            Commitment::from_cid(&cid, CommitmentKind::Replica).unwrap(),
-            Commitment {
-                commitment: comm,
-                kind: CommitmentKind::Replica
+            Commitment::<CommR>::from_cid(&cid).unwrap(),
+            Commitment::<CommR> {
+                raw,
+                kind: PhantomData
             }
         );
     }

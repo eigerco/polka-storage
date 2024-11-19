@@ -13,6 +13,7 @@ std = ["dep:filecoin-proofs"]
 
 [dependencies]
 primitives-proofs.workspace = true
+sealed.workspace = true
 
 cid.workspace = true
 sha2.workspace = true
