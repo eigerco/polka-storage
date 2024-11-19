@@ -65,7 +65,7 @@ fn drip() {
         );
 
         assert_eq!(
-            Balances::free_balance(account.clone()),
+            Balances::free_balance(account),
             <Test as crate::Config>::FaucetDripAmount::get() * 2
         );
     });

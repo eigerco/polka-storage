@@ -82,18 +82,23 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+        #[pallet::weight((Weight::zero(), Pays::No))]
         pub fn drip(origin: OriginFor<T>, account: T::AccountId) -> DispatchResult {
-            let _ = ensure_none(origin)?;
+            ensure_none(origin)?;
             let current_block = <frame_system::Pallet<T>>::block_number();
             if let Some(faucet_block) = Self::drips(&account) {
-                ensure!(current_block >= (faucet_block + T::FaucetDripDelay::get()), {
-                    log::error!("{account:?} has recently used the faucet");
-                    Error::<T>::FaucetUsedRecently
-                });
+                ensure!(
+                    current_block >= (faucet_block + T::FaucetDripDelay::get()),
+                    {
+                        log::error!("{account:?} has recently used the faucet");
+                        Error::<T>::FaucetUsedRecently
+                    }
+                );
             }
             log::info!("Dripping {:?} to {account:?}", T::FaucetDripAmount::get());
-            let imbalance = T::Currency::deposit_creating(&account, T::FaucetDripAmount::get());
-            drop(imbalance);
+            // Infallible https://docs.rs/frame-support/latest/frame_support/traits/tokens/currency/trait.Currency.html#tymethod.issue
+            let imbalance = T::Currency::issue(T::FaucetDripAmount::get());
+            T::Currency::resolve_creating(&account, imbalance);
             Drips::<T>::insert(account.clone(), current_block);
             Self::deposit_event(Event::<T>::Dripped {
                 who: account,
