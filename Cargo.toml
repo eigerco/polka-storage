@@ -15,6 +15,7 @@ members = [
   "lib/polka-storage-proofs",
   "maat",
   "node",
+  "pallets/faucet",
   "pallets/market",
   "pallets/proofs",
   "pallets/randomness",
@@ -128,6 +129,7 @@ zombienet-support = "=0.2.14"
 # Local
 cli-primitives = { path = "primitives/cli" }
 mater = { path = "storage/mater" }
+pallet-faucet = { path = "pallets/faucet", default-features = false }
 pallet-market = { path = "pallets/market", default-features = false }
 pallet-proofs = { path = "pallets/proofs", default-features = false }
 pallet-randomness = { path = "pallets/randomness", default-features = false }

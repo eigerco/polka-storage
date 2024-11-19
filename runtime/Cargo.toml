@@ -20,6 +20,7 @@ substrate-wasm-builder = { workspace = true, optional = true }
 
 [dependencies]
 # Local Pallets
+pallet-faucet = { workspace = true, default-features = false }
 pallet-market = { workspace = true, default-features = false }
 pallet-proofs = { workspace = true, default-features = false }
 pallet-randomness = { workspace = true, default-features = false }

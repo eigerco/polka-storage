@@ -238,6 +238,7 @@ pub fn native_version() -> NativeVersion {
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
+#[cfg(not(feature = "testnet"))]
 #[frame_support::runtime]
 mod runtime {
     #[runtime::runtime]
@@ -306,6 +307,80 @@ mod runtime {
     pub type Proofs = pallet_proofs;
     #[runtime::pallet_index(37)]
     pub type Randomness = pallet_randomness;
+}
+
+// Create the runtime by composing the FRAME pallets that were previously configured.
+#[cfg(feature = "testnet")]
+#[frame_support::runtime]
+mod runtime {
+    #[runtime::runtime]
+    #[runtime::derive(
+        RuntimeCall,
+        RuntimeEvent,
+        RuntimeError,
+        RuntimeOrigin,
+        RuntimeFreezeReason,
+        RuntimeHoldReason,
+        RuntimeSlashReason,
+        RuntimeLockId,
+        RuntimeTask
+    )]
+    pub struct Runtime;
+
+    #[runtime::pallet_index(0)]
+    pub type System = frame_system;
+    #[runtime::pallet_index(1)]
+    pub type ParachainSystem = cumulus_pallet_parachain_system;
+    #[runtime::pallet_index(2)]
+    pub type Timestamp = pallet_timestamp;
+    #[runtime::pallet_index(3)]
+    pub type ParachainInfo = parachain_info;
+    // Temporary. Will be removed after we switch to babe
+    #[runtime::pallet_index(4)]
+    pub type RandomnessSource = pallet_insecure_randomness_collective_flip;
+
+    // Monetary stuff.
+    #[runtime::pallet_index(10)]
+    pub type Balances = pallet_balances;
+    #[runtime::pallet_index(11)]
+    pub type TransactionPayment = pallet_transaction_payment;
+
+    // Governance
+    #[runtime::pallet_index(15)]
+    pub type Sudo = pallet_sudo;
+
+    // Collator support. The order of these 4 are important and shall not change.
+    #[runtime::pallet_index(20)]
+    pub type Authorship = pallet_authorship;
+    #[runtime::pallet_index(21)]
+    pub type CollatorSelection = pallet_collator_selection;
+    #[runtime::pallet_index(22)]
+    pub type Session = pallet_session;
+    #[runtime::pallet_index(23)]
+    pub type Aura = pallet_aura;
+    #[runtime::pallet_index(24)]
+    pub type AuraExt = cumulus_pallet_aura_ext;
+
+    // XCM helpers.
+    #[runtime::pallet_index(30)]
+    pub type XcmpQueue = cumulus_pallet_xcmp_queue;
+    #[runtime::pallet_index(31)]
+    pub type PolkadotXcm = pallet_xcm;
+    #[runtime::pallet_index(32)]
+    pub type CumulusXcm = cumulus_pallet_xcm;
+    #[runtime::pallet_index(33)]
+    pub type MessageQueue = pallet_message_queue;
+
+    #[runtime::pallet_index(34)]
+    pub type StorageProvider = pallet_storage_provider::pallet;
+    #[runtime::pallet_index(35)]
+    pub type Market = pallet_market;
+    #[runtime::pallet_index(36)]
+    pub type Proofs = pallet_proofs;
+    #[runtime::pallet_index(37)]
+    pub type Randomness = pallet_randomness;
+    #[runtime::pallet_index(38)]
+    pub type Faucet = pallet_faucet;
 }
 
 #[docify::export(register_validate_block)]

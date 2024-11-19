@@ -1,0 +1,36 @@
+[package]
+authors.workspace = true
+description = "exposes a drip function for getting funds on testnet"
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+name = "pallet-faucet"
+publish = false
+repository.workspace = true
+version = "0.0.0"
+
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { workspace = true, default-features = false, features = ["derive"] }
+frame-support = { workspace = true, default-features = false }
+frame-system = { workspace = true, default-features = false }
+log = { workspace = true }
+pallet-balances = { workspace = true, default-features = false }
+scale-info = { workspace = true, default-features = false, features = ["derive"] }
+
+[dev-dependencies]
+env_logger = { workspace = true }
+sp-core = { workspace = true, default-features = false }
+sp-io = { workspace = true }
+sp-runtime = { workspace = true, default-features = false }
+
+[features]
+default = ["std"]
+runtime-benchmarks = ["frame-support/runtime-benchmarks", "frame-system/runtime-benchmarks", "sp-runtime/runtime-benchmarks"]
+std = ["codec/std", "frame-support/std", "frame-system/std", "pallet-balances/std", "scale-info/std", "sp-core/std", "sp-io/std", "sp-runtime/std"]
+try-runtime = ["frame-support/try-runtime", "frame-system/try-runtime", "sp-runtime/try-runtime"]

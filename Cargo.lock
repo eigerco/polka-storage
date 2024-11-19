@@ -8280,6 +8280,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-faucet"
+version = "0.0.0"
+dependencies = [
+ "env_logger 0.11.5",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core 34.0.0",
+ "sp-io 38.0.0",
+ "sp-runtime 39.0.0",
+]
+
+[[package]]
 name = "pallet-grandpa"
 version = "37.0.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2407-1#16b0fd09d9e9281c20ee0c1d8b87d011e3e3454e"
@@ -9688,6 +9704,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-collator-selection",
+ "pallet-faucet",
  "pallet-insecure-randomness-collective-flip",
  "pallet-market",
  "pallet-message-queue",
