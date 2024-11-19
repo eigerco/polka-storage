@@ -12,7 +12,7 @@ use crate::{
         account, declare_faults::setup_sp_with_many_sectors_multiple_partitions, events,
         new_test_ext, register_storage_provider, run_to_block, DealProposalBuilder, Market,
         RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider,
-        SubmitWindowedPoStBuilder, System, Test, ALICE, BOB,
+        SubmitWindowedPoStBuilder, System, Test, ALICE, BOB, INVALID_PROOF
     },
     Config,
 };
@@ -349,7 +349,8 @@ fn fail_windowed_post_wrong_signature() {
 
         // Build window post proof
         let windowed_post = SubmitWindowedPoStBuilder::default()
-            .proof_bytes(vec![]) // Wrong proof
+            .partition(0)
+            .proof_bytes(INVALID_PROOF.into())
             .build();
 
         // Run extrinsic
@@ -358,7 +359,7 @@ fn fail_windowed_post_wrong_signature() {
                 RuntimeOrigin::signed(account(ALICE)),
                 windowed_post,
             ),
-            Error::<Test>::PoStProofInvalid
+            DispatchError::Other("invalid proof")
         );
     });
 }
