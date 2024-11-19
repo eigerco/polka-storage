@@ -41,7 +41,7 @@ impl FaucetCommand {
                 };
 
                 // This monstrosity first converts incoming events into a "generic" (subxt generated) event,
-                // and then we extract only the Market events. We could probably extract this into a proper
+                // and then we extract only the Faucet events. We could probably extract this into a proper
                 // iterator but the effort to improvement ratio seems low (for 2 pallets at least).
                 let submission_results = submission_result
                     .events
@@ -50,7 +50,7 @@ impl FaucetCommand {
                         event.map(|details| details.as_root_event::<storagext::runtime::Event>())
                     })
                     .filter_map(|event| match event {
-                        Ok(storagext::runtime::Event::Market(e)) => Some(Ok(e)),
+                        Ok(storagext::runtime::Event::Faucet(e)) => Some(Ok(e)),
                         Err(err) => Some(Err(err)),
                         _ => None,
                     });
