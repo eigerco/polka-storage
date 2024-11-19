@@ -286,7 +286,7 @@ fn multiple_deadline_faults() {
     FaultDeclaration {
         deadline: 0,
         partition: 0,
-        sectors: sector_set(empty::<u64>()),
+        sectors: sector_set(empty::<u32>()),
     },
 ], Error::<Test>::GeneralPalletError(GeneralPalletError::DeadlineErrorCouldNotAddSectors).into())]
 // Deadline specified is not valid
@@ -475,7 +475,7 @@ pub(crate) fn setup_sp_with_many_sectors_multiple_partitions(
     // first deadline has three with third sector only partially filled.
     //
     // 10 deadlines with 2 partitions each partition have 2 sectors
-    let desired_sectors = 10 * (2 + 2) + 1;
+    let desired_sectors: u32 = 10 * (2 + 2) + 1;
 
     // Publish as many deals as we need to fill the sectors. We are batching
     // deals so that the processing is a little faster.
@@ -487,13 +487,13 @@ pub(crate) fn setup_sp_with_many_sectors_multiple_partitions(
         // Move available balance of provider to the market pallet
         assert_ok!(Market::add_balance(
             RuntimeOrigin::signed(account(storage_provider)),
-            provider_amount_needed
+            provider_amount_needed as u64
         ));
 
         // Move available balance of client to the market pallet
         assert_ok!(Market::add_balance(
             RuntimeOrigin::signed(account(storage_client)),
-            client_amount_needed
+            client_amount_needed as u64
         ));
 
         // Deal proposals
@@ -530,7 +530,7 @@ pub(crate) fn setup_sp_with_many_sectors_multiple_partitions(
         // Sector data
         let sector = SectorPreCommitInfoBuilder::default()
             .sector_number(sector_number)
-            .deals(vec![id])
+            .deals(vec![id as u64])
             .build();
 
         // Run pre commit extrinsic

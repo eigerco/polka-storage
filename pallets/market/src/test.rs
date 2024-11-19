@@ -1726,7 +1726,7 @@ impl SectorDealBuilder {
         self
     }
 
-    pub fn sector_number(mut self, sector_number: u64) -> Self {
+    pub fn sector_number(mut self, sector_number: u32) -> Self {
         self.sector_number = sector_number.try_into().unwrap();
         self
     }

@@ -122,7 +122,7 @@ fn successfully_precommited_no_deals() {
 #[test]
 fn successfully_precommited_batch() {
     new_test_ext().execute_with(|| {
-        const SECTORS_TO_PRECOMMIT: u64 = 6;
+        const SECTORS_TO_PRECOMMIT: u32 = 6;
         // Register CHARLIE as a storage provider.
         let storage_provider = CHARLIE;
         register_storage_provider(account(storage_provider));
@@ -159,7 +159,7 @@ fn successfully_precommited_batch() {
             [
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Reserved {
                     who: account(storage_provider),
-                    amount: SECTORS_TO_PRECOMMIT
+                    amount: SECTORS_TO_PRECOMMIT as u64
                 },),
                 RuntimeEvent::StorageProvider(Event::<Test>::SectorsPreCommitted {
                     block: 1,
@@ -177,10 +177,10 @@ fn successfully_precommited_batch() {
             sp.pre_committed_sectors.len(),
             (SECTORS_TO_PRECOMMIT as usize)
         );
-        assert_eq!(sp.pre_commit_deposits, SECTORS_TO_PRECOMMIT);
+        assert_eq!(sp.pre_commit_deposits, SECTORS_TO_PRECOMMIT as u64);
         assert_eq!(
             Balances::free_balance(account(storage_provider)),
-            INITIAL_FUNDS - 70 - SECTORS_TO_PRECOMMIT
+            INITIAL_FUNDS - 70 - SECTORS_TO_PRECOMMIT as u64
         );
     });
 }

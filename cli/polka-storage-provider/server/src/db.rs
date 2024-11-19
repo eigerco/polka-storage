@@ -1,6 +1,6 @@
 use std::{
     path::Path,
-    sync::atomic::{AtomicU64, Ordering},
+    sync::atomic::{AtomicU32, Ordering},
 };
 
 use primitives_proofs::SectorNumber;
@@ -36,7 +36,7 @@ const COLUMN_FAMILIES: [&str; 2] = [ACCEPTED_DEAL_PROPOSALS_CF, SECTORS_CF];
 
 pub struct DealDB {
     database: RocksDB,
-    last_sector_number: AtomicU64,
+    last_sector_number: AtomicU32,
 }
 
 impl DealDB {
@@ -54,7 +54,7 @@ impl DealDB {
 
         let db = Self {
             database: RocksDB::open_cf_descriptors(&opts, path, cfs)?,
-            last_sector_number: AtomicU64::new(0),
+            last_sector_number: AtomicU32::new(0),
         };
 
         db.initialize_biggest_sector_number()?;
@@ -158,20 +158,20 @@ impl DealDB {
     /// And then `last_sector_number` is incremented by `next_sector_number` only
     /// If it was called by multiple threads later than initialization, it could cause a race condition and data erasure.
     fn initialize_biggest_sector_number(&self) -> Result<(), DBError> {
-        let mut biggest_sector_number = SectorNumber::new(0).expect("is valid sector number");
+        let mut biggest_sector_number = unsafe { SectorNumber::new_unchecked(0) };
         for item in self
             .database
             .iterator_cf(self.cf_handle(SECTORS_CF), rocksdb::IteratorMode::Start)
         {
             let (key, _) = item?;
-            let key: [u8; 8] = key
+            let key: [u8; 4] = key
                 .as_ref()
                 .try_into()
                 .expect("sector's key to be u64 le bytes");
             // Unwrap safe. Can only fail if the sector number was manually
             // inserted in the database.
             let sector_id =
-                SectorNumber::new(u64::from_le_bytes(key)).expect("valid sector number");
+                SectorNumber::new(u32::from_le_bytes(key)).expect("valid sector number");
             biggest_sector_number = std::cmp::max(biggest_sector_number, sector_id);
         }
 

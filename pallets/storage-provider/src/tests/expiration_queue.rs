@@ -33,7 +33,7 @@ fn default_set() -> ExpirationSet {
 }
 
 /// Create a single sector used in tests
-fn test_sector(expiration: BlockNumber, sector_number: u64) -> SectorOnChainInfo<BlockNumber> {
+fn test_sector(expiration: BlockNumber, sector_number: u32) -> SectorOnChainInfo<BlockNumber> {
     let sector_number = SectorNumber::try_from(sector_number).unwrap();
     SectorOnChainInfo {
         sector_number,

@@ -30,15 +30,27 @@ pub const MAX_SECTORS: u32 = 32 << 20;
     MaxEncodedLen,
 )]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize))]
-pub struct SectorNumber(u64);
+pub struct SectorNumber(u32);
 
 impl SectorNumber {
+    /// Creates a new `SectorNumber` instance without checking if the sector
+    /// number exceeds `MAX_SECTORS`.
+    ///
+    /// # Safety
+    ///
+    /// This function should be used with caution as it does not perform any
+    /// bounds checking. The caller must ensure that the `sector_number` is
+    /// within the valid range (0..=MAX_SECTORS).
+    pub const unsafe fn new_unchecked(sector_number: u32) -> Self {
+        Self(sector_number)
+    }
+
     /// Creates a new `SectorNumber` instance.
     ///
     /// Returns a `Result` containing the new `SectorNumber` if valid,
     /// or an error message if the sector number exceeds `MAX_SECTORS`.
-    pub fn new(sector_number: u64) -> Result<Self, &'static str> {
-        if sector_number > MAX_SECTORS as u64 {
+    pub fn new(sector_number: u32) -> Result<Self, &'static str> {
+        if sector_number > MAX_SECTORS {
             return Err("Sector number is too large");
         }
 
@@ -52,10 +64,10 @@ impl<'de> ::serde::Deserialize<'de> for SectorNumber {
     where
         D: ::serde::Deserializer<'de>,
     {
-        let value = u64::deserialize(deserializer)?;
+        let value = u32::deserialize(deserializer)?;
         SectorNumber::new(value).map_err(|_| {
             ::serde::de::Error::invalid_value(
-                ::serde::de::Unexpected::Unsigned(value),
+                ::serde::de::Unexpected::Unsigned(value as u64),
                 &"an integer between 0 and MAX_SECTORS",
             )
         })
@@ -64,7 +76,7 @@ impl<'de> ::serde::Deserialize<'de> for SectorNumber {
 
 impl Decode for SectorNumber {
     fn decode<I: codec::Input>(input: &mut I) -> Result<Self, codec::Error> {
-        let value = u64::decode(input)?;
+        let value = u32::decode(input)?;
         SectorNumber::new(value).map_err(|_| "Sector number is too large".into())
     }
 }
@@ -84,9 +96,9 @@ impl<R: TypeResolver> Visitor for SectorNumberVisitor<R> {
     type Error = scale_decode::Error;
     type TypeResolver = R;
 
-    fn visit_u64<'scale, 'resolver>(
+    fn visit_u32<'scale, 'resolver>(
         self,
-        value: u64,
+        value: u32,
         _type_id: visitor::TypeIdFor<Self>,
     ) -> Result<Self::Value<'scale, 'resolver>, Self::Error> {
         SectorNumber::new(value).map_err(|_| {
@@ -123,17 +135,23 @@ impl scale_decode::IntoVisitor for SectorNumber {
     }
 }
 
-impl TryFrom<u64> for SectorNumber {
+impl TryFrom<u32> for SectorNumber {
     type Error = &'static str;
 
-    fn try_from(value: u64) -> Result<Self, Self::Error> {
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
         Self::new(value)
+    }
+}
+
+impl From<SectorNumber> for u32 {
+    fn from(value: SectorNumber) -> Self {
+        value.0
     }
 }
 
 impl From<SectorNumber> for u64 {
     fn from(value: SectorNumber) -> Self {
-        value.0
+        value.0 as u64
     }
 }
 
@@ -146,7 +164,7 @@ impl Display for SectorNumber {
 #[cfg(feature = "std")]
 impl From<SectorNumber> for storage_proofs_core::sector::SectorId {
     fn from(sector_number: SectorNumber) -> Self {
-        Self::from(sector_number.0)
+        Self::from(sector_number.0 as u64)
     }
 }
 

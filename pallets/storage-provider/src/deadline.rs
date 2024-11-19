@@ -820,7 +820,7 @@ mod tests {
         ]
     }
 
-    fn test_sector(expiration: u64, sector_number: u64) -> SectorOnChainInfo<u64> {
+    fn test_sector(expiration: u64, sector_number: u32) -> SectorOnChainInfo<u64> {
         SectorOnChainInfo {
             expiration,
             sector_number: SectorNumber::new(sector_number).unwrap(),
@@ -904,7 +904,7 @@ mod tests {
         );
         assert_eq!(
             partition.unproven,
-            sector_set::<MAX_SECTORS, _>(empty::<u64>())
+            sector_set::<MAX_SECTORS, _>(empty::<u32>())
         );
 
         // Check state of partition 1
@@ -918,7 +918,7 @@ mod tests {
         );
         assert_eq!(
             partition.unproven,
-            sector_set::<MAX_SECTORS, _>(empty::<u64>())
+            sector_set::<MAX_SECTORS, _>(empty::<u32>())
         );
 
         // Check state of partition 2
@@ -929,7 +929,7 @@ mod tests {
         assert_eq!(partition.sectors, sector_set::<MAX_SECTORS, _>(once(9)));
         assert_eq!(
             partition.unproven,
-            sector_set::<MAX_SECTORS, _>(empty::<u64>())
+            sector_set::<MAX_SECTORS, _>(empty::<u32>())
         );
 
         assert_eq!(deadline.live_sectors, 9);
@@ -969,7 +969,7 @@ mod tests {
         if prove {
             assert_eq!(
                 partition.unproven,
-                sector_set::<MAX_SECTORS, _>(empty::<u64>())
+                sector_set::<MAX_SECTORS, _>(empty::<u32>())
             );
         } else {
             assert_eq!(
@@ -991,7 +991,7 @@ mod tests {
         if prove {
             assert_eq!(
                 partition.unproven,
-                sector_set::<MAX_SECTORS, _>(empty::<u64>())
+                sector_set::<MAX_SECTORS, _>(empty::<u32>())
             );
         } else {
             assert_eq!(
@@ -1034,7 +1034,7 @@ mod tests {
         );
         assert_eq!(
             partition.unproven,
-            sector_set::<MAX_SECTORS, _>(empty::<u64>())
+            sector_set::<MAX_SECTORS, _>(empty::<u32>())
         );
         assert_eq!(
             partition.terminated,
@@ -1052,7 +1052,7 @@ mod tests {
         );
         assert_eq!(
             partition.unproven,
-            sector_set::<MAX_SECTORS, _>(empty::<u64>())
+            sector_set::<MAX_SECTORS, _>(empty::<u32>())
         );
         assert_eq!(partition.terminated, sector_set::<MAX_SECTORS, _>(once(6)));
 
@@ -1064,11 +1064,11 @@ mod tests {
         assert_eq!(partition.sectors, sector_set::<MAX_SECTORS, _>(once(9)));
         assert_eq!(
             partition.unproven,
-            sector_set::<MAX_SECTORS, _>(empty::<u64>())
+            sector_set::<MAX_SECTORS, _>(empty::<u32>())
         );
         assert_eq!(
             partition.terminated,
-            sector_set::<MAX_SECTORS, _>(empty::<u64>())
+            sector_set::<MAX_SECTORS, _>(empty::<u32>())
         );
 
         Ok(sectors)
@@ -1110,7 +1110,7 @@ mod tests {
         if prove {
             assert_eq!(
                 partition.unproven,
-                sector_set::<MAX_SECTORS, _>(empty::<u64>())
+                sector_set::<MAX_SECTORS, _>(empty::<u32>())
             );
         } else {
             assert_eq!(
@@ -1135,7 +1135,7 @@ mod tests {
         if prove {
             assert_eq!(
                 partition.unproven,
-                sector_set::<MAX_SECTORS, _>(empty::<u64>())
+                sector_set::<MAX_SECTORS, _>(empty::<u32>())
             );
         } else {
             assert_eq!(
@@ -1152,12 +1152,12 @@ mod tests {
         assert_eq!(partition.sectors, sector_set::<MAX_SECTORS, _>(once(9)));
         assert_eq!(
             partition.faults,
-            sector_set::<MAX_SECTORS, _>(empty::<u64>())
+            sector_set::<MAX_SECTORS, _>(empty::<u32>())
         );
         if prove {
             assert_eq!(
                 partition.unproven,
-                sector_set::<MAX_SECTORS, _>(empty::<u64>())
+                sector_set::<MAX_SECTORS, _>(empty::<u32>())
             );
         } else {
             assert_eq!(partition.unproven, sector_set::<MAX_SECTORS, _>(once(9)));
@@ -1286,7 +1286,7 @@ mod tests {
         assert_eq!(partition.sectors, sector_set::<MAX_SECTORS, _>(once(9)));
         assert_eq!(
             partition.terminated,
-            sector_set::<MAX_SECTORS, _>(empty::<u64>())
+            sector_set::<MAX_SECTORS, _>(empty::<u32>())
         );
         Ok(())
     }
@@ -1393,7 +1393,7 @@ mod tests {
         );
         assert_eq!(
             partition.faults,
-            sector_set::<MAX_SECTORS, _>(empty::<u64>())
+            sector_set::<MAX_SECTORS, _>(empty::<u32>())
         );
 
         // Check state of partition 1
@@ -1411,7 +1411,7 @@ mod tests {
         );
         assert_eq!(
             partition.faults,
-            sector_set::<MAX_SECTORS, _>(empty::<u64>())
+            sector_set::<MAX_SECTORS, _>(empty::<u32>())
         );
 
         // Check state of partition 2
@@ -1423,7 +1423,7 @@ mod tests {
         assert_eq!(partition.terminated, sector_set::<MAX_SECTORS, _>(once(9)));
         assert_eq!(
             partition.faults,
-            sector_set::<MAX_SECTORS, _>(empty::<u64>())
+            sector_set::<MAX_SECTORS, _>(empty::<u32>())
         );
 
         // check early terminations
@@ -1455,7 +1455,7 @@ mod tests {
         );
         assert_eq!(
             partition.faults,
-            sector_set::<MAX_SECTORS, _>(empty::<u64>())
+            sector_set::<MAX_SECTORS, _>(empty::<u32>())
         );
 
         // Check state of partition 1
@@ -1473,7 +1473,7 @@ mod tests {
         );
         assert_eq!(
             partition.faults,
-            sector_set::<MAX_SECTORS, _>(empty::<u64>())
+            sector_set::<MAX_SECTORS, _>(empty::<u32>())
         );
 
         // Check state of partition 2
@@ -1485,7 +1485,7 @@ mod tests {
         assert_eq!(partition.terminated, sector_set::<MAX_SECTORS, _>(once(9)));
         assert_eq!(
             partition.faults,
-            sector_set::<MAX_SECTORS, _>(empty::<u64>())
+            sector_set::<MAX_SECTORS, _>(empty::<u32>())
         );
     }
 

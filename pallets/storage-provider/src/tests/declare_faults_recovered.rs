@@ -234,7 +234,7 @@ fn successfully_recover_multiple_sector_faults() {
     RecoveryDeclaration {
         deadline: 0,
         partition: 0,
-        sectors: sector_set(empty::<u64>()),
+        sectors: sector_set(empty::<u32>()),
     },
 ], Error::<Test>::GeneralPalletError(GeneralPalletError::DeadlineErrorCouldNotAddSectors).into())]
 // Deadline specified is not valid

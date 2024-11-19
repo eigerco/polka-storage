@@ -378,7 +378,7 @@ impl Default for SectorPreCommitInfoBuilder {
 }
 
 impl SectorPreCommitInfoBuilder {
-    pub fn sector_number(mut self, sector_number: u64) -> Self {
+    pub fn sector_number(mut self, sector_number: u32) -> Self {
         self.sector_number = SectorNumber::new(sector_number).unwrap();
         self
     }

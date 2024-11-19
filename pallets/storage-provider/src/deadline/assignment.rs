@@ -257,11 +257,11 @@ mod tests {
         struct Spec {
             live_sectors: u64,
             dead_sectors: u64,
-            expect_sectors: Vec<u64>,
+            expect_sectors: Vec<u32>,
         }
 
         struct TestCase {
-            sectors: u64,
+            sectors: u32,
             deadlines: Vec<Option<Spec>>,
         }
         let test_cases = [

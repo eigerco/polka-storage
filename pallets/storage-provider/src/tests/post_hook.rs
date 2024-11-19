@@ -132,7 +132,7 @@ fn does_not_mark_partitions_as_faulty() {
     });
 }
 
-fn precommit_and_prove(storage_provider: &'static str, deal_id: DealId, sector_number: u64) {
+fn precommit_and_prove(storage_provider: &'static str, deal_id: DealId, sector_number: u32) {
     let sector = SectorPreCommitInfoBuilder::default()
         .sector_number(sector_number)
         .deals(bounded_vec![deal_id])

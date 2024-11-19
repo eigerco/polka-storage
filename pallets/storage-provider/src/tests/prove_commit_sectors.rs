@@ -104,7 +104,7 @@ fn successfully_prove_sector() {
 #[test]
 fn successfully_prove_multiple_sectors() {
     new_test_ext().execute_with(|| {
-        const SECTORS_TO_COMMIT: u64 = 2;
+        const SECTORS_TO_COMMIT: u32 = 2;
         // Register CHARLIE as a storage provider.
         let storage_provider = CHARLIE;
         register_storage_provider(account(storage_provider));
@@ -194,7 +194,7 @@ fn successfully_prove_multiple_sectors() {
         assert_eq!(
             Balances::free_balance(account(storage_provider)),
             // Provider reserved 70 tokens in the market pallet and 1 token is used per the pre-commit
-            INITIAL_FUNDS - 70 - SECTORS_TO_COMMIT
+            INITIAL_FUNDS - 70 - SECTORS_TO_COMMIT as u64
         );
         let sp_state = StorageProviders::<Test>::get(account(storage_provider))
             .expect("Should be able to get providers info");
@@ -218,7 +218,7 @@ fn successfully_prove_multiple_sectors() {
 #[test]
 fn successfully_prove_after_period_start_and_check_mutability() {
     new_test_ext().execute_with(|| {
-        const SECTORS_TO_COMMIT: u64 = 4;
+        const SECTORS_TO_COMMIT: u32 = 4;
         // Register CHARLIE as a storage provider.
         let storage_provider = CHARLIE;
         register_storage_provider(account(storage_provider));

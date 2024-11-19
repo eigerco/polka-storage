@@ -596,7 +596,7 @@ mod tests {
         ]
     }
 
-    fn test_sector(expiration: u64, sector_number: u64) -> SectorOnChainInfo<u64> {
+    fn test_sector(expiration: u64, sector_number: u32) -> SectorOnChainInfo<u64> {
         SectorOnChainInfo {
             expiration,
             sector_number: SectorNumber::try_from(sector_number).unwrap(),
