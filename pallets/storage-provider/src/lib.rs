@@ -59,7 +59,7 @@ pub mod pallet {
     use primitives_proofs::{
         derive_prover_id,
         randomness::{draw_randomness, DomainSeparationTag},
-        Market, ProofVerification, Randomness, RegisteredPoStProof, SectorNumber,
+        Market, ProofVerification, PublicReplicaInfo, Randomness, RegisteredPoStProof, SectorNumber,
         StorageProviderValidation, MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
@@ -658,8 +658,6 @@ pub mod pallet {
         }
 
         /// The SP uses this extrinsic to submit their Proof-of-Spacetime.
-        ///
-        /// * Currently the proof is considered valid when `proof.len() > 0`.
         pub fn submit_windowed_post(
             origin: OriginFor<T>,
             windowed_post: SubmitWindowedPoStParams,
@@ -686,7 +684,7 @@ pub mod pallet {
             // Ensure a valid proof size
             // TODO(@jmg-duarte,#91,19/8/24): correctly check the length
             // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L565-L573
-            ensure!(windowed_post.proof.proof_bytes.len() > 0, {
+            ensure!(windowed_post.proof.proof_bytes.len() <= primitives_proofs::MAX_POST_PROOF_BYTES as usize, {
                 log::error!("submit_window_post: invalid proof size");
                 Error::<T>::PoStProofInvalid
             });
@@ -734,8 +732,6 @@ pub mod pallet {
             // * https://github.com/filecoin-project/lotus/blob/4f70204342ce83671a7a261147a18865f1618967/curiosrc/window/compute_do.go#L68-L72
             // * https://github.com/filecoin-project/curio/blob/45373f7fc0431e41f987ad348df7ae6e67beaff9/tasks/window/compute_do.go#L71-L75
 
-            // TODO(@aidan46, #91, 2024-07-03): Validate the proof after research is done
-
             // record sector as proven
             let all_sectors = sp.sectors.clone();
             let deadlines = sp.get_deadlines_mut();
@@ -743,15 +739,46 @@ pub mod pallet {
                 .record_proven(
                     windowed_post.deadline as usize,
                     &all_sectors,
-                    windowed_post.partitions,
+                    windowed_post.partitions.clone(),
                 )
                 .map_err(|e| Error::<T>::GeneralPalletError(e))?;
 
-            // Store new storage provider state
-            StorageProviders::<T>::set(owner.clone(), Some(sp));
+
+
+            // TODO(@th7nder,#592, 19/11/2024): handle faulty and recovered sectors, we don't take them into account now
+            let deadlines = &sp.deadlines;
+            let mut replicas = BoundedBTreeMap::new();
+            // Take all the sectors that were assigned to all of the partitions
+            for partition in &windowed_post.partitions {
+                let sectors = &deadlines.due[windowed_post.deadline as usize].partitions[partition].sectors;
+                for sector_number in sectors {
+                    let sector_info = sp.sectors.get(sector_number).unwrap();
+                    let _ = replicas.try_insert(*sector_number, PublicReplicaInfo {
+                        comm_r: sector_info.unsealed_cid[..32].try_into().expect("cid to be 32 bytes")
+                    }).unwrap();
+                }
+            }
+            let entropy = owner.encode();
+            let randomness = get_randomness::<T>(
+                DomainSeparationTag::WindowedPoStChallengeSeed,
+                current_deadline.challenge,
+                &entropy,
+            )?;
+
+            // Questions:
+            // * How do we know the partition the sector was assigned to (as a caller) ?
+            // * Can we handle proving multiple partitions in `verify_post?`
+            T::ProofVerification::verify_post(
+                windowed_post.proof.post_proof,
+                randomness,
+                replicas,
+                windowed_post.proof.proof_bytes
+            )?;
 
             log::debug!(target: LOG_TARGET, "submit_windowed_post: proof recorded");
 
+            // Store new storage provider state
+            StorageProviders::<T>::set(owner.clone(), Some(sp));
             Self::deposit_event(Event::ValidPoStSubmitted { owner });
 
             Ok(())
