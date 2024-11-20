@@ -12,7 +12,7 @@ use crate::{
         account, declare_faults::setup_sp_with_many_sectors_multiple_partitions, events,
         new_test_ext, register_storage_provider, run_to_block, DealProposalBuilder, Market,
         RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider,
-        SubmitWindowedPoStBuilder, System, Test, ALICE, BOB, INVALID_PROOF
+        SubmitWindowedPoStBuilder, System, Test, ALICE, BOB, INVALID_PROOF,
     },
     Config,
 };

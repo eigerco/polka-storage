@@ -80,7 +80,6 @@ impl pallet_balances::Config for Test {
     type AccountStore = System;
 }
 
-
 pub const INVALID_PROOF: [u8; 2] = [0xd, 0xe];
 
 /// This is dummy proofs pallet implementation. All proofs are accepted as valid
@@ -110,7 +109,7 @@ impl ProofVerification for DummyProofsVerification {
         proof: BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>,
     ) -> sp_runtime::DispatchResult {
         if *proof == INVALID_PROOF {
-            return Err(sp_runtime::DispatchError::Other("invalid proof"))
+            return Err(sp_runtime::DispatchError::Other("invalid proof"));
         }
         Ok(())
     }
