@@ -845,28 +845,16 @@ mod tests {
             .partitions
             .get(&0)
             .expect("Should be able to get recently added partition");
-        assert_eq!(
-            partition.sectors,
-            sector_set::<MAX_SECTORS>(&[1, 2, 3, 4])
-        );
-        assert_eq!(
-            partition.unproven,
-            sector_set::<MAX_SECTORS>(&[1, 2, 3, 4])
-        );
+        assert_eq!(partition.sectors, sector_set::<MAX_SECTORS>(&[1, 2, 3, 4]));
+        assert_eq!(partition.unproven, sector_set::<MAX_SECTORS>(&[1, 2, 3, 4]));
 
         // Check state of partition 1
         let partition = deadline
             .partitions
             .get(&1)
             .expect("Should be able to get recently added partition");
-        assert_eq!(
-            partition.sectors,
-            sector_set::<MAX_SECTORS>(&[5, 6, 7, 8])
-        );
-        assert_eq!(
-            partition.unproven,
-            sector_set::<MAX_SECTORS>(&[5, 6, 7, 8])
-        );
+        assert_eq!(partition.sectors, sector_set::<MAX_SECTORS>(&[5, 6, 7, 8]));
+        assert_eq!(partition.unproven, sector_set::<MAX_SECTORS>(&[5, 6, 7, 8]));
 
         // Check state of partition 2
         let partition = deadline
@@ -897,10 +885,7 @@ mod tests {
             .partitions
             .get(&0)
             .expect("Should be able to get recently added partition");
-        assert_eq!(
-            partition.sectors,
-            sector_set::<MAX_SECTORS>(&[1, 2, 3, 4])
-        );
+        assert_eq!(partition.sectors, sector_set::<MAX_SECTORS>(&[1, 2, 3, 4]));
         assert_eq!(partition.unproven, sector_set::<MAX_SECTORS>(&[]));
 
         // Check state of partition 1
@@ -908,10 +893,7 @@ mod tests {
             .partitions
             .get(&1)
             .expect("Should be able to get recently added partition");
-        assert_eq!(
-            partition.sectors,
-            sector_set::<MAX_SECTORS>(&[5, 6, 7, 8])
-        );
+        assert_eq!(partition.sectors, sector_set::<MAX_SECTORS>(&[5, 6, 7, 8]));
         assert_eq!(partition.unproven, sector_set::<MAX_SECTORS>(&[]));
 
         // Check state of partition 2
@@ -936,8 +918,7 @@ mod tests {
     ) -> Result<Vec<SectorOnChainInfo<u64>>, GeneralPalletError> {
         let sectors = add_sectors(deadline, prove)?;
 
-        let partition_sectors =
-            BTreeMap::from([(0, sector_set(&[1, 3])), (1, sector_set(&[6]))]);
+        let partition_sectors = BTreeMap::from([(0, sector_set(&[1, 3])), (1, sector_set(&[6]))]);
 
         terminate_sectors(15, deadline, sectors.clone(), partition_sectors)?;
 
@@ -946,21 +927,12 @@ mod tests {
             .partitions
             .get(&0)
             .expect("Should be able to get recently added partition");
-        assert_eq!(
-            partition.terminated,
-            sector_set::<MAX_SECTORS>(&[1, 3])
-        );
-        assert_eq!(
-            partition.sectors,
-            sector_set::<MAX_SECTORS>(&[1, 2, 3, 4])
-        );
+        assert_eq!(partition.terminated, sector_set::<MAX_SECTORS>(&[1, 3]));
+        assert_eq!(partition.sectors, sector_set::<MAX_SECTORS>(&[1, 2, 3, 4]));
         if prove {
             assert_eq!(partition.unproven, sector_set::<MAX_SECTORS>(&[]));
         } else {
-            assert_eq!(
-                partition.unproven,
-                sector_set::<MAX_SECTORS>(&[2, 4])
-            );
+            assert_eq!(partition.unproven, sector_set::<MAX_SECTORS>(&[2, 4]));
         }
 
         // Check state of partition 1
@@ -969,17 +941,11 @@ mod tests {
             .get(&1)
             .expect("Should be able to get recently added partition");
         assert_eq!(partition.terminated, sector_set::<MAX_SECTORS>(&[6]));
-        assert_eq!(
-            partition.sectors,
-            sector_set::<MAX_SECTORS>(&[5, 6, 7, 8])
-        );
+        assert_eq!(partition.sectors, sector_set::<MAX_SECTORS>(&[5, 6, 7, 8]));
         if prove {
             assert_eq!(partition.unproven, sector_set::<MAX_SECTORS>(&[]));
         } else {
-            assert_eq!(
-                partition.unproven,
-                sector_set::<MAX_SECTORS>(&[5, 7, 8])
-            );
+            assert_eq!(partition.unproven, sector_set::<MAX_SECTORS>(&[5, 7, 8]));
         }
         Ok(sectors)
     }
@@ -1006,25 +972,16 @@ mod tests {
             .partitions
             .get(&0)
             .expect("Should be able to get recently added partition");
-        assert_eq!(
-            partition.sectors,
-            sector_set::<MAX_SECTORS>(&[1, 2, 3, 4])
-        );
+        assert_eq!(partition.sectors, sector_set::<MAX_SECTORS>(&[1, 2, 3, 4]));
         assert_eq!(partition.unproven, sector_set::<MAX_SECTORS>(&[]));
-        assert_eq!(
-            partition.terminated,
-            sector_set::<MAX_SECTORS>(&[1, 3])
-        );
+        assert_eq!(partition.terminated, sector_set::<MAX_SECTORS>(&[1, 3]));
 
         // Check state of partition 1
         let partition = deadline
             .partitions
             .get(&1)
             .expect("Should be able to get recently added partition");
-        assert_eq!(
-            partition.sectors,
-            sector_set::<MAX_SECTORS>(&[5, 6, 7, 8])
-        );
+        assert_eq!(partition.sectors, sector_set::<MAX_SECTORS>(&[5, 6, 7, 8]));
         assert_eq!(partition.unproven, sector_set::<MAX_SECTORS>(&[]));
         assert_eq!(partition.terminated, sector_set::<MAX_SECTORS>(&[6]));
 
@@ -1068,18 +1025,12 @@ mod tests {
             .partitions
             .get(&0)
             .expect("Should be able to get recently added partition");
-        assert_eq!(
-            partition.sectors,
-            sector_set::<MAX_SECTORS>(&[1, 2, 3, 4])
-        );
+        assert_eq!(partition.sectors, sector_set::<MAX_SECTORS>(&[1, 2, 3, 4]));
         assert_eq!(partition.faults, sector_set::<MAX_SECTORS>(&[1]));
         if prove {
             assert_eq!(partition.unproven, sector_set::<MAX_SECTORS>(&[]));
         } else {
-            assert_eq!(
-                partition.unproven,
-                sector_set::<MAX_SECTORS>(&[2, 3, 4])
-            );
+            assert_eq!(partition.unproven, sector_set::<MAX_SECTORS>(&[2, 3, 4]));
         }
 
         // Check state of partition 1
@@ -1087,21 +1038,12 @@ mod tests {
             .partitions
             .get(&1)
             .expect("Should be able to get recently added partition");
-        assert_eq!(
-            partition.sectors,
-            sector_set::<MAX_SECTORS>(&[5, 6, 7, 8])
-        );
-        assert_eq!(
-            partition.faults,
-            sector_set::<MAX_SECTORS>(&[5, 6])
-        );
+        assert_eq!(partition.sectors, sector_set::<MAX_SECTORS>(&[5, 6, 7, 8]));
+        assert_eq!(partition.faults, sector_set::<MAX_SECTORS>(&[5, 6]));
         if prove {
             assert_eq!(partition.unproven, sector_set::<MAX_SECTORS>(&[]));
         } else {
-            assert_eq!(
-                partition.unproven,
-                sector_set::<MAX_SECTORS>(&[7, 8])
-            );
+            assert_eq!(partition.unproven, sector_set::<MAX_SECTORS>(&[7, 8]));
         }
 
         // Check state of partition 2
@@ -1208,24 +1150,15 @@ mod tests {
             .partitions
             .get(&0)
             .expect("Should be able to get recently added partition");
-        assert_eq!(
-            partition.sectors,
-            sector_set::<MAX_SECTORS>(&[1, 2, 3, 4])
-        );
-        assert_eq!(
-            partition.terminated,
-            sector_set::<MAX_SECTORS>(&[1, 3])
-        );
+        assert_eq!(partition.sectors, sector_set::<MAX_SECTORS>(&[1, 2, 3, 4]));
+        assert_eq!(partition.terminated, sector_set::<MAX_SECTORS>(&[1, 3]));
 
         // Check state of partition 1
         let partition = deadline
             .partitions
             .get(&1)
             .expect("Should be able to get recently added partition");
-        assert_eq!(
-            partition.sectors,
-            sector_set::<MAX_SECTORS>(&[5, 6, 7, 8])
-        );
+        assert_eq!(partition.sectors, sector_set::<MAX_SECTORS>(&[5, 6, 7, 8]));
         assert_eq!(partition.terminated, sector_set::<MAX_SECTORS>(&[6]));
 
         // Check state of partition 2
@@ -1252,8 +1185,7 @@ mod tests {
         let expected_sectors = BTreeSet::from([1, 2, 3, 4, 5, 6, 7, 8, 9]);
         let sectors =
             add_then_mark_faulty(&mut deadline, prove).expect("Could not mark sectors as faulty"); // 1,5,6 faulty
-        let partition_sectors =
-            BTreeMap::from([(0, sector_set(&[1, 3])), (1, sector_set(&[6]))]);
+        let partition_sectors = BTreeMap::from([(0, sector_set(&[1, 3])), (1, sector_set(&[6]))]);
         terminate_sectors(15, &mut deadline, sectors, partition_sectors)
             .expect("Could not terminate sectors");
 
@@ -1328,10 +1260,7 @@ mod tests {
             .partitions
             .get(&0)
             .expect("Should be able to get recently added partition");
-        assert_eq!(
-            partition.sectors,
-            sector_set::<MAX_SECTORS>(&[1, 2, 3, 4])
-        );
+        assert_eq!(partition.sectors, sector_set::<MAX_SECTORS>(&[1, 2, 3, 4]));
         assert_eq!(
             partition.terminated,
             sector_set::<MAX_SECTORS>(&[1, 2, 3, 4])
@@ -1343,14 +1272,8 @@ mod tests {
             .partitions
             .get(&1)
             .expect("Should be able to get recently added partition");
-        assert_eq!(
-            partition.sectors,
-            sector_set::<MAX_SECTORS>(&[5, 6, 7, 8])
-        );
-        assert_eq!(
-            partition.terminated,
-            sector_set::<MAX_SECTORS>(&[5, 6, 8])
-        );
+        assert_eq!(partition.sectors, sector_set::<MAX_SECTORS>(&[5, 6, 7, 8]));
+        assert_eq!(partition.terminated, sector_set::<MAX_SECTORS>(&[5, 6, 8]));
         assert_eq!(partition.faults, sector_set::<MAX_SECTORS>(&[]));
 
         // Check state of partition 2
@@ -1381,10 +1304,7 @@ mod tests {
             .partitions
             .get(&0)
             .expect("Should be able to get recently added partition");
-        assert_eq!(
-            partition.sectors,
-            sector_set::<MAX_SECTORS>(&[1, 2, 3, 4])
-        );
+        assert_eq!(partition.sectors, sector_set::<MAX_SECTORS>(&[1, 2, 3, 4]));
         assert_eq!(
             partition.terminated,
             sector_set::<MAX_SECTORS>(&[1, 2, 3, 4])
@@ -1396,14 +1316,8 @@ mod tests {
             .partitions
             .get(&1)
             .expect("Should be able to get recently added partition");
-        assert_eq!(
-            partition.sectors,
-            sector_set::<MAX_SECTORS>(&[5, 6, 7, 8])
-        );
-        assert_eq!(
-            partition.terminated,
-            sector_set::<MAX_SECTORS>(&[5, 6, 8])
-        );
+        assert_eq!(partition.sectors, sector_set::<MAX_SECTORS>(&[5, 6, 7, 8]));
+        assert_eq!(partition.terminated, sector_set::<MAX_SECTORS>(&[5, 6, 8]));
         assert_eq!(partition.faults, sector_set::<MAX_SECTORS>(&[]));
 
         // Check state of partition 2

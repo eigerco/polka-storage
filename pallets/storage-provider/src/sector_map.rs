@@ -293,7 +293,11 @@ mod test {
 
     /// Checks that all items in `expected_sectors` are in the actual partition.
     /// The actual partition should have no extra or missing items.
-    fn expect_sectors_exact(map: &PartitionMap, partition: PartitionNumber, expected_sectors: &[u32]) {
+    fn expect_sectors_exact(
+        map: &PartitionMap,
+        partition: PartitionNumber,
+        expected_sectors: &[u32],
+    ) {
         match map.0.get(&partition) {
             Some(actual) => {
                 let expected = expected_sectors

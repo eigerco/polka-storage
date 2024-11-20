@@ -579,9 +579,9 @@ where
 mod tests {
     extern crate alloc;
 
-    use alloc::collections::BTreeMap;
     use super::*;
     use crate::tests::sector_set;
+    use alloc::collections::BTreeMap;
 
     fn sectors() -> Vec<SectorOnChainInfo<u64>> {
         vec![
@@ -702,14 +702,8 @@ mod tests {
         let expected_sectors: BTreeSet<_> = all_sectors.iter().map(|s| s.sector_number).collect();
 
         // Assert that the returned expiration set is as expected
-        assert_eq!(
-            removed.on_time_sectors,
-            sector_set::<MAX_SECTORS>(&[1, 3])
-        );
-        assert_eq!(
-            removed.early_sectors,
-            sector_set::<MAX_SECTORS>(&[5, 6])
-        );
+        assert_eq!(removed.on_time_sectors, sector_set::<MAX_SECTORS>(&[1, 3]));
+        assert_eq!(removed.early_sectors, sector_set::<MAX_SECTORS>(&[5, 6]));
 
         // Assert the partition metadata is as expected
         assert_eq!(partition.faults, sector_set::<MAX_SECTORS>(&[4]));
