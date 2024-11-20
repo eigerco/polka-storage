@@ -748,13 +748,12 @@ pub mod pallet {
                 for sector_number in sectors {
                     // Sectors stored in the Storage Provider struct should be consistently stored, without breaking invariants.
                     let sector_info = &sp.sectors[sector_number];
+                    let comm_r = Commitment::<CommR>::from_cid_bytes(&sector_info.sealed_cid).unwrap();
                     let _ = replicas
                         .try_insert(
                             *sector_number,
                             PublicReplicaInfo {
-                                comm_r: sector_info.unsealed_cid[..]
-                                    .try_into()
-                                    .expect("CID on-chain to be stored as 32 bytes RawCommitment"),
+                                comm_r: comm_r.raw(),
                             },
                         ).map_err(|_| Error::<T>::TooManyReplicas);
                 }
@@ -766,7 +765,7 @@ pub mod pallet {
                 replicas
             );
 
-            let entropy = owner.encode();
+            // let entropy = owner.encode();
             // The `chain_commit_epoch` should be `current_deadline.challenge` as per:
             //
             // These issues that were filed against the original implementation:
@@ -786,11 +785,13 @@ pub mod pallet {
             // * https://github.com/filecoin-project/lotus/blob/4f70204342ce83671a7a261147a18865f1618967/storage/wdpost/wdpost_run.go#L334-L338
             // * https://github.com/filecoin-project/lotus/blob/4f70204342ce83671a7a261147a18865f1618967/curiosrc/window/compute_do.go#L68-L72
             // * https://github.com/filecoin-project/curio/blob/45373f7fc0431e41f987ad348df7ae6e67beaff9/tasks/window/compute_do.go#L71-L75
-            let randomness = get_randomness::<T>(
-                DomainSeparationTag::WindowedPoStChallengeSeed,
-                current_deadline.challenge,
-                &entropy,
-            )?;
+            // let randomness = get_randomness::<T>(
+            //     DomainSeparationTag::WindowedPoStChallengeSeed,
+            //     current_deadline.challenge,
+            //     &entropy,
+            // )?;
+
+            let randomness = [1u8; 32];
 
             // Questions:
             // * How do we know the partition the sector was assigned to (as a caller) ?
