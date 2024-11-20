@@ -122,6 +122,10 @@ pub enum ProofsCommand {
         #[arg(short, long)]
         /// Directory where the PoSt proof will be stored. Defaults to the current directory.
         output_path: Option<PathBuf>,
+        #[arg(short, long)]
+        sector_number: u64,
+        #[arg(short, long)]
+        randomness: Option<String>,
     },
 }
 
@@ -405,6 +409,8 @@ impl ProofsCommand {
                 replica_path,
                 comm_r,
                 output_path,
+                sector_number,
+                randomness,
             } => {
                 let Some(signer) = Option::<MultiPairSigner>::from(signer_key) else {
                     return Err(UtilsCommandError::NoSigner)?;
@@ -413,8 +419,15 @@ impl ProofsCommand {
 
                 // Those are hardcoded for the showcase only.
                 // They should come from Storage Provider Node, precommits and other information.
-                let sector_id = 77.into();
-                let randomness = [1u8; 32];
+
+                // how do I get the same randomness as on-chain? :(
+                // need to be able to calculate deadline info and challenge
+                // I'll hardcode it for now
+                let randomness: [u8; 32] = if let Some(randomness) = randomness {
+                    hex::decode(randomness).unwrap().try_into().unwrap()
+                } else {
+                    [1u8; 32]
+                };
 
                 let output_path = if let Some(output_path) = output_path {
                     output_path
@@ -424,7 +437,7 @@ impl ProofsCommand {
 
                 let (proof_scale_filename, mut proof_scale_file) = file_with_extension(
                     &output_path,
-                    format!("{}", sector_id).as_str(),
+                    format!("{}", sector_number).as_str(),
                     POST_PROOF_EXT,
                 )?;
 
@@ -432,7 +445,7 @@ impl ProofsCommand {
                     cid::Cid::from_str(&comm_r).map_err(|_| UtilsCommandError::CommRError)?;
 
                 let replicas = vec![ReplicaInfo {
-                    sector_id,
+                    sector_id: sector_number,
                     comm_r: comm_r
                         .hash()
                         .digest()
