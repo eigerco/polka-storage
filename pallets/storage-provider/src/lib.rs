@@ -748,7 +748,8 @@ pub mod pallet {
                 for sector_number in sectors {
                     // Sectors stored in the Storage Provider struct should be consistently stored, without breaking invariants.
                     let sector_info = &sp.sectors[sector_number];
-                    let comm_r = Commitment::<CommR>::from_cid_bytes(&sector_info.sealed_cid).unwrap();
+                    let comm_r = Commitment::<CommR>::from_cid_bytes(&sector_info.sealed_cid)
+                        .expect("CommR to be validated on pre-commit");
                     let _ = replicas
                         .try_insert(
                             *sector_number,
@@ -785,11 +786,11 @@ pub mod pallet {
             // * https://github.com/filecoin-project/lotus/blob/4f70204342ce83671a7a261147a18865f1618967/storage/wdpost/wdpost_run.go#L334-L338
             // * https://github.com/filecoin-project/lotus/blob/4f70204342ce83671a7a261147a18865f1618967/curiosrc/window/compute_do.go#L68-L72
             // * https://github.com/filecoin-project/curio/blob/45373f7fc0431e41f987ad348df7ae6e67beaff9/tasks/window/compute_do.go#L71-L75
-            // let randomness = get_randomness::<T>(
-            //     DomainSeparationTag::WindowedPoStChallengeSeed,
-            //     current_deadline.challenge,
-            //     &entropy,
-            // )?;
+            let randomness = get_randomness::<T>(
+                DomainSeparationTag::WindowedPoStChallengeSeed,
+                current_deadline.challenge,
+                &entropy,
+            )?;
 
             let randomness = [1u8; 32];
 
