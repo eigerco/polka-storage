@@ -18,6 +18,12 @@ pub(crate) enum ProofsCommand {
         #[arg(value_parser = VerifyingKey::value_parser)]
         verifying_key: VerifyingKey,
     },
+    /// Set PoRep verifying key
+    SetPoStVerifyingKey {
+        /// Verifying key. Either hex encoded as string or, if prepended with @, a path to a file containing the key's raw bytes.
+        #[arg(value_parser = VerifyingKey::value_parser)]
+        verifying_key: VerifyingKey,
+    },
 }
 
 impl ProofsCommand {
@@ -46,6 +52,19 @@ impl ProofsCommand {
                 };
 
                 Self::set_porep_verifying_key(
+                    client,
+                    account_keypair,
+                    verifying_key,
+                    wait_for_finalization,
+                )
+                .await?
+            },
+            ProofsCommand::SetPoStVerifyingKey { verifying_key } => {
+                let Some(account_keypair) = account_keypair else {
+                    return Err(missing_keypair_error::<Self>().into());
+                };
+
+                Self::set_post_verifying_key(
                     client,
                     account_keypair,
                     verifying_key,
@@ -98,7 +117,26 @@ impl ProofsCommand {
             .set_porep_verifying_key(&account_keypair, verifying_key, wait_for_finalization)
             .await?
             .inspect(|result| {
-                tracing::debug!("[{}] Key successfully set", result.hash);
+                tracing::debug!("[{}] PoRep Key successfully set", result.hash);
+            });
+
+        Ok(submission_result)
+    }
+
+    async fn set_post_verifying_key<Client>(
+        client: Client,
+        account_keypair: MultiPairSigner,
+        verifying_key: VerifyingKey,
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
+    where
+        Client: ProofsClientExt,
+    {
+        let submission_result = client
+            .set_post_verifying_key(&account_keypair, verifying_key, wait_for_finalization)
+            .await?
+            .inspect(|result| {
+                tracing::debug!("[{}] PoSt Key successfully set", result.hash);
             });
 
         Ok(submission_result)
