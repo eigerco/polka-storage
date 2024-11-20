@@ -187,36 +187,36 @@ mod test {
         let mut map = PartitionMap::new();
 
         let partition = 0;
-        let sectors = [1, 2, 3].into_iter();
-        let _ = map.try_insert_sectors(partition, sector_set(sectors.clone()));
-        expect_sectors_exact(&map, partition, sectors);
+        let sectors = [1, 2, 3];
+        let _ = map.try_insert_sectors(partition, sector_set(&sectors));
+        expect_sectors_exact(&map, partition, &sectors);
 
-        let sectors = [4, 5, 6].into_iter();
-        let _ = map.try_insert_sectors(partition, sector_set(sectors.clone()));
-        expect_sectors_partial(&map, partition, sectors);
+        let sectors = [4, 5, 6];
+        let _ = map.try_insert_sectors(partition, sector_set(&sectors));
+        expect_sectors_partial(&map, partition, &sectors);
 
         let partition = 1;
-        let sectors = [7, 8, 9].into_iter();
-        let _ = map.try_insert_sectors(partition, sector_set(sectors.clone()));
-        expect_sectors_partial(&map, partition, sectors);
+        let sectors = [7, 8, 9];
+        let _ = map.try_insert_sectors(partition, sector_set(&sectors));
+        expect_sectors_partial(&map, partition, &sectors);
     }
 
     #[test]
     fn partition_map_duplicated_sectors() {
         let mut map = PartitionMap::new();
         let partition = 0;
-        let sectors = [1, 2, 3].into_iter();
+        let sectors = [1, 2, 3];
 
-        let _ = map.try_insert_sectors(partition, sector_set(sectors.clone()));
-        expect_sectors_exact(&map, partition, sectors.clone());
+        let _ = map.try_insert_sectors(partition, sector_set(&sectors));
+        expect_sectors_exact(&map, partition, &sectors);
         // This call is a no-op since all sectors are already in the partition
-        let _ = map.try_insert_sectors(partition, sector_set(sectors.clone()));
-        expect_sectors_exact(&map, partition, sectors);
+        let _ = map.try_insert_sectors(partition, sector_set(&sectors));
+        expect_sectors_exact(&map, partition, &sectors);
 
         let partition = 1;
-        let sectors = [4, 5, 6].into_iter();
-        let _ = map.try_insert_sectors(partition, sector_set(sectors.clone()));
-        expect_sectors_exact(&map, partition, sectors);
+        let sectors = [4, 5, 6];
+        let _ = map.try_insert_sectors(partition, sector_set(&sectors));
+        expect_sectors_exact(&map, partition, &sectors);
     }
 
     #[test]
@@ -225,28 +225,28 @@ mod test {
 
         let deadline = 0;
         let partition = 0;
-        let sectors = [1, 2, 3].into_iter();
-        let _ = map.try_insert(deadline, partition, sector_set(sectors.clone()));
-        expect_deadline_sectors_exact(&map, deadline, partition, sectors);
+        let sectors = [1, 2, 3];
+        let _ = map.try_insert(deadline, partition, sector_set(&sectors));
+        expect_deadline_sectors_exact(&map, deadline, partition, &sectors);
 
-        let sectors = [4, 5, 6].into_iter();
-        let _ = map.try_insert(deadline, partition, sector_set(sectors.clone()));
-        expect_deadline_sectors_partial(&map, deadline, partition, sectors);
+        let sectors = [4, 5, 6];
+        let _ = map.try_insert(deadline, partition, sector_set(&sectors));
+        expect_deadline_sectors_partial(&map, deadline, partition, &sectors);
 
         let partition = 1;
-        let sectors = [1, 2, 3].into_iter();
-        let _ = map.try_insert(deadline, partition, sector_set(sectors.clone()));
-        expect_deadline_sectors_exact(&map, deadline, partition, sectors);
+        let sectors = [1, 2, 3];
+        let _ = map.try_insert(deadline, partition, sector_set(&sectors));
+        expect_deadline_sectors_exact(&map, deadline, partition, &sectors);
 
-        let sectors = [4, 5, 6].into_iter();
-        let _ = map.try_insert(deadline, partition, sector_set(sectors.clone()));
-        expect_deadline_sectors_partial(&map, deadline, partition, sectors);
+        let sectors = [4, 5, 6];
+        let _ = map.try_insert(deadline, partition, sector_set(&sectors));
+        expect_deadline_sectors_partial(&map, deadline, partition, &sectors);
 
         let deadline = 1;
         let partition = 1;
-        let sectors = [7, 8, 9].into_iter();
-        let _ = map.try_insert(deadline, partition, sector_set(sectors.clone()));
-        expect_deadline_sectors_exact(&map, deadline, partition, sectors);
+        let sectors = [7, 8, 9];
+        let _ = map.try_insert(deadline, partition, sector_set(&sectors));
+        expect_deadline_sectors_exact(&map, deadline, partition, &sectors);
     }
 
     #[test]
@@ -255,29 +255,27 @@ mod test {
 
         let deadline = 0;
         let partition = 0;
-        let sectors = [1, 2, 3].into_iter();
-        let _ = map.try_insert(deadline, partition, sector_set(sectors.clone()));
-        expect_deadline_sectors_exact(&map, deadline, partition, sectors);
+        let sectors = [1, 2, 3];
+        let _ = map.try_insert(deadline, partition, sector_set(&sectors));
+        expect_deadline_sectors_exact(&map, deadline, partition, &sectors);
 
-        let sectors = [1, 2, 3].into_iter();
-        let _ = map.try_insert(deadline, partition, sector_set(sectors.clone()));
-        expect_deadline_sectors_exact(&map, deadline, partition, sectors);
+        let sectors = [1, 2, 3];
+        let _ = map.try_insert(deadline, partition, sector_set(&sectors));
+        expect_deadline_sectors_exact(&map, deadline, partition, &sectors);
     }
 
     /// Checks that items in `expected_sectors` are in the actual partition. Any
     /// extra items that are not in the `expected_sectors` are ignored.
-    fn expect_sectors_partial<I>(
+    fn expect_sectors_partial(
         map: &PartitionMap,
         partition: PartitionNumber,
-        expected_sectors: I,
-    ) where
-        I: Iterator,
-        I::Item: TryInto<SectorNumber>,
-        <I::Item as TryInto<SectorNumber>>::Error: std::fmt::Debug,
-    {
+        expected_sectors: &[u32],
+    ) {
         match map.0.get(&partition) {
             Some(a) => {
                 expected_sectors
+                    .into_iter()
+                    .copied()
                     .map(|s| s.try_into().unwrap())
                     .enumerate()
                     .for_each(|(idx, s)| {
@@ -295,15 +293,12 @@ mod test {
 
     /// Checks that all items in `expected_sectors` are in the actual partition.
     /// The actual partition should have no extra or missing items.
-    fn expect_sectors_exact<I>(map: &PartitionMap, partition: PartitionNumber, expected_sectors: I)
-    where
-        I: Iterator,
-        I::Item: TryInto<SectorNumber>,
-        <I::Item as TryInto<SectorNumber>>::Error: std::fmt::Debug,
-    {
+    fn expect_sectors_exact(map: &PartitionMap, partition: PartitionNumber, expected_sectors: &[u32]) {
         match map.0.get(&partition) {
             Some(actual) => {
                 let expected = expected_sectors
+                    .into_iter()
+                    .copied()
                     .map(|s| s.try_into().unwrap())
                     .collect::<BTreeSet<_>>();
                 assert_eq!(expected.len(), actual.len());
@@ -316,16 +311,12 @@ mod test {
     /// Checks that items in `expected_sectors` are in the actual partition
     /// deadline. Any extra items that are not in the `expected_sectors` are
     /// ignored.
-    fn expect_deadline_sectors_partial<I>(
+    fn expect_deadline_sectors_partial(
         map: &DeadlineSectorMap,
         deadline: u64,
         partition: PartitionNumber,
-        expected_sectors: I,
-    ) where
-        I: Iterator,
-        I::Item: TryInto<SectorNumber>,
-        <I::Item as TryInto<SectorNumber>>::Error: std::fmt::Debug,
-    {
+        expected_sectors: &[u32],
+    ) {
         match map.0.get(&deadline) {
             Some(p_map) => expect_sectors_partial(p_map, partition, expected_sectors),
             None => panic!("deadline {deadline} not found"),
@@ -334,16 +325,12 @@ mod test {
 
     /// Checks that all items in `expected_sectors` are in the actual partition
     /// deadline. The actual partition should have no extra or missing items.
-    fn expect_deadline_sectors_exact<I>(
+    fn expect_deadline_sectors_exact(
         map: &DeadlineSectorMap,
         deadline: u64,
         partition: PartitionNumber,
-        expected_sectors: I,
-    ) where
-        I: Iterator,
-        I::Item: TryInto<SectorNumber>,
-        <I::Item as TryInto<SectorNumber>>::Error: std::fmt::Debug,
-    {
+        expected_sectors: &[u32],
+    ) {
         match map.0.get(&deadline) {
             Some(p_map) => expect_sectors_exact(p_map, partition, expected_sectors),
             None => panic!("deadline {deadline} not found"),

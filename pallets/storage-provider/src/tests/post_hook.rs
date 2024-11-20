@@ -67,7 +67,7 @@ fn marks_partitions_as_faulty() {
         // Partitions are filled up from the first partition
         let partition = &deadline.partitions[&0];
         let expected_sectors =
-            sector_set::<MAX_SECTORS, _>([first_sector_number, second_sector_number].into_iter());
+            sector_set::<MAX_SECTORS>(&[first_sector_number, second_sector_number]);
 
         assert_eq!(partition.faults.len(), 2);
         assert_eq!(expected_sectors, partition.faults);
@@ -124,7 +124,7 @@ fn does_not_mark_partitions_as_faulty() {
         // Partitions are filled up from the first partition
         let partition = &deadline.partitions[&0];
         let expected_sectors =
-            sector_set::<MAX_SECTORS, _>([first_sector_number, second_sector_number].into_iter());
+            sector_set::<MAX_SECTORS>(&[first_sector_number, second_sector_number]);
 
         assert_eq!(partition.faults.len(), 0);
         assert_eq!(expected_sectors, partition.sectors);
@@ -133,6 +133,8 @@ fn does_not_mark_partitions_as_faulty() {
 }
 
 fn precommit_and_prove(storage_provider: &'static str, deal_id: DealId, sector_number: u32) {
+    let sector_number = SectorNumber::try_from(sector_number).unwrap();
+
     let sector = SectorPreCommitInfoBuilder::default()
         .sector_number(sector_number)
         .deals(bounded_vec![deal_id])
@@ -146,7 +148,7 @@ fn precommit_and_prove(storage_provider: &'static str, deal_id: DealId, sector_n
     StorageProvider::prove_commit_sectors(
         RuntimeOrigin::signed(account(storage_provider)),
         bounded_vec![ProveCommitSector {
-            sector_number: SectorNumber::try_from(sector_number).unwrap(),
+            sector_number,
             proof: bounded_vec![0xde],
         }],
     )

@@ -12,18 +12,11 @@ use crate::{
 };
 
 fn on_time_sectors() -> [SectorNumber; 3] {
-    [
-        SectorNumber::try_from(5).unwrap(),
-        SectorNumber::try_from(8).unwrap(),
-        SectorNumber::try_from(9).unwrap(),
-    ]
+    [5.into(), 8.into(), 9.into()]
 }
 
 fn early_sectors() -> [SectorNumber; 2] {
-    [
-        SectorNumber::try_from(2).unwrap(),
-        SectorNumber::try_from(3).unwrap(),
-    ]
+    [2.into(), 3.into()]
 }
 
 fn default_set() -> ExpirationSet {
@@ -34,7 +27,7 @@ fn default_set() -> ExpirationSet {
 
 /// Create a single sector used in tests
 fn test_sector(expiration: BlockNumber, sector_number: u32) -> SectorOnChainInfo<BlockNumber> {
-    let sector_number = SectorNumber::try_from(sector_number).unwrap();
+    let sector_number = sector_number.try_into().unwrap();
     SectorOnChainInfo {
         sector_number,
         seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
@@ -61,58 +54,30 @@ fn sectors() -> [SectorOnChainInfo<BlockNumber>; 6] {
 fn add_sectors_to_empty_set() {
     let set = default_set();
 
-    assert_eq!(
-        set.on_time_sectors,
-        sector_set::<MAX_SECTORS, _>(on_time_sectors().into_iter())
-    );
-    assert_eq!(
-        set.early_sectors,
-        sector_set::<MAX_SECTORS, _>(early_sectors().into_iter())
-    );
+    assert_eq!(set.on_time_sectors, sector_set::<MAX_SECTORS>(&[5, 8, 9]));
+    assert_eq!(set.early_sectors, sector_set::<MAX_SECTORS>(&[2, 3]));
 }
 
 #[test]
 fn add_sectors_to_non_empty_set() {
     let mut set = default_set();
-    set.add(
-        &[
-            SectorNumber::try_from(6).unwrap(),
-            SectorNumber::try_from(7).unwrap(),
-            SectorNumber::try_from(11).unwrap(),
-        ],
-        &[
-            SectorNumber::try_from(1).unwrap(),
-            SectorNumber::try_from(4).unwrap(),
-        ],
-    )
-    .unwrap();
+    set.add(&[6.into(), 7.into(), 11.into()], &[1.into(), 4.into()])
+        .unwrap();
 
     assert_eq!(
         set.on_time_sectors,
-        sector_set::<MAX_SECTORS, _>([5, 6, 7, 8, 9, 11].into_iter())
+        sector_set::<MAX_SECTORS>(&[5, 6, 7, 8, 9, 11])
     );
-    assert_eq!(
-        set.early_sectors,
-        sector_set::<MAX_SECTORS, _>([1, 2, 3, 4].into_iter())
-    );
+    assert_eq!(set.early_sectors, sector_set::<MAX_SECTORS>(&[1, 2, 3, 4]));
 }
 
 #[test]
 fn remove_sectors_from_set() {
     let mut set = default_set();
-    set.remove(
-        &[SectorNumber::try_from(9).unwrap()],
-        &[SectorNumber::try_from(2).unwrap()],
-    );
+    set.remove(&[9.into()], &[2.into()]);
 
-    assert_eq!(
-        set.on_time_sectors,
-        sector_set::<MAX_SECTORS, _>([5, 8].into_iter())
-    );
-    assert_eq!(
-        set.early_sectors,
-        sector_set::<MAX_SECTORS, _>([3].into_iter())
-    );
+    assert_eq!(set.on_time_sectors, sector_set::<MAX_SECTORS>(&[5, 8]));
+    assert_eq!(set.early_sectors, sector_set::<MAX_SECTORS>(&[3]));
 }
 
 #[test]
@@ -164,14 +129,8 @@ fn reschedules_sectors_as_faults() {
 
     for (expiration_height, on_time, early) in checks {
         let set = queue.map.get(&expiration_height).unwrap();
-        assert_eq!(
-            set.on_time_sectors,
-            sector_set::<MAX_SECTORS, _>(on_time.into_iter())
-        );
-        assert_eq!(
-            set.early_sectors,
-            sector_set::<MAX_SECTORS, _>(early.into_iter())
-        );
+        assert_eq!(set.on_time_sectors, sector_set::<MAX_SECTORS>(&on_time));
+        assert_eq!(set.early_sectors, sector_set::<MAX_SECTORS>(&early));
     }
 }
 

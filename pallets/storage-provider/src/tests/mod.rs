@@ -1,7 +1,6 @@
 extern crate alloc;
 use alloc::collections::BTreeSet;
 use core::str::FromStr;
-use std::fmt::Debug;
 
 use cid::Cid;
 use codec::Encode;
@@ -272,13 +271,10 @@ pub fn run_to_block(n: u64) {
 }
 
 /// This is a helper function to easily create a set of sectors.
-pub fn sector_set<const B: u32, I>(sectors: I) -> BoundedBTreeSet<SectorNumber, ConstU32<B>>
-where
-    I: Iterator,
-    I::Item: TryInto<SectorNumber>,
-    <I::Item as TryInto<SectorNumber>>::Error: Debug,
-{
+pub fn sector_set<const B: u32>(sectors: &[u32]) -> BoundedBTreeSet<SectorNumber, ConstU32<B>> {
     let sectors = sectors
+        .into_iter()
+        .copied()
         .map(|s| s.try_into().unwrap())
         .collect::<BTreeSet<_>>();
     BoundedBTreeSet::try_from(sectors).unwrap()
@@ -378,8 +374,8 @@ impl Default for SectorPreCommitInfoBuilder {
 }
 
 impl SectorPreCommitInfoBuilder {
-    pub fn sector_number(mut self, sector_number: u32) -> Self {
-        self.sector_number = SectorNumber::new(sector_number).unwrap();
+    pub fn sector_number(mut self, sector_number: SectorNumber) -> Self {
+        self.sector_number = sector_number;
         self
     }
 

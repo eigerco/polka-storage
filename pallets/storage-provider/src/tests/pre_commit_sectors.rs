@@ -122,7 +122,7 @@ fn successfully_precommited_no_deals() {
 #[test]
 fn successfully_precommited_batch() {
     new_test_ext().execute_with(|| {
-        const SECTORS_TO_PRECOMMIT: u32 = 6;
+        const SECTORS_TO_PRECOMMIT: u64 = 6;
         // Register CHARLIE as a storage provider.
         let storage_provider = CHARLIE;
         register_storage_provider(account(storage_provider));
@@ -135,10 +135,11 @@ fn successfully_precommited_batch() {
             ConstU32<MAX_SECTORS_PER_CALL>,
         > = bounded_vec![];
         for sector_number in 0..SECTORS_TO_PRECOMMIT {
+            let sector_number = u16::try_from(sector_number).unwrap();
             sectors
                 .try_push(
                     SectorPreCommitInfoBuilder::default()
-                        .sector_number(sector_number)
+                        .sector_number(sector_number.into())
                         .unsealed_cid(
                             "baga6ea4seaqhdbbdnon7gkuquzw6waekzqx5lbuio6a6wjie22pgfmwnv3a3wfi",
                         )
@@ -159,7 +160,7 @@ fn successfully_precommited_batch() {
             [
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Reserved {
                     who: account(storage_provider),
-                    amount: SECTORS_TO_PRECOMMIT as u64
+                    amount: SECTORS_TO_PRECOMMIT
                 },),
                 RuntimeEvent::StorageProvider(Event::<Test>::SectorsPreCommitted {
                     block: 1,
@@ -177,10 +178,10 @@ fn successfully_precommited_batch() {
             sp.pre_committed_sectors.len(),
             (SECTORS_TO_PRECOMMIT as usize)
         );
-        assert_eq!(sp.pre_commit_deposits, SECTORS_TO_PRECOMMIT as u64);
+        assert_eq!(sp.pre_commit_deposits, SECTORS_TO_PRECOMMIT);
         assert_eq!(
             Balances::free_balance(account(storage_provider)),
-            INITIAL_FUNDS - 70 - SECTORS_TO_PRECOMMIT as u64
+            INITIAL_FUNDS - 70 - SECTORS_TO_PRECOMMIT
         );
     });
 }

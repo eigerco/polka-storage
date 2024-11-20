@@ -238,7 +238,7 @@ mod tests {
     impl Default for SectorOnChainInfo<u64> {
         fn default() -> Self {
             Self {
-                sector_number: SectorNumber::try_from(1).unwrap(),
+                sector_number: 1.into(),
                 seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
                 sealed_cid: BoundedVec::new(),
                 activation: 1,

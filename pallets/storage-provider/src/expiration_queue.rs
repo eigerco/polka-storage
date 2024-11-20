@@ -577,13 +577,13 @@ mod tests {
         ];
 
         // and only sector from last set
-        let faults = sector_set([4, 5, 6].into_iter());
+        let faults = sector_set(&[4, 5, 6]);
 
         let result = q.remove_sectors(&to_remove, &faults);
         assert!(result.is_ok());
         let removed = result.unwrap();
-        let expected_on_time_sectors = sector_set::<MAX_SECTORS, _>([1, 4].into_iter());
-        let expected_early_sectors = sector_set::<MAX_SECTORS, _>([5, 6].into_iter());
+        let expected_on_time_sectors = sector_set::<MAX_SECTORS>(&[1, 4]);
+        let expected_early_sectors = sector_set::<MAX_SECTORS>(&[5, 6]);
 
         // assert all return values are correct
         assert_eq!(removed.on_time_sectors, expected_on_time_sectors);

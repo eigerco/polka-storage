@@ -806,7 +806,7 @@ fn activate_deals() {
         let deals = bounded_vec![
             SectorDealBuilder::default().build(),
             SectorDealBuilder::default()
-                .sector_number(2)
+                .sector_number(2.into())
                 .sector_expiry(50)
                 .deal_ids(bounded_vec![])
                 .build()
@@ -849,16 +849,16 @@ fn activate_deals_fails_for_1_sector_but_succeeds_for_others() {
         let deals = bounded_vec![
             SectorDealBuilder::default().build(),
             SectorDealBuilder::default()
-                .sector_number(2)
+                .sector_number(2.into())
                 .sector_expiry(50)
                 .deal_ids(bounded_vec![])
                 .build(),
             SectorDealBuilder::default()
-                .sector_number(3)
+                .sector_number(3.into())
                 .deal_ids(bounded_vec![1337])
                 .build(),
             SectorDealBuilder::default()
-                .sector_number(4)
+                .sector_number(4.into())
                 // force error by making expiry < start_block
                 .sector_expiry(10)
                 .deal_ids(bounded_vec![2])
@@ -1726,8 +1726,8 @@ impl SectorDealBuilder {
         self
     }
 
-    pub fn sector_number(mut self, sector_number: u32) -> Self {
-        self.sector_number = sector_number.into();
+    pub fn sector_number(mut self, sector_number: SectorNumber) -> Self {
+        self.sector_number = sector_number;
         self
     }
 

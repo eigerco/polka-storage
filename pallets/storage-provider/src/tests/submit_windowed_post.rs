@@ -1,5 +1,4 @@
 use frame_support::{assert_noop, assert_ok};
-use primitives_proofs::SectorNumber;
 use rstest::rstest;
 use sp_core::bounded_vec;
 use sp_runtime::{BoundedVec, DispatchError};
@@ -56,7 +55,7 @@ fn setup() {
     ));
 
     // Sector to be pre-committed and proven
-    let sector_number = 1;
+    let sector_number = 1.into();
 
     // Sector data
     let sector = SectorPreCommitInfoBuilder::default()
@@ -72,7 +71,7 @@ fn setup() {
 
     // Prove commit sector
     let sector = ProveCommitSector {
-        sector_number: SectorNumber::try_from(sector_number).unwrap(),
+        sector_number,
         proof: bounded_vec![0xd, 0xe, 0xa, 0xd],
     };
 

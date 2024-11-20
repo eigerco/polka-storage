@@ -580,8 +580,6 @@ mod tests {
     extern crate alloc;
 
     use alloc::collections::BTreeMap;
-    use core::iter::once;
-
     use super::*;
     use crate::tests::sector_set;
 
@@ -648,7 +646,7 @@ mod tests {
                 sectors_to_add
                     .iter()
                     .filter_map(|s| {
-                        if s.sector_number != SectorNumber::try_from(1).unwrap() {
+                        if s.sector_number != SectorNumber::from(1) {
                             Some(s.sector_number)
                         } else {
                             None
@@ -682,11 +680,11 @@ mod tests {
         )
         .unwrap();
         // fault sector 3, 4, 5 and 6
-        let faults = sector_set([3, 4, 5, 6].into_iter());
+        let faults = sector_set(&[3, 4, 5, 6]);
         partition.record_faults(&all_sectors_map, &faults, 7)?;
 
         // mark 4 and 5 as a recoveries
-        let recoveries = sector_set([4, 5].into_iter());
+        let recoveries = sector_set(&[4, 5]);
         partition.declare_faults_recovered(&recoveries);
 
         // now terminate 1, 3, 5, and 6
@@ -706,19 +704,19 @@ mod tests {
         // Assert that the returned expiration set is as expected
         assert_eq!(
             removed.on_time_sectors,
-            sector_set::<MAX_SECTORS, _>([1, 3].into_iter())
+            sector_set::<MAX_SECTORS>(&[1, 3])
         );
         assert_eq!(
             removed.early_sectors,
-            sector_set::<MAX_SECTORS, _>([5, 6].into_iter())
+            sector_set::<MAX_SECTORS>(&[5, 6])
         );
 
         // Assert the partition metadata is as expected
-        assert_eq!(partition.faults, sector_set::<MAX_SECTORS, _>(once(4)));
-        assert_eq!(partition.recoveries, sector_set::<MAX_SECTORS, _>(once(4)));
+        assert_eq!(partition.faults, sector_set::<MAX_SECTORS>(&[4]));
+        assert_eq!(partition.recoveries, sector_set::<MAX_SECTORS>(&[4]));
         assert_eq!(partition.terminated, expected_terminations);
         assert_eq!(partition.sectors, expected_sectors);
-        assert_eq!(partition.unproven, sector_set::<MAX_SECTORS, _>(once(2)));
+        assert_eq!(partition.unproven, sector_set::<MAX_SECTORS>(&[2]));
 
         Ok(())
     }
@@ -761,7 +759,7 @@ mod tests {
         partition.add_sectors(&sectors)?;
 
         // fault sector 3, 4, 5 and 6
-        let fault_set = sector_set([3, 4, 5, 6].into_iter());
+        let fault_set = sector_set(&[3, 4, 5, 6]);
         partition.record_faults(&sector_map, &fault_set, 7)?;
 
         // now terminate 1, 3 and 5
@@ -841,7 +839,7 @@ mod tests {
         partition.add_sectors(&sectors)?;
 
         // fault sector 3, 4, 5 and 6
-        let fault_set = sector_set([3, 4, 5, 6].into_iter());
+        let fault_set = sector_set(&[3, 4, 5, 6]);
         partition.record_faults(&sector_map, &fault_set, 7)?;
 
         // now terminate 1, 3 and 5
@@ -906,17 +904,17 @@ mod tests {
         partition.activate_unproven();
 
         // add one fault with early termination
-        let fault_set = sector_set(once(4));
+        let fault_set = sector_set(&[4]);
         partition.record_faults(&all_sectors, &fault_set, 2)?;
 
         // pop first expiration set
         let expiration_block = 5;
         let expset = partition.pop_expired_sectors(expiration_block)?;
 
-        let expected_on_time = sector_set::<MAX_SECTORS, _>([1, 2].into_iter());
-        let expected_early = sector_set::<MAX_SECTORS, _>(once(4));
-        let expected_terminated = sector_set::<MAX_SECTORS, _>([1, 2, 4].into_iter());
-        let expected_sectors = sector_set::<MAX_SECTORS, _>([1, 2, 3, 4, 5, 6].into_iter());
+        let expected_on_time = sector_set::<MAX_SECTORS>(&[1, 2]);
+        let expected_early = sector_set::<MAX_SECTORS>(&[4]);
+        let expected_terminated = sector_set::<MAX_SECTORS>(&[1, 2, 4]);
+        let expected_sectors = sector_set::<MAX_SECTORS>(&[1, 2, 3, 4, 5, 6]);
 
         // Assert that the returned expiration set is as expected
         assert_eq!(expset.on_time_sectors, expected_on_time);
