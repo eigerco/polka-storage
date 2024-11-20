@@ -340,9 +340,7 @@ mod tests {
         let expected = FaultDeclaration {
             deadline: 0,
             partition: 0,
-            sectors: BTreeSet::from_iter(
-                [0.try_into().unwrap(), 1.try_into().unwrap()].into_iter(),
-            ),
+            sectors: BTreeSet::from_iter([0.into(), 1.into()].into_iter()),
         };
         assert_eq!(expected, result);
     }
@@ -360,9 +358,7 @@ mod tests {
         let expected = vec![FaultDeclaration {
             deadline: 0,
             partition: 0,
-            sectors: BTreeSet::from_iter(
-                [0.try_into().unwrap(), 1.try_into().unwrap()].into_iter(),
-            ),
+            sectors: BTreeSet::from_iter([0.into(), 1.into()].into_iter()),
         }];
         assert_eq!(expected, result);
     }
@@ -380,9 +376,7 @@ mod tests {
         let expected = RecoveryDeclaration {
             deadline: 0,
             partition: 0,
-            sectors: BTreeSet::from_iter(
-                [0.try_into().unwrap(), 1.try_into().unwrap()].into_iter(),
-            ),
+            sectors: BTreeSet::from_iter([0.into(), 1.into()].into_iter()),
         };
         assert_eq!(expected, result);
     }
@@ -400,9 +394,7 @@ mod tests {
         let expected = vec![RecoveryDeclaration {
             deadline: 0,
             partition: 0,
-            sectors: BTreeSet::from_iter(
-                [0.try_into().unwrap(), 1.try_into().unwrap()].into_iter(),
-            ),
+            sectors: BTreeSet::from_iter([0.into(), 1.into()].into_iter()),
         }];
         assert_eq!(expected, result);
     }
@@ -508,7 +500,7 @@ mod tests {
             vec![TerminationDeclaration {
                 deadline: 69,
                 partition: 420,
-                sectors: BTreeSet::from([1.try_into().unwrap(), 2.try_into().unwrap()]),
+                sectors: BTreeSet::from([1.into(), 2.into()]),
             }]
         )
     }

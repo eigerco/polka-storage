@@ -232,7 +232,7 @@ where
 
     let sectors_pre_commit_info = vec![SectorPreCommitInfo {
         seal_proof: primitives_proofs::RegisteredSealProof::StackedDRG2KiBV1P1,
-        sector_number: 1.try_into().unwrap(),
+        sector_number: 1.into(),
         sealed_cid,
         deal_ids: vec![0],
         expiration: 195,
@@ -268,7 +268,7 @@ async fn prove_commit_sector<Keypair>(
     Keypair: subxt::tx::Signer<PolkaStorageConfig>,
 {
     let expected_results = vec![ProveCommitResult {
-        sector_number: 1.try_into().unwrap(),
+        sector_number: 1.into(),
         partition_number: 0,
         deadline_idx: 0,
     }];
@@ -298,7 +298,7 @@ async fn prove_commit_sector<Keypair>(
         .prove_commit_sectors(
             charlie,
             vec![ProveCommitSector {
-                sector_number: 1.try_into().unwrap(),
+                sector_number: 1.into(),
                 proof,
             }
             .into()],
@@ -360,7 +360,7 @@ where
     let recovery_declarations = vec![RecoveryDeclaration {
         deadline: 0,
         partition: 0,
-        sectors: BTreeSet::from_iter([1.try_into().unwrap()].into_iter()),
+        sectors: BTreeSet::from_iter([1.into()].into_iter()),
     }];
     let faults_recovered_result = client
         .declare_faults_recovered(charlie, recovery_declarations.clone(), true)
@@ -385,7 +385,7 @@ where
     let fault_declarations = vec![FaultDeclaration {
         deadline: 0,
         partition: 0,
-        sectors: BTreeSet::from_iter([1.try_into().unwrap()].into_iter()),
+        sectors: BTreeSet::from_iter([1.into()].into_iter()),
     }];
     let fault_declaration_result = client
         .declare_faults(charlie, fault_declarations.clone(), true)

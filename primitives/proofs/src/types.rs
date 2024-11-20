@@ -135,6 +135,12 @@ impl scale_decode::IntoVisitor for SectorNumber {
     }
 }
 
+impl From<u16> for SectorNumber {
+    fn from(value: u16) -> Self {
+        SectorNumber(value as u32)
+    }
+}
+
 impl TryFrom<u32> for SectorNumber {
     type Error = &'static str;
 

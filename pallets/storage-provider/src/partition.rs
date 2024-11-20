@@ -659,7 +659,7 @@ mod tests {
             .unwrap();
 
         expected_live_sectors
-            .try_insert(2.try_into().unwrap())
+            .try_insert(2.into())
             .expect(&format!("Inserting a single element into expected_live_sectors, which is a BoundedBTreeMap with length {MAX_SECTORS}, should not fail (1 < {MAX_SECTORS})"));
         assert_eq!(live_sectors, expected_live_sectors);
         Ok(())
@@ -784,7 +784,7 @@ mod tests {
         let terminated_sector = result.sectors.get(&termination_block);
         assert!(terminated_sector.is_some());
         let terminated_sector = terminated_sector.unwrap();
-        assert_eq!(terminated_sector, &BTreeSet::from([1.try_into().unwrap()]));
+        assert_eq!(terminated_sector, &BTreeSet::from([1.into()]));
         let early_termination_sectors = partition
             .early_terminations
             .get(&termination_block)
@@ -801,7 +801,7 @@ mod tests {
         let terminated_sector = result.sectors.get(&termination_block);
         assert!(terminated_sector.is_some());
         let terminated_sector = terminated_sector.unwrap();
-        assert_eq!(terminated_sector, &BTreeSet::from([3.try_into().unwrap()]));
+        assert_eq!(terminated_sector, &BTreeSet::from([3.into()]));
         let early_termination_sectors = partition
             .early_terminations
             .get(&termination_block)
@@ -818,7 +818,7 @@ mod tests {
         let terminated_sector = result.sectors.get(&termination_block);
         assert!(terminated_sector.is_some());
         let terminated_sector = terminated_sector.unwrap();
-        assert_eq!(terminated_sector, &BTreeSet::from([5.try_into().unwrap()]));
+        assert_eq!(terminated_sector, &BTreeSet::from([5.into()]));
 
         // expect early terminations to be empty
         assert!(partition.early_terminations.is_empty());
@@ -864,7 +864,7 @@ mod tests {
         let terminated_sector = result.sectors.get(&termination_block);
         assert!(terminated_sector.is_some());
         let terminated_sector = terminated_sector.unwrap();
-        assert_eq!(terminated_sector, &BTreeSet::from([1.try_into().unwrap()]));
+        assert_eq!(terminated_sector, &BTreeSet::from([1.into()]));
 
         // pop the rest, max_sectors set to 5 but only 2 terminations left, should exit early
         let (result, has_more) = partition.pop_early_terminations(5).unwrap();
@@ -873,10 +873,7 @@ mod tests {
         let terminated_sector = result.sectors.get(&termination_block);
         assert!(terminated_sector.is_some());
         let terminated_sector = terminated_sector.unwrap();
-        assert_eq!(
-            terminated_sector,
-            &BTreeSet::from([3.try_into().unwrap(), 5.try_into().unwrap()])
-        );
+        assert_eq!(terminated_sector, &BTreeSet::from([3.into(), 5.into()]));
         assert_eq!(result.sectors_processed, 2);
         assert_eq!(result.partitions_processed, 1);
 

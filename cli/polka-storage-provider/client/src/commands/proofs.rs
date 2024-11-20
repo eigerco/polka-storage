@@ -16,7 +16,7 @@ use primitives_commitment::{
     piece::{PaddedPieceSize, PieceInfo},
     Commitment,
 };
-use primitives_proofs::{derive_prover_id, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
+use primitives_proofs::{derive_prover_id, RegisteredPoStProof, RegisteredSealProof};
 use storagext::multipair::{MultiPairArgs, MultiPairSigner};
 use subxt::tx::Signer;
 
@@ -211,7 +211,7 @@ impl ProofsCommand {
 
                 // Those are hardcoded for the showcase only.
                 // They should come from Storage Provider Node, precommits and other information.
-                let sector_id = SectorNumber::try_from(77).unwrap();
+                let sector_id = 77.into();
                 let ticket = [12u8; 32];
                 let seed = [13u8; 32];
 
@@ -369,7 +369,7 @@ impl ProofsCommand {
 
                 // Those are hardcoded for the showcase only.
                 // They should come from Storage Provider Node, precommits and other information.
-                let sector_id = SectorNumber::try_from(77).unwrap();
+                let sector_id = 77.into();
                 let randomness = [1u8; 32];
 
                 let output_path = if let Some(output_path) = output_path {

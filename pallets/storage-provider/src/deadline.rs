@@ -1016,11 +1016,7 @@ mod tests {
 
         assert_eq!(
             early_terminations.sectors.get(&15).unwrap(),
-            &BTreeSet::from([
-                1.try_into().unwrap(),
-                3.try_into().unwrap(),
-                6.try_into().unwrap()
-            ])
+            &BTreeSet::from([1.into(), 3.into(), 6.into()])
         );
 
         // Check state of partition 0
@@ -1246,11 +1242,7 @@ mod tests {
         assert_eq!(result.sectors.len(), 1);
         assert_eq!(
             result.sectors.get(&15).unwrap(),
-            &BTreeSet::from([
-                1.try_into().unwrap(),
-                3.try_into().unwrap(),
-                6.try_into().unwrap()
-            ])
+            &BTreeSet::from([1.into(), 3.into(), 6.into()])
         );
 
         // Check state of partition 0
@@ -1436,7 +1428,7 @@ mod tests {
         assert_eq!(early_terminations.sectors.len(), 1);
         assert_eq!(
             early_terminations.sectors.get(&9).unwrap(),
-            &BTreeSet::from([6.try_into().unwrap()])
+            &BTreeSet::from([6.into()])
         );
 
         // popping early_terminations doesn't affect the terminations
