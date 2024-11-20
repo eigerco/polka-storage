@@ -744,6 +744,12 @@ pub mod pallet {
                 .map_err(|e| Error::<T>::GeneralPalletError(e))?;
 
 
+            // TODO:
+            // - run rpc publish
+            // - submit windowed post transaction to see whether it fails and sets the correct replicas
+            // - generate a windowed post proof for this shit (by hand)
+            // - generate it automatically in the pipeline
+
 
             // TODO(@th7nder,#592, 19/11/2024): handle faulty and recovered sectors, we don't take them into account now
             let deadlines = &sp.deadlines;
@@ -765,6 +771,11 @@ pub mod pallet {
                 &entropy,
             )?;
 
+            log::debug!(target: LOG_TARGET, "submit_windowed_post: index {:?} challenge {:?}, replicas: {:?}",
+                current_deadline.idx,
+                current_deadline.challenge,
+                replicas
+            );
             // Questions:
             // * How do we know the partition the sector was assigned to (as a caller) ?
             // * Can we handle proving multiple partitions in `verify_post?`
