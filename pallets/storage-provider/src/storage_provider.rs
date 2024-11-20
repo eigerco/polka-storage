@@ -14,7 +14,6 @@ use sp_arithmetic::{traits::BaseArithmetic, ArithmeticError};
 use crate::{
     deadline::{assign_deadlines, deadline_is_mutable, Deadline, DeadlineInfo, Deadlines},
     error::GeneralPalletError,
-    pallet::Policy,
     partition::TerminationResult,
     sector::{SectorOnChainInfo, SectorPreCommitOnChainInfo, MAX_SECTORS},
 };
@@ -105,20 +104,31 @@ where
     pub fn advance_deadline(
         &mut self,
         current_block: BlockNumber,
-        policy: Policy<BlockNumber>,
+        w_post_period_deadlines: u64,
+        w_post_proving_period: BlockNumber,
+        w_post_challenge_window: BlockNumber,
+        w_post_challenge_lookback: BlockNumber,
+        fault_declaration_cutoff: BlockNumber,
     ) -> Result<(), GeneralPalletError> {
-        let dl_info = self.deadline_info(current_block, policy)?;
+        let dl_info = self.deadline_info(
+            current_block,
+            w_post_period_deadlines,
+            w_post_proving_period,
+            w_post_challenge_window,
+            w_post_challenge_lookback,
+            fault_declaration_cutoff,
+        )?;
 
         if !dl_info.period_started() {
             return Ok(());
         }
 
-        self.current_deadline = (self.current_deadline + 1) % policy.w_post_period_deadlines;
+        self.current_deadline = (self.current_deadline + 1) % w_post_period_deadlines;
         log::debug!(target: LOG_TARGET, "new deadline {:?}, period deadlines {:?}",
-        self.current_deadline, policy.w_post_period_deadlines);
+        self.current_deadline, w_post_period_deadlines);
 
         if self.current_deadline == 0 {
-            self.proving_period_start = self.proving_period_start + policy.w_post_proving_period;
+            self.proving_period_start = self.proving_period_start + w_post_proving_period;
         }
 
         let deadline = self.deadlines.load_deadline_mut(dl_info.idx as usize)?;
@@ -209,7 +219,12 @@ where
         current_block: BlockNumber,
         mut sectors: BoundedVec<SectorOnChainInfo<BlockNumber>, ConstU32<MAX_SECTORS>>,
         partition_size: u64,
-        policy: Policy<BlockNumber>,
+        max_partitions_per_deadline: u64,
+        w_post_period_deadlines: u64,
+        w_post_proving_period: BlockNumber,
+        w_post_challenge_window: BlockNumber,
+        w_post_challenge_lookback: BlockNumber,
+        fault_declaration_cutoff: BlockNumber,
     ) -> Result<(), GeneralPalletError> {
         sectors.sort_by_key(|info| info.sector_number);
 
@@ -219,7 +234,7 @@ where
         );
 
         let mut deadline_vec: Vec<Option<Deadline<BlockNumber>>> =
-            (0..policy.w_post_period_deadlines).map(|_| None).collect();
+            (0..w_post_period_deadlines).map(|_| None).collect();
 
         // required otherwise the logic gets complicated really fast
         // the issue is that filecoin supports negative epoch numbers
@@ -234,11 +249,11 @@ where
                     self.proving_period_start,
                     idx as u64,
                     current_block,
-                    policy.w_post_period_deadlines,
-                    policy.w_post_proving_period,
-                    policy.w_post_challenge_window,
-                    policy.w_post_challenge_lookback,
-                    policy.fault_declaration_cutoff,
+                    w_post_period_deadlines,
+                    w_post_proving_period,
+                    w_post_challenge_window,
+                    w_post_challenge_lookback,
+                    fault_declaration_cutoff,
                 )?;
                 if is_deadline_mutable {
                     log::debug!(target: LOG_TARGET, "deadline[{idx}] is mutable");
@@ -254,11 +269,11 @@ where
 
         // Assign sectors to deadlines.
         let deadline_to_sectors = assign_deadlines(
-            policy.max_partitions_per_deadline,
+            max_partitions_per_deadline,
             partition_size,
             &deadline_vec,
             &sectors,
-            policy.w_post_period_deadlines,
+            w_post_period_deadlines,
         )?;
 
         for (deadline_idx, deadline_sectors) in deadline_to_sectors.iter().enumerate() {
@@ -288,7 +303,11 @@ where
     pub fn deadline_info(
         &self,
         current_block: BlockNumber,
-        policy: Policy<BlockNumber>,
+        w_post_period_deadlines: u64,
+        w_post_proving_period: BlockNumber,
+        w_post_challenge_window: BlockNumber,
+        w_post_challenge_lookback: BlockNumber,
+        fault_declaration_cutoff: BlockNumber,
     ) -> Result<DeadlineInfo<BlockNumber>, GeneralPalletError> {
         let current_deadline_index = self.current_deadline;
 
@@ -296,11 +315,11 @@ where
             current_block,
             self.proving_period_start,
             current_deadline_index,
-            policy.w_post_period_deadlines,
-            policy.w_post_proving_period,
-            policy.w_post_challenge_window,
-            policy.w_post_challenge_lookback,
-            policy.fault_declaration_cutoff,
+            w_post_period_deadlines,
+            w_post_proving_period,
+            w_post_challenge_window,
+            w_post_challenge_lookback,
+            fault_declaration_cutoff,
         )
     }
 

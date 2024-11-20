@@ -86,7 +86,7 @@ pub mod pallet {
 
     /// Allows to extract Balance of an account via the Config::Currency associated type.
     /// BalanceOf is a sophisticated way of getting an u128.
-    type BalanceOf<T> =
+    pub type BalanceOf<T> =
         <<T as Config>::Currency as Currency<<T as SystemConfig>::AccountId>>::Balance;
 
     #[pallet::pallet]
@@ -368,36 +368,6 @@ pub mod pallet {
         }
     }
 
-    #[derive(RuntimeDebug, Clone, Copy, Decode, Encode, TypeInfo)]
-    pub struct Policy<BlockNumber> {
-        pub max_partitions_per_deadline: u64,
-        pub w_post_period_deadlines: u64,
-        pub w_post_proving_period: BlockNumber,
-        pub w_post_challenge_window: BlockNumber,
-        pub w_post_challenge_lookback: BlockNumber,
-        pub fault_declaration_cutoff: BlockNumber,
-    }
-
-    impl<BlockNumber> Policy<BlockNumber> {
-        pub fn new(
-            max_partitions_per_deadline: u64,
-            w_post_period_deadlines: u64,
-            w_post_proving_period: BlockNumber,
-            w_post_challenge_window: BlockNumber,
-            w_post_challenge_lookback: BlockNumber,
-            fault_declaration_cutoff: BlockNumber,
-        ) -> Self {
-            Self {
-                max_partitions_per_deadline,
-                w_post_period_deadlines,
-                w_post_proving_period,
-                w_post_challenge_window,
-                w_post_challenge_lookback,
-                fault_declaration_cutoff,
-            }
-        }
-    }
-
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         pub fn register_storage_provider(
@@ -427,7 +397,7 @@ pub mod pallet {
                 proving_period,
             );
             let info = StorageProviderInfo::new(peer_id, window_post_proof_type);
-            let state = StorageProviderState::new(
+            let state = StorageProviderState::<T::PeerId, BalanceOf<T>, BlockNumberFor<T>>::new(
                 info.clone(),
                 local_proving_start,
                 // Always zero since we're calculating the absolute first start
@@ -645,14 +615,12 @@ pub mod pallet {
                 current_block,
                 new_sectors,
                 sp.info.window_post_partition_sectors,
-                Policy::new(
-                    T::MaxPartitionsPerDeadline::get(),
-                    T::WPoStPeriodDeadlines::get(),
-                    T::WPoStProvingPeriod::get(),
-                    T::WPoStChallengeWindow::get(),
-                    T::WPoStChallengeLookBack::get(),
-                    T::FaultDeclarationCutoff::get(),
-                ),
+                T::MaxPartitionsPerDeadline::get(),
+                T::WPoStPeriodDeadlines::get(),
+                T::WPoStProvingPeriod::get(),
+                T::WPoStChallengeWindow::get(),
+                T::WPoStChallengeLookBack::get(),
+                T::FaultDeclarationCutoff::get(),
             )
             .map_err(|e| Error::<T>::GeneralPalletError(e))?;
 
@@ -740,14 +708,11 @@ pub mod pallet {
             let current_deadline = sp
                 .deadline_info(
                     current_block,
-                    Policy::new(
-                        T::MaxPartitionsPerDeadline::get(),
-                        T::WPoStPeriodDeadlines::get(),
-                        T::WPoStProvingPeriod::get(),
-                        T::WPoStChallengeWindow::get(),
-                        T::WPoStChallengeLookBack::get(),
-                        T::FaultDeclarationCutoff::get(),
-                    ),
+                    T::WPoStPeriodDeadlines::get(),
+                    T::WPoStProvingPeriod::get(),
+                    T::WPoStChallengeWindow::get(),
+                    T::WPoStChallengeLookBack::get(),
+                    T::FaultDeclarationCutoff::get(),
                 )
                 .map_err(|e| Error::<T>::GeneralPalletError(e))?;
 
@@ -1245,14 +1210,11 @@ pub mod pallet {
 
                 let Ok(current_deadline) = state.deadline_info(
                     current_block,
-                    Policy::new(
-                        T::MaxPartitionsPerDeadline::get(),
-                        T::WPoStPeriodDeadlines::get(),
-                        T::WPoStProvingPeriod::get(),
-                        T::WPoStChallengeWindow::get(),
-                        T::WPoStChallengeLookBack::get(),
-                        T::FaultDeclarationCutoff::get(),
-                    ),
+                    T::WPoStPeriodDeadlines::get(),
+                    T::WPoStProvingPeriod::get(),
+                    T::WPoStChallengeWindow::get(),
+                    T::WPoStChallengeLookBack::get(),
+                    T::FaultDeclarationCutoff::get(),
                 ) else {
                     log::error!(target: LOG_TARGET, "block: {:?}, there are no deadlines for storage provider {:?}", current_block, storage_provider);
                     continue;
@@ -1352,14 +1314,11 @@ pub mod pallet {
                 state
                     .advance_deadline(
                         current_block,
-                        Policy::new(
-                            T::MaxPartitionsPerDeadline::get(),
-                            T::WPoStPeriodDeadlines::get(),
-                            T::WPoStProvingPeriod::get(),
-                            T::WPoStChallengeWindow::get(),
-                            T::WPoStChallengeLookBack::get(),
-                            T::FaultDeclarationCutoff::get(),
-                        ),
+                        T::WPoStPeriodDeadlines::get(),
+                        T::WPoStProvingPeriod::get(),
+                        T::WPoStChallengeWindow::get(),
+                        T::WPoStChallengeLookBack::get(),
+                        T::FaultDeclarationCutoff::get(),
                     )
                     .expect("Could not advance deadline");
                 StorageProviders::<T>::insert(storage_provider, state);
