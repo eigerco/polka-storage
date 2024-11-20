@@ -1455,6 +1455,10 @@ pub mod pallet {
         // slash_reserved returns NegativeImbalance, we need to get a concrete value and burn it to level out the circulating currency
         let imbalance = T::Currency::burn(imbalance.peek());
 
+        // TODO(@jmg-duarte,20/11/2024): we'll probably need to review this,
+        // we're slashing an account (makes sense)
+        // burning the imbalance (maybe we could stash it in an account for rewards)
+        // and settling it??? — this part makes less sense since it's similar to a withdraw
         T::Currency::settle(account, imbalance, WithdrawReasons::RESERVE, KeepAlive)
             .map_err(|_| Error::<T>::SlashingFailed)?;
 

@@ -30,11 +30,13 @@ members = [
 resolver = "2"
 
 [profile.ci]
+build-override.inherits = "dev"
+inherits = "dev"                # required otherwise we get the "unknown profile" error
+
 codegen-units = 256     # Increase parallel code generation units
 debug = false           # No debug information
 incremental = false     # Disable incremental compilation for consistent CI performance
-inherits = "dev"
-lto = false             # Disable Link Time Optimization
+lto = "off"             # Disable Link Time Optimization
 opt-level = 0           # No optimization
 overflow-checks = false # Disable overflow checks
 panic = 'abort'         # Use abort on panic to reduce binary size
