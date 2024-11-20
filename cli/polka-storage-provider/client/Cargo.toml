@@ -21,6 +21,7 @@ bls12_381 = { workspace = true }
 cid = { workspace = true, features = ["std"] }
 clap = { workspace = true, features = ["derive"] }
 codec = { workspace = true }
+hex = { workspace = true }
 jsonrpsee = { workspace = true, features = ["http-client", "macros", "server", "ws-client"] }
 sc-cli = { workspace = true }
 serde = { workspace = true }
