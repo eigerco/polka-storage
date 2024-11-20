@@ -8,8 +8,8 @@ use crate::types::{
     DealId, ProverId, RawCommitment, RegisteredPoStProof, RegisteredSealProof, SectorNumber, Ticket,
 };
 
-/// Size of a CID with a 512-bit multihash — i.e. the default CID size.
-pub const CID_SIZE_IN_BYTES: u32 = 64;
+/// Size of a CID with a 256-bit multihash — i.e. the size of CommR/CommD/CommP
+pub const CID_SIZE_IN_BYTES: u32 = 32;
 
 /// Number of Sectors that can be provided in a single extrinsics call.
 /// Required for BoundedVec.
