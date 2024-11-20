@@ -19,7 +19,7 @@ pub(crate) enum ProofsCommand {
         verifying_key: VerifyingKey,
     },
     /// Set PoRep verifying key
-    SetPoStVerifyingKey {
+    SetPostVerifyingKey {
         /// Verifying key. Either hex encoded as string or, if prepended with @, a path to a file containing the key's raw bytes.
         #[arg(value_parser = VerifyingKey::value_parser)]
         verifying_key: VerifyingKey,
@@ -59,7 +59,7 @@ impl ProofsCommand {
                 )
                 .await?
             },
-            ProofsCommand::SetPoStVerifyingKey { verifying_key } => {
+            ProofsCommand::SetPostVerifyingKey { verifying_key } => {
                 let Some(account_keypair) = account_keypair else {
                     return Err(missing_keypair_error::<Self>().into());
                 };
