@@ -5,7 +5,7 @@
       url = "github:oxalica/rust-overlay";
       inputs = {
         nixpkgs.follows = "nixpkgs";
-       };
+      };
     };
     zombienet = {
       url = "github:paritytech/zombienet";
