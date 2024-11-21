@@ -579,9 +579,10 @@ where
 mod tests {
     extern crate alloc;
 
+    use alloc::collections::BTreeMap;
+
     use super::*;
     use crate::tests::sector_set;
-    use alloc::collections::BTreeMap;
 
     fn sectors() -> Vec<SectorOnChainInfo<u64>> {
         vec![
