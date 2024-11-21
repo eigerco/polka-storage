@@ -33,18 +33,6 @@ pub const MAX_SECTORS: u32 = 32 << 20;
 pub struct SectorNumber(u32);
 
 impl SectorNumber {
-    /// Creates a new `SectorNumber` instance without checking if the sector
-    /// number exceeds `MAX_SECTORS`.
-    ///
-    /// # Safety
-    ///
-    /// This function should be used with caution as it does not perform any
-    /// bounds checking. The caller must ensure that the `sector_number` is
-    /// within the valid range (0..=MAX_SECTORS).
-    pub const unsafe fn new_unchecked(sector_number: u32) -> Self {
-        Self(sector_number)
-    }
-
     /// Creates a new `SectorNumber` instance.
     ///
     /// Returns a `Result` containing the new `SectorNumber` if valid,

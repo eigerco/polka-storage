@@ -158,7 +158,7 @@ impl DealDB {
     /// And then `last_sector_number` is incremented by `next_sector_number` only
     /// If it was called by multiple threads later than initialization, it could cause a race condition and data erasure.
     fn initialize_biggest_sector_number(&self) -> Result<(), DBError> {
-        let mut biggest_sector_number = unsafe { SectorNumber::new_unchecked(0) };
+        let mut biggest_sector_number = 0.into();
         for item in self
             .database
             .iterator_cf(self.cf_handle(SECTORS_CF), rocksdb::IteratorMode::Start)
