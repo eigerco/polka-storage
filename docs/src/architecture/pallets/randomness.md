@@ -39,7 +39,7 @@ The Randomness Pallet actions can fail with the following errors:
 
 ## Constants
 
-The Storage Provider Pallet has the following constants:
+The Randomness Pallet has the following constants:
 
 | Name              | Description                                                       | Value   |
 | ----------------- | ----------------------------------------------------------------- | ------- |

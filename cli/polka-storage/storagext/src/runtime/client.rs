@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use codec::Encode;
 use hex::ToHex;
-use subxt::{blocks::Block, events::Events, OnlineClient};
+use subxt::{blocks::Block, events::Events, utils::H256, OnlineClient};
 
 use crate::PolkaStorageConfig;
 
@@ -67,6 +67,32 @@ impl Client {
         }
     }
 
+    pub(crate) async fn unsigned<Call>(
+        &self,
+        call: &Call,
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
+    where
+        Call: subxt::tx::Payload,
+    {
+        if wait_for_finalization {
+            let submitted_extrinsic_hash = self.client.tx().create_unsigned(call)?.submit().await?;
+            self.traced_submission_with_finalization(submitted_extrinsic_hash)
+                .await
+                .map(Option::Some)
+        } else {
+            tracing::trace!("submitting unsigned extrinsic");
+            let extrinsic_hash = self.client.tx().create_unsigned(call)?.submit().await?;
+
+            tracing::trace!(
+                extrinsic_hash = extrinsic_hash.encode_hex::<String>(),
+                "waiting for finalization"
+            );
+
+            Ok(None)
+        }
+    }
+
     /// Submit an extrinsic and wait for finalization, returning the block hash it was included in.
     ///
     /// Equivalent to performing [`OnlineClient::sign_and_submit_then_watch_default`],
@@ -82,7 +108,12 @@ impl Client {
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
         if wait_for_finalization {
-            self.traced_submission_with_finalization(call, account_keypair)
+            let submitted_extrinsic_hash = self
+                .client
+                .tx()
+                .sign_and_submit_default(call, account_keypair)
+                .await?;
+            self.traced_submission_with_finalization(submitted_extrinsic_hash)
                 .await
                 .map(Option::Some)
         } else {
@@ -101,24 +132,13 @@ impl Client {
         }
     }
 
-    pub(crate) async fn traced_submission_with_finalization<Call, Keypair>(
+    pub(crate) async fn traced_submission_with_finalization(
         &self,
-        call: &Call,
-        account_keypair: &Keypair,
-    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error>
-    where
-        Call: subxt::tx::Payload,
-        Keypair: subxt::tx::Signer<PolkaStorageConfig>,
-    {
+        submitted_extrinsic_hash: H256,
+    ) -> Result<SubmissionResult<PolkaStorageConfig>, subxt::Error> {
         tracing::trace!("submitting extrinsic");
 
         let mut finalized_block_stream = self.client.blocks().subscribe_finalized().await?;
-
-        let submitted_extrinsic_hash = self
-            .client
-            .tx()
-            .sign_and_submit_default(call, account_keypair)
-            .await?;
 
         tracing::debug!(
             extrinsic_hash = submitted_extrinsic_hash.encode_hex::<String>(),

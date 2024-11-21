@@ -20,7 +20,27 @@ Or you can watch the following video:
     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
     referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-## Transferring funds
+## Dripping funds using the storagext CLI
+
+Make sure to run the local testnet, you can find how to do so in the [local testnet guide](index.md).
+
+Once the local testnet is up and running we can drip funds into the account.
+
+Funds can be dripped using a single command:
+
+```bash
+storagext-cli faucet drip <ACCOUNT>
+```
+
+Where the `<ACCOUNT>` is the [SS58 address](https://docs.substrate.io/learn/accounts-addresses-keys/) generated in the previous steps.
+
+> For more information about the faucet pallet and the storagext faucet subcommand check out their respective documenation.
+>
+> [Faucet pallet docs link](../../architecture/pallets/faucet.md)
+>
+> [storagext faucet subcommand docs link](../../storagext-cli/faucet.md)
+
+## Getting funds through the Sudo pallet
 
 Make sure to run the local testnet, you can find how to do so in the [local testnet guide](index.md). Once the local testnet is up and running navigate to the polkadot-js web app interface by going to the [default polkadot.js web interface URL](https://polkadot.js.org/apps/?rpc=ws://127.0.0.1:42069).
 

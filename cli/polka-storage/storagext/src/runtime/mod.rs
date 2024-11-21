@@ -57,6 +57,10 @@ pub mod display;
         derive = "::serde::Serialize"
     ),
     derive_for_type(
+        path = "pallet_faucet::pallet::Event",
+        derive = "::serde::Serialize"
+    ),
+    derive_for_type(
         path = "bounded_collections::bounded_vec::BoundedVec",
         derive = "::serde::Serialize"
     ),

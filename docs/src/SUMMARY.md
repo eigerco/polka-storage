@@ -12,6 +12,7 @@
     - [Storage Provider](./architecture/pallets/storage-provider.md)
     - [Proofs](./architecture/pallets/proofs.md)
     - [Randomness](./architecture/pallets/randomness.md)
+    - [Faucet](./architecture/pallets/faucet.md)
 - [Getting Started](./getting-started/index.md)
   - [Building](./getting-started/building/index.md)
     - [From Source](./getting-started/building/source.md)
@@ -35,6 +36,7 @@
   - [`proofs`](./storagext-cli/proofs.md)
   - [`randomness`](./storagext-cli/randomness.md)
   - [`system`](./storagext-cli/system.md)
+  - [`faucet`](./storagext-cli/faucet.md)
 - [Mater CLI](./mater-cli/index.md)
 - [Zombienet Configuration](./zombienet-config.md)
 
