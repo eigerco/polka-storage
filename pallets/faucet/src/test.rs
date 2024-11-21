@@ -14,6 +14,9 @@ fn drip() {
         assert_eq!(
             events(),
             [
+                RuntimeEvent::Balances(BalanceEvent::Issued {
+                    amount: <Test as crate::Config>::FaucetDripAmount::get()
+                }),
                 RuntimeEvent::Balances(BalanceEvent::Deposit {
                     who: account.clone(),
                     amount: <Test as crate::Config>::FaucetDripAmount::get()
@@ -36,12 +39,36 @@ fn drip() {
             Balances::free_balance(account.clone()),
             <Test as crate::Config>::FaucetDripAmount::get()
         );
+    });
+}
+
+#[test]
+fn early_drip_fails() {
+    new_test_ext().execute_with(|| {
+        let account = account::<Test>(ALICE);
+        Faucet::drip(RuntimeOrigin::none(), account.clone())
+            .expect("first drip should always succeed");
+
+        // Run to block_number + faucet_delay
+        run_to_block(System::block_number() + <Test as crate::Config>::FaucetDripDelay::get() - 1);
 
         // Check that dripping at the same block is blocked
         assert_err!(
             Faucet::drip(RuntimeOrigin::none(), account.clone()),
             Error::<Test>::FaucetUsedRecently
         );
+    });
+}
+
+#[test]
+fn drip_delay_succeeds() {
+    new_test_ext().execute_with(|| {
+        let account = account::<Test>(ALICE);
+        Faucet::drip(RuntimeOrigin::none(), account.clone())
+            .expect("first drip should always succeed");
+
+        // We've tested this scenario so we can reset the events
+        System::reset_events();
 
         // Run to block_number + faucet_delay
         run_to_block(System::block_number() + <Test as crate::Config>::FaucetDripDelay::get());
@@ -53,6 +80,9 @@ fn drip() {
         assert_eq!(
             events(),
             [
+                RuntimeEvent::Balances(BalanceEvent::Issued {
+                    amount: <Test as crate::Config>::FaucetDripAmount::get()
+                }),
                 RuntimeEvent::Balances(BalanceEvent::Deposit {
                     who: account.clone(),
                     amount: <Test as crate::Config>::FaucetDripAmount::get()

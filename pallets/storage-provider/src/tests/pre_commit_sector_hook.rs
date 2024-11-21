@@ -90,13 +90,22 @@ fn pre_commit_hook_slashed_deal() {
                     owner: account(storage_provider),
                     sector_number: 1,
                 }),
+                // the slash -> withdraw is related to the usage of slash_and_burn
+                // when slashing the SP for a failed pre_commit
+                // this usage may need review for a proper economic balance
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Slashed {
                     who: account(storage_provider),
                     amount: deal_precommit_deposit,
                 }),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded {
+                    amount: deal_precommit_deposit
+                }),
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Withdraw {
                     who: account(storage_provider),
                     amount: deal_precommit_deposit,
+                }),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded {
+                    amount: deal_precommit_deposit
                 }),
             ]
         );

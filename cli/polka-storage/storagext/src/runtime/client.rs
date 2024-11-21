@@ -146,12 +146,10 @@ impl Client {
                 );
 
                 for extrinsic in block.extrinsics().await?.iter() {
-                    let extrinsic = extrinsic?;
-
                     // There's a bug on subxt that forces us to use this thing,
                     // in 0.38 we can just use .hash(), in fact, in 0.38 this line doesn't work!
                     // https://github.com/paritytech/subxt/discussions/1851#discussioncomment-11133684
-                    let extrinsic_hash = extrinsic.events().await?.extrinsic_hash();
+                    let extrinsic_hash = extrinsic.hash();
 
                     if submitted_extrinsic_hash == extrinsic_hash {
                         // Extrinsic failures are placed in the same block as the extrinsic.

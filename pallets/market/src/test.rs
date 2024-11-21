@@ -1006,6 +1006,7 @@ fn verifies_deals_on_block_finalization() {
         assert_eq!(
             events(),
             [
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded { amount: 15 }),
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Withdraw {
                     who: Market::account_id(),
                     amount: 15
@@ -1503,12 +1504,13 @@ fn slash_and_burn_acc() {
 
         assert_eq!(
             events(),
-            [RuntimeEvent::Balances(
-                pallet_balances::Event::<Test>::Withdraw {
+            [
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded { amount: 10 }),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Withdraw {
                     who: Market::account_id(),
                     amount: 10
-                }
-            ),]
+                }),
+            ]
         );
         assert_eq!(
             <Test as crate::pallet::Config>::Currency::total_issuance(),
@@ -1689,6 +1691,7 @@ fn on_sector_terminate_active() {
         assert_eq!(
             events(),
             [
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded { amount: 15 }),
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Withdraw {
                     who: Market::account_id(),
                     amount: 15

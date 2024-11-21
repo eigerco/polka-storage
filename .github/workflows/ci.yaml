@@ -42,7 +42,7 @@ jobs:
       - name: Setup mdBook
         uses: peaceiris/actions-mdbook@v2
         with:
-          mdbook-version: '0.4.40'
+          mdbook-version: "0.4.40"
       - name: Build the book
         run: mdbook build docs
 
@@ -90,4 +90,4 @@ jobs:
       - name: Cargo clippy
         run: RUSTFLAGS="-D warnings" cargo clippy --profile ci --locked
       - name: Run tests
-        run: RUSTFLAGS="-D warnings" cargo tarpaulin --profile ci --locked --workspace --exclude maat
+        run: RUSTFLAGS="-D warnings" cargo tarpaulin --profile ci --locked --workspace --skip-clean --exclude maat
