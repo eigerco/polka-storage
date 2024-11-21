@@ -9,6 +9,8 @@
 
 pub use pallet::*;
 
+mod error;
+
 #[cfg(test)]
 mod mock;
 
@@ -48,6 +50,8 @@ pub mod pallet {
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::BaseArithmetic;
     use sp_std::vec::Vec;
+
+    use crate::error::*;
 
     pub const LOG_TARGET: &'static str = "runtime::market";
 
@@ -482,203 +486,9 @@ pub mod pallet {
         StorageProviderNotRegistered,
         /// CommD related error
         CommD,
-    }
-
-    pub enum DealActivationError {
-        /// Deal was tried to be activated by a provider which does not own it
-        InvalidProvider,
-        /// Deal should have been activated earlier, it's too late
-        StartBlockElapsed,
-        /// Sector containing the deal will expire before the deal is supposed to end
-        SectorExpiresBeforeDeal,
-        /// Deal needs to be [`DealState::Published`] if it's to be activated
-        InvalidDealState,
-        /// Tried to activate a deal which is not in the Pending Proposals
-        DealNotPending,
-    }
-
-    impl core::fmt::Debug for DealActivationError {
-        fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-            match self {
-                DealActivationError::InvalidProvider => {
-                    write!(f, "DealActivationError: Invalid Provider")
-                }
-                DealActivationError::StartBlockElapsed => {
-                    write!(f, "DealActivationError: Start Block Elapsed")
-                }
-                DealActivationError::SectorExpiresBeforeDeal => {
-                    write!(f, "DealActivationError: Sector Expires Before Deal")
-                }
-                DealActivationError::InvalidDealState => {
-                    write!(f, "DealActivationError: Invalid Deal State")
-                }
-                DealActivationError::DealNotPending => {
-                    write!(f, "DealActivationError: Deal Not Pending")
-                }
-            }
-        }
-    }
-
-    impl core::fmt::Display for DealActivationError {
-        fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-            <Self as core::fmt::Debug>::fmt(self, f)
-        }
-    }
-
-    // NOTE(@th7nder,18/06/2024):
-    // would love to use `thiserror` but it's not supporting no_std environments yet
-    // `thiserror-core` relies on rust nightly feature: error_in_core
-    /// Errors related to [`DealProposal`] and [`ClientDealProposal`]
-    /// This is error does not surface externally, only in the logs.
-    /// Mostly used for Deal Validation [`Self::<T>::validate_deals`].
-    pub enum ProposalError {
-        /// ClientDealProposal.client_signature did not match client's public key and data.
-        WrongClientSignatureOnProposal,
-        /// Provider of one of the deals is different than the Provider of the first deal.
-        DifferentProvider,
-        /// Deal's block_start > block_end, so it doesn't make sense.
-        DealEndBeforeStart,
-        /// Deal's start block is in the past, it should be in the future.
-        DealStartExpired,
-        /// Deal has to be [`DealState::Published`] when being Published
-        DealNotPublished,
-        /// Deal's duration must be within `Config::MinDealDuration` < `Config:MaxDealDuration`.
-        DealDurationOutOfBounds,
-        /// Deal's piece_cid is invalid.
-        InvalidPieceCid(cid::Error),
-        /// Deal's piece_size is invalid.
-        InvalidPieceSize(&'static str),
-        /// CommD related error
-        CommD(&'static str),
-    }
-
-    impl core::fmt::Debug for ProposalError {
-        fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-            match self {
-                ProposalError::WrongClientSignatureOnProposal => {
-                    write!(f, "ProposalError::WrongClientSignatureOnProposal")
-                }
-                ProposalError::DifferentProvider => {
-                    write!(f, "ProposalError::DifferentProvider")
-                }
-                ProposalError::DealEndBeforeStart => {
-                    write!(f, "ProposalError::DealEndBeforeStart")
-                }
-                ProposalError::DealStartExpired => {
-                    write!(f, "ProposalError::DealStartExpired")
-                }
-                ProposalError::DealNotPublished => {
-                    write!(f, "ProposalError::DealNotPublished")
-                }
-                ProposalError::DealDurationOutOfBounds => {
-                    write!(f, "ProposalError::DealDurationOutOfBounds")
-                }
-                ProposalError::InvalidPieceCid(_err) => {
-                    write!(f, "ProposalError::InvalidPieceCid")
-                }
-                ProposalError::InvalidPieceSize(err) => {
-                    write!(f, "ProposalError::InvalidPieceSize: {}", err)
-                }
-                ProposalError::CommD(err) => {
-                    write!(f, "ProposalError::CommD: {}", err)
-                }
-            }
-        }
-    }
-
-    impl core::fmt::Display for ProposalError {
-        fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-            <Self as core::fmt::Debug>::fmt(self, f)
-        }
-    }
-
-    // Clone and PartialEq required because of the BoundedVec<(DealId, DealSettlementError)>
-    #[derive(TypeInfo, Encode, Decode, Clone, PartialEq)]
-    pub enum DealSettlementError {
-        /// The deal is going to be slashed.
-        SlashedDeal,
-        /// The deal last update is in the future — i.e. `last_update_block > current_block`.
-        FutureLastUpdate,
-        /// The deal was not found.
-        DealNotFound,
-        /// The deal is too early to settle.
-        EarlySettlement,
-        /// The deal has expired
-        ExpiredDeal,
-        /// Deal is not activated
-        DealNotActive,
-    }
-
-    impl core::fmt::Debug for DealSettlementError {
-        fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-            match self {
-                DealSettlementError::SlashedDeal => {
-                    write!(f, "DealSettlementError: Slashed Deal")
-                }
-                DealSettlementError::FutureLastUpdate => {
-                    write!(f, "DealSettlementError: Future Last Update")
-                }
-                DealSettlementError::DealNotFound => {
-                    write!(f, "DealSettlementError: Deal Not Found")
-                }
-                DealSettlementError::EarlySettlement => {
-                    write!(f, "DealSettlementError: Early Settlement")
-                }
-                DealSettlementError::ExpiredDeal => {
-                    write!(f, "DealSettlementError: Expired Deal")
-                }
-                DealSettlementError::DealNotActive => {
-                    write!(f, "DealSettlementError: Deal Not Active")
-                }
-            }
-        }
-    }
-
-    impl core::fmt::Display for DealSettlementError {
-        fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-            <Self as core::fmt::Debug>::fmt(self, f)
-        }
-    }
-
-    pub enum SectorTerminateError {
-        /// Deal was not found in the [`Proposals`] table.
-        DealNotFound,
-        /// Caller is not the provider.
-        InvalidCaller,
-        /// Deal is not active
-        DealIsNotActive,
-    }
-
-    impl core::fmt::Debug for SectorTerminateError {
-        fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-            match self {
-                SectorTerminateError::DealNotFound => {
-                    write!(f, "SectorTerminateError: Deal Not Found")
-                }
-                SectorTerminateError::InvalidCaller => {
-                    write!(f, "SectorTerminateError: Invalid Caller")
-                }
-                SectorTerminateError::DealIsNotActive => {
-                    write!(f, "SectorTerminateError: Deal Is Not Active")
-                }
-            }
-        }
-    }
-
-    impl core::fmt::Display for SectorTerminateError {
-        fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-            <Self as core::fmt::Debug>::fmt(self, f)
-        }
-    }
-
-    impl From<SectorTerminateError> for DispatchError {
-        fn from(value: SectorTerminateError) -> Self {
-            DispatchError::Other(match value {
-                SectorTerminateError::DealNotFound => "deal was not found",
-                SectorTerminateError::InvalidCaller => "caller is not the provider",
-                SectorTerminateError::DealIsNotActive => "sector contains active deals",
-            })
-        }
+        /// Tried to propose a deal, but there are too many pending deals.
+        /// The pending deals should be activated or wait for expiry.
+        TooManyPendingDeals,
     }
 
     /// Extrinsics exposed by the pallet
@@ -1230,62 +1040,80 @@ pub mod pallet {
             let mut total_provider_lockup: BalanceOf<T> = Default::default();
             let mut message_proposals: BoundedBTreeSet<T::Hash, T::MaxDeals> =
                 BoundedBTreeSet::new();
+            let mut valid_deals = Vec::new();
 
-            let valid_deals = deals.into_iter().enumerate().filter_map(|(idx, deal)| {
-                    if let Err(e) = Self::sanity_check(&deal, &provider, current_block) {
-                        log::error!(target: LOG_TARGET, "insane deal: idx {idx}, error: {e}");
-                        return None;
-                    }
+            for (idx, deal) in deals.into_iter().enumerate() {
+                if let Err(e) = Self::sanity_check(&deal, &provider, current_block) {
+                    log::error!(target: LOG_TARGET, "insane deal: idx {idx}, error: {e}");
+                    return Err(e.into());
+                }
 
-                    // there is no Entry API in BoundedBTreeMap
-                    let mut client_lockup =
-                        if let Some(client_lockup) = total_client_lockup.get(&deal.proposal.client) {
-                            *client_lockup
-                        } else {
-                            Default::default()
-                        };
-                    let client_fees: BalanceOf<T> = deal.proposal.total_storage_fee()?.try_into().ok()?;
-                    client_lockup = client_lockup.checked_add(&client_fees)?;
+                // there is no Entry API in BoundedBTreeMap
+                let mut client_lockup =
+                    if let Some(client_lockup) = total_client_lockup.get(&deal.proposal.client) {
+                        *client_lockup
+                    } else {
+                        Default::default()
+                    };
+                let client_fees: BalanceOf<T> = deal
+                    .proposal
+                    .total_storage_fee()
+                    .unwrap()
+                    .try_into()
+                    .ok()
+                    .unwrap();
+                client_lockup = client_lockup
+                    .checked_add(&client_fees)
+                    .ok_or(DispatchError::Arithmetic(ArithmeticError::Overflow))?;
 
-                    let client_balance = BalanceTable::<T>::get(&deal.proposal.client);
-                    if client_lockup > client_balance.free {
-                        log::error!(target: LOG_TARGET, "invalid deal: client {:?} not enough free balance {:?} < {:?} to cover deal idx: {}",
+                let client_balance = BalanceTable::<T>::get(&deal.proposal.client);
+                if client_lockup > client_balance.free {
+                    log::error!(target: LOG_TARGET, "invalid deal: client {:?} not enough free balance {:?} < {:?} to cover deal idx: {}",
                             deal.proposal.client, client_balance.free, client_lockup, idx);
-                        return None;
-                    }
+                    return Err(Error::<T>::InsufficientFreeFunds.into());
+                }
 
-                    let mut provider_lockup = total_provider_lockup;
-                    provider_lockup = provider_lockup.checked_add(&deal.proposal.provider_collateral)?;
+                let mut provider_lockup = total_provider_lockup;
+                provider_lockup = provider_lockup
+                    .checked_add(&deal.proposal.provider_collateral)
+                    .ok_or(DispatchError::Arithmetic(ArithmeticError::Overflow))?;
 
-                    let provider_balance = BalanceTable::<T>::get(&deal.proposal.provider);
-                    if provider_lockup > provider_balance.free {
-                        log::error!(target: LOG_TARGET, "invalid deal: storage provider {:?} not enough free balance {:?} < {:?} to cover deal idx: {}",
+                let provider_balance = BalanceTable::<T>::get(&deal.proposal.provider);
+                if provider_lockup > provider_balance.free {
+                    log::error!(target: LOG_TARGET, "invalid deal: storage provider {:?} not enough free balance {:?} < {:?} to cover deal idx: {}",
                             deal.proposal.provider, provider_balance.free, provider_lockup, idx);
-                        return None;
-                    }
+                    return Err(Error::<T>::InsufficientFreeFunds.into());
+                }
 
-                    let hash = Self::hash_proposal(&deal.proposal);
-                    let duplicate_in_state = PendingProposals::<T>::get().contains(&hash);
-                    let duplicate_in_message = message_proposals.contains(&hash);
-                    if duplicate_in_state || duplicate_in_message {
-                        log::error!(target: LOG_TARGET, "invalid deal: cannot publish duplicate deal idx: {}", idx);
-                        return None;
-                    }
-                    let mut pending = PendingProposals::<T>::get();
-                    if let Err(e) = pending.try_insert(hash) {
-                        log::error!(target: LOG_TARGET, "cannot publish: too many pending deal proposals, wait for them to be expired/activated, deal idx: {}, err: {:?}", idx, e);
-                        return None;
-                    }
-                    PendingProposals::<T>::set(pending);
-                    // PRE-COND: always succeeds, as there cannot be more deals than T::MaxDeals and this the size of the set
-                    message_proposals.try_insert(hash).ok()?;
-                    // PRE-COND: always succeeds as there cannot be more clients than T::MaxDeals
-                    total_client_lockup.try_insert(deal.proposal.client.clone(), client_lockup)
-                        .ok()?;
-                    total_provider_lockup = provider_lockup;
-                    Some(deal.proposal)
-                }).collect::<Vec<_>>();
-            ensure!(valid_deals.len() > 0, Error::<T>::AllProposalsInvalid);
+                let hash = Self::hash_proposal(&deal.proposal);
+                let duplicate_in_state = PendingProposals::<T>::get().contains(&hash);
+                let duplicate_in_message = message_proposals.contains(&hash);
+                if duplicate_in_state || duplicate_in_message {
+                    log::error!(target: LOG_TARGET, "invalid deal: cannot publish duplicate deal idx: {}", idx);
+                    return Err(Error::<T>::DuplicateDeal.into());
+                }
+                let mut pending = PendingProposals::<T>::get();
+                if let Err(e) = pending.try_insert(hash) {
+                    log::error!(target: LOG_TARGET, "cannot publish: too many pending deal proposals, wait for them to be expired/activated, deal idx: {}, err: {:?}", idx, e);
+                    return Err(Error::<T>::TooManyPendingDeals.into());
+                }
+                PendingProposals::<T>::set(pending);
+                // PRE-COND: always succeeds, as there cannot be more deals than T::MaxDeals and this the size of the set
+                message_proposals.try_insert(hash).map_err(|_| {
+                    DispatchError::Other("Unable to insert hash. More deals than T::MaxDeals")
+                })?;
+                // PRE-COND: always succeeds as there cannot be more clients than T::MaxDeals
+                total_client_lockup
+                    .try_insert(deal.proposal.client.clone(), client_lockup)
+                    .map_err(|_| {
+                        DispatchError::Other(
+                            "Unable to update client lockup. More clients than T::MaxDeals",
+                        )
+                    })?;
+                total_provider_lockup = provider_lockup;
+
+                valid_deals.push(deal.proposal)
+            }
 
             Ok((valid_deals, total_provider_lockup))
         }
