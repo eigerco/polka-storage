@@ -5,7 +5,7 @@ homepage.workspace = true
 license-file.workspace = true
 name = "storagext-cli"
 repository.workspace = true
-version = "0.1.0-test"
+version = "0.1.0"
 
 [features]
 insecure_url = ["storagext/insecure_url"]

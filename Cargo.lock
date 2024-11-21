@@ -8024,7 +8024,7 @@ dependencies = [
 
 [[package]]
 name = "mater-cli"
-version = "0.1.0-test"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -20970,7 +20970,7 @@ dependencies = [
 
 [[package]]
 name = "storagext-cli"
-version = "0.1.0-test"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "cid 0.11.1",
