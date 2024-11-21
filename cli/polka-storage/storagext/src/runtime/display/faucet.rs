@@ -9,3 +9,12 @@ impl std::fmt::Display for Event {
         }
     }
 }
+
+impl From<crate::runtime::faucet::events::Dripped> for Event {
+    fn from(value: crate::runtime::faucet::events::Dripped) -> Self {
+        Self::Dripped {
+            who: value.who,
+            when: value.when,
+        }
+    }
+}

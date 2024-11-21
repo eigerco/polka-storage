@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use anyhow::anyhow;
 use clap::Subcommand;
 use storagext::{FaucetClientExt, PolkaStorageConfig};
 use url::Url;
@@ -40,27 +41,17 @@ impl FaucetCommand {
                     return Ok(());
                 };
 
-                // This monstrosity first converts incoming events into a "generic" (subxt generated) event,
-                // and then we extract only the Faucet events. We could probably extract this into a proper
-                // iterator but the effort to improvement ratio seems low (for 2 pallets at least).
-                let submission_results = submission_result
+                // Grab `Dripped` event and convert into `::faucet::Event` so we have `Display` and `Serialize` implemented.
+                let event: storagext::runtime::faucet::Event = submission_result
                     .events
-                    .iter()
-                    .flat_map(|event| {
-                        event.map(|details| details.as_root_event::<storagext::runtime::Event>())
-                    })
-                    .filter_map(|event| match event {
-                        Ok(storagext::runtime::Event::Faucet(e)) => Some(Ok(e)),
-                        Err(err) => Some(Err(err)),
-                        _ => None,
-                    });
-                for event in submission_results {
-                    let event = event?;
-                    let output = output_format.format(&event)?;
-                    match output_format {
-                        OutputFormat::Plain => println!("[{}] {}", submission_result.hash, output),
-                        OutputFormat::Json => println!("{}", output),
-                    }
+                    .find_first::<storagext::runtime::faucet::events::Dripped>()?
+                    .ok_or(anyhow!("Could not find expected Dripped event"))?
+                    .into();
+
+                let output = output_format.format(&event)?;
+                match output_format {
+                    OutputFormat::Plain => println!("[{}] {}", submission_result.hash, output),
+                    OutputFormat::Json => println!("{}", output),
                 }
                 Ok(())
             }
