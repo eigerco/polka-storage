@@ -729,10 +729,6 @@ pub mod pallet {
                 )
                 .map_err(|e| Error::<T>::GeneralPalletError(e))?;
 
-            // TODO:
-            // - generate a windowed post proof for this shit (by hand)
-            // - generate it automatically in the pipeline
-
             // TODO(@th7nder,#592, 19/11/2024): handle faulty and recovered sectors, we don't take them into account now
             let deadlines = &sp.deadlines;
             let mut replicas = BoundedBTreeMap::new();
@@ -766,7 +762,7 @@ pub mod pallet {
                 replicas
             );
 
-            // let entropy = owner.encode();
+            let entropy = owner.encode();
             // The `chain_commit_epoch` should be `current_deadline.challenge` as per:
             //
             // These issues that were filed against the original implementation:
@@ -792,10 +788,6 @@ pub mod pallet {
                 &entropy,
             )?;
 
-            let randomness = [1u8; 32];
-
-            // Questions:
-            // * How do we know the partition the sector was assigned to (as a caller) ?
             T::ProofVerification::verify_post(
                 windowed_post.proof.post_proof,
                 randomness,
