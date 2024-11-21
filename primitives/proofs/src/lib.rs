@@ -4,7 +4,7 @@ pub mod randomness;
 mod traits;
 mod types;
 
-use codec::Encode;
+use codec::{Codec, Encode};
 pub use traits::*;
 pub use types::*;
 
@@ -22,4 +22,11 @@ where
     // Necessary to be valid bls12 381 element.
     encoded[31] &= 0x3f;
     encoded
+}
+
+sp_api::decl_runtime_apis! {
+    pub trait StorageProviderApi<AccountId> where AccountId: Codec
+    {
+        fn current_deadline(storage_provider: AccountId) -> u64;
+    }
 }
