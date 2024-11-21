@@ -98,9 +98,19 @@ pub trait StorageProviderClientExt {
     fn retrieve_registered_storage_providers(
         &self,
     ) -> impl Future<Output = Result<Vec<String>, subxt::Error>>;
+
+
+    fn current_deadline(&self, account_id: &AccountId32) -> impl Future<Output = Result<u64, subxt::Error>>;
 }
 
 impl StorageProviderClientExt for crate::runtime::client::Client {
+    async fn current_deadline(&self, account_id: &AccountId32) -> Result<u64, subxt::Error> {
+        // let _ = runtime::apis().storage_provider_api().current_deadline(account_id);
+        // let _ = runtime::apis().account_nonce_api().account_nonce(account_id);
+
+        Ok(0)
+    }
+
     #[tracing::instrument(
         level = "debug",
         skip_all,
