@@ -20944,7 +20944,7 @@ dependencies = [
 
 [[package]]
 name = "storagext"
-version = "0.1.0"
+version = "0.1.0-test"
 dependencies = [
  "anyhow",
  "bs58 0.5.1",
