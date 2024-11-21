@@ -271,8 +271,12 @@ pub fn run_to_block(n: u64) {
 }
 
 /// This is a helper function to easily create a set of sectors.
-pub fn create_set<const T: u32>(sectors: &[u64]) -> BoundedBTreeSet<SectorNumber, ConstU32<T>> {
-    let sectors = sectors.iter().copied().collect::<BTreeSet<_>>();
+pub fn sector_set<const B: u32>(sectors: &[u32]) -> BoundedBTreeSet<SectorNumber, ConstU32<B>> {
+    let sectors = sectors
+        .into_iter()
+        .copied()
+        .map(|s| s.try_into().unwrap())
+        .collect::<BTreeSet<_>>();
     BoundedBTreeSet::try_from(sectors).unwrap()
 }
 
@@ -359,7 +363,7 @@ impl Default for SectorPreCommitInfoBuilder {
 
         Self {
             seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
-            sector_number: 1,
+            sector_number: SectorNumber::new(1).unwrap(),
             sealed_cid,
             deal_ids: bounded_vec![0, 1],
             expiration: 120 * MINUTES,
@@ -370,7 +374,7 @@ impl Default for SectorPreCommitInfoBuilder {
 }
 
 impl SectorPreCommitInfoBuilder {
-    pub fn sector_number(mut self, sector_number: u64) -> Self {
+    pub fn sector_number(mut self, sector_number: SectorNumber) -> Self {
         self.sector_number = sector_number;
         self
     }

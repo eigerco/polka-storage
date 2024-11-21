@@ -1339,10 +1339,8 @@ pub mod pallet {
 
             let mut pending_proposals = PendingProposals::<T>::get();
             for sector in sector_deals {
-                let mut sector_activated_deal_ids: BoundedVec<
-                    SectorNumber,
-                    ConstU32<MAX_DEALS_PER_SECTOR>,
-                > = BoundedVec::new();
+                let mut sector_activated_deal_ids: BoundedVec<u64, ConstU32<MAX_DEALS_PER_SECTOR>> =
+                    BoundedVec::new();
 
                 let Ok(proposals) = Self::proposals_for_deals(sector.deal_ids) else {
                     log::error!("failed to find deals for sector: {}", sector.sector_number);

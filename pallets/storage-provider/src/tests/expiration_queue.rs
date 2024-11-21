@@ -2,21 +2,21 @@ extern crate alloc;
 use alloc::collections::{BTreeMap, BTreeSet};
 
 use primitives_proofs::{RegisteredSealProof, SectorNumber};
-use sp_core::ConstU32;
 use sp_runtime::{BoundedBTreeMap, BoundedBTreeSet};
 
 use super::BlockNumber;
 use crate::{
     expiration_queue::{ExpirationQueue, ExpirationSet},
     sector::{SectorOnChainInfo, MAX_SECTORS},
+    tests::sector_set,
 };
 
-fn on_time_sectors() -> [u64; 3] {
-    [5, 8, 9]
+fn on_time_sectors() -> [SectorNumber; 3] {
+    [5.into(), 8.into(), 9.into()]
 }
 
-fn early_sectors() -> [u64; 2] {
-    [2, 3]
+fn early_sectors() -> [SectorNumber; 2] {
+    [2.into(), 3.into()]
 }
 
 fn default_set() -> ExpirationSet {
@@ -25,17 +25,9 @@ fn default_set() -> ExpirationSet {
     set
 }
 
-/// This is a helper function to easily create a set of sectors.
-pub fn create_set<const T: u32>(sectors: &[u64]) -> BoundedBTreeSet<SectorNumber, ConstU32<T>> {
-    let sectors = sectors.iter().copied().collect::<BTreeSet<_>>();
-    BoundedBTreeSet::try_from(sectors).unwrap()
-}
-
 /// Create a single sector used in tests
-fn test_sector(
-    expiration: BlockNumber,
-    sector_number: SectorNumber,
-) -> SectorOnChainInfo<BlockNumber> {
+fn test_sector(expiration: BlockNumber, sector_number: u32) -> SectorOnChainInfo<BlockNumber> {
+    let sector_number = sector_number.try_into().unwrap();
     SectorOnChainInfo {
         sector_number,
         seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
@@ -62,35 +54,30 @@ fn sectors() -> [SectorOnChainInfo<BlockNumber>; 6] {
 fn add_sectors_to_empty_set() {
     let set = default_set();
 
-    assert_eq!(
-        set.on_time_sectors,
-        create_set::<MAX_SECTORS>(&on_time_sectors())
-    );
-    assert_eq!(
-        set.early_sectors,
-        create_set::<MAX_SECTORS>(&early_sectors())
-    );
+    assert_eq!(set.on_time_sectors, sector_set::<MAX_SECTORS>(&[5, 8, 9]));
+    assert_eq!(set.early_sectors, sector_set::<MAX_SECTORS>(&[2, 3]));
 }
 
 #[test]
 fn add_sectors_to_non_empty_set() {
     let mut set = default_set();
-    set.add(&[6, 7, 11], &[1, 4]).unwrap();
+    set.add(&[6.into(), 7.into(), 11.into()], &[1.into(), 4.into()])
+        .unwrap();
 
     assert_eq!(
         set.on_time_sectors,
-        create_set::<MAX_SECTORS>(&[5, 6, 7, 8, 9, 11])
+        sector_set::<MAX_SECTORS>(&[5, 6, 7, 8, 9, 11])
     );
-    assert_eq!(set.early_sectors, create_set::<MAX_SECTORS>(&[1, 2, 3, 4]));
+    assert_eq!(set.early_sectors, sector_set::<MAX_SECTORS>(&[1, 2, 3, 4]));
 }
 
 #[test]
 fn remove_sectors_from_set() {
     let mut set = default_set();
-    set.remove(&[9], &[2]);
+    set.remove(&[9.into()], &[2.into()]);
 
-    assert_eq!(set.on_time_sectors, create_set::<MAX_SECTORS>(&[5, 8,]));
-    assert_eq!(set.early_sectors, create_set::<MAX_SECTORS>(&[3]));
+    assert_eq!(set.on_time_sectors, sector_set::<MAX_SECTORS>(&[5, 8]));
+    assert_eq!(set.early_sectors, sector_set::<MAX_SECTORS>(&[3]));
 }
 
 #[test]
@@ -142,8 +129,8 @@ fn reschedules_sectors_as_faults() {
 
     for (expiration_height, on_time, early) in checks {
         let set = queue.map.get(&expiration_height).unwrap();
-        assert_eq!(set.on_time_sectors, create_set::<MAX_SECTORS>(&on_time));
-        assert_eq!(set.early_sectors, create_set::<MAX_SECTORS>(&early));
+        assert_eq!(set.on_time_sectors, sector_set::<MAX_SECTORS>(&on_time));
+        assert_eq!(set.early_sectors, sector_set::<MAX_SECTORS>(&early));
     }
 }
 

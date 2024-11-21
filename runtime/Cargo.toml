@@ -26,7 +26,7 @@ pallet-proofs = { workspace = true, default-features = false }
 pallet-randomness = { workspace = true, default-features = false }
 pallet-storage-provider = { workspace = true, default-features = false }
 
-codec = { workspace = true, default-features = false, features = ["derive"] }
+codec = { workspace = true, default-features = false, features = ["chain-error", "derive"] }
 docify = { workspace = true }
 hex-literal = { workspace = true, optional = true }
 log = { workspace = true }

@@ -53,6 +53,8 @@ pub enum PipelineError {
     RandomnessNotAvailable,
     #[error(transparent)]
     SendError(#[from] SendError<PipelineMessage>),
+    #[error("Custom error: {0}")]
+    CustomError(String),
 }
 /// Pipeline shared state.
 pub struct PipelineState {
@@ -191,7 +193,10 @@ async fn find_sector_for_piece(
 ) -> Result<UnsealedSector, PipelineError> {
     // TODO(@th7nder,30/10/2024): simplification, we're always creating a new sector for storing a piece.
     // It should not work like that, sectors should be filled with pieces according to *some* algorithm.
-    let sector_number = state.db.next_sector_number();
+    let sector_number = state
+        .db
+        .next_sector_number()
+        .map_err(|err| PipelineError::CustomError(err.to_string()))?;
     let unsealed_path = state.unsealed_sectors_dir.join(sector_number.to_string());
     let sector = UnsealedSector::create(sector_number, unsealed_path).await?;
 

@@ -28,7 +28,7 @@ fn successfully_prove_sector() {
         publish_deals(storage_provider);
 
         // Sector to be pre-committed and proven
-        let sector_number = 1;
+        let sector_number = 1.into();
 
         // Sector data
         let sector = SectorPreCommitInfoBuilder::default()
@@ -104,7 +104,7 @@ fn successfully_prove_sector() {
 #[test]
 fn successfully_prove_multiple_sectors() {
     new_test_ext().execute_with(|| {
-        const SECTORS_TO_COMMIT: u64 = 2;
+        const SECTORS_TO_COMMIT: u32 = 2;
         // Register CHARLIE as a storage provider.
         let storage_provider = CHARLIE;
         register_storage_provider(account(storage_provider));
@@ -120,7 +120,7 @@ fn successfully_prove_multiple_sectors() {
             sectors
                 .try_push(
                     SectorPreCommitInfoBuilder::default()
-                        .sector_number(sector_number)
+                        .sector_number(sector_number.try_into().unwrap())
                         .unsealed_cid(
                             "baga6ea4seaqhdbbdnon7gkuquzw6waekzqx5lbuio6a6wjie22pgfmwnv3a3wfi",
                         )
@@ -149,6 +149,8 @@ fn successfully_prove_multiple_sectors() {
             ConstU32<MAX_SECTORS_PER_CALL>,
         > = bounded_vec![];
         for sector_number in 0..SECTORS_TO_COMMIT {
+            let sector_number = sector_number.try_into().unwrap();
+
             sectors
                 .try_push(ProveCommitSector {
                     sector_number,
@@ -192,7 +194,7 @@ fn successfully_prove_multiple_sectors() {
         assert_eq!(
             Balances::free_balance(account(storage_provider)),
             // Provider reserved 70 tokens in the market pallet and 1 token is used per the pre-commit
-            INITIAL_FUNDS - 70 - SECTORS_TO_COMMIT
+            INITIAL_FUNDS - 70 - SECTORS_TO_COMMIT as u64
         );
         let sp_state = StorageProviders::<Test>::get(account(storage_provider))
             .expect("Should be able to get providers info");
@@ -200,6 +202,7 @@ fn successfully_prove_multiple_sectors() {
         // check that the sector has been activated
         assert!(!sp_state.sectors.is_empty());
         for sector_number in 0..SECTORS_TO_COMMIT {
+            let sector_number = sector_number.try_into().unwrap();
             assert!(sp_state.sectors.contains_key(&sector_number));
         }
         // always assigns first deadline and first partition, probably will fail when we change deadline calculation algo.
@@ -215,7 +218,7 @@ fn successfully_prove_multiple_sectors() {
 #[test]
 fn successfully_prove_after_period_start_and_check_mutability() {
     new_test_ext().execute_with(|| {
-        const SECTORS_TO_COMMIT: u64 = 4;
+        const SECTORS_TO_COMMIT: u32 = 4;
         // Register CHARLIE as a storage provider.
         let storage_provider = CHARLIE;
         register_storage_provider(account(storage_provider));
@@ -236,7 +239,7 @@ fn successfully_prove_after_period_start_and_check_mutability() {
             sectors
                 .try_push(
                     SectorPreCommitInfoBuilder::default()
-                        .sector_number(sector_number)
+                        .sector_number(sector_number.try_into().unwrap())
                         .unsealed_cid(
                             "baga6ea4seaqhdbbdnon7gkuquzw6waekzqx5lbuio6a6wjie22pgfmwnv3a3wfi",
                         )
@@ -291,6 +294,7 @@ fn successfully_prove_after_period_start_and_check_mutability() {
             ConstU32<MAX_SECTORS_PER_CALL>,
         > = bounded_vec![];
         for sector_number in 0..SECTORS_TO_COMMIT {
+            let sector_number = sector_number.try_into().unwrap();
             sectors
                 .try_push(ProveCommitSector {
                     sector_number,
@@ -318,7 +322,7 @@ fn fails_storage_provider_not_found() {
     new_test_ext().execute_with(|| {
         // Test prove commits
         let sector = ProveCommitSector {
-            sector_number: 1,
+            sector_number: 1.into(),
             proof: bounded_vec![0xd, 0xe, 0xa, 0xd],
         };
 
@@ -336,14 +340,13 @@ fn fails_storage_provider_not_found() {
 fn fails_storage_precommit_missing() {
     new_test_ext().execute_with(|| {
         let storage_provider = ALICE;
-        let sector_number = 1;
 
         // Register storage provider
         register_storage_provider(account(storage_provider));
 
         // Test prove commits
         let sector = ProveCommitSector {
-            sector_number,
+            sector_number: 1.into(),
             proof: bounded_vec![0xd, 0xe, 0xa, 0xd],
         };
 
@@ -370,7 +373,7 @@ fn fails_prove_commit_after_deadline() {
         run_to_block(precommit_at_block_number);
 
         let storage_provider = CHARLIE;
-        let sector_number = 1;
+        let sector_number = 1.into();
 
         // Register storage provider
         register_storage_provider(account(storage_provider));

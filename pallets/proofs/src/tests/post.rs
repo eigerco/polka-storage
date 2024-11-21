@@ -80,7 +80,7 @@ fn test_setup() -> (
     let post_type = RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
     let proof_bytes = default_post_proof();
     let vkey_bytes = default_post_verifyingkey();
-    let sector_id = 77;
+    let sector_id = SectorNumber::new(77).unwrap();
     let randomness = [1u8; 32];
     let mut replicas = BTreeMap::new();
     replicas.insert(

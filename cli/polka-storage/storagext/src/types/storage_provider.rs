@@ -149,7 +149,7 @@ impl From<ProveCommitSector> for RuntimeProveCommitSector {
 pub struct FaultDeclaration {
     pub deadline: u64,
     pub partition: u32,
-    pub sectors: BTreeSet<u64>,
+    pub sectors: BTreeSet<SectorNumber>,
 }
 
 impl From<FaultDeclaration> for RuntimeFaultDeclaration {
@@ -201,7 +201,7 @@ impl PartialEq<RuntimeFaultDeclaration> for FaultDeclaration {
 pub struct RecoveryDeclaration {
     pub deadline: u64,
     pub partition: u32,
-    pub sectors: BTreeSet<u64>,
+    pub sectors: BTreeSet<SectorNumber>,
 }
 
 impl From<RecoveryDeclaration> for RuntimeRecoveryDeclaration {
@@ -286,7 +286,7 @@ impl Into<RuntimeSubmitWindowedPoStParams> for SubmitWindowedPoStParams {
 pub struct TerminationDeclaration {
     pub deadline: u64,
     pub partition: u32,
-    pub sectors: BTreeSet<u64>,
+    pub sectors: BTreeSet<SectorNumber>,
 }
 
 impl From<TerminationDeclaration> for RuntimeTerminationDeclaration {
@@ -340,7 +340,7 @@ mod tests {
         let expected = FaultDeclaration {
             deadline: 0,
             partition: 0,
-            sectors: BTreeSet::from_iter([0, 1].into_iter()),
+            sectors: BTreeSet::from_iter([0.into(), 1.into()].into_iter()),
         };
         assert_eq!(expected, result);
     }
@@ -358,7 +358,7 @@ mod tests {
         let expected = vec![FaultDeclaration {
             deadline: 0,
             partition: 0,
-            sectors: BTreeSet::from_iter([0, 1].into_iter()),
+            sectors: BTreeSet::from_iter([0.into(), 1.into()].into_iter()),
         }];
         assert_eq!(expected, result);
     }
@@ -376,7 +376,7 @@ mod tests {
         let expected = RecoveryDeclaration {
             deadline: 0,
             partition: 0,
-            sectors: BTreeSet::from_iter([0, 1].into_iter()),
+            sectors: BTreeSet::from_iter([0.into(), 1.into()].into_iter()),
         };
         assert_eq!(expected, result);
     }
@@ -394,7 +394,7 @@ mod tests {
         let expected = vec![RecoveryDeclaration {
             deadline: 0,
             partition: 0,
-            sectors: BTreeSet::from_iter([0, 1].into_iter()),
+            sectors: BTreeSet::from_iter([0.into(), 1.into()].into_iter()),
         }];
         assert_eq!(expected, result);
     }
@@ -500,7 +500,7 @@ mod tests {
             vec![TerminationDeclaration {
                 deadline: 69,
                 partition: 420,
-                sectors: BTreeSet::from([1, 2]),
+                sectors: BTreeSet::from([1.into(), 2.into()]),
             }]
         )
     }

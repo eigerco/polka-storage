@@ -228,7 +228,7 @@ where
 #[cfg(test)]
 mod tests {
     use frame_support::BoundedVec;
-    use primitives_proofs::RegisteredSealProof;
+    use primitives_proofs::{RegisteredSealProof, SectorNumber};
 
     use crate::{
         deadline::{assign_deadlines, Deadline},
@@ -238,7 +238,7 @@ mod tests {
     impl Default for SectorOnChainInfo<u64> {
         fn default() -> Self {
             Self {
-                sector_number: 1,
+                sector_number: 1.into(),
                 seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
                 sealed_cid: BoundedVec::new(),
                 activation: 1,
@@ -257,11 +257,11 @@ mod tests {
         struct Spec {
             live_sectors: u64,
             dead_sectors: u64,
-            expect_sectors: Vec<u64>,
+            expect_sectors: Vec<u32>,
         }
 
         struct TestCase {
-            sectors: u64,
+            sectors: u32,
             deadlines: Vec<Option<Spec>>,
         }
         let test_cases = [
@@ -419,6 +419,7 @@ mod tests {
                 .collect();
 
             let sectors: Vec<SectorOnChainInfo<u64>> = (0..tc.sectors)
+                .map(|s| SectorNumber::try_from(s).unwrap())
                 .map(|i| SectorOnChainInfo {
                     sector_number: i,
                     ..Default::default()
@@ -436,7 +437,13 @@ mod tests {
                         i,
                         nth_tc
                     );
-                    for (i, &expected_sector_no) in dl.expect_sectors.iter().enumerate() {
+                    for (i, expected_sector_no) in dl
+                        .expect_sectors
+                        .iter()
+                        .copied()
+                        .map(|s| SectorNumber::try_from(s).unwrap())
+                        .enumerate()
+                    {
                         assert_eq!(sectors[i].sector_number, expected_sector_no);
                     }
                 } else {

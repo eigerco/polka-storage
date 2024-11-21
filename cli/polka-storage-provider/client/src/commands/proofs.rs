@@ -211,7 +211,7 @@ impl ProofsCommand {
 
                 // Those are hardcoded for the showcase only.
                 // They should come from Storage Provider Node, precommits and other information.
-                let sector_id = 77;
+                let sector_id = 77.into();
                 let ticket = [12u8; 32];
                 let seed = [13u8; 32];
 
@@ -369,7 +369,7 @@ impl ProofsCommand {
 
                 // Those are hardcoded for the showcase only.
                 // They should come from Storage Provider Node, precommits and other information.
-                let sector_id = 77;
+                let sector_id = 77.into();
                 let randomness = [1u8; 32];
 
                 let output_path = if let Some(output_path) = output_path {

@@ -55,7 +55,7 @@ fn setup() {
     ));
 
     // Sector to be pre-committed and proven
-    let sector_number = 1;
+    let sector_number = 1.into();
 
     // Sector data
     let sector = SectorPreCommitInfoBuilder::default()

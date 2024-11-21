@@ -556,10 +556,6 @@ pub mod pallet {
                 BoundedVec::new();
 
             for sector in sectors {
-                ensure!(sector.sector_number <= MAX_SECTORS.into(), {
-                    log::error!(target: LOG_TARGET, "prove_commit_sectors: Sector number ({}) may not exceed MAX_SECTORS", sector.sector_number);
-                    Error::<T>::InvalidSector
-                });
                 // Get pre-committed sector. This is the sector we are currently
                 // proving.
                 let precommit = sp
@@ -1363,10 +1359,7 @@ pub mod pallet {
             sector: &SectorPreCommitInfo<BlockNumberFor<T>>,
         ) -> Result<(), Error<T>> {
             let sector_number = sector.sector_number;
-            ensure!(
-                sector_number <= MAX_SECTORS.into(),
-                Error::<T>::InvalidSector
-            );
+
             ensure!(
                 sp.info.window_post_proof_type == sector.seal_proof.registered_window_post_proof(),
                 Error::<T>::InvalidProofType

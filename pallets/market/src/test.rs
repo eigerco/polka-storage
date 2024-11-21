@@ -11,7 +11,7 @@ use frame_support::{
 use primitives_commitment::{CommP, Commitment};
 use primitives_proofs::{
     ActiveDeal, ActiveSector, DealId, Market as MarketTrait, RegisteredSealProof, SectorDeal,
-    MAX_DEALS_PER_SECTOR,
+    SectorNumber, MAX_DEALS_PER_SECTOR,
 };
 use sp_core::H256;
 use sp_runtime::AccountId32;
@@ -292,7 +292,7 @@ fn publish_storage_deals_fails_must_be_unpublished() {
         register_storage_provider(account::<Test>(PROVIDER));
         let proposal = DealProposalBuilder::<Test>::default()
             .state(DealState::Active(ActiveDealState {
-                sector_number: 0,
+                sector_number: 0.into(),
                 sector_start_block: 0,
                 last_updated_block: Some(10),
                 slash_block: None,
@@ -610,13 +610,13 @@ fn verify_deals_for_activation() {
 
         let deals = bounded_vec![
             SectorDeal {
-                sector_number: 1,
+                sector_number: 1.into(),
                 sector_expiry: 120,
                 sector_type: RegisteredSealProof::StackedDRG2KiBV1P1,
                 deal_ids: bounded_vec![1]
             },
             SectorDeal {
-                sector_number: 2,
+                sector_number: 2.into(),
                 sector_expiry: 50,
                 sector_type: RegisteredSealProof::StackedDRG2KiBV1P1,
                 deal_ids: bounded_vec![]
@@ -664,7 +664,7 @@ fn verify_deals_for_activation_fails_with_invalid_deal_state() {
             1,
             DealProposalBuilder::<Test>::default()
                 .state(DealState::Active(ActiveDealState {
-                    sector_number: 0,
+                    sector_number: 0.into(),
                     sector_start_block: 0,
                     last_updated_block: Some(10),
                     slash_block: None,
@@ -806,7 +806,7 @@ fn activate_deals() {
         let deals = bounded_vec![
             SectorDealBuilder::default().build(),
             SectorDealBuilder::default()
-                .sector_number(2)
+                .sector_number(2.into())
                 .sector_expiry(50)
                 .deal_ids(bounded_vec![])
                 .build()
@@ -849,16 +849,16 @@ fn activate_deals_fails_for_1_sector_but_succeeds_for_others() {
         let deals = bounded_vec![
             SectorDealBuilder::default().build(),
             SectorDealBuilder::default()
-                .sector_number(2)
+                .sector_number(2.into())
                 .sector_expiry(50)
                 .deal_ids(bounded_vec![])
                 .build(),
             SectorDealBuilder::default()
-                .sector_number(3)
+                .sector_number(3.into())
                 .deal_ids(bounded_vec![1337])
                 .build(),
             SectorDealBuilder::default()
-                .sector_number(4)
+                .sector_number(4.into())
                 // force error by making expiry < start_block
                 .sector_expiry(10)
                 .deal_ids(bounded_vec![2])
@@ -939,7 +939,7 @@ fn verifies_deals_on_block_finalization() {
         let _ = Market::activate_deals(
             &account::<Test>(PROVIDER),
             bounded_vec![SectorDeal {
-                sector_number: 1,
+                sector_number: 1.into(),
                 sector_expiry: 200,
                 sector_type: RegisteredSealProof::StackedDRG2KiBV1P1,
                 deal_ids: bounded_vec![0]
@@ -1132,7 +1132,7 @@ fn settle_deal_payments_active_future_last_update() {
                 .start_block(0)
                 .end_block(10)
                 .state(DealState::Active(ActiveDealState {
-                    sector_number: 0,
+                    sector_number: 0.into(),
                     sector_start_block: 0,
                     last_updated_block: Some(10),
                     slash_block: None,
@@ -1168,7 +1168,7 @@ fn settle_deal_payments_active_corruption() {
                 .start_block(0)
                 .end_block(10)
                 .state(DealState::Active(ActiveDealState {
-                    sector_number: 0,
+                    sector_number: 0.into(),
                     sector_start_block: 0,
                     last_updated_block: Some(11),
                     slash_block: None,
@@ -1210,7 +1210,7 @@ fn settle_deal_payments_success() {
         Proposals::<Test>::mutate(0, |proposal| {
             if let Some(proposal) = proposal {
                 proposal.state = DealState::Active(ActiveDealState {
-                    sector_number: 0,
+                    sector_number: 0.into(),
                     sector_start_block: 0,
                     last_updated_block: None,
                     slash_block: None,
@@ -1225,7 +1225,7 @@ fn settle_deal_payments_success() {
                     .start_block(1)
                     .end_block(11)
                     .state(DealState::Active(ActiveDealState {
-                        sector_number: 0,
+                        sector_number: 0.into(),
                         sector_start_block: 0,
                         last_updated_block: None,
                         slash_block: None,
@@ -1278,7 +1278,7 @@ fn settle_deal_payments_success() {
                     .start_block(1)
                     .end_block(11)
                     .state(DealState::Active(ActiveDealState {
-                        sector_number: 0,
+                        sector_number: 0.into(),
                         sector_start_block: 0,
                         last_updated_block: Some(6),
                         slash_block: None,
@@ -1309,7 +1309,7 @@ fn settle_deal_payments_success_finished() {
         Proposals::<Test>::mutate(0, |proposal| {
             if let Some(proposal) = proposal {
                 proposal.state = DealState::Active(ActiveDealState {
-                    sector_number: 0,
+                    sector_number: 0.into(),
                     sector_start_block: 0,
                     last_updated_block: None,
                     slash_block: None,
@@ -1324,7 +1324,7 @@ fn settle_deal_payments_success_finished() {
                     .start_block(1)
                     .end_block(11)
                     .state(DealState::Active(ActiveDealState {
-                        sector_number: 0,
+                        sector_number: 0.into(),
                         sector_start_block: 0,
                         last_updated_block: None,
                         slash_block: None,
@@ -1545,7 +1545,7 @@ fn on_sector_terminate_unknown_deals() {
 
         assert_ok!(Market::on_sectors_terminate(
             &account::<Test>(PROVIDER),
-            bounded_vec![0],
+            bounded_vec![0.into()],
         ));
 
         assert_eq!(events(), []);
@@ -1560,7 +1560,7 @@ fn on_sector_terminate_deal_not_found() {
         System::reset_events();
 
         let storage_provider = account::<Test>(PROVIDER);
-        let sector_number = 0;
+        let sector_number = 0.into();
         let sector_deal_ids: BoundedVec<_, ConstU32<MAX_DEALS_PER_SECTOR>> = bounded_vec![1];
 
         SectorDeals::<Test>::insert((storage_provider.clone(), sector_number), sector_deal_ids);
@@ -1581,7 +1581,7 @@ fn on_sector_terminate_invalid_caller() {
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
         System::reset_events();
 
-        let sector_number = 0;
+        let sector_number = 0.into();
         let sector_deal_ids: BoundedVec<_, ConstU32<MAX_DEALS_PER_SECTOR>> = bounded_vec![1];
 
         SectorDeals::<Test>::insert((account::<Test>(PROVIDER), sector_number), sector_deal_ids);
@@ -1609,7 +1609,7 @@ fn on_sector_terminate_not_active() {
         System::reset_events();
 
         let storage_provider = account::<Test>(PROVIDER);
-        let sector_number = 0;
+        let sector_number = 0.into();
         let sector_deal_ids: BoundedVec<_, ConstU32<MAX_DEALS_PER_SECTOR>> = bounded_vec![1];
 
         SectorDeals::<Test>::insert((storage_provider.clone(), sector_number), sector_deal_ids);
@@ -1641,7 +1641,7 @@ fn on_sector_terminate_active() {
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
 
         let storage_provider = account::<Test>(PROVIDER);
-        let sector_number = 0;
+        let sector_number = 0.into();
         let sector_deal_ids: BoundedVec<_, ConstU32<MAX_DEALS_PER_SECTOR>> = bounded_vec![1];
         let deal_proposal = DealProposalBuilder::<Test>::default()
             .client(BOB)
@@ -1649,7 +1649,7 @@ fn on_sector_terminate_active() {
             .end_block(10)
             .storage_price_per_block(5)
             .provider_collateral(15)
-            .state(DealState::Active(ActiveDealState::new(0, 0)))
+            .state(DealState::Active(ActiveDealState::new(sector_number, 0)))
             .unsigned();
 
         assert_ok!(lock_funds::<Test>(&account::<Test>(BOB), 5 * 10));
@@ -1714,7 +1714,7 @@ fn on_sector_terminate_active() {
 
 /// Builder with nice defaults for test purposes.
 struct SectorDealBuilder {
-    sector_number: u64,
+    sector_number: SectorNumber,
     sector_expiry: u64,
     sector_type: RegisteredSealProof,
     deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
@@ -1726,7 +1726,7 @@ impl SectorDealBuilder {
         self
     }
 
-    pub fn sector_number(mut self, sector_number: u64) -> Self {
+    pub fn sector_number(mut self, sector_number: SectorNumber) -> Self {
         self.sector_number = sector_number;
         self
     }
@@ -1752,7 +1752,7 @@ impl SectorDealBuilder {
 impl Default for SectorDealBuilder {
     fn default() -> Self {
         Self {
-            sector_number: 1,
+            sector_number: 1.into(),
             sector_expiry: 120,
             sector_type: RegisteredSealProof::StackedDRG2KiBV1P1,
             deal_ids: bounded_vec![1],

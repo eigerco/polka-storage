@@ -96,7 +96,7 @@ fn default_porep_test_setup() -> (
 ) {
     let seal_proof = RegisteredSealProof::StackedDRG2KiBV1P1;
     // Those values match the ones from:
-    let sector = SectorNumber::from(77u64);
+    let sector = SectorNumber::new(77).unwrap();
     let prover_id = [0u8; 32];
     let ticket = [12u8; 32];
     let seed = [13u8; 32];
