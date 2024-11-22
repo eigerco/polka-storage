@@ -77,7 +77,7 @@ pub fn generate_window_post<CacheDirectory: AsRef<Path>>(
     let mut replicas = BTreeMap::new();
     for replica in partition_replicas {
         replicas.insert(
-            replica.sector_id.into(),
+            storage_proofs_core::sector::SectorId::from(u64::from(replica.sector_id)),
             PrivateReplicaInfo::<Tree>::new(
                 replica.replica_path,
                 replica.comm_r,

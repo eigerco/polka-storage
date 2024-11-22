@@ -438,29 +438,8 @@ impl pallet_randomness::Config for Runtime {
     #[cfg(not(feature = "testnet"))]
     type Generator = super::RandomnessSource;
     #[cfg(feature = "testnet")]
-    type Generator = randomness_source_testnet::PredictableRandomnessSource<Self>;
+    type Generator = frame_support_test::TestRandomness;
 
     type CleanupInterval = CleanupInterval;
     type SeedAgeLimit = SeedAgeLimit;
-}
-
-#[cfg(feature = "testnet")]
-mod randomness_source_testnet {
-    use frame_support::traits::Randomness;
-    use frame_system::{pallet_prelude::BlockNumberFor, Config, Pallet};
-    use sp_runtime::traits::Hash;
-    use sp_std::marker::PhantomData;
-
-    /// Randomness source that always returns same random value.
-    /// ! USE THIS ONLY IN TESTNET !
-    pub struct PredictableRandomnessSource<T>(PhantomData<T>);
-    impl<T: Config> Randomness<T::Hash, BlockNumberFor<T>> for PredictableRandomnessSource<T> {
-        fn random(_: &[u8]) -> (T::Hash, BlockNumberFor<T>) {
-            (
-                T::Hashing::hash(&[]),
-                // This means the the randomness can be used immediately.
-                <Pallet<T>>::block_number(),
-            )
-        }
-    }
 }
