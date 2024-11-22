@@ -5,7 +5,7 @@ alias f := fmt
 
 # Generate the `metadata.scale` file, requires the node to be up and running at `127.0.0.1:42069`
 generate-scale:
-    subxt metadata -a --url http://127.0.0.1:42069 > cli/artifacts/metadata.scale
+    subxt metadata -a --url http://127.0.0.1:42069 > storagext/artifacts/metadata.scale
 
 # Lint the project
 lint:
