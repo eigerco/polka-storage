@@ -20959,6 +20959,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "storagext-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cid 0.11.1",
+ "clap",
+ "frame-support 38.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
+ "hex",
+ "parity-scale-codec",
+ "primitives-proofs",
+ "serde",
+ "serde_json",
+ "storagext",
+ "subxt",
+ "subxt-signer",
+ "thiserror 2.0.3",
+ "tokio",
+ "tracing",
+ "tracing-subscriber 0.3.18",
+ "url",
+]
+
+[[package]]
 name = "str0m"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

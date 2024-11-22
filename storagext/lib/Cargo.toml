@@ -1,0 +1,44 @@
+[package]
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+name = "storagext"
+repository.workspace = true
+version = "0.1.0"
+
+[features]
+clap = ["dep:clap"]
+default = []
+insecure_url = []
+
+[dependencies]
+anyhow.workspace = true
+bs58 = { workspace = true }
+cid = { workspace = true, features = ["scale-codec"], default-features = true }
+codec.workspace = true
+frame-support = { workspace = true, features = ["std"] }
+futures.workspace = true
+hex = { workspace = true, features = ["serde"] }
+itertools = { workspace = true }
+primitives-proofs = { workspace = true, features = ["serde"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+subxt = { workspace = true, features = ["jsonrpsee", "substrate-compat"] }
+subxt-signer = { workspace = true, features = ["subxt"] }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+url = { workspace = true }
+
+# Optional dependencies
+clap = { workspace = true, optional = true, features = ["derive"] }
+
+[dev-dependencies]
+# "Duplicated" so we can always test clap-dependent things
+clap = { workspace = true, features = ["derive"] }
+
+[lints]
+workspace = true
