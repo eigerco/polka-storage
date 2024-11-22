@@ -516,7 +516,6 @@ fn get_randomness(
     entropy: &[u8],
 ) -> [u8; 32] {
     // This randomness digest is hardcoded because it's always same on testnet.
-    // Check `PredictableRandomnessSource` struct for more details.
     let digest = [0u8; 32];
     draw_randomness(&digest, personalization, block_number, &entropy)
 }
