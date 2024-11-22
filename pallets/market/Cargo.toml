@@ -24,6 +24,7 @@ multihash-codetable = { workspace = true, features = ["blake2b"] }
 primitives-commitment = { workspace = true }
 primitives-proofs = { workspace = true, default-features = false }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
+thiserror = { workspace = true, default-features = false }
 
 # frame deps
 frame-benchmarking = { workspace = true, default-features = false, optional = true }

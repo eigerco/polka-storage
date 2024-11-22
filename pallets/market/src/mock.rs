@@ -157,7 +157,7 @@ pub fn sign_proposal(client: &str, proposal: DealProposalOf<Test>) -> ClientDeal
 pub const ALICE: &'static str = "//Alice";
 pub const BOB: &'static str = "//Bob";
 pub const PROVIDER: &'static str = "//StorageProvider";
-pub const INITIAL_FUNDS: u64 = 100;
+pub const INITIAL_FUNDS: u64 = 1000;
 
 /// Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
