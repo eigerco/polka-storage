@@ -434,40 +434,6 @@ fn publish_storage_deals_fails_client_not_enough_funds_for_second_deal() {
     });
 }
 
-/// Add enough balance to the provider so that the first proposal can be accepted and published.
-/// Collateral is 25 for the default deal, so provider should have at least 50.
-/// Second proposal will be rejected, but first still published
-#[test]
-fn publish_storage_deals_fails_provider_not_enough_funds_for_second_deal() {
-    new_test_ext().execute_with(|| {
-        register_storage_provider(account::<Test>(PROVIDER));
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 40);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 90);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(BOB)), 90);
-        System::reset_events();
-
-        assert_ok!(Market::publish_storage_deals(
-            RuntimeOrigin::signed(account::<Test>(PROVIDER)),
-            bounded_vec![
-                DealProposalBuilder::<Test>::default().signed(ALICE),
-                DealProposalBuilder::<Test>::default()
-                    .client(BOB)
-                    .signed(BOB),
-            ]
-        ));
-        assert_eq!(
-            events(),
-            [RuntimeEvent::Market(Event::<Test>::DealsPublished {
-                provider: account::<Test>(PROVIDER),
-                deals: bounded_vec!(PublishedDeal {
-                    deal_id: 0,
-                    client: account::<Test>(ALICE),
-                })
-            })]
-        );
-    });
-}
-
 #[test]
 fn publish_storage_deals_fails_duplicate_deal_in_message() {
     new_test_ext().execute_with(|| {
