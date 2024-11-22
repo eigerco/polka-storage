@@ -41,6 +41,10 @@ pub mod display;
         path = "pallet_market::pallet::DealState",
         derive = "::serde::Deserialize"
     ),
+    derive_for_type(
+        path = "pallet_market::pallet::PublishedDeal",
+        derive = "::serde::Deserialize"
+    ),
     // impl Serialize
     derive_for_type(
         path = "pallet_market::pallet::BalanceEntry",
@@ -110,6 +114,10 @@ pub mod display;
     ),
     derive_for_type(
         path = "pallet_market::pallet::DealState",
+        derive = "::serde::Serialize"
+    ),
+    derive_for_type(
+        path = "pallet_market::pallet::PublishedDeal",
         derive = "::serde::Serialize"
     ),
 )]
