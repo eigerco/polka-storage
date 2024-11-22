@@ -10,7 +10,6 @@ members = [
   "cli/polka-storage-provider/client",
   "cli/polka-storage-provider/common",
   "cli/polka-storage-provider/server",
-  "cli/polka-storage/storagext",
   "lib/polka-storage-proofs",
   "maat",
   "node",
@@ -24,6 +23,7 @@ members = [
   "runtime",
   "storage/mater",
   "storage/polka-index",
+  "storagext",
 ]
 resolver = "2"
 
@@ -140,7 +140,7 @@ polka-storage-provider-common = { path = "cli/polka-storage-provider/common" }
 polka-storage-runtime = { path = "runtime" }
 primitives-commitment = { path = "primitives/commitment" }
 primitives-proofs = { path = "primitives/proofs", default-features = false }
-storagext = { path = "cli/polka-storage/storagext" }
+storagext = { path = "storagext" }
 
 # FileCoin proofs
 bellpepper-core = "0.2"
