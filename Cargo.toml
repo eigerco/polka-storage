@@ -11,7 +11,6 @@ members = [
   "cli/polka-storage-provider/common",
   "cli/polka-storage-provider/server",
   "cli/polka-storage/storagext",
-  "cli/polka-storage/storagext-cli",
   "lib/polka-storage-proofs",
   "maat",
   "node",
@@ -24,7 +23,6 @@ members = [
   "primitives/proofs",
   "runtime",
   "storage/mater",
-  "storage/mater-cli",
   "storage/polka-index",
 ]
 resolver = "2"

@@ -34,7 +34,7 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 url = { workspace = true }
 
 # Optional dependencies
-clap = { workspace = true, optional = true, features = ["derive"] }
+clap = { workspace = true, optional = true, features = ["derive", "env"] }
 
 [dev-dependencies]
 # "Duplicated" so we can always test clap-dependent things
