@@ -4,13 +4,11 @@ Welcome to the Polka Storage project repo!
 
 This project aims to build a native storage network for Polkadot.
 
-Check out the book at <https://eigerco.github.io/polka-storage/getting-started/index.html>.
-
+Check out the book at <https://eigerco.github.io/polka-storage-book/getting-started/index.html>.
 
 - If you'd like to contribute, take a look at [`DEVELOPMENT.md`](./DEVELOPMENT.md) to get started.
 
 - Weekly dev updates https://forum.polkadot.network/t/polkadot-native-storage-updates/7021
-
 
 ## About Eiger
 
