@@ -7999,12 +7999,10 @@ checksum = "0e7465ac9959cc2b1404e8e2367b43684a6d13790fe23056cc8c6c5a6b7bcb94"
 name = "mater"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "async-stream",
  "bitflags 2.6.0",
  "byteorder",
  "bytes",
- "clap",
  "criterion",
  "digest 0.10.7",
  "futures",
@@ -8022,6 +8020,18 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-util",
+]
+
+[[package]]
+name = "mater-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "mater",
+ "tempfile",
+ "thiserror 2.0.3",
+ "tokio",
 ]
 
 [[package]]

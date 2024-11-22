@@ -10,9 +10,6 @@
 #![deny(rustdoc::private_intra_doc_links)]
 #![deny(unsafe_code)]
 
-// It is used by the cli. But the unused_crate_dependencies lint doesn't know that.
-use clap as _;
-
 mod async_varint;
 mod multicodec;
 mod stores;

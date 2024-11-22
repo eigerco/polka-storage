@@ -12,7 +12,6 @@ async-stream.workspace = true
 bitflags.workspace = true
 byteorder = { workspace = true, features = ["i128"] }
 bytes.workspace = true
-clap = { workspace = true, features = ["derive"] }
 digest.workspace = true
 futures.workspace = true
 indexmap.workspace = true
@@ -29,7 +28,6 @@ tokio-stream.workspace = true
 tokio-util = { workspace = true, features = ["io"] }
 
 [dev-dependencies]
-anyhow.workspace = true
 criterion = { workspace = true, features = ["async_tokio", "html_reports"] }
 rand = { workspace = true, default_features = true }
 tempfile.workspace = true

@@ -12,6 +12,8 @@ members = [
   "cli/polka-storage-provider/server",
   "lib/polka-storage-proofs",
   "maat",
+  "mater/cli",
+  "mater/lib",
   "node",
   "pallets/faucet",
   "pallets/market",
@@ -21,7 +23,6 @@ members = [
   "primitives/commitment",
   "primitives/proofs",
   "runtime",
-  "storage/mater",
   "storage/polka-index",
   "storagext/cli",
   "storagext/lib",
@@ -129,7 +130,7 @@ zombienet-sdk = "0.2.15"
 zombienet-support = "0.2.15"
 
 # Local
-mater = { path = "storage/mater" }
+mater = { path = "mater/lib" }
 pallet-faucet = { path = "pallets/faucet", default-features = false }
 pallet-market = { path = "pallets/market", default-features = false }
 pallet-proofs = { path = "pallets/proofs", default-features = false }
