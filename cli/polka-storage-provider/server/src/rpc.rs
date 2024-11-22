@@ -110,16 +110,26 @@ impl StorageProviderRpcServer for RpcServerState {
 
         let published_deals = result
             .events
-            .find::<storagext::runtime::market::events::DealPublished>()
-            .collect::<Result<Vec<_>, _>>()
+            .find_first::<storagext::runtime::market::events::DealsPublished>()
             .map_err(|err| RpcError::internal_error(err, None))?;
+        let Some(published_deals) = published_deals else {
+            return Err(RpcError::internal_error(
+                "failed to find any published deals",
+                None,
+            ));
+        };
 
         // We currently just support a single deal and if there's no published deals,
         // an error MUST've happened
-        debug_assert_eq!(published_deals.len(), 1);
+        debug_assert_eq!(published_deals.deals.0.len(), 1);
 
         // We always publish only 1 deal
-        let deal_id = published_deals[0].deal_id;
+        let deal_id = published_deals
+            .deals
+            .0
+            .first()
+            .expect("we only support a single deal")
+            .deal_id;
 
         let commitment = Commitment::from_cid(&piece_cid).map_err(|e| {
             RpcError::invalid_params(
