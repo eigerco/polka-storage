@@ -6,7 +6,7 @@ mkdir "$CACHE_FOLDER"
 PROVIDER="//Charlie"
 CAR_FILE="../examples/test-data-big.car"
 SECTOR_CID="baga6ea4seaqbfhdvmk5qygevit25ztjwl7voyikb5k2fqcl2lsuefhaqtukuiii"
-PARAMS_PATH="../.cernic/2KiB.porep.params"
+PARAMS_PATH="../2KiB.porep.params"
 SECTOR_ID=1
 SEAL_RANDOMNESS_HEIGHT=20
 PRE_COMMIT_BLOCK_NUMBER=30
