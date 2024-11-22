@@ -67,7 +67,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4.2.2
 
-      - uses: dtolnay@rust-toolchain@1.77.0
+      - uses: dtolnay/rust-toolchain@1.81.0
         with:
           targets: wasm32-unknown-unknown
 
@@ -206,7 +206,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4.2.2
 
-      - uses: dtolnay@rust-toolchain@1.77.0
+      - uses: dtolnay/rust-toolchain@1.81.0
         with:
           targets: wasm32-unknown-unknown
 
@@ -347,7 +347,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4.2.2
 
-      - uses: dtolnay@rust-toolchain@1.77.0
+      - uses: dtolnay/rust-toolchain@1.81.0
         with:
           targets: wasm32-unknown-unknown
 
@@ -486,7 +486,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4.2.2
 
-      - uses: dtolnay@rust-toolchain@1.77.0
+      - uses: dtolnay/rust-toolchain@1.81.0
         with:
           targets: wasm32-unknown-unknown
 
@@ -625,7 +625,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4.2.2
 
-      - uses: dtolnay@rust-toolchain@1.77.0
+      - uses: dtolnay/rust-toolchain@1.81.0
         with:
           targets: wasm32-unknown-unknown
 
