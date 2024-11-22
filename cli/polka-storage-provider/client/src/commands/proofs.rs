@@ -5,6 +5,7 @@ use std::{
     str::FromStr,
 };
 
+use codec::Encode;
 use mater::CarV2Reader;
 use polka_storage_proofs::{
     porep::{self, sealer::Sealer},
@@ -16,7 +17,11 @@ use primitives_commitment::{
     piece::{PaddedPieceSize, PieceInfo},
     Commitment,
 };
-use primitives_proofs::{derive_prover_id, RegisteredPoStProof, RegisteredSealProof};
+use primitives_proofs::{
+    derive_prover_id,
+    randomness::{draw_randomness, DomainSeparationTag},
+    RegisteredPoStProof, RegisteredSealProof, SectorNumber,
+};
 use storagext::multipair::{MultiPairArgs, MultiPairSigner};
 use subxt::tx::Signer;
 
@@ -72,6 +77,15 @@ pub enum ProofsCommand {
         /// Directory where the proof files and the sector will be put. Defaults to the current directory.
         #[arg(short, long)]
         output_path: Option<PathBuf>,
+        /// Sector number
+        #[arg(long)]
+        sector_id: u32,
+        /// The height at which we draw the randomness for deriving a sealed cid.
+        #[arg(long)]
+        seal_randomness_height: u64,
+        /// Precommit block number
+        #[arg(long)]
+        pre_commit_block_number: u64,
     },
     /// Generates PoSt verifying key and proving parameters for zk-SNARK workflows (submit windowed PoSt)
     #[clap(name = "post-params")]
@@ -203,17 +217,40 @@ impl ProofsCommand {
                 commp,
                 output_path,
                 cache_directory,
+                sector_id,
+                seal_randomness_height,
+                pre_commit_block_number,
             } => {
                 let Some(signer) = Option::<MultiPairSigner>::from(signer_key) else {
                     return Err(UtilsCommandError::NoSigner)?;
                 };
-                let prover_id = derive_prover_id(signer.account_id());
 
-                // Those are hardcoded for the showcase only.
-                // They should come from Storage Provider Node, precommits and other information.
-                let sector_id = 77.into();
-                let ticket = [12u8; 32];
-                let seed = [13u8; 32];
+                let sector_number = SectorNumber::try_from(sector_id)
+                    .map_err(|_| UtilsCommandError::InvalidSectorId)?;
+
+                let entropy = signer.account_id().encode();
+                println!("Entropy: {}", hex::encode(&entropy));
+
+                let ticket = get_randomness(
+                    DomainSeparationTag::SealRandomness,
+                    seal_randomness_height,
+                    &entropy,
+                );
+                println!(
+                    "[{seal_randomness_height}] Ticket randomness: {}",
+                    hex::encode(ticket)
+                );
+
+                let interactive_block_number = pre_commit_block_number + 10;
+                let seed = get_randomness(
+                    DomainSeparationTag::InteractiveSealChallengeSeed,
+                    interactive_block_number,
+                    &entropy,
+                );
+                println!(
+                    "[{interactive_block_number}] Seed randomness: {}",
+                    hex::encode(seed)
+                );
 
                 let output_path = if let Some(output_path) = output_path {
                     output_path
@@ -273,6 +310,9 @@ impl ProofsCommand {
                     .create_sector(vec![(piece_file, piece_info)], unsealed_sector)
                     .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
 
+                let prover_id = derive_prover_id(signer.account_id());
+                println!("Prover ID: {}", hex::encode(prover_id));
+
                 println!("Precommitting...");
                 let precommit = sealer
                     .precommit_sector(
@@ -280,7 +320,7 @@ impl ProofsCommand {
                         unsealed_sector_path,
                         &sealed_sector_path,
                         prover_id,
-                        sector_id,
+                        sector_number,
                         ticket,
                         &piece_infos,
                     )
@@ -293,7 +333,7 @@ impl ProofsCommand {
                         &cache_directory,
                         &sealed_sector_path,
                         prover_id,
-                        sector_id,
+                        sector_number,
                         ticket,
                         Some(seed),
                         precommit,
@@ -310,8 +350,10 @@ impl ProofsCommand {
                     .clone()
                     .try_into()
                     .expect("converstion between rust-fil-proofs and polka-storage-proofs to work");
-                proof_scale_file.write_all(&codec::Encode::encode(&proof_scale))?;
+                let scale_encoded_proof = codec::Encode::encode(&proof_scale);
+                proof_scale_file.write_all(&scale_encoded_proof)?;
 
+                println!("Proof as HEX: {}", hex::encode(scale_encoded_proof));
                 println!("Wrote proof to {}", proof_scale_filename.display());
             }
             ProofsCommand::GeneratePoStParams {
@@ -446,6 +488,8 @@ pub enum UtilsCommandError {
     InvalidPieceCommP(String, cid::Error),
     #[error("invalid piece type")]
     InvalidPieceType(String, &'static str),
+    #[error("Inavlid sector id")]
+    InvalidSectorId,
     #[error("file {0} is invalid CARv2 file {1}")]
     InvalidCARv2(PathBuf, mater::Error),
     #[error("no signer key was provider")]
@@ -464,4 +508,15 @@ fn file_with_extension(
     let file = std::fs::File::create(new_path.clone())
         .map_err(|e| UtilsCommandError::FileCreateError(new_path.clone(), e))?;
     Ok((new_path, file))
+}
+
+fn get_randomness(
+    personalization: DomainSeparationTag,
+    block_number: u64,
+    entropy: &[u8],
+) -> [u8; 32] {
+    // This randomness digest is hardcoded because it's always same on testnet.
+    // Check `PredictableRandomnessSource` struct for more details.
+    let digest = [0u8; 32];
+    draw_randomness(&digest, personalization, block_number, &entropy)
 }
