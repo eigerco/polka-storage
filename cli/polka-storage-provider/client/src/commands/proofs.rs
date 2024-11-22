@@ -241,6 +241,8 @@ impl ProofsCommand {
                     hex::encode(ticket)
                 );
 
+                // The number added is configured in runtime:
+                // https://github.com/eigerco/polka-storage/blob/18207759d7c6c175916d5bed70246d94a8f028f4/runtime/src/configs/mod.rs#L360
                 let interactive_block_number = pre_commit_block_number + 10;
                 let seed = get_randomness(
                     DomainSeparationTag::InteractiveSealChallengeSeed,
