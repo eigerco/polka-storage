@@ -17,6 +17,8 @@ jobs:
     if: github.ref_type == 'tag' && startsWith(github.ref_name, 'mater-cli-v')
 
     steps:
+      - uses: actions/checkout@v4.2.2
+
       - id: check-version
         name: Check version match
         run: |
@@ -156,6 +158,8 @@ jobs:
     if: github.ref_type == 'tag' && startsWith(github.ref_name, 'storagext-cli-v')
 
     steps:
+      - uses: actions/checkout@v4.2.2
+
       - id: check-version
         name: Check version match
         run: |
@@ -297,6 +301,8 @@ jobs:
     if: github.ref_type == 'tag' && startsWith(github.ref_name, 'polka-storage-node-v')
 
     steps:
+      - uses: actions/checkout@v4.2.2
+
       - id: check-version
         name: Check version match
         run: |
@@ -436,6 +442,8 @@ jobs:
     if: github.ref_type == 'tag' && startsWith(github.ref_name, 'polka-storage-provider-client-v')
 
     steps:
+      - uses: actions/checkout@v4.2.2
+
       - id: check-version
         name: Check version match
         run: |
@@ -575,6 +583,8 @@ jobs:
     if: github.ref_type == 'tag' && startsWith(github.ref_name, 'polka-storage-provider-server-v')
 
     steps:
+      - uses: actions/checkout@v4.2.2
+
       - id: check-version
         name: Check version match
         run: |
