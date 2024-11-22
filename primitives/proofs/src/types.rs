@@ -155,13 +155,6 @@ impl Display for SectorNumber {
     }
 }
 
-#[cfg(feature = "std")]
-impl From<SectorNumber> for storage_proofs_core::sector::SectorId {
-    fn from(sector_number: SectorNumber) -> Self {
-        Self::from(sector_number.0 as u64)
-    }
-}
-
 /// Byte representation of the entity that was signing the proof.
 /// It must match the ProverId used for Proving.
 pub type ProverId = [u8; 32];

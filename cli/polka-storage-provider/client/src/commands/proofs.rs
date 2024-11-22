@@ -488,7 +488,7 @@ pub enum UtilsCommandError {
     InvalidPieceCommP(String, cid::Error),
     #[error("invalid piece type")]
     InvalidPieceType(String, &'static str),
-    #[error("Inavlid sector id")]
+    #[error("invalid sector id")]
     InvalidSectorId,
     #[error("file {0} is invalid CARv2 file {1}")]
     InvalidCARv2(PathBuf, mater::Error),
