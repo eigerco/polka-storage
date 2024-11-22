@@ -81,41 +81,41 @@ jobs:
           path: target/release/mater-cli
           retention-days: 1
 
-  mater_cli_build_docker:
-    runs-on: self-hosted
+  # mater_cli_build_docker:
+  #   runs-on: self-hosted
 
-    needs:
-      - mater_cli_check_version
+  #   needs:
+  #     - mater_cli_check_version
 
-    permissions:
-      packages: write
+  #   permissions:
+  #     packages: write
 
-    steps:
-      - uses: actions/checkout@v4.2.2
+  #   steps:
+  #     - uses: actions/checkout@v4.2.2
 
-      - name: Login to Github Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+  #     - name: Login to Github Container Registry
+  #       uses: docker/login-action@v3
+  #       with:
+  #         registry: ghcr.io
+  #         username: ${{ github.actor }}
+  #         password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and publish image
-        run: |
-          docker build \
-            --build-arg VCS_REF="$(git rev-parse HEAD)" \
-            --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-            --tag ghcr.io/eigerco/mater-cli:"${{ needs.mater_cli_check_version.outputs.package-version }}" \
-            --file ./docker/dockerfiles/mater-cli.Dockerfile \
-            .
-          docker push ghcr.io/eigerco/mater-cli:"${{ needs.mater_cli_check_version.outputs.package-version }}"
+  #     - name: Build and publish image
+  #       run: |
+  #         docker build \
+  #           --build-arg VCS_REF="$(git rev-parse HEAD)" \
+  #           --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+  #           --tag ghcr.io/eigerco/mater-cli:"${{ needs.mater_cli_check_version.outputs.package-version }}" \
+  #           --file ./docker/dockerfiles/mater-cli.Dockerfile \
+  #           .
+  #         docker push ghcr.io/eigerco/mater-cli:"${{ needs.mater_cli_check_version.outputs.package-version }}"
 
   mater_cli_release:
     needs:
       - mater_cli_check_version
       - mater_cli_build_linux
       - mater_cli_build_macos
-      - mater_cli_build_docker
+      # - mater_cli_build_docker
 
     runs-on: ubuntu-latest
 
