@@ -55,7 +55,7 @@ pallet-transaction-payment = { workspace = true, default-features = false }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true, default-features = false }
 
 # Substrate Primitives
-sp-api = { workspace = true, default-features = false, features = ["frame-metadata"] }
+sp-api = { workspace = true, default-features = false }
 sp-block-builder = { workspace = true, default-features = false }
 sp-consensus-aura = { workspace = true, default-features = false }
 sp-core = { workspace = true, default-features = false }
