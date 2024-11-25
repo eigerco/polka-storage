@@ -50,6 +50,14 @@ impl StorageProviderRpcServer for RpcServerState {
             ));
         }
 
+        // TODO(@jmg-duarte,25/11/2024): Add sanity validations
+        // end_block > start_block
+        // available balance (sp & client)
+        // the provider matches us
+        // storage price per block > 0
+        // piece size <= 2048 && power of two
+        // check the piece_cid code
+
         let cid = self
             .deal_db
             .add_accepted_proposed_deal(&deal)
@@ -80,7 +88,7 @@ impl StorageProviderRpcServer for RpcServerState {
             .is_none()
         {
             return Err(RpcError::internal_error(
-                "proposal has not been accepted",
+                "proposal has not been found — have you proposed the deal first?",
                 None,
             ));
         }
@@ -94,6 +102,8 @@ impl StorageProviderRpcServer for RpcServerState {
                 None,
             ));
         }
+
+        // TODO(@jmg-duarte,25/11/2024): don't batch the deals for better errors
 
         let deal_proposal = deal.deal_proposal.clone();
         // TODO(@jmg-duarte,#428,04/10/2024):
