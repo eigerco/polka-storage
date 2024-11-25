@@ -87,7 +87,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: mater-cli-macos-${{ matrix.arch }}
-          path: target/release/mater-cli
+          path: target/${{ matrix.target }}/release/mater-cli
           retention-days: 1
 
   # mater_cli_build_docker:
