@@ -15,7 +15,7 @@ use polka_storage_proofs::{
 use polka_storage_provider_common::commp::{calculate_piece_commitment, CommPError};
 use primitives_commitment::{
     piece::{PaddedPieceSize, PieceInfo},
-    Commitment,
+    Commitment, CommitmentError,
 };
 use primitives_proofs::{
     derive_prover_id,
@@ -488,8 +488,8 @@ pub enum UtilsCommandError {
     InvalidPieceFile(PathBuf, std::io::Error),
     #[error("provided invalid CommP {0}, error: {1}")]
     InvalidPieceCommP(String, cid::Error),
-    #[error("invalid piece type")]
-    InvalidPieceType(String, &'static str),
+    #[error("invalid piece type, error: {1}")]
+    InvalidPieceType(String, CommitmentError),
     #[error("invalid sector id")]
     InvalidSectorId,
     #[error("file {0} is invalid CARv2 file {1}")]
