@@ -19,7 +19,7 @@ use primitives_commitment::{
 };
 use primitives_proofs::{
     derive_prover_id,
-    randomness::{self, draw_randomness, DomainSeparationTag},
+    randomness::{draw_randomness, DomainSeparationTag},
     RegisteredPoStProof, RegisteredSealProof, SectorNumber,
 };
 use storagext::multipair::{MultiPairArgs, MultiPairSigner};
@@ -115,10 +115,6 @@ pub enum ProofsCommand {
         /// It must be the same, or else it won't work.
         #[arg(short, long)]
         cache_directory: PathBuf,
-        /// Replica file generated with `porep` command e.g. `77.sector.sealed`.
-        replica_path: PathBuf,
-        /// CID - CommR of a replica (output of `porep` command)
-        comm_r: String,
         #[arg(short, long)]
         /// Directory where the PoSt proof will be stored. Defaults to the current directory.
         output_path: Option<PathBuf>,
@@ -127,7 +123,12 @@ pub enum ProofsCommand {
         sector_number: u32,
         /// Block Number at which the randomness should be fetched from.
         /// It comes from the [`pallet_storage_provider::DeadlineInfo::challenge`] field.
+        #[arg(long)]
         challenge_block: u64,
+        /// Replica file generated with `porep` command e.g. `77.sector.sealed`.
+        replica_path: PathBuf,
+        /// CID - CommR of a replica (output of `porep` command)
+        comm_r: String,
     },
 }
 
@@ -412,15 +413,16 @@ impl ProofsCommand {
                 comm_r,
                 output_path,
                 sector_number,
+                challenge_block,
             } => {
                 let Some(signer) = Option::<MultiPairSigner>::from(signer_key) else {
                     return Err(UtilsCommandError::NoSigner)?;
                 };
 
-                let entropy = derive_prover_id(signer.account_id());
+                let entropy = signer.account_id().encode();
                 let randomness = get_randomness(
                     DomainSeparationTag::WindowedPoStChallengeSeed,
-                    seal_randomness_height,
+                    challenge_block,
                     &entropy,
                 );
 
@@ -453,6 +455,7 @@ impl ProofsCommand {
                 let proof_parameters = post::load_groth16_parameters(proof_parameters_path)
                     .map_err(|e| UtilsCommandError::GeneratePoStError(e))?;
 
+                let prover_id = derive_prover_id(signer.account_id());
                 let proofs = post::generate_window_post(
                     post_type,
                     &proof_parameters,

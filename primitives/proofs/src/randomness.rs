@@ -48,7 +48,10 @@ pub fn draw_randomness(
     data.extend_from_slice(entropy);
 
     // Hash the data
-    blake2_256(&data)
+    let mut hashed = blake2_256(&data);
+    // Necessary to be valid bls12 381 element.
+    hashed[31] &= 0x3f;
+    hashed
 }
 
 #[cfg(test)]
