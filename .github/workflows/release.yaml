@@ -1,5 +1,7 @@
 name: Release
 
+# NOTE(@jmg-duarte,25/11/24): wasm may not be needed in all places but as of now, this works
+
 on:
   push:
     tags:
@@ -89,41 +91,41 @@ jobs:
           path: target/${{ matrix.target }}/release/mater-cli
           retention-days: 1
 
-  # mater_cli_build_docker:
-  #   runs-on: self-hosted
+  mater_cli_build_docker:
+    runs-on: self-hosted
 
-  #   needs:
-  #     - mater_cli_check_version
+    needs:
+      - mater_cli_check_version
 
-  #   permissions:
-  #     packages: write
+    permissions:
+      packages: write
 
-  #   steps:
-  #     - uses: actions/checkout@v4.2.2
+    steps:
+      - uses: actions/checkout@v4.2.2
 
-  #     - name: Login to Github Container Registry
-  #       uses: docker/login-action@v3
-  #       with:
-  #         registry: ghcr.io
-  #         username: ${{ github.actor }}
-  #         password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Login to Github Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-  #     - name: Build and publish image
-  #       run: |
-  #         docker build \
-  #           --build-arg VCS_REF="$(git rev-parse HEAD)" \
-  #           --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-  #           --tag ghcr.io/eigerco/mater-cli:"${{ needs.mater_cli_check_version.outputs.package-version }}" \
-  #           --file ./docker/dockerfiles/mater-cli.Dockerfile \
-  #           .
-  #         docker push ghcr.io/eigerco/mater-cli:"${{ needs.mater_cli_check_version.outputs.package-version }}"
+      - name: Build and publish image
+        run: |
+          docker build \
+            --build-arg VCS_REF="$(git rev-parse HEAD)" \
+            --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            --tag ghcr.io/eigerco/mater-cli:"${{ needs.mater_cli_check_version.outputs.package-version }}" \
+            --file ./docker/dockerfiles/mater-cli.Dockerfile \
+            .
+          docker push ghcr.io/eigerco/mater-cli:"${{ needs.mater_cli_check_version.outputs.package-version }}"
 
   mater_cli_release:
     needs:
       - mater_cli_check_version
       - mater_cli_build_linux
       - mater_cli_build_macos
-      # - mater_cli_build_docker
+      - mater_cli_build_docker
 
     runs-on: ubuntu-latest
 
@@ -214,18 +216,24 @@ jobs:
       - name: Build in release mode
         run: |
           RUSTFLAGS="-D warnings" cargo build --release --locked --package storagext-cli
-          echo "PACKAGE_SHA256=$(sha256sum target/release/storagext-cli | sed 's/\(.*\) .*/\1/')" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: storagext-cli-linux-${{ runner.arch }}
+          name: storagext-cli-linux-x64
           path: target/release/storagext-cli
           retention-days: 1
 
   storagext_cli_build_macos:
     runs-on:
-      - macos-13 # x86
-      - macos-14 # ARM
+      - macos-latest
+
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-apple-darwin
+            arch: x64
+          - target: aarch64-apple-darwin
+            arch: arm64
 
     needs:
       - storagext_cli_check_version
@@ -235,11 +243,11 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@1.81.0
         with:
-          targets: wasm32-unknown-unknown
+          targets: wasm32-unknown-unknown,${{ matrix.target }}
 
       - name: Build in release mode
         run: |
-          RUSTFLAGS="-D warnings" cargo build --release --locked --package storagext-cli
+          RUSTFLAGS="-D warnings" cargo build --release --locked --package storagext-cli --target ${{ matrix.target }}
 
       - uses: actions/upload-artifact@v4
         with:
@@ -295,12 +303,29 @@ jobs:
       - id: download-artifacts
         uses: actions/download-artifact@v4
 
-      - id: calculate-sha256
+      - name: Prepare folder
         run: |
           cd ${{ steps.download-artifacts.outputs.download-path }}
-          echo "LINUX_X64_SHA256=${sha256sum storagext-cli-linux-x64}" >> "$GITHUB_OUTPUT"
-          echo "MACOS_X64_SHA256=${sha256sum storagext-cli-macos-x64}" >> "$GITHUB_OUTPUT"
-          echo "MACOS_ARM64_SHA256=${sha256sum storagext-cli-macos-arm64}" >> "$GITHUB_OUTPUT"
+
+          mv storagext-cli-linux-x64/storagext-cli ./
+          rmdir storagext-cli-linux-x64
+          mv storagext-cli storagext-cli-linux-x64
+
+          mv storagext-cli-macos-x64/storagext-cli ./
+          rmdir storagext-cli-macos-x64
+          mv storagext-cli storagext-cli-macos-x64
+
+          mv storagext-cli-macos-arm64/storagext-cli ./
+          rmdir storagext-cli-macos-arm64
+          mv storagext-cli storagext-cli-macos-arm64
+
+      - name: Calculate SHA256
+        id: calculate-sha256
+        run: |
+          cd ${{ steps.download-artifacts.outputs.download-path }}
+          echo "LINUX_X64_SHA256=$(sha256sum storagext-cli-linux-x64 | sed 's/\(.*\) .*/\1/')" >> "$GITHUB_OUTPUT"
+          echo "MACOS_X64_SHA256=$(sha256sum storagext-cli-macos-x64 | sed 's/\(.*\) .*/\1/')" >> "$GITHUB_OUTPUT"
+          echo "MACOS_ARM64_SHA256=$(sha256sum storagext-cli-macos-arm64 | sed 's/\(.*\) .*/\1/')" >> "$GITHUB_OUTPUT"
 
       - name: Perform release
         uses: softprops/action-gh-release@v2
@@ -357,18 +382,24 @@ jobs:
       - name: Build in release mode
         run: |
           RUSTFLAGS="-D warnings" cargo build --release --locked --package polka-storage-node --features polka-storage-runtime/testnet
-          echo "PACKAGE_SHA256=$(sha256sum target/release/polka-storage-node | sed 's/\(.*\) .*/\1/')" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: polka-storage-node-linux-${{ runner.arch }}
+          name: polka-storage-node-linux-x64
           path: target/release/polka-storage-node
           retention-days: 1
 
   polka_storage_node_build_macos:
     runs-on:
-      - macos-13 # x86
-      - macos-14 # ARM
+      - macos-latest
+
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-apple-darwin
+            arch: x64
+          - target: aarch64-apple-darwin
+            arch: arm64
 
     needs:
       - polka_storage_node_check_version
@@ -378,11 +409,11 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@1.81.0
         with:
-          targets: wasm32-unknown-unknown
+          targets: wasm32-unknown-unknown,${{ matrix.target }}
 
       - name: Build in release mode
         run: |
-          RUSTFLAGS="-D warnings" cargo build --release --locked --package polka-storage-node
+          RUSTFLAGS="-D warnings" cargo build --release --locked --package polka-storage-node --target ${{ matrix.target }}
 
       - uses: actions/upload-artifact@v4
         with:
@@ -436,12 +467,29 @@ jobs:
       - id: download-artifacts
         uses: actions/download-artifact@v4
 
-      - id: calculate-sha256
+      - name: Prepare folder
         run: |
           cd ${{ steps.download-artifacts.outputs.download-path }}
-          echo "LINUX_X64_SHA256=${sha256sum polka-storage-node-linux-x64}" >> "$GITHUB_OUTPUT"
-          echo "MACOS_X64_SHA256=${sha256sum polka-storage-node-macos-x64}" >> "$GITHUB_OUTPUT"
-          echo "MACOS_ARM64_SHA256=${sha256sum polka-storage-node-macos-arm64}" >> "$GITHUB_OUTPUT"
+
+          mv polka-storage-node-linux-x64/polka-storage-node ./
+          rmdir polka-storage-node-linux-x64
+          mv polka-storage-node polka-storage-node-linux-x64
+
+          mv polka-storage-node-macos-x64/polka-storage-node ./
+          rmdir polka-storage-node-macos-x64
+          mv polka-storage-node polka-storage-node-macos-x64
+
+          mv polka-storage-node-macos-arm64/polka-storage-node ./
+          rmdir polka-storage-node-macos-arm64
+          mv polka-storage-node polka-storage-node-macos-arm64
+
+      - name: Calculate SHA256
+        id: calculate-sha256
+        run: |
+          cd ${{ steps.download-artifacts.outputs.download-path }}
+          echo "LINUX_X64_SHA256=$(sha256sum polka-storage-node-linux-x64 | sed 's/\(.*\) .*/\1/')" >> "$GITHUB_OUTPUT"
+          echo "MACOS_X64_SHA256=$(sha256sum polka-storage-node-macos-x64 | sed 's/\(.*\) .*/\1/')" >> "$GITHUB_OUTPUT"
+          echo "MACOS_ARM64_SHA256=$(sha256sum polka-storage-node-macos-arm64 | sed 's/\(.*\) .*/\1/')" >> "$GITHUB_OUTPUT"
 
       - name: Perform release
         uses: softprops/action-gh-release@v2
@@ -498,18 +546,24 @@ jobs:
       - name: Build in release mode
         run: |
           RUSTFLAGS="-D warnings" cargo build --release --locked --package polka-storage-provider-client
-          echo "PACKAGE_SHA256=$(sha256sum target/release/polka-storage-provider-client | sed 's/\(.*\) .*/\1/')" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: polka-storage-provider-client-linux-${{ runner.arch }}
+          name: polka-storage-provider-client-linux-x64
           path: target/release/polka-storage-provider-client
           retention-days: 1
 
   polka_storage_provider_client_build_macos:
     runs-on:
-      - macos-13 # x86
-      - macos-14 # ARM
+      - macos-latest
+
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-apple-darwin
+            arch: x64
+          - target: aarch64-apple-darwin
+            arch: arm64
 
     needs:
       - polka_storage_provider_client_check_version
@@ -519,11 +573,11 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@1.81.0
         with:
-          targets: wasm32-unknown-unknown
+          targets: wasm32-unknown-unknown,${{ matrix.target }}
 
       - name: Build in release mode
         run: |
-          RUSTFLAGS="-D warnings" cargo build --release --locked --package polka-storage-provider-client
+          RUSTFLAGS="-D warnings" cargo build --release --locked --package polka-storage-provider-client --target ${{ matrix.target }}
 
       - uses: actions/upload-artifact@v4
         with:
@@ -577,12 +631,29 @@ jobs:
       - id: download-artifacts
         uses: actions/download-artifact@v4
 
-      - id: calculate-sha256
+      - name: Prepare folder
         run: |
           cd ${{ steps.download-artifacts.outputs.download-path }}
-          echo "LINUX_X64_SHA256=${sha256sum polka-storage-provider-client-linux-x64}" >> "$GITHUB_OUTPUT"
-          echo "MACOS_X64_SHA256=${sha256sum polka-storage-provider-client-macos-x64}" >> "$GITHUB_OUTPUT"
-          echo "MACOS_ARM64_SHA256=${sha256sum polka-storage-provider-client-macos-arm64}" >> "$GITHUB_OUTPUT"
+
+          mv polka-storage-provider-client-linux-x64/polka-storage-provider-client ./
+          rmdir polka-storage-provider-client-linux-x64
+          mv polka-storage-provider-client polka-storage-provider-client-linux-x64
+
+          mv polka-storage-provider-client-macos-x64/polka-storage-provider-client ./
+          rmdir polka-storage-provider-client-macos-x64
+          mv polka-storage-provider-client polka-storage-provider-client-macos-x64
+
+          mv polka-storage-provider-client-macos-arm64/polka-storage-provider-client ./
+          rmdir polka-storage-provider-client-macos-arm64
+          mv polka-storage-provider-client polka-storage-provider-client-macos-arm64
+
+      - name: Calculate SHA256
+        id: calculate-sha256
+        run: |
+          cd ${{ steps.download-artifacts.outputs.download-path }}
+          echo "LINUX_X64_SHA256=$(sha256sum polka-storage-provider-client-linux-x64 | sed 's/\(.*\) .*/\1/')" >> "$GITHUB_OUTPUT"
+          echo "MACOS_X64_SHA256=$(sha256sum polka-storage-provider-client-macos-x64 | sed 's/\(.*\) .*/\1/')" >> "$GITHUB_OUTPUT"
+          echo "MACOS_ARM64_SHA256=$(sha256sum polka-storage-provider-client-macos-arm64 | sed 's/\(.*\) .*/\1/')" >> "$GITHUB_OUTPUT"
 
       - name: Perform release
         uses: softprops/action-gh-release@v2
@@ -639,18 +710,24 @@ jobs:
       - name: Build in release mode
         run: |
           RUSTFLAGS="-D warnings" cargo build --release --locked --package polka-storage-provider-server
-          echo "PACKAGE_SHA256=$(sha256sum target/release/polka-storage-provider-server | sed 's/\(.*\) .*/\1/')" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: polka-storage-provider-server-linux-${{ runner.arch }}
+          name: polka-storage-provider-server-linux-x64
           path: target/release/polka-storage-provider-server
           retention-days: 1
 
   polka_storage_provider_server_build_macos:
     runs-on:
-      - macos-13 # x86
-      - macos-14 # ARM
+      - macos-latest
+
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-apple-darwin
+            arch: x64
+          - target: aarch64-apple-darwin
+            arch: arm64
 
     needs:
       - polka_storage_provider_server_check_version
@@ -664,7 +741,7 @@ jobs:
 
       - name: Build in release mode
         run: |
-          RUSTFLAGS="-D warnings" cargo build --release --locked --package polka-storage-providerserver-
+          RUSTFLAGS="-D warnings" cargo build --release --locked --package polka-storage-provider-server --target ${{ matrix.target }}
 
       - uses: actions/upload-artifact@v4
         with:
@@ -718,12 +795,29 @@ jobs:
       - id: download-artifacts
         uses: actions/download-artifact@v4
 
-      - id: calculate-sha256
+      - name: Prepare folder
         run: |
           cd ${{ steps.download-artifacts.outputs.download-path }}
-          echo "LINUX_X64_SHA256=${sha256sum polka-storage-provider-server-linux-x64}" >> "$GITHUB_OUTPUT"
-          echo "MACOS_X64_SHA256=${sha256sum polka-storage-provider-server-macos-x64}" >> "$GITHUB_OUTPUT"
-          echo "MACOS_ARM64_SHA256=${sha256sum polka-storage-provider-server-macos-arm64}" >> "$GITHUB_OUTPUT"
+
+          mv polka-storage-provider-server-linux-x64/polka-storage-provider-server ./
+          rmdir polka-storage-provider-server-linux-x64
+          mv polka-storage-provider-server polka-storage-provider-server-linux-x64
+
+          mv polka-storage-provider-server-macos-x64/polka-storage-provider-server ./
+          rmdir polka-storage-provider-server-macos-x64
+          mv polka-storage-provider-server polka-storage-provider-server-macos-x64
+
+          mv polka-storage-provider-server-macos-arm64/polka-storage-provider-server ./
+          rmdir polka-storage-provider-server-macos-arm64
+          mv polka-storage-provider-server polka-storage-provider-server-macos-arm64
+
+      - name: Calculate SHA256
+        id: calculate-sha256
+        run: |
+          cd ${{ steps.download-artifacts.outputs.download-path }}
+          echo "LINUX_X64_SHA256=$(sha256sum polka-storage-provider-server-linux-x64 | sed 's/\(.*\) .*/\1/')" >> "$GITHUB_OUTPUT"
+          echo "MACOS_X64_SHA256=$(sha256sum polka-storage-provider-server-macos-x64 | sed 's/\(.*\) .*/\1/')" >> "$GITHUB_OUTPUT"
+          echo "MACOS_ARM64_SHA256=$(sha256sum polka-storage-provider-server-macos-arm64 | sed 's/\(.*\) .*/\1/')" >> "$GITHUB_OUTPUT"
 
       - name: Perform release
         uses: softprops/action-gh-release@v2
