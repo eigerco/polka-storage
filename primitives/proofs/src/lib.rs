@@ -4,7 +4,8 @@ pub mod randomness;
 mod traits;
 mod types;
 
-use codec::{Codec, Encode};
+use codec::{Codec, Decode, Encode};
+use scale_info::TypeInfo;
 pub use traits::*;
 pub use types::*;
 
@@ -24,9 +25,21 @@ where
     encoded
 }
 
+#[derive(Encode, Decode, TypeInfo)]
+pub struct CurrentDeadline<BlockNumber> {
+    pub deadline_index: u64,
+    pub open: bool,
+    pub challenge_block: BlockNumber,
+    pub start: BlockNumber,
+}
+
 sp_api::decl_runtime_apis! {
     pub trait StorageProviderApi<AccountId> where AccountId: Codec
     {
-        fn current_deadline(storage_provider: AccountId) -> u64;
+        fn current_deadline(storage_provider: AccountId) -> core::option::Option<
+            CurrentDeadline<
+                <<Block as sp_runtime::traits::Block>::Header as sp_runtime::traits::Header>::Number
+            >
+        >;
     }
 }
