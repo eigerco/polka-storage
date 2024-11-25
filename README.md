@@ -1,5 +1,12 @@
 # Polka Storage
 
+> [!NOTE]
+> The stable branch is [`main`](https://github.com/eigerco/polka-storage/tree/main),
+> while the default GitHub branch is [`develop`](https://github.com/eigerco/polka-storage/tree/develop).
+>
+> We aim to keep Polka Storage Book synced with the `main` branch,
+> if you notice discrepancies, please [file an issue](https://github.com/eigerco/polka-storage/issues/new).
+
 Welcome to the Polka Storage project repo!
 
 This project aims to build a native storage network for Polkadot.
