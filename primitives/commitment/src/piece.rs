@@ -106,7 +106,7 @@ pub enum PaddedPieceSizeError {
     SizeNotPowerOfTwo,
     NotAMultipleOfNodeSize,
     InvalidPieceCid,
-    UnableToCreateCommD,
+    UnableToCreateCommP,
 }
 
 /// Size of a piece in bytes with padding. The size is always a power of two

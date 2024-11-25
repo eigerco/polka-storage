@@ -836,7 +836,7 @@ pub mod pallet {
                 .map(|p| {
                     let cid = p.cid().map_err(|_| PaddedPieceSizeError::InvalidPieceCid)?;
                     let commitment = Commitment::from_cid(&cid)
-                        .map_err(|_| PaddedPieceSizeError::UnableToCreateCommD)?;
+                        .map_err(|_| PaddedPieceSizeError::UnableToCreateCommP)?;
                     let size = PaddedPieceSize::new(p.piece_size)
                         .map_err(|err| PaddedPieceSizeError::from(err))?;
 
