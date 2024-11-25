@@ -37,7 +37,6 @@ smallvec = { workspace = true }
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 frame-executive = { workspace = true, default-features = false }
 frame-support = { workspace = true, default-features = false }
-frame-support-test = { workspace = true, default-features = false, optional = true }
 frame-system = { workspace = true, default-features = false }
 frame-system-benchmarking = { workspace = true, default-features = false, optional = true }
 frame-system-rpc-runtime-api = { workspace = true, default-features = false }
@@ -147,7 +146,7 @@ std = [
   "xcm-executor/std",
   "xcm/std",
 ]
-testnet = ["dep:frame-support-test"]
+testnet = []
 
 runtime-benchmarks = [
   "cumulus-pallet-parachain-system/runtime-benchmarks",
