@@ -140,6 +140,7 @@ jobs:
 
       - id: calculate-sha256
         run: |
+          ls **
           echo "LINUX_X64_SHA256=$(sha256sum ${{ steps.download-artifacts.outputs.download-path }}/mater-cli-linux-x64)" >> "$GITHUB_OUTPUT"
           echo "MACOS_X64_SHA256=$(sha256sum ${{ steps.download-artifacts.outputs.download-path }}/mater-cli-macos-x64)" >> "$GITHUB_OUTPUT"
           echo "MACOS_ARM64_SHA256=$(sha256sum ${{ steps.download-artifacts.outputs.download-path }}/mater-cli-macos-arm64)" >> "$GITHUB_OUTPUT"
