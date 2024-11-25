@@ -31,4 +31,4 @@ workspace = true
 [features]
 clap = ["dep:clap", "std"]
 default = ["std"]
-std = ["cid/scale-codec", "codec/std", "scale-info/std", "ap-api/std", "sp-core/std", "sp-runtime/std", "sp-std/std"]
+std = ["cid/scale-codec", "codec/std", "scale-info/std", "sp-api/std", "sp-core/std", "sp-runtime/std", "sp-std/std"]

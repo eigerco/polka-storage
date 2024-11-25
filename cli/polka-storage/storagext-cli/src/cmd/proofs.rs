@@ -58,7 +58,7 @@ impl ProofsCommand {
                     wait_for_finalization,
                 )
                 .await?
-            },
+            }
             ProofsCommand::SetPostVerifyingKey { verifying_key } => {
                 let Some(account_keypair) = account_keypair else {
                     return Err(missing_keypair_error::<Self>().into());

@@ -413,8 +413,8 @@ impl Runtime {
 
 impl_runtime_apis! {
     impl primitives_proofs::StorageProviderApi<Block, AccountId> for Runtime {
-        fn current_deadline(storage_provider: AccountId) -> u64 {
-            0
+        fn current_deadline(storage_provider: AccountId) -> Option<primitives_proofs::CurrentDeadline<BlockNumber>> {
+            StorageProvider::current_deadline(&storage_provider)
         }
     }
 

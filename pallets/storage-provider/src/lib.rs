@@ -752,7 +752,8 @@ pub mod pallet {
                             PublicReplicaInfo {
                                 comm_r: comm_r.raw(),
                             },
-                        ).map_err(|_| Error::<T>::TooManyReplicas);
+                        )
+                        .map_err(|_| Error::<T>::TooManyReplicas);
                 }
             }
 
@@ -1062,6 +1063,31 @@ pub mod pallet {
     }
 
     impl<T: Config> Pallet<T> {
+        pub fn current_deadline(
+            storage_provider: &T::AccountId,
+        ) -> core::option::Option<primitives_proofs::CurrentDeadline<BlockNumberFor<T>>> {
+            let sp = StorageProviders::<T>::try_get(storage_provider).ok()?;
+            let current_block = <frame_system::Pallet<T>>::block_number();
+
+            let deadline = sp
+                .deadline_info(
+                    current_block,
+                    T::WPoStPeriodDeadlines::get(),
+                    T::WPoStProvingPeriod::get(),
+                    T::WPoStChallengeWindow::get(),
+                    T::WPoStChallengeLookBack::get(),
+                    T::FaultDeclarationCutoff::get(),
+                )
+                .ok()?;
+
+            Some(primitives_proofs::CurrentDeadline {
+                deadline_index: deadline.idx,
+                open: deadline.is_open(),
+                challenge_block: deadline.challenge,
+                start: deadline.open_at,
+            })
+        }
+
         fn validate_expiration(
             curr_block: BlockNumberFor<T>,
             activation: BlockNumberFor<T>,

@@ -123,7 +123,7 @@ pub enum ProofsCommand {
         /// Directory where the PoSt proof will be stored. Defaults to the current directory.
         output_path: Option<PathBuf>,
         #[arg(short, long)]
-        sector_number: u64,
+        sector_number: u32,
     },
 }
 
@@ -408,7 +408,6 @@ impl ProofsCommand {
                 comm_r,
                 output_path,
                 sector_number,
-                randomness,
             } => {
                 let Some(signer) = Option::<MultiPairSigner>::from(signer_key) else {
                     return Err(UtilsCommandError::NoSigner)?;
@@ -432,7 +431,7 @@ impl ProofsCommand {
                     cid::Cid::from_str(&comm_r).map_err(|_| UtilsCommandError::CommRError)?;
 
                 let replicas = vec![ReplicaInfo {
-                    sector_id: sector_number,
+                    sector_id: sector_number.try_into().unwrap(),
                     comm_r: comm_r
                         .hash()
                         .digest()

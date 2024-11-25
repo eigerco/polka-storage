@@ -325,7 +325,11 @@ async fn precommit(
         })
     };
     let sealing_output = sealing_handle.await??;
-    tracing::info!("Created sector's replica, CommD: {}, CommR: {}", sealing_output.comm_d.cid(), sealing_output.comm_r.cid());
+    tracing::info!(
+        "Created sector's replica, CommD: {}, CommR: {}",
+        sealing_output.comm_d.cid(),
+        sealing_output.comm_r.cid()
+    );
 
     let sealing_output_commr = Commitment::<CommR>::from(sealing_output.comm_r);
     let sealing_output_commd = Commitment::<CommD>::from(sealing_output.comm_d);
