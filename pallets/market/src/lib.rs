@@ -466,8 +466,6 @@ pub mod pallet {
         /// `publish_storage_deals` must be called by Storage Providers and it's a Provider of all of the deals.
         /// This error is emitted when a storage provider tries to publish deals that to not belong to them.
         ProposalsPublishedByIncorrectStorageProvider,
-        /// `publish_storage_deals` call was supplied with `deals` which are all invalid.
-        AllProposalsInvalid,
         /// `publish_storage_deals`'s core logic was invoked with a broken invariant that should be called by `validate_deals`.
         UnexpectedValidationError,
         /// There is more than 1 deal of this ID in the Sector.
@@ -485,7 +483,6 @@ pub mod pallet {
         /// Tried to propose a deal, but there are too many pending deals.
         /// The pending deals should be activated or wait for expiry.
         TooManyPendingDeals,
-        /// Deal activation errors
         /// Deal was tried to be activated by a provider which does not own it
         InvalidProvider,
         /// Deal should have been activated earlier, it's too late
@@ -496,17 +493,14 @@ pub mod pallet {
         InvalidDealState,
         /// Tried to activate a deal which is not in the Pending Proposals
         DealNotPending,
-        /// Sector Terminate Error
         /// Deal was not found in the [`Proposals`] table.
         DealNotFound,
         /// Caller is not the provider.
         InvalidCaller,
         /// Deal is not active
         DealIsNotActive,
-        /// ProposalError
+        /// ClientDealProposal.client_signature did not match client's public key and data.
         WrongClientSignatureOnProposal,
-        /// Provider of one of the deals is different than the Provider of the first deal.
-        DifferentProviderInProposal,
         /// Deal's block_start > block_end, so it doesn't make sense.
         DealEndBeforeStart,
         /// Deal's start block is in the past, it should be in the future.
@@ -998,7 +992,7 @@ pub mod pallet {
 
             ensure!(
                 deal.proposal.provider == *provider,
-                Error::<T>::DifferentProviderInProposal
+                Error::<T>::ProposalsPublishedByIncorrectStorageProvider
             );
 
             ensure!(

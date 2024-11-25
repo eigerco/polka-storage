@@ -390,7 +390,7 @@ fn publish_storage_deals_fails_different_providers() {
                         .signed(BOB),
                 ]
             ),
-            Error::<Test>::DifferentProviderInProposal
+            Error::<Test>::ProposalsPublishedByIncorrectStorageProvider
         );
         assert_eq!(events(), []);
     });
