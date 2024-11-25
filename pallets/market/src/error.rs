@@ -29,3 +29,19 @@ impl core::fmt::Debug for DealSettlementError {
         core::fmt::Display::fmt(self, f)
     }
 }
+
+// TODO: Implement TypeInfo for inner error so we can store them here.
+// For now logging will the error will do
+#[derive(TypeInfo, Encode, Decode, Clone, PartialEq, thiserror::Error)]
+pub enum CommDError {
+    #[error("CommDError for commitment")]
+    CommitmentError,
+    #[error("CommDError for piece size")]
+    PaddedPieceSizeError,
+}
+
+impl core::fmt::Debug for CommDError {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        core::fmt::Display::fmt(self, f)
+    }
+}

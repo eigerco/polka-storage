@@ -100,13 +100,12 @@ impl Into<filecoin_proofs::UnpaddedBytesAmount> for UnpaddedPieceSize {
     }
 }
 
+// TODO: Implement TypeInfo for this type so we can use it in pallets.
 #[derive(Debug, Eq, PartialEq)]
 pub enum PaddedPieceSizeError {
     SizeTooSmall,
     SizeNotPowerOfTwo,
     NotAMultipleOfNodeSize,
-    InvalidPieceCid,
-    UnableToCreateCommP,
 }
 
 /// Size of a piece in bytes with padding. The size is always a power of two

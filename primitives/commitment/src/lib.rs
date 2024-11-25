@@ -90,6 +90,23 @@ impl CommitmentKind for CommR {
     }
 }
 
+// TODO: Implement TypeInfo for this type so we can use it in pallets.
+#[derive(thiserror::Error)]
+pub enum CommitmentError {
+    #[error("bytes not a valid cid")]
+    InvalidCidBytes,
+    #[error("invalid multicodec for commitment")]
+    InvalidMultiCodec,
+    #[error("invalid multihash for commitment")]
+    InvalidMultiHash,
+}
+
+impl core::fmt::Debug for CommitmentError {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        core::fmt::Display::fmt(self, f)
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(::serde::Deserialize, ::serde::Serialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Commitment<Kind>
@@ -106,25 +123,25 @@ where
 {
     /// Creates a new `Commitment` from bytes of a valid CID. Returns an error
     /// if the bytes passed do not represent a valid commitment.
-    pub fn from_cid_bytes(bytes: &[u8]) -> Result<Self, &'static str> {
-        let cid = Cid::try_from(bytes).map_err(|_| "bytes not a valid cid")?;
+    pub fn from_cid_bytes(bytes: &[u8]) -> Result<Self, CommitmentError> {
+        let cid = Cid::try_from(bytes).map_err(|_| CommitmentError::InvalidCidBytes)?;
         Self::from_cid(&cid)
     }
 
     /// Creates a new `Commitment` from a CID. Returns an error if the CID
     /// passed does not represent a commitment kind.
-    pub fn from_cid(cid: &Cid) -> Result<Self, &'static str> {
+    pub fn from_cid(cid: &Cid) -> Result<Self, CommitmentError> {
         let mut raw = [0; 32];
         raw.copy_from_slice(cid.hash().digest());
 
         // Check multicodec of the cid
         if cid.codec() != Kind::multicodec() {
-            return Err("invalid multicodec for commitment");
+            return Err(CommitmentError::InvalidMultiCodec);
         }
 
         // Check multihash of the cid
         if cid.hash().code() != Kind::multihash() {
-            return Err("invalid multihash for commitment");
+            return Err(CommitmentError::InvalidMultiHash);
         }
 
         Ok(Self {
@@ -161,7 +178,7 @@ impl<Kind> TryFrom<Cid> for Commitment<Kind>
 where
     Kind: CommitmentKind,
 {
-    type Error = &'static str;
+    type Error = CommitmentError;
 
     fn try_from(value: Cid) -> Result<Self, Self::Error> {
         Self::from_cid(&value)

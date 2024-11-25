@@ -12,14 +12,13 @@ serde = ["dep:serde"]
 std = ["dep:filecoin-proofs"]
 
 [dependencies]
+cid.workspace = true
+filecoin-proofs = { optional = true, workspace = true }
 primitives-proofs.workspace = true
 sealed.workspace = true
-
-cid.workspace = true
-sha2.workspace = true
-
-filecoin-proofs = { optional = true, workspace = true }
 serde = { workspace = true, features = ["derive"], optional = true }
+sha2.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
 rand = { workspace = true, features = ["std", "std_rng"] }

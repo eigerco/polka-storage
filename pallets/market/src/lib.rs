@@ -40,8 +40,8 @@ pub mod pallet {
     use frame_system::{pallet_prelude::*, Config as SystemConfig, Pallet as System};
     use primitives_commitment::{
         commd::compute_unsealed_sector_commitment,
-        piece::{PaddedPieceSize, PaddedPieceSizeError, PieceInfo},
-        Commitment,
+        piece::{PaddedPieceSize, PieceInfo},
+        CommP, Commitment, CommitmentError,
     };
     use primitives_proofs::{
         ActiveDeal, ActiveSector, DealId, Market, RegisteredSealProof, SectorDeal, SectorNumber,
@@ -272,10 +272,9 @@ pub mod pallet {
             )
         }
 
-        fn cid(&self) -> Result<Cid, PaddedPieceSizeError> {
-            let cid = Cid::try_from(&self.piece_cid[..])
-                .map_err(|_| PaddedPieceSizeError::InvalidPieceCid)?;
-            Ok(cid)
+        fn piece_commitment(&self) -> Result<Commitment<CommP>, CommitmentError> {
+            let commitment = Commitment::from_cid_bytes(&self.piece_cid[..])?;
+            Ok(commitment)
         }
     }
 
@@ -834,15 +833,18 @@ pub mod pallet {
         ) -> Result<Cid, DispatchError> {
             let pieces = proposals
                 .map(|p| {
-                    let cid = p.cid().map_err(|_| PaddedPieceSizeError::InvalidPieceCid)?;
-                    let commitment = Commitment::from_cid(&cid)
-                        .map_err(|_| PaddedPieceSizeError::UnableToCreateCommP)?;
-                    let size = PaddedPieceSize::new(p.piece_size)
-                        .map_err(|err| PaddedPieceSizeError::from(err))?;
+                    let commitment = p.piece_commitment().map_err(|e| {
+                        log::error!(target: LOG_TARGET, "compute_commd: CommitmentError {e}");
+                        CommDError::CommitmentError
+                    })?;
+                    let size = PaddedPieceSize::new(p.piece_size).map_err(|e| {
+                        log::error!(target: LOG_TARGET, "compute_commd: PaddedPieceSizeError {e:?}");
+                        CommDError::PaddedPieceSizeError
+                    })?;
 
                     Ok(PieceInfo { size, commitment })
                 })
-                .collect::<Result<Vec<_>, PaddedPieceSizeError>>();
+                .collect::<Result<Vec<_>, CommDError>>();
 
             let pieces = pieces.map_err(|err| {
                 log::error!("error occurred while processing pieces: {:?}", err);
@@ -984,11 +986,11 @@ pub mod pallet {
             log::trace!(target: LOG_TARGET, "sanity_check: encoded proposal: {}", hex::encode(&encoded));
             Self::validate_signature(&encoded, &deal.client_signature, &deal.proposal.client)?;
 
-            // Ensure the Piece's Cid is parsable and valid
-            let _ = deal
-                .proposal
-                .cid()
-                .map_err(|_| Error::<T>::InvalidPieceCid)?;
+            // piece_commitment calls Commitment::from_cid_bytes -> Commitment::from_cid checking validity.
+            let _ = deal.proposal.piece_commitment().map_err(|e| {
+                log::error!(target: LOG_TARGET, "sanity_check: Invalid piece Cid {e}");
+                Error::<T>::InvalidPieceCid
+            })?;
 
             ensure!(
                 deal.proposal.provider == *provider,
@@ -1259,14 +1261,17 @@ pub mod pallet {
                     activated_deals
                         .try_push(ActiveDeal {
                             client: proposal.client.clone(),
-                            piece_cid: proposal.cid().map_err(|e| {
-                                log::error!(
-                                    "there is invalid cid saved on-chain for deal: {}, {:?}",
-                                    deal_id,
-                                    e
-                                );
-                                Error::<T>::DealPreconditionFailed
-                            })?,
+                            piece_cid: proposal
+                                .piece_commitment()
+                                .map_err(|e| {
+                                    log::error!(
+                                        "there is invalid cid saved on-chain for deal: {}, {:?}",
+                                        deal_id,
+                                        e
+                                    );
+                                    Error::<T>::DealPreconditionFailed
+                                })?
+                                .cid(),
                             piece_size: proposal.piece_size,
                         })
                         .map_err(|_| {
