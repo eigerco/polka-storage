@@ -50,7 +50,7 @@ mod tests {
     async fn extract_file_success() -> Result<()> {
         // Setup input and output paths
         let temp_dir = tempdir()?;
-        let input_path = PathBuf::from("../mater/tests/fixtures/car_v2/lorem.car");
+        let input_path = PathBuf::from("../lib/tests/fixtures/car_v2/lorem.car");
         let output_path = temp_dir.path().join("output_file");
 
         // Call the function under test
@@ -59,7 +59,7 @@ mod tests {
         assert!(result.is_ok());
 
         // extract original contents
-        let mut original = File::open("../mater/tests/fixtures/original/lorem.txt").await?;
+        let mut original = File::open("../lib/tests/fixtures/original/lorem.txt").await?;
         let mut original_contents = vec![];
         original.read_to_end(&mut original_contents).await?;
 
@@ -82,7 +82,7 @@ mod tests {
     async fn extract_file_success_empty_file() -> Result<()> {
         // Setup input and output paths
         let temp_dir = tempdir()?;
-        let input_path = PathBuf::from("../mater/tests/fixtures/car_v2/empty.car");
+        let input_path = PathBuf::from("../lib/tests/fixtures/car_v2/empty.car");
         let output_path = temp_dir.path().join("output_file");
 
         // Call the function under test
@@ -127,7 +127,7 @@ mod tests {
     #[tokio::test]
     async fn io_error_extract_output_path_exists() -> Result<()> {
         // Setup input and output paths
-        let input_path = PathBuf::from("../mater/tests/fixtures/car_v2/lorem.car");
+        let input_path = PathBuf::from("../lib/tests/fixtures/car_v2/lorem.car");
         let output_path = PathBuf::from("output_file");
 
         // Create a file at ouput path
