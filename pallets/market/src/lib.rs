@@ -40,7 +40,7 @@ pub mod pallet {
     use frame_system::{pallet_prelude::*, Config as SystemConfig, Pallet as System};
     use primitives_commitment::{
         commd::compute_unsealed_sector_commitment,
-        piece::{PaddedPieceSize, PieceInfo},
+        piece::{PaddedPieceSize, PaddedPieceSizeError, PieceInfo},
         Commitment,
     };
     use primitives_proofs::{

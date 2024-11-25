@@ -100,6 +100,15 @@ impl Into<filecoin_proofs::UnpaddedBytesAmount> for UnpaddedPieceSize {
     }
 }
 
+#[derive(Debug, Eq, PartialEq)]
+pub enum PaddedPieceSizeError {
+    SizeTooSmall,
+    SizeNotPowerOfTwo,
+    NotAMultipleOfNodeSize,
+    InvalidPieceCid,
+    UnableToCreateCommD,
+}
+
 /// Size of a piece in bytes with padding. The size is always a power of two
 /// number.
 #[cfg_attr(feature = "serde", derive(::serde::Deserialize, ::serde::Serialize))]
@@ -196,13 +205,6 @@ impl Into<filecoin_proofs::PaddedBytesAmount> for PaddedPieceSize {
     fn into(self) -> filecoin_proofs::PaddedBytesAmount {
         filecoin_proofs::PaddedBytesAmount(self.0)
     }
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum PaddedPieceSizeError {
-    SizeTooSmall,
-    SizeNotPowerOfTwo,
-    NotAMultipleOfNodeSize,
 }
 
 #[cfg(test)]
