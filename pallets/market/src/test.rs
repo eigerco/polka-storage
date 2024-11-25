@@ -17,7 +17,7 @@ use sp_core::H256;
 use sp_runtime::AccountId32;
 
 use crate::{
-    error::{DealSettlementError, SectorTerminateError},
+    error::DealSettlementError,
     mock::*,
     pallet::{lock_funds, slash_and_burn, unlock_funds},
     ActiveDealState, BalanceEntry, BalanceTable, Config, DealState, DealsForBlock, Error, Event,
@@ -262,7 +262,7 @@ fn publish_storage_deals_fails_invalid_signature() {
                 RuntimeOrigin::signed(account::<Test>(PROVIDER)),
                 bounded_vec![deal]
             ),
-            DispatchError::Other("ProposalError::WrongClientSignatureOnProposal")
+            Error::<Test>::WrongClientSignatureOnProposal
         );
     });
 }
@@ -281,7 +281,7 @@ fn publish_storage_deals_fails_end_before_start() {
                 RuntimeOrigin::signed(account::<Test>(PROVIDER)),
                 bounded_vec![proposal]
             ),
-            DispatchError::Other("ProposalError::DealEndBeforeStart")
+            Error::<Test>::DealEndBeforeStart
         );
     });
 }
@@ -304,7 +304,7 @@ fn publish_storage_deals_fails_must_be_unpublished() {
                 RuntimeOrigin::signed(account::<Test>(PROVIDER)),
                 bounded_vec![proposal]
             ),
-            DispatchError::Other("ProposalError::DealNotPublished")
+            Error::<Test>::DealNotPublished
         );
     });
 }
@@ -323,7 +323,7 @@ fn publish_storage_deals_fails_min_duration_out_of_bounds() {
                 RuntimeOrigin::signed(account::<Test>(PROVIDER)),
                 bounded_vec![proposal]
             ),
-            DispatchError::Other("ProposalError::DealDurationOutOfBounds")
+            Error::<Test>::DealDurationOutOfBounds
         );
     });
 }
@@ -342,7 +342,7 @@ fn publish_storage_deals_fails_max_duration_out_of_bounds() {
                 RuntimeOrigin::signed(account::<Test>(PROVIDER)),
                 bounded_vec![proposal]
             ),
-            DispatchError::Other("ProposalError::DealDurationOutOfBounds")
+            Error::<Test>::DealDurationOutOfBounds
         );
     });
 }
@@ -363,7 +363,7 @@ fn publish_storage_deals_fails_start_time_expired() {
                 RuntimeOrigin::signed(account::<Test>(PROVIDER)),
                 bounded_vec![proposal]
             ),
-            DispatchError::Other("ProposalError::DealStartExpired")
+            Error::<Test>::DealStartExpired
         );
     });
 }
@@ -390,7 +390,7 @@ fn publish_storage_deals_fails_different_providers() {
                         .signed(BOB),
                 ]
             ),
-            DispatchError::Other("ProposalError::DifferentProvider")
+            Error::<Test>::DifferentProviderInProposal
         );
         assert_eq!(events(), []);
     });
@@ -644,7 +644,7 @@ fn verify_deals_for_activation_fails_with_different_provider() {
 
         assert_noop!(
             Market::verify_deals_for_activation(&account::<Test>(PROVIDER), deals),
-            Error::<Test>::DealActivationError
+            Error::<Test>::InvalidProvider
         );
     });
 }
@@ -668,7 +668,7 @@ fn verify_deals_for_activation_fails_with_invalid_deal_state() {
 
         assert_noop!(
             Market::verify_deals_for_activation(&account::<Test>(PROVIDER), deals),
-            Error::<Test>::DealActivationError
+            Error::<Test>::InvalidDealState
         );
     });
 }
@@ -682,7 +682,7 @@ fn verify_deals_for_activation_fails_deal_not_in_pending() {
 
         assert_noop!(
             Market::verify_deals_for_activation(&account::<Test>(PROVIDER), deals),
-            Error::<Test>::DealActivationError
+            Error::<Test>::DealNotPending
         );
     });
 }
@@ -705,7 +705,7 @@ fn verify_deals_for_activation_fails_sector_activation_on_deal_from_the_past() {
 
         assert_noop!(
             Market::verify_deals_for_activation(&account::<Test>(PROVIDER), deals),
-            Error::<Test>::DealActivationError
+            Error::<Test>::StartBlockElapsed
         );
     });
 }
@@ -725,7 +725,7 @@ fn verify_deals_for_activation_fails_sector_expires_before_deal_ends() {
 
         assert_noop!(
             Market::verify_deals_for_activation(&account::<Test>(PROVIDER), deals),
-            Error::<Test>::DealActivationError
+            Error::<Test>::SectorExpiresBeforeDeal
         );
     });
 }
@@ -1558,7 +1558,7 @@ fn on_sector_terminate_deal_not_found() {
 
         assert_err!(
             Market::on_sectors_terminate(&storage_provider, bounded_vec![sector_number]),
-            DispatchError::from(SectorTerminateError::DealNotFound)
+            Error::<Test>::DealNotFound
         );
 
         assert_eq!(events(), []);
@@ -1617,7 +1617,7 @@ fn on_sector_terminate_not_active() {
 
         assert_err!(
             Market::on_sectors_terminate(&storage_provider, bounded_vec![sector_number]),
-            DispatchError::from(SectorTerminateError::DealIsNotActive)
+            Error::<Test>::DealIsNotActive
         );
 
         assert_eq!(events(), []);

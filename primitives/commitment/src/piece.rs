@@ -112,17 +112,17 @@ impl PaddedPieceSize {
 
     /// Initialize new padded piece size. Error is returned if the size is
     /// invalid.
-    pub fn new(size: u64) -> Result<Self, &'static str> {
+    pub fn new(size: u64) -> Result<Self, PaddedPieceSizeError> {
         if size < 128 {
-            return Err("minimum piece size is 128 bytes");
+            return Err(PaddedPieceSizeError::SizeTooSmall);
         }
 
         if size.count_ones() != 1 {
-            return Err("padded piece size must be a power of 2");
+            return Err(PaddedPieceSizeError::SizeNotPowerOfTwo);
         }
 
         if size % NODE_SIZE as u64 != 0 {
-            return Err("padded_piece_size is not multiple of NODE_SIZE");
+            return Err(PaddedPieceSizeError::NotAMultipleOfNodeSize);
         }
 
         Ok(Self(size))
@@ -197,6 +197,14 @@ impl Into<filecoin_proofs::PaddedBytesAmount> for PaddedPieceSize {
         filecoin_proofs::PaddedBytesAmount(self.0)
     }
 }
+
+#[derive(Debug)]
+pub enum PaddedPieceSizeError {
+    SizeTooSmall,
+    SizeNotPowerOfTwo,
+    NotAMultipleOfNodeSize,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

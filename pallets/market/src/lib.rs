@@ -272,9 +272,9 @@ pub mod pallet {
             )
         }
 
-        fn cid(&self) -> Result<Cid, ProposalError> {
+        fn cid(&self) -> Result<Cid, PaddedPieceSizeError> {
             let cid = Cid::try_from(&self.piece_cid[..])
-                .map_err(|e| ProposalError::InvalidPieceCid(e))?;
+                .map_err(|_| PaddedPieceSizeError::InvalidPieceCid)?;
             Ok(cid)
         }
     }
@@ -474,10 +474,6 @@ pub mod pallet {
         DuplicateDeal,
         /// Due to a programmer bug, bounds on Bounded data structures were incorrect so couldn't insert into them.
         DealPreconditionFailed,
-        /// Tried to activate a deal which is not in the system.
-        DealNotFound,
-        /// Tried to activate a deal, but data doesn't make sense. Details are in the logs.
-        DealActivationError,
         /// Sum of all of the deals piece sizes for a sector exceeds sector size.
         DealsTooLargeToFitIntoSector,
         /// Tried to activate too many deals at a given start_block.
@@ -489,6 +485,38 @@ pub mod pallet {
         /// Tried to propose a deal, but there are too many pending deals.
         /// The pending deals should be activated or wait for expiry.
         TooManyPendingDeals,
+        /// Deal activation errors
+        /// Deal was tried to be activated by a provider which does not own it
+        InvalidProvider,
+        /// Deal should have been activated earlier, it's too late
+        StartBlockElapsed,
+        /// Sector containing the deal will expire before the deal is supposed to end
+        SectorExpiresBeforeDeal,
+        /// Deal needs to be [`DealState::Published`] if it's to be activated
+        InvalidDealState,
+        /// Tried to activate a deal which is not in the Pending Proposals
+        DealNotPending,
+        /// Sector Terminate Error
+        /// Deal was not found in the [`Proposals`] table.
+        DealNotFound,
+        /// Caller is not the provider.
+        InvalidCaller,
+        /// Deal is not active
+        DealIsNotActive,
+        /// ProposalError
+        WrongClientSignatureOnProposal,
+        /// Provider of one of the deals is different than the Provider of the first deal.
+        DifferentProviderInProposal,
+        /// Deal's block_start > block_end, so it doesn't make sense.
+        DealEndBeforeStart,
+        /// Deal's start block is in the past, it should be in the future.
+        DealStartExpired,
+        /// Deal has to be [`DealState::Published`] when being Published
+        DealNotPublished,
+        /// Deal's duration must be within `Config::MinDealDuration` < `Config:MaxDealDuration`.
+        DealDurationOutOfBounds,
+        /// Deal's piece_cid is invalid.
+        InvalidPieceCid,
     }
 
     /// Extrinsics exposed by the pallet
@@ -783,7 +811,7 @@ pub mod pallet {
             data: &[u8],
             signature: &T::OffchainSignature,
             signer: &T::AccountId,
-        ) -> Result<(), ProposalError> {
+        ) -> Result<(), Error<T>> {
             if signature.verify(data, &signer) {
                 return Ok(());
             }
@@ -799,7 +827,7 @@ pub mod pallet {
 
             ensure!(
                 signature.verify(&*wrapped, &signer),
-                ProposalError::WrongClientSignatureOnProposal
+                Error::<T>::WrongClientSignatureOnProposal
             );
 
             Ok(())
@@ -812,15 +840,15 @@ pub mod pallet {
         ) -> Result<Cid, DispatchError> {
             let pieces = proposals
                 .map(|p| {
-                    let cid = p.cid()?;
-                    let commitment =
-                        Commitment::from_cid(&cid).map_err(|err| ProposalError::CommD(err))?;
+                    let cid = p.cid().map_err(|_| PaddedPieceSizeError::InvalidPieceCid)?;
+                    let commitment = Commitment::from_cid(&cid)
+                        .map_err(|_| PaddedPieceSizeError::UnableToCreateCommD)?;
                     let size = PaddedPieceSize::new(p.piece_size)
-                        .map_err(|err| ProposalError::InvalidPieceSize(err))?;
+                        .map_err(|err| PaddedPieceSizeError::from(err))?;
 
                     Ok(PieceInfo { size, commitment })
                 })
-                .collect::<Result<Vec<_>, ProposalError>>();
+                .collect::<Result<Vec<_>, PaddedPieceSizeError>>();
 
             let pieces = pieces.map_err(|err| {
                 log::error!("error occurred while processing pieces: {:?}", err);
@@ -851,8 +879,8 @@ pub mod pallet {
                 Self::validate_deal_can_activate(deal, provider, sector_expiry, sector_activation)
                     .map_err(|e| {
                         log::error!(target: LOG_TARGET, "deal {} cannot be activated, because: {:?}", *deal_id, e);
-                        Error::<T>::DealActivationError }
-                    )?;
+                        e
+                    })?;
                 total_deal_space += deal.piece_size;
             }
 
@@ -870,22 +898,19 @@ pub mod pallet {
             provider: &T::AccountId,
             sector_expiry: BlockNumberFor<T>,
             sector_activation: BlockNumberFor<T>,
-        ) -> Result<(), DealActivationError> {
-            ensure!(
-                *provider == deal.provider,
-                DealActivationError::InvalidProvider
-            );
+        ) -> Result<(), Error<T>> {
+            ensure!(*provider == deal.provider, Error::<T>::InvalidProvider);
             ensure!(
                 deal.state == DealState::Published,
-                DealActivationError::InvalidDealState
+                Error::<T>::InvalidDealState
             );
             ensure!(
                 sector_activation <= deal.start_block,
-                DealActivationError::StartBlockElapsed
+                Error::<T>::StartBlockElapsed
             );
             ensure!(
                 sector_expiry >= deal.end_block,
-                DealActivationError::SectorExpiresBeforeDeal
+                Error::<T>::SectorExpiresBeforeDeal
             );
 
             // Confirm the deal is in the pending proposals set.
@@ -896,7 +921,7 @@ pub mod pallet {
             let hash = Self::hash_proposal(&deal);
             ensure!(
                 PendingProposals::<T>::get().contains(&hash),
-                DealActivationError::DealNotPending
+                Error::<T>::DealNotPending
             );
 
             Ok(())
@@ -960,45 +985,48 @@ pub mod pallet {
             >,
             provider: &T::AccountId,
             current_block: BlockNumberFor<T>,
-        ) -> Result<(), ProposalError> {
+        ) -> Result<(), Error<T>> {
             let encoded = Encode::encode(&deal.proposal);
             log::trace!(target: LOG_TARGET, "sanity_check: encoded proposal: {}", hex::encode(&encoded));
             Self::validate_signature(&encoded, &deal.client_signature, &deal.proposal.client)?;
 
             // Ensure the Piece's Cid is parsable and valid
-            let _ = deal.proposal.cid()?;
+            let _ = deal
+                .proposal
+                .cid()
+                .map_err(|_| Error::<T>::InvalidPieceCid)?;
 
             ensure!(
                 deal.proposal.provider == *provider,
-                ProposalError::DifferentProvider
+                Error::<T>::DifferentProviderInProposal
             );
 
             ensure!(
                 deal.proposal.start_block < deal.proposal.end_block,
-                ProposalError::DealEndBeforeStart
+                Error::<T>::DealEndBeforeStart
             );
 
             ensure!(
                 deal.proposal.start_block >= current_block,
-                ProposalError::DealStartExpired
+                Error::<T>::DealStartExpired
             );
 
             ensure!(
                 deal.proposal.state == DealState::Published,
-                ProposalError::DealNotPublished
+                Error::<T>::DealNotPublished
             );
 
             let min_dur = T::MinDealDuration::get();
             let deal_duration = deal.proposal.duration();
             ensure!(deal_duration >= min_dur, {
                 log::error!(target: LOG_TARGET, "deal duration too short: {deal_duration:?} < {min_dur:?}");
-                ProposalError::DealDurationOutOfBounds
+                Error::<T>::DealDurationOutOfBounds
             });
 
             let max_dur = T::MaxDealDuration::get();
             ensure!(deal_duration <= max_dur, {
                 log::error!(target: LOG_TARGET, "deal_duration too long: {deal_duration:?} > {max_dur:?}");
-                ProposalError::DealDurationOutOfBounds
+                Error::<T>::DealDurationOutOfBounds
             });
 
             // TODO(@th7nder,#81,18/06/2024): figure out the minimum collateral limits
@@ -1044,7 +1072,7 @@ pub mod pallet {
 
             for (idx, deal) in deals.into_iter().enumerate() {
                 if let Err(e) = Self::sanity_check(&deal, &provider, current_block) {
-                    log::error!(target: LOG_TARGET, "insane deal: idx {idx}, error: {e}");
+                    log::error!(target: LOG_TARGET, "insane deal: idx {idx}, error: {e:?}");
                     return Err(e.into());
                 }
 
@@ -1314,13 +1342,13 @@ pub mod pallet {
                 for deal_id in deal_ids {
                     // Fetch the corresponding deal proposal, it's ok if it has already been deleted
                     let Some(mut deal_proposal) = Proposals::<T>::get(deal_id) else {
-                        return Err(SectorTerminateError::DealNotFound)?;
+                        return Err(Error::<T>::DealNotFound.into());
                     };
 
                     // This should never happen, because we are getting deals
                     // the storage provider with which we called the extrinsic.
                     if *storage_provider != deal_proposal.provider {
-                        return Err(SectorTerminateError::InvalidCaller)?;
+                        return Err(Error::<T>::InvalidCaller.into());
                     }
 
                     if deal_proposal.end_block <= current_block {
@@ -1332,7 +1360,7 @@ pub mod pallet {
                     // If a sector is being terminated, it means that at some point,
                     // the deals contained within were active
                     let DealState::Active(ref mut active_deal_state) = deal_proposal.state else {
-                        return Err(SectorTerminateError::DealIsNotActive)?;
+                        return Err(Error::<T>::DealIsNotActive.into());
                     };
 
                     // https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/market/src/lib.rs#L840-L844
