@@ -60,8 +60,15 @@ jobs:
 
   mater_cli_build_macos:
     runs-on:
-      - macos-13 # x86
-      - macos-14 # ARM
+      - macos-latest
+
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-apple-darwin
+            arch: x64
+          - target: aarch64-apple-darwin
+            arch: arm64
 
     needs:
       - mater_cli_check_version
@@ -71,15 +78,15 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@1.81.0
         with:
-          targets: wasm32-unknown-unknown
+          targets: wasm32-unknown-unknown,${{ matrix.target }}
 
       - name: Build in release mode
         run: |
-          RUSTFLAGS="-D warnings" cargo build --release --locked --package mater-cli
+          RUSTFLAGS="-D warnings" cargo build --release --locked --package mater-cli --target {{ matrix.target }}
 
       - uses: actions/upload-artifact@v4
         with:
-          name: mater-cli-macos-${{ runner.arch }}
+          name: mater-cli-macos-${{ matrix.arch }}
           path: target/release/mater-cli
           retention-days: 1
 
