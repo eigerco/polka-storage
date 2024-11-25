@@ -124,8 +124,6 @@ pub enum ProofsCommand {
         output_path: Option<PathBuf>,
         #[arg(short, long)]
         sector_number: u64,
-        #[arg(short, long)]
-        randomness: Option<String>,
     },
 }
 
@@ -417,22 +415,7 @@ impl ProofsCommand {
                 };
                 let prover_id = derive_prover_id(signer.account_id());
 
-                // Those are hardcoded for the showcase only.
-                // They should come from Storage Provider Node, precommits and other information.
-
-                // how do I get the same randomness as on-chain? :(
-                // need to be able to calculate deadline info and challenge
-                // I'll hardcode it for now
-                let randomness: [u8; 32] = if let Some(randomness) = randomness {
-                    // 1. We need to know deadline_index as an input, which was assigned on ProveCommit, treat it as an index
-                    // 2. We can impl_runtime_apis for current_deadline info, if it matches the index, if not, just wait another proving window.
-                    // 3. Then get randomness for this current_deadline info block
-                    // 4. Make the proof work.
-                    hex::decode(randomness).unwrap().try_into().unwrap()
-                } else {
-                    [1u8; 32]
-                };
-
+                let randomness: [u8; 32] = [1u8; 32];
                 let output_path = if let Some(output_path) = output_path {
                     output_path
                 } else {
