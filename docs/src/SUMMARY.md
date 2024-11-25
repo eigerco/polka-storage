@@ -1,7 +1,6 @@
 # Summary
 
 [Introduction](./introduction.md)
-[Background](./background.md)
 
 # Guides
 

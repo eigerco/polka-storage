@@ -362,13 +362,7 @@ pub mod pallet {
             who: T::AccountId,
             amount: BalanceOf<T>,
         },
-        /// Deal has been successfully published between a client and a provider.
-        DealPublished {
-            deal_id: DealId,
-            client: T::AccountId,
-            provider: T::AccountId,
-        },
-        // Deal has been successfully activated.
+        /// Deal has been successfully activated.
         DealActivated {
             deal_id: DealId,
             client: T::AccountId,
@@ -404,10 +398,34 @@ pub mod pallet {
             client: T::AccountId,
             provider: T::AccountId,
         },
+
+        /// Batch of published deals.
+        DealsPublished {
+            provider: T::AccountId,
+            deals: BoundedVec<PublishedDeal<T>, T::MaxDeals>,
+        },
     }
 
     /// Utility type to ensure that the bound for deal settlement is in sync.
     pub type MaxSettleDeals<T> = <T as Config>::MaxDeals;
+
+    #[derive(TypeInfo, Encode, Decode, Clone, PartialEq)]
+    pub struct PublishedDeal<T: Config> {
+        pub client: T::AccountId,
+        pub deal_id: DealId,
+    }
+
+    impl<T> core::fmt::Debug for PublishedDeal<T>
+    where
+        T: Config,
+    {
+        fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+            f.debug_struct("PublishedDeal")
+                .field("deal_id", &self.deal_id)
+                .field("client", &self.client)
+                .finish()
+        }
+    }
 
     /// The data part of the event pushed when the deal is successfully settled.
     #[derive(TypeInfo, Encode, Decode, Clone, PartialEq)]
@@ -890,6 +908,8 @@ pub mod pallet {
             let (valid_deals, total_provider_lockup) =
                 Self::validate_deals(provider.clone(), deals, current_block)?;
 
+            let mut published_deals = BoundedVec::new();
+
             // Lock up funds for the clients and emit events
             for deal in valid_deals.into_iter() {
                 // PRE-COND: always succeeds, validated by `validate_deals`
@@ -913,9 +933,9 @@ pub mod pallet {
                 Proposals::<T>::insert(deal_id, deal.clone());
 
                 // Only deposit the event after storing everything
-                Self::deposit_event(Event::<T>::DealPublished {
+                // force_push is ok since the bound is the same as the input one
+                published_deals.force_push(PublishedDeal {
                     client: deal.client,
-                    provider: provider.clone(),
                     deal_id,
                 });
             }
@@ -923,6 +943,11 @@ pub mod pallet {
             // Lock up funds for the Storage Provider
             // PRE-COND: always succeeds, validated by `validate_deals`
             lock_funds::<T>(&provider, total_provider_lockup)?;
+
+            Self::deposit_event(Event::<T>::DealsPublished {
+                deals: published_deals,
+                provider,
+            });
 
             Ok(())
         }

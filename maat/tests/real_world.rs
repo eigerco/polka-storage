@@ -191,14 +191,15 @@ async fn publish_storage_deals<Keypair>(
 
     for event in deal_result
         .events
-        .find::<storagext::runtime::market::events::DealPublished>()
+        .find::<storagext::runtime::market::events::DealsPublished>()
     {
         let event = event.unwrap();
         tracing::debug!(?event);
 
-        assert_eq!(event.client, alice.account_id().clone().into());
         assert_eq!(event.provider, charlie.account_id().clone().into());
-        assert_eq!(event.deal_id, 0); // first deal ever
+        assert_eq!(event.deals.0.len(), 1);
+        assert_eq!(event.deals.0[0].client, alice.account_id().clone().into());
+        assert_eq!(event.deals.0[0].deal_id, 0); // first deal ever
     }
 }
 

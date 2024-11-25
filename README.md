@@ -2,28 +2,16 @@
 
 Welcome to the Polka Storage project repo!
 
-This project aims to deliver a Polkadot-native system parachain for data storage.
+This project aims to build a native storage network for Polkadot.
 
-You can find our in-depth documentation at <https://eigerco.github.io/polka-storage>.
+Check out the book at <https://eigerco.github.io/polka-storage-book>.
 
-* If you're looking to test the project, check out [Getting Started guide](https://eigerco.github.io/polka-storage/getting-started/index.html).
-* If you're looking to get your hands dirty and help with development, take a look at [`DEVELOPMENT.md`](./DEVELOPMENT.md) to get started.
+- If you'd like to contribute, take a look at [`DEVELOPMENT.md`](./DEVELOPMENT.md) to get started.
 
+- Weekly dev updates https://forum.polkadot.network/t/polkadot-native-storage-updates/7021
 
-More information available about the project's genesis in:
+## About Eiger
 
-- OpenGov Referendum - Part 1 — <https://polkadot.polkassembly.io/referenda/494>
-- OpenGov Referendum - Part 2 — <https://polkadot.polkassembly.io/referenda/1150>
-- Research Report — <https://github.com/eigerco/polkadot-native-storage/blob/main/doc/report/polkadot-native-storage-v1.0.0.pdf>
-- Polkadot Forum News Post — <https://forum.polkadot.network/t/polkadot-native-storage/4551>
+We are engineers. We contribute to various ecosystems. On Polkadot [we integrated Move to Substrate](https://x.com/Polkadot/status/1816109501394637034) allowing builders to integrate the Move VM and execute Move smart contracts. We are building Polkadot Storage (this project) and building our Jam client [Strawberry](https://github.com/eigerco/strawberry) the first serious project to go on [review](https://github.com/w3f/jam-milestone-delivery/pull/6) for reaching Milestone 1.
 
----
-
-<p>
-    <a href="https://eiger.co">
-        <img
-            src="docs/src/images/logo.svg"
-            alt="Eiger Oy"
-            style="height: 50px; display: block; margin-left: auto; margin-right: auto; width: 50%;">
-    </a>
-</p>
+Contact us at hello@eiger.co
