@@ -54,7 +54,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: mater-cli-linux-${{ runner.arch }}
+          name: mater-cli-linux-x64
           path: target/release/mater-cli
           retention-days: 1
 
