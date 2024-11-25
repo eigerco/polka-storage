@@ -19,7 +19,7 @@ use primitives_commitment::{
 };
 use primitives_proofs::{
     derive_prover_id,
-    randomness::{draw_randomness, DomainSeparationTag},
+    randomness::{self, draw_randomness, DomainSeparationTag},
     RegisteredPoStProof, RegisteredSealProof, SectorNumber,
 };
 use storagext::multipair::{MultiPairArgs, MultiPairSigner};
@@ -122,8 +122,12 @@ pub enum ProofsCommand {
         #[arg(short, long)]
         /// Directory where the PoSt proof will be stored. Defaults to the current directory.
         output_path: Option<PathBuf>,
-        #[arg(short, long)]
+        /// Sector Number used in the PoRep command.
+        #[arg(long)]
         sector_number: u32,
+        /// Block Number at which the randomness should be fetched from.
+        /// It comes from the [`pallet_storage_provider::DeadlineInfo::challenge`] field.
+        challenge_block: u64,
     },
 }
 
@@ -412,9 +416,14 @@ impl ProofsCommand {
                 let Some(signer) = Option::<MultiPairSigner>::from(signer_key) else {
                     return Err(UtilsCommandError::NoSigner)?;
                 };
-                let prover_id = derive_prover_id(signer.account_id());
 
-                let randomness: [u8; 32] = [1u8; 32];
+                let entropy = derive_prover_id(signer.account_id());
+                let randomness = get_randomness(
+                    DomainSeparationTag::WindowedPoStChallengeSeed,
+                    seal_randomness_height,
+                    &entropy,
+                );
+
                 let output_path = if let Some(output_path) = output_path {
                     output_path
                 } else {
