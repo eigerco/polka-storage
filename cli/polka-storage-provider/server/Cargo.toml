@@ -18,7 +18,7 @@ polka-storage-proofs = { workspace = true, features = ["std", "substrate"] }
 polka-storage-provider-common = { workspace = true }
 primitives-commitment = { workspace = true, features = ["serde", "std"] }
 primitives-proofs = { workspace = true, features = ["clap"] }
-storagext = { workspace = true, features = ["clap", "insecure_url"] }
+storagext = { workspace = true, features = ["clap"] }
 
 async-trait = { workspace = true }
 axum = { workspace = true, features = ["macros", "multipart"] }
