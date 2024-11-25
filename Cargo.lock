@@ -12317,7 +12317,7 @@ checksum = "4e69bf016dc406eff7d53a7d3f7cf1c2e72c82b9088aac1118591e36dd2cd3e9"
 dependencies = [
  "bitcoin_hashes 0.13.0",
  "rand",
- "rand_core 0.6.4",
+ "rand_core 0.5.1",
  "serde",
  "unicode-normalization",
 ]
@@ -12812,6 +12812,7 @@ dependencies = [
  "bls12_381",
  "cid 0.11.1",
  "clap",
+ "hex",
  "jsonrpsee",
  "mater",
  "parity-scale-codec",
@@ -14904,7 +14905,6 @@ dependencies = [
  "sp-core 34.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
  "sp-runtime 39.0.1",
  "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
- "storage-proofs-core",
 ]
 
 [[package]]
