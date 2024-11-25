@@ -25,7 +25,7 @@ primitives-proofs = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
-subxt = { workspace = true, features = ["jsonrpsee", "substrate-compat"] }
+subxt = { workspace = true, features = ["jsonrpsee", "reconnecting-rpc-client", "substrate-compat"] }
 subxt-signer = { workspace = true, features = ["subxt"] }
 thiserror = { workspace = true, default-features = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
