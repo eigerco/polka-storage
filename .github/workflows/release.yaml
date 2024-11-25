@@ -82,7 +82,7 @@ jobs:
 
       - name: Build in release mode
         run: |
-          RUSTFLAGS="-D warnings" cargo build --release --locked --package mater-cli --target {{ matrix.target }}
+          RUSTFLAGS="-D warnings" cargo build --release --locked --package mater-cli --target ${{ matrix.target }}
 
       - uses: actions/upload-artifact@v4
         with:
