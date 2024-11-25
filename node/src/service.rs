@@ -25,8 +25,8 @@ use cumulus_relay_chain_interface::{OverseerHandle, RelayChainInterface};
 use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
 // Local Runtime Types
 use polka_storage_runtime::{
-    apis::RuntimeApi,
     opaque::{Block, Hash},
+    RuntimeApi,
 };
 use prometheus_endpoint::Registry;
 use sc_client_api::Backend;
