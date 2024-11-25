@@ -78,6 +78,12 @@ pub(crate) enum MarketCommand {
         /// The target account's ID.
         account_id: <PolkaStorageConfig as subxt::Config>::AccountId,
     },
+
+    /// Retrieve the deal for a given deal ID.
+    RetrieveDeal {
+        /// The target deal's ID.
+        deal_id: DealId,
+    },
 }
 
 impl MarketCommand {
@@ -97,8 +103,6 @@ impl MarketCommand {
         let client = storagext::Client::new(node_rpc, n_retries, retry_interval).await?;
 
         match self {
-            // Only command that doesn't need a key.
-            //
             // NOTE: subcommand_negates_reqs does not work for this since it only negates the parents'
             // requirements, and the global arguments (keys) are at the grandparent level
             // https://users.rust-lang.org/t/clap-ignore-global-argument-in-sub-command/101701/8
@@ -114,6 +118,15 @@ impl MarketCommand {
                     println!("{}", output_format.format(&balance)?);
                 } else {
                     tracing::error!("Could not find account {}", account_id);
+                }
+            }
+            MarketCommand::RetrieveDeal { deal_id } => {
+                if let Some(deal) = client.retrieve_deal(deal_id.clone()).await? {
+                    tracing::debug!("Deal {:?}", deal);
+
+                    println!("{}", output_format.format(&deal)?);
+                } else {
+                    tracing::error!("Could not find deal {}", deal_id);
                 }
             }
             else_ => {
