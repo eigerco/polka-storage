@@ -50,7 +50,6 @@ jobs:
       - name: Build in release mode
         run: |
           RUSTFLAGS="-D warnings" cargo build --release --locked --package mater-cli
-          echo "PACKAGE_SHA256=$(sha256sum target/release/mater-cli | sed 's/\(.*\) .*/\1/')" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -136,11 +135,29 @@ jobs:
       - id: download-artifacts
         uses: actions/download-artifact@v4
 
-      - id: calculate-sha256
+      - name: Prepare folder
         run: |
-          echo "LINUX_X64_SHA256=$(sha256sum ${{ steps.download-artifacts.outputs.download-path }}/mater-cli-linux-x64/mater-cli)" >> "$GITHUB_OUTPUT"
-          echo "MACOS_X64_SHA256=$(sha256sum ${{ steps.download-artifacts.outputs.download-path }}/mater-cli-macos-x64/mater-cli)" >> "$GITHUB_OUTPUT"
-          echo "MACOS_ARM64_SHA256=$(sha256sum ${{ steps.download-artifacts.outputs.download-path }}/mater-cli-macos-arm64/mater-cli)" >> "$GITHUB_OUTPUT"
+          cd ${{ steps.download-artifacts.outputs.download-path }}
+
+          mv mater-cli-linux-x64/mater-cli ./
+          rmdir mater-cli-linux-x64
+          mv mater-cli mater-cli-linux-x64
+
+          mv mater-cli-macos-x64/mater-cli ./
+          rmdir mater-cli-macos-x64
+          mv mater-cli mater-cli-macos-x64
+
+          mv mater-cli-macos-arm64/mater-cli ./
+          rmdir mater-cli-macos-arm64
+          mv mater-cli mater-cli-macos-arm64
+
+      - name: Calculate SHA256
+        id: calculate-sha256
+        run: |
+          cd ${{ steps.download-artifacts.outputs.download-path }}
+          echo "LINUX_X64_SHA256=$(sha256sum mater-cli-linux-x64) | sed 's/\(.*\) .*/\1/')" >> "$GITHUB_OUTPUT"
+          echo "MACOS_X64_SHA256=$(sha256sum mater-cli-macos-x64) | sed 's/\(.*\) .*/\1/')" >> "$GITHUB_OUTPUT"
+          echo "MACOS_ARM64_SHA256=$(sha256sum mater-cli-macos-arm64) | sed 's/\(.*\) .*/\1/')" >> "$GITHUB_OUTPUT"
 
       - name: Perform release
         uses: softprops/action-gh-release@v2
@@ -149,14 +166,14 @@ jobs:
           body: |
             Docker container release: https://github.com/eigerco/polka-storage/pkgs/container/mater-cli?tag=${{ needs.mater_cli_check_version.outputs.package-version }}
 
-            | Binary                  | SHA256                                                               |
-            | ----------------------- | -------------------------------------------------------------------- |
-            | `mater-cli-linux-x64`   | `${{ steps.calculate-sha256.outputs.LINUX_x64_SHA256 }}`   |
-            | `mater-cli-macos-x64`   | `${{ steps.calculate-sha256.outputs.MACOS_x64_SHA256 }}`   |
+            | Binary                  | SHA256                                                     |
+            | ----------------------- | ---------------------------------------------------------- |
+            | `mater-cli-linux-x64`   | `${{ steps.calculate-sha256.outputs.LINUX_X64_SHA256 }}`   |
+            | `mater-cli-macos-x64`   | `${{ steps.calculate-sha256.outputs.MACOS_X64_SHA256 }}`   |
             | `mater-cli-macos-arm64` | `${{ steps.calculate-sha256.outputs.MACOS_ARM64_SHA256 }}` |
 
           files: |
-            ${{steps.download-artifacts.outputs.download-path}}/mater-cli-*
+            ${{ steps.download-artifacts.outputs.download-path }}/mater-cli-*
 
   storagext_cli_check_version:
     runs-on: self-hosted
