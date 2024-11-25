@@ -1,6 +1,6 @@
 use std::{
     path::Path,
-    sync::atomic::{AtomicU64, Ordering},
+    sync::atomic::{AtomicU32, Ordering},
 };
 
 use primitives_proofs::SectorNumber;
@@ -36,7 +36,7 @@ const COLUMN_FAMILIES: [&str; 2] = [ACCEPTED_DEAL_PROPOSALS_CF, SECTORS_CF];
 
 pub struct DealDB {
     database: RocksDB,
-    last_sector_number: AtomicU64,
+    last_sector_number: AtomicU32,
 }
 
 impl DealDB {
@@ -54,7 +54,7 @@ impl DealDB {
 
         let db = Self {
             database: RocksDB::open_cf_descriptors(&opts, path, cfs)?,
-            last_sector_number: AtomicU64::new(0),
+            last_sector_number: AtomicU32::new(0),
         };
 
         db.initialize_biggest_sector_number()?;
@@ -124,9 +124,10 @@ impl DealDB {
         &self,
         sector_number: SectorNumber,
     ) -> Result<Option<SectorType>, DBError> {
-        let Some(sector_slice) = self
-            .database
-            .get_pinned_cf(self.cf_handle(SECTORS_CF), sector_number.to_le_bytes())?
+        let Some(sector_slice) = self.database.get_pinned_cf(
+            self.cf_handle(SECTORS_CF),
+            u32::from(sector_number).to_le_bytes(),
+        )?
         else {
             return Ok(None);
         };
@@ -143,7 +144,7 @@ impl DealDB {
         sector: &SectorType,
     ) -> Result<(), DBError> {
         let cf_handle = self.cf_handle(SECTORS_CF);
-        let key = sector_number.to_le_bytes();
+        let key = u32::from(sector_number).to_le_bytes();
         let json = serde_json::to_vec(&sector)?;
 
         self.database.put_cf(cf_handle, key, json)?;
@@ -157,35 +158,38 @@ impl DealDB {
     /// And then `last_sector_number` is incremented by `next_sector_number` only
     /// If it was called by multiple threads later than initialization, it could cause a race condition and data erasure.
     fn initialize_biggest_sector_number(&self) -> Result<(), DBError> {
-        let mut biggest_sector_number = 0;
+        let mut biggest_sector_number = 0.into();
         for item in self
             .database
             .iterator_cf(self.cf_handle(SECTORS_CF), rocksdb::IteratorMode::Start)
         {
             let (key, _) = item?;
-            let key: [u8; 8] = key
+            let key: [u8; 4] = key
                 .as_ref()
                 .try_into()
-                .expect("sector's key to be u64 le bytes");
-            let sector_id = SectorNumber::from_le_bytes(key);
+                .expect("sector's key to be u32 le bytes");
+            // Unwrap safe. Can only fail if the sector number was manually
+            // inserted in the database.
+            let sector_id =
+                SectorNumber::new(u32::from_le_bytes(key)).expect("valid sector number");
             biggest_sector_number = std::cmp::max(biggest_sector_number, sector_id);
         }
 
         // [`Ordering::Relaxed`] can be used here as this function is executed only on start-up and once.
         // We don't mind, it's just a initialization.
         self.last_sector_number
-            .store(biggest_sector_number, Ordering::Relaxed);
+            .store(biggest_sector_number.into(), Ordering::Relaxed);
         Ok(())
     }
 
     /// Atomically increments sector_id counter, so it can be used as an identifier by a sector.
     /// Prior to all of the calls to this function, `initialize_biggest_sector_id` must be called at the node start-up.
-    pub fn next_sector_number(&self) -> SectorNumber {
+    pub fn next_sector_number(&self) -> Result<SectorNumber, &'static str> {
         // [`Ordering::Relaxed`] can be used here, as it's an update on a single variable.
         // It does not depend on other Atomic variables and it does not matter which thread makes it first.
         // We just need it to be different on every thread that calls it concurrently, so the ids are not duplicated.
         let previous = self.last_sector_number.fetch_add(1, Ordering::Relaxed);
-        previous + 1
+        SectorNumber::try_from(previous + 1)
     }
 
     // NOTE(@jmg-duarte,03/10/2024): I think that from here onwards we're very close of reinventing the LID, but so be it

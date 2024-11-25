@@ -1,7 +1,5 @@
 extern crate alloc;
 
-use alloc::collections::BTreeSet;
-
 use sp_core::bounded_vec;
 
 use super::new_test_ext;
@@ -9,9 +7,9 @@ use crate::{
     pallet::{Event, StorageProviders},
     sector::ProveCommitSector,
     tests::{
-        account, events, publish_deals, register_storage_provider, run_to_block, Balances,
-        RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System, Test,
-        CHARLIE,
+        account, events, publish_deals, register_storage_provider, run_to_block, sector_set,
+        Balances, RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System,
+        Test, CHARLIE,
     },
 };
 
@@ -32,13 +30,13 @@ fn pre_commit_hook_slashed_deal() {
         let deal_precommit_deposit = 1;
 
         let first_sector = SectorPreCommitInfoBuilder::default()
-            .sector_number(1)
+            .sector_number(1.into())
             .deals(bounded_vec![first_deal])
             .build();
         // First sector will not be proven, that's why we split deals across sectors
         let second_sector = SectorPreCommitInfoBuilder::default()
             .deals(bounded_vec![second_deal])
-            .sector_number(2)
+            .sector_number(2.into())
             .build();
 
         StorageProvider::pre_commit_sectors(
@@ -55,7 +53,7 @@ fn pre_commit_hook_slashed_deal() {
         StorageProvider::prove_commit_sectors(
             RuntimeOrigin::signed(account(storage_provider)),
             bounded_vec![ProveCommitSector {
-                sector_number: 2,
+                sector_number: 2.into(),
                 proof: bounded_vec![0xde],
             }],
         )
@@ -84,19 +82,28 @@ fn pre_commit_hook_slashed_deal() {
                 RuntimeEvent::StorageProvider(Event::<Test>::PartitionFaulty {
                     owner: account(storage_provider),
                     partition: 0,
-                    sectors: BTreeSet::from([2]).try_into().unwrap()
+                    sectors: sector_set(&[2])
                 }),
                 RuntimeEvent::StorageProvider(Event::<Test>::SectorSlashed {
                     owner: account(storage_provider),
-                    sector_number: 1,
+                    sector_number: 1.into(),
                 }),
+                // the slash -> withdraw is related to the usage of slash_and_burn
+                // when slashing the SP for a failed pre_commit
+                // this usage may need review for a proper economic balance
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Slashed {
                     who: account(storage_provider),
                     amount: deal_precommit_deposit,
                 }),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded {
+                    amount: deal_precommit_deposit
+                }),
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Withdraw {
                     who: account(storage_provider),
                     amount: deal_precommit_deposit,
+                }),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded {
+                    amount: deal_precommit_deposit
                 }),
             ]
         );

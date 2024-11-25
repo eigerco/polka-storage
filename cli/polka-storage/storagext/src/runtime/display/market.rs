@@ -27,14 +27,27 @@ impl std::fmt::Display for Event {
                     who, amount
                 ))
             }
-            Event::DealPublished {
-                deal_id,
-                client,
+            Event::DealsPublished {
                 provider,
-            } => f.write_fmt(format_args!(
-                "Deal Published: {{ deal_id: {}, provider_account: {}, client_account: {} }}",
-                deal_id, provider, client,
-            )),
+                deals
+            } => {
+                // This should show something like
+                // Deals Published: {
+                //     provider_account: ...,
+                //     deals: [
+                //         { client_account: ..., deal_id: ... },
+                //         { client_account: ..., deal_id: ... },
+                //     ]
+                // }
+                f.write_fmt(format_args!(
+                    "Deal Published: {{\n    provider_account: {},\n    deals: [\n",
+                  provider
+                ))?;
+                for deal in deals.0.iter() {
+                    f.write_fmt(format_args!("        {{ client_account: {}, deal_id: {} }},\n", deal.client, deal.deal_id))?;
+                }
+                f.write_str("    ]\n}")
+            }
             Event::DealActivated {
                 deal_id,
                 client,

@@ -23,7 +23,7 @@ cd polka-storage
 
 To build the binaries directly on your system you will need the following tools:
 
-* Rust 1.77 — you can install it using [`rustup`](https://rustup.rs/) and its [guide](https://rust-lang.github.io/rustup/installation/other.html) for help.
+* Rust 1.81.0 — you can install it using [`rustup`](https://rustup.rs/) and its [guide](https://rust-lang.github.io/rustup/installation/other.html) for help.
 * Other dependencies — keep reading, we'll get to it after the end of this list!
 * `just` (optional) — (after installing Rust) you can use `cargo install just` or check the [official list of packages](https://just.systems/man/en/packages.html).
 

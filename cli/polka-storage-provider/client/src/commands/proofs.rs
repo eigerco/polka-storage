@@ -5,6 +5,7 @@ use std::{
     str::FromStr,
 };
 
+use codec::Encode;
 use mater::CarV2Reader;
 use polka_storage_proofs::{
     porep::{self, sealer::Sealer},
@@ -14,9 +15,13 @@ use polka_storage_proofs::{
 use polka_storage_provider_common::commp::{calculate_piece_commitment, CommPError};
 use primitives_commitment::{
     piece::{PaddedPieceSize, PieceInfo},
-    Commitment, CommitmentKind,
+    Commitment, CommitmentError,
 };
-use primitives_proofs::{derive_prover_id, RegisteredPoStProof, RegisteredSealProof};
+use primitives_proofs::{
+    derive_prover_id,
+    randomness::{draw_randomness, DomainSeparationTag},
+    RegisteredPoStProof, RegisteredSealProof, SectorNumber,
+};
 use storagext::multipair::{MultiPairArgs, MultiPairSigner};
 use subxt::tx::Signer;
 
@@ -72,6 +77,15 @@ pub enum ProofsCommand {
         /// Directory where the proof files and the sector will be put. Defaults to the current directory.
         #[arg(short, long)]
         output_path: Option<PathBuf>,
+        /// Sector number
+        #[arg(long)]
+        sector_id: u32,
+        /// The height at which we draw the randomness for deriving a sealed cid.
+        #[arg(long)]
+        seal_randomness_height: u64,
+        /// Precommit block number
+        #[arg(long)]
+        pre_commit_block_number: u64,
     },
     /// Generates PoSt verifying key and proving parameters for zk-SNARK workflows (submit windowed PoSt)
     #[clap(name = "post-params")]
@@ -203,17 +217,42 @@ impl ProofsCommand {
                 commp,
                 output_path,
                 cache_directory,
+                sector_id,
+                seal_randomness_height,
+                pre_commit_block_number,
             } => {
                 let Some(signer) = Option::<MultiPairSigner>::from(signer_key) else {
                     return Err(UtilsCommandError::NoSigner)?;
                 };
-                let prover_id = derive_prover_id(signer.account_id());
 
-                // Those are hardcoded for the showcase only.
-                // They should come from Storage Provider Node, precommits and other information.
-                let sector_id = 77;
-                let ticket = [12u8; 32];
-                let seed = [13u8; 32];
+                let sector_number = SectorNumber::try_from(sector_id)
+                    .map_err(|_| UtilsCommandError::InvalidSectorId)?;
+
+                let entropy = signer.account_id().encode();
+                println!("Entropy: {}", hex::encode(&entropy));
+
+                let ticket = get_randomness(
+                    DomainSeparationTag::SealRandomness,
+                    seal_randomness_height,
+                    &entropy,
+                );
+                println!(
+                    "[{seal_randomness_height}] Ticket randomness: {}",
+                    hex::encode(ticket)
+                );
+
+                // The number added is configured in runtime:
+                // https://github.com/eigerco/polka-storage/blob/18207759d7c6c175916d5bed70246d94a8f028f4/runtime/src/configs/mod.rs#L360
+                let interactive_block_number = pre_commit_block_number + 10;
+                let seed = get_randomness(
+                    DomainSeparationTag::InteractiveSealChallengeSeed,
+                    interactive_block_number,
+                    &entropy,
+                );
+                println!(
+                    "[{interactive_block_number}] Seed randomness: {}",
+                    hex::encode(seed)
+                );
 
                 let output_path = if let Some(output_path) = output_path {
                     output_path
@@ -247,14 +286,11 @@ impl ProofsCommand {
                 let piece_file_length = PaddedPieceSize::from_arbitrary_size(piece_file_length);
                 let piece_file = ZeroPaddingReader::new(piece_file, *piece_file_length.unpadded());
 
-                let commp = cid::Cid::from_str(commp.as_str())
+                let commp = cid::Cid::from_str(&commp)
                     .map_err(|e| UtilsCommandError::InvalidPieceCommP(commp, e))?;
                 let piece_info = PieceInfo {
-                    commitment: primitives_commitment::Commitment::from_cid(
-                        &commp,
-                        CommitmentKind::Piece,
-                    )
-                    .map_err(|e| UtilsCommandError::InvalidPieceType(commp.to_string(), e))?,
+                    commitment: Commitment::try_from(commp)
+                        .map_err(|e| UtilsCommandError::InvalidPieceType(commp.to_string(), e))?,
                     size: piece_file_length,
                 };
 
@@ -276,6 +312,9 @@ impl ProofsCommand {
                     .create_sector(vec![(piece_file, piece_info)], unsealed_sector)
                     .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
 
+                let prover_id = derive_prover_id(signer.account_id());
+                println!("Prover ID: {}", hex::encode(prover_id));
+
                 println!("Precommitting...");
                 let precommit = sealer
                     .precommit_sector(
@@ -283,7 +322,7 @@ impl ProofsCommand {
                         unsealed_sector_path,
                         &sealed_sector_path,
                         prover_id,
-                        sector_id,
+                        sector_number,
                         ticket,
                         &piece_infos,
                     )
@@ -296,16 +335,16 @@ impl ProofsCommand {
                         &cache_directory,
                         &sealed_sector_path,
                         prover_id,
-                        sector_id,
+                        sector_number,
                         ticket,
                         Some(seed),
-                        precommit.clone(),
+                        precommit,
                         &piece_infos,
                     )
                     .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
 
-                println!("CommD: {:?}", Commitment::data(precommit.comm_d).cid());
-                println!("CommR: {:?}", Commitment::replica(precommit.comm_r).cid());
+                println!("CommD: {}", precommit.comm_d.cid());
+                println!("CommR: {}", precommit.comm_r.cid());
                 println!("Proof: {:?}", proofs);
                 // We use sector size 2KiB only at this point, which guarantees to have 1 proof, because it has 1 partition in the config.
                 // That's why `prove_commit` will always generate a 1 proof.
@@ -313,8 +352,10 @@ impl ProofsCommand {
                     .clone()
                     .try_into()
                     .expect("converstion between rust-fil-proofs and polka-storage-proofs to work");
-                proof_scale_file.write_all(&codec::Encode::encode(&proof_scale))?;
+                let scale_encoded_proof = codec::Encode::encode(&proof_scale);
+                proof_scale_file.write_all(&scale_encoded_proof)?;
 
+                println!("Proof as HEX: {}", hex::encode(scale_encoded_proof));
                 println!("Wrote proof to {}", proof_scale_filename.display());
             }
             ProofsCommand::GeneratePoStParams {
@@ -372,7 +413,7 @@ impl ProofsCommand {
 
                 // Those are hardcoded for the showcase only.
                 // They should come from Storage Provider Node, precommits and other information.
-                let sector_id = 77;
+                let sector_id = 77.into();
                 let randomness = [1u8; 32];
 
                 let output_path = if let Some(output_path) = output_path {
@@ -447,8 +488,10 @@ pub enum UtilsCommandError {
     InvalidPieceFile(PathBuf, std::io::Error),
     #[error("provided invalid CommP {0}, error: {1}")]
     InvalidPieceCommP(String, cid::Error),
-    #[error("invalid piece type")]
-    InvalidPieceType(String, &'static str),
+    #[error("invalid piece type, error: {1}")]
+    InvalidPieceType(String, CommitmentError),
+    #[error("invalid sector id")]
+    InvalidSectorId,
     #[error("file {0} is invalid CARv2 file {1}")]
     InvalidCARv2(PathBuf, mater::Error),
     #[error("no signer key was provider")]
@@ -467,4 +510,14 @@ fn file_with_extension(
     let file = std::fs::File::create(new_path.clone())
         .map_err(|e| UtilsCommandError::FileCreateError(new_path.clone(), e))?;
     Ok((new_path, file))
+}
+
+fn get_randomness(
+    personalization: DomainSeparationTag,
+    block_number: u64,
+    entropy: &[u8],
+) -> [u8; 32] {
+    // This randomness digest is hardcoded because it's always same on testnet.
+    let digest = [0u8; 32];
+    draw_randomness(&digest, personalization, block_number, &entropy)
 }

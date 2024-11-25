@@ -211,7 +211,6 @@ The Market Pallet actions can fail with following errors:
 - `InsufficientFreeFunds` - Market participants do not have enough free funds.
 - `NoProposalsToBePublished` - `publish_storage_deals` was called with an empty list of `deals`.
 - `ProposalsPublishedByIncorrectStorageProvider` - Is returned when calling `publish_storage_deals` and the deals in a list are not published by the same storage provider.
-- `AllProposalsInvalid` - `publish_storage_deals` call was supplied with a list of `deals` which are all invalid.
 - `DuplicateDeal` - There is more than one deal with this ID in the Sector.
 - `DealNotFound` - Tried to activate a deal that is not in the system.
 - `DealActivationError` - Tried to activate a deal, but data was malformed.
@@ -222,6 +221,23 @@ The Market Pallet actions can fail with following errors:
   - Deal is not pending.
 - `DealsTooLargeToFitIntoSector` - Sum of all deals piece sizes for a sector exceeds sector size. The sector size is based on the registered proof type. We currently only support registered `StackedDRG2KiBV1P1` proofs, which have 2KiB sector sizes.
 - `TooManyDealsPerBlock` - Tried to activate too many deals at a given `start_block`.
+- `StorageProviderNotRegistered` - An account tries to call `publish_storage_deals` but is not registered as a storage provider.
+- `CommD` - An error occurred when trying to calculate CommD.
+- `TooManyPendingDeals` - A storage provider tried to propose a deal, but there are too many pending deals. The pending deals should be activated or wait for expiry.
+- `InvalidProvider` - A deal was tried to be activated by a provider which does not own it.
+- `StartBlockElapsed` - A storage provider tries to activate a deal after the start block.
+- `SectorExpiresBeforeDeal` - Sector containing the deal will expire before the deal is supposed to end.
+- `InvalidDealState` - A deal was attempted to be activated twice.
+- `DealNotPending` - A storage provider tried to activate a deal which is not in the pending proposals.
+- `WrongClientSignatureOnProposal` - The client signature did not match the client's public key and data.
+- `DealEndBeforeStart` - A deal was attempted to be published but the end block is before the start block and the deal is rejected.
+- `DealStartExpired` - A deal was attempted to be published but the start block is in the past and the deal is rejected.
+- `DealNotPublished` - A deal was attempted to be published but is not in the correct state.
+- `DealDurationOutOfBounds` - A deal was attempted to be published but the duration is not between [MinDealDuration](#constants) and [MaxDealDuration](#constants).
+- `InvalidPieceCid` - The deal trying to be published has an invalid piece Cid.
+- `DealIsNotActive` - When a sector is being terminated but the deal state is not active. This is the result of a programmer bug. Please [report an issue](https://github.com/eigerco/polka-storage-book/issues/new) to the developers.
+- `InvalidCaller` - A deal was found that does not belong to the storage provider. This is the result of a programmer bug. Please [report an issue](https://github.com/eigerco/polka-storage-book/issues/new) to the developers.
+- `DealNotFound` - A deal was attempted to be fetched but could not be found. This is the result of a programmer bug. Please [report an issue](https://github.com/eigerco/polka-storage-book/issues/new) to the developers.
 - `UnexpectedValidationError` - `publish_storage_deals`'s core logic was invoked with a broken invariant that should be called by `validate_deals`. Please [report an issue](https://github.com/eigerco/polka-storage-book/issues/new) to the developers.
 - `DealPreconditionFailed` - Due to a programmer bug. Please [report an issue](https://github.com/eigerco/polka-storage-book/issues/new) to the developers.
 

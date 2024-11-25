@@ -1,12 +1,12 @@
 # Introduction
 
-Welcome to the Polka Storage project!
+Welcome to the Polka Storage project book. This document is a work in progress and will be constantly updated.
 
-This project aims to deliver a Polkadot-native system parachain for data storage.
+This project aims to build a native storage network for Polkadot.
 
-Since the Referendum approval, we've been busy developing the deliverables for Phase 2.
+We've now completed Phase 2 and have started work on Phase 3.
 
-**For [**Phase 2**](https://polkadot.polkassembly.io/referenda/1150), we have implemented:**
+**During [**Phase 2**](https://polkadot.polkassembly.io/referenda/1150), we have implemented:**
 
 - Storage Provider Pallet
   - [`terminate_sectors`](./architecture/pallets/storage-provider.md#terminate_sectors)
@@ -37,7 +37,7 @@ Dedicated CLIs
 - [`mater-cli`](./mater-cli/index.md) to convert or extract CARv2 files.
 - [`storagext-cli`](./storagext-cli/index.md) to interact **directly** with the parachain — watch out, this is a low-level tool!
 
-Filecoin actor ports:
+Pallets:
 
 - [Storage Provider](./architecture/pallets/storage-provider.md)
 - [Market](./architecture/pallets/market.md)
@@ -50,7 +50,7 @@ Filecoin actor ports:
         alt="Polka Storage Client Upload">
 </p>
 
-**As a refresher, for [Phase 1](https://polkadot.polkassembly.io/referenda/494), we implemented the following:**
+**During  [Phase 1](https://polkadot.polkassembly.io/referenda/494), we implemented the following:**
 
 - Keeping track of [Storage Providers](./glossary.md#storage-provider),
 - [Publishing](./architecture/pallets/market.md#publish_storage_deals) Market Deals on-chain,
@@ -69,7 +69,7 @@ We present a demo on how to [store a file](./getting-started/demo-file-store.md)
 - OpenGov Referendum - Part 1 — <https://polkadot.polkassembly.io/referenda/494>
 - OpenGov Referendum - Part 2 — <https://polkadot.polkassembly.io/referenda/1150>
 - Research Report — <https://github.com/eigerco/polkadot-native-storage/blob/main/doc/report/polkadot-native-storage-v1.0.0.pdf>
-- Polkadot Forum News Post — <https://forum.polkadot.network/t/polkadot-native-storage/4551>
+- Weekly dev updates <https://forum.polkadot.network/t/polkadot-native-storage-updates/7021>
 
 ---
 

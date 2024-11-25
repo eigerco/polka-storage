@@ -50,6 +50,14 @@ impl StorageProviderRpcServer for RpcServerState {
             ));
         }
 
+        // TODO(@jmg-duarte,25/11/2024): Add sanity validations
+        // end_block > start_block
+        // available balance (sp & client)
+        // the provider matches us
+        // storage price per block > 0
+        // piece size <= 2048 && power of two
+        // check the piece_cid code
+
         let cid = self
             .deal_db
             .add_accepted_proposed_deal(&deal)
@@ -80,7 +88,7 @@ impl StorageProviderRpcServer for RpcServerState {
             .is_none()
         {
             return Err(RpcError::internal_error(
-                "proposal has not been accepted",
+                "proposal has not been found — have you proposed the deal first?",
                 None,
             ));
         }
@@ -94,6 +102,8 @@ impl StorageProviderRpcServer for RpcServerState {
                 None,
             ));
         }
+
+        // TODO(@jmg-duarte,25/11/2024): don't batch the deals for better errors
 
         let deal_proposal = deal.deal_proposal.clone();
         // TODO(@jmg-duarte,#428,04/10/2024):
@@ -110,33 +120,40 @@ impl StorageProviderRpcServer for RpcServerState {
 
         let published_deals = result
             .events
-            .find::<storagext::runtime::market::events::DealPublished>()
-            .collect::<Result<Vec<_>, _>>()
+            .find_first::<storagext::runtime::market::events::DealsPublished>()
             .map_err(|err| RpcError::internal_error(err, None))?;
+        let Some(published_deals) = published_deals else {
+            return Err(RpcError::internal_error(
+                "failed to find any published deals",
+                None,
+            ));
+        };
 
         // We currently just support a single deal and if there's no published deals,
         // an error MUST've happened
-        debug_assert_eq!(published_deals.len(), 1);
+        debug_assert_eq!(published_deals.deals.0.len(), 1);
 
         // We always publish only 1 deal
-        let deal_id = published_deals[0].deal_id;
+        let deal_id = published_deals
+            .deals
+            .0
+            .first()
+            .expect("we only support a single deal")
+            .deal_id;
 
-        let piece_cid = Commitment::new(
-            piece_cid.hash().digest().try_into().map_err(|e| {
-                RpcError::invalid_params(
-                    e,
-                    Some(serde_json::to_value(piece_cid).expect("cid to be serializable")),
-                )
-            })?,
-            primitives_commitment::CommitmentKind::Piece,
-        );
+        let commitment = Commitment::from_cid(&piece_cid).map_err(|e| {
+            RpcError::invalid_params(
+                e,
+                Some(serde_json::to_value(piece_cid).expect("cid to be serializable")),
+            )
+        })?;
 
         self.pipeline_sender
             .send(PipelineMessage::AddPiece(AddPieceMessage {
                 deal: deal_proposal,
                 published_deal_id: deal_id,
                 piece_path,
-                piece_cid,
+                commitment,
             }))
             .map_err(|e| RpcError::internal_error(e, None))?;
 

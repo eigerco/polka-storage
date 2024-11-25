@@ -28,6 +28,10 @@ pub mod display;
         path = "primitives_proofs::types::SectorSize",
         with = "::primitives_proofs::SectorSize",
     ),
+    substitute_type(
+        path = "primitives_proofs::types::SectorNumber",
+        with = "::primitives_proofs::SectorNumber",
+    ),
     // impl Deserialize
     derive_for_type(
         path = "pallet_market::pallet::ActiveDealState",
@@ -35,6 +39,10 @@ pub mod display;
     ),
     derive_for_type(
         path = "pallet_market::pallet::DealState",
+        derive = "::serde::Deserialize"
+    ),
+    derive_for_type(
+        path = "pallet_market::pallet::PublishedDeal",
         derive = "::serde::Deserialize"
     ),
     // impl Serialize
@@ -53,6 +61,10 @@ pub mod display;
         derive = "::serde::Serialize"
     ),
     derive_for_type(
+        path = "pallet_faucet::pallet::Event",
+        derive = "::serde::Serialize"
+    ),
+    derive_for_type(
         path = "bounded_collections::bounded_vec::BoundedVec",
         derive = "::serde::Serialize"
     ),
@@ -65,7 +77,7 @@ pub mod display;
         derive = "::serde::Serialize"
     ),
     derive_for_type(
-        path = "pallet_market::pallet::DealSettlementError",
+        path = "pallet_market::error::DealSettlementError",
         derive = "::serde::Serialize"
     ),
     derive_for_type(
@@ -104,6 +116,10 @@ pub mod display;
         path = "pallet_market::pallet::DealState",
         derive = "::serde::Serialize"
     ),
+    derive_for_type(
+        path = "pallet_market::pallet::PublishedDeal",
+        derive = "::serde::Serialize"
+    ),
 )]
 mod polka_storage_runtime {}
 
@@ -131,7 +147,7 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(active_deal_state.sector_number, 1);
+        assert_eq!(active_deal_state.sector_number, 1.into());
         assert_eq!(active_deal_state.sector_start_block, 10);
         assert_eq!(active_deal_state.last_updated_block, Some(20));
         assert_eq!(active_deal_state.slash_block, None);
@@ -161,7 +177,7 @@ mod test {
         assert_eq!(
             deal_state,
             DealState::Active(ActiveDealState {
-                sector_number: 1,
+                sector_number: 1.into(),
                 sector_start_block: 10,
                 last_updated_block: Some(20),
                 slash_block: None

@@ -12,13 +12,15 @@ serde = ["dep:serde"]
 std = ["dep:filecoin-proofs"]
 
 [dependencies]
-primitives-proofs.workspace = true
-
 cid.workspace = true
-sha2.workspace = true
-
+codec = { workspace = true, default-features = false, features = ["derive"] }
 filecoin-proofs = { optional = true, workspace = true }
+primitives-proofs.workspace = true
+scale-info = { workspace = true, default-features = false, features = ["derive"] }
+sealed.workspace = true
 serde = { workspace = true, features = ["derive"], optional = true }
+sha2.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
 rand = { workspace = true, features = ["std", "std_rng"] }

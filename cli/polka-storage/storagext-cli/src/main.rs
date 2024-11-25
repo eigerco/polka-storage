@@ -6,8 +6,8 @@ use std::{fmt::Debug, time::Duration};
 
 use clap::{ArgGroup, Parser, Subcommand};
 use cmd::{
-    market::MarketCommand, proofs::ProofsCommand, randomness::RandomnessCommand,
-    storage_provider::StorageProviderCommand, system::SystemCommand,
+    faucet::FaucetCommand, market::MarketCommand, proofs::ProofsCommand,
+    randomness::RandomnessCommand, storage_provider::StorageProviderCommand, system::SystemCommand,
 };
 use storagext::multipair::{DebugPair, MultiPairSigner};
 use subxt::ext::sp_core::{
@@ -89,6 +89,8 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum SubCommand {
+    #[command(subcommand)]
+    Faucet(FaucetCommand),
     // Perform market operations.
     #[command(subcommand)]
     Market(MarketCommand),
@@ -114,6 +116,16 @@ impl SubCommand {
         wait_for_finalization: bool,
     ) -> Result<(), anyhow::Error> {
         match self {
+            SubCommand::Faucet(cmd) => {
+                cmd.run(
+                    node_rpc,
+                    n_retries,
+                    retry_interval,
+                    output_format,
+                    wait_for_finalization,
+                )
+                .await?;
+            }
             SubCommand::Market(cmd) => {
                 cmd.run(
                     node_rpc,

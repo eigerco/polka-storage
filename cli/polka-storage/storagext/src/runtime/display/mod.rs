@@ -1,3 +1,4 @@
+mod faucet;
 mod market;
 mod proofs;
 mod storage_provider;

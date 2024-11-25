@@ -74,3 +74,4 @@ and will report it's result — whether the call was successful or not.
 - [Subcommand `proofs`](proofs.md)
 - [Subcommand `randomness`](randomness.md)
 - [Subcommand `system`](system.md)
+- [Subcommand `faucet`](faucet.md)

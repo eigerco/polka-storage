@@ -5,7 +5,7 @@ use filecoin_hashers::{
     Domain,
 };
 use fr32::Fr32Reader;
-use primitives_commitment::{piece::PaddedPieceSize, Commitment, CommitmentKind, NODE_SIZE};
+use primitives_commitment::{piece::PaddedPieceSize, CommP, Commitment, NODE_SIZE};
 use storage_proofs_core::merkle::BinaryMerkleTree;
 use thiserror::Error;
 
@@ -15,7 +15,7 @@ use thiserror::Error;
 pub fn calculate_piece_commitment<R: Read>(
     source: R,
     piece_size: PaddedPieceSize,
-) -> Result<Commitment, CommPError> {
+) -> Result<Commitment<CommP>, CommPError> {
     // This reader adds two zero bits to each 254 bits of data read from the source.
     let mut fr32_reader = Fr32Reader::new(source);
 
@@ -35,14 +35,12 @@ pub fn calculate_piece_commitment<R: Read>(
         .map_err(|err| CommPError::TreeBuild(err.to_string()))?;
 
     // Read and return the root of the tree
-    let mut commitment = [0; NODE_SIZE];
+    let mut raw = [0; NODE_SIZE];
     tree.root()
-        .write_bytes(&mut commitment)
+        .write_bytes(&mut raw)
         .expect("destination buffer large enough");
 
-    let commitment = Commitment::new(commitment, CommitmentKind::Piece);
-
-    Ok(commitment)
+    Ok(raw.into())
 }
 
 #[derive(Debug, Error)]
@@ -93,7 +91,6 @@ mod tests {
 
         let commitment =
             calculate_piece_commitment(zero_padding_reader, padded_piece_size).unwrap();
-        dbg!(commitment.raw());
 
         assert_eq!(
             commitment.raw(),

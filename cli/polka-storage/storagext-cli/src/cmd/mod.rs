@@ -1,3 +1,4 @@
+pub mod faucet;
 pub mod market;
 pub mod proofs;
 pub mod randomness;
