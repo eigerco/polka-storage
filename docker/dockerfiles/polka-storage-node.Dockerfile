@@ -25,7 +25,7 @@ RUN cargo chef cook --release --recipe-path recipe.json
 # Build application
 COPY . .
 RUN cargo build --release --features polka-storage-runtime/testnet -p polka-storage-node
-RUN cargo build --release --features storagext/insecure_url -p storagext-cli
+RUN cargo build --release -p storagext-cli
 
 FROM debian:bookworm-slim AS runtime
 

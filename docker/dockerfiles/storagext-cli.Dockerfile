@@ -21,7 +21,7 @@ COPY --from=planner /app/rust-toolchain.toml rust-toolchain.toml
 RUN cargo chef cook --bin storagext-cli --release --recipe-path recipe.json
 # Build application
 COPY . .
-RUN cargo build --release --features storagext/insecure_url --bin storagext-cli
+RUN cargo build --release --bin storagext-cli
 
 ################
 ##### Runtime
