@@ -135,6 +135,8 @@ jobs:
     steps:
       - id: download-artifacts
         uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
 
       - id: calculate-sha256
         run: |
