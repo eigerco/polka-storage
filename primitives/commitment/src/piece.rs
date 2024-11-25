@@ -1,5 +1,8 @@
 use core::ops::{Add, AddAssign, Deref};
 
+use codec::{Decode, Encode};
+use scale_info::TypeInfo;
+
 use crate::{CommP, Commitment, NODE_SIZE};
 
 /// Piece info contains piece commitment and piece size.
@@ -100,12 +103,20 @@ impl Into<filecoin_proofs::UnpaddedBytesAmount> for UnpaddedPieceSize {
     }
 }
 
-// TODO: Implement TypeInfo for this type so we can use it in pallets.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, TypeInfo, Encode, Decode, thiserror::Error)]
 pub enum PaddedPieceSizeError {
+    #[error("minimum piece size is 128 bytes")]
     SizeTooSmall,
+    #[error("padded piece size must be a power of 2")]
     SizeNotPowerOfTwo,
+    #[error("padded_piece_size is not multiple of NODE_SIZE")]
     NotAMultipleOfNodeSize,
+}
+
+impl core::fmt::Debug for PaddedPieceSizeError {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        core::fmt::Display::fmt(self, f)
+    }
 }
 
 /// Size of a piece in bytes with padding. The size is always a power of two

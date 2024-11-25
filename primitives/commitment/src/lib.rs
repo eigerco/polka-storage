@@ -7,7 +7,9 @@ mod zero;
 use core::{fmt::Display, marker::PhantomData};
 
 use cid::{multihash::Multihash, Cid};
+use codec::{Decode, Encode};
 use primitives_proofs::RegisteredSealProof;
+use scale_info::TypeInfo;
 use sealed::sealed;
 
 use crate::piece::PaddedPieceSize;
@@ -91,7 +93,7 @@ impl CommitmentKind for CommR {
 }
 
 // TODO: Implement TypeInfo for this type so we can use it in pallets.
-#[derive(thiserror::Error)]
+#[derive(Clone, Eq, PartialEq, TypeInfo, Encode, Decode, thiserror::Error)]
 pub enum CommitmentError {
     #[error("bytes not a valid cid")]
     InvalidCidBytes,

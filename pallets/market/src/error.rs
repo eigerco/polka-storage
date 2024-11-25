@@ -1,4 +1,5 @@
 use codec::{Decode, Encode};
+use primitives_commitment::{piece::PaddedPieceSizeError, CommitmentError};
 use scale_info::TypeInfo;
 
 // Clone and PartialEq required because of the BoundedVec<(DealId, DealSettlementError)>
@@ -34,10 +35,10 @@ impl core::fmt::Debug for DealSettlementError {
 // For now logging will the error will do
 #[derive(TypeInfo, Encode, Decode, Clone, PartialEq, thiserror::Error)]
 pub enum CommDError {
-    #[error("CommDError for commitment")]
-    CommitmentError,
-    #[error("CommDError for piece size")]
-    PaddedPieceSizeError,
+    #[error("CommDError for commitment {0}")]
+    CommitmentError(CommitmentError),
+    #[error("CommDError for piece size {0}")]
+    PaddedPieceSizeError(PaddedPieceSizeError),
 }
 
 impl core::fmt::Debug for CommDError {

@@ -835,11 +835,11 @@ pub mod pallet {
                 .map(|p| {
                     let commitment = p.piece_commitment().map_err(|e| {
                         log::error!(target: LOG_TARGET, "compute_commd: CommitmentError {e}");
-                        CommDError::CommitmentError
+                        CommDError::CommitmentError(e)
                     })?;
                     let size = PaddedPieceSize::new(p.piece_size).map_err(|e| {
                         log::error!(target: LOG_TARGET, "compute_commd: PaddedPieceSizeError {e:?}");
-                        CommDError::PaddedPieceSizeError
+                        CommDError::PaddedPieceSizeError(e)
                     })?;
 
                     Ok(PieceInfo { size, commitment })
