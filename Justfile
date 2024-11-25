@@ -56,7 +56,7 @@ build-polka-storage-provider-server:
 
 # Build the storagext CLI binary
 build-storagext-cli:
-  cargo build --release --features storagext/insecure_url -p storagext-cli
+  cargo build --release -p storagext-cli
 
 # Build the mater CLI binary
 build-mater-cli:

@@ -2,7 +2,13 @@ use std::time::Duration;
 
 use codec::Encode;
 use hex::ToHex;
-use subxt::{blocks::Block, events::Events, utils::H256, OnlineClient};
+use subxt::{
+    backend::rpc::reconnecting_rpc_client::{FixedInterval, RpcClient},
+    blocks::Block,
+    events::Events,
+    utils::H256,
+    OnlineClient,
+};
 
 use crate::PolkaStorageConfig;
 
@@ -30,9 +36,6 @@ pub struct Client {
 
 impl Client {
     /// Create a new [`RuntimeClient`] from a target `rpc_address`.
-    ///
-    /// By default, this function does not support insecure URLs,
-    /// to enable support for them, use the `insecure_url` feature.
     #[tracing::instrument(skip_all, fields(rpc_address = rpc_address.as_ref()))]
     pub async fn new(
         rpc_address: impl AsRef<str>,
@@ -41,30 +44,18 @@ impl Client {
     ) -> Result<Self, subxt::Error> {
         let rpc_address = rpc_address.as_ref();
 
-        let mut current_retries = 0;
-        loop {
-            let client = if cfg!(feature = "insecure_url") {
-                OnlineClient::<_>::from_insecure_url(rpc_address).await
-            } else {
-                OnlineClient::<_>::from_url(rpc_address).await
-            };
+        let rpc_client = RpcClient::builder()
+            // the cast should never pose an issue since storagext is target at 64bit systems
+            .retry_policy(FixedInterval::new(retry_interval).take(n_retries as usize))
+            .build(rpc_address)
+            // subxt-style conversion
+            // https://github.com/paritytech/subxt/blob/v0.38.0/subxt/src/backend/rpc/rpc_client.rs#L38
+            .await
+            .map_err(|e| subxt::error::RpcError::ClientError(Box::new(e)))?;
 
-            match client {
-                Ok(client) => return Ok(Self { client }),
-                Err(err) => {
-                    tracing::error!(
-                        attempt = current_retries,
-                        "failed to connect to node, error: {}",
-                        err
-                    );
-                    current_retries += 1;
-                    if current_retries >= n_retries {
-                        return Err(err);
-                    }
-                    tokio::time::sleep(retry_interval).await;
-                }
-            }
-        }
+        Ok(Self {
+            client: OnlineClient::<_>::from_rpc_client(rpc_client).await?,
+        })
     }
 
     pub(crate) async fn unsigned<Call>(

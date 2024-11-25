@@ -77,7 +77,6 @@ After all this setup, it is time to start building the binaries, which you can d
 
 When building `polka-storage-node` you should add `--features polka-storage-runtime/testnet` which enables the testnet configuration; all the code in the repo is currently targeting this feature, not including it may lead to unexpected behavior.
 
-When building `storagext-cli` you may want to add `--features storagext/insecure_url` which enables using non-TLS HTTP and WebSockets.
 </div>
 
 ```bash
