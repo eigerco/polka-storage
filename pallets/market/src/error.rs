@@ -53,25 +53,6 @@ pub enum DealSettlementError {
 
 impl core::fmt::Debug for DealSettlementError {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        match self {
-            DealSettlementError::SlashedDeal => {
-                write!(f, "DealSettlementError: Slashed Deal")
-            }
-            DealSettlementError::FutureLastUpdate => {
-                write!(f, "DealSettlementError: Future Last Update")
-            }
-            DealSettlementError::DealNotFound => {
-                write!(f, "DealSettlementError: Deal Not Found")
-            }
-            DealSettlementError::EarlySettlement => {
-                write!(f, "DealSettlementError: Early Settlement")
-            }
-            DealSettlementError::ExpiredDeal => {
-                write!(f, "DealSettlementError: Expired Deal")
-            }
-            DealSettlementError::DealNotActive => {
-                write!(f, "DealSettlementError: Deal Not Active")
-            }
-        }
+        core::fmt::Display::fmt(self, f)
     }
 }
