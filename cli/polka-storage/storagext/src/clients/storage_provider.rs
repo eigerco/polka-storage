@@ -12,8 +12,11 @@ use crate::{
         self,
         bounded_vec::IntoBoundedByteVec,
         client::SubmissionResult,
-        runtime_types::pallet_storage_provider::{
-            proofs::SubmitWindowedPoStParams, storage_provider::StorageProviderState,
+        runtime_types::{
+            pallet_storage_provider::{
+                proofs::SubmitWindowedPoStParams, storage_provider::StorageProviderState,
+            },
+            primitives_proofs::CurrentDeadline,
         },
         storage_provider::calls::types::register_storage_provider::PeerId,
     },
@@ -98,9 +101,30 @@ pub trait StorageProviderClientExt {
     fn retrieve_registered_storage_providers(
         &self,
     ) -> impl Future<Output = Result<Vec<String>, subxt::Error>>;
+
+    fn current_deadline(
+        &self,
+        account_id: &AccountId32,
+    ) -> impl Future<Output = Result<Option<CurrentDeadline<BlockNumber>>, subxt::Error>>;
 }
 
 impl StorageProviderClientExt for crate::runtime::client::Client {
+    async fn current_deadline(
+        &self,
+        account_id: &AccountId32,
+    ) -> Result<Option<CurrentDeadline<BlockNumber>>, subxt::Error> {
+        let payload = runtime::apis()
+            .storage_provider_api()
+            .current_deadline(account_id.clone());
+
+        self.client
+            .runtime_api()
+            .at_latest()
+            .await?
+            .call(payload)
+            .await
+    }
+
     #[tracing::instrument(
         level = "debug",
         skip_all,

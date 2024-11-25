@@ -8,6 +8,7 @@ use sp_core::blake2_256;
 pub enum DomainSeparationTag {
     SealRandomness,
     InteractiveSealChallengeSeed,
+    WindowedPoStChallengeSeed,
 }
 
 impl DomainSeparationTag {
@@ -16,6 +17,7 @@ impl DomainSeparationTag {
         let value: i64 = match self {
             DomainSeparationTag::SealRandomness => 1,
             DomainSeparationTag::InteractiveSealChallengeSeed => 2,
+            DomainSeparationTag::WindowedPoStChallengeSeed => 3,
         };
 
         value.to_be_bytes()
@@ -46,7 +48,10 @@ pub fn draw_randomness(
     data.extend_from_slice(entropy);
 
     // Hash the data
-    blake2_256(&data)
+    let mut hashed = blake2_256(&data);
+    // Necessary to be valid bls12 381 element.
+    hashed[31] &= 0x3f;
+    hashed
 }
 
 #[cfg(test)]
