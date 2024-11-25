@@ -446,20 +446,27 @@ impl pallet_randomness::Config for Runtime {
 
 #[cfg(feature = "testnet")]
 mod randomness_source_testnet {
+    use codec::Decode;
     use frame_support::traits::Randomness;
     use frame_system::{pallet_prelude::BlockNumberFor, Config, Pallet};
-    use sp_runtime::traits::Hash;
+    use sp_runtime::traits::TrailingZeroInput;
     use sp_std::marker::PhantomData;
 
-    /// Randomness source that always returns same random value.
+    /// Randomness source that always returns same random value based on the
+    /// subject used.
+    ///
     /// ! USE THIS ONLY IN TESTNET !
     pub struct PredictableRandomnessSource<T>(PhantomData<T>);
-    impl<T: Config> Randomness<T::Hash, BlockNumberFor<T>> for PredictableRandomnessSource<T> {
-        fn random(_: &[u8]) -> (T::Hash, BlockNumberFor<T>) {
+    impl<Output, T> Randomness<Output, BlockNumberFor<T>> for PredictableRandomnessSource<T>
+    where
+        Output: Decode + Default,
+        T: Config,
+    {
+        fn random(subject: &[u8]) -> (Output, BlockNumberFor<T>) {
             (
-                T::Hashing::hash(&[]),
+                Output::decode(&mut TrailingZeroInput::new(subject)).unwrap_or_default(),
                 // This means the the randomness can be used immediately.
-                <Pallet<T>>::block_number(),
+                Pallet::<T>::block_number(),
             )
         }
     }

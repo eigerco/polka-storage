@@ -77,7 +77,7 @@ pub mod display;
         derive = "::serde::Serialize"
     ),
     derive_for_type(
-        path = "pallet_market::pallet::DealSettlementError",
+        path = "pallet_market::error::DealSettlementError",
         derive = "::serde::Serialize"
     ),
     derive_for_type(

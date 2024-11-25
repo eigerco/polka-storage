@@ -1,5 +1,8 @@
 use core::ops::{Add, AddAssign, Deref};
 
+use codec::{Decode, Encode};
+use scale_info::TypeInfo;
+
 use crate::{CommP, Commitment, NODE_SIZE};
 
 /// Piece info contains piece commitment and piece size.
@@ -100,6 +103,22 @@ impl Into<filecoin_proofs::UnpaddedBytesAmount> for UnpaddedPieceSize {
     }
 }
 
+#[derive(Clone, Eq, PartialEq, TypeInfo, Encode, Decode, thiserror::Error)]
+pub enum PaddedPieceSizeError {
+    #[error("minimum piece size is 128 bytes")]
+    SizeTooSmall,
+    #[error("padded piece size must be a power of 2")]
+    SizeNotPowerOfTwo,
+    #[error("padded_piece_size is not multiple of NODE_SIZE")]
+    NotAMultipleOfNodeSize,
+}
+
+impl core::fmt::Debug for PaddedPieceSizeError {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        core::fmt::Display::fmt(self, f)
+    }
+}
+
 /// Size of a piece in bytes with padding. The size is always a power of two
 /// number.
 #[cfg_attr(feature = "serde", derive(::serde::Deserialize, ::serde::Serialize))]
@@ -112,17 +131,17 @@ impl PaddedPieceSize {
 
     /// Initialize new padded piece size. Error is returned if the size is
     /// invalid.
-    pub fn new(size: u64) -> Result<Self, &'static str> {
+    pub fn new(size: u64) -> Result<Self, PaddedPieceSizeError> {
         if size < 128 {
-            return Err("minimum piece size is 128 bytes");
+            return Err(PaddedPieceSizeError::SizeTooSmall);
         }
 
         if size.count_ones() != 1 {
-            return Err("padded piece size must be a power of 2");
+            return Err(PaddedPieceSizeError::SizeNotPowerOfTwo);
         }
 
         if size % NODE_SIZE as u64 != 0 {
-            return Err("padded_piece_size is not multiple of NODE_SIZE");
+            return Err(PaddedPieceSizeError::NotAMultipleOfNodeSize);
         }
 
         Ok(Self(size))
@@ -197,6 +216,7 @@ impl Into<filecoin_proofs::PaddedBytesAmount> for PaddedPieceSize {
         filecoin_proofs::PaddedBytesAmount(self.0)
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -212,7 +232,7 @@ mod tests {
     fn invalid_piece_checks() {
         assert_eq!(
             PaddedPieceSize::new(127),
-            Err("minimum piece size is 128 bytes")
+            Err(PaddedPieceSizeError::SizeTooSmall)
         );
         assert_eq!(
             UnpaddedPieceSize::new(126),
@@ -220,7 +240,7 @@ mod tests {
         );
         assert_eq!(
             PaddedPieceSize::new(0b10000001),
-            Err("padded piece size must be a power of 2")
+            Err(PaddedPieceSizeError::SizeNotPowerOfTwo)
         );
         assert_eq!(
             UnpaddedPieceSize::new(0b1110111000),

@@ -14,6 +14,12 @@ Alice is a [Storage User](../glossary.md#storage-user) and wants to store an ima
 Alice knows that she needs to prepare an image for storage and get its [CID](https://github.com/multiformats/cid).
 To do so, she first converts it into a [CARv2 archive](https://ipld.io/specs/transport/car/carv2/) and gets the piece cid.
 
+<div class="warning">
+
+**🚧 Currently, the maximum supported piece size is 2048 bytes!**
+
+</div>
+
 ```bash
 $ mater-cli convert -q --overwrite polkadot.svg polkadot.car
 bafkreihoxd7eg2domoh2fxqae35t7ihbonyzcdzh5baevxzrzkaakevuvy
@@ -112,9 +118,6 @@ To sign her deal proposal she runs:
 
 ```bash
 $ polka-storage-provider-client sign-deal --sr25519-key "//Alice" @polka-logo-deal.json
-```
-
-```json
 {
   "deal_proposal": {
     "piece_cid": "baga6ea4seaqabpfwrqjcwrb4pxmo2d3dyrgj24kt4vqqqcbjoph4flpj2e5lyoq",
@@ -147,3 +150,17 @@ Successfully published deal of id: 0
 ```
 
 On Alice's side, that's it!
+
+> Note that you **must** sign and submit the deals before the `start_block`!
+>
+> Currently, the storage provider **does not reject deal proposals** on the basis of how early or late they are,
+> however, this may change! ⚠️ — for example, if a storage provider knows that they won't have enough time to process
+> your file for proof submission, they may refuse your proposal on the basis that if they accept it, they may fail the deadline.
+
+## Additional Notes
+
+* As other parts of this project, file retrieval is actively being worked on! 🚧
+* Files stored in storage providers are public, as such, we suggest you encrypt your files.
+  While file encryption is a broad enough topic, if you not sure about which tools to use,
+  we suggest you keep it simple by compressing your file in a format such as [7zip](https://www.7-zip.org/) and using its encryption features.
+  If 7zip doesn't cut it, you may want to take a look into [age](https://github.com/FiloSottile/age) or [VeraCrypt](https://www.veracrypt.fr/code/VeraCrypt/).

@@ -217,7 +217,7 @@ impl Sealer {
                 unsealed_sector,
                 sealed_sector,
                 prover_id,
-                sector_id.into(),
+                storage_proofs_core::sector::SectorId::from(u64::from(sector_id)),
                 ticket,
                 &piece_infos,
             )?;
@@ -278,7 +278,7 @@ impl Sealer {
                 cache_path,
                 replica_path,
                 prover_id,
-                sector_id.into(),
+                storage_proofs_core::sector::SectorId::from(u64::from(sector_id)),
                 ticket,
                 seed,
                 pre_commit.into(),
