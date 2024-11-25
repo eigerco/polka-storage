@@ -198,7 +198,7 @@ impl Into<filecoin_proofs::PaddedBytesAmount> for PaddedPieceSize {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum PaddedPieceSizeError {
     SizeTooSmall,
     SizeNotPowerOfTwo,
@@ -220,7 +220,7 @@ mod tests {
     fn invalid_piece_checks() {
         assert_eq!(
             PaddedPieceSize::new(127),
-            Err("minimum piece size is 128 bytes")
+            Err(PaddedPieceSizeError::SizeTooSmall)
         );
         assert_eq!(
             UnpaddedPieceSize::new(126),
@@ -228,7 +228,7 @@ mod tests {
         );
         assert_eq!(
             PaddedPieceSize::new(0b10000001),
-            Err("padded piece size must be a power of 2")
+            Err(PaddedPieceSizeError::SizeNotPowerOfTwo)
         );
         assert_eq!(
             UnpaddedPieceSize::new(0b1110111000),
