@@ -121,7 +121,7 @@ impl MarketCommand {
                 }
             }
             MarketCommand::RetrieveDeal { deal_id } => {
-                if let Some(deal) = client.retrieve_deal(deal_id.clone()).await? {
+                if let Some(deal) = client.retrieve_deal(deal_id).await? {
                     tracing::debug!("Deal {:?}", deal);
 
                     println!("{}", output_format.format(&deal)?);
