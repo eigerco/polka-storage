@@ -92,6 +92,12 @@ pub trait MarketClientExt {
         &self,
         account_id: <PolkaStorageConfig as subxt::Config>::AccountId,
     ) -> impl Future<Output = Result<Option<BalanceEntry<u128>>, subxt::Error>>;
+
+    /// Retrieve the deal for a given deal ID.
+    fn retrieve_deal(
+        &self,
+        deal_id: DealId,
+    ) -> impl Future<Output = Result<Option<DealProposal>, subxt::Error>>;
 }
 
 impl MarketClientExt for crate::runtime::client::Client {
@@ -278,5 +284,26 @@ impl MarketClientExt for crate::runtime::client::Client {
             .await?
             .fetch(&balance_table_query)
             .await
+    }
+
+    #[tracing::instrument(level = "debug", skip_all, fields(deal_id))]
+    async fn retrieve_deal(&self, deal_id: DealId) -> Result<Option<DealProposal>, subxt::Error> {
+        let deal_table_query = runtime::storage().market().proposals(deal_id);
+        let Some(deal) = self
+            .client
+            .storage()
+            .at_latest()
+            .await?
+            .fetch(&deal_table_query)
+            .await?
+        else {
+            return Ok(None);
+        };
+
+        let deal = DealProposal::try_from(deal).map_err(|e| {
+            subxt::Error::Other(format!("failed to convert deal proposal: {:?}", e))
+        })?;
+
+        Ok(Some(deal))
     }
 }
