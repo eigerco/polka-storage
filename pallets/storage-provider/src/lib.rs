@@ -35,7 +35,11 @@ pub mod pallet {
 
     extern crate alloc;
 
-    use alloc::{vec, vec::Vec};
+    use alloc::{
+        collections::{BTreeMap, BTreeSet},
+        vec,
+        vec::Vec,
+    };
     use core::fmt::Debug;
 
     use cid::Cid;
@@ -293,10 +297,10 @@ pub mod pallet {
             recoveries: BoundedVec<RecoveryDeclaration, ConstU32<DECLARATIONS_MAX>>,
         },
         /// Emitted when an SP doesn't submit Windowed PoSt in time and PoSt hook marks partitions as faulty
-        PartitionFaulty {
+        PartitionsFaulty {
             owner: T::AccountId,
-            partition: PartitionNumber,
-            sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
+            // No need to be bounded as we are creating the sets ourselves
+            faulty_partitions: BTreeMap<PartitionNumber, BTreeSet<SectorNumber>>,
         },
         /// Emitted when an SP terminates some sectors.
         SectorsTerminated {
@@ -1231,9 +1235,9 @@ pub mod pallet {
                 }
 
                 log::info!(target: LOG_TARGET, "block: {:?}, checking storage provider {:?} deadline: {:?}",
-                   current_block,
-                   storage_provider,
-                   current_deadline.idx,
+                    current_block,
+                    storage_provider,
+                    current_deadline.idx,
                 );
 
                 let Ok(deadline) =
@@ -1244,7 +1248,10 @@ pub mod pallet {
                     continue;
                 };
 
-                let mut faulty_partitions = 0;
+                let mut faulty_partitions_amount = 0;
+                // Create collection for fault partitions, 1 event per SP
+                let mut faulty_partitions: BTreeMap<PartitionNumber, BTreeSet<SectorNumber>> =
+                    BTreeMap::new();
                 for (partition_number, partition) in deadline.partitions.iter_mut() {
                     if partition.sectors.len() == 0 {
                         continue;
@@ -1278,24 +1285,23 @@ pub mod pallet {
                     current_block, storage_provider, partition_number, new_faults.len());
 
                     if new_faults.len() > 0 {
-                        Self::deposit_event(Event::PartitionFaulty {
-                            owner: storage_provider.clone(),
-                            partition: *partition_number,
-                            sectors: new_faults.try_into()
-                                .expect("new_faults.len() <= MAX_SECTORS, cannot be more new faults than all of the sectors in partition"),
-                        });
-                        faulty_partitions += 1;
+                        faulty_partitions.insert(*partition_number, new_faults);
+                        faulty_partitions_amount += 1;
                     }
                 }
 
                 // TODO(@th7nder,[#106,#187],08/08/2024): figure out slashing amounts (for continued faults, new faults).
-                if faulty_partitions > 0 {
+                if faulty_partitions_amount > 0 {
                     log::warn!(target: LOG_TARGET, "block: {:?}, sp: {:?}, deadline: {:?} - should have slashed {} partitions...",
                         current_block,
                         storage_provider,
                         current_deadline.idx,
-                        faulty_partitions,
+                        faulty_partitions_amount,
                     );
+                    Self::deposit_event(Event::PartitionsFaulty {
+                        owner: storage_provider.clone(),
+                        faulty_partitions,
+                    })
                 } else {
                     log::info!(target: LOG_TARGET, "block: {:?}, sp: {:?}, deadline: {:?} - all proofs submitted on time.",
                         current_block,

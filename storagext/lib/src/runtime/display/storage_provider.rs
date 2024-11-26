@@ -115,16 +115,22 @@ impl std::fmt::Display for Event {
                 )
                 .collect::<String>()
             )),
-            Event::PartitionFaulty {
+            Event::PartitionsFaulty {
                 owner,
-                partition,
-                sectors,
+                faulty_partitions,
             } => f.write_fmt(format_args!(
-                "Faulty Partition: {{ owner: {}, partition: {}, sectors: [{}] }}",
+                "Faulty Partitions: {{ owner: {}, faulty_partitions: [{}] }}",
                 owner,
-                partition,
                 itertools::Itertools::intersperse(
-                    sectors.0.iter().map(|recovery| format!("{}", recovery)),
+                    faulty_partitions.iter().map(|(partition, sectors)| format!(
+                        "{{ partition: {}, sectors: {} }}",
+                        partition,
+                        itertools::Itertools::intersperse(
+                            sectors.iter().map(|sector| format!("{}", sector)),
+                            ", ".to_string()
+                        )
+                        .collect::<String>()
+                    )),
                     ", ".to_string()
                 )
                 .collect::<String>()

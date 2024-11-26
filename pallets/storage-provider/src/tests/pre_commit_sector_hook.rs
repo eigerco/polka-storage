@@ -1,5 +1,8 @@
 extern crate alloc;
 
+use alloc::collections::{BTreeMap, BTreeSet};
+
+use primitives_proofs::SectorNumber;
 use sp_core::bounded_vec;
 
 use super::new_test_ext;
@@ -79,10 +82,12 @@ fn pre_commit_hook_slashed_deal() {
         assert_eq!(
             events(),
             [
-                RuntimeEvent::StorageProvider(Event::<Test>::PartitionFaulty {
+                RuntimeEvent::StorageProvider(Event::<Test>::PartitionsFaulty {
                     owner: account(storage_provider),
-                    partition: 0,
-                    sectors: sector_set(&[2])
+                    faulty_partitions: BTreeMap::from([(
+                        0,
+                        BTreeSet::from([SectorNumber::new(2).unwrap()])
+                    )]),
                 }),
                 RuntimeEvent::StorageProvider(Event::<Test>::SectorSlashed {
                     owner: account(storage_provider),

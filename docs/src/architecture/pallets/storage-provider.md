@@ -343,10 +343,9 @@ The Storage Provider Pallet emits the following events:
     - `deadline` - The deadline to which the recovered sectors are assigned.
     - `partition` - Partition number within the deadline containing the recovered sectors.
     - `sectors` - Sectors in the partition being declared as recovered.
-- `PartitionFaulty` - It was detected that a storage provider has not submitted their PoSt on time and has marked some sectors as faulty.
+- `PartitionsFaulty` - It was detected that a storage provider has not submitted their PoSt on time and has marked some partitions and sectors as faulty.
   - `owner` - SS58 address of the storage provider.
-  - `partition` - Partition number for which the PoSt was missed.
-  - `sectors` - The sectors in the partition declared faulty by the system.
+  - `faulty_partitions` - A map with partition numbers and the sectors associated with the partition number that are faulty.
 - `SectorsTerminated` - A storage provider has terminated some sectors.
   - `owner` - SS58 address of the storage provider.
   - `terminations` - An array with information about the terminated sectors. This information includes:

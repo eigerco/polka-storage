@@ -1,5 +1,7 @@
 extern crate alloc;
 
+use alloc::collections::{BTreeMap, BTreeSet};
+
 use frame_support::{assert_ok, pallet_prelude::Get};
 use primitives_proofs::{DealId, SectorNumber};
 use sp_core::bounded_vec;
@@ -68,16 +70,18 @@ fn marks_partitions_as_faulty() {
         let partition = &deadline.partitions[&0];
         let expected_sectors =
             sector_set::<MAX_SECTORS>(&[first_sector_number, second_sector_number]);
-
+        let faulty_sectors = BTreeSet::from([
+            SectorNumber::new(first_sector_number).unwrap(),
+            SectorNumber::new(second_sector_number).unwrap(),
+        ]);
         assert_eq!(partition.faults.len(), 2);
         assert_eq!(expected_sectors, partition.faults);
         assert_eq!(
             events(),
             [RuntimeEvent::StorageProvider(
-                Event::<Test>::PartitionFaulty {
+                Event::<Test>::PartitionsFaulty {
                     owner: account(storage_provider),
-                    partition: 0,
-                    sectors: expected_sectors.clone()
+                    faulty_partitions: BTreeMap::from([(0u32, faulty_sectors)]),
                 }
             ),]
         );
