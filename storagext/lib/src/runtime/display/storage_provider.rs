@@ -91,10 +91,10 @@ impl std::fmt::Display for Event {
                 owner,
                 sector_numbers,
             } => f.write_fmt(format_args!(
-                "Sector Slashed: {{ owner: {}, sector_number: {} }}",
+                "Sectors Slashed: {{ owner: {}, sector_numbers: {} }}",
                 owner,
                 itertools::Itertools::intersperse(
-                    sector_numbers.iter().map(|sector| format!("{}", sector)),
+                    sector_numbers.iter().map(ToString::to_string),
                     ", ".to_string()
                 )
                 .collect::<String>(),
@@ -131,7 +131,7 @@ impl std::fmt::Display for Event {
                         "{{ partition: {}, sectors: {} }}",
                         partition,
                         itertools::Itertools::intersperse(
-                            sectors.iter().map(|sector| format!("{}", sector)),
+                            sectors.iter().map(ToString::to_string),
                             ", ".to_string()
                         )
                         .collect::<String>()
