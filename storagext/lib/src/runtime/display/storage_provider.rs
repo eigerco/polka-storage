@@ -87,12 +87,17 @@ impl std::fmt::Display for Event {
                 "Sectors Proven: {{ owner: {}, sectors: {:?} }}",
                 owner, sectors,
             )),
-            Event::SectorSlashed {
+            Event::SectorsSlashed {
                 owner,
-                sector_number,
+                sector_numbers,
             } => f.write_fmt(format_args!(
                 "Sector Slashed: {{ owner: {}, sector_number: {} }}",
-                owner, sector_number,
+                owner,
+                itertools::Itertools::intersperse(
+                    sector_numbers.iter().map(|sector| format!("{}", sector)),
+                    ", ".to_string()
+                )
+                .collect::<String>(),
             )),
             Event::ValidPoStSubmitted { owner } => {
                 f.write_fmt(format_args!("Valid PoSt Submitted: {{ owner: {} }}", owner,))

@@ -10,9 +10,9 @@ use crate::{
     pallet::{Event, StorageProviders},
     sector::ProveCommitSector,
     tests::{
-        account, events, publish_deals, register_storage_provider, run_to_block, sector_set,
-        Balances, RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System,
-        Test, CHARLIE,
+        account, events, publish_deals, register_storage_provider, run_to_block, Balances,
+        RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System, Test,
+        CHARLIE,
     },
 };
 
@@ -89,10 +89,6 @@ fn pre_commit_hook_slashed_deal() {
                         BTreeSet::from([SectorNumber::new(2).unwrap()])
                     )]),
                 }),
-                RuntimeEvent::StorageProvider(Event::<Test>::SectorSlashed {
-                    owner: account(storage_provider),
-                    sector_number: 1.into(),
-                }),
                 // the slash -> withdraw is related to the usage of slash_and_burn
                 // when slashing the SP for a failed pre_commit
                 // this usage may need review for a proper economic balance
@@ -109,6 +105,10 @@ fn pre_commit_hook_slashed_deal() {
                 }),
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded {
                     amount: deal_precommit_deposit
+                }),
+                RuntimeEvent::StorageProvider(Event::<Test>::SectorsSlashed {
+                    owner: account(storage_provider),
+                    sector_numbers: vec![1.into()],
                 }),
             ]
         );

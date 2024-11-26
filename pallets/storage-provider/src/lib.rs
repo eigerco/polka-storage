@@ -280,9 +280,10 @@ pub mod pallet {
             sectors: BoundedVec<ProveCommitResult, ConstU32<MAX_SECTORS_PER_CALL>>,
         },
         /// Emitted when a sector was pre-committed, but not proven, so it got slashed in the pre-commit hook.
-        SectorSlashed {
+        SectorsSlashed {
             owner: T::AccountId,
-            sector_number: SectorNumber,
+            // No need for a bounded collection as we produce the output ourselves.
+            sector_numbers: Vec<SectorNumber>,
         },
         /// Emitted when an SP submits a valid PoSt
         ValidPoStSubmitted { owner: T::AccountId },
@@ -1104,18 +1105,16 @@ pub mod pallet {
                     return;
                 }
 
+                let mut removed_sectors = Vec::new();
                 log::info!(target: LOG_TARGET, "found {} expired pre committed sectors for {:?}", expired.len(), storage_provider);
                 for sector_number in expired {
                     // Expired sectors should be removed, because in other case they'd be processed twice in the next block.
-                    let Ok(()) = state.remove_pre_committed_sector(sector_number) else {
+                    if let Ok(()) = state.remove_pre_committed_sector(sector_number) {
+                        removed_sectors.push(sector_number)
+                    } else {
                         log::error!(target: LOG_TARGET, "catastrophe, failed to remove sector {} for {:?}", sector_number, storage_provider);
                         continue;
                     };
-
-                    Self::deposit_event(Event::<T>::SectorSlashed {
-                        sector_number,
-                        owner: storage_provider.clone(),
-                    });
                 }
 
                 let Some(slashed_deposits) = state.pre_commit_deposits.checked_sub(&slash_amount)
@@ -1132,6 +1131,10 @@ pub mod pallet {
                 };
 
                 StorageProviders::<T>::insert(&storage_provider, state);
+                Self::deposit_event(Event::<T>::SectorsSlashed {
+                    owner: storage_provider,
+                    sector_numbers: removed_sectors,
+                })
             }
         }
 
