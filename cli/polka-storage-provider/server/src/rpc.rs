@@ -80,9 +80,9 @@ impl StorageProviderRpcServer for RpcServerState {
             ));
         }
 
-        if deal.storage_price_per_block <= 0 {
+        if deal.storage_price_per_block == 0 {
             return Err(RpcError::invalid_params(
-                "storage_price_per_block must be superior to 0",
+                "storage_price_per_block must be greater than 0",
                 None,
             ));
         }
