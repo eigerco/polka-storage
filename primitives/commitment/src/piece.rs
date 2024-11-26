@@ -35,6 +35,14 @@ impl From<PieceInfo> for filecoin_proofs::PieceInfo {
     }
 }
 
+#[derive(PartialEq, Debug, Eq, Clone, Copy, thiserror::Error)]
+pub enum UnpaddedPieceError {
+    #[error("minimum piece size is 127 bytes")]
+    TooSmall,
+    #[error("unpadded piece size must be a power of 2 multiple of 127")]
+    WrongSize,
+}
+
 /// Size of a piece in bytes. Unpadded piece size should be power of two
 /// multiple of 127.
 #[cfg_attr(feature = "serde", derive(::serde::Deserialize, ::serde::Serialize))]
@@ -47,14 +55,14 @@ impl UnpaddedPieceSize {
 
     /// Initialize new unpadded piece size. Error is returned if the size is
     /// invalid.
-    pub fn new(size: u64) -> Result<Self, &'static str> {
+    pub fn new(size: u64) -> Result<Self, UnpaddedPieceError> {
         if size < 127 {
-            return Err("minimum piece size is 127 bytes");
+            return Err(UnpaddedPieceError::TooSmall);
         }
 
         // is 127 * 2^n
         if size >> size.trailing_zeros() != 127 {
-            return Err("unpadded piece size must be a power of 2 multiple of 127");
+            return Err(UnpaddedPieceError::WrongSize);
         }
 
         Ok(Self(size))
@@ -236,7 +244,7 @@ mod tests {
         );
         assert_eq!(
             UnpaddedPieceSize::new(126),
-            Err("minimum piece size is 127 bytes")
+            Err(UnpaddedPieceError::TooSmall)
         );
         assert_eq!(
             PaddedPieceSize::new(0b10000001),
@@ -244,7 +252,7 @@ mod tests {
         );
         assert_eq!(
             UnpaddedPieceSize::new(0b1110111000),
-            Err("unpadded piece size must be a power of 2 multiple of 127")
+            Err(UnpaddedPieceError::WrongSize)
         );
         assert!(UnpaddedPieceSize::new(0b1111111000).is_ok());
     }
