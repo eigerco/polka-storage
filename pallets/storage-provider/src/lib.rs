@@ -755,7 +755,7 @@ pub mod pallet {
                                 comm_r: comm_r.raw(),
                             },
                         )
-                        .map_err(|_| Error::<T>::TooManyReplicas);
+                        .map_err(|_| Error::<T>::TooManyReplicas)?;
                 }
             }
 
