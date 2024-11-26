@@ -1072,7 +1072,7 @@ pub mod pallet {
         /// conversion between BlockNumbers fails, but technically should not ever happen.
         pub fn current_deadline(
             storage_provider: &T::AccountId,
-        ) -> core::option::Option<primitives_proofs::CurrentDeadline<BlockNumberFor<T>>> {
+        ) -> Option<primitives_proofs::CurrentDeadline<BlockNumberFor<T>>> {
             let sp = StorageProviders::<T>::try_get(storage_provider).ok()?;
             let current_block = <frame_system::Pallet<T>>::block_number();
 

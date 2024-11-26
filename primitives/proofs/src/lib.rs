@@ -52,7 +52,7 @@ sp_api::decl_runtime_apis! {
         /// If there is no Storage Provider of given AccountId returns [`Option::None`].
         /// May exceptionally return [`Option::None`] when
         /// conversion between BlockNumbers fails, but technically should not ever happen.
-        fn current_deadline(storage_provider: AccountId) -> core::option::Option<
+        fn current_deadline(storage_provider: AccountId) -> Option<
             CurrentDeadline<
                 <<Block as sp_runtime::traits::Block>::Header as sp_runtime::traits::Header>::Number
             >
