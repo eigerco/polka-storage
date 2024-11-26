@@ -2,18 +2,27 @@ use crate::{
     runtime::{
         market::Event,
         runtime_types::{
-            pallet_market::pallet::{self, BalanceEntry},
+            pallet_market::pallet::{self, BalanceEntry, DealState},
             polka_storage_runtime::Runtime,
         },
     },
     types::market::DealProposal,
 };
 
+impl std::fmt::Display for DealState<u64> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DealState::Published => f.write_str("Published"),
+            DealState::Active(state) => f.write_fmt(format_args!("Active({{ sector_number: {}, sector_start_block: {}, last_updated_block: {:?}, slash_block: {:?} }})", state.sector_number, state.sector_start_block, state.last_updated_block, state.slash_block)),
+        }
+    }
+}
+
 impl std::fmt::Display for DealProposal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "Deal Proposal {{ piece_cid: {}, piece_size: {}, provider: {}, client: {}, label: {}, start_block: {}, end_block: {}, storage_price_per_block: {}, provider_collateral: {} }}",
-            self.piece_cid, self.piece_size, self.provider, self.client, self.label, self.start_block, self.end_block, self.storage_price_per_block, self.provider_collateral
+            "Deal Proposal {{ piece_cid: {}, piece_size: {}, provider: {}, client: {}, label: {}, start_block: {}, end_block: {}, storage_price_per_block: {}, provider_collateral: {}, state: {} }}",
+            self.piece_cid, self.piece_size, self.provider, self.client, self.label, self.start_block, self.end_block, self.storage_price_per_block, self.provider_collateral, self.state
         ))
     }
 }
