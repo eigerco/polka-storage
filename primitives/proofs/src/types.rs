@@ -37,9 +37,9 @@ impl SectorNumber {
     ///
     /// Returns a `Result` containing the new `SectorNumber` if valid,
     /// or an error message if the sector number exceeds `MAX_SECTORS`.
-    pub fn new(sector_number: u32) -> Result<Self, &'static str> {
+    pub fn new(sector_number: u32) -> Result<Self, SectorNumberError> {
         if sector_number > MAX_SECTORS {
-            return Err("Sector number is too large");
+            return Err(SectorNumberError::NumberTooLarge);
         }
 
         Ok(Self(sector_number))
@@ -67,6 +67,25 @@ impl Decode for SectorNumber {
         let value = u32::decode(input)?;
         SectorNumber::new(value).map_err(|_| "Sector number is too large".into())
     }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    Eq,
+    Encode,
+    EncodeAsType,
+    TypeInfo,
+    RuntimeDebug,
+    MaxEncodedLen,
+    thiserror::Error,
+)]
+pub enum SectorNumberError {
+    #[error("Sector number is too large")]
+    NumberTooLarge,
 }
 
 // Implement the `Visitor` trait to define how to go from SCALE
@@ -130,7 +149,7 @@ impl From<u16> for SectorNumber {
 }
 
 impl TryFrom<u32> for SectorNumber {
-    type Error = &'static str;
+    type Error = SectorNumberError;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         Self::new(value)

@@ -3,7 +3,7 @@ use std::{
     sync::atomic::{AtomicU32, Ordering},
 };
 
-use primitives_proofs::SectorNumber;
+use primitives_proofs::{SectorNumber, SectorNumberError};
 use rocksdb::{ColumnFamily, ColumnFamilyDescriptor, Options as DBOptions, DB as RocksDB};
 use serde::{de::DeserializeOwned, Serialize};
 use storagext::types::market::{ConversionError, DealProposal};
@@ -184,7 +184,7 @@ impl DealDB {
 
     /// Atomically increments sector_id counter, so it can be used as an identifier by a sector.
     /// Prior to all of the calls to this function, `initialize_biggest_sector_id` must be called at the node start-up.
-    pub fn next_sector_number(&self) -> Result<SectorNumber, &'static str> {
+    pub fn next_sector_number(&self) -> Result<SectorNumber, SectorNumberError> {
         // [`Ordering::Relaxed`] can be used here, as it's an update on a single variable.
         // It does not depend on other Atomic variables and it does not matter which thread makes it first.
         // We just need it to be different on every thread that calls it concurrently, so the ids are not duplicated.
