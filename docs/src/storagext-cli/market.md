@@ -174,10 +174,28 @@ The `retrieve-balance` command checks the balance of a given market account.
 | ------------ | ------------------------------------ |
 | `ACCOUNT_ID` | The IDs of the account being checked |
 
-### <a class="header" id="settle-deal-payments.example" href="#settle-deal-payments.example">Example</a>
+### <a class="header" id="retrieve-balance.example" href="#retrieve-balance.example">Example</a>
 
 ```bash
 storagext-cli market retrieve-balance "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY" # Alice's account
+```
+
+> This command **is not signed**, and does not need to be called using any of the `--X-key` flags.
+
+## `retrieve-deal`
+
+The `retrieve-deal` command fetches detailed information about a specific storage deal from the chain. This command allows users to check the current status, parameters, and other relevant details of an existing deal. If the specified deal is not found, it could indicate that the deal was never published, has already been completed, or was terminated.
+
+### Parameters
+
+| Name      | Description                        |
+| --------- | ---------------------------------- |
+| `DEAL_ID` | The ID of the deal being retrieved |
+
+### <a class="header" id="retrieve-deal.example" href="#retrieve-deal.example">Example</a>
+
+```bash
+storagext-cli market market retrieve-deal 0
 ```
 
 > This command **is not signed**, and does not need to be called using any of the `--X-key` flags.
