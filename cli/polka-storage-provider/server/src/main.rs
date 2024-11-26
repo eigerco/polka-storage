@@ -454,7 +454,11 @@ impl ServerConfiguration {
 
         // Check if the account exists on the market
         xt_client
-            .retrieve_balance(storage_provider_account_id)
+            // Once subxt breaks our code with https://github.com/paritytech/subxt/pull/1850
+            // we'll be able to make all this uniform
+            .retrieve_balance(subxt::ext::sp_runtime::AccountId32::new(
+                storage_provider_account_id.0,
+            ))
             .await?
             .ok_or(ServerError::NoMarketAccountStorageProvider)?;
 
