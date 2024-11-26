@@ -17,7 +17,7 @@ use primitives_proofs::{RegisteredPoStProof, RegisteredSealProof};
 use rand::Rng;
 use storagext::{
     multipair::{DebugPair, MultiPairSigner},
-    StorageProviderClientExt,
+    MarketClientExt, StorageProviderClientExt,
 };
 use subxt::{
     ext::sp_core::{
@@ -112,6 +112,9 @@ pub enum ServerError {
 
     #[error("storage provider is not registered")]
     UnregisteredStorageProvider,
+
+    #[error("storage provider does not have a market account")]
+    NoMarketAccountStorageProvider,
 
     #[error("registered proof does not match the configuration")]
     ProofMismatch,
@@ -437,15 +440,23 @@ impl ServerConfiguration {
     ) -> Result<storagext::Client, ServerError> {
         let xt_client = storagext::Client::new(rpc_address, RETRY_NUMBER, RETRY_INTERVAL).await?;
 
+        let storage_provider_account_id = subxt::utils::AccountId32(
+            // account_id() -> sp_core::crypto::AccountId
+            // as_ref() -> &[u8]
+            // * -> [u8]
+            *xt_keypair.account_id().as_ref(),
+        );
+
         // Check if the storage provider has been registered to the chain
         let storage_provider_info = xt_client
-            .retrieve_storage_provider(&subxt::utils::AccountId32(
-                // account_id() -> sp_core::crypto::AccountId
-                // as_ref() -> &[u8]
-                // * -> [u8]
-                *xt_keypair.account_id().as_ref(),
-            ))
+            .retrieve_storage_provider(&storage_provider_account_id)
             .await?;
+
+        // Check if the account exists on the market
+        xt_client
+            .retrieve_balance(storage_provider_account_id)
+            .await?
+            .ok_or(ServerError::NoMarketAccountStorageProvider)?;
 
         match storage_provider_info {
             Some(storage_provider_info) => {
