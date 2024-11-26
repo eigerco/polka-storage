@@ -10,7 +10,7 @@ pub mod display;
 // NOTE: you'll need to reload the window if the underlying SCALE file changes
 // https://github.com/rust-lang/rust-analyzer/issues/10719
 #[subxt::subxt(
-    runtime_metadata_path = "../../artifacts/metadata.scale",
+    runtime_metadata_path = "./artifacts/metadata.scale",
     derive_for_all_types = "Clone, PartialEq, Eq",
     substitute_type(
         path = "sp_runtime::MultiSignature",
