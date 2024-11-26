@@ -441,8 +441,11 @@ impl ProofsCommand {
                 let comm_r =
                     cid::Cid::from_str(&comm_r).map_err(|_| UtilsCommandError::CommRError)?;
 
+                let sector_number = SectorNumber::try_from(sector_number)
+                    .map_err(|_| UtilsCommandError::InvalidSectorId)?;
+
                 let replicas = vec![ReplicaInfo {
-                    sector_id: sector_number.try_into().unwrap(),
+                    sector_id: sector_number,
                     comm_r: comm_r
                         .hash()
                         .digest()

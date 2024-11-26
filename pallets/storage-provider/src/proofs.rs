@@ -14,7 +14,7 @@ use crate::partition::{PartitionNumber, MAX_PARTITIONS_PER_DEADLINE};
 pub struct PoStProof {
     /// The proof type, currently only one type is supported.
     pub post_proof: RegisteredPoStProof,
-    /// The proof submission, to be checked in the storage provider pallet.
+    /// The proof submission, to be checked by [`ProofVerification::verify_post`], usually [`pallet_proofs`].
     pub proof_bytes: BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>,
 }
 

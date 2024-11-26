@@ -57,10 +57,10 @@ std = [
   "frame-support/std",
   "frame-system/std",
   "pallet-balances/std",
+  "primitives-proofs/std",
   "scale-info/std",
   "sp-core/std",
   "sp-io/std",
   "sp-runtime/std",
-  "primitives-proofs/std",
 ]
 try-runtime = ["frame-support/try-runtime", "frame-system/try-runtime", "sp-runtime/try-runtime"]

@@ -20,7 +20,7 @@ frame-support = { workspace = true, features = ["std"] }
 futures.workspace = true
 hex = { workspace = true, features = ["serde"] }
 itertools = { workspace = true }
-primitives-proofs = { workspace = true, features = ["std", "serde"] }
+primitives-proofs = { workspace = true, features = ["serde", "std"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha2 = { workspace = true }

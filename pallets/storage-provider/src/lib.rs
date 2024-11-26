@@ -316,8 +316,9 @@ pub mod pallet {
         /// extrinsic but is not registered as one.
         StorageProviderNotFound,
         /// Emitted when trying to access an invalid sector.
-        InvalidPartition,
         InvalidSector,
+        /// Emitted when trying to submit PoSt for an not-existing partition for a deadline.
+        InvalidPartition,
         /// Emitted when submitting an invalid proof type.
         InvalidProofType,
         /// Emitted when the proof is invalid
@@ -359,6 +360,7 @@ pub mod pallet {
         CouldNotTerminateDeals,
         /// Tried to terminate sectors that are not mutable.
         CannotTerminateImmutableDeadline,
+        /// Emitted when trying to submit PoSt with partitions containing too many sectors (>2349).
         TooManyReplicas,
         /// Inner pallet errors
         GeneralPalletError(crate::error::GeneralPalletError),
@@ -1063,6 +1065,11 @@ pub mod pallet {
     }
 
     impl<T: Config> Pallet<T> {
+        /// Gets the current deadline of the storage provider.
+        ///
+        /// If there is no Storage Provider of given AccountId returns [`Option::None`].
+        /// May exceptionally return [`Option::None`] when
+        /// conversion between BlockNumbers fails, but technically should not ever happen.
         pub fn current_deadline(
             storage_provider: &T::AccountId,
         ) -> core::option::Option<primitives_proofs::CurrentDeadline<BlockNumberFor<T>>> {
