@@ -221,7 +221,7 @@ mod tests {
 
     use crate::commitment::{
         CommD, CommP, CommR, Commitment, FIL_COMMITMENT_SEALED, FIL_COMMITMENT_UNSEALED,
-        SHA2_256_TRUNC254_PADDED,
+        POSEIDON_BLS12_381_A1_FC1, SHA2_256_TRUNC254_PADDED,
     };
 
     fn rand_comm() -> [u8; 32] {
@@ -263,6 +263,11 @@ mod tests {
     #[test]
     fn comm_r_to_cid() {
         let comm = rand_comm();
+        let cid = Commitment::<CommR>::from(comm).cid();
+
+        assert_eq!(cid.codec(), FIL_COMMITMENT_SEALED);
+        assert_eq!(cid.hash().code(), POSEIDON_BLS12_381_A1_FC1);
+        assert_eq!(cid.hash().digest(), comm);
     }
 
     #[test]

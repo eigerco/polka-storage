@@ -56,7 +56,7 @@ pub fn draw_randomness(
 
 #[cfg(test)]
 mod tests {
-    use crate::randomness::{draw_randomness, DomainSeparationTag};
+    use super::{draw_randomness, DomainSeparationTag};
 
     #[test]
     fn draw_randomness_test() {
