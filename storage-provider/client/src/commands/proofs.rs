@@ -18,11 +18,8 @@ use primitives::{
         piece::{PaddedPieceSize, PieceInfo},
         Commitment, CommitmentError,
     },
-    proofs::{
-        derive_prover_id,
-        randomness::{draw_randomness, DomainSeparationTag},
-        RegisteredPoStProof, RegisteredSealProof, SectorNumber,
-    },
+    proofs::{derive_prover_id, RegisteredPoStProof, RegisteredSealProof, SectorNumber},
+    randomness::{draw_randomness, DomainSeparationTag},
 };
 use storagext::multipair::{MultiPairArgs, MultiPairSigner};
 use subxt::tx::Signer;

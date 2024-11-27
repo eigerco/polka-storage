@@ -9,11 +9,8 @@ use polka_storage_proofs::porep::{
 use polka_storage_provider_common::rpc::ServerInfo;
 use primitives::{
     commitment::{CommD, CommP, CommR, Commitment},
-    proofs::{
-        derive_prover_id,
-        randomness::{draw_randomness, DomainSeparationTag},
-        SectorNumber,
-    },
+    proofs::{derive_prover_id, SectorNumber},
+    randomness::{draw_randomness, DomainSeparationTag},
 };
 use storagext::{
     types::{

@@ -2,6 +2,7 @@
 
 pub mod commitment;
 pub mod proofs;
+pub mod randomness;
 
 /// Merkle tree node size in bytes.
 pub const NODE_SIZE: usize = 32;
