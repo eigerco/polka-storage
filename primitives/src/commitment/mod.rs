@@ -34,6 +34,9 @@ pub const SHA2_256_TRUNC254_PADDED: u64 = 0x1012;
 /// https://github.com/multiformats/multicodec/blob/badcfe56bb7e0bbb06b60d57565186cd6be1f932/table.csv#L537
 pub const POSEIDON_BLS12_381_A1_FC1: u64 = 0xb401;
 
+/// Byte representation of a raw commitment.
+pub type RawCommitment = [u8; 32];
+
 #[sealed]
 pub trait CommitmentKind {
     /// Returns the [Multicodec](https://github.com/multiformats/multicodec/blob/master/table.csv) code for the commitment kind.
@@ -110,7 +113,7 @@ pub struct Commitment<Kind>
 where
     Kind: CommitmentKind,
 {
-    raw: [u8; 32],
+    raw: RawCommitment,
     kind: PhantomData<Kind>,
 }
 
@@ -148,7 +151,7 @@ where
     }
 
     /// Returns the raw commitment bytes.
-    pub fn raw(&self) -> [u8; 32] {
+    pub fn raw(&self) -> RawCommitment {
         self.raw
     }
 
@@ -182,11 +185,11 @@ where
     }
 }
 
-impl<Kind> From<[u8; 32]> for Commitment<Kind>
+impl<Kind> From<RawCommitment> for Commitment<Kind>
 where
     Kind: CommitmentKind,
 {
-    fn from(value: [u8; 32]) -> Self {
+    fn from(value: RawCommitment) -> Self {
         Self {
             raw: value,
             kind: PhantomData,
@@ -219,18 +222,19 @@ mod tests {
 
     use cid::{multihash::Multihash, Cid};
 
+    use super::RawCommitment;
     use crate::commitment::{
         CommD, CommP, CommR, Commitment, FIL_COMMITMENT_SEALED, FIL_COMMITMENT_UNSEALED,
         POSEIDON_BLS12_381_A1_FC1, SHA2_256_TRUNC254_PADDED,
     };
 
-    fn rand_comm() -> [u8; 32] {
+    fn rand_raw_comm() -> RawCommitment {
         rand::random::<[u8; 32]>()
     }
 
     #[test]
     fn comm_d_to_cid() {
-        let raw = rand_comm();
+        let raw = rand_raw_comm();
 
         let cid = Commitment::<CommD>::from(raw).cid();
         assert_eq!(cid.codec(), FIL_COMMITMENT_UNSEALED);
@@ -240,7 +244,7 @@ mod tests {
 
     #[test]
     fn cid_to_comm_d() {
-        let raw = rand_comm();
+        let raw = rand_raw_comm();
 
         // Correct hash format
         let mh = Multihash::wrap(SHA2_256_TRUNC254_PADDED, &raw).unwrap();
@@ -262,7 +266,7 @@ mod tests {
 
     #[test]
     fn comm_r_to_cid() {
-        let comm = rand_comm();
+        let comm = rand_raw_comm();
         let cid = Commitment::<CommR>::from(comm).cid();
 
         assert_eq!(cid.codec(), FIL_COMMITMENT_SEALED);
@@ -272,7 +276,7 @@ mod tests {
 
     #[test]
     fn cid_to_comm_r() {
-        let comm = rand_comm();
+        let comm = rand_raw_comm();
 
         // Correct hash format
         let mh = Multihash::wrap(POSEIDON_BLS12_381_A1_FC1, &comm).unwrap();
@@ -294,7 +298,7 @@ mod tests {
 
     #[test]
     fn symmetric_conversion() {
-        let raw = rand_comm();
+        let raw = rand_raw_comm();
 
         // piece
         let cid = Commitment::<CommP>::from(raw).cid();

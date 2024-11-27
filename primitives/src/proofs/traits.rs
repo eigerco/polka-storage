@@ -5,8 +5,9 @@ use sp_core::ConstU32;
 use sp_runtime::{BoundedBTreeMap, BoundedVec, DispatchError, DispatchResult, RuntimeDebug};
 
 use super::types::{
-    DealId, ProverId, RawCommitment, RegisteredPoStProof, RegisteredSealProof, SectorNumber, Ticket,
+    DealId, ProverId, RegisteredPoStProof, RegisteredSealProof, SectorNumber, Ticket,
 };
+use crate::commitment::RawCommitment;
 
 /// Size of a CID with a 512-bit multihash — i.e. the size of CommR/CommD/CommP
 pub const CID_SIZE_IN_BYTES: u32 = 64;

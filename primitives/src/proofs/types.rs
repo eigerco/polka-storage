@@ -9,11 +9,9 @@ use scale_encode::EncodeAsType;
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
-pub type DealId = u64;
+use crate::MAX_SECTORS;
 
-/// Max number of sectors.
-/// <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/runtime/src/runtime/policy.rs#L262>
-pub const MAX_SECTORS: u32 = 32 << 20;
+pub type DealId = u64;
 
 /// SectorNumber is a unique identifier for a sector.
 #[derive(
@@ -177,9 +175,6 @@ impl Display for SectorNumber {
 /// Byte representation of the entity that was signing the proof.
 /// It must match the ProverId used for Proving.
 pub type ProverId = [u8; 32];
-
-/// Byte representation of a commitment - CommR or CommD.
-pub type RawCommitment = [u8; 32];
 
 /// Byte representation of randomness seed, it's used for challenge generation.
 pub type Ticket = [u8; 32];

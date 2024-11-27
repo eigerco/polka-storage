@@ -1,7 +1,10 @@
 mod config;
 
 use config::{Config, PoRepID};
-use primitives::proofs::{ProverId, RawCommitment, RegisteredSealProof, SectorNumber, Ticket};
+use primitives::{
+    commitment::RawCommitment,
+    proofs::{ProverId, RegisteredSealProof, SectorNumber, Ticket},
+};
 use sha2::{Digest, Sha256};
 
 use crate::{
