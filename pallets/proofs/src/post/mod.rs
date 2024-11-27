@@ -5,7 +5,8 @@ use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeMap};
 use polka_storage_proofs::get_partitions_for_window_post;
 use primitives::{
     commitment::RawCommitment,
-    proofs::{PublicReplicaInfo, RegisteredPoStProof, SectorNumber, Ticket, MAX_SECTORS_PER_PROOF},
+    proofs::{PublicReplicaInfo, RegisteredPoStProof, Ticket, MAX_SECTORS_PER_PROOF},
+    sector::SectorNumber,
     NODE_SIZE,
 };
 use sha2::{Digest, Sha256};

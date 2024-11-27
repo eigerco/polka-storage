@@ -1,8 +1,10 @@
 use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::*, BoundedVec};
-use primitives::proofs::{
-    DealId, RegisteredSealProof, SectorDeal, SectorNumber, CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR,
-    MAX_SEAL_PROOF_BYTES, MAX_TERMINATIONS_PER_CALL,
+use primitives::{
+    pallets::SectorDeal,
+    proofs::{DealId, RegisteredSealProof},
+    sector::SectorNumber,
+    CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR, MAX_SEAL_PROOF_BYTES, MAX_TERMINATIONS_PER_CALL,
 };
 use scale_info::TypeInfo;
 

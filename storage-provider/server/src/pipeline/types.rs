@@ -2,7 +2,8 @@ use std::path::PathBuf;
 
 use primitives::{
     commitment::{piece::PieceInfo, CommD, CommP, CommR, Commitment},
-    proofs::{DealId, SectorNumber},
+    proofs::DealId,
+    sector::SectorNumber,
 };
 use serde::{Deserialize, Serialize};
 use storagext::types::market::DealProposal;

@@ -13,7 +13,8 @@ use primitives::{
         piece::{PaddedPieceSize, PieceInfo},
         CommD, CommP, CommR, Commitment,
     },
-    proofs::{RegisteredSealProof, SectorNumber},
+    proofs::RegisteredSealProof,
+    sector::SectorNumber,
 };
 use storage_proofs_core::{compound_proof, compound_proof::CompoundProof};
 use storage_proofs_porep::stacked::{self, StackedCompound, StackedDrg};

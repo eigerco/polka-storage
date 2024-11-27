@@ -3,7 +3,8 @@ mod config;
 use config::{Config, PoRepID};
 use primitives::{
     commitment::RawCommitment,
-    proofs::{ProverId, RegisteredSealProof, SectorNumber, Ticket},
+    proofs::{ProverId, RegisteredSealProof, Ticket},
+    sector::SectorNumber,
 };
 use sha2::{Digest, Sha256};
 

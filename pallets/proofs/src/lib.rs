@@ -30,9 +30,10 @@ pub mod pallet {
         commitment::RawCommitment,
         proofs::{
             ProofVerification, ProverId, PublicReplicaInfo, RegisteredPoStProof,
-            RegisteredSealProof, SectorNumber, Ticket, MAX_POST_PROOF_BYTES, MAX_SEAL_PROOF_BYTES,
+            RegisteredSealProof, Ticket, MAX_POST_PROOF_BYTES, MAX_SEAL_PROOF_BYTES,
             MAX_SECTORS_PER_PROOF,
         },
+        sector::SectorNumber,
     };
 
     use crate::{

@@ -6,7 +6,10 @@
 use std::collections::BTreeSet;
 
 use cid::Cid;
-use primitives::proofs::{DealId, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
+use primitives::{
+    proofs::{DealId, RegisteredPoStProof, RegisteredSealProof},
+    sector::SectorNumber,
+};
 
 use crate::{
     runtime::{

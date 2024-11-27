@@ -25,12 +25,12 @@ pub mod display;
         with = "::primitives::proofs::RegisteredPoStProof",
     ),
     substitute_type(
-        path = "primitives::proofs::types::SectorSize",
-        with = "::primitives::proofs::SectorSize",
+        path = "primitives::sector::SectorSize",
+        with = "::primitives::sector::SectorSize",
     ),
     substitute_type(
-        path = "primitives::proofs::types::SectorNumber",
-        with = "::primitives::proofs::SectorNumber",
+        path = "primitives::sector::SectorNumber",
+        with = "::primitives::sector::SectorNumber",
     ),
     // impl Deserialize
     derive_for_type(

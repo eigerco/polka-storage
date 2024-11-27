@@ -11,7 +11,7 @@ use filecoin_proofs::{
     as_safe_commitment, parameters::window_post_setup_params, PoStType, PrivateReplicaInfo,
     SectorShapeBase,
 };
-use primitives::proofs::{RegisteredPoStProof, SectorNumber};
+use primitives::{proofs::RegisteredPoStProof, sector::SectorNumber};
 use rand::rngs::OsRng;
 use storage_proofs_core::compound_proof::{self, CompoundProof};
 use storage_proofs_post::fallback::{

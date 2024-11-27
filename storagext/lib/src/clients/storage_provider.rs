@@ -16,7 +16,7 @@ use crate::{
             pallet_storage_provider::{
                 proofs::SubmitWindowedPoStParams, storage_provider::StorageProviderState,
             },
-            primitives::proofs::CurrentDeadline,
+            primitives::pallets::CurrentDeadline,
         },
         storage_provider::calls::types::register_storage_provider::PeerId,
     },

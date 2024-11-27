@@ -8,7 +8,7 @@ use core::ops::AddAssign;
 
 use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeSet};
-use primitives::proofs::SectorNumber;
+use primitives::sector::SectorNumber;
 use scale_info::TypeInfo;
 
 use crate::{

@@ -1,4 +1,4 @@
-use primitives::proofs::SectorNumber;
+use primitives::sector::SectorNumber;
 use sp_core::bounded_vec;
 use sp_runtime::{BoundedBTreeMap, BoundedBTreeSet};
 

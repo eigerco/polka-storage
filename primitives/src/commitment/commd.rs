@@ -8,7 +8,7 @@ use super::{
     piece::{PaddedPieceSize, PieceInfo, UnpaddedPieceSize},
     CommD, CommP, Commitment,
 };
-use crate::{proofs::SectorSize, NODE_SIZE};
+use crate::{sector::SectorSize, NODE_SIZE};
 
 // Ensure that the pieces are correct sizes
 fn ensure_piece_sizes(

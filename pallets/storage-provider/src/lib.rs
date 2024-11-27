@@ -57,13 +57,11 @@ pub mod pallet {
     };
     use primitives::{
         commitment::{CommD, CommR, Commitment},
-        pallets::CurrentDeadline,
-        proofs::{
-            derive_prover_id, Market, ProofVerification, PublicReplicaInfo, Randomness,
-            RegisteredPoStProof, SectorNumber, StorageProviderValidation, MAX_SEAL_PROOF_BYTES,
-            MAX_SECTORS_PER_CALL,
-        },
+        pallets::{CurrentDeadline, Market, Randomness, StorageProviderValidation},
+        proofs::{derive_prover_id, ProofVerification, PublicReplicaInfo, RegisteredPoStProof},
         randomness::{draw_randomness, DomainSeparationTag},
+        sector::SectorNumber,
+        MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::Zero;

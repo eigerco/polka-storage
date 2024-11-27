@@ -6,7 +6,7 @@ use alloc::{
 use core::ops::Not;
 
 use codec::{Decode, Encode};
-use primitives::proofs::SectorNumber;
+use primitives::sector::SectorNumber;
 use scale_info::TypeInfo;
 use sp_core::{ConstU32, RuntimeDebug};
 use sp_runtime::{BoundedBTreeMap, BoundedBTreeSet};

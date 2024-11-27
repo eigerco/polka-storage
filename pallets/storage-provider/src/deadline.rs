@@ -4,7 +4,7 @@ use alloc::{collections::BTreeSet, vec::Vec};
 
 use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeMap};
-use primitives::proofs::SectorNumber;
+use primitives::sector::SectorNumber;
 use scale_info::{prelude::cmp, TypeInfo};
 
 use crate::{
