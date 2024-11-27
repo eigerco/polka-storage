@@ -7,9 +7,6 @@ repository = "https://github.com/eigerco/polka-storage"
 
 [workspace]
 members = [
-  "cli/polka-storage-provider/client",
-  "cli/polka-storage-provider/common",
-  "cli/polka-storage-provider/server",
   "lib/polka-storage-proofs",
   "maat",
   "mater/cli",
@@ -23,6 +20,9 @@ members = [
   "primitives/commitment",
   "primitives/proofs",
   "runtime",
+  "storage-provider/client",
+  "storage-provider/common",
+  "storage-provider/server",
   "storage/polka-index",
   "storagext/cli",
   "storagext/lib",
@@ -137,7 +137,7 @@ pallet-proofs = { path = "pallets/proofs", default-features = false }
 pallet-randomness = { path = "pallets/randomness", default-features = false }
 pallet-storage-provider = { path = "pallets/storage-provider", default-features = false }
 polka-storage-proofs = { path = "lib/polka-storage-proofs", default-features = false }
-polka-storage-provider-common = { path = "cli/polka-storage-provider/common" }
+polka-storage-provider-common = { path = "storage-provider/common" }
 polka-storage-runtime = { path = "runtime" }
 primitives-commitment = { path = "primitives/commitment" }
 primitives-proofs = { path = "primitives/proofs", default-features = false }
