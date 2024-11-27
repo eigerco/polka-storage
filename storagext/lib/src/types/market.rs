@@ -50,6 +50,16 @@ pub struct DealProposal {
     pub state: RuntimeDealState<BlockNumber>,
 }
 
+impl DealProposal {
+    /// Calculates the deal cost for the client —
+    /// `(end_block - start_block) * storage_price_per_block`.
+    pub fn cost(&self) -> Currency {
+        let deal_duration = self.end_block - self.start_block;
+        // Cast is save because it's to a bigger int size
+        self.storage_price_per_block * (deal_duration as u128)
+    }
+}
+
 impl From<DealProposal>
     for RuntimeDealProposal<subxt::ext::subxt_core::utils::AccountId32, Currency, BlockNumber>
 {

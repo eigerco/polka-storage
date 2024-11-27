@@ -5,11 +5,12 @@ use jsonrpsee::server::Server;
 use polka_storage_provider_common::rpc::{
     CidString, RpcError, ServerInfo, StorageProviderRpcServer,
 };
-use primitives_commitment::Commitment;
+use primitives_commitment::{CommP, Commitment, CommitmentKind};
 use storagext::{
     types::market::{ClientDealProposal as SxtClientDealProposal, DealProposal as SxtDealProposal},
     MarketClientExt,
 };
+use subxt::tx::Signer;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
 use tower_http::cors::{Any, CorsLayer};
@@ -42,21 +43,75 @@ impl StorageProviderRpcServer for RpcServerState {
     }
 
     async fn propose_deal(&self, deal: SxtDealProposal) -> Result<CidString, RpcError> {
+        // TODO(@jmg-duarte,26/11/2024): proper unit or e2e testing of these validations
+
         if deal.piece_size > self.server_info.post_proof.sector_size().bytes() {
-            // once again, the rpc error is wrong, we'll need to fix that
             return Err(RpcError::invalid_params(
                 "Piece size cannot be larger than the registered sector size",
                 None,
             ));
         }
 
-        // TODO(@jmg-duarte,25/11/2024): Add sanity validations
-        // end_block > start_block
-        // available balance (sp & client)
-        // the provider matches us
-        // storage price per block > 0
-        // piece size <= 2048 && power of two
-        // check the piece_cid code
+        if deal.start_block > deal.end_block {
+            return Err(RpcError::invalid_params(
+                "start_block cannot be after end_block",
+                None,
+            ));
+        }
+
+        if deal.provider != self.xt_keypair.account_id() {
+            return Err(RpcError::invalid_params(
+                "deal's provider ID does not match the current provider ID",
+                None,
+            ));
+        }
+
+        if deal.piece_cid.codec() != CommP::multicodec() {
+            return Err(RpcError::invalid_params(
+                "piece_cid is not a piece commitment",
+                None,
+            ));
+        }
+
+        if !deal.piece_size.is_power_of_two() {
+            return Err(RpcError::invalid_params(
+                "invalid piece_size, must be a power of two",
+                None,
+            ));
+        }
+
+        if deal.storage_price_per_block == 0 {
+            return Err(RpcError::invalid_params(
+                "storage_price_per_block must be greater than 0",
+                None,
+            ));
+        }
+
+        let storage_provider_balance = self
+            .xt_client
+            .retrieve_balance(self.xt_keypair.account_id())
+            .await?
+            .ok_or_else(|| RpcError::internal_error("Storage Provider not found", None))?;
+
+        if storage_provider_balance.free < deal.provider_collateral {
+            return Err(RpcError::invalid_params(
+                "storage provider balance is lower than the deal's collateral",
+                None,
+            ));
+        }
+
+        let client_balance = self
+            .xt_client
+            .retrieve_balance(deal.client.clone())
+            .await?
+            .ok_or_else(|| RpcError::internal_error("Client not found", None))?;
+
+        if client_balance.free < deal.cost() {
+            return Err(RpcError::invalid_params(
+                "client's balance is lower than the deal's cost",
+                None,
+            ));
+        }
 
         let cid = self
             .deal_db
