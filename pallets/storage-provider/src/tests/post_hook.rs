@@ -1,10 +1,7 @@
-extern crate alloc;
-
-use alloc::collections::{BTreeMap, BTreeSet};
-
 use frame_support::{assert_ok, pallet_prelude::Get};
 use primitives_proofs::{DealId, SectorNumber};
 use sp_core::bounded_vec;
+use sp_runtime::{BoundedBTreeMap, BoundedBTreeSet};
 
 use super::new_test_ext;
 use crate::{
@@ -70,18 +67,25 @@ fn marks_partitions_as_faulty() {
         let partition = &deadline.partitions[&0];
         let expected_sectors =
             sector_set::<MAX_SECTORS>(&[first_sector_number, second_sector_number]);
-        let faulty_sectors = BTreeSet::from([
-            SectorNumber::new(first_sector_number).unwrap(),
-            SectorNumber::new(second_sector_number).unwrap(),
-        ]);
+        let mut expected_faulty_sectors = BoundedBTreeSet::new();
+        expected_faulty_sectors
+            .try_insert(SectorNumber::new(first_sector_number).unwrap())
+            .unwrap();
+        expected_faulty_sectors
+            .try_insert(SectorNumber::new(second_sector_number).unwrap())
+            .unwrap();
         assert_eq!(partition.faults.len(), 2);
         assert_eq!(expected_sectors, partition.faults);
+        let mut expected_faulty_partitions = BoundedBTreeMap::new();
+        expected_faulty_partitions
+            .try_insert(0, expected_faulty_sectors)
+            .unwrap();
         assert_eq!(
             events(),
             [RuntimeEvent::StorageProvider(
                 Event::<Test>::PartitionsFaulty {
                     owner: account(storage_provider),
-                    faulty_partitions: BTreeMap::from([(0u32, faulty_sectors)]),
+                    faulty_partitions: expected_faulty_partitions,
                 }
             ),]
         );

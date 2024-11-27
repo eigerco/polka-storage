@@ -1,9 +1,6 @@
-extern crate alloc;
-
-use alloc::collections::{BTreeMap, BTreeSet};
-
 use primitives_proofs::SectorNumber;
 use sp_core::bounded_vec;
+use sp_runtime::{BoundedBTreeMap, BoundedBTreeSet};
 
 use super::new_test_ext;
 use crate::{
@@ -79,15 +76,20 @@ fn pre_commit_hook_slashed_deal() {
             Balances::reserved_balance(account(storage_provider)),
             deal_precommit_deposit
         );
+        let mut expected_faulty_sectors = BoundedBTreeSet::new();
+        expected_faulty_sectors
+            .try_insert(SectorNumber::new(2).unwrap())
+            .unwrap();
+        let mut expected_faulty_partitions = BoundedBTreeMap::new();
+        expected_faulty_partitions
+            .try_insert(0, expected_faulty_sectors)
+            .unwrap();
         assert_eq!(
             events(),
             [
                 RuntimeEvent::StorageProvider(Event::<Test>::PartitionsFaulty {
                     owner: account(storage_provider),
-                    faulty_partitions: BTreeMap::from([(
-                        0,
-                        BTreeSet::from([SectorNumber::new(2).unwrap()])
-                    )]),
+                    faulty_partitions: expected_faulty_partitions,
                 }),
                 // the slash -> withdraw is related to the usage of slash_and_burn
                 // when slashing the SP for a failed pre_commit
@@ -108,7 +110,7 @@ fn pre_commit_hook_slashed_deal() {
                 }),
                 RuntimeEvent::StorageProvider(Event::<Test>::SectorsSlashed {
                     owner: account(storage_provider),
-                    sector_numbers: vec![1.into()],
+                    sector_numbers: bounded_vec![1.into()],
                 }),
             ]
         );

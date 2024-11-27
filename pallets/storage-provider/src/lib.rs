@@ -35,11 +35,7 @@ pub mod pallet {
 
     extern crate alloc;
 
-    use alloc::{
-        collections::{BTreeMap, BTreeSet},
-        vec,
-        vec::Vec,
-    };
+    use alloc::{collections::BTreeMap, vec, vec::Vec};
     use core::fmt::Debug;
 
     use cid::Cid;
@@ -75,7 +71,7 @@ pub mod pallet {
             DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration,
             RecoveryDeclaration,
         },
-        partition::PartitionNumber,
+        partition::{PartitionNumber, MAX_PARTITIONS_PER_DEADLINE},
         proofs::{assign_proving_period_offset, SubmitWindowedPoStParams},
         sector::{
             ProveCommitResult, ProveCommitSector, SectorOnChainInfo, SectorPreCommitInfo,
@@ -283,7 +279,7 @@ pub mod pallet {
         SectorsSlashed {
             owner: T::AccountId,
             // No need for a bounded collection as we produce the output ourselves.
-            sector_numbers: Vec<SectorNumber>,
+            sector_numbers: BoundedVec<SectorNumber, ConstU32<MAX_SECTORS>>,
         },
         /// Emitted when an SP submits a valid PoSt
         ValidPoStSubmitted { owner: T::AccountId },
@@ -300,8 +296,11 @@ pub mod pallet {
         /// Emitted when an SP doesn't submit Windowed PoSt in time and PoSt hook marks partitions as faulty
         PartitionsFaulty {
             owner: T::AccountId,
-            // No need to be bounded as we are creating the sets ourselves
-            faulty_partitions: BTreeMap<PartitionNumber, BTreeSet<SectorNumber>>,
+            faulty_partitions: BoundedBTreeMap<
+                PartitionNumber,
+                BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
+                ConstU32<MAX_PARTITIONS_PER_DEADLINE>,
+            >,
         },
         /// Emitted when an SP terminates some sectors.
         SectorsTerminated {
@@ -1105,12 +1104,12 @@ pub mod pallet {
                     return;
                 }
 
-                let mut removed_sectors = Vec::new();
+                let mut removed_sectors = BoundedVec::new();
                 log::info!(target: LOG_TARGET, "found {} expired pre committed sectors for {:?}", expired.len(), storage_provider);
                 for sector_number in expired {
                     // Expired sectors should be removed, because in other case they'd be processed twice in the next block.
                     if let Ok(()) = state.remove_pre_committed_sector(sector_number) {
-                        removed_sectors.push(sector_number)
+                        removed_sectors.force_push(sector_number)
                     } else {
                         log::error!(target: LOG_TARGET, "catastrophe, failed to remove sector {} for {:?}", sector_number, storage_provider);
                         continue;
@@ -1253,8 +1252,10 @@ pub mod pallet {
 
                 let mut faulty_partitions_amount = 0;
                 // Create collection for fault partitions, 1 event per SP
-                let mut faulty_partitions: BTreeMap<PartitionNumber, BTreeSet<SectorNumber>> =
-                    BTreeMap::new();
+                let mut faulty_partitions: BTreeMap<
+                    PartitionNumber,
+                    BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
+                > = BTreeMap::new();
                 for (partition_number, partition) in deadline.partitions.iter_mut() {
                     if partition.sectors.len() == 0 {
                         continue;
@@ -1288,7 +1289,7 @@ pub mod pallet {
                     current_block, storage_provider, partition_number, new_faults.len());
 
                     if new_faults.len() > 0 {
-                        faulty_partitions.insert(*partition_number, new_faults);
+                        faulty_partitions.insert(*partition_number, new_faults.try_into().expect("should be able to create BoundedBTreeSet due to input being bounded"));
                         faulty_partitions_amount += 1;
                     }
                 }
@@ -1303,7 +1304,7 @@ pub mod pallet {
                     );
                     Self::deposit_event(Event::PartitionsFaulty {
                         owner: storage_provider.clone(),
-                        faulty_partitions,
+                        faulty_partitions: faulty_partitions.try_into().expect("should be able to create a BTreeMap with a MAX_PARTITIONS_PER_DEADLINE bound after iterating over a map with the same bound"),
                     })
                 } else {
                     log::info!(target: LOG_TARGET, "block: {:?}, sp: {:?}, deadline: {:?} - all proofs submitted on time.",

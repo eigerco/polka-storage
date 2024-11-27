@@ -94,7 +94,7 @@ impl std::fmt::Display for Event {
                 "Sectors Slashed: {{ owner: {}, sector_numbers: {} }}",
                 owner,
                 itertools::Itertools::intersperse(
-                    sector_numbers.iter().map(ToString::to_string),
+                    sector_numbers.0.iter().map(ToString::to_string),
                     ", ".to_string()
                 )
                 .collect::<String>(),
@@ -127,15 +127,18 @@ impl std::fmt::Display for Event {
                 "Faulty Partitions: {{ owner: {}, faulty_partitions: [{}] }}",
                 owner,
                 itertools::Itertools::intersperse(
-                    faulty_partitions.iter().map(|(partition, sectors)| format!(
-                        "{{ partition: {}, sectors: {} }}",
-                        partition,
-                        itertools::Itertools::intersperse(
-                            sectors.iter().map(ToString::to_string),
-                            ", ".to_string()
-                        )
-                        .collect::<String>()
-                    )),
+                    faulty_partitions
+                        .0
+                        .iter()
+                        .map(|(partition, sectors)| format!(
+                            "{{ partition: {}, sectors: {} }}",
+                            partition,
+                            itertools::Itertools::intersperse(
+                                sectors.0.iter().map(ToString::to_string),
+                                ", ".to_string()
+                            )
+                            .collect::<String>()
+                        )),
                     ", ".to_string()
                 )
                 .collect::<String>()
