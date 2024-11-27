@@ -685,9 +685,6 @@ pub mod pallet {
                 }
             );
 
-            // Ensure a valid proof size
-            // TODO(@jmg-duarte,#91,19/8/24): correctly check the length
-            // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L565-L573
             ensure!(
                 windowed_post.proof.proof_bytes.len()
                     <= primitives_proofs::MAX_POST_PROOF_BYTES as usize,
