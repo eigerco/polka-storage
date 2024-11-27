@@ -6,7 +6,7 @@ use alloc::{
 use core::ops::Not;
 
 use codec::{Decode, Encode};
-use primitives_proofs::SectorNumber;
+use primitives::proofs::SectorNumber;
 use scale_info::TypeInfo;
 use sp_core::{ConstU32, RuntimeDebug};
 use sp_runtime::{BoundedBTreeMap, BoundedBTreeSet};
@@ -549,7 +549,7 @@ struct SectorExpirationSet {
 mod tests {
     extern crate alloc;
 
-    use primitives_proofs::{SectorNumber, MAX_SECTORS};
+    use primitives::proofs::{SectorNumber, MAX_SECTORS};
 
     use crate::{expiration_queue::ExpirationQueue, sector::SectorOnChainInfo, tests::sector_set};
 

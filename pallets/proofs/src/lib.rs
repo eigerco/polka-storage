@@ -26,7 +26,7 @@ pub mod pallet {
 
     use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeMap};
     use frame_system::pallet_prelude::*;
-    use primitives_proofs::{
+    use primitives::proofs::{
         ProofVerification, ProverId, PublicReplicaInfo, RawCommitment, RegisteredPoStProof,
         RegisteredSealProof, SectorNumber, Ticket, MAX_POST_PROOF_BYTES, MAX_SEAL_PROOF_BYTES,
         MAX_SECTORS_PER_PROOF,

@@ -6,7 +6,7 @@
 use std::collections::BTreeSet;
 
 use cid::Cid;
-use primitives_proofs::{DealId, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
+use primitives::proofs::{DealId, RegisteredPoStProof, RegisteredSealProof, SectorNumber};
 
 use crate::{
     runtime::{
@@ -313,7 +313,7 @@ mod tests {
     use std::{collections::BTreeSet, str::FromStr};
 
     use cid::Cid;
-    use primitives_proofs::RegisteredPoStProof;
+    use primitives::proofs::RegisteredPoStProof;
 
     use crate::{
         runtime::runtime_types::pallet_market::pallet::DealState as RuntimeDealState,

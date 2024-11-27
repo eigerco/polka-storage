@@ -5,7 +5,7 @@ use jsonrpsee::server::Server;
 use polka_storage_provider_common::rpc::{
     CidString, RpcError, ServerInfo, StorageProviderRpcServer,
 };
-use primitives_commitment::{CommP, Commitment, CommitmentKind};
+use primitives::commitment::{CommP, Commitment, CommitmentKind};
 use storagext::{
     types::market::{ClientDealProposal as SxtClientDealProposal, DealProposal as SxtDealProposal},
     MarketClientExt,

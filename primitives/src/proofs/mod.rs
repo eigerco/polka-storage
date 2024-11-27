@@ -1,11 +1,10 @@
-#![cfg_attr(not(feature = "std"), no_std)]
-
 pub mod randomness;
 mod traits;
 mod types;
 
 use codec::{Codec, Decode, Encode};
 use scale_info::TypeInfo;
+use sp_core::blake2_256;
 pub use traits::*;
 pub use types::*;
 
@@ -19,8 +18,9 @@ where
     AccountId: Encode,
 {
     let encoded = account_id.encode();
-    let mut encoded = sp_core::blake2_256(&encoded);
-    // Necessary to be valid bls12 381 element.
+    let mut encoded = blake2_256(&encoded);
+
+    // Necessary to be a valid bls12 381 element.
     encoded[31] &= 0x3f;
     encoded
 }

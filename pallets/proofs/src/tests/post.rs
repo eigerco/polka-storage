@@ -2,7 +2,7 @@ use codec::{Decode, Encode};
 use frame_support::{assert_noop, assert_ok};
 use hex::FromHex;
 use polka_storage_proofs::{Bls12, VerifyingKey};
-use primitives_proofs::{
+use primitives::proofs::{
     ProofVerification, PublicReplicaInfo, RawCommitment, RegisteredPoStProof, SectorNumber, Ticket,
 };
 use rand::SeedableRng;

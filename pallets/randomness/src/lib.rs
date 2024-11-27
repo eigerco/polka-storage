@@ -18,7 +18,7 @@ pub mod pallet {
 
     use frame_support::{pallet_prelude::*, traits::Randomness as SubstrateRandomness};
     use frame_system::pallet_prelude::*;
-    use primitives_proofs::Randomness;
+    use primitives::proofs::Randomness;
     use sp_runtime::{traits::Zero, Saturating};
 
     pub const LOG_TARGET: &'static str = "runtime::randomness";

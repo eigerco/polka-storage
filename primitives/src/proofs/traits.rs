@@ -4,7 +4,7 @@ use cid::Cid;
 use sp_core::ConstU32;
 use sp_runtime::{BoundedBTreeMap, BoundedVec, DispatchError, DispatchResult, RuntimeDebug};
 
-use crate::types::{
+use super::types::{
     DealId, ProverId, RawCommitment, RegisteredPoStProof, RegisteredSealProof, SectorNumber, Ticket,
 };
 

@@ -11,8 +11,7 @@ version = "0.1.0"
 # Permanently used crates.
 bls12_381 = { workspace = true }
 pairing = { workspace = true }
-primitives-commitment = { workspace = true }
-primitives-proofs = { workspace = true }
+primitives = { workspace = true }
 rand_xorshift = { workspace = true }
 
 # Crates are only imported on feature 'std'.
@@ -53,8 +52,7 @@ std = [
   "dep:storage-proofs-porep",
   "dep:storage-proofs-post",
   "dep:thiserror",
-  "primitives-commitment/std",
-  "primitives-proofs/std",
+  "primitives/std",
   "rand/std",
   "scale-info?/std",
 ]

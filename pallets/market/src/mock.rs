@@ -6,7 +6,7 @@ use frame_support::{
     PalletId,
 };
 use frame_system::{self as system, pallet_prelude::BlockNumberFor};
-use primitives_proofs::{Randomness, RegisteredPoStProof};
+use primitives::proofs::{Randomness, RegisteredPoStProof};
 use sp_core::Pair;
 use sp_runtime::{
     traits::{ConstU32, ConstU64, IdentifyAccount, IdentityLookup, Verify},

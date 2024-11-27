@@ -1,5 +1,5 @@
 use frame_support::{assert_noop, assert_ok};
-use primitives_proofs::RegisteredPoStProof;
+use primitives::proofs::RegisteredPoStProof;
 use sp_runtime::{BoundedVec, DispatchError};
 
 use super::new_test_ext;

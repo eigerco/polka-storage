@@ -3,10 +3,12 @@ mod config;
 use config::Config;
 use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeMap};
 use polka_storage_proofs::get_partitions_for_window_post;
-use primitives_commitment::NODE_SIZE;
-use primitives_proofs::{
-    PublicReplicaInfo, RawCommitment, RegisteredPoStProof, SectorNumber, Ticket,
-    MAX_SECTORS_PER_PROOF,
+use primitives::{
+    proofs::{
+        PublicReplicaInfo, RawCommitment, RegisteredPoStProof, SectorNumber, Ticket,
+        MAX_SECTORS_PER_PROOF,
+    },
+    NODE_SIZE,
 };
 use sha2::{Digest, Sha256};
 

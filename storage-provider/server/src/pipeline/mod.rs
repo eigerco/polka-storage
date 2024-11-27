@@ -7,11 +7,13 @@ use polka_storage_proofs::porep::{
     PoRepError, PoRepParameters,
 };
 use polka_storage_provider_common::rpc::ServerInfo;
-use primitives_commitment::{CommD, CommP, CommR, Commitment};
-use primitives_proofs::{
-    derive_prover_id,
-    randomness::{draw_randomness, DomainSeparationTag},
-    SectorNumber,
+use primitives::{
+    commitment::{CommD, CommP, CommR, Commitment},
+    proofs::{
+        derive_prover_id,
+        randomness::{draw_randomness, DomainSeparationTag},
+        SectorNumber,
+    },
 };
 use storagext::{
     types::{

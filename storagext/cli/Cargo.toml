@@ -17,7 +17,7 @@ clap = { workspace = true, features = ["derive", "env"] }
 codec.workspace = true
 frame-support = { workspace = true, features = ["std"] }
 hex = { workspace = true, features = ["serde", "std"] }
-primitives-proofs = { workspace = true }
+primitives = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 subxt = { workspace = true, features = ["jsonrpsee", "substrate-compat"] }

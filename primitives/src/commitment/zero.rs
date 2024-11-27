@@ -1,4 +1,4 @@
-use crate::piece::PaddedPieceSize;
+use super::piece::PaddedPieceSize;
 
 /// Can't generate for: 1, 2, 4, 8, 16, 32, 64 bytes
 const SKIP: u32 = 7;

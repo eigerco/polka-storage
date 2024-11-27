@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use clap::Subcommand;
-use primitives_proofs::{RegisteredPoStProof, SectorNumber};
+use primitives::proofs::{RegisteredPoStProof, SectorNumber};
 use storagext::{
     deser::DeserializablePath,
     multipair::MultiPairSigner,

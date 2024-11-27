@@ -2,13 +2,13 @@ extern crate alloc;
 use alloc::vec::Vec;
 use core::{fmt::write, ops::Deref};
 
-use primitives_proofs::SectorSize;
 use sha2::{Digest, Sha256};
 
-use crate::{
+use super::{
     piece::{PaddedPieceSize, PieceInfo, UnpaddedPieceSize},
-    CommD, CommP, Commitment, NODE_SIZE,
+    CommD, CommP, Commitment,
 };
+use crate::{proofs::SectorSize, NODE_SIZE};
 
 // Ensure that the pieces are correct sizes
 fn ensure_piece_sizes(
@@ -249,9 +249,9 @@ mod tests {
     use core::str::FromStr;
 
     use cid::Cid;
-    use primitives_proofs::SectorSize;
 
     use super::*;
+    use crate::proofs::SectorSize;
 
     #[test]
     fn test_compute_comm_d_empty() {

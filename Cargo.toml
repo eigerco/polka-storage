@@ -17,8 +17,7 @@ members = [
   "pallets/proofs",
   "pallets/randomness",
   "pallets/storage-provider",
-  "primitives/commitment",
-  "primitives/proofs",
+  "primitives",
   "runtime",
   "storage-provider/client",
   "storage-provider/common",
@@ -93,7 +92,7 @@ rand_chacha = { version = "0.3.1", default-features = false }
 rand_xorshift = "0.3"
 rocksdb = { version = "0.21" }
 scale-info = { version = "2.11.1", default-features = false }
-sealed = "0.6.0"
+sealed = { version = "0.6.0", default-features = false }
 serde = { version = "1.0.197", default-features = false }
 serde-big-array = { version = "0.3.2" }
 serde_derive = { version = "1.0.117" }
@@ -139,8 +138,7 @@ pallet-storage-provider = { path = "pallets/storage-provider", default-features 
 polka-storage-proofs = { path = "lib/polka-storage-proofs", default-features = false }
 polka-storage-provider-common = { path = "storage-provider/common" }
 polka-storage-runtime = { path = "runtime" }
-primitives-commitment = { path = "primitives/commitment" }
-primitives-proofs = { path = "primitives/proofs", default-features = false }
+primitives = { path = "primitives", default-features = false }
 storagext = { path = "storagext/lib" }
 
 # FileCoin proofs
@@ -214,7 +212,6 @@ frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/polkadot-s
 frame-try-runtime = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2409-2", default-features = false }
 
 # FRAME Pallets
-# TODO(#457,@cernicc,17/10/2024): Switch to BABE
 pallet-aura = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2409-2", default-features = false }
 pallet-authorship = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2409-2", default-features = false }
 pallet-balances = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2409-2", default-features = false }

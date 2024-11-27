@@ -14,11 +14,14 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 use pallet_market::{BalanceOf, ClientDealProposal, DealProposal, DealState};
-use primitives_commitment::{CommP, Commitment};
-use primitives_proofs::{
-    DealId, ProofVerification, PublicReplicaInfo, Randomness, RegisteredPoStProof,
-    RegisteredSealProof, SectorNumber, CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR,
-    MAX_POST_PROOF_BYTES, MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_PROOF, MAX_TERMINATIONS_PER_CALL,
+use primitives::{
+    commitment::{CommP, Commitment},
+    proofs::{
+        DealId, ProofVerification, PublicReplicaInfo, Randomness, RegisteredPoStProof,
+        RegisteredSealProof, SectorNumber, CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR,
+        MAX_POST_PROOF_BYTES, MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_PROOF,
+        MAX_TERMINATIONS_PER_CALL,
+    },
 };
 use sp_core::{bounded_vec, Pair};
 use sp_runtime::{
@@ -86,13 +89,13 @@ pub const INVALID_PROOF: [u8; 2] = [0xd, 0xe];
 pub struct DummyProofsVerification;
 impl ProofVerification for DummyProofsVerification {
     fn verify_porep(
-        _prover_id: primitives_proofs::ProverId,
+        _prover_id: primitives::proofs::ProverId,
         _seal_proof: RegisteredSealProof,
-        _comm_r: primitives_proofs::RawCommitment,
-        _comm_d: primitives_proofs::RawCommitment,
+        _comm_r: primitives::proofs::RawCommitment,
+        _comm_d: primitives::proofs::RawCommitment,
         _sector: SectorNumber,
-        _ticket: primitives_proofs::Ticket,
-        _seed: primitives_proofs::Ticket,
+        _ticket: primitives::proofs::Ticket,
+        _seed: primitives::proofs::Ticket,
         _proof: BoundedVec<u8, ConstU32<MAX_SEAL_PROOF_BYTES>>,
     ) -> sp_runtime::DispatchResult {
         Ok(())
@@ -100,7 +103,7 @@ impl ProofVerification for DummyProofsVerification {
 
     fn verify_post(
         _post_type: RegisteredPoStProof,
-        _randomness: primitives_proofs::Ticket,
+        _randomness: primitives::proofs::Ticket,
         _replicas: BoundedBTreeMap<
             SectorNumber,
             PublicReplicaInfo,

@@ -7,7 +7,7 @@ use frame_support::{
     pallet_prelude::{ConstU32, RuntimeDebug},
     sp_runtime::{BoundedBTreeMap, BoundedVec},
 };
-use primitives_proofs::{RegisteredPoStProof, SectorNumber, SectorSize};
+use primitives::proofs::{RegisteredPoStProof, SectorNumber, SectorSize};
 use scale_info::TypeInfo;
 use sp_arithmetic::{traits::BaseArithmetic, ArithmeticError};
 

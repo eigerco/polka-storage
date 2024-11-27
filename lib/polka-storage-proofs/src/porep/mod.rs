@@ -6,7 +6,7 @@ pub mod sealer;
 use bellperson::groth16;
 use blstrs::Bls12;
 use filecoin_proofs::{DefaultPieceHasher, SectorShapeBase};
-use primitives_proofs::RegisteredSealProof;
+use primitives::proofs::RegisteredSealProof;
 use rand::rngs::OsRng;
 use storage_proofs_core::{compound_proof::CompoundProof, proof::ProofScheme};
 use storage_proofs_porep::stacked::StackedDrg;

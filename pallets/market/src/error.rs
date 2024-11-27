@@ -1,5 +1,5 @@
 use codec::{Decode, Encode};
-use primitives_commitment::{piece::PaddedPieceSizeError, CommitmentError};
+use primitives::commitment::{piece::PaddedPieceSizeError, CommitmentError};
 use scale_info::TypeInfo;
 
 // Clone and PartialEq required because of the BoundedVec<(DealId, DealSettlementError)>

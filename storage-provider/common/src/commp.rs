@@ -5,7 +5,10 @@ use filecoin_hashers::{
     Domain,
 };
 use fr32::Fr32Reader;
-use primitives_commitment::{piece::PaddedPieceSize, CommP, Commitment, NODE_SIZE};
+use primitives::{
+    commitment::{piece::PaddedPieceSize, CommP, Commitment},
+    NODE_SIZE,
+};
 use storage_proofs_core::merkle::BinaryMerkleTree;
 use thiserror::Error;
 
@@ -58,8 +61,7 @@ mod tests {
     use std::io::Cursor;
 
     use polka_storage_proofs::ZeroPaddingReader;
-    use primitives_commitment::piece::PaddedPieceSize;
-    use primitives_proofs::SectorSize;
+    use primitives::{commitment::piece::PaddedPieceSize, proofs::SectorSize};
 
     use super::calculate_piece_commitment;
 

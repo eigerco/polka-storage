@@ -3,7 +3,7 @@ use std::{
     sync::atomic::{AtomicU32, Ordering},
 };
 
-use primitives_proofs::{SectorNumber, SectorNumberError};
+use primitives::proofs::{SectorNumber, SectorNumberError};
 use rocksdb::{ColumnFamily, ColumnFamilyDescriptor, Options as DBOptions, DB as RocksDB};
 use serde::{de::DeserializeOwned, Serialize};
 use storagext::types::market::{ConversionError, DealProposal};

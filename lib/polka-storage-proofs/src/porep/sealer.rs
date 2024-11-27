@@ -8,11 +8,13 @@ use filecoin_proofs::{
     DefaultPieceHasher, PaddedBytesAmount, PoRepConfig, SealCommitPhase1Output,
     SealPreCommitOutput, SealPreCommitPhase1Output, SectorShapeBase, UnpaddedBytesAmount,
 };
-use primitives_commitment::{
-    piece::{PaddedPieceSize, PieceInfo},
-    CommD, CommP, CommR, Commitment,
+use primitives::{
+    commitment::{
+        piece::{PaddedPieceSize, PieceInfo},
+        CommD, CommP, CommR, Commitment,
+    },
+    proofs::{RegisteredSealProof, SectorNumber},
 };
-use primitives_proofs::{RegisteredSealProof, SectorNumber};
 use storage_proofs_core::{compound_proof, compound_proof::CompoundProof};
 use storage_proofs_porep::stacked::{self, StackedCompound, StackedDrg};
 
@@ -445,16 +447,15 @@ mod test {
     fn padding_for_sector(#[case] piece_sizes: Vec<usize>) {
         let sealer = Sealer::new(RegisteredSealProof::StackedDRG2KiBV1P1);
 
-        let piece_infos: Vec<(Cursor<Vec<u8>>, primitives_commitment::piece::PieceInfo)> =
-            piece_sizes
-                .into_iter()
-                .map(|size| {
-                    let (piece_bytes, piece_info) =
-                        piece_with_random_data(PaddedBytesAmount(size as u64));
+        let piece_infos: Vec<(Cursor<Vec<u8>>, PieceInfo)> = piece_sizes
+            .into_iter()
+            .map(|size| {
+                let (piece_bytes, piece_info) =
+                    piece_with_random_data(PaddedBytesAmount(size as u64));
 
-                    (Cursor::new(piece_bytes), piece_info)
-                })
-                .collect();
+                (Cursor::new(piece_bytes), piece_info)
+            })
+            .collect();
 
         // Create a file-like sector where non-occupied bytes are 0
         let sector_size = sealer.porep_config.sector_size.0 as usize;
@@ -474,9 +475,7 @@ mod test {
     }
 
     /// Generates a piece of `size` and a PieceInfo for it
-    fn piece_with_random_data(
-        size: PaddedBytesAmount,
-    ) -> (Vec<u8>, primitives_commitment::piece::PieceInfo) {
+    fn piece_with_random_data(size: PaddedBytesAmount) -> (Vec<u8>, PieceInfo) {
         let rng = &mut XorShiftRng::from_seed(filecoin_proofs::TEST_SEED);
 
         let piece_size: UnpaddedBytesAmount = size.into();

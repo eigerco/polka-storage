@@ -23,16 +23,15 @@ bs58.workspace = true
 cid.workspace = true
 futures.workspace = true
 hex = { workspace = true }
+primitives = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["std"] }
+storagext = { workspace = true }
 subxt = { workspace = true, features = ["substrate-compat"] }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
-
-primitives-proofs = { workspace = true, features = ["serde"] }
-storagext = { workspace = true }
 
 zombienet-configuration.workspace = true
 zombienet-sdk.workspace = true

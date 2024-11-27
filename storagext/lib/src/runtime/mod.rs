@@ -17,20 +17,20 @@ pub mod display;
         with = "::subxt::utils::Static<::subxt::ext::sp_runtime::MultiSignature>"
     ),
     substitute_type(
-        path = "primitives_proofs::types::RegisteredSealProof",
-        with = "::primitives_proofs::RegisteredSealProof",
+        path = "primitives::proofs::types::RegisteredSealProof",
+        with = "::primitives::proofs::RegisteredSealProof",
     ),
     substitute_type(
-        path = "primitives_proofs::types::RegisteredPoStProof",
-        with = "::primitives_proofs::RegisteredPoStProof",
+        path = "primitives::proofs::types::RegisteredPoStProof",
+        with = "::primitives::proofs::RegisteredPoStProof",
     ),
     substitute_type(
-        path = "primitives_proofs::types::SectorSize",
-        with = "::primitives_proofs::SectorSize",
+        path = "primitives::proofs::types::SectorSize",
+        with = "::primitives::proofs::SectorSize",
     ),
     substitute_type(
-        path = "primitives_proofs::types::SectorNumber",
-        with = "::primitives_proofs::SectorNumber",
+        path = "primitives::proofs::types::SectorNumber",
+        with = "::primitives::proofs::SectorNumber",
     ),
     // impl Deserialize
     derive_for_type(

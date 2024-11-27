@@ -321,7 +321,7 @@ impl RegisteredPoStProof {
 // * std — because of serde_json
 #[cfg(all(test, feature = "std", feature = "serde"))]
 mod serde_tests {
-    use crate::{RegisteredPoStProof, RegisteredSealProof};
+    use super::{RegisteredPoStProof, RegisteredSealProof};
 
     #[test]
     fn ensure_serde_for_registered_seal_proof() {

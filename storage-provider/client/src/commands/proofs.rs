@@ -13,14 +13,16 @@ use polka_storage_proofs::{
     ZeroPaddingReader,
 };
 use polka_storage_provider_common::commp::{calculate_piece_commitment, CommPError};
-use primitives_commitment::{
-    piece::{PaddedPieceSize, PieceInfo},
-    Commitment, CommitmentError,
-};
-use primitives_proofs::{
-    derive_prover_id,
-    randomness::{draw_randomness, DomainSeparationTag},
-    RegisteredPoStProof, RegisteredSealProof, SectorNumber,
+use primitives::{
+    commitment::{
+        piece::{PaddedPieceSize, PieceInfo},
+        Commitment, CommitmentError,
+    },
+    proofs::{
+        derive_prover_id,
+        randomness::{draw_randomness, DomainSeparationTag},
+        RegisteredPoStProof, RegisteredSealProof, SectorNumber,
+    },
 };
 use storagext::multipair::{MultiPairArgs, MultiPairSigner};
 use subxt::tx::Signer;

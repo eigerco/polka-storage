@@ -3,7 +3,8 @@ use core::ops::{Add, AddAssign, Deref};
 use codec::{Decode, Encode};
 use scale_info::TypeInfo;
 
-use crate::{CommP, Commitment, NODE_SIZE};
+use super::{CommP, Commitment};
+use crate::NODE_SIZE;
 
 /// Piece info contains piece commitment and piece size.
 #[cfg_attr(feature = "serde", derive(::serde::Deserialize, ::serde::Serialize))]

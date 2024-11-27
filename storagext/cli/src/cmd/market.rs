@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use anyhow::bail;
 use clap::{ArgGroup, Subcommand};
-use primitives_proofs::DealId;
+use primitives::proofs::DealId;
 use storagext::{
     deser::DeserializablePath,
     multipair::{DebugPair, MultiPairSigner},

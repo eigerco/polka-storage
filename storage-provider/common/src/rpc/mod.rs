@@ -4,7 +4,7 @@ use std::fmt;
 
 use chrono::{DateTime, Utc};
 use jsonrpsee::proc_macros::rpc;
-use primitives_proofs::{RegisteredPoStProof, RegisteredSealProof};
+use primitives::proofs::{RegisteredPoStProof, RegisteredSealProof};
 use serde::{Deserialize, Serialize};
 use storagext::types::market::{
     ClientDealProposal as SxtClientDealProposal, DealProposal as SxtDealProposal,

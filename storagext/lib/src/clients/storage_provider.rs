@@ -1,6 +1,6 @@
 use std::future::Future;
 
-use primitives_proofs::RegisteredPoStProof;
+use primitives::proofs::RegisteredPoStProof;
 use runtime::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 use subxt::{
     ext::{futures::TryStreamExt, sp_core::crypto::Ss58Codec},
@@ -16,7 +16,7 @@ use crate::{
             pallet_storage_provider::{
                 proofs::SubmitWindowedPoStParams, storage_provider::StorageProviderState,
             },
-            primitives_proofs::CurrentDeadline,
+            primitives::proofs::CurrentDeadline,
         },
         storage_provider::calls::types::register_storage_provider::PeerId,
     },

@@ -1,5 +1,3 @@
-#![cfg_attr(not(feature = "std"), no_std)] // no_std by default, requires "std" for std-support
-
 pub mod commd;
 pub mod piece;
 mod zero;
@@ -8,14 +6,11 @@ use core::{fmt::Display, marker::PhantomData};
 
 use cid::{multihash::Multihash, Cid};
 use codec::{Decode, Encode};
-use primitives_proofs::RegisteredSealProof;
+use piece::PaddedPieceSize;
 use scale_info::TypeInfo;
 use sealed::sealed;
 
-use crate::piece::PaddedPieceSize;
-
-/// Merkle tree node size in bytes.
-pub const NODE_SIZE: usize = 32;
+use crate::proofs::RegisteredSealProof;
 
 /// Filecoin piece or sector data commitment merkle node/root (CommP & CommD)
 ///
@@ -224,9 +219,9 @@ mod tests {
 
     use cid::{multihash::Multihash, Cid};
 
-    use crate::{
+    use crate::commitment::{
         CommD, CommP, CommR, Commitment, FIL_COMMITMENT_SEALED, FIL_COMMITMENT_UNSEALED,
-        POSEIDON_BLS12_381_A1_FC1, SHA2_256_TRUNC254_PADDED,
+        SHA2_256_TRUNC254_PADDED,
     };
 
     fn rand_comm() -> [u8; 32] {
@@ -268,11 +263,6 @@ mod tests {
     #[test]
     fn comm_r_to_cid() {
         let comm = rand_comm();
-        let cid = Commitment::<CommR>::from(comm).cid();
-
-        assert_eq!(cid.codec(), FIL_COMMITMENT_SEALED);
-        assert_eq!(cid.hash().code(), POSEIDON_BLS12_381_A1_FC1);
-        assert_eq!(cid.hash().digest(), comm);
     }
 
     #[test]

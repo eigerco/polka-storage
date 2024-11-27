@@ -13,7 +13,7 @@ use clap::Parser;
 use pipeline::types::PipelineMessage;
 use polka_storage_proofs::porep::{self, PoRepParameters};
 use polka_storage_provider_common::rpc::ServerInfo;
-use primitives_proofs::{RegisteredPoStProof, RegisteredSealProof};
+use primitives::proofs::{RegisteredPoStProof, RegisteredSealProof};
 use rand::Rng;
 use storagext::{
     multipair::{DebugPair, MultiPairSigner},

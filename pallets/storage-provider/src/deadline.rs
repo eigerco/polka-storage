@@ -4,7 +4,7 @@ use alloc::{collections::BTreeSet, vec::Vec};
 
 use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeMap};
-use primitives_proofs::SectorNumber;
+use primitives::proofs::SectorNumber;
 use scale_info::{prelude::cmp, TypeInfo};
 
 use crate::{
@@ -791,7 +791,7 @@ mod tests {
     use alloc::collections::{BTreeMap, BTreeSet};
 
     use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeSet};
-    use primitives_proofs::{SectorNumber, MAX_SECTORS, MAX_TERMINATIONS_PER_CALL};
+    use primitives::proofs::{SectorNumber, MAX_SECTORS, MAX_TERMINATIONS_PER_CALL};
     use rstest::rstest;
 
     use crate::{
