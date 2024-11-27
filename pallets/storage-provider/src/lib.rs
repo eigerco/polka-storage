@@ -59,8 +59,8 @@ pub mod pallet {
     use primitives_proofs::{
         derive_prover_id,
         randomness::{draw_randomness, DomainSeparationTag},
-        Market, ProofVerification, Randomness, RegisteredPoStProof, SectorNumber,
-        StorageProviderValidation, MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_CALL,
+        Market, ProofVerification, PublicReplicaInfo, Randomness, RegisteredPoStProof,
+        SectorNumber, StorageProviderValidation, MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::Zero;
@@ -321,6 +321,8 @@ pub mod pallet {
         StorageProviderNotFound,
         /// Emitted when trying to access an invalid sector.
         InvalidSector,
+        /// Emitted when trying to submit PoSt for an not-existing partition for a deadline.
+        InvalidPartition,
         /// Emitted when submitting an invalid proof type.
         InvalidProofType,
         /// Emitted when the proof is invalid
@@ -362,6 +364,8 @@ pub mod pallet {
         CouldNotTerminateDeals,
         /// Tried to terminate sectors that are not mutable.
         CannotTerminateImmutableDeadline,
+        /// Emitted when trying to submit PoSt with partitions containing too many sectors (>2349).
+        TooManyReplicas,
         /// Inner pallet errors
         GeneralPalletError(crate::error::GeneralPalletError),
     }
@@ -662,8 +666,6 @@ pub mod pallet {
         }
 
         /// The SP uses this extrinsic to submit their Proof-of-Spacetime.
-        ///
-        /// * Currently the proof is considered valid when `proof.len() > 0`.
         pub fn submit_windowed_post(
             origin: OriginFor<T>,
             windowed_post: SubmitWindowedPoStParams,
@@ -687,13 +689,14 @@ pub mod pallet {
                 }
             );
 
-            // Ensure a valid proof size
-            // TODO(@jmg-duarte,#91,19/8/24): correctly check the length
-            // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L565-L573
-            ensure!(windowed_post.proof.proof_bytes.len() > 0, {
-                log::error!("submit_window_post: invalid proof size");
-                Error::<T>::PoStProofInvalid
-            });
+            ensure!(
+                windowed_post.proof.proof_bytes.len()
+                    <= primitives_proofs::MAX_POST_PROOF_BYTES as usize,
+                {
+                    log::error!("submit_window_post: invalid proof size");
+                    Error::<T>::PoStProofInvalid
+                }
+            );
 
             // If the proving period is in the future, we can't submit a proof yet
             // Related issue: https://github.com/filecoin-project/specs-actors/issues/946
@@ -718,6 +721,52 @@ pub mod pallet {
 
             Self::validate_deadline(&current_deadline, &windowed_post)?;
 
+            // record sector as proven
+            let all_sectors = sp.sectors.clone();
+            let deadlines = sp.get_deadlines_mut();
+            deadlines
+                .record_proven(
+                    windowed_post.deadline as usize,
+                    &all_sectors,
+                    windowed_post.partitions.clone(),
+                )
+                .map_err(|e| Error::<T>::GeneralPalletError(e))?;
+
+            // TODO(@th7nder,#592, 19/11/2024): handle faulty and recovered sectors, we don't take them into account now
+            let deadlines = &sp.deadlines;
+            let mut replicas = BoundedBTreeMap::new();
+            // Take all the sectors that were assigned to all of the partitions
+            for partition in &windowed_post.partitions {
+                // Deadline is validated by `Self::validate_deadline`, so we're sure it can be used as an index.
+                let deadline = &deadlines.due[windowed_post.deadline as usize];
+                let sectors = &deadline
+                    .partitions
+                    .get(&partition)
+                    .ok_or(Error::<T>::InvalidPartition)?
+                    .sectors;
+                for sector_number in sectors {
+                    // Sectors stored in the Storage Provider struct should be consistently stored, without breaking invariants.
+                    let sector_info = &sp.sectors[sector_number];
+                    let comm_r = Commitment::<CommR>::from_cid_bytes(&sector_info.sealed_cid)
+                        .expect("CommR to be validated on pre-commit");
+                    let _ = replicas
+                        .try_insert(
+                            *sector_number,
+                            PublicReplicaInfo {
+                                comm_r: comm_r.raw(),
+                            },
+                        )
+                        .map_err(|_| Error::<T>::TooManyReplicas)?;
+                }
+            }
+
+            log::debug!(target: LOG_TARGET, "submit_windowed_post: index {:?} challenge {:?}, replicas: {:?}",
+                current_deadline.idx,
+                current_deadline.challenge,
+                replicas
+            );
+
+            let entropy = owner.encode();
             // The `chain_commit_epoch` should be `current_deadline.challenge` as per:
             //
             // These issues that were filed against the original implementation:
@@ -737,25 +786,23 @@ pub mod pallet {
             // * https://github.com/filecoin-project/lotus/blob/4f70204342ce83671a7a261147a18865f1618967/storage/wdpost/wdpost_run.go#L334-L338
             // * https://github.com/filecoin-project/lotus/blob/4f70204342ce83671a7a261147a18865f1618967/curiosrc/window/compute_do.go#L68-L72
             // * https://github.com/filecoin-project/curio/blob/45373f7fc0431e41f987ad348df7ae6e67beaff9/tasks/window/compute_do.go#L71-L75
+            let randomness = get_randomness::<T>(
+                DomainSeparationTag::WindowedPoStChallengeSeed,
+                current_deadline.challenge,
+                &entropy,
+            )?;
 
-            // TODO(@aidan46, #91, 2024-07-03): Validate the proof after research is done
-
-            // record sector as proven
-            let all_sectors = sp.sectors.clone();
-            let deadlines = sp.get_deadlines_mut();
-            deadlines
-                .record_proven(
-                    windowed_post.deadline as usize,
-                    &all_sectors,
-                    windowed_post.partitions,
-                )
-                .map_err(|e| Error::<T>::GeneralPalletError(e))?;
-
-            // Store new storage provider state
-            StorageProviders::<T>::set(owner.clone(), Some(sp));
+            T::ProofVerification::verify_post(
+                windowed_post.proof.post_proof,
+                randomness,
+                replicas,
+                windowed_post.proof.proof_bytes,
+            )?;
 
             log::debug!(target: LOG_TARGET, "submit_windowed_post: proof recorded");
 
+            // Store new storage provider state
+            StorageProviders::<T>::set(owner.clone(), Some(sp));
             Self::deposit_event(Event::ValidPoStSubmitted { owner });
 
             Ok(())
@@ -1019,6 +1066,36 @@ pub mod pallet {
     }
 
     impl<T: Config> Pallet<T> {
+        /// Gets the current deadline of the storage provider.
+        ///
+        /// If there is no Storage Provider of given AccountId returns [`Option::None`].
+        /// May exceptionally return [`Option::None`] when
+        /// conversion between BlockNumbers fails, but technically should not ever happen.
+        pub fn current_deadline(
+            storage_provider: &T::AccountId,
+        ) -> Option<primitives_proofs::CurrentDeadline<BlockNumberFor<T>>> {
+            let sp = StorageProviders::<T>::try_get(storage_provider).ok()?;
+            let current_block = <frame_system::Pallet<T>>::block_number();
+
+            let deadline = sp
+                .deadline_info(
+                    current_block,
+                    T::WPoStPeriodDeadlines::get(),
+                    T::WPoStProvingPeriod::get(),
+                    T::WPoStChallengeWindow::get(),
+                    T::WPoStChallengeLookBack::get(),
+                    T::FaultDeclarationCutoff::get(),
+                )
+                .ok()?;
+
+            Some(primitives_proofs::CurrentDeadline {
+                deadline_index: deadline.idx,
+                open: deadline.is_open(),
+                challenge_block: deadline.challenge,
+                start: deadline.open_at,
+            })
+        }
+
         fn validate_expiration(
             curr_block: BlockNumberFor<T>,
             activation: BlockNumberFor<T>,

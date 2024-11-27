@@ -115,13 +115,20 @@ pub enum ProofsCommand {
         /// It must be the same, or else it won't work.
         #[arg(short, long)]
         cache_directory: PathBuf,
+        #[arg(short, long)]
+        /// Directory where the PoSt proof will be stored. Defaults to the current directory.
+        output_path: Option<PathBuf>,
+        /// Sector Number used in the PoRep command.
+        #[arg(long)]
+        sector_number: u32,
+        /// Block Number at which the randomness should be fetched from.
+        /// It comes from the [`pallet_storage_provider::DeadlineInfo::challenge`] field.
+        #[arg(long)]
+        challenge_block: u64,
         /// Replica file generated with `porep` command e.g. `77.sector.sealed`.
         replica_path: PathBuf,
         /// CID - CommR of a replica (output of `porep` command)
         comm_r: String,
-        #[arg(short, long)]
-        /// Directory where the PoSt proof will be stored. Defaults to the current directory.
-        output_path: Option<PathBuf>,
     },
 }
 
@@ -405,16 +412,19 @@ impl ProofsCommand {
                 replica_path,
                 comm_r,
                 output_path,
+                sector_number,
+                challenge_block,
             } => {
                 let Some(signer) = Option::<MultiPairSigner>::from(signer_key) else {
                     return Err(UtilsCommandError::NoSigner)?;
                 };
-                let prover_id = derive_prover_id(signer.account_id());
 
-                // Those are hardcoded for the showcase only.
-                // They should come from Storage Provider Node, precommits and other information.
-                let sector_id = 77.into();
-                let randomness = [1u8; 32];
+                let entropy = signer.account_id().encode();
+                let randomness = get_randomness(
+                    DomainSeparationTag::WindowedPoStChallengeSeed,
+                    challenge_block,
+                    &entropy,
+                );
 
                 let output_path = if let Some(output_path) = output_path {
                     output_path
@@ -424,15 +434,18 @@ impl ProofsCommand {
 
                 let (proof_scale_filename, mut proof_scale_file) = file_with_extension(
                     &output_path,
-                    format!("{}", sector_id).as_str(),
+                    format!("{}", sector_number).as_str(),
                     POST_PROOF_EXT,
                 )?;
 
                 let comm_r =
                     cid::Cid::from_str(&comm_r).map_err(|_| UtilsCommandError::CommRError)?;
 
+                let sector_number = SectorNumber::try_from(sector_number)
+                    .map_err(|_| UtilsCommandError::InvalidSectorId)?;
+
                 let replicas = vec![ReplicaInfo {
-                    sector_id,
+                    sector_id: sector_number,
                     comm_r: comm_r
                         .hash()
                         .digest()
@@ -445,6 +458,7 @@ impl ProofsCommand {
                 let proof_parameters = post::load_groth16_parameters(proof_parameters_path)
                     .map_err(|e| UtilsCommandError::GeneratePoStError(e))?;
 
+                let prover_id = derive_prover_id(signer.account_id());
                 let proofs = post::generate_window_post(
                     post_type,
                     &proof_parameters,

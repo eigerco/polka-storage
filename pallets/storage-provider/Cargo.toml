@@ -57,6 +57,7 @@ std = [
   "frame-support/std",
   "frame-system/std",
   "pallet-balances/std",
+  "primitives-proofs/std",
   "scale-info/std",
   "sp-core/std",
   "sp-io/std",

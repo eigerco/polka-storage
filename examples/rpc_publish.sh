@@ -35,11 +35,9 @@ target/release/storagext-cli --sr25519-key "$PROVIDER" market add-balance 250000
 # register one of them as the storage provider
 wait
 
-# Register the SP
-target/release/storagext-cli --sr25519-key "$PROVIDER" storage-provider register "peer_id"
-
-# Set PoRep verifying key
-target/release/storagext-cli --sr25519-key "$PROVIDER" proofs set-porep-verifying-key @2KiB.porep.vk.scale
+target/release/storagext-cli --sr25519-key "//Charlie" storage-provider register "peer_id"
+target/release/storagext-cli --sr25519-key "//Charlie" proofs set-porep-verifying-key @2KiB.porep.vk.scale
+target/release/storagext-cli --sr25519-key "//Charlie" proofs set-post-verifying-key @2KiB.post.vk.scale
 
 DEAL_JSON=$(
     jq -n \
