@@ -328,7 +328,7 @@ The Storage Provider Pallet emits the following events:
     - `deadline_idx` - The deadline index assigned to the proven sector.
 - `SectorsSlashed` - Previously pre-committed sectors, but not proven, have been slashed by the system because it has expired.
   - `owner` - SS58 address of the storage provider.
-  - `sector_numbers` - The sector numbers that hav been slashed because of expiry.
+  - `sector_numbers` - The sector numbers that have been slashed because of expiry.
 - `ValidPoStSubmitted` - A valid PoSt has been submitted by a storage provider.
   - `owner` - SS58 address of the storage provider.
 - `FaultsDeclared` - A storage provider has declared some sectors as faulty.
