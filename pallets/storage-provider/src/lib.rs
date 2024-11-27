@@ -35,7 +35,7 @@ pub mod pallet {
 
     extern crate alloc;
 
-    use alloc::{vec, vec::Vec};
+    use alloc::{collections::BTreeMap, vec, vec::Vec};
     use core::fmt::Debug;
 
     use cid::Cid;
@@ -71,7 +71,7 @@ pub mod pallet {
             DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration,
             RecoveryDeclaration,
         },
-        partition::PartitionNumber,
+        partition::{PartitionNumber, MAX_PARTITIONS_PER_DEADLINE},
         proofs::{assign_proving_period_offset, SubmitWindowedPoStParams},
         sector::{
             ProveCommitResult, ProveCommitSector, SectorOnChainInfo, SectorPreCommitInfo,
@@ -276,9 +276,10 @@ pub mod pallet {
             sectors: BoundedVec<ProveCommitResult, ConstU32<MAX_SECTORS_PER_CALL>>,
         },
         /// Emitted when a sector was pre-committed, but not proven, so it got slashed in the pre-commit hook.
-        SectorSlashed {
+        SectorsSlashed {
             owner: T::AccountId,
-            sector_number: SectorNumber,
+            // No need for a bounded collection as we produce the output ourselves.
+            sector_numbers: BoundedVec<SectorNumber, ConstU32<MAX_SECTORS>>,
         },
         /// Emitted when an SP submits a valid PoSt
         ValidPoStSubmitted { owner: T::AccountId },
@@ -293,10 +294,13 @@ pub mod pallet {
             recoveries: BoundedVec<RecoveryDeclaration, ConstU32<DECLARATIONS_MAX>>,
         },
         /// Emitted when an SP doesn't submit Windowed PoSt in time and PoSt hook marks partitions as faulty
-        PartitionFaulty {
+        PartitionsFaulty {
             owner: T::AccountId,
-            partition: PartitionNumber,
-            sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
+            faulty_partitions: BoundedBTreeMap<
+                PartitionNumber,
+                BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
+                ConstU32<MAX_PARTITIONS_PER_DEADLINE>,
+            >,
         },
         /// Emitted when an SP terminates some sectors.
         SectorsTerminated {
@@ -1177,18 +1181,16 @@ pub mod pallet {
                     return;
                 }
 
+                let mut removed_sectors = BoundedVec::new();
                 log::info!(target: LOG_TARGET, "found {} expired pre committed sectors for {:?}", expired.len(), storage_provider);
                 for sector_number in expired {
                     // Expired sectors should be removed, because in other case they'd be processed twice in the next block.
-                    let Ok(()) = state.remove_pre_committed_sector(sector_number) else {
+                    if let Ok(()) = state.remove_pre_committed_sector(sector_number) {
+                        removed_sectors.force_push(sector_number)
+                    } else {
                         log::error!(target: LOG_TARGET, "catastrophe, failed to remove sector {} for {:?}", sector_number, storage_provider);
                         continue;
                     };
-
-                    Self::deposit_event(Event::<T>::SectorSlashed {
-                        sector_number,
-                        owner: storage_provider.clone(),
-                    });
                 }
 
                 let Some(slashed_deposits) = state.pre_commit_deposits.checked_sub(&slash_amount)
@@ -1205,6 +1207,10 @@ pub mod pallet {
                 };
 
                 StorageProviders::<T>::insert(&storage_provider, state);
+                Self::deposit_event(Event::<T>::SectorsSlashed {
+                    owner: storage_provider,
+                    sector_numbers: removed_sectors,
+                })
             }
         }
 
@@ -1308,9 +1314,9 @@ pub mod pallet {
                 }
 
                 log::info!(target: LOG_TARGET, "block: {:?}, checking storage provider {:?} deadline: {:?}",
-                   current_block,
-                   storage_provider,
-                   current_deadline.idx,
+                    current_block,
+                    storage_provider,
+                    current_deadline.idx,
                 );
 
                 let Ok(deadline) =
@@ -1321,7 +1327,12 @@ pub mod pallet {
                     continue;
                 };
 
-                let mut faulty_partitions = 0;
+                let mut faulty_partitions_amount = 0;
+                // Create collection for fault partitions, 1 event per SP
+                let mut faulty_partitions: BTreeMap<
+                    PartitionNumber,
+                    BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
+                > = BTreeMap::new();
                 for (partition_number, partition) in deadline.partitions.iter_mut() {
                     if partition.sectors.len() == 0 {
                         continue;
@@ -1355,24 +1366,23 @@ pub mod pallet {
                     current_block, storage_provider, partition_number, new_faults.len());
 
                     if new_faults.len() > 0 {
-                        Self::deposit_event(Event::PartitionFaulty {
-                            owner: storage_provider.clone(),
-                            partition: *partition_number,
-                            sectors: new_faults.try_into()
-                                .expect("new_faults.len() <= MAX_SECTORS, cannot be more new faults than all of the sectors in partition"),
-                        });
-                        faulty_partitions += 1;
+                        faulty_partitions.insert(*partition_number, new_faults.try_into().expect("should be able to create BoundedBTreeSet due to input being bounded"));
+                        faulty_partitions_amount += 1;
                     }
                 }
 
                 // TODO(@th7nder,[#106,#187],08/08/2024): figure out slashing amounts (for continued faults, new faults).
-                if faulty_partitions > 0 {
+                if faulty_partitions_amount > 0 {
                     log::warn!(target: LOG_TARGET, "block: {:?}, sp: {:?}, deadline: {:?} - should have slashed {} partitions...",
                         current_block,
                         storage_provider,
                         current_deadline.idx,
-                        faulty_partitions,
+                        faulty_partitions_amount,
                     );
+                    Self::deposit_event(Event::PartitionsFaulty {
+                        owner: storage_provider.clone(),
+                        faulty_partitions: faulty_partitions.try_into().expect("should be able to create a BTreeMap with a MAX_PARTITIONS_PER_DEADLINE bound after iterating over a map with the same bound"),
+                    })
                 } else {
                     log::info!(target: LOG_TARGET, "block: {:?}, sp: {:?}, deadline: {:?} - all proofs submitted on time.",
                         current_block,

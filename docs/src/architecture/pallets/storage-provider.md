@@ -326,9 +326,9 @@ The Storage Provider Pallet emits the following events:
     - `sector_number` - The sector number that is proven.
     - `partition_number` - The partition number the proven sector is in.
     - `deadline_idx` - The deadline index assigned to the proven sector.
-- `SectorSlashed` - A previously pre-committed sector, but not proven, has been slashed by the system because it has expired.
+- `SectorsSlashed` - Previously pre-committed sectors, but not proven, have been slashed by the system because it has expired.
   - `owner` - SS58 address of the storage provider.
-  - `sector_number` - The sector number that has been slashed because of expiry.
+  - `sector_numbers` - The sector numbers that have been slashed because of expiry.
 - `ValidPoStSubmitted` - A valid PoSt has been submitted by a storage provider.
   - `owner` - SS58 address of the storage provider.
 - `FaultsDeclared` - A storage provider has declared some sectors as faulty.
@@ -343,10 +343,9 @@ The Storage Provider Pallet emits the following events:
     - `deadline` - The deadline to which the recovered sectors are assigned.
     - `partition` - Partition number within the deadline containing the recovered sectors.
     - `sectors` - Sectors in the partition being declared as recovered.
-- `PartitionFaulty` - It was detected that a storage provider has not submitted their PoSt on time and has marked some sectors as faulty.
+- `PartitionsFaulty` - It was detected that a storage provider has not submitted their PoSt on time and has marked some partitions and sectors as faulty.
   - `owner` - SS58 address of the storage provider.
-  - `partition` - Partition number for which the PoSt was missed.
-  - `sectors` - The sectors in the partition declared faulty by the system.
+  - `faulty_partitions` - A map with partition numbers and the sectors associated with the partition number that are faulty.
 - `SectorsTerminated` - A storage provider has terminated some sectors.
   - `owner` - SS58 address of the storage provider.
   - `terminations` - An array with information about the terminated sectors. This information includes:

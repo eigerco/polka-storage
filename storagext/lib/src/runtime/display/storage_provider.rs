@@ -87,12 +87,17 @@ impl std::fmt::Display for Event {
                 "Sectors Proven: {{ owner: {}, sectors: {:?} }}",
                 owner, sectors,
             )),
-            Event::SectorSlashed {
+            Event::SectorsSlashed {
                 owner,
-                sector_number,
+                sector_numbers,
             } => f.write_fmt(format_args!(
-                "Sector Slashed: {{ owner: {}, sector_number: {} }}",
-                owner, sector_number,
+                "Sectors Slashed: {{ owner: {}, sector_numbers: {} }}",
+                owner,
+                itertools::Itertools::intersperse(
+                    sector_numbers.0.iter().map(ToString::to_string),
+                    ", ".to_string()
+                )
+                .collect::<String>(),
             )),
             Event::ValidPoStSubmitted { owner } => {
                 f.write_fmt(format_args!("Valid PoSt Submitted: {{ owner: {} }}", owner,))
@@ -115,16 +120,25 @@ impl std::fmt::Display for Event {
                 )
                 .collect::<String>()
             )),
-            Event::PartitionFaulty {
+            Event::PartitionsFaulty {
                 owner,
-                partition,
-                sectors,
+                faulty_partitions,
             } => f.write_fmt(format_args!(
-                "Faulty Partition: {{ owner: {}, partition: {}, sectors: [{}] }}",
+                "Faulty Partitions: {{ owner: {}, faulty_partitions: [{}] }}",
                 owner,
-                partition,
                 itertools::Itertools::intersperse(
-                    sectors.0.iter().map(|recovery| format!("{}", recovery)),
+                    faulty_partitions
+                        .0
+                        .iter()
+                        .map(|(partition, sectors)| format!(
+                            "{{ partition: {}, sectors: {} }}",
+                            partition,
+                            itertools::Itertools::intersperse(
+                                sectors.0.iter().map(ToString::to_string),
+                                ", ".to_string()
+                            )
+                            .collect::<String>()
+                        )),
                     ", ".to_string()
                 )
                 .collect::<String>()

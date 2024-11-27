@@ -28,3 +28,13 @@ target/
 
 # code coverage
 coverage/
+
+# PoRep Params
+*.porep.params
+*.porep.vk
+*.porep.vk.scale
+
+# PoSt Params
+*.post.params
+*.post.vk
+*.post.vk.scale
