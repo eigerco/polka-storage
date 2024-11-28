@@ -43,6 +43,7 @@ pub struct ServerInfo {
     pub seal_proof: RegisteredSealProof,
 
     pub post_proof: RegisteredPoStProof,
+    pub proving_period_start: u64,
 }
 
 impl ServerInfo {
@@ -51,12 +52,14 @@ impl ServerInfo {
         address: <storagext::PolkaStorageConfig as subxt::Config>::AccountId,
         seal_proof: RegisteredSealProof,
         post_proof: RegisteredPoStProof,
+        proving_period_start: u64,
     ) -> Self {
         Self {
             start_time: Utc::now(),
             address,
             seal_proof,
             post_proof,
+            proving_period_start,
         }
     }
 }

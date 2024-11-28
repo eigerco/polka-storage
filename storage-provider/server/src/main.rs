@@ -19,8 +19,7 @@ use polka_storage_provider_common::rpc::ServerInfo;
 use primitives::proofs::{RegisteredPoStProof, RegisteredSealProof};
 use rand::Rng;
 use storagext::{
-    multipair::{DebugPair, MultiPairSigner},
-    MarketClientExt, StorageProviderClientExt,
+    multipair::{DebugPair, MultiPairSigner}, runtime::runtime_types::{bounded_collections::bounded_vec::BoundedVec, pallet_storage_provider::storage_provider::StorageProviderState}, MarketClientExt, StorageProviderClientExt
 };
 use subxt::{
     ext::sp_core::{
@@ -390,14 +389,12 @@ impl ServerConfiguration {
     }
 
     async fn setup(self) -> Result<SetupOutput, ServerError> {
-        let xt_client = Arc::new(
-            ServerConfiguration::setup_storagext_client(
-                self.node_url,
-                &self.multi_pair_signer,
-                &self.post_proof,
-            )
-            .await?,
-        );
+        let (xt_client, storage_provider_info) = ServerConfiguration::setup_storagext_client(
+            self.node_url,
+            &self.multi_pair_signer,
+            &self.post_proof,
+        ).await?;
+        let xt_client = Arc::new(xt_client);
         let deal_database = Arc::new(DealDB::new(self.database_directory)?);
 
         // Car piece storage directory — i.e. the CAR archives from the input streams
@@ -428,6 +425,7 @@ impl ServerConfiguration {
                 self.multi_pair_signer.account_id(),
                 self.seal_proof,
                 self.post_proof,
+                storage_provider_info.proving_period_start,
             ),
             deal_db: deal_database.clone(),
             car_piece_storage_dir: car_piece_storage_dir.clone(),
@@ -462,7 +460,7 @@ impl ServerConfiguration {
         rpc_address: impl AsRef<str>,
         xt_keypair: &MultiPairSigner,
         post_proof: &RegisteredPoStProof,
-    ) -> Result<storagext::Client, ServerError> {
+    ) -> Result<(storagext::Client, StorageProviderState<BoundedVec<u8>, u128, u64>), ServerError> {
         let xt_client = storagext::Client::new(rpc_address, RETRY_NUMBER, RETRY_INTERVAL).await?;
 
         let storage_provider_account_id = subxt::utils::AccountId32(
@@ -497,6 +495,8 @@ impl ServerConfiguration {
                     );
                     return Err(ServerError::ProofMismatch);
                 }
+
+                Ok((xt_client, storage_provider_info))
             }
             None => {
                 tracing::error!(concat!(
@@ -504,10 +504,9 @@ impl ServerConfiguration {
                     "you can register your account using the ",
                     "`storagext-cli storage-provider register`"
                 ));
-                return Err(ServerError::UnregisteredStorageProvider);
+
+                Err(ServerError::UnregisteredStorageProvider)
             }
         }
-
-        Ok(xt_client)
     }
 }
