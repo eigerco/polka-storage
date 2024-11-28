@@ -2,9 +2,12 @@ pub mod types;
 
 use std::{path::PathBuf, sync::Arc};
 
-use polka_storage_proofs::porep::{
-    sealer::{prepare_piece, BlstrsProof, PreCommitOutput, Sealer, SubstrateProof},
-    PoRepError, PoRepParameters,
+use polka_storage_proofs::{
+    porep::{
+        sealer::{prepare_piece, BlstrsProof, PreCommitOutput, Sealer, SubstrateProof},
+        PoRepError, PoRepParameters,
+    },
+    post::PoStParameters,
 };
 use polka_storage_provider_common::rpc::ServerInfo;
 use primitives::{
@@ -64,6 +67,7 @@ pub struct PipelineState {
     pub sealed_sectors_dir: Arc<PathBuf>,
     pub sealing_cache_dir: Arc<PathBuf>,
     pub porep_parameters: Arc<PoRepParameters>,
+    pub post_parameters: Arc<PoStParameters>,
 
     pub xt_client: Arc<storagext::Client>,
     pub xt_keypair: storagext::multipair::MultiPairSigner,

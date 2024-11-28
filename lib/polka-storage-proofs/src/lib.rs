@@ -3,10 +3,13 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 mod groth16;
-pub mod post;
+
 pub mod types;
 
 pub use groth16::*;
+
+#[cfg(feature = "std")]
+pub mod post;
 
 #[cfg(feature = "std")]
 pub mod porep;
