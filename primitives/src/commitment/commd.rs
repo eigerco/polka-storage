@@ -251,7 +251,7 @@ mod tests {
     use cid::Cid;
 
     use super::*;
-    use crate::proofs::SectorSize;
+    use crate::sector::SectorSize;
 
     #[test]
     fn test_compute_comm_d_empty() {

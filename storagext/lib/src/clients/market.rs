@@ -1,6 +1,6 @@
 use std::future::Future;
 
-use primitives::proofs::DealId;
+use primitives::DealId;
 use subxt::{ext::sp_core::crypto::Ss58Codec, utils::Static};
 
 use crate::{

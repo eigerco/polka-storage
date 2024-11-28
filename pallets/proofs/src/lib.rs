@@ -28,12 +28,10 @@ pub mod pallet {
     use frame_system::pallet_prelude::*;
     use primitives::{
         commitment::RawCommitment,
-        proofs::{
-            ProofVerification, ProverId, PublicReplicaInfo, RegisteredPoStProof,
-            RegisteredSealProof, Ticket, MAX_POST_PROOF_BYTES, MAX_SEAL_PROOF_BYTES,
-            MAX_SECTORS_PER_PROOF,
-        },
+        pallets::ProofVerification,
+        proofs::{ProverId, PublicReplicaInfo, RegisteredPoStProof, RegisteredSealProof, Ticket},
         sector::SectorNumber,
+        MAX_POST_PROOF_BYTES, MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_PROOF,
     };
 
     use crate::{

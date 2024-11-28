@@ -2,12 +2,14 @@ use cid::Cid;
 use codec::{Codec, Decode, Encode};
 use scale_info::TypeInfo;
 use sp_core::{ConstU32, RuntimeDebug};
-use sp_runtime::{BoundedVec, DispatchError, DispatchResult};
+use sp_runtime::{BoundedBTreeMap, BoundedVec, DispatchError, DispatchResult};
 
 use crate::{
-    proofs::{ActiveSector, DealId, RegisteredSealProof},
+    commitment::RawCommitment,
+    proofs::{ProverId, PublicReplicaInfo, RegisteredPoStProof, RegisteredSealProof, Ticket},
     sector::SectorNumber,
-    MAX_DEALS_PER_SECTOR, MAX_SECTORS_PER_CALL,
+    DealId, MAX_DEALS_PER_SECTOR, MAX_POST_PROOF_BYTES, MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_CALL,
+    MAX_SECTORS_PER_PROOF,
 };
 
 /// Represents functions that are provided by the Randomness Pallet
@@ -18,6 +20,27 @@ pub trait Randomness<BlockNumber> {
 pub trait StorageProviderValidation<AccountId> {
     /// Checks that the storage provider is registered.
     fn is_registered_storage_provider(storage_provider: &AccountId) -> bool;
+}
+
+/// Entrypoint for proof verification implemented by Pallet Proofs.
+pub trait ProofVerification {
+    fn verify_porep(
+        prover_id: ProverId,
+        seal_proof: RegisteredSealProof,
+        comm_r: RawCommitment,
+        comm_d: RawCommitment,
+        sector: SectorNumber,
+        ticket: Ticket,
+        seed: Ticket,
+        proof: BoundedVec<u8, ConstU32<MAX_SEAL_PROOF_BYTES>>,
+    ) -> DispatchResult;
+
+    fn verify_post(
+        post_type: RegisteredPoStProof,
+        randomness: Ticket,
+        replicas: BoundedBTreeMap<SectorNumber, PublicReplicaInfo, ConstU32<MAX_SECTORS_PER_PROOF>>,
+        proof: BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>,
+    ) -> DispatchResult;
 }
 
 /// Represents functions that are provided by the Market Provider Pallet
@@ -73,6 +96,27 @@ pub struct SectorDeal<BlockNumber> {
     /// Deals Ids that are supposed to be activated.
     /// If any of those is invalid, whole activation is rejected.
     pub deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
+}
+
+/// A sector with all of its active deals.
+#[derive(RuntimeDebug, Eq, PartialEq)]
+pub struct ActiveSector<AccountId> {
+    /// Information about each deal activated.
+    pub active_deals: BoundedVec<ActiveDeal<AccountId>, ConstU32<MAX_DEALS_PER_SECTOR>>,
+    /// Unsealed CID computed from the deals specified for the sector.
+    /// A None indicates no deals were specified, or the computation was not requested.
+    pub unsealed_cid: Option<Cid>,
+}
+
+/// An active deal with references to data that it stores
+#[derive(RuntimeDebug, Eq, PartialEq)]
+pub struct ActiveDeal<AccountId> {
+    /// Client's account
+    pub client: AccountId,
+    /// Data that was stored
+    pub piece_cid: Cid,
+    /// Real size of the data
+    pub piece_size: u64,
 }
 
 /// Current deadline in a proving period of a Storage Provider.

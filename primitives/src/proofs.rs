@@ -1,17 +1,10 @@
-use core::{fmt::Display, marker::PhantomData};
-
-use codec::{Decode, Encode, MaxEncodedLen};
-use scale_decode::{
-    visitor::{self},
-    DecodeAsType, ToString, TypeResolver, Visitor,
-};
+use codec::{Decode, Encode};
+use scale_decode::DecodeAsType;
 use scale_encode::EncodeAsType;
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
+use sp_core::blake2_256;
 
-use crate::sector::SectorSize;
-
-pub type DealId = u64;
+use crate::{commitment::RawCommitment, sector::SectorSize};
 
 /// Byte representation of the entity that was signing the proof.
 /// It must match the ProverId used for Proving.
@@ -19,6 +12,31 @@ pub type ProverId = [u8; 32];
 
 /// Byte representation of randomness seed, it's used for challenge generation.
 pub type Ticket = [u8; 32];
+
+/// Derives a unique prover ID for a given account.
+///
+/// The function takes an `AccountId` and generates a 32-byte array that serves
+/// as a unique identifier for the prover associated with that account. The
+/// prover ID is derived using the Blake2 hash of the encoded account ID.
+pub fn derive_prover_id<AccountId>(account_id: AccountId) -> [u8; 32]
+where
+    AccountId: Encode,
+{
+    let encoded = account_id.encode();
+    let mut encoded = blake2_256(&encoded);
+
+    // Necessary to be a valid bls12 381 element.
+    encoded[31] &= 0x3f;
+    encoded
+}
+
+/// The minimal information required about a replica, in order to be able to verify
+/// a PoSt over it.
+#[derive(Clone, core::fmt::Debug, PartialEq, Eq)]
+pub struct PublicReplicaInfo {
+    /// The replica commitment.
+    pub comm_r: RawCommitment,
+}
 
 #[allow(non_camel_case_types)]
 #[derive(

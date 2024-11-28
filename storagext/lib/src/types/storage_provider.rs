@@ -7,8 +7,9 @@ use std::collections::BTreeSet;
 
 use cid::Cid;
 use primitives::{
-    proofs::{DealId, RegisteredPoStProof, RegisteredSealProof},
+    proofs::{RegisteredPoStProof, RegisteredSealProof},
     sector::SectorNumber,
+    DealId,
 };
 
 use crate::{

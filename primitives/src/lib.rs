@@ -6,6 +6,8 @@ pub mod proofs;
 pub mod randomness;
 pub mod sector;
 
+pub type DealId = u64;
+
 /// Merkle tree node size in bytes.
 pub const NODE_SIZE: usize = 32;
 

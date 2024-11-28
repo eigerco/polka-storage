@@ -44,10 +44,10 @@ pub mod pallet {
             piece::{PaddedPieceSize, PieceInfo},
             CommP, Commitment, CommitmentError,
         },
-        pallets::{Market, SectorDeal, StorageProviderValidation},
-        proofs::{ActiveDeal, ActiveSector, DealId, RegisteredSealProof},
+        pallets::{ActiveDeal, ActiveSector, Market, SectorDeal, StorageProviderValidation},
+        proofs::RegisteredSealProof,
         sector::{SectorNumber, SectorSize},
-        MAX_DEALS_PER_SECTOR, MAX_SECTORS_PER_CALL,
+        DealId, MAX_DEALS_PER_SECTOR, MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::BaseArithmetic;

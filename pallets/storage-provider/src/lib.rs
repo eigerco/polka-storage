@@ -57,8 +57,10 @@ pub mod pallet {
     };
     use primitives::{
         commitment::{CommD, CommR, Commitment},
-        pallets::{CurrentDeadline, Market, Randomness, StorageProviderValidation},
-        proofs::{derive_prover_id, ProofVerification, PublicReplicaInfo, RegisteredPoStProof},
+        pallets::{
+            CurrentDeadline, Market, ProofVerification, Randomness, StorageProviderValidation,
+        },
+        proofs::{derive_prover_id, PublicReplicaInfo, RegisteredPoStProof},
         randomness::{draw_randomness, DomainSeparationTag},
         sector::SectorNumber,
         MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_CALL,
@@ -691,8 +693,7 @@ pub mod pallet {
             );
 
             ensure!(
-                windowed_post.proof.proof_bytes.len()
-                    <= primitives::proofs::MAX_POST_PROOF_BYTES as usize,
+                windowed_post.proof.proof_bytes.len() <= primitives::MAX_POST_PROOF_BYTES as usize,
                 {
                     log::error!("submit_window_post: invalid proof size");
                     Error::<T>::PoStProofInvalid
