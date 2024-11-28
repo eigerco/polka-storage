@@ -19,7 +19,12 @@ use polka_storage_provider_common::rpc::ServerInfo;
 use primitives::proofs::{RegisteredPoStProof, RegisteredSealProof};
 use rand::Rng;
 use storagext::{
-    multipair::{DebugPair, MultiPairSigner}, runtime::runtime_types::{bounded_collections::bounded_vec::BoundedVec, pallet_storage_provider::storage_provider::StorageProviderState}, MarketClientExt, StorageProviderClientExt
+    multipair::{DebugPair, MultiPairSigner},
+    runtime::runtime_types::{
+        bounded_collections::bounded_vec::BoundedVec,
+        pallet_storage_provider::storage_provider::StorageProviderState,
+    },
+    MarketClientExt, StorageProviderClientExt,
 };
 use subxt::{
     ext::sp_core::{
@@ -393,7 +398,8 @@ impl ServerConfiguration {
             self.node_url,
             &self.multi_pair_signer,
             &self.post_proof,
-        ).await?;
+        )
+        .await?;
         let xt_client = Arc::new(xt_client);
         let deal_database = Arc::new(DealDB::new(self.database_directory)?);
 
@@ -460,15 +466,16 @@ impl ServerConfiguration {
         rpc_address: impl AsRef<str>,
         xt_keypair: &MultiPairSigner,
         post_proof: &RegisteredPoStProof,
-    ) -> Result<(storagext::Client, StorageProviderState<BoundedVec<u8>, u128, u64>), ServerError> {
+    ) -> Result<
+        (
+            storagext::Client,
+            StorageProviderState<BoundedVec<u8>, u128, u64>,
+        ),
+        ServerError,
+    > {
         let xt_client = storagext::Client::new(rpc_address, RETRY_NUMBER, RETRY_INTERVAL).await?;
 
-        let storage_provider_account_id = subxt::utils::AccountId32(
-            // account_id() -> sp_core::crypto::AccountId
-            // as_ref() -> &[u8]
-            // * -> [u8]
-            *xt_keypair.account_id().as_ref(),
-        );
+        let storage_provider_account_id = xt_keypair.account_id().into();
 
         // Check if the storage provider has been registered to the chain
         let storage_provider_info = xt_client

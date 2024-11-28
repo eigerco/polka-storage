@@ -21,7 +21,7 @@ use crate::{
         storage_provider::calls::types::register_storage_provider::PeerId,
     },
     types::storage_provider::{
-        FaultDeclaration, ProveCommitSector, RecoveryDeclaration, SectorPreCommitInfo,
+        FaultDeclaration, SubmitWindowedPoStParams, ProveCommitSector, RecoveryDeclaration, SectorPreCommitInfo,
         TerminationDeclaration,
     },
     BlockNumber, Currency, PolkaStorageConfig,
@@ -216,7 +216,7 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
     {
         let payload = runtime::tx()
             .storage_provider()
-            .submit_windowed_post(windowed_post);
+            .submit_windowed_post(windowed_post.into());
 
         self.traced_submission(&payload, account_keypair, wait_for_finalization)
             .await

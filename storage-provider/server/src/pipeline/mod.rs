@@ -7,7 +7,7 @@ use polka_storage_proofs::{
         sealer::{prepare_piece, BlstrsProof, PreCommitOutput, Sealer, SubstrateProof},
         PoRepError, PoRepParameters,
     },
-    post::PoStParameters,
+    post::{self, PoStError, PoStParameters, ReplicaInfo},
 };
 use polka_storage_provider_common::rpc::ServerInfo;
 use primitives::{
@@ -19,11 +19,13 @@ use primitives::{
 use storagext::{
     types::{
         market::DealProposal,
-        storage_provider::{ProveCommitSector, SectorPreCommitInfo},
-    },
-    RandomnessClientExt, StorageProviderClientExt, SystemClientExt,
+        storage_provider::{PoStProof, ProveCommitSector, SectorPreCommitInfo, SubmitWindowedPoStParams},
+    }, IntoBoundedByteVec, RandomnessClientExt, StorageProviderClientExt, SystemClientExt
 };
-use subxt::{ext::codec::Encode, tx::Signer};
+use subxt::{
+    ext::{codec::Encode, sp_core::ConstU32},
+    tx::Signer,
+};
 use tokio::{
     sync::mpsc::{error::SendError, UnboundedReceiver, UnboundedSender},
     task::{JoinError, JoinHandle},
@@ -31,7 +33,7 @@ use tokio::{
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use types::{
     AddPieceMessage, PipelineMessage, PreCommitMessage, PreCommittedSector, ProveCommitMessage,
-    ProvenSector, UnsealedSector,
+    ProvenSector, SubmitWindowedPoStMessage, UnsealedSector,
 };
 
 use crate::db::{DBError, DealDB};
@@ -42,6 +44,8 @@ const SECTOR_EXPIRATION_MARGIN: u64 = 20;
 pub enum PipelineError {
     #[error(transparent)]
     PoRepError(#[from] PoRepError),
+    #[error(transparent)]
+    PoStError(#[from] PoStError),
     #[error(transparent)]
     Join(#[from] JoinError),
     #[error(transparent)]
@@ -54,6 +58,10 @@ pub enum PipelineError {
     SectorNotFound,
     #[error("precommit scheduled too early, randomness not available")]
     RandomnessNotAvailable,
+    #[error("current deadline or storage provider not found")]
+    DeadlineNotFound,
+    #[error("invalid sector number: {0}")]
+    InvalidSectorNumber(u32),
     #[error(transparent)]
     SendError(#[from] SendError<PipelineMessage>),
     #[error("Custom error: {0}")]
@@ -113,6 +121,7 @@ trait PipelineOperations {
     fn add_piece(&self, state: Arc<PipelineState>, msg: AddPieceMessage, token: CancellationToken);
     fn precommit(&self, state: Arc<PipelineState>, msg: PreCommitMessage);
     fn prove_commit(&self, state: Arc<PipelineState>, msg: ProveCommitMessage);
+    fn submit_windowed_post(&self, state: Arc<PipelineState>, msg: SubmitWindowedPoStMessage);
 }
 
 impl PipelineOperations for TaskTracker {
@@ -177,6 +186,24 @@ impl PipelineOperations for TaskTracker {
             }
         });
     }
+
+    fn submit_windowed_post(&self, state: Arc<PipelineState>, msg: SubmitWindowedPoStMessage) {
+        let SubmitWindowedPoStMessage { deadline_index } = msg;
+        self.spawn(async move {
+            // SubmitWindowedPoSt is not cancellation safe.
+            match submit_windowed_post(state, deadline_index).await {
+                Ok(_) => {
+                    tracing::info!(
+                        "SubmitWindowedPoSt for deadline {} finished successfully.",
+                        deadline_index
+                    )
+                }
+                Err(err) => {
+                    tracing::error!(%err, "SubmitWindowedPoSt failed for deadline: {}", deadline_index)
+                }
+            }
+        });
+    }
 }
 
 fn process(
@@ -189,6 +216,9 @@ fn process(
         PipelineMessage::AddPiece(msg) => tracker.add_piece(state.clone(), msg, token.clone()),
         PipelineMessage::PreCommit(msg) => tracker.precommit(state.clone(), msg),
         PipelineMessage::ProveCommit(msg) => tracker.prove_commit(state.clone(), msg),
+        PipelineMessage::SubmitWindowedPoStMessage(msg) => {
+            tracker.submit_windowed_post(state.clone(), msg)
+        }
     }
 }
 
@@ -512,6 +542,130 @@ async fn prove_commit(
 
     let sector = ProvenSector::create(sector);
     state.db.save_sector(sector.sector_number, &sector)?;
+
+    Ok(())
+}
+
+#[tracing::instrument(skip_all, fields(sector_number))]
+async fn submit_windowed_post(
+    state: Arc<PipelineState>,
+    deadline_index: u64,
+) -> Result<(), PipelineError> {
+    // 1. Wait for proving_period_start
+    //  - stretch goal - implement get_deadline_info(idx) api?
+    // 2. Fetch the partitions and sectors
+    // 3. Generate PoSt
+    // 4. Schedule again!
+    // 5. [FOLLOW-UP] We need to keep track whether we proven that successfully or not.
+
+    // TODO(@th7nder,28/11/2024): only proving the first deadline for now.
+    tracing::info!(
+        "Wait for block {} for first deadline to open",
+        state.server_info.proving_period_start
+    );
+    state
+        .xt_client
+        .wait_for_height(state.server_info.proving_period_start, true)
+        .await?;
+
+    tracing::info!("Waiting finished, let's go");
+    let deadline = state
+        .xt_client
+        .current_deadline(&state.xt_keypair.account_id().into())
+        .await?;
+    let Some(deadline) = deadline else {
+        tracing::error!("Something went catastrophic, there is no current deadline for SP");
+        return Err(PipelineError::DeadlineNotFound);
+    };
+
+    let Some(digest) = state
+        .xt_client
+        .get_randomness(deadline.challenge_block)
+        .await?
+    else {
+        tracing::error!("Randomness for the block not available.");
+        return Err(PipelineError::RandomnessNotAvailable);
+    };
+    let entropy = state.xt_keypair.account_id().encode();
+    let randomness = draw_randomness(
+        &digest,
+        DomainSeparationTag::WindowedPoStChallengeSeed,
+        deadline.challenge_block,
+        &entropy,
+    );
+    // TODO(@th7nder,28/11/2024): hardcode only 1st sector and 0th partition to test this stuff.
+    let partitions: Vec<u32> = vec![0];
+    let sectors = vec![1];
+
+    let mut replicas = Vec::new();
+    for sector_number in sectors {
+        let sector_number = SectorNumber::try_from(sector_number)
+            .map_err(|_| PipelineError::InvalidSectorNumber(sector_number))?;
+        let sector = state
+            .db
+            .get_sector::<ProvenSector>(sector_number)?
+            .ok_or(PipelineError::SectorNotFound)?;
+
+        replicas.push(ReplicaInfo {
+            sector_id: sector_number,
+            comm_r: sector.comm_r.raw(),
+            replica_path: sector.sealed_path.clone(),
+        });
+    }
+    let prover_id = derive_prover_id(state.xt_keypair.account_id());
+
+    tracing::info!("Proving PoSt partitions... {:?}", partitions);
+    let handle: JoinHandle<Result<Vec<BlstrsProof>, _>> = {
+        let post_params = state.post_parameters.clone();
+        let cache_dir = state.sealing_cache_dir.clone();
+        let post_proof = state.server_info.post_proof.clone();
+
+        tokio::task::spawn_blocking(move || {
+            post::generate_window_post(
+                post_proof,
+                &post_params,
+                randomness,
+                prover_id,
+                replicas,
+                cache_dir.as_ref(),
+            )
+        })
+    };
+    let proofs = handle.await??;
+
+    // don't now why yet, need to figure this out
+    let proof: SubstrateProof = proofs[0]
+        .clone()
+        .try_into()
+        .expect("converstion between rust-fil-proofs and polka-storage-proofs to work");
+    let proof = codec::Encode::encode(&proof);
+
+    tracing::info!("Generated PoSt proof for partitions: {:?}", partitions);
+
+    let result = state
+        .xt_client
+        .submit_windowed_post(
+            &state.xt_keypair,
+            SubmitWindowedPoStParams {
+                deadline: deadline_index,
+                partitions: partitions,
+                proof: PoStProof {
+                    post_proof: state.server_info.post_proof,
+                    proof_bytes: proof,
+                },
+            },
+            true,
+        )
+        .await?
+        .expect("waiting for finalization should always give results");
+
+    let posts = result
+        .events
+        .find::<storagext::runtime::storage_provider::events::ValidPoStSubmitted>()
+        .map(|result| result.map_err(|err| subxt::Error::from(err)))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    tracing::info!("Successfully submitted PoSt on-chain: {:?}", posts);
 
     Ok(())
 }
