@@ -36,16 +36,16 @@ clap = ["dep:clap", "std"]
 default = []
 serde = ["dep:serde"]
 std = [
-    "cid/scale-codec",
-    "cid/std",
-    "codec/std",
-    "dep:filecoin-proofs",
-    "scale-info/std",
-    "serde/std",
-    "sha2/std",
-    "sp-api/std",
-    "sp-core/std",
-    "sp-runtime/std",
-    "sp-std/std",
-    "thiserror/std",
+  "cid/scale-codec",
+  "cid/std",
+  "codec/std",
+  "dep:filecoin-proofs",
+  "scale-info/std",
+  "serde/std",
+  "sha2/std",
+  "sp-api/std",
+  "sp-core/std",
+  "sp-runtime/std",
+  "sp-std/std",
+  "thiserror/std",
 ]
