@@ -2,8 +2,11 @@ use codec::{Decode, Encode};
 use frame_support::{assert_noop, assert_ok};
 use hex::FromHex;
 use polka_storage_proofs::{Bls12, VerifyingKey};
-use primitives::proofs::{
-    ProofVerification, ProverId, RawCommitment, RegisteredSealProof, SectorNumber, Ticket,
+use primitives::{
+    commitment::RawCommitment,
+    pallets::ProofVerification,
+    proofs::{ProverId, RegisteredSealProof, Ticket},
+    sector::SectorNumber,
 };
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;

@@ -1,6 +1,6 @@
 use frame_support::{assert_noop, assert_ok, pallet_prelude::*};
 use frame_system::pallet_prelude::BlockNumberFor;
-use primitives::proofs::MAX_SECTORS_PER_CALL;
+use primitives::MAX_SECTORS_PER_CALL;
 use sp_core::bounded_vec;
 use sp_runtime::{BoundedVec, DispatchError};
 

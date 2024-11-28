@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use cid::Cid;
 use maat::*;
-use primitives::proofs::SectorSize;
+use primitives::sector::SectorSize;
 use storagext::{
     clients::ProofsClientExt,
     runtime::runtime_types::{

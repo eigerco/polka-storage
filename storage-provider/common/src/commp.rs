@@ -61,7 +61,7 @@ mod tests {
     use std::io::Cursor;
 
     use polka_storage_proofs::ZeroPaddingReader;
-    use primitives::{commitment::piece::PaddedPieceSize, proofs::SectorSize};
+    use primitives::{commitment::piece::PaddedPieceSize, sector::SectorSize};
 
     use super::calculate_piece_commitment;
 

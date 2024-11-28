@@ -252,7 +252,7 @@ fn generate_inclusion_input(challenge: usize) -> Fr {
 
 #[cfg(test)]
 mod tests {
-    use primitives::proofs::{RegisteredSealProof, SectorNumber};
+    use primitives::{proofs::RegisteredSealProof, sector::SectorNumber};
 
     use super::{ProofScheme, PublicInputs, Tau};
 

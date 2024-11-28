@@ -791,7 +791,7 @@ mod tests {
     use alloc::collections::{BTreeMap, BTreeSet};
 
     use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeSet};
-    use primitives::proofs::{SectorNumber, MAX_SECTORS, MAX_TERMINATIONS_PER_CALL};
+    use primitives::{sector::SectorNumber, MAX_SECTORS, MAX_TERMINATIONS_PER_CALL};
     use rstest::rstest;
 
     use crate::{

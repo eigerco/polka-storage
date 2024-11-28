@@ -549,7 +549,7 @@ struct SectorExpirationSet {
 mod tests {
     extern crate alloc;
 
-    use primitives::proofs::{SectorNumber, MAX_SECTORS};
+    use primitives::{sector::SectorNumber, MAX_SECTORS};
 
     use crate::{expiration_queue::ExpirationQueue, sector::SectorOnChainInfo, tests::sector_set};
 

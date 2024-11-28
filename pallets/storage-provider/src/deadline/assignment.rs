@@ -228,7 +228,7 @@ where
 #[cfg(test)]
 mod tests {
     use frame_support::BoundedVec;
-    use primitives::proofs::{RegisteredSealProof, SectorNumber};
+    use primitives::{proofs::RegisteredSealProof, sector::SectorNumber};
 
     use crate::{
         deadline::{assign_deadlines, Deadline},

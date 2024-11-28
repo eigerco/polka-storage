@@ -10,10 +10,10 @@ use frame_support::{
 };
 use primitives::{
     commitment::{CommP, Commitment},
-    proofs::{
-        ActiveDeal, ActiveSector, DealId, Market as MarketTrait, RegisteredSealProof, SectorDeal,
-        SectorNumber, MAX_DEALS_PER_SECTOR,
-    },
+    pallets::{ActiveDeal, ActiveSector, Market as MarketTrait, SectorDeal},
+    proofs::RegisteredSealProof,
+    sector::SectorNumber,
+    DealId, MAX_DEALS_PER_SECTOR,
 };
 use sp_core::H256;
 use sp_runtime::AccountId32;

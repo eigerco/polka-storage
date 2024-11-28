@@ -1,7 +1,7 @@
 extern crate alloc;
 use alloc::collections::{BTreeMap, BTreeSet};
 
-use primitives::proofs::{RegisteredSealProof, SectorNumber};
+use primitives::{proofs::RegisteredSealProof, sector::SectorNumber};
 use sp_runtime::{BoundedBTreeMap, BoundedBTreeSet};
 
 use super::BlockNumber;
