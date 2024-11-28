@@ -10,7 +10,7 @@ mod storage;
 use std::{env::temp_dir, net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 
 use clap::Parser;
-use pipeline::types::PipelineMessage;
+use pipeline::types::{PipelineMessage, SubmitWindowedPoStMessage};
 use polka_storage_proofs::{
     porep::{self, PoRepParameters},
     post::{self, PoStParameters},
@@ -418,6 +418,10 @@ impl ServerConfiguration {
         tokio::fs::create_dir_all(sealing_cache_dir.as_ref()).await?;
 
         let (pipeline_tx, pipeline_rx) = tokio::sync::mpsc::unbounded_channel::<PipelineMessage>();
+
+        pipeline_tx.send(PipelineMessage::SubmitWindowedPoStMessage(SubmitWindowedPoStMessage {
+            deadline_index: 0
+        })).expect("it to work...");
 
         let storage_state = StorageServerState {
             car_piece_storage_dir: car_piece_storage_dir.clone(),

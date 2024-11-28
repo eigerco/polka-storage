@@ -20,10 +20,10 @@ use storagext::{
     types::{
         market::DealProposal,
         storage_provider::{PoStProof, ProveCommitSector, SectorPreCommitInfo, SubmitWindowedPoStParams},
-    }, IntoBoundedByteVec, RandomnessClientExt, StorageProviderClientExt, SystemClientExt
+    }, RandomnessClientExt, StorageProviderClientExt, SystemClientExt
 };
 use subxt::{
-    ext::{codec::Encode, sp_core::ConstU32},
+    ext::codec::Encode,
     tx::Signer,
 };
 use tokio::{
