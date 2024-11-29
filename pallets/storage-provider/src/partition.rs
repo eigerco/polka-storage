@@ -8,20 +8,16 @@ use core::ops::AddAssign;
 
 use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeSet};
-use primitives::sector::SectorNumber;
+use primitives::{MAX_SECTORS, sector::SectorNumber};
 use scale_info::TypeInfo;
 
 use crate::{
     error::GeneralPalletError,
     expiration_queue::{ExpirationQueue, ExpirationSet},
-    sector::{SectorOnChainInfo, MAX_SECTORS},
+    sector::SectorOnChainInfo,
 };
 
-/// Max amount of partitions per deadline.
-/// ref: <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/runtime/src/runtime/policy.rs#L283>
-pub const MAX_PARTITIONS_PER_DEADLINE: u32 = 3000;
 const LOG_TARGET: &'static str = "runtime::storage_provider::partition";
-pub type PartitionNumber = u32;
 
 #[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
 pub struct Partition<BlockNumber>

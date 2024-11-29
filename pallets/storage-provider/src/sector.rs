@@ -8,9 +8,6 @@ use scale_info::TypeInfo;
 
 use crate::{pallet::DECLARATIONS_MAX, partition::PartitionNumber};
 
-// https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/runtime/src/runtime/policy.rs#L262
-pub const MAX_SECTORS: u32 = 32 << 20;
-
 /// This type is passed into the pre commit function on the storage provider pallet
 #[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo)]
 pub struct SectorPreCommitInfo<BlockNumber> {

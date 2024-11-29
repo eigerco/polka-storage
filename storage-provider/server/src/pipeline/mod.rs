@@ -554,7 +554,7 @@ async fn submit_windowed_post(
     // 1. Wait for proving_period_start
     //  - stretch goal - implement get_deadline_info(idx) api?
     // 2. Fetch the partitions and sectors
-    // 3. Generate PoSt
+    // -- 3. Generate PoSt
     // 4. Schedule again!
     // 5. [FOLLOW-UP] We need to keep track whether we proven that successfully or not.
 

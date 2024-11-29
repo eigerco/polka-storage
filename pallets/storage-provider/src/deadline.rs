@@ -4,14 +4,14 @@ use alloc::{collections::BTreeSet, vec::Vec};
 
 use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeMap};
-use primitives::sector::SectorNumber;
+use primitives::{MAX_PARTITIONS_PER_DEADLINE, MAX_SECTORS, sector::SectorNumbe};
 use scale_info::{prelude::cmp, TypeInfo};
 
 use crate::{
     error::GeneralPalletError,
     expiration_queue::ExpirationSet,
-    partition::{Partition, PartitionNumber, TerminationResult, MAX_PARTITIONS_PER_DEADLINE},
-    sector::{SectorOnChainInfo, MAX_SECTORS},
+    partition::{Partition, TerminationResult},
+    sector::{SectorOnChainInfo},
     sector_map::PartitionMap,
 };
 

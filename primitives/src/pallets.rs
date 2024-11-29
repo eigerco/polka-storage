@@ -2,14 +2,10 @@ use cid::Cid;
 use codec::{Codec, Decode, Encode};
 use scale_info::TypeInfo;
 use sp_core::{ConstU32, RuntimeDebug};
-use sp_runtime::{BoundedBTreeMap, BoundedVec, DispatchError, DispatchResult};
+use sp_runtime::{BoundedBTreeMap, BoundedBTreeSet, BoundedVec, DispatchError, DispatchResult};
 
 use crate::{
-    commitment::RawCommitment,
-    proofs::{ProverId, PublicReplicaInfo, RegisteredPoStProof, RegisteredSealProof, Ticket},
-    sector::SectorNumber,
-    DealId, MAX_DEALS_PER_SECTOR, MAX_POST_PROOF_BYTES, MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_CALL,
-    MAX_SECTORS_PER_PROOF,
+    commitment::RawCommitment, proofs::{ProverId, PublicReplicaInfo, RegisteredPoStProof, RegisteredSealProof, Ticket}, sector::SectorNumber, DealId, PartitionNumber, MAX_DEALS_PER_SECTOR, MAX_PARTITIONS_PER_DEADLINE, MAX_POST_PROOF_BYTES, MAX_SEAL_PROOF_BYTES, MAX_SECTORS, MAX_SECTORS_PER_CALL, MAX_SECTORS_PER_PROOF
 };
 
 /// Represents functions that are provided by the Randomness Pallet
@@ -138,6 +134,22 @@ pub struct CurrentDeadline<BlockNumber> {
     pub start: BlockNumber,
 }
 
+/// Snapshot information about a deadline. It's partitions and sectors assigned to it.
+#[derive(Encode, Decode, TypeInfo)]
+pub struct DeadlineState {
+    /// Partitions in this deadline. Indexed by partition number.
+    pub partitions: BoundedBTreeMap<
+        PartitionNumber,
+        PartitionState,
+        ConstU32<MAX_PARTITIONS_PER_DEADLINE>,
+    >,
+}
+
+#[derive(Encode, Decode, TypeInfo)]
+pub struct PartitionState {
+    pub sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>>,
+}
+
 sp_api::decl_runtime_apis! {
     pub trait StorageProviderApi<AccountId> where AccountId: Codec
     {
@@ -151,5 +163,9 @@ sp_api::decl_runtime_apis! {
                 <<Block as sp_runtime::traits::Block>::Header as sp_runtime::traits::Header>::Number
             >
         >;
+
+        /// Returns snapshot information about the deadline, i.e. which sectors are assigned to which partitions.
+        /// When the deadline has not opened yet (deadline_start - WPoStChallengeWindow), it can change!
+        fn deadline_state(storage_provider: AccountId, deadline_index: u64) -> Option<DeadlineState>;
     }
 }
