@@ -3,11 +3,17 @@
 This guide will outline how to setup your environment to build the Polka Storage parachain,
 we cover how to build the binaries directly on your system or using [Nix](https://nixos.org/download/) to ease the process.
 
+<div class="warning">
+Not all of the binaries can be built from polka-storage repository!
+We depend on the <a href="https://github.com/paritytech/zombienet/releases/tag/v1.3.116">zombienet</a> and <a href="https://github.com/paritytech/polkadot-sdk/releases/tag/polkadot-stable2409-2">polkadot, polkadot-prepare-worker, polkadot-execute-worker</a> binaries which need to be downloaded regardless.
+</div>
+
 * [Get the code](#get-the-code)
 * [System dependencies](#system-dependencies)
 * [Using Nix](#using-nix)
   * [Pre-requisites](#pre-requisites)
 * [Building](#building)
+
 
 ## Get the code
 
