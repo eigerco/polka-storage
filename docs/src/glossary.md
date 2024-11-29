@@ -5,7 +5,6 @@ This document provides definitions and explanations for terms used throughout th
 ## Table of Contents
 
 - [Glossary and Anti-Glossary](#glossary-and-anti-glossary)
-  - [Table of Contents](#table-of-contents)
   - [Glossary](#glossary)
     - [Actor](#actor)
     - [Bond](#bond)
@@ -30,15 +29,11 @@ This document provides definitions and explanations for terms used throughout th
     - [Relay Chain](#relay-chain)
     - [Sector](#sector)
     - [Session](#session)
-    - [Slashing](#slashing)
-    - [Slot Auction](#slot-auction)
-    - [Staking](#staking)
     - [Storage Provider](#storage-provider)
     - [Storage User](#storage-user)
     - [System Parachain](#system-parachain)
   - [Anti-Glossary](#anti-glossary)
     - [Term to Avoid: Miner](#term-to-avoid-miner)
-    - [Term to Avoid: Pledge](#term-to-avoid-pledge)
 
 ## Glossary
 
@@ -234,31 +229,7 @@ The process of penalizing network participants, including [validators](#validato
 and [collators](#collator), for various protocol violations. These violations could include producing invalid blocks,
 equivocation (double signing), inability of the [Storage Provider](#storage-provider) to [prove](#proofs) that the data
 is stored and maintained as promised, or other malicious activities. As a result of slashing, participants may face a
-reduction in their [staked](#staking) funds or other penalties depending on the severity of the violation.
-
-### Slot Auction
-
-To secure a [parachain](#parachain) slot, a project must win an auction by [pledging](#term-to-avoid-pledge) (locking
-up) a significant amount of DOT tokens. These tokens are used as [collateral](#collateral) to secure the slot for a
-specified period. Once the slot is secured, the project can launch and operate its [parachain](#parachain).
-
-### Staking
-
-Staking is when DOT holders lock up their tokens to support the network's security and operations. In
-return, they can earn rewards. There are two main roles involved in staking:
-
-- <a name="validators"></a>**Validators**: 
-  Validators produce new blocks, validate transactions, and secure the network.
-  They are selected based on their stake and performance.
-  Validators must run a [node](#node) and have the technical capability to maintain it.
-
-- <a name="nominators"></a>**Nominators**: Nominators support the network by backing (nominating) validators they trust
-  with their DOT tokens. Nominators share in the rewards earned by the validators they support. This allows DOT holders
-  who don't want to run a validator node to still participate in the network's security and earn rewards.
-
-Our parachain will use staking to back up the [collators](#collator) similarly to "Nominators".
-In this regard, "Nominators" will fall to [Storage Providers](#storage-provider),
-while " Validators" will be assigned to [Collators](#collator) accordingly.
+reduction in their staked funds or other penalties depending on the severity of the violation.
 
 ### Storage Provider
 
@@ -293,14 +264,6 @@ the miner simultaneously plays the roles of [storage provider](#storage-provide
 However, this term cannot be used in the [Polkadot](#polkadot) ecosystem because there are no block producers in [parachains](#parachain);
 the [Relay Chain](#relay-chain) is responsible for block production. [Parachains](#parachain) can only prepare block
 candidates via the [Collator](#collator) node and pass them to the [Relay Chain](#relay-chain).
-
-### Term to Avoid: Pledge
-
-It's better to apply this term within its proper context rather than avoiding it altogether. It's easy to confuse it
-with [staking](#staking), but they have distinct meanings.
-
-**Reason**: Pledging generally refers to locking up tokens as [collateral](#collateral) to participate in certain
-network activities or services like: [Parachain Slot Auctions](#slot-auction) and [Crowdloans](#crowdloan).
 
 [1]: https://wiki.polkadot.network/docs/learn-DOT#the-planck-unit
 [2]: https://wiki.polkadot.network/docs/learn-transactions#pallets-and-extrinsics
