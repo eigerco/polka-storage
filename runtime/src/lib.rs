@@ -416,6 +416,10 @@ impl_runtime_apis! {
         fn current_deadline(storage_provider: AccountId) -> Option<primitives::pallets::CurrentDeadline<BlockNumber>> {
             StorageProvider::current_deadline(&storage_provider)
         }
+
+        fn deadline_state(storage_provider: AccountId, deadline_index: u64) -> Option<primitives::pallets::DeadlineState> {
+            todo!();
+        }
     }
 
     impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {

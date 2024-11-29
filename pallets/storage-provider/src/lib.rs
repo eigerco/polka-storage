@@ -63,7 +63,8 @@ pub mod pallet {
         proofs::{derive_prover_id, PublicReplicaInfo, RegisteredPoStProof},
         randomness::{draw_randomness, DomainSeparationTag},
         sector::SectorNumber,
-        MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_CALL,
+        PartitionNumber,
+        MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_CALL, MAX_SECTORS, MAX_PARTITIONS_PER_DEADLINE,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::Zero;
@@ -74,12 +75,10 @@ pub mod pallet {
             DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration,
             RecoveryDeclaration,
         },
-        partition::{PartitionNumber, MAX_PARTITIONS_PER_DEADLINE},
         proofs::{assign_proving_period_offset, SubmitWindowedPoStParams},
         sector::{
             ProveCommitResult, ProveCommitSector, SectorOnChainInfo, SectorPreCommitInfo,
             SectorPreCommitOnChainInfo, TerminateSectorsParams, TerminationDeclaration,
-            MAX_SECTORS,
         },
         sector_map::DeadlineSectorMap,
         storage_provider::{

@@ -4,7 +4,7 @@ use alloc::{collections::BTreeSet, vec::Vec};
 
 use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeMap};
-use primitives::{MAX_PARTITIONS_PER_DEADLINE, MAX_SECTORS, sector::SectorNumbe};
+use primitives::{MAX_PARTITIONS_PER_DEADLINE, MAX_SECTORS, sector::SectorNumber, PartitionNumber};
 use scale_info::{prelude::cmp, TypeInfo};
 
 use crate::{

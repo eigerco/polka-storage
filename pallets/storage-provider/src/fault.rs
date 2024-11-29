@@ -1,7 +1,7 @@
 use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeSet};
-use primitives::{sector::SectorNumber, MAX_TERMINATIONS_PER_CALL};
+use primitives::{sector::SectorNumber, MAX_TERMINATIONS_PER_CALL, PartitionNumber};
 
-use crate::{pallet::DECLARATIONS_MAX, partition::PartitionNumber};
+use crate::pallet::DECLARATIONS_MAX;
 
 /// Used by the storage provider to indicate a fault.
 #[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]

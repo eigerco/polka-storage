@@ -6,14 +6,14 @@ use alloc::{
 use core::ops::Not;
 
 use codec::{Decode, Encode};
-use primitives::sector::SectorNumber;
+use primitives::{MAX_SECTORS, sector::SectorNumber};
 use scale_info::TypeInfo;
 use sp_core::{ConstU32, RuntimeDebug};
 use sp_runtime::{BoundedBTreeMap, BoundedBTreeSet};
 
 use crate::{
     error::GeneralPalletError,
-    sector::{SectorOnChainInfo, MAX_SECTORS},
+    sector::SectorOnChainInfo,
 };
 
 const LOG_TARGET: &'static str = "runtime::storage_provider::expiration_queue";

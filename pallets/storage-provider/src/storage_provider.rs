@@ -10,6 +10,7 @@ use frame_support::{
 use primitives::{
     proofs::RegisteredPoStProof,
     sector::{SectorNumber, SectorSize},
+    MAX_SECTORS,
 };
 use scale_info::TypeInfo;
 use sp_arithmetic::{traits::BaseArithmetic, ArithmeticError};
@@ -18,7 +19,7 @@ use crate::{
     deadline::{assign_deadlines, deadline_is_mutable, Deadline, DeadlineInfo, Deadlines},
     error::GeneralPalletError,
     partition::TerminationResult,
-    sector::{SectorOnChainInfo, SectorPreCommitOnChainInfo, MAX_SECTORS},
+    sector::{SectorOnChainInfo, SectorPreCommitOnChainInfo},
 };
 
 const LOG_TARGET: &'static str = "runtime::storage_provider::storage_provider";

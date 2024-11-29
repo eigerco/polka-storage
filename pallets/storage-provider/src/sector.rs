@@ -3,10 +3,11 @@ use frame_support::{pallet_prelude::*, BoundedVec};
 use primitives::{
     pallets::SectorDeal, proofs::RegisteredSealProof, sector::SectorNumber, DealId,
     CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR, MAX_SEAL_PROOF_BYTES, MAX_TERMINATIONS_PER_CALL,
+    PartitionNumber,
 };
 use scale_info::TypeInfo;
 
-use crate::{pallet::DECLARATIONS_MAX, partition::PartitionNumber};
+use crate::pallet::DECLARATIONS_MAX;
 
 /// This type is passed into the pre commit function on the storage provider pallet
 #[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo)]
