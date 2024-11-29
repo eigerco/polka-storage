@@ -1,5 +1,5 @@
 use frame_support::{assert_err, assert_ok};
-use primitives_proofs::Randomness;
+use primitives::pallets::Randomness;
 
 use crate::{
     mock::{new_test_ext, run_to_block, BlockNumber, RandomnessModule, SeedAgeLimit, Test},

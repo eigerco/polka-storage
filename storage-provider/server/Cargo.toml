@@ -1,0 +1,49 @@
+[package]
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+name = "polka-storage-provider-server"
+repository.workspace = true
+version = "0.1.0"
+
+[features]
+default = []
+delia = []
+
+[dependencies]
+# "Homegrown" crates
+mater = { workspace = true }
+polka-storage-proofs = { workspace = true, features = ["std", "substrate"] }
+polka-storage-provider-common = { workspace = true }
+primitives = { workspace = true, features = ["serde", "std"] }
+storagext = { workspace = true, features = ["clap"] }
+
+async-trait = { workspace = true }
+axum = { workspace = true, features = ["macros", "multipart"] }
+cid = { workspace = true, features = ["serde", "std"] }
+clap = { workspace = true, features = ["derive"] }
+codec = { workspace = true }
+futures = { workspace = true }
+hex = { workspace = true, features = ["std"] }
+hyper = { workspace = true }
+jsonrpsee = { workspace = true, features = ["http-client", "macros", "server", "ws-client"] }
+rand = { workspace = true }
+rocksdb = { workspace = true }
+sc-cli = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+subxt = { workspace = true }
+tempfile = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true, features = ["rt"] }
+tower = { workspace = true }
+tower-http = { workspace = true, features = ["trace"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+url = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }
+
+[lints]
+workspace = true

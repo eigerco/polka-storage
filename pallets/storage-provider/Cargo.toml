@@ -22,8 +22,7 @@ log = { workspace = true, features = ["kv"] }
 pallet-insecure-randomness-collective-flip = { workspace = true, default-features = false }
 pallet-proofs = { workspace = true, default-features = false }
 pallet-randomness = { workspace = true, default-features = false }
-primitives-commitment = { workspace = true }
-primitives-proofs = { workspace = true, default-features = false }
+primitives = { workspace = true, default-features = false }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 sp-arithmetic = { workspace = true, default-features = false }
 sp-core = { workspace = true, default-features = false }
@@ -57,7 +56,7 @@ std = [
   "frame-support/std",
   "frame-system/std",
   "pallet-balances/std",
-  "primitives-proofs/std",
+  "primitives/std",
   "scale-info/std",
   "sp-core/std",
   "sp-io/std",

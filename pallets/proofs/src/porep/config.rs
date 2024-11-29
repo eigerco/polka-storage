@@ -1,6 +1,6 @@
 use bls12_381::Scalar as Fr;
 use num_bigint::BigUint;
-use primitives_proofs::RegisteredSealProof;
+use primitives::proofs::RegisteredSealProof;
 use sha2::{Digest, Sha256};
 
 use crate::Vec;

@@ -1,5 +1,5 @@
 use frame_support::{assert_ok, pallet_prelude::Get};
-use primitives_proofs::{DealId, SectorNumber};
+use primitives::{sector::SectorNumber, DealId};
 use sp_core::bounded_vec;
 use sp_runtime::{BoundedBTreeMap, BoundedBTreeSet};
 

@@ -1,7 +1,11 @@
 mod config;
 
 use config::{Config, PoRepID};
-use primitives_proofs::{ProverId, RawCommitment, RegisteredSealProof, SectorNumber, Ticket};
+use primitives::{
+    commitment::RawCommitment,
+    proofs::{ProverId, RegisteredSealProof, Ticket},
+    sector::SectorNumber,
+};
 use sha2::{Digest, Sha256};
 
 use crate::{
@@ -248,7 +252,7 @@ fn generate_inclusion_input(challenge: usize) -> Fr {
 
 #[cfg(test)]
 mod tests {
-    use primitives_proofs::{RegisteredSealProof, SectorNumber};
+    use primitives::{proofs::RegisteredSealProof, sector::SectorNumber};
 
     use super::{ProofScheme, PublicInputs, Tau};
 

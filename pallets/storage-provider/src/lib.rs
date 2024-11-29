@@ -55,12 +55,15 @@ pub mod pallet {
         pallet_prelude::{BlockNumberFor, *},
         Config as SystemConfig,
     };
-    use primitives_commitment::{CommD, CommR, Commitment};
-    use primitives_proofs::{
-        derive_prover_id,
+    use primitives::{
+        commitment::{CommD, CommR, Commitment},
+        pallets::{
+            CurrentDeadline, Market, ProofVerification, Randomness, StorageProviderValidation,
+        },
+        proofs::{derive_prover_id, PublicReplicaInfo, RegisteredPoStProof},
         randomness::{draw_randomness, DomainSeparationTag},
-        Market, ProofVerification, PublicReplicaInfo, Randomness, RegisteredPoStProof,
-        SectorNumber, StorageProviderValidation, MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_CALL,
+        sector::SectorNumber,
+        MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::Zero;
@@ -690,8 +693,7 @@ pub mod pallet {
             );
 
             ensure!(
-                windowed_post.proof.proof_bytes.len()
-                    <= primitives_proofs::MAX_POST_PROOF_BYTES as usize,
+                windowed_post.proof.proof_bytes.len() <= primitives::MAX_POST_PROOF_BYTES as usize,
                 {
                     log::error!("submit_window_post: invalid proof size");
                     Error::<T>::PoStProofInvalid
@@ -1073,7 +1075,7 @@ pub mod pallet {
         /// conversion between BlockNumbers fails, but technically should not ever happen.
         pub fn current_deadline(
             storage_provider: &T::AccountId,
-        ) -> Option<primitives_proofs::CurrentDeadline<BlockNumberFor<T>>> {
+        ) -> Option<CurrentDeadline<BlockNumberFor<T>>> {
             let sp = StorageProviders::<T>::try_get(storage_provider).ok()?;
             let current_block = <frame_system::Pallet<T>>::block_number();
 
@@ -1088,7 +1090,7 @@ pub mod pallet {
                 )
                 .ok()?;
 
-            Some(primitives_proofs::CurrentDeadline {
+            Some(CurrentDeadline {
                 deadline_index: deadline.idx,
                 open: deadline.is_open(),
                 challenge_block: deadline.challenge,

@@ -8,10 +8,12 @@ use frame_support::{
     traits::Currency,
     BoundedVec,
 };
-use primitives_commitment::{CommP, Commitment};
-use primitives_proofs::{
-    ActiveDeal, ActiveSector, DealId, Market as MarketTrait, RegisteredSealProof, SectorDeal,
-    SectorNumber, MAX_DEALS_PER_SECTOR,
+use primitives::{
+    commitment::{CommP, Commitment},
+    pallets::{ActiveDeal, ActiveSector, Market as MarketTrait, SectorDeal},
+    proofs::RegisteredSealProof,
+    sector::SectorNumber,
+    DealId, MAX_DEALS_PER_SECTOR,
 };
 use sp_core::H256;
 use sp_runtime::AccountId32;

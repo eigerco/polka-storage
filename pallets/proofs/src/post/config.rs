@@ -1,4 +1,4 @@
-use primitives_proofs::RegisteredPoStProof;
+use primitives::proofs::RegisteredPoStProof;
 
 pub struct Config {
     /// Size of the sector in bytes.

@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use cid::Cid;
 use maat::*;
-use primitives_proofs::SectorSize;
+use primitives::sector::SectorSize;
 use storagext::{
     clients::ProofsClientExt,
     runtime::runtime_types::{
@@ -38,7 +38,7 @@ where
         .register_storage_provider(
             charlie,
             peer_id.clone(),
-            primitives_proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+            primitives::proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
             true,
         )
         .await
@@ -57,11 +57,11 @@ where
         assert_eq!(event.info.sector_size, SectorSize::_2KiB);
         assert_eq!(
             event.info.window_post_proof_type,
-            primitives_proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1
+            primitives::proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1
         );
         assert_eq!(
             event.info.window_post_partition_sectors,
-            primitives_proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1
+            primitives::proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1
                 .window_post_partitions_sector()
         );
     }
@@ -227,7 +227,7 @@ where
         Cid::try_from("bagboea4b5abcaqolcsygu5o756srf7l4pzzagml5r3wa3o6ahoo5vixummsev6rf").unwrap();
 
     let sectors_pre_commit_info = vec![SectorPreCommitInfo {
-        seal_proof: primitives_proofs::RegisteredSealProof::StackedDRG2KiBV1P1,
+        seal_proof: primitives::proofs::RegisteredSealProof::StackedDRG2KiBV1P1,
         sector_number: 1.into(),
         sealed_cid,
         deal_ids: vec![0],
@@ -330,7 +330,7 @@ where
                 proof:
                     storagext::runtime::runtime_types::pallet_storage_provider::proofs::PoStProof {
                         post_proof:
-                            primitives_proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+                            primitives::proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
                         proof_bytes: "beef".to_string().into_bounded_byte_vec(),
                     },
             },

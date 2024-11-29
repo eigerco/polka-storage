@@ -38,14 +38,16 @@ pub mod pallet {
         PalletId,
     };
     use frame_system::{pallet_prelude::*, Config as SystemConfig, Pallet as System};
-    use primitives_commitment::{
-        commd::compute_unsealed_sector_commitment,
-        piece::{PaddedPieceSize, PieceInfo},
-        CommP, Commitment, CommitmentError,
-    };
-    use primitives_proofs::{
-        ActiveDeal, ActiveSector, DealId, Market, RegisteredSealProof, SectorDeal, SectorNumber,
-        SectorSize, StorageProviderValidation, MAX_DEALS_PER_SECTOR, MAX_SECTORS_PER_CALL,
+    use primitives::{
+        commitment::{
+            commd::compute_unsealed_sector_commitment,
+            piece::{PaddedPieceSize, PieceInfo},
+            CommP, Commitment, CommitmentError,
+        },
+        pallets::{ActiveDeal, ActiveSector, Market, SectorDeal, StorageProviderValidation},
+        proofs::RegisteredSealProof,
+        sector::{SectorNumber, SectorSize},
+        DealId, MAX_DEALS_PER_SECTOR, MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::BaseArithmetic;

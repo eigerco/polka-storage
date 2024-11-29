@@ -3,7 +3,7 @@
 //! The [`DeadlineMap`] structure contains a `BTreeMap` that map a `PartitionMap` to a deadline.
 use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeMap};
-use primitives_proofs::{SectorNumber, MAX_TERMINATIONS_PER_CALL};
+use primitives::{sector::SectorNumber, MAX_TERMINATIONS_PER_CALL};
 use scale_info::TypeInfo;
 
 use crate::{error::GeneralPalletError, partition::PartitionNumber, sector::MAX_SECTORS};

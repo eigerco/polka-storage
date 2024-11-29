@@ -1,5 +1,5 @@
 use frame_support::{assert_err, assert_noop, assert_ok, pallet_prelude::*};
-use primitives_proofs::SectorNumber;
+use primitives::sector::SectorNumber;
 use rstest::rstest;
 use sp_core::bounded_vec;
 use sp_runtime::{traits::BlockNumberProvider, BoundedVec};
