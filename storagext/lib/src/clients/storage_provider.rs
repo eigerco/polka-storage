@@ -13,9 +13,7 @@ use crate::{
         bounded_vec::IntoBoundedByteVec,
         client::SubmissionResult,
         runtime_types::{
-            pallet_storage_provider::{
-                proofs::SubmitWindowedPoStParams, storage_provider::StorageProviderState,
-            },
+            pallet_storage_provider::storage_provider::StorageProviderState,
             primitives::pallets::CurrentDeadline,
         },
         storage_provider::calls::types::register_storage_provider::PeerId,
