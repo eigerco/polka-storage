@@ -420,10 +420,8 @@ impl ServerConfiguration {
         let (pipeline_tx, pipeline_rx) = tokio::sync::mpsc::unbounded_channel::<PipelineMessage>();
 
         pipeline_tx
-            .send(PipelineMessage::SubmitWindowedPoStMessage(
-                SubmitWindowedPoStMessage { deadline_index: 0 },
-            ))
-            .expect("it to work...");
+            .send(PipelineMessage::SchedulePoSts)
+            .expect("queue not to be closed at the start-up of the server");
 
         let storage_state = StorageServerState {
             car_piece_storage_dir: car_piece_storage_dir.clone(),

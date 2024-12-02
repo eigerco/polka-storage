@@ -19,6 +19,8 @@ pub enum PipelineMessage {
     ProveCommit(ProveCommitMessage),
     /// Fetches partitions and sectors from the chain and generates a Windowed PoSt proof.
     SubmitWindowedPoStMessage(SubmitWindowedPoStMessage),
+    /// Schedules WindowPoSt for each deadline in the proving period.
+    SchedulePoSts,
 }
 
 /// Deal to be added to a sector with its contents.

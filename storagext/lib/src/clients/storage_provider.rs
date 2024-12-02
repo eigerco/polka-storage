@@ -110,10 +110,26 @@ pub trait StorageProviderClientExt {
         account_id: &AccountId32,
         deadline_index: u64,
     ) -> impl Future<Output = Result<Option<DeadlineState>, subxt::Error>>;
+
+    fn proving_period_info(&self) -> Result<ProvingPeriodInfo, subxt::Error>;
+}
+
+pub struct ProvingPeriodInfo {
+    /// Number of deadlines in a proving period,
+    pub deadlines: u64,
 }
 
 impl StorageProviderClientExt for crate::runtime::client::Client {
-    #[tracing::instrument(level = "debug", skip_all, fields(deadline_index,))]
+    fn proving_period_info(&self) -> Result<ProvingPeriodInfo, subxt::Error> {
+        let query = runtime::constants()
+            .storage_provider()
+            .w_po_st_period_deadlines();
+        let deadlines = self.client.constants().at(&query)?;
+
+        Ok(ProvingPeriodInfo { deadlines })
+    }
+
+    #[tracing::instrument(level = "debug", skip_all, fields(deadline_index))]
     async fn deadline_state(
         &self,
         account_id: &AccountId32,
