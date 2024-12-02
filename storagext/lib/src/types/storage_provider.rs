@@ -36,7 +36,7 @@ use crate::{
                 },
             },
             primitives::pallets::{
-                DeadlineInfo as RuntimeDeadlineInfo, DeadlineState as RuntimeDeadlineState,
+                DeadlineState as RuntimeDeadlineState,
             },
         },
     },
