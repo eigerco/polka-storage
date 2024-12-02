@@ -40,6 +40,7 @@ use types::{
 
 use crate::db::{DBError, DealDB};
 
+// TODO(@th7nder,#622,02/12/2024): query it from the chain.
 const SECTOR_EXPIRATION_MARGIN: u64 = 20;
 
 #[derive(Debug, thiserror::Error)]
