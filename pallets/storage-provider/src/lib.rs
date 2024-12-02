@@ -58,7 +58,8 @@ pub mod pallet {
     use primitives::{
         commitment::{CommD, CommR, Commitment},
         pallets::{
-            DeadlineInfo as ExternalDeadlineInfo, Market, ProofVerification, Randomness, StorageProviderValidation,
+            DeadlineInfo as ExternalDeadlineInfo, Market, ProofVerification, Randomness,
+            StorageProviderValidation,
         },
         proofs::{derive_prover_id, PublicReplicaInfo, RegisteredPoStProof},
         randomness::{draw_randomness, DomainSeparationTag},
@@ -1118,7 +1119,8 @@ pub mod pallet {
                 T::WPoStChallengeWindow::get(),
                 T::WPoStChallengeLookBack::get(),
                 T::FaultDeclarationCutoff::get(),
-            ).ok()?;
+            )
+            .ok()?;
 
             Some(ExternalDeadlineInfo {
                 deadline_index: deadline.idx,

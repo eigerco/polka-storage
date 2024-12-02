@@ -3,13 +3,13 @@
 /// Since `storagext` declares some "duplicate" types from the runtime to be more ergonomic,
 /// types imported from the runtime that have doppelgangers, should be imported using `as` and
 /// prefixed with `Runtime`, making them easily distinguishable from their doppelgangers.
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use cid::Cid;
 use primitives::{
     proofs::{RegisteredPoStProof, RegisteredSealProof},
     sector::SectorNumber,
-    DealId,
+    DealId, PartitionNumber,
 };
 
 use crate::{
@@ -34,6 +34,9 @@ use crate::{
                     TerminateSectorsParams as RuntimeTerminateSectorsParams,
                     TerminationDeclaration as RuntimeTerminationDeclaration,
                 },
+            },
+            primitives::pallets::{
+                DeadlineInfo as RuntimeDeadlineInfo, DeadlineState as RuntimeDeadlineState,
             },
         },
     },
@@ -308,6 +311,29 @@ impl From<Vec<TerminationDeclaration>> for RuntimeTerminateSectorsParams {
     fn from(value: Vec<TerminationDeclaration>) -> Self {
         Self {
             terminations: bounded_vec::BoundedVec(value.into_iter().map(Into::into).collect()),
+        }
+    }
+}
+
+pub struct PartitionState {
+    pub sectors: BTreeSet<SectorNumber>,
+}
+
+pub struct DeadlineState {
+    pub partitions: BTreeMap<PartitionNumber, PartitionState>,
+}
+
+impl From<RuntimeDeadlineState> for DeadlineState {
+    fn from(value: RuntimeDeadlineState) -> Self {
+        Self {
+            partitions: BTreeMap::from_iter(value.partitions.0.iter().map(|(k, v)| {
+                (
+                    *k,
+                    PartitionState {
+                        sectors: BTreeSet::from_iter(v.sectors.0.iter().cloned()),
+                    },
+                )
+            })),
         }
     }
 }

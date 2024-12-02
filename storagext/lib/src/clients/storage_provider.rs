@@ -14,13 +14,13 @@ use crate::{
         client::SubmissionResult,
         runtime_types::{
             pallet_storage_provider::storage_provider::StorageProviderState,
-            primitives::pallets::{DeadlineInfo, DeadlineState},
+            primitives::pallets::DeadlineInfo,
         },
         storage_provider::calls::types::register_storage_provider::PeerId,
     },
     types::storage_provider::{
-        FaultDeclaration, ProveCommitSector, RecoveryDeclaration, SectorPreCommitInfo,
-        SubmitWindowedPoStParams, TerminationDeclaration,
+        DeadlineState, FaultDeclaration, ProveCommitSector, RecoveryDeclaration,
+        SectorPreCommitInfo, SubmitWindowedPoStParams, TerminationDeclaration,
     },
     BlockNumber, Currency, PolkaStorageConfig,
 };
@@ -146,6 +146,7 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
             .await?
             .call(payload)
             .await
+            .and_then(|state| Ok(state.map(Into::into)))
     }
 
     async fn deadline_info(
