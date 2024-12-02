@@ -1,5 +1,5 @@
 use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeSet};
-use primitives::{sector::SectorNumber, MAX_TERMINATIONS_PER_CALL, PartitionNumber};
+use primitives::{sector::SectorNumber, PartitionNumber, MAX_TERMINATIONS_PER_CALL};
 
 use crate::pallet::DECLARATIONS_MAX;
 

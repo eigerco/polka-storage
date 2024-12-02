@@ -4,14 +4,14 @@ use alloc::{collections::BTreeSet, vec::Vec};
 
 use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeMap};
-use primitives::{MAX_PARTITIONS_PER_DEADLINE, MAX_SECTORS, sector::SectorNumber, PartitionNumber};
+use primitives::{sector::SectorNumber, PartitionNumber, MAX_PARTITIONS_PER_DEADLINE, MAX_SECTORS};
 use scale_info::{prelude::cmp, TypeInfo};
 
 use crate::{
     error::GeneralPalletError,
     expiration_queue::ExpirationSet,
     partition::{Partition, TerminationResult},
-    sector::{SectorOnChainInfo},
+    sector::SectorOnChainInfo,
     sector_map::PartitionMap,
 };
 
@@ -791,16 +791,14 @@ mod tests {
     use alloc::collections::{BTreeMap, BTreeSet};
 
     use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeSet};
-    use primitives::{sector::SectorNumber, MAX_SECTORS, MAX_TERMINATIONS_PER_CALL};
+    use primitives::{
+        sector::SectorNumber, PartitionNumber, MAX_SECTORS, MAX_TERMINATIONS_PER_CALL,
+    };
     use rstest::rstest;
 
     use crate::{
-        deadline::Deadline,
-        error::GeneralPalletError,
-        partition::{PartitionNumber, TerminationResult},
-        sector::SectorOnChainInfo,
-        sector_map::PartitionMap,
-        tests::sector_set,
+        deadline::Deadline, error::GeneralPalletError, partition::TerminationResult,
+        sector::SectorOnChainInfo, sector_map::PartitionMap, tests::sector_set,
     };
 
     const PARTITION_SIZE: u64 = 4;

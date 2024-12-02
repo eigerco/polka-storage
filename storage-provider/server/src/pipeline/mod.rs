@@ -19,13 +19,13 @@ use primitives::{
 use storagext::{
     types::{
         market::DealProposal,
-        storage_provider::{PoStProof, ProveCommitSector, SectorPreCommitInfo, SubmitWindowedPoStParams},
-    }, RandomnessClientExt, StorageProviderClientExt, SystemClientExt
+        storage_provider::{
+            PoStProof, ProveCommitSector, SectorPreCommitInfo, SubmitWindowedPoStParams,
+        },
+    },
+    RandomnessClientExt, StorageProviderClientExt, SystemClientExt,
 };
-use subxt::{
-    ext::codec::Encode,
-    tx::Signer,
-};
+use subxt::{ext::codec::Encode, tx::Signer};
 use tokio::{
     sync::mpsc::{error::SendError, UnboundedReceiver, UnboundedSender},
     task::{JoinError, JoinHandle},

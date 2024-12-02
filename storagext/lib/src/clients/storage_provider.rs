@@ -14,13 +14,13 @@ use crate::{
         client::SubmissionResult,
         runtime_types::{
             pallet_storage_provider::storage_provider::StorageProviderState,
-            primitives::pallets::CurrentDeadline,
+            primitives::pallets::{CurrentDeadline, DeadlineState},
         },
         storage_provider::calls::types::register_storage_provider::PeerId,
     },
     types::storage_provider::{
-        FaultDeclaration, SubmitWindowedPoStParams, ProveCommitSector, RecoveryDeclaration, SectorPreCommitInfo,
-        TerminationDeclaration,
+        FaultDeclaration, ProveCommitSector, RecoveryDeclaration, SectorPreCommitInfo,
+        SubmitWindowedPoStParams, TerminationDeclaration,
     },
     BlockNumber, Currency, PolkaStorageConfig,
 };
@@ -104,9 +104,33 @@ pub trait StorageProviderClientExt {
         &self,
         account_id: &AccountId32,
     ) -> impl Future<Output = Result<Option<CurrentDeadline<BlockNumber>>, subxt::Error>>;
+
+    fn deadline_state(
+        &self,
+        account_id: &AccountId32,
+        deadline_index: u64,
+    ) -> impl Future<Output = Result<Option<DeadlineState>, subxt::Error>>;
 }
 
 impl StorageProviderClientExt for crate::runtime::client::Client {
+    #[tracing::instrument(level = "debug", skip_all, fields(deadline_index,))]
+    async fn deadline_state(
+        &self,
+        account_id: &AccountId32,
+        deadline_index: u64,
+    ) -> Result<Option<DeadlineState>, subxt::Error> {
+        let payload = runtime::apis()
+            .storage_provider_api()
+            .deadline_state(account_id.clone(), deadline_index);
+
+        self.client
+            .runtime_api()
+            .at_latest()
+            .await?
+            .call(payload)
+            .await
+    }
+
     async fn current_deadline(
         &self,
         account_id: &AccountId32,

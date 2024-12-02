@@ -418,7 +418,7 @@ impl_runtime_apis! {
         }
 
         fn deadline_state(storage_provider: AccountId, deadline_index: u64) -> Option<primitives::pallets::DeadlineState> {
-            todo!();
+            StorageProvider::deadline_state(&storage_provider, deadline_index)
         }
     }
 

@@ -6,19 +6,17 @@ use primitives::sector::SectorSize;
 use storagext::{
     clients::ProofsClientExt,
     runtime::runtime_types::{
-        bounded_collections::bounded_vec::BoundedVec,
-        pallet_market::pallet::DealState,
-        pallet_storage_provider::{proofs::SubmitWindowedPoStParams, sector::ProveCommitResult},
+        pallet_market::pallet::DealState, pallet_storage_provider::sector::ProveCommitResult,
     },
     types::{
         market::DealProposal,
         proofs::VerifyingKey,
         storage_provider::{
             FaultDeclaration, ProveCommitSector, RecoveryDeclaration, SectorPreCommitInfo,
+            SubmitWindowedPoStParams,
         },
     },
-    IntoBoundedByteVec, MarketClientExt, PolkaStorageConfig, StorageProviderClientExt,
-    SystemClientExt,
+    MarketClientExt, PolkaStorageConfig, StorageProviderClientExt, SystemClientExt,
 };
 use subxt::ext::sp_core::sr25519::Pair as Sr25519Pair;
 use zombienet_sdk::NetworkConfigExt;
@@ -326,13 +324,11 @@ where
             charlie,
             SubmitWindowedPoStParams {
                 deadline: 0,
-                partitions: BoundedVec(vec![0]),
-                proof:
-                    storagext::runtime::runtime_types::pallet_storage_provider::proofs::PoStProof {
-                        post_proof:
-                            primitives::proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
-                        proof_bytes: "beef".to_string().into_bounded_byte_vec(),
-                    },
+                partitions: vec![0],
+                proof: storagext::types::storage_provider::PoStProof {
+                    post_proof: primitives::proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+                    proof_bytes: "beef".as_bytes().to_vec(),
+                },
             },
             true,
         )

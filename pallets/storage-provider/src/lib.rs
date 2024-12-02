@@ -63,8 +63,8 @@ pub mod pallet {
         proofs::{derive_prover_id, PublicReplicaInfo, RegisteredPoStProof},
         randomness::{draw_randomness, DomainSeparationTag},
         sector::SectorNumber,
-        PartitionNumber,
-        MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_CALL, MAX_SECTORS, MAX_PARTITIONS_PER_DEADLINE,
+        PartitionNumber, MAX_PARTITIONS_PER_DEADLINE, MAX_SEAL_PROOF_BYTES, MAX_SECTORS,
+        MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::Zero;
@@ -1095,6 +1095,40 @@ pub mod pallet {
                 challenge_block: deadline.challenge,
                 start: deadline.open_at,
             })
+        }
+
+        /// Returns snapshot information about the deadline, i.e. which sectors are assigned to which partitions.
+        /// When the deadline has not opened yet (deadline_start - WPoStChallengeWindow), it can change!
+        pub fn deadline_state(
+            storage_provider: &T::AccountId,
+            deadline_index: u64,
+        ) -> Option<primitives::pallets::DeadlineState> {
+            let sp = StorageProviders::<T>::try_get(storage_provider).ok()?;
+            let deadline_index: usize = deadline_index.try_into().ok()?;
+
+            if deadline_index >= sp.deadlines.due.len() {
+                log::warn!(
+                    "tried to get non existing deadline: {}/{}",
+                    deadline_index,
+                    sp.deadlines.due.len()
+                );
+                return None;
+            }
+
+            let deadline = &sp.deadlines.due[deadline_index];
+            let mut partitions = BoundedBTreeMap::new();
+            for (partition_number, partition) in deadline.partitions.iter() {
+                partitions
+                    .try_insert(
+                        *partition_number,
+                        primitives::pallets::PartitionState {
+                            sectors: partition.sectors.clone(),
+                        },
+                    )
+                    .ok()?;
+            }
+
+            Some(primitives::pallets::DeadlineState { partitions })
         }
 
         fn validate_expiration(

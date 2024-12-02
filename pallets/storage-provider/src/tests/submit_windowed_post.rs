@@ -1,4 +1,5 @@
 use frame_support::{assert_noop, assert_ok};
+use primitives::PartitionNumber;
 use rstest::rstest;
 use sp_core::bounded_vec;
 use sp_runtime::{BoundedVec, DispatchError};
@@ -6,7 +7,6 @@ use sp_runtime::{BoundedVec, DispatchError};
 use crate::{
     error::GeneralPalletError,
     pallet::{Error, Event, StorageProviders},
-    partition::PartitionNumber,
     sector::ProveCommitSector,
     tests::{
         account, declare_faults::setup_sp_with_many_sectors_multiple_partitions, events,

@@ -5,7 +5,12 @@ use sp_core::{ConstU32, RuntimeDebug};
 use sp_runtime::{BoundedBTreeMap, BoundedBTreeSet, BoundedVec, DispatchError, DispatchResult};
 
 use crate::{
-    commitment::RawCommitment, proofs::{ProverId, PublicReplicaInfo, RegisteredPoStProof, RegisteredSealProof, Ticket}, sector::SectorNumber, DealId, PartitionNumber, MAX_DEALS_PER_SECTOR, MAX_PARTITIONS_PER_DEADLINE, MAX_POST_PROOF_BYTES, MAX_SEAL_PROOF_BYTES, MAX_SECTORS, MAX_SECTORS_PER_CALL, MAX_SECTORS_PER_PROOF
+    commitment::RawCommitment,
+    proofs::{ProverId, PublicReplicaInfo, RegisteredPoStProof, RegisteredSealProof, Ticket},
+    sector::SectorNumber,
+    DealId, PartitionNumber, MAX_DEALS_PER_SECTOR, MAX_PARTITIONS_PER_DEADLINE,
+    MAX_POST_PROOF_BYTES, MAX_SEAL_PROOF_BYTES, MAX_SECTORS, MAX_SECTORS_PER_CALL,
+    MAX_SECTORS_PER_PROOF,
 };
 
 /// Represents functions that are provided by the Randomness Pallet
@@ -138,11 +143,8 @@ pub struct CurrentDeadline<BlockNumber> {
 #[derive(Encode, Decode, TypeInfo)]
 pub struct DeadlineState {
     /// Partitions in this deadline. Indexed by partition number.
-    pub partitions: BoundedBTreeMap<
-        PartitionNumber,
-        PartitionState,
-        ConstU32<MAX_PARTITIONS_PER_DEADLINE>,
-    >,
+    pub partitions:
+        BoundedBTreeMap<PartitionNumber, PartitionState, ConstU32<MAX_PARTITIONS_PER_DEADLINE>>,
 }
 
 #[derive(Encode, Decode, TypeInfo)]

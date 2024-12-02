@@ -3,7 +3,9 @@ use frame_support::{
     pallet_prelude::{ConstU32, RuntimeDebug},
     sp_runtime::BoundedVec,
 };
-use primitives::{proofs::RegisteredPoStProof, MAX_POST_PROOF_BYTES, PartitionNumber, MAX_PARTITIONS_PER_DEADLINE};
+use primitives::{
+    proofs::RegisteredPoStProof, PartitionNumber, MAX_PARTITIONS_PER_DEADLINE, MAX_POST_PROOF_BYTES,
+};
 use scale_info::TypeInfo;
 use sp_core::blake2_64;
 

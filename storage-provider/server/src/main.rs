@@ -419,9 +419,11 @@ impl ServerConfiguration {
 
         let (pipeline_tx, pipeline_rx) = tokio::sync::mpsc::unbounded_channel::<PipelineMessage>();
 
-        pipeline_tx.send(PipelineMessage::SubmitWindowedPoStMessage(SubmitWindowedPoStMessage {
-            deadline_index: 0
-        })).expect("it to work...");
+        pipeline_tx
+            .send(PipelineMessage::SubmitWindowedPoStMessage(
+                SubmitWindowedPoStMessage { deadline_index: 0 },
+            ))
+            .expect("it to work...");
 
         let storage_state = StorageServerState {
             car_piece_storage_dir: car_piece_storage_dir.clone(),
