@@ -35,9 +35,7 @@ use crate::{
                     TerminationDeclaration as RuntimeTerminationDeclaration,
                 },
             },
-            primitives::pallets::{
-                DeadlineState as RuntimeDeadlineState,
-            },
+            primitives::pallets::DeadlineState as RuntimeDeadlineState,
         },
     },
     BlockNumber,
