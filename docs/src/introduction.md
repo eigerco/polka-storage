@@ -23,8 +23,6 @@ We've now completed Phase 2 and have started work on Phase 3.
   - Proof of Replication
   - Proof of Spacetime
 
-<!-- TODO: pending change from konrads PR -->
-
 We also present a complete [real-world scenario](./getting-started/demo-file-store.md) in which a [Storage Provider](./glossary.md#storage-provider) and a [Storage User](./glossary.md#storage-user) negotiate a deal, perform all the steps necessary to start the storage and then receive rewards (or punishments) for making it happen.
 
 **The Polka Storage project currently provides:**

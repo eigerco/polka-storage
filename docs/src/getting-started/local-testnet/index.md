@@ -9,7 +9,7 @@ Charlie will be our contact point to the parachain network.
 ## Native Binaries
 
 The binaries for the latest releases are available to download and can be run without any additional dependencies.
-We support `Linux x86_64` and `MacOS ARM x64`. The commands below will download:
+We support `Linux x86_64 (Ubuntu 24.04.1 LTS/glibc 2.39+)` and `MacOS ARM x64`. The commands below will download:
 
 - [Relay Chain](https://github.com/paritytech/polkadot-sdk/releases) binaries (`polkadot`, `polkadot-prepare-worker`, `polkadot-execute-worker`),
 - Polka Storage Parachain binary (`polka-storage-node`),
