@@ -413,12 +413,12 @@ impl Runtime {
 
 impl_runtime_apis! {
     impl primitives::pallets::StorageProviderApi<Block, AccountId> for Runtime {
-        fn current_deadline(storage_provider: AccountId) -> Option<primitives::pallets::CurrentDeadline<BlockNumber>> {
-            StorageProvider::current_deadline(&storage_provider)
-        }
-
         fn deadline_state(storage_provider: AccountId, deadline_index: u64) -> Option<primitives::pallets::DeadlineState> {
             StorageProvider::deadline_state(&storage_provider, deadline_index)
+        }
+
+        fn deadline_info(storage_provider: AccountId, deadline_index: u64) -> Option<primitives::pallets::DeadlineInfo<BlockNumber>> {
+            StorageProvider::deadline_info(&storage_provider, deadline_index)
         }
     }
 

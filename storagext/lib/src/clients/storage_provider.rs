@@ -14,7 +14,7 @@ use crate::{
         client::SubmissionResult,
         runtime_types::{
             pallet_storage_provider::storage_provider::StorageProviderState,
-            primitives::pallets::{CurrentDeadline, DeadlineState},
+            primitives::pallets::{DeadlineInfo, DeadlineState},
         },
         storage_provider::calls::types::register_storage_provider::PeerId,
     },
@@ -100,10 +100,11 @@ pub trait StorageProviderClientExt {
         &self,
     ) -> impl Future<Output = Result<Vec<String>, subxt::Error>>;
 
-    fn current_deadline(
+    fn deadline_info(
         &self,
         account_id: &AccountId32,
-    ) -> impl Future<Output = Result<Option<CurrentDeadline<BlockNumber>>, subxt::Error>>;
+        deadline_index: u64,
+    ) -> impl Future<Output = Result<Option<DeadlineInfo<BlockNumber>>, subxt::Error>>;
 
     fn deadline_state(
         &self,
@@ -147,13 +148,14 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
             .await
     }
 
-    async fn current_deadline(
+    async fn deadline_info(
         &self,
         account_id: &AccountId32,
-    ) -> Result<Option<CurrentDeadline<BlockNumber>>, subxt::Error> {
+        deadline_index: u64,
+    ) -> Result<Option<DeadlineInfo<BlockNumber>>, subxt::Error> {
         let payload = runtime::apis()
             .storage_provider_api()
-            .current_deadline(account_id.clone());
+            .deadline_info(account_id.clone(), deadline_index);
 
         self.client
             .runtime_api()

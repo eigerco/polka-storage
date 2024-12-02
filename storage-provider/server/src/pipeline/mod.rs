@@ -62,8 +62,6 @@ pub enum PipelineError {
     DeadlineNotFound,
     #[error("deadline of given index does not have a state")]
     DeadlineStateNotFound,
-    #[error("invalid sector number: {0}")]
-    InvalidSectorNumber(u32),
     #[error(transparent)]
     SendError(#[from] SendError<PipelineMessage>),
     #[error("failed to schedule windowed PoSt")]
@@ -570,30 +568,25 @@ async fn submit_windowed_post(
     state: Arc<PipelineState>,
     deadline_index: u64,
 ) -> Result<(), PipelineError> {
-    // 1. Wait for proving_period_start
-    //  - stretch goal - implement get_deadline_info(idx) api?
-    // 4. Schedule again!
-    // 5. [FOLLOW-UP] We need to keep track whether we proven that successfully or not, or do we?
-
-    // TODO(@th7nder,28/11/2024): only proving the first deadline for now.
     tracing::info!(
-        "Wait for block {} for first deadline to open",
-        state.server_info.proving_period_start
+        "Getting deadline info for {} deadline",
+        deadline_index
+    );
+    let deadline = state.xt_client.deadline_info(&state.xt_keypair.account_id().into(), deadline_index).await?;
+    let Some(deadline) = deadline else {
+        tracing::error!("there is no such deadline...");
+        return Err(PipelineError::DeadlineNotFound);
+    };
+
+    tracing::info!(
+        "Wait for block {} for deadline challenge",
+        deadline.start,
     );
     state
         .xt_client
-        .wait_for_height(state.server_info.proving_period_start, true)
+        .wait_for_height(deadline.challenge_block, true)
         .await?;
-
     tracing::info!("Waiting finished, let's go");
-    let deadline = state
-        .xt_client
-        .current_deadline(&state.xt_keypair.account_id().into())
-        .await?;
-    let Some(deadline) = deadline else {
-        tracing::error!("Something went catastrophic, there is no current deadline for SP");
-        return Err(PipelineError::DeadlineNotFound);
-    };
 
     let Some(digest) = state
         .xt_client
@@ -678,6 +671,15 @@ async fn submit_windowed_post(
 
     tracing::info!("Generated PoSt proof for partitions: {:?}", partitions);
 
+    tracing::info!(
+        "Wait for block {} for open deadline",
+        deadline.start,
+    );
+    state
+        .xt_client
+        .wait_for_height(deadline.start, true)
+        .await?;
+
     let result = state
         .xt_client
         .submit_windowed_post(
@@ -703,6 +705,8 @@ async fn submit_windowed_post(
 
     tracing::info!("Successfully submitted PoSt on-chain: {:?}", posts);
 
+
+    // TODO(@th7nder,02/12/2024): reschedule Windowed PoSt for the next proving period.
     Ok(())
 }
 

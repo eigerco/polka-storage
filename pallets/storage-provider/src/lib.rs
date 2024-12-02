@@ -58,7 +58,7 @@ pub mod pallet {
     use primitives::{
         commitment::{CommD, CommR, Commitment},
         pallets::{
-            CurrentDeadline, Market, ProofVerification, Randomness, StorageProviderValidation,
+            DeadlineInfo as ExternalDeadlineInfo, Market, ProofVerification, Randomness, StorageProviderValidation,
         },
         proofs::{derive_prover_id, PublicReplicaInfo, RegisteredPoStProof},
         randomness::{draw_randomness, DomainSeparationTag},
@@ -1074,7 +1074,7 @@ pub mod pallet {
         /// conversion between BlockNumbers fails, but technically should not ever happen.
         pub fn current_deadline(
             storage_provider: &T::AccountId,
-        ) -> Option<CurrentDeadline<BlockNumberFor<T>>> {
+        ) -> Option<ExternalDeadlineInfo<BlockNumberFor<T>>> {
             let sp = StorageProviders::<T>::try_get(storage_provider).ok()?;
             let current_block = <frame_system::Pallet<T>>::block_number();
 
@@ -1089,7 +1089,38 @@ pub mod pallet {
                 )
                 .ok()?;
 
-            Some(CurrentDeadline {
+            Some(ExternalDeadlineInfo {
+                deadline_index: deadline.idx,
+                open: deadline.is_open(),
+                challenge_block: deadline.challenge,
+                start: deadline.open_at,
+            })
+        }
+
+        /// Gets the current deadline of the storage provider.
+        ///
+        /// If there is no Storage Provider of given AccountId returns [`Option::None`].
+        /// May exceptionally return [`Option::None`] when
+        /// conversion between BlockNumbers fails, but technically should not ever happen.
+        pub fn deadline_info(
+            storage_provider: &T::AccountId,
+            deadline_index: u64,
+        ) -> Option<ExternalDeadlineInfo<BlockNumberFor<T>>> {
+            let sp = StorageProviders::<T>::try_get(storage_provider).ok()?;
+            let current_block = <frame_system::Pallet<T>>::block_number();
+
+            let deadline = DeadlineInfo::new(
+                current_block,
+                sp.proving_period_start,
+                deadline_index,
+                T::WPoStPeriodDeadlines::get(),
+                T::WPoStProvingPeriod::get(),
+                T::WPoStChallengeWindow::get(),
+                T::WPoStChallengeLookBack::get(),
+                T::FaultDeclarationCutoff::get(),
+            ).ok()?;
+
+            Some(ExternalDeadlineInfo {
                 deadline_index: deadline.idx,
                 open: deadline.is_open(),
                 challenge_block: deadline.challenge,

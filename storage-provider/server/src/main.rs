@@ -10,7 +10,7 @@ mod storage;
 use std::{env::temp_dir, net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 
 use clap::Parser;
-use pipeline::types::{PipelineMessage, SubmitWindowedPoStMessage};
+use pipeline::types::PipelineMessage;
 use polka_storage_proofs::{
     porep::{self, PoRepParameters},
     post::{self, PoStParameters},

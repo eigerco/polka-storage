@@ -122,7 +122,7 @@ pub struct ActiveDeal<AccountId> {
 
 /// Current deadline in a proving period of a Storage Provider.
 #[derive(Encode, Decode, TypeInfo)]
-pub struct CurrentDeadline<BlockNumber> {
+pub struct DeadlineInfo<BlockNumber> {
     /// Index of a deadline.
     ///
     /// If there are 10 deadlines if the proving period, values will be [0, 9].
@@ -155,13 +155,13 @@ pub struct PartitionState {
 sp_api::decl_runtime_apis! {
     pub trait StorageProviderApi<AccountId> where AccountId: Codec
     {
-        /// Gets the current deadline of the storage provider.
+        /// Gets the information about the specified deadline of the storage provider.
         ///
         /// If there is no Storage Provider of given AccountId returns [`Option::None`].
         /// May exceptionally return [`Option::None`] when
         /// conversion between BlockNumbers fails, but technically should not ever happen.
-        fn current_deadline(storage_provider: AccountId) -> Option<
-            CurrentDeadline<
+        fn deadline_info(storage_provider: AccountId, deadline_index: u64) -> Option<
+            DeadlineInfo<
                 <<Block as sp_runtime::traits::Block>::Header as sp_runtime::traits::Header>::Number
             >
         >;
