@@ -19,8 +19,8 @@ use primitives::{
     pallets::{ProofVerification, Randomness},
     proofs::{ProverId, PublicReplicaInfo, RegisteredPoStProof, RegisteredSealProof, Ticket},
     sector::SectorNumber,
-    DealId, CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR, MAX_POST_PROOF_BYTES, MAX_SEAL_PROOF_BYTES,
-    MAX_SECTORS_PER_PROOF, MAX_TERMINATIONS_PER_CALL,
+    DealId, PartitionNumber, CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR, MAX_PARTITIONS_PER_DEADLINE,
+    MAX_POST_PROOF_BYTES, MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_PROOF, MAX_TERMINATIONS_PER_CALL,
 };
 use sp_core::{bounded_vec, Pair};
 use sp_runtime::{
@@ -34,7 +34,6 @@ use crate::{
         DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration, RecoveryDeclaration,
     },
     pallet::DECLARATIONS_MAX,
-    partition::{PartitionNumber, MAX_PARTITIONS_PER_DEADLINE},
     proofs::{PoStProof, SubmitWindowedPoStParams},
     sector::SectorPreCommitInfo,
 };

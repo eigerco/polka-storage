@@ -1,12 +1,12 @@
 use frame_support::{assert_ok, pallet_prelude::Get};
-use primitives::{sector::SectorNumber, DealId};
+use primitives::{sector::SectorNumber, DealId, MAX_SECTORS};
 use sp_core::bounded_vec;
 use sp_runtime::{BoundedBTreeMap, BoundedBTreeSet};
 
 use super::new_test_ext;
 use crate::{
     pallet::{Config, Event, StorageProviders},
-    sector::{ProveCommitSector, MAX_SECTORS},
+    sector::ProveCommitSector,
     tests::{
         account, events, publish_deals, register_storage_provider, run_to_block, sector_set,
         RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider,

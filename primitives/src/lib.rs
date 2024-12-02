@@ -8,8 +8,14 @@ pub mod sector;
 
 pub type DealId = u64;
 
+pub type PartitionNumber = u32;
+
 /// Merkle tree node size in bytes.
 pub const NODE_SIZE: usize = 32;
+
+/// Max amount of partitions per deadline.
+/// ref: <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/runtime/src/runtime/policy.rs#L283>
+pub const MAX_PARTITIONS_PER_DEADLINE: u32 = 3000;
 
 /// Max number of sectors.
 /// <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/runtime/src/runtime/policy.rs#L262>
