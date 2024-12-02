@@ -129,6 +129,4 @@ Polka-index is designed to scale across a growing number of storage providers an
 
 ### 7. References
 
-[RFC 7322: Guidelines for RFC Style](https://www.rfc-editor.org/rfc/rfc7322)
-
 [libp2p Documentation](https://docs.libp2p.io/)
