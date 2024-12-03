@@ -645,7 +645,7 @@ async fn submit_windowed_post(
     let handle: JoinHandle<Result<Vec<BlstrsProof>, _>> = {
         let post_params = state.post_parameters.clone();
         let cache_dir = state.sealing_cache_dir.clone();
-        let post_proof = state.server_info.post_proof.clone();
+        let post_proof = state.server_info.post_proof;
 
         tokio::task::spawn_blocking(move || {
             post::generate_window_post(
