@@ -1,5 +1,3 @@
-#![cfg(feature = "std")]
-
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
@@ -23,6 +21,8 @@ use crate::{
     types::{Commitment, ProverId, Ticket},
 };
 
+pub type PoStParameters = groth16::MappedParameters<Bls12>;
+
 /// Generates parameters for proving and verifying PoSt.
 /// It should be called once and then reused across provers and the verifier.
 /// Verifying Key is only needed for verification (no_std), rest of the params are required for proving (std).
@@ -44,9 +44,7 @@ pub fn generate_random_groth16_parameters(
 
 /// Loads Groth16 parameters from the specified path.
 /// Parameters needed to be serialized with [`groth16::Paramters::<Bls12>::write_bytes`].
-pub fn load_groth16_parameters(
-    path: std::path::PathBuf,
-) -> Result<groth16::MappedParameters<Bls12>, PoStError> {
+pub fn load_groth16_parameters(path: std::path::PathBuf) -> Result<PoStParameters, PoStError> {
     groth16::Parameters::<Bls12>::build_mapped_parameters(path.clone(), false)
         .map_err(|e| PoStError::FailedToLoadGrothParameters(path, e))
 }

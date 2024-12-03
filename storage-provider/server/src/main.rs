@@ -11,12 +11,19 @@ use std::{env::temp_dir, net::SocketAddr, path::PathBuf, sync::Arc, time::Durati
 
 use clap::Parser;
 use pipeline::types::PipelineMessage;
-use polka_storage_proofs::porep::{self, PoRepParameters};
+use polka_storage_proofs::{
+    porep::{self, PoRepParameters},
+    post::{self, PoStParameters},
+};
 use polka_storage_provider_common::rpc::ServerInfo;
 use primitives::proofs::{RegisteredPoStProof, RegisteredSealProof};
 use rand::Rng;
 use storagext::{
     multipair::{DebugPair, MultiPairSigner},
+    runtime::runtime_types::{
+        bounded_collections::bounded_vec::BoundedVec,
+        pallet_storage_provider::storage_provider::StorageProviderState,
+    },
     MarketClientExt, StorageProviderClientExt,
 };
 use subxt::{
@@ -125,6 +132,9 @@ pub enum ServerError {
     #[error("failed to load PoRep parameters from: {0}, because: {1}")]
     InvalidPoRepParameters(std::path::PathBuf, porep::PoRepError),
 
+    #[error("failed to load PoSt parameters from: {0}, because: {1}")]
+    InvalidPoStParameters(std::path::PathBuf, post::PoStError),
+
     #[error("FromEnv error: {0}")]
     EnvFilter(#[from] tracing_subscriber::filter::FromEnvError),
 
@@ -204,13 +214,21 @@ pub struct ServerArguments {
 
     /// Proving Parameters for PoRep proof, corresponding to given `seal_proof` sector size.
     /// They are shared across all of the nodes in the network, as the chain stores corresponding Verifying Key parameters.
-    /// Shared parameters available to get in the [root repo](http://github.com/eigerco/polka-storage/README.md#Parameters).
     ///
-    /// Testing/temporary parameters can be also generated via `polka-storage-provider-client proofs porep-params` command.
+    /// Testing/temporary parameters can be generated via `polka-storage-provider-client proofs porep-params` command.
     /// Note that when you generate keys, for local testnet,
     /// **they need to be set** via an extrinsic pallet-proofs::set_porep_verifyingkey.
     #[arg(long)]
     porep_parameters: PathBuf,
+
+    /// Proving Parameters for PoSt proof, corresponding to given `post_proof` sector size.
+    /// They are shared across all of the nodes in the network, as the chain stores corresponding Verifying Key parameters.
+    ///
+    /// Testing/temporary parameters can be generated via `polka-storage-provider-client proofs post-params` command.
+    /// Note that when you generate keys, for local testnet,
+    /// **they need to be set** via an extrinsic pallet-proofs::set_post_verifyingkey.
+    #[arg(long)]
+    post_parameters: PathBuf,
 }
 
 /// A valid server configuration. To be created using [`ServerConfiguration::try_from`].
@@ -246,6 +264,10 @@ pub struct ServerConfiguration {
     /// Proving Parameters for PoRep proof.
     /// For 2KiB sectors they're ~1GiB of data.
     porep_parameters: PoRepParameters,
+
+    /// Proving Parameters for PoSt proof.
+    /// For 2KiB sectors they're ~11MiB of data.
+    post_parameters: PoStParameters,
 }
 
 impl TryFrom<ServerArguments> for ServerConfiguration {
@@ -287,6 +309,9 @@ impl TryFrom<ServerArguments> for ServerConfiguration {
         let porep_parameters = porep::load_groth16_parameters(value.porep_parameters.clone())
             .map_err(|e| ServerError::InvalidPoRepParameters(value.porep_parameters, e))?;
 
+        let post_parameters = post::load_groth16_parameters(value.post_parameters.clone())
+            .map_err(|e| ServerError::InvalidPoStParameters(value.post_parameters, e))?;
+
         Ok(Self {
             upload_listen_address: value.upload_listen_address,
             rpc_listen_address: value.rpc_listen_address,
@@ -297,6 +322,7 @@ impl TryFrom<ServerArguments> for ServerConfiguration {
             seal_proof: value.seal_proof,
             post_proof: value.post_proof,
             porep_parameters,
+            post_parameters,
         })
     }
 }
@@ -366,14 +392,13 @@ impl ServerConfiguration {
     }
 
     async fn setup(self) -> Result<SetupOutput, ServerError> {
-        let xt_client = Arc::new(
-            ServerConfiguration::setup_storagext_client(
-                self.node_url,
-                &self.multi_pair_signer,
-                &self.post_proof,
-            )
-            .await?,
-        );
+        let (xt_client, storage_provider_info) = ServerConfiguration::setup_storagext_client(
+            self.node_url,
+            &self.multi_pair_signer,
+            &self.post_proof,
+        )
+        .await?;
+        let xt_client = Arc::new(xt_client);
         let deal_database = Arc::new(DealDB::new(self.database_directory)?);
 
         // Car piece storage directory — i.e. the CAR archives from the input streams
@@ -392,6 +417,10 @@ impl ServerConfiguration {
 
         let (pipeline_tx, pipeline_rx) = tokio::sync::mpsc::unbounded_channel::<PipelineMessage>();
 
+        pipeline_tx
+            .send(PipelineMessage::SchedulePoSts)
+            .expect("queue not to be closed at the start-up of the server");
+
         let storage_state = StorageServerState {
             car_piece_storage_dir: car_piece_storage_dir.clone(),
             deal_db: deal_database.clone(),
@@ -404,6 +433,7 @@ impl ServerConfiguration {
                 self.multi_pair_signer.account_id(),
                 self.seal_proof,
                 self.post_proof,
+                storage_provider_info.proving_period_start,
             ),
             deal_db: deal_database.clone(),
             car_piece_storage_dir: car_piece_storage_dir.clone(),
@@ -420,6 +450,7 @@ impl ServerConfiguration {
             sealed_sectors_dir: sealed_sector_storage_dir,
             sealing_cache_dir,
             porep_parameters: Arc::new(self.porep_parameters),
+            post_parameters: Arc::new(self.post_parameters),
             xt_client,
             xt_keypair: self.multi_pair_signer,
             pipeline_sender: pipeline_tx,
@@ -437,15 +468,16 @@ impl ServerConfiguration {
         rpc_address: impl AsRef<str>,
         xt_keypair: &MultiPairSigner,
         post_proof: &RegisteredPoStProof,
-    ) -> Result<storagext::Client, ServerError> {
+    ) -> Result<
+        (
+            storagext::Client,
+            StorageProviderState<BoundedVec<u8>, u128, u64>,
+        ),
+        ServerError,
+    > {
         let xt_client = storagext::Client::new(rpc_address, RETRY_NUMBER, RETRY_INTERVAL).await?;
 
-        let storage_provider_account_id = subxt::utils::AccountId32(
-            // account_id() -> sp_core::crypto::AccountId
-            // as_ref() -> &[u8]
-            // * -> [u8]
-            *xt_keypair.account_id().as_ref(),
-        );
+        let storage_provider_account_id = xt_keypair.account_id().into();
 
         // Check if the storage provider has been registered to the chain
         let storage_provider_info = xt_client
@@ -472,6 +504,8 @@ impl ServerConfiguration {
                     );
                     return Err(ServerError::ProofMismatch);
                 }
+
+                Ok((xt_client, storage_provider_info))
             }
             None => {
                 tracing::error!(concat!(
@@ -479,10 +513,9 @@ impl ServerConfiguration {
                     "you can register your account using the ",
                     "`storagext-cli storage-provider register`"
                 ));
-                return Err(ServerError::UnregisteredStorageProvider);
+
+                Err(ServerError::UnregisteredStorageProvider)
             }
         }
-
-        Ok(xt_client)
     }
 }

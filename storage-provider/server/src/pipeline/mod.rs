@@ -2,9 +2,12 @@ pub mod types;
 
 use std::{path::PathBuf, sync::Arc};
 
-use polka_storage_proofs::porep::{
-    sealer::{prepare_piece, BlstrsProof, PreCommitOutput, Sealer, SubstrateProof},
-    PoRepError, PoRepParameters,
+use polka_storage_proofs::{
+    porep::{
+        sealer::{prepare_piece, BlstrsProof, PreCommitOutput, Sealer, SubstrateProof},
+        PoRepError, PoRepParameters,
+    },
+    post::{self, PoStError, PoStParameters, ReplicaInfo},
 };
 use polka_storage_provider_common::rpc::ServerInfo;
 use primitives::{
@@ -16,7 +19,10 @@ use primitives::{
 use storagext::{
     types::{
         market::DealProposal,
-        storage_provider::{ProveCommitSector, SectorPreCommitInfo},
+        storage_provider::{
+            PartitionState, PoStProof, ProveCommitSector, SectorPreCommitInfo,
+            SubmitWindowedPoStParams,
+        },
     },
     RandomnessClientExt, StorageProviderClientExt, SystemClientExt,
 };
@@ -28,17 +34,20 @@ use tokio::{
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use types::{
     AddPieceMessage, PipelineMessage, PreCommitMessage, PreCommittedSector, ProveCommitMessage,
-    ProvenSector, UnsealedSector,
+    ProvenSector, SubmitWindowedPoStMessage, UnsealedSector,
 };
 
 use crate::db::{DBError, DealDB};
 
+// TODO(@th7nder,#622,02/12/2024): query it from the chain.
 const SECTOR_EXPIRATION_MARGIN: u64 = 20;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PipelineError {
     #[error(transparent)]
     PoRepError(#[from] PoRepError),
+    #[error(transparent)]
+    PoStError(#[from] PoStError),
     #[error(transparent)]
     Join(#[from] JoinError),
     #[error(transparent)]
@@ -51,8 +60,14 @@ pub enum PipelineError {
     SectorNotFound,
     #[error("precommit scheduled too early, randomness not available")]
     RandomnessNotAvailable,
+    #[error("current deadline or storage provider not found")]
+    DeadlineNotFound,
+    #[error("deadline of given index does not have a state")]
+    DeadlineStateNotFound,
     #[error(transparent)]
     SendError(#[from] SendError<PipelineMessage>),
+    #[error("failed to schedule windowed PoSt")]
+    SchedulingError,
     #[error("Custom error: {0}")]
     CustomError(String),
 }
@@ -64,6 +79,7 @@ pub struct PipelineState {
     pub sealed_sectors_dir: Arc<PathBuf>,
     pub sealing_cache_dir: Arc<PathBuf>,
     pub porep_parameters: Arc<PoRepParameters>,
+    pub post_parameters: Arc<PoStParameters>,
 
     pub xt_client: Arc<storagext::Client>,
     pub xt_keypair: storagext::multipair::MultiPairSigner,
@@ -109,6 +125,8 @@ trait PipelineOperations {
     fn add_piece(&self, state: Arc<PipelineState>, msg: AddPieceMessage, token: CancellationToken);
     fn precommit(&self, state: Arc<PipelineState>, msg: PreCommitMessage);
     fn prove_commit(&self, state: Arc<PipelineState>, msg: ProveCommitMessage);
+    fn submit_windowed_post(&self, state: Arc<PipelineState>, msg: SubmitWindowedPoStMessage);
+    fn schedule_posts(&self, state: Arc<PipelineState>);
 }
 
 impl PipelineOperations for TaskTracker {
@@ -173,6 +191,37 @@ impl PipelineOperations for TaskTracker {
             }
         });
     }
+
+    fn submit_windowed_post(&self, state: Arc<PipelineState>, msg: SubmitWindowedPoStMessage) {
+        let SubmitWindowedPoStMessage { deadline_index } = msg;
+        self.spawn(async move {
+            // SubmitWindowedPoSt is not cancellation safe.
+            match submit_windowed_post(state, deadline_index).await {
+                Ok(_) => {
+                    tracing::info!(
+                        "SubmitWindowedPoSt for deadline {} finished successfully.",
+                        deadline_index
+                    )
+                }
+                Err(err) => {
+                    tracing::error!(%err, "SubmitWindowedPoSt failed for deadline: {}", deadline_index)
+                }
+            }
+        });
+    }
+
+    fn schedule_posts(&self, state: Arc<PipelineState>) {
+        self.spawn(async move {
+            match schedule_posts(state).await {
+                Ok(_) => {
+                    tracing::info!("Scheduled Windowed PoSts...");
+                }
+                Err(err) => {
+                    tracing::error!(%err, "Schedule PoSts failed");
+                }
+            }
+        });
+    }
 }
 
 fn process(
@@ -185,6 +234,10 @@ fn process(
         PipelineMessage::AddPiece(msg) => tracker.add_piece(state.clone(), msg, token.clone()),
         PipelineMessage::PreCommit(msg) => tracker.precommit(state.clone(), msg),
         PipelineMessage::ProveCommit(msg) => tracker.prove_commit(state.clone(), msg),
+        PipelineMessage::SubmitWindowedPoStMessage(msg) => {
+            tracker.submit_windowed_post(state.clone(), msg)
+        }
+        PipelineMessage::SchedulePoSts => tracker.schedule_posts(state.clone()),
     }
 }
 
@@ -508,6 +561,166 @@ async fn prove_commit(
 
     let sector = ProvenSector::create(sector);
     state.db.save_sector(sector.sector_number, &sector)?;
+
+    Ok(())
+}
+
+#[tracing::instrument(skip_all, fields(sector_number))]
+async fn submit_windowed_post(
+    state: Arc<PipelineState>,
+    deadline_index: u64,
+) -> Result<(), PipelineError> {
+    tracing::info!("Getting deadline info for {} deadline", deadline_index);
+    let deadline = state
+        .xt_client
+        .deadline_info(&state.xt_keypair.account_id().into(), deadline_index)
+        .await?;
+    let Some(deadline) = deadline else {
+        tracing::error!("there is no such deadline...");
+        return Err(PipelineError::DeadlineNotFound);
+    };
+
+    tracing::info!("Wait for block {} for deadline challenge", deadline.start,);
+    state
+        .xt_client
+        .wait_for_height(deadline.challenge_block, true)
+        .await?;
+    tracing::info!("Waiting finished, let's go");
+
+    let Some(digest) = state
+        .xt_client
+        .get_randomness(deadline.challenge_block)
+        .await?
+    else {
+        tracing::error!("Randomness for the block not available.");
+        return Err(PipelineError::RandomnessNotAvailable);
+    };
+    let entropy = state.xt_keypair.account_id().encode();
+    let randomness = draw_randomness(
+        &digest,
+        DomainSeparationTag::WindowedPoStChallengeSeed,
+        deadline.challenge_block,
+        &entropy,
+    );
+
+    let Some(deadline_state) = state
+        .xt_client
+        .deadline_state(&state.xt_keypair.account_id().into(), deadline_index)
+        .await?
+    else {
+        tracing::error!("Something went catastrophic, there is no current deadline state");
+        return Err(PipelineError::DeadlineStateNotFound);
+    };
+
+    if deadline_state.partitions.len() > 1 {
+        todo!("I don't know what to do: polka-storage#595");
+    }
+    if deadline_state.partitions.len() == 0 {
+        tracing::warn!("I'm not implemented. Waiting for polka-storage#621");
+        return Ok(());
+    }
+
+    let partitions = deadline_state.partitions.keys().cloned().collect();
+    let (_partition_number, PartitionState { sectors }) = deadline_state
+        .partitions
+        .first_key_value()
+        .expect("1 partition to be there");
+
+    let mut replicas = Vec::new();
+    for sector_number in sectors {
+        let sector = state
+            .db
+            .get_sector::<ProvenSector>(*sector_number)?
+            .ok_or(PipelineError::SectorNotFound)?;
+
+        replicas.push(ReplicaInfo {
+            sector_id: *sector_number,
+            comm_r: sector.comm_r.raw(),
+            replica_path: sector.sealed_path.clone(),
+        });
+    }
+    let prover_id = derive_prover_id(state.xt_keypair.account_id());
+
+    tracing::info!("Proving PoSt partitions... {:?}", partitions);
+    let handle: JoinHandle<Result<Vec<BlstrsProof>, _>> = {
+        let post_params = state.post_parameters.clone();
+        let cache_dir = state.sealing_cache_dir.clone();
+        let post_proof = state.server_info.post_proof;
+
+        tokio::task::spawn_blocking(move || {
+            post::generate_window_post(
+                post_proof,
+                &post_params,
+                randomness,
+                prover_id,
+                replicas,
+                cache_dir.as_ref(),
+            )
+        })
+    };
+    let proofs = handle.await??;
+
+    // don't now why yet, need to figure this out
+    let proof: SubstrateProof = proofs[0]
+        .clone()
+        .try_into()
+        .expect("converstion between rust-fil-proofs and polka-storage-proofs to work");
+    let proof = codec::Encode::encode(&proof);
+
+    tracing::info!("Generated PoSt proof for partitions: {:?}", partitions);
+
+    tracing::info!("Wait for block {} for open deadline", deadline.start,);
+    state
+        .xt_client
+        .wait_for_height(deadline.start, true)
+        .await?;
+
+    let result = state
+        .xt_client
+        .submit_windowed_post(
+            &state.xt_keypair,
+            SubmitWindowedPoStParams {
+                deadline: deadline_index,
+                partitions: partitions,
+                proof: PoStProof {
+                    post_proof: state.server_info.post_proof,
+                    proof_bytes: proof,
+                },
+            },
+            true,
+        )
+        .await?
+        .expect("waiting for finalization should always give results");
+
+    let posts = result
+        .events
+        .find::<storagext::runtime::storage_provider::events::ValidPoStSubmitted>()
+        .map(|result| result.map_err(|err| subxt::Error::from(err)))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    tracing::info!("Successfully submitted PoSt on-chain: {:?}", posts);
+
+    // TODO(@th7nder,#621,02/12/2024): reschedule Windowed PoSt for the next proving period.
+    Ok(())
+}
+
+#[tracing::instrument(skip_all)]
+async fn schedule_posts(state: Arc<PipelineState>) -> Result<(), PipelineError> {
+    let proving_period = state.xt_client.proving_period_info()?;
+
+    for deadline_index in 0..proving_period.deadlines {
+        state
+            .pipeline_sender
+            .send(PipelineMessage::SubmitWindowedPoStMessage(
+                SubmitWindowedPoStMessage { deadline_index },
+            ))
+            .map_err(|err| {
+                tracing::error!(%err, "failed to send a messsage to the pipeline");
+                PipelineError::SchedulingError
+            })?;
+
+        tracing::info!("Scheduled Windowed PoSt for deadline: {}", deadline_index);
+    }
 
     Ok(())
 }

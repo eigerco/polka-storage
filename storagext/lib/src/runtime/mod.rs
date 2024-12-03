@@ -17,11 +17,11 @@ pub mod display;
         with = "::subxt::utils::Static<::subxt::ext::sp_runtime::MultiSignature>"
     ),
     substitute_type(
-        path = "primitives::proofs::types::RegisteredSealProof",
+        path = "primitives::proofs::RegisteredSealProof",
         with = "::primitives::proofs::RegisteredSealProof",
     ),
     substitute_type(
-        path = "primitives::proofs::types::RegisteredPoStProof",
+        path = "primitives::proofs::RegisteredPoStProof",
         with = "::primitives::proofs::RegisteredPoStProof",
     ),
     substitute_type(

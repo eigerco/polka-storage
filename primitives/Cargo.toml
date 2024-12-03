@@ -33,7 +33,7 @@ workspace = true
 
 [features]
 clap = ["dep:clap", "std"]
-default = []
+default = ["std"]
 serde = ["dep:serde"]
 std = [
   "cid/scale-codec",
