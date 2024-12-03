@@ -16,7 +16,7 @@ delia = []
 mater = { workspace = true }
 polka-storage-proofs = { workspace = true, features = ["std", "substrate"] }
 polka-storage-provider-common = { workspace = true }
-primitives = { workspace = true, features = ["serde", "std", "clap"] }
+primitives = { workspace = true, features = ["clap", "serde", "std"] }
 storagext = { workspace = true, features = ["clap"] }
 
 async-trait = { workspace = true }
