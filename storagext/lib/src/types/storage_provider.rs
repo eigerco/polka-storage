@@ -324,11 +324,11 @@ pub struct DeadlineState {
 impl From<RuntimeDeadlineState> for DeadlineState {
     fn from(value: RuntimeDeadlineState) -> Self {
         Self {
-            partitions: BTreeMap::from_iter(value.partitions.0.iter().map(|(k, v)| {
+            partitions: BTreeMap::from_iter(value.partitions.0.into_iter().map(|(k, v)| {
                 (
-                    *k,
+                    k,
                     PartitionState {
-                        sectors: BTreeSet::from_iter(v.sectors.0.iter().cloned()),
+                        sectors: BTreeSet::from_iter(v.sectors.0.into_iter()),
                     },
                 )
             })),
