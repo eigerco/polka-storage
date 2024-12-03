@@ -565,7 +565,17 @@ async fn prove_commit(
     Ok(())
 }
 
-#[tracing::instrument(skip_all, fields(sector_number))]
+/*
+
+2024-12-03T16:09:09.837065Z DEBUG submit_windowed_post: polka_storage_provider_server::pipeline: Deadline Info: DeadlineInfo { deadline_index: 0, open: false, challenge_block: 79, start: 89 }
+2024-12-03T16:09:09.837088Z  INFO submit_windowed_post: polka_storage_provider_server::pipeline: Wait for challenge_block 79, start: 89, for deadline challenge
+2024-12-03T16:09:09.837247Z DEBUG submit_windowed_post: polka_storage_provider_server::pipeline: Deadline Info: DeadlineInfo { deadline_index: 2, open: false, challenge_block: 79, start: 129 }
+2024-12-03T16:09:09.837284Z  INFO submit_windowed_post: polka_storage_provider_server::pipeline: Wait for challenge_block 79, start: 129, for deadline challenge
+2024-12-03T16:09:09.837252Z DEBUG submit_windowed_post: polka_storage_provider_server::pipeline: Deadline Info: DeadlineInfo { deadline_index: 1, open: false, challenge_block: 79, start: 109 }
+
+2024-12-03T16:17:41.252433Z DEBUG submit_windowed_post: polka_storage_provider_server::pipeline: Deadline Info: DeadlineInfo { deadline_index: 0, open: false, challenge_block: 123, start: 133 }
+*/
+#[tracing::instrument(skip_all, fields(deadline_index))]
 async fn submit_windowed_post(
     state: Arc<PipelineState>,
     deadline_index: u64,
@@ -580,10 +590,11 @@ async fn submit_windowed_post(
         return Err(PipelineError::DeadlineNotFound);
     };
 
-    tracing::info!("Wait for block {} for deadline challenge", deadline.start,);
+    tracing::debug!("Deadline Info: {:?}", deadline);
+    tracing::info!("Wait for challenge_block {}, start: {}, for deadline challenge", deadline.challenge_block, deadline.start);
     state
         .xt_client
-        .wait_for_height(deadline.challenge_block, true)
+        .wait_for_height(deadline.start, true)
         .await?;
     tracing::info!("Waiting finished, let's go");
 
@@ -700,7 +711,16 @@ async fn submit_windowed_post(
 
     tracing::info!("Successfully submitted PoSt on-chain: {:?}", posts);
 
-    // TODO(@th7nder,#621,02/12/2024): reschedule Windowed PoSt for the next proving period.
+    state
+        .pipeline_sender
+        .send(PipelineMessage::SubmitWindowedPoStMessage(
+            SubmitWindowedPoStMessage { deadline_index },
+        ))
+        .map_err(|err| {
+            tracing::error!(%err, "failed to send a messsage to the pipeline");
+            PipelineError::SchedulingError
+        })?;
+
     Ok(())
 }
 

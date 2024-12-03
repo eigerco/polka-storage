@@ -720,17 +720,9 @@ where
         self.block_number >= self.fault_cutoff
     }
 
-    /// Returns the next deadline that has not yet elapsed.
-    ///
-    /// If the current deadline has not elapsed yet then it returns the current deadline.
-    /// Otherwise it calculates the next period start by getting the gap between the current block number and the closing block number
+    /// It calculates the next period start by getting the gap between the current block number and the closing block number
     /// and adding 1. Making sure it is a multiple of proving period by dividing by `w_post_proving_period`.
-    pub fn next_not_elapsed(self) -> Result<Self, GeneralPalletError> {
-        if !self.has_elapsed() {
-            return Ok(self);
-        }
-
-        // has elapsed, advance by some multiples of w_post_proving_period
+    fn next(self) -> Result<Self, GeneralPalletError> {
         let gap = self.block_number - self.close_at;
         let delta_periods = BlockNumber::one() + gap / self.w_post_proving_period;
 
@@ -745,6 +737,30 @@ where
             self.fault_declaration_cutoff,
         )
     }
+
+    /// Returns the next deadline that has not yet elapsed.
+    ///
+    /// If the current deadline has not elapsed yet then it returns the current deadline.
+    pub fn next_not_elapsed(self) -> Result<Self, GeneralPalletError> {
+        if !self.has_elapsed() {
+            return Ok(self);
+        }
+
+        // has elapsed, advance by some multiples of w_post_proving_period
+        self.next()
+    }
+
+    /// Returns the next deadline that has not yet been opened nor closed.
+    ///
+    /// If the current deadline has not opened yet then it returns the current deadline.
+    pub fn next_not_opened(self) -> Result<Self, GeneralPalletError> {
+        if !self.is_open() && !self.has_elapsed() {
+            return Ok(self);
+        }
+
+        self.next()
+    }
+
 }
 
 /// Returns true if the deadline at the given index is currently mutable.
