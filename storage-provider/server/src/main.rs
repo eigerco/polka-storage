@@ -214,9 +214,8 @@ pub struct ServerArguments {
 
     /// Proving Parameters for PoRep proof, corresponding to given `seal_proof` sector size.
     /// They are shared across all of the nodes in the network, as the chain stores corresponding Verifying Key parameters.
-    /// Shared parameters available to get in the repository's README.
     ///
-    /// Testing/temporary parameters can be also generated via `polka-storage-provider-client proofs porep-params` command.
+    /// Testing/temporary parameters can be generated via `polka-storage-provider-client proofs porep-params` command.
     /// Note that when you generate keys, for local testnet,
     /// **they need to be set** via an extrinsic pallet-proofs::set_porep_verifyingkey.
     #[arg(long)]
@@ -224,9 +223,8 @@ pub struct ServerArguments {
 
     /// Proving Parameters for PoSt proof, corresponding to given `post_proof` sector size.
     /// They are shared across all of the nodes in the network, as the chain stores corresponding Verifying Key parameters.
-    /// Shared parameters available to get in the repository's README
     ///
-    /// Testing/temporary parameters can be also generated via `polka-storage-provider-client proofs post-params` command.
+    /// Testing/temporary parameters can be generated via `polka-storage-provider-client proofs post-params` command.
     /// Note that when you generate keys, for local testnet,
     /// **they need to be set** via an extrinsic pallet-proofs::set_post_verifyingkey.
     #[arg(long)]

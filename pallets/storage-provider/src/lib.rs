@@ -1072,7 +1072,7 @@ pub mod pallet {
         ///
         /// If there is no Storage Provider of given AccountId returns [`Option::None`].
         /// May exceptionally return [`Option::None`] when
-        /// conversion between BlockNumbers fails, but technically should not ever happen.
+        /// conversion between BlockNumbers fails, but technically should never happen.
         pub fn current_deadline(
             storage_provider: &T::AccountId,
         ) -> Option<ExternalDeadlineInfo<BlockNumberFor<T>>> {
@@ -1102,7 +1102,7 @@ pub mod pallet {
         ///
         /// If there is no Storage Provider of given AccountId returns [`Option::None`].
         /// May exceptionally return [`Option::None`] when
-        /// conversion between BlockNumbers fails, but technically should not ever happen.
+        /// conversion between BlockNumbers fails, but technically should never happen.
         pub fn deadline_info(
             storage_provider: &T::AccountId,
             deadline_index: u64,
