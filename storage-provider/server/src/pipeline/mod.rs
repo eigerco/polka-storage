@@ -17,7 +17,6 @@ use primitives::{
     sector::SectorNumber,
 };
 use storagext::{
-    runtime::runtime_apis::storage_provider_api::types::deadline_state,
     types::{
         market::DealProposal,
         storage_provider::{
