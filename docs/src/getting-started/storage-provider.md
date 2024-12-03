@@ -30,7 +30,7 @@ Generated parameters:
 /home/user/polka-storage/2KiB.post.vk.scale
 ```
 
-As advertised, the command has generated the following files:
+As advertised, the commands have generated the following files:
 
 * `2KiB.porep.params` — The PoRep parameters
 * `2KiB.porep.vk` — The PoRep verifying key
