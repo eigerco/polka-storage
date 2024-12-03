@@ -124,7 +124,6 @@ Polka-index is designed to scale across a growing number of storage providers an
 
 - mDNS Discovery: Enables seamless detection of storage providers as they join or leave the network.
 - Dialing: Ensures efficient, direct communication between the Polka-Indexer and storage providers.
-- Caching: Polka-Indexer caches CID mappings for faster responses to frequent queries.
 - HTTP API: Allows users to interact with the system easily, with minimal overhead.
 
 ### 7. References
