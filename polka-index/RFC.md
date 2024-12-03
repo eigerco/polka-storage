@@ -2,7 +2,7 @@
 
 ## Abstract
 
-This document describes Polka-index, a indexing application that maps Content Identifiers (CIDs) to the Peer IDs of storage providers in a peer-to-peer (P2P) network. Users interact with Polka-index through a simple HTTP API, while Polka-Index communicates with storage providers over the P2P network using [libp2p](https://docs.libp2p.io/)'s dialing mechanism. This document outlines the system's architecture, key components, and communication protocols.
+This document describes Polka-index, a indexing application that maps Content Identifiers (CIDs) to the Peer IDs of storage providers in a peer-to-peer (P2P) network. Users interact with Polka-index through a simple HTTP API, while Polka-Index communicates with storage providers over the P2P network using [libp2p](https://docs.libp2p.io/)'s [pubsub](https://github.com/libp2p/specs/blob/master/pubsub/README.md) and [identify](https://github.com/libp2p/specs/blob/master/identify/README.md) protocols. This document outlines the system's architecture, key components, and communication protocols.
 
 ## 1. Introduction
 
@@ -19,8 +19,8 @@ This document explains how the system works, detailing how users, the Polka-Inde
 - **Storage Provider**: A node in the network that stores files and manages a database of CIDs but uses the P2P network only to share Peer IDs and provide CID mappings.
 - **Deal Database**: A local database in each storage provider where CIDs and metadata about stored files are recorded.
 - **Polka-Index**: The node responsible for querying storage providers and maintaining a database of CID-to-Peer ID mappings. It also provides an HTTP API for users.
-- **pubsub**: A protocol where peers congregate around topics they are interested in.
-- **Dialing**: The process in [libp2p](https://docs.libp2p.io/) where one peer establishes a direct connection to another peer using its Peer ID.
+- **[pubsub](https://github.com/libp2p/specs/blob/master/pubsub/README.md)**: A protocol where peers congregate around topics they are interested in.
+- **[identify](https://github.com/libp2p/specs/blob/master/identify/README.md)**: A protocol used to exchange basic information with other peers in the network, including addresses, public keys, and capabilities.
 
 ## 3. System Overview
 
@@ -29,30 +29,30 @@ This document explains how the system works, detailing how users, the Polka-Inde
 #### Storage Providers Component
 
 - Connect to the P2P network using unique Peer IDs.
-- Broadcast their Peer IDs using pubsub so they can be discovered by the Polka-Index.
+- Broadcast their Peer IDs using the [identify](https://github.com/libp2p/specs/blob/master/identify/README.md) protocol so they can be discovered by the Polka-Index.
 - Maintain a Deal Database containing the CIDs and metadata for the files they store.
-- Respond to Polka-Index queries via dialing.
+- Respond to Polka-Index queries via [pubsub](https://github.com/libp2p/specs/blob/master/pubsub/README.md) topics.
 
 #### Polka-Index Component
 
 - Connects to the P2P network using its own unique Peer ID.
-- Detects storage providers through pubsub broadcasts.
-- Dials storage providers directly to query for CID mappings.
+- Detects storage providers through the [identify protocol](https://github.com/libp2p/specs/blob/master/identify/README.md).
+- Requests unknown CIDs using the [libp2p's pubsub protocol](https://github.com/libp2p/specs/blob/master/pubsub/README.md).
 - Maintains a CID-to-Peer ID mapping database.
 - Provides an HTTP API for users to request CID-to-Peer ID mappings.
 
 #### P2P Network
 
-- A communication layer powered by [libp2p](https://docs.libp2p.io/) that supports Peer ID discovery (via pubsub) and direct connections (via dialing).
+- A communication layer powered by [libp2p](https://docs.libp2p.io/) that supports Peer ID discovery (via [libp2p's identify protocol](https://github.com/libp2p/specs/blob/master/identify/README.md)) and subscribe to topics (via [libp2p pubsub protocol](https://github.com/libp2p/specs/blob/master/pubsub/README.md)).
 Users
 - Connect to the Polka-Index via HTTP to find out which Peer ID is associated with a specific CID.
 
 ### 3.2 How It Works
 
-1. Storage providers connect to the P2P network and broadcast their Peer IDs using pubsub.
+1. Storage providers connect to the P2P network and broadcast their Peer IDs and CIDs using pubsub.
 2. Polka-Index listens for these broadcasts and keeps track of active storage providers.
 3. Users send an HTTP request to the Polka-Index, asking for the Peer ID associated with a specific CID.
-4. If the CID isn’t already in its database, the Polka-Index dials storage providers directly to ask for the mapping.
+4. If the CID isn’t already in its database, the Polka-Index broadcasts a [pubsub](https://github.com/libp2p/specs/blob/master/pubsub/README.md) message asking which storage provider owns said CID.
 5. The storage provider responds with the CID-to-Peer ID mapping.
 6. Polka-Index stores the mapping for future use and returns the Peer ID to the user.
 
@@ -66,39 +66,30 @@ The following diagram illustrates the architecture of Polka-index:
 
 #### Storage Providers Architecture
 
-- **Peer ID**: Each storage provider generates a Peer ID when it connects to the P2P network. This ID is broadcast via pubsub for discovery.
+- **Peer ID**: Each storage provider generates a Peer ID before it connects to the P2P network. This ID is broadcast via identify protocol for discovery.
 - **Deal Database**: A lightweight database where storage providers keep records of CIDs and file metadata. File storage itself is external to the P2P network.
-- **Dialing**: Responds to direct queries from the Polka-Index to provide CID-to-Peer ID mappings.
+- **[pubsub](https://github.com/libp2p/specs/blob/master/pubsub/README.md)**: Responds to direct queries from the Polka-Index to provide CID-to-Peer ID mappings.
 
 #### Polka-Index Architecture
 
 - **Peer ID**: The Polka-Index has its own Peer ID for identifying itself in the P2P network.
-- **pubsub Discovery**: It listens for Peer ID broadcasts to discover active storage providers.
-- **CID Mapping Database**: Stores CID-to-Peer ID mappings retrieved from storage providers. This database powers the HTTP API for user queries.
-- **HTTP API**: Provides a simple interface for users:
-
-**Request**:
-
-```json
-{ "cid": "<CID>" }
-```
-
-**Response**:
-
-```json
-{ "cid": "<CID>", "peer_id": "<PeerID>" }
-```
+- **[identify](https://github.com/libp2p/specs/blob/master/identify/README.md) Discovery**: It listens for Peer ID broadcasts to discover active storage providers.
+- **CID Mapping Database**: Stores CID-to-Peer ID mappings retrieved from storage providers. This database powers the JSON API for user queries.
+- **JSON API**: Provides a simple interface for users:
 
 ### 5. Communication Protocols
 
-#### pubsub Protocol
+#### [pubsub](https://github.com/libp2p/specs/blob/master/pubsub/README.md) Protocol
 
-- **Broadcast**: When a storage provider connects to the network, it broadcasts its Peer ID using pubsub.
-- **Discovery**: Polka-Index detects these broadcasts and tracks active storage providers.
+- **Broadcast**: When a storage provider connects to the network, it broadcasts its owned CIDs using the pubsub topics.
+
+#### [identify](https://github.com/libp2p/specs/blob/master/identify/README.md) Protocol
+
+- **Discovery**: When a storage provider connects to the network, it broadcasts its peer ID using the identify protocol.
 
 #### Query Protocol (P2P Network)
 
-- **Request**: Polka-Index dials a storage provider with a query for a specific CID.
+- **Request**: Polka-Index requests the owner of a CID through the [pubsub](https://github.com/libp2p/specs/blob/master/pubsub/README.md) protocol.
 - **Response**: The storage provider returns the CID and its associated Peer ID.
 
 #### User Query Protocol (HTTP)
@@ -113,8 +104,8 @@ The following diagram illustrates the architecture of Polka-index:
 
 ```json
 {
-  "cid": "<CID>",
-  "peer_id": "<PeerID>"
+    "cid": "<CID>",
+    "peer_id": "<PeerID>"
 }
 ```
 
@@ -122,7 +113,7 @@ The following diagram illustrates the architecture of Polka-index:
 
 Polka-index is designed to scale across a growing number of storage providers and users:
 
-- pubsub Discovery: Enables seamless detection of storage providers as they join or leave the network.
+- [identify](https://github.com/libp2p/specs/blob/master/identify/README.md) Discovery: Enables seamless detection of storage providers as they join or leave the network.
 - Dialing: Ensures efficient, direct communication between the Polka-Index and storage providers.
 - HTTP API: Allows users to interact with the system easily, with minimal overhead.
 
