@@ -19,7 +19,7 @@ This document explains how the system works, detailing how users, the Polka-Inde
 - **Storage Provider**: A node in the network that stores files and manages a database of CIDs but uses the P2P network only to share Peer IDs and provide CID mappings.
 - **Deal Database**: A local database in each storage provider where CIDs and metadata about stored files are recorded.
 - **Polka-Index**: The node responsible for querying storage providers and maintaining a database of CID-to-Peer ID mappings. It also provides an HTTP API for users.
-- **mDNS (Multicast DNS)**: A protocol used for discovering peers within the local P2P network.
+- **pubsub**: A protocol where peers congregate around topics they are interested in.
 - **Dialing**: The process in [libp2p](https://docs.libp2p.io/) where one peer establishes a direct connection to another peer using its Peer ID.
 
 ## 3. System Overview
@@ -29,27 +29,27 @@ This document explains how the system works, detailing how users, the Polka-Inde
 #### Storage Providers Component
 
 - Connect to the P2P network using unique Peer IDs.
-- Broadcast their Peer IDs using mDNS so they can be discovered by the Polka-Index.
+- Broadcast their Peer IDs using pubsub so they can be discovered by the Polka-Index.
 - Maintain a Deal Database containing the CIDs and metadata for the files they store.
 - Respond to Polka-Index queries via dialing.
 
 #### Polka-Index Component
 
 - Connects to the P2P network using its own unique Peer ID.
-- Detects storage providers through mDNS broadcasts.
+- Detects storage providers through pubsub broadcasts.
 - Dials storage providers directly to query for CID mappings.
 - Maintains a CID-to-Peer ID mapping database.
 - Provides an HTTP API for users to request CID-to-Peer ID mappings.
 
 #### P2P Network
 
-- A communication layer powered by [libp2p](https://docs.libp2p.io/) that supports Peer ID discovery (via mDNS) and direct connections (via dialing).
+- A communication layer powered by [libp2p](https://docs.libp2p.io/) that supports Peer ID discovery (via pubsub) and direct connections (via dialing).
 Users
 - Connect to the Polka-Index via HTTP to find out which Peer ID is associated with a specific CID.
 
 ### 3.2 How It Works
 
-1. Storage providers connect to the P2P network and broadcast their Peer IDs using mDNS.
+1. Storage providers connect to the P2P network and broadcast their Peer IDs using pubsub.
 2. Polka-Index listens for these broadcasts and keeps track of active storage providers.
 3. Users send an HTTP request to the Polka-Index, asking for the Peer ID associated with a specific CID.
 4. If the CID isn’t already in its database, the Polka-Index dials storage providers directly to ask for the mapping.
@@ -64,16 +64,16 @@ The following diagram illustrates the architecture of Polka-index:
 
 ### 4. Architectural Details
 
-#### Storage Providers Component
+#### Storage Providers Architecture
 
-- **Peer ID**: Each storage provider generates a Peer ID when it connects to the P2P network. This ID is broadcast via mDNS for discovery.
+- **Peer ID**: Each storage provider generates a Peer ID when it connects to the P2P network. This ID is broadcast via pubsub for discovery.
 - **Deal Database**: A lightweight database where storage providers keep records of CIDs and file metadata. File storage itself is external to the P2P network.
 - **Dialing**: Responds to direct queries from the Polka-Index to provide CID-to-Peer ID mappings.
 
-#### Polka-Index Component
+#### Polka-Index Architecture
 
 - **Peer ID**: The Polka-Index has its own Peer ID for identifying itself in the P2P network.
-- **mDNS Discovery**: It listens for Peer ID broadcasts to discover active storage providers.
+- **pubsub Discovery**: It listens for Peer ID broadcasts to discover active storage providers.
 - **CID Mapping Database**: Stores CID-to-Peer ID mappings retrieved from storage providers. This database powers the HTTP API for user queries.
 - **HTTP API**: Provides a simple interface for users:
 
@@ -91,9 +91,9 @@ The following diagram illustrates the architecture of Polka-index:
 
 ### 5. Communication Protocols
 
-#### mDNS Protocol
+#### pubsub Protocol
 
-- **Broadcast**: When a storage provider connects to the network, it broadcasts its Peer ID using mDNS.
+- **Broadcast**: When a storage provider connects to the network, it broadcasts its Peer ID using pubsub.
 - **Discovery**: Polka-Index detects these broadcasts and tracks active storage providers.
 
 #### Query Protocol (P2P Network)
@@ -122,7 +122,7 @@ The following diagram illustrates the architecture of Polka-index:
 
 Polka-index is designed to scale across a growing number of storage providers and users:
 
-- mDNS Discovery: Enables seamless detection of storage providers as they join or leave the network.
+- pubsub Discovery: Enables seamless detection of storage providers as they join or leave the network.
 - Dialing: Ensures efficient, direct communication between the Polka-Index and storage providers.
 - HTTP API: Allows users to interact with the system easily, with minimal overhead.
 
