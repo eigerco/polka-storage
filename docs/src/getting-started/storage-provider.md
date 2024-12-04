@@ -7,11 +7,10 @@
 Setting up the Storage Provider doesn't have a lot of science, but isn't automatic either!
 In this guide, we'll cover how to get up and running with the Storage Provider.
 
-## Generating the PoRep Parameters
+## Generating the Proofs Parameters
 
-First and foremost, to allow the Storage Provider to generate [PoRep](https://docs.filecoin.io/basics/the-blockchain/proofs#proof-of-replication-porep) proofs,
-we need to first generate their parameters, we do that with the following command:
-
+To allow the Storage Provider to generate [PoRep](https://docs.filecoin.io/basics/the-blockchain/proofs#proof-of-replication-porep)
+and [PoSt](https://docs.filecoin.io/basics/the-blockchain/proofs#proof-of-spacetime-post) proofs we first generate the PoRep parameters:
 ```bash
 $ polka-storage-provider-client proofs porep-params
 Generating params for 2KiB sectors... It can take a couple of minutes ⌛
@@ -20,12 +19,24 @@ Generated parameters:
 /home/user/polka-storage/2KiB.porep.vk
 /home/user/polka-storage/2KiB.porep.vk.scale
 ```
+Then, we generate the PoSt parameters:
+```bash
+$ polka-storage-provider-client proofs post-params
+Generating PoSt params for 2KiB sectors... It can take a few secs ⌛
+Generated parameters:
+/home/user/polka-storage/2KiB.post.params
+/home/user/polka-storage/2KiB.post.vk
+/home/user/polka-storage/2KiB.post.vk.scale
+```
 
-As advertised, the command has generated the following files:
+As advertised, the commands have generated the following files:
 
 * `2KiB.porep.params` — The PoRep parameters
-* `2KiB.porep.vk` — The verifying key
-* `2KiB.porep.vk.scale` — The verifying key, encoded in SCALE format
+* `2KiB.porep.vk` — The PoRep verifying key
+* `2KiB.porep.vk.scale` — The PoRep verifying key, encoded in SCALE format
+* `2KiB.post.params` — The PoSt parameters
+* `2KiB.post.vk` — The PoSt verifying key
+* `2KiB.post.vk.scale` — The PoSt verifying key, encoded in SCALE format
 
 ## Registering the Storage Provider
 
@@ -75,6 +86,7 @@ polka-storage-provider-server \
   --seal-proof 2KiB \
   --post-proof 2KiB \
   --porep-parameters <POREP-PARAMS> \
+  --post-parameters <POST-PARAMS> \
   --X-key <KEY>
 ```
 
@@ -84,13 +96,14 @@ polka-storage-provider-server \
   --seal-proof 2KiB \
   --post-proof 2KiB \
   --porep-parameters "2KiB.porep.params" \
+  --post-parameters "2KiB.post.params" \
   --sr25519-key "//Charlie"
 ```
 
 Note that currently, `--seal-proof` and `--post-proof` only support `2KiB`.
 
-`<POREP-PARAMS>` is the resulting `*.porep.params` file from the [first steps](#generating-the-porep-parameters),
-in this case, `2KiB.porep.params`.
+`<POREP-PARAMS>`/`<POST-PARAMS>` is the resulting `*.porep.params`/`*.post.params` file from the [first steps](#generating-the-proofs-parameters),
+in this case, `2KiB.porep.params`/`2KiB.post.params`.
 
 When ran like this, the server will assume a random directory for the database and the storage, however,
 you can change that through the `--database-directory` and `--storage-directory`, respectively,

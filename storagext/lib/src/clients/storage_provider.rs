@@ -13,16 +13,14 @@ use crate::{
         bounded_vec::IntoBoundedByteVec,
         client::SubmissionResult,
         runtime_types::{
-            pallet_storage_provider::{
-                proofs::SubmitWindowedPoStParams, storage_provider::StorageProviderState,
-            },
-            primitives::pallets::CurrentDeadline,
+            pallet_storage_provider::storage_provider::StorageProviderState,
+            primitives::pallets::DeadlineInfo,
         },
         storage_provider::calls::types::register_storage_provider::PeerId,
     },
     types::storage_provider::{
-        FaultDeclaration, ProveCommitSector, RecoveryDeclaration, SectorPreCommitInfo,
-        TerminationDeclaration,
+        DeadlineState, FaultDeclaration, ProveCommitSector, RecoveryDeclaration,
+        SectorPreCommitInfo, SubmitWindowedPoStParams, TerminationDeclaration,
     },
     BlockNumber, Currency, PolkaStorageConfig,
 };
@@ -102,20 +100,63 @@ pub trait StorageProviderClientExt {
         &self,
     ) -> impl Future<Output = Result<Vec<String>, subxt::Error>>;
 
-    fn current_deadline(
+    fn deadline_info(
         &self,
         account_id: &AccountId32,
-    ) -> impl Future<Output = Result<Option<CurrentDeadline<BlockNumber>>, subxt::Error>>;
+        deadline_index: u64,
+    ) -> impl Future<Output = Result<Option<DeadlineInfo<BlockNumber>>, subxt::Error>>;
+
+    fn deadline_state(
+        &self,
+        account_id: &AccountId32,
+        deadline_index: u64,
+    ) -> impl Future<Output = Result<Option<DeadlineState>, subxt::Error>>;
+
+    fn proving_period_info(&self) -> Result<ProvingPeriodInfo, subxt::Error>;
+}
+
+pub struct ProvingPeriodInfo {
+    /// Number of deadlines in a proving period,
+    pub deadlines: u64,
 }
 
 impl StorageProviderClientExt for crate::runtime::client::Client {
-    async fn current_deadline(
+    fn proving_period_info(&self) -> Result<ProvingPeriodInfo, subxt::Error> {
+        let query = runtime::constants()
+            .storage_provider()
+            .w_po_st_period_deadlines();
+        let deadlines = self.client.constants().at(&query)?;
+
+        Ok(ProvingPeriodInfo { deadlines })
+    }
+
+    #[tracing::instrument(level = "debug", skip_all, fields(deadline_index))]
+    async fn deadline_state(
         &self,
         account_id: &AccountId32,
-    ) -> Result<Option<CurrentDeadline<BlockNumber>>, subxt::Error> {
+        deadline_index: u64,
+    ) -> Result<Option<DeadlineState>, subxt::Error> {
         let payload = runtime::apis()
             .storage_provider_api()
-            .current_deadline(account_id.clone());
+            .deadline_state(account_id.clone(), deadline_index);
+
+        self.client
+            .runtime_api()
+            .at_latest()
+            .await?
+            .call(payload)
+            .await
+            .and_then(|state| Ok(state.map(Into::into)))
+    }
+
+    async fn deadline_info(
+        &self,
+        account_id: &AccountId32,
+        deadline_index: u64,
+    ) -> Result<Option<DeadlineInfo<BlockNumber>>, subxt::Error> {
+        let payload = runtime::apis()
+            .storage_provider_api()
+            .deadline_info(account_id.clone(), deadline_index);
 
         self.client
             .runtime_api()
@@ -216,7 +257,7 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
     {
         let payload = runtime::tx()
             .storage_provider()
-            .submit_windowed_post(windowed_post);
+            .submit_windowed_post(windowed_post.into());
 
         self.traced_submission(&payload, account_keypair, wait_for_finalization)
             .await

@@ -1,12 +1,13 @@
 extern crate alloc;
 
 use frame_support::{assert_err, assert_ok, pallet_prelude::*};
+use primitives::MAX_SECTORS;
 use sp_core::bounded_vec;
 
 use crate::{
     error::GeneralPalletError,
     pallet::{Error, Event, StorageProviders},
-    sector::{TerminateSectorsParams, TerminationDeclaration, MAX_SECTORS},
+    sector::{TerminateSectorsParams, TerminationDeclaration},
     tests::{
         account,
         declare_faults::{

@@ -17,6 +17,10 @@ pub enum PipelineMessage {
     PreCommit(PreCommitMessage),
     /// Generates a PoRep for a sector and verifies the proof on-chain.
     ProveCommit(ProveCommitMessage),
+    /// Fetches partitions and sectors from the chain and generates a Windowed PoSt proof.
+    SubmitWindowedPoStMessage(SubmitWindowedPoStMessage),
+    /// Schedules WindowPoSt for each deadline in the proving period.
+    SchedulePoSts,
 }
 
 /// Deal to be added to a sector with its contents.
@@ -43,6 +47,11 @@ pub struct PreCommitMessage {
 pub struct ProveCommitMessage {
     /// Number of an existing, pre-committed sector
     pub sector_number: SectorNumber,
+}
+
+#[derive(Debug)]
+pub struct SubmitWindowedPoStMessage {
+    pub deadline_index: u64,
 }
 
 /// Unsealed Sector which still accepts deals and pieces.
