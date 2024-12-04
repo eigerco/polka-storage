@@ -26,9 +26,9 @@ This document explains how the system works, detailing how users, the Polka-Inde
 
 Bootstrap nodes are predefined, well-known, persistent nodes in a libp2p network. They serve as the initial points of contact for peers attempting to join the network. Unlike other peers, they are expected to have a stable presence and consistent availability. Bootstrap nodes help new peers find other peers in the network by providing information about existing nodes.
 
-Bootstrap nodes are typically defined by their [multiaddrs (multi-protocol addresses)](https://github.com/libp2p/specs/blob/master/addressing/README.md#multiaddr-in-libp2p). These are made available through configuration files.
+Bootstrap nodes are defined by their [multiaddrs (multi-protocol addresses)](https://github.com/libp2p/specs/blob/master/addressing/README.md#multiaddr-in-libp2p). These are made available through configuration files.
 
-When a new peer joins, they attempt to establish a connection to one or more bootstrap nodes using their multiaddrs. The bootstrap node responds by sharing the addresses of other peers it knows about. The new peer uses the addresses provided by the bootstrap node to connect to additional peers. Over time, the new peer's routing table or peer store is populated, allowing it to interact with the network without relying exclusively on the bootstrap nodes.
+When a new peer joins, they attempt to establish a connection to one or more bootstrap nodes using their [multiaddrs](https://github.com/libp2p/specs/blob/master/addressing/README.md#multiaddr-in-libp2p). The bootstrap node responds by sharing the addresses of other peers it knows about. The new peer uses the addresses provided by the bootstrap node to connect to additional peers. Over time, the new peer's routing table is populated, allowing it to interact with the network without relying exclusively on the bootstrap nodes.
 
 ### Peer Discovery
 
