@@ -44,7 +44,7 @@ The [identify protocol](https://github.com/libp2p/specs/blob/master/identify/REA
 
 Storage providers are nodes in the Polka-Index ecosystem, responsible for storing files and managing metadata that links Content Identifiers (CIDs) to their respective storage details. While the actual file storage occurs outside the scope of the P2P network, storage providers leverage the network to facilitate content discovery. They broadcast their Peer IDs to the network, making their presence known and enabling Polka-Index to query them for CID mappings.
 
-Each storage provider maintains a local Deal Database, implemented using RocksDB, a high-performance key-value store. This database organizes CIDs and metadata efficiently, ensuring rapid responses to CID queries from Polka-Index.
+Each storage provider maintains a local Deal Database, implemented using RocksDB, a high-performance key-value store. This database organizes CIDs and metadata efficiently, ensuring fast gossip messages to the topics. Storage providers must notify the network of any new deals and any deals that have expired to ensure that Polka-Index has up to date information.
 
 To enhance the robustness and connectivity of the network, storage providers can optionally act as bootstrap nodes. As bootstrap nodes, they provide initial points of contact for new peers joining the network, helping in peer discovery.
 
