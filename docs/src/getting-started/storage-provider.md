@@ -9,9 +9,8 @@ In this guide, we'll cover how to get up and running with the Storage Provider.
 
 ## Generating the Proofs Parameters
 
-First and foremost, to allow the Storage Provider to generate [PoRep](https://docs.filecoin.io/basics/the-blockchain/proofs#proof-of-replication-porep)
-and [PoSt](https://docs.filecoin.io/basics/the-blockchain/proofs#proof-of-spacetime-post) proofs.
-First, we generate the PoRep parameters:
+To allow the Storage Provider to generate [PoRep](https://docs.filecoin.io/basics/the-blockchain/proofs#proof-of-replication-porep)
+and [PoSt](https://docs.filecoin.io/basics/the-blockchain/proofs#proof-of-spacetime-post) proofs we first generate the PoRep parameters:
 ```bash
 $ polka-storage-provider-client proofs porep-params
 Generating params for 2KiB sectors... It can take a couple of minutes ⌛
