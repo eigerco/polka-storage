@@ -1,4 +1,4 @@
-# RFC: Polka-index
+# RFC-001: Polka-index
 
 ## Abstract
 
@@ -24,7 +24,7 @@ This document explains how the system works, detailing how users, the Polka-Inde
 
 ### Bootstrap Nodes
 
-Bootstrap nodes are predefined, well-known, persistent nodes in a libp2p network. They serve as the initial points of contact for peers attempting to join the network. Unlike other peers, they are expected to have a stable presence and consistent availability. Bootstrap nodes help new peers find other peers in the network by providing information about existing nodes.
+Bootstrap nodes are predefined, well-known, persistent nodes in a [libp2p](https://docs.libp2p.io/) network. They serve as the initial points of contact for peers attempting to join the network. Unlike other peers, they are expected to have a stable presence and consistent availability. Bootstrap nodes help new peers find other peers in the network by providing information about existing nodes.
 
 Bootstrap nodes are defined by their [multiaddrs (multi-protocol addresses)](https://github.com/libp2p/specs/blob/master/addressing/README.md#multiaddr-in-libp2p). These are made available through configuration files.
 
@@ -38,13 +38,13 @@ The [identify protocol](https://github.com/libp2p/specs/blob/master/identify/REA
 - **Multiaddrs**: Addresses where the peer can be reached.
 - **Supported Protocols**: A list of protocols the peer supports.
 
-The [identify protocol](https://github.com/libp2p/specs/blob/master/identify/README.md#identify-v100) facilitates peer discovery by enabling nodes to exchange information upon establishing a connection. When a new peer joins the network, it connects to a well-known bootstrap nodes that assist in the initial discovery process. Upon connecting to a bootstrap node, the [identify protocol](https://github.com/libp2p/specs/blob/master/identify/README.md#identify-v100) is employed to share details such as the node's unique Peer ID, supported protocols, and reachable [multiaddrs (multi-protocol addresses)](https://github.com/libp2p/specs/blob/master/addressing/README.md#multiaddr-in-libp2p). This exchange allows the new node to learn about the network's topology and available services. The bootstrap node provides information about other peers it knows, facilitating the new node's integration into the network. This mechanism ensures that nodes can dynamically discover and connect with each other.
+The [identify protocol](https://github.com/libp2p/specs/blob/master/identify/README.md#identify-v100) facilitates peer discovery by enabling nodes to exchange information upon establishing a connection. When a new peer joins the network, it connects to a well-known bootstrap nodes that assist in the initial discovery process. Upon connecting to a bootstrap node, the [identify protocol](https://github.com/libp2p/specs/blob/master/identify/README.md#identify-v100) is employed to share details such as the node's unique Peer ID, supported protocols, and reachable [multiaddrs (multi-protocol addresses)](https://github.com/libp2p/specs/blob/master/addressing/README.md#multiaddr-in-libp2p). This exchange allows the new peer to learn about the network's topology and available services. The bootstrap node provides information about other peers it knows, facilitating the new node's integration into the network. The bootstrap node keeps up-to-date information about peers through the exchange of the identify messages. This mechanism ensures that nodes can dynamically discover and connect with each other. After the peer discovery is done the node can subscribe to the available [gossipsub](https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/README.md) topics to exchange information about deals.
 
 ### Storage Providers
 
 Storage providers are nodes in the Polka-Index ecosystem, responsible for storing files and managing metadata that links Content Identifiers (CIDs) to their respective storage details. While the actual file storage occurs outside the scope of the P2P network, storage providers leverage the network to facilitate content discovery. They broadcast their Peer IDs to the network, making their presence known and enabling Polka-Index to query them for CID mappings.
 
-Each storage provider maintains a local Deal Database, implemented using RocksDB, a high-performance key-value store. This database organizes CIDs and metadata efficiently, ensuring fast gossip messages to the topics. Storage providers must notify the network of any new deals and any deals that have expired to ensure that Polka-Index has up to date information.
+Each storage provider maintains a local Deal Database, implemented using RocksDB, a high-performance key-value store. Storage providers must notify the network of any new deals and any deals that have expired to ensure that Polka-Index has up to date information. This information exchange is done by sending [gossipsub](https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/README.md) messages to topics that the Polka-Index is subscribed to.
 
 To enhance the robustness and connectivity of the network, storage providers can optionally act as bootstrap nodes. As bootstrap nodes, they provide initial points of contact for new peers joining the network, helping in peer discovery.
 
@@ -54,7 +54,7 @@ By integrating with the P2P network and facilitating metadata exchange, storage 
 
 Polka-Index serves as the central indexing and query service in the network, bridging users and storage providers by mapping Content Identifiers (CIDs) to the Peer IDs of nodes storing the associated data. Polka-Index specializes in organizing and disseminating metadata about where specific content can be found.
 
-Polka-Index plays a crucial role in information aggregation through the use of the [gossipsub protocol](https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/README.md), a pub-sub mechanism that allows it to subscribe to specific topics. Storage providers publish deal information to these topics, enabling Polka-Index to listen for updates and build a comprehensive, up-to-date database of CID-to-Peer ID mappings.
+Polka-Index plays a crucial role in information aggregation through the use of the [gossipsub protocol](https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/README.md), a pub-sub mechanism that allows it to subscribe to specific topics. Storage providers publish deal information to these topics, enabling Polka-Index to listen for updates and build an up-to-date database of CID-to-Peer ID mappings.
 
 By collecting and indexing this deal information, Polka-Index allows users to query the network through a JSON API, retrieving the Peer ID of a storage provider responsible for a specific CID. This approach simplifies content discovery, offering users an efficient method to locate content without requiring direct interaction with the P2P network.
 
