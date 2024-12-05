@@ -50,6 +50,8 @@ To enhance the robustness and connectivity of the network, storage providers can
 
 By integrating with the P2P network and facilitating metadata exchange, storage providers play a crucial role in the Polka-index architecture, bridging the gap between decentralized file storage and efficient content lookup.
 
+The polka storage server will be extended to be part of the P2P network, connecting and sharing their peer ID on start-up. Any state changes to the Deal Database will be broadcasted to the relevant topics in the P2P network so Polka-Index can update their information.
+
 ### Polka-Index
 
 Polka-Index serves as the central indexing and query service in the network, bridging users and storage providers by mapping Content Identifiers (CIDs) to the Peer IDs of nodes storing the associated data. Polka-Index specializes in organizing and disseminating metadata about where specific content can be found.
