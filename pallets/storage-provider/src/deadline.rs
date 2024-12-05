@@ -664,7 +664,7 @@ where
         let (open_at, close_at, challenge, fault_cutoff) = if idx_converted < period_deadlines {
             let open_at = period_start + (idx_converted * w_post_challenge_window);
             let close_at = open_at + w_post_challenge_window;
-            let challenge = period_start - w_post_challenge_lookback;
+            let challenge = open_at - w_post_challenge_lookback;
             let fault_cutoff = open_at - fault_declaration_cutoff;
             (open_at, close_at, challenge, fault_cutoff)
         } else {
