@@ -591,7 +591,11 @@ async fn submit_windowed_post(
     };
 
     tracing::debug!("Deadline Info: {:?}", deadline);
-    tracing::info!("Wait for challenge_block {}, start: {}, for deadline challenge", deadline.challenge_block, deadline.start);
+    tracing::info!(
+        "Wait for challenge_block {}, start: {}, for deadline challenge",
+        deadline.challenge_block,
+        deadline.start
+    );
     state
         .xt_client
         .wait_for_height(deadline.start, true)
@@ -627,7 +631,7 @@ async fn submit_windowed_post(
         todo!("I don't know what to do: polka-storage#595");
     }
     if deadline_state.partitions.len() == 0 {
-        tracing::warn!("I'm not implemented. Waiting for polka-storage#621");
+        schedule_post(state, deadline_index)?;
         return Ok(());
     }
 
@@ -671,6 +675,7 @@ async fn submit_windowed_post(
     };
     let proofs = handle.await??;
 
+    // TODO(@th7nder,#595,06/12/2024): how many proofs are for how many partitions and why
     // don't now why yet, need to figure this out
     let proof: SubstrateProof = proofs[0]
         .clone()
@@ -711,6 +716,24 @@ async fn submit_windowed_post(
 
     tracing::info!("Successfully submitted PoSt on-chain: {:?}", posts);
 
+    schedule_post(state, deadline_index)?;
+
+    Ok(())
+}
+
+#[tracing::instrument(skip_all)]
+async fn schedule_posts(state: Arc<PipelineState>) -> Result<(), PipelineError> {
+    let proving_period = state.xt_client.proving_period_info()?;
+
+    for deadline_index in 0..proving_period.deadlines {
+        schedule_post(state.clone(), deadline_index)?;
+    }
+
+    Ok(())
+}
+
+#[tracing::instrument(skip_all, fields(deadline_index))]
+fn schedule_post(state: Arc<PipelineState>, deadline_index: u64) -> Result<(), PipelineError> {
     state
         .pipeline_sender
         .send(PipelineMessage::SubmitWindowedPoStMessage(
@@ -721,26 +744,7 @@ async fn submit_windowed_post(
             PipelineError::SchedulingError
         })?;
 
-    Ok(())
-}
-
-#[tracing::instrument(skip_all)]
-async fn schedule_posts(state: Arc<PipelineState>) -> Result<(), PipelineError> {
-    let proving_period = state.xt_client.proving_period_info()?;
-
-    for deadline_index in 0..proving_period.deadlines {
-        state
-            .pipeline_sender
-            .send(PipelineMessage::SubmitWindowedPoStMessage(
-                SubmitWindowedPoStMessage { deadline_index },
-            ))
-            .map_err(|err| {
-                tracing::error!(%err, "failed to send a messsage to the pipeline");
-                PipelineError::SchedulingError
-            })?;
-
-        tracing::info!("Scheduled Windowed PoSt for deadline: {}", deadline_index);
-    }
+    tracing::info!("Scheduled Windowed PoSt for deadline: {}", deadline_index);
 
     Ok(())
 }

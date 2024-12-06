@@ -723,12 +723,12 @@ where
     /// It calculates the next period start by getting the gap between the current block number and the closing block number
     /// and adding 1. Making sure it is a multiple of proving period by dividing by `w_post_proving_period`.
     fn next(self) -> Result<Self, GeneralPalletError> {
-        let gap = self.block_number - self.close_at;
-        let delta_periods = BlockNumber::one() + gap / self.w_post_proving_period;
+        // let gap = self.block_number - self.close_at;
+        // let delta_periods = BlockNumber::one() + gap / self.w_post_proving_period;
 
         Self::new(
             self.block_number,
-            self.period_start + self.w_post_proving_period * delta_periods,
+            self.period_start + self.w_post_proving_period,
             self.idx,
             self.w_post_period_deadlines,
             self.w_post_proving_period,
@@ -760,7 +760,6 @@ where
 
         self.next()
     }
-
 }
 
 /// Returns true if the deadline at the given index is currently mutable.
