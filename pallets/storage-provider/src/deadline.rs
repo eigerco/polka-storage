@@ -720,15 +720,32 @@ where
         self.block_number >= self.fault_cutoff
     }
 
-    /// It calculates the next period start by getting the gap between the current block number and the closing block number
-    /// and adding 1. Making sure it is a multiple of proving period by dividing by `w_post_proving_period`.
-    fn next(self) -> Result<Self, GeneralPalletError> {
-        // let gap = self.block_number - self.close_at;
-        // let delta_periods = BlockNumber::one() + gap / self.w_post_proving_period;
+    /// Calculates the deadline information in the next proving period in which the deadline will be open.
+    /// If the current deadline is still open, it'll return the deadline in the next proving period.
+    ///
+    /// ### Example 1
+    /// Current Block = 110
+    /// [self.open_at, self.close_at] = [100, 120]
+    /// Proving Periods: [100; 160), [160; 220), [220, 280)
+    /// next() ->
+    ///
+    /// ### Example 2
+    /// Current Block = 162
+    /// [self.open_at, self.close_at] = [100, 120]
+    /// Proving Periods: [100; 160), [160; 220), [220, 280)
+    /// next() -> [240, 260)
+    ///
+    pub fn next(self) -> Result<Self, GeneralPalletError> {
+        let gap = if self.is_open() {
+            BlockNumber::zero()
+        } else {
+            self.block_number - self.period_start
+        };
+        let delta_periods = BlockNumber::one() + gap / self.w_post_proving_period;
 
         Self::new(
             self.block_number,
-            self.period_start + self.w_post_proving_period,
+            self.period_start + self.w_post_proving_period * delta_periods,
             self.idx,
             self.w_post_period_deadlines,
             self.w_post_proving_period,
