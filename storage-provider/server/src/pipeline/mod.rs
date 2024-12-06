@@ -565,16 +565,6 @@ async fn prove_commit(
     Ok(())
 }
 
-/*
-
-2024-12-03T16:09:09.837065Z DEBUG submit_windowed_post: polka_storage_provider_server::pipeline: Deadline Info: DeadlineInfo { deadline_index: 0, open: false, challenge_block: 79, start: 89 }
-2024-12-03T16:09:09.837088Z  INFO submit_windowed_post: polka_storage_provider_server::pipeline: Wait for challenge_block 79, start: 89, for deadline challenge
-2024-12-03T16:09:09.837247Z DEBUG submit_windowed_post: polka_storage_provider_server::pipeline: Deadline Info: DeadlineInfo { deadline_index: 2, open: false, challenge_block: 79, start: 129 }
-2024-12-03T16:09:09.837284Z  INFO submit_windowed_post: polka_storage_provider_server::pipeline: Wait for challenge_block 79, start: 129, for deadline challenge
-2024-12-03T16:09:09.837252Z DEBUG submit_windowed_post: polka_storage_provider_server::pipeline: Deadline Info: DeadlineInfo { deadline_index: 1, open: false, challenge_block: 79, start: 109 }
-
-2024-12-03T16:17:41.252433Z DEBUG submit_windowed_post: polka_storage_provider_server::pipeline: Deadline Info: DeadlineInfo { deadline_index: 0, open: false, challenge_block: 123, start: 133 }
-*/
 #[tracing::instrument(skip_all, fields(deadline_index))]
 async fn submit_windowed_post(
     state: Arc<PipelineState>,
@@ -631,6 +621,7 @@ async fn submit_windowed_post(
         todo!("I don't know what to do: polka-storage#595");
     }
     if deadline_state.partitions.len() == 0 {
+        tracing::info!("There are not partitions in this deadline yet. Nothing to prove here.");
         schedule_post(state, deadline_index)?;
         return Ok(());
     }
@@ -640,6 +631,12 @@ async fn submit_windowed_post(
         .partitions
         .first_key_value()
         .expect("1 partition to be there");
+
+    if sectors.len() == 0 {
+        tracing::info!("Every sector expired... Nothing to prove here.");
+        schedule_post(state, deadline_index)?;
+        return Ok(());
+    }
 
     let mut replicas = Vec::new();
     for sector_number in sectors {
