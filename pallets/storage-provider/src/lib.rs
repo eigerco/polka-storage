@@ -1098,7 +1098,7 @@ pub mod pallet {
             })
         }
 
-        /// Gets the current deadline of the storage provider.
+        /// Gets the next, not yet opened, deadline of the storage provider.
         ///
         /// If there is no Storage Provider of given AccountId returns [`Option::None`].
         /// May exceptionally return [`Option::None`] when
@@ -1120,6 +1120,7 @@ pub mod pallet {
                 T::WPoStChallengeLookBack::get(),
                 T::FaultDeclarationCutoff::get(),
             )
+            .and_then(DeadlineInfo::next_not_opened)
             .ok()?;
 
             Some(ExternalDeadlineInfo {
