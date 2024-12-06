@@ -77,7 +77,7 @@ Storage providers are nodes in the Polka-Index ecosystem, responsible for storin
 While the actual file storage occurs outside the scope of the P2P network, storage providers leverage the network to facilitate content discovery.
 They broadcast their [Peer ID][5]s to the network, making their presence known and enabling Polka-Index to query them for [CID][6] mappings.
 
-Each storage provider maintains a local Deal Database, implemented using RocksDB, a high-performance key-value store.
+Each storage provider maintains a local Deal Database, a high-performance key-value store.
 Storage providers must notify the network of any new deals and any deals that have expired to ensure that Polka-Index has up to date information.
 This information exchange is done by sending [gossipsub][4] messages to topics that the Polka-Index is subscribed to.
 
