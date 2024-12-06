@@ -131,6 +131,14 @@ should be able to detect and punish the collator accordingly.
 
 The main issue with the crate is that it is not ready for production use.
 
+## Conclusion
+
+This document covers multiple randomness methods, however, none of them
+are without issues. Thus, moving forward with a definite method seems unwise,
+the proposal I put forward is for the team to discuss and vote on a way
+forward, keeping in mind that this choice may and should most likely be changed
+as the randomness landscape evolves.
+
 ## References
 
 * <https://polkadot.com/blog/the-path-of-a-parachain-block>
