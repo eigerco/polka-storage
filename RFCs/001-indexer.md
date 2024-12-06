@@ -30,6 +30,11 @@ Bootstrap nodes are defined by their [multiaddrs (multi-protocol addresses)](htt
 
 When a new peer joins, they attempt to establish a connection to one or more bootstrap nodes using their [multiaddrs](https://github.com/libp2p/specs/blob/master/addressing/README.md#multiaddr-in-libp2p). The bootstrap node responds by sharing the addresses of other peers it knows about. The new peer uses the addresses provided by the bootstrap node to connect to additional peers. Over time, the new peer's routing table is populated, allowing it to interact with the network without relying exclusively on the bootstrap nodes.
 
+Storage providers have a incentive to run bootstrap nodes in the P2P network because it enhances their trustworthiness and visibility within the ecosystem. As bootstrap nodes, storage providers aid in peer discovery, enabling new and existing peers to connect more easily to the network. This presence not only benefits the network's overall health and connectivity but also reflects positively on the storage provider's reliability and commitment to the decentralized storage ecosystem.
+Trust is critical factor for storage clients selecting which storage provider to store their data. A provider that operates a bootstrap node demonstrates that they want to support the broader network, increasing confidence and trustworthiness among clients. Bootstrap nodes and contribute to a more seamless user experience by helping ensure that content can be discovered and retrieved efficiently. This increase in trustworthiness can lead to increased client adoption and preference for storage providers that operate bootstrap nodes, giving these providers a competitive advantage in the ecosystem.
+
+Storage providers and bootstrap node operators have an incentive to run an indexer node. By running an indexer, these participants contribute directly to the discoverability of content, ensuring that their stored data can be easily located and accessed by clients. This active involvement in indexing enhances their reputation and trustworthiness within the ecosystem, as it demonstrates a commitment to supporting the network's functionality and reliability. For storage providers, running an indexer reinforces their role as dependable custodians of data, while bootstrap node operators strengthen their reputation as key supporters of the network.
+
 ### Peer Discovery
 
 The [identify protocol](https://github.com/libp2p/specs/blob/master/identify/README.md#identify-v100) plays a vital role in peer discovery and establishing communication. This protocol allows peers to exchange metadata about themselves upon connection. This metadata includes:
@@ -45,8 +50,6 @@ The [identify protocol](https://github.com/libp2p/specs/blob/master/identify/REA
 Storage providers are nodes in the Polka-Index ecosystem, responsible for storing files and managing metadata that links Content Identifiers (CIDs) to their respective storage details. While the actual file storage occurs outside the scope of the P2P network, storage providers leverage the network to facilitate content discovery. They broadcast their Peer IDs to the network, making their presence known and enabling Polka-Index to query them for CID mappings.
 
 Each storage provider maintains a local Deal Database, implemented using RocksDB, a high-performance key-value store. Storage providers must notify the network of any new deals and any deals that have expired to ensure that Polka-Index has up to date information. This information exchange is done by sending [gossipsub](https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/README.md) messages to topics that the Polka-Index is subscribed to.
-
-To enhance the robustness and connectivity of the network, storage providers can optionally act as bootstrap nodes. As bootstrap nodes, they provide initial points of contact for new peers joining the network, helping in peer discovery.
 
 By integrating with the P2P network and facilitating metadata exchange, storage providers play a crucial role in the Polka-index architecture, bridging the gap between decentralized file storage and efficient content lookup.
 
