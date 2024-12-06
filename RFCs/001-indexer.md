@@ -61,6 +61,8 @@ Polka-Index serves as the central indexing and query service in the network, bri
 
 Polka-Index plays a crucial role in information aggregation through the use of the [gossipsub protocol](https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/README.md), a pub-sub mechanism that allows it to subscribe to specific topics. Storage providers publish deal information to these topics, enabling Polka-Index to listen for updates and build an up-to-date database of CID-to-Peer ID mappings.
 
+When an indexer node first connects to the P2P network, it catches up on existing deal information by identifying itself and requesting the current state of all deals. This is done through a dedicated gossipsub topic separate from the one used for real-time updates. By subscribing to this "catch-up" topic, the indexer can retrieve a complete snapshot of existing deal data, ensuring it starts with a full and accurate view of the network’s content before listening for new updates.
+
 By collecting and indexing this deal information, Polka-Index allows users to query the network through a JSON API, retrieving the Peer ID of a storage provider responsible for a specific CID. This approach simplifies content discovery, offering users an efficient method to locate content without requiring direct interaction with the P2P network.
 
 ### Users
