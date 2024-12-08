@@ -40,7 +40,7 @@ Over time, the new peer's routing table is populated, allowing it to interact wi
 
 ## Peer Discovery
 
-The [identify protocol][3] plays a vital role in peer discovery and establishing communication.
+The [identify protocol][3] plays a vital role in establishing communication.
 This protocol allows peers to exchange metadata about themselves upon connection. This metadata includes:
 
 - [Peer ID][5]: A unique identifier for the peer.
