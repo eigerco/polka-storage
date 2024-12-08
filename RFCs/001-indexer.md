@@ -62,11 +62,11 @@ This protocol allows peers to exchange metadata about themselves upon connection
 - [Multiaddrs][2]: Addresses where the peer can be reached.
 - Supported Protocols: A list of protocols the peer supports.
 
-The [identify protocol][3] facilitates peer discovery by enabling nodes to exchange information upon establishing a connection.
-When a new peer joins the network, it connects to a well-known bootstrap nodes that assist in the initial discovery process.
-Upon connecting to a bootstrap node, the [identify protocol][3] is employed to share details such as the node's unique [Peer ID][5], supported protocols, and reachable [multiaddrs (multi-protocol addresses)][2].
-This exchange allows the new peer to learn about the network's topology and available services.
-The bootstrap node provides information about other peers it knows, facilitating the new node's integration into the network.
+Peer discovery is done using the [rendezvous protocol][7], this protocol involves a system where peers join a shared namespace to advertise themselves and find others.
+When a new peer wants to participate in the network, it first connects to a bootstrap node (also known as a rendezvous point), which is a well-known and reachable peer that helps initialize connections within the network.
+Once connected to the bootstrap node, the new peer uses the [rendezvous protocol][7] to discover other peers. The [rendezvous protocol][7] operates by having peers register their presence under a specific namespace with a designated rendezvous point.
+Peers seeking connections to others interested in the same namespace query the rendezvous point, which returns a list of peer addresses registered under that namespace.
+
 The bootstrap node keeps up-to-date information about peers through the exchange of the identify messages.
 This mechanism ensures that nodes can dynamically discover and connect with each other.
 After the peer discovery is done the node can subscribe to the available [gossipsub][4] topics to exchange information about deals.
@@ -124,3 +124,4 @@ The following diagram illustrates the architecture of Polka-index:
 [4]: https://github.com/libp2p/specs/blob/master/pubsub/gossipsub/README.md
 [5]: https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id
 [6]: https://docs.ipfs.tech/concepts/content-addressing/
+[7]: https://github.com/libp2p/specs/blob/master/rendezvous/README.md
