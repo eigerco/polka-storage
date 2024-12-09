@@ -170,6 +170,12 @@ the proposal I put forward is for the team to discuss and vote on a way
 forward, keeping in mind that this choice may and should most likely be changed
 as the randomness landscape evolves.
 
+|           | Block Hash  | Local VRF   | BABE        | drand        |
+|-----------|-------------|-------------|-------------|--------------|
+| Freshness | Every block | Every block | Every epoch | Every block* |
+| Biasable  | Yes         | Yes*        | No          | No           |
+| Effort    | Low         | Medium      | Medium      | Unclear      |
+
 The author's recommendation is to make an effort moving forward with the
 Local-VRF approach as it seems to be the most promising with regards to the
 security/implementation effort trade-off.
