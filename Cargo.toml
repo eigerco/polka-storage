@@ -214,6 +214,7 @@ frame-try-runtime = { git = "https://github.com/paritytech/polkadot-sdk", tag = 
 # FRAME Pallets
 pallet-aura = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2409-2", default-features = false }
 pallet-authorship = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2409-2", default-features = false }
+pallet-babe = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2409-2", default-features = false }
 pallet-balances = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2409-2", default-features = false }
 # TODO(#458,@cernicc,17/10/2024): Use secure randomness
 pallet-insecure-randomness-collective-flip = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2409-2", default-features = false }
