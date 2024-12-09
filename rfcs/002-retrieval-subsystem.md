@@ -66,7 +66,7 @@ it sends a retrieval request to those providers. The request is done
 over the P2P network using Graphsync or Bitswap. It depends on the protocol
 which the provider supports.
 
-# Resources
+## References
 
 - https://boost.filecoin.io/deployment/local-index-directory
 - https://docs.ipfs.tech/concepts/bitswap/
