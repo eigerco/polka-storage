@@ -664,7 +664,7 @@ where
         let (open_at, close_at, challenge, fault_cutoff) = if idx_converted < period_deadlines {
             let open_at = period_start + (idx_converted * w_post_challenge_window);
             let close_at = open_at + w_post_challenge_window;
-            let challenge = period_start - w_post_challenge_lookback;
+            let challenge = open_at - w_post_challenge_lookback;
             let fault_cutoff = open_at - fault_declaration_cutoff;
             (open_at, close_at, challenge, fault_cutoff)
         } else {
@@ -720,18 +720,22 @@ where
         self.block_number >= self.fault_cutoff
     }
 
-    /// Returns the next deadline that has not yet elapsed.
+    /// Calculates the deadline information in the next proving period.
     ///
-    /// If the current deadline has not elapsed yet then it returns the current deadline.
-    /// Otherwise it calculates the next period start by getting the gap between the current block number and the closing block number
-    /// and adding 1. Making sure it is a multiple of proving period by dividing by `w_post_proving_period`.
-    pub fn next_not_elapsed(self) -> Result<Self, GeneralPalletError> {
-        if !self.has_elapsed() {
-            return Ok(self);
-        }
-
-        // has elapsed, advance by some multiples of w_post_proving_period
-        let gap = self.block_number - self.close_at;
+    /// ### Example 1
+    /// Current Block = 110
+    /// [self.open_at, self.close_at] = [100, 120]
+    /// Proving Periods: [100; 160), [160; 220), [220, 280)
+    /// next() ->
+    ///
+    /// ### Example 2
+    /// Current Block = 162
+    /// [self.open_at, self.close_at] = [100, 120]
+    /// Proving Periods: [100; 160), [160; 220), [220, 280)
+    /// next() -> [240, 260)
+    ///
+    pub fn next(self) -> Result<Self, GeneralPalletError> {
+        let gap = self.block_number - self.period_start;
         let delta_periods = BlockNumber::one() + gap / self.w_post_proving_period;
 
         Self::new(
@@ -744,6 +748,28 @@ where
             self.w_post_challenge_lookback,
             self.fault_declaration_cutoff,
         )
+    }
+
+    /// Returns the next deadline that has not yet elapsed.
+    ///
+    /// If the current deadline has not elapsed yet then it returns the current deadline.
+    pub fn next_not_elapsed(self) -> Result<Self, GeneralPalletError> {
+        if !self.has_elapsed() {
+            return Ok(self);
+        }
+
+        self.next()
+    }
+
+    /// Returns the next deadline that has not yet been opened nor closed.
+    ///
+    /// If the current deadline has not opened yet then it returns the current deadline.
+    pub fn next_not_opened(self) -> Result<Self, GeneralPalletError> {
+        if !self.is_open() && !self.has_elapsed() {
+            return Ok(self);
+        }
+
+        self.next()
     }
 }
 
