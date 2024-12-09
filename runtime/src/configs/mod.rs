@@ -24,10 +24,11 @@
 // For more information, please refer to <http://unlicense.org>
 
 mod xcm_config;
-
 // Substrate and Polkadot dependencies
-use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
-use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
+use cumulus_pallet_parachain_system::{
+    RelayChainStateProof, RelayNumberStrictlyIncreases, RelayStateProof, ValidationData,
+};
+use cumulus_primitives_core::{relay_chain, AggregateMessageOrigin, ParaId};
 use frame_support::{
     derive_impl,
     dispatch::DispatchClass,
@@ -46,6 +47,7 @@ use polkadot_runtime_common::{
     xcm_sender::NoPriceForMessageDelivery, BlockHashCount, SlowAdjustingFeeUpdate,
 };
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+use sp_core::Get;
 use sp_runtime::{traits::Verify, MultiSignature, Perbill};
 use sp_version::RuntimeVersion;
 use xcm::latest::prelude::BodyId;
@@ -61,7 +63,7 @@ use super::{
     MAXIMUM_BLOCK_WEIGHT, MICROUNIT, NORMAL_DISPATCH_RATIO, RELAY_CHAIN_SLOT_DURATION_MILLIS,
     SLOT_DURATION, UNINCLUDED_SEGMENT_CAPACITY, VERSION,
 };
-use crate::{DAYS, MINUTES};
+use crate::{ParachainInfo, DAYS, MINUTES};
 
 parameter_types! {
     pub const Version: RuntimeVersion = VERSION;
@@ -442,6 +444,57 @@ impl pallet_randomness::Config for Runtime {
 
     type CleanupInterval = CleanupInterval;
     type SeedAgeLimit = SeedAgeLimit;
+
+    type BabeDataGetter = BabeDataGetter<Runtime>;
+}
+
+/// Only callable after `set_validation_data` is called which forms this proof the same way
+fn relay_chain_state_proof<Runtime>() -> RelayChainStateProof
+where
+    Runtime: cumulus_pallet_parachain_system::Config,
+{
+    let relay_storage_root = ValidationData::<Runtime>::get()
+        .expect("set in `set_validation_data`")
+        .relay_parent_storage_root;
+    let relay_chain_state =
+        RelayStateProof::<Runtime>::get().expect("set in `set_validation_data`");
+    RelayChainStateProof::new(ParachainInfo::get(), relay_storage_root, relay_chain_state)
+        .expect("Invalid relay chain state proof, already constructed in `set_validation_data`")
+}
+
+pub struct BabeDataGetter<Runtime>(sp_std::marker::PhantomData<Runtime>);
+impl<Runtime> pallet_randomness::GetBabeData<u64, Option<Hash>> for BabeDataGetter<Runtime>
+where
+    Runtime: cumulus_pallet_parachain_system::Config,
+{
+    // Tolerate panic here because only ever called in inherent (so can be omitted)
+    fn get_epoch_index() -> u64 {
+        if cfg!(feature = "runtime-benchmarks") {
+            // storage reads as per actual reads
+            let _relay_storage_root = ValidationData::<Runtime>::get();
+            let _relay_chain_state = RelayStateProof::<Runtime>::get();
+            const BENCHMARKING_NEW_EPOCH: u64 = 10u64;
+            return BENCHMARKING_NEW_EPOCH;
+        }
+        relay_chain_state_proof::<Runtime>()
+            .read_optional_entry(relay_chain::well_known_keys::EPOCH_INDEX)
+            .ok()
+            .flatten()
+            .expect("expected to be able to read epoch index from relay chain state proof")
+    }
+    fn get_epoch_randomness() -> Option<Hash> {
+        if cfg!(feature = "runtime-benchmarks") {
+            // storage reads as per actual reads
+            let _relay_storage_root = ValidationData::<Runtime>::get();
+            let _relay_chain_state = RelayStateProof::<Runtime>::get();
+            let benchmarking_babe_output = Hash::default();
+            return Some(benchmarking_babe_output);
+        }
+        relay_chain_state_proof::<Runtime>()
+            .read_optional_entry(relay_chain::well_known_keys::ONE_EPOCH_AGO_RANDOMNESS)
+            .ok()
+            .flatten()
+    }
 }
 
 #[cfg(feature = "testnet")]

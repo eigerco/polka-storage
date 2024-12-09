@@ -246,7 +246,7 @@ pub fn native_version() -> NativeVersion {
 // Create the runtime by composing the FRAME pallets that were previously configured.
 #[cfg(not(feature = "testnet"))]
 #[frame_support::runtime]
-mod runtime {
+pub(crate) mod runtime {
     #[runtime::runtime]
     #[runtime::derive(
         RuntimeCall,
@@ -271,7 +271,7 @@ mod runtime {
     pub type ParachainInfo = parachain_info;
     // Temporary. Will be removed after we switch to babe
     #[runtime::pallet_index(4)]
-    pub type RandomnessSource = pallet_insecure_randomness_collective_flip;
+    pub type RandomnessSource = pallet_randomness;
 
     // Monetary stuff.
     #[runtime::pallet_index(10)]
@@ -318,7 +318,7 @@ mod runtime {
 // Create the runtime by composing the FRAME pallets that were previously configured.
 #[cfg(feature = "testnet")]
 #[frame_support::runtime]
-mod runtime {
+pub(crate) mod runtime {
     #[runtime::runtime]
     #[runtime::derive(
         RuntimeCall,
@@ -343,7 +343,7 @@ mod runtime {
     pub type ParachainInfo = parachain_info;
     // Temporary. Will be removed after we switch to babe
     #[runtime::pallet_index(4)]
-    pub type RandomnessSource = pallet_insecure_randomness_collective_flip;
+    pub type RandomnessSource = pallet_randomness;
 
     // Monetary stuff.
     #[runtime::pallet_index(10)]

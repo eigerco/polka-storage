@@ -46,6 +46,7 @@ frame-try-runtime = { workspace = true, default-features = false, optional = tru
 # FRAME Pallets
 pallet-aura = { workspace = true, default-features = false }
 pallet-authorship = { workspace = true, default-features = false }
+pallet-babe = { workspace = true, default-features = false }
 pallet-balances = { workspace = true, default-features = false }
 pallet-insecure-randomness-collective-flip = { workspace = true, default-features = false }
 pallet-message-queue = { workspace = true, default-features = false }
