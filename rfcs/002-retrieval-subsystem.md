@@ -12,13 +12,6 @@ We would like to support 3rd parties to retrieve data from the storage
 providers. To retrieve the data stored, they should provide CID (root node of
 the CAR file).
 
-## Retrieval providers indexer
-
-This is the service that Aidan is working on. The indexer will be responsible
-for holding the entire index of cids with corresponding retrieval providers. In
-this document we assume that the mapping between CID of the CAR file and
-retrieval providers is available to the retrieval clients.
-
 ## Storage provider server
 
 The current server implementation exposes the endpoint which allows 3rd parties
