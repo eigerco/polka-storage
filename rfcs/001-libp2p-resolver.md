@@ -9,7 +9,7 @@ By leveraging these protocols, the application aims to provide an efficient and 
 ## Introduction
 
 In [libp2p][1]-based networks, [Peer ID][5]s serve as unique identifiers for peers, while [multi-addresses][4] describe their network locations.
-Clients need to resolve [Peer ID][5]s to [multi-addresses][4] do they can connect to storage providers and fetch their files. File fetching will not be covered in this document.
+Clients need to resolve [Peer ID][5]s to [multi-addresses][4] so they can connect to and communicate with storage providers.
 This application will provide a straightforward interface to resolve [Peer ID][5]s to [multi-addresses][4] by using [libp2p][1]'s discovery and information exchange mechanisms.
 
 The application will operate over the internet, relying on bootstrap nodes as rendezvous points to join the network and initiate discovery.
@@ -23,12 +23,12 @@ Clients can configure the bootstrap nodes through a configuration file or comman
 
 ### Bootstrap Node Incentives
 
-Storage providers have a incentive to run bootstrap nodes in the P2P network because it enhances their trustworthiness and visibility within the ecosystem.
+Storage providers have a incentive to run bootstrap nodes in the P2P network because it increases their perceived trustworthiness and visibility within the ecosystem.
 As bootstrap nodes, storage providers aid in peer discovery, enabling new and existing peers to connect more easily to the network.
 This presence not only benefits the network's overall health and connectivity but also reflects positively on the storage provider's reliability and commitment to the decentralized storage ecosystem.
-Trust is critical factor for storage clients selecting which storage provider to store their data.
+Trust is a critical factor for storage clients selecting which storage provider to store their data.
 A provider that operates a bootstrap node demonstrates that they want to support the broader network, increasing confidence and trustworthiness among clients.
-Bootstrap nodes and contribute to a more seamless client experience by helping ensure that content can be discovered and retrieved efficiently.
+Bootstrap nodes are required for a seamless client experience by helping ensure that content can be discovered and retrieved efficiently.
 This increase in trustworthiness can lead to increased client adoption and preference for storage providers that operate bootstrap nodes, giving these providers a competitive advantage in the ecosystem.
 
 ## Peer Discovery
