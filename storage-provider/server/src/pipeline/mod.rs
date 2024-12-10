@@ -565,7 +565,7 @@ async fn prove_commit(
     Ok(())
 }
 
-#[tracing::instrument(skip_all, fields(sector_number))]
+#[tracing::instrument(skip_all, fields(deadline_index))]
 async fn submit_windowed_post(
     state: Arc<PipelineState>,
     deadline_index: u64,
@@ -580,10 +580,15 @@ async fn submit_windowed_post(
         return Err(PipelineError::DeadlineNotFound);
     };
 
-    tracing::info!("Wait for block {} for deadline challenge", deadline.start,);
+    tracing::debug!("Deadline Info: {:?}", deadline);
+    tracing::info!(
+        "Wait for challenge_block {}, start: {}, for deadline challenge",
+        deadline.challenge_block,
+        deadline.start
+    );
     state
         .xt_client
-        .wait_for_height(deadline.challenge_block, true)
+        .wait_for_height(deadline.start, true)
         .await?;
     tracing::info!("Waiting finished, let's go");
 
@@ -616,7 +621,8 @@ async fn submit_windowed_post(
         todo!("I don't know what to do: polka-storage#595");
     }
     if deadline_state.partitions.len() == 0 {
-        tracing::warn!("I'm not implemented. Waiting for polka-storage#621");
+        tracing::info!("There are not partitions in this deadline yet. Nothing to prove here.");
+        schedule_post(state, deadline_index)?;
         return Ok(());
     }
 
@@ -625,6 +631,12 @@ async fn submit_windowed_post(
         .partitions
         .first_key_value()
         .expect("1 partition to be there");
+
+    if sectors.len() == 0 {
+        tracing::info!("Every sector expired... Nothing to prove here.");
+        schedule_post(state, deadline_index)?;
+        return Ok(());
+    }
 
     let mut replicas = Vec::new();
     for sector_number in sectors {
@@ -660,6 +672,7 @@ async fn submit_windowed_post(
     };
     let proofs = handle.await??;
 
+    // TODO(@th7nder,#595,06/12/2024): how many proofs are for how many partitions and why
     // don't now why yet, need to figure this out
     let proof: SubstrateProof = proofs[0]
         .clone()
@@ -700,7 +713,8 @@ async fn submit_windowed_post(
 
     tracing::info!("Successfully submitted PoSt on-chain: {:?}", posts);
 
-    // TODO(@th7nder,#621,02/12/2024): reschedule Windowed PoSt for the next proving period.
+    schedule_post(state, deadline_index)?;
+
     Ok(())
 }
 
@@ -709,18 +723,25 @@ async fn schedule_posts(state: Arc<PipelineState>) -> Result<(), PipelineError> 
     let proving_period = state.xt_client.proving_period_info()?;
 
     for deadline_index in 0..proving_period.deadlines {
-        state
-            .pipeline_sender
-            .send(PipelineMessage::SubmitWindowedPoStMessage(
-                SubmitWindowedPoStMessage { deadline_index },
-            ))
-            .map_err(|err| {
-                tracing::error!(%err, "failed to send a messsage to the pipeline");
-                PipelineError::SchedulingError
-            })?;
-
-        tracing::info!("Scheduled Windowed PoSt for deadline: {}", deadline_index);
+        schedule_post(state.clone(), deadline_index)?;
     }
+
+    Ok(())
+}
+
+#[tracing::instrument(skip_all, fields(deadline_index))]
+fn schedule_post(state: Arc<PipelineState>, deadline_index: u64) -> Result<(), PipelineError> {
+    state
+        .pipeline_sender
+        .send(PipelineMessage::SubmitWindowedPoStMessage(
+            SubmitWindowedPoStMessage { deadline_index },
+        ))
+        .map_err(|err| {
+            tracing::error!(%err, "failed to send a messsage to the pipeline");
+            PipelineError::SchedulingError
+        })?;
+
+    tracing::info!("Scheduled Windowed PoSt for deadline: {}", deadline_index);
 
     Ok(())
 }

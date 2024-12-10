@@ -38,6 +38,7 @@ use crate::{
     sector::SectorPreCommitInfo,
 };
 
+mod deadline;
 mod declare_faults;
 mod declare_faults_recovered;
 mod expiration_queue;
