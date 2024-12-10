@@ -1,6 +1,5 @@
 use crate::deadline::DeadlineInfo;
 
-
 fn default_deadline() -> DeadlineInfo<u64> {
     let block_number = 112;
     let period_start = 100;
@@ -19,8 +18,9 @@ fn default_deadline() -> DeadlineInfo<u64> {
         proving_period,
         challenge_window,
         challenge_lookback,
-        cutoff
-    ).unwrap()
+        cutoff,
+    )
+    .unwrap()
 }
 
 #[test]
