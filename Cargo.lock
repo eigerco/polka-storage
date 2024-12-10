@@ -12918,6 +12918,7 @@ dependencies = [
  "log",
  "pallet-aura 37.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
  "pallet-authorship 38.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
+ "pallet-babe 38.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
  "pallet-balances 39.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
  "pallet-collator-selection 19.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
  "pallet-faucet",
