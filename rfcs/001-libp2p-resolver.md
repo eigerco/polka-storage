@@ -64,12 +64,6 @@ The application will provide an intuitive CLI interface, allowing clients to inp
 Additional options will enable customization of settings, such as specifying bootstrap nodes or adjusting discovery parameters.
 The output will include a list of [multi-addresses][4] associated with the [Peer ID][5], presented in a structured and readable format.
 
-## Configuration and Deployment
-
-The application will allow configuration through a settings file or environment variables.
-Clients can define bootstrap nodes, set timeouts for peer discovery and identify protocol exchanges, and specify logging preferences.
-The CLI tool will be distributed as a single executable binary, ensuring ease of deployment across diverse platforms and environments.
-
 ## Conclusion
 
 The [Peer ID][5] to [Multi-Address][5] Resolver application provides utility for interacting with [libp2p][1] networks.
