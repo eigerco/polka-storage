@@ -59,12 +59,31 @@ example of the retrieval client is Lassie. It can be used as a CLI, library or
 http server.
 
 When used, the client temporarily becomes a node in the same network as the
-retrieval provider above. The client first queries the indexer (The one that
-Aidan is working on. Do not confuse with the Local Index Directory) for
-retrieval candidates (storage providers). After it receives 1 or more candidates
-it sends a retrieval request to those providers. The request is done
-over the P2P network using Graphsync or Bitswap. It depends on the protocol
-which the provider supports.
+retrieval provider above. The client first queries the indexer (Do not confuse
+with the Local Index Directory) for retrieval candidates (storage providers).
+After it receives 1 or more candidates it sends a retrieval request to those
+providers. The request is done over the P2P network using Graphsync or Bitswap.
+It depends on the protocol which the provider supports.
+
+## Conclusion
+
+This document has explored various aspects of data retrieval in the Polka
+ecosystem, focusing on the storage provider server, local index directory,
+retrieval protocols, and retrieval clients. We've examined two primary protocols
+for data transfer between peers: Bitswap and GraphSync.
+
+Both protocols have their strengths:
+
+1. Bitswap is widely implemented, including in Rust, making it a practical
+   choice for quick implementation in a proof-of-concept (POC).
+2. GraphSync offers more efficient graph synchronization and selective data
+   retrieval, which could be beneficial for larger files.
+
+For the immediate future and POC development, implementing Bitswap appears to be
+the most pragmatic approach due to its existing Rust implementation and
+straightforward nature. However, as the system evolves and scales, it may be
+worthwhile to consider implementing GraphSync for its advanced features and
+efficiency.
 
 ## References
 
