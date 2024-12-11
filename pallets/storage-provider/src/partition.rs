@@ -91,12 +91,14 @@ where
     /// Active sectors are those that are neither terminated nor faulty nor unproven.
     /// Those are the sectors that need to be proven in a given deadline challenge window.
     pub fn active_sectors(&self) -> BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>> {
-        let without_faults = self.live_sectors()
+        let without_faults = self
+            .live_sectors()
             .difference(&self.faults)
             .copied()
             .collect::<BTreeSet<_>>();
 
-        without_faults.difference(&self.unproven)
+        without_faults
+            .difference(&self.unproven)
             .copied()
             .collect::<BTreeSet<_>>()
             .try_into()

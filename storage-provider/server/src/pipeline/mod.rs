@@ -260,7 +260,7 @@ async fn find_sector_for_piece(
 /// This function is *cancellation safe* as if future is dropped,
 /// it can be dropped only when waiting for `spawn_blocking`.
 /// When dropped when waiting, the sector state won't be preserved and adding piece can be retried.
-#[tracing::instrument(skip_all, fields(piece_cid, deal_id))]
+#[tracing::instrument(skip(state, deal, commitment))]
 async fn add_piece(
     state: Arc<PipelineState>,
     piece_path: PathBuf,
@@ -311,7 +311,7 @@ async fn add_piece(
     Ok(())
 }
 
-#[tracing::instrument(skip_all, fields(sector_number))]
+#[tracing::instrument(skip(state))]
 /// Creates a replica and calls pre-commit on-chain.
 ///
 /// This method is *NOT CANCELLATION SAFE*.
@@ -446,7 +446,7 @@ async fn precommit(
     Ok(())
 }
 
-#[tracing::instrument(skip_all, fields(sector_number))]
+#[tracing::instrument(skip(state))]
 async fn prove_commit(
     state: Arc<PipelineState>,
     sector_number: SectorNumber,
@@ -565,7 +565,7 @@ async fn prove_commit(
     Ok(())
 }
 
-#[tracing::instrument(skip(state), fields(deadline_index))]
+#[tracing::instrument(skip(state))]
 async fn submit_windowed_post(
     state: Arc<PipelineState>,
     deadline_index: u64,
@@ -729,7 +729,7 @@ async fn schedule_posts(state: Arc<PipelineState>) -> Result<(), PipelineError> 
     Ok(())
 }
 
-#[tracing::instrument(skip_all, fields(deadline_index))]
+#[tracing::instrument(skip(state))]
 fn schedule_post(state: Arc<PipelineState>, deadline_index: u64) -> Result<(), PipelineError> {
     state
         .pipeline_sender
