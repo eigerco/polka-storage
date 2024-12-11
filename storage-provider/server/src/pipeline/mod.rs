@@ -565,7 +565,7 @@ async fn prove_commit(
     Ok(())
 }
 
-#[tracing::instrument(skip_all, fields(deadline_index))]
+#[tracing::instrument(skip(state), fields(deadline_index))]
 async fn submit_windowed_post(
     state: Arc<PipelineState>,
     deadline_index: u64,

@@ -88,6 +88,21 @@ where
             .expect("Sectors is bounded to MAX_SECTORS so the length can never exceed MAX_SECTORS")
     }
 
+    /// Active sectors are those that are neither terminated nor faulty nor unproven.
+    /// Those are the sectors that need to be proven in a given deadline challenge window.
+    pub fn active_sectors(&self) -> BoundedBTreeSet<SectorNumber, ConstU32<MAX_SECTORS>> {
+        let without_faults = self.live_sectors()
+            .difference(&self.faults)
+            .copied()
+            .collect::<BTreeSet<_>>();
+
+        without_faults.difference(&self.unproven)
+            .copied()
+            .collect::<BTreeSet<_>>()
+            .try_into()
+            .expect("Sectors is bounded to MAX_SECTORS so the length can never exceed MAX_SECTORS")
+    }
+
     /// Adds sectors to this partition.
     /// The sectors are "live", neither faulty, recovering, nor terminated.
     ///
