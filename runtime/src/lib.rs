@@ -270,9 +270,6 @@ mod runtime {
     pub type Timestamp = pallet_timestamp;
     #[runtime::pallet_index(3)]
     pub type ParachainInfo = parachain_info;
-    // Temporary. Will be removed after we switch to babe
-    #[runtime::pallet_index(4)]
-    pub type RandomnessSource = pallet_insecure_randomness_collective_flip;
 
     // Monetary stuff.
     #[runtime::pallet_index(10)]
@@ -342,9 +339,6 @@ mod runtime {
     pub type Timestamp = pallet_timestamp;
     #[runtime::pallet_index(3)]
     pub type ParachainInfo = parachain_info;
-    // Temporary. Will be removed after we switch to babe
-    #[runtime::pallet_index(4)]
-    pub type RandomnessSource = pallet_insecure_randomness_collective_flip;
 
     // Monetary stuff.
     #[runtime::pallet_index(10)]
@@ -663,6 +657,12 @@ impl_runtime_apis! {
     }
 }
 
+// The following code cannot be placed out of this crate because of WASM constraints
+
+/// Storage Key for AuthorVrfRandomness
+const AUTHOR_VRF_STORAGE_KEY: [u8; 32] =
+    hex2array!("1cb6f36e027abb2091cfb5110ab5087fd077dfdb8adb10f78f10a5df8742c545");
+
 /// Only callable after `set_validation_data` is called which forms this proof the same way
 fn relay_chain_state_proof<Runtime>() -> RelayChainStateProof
 where
@@ -691,10 +691,7 @@ where
             return None;
         }
         relay_chain_state_proof::<Runtime>()
-            .read_optional_entry(&hex2array!(
-                // Encoded Storage Key for AuthorVrfRandomness
-                "1cb6f36e027abb2091cfb5110ab5087fd077dfdb8adb10f78f10a5df8742c545"
-            ))
+            .read_optional_entry(&AUTHOR_VRF_STORAGE_KEY)
             .ok()
             .flatten()
             .expect("expected to be able to read epoch index from relay chain state proof")

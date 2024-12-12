@@ -3,7 +3,6 @@ use frame_support::{
     traits::{OnFinalize, OnInitialize},
 };
 use frame_system::{self as system, mocking::MockBlock};
-use pallet_insecure_randomness_collective_flip as substrate_randomness;
 use sp_core::parameter_types;
 use sp_runtime::{
     traits::{Hash, HashingFor, Header},
@@ -34,8 +33,6 @@ mod test_runtime {
     #[runtime::pallet_index(0)]
     pub type System = frame_system;
     #[runtime::pallet_index(1)]
-    pub type SubstrateRandomness = substrate_randomness;
-    #[runtime::pallet_index(2)]
     pub type RandomnessModule = crate;
 }
 
@@ -51,10 +48,6 @@ parameter_types! {
 }
 
 impl crate::Config for Test {
-    type Generator = SubstrateRandomness;
-    type CleanupInterval = CleanupInterval;
-    type SeedAgeLimit = SeedAgeLimit;
-
     type AuthorVrfGetter = DummyVrf<Self>;
 }
 
@@ -70,8 +63,6 @@ where
         Some(C::Hashing::hash(&[]))
     }
 }
-
-impl substrate_randomness::Config for Test {}
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
@@ -98,7 +89,6 @@ pub fn run_to_block(n: u64) {
         }
 
         System::initialize(&block_number, &parent_hash, &Default::default());
-        SubstrateRandomness::on_initialize(block_number);
         RandomnessModule::on_initialize(block_number);
 
         let header = System::finalize();

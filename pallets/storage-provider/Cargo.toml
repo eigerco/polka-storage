@@ -19,7 +19,6 @@ cid = { workspace = true, features = ["alloc"] }
 codec = { workspace = true, default-features = false, features = ["derive"] }
 hex = { workspace = true, default-features = false, features = ["alloc"] }
 log = { workspace = true, features = ["kv"] }
-pallet-insecure-randomness-collective-flip = { workspace = true, default-features = false }
 pallet-proofs = { workspace = true, default-features = false }
 pallet-randomness = { workspace = true, default-features = false }
 primitives = { workspace = true, default-features = false }

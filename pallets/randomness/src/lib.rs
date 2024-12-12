@@ -29,7 +29,6 @@ pub mod pallet {
     use frame_support::{
         inherent::ProvideInherent,
         pallet_prelude::{ValueQuery, *},
-        traits::Randomness as SubstrateRandomness,
     };
     use frame_system::pallet_prelude::{BlockNumberFor, *};
     use sp_inherents::{InherentData, InherentIdentifier};
@@ -42,26 +41,12 @@ pub mod pallet {
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
-        /// Underlying randomness generator
-        type Generator: SubstrateRandomness<Self::Hash, BlockNumberFor<Self>>;
-
-        /// Clean-up interval specified in number of blocks between cleanups.
-        #[pallet::constant]
-        type CleanupInterval: Get<BlockNumberFor<Self>>;
-
-        /// The number of blocks after which the seed is cleaned up.
-        #[pallet::constant]
-        type SeedAgeLimit: Get<BlockNumberFor<Self>>;
-
+        /// The Author VRF getter.
         type AuthorVrfGetter: GetAuthorVrf<Self::Hash>;
     }
 
     #[pallet::pallet]
     pub struct Pallet<T>(_);
-
-    #[pallet::storage]
-    #[pallet::getter(fn seeds)]
-    pub type SeedsMap<T: Config> = StorageMap<_, _, BlockNumberFor<T>, [u8; 32]>;
 
     #[pallet::error]
     pub enum Error<T> {
@@ -78,9 +63,19 @@ pub mod pallet {
         pub fn set_author_vrf(origin: OriginFor<T>) -> DispatchResult {
             ensure_none(origin)?;
 
+            // `get_author_vrf` should only return `None` iff the BABE leader election fails
+            // and falls back to the secondary slots
+            //
+            // References:
+            // * https://github.com/paritytech/polkadot-sdk/blob/5788ae8609e1e6947c588a5745d22d8777e47f4e/substrate/frame/babe/src/lib.rs#L268-L273
+            // * https://spec.polkadot.network/sect-block-production#defn-babe-secondary-slots
             if let Some(author_vrf) = T::AuthorVrfGetter::get_author_vrf() {
                 AuthorVrf::<T>::put(author_vrf);
             } else {
+                // We don't change the value here, this isn't great but we're not expecting
+                // leader election to fail often enough that it truly affects security.
+                // We're aware this is somewhat wishful thinking but time/output constraints
+                // dictate that this is good enough for now!
                 log::warn!("AuthorVrf is empty, keeping previous value");
             }
 
@@ -126,53 +121,4 @@ pub mod pallet {
             (randomness, block_number)
         }
     }
-
-    // #[pallet::hooks]
-    // impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-    //     fn on_initialize(block_number: BlockNumberFor<T>) -> Weight {
-    //         // TODO(no-ref,@cernicc,22/10/2024): Set proper weights
-    //         let weight = T::DbWeight::get().reads(1);
-
-    //         // The determinable_after is a block number in the past since which
-    //         // the current seed is determinable by chain observers.
-    //         let (seed, determinable_after) = T::Generator::random_seed();
-    //         let seed: [u8; 32] = seed.as_ref().try_into().expect("seed should be 32 bytes");
-
-    //         // We are not saving the seed for the zeroth block. This is an edge
-    //         // case when trying to use randomness at the network genesis.
-    //         if determinable_after == Zero::zero() {
-    //             return weight;
-    //         }
-
-    //         // Save the seed
-    //         SeedsMap::<T>::insert(block_number, seed);
-    //         log::info!(target: LOG_TARGET, "on_initialize: height: {block_number:?}, seed: {seed:?}");
-
-    //         weight
-    //     }
-
-    //     fn on_finalize(current_block_number: BlockNumberFor<T>) {
-    //         // Check if we should clean the seeds
-    //         if current_block_number % T::CleanupInterval::get() != Zero::zero() {
-    //             return;
-    //         }
-
-    //         // Mark which seeds to remove
-    //         let mut blocks_to_remove = Vec::new();
-    //         for creation_height in SeedsMap::<T>::iter_keys() {
-    //             let age_limit = T::SeedAgeLimit::get();
-    //             let current_age = current_block_number.saturating_sub(creation_height);
-
-    //             // Seed is old enough to be removed
-    //             if current_age >= age_limit {
-    //                 blocks_to_remove.push(creation_height);
-    //             }
-    //         }
-
-    //         // Remove old seeds
-    //         blocks_to_remove.iter().for_each(|number| {
-    //             SeedsMap::<T>::remove(number);
-    //         });
-    //     }
-    // }
 }
