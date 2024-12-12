@@ -14,6 +14,7 @@ mod weights;
 extern crate alloc;
 use alloc::vec::Vec;
 
+use cumulus_pallet_parachain_system::{RelayChainStateProof, RelayStateProof, ValidationData};
 use frame_support::{
     genesis_builder_helper::{build_state, get_preset},
     weights::{
@@ -25,7 +26,7 @@ use pallet_aura::Authorities;
 use smallvec::smallvec;
 use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_core::{crypto::KeyTypeId, hex2array, Get, OpaqueMetadata};
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
@@ -659,5 +660,43 @@ impl_runtime_apis! {
         fn preset_names() -> Vec<sp_genesis_builder::PresetId> {
             Default::default()
         }
+    }
+}
+
+/// Only callable after `set_validation_data` is called which forms this proof the same way
+fn relay_chain_state_proof<Runtime>() -> RelayChainStateProof
+where
+    Runtime: cumulus_pallet_parachain_system::Config,
+{
+    let relay_storage_root = ValidationData::<Runtime>::get()
+        .expect("set in `set_validation_data`")
+        .relay_parent_storage_root;
+    let relay_chain_state =
+        RelayStateProof::<Runtime>::get().expect("set in `set_validation_data`");
+    RelayChainStateProof::new(ParachainInfo::get(), relay_storage_root, relay_chain_state)
+        .expect("Invalid relay chain state proof, already constructed in `set_validation_data`")
+}
+
+pub struct BabeDataGetter<Runtime>(sp_std::marker::PhantomData<Runtime>);
+impl<Runtime> pallet_randomness::GetAuthorVrf<Runtime::Hash> for BabeDataGetter<Runtime>
+where
+    Runtime: cumulus_pallet_parachain_system::Config,
+{
+    // Tolerate panic here because only ever called in inherent (so can be omitted)
+    fn get_author_vrf() -> Option<Runtime::Hash> {
+        if cfg!(feature = "runtime-benchmarks") {
+            // storage reads as per actual reads
+            let _relay_storage_root = ValidationData::<Runtime>::get();
+            let _relay_chain_state = RelayStateProof::<Runtime>::get();
+            return None;
+        }
+        relay_chain_state_proof::<Runtime>()
+            .read_optional_entry(&hex2array!(
+                // Encoded Storage Key for AuthorVrfRandomness
+                "1cb6f36e027abb2091cfb5110ab5087fd077dfdb8adb10f78f10a5df8742c545"
+            ))
+            .ok()
+            .flatten()
+            .expect("expected to be able to read epoch index from relay chain state proof")
     }
 }

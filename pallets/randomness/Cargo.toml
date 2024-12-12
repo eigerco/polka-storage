@@ -16,6 +16,7 @@ workspace = true
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
+async-trait = { workspace = true, optional = true }
 codec = { features = ["derive"], workspace = true }
 frame-benchmarking = { optional = true, workspace = true }
 frame-support.workspace = true
@@ -25,6 +26,7 @@ pallet-insecure-randomness-collective-flip = { workspace = true, default-feature
 primitives = { workspace = true }
 scale-info = { features = ["derive"], workspace = true }
 sp-core = { workspace = true, default-features = false }
+sp-inherents.workspace = true
 sp-runtime.workspace = true
 
 [dev-dependencies]
@@ -38,5 +40,14 @@ runtime-benchmarks = [
   "frame-system/runtime-benchmarks",
   "sp-runtime/runtime-benchmarks",
 ]
-std = ["codec/std", "frame-benchmarking?/std", "frame-support/std", "frame-system/std", "primitives/std", "scale-info/std", "sp-runtime/std"]
+std = [
+  "async-trait",
+  "codec/std",
+  "frame-benchmarking?/std",
+  "frame-support/std",
+  "frame-system/std",
+  "primitives/std",
+  "scale-info/std",
+  "sp-runtime/std",
+]
 try-runtime = ["frame-support/try-runtime", "frame-system/try-runtime", "sp-runtime/try-runtime"]

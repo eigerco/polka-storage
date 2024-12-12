@@ -11083,6 +11083,7 @@ dependencies = [
 name = "pallet-randomness"
 version = "0.0.0"
 dependencies = [
+ "async-trait",
  "frame-benchmarking 38.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
  "frame-support 38.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
  "frame-system 38.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
@@ -11092,6 +11093,7 @@ dependencies = [
  "primitives",
  "scale-info",
  "sp-core 34.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
+ "sp-inherents 34.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
  "sp-io 38.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
  "sp-runtime 39.0.1",
 ]

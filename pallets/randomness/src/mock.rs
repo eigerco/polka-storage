@@ -5,7 +5,12 @@ use frame_support::{
 use frame_system::{self as system, mocking::MockBlock};
 use pallet_insecure_randomness_collective_flip as substrate_randomness;
 use sp_core::parameter_types;
-use sp_runtime::{traits::Header, BuildStorage};
+use sp_runtime::{
+    traits::{Hash, HashingFor, Header},
+    BuildStorage,
+};
+
+use crate::GetAuthorVrf;
 
 pub type BlockNumber = u64;
 
@@ -42,13 +47,28 @@ impl frame_system::Config for Test {
 
 parameter_types! {
     pub const CleanupInterval: BlockNumber = 1;
-    pub const SeedAgeLimit: BlockNumber =  200;
+    pub const SeedAgeLimit: BlockNumber = 200;
 }
 
 impl crate::Config for Test {
     type Generator = SubstrateRandomness;
     type CleanupInterval = CleanupInterval;
     type SeedAgeLimit = SeedAgeLimit;
+
+    type AuthorVrfGetter = DummyVrf<Self>;
+}
+
+pub struct DummyVrf<C>(core::marker::PhantomData<C>)
+where
+    C: frame_system::Config;
+
+impl<C> GetAuthorVrf<C::Hash> for DummyVrf<C>
+where
+    C: frame_system::Config,
+{
+    fn get_author_vrf() -> Option<C::Hash> {
+        Some(C::Hashing::hash(&[]))
+    }
 }
 
 impl substrate_randomness::Config for Test {}

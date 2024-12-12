@@ -16,7 +16,7 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use pallet_market::{BalanceOf, ClientDealProposal, DealProposal, DealState};
 use primitives::{
     commitment::{CommP, Commitment, RawCommitment},
-    pallets::{ProofVerification, Randomness},
+    pallets::ProofVerification,
     proofs::{ProverId, PublicReplicaInfo, RegisteredPoStProof, RegisteredSealProof, Ticket},
     sector::SectorNumber,
     DealId, PartitionNumber, CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR, MAX_PARTITIONS_PER_DEADLINE,
@@ -118,10 +118,20 @@ impl ProofVerification for DummyProofsVerification {
 }
 
 /// Randomness generator used by tests.
-pub struct DummyRandomnessGenerator;
-impl<BlockNumber> Randomness<BlockNumber> for DummyRandomnessGenerator {
-    fn get_randomness(_: BlockNumber) -> Result<[u8; 32], sp_runtime::DispatchError> {
-        Ok([0; 32])
+pub struct DummyRandomnessGenerator<C>(core::marker::PhantomData<C>)
+where
+    C: frame_system::Config;
+
+impl<C> frame_support::traits::Randomness<C::Hash, BlockNumberFor<C>>
+    for DummyRandomnessGenerator<C>
+where
+    C: frame_system::Config,
+{
+    fn random(_subject: &[u8]) -> (C::Hash, BlockNumberFor<C>) {
+        (
+            Default::default(),
+            <frame_system::Pallet<C>>::block_number(),
+        )
     }
 }
 
@@ -165,7 +175,7 @@ parameter_types! {
 
 impl pallet_storage_provider::Config for Test {
     type RuntimeEvent = RuntimeEvent;
-    type Randomness = DummyRandomnessGenerator;
+    type Randomness = DummyRandomnessGenerator<Self>;
     type PeerId = BoundedVec<u8, ConstU32<32>>; // Max length of SHA256 hash
     type Currency = Balances;
     type Market = Market;

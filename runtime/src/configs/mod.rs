@@ -61,7 +61,7 @@ use super::{
     MAXIMUM_BLOCK_WEIGHT, MICROUNIT, NORMAL_DISPATCH_RATIO, RELAY_CHAIN_SLOT_DURATION_MILLIS,
     SLOT_DURATION, UNINCLUDED_SEGMENT_CAPACITY, VERSION,
 };
-use crate::{DAYS, MINUTES};
+use crate::{BabeDataGetter, DAYS, MINUTES};
 
 parameter_types! {
     pub const Version: RuntimeVersion = VERSION;
@@ -442,6 +442,8 @@ impl pallet_randomness::Config for Runtime {
 
     type CleanupInterval = CleanupInterval;
     type SeedAgeLimit = SeedAgeLimit;
+
+    type AuthorVrfGetter = BabeDataGetter<Runtime>;
 }
 
 #[cfg(feature = "testnet")]
