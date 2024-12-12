@@ -590,7 +590,7 @@ async fn submit_windowed_post(
         .xt_client
         .wait_for_height(deadline.start, true)
         .await?;
-    tracing::info!("Waiting finished, let's go");
+    tracing::info!("Waiting finished (block: {}), let's go", deadline.start);
 
     let Some(digest) = state
         .xt_client
