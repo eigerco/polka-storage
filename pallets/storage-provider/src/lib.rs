@@ -1156,7 +1156,7 @@ pub mod pallet {
                     .try_insert(
                         *partition_number,
                         primitives::pallets::PartitionState {
-                            sectors: partition.sectors.clone(),
+                            sectors: partition.live_sectors(),
                         },
                     )
                     .ok()?;
