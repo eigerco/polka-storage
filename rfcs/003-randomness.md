@@ -63,7 +63,7 @@ stored once.
 
 As for PoSt, randomness is used for challenges, these stop the SP from
 pre-computing proofs and thus, faking their stored files. As long as the SP is
-unable from accurately guessing the next set of challenges, the PoSt should
+unable to accurately guessing the next set of challenges, the PoSt should
 suffice as proof that the files are still stored over time.
 
 In Filecoin, these randomness values come from two sources, VRFs and drand, the
@@ -186,8 +186,8 @@ The main issue with the crate is that it is not ready for production use.
 | BABE       | Every epoch  | No       | Medium   |
 | drand      | Every block* | No       | Unclear  |
 
-The author's recommendation is to make an effort moving forward with the
-Local-VRF approach as it seems to be the most promising with regards to the
+The author's recommendation is to make an effort moving forward with BABE's
+Author-VRF approach as it seems to be the most promising with regards to the
 security/implementation effort trade-off.
 
 \* This approach may be biasable depending on how the VRF is constructed,
@@ -195,7 +195,7 @@ security/implementation effort trade-off.
    possibility of bias and effectively creates a "chained-VRF" — this is
    the approach taken by Filecoin for PoRep's randomness.
 
-\** This approach was implemented in
+\** This approach was implemented in [polka-storage#633][10].
 
 ## References
 
@@ -208,3 +208,4 @@ security/implementation effort trade-off.
 [7]: https://spec.polkadot.network/sect-finality#sect-block-finalization
 [8]: https://docs.rs/pallet-babe/latest/src/pallet_babe/lib.rs.html#341-392
 [9]: https://github.com/Moonsong-Labs/moonkit/blob/main/pallets/randomness/src/lib.rs#L304
+[10]: https://github.com/eigerco/polka-storage/pull/633
