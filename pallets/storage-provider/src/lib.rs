@@ -58,8 +58,8 @@ pub mod pallet {
     use primitives::{
         commitment::{CommD, CommR, Commitment},
         pallets::{
-            CurrentDeadline, DeadlineInfo as ExternalDeadlineInfo, Market, ProofVerification,
-            Randomness, StorageProviderValidation,
+            DeadlineInfo as ExternalDeadlineInfo, Market, ProofVerification,
+            StorageProviderValidation,
         },
         proofs::{derive_prover_id, PublicReplicaInfo, RegisteredPoStProof},
         randomness::{draw_randomness, DomainSeparationTag},
