@@ -56,7 +56,7 @@ storage to be proven without any actual storage being done.
 Randomness plays a different role in each proof; for PoRep, the randomness plays
 a crucial role in the generation of a unique sector, avoiding the possibility
 that the storage is outsourced or duplicated to another provider — that is, two
-providers may store the same file, while outsorcing the actual storage to a
+providers may store the same file, while outsourcing the actual storage to a
 co-located server, effectively scamming the final customer which thinks their
 data is replicated among two distinct providers but in reality, it was only
 stored once.
