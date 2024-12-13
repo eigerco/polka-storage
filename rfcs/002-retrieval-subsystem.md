@@ -77,7 +77,8 @@ Both protocols have their strengths:
 1. Bitswap is widely implemented, including in Rust, making it a practical
    choice for quick implementation in a proof-of-concept (POC).
 2. GraphSync offers more efficient graph synchronization and selective data
-   retrieval, which could be beneficial for larger files.
+   retrieval, which could be beneficial for larger files, but currently there is
+   no good enough implementation in Rust.
 
 For the immediate future and POC development, implementing Bitswap appears to be
 the most pragmatic approach due to its existing Rust implementation and
