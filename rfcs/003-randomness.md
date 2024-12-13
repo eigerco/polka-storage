@@ -62,7 +62,7 @@ data is replicated among two distinct providers but in reality, it was only
 stored once.
 
 As for PoSt, randomness is used for challenges, these stop the SP from
-pre-computing proofs an thus, faking their stored files. As long as the SP is
+pre-computing proofs and thus, faking their stored files. As long as the SP is
 unable from accurately guessing the next set of challenges, the PoSt should
 suffice as proof that the files are still stored over time.
 
