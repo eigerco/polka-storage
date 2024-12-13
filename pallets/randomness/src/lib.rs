@@ -21,15 +21,11 @@ where
 
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
-
     extern crate alloc;
 
     use alloc::vec::Vec;
 
-    use frame_support::{
-        inherent::ProvideInherent,
-        pallet_prelude::{ValueQuery, *},
-    };
+    use frame_support::{inherent::ProvideInherent, pallet_prelude::*};
     use frame_system::pallet_prelude::{BlockNumberFor, *};
     use sp_inherents::{InherentData, InherentIdentifier};
     use sp_runtime::traits::Hash;
@@ -38,6 +34,8 @@ pub mod pallet {
     use crate::inherent::{InherentError, INHERENT_IDENTIFIER};
 
     pub const LOG_TARGET: &'static str = "runtime::randomness";
+
+    const HISTORY_SIZE: u32 = 256;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -54,9 +52,15 @@ pub mod pallet {
         SeedNotAvailable,
     }
 
+    /// The latest author VRF randomness from BABE.
     #[pallet::storage]
     #[pallet::getter(fn author_vrf)]
     pub type AuthorVrf<T: Config> = StorageValue<_, T::Hash, ValueQuery>;
+
+    /// The last 256 author VRF randomness values from BABE, organized in a ring buffer fashion.
+    #[pallet::storage]
+    #[pallet::getter(fn author_vrf_history)]
+    pub type AuthorVrfHistory<T: Config> = CountedStorageMap<_, _, BlockNumberFor<T>, T::Hash>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -71,6 +75,11 @@ pub mod pallet {
             // * https://spec.polkadot.network/sect-block-production#defn-babe-secondary-slots
             if let Some(author_vrf) = T::AuthorVrfGetter::get_author_vrf() {
                 AuthorVrf::<T>::put(author_vrf);
+                let current_block = <frame_system::Pallet<T>>::block_number();
+                if AuthorVrfHistory::<T>::count() == HISTORY_SIZE {
+                    AuthorVrfHistory::<T>::remove(current_block - HISTORY_SIZE.into());
+                }
+                AuthorVrfHistory::<T>::insert(current_block, author_vrf);
             } else {
                 // We don't change the value here, this isn't great but we're not expecting
                 // leader election to fail often enough that it truly affects security.

@@ -14,15 +14,17 @@ pub trait RandomnessClientExt {
 impl RandomnessClientExt for crate::runtime::client::Client {
     async fn get_randomness(
         &self,
-        _block_number: BlockNumber,
+        block_number: BlockNumber,
     ) -> Result<Option<[u8; 32]>, subxt::Error> {
-        let seed_query = runtime::storage().randomness().author_vrf();
+        let randomness_query = runtime::storage()
+            .randomness()
+            .author_vrf_history(block_number);
 
         self.client
             .storage()
             .at_latest()
             .await?
-            .fetch(&seed_query)
+            .fetch(&randomness_query)
             .await
             .map(|opt_hash| opt_hash.map(|hash| *hash.as_fixed_bytes()))
     }
