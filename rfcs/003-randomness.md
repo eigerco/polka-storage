@@ -12,7 +12,7 @@ the Local-VRF approach, providing a somewhat trusted and unpredictable
 source of fresh randomness.
 
 There is an implict assumption that the Storage Provider only observes the
-finalized chain
+finalized chain.
 
 ## Introduction
 
