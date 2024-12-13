@@ -1,17 +1,11 @@
-use frame_support::{
-    derive_impl,
-    traits::{OnFinalize, OnInitialize},
-};
-use frame_system::{self as system, mocking::MockBlock};
-use sp_core::parameter_types;
+use frame_support::{derive_impl, traits::OnFinalize};
+use frame_system::{mocking::MockBlock, RawOrigin};
 use sp_runtime::{
-    traits::{Hash, HashingFor, Header},
+    traits::{Hash, Header},
     BuildStorage,
 };
 
 use crate::GetAuthorVrf;
-
-pub type BlockNumber = u64;
 
 // Configure a mock runtime to test the pallet.
 #[frame_support::runtime]
@@ -42,11 +36,6 @@ impl frame_system::Config for Test {
     type Nonce = u64;
 }
 
-parameter_types! {
-    pub const CleanupInterval: BlockNumber = 1;
-    pub const SeedAgeLimit: BlockNumber = 200;
-}
-
 impl crate::Config for Test {
     type AuthorVrfGetter = DummyVrf<Self>;
 }
@@ -66,7 +55,7 @@ where
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    let t = system::GenesisConfig::<Test>::default()
+    let t = frame_system::GenesisConfig::<Test>::default()
         .build_storage()
         .unwrap()
         .into();
@@ -85,11 +74,12 @@ pub fn run_to_block(n: u64) {
         if System::block_number() > 1 {
             let finalizing_block_number = block_number - 1;
             System::on_finalize(finalizing_block_number);
-            RandomnessModule::on_finalize(finalizing_block_number);
         }
 
+        // It's ok under test
+        RandomnessModule::set_author_vrf(RawOrigin::None.into()).unwrap();
+
         System::initialize(&block_number, &parent_hash, &Default::default());
-        RandomnessModule::on_initialize(block_number);
 
         let header = System::finalize();
         parent_hash = header.hash();

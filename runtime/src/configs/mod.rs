@@ -338,9 +338,6 @@ parameter_types! {
     pub const MinDealDuration: u64 = 20 * DAYS;
     pub const MaxDealDuration: u64 = 1278 * DAYS;
 
-    // Randomness pallet
-    pub const CleanupInterval: BlockNumber = 6 * HOURS;
-    pub const SeedAgeLimit: BlockNumber = 1 * DAYS;
 }
 
 #[cfg(feature = "testnet")]
@@ -364,10 +361,6 @@ parameter_types! {
     // Market Pallet
     pub const MinDealDuration: u64 = 5 * MINUTES;
     pub const MaxDealDuration: u64 = 180 * MINUTES;
-
-    // Randomness pallet
-    pub const CleanupInterval: BlockNumber = DAYS;
-    pub const SeedAgeLimit: BlockNumber = 30 * DAYS;
 
     // Faucet pallet
     pub const FaucetDripAmount: Balance = 10_000_000_000_000;
