@@ -4,15 +4,17 @@ Author: Rok Černič — @cernicc
 Date: 16/12/24
 
 This document aggregates research done on the topic of retrieving stored data
-from the storage providers. We didn't research the retrieval markets here and we
-assume that no additional incentives are needed for being part of the retrieval
-network. We assume that every storage provider also provides a retrieval
-service.
+from the storage providers. It does not cover the retrieval markets and assumes
+that no additional incentives are needed for being part of the retrieval network
+and that every storage provider also provides a retrieval service. It also
+covers the main protocols for transfer — Bitswap and GraphSync — recommending
+the implementation of Bitswap as a first instance due to the lower upfront
+effort required.
 
 ## Problem statement
 
 We would like to support 3rd parties to retrieve data from the storage
-providers. To retrieve the data stored, they should provide content CID (root
+providers. To retrieve the data stored, they should provide payload CID (root
 node of the CAR file).
 
 ## Storage provider server
