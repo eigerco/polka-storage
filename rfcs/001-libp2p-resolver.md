@@ -19,7 +19,6 @@ It will integrate [libp2p][1]'s [rendezvous protocol][2] for locating peers and 
 
 The library will rely on bootstrap nodes to initialize network interactions.
 These nodes act as rendezvous points, enabling the clients to join the network and locate other peers.
-Clients can configure the bootstrap nodes through a configuration file or command-line arguments.
 For protection against bootstrap nodes going down, the library will attempt to connect to the first configured bootstrap node and connect to a different one in case this one is down.
 
 ### Bootstrap Node Incentives
