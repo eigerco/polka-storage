@@ -19,7 +19,7 @@ node of the CAR file).
 
 ## Storage provider server
 
-The current server implementation exposes the endpoint which allows 3rd parties
+The current server implementation exposes an endpoint which allows 3rd parties
 to upload some content. That content is then encoded as a CAR file. That files
 are then packed into the unsealed sector which is stored on disk. The unsealed
 sector is sealed and also stored on disk. The sealed sector is unreadable that
