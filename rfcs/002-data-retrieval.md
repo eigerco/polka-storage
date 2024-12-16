@@ -1,5 +1,8 @@
 # RFC-002 Data Retrieval
 
+Author: Rok Černič — @cernicc
+Date: 16/12/24
+
 This document aggregates research done on the topic of retrieving stored data
 from the storage providers. We didn't research the retrieval markets here and we
 assume that no additional incentives are needed for being part of the retrieval
