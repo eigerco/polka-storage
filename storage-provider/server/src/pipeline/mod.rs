@@ -384,20 +384,22 @@ async fn precommit(
         &entropy,
     );
 
+    let cache_path = state.sealing_cache_dir.join(sector_number.to_string());
     let sealed_path = state.sealed_sectors_dir.join(sector_number.to_string());
+    tokio::fs::create_dir_all(&cache_path).await?;
     tokio::fs::File::create_new(&sealed_path).await?;
 
     // TODO(@th7nder,31/10/2024): what happens if some of the process fails? SP will be slashed, and there is no error reporting? what about retries?
     let sealing_handle: JoinHandle<Result<PreCommitOutput, _>> = {
         let prover_id = derive_prover_id(state.xt_keypair.account_id());
-        let cache_dir = state.sealing_cache_dir.clone();
+        let cache_dir = cache_path.clone();
         let unsealed_path = sector.unsealed_path.clone();
         let sealed_path = sealed_path.clone();
 
         let piece_infos = sector.piece_infos.clone();
         tokio::task::spawn_blocking(move || {
             sealer.precommit_sector(
-                cache_dir.as_ref(),
+                cache_dir,
                 unsealed_path,
                 sealed_path,
                 prover_id,
@@ -453,6 +455,7 @@ async fn precommit(
 
     let sector = PreCommittedSector::create(
         sector,
+        cache_path,
         sealed_path,
         sealing_output_commr,
         sealing_output_commd,
@@ -543,14 +546,14 @@ async fn prove_commit(
 
     let sealing_handle: JoinHandle<Result<Vec<BlstrsProof>, _>> = {
         let porep_params = state.porep_parameters.clone();
-        let cache_dir = state.sealing_cache_dir.clone();
+        let cache_dir = sector.cache_path.clone();
         let sealed_path = sector.sealed_path.clone();
         let piece_infos = sector.piece_infos.clone();
 
         tokio::task::spawn_blocking(move || {
             sealer.prove_sector(
                 porep_params.as_ref(),
-                cache_dir.as_ref(),
+                cache_dir,
                 sealed_path,
                 prover_id,
                 sector_number,
@@ -695,6 +698,7 @@ async fn submit_windowed_post(
         replicas.push(ReplicaInfo {
             sector_id: *sector_number,
             comm_r: sector.comm_r.raw(),
+            cache_path: sector.cache_path.clone(),
             replica_path: sector.sealed_path.clone(),
         });
     }
@@ -703,7 +707,6 @@ async fn submit_windowed_post(
     tracing::info!("Proving PoSt partitions... {:?}", partitions);
     let handle: JoinHandle<Result<Vec<BlstrsProof>, _>> = {
         let post_params = state.post_parameters.clone();
-        let cache_dir = state.sealing_cache_dir.clone();
         let post_proof = state.server_info.post_proof;
 
         tokio::task::spawn_blocking(move || {
@@ -713,7 +716,6 @@ async fn submit_windowed_post(
                 randomness,
                 prover_id,
                 replicas,
-                cache_dir.as_ref(),
             )
         })
     };
@@ -767,7 +769,7 @@ async fn submit_windowed_post(
 
 #[tracing::instrument(skip_all)]
 async fn schedule_posts(state: Arc<PipelineState>) -> Result<(), PipelineError> {
-    let proving_period = state.xt_client.proving_period_info()?;
+    let proving_period = state.xt_client.proving_period_info().await?;
 
     for deadline_index in 0..proving_period.deadlines {
         schedule_post(state.clone(), deadline_index)?;

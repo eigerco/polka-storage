@@ -452,6 +452,7 @@ impl ProofsCommand {
                         .try_into()
                         .map_err(|_| UtilsCommandError::CommRError)?,
                     replica_path,
+                    cache_path: cache_directory,
                 }];
 
                 println!("Loading parameters...");
@@ -465,7 +466,6 @@ impl ProofsCommand {
                     randomness,
                     prover_id,
                     replicas,
-                    cache_directory,
                 )
                 .map_err(|e| UtilsCommandError::GeneratePoStError(e))?;
 
