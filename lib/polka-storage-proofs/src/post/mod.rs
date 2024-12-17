@@ -1,7 +1,4 @@
-use std::{
-    collections::BTreeMap,
-    path::PathBuf,
-};
+use std::{collections::BTreeMap, path::PathBuf};
 
 use bellperson::groth16;
 use blstrs::Bls12;

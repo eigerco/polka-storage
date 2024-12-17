@@ -710,13 +710,7 @@ async fn submit_windowed_post(
         let post_proof = state.server_info.post_proof;
 
         tokio::task::spawn_blocking(move || {
-            post::generate_window_post(
-                post_proof,
-                &post_params,
-                randomness,
-                prover_id,
-                replicas,
-            )
+            post::generate_window_post(post_proof, &post_params, randomness, prover_id, replicas)
         })
     };
     let proofs = handle.await??;
