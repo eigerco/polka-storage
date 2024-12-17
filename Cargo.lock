@@ -9901,7 +9901,7 @@ dependencies = [
  "pallet-contracts",
  "pallet-contracts-proc-macro",
  "pallet-contracts-uapi",
- "pallet-insecure-randomness-collective-flip 26.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-insecure-randomness-collective-flip",
  "pallet-message-queue 41.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "pallet-proxy 38.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pallet-timestamp 37.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -10425,19 +10425,6 @@ dependencies = [
  "safe-mix",
  "scale-info",
  "sp-runtime 39.0.2",
-]
-
-[[package]]
-name = "pallet-insecure-randomness-collective-flip"
-version = "26.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2#dba2dd59101617aad64d167e400b19e2c35052b1"
-dependencies = [
- "frame-support 38.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
- "frame-system 38.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
- "parity-scale-codec",
- "safe-mix",
- "scale-info",
- "sp-runtime 39.0.1",
 ]
 
 [[package]]
@@ -11083,15 +11070,16 @@ dependencies = [
 name = "pallet-randomness"
 version = "0.0.0"
 dependencies = [
+ "async-trait",
  "frame-benchmarking 38.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
  "frame-support 38.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
  "frame-system 38.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
  "log",
- "pallet-insecure-randomness-collective-flip 26.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
  "parity-scale-codec",
  "primitives",
  "scale-info",
  "sp-core 34.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
+ "sp-inherents 34.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
  "sp-io 38.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
  "sp-runtime 39.0.1",
 ]
@@ -11724,7 +11712,6 @@ dependencies = [
  "log",
  "multihash-codetable",
  "pallet-balances 39.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
- "pallet-insecure-randomness-collective-flip 26.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
  "pallet-market",
  "pallet-proofs",
  "pallet-randomness",
@@ -12921,7 +12908,6 @@ dependencies = [
  "pallet-balances 39.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
  "pallet-collator-selection 19.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
  "pallet-faucet",
- "pallet-insecure-randomness-collective-flip 26.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
  "pallet-market",
  "pallet-message-queue 41.0.2 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2409-2)",
  "pallet-proofs",
@@ -14177,7 +14163,7 @@ dependencies = [
  "pallet-identity 38.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pallet-im-online 37.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pallet-indices 38.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-insecure-randomness-collective-flip 26.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-insecure-randomness-collective-flip",
  "pallet-lottery",
  "pallet-membership 38.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pallet-message-queue 41.0.2 (registry+https://github.com/rust-lang/crates.io-index)",

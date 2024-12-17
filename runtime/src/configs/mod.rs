@@ -61,7 +61,7 @@ use super::{
     MAXIMUM_BLOCK_WEIGHT, MICROUNIT, NORMAL_DISPATCH_RATIO, RELAY_CHAIN_SLOT_DURATION_MILLIS,
     SLOT_DURATION, UNINCLUDED_SEGMENT_CAPACITY, VERSION,
 };
-use crate::{DAYS, MINUTES};
+use crate::{BabeDataGetter, DAYS, MINUTES};
 
 parameter_types! {
     pub const Version: RuntimeVersion = VERSION;
@@ -338,9 +338,6 @@ parameter_types! {
     pub const MinDealDuration: u64 = 20 * DAYS;
     pub const MaxDealDuration: u64 = 1278 * DAYS;
 
-    // Randomness pallet
-    pub const CleanupInterval: BlockNumber = 6 * HOURS;
-    pub const SeedAgeLimit: BlockNumber = 1 * DAYS;
 }
 
 #[cfg(feature = "testnet")]
@@ -364,10 +361,6 @@ parameter_types! {
     // Market Pallet
     pub const MinDealDuration: u64 = 5 * MINUTES;
     pub const MaxDealDuration: u64 = 180 * MINUTES;
-
-    // Randomness pallet
-    pub const CleanupInterval: BlockNumber = DAYS;
-    pub const SeedAgeLimit: BlockNumber = 30 * DAYS;
 
     // Faucet pallet
     pub const FaucetDripAmount: Balance = 10_000_000_000_000;
@@ -430,44 +423,7 @@ impl pallet_faucet::Config for Runtime {
     type FaucetDripDelay = FaucetDripDelay;
 }
 
-/// Config for insecure randomness
-impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
-
 /// Config for our randomness pallet
 impl pallet_randomness::Config for Runtime {
-    #[cfg(not(feature = "testnet"))]
-    type Generator = super::RandomnessSource;
-    #[cfg(feature = "testnet")]
-    type Generator = randomness_source_testnet::PredictableRandomnessSource<Self>;
-
-    type CleanupInterval = CleanupInterval;
-    type SeedAgeLimit = SeedAgeLimit;
-}
-
-#[cfg(feature = "testnet")]
-mod randomness_source_testnet {
-    use codec::Decode;
-    use frame_support::traits::Randomness;
-    use frame_system::{pallet_prelude::BlockNumberFor, Config, Pallet};
-    use sp_runtime::traits::TrailingZeroInput;
-    use sp_std::marker::PhantomData;
-
-    /// Randomness source that always returns same random value based on the
-    /// subject used.
-    ///
-    /// ! USE THIS ONLY IN TESTNET !
-    pub struct PredictableRandomnessSource<T>(PhantomData<T>);
-    impl<Output, T> Randomness<Output, BlockNumberFor<T>> for PredictableRandomnessSource<T>
-    where
-        Output: Decode + Default,
-        T: Config,
-    {
-        fn random(subject: &[u8]) -> (Output, BlockNumberFor<T>) {
-            (
-                Output::decode(&mut TrailingZeroInput::new(subject)).unwrap_or_default(),
-                // This means the the randomness can be used immediately.
-                Pallet::<T>::block_number(),
-            )
-        }
-    }
+    type AuthorVrfGetter = BabeDataGetter<Runtime>;
 }

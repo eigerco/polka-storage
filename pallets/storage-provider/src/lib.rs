@@ -36,7 +36,7 @@ pub mod pallet {
     extern crate alloc;
 
     use alloc::{collections::BTreeMap, vec, vec::Vec};
-    use core::fmt::Debug;
+    use core::{convert::AsRef, fmt::Debug};
 
     use cid::Cid;
     use codec::{Decode, Encode};
@@ -46,7 +46,7 @@ pub mod pallet {
         pallet_prelude::*,
         sp_runtime::traits::{CheckedAdd, CheckedSub, One},
         traits::{
-            Currency, ExistenceRequirement::KeepAlive, Imbalance, ReservableCurrency,
+            Currency, ExistenceRequirement::KeepAlive, Imbalance, Randomness, ReservableCurrency,
             WithdrawReasons,
         },
     };
@@ -58,7 +58,7 @@ pub mod pallet {
     use primitives::{
         commitment::{CommD, CommR, Commitment},
         pallets::{
-            DeadlineInfo as ExternalDeadlineInfo, Market, ProofVerification, Randomness,
+            DeadlineInfo as ExternalDeadlineInfo, Market, ProofVerification,
             StorageProviderValidation,
         },
         proofs::{derive_prover_id, PublicReplicaInfo, RegisteredPoStProof},
@@ -102,7 +102,7 @@ pub mod pallet {
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
         /// Randomness generator
-        type Randomness: Randomness<BlockNumberFor<Self>>;
+        type Randomness: Randomness<Self::Hash, BlockNumberFor<Self>>;
 
         /// Peer ID is derived by hashing an encoded public key.
         /// Usually represented in bytes.
@@ -1691,7 +1691,7 @@ pub mod pallet {
         entropy: &[u8],
     ) -> Result<[u8; 32], DispatchError> {
         // Get randomness from chain
-        let digest = T::Randomness::get_randomness(block_number)?;
+        let (digest, _) = T::Randomness::random(&personalization.as_bytes());
 
         // Converting block_height to the type accepted by draw_randomness
         let block_number = block_number
@@ -1701,8 +1701,10 @@ pub mod pallet {
                 Error::<T>::ConversionError
             })?;
 
+        let mut sized_digest = [0; 32];
+        sized_digest.copy_from_slice(&digest.as_ref());
         // Randomness with the bias
-        let randomness = draw_randomness(&digest, personalization, block_number, entropy);
+        let randomness = draw_randomness(&sized_digest, personalization, block_number, entropy);
 
         Ok(randomness)
     }

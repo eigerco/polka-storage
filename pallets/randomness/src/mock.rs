@@ -1,13 +1,11 @@
-use frame_support::{
-    derive_impl,
-    traits::{OnFinalize, OnInitialize},
+use frame_support::{derive_impl, traits::OnFinalize};
+use frame_system::{mocking::MockBlock, RawOrigin};
+use sp_runtime::{
+    traits::{Hash, Header},
+    BuildStorage,
 };
-use frame_system::{self as system, mocking::MockBlock};
-use pallet_insecure_randomness_collective_flip as substrate_randomness;
-use sp_core::parameter_types;
-use sp_runtime::{traits::Header, BuildStorage};
 
-pub type BlockNumber = u64;
+use crate::GetAuthorVrf;
 
 // Configure a mock runtime to test the pallet.
 #[frame_support::runtime]
@@ -29,8 +27,6 @@ mod test_runtime {
     #[runtime::pallet_index(0)]
     pub type System = frame_system;
     #[runtime::pallet_index(1)]
-    pub type SubstrateRandomness = substrate_randomness;
-    #[runtime::pallet_index(2)]
     pub type RandomnessModule = crate;
 }
 
@@ -40,22 +36,26 @@ impl frame_system::Config for Test {
     type Nonce = u64;
 }
 
-parameter_types! {
-    pub const CleanupInterval: BlockNumber = 1;
-    pub const SeedAgeLimit: BlockNumber =  200;
-}
-
 impl crate::Config for Test {
-    type Generator = SubstrateRandomness;
-    type CleanupInterval = CleanupInterval;
-    type SeedAgeLimit = SeedAgeLimit;
+    type AuthorVrfGetter = DummyVrf<Self>;
 }
 
-impl substrate_randomness::Config for Test {}
+pub struct DummyVrf<C>(core::marker::PhantomData<C>)
+where
+    C: frame_system::Config;
+
+impl<C> GetAuthorVrf<C::Hash> for DummyVrf<C>
+where
+    C: frame_system::Config,
+{
+    fn get_author_vrf() -> Option<C::Hash> {
+        Some(C::Hashing::hash(&[]))
+    }
+}
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    let t = system::GenesisConfig::<Test>::default()
+    let t = frame_system::GenesisConfig::<Test>::default()
         .build_storage()
         .unwrap()
         .into();
@@ -74,12 +74,12 @@ pub fn run_to_block(n: u64) {
         if System::block_number() > 1 {
             let finalizing_block_number = block_number - 1;
             System::on_finalize(finalizing_block_number);
-            RandomnessModule::on_finalize(finalizing_block_number);
         }
 
+        // It's ok under test
+        RandomnessModule::set_author_vrf(RawOrigin::None.into()).unwrap();
+
         System::initialize(&block_number, &parent_hash, &Default::default());
-        SubstrateRandomness::on_initialize(block_number);
-        RandomnessModule::on_initialize(block_number);
 
         let header = System::finalize();
         parent_hash = header.hash();

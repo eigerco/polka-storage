@@ -36,13 +36,3 @@ The pallet does not emit any events.
 The Randomness Pallet actions can fail with the following errors:
 
 - `SeedNotAvailable` - the seed for the given block number is not available, which means the randomness pallet has not gathered randomness for this block yet.
-
-## Constants
-
-The Randomness Pallet has the following constants:
-
-| Name              | Description                                                       | Value   |
-| ----------------- | ----------------------------------------------------------------- | ------- |
-| `CleanupInterval` | Clean-up interval specified in number of blocks between cleanups. | 1 Day   |
-| `SeedAgeLimit`    | The number of blocks after which the seed is cleaned up.          | 30 Days |
-

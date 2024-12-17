@@ -16,13 +16,16 @@ impl RandomnessClientExt for crate::runtime::client::Client {
         &self,
         block_number: BlockNumber,
     ) -> Result<Option<[u8; 32]>, subxt::Error> {
-        let seed_query = runtime::storage().randomness().seeds_map(block_number);
+        let randomness_query = runtime::storage()
+            .randomness()
+            .author_vrf_history(block_number);
 
         self.client
             .storage()
             .at_latest()
             .await?
-            .fetch(&seed_query)
+            .fetch(&randomness_query)
             .await
+            .map(|opt_hash| opt_hash.map(|hash| *hash.as_fixed_bytes()))
     }
 }

@@ -14,6 +14,7 @@ mod weights;
 extern crate alloc;
 use alloc::vec::Vec;
 
+use cumulus_pallet_parachain_system::{RelayChainStateProof, RelayStateProof, ValidationData};
 use frame_support::{
     genesis_builder_helper::{build_state, get_preset},
     weights::{
@@ -25,7 +26,7 @@ use pallet_aura::Authorities;
 use smallvec::smallvec;
 use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_core::{crypto::KeyTypeId, hex2array, Get, OpaqueMetadata};
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
@@ -269,9 +270,6 @@ mod runtime {
     pub type Timestamp = pallet_timestamp;
     #[runtime::pallet_index(3)]
     pub type ParachainInfo = parachain_info;
-    // Temporary. Will be removed after we switch to babe
-    #[runtime::pallet_index(4)]
-    pub type RandomnessSource = pallet_insecure_randomness_collective_flip;
 
     // Monetary stuff.
     #[runtime::pallet_index(10)]
@@ -341,9 +339,6 @@ mod runtime {
     pub type Timestamp = pallet_timestamp;
     #[runtime::pallet_index(3)]
     pub type ParachainInfo = parachain_info;
-    // Temporary. Will be removed after we switch to babe
-    #[runtime::pallet_index(4)]
-    pub type RandomnessSource = pallet_insecure_randomness_collective_flip;
 
     // Monetary stuff.
     #[runtime::pallet_index(10)]
@@ -659,5 +654,52 @@ impl_runtime_apis! {
         fn preset_names() -> Vec<sp_genesis_builder::PresetId> {
             Default::default()
         }
+    }
+}
+
+// The following code cannot be placed out of this crate because of WASM constraints
+
+/// Storage Key for BABE's [`AuthorVrfRandomness`][1] — taken from the Polkadot UI for Relay Chain's
+/// version 8 and `pallet-babe` version `28.0.0`.
+///
+/// For more information on fetching runtime storage values, see:
+/// * <https://docs.substrate.io/build/runtime-storage/#accessing-storage-items>
+///
+/// [1]: https://github.com/paritytech/polkadot-sdk/blob/5b04b4598cc7b2c8e817a6304c7cdfaf002c1fee/substrate/frame/babe/src/lib.rs#L268-L273
+const AUTHOR_VRF_STORAGE_KEY: [u8; 32] =
+    hex2array!("1cb6f36e027abb2091cfb5110ab5087fd077dfdb8adb10f78f10a5df8742c545");
+
+/// Only callable after `set_validation_data` is called which forms this proof the same way
+fn relay_chain_state_proof<Runtime>() -> RelayChainStateProof
+where
+    Runtime: cumulus_pallet_parachain_system::Config,
+{
+    let relay_storage_root = ValidationData::<Runtime>::get()
+        .expect("set in `set_validation_data`")
+        .relay_parent_storage_root;
+    let relay_chain_state =
+        RelayStateProof::<Runtime>::get().expect("set in `set_validation_data`");
+    RelayChainStateProof::new(ParachainInfo::get(), relay_storage_root, relay_chain_state)
+        .expect("Invalid relay chain state proof, already constructed in `set_validation_data`")
+}
+
+pub struct BabeDataGetter<Runtime>(sp_std::marker::PhantomData<Runtime>);
+impl<Runtime> pallet_randomness::GetAuthorVrf<Runtime::Hash> for BabeDataGetter<Runtime>
+where
+    Runtime: cumulus_pallet_parachain_system::Config,
+{
+    // Tolerate panic here because only ever called in inherent (so can be omitted)
+    fn get_author_vrf() -> Option<Runtime::Hash> {
+        if cfg!(feature = "runtime-benchmarks") {
+            // storage reads as per actual reads
+            let _relay_storage_root = ValidationData::<Runtime>::get();
+            let _relay_chain_state = RelayStateProof::<Runtime>::get();
+            return None;
+        }
+        relay_chain_state_proof::<Runtime>()
+            .read_optional_entry(&AUTHOR_VRF_STORAGE_KEY)
+            .ok()
+            .flatten()
+            .expect("expected to be able to read epoch index from relay chain state proof")
     }
 }

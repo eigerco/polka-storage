@@ -13,11 +13,6 @@ use crate::{
     MAX_SECTORS_PER_PROOF,
 };
 
-/// Represents functions that are provided by the Randomness Pallet
-pub trait Randomness<BlockNumber> {
-    fn get_randomness(block_number: BlockNumber) -> Result<[u8; 32], DispatchError>;
-}
-
 pub trait StorageProviderValidation<AccountId> {
     /// Checks that the storage provider is registered.
     fn is_registered_storage_provider(storage_provider: &AccountId) -> bool;

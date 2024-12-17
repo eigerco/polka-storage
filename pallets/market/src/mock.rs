@@ -6,7 +6,7 @@ use frame_support::{
     PalletId,
 };
 use frame_system::{self as system, pallet_prelude::BlockNumberFor};
-use primitives::{pallets::Randomness, proofs::RegisteredPoStProof};
+use primitives::proofs::RegisteredPoStProof;
 use sp_core::Pair;
 use sp_runtime::{
     traits::{ConstU32, ConstU64, IdentifyAccount, IdentityLookup, Verify},
@@ -84,16 +84,26 @@ impl crate::Config for Test {
 }
 
 /// Randomness generator used by tests.
-pub struct DummyRandomnessGenerator;
-impl<BlockNumber> Randomness<BlockNumber> for DummyRandomnessGenerator {
-    fn get_randomness(_: BlockNumber) -> Result<[u8; 32], sp_runtime::DispatchError> {
-        Ok([0; 32])
+pub struct DummyRandomnessGenerator<C>(core::marker::PhantomData<C>)
+where
+    C: frame_system::Config;
+
+impl<C> frame_support::traits::Randomness<C::Hash, BlockNumberFor<C>>
+    for DummyRandomnessGenerator<C>
+where
+    C: frame_system::Config,
+{
+    fn random(_subject: &[u8]) -> (C::Hash, BlockNumberFor<C>) {
+        (
+            Default::default(),
+            <frame_system::Pallet<C>>::block_number(),
+        )
     }
 }
 
 impl pallet_storage_provider::Config for Test {
     type RuntimeEvent = RuntimeEvent;
-    type Randomness = DummyRandomnessGenerator;
+    type Randomness = DummyRandomnessGenerator<Self>;
     type PeerId = BoundedVec<u8, ConstU32<32>>; // Max length of SHA256 hash
     type Currency = Balances;
     type Market = Market;
