@@ -34,6 +34,8 @@ pub mod pallet {
 
     pub const LOG_TARGET: &'static str = "runtime::randomness";
 
+    /// Size of previous [`AuthorVrf`] values. Used in [`AuthorVrfHistory`].
+    // This value is arbitrary, originally "inspired" by the 256 blocks of history the node keeps.
     const HISTORY_SIZE: u32 = 256;
 
     #[pallet::config]
@@ -108,7 +110,6 @@ pub mod pallet {
             )))
         }
 
-        // The empty-payload inherent extrinsic.
         fn create_inherent(_data: &InherentData) -> Option<Self::Call> {
             Some(Call::set_author_vrf {})
         }

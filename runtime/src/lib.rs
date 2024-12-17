@@ -659,7 +659,13 @@ impl_runtime_apis! {
 
 // The following code cannot be placed out of this crate because of WASM constraints
 
-/// Storage Key for AuthorVrfRandomness
+/// Storage Key for BABE's [`AuthorVrfRandomness`][1] — taken from the Polkadot UI for Relay Chain's
+/// version 8 and `pallet-babe` version `28.0.0`.
+///
+/// For more information on fetching runtime storage values, see:
+/// * <https://docs.substrate.io/build/runtime-storage/#accessing-storage-items>
+///
+/// [1]: https://github.com/paritytech/polkadot-sdk/blob/5b04b4598cc7b2c8e817a6304c7cdfaf002c1fee/substrate/frame/babe/src/lib.rs#L268-L273
 const AUTHOR_VRF_STORAGE_KEY: [u8; 32] =
     hex2array!("1cb6f36e027abb2091cfb5110ab5087fd077dfdb8adb10f78f10a5df8742c545");
 
