@@ -13,9 +13,9 @@ effort required.
 
 ## Problem statement
 
-We would like to support 3rd parties to retrieve data from the storage
-providers. To retrieve the data stored, they should provide payload CID (root
-node of the CAR file).
+We would like to enable 3rd parties to retrieve data from the storage providers.
+To retrieve the data stored, they should provide the payload CID (root node of
+the CAR file).
 
 ## Storage provider server
 
@@ -25,11 +25,11 @@ then packed into the unsealed sector, stored on disk; the unsealed sector is
 sealed and stored on disk; the sealed sector is unreadable, as such for a
 purposes of data retrieval, we either keep the unsealed sector around at the
 cost of storage capacity or unseal sectors on-demand — for the purposes of POC
-we expect that the unsealed sector is always available.
+we expect the unsealed sector to always be available.
 
 ### Local Index Directory
 
-As part of the storage server there is a need for a local index directory
+As part of the storage server there is a need for a [local index directory](https://boost.filecoin.io/deployment/local-index-directory)
 subsystem. Sectors are opaque, meaning they don't contain metadata that
 indicates where its files start and end, that is where the index enters, mapping
 the sector and enabling retrieval of individual files.
@@ -41,32 +41,34 @@ sectors, thus, it must be co-located with the storage process.
 
 #### Bitswap
 
-Bitswap is used to exchange blocks of data between peers. In short, it works on
-a "question and answer" basis, where the client request the data for a given CID
-and the server replies with that data, be it more CIDs or an actual block of
-data. When coupled with IPLD graphs, this approach becomes "chatty" for large
-files; since the first rounds of the protocol will usually consist of requesting
-a CID and getting N CIDs back, requesting each of those CIDs and getting more
-back, until reaching actual data blocks.
+[Bitswap](https://docs.ipfs.tech/concepts/bitswap/) is used to exchange blocks
+of data between peers. In short, it works on a "question and answer" basis,
+where the client request the data for a given CID and the server replies with
+that data, be it more CIDs or an actual block of data. When coupled with IPLD
+graphs, this approach becomes "chatty" for large files; since the first rounds
+of the protocol will usually consist of requesting a CID and getting N CIDs
+back, requesting each of those CIDs and getting more back, until reaching actual
+data blocks.
 
 #### GraphSync
 
-It is used to synchronize graphs across peers. It uses IPLD selector to
-efficiently transfer graphs (or selections of parts of graphs) with a minimal
-number of independent requests. It supersedes the Bitswap, because the client
-only needs to send a single query request. The server then knows that the block
-is part of some tree and returns all relative blocks back to the client.
+[GraphSync](https://ipld.io/specs/transport/graphsync/) is used to synchronize
+graphs across peers. It uses IPLD selectors to efficiently transfer graphs (or
+selections of parts of graphs) with a minimal number of independent requests. It
+supersedes Bitswap, because the client only needs to send a single query
+request. The server then knows that the block is part of some tree and returns
+all relative blocks back to the client.
 
 ## Retrieval client
 
-The retrieval clients enable 3rd parties to easily retrieve stored data. Good
-example of the retrieval client is Lassie which can be used as a CLI, library or
-HTTP server.
+The retrieval clients enable 3rd parties to easily retrieve stored data. A good
+example of the retrieval client is [Lassie](https://github.com/filecoin-project/lassie)
+which can be used as a CLI, library or HTTP server.
 
 When used, the client temporarily becomes a node in the same network as the
 retrieval provider above. The client first queries the indexer (do not confuse
 with the Local Index Directory) for retrieval candidates (storage providers).
-After it receives 1 or more candidates it sends a retrieval request to those
+After it receives one or more candidates it sends a retrieval request to those
 providers. The request is done over the P2P network using Graphsync or Bitswap.
 It depends on the protocol which the provider supports.
 
@@ -89,12 +91,3 @@ the most pragmatic approach due to its existing Rust implementation and
 straightforward nature. However, as the system evolves and scales, it may be
 worthwhile to consider implementing GraphSync for its advanced features and
 efficiency.
-
-## References
-
-- https://boost.filecoin.io/deployment/local-index-directory
-- https://docs.ipfs.tech/concepts/bitswap/
-- https://ipld.io/specs/transport/graphsync/
-- https://github.com/ipld/ipld/blob/master/specs/transport/graphsync/index.md
-- https://www.youtube.com/watch?v=tpqXUmokFZ0
-- https://github.com/filecoin-project/lassie
