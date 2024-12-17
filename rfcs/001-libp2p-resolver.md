@@ -1,5 +1,8 @@
 # RFC-001: Peer ID to Multi-Address Resolver
 
+Author: Aidan Sullivan — @aidan46
+Date: 17/12/24
+
 ## Abstract
 
 This RFC proposes an library for resolving [Peer ID][5]s to [multi-addresses][4] in a [libp2p][1] network.
