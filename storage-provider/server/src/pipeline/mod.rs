@@ -763,7 +763,7 @@ async fn submit_windowed_post(
 
 #[tracing::instrument(skip_all)]
 async fn schedule_posts(state: Arc<PipelineState>) -> Result<(), PipelineError> {
-    let proving_period = state.xt_client.proving_period_info().await?;
+    let proving_period = state.xt_client.proving_period_info()?;
 
     for deadline_index in 0..proving_period.deadlines {
         schedule_post(state.clone(), deadline_index)?;
