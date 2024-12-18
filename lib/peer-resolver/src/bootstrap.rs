@@ -1,9 +1,13 @@
+use std::time::Duration;
+
 use libp2p::{
     futures::StreamExt,
+    identify,
     identity::Keypair,
-    rendezvous::server,
+    noise,
+    rendezvous::{self, server},
     swarm::{NetworkBehaviour, SwarmEvent},
-    {noise, rendezvous, tcp, yamux, Multiaddr, Swarm},
+    tcp, yamux, Multiaddr, Swarm,
 };
 
 use crate::error::ResolverError;
@@ -13,6 +17,7 @@ use crate::error::ResolverError;
 pub struct BootstrapBehaviour {
     /// Rendezvous server behaviour for peer discovery
     rendezvous: server::Behaviour,
+    identify: identify::Behaviour,
 }
 
 /// This struct is used by bootstrap nodes running a swarm aiding in peer discovery
@@ -23,7 +28,7 @@ pub struct BootstrapSwarm {
 
 impl BootstrapSwarm {
     /// Create a new [`BootstrapSwarm`] with the given keypair.
-    pub fn new(keypair: Keypair) -> Result<BootstrapSwarm, ResolverError> {
+    pub fn new(keypair: Keypair, timeout: u64) -> Result<BootstrapSwarm, ResolverError> {
         let swarm = libp2p::SwarmBuilder::with_existing_identity(keypair)
             .with_tokio()
             .with_tcp(
@@ -32,12 +37,17 @@ impl BootstrapSwarm {
                 yamux::Config::default,
             )
             .map_err(|_| ResolverError::InvalidTCPConfig)?
-            .with_behaviour(|_| BootstrapBehaviour {
+            .with_behaviour(|key| BootstrapBehaviour {
                 rendezvous: rendezvous::server::Behaviour::new(
                     rendezvous::server::Config::default(),
                 ),
+                identify: identify::Behaviour::new(identify::Config::new(
+                    "rendezvous-example/1.0.0".to_string(),
+                    key.public(),
+                )),
             })
             .map_err(|_| ResolverError::InvalidBehaviourConfig)?
+            .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(Duration::from_secs(timeout)))
             .build();
 
         Ok(BootstrapSwarm { swarm })

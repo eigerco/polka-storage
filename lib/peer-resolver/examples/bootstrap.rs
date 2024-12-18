@@ -12,7 +12,7 @@ async fn main() -> Result<()> {
     // used as the rendezvous point by the other peer examples.
     let keypair = libp2p::identity::Keypair::ed25519_from_bytes([0; 32]).unwrap();
 
-    let mut swarm = BootstrapSwarm::new(keypair)?;
+    let mut swarm = BootstrapSwarm::new(keypair, 10)?;
 
     swarm.run("/ip4/0.0.0.0/tcp/62649".parse()?).await?;
 
