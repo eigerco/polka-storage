@@ -3,7 +3,15 @@ use std::time::Duration;
 use codec::Encode;
 use hex::ToHex;
 use subxt::{
-    backend::{legacy::LegacyRpcMethods, rpc::reconnecting_rpc_client::{FixedInterval, RpcClient}}, blocks::Block, config::DefaultExtrinsicParamsBuilder, events::Events, utils::H256, OnlineClient
+    backend::{
+        legacy::LegacyRpcMethods,
+        rpc::reconnecting_rpc_client::{FixedInterval, RpcClient},
+    },
+    blocks::Block,
+    config::DefaultExtrinsicParamsBuilder,
+    events::Events,
+    utils::H256,
+    OnlineClient,
 };
 use tokio::sync::Mutex;
 
@@ -29,7 +37,7 @@ where
 /// You can call any extrinsic via [`Client::traced_submission`].
 pub struct Client {
     pub(crate) client: OnlineClient<PolkaStorageConfig>,
-    pub(crate) legacy_rpc: LegacyRpcMethods::<PolkaStorageConfig>,
+    pub(crate) legacy_rpc: LegacyRpcMethods<PolkaStorageConfig>,
     last_sent_nonce: Mutex<u64>,
 }
 
@@ -127,7 +135,10 @@ impl Client {
     {
         // Critical Section Start
         let mut last_sent_nonce = self.last_sent_nonce.lock().await;
-        let current_nonce = self.legacy_rpc.system_account_next_index(&account_keypair.account_id()).await?;
+        let current_nonce = self
+            .legacy_rpc
+            .system_account_next_index(&account_keypair.account_id())
+            .await?;
         let current_header = self.legacy_rpc.chain_get_header(None).await?.unwrap();
         let ext_params = DefaultExtrinsicParamsBuilder::new()
             .mortal(&current_header, 8)
@@ -141,7 +152,11 @@ impl Client {
             .submit()
             .await?;
 
-        tracing::debug!("Previous nonce: {}, next nonce: {}", last_sent_nonce, current_nonce);
+        tracing::debug!(
+            "Previous nonce: {}, next nonce: {}",
+            last_sent_nonce,
+            current_nonce
+        );
         *last_sent_nonce = current_nonce;
         drop(last_sent_nonce);
         // Critical Section End
