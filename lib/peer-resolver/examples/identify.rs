@@ -1,5 +1,5 @@
 use anyhow::Result;
-use peer_resolver::{ClientSwarm, Multiaddr, PeerId, MAX_TTL};
+use peer_resolver::{Multiaddr, PeerId, RegisterSwarm, MAX_TTL};
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -14,7 +14,7 @@ async fn main() -> Result<()> {
     // Results in peer id 12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5
     let keypair = libp2p::identity::Keypair::ed25519_from_bytes([1; 32]).unwrap();
 
-    let mut swarm = ClientSwarm::new(keypair, "rendezvous".to_string())?;
+    let mut swarm = RegisterSwarm::new(keypair, "rendezvous".to_string(), 10)?;
 
     swarm
         .register(rendezvous_point, rendezvous_point_address, Some(MAX_TTL))

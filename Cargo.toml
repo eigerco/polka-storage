@@ -79,7 +79,7 @@ ipld-core = "0.4.1"
 ipld-dagpb = "0.2.1"
 itertools = "0.13.0"
 jsonrpsee = { version = "0.24.7" }
-libp2p = { git = "https://github.com/libp2p/rust-libp2p", version = "0.54.2", default-features = false }
+libp2p = { version = "0.54", default-features = false }
 log = { version = "0.4.21", default-features = false }
 multihash-codetable = { version = "0.1.1", default-features = false }
 num-bigint = { version = "0.4.5", default-features = false }
