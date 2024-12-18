@@ -72,11 +72,13 @@ impl BootstrapSwarm {
                         registrations,
                     },
                 )) => {
-                    tracing::info!(
-                        "Served peer {} with {} registrations",
-                        enquirer,
-                        registrations.len()
-                    );
+                    if registrations.len() > 0 {
+                        tracing::info!(
+                            "Served peer {} with {} new registrations",
+                            enquirer,
+                            registrations.len()
+                        );
+                    }
                 }
                 _other => {}
             }
