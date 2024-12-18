@@ -99,6 +99,10 @@ pub struct PreCommittedSector {
     /// Tracks all of the deals that have been added to the sector.
     pub deals: Vec<(DealId, DealProposal)>,
 
+    /// Cache directory of the sector.
+    /// Each sector needs to have it's cache directory in a different place, because `p_aux` and `t_aux` are stored there.
+    pub cache_path: std::path::PathBuf,
+
     /// Path of an existing file where the sealed sector data is stored.
     ///
     /// File at this path is initially created by [`Sector::create`], however it's empty.
@@ -154,6 +158,7 @@ impl PreCommittedSector {
     /// Should only be called after sealing and pre-commit process has ended.
     pub async fn create(
         unsealed: UnsealedSector,
+        cache_path: std::path::PathBuf,
         sealed_path: std::path::PathBuf,
         comm_r: Commitment<CommR>,
         comm_d: Commitment<CommD>,
@@ -166,6 +171,7 @@ impl PreCommittedSector {
             sector_number: unsealed.sector_number,
             piece_infos: unsealed.piece_infos,
             deals: unsealed.deals,
+            cache_path,
             sealed_path,
             comm_r,
             comm_d,
@@ -190,6 +196,10 @@ pub struct ProvenSector {
     /// Tracks all of the deals that have been added to the sector.
     pub deals: Vec<(DealId, DealProposal)>,
 
+    /// Cache directory of the sector.
+    /// Each sector needs to have it's cache directory in a different place, because `p_aux` and `t_aux` are stored there.
+    pub cache_path: std::path::PathBuf,
+
     /// Path of an existing file where the sealed sector data is stored.
     pub sealed_path: std::path::PathBuf,
 
@@ -207,6 +217,7 @@ impl ProvenSector {
             sector_number: sector.sector_number,
             piece_infos: sector.piece_infos,
             deals: sector.deals,
+            cache_path: sector.cache_path,
             sealed_path: sector.sealed_path,
             comm_r: sector.comm_r,
             comm_d: sector.comm_d,

@@ -1,7 +1,4 @@
-use std::{
-    collections::BTreeMap,
-    path::{Path, PathBuf},
-};
+use std::{collections::BTreeMap, path::PathBuf};
 
 use bellperson::groth16;
 use blstrs::Bls12;
@@ -54,6 +51,7 @@ pub struct ReplicaInfo {
     pub sector_id: SectorNumber,
     pub comm_r: Commitment,
     pub replica_path: PathBuf,
+    pub cache_path: PathBuf,
 }
 
 /// Generates Windowed PoSt for a replica.
@@ -61,13 +59,12 @@ pub struct ReplicaInfo {
 ///
 /// References:
 /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/filecoin-proofs/src/api/window_post.rs#L100>
-pub fn generate_window_post<CacheDirectory: AsRef<Path>>(
+pub fn generate_window_post(
     proof_type: RegisteredPoStProof,
     groth_params: &groth16::MappedParameters<Bls12>,
     randomness: Ticket,
     prover_id: ProverId,
     partition_replicas: Vec<ReplicaInfo>,
-    cache_dir: CacheDirectory,
 ) -> Result<Vec<groth16::Proof<Bls12>>, PoStError> {
     type Tree = SectorShapeBase;
 
@@ -79,7 +76,7 @@ pub fn generate_window_post<CacheDirectory: AsRef<Path>>(
             PrivateReplicaInfo::<Tree>::new(
                 replica.replica_path,
                 replica.comm_r,
-                cache_dir.as_ref().to_path_buf(),
+                replica.cache_path,
             )?,
         );
     }
