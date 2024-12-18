@@ -130,4 +130,12 @@ pub mod pallet {
             (randomness, block_number)
         }
     }
+
+    impl<T: Config> primitives::randomness::AuthorVrfHistory<BlockNumberFor<T>, T::Hash> for Pallet<T> {
+        fn author_vrf_history(block_number: BlockNumberFor<T>) -> Option<T::Hash> {
+            // We only query the history to keep consistency with the original implementation,
+            // ideally, we would implement proper hashing along with a subject.
+            AuthorVrfHistory::<T>::get(block_number)
+        }
+    }
 }

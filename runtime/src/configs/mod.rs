@@ -61,7 +61,7 @@ use super::{
     MAXIMUM_BLOCK_WEIGHT, MICROUNIT, NORMAL_DISPATCH_RATIO, RELAY_CHAIN_SLOT_DURATION_MILLIS,
     SLOT_DURATION, UNINCLUDED_SEGMENT_CAPACITY, VERSION,
 };
-use crate::{BabeDataGetter, DAYS, MINUTES};
+use crate::{BabeDataGetter, Randomness, DAYS, MINUTES};
 
 parameter_types! {
     pub const Version: RuntimeVersion = VERSION;
@@ -370,6 +370,7 @@ parameter_types! {
 impl pallet_storage_provider::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type Randomness = crate::Randomness;
+    type AuthorVrfHistory = crate::Randomness;
     type PeerId = BoundedVec<u8, ConstU32<32>>; // Max length of SHA256 hash
     type Currency = Balances;
     type Market = crate::Market;

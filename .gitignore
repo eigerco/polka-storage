@@ -38,3 +38,6 @@ coverage/
 *.post.params
 *.post.vk
 *.post.vk.scale
+
+# File logs from the SP
+logs/
