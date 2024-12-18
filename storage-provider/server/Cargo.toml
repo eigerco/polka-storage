@@ -41,10 +41,10 @@ tokio-util = { workspace = true, features = ["rt"] }
 tower = { workspace = true }
 tower-http = { workspace = true, features = ["trace"] }
 tracing = { workspace = true }
+tracing-appender = "0.2.3"
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 url = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
-tracing-appender = "0.2.3"
 
 [lints]
 workspace = true
