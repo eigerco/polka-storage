@@ -22,6 +22,7 @@ use primitives::{
     DealId, PartitionNumber, CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR, MAX_PARTITIONS_PER_DEADLINE,
     MAX_POST_PROOF_BYTES, MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_PROOF, MAX_TERMINATIONS_PER_CALL,
 };
+use sp_arithmetic::traits::Zero;
 use sp_core::{bounded_vec, Pair};
 use sp_runtime::{
     traits::{IdentifyAccount, IdentityLookup, Verify},
@@ -117,24 +118,6 @@ impl ProofVerification for DummyProofsVerification {
     }
 }
 
-/// Randomness generator used by tests.
-pub struct DummyRandomnessGenerator<C>(core::marker::PhantomData<C>)
-where
-    C: frame_system::Config;
-
-impl<C> frame_support::traits::Randomness<C::Hash, BlockNumberFor<C>>
-    for DummyRandomnessGenerator<C>
-where
-    C: frame_system::Config,
-{
-    fn random(_subject: &[u8]) -> (C::Hash, BlockNumberFor<C>) {
-        (
-            Default::default(),
-            <frame_system::Pallet<C>>::block_number(),
-        )
-    }
-}
-
 impl pallet_market::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type PalletId = MarketPalletId;
@@ -173,9 +156,42 @@ parameter_types! {
     pub const MaxDealDuration: u64 = 30 * MINUTES;
 }
 
+/// Randomness generator used by tests.
+pub struct DummyRandomnessGenerator<C>(core::marker::PhantomData<C>)
+where
+    C: frame_system::Config;
+
+impl<C> frame_support::traits::Randomness<C::Hash, BlockNumberFor<C>>
+    for DummyRandomnessGenerator<C>
+where
+    C: frame_system::Config,
+{
+    fn random(_subject: &[u8]) -> (C::Hash, BlockNumberFor<C>) {
+        (
+            Default::default(),
+            <frame_system::Pallet<C>>::block_number(),
+        )
+    }
+}
+
+impl<C> primitives::randomness::AuthorVrfHistory<BlockNumberFor<C>, C::Hash>
+    for DummyRandomnessGenerator<C>
+where
+    C: frame_system::Config,
+{
+    fn author_vrf_history(block_number: BlockNumberFor<C>) -> Option<C::Hash> {
+        if block_number == <BlockNumberFor<C> as Zero>::zero() {
+            None
+        } else {
+            Some(Default::default())
+        }
+    }
+}
+
 impl pallet_storage_provider::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type Randomness = DummyRandomnessGenerator<Self>;
+    type AuthorVrfHistory = DummyRandomnessGenerator<Self>;
     type PeerId = BoundedVec<u8, ConstU32<32>>; // Max length of SHA256 hash
     type Currency = Balances;
     type Market = Market;

@@ -5,11 +5,11 @@ use frame_support::{
     traits::{OnFinalize, OnInitialize},
     PalletId,
 };
-use frame_system::{self as system, pallet_prelude::BlockNumberFor};
+use frame_system::pallet_prelude::BlockNumberFor;
 use primitives::proofs::RegisteredPoStProof;
 use sp_core::Pair;
 use sp_runtime::{
-    traits::{ConstU32, ConstU64, IdentifyAccount, IdentityLookup, Verify},
+    traits::{ConstU32, ConstU64, IdentifyAccount, IdentityLookup, Verify, Zero},
     AccountId32, BuildStorage, MultiSignature, MultiSigner,
 };
 
@@ -37,7 +37,7 @@ pub type AccountPublic = <Signature as Verify>::Signer;
 pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
-impl system::Config for Test {
+impl frame_system::Config for Test {
     type Block = Block;
     type AccountData = pallet_balances::AccountData<u64>;
     type AccountId = AccountId;
@@ -101,9 +101,24 @@ where
     }
 }
 
+impl<C> primitives::randomness::AuthorVrfHistory<BlockNumberFor<C>, C::Hash>
+    for DummyRandomnessGenerator<C>
+where
+    C: frame_system::Config,
+{
+    fn author_vrf_history(block_number: BlockNumberFor<C>) -> Option<C::Hash> {
+        if block_number == <BlockNumberFor<C> as Zero>::zero() {
+            None
+        } else {
+            Some(Default::default())
+        }
+    }
+}
+
 impl pallet_storage_provider::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type Randomness = DummyRandomnessGenerator<Self>;
+    type AuthorVrfHistory = DummyRandomnessGenerator<Self>;
     type PeerId = BoundedVec<u8, ConstU32<32>>; // Max length of SHA256 hash
     type Currency = Balances;
     type Market = Market;
@@ -172,7 +187,7 @@ pub const INITIAL_FUNDS: u64 = 1000;
 /// Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
     let _ = env_logger::try_init();
-    let mut t = system::GenesisConfig::<Test>::default()
+    let mut t = frame_system::GenesisConfig::<Test>::default()
         .build_storage()
         .unwrap()
         .into();

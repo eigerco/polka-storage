@@ -36,7 +36,7 @@ pub mod pallet {
     extern crate alloc;
 
     use alloc::{collections::BTreeMap, vec, vec::Vec};
-    use core::{convert::AsRef, fmt::Debug};
+    use core::fmt::Debug;
 
     use cid::Cid;
     use codec::{Decode, Encode};
@@ -62,7 +62,7 @@ pub mod pallet {
             StorageProviderValidation,
         },
         proofs::{derive_prover_id, PublicReplicaInfo, RegisteredPoStProof},
-        randomness::{draw_randomness, DomainSeparationTag},
+        randomness::{draw_randomness, AuthorVrfHistory, DomainSeparationTag},
         sector::SectorNumber,
         PartitionNumber, MAX_PARTITIONS_PER_DEADLINE, MAX_SEAL_PROOF_BYTES, MAX_SECTORS,
         MAX_SECTORS_PER_CALL,
@@ -118,6 +118,9 @@ pub mod pallet {
 
         /// Proof verification trait implementation for verifying proofs
         type ProofVerification: ProofVerification;
+
+        /// Trait for AuthorVRF querying.
+        type AuthorVrfHistory: AuthorVrfHistory<BlockNumberFor<Self>, Self::Hash>;
 
         /// Window PoSt proving period — equivalent to 24 hours worth of blocks.
         ///
@@ -369,6 +372,8 @@ pub mod pallet {
         CannotTerminateImmutableDeadline,
         /// Emitted when trying to submit PoSt with partitions containing too many sectors (>2349).
         TooManyReplicas,
+        /// AuthorVRF lookup failed.
+        MissingAuthorVRF,
         /// Inner pallet errors
         GeneralPalletError(crate::error::GeneralPalletError),
     }
@@ -1691,7 +1696,9 @@ pub mod pallet {
         entropy: &[u8],
     ) -> Result<[u8; 32], DispatchError> {
         // Get randomness from chain
-        let (digest, _) = T::Randomness::random(&personalization.as_bytes());
+        let Some(randomness) = T::AuthorVrfHistory::author_vrf_history(block_number) else {
+            return Err(Error::<T>::MissingAuthorVRF.into());
+        };
 
         // Converting block_height to the type accepted by draw_randomness
         let block_number = block_number
@@ -1701,10 +1708,13 @@ pub mod pallet {
                 Error::<T>::ConversionError
             })?;
 
-        let mut sized_digest = [0; 32];
-        sized_digest.copy_from_slice(&digest.as_ref());
+        // HACK: convert an unsized slice to a sized one
+        // SAFETY: we know that the output is 32 bytes since we control the chain config
+        let mut sized_randomness = [0; 32];
+        sized_randomness.copy_from_slice(randomness.as_ref());
+
         // Randomness with the bias
-        let randomness = draw_randomness(&sized_digest, personalization, block_number, entropy);
+        let randomness = draw_randomness(&sized_randomness, personalization, block_number, entropy);
 
         Ok(randomness)
     }

@@ -3,6 +3,14 @@ use alloc::vec::Vec;
 
 use sp_core::blake2_256;
 
+pub trait AuthorVrfHistory<BlockNumber, Hash> {
+    /// Query the AuthorVRF history for a given block.
+    ///
+    /// Returns `None` if the block isn't present,
+    /// this can happen because the block is in the future or past the lookback window.
+    fn author_vrf_history(block_number: BlockNumber) -> Option<Hash>;
+}
+
 /// Specifies a domain for randomness generation.
 #[derive(PartialEq, Eq, Copy, Clone, Debug, Hash)]
 pub enum DomainSeparationTag {
