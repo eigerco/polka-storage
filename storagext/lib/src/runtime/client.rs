@@ -198,13 +198,22 @@ impl Client {
         Call: subxt::tx::Payload,
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
+        let finalized_block_hash = self.legacy_rpc.chain_get_finalized_head().await?;
+        let finalized_block = self
+            .legacy_rpc
+            .chain_get_block(Some(finalized_block_hash))
+            .await?
+            .expect("chain to have info about the finalized head");
+
         let current_nonce = self
             .legacy_rpc
             .system_account_next_index(&account_keypair.account_id())
             .await?;
-        let current_header = self.legacy_rpc.chain_get_header(None).await?.unwrap();
+        // Default used by subxt
+        // https://github.com/paritytech/subxt/blob/f363f77a60271b840e8dfb4f6e2f0f728f5ced06/core/src/config/signed_extensions.rs#L231
+        const TX_VALID_FOR: u64 = 32;
         let ext_params = DefaultExtrinsicParamsBuilder::new()
-            .mortal(&current_header, 8)
+            .mortal(&finalized_block.block.header, TX_VALID_FOR)
             .nonce(current_nonce)
             .build();
 
