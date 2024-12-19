@@ -217,7 +217,7 @@ impl Client {
             .nonce(current_nonce)
             .build();
 
-        let ext: SubmittableExtrinsic<PolkaStorageConfig, OnlineClient<PolkaStorageConfig>> = self
+        let ext = self
             .client
             .tx()
             .create_signed_offline(call, account_keypair, ext_params)?;
