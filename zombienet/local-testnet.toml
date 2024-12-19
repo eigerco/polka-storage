@@ -21,7 +21,7 @@ id = 1000
 
 # run charlie as parachain collator
 [[parachains.collators]]
-args = ["--detailed-log-output", "-lparachain=debug,xcm=trace,runtime=trace"]
+args = ["--detailed-log-output", "--pool-type=fork-aware", "-lparachain=debug,xcm=trace,runtime=trace,txpool=debug,basic-authorship=debug"]
 command = "target/release/polka-storage-node"
 name = "charlie"
 validator = true

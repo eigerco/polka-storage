@@ -30,7 +30,7 @@ use sp_core::{crypto::KeyTypeId, hex2array, Get, OpaqueMetadata};
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
-    create_runtime_str, generic, impl_opaque_keys,
+    generic, impl_opaque_keys,
     traits::{BlakeTwo256, Block as BlockT, IdentifyAccount, Verify},
     transaction_validity::{TransactionSource, TransactionValidity},
     ApplyExtrinsicResult, MultiSignature,
@@ -159,14 +159,14 @@ impl_opaque_keys! {
 
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-    spec_name: create_runtime_str!("polka-storage-runtime"),
-    impl_name: create_runtime_str!("polka-storage-runtime"),
+    spec_name: alloc::borrow::Cow::Borrowed("polka-storage-runtime"),
+    impl_name: alloc::borrow::Cow::Borrowed("polka-storage-runtime"),
     authoring_version: 1,
     spec_version: 1,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
-    state_version: 1,
+    system_version: 1,
 };
 
 #[docify::export]
@@ -611,7 +611,7 @@ impl_runtime_apis! {
 
         fn dispatch_benchmark(
             config: frame_benchmarking::BenchmarkConfig
-        ) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
+        ) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, alloc::string::String> {
             use frame_benchmarking::{BenchmarkError, Benchmarking, BenchmarkBatch};
             use super::*;
 

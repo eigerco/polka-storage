@@ -1,6 +1,6 @@
 use codec::Encode;
 use sp_inherents::{InherentIdentifier, IsFatalError};
-use sp_runtime::RuntimeString;
+extern crate alloc;
 
 /// BABE VRF Inherent Identifier
 pub const INHERENT_IDENTIFIER: InherentIdentifier = *b"babe_vrf";
@@ -8,7 +8,7 @@ pub const INHERENT_IDENTIFIER: InherentIdentifier = *b"babe_vrf";
 #[derive(Encode)]
 #[cfg_attr(feature = "std", derive(Debug, codec::Decode))]
 pub enum InherentError {
-    Other(RuntimeString),
+    Other(alloc::borrow::Cow<'static, str>),
 }
 
 impl IsFatalError for InherentError {
