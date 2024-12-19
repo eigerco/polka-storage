@@ -90,7 +90,9 @@ impl BootstrapSwarm {
                         );
                     }
                 }
-                _other => {}
+                other => {
+                    tracing::debug!("Unhandled event: {other:?}");
+                }
             }
         }
         Ok(())
