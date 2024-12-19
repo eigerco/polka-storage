@@ -4,7 +4,9 @@ use std::{
 };
 
 use anyhow::Result;
-use peer_resolver::{DiscoveryBehaviourEvent, DiscoverySwarm, Event, Multiaddr, PeerId, SwarmEvent};
+use peer_resolver::{
+    DiscoveryBehaviourEvent, DiscoverySwarm, Event, Multiaddr, PeerId, SwarmEvent,
+};
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -80,7 +82,7 @@ async fn main() -> Result<()> {
                             }
                         }
                     }
-                    _other => {}
+                    other => { tracing::debug!("Unhandled event: {other:?}"); }
                 }
             },
             // Re-request discovery from the rendezvous point

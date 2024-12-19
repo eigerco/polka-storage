@@ -23,7 +23,11 @@ impl RegisterSwarm {
     /// Create a new [`RegisterSwarm`] with the given keypair.
     /// The namespace is stored for later use.
     /// The given timeout is set for the idle connection timeout
-    pub fn new(keypair: Keypair, namespace: String, timeout: u64) -> Result<RegisterSwarm, ResolverError> {
+    pub fn new(
+        keypair: Keypair,
+        namespace: String,
+        timeout: u64,
+    ) -> Result<RegisterSwarm, ResolverError> {
         let swarm = libp2p::SwarmBuilder::with_existing_identity(keypair)
             .with_tokio()
             .with_tcp(
@@ -116,7 +120,9 @@ impl RegisterSwarm {
                     );
                     return Err(ResolverError::RegistrationFailed(error));
                 }
-                _other => {}
+                other => {
+                    tracing::debug!("Unhandled event: {other:?}");
+                }
             }
         }
 

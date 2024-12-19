@@ -1,7 +1,14 @@
 # Peer Resolver
 
 This library is intended for peer discovery in a libp2p network.
-It abstracts libp2p [swarms][1], a bootstrap and client swarm, using the [rendezvous protocol][2] for peer discovery.
+It abstracts libp2p [swarms][1], a bootstrap, register and discovery swarm.
+
+## Protocols
+
+The peer resolver library uses two protocol to resolve peer information.
+The [identify protocol][10] is used by new peers during registration to exchange information such as public keys, known network addresses and peer IDs.
+The [rendezvous protocol][2] is used by bootstrap and discovery swarms.
+The bootstrap swarm uses this protocol to register new peers and serve discoveries to requesting peers.
 
 ## Bootstrap Swarm
 
