@@ -11,15 +11,21 @@ Check the [bootstrap example][7] on how to use the peer resolver library to run 
 
 ## Registration
 
-todo!()
+The register swarm is used to register the peer with the rendezvous point.
+The registration lifetime can be set using the optional `ttl` argument.
+If the argument is not set it will default to the minimum lifetime of 2 hours.
+The maximum lifetime of the registration is 72 hours.
+These lifetime values are described in libp2p's [registration lifetime docs][6].
+By calling the `register` function with the rendezvous point information it dials in to the address, sends the [identify protocol][10] message, registers its external address and registers with the rendezvous point.
+Check the [register example][8] on how to use the peer resolver library to run a register swarm.
 
 ## Discovery
 
-The client swarm exposes several functions that aid in peer discovery.
+The discover swarm exposes several functions that aid in peer discovery.
 The `dial` function allows peers to dial into the rendezvous point address and establish a connection.
-Once the connection is established, the client uses the `discover` function to request peer information from the bootstrap node.
-The bootstrap node respond with the `Discovered` event, this event contains all the peers that are registered in the network and a new rendezvous cookie. For continuous discovery, the client swarm should call `replace_cookie` function with the cookie captured in the `Discovered` event.
-In the [discovery example][9], you can see how a client swarm can be used to build and update a database with known and active peers.
+Once the connection is established, the swarm uses the `discover` function to request peer information from the bootstrap node.
+The bootstrap node respond with the `Discovered` event, this event contains all the peers that are registered in the network and a new rendezvous cookie. For continuous discovery, the discovery swarm should call `replace_cookie` function with the cookie captured in the `Discovered` event.
+In the [discovery example][9], you can see how a discovery swarm can be used to build and update a database with known and active peers.
 
 [1]: https://docs.rs/libp2p/latest/libp2p/struct.Swarm.html
 [2]: https://github.com/libp2p/specs/blob/master/rendezvous/README.md
@@ -30,3 +36,4 @@ In the [discovery example][9], you can see how a client swarm can be used to bui
 [7]: ./examples/bootstrap.rs
 [8]: ./examples/register.rs
 [9]: ./examples/discovery.rs
+[10]: https://github.com/libp2p/specs/blob/master/identify/README.md
