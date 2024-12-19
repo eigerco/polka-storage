@@ -61,7 +61,7 @@ use super::{
     MAXIMUM_BLOCK_WEIGHT, MICROUNIT, NORMAL_DISPATCH_RATIO, RELAY_CHAIN_SLOT_DURATION_MILLIS,
     SLOT_DURATION, UNINCLUDED_SEGMENT_CAPACITY, VERSION,
 };
-use crate::{BabeDataGetter, Randomness, DAYS, MINUTES};
+use crate::{BabeDataGetter, DAYS, MINUTES};
 
 parameter_types! {
     pub const Version: RuntimeVersion = VERSION;
