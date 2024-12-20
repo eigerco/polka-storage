@@ -6,7 +6,7 @@ use libp2p::{
     noise,
     rendezvous::{client, Cookie},
     swarm::{NetworkBehaviour, SwarmEvent},
-    tcp, yamux, Multiaddr, PeerId, Swarm,
+    tcp, yamux, Multiaddr, PeerId, Swarm, SwarmBuilder,
 };
 
 use crate::error::ResolverError;
@@ -28,8 +28,12 @@ pub struct DiscoverySwarm {
 impl DiscoverySwarm {
     /// Create a new [`DiscoverySwarm`] with the given keypair.
     /// The given timeout is set for the idle connection timeout
-    pub fn new(keypair: Keypair, timeout: u64) -> Result<DiscoverySwarm, ResolverError> {
-        let swarm = libp2p::SwarmBuilder::with_existing_identity(keypair)
+    pub fn new(
+        keypair_bytes: impl AsMut<[u8]>,
+        timeout: u64,
+    ) -> Result<DiscoverySwarm, ResolverError> {
+        let keypair = Keypair::ed25519_from_bytes(keypair_bytes)?;
+        let swarm = SwarmBuilder::with_existing_identity(keypair)
             .with_tokio()
             .with_tcp(
                 tcp::Config::default(),

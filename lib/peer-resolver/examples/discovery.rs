@@ -24,9 +24,9 @@ async fn main() -> Result<()> {
         "12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN".parse::<PeerId>()?;
     let rendezvous_point_address = "/ip4/127.0.0.1/tcp/62649".parse::<Multiaddr>()?;
     // Results in peer id 12D3KooWJWoaqZhDaoEFshF7Rh1bpY9ohihFhzcW6d69Lr2NASuq
-    let keypair = libp2p::identity::Keypair::ed25519_from_bytes([2; 32]).unwrap();
+    let keypair_bytes = [2; 32];
     // Create a new discovery swarm with the above keypair and a timeout of 10 seconds
-    let mut swarm = DiscoverySwarm::new(keypair, 10)?;
+    let mut swarm = DiscoverySwarm::new(keypair_bytes, 10)?;
     // Set discovery tick for discover request at 2 seconds
     let mut discover_tick = tokio::time::interval(Duration::from_secs(2));
     // Use hashmap as a mock database for peer information

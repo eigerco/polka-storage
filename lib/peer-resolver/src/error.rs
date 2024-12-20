@@ -1,4 +1,7 @@
-use libp2p::rendezvous::{client::RegisterError, ErrorCode, NamespaceTooLong};
+use libp2p::{
+    identity::DecodingError,
+    rendezvous::{client::RegisterError, ErrorCode, NamespaceTooLong},
+};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -17,4 +20,6 @@ pub enum ResolverError {
     RegisterError(#[from] RegisterError),
     #[error("Registration failed: {0:?}")]
     RegistrationFailed(ErrorCode),
+    #[error(transparent)]
+    KeyDecodeError(#[from] DecodingError),
 }

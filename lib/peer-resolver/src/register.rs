@@ -7,7 +7,7 @@ use libp2p::{
     noise, rendezvous,
     rendezvous::Namespace,
     swarm::{NetworkBehaviour, SwarmEvent},
-    tcp, yamux, Multiaddr, PeerId, Swarm,
+    tcp, yamux, Multiaddr, PeerId, Swarm, SwarmBuilder,
 };
 
 use crate::error::ResolverError;
@@ -28,11 +28,12 @@ impl RegisterSwarm {
     /// The namespace is stored for later use.
     /// The given timeout is set for the idle connection timeout
     pub fn new(
-        keypair: Keypair,
+        keypair_bytes: impl AsMut<[u8]>,
         namespace: String,
         timeout: u64,
     ) -> Result<RegisterSwarm, ResolverError> {
-        let swarm = libp2p::SwarmBuilder::with_existing_identity(keypair)
+        let keypair = Keypair::ed25519_from_bytes(keypair_bytes)?;
+        let swarm = SwarmBuilder::with_existing_identity(keypair)
             .with_tokio()
             .with_tcp(
                 tcp::Config::default(),
@@ -131,5 +132,12 @@ impl RegisterSwarm {
         }
 
         Ok(())
+    }
+
+    pub async fn unregister(&mut self, rendezvous_point: PeerId) {
+        self.swarm
+            .behaviour_mut()
+            .rendezvous
+            .unregister(self.namespace.clone(), rendezvous_point)
     }
 }
