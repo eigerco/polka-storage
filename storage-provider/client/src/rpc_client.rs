@@ -4,6 +4,8 @@
 //! this module covers that, furthermore, the client it provides
 //! supports both WebSockets and HTTP.
 
+use std::time::Duration;
+
 use jsonrpsee::{
     core::{
         client::{BatchResponse, ClientT, Subscription, SubscriptionClientT},
@@ -21,14 +23,23 @@ pub enum PolkaStorageRpcClient {
     Https(jsonrpsee::http_client::HttpClient),
 }
 
+/// RPC commands which submit an extrinsic wait for finalization.
+/// Finalization takes ~60secs (the default request timeout), however when reorg happens, it's two times that.
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
+
 impl PolkaStorageRpcClient {
     pub async fn new(url: &Url) -> Result<Self, jsonrpsee::core::ClientError> {
         match url.scheme() {
             "ws" | "wss" => Ok(PolkaStorageRpcClient::Ws(
-                WsClientBuilder::new().build(url).await?,
+                WsClientBuilder::new()
+                    .request_timeout(REQUEST_TIMEOUT)
+                    .build(url)
+                    .await?,
             )),
             "http" | "https" => Ok(PolkaStorageRpcClient::Https(
-                HttpClientBuilder::new().build(url)?,
+                HttpClientBuilder::new()
+                    .request_timeout(REQUEST_TIMEOUT)
+                    .build(url)?,
             )),
             scheme => Err(jsonrpsee::core::ClientError::Custom(format!(
                 "unsupported url scheme: {}",
