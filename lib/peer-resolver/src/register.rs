@@ -1,10 +1,14 @@
 use std::time::Duration;
 
-use libp2p::futures::StreamExt;
-use libp2p::identity::Keypair;
-use libp2p::rendezvous::Namespace;
-use libp2p::swarm::{NetworkBehaviour, SwarmEvent};
-use libp2p::{identify, noise, rendezvous, tcp, yamux, Multiaddr, PeerId, Swarm};
+use libp2p::{
+    futures::StreamExt,
+    identify,
+    identity::Keypair,
+    noise, rendezvous,
+    rendezvous::Namespace,
+    swarm::{NetworkBehaviour, SwarmEvent},
+    tcp, yamux, Multiaddr, PeerId, Swarm,
+};
 
 use crate::error::ResolverError;
 
