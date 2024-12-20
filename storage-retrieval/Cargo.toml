@@ -1,0 +1,32 @@
+[package]
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+name = "storage-retrieval"
+repository.workspace = true
+version = "0.1.0"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+beetswap = { workspace = true }
+blockstore = { workspace = true }
+cid = { workspace = true }
+futures = { workspace = true }
+libp2p = { workspace = true, features = ["macros", "noise", "tcp", "tokio", "yamux"] }
+libp2p-core = { workspace = true }
+libp2p-swarm = { workspace = true }
+mater = { workspace = true }
+polka-index = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "sync", "time"] }
+tracing = { workspace = true }
+
+[dev-dependencies]
+# multihash = "0.19.3"
+multihash-codetable = { workspace = true, features = ["sha2"] }
+tracing-appender = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }

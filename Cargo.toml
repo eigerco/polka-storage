@@ -22,6 +22,7 @@ members = [
   "storage-provider/client",
   "storage-provider/common",
   "storage-provider/server",
+  "storage-retrieval",
   "storage/polka-index",
   "storagext/cli",
   "storagext/lib",
@@ -51,8 +52,10 @@ async-stream = "0.3.6"
 async-trait = "0.1.80"
 axum = "0.7.5"
 base64 = "0.22.1"
+beetswap = "0.4.0"
 bitflags = "2.5.0"
 blake2b_simd = { version = "1.0.2", default-features = false }
+blockstore = "0.7.1"
 bls12_381 = "0.8"
 bs58 = "0.5.1"
 byteorder = "1.5.0"
@@ -78,6 +81,9 @@ ipld-core = "0.4.1"
 ipld-dagpb = "0.2.1"
 itertools = "0.13.0"
 jsonrpsee = { version = "0.24.7" }
+libp2p = "0.54.1"
+libp2p-core = "0.42.0"
+libp2p-swarm = "0.45.1"
 log = { version = "0.4.21", default-features = false }
 multihash-codetable = { version = "0.1.1", default-features = false }
 num-bigint = { version = "0.4.5", default-features = false }
@@ -136,6 +142,7 @@ pallet-market = { path = "pallets/market", default-features = false }
 pallet-proofs = { path = "pallets/proofs", default-features = false }
 pallet-randomness = { path = "pallets/randomness", default-features = false }
 pallet-storage-provider = { path = "pallets/storage-provider", default-features = false }
+polka-index = { path = "storage/polka-index" }
 polka-storage-proofs = { path = "lib/polka-storage-proofs", default-features = false }
 polka-storage-provider-common = { path = "storage-provider/common" }
 polka-storage-runtime = { path = "runtime" }
