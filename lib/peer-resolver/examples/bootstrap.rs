@@ -1,5 +1,7 @@
 //! This example starts a bootstrap node (rendezvous point).
 //! It listened for incoming connections and handles peer registration and discovery.
+use std::time::Duration;
+
 use anyhow::Result;
 use peer_resolver::BootstrapSwarm;
 use tracing_subscriber::EnvFilter;
@@ -14,7 +16,7 @@ async fn main() -> Result<()> {
     // used as the rendezvous point by the other peer examples.
     let keypair_bytes = [0; 32];
 
-    let mut swarm = BootstrapSwarm::new(keypair_bytes, 10)?;
+    let mut swarm = BootstrapSwarm::new(keypair_bytes, Duration::from_secs(10))?;
 
     swarm.run("/ip4/0.0.0.0/tcp/62649".parse()?).await?;
 

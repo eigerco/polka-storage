@@ -33,7 +33,7 @@ impl RegisterSwarm {
     pub fn new<K>(
         keypair_bytes: K,
         namespace: String,
-        timeout: u64,
+        timeout: Duration,
     ) -> Result<RegisterSwarm, ResolverError>
     where
         K: AsMut<[u8]>,
@@ -55,7 +55,7 @@ impl RegisterSwarm {
                 rendezvous: rendezvous::client::Behaviour::new(key.clone()),
             })
             .map_err(|_| ResolverError::InvalidBehaviourConfig)?
-            .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(Duration::from_secs(timeout)))
+            .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(timeout))
             .build();
         Ok(RegisterSwarm {
             swarm,

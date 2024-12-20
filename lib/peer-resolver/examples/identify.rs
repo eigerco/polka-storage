@@ -1,5 +1,7 @@
 //! This example registers a peer with the rendezvous point,
 //! allowing the peer to be discovered by other peers.
+use std::time::Duration;
+
 use anyhow::Result;
 use peer_resolver::{Multiaddr, PeerId, RegisterSwarm, MAX_TTL};
 use tracing_subscriber::EnvFilter;
@@ -16,7 +18,7 @@ async fn main() -> Result<()> {
     // Results in peer id 12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5
     let keypair_bytes = [1; 32];
 
-    let mut swarm = RegisterSwarm::new(keypair_bytes, "rendezvous".to_string(), 10)?;
+    let mut swarm = RegisterSwarm::new(keypair_bytes, "rendezvous".to_string(), Duration::from_secs(10))?;
 
     swarm
         .register(rendezvous_point, rendezvous_point_address, Some(MAX_TTL))

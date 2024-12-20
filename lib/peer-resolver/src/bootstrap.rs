@@ -28,7 +28,7 @@ pub struct BootstrapSwarm {
 
 impl BootstrapSwarm {
     /// Create a new [`BootstrapSwarm`] with the given keypair.
-    pub fn new<K>(keypair_bytes: K, timeout: u64) -> Result<BootstrapSwarm, ResolverError>
+    pub fn new<K>(keypair_bytes: K, timeout: Duration) -> Result<BootstrapSwarm, ResolverError>
     where
         K: AsMut<[u8]>,
     {
@@ -51,7 +51,7 @@ impl BootstrapSwarm {
                 )),
             })
             .map_err(|_| ResolverError::InvalidBehaviourConfig)?
-            .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(Duration::from_secs(timeout)))
+            .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(timeout))
             .build();
 
         Ok(BootstrapSwarm { swarm })

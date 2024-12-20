@@ -28,7 +28,7 @@ pub struct DiscoverySwarm {
 impl DiscoverySwarm {
     /// Create a new [`DiscoverySwarm`] with the given keypair.
     /// The given timeout is set for the idle connection timeout
-    pub fn new<K>(keypair_bytes: K, timeout: u64) -> Result<DiscoverySwarm, ResolverError>
+    pub fn new<K>(keypair_bytes: K, timeout: Duration) -> Result<DiscoverySwarm, ResolverError>
     where
         K: AsMut<[u8]>,
     {
@@ -45,7 +45,7 @@ impl DiscoverySwarm {
                 rendezvous: client::Behaviour::new(key.clone()),
             })
             .map_err(|_| ResolverError::InvalidBehaviourConfig)?
-            .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(Duration::from_secs(timeout)))
+            .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(timeout))
             .build();
 
         Ok(DiscoverySwarm {
