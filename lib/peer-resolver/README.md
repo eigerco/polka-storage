@@ -34,6 +34,34 @@ Once the connection is established, the swarm uses the `discover` function to re
 The bootstrap node respond with the `Discovered` event, this event contains all the peers that are registered in the network and a new rendezvous cookie. For continuous discovery, the discovery swarm should call `replace_cookie` function with the cookie captured in the `Discovered` event.
 In the [discovery example][9], you can see how a discovery swarm can be used to build and update a database with known and active peers.
 
+## Examples
+
+To run the examples, follow these steps:
+
+1. Start the rendezvous point by running the following command:
+
+```bash
+RUST_LOG=info cargo run --example bootstrap
+```
+
+This command starts the rendezvous server, which will listen for incoming connections and handle peer registrations and discovery.
+
+2. Register a peer by running the following command:
+
+```bash
+RUST_LOG=info cargo run --example register
+```
+
+This command registers a peer with the rendezvous server, allowing the peer to be discovered by other peers.
+
+3. Try to discover the registered peer from the previous step by running the following command:
+
+```bash
+RUST_LOG=info cargo run --example discovery
+```
+
+This command attempts to discover the registered peer using the rendezvous server. If successful, it will print the details of the discovered peer.
+
 [1]: https://docs.rs/libp2p/latest/libp2p/struct.Swarm.html
 [2]: https://github.com/libp2p/specs/blob/master/rendezvous/README.md
 [3]: https://docs.rs/libp2p/latest/libp2p/rendezvous/server/struct.Behaviour.html
