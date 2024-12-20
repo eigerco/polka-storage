@@ -3,9 +3,10 @@ use std::time::Duration;
 use libp2p::{
     futures::StreamExt,
     identity::Keypair,
+    noise,
     rendezvous::{client, Cookie},
     swarm::{NetworkBehaviour, SwarmEvent},
-    {noise, tcp, yamux, Multiaddr, PeerId, Swarm},
+    tcp, yamux, Multiaddr, PeerId, Swarm,
 };
 
 use crate::error::ResolverError;
