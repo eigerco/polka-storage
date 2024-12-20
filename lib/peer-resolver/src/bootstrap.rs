@@ -46,7 +46,7 @@ impl BootstrapSwarm {
                     rendezvous::server::Config::default(),
                 ),
                 identify: identify::Behaviour::new(identify::Config::new(
-                    "rendezvous-example/1.0.0".to_string(),
+                    "identify/1.0.0".to_string(),
                     key.public(),
                 )),
             })

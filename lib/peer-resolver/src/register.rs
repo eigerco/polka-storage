@@ -49,7 +49,7 @@ impl RegisterSwarm {
             .map_err(|_| ResolverError::InvalidTCPConfig)?
             .with_behaviour(|key| RegisterBehaviour {
                 identify: identify::Behaviour::new(identify::Config::new(
-                    "rendezvous-example/1.0.0".to_string(),
+                    "identify/1.0.0".to_string(),
                     key.public(),
                 )),
                 rendezvous: rendezvous::client::Behaviour::new(key.clone()),
