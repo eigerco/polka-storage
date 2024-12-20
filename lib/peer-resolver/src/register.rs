@@ -18,8 +18,11 @@ pub struct RegisterBehaviour {
     rendezvous: rendezvous::client::Behaviour,
 }
 
+/// A swarm used to register with a rendezvous point.
 pub struct RegisterSwarm {
+    /// A swarm containing the [`RegisterBehaviour`]
     swarm: Swarm<RegisterBehaviour>,
+    /// The namespace that this swarm is registered to.
     namespace: Namespace,
 }
 
@@ -60,6 +63,8 @@ impl RegisterSwarm {
         })
     }
 
+    /// Register the peer with the rendezvous point.
+    /// The ttl is how long the peer will remain registered in seconds.
     pub async fn register(
         &mut self,
         rendezvous_point: PeerId,
@@ -137,6 +142,8 @@ impl RegisterSwarm {
         Ok(())
     }
 
+    /// Unregister from the rendezvous point,
+    /// removing this peer from the namespace passed in in the new function.
     pub async fn unregister(&mut self, rendezvous_point: PeerId) {
         self.swarm
             .behaviour_mut()
