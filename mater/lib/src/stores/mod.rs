@@ -1,7 +1,7 @@
 mod blockstore;
 mod filestore;
 
-pub use blockstore::Blockstore;
+pub use blockstore::{Blockstore, InMemory};
 pub use filestore::create_filestore;
 
 /// The default block size, as defined in

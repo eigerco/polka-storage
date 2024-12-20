@@ -3,13 +3,14 @@ use std::{str::FromStr, sync::Arc, time::Duration};
 use anyhow::Result;
 use blockstore::{
     block::{Block, CidError},
-    Blockstore, InMemoryBlockstore,
+    InMemoryBlockstore,
 };
 use cid::Cid;
 use libp2p::Multiaddr;
+use mater::{Blockstore, CarV2Reader, InMemory};
 use multihash_codetable::{Code, MultihashDigest};
 use storage_retrieval::{client::Client, server::Server};
-use tokio::time::sleep;
+use tokio::{fs::File, time::sleep};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -24,29 +25,36 @@ async fn main() -> Result<()> {
 
     // TODO: Blocks should not be hold in memory. Implement blockstore that can
     // source blocks directly from sectors on disk with the help of an index.
-    let blockstore = Arc::new(InMemoryBlockstore::<64>::new());
-    blockstore.put(StringBlock("12345".to_string())).await?;
+    let file = File::open("./examples/test-data-big.car").await?;
+    let car_reader = CarV2Reader::new(file);
+    let mut blockstore = Blockstore::new();
+    blockstore.read_car(car_reader).await?;
+
+    let blockstore: InMemory = blockstore.into();
+
+    // let blockstore = Arc::new(InMemoryBlockstore::<64>::new());
+    // blockstore.put(StringBlock("12345".to_string())).await?;
 
     // Setup server
-    let server = Server::new(blockstore)?;
-    let listener: Multiaddr = format!("/ip4/127.0.0.1/tcp/8989").parse()?;
+    let server = Server::new(Arc::new(blockstore))?;
+    let address: Multiaddr = format!("/ip4/127.0.0.1/tcp/8989").parse()?;
 
     tokio::spawn({
-        let listener = listener.clone();
+        let address = address.clone();
         async move {
-            let _ = server.run(vec![listener]).await;
+            let _ = server.run(vec![address]).await;
         }
     });
 
     // TODO: Implement blockstore that persist blocks directly to disk as car file.
     let blockstore = Arc::new(InMemoryBlockstore::<64>::new());
-    let client = Client::new(blockstore, vec![listener])?;
+    let client = Client::new(blockstore, vec![address])?;
 
     // Payload cid of the car file we want to fetch
-    // let payload_cid =
-    //     Cid::from_str("bafkreiechz74drg7tg5zswmxf4g2dnwhemlwdv7e3l5ypehdqdwaoyz3dy").unwrap();
     let payload_cid =
-        Cid::from_str("bafkreiczsrdrvoybcevpzqmblh3my5fu6ui3tgag3jm3hsxvvhaxhswpyu").unwrap();
+        Cid::from_str("bafkreiechz74drg7tg5zswmxf4g2dnwhemlwdv7e3l5ypehdqdwaoyz3dy").unwrap();
+    // let payload_cid =
+    //     Cid::from_str("bafkreiczsrdrvoybcevpzqmblh3my5fu6ui3tgag3jm3hsxvvhaxhswpyu").unwrap();
     client
         .download(payload_cid, sleep(Duration::from_secs(10)))
         .await?;

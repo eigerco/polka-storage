@@ -1,12 +1,15 @@
 // NOTE(@jmg-duarte,28/05/2024): the blockstore can (and should) evolve to support other backends.
 // At the time of writing, there is no need invest more time in it because the current PR(#25) is delayed enough.
 
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Mutex,
+};
 
 use bytes::Bytes;
 use indexmap::IndexMap;
 use integer_encoding::VarInt;
-use ipld_core::cid::Cid;
+use ipld_core::cid::{Cid, CidGeneric};
 use sha2::{Digest, Sha256};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_stream::StreamExt;
@@ -14,9 +17,72 @@ use tokio_util::io::ReaderStream;
 
 use super::{DEFAULT_BLOCK_SIZE, DEFAULT_TREE_WIDTH};
 use crate::{
-    multicodec::SHA_256_CODE, unixfs::stream_balanced_tree, CarV1Header, CarV2Header, CarV2Writer,
-    Error, Index, IndexEntry, MultihashIndexSorted, SingleWidthIndex,
+    multicodec::SHA_256_CODE, unixfs::stream_balanced_tree, CarV1Header, CarV2Header, CarV2Reader,
+    CarV2Writer, Error, Index, IndexEntry, MultihashIndexSorted, SingleWidthIndex,
 };
+
+/// Thread-safe in memory blockstore
+pub struct InMemory(Mutex<Blockstore>);
+
+impl From<Blockstore> for InMemory {
+    fn from(value: Blockstore) -> Self {
+        Self(Mutex::new(value))
+    }
+}
+
+impl InMemory {
+    /// Create a new InMemory blockstore
+    pub fn new() -> Self {
+        Self(Mutex::new(Blockstore::new()))
+    }
+}
+
+impl blockstore::Blockstore for InMemory {
+    async fn get<const S: usize>(
+        &self,
+        cid: &CidGeneric<S>,
+    ) -> Result<Option<Vec<u8>>, blockstore::Error> {
+        // Convert to the cid that the store uses
+        let cid = Cid::try_from(cid.to_bytes()).map_err(|_err| blockstore::Error::CidTooLarge)?;
+
+        let inner_lock = self
+            .0
+            .lock()
+            .map_err(|err| blockstore::Error::FatalDatabaseError(err.to_string()))?;
+
+        let block = inner_lock.blocks.get(&cid).map(|b| b.to_vec());
+
+        Ok(block)
+    }
+
+    async fn put_keyed<const S: usize>(
+        &self,
+        cid: &CidGeneric<S>,
+        data: &[u8],
+    ) -> Result<(), blockstore::Error> {
+        // Convert to the cid that the store uses
+        let cid = Cid::try_from(cid.to_bytes()).map_err(|_err| blockstore::Error::CidTooLarge)?;
+
+        let mut inner_lock = self
+            .0
+            .lock()
+            .map_err(|err| blockstore::Error::FatalDatabaseError(err.to_string()))?;
+
+        inner_lock.blocks.insert(cid, Bytes::from(data.to_vec()));
+
+        Ok(())
+    }
+
+    async fn remove<const S: usize>(&self, _cid: &CidGeneric<S>) -> Result<(), blockstore::Error> {
+        // Remove is not supported
+        unreachable!()
+    }
+
+    async fn close(self) -> Result<(), blockstore::Error> {
+        // Nothing to do here
+        Ok(())
+    }
+}
 
 /// The [`Blockstore`] stores pairs of [`Cid`] and [`Bytes`] in memory.
 ///
@@ -79,6 +145,23 @@ impl Blockstore {
             chunk_size: chunk_size.unwrap_or(DEFAULT_BLOCK_SIZE),
             tree_width: tree_width.unwrap_or(DEFAULT_TREE_WIDTH),
         }
+    }
+
+    /// Read the contents of a CARv2 file into the [`Blockstore`].
+    pub async fn read_car<R>(&mut self, mut reader: CarV2Reader<R>) -> Result<(), Error>
+    where
+        R: AsyncRead + Unpin,
+    {
+        reader.read_pragma().await?;
+        reader.read_header().await?;
+        let car_v1_header = reader.read_v1_header().await?;
+        self.root = car_v1_header.roots.first().cloned();
+
+        while let Ok((cid, data)) = reader.read_block().await {
+            self.insert(cid, data.into(), true);
+        }
+
+        Ok(())
     }
 
     /// Fully read the contents of an arbitrary `reader` into the [`Blockstore`],

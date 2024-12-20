@@ -8941,6 +8941,7 @@ version = "0.1.0"
 dependencies = [
  "async-stream",
  "bitflags 2.6.0",
+ "blockstore",
  "byteorder",
  "bytes",
  "criterion",
