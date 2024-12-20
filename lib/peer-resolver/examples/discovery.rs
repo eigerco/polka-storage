@@ -1,3 +1,7 @@
+//! This example attempts to discovery peers registered with the rendezvous point.
+//! It continuously, with an interval of 2 seconds, requests any newly registered
+//! peers information from the rendezvous point.
+//! It will insert or update a hashmap with the peer information as new peer info is discovered.
 use std::{
     collections::{hash_map::Entry, HashMap},
     time::Duration,
@@ -21,13 +25,14 @@ async fn main() -> Result<()> {
     let rendezvous_point_address = "/ip4/127.0.0.1/tcp/62649".parse::<Multiaddr>()?;
     // Results in peer id 12D3KooWJWoaqZhDaoEFshF7Rh1bpY9ohihFhzcW6d69Lr2NASuq
     let keypair = libp2p::identity::Keypair::ed25519_from_bytes([2; 32]).unwrap();
-
+    // Create a new discovery swarm with the above keypair and a timeout of 10 seconds
     let mut swarm = DiscoverySwarm::new(keypair, 10)?;
     // Set discovery tick for discover request at 2 seconds
     let mut discover_tick = tokio::time::interval(Duration::from_secs(2));
     // Use hashmap as a mock database for peer information
     let mut registration_map = HashMap::new();
 
+    // Dial in to the rendezvous point.
     swarm.dial(rendezvous_point_address)?;
     loop {
         tokio::select! {
@@ -57,6 +62,7 @@ async fn main() -> Result<()> {
 
                         // Check registrations
                         for registration in &registrations {
+                            // Get peer ID from the registration record
                             let peer_id = registration.record.peer_id();
                             // skip self
                             if &peer_id == swarm.local_peer_id() {
@@ -67,6 +73,9 @@ async fn main() -> Result<()> {
                             // Enter new registration in the 'db' and update existing if anything changed.
                             match registration_map.entry(peer_id) {
                                 Entry::Occupied(e) => {
+                                    // Peer is already registered.
+                                    // Check if the address is already contained in the map.
+                                    // Update the address if needed.
                                     let known_addresses: &mut Vec<Multiaddr> = e.into_mut();
                                     for address in addresses {
                                         if !known_addresses.contains(address) {
@@ -76,6 +85,7 @@ async fn main() -> Result<()> {
                                     }
                                 }
                                 Entry::Vacant(e) => {
+                                    // Add the new peer to the mapping.
                                     tracing::info!(%peer_id, "New peer entered with addresses {addresses:#?}");
                                     e.insert(addresses.to_vec());
                                 }
@@ -85,7 +95,7 @@ async fn main() -> Result<()> {
                     other => { tracing::debug!("Unhandled event: {other:?}"); }
                 }
             },
-            // Re-request discovery from the rendezvous point
+            // Re-request discovery from the rendezvous point after 2 second interval
             _ = discover_tick.tick(), if swarm.cookie().is_some() => swarm.discover(rendezvous_point)
         }
     }

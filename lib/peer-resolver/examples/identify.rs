@@ -1,3 +1,5 @@
+//! This example registers a peer with the rendezvous point,
+//! allowing the peer to be discovered by other peers.
 use anyhow::Result;
 use peer_resolver::{Multiaddr, PeerId, RegisterSwarm, MAX_TTL};
 use tracing_subscriber::EnvFilter;

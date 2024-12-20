@@ -49,7 +49,7 @@ This command starts the rendezvous server, which will listen for incoming connec
 2. Register a peer by running the following command:
 
 ```bash
-RUST_LOG=info cargo run --example register
+RUST_LOG=info cargo run --example identify
 ```
 
 This command registers a peer with the rendezvous server, allowing the peer to be discovered by other peers.
@@ -60,7 +60,8 @@ This command registers a peer with the rendezvous server, allowing the peer to b
 RUST_LOG=info cargo run --example discovery
 ```
 
-This command attempts to discover the registered peer using the rendezvous server. If successful, it will print the details of the discovered peer.
+This command attempts to continuously discover the registered peer using the rendezvous server at an interval of 2 seconds.
+Any newly registered peers will be logged.
 
 [1]: https://docs.rs/libp2p/latest/libp2p/struct.Swarm.html
 [2]: https://github.com/libp2p/specs/blob/master/rendezvous/README.md

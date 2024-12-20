@@ -1,3 +1,5 @@
+//! This example starts a bootstrap node (rendezvous point).
+//! It listened for incoming connections and handles peer registration and discovery.
 use anyhow::Result;
 use peer_resolver::BootstrapSwarm;
 use tracing_subscriber::EnvFilter;
