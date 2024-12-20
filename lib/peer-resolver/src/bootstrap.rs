@@ -28,10 +28,10 @@ pub struct BootstrapSwarm {
 
 impl BootstrapSwarm {
     /// Create a new [`BootstrapSwarm`] with the given keypair.
-    pub fn new(
-        keypair_bytes: impl AsMut<[u8]>,
-        timeout: u64,
-    ) -> Result<BootstrapSwarm, ResolverError> {
+    pub fn new<K>(keypair_bytes: K, timeout: u64) -> Result<BootstrapSwarm, ResolverError>
+    where
+        K: AsMut<[u8]>,
+    {
         let keypair = Keypair::ed25519_from_bytes(keypair_bytes)?;
         let swarm = SwarmBuilder::with_existing_identity(keypair)
             .with_tokio()

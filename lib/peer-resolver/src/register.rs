@@ -27,11 +27,14 @@ impl RegisterSwarm {
     /// Create a new [`RegisterSwarm`] with the given keypair.
     /// The namespace is stored for later use.
     /// The given timeout is set for the idle connection timeout
-    pub fn new(
-        keypair_bytes: impl AsMut<[u8]>,
+    pub fn new<K>(
+        keypair_bytes: K,
         namespace: String,
         timeout: u64,
-    ) -> Result<RegisterSwarm, ResolverError> {
+    ) -> Result<RegisterSwarm, ResolverError>
+    where
+        K: AsMut<[u8]>,
+    {
         let keypair = Keypair::ed25519_from_bytes(keypair_bytes)?;
         let swarm = SwarmBuilder::with_existing_identity(keypair)
             .with_tokio()
