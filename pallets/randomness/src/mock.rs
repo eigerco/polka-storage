@@ -1,10 +1,11 @@
-use frame_support::{derive_impl, traits::OnFinalize};
-use frame_system::{mocking::MockBlock, RawOrigin};
-use sp_runtime::{
-    traits::{Hash, Header},
-    BuildStorage,
+use frame_support::{
+    derive_impl,
+    traits::{OnFinalize, OnInitialize},
 };
+use frame_system::{mocking::MockBlock, RawOrigin};
+use sp_runtime::{traits::Hash, BuildStorage};
 
+use crate as pallet_randomness;
 use crate::GetAuthorVrf;
 
 // Configure a mock runtime to test the pallet.
@@ -27,7 +28,7 @@ mod test_runtime {
     #[runtime::pallet_index(0)]
     pub type System = frame_system;
     #[runtime::pallet_index(1)]
-    pub type RandomnessModule = crate;
+    pub type RandomnessModule = pallet_randomness;
 }
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
@@ -38,6 +39,7 @@ impl frame_system::Config for Test {
 
 impl crate::Config for Test {
     type AuthorVrfGetter = DummyVrf<Self>;
+    type WeightInfo = ();
 }
 
 pub struct DummyVrf<C>(core::marker::PhantomData<C>)
@@ -53,37 +55,26 @@ where
     }
 }
 
-// Build genesis storage according to the mock runtime.
+/// Build genesis storage according to the mock runtime.
+// Linter complains even though it's not true, it's used in the benchmarks
+#[allow(unused)]
 pub fn new_test_ext() -> sp_io::TestExternalities {
     let t = frame_system::GenesisConfig::<Test>::default()
         .build_storage()
         .unwrap()
         .into();
-    let mut ext = sp_io::TestExternalities::new(t);
-    ext.execute_with(|| System::set_block_number(1));
-    ext
+    sp_io::TestExternalities::new(t)
 }
 
 /// Run until a particular block.
 pub fn run_to_block(n: u64) {
-    let mut parent_hash = System::parent_hash();
-
-    while System::block_number() <= n {
-        let block_number = System::block_number();
-
+    while System::block_number() < n {
         if System::block_number() > 1 {
-            let finalizing_block_number = block_number - 1;
-            System::on_finalize(finalizing_block_number);
+            System::on_finalize(System::block_number());
         }
+        System::set_block_number(System::block_number() + 1);
+        System::on_initialize(System::block_number());
 
-        // It's ok under test
         RandomnessModule::set_author_vrf(RawOrigin::None.into()).unwrap();
-
-        System::initialize(&block_number, &parent_hash, &Default::default());
-
-        let header = System::finalize();
-        parent_hash = header.hash();
-        System::set_block_number(*header.number() + 1);
-        System::set_parent_hash(parent_hash);
     }
 }

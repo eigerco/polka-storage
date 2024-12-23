@@ -1,15 +1,19 @@
 //! # Randomness Pallet
-
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use pallet::*;
 
 #[cfg(test)]
 mod mock;
+
 #[cfg(test)]
 mod tests;
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+
 mod inherent;
+mod weights;
 
 pub trait GetAuthorVrf<H>
 where
@@ -18,7 +22,7 @@ where
     fn get_author_vrf() -> Option<H>;
 }
 
-#[frame_support::pallet(dev_mode)]
+#[frame_support::pallet]
 pub mod pallet {
     extern crate alloc;
 
@@ -30,7 +34,10 @@ pub mod pallet {
     use sp_runtime::traits::Hash;
 
     use super::GetAuthorVrf;
-    use crate::inherent::{InherentError, INHERENT_IDENTIFIER};
+    use crate::{
+        inherent::{InherentError, INHERENT_IDENTIFIER},
+        weights::WeightInfo,
+    };
 
     pub const LOG_TARGET: &'static str = "runtime::randomness";
 
@@ -42,6 +49,8 @@ pub mod pallet {
     pub trait Config: frame_system::Config {
         /// The Author VRF getter.
         type AuthorVrfGetter: GetAuthorVrf<Self::Hash>;
+
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::pallet]
@@ -61,10 +70,16 @@ pub mod pallet {
     /// The last 256 author VRF randomness values from BABE, organized in a ring buffer fashion.
     #[pallet::storage]
     #[pallet::getter(fn author_vrf_history)]
-    pub type AuthorVrfHistory<T: Config> = CountedStorageMap<_, _, BlockNumberFor<T>, T::Hash>;
+    pub type AuthorVrfHistory<T: Config> =
+        CountedStorageMap<_, Blake2_128, BlockNumberFor<T>, T::Hash>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+        #[pallet::call_index(0)]
+        #[pallet::weight((
+			T::WeightInfo::set_author_vrf(),
+			DispatchClass::Mandatory
+		))]
         pub fn set_author_vrf(origin: OriginFor<T>) -> DispatchResult {
             ensure_none(origin)?;
 

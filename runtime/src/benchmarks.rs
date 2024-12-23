@@ -33,4 +33,6 @@ frame_benchmarking::define_benchmarks!(
     [pallet_collator_selection, CollatorSelection]
     [cumulus_pallet_parachain_system, ParachainSystem]
     [cumulus_pallet_xcmp_queue, XcmpQueue]
+    // Our crates
+    [pallet_randomness, Randomness]
 );
