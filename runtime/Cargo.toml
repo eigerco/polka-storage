@@ -164,7 +164,7 @@ runtime-benchmarks = [
   "pallet-collator-selection/runtime-benchmarks",
   "pallet-market/runtime-benchmarks",
   "pallet-message-queue/runtime-benchmarks",
-  "pallet-proofs/runtime-benchmarks",
+  "pallet-randomness/runtime-benchmarks",
   "pallet-storage-provider/runtime-benchmarks",
   "pallet-sudo/runtime-benchmarks",
   "pallet-timestamp/runtime-benchmarks",

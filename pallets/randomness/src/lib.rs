@@ -13,7 +13,7 @@ mod tests;
 mod benchmarking;
 
 mod inherent;
-mod weights;
+pub mod weights;
 
 pub trait GetAuthorVrf<H>
 where
