@@ -600,7 +600,6 @@ impl_runtime_apis! {
             use frame_support::traits::StorageInfoTrait;
             use frame_system_benchmarking::Pallet as SystemBench;
             use cumulus_pallet_session_benchmarking::Pallet as SessionBench;
-            use super::*;
 
             let mut list = Vec::<BenchmarkList>::new();
             list_benchmarks!(list, extra);
@@ -613,9 +612,8 @@ impl_runtime_apis! {
             config: frame_benchmarking::BenchmarkConfig
         ) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, alloc::string::String> {
             use frame_benchmarking::{BenchmarkError, Benchmarking, BenchmarkBatch};
-            use super::*;
-
             use frame_system_benchmarking::Pallet as SystemBench;
+
             impl frame_system_benchmarking::Config for Runtime {
                 fn setup_set_code_requirements(code: &Vec<u8>) -> Result<(), BenchmarkError> {
                     ParachainSystem::initialize_for_set_code_benchmark(code.len() as u32);
@@ -694,7 +692,7 @@ where
             // storage reads as per actual reads
             let _relay_storage_root = ValidationData::<Runtime>::get();
             let _relay_chain_state = RelayStateProof::<Runtime>::get();
-            return None;
+            return Some(Default::default());
         }
         relay_chain_state_proof::<Runtime>()
             .read_optional_entry(&AUTHOR_VRF_STORAGE_KEY)

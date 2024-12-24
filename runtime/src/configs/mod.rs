@@ -424,4 +424,5 @@ impl pallet_faucet::Config for Runtime {
 /// Config for our randomness pallet
 impl pallet_randomness::Config for Runtime {
     type AuthorVrfGetter = BabeDataGetter<Runtime>;
+    type WeightInfo = pallet_randomness::weights::Weights<Runtime>;
 }

@@ -22,7 +22,6 @@ frame-system.workspace = true
 log = { workspace = true }
 primitives = { workspace = true }
 scale-info = { features = ["derive"], workspace = true }
-sp-core = { workspace = true, default-features = false }
 sp-inherents.workspace = true
 sp-runtime.workspace = true
 
