@@ -35,4 +35,5 @@ frame_benchmarking::define_benchmarks!(
     [cumulus_pallet_xcmp_queue, XcmpQueue]
     // Our crates
     [pallet_randomness, Randomness]
+    [pallet_proofs, Proofs]
 );

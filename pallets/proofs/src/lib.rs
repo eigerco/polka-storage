@@ -13,6 +13,7 @@ mod fr32;
 mod graphs;
 mod porep;
 mod post;
+pub mod weights;
 
 #[cfg(test)]
 mod mock;
@@ -20,7 +21,10 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-#[frame_support::pallet(dev_mode)]
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+
+#[frame_support::pallet]
 pub mod pallet {
     pub const LOG_TARGET: &'static str = "runtime::proofs";
 
@@ -37,11 +41,13 @@ pub mod pallet {
     use crate::{
         crypto::groth16::{Bls12, Proof, VerifyingKey},
         porep, post,
+        weights::WeightInfo,
     };
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::pallet]
@@ -85,6 +91,8 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+        #[pallet::call_index(0)]
+        #[pallet::weight((T::WeightInfo::set_porep_verifying_key(), DispatchClass::Operational))]
         pub fn set_porep_verifying_key(
             origin: OriginFor<T>,
             verifying_key: crate::Vec<u8>,
@@ -103,6 +111,8 @@ pub mod pallet {
             Ok(())
         }
 
+        #[pallet::call_index(1)]
+        #[pallet::weight((T::WeightInfo::set_post_verifying_key(), DispatchClass::Operational))]
         pub fn set_post_verifying_key(
             origin: OriginFor<T>,
             verifying_key: crate::Vec<u8>,

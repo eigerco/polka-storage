@@ -68,6 +68,15 @@ where
     }
 }
 
+impl<E> codec::MaxEncodedLen for VerifyingKey<E>
+where
+    E: Engine<G1Affine = G1Affine, G2Affine = G2Affine>,
+{
+    fn max_encoded_len() -> usize {
+        VERIFYINGKEY_MAX_BYTES
+    }
+}
+
 impl<E: Engine> ::scale_info::TypeInfo for VerifyingKey<E> {
     type Identity = Self;
 

@@ -59,6 +59,7 @@ const G2AFFINE_UNCOMPRESSED_BYTES: usize = 192;
 /// That computes to: 3 x 48 + 3 * 96 + 4 = 436.
 pub const VERIFYINGKEY_MIN_BYTES: usize =
     3 * G1AFFINE_COMPRESSED_BYTES + 3 * G2AFFINE_COMPRESSED_BYTES + 4;
+
 /// This constant specifies the minimum number of bytes of a serialised `VerifyingKey` of usual
 /// public implementations. Usual public implementations means similar implementations in crates
 /// `bellman` or `bellperson` based on `blstrs`s `Engine` implementation.
@@ -70,6 +71,7 @@ pub const VERIFYINGKEY_MIN_BYTES: usize =
 /// That computes to: 3 x 96 + 3 * 192 + 4 = 868.
 pub const VERIFYINGKEY_MIN_BYTES_STD: usize =
     3 * G1AFFINE_UNCOMPRESSED_BYTES + 3 * G2AFFINE_UNCOMPRESSED_BYTES + 4;
+
 /// This constant specifies the maximum number of bytes of a serialised `VerifyingKey`.
 ///
 /// The maximum number of parameters in field `ic` is 40 because its depedency can be resolved to

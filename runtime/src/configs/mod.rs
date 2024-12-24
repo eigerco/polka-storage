@@ -411,6 +411,13 @@ impl pallet_market::Config for Runtime {
 
 impl pallet_proofs::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = pallet_proofs::weights::Weights<Runtime>;
+}
+
+/// Config for our randomness pallet
+impl pallet_randomness::Config for Runtime {
+    type AuthorVrfGetter = BabeDataGetter<Runtime>;
+    type WeightInfo = pallet_randomness::weights::Weights<Runtime>;
 }
 
 #[cfg(feature = "testnet")]
@@ -419,10 +426,4 @@ impl pallet_faucet::Config for Runtime {
     type Currency = Balances;
     type FaucetDripAmount = FaucetDripAmount;
     type FaucetDripDelay = FaucetDripDelay;
-}
-
-/// Config for our randomness pallet
-impl pallet_randomness::Config for Runtime {
-    type AuthorVrfGetter = BabeDataGetter<Runtime>;
-    type WeightInfo = pallet_randomness::weights::Weights<Runtime>;
 }
