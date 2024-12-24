@@ -20,7 +20,7 @@ use primitives::{
     proofs::{ProverId, PublicReplicaInfo, RegisteredPoStProof, RegisteredSealProof, Ticket},
     sector::SectorNumber,
     DealId, PartitionNumber, CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR, MAX_PARTITIONS_PER_DEADLINE,
-    MAX_POST_PROOF_BYTES, MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_PROOF, MAX_TERMINATIONS_PER_CALL,
+    MAX_POST_PROOF_BYTES, MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_PROOF, MAX_PROOFS_PER_BLOCK, MAX_TERMINATIONS_PER_CALL,
 };
 use sp_arithmetic::traits::Zero;
 use sp_core::{bounded_vec, Pair};
@@ -107,11 +107,11 @@ impl ProofVerification for DummyProofsVerification {
         _replicas: BoundedBTreeMap<
             SectorNumber,
             PublicReplicaInfo,
-            ConstU32<MAX_SECTORS_PER_PROOF>,
+            ConstU32<{MAX_SECTORS_PER_PROOF * MAX_PROOFS_PER_BLOCK}>,
         >,
-        proof: BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>,
+        proofs: BoundedVec<BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>, ConstU32<MAX_PROOFS_PER_BLOCK>>,
     ) -> sp_runtime::DispatchResult {
-        if *proof == INVALID_PROOF {
+        if *proofs[0] == INVALID_PROOF {
             return Err(sp_runtime::DispatchError::Other("invalid proof"));
         }
         Ok(())

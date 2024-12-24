@@ -8,6 +8,7 @@ use primitives::{
     proofs::{PublicReplicaInfo, RegisteredPoStProof, Ticket},
     sector::SectorNumber,
     MAX_SECTORS_PER_PROOF, NODE_SIZE,
+    MAX_PROOFS_PER_BLOCK,
 };
 use sha2::{Digest, Sha256};
 
@@ -40,9 +41,9 @@ impl ProofScheme {
     pub fn verify(
         &self,
         randomness: Ticket,
-        replicas: BoundedBTreeMap<SectorNumber, PublicReplicaInfo, ConstU32<MAX_SECTORS_PER_PROOF>>,
+        replicas: BoundedBTreeMap<SectorNumber, PublicReplicaInfo, ConstU32<{MAX_SECTORS_PER_PROOF * MAX_PROOFS_PER_BLOCK}>>,
         vk: VerifyingKey<Bls12>,
-        proof: Proof<Bls12>,
+        proofs: BoundedVec<Proof<Bls12>, ConstU32<MAX_PROOFS_PER_BLOCK>>,
     ) -> Result<(), ProofError> {
         let randomness = fr32::bytes_into_fr(&randomness)
             .map_err(|_| ProofError::Conversion)?
@@ -54,26 +55,11 @@ impl ProofScheme {
         )
         .unwrap_or(1);
 
-        if required_partitions != 1 {
-            // We don't support more than 1 partition in this method right now.
+        // Proof per partition
+        if proofs.len() != required_partitions {
             return Err(ProofError::InvalidNumberOfProofs);
         }
 
-        // NOTE:
-        //  * This is checked after the required partitions on purpose!
-        //  * Once we support verification of multiple partitions this check should be done for every partition
-        let replica_count = replicas.len();
-        ensure!(
-            replica_count <= self.config.challenged_sectors_per_partition,
-            {
-                log::error!(
-                    target: LOG_TARGET,
-                    "Got more replicas than expected. Expected max replicas = {}, submitted replicas = {replica_count}",
-                    self.config.challenged_sectors_per_partition
-                );
-                ProofError::InvalidNumberOfReplicas
-            }
-        );
         let pub_sectors: Vec<_> = replicas
             .iter()
             .map(|(sector_id, replica)| {
@@ -90,8 +76,15 @@ impl ProofScheme {
             sectors: pub_sectors,
         };
 
-        let inputs = self.generate_public_inputs(public_inputs, None)?;
-        verify_proof(vk, &proof, inputs.as_slice())?;
+        for partition_index in 0..proofs.len() {
+            let inputs = self.generate_public_inputs(public_inputs.clone(), Some(partition_index))?;
+            // TODO, prepareVerifyingKey once, don't clone?
+            verify_proof(vk.clone(), &proofs[partition_index], inputs.as_slice()).map_err(|e| {
+                log::error!(target: LOG_TARGET, "failed to verify partition {}", partition_index);
+                e
+            })?;
+        }
+
         Ok(())
     }
 
@@ -179,11 +172,13 @@ impl From<VerificationError> for ProofError {
     }
 }
 
+#[derive(Clone)]
 struct PublicInputs {
     randomness: RawCommitment,
     sectors: Vec<PublicSector>,
 }
 
+#[derive(Clone)]
 struct PublicSector {
     id: SectorNumber,
     comm_r: Fr,

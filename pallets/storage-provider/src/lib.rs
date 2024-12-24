@@ -799,11 +799,15 @@ pub mod pallet {
                 &entropy,
             )?;
 
+            let mut proofs = BoundedVec::new();
+            proofs.try_push(windowed_post.proof.proof_bytes)
+                .map_err(|_| { Error::<T>::TooManyReplicas })?;
+
             T::ProofVerification::verify_post(
                 windowed_post.proof.post_proof,
                 randomness,
                 replicas,
-                windowed_post.proof.proof_bytes,
+                proofs,
             )?;
 
             log::debug!(target: LOG_TARGET, "submit_windowed_post: proof recorded");

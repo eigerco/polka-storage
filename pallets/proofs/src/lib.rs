@@ -31,7 +31,7 @@ pub mod pallet {
         pallets::ProofVerification,
         proofs::{ProverId, PublicReplicaInfo, RegisteredPoStProof, RegisteredSealProof, Ticket},
         sector::SectorNumber,
-        MAX_POST_PROOF_BYTES, MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_PROOF,
+        MAX_POST_PROOF_BYTES, MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_PROOF, MAX_PROOFS_PER_BLOCK,
     };
 
     use crate::{
@@ -165,12 +165,12 @@ pub mod pallet {
             replicas: BoundedBTreeMap<
                 SectorNumber,
                 PublicReplicaInfo,
-                ConstU32<MAX_SECTORS_PER_PROOF>,
+                ConstU32<{MAX_SECTORS_PER_PROOF * MAX_PROOFS_PER_BLOCK}>,
             >,
-            proof: BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>,
+            proofs: BoundedVec<BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>, ConstU32<MAX_PROOFS_PER_BLOCK>>
         ) -> DispatchResult {
             let replica_count = replicas.len();
-            ensure!(replica_count <= post_type.sector_count(), {
+            ensure!(replica_count <= post_type.sector_count() * proofs.len(), {
                 log::error!(
                     target: LOG_TARGET,
                     "Got more replicas than expected. Expected max replicas = {}, submitted replicas = {replica_count}",
@@ -178,15 +178,21 @@ pub mod pallet {
                 );
                 Error::<T>::InvalidPoStProof
             });
-            let proof = Proof::<Bls12>::decode(&mut proof.as_slice()).map_err(|e| {
-                log::error!(target: LOG_TARGET, "failed to parse PoSt proof {:?}", e);
-                Error::<T>::Conversion
-            })?;
+            let mut parsed_proofs = BoundedVec::new();
+            for (index, proof) in proofs.into_iter().enumerate() {
+                let proof = Proof::<Bls12>::decode(&mut proof.as_slice()).map_err(|e| {
+                    log::error!(target: LOG_TARGET, "failed to parse PoSt proof (idx: {}){:?}", index, e);
+                    Error::<T>::Conversion
+                })?;
+
+                parsed_proofs.try_push(proof).expect("internals to have matching bounds");
+            }
+
             let proof_scheme = post::ProofScheme::setup(post_type);
 
             let vkey = PoStVerifyingKey::<T>::get().ok_or(Error::<T>::MissingPoStVerifyingKey)?;
             proof_scheme
-                .verify(randomness, replicas.clone(), vkey, proof)
+                .verify(randomness, replicas.clone(), vkey, parsed_proofs)
                 .map_err(|e| {
                     log::warn!(target: LOG_TARGET, "failed to verify PoSt proof: {:?}, for replicas: {:?}", e, replicas);
                     Error::<T>::InvalidPoStProof
