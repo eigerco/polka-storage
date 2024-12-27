@@ -69,10 +69,10 @@ echo "$PROVE_COMMIT_HUSKY" > prove-commit-husky.json
 WINDOWED_POST='{
     "deadline": 0,
     "partitions": [0],
-    "proof": {
+    "proof": [{
         "post_proof": "2KiB",
         "proof_bytes": "beef"
-    }
+    }]
 }'
 echo "$WINDOWED_POST" >windowed-post.json
 
