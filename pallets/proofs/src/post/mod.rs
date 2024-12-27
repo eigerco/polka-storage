@@ -87,9 +87,8 @@ impl ProofScheme {
         for partition_index in 0..proofs.len() {
             let inputs =
                 self.generate_public_inputs(public_inputs.clone(), Some(partition_index))?;
-            verify_proof(&pvk, &proofs[partition_index], inputs.as_slice()).map_err(|e| {
+            verify_proof(&pvk, &proofs[partition_index], inputs.as_slice()).inspect_err(|e| {
                 log::error!(target: LOG_TARGET, "failed to verify partition {}", partition_index);
-                e
             })?;
         }
 
