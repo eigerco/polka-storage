@@ -4,6 +4,7 @@
 
 mod config;
 mod db;
+mod p2p;
 mod pipeline;
 mod rpc;
 mod storage;
@@ -12,6 +13,7 @@ use std::{env::temp_dir, net::SocketAddr, path::PathBuf, sync::Arc, time::Durati
 
 use clap::Parser;
 use config::ConfigurationArgs;
+use p2p::{start_p2p_node, NodeType, P2PError};
 use pipeline::types::PipelineMessage;
 use polka_storage_proofs::{
     porep::{self, PoRepParameters},
@@ -165,6 +167,9 @@ pub enum ServerError {
 
     #[error(transparent)]
     Json(#[from] serde_json::Error),
+
+    #[error(transparent)]
+    P2P(#[from] P2PError),
 }
 
 /// The server arguments, as passed by the user, unvalidated.
@@ -181,6 +186,14 @@ pub struct ServerCli {
     /// Path to the server configuration file.
     #[arg(long)]
     config: Option<PathBuf>,
+
+    /// P2P Node type, can be either a bootstrap node or a registration node.
+    #[arg(long)]
+    node_type: NodeType,
+
+    /// Path to P2P config file
+    #[arg(long)]
+    p2p_config: PathBuf,
 }
 
 /// A valid server configuration. To be created using [`ServerConfiguration::try_from`].
@@ -223,6 +236,12 @@ pub struct Server {
 
     /// The number of prove commits to be run in parallel.
     parallel_prove_commits: usize,
+
+    /// P2P Network node type, can either be a bootstrap or registration node
+    node_type: NodeType,
+
+    /// P2P Network node configuration file path
+    p2p_config: PathBuf,
 }
 
 impl TryFrom<ServerCli> for Server {
@@ -300,12 +319,16 @@ impl TryFrom<ServerCli> for Server {
             porep_parameters,
             post_parameters,
             parallel_prove_commits: args.parallel_prove_commits.get(),
+            node_type: value.node_type,
+            p2p_config: value.p2p_config,
         })
     }
 }
 
 impl Server {
     pub async fn run(self) -> Result<(), ServerError> {
+        let config = self.p2p_config.clone();
+        let node_type = self.node_type;
         let SetupOutput {
             storage_state,
             rpc_state,
@@ -328,6 +351,11 @@ impl Server {
             pipeline_rx,
             cancellation_token.child_token(),
         ));
+        let p2p_task = tokio::spawn(start_p2p_node(
+            node_type,
+            config,
+            cancellation_token.child_token(),
+        ));
 
         // Wait for SIGTERM on the main thread and once received "unblock"
         tokio::signal::ctrl_c()
@@ -339,8 +367,8 @@ impl Server {
         tracing::info!("sent shutdown signal");
 
         // Wait for the tasks to finish
-        let (upload_result, rpc_task, pipeline_task) =
-            tokio::join!(storage_task, rpc_task, pipeline_task);
+        let (upload_result, rpc_task, pipeline_task, p2p_task) =
+            tokio::join!(storage_task, rpc_task, pipeline_task, p2p_task);
 
         // Log errors
         let upload_result = upload_result
@@ -360,10 +388,17 @@ impl Server {
                 let _ = ok.as_ref().inspect_err(|err| tracing::error!(%err));
             });
 
+        let p2p_task = p2p_task
+            .inspect_err(|err| tracing::error!(%err))
+            .inspect(|ok| {
+                let _ = ok.as_ref().inspect_err(|err| tracing::error!(%err));
+            });
+
         // Exit with error
         upload_result??;
         rpc_task??;
         pipeline_task??;
+        p2p_task??;
 
         Ok(())
     }

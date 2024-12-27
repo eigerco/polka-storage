@@ -24,10 +24,12 @@ axum = { workspace = true, features = ["macros", "multipart"] }
 cid = { workspace = true, features = ["serde", "std"] }
 clap = { workspace = true, features = ["derive"] }
 codec = { workspace = true }
+ed25519-dalek = { workspace = true, features = ["pem", "std"] }
 futures = { workspace = true }
 hex = { workspace = true, features = ["std"] }
 hyper = { workspace = true }
 jsonrpsee = { workspace = true, features = ["http-client", "macros", "server", "ws-client"] }
+libp2p = { workspace = true, features = ["identify", "macros", "noise", "rendezvous", "tcp", "tokio", "yamux"] }
 rand = { workspace = true }
 rocksdb = { workspace = true }
 sc-cli = { workspace = true }
@@ -38,7 +40,11 @@ tempfile = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tokio-util = { workspace = true, features = ["rt"] }
+<<<<<<< HEAD
 toml = { workspace = true }
+=======
+toml.workspace = true
+>>>>>>> 55251242 (feat: Add P2P functionality to storage server)
 tower = { workspace = true }
 tower-http = { workspace = true, features = ["trace"] }
 tracing = { workspace = true }

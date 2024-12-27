@@ -1,0 +1,2 @@
+address = "/ip4/127.0.0.1/tcp/62649"
+key_path = "storage-provider/server/p2p-example-config/private.pem"
