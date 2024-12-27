@@ -22,7 +22,7 @@ pub const MAX_PARTITIONS_PER_DEADLINE: u32 = 3000;
 /// With our current verification solution, it'll take around ~30 extrinsic calls to verify all of them.
 /// Verification of a single proof takes around ~100ms, block time is ~6000ms.
 /// This means 10 partitions will be verified in a ~1 sec.
-/// TODO(@th7nder,#659,27/12/2024): possibly speed it up
+// TODO(@th7nder,#659,27/12/2024): possibly speed it up
 pub const MAX_PROOFS_PER_BLOCK: u32 = 10;
 
 /// Max number of sectors.
