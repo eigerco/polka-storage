@@ -71,7 +71,7 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn author_vrf_history)]
     pub type AuthorVrfHistory<T: Config> =
-        CountedStorageMap<_, Blake2_128, BlockNumberFor<T>, T::Hash>;
+        CountedStorageMap<_, Blake2_128Concat, BlockNumberFor<T>, T::Hash>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
