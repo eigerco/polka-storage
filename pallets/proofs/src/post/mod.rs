@@ -161,8 +161,6 @@ impl ProofScheme {
 pub enum ProofError {
     InvalidNumberOfSectors,
     InvalidNumberOfProofs,
-    /// Returned when the given replicas exceeds the maximum amount set by the SP.
-    InvalidNumberOfReplicas,
     /// Returned when the given proof was invalid in a verification.
     InvalidProof,
     /// Returned when the given verifying key was invalid.
