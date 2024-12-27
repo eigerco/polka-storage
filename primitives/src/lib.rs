@@ -17,11 +17,12 @@ pub const NODE_SIZE: usize = 32;
 /// ref: <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/runtime/src/runtime/policy.rs#L283>
 pub const MAX_PARTITIONS_PER_DEADLINE: u32 = 3000;
 
-// Establishes how many partitions can we verify in a single extrinsic.
-// It's determined by the timing limitations, storage provider have an upper limit of 3000 partitions per deadline.
-// With our current verification solution, it'll take around ~30 extrinsic calls to verify all of them.
-// Verification of a single proof takes around ~100ms, block time is ~6000ms.
-// This means 10 partitions will be verified in a ~1 sec.
+/// Establishes how many partitions can we verify in a single extrinsic.
+/// It's determined by the timing limitations, storage provider have an upper limit of 3000 partitions per deadline.
+/// With our current verification solution, it'll take around ~30 extrinsic calls to verify all of them.
+/// Verification of a single proof takes around ~100ms, block time is ~6000ms.
+/// This means 10 partitions will be verified in a ~1 sec.
+/// TODO(@th7nder,#659,27/12/2024): possibly speed it up
 pub const MAX_PROOFS_PER_BLOCK: u32 = 10;
 
 /// Max number of sectors.
