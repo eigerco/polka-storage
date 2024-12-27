@@ -15,7 +15,7 @@ use crate::Vec;
 /// - <https://github.com/zkcrypto/bellman/blob/3a1c43b01a89d426842df39b432de979917951e6/groth16/src/lib.rs#L400>
 /// - <https://github.com/filecoin-project/bellperson/blob/a594f329b05b6224047903fb51658e8a35a12fbd/src/groth16/verifying_key.rs#L200>
 #[derive(Clone, Decode, Default, Encode)]
-struct PreparedVerifyingKey<E: MultiMillerLoop> {
+pub(crate) struct PreparedVerifyingKey<E: MultiMillerLoop> {
     pub alpha_g1_beta_g2: E::Gt,
     pub neg_gamma_g2: E::G2Prepared,
     pub neg_delta_g2: E::G2Prepared,
@@ -40,7 +40,7 @@ impl<E: MultiMillerLoop> From<VerifyingKey<E>> for PreparedVerifyingKey<E> {
 ///
 /// References:
 /// - <https://github.com/zkcrypto/bellman/blob/3a1c43b01a89d426842df39b432de979917951e6/groth16/src/verifier.rs#L11>
-pub fn prepare_verifying_key<E: MultiMillerLoop>(vkey: VerifyingKey<E>) -> PreparedVerifyingKey<E> {
+pub(crate) fn prepare_verifying_key<E: MultiMillerLoop>(vkey: VerifyingKey<E>) -> PreparedVerifyingKey<E> {
     PreparedVerifyingKey::<E>::from(vkey)
 }
 
