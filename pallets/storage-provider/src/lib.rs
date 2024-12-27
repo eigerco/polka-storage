@@ -800,8 +800,9 @@ pub mod pallet {
             )?;
 
             let mut proofs = BoundedVec::new();
-            proofs.try_push(windowed_post.proof.proof_bytes)
-                .map_err(|_| { Error::<T>::TooManyReplicas })?;
+            proofs
+                .try_push(windowed_post.proof.proof_bytes)
+                .map_err(|_| Error::<T>::TooManyReplicas)?;
 
             T::ProofVerification::verify_post(
                 windowed_post.proof.post_proof,

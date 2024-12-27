@@ -31,7 +31,7 @@ pub mod pallet {
         pallets::ProofVerification,
         proofs::{ProverId, PublicReplicaInfo, RegisteredPoStProof, RegisteredSealProof, Ticket},
         sector::SectorNumber,
-        MAX_POST_PROOF_BYTES, MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_PROOF, MAX_PROOFS_PER_BLOCK,
+        MAX_POST_PROOF_BYTES, MAX_PROOFS_PER_BLOCK, MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_PROOF,
     };
 
     use crate::{
@@ -165,9 +165,12 @@ pub mod pallet {
             replicas: BoundedBTreeMap<
                 SectorNumber,
                 PublicReplicaInfo,
-                ConstU32<{MAX_SECTORS_PER_PROOF * MAX_PROOFS_PER_BLOCK}>,
+                ConstU32<{ MAX_SECTORS_PER_PROOF * MAX_PROOFS_PER_BLOCK }>,
             >,
-            proofs: BoundedVec<BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>, ConstU32<MAX_PROOFS_PER_BLOCK>>
+            proofs: BoundedVec<
+                BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>,
+                ConstU32<MAX_PROOFS_PER_BLOCK>,
+            >,
         ) -> DispatchResult {
             let replica_count = replicas.len();
             ensure!(replica_count <= post_type.sector_count() * proofs.len(), {
@@ -185,7 +188,9 @@ pub mod pallet {
                     Error::<T>::Conversion
                 })?;
 
-                parsed_proofs.try_push(proof).expect("internals to have matching bounds");
+                parsed_proofs
+                    .try_push(proof)
+                    .expect("internals to have matching bounds");
             }
 
             let proof_scheme = post::ProofScheme::setup(post_type);

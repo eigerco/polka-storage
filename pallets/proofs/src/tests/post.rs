@@ -10,9 +10,9 @@ use primitives::{
 };
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
-use sp_runtime::{BoundedVec, BoundedBTreeMap};
-use sp_std::collections::btree_map::BTreeMap;
 use sp_core::bounded_vec;
+use sp_runtime::{BoundedBTreeMap, BoundedVec};
+use sp_std::collections::btree_map::BTreeMap;
 
 use crate::{mock::*, tests::TEST_SEED, Error, PoRepVerifyingKey, PoStVerifyingKey};
 
@@ -67,7 +67,9 @@ fn post_verification_fails() {
                 post_type,
                 randomness,
                 BoundedBTreeMap::try_from(replicas).expect("replicas should be valid"),
-                bounded_vec![BoundedVec::try_from(proof_bytes).expect("proof_bytes should be valid")],
+                bounded_vec![
+                    BoundedVec::try_from(proof_bytes).expect("proof_bytes should be valid")
+                ],
             ),
             Error::<Test>::InvalidPoStProof
         );

@@ -7,13 +7,14 @@ use primitives::{
     commitment::RawCommitment,
     proofs::{PublicReplicaInfo, RegisteredPoStProof, Ticket},
     sector::SectorNumber,
-    MAX_SECTORS_PER_PROOF, NODE_SIZE,
-    MAX_PROOFS_PER_BLOCK,
+    MAX_PROOFS_PER_BLOCK, MAX_SECTORS_PER_PROOF, NODE_SIZE,
 };
 use sha2::{Digest, Sha256};
 
 use crate::{
-    crypto::groth16::{prepare_verifying_key, verify_proof, Bls12, Fr, Proof, VerificationError, VerifyingKey},
+    crypto::groth16::{
+        prepare_verifying_key, verify_proof, Bls12, Fr, Proof, VerificationError, VerifyingKey,
+    },
     fr32, Vec,
 };
 
@@ -41,7 +42,11 @@ impl ProofScheme {
     pub fn verify(
         &self,
         randomness: Ticket,
-        replicas: BoundedBTreeMap<SectorNumber, PublicReplicaInfo, ConstU32<{MAX_SECTORS_PER_PROOF * MAX_PROOFS_PER_BLOCK}>>,
+        replicas: BoundedBTreeMap<
+            SectorNumber,
+            PublicReplicaInfo,
+            ConstU32<{ MAX_SECTORS_PER_PROOF * MAX_PROOFS_PER_BLOCK }>,
+        >,
         vk: VerifyingKey<Bls12>,
         proofs: BoundedVec<Proof<Bls12>, ConstU32<MAX_PROOFS_PER_BLOCK>>,
     ) -> Result<(), ProofError> {
@@ -78,7 +83,8 @@ impl ProofScheme {
         let pvk = prepare_verifying_key(vk);
 
         for partition_index in 0..proofs.len() {
-            let inputs = self.generate_public_inputs(public_inputs.clone(), Some(partition_index))?;
+            let inputs =
+                self.generate_public_inputs(public_inputs.clone(), Some(partition_index))?;
             verify_proof(&pvk, &proofs[partition_index], inputs.as_slice()).map_err(|e| {
                 log::error!(target: LOG_TARGET, "failed to verify partition {}", partition_index);
                 e

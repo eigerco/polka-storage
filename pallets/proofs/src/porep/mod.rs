@@ -10,7 +10,8 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     crypto::groth16::{
-        prepare_verifying_key, verify_proof, Bls12, Fr, PrimeField, Proof, VerificationError, VerifyingKey
+        prepare_verifying_key, verify_proof, Bls12, Fr, PrimeField, Proof, VerificationError,
+        VerifyingKey,
     },
     fr32,
     graphs::{

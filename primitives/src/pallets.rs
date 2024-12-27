@@ -5,7 +5,12 @@ use sp_core::{ConstU32, RuntimeDebug};
 use sp_runtime::{BoundedBTreeMap, BoundedBTreeSet, BoundedVec, DispatchError, DispatchResult};
 
 use crate::{
-    commitment::RawCommitment, proofs::{ProverId, PublicReplicaInfo, RegisteredPoStProof, RegisteredSealProof, Ticket}, sector::SectorNumber, DealId, PartitionNumber, MAX_DEALS_PER_SECTOR, MAX_PROOFS_PER_BLOCK, MAX_PARTITIONS_PER_DEADLINE, MAX_POST_PROOF_BYTES, MAX_SEAL_PROOF_BYTES, MAX_SECTORS, MAX_SECTORS_PER_CALL, MAX_SECTORS_PER_PROOF
+    commitment::RawCommitment,
+    proofs::{ProverId, PublicReplicaInfo, RegisteredPoStProof, RegisteredSealProof, Ticket},
+    sector::SectorNumber,
+    DealId, PartitionNumber, MAX_DEALS_PER_SECTOR, MAX_PARTITIONS_PER_DEADLINE,
+    MAX_POST_PROOF_BYTES, MAX_PROOFS_PER_BLOCK, MAX_SEAL_PROOF_BYTES, MAX_SECTORS,
+    MAX_SECTORS_PER_CALL, MAX_SECTORS_PER_PROOF,
 };
 
 pub trait StorageProviderValidation<AccountId> {
@@ -29,8 +34,15 @@ pub trait ProofVerification {
     fn verify_post(
         post_type: RegisteredPoStProof,
         randomness: Ticket,
-        replicas: BoundedBTreeMap<SectorNumber, PublicReplicaInfo, ConstU32<{MAX_SECTORS_PER_PROOF * MAX_PROOFS_PER_BLOCK}>>,
-        proof: BoundedVec<BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>, ConstU32<MAX_PROOFS_PER_BLOCK>>,
+        replicas: BoundedBTreeMap<
+            SectorNumber,
+            PublicReplicaInfo,
+            ConstU32<{ MAX_SECTORS_PER_PROOF * MAX_PROOFS_PER_BLOCK }>,
+        >,
+        proof: BoundedVec<
+            BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>,
+            ConstU32<MAX_PROOFS_PER_BLOCK>,
+        >,
     ) -> DispatchResult;
 }
 
