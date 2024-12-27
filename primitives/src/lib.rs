@@ -17,12 +17,11 @@ pub const NODE_SIZE: usize = 32;
 /// ref: <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/runtime/src/runtime/policy.rs#L283>
 pub const MAX_PARTITIONS_PER_DEADLINE: u32 = 3000;
 
-// how many proofs per one verification (extrinsic, submit windowed PoSt) can we accept?
-// how many partitions per one verification?
-// upper bound set by FC is 3000 (MAX_PARTITIONS_PER_DEADLINE). 3000 * 192bytes, 500kB, it's fine -> BUT
-// but we won't ever be able to verify all those proofs within the block time.
-// assuming (~100ms, don't remember, guessing now. need to check) per proof, that's y'know... shit.
-// there was this other way of proving data and optimizing, I guesss
+// Establishes how many partitions can we verify in a single extrinsic.
+// It's determined by the timing limitations, storage provider have an upper limit of 3000 partitions per deadline.
+// With our current verification solution, it'll take around ~30 extrinsic calls to verify all of them.
+// Verification of a single proof takes around ~100ms, block time is ~6000ms.
+// This means 10 partitions will be verified in a ~1 sec.
 pub const MAX_PROOFS_PER_BLOCK: u32 = 10;
 
 /// Max number of sectors.

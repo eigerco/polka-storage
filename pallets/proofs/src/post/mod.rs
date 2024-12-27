@@ -62,6 +62,8 @@ impl ProofScheme {
 
         // Proof per partition
         if proofs.len() != required_partitions {
+            log::error!(target: LOG_TARGET, "Expected 1 proof per 1 partition, got {} proofs, {} partitions",
+                proofs.len(), required_partitions);
             return Err(ProofError::InvalidNumberOfProofs);
         }
 

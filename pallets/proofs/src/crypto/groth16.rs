@@ -40,7 +40,9 @@ impl<E: MultiMillerLoop> From<VerifyingKey<E>> for PreparedVerifyingKey<E> {
 ///
 /// References:
 /// - <https://github.com/zkcrypto/bellman/blob/3a1c43b01a89d426842df39b432de979917951e6/groth16/src/verifier.rs#L11>
-pub(crate) fn prepare_verifying_key<E: MultiMillerLoop>(vkey: VerifyingKey<E>) -> PreparedVerifyingKey<E> {
+pub(crate) fn prepare_verifying_key<E: MultiMillerLoop>(
+    vkey: VerifyingKey<E>,
+) -> PreparedVerifyingKey<E> {
     PreparedVerifyingKey::<E>::from(vkey)
 }
 

@@ -188,9 +188,9 @@ pub mod pallet {
                     Error::<T>::Conversion
                 })?;
 
-                parsed_proofs
-                    .try_push(proof)
-                    .expect("internals to have matching bounds");
+                parsed_proofs.try_push(proof).expect(
+                    "ProofScheme to have BoundedVec with the same bound as ProofVerification trait",
+                );
             }
 
             let proof_scheme = post::ProofScheme::setup(post_type);
