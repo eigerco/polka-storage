@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     crypto::groth16::{
-        verify_proof, Bls12, Fr, PrimeField, Proof, VerificationError, VerifyingKey,
+        prepare_verifying_key, verify_proof, Bls12, Fr, PrimeField, Proof, VerificationError, VerifyingKey
     },
     fr32,
     graphs::{
@@ -160,8 +160,9 @@ impl ProofScheme {
         };
 
         let public_inputs = self.generate_public_inputs(public_inputs, None)?;
+        let pvk = prepare_verifying_key(vk);
 
-        verify_proof(vk, proof, public_inputs.as_slice()).map_err(Into::<ProofError>::into)
+        verify_proof(&pvk, proof, public_inputs.as_slice()).map_err(Into::<ProofError>::into)
     }
 
     /// References:

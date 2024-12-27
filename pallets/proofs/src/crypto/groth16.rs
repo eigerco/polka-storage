@@ -36,11 +36,11 @@ impl<E: MultiMillerLoop> From<VerifyingKey<E>> for PreparedVerifyingKey<E> {
     }
 }
 
-/// Method generates the `PreparedVerifyingKey` from the `VerifyingKey`.
+/// Generates the `PreparedVerifyingKey` from the `VerifyingKey`.
 ///
 /// References:
 /// - <https://github.com/zkcrypto/bellman/blob/3a1c43b01a89d426842df39b432de979917951e6/groth16/src/verifier.rs#L11>
-fn prepare_verifying_key<E: MultiMillerLoop>(vkey: VerifyingKey<E>) -> PreparedVerifyingKey<E> {
+pub fn prepare_verifying_key<E: MultiMillerLoop>(vkey: VerifyingKey<E>) -> PreparedVerifyingKey<E> {
     PreparedVerifyingKey::<E>::from(vkey)
 }
 
@@ -52,12 +52,10 @@ fn prepare_verifying_key<E: MultiMillerLoop>(vkey: VerifyingKey<E>) -> PreparedV
 /// - <https://github.com/zkcrypto/bellman/blob/3a1c43b01a89d426842df39b432de979917951e6/groth16/src/verifier.rs#L23>
 /// - <https://github.com/filecoin-project/bellperson/blob/a594f329b05b6224047903fb51658e8a35a12fbd/src/groth16/verifier.rs#L38>
 pub fn verify_proof<E: MultiMillerLoop>(
-    vk: VerifyingKey<E>,
+    pvk: &PreparedVerifyingKey<E>,
     proof: &Proof<E>,
     public_inputs: &[E::Fr],
 ) -> Result<(), VerificationError> {
-    let pvk = prepare_verifying_key(vk);
-
     if (public_inputs.len() + 1) != pvk.ic.len() {
         return Err(VerificationError::InvalidVerifyingKey);
     }

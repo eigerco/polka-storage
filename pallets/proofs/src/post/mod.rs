@@ -13,7 +13,7 @@ use primitives::{
 use sha2::{Digest, Sha256};
 
 use crate::{
-    crypto::groth16::{verify_proof, Bls12, Fr, Proof, VerificationError, VerifyingKey},
+    crypto::groth16::{prepare_verifying_key, verify_proof, Bls12, Fr, Proof, VerificationError, VerifyingKey},
     fr32, Vec,
 };
 
@@ -75,11 +75,11 @@ impl ProofScheme {
             randomness,
             sectors: pub_sectors,
         };
+        let pvk = prepare_verifying_key(vk);
 
         for partition_index in 0..proofs.len() {
             let inputs = self.generate_public_inputs(public_inputs.clone(), Some(partition_index))?;
-            // TODO, prepareVerifyingKey once, don't clone?
-            verify_proof(vk.clone(), &proofs[partition_index], inputs.as_slice()).map_err(|e| {
+            verify_proof(&pvk, &proofs[partition_index], inputs.as_slice()).map_err(|e| {
                 log::error!(target: LOG_TARGET, "failed to verify partition {}", partition_index);
                 e
             })?;
