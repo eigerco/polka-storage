@@ -274,7 +274,7 @@ impl Into<RuntimePoStProof> for PoStProof {
 pub struct SubmitWindowedPoStParams {
     pub deadline: u64,
     pub partitions: Vec<u32>,
-    pub proof: PoStProof,
+    pub proofs: Vec<PoStProof>,
 }
 
 impl Into<RuntimeSubmitWindowedPoStParams> for SubmitWindowedPoStParams {
@@ -282,7 +282,7 @@ impl Into<RuntimeSubmitWindowedPoStParams> for SubmitWindowedPoStParams {
         RuntimeSubmitWindowedPoStParams {
             deadline: self.deadline,
             partitions: bounded_vec::BoundedVec(self.partitions),
-            proof: self.proof.into(),
+            proofs: bounded_vec::BoundedVec(self.proofs.into_iter().map(|p| p.into()).collect::<Vec<_>>()),
         }
     }
 }
@@ -493,10 +493,10 @@ mod tests {
             r#"{
                 "deadline": 10,
                 "partitions": [10],
-                "proof": {
+                "proofs": [{
                     "post_proof": "2KiB",
                     "proof_bytes": "1234567890"
-                }
+                }]
             }"#,
         )
         .unwrap();
@@ -505,10 +505,10 @@ mod tests {
             SubmitWindowedPoStParams {
                 deadline: 10,
                 partitions: vec![10],
-                proof: PoStProof {
+                proofs: vec![PoStProof {
                     post_proof: RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
                     proof_bytes: vec![0x12u8, 0x34, 0x56, 0x78, 0x90]
-                }
+                }],
             }
         );
     }

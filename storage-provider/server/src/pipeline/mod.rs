@@ -738,10 +738,10 @@ async fn submit_windowed_post(
             SubmitWindowedPoStParams {
                 deadline: deadline_index,
                 partitions: partitions,
-                proof: PoStProof {
+                proofs: vec![PoStProof {
                     post_proof: state.server_info.post_proof,
                     proof_bytes: proof,
-                },
+                }],
             },
             true,
         )

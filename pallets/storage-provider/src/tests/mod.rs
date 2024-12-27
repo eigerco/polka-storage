@@ -555,7 +555,7 @@ impl SubmitWindowedPoStBuilder {
         SubmitWindowedPoStParams {
             deadline: self.deadline,
             partitions: self.partitions,
-            proof: self.proof,
+            proofs: bounded_vec![self.proof],
         }
     }
 }
