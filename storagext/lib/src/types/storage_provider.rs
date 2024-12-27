@@ -282,7 +282,12 @@ impl Into<RuntimeSubmitWindowedPoStParams> for SubmitWindowedPoStParams {
         RuntimeSubmitWindowedPoStParams {
             deadline: self.deadline,
             partitions: bounded_vec::BoundedVec(self.partitions),
-            proofs: bounded_vec::BoundedVec(self.proofs.into_iter().map(|p| p.into()).collect::<Vec<_>>()),
+            proofs: bounded_vec::BoundedVec(
+                self.proofs
+                    .into_iter()
+                    .map(|p| p.into())
+                    .collect::<Vec<_>>(),
+            ),
         }
     }
 }
