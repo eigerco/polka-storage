@@ -32,7 +32,7 @@ use subxt::{
     },
     tx::Signer,
 };
-use tokio::{sync::mpsc::UnboundedReceiver, task::JoinError};
+use tokio::{sync::{mpsc::UnboundedReceiver, Semaphore}, task::JoinError};
 use tokio_util::sync::CancellationToken;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
@@ -458,6 +458,7 @@ impl ServerConfiguration {
             xt_client,
             xt_keypair: self.multi_pair_signer,
             pipeline_sender: pipeline_tx,
+            prove_commit_throttle: Arc::new(Semaphore::new(2)),
         };
 
         Ok(SetupOutput {

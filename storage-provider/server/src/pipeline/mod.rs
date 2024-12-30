@@ -28,7 +28,7 @@ use storagext::{
 };
 use subxt::{ext::codec::Encode, tx::Signer};
 use tokio::{
-    sync::mpsc::{error::SendError, UnboundedReceiver, UnboundedSender},
+    sync::{mpsc::{error::SendError, UnboundedReceiver, UnboundedSender}, Semaphore},
     task::{JoinError, JoinHandle},
 };
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
@@ -86,6 +86,7 @@ pub struct PipelineState {
     pub xt_client: Arc<storagext::Client>,
     pub xt_keypair: storagext::multipair::MultiPairSigner,
     pub pipeline_sender: UnboundedSender<PipelineMessage>,
+    pub prove_commit_throttle: Arc<Semaphore>,
 }
 
 #[tracing::instrument(skip_all)]
@@ -544,11 +545,16 @@ async fn prove_commit(
     tracing::debug!("Performing prove commit for, seal_randomness_height {}, pre_commit_block: {}, prove_commit_block: {}, entropy: {}, ticket: {}, seed: {}, prover id: {}, sector_number: {}",
         seal_randomness_height, sector.precommit_block, prove_commit_block, hex::encode(entropy), hex::encode(ticket), hex::encode(seed), hex::encode(prover_id), sector_number);
 
+    tracing::debug!("Acquiring sempahore...");
+    let permit = state.prove_commit_throttle.acquire().await.expect("semaphore to not be closed");
+    tracing::debug!("Acquired sempahore.");
+
     let sealing_handle: JoinHandle<Result<Vec<BlstrsProof>, _>> = {
         let porep_params = state.porep_parameters.clone();
         let cache_dir = sector.cache_path.clone();
         let sealed_path = sector.sealed_path.clone();
         let piece_infos = sector.piece_infos.clone();
+
 
         tokio::task::spawn_blocking(move || {
             sealer.prove_sector(
@@ -578,6 +584,8 @@ async fn prove_commit(
             return Err(PipelineError::ProvingCancelled);
         }
     };
+
+    drop(permit);
 
     // We use sector size 2KiB only at this point, which guarantees to have 1 proof, because it has 1 partition in the config.
     // That's why `prove_commit` will always generate a 1 proof.
