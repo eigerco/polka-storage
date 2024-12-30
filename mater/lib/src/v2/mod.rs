@@ -3,9 +3,11 @@ mod reader;
 mod writer;
 
 use bitflags::bitflags;
-pub use index::{Index, IndexEntry, IndexSorted, MultihashIndexSorted, SingleWidthIndex};
+pub use index::{
+    write_index, Index, IndexEntry, IndexSorted, MultihashIndexSorted, SingleWidthIndex,
+};
 pub use reader::{verify_cid, Reader};
-pub use writer::Writer;
+pub use writer::{write_header, Writer};
 
 /// The pragma for a CARv2. This is also a valid CARv1 header, with version 2 and no root CIDs.
 ///
@@ -17,6 +19,9 @@ pub const PRAGMA: [u8; 11] = [
     0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, // "version"
     0x02, // uint(2)
 ];
+
+/// Number of bytes in [`PRAGMA`]
+pub const PRAGMA_SIZE: u64 = PRAGMA.len() as u64;
 
 bitflags! {
     /// Characteristics of the enclosed data.
@@ -82,7 +87,7 @@ impl Header {
     /// The [`Header`] size in bytes (includes the pragma).
     ///
     /// As defined in the [specification](https://ipld.io/specs/transport/car/carv2/#header).
-    pub const SIZE: usize = PRAGMA.len() + 40;
+    pub const SIZE: u64 = PRAGMA_SIZE + 40;
 }
 
 impl Default for Header {
