@@ -1,6 +1,6 @@
 pub mod types;
 
-use std::{path::PathBuf, sync::Arc};
+use std::{collections::BTreeSet, path::PathBuf, sync::Arc};
 
 use polka_storage_proofs::{
     porep::{
@@ -667,9 +667,6 @@ async fn submit_windowed_post(
         return Err(PipelineError::DeadlineStateNotFound);
     };
 
-    if deadline_state.partitions.len() > 1 {
-        todo!("I don't know what to do: polka-storage#595");
-    }
     if deadline_state.partitions.len() == 0 {
         tracing::info!("There are not partitions in this deadline yet. Nothing to prove here.");
         schedule_post(state, deadline_index)?;
@@ -677,26 +674,26 @@ async fn submit_windowed_post(
     }
 
     let partitions = deadline_state.partitions.keys().cloned().collect();
-    let (_partition_number, PartitionState { sectors }) = deadline_state
-        .partitions
-        .first_key_value()
-        .expect("1 partition to be there");
+    let mut all_sectors = BTreeSet::new();
+    for (_, PartitionState { sectors }) in deadline_state.partitions {
+        all_sectors.extend(sectors);
+    }
 
-    if sectors.len() == 0 {
+    if all_sectors.len() == 0 {
         tracing::info!("Every sector expired... Nothing to prove here.");
         schedule_post(state, deadline_index)?;
         return Ok(());
     }
 
     let mut replicas = Vec::new();
-    for sector_number in sectors {
+    for sector_number in all_sectors {
         let sector = state
             .db
-            .get_sector::<ProvenSector>(*sector_number)?
+            .get_sector::<ProvenSector>(sector_number)?
             .ok_or(PipelineError::SectorNotFound)?;
 
         replicas.push(ReplicaInfo {
-            sector_id: *sector_number,
+            sector_id: sector_number,
             comm_r: sector.comm_r.raw(),
             cache_path: sector.cache_path.clone(),
             replica_path: sector.sealed_path.clone(),
@@ -714,16 +711,19 @@ async fn submit_windowed_post(
         })
     };
     let proofs = handle.await??;
-
-    // TODO(@th7nder,#595,06/12/2024): how many proofs are for how many partitions and why
-    // don't now why yet, need to figure this out
-    let proof: SubstrateProof = proofs[0]
-        .clone()
-        .try_into()
-        .expect("converstion between rust-fil-proofs and polka-storage-proofs to work");
-    let proof = codec::Encode::encode(&proof);
-
     tracing::info!("Generated PoSt proof for partitions: {:?}", partitions);
+
+    let proofs = proofs
+        .into_iter()
+        .map(|p| PoStProof {
+            post_proof: state.server_info.post_proof,
+            proof_bytes: codec::Encode::encode(
+                &TryInto::<SubstrateProof>::try_into(p.clone())
+                    .expect("converstion between rust-fil-proofs and polka-storage-proofs to work"),
+            ),
+        })
+        .collect::<Vec<_>>();
+
 
     tracing::info!("Wait for block {} for open deadline", deadline.start,);
     state
@@ -737,11 +737,8 @@ async fn submit_windowed_post(
             &state.xt_keypair,
             SubmitWindowedPoStParams {
                 deadline: deadline_index,
-                partitions: partitions,
-                proofs: vec![PoStProof {
-                    post_proof: state.server_info.post_proof,
-                    proof_bytes: proof,
-                }],
+                partitions,
+                proofs,
             },
             true,
         )
