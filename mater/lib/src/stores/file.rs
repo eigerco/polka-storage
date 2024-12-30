@@ -34,7 +34,6 @@ pub struct FileBlockstore {
 /// Inner file store. Encapsulating state that is locked and used together.
 struct FileBlockstoreInner {
     // Car file data store
-    // TODO: Buffered writer and reader?
     store: File,
     // The byte length of the CARv1 payload. This is used by the indexing, so we
     // know the locations of each blocks in the file.
