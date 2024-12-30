@@ -1,8 +1,7 @@
 use std::{io::SeekFrom, path::Path};
 
-use blockstore::Blockstore;
 use indexmap::IndexMap;
-use ipld_core::cid::{Cid, CidGeneric};
+use ipld_core::cid::Cid;
 use sha2::{Digest, Sha256};
 use tokio::{
     fs::File,
@@ -178,7 +177,8 @@ impl FileBlockstore {
     }
 }
 
-impl Blockstore for FileBlockstore {
+#[cfg(feature = "blockstore")]
+impl blockstore::Blockstore for FileBlockstore {
     async fn get<const S: usize>(
         &self,
         cid: &CidGeneric<S>,
@@ -225,7 +225,6 @@ impl Blockstore for FileBlockstore {
 mod tests {
     use std::{io::Cursor, path::PathBuf, str::FromStr};
 
-    use blockstore::Blockstore;
     use tempfile::NamedTempFile;
     use tokio::{
         fs::File,
@@ -260,7 +259,10 @@ mod tests {
             match reader.read_block().await {
                 Ok((cid, data)) => {
                     // Add block to the store
-                    blockstore.put_keyed(&cid, &data).await.unwrap();
+                    blockstore.put(&cid, &data).await.unwrap();
+
+                    // Check if the blockstore has a new block
+                    assert!(blockstore.has(cid).await.unwrap());
 
                     // Get the same block back and check if it's the same
                     let block = blockstore.get(cid).await.unwrap().unwrap();
