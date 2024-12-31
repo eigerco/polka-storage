@@ -164,7 +164,7 @@ impl Blockstore {
 
     /// Get the [`CarV2Header`] that will be written out.
     fn header_v2(&self) -> CarV2Header {
-        let data_offset = CarV2Header::SIZE as u64;
+        let data_offset = CarV2Header::SIZE;
         let data_size: u64 = self
             .blocks
             .iter()
@@ -298,16 +298,13 @@ mod tests {
         car_reader.read_pragma().await.unwrap();
 
         let car_v2_header = car_reader.read_header().await.unwrap();
-        assert_eq!(car_v2_header.data_offset, CarV2Header::SIZE as u64);
+        assert_eq!(car_v2_header.data_offset, CarV2Header::SIZE);
         // Extracted with go-car and validated with an hex viewer
         // to extract the values, run the following commands:
         // $ car inspect <output of this process>
         // The dump is necessary because go-car does not support parametrization
         assert_eq!(car_v2_header.data_size, 1358);
-        assert_eq!(
-            car_v2_header.index_offset,
-            (CarV2Header::SIZE as u64) + 1358
-        );
+        assert_eq!(car_v2_header.index_offset, CarV2Header::SIZE + 1358);
 
         let car_v1_header = car_reader.read_v1_header().await.unwrap();
         assert_eq!(car_v1_header.roots.len(), 1);

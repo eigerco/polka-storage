@@ -228,7 +228,7 @@ impl blockstore::Blockstore for FileBlockstore {
 mod tests {
     use std::{io::Cursor, path::PathBuf, str::FromStr};
 
-    use tempfile::NamedTempFile;
+    use tempfile::TempDir;
     use tokio::{
         fs::File,
         io::{AsyncReadExt, AsyncSeekExt},
@@ -260,7 +260,8 @@ mod tests {
 
         let v1_header = reader.read_v1_header().await.unwrap();
 
-        let blockstore_file_path = NamedTempFile::new().unwrap();
+        let tmp_dir = TempDir::new().unwrap();
+        let blockstore_file_path = tmp_dir.path().join("blockstore.car");
         let blockstore = FileBlockstore::new(&blockstore_file_path, v1_header.roots)
             .await
             .unwrap();
