@@ -5,7 +5,7 @@ use ipld_core::cid::Cid;
 use sha2::{Digest, Sha256};
 use tokio::{
     fs::File,
-    io::{AsyncSeekExt, AsyncWriteExt},
+    io::{AsyncSeekExt, AsyncWriteExt, BufWriter},
     sync::{Mutex, RwLock},
 };
 
@@ -118,8 +118,9 @@ impl FileBlockstore {
         let index_location = current_position - CarV2Header::SIZE;
 
         // Write block
-        // let buffered_writer = BufWriter::new(inner.store);
-        let written = write_block(&mut inner.store, &cid, data).await?;
+        let mut buffered_writer = BufWriter::new(&mut inner.store);
+        let written = write_block(&mut buffered_writer, &cid, data).await?;
+        buffered_writer.flush().await?;
         inner.data_size += written as u64;
 
         // Add current block to the index
