@@ -28,7 +28,10 @@ use storagext::{
 };
 use subxt::{ext::codec::Encode, tx::Signer};
 use tokio::{
-    sync::{mpsc::{error::SendError, UnboundedReceiver, UnboundedSender}, Semaphore},
+    sync::{
+        mpsc::{error::SendError, UnboundedReceiver, UnboundedSender},
+        Semaphore,
+    },
     task::{JoinError, JoinHandle},
 };
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
@@ -546,7 +549,11 @@ async fn prove_commit(
         seal_randomness_height, sector.precommit_block, prove_commit_block, hex::encode(entropy), hex::encode(ticket), hex::encode(seed), hex::encode(prover_id), sector_number);
 
     tracing::debug!("Acquiring sempahore...");
-    let permit = state.prove_commit_throttle.acquire().await.expect("semaphore to not be closed");
+    let permit = state
+        .prove_commit_throttle
+        .acquire()
+        .await
+        .expect("semaphore to not be closed");
     tracing::debug!("Acquired sempahore.");
 
     let sealing_handle: JoinHandle<Result<Vec<BlstrsProof>, _>> = {
@@ -554,7 +561,6 @@ async fn prove_commit(
         let cache_dir = sector.cache_path.clone();
         let sealed_path = sector.sealed_path.clone();
         let piece_infos = sector.piece_infos.clone();
-
 
         tokio::task::spawn_blocking(move || {
             sealer.prove_sector(

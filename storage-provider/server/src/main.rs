@@ -32,7 +32,10 @@ use subxt::{
     },
     tx::Signer,
 };
-use tokio::{sync::{mpsc::UnboundedReceiver, Semaphore}, task::JoinError};
+use tokio::{
+    sync::{mpsc::UnboundedReceiver, Semaphore},
+    task::JoinError,
+};
 use tokio_util::sync::CancellationToken;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
