@@ -233,6 +233,14 @@ pub struct ServerArguments {
     /// **they need to be set** via an extrinsic pallet-proofs::set_post_verifyingkey.
     #[arg(long)]
     post_parameters: PathBuf,
+
+    /// How many Prove Commits in the pipeline can be running simultaneously.
+    /// MUST BE > 0 or the pipeline will not progress.
+    ///
+    /// Creating a replica is memory-heavy process.
+    /// E.g. With 2KiB sector sizes and 16GiB of RAM, it goes OOM at 4 parallel.
+    #[arg(long, default_value = "2")]
+    parallel_prove_commits: usize,
 }
 
 /// A valid server configuration. To be created using [`ServerConfiguration::try_from`].
@@ -272,6 +280,9 @@ pub struct ServerConfiguration {
     /// Proving Parameters for PoSt proof.
     /// For 2KiB sectors they're ~11MiB of data.
     post_parameters: PoStParameters,
+
+    /// How many Prove Commits in the pipeline can be running simultaneously.
+    parallel_prove_commits: usize,
 }
 
 impl TryFrom<ServerArguments> for ServerConfiguration {
@@ -327,6 +338,7 @@ impl TryFrom<ServerArguments> for ServerConfiguration {
             post_proof: value.post_proof,
             porep_parameters,
             post_parameters,
+            parallel_prove_commits: value.parallel_prove_commits,
         })
     }
 }
@@ -458,7 +470,7 @@ impl ServerConfiguration {
             xt_client,
             xt_keypair: self.multi_pair_signer,
             pipeline_sender: pipeline_tx,
-            prove_commit_throttle: Arc::new(Semaphore::new(2)),
+            prove_commit_throttle: Arc::new(Semaphore::new(self.parallel_prove_commits)),
         };
 
         Ok(SetupOutput {
