@@ -27,7 +27,10 @@ use crate::{
 pub struct FileBlockstore {
     // Inner store
     inner: Mutex<FileBlockstoreInner>,
-    // Index of blocks that will be appended to the file at the finalization
+    // Index of blocks that will be appended to the file at the finalization.
+    // Stored number is an offset that locates the first byte of the block
+    // within the CARv1 payload. The offset is relative to the start of the
+    // CARv1 payload.
     index: RwLock<IndexMap<Cid, u64>>,
 }
 
@@ -49,7 +52,7 @@ impl FileBlockstore {
         P: AsRef<Path>,
     {
         let mut file = File::options()
-            .truncate(true)
+            .create_new(true)
             .write(true)
             .read(true)
             .open(path)
@@ -232,6 +235,14 @@ mod tests {
     };
 
     use crate::{CarV2Reader, Error, FileBlockstore};
+
+    #[tokio::test]
+    async fn file_exists() {
+        let existing_path = PathBuf::from_str("tests/fixtures/car_v2/spaceglenda.car").unwrap();
+        let blockstore = FileBlockstore::new(&existing_path, vec![]).await;
+
+        assert!(blockstore.is_err());
+    }
 
     #[tokio::test]
     async fn test_blockstore() {
