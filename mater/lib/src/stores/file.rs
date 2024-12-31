@@ -89,7 +89,6 @@ impl FileBlockstore {
         // certain that the file is not used and we are moving the cursor back
         // to the correct place after the read.
         let mut inner = self.inner.lock().await;
-        let current_cursor_location = inner.store.stream_position().await?;
 
         // Move cursor to the location of the block
         inner
@@ -101,11 +100,9 @@ impl FileBlockstore {
         let (block_cid, block_data) = read_block(&mut inner.store).await?;
         debug_assert_eq!(block_cid, cid);
 
-        // Move cursor back to the original position
-        inner
-            .store
-            .seek(SeekFrom::Start(current_cursor_location))
-            .await?;
+        // Move cursor back to the position where we'll continue writing next blocks.
+        let writing_position = CarV2Header::SIZE + inner.data_size;
+        inner.store.seek(SeekFrom::Start(writing_position)).await?;
 
         return Ok(Some(block_data));
     }
