@@ -674,10 +674,12 @@ async fn submit_windowed_post(
     }
 
     let partitions = deadline_state.partitions.keys().cloned().collect();
-    let mut all_sectors = BTreeSet::new();
-    for (_, PartitionState { sectors }) in deadline_state.partitions {
-        all_sectors.extend(sectors);
-    }
+    let all_sectors = BTreeSet::from_iter(
+        deadline_state
+            .partitions
+            .into_iter()
+            .flat_map(|(_, PartitionState { sectors })| sectors),
+    );
 
     if all_sectors.len() == 0 {
         tracing::info!("Every sector expired... Nothing to prove here.");
@@ -723,7 +725,6 @@ async fn submit_windowed_post(
             ),
         })
         .collect::<Vec<_>>();
-
 
     tracing::info!("Wait for block {} for open deadline", deadline.start,);
     state
