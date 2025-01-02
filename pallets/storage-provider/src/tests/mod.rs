@@ -86,7 +86,9 @@ impl pallet_balances::Config for Test {
 
 pub const INVALID_PROOF: [u8; 2] = [0xd, 0xe];
 
-/// This is dummy proofs pallet implementation. All proofs are accepted as valid
+/// This is dummy proofs pallet implementation.
+/// All PoRep proofs are accepted as valid.
+/// All PoSt proofs are accepted as valid unless first of them is [`INVALID_PROOF`].
 pub struct DummyProofsVerification;
 impl ProofVerification for DummyProofsVerification {
     fn verify_porep(
