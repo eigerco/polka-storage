@@ -189,7 +189,7 @@ pub mod pallet {
                 })?;
 
                 parsed_proofs.try_push(proof).expect(
-                    "ProofScheme to have BoundedVec with the same bound as ProofVerification trait",
+                    "internal (post::ProofScheme) and external (ProofVerification) apis have the same limits on number of proofs",
                 );
             }
 
