@@ -9,8 +9,8 @@ use crate::{
     proofs::{ProverId, PublicReplicaInfo, RegisteredPoStProof, RegisteredSealProof, Ticket},
     sector::SectorNumber,
     DealId, PartitionNumber, MAX_DEALS_PER_SECTOR, MAX_PARTITIONS_PER_DEADLINE,
-    MAX_POST_PROOF_BYTES, MAX_PROOFS_PER_BLOCK, MAX_SEAL_PROOF_BYTES, MAX_SECTORS,
-    MAX_SECTORS_PER_CALL, MAX_SECTORS_PER_PROOF,
+    MAX_POST_PROOF_BYTES, MAX_PROOFS_PER_BLOCK, MAX_REPLICAS_PER_BLOCK, MAX_SEAL_PROOF_BYTES,
+    MAX_SECTORS, MAX_SECTORS_PER_CALL,
 };
 
 pub trait StorageProviderValidation<AccountId> {
@@ -37,7 +37,7 @@ pub trait ProofVerification {
         replicas: BoundedBTreeMap<
             SectorNumber,
             PublicReplicaInfo,
-            ConstU32<{ MAX_SECTORS_PER_PROOF * MAX_PROOFS_PER_BLOCK }>,
+            ConstU32<MAX_REPLICAS_PER_BLOCK>,
         >,
         proof: BoundedVec<
             BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>,

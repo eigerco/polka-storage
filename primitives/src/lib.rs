@@ -58,6 +58,9 @@ pub const MAX_TERMINATIONS_PER_CALL: u32 = 32; // TODO(@jmg-duarte,25/07/2024): 
 /// * Filecoin docs about PoSt: <https://spec.filecoin.io/algorithms/pos/post/#section-algorithms.pos.post.windowpost>
 pub const MAX_SECTORS_PER_PROOF: u32 = 2349;
 
+/// The maximum amount of replicas that can be processed in a single block.
+pub const MAX_REPLICAS_PER_BLOCK: u32 = MAX_SECTORS_PER_PROOF * MAX_PROOFS_PER_BLOCK;
+
 /// The absolute maximum length, in bytes, a seal proof should be for the largest sector size.
 /// NOTE: Taken the value from `StackedDRG32GiBV1`,
 /// which is not the biggest seal proof type but we do not plan on supporting non-interactive proof types at this time.

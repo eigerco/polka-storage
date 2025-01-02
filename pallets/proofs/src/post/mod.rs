@@ -7,7 +7,7 @@ use primitives::{
     commitment::RawCommitment,
     proofs::{PublicReplicaInfo, RegisteredPoStProof, Ticket},
     sector::SectorNumber,
-    MAX_PROOFS_PER_BLOCK, MAX_SECTORS_PER_PROOF, NODE_SIZE,
+    MAX_PROOFS_PER_BLOCK, MAX_REPLICAS_PER_BLOCK, NODE_SIZE,
 };
 use sha2::{Digest, Sha256};
 
@@ -45,7 +45,7 @@ impl ProofScheme {
         replicas: BoundedBTreeMap<
             SectorNumber,
             PublicReplicaInfo,
-            ConstU32<{ MAX_SECTORS_PER_PROOF * MAX_PROOFS_PER_BLOCK }>,
+            ConstU32<MAX_REPLICAS_PER_BLOCK>,
         >,
         vk: VerifyingKey<Bls12>,
         proofs: BoundedVec<Proof<Bls12>, ConstU32<MAX_PROOFS_PER_BLOCK>>,
