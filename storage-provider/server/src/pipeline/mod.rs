@@ -549,49 +549,49 @@ async fn prove_commit(
         seal_randomness_height, sector.precommit_block, prove_commit_block, hex::encode(entropy), hex::encode(ticket), hex::encode(seed), hex::encode(prover_id), sector_number);
 
     tracing::debug!("Acquiring sempahore...");
-    let permit = state
-        .prove_commit_throttle
-        .acquire()
-        .await
-        .expect("semaphore to not be closed");
-    tracing::debug!("Acquired sempahore.");
+    let proofs = {
+        let _permit = state
+            .prove_commit_throttle
+            .acquire()
+            .await
+            .expect("semaphore to not be closed");
+        tracing::debug!("Acquired sempahore.");
 
-    let sealing_handle: JoinHandle<Result<Vec<BlstrsProof>, _>> = {
-        let porep_params = state.porep_parameters.clone();
-        let cache_dir = sector.cache_path.clone();
-        let sealed_path = sector.sealed_path.clone();
-        let piece_infos = sector.piece_infos.clone();
+        let sealing_handle: JoinHandle<Result<Vec<BlstrsProof>, _>> = {
+            let porep_params = state.porep_parameters.clone();
+            let cache_dir = sector.cache_path.clone();
+            let sealed_path = sector.sealed_path.clone();
+            let piece_infos = sector.piece_infos.clone();
 
-        tokio::task::spawn_blocking(move || {
-            sealer.prove_sector(
-                porep_params.as_ref(),
-                cache_dir,
-                sealed_path,
-                prover_id,
-                sector_number,
-                ticket,
-                Some(seed),
-                PreCommitOutput {
-                    comm_r: sector.comm_r,
-                    comm_d: sector.comm_d,
-                },
-                &piece_infos,
-            )
-        })
-    };
+            tokio::task::spawn_blocking(move || {
+                sealer.prove_sector(
+                    porep_params.as_ref(),
+                    cache_dir,
+                    sealed_path,
+                    prover_id,
+                    sector_number,
+                    ticket,
+                    Some(seed),
+                    PreCommitOutput {
+                        comm_r: sector.comm_r,
+                        comm_d: sector.comm_d,
+                    },
+                    &piece_infos,
+                )
+            })
+        };
 
-    let proofs = tokio::select! {
-        // Up to this point everything is retryable.
-        // Pipeline ends up being in an inconsistent state if we prove commit to the chain, and don't wait for it, so the sector's not persisted in the DB.
-        res = sealing_handle => {
-            res??
-        },
-        () = token.cancelled() => {
-            return Err(PipelineError::ProvingCancelled);
+        tokio::select! {
+            // Up to this point everything is retryable.
+            // Pipeline ends up being in an inconsistent state if we prove commit to the chain, and don't wait for it, so the sector's not persisted in the DB.
+            res = sealing_handle => {
+                res??
+            },
+            () = token.cancelled() => {
+                return Err(PipelineError::ProvingCancelled);
+            }
         }
     };
-
-    drop(permit);
 
     // We use sector size 2KiB only at this point, which guarantees to have 1 proof, because it has 1 partition in the config.
     // That's why `prove_commit` will always generate a 1 proof.
