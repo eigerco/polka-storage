@@ -237,7 +237,7 @@ pub struct ServerArguments {
     #[arg(long)]
     post_parameters: PathBuf,
 
-    /// How many Prove Commits in the pipeline can be running simultaneously.
+    /// The number of prove commits to be run in parallel.
     /// MUST BE > 0 or the pipeline will not progress.
     ///
     /// Creating a replica is memory-heavy process.
@@ -284,7 +284,7 @@ pub struct ServerConfiguration {
     /// For 2KiB sectors they're ~11MiB of data.
     post_parameters: PoStParameters,
 
-    /// How many Prove Commits in the pipeline can be running simultaneously.
+    /// The number of prove commits to be run in parallel.
     parallel_prove_commits: usize,
 }
 
