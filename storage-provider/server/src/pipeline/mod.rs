@@ -4,7 +4,7 @@ use std::{collections::BTreeSet, path::PathBuf, sync::Arc};
 
 use polka_storage_proofs::{
     porep::{
-        sealer::{prepare_piece, BlstrsProof, PreCommitOutput, Sealer, SubstrateProof},
+        sealer::{BlstrsProof, PreCommitOutput, Sealer, SubstrateProof},
         PoRepError, PoRepParameters,
     },
     post::{self, PoStError, PoStParameters, ReplicaInfo},
@@ -36,8 +36,7 @@ use tokio::{
 };
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use types::{
-    AddPieceMessage, PipelineMessage, PreCommitMessage, PreCommittedSector, ProveCommitMessage,
-    ProvenSector, SubmitWindowedPoStMessage, UnsealedSector,
+    AddPieceMessage, PipelineMessage, PreCommitMessage, PreCommittedSector, ProveCommitMessage, ProvenSector, SectorError, SubmitWindowedPoStMessage, UnsealedSector
 };
 
 use crate::db::{DBError, DealDB};
@@ -49,6 +48,8 @@ const SECTOR_EXPIRATION_MARGIN: u64 = 20;
 pub enum PipelineError {
     #[error(transparent)]
     PoRepError(#[from] PoRepError),
+    #[error(transparent)]
+    SectorError(#[from] SectorError),
     #[error(transparent)]
     PoStError(#[from] PoStError),
     #[error(transparent)]
@@ -285,7 +286,7 @@ async fn find_sector_for_piece(
         .next_sector_number()
         .map_err(|err| PipelineError::CustomError(err.to_string()))?;
     let unsealed_path = state.unsealed_sectors_dir.join(sector_number.to_string());
-    let sector = UnsealedSector::create(sector_number, unsealed_path).await?;
+    let sector = UnsealedSector::create(state.server_info.seal_proof, sector_number, unsealed_path).await?;
 
     Ok(sector)
 }
@@ -303,35 +304,13 @@ async fn add_piece(
     deal_id: u64,
 ) -> Result<(), PipelineError> {
     let mut sector = find_sector_for_piece(&state).await?;
-    sector.deals.push((deal_id, deal));
 
     tracing::info!("Adding a piece...");
-
-    let sealer = Sealer::new(state.server_info.seal_proof);
-    let handle: JoinHandle<Result<UnsealedSector, PipelineError>> =
-        tokio::task::spawn_blocking(move || {
-            let unsealed_sector = std::fs::File::options()
-                .append(true)
-                .open(&sector.unsealed_path)?;
-
-            tracing::info!("Preparing piece...");
-            let (padded_reader, piece_info) = prepare_piece(piece_path, commitment)?;
-            tracing::info!("Adding piece...");
-            let occupied_piece_space = sealer.add_piece(
-                padded_reader,
-                piece_info,
-                &sector.piece_infos,
-                unsealed_sector,
-            )?;
-
-            sector.piece_infos.push(piece_info);
-            sector.occupied_sector_space = sector.occupied_sector_space + occupied_piece_space;
-
-            Ok(sector)
-        });
-    let sector: UnsealedSector = handle.await??;
-
+    sector
+        .add_piece(deal_id, deal, piece_path, commitment)
+        .await?;
     tracing::info!("Finished adding a piece");
+
     state.db.save_sector(sector.sector_number, &sector)?;
 
     // TODO(@th7nder,30/10/2024): simplification, as we're always scheduling a precommit just after adding a piece and creating a new sector.
