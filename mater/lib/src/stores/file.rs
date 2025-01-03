@@ -279,7 +279,7 @@ mod tests {
                     }
                 }
                 _ => {
-                    unreachable!();
+                    unreachable!("the length check should avoid this from being reached");
                 }
             }
         }
