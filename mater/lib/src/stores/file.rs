@@ -10,7 +10,7 @@ use tokio::{
 };
 
 use crate::{
-    multicodec::SHA_256_CODE,
+    multicodec::{is_identity, SHA_256_CODE},
     v1::{self, read_block, write_block},
     v2::{self},
     CarV1Header, CarV2Header, Characteristics, Error, Index, IndexEntry, MultihashIndexSorted,
@@ -21,6 +21,8 @@ use crate::{
 /// into the blockstore can be read back once they are successfully written. The
 /// blocks are written immediately, while the index is stored in memory and
 /// updated incrementally.
+///
+/// The identity CIDs are not stored.
 ///
 /// The blockstore should be closed once the putting blocks is finished. Upon
 /// closing the blockstore, the index is written out to underlying file.
@@ -75,13 +77,24 @@ impl FileBlockstore {
         })
     }
 
-    /// Check if the store contains a block with the cid.
+    /// Check if the store contains a block with the cid. In case of IDENTITY
+    /// CID it always returns true.
     async fn has(&self, cid: Cid) -> Result<bool, Error> {
+        if is_identity(&cid).is_some() {
+            return Ok(true);
+        }
+
         Ok(self.inner.read().await.index.get(&cid).is_some())
     }
 
-    /// Get specific block from the store
+    /// Get specific block from the store. If the CID is an identity, the digest
+    /// from the cid is returned.
     async fn get(&self, cid: Cid) -> Result<Option<Vec<u8>>, Error> {
+        // If CID is an identity
+        if let Some(data) = is_identity(&cid) {
+            return Ok(Some(data.to_owned()));
+        }
+
         // The lock is hold through out the method execution. That way we are
         // certain that the file is not used and we are moving the cursor back
         // to the correct place after the read.
@@ -109,8 +122,14 @@ impl FileBlockstore {
         return Ok(Some(block_data));
     }
 
-    /// Put the new block in the store
-    async fn put(&self, cid: &Cid, data: &[u8]) -> Result<(), Error> {
+    /// Put the new block in the store. The data integrity is not checked. We
+    /// expect that the CID correctly represents the data being passed. In case
+    /// of the identity CID, nothing is written to the store.
+    async fn put_keyed(&self, cid: &Cid, data: &[u8]) -> Result<(), Error> {
+        if is_identity(&cid).is_some() {
+            return Ok(());
+        }
+
         // The lock is hold through out the method execution
         let mut inner = self.inner.write().await;
 
@@ -174,48 +193,52 @@ impl FileBlockstore {
 }
 
 #[cfg(feature = "blockstore")]
-impl blockstore::Blockstore for FileBlockstore {
-    async fn get<const S: usize>(
-        &self,
-        cid: &CidGeneric<S>,
-    ) -> Result<Option<Vec<u8>>, blockstore::Error> {
-        let cid = Cid::try_from(cid.to_bytes()).map_err(|_err| blockstore::Error::CidTooLarge)?;
+mod blockstore {
+    use blockstore::{Blockstore, Error};
+    use ipld_core::cid::{Cid, CidGeneric};
 
-        self.get(cid)
-            .await
-            .map_err(|err| blockstore::Error::FatalDatabaseError(err.to_string()))
-    }
+    use crate::FileBlockstore;
 
-    async fn has<const S: usize>(&self, cid: &CidGeneric<S>) -> blockstore::Result<bool> {
-        let cid = Cid::try_from(cid.to_bytes()).map_err(|_err| blockstore::Error::CidTooLarge)?;
+    impl Blockstore for FileBlockstore {
+        async fn get<const S: usize>(&self, cid: &CidGeneric<S>) -> Result<Option<Vec<u8>>, Error> {
+            let cid = Cid::try_from(cid.to_bytes()).map_err(|_err| Error::CidTooLarge)?;
 
-        self.has(cid)
-            .await
-            .map_err(|err| blockstore::Error::FatalDatabaseError(err.to_string()))
-    }
+            self.get(cid)
+                .await
+                .map_err(|err| Error::FatalDatabaseError(err.to_string()))
+        }
 
-    async fn put_keyed<const S: usize>(
-        &self,
-        cid: &CidGeneric<S>,
-        data: &[u8],
-    ) -> Result<(), blockstore::Error> {
-        let cid = Cid::try_from(cid.to_bytes()).map_err(|_err| blockstore::Error::CidTooLarge)?;
+        async fn has<const S: usize>(&self, cid: &CidGeneric<S>) -> blockstore::Result<bool> {
+            let cid = Cid::try_from(cid.to_bytes()).map_err(|_err| Error::CidTooLarge)?;
 
-        self.put(&cid, data)
-            .await
-            .map_err(|err| blockstore::Error::FatalDatabaseError(err.to_string()))
-    }
+            self.has(cid)
+                .await
+                .map_err(|err| Error::FatalDatabaseError(err.to_string()))
+        }
 
-    async fn remove<const S: usize>(&self, _cid: &CidGeneric<S>) -> Result<(), blockstore::Error> {
-        Err(blockstore::Error::FatalDatabaseError(
-            "remove operation not supported".to_string(),
-        ))
-    }
+        async fn put_keyed<const S: usize>(
+            &self,
+            cid: &CidGeneric<S>,
+            data: &[u8],
+        ) -> Result<(), Error> {
+            let cid = Cid::try_from(cid.to_bytes()).map_err(|_err| Error::CidTooLarge)?;
 
-    async fn close(self) -> Result<(), blockstore::Error> {
-        self.finalize()
-            .await
-            .map_err(|err| blockstore::Error::FatalDatabaseError(err.to_string()))
+            self.put_keyed(&cid, data)
+                .await
+                .map_err(|err| Error::FatalDatabaseError(err.to_string()))
+        }
+
+        async fn remove<const S: usize>(&self, _cid: &CidGeneric<S>) -> Result<(), Error> {
+            Err(Error::FatalDatabaseError(
+                "remove operation not supported".to_string(),
+            ))
+        }
+
+        async fn close(self) -> Result<(), Error> {
+            self.finalize()
+                .await
+                .map_err(|err| Error::FatalDatabaseError(err.to_string()))
+        }
     }
 }
 
@@ -223,20 +246,59 @@ impl blockstore::Blockstore for FileBlockstore {
 mod tests {
     use std::{io::Cursor, path::PathBuf, str::FromStr};
 
+    use ipld_core::cid::{multihash::Multihash, Cid};
     use tempfile::TempDir;
     use tokio::{
         fs::File,
         io::{AsyncReadExt, AsyncSeekExt},
     };
 
-    use crate::{CarV2Reader, FileBlockstore};
+    use crate::{
+        multicodec::{IDENTITY_CODE, RAW_CODE},
+        CarV2Reader, Error, FileBlockstore,
+    };
+
+    /// Initialize a new blockstore
+    async fn init_blockstore(roots: Vec<Cid>) -> Result<(TempDir, PathBuf, FileBlockstore), Error> {
+        let tmp_dir = TempDir::new().unwrap();
+        let blockstore_file_path = tmp_dir.path().join("blockstore.car");
+        let blockstore = FileBlockstore::new(&blockstore_file_path, roots).await?;
+
+        Ok((tmp_dir, blockstore_file_path, blockstore))
+    }
 
     #[tokio::test]
-    async fn file_exists() {
+    async fn test_file_exists_error() {
         let existing_path = PathBuf::from_str("tests/fixtures/car_v2/spaceglenda.car").unwrap();
         let blockstore = FileBlockstore::new(&existing_path, vec![]).await;
 
         assert!(blockstore.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_no_roots_error() {
+        let tmp_dir = TempDir::new().unwrap();
+        let blockstore_file_path = tmp_dir.path().join("blockstore.car");
+        let blockstore = FileBlockstore::new(&blockstore_file_path, vec![]).await;
+
+        assert!(blockstore.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_identity_cid() {
+        let arbitrary_root_cid =
+            Cid::from_str("bafkreiczsrdrvoybcevpzqmblh3my5fu6ui3tgag3jm3hsxvvhaxhswpyu").unwrap();
+        let (_guard, _file, blockstore) = init_blockstore(vec![arbitrary_root_cid]).await.unwrap();
+
+        let payload = b"Hello World!";
+        let multihash = Multihash::wrap(IDENTITY_CODE, payload).unwrap();
+        let identity_cid = Cid::new_v1(RAW_CODE, multihash);
+
+        let has_block = blockstore.has(identity_cid).await.unwrap();
+        assert!(has_block);
+
+        let content = blockstore.get(identity_cid).await.unwrap().unwrap();
+        assert_eq!(payload, content.as_slice());
     }
 
     #[tokio::test]
@@ -249,20 +311,15 @@ mod tests {
         let mut reader = CarV2Reader::new(Cursor::new(original_archive.clone()));
         reader.read_pragma().await.unwrap();
         let header = reader.read_header().await.unwrap();
-
         let v1_header = reader.read_v1_header().await.unwrap();
 
-        let tmp_dir = TempDir::new().unwrap();
-        let blockstore_file_path = tmp_dir.path().join("blockstore.car");
-        let blockstore = FileBlockstore::new(&blockstore_file_path, v1_header.roots)
-            .await
-            .unwrap();
+        let (_guard, blockstore_file, blockstore) = init_blockstore(v1_header.roots).await.unwrap();
 
         loop {
             match reader.read_block().await {
                 Ok((cid, data)) => {
                     // Add block to the store
-                    blockstore.put(&cid, &data).await.unwrap();
+                    blockstore.put_keyed(&cid, &data).await.unwrap();
 
                     // Check if the blockstore has a new block
                     assert!(blockstore.has(cid).await.unwrap());
@@ -288,11 +345,14 @@ mod tests {
         blockstore.finalize().await.unwrap();
 
         // Load new archive file to memory
-        let mut file = File::open(blockstore_file_path).await.unwrap();
+        let mut file = File::open(blockstore_file).await.unwrap();
         let mut new_archive = Vec::new();
         file.read_to_end(&mut new_archive).await.unwrap();
 
         // Compare both files
         assert_eq!(original_archive, new_archive);
     }
+
+    #[tokio::test]
+    async fn test_multiple() {}
 }
