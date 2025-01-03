@@ -75,6 +75,7 @@ impl FileBlockstore {
         })
     }
 
+    /// Check if the store contains a block with the cid.
     async fn has(&self, cid: Cid) -> Result<bool, Error> {
         Ok(self.index.read().await.get(&cid).is_some())
     }
@@ -130,8 +131,8 @@ impl FileBlockstore {
         Ok(())
     }
 
-    /// Finalize this blockstore by writing the CARv2 header, along with
-    /// flattened index for more efficient subsequent read.
+    /// Finalize this blockstore by writing the CARv2 header, along with index
+    /// for more efficient subsequent read.
     async fn finalize(self) -> Result<(), Error> {
         // Locked underlying file handler
         let mut inner = self.inner.lock().await;
