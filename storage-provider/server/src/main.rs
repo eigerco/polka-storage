@@ -136,6 +136,9 @@ pub enum ServerError {
     #[error("proof sectors sizes do not match")]
     SectorSizeMismatch,
 
+    #[error("at least 1 prove commit should be running in parallel")]
+    InvalidNumberOfParallelProveCommits,
+
     #[error("failed to load PoRep parameters from: {0}, because: {1}")]
     InvalidPoRepParameters(std::path::PathBuf, porep::PoRepError),
 
@@ -294,6 +297,10 @@ impl TryFrom<ServerArguments> for ServerConfiguration {
     fn try_from(value: ServerArguments) -> Result<Self, Self::Error> {
         if value.post_proof.sector_size() != value.seal_proof.sector_size() {
             return Err(ServerError::SectorSizeMismatch);
+        }
+
+        if value.parallel_prove_commits < 1 {
+            return Err(ServerError::InvalidNumberOfParallelProveCommits);
         }
 
         let multi_pair_signer = MultiPairSigner::new(
