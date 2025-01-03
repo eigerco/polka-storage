@@ -35,6 +35,9 @@ sha2 = { workspace = true }
 sp-runtime.workspace = true
 sp-std.workspace = true
 
+# Runtime benchmarks
+rand_xorshift = { workspace = true, optional = true }
+
 [dev-dependencies]
 blstrs = { workspace = true }
 filecoin-hashers = { workspace = true }
@@ -54,6 +57,7 @@ runtime-benchmarks = [
   "frame-benchmarking/runtime-benchmarks",
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
+  "rand_xorshift",
   "sp-runtime/runtime-benchmarks",
 ]
 std = [
