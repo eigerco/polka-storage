@@ -352,7 +352,4 @@ mod tests {
         // Compare both files
         assert_eq!(original_archive, new_archive);
     }
-
-    #[tokio::test]
-    async fn test_multiple() {}
 }
