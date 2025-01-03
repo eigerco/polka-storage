@@ -36,9 +36,14 @@ target/release/storagext-cli --sr25519-key "$PROVIDER" market add-balance 250000
 # register one of them as the storage provider
 wait
 
-target/release/storagext-cli --sr25519-key "//Charlie" storage-provider register "peer_id"
-target/release/storagext-cli --sr25519-key "//Charlie" proofs set-porep-verifying-key @2KiB.porep.vk.scale
-target/release/storagext-cli --sr25519-key "//Charlie" proofs set-post-verifying-key @2KiB.post.vk.scale
+# It's a test setup based on the local verifying keys, everyone can run those extrinsics currently.
+# Each of the keys is different, because the processes are running in parallel.
+# If they were running in parallel on the same account, they'd conflict with each other on the transaction nonce.
+target/release/storagext-cli --sr25519-key "//Charlie" storage-provider register "peer_id" &
+target/release/storagext-cli --sr25519-key "//Alice" proofs set-porep-verifying-key @2KiB.porep.vk.scale &
+target/release/storagext-cli --sr25519-key "//Bob" proofs set-post-verifying-key @2KiB.post.vk.scale &
+
+wait
 
 DEAL_JSON=$(
     jq -n \

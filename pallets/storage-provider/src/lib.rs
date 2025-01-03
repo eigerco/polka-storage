@@ -372,6 +372,9 @@ pub mod pallet {
         CannotTerminateImmutableDeadline,
         /// Emitted when trying to submit PoSt with partitions containing too many sectors (>2349).
         TooManyReplicas,
+        /// SubmitWindowedPoSt must accept the same number of proofs as ProofVerification trait.
+        /// Internal error, should not happen.
+        TooManyProofs,
         /// AuthorVRF lookup failed.
         MissingAuthorVRF,
         /// Inner pallet errors
@@ -683,27 +686,27 @@ pub mod pallet {
             let mut sp = StorageProviders::<T>::try_get(&owner)
                 .map_err(|_| Error::<T>::StorageProviderNotFound)?;
 
-            // Ensure proof matches the expected kind
-            ensure!(
-                windowed_post.proof.post_proof == sp.info.window_post_proof_type,
-                {
+            for (idx, proof) in windowed_post.proofs.iter().enumerate() {
+                // Ensure proof matches the expected kind
+                ensure!(proof.post_proof == sp.info.window_post_proof_type, {
                     log::error!(
                         target: LOG_TARGET,
-                        "submit_window_post: expected PoSt type {:?} but received {:?} instead",
+                        "submit_window_post: idx: {}, expected PoSt type {:?} but received {:?} instead",
+                        idx,
                         sp.info.window_post_proof_type,
-                        windowed_post.proof.post_proof
+                        proof.post_proof
                     );
                     Error::<T>::InvalidProofType
-                }
-            );
+                });
 
-            ensure!(
-                windowed_post.proof.proof_bytes.len() <= primitives::MAX_POST_PROOF_BYTES as usize,
-                {
-                    log::error!("submit_window_post: invalid proof size");
-                    Error::<T>::PoStProofInvalid
-                }
-            );
+                ensure!(
+                    proof.proof_bytes.len() <= primitives::MAX_POST_PROOF_BYTES as usize,
+                    {
+                        log::error!("submit_window_post: invalid proof size");
+                        Error::<T>::PoStProofInvalid
+                    }
+                );
+            }
 
             // If the proving period is in the future, we can't submit a proof yet
             // Related issue: https://github.com/filecoin-project/specs-actors/issues/946
@@ -799,11 +802,18 @@ pub mod pallet {
                 &entropy,
             )?;
 
+            let mut proofs = BoundedVec::new();
+            for proof in windowed_post.proofs {
+                proofs
+                    .try_push(proof.proof_bytes)
+                    .map_err(|_| Error::<T>::TooManyProofs)?;
+            }
+
             T::ProofVerification::verify_post(
-                windowed_post.proof.post_proof,
+                sp.info.window_post_proof_type,
                 randomness,
                 replicas,
-                windowed_post.proof.proof_bytes,
+                proofs,
             )?;
 
             log::debug!(target: LOG_TARGET, "submit_windowed_post: proof recorded");
