@@ -7,7 +7,7 @@ mod pipeline;
 mod rpc;
 mod storage;
 
-use std::{env::temp_dir, net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
+use std::{env::temp_dir, net::SocketAddr, num::NonZero, path::PathBuf, sync::Arc, time::Duration};
 
 use clap::Parser;
 use pipeline::types::PipelineMessage;
@@ -136,9 +136,6 @@ pub enum ServerError {
     #[error("proof sectors sizes do not match")]
     SectorSizeMismatch,
 
-    #[error("at least 1 prove commit should be running in parallel")]
-    InvalidNumberOfParallelProveCommits,
-
     #[error("failed to load PoRep parameters from: {0}, because: {1}")]
     InvalidPoRepParameters(std::path::PathBuf, porep::PoRepError),
 
@@ -246,7 +243,7 @@ pub struct ServerArguments {
     /// Creating a replica is memory-heavy process.
     /// E.g. With 2KiB sector sizes and 16GiB of RAM, it goes OOM at 4 parallel.
     #[arg(long, default_value = "2")]
-    parallel_prove_commits: usize,
+    parallel_prove_commits: NonZero<usize>,
 }
 
 /// A valid server configuration. To be created using [`ServerConfiguration::try_from`].
@@ -299,10 +296,6 @@ impl TryFrom<ServerArguments> for ServerConfiguration {
             return Err(ServerError::SectorSizeMismatch);
         }
 
-        if value.parallel_prove_commits < 1 {
-            return Err(ServerError::InvalidNumberOfParallelProveCommits);
-        }
-
         let multi_pair_signer = MultiPairSigner::new(
             value.sr25519_key.map(DebugPair::<Sr25519Pair>::into_inner),
             value.ecdsa_key.map(DebugPair::<ECDSAPair>::into_inner),
@@ -348,7 +341,7 @@ impl TryFrom<ServerArguments> for ServerConfiguration {
             post_proof: value.post_proof,
             porep_parameters,
             post_parameters,
-            parallel_prove_commits: value.parallel_prove_commits,
+            parallel_prove_commits: value.parallel_prove_commits.get(),
         })
     }
 }
