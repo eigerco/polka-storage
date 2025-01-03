@@ -6,7 +6,7 @@ use sha2::{Digest, Sha256};
 use tokio::{
     fs::File,
     io::{AsyncSeekExt, AsyncWriteExt, BufWriter},
-    sync::{Mutex, RwLock},
+    sync::RwLock,
 };
 
 use crate::{
@@ -26,12 +26,7 @@ use crate::{
 /// closing the blockstore, the index is written out to underlying file.
 pub struct FileBlockstore {
     // Inner store
-    inner: Mutex<FileBlockstoreInner>,
-    // Index of blocks that will be appended to the file at the finalization.
-    // Stored number is an offset that locates the first byte of the block
-    // within the CARv1 payload. The offset is relative to the start of the
-    // CARv1 payload.
-    index: RwLock<IndexMap<Cid, u64>>,
+    inner: RwLock<FileBlockstoreInner>,
 }
 
 /// Inner file store. Encapsulating state that is locked and used together.
@@ -41,6 +36,11 @@ struct FileBlockstoreInner {
     // The byte length of the CARv1 payload. This is used by the indexing, so we
     // know the locations of each blocks in the file.
     data_size: u64,
+    // Index of blocks that will be appended to the file at the finalization.
+    // Stored number is an offset that locates the first byte of the block
+    // within the CARv1 payload. The offset is relative to the start of the
+    // CARv1 payload.
+    index: IndexMap<Cid, u64>,
 }
 
 impl FileBlockstore {
@@ -67,30 +67,30 @@ impl FileBlockstore {
         let inner = FileBlockstoreInner {
             store: file,
             data_size: written as u64,
+            index: IndexMap::new(),
         };
 
         Ok(Self {
-            inner: Mutex::new(inner),
-            index: RwLock::new(IndexMap::new()),
+            inner: RwLock::new(inner),
         })
     }
 
     /// Check if the store contains a block with the cid.
     async fn has(&self, cid: Cid) -> Result<bool, Error> {
-        Ok(self.index.read().await.get(&cid).is_some())
+        Ok(self.inner.read().await.index.get(&cid).is_some())
     }
 
     /// Get specific block from the store
     async fn get(&self, cid: Cid) -> Result<Option<Vec<u8>>, Error> {
-        // Get the index if exists
-        let Some(index) = self.index.read().await.get(&cid).copied() else {
-            return Ok(None);
-        };
-
         // The lock is hold through out the method execution. That way we are
         // certain that the file is not used and we are moving the cursor back
         // to the correct place after the read.
-        let mut inner = self.inner.lock().await;
+        let mut inner = self.inner.write().await;
+
+        // Get the index if exists
+        let Some(index) = inner.index.get(&cid).copied() else {
+            return Ok(None);
+        };
 
         // Move cursor to the location of the block
         inner
@@ -98,7 +98,7 @@ impl FileBlockstore {
             .seek(SeekFrom::Start(CarV2Header::SIZE + index))
             .await?;
 
-        // Read block
+        // Read the lock
         let (block_cid, block_data) = read_block(&mut inner.store).await?;
         debug_assert_eq!(block_cid, cid);
 
@@ -109,10 +109,10 @@ impl FileBlockstore {
         return Ok(Some(block_data));
     }
 
-    /// Put a new block in the store
+    /// Put the new block in the store
     async fn put(&self, cid: &Cid, data: &[u8]) -> Result<(), Error> {
-        // Lock writer
-        let mut inner = self.inner.lock().await;
+        // The lock is hold through out the method execution
+        let mut inner = self.inner.write().await;
 
         // This is a current position of the writer. We save this to the indexer
         // so that we know where we wrote the current block.
@@ -126,16 +126,16 @@ impl FileBlockstore {
         inner.data_size += written as u64;
 
         // Add current block to the index
-        self.index.write().await.insert(*cid, index_location);
+        inner.index.insert(*cid, index_location);
 
         Ok(())
     }
 
-    /// Finalize this blockstore by writing the CARv2 header, along with index
+    /// Finalize the blockstore by writing the CARv2 header, along with index
     /// for more efficient subsequent read.
     async fn finalize(self) -> Result<(), Error> {
-        // Locked underlying file handler
-        let mut inner = self.inner.lock().await;
+        // Owned inner value
+        let mut inner = self.inner.into_inner();
 
         // Correct CARv2 header
         let header = CarV2Header {
@@ -154,9 +154,9 @@ impl FileBlockstore {
             .store
             .seek(SeekFrom::Start(header.index_offset))
             .await?;
-        let index = self.index.read().await.clone();
-        let count = index.len() as u64;
-        let entries = index
+        let count = inner.index.len() as u64;
+        let entries = inner
+            .index
             .into_iter()
             .map(|(cid, offset)| IndexEntry::new(cid.hash().digest().to_vec(), offset as u64))
             .collect();
