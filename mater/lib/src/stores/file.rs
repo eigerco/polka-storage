@@ -41,16 +41,18 @@ struct FileBlockstoreInner {
     // The byte length of the CARv1 payload. This is used by the indexing, so we
     // know the locations of each blocks in the file.
     data_size: u64,
-    // Is true if the blockstore was finalized.
-    is_finalized: bool,
 }
 
 impl FileBlockstore {
-    /// Create a new blockstore. If file at the path already exists it is truncated.
+    /// Create a new blockstore. If file at the path already exists the error is thrown.
     pub async fn new<P>(path: P, roots: Vec<Cid>) -> Result<Self, Error>
     where
         P: AsRef<Path>,
     {
+        if roots.is_empty() {
+            return Err(crate::Error::EmptyRootsError);
+        }
+
         let mut file = File::options()
             .create_new(true)
             .write(true)
@@ -60,12 +62,11 @@ impl FileBlockstore {
 
         // Write headers
         v2::write_header(&mut file, &CarV2Header::default()).await?;
-        let written = v1::write_header(&mut file, &CarV1Header::new(roots.clone())).await?;
+        let written = v1::write_header(&mut file, &CarV1Header::new(roots)).await?;
 
         let inner = FileBlockstoreInner {
             store: file,
             data_size: written as u64,
-            is_finalized: false,
         };
 
         Ok(Self {
@@ -135,11 +136,6 @@ impl FileBlockstore {
         // Locked underlying file handler
         let mut inner = self.inner.lock().await;
 
-        // The blockstore was already finalized
-        if inner.is_finalized {
-            return Ok(());
-        }
-
         // Correct CARv2 header
         let header = CarV2Header {
             characteristics: Characteristics::EMPTY,
@@ -152,7 +148,7 @@ impl FileBlockstore {
         inner.store.rewind().await?;
         v2::write_header(&mut inner.store, &header).await?;
 
-        // Flatten and write the index
+        // Write the index
         inner
             .store
             .seek(SeekFrom::Start(header.index_offset))
@@ -171,7 +167,6 @@ impl FileBlockstore {
 
         // Flush underlying writer
         inner.store.flush().await?;
-        inner.is_finalized = true;
 
         Ok(())
     }
@@ -211,7 +206,9 @@ impl blockstore::Blockstore for FileBlockstore {
     }
 
     async fn remove<const S: usize>(&self, _cid: &CidGeneric<S>) -> Result<(), blockstore::Error> {
-        unimplemented!("Operation not supported")
+        Err(blockstore::Error::FatalDatabaseError(
+            "remove operation not supported".to_string(),
+        ))
     }
 
     async fn close(self) -> Result<(), blockstore::Error> {
@@ -231,7 +228,7 @@ mod tests {
         io::{AsyncReadExt, AsyncSeekExt},
     };
 
-    use crate::{CarV2Reader, Error, FileBlockstore};
+    use crate::{CarV2Reader, FileBlockstore};
 
     #[tokio::test]
     async fn file_exists() {
@@ -244,12 +241,9 @@ mod tests {
     #[tokio::test]
     async fn test_blockstore() {
         // Car file
-        let mut file =
-            File::open(PathBuf::from_str("tests/fixtures/car_v2/spaceglenda.car").unwrap())
-                .await
-                .unwrap();
-        let mut original_archive = Vec::new();
-        file.read_to_end(&mut original_archive).await.unwrap();
+        let original_archive = tokio::fs::read("tests/fixtures/car_v2/spaceglenda.car")
+            .await
+            .unwrap();
 
         let mut reader = CarV2Reader::new(Cursor::new(original_archive.clone()));
         reader.read_pragma().await.unwrap();
@@ -264,7 +258,6 @@ mod tests {
             .unwrap();
 
         loop {
-            // NOTE(@jmg-duarte,22/05/2024): review this
             match reader.read_block().await {
                 Ok((cid, data)) => {
                     // Add block to the store
@@ -284,10 +277,8 @@ mod tests {
                         break;
                     }
                 }
-                else_ => {
-                    // With the length check above this branch should actually be unreachable
-                    assert!(matches!(else_, Err(Error::IoError(_))));
-                    break;
+                _ => {
+                    unreachable!();
                 }
             }
         }
