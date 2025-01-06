@@ -28,7 +28,10 @@ use storagext::{
 };
 use subxt::{ext::codec::Encode, tx::Signer};
 use tokio::{
-    sync::mpsc::{error::SendError, UnboundedReceiver, UnboundedSender},
+    sync::{
+        mpsc::{error::SendError, UnboundedReceiver, UnboundedSender},
+        Semaphore,
+    },
     task::{JoinError, JoinHandle},
 };
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
@@ -86,6 +89,7 @@ pub struct PipelineState {
     pub xt_client: Arc<storagext::Client>,
     pub xt_keypair: storagext::multipair::MultiPairSigner,
     pub pipeline_sender: UnboundedSender<PipelineMessage>,
+    pub prove_commit_throttle: Arc<Semaphore>,
 }
 
 #[tracing::instrument(skip_all)]
@@ -544,38 +548,48 @@ async fn prove_commit(
     tracing::debug!("Performing prove commit for, seal_randomness_height {}, pre_commit_block: {}, prove_commit_block: {}, entropy: {}, ticket: {}, seed: {}, prover id: {}, sector_number: {}",
         seal_randomness_height, sector.precommit_block, prove_commit_block, hex::encode(entropy), hex::encode(ticket), hex::encode(seed), hex::encode(prover_id), sector_number);
 
-    let sealing_handle: JoinHandle<Result<Vec<BlstrsProof>, _>> = {
-        let porep_params = state.porep_parameters.clone();
-        let cache_dir = sector.cache_path.clone();
-        let sealed_path = sector.sealed_path.clone();
-        let piece_infos = sector.piece_infos.clone();
+    tracing::debug!("Acquiring sempahore...");
+    let proofs = {
+        let _permit = state
+            .prove_commit_throttle
+            .acquire()
+            .await
+            .expect("semaphore to not be closed");
+        tracing::debug!("Acquired sempahore.");
 
-        tokio::task::spawn_blocking(move || {
-            sealer.prove_sector(
-                porep_params.as_ref(),
-                cache_dir,
-                sealed_path,
-                prover_id,
-                sector_number,
-                ticket,
-                Some(seed),
-                PreCommitOutput {
-                    comm_r: sector.comm_r,
-                    comm_d: sector.comm_d,
-                },
-                &piece_infos,
-            )
-        })
-    };
+        let sealing_handle: JoinHandle<Result<Vec<BlstrsProof>, _>> = {
+            let porep_params = state.porep_parameters.clone();
+            let cache_dir = sector.cache_path.clone();
+            let sealed_path = sector.sealed_path.clone();
+            let piece_infos = sector.piece_infos.clone();
 
-    let proofs = tokio::select! {
-        // Up to this point everything is retryable.
-        // Pipeline ends up being in an inconsistent state if we prove commit to the chain, and don't wait for it, so the sector's not persisted in the DB.
-        res = sealing_handle => {
-            res??
-        },
-        () = token.cancelled() => {
-            return Err(PipelineError::ProvingCancelled);
+            tokio::task::spawn_blocking(move || {
+                sealer.prove_sector(
+                    porep_params.as_ref(),
+                    cache_dir,
+                    sealed_path,
+                    prover_id,
+                    sector_number,
+                    ticket,
+                    Some(seed),
+                    PreCommitOutput {
+                        comm_r: sector.comm_r,
+                        comm_d: sector.comm_d,
+                    },
+                    &piece_infos,
+                )
+            })
+        };
+
+        tokio::select! {
+            // Up to this point everything is retryable.
+            // Pipeline ends up being in an inconsistent state if we prove commit to the chain, and don't wait for it, so the sector's not persisted in the DB.
+            res = sealing_handle => {
+                res??
+            },
+            () = token.cancelled() => {
+                return Err(PipelineError::ProvingCancelled);
+            }
         }
     };
 

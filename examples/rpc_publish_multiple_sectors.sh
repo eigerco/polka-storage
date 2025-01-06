@@ -59,11 +59,6 @@ do
     echo
     echo "-------------------------- Publishing deal $i..."
     target/release/polka-storage-provider-client publish-deal "$SIGNED_DEAL_JSON" &
-    # If we try to prove commit 6 in a single row then we're done.
-    # we need to throttle prove commits.
-    # Sleeping until polka-storage#655 is done.
-    sleep 6
-
 done
 
 # wait until user Ctrl+Cs so that the commitment can actually be calculated

@@ -7,7 +7,7 @@ mod pipeline;
 mod rpc;
 mod storage;
 
-use std::{env::temp_dir, net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
+use std::{env::temp_dir, net::SocketAddr, num::NonZero, path::PathBuf, sync::Arc, time::Duration};
 
 use clap::Parser;
 use pipeline::types::PipelineMessage;
@@ -32,7 +32,10 @@ use subxt::{
     },
     tx::Signer,
 };
-use tokio::{sync::mpsc::UnboundedReceiver, task::JoinError};
+use tokio::{
+    sync::{mpsc::UnboundedReceiver, Semaphore},
+    task::JoinError,
+};
 use tokio_util::sync::CancellationToken;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
@@ -233,6 +236,14 @@ pub struct ServerArguments {
     /// **they need to be set** via an extrinsic pallet-proofs::set_post_verifyingkey.
     #[arg(long)]
     post_parameters: PathBuf,
+
+    /// The number of prove commits to be run in parallel.
+    /// MUST BE > 0 or the pipeline will not progress.
+    ///
+    /// Creating a replica is memory-heavy process.
+    /// E.g. With 2KiB sector sizes and 16GiB of RAM, it goes OOM at 4 parallel.
+    #[arg(long, default_value = "2")]
+    parallel_prove_commits: NonZero<usize>,
 }
 
 /// A valid server configuration. To be created using [`ServerConfiguration::try_from`].
@@ -272,6 +283,9 @@ pub struct ServerConfiguration {
     /// Proving Parameters for PoSt proof.
     /// For 2KiB sectors they're ~11MiB of data.
     post_parameters: PoStParameters,
+
+    /// The number of prove commits to be run in parallel.
+    parallel_prove_commits: usize,
 }
 
 impl TryFrom<ServerArguments> for ServerConfiguration {
@@ -327,6 +341,7 @@ impl TryFrom<ServerArguments> for ServerConfiguration {
             post_proof: value.post_proof,
             porep_parameters,
             post_parameters,
+            parallel_prove_commits: value.parallel_prove_commits.get(),
         })
     }
 }
@@ -458,6 +473,7 @@ impl ServerConfiguration {
             xt_client,
             xt_keypair: self.multi_pair_signer,
             pipeline_sender: pipeline_tx,
+            prove_commit_throttle: Arc::new(Semaphore::new(self.parallel_prove_commits)),
         };
 
         Ok(SetupOutput {
