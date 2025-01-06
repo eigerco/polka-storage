@@ -340,13 +340,13 @@ mod tests {
         match index {
             Index::MultihashIndexSorted(index) => {
                 // There's only Sha256
-                assert_eq!(index.0.len(), 1);
+                assert_eq!(index.len(), 1);
 
-                let index_sorted = &index.0[&SHA_256_CODE];
+                let index_sorted = &index[&SHA_256_CODE];
                 // There's only a single length
-                assert_eq!(index_sorted.0.len(), 1);
+                assert_eq!(index_sorted.len(), 1);
 
-                let single_width_index = &index_sorted.0[0];
+                let single_width_index = &index_sorted[0];
                 assert_eq!(single_width_index.count, 2);
                 // Sha256 output size (32) + the offset size (8)
                 assert_eq!(single_width_index.width, Sha256::output_size() as u32 + 8);

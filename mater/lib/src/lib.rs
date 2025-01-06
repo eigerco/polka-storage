@@ -47,6 +47,10 @@ pub enum Error {
     #[error("CAR file must have roots")]
     EmptyRootsError,
 
+    /// Returned when the number of roots is wrong.
+    #[error("Wrong number of roots")]
+    WrongNumberOfRoots,
+
     /// Unknown type of index. Supported indexes are
     /// [`IndexSorted`] and [`MultihashIndexSorted`].
     #[error("unknown index type {0}")]

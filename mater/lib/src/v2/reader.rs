@@ -301,9 +301,9 @@ mod tests {
         let index = reader.read_index().await.unwrap();
         assert!(matches!(index, Index::MultihashIndexSorted(_)));
         if let Index::MultihashIndexSorted(mh) = index {
-            assert_eq!(mh.0.len(), 1);
-            assert!(mh.0.contains_key(&SHA_256_CODE));
-            let fst = &mh.0[&SHA_256_CODE].0;
+            assert_eq!(mh.len(), 1);
+            assert!(mh.contains_key(&SHA_256_CODE));
+            let fst = &mh[&SHA_256_CODE];
             assert_eq!(fst.len(), 1);
             assert_eq!(fst[0].count, 1);
             assert_eq!(fst[0].width, 40);
@@ -357,9 +357,9 @@ mod tests {
         let index = reader.read_index().await.unwrap();
         assert!(matches!(index, Index::MultihashIndexSorted(_)));
         if let Index::MultihashIndexSorted(mh) = index {
-            assert_eq!(mh.0.len(), 1);
-            assert!(mh.0.contains_key(&SHA_256_CODE));
-            let fst = &mh.0[&SHA_256_CODE].0;
+            assert_eq!(mh.len(), 1);
+            assert!(mh.contains_key(&SHA_256_CODE));
+            let fst = &mh[&SHA_256_CODE];
             assert_eq!(fst.len(), 1);
             assert_eq!(fst[0].count, 1);
             assert_eq!(fst[0].width, 40);
@@ -416,9 +416,9 @@ mod tests {
         let index = reader.read_index().await.unwrap();
         assert!(matches!(index, Index::MultihashIndexSorted(_)));
         if let Index::MultihashIndexSorted(mh) = index {
-            assert_eq!(mh.0.len(), 1);
-            assert!(mh.0.contains_key(&SHA_256_CODE));
-            let fst = &mh.0[&SHA_256_CODE].0;
+            assert_eq!(mh.len(), 1);
+            assert!(mh.contains_key(&SHA_256_CODE));
+            let fst = &mh[&SHA_256_CODE];
             assert_eq!(fst.len(), 1);
             assert_eq!(fst[0].count, 4);
             assert_eq!(fst[0].width, 40);
