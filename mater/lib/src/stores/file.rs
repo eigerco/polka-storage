@@ -10,7 +10,7 @@ use tokio::{
 };
 
 use crate::{
-    multicodec::{is_identity, SHA_256_CODE},
+    multicodec::{get_identity_data, SHA_256_CODE},
     v1::{self, read_block, write_block},
     v2::{self},
     CarV1Header, CarV2Header, Characteristics, Error, Index, IndexEntry, MultihashIndexSorted,
@@ -35,7 +35,7 @@ pub struct FileBlockstore {
 
 /// Inner file store. Encapsulating state that is locked and used together.
 struct FileBlockstoreInner {
-    /// Underlying data store in a car format
+    /// Underlying data store in a CAR format
     store: File,
     /// The byte length of the CARv1 payload. This is used by the indexing, so we
     /// know the locations of each blocks in the file.
@@ -138,7 +138,7 @@ impl FileBlockstore {
     /// Check if the store contains a block with the cid. In case of IDENTITY
     /// CID it always returns true.
     pub async fn has(&self, cid: Cid) -> Result<bool, Error> {
-        if is_identity(&cid).is_some() {
+        if get_identity_data(&cid).is_some() {
             return Ok(true);
         }
 
@@ -150,11 +150,11 @@ impl FileBlockstore {
     /// from the cid is returned.
     pub async fn get(&self, cid: Cid) -> Result<Option<Vec<u8>>, Error> {
         // If CID is an identity
-        if let Some(data) = is_identity(&cid) {
+        if let Some(data) = get_identity_data(&cid) {
             return Ok(Some(data.to_owned()));
         }
 
-        // The lock is hold through out the method execution. That way we are
+        // The lock is held throughout the method execution. That way we are
         // certain that the file is not used and we are moving the cursor back
         // to the correct place after the read.
         let mut inner = self.inner.write().await;
@@ -186,7 +186,7 @@ impl FileBlockstore {
     /// expect that the CID correctly represents the data being passed. In case
     /// of the identity CID, nothing is written to the store.
     pub async fn put_keyed(&self, cid: &Cid, data: &[u8]) -> Result<(), Error> {
-        if is_identity(&cid).is_some() {
+        if get_identity_data(&cid).is_some() {
             return Ok(());
         }
 
@@ -494,8 +494,7 @@ mod tests {
             .await
             .unwrap();
 
-        // Writing a new block should fail because the Blockstore is in ready
-        // only mode.
+        // Writing a new block should fail because the Blockstore is in read only mode.
         let payload = b"Hello World!";
         let cid = Cid::new_v1(RAW_CODE, generate_multihash::<Sha256, _>(payload));
         let writing_result = blockstore.put_keyed(&cid, payload).await;

@@ -40,6 +40,6 @@ where
 }
 
 // Returns Some(data) if the CID is an identity. If not, None is returned.
-pub fn is_identity<const S: usize>(cid: &CidGeneric<S>) -> Option<&[u8]> {
-    (cid.hash().code() == IDENTITY_CODE).then_some(cid.hash().digest())
+pub fn get_identity_data<const S: usize>(cid: &CidGeneric<S>) -> Option<&[u8]> {
+    (cid.hash().code() == IDENTITY_CODE).then(|| cid.hash().digest())
 }
