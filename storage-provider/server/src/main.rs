@@ -188,7 +188,7 @@ pub struct ServerCli {
     config: Option<PathBuf>,
 
     /// P2P Node type, can be either a bootstrap node or a registration node.
-    #[arg(long)]
+    #[arg(long, default_value = "bootstrap")]
     node_type: NodeType,
 
     /// Path to P2P config file

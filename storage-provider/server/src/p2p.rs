@@ -1,4 +1,5 @@
 use std::{
+    fmt::Display,
     fs::read_to_string,
     path::{Path, PathBuf},
 };
@@ -21,6 +22,12 @@ mod register;
 pub enum NodeType {
     Bootstrap,
     Register,
+}
+
+impl Display for NodeType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
