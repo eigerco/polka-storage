@@ -1,11 +1,7 @@
 mod proofs;
 mod wallet;
 
-use std::{
-    fs,
-    io::{self, Write},
-    path::PathBuf,
-};
+use std::{fs, path::PathBuf};
 
 use clap::Parser;
 use ed25519_dalek::pkcs8::{DecodePublicKey, PublicKeyBytes};
@@ -214,11 +210,11 @@ impl Cli {
         let pubkey_bytes = PublicKeyBytes::read_public_key_pem_file(path)?;
         let pubkey = EdPubKey::try_from_bytes(&pubkey_bytes.to_bytes())?;
         let key = libp2p::identity::PublicKey::from(pubkey);
-        let peer_id = PeerId::from_public_key(&key).to_string();
+        let peer_id = PeerId::from_public_key(&key);
 
         match file {
-            None => io::stdout().lock().write_all(&peer_id.as_bytes())?,
-            Some(path) => fs::write(path, &peer_id.as_bytes())?,
+            None => println!("{peer_id}"),
+            Some(path) => fs::write(path, &peer_id.to_string().as_bytes())?,
         }
         Ok(())
     }
