@@ -316,14 +316,13 @@ mod blockstore {
     /// Convert CID with the generic Multihash size to the CID with the specific
     /// Multihash size that the underlying blockstore expects.
     fn to_blockstore_cid<const S: usize>(cid: &CidGeneric<S>) -> Result<Cid, Error> {
-        let digest_size = cid.hash().size();
-        let hash = cid.hash().resize::<64>().map_err(|err| {
-            Err(Error::CidError(CidError::InvalidMultihashLength(
-                digest_size,
-            )))
-        })?;
+        let digest_size = cid.hash().size() as usize;
+        let hash = cid
+            .hash()
+            .resize::<64>()
+            .map_err(|_| Error::CidError(CidError::InvalidMultihashLength(digest_size)))?;
 
-        Ok(Cid::new(cid.version(), cid.codec(), hash))
+        Ok(Cid::new(cid.version(), cid.codec(), hash).expect("we know cid is correct here"))
     }
 }
 
