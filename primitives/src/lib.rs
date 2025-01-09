@@ -17,6 +17,14 @@ pub const NODE_SIZE: usize = 32;
 /// ref: <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/runtime/src/runtime/policy.rs#L283>
 pub const MAX_PARTITIONS_PER_DEADLINE: u32 = 3000;
 
+/// Establishes how many partitions can we verify in a single extrinsic.
+/// It's determined by the timing limitations, storage provider have an upper limit of 3000 partitions per deadline.
+/// With our current verification solution, it'll take around ~30 extrinsic calls to verify all of them.
+/// Verification of a single proof takes around ~100ms, block time is ~6000ms.
+/// This means 10 partitions will be verified in a ~1 sec.
+// TODO(@th7nder,#659,27/12/2024): possibly speed it up
+pub const MAX_PROOFS_PER_BLOCK: u32 = 10;
+
 /// Max number of sectors.
 /// <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/runtime/src/runtime/policy.rs#L262>
 pub const MAX_SECTORS: u32 = 32 << 20;
@@ -49,6 +57,9 @@ pub const MAX_TERMINATIONS_PER_CALL: u32 = 32; // TODO(@jmg-duarte,25/07/2024): 
 /// References:
 /// * Filecoin docs about PoSt: <https://spec.filecoin.io/algorithms/pos/post/#section-algorithms.pos.post.windowpost>
 pub const MAX_SECTORS_PER_PROOF: u32 = 2349;
+
+/// The maximum amount of replicas that can be processed in a single block.
+pub const MAX_REPLICAS_PER_BLOCK: u32 = MAX_SECTORS_PER_PROOF * MAX_PROOFS_PER_BLOCK;
 
 /// The absolute maximum length, in bytes, a seal proof should be for the largest sector size.
 /// NOTE: Taken the value from `StackedDRG32GiBV1`,

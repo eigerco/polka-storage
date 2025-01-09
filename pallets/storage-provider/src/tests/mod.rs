@@ -20,7 +20,8 @@ use primitives::{
     proofs::{ProverId, PublicReplicaInfo, RegisteredPoStProof, RegisteredSealProof, Ticket},
     sector::SectorNumber,
     DealId, PartitionNumber, CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR, MAX_PARTITIONS_PER_DEADLINE,
-    MAX_POST_PROOF_BYTES, MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_PROOF, MAX_TERMINATIONS_PER_CALL,
+    MAX_POST_PROOF_BYTES, MAX_PROOFS_PER_BLOCK, MAX_REPLICAS_PER_BLOCK, MAX_SEAL_PROOF_BYTES,
+    MAX_TERMINATIONS_PER_CALL,
 };
 use sp_arithmetic::traits::Zero;
 use sp_core::{bounded_vec, Pair};
@@ -85,7 +86,9 @@ impl pallet_balances::Config for Test {
 
 pub const INVALID_PROOF: [u8; 2] = [0xd, 0xe];
 
-/// This is dummy proofs pallet implementation. All proofs are accepted as valid
+/// This is dummy proofs pallet implementation.
+/// All PoRep proofs are accepted as valid.
+/// All PoSt proofs are accepted as valid unless first of them is [`INVALID_PROOF`].
 pub struct DummyProofsVerification;
 impl ProofVerification for DummyProofsVerification {
     fn verify_porep(
@@ -107,11 +110,14 @@ impl ProofVerification for DummyProofsVerification {
         _replicas: BoundedBTreeMap<
             SectorNumber,
             PublicReplicaInfo,
-            ConstU32<MAX_SECTORS_PER_PROOF>,
+            ConstU32<MAX_REPLICAS_PER_BLOCK>,
         >,
-        proof: BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>,
+        proofs: BoundedVec<
+            BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>,
+            ConstU32<MAX_PROOFS_PER_BLOCK>,
+        >,
     ) -> sp_runtime::DispatchResult {
-        if *proof == INVALID_PROOF {
+        if *proofs[0] == INVALID_PROOF {
             return Err(sp_runtime::DispatchError::Other("invalid proof"));
         }
         Ok(())
@@ -551,7 +557,7 @@ impl SubmitWindowedPoStBuilder {
         SubmitWindowedPoStParams {
             deadline: self.deadline,
             partitions: self.partitions,
-            proof: self.proof,
+            proofs: bounded_vec![self.proof],
         }
     }
 }

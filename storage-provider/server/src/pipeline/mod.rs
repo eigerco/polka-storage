@@ -1,6 +1,6 @@
 pub mod types;
 
-use std::{path::PathBuf, sync::Arc};
+use std::{collections::BTreeSet, path::PathBuf, sync::Arc};
 
 use polka_storage_proofs::{
     porep::{
@@ -28,7 +28,10 @@ use storagext::{
 };
 use subxt::{ext::codec::Encode, tx::Signer};
 use tokio::{
-    sync::mpsc::{error::SendError, UnboundedReceiver, UnboundedSender},
+    sync::{
+        mpsc::{error::SendError, UnboundedReceiver, UnboundedSender},
+        Semaphore,
+    },
     task::{JoinError, JoinHandle},
 };
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
@@ -86,6 +89,7 @@ pub struct PipelineState {
     pub xt_client: Arc<storagext::Client>,
     pub xt_keypair: storagext::multipair::MultiPairSigner,
     pub pipeline_sender: UnboundedSender<PipelineMessage>,
+    pub prove_commit_throttle: Arc<Semaphore>,
 }
 
 #[tracing::instrument(skip_all)]
@@ -544,38 +548,48 @@ async fn prove_commit(
     tracing::debug!("Performing prove commit for, seal_randomness_height {}, pre_commit_block: {}, prove_commit_block: {}, entropy: {}, ticket: {}, seed: {}, prover id: {}, sector_number: {}",
         seal_randomness_height, sector.precommit_block, prove_commit_block, hex::encode(entropy), hex::encode(ticket), hex::encode(seed), hex::encode(prover_id), sector_number);
 
-    let sealing_handle: JoinHandle<Result<Vec<BlstrsProof>, _>> = {
-        let porep_params = state.porep_parameters.clone();
-        let cache_dir = sector.cache_path.clone();
-        let sealed_path = sector.sealed_path.clone();
-        let piece_infos = sector.piece_infos.clone();
+    tracing::debug!("Acquiring sempahore...");
+    let proofs = {
+        let _permit = state
+            .prove_commit_throttle
+            .acquire()
+            .await
+            .expect("semaphore to not be closed");
+        tracing::debug!("Acquired sempahore.");
 
-        tokio::task::spawn_blocking(move || {
-            sealer.prove_sector(
-                porep_params.as_ref(),
-                cache_dir,
-                sealed_path,
-                prover_id,
-                sector_number,
-                ticket,
-                Some(seed),
-                PreCommitOutput {
-                    comm_r: sector.comm_r,
-                    comm_d: sector.comm_d,
-                },
-                &piece_infos,
-            )
-        })
-    };
+        let sealing_handle: JoinHandle<Result<Vec<BlstrsProof>, _>> = {
+            let porep_params = state.porep_parameters.clone();
+            let cache_dir = sector.cache_path.clone();
+            let sealed_path = sector.sealed_path.clone();
+            let piece_infos = sector.piece_infos.clone();
 
-    let proofs = tokio::select! {
-        // Up to this point everything is retryable.
-        // Pipeline ends up being in an inconsistent state if we prove commit to the chain, and don't wait for it, so the sector's not persisted in the DB.
-        res = sealing_handle => {
-            res??
-        },
-        () = token.cancelled() => {
-            return Err(PipelineError::ProvingCancelled);
+            tokio::task::spawn_blocking(move || {
+                sealer.prove_sector(
+                    porep_params.as_ref(),
+                    cache_dir,
+                    sealed_path,
+                    prover_id,
+                    sector_number,
+                    ticket,
+                    Some(seed),
+                    PreCommitOutput {
+                        comm_r: sector.comm_r,
+                        comm_d: sector.comm_d,
+                    },
+                    &piece_infos,
+                )
+            })
+        };
+
+        tokio::select! {
+            // Up to this point everything is retryable.
+            // Pipeline ends up being in an inconsistent state if we prove commit to the chain, and don't wait for it, so the sector's not persisted in the DB.
+            res = sealing_handle => {
+                res??
+            },
+            () = token.cancelled() => {
+                return Err(PipelineError::ProvingCancelled);
+            }
         }
     };
 
@@ -667,9 +681,6 @@ async fn submit_windowed_post(
         return Err(PipelineError::DeadlineStateNotFound);
     };
 
-    if deadline_state.partitions.len() > 1 {
-        todo!("I don't know what to do: polka-storage#595");
-    }
     if deadline_state.partitions.len() == 0 {
         tracing::info!("There are not partitions in this deadline yet. Nothing to prove here.");
         schedule_post(state, deadline_index)?;
@@ -677,26 +688,28 @@ async fn submit_windowed_post(
     }
 
     let partitions = deadline_state.partitions.keys().cloned().collect();
-    let (_partition_number, PartitionState { sectors }) = deadline_state
-        .partitions
-        .first_key_value()
-        .expect("1 partition to be there");
+    let all_sectors = BTreeSet::from_iter(
+        deadline_state
+            .partitions
+            .into_iter()
+            .flat_map(|(_, PartitionState { sectors })| sectors),
+    );
 
-    if sectors.len() == 0 {
+    if all_sectors.len() == 0 {
         tracing::info!("Every sector expired... Nothing to prove here.");
         schedule_post(state, deadline_index)?;
         return Ok(());
     }
 
     let mut replicas = Vec::new();
-    for sector_number in sectors {
+    for sector_number in all_sectors {
         let sector = state
             .db
-            .get_sector::<ProvenSector>(*sector_number)?
+            .get_sector::<ProvenSector>(sector_number)?
             .ok_or(PipelineError::SectorNotFound)?;
 
         replicas.push(ReplicaInfo {
-            sector_id: *sector_number,
+            sector_id: sector_number,
             comm_r: sector.comm_r.raw(),
             cache_path: sector.cache_path.clone(),
             replica_path: sector.sealed_path.clone(),
@@ -714,16 +727,18 @@ async fn submit_windowed_post(
         })
     };
     let proofs = handle.await??;
-
-    // TODO(@th7nder,#595,06/12/2024): how many proofs are for how many partitions and why
-    // don't now why yet, need to figure this out
-    let proof: SubstrateProof = proofs[0]
-        .clone()
-        .try_into()
-        .expect("converstion between rust-fil-proofs and polka-storage-proofs to work");
-    let proof = codec::Encode::encode(&proof);
-
     tracing::info!("Generated PoSt proof for partitions: {:?}", partitions);
+
+    let proofs = proofs
+        .into_iter()
+        .map(|p| PoStProof {
+            post_proof: state.server_info.post_proof,
+            proof_bytes: codec::Encode::encode(
+                &TryInto::<SubstrateProof>::try_into(p.clone())
+                    .expect("converstion between rust-fil-proofs and polka-storage-proofs to work"),
+            ),
+        })
+        .collect::<Vec<_>>();
 
     tracing::info!("Wait for block {} for open deadline", deadline.start,);
     state
@@ -737,11 +752,8 @@ async fn submit_windowed_post(
             &state.xt_keypair,
             SubmitWindowedPoStParams {
                 deadline: deadline_index,
-                partitions: partitions,
-                proof: PoStProof {
-                    post_proof: state.server_info.post_proof,
-                    proof_bytes: proof,
-                },
+                partitions,
+                proofs,
             },
             true,
         )

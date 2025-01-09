@@ -142,6 +142,7 @@ impl pallet_storage_provider::Config for Test {
 
 impl pallet_proofs::Config for Test {
     type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = ();
 }
 
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;

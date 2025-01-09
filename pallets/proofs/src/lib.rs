@@ -13,6 +13,7 @@ mod fr32;
 mod graphs;
 mod porep;
 mod post;
+pub mod weights;
 
 #[cfg(test)]
 mod mock;
@@ -20,7 +21,10 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-#[frame_support::pallet(dev_mode)]
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+
+#[frame_support::pallet]
 pub mod pallet {
     pub const LOG_TARGET: &'static str = "runtime::proofs";
 
@@ -31,17 +35,19 @@ pub mod pallet {
         pallets::ProofVerification,
         proofs::{ProverId, PublicReplicaInfo, RegisteredPoStProof, RegisteredSealProof, Ticket},
         sector::SectorNumber,
-        MAX_POST_PROOF_BYTES, MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_PROOF,
+        MAX_POST_PROOF_BYTES, MAX_PROOFS_PER_BLOCK, MAX_REPLICAS_PER_BLOCK, MAX_SEAL_PROOF_BYTES,
     };
 
     use crate::{
         crypto::groth16::{Bls12, Proof, VerifyingKey},
         porep, post,
+        weights::WeightInfo,
     };
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::pallet]
@@ -85,6 +91,8 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+        #[pallet::call_index(0)]
+        #[pallet::weight((T::WeightInfo::set_porep_verifying_key(), DispatchClass::Operational))]
         pub fn set_porep_verifying_key(
             origin: OriginFor<T>,
             verifying_key: crate::Vec<u8>,
@@ -103,6 +111,8 @@ pub mod pallet {
             Ok(())
         }
 
+        #[pallet::call_index(1)]
+        #[pallet::weight((T::WeightInfo::set_post_verifying_key(), DispatchClass::Operational))]
         pub fn set_post_verifying_key(
             origin: OriginFor<T>,
             verifying_key: crate::Vec<u8>,
@@ -165,12 +175,15 @@ pub mod pallet {
             replicas: BoundedBTreeMap<
                 SectorNumber,
                 PublicReplicaInfo,
-                ConstU32<MAX_SECTORS_PER_PROOF>,
+                ConstU32<MAX_REPLICAS_PER_BLOCK>,
             >,
-            proof: BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>,
+            proofs: BoundedVec<
+                BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>,
+                ConstU32<MAX_PROOFS_PER_BLOCK>,
+            >,
         ) -> DispatchResult {
             let replica_count = replicas.len();
-            ensure!(replica_count <= post_type.sector_count(), {
+            ensure!(replica_count <= post_type.sector_count() * proofs.len(), {
                 log::error!(
                     target: LOG_TARGET,
                     "Got more replicas than expected. Expected max replicas = {}, submitted replicas = {replica_count}",
@@ -178,15 +191,23 @@ pub mod pallet {
                 );
                 Error::<T>::InvalidPoStProof
             });
-            let proof = Proof::<Bls12>::decode(&mut proof.as_slice()).map_err(|e| {
-                log::error!(target: LOG_TARGET, "failed to parse PoSt proof {:?}", e);
-                Error::<T>::Conversion
-            })?;
+            let mut parsed_proofs = BoundedVec::new();
+            for (index, proof) in proofs.into_iter().enumerate() {
+                let proof = Proof::<Bls12>::decode(&mut proof.as_slice()).map_err(|e| {
+                    log::error!(target: LOG_TARGET, "failed to parse PoSt proof (idx: {}){:?}", index, e);
+                    Error::<T>::Conversion
+                })?;
+
+                parsed_proofs.try_push(proof).expect(
+                    "internal (post::ProofScheme) and external (ProofVerification) apis have the same limits on number of proofs",
+                );
+            }
+
             let proof_scheme = post::ProofScheme::setup(post_type);
 
             let vkey = PoStVerifyingKey::<T>::get().ok_or(Error::<T>::MissingPoStVerifyingKey)?;
             proof_scheme
-                .verify(randomness, replicas.clone(), vkey, proof)
+                .verify(randomness, replicas.clone(), vkey, parsed_proofs)
                 .map_err(|e| {
                     log::warn!(target: LOG_TARGET, "failed to verify PoSt proof: {:?}, for replicas: {:?}", e, replicas);
                     Error::<T>::InvalidPoStProof
