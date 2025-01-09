@@ -266,14 +266,14 @@ impl FileBlockstore {
 
 #[cfg(feature = "blockstore")]
 mod blockstore {
-    use blockstore::{Blockstore, Error};
+    use blockstore::{block::CidError, Blockstore, Error};
     use ipld_core::cid::{Cid, CidGeneric};
 
     use crate::FileBlockstore;
 
     impl Blockstore for FileBlockstore {
         async fn get<const S: usize>(&self, cid: &CidGeneric<S>) -> Result<Option<Vec<u8>>, Error> {
-            let cid = Cid::try_from(cid.to_bytes()).map_err(|_err| Error::CidTooLarge)?;
+            let cid = to_blockstore_cid(cid)?;
 
             self.get(cid)
                 .await
@@ -281,7 +281,7 @@ mod blockstore {
         }
 
         async fn has<const S: usize>(&self, cid: &CidGeneric<S>) -> blockstore::Result<bool> {
-            let cid = Cid::try_from(cid.to_bytes()).map_err(|_err| Error::CidTooLarge)?;
+            let cid = to_blockstore_cid(cid)?;
 
             self.has(cid)
                 .await
@@ -293,7 +293,7 @@ mod blockstore {
             cid: &CidGeneric<S>,
             data: &[u8],
         ) -> Result<(), Error> {
-            let cid = Cid::try_from(cid.to_bytes()).map_err(|_err| Error::CidTooLarge)?;
+            let cid = to_blockstore_cid(cid)?;
 
             self.put_keyed(&cid, data)
                 .await
@@ -311,6 +311,18 @@ mod blockstore {
                 .await
                 .map_err(|err| Error::FatalDatabaseError(err.to_string()))
         }
+    }
+
+    /// Convert CID with the generic Multihash size to the CID with the specific
+    /// Multihash size that the underlying blockstore expects.
+    fn to_blockstore_cid<const S: usize>(cid: &CidGeneric<S>) -> Result<Cid, Error> {
+        let hash = cid.hash().resize::<64>().map_err(|err| {
+            Err(Error::CidError(CidError::InvalidMultihashLength(
+                cid.hash().size(),
+            )))
+        });
+
+        Ok(Cid::new(cid.version(), cid.codec(), hash))
     }
 }
 
