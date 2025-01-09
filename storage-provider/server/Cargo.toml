@@ -40,11 +40,7 @@ tempfile = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tokio-util = { workspace = true, features = ["rt"] }
-<<<<<<< HEAD
 toml = { workspace = true }
-=======
-toml.workspace = true
->>>>>>> 55251242 (feat: Add P2P functionality to storage server)
 tower = { workspace = true }
 tower-http = { workspace = true, features = ["trace"] }
 tracing = { workspace = true }

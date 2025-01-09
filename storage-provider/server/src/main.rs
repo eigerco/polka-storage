@@ -9,11 +9,15 @@ mod pipeline;
 mod rpc;
 mod storage;
 
-use std::{env::temp_dir, net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
+use std::{
+    env::temp_dir, fs::read_to_string, net::SocketAddr, path::PathBuf, sync::Arc,
+    time::Duration,
+};
 
 use clap::Parser;
-use config::ConfigurationArgs;
-use p2p::{start_p2p_node, NodeType, P2PError};
+use p2p::{
+    run_bootstrap_node, run_register_node, BootstrapConfig, NodeType, P2PError, RegisterConfig,
+};
 use pipeline::types::PipelineMessage;
 use polka_storage_proofs::{
     porep::{self, PoRepParameters},
@@ -45,6 +49,7 @@ use crate::{
     pipeline::{start_pipeline, PipelineState},
     rpc::{start_rpc_server, RpcServerState},
     storage::{start_upload_server, StorageServerState},
+    config::ConfigurationArgs,
 };
 
 /// Default parachain node adress.
@@ -84,6 +89,7 @@ struct SetupOutput {
     pipeline_state: PipelineState,
     pipeline_rx: UnboundedReceiver<PipelineMessage>,
 }
+
 fn main() -> Result<(), ServerError> {
     // Logger initialization.
     let file_appender = tracing_appender::rolling::daily("logs", "sp_server");
@@ -327,7 +333,7 @@ impl TryFrom<ServerCli> for Server {
 
 impl Server {
     pub async fn run(self) -> Result<(), ServerError> {
-        let config = self.p2p_config.clone();
+        let p2p_config = self.p2p_config.clone();
         let node_type = self.node_type;
         let SetupOutput {
             storage_state,
@@ -338,6 +344,20 @@ impl Server {
 
         let cancellation_token = CancellationToken::new();
 
+        let p2p_task = match node_type {
+            NodeType::Bootstrap => {
+                let contents = read_to_string(p2p_config)?;
+                let config: BootstrapConfig =
+                    toml::from_str(&contents).map_err(|e| P2PError::TOMLError(e))?;
+                tokio::spawn(run_bootstrap_node(config, cancellation_token.child_token()))
+            }
+            NodeType::Register => {
+                let contents = read_to_string(p2p_config)?;
+                let config: RegisterConfig =
+                    toml::from_str(&contents).map_err(|e| P2PError::TOMLError(e))?;
+                tokio::spawn(run_register_node(config, cancellation_token.child_token()))
+            }
+        };
         let rpc_task = tokio::spawn(start_rpc_server(
             rpc_state,
             cancellation_token.child_token(),
@@ -349,11 +369,6 @@ impl Server {
         let pipeline_task = tokio::spawn(start_pipeline(
             Arc::new(pipeline_state),
             pipeline_rx,
-            cancellation_token.child_token(),
-        ));
-        let p2p_task = tokio::spawn(start_p2p_node(
-            node_type,
-            config,
             cancellation_token.child_token(),
         ));
 

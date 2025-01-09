@@ -1,22 +1,25 @@
 use std::{
     fmt::Display,
-    fs::read_to_string,
     path::{Path, PathBuf},
 };
 
-use bootstrap::{BootstrapBehaviour, BootstrapBehaviourEvent, BootstrapConfig};
+use bootstrap::{BootstrapBehaviour, BootstrapBehaviourEvent};
 use clap::ValueEnum;
 use ed25519_dalek::{pkcs8::DecodePrivateKey, SigningKey};
 use libp2p::{
     futures::StreamExt, identify, identity::Keypair, rendezvous, rendezvous::Namespace,
     swarm::SwarmEvent, Multiaddr, PeerId, Swarm,
 };
-use register::{RegisterBehaviour, RegisterBehaviourEvent, RegisterConfig};
+use register::{RegisterBehaviour, RegisterBehaviourEvent};
+use serde::de;
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use tracing::{error, info};
 
 mod bootstrap;
 mod register;
+
+pub(crate) use bootstrap::BootstrapConfig;
+pub(crate) use register::RegisterConfig;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum NodeType {
@@ -52,7 +55,7 @@ pub enum P2PError {
     P2PTransportError(#[from] libp2p::TransportError<std::io::Error>),
 }
 
-fn create_keypair<P: AsRef<Path> + std::fmt::Debug>(path: P) -> Result<Keypair, P2PError> {
+pub fn create_keypair<P: AsRef<Path> + std::fmt::Debug>(path: P) -> Result<Keypair, P2PError> {
     info!("Creating keypair from pem file at {path:?}");
     let key = SigningKey::read_pkcs8_pem_file(path)?;
     let keypair = Keypair::ed25519_from_bytes(key.to_bytes())?;
@@ -60,16 +63,21 @@ fn create_keypair<P: AsRef<Path> + std::fmt::Debug>(path: P) -> Result<Keypair, 
     Ok(keypair)
 }
 
-pub async fn start_p2p_node(
-    node_type: NodeType,
-    config: PathBuf,
+fn path_to_keypair<'de, D: de::Deserializer<'de>>(d: D) -> Result<Keypair, D::Error> {
+    let path: PathBuf = de::Deserialize::deserialize(d)?;
+    create_keypair(path).map_err(de::Error::custom)
+}
+
+pub async fn run_bootstrap_node(
+    config: BootstrapConfig,
     token: CancellationToken,
 ) -> Result<(), P2PError> {
-    info!("Starting P2P node");
+    info!("Starting P2P bootstrap node");
     let tracker = TaskTracker::new();
+    let (swarm, addr) = config.create_swarm()?;
 
     tokio::select! {
-        res = run_p2p_node(node_type, config) => {
+        res = bootstrap(swarm, addr) => {
             if let Err(e) = res {
                 error!("Failed to start P2P node. Reason: {e}");
                 return Err(e);
@@ -86,30 +94,36 @@ pub async fn start_p2p_node(
     Ok(())
 }
 
-async fn run_p2p_node(node_type: NodeType, config: PathBuf) -> Result<(), P2PError> {
-    match node_type {
-        NodeType::Bootstrap => {
-            let contents = read_to_string(config)?;
-            let config: BootstrapConfig = toml::from_str(&contents)?;
-            let (swarm, addr) = config.create_swarm()?;
+pub async fn run_register_node(
+    config: RegisterConfig,
+    token: CancellationToken,
+) -> Result<(), P2PError> {
+    info!("Starting P2P register node");
+    let tracker = TaskTracker::new();
+    let (swarm, rendezvous_point_address, rendezvous_point) = config.create_swarm()?;
 
-            bootstrap(swarm, addr).await
-        }
-        NodeType::Register => {
-            let contents = read_to_string(config)?;
-            let config: RegisterConfig = toml::from_str(&contents)?;
-            let (swarm, rendezvous_point_address, rendezvous_point) = config.create_swarm()?;
-
-            register(
-                swarm,
-                rendezvous_point,
-                rendezvous_point_address,
-                None,
-                Namespace::from_static("rendezvous"),
-            )
-            .await
-        }
+    tokio::select! {
+        res = register(
+            swarm,
+            rendezvous_point,
+            rendezvous_point_address,
+            None,
+            Namespace::from_static("polka-storage"),
+        ) => {
+            if let Err(e) = res {
+                error!("Failed to start P2P node. Reason: {e}");
+                return Err(e);
+            }
+        },
+        _ = token.cancelled() => {
+            tracing::info!("P2P node has been stopped by the cancellation token...");
+        },
     }
+
+    tracker.close();
+    tracker.wait().await;
+
+    Ok(())
 }
 
 /// Register the peer with the rendezvous point.

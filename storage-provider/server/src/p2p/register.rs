@@ -1,12 +1,13 @@
-use std::{path::PathBuf, str::FromStr, time::Duration};
+use std::{str::FromStr, time::Duration};
 
 use libp2p::{
-    identify, noise, rendezvous, swarm::NetworkBehaviour, tcp, yamux, Multiaddr, PeerId, Swarm,
-    SwarmBuilder,
+    identify, identity::Keypair, noise, rendezvous, swarm::NetworkBehaviour, tcp, yamux, Multiaddr,
+    PeerId, Swarm, SwarmBuilder,
 };
 use serde::{de, Deserialize};
 
-use super::{create_keypair, P2PError};
+use super::{path_to_keypair, P2PError};
+
 #[derive(NetworkBehaviour)]
 pub struct RegisterBehaviour {
     pub identify: identify::Behaviour,
@@ -20,7 +21,8 @@ fn string_to_peer_id<'de, D: de::Deserializer<'de>>(d: D) -> Result<PeerId, D::E
 
 #[derive(Deserialize)]
 pub struct RegisterConfig {
-    key_path: PathBuf,
+    #[serde(deserialize_with = "path_to_keypair")]
+    keypair: Keypair,
     rendezvous_point_address: Multiaddr,
     #[serde(deserialize_with = "string_to_peer_id")]
     rendezvous_point: PeerId,
@@ -28,8 +30,7 @@ pub struct RegisterConfig {
 
 impl RegisterConfig {
     pub fn create_swarm(self) -> Result<(Swarm<RegisterBehaviour>, Multiaddr, PeerId), P2PError> {
-        let keypair = create_keypair(&self.key_path)?;
-        let swarm = SwarmBuilder::with_existing_identity(keypair)
+        let swarm = SwarmBuilder::with_existing_identity(self.keypair)
             .with_tokio()
             .with_tcp(
                 tcp::Config::default(),

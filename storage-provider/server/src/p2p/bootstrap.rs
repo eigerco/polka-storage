@@ -1,12 +1,12 @@
-use std::{path::PathBuf, time::Duration};
+use std::time::Duration;
 
 use libp2p::{
-    identify, noise, rendezvous, swarm::NetworkBehaviour, tcp, yamux, Multiaddr, Swarm,
-    SwarmBuilder,
+    identify, identity::Keypair, noise, rendezvous, swarm::NetworkBehaviour, tcp, yamux, Multiaddr,
+    Swarm, SwarmBuilder,
 };
 use serde::Deserialize;
 
-use super::{create_keypair, P2PError};
+use super::{path_to_keypair, P2PError};
 
 #[derive(NetworkBehaviour)]
 pub struct BootstrapBehaviour {
@@ -17,13 +17,13 @@ pub struct BootstrapBehaviour {
 #[derive(Deserialize)]
 pub struct BootstrapConfig {
     address: Multiaddr,
-    key_path: PathBuf,
+    #[serde(deserialize_with = "path_to_keypair")]
+    keypair: Keypair,
 }
 
 impl BootstrapConfig {
     pub fn create_swarm(self) -> Result<(Swarm<BootstrapBehaviour>, Multiaddr), P2PError> {
-        let keypair = create_keypair(&self.key_path)?;
-        let swarm = SwarmBuilder::with_existing_identity(keypair)
+        let swarm = SwarmBuilder::with_existing_identity(self.keypair)
             .with_tokio()
             .with_tcp(
                 tcp::Config::default(),
