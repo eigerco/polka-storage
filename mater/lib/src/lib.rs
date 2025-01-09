@@ -19,7 +19,7 @@ mod v2;
 
 // We need to re-expose this because `read_block` returns `(Cid, Vec<u8>)`.
 pub use ipld_core::cid::Cid;
-pub use stores::{create_filestore, Blockstore, Config};
+pub use stores::{create_filestore, Blockstore, Config, FileBlockstore};
 pub use v1::{Header as CarV1Header, Reader as CarV1Reader, Writer as CarV1Writer};
 pub use v2::{
     verify_cid, Characteristics, Header as CarV2Header, Index, IndexEntry, IndexSorted,
@@ -46,6 +46,10 @@ pub enum Error {
     /// This may happen if the input is empty.
     #[error("CAR file must have roots")]
     EmptyRootsError,
+
+    /// Returned when the number of roots is wrong.
+    #[error("Wrong number of roots")]
+    WrongNumberOfRoots,
 
     /// Unknown type of index. Supported indexes are
     /// [`IndexSorted`] and [`MultihashIndexSorted`].

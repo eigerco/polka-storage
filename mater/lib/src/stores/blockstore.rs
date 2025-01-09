@@ -164,7 +164,7 @@ impl Blockstore {
 
     /// Get the [`CarV2Header`] that will be written out.
     fn header_v2(&self) -> CarV2Header {
-        let data_offset = CarV2Header::SIZE as u64;
+        let data_offset = CarV2Header::SIZE;
         let data_size: u64 = self
             .blocks
             .iter()
@@ -298,16 +298,13 @@ mod tests {
         car_reader.read_pragma().await.unwrap();
 
         let car_v2_header = car_reader.read_header().await.unwrap();
-        assert_eq!(car_v2_header.data_offset, CarV2Header::SIZE as u64);
+        assert_eq!(car_v2_header.data_offset, CarV2Header::SIZE);
         // Extracted with go-car and validated with an hex viewer
         // to extract the values, run the following commands:
         // $ car inspect <output of this process>
         // The dump is necessary because go-car does not support parametrization
         assert_eq!(car_v2_header.data_size, 1358);
-        assert_eq!(
-            car_v2_header.index_offset,
-            (CarV2Header::SIZE as u64) + 1358
-        );
+        assert_eq!(car_v2_header.index_offset, CarV2Header::SIZE + 1358);
 
         let car_v1_header = car_reader.read_v1_header().await.unwrap();
         assert_eq!(car_v1_header.roots.len(), 1);
@@ -343,13 +340,13 @@ mod tests {
         match index {
             Index::MultihashIndexSorted(index) => {
                 // There's only Sha256
-                assert_eq!(index.0.len(), 1);
+                assert_eq!(index.len(), 1);
 
-                let index_sorted = &index.0[&SHA_256_CODE];
+                let index_sorted = &index[&SHA_256_CODE];
                 // There's only a single length
-                assert_eq!(index_sorted.0.len(), 1);
+                assert_eq!(index_sorted.len(), 1);
 
-                let single_width_index = &index_sorted.0[0];
+                let single_width_index = &index_sorted[0];
                 assert_eq!(single_width_index.count, 2);
                 // Sha256 output size (32) + the offset size (8)
                 assert_eq!(single_width_index.width, Sha256::output_size() as u32 + 8);

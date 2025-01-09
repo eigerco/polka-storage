@@ -7,6 +7,9 @@ name = "mater"                # name WIP
 repository.workspace = true
 version = "0.1.0"
 
+[features]
+blockstore = ["dep:blockstore"]
+
 [dependencies]
 async-stream.workspace = true
 bitflags.workspace = true
@@ -26,6 +29,9 @@ thiserror.workspace = true
 tokio = { workspace = true, features = ["fs", "macros", "rt-multi-thread"] }
 tokio-stream.workspace = true
 tokio-util = { workspace = true, features = ["io"] }
+
+# Optional dependencies
+blockstore = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio", "html_reports"] }
