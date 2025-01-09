@@ -320,7 +320,7 @@ mod blockstore {
             Err(Error::CidError(CidError::InvalidMultihashLength(
                 cid.hash().size(),
             )))
-        });
+        })?;
 
         Ok(Cid::new(cid.version(), cid.codec(), hash))
     }
