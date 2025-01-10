@@ -1,7 +1,4 @@
-use std::{
-    fmt::Display,
-    path::{Path, PathBuf},
-};
+use std::{fmt::Display, path::PathBuf, str::FromStr};
 
 use bootstrap::{BootstrapBehaviour, BootstrapBehaviourEvent};
 use clap::ValueEnum;
@@ -36,10 +33,6 @@ impl Display for NodeType {
 #[derive(Debug, thiserror::Error)]
 pub enum P2PError {
     #[error(transparent)]
-    SigningKeyError(#[from] ed25519_dalek::pkcs8::Error),
-    #[error(transparent)]
-    DecodingError(#[from] libp2p::identity::DecodingError),
-    #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]
     DialError(#[from] libp2p::swarm::DialError),
@@ -55,17 +48,19 @@ pub enum P2PError {
     P2PTransportError(#[from] libp2p::TransportError<std::io::Error>),
 }
 
-pub fn create_keypair<P: AsRef<Path> + std::fmt::Debug>(path: P) -> Result<Keypair, P2PError> {
-    info!("Creating keypair from pem file at {path:?}");
-    let key = SigningKey::read_pkcs8_pem_file(path)?;
-    let keypair = Keypair::ed25519_from_bytes(key.to_bytes())?;
-
-    Ok(keypair)
-}
-
-fn path_to_keypair<'de, D: de::Deserializer<'de>>(d: D) -> Result<Keypair, D::Error> {
-    let path: PathBuf = de::Deserialize::deserialize(d)?;
-    create_keypair(path).map_err(de::Error::custom)
+fn deser_keypair<'de, D: de::Deserializer<'de>>(d: D) -> Result<Keypair, D::Error> {
+    let src: String = de::Deserialize::deserialize(d)?;
+    let key = if let Some(stripped) = src.strip_prefix('@') {
+        let path = PathBuf::from_str(stripped)
+            .map_err(de::Error::custom)?
+            .canonicalize()
+            .map_err(de::Error::custom)?;
+        SigningKey::read_pkcs8_pem_file(path).map_err(de::Error::custom)?
+    } else {
+        let hex_key = hex::decode(src).map_err(de::Error::custom)?;
+        SigningKey::try_from(hex_key.as_slice()).map_err(de::Error::custom)?
+    };
+    Keypair::ed25519_from_bytes(key.to_bytes()).map_err(de::Error::custom)
 }
 
 pub async fn run_bootstrap_node(

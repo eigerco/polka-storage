@@ -1,2 +1,2 @@
 address = "/ip4/127.0.0.1/tcp/62649"
-keypair = "examples/p2p-keys/private.pem"
+keypair = "@examples/p2p-keys/private.pem"

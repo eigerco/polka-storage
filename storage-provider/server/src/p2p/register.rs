@@ -6,7 +6,7 @@ use libp2p::{
 };
 use serde::{de, Deserialize};
 
-use super::{path_to_keypair, P2PError};
+use super::{deser_keypair, P2PError};
 
 #[derive(NetworkBehaviour)]
 pub struct RegisterBehaviour {
@@ -21,7 +21,7 @@ fn string_to_peer_id<'de, D: de::Deserializer<'de>>(d: D) -> Result<PeerId, D::E
 
 #[derive(Deserialize)]
 pub struct RegisterConfig {
-    #[serde(deserialize_with = "path_to_keypair")]
+    #[serde(deserialize_with = "deser_keypair")]
     keypair: Keypair,
     rendezvous_point_address: Multiaddr,
     #[serde(deserialize_with = "string_to_peer_id")]

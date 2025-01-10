@@ -261,12 +261,7 @@ impl StorageProviderCommand {
         Client: StorageProviderClientExt,
     {
         let submission_result = client
-            .register_storage_provider(
-                &account_keypair,
-                peer_id,
-                post_proof,
-                wait_for_finalization,
-            )
+            .register_storage_provider(&account_keypair, peer_id, post_proof, wait_for_finalization)
             .await?
             .inspect(|result| {
                 tracing::debug!(

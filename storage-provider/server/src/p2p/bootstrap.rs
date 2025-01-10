@@ -6,7 +6,7 @@ use libp2p::{
 };
 use serde::Deserialize;
 
-use super::{path_to_keypair, P2PError};
+use super::{deser_keypair, P2PError};
 
 #[derive(NetworkBehaviour)]
 pub struct BootstrapBehaviour {
@@ -17,7 +17,7 @@ pub struct BootstrapBehaviour {
 #[derive(Deserialize)]
 pub struct BootstrapConfig {
     address: Multiaddr,
-    #[serde(deserialize_with = "path_to_keypair")]
+    #[serde(deserialize_with = "deser_keypair")]
     keypair: Keypair,
 }
 
