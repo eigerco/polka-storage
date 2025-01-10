@@ -198,7 +198,7 @@ impl pallet_storage_provider::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type Randomness = DummyRandomnessGenerator<Self>;
     type AuthorVrfHistory = DummyRandomnessGenerator<Self>;
-    type PeerId = BoundedVec<u8, ConstU32<32>>; // Max length of SHA256 hash
+    type PeerId = BoundedVec<u8, ConstU32<42>>; // https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
     type Currency = Balances;
     type Market = Market;
     type ProofVerification = DummyProofsVerification;

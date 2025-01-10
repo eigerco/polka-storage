@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use clap::Subcommand;
+use libp2p::PeerId;
 use primitives::{proofs::RegisteredPoStProof, sector::SectorNumber};
 use storagext::{
     deser::DeserializablePath,
@@ -37,7 +38,7 @@ pub enum StorageProviderCommand {
     #[command(name = "register")]
     RegisterStorageProvider {
         /// PeerId in Storage Provider P2P network, can be any String.
-        peer_id: String,
+        peer_id: PeerId,
         /// Proof of Space Time type.
         /// Can only be "2KiB" meaning `RegisteredPoStProof::StackedDRGWindow2KiBV1P1`.
         #[arg(long, value_parser = parse_post_proof, default_value = "2KiB")]
@@ -252,7 +253,7 @@ impl StorageProviderCommand {
     async fn register_storage_provider<Client>(
         client: Client,
         account_keypair: MultiPairSigner,
-        peer_id: String,
+        peer_id: PeerId,
         post_proof: RegisteredPoStProof,
         wait_for_finalization: bool,
     ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
@@ -262,7 +263,7 @@ impl StorageProviderCommand {
         let submission_result = client
             .register_storage_provider(
                 &account_keypair,
-                peer_id.clone(),
+                peer_id,
                 post_proof,
                 wait_for_finalization,
             )

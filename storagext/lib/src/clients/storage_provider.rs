@@ -1,5 +1,6 @@
 use std::future::Future;
 
+use libp2p::PeerId as P2PPeerId;
 use primitives::proofs::RegisteredPoStProof;
 use runtime::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 use subxt::{
@@ -28,7 +29,7 @@ pub trait StorageProviderClientExt {
     fn register_storage_provider<Keypair>(
         &self,
         account_keypair: &Keypair,
-        peer_id: String,
+        peer_id: P2PPeerId,
         post_proof: RegisteredPoStProof,
         wait_for_finalization: bool,
     ) -> impl Future<Output = Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>>
@@ -176,7 +177,7 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
     async fn register_storage_provider<Keypair>(
         &self,
         account_keypair: &Keypair,
-        peer_id: String,
+        peer_id: P2PPeerId,
         post_proof: RegisteredPoStProof,
         wait_for_finalization: bool,
     ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
@@ -185,7 +186,7 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
     {
         let payload = runtime::tx()
             .storage_provider()
-            .register_storage_provider(peer_id.into_bounded_byte_vec(), post_proof);
+            .register_storage_provider(peer_id.to_bytes().into_bounded_byte_vec(), post_proof);
 
         self.traced_submission(&payload, account_keypair, wait_for_finalization)
             .await
