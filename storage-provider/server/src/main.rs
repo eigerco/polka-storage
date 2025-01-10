@@ -2,14 +2,16 @@
 #![warn(unused_crate_dependencies)]
 #![deny(clippy::unwrap_used)]
 
+mod config;
 mod db;
 mod pipeline;
 mod rpc;
 mod storage;
 
-use std::{env::temp_dir, net::SocketAddr, num::NonZero, path::PathBuf, sync::Arc, time::Duration};
+use std::{env::temp_dir, net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 
 use clap::Parser;
+use config::ConfigurationArgs;
 use pipeline::types::PipelineMessage;
 use polka_storage_proofs::{
     porep::{self, PoRepParameters},
@@ -19,19 +21,14 @@ use polka_storage_provider_common::rpc::ServerInfo;
 use primitives::proofs::{RegisteredPoStProof, RegisteredSealProof};
 use rand::Rng;
 use storagext::{
-    multipair::{DebugPair, MultiPairSigner},
+    multipair::{MultiPairArgs, MultiPairSigner},
     runtime::runtime_types::{
         bounded_collections::bounded_vec::BoundedVec,
         pallet_storage_provider::storage_provider::StorageProviderState,
     },
     MarketClientExt, StorageProviderClientExt,
 };
-use subxt::{
-    ext::sp_core::{
-        ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair, sr25519::Pair as Sr25519Pair,
-    },
-    tx::Signer,
-};
+use subxt::{self, tx::Signer};
 use tokio::{
     sync::{mpsc::UnboundedReceiver, Semaphore},
     task::JoinError,
@@ -48,32 +45,26 @@ use crate::{
     storage::{start_upload_server, StorageServerState},
 };
 
-/// Default address to bind the RPC server to.
-pub(crate) const DEFAULT_RPC_LISTEN_ADDRESS: &str = "127.0.0.1:8000";
-
 /// Default parachain node adress.
-const DEFAULT_NODE_ADDRESS: &str = "ws://127.0.0.1:42069";
-
-/// Default address to bind the RPC server to.
-const DEFAULT_UPLOAD_LISTEN_ADDRESS: &str = "127.0.0.1:8001";
+pub(crate) const DEFAULT_NODE_ADDRESS: &str = "ws://127.0.0.1:42069";
 
 /// Retry interval to connect to the parachain RPC.
-const RETRY_INTERVAL: Duration = Duration::from_secs(10);
+pub(crate) const RETRY_INTERVAL: Duration = Duration::from_secs(10);
 
 /// Number of retries to connect to the parachain RPC.
-const RETRY_NUMBER: u32 = 5;
+pub(crate) const RETRY_NUMBER: u32 = 5;
 
 /// Name for the directory where the CAR wrapped pieces are kept.
-const CAR_PIECE_DIRECTORY_NAME: &str = "car";
+pub(crate) const CAR_PIECE_DIRECTORY_NAME: &str = "car";
 
 /// Name for the directory where the unsealed pieces are kept.
-const UNSEALED_SECTOR_DIRECTORY_NAME: &str = "unsealed";
+pub(crate) const UNSEALED_SECTOR_DIRECTORY_NAME: &str = "unsealed";
 
 /// Name for the directory where the sealed pieces are kept.
-const SEALED_SECTOR_DIRECTORY_NAME: &str = "sealed";
+pub(crate) const SEALED_SECTOR_DIRECTORY_NAME: &str = "sealed";
 
 /// Name for the directory where the sealing cache is kept.
-const SEALING_CACHE_DIRECTORY_NANE: &str = "cache";
+pub(crate) const SEALING_CACHE_DIRECTORY_NANE: &str = "cache";
 
 fn get_random_temporary_folder() -> PathBuf {
     temp_dir().join(
@@ -107,7 +98,7 @@ fn main() -> Result<(), ServerError> {
         .init();
 
     // Run requested command.
-    let configuration: ServerConfiguration = ServerArguments::parse().try_into()?;
+    let configuration: Server = ServerCli::parse().try_into()?;
 
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -165,92 +156,38 @@ pub enum ServerError {
 
     #[error(transparent)]
     Join(#[from] JoinError),
+
+    #[error("Invalid config: {0}")]
+    InvalidConfig(&'static str),
+
+    #[error(transparent)]
+    Toml(#[from] toml::de::Error),
+
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
 }
 
 /// The server arguments, as passed by the user, unvalidated.
 #[derive(Debug, Parser)]
-#[command(author, version, about, long_about = None)]
-pub struct ServerArguments {
-    /// The server's listen address.
-    #[arg(long, default_value = DEFAULT_UPLOAD_LISTEN_ADDRESS)]
-    upload_listen_address: SocketAddr,
+#[command(author, version, about, long_about = None, arg_required_else_help = true)]
+pub struct ServerCli {
+    // Shorthand for all the keys
+    #[command(flatten)]
+    multipair: MultiPairArgs,
 
-    /// The server's listen address.
-    #[arg(long, default_value = DEFAULT_RPC_LISTEN_ADDRESS)]
-    rpc_listen_address: SocketAddr,
+    #[command(flatten)]
+    args: Option<ConfigurationArgs>,
 
-    /// The target parachain node's address.
-    #[arg(long, default_value = DEFAULT_NODE_ADDRESS)]
-    node_url: Url,
-
-    /// Sr25519 keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
-    ///
-    /// See `sp_core::crypto::Pair::from_string_with_seed` for more information.
-    #[arg(long, value_parser = DebugPair::<Sr25519Pair>::value_parser)]
-    sr25519_key: Option<DebugPair<Sr25519Pair>>,
-
-    /// ECDSA keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
-    ///
-    /// See `sp_core::crypto::Pair::from_string_with_seed` for more information.
-    #[arg(long, value_parser = DebugPair::<ECDSAPair>::value_parser)]
-    ecdsa_key: Option<DebugPair<ECDSAPair>>,
-
-    /// Ed25519 keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
-    ///
-    /// See `sp_core::crypto::Pair::from_string_with_seed` for more information.
-    #[arg(long, value_parser = DebugPair::<Ed25519Pair>::value_parser)]
-    ed25519_key: Option<DebugPair<Ed25519Pair>>,
-
-    /// RocksDB storage directory.
-    /// Defaults to a temporary random directory, like `/tmp/<random>/deals_database`.
+    /// Path to the server configuration file.
     #[arg(long)]
-    database_directory: Option<PathBuf>,
-
-    /// Piece storage directory.
-    /// Defaults to a temporary random directory, like `/tmp/<random>/...`.
-    #[arg(long)]
-    storage_directory: Option<PathBuf>,
-
-    /// Proof of Replication proof type.
-    #[arg(long)]
-    seal_proof: RegisteredSealProof,
-
-    /// Proof of Spacetime proof type.
-    #[arg(long)]
-    post_proof: RegisteredPoStProof,
-
-    /// Proving Parameters for PoRep proof, corresponding to given `seal_proof` sector size.
-    /// They are shared across all of the nodes in the network, as the chain stores corresponding Verifying Key parameters.
-    ///
-    /// Testing/temporary parameters can be generated via `polka-storage-provider-client proofs porep-params` command.
-    /// Note that when you generate keys, for local testnet,
-    /// **they need to be set** via an extrinsic pallet-proofs::set_porep_verifyingkey.
-    #[arg(long)]
-    porep_parameters: PathBuf,
-
-    /// Proving Parameters for PoSt proof, corresponding to given `post_proof` sector size.
-    /// They are shared across all of the nodes in the network, as the chain stores corresponding Verifying Key parameters.
-    ///
-    /// Testing/temporary parameters can be generated via `polka-storage-provider-client proofs post-params` command.
-    /// Note that when you generate keys, for local testnet,
-    /// **they need to be set** via an extrinsic pallet-proofs::set_post_verifyingkey.
-    #[arg(long)]
-    post_parameters: PathBuf,
-
-    /// The number of prove commits to be run in parallel.
-    /// MUST BE > 0 or the pipeline will not progress.
-    ///
-    /// Creating a replica is memory-heavy process.
-    /// E.g. With 2KiB sector sizes and 16GiB of RAM, it goes OOM at 4 parallel.
-    #[arg(long, default_value = "2")]
-    parallel_prove_commits: NonZero<usize>,
+    config: Option<PathBuf>,
 }
 
 /// A valid server configuration. To be created using [`ServerConfiguration::try_from`].
 ///
 /// The main difference to [`Server`] is that this structure only contains validated and
 /// ready to use parameters.
-pub struct ServerConfiguration {
+pub struct Server {
     /// Storage server listen address.
     upload_listen_address: SocketAddr,
 
@@ -288,23 +225,42 @@ pub struct ServerConfiguration {
     parallel_prove_commits: usize,
 }
 
-impl TryFrom<ServerArguments> for ServerConfiguration {
+impl TryFrom<ServerCli> for Server {
     type Error = ServerError;
 
-    fn try_from(value: ServerArguments) -> Result<Self, Self::Error> {
-        if value.post_proof.sector_size() != value.seal_proof.sector_size() {
+    fn try_from(value: ServerCli) -> Result<Self, Self::Error> {
+        let args: ConfigurationArgs = if let Some(config) = value.config {
+            let config = config.canonicalize()?;
+            match config.extension() {
+                Some(ext) if ext == "toml" => {
+                    let config = std::fs::read_to_string(config)?;
+                    // NOTE: without the type anotation a warning about 2024 edition is issued
+                    toml::from_str::<ConfigurationArgs>(&config)?
+                }
+                Some(ext) if ext == "json" => {
+                    serde_json::from_reader(std::fs::File::open(config)?)?
+                }
+                Some(ext) => {
+                    println!("{:?}", ext);
+                    return Err(ServerError::InvalidConfig("unsupported file format"));
+                }
+                None => return Err(ServerError::InvalidConfig("could not detect file format")),
+            }
+        } else {
+            value.args.expect(
+                "if `config == None` and `args_required_else_help = true`, then args must be Some",
+            )
+        };
+
+        if args.post_proof.sector_size() != args.seal_proof.sector_size() {
             return Err(ServerError::SectorSizeMismatch);
         }
 
-        let multi_pair_signer = MultiPairSigner::new(
-            value.sr25519_key.map(DebugPair::<Sr25519Pair>::into_inner),
-            value.ecdsa_key.map(DebugPair::<ECDSAPair>::into_inner),
-            value.ed25519_key.map(DebugPair::<Ed25519Pair>::into_inner),
-        )
-        .ok_or(ServerError::MissingKeypair)?;
+        let multi_pair_signer =
+            Option::<MultiPairSigner>::from(value.multipair).ok_or(ServerError::MissingKeypair)?;
 
         let common_folder = get_random_temporary_folder();
-        let database_directory = value.database_directory.unwrap_or_else(|| {
+        let database_directory = args.database_directory.unwrap_or_else(|| {
             let path = common_folder.join("deals_database");
             tracing::warn!(
                 "no database directory was defined, using: {}",
@@ -314,7 +270,7 @@ impl TryFrom<ServerArguments> for ServerConfiguration {
         });
         std::fs::create_dir_all(&database_directory)?;
 
-        let storage_directory = value.storage_directory.unwrap_or_else(|| {
+        let storage_directory = args.storage_directory.unwrap_or_else(|| {
             let path = common_folder.join("deals_storage");
             tracing::warn!(
                 "no storage directory was defined, using: {}",
@@ -324,29 +280,31 @@ impl TryFrom<ServerArguments> for ServerConfiguration {
         });
         std::fs::create_dir_all(&storage_directory)?;
 
-        let porep_parameters = porep::load_groth16_parameters(value.porep_parameters.clone())
-            .map_err(|e| ServerError::InvalidPoRepParameters(value.porep_parameters, e))?;
+        let porep_parameters = args.porep_parameters;
+        let porep_parameters = porep::load_groth16_parameters(porep_parameters.clone())
+            .map_err(|e| ServerError::InvalidPoRepParameters(porep_parameters, e))?;
 
-        let post_parameters = post::load_groth16_parameters(value.post_parameters.clone())
-            .map_err(|e| ServerError::InvalidPoStParameters(value.post_parameters, e))?;
+        let post_parameters = args.post_parameters;
+        let post_parameters = post::load_groth16_parameters(post_parameters.clone())
+            .map_err(|e| ServerError::InvalidPoStParameters(post_parameters, e))?;
 
         Ok(Self {
-            upload_listen_address: value.upload_listen_address,
-            rpc_listen_address: value.rpc_listen_address,
-            node_url: value.node_url,
+            upload_listen_address: args.upload_listen_address,
+            rpc_listen_address: args.rpc_listen_address,
+            node_url: args.node_url,
             multi_pair_signer,
             database_directory,
             storage_directory,
-            seal_proof: value.seal_proof,
-            post_proof: value.post_proof,
+            seal_proof: args.seal_proof,
+            post_proof: args.post_proof,
             porep_parameters,
             post_parameters,
-            parallel_prove_commits: value.parallel_prove_commits.get(),
+            parallel_prove_commits: args.parallel_prove_commits.get(),
         })
     }
 }
 
-impl ServerConfiguration {
+impl Server {
     pub async fn run(self) -> Result<(), ServerError> {
         let SetupOutput {
             storage_state,
@@ -411,7 +369,7 @@ impl ServerConfiguration {
     }
 
     async fn setup(self) -> Result<SetupOutput, ServerError> {
-        let (xt_client, storage_provider_info) = ServerConfiguration::setup_storagext_client(
+        let (xt_client, storage_provider_info) = Server::setup_storagext_client(
             self.node_url,
             &self.multi_pair_signer,
             &self.post_proof,
@@ -530,7 +488,7 @@ impl ServerConfiguration {
             None => {
                 tracing::error!(concat!(
                     "the provider key did not match a registered account id, ",
-                    "you can register your account using the ",
+                    "you can register your account using ",
                     "`storagext-cli storage-provider register`"
                 ));
 
