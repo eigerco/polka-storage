@@ -18,6 +18,8 @@ mod register;
 pub(crate) use bootstrap::BootstrapConfig;
 pub(crate) use register::RegisterConfig;
 
+const P2P_NAMESPACE: &str = "polka-storage";
+
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum NodeType {
     Bootstrap,
@@ -103,7 +105,7 @@ pub async fn run_register_node(
             rendezvous_point,
             rendezvous_point_address,
             None,
-            Namespace::from_static("polka-storage"),
+            Namespace::from_static(P2P_NAMESPACE),
         ) => {
             if let Err(e) = res {
                 error!("Failed to start P2P node. Reason: {e}");
