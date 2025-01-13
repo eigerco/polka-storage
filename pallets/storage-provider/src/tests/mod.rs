@@ -21,7 +21,7 @@ use primitives::{
     sector::SectorNumber,
     DealId, PartitionNumber, CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR, MAX_PARTITIONS_PER_DEADLINE,
     MAX_POST_PROOF_BYTES, MAX_PROOFS_PER_BLOCK, MAX_REPLICAS_PER_BLOCK, MAX_SEAL_PROOF_BYTES,
-    MAX_TERMINATIONS_PER_CALL,
+    MAX_TERMINATIONS_PER_CALL, PEER_ID_MAX_BYTES,
 };
 use sp_arithmetic::traits::Zero;
 use sp_core::{bounded_vec, Pair};
@@ -198,7 +198,7 @@ impl pallet_storage_provider::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type Randomness = DummyRandomnessGenerator<Self>;
     type AuthorVrfHistory = DummyRandomnessGenerator<Self>;
-    type PeerId = BoundedVec<u8, ConstU32<42>>; // https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
+    type PeerId = BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>; // https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
     type Currency = Balances;
     type Market = Market;
     type ProofVerification = DummyProofsVerification;
