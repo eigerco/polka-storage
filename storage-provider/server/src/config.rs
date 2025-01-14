@@ -72,10 +72,12 @@ pub struct ConfigurationArgs {
     // NOTE: the following parameters are marked as "not required" so the CLI doesn't require them
     // when --config is used, otherwise, they're very much required
     /// Proof of Replication proof type.
+    #[serde(default = "RegisteredSealProof::_2KiB")]
     #[arg(long, required = false)]
     pub(crate) seal_proof: RegisteredSealProof,
 
     /// Proof of Spacetime proof type.
+    #[serde(default = "RegisteredPoStProof::_2KiB")]
     #[arg(long, required = false)]
     pub(crate) post_proof: RegisteredPoStProof,
 

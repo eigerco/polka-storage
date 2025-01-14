@@ -4,27 +4,6 @@ This chapter covers the available CLI options for the Polka Storage Provider ser
 
 <!-- Sadly, tables will not cut it here, since the text is just too big for the table. -->
 
-#### `--upload-listen-address`
-
-The storage server's endpoint address — i.e. where the client will upload their files to.
-
-It takes in an IP address along with a port in the format: `<ip>:<port>`.
-Defaults to `127.0.0.1:8001`.
-
-#### `--rpc-listen-address`
-
-The RPC server endpoint's address — i.e. where you will submit your deals to.
-
-It takes in an IP address along with a port in the format: `<ip>:<port>`.
-Defaults to `127.0.0.1:8000`.
-
-#### `--node-url`
-
-The target parachain node's address — i.e. the parachain node the storage provider will submit deals to, etc.
-
-It takes in an URL, it supports both HTTP and WebSockets and their secure variants.
-Defaults to `ws://127.0.0.1:42069`.
-
 ### `--sr25519-key`
 
 Sr25519 keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
@@ -49,6 +28,27 @@ See [`sp_core::crypto::Pair::from_string_with_seed`](https://docs.rs/sp-core/lat
 
 If this `--ed25519-key` is not used, either [`--ecdsa-key`](#--ecdsa-key) or [`--sr25519-key`](#--sr25519-key) MUST be used.
 
+### `--upload-listen-address`
+
+The storage server's endpoint address — i.e. where the client will upload their files to.
+
+It takes in an IP address along with a port in the format: `<ip>:<port>`.
+Defaults to `127.0.0.1:8001`.
+
+### `--rpc-listen-address`
+
+The RPC server endpoint's address — i.e. where you will submit your deals to.
+
+It takes in an IP address along with a port in the format: `<ip>:<port>`.
+Defaults to `127.0.0.1:8000`.
+
+### `--node-url`
+
+The target parachain node's address — i.e. the parachain node the storage provider will submit deals to, etc.
+
+It takes in an URL, it supports both HTTP and WebSockets and their secure variants.
+Defaults to `ws://127.0.0.1:42069`.
+
 ### `--database-directory`
 
 The RocksDB storage directory, where deal information will be kept.
@@ -72,3 +72,37 @@ The kind of replication proof. Currently, only `StackedDRGWindow2KiBV1P1` is sup
 ### `--post-proof`
 
 The kind of storage proof. Currently, only `StackedDRGWindow2KiBV1P1` is supported to which it defaults.
+
+### `--porep-parameters`
+
+The path to the PoRep proving parameters. They are shared across all of the nodes in the network, as the chain stores corresponding Verifying Key parameters.
+
+### `--post-parameters`
+
+The path to the PoSt proving parameters. They are shared across all of the nodes in the network, as the chain stores corresponding Verifying Key parameters.
+
+### `--config`
+
+Takes in a path to a configuration file, it supports both JSON and TOML (files _must_ have the right extension).
+The supported configuration parameters are:
+
+| Name                    | Default                        |
+| ----------------------- | ------------------------------ |
+| `upload-listen-address` | `127.0.0.1:8000`               |
+| `rpc-listen-address`    | `127.0.0.1:8001`               |
+| `node-url`              | `ws://127.0.0.1:42069`         |
+| `database-directory`    | `/tmp/<random>/deals_database` |
+| `storage-directory`     | `/tmp/<random>/deals_storage`  |
+| `seal-proof`            | 2KiB                           |
+| `post-proof`            | 2KiB                           |
+| `porep_parameters`      | NA                             |
+| `post_parameters`       | NA                             |
+
+#### Bare bones configuration
+
+```json
+{
+    "porep_parameters": "/home/storage_provider/porep.params",
+    "post_parameters": "/home/storage_provider/post.params",
+}
+```
