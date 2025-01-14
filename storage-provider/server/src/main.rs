@@ -9,14 +9,13 @@ mod pipeline;
 mod rpc;
 mod storage;
 
-use std::{
-    env::temp_dir, fs::read_to_string, net::SocketAddr, path::PathBuf, sync::Arc,
-    time::Duration,
-};
+use std::{env::temp_dir, net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 
 use clap::Parser;
+use libp2p::{identity::Keypair, Multiaddr, PeerId};
 use p2p::{
-    run_bootstrap_node, run_register_node, BootstrapConfig, NodeType, P2PError, RegisterConfig,
+    run_bootstrap_node, run_register_node, BootstrapConfig, NodeType, P2PError, P2PState,
+    RegisterConfig,
 };
 use pipeline::types::PipelineMessage;
 use polka_storage_proofs::{
@@ -45,11 +44,11 @@ use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, Env
 use url::Url;
 
 use crate::{
+    config::ConfigurationArgs,
     db::{DBError, DealDB},
     pipeline::{start_pipeline, PipelineState},
     rpc::{start_rpc_server, RpcServerState},
     storage::{start_upload_server, StorageServerState},
-    config::ConfigurationArgs,
 };
 
 /// Default parachain node adress.
@@ -88,6 +87,7 @@ struct SetupOutput {
     rpc_state: RpcServerState,
     pipeline_state: PipelineState,
     pipeline_rx: UnboundedReceiver<PipelineMessage>,
+    p2p_state: P2PState,
 }
 
 fn main() -> Result<(), ServerError> {
@@ -192,14 +192,6 @@ pub struct ServerCli {
     /// Path to the server configuration file.
     #[arg(long)]
     config: Option<PathBuf>,
-
-    /// P2P Node type, can be either a bootstrap node or a registration node.
-    #[arg(long, default_value = "bootstrap")]
-    node_type: NodeType,
-
-    /// Path to P2P config file
-    #[arg(long)]
-    p2p_config: PathBuf,
 }
 
 /// A valid server configuration. To be created using [`ServerConfiguration::try_from`].
@@ -246,8 +238,16 @@ pub struct Server {
     /// P2P Network node type, can either be a bootstrap or registration node
     node_type: NodeType,
 
-    /// P2P Network node configuration file path
-    p2p_config: PathBuf,
+    /// P2P ED25519 private key
+    p2p_key: Keypair,
+
+    /// Rendezvous point address that the registration node connects to
+    /// or the bootstrap node binds to.
+    rendezvous_point_address: Multiaddr,
+
+    /// PeerID of the bootstrap node used by the registration node.
+    /// Optional because it is not used by the bootstrap node.
+    rendezvous_point: Option<PeerId>,
 }
 
 impl TryFrom<ServerCli> for Server {
@@ -325,38 +325,44 @@ impl TryFrom<ServerCli> for Server {
             porep_parameters,
             post_parameters,
             parallel_prove_commits: args.parallel_prove_commits.get(),
-            node_type: value.node_type,
-            p2p_config: value.p2p_config,
+            node_type: args.node_type,
+            p2p_key: args.p2p_key,
+            rendezvous_point_address: args.rendezvous_point_address,
+            rendezvous_point: args.rendezvous_point,
         })
     }
 }
 
 impl Server {
     pub async fn run(self) -> Result<(), ServerError> {
-        let p2p_config = self.p2p_config.clone();
         let node_type = self.node_type;
         let SetupOutput {
             storage_state,
             rpc_state,
             pipeline_state,
             pipeline_rx,
+            p2p_state,
         } = self.setup().await?;
 
         let cancellation_token = CancellationToken::new();
 
         let p2p_task = match node_type {
             NodeType::Bootstrap => {
-                let contents = read_to_string(p2p_config)?;
-                let config: BootstrapConfig =
-                    toml::from_str(&contents).map_err(|e| P2PError::TOMLError(e))?;
+                let config =
+                    BootstrapConfig::new(p2p_state.p2p_key, p2p_state.rendezvous_point_address);
                 tokio::spawn(run_bootstrap_node(config, cancellation_token.child_token()))
             }
-            NodeType::Register => {
-                let contents = read_to_string(p2p_config)?;
-                let config: RegisterConfig =
-                    toml::from_str(&contents).map_err(|e| P2PError::TOMLError(e))?;
-                tokio::spawn(run_register_node(config, cancellation_token.child_token()))
-            }
+            NodeType::Register => match p2p_state.rendezvous_point {
+                Some(rendezvous_point) => {
+                    let config = RegisterConfig::new(
+                        p2p_state.p2p_key,
+                        p2p_state.rendezvous_point_address,
+                        rendezvous_point,
+                    );
+                    tokio::spawn(run_register_node(config, cancellation_token.child_token()))
+                }
+                None => return Err(ServerError::P2P(P2PError::InvalidBehaviourConfig)),
+            },
         };
         let rpc_task = tokio::spawn(start_rpc_server(
             rpc_state,
@@ -484,11 +490,18 @@ impl Server {
             prove_commit_throttle: Arc::new(Semaphore::new(self.parallel_prove_commits)),
         };
 
+        let p2p_state = P2PState {
+            p2p_key: self.p2p_key,
+            rendezvous_point_address: self.rendezvous_point_address,
+            rendezvous_point: self.rendezvous_point,
+        };
+
         Ok(SetupOutput {
             storage_state,
             rpc_state,
             pipeline_state,
             pipeline_rx,
+            p2p_state,
         })
     }
 

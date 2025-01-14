@@ -1,12 +1,11 @@
-use std::{str::FromStr, time::Duration};
+use std::time::Duration;
 
 use libp2p::{
     identify, identity::Keypair, noise, rendezvous, swarm::NetworkBehaviour, tcp, yamux, Multiaddr,
     PeerId, Swarm, SwarmBuilder,
 };
-use serde::{de, Deserialize};
 
-use super::{deser_keypair, P2PError};
+use super::P2PError;
 
 #[derive(NetworkBehaviour)]
 pub struct RegisterBehaviour {
@@ -14,21 +13,25 @@ pub struct RegisterBehaviour {
     pub rendezvous: rendezvous::client::Behaviour,
 }
 
-fn string_to_peer_id<'de, D: de::Deserializer<'de>>(d: D) -> Result<PeerId, D::Error> {
-    let s: String = de::Deserialize::deserialize(d)?;
-    PeerId::from_str(&s).map_err(de::Error::custom)
-}
-
-#[derive(Deserialize)]
 pub struct RegisterConfig {
-    #[serde(deserialize_with = "deser_keypair")]
     keypair: Keypair,
     rendezvous_point_address: Multiaddr,
-    #[serde(deserialize_with = "string_to_peer_id")]
     rendezvous_point: PeerId,
 }
 
 impl RegisterConfig {
+    pub fn new(
+        keypair: Keypair,
+        rendezvous_point_address: Multiaddr,
+        rendezvous_point: PeerId,
+    ) -> Self {
+        Self {
+            keypair,
+            rendezvous_point_address,
+            rendezvous_point,
+        }
+    }
+
     pub fn create_swarm(self) -> Result<(Swarm<RegisterBehaviour>, Multiaddr, PeerId), P2PError> {
         let swarm = SwarmBuilder::with_existing_identity(self.keypair)
             .with_tokio()

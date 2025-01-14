@@ -4,9 +4,8 @@ use libp2p::{
     identify, identity::Keypair, noise, rendezvous, swarm::NetworkBehaviour, tcp, yamux, Multiaddr,
     Swarm, SwarmBuilder,
 };
-use serde::Deserialize;
 
-use super::{deser_keypair, P2PError};
+use super::P2PError;
 
 #[derive(NetworkBehaviour)]
 pub struct BootstrapBehaviour {
@@ -14,14 +13,16 @@ pub struct BootstrapBehaviour {
     pub identify: identify::Behaviour,
 }
 
-#[derive(Deserialize)]
 pub struct BootstrapConfig {
     address: Multiaddr,
-    #[serde(deserialize_with = "deser_keypair")]
     keypair: Keypair,
 }
 
 impl BootstrapConfig {
+    pub fn new(keypair: Keypair, address: Multiaddr) -> Self {
+        Self { address, keypair }
+    }
+
     pub fn create_swarm(self) -> Result<(Swarm<BootstrapBehaviour>, Multiaddr), P2PError> {
         let swarm = SwarmBuilder::with_existing_identity(self.keypair)
             .with_tokio()

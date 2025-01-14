@@ -8,7 +8,7 @@ use libp2p::{
     swarm::SwarmEvent, Multiaddr, PeerId, Swarm,
 };
 use register::{RegisterBehaviour, RegisterBehaviourEvent};
-use serde::de;
+use serde::{de, Deserialize};
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use tracing::{error, info};
 
@@ -20,7 +20,7 @@ pub(crate) use register::RegisterConfig;
 
 const P2P_NAMESPACE: &str = "polka-storage";
 
-#[derive(Debug, Clone, Copy, ValueEnum)]
+#[derive(Debug, Clone, Copy, ValueEnum, Deserialize)]
 pub enum NodeType {
     Bootstrap,
     Register,
@@ -50,19 +50,46 @@ pub enum P2PError {
     P2PTransportError(#[from] libp2p::TransportError<std::io::Error>),
 }
 
-fn deser_keypair<'de, D: de::Deserializer<'de>>(d: D) -> Result<Keypair, D::Error> {
+pub(crate) struct P2PState {
+    /// P2P ED25519 private key
+    pub(crate) p2p_key: Keypair,
+
+    /// Rendezvous point address that the registration node connects to
+    /// or the bootstrap node binds to.
+    pub(crate) rendezvous_point_address: Multiaddr,
+
+    /// PeerID of the bootstrap node used by the registration node.
+    /// Optional because it is not used by the bootstrap node.
+    pub(crate) rendezvous_point: Option<PeerId>,
+}
+
+pub(crate) fn deser_keypair<'de, D: de::Deserializer<'de>>(d: D) -> Result<Keypair, D::Error> {
     let src: String = de::Deserialize::deserialize(d)?;
+    keypair_value_parser(&src).map_err(de::Error::custom)
+}
+
+pub(crate) fn keypair_value_parser(src: &str) -> Result<Keypair, String> {
     let key = if let Some(stripped) = src.strip_prefix('@') {
         let path = PathBuf::from_str(stripped)
-            .map_err(de::Error::custom)?
+            .map_err(|e| e.to_string())?
             .canonicalize()
-            .map_err(de::Error::custom)?;
-        SigningKey::read_pkcs8_pem_file(path).map_err(de::Error::custom)?
+            .map_err(|e| e.to_string())?;
+        SigningKey::read_pkcs8_pem_file(path).map_err(|e| e.to_string())?
     } else {
-        let hex_key = hex::decode(src).map_err(de::Error::custom)?;
-        SigningKey::try_from(hex_key.as_slice()).map_err(de::Error::custom)?
+        let hex_key = hex::decode(src).map_err(|e| e.to_string())?;
+        SigningKey::try_from(hex_key.as_slice()).map_err(|e| e.to_string())?
     };
-    Keypair::ed25519_from_bytes(key.to_bytes()).map_err(de::Error::custom)
+    Keypair::ed25519_from_bytes(key.to_bytes()).map_err(|e| e.to_string())
+}
+
+pub(crate) fn string_to_peer_id_option<'de, D: de::Deserializer<'de>>(
+    d: D,
+) -> Result<Option<PeerId>, D::Error> {
+    let s: Option<String> = de::Deserialize::deserialize(d)?;
+    match s {
+        Some(s) => Ok(Some(PeerId::from_str(&s).map_err(de::Error::custom)?)),
+        None => Ok(None),
+    }
 }
 
 pub async fn run_bootstrap_node(
