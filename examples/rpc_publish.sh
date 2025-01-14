@@ -34,8 +34,8 @@ PIECE_CID="$(echo "$INPUT_COMMP" | jq -r ".cid")"
 PIECE_SIZE="$(echo "$INPUT_COMMP" | jq ".size")"
 PEER_ID="$(target/release/polka-storage-provider-client generate-peer-id --pubkey "$P2P_PUBLIC_KEY")"
 P2P_CONFIG="/tmp/bootstrap.toml"
-echo "address = \"$P2P_ADDRESS\"
-keypair = \"@$P2P_PRIVATE_KEY\"
+echo "address = '$P2P_ADDRESS'
+keypair = '@$P2P_PRIVATE_KEY'
 " > "$P2P_CONFIG"
 
 
