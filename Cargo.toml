@@ -110,6 +110,7 @@ thiserror = { version = "2.0.3", default-features = false }
 tokio = "1.37.0"
 tokio-stream = "0.1.15"
 tokio-util = "0.7.11"
+toml = "0.8.19"
 tower = "0.4.13"
 tower-http = "0.5.2"
 tracing = "0.1.40"

@@ -24,4 +24,12 @@ RUST_LOG=debug target/release/storagext-cli --sr25519-key "//Alice" proofs set-p
 RUST_LOG=debug target/release/storagext-cli --sr25519-key "//Bob" proofs set-post-verifying-key @2KiB.post.vk.scale &
 wait
 
-RUST_LOG=debug target/release/polka-storage-provider-server --sr25519-key "$PROVIDER" --seal-proof "2KiB" --post-proof "2KiB" --porep-parameters 2KiB.porep.params --post-parameters 2KiB.post.params
+echo '{
+    "seal_proof": "2KiB",
+    "post_proof": "2KiB",
+    "porep_parameters": "2KiB.porep.params",
+    "post_parameters": "2KiB.post.params"
+}' > /tmp/storage_provider.config.json
+RUST_LOG=debug target/release/polka-storage-provider-server \
+    --sr25519-key "$PROVIDER" \
+    --config /tmp/storage_provider.config.json

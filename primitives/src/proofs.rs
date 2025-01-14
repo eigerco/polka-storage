@@ -57,7 +57,9 @@ pub enum RegisteredSealProof {
 
 impl RegisteredSealProof {
     pub fn sector_size(&self) -> SectorSize {
-        SectorSize::_2KiB
+        match self {
+            RegisteredSealProof::StackedDRG2KiBV1P1 => SectorSize::_2KiB,
+        }
     }
 
     /// Produces the windowed PoSt-specific RegisteredProof corresponding
@@ -78,6 +80,14 @@ impl RegisteredSealProof {
         match self {
             RegisteredSealProof::StackedDRG2KiBV1P1 => 192,
         }
+    }
+
+    /// Returns [`StackedDRG2KiBV1P1`](RegisteredSealProof::StackedDRG2KiBV1P1).
+    // NOTE(@jmg-duarte,14/01/2025): wanted to avoid setting a default to use in serde
+    // this is the alternative
+    #[allow(non_snake_case)]
+    pub const fn _2KiB() -> Self {
+        Self::StackedDRG2KiBV1P1
     }
 }
 
@@ -121,6 +131,14 @@ impl RegisteredPoStProof {
         match self {
             RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => 2,
         }
+    }
+
+    /// Returns [`StackedDRGWindow2KiBV1P1`](RegisteredPoStProof::StackedDRGWindow2KiBV1P1).
+    // NOTE(@jmg-duarte,14/01/2025): wanted to avoid setting a default to use in serde
+    // this is the alternative
+    #[allow(non_snake_case)]
+    pub const fn _2KiB() -> Self {
+        Self::StackedDRGWindow2KiBV1P1
     }
 }
 
