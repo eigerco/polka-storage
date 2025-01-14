@@ -22,14 +22,21 @@ PROVIDER="//Charlie"
 INPUT_FILE="$1"
 INPUT_FILE_NAME="$(basename "$INPUT_FILE")"
 INPUT_TMP_FILE="/tmp/$INPUT_FILE_NAME.car"
-P2P_PUBLIC_KEY="examples/p2p-keys/public.pem"
+P2P_PUBLIC_KEY="/tmp/public.pem"
+P2P_PRIVATE_KEY="/tmp/private.pem"
+P2P_ADDRESS="/ip4/127.0.0.1/tcp/62649"
 
+# Generate ED25519 private key
+openssl genpkey -algorithm ED25519 -out "$P2P_PRIVATE_KEY" -outpubkey "$P2P_PUBLIC_KEY"
 target/release/mater-cli convert -q --overwrite "$INPUT_FILE" "$INPUT_TMP_FILE" &&
 INPUT_COMMP="$(target/release/polka-storage-provider-client proofs commp "$INPUT_TMP_FILE")"
 PIECE_CID="$(echo "$INPUT_COMMP" | jq -r ".cid")"
 PIECE_SIZE="$(echo "$INPUT_COMMP" | jq ".size")"
 PEER_ID="$(target/release/polka-storage-provider-client generate-peer-id --pubkey "$P2P_PUBLIC_KEY")"
-P2P_CONFIG="examples/p2p-config/bootstrap.toml"
+P2P_CONFIG="/tmp/bootstrap.toml"
+echo "address = \"$P2P_ADDRESS\"
+keypair = \"@$P2P_PRIVATE_KEY\"
+" > "$P2P_CONFIG"
 
 
 # Setup balances
