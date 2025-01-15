@@ -560,16 +560,16 @@ fn spawn_p2p_task(
                 BootstrapConfig::new(p2p_state.p2p_key, p2p_state.rendezvous_point_address);
             Ok(tokio::spawn(run_bootstrap_node(config, cancellation_token)))
         }
-        NodeType::Register => match p2p_state.rendezvous_point {
-            Some(rendezvous_point) => {
-                let config = RegisterConfig::new(
-                    p2p_state.p2p_key,
-                    p2p_state.rendezvous_point_address,
-                    rendezvous_point,
-                );
-                Ok(tokio::spawn(run_register_node(config, cancellation_token)))
-            }
-            None => return Err(ServerError::P2P(P2PError::InvalidBehaviourConfig)),
-        },
+        NodeType::Register => {
+            let Some(rendezvous_point) = p2p_state.rendezvous_point else {
+                return Err(ServerError::P2P(P2PError::InvalidBehaviourConfig));
+            };
+            let config = RegisterConfig::new(
+                p2p_state.p2p_key,
+                p2p_state.rendezvous_point_address,
+                rendezvous_point,
+            );
+            Ok(tokio::spawn(run_register_node(config, cancellation_token)))
+        }
     }
 }
