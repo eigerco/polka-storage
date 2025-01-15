@@ -38,7 +38,7 @@ pub enum P2PError {
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]
-    DialError(#[from] libp2p::swarm::DialError),
+    Dial(#[from] libp2p::swarm::DialError),
     #[error("Invalid TCP config for swarm")]
     InvalidTcpConfig,
     #[error("Invalid behaviour config for swarm")]
@@ -48,7 +48,7 @@ pub enum P2PError {
     #[error("Failed to register at rendezvous point {0}")]
     RegistrationFailed(PeerId),
     #[error(transparent)]
-    P2PTransportError(#[from] libp2p::TransportError<std::io::Error>),
+    P2PTransport(#[from] libp2p::TransportError<std::io::Error>),
 }
 
 pub(crate) struct P2PState {
