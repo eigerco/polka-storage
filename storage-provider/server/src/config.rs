@@ -105,7 +105,7 @@ pub struct ConfigurationArgs {
 
     /// P2P Node type, can be either a bootstrap node or a registration node.
     #[serde(default = "NodeType::default")]
-    #[arg(long, default_value = "bootstrap")]
+    #[arg(long, default_value_t = NodeType::Bootstrap)]
     pub(crate) node_type: NodeType,
 
     /// P2P ED25519 private key

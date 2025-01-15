@@ -25,7 +25,10 @@ pub enum NodeType {
 
 impl Display for NodeType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Debug::fmt(&self, f)
+        match self {
+            NodeType::Bootstrap => write!(f, "bootstrap"),
+            NodeType::Register => write!(f, "register"),
+        }
     }
 }
 
