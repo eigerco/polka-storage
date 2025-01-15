@@ -12,6 +12,7 @@ mod storage;
 use std::{env::temp_dir, net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 
 use clap::Parser;
+use futures::Future;
 use libp2p::{identity::Keypair, Multiaddr, PeerId};
 use p2p::{
     run_bootstrap_node, run_register_node, BootstrapConfig, NodeType, P2PError, P2PState,
@@ -176,6 +177,33 @@ pub enum ServerError {
 
     #[error(transparent)]
     P2P(#[from] P2PError),
+}
+
+/// Takes an expression that returns a nested result and
+/// inspected the error while logging it.
+macro_rules! inspect_and_log_nested_errors {
+    ($($task:expr),+ $(,)?) => {
+        (
+            $(
+                $task
+                    .inspect_err(|err| tracing::error!(%err))
+                    .inspect(|ok| {
+                        let _ = ok.as_ref().inspect_err(|err| tracing::error!(%err));
+                    })
+            ),+
+        )
+    };
+}
+
+/// This macro spawns multiple async tasks and returns the JoinHandle.
+macro_rules! spawn_async_tasks {
+    ($($task:expr),+ $(,)?) => {
+        (
+            $(
+                tokio::spawn($task)
+            ),+
+        )
+    }
 }
 
 /// The server arguments, as passed by the user, unvalidated.
@@ -346,19 +374,15 @@ impl Server {
         let cancellation_token = CancellationToken::new();
 
         let p2p_task = spawn_p2p_task(p2p_state, cancellation_token.child_token())?;
-        let rpc_task = tokio::spawn(start_rpc_server(
-            rpc_state,
-            cancellation_token.child_token(),
-        ));
-        let storage_task = tokio::spawn(start_upload_server(
-            Arc::new(storage_state),
-            cancellation_token.child_token(),
-        ));
-        let pipeline_task = tokio::spawn(start_pipeline(
-            Arc::new(pipeline_state),
-            pipeline_rx,
-            cancellation_token.child_token(),
-        ));
+        let (rpc_task, storage_task, pipeline_task) = spawn_async_tasks!(
+            start_rpc_server(rpc_state, cancellation_token.child_token(),),
+            start_upload_server(Arc::new(storage_state), cancellation_token.child_token(),),
+            start_pipeline(
+                Arc::new(pipeline_state),
+                pipeline_rx,
+                cancellation_token.child_token(),
+            )
+        );
 
         // Wait for SIGTERM on the main thread and once received "unblock"
         tokio::signal::ctrl_c()
@@ -373,29 +397,9 @@ impl Server {
         let (upload_result, rpc_task, pipeline_task, p2p_task) =
             tokio::join!(storage_task, rpc_task, pipeline_task, p2p_task);
 
-        // Log errors
-        let upload_result = upload_result
-            .inspect_err(|err| tracing::error!(%err))
-            .inspect(|ok| {
-                let _ = ok.as_ref().inspect_err(|err| tracing::error!(%err));
-            });
-        let rpc_task = rpc_task
-            .inspect_err(|err| tracing::error!(%err))
-            .inspect(|ok| {
-                let _ = ok.as_ref().inspect_err(|err| tracing::error!(%err));
-            });
-
-        let pipeline_task = pipeline_task
-            .inspect_err(|err| tracing::error!(%err))
-            .inspect(|ok| {
-                let _ = ok.as_ref().inspect_err(|err| tracing::error!(%err));
-            });
-
-        let p2p_task = p2p_task
-            .inspect_err(|err| tracing::error!(%err))
-            .inspect(|ok| {
-                let _ = ok.as_ref().inspect_err(|err| tracing::error!(%err));
-            });
+        // Inspect and log errors
+        let (upload_result, rpc_task, pipeline_task, p2p_task) =
+            inspect_and_log_nested_errors!(upload_result, rpc_task, pipeline_task, p2p_task);
 
         // Exit with error
         upload_result??;
