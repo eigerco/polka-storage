@@ -1,13 +1,10 @@
 use std::{fmt::Display, path::PathBuf, str::FromStr};
 
-use bootstrap::{BootstrapBehaviour, BootstrapBehaviourEvent};
+use bootstrap::bootstrap;
 use clap::ValueEnum;
 use ed25519_dalek::{pkcs8::DecodePrivateKey, SigningKey};
-use libp2p::{
-    futures::StreamExt, identify, identity::Keypair, rendezvous, rendezvous::Namespace,
-    swarm::SwarmEvent, Multiaddr, PeerId, Swarm,
-};
-use register::{RegisterBehaviour, RegisterBehaviourEvent};
+use libp2p::{identity::Keypair, rendezvous::Namespace, Multiaddr, PeerId};
+use register::register;
 use serde::{de, Deserialize};
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 
@@ -158,125 +155,5 @@ pub async fn run_register_node(
     tracker.close();
     tracker.wait().await;
 
-    Ok(())
-}
-
-/// Register the peer with the rendezvous point.
-/// The ttl is how long the peer will remain registered in seconds.
-async fn register(
-    mut swarm: Swarm<RegisterBehaviour>,
-    rendezvous_point: PeerId,
-    rendezvous_point_address: Multiaddr,
-    ttl: Option<u64>,
-    namespace: Namespace,
-) -> Result<(), P2PError> {
-    tracing::info!("Attempting to register with rendezvous point {rendezvous_point} at {rendezvous_point_address}");
-    swarm.dial(rendezvous_point_address.clone())?;
-
-    while let Some(event) = swarm.next().await {
-        match event {
-            SwarmEvent::NewListenAddr { address, .. } => {
-                tracing::info!("Listening on {}", address);
-            }
-            SwarmEvent::ConnectionClosed {
-                peer_id,
-                cause: Some(error),
-                ..
-            } if peer_id == rendezvous_point => {
-                tracing::info!("Lost connection to rendezvous point {}", error);
-            }
-            // once `/identify` did its job, we know our external address and can register
-            SwarmEvent::Behaviour(RegisterBehaviourEvent::Identify(
-                identify::Event::Received { info, .. },
-            )) => {
-                // Register our external address.
-                tracing::info!("Registering external address {}", info.observed_addr);
-                swarm.add_external_address(info.observed_addr);
-                if let Err(error) = swarm.behaviour_mut().rendezvous.register(
-                    namespace.clone(),
-                    rendezvous_point,
-                    ttl,
-                ) {
-                    tracing::error!("Failed to register: {error}");
-                    return Err(P2PError::RegistrationFailed(rendezvous_point));
-                }
-            }
-            SwarmEvent::Behaviour(RegisterBehaviourEvent::Rendezvous(
-                rendezvous::client::Event::Registered {
-                    namespace,
-                    ttl,
-                    rendezvous_node,
-                },
-            )) => {
-                tracing::info!(
-                    "Registered for namespace '{}' at rendezvous point {} for the next {} seconds",
-                    namespace,
-                    rendezvous_node,
-                    ttl
-                );
-                return Ok(());
-            }
-            SwarmEvent::Behaviour(RegisterBehaviourEvent::Rendezvous(
-                rendezvous::client::Event::RegisterFailed {
-                    rendezvous_node,
-                    namespace,
-                    error,
-                },
-            )) => {
-                tracing::error!(
-                    "Failed to register: rendezvous_node={}, namespace={}, error_code={:?}",
-                    rendezvous_node,
-                    namespace,
-                    error
-                );
-                return Err(P2PError::RegistrationFailed(rendezvous_node));
-            }
-            _other => {}
-        }
-    }
-
-    Ok(())
-}
-
-/// Run the rendezvous point (bootstrap node).
-/// Listens on the given [`Multiaddr`]
-async fn bootstrap(mut swarm: Swarm<BootstrapBehaviour>, addr: Multiaddr) -> Result<(), P2PError> {
-    tracing::info!("Starting P2P bootstrap node at {addr}");
-    swarm.listen_on(addr)?;
-    while let Some(event) = swarm.next().await {
-        match event {
-            SwarmEvent::ConnectionEstablished { peer_id, .. } => {
-                tracing::info!("Connected to {}", peer_id);
-            }
-            SwarmEvent::ConnectionClosed { peer_id, .. } => {
-                tracing::info!("Disconnected from {}", peer_id);
-            }
-            SwarmEvent::Behaviour(BootstrapBehaviourEvent::Rendezvous(
-                rendezvous::server::Event::PeerRegistered { peer, registration },
-            )) => {
-                tracing::info!(
-                    "Peer {} registered for namespace '{}' for {} seconds",
-                    peer,
-                    registration.namespace,
-                    registration.ttl
-                );
-            }
-            SwarmEvent::Behaviour(BootstrapBehaviourEvent::Rendezvous(
-                rendezvous::server::Event::DiscoverServed {
-                    enquirer,
-                    registrations,
-                },
-            )) => {
-                if !registrations.is_empty() {
-                    tracing::info!(
-                        "Served peer {} with {} new registrations",
-                        enquirer,
-                        registrations.len()
-                    );
-                }
-            }
-            _other => {}
-        }
-    }
     Ok(())
 }

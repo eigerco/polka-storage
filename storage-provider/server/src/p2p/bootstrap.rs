@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use libp2p::{
-    identify, identity::Keypair, noise, rendezvous, swarm::NetworkBehaviour, tcp, yamux, Multiaddr,
-    Swarm, SwarmBuilder,
+    futures::StreamExt, identify, identity::Keypair, noise, rendezvous, swarm::NetworkBehaviour,
+    swarm::SwarmEvent, tcp, yamux, Multiaddr, Swarm, SwarmBuilder,
 };
 
 use super::P2PError;
@@ -49,4 +49,50 @@ impl BootstrapConfig {
 
         Ok((swarm, self.address))
     }
+}
+
+/// Run the rendezvous point (bootstrap node).
+/// Listens on the given [`Multiaddr`]
+pub(crate) async fn bootstrap(
+    mut swarm: Swarm<BootstrapBehaviour>,
+    addr: Multiaddr,
+) -> Result<(), P2PError> {
+    tracing::info!("Starting P2P bootstrap node at {addr}");
+    swarm.listen_on(addr)?;
+    while let Some(event) = swarm.next().await {
+        match event {
+            SwarmEvent::ConnectionEstablished { peer_id, .. } => {
+                tracing::info!("Connected to {}", peer_id);
+            }
+            SwarmEvent::ConnectionClosed { peer_id, .. } => {
+                tracing::info!("Disconnected from {}", peer_id);
+            }
+            SwarmEvent::Behaviour(BootstrapBehaviourEvent::Rendezvous(
+                rendezvous::server::Event::PeerRegistered { peer, registration },
+            )) => {
+                tracing::info!(
+                    "Peer {} registered for namespace '{}' for {} seconds",
+                    peer,
+                    registration.namespace,
+                    registration.ttl
+                );
+            }
+            SwarmEvent::Behaviour(BootstrapBehaviourEvent::Rendezvous(
+                rendezvous::server::Event::DiscoverServed {
+                    enquirer,
+                    registrations,
+                },
+            )) => {
+                if !registrations.is_empty() {
+                    tracing::info!(
+                        "Served peer {} with {} new registrations",
+                        enquirer,
+                        registrations.len()
+                    );
+                }
+            }
+            _other => {}
+        }
+    }
+    Ok(())
 }
