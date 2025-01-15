@@ -29,7 +29,7 @@ pub enum NodeType {
 
 impl Display for NodeType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        std::fmt::Debug::fmt(&self, f)
     }
 }
 
