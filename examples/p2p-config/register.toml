@@ -1,3 +1,0 @@
-keypair = "@examples/p2p-keys/private.pem"
-rendezvous_point = "12D3KooWS8tjUoiMgh2hZ12EyDjnJuEoa1zxq7G7EQtqafRUT8fr"
-rendezvous_point_address = "/ip4/127.0.0.1/tcp/62649"
