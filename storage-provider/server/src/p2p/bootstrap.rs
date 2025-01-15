@@ -33,9 +33,11 @@ impl BootstrapConfig {
             )
             .map_err(|_| P2PError::InvalidTcpConfig)?
             .with_behaviour(|key| BootstrapBehaviour {
+                // Rendezvous server behaviour for serving new peers to connecting nodes.
                 rendezvous: rendezvous::server::Behaviour::new(
                     rendezvous::server::Config::default(),
                 ),
+                // The identify behaviour is used to share the external address and the public key with connecting clients.
                 identify: identify::Behaviour::new(identify::Config::new(
                     "identify/1.0.0".to_string(),
                     key.public(),

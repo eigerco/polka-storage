@@ -109,8 +109,8 @@ pub struct ConfigurationArgs {
     pub(crate) node_type: NodeType,
 
     /// P2P ED25519 private key
-    #[arg(long, value_parser = keypair_value_parser)]
     #[serde(deserialize_with = "deser_keypair")]
+    #[arg(long, value_parser = keypair_value_parser)]
     pub(crate) p2p_key: Keypair,
 
     /// Rendezvous point address that the registration node connects to
@@ -120,7 +120,7 @@ pub struct ConfigurationArgs {
 
     /// PeerID of the bootstrap node used by the registration node.
     /// Optional because it is not used by the bootstrap node.
-    #[arg(long)]
     #[serde(default, deserialize_with = "string_to_peer_id_option")]
+    #[arg(long)]
     pub(crate) rendezvous_point: Option<PeerId>,
 }

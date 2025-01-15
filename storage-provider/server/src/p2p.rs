@@ -63,11 +63,16 @@ pub(crate) struct P2PState {
     pub(crate) rendezvous_point: Option<PeerId>,
 }
 
+/// Deserializes a ED25519 private key into a Keypair.
+/// Can either be the private key as a string or the path of a PEM file with an @ prefixed
+/// Calls `keypair_value_parser` after deserializing the source string
 pub(crate) fn deser_keypair<'de, D: de::Deserializer<'de>>(d: D) -> Result<Keypair, D::Error> {
     let src: String = de::Deserialize::deserialize(d)?;
     keypair_value_parser(&src).map_err(de::Error::custom)
 }
 
+/// Parses a ED25519 private key into a Keypair.
+/// Takes in a private key or the path to a PEM file, depending on the @ prefix.
 pub(crate) fn keypair_value_parser(src: &str) -> Result<Keypair, String> {
     let key = if let Some(stripped) = src.strip_prefix('@') {
         let path = PathBuf::from_str(stripped)
@@ -82,6 +87,8 @@ pub(crate) fn keypair_value_parser(src: &str) -> Result<Keypair, String> {
     Keypair::ed25519_from_bytes(key.to_bytes()).map_err(|e| e.to_string())
 }
 
+/// Parses a string to an optional Peer ID.
+/// Used in the [`ConfigurationArgs`] rendezvous_point field.
 pub(crate) fn string_to_peer_id_option<'de, D: de::Deserializer<'de>>(
     d: D,
 ) -> Result<Option<PeerId>, D::Error> {
@@ -92,6 +99,8 @@ pub(crate) fn string_to_peer_id_option<'de, D: de::Deserializer<'de>>(
     }
 }
 
+/// Runs a bootstrap node from the given config.
+/// The `CancellationToken` is used for a graceful shutdown if the user presses ctrl+c
 pub async fn run_bootstrap_node(
     config: BootstrapConfig,
     token: CancellationToken,
@@ -118,6 +127,8 @@ pub async fn run_bootstrap_node(
     Ok(())
 }
 
+/// Runs a registration node from the given config.
+/// The `CancellationToken` is used for a graceful shutdown if the user presses ctrl+c
 pub async fn run_register_node(
     config: RegisterConfig,
     token: CancellationToken,

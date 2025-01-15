@@ -42,10 +42,12 @@ impl RegisterConfig {
             )
             .map_err(|_| P2PError::InvalidTcpConfig)?
             .with_behaviour(|key| RegisterBehaviour {
+                // The identify behaviour is used to receive the bootstrap node's external address and public key.
                 identify: identify::Behaviour::new(identify::Config::new(
                     "identify/1.0.0".to_string(),
                     key.public(),
                 )),
+                // The rendezvous client behaviour allows the bootstrap node to share peer information with us.
                 rendezvous: rendezvous::client::Behaviour::new(key.clone()),
             })
             .map_err(|_| P2PError::InvalidBehaviourConfig)?
