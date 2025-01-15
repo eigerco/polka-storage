@@ -195,17 +195,6 @@ macro_rules! inspect_and_log_nested_errors {
     };
 }
 
-/// This macro spawns multiple async tasks and returns the JoinHandle.
-macro_rules! spawn_async_tasks {
-    ($($task:expr),+ $(,)?) => {
-        (
-            $(
-                tokio::spawn($task)
-            ),+
-        )
-    }
-}
-
 /// The server arguments, as passed by the user, unvalidated.
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None, arg_required_else_help = true)]
@@ -374,15 +363,19 @@ impl Server {
         let cancellation_token = CancellationToken::new();
 
         let p2p_task = spawn_p2p_task(p2p_state, cancellation_token.child_token())?;
-        let (rpc_task, storage_task, pipeline_task) = spawn_async_tasks!(
-            start_rpc_server(rpc_state, cancellation_token.child_token(),),
-            start_upload_server(Arc::new(storage_state), cancellation_token.child_token(),),
-            start_pipeline(
-                Arc::new(pipeline_state),
-                pipeline_rx,
-                cancellation_token.child_token(),
-            )
-        );
+        let rpc_task = tokio::spawn(start_rpc_server(
+            rpc_state,
+            cancellation_token.child_token(),
+        ));
+        let storage_task = tokio::spawn(start_upload_server(
+            Arc::new(storage_state),
+            cancellation_token.child_token(),
+        ));
+        let pipeline_task = tokio::spawn(start_pipeline(
+            Arc::new(pipeline_state),
+            pipeline_rx,
+            cancellation_token.child_token(),
+        ));
 
         // Wait for SIGTERM on the main thread and once received "unblock"
         tokio::signal::ctrl_c()
