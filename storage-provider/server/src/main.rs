@@ -36,7 +36,7 @@ use storagext::{
 use subxt::{self, tx::Signer};
 use tokio::{
     sync::{mpsc::UnboundedReceiver, Semaphore},
-    task::JoinError,
+    task::{JoinError, JoinHandle},
 };
 use tokio_util::sync::CancellationToken;
 use tracing::level_filters::LevelFilter;
@@ -335,7 +335,6 @@ impl TryFrom<ServerCli> for Server {
 
 impl Server {
     pub async fn run(self) -> Result<(), ServerError> {
-        let node_type = self.node_type;
         let SetupOutput {
             storage_state,
             rpc_state,
@@ -346,24 +345,7 @@ impl Server {
 
         let cancellation_token = CancellationToken::new();
 
-        let p2p_task = match node_type {
-            NodeType::Bootstrap => {
-                let config =
-                    BootstrapConfig::new(p2p_state.p2p_key, p2p_state.rendezvous_point_address);
-                tokio::spawn(run_bootstrap_node(config, cancellation_token.child_token()))
-            }
-            NodeType::Register => match p2p_state.rendezvous_point {
-                Some(rendezvous_point) => {
-                    let config = RegisterConfig::new(
-                        p2p_state.p2p_key,
-                        p2p_state.rendezvous_point_address,
-                        rendezvous_point,
-                    );
-                    tokio::spawn(run_register_node(config, cancellation_token.child_token()))
-                }
-                None => return Err(ServerError::P2P(P2PError::InvalidBehaviourConfig)),
-            },
-        };
+        let p2p_task = spawn_p2p_task(p2p_state, cancellation_token.child_token())?;
         let rpc_task = tokio::spawn(start_rpc_server(
             rpc_state,
             cancellation_token.child_token(),
@@ -491,6 +473,7 @@ impl Server {
         };
 
         let p2p_state = P2PState {
+            node_type: self.node_type,
             p2p_key: self.p2p_key,
             rendezvous_point_address: self.rendezvous_point_address,
             rendezvous_point: self.rendezvous_point,
@@ -558,5 +541,31 @@ impl Server {
                 Err(ServerError::UnregisteredStorageProvider)
             }
         }
+    }
+}
+
+/// Spawns a p2p node and returns a `JoinHandle`.
+/// The node type is either bootstrap or registration depending on the `p2p_state.node_type` value.
+fn spawn_p2p_task(
+    p2p_state: P2PState,
+    cancellation_token: CancellationToken,
+) -> Result<JoinHandle<Result<(), P2PError>>, ServerError> {
+    match p2p_state.node_type {
+        NodeType::Bootstrap => {
+            let config =
+                BootstrapConfig::new(p2p_state.p2p_key, p2p_state.rendezvous_point_address);
+            Ok(tokio::spawn(run_bootstrap_node(config, cancellation_token)))
+        }
+        NodeType::Register => match p2p_state.rendezvous_point {
+            Some(rendezvous_point) => {
+                let config = RegisterConfig::new(
+                    p2p_state.p2p_key,
+                    p2p_state.rendezvous_point_address,
+                    rendezvous_point,
+                );
+                Ok(tokio::spawn(run_register_node(config, cancellation_token)))
+            }
+            None => return Err(ServerError::P2P(P2PError::InvalidBehaviourConfig)),
+        },
     }
 }

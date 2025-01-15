@@ -47,7 +47,13 @@ pub enum P2PError {
     P2PTransport(#[from] libp2p::TransportError<std::io::Error>),
 }
 
+/// State struct for P2P node.
+/// Holds all the information needed for spawning a node.
+/// Node can be either a bootstrap or a registration node.
 pub(crate) struct P2PState {
+    /// P2P Node type, bootstrap or registration
+    pub(crate) node_type: NodeType,
+
     /// P2P ED25519 private key
     pub(crate) p2p_key: Keypair,
 
