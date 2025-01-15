@@ -12,7 +12,6 @@ mod storage;
 use std::{env::temp_dir, net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 
 use clap::Parser;
-use futures::Future;
 use libp2p::{identity::Keypair, Multiaddr, PeerId};
 use p2p::{
     run_bootstrap_node, run_register_node, BootstrapConfig, NodeType, P2PError, P2PState,
