@@ -10,7 +10,6 @@ use libp2p::{
 use register::{RegisterBehaviour, RegisterBehaviourEvent};
 use serde::{de, Deserialize};
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
-use tracing::{error, info};
 
 mod bootstrap;
 mod register;
@@ -97,14 +96,14 @@ pub async fn run_bootstrap_node(
     config: BootstrapConfig,
     token: CancellationToken,
 ) -> Result<(), P2PError> {
-    info!("Starting P2P bootstrap node");
+    tracing::info!("Starting P2P bootstrap node");
     let tracker = TaskTracker::new();
     let (swarm, addr) = config.create_swarm()?;
 
     tokio::select! {
         res = bootstrap(swarm, addr) => {
             if let Err(e) = res {
-                error!("Failed to start P2P node. Reason: {e}");
+                tracing::error!("Failed to start P2P node. Reason: {e}");
                 return Err(e);
             }
         },
@@ -123,7 +122,7 @@ pub async fn run_register_node(
     config: RegisterConfig,
     token: CancellationToken,
 ) -> Result<(), P2PError> {
-    info!("Starting P2P register node");
+    tracing::info!("Starting P2P register node");
     let tracker = TaskTracker::new();
     let (swarm, rendezvous_point_address, rendezvous_point) = config.create_swarm()?;
 
@@ -136,7 +135,7 @@ pub async fn run_register_node(
             Namespace::from_static(P2P_NAMESPACE),
         ) => {
             if let Err(e) = res {
-                error!("Failed to start P2P node. Reason: {e}");
+                tracing::error!("Failed to start P2P node. Reason: {e}");
                 return Err(e);
             }
         },
@@ -160,34 +159,34 @@ async fn register(
     ttl: Option<u64>,
     namespace: Namespace,
 ) -> Result<(), P2PError> {
-    info!("Attempting to register with rendezvous point {rendezvous_point} at {rendezvous_point_address}");
+    tracing::info!("Attempting to register with rendezvous point {rendezvous_point} at {rendezvous_point_address}");
     swarm.dial(rendezvous_point_address.clone())?;
 
     while let Some(event) = swarm.next().await {
         match event {
             SwarmEvent::NewListenAddr { address, .. } => {
-                info!("Listening on {}", address);
+                tracing::info!("Listening on {}", address);
             }
             SwarmEvent::ConnectionClosed {
                 peer_id,
                 cause: Some(error),
                 ..
             } if peer_id == rendezvous_point => {
-                info!("Lost connection to rendezvous point {}", error);
+                tracing::info!("Lost connection to rendezvous point {}", error);
             }
             // once `/identify` did its job, we know our external address and can register
             SwarmEvent::Behaviour(RegisterBehaviourEvent::Identify(
                 identify::Event::Received { info, .. },
             )) => {
                 // Register our external address.
-                info!("Registering external address {}", info.observed_addr);
+                tracing::info!("Registering external address {}", info.observed_addr);
                 swarm.add_external_address(info.observed_addr);
                 if let Err(error) = swarm.behaviour_mut().rendezvous.register(
                     namespace.clone(),
                     rendezvous_point,
                     ttl,
                 ) {
-                    error!("Failed to register: {error}");
+                    tracing::error!("Failed to register: {error}");
                     return Err(P2PError::RegistrationFailed(rendezvous_point));
                 }
             }
@@ -198,9 +197,11 @@ async fn register(
                     rendezvous_node,
                 },
             )) => {
-                info!(
+                tracing::info!(
                     "Registered for namespace '{}' at rendezvous point {} for the next {} seconds",
-                    namespace, rendezvous_node, ttl
+                    namespace,
+                    rendezvous_node,
+                    ttl
                 );
                 return Ok(());
             }
@@ -211,9 +212,11 @@ async fn register(
                     error,
                 },
             )) => {
-                error!(
+                tracing::error!(
                     "Failed to register: rendezvous_node={}, namespace={}, error_code={:?}",
-                    rendezvous_node, namespace, error
+                    rendezvous_node,
+                    namespace,
+                    error
                 );
                 return Err(P2PError::RegistrationFailed(rendezvous_node));
             }
@@ -227,22 +230,24 @@ async fn register(
 /// Run the rendezvous point (bootstrap node).
 /// Listens on the given [`Multiaddr`]
 async fn bootstrap(mut swarm: Swarm<BootstrapBehaviour>, addr: Multiaddr) -> Result<(), P2PError> {
-    info!("Starting P2P bootstrap node at {addr}");
+    tracing::info!("Starting P2P bootstrap node at {addr}");
     swarm.listen_on(addr)?;
     while let Some(event) = swarm.next().await {
         match event {
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
-                info!("Connected to {}", peer_id);
+                tracing::info!("Connected to {}", peer_id);
             }
             SwarmEvent::ConnectionClosed { peer_id, .. } => {
-                info!("Disconnected from {}", peer_id);
+                tracing::info!("Disconnected from {}", peer_id);
             }
             SwarmEvent::Behaviour(BootstrapBehaviourEvent::Rendezvous(
                 rendezvous::server::Event::PeerRegistered { peer, registration },
             )) => {
-                info!(
+                tracing::info!(
                     "Peer {} registered for namespace '{}' for {} seconds",
-                    peer, registration.namespace, registration.ttl
+                    peer,
+                    registration.namespace,
+                    registration.ttl
                 );
             }
             SwarmEvent::Behaviour(BootstrapBehaviourEvent::Rendezvous(
@@ -252,7 +257,7 @@ async fn bootstrap(mut swarm: Swarm<BootstrapBehaviour>, addr: Multiaddr) -> Res
                 },
             )) => {
                 if !registrations.is_empty() {
-                    info!(
+                    tracing::info!(
                         "Served peer {} with {} new registrations",
                         enquirer,
                         registrations.len()
