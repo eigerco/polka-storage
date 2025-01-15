@@ -178,8 +178,16 @@ pub enum ServerError {
     P2P(#[from] P2PError),
 }
 
-/// Takes an expression that returns a nested result and
-/// inspected the error while logging it.
+/// Takes an expression that returns a `Result<Result<T, E2>, E1>`.
+/// It tries to inspect and log the first error (`E1`), otherwise,
+/// it inspects the result and tries to inspect the nested error (`E2`).
+///
+/// This macro is *roughly* equivalent to calling:
+/// ```text
+/// res // : Result<Result<T, E2>, E1>
+///     .inspect_err(|e| tracing::error!(%e))
+///     .inspect(|r| r.inspect_err(|e| tracing::error!(%e))
+/// ```
 macro_rules! inspect_and_log_nested_errors {
     ($($task:expr),+ $(,)?) => {
         (
