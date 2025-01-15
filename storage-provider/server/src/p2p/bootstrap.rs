@@ -1,8 +1,12 @@
 use std::time::Duration;
 
 use libp2p::{
-    futures::StreamExt, identify, identity::Keypair, noise, rendezvous, swarm::NetworkBehaviour,
-    swarm::SwarmEvent, tcp, yamux, Multiaddr, Swarm, SwarmBuilder,
+    futures::StreamExt,
+    identify,
+    identity::Keypair,
+    noise, rendezvous,
+    swarm::{NetworkBehaviour, SwarmEvent},
+    tcp, yamux, Multiaddr, Swarm, SwarmBuilder,
 };
 
 use super::P2PError;
