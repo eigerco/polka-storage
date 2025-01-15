@@ -33,10 +33,13 @@ INPUT_COMMP="$(target/release/polka-storage-provider-client proofs commp "$INPUT
 PIECE_CID="$(echo "$INPUT_COMMP" | jq -r ".cid")"
 PIECE_SIZE="$(echo "$INPUT_COMMP" | jq ".size")"
 PEER_ID="$(target/release/polka-storage-provider-client generate-peer-id --pubkey "$P2P_PUBLIC_KEY")"
-P2P_CONFIG="/tmp/bootstrap.toml"
-echo "address = '$P2P_ADDRESS'
-keypair = '@$P2P_PRIVATE_KEY'
-" > "$P2P_CONFIG"
+CONFIG="/tmp/bootstrap.toml"
+echo "seal_proof = '2KiB'
+post_proof = '2KiB'
+porep_parameters = '2KiB.porep.params'
+post_parameters = '2KiB.post.params'
+rendezvous_point_address = '$P2P_ADDRESS'
+p2p_key = '@$P2P_PRIVATE_KEY'" > "$CONFIG"
 
 
 # Setup balances
@@ -74,7 +77,7 @@ DEAL_JSON=$(
 )
 SIGNED_DEAL_JSON="$(RUST_LOG=error target/release/polka-storage-provider-client sign-deal --sr25519-key "$CLIENT" "$DEAL_JSON")"
 
-(RUST_LOG=debug target/release/polka-storage-provider-server --sr25519-key "$PROVIDER" --seal-proof "2KiB" --post-proof "2KiB" --porep-parameters 2KiB.porep.params --post-parameters 2KiB.post.params --p2p-config "$P2P_CONFIG") &
+(RUST_LOG=debug target/release/polka-storage-provider-server --sr25519-key "$PROVIDER" --config "$CONFIG") &
 sleep 5 # gives time for the server to start
 
 DEAL_CID="$(RUST_LOG=error target/release/polka-storage-provider-client propose-deal "$DEAL_JSON")"

@@ -20,8 +20,9 @@ pub(crate) use register::RegisterConfig;
 
 const P2P_NAMESPACE: &str = "polka-storage";
 
-#[derive(Debug, Clone, Copy, ValueEnum, Deserialize)]
+#[derive(Default, Debug, Clone, Copy, ValueEnum, Deserialize)]
 pub enum NodeType {
+    #[default]
     Bootstrap,
     Register,
 }

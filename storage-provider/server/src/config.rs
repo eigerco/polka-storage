@@ -104,6 +104,7 @@ pub struct ConfigurationArgs {
     pub(crate) post_parameters: PathBuf,
 
     /// P2P Node type, can be either a bootstrap node or a registration node.
+    #[serde(default = "NodeType::default")]
     #[arg(long, default_value = "bootstrap")]
     pub(crate) node_type: NodeType,
 
@@ -120,6 +121,6 @@ pub struct ConfigurationArgs {
     /// PeerID of the bootstrap node used by the registration node.
     /// Optional because it is not used by the bootstrap node.
     #[arg(long)]
-    #[serde(deserialize_with = "string_to_peer_id_option")]
+    #[serde(default, deserialize_with = "string_to_peer_id_option")]
     pub(crate) rendezvous_point: Option<PeerId>,
 }
