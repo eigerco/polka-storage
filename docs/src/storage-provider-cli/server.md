@@ -109,8 +109,8 @@ The supported configuration parameters are:
 | `node-url`                 | `ws://127.0.0.1:42069`         |
 | `database-directory`       | `/tmp/<random>/deals_database` |
 | `storage-directory`        | `/tmp/<random>/deals_storage`  |
-| `seal-proof`               | 2KiB                           |
-| `post-proof`               | 2KiB                           |
+| `seal-proof`               | `2KiB`                         |
+| `post-proof`               | `2KiB`                         |
 | `porep_parameters`         | NA                             |
 | `post_parameters`          | NA                             |
 | `node_type`                | `bootstrap`                    |
