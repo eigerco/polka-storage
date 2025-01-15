@@ -21,19 +21,31 @@ PROVIDER="//Charlie"
 
 INPUT_FILE="$1"
 INPUT_FILE_NAME="$(basename "$INPUT_FILE")"
+# CARv2 file location
 INPUT_TMP_FILE="/tmp/$INPUT_FILE_NAME.car"
+# Config file location
+CONFIG="/tmp/config.toml"
+# P2P Node variables
 P2P_PUBLIC_KEY="/tmp/public.pem"
 P2P_PRIVATE_KEY="/tmp/private.pem"
 P2P_ADDRESS="/ip4/127.0.0.1/tcp/62649"
 
-# Generate ED25519 private key
+# Generate ED25519 private key to be replaced with a polka-storage-provider-client command
+# TODO(@aidan46, 15/01, #676)
 openssl genpkey -algorithm ED25519 -out "$P2P_PRIVATE_KEY" -outpubkey "$P2P_PUBLIC_KEY"
+
+# Convert file to CARv2 format
 target/release/mater-cli convert -q --overwrite "$INPUT_FILE" "$INPUT_TMP_FILE" &&
+
+# Calculate COMMP and set PIECE_CID and PIECE_SIZE
 INPUT_COMMP="$(target/release/polka-storage-provider-client proofs commp "$INPUT_TMP_FILE")"
 PIECE_CID="$(echo "$INPUT_COMMP" | jq -r ".cid")"
 PIECE_SIZE="$(echo "$INPUT_COMMP" | jq ".size")"
+
+# Generate Peer ID from public key
 PEER_ID="$(target/release/polka-storage-provider-client generate-peer-id --pubkey "$P2P_PUBLIC_KEY")"
-CONFIG="/tmp/bootstrap.toml"
+
+# echo config file in the file in the /tmp folder
 echo "seal_proof = '2KiB'
 post_proof = '2KiB'
 porep_parameters = '2KiB.porep.params'
