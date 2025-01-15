@@ -1,7 +1,7 @@
 mod proofs;
 mod wallet;
 
-use std::{fs, path::PathBuf};
+use std::path::PathBuf;
 
 use clap::Parser;
 use ed25519_dalek::pkcs8::{DecodePublicKey, PublicKeyBytes};
@@ -114,11 +114,6 @@ pub(crate) enum Cli {
         /// Path to the ED25519 public key pem file
         #[arg(long)]
         pubkey: PathBuf,
-
-        /// Path to the output file to write the peer ID to.
-        /// If `None` the peer ID will be printed to stdout.
-        #[arg(long)]
-        file: Option<PathBuf>,
     },
 }
 
@@ -153,7 +148,7 @@ impl Cli {
                 deal_proposal,
                 signer_key,
             } => Self::sign_deal(deal_proposal, signer_key),
-            Self::GeneratePeerID { pubkey, file } => Self::generate_peer_id(pubkey, file),
+            Self::GeneratePeerID { pubkey } => Self::generate_peer_id(pubkey),
         }
     }
 
@@ -206,16 +201,13 @@ impl Cli {
         Ok(())
     }
 
-    fn generate_peer_id(path: PathBuf, file: Option<PathBuf>) -> Result<(), CliError> {
+    fn generate_peer_id(path: PathBuf) -> Result<(), CliError> {
         let pubkey_bytes = PublicKeyBytes::read_public_key_pem_file(path)?;
         let pubkey = EdPubKey::try_from_bytes(&pubkey_bytes.to_bytes())?;
         let key = libp2p::identity::PublicKey::from(pubkey);
         let peer_id = PeerId::from_public_key(&key);
 
-        match file {
-            None => println!("{peer_id}"),
-            Some(path) => fs::write(path, &peer_id.to_string().as_bytes())?,
-        }
+        println!("{peer_id}");
         Ok(())
     }
 }
