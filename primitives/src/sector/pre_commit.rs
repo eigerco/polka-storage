@@ -3,7 +3,7 @@
 use codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use sp_core::ConstU32;
-use sp_runtime::BoundedVec;
+use sp_runtime::{BoundedVec, RuntimeDebug};
 
 use crate::{
     proofs::RegisteredSealProof, sector::SectorNumber, DealId, CID_SIZE_IN_BYTES,
@@ -11,7 +11,7 @@ use crate::{
 };
 
 /// This type is passed into the pre commit function on the storage provider pallet
-#[derive(Clone, Debug, Decode, Encode, PartialEq, Eq, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo)]
 pub struct SectorPreCommitInfo<BlockNumber> {
     pub seal_proof: RegisteredSealProof,
     /// Which sector number this SP is pre-committing.
@@ -89,9 +89,9 @@ pub mod builder {
                 seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
                 sector_number: SectorNumber::new(1).unwrap(),
                 sealed_cid,
-                deal_ids: BoundedVec::try_from(vec![1, 2])
+                deal_ids: BoundedVec::try_from(vec![0, 1])
                     .expect("default valid should always be within bounds"),
-                expiration: BlockNumber::one() * 120u32.into(),
+                expiration: 120u32.into(),
                 unsealed_cid,
                 seal_randomness_height: BlockNumber::one(),
             }
