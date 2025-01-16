@@ -5,11 +5,15 @@ use std::{
 };
 
 use clap::Args;
+use libp2p::{identity::Keypair, Multiaddr, PeerId};
 use primitives::proofs::{RegisteredPoStProof, RegisteredSealProof};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use url::Url;
 
-use crate::DEFAULT_NODE_ADDRESS;
+use crate::{
+    p2p::{deser_keypair, keypair_value_parser, string_to_peer_id_option, NodeType},
+    DEFAULT_NODE_ADDRESS,
+};
 
 /// Default address to bind the RPC server to.
 const fn default_rpc_listen_address() -> SocketAddr {
@@ -31,7 +35,7 @@ fn default_node_address() -> Url {
     Url::parse(DEFAULT_NODE_ADDRESS).expect("DEFAULT_NODE_ADDRESS must be a valid Url")
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Args)]
+#[derive(Debug, Clone, Deserialize, Args)]
 #[group(multiple = true, conflicts_with = "config")]
 #[serde(deny_unknown_fields)]
 pub struct ConfigurationArgs {
@@ -98,4 +102,25 @@ pub struct ConfigurationArgs {
     /// **they need to be set** via an extrinsic pallet-proofs::set_post_verifyingkey.
     #[arg(long, required = false)]
     pub(crate) post_parameters: PathBuf,
+
+    /// P2P Node type, can be either a bootstrap node or a registration node.
+    #[serde(default = "NodeType::default")]
+    #[arg(long, default_value_t = NodeType::Bootstrap)]
+    pub(crate) node_type: NodeType,
+
+    /// P2P ED25519 private key
+    #[serde(deserialize_with = "deser_keypair")]
+    #[arg(long, value_parser = keypair_value_parser)]
+    pub(crate) p2p_key: Keypair,
+
+    /// Rendezvous point address that the registration node connects to
+    /// or the bootstrap node binds to.
+    #[arg(long)]
+    pub(crate) rendezvous_point_address: Multiaddr,
+
+    /// PeerID of the bootstrap node used by the registration node.
+    /// Optional because it is not used by the bootstrap node.
+    #[serde(default, deserialize_with = "string_to_peer_id_option")]
+    #[arg(long)]
+    pub(crate) rendezvous_point: Option<PeerId>,
 }

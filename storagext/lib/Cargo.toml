@@ -34,6 +34,7 @@ url = { workspace = true }
 
 # Optional dependencies
 clap = { workspace = true, optional = true, features = ["derive"] }
+libp2p.workspace = true
 
 [dev-dependencies]
 # "Duplicated" so we can always test clap-dependent things

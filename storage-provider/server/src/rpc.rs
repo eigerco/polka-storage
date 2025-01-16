@@ -14,7 +14,7 @@ use subxt::tx::Signer;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
 use tower_http::cors::{Any, CorsLayer};
-use tracing::{info, instrument};
+use tracing::instrument;
 
 use crate::{
     db::DealDB,
@@ -222,7 +222,7 @@ pub async fn start_rpc_server(
     state: RpcServerState,
     token: CancellationToken,
 ) -> Result<(), std::io::Error> {
-    info!("Starting RPC server at {}", state.listen_address);
+    tracing::info!("Starting RPC server at {}", state.listen_address);
 
     let cors = CorsLayer::new()
         .allow_methods([Method::POST])
@@ -238,7 +238,7 @@ pub async fn start_rpc_server(
 
     let rpc = StorageProviderRpcServer::into_rpc(state);
     let server_handle = server.start(rpc);
-    info!("RPC server started");
+    tracing::info!("RPC server started");
 
     token.cancelled_owned().await;
     tracing::trace!("shutdown signal received, stopping the RPC server");

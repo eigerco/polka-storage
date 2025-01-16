@@ -4,6 +4,7 @@
 
 mod config;
 mod db;
+mod p2p;
 mod pipeline;
 mod rpc;
 mod storage;
@@ -11,7 +12,11 @@ mod storage;
 use std::{env::temp_dir, net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 
 use clap::Parser;
-use config::ConfigurationArgs;
+use libp2p::{identity::Keypair, Multiaddr, PeerId};
+use p2p::{
+    run_bootstrap_node, run_register_node, BootstrapConfig, NodeType, P2PError, P2PState,
+    RegisterConfig,
+};
 use pipeline::types::PipelineMessage;
 use polka_storage_proofs::{
     porep::{self, PoRepParameters},
@@ -31,7 +36,7 @@ use storagext::{
 use subxt::{self, tx::Signer};
 use tokio::{
     sync::{mpsc::UnboundedReceiver, Semaphore},
-    task::JoinError,
+    task::{JoinError, JoinHandle},
 };
 use tokio_util::sync::CancellationToken;
 use tracing::level_filters::LevelFilter;
@@ -39,6 +44,7 @@ use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, Env
 use url::Url;
 
 use crate::{
+    config::ConfigurationArgs,
     db::{DBError, DealDB},
     pipeline::{start_pipeline, PipelineState},
     rpc::{start_rpc_server, RpcServerState},
@@ -81,7 +87,9 @@ struct SetupOutput {
     rpc_state: RpcServerState,
     pipeline_state: PipelineState,
     pipeline_rx: UnboundedReceiver<PipelineMessage>,
+    p2p_state: P2PState,
 }
+
 fn main() -> Result<(), ServerError> {
     // Logger initialization.
     let file_appender = tracing_appender::rolling::daily("logs", "sp_server");
@@ -165,6 +173,33 @@ pub enum ServerError {
 
     #[error(transparent)]
     Json(#[from] serde_json::Error),
+
+    #[error(transparent)]
+    P2P(#[from] P2PError),
+}
+
+/// Takes an expression that returns a `Result<Result<T, E2>, E1>`.
+/// It tries to inspect and log the first error (`E1`), otherwise,
+/// it inspects the result and tries to inspect the nested error (`E2`).
+///
+/// This macro is *roughly* equivalent to calling:
+/// ```text
+/// res // : Result<Result<T, E2>, E1>
+///     .inspect_err(|e| tracing::error!(%e))
+///     .inspect(|r| r.inspect_err(|e| tracing::error!(%e))
+/// ```
+macro_rules! inspect_and_log_nested_errors {
+    ($($task:expr),+ $(,)?) => {
+        (
+            $(
+                $task
+                    .inspect_err(|err| tracing::error!(%err))
+                    .inspect(|ok| {
+                        let _ = ok.as_ref().inspect_err(|err| tracing::error!(%err));
+                    })
+            ),+
+        )
+    };
 }
 
 /// The server arguments, as passed by the user, unvalidated.
@@ -223,6 +258,20 @@ pub struct Server {
 
     /// The number of prove commits to be run in parallel.
     parallel_prove_commits: usize,
+
+    /// P2P Network node type, can either be a bootstrap or registration node
+    node_type: NodeType,
+
+    /// P2P ED25519 private key
+    p2p_key: Keypair,
+
+    /// Rendezvous point address that the registration node connects to
+    /// or the bootstrap node binds to.
+    rendezvous_point_address: Multiaddr,
+
+    /// PeerID of the bootstrap node used by the registration node.
+    /// Optional because it is not used by the bootstrap node.
+    rendezvous_point: Option<PeerId>,
 }
 
 impl TryFrom<ServerCli> for Server {
@@ -300,6 +349,10 @@ impl TryFrom<ServerCli> for Server {
             porep_parameters,
             post_parameters,
             parallel_prove_commits: args.parallel_prove_commits.get(),
+            node_type: args.node_type,
+            p2p_key: args.p2p_key,
+            rendezvous_point_address: args.rendezvous_point_address,
+            rendezvous_point: args.rendezvous_point,
         })
     }
 }
@@ -311,10 +364,12 @@ impl Server {
             rpc_state,
             pipeline_state,
             pipeline_rx,
+            p2p_state,
         } = self.setup().await?;
 
         let cancellation_token = CancellationToken::new();
 
+        let p2p_task = spawn_p2p_task(p2p_state, cancellation_token.child_token())?;
         let rpc_task = tokio::spawn(start_rpc_server(
             rpc_state,
             cancellation_token.child_token(),
@@ -339,31 +394,18 @@ impl Server {
         tracing::info!("sent shutdown signal");
 
         // Wait for the tasks to finish
-        let (upload_result, rpc_task, pipeline_task) =
-            tokio::join!(storage_task, rpc_task, pipeline_task);
+        let (upload_result, rpc_task, pipeline_task, p2p_task) =
+            tokio::join!(storage_task, rpc_task, pipeline_task, p2p_task);
 
-        // Log errors
-        let upload_result = upload_result
-            .inspect_err(|err| tracing::error!(%err))
-            .inspect(|ok| {
-                let _ = ok.as_ref().inspect_err(|err| tracing::error!(%err));
-            });
-        let rpc_task = rpc_task
-            .inspect_err(|err| tracing::error!(%err))
-            .inspect(|ok| {
-                let _ = ok.as_ref().inspect_err(|err| tracing::error!(%err));
-            });
-
-        let pipeline_task = pipeline_task
-            .inspect_err(|err| tracing::error!(%err))
-            .inspect(|ok| {
-                let _ = ok.as_ref().inspect_err(|err| tracing::error!(%err));
-            });
+        // Inspect and log errors
+        let (upload_result, rpc_task, pipeline_task, p2p_task) =
+            inspect_and_log_nested_errors!(upload_result, rpc_task, pipeline_task, p2p_task);
 
         // Exit with error
         upload_result??;
         rpc_task??;
         pipeline_task??;
+        p2p_task??;
 
         Ok(())
     }
@@ -434,11 +476,19 @@ impl Server {
             prove_commit_throttle: Arc::new(Semaphore::new(self.parallel_prove_commits)),
         };
 
+        let p2p_state = P2PState {
+            node_type: self.node_type,
+            p2p_key: self.p2p_key,
+            rendezvous_point_address: self.rendezvous_point_address,
+            rendezvous_point: self.rendezvous_point,
+        };
+
         Ok(SetupOutput {
             storage_state,
             rpc_state,
             pipeline_state,
             pipeline_rx,
+            p2p_state,
         })
     }
 
@@ -494,6 +544,32 @@ impl Server {
 
                 Err(ServerError::UnregisteredStorageProvider)
             }
+        }
+    }
+}
+
+/// Spawns a p2p node and returns a `JoinHandle`.
+/// The node type is either bootstrap or registration depending on the `p2p_state.node_type` value.
+fn spawn_p2p_task(
+    p2p_state: P2PState,
+    cancellation_token: CancellationToken,
+) -> Result<JoinHandle<Result<(), P2PError>>, ServerError> {
+    match p2p_state.node_type {
+        NodeType::Bootstrap => {
+            let config =
+                BootstrapConfig::new(p2p_state.p2p_key, p2p_state.rendezvous_point_address);
+            Ok(tokio::spawn(run_bootstrap_node(config, cancellation_token)))
+        }
+        NodeType::Register => {
+            let Some(rendezvous_point) = p2p_state.rendezvous_point else {
+                return Err(ServerError::P2P(P2PError::InvalidBehaviourConfig));
+            };
+            let config = RegisterConfig::new(
+                p2p_state.p2p_key,
+                p2p_state.rendezvous_point_address,
+                rendezvous_point,
+            );
+            Ok(tokio::spawn(run_register_node(config, cancellation_token)))
         }
     }
 }

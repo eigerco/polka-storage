@@ -76,3 +76,9 @@ pub const MAX_SEAL_PROOF_BYTES: u32 = 1_920;
 /// References:
 /// * <https://github.com/filecoin-project/ref-fvm/blob/32583cc05aa422c8e1e7ba81d56a888ac9d90e61/shared/src/sector/registered_proof.rs#L159>
 pub const MAX_POST_PROOF_BYTES: u32 = 192;
+
+/// The maximum amount of bytes of a libp2p Peer ID.
+///
+/// References:
+/// * https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
+pub const PEER_ID_MAX_BYTES: u32 = 42;
