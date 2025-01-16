@@ -9,7 +9,7 @@ use libp2p::{noise, swarm::NetworkBehaviour, tcp, yamux, Swarm, SwarmBuilder};
 pub use server::Server;
 use thiserror::Error;
 
-const MAX_MULTIHASH_LENGHT: usize = 64;
+const MAX_MULTIHASH_LENGTH: usize = 64;
 
 /// Custom Behaviour used by the server and client.
 #[derive(NetworkBehaviour)]
@@ -17,7 +17,7 @@ struct Behaviour<B>
 where
     B: Blockstore + 'static,
 {
-    bitswap: beetswap::Behaviour<MAX_MULTIHASH_LENGHT, B>,
+    bitswap: beetswap::Behaviour<MAX_MULTIHASH_LENGTH, B>,
 }
 
 /// Error that can occur while initializing a swarm
@@ -43,7 +43,7 @@ where
         .with_behaviour(|_| Behaviour {
             bitswap: beetswap::Behaviour::new(blockstore),
         })
-        .expect("infallible")
+        .expect("Moving behaviour doesn't fail")
         .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
         .build();
 

@@ -21,8 +21,8 @@ struct Cli {
     /// Cancel the download if not completed after the specified duration in
     /// seconds. If not set the download will never timeout.
     #[arg(long, value_parser = parse_duration)]
-    global_timeout: Option<Duration>,
-    /// payload cid
+    timeout: Option<Duration>,
+    /// payload CID
     #[arg(long)]
     payload_cid: Cid,
 }
@@ -37,7 +37,7 @@ async fn main() -> Result<(), anyhow::Error> {
         arguments.output,
         vec![arguments.provider],
         vec![arguments.payload_cid],
-        arguments.global_timeout,
+        arguments.timeout,
     )
     .await?;
 
