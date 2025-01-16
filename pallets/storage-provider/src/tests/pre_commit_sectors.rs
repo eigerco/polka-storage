@@ -1,13 +1,12 @@
 use frame_support::{assert_noop, assert_ok, pallet_prelude::*};
 use frame_system::pallet_prelude::BlockNumberFor;
-use primitives::MAX_SECTORS_PER_CALL;
+use primitives::{sector::SectorPreCommitInfo, MAX_SECTORS_PER_CALL};
 use sp_core::bounded_vec;
 use sp_runtime::{BoundedVec, DispatchError};
 
 use super::new_test_ext;
 use crate::{
     pallet::{Error, Event, StorageProviders},
-    sector::SectorPreCommitInfo,
     tests::{
         account, events, publish_deals, register_storage_provider, run_to_block, Balances,
         MaxProveCommitDuration, MaxSectorExpiration, RuntimeEvent, RuntimeOrigin,

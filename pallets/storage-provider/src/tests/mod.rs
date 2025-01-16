@@ -1,8 +1,6 @@
 extern crate alloc;
 use alloc::collections::BTreeSet;
-use core::str::FromStr;
 
-use cid::Cid;
 use codec::Encode;
 use frame_support::{
     assert_ok, derive_impl,
@@ -18,8 +16,7 @@ use primitives::{
     commitment::{CommP, Commitment, RawCommitment},
     pallets::ProofVerification,
     proofs::{ProverId, PublicReplicaInfo, RegisteredPoStProof, RegisteredSealProof, Ticket},
-    sector::SectorNumber,
-    DealId, PartitionNumber, CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR, MAX_PARTITIONS_PER_DEADLINE,
+    sector::SectorNumber, PartitionNumber, MAX_PARTITIONS_PER_DEADLINE,
     MAX_POST_PROOF_BYTES, MAX_PROOFS_PER_BLOCK, MAX_REPLICAS_PER_BLOCK, MAX_SEAL_PROOF_BYTES,
     MAX_TERMINATIONS_PER_CALL, PEER_ID_MAX_BYTES,
 };
@@ -37,7 +34,6 @@ use crate::{
     },
     pallet::DECLARATIONS_MAX,
     proofs::{PoStProof, SubmitWindowedPoStParams},
-    sector::SectorPreCommitInfo,
 };
 
 mod deadline;
@@ -52,6 +48,8 @@ mod state;
 mod storage_provider_registration;
 mod submit_windowed_post;
 mod terminate_sectors;
+
+pub type SectorPreCommitInfoBuilder = primitives::sector::builder::SectorPreCommitInfoBuilder<u64>;
 
 type Block = frame_system::mocking::MockBlock<Test>;
 type BlockNumber = u64;
@@ -372,79 +370,6 @@ fn publish_deals(storage_provider: &str) {
     )
     .expect("publish_storage_deals needs to work in order to call verify_deals_for_activation");
     System::reset_events();
-}
-
-struct SectorPreCommitInfoBuilder {
-    seal_proof: RegisteredSealProof,
-    sector_number: SectorNumber,
-    sealed_cid: BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>,
-    deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
-    expiration: u64,
-    unsealed_cid: BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>,
-    seal_randomness_height: u64,
-}
-
-impl Default for SectorPreCommitInfoBuilder {
-    fn default() -> Self {
-        let unsealed_cid =
-            Cid::from_str("baga6ea4seaqmruupwrxaeck7m3f5jtswpr7jv6bvwqeu5jinzjlcybh6er3ficq")
-                .unwrap()
-                .to_bytes()
-                .try_into()
-                .expect("hash is always 32 bytes");
-
-        let sealed_cid =
-            Cid::from_str("bagboea4b5abcamxmh7exq7vrvacvajooeapagr3a4g3tpjhw73iny47hvafw76gr")
-                .unwrap()
-                .to_bytes()
-                .try_into()
-                .expect("hash is always 32 bytes");
-
-        Self {
-            seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
-            sector_number: SectorNumber::new(1).unwrap(),
-            sealed_cid,
-            deal_ids: bounded_vec![0, 1],
-            expiration: 120 * MINUTES,
-            unsealed_cid,
-            seal_randomness_height: 1,
-        }
-    }
-}
-
-impl SectorPreCommitInfoBuilder {
-    pub fn sector_number(mut self, sector_number: SectorNumber) -> Self {
-        self.sector_number = sector_number;
-        self
-    }
-
-    pub fn deals(mut self, deal_ids: Vec<u64>) -> Self {
-        self.deal_ids = BoundedVec::try_from(deal_ids).unwrap();
-        self
-    }
-
-    pub fn expiration(mut self, expiration: u64) -> Self {
-        self.expiration = expiration;
-        self
-    }
-
-    pub fn unsealed_cid(mut self, unsealed_cid: &str) -> Self {
-        let cid = Cid::from_str(unsealed_cid).expect("valid unsealed_cid");
-        self.unsealed_cid = BoundedVec::try_from(cid.to_bytes()).unwrap();
-        self
-    }
-
-    pub fn build(self) -> SectorPreCommitInfo<u64> {
-        SectorPreCommitInfo {
-            seal_proof: self.seal_proof,
-            sector_number: self.sector_number,
-            sealed_cid: self.sealed_cid,
-            deal_ids: self.deal_ids,
-            expiration: self.expiration,
-            unsealed_cid: self.unsealed_cid,
-            seal_randomness_height: self.seal_randomness_height,
-        }
-    }
 }
 
 /// Builder to simplify writing complex tests of [`DealProposal`].

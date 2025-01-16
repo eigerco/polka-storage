@@ -1,35 +1,14 @@
 use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::*, BoundedVec};
 use primitives::{
-    pallets::SectorDeal, proofs::RegisteredSealProof, sector::SectorNumber, DealId,
-    PartitionNumber, CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR, MAX_SEAL_PROOF_BYTES,
+    pallets::SectorDeal,
+    proofs::RegisteredSealProof,
+    sector::{SectorNumber, SectorPreCommitInfo}, PartitionNumber, CID_SIZE_IN_BYTES, MAX_SEAL_PROOF_BYTES,
     MAX_TERMINATIONS_PER_CALL,
 };
 use scale_info::TypeInfo;
 
 use crate::pallet::DECLARATIONS_MAX;
-
-/// This type is passed into the pre commit function on the storage provider pallet
-#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo)]
-pub struct SectorPreCommitInfo<BlockNumber> {
-    pub seal_proof: RegisteredSealProof,
-    /// Which sector number this SP is pre-committing.
-    pub sector_number: SectorNumber,
-    /// This value is also known as `commR` or "commitment of replication". The terms `commR` and `sealed_cid` are interchangeable.
-    /// Using sealed_cid as I think that is more descriptive.
-    /// Some docs on commR here: <https://proto.school/verifying-storage-on-filecoin/03>
-    pub sealed_cid: BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>,
-    /// The block number at which we requested the randomness when sealing the sector.
-    pub seal_randomness_height: BlockNumber,
-    /// Deals Ids that are supposed to be activated.
-    /// If any of those is invalid, whole activation is rejected.
-    pub deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
-    /// Expiration of the pre-committed sector.
-    pub expiration: BlockNumber,
-    /// This value is also known as `commD` or "commitment of data".
-    /// Once a sector is full `commD` is produced representing the root node of all of the piece CIDs contained in the sector.
-    pub unsealed_cid: BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>,
-}
 
 /// Information stored on-chain for a pre-committed sector.
 #[derive(Clone, RuntimeDebug, Decode, Encode, TypeInfo)]
