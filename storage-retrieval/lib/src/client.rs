@@ -1,8 +1,8 @@
-use std::{collections::HashMap, path::Path, sync::Arc, time::Duration};
+use std::{collections::HashMap, path::Path, sync::Arc};
 
-use beetswap::QueryId;
+use beetswap::{Event, QueryId};
 use cid::Cid;
-use futures::{future::BoxFuture, FutureExt, StreamExt};
+use futures::StreamExt;
 use ipld_core::codec::Codec;
 use ipld_dagpb::{DagPbCodec, PbNode};
 use libp2p::{Multiaddr, PeerId, Swarm};
@@ -10,7 +10,6 @@ use libp2p_core::ConnectedPoint;
 use libp2p_swarm::{ConnectionId, DialError, SwarmEvent};
 use mater::{FileBlockstore, DAG_PB_CODE, RAW_CODE};
 use thiserror::Error;
-use tokio::time::sleep;
 use tracing::{debug, error, info, instrument, trace};
 
 use crate::{new_swarm, Behaviour, BehaviourEvent, InitSwarmError};
@@ -38,7 +37,7 @@ pub struct Client {
     /// Providers of data
     providers: Vec<Multiaddr>,
     /// Swarm instance
-    swarm: Swarm<Behaviour<EmptyBlockstore>>,
+    swarm: Swarm<Behaviour<PassthroughBlockstore>>,
     /// The in flight block queries. If empty we know that the client received
     /// all requested data.
     queries: HashMap<QueryId, Cid>,
@@ -46,8 +45,6 @@ pub struct Client {
     blockstore: FileBlockstore,
     /// Content roots being downloaded.
     roots: Vec<Cid>,
-    /// Timeout used to cancel the download if not finished before the specified duration.
-    timeout: Option<Duration>,
 }
 
 impl Client {
@@ -55,7 +52,6 @@ impl Client {
         path: P,
         providers: Vec<Multiaddr>,
         roots: Vec<Cid>,
-        timeout: Option<Duration>,
     ) -> Result<Self, ClientError>
     where
         P: AsRef<Path>,
@@ -63,7 +59,7 @@ impl Client {
         // The p2p node which is created by the client doesn't need a real
         // blockstore. The reason is that the blockstore is only used by the
         // node when sharing blocks with other peers.
-        let swarm = new_swarm(Arc::new(EmptyBlockstore))?;
+        let swarm = new_swarm(Arc::new(PassthroughBlockstore))?;
 
         // Blockstore used to store blocks in. The reason why we separated the
         // actual blockstore used by the client and the blockstore passed to the
@@ -78,7 +74,6 @@ impl Client {
             queries: HashMap::new(),
             blockstore,
             roots,
-            timeout,
         })
     }
 
@@ -89,39 +84,21 @@ impl Client {
             self.swarm.dial(provider)?;
         }
 
-        // sleep(Duration::from_secs(1)).await;
-
         // Start the download by requesting the roots of the trees.
         self.roots
             .clone()
             .into_iter()
             .for_each(|root| self.request_block(root));
 
-        // Timeout future
-        let mut timeout: BoxFuture<()> = self
-            .timeout
-            .map(|t| sleep(t).boxed())
-            .unwrap_or_else(|| std::future::pending().boxed());
+        while let Some(event) = self.swarm.next().await {
+            // Handle event received from the providers
+            self.on_swarm_event(event).await?;
 
-        loop {
-            tokio::select! {
-                // Data download timeout
-                _ = &mut timeout => {
-                    // Return an error as indication that the download timed out
-                    return Err(ClientError::DownloadTimeout);
-                }
-                // Handle events received when we get some blocks back
-                event = self.swarm.select_next_some() => {
-                    // Handle event received from the providers
-                    self.on_swarm_event(event).await?;
-
-                    // if no inflight queries, that means we received
-                    // everything requested. Finalize the blockstore.
-                    if self.queries.is_empty() {
-                        self.blockstore.finalize(None).await?;
-                        break;
-                    }
-                }
+            // if no inflight queries, that means we received
+            // everything requested. Finalize the blockstore.
+            if self.queries.is_empty() {
+                self.blockstore.finalize(None).await?;
+                break;
             }
         }
 
@@ -136,7 +113,7 @@ impl Client {
 
     async fn on_swarm_event(
         &mut self,
-        event: SwarmEvent<BehaviourEvent<EmptyBlockstore>>,
+        event: SwarmEvent<BehaviourEvent<PassthroughBlockstore>>,
     ) -> Result<(), ClientError> {
         trace!(?event, "Received swarm event");
 
@@ -183,9 +160,9 @@ impl Client {
     }
 
     #[instrument(level = "trace", skip(self))]
-    async fn on_bitswap_event(&mut self, event: beetswap::Event) -> Result<(), ClientError> {
+    async fn on_bitswap_event(&mut self, event: Event) -> Result<(), ClientError> {
         match event {
-            beetswap::Event::GetQueryResponse { query_id, data } => {
+            Event::GetQueryResponse { query_id, data } => {
                 let Some(cid) = self.queries.remove(&query_id) else {
                     return Ok(());
                 };
@@ -211,7 +188,7 @@ impl Client {
                     }
                 }
             }
-            beetswap::Event::GetQueryError { query_id, error } => {
+            Event::GetQueryError { query_id, error } => {
                 if let Some(cid) = self.queries.remove(&query_id) {
                     info!("received error for {cid:?}: {error}");
                 }
@@ -224,9 +201,9 @@ impl Client {
 
 /// The blockstore used by the client. It simulates a blockstore that never
 /// holds any blocks.
-struct EmptyBlockstore;
+struct PassthroughBlockstore;
 
-impl blockstore::Blockstore for EmptyBlockstore {
+impl blockstore::Blockstore for PassthroughBlockstore {
     async fn get<const S: usize>(
         &self,
         _cid: &cid::CidGeneric<S>,

@@ -4,6 +4,7 @@ use cid::Cid;
 use clap::{command, Parser};
 use libp2p::Multiaddr;
 use polka_storage_retrieval::client::Client;
+use tokio::time::timeout;
 use tracing::{error, info, level_filters::LevelFilter};
 use tracing_subscriber::{
     filter::FromEnvError, fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer,
@@ -37,13 +38,18 @@ async fn main() -> Result<(), anyhow::Error> {
         arguments.output,
         vec![arguments.provider],
         vec![arguments.payload_cid],
-        arguments.timeout,
     )
     .await?;
 
-    match client.download().await {
-        Ok(_) => info!("download finished"),
-        Err(err) => error!(?err, "error while downloading"),
+    let download_result = match arguments.timeout {
+        Some(duration) => timeout(duration, client.download()).await,
+        None => Ok(client.download().await),
+    };
+
+    match download_result {
+        Ok(Ok(_)) => info!("download successfully finished"),
+        Ok(Err(err)) => error!(?err, "error occurred while downloading"),
+        Err(_) => error!("download timeout"),
     }
 
     Ok(())
