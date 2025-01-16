@@ -3,8 +3,8 @@ use frame_support::{pallet_prelude::*, BoundedVec};
 use primitives::{
     pallets::SectorDeal,
     proofs::RegisteredSealProof,
-    sector::{SectorNumber, SectorPreCommitInfo}, PartitionNumber, CID_SIZE_IN_BYTES, MAX_SEAL_PROOF_BYTES,
-    MAX_TERMINATIONS_PER_CALL,
+    sector::{SectorNumber, SectorPreCommitInfo},
+    PartitionNumber, CID_SIZE_IN_BYTES, MAX_SEAL_PROOF_BYTES, MAX_TERMINATIONS_PER_CALL,
 };
 use scale_info::TypeInfo;
 

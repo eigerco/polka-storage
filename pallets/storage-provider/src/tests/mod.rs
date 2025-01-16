@@ -16,9 +16,9 @@ use primitives::{
     commitment::{CommP, Commitment, RawCommitment},
     pallets::ProofVerification,
     proofs::{ProverId, PublicReplicaInfo, RegisteredPoStProof, RegisteredSealProof, Ticket},
-    sector::SectorNumber, PartitionNumber, MAX_PARTITIONS_PER_DEADLINE,
-    MAX_POST_PROOF_BYTES, MAX_PROOFS_PER_BLOCK, MAX_REPLICAS_PER_BLOCK, MAX_SEAL_PROOF_BYTES,
-    MAX_TERMINATIONS_PER_CALL, PEER_ID_MAX_BYTES,
+    sector::SectorNumber,
+    PartitionNumber, MAX_PARTITIONS_PER_DEADLINE, MAX_POST_PROOF_BYTES, MAX_PROOFS_PER_BLOCK,
+    MAX_REPLICAS_PER_BLOCK, MAX_SEAL_PROOF_BYTES, MAX_TERMINATIONS_PER_CALL, PEER_ID_MAX_BYTES,
 };
 use sp_arithmetic::traits::Zero;
 use sp_core::{bounded_vec, Pair};
