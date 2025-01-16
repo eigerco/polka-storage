@@ -1,11 +1,9 @@
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
 
 use anyhow::Result;
-use cid::Cid;
 use libp2p::Multiaddr;
 use mater::FileBlockstore;
-use polka_storage_retrieval::{client::Client, server::Server};
-use tracing::{error, info};
+use polka_storage_retrieval::server::Server;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -14,10 +12,8 @@ async fn main() -> Result<()> {
 
     // Example blockstore providing only a single file.
     let blockstore = Arc::new(
-        FileBlockstore::from_existing(
-            "./mater/lib/tests/fixtures/car_v2/spaceglenda_wrapped.car",
-        )
-        .await?,
+        FileBlockstore::from_existing("./mater/lib/tests/fixtures/car_v2/spaceglenda_wrapped.car")
+            .await?,
     );
 
     // Setup & run the server
