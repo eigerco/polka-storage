@@ -13,7 +13,7 @@ use primitives::{
     pallets::{ActiveDeal, ActiveSector, Market as MarketTrait, SectorDeal},
     proofs::RegisteredSealProof,
     sector::SectorNumber,
-    DealId, MAX_DEALS_PER_SECTOR,
+    DealId, CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR,
 };
 use sp_core::H256;
 use sp_runtime::AccountId32;
@@ -1756,7 +1756,7 @@ impl Default for SectorDealBuilder {
 /// Builder to simplify writing complex tests of [`DealProposal`].
 /// Exclusively uses [`Test`] for simplification purposes.
 pub struct DealProposalBuilder<T: frame_system::Config> {
-    piece_cid: BoundedVec<u8, ConstU32<128>>,
+    piece_cid: BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>,
     piece_size: u64,
     client: AccountIdOf<T>,
     provider: AccountIdOf<T>,

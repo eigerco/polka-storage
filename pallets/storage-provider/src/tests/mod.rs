@@ -12,7 +12,8 @@ use primitives::{
     commitment::{CommP, Commitment},
     proofs::RegisteredPoStProof,
     sector::SectorNumber,
-    PartitionNumber, MAX_PARTITIONS_PER_DEADLINE, MAX_TERMINATIONS_PER_CALL, PEER_ID_MAX_BYTES,
+    PartitionNumber, CID_SIZE_IN_BYTES, MAX_PARTITIONS_PER_DEADLINE, MAX_TERMINATIONS_PER_CALL,
+    PEER_ID_MAX_BYTES,
 };
 use sp_arithmetic::traits::Zero;
 use sp_core::{bounded_vec, Pair};
@@ -79,6 +80,8 @@ impl pallet_balances::Config for Test {
 impl pallet_market::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type PalletId = MarketPalletId;
+    type WeightInfo = ();
+
     type Currency = Balances;
     type OffchainSignature = Signature;
     type OffchainPublic = AccountPublic;
@@ -148,12 +151,18 @@ where
 
 impl pallet_storage_provider::Config for Test {
     type RuntimeEvent = RuntimeEvent;
+
+    // Randomness Provider
     type Randomness = DummyRandomnessGenerator<Self>;
     type AuthorVrfHistory = DummyRandomnessGenerator<Self>;
+
     type PeerId = BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>; // https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
     type Currency = Balances;
     type Market = Market;
+
+    // Proof Verification Provider
     type ProofVerification = primitives::testing::DummyProofsVerification;
+
     type WPoStProvingPeriod = WPoStProvingPeriod;
     type WPoStChallengeWindow = WPoStChallengeWindow;
     type WPoStChallengeLookBack = WPoStChallengeLookBack;
@@ -329,7 +338,7 @@ fn publish_deals(storage_provider: &str) {
 /// Builder to simplify writing complex tests of [`DealProposal`].
 /// Exclusively uses [`Test`] for simplification purposes.
 struct DealProposalBuilder {
-    piece_cid: BoundedVec<u8, ConstU32<128>>,
+    piece_cid: BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>,
     piece_size: u64,
     client: AccountIdOf<Test>,
     provider: AccountIdOf<Test>,

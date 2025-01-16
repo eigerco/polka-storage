@@ -10,6 +10,7 @@
 pub use pallet::*;
 
 mod error;
+pub mod weights;
 
 #[cfg(test)]
 mod mock;
@@ -17,7 +18,9 @@ mod mock;
 #[cfg(test)]
 mod test;
 
-// TODO(@th7nder,#77,14/06/2024): take the pallet out of dev mode
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
     use cid::Cid;
@@ -47,13 +50,13 @@ pub mod pallet {
         pallets::{ActiveDeal, ActiveSector, Market, SectorDeal, StorageProviderValidation},
         proofs::RegisteredSealProof,
         sector::{SectorNumber, SectorSize},
-        DealId, MAX_DEALS_PER_SECTOR, MAX_SECTORS_PER_CALL,
+        DealId, CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR, MAX_LABEL_SIZE, MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::BaseArithmetic;
     use sp_std::vec::Vec;
 
-    use crate::error::*;
+    use crate::{error::*, weights::WeightInfo};
 
     pub const LOG_TARGET: &'static str = "runtime::market";
 
@@ -69,6 +72,9 @@ pub mod pallet {
 
         /// The currency mechanism.
         type Currency: ReservableCurrency<Self::AccountId>;
+
+        /// The pallet weights;
+        type WeightInfo: WeightInfo;
 
         /// PalletId used to derive AccountId which stores funds of the Market Participants.
         #[pallet::constant]
@@ -220,7 +226,7 @@ pub mod pallet {
         // We use BoundedVec here, as cid::Cid do not implement `TypeInfo`, so it cannot be saved into the Runtime Storage.
         // It maybe doable using newtype pattern, however not sure how the UI on the frontend side would handle that anyways.
         // There is Encode/Decode implementation though, through the feature flag: `scale-codec`.
-        pub piece_cid: BoundedVec<u8, ConstU32<128>>,
+        pub piece_cid: BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>,
         /// The value represents the size of the data piece after padding to the
         /// nearest power of two. Padding ensures that all pieces can be
         /// efficiently arranged in a binary tree structure for Merkle proofs.
@@ -231,7 +237,7 @@ pub mod pallet {
         pub provider: Address,
 
         /// Arbitrary client chosen label to apply to the deal
-        pub label: BoundedVec<u8, ConstU32<128>>,
+        pub label: BoundedVec<u8, ConstU32<MAX_LABEL_SIZE>>,
 
         /// Nominal start block. Deal payment is linear between StartBlock and EndBlock,
         /// with total amount StoragePricePerBlock * (EndBlock - StartBlock).
@@ -274,7 +280,7 @@ pub mod pallet {
             )
         }
 
-        fn piece_commitment(&self) -> Result<Commitment<CommP>, CommitmentError> {
+        pub fn piece_commitment(&self) -> Result<Commitment<CommP>, CommitmentError> {
             let commitment = Commitment::from_cid_bytes(&self.piece_cid[..])?;
             Ok(commitment)
         }
@@ -306,7 +312,7 @@ pub mod pallet {
     /// `account(MarketPallet).balance == all_accounts.map(|balance| balance[account]].locked + balance[account].free).sum()`
     #[pallet::storage]
     pub type BalanceTable<T: Config> =
-        StorageMap<_, _, T::AccountId, BalanceEntry<BalanceOf<T>>, ValueQuery>;
+        StorageMap<_, Blake2_128Concat, T::AccountId, BalanceEntry<BalanceOf<T>>, ValueQuery>;
 
     /// Simple incremental ID generator for `Deal` Identification purposes.
     /// Starts as 0, increments once for each published deal.
@@ -320,8 +326,12 @@ pub mod pallet {
     /// Deals are identified by `DealId`.
     /// Proposals are stored here until terminated and settled or expired (not activated in time).
     #[pallet::storage]
-    pub type Proposals<T: Config> =
-        StorageMap<_, _, DealId, DealProposal<T::AccountId, BalanceOf<T>, BlockNumberFor<T>>>;
+    pub type Proposals<T: Config> = StorageMap<
+        _,
+        Blake2_128Concat,
+        DealId,
+        DealProposal<T::AccountId, BalanceOf<T>, BlockNumberFor<T>>,
+    >;
 
     /// Stores Proposals which have been Published but not yet Activated.
     /// Only `T::MaxDeals` Pending Proposals can be held at any time.
@@ -339,7 +349,7 @@ pub mod pallet {
     #[pallet::storage]
     pub type DealsForBlock<T: Config> = StorageMap<
         _,
-        _,
+        Blake2_128Concat,
         BlockNumberFor<T>,
         BoundedBTreeSet<DealId, T::MaxDealsPerBlock>,
         ValueQuery,
@@ -349,7 +359,7 @@ pub mod pallet {
     #[pallet::storage]
     pub type SectorDeals<T: Config> = StorageMap<
         _,
-        _,
+        Blake2_128Concat,
         (T::AccountId, SectorNumber),
         BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
     >;
@@ -520,6 +530,8 @@ pub mod pallet {
         /// Transfers `amount` of Balance from the `origin` to the Market Pallet account.
         /// It is marked as _free_ in the Market bookkeeping.
         /// Free balance can be withdrawn at any moment from the Market.
+        #[pallet::call_index(0)]
+        #[pallet::weight((T::WeightInfo::add_balance(), DispatchClass::Normal))]
         pub fn add_balance(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult {
             let caller = ensure_signed(origin)?;
 
@@ -543,6 +555,8 @@ pub mod pallet {
 
         /// Transfers `amount` of Balance from the Market Pallet account to the `origin`.
         /// Only _free_ balance can be withdrawn.
+        #[pallet::call_index(1)]
+        #[pallet::weight((T::WeightInfo::withdraw_balance(), DispatchClass::Normal))]
         pub fn withdraw_balance(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult {
             let caller = ensure_signed(origin)?;
 
@@ -566,6 +580,79 @@ pub mod pallet {
             Ok(())
         }
 
+        /// Publish a new set of storage deals (not yet included in a sector).
+        /// It saves valid deals as [`DealState::Published`] and locks up client fees and provider's collaterals.
+        /// Locked up balances cannot be withdrawn until a deal is terminated.
+        /// All of the deals must belong to a single Storage Provider.
+        /// It is permissive, if some of the deals are correct and some are not, it emits events for valid deals.
+        /// On success emits [`Event::<T>::DealPublished`] for each successful deal.
+        #[pallet::call_index(2)]
+        #[pallet::weight((T::WeightInfo::settle_deal_payments(deals.len() as u32), DispatchClass::Normal))]
+        pub fn publish_storage_deals(
+            origin: OriginFor<T>,
+            deals: BoundedVec<
+                ClientDealProposal<
+                    T::AccountId,
+                    BalanceOf<T>,
+                    BlockNumberFor<T>,
+                    T::OffchainSignature,
+                >,
+                T::MaxDeals,
+            >,
+        ) -> DispatchResult {
+            let provider = ensure_signed(origin)?;
+            ensure!(
+                T::StorageProviderValidation::is_registered_storage_provider(&provider),
+                Error::<T>::StorageProviderNotRegistered
+            );
+            let current_block = <frame_system::Pallet<T>>::block_number();
+            let (valid_deals, total_provider_lockup) =
+                Self::validate_deals(provider.clone(), deals, current_block)?;
+
+            let mut published_deals = BoundedVec::new();
+
+            // Lock up funds for the clients and emit events
+            for deal in valid_deals.into_iter() {
+                // PRE-COND: always succeeds, validated by `validate_deals`
+                let client_fee: BalanceOf<T> = deal
+                    .total_storage_fee()
+                    .ok_or(Error::<T>::UnexpectedValidationError)?
+                    .try_into()
+                    .map_err(|_| Error::<T>::UnexpectedValidationError)?;
+
+                // PRE-COND: always succeeds, validated by `validate_deals`
+                lock_funds::<T>(&deal.client, client_fee)?;
+
+                let deal_id = Self::generate_deal_id();
+
+                let mut deals_for_block = DealsForBlock::<T>::get(&deal.start_block);
+                deals_for_block.try_insert(deal_id).map_err(|_| {
+                    log::error!("there is not enough space to activate all of the deals at the given block {:?}", deal.start_block);
+                    Error::<T>::TooManyDealsPerBlock
+                })?;
+                DealsForBlock::<T>::insert(deal.start_block, deals_for_block);
+                Proposals::<T>::insert(deal_id, deal.clone());
+
+                // Only deposit the event after storing everything
+                // force_push is ok since the bound is the same as the input one
+                published_deals.force_push(PublishedDeal {
+                    client: deal.client,
+                    deal_id,
+                });
+            }
+
+            // Lock up funds for the Storage Provider
+            // PRE-COND: always succeeds, validated by `validate_deals`
+            lock_funds::<T>(&provider, total_provider_lockup)?;
+
+            Self::deposit_event(Event::<T>::DealsPublished {
+                deals: published_deals,
+                provider,
+            });
+
+            Ok(())
+        }
+
         /// Settle pending deal payments for the given deal IDs.
         ///
         /// This function *should* only fully fail when a block was last updated after its `end_block` target.
@@ -582,6 +669,8 @@ pub mod pallet {
         /// * The deal's last update is after the current block, meaning the deal's last update is in the future.
         ///   The returned error is [`DealSettlementError::FutureLastUpdate`].
         /// * The deal is not active
+        #[pallet::call_index(3)]
+        #[pallet::weight((T::WeightInfo::settle_deal_payments(deal_ids.len() as u32), DispatchClass::Normal))]
         pub fn settle_deal_payments(
             origin: OriginFor<T>,
             // The original `deals` structure is a bitfield from fvm-ipld-bitfield
@@ -709,77 +798,6 @@ pub mod pallet {
             Self::deposit_event(Event::<T>::DealsSettled {
                 successful,
                 unsuccessful,
-            });
-
-            Ok(())
-        }
-
-        /// Publish a new set of storage deals (not yet included in a sector).
-        /// It saves valid deals as [`DealState::Published`] and locks up client fees and provider's collaterals.
-        /// Locked up balances cannot be withdrawn until a deal is terminated.
-        /// All of the deals must belong to a single Storage Provider.
-        /// It is permissive, if some of the deals are correct and some are not, it emits events for valid deals.
-        /// On success emits [`Event::<T>::DealPublished`] for each successful deal.
-        pub fn publish_storage_deals(
-            origin: OriginFor<T>,
-            deals: BoundedVec<
-                ClientDealProposal<
-                    T::AccountId,
-                    BalanceOf<T>,
-                    BlockNumberFor<T>,
-                    T::OffchainSignature,
-                >,
-                T::MaxDeals,
-            >,
-        ) -> DispatchResult {
-            let provider = ensure_signed(origin)?;
-            ensure!(
-                T::StorageProviderValidation::is_registered_storage_provider(&provider),
-                Error::<T>::StorageProviderNotRegistered
-            );
-            let current_block = <frame_system::Pallet<T>>::block_number();
-            let (valid_deals, total_provider_lockup) =
-                Self::validate_deals(provider.clone(), deals, current_block)?;
-
-            let mut published_deals = BoundedVec::new();
-
-            // Lock up funds for the clients and emit events
-            for deal in valid_deals.into_iter() {
-                // PRE-COND: always succeeds, validated by `validate_deals`
-                let client_fee: BalanceOf<T> = deal
-                    .total_storage_fee()
-                    .ok_or(Error::<T>::UnexpectedValidationError)?
-                    .try_into()
-                    .map_err(|_| Error::<T>::UnexpectedValidationError)?;
-
-                // PRE-COND: always succeeds, validated by `validate_deals`
-                lock_funds::<T>(&deal.client, client_fee)?;
-
-                let deal_id = Self::generate_deal_id();
-
-                let mut deals_for_block = DealsForBlock::<T>::get(&deal.start_block);
-                deals_for_block.try_insert(deal_id).map_err(|_| {
-                    log::error!("there is not enough space to activate all of the deals at the given block {:?}", deal.start_block);
-                    Error::<T>::TooManyDealsPerBlock
-                })?;
-                DealsForBlock::<T>::insert(deal.start_block, deals_for_block);
-                Proposals::<T>::insert(deal_id, deal.clone());
-
-                // Only deposit the event after storing everything
-                // force_push is ok since the bound is the same as the input one
-                published_deals.force_push(PublishedDeal {
-                    client: deal.client,
-                    deal_id,
-                });
-            }
-
-            // Lock up funds for the Storage Provider
-            // PRE-COND: always succeeds, validated by `validate_deals`
-            lock_funds::<T>(&provider, total_provider_lockup)?;
-
-            Self::deposit_event(Event::<T>::DealsPublished {
-                deals: published_deals,
-                provider,
             });
 
             Ok(())

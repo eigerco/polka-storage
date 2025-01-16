@@ -88,3 +88,8 @@ pub const MAX_POST_PROOF_BYTES: u32 = 192;
 /// References:
 /// * https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
 pub const PEER_ID_MAX_BYTES: u32 = 42;
+
+/// The maximum size of a deal label.
+///
+/// Arbitrary value.
+pub const MAX_LABEL_SIZE: u32 = 128;

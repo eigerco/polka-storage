@@ -80,7 +80,8 @@ indexmap = "2.2.6"
 integer-encoding = "4.0.0"
 ipld-core = "0.4.1"
 ipld-dagpb = "0.2.1"
-itertools = "0.13.0"
+# Use `use_alloc` for crates that compile to WASM
+itertools = { version = "0.13.0", default-features = false }
 jsonrpsee = { version = "0.24.7" }
 libp2p = { version = "0.54", default-features = false }
 libp2p-core = "0.42.0"

@@ -352,27 +352,90 @@ parameter_types! {
     pub const MaxPartitionsPerDeadline: u64 = 3000;
     pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
     pub const FaultDeclarationCutoff: BlockNumber = 1 * MINUTES;
-    pub const PreCommitChallengeDelay: BlockNumber = 1 * MINUTES;
+
     // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L299>
     pub const AddressedSectorsMax: u64 = 25_000;
 
     // Market Pallet
     pub const MinDealDuration: u64 = 5 * MINUTES;
     pub const MaxDealDuration: u64 = 180 * MINUTES;
+}
+// NOTE(@jmg-duarte,22/01/2025): The following bit of code is confusing BUT
+// using #[cfg(...)] inside parameter_types results in errors
+// feature set == {testnet}
+#[cfg(all(feature = "testnet", not(feature = "runtime-benchmarks")))]
+parameter_types! {
+    pub const PreCommitChallengeDelay: BlockNumber = 1 * MINUTES;
+}
+// feature set = {testnet, runtime-benchmarks}
+// used for benchmarking
+#[cfg(all(feature = "testnet", feature = "runtime-benchmarks"))]
+parameter_types! {
+    pub const PreCommitChallengeDelay: BlockNumber = 0;
+}
 
-    // Faucet pallet
-    pub const FaucetDripAmount: Balance = 10_000_000_000_000;
-    pub const FaucetDripDelay: BlockNumber = DAYS;
+#[cfg(feature = "runtime-benchmarks")]
+mod dummy {
+    use frame_support::pallet_prelude::Zero;
+    use frame_system::pallet_prelude::BlockNumberFor;
+    /// Randomness generator used by tests.
+    pub struct DummyRandomnessGenerator<C>(core::marker::PhantomData<C>)
+    where
+        C: frame_system::Config;
+
+    impl<C> frame_support::traits::Randomness<C::Hash, BlockNumberFor<C>>
+        for DummyRandomnessGenerator<C>
+    where
+        C: frame_system::Config,
+    {
+        fn random(_subject: &[u8]) -> (C::Hash, BlockNumberFor<C>) {
+            (
+                Default::default(),
+                <frame_system::Pallet<C>>::block_number(),
+            )
+        }
+    }
+
+    impl<C> primitives::randomness::AuthorVrfHistory<BlockNumberFor<C>, C::Hash>
+        for DummyRandomnessGenerator<C>
+    where
+        C: frame_system::Config,
+    {
+        fn author_vrf_history(block_number: BlockNumberFor<C>) -> Option<C::Hash> {
+            if block_number == <BlockNumberFor<C> as Zero>::zero() {
+                None
+            } else {
+                Some(Default::default())
+            }
+        }
+    }
 }
 
 impl pallet_storage_provider::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
+
+    #[cfg(not(feature = "runtime-benchmarks"))]
     type Randomness = crate::Randomness;
+    #[cfg(not(feature = "runtime-benchmarks"))]
     type AuthorVrfHistory = crate::Randomness;
+
+    #[cfg(feature = "runtime-benchmarks")]
+    type Randomness = dummy::DummyRandomnessGenerator<Self>;
+    #[cfg(feature = "runtime-benchmarks")]
+    type AuthorVrfHistory = dummy::DummyRandomnessGenerator<Self>;
+
     type PeerId = BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>; // https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
     type Currency = Balances;
     type Market = crate::Market;
+
+    #[cfg(not(feature = "runtime-benchmarks"))]
     type ProofVerification = crate::Proofs;
+    // FIX(@jmg-duarte,#695,22/1/25)
+    // It is true that this stops the weight of the proving process from being calculated
+    // but (right now) we cannot create a proof inside a benchmark, so this is the best we can do
+    #[cfg(feature = "runtime-benchmarks")]
+    type ProofVerification = primitives::testing::DummyProofsVerification;
+
     type WPoStProvingPeriod = WpostProvingPeriod;
     type WPoStChallengeWindow = WpostChallengeWindow;
     type WPoStChallengeLookBack = WPoStChallengeLookBack;
@@ -398,9 +461,11 @@ parameter_types! {
 pub type AccountPublic = <MultiSignature as Verify>::Signer;
 
 impl pallet_market::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type Currency = Balances;
     type PalletId = MarketPalletId;
+    type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = pallet_market::weights::Weights<Runtime>;
+
+    type Currency = Balances;
     type OffchainSignature = MultiSignature;
     type OffchainPublic = AccountPublic;
     type StorageProviderValidation = crate::StorageProvider;
@@ -419,6 +484,13 @@ impl pallet_proofs::Config for Runtime {
 impl pallet_randomness::Config for Runtime {
     type AuthorVrfGetter = BabeDataGetter<Runtime>;
     type WeightInfo = pallet_randomness::weights::Weights<Runtime>;
+}
+
+#[cfg(feature = "testnet")]
+parameter_types! {
+    // Faucet pallet
+    pub const FaucetDripAmount: Balance = 10_000_000_000_000;
+    pub const FaucetDripDelay: BlockNumber = DAYS;
 }
 
 #[cfg(feature = "testnet")]

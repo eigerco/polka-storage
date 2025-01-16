@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use codec::Encode;
 use frame_support::{
     assert_ok, derive_impl, parameter_types,
@@ -8,8 +10,9 @@ use frame_support::{
 use frame_system::pallet_prelude::BlockNumberFor;
 use primitives::{proofs::RegisteredPoStProof, PEER_ID_MAX_BYTES};
 use sp_core::Pair;
+use sp_keystore::{testing::MemoryKeystore, KeystoreExt};
 use sp_runtime::{
-    traits::{ConstU32, ConstU64, IdentifyAccount, IdentityLookup, Verify, Zero},
+    traits::{ConstU32, IdentifyAccount, IdentityLookup, Verify, Zero},
     AccountId32, BuildStorage, MultiSignature, MultiSigner,
 };
 
@@ -54,32 +57,54 @@ parameter_types! {
     pub const MarketPalletId: PalletId = PalletId(*b"spMarket");
 
     // Storage Provider Pallet
-    pub const WPoStPeriodDeadlines: u64 = 10;
-    pub const WpostProvingPeriod: BlockNumber = 40 * MINUTES;
-    pub const WpostChallengeWindow: BlockNumber = 4 * MINUTES;
+    pub const WpostProvingPeriod: BlockNumber = 6 * MINUTES;
+    pub const WPoStPeriodDeadlines: u64 = 3;
+    pub const WpostChallengeWindow: BlockNumber = 2 * MINUTES;
     pub const WpostChallengeLookBack: BlockNumber = MINUTES;
     pub const MinSectorExpiration: BlockNumber = 5 * MINUTES;
-    pub const MaxSectorExpiration: BlockNumber = 360 * MINUTES;
+    pub const MaxSectorExpiration: BlockNumber = 60 * MINUTES;
     pub const SectorMaximumLifetime: BlockNumber = 120 * MINUTES;
     pub const MaxProveCommitDuration: BlockNumber = 5 * MINUTES;
     pub const MaxPartitionsPerDeadline: u64 = 3000;
     pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
-    pub const FaultDeclarationCutoff: BlockNumber = 2 * MINUTES;
-    pub const PreCommitChallengeDelay: BlockNumber = 1 * MINUTES;
+    pub const FaultDeclarationCutoff: BlockNumber = 1 * MINUTES;
     // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L299>
     pub const AddressedSectorsMax: u64 = 25_000;
+}
+
+// NOTE(@jmg-duarte,20/01/2025): this is not ideal, however, in the name of time this is A solution
+// the test parameters SHOULD be in sync with the parameters for the testnet configuration
+// otherwise, it's impossible to run benchmarks on the node (to get weights)
+// this BREAKS the normal tests when running benchmarks, as such you MUST run them in isolation
+// cargo t -p pallet-market -F runtime-benchmarks -- bench
+#[cfg(not(feature = "runtime-benchmarks"))]
+parameter_types! {
+    pub const MinDealDuration: u64 = 2;
+    pub const MaxDealDuration: u64 = 30;
+    // 0 allows us to publish the prove-commit on the same block as the
+    // pre-commit.
+    pub const PreCommitChallengeDelay: BlockNumber = 0;
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+parameter_types! {
+    pub const MinDealDuration: u64 = 5 * MINUTES;
+    pub const MaxDealDuration: u64 = 180 * MINUTES;
+    pub const PreCommitChallengeDelay: BlockNumber = 1 * MINUTES;
 }
 
 impl crate::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type PalletId = MarketPalletId;
+    type WeightInfo = ();
+
     type Currency = Balances;
     type OffchainSignature = Signature;
     type OffchainPublic = AccountPublic;
     type StorageProviderValidation = StorageProvider;
     type MaxDeals = ConstU32<32>;
-    type MinDealDuration = ConstU64<2>;
-    type MaxDealDuration = ConstU64<30>;
+    type MinDealDuration = MinDealDuration;
+    type MaxDealDuration = MaxDealDuration;
     type MaxDealsPerBlock = ConstU32<32>;
 }
 
@@ -204,6 +229,12 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 
     let mut ext = sp_io::TestExternalities::new(t);
     ext.execute_with(|| System::set_block_number(1));
+
+    // Required to perform signatures. Given that benchmarks run inside the runtime, this is how
+    // we're able to prepare signed client deal proposals.
+    let keystore = MemoryKeystore::new();
+    ext.register_extension(KeystoreExt(Arc::new(keystore)));
+
     ext
 }
 
