@@ -39,7 +39,9 @@ impl BootstrapConfig {
             .with_behaviour(|key| BootstrapBehaviour {
                 // Rendezvous server behaviour for serving new peers to connecting nodes.
                 rendezvous: rendezvous::server::Behaviour::new(
-                    rendezvous::server::Config::default(),
+                    // TTL of 584_542_100_000 years.
+                    // If the client changes their multiaddress the old multiaddr gets overwritten, not appended.
+                    rendezvous::server::Config::default().with_max_ttl(u64::MAX),
                 ),
                 // The identify behaviour is used to share the external address and the public key with connecting clients.
                 identify: identify::Behaviour::new(identify::Config::new(

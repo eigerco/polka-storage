@@ -69,7 +69,6 @@ pub(crate) async fn register(
     mut swarm: Swarm<RegisterBehaviour>,
     rendezvous_point: PeerId,
     rendezvous_point_address: Multiaddr,
-    ttl: Option<u64>,
     namespace: Namespace,
 ) -> Result<(), P2PError> {
     tracing::info!("Attempting to register with rendezvous point {rendezvous_point} at {rendezvous_point_address}");
@@ -97,7 +96,9 @@ pub(crate) async fn register(
                 if let Err(error) = swarm.behaviour_mut().rendezvous.register(
                     namespace.clone(),
                     rendezvous_point,
-                    ttl,
+                    // TTL of 584_542_100_000 years
+                    // If re-registered with a new multiaddr the old value gets overwritten
+                    Some(u64::MAX),
                 ) {
                     tracing::error!("Failed to register: {error}");
                     return Err(P2PError::RegistrationFailed(rendezvous_point));
