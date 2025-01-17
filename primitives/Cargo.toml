@@ -32,6 +32,7 @@ serde_json = { workspace = true, default-features = true }
 workspace = true
 
 [features]
+builder = []
 clap = ["dep:clap", "std"]
 default = ["std"]
 serde = ["dep:serde"]
