@@ -1,3 +1,7 @@
+//! The example showcases how to setup a retrieval server with the simple
+//! blockstore. Because the server is simple it is used for manual testing of
+//! the retrieval client.
+
 use std::sync::Arc;
 
 use anyhow::Result;

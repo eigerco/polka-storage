@@ -93,8 +93,8 @@ where
         debug!("Peer connected");
     }
 
-    #[instrument(skip_all, fields(peer_id = %peer_id))]
-    fn on_peer_disconnected(&mut self, peer_id: PeerId, _connection_id: ConnectionId) {
+    #[instrument(skip_all, fields(peer_id = %peer_id, connection_id = %connection_id))]
+    fn on_peer_disconnected(&mut self, peer_id: PeerId, connection_id: ConnectionId) {
         debug!("Peer disconnected");
     }
 }
