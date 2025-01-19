@@ -63,7 +63,7 @@ pub mod pallet {
         },
         proofs::{derive_prover_id, PublicReplicaInfo, RegisteredPoStProof},
         randomness::{draw_randomness, AuthorVrfHistory, DomainSeparationTag},
-        sector::SectorNumber,
+        sector::{SectorNumber, SectorPreCommitInfo},
         PartitionNumber, MAX_PARTITIONS_PER_DEADLINE, MAX_SEAL_PROOF_BYTES, MAX_SECTORS,
         MAX_SECTORS_PER_CALL,
     };
@@ -78,8 +78,8 @@ pub mod pallet {
         },
         proofs::{assign_proving_period_offset, SubmitWindowedPoStParams},
         sector::{
-            ProveCommitResult, ProveCommitSector, SectorOnChainInfo, SectorPreCommitInfo,
-            SectorPreCommitOnChainInfo, TerminateSectorsParams, TerminationDeclaration,
+            ProveCommitResult, ProveCommitSector, SectorOnChainInfo, SectorPreCommitOnChainInfo,
+            TerminateSectorsParams, TerminationDeclaration,
         },
         sector_map::DeadlineSectorMap,
         storage_provider::{

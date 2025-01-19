@@ -6,7 +6,11 @@ use ipld_core::cid::{multihash::Multihash, CidGeneric};
 
 pub const SHA_256_CODE: u64 = 0x12;
 pub const SHA_512_CODE: u64 = 0x13;
+
+/// The RAW multicodec code
 pub const RAW_CODE: u64 = 0x55;
+
+/// THE DAG_PB multicodec code
 pub const DAG_PB_CODE: u64 = 0x70;
 
 /// The IDENTITY multicodec code
