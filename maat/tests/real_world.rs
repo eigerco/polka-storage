@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, time::Duration};
 
 use cid::Cid;
 use maat::*;
@@ -35,7 +35,7 @@ where
     let result = client
         .register_storage_provider(
             charlie,
-            peer_id.clone(),
+            peer_id.clone().parse().expect("invalid peer_id"),
             primitives::proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
             true,
         )
@@ -251,7 +251,7 @@ where
         assert_eq!(event.sectors.0, sectors_pre_commit_info);
     }
 
-    result.height
+    client.height(true).await.unwrap()
 }
 
 async fn prove_commit_sector<Keypair>(
@@ -325,10 +325,10 @@ where
             SubmitWindowedPoStParams {
                 deadline: 0,
                 partitions: vec![0],
-                proof: storagext::types::storage_provider::PoStProof {
+                proofs: vec![storagext::types::storage_provider::PoStProof {
                     post_proof: primitives::proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
                     proof_bytes: "beef".as_bytes().to_vec(),
-                },
+                }],
             },
             true,
         )
@@ -408,9 +408,11 @@ async fn real_world_use_case() {
 
     tracing::debug!("base dir: {:?}", network.base_dir());
 
-    let collator = network.get_node(COLLATOR_NAME).unwrap();
-    let client =
-        storagext::Client::from(collator.wait_client::<PolkaStorageConfig>().await.unwrap());
+    let client = storagext::Client::new(
+        "ws://127.0.0.1:9944",
+        5,
+        Duration::from_secs(2)
+    ).await.unwrap();
 
     let alice_kp = pair_signer_from_str::<Sr25519Pair>("//Alice");
     let charlie_kp = pair_signer_from_str::<Sr25519Pair>("//Charlie");

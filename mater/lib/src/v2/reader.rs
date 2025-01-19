@@ -1,12 +1,17 @@
-use ipld_core::cid::Cid;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeekExt, AsyncWriteExt, BufReader};
+use std::collections::HashSet;
 
 use super::index::read_index;
+use crate::multicodec::DAG_PB_CODE;
 use crate::{
     v2::{index::Index, Characteristics, Header, PRAGMA},
     Error,
 };
-
+use ipld_core::cid::Cid;
+use ipld_core::codec::Codec;
+use ipld_dagpb::DagPbCodec;
+use ipld_dagpb::PbNode;
+use tokio::io::AsyncSeek;
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 /// Low-level CARv2 reader.
 pub struct Reader<R> {
     reader: R,
@@ -21,7 +26,7 @@ impl<R> Reader<R> {
 
 impl<R> Reader<R>
 where
-    R: AsyncRead + Unpin,
+    R: AsyncRead + Unpin + AsyncSeek,
 {
     /// Takes in a CID and checks that the contents in the reader matches this CID
     pub async fn verify_cid(&mut self, contents_cid: Cid) -> Result<(), Error> {
@@ -62,21 +67,48 @@ where
     {
         self.read_pragma().await?;
         let header = self.read_header().await?;
-        let _v1_header = self.read_v1_header().await?;
+        let v1_header = self.read_v1_header().await?;
         let mut written = 0;
 
-        while let Ok((_cid, contents)) = self.read_block().await {
-            // CAR file contents is empty
-            if contents.len() == 0 {
-                break;
-            }
+        // Keep track of root CID and position
+        let root_cid = v1_header.roots.first().ok_or(Error::EmptyRootsError)?;
+        let data_end = header.data_offset + header.data_size;
+
+        // Track what we've processed and need to process
+        let mut processed: HashSet<Cid> = HashSet::new();
+        let mut to_process = vec![*root_cid];
+
+        while !to_process.is_empty() {
             let position = self.get_inner_mut().stream_position().await?;
-            let data_end = header.data_offset + header.data_size;
-            // Add the `written != 0` clause for files that are less than a single block.
             if position >= data_end && written != 0 {
                 break;
             }
-            written += output_file.write(&contents).await?;
+
+            if let Ok((cid, contents)) = self.read_block().await {
+                if contents.len() == 0 {
+                    break;
+                }
+
+                // Write the block data
+                written += output_file.write(&contents).await?;
+
+                // If it's a DAG-PB node, queue up its children
+                if cid.codec() == DAG_PB_CODE && !processed.contains(&cid) {
+                    let reader = std::io::BufReader::new(&contents[..]);
+                    if let Ok(node) = DagPbCodec::decode(reader) {
+                        let pb_node: PbNode = node;
+                        to_process.extend(
+                            pb_node
+                                .links
+                                .iter()
+                                .map(|link| link.cid)
+                                .filter(|cid| !processed.contains(cid)),
+                        );
+                    }
+                }
+
+                processed.insert(cid);
+            }
         }
 
         Ok(())
@@ -151,9 +183,11 @@ where
 }
 
 /// Function verifies that a given CID matches the CID for the CAR file in the given reader
-pub async fn verify_cid<R: AsyncRead + Unpin>(reader: R, contents_cid: Cid) -> Result<(), Error> {
-    let mut reader = Reader::new(BufReader::new(reader));
-
+pub async fn verify_cid<R>(reader: R, contents_cid: Cid) -> Result<(), Error>
+where
+    R: AsyncRead + AsyncSeek + Unpin,
+{
+    let mut reader = Reader::new(reader);
     reader.verify_cid(contents_cid).await
 }
 
@@ -162,11 +196,13 @@ mod tests {
     use std::{io::Cursor, path::PathBuf, str::FromStr};
 
     use ipld_core::cid::Cid;
+    use ipld_core::codec::Codec;
+    use ipld_dagpb::{DagPbCodec, PbNode};
     use sha2::Sha256;
     use tokio::{fs::File, io::AsyncSeekExt};
 
     use crate::{
-        multicodec::{generate_multihash, RAW_CODE, SHA_256_CODE},
+        multicodec::{generate_multihash, DAG_PB_CODE, RAW_CODE, SHA_256_CODE},
         v2::{index::Index, reader::Reader},
         verify_cid, Error,
     };
@@ -424,5 +460,49 @@ mod tests {
             assert_eq!(fst[0].width, 40);
             assert_eq!(fst[0].entries.len(), 4);
         }
+    }
+
+    #[tokio::test]
+    async fn test_dag_pb_links() {
+        let file = File::open("tests/fixtures/car_v2/spaceglenda.car")
+            .await
+            .unwrap();
+        let mut reader = Reader::new(file);
+
+        reader.read_pragma().await.unwrap();
+        reader.read_header().await.unwrap();
+
+        let mut found_dag_pb = false;
+        let mut total_links = 0;
+
+        while let Ok((cid, data)) = reader.read_block().await {
+            if cid.codec() == DAG_PB_CODE {
+                found_dag_pb = true;
+                let reader = std::io::BufReader::new(&data[..]);
+
+                match DagPbCodec::decode(reader) {
+                    Ok(node) => {
+                        let pb_node: PbNode = node;
+                        if !pb_node.links.is_empty() {
+                            total_links += pb_node.links.len();
+                        }
+
+                        // Verify each link
+                        for link in pb_node.links {
+                            assert!(
+                                !link.cid.to_string().is_empty(),
+                                "Link should have valid CID"
+                            );
+                        }
+                    }
+                    Err(err) => {
+                        panic!("Failed to decode DAG-PB node: {}", err);
+                    }
+                }
+            }
+        }
+
+        assert!(found_dag_pb, "No DAG-PB nodes found in test file");
+        assert!(total_links > 0, "No links found in DAG-PB nodes");
     }
 }
