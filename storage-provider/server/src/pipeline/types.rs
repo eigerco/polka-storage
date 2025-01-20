@@ -1,13 +1,30 @@
 use std::{path::PathBuf, sync::Arc};
 
-use polka_storage_proofs::porep::{sealer::{prepare_piece, PreCommitOutput, Sealer}, PoRepError};
+use polka_storage_proofs::porep::{
+    sealer::{prepare_piece, BlstrsProof, PreCommitOutput, Sealer, SubstrateProof},
+    PoRepError, PoRepParameters,
+};
 use primitives::{
-    commitment::{piece::PieceInfo, CommD, CommP, CommR, Commitment}, proofs::{derive_prover_id, RegisteredSealProof}, randomness::{draw_randomness, DomainSeparationTag}, sector::SectorNumber, DealId
+    commitment::{piece::PieceInfo, CommD, CommP, CommR, Commitment},
+    proofs::{derive_prover_id, RegisteredSealProof},
+    randomness::{draw_randomness, DomainSeparationTag},
+    sector::SectorNumber,
+    DealId,
 };
 use serde::{Deserialize, Serialize};
-use storagext::{types::{market::DealProposal, storage_provider::SectorPreCommitInfo}, RandomnessClientExt, StorageProviderClientExt, SystemClientExt};
-use tokio::task::{JoinError, JoinHandle};
-use subxt::{tx::Signer, ext::codec::Encode};
+use storagext::{
+    types::{
+        market::DealProposal,
+        storage_provider::{ProveCommitSector, SectorPreCommitInfo},
+    },
+    RandomnessClientExt, StorageProviderClientExt, SystemClientExt,
+};
+use subxt::{ext::codec::Encode, tx::Signer};
+use tokio::{
+    sync::Semaphore,
+    task::{JoinError, JoinHandle},
+};
+use tokio_util::sync::CancellationToken;
 
 /// Represents a task to be executed on the Storage Provider Pipeline
 #[derive(Debug)]
@@ -65,6 +82,10 @@ pub enum SectorError {
     Join(#[from] JoinError),
     #[error(transparent)]
     Subxt(#[from] subxt::Error),
+    #[error("scheduled too early, randomness not available")]
+    RandomnessNotAvailable,
+    #[error("scheduled too early, randomness not available")]
+    ProvingCancelled,
 }
 
 /// Unsealed Sector which still accepts deals and pieces.
@@ -102,6 +123,8 @@ pub struct UnsealedSector {
 /// When proven, it's converted into [`ProvenSector`].
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct PreCommittedSector {
+    seal_proof: RegisteredSealProof,
+
     /// [`SectorNumber`] which identifies a sector in the Storage Provider.
     ///
     /// It *should be centrally generated* by the Storage Provider, currently by [`crate::db::DealDB::next_sector_number`].
@@ -144,7 +167,6 @@ pub struct PreCommittedSector {
     /// Available at [`SectorState::Precommitted`] and later.
     pub precommit_block: u64,
 }
-
 
 // TODO(@th7nder,#622,02/12/2024): query it from the chain.
 const SECTOR_EXPIRATION_MARGIN: u64 = 20;
@@ -204,7 +226,8 @@ impl UnsealedSector {
         Ok(())
     }
 
-    pub async fn pre_commit(mut self,
+    pub async fn pre_commit(
+        mut self,
         xt_client: Arc<storagext::Client>,
         xt_keypair: &storagext::multipair::MultiPairSigner,
         cache_dir_path: PathBuf,
@@ -268,7 +291,6 @@ impl UnsealedSector {
 
         let sealing_output_commr = Commitment::<CommR>::from(sealing_output.comm_r);
         let sealing_output_commd = Commitment::<CommD>::from(sealing_output.comm_d);
-
 
         tracing::debug!("Precommiting at block: {}", current_block);
         let result = xt_client
@@ -338,6 +360,7 @@ impl PreCommittedSector {
         tokio::fs::remove_file(unsealed.unsealed_path).await?;
 
         Ok(Self {
+            seal_proof: unsealed.seal_proof,
             sector_number: unsealed.sector_number,
             piece_infos: unsealed.piece_infos,
             deals: unsealed.deals,
@@ -348,6 +371,143 @@ impl PreCommittedSector {
             seal_randomness_height,
             precommit_block,
         })
+    }
+
+    pub async fn prove_commit(
+        self,
+        xt_client: Arc<storagext::Client>,
+        xt_keypair: &storagext::multipair::MultiPairSigner,
+        porep_params: Arc<PoRepParameters>,
+        throttle: Arc<Semaphore>,
+        token: CancellationToken,
+    ) -> Result<ProvenSector, SectorError> {
+        let sealer: Sealer = Sealer::new(self.seal_proof);
+
+        let seal_randomness_height = self.seal_randomness_height;
+        let Some(digest) = xt_client.get_randomness(seal_randomness_height).await? else {
+            tracing::error!("Out-of-the-state transition, this SHOULD NOT happen");
+            return Err(SectorError::RandomnessNotAvailable);
+        };
+
+        let entropy = xt_keypair.account_id().encode();
+        // Must match pallet's logic or otherwise proof won't be verified:
+        // https://github.com/eigerco/polka-storage/blob/af51a9b121c9b02e0bf6f02f5e835091ab46af76/pallets/storage-provider/src/lib.rs#L1539
+        let ticket = draw_randomness(
+            &digest,
+            DomainSeparationTag::SealRandomness,
+            seal_randomness_height,
+            &entropy,
+        );
+
+        // TODO(@th7nder,04/11/2024):
+        // https://github.com/eigerco/polka-storage/blob/5edd4194f08f29d769c277577ccbb70bb6ff63bc/runtime/src/configs/mod.rs#L360
+        // 10 blocks = 1 minute, only testnet
+        const PRECOMMIT_CHALLENGE_DELAY: u64 = 10;
+        let prove_commit_block = self.precommit_block + PRECOMMIT_CHALLENGE_DELAY;
+
+        tracing::info!("Wait for block {} to get randomness", prove_commit_block);
+        tokio::select! {
+            res = xt_client.wait_for_height(prove_commit_block, true) => {
+                res?;
+            },
+            () = token.cancelled() => {
+                tracing::warn!("Cancelled while waiting to get randomness at block {}", prove_commit_block);
+                return Err(SectorError::ProvingCancelled);
+            }
+        };
+
+        let Some(digest) = xt_client.get_randomness(prove_commit_block).await? else {
+            tracing::error!("Randomness for the block not available.");
+            return Err(SectorError::RandomnessNotAvailable);
+        };
+        let seed = draw_randomness(
+            &digest,
+            DomainSeparationTag::InteractiveSealChallengeSeed,
+            prove_commit_block,
+            &entropy,
+        );
+
+        let prover_id = derive_prover_id(xt_keypair.account_id());
+        tracing::debug!("Performing prove commit for, seal_randomness_height {}, pre_commit_block: {}, prove_commit_block: {}, entropy: {}, ticket: {}, seed: {}, prover id: {}, sector_number: {}",
+            seal_randomness_height, self.precommit_block, prove_commit_block, hex::encode(entropy), hex::encode(ticket), hex::encode(seed), hex::encode(prover_id), self.sector_number);
+
+        tracing::debug!("Acquiring sempahore...");
+        let proofs = {
+            let _permit = throttle
+                .acquire()
+                .await
+                .expect("semaphore to not be closed");
+            tracing::debug!("Acquired sempahore.");
+
+            let sealing_handle: JoinHandle<Result<Vec<BlstrsProof>, _>> = {
+                let porep_params = porep_params.clone();
+                let cache_dir = self.cache_path.clone();
+                let sealed_path = self.sealed_path.clone();
+                let piece_infos = self.piece_infos.clone();
+
+                tokio::task::spawn_blocking(move || {
+                    sealer.prove_sector(
+                        porep_params.as_ref(),
+                        cache_dir,
+                        sealed_path,
+                        prover_id,
+                        self.sector_number,
+                        ticket,
+                        Some(seed),
+                        PreCommitOutput {
+                            comm_r: self.comm_r,
+                            comm_d: self.comm_d,
+                        },
+                        &piece_infos,
+                    )
+                })
+            };
+
+            tokio::select! {
+                // Up to this point everything is retryable.
+                // Pipeline ends up being in an inconsistent state if we prove commit to the chain, and don't wait for it, so the sector's not persisted in the DB.
+                res = sealing_handle => {
+                    res??
+                },
+                () = token.cancelled() => {
+                    return Err(SectorError::ProvingCancelled);
+                }
+            }
+        };
+
+        // We use sector size 2KiB only at this point, which guarantees to have 1 proof, because it has 1 partition in the config.
+        // That's why `prove_commit` will always generate a 1 proof.
+        let proof: SubstrateProof = proofs[0]
+            .clone()
+            .try_into()
+            .expect("converstion between rust-fil-proofs and polka-storage-proofs to work");
+
+        let proof = codec::Encode::encode(&proof);
+        tracing::info!("Proven sector: {}", self.sector_number);
+
+        let result = xt_client
+            .prove_commit_sectors(
+                xt_keypair,
+                vec![ProveCommitSector {
+                    sector_number: self.sector_number,
+                    proof,
+                }],
+                true,
+            )
+            .await?
+            .expect("waiting for finalization should always give results");
+
+        let proven_sectors = result
+            .events
+            .find::<storagext::runtime::storage_provider::events::SectorsProven>()
+            .map(|result| result.map_err(|err| subxt::Error::from(err)))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        tracing::info!("Successfully proven sectors on-chain: {:?}", proven_sectors);
+
+        let sector = ProvenSector::create(self);
+
+        Ok(sector)
     }
 }
 
