@@ -15,6 +15,7 @@ pub(crate) use bootstrap::BootstrapConfig;
 pub(crate) use register::RegisterConfig;
 
 const P2P_NAMESPACE: &str = "polka-storage";
+const TTL_24_HOURS: u64 = 86400;
 
 #[derive(Default, Debug, Clone, Copy, ValueEnum, Deserialize)]
 #[serde(rename_all = "lowercase")]
