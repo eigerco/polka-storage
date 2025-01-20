@@ -9,7 +9,7 @@ use libp2p::{
     tcp, yamux, Multiaddr, Swarm, SwarmBuilder,
 };
 
-use super::P2PError;
+use super::{P2PError, TTL_24_HOURS};
 
 #[derive(NetworkBehaviour)]
 pub struct BootstrapBehaviour {
@@ -39,7 +39,7 @@ impl BootstrapConfig {
             .with_behaviour(|key| BootstrapBehaviour {
                 // Rendezvous server behaviour for serving new peers to connecting nodes.
                 rendezvous: rendezvous::server::Behaviour::new(
-                    rendezvous::server::Config::default(),
+                    rendezvous::server::Config::default().with_max_ttl(TTL_24_HOURS), // Max TTL of 24 hours
                 ),
                 // The identify behaviour is used to share the external address and the public key with connecting clients.
                 identify: identify::Behaviour::new(identify::Config::new(
@@ -94,6 +94,15 @@ pub(crate) async fn bootstrap(
                         registrations.len()
                     );
                 }
+            }
+            SwarmEvent::Behaviour(BootstrapBehaviourEvent::Rendezvous(
+                rendezvous::server::Event::RegistrationExpired(registration),
+            )) => {
+                tracing::info!(
+                    "Registration for peer {} expired in namespace {}",
+                    registration.record.peer_id(),
+                    registration.namespace
+                );
             }
             _other => {}
         }

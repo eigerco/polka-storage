@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use libp2p::{
     futures::StreamExt,
     identify,
@@ -9,8 +7,10 @@ use libp2p::{
     swarm::{NetworkBehaviour, SwarmEvent},
     tcp, yamux, Multiaddr, PeerId, Swarm, SwarmBuilder,
 };
+use tokio::time::Duration;
 
 use super::P2PError;
+use crate::p2p::TTL_24_HOURS;
 
 #[derive(NetworkBehaviour)]
 pub struct RegisterBehaviour {
@@ -22,6 +22,7 @@ pub struct RegisterConfig {
     keypair: Keypair,
     rendezvous_point_address: Multiaddr,
     rendezvous_point: PeerId,
+    pub(crate) registration_ttl: Option<u64>,
 }
 
 impl RegisterConfig {
@@ -29,11 +30,13 @@ impl RegisterConfig {
         keypair: Keypair,
         rendezvous_point_address: Multiaddr,
         rendezvous_point: PeerId,
+        registration_ttl: Option<u64>,
     ) -> Self {
         Self {
             keypair,
             rendezvous_point_address,
             rendezvous_point,
+            registration_ttl,
         }
     }
 
@@ -66,26 +69,39 @@ impl RegisterConfig {
 /// Register the peer with the rendezvous point.
 /// The ttl is how long the peer will remain registered in seconds.
 pub(crate) async fn register(
-    mut swarm: Swarm<RegisterBehaviour>,
+    swarm: &mut Swarm<RegisterBehaviour>,
     rendezvous_point: PeerId,
     rendezvous_point_address: Multiaddr,
     ttl: Option<u64>,
     namespace: Namespace,
 ) -> Result<(), P2PError> {
     tracing::info!("Attempting to register with rendezvous point {rendezvous_point} at {rendezvous_point_address}");
-    swarm.dial(rendezvous_point_address.clone())?;
+    let mut register_tick = tokio::time::interval(Duration::from_secs(ttl.unwrap_or(TTL_24_HOURS)));
 
+    loop {
+        register_tick.tick().await;
+        swarm.dial(rendezvous_point_address.clone())?;
+        register_and_check_events(swarm, rendezvous_point, ttl, namespace.clone()).await?;
+    }
+}
+
+async fn register_and_check_events(
+    swarm: &mut Swarm<RegisterBehaviour>,
+    rendezvous_point: PeerId,
+    ttl: Option<u64>,
+    namespace: Namespace,
+) -> Result<(), P2PError> {
     while let Some(event) = swarm.next().await {
         match event {
-            SwarmEvent::NewListenAddr { address, .. } => {
-                tracing::info!("Listening on {}", address);
+            SwarmEvent::ConnectionEstablished { peer_id, .. } => {
+                tracing::info!(%peer_id, "Connection established");
             }
             SwarmEvent::ConnectionClosed {
                 peer_id,
                 cause: Some(error),
                 ..
             } if peer_id == rendezvous_point => {
-                tracing::info!("Lost connection to rendezvous point {}", error);
+                tracing::info!(%peer_id, %error, "Lost connection to rendezvous point");
             }
             // once `/identify` did its job, we know our external address and can register
             SwarmEvent::Behaviour(RegisterBehaviourEvent::Identify(
@@ -125,15 +141,12 @@ pub(crate) async fn register(
                     error,
                 },
             )) => {
-                tracing::error!(
-                    "Failed to register: rendezvous_node={}, namespace={}, error_code={:?}",
-                    rendezvous_node,
-                    namespace,
-                    error
+                tracing::error!(%rendezvous_node, %namespace,
+                    "Failed to register error = {error:?}"
                 );
                 return Err(P2PError::RegistrationFailed(rendezvous_node));
             }
-            _other => {}
+            other => tracing::debug!("Unimplemented event encountered: {other:?}"),
         }
     }
 

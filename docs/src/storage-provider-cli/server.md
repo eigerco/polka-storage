@@ -97,6 +97,10 @@ Rendezvous point address that the registration node connects to or the bootstrap
 
 Peer ID of the rendezvous point that the registration node connects to. Only needed if running a registration P2P node.
 
+### `--registration-ttl`
+
+The TTL of the p2p registration in seconds. After the node registration expires, the server automatically re-registers itself.
+
 ### `--config`
 
 Takes in a path to a configuration file, it supports both JSON and TOML (files _must_ have the right extension).
@@ -117,6 +121,7 @@ The supported configuration parameters are:
 | `p2p_key`                  | NA                             |
 | `rendezvous_point_address` | NA                             |
 | `rendezvous_point`         | `None`                         |
+| `registration_ttl`         | `None`                         |
 
 #### Bare bones configuration
 

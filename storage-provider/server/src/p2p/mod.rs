@@ -15,8 +15,10 @@ pub(crate) use bootstrap::BootstrapConfig;
 pub(crate) use register::RegisterConfig;
 
 const P2P_NAMESPACE: &str = "polka-storage";
+const TTL_24_HOURS: u64 = 86400;
 
 #[derive(Default, Debug, Clone, Copy, ValueEnum, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum NodeType {
     #[default]
     Bootstrap,
@@ -67,6 +69,9 @@ pub(crate) struct P2PState {
     /// PeerID of the bootstrap node used by the registration node.
     /// Optional because it is not used by the bootstrap node.
     pub(crate) rendezvous_point: Option<PeerId>,
+
+    /// TTL of the p2p registration in seconds
+    pub(crate) registration_ttl: Option<u64>,
 }
 
 /// Deserializes a ED25519 private key into a Keypair.
@@ -141,14 +146,20 @@ pub async fn run_register_node(
 ) -> Result<(), P2PError> {
     tracing::info!("Starting P2P register node");
     let tracker = TaskTracker::new();
-    let (swarm, rendezvous_point_address, rendezvous_point) = config.create_swarm()?;
+    // If TTL is not set, set it to 24 hours
+    let ttl = if config.registration_ttl.is_some() {
+        config.registration_ttl
+    } else {
+        Some(TTL_24_HOURS)
+    };
+    let (mut swarm, rendezvous_point_address, rendezvous_point) = config.create_swarm()?;
 
     tokio::select! {
         res = register(
-            swarm,
+            &mut swarm,
             rendezvous_point,
             rendezvous_point_address,
-            None,
+            ttl,
             Namespace::from_static(P2P_NAMESPACE),
         ) => {
             if let Err(e) = res {

@@ -123,4 +123,7 @@ pub struct ConfigurationArgs {
     #[serde(default, deserialize_with = "string_to_peer_id_option")]
     #[arg(long)]
     pub(crate) rendezvous_point: Option<PeerId>,
+
+    /// TTL of the p2p registration in seconds
+    pub(crate) registration_ttl: Option<u64>,
 }

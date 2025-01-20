@@ -272,6 +272,9 @@ pub struct Server {
     /// PeerID of the bootstrap node used by the registration node.
     /// Optional because it is not used by the bootstrap node.
     rendezvous_point: Option<PeerId>,
+
+    /// TTL of the p2p registration in seconds
+    registration_ttl: Option<u64>,
 }
 
 impl TryFrom<ServerCli> for Server {
@@ -353,6 +356,7 @@ impl TryFrom<ServerCli> for Server {
             p2p_key: args.p2p_key,
             rendezvous_point_address: args.rendezvous_point_address,
             rendezvous_point: args.rendezvous_point,
+            registration_ttl: args.registration_ttl,
         })
     }
 }
@@ -481,6 +485,7 @@ impl Server {
             p2p_key: self.p2p_key,
             rendezvous_point_address: self.rendezvous_point_address,
             rendezvous_point: self.rendezvous_point,
+            registration_ttl: self.registration_ttl,
         };
 
         Ok(SetupOutput {
@@ -568,6 +573,7 @@ fn spawn_p2p_task(
                 p2p_state.p2p_key,
                 p2p_state.rendezvous_point_address,
                 rendezvous_point,
+                p2p_state.registration_ttl,
             );
             Ok(tokio::spawn(run_register_node(config, cancellation_token)))
         }
