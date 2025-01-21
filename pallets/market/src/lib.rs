@@ -23,7 +23,7 @@ pub mod pallet {
     use cid::Cid;
     use codec::{Decode, Encode};
     use frame_support::{
-        dispatch::{DispatchClass, DispatchResult},
+        dispatch::DispatchResult,
         ensure,
         pallet_prelude::*,
         sp_runtime::{

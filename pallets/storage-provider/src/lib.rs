@@ -45,10 +45,7 @@ pub mod pallet {
         ensure, fail,
         pallet_prelude::*,
         sp_runtime::traits::{CheckedAdd, CheckedSub, One},
-        traits::{
-            Currency, ExistenceRequirement::KeepAlive, Imbalance, Randomness, ReservableCurrency,
-            WithdrawReasons,
-        },
+        traits::{Currency, Randomness, ReservableCurrency},
     };
     use frame_system::{
         ensure_signed,

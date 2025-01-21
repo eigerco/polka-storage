@@ -7,7 +7,7 @@ use crate::{
     pallet::{Event, StorageProviders},
     sector::ProveCommitSector,
     tests::{
-        account, events, publish_deals, register_storage_provider, run_to_block, Balances, Market,
+        account, events, publish_deals, register_storage_provider, run_to_block, Market,
         RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System, Test,
         CHARLIE,
     },
