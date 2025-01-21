@@ -121,7 +121,7 @@ The supported configuration parameters are:
 | `p2p_key`                  | NA                             |
 | `rendezvous_point_address` | NA                             |
 | `rendezvous_point`         | `None`                         |
-| `registration_ttl`         | `None`                         |
+| `registration_ttl`         | `24 hours`                     |
 
 #### Bare bones configuration
 
