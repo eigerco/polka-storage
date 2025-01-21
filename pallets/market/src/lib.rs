@@ -23,7 +23,7 @@ pub mod pallet {
     use cid::Cid;
     use codec::{Decode, Encode};
     use frame_support::{
-        dispatch::DispatchResult,
+        dispatch::{DispatchClass, DispatchResult},
         ensure,
         pallet_prelude::*,
         sp_runtime::{
@@ -121,10 +121,10 @@ pub mod pallet {
     pub struct BalanceEntry<Balance> {
         /// Amount of Balance that has been deposited for future deals/earned from deals.
         /// It can be withdrawn at any time.
-        pub(crate) free: Balance,
+        pub free: Balance,
         /// Amount of Balance that has been staked as Deal Collateral
         /// It's locked to a deal and cannot be withdrawn until the deal ends.
-        pub(crate) locked: Balance,
+        pub locked: Balance,
     }
 
     #[derive(Clone, Eq, PartialEq, Encode, Decode, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -305,6 +305,7 @@ pub mod pallet {
     /// Invariant must be held at all times:
     /// `account(MarketPallet).balance == all_accounts.map(|balance| balance[account]].locked + balance[account].free).sum()`
     #[pallet::storage]
+    #[pallet::getter(fn balance_table)] // NOTE(@jmg-duarte,21/1/25): maybe this could be gated?
     pub type BalanceTable<T: Config> =
         StorageMap<_, _, T::AccountId, BalanceEntry<BalanceOf<T>>, ValueQuery>;
 
@@ -1156,7 +1157,19 @@ pub mod pallet {
         }
     }
 
-    impl<T: Config> Market<T::AccountId, BlockNumberFor<T>> for Pallet<T> {
+    impl<T: Config> Market<T::AccountId, BlockNumberFor<T>, BalanceOf<T>> for Pallet<T> {
+        fn lock_pre_commit_funds(who: &T::AccountId, amount: BalanceOf<T>) -> DispatchResult {
+            lock_funds::<T>(who, amount)?;
+            // NOTE(@jmg-duarte,21/1/25): unsure if this should emit an event
+            Ok(())
+        }
+
+        fn slash_pre_commit_funds(who: &T::AccountId, amount: BalanceOf<T>) -> DispatchResult {
+            slash_and_burn::<T>(who, amount)?;
+            // NOTE(@jmg-duarte,21/1/25): unsure if this should emit an event
+            Ok(())
+        }
+
         /// Verifies a given set of storage deals is valid for sectors being PreCommitted.
         /// Computes UnsealedCID (CommD) for each sector or None for Committed Capacity sectors.
         /// Currently UnsealedCID is hardcoded as we `compute_commd` remains unimplemented because of #92.

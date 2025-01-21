@@ -72,9 +72,20 @@ fn successfully_precommited() {
 #[test]
 fn successfully_precommited_no_deals() {
     new_test_ext().execute_with(|| {
+        const MARKET_BALANCE: u32 = 1000;
+
         // Register CHARLIE as a storage provider.
         let storage_provider = CHARLIE;
         register_storage_provider(account(storage_provider));
+
+        use crate::tests::{Market, System};
+        Market::add_balance(
+            RuntimeOrigin::signed(account(storage_provider)),
+            MARKET_BALANCE.into(),
+        )
+        .unwrap();
+
+        System::reset_events();
 
         // Sector to be pre-committed.
         let sector = SectorPreCommitInfoBuilder::default()
@@ -91,17 +102,13 @@ fn successfully_precommited_no_deals() {
         // Check that the events were triggered
         assert_eq!(
             events(),
-            [
-                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Reserved {
-                    who: account(storage_provider),
-                    amount: 1
-                },),
-                RuntimeEvent::StorageProvider(Event::<Test>::SectorsPreCommitted {
+            [RuntimeEvent::StorageProvider(
+                Event::<Test>::SectorsPreCommitted {
                     block: 1,
                     owner: account(storage_provider),
                     sectors: bounded_vec![sector],
-                })
-            ]
+                }
+            )]
         );
 
         let sp = StorageProviders::<Test>::get(account(storage_provider))
@@ -113,8 +120,12 @@ fn successfully_precommited_no_deals() {
 
         assert_eq!(
             Balances::free_balance(account(storage_provider)),
-            INITIAL_FUNDS - 1
+            INITIAL_FUNDS - (MARKET_BALANCE as u64)
         );
+
+        let balance_entry = Market::balance_table(account(storage_provider));
+        assert_eq!(balance_entry.locked, 1); // Single pre-commit = price is 1
+        assert_eq!(balance_entry.free, 999);
     });
 }
 

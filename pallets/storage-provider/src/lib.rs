@@ -110,13 +110,13 @@ pub mod pallet {
         /// More information about libp2p peer ids: https://docs.libp2p.io/concepts/fundamentals/peers/
         type PeerId: Clone + Debug + Decode + Encode + Eq + TypeInfo;
 
-        /// Currency mechanism, used for collateral
+        /// Currency mechanism, used for the Market balances.
         type Currency: ReservableCurrency<Self::AccountId>;
 
-        /// Market trait implementation for activating deals
-        type Market: Market<Self::AccountId, BlockNumberFor<Self>>;
+        /// Market trait implementation for activating deals.
+        type Market: Market<Self::AccountId, BlockNumberFor<Self>, BalanceOf<Self>>;
 
-        /// Proof verification trait implementation for verifying proofs
+        /// Proof verification trait implementation for verifying proofs.
         type ProofVerification: ProofVerification;
 
         /// Trait for AuthorVRF querying.
@@ -533,15 +533,17 @@ pub mod pallet {
                 deal_amounts,
             )?;
 
-            // Check balance for deposit
-            let balance = T::Currency::total_balance(&owner);
-            ensure!(balance >= total_deposit, Error::<T>::NotEnoughFunds);
-            T::Currency::reserve(&owner, total_deposit)?;
+            // Lock the pre-commit funds in the market account
+            T::Market::lock_pre_commit_funds(&owner, total_deposit)?;
+
             StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResult {
                 let sp = maybe_sp
                     .as_mut()
                     .ok_or(Error::<T>::StorageProviderNotFound)?;
+
+                // NOTE(@jmg-duarte,21/1/25): Not sure if this is still needed
                 sp.add_pre_commit_deposit(total_deposit)?;
+
                 for sector_on_chain in on_chain_sectors {
                     sp.put_pre_committed_sector(sector_on_chain)
                         .map_err(|e| Error::<T>::GeneralPalletError(e))?;
@@ -1285,7 +1287,8 @@ pub mod pallet {
                 state.pre_commit_deposits = slashed_deposits;
 
                 // PRE-COND: currency was previously reserved in pre_commit
-                let Ok(()) = slash_and_burn::<T>(&storage_provider, slash_amount) else {
+                let Ok(()) = T::Market::slash_pre_commit_funds(&storage_provider, slash_amount)
+                else {
                     log::error!(target: LOG_TARGET, "failed to slash.. amount: {:?}, storage_provider: {:?}", slash_amount, storage_provider);
                     continue;
                 };
@@ -1598,35 +1601,6 @@ pub mod pallet {
     /// Calculate the required pre commit deposit amount
     fn calculate_pre_commit_deposit<T: Config>() -> BalanceOf<T> {
         BalanceOf::<T>::one() // TODO(@aidan46, #106, 2024-06-24): Set a logical value or calculation
-    }
-
-    /// Slashes **reserved* currency, burns it completely and settles the token amount in the chain.
-    ///
-    /// Preconditions:
-    /// - `slash_amount` needs to be previously reserved via `T::Currency::reserve()` on `account`,
-    fn slash_and_burn<T: Config>(
-        account: &T::AccountId,
-        slash_amount: BalanceOf<T>,
-    ) -> Result<(), DispatchError> {
-        let (imbalance, balance) = T::Currency::slash_reserved(account, slash_amount);
-
-        log::debug!(target: LOG_TARGET, "imbalance: {:?}, balance: {:?}", imbalance.peek(), balance);
-        ensure!(balance == BalanceOf::<T>::zero(), {
-            log::error!(target: LOG_TARGET, "could not slash_reserved entirely, precondition violated");
-            Error::<T>::SlashingFailed
-        });
-
-        // slash_reserved returns NegativeImbalance, we need to get a concrete value and burn it to level out the circulating currency
-        let imbalance = T::Currency::burn(imbalance.peek());
-
-        // TODO(@jmg-duarte,20/11/2024): we'll probably need to review this,
-        // we're slashing an account (makes sense)
-        // burning the imbalance (maybe we could stash it in an account for rewards)
-        // and settling it??? — this part makes less sense since it's similar to a withdraw
-        T::Currency::settle(account, imbalance, WithdrawReasons::RESERVE, KeepAlive)
-            .map_err(|_| Error::<T>::SlashingFailed)?;
-
-        Ok(())
     }
 
     fn validate_seal_proof<T: Config>(
