@@ -10,7 +10,6 @@ use libp2p::{
 use tokio::time::Duration;
 
 use super::P2PError;
-use crate::p2p::TTL_24_HOURS;
 
 #[derive(NetworkBehaviour)]
 pub struct RegisterBehaviour {
