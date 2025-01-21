@@ -36,7 +36,8 @@ use tokio::{
 };
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use types::{
-    AddPieceMessage, PipelineMessage, PreCommitMessage, ProveCommitMessage,SubmitWindowedPoStMessage,
+    AddPieceMessage, PipelineMessage, PreCommitMessage, ProveCommitMessage,
+    SubmitWindowedPoStMessage,
 };
 
 use crate::db::{DBError, DealDB};

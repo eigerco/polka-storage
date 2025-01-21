@@ -30,13 +30,19 @@ storagext = { workspace = true }
 subxt = { workspace = true, features = ["substrate-compat"] }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
+tokio-util = { workspace = true, features = ["rt"] }
 tracing = { workspace = true }
+libp2p = { workspace = true, features = ["identify", "ecdsa"]}
+libp2p-identity = { workspace = true, features = ["rand", "ecdsa"] }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 polka-storage-provider-common = { workspace = true }
 
 zombienet-configuration.workspace = true
 zombienet-sdk.workspace = true
 zombienet-support.workspace = true
+
+[dev-dependencies]
+tempfile = { workspace = true }
 
 [lints]
 workspace = true
