@@ -1,7 +1,23 @@
 # Polka Storage Provider — Server
 
-This chapter covers the available CLI options for the Polka Storage Provider server.
+This chapter covers the Polka Storage Provider server.
 
+## P2P Key generation
+
+The Polka Storage Provider server runs a p2p node that is used to map Peer ID's to Multi-addresses.
+The server can run either a bootstrap node, used to aid in discovery,
+or a registration node, which registers to a bootstrap node with their Peer ID to Multi-address mapping.
+For both of these node types, the server needs an ed25519 private key.
+The ed25519 public key is used to create a Peer ID using the [Polka Storage Provider client](./client/index.md#generate-peer-id).
+
+To generate the ed25519 keypair use the following command:
+
+```bash
+openssl genpkey -algorithm ED25519 -out <PRIVATE_KEY_PATH> -outpubkey <PUBLIC_KEY_PATH>
+```
+
+
+## CLI Options
 <!-- Sadly, tables will not cut it here, since the text is just too big for the table. -->
 
 ### `--sr25519-key`
