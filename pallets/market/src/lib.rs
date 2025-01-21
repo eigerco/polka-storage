@@ -789,6 +789,24 @@ pub mod pallet {
 
     /// Functions exposed by the pallet
     impl<T: Config> Pallet<T> {
+        /// Retrieve the locked balance for the given account.
+        pub fn locked(who: &T::AccountId) -> Option<BalanceOf<T>> {
+            // try_get is required because the StorageMap has ValueQuery instead of OptionQuery
+            match BalanceTable::<T>::try_get(who) {
+                Ok(entry) => Some(entry.locked),
+                Err(_) => None,
+            }
+        }
+
+        /// Retrieve the locked balance for the given account.
+        pub fn free(who: &T::AccountId) -> Option<BalanceOf<T>> {
+            // try_get is required because the StorageMap has ValueQuery instead of OptionQuery
+            match BalanceTable::<T>::try_get(who) {
+                Ok(entry) => Some(entry.free),
+                Err(_) => None,
+            }
+        }
+
         /// Account Id of the Market
         ///
         /// This actually does computation.
@@ -1159,15 +1177,13 @@ pub mod pallet {
 
     impl<T: Config> Market<T::AccountId, BlockNumberFor<T>, BalanceOf<T>> for Pallet<T> {
         fn lock_pre_commit_funds(who: &T::AccountId, amount: BalanceOf<T>) -> DispatchResult {
-            lock_funds::<T>(who, amount)?;
             // NOTE(@jmg-duarte,21/1/25): unsure if this should emit an event
-            Ok(())
+            lock_funds::<T>(who, amount)
         }
 
         fn slash_pre_commit_funds(who: &T::AccountId, amount: BalanceOf<T>) -> DispatchResult {
-            slash_and_burn::<T>(who, amount)?;
             // NOTE(@jmg-duarte,21/1/25): unsure if this should emit an event
-            Ok(())
+            slash_and_burn::<T>(who, amount)
         }
 
         /// Verifies a given set of storage deals is valid for sectors being PreCommitted.
