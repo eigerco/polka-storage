@@ -10,7 +10,7 @@ use crate::{
     pallet::{Error, Event, StorageProviders},
     sector::{ProveCommitResult, ProveCommitSector},
     tests::{
-        account, events, publish_deals, register_storage_provider, run_to_block, Balances,
+        account, events, publish_deals, register_storage_provider, run_to_block, Balances, Market,
         RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System, Test,
         ALICE, BOB, CHARLIE, INITIAL_FUNDS,
     },
@@ -192,9 +192,9 @@ fn successfully_prove_multiple_sectors() {
 
         // check that the funds are still locked
         assert_eq!(
-            Balances::free_balance(account(storage_provider)),
-            // Provider reserved 70 tokens in the market pallet and 1 token is used per the pre-commit
-            INITIAL_FUNDS - 70 - SECTORS_TO_COMMIT as u64
+            Market::free(&account(storage_provider)),
+            // 70 - 25 * 2 = 20
+            Some(20 - SECTORS_TO_COMMIT as u64)
         );
         let sp_state = StorageProviders::<Test>::get(account(storage_provider))
             .expect("Should be able to get providers info");
