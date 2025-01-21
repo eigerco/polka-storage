@@ -127,8 +127,6 @@ pub async fn run_bootstrap_node(
         },
         _ = token.cancelled() => {
             tracing::info!("P2P node has been stopped by the cancellation token...");
-            tracker.close();
-            tracker.wait().await;
         },
     }
 
@@ -162,8 +160,6 @@ pub async fn run_register_node(
         },
         _ = token.cancelled() => {
             tracing::info!("P2P node has been stopped by the cancellation token...");
-            tracker.close();
-            tracker.wait().await;
         },
     }
 

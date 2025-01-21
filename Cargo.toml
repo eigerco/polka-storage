@@ -17,6 +17,7 @@ members = [
   "pallets/proofs",
   "pallets/randomness",
   "pallets/storage-provider",
+  "peer-resolver",
   "primitives",
   "runtime",
   "storage-provider/client",
