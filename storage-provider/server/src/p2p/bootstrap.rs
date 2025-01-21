@@ -9,7 +9,8 @@ use libp2p::{
     tcp, yamux, Multiaddr, Swarm, SwarmBuilder,
 };
 
-use super::{P2PError, TTL_24_HOURS};
+use super::P2PError;
+use crate::config::DEFAULT_REGISTRATION_TTL;
 
 #[derive(NetworkBehaviour)]
 pub struct BootstrapBehaviour {
@@ -39,7 +40,7 @@ impl BootstrapConfig {
             .with_behaviour(|key| BootstrapBehaviour {
                 // Rendezvous server behaviour for serving new peers to connecting nodes.
                 rendezvous: rendezvous::server::Behaviour::new(
-                    rendezvous::server::Config::default().with_max_ttl(TTL_24_HOURS), // Max TTL of 24 hours
+                    rendezvous::server::Config::default().with_max_ttl(DEFAULT_REGISTRATION_TTL), // Max TTL of 24 hours
                 ),
                 // The identify behaviour is used to share the external address and the public key with connecting clients.
                 identify: identify::Behaviour::new(identify::Config::new(

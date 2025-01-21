@@ -15,6 +15,8 @@ use crate::{
     DEFAULT_NODE_ADDRESS,
 };
 
+pub const DEFAULT_REGISTRATION_TTL: u64 = 86400;
+
 /// Default address to bind the RPC server to.
 const fn default_rpc_listen_address() -> SocketAddr {
     SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8000)
@@ -29,6 +31,11 @@ const fn default_upload_listen_address() -> SocketAddr {
 const fn default_parallel_prove_commits() -> NonZero<usize> {
     // SAFETY: 2 != 0
     unsafe { NonZero::new_unchecked(2) }
+}
+
+/// Default registration TTL, how long the node is registered.
+const fn default_registration_ttl() -> u64 {
+    DEFAULT_REGISTRATION_TTL
 }
 
 fn default_node_address() -> Url {
@@ -125,5 +132,7 @@ pub struct ConfigurationArgs {
     pub(crate) rendezvous_point: Option<PeerId>,
 
     /// TTL of the p2p registration in seconds
-    pub(crate) registration_ttl: Option<u64>,
+    #[serde(default = "default_registration_ttl")]
+    #[arg(long, default_value_t = DEFAULT_REGISTRATION_TTL)]
+    pub(crate) registration_ttl: u64,
 }

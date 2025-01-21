@@ -10,7 +10,6 @@ use libp2p::{
 use tokio::time::Duration;
 
 use super::P2PError;
-use crate::p2p::TTL_24_HOURS;
 
 #[derive(NetworkBehaviour)]
 pub struct RegisterBehaviour {
@@ -20,9 +19,9 @@ pub struct RegisterBehaviour {
 
 pub struct RegisterConfig {
     keypair: Keypair,
-    rendezvous_point_address: Multiaddr,
-    rendezvous_point: PeerId,
-    pub(crate) registration_ttl: Option<u64>,
+    pub(crate) rendezvous_point_address: Multiaddr,
+    pub(crate) rendezvous_point: PeerId,
+    pub(crate) registration_ttl: u64,
 }
 
 impl RegisterConfig {
@@ -30,7 +29,7 @@ impl RegisterConfig {
         keypair: Keypair,
         rendezvous_point_address: Multiaddr,
         rendezvous_point: PeerId,
-        registration_ttl: Option<u64>,
+        registration_ttl: u64,
     ) -> Self {
         Self {
             keypair,
@@ -40,7 +39,7 @@ impl RegisterConfig {
         }
     }
 
-    pub fn create_swarm(self) -> Result<(Swarm<RegisterBehaviour>, Multiaddr, PeerId), P2PError> {
+    pub fn create_swarm(self) -> Result<Swarm<RegisterBehaviour>, P2PError> {
         let swarm = SwarmBuilder::with_existing_identity(self.keypair)
             .with_tokio()
             .with_tcp(
@@ -62,7 +61,7 @@ impl RegisterConfig {
             .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(Duration::from_secs(10)))
             .build();
 
-        Ok((swarm, self.rendezvous_point_address, self.rendezvous_point))
+        Ok(swarm)
     }
 }
 
@@ -72,11 +71,11 @@ pub(crate) async fn register(
     swarm: &mut Swarm<RegisterBehaviour>,
     rendezvous_point: PeerId,
     rendezvous_point_address: Multiaddr,
-    ttl: Option<u64>,
+    ttl: u64,
     namespace: Namespace,
 ) -> Result<(), P2PError> {
     tracing::info!("Attempting to register with rendezvous point {rendezvous_point} at {rendezvous_point_address}");
-    let mut register_tick = tokio::time::interval(Duration::from_secs(ttl.unwrap_or(TTL_24_HOURS)));
+    let mut register_tick = tokio::time::interval(Duration::from_secs(ttl));
 
     loop {
         register_tick.tick().await;
@@ -88,7 +87,7 @@ pub(crate) async fn register(
 async fn register_and_check_events(
     swarm: &mut Swarm<RegisterBehaviour>,
     rendezvous_point: PeerId,
-    ttl: Option<u64>,
+    ttl: u64,
     namespace: Namespace,
 ) -> Result<(), P2PError> {
     while let Some(event) = swarm.next().await {
@@ -113,7 +112,7 @@ async fn register_and_check_events(
                 if let Err(error) = swarm.behaviour_mut().rendezvous.register(
                     namespace.clone(),
                     rendezvous_point,
-                    ttl,
+                    Some(ttl),
                 ) {
                     tracing::error!("Failed to register: {error}");
                     return Err(P2PError::RegistrationFailed(rendezvous_point));

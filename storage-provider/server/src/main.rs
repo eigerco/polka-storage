@@ -274,7 +274,7 @@ pub struct Server {
     rendezvous_point: Option<PeerId>,
 
     /// TTL of the p2p registration in seconds
-    registration_ttl: Option<u64>,
+    registration_ttl: u64,
 }
 
 impl TryFrom<ServerCli> for Server {
