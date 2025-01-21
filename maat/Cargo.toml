@@ -32,6 +32,7 @@ thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
+polka-storage-provider-common = { workspace = true }
 
 zombienet-configuration.workspace = true
 zombienet-sdk.workspace = true

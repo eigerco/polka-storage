@@ -9,7 +9,10 @@ use polka_storage_proofs::{
     },
     post::{self, PoStError, PoStParameters, ReplicaInfo},
 };
-use polka_storage_provider_common::rpc::ServerInfo;
+use polka_storage_provider_common::{
+    rpc::ServerInfo,
+    sector::{PreCommittedSector, ProvenSector, SectorError, UnsealedSector},
+};
 use primitives::{
     commitment::{CommP, Commitment},
     proofs::derive_prover_id,
@@ -33,8 +36,7 @@ use tokio::{
 };
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use types::{
-    AddPieceMessage, PipelineMessage, PreCommitMessage, PreCommittedSector, ProveCommitMessage,
-    ProvenSector, SectorError, SubmitWindowedPoStMessage, UnsealedSector,
+    AddPieceMessage, PipelineMessage, PreCommitMessage, ProveCommitMessage,SubmitWindowedPoStMessage,
 };
 
 use crate::db::{DBError, DealDB};

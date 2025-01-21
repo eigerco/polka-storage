@@ -3,3 +3,4 @@
 
 pub mod commp;
 pub mod rpc;
+pub mod sector;
