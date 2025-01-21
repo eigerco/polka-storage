@@ -114,3 +114,14 @@ $ SIGNED_DEAL='{
 $ polka-storage-provider-client publish-deal "$SIGNED_DEAL"
 0
 ```
+
+## `generate-peer-id`
+
+The `generate-peer-id` command generates a Peer ID from an ed25519 public key in PEM file format.
+
+To generate an ed25519 keypair check the [Polka Storage Provider server documentation](../server.md#p2p-key-generation).
+
+```bash
+$ polka-storage-provider-client generate-peer-id --pubkey <PUBLIC_KEY_PATH>
+12D3KooWCYTvmMFvMgo4CKNMaCTJQhUv7BN1TB3xrSPZJ6FVErmH
+```
