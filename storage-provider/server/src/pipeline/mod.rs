@@ -1,38 +1,24 @@
 pub mod types;
 
-use std::{collections::BTreeSet, path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc};
 
 use polka_storage_proofs::{
-    porep::{
-        sealer::{BlstrsProof, SubstrateProof},
-        PoRepError, PoRepParameters,
-    },
-    post::{self, PoStError, PoStParameters, ReplicaInfo},
+    porep::PoRepParameters,
+    post::{PoStError, PoStParameters},
 };
 use polka_storage_provider_common::{
+    deadline::Deadline,
     rpc::ServerInfo,
-    sector::{PreCommittedSector, ProvenSector, SectorError, UnsealedSector},
+    sector::{PreCommittedSector, SectorError, UnsealedSector},
 };
 use primitives::{
     commitment::{CommP, Commitment},
-    proofs::derive_prover_id,
-    randomness::{draw_randomness, DomainSeparationTag},
     sector::SectorNumber,
 };
-use storagext::{
-    types::{
-        market::DealProposal,
-        storage_provider::{PartitionState, PoStProof, SubmitWindowedPoStParams},
-    },
-    RandomnessClientExt, StorageProviderClientExt, SystemClientExt,
-};
-use subxt::{ext::codec::Encode, tx::Signer};
-use tokio::{
-    sync::{
-        mpsc::{error::SendError, UnboundedReceiver, UnboundedSender},
-        Semaphore,
-    },
-    task::{JoinError, JoinHandle},
+use storagext::{types::market::DealProposal, StorageProviderClientExt};
+use tokio::sync::{
+    mpsc::{error::SendError, UnboundedReceiver, UnboundedSender},
+    Semaphore,
 };
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use types::{
@@ -45,13 +31,9 @@ use crate::db::{DBError, DealDB};
 #[derive(Debug, thiserror::Error)]
 pub enum PipelineError {
     #[error(transparent)]
-    PoRepError(#[from] PoRepError),
-    #[error(transparent)]
     SectorError(#[from] SectorError),
     #[error(transparent)]
     PoStError(#[from] PoStError),
-    #[error(transparent)]
-    Join(#[from] JoinError),
     #[error(transparent)]
     Subxt(#[from] subxt::Error),
     #[error(transparent)]
@@ -60,12 +42,6 @@ pub enum PipelineError {
     DBError(#[from] DBError),
     #[error("sector does not exist")]
     SectorNotFound,
-    #[error("precommit scheduled too early, randomness not available")]
-    RandomnessNotAvailable,
-    #[error("current deadline or storage provider not found")]
-    DeadlineNotFound,
-    #[error("deadline of given index does not have a state")]
-    DeadlineStateNotFound,
     #[error(transparent)]
     SendError(#[from] SendError<PipelineMessage>),
     #[error("failed to schedule windowed PoSt")]
@@ -394,139 +370,28 @@ async fn submit_windowed_post(
     state: Arc<PipelineState>,
     deadline_index: u64,
 ) -> Result<(), PipelineError> {
-    tracing::info!("Getting deadline info for {} deadline", deadline_index);
-    let deadline = state
-        .xt_client
-        .deadline_info(&state.xt_keypair.account_id().into(), deadline_index)
-        .await?;
-    let Some(deadline) = deadline else {
-        tracing::error!("there is no such deadline...");
-        return Err(PipelineError::DeadlineNotFound);
+    let deadline = Deadline::new(deadline_index, state.server_info.post_proof);
+    let sector_storage = |sector_number| match state.db.get_sector(sector_number) {
+        Ok(sector) => sector,
+        Err(e) => {
+            tracing::error!("failed to get sector: {}", e);
+            None
+        }
     };
 
-    tracing::debug!("Deadline Info: {:?}", deadline);
-    tracing::info!(
-        "Wait for challenge_block {}, start: {}, for deadline challenge",
-        deadline.challenge_block,
-        deadline.start
-    );
-    state
-        .xt_client
-        .wait_for_height(deadline.start, true)
-        .await?;
-    tracing::info!("Waiting finished (block: {}), let's go", deadline.start);
-
-    let Some(digest) = state
-        .xt_client
-        .get_randomness(deadline.challenge_block)
-        .await?
-    else {
-        tracing::error!("Randomness for the block not available.");
-        return Err(PipelineError::RandomnessNotAvailable);
-    };
-    let entropy = state.xt_keypair.account_id().encode();
-    let randomness = draw_randomness(
-        &digest,
-        DomainSeparationTag::WindowedPoStChallengeSeed,
-        deadline.challenge_block,
-        &entropy,
-    );
-
-    let Some(deadline_state) = state
-        .xt_client
-        .deadline_state(&state.xt_keypair.account_id().into(), deadline_index)
-        .await?
-    else {
-        tracing::error!("Something went catastrophic, there is no current deadline state");
-        return Err(PipelineError::DeadlineStateNotFound);
-    };
-
-    if deadline_state.partitions.len() == 0 {
-        tracing::info!("There are not partitions in this deadline yet. Nothing to prove here.");
-        schedule_post(state, deadline_index)?;
-        return Ok(());
-    }
-
-    let partitions = deadline_state.partitions.keys().cloned().collect();
-    let all_sectors = BTreeSet::from_iter(
-        deadline_state
-            .partitions
-            .into_iter()
-            .flat_map(|(_, PartitionState { sectors })| sectors),
-    );
-
-    if all_sectors.len() == 0 {
-        tracing::info!("Every sector expired... Nothing to prove here.");
-        schedule_post(state, deadline_index)?;
-        return Ok(());
-    }
-
-    let mut replicas = Vec::new();
-    for sector_number in all_sectors {
-        let sector = state
-            .db
-            .get_sector::<ProvenSector>(sector_number)?
-            .ok_or(PipelineError::SectorNotFound)?;
-
-        replicas.push(ReplicaInfo {
-            sector_id: sector_number,
-            comm_r: sector.comm_r.raw(),
-            cache_path: sector.cache_path.clone(),
-            replica_path: sector.sealed_path.clone(),
-        });
-    }
-    let prover_id = derive_prover_id(state.xt_keypair.account_id());
-
-    tracing::info!("Proving PoSt partitions... {:?}", partitions);
-    let handle: JoinHandle<Result<Vec<BlstrsProof>, _>> = {
-        let post_params = state.post_parameters.clone();
-        let post_proof = state.server_info.post_proof;
-
-        tokio::task::spawn_blocking(move || {
-            post::generate_window_post(post_proof, &post_params, randomness, prover_id, replicas)
-        })
-    };
-    let proofs = handle.await??;
-    tracing::info!("Generated PoSt proof for partitions: {:?}", partitions);
-
-    let proofs = proofs
-        .into_iter()
-        .map(|p| PoStProof {
-            post_proof: state.server_info.post_proof,
-            proof_bytes: codec::Encode::encode(
-                &TryInto::<SubstrateProof>::try_into(p.clone())
-                    .expect("converstion between rust-fil-proofs and polka-storage-proofs to work"),
-            ),
-        })
-        .collect::<Vec<_>>();
-
-    tracing::info!("Wait for block {} for open deadline", deadline.start,);
-    state
-        .xt_client
-        .wait_for_height(deadline.start, true)
-        .await?;
-
-    let result = state
-        .xt_client
+    if let Err(e) = deadline
         .submit_windowed_post(
+            state.xt_client.clone(),
             &state.xt_keypair,
-            SubmitWindowedPoStParams {
-                deadline: deadline_index,
-                partitions,
-                proofs,
-            },
-            true,
+            state.post_parameters.clone(),
+            sector_storage,
         )
-        .await?
-        .expect("waiting for finalization should always give results");
-
-    let posts = result
-        .events
-        .find::<storagext::runtime::storage_provider::events::ValidPoStSubmitted>()
-        .map(|result| result.map_err(|err| subxt::Error::from(err)))
-        .collect::<Result<Vec<_>, _>>()?;
-
-    tracing::info!("Successfully submitted PoSt on-chain: {:?}", posts);
+        .await
+    {
+        tracing::error!("failed to submit post for deadline, {}", e);
+    } else {
+        tracing::info!("submitted post successfully");
+    }
 
     schedule_post(state, deadline_index)?;
 
