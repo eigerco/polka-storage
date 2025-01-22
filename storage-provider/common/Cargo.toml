@@ -14,17 +14,20 @@ storagext = { workspace = true, features = ["clap"] }
 
 chrono = { workspace = true, features = ["serde"] }
 cid = { workspace = true, features = ["serde", "std"] }
+codec = { workspace = true }
 filecoin-hashers.workspace = true
 fr32.workspace = true
+hex = { workspace = true, features = ["std"] }
 jsonrpsee = { workspace = true, features = ["http-client", "macros", "server", "ws-client"] }
+polka-storage-proofs = { workspace = true, features = ["std", "substrate"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 storage-proofs-core.workspace = true
 subxt = { workspace = true }
 thiserror = { workspace = true }
-
-[dev-dependencies]
-polka-storage-proofs = { workspace = true, features = ["std"] }
+tokio = { workspace = true, features = ["fs"] }
+tokio-util = { workspace = true, features = ["rt"] }
+tracing = { workspace = true }
 
 [lints]
 workspace = true

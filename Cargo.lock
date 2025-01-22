@@ -4567,6 +4567,7 @@ dependencies = [
  "ff",
  "generic-array 0.14.7",
  "group",
+ "pem-rfc7468",
  "pkcs8",
  "rand_core 0.6.4",
  "sec1",
@@ -8143,8 +8144,10 @@ dependencies = [
  "ed25519-dalek",
  "hkdf",
  "multihash 0.19.3",
+ "p256",
  "quick-protobuf",
  "rand",
+ "sec1",
  "sha2 0.10.8",
  "thiserror 1.0.69",
  "tracing",
@@ -8953,17 +8956,24 @@ dependencies = [
 name = "maat"
 version = "0.1.0"
 dependencies = [
+ "bls12_381",
  "bs58",
  "cid 0.11.1",
  "futures",
  "hex",
+ "libp2p 0.54.1",
+ "parity-scale-codec",
+ "polka-storage-proofs",
+ "polka-storage-provider-common",
  "primitives",
  "serde",
  "serde_json",
  "storagext",
  "subxt 0.38.0",
+ "tempfile",
  "thiserror 2.0.8",
  "tokio",
+ "tokio-util",
  "tracing",
  "tracing-subscriber 0.3.19",
  "zombienet-configuration",
@@ -10071,6 +10081,18 @@ name = "overload"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
+
+[[package]]
+name = "p256"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c9863ad85fa8f4460f9c48cb909d38a0d689dba1f6f6988a5e3e0d31071bcd4b"
+dependencies = [
+ "ecdsa",
+ "elliptic-curve",
+ "primeorder",
+ "sha2 0.10.8",
+]
 
 [[package]]
 name = "pairing"
@@ -13898,7 +13920,9 @@ dependencies = [
  "cid 0.11.1",
  "filecoin-hashers",
  "fr32",
+ "hex",
  "jsonrpsee 0.24.7",
+ "parity-scale-codec",
  "polka-storage-proofs",
  "primitives",
  "serde",
@@ -13907,6 +13931,9 @@ dependencies = [
  "storagext",
  "subxt 0.38.0",
  "thiserror 2.0.8",
+ "tokio",
+ "tokio-util",
+ "tracing",
 ]
 
 [[package]]
@@ -16002,6 +16029,15 @@ checksum = "64d1ec885c64d0457d564db4ec299b2dae3f9c02808b8ad9c3a089c591b18033"
 dependencies = [
  "proc-macro2",
  "syn 2.0.90",
+]
+
+[[package]]
+name = "primeorder"
+version = "0.13.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "353e1ca18966c16d9deb1c69278edbc5f194139612772bd9537af60ac231e1e6"
+dependencies = [
+ "elliptic-curve",
 ]
 
 [[package]]
