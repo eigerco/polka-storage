@@ -8962,7 +8962,6 @@ dependencies = [
  "futures",
  "hex",
  "libp2p 0.54.1",
- "libp2p-identity",
  "parity-scale-codec",
  "polka-storage-proofs",
  "polka-storage-provider-common",

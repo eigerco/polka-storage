@@ -26,7 +26,6 @@ codec = { workspace = true }
 futures.workspace = true
 hex = { workspace = true }
 libp2p = { workspace = true, features = ["ecdsa", "identify"] }
-libp2p-identity = { workspace = true, features = ["ecdsa", "rand"] }
 polka-storage-proofs = { workspace = true, features = ["std", "substrate"] }
 polka-storage-provider-common = { workspace = true }
 primitives = { workspace = true, features = ["serde"] }
