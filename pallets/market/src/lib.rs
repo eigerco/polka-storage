@@ -305,7 +305,6 @@ pub mod pallet {
     /// Invariant must be held at all times:
     /// `account(MarketPallet).balance == all_accounts.map(|balance| balance[account]].locked + balance[account].free).sum()`
     #[pallet::storage]
-    #[pallet::getter(fn balance_table)] // NOTE(@jmg-duarte,21/1/25): maybe this could be gated?
     pub type BalanceTable<T: Config> =
         StorageMap<_, _, T::AccountId, BalanceEntry<BalanceOf<T>>, ValueQuery>;
 
