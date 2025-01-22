@@ -66,11 +66,8 @@ pub(crate) async fn bootstrap(
     swarm.listen_on(addr)?;
     while let Some(event) = swarm.next().await {
         match event {
-            SwarmEvent::ConnectionEstablished { peer_id, .. } => {
-                tracing::info!("Connected to {}", peer_id);
-            }
-            SwarmEvent::ConnectionClosed { peer_id, .. } => {
-                tracing::info!("Disconnected from {}", peer_id);
+            SwarmEvent::NewListenAddr { address, .. } => {
+                tracing::info!("Listening on {}", address);
             }
             SwarmEvent::Behaviour(BootstrapBehaviourEvent::Rendezvous(
                 rendezvous::server::Event::PeerRegistered { peer, registration },
@@ -105,7 +102,7 @@ pub(crate) async fn bootstrap(
                     registration.namespace
                 );
             }
-            _other => {}
+            other => tracing::debug!("Encountered event: {other:?}"),
         }
     }
     Ok(())
