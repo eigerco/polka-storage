@@ -26,6 +26,9 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 
+// TODO(@th7nder,#622,02/12/2024): query it from the chain.
+const SECTOR_EXPIRATION_MARGIN: u64 = 20;
+
 #[derive(Debug, thiserror::Error)]
 pub enum SectorError {
     #[error(transparent)]
@@ -72,58 +75,6 @@ pub struct UnsealedSector {
     /// File at this path is created when the sector is created by [`Sector::create`].
     pub unsealed_path: std::path::PathBuf,
 }
-
-/// Sector which has been sealed and pre-committed on-chain.
-/// When proven, it's converted into [`ProvenSector`].
-#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub struct PreCommittedSector {
-    seal_proof: RegisteredSealProof,
-
-    /// [`SectorNumber`] which identifies a sector in the Storage Provider.
-    ///
-    /// It *should be centrally generated* by the Storage Provider, currently by [`crate::db::DealDB::next_sector_number`].
-    pub sector_number: SectorNumber,
-
-    /// Tracks all of the pieces that has been added to the sector.
-    /// Indexes match with corresponding deals in [`Sector::deals`].
-    pub piece_infos: Vec<PieceInfo>,
-
-    /// Tracks all of the deals that have been added to the sector.
-    pub deals: Vec<(DealId, DealProposal)>,
-
-    /// Cache directory of the sector.
-    /// Each sector needs to have it's cache directory in a different place, because `p_aux` and `t_aux` are stored there.
-    pub cache_path: std::path::PathBuf,
-
-    /// Path of an existing file where the sealed sector data is stored.
-    ///
-    /// File at this path is initially created by [`Sector::create`], however it's empty.
-    ///
-    /// Only after pipeline [`PipelineMessage::PreCommit`],
-    /// the file has contents which should not be touched and are used for later steps.
-    pub sealed_path: std::path::PathBuf,
-
-    /// Sealed sector commitment.
-    pub comm_r: Commitment<CommR>,
-
-    /// Data commitment of the sector.
-    pub comm_d: Commitment<CommD>,
-
-    /// Block at which randomness has been fetched to perform [`PipelineMessage::PreCommit`].
-    ///
-    /// It is used as a randomness seed to create a replica.
-    /// Available at [`SectorState::Sealed`] and later.
-    pub seal_randomness_height: u64,
-
-    /// Block at which the sector was precommitted (extrinsic submitted on-chain).
-    ///
-    /// It is used as a randomness seed to create a PoRep.
-    /// Available at [`SectorState::Precommitted`] and later.
-    pub precommit_block: u64,
-}
-
-// TODO(@th7nder,#622,02/12/2024): query it from the chain.
-const SECTOR_EXPIRATION_MARGIN: u64 = 20;
 
 impl UnsealedSector {
     /// Creates a new sector and empty file at the provided path.
@@ -297,6 +248,55 @@ impl UnsealedSector {
     }
 }
 
+/// Sector which has been sealed and pre-committed on-chain.
+/// When proven, it's converted into [`ProvenSector`].
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
+pub struct PreCommittedSector {
+    seal_proof: RegisteredSealProof,
+
+    /// [`SectorNumber`] which identifies a sector in the Storage Provider.
+    ///
+    /// It *should be centrally generated* by the Storage Provider, currently by [`crate::db::DealDB::next_sector_number`].
+    pub sector_number: SectorNumber,
+
+    /// Tracks all of the pieces that has been added to the sector.
+    /// Indexes match with corresponding deals in [`Sector::deals`].
+    pub piece_infos: Vec<PieceInfo>,
+
+    /// Tracks all of the deals that have been added to the sector.
+    pub deals: Vec<(DealId, DealProposal)>,
+
+    /// Cache directory of the sector.
+    /// Each sector needs to have it's cache directory in a different place, because `p_aux` and `t_aux` are stored there.
+    pub cache_path: std::path::PathBuf,
+
+    /// Path of an existing file where the sealed sector data is stored.
+    ///
+    /// File at this path is initially created by [`Sector::create`], however it's empty.
+    ///
+    /// Only after pipeline [`PipelineMessage::PreCommit`],
+    /// the file has contents which should not be touched and are used for later steps.
+    pub sealed_path: std::path::PathBuf,
+
+    /// Sealed sector commitment.
+    pub comm_r: Commitment<CommR>,
+
+    /// Data commitment of the sector.
+    pub comm_d: Commitment<CommD>,
+
+    /// Block at which randomness has been fetched to perform [`PipelineMessage::PreCommit`].
+    ///
+    /// It is used as a randomness seed to create a replica.
+    /// Available at [`SectorState::Sealed`] and later.
+    pub seal_randomness_height: u64,
+
+    /// Block at which the sector was precommitted (extrinsic submitted on-chain).
+    ///
+    /// It is used as a randomness seed to create a PoRep.
+    /// Available at [`SectorState::Precommitted`] and later.
+    pub precommit_block: u64,
+}
+
 impl PreCommittedSector {
     /// Transforms [`UnsealedSector`] and removes it's underlying data.
     ///
@@ -335,6 +335,11 @@ impl PreCommittedSector {
         throttle: Arc<Semaphore>,
         token: CancellationToken,
     ) -> Result<ProvenSector, SectorError> {
+        // TODO(@th7nder,04/11/2024):
+        // https://github.com/eigerco/polka-storage/blob/5edd4194f08f29d769c277577ccbb70bb6ff63bc/runtime/src/configs/mod.rs#L360
+        // 10 blocks = 1 minute, only testnet
+        const PRECOMMIT_CHALLENGE_DELAY: u64 = 10;
+
         let sealer: Sealer = Sealer::new(self.seal_proof);
 
         let seal_randomness_height = self.seal_randomness_height;
@@ -353,12 +358,7 @@ impl PreCommittedSector {
             &entropy,
         );
 
-        // TODO(@th7nder,04/11/2024):
-        // https://github.com/eigerco/polka-storage/blob/5edd4194f08f29d769c277577ccbb70bb6ff63bc/runtime/src/configs/mod.rs#L360
-        // 10 blocks = 1 minute, only testnet
-        const PRECOMMIT_CHALLENGE_DELAY: u64 = 10;
         let prove_commit_block = self.precommit_block + PRECOMMIT_CHALLENGE_DELAY;
-
         tracing::info!("Wait for block {} to get randomness", prove_commit_block);
         tokio::select! {
             res = xt_client.wait_for_height(prove_commit_block, true) => {
