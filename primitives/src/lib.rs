@@ -6,6 +6,12 @@ pub mod proofs;
 pub mod randomness;
 pub mod sector;
 
+#[cfg(feature = "testing")]
+pub mod testing {
+    // NOTE(@jmg-duarte,22/01/2025): Since there's only one thing, star import for now.
+    pub use crate::proofs::testing::*;
+}
+
 pub type DealId = u64;
 
 pub type PartitionNumber = u32;

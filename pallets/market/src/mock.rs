@@ -122,7 +122,7 @@ impl pallet_storage_provider::Config for Test {
     type PeerId = BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>; // https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
     type Currency = Balances;
     type Market = Market;
-    type ProofVerification = Proofs;
+    type ProofVerification = primitives::testing::DummyProofsVerification;
     type WPoStProvingPeriod = WpostProvingPeriod;
     type WPoStChallengeWindow = WpostChallengeWindow;
     type WPoStChallengeLookBack = WpostChallengeLookBack;

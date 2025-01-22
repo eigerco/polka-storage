@@ -174,3 +174,60 @@ mod serde_tests {
         );
     }
 }
+
+#[cfg(feature = "testing")]
+pub mod testing {
+    use sp_core::{bounded_btree_map::BoundedBTreeMap, bounded_vec::BoundedVec, ConstU32};
+
+    use crate::{
+        pallets::ProofVerification,
+        proofs::{
+            ProverId, PublicReplicaInfo, RawCommitment, RegisteredPoStProof, RegisteredSealProof,
+            Ticket,
+        },
+        sector::SectorNumber,
+        MAX_POST_PROOF_BYTES, MAX_PROOFS_PER_BLOCK, MAX_REPLICAS_PER_BLOCK, MAX_SEAL_PROOF_BYTES,
+    };
+
+    /// A sentinel value for an invalid proof, everything else will be considered valid.
+    pub const INVALID_PROOF: [u8; 2] = [0xd, 0xe];
+
+    /// This is dummy proofs pallet implementation.
+    /// All PoRep proofs are accepted as valid.
+    /// All PoSt proofs are accepted as valid unless first of them is [`INVALID_PROOF`].
+    pub struct DummyProofsVerification;
+
+    impl ProofVerification for DummyProofsVerification {
+        fn verify_porep(
+            _prover_id: ProverId,
+            _seal_proof: RegisteredSealProof,
+            _comm_r: RawCommitment,
+            _comm_d: RawCommitment,
+            _sector: SectorNumber,
+            _ticket: Ticket,
+            _seed: Ticket,
+            _proof: BoundedVec<u8, ConstU32<MAX_SEAL_PROOF_BYTES>>,
+        ) -> sp_runtime::DispatchResult {
+            Ok(())
+        }
+
+        fn verify_post(
+            _post_type: RegisteredPoStProof,
+            _randomness: Ticket,
+            _replicas: BoundedBTreeMap<
+                SectorNumber,
+                PublicReplicaInfo,
+                ConstU32<MAX_REPLICAS_PER_BLOCK>,
+            >,
+            proofs: BoundedVec<
+                BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>,
+                ConstU32<MAX_PROOFS_PER_BLOCK>,
+            >,
+        ) -> sp_runtime::DispatchResult {
+            if *proofs[0] == INVALID_PROOF {
+                return Err(sp_runtime::DispatchError::Other("invalid proof"));
+            }
+            Ok(())
+        }
+    }
+}

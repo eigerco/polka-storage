@@ -3,22 +3,16 @@ use alloc::collections::BTreeSet;
 
 use codec::Encode;
 use frame_support::{
-    assert_ok, derive_impl,
-    pallet_prelude::ConstU32,
-    parameter_types,
-    sp_runtime::{BoundedBTreeMap, BoundedVec},
-    traits::Hooks,
-    PalletId,
+    assert_ok, derive_impl, pallet_prelude::ConstU32, parameter_types, sp_runtime::BoundedVec,
+    traits::Hooks, PalletId,
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 use pallet_market::{BalanceOf, ClientDealProposal, DealProposal, DealState};
 use primitives::{
-    commitment::{CommP, Commitment, RawCommitment},
-    pallets::ProofVerification,
-    proofs::{ProverId, PublicReplicaInfo, RegisteredPoStProof, RegisteredSealProof, Ticket},
+    commitment::{CommP, Commitment},
+    proofs::RegisteredPoStProof,
     sector::SectorNumber,
-    PartitionNumber, MAX_PARTITIONS_PER_DEADLINE, MAX_POST_PROOF_BYTES, MAX_PROOFS_PER_BLOCK,
-    MAX_REPLICAS_PER_BLOCK, MAX_SEAL_PROOF_BYTES, MAX_TERMINATIONS_PER_CALL, PEER_ID_MAX_BYTES,
+    PartitionNumber, MAX_PARTITIONS_PER_DEADLINE, MAX_TERMINATIONS_PER_CALL, PEER_ID_MAX_BYTES,
 };
 use sp_arithmetic::traits::Zero;
 use sp_core::{bounded_vec, Pair};
@@ -80,46 +74,6 @@ impl frame_system::Config for Test {
 #[derive_impl(pallet_balances::config_preludes::TestDefaultConfig)]
 impl pallet_balances::Config for Test {
     type AccountStore = System;
-}
-
-pub const INVALID_PROOF: [u8; 2] = [0xd, 0xe];
-
-/// This is dummy proofs pallet implementation.
-/// All PoRep proofs are accepted as valid.
-/// All PoSt proofs are accepted as valid unless first of them is [`INVALID_PROOF`].
-pub struct DummyProofsVerification;
-impl ProofVerification for DummyProofsVerification {
-    fn verify_porep(
-        _prover_id: ProverId,
-        _seal_proof: RegisteredSealProof,
-        _comm_r: RawCommitment,
-        _comm_d: RawCommitment,
-        _sector: SectorNumber,
-        _ticket: Ticket,
-        _seed: Ticket,
-        _proof: BoundedVec<u8, ConstU32<MAX_SEAL_PROOF_BYTES>>,
-    ) -> sp_runtime::DispatchResult {
-        Ok(())
-    }
-
-    fn verify_post(
-        _post_type: RegisteredPoStProof,
-        _randomness: Ticket,
-        _replicas: BoundedBTreeMap<
-            SectorNumber,
-            PublicReplicaInfo,
-            ConstU32<MAX_REPLICAS_PER_BLOCK>,
-        >,
-        proofs: BoundedVec<
-            BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>,
-            ConstU32<MAX_PROOFS_PER_BLOCK>,
-        >,
-    ) -> sp_runtime::DispatchResult {
-        if *proofs[0] == INVALID_PROOF {
-            return Err(sp_runtime::DispatchError::Other("invalid proof"));
-        }
-        Ok(())
-    }
 }
 
 impl pallet_market::Config for Test {
@@ -199,7 +153,7 @@ impl pallet_storage_provider::Config for Test {
     type PeerId = BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>; // https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
     type Currency = Balances;
     type Market = Market;
-    type ProofVerification = DummyProofsVerification;
+    type ProofVerification = primitives::testing::DummyProofsVerification;
     type WPoStProvingPeriod = WPoStProvingPeriod;
     type WPoStChallengeWindow = WPoStChallengeWindow;
     type WPoStChallengeLookBack = WPoStChallengeLookBack;
