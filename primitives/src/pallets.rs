@@ -47,7 +47,13 @@ pub trait ProofVerification {
 }
 
 /// Represents functions that are provided by the Market Provider Pallet
-pub trait Market<AccountId, BlockNumber> {
+pub trait Market<AccountId, BlockNumber, Balance> {
+    /// Locks funds for pre-commit purposes.
+    fn lock_pre_commit_funds(who: &AccountId, amount: Balance) -> DispatchResult;
+
+    /// Slashes funds locked for pre-commit purposes.
+    fn slash_pre_commit_funds(who: &AccountId, amount: Balance) -> DispatchResult;
+
     /// Verifies a given set of storage deals is valid for sectors being PreCommitted.
     /// Computes UnsealedCID (CommD) for each sector or None for Committed Capacity sectors.
     fn verify_deals_for_activation(

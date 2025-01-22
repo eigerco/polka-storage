@@ -7,7 +7,7 @@ use crate::{
     pallet::{Event, StorageProviders},
     sector::ProveCommitSector,
     tests::{
-        account, events, publish_deals, register_storage_provider, run_to_block, Balances,
+        account, events, publish_deals, register_storage_provider, run_to_block, Market,
         RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System, Test,
         CHARLIE,
     },
@@ -21,13 +21,15 @@ use crate::{
 #[test]
 fn pre_commit_hook_slashed_deal() {
     new_test_ext().execute_with(|| {
+        // TODO(@aidan46, #106, 2024-06-24): Set a logical value or calculation
+        const DEAL_PRECOMMIT_DEPOSIT: u64 = 1;
+        const DEAL_COLLATERAL: u64 = 25;
+
         let storage_provider = CHARLIE;
         register_storage_provider(account(storage_provider));
         publish_deals(storage_provider);
         let first_deal = 0;
         let second_deal = 1;
-        // TODO(@aidan46, #106, 2024-06-24): Set a logical value or calculation
-        let deal_precommit_deposit = 1;
 
         let first_sector = SectorPreCommitInfoBuilder::default()
             .sector_number(1.into())
@@ -49,6 +51,12 @@ fn pre_commit_hook_slashed_deal() {
             bounded_vec![second_sector.clone()],
         )
         .unwrap();
+        // 2 deals = (collateral + precommit) * 2
+        assert_eq!(
+            Market::locked(&account(storage_provider)),
+            // The cast is kind of an hack but we know it is safe
+            Some((2 * (DEAL_COLLATERAL + DEAL_PRECOMMIT_DEPOSIT) as u32).into())
+        );
 
         StorageProvider::prove_commit_sectors(
             RuntimeOrigin::signed(account(storage_provider)),
@@ -71,10 +79,12 @@ fn pre_commit_hook_slashed_deal() {
         // First sector removed from here because it was slashed, second one because it was proven.
         assert!(sp.pre_committed_sectors.is_empty());
         // Pre-commit from the second deal is still there, as pre-commit deposits are until sector expired.
-        assert_eq!(sp.pre_commit_deposits, deal_precommit_deposit);
+        assert_eq!(sp.pre_commit_deposits, DEAL_PRECOMMIT_DEPOSIT);
+        // 1 deal got slashed so the respective locked funds *vanished*
         assert_eq!(
-            Balances::reserved_balance(account(storage_provider)),
-            deal_precommit_deposit
+            Market::locked(&account(storage_provider)),
+            // The cast is kind of an hack but we know it is safe
+            Some(((2 * DEAL_COLLATERAL + DEAL_PRECOMMIT_DEPOSIT) as u32).into())
         );
         let mut expected_faulty_sectors = BoundedBTreeSet::new();
         expected_faulty_sectors
@@ -91,22 +101,14 @@ fn pre_commit_hook_slashed_deal() {
                     owner: account(storage_provider),
                     faulty_partitions: expected_faulty_partitions,
                 }),
-                // the slash -> withdraw is related to the usage of slash_and_burn
-                // when slashing the SP for a failed pre_commit
-                // this usage may need review for a proper economic balance
-                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Slashed {
-                    who: account(storage_provider),
-                    amount: deal_precommit_deposit,
-                }),
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded {
-                    amount: deal_precommit_deposit
+                    amount: DEAL_PRECOMMIT_DEPOSIT
                 }),
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Withdraw {
-                    who: account(storage_provider),
-                    amount: deal_precommit_deposit,
-                }),
-                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded {
-                    amount: deal_precommit_deposit
+                    // The money was removed from the balance table, as such,
+                    // the money is actually removed from the "pallet account"
+                    who: Market::account_id(),
+                    amount: DEAL_PRECOMMIT_DEPOSIT,
                 }),
                 RuntimeEvent::StorageProvider(Event::<Test>::SectorsSlashed {
                     owner: account(storage_provider),

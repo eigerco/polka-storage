@@ -121,10 +121,10 @@ pub mod pallet {
     pub struct BalanceEntry<Balance> {
         /// Amount of Balance that has been deposited for future deals/earned from deals.
         /// It can be withdrawn at any time.
-        pub(crate) free: Balance,
+        pub free: Balance,
         /// Amount of Balance that has been staked as Deal Collateral
         /// It's locked to a deal and cannot be withdrawn until the deal ends.
-        pub(crate) locked: Balance,
+        pub locked: Balance,
     }
 
     #[derive(Clone, Eq, PartialEq, Encode, Decode, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -788,6 +788,24 @@ pub mod pallet {
 
     /// Functions exposed by the pallet
     impl<T: Config> Pallet<T> {
+        /// Retrieve the locked balance for the given account.
+        pub fn locked(who: &T::AccountId) -> Option<BalanceOf<T>> {
+            // try_get is required because the StorageMap has ValueQuery instead of OptionQuery
+            match BalanceTable::<T>::try_get(who) {
+                Ok(entry) => Some(entry.locked),
+                Err(_) => None,
+            }
+        }
+
+        /// Retrieve the locked balance for the given account.
+        pub fn free(who: &T::AccountId) -> Option<BalanceOf<T>> {
+            // try_get is required because the StorageMap has ValueQuery instead of OptionQuery
+            match BalanceTable::<T>::try_get(who) {
+                Ok(entry) => Some(entry.free),
+                Err(_) => None,
+            }
+        }
+
         /// Account Id of the Market
         ///
         /// This actually does computation.
@@ -1156,7 +1174,17 @@ pub mod pallet {
         }
     }
 
-    impl<T: Config> Market<T::AccountId, BlockNumberFor<T>> for Pallet<T> {
+    impl<T: Config> Market<T::AccountId, BlockNumberFor<T>, BalanceOf<T>> for Pallet<T> {
+        fn lock_pre_commit_funds(who: &T::AccountId, amount: BalanceOf<T>) -> DispatchResult {
+            // NOTE(@jmg-duarte,21/1/25): unsure if this should emit an event
+            lock_funds::<T>(who, amount)
+        }
+
+        fn slash_pre_commit_funds(who: &T::AccountId, amount: BalanceOf<T>) -> DispatchResult {
+            // NOTE(@jmg-duarte,21/1/25): unsure if this should emit an event
+            slash_and_burn::<T>(who, amount)
+        }
+
         /// Verifies a given set of storage deals is valid for sectors being PreCommitted.
         /// Computes UnsealedCID (CommD) for each sector or None for Committed Capacity sectors.
         /// Currently UnsealedCID is hardcoded as we `compute_commd` remains unimplemented because of #92.
