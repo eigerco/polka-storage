@@ -8956,12 +8956,15 @@ dependencies = [
 name = "maat"
 version = "0.1.0"
 dependencies = [
+ "bls12_381",
  "bs58",
  "cid 0.11.1",
  "futures",
  "hex",
  "libp2p 0.54.1",
  "libp2p-identity",
+ "parity-scale-codec",
+ "polka-storage-proofs",
  "polka-storage-provider-common",
  "primitives",
  "serde",

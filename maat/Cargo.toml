@@ -19,10 +19,16 @@ target-debug = []
 target-release = []
 
 [dependencies]
+bls12_381 = { workspace = true }
 bs58.workspace = true
 cid.workspace = true
+codec = { workspace = true }
 futures.workspace = true
 hex = { workspace = true }
+libp2p = { workspace = true, features = ["ecdsa", "identify"] }
+libp2p-identity = { workspace = true, features = ["ecdsa", "rand"] }
+polka-storage-proofs = { workspace = true, features = ["std", "substrate"] }
+polka-storage-provider-common = { workspace = true }
 primitives = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["std"] }
@@ -32,10 +38,7 @@ thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true, features = ["rt"] }
 tracing = { workspace = true }
-libp2p = { workspace = true, features = ["identify", "ecdsa"]}
-libp2p-identity = { workspace = true, features = ["rand", "ecdsa"] }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
-polka-storage-provider-common = { workspace = true }
 
 zombienet-configuration.workspace = true
 zombienet-sdk.workspace = true

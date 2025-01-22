@@ -1,26 +1,27 @@
-use std::{collections::BTreeSet, sync::Arc, time::Duration};
+use std::{env, path::Path, sync::Arc, time::Duration};
 
-use libp2p::PeerId;
 use cid::Cid;
+use codec::Encode;
+use libp2p::PeerId;
 use maat::*;
-use polka_storage_provider_common::sector::{self, UnsealedSector};
-use primitives::{commitment::{CommP, Commitment}, sector::{SectorNumber, SectorSize}};
+use polka_storage_proofs::porep;
+use polka_storage_provider_common::sector::UnsealedSector;
+use primitives::{
+    commitment::{CommP, Commitment},
+    sector::{SectorNumber, SectorSize},
+};
 use storagext::{
-    clients::ProofsClientExt, multipair::MultiPairSigner, runtime::runtime_types::{
-        pallet_market::pallet::DealState, pallet_storage_provider::sector::ProveCommitResult,
-    }, types::{
-        market::DealProposal,
-        proofs::VerifyingKey,
-        storage_provider::{
-            FaultDeclaration, ProveCommitSector, RecoveryDeclaration, SectorPreCommitInfo,
-            SubmitWindowedPoStParams,
-        },
-    }, MarketClientExt, PolkaStorageConfig, StorageProviderClientExt, SystemClientExt
+    clients::ProofsClientExt,
+    multipair::MultiPairSigner,
+    runtime::runtime_types::pallet_market::pallet::DealState,
+    types::{market::DealProposal, proofs::VerifyingKey},
+    MarketClientExt, PolkaStorageConfig, StorageProviderClientExt,
 };
 use subxt::ext::sp_core::sr25519::Pair as Sr25519Pair;
-use tempfile::{tempdir, TempDir};
-use zombienet_sdk::NetworkConfigExt;
+use tempfile::tempdir;
+use tokio::sync::Semaphore;
 use tokio_util::sync::CancellationToken;
+use zombienet_sdk::NetworkConfigExt;
 
 /// Network's collator name. Used for logs and so on.
 const COLLATOR_NAME: &str = "collator";
@@ -73,8 +74,7 @@ where
         .unwrap()
         .info;
     let retrieved_peer_id = retrieved_peer_info.peer_id.0.as_slice();
-
-    // assert_eq!(retrieved_peer_id, peer_id_bytes);
+    assert_eq!(retrieved_peer_id, peer_id.to_bytes());
 }
 
 async fn add_balance<Keypair>(client: &storagext::Client, account: &Keypair, balance: u128)
@@ -97,18 +97,15 @@ where
     assert_eq!(balance_entry.locked, 0);
 }
 
-async fn set_porep_verifying_key<Keypair>(client: &storagext::Client, charlie: &Keypair)
-where
+async fn set_porep_verifying_key<Keypair>(
+    client: &storagext::Client,
+    charlie: &Keypair,
+    vk: VerifyingKey,
+) where
     Keypair: subxt::tx::Signer<PolkaStorageConfig>,
 {
-    // This is hex encoded `2KiB.porep.vk.scale` file generated in advance by
-    // calling `polka-storage-provider-client proofs porep-params`. It is part
-    // of the sealer that was used to prove the sector in this test.
-    let default_porep_verifying_key = "a0997984403d866cc63bad0c82b4ee5aa317c8c56f614fbd2372f40c143a51e8f6f6de28a414ee8b2e2cf7cd4b598fd78a0112fe5986c92843f4d8ff630b478cd92da824a71b43cbfe4419f3360068302a70b4d52cbc08d54674846929e5012e80474584986b4ba26c30bfdaed8809310811b6ac220d8ffdd9f73f76ccd2c46f373bd7cdf3cc5f6f3912af64aadf48eb1988a00b919f8eb660aaaf63d4730fa1fdd75b094e4bfd6419f820942f9844e2fe0b409b136121457aff228c358b1a90b1d99e9af5664b90230a77f18b0493cb6478db2b432e1ff9af19a95de5233f56c7847fb50aa23e830024b8e641dadefe0f24ea407db3efa0c64f87e880a6428e867c522d504072241818c6cebeee2d0bf7b8db6b8b2720158d5ba5e0336dddf3a7c00a7ae8ad8daaa2ea6ebb1cc675d1091865701aa222cc2fa5759e3f6844671d5ade538979b20dc4c9ae706d23f8ec99576d8dc2f63668e64b35d2d47217a794043b75642038428ee5e85ef09d89d059d773523f4d78c1564875b4f24f7e3512b622f101909296f2afe2f12998dce3058dcc618a0804dec71bab1f486db49b232e5a847c8160a59bba1ec4bb3dc77b0000002897e5512a849178954aef5dfa987ea48a558bbfdc2cde7fd7175a3756e61a6991239b8e3e84e15c123963da74b61feec79952ab4869f5e90d75e4c98e9c9a84cefeb1a3ca58454facb0016b1c67b4323a85a90b6318ff70a9ff3c5540a82088249804645bb7eb1db2a5faefa80bcbd2fec6d2aa4d0f1a44209ba3246aedbb41f098b4e41d6ad4e1054d83a2d460dbd240989c6939e1e81c7e46d336e33a2f7daa9298ebf36793102139d9834361452fb64b66bf40767d7f59083dd4f745a34b39b5e7705315190ce7800a026da47cae95f17f32f2efda66351f6078f2ae54e1e5efaae55dc6b482ec2c7fb9a4bfe6351484ead5ac342b0c8fc492989b1ac89a2cb76b68d7784c45913495950697a1a765c521310c0ca835b30db3da23df48de39af45a9a999056ba8a06c5be7525ff9164b539a4257aaac7c871355f1eb2dd36bca74b52fef03d226b50eb568c960b324a89595282a1c0184a0d8e93fdc7bf22813d76cd12f9eb4609b69c0efccbcb2f7c80c227d7523ecd424386b1f4fb6245589bdb10cfeba577415d7948bd89b7e4a6902630a84cd1ea39b1f53bb304f0150172a88037e766fbaf1f78129799ee816b42250f9e32937e5a367153e3ecb6c8598368ad1cad5936de4ed2253cb45dbb868f8f6274d666fb766bf55022d4b66c6a6bdc11fdf538440afdd1ac28001dfd09ea392df1d03be1f8fe96188c169e1cbe0946a19c96e870a0790e60139e2bdb28a1c1985f7800742e60ad92691dc05554303bbc310f275721587a06b7e6ff04f7efad7ffd1bbc0ea62d160c098b296efb4781b09655cb955d47501f7dd56622fd3696347cd47ed338e2a1f36dc1766a99c934ce699245a67efc3ba74b2bbb5e3b76cf5276e25ecca37080057078fb922386547b5bc66ed3c759b5e99b2111e82d998c583835f0f3fbf09b8f4cd8e05c2b99c2880e473ad139b6265c7ba71b821fd74f3244371bd3a99f82f5619927636e9460d77901100e2ea6c85deacdcd106938bc60f7f90e6eb01ddd4ebd04f17d25beb166b2cd22f47761b5774e4e431260248b018a1cb425348b760538df749d8b38edb7b17552ca10c840d3bc9c9f5f9ac904889dd2ff74dbbedca88e504ce79eaef25c7f8830565e1e7fbb2b98c6d4ca28c9f9670b47be12d15e4a1068e0c5fe08abc177a35c5b4f452a8b91e31db79fafab166a1273b50b8c840e1157bf2a2a2babd2442e3da36303e5b6f7a8c9520c79e582733dc0012b22ae635a41b1e64fb9966ad68d24eaac78ba68699a8211fa3a844ad49dc9f90296095707c2fcf837934f9388e49f3e4980d9ec6286b3d15bd50c52d94d8ae21abcec258fdfafa21a3dfeb80c5ebeac0c3c35f89a3075f24b02515ff0a0e06773cd33d77c7ff10eedb8fc161c4660dd2bee6ef84febfa5208e8fa946a98e591e4edceaf4e8b90443c9aeb127943d20a57b36e4c50dcd95964d7922c90e14c92c09be83c8aa249cd28c7ce2f262b615ec8818e1feaacc76a6726124e79557a345a54f06987c1b4a7f00e291c6d6ec335c82c1e5013a0a8efd96739ed57cbbe830935b1e2c2e94bedf7d7ef14c84ce286745be66888544032dff68552c753e9f82b4c0667854af92fcb0a393fc1423d98a85e74950bee6c457e69e18c178c03d38c1827f92e62cde50dae52af4c37235b0c3ae3c96742d4698b4a2dabc6ef222c18c98870d73d3d3aa241a6bf274c978b3fd3cd5a92907db1be5a5223fb7041206b310b141864f82ae8a0adae378075f09f6249d4280506c44a2e4b7a21b147015174a830bd8356d15bf9272d53d0b343bacff0cd7a3d6a21cb66238041924593ab382fd9487d01a482e9a99da6e452fd84584a0f7fa132500c01eb744ebb0f24b4feb4a9b8d05cf7bb63eafcf9ba879ab1c268328433f703b17092dec7c468702add270238d1113ececb42bc1060fa3d3403c275ad65be19fb7d06cf8549ef010ad83b2bd60f443dd678c4562d54ef28da00bc18a2df6e0bc95dacf2151ec900c4fa08b64ddc46fa9a1c806f9de02d3f361311a2a019c67743b6df5280cb76a6591d8b924aba1d71680114e331f8a335566a7bdb40f25f8518669661d8c6208780f0375180fc538a7d97e4dad41020c62d99672d04e6bc496e8f821e474f1d16339d729267e600903994ad84de162aa08dc3386b9c83f474511d1a704b4978459057d61edfcc0282afd84e903ab4fac2136260ce53b82ef92a84617894d95cbd3782929cd6bab10de4faa243d79f280106ff7da7bef91147f0f72050838e4d9acf1e0c7ebdee31ddb9185c7538ef39a70a01e451857bea2f0b7502206c6ece16407ce2147f98cfa582d7e2f32295d0f073dae27b0d83055308c19597bc9d6490aeb7a6a598cc97ab3a79c46e1e21534f7ccbaaa206aea60dcfbaedeba526fcdc212b5a3f2a3322ccb91e303e1067eb522dc38d651ef46ff69ced4b6ebfdaeff8c6bfb723e9eb33251b2cdd3224e07d84ce477e36c610af13fa303ccaa4d320f935cfdcd42165a2cc034bc86080cd251d35c5e461202351fa1eaf2a460b1f4243983ff23616aeb973fb30848d43d3f15aefd851e9d04a562f4d04ee1b31164aae6f66797cc951c5c7693797bbc7a68fa365b4bc87ac69aba1083a2b96ded24d8dc4e7b67c747cb2a4e7057d3a37eea5785680a460d00026886cec2dfd4df0533b5a13cac6d2ea7ac29";
-    let default_porep_verifying_key = VerifyingKey::from_hex(default_porep_verifying_key).unwrap();
-
     let result = client
-        .set_porep_verifying_key(charlie, default_porep_verifying_key, true)
+        .set_porep_verifying_key(charlie, vk, true)
         .await
         .unwrap()
         .unwrap();
@@ -122,6 +119,7 @@ where
     }
 }
 
+/*
 async fn settle_deal_payments<Keypair>(
     client: &storagext::Client,
     charlie: &Keypair,
@@ -153,12 +151,16 @@ async fn settle_deal_payments<Keypair>(
         );
     }
 }
+
+*/
+
 async fn publish_storage_deals<Keypair>(
     client: &storagext::Client,
     charlie: &Keypair,
     alice: &Keypair,
     deal_proposal: DealProposal,
-) -> u64 where
+) -> u64
+where
     Keypair: subxt::tx::Signer<PolkaStorageConfig>,
 {
     // Valid piece cid of `examples/test-data-big.car`.
@@ -188,6 +190,7 @@ async fn publish_storage_deals<Keypair>(
     unreachable!();
 }
 
+/*
 async fn submit_windowed_post<Keypair>(client: &storagext::Client, charlie: &Keypair)
 where
     Keypair: subxt::tx::Signer<PolkaStorageConfig>,
@@ -268,28 +271,51 @@ where
         assert_eq!(event.faults.0, fault_declarations);
     }
 }
+*/
 
-/// This test was adapted from a bash script and is timing sensitive.
-/// While it works right now, it still needs some work to better test the parachain,
-/// like reading the sector deadlines and so on.
-///
-// TODO(@jmg-duarte,#381,17/09/2024): Remove the timing dependencies
 #[tokio::test]
 async fn real_world_use_case() {
     setup_logging();
-    let network = local_testnet_config().spawn_native().await.unwrap();
 
+    let workspace_root = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let data_file_path = Path::new(&workspace_root)
+        .join("..")
+        .join("examples/test-data-big.car");
+    tracing::info!("loading example file from {:?}", data_file_path);
+
+    let temp_dir = tempdir().unwrap();
+    let unsealed_sector_path = temp_dir.path().join("unsealed_sector");
+    let cache_dir_path = temp_dir.path().join("cache_dir");
+    let sealed_sector_path = temp_dir.path().join("sealed_sector");
+    let parameters_path = temp_dir.path().join("porep_params");
+    let mut parameters_file = std::fs::File::create(parameters_path.clone()).unwrap();
+
+    tracing::info!("generating PoRep parameters...");
+    // NOTE: it can take 1-2 minutes on slower machines. can be cached someday, but I think it's good enough for now.
+    let seal_proof = primitives::proofs::RegisteredSealProof::StackedDRG2KiBV1P1;
+    let parameters = porep::generate_random_groth16_parameters(seal_proof).unwrap();
+    parameters.write(&mut parameters_file).unwrap();
+    // We need to read it again, as Proof Generating machine requires it in this form and that's the API of bellperson.
+    let mapped_parameters = porep::load_groth16_parameters(parameters_path).unwrap();
+
+    let network = local_testnet_config().spawn_native().await.unwrap();
     tracing::debug!("base dir: {:?}", network.base_dir());
     let collator = network.get_node(COLLATOR_NAME).unwrap();
-    let client = Arc::new(storagext::Client::new(collator.ws_uri(), 5, Duration::from_secs(10))
-        .await
-        .unwrap());
+    let client = Arc::new(
+        storagext::Client::new(collator.ws_uri(), 5, Duration::from_secs(10))
+            .await
+            .unwrap(),
+    );
 
     let alice_kp = pair_signer_from_str::<Sr25519Pair>("//Alice");
     let charlie_kp = pair_signer_from_str::<Sr25519Pair>("//Charlie");
 
     register_storage_provider(&client, &charlie_kp).await;
-    set_porep_verifying_key(&client, &charlie_kp).await;
+    // Set PoRep VerifyingKey extrinsic only accepts scale-encoded bytes of Verifying Key in substrate form.
+    let vk =
+        polka_storage_proofs::VerifyingKey::<bls12_381::Bls12>::try_from(parameters.vk).unwrap();
+    let vk_scale = Encode::encode(&vk);
+    set_porep_verifying_key(&client, &charlie_kp, VerifyingKey::from_raw_bytes(vk_scale)).await;
 
     // Add balance to Charlie
     let balance = 12_500_000_000;
@@ -320,32 +346,37 @@ async fn real_world_use_case() {
         provider_collateral: 12_500_000_000,
         state: DealState::Published,
     };
-
     let deal_id = publish_storage_deals(&client, &charlie_kp, &alice_kp, deal.clone()).await;
+
     let sector_number = SectorNumber::new(1).unwrap();
-    let temp_dir = tempdir().unwrap();
-    let unsealed_path = temp_dir.path().join("unsealed_sector");
-    let cache_dir_path = temp_dir.path().join("cache_dir");
-    let sealed_sector_path = temp_dir.path().join("sealed_sector");
+    let mut sector = UnsealedSector::create(seal_proof, sector_number, unsealed_sector_path)
+        .await
+        .unwrap();
 
-    let mut sector = UnsealedSector::create(
-        primitives::proofs::RegisteredSealProof::StackedDRG2KiBV1P1,
-        sector_number,
-        unsealed_path,
-    )
-    .await
-    .unwrap();
-
-    sector.add_piece(deal_id, deal, "/home/th7nder/workspace/eiger/polka-storage/examples/test-data-big.car".into(), commp).await.unwrap();
+    sector
+        .add_piece(deal_id, deal, data_file_path, commp)
+        .await
+        .unwrap();
     let multi_pair = MultiPairSigner::new(Some(charlie_kp.signer().clone()), None, None).unwrap();
-    let sector = sector.pre_commit(client.clone(), &multi_pair, cache_dir_path, sealed_sector_path).await.unwrap();
-
-    // sector.prove_commit(client.clone(), &multi_pair, todo!(), todo!(), CancellationToken::new()).await.unwrap();
-    // TODO:
-    // 0. test current logic
-    // 1. generate porep params
-    // 2. add throttle
-    // 3. add relative paths
+    let sector = sector
+        .pre_commit(
+            client.clone(),
+            &multi_pair,
+            cache_dir_path,
+            sealed_sector_path,
+        )
+        .await
+        .unwrap();
+    sector
+        .prove_commit(
+            client.clone(),
+            &multi_pair,
+            Arc::new(mapped_parameters),
+            Arc::new(Semaphore::new(1)),
+            CancellationToken::new(),
+        )
+        .await
+        .unwrap();
 
     // TODO(@th7nder,#615, 21/01/2025): to be fixed in the follow-up for #615.
     // client.wait_for_height(83, true).await.unwrap();
