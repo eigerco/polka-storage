@@ -50,3 +50,6 @@ std = [
   "sp-std/std",
   "thiserror/std",
 ]
+# This feature provides testing utilities,
+# e.g. a dummy proof verifier
+testing = []
