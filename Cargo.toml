@@ -24,7 +24,6 @@ members = [
   "storage-provider/server",
   "storage-retrieval/cli",
   "storage-retrieval/lib",
-  "storage/polka-index",
   "storagext/cli",
   "storagext/lib",
 ]
@@ -145,7 +144,6 @@ pallet-market = { path = "pallets/market", default-features = false }
 pallet-proofs = { path = "pallets/proofs", default-features = false }
 pallet-randomness = { path = "pallets/randomness", default-features = false }
 pallet-storage-provider = { path = "pallets/storage-provider", default-features = false }
-polka-index = { path = "storage/polka-index" }
 polka-storage-proofs = { path = "lib/polka-storage-proofs", default-features = false }
 polka-storage-provider-common = { path = "storage-provider/common" }
 polka-storage-retrieval = { path = "storage-retrieval/lib" }
