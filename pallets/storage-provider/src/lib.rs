@@ -572,6 +572,7 @@ pub mod pallet {
             let mut new_sectors = BoundedVec::new();
             let mut sector_numbers: BoundedVec<SectorNumber, ConstU32<MAX_SECTORS_PER_CALL>> =
                 BoundedVec::new();
+            let mut pre_commit_deposit_to_unlock = BalanceOf::<T>::zero();
 
             for sector in sectors {
                 // Get pre-committed sector. This is the sector we are currently
@@ -604,6 +605,8 @@ pub mod pallet {
                 new_sectors
                     .try_push(new_sector)
                     .expect("Programmer error: New sectors should fit in bound of MAX_SECTORS");
+
+                pre_commit_deposit_to_unlock += calculate_pre_commit_deposit::<T>();
             }
 
             // Activate the deals for the sectors that will be proven. This
@@ -668,6 +671,8 @@ pub mod pallet {
                 .expect("Programmer error: ProveCommitResult's should fit in bound of MAX_SECTORS");
 
             StorageProviders::<T>::set(owner.clone(), Some(sp));
+            // Unlock pre commit deposit funds.
+            T::Market::unlock_pre_commit_funds(&owner, pre_commit_deposit_to_unlock)?;
             Self::deposit_event(Event::SectorsProven {
                 owner,
                 sectors: sectors_proven,
