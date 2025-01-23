@@ -846,6 +846,7 @@ pub mod pallet {
         /// References:
         /// * <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/lib.rs#L2648>
         pub fn declare_faults(origin: OriginFor<T>, params: DeclareFaultsParams) -> DispatchResult {
+            log::info!(target: LOG_TARGET, "declare_faults");
             let owner = ensure_signed(origin)?;
             let current_block = <frame_system::Pallet<T>>::block_number();
             let mut sp = StorageProviders::<T>::try_get(&owner)

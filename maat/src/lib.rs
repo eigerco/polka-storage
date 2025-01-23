@@ -106,6 +106,7 @@ pub fn local_testnet_config() -> NetworkConfig {
                 .cumulus_based(true)
                 .with_collator(|collator| {
                     collator.polka_storage_collator("collator", polka_storage_node_binary_path)
+                        .with_args(vec![("--pool-type", "fork-aware").into()])
                 })
         })
         .build()

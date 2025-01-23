@@ -10,8 +10,7 @@ use primitives::{
     sector::SectorNumber,
 };
 use storagext::{
-    types::storage_provider::{PartitionState, PoStProof, SubmitWindowedPoStParams},
-    RandomnessClientExt, StorageProviderClientExt, SystemClientExt,
+    runtime::runtime_types::primitives::pallets::DeadlineInfo, types::storage_provider::{PartitionState, PoStProof, SubmitWindowedPoStParams}, RandomnessClientExt, StorageProviderClientExt, SystemClientExt
 };
 use subxt::{ext::codec::Encode, tx::Signer};
 use tokio::task::{JoinError, JoinHandle};
@@ -51,6 +50,15 @@ impl Deadline {
         }
     }
 
+    pub async fn get_info(&self, xt_client: Arc<storagext::Client>, xt_keypair: &storagext::multipair::MultiPairSigner) -> Result<DeadlineInfo<u64>, DeadlineError> {
+        tracing::info!("Getting deadline info for {} deadline", self.deadline_index);
+
+        xt_client
+            .deadline_info(&xt_keypair.account_id().into(), self.deadline_index)
+            .await?
+            .ok_or(DeadlineError::DeadlineNotFound)
+    }
+
     pub async fn submit_windowed_post<SectorStorage>(
         &self,
         xt_client: Arc<storagext::Client>,
@@ -61,15 +69,7 @@ impl Deadline {
     where
         SectorStorage: Fn(SectorNumber) -> Option<ProvenSector>,
     {
-        tracing::info!("Getting deadline info for {} deadline", self.deadline_index);
-        let deadline = xt_client
-            .deadline_info(&xt_keypair.account_id().into(), self.deadline_index)
-            .await?;
-
-        let Some(deadline) = deadline else {
-            tracing::error!("there is no such deadline...");
-            return Err(DeadlineError::DeadlineNotFound);
-        };
+        let deadline = self.get_info(xt_client.clone(), xt_keypair).await?;
 
         tracing::debug!("Deadline Info: {:?}", deadline);
         tracing::info!(
