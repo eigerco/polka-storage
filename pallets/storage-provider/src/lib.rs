@@ -374,6 +374,8 @@ pub mod pallet {
         TooManyProofs,
         /// AuthorVRF lookup failed.
         MissingAuthorVRF,
+        /// After proving failed to return pre commit deposit.
+        FailedToReturnPreCommitDeposit,
         /// Inner pallet errors
         GeneralPalletError(crate::error::GeneralPalletError),
     }
@@ -670,9 +672,20 @@ pub mod pallet {
                 .try_into()
                 .expect("Programmer error: ProveCommitResult's should fit in bound of MAX_SECTORS");
 
-            StorageProviders::<T>::set(owner.clone(), Some(sp));
+            // Reduce pre commit deposit amount in state
+            if let Some(pre_commit_deposits) = sp
+                .pre_commit_deposits
+                .checked_sub(&pre_commit_deposit_to_unlock)
+            {
+                log::info!("Unlocking {pre_commit_deposit_to_unlock:?} from pre-commit deposit");
+                sp.pre_commit_deposits = pre_commit_deposits
+            } else {
+                log::error!(target: LOG_TARGET, "catastrophe, failed to subtract from pre_commit_deposits {:?} - {:?} < 0", sp.pre_commit_deposits, pre_commit_deposit_to_unlock);
+                return Err(Error::<T>::FailedToReturnPreCommitDeposit.into());
+            };
             // Unlock pre commit deposit funds.
             T::Market::unlock_pre_commit_funds(&owner, pre_commit_deposit_to_unlock)?;
+            StorageProviders::<T>::set(owner.clone(), Some(sp));
             Self::deposit_event(Event::SectorsProven {
                 owner,
                 sectors: sectors_proven,

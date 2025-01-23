@@ -78,13 +78,14 @@ fn pre_commit_hook_slashed_deal() {
         assert!(sp.sectors.contains_key(&second_sector.sector_number));
         // First sector removed from here because it was slashed, second one because it was proven.
         assert!(sp.pre_committed_sectors.is_empty());
-        // Pre-commit from the second deal is still there, as pre-commit deposits are until sector expired.
-        assert_eq!(sp.pre_commit_deposits, DEAL_PRECOMMIT_DEPOSIT);
+        // No pre-commit deposit as the second deal has been proven and the first one is expired and thus slashed.
+        assert_eq!(sp.pre_commit_deposits, 0);
         // 1 deal got slashed so the respective locked funds *vanished*
         assert_eq!(
             Market::locked(&account(storage_provider)),
             // The cast is kind of an hack but we know it is safe
-            Some(((2 * DEAL_COLLATERAL + DEAL_PRECOMMIT_DEPOSIT) as u32).into())
+            // Not add the DEAL_PRECOMMIT_DEPOSIT because this has been unlocked after proving.
+            Some(((2 * DEAL_COLLATERAL) as u32).into())
         );
         let mut expected_faulty_sectors = BoundedBTreeSet::new();
         expected_faulty_sectors
