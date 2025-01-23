@@ -677,7 +677,6 @@ pub mod pallet {
                 .pre_commit_deposits
                 .checked_sub(&pre_commit_deposit_to_unlock)
             {
-                log::info!("Unlocking {pre_commit_deposit_to_unlock:?} from pre-commit deposit");
                 sp.pre_commit_deposits = pre_commit_deposits
             } else {
                 log::error!(target: LOG_TARGET, "catastrophe, failed to subtract from pre_commit_deposits {:?} - {:?} < 0", sp.pre_commit_deposits, pre_commit_deposit_to_unlock);
