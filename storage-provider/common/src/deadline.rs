@@ -34,8 +34,8 @@ pub enum DeadlineError {
     Subxt(#[from] subxt::Error),
     #[error(transparent)]
     PoSt(#[from] post::PoStError),
-    #[error("sector does not exist")]
-    SectorNotFound,
+    #[error("sector {0} does not exist")]
+    SectorNotFound(SectorNumber),
 }
 
 pub struct Deadline {
@@ -114,7 +114,8 @@ impl Deadline {
 
         let mut replicas = Vec::new();
         for sector_number in all_sectors {
-            let sector = sector_storage(sector_number).ok_or(DeadlineError::SectorNotFound)?;
+            let sector = sector_storage(sector_number)
+                .ok_or(DeadlineError::SectorNotFound(sector_number))?;
 
             replicas.push(ReplicaInfo {
                 sector_id: sector_number,
