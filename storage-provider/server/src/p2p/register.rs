@@ -102,16 +102,16 @@ pub(crate) async fn register(
                     tracing::error!("Failed to register: {error}");
                     return Err(P2PError::RegistrationFailed(rendezvous_point));
                 } else {
-                    tracing::info!("Registration with {rendezvous_point} successful");
+                    tracing::info!("Registration requested with {rendezvous_point}");
                 }
             }
             // Check incoming event.
-            event = swarm.select_next_some() => check_swarm_event(event)
+            event = swarm.select_next_some() => on_swarm_event(event)?
         }
     }
 }
 
-fn check_swarm_event(event: SwarmEvent<RegisterBehaviourEvent>) {
+fn on_swarm_event(event: SwarmEvent<RegisterBehaviourEvent>) -> Result<(), P2PError> {
     match event {
         SwarmEvent::Behaviour(RegisterBehaviourEvent::Rendezvous(
             rendezvous::client::Event::Registered {
@@ -137,9 +137,11 @@ fn check_swarm_event(event: SwarmEvent<RegisterBehaviourEvent>) {
             tracing::error!(%rendezvous_node, %namespace,
                 "Failed to register error = {error:?}"
             );
+            return Err(P2PError::RegistrationFailed(rendezvous_node));
         }
         other => tracing::debug!("Encountered event: {other:?}"),
     }
+    Ok(())
 }
 
 async fn get_external_address(swarm: &mut Swarm<RegisterBehaviour>) -> Multiaddr {
