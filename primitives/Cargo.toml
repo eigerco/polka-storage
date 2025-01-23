@@ -8,7 +8,7 @@ repository.workspace = true
 version = "0.1.0"
 
 [dependencies]
-cid = { workspace = true }
+cid = { workspace = true, default-features = false, features = ["alloc"] }
 clap = { workspace = true, features = ["derive"], optional = true }
 codec = { workspace = true, features = ["derive"] }
 filecoin-proofs = { workspace = true, optional = true }
