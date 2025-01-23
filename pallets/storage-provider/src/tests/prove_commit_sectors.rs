@@ -82,11 +82,11 @@ fn successfully_prove_sector() {
             ]
         );
 
-        // check that the funds are still locked
+        // check that the funds are unlocked
         assert_eq!(
             Market::free(&account(storage_provider)),
             // Provider reserved 70 tokens in the market pallet and 1 token is used for the pre-commit
-            Some(20 - 1)
+            Some(20)
         );
         let sp_state = StorageProviders::<Test>::get(account(storage_provider))
             .expect("Should be able to get providers info");
@@ -190,12 +190,8 @@ fn successfully_prove_multiple_sectors() {
             ]
         );
 
-        // check that the funds are still locked
-        assert_eq!(
-            Market::free(&account(storage_provider)),
-            // 70 - 25 * 2 = 20
-            Some(20 - SECTORS_TO_COMMIT as u64)
-        );
+        // check that the funds are unlocked
+        assert_eq!(Market::free(&account(storage_provider)), Some(20));
         let sp_state = StorageProviders::<Test>::get(account(storage_provider))
             .expect("Should be able to get providers info");
 

@@ -374,6 +374,8 @@ pub mod pallet {
         TooManyProofs,
         /// AuthorVRF lookup failed.
         MissingAuthorVRF,
+        /// After proving failed to return pre commit deposit.
+        FailedToReturnPreCommitDeposit,
         /// Inner pallet errors
         GeneralPalletError(crate::error::GeneralPalletError),
     }
@@ -572,6 +574,7 @@ pub mod pallet {
             let mut new_sectors = BoundedVec::new();
             let mut sector_numbers: BoundedVec<SectorNumber, ConstU32<MAX_SECTORS_PER_CALL>> =
                 BoundedVec::new();
+            let mut pre_commit_deposit_to_unlock = BalanceOf::<T>::zero();
 
             for sector in sectors {
                 // Get pre-committed sector. This is the sector we are currently
@@ -604,6 +607,8 @@ pub mod pallet {
                 new_sectors
                     .try_push(new_sector)
                     .expect("Programmer error: New sectors should fit in bound of MAX_SECTORS");
+
+                pre_commit_deposit_to_unlock += calculate_pre_commit_deposit::<T>();
             }
 
             // Activate the deals for the sectors that will be proven. This
@@ -667,6 +672,18 @@ pub mod pallet {
                 .try_into()
                 .expect("Programmer error: ProveCommitResult's should fit in bound of MAX_SECTORS");
 
+            // Reduce pre commit deposit amount in state
+            if let Some(pre_commit_deposits) = sp
+                .pre_commit_deposits
+                .checked_sub(&pre_commit_deposit_to_unlock)
+            {
+                sp.pre_commit_deposits = pre_commit_deposits
+            } else {
+                log::error!(target: LOG_TARGET, "catastrophe, failed to subtract from pre_commit_deposits {:?} - {:?} < 0", sp.pre_commit_deposits, pre_commit_deposit_to_unlock);
+                return Err(Error::<T>::FailedToReturnPreCommitDeposit.into());
+            };
+            // Unlock pre commit deposit funds.
+            T::Market::unlock_pre_commit_funds(&owner, pre_commit_deposit_to_unlock)?;
             StorageProviders::<T>::set(owner.clone(), Some(sp));
             Self::deposit_event(Event::SectorsProven {
                 owner,

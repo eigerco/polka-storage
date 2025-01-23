@@ -51,6 +51,9 @@ pub trait Market<AccountId, BlockNumber, Balance> {
     /// Locks funds for pre-commit purposes.
     fn lock_pre_commit_funds(who: &AccountId, amount: Balance) -> DispatchResult;
 
+    /// Unlocks funds for pre-commit purposes.
+    fn unlock_pre_commit_funds(who: &AccountId, amount: Balance) -> DispatchResult;
+
     /// Slashes funds locked for pre-commit purposes.
     fn slash_pre_commit_funds(who: &AccountId, amount: Balance) -> DispatchResult;
 

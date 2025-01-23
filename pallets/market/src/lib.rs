@@ -1180,6 +1180,11 @@ pub mod pallet {
             lock_funds::<T>(who, amount)
         }
 
+        fn unlock_pre_commit_funds(who: &T::AccountId, amount: BalanceOf<T>) -> DispatchResult {
+            // NOTE(@aidan,23/1/25): unsure if this should emit an event
+            unlock_funds::<T>(who, amount)
+        }
+
         fn slash_pre_commit_funds(who: &T::AccountId, amount: BalanceOf<T>) -> DispatchResult {
             // NOTE(@jmg-duarte,21/1/25): unsure if this should emit an event
             slash_and_burn::<T>(who, amount)
