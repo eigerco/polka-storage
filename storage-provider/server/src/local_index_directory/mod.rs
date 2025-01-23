@@ -1,3 +1,6 @@
+// TODO(@cernicc,23/01/2025): Remove this after the index is integrated
+#![allow(dead_code)]
+
 use std::{ops::Deref, string};
 
 use base64::Engine;

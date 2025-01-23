@@ -22,7 +22,6 @@ libp2p = { workspace = true, features = ["macros", "noise", "tcp", "tokio", "yam
 libp2p-core = { workspace = true }
 libp2p-swarm = { workspace = true }
 mater = { workspace = true, features = ["blockstore"] }
-polka-index = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "sync", "time"] }
 tracing = { workspace = true }

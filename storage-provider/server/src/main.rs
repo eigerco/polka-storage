@@ -4,6 +4,7 @@
 
 mod config;
 mod db;
+mod local_index_directory;
 mod p2p;
 mod pipeline;
 mod rpc;
