@@ -14,7 +14,11 @@ use storagext::{
     clients::ProofsClientExt,
     multipair::MultiPairSigner,
     runtime::runtime_types::pallet_market::pallet::DealState,
-    types::{market::DealProposal, proofs::VerifyingKey, storage_provider::{FaultDeclaration, RecoveryDeclaration}},
+    types::{
+        market::DealProposal,
+        proofs::VerifyingKey,
+        storage_provider::{FaultDeclaration, RecoveryDeclaration},
+    },
     MarketClientExt, PolkaStorageConfig, StorageProviderClientExt, SystemClientExt,
 };
 use subxt::ext::sp_core::sr25519::Pair as Sr25519Pair;
@@ -207,7 +211,6 @@ where
     unreachable!();
 }
 
-
 async fn declare_recoveries<Keypair>(client: &storagext::Client, charlie: &Keypair)
 where
     Keypair: subxt::tx::Signer<PolkaStorageConfig>,
@@ -258,7 +261,6 @@ where
     }
 }
 
-
 #[tokio::test]
 async fn real_world_use_case() {
     setup_logging();
@@ -292,7 +294,8 @@ async fn real_world_use_case() {
     let post_parameters = post::generate_random_groth16_parameters(post_proof).unwrap();
     post_parameters.write(&mut post_parameters_file).unwrap();
     // We need to read it again, as Proof Generating machine requires it in this form and that's the API of bellperson.
-    let post_mapped_parameters = Arc::new(post::load_groth16_parameters(post_parameters_path).unwrap());
+    let post_mapped_parameters =
+        Arc::new(post::load_groth16_parameters(post_parameters_path).unwrap());
 
     let network = local_testnet_config().spawn_native().await.unwrap();
     tracing::debug!("base dir: {:?}", network.base_dir());
@@ -331,7 +334,8 @@ async fn real_world_use_case() {
     .await;
 
     // Add balance to Charlie
-    let balance = 12_500_000_000;
+    // collateral + pre_commit_deposit (1)
+    let balance = 12_500_000_001;
     tracing::debug!("adding {} balance to charlie", balance);
     add_balance(&client, &charlie_kp, balance).await;
 
@@ -407,22 +411,31 @@ async fn real_world_use_case() {
 
     // Waiting for the next deadline so we can record the next deadline of index 0 as faulty/recovered.
     let next_deadline = Deadline::new(1, post_proof);
-    let next_deadline_info = next_deadline.get_info(client.clone(), &multi_pair).await.unwrap();
-    client.wait_for_height(next_deadline_info.start, true).await.unwrap();
+    let next_deadline_info = next_deadline
+        .get_info(client.clone(), &multi_pair)
+        .await
+        .unwrap();
+    client
+        .wait_for_height(next_deadline_info.start, true)
+        .await
+        .unwrap();
 
     declare_faults(&client, &charlie_kp).await;
     declare_recoveries(&client, &charlie_kp).await;
 
     deadline
-    .submit_windowed_post(
-        client.clone(),
-        &multi_pair,
-        post_mapped_parameters,
-        sector_storage,
-    )
-    .await
-    .unwrap();
+        .submit_windowed_post(
+            client.clone(),
+            &multi_pair,
+            post_mapped_parameters,
+            sector_storage,
+        )
+        .await
+        .unwrap();
 
-    client.wait_for_height(sector_end_block, true).await.unwrap();
+    client
+        .wait_for_height(sector_end_block, true)
+        .await
+        .unwrap();
     settle_deal_payments(&client, &charlie_kp, &alice_kp).await;
 }

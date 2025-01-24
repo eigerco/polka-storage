@@ -472,6 +472,8 @@ pub mod pallet {
         /// - they never deposited the amount they want to withdraw
         /// - the funds they deposited were locked as part of a deal
         InsufficientFreeFunds,
+        /// Tries to unlock funds which have never been locked before.
+        InsufficientLockedFunds,
         /// `publish_storage_deals` was called with empty `deals` array.
         NoProposalsToBePublished,
         /// `publish_storage_deals` must be called by Storage Providers and it's a Provider of all of the deals.
@@ -1646,6 +1648,8 @@ pub mod pallet {
         amount: BalanceOf<T>,
     ) -> DispatchResult {
         BalanceTable::<T>::try_mutate(account_id, |balance| -> DispatchResult {
+            ensure!(balance.free >= amount, Error::<T>::InsufficientFreeFunds);
+
             balance.free = balance
                 .free
                 .checked_sub(&amount)
@@ -1668,11 +1672,11 @@ pub mod pallet {
         amount: BalanceOf<T>,
     ) -> DispatchResult {
         BalanceTable::<T>::try_mutate(account_id, |balance| -> DispatchResult {
-            let locked = balance
+            ensure!(balance.free >= amount, Error::<T>::InsufficientLockedFunds);
+            balance.locked = balance
                 .locked
                 .checked_sub(&amount)
                 .ok_or(ArithmeticError::Underflow)?;
-            balance.locked = locked;
             Ok(())
         })?;
         // Burn from circulating supply
