@@ -6,7 +6,7 @@ use ed25519_dalek::{pkcs8::DecodePrivateKey, SigningKey};
 use libp2p::{identity::Keypair, rendezvous::Namespace, Multiaddr, PeerId};
 use register::register;
 use serde::{de, Deserialize};
-use tokio_util::{sync::CancellationToken, task::TaskTracker};
+use tokio_util::sync::CancellationToken;
 
 mod bootstrap;
 mod register;
@@ -17,6 +17,7 @@ pub(crate) use register::RegisterConfig;
 const P2P_NAMESPACE: &str = "polka-storage";
 
 #[derive(Default, Debug, Clone, Copy, ValueEnum, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum NodeType {
     #[default]
     Bootstrap,
@@ -67,6 +68,9 @@ pub(crate) struct P2PState {
     /// PeerID of the bootstrap node used by the registration node.
     /// Optional because it is not used by the bootstrap node.
     pub(crate) rendezvous_point: Option<PeerId>,
+
+    /// TTL of the p2p registration in seconds
+    pub(crate) registration_ttl: u64,
 }
 
 /// Deserializes a ED25519 private key into a Keypair.
@@ -112,7 +116,6 @@ pub async fn run_bootstrap_node(
     token: CancellationToken,
 ) -> Result<(), P2PError> {
     tracing::info!("Starting P2P bootstrap node");
-    let tracker = TaskTracker::new();
     let (swarm, addr) = config.create_swarm()?;
 
     tokio::select! {
@@ -127,9 +130,6 @@ pub async fn run_bootstrap_node(
         },
     }
 
-    tracker.close();
-    tracker.wait().await;
-
     Ok(())
 }
 
@@ -140,15 +140,17 @@ pub async fn run_register_node(
     token: CancellationToken,
 ) -> Result<(), P2PError> {
     tracing::info!("Starting P2P register node");
-    let tracker = TaskTracker::new();
-    let (swarm, rendezvous_point_address, rendezvous_point) = config.create_swarm()?;
+    let rendezvous_point = config.rendezvous_point;
+    let rendezvous_point_address = config.rendezvous_point_address.clone();
+    let registration_ttl = config.registration_ttl;
+    let mut swarm = config.create_swarm()?;
 
     tokio::select! {
         res = register(
-            swarm,
+            &mut swarm,
             rendezvous_point,
             rendezvous_point_address,
-            None,
+            registration_ttl,
             Namespace::from_static(P2P_NAMESPACE),
         ) => {
             if let Err(e) = res {
@@ -160,9 +162,6 @@ pub async fn run_register_node(
             tracing::info!("P2P node has been stopped by the cancellation token...");
         },
     }
-
-    tracker.close();
-    tracker.wait().await;
 
     Ok(())
 }

@@ -10,6 +10,7 @@ use libp2p::{
 };
 
 use super::P2PError;
+use crate::config::DEFAULT_REGISTRATION_TTL;
 
 #[derive(NetworkBehaviour)]
 pub struct BootstrapBehaviour {
@@ -39,7 +40,7 @@ impl BootstrapConfig {
             .with_behaviour(|key| BootstrapBehaviour {
                 // Rendezvous server behaviour for serving new peers to connecting nodes.
                 rendezvous: rendezvous::server::Behaviour::new(
-                    rendezvous::server::Config::default(),
+                    rendezvous::server::Config::default().with_max_ttl(DEFAULT_REGISTRATION_TTL), // Max TTL of 24 hours
                 ),
                 // The identify behaviour is used to share the external address and the public key with connecting clients.
                 identify: identify::Behaviour::new(identify::Config::new(
@@ -65,11 +66,8 @@ pub(crate) async fn bootstrap(
     swarm.listen_on(addr)?;
     while let Some(event) = swarm.next().await {
         match event {
-            SwarmEvent::ConnectionEstablished { peer_id, .. } => {
-                tracing::info!("Connected to {}", peer_id);
-            }
-            SwarmEvent::ConnectionClosed { peer_id, .. } => {
-                tracing::info!("Disconnected from {}", peer_id);
+            SwarmEvent::NewListenAddr { address, .. } => {
+                tracing::info!("Listening on {}", address);
             }
             SwarmEvent::Behaviour(BootstrapBehaviourEvent::Rendezvous(
                 rendezvous::server::Event::PeerRegistered { peer, registration },
@@ -95,7 +93,16 @@ pub(crate) async fn bootstrap(
                     );
                 }
             }
-            _other => {}
+            SwarmEvent::Behaviour(BootstrapBehaviourEvent::Rendezvous(
+                rendezvous::server::Event::RegistrationExpired(registration),
+            )) => {
+                tracing::info!(
+                    "Registration for peer {} expired in namespace {}",
+                    registration.record.peer_id(),
+                    registration.namespace
+                );
+            }
+            other => tracing::debug!("Encountered event: {other:?}"),
         }
     }
     Ok(())
