@@ -77,6 +77,8 @@ jobs:
     runs-on: self-hosted
     needs:
       - format
+    env:
+      RUSTFLAGS: -D warnings
     steps:
       - uses: actions/checkout@v4
       - name: List version
@@ -86,8 +88,45 @@ jobs:
           cargo clippy --version
           cargo tarpaulin --version
       - name: Build in dev mode
-        run: RUSTFLAGS="-D warnings" cargo build --profile ci --locked
+        run: cargo build --profile ci --locked
       - name: Cargo clippy
-        run: RUSTFLAGS="-D warnings" cargo clippy --profile ci --locked
+        run: cargo clippy --profile ci --locked
       - name: Run tests
-        run: RUSTFLAGS="-D warnings" cargo tarpaulin --profile ci --locked --workspace --skip-clean --exclude maat
+        run: cargo tarpaulin --profile ci --locked --workspace --skip-clean --exclude maat
+
+  benchmarks:
+    runs-on: self-hosted
+    needs:
+      - clippy_build_and_test
+    env:
+      RUSTFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: pallet-proofs — Run test benchmarks
+        run: cargo test --profile ci --locked -p pallet-proofs --features runtime-benchmarks -- benchmark --nocapture
+
+      - name: pallet-proofs — Run node benchmarks
+        run: cargo run \
+          -p polka-storage-node -r -F runtime-benchmarks -- \
+          benchmark pallet \
+          --wasm-execution=compiled \
+          --pallet "pallet_proofs"\
+          --extrinsic "*" \
+          --steps 5 \
+          --repeat 1 \
+          --template node/benchmark_template.hbs
+
+      - name: pallet-randomness — Run test benchmarks
+        run: cargo test --profile ci --locked -p pallet-randomness --features runtime-benchmarks -- benchmark --nocapture
+
+      - name: pallet-randomness — Run node benchmarks
+        run: cargo run \
+          -p polka-storage-node -r -F runtime-benchmarks -- \
+          benchmark pallet \
+          --wasm-execution=compiled \
+          --pallet "pallet_randomness"\
+          --extrinsic "*" \
+          --steps 5 \
+          --repeat 1 \
+          --template node/benchmark_template.hbs
