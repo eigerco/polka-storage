@@ -39,7 +39,8 @@ pub mod builder {
 
     use cid::Cid;
     use sp_core::ConstU32;
-    use sp_runtime::BoundedVec;
+    use sp_runtime::{BoundedVec, Vec};
+    use sp_std::vec;
 
     use super::SectorPreCommitInfo;
     use crate::{

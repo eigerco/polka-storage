@@ -177,7 +177,8 @@ mod serde_tests {
 
 #[cfg(feature = "testing")]
 pub mod testing {
-    use sp_core::{bounded_btree_map::BoundedBTreeMap, bounded_vec::BoundedVec, ConstU32};
+    use sp_core::ConstU32;
+    use sp_runtime::{BoundedBTreeMap, BoundedVec};
 
     use crate::{
         pallets::ProofVerification,
