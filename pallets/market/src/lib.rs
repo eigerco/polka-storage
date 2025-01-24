@@ -1672,7 +1672,10 @@ pub mod pallet {
         amount: BalanceOf<T>,
     ) -> DispatchResult {
         BalanceTable::<T>::try_mutate(account_id, |balance| -> DispatchResult {
-            ensure!(balance.free >= amount, Error::<T>::InsufficientLockedFunds);
+            ensure!(
+                balance.locked >= amount,
+                Error::<T>::InsufficientLockedFunds
+            );
             balance.locked = balance
                 .locked
                 .checked_sub(&amount)
