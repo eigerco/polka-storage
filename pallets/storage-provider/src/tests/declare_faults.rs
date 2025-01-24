@@ -1,5 +1,5 @@
 use frame_support::{assert_err, assert_noop, assert_ok, pallet_prelude::*};
-use primitives::sector::SectorNumber;
+use primitives::sector::{ProveCommitSector, SectorNumber};
 use rstest::rstest;
 use sp_core::bounded_vec;
 use sp_runtime::{traits::BlockNumberProvider, BoundedVec};
@@ -9,7 +9,6 @@ use crate::{
     error::GeneralPalletError,
     fault::{DeclareFaultsParams, FaultDeclaration},
     pallet::{Error, Event, StorageProviders, DECLARATIONS_MAX},
-    sector::ProveCommitSector,
     tests::{
         account, events, new_test_ext, register_storage_provider, run_to_block, sector_set,
         DealProposalBuilder, DeclareFaultsBuilder, Market, RuntimeEvent, RuntimeOrigin,

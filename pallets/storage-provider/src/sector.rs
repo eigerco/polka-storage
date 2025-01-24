@@ -4,7 +4,7 @@ use primitives::{
     pallets::SectorDeal,
     proofs::RegisteredSealProof,
     sector::{SectorNumber, SectorPreCommitInfo},
-    PartitionNumber, CID_SIZE_IN_BYTES, MAX_SEAL_PROOF_BYTES, MAX_TERMINATIONS_PER_CALL,
+    PartitionNumber, CID_SIZE_IN_BYTES, MAX_TERMINATIONS_PER_CALL,
 };
 use scale_info::TypeInfo;
 
@@ -87,13 +87,6 @@ where
             unsealed_cid: pre_commit.unsealed_cid,
         }
     }
-}
-
-/// Arguments passed into the `prove_commit_sector` extrinsic.
-#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
-pub struct ProveCommitSector {
-    pub sector_number: SectorNumber,
-    pub proof: BoundedVec<u8, ConstU32<MAX_SEAL_PROOF_BYTES>>,
 }
 
 /// Type that is emitted after a successful prove commit extrinsic.

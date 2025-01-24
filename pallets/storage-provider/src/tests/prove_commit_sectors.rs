@@ -1,6 +1,9 @@
 use frame_support::{assert_noop, assert_ok, pallet_prelude::*};
 use frame_system::pallet_prelude::BlockNumberFor;
-use primitives::{sector::SectorPreCommitInfo, MAX_SECTORS_PER_CALL};
+use primitives::{
+    sector::{ProveCommitSector, SectorPreCommitInfo},
+    MAX_SECTORS_PER_CALL,
+};
 use sp_core::bounded_vec;
 
 use super::{new_test_ext, MaxProveCommitDuration};
@@ -8,7 +11,7 @@ use crate::{
     deadline::deadline_is_mutable,
     error::GeneralPalletError,
     pallet::{Error, Event, StorageProviders},
-    sector::{ProveCommitResult, ProveCommitSector},
+    sector::ProveCommitResult,
     tests::{
         account, events, publish_deals, register_storage_provider, run_to_block, Market,
         RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System, Test,
