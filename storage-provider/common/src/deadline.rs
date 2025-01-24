@@ -147,7 +147,7 @@ impl Deadline {
         tracing::info!("Proving PoSt partitions... {:?}", partitions);
         let handle: JoinHandle<Result<Vec<BlstrsProof>, _>> = {
             let post_params = post_params.clone();
-            let post_proof = self.post_proof.clone();
+            let post_proof = self.post_proof;
 
             tokio::task::spawn_blocking(move || {
                 post::generate_window_post(
