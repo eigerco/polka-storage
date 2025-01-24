@@ -116,7 +116,6 @@ pub async fn run_bootstrap_node(
     token: CancellationToken,
 ) -> Result<(), P2PError> {
     tracing::info!("Starting P2P bootstrap node");
-    let tracker = TaskTracker::new();
     let (swarm, addr) = config.create_swarm()?;
 
     tokio::select! {
@@ -128,8 +127,6 @@ pub async fn run_bootstrap_node(
         },
         _ = token.cancelled() => {
             tracing::info!("P2P node has been stopped by the cancellation token...");
-            tracker.close();
-            tracker.wait().await;
         },
     }
 
