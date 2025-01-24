@@ -6,7 +6,7 @@ use ed25519_dalek::{pkcs8::DecodePrivateKey, SigningKey};
 use libp2p::{identity::Keypair, rendezvous::Namespace, Multiaddr, PeerId};
 use register::register;
 use serde::{de, Deserialize};
-use tokio_util::{sync::CancellationToken, task::TaskTracker};
+use tokio_util::sync::CancellationToken;
 
 mod bootstrap;
 mod register;
@@ -140,7 +140,6 @@ pub async fn run_register_node(
     token: CancellationToken,
 ) -> Result<(), P2PError> {
     tracing::info!("Starting P2P register node");
-    let tracker = TaskTracker::new();
     let rendezvous_point = config.rendezvous_point;
     let rendezvous_point_address = config.rendezvous_point_address.clone();
     let registration_ttl = config.registration_ttl;
@@ -161,8 +160,6 @@ pub async fn run_register_node(
         },
         _ = token.cancelled() => {
             tracing::info!("P2P node has been stopped by the cancellation token...");
-            tracker.close();
-            tracker.wait().await;
         },
     }
 
