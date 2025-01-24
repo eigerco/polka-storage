@@ -333,8 +333,10 @@ async fn real_world_use_case() {
     )
     .await;
 
-    // Add balance to Charlie
-    // collateral + pre_commit_deposit (1)
+    // Add balance to Charlie - Storage Provider.
+    // Collateral (12 500 000) + pre_commit_deposit (1)
+    // 12 500 000 == deal.provider_collateral
+    // 1 == pallets/storage-provider/lib.rs:calculate_pre_commit_deposit
     let balance = 12_500_000_001;
     tracing::debug!("adding {} balance to charlie", balance);
     add_balance(&client, &charlie_kp, balance).await;
