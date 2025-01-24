@@ -111,6 +111,7 @@ pub(crate) async fn register(
     }
 }
 
+/// Checks swarm events related to registration and returns an error if the registration failed.
 fn on_swarm_event(event: SwarmEvent<RegisterBehaviourEvent>) -> Result<(), P2PError> {
     match event {
         SwarmEvent::Behaviour(RegisterBehaviourEvent::Rendezvous(
@@ -144,6 +145,8 @@ fn on_swarm_event(event: SwarmEvent<RegisterBehaviourEvent>) -> Result<(), P2PEr
     Ok(())
 }
 
+/// Checks the swarm for the `Identify` event to get its external address
+/// so we can add it to the swarm with `add_external_address`.
 async fn get_external_address(swarm: &mut Swarm<RegisterBehaviour>) -> Multiaddr {
     loop {
         match swarm.select_next_some().await {
