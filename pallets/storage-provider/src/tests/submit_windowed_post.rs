@@ -1,5 +1,5 @@
 use frame_support::{assert_noop, assert_ok};
-use primitives::{testing::INVALID_PROOF, PartitionNumber};
+use primitives::{sector::ProveCommitSector, testing::INVALID_PROOF, PartitionNumber};
 use rstest::rstest;
 use sp_core::bounded_vec;
 use sp_runtime::{BoundedVec, DispatchError};
@@ -7,7 +7,6 @@ use sp_runtime::{BoundedVec, DispatchError};
 use crate::{
     error::GeneralPalletError,
     pallet::{Error, Event, StorageProviders},
-    sector::ProveCommitSector,
     tests::{
         account, declare_faults::setup_sp_with_many_sectors_multiple_partitions, events,
         new_test_ext, register_storage_provider, run_to_block, DealProposalBuilder, Market,

@@ -1,11 +1,10 @@
-use primitives::sector::SectorNumber;
+use primitives::sector::{ProveCommitSector, SectorNumber};
 use sp_core::bounded_vec;
 use sp_runtime::{BoundedBTreeMap, BoundedBTreeSet};
 
 use super::new_test_ext;
 use crate::{
     pallet::{Event, StorageProviders},
-    sector::ProveCommitSector,
     tests::{
         account, events, publish_deals, register_storage_provider, run_to_block, Market,
         RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System, Test,
