@@ -67,6 +67,15 @@ impl RegisterConfig {
 
 /// Register the peer with the rendezvous point.
 /// The ttl is how long the peer will remain registered in seconds.
+#[tracing::instrument(
+    skip(swarm),
+    fields(
+        rendezvous_point = %rendezvous_point,
+        rendezvous_point_address = %rendezvous_point_address,
+        ttl = %ttl,
+        namespace = %namespace
+    )
+)]
 pub(crate) async fn register(
     swarm: &mut Swarm<RegisterBehaviour>,
     rendezvous_point: PeerId,
