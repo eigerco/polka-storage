@@ -134,14 +134,6 @@ pub mod builder {
             self
         }
 
-        pub fn raw_sealed_cid(
-            mut self,
-            sealed_cid: BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>,
-        ) -> Self {
-            self.sealed_cid = sealed_cid;
-            self
-        }
-
         pub fn build(self) -> SectorPreCommitInfo<BlockNumber> {
             SectorPreCommitInfo {
                 seal_proof: self.seal_proof,
