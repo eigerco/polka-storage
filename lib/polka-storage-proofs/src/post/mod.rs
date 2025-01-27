@@ -28,13 +28,15 @@ pub fn generate_random_groth16_parameters(
 ) -> Result<groth16::Parameters<Bls12>, PoStError> {
     let post_config = seal_to_config(seal_proof);
 
-    let public_params =
-        filecoin_proofs::parameters::window_post_public_params::<SectorShapeBase>(&post_config)?;
-
-    let circuit =
-        storage_proofs_post::fallback::FallbackPoStCompound::<SectorShapeBase>::blank_circuit(
-            &public_params,
-        );
+    let circuit = match seal_proof {
+        RegisteredPoStProof::StackedDRGWindow2KiBV1P1 | RegisteredPoStProof::StackedDRGWindow8MiBV1 => {
+            let public_params =
+            filecoin_proofs::parameters::window_post_public_params::<SectorShapeBase>(&post_config)?;
+            storage_proofs_post::fallback::FallbackPoStCompound::<SectorShapeBase>::blank_circuit(
+                &public_params,
+            )
+        }
+    };
 
     Ok(groth16::generate_random_parameters(circuit, &mut OsRng)?)
 }
@@ -151,6 +153,17 @@ fn seal_to_config(seal_proof: RegisteredPoStProof) -> filecoin_proofs::PoStConfi
                 api_version: storage_proofs_core::api_version::ApiVersion::V1_2_0,
             }
         }
+        RegisteredPoStProof::StackedDRGWindow8MiBV1 => {
+            filecoin_proofs::PoStConfig {
+                sector_size: filecoin_proofs::SectorSize(seal_proof.sector_size().bytes()),
+                challenge_count: filecoin_proofs::WINDOW_POST_CHALLENGE_COUNT,
+                // https://github.com/filecoin-project/rust-fil-proofs/blob/266acc39a3ebd6f3d28c6ee335d78e2b7cea06bc/filecoin-proofs/src/constants.rs#L104
+                sector_count: 2,
+                typ: PoStType::Window,
+                priority: true,
+                api_version: storage_proofs_core::api_version::ApiVersion::V1_2_0,
+            }
+        },
     }
 }
 

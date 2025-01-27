@@ -53,12 +53,16 @@ pub enum RegisteredSealProof {
     #[cfg_attr(feature = "clap", clap(name = "2KiB"))]
     #[cfg_attr(feature = "serde", serde(alias = "2KiB"))]
     StackedDRG2KiBV1P1,
+    #[cfg_attr(feature = "clap", clap(name = "8MiB"))]
+    #[cfg_attr(feature = "serde", serde(alias = "2MiB"))]
+    StackedDRG8MiBV1,
 }
 
 impl RegisteredSealProof {
     pub fn sector_size(&self) -> SectorSize {
         match self {
             RegisteredSealProof::StackedDRG2KiBV1P1 => SectorSize::_2KiB,
+            RegisteredSealProof::StackedDRG8MiBV1 => SectorSize::_8MiB,
         }
     }
 
@@ -69,6 +73,7 @@ impl RegisteredSealProof {
             RegisteredSealProof::StackedDRG2KiBV1P1 => {
                 RegisteredPoStProof::StackedDRGWindow2KiBV1P1
             }
+            RegisteredSealProof::StackedDRG8MiBV1 => RegisteredPoStProof::StackedDRGWindow8MiBV1,
         }
     }
 
@@ -79,6 +84,7 @@ impl RegisteredSealProof {
     pub fn proof_size(self) -> usize {
         match self {
             RegisteredSealProof::StackedDRG2KiBV1P1 => 192,
+            RegisteredSealProof::StackedDRG8MiBV1 => 192,
         }
     }
 
@@ -104,6 +110,9 @@ pub enum RegisteredPoStProof {
     #[cfg_attr(feature = "clap", clap(name = "2KiB"))]
     #[cfg_attr(feature = "serde", serde(alias = "2KiB"))]
     StackedDRGWindow2KiBV1P1,
+    #[cfg_attr(feature = "clap", clap(name = "8KiB"))]
+    #[cfg_attr(feature = "serde", serde(alias = "8KiB"))]
+    StackedDRGWindow8MiBV1,
 }
 
 impl RegisteredPoStProof {
@@ -111,6 +120,7 @@ impl RegisteredPoStProof {
     pub fn sector_size(&self) -> SectorSize {
         match self {
             RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => SectorSize::_2KiB,
+            RegisteredPoStProof::StackedDRGWindow8MiBV1 => SectorSize::_8MiB,
         }
     }
 
@@ -120,6 +130,7 @@ impl RegisteredPoStProof {
         // Resolve to post proof and then compute size from that.
         match self {
             RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => 2,
+            RegisteredPoStProof::StackedDRGWindow8MiBV1 => 2,
         }
     }
 
@@ -130,6 +141,7 @@ impl RegisteredPoStProof {
     pub fn sector_count(&self) -> usize {
         match self {
             RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => 2,
+            RegisteredPoStProof::StackedDRGWindow8MiBV1 => 2,
         }
     }
 
