@@ -5,19 +5,18 @@ use bellperson::groth16;
 use blstrs::Bls12;
 use filecoin_hashers::Domain;
 use filecoin_proofs::{
-    add_piece, as_safe_commitment, parameters::setup_params, DefaultPieceDomain, DefaultPieceHasher, PaddedBytesAmount, PoRepConfig, SealCommitPhase1Output, SealPreCommitOutput, SealPreCommitPhase1Output, UnpaddedBytesAmount
+    add_piece, as_safe_commitment, parameters::setup_params, DefaultPieceDomain, DefaultPieceHasher, PaddedBytesAmount, PoRepConfig, SealCommitPhase1Output, SealPreCommitOutput, SealPreCommitPhase1Output, SectorShape2KiB, SectorShape8MiB, UnpaddedBytesAmount
 };
 use primitives::{
     commitment::{
         piece::{PaddedPieceSize, PieceInfo},
         CommD, CommP, CommR, Commitment,
-    },
-    sector::SectorNumber,
+    }, proofs::RegisteredSealProof, sector::SectorNumber
 };
 use storage_proofs_core::{compound_proof, compound_proof::CompoundProof};
 use storage_proofs_porep::stacked::{self, StackedCompound, StackedDrg};
 
-use super::PoRepError;
+use super::{seal_to_config, PoRepError};
 use crate::{
     types::{ProverId, Ticket},
     ZeroPaddingReader,
@@ -69,24 +68,22 @@ pub struct Sealer<SectorShape> {
     _sector_shape: PhantomData<SectorShape>
 }
 
-#[macro_export]
-macro_rules! construct_sealer {
-    ($seal:expr) => {
-        match $seal {
-            primitives::proofs::RegisteredSealProof::StackedDRG2KiBV1P1 => {
-                $crate::porep::sealer::Sealer::<filecoin_proofs::SectorShape2KiB> {
-                    porep_config: $crate::porep::seal_to_config($seal),
-                    _sector_shape: PhantomData,
-                }
-            },
-            primitives::proofs::RegisteredSealProof::StackedDRG8MiBV1 => {
-                $crate::porep::sealer::Sealer::<filecoin_proofs::SectorShape8MiB> {
-                    porep_config: $crate::porep::seal_to_config($seal),
-                    _sector_shape: PhantomData,
-                }
+
+pub fn select_sealer(seal: RegisteredSealProof) -> Sealer<impl filecoin_proofs::MerkleTreeTrait + 'static> {
+    match seal {
+        RegisteredSealProof::StackedDRG2KiBV1P1 => {
+            Sealer::<SectorShape2KiB> {
+                porep_config: seal_to_config(seal),
+                _sector_shape: PhantomData,
+            }
+        },
+        RegisteredSealProof::StackedDRG8MiBV1 => {
+            Sealer::<SectorShape8MiB> {
+                porep_config: seal_to_config(seal),
+                _sector_shape: PhantomData,
             }
         }
-    };
+    }
 }
 
 impl<SectorShape: filecoin_proofs::MerkleTreeTrait + 'static> Sealer<SectorShape> {
@@ -461,7 +458,7 @@ mod test {
     fn padding_for_sector(#[case] piece_sizes: Vec<usize>) {
         use primitives::proofs::RegisteredSealProof;
 
-        let sealer = construct_sealer!(RegisteredSealProof::StackedDRG2KiBV1P1);
+        let sealer = select_sealer(RegisteredSealProof::StackedDRG2KiBV1P1);
 
         let piece_infos: Vec<(Cursor<Vec<u8>>, PieceInfo)> = piece_sizes
             .into_iter()
