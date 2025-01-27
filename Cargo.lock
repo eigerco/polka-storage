@@ -11511,7 +11511,6 @@ dependencies = [
  "pallet-storage-provider",
  "parity-scale-codec",
  "primitives",
- "rand",
  "scale-info",
  "sp-arithmetic 23.0.0",
  "sp-core 28.0.0",

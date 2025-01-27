@@ -41,8 +41,6 @@ pallet-balances = { workspace = true, default-features = false, optional = true 
 pallet-storage-provider = { workspace = true, default-features = false, optional = true }
 ## Required for .chunks()
 itertools = { workspace = true, optional = true, default-features = false, features = ["use_alloc"] }
-## Required for random CIDs
-rand = { workspace = true, features = ["small_rng"], optional = true }
 ## Substrate Primitives & Friends
 sp-core = { workspace = true, default_features = false, optional = true }
 sp-io = { workspace = true, optional = true }
@@ -57,12 +55,9 @@ pallet-storage-provider = { workspace = true, default-features = false }
 primitives = { workspace = true, default-features = false, features = ["builder", "testing"] }
 
 blake2b_simd = { workspace = true, default-features = true }
-cid = { workspace = true, default-features = false, features = ["alloc", "scale-codec"] }
 env_logger = { workspace = true }
 # Just used in benchmarks but they're also considered tests
 itertools = { workspace = true, default-features = false, features = ["use_alloc"] }
-# Just used in benchmarks but they're also considered tests
-rand = { workspace = true, features = ["small_rng"] }
 sp-core = { workspace = true, default-features = false }
 sp-io = { workspace = true }
 sp-keystore = { workspace = true, default-features = false }
@@ -80,7 +75,6 @@ runtime-benchmarks = [
   "primitives/builder",
   "primitives/builder",
   "primitives/testing",
-  "rand",
   "sp-core",
   "sp-io",
   "sp-keystore",

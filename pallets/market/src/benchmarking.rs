@@ -1,6 +1,5 @@
 #![cfg(feature = "runtime-benchmarks")]
 
-use cid::{multihash::Multihash, Cid};
 use codec::Encode;
 use frame_benchmarking::v2::*;
 use frame_support::{pallet_prelude::ConstU32, sp_runtime::BoundedVec, traits::Currency};
@@ -11,14 +10,13 @@ use frame_system::{
 };
 use pallet_storage_provider::Pallet as SpPallet;
 use primitives::{
-    commitment::{FIL_COMMITMENT_UNSEALED, SHA2_256_TRUNC254_PADDED},
+    commitment::{piece::PaddedPieceSize, CommP, Commitment},
     proofs::RegisteredPoStProof,
     sector::{builder::SectorPreCommitInfoBuilder, ProveCommitSector, SectorPreCommitInfo},
     MAX_LABEL_SIZE, MAX_SECTORS_PER_CALL, PEER_ID_MAX_BYTES,
 };
-use rand::{rngs::SmallRng, RngCore, SeedableRng};
 use scale_info::prelude::format;
-use sp_core::{ed25519, hashing::sha2_256};
+use sp_core::ed25519;
 use sp_io::crypto::{ed25519_generate, ed25519_sign};
 use sp_runtime::{traits::IdentifyAccount, AccountId32, MultiSignature, MultiSigner};
 use sp_std::{vec, vec::Vec};
@@ -29,15 +27,6 @@ use crate::Pallet as MarketPallet;
 
 type BoundedPeerIdBytes = BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>;
 const COLLATERAL: u32 = 10;
-
-fn random_cid<R: RngCore>(rng: &mut R) -> Cid {
-    let mut buffer = [0u8; 32];
-    rng.fill_bytes(&mut buffer);
-
-    let hash = sha2_256(&buffer);
-    let mh = Multihash::<64>::wrap(SHA2_256_TRUNC254_PADDED, &hash).unwrap();
-    Cid::new_v1(FIL_COMMITMENT_UNSEALED, mh)
-}
 
 fn generate_benchmark_account(name: &'static str) -> (AccountId32, MultiSigner) {
     // Generate a deterministic seed
@@ -69,19 +58,22 @@ fn prepare_proposals<T>(
 where
     T: crate::Config,
 {
-    let mut small_rng = SmallRng::seed_from_u64(0x101097);
-
     let start_block: u32 = 50;
     let end_block: u32 = 100;
     let price_per_block: u32 = 10;
     let cost = (end_block - start_block) * price_per_block * n;
 
     let mut proposals = vec![];
-    for _ in 1..=n {
-        let label = vec![0; MAX_LABEL_SIZE as usize];
+    for idx in 1..=n {
+        // Cast is safe since `n` never goes beyond 255
+        let label = vec![idx as u8; MAX_LABEL_SIZE as usize];
 
         let proposal = DealProposal::<T::AccountId, BalanceOf<T>, BlockNumberFor<T>> {
-            piece_cid: random_cid(&mut small_rng).to_bytes().try_into().unwrap(),
+            piece_cid: Commitment::<CommP>::zero(PaddedPieceSize::MIN)
+                .cid()
+                .to_bytes()
+                .try_into()
+                .unwrap(),
             piece_size: 2048,
             client: client.clone(),
             provider: caller.clone(),
