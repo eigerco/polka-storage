@@ -1465,7 +1465,7 @@ fn test_unlock_funds() {
 
         assert_err!(
             unlock_funds::<Test>(&account::<Test>(PROVIDER), 60),
-            DispatchError::Arithmetic(ArithmeticError::Underflow)
+            Error::<Test>::InsufficientLockedFunds
         );
         assert_eq!(
             BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
