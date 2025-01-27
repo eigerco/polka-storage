@@ -1,25 +1,23 @@
+use core::marker::PhantomData;
 use std::{fs::File, path::Path};
 
 use bellperson::groth16;
 use blstrs::Bls12;
 use filecoin_hashers::Domain;
 use filecoin_proofs::{
-    add_piece, as_safe_commitment, parameters::setup_params, DefaultPieceDomain,
-    DefaultPieceHasher, PaddedBytesAmount, PoRepConfig, SealCommitPhase1Output,
-    SealPreCommitOutput, SealPreCommitPhase1Output, SectorShapeBase, UnpaddedBytesAmount,
+    add_piece, as_safe_commitment, parameters::setup_params, DefaultPieceDomain, DefaultPieceHasher, PaddedBytesAmount, PoRepConfig, SealCommitPhase1Output, SealPreCommitOutput, SealPreCommitPhase1Output, UnpaddedBytesAmount
 };
 use primitives::{
     commitment::{
         piece::{PaddedPieceSize, PieceInfo},
         CommD, CommP, CommR, Commitment,
     },
-    proofs::RegisteredSealProof,
     sector::SectorNumber,
 };
 use storage_proofs_core::{compound_proof, compound_proof::CompoundProof};
 use storage_proofs_porep::stacked::{self, StackedCompound, StackedDrg};
 
-use super::{seal_to_config, PoRepError};
+use super::PoRepError;
 use crate::{
     types::{ProverId, Ticket},
     ZeroPaddingReader,
@@ -66,17 +64,32 @@ where
 
     Ok((piece_padded_file, piece_info))
 }
-pub struct Sealer {
+pub struct Sealer<SectorShape> {
     porep_config: PoRepConfig,
+    _sector_shape: PhantomData<SectorShape>
 }
 
-impl Sealer {
-    pub fn new(seal_proof: RegisteredSealProof) -> Self {
-        Self {
-            porep_config: seal_to_config(seal_proof),
+#[macro_export]
+macro_rules! construct_sealer {
+    ($seal:expr) => {
+        match $seal {
+            primitives::proofs::RegisteredSealProof::StackedDRG2KiBV1P1 => {
+                $crate::porep::sealer::Sealer::<filecoin_proofs::SectorShape2KiB> {
+                    porep_config: $crate::porep::seal_to_config($seal),
+                    _sector_shape: PhantomData,
+                }
+            },
+            primitives::proofs::RegisteredSealProof::StackedDRG8MiBV1 => {
+                $crate::porep::sealer::Sealer::<filecoin_proofs::SectorShape8MiB> {
+                    porep_config: $crate::porep::seal_to_config($seal),
+                    _sector_shape: PhantomData,
+                }
+            }
         }
-    }
+    };
+}
 
+impl<SectorShape: filecoin_proofs::MerkleTreeTrait + 'static> Sealer<SectorShape> {
     /// Adds a Piece and padding to already existing sector file and returns how many bytes were written.
     /// It can return more bytes than the piece size, as it adds padding so a proper Merkle Tree can be created out of the sector.
     /// You need to supply current pieces which are already in the sector, otherwise they'll be overwritten.
@@ -213,7 +226,7 @@ impl Sealer {
             .map(|p| (*p).into())
             .collect::<Vec<filecoin_proofs::PieceInfo>>();
 
-        let p1_output: SealPreCommitPhase1Output<SectorShapeBase> =
+        let p1_output: SealPreCommitPhase1Output<SectorShape> =
             filecoin_proofs::seal_pre_commit_phase1(
                 &self.porep_config,
                 cache_directory,
@@ -275,7 +288,7 @@ impl Sealer {
             .map(filecoin_proofs::PieceInfo::from)
             .collect::<Vec<_>>();
 
-        let scp1: filecoin_proofs::SealCommitPhase1Output<SectorShapeBase> =
+        let scp1: filecoin_proofs::SealCommitPhase1Output<SectorShape> =
             filecoin_proofs::seal_commit_phase1_inner(
                 &self.porep_config,
                 cache_path,
@@ -318,12 +331,12 @@ impl Sealer {
         };
 
         let compound_public_params =
-            <StackedCompound<SectorShapeBase, DefaultPieceHasher> as CompoundProof<
-                StackedDrg<'_, SectorShapeBase, DefaultPieceHasher>,
+            <StackedCompound<SectorShape, DefaultPieceHasher> as CompoundProof<
+                StackedDrg<'_, SectorShape, DefaultPieceHasher>,
                 _,
             >>::setup(&compound_setup_params)?;
 
-        let groth_proofs = StackedCompound::<SectorShapeBase, DefaultPieceHasher>::circuit_proofs(
+        let groth_proofs = StackedCompound::<SectorShape, DefaultPieceHasher>::circuit_proofs(
             &public_inputs,
             vanilla_proofs,
             &compound_public_params.vanilla_params,
@@ -446,7 +459,9 @@ mod test {
     // Biggest possible piece size
     #[case(vec![2048])]
     fn padding_for_sector(#[case] piece_sizes: Vec<usize>) {
-        let sealer = Sealer::new(RegisteredSealProof::StackedDRG2KiBV1P1);
+        use primitives::proofs::RegisteredSealProof;
+
+        let sealer = construct_sealer!(RegisteredSealProof::StackedDRG2KiBV1P1);
 
         let piece_infos: Vec<(Cursor<Vec<u8>>, PieceInfo)> = piece_sizes
             .into_iter()
