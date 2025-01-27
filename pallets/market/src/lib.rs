@@ -587,7 +587,7 @@ pub mod pallet {
         /// It is permissive, if some of the deals are correct and some are not, it emits events for valid deals.
         /// On success emits [`Event::<T>::DealPublished`] for each successful deal.
         #[pallet::call_index(2)]
-        #[pallet::weight((T::WeightInfo::settle_deal_payments(deals.len() as u32), DispatchClass::Normal))]
+        #[pallet::weight((T::WeightInfo::publish_storage_deals(deals.len() as u32), DispatchClass::Normal))]
         pub fn publish_storage_deals(
             origin: OriginFor<T>,
             deals: BoundedVec<
