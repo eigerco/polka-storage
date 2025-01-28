@@ -29,13 +29,17 @@ use crate::{
                     SubmitWindowedPoStParams as RuntimeSubmitWindowedPoStParams,
                 },
                 sector::{
-                    ProveCommitSector as RuntimeProveCommitSector,
-                    SectorPreCommitInfo as RuntimeSectorPreCommitInfo,
                     TerminateSectorsParams as RuntimeTerminateSectorsParams,
                     TerminationDeclaration as RuntimeTerminationDeclaration,
                 },
             },
-            primitives::pallets::DeadlineState as RuntimeDeadlineState,
+            primitives::{
+                pallets::DeadlineState as RuntimeDeadlineState,
+                sector::{
+                    pre_commit::SectorPreCommitInfo as RuntimeSectorPreCommitInfo,
+                    prove_commit::ProveCommitSector as RuntimeProveCommitSector,
+                },
+            },
         },
     },
     BlockNumber,
