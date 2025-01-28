@@ -1,11 +1,11 @@
-use std::{env, path::Path, sync::Arc, time::Duration};
+use std::{collections::BTreeSet, env, path::Path, sync::Arc, time::Duration};
 
 use cid::Cid;
 use codec::Encode;
 use libp2p::PeerId;
 use maat::*;
-use polka_storage_proofs::porep;
-use polka_storage_provider_common::sector::UnsealedSector;
+use polka_storage_proofs::{porep, post};
+use polka_storage_provider_common::{deadline::Deadline, sector::UnsealedSector};
 use primitives::{
     commitment::{CommP, Commitment},
     sector::{SectorNumber, SectorSize},
@@ -14,8 +14,12 @@ use storagext::{
     clients::ProofsClientExt,
     multipair::MultiPairSigner,
     runtime::runtime_types::pallet_market::pallet::DealState,
-    types::{market::DealProposal, proofs::VerifyingKey},
-    MarketClientExt, PolkaStorageConfig, StorageProviderClientExt,
+    types::{
+        market::DealProposal,
+        proofs::VerifyingKey,
+        storage_provider::{FaultDeclaration, RecoveryDeclaration},
+    },
+    MarketClientExt, PolkaStorageConfig, StorageProviderClientExt, SystemClientExt,
 };
 use subxt::ext::sp_core::sr25519::Pair as Sr25519Pair;
 use tempfile::tempdir;
@@ -50,8 +54,6 @@ where
         let event = event.unwrap();
 
         assert_eq!(event.owner, charlie.account_id().clone().into());
-        assert_eq!(event.proving_period_start, 83);
-        // assert_eq!(event.info.peer_id.0, peer_id.clone().into_bytes());
         assert_eq!(event.info.sector_size, SectorSize::_2KiB);
         assert_eq!(
             event.info.window_post_proof_type,
@@ -119,7 +121,28 @@ async fn set_porep_verifying_key<Keypair>(
     }
 }
 
-/*
+async fn set_post_verifying_key<Keypair>(
+    client: &storagext::Client,
+    charlie: &Keypair,
+    vk: VerifyingKey,
+) where
+    Keypair: subxt::tx::Signer<PolkaStorageConfig>,
+{
+    let result = client
+        .set_post_verifying_key(charlie, vk, true)
+        .await
+        .unwrap()
+        .unwrap();
+
+    for event in result
+        .events
+        .find::<storagext::runtime::proofs::events::PoStVerifyingKeyChanged>()
+    {
+        let event = event.unwrap();
+        assert_eq!(event.who, charlie.account_id().clone().into());
+    }
+}
+
 async fn settle_deal_payments<Keypair>(
     client: &storagext::Client,
     charlie: &Keypair,
@@ -151,8 +174,6 @@ async fn settle_deal_payments<Keypair>(
         );
     }
 }
-
-*/
 
 async fn publish_storage_deals<Keypair>(
     client: &storagext::Client,
@@ -188,38 +209,6 @@ where
     }
 
     unreachable!();
-}
-
-/*
-async fn submit_windowed_post<Keypair>(client: &storagext::Client, charlie: &Keypair)
-where
-    Keypair: subxt::tx::Signer<PolkaStorageConfig>,
-{
-    let windowed_post_result = client
-        .submit_windowed_post(
-            charlie,
-            SubmitWindowedPoStParams {
-                deadline: 0,
-                partitions: vec![0],
-                proofs: vec![storagext::types::storage_provider::PoStProof {
-                    post_proof: primitives::proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
-                    proof_bytes: "beef".as_bytes().to_vec(),
-                }],
-            },
-            true,
-        )
-        .await
-        .unwrap()
-        .unwrap();
-
-    for event in windowed_post_result
-        .events
-        .find::<storagext::runtime::storage_provider::events::ValidPoStSubmitted>()
-    {
-        let event = event.unwrap();
-
-        assert_eq!(event.owner, charlie.account_id().clone().into());
-    }
 }
 
 async fn declare_recoveries<Keypair>(client: &storagext::Client, charlie: &Keypair)
@@ -271,7 +260,6 @@ where
         assert_eq!(event.faults.0, fault_declarations);
     }
 }
-*/
 
 #[tokio::test]
 async fn real_world_use_case() {
@@ -287,16 +275,27 @@ async fn real_world_use_case() {
     let unsealed_sector_path = temp_dir.path().join("unsealed_sector");
     let cache_dir_path = temp_dir.path().join("cache_dir");
     let sealed_sector_path = temp_dir.path().join("sealed_sector");
-    let parameters_path = temp_dir.path().join("porep_params");
-    let mut parameters_file = std::fs::File::create(parameters_path.clone()).unwrap();
+    let porep_parameters_path = temp_dir.path().join("porep_params");
+    let post_parameters_path = temp_dir.path().join("post_params");
+    let mut porep_parameters_file = std::fs::File::create(porep_parameters_path.clone()).unwrap();
+    let mut post_parameters_file = std::fs::File::create(post_parameters_path.clone()).unwrap();
 
     tracing::info!("generating PoRep parameters...");
     // NOTE: it can take 1-2 minutes on slower machines. can be cached someday, but I think it's good enough for now.
     let seal_proof = primitives::proofs::RegisteredSealProof::StackedDRG2KiBV1P1;
-    let parameters = porep::generate_random_groth16_parameters(seal_proof).unwrap();
-    parameters.write(&mut parameters_file).unwrap();
+
+    let porep_parameters = porep::generate_random_groth16_parameters(seal_proof).unwrap();
+    porep_parameters.write(&mut porep_parameters_file).unwrap();
     // We need to read it again, as Proof Generating machine requires it in this form and that's the API of bellperson.
-    let mapped_parameters = porep::load_groth16_parameters(parameters_path).unwrap();
+    let porep_mapped_parameters = porep::load_groth16_parameters(porep_parameters_path).unwrap();
+
+    tracing::info!("generating PoSt parameters...");
+    let post_proof = primitives::proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
+    let post_parameters = post::generate_random_groth16_parameters(post_proof).unwrap();
+    post_parameters.write(&mut post_parameters_file).unwrap();
+    // We need to read it again, as Proof Generating machine requires it in this form and that's the API of bellperson.
+    let post_mapped_parameters =
+        Arc::new(post::load_groth16_parameters(post_parameters_path).unwrap());
 
     let network = local_testnet_config().spawn_native().await.unwrap();
     tracing::debug!("base dir: {:?}", network.base_dir());
@@ -312,13 +311,33 @@ async fn real_world_use_case() {
 
     register_storage_provider(&client, &charlie_kp).await;
     // Set PoRep VerifyingKey extrinsic only accepts scale-encoded bytes of Verifying Key in substrate form.
-    let vk =
-        polka_storage_proofs::VerifyingKey::<bls12_381::Bls12>::try_from(parameters.vk).unwrap();
-    let vk_scale = Encode::encode(&vk);
-    set_porep_verifying_key(&client, &charlie_kp, VerifyingKey::from_raw_bytes(vk_scale)).await;
+    let porep_vk =
+        polka_storage_proofs::VerifyingKey::<bls12_381::Bls12>::try_from(porep_parameters.vk)
+            .unwrap();
+    let porep_vk_scale = Encode::encode(&porep_vk);
+    set_porep_verifying_key(
+        &client,
+        &charlie_kp,
+        VerifyingKey::from_raw_bytes(porep_vk_scale),
+    )
+    .await;
 
-    // Add balance to Charlie
-    let balance = 12_500_000_000;
+    let post_vk =
+        polka_storage_proofs::VerifyingKey::<bls12_381::Bls12>::try_from(post_parameters.vk)
+            .unwrap();
+    let post_vk_scale = Encode::encode(&post_vk);
+    set_post_verifying_key(
+        &client,
+        &charlie_kp,
+        VerifyingKey::from_raw_bytes(post_vk_scale),
+    )
+    .await;
+
+    // Add balance to Charlie - Storage Provider.
+    // Collateral (12 500 000) + pre_commit_deposit (1)
+    // 12 500 000 == deal.provider_collateral
+    // 1 == pallets/storage-provider/lib.rs:calculate_pre_commit_deposit
+    let balance = 12_500_000_001;
     tracing::debug!("adding {} balance to charlie", balance);
     add_balance(&client, &charlie_kp, balance).await;
 
@@ -332,6 +351,7 @@ async fn real_world_use_case() {
     let piece_cid =
         Cid::try_from("baga6ea4seaqbfhdvmk5qygevit25ztjwl7voyikb5k2fqcl2lsuefhaqtukuiii").unwrap();
     let commp = Commitment::<CommP>::from_cid(&piece_cid).unwrap();
+    let sector_end_block = 165;
 
     // Publish a storage deal
     let deal = DealProposal {
@@ -341,7 +361,7 @@ async fn real_world_use_case() {
         provider: charlie_kp.account_id().clone(),
         label: "My lovely big data".to_string(),
         start_block: 85,
-        end_block: 165,
+        end_block: sector_end_block,
         storage_price_per_block: 300_000_000,
         provider_collateral: 12_500_000_000,
         state: DealState::Published,
@@ -367,29 +387,57 @@ async fn real_world_use_case() {
         )
         .await
         .unwrap();
-    sector
+    let sector = sector
         .prove_commit(
             client.clone(),
             &multi_pair,
-            Arc::new(mapped_parameters),
+            Arc::new(porep_mapped_parameters),
             Arc::new(Semaphore::new(1)),
             CancellationToken::new(),
         )
         .await
         .unwrap();
 
-    // TODO(@th7nder,#615, 21/01/2025): to be fixed in the follow-up for #615.
-    // client.wait_for_height(83, true).await.unwrap();
-    // submit_windowed_post(&client, &charlie_kp).await;
+    // in a network with no sectors, the 1st sector is always assigned to the 1st deadline (index: 0).
+    let deadline = Deadline::new(0, post_proof);
+    let sector_storage = |_sector_number| Some(sector.clone());
+    deadline
+        .submit_windowed_post(
+            client.clone(),
+            &multi_pair,
+            post_mapped_parameters.clone(),
+            sector_storage,
+        )
+        .await
+        .unwrap();
 
-    // client.wait_for_height(103, true).await.unwrap();
-    // declare_faults(&client, &charlie_kp).await;
+    // Waiting for the next deadline so we can record the next deadline of index 0 as faulty/recovered.
+    let next_deadline = Deadline::new(1, post_proof);
+    let next_deadline_info = next_deadline
+        .get_info(client.clone(), &multi_pair)
+        .await
+        .unwrap();
+    client
+        .wait_for_height(next_deadline_info.start, true)
+        .await
+        .unwrap();
 
-    // declare_recoveries(&client, &charlie_kp).await;
+    declare_faults(&client, &charlie_kp).await;
+    declare_recoveries(&client, &charlie_kp).await;
 
-    // client.wait_for_height(143, true).await.unwrap();
-    // submit_windowed_post(&client, &charlie_kp).await;
+    deadline
+        .submit_windowed_post(
+            client.clone(),
+            &multi_pair,
+            post_mapped_parameters,
+            sector_storage,
+        )
+        .await
+        .unwrap();
 
-    // client.wait_for_height(165, true).await.unwrap();
-    // settle_deal_payments(&client, &charlie_kp, &alice_kp).await;
+    client
+        .wait_for_height(sector_end_block, true)
+        .await
+        .unwrap();
+    settle_deal_payments(&client, &charlie_kp, &alice_kp).await;
 }

@@ -1406,7 +1406,7 @@ fn test_lock_funds() {
 
         assert_err!(
             lock_funds::<Test>(&account::<Test>(PROVIDER), 25),
-            DispatchError::Arithmetic(ArithmeticError::Underflow)
+            Error::<Test>::InsufficientFreeFunds
         );
 
         assert_eq!(
@@ -1465,7 +1465,7 @@ fn test_unlock_funds() {
 
         assert_err!(
             unlock_funds::<Test>(&account::<Test>(PROVIDER), 60),
-            DispatchError::Arithmetic(ArithmeticError::Underflow)
+            Error::<Test>::InsufficientLockedFunds
         );
         assert_eq!(
             BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
@@ -1520,7 +1520,7 @@ fn slash_and_burn_acc() {
 
         assert_err!(
             slash_and_burn::<Test>(&account::<Test>(PROVIDER), 10),
-            DispatchError::Arithmetic(ArithmeticError::Underflow)
+            Error::<Test>::InsufficientLockedFunds
         );
         assert_eq!(
             <Test as crate::pallet::Config>::Currency::total_issuance(),
