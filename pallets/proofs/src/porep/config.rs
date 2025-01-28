@@ -117,6 +117,7 @@ pub fn porep_id(seal_proof: RegisteredSealProof) -> PoRepID {
 fn proof_id(seal_proof: RegisteredSealProof) -> u64 {
     match seal_proof {
         RegisteredSealProof::StackedDRG2KiBV1P1 => 0,
+        RegisteredSealProof::StackedDRG8MiBV1 => 1,
     }
 }
 
@@ -125,6 +126,7 @@ fn proof_id(seal_proof: RegisteredSealProof) -> u64 {
 fn partitions(seal_proof: RegisteredSealProof) -> usize {
     match seal_proof {
         RegisteredSealProof::StackedDRG2KiBV1P1 => 1,
+        RegisteredSealProof::StackedDRG8MiBV1 => 1,
     }
 }
 
@@ -133,6 +135,7 @@ fn partitions(seal_proof: RegisteredSealProof) -> usize {
 fn minimum_challenges(seal_proof: RegisteredSealProof) -> usize {
     match seal_proof {
         RegisteredSealProof::StackedDRG2KiBV1P1 => 2,
+        RegisteredSealProof::StackedDRG8MiBV1 => 2,
     }
 }
 

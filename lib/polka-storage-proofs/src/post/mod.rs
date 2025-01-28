@@ -3,8 +3,7 @@ use std::{collections::BTreeMap, path::PathBuf};
 use bellperson::groth16;
 use blstrs::Bls12;
 use filecoin_proofs::{
-    as_safe_commitment, parameters::window_post_setup_params, PoStType, PrivateReplicaInfo,
-    SectorShapeBase,
+    as_safe_commitment, parameters::window_post_setup_params, PoStType, PrivateReplicaInfo, SectorShape2KiB, SectorShape8MiB, SectorShapeBase
 };
 use primitives::{proofs::RegisteredPoStProof, sector::SectorNumber};
 use rand::rngs::OsRng;
@@ -68,25 +67,14 @@ pub fn generate_window_post(
     prover_id: ProverId,
     partition_replicas: Vec<ReplicaInfo>,
 ) -> Result<Vec<groth16::Proof<Bls12>>, PoStError> {
-    type Tree = SectorShapeBase;
-
     let post_config = seal_to_config(proof_type);
-    let mut replicas = BTreeMap::new();
-    for replica in partition_replicas {
-        replicas.insert(
-            storage_proofs_core::sector::SectorId::from(u64::from(replica.sector_id)),
-            PrivateReplicaInfo::<Tree>::new(
-                replica.replica_path,
-                replica.comm_r,
-                replica.cache_path,
-            )?,
-        );
-    }
+
     let randomness_safe = as_safe_commitment(&randomness, "randomness")?;
     let prover_id_safe = as_safe_commitment(&prover_id, "prover_id")?;
 
     let vanilla_params = window_post_setup_params(&post_config);
-    let partitions = get_partitions_for_window_post(replicas.len(), post_config.sector_count);
+    // ASSUMPTION: there are no duplicates in `partition_replicas`, if there are there is a heavy bug upstream.
+    let partitions = get_partitions_for_window_post(partition_replicas.len(), post_config.sector_count);
 
     let sector_count = vanilla_params.sector_count;
     let setup_params = compound_proof::SetupParams {
@@ -95,8 +83,43 @@ pub fn generate_window_post(
         priority: post_config.priority,
     };
 
-    let pub_params: compound_proof::PublicParams<'_, FallbackPoSt<'_, Tree>> =
-        FallbackPoStCompound::setup(&setup_params)?;
+    let (pub_params, replicas) = match proof_type {
+        RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => {
+            let pub_params: compound_proof::PublicParams<'_, FallbackPoSt<'_, SectorShape2KiB>> =
+            FallbackPoStCompound::setup(&setup_params)?;
+
+            let mut replicas = BTreeMap::new();
+            for replica in partition_replicas {
+                replicas.insert(
+                    storage_proofs_core::sector::SectorId::from(u64::from(replica.sector_id)),
+                    PrivateReplicaInfo::<SectorShape2KiB>::new(
+                        replica.replica_path,
+                        replica.comm_r,
+                        replica.cache_path,
+                    )?,
+                );
+            }
+            (pub_params, replicas)
+        },
+        RegisteredPoStProof::StackedDRGWindow8MiBV1 => {
+            let pub_params: compound_proof::PublicParams<'_, FallbackPoSt<'_, SectorShape8MiB>> =
+            FallbackPoStCompound::setup(&setup_params)?;
+
+            let mut replicas = BTreeMap::new();
+            for replica in partition_replicas {
+                replicas.insert(
+                    storage_proofs_core::sector::SectorId::from(u64::from(replica.sector_id)),
+                    PrivateReplicaInfo::<SectorShape8MiB>::new(
+                        replica.replica_path,
+                        replica.comm_r,
+                        replica.cache_path,
+                    )?,
+                );
+            }
+            (pub_params, replicas)
+        }
+    };
+
 
     let trees: Vec<_> = replicas
         .values()
@@ -129,7 +152,7 @@ pub fn generate_window_post(
         k: None,
     };
 
-    let priv_inputs = fallback::PrivateInputs::<Tree> {
+    let priv_inputs = fallback::PrivateInputs::<_> {
         sectors: &priv_sectors,
     };
 
