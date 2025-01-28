@@ -48,7 +48,6 @@ where
 {
     let (full_block_length, _): (u64, usize) = read_varint(&mut reader).await?;
     let (cid, cid_bytes_read) = Cid::read_bytes_async(&mut reader).await?;
-    dbg!(&cid);
 
     let data_size = full_block_length as usize - cid_bytes_read;
     let mut data_buffer = vec![0; data_size];
