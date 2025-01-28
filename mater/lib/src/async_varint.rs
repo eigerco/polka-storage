@@ -35,7 +35,8 @@ where
     Ok(b)
 }
 
-/// Returns either the decoded integer, or an error.
+/// Returns either the decoded integer and number of bytes used by the encoding,
+/// or an error.
 ///
 /// In general, this always reads a whole varint. If the encoded varint's value
 /// is bigger than the valid value range of `VI`, then the value is truncated.
@@ -44,7 +45,7 @@ where
 ///
 /// Borrowed from:
 /// <https://github.com/dermesser/integer-encoding-rs/blob/4f57046ae90b6b923ff235a91f0729d3cf868d72/src/reader.rs#L70>
-pub(crate) async fn read_varint<R, VI>(reader: &mut R) -> Result<VI, io::Error>
+pub(crate) async fn read_varint<R, VI>(reader: &mut R) -> Result<(VI, usize), io::Error>
 where
     R: AsyncRead + Unpin,
     VI: VarInt,
@@ -91,6 +92,7 @@ impl VarIntProcessor {
             ..VarIntProcessor::default()
         }
     }
+
     fn push(&mut self, b: u8) -> Result<(), io::Error> {
         if self.i >= self.maxsize {
             return Err(io::Error::new(
@@ -102,11 +104,13 @@ impl VarIntProcessor {
         self.i += 1;
         Ok(())
     }
+
     fn finished(&self) -> bool {
         self.i > 0 && (self.buf[self.i - 1] & MSB == 0)
     }
-    fn decode<VI: VarInt>(&self) -> Option<VI> {
-        Some(VI::decode_var(&self.buf[0..self.i])?.0)
+
+    fn decode<VI: VarInt>(&self) -> Option<(VI, usize)> {
+        Some(VI::decode_var(&self.buf[0..self.i])?)
     }
 }
 

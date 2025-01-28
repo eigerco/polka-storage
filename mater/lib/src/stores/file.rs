@@ -10,7 +10,8 @@ use tokio::{
 };
 
 use crate::{
-    multicodec::{get_identity_data, SHA_256_CODE},
+    cid::CidExt,
+    multicodec::SHA_256_CODE,
     v1::{self, read_block, write_block},
     v2::{self},
     CarV1Header, CarV2Header, Characteristics, Error, Index, IndexEntry, MultihashIndexSorted,
@@ -138,7 +139,7 @@ impl FileBlockstore {
     /// Check if the store contains a block with the cid. In case of IDENTITY
     /// CID it always returns true.
     pub async fn has(&self, cid: Cid) -> Result<bool, Error> {
-        if get_identity_data(&cid).is_some() {
+        if cid.get_identity_data().is_some() {
             return Ok(true);
         }
 
@@ -150,7 +151,7 @@ impl FileBlockstore {
     /// from the cid is returned.
     pub async fn get(&self, cid: Cid) -> Result<Option<Vec<u8>>, Error> {
         // If CID is an identity
-        if let Some(data) = get_identity_data(&cid) {
+        if let Some(data) = cid.get_identity_data() {
             return Ok(Some(data.to_owned()));
         }
 
@@ -186,7 +187,7 @@ impl FileBlockstore {
     /// expect that the CID correctly represents the data being passed. In case
     /// of the identity CID, nothing is written to the store.
     pub async fn put_keyed(&self, cid: &Cid, data: &[u8]) -> Result<(), Error> {
-        if get_identity_data(&cid).is_some() {
+        if cid.get_identity_data().is_some() {
             return Ok(());
         }
 

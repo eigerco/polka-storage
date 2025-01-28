@@ -2,7 +2,7 @@
 //! as per the [code table](https://github.com/multiformats/multicodec/blob/c954a787dc6a17d099653e5f90d26fbd177d2074/table.csv).
 
 use digest::Digest;
-use ipld_core::cid::{multihash::Multihash, CidGeneric};
+use ipld_core::cid::multihash::Multihash;
 
 pub const SHA_256_CODE: u64 = 0x12;
 pub const SHA_512_CODE: u64 = 0x13;
@@ -41,9 +41,4 @@ where
     let hashed_bytes = hasher.finalize();
     Multihash::wrap(H::CODE, &hashed_bytes)
         .expect("the digest should be valid (enforced by the type system)")
-}
-
-// Returns Some(data) if the CID is an identity. If not, None is returned.
-pub fn get_identity_data<const S: usize>(cid: &CidGeneric<S>) -> Option<&[u8]> {
-    (cid.hash().code() == IDENTITY_CODE).then(|| cid.hash().digest())
 }

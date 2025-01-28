@@ -11,6 +11,7 @@
 #![deny(unsafe_code)]
 
 mod async_varint;
+mod cid;
 mod multicodec;
 mod stores;
 mod unixfs;

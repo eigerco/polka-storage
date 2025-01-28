@@ -293,7 +293,7 @@ pub(crate) async fn read_index<R>(mut reader: R) -> Result<Index, Error>
 where
     R: AsyncRead + Unpin,
 {
-    let index_type: u64 = read_varint(&mut reader).await?;
+    let index_type: u64 = read_varint(&mut reader).await?.0;
     return match index_type {
         INDEX_SORTED_CODE => Ok(Index::IndexSorted(read_index_sorted(&mut reader).await?)),
         MULTIHASH_INDEX_SORTED_CODE => Ok(Index::MultihashIndexSorted(
