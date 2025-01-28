@@ -1,7 +1,7 @@
 use std::{io, sync::Arc};
 
 use blockstore::Blockstore;
-use futures::StreamExt;
+use futures::{pin_mut, Future, StreamExt};
 use libp2p::{Multiaddr, PeerId, Swarm, TransportError};
 use libp2p_core::ConnectedPoint;
 use libp2p_swarm::{ConnectionId, SwarmEvent};
@@ -43,17 +43,35 @@ where
 
     // Start the server. The server will stop if it received a cancellation
     // event or some error occurred.
-    pub async fn run(mut self, listeners: Vec<Multiaddr>) -> Result<(), ServerError> {
+    pub async fn run<F>(
+        mut self,
+        listeners: Vec<Multiaddr>,
+        shutdown_signal: F,
+    ) -> Result<(), ServerError>
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
         // Listen on
         for listener in listeners {
             self.swarm.listen_on(listener)?;
         }
 
-        // Keep server running
+        pin_mut!(shutdown_signal);
+
         loop {
-            let event = self.swarm.select_next_some().await;
-            self.on_swarm_event(event)?;
+            tokio::select! {
+                event = self.swarm.select_next_some() => {
+                    self.on_swarm_event(event)?;
+
+                }
+                _ = &mut shutdown_signal => {
+                    trace!("received shutdown signal");
+                    break;
+                }
+            }
         }
+
+        Ok(())
     }
 
     fn on_swarm_event(&mut self, event: SwarmEvent<BehaviourEvent<B>>) -> Result<(), ServerError> {

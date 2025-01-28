@@ -23,7 +23,7 @@ async fn main() -> Result<()> {
     // Setup & run the server
     let server = Server::new(blockstore)?;
     let listener: Multiaddr = format!("/ip4/127.0.0.1/tcp/8989").parse()?;
-    server.run(vec![listener]).await?;
+    server.run(vec![listener], std::future::pending()).await?;
 
     Ok(())
 }
