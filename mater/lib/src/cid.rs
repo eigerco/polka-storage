@@ -66,9 +66,9 @@ impl<const S: usize> MultihashExt for Multihash<S> {
         R: AsyncRead + Unpin,
     {
         let (code, code_bytes_read): (u64, usize) = read_varint(&mut r).await?;
-        let (size, size_bytes_read): (u8, usize) = read_varint(&mut r).await?;
+        let (size, size_bytes_read): (u64, usize) = read_varint(&mut r).await?;
 
-        if size > S as u8 || size > u8::MAX {
+        if size > S as u64 || size > u8::MAX as u64 {
             return Err(Error::ParsingError);
         }
 
@@ -79,7 +79,7 @@ impl<const S: usize> MultihashExt for Multihash<S> {
 
         let multihash = Multihash::wrap(code, &digest)
             .map_err(|_| Error::ParsingError)?
-            .truncate(size);
+            .truncate(size as u8);
 
         let bytes_read = code_bytes_read + size_bytes_read + size as usize;
 

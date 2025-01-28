@@ -110,7 +110,7 @@ impl VarIntProcessor {
     }
 
     fn decode<VI: VarInt>(&self) -> Option<(VI, usize)> {
-        Some(VI::decode_var(&self.buf[0..self.i])?)
+        VI::decode_var(&self.buf[0..self.i])
     }
 }
 

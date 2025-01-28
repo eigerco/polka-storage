@@ -137,15 +137,13 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::{os::unix::fs::MetadataExt, str::FromStr};
-
     use ipld_core::cid::Cid;
     use sha2::Sha256;
     use tokio::{fs::File, io::BufReader};
 
     use crate::{
         multicodec::{generate_multihash, RAW_CODE},
-        v1::{reader::Reader, BlockMetadata},
+        v1::reader::Reader,
         Error,
     };
 
