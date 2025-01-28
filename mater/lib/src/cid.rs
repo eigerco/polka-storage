@@ -3,13 +3,6 @@ use tokio::io::{AsyncRead, AsyncReadExt};
 
 use crate::{async_varint::read_varint, IDENTITY_CODE};
 
-pub trait MultihashExt {
-    async fn read_async<R>(r: R) -> Result<(Self, usize), Error>
-    where
-        Self: Sized,
-        R: AsyncRead + Unpin;
-}
-
 pub trait CidExt {
     async fn read_bytes_async<R>(r: R) -> Result<(Self, usize), Error>
     where
@@ -18,6 +11,13 @@ pub trait CidExt {
 
     /// Returns Some(data) if the CID is an identity. If not, None is returned.
     fn get_identity_data(&self) -> Option<&[u8]>;
+}
+
+pub trait MultihashExt {
+    async fn read_async<R>(r: R) -> Result<(Self, usize), Error>
+    where
+        Self: Sized,
+        R: AsyncRead + Unpin;
 }
 
 impl<const S: usize> CidExt for CidGeneric<S> {
@@ -84,5 +84,66 @@ impl<const S: usize> MultihashExt for Multihash<S> {
         let bytes_read = code_bytes_read + size_bytes_read + size as usize;
 
         Ok((multihash, bytes_read))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{io::Cursor, str::FromStr};
+
+    use ipld_core::cid::{multihash::Multihash, Cid};
+
+    use crate::{
+        cid::{CidExt, MultihashExt},
+        multicodec::SHA_256_CODE,
+        RAW_CODE,
+    };
+
+    #[tokio::test]
+    async fn cid_v0_read_bytes_async() {
+        let mh = Multihash::<64>::wrap(SHA_256_CODE, &[0u8; 32]).unwrap();
+        let original_cid = Cid::new_v0(mh).unwrap();
+
+        let cid_bytes = Cursor::new(original_cid.to_bytes());
+        let (cid, bytes_read) = Cid::read_bytes_async(cid_bytes).await.unwrap();
+
+        assert_eq!(original_cid, cid);
+        // In case of CIDv0. Multihash has an explicit size and codec. Because
+        // of that, they are not part of the format and we are not reading them.
+        // 34 = cid_version(1) + cid_codec(1) + multihash_digest_size(32)
+        assert_eq!(bytes_read, 34);
+    }
+
+    #[tokio::test]
+    async fn cid_v1_read_bytes_async() {
+        let original_cid =
+            Cid::from_str("bafkreiczsrdrvoybcevpzqmblh3my5fu6ui3tgag3jm3hsxvvhaxhswpyu").unwrap();
+
+        let cid_bytes = Cursor::new(original_cid.to_bytes());
+        let (cid, bytes_read) = Cid::read_bytes_async(cid_bytes).await.unwrap();
+
+        assert_eq!(original_cid, cid);
+        // 36 = cid_version(1) + cid_codec(1) + mh_code(1) + mh_size(1) + multihash_digest_size(32)
+        assert_eq!(bytes_read, 36);
+    }
+
+    #[tokio::test]
+    async fn multihash_read_async() {
+        let original_mh = Multihash::<64>::wrap(RAW_CODE, b"Hello World!").unwrap();
+
+        let mh_bytes = Cursor::new(original_mh.to_bytes());
+        let (mh, bytes_read) = Multihash::<64>::read_async(mh_bytes).await.unwrap();
+
+        assert_eq!(original_mh, mh);
+        // 10 = mh_code(1) + mh_size(1) + multihash_digest_size(12)
+        assert_eq!(bytes_read, 14);
+    }
+
+    #[tokio::test]
+    async fn multihash_read_async_digest_size_error() {
+        let original_mh = Multihash::<64>::wrap(RAW_CODE, b"Hello World!").unwrap();
+
+        let mh_bytes = Cursor::new(original_mh.to_bytes());
+        assert!(Multihash::<5>::read_async(mh_bytes).await.is_err());
     }
 }

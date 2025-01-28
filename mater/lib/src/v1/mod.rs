@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::multicodec::{RAW_CODE, SHA_256_CODE};
 pub use crate::v1::{reader::Reader, writer::Writer};
 pub(crate) use crate::v1::{
-    reader::{read_block, read_header, skip_block},
+    reader::{read_block, read_block_metadata, read_header},
     writer::{write_block, write_header},
 };
 

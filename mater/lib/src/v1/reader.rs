@@ -46,7 +46,7 @@ pub(crate) async fn read_block<R>(mut reader: R) -> Result<(Cid, Vec<u8>), Error
 where
     R: AsyncRead + Unpin,
 {
-    let (full_block_length, _): (u64, usize) = read_varint(&mut reader).await?;
+    let (full_block_length, _): (u64, _) = read_varint(&mut reader).await?;
     let (cid, cid_bytes_read) = Cid::read_bytes_async(&mut reader).await?;
 
     let data_size = full_block_length as usize - cid_bytes_read;
@@ -56,12 +56,12 @@ where
     Ok((cid, data_buffer))
 }
 
-pub(crate) async fn skip_block<R>(mut reader: R) -> Result<BlockMetadata, Error>
+pub(crate) async fn read_block_metadata<R>(mut reader: R) -> Result<BlockMetadata, Error>
 where
     R: AsyncRead + AsyncSeek + Unpin,
 {
     // Length of the block. This length contains the length of the cid and data.
-    let (full_block_length, _): (u64, usize) = read_varint(&mut reader).await?;
+    let (full_block_length, _): (u64, _) = read_varint(&mut reader).await?;
 
     // Cid of the block
     let (cid, cid_bytes_read) = Cid::read_bytes_async(&mut reader).await?;
@@ -129,9 +129,10 @@ where
     R: AsyncRead + AsyncSeek + Unpin,
 {
     /// Skips the next block and only returns a [`BlockMetadata`]. This is
-    /// useful in cases when we don't need the block's content.
-    pub async fn skip_block(&mut self) -> Result<BlockMetadata, Error> {
-        skip_block(&mut self.reader).await
+    /// useful in cases when we only need the block's metadata and don't care
+    /// about the content.
+    pub async fn read_block_metadata(&mut self) -> Result<BlockMetadata, Error> {
+        read_block_metadata(&mut self.reader).await
     }
 }
 
@@ -206,7 +207,7 @@ mod tests {
         assert_eq!(header.roots.len(), 1);
         assert_eq!(header.roots[0], contents_cid);
 
-        let metadata = reader.skip_block().await.unwrap();
+        let metadata = reader.read_block_metadata().await.unwrap();
         assert_eq!(metadata.cid, contents_cid);
         assert_eq!(metadata.data_offset_source, 97);
         assert_eq!(metadata.data_size as usize, contents.len());

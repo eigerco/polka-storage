@@ -156,9 +156,10 @@ where
     R: AsyncRead + AsyncSeek + Unpin,
 {
     /// Skips the next block and only returns a [`BlockMetadata`]. This is
-    /// useful in cases when we don't need the block's content.
-    pub async fn skip_block(&mut self) -> Result<BlockMetadata, Error> {
-        crate::v1::skip_block(&mut self.reader).await
+    /// useful in cases when we only need the block's metadata and don't care
+    /// about the content.
+    pub async fn read_block_metadata(&mut self) -> Result<BlockMetadata, Error> {
+        crate::v1::read_block_metadata(&mut self.reader).await
     }
 }
 
