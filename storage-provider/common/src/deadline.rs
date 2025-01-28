@@ -23,10 +23,10 @@ use crate::sector::ProvenSector;
 pub enum DeadlineError {
     #[error("precommit scheduled too early, randomness not available")]
     RandomnessNotAvailable,
-    #[error("current deadline or storage provider not found")]
-    DeadlineNotFound,
-    #[error("deadline of given index does not have a state")]
-    DeadlineStateNotFound,
+    #[error("current deadline {0} or storage provider not found")]
+    DeadlineNotFound(u64),
+    #[error("deadline of index {0} does not have a state")]
+    DeadlineStateNotFound(u64),
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]
@@ -62,7 +62,7 @@ impl Deadline {
         xt_client
             .deadline_info(&xt_keypair.account_id().into(), self.deadline_index)
             .await?
-            .ok_or(DeadlineError::DeadlineNotFound)
+            .ok_or(DeadlineError::DeadlineNotFound(self.deadline_index))
     }
 
     pub async fn submit_windowed_post<SectorStorage>(
@@ -97,7 +97,7 @@ impl Deadline {
             .await?
         else {
             tracing::error!("Something went catastrophic, there is no current deadline state");
-            return Err(DeadlineError::DeadlineStateNotFound);
+            return Err(DeadlineError::DeadlineStateNotFound(self.deadline_index));
         };
 
         if deadline_state.partitions.len() == 0 {
