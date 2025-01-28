@@ -157,7 +157,6 @@ where
 {
     /// Skips the next block and only returns a [`BlockMetadata`]. This is
     /// useful in cases when we don't need the block's content.
-
     pub async fn skip_block(&mut self) -> Result<BlockMetadata, Error> {
         crate::v1::skip_block(&mut self.reader).await
     }
