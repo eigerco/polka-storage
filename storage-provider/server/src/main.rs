@@ -50,6 +50,7 @@ use url::Url;
 use crate::{
     config::ConfigurationArgs,
     db::{DBError, DealDB},
+    local_index_directory::rdb::{RocksDBLid, RocksDBStateStoreConfig},
     pipeline::{start_pipeline, PipelineState},
     rpc::{start_rpc_server, RpcServerState},
     storage::{start_upload_server, StorageServerState},
