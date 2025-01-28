@@ -7,8 +7,7 @@ use maat::*;
 use polka_storage_proofs::{porep, post};
 use polka_storage_provider_common::{deadline::Deadline, sector::UnsealedSector};
 use primitives::{
-    commitment::{CommP, Commitment},
-    sector::{SectorNumber, SectorSize},
+    commitment::{CommP, Commitment}, proofs::RegisteredPoStProof, sector::{SectorNumber, SectorSize}
 };
 use storagext::{
     clients::ProofsClientExt,
@@ -30,7 +29,7 @@ use zombienet_sdk::NetworkConfigExt;
 /// Network's collator name. Used for logs and so on.
 const COLLATOR_NAME: &str = "collator";
 
-async fn register_storage_provider<Keypair>(client: &storagext::Client, charlie: &Keypair)
+async fn register_storage_provider<Keypair>(client: &storagext::Client, charlie: &Keypair, post_proof: RegisteredPoStProof)
 where
     Keypair: subxt::tx::Signer<PolkaStorageConfig>,
 {
@@ -40,7 +39,7 @@ where
         .register_storage_provider(
             charlie,
             peer_id,
-            primitives::proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+            post_proof,
             true,
         )
         .await
@@ -282,7 +281,7 @@ async fn real_world_use_case() {
 
     tracing::info!("generating PoRep parameters...");
     // NOTE: it can take 1-2 minutes on slower machines. can be cached someday, but I think it's good enough for now.
-    let seal_proof = primitives::proofs::RegisteredSealProof::StackedDRG2KiBV1P1;
+    let seal_proof = primitives::proofs::RegisteredSealProof::StackedDRG8MiBV1;
 
     let porep_parameters = porep::generate_random_groth16_parameters(seal_proof).unwrap();
     porep_parameters.write(&mut porep_parameters_file).unwrap();
@@ -290,7 +289,7 @@ async fn real_world_use_case() {
     let porep_mapped_parameters = porep::load_groth16_parameters(porep_parameters_path).unwrap();
 
     tracing::info!("generating PoSt parameters...");
-    let post_proof = primitives::proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
+    let post_proof = primitives::proofs::RegisteredPoStProof::StackedDRGWindow8MiBV1;
     let post_parameters = post::generate_random_groth16_parameters(post_proof).unwrap();
     post_parameters.write(&mut post_parameters_file).unwrap();
     // We need to read it again, as Proof Generating machine requires it in this form and that's the API of bellperson.
@@ -309,7 +308,7 @@ async fn real_world_use_case() {
     let alice_kp = pair_signer_from_str::<Sr25519Pair>("//Alice");
     let charlie_kp = pair_signer_from_str::<Sr25519Pair>("//Charlie");
 
-    register_storage_provider(&client, &charlie_kp).await;
+    register_storage_provider(&client, &charlie_kp, post_proof).await;
     // Set PoRep VerifyingKey extrinsic only accepts scale-encoded bytes of Verifying Key in substrate form.
     let porep_vk =
         polka_storage_proofs::VerifyingKey::<bls12_381::Bls12>::try_from(porep_parameters.vk)

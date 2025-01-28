@@ -8,7 +8,7 @@ use std::{
 use codec::Encode;
 use mater::CarV2Reader;
 use polka_storage_proofs::{
-    porep::{self, sealer::Sealer},
+    porep::{self, sealer::select_sealer},
     post::{self, ReplicaInfo},
     ZeroPaddingReader,
 };
@@ -314,7 +314,7 @@ impl ProofsCommand {
                 )?;
 
                 println!("Creating sector...");
-                let sealer = Sealer::new(seal_proof);
+                let sealer = select_sealer(seal_proof);
                 let piece_infos = sealer
                     .create_sector(vec![(piece_file, piece_info)], unsealed_sector)
                     .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
