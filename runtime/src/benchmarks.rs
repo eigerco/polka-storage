@@ -36,4 +36,5 @@ frame_benchmarking::define_benchmarks!(
     // Our crates
     [pallet_randomness, Randomness]
     [pallet_proofs, Proofs]
+    [pallet_market, Market]
 );

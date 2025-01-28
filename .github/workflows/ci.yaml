@@ -5,6 +5,7 @@ on:
     types: [labeled]
   push:
     branches: [develop, main]
+  workflow_dispatch: # manual launch
 
 concurrency:
   group: ${{ github.ref }}
@@ -107,11 +108,12 @@ jobs:
         run: cargo test --profile ci --locked -p pallet-proofs --features runtime-benchmarks -- benchmark --nocapture
 
       - name: pallet-proofs — Run node benchmarks
-        run: cargo run \
+        run: |
+          cargo run \
           -p polka-storage-node -r -F runtime-benchmarks -- \
           benchmark pallet \
           --wasm-execution=compiled \
-          --pallet "pallet_proofs"\
+          --pallet "pallet_proofs" \
           --extrinsic "*" \
           --steps 5 \
           --repeat 1 \
@@ -121,11 +123,27 @@ jobs:
         run: cargo test --profile ci --locked -p pallet-randomness --features runtime-benchmarks -- benchmark --nocapture
 
       - name: pallet-randomness — Run node benchmarks
-        run: cargo run \
+        run: |
+          cargo run \
           -p polka-storage-node -r -F runtime-benchmarks -- \
           benchmark pallet \
           --wasm-execution=compiled \
-          --pallet "pallet_randomness"\
+          --pallet "pallet_randomness" \
+          --extrinsic "*" \
+          --steps 5 \
+          --repeat 1 \
+          --template node/benchmark_template.hbs
+
+      - name: pallet-market — Run test benchmarks
+        run: cargo test --profile ci --locked -p pallet-market --features runtime-benchmarks -- benchmark --nocapture
+
+      - name: pallet-market — Run node benchmarks
+        run: |
+          cargo run \
+          -p polka-storage-node -r -F runtime-benchmarks -F testnet -- \
+          benchmark pallet \
+          --wasm-execution=compiled \
+          --pallet "pallet_market" \
           --extrinsic "*" \
           --steps 5 \
           --repeat 1 \

@@ -39,8 +39,7 @@ pub mod builder {
 
     use cid::Cid;
     use sp_core::ConstU32;
-    use sp_runtime::{BoundedVec, Vec};
-    use sp_std::vec;
+    use sp_runtime::BoundedVec;
 
     use super::SectorPreCommitInfo;
     use crate::{
@@ -86,12 +85,15 @@ pub mod builder {
                     .try_into()
                     .expect("hash is always 32 bytes");
 
+            let mut deal_ids = BoundedVec::new();
+            deal_ids.try_push(0).unwrap();
+            deal_ids.try_push(1).unwrap();
+
             Self {
                 seal_proof: RegisteredSealProof::StackedDRG2KiBV1P1,
                 sector_number: SectorNumber::new(1).unwrap(),
                 sealed_cid,
-                deal_ids: BoundedVec::try_from(vec![0, 1])
-                    .expect("default valid should always be within bounds"),
+                deal_ids,
                 expiration: 120u32.into(),
                 unsealed_cid,
                 seal_randomness_height: BlockNumber::one(),
@@ -109,7 +111,7 @@ pub mod builder {
         }
 
         /// Panics if the length of `deal_ids` is larger than [`MAX_DEALS_PER_SECTOR`].
-        pub fn deals(mut self, deal_ids: Vec<u64>) -> Self {
+        pub fn deals(mut self, deal_ids: sp_std::vec::Vec<u64>) -> Self {
             self.deal_ids = BoundedVec::try_from(deal_ids).unwrap();
             self
         }
@@ -119,9 +121,16 @@ pub mod builder {
             self
         }
 
-        pub fn unsealed_cid(mut self, unsealed_cid: &str) -> Self {
+        pub fn unsealed_cid(self, unsealed_cid: &str) -> Self {
             let cid = Cid::from_str(unsealed_cid).expect("valid unsealed_cid");
-            self.unsealed_cid = BoundedVec::try_from(cid.to_bytes()).unwrap();
+            self.raw_unsealed_cid(BoundedVec::try_from(cid.to_bytes()).unwrap())
+        }
+
+        pub fn raw_unsealed_cid(
+            mut self,
+            unsealed_cid: BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>,
+        ) -> Self {
+            self.unsealed_cid = unsealed_cid;
             self
         }
 
