@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::multicodec::{RAW_CODE, SHA_256_CODE};
 pub use crate::v1::{reader::Reader, writer::Writer};
 pub(crate) use crate::v1::{
-    reader::{read_block, read_header},
+    reader::{read_block, read_block_metadata, read_header},
     writer::{write_block, write_header},
 };
 
@@ -60,6 +60,18 @@ impl Default for Header {
             roots: vec![default_cid],
         }
     }
+}
+
+/// BlockMetadata contains metadata about a block's section in a CAR file/stream.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BlockMetadata {
+    /// Cid of the block
+    cid: Cid,
+    /// Offset of the data section relative to the start of the underlying
+    /// reader.
+    data_offset_source: u64,
+    /// Size of the data section of the block
+    data_size: u64,
 }
 
 #[cfg(test)]

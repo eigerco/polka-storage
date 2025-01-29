@@ -1,8 +1,9 @@
 use ipld_core::cid::Cid;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeekExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWriteExt, BufReader};
 
 use super::index::read_index;
 use crate::{
+    v1::BlockMetadata,
     v2::{index::Index, Characteristics, Header, PRAGMA},
     Error,
 };
@@ -147,6 +148,18 @@ where
     /// [`Reader`] does not natively support.
     pub fn get_inner_mut(&mut self) -> &mut R {
         &mut self.reader
+    }
+}
+
+impl<R> Reader<R>
+where
+    R: AsyncRead + AsyncSeek + Unpin,
+{
+    /// Skips the next block and only returns a [`BlockMetadata`]. This is
+    /// useful in cases when we only need the block's metadata and don't care
+    /// about the content.
+    pub async fn read_block_metadata(&mut self) -> Result<BlockMetadata, Error> {
+        crate::v1::read_block_metadata(&mut self.reader).await
     }
 }
 

@@ -1,16 +1,17 @@
-use std::io::Cursor;
+use std::io::SeekFrom;
 
 use ipld_core::{cid::Cid, codec::Codec};
 use serde_ipld_dagcbor::codec::DagCborCodec;
-use tokio::io::{AsyncRead, AsyncReadExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt};
 
-use crate::{async_varint::read_varint, v1::Header, v2::PRAGMA, Error};
+use super::BlockMetadata;
+use crate::{async_varint::read_varint, cid::CidExt, v1::Header, v2::PRAGMA, Error};
 
 pub(crate) async fn read_header<R>(mut reader: R) -> Result<Header, Error>
 where
     R: AsyncRead + Unpin,
 {
-    let header_length: usize = read_varint(&mut reader).await?;
+    let header_length: usize = read_varint(&mut reader).await?.0;
     let mut header_buffer = vec![0; header_length];
     reader.read_exact(&mut header_buffer).await?;
 
@@ -45,19 +46,38 @@ pub(crate) async fn read_block<R>(mut reader: R) -> Result<(Cid, Vec<u8>), Error
 where
     R: AsyncRead + Unpin,
 {
-    let full_block_length: usize = read_varint(&mut reader).await?;
-    let mut full_block_buffer = vec![0; full_block_length];
-    reader.read_exact(&mut full_block_buffer).await?;
+    let (full_block_length, _): (u64, _) = read_varint(&mut reader).await?;
+    let (cid, cid_bytes_read) = Cid::read_bytes_async(&mut reader).await?;
 
-    // We're cheating to get Seek
-    let mut full_block_cursor = Cursor::new(full_block_buffer);
-    let cid = Cid::read_bytes(&mut full_block_cursor)?;
+    let data_size = full_block_length as usize - cid_bytes_read;
+    let mut data_buffer = vec![0; data_size];
+    reader.read_exact(&mut data_buffer).await?;
 
-    let data_start_position = full_block_cursor.position() as usize;
-    let mut full_block_buffer = full_block_cursor.into_inner();
+    Ok((cid, data_buffer))
+}
 
-    // NOTE(@jmg-duarte,19/05/2024): could we avoid getting a new vector here and just drop the beginning?
-    Ok((cid, full_block_buffer.split_off(data_start_position)))
+pub(crate) async fn read_block_metadata<R>(mut reader: R) -> Result<BlockMetadata, Error>
+where
+    R: AsyncRead + AsyncSeek + Unpin,
+{
+    // Length of the block. This length contains the length of the cid and data.
+    let (full_block_length, _): (u64, _) = read_varint(&mut reader).await?;
+
+    // Cid of the block
+    let (cid, cid_bytes_read) = Cid::read_bytes_async(&mut reader).await?;
+
+    // Data section position and size
+    let data_offset_source = reader.stream_position().await?;
+    let data_size = full_block_length - cid_bytes_read as u64;
+
+    // Skip block data section
+    reader.seek(SeekFrom::Current(data_size as i64)).await?;
+
+    Ok(BlockMetadata {
+        cid,
+        data_offset_source,
+        data_size,
+    })
 }
 
 /// Low-level CARv1 reader.
@@ -101,6 +121,18 @@ where
     /// For more information, check the [block specification](https://ipld.io/specs/transport/car/carv1/#data).
     pub async fn read_block(&mut self) -> Result<(Cid, Vec<u8>), Error> {
         read_block(&mut self.reader).await
+    }
+}
+
+impl<R> Reader<R>
+where
+    R: AsyncRead + AsyncSeek + Unpin,
+{
+    /// Skips the next block and only returns a [`BlockMetadata`]. This is
+    /// useful in cases when we only need the block's metadata and don't care
+    /// about the content.
+    pub async fn read_block_metadata(&mut self) -> Result<BlockMetadata, Error> {
+        read_block_metadata(&mut self.reader).await
     }
 }
 
@@ -156,6 +188,29 @@ mod tests {
         let (cid, block) = reader.read_block().await.unwrap();
         assert_eq!(cid, contents_cid);
         assert_eq!(block, contents);
+    }
+
+    #[tokio::test]
+    async fn block_metadata_reader() {
+        let contents = tokio::fs::read("tests/fixtures/original/lorem.txt")
+            .await
+            .unwrap();
+        let contents_multihash = generate_multihash::<Sha256, _>(&contents);
+        let contents_cid = Cid::new_v1(RAW_CODE, contents_multihash);
+
+        let file = File::open("tests/fixtures/car_v1/lorem.car").await.unwrap();
+        let reader = BufReader::new(file);
+        let mut reader = Reader::new(reader);
+        let header = reader.read_header().await.unwrap();
+
+        assert_eq!(header.version, 1);
+        assert_eq!(header.roots.len(), 1);
+        assert_eq!(header.roots[0], contents_cid);
+
+        let metadata = reader.read_block_metadata().await.unwrap();
+        assert_eq!(metadata.cid, contents_cid);
+        assert_eq!(metadata.data_offset_source, 97);
+        assert_eq!(metadata.data_size as usize, contents.len());
     }
 
     #[tokio::test]
