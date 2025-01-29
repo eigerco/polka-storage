@@ -88,6 +88,38 @@ impl RegisteredSealProof {
         }
     }
 
+    /// Byte identifier used to generate the replica.
+    /// References:
+    /// * <https://github.com/filecoin-project/rust-filecoin-proofs-api/blob/b44e7cecf2a120aa266b6886628e869ba67252af/src/registry.rs#L292>
+    pub fn porep_id(&self) -> [u8; 32] {
+        let mut porep_id = [0; 32];
+        let registered_proof_id = self.proof_id();
+        let n = self.nonce();
+
+        porep_id[0..8].copy_from_slice(&registered_proof_id.to_le_bytes());
+        porep_id[8..16].copy_from_slice(&n.to_le_bytes());
+        porep_id
+    }
+
+    /// References:
+    /// * <https://github.com/filecoin-project/rust-filecoin-proofs-api/blob/b44e7cecf2a120aa266b6886628e869ba67252af/src/registry.rs#L283C1-L302C6>
+    fn nonce(&self) -> u64 {
+        #[allow(clippy::match_single_binding)]
+        match self {
+            // If we ever need to change the nonce for any given RegisteredSealProof, match it here.
+            _ => 0,
+        }
+    }
+
+    /// Reference:
+    /// * <https://github.com/filecoin-project/rust-filecoin-proofs-api/blob/b44e7cecf2a120aa266b6886628e869ba67252af/src/registry.rs#L52>
+    fn proof_id(&self) -> u64 {
+        match self {
+            RegisteredSealProof::StackedDRG2KiBV1P1 => 0,
+            RegisteredSealProof::StackedDRG8MiBV1 => 1,
+        }
+    }
+
     /// Returns [`StackedDRG2KiBV1P1`](RegisteredSealProof::StackedDRG2KiBV1P1).
     // NOTE(@jmg-duarte,14/01/2025): wanted to avoid setting a default to use in serde
     // this is the alternative

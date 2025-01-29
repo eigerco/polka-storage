@@ -254,6 +254,7 @@ fn generate_inclusion_input(challenge: usize) -> Fr {
 
 #[cfg(test)]
 mod tests {
+    use filecoin_proofs::{MerkleTreeTrait, SectorShape2KiB, SectorShape8MiB};
     use primitives::{proofs::RegisteredSealProof, sector::SectorNumber};
 
     use super::{ProofScheme, PublicInputs, Tau};
@@ -270,22 +271,61 @@ mod tests {
         let comm_d = [15u8; 32];
         let comm_r = [151u8; 32];
 
-        let inputs =
-            ported_generate_public_inputs(&prover_id, sector_id, &ticket, &seed, &comm_d, &comm_r);
-        let reference_inputs =
-            reference_generate_public_inputs(prover_id, sector_id, ticket, seed, comm_d, comm_r);
+        let seal_proof = RegisteredSealProof::StackedDRG2KiBV1P1;
+        let inputs = ported_generate_public_inputs(
+            seal_proof, &prover_id, sector_id, &ticket, &seed, &comm_d, &comm_r,
+        );
+        let reference_inputs = reference_generate_public_inputs::<SectorShape2KiB>(
+            seal_proof, prover_id, sector_id, ticket, seed, comm_d, comm_r,
+        );
 
         assert_eq!(reference_inputs.len(), inputs.len());
         for index in 0..reference_inputs.len() {
             // blstrs is based on bls12_381 implementation, so we can compare serialized bytes.
             assert_eq!(
                 reference_inputs[index].to_bytes_le(),
-                inputs[index].to_bytes()
+                inputs[index].to_bytes(),
+                "failed to compare reference inputs at idx {}",
+                index
+            );
+        }
+    }
+
+    #[test]
+    /// References:
+    /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/filecoin-proofs/src/api/seal.rs#L1012>
+    fn generates_public_inputs_the_same_as_reference_impl_8mib_sector() {
+        // random numbers, not 0
+        let prover_id = [77u8; 32];
+        let sector_id = SectorNumber::new(123).unwrap();
+        let ticket = [10u8; 32];
+        let seed = [10u8; 32];
+        let comm_d = [15u8; 32];
+        let comm_r = [151u8; 32];
+
+        let seal_proof = RegisteredSealProof::StackedDRG8MiBV1;
+
+        let inputs = ported_generate_public_inputs(
+            seal_proof, &prover_id, sector_id, &ticket, &seed, &comm_d, &comm_r,
+        );
+        let reference_inputs = reference_generate_public_inputs::<SectorShape8MiB>(
+            seal_proof, prover_id, sector_id, ticket, seed, comm_d, comm_r,
+        );
+
+        assert_eq!(reference_inputs.len(), inputs.len());
+        for index in 0..reference_inputs.len() {
+            // blstrs is based on bls12_381 implementation, so we can compare serialized bytes.
+            assert_eq!(
+                reference_inputs[index].to_bytes_le(),
+                inputs[index].to_bytes(),
+                "failed to compare reference inputs at idx {}",
+                index
             );
         }
     }
 
     fn ported_generate_public_inputs(
+        seal_proof: RegisteredSealProof,
         prover_id: &[u8; 32],
         sector_id: SectorNumber,
         ticket: &[u8; 32],
@@ -293,7 +333,7 @@ mod tests {
         comm_d: &[u8; 32],
         comm_r: &[u8; 32],
     ) -> Vec<bls12_381::Scalar> {
-        let proof_scheme = ProofScheme::setup(RegisteredSealProof::StackedDRG2KiBV1P1);
+        let proof_scheme = ProofScheme::setup(seal_proof);
         let replica_id = proof_scheme.generate_replica_id(prover_id, sector_id, ticket, comm_d);
         // `bytes_into_fr_repr_safe` makes sure random values are convertable into Fr
         let comm_d_fr =
@@ -315,7 +355,8 @@ mod tests {
             .unwrap()
     }
 
-    fn reference_generate_public_inputs(
+    fn reference_generate_public_inputs<SectorShape: MerkleTreeTrait + 'static>(
+        seal_proof: RegisteredSealProof,
         prover_id: [u8; 32],
         sector_id: SectorNumber,
         ticket: [u8; 32],
@@ -323,11 +364,10 @@ mod tests {
         comm_d: [u8; 32],
         comm_r: [u8; 32],
     ) -> Vec<blstrs::Scalar> {
-        use filecoin_hashers::{poseidon::PoseidonHasher, sha256::Sha256Hasher};
-        use generic_array::typenum::{U0, U8};
+        use filecoin_hashers::sha256::Sha256Hasher;
         use storage_proofs_core::{
             api_version::ApiVersion, compound_proof::CompoundProof, drgraph::BASE_DEGREE,
-            merkle::LCTree, proof::ProofScheme, util::NODE_SIZE,
+            proof::ProofScheme, util::NODE_SIZE,
         };
         use storage_proofs_porep::stacked::{
             generate_replica_id, Challenges, PublicInputs, SetupParams, StackedCompound,
@@ -335,14 +375,13 @@ mod tests {
         };
 
         // https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/filecoin-proofs/src/constants.rs#L192C28-L192C66
-        type SectorShapeBase = LCTree<PoseidonHasher, U8, U0, U0>;
         let setup_params = SetupParams {
             // https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/filecoin-proofs/src/constants.rs#L18
-            nodes: (1 << 11) / NODE_SIZE,
+            nodes: (seal_proof.sector_size().bytes() / NODE_SIZE as u64) as usize,
             degree: BASE_DEGREE,
             expansion_degree: EXP_DEGREE,
             // https://github.com/filecoin-project/rust-filecoin-proofs-api/blob/b44e7cecf2a120aa266b6886628e869ba67252af/src/registry.rs#L53
-            porep_id: [0u8; 32],
+            porep_id: seal_proof.porep_id(),
             // https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/filecoin-proofs/src/constants.rs#L123
             challenges: Challenges::new_interactive(2),
             // https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/filecoin-proofs/src/constants.rs#L84
@@ -351,25 +390,20 @@ mod tests {
             api_features: vec![],
         };
 
-        let public_params =
-            StackedDrg::<SectorShapeBase, Sha256Hasher>::setup(&setup_params).unwrap();
-        let porep_id = [0u8; 32];
+        let public_params = StackedDrg::<SectorShape, Sha256Hasher>::setup(&setup_params).unwrap();
 
-        let replica_id = generate_replica_id::<PoseidonHasher, _>(
+        let replica_id = generate_replica_id::<<SectorShape as MerkleTreeTrait>::Hasher, _>(
             &prover_id,
             sector_id.into(),
             &ticket,
             comm_d,
-            &porep_id,
+            &seal_proof.porep_id(),
         );
 
         let comm_r_safe = fr32::bytes_into_fr_repr_safe(&comm_r).into();
         let comm_d_safe = fr32::bytes_into_fr_repr_safe(&comm_d).into();
 
-        let public_inputs = PublicInputs::<
-            <PoseidonHasher as filecoin_hashers::Hasher>::Domain,
-            <Sha256Hasher as filecoin_hashers::Hasher>::Domain,
-        > {
+        let public_inputs = PublicInputs {
             replica_id,
             tau: Some(Tau {
                 comm_d: comm_d_safe,
@@ -379,7 +413,7 @@ mod tests {
             k: None,
         };
 
-        StackedCompound::<SectorShapeBase, Sha256Hasher>::generate_public_inputs(
+        StackedCompound::<SectorShape, Sha256Hasher>::generate_public_inputs(
             &public_inputs,
             &public_params,
             None,

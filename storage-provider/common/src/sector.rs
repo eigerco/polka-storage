@@ -1,7 +1,7 @@
 use std::{path::PathBuf, sync::Arc};
 
 use polka_storage_proofs::porep::{
-    sealer::{prepare_piece, BlstrsProof, PreCommitOutput, select_sealer, SubstrateProof},
+    sealer::{prepare_piece, select_sealer, BlstrsProof, PreCommitOutput, SubstrateProof},
     PoRepError, PoRepParameters,
 };
 use primitives::{

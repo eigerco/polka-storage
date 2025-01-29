@@ -5,7 +5,7 @@ pub mod sealer;
 
 use bellperson::groth16;
 use blstrs::Bls12;
-use filecoin_proofs::{DefaultPieceHasher, SectorShapeBase, SECTOR_SIZE_2_KIB, SECTOR_SIZE_8_MIB};
+use filecoin_proofs::{DefaultPieceHasher, SectorShapeBase};
 use primitives::proofs::RegisteredSealProof;
 use rand::rngs::OsRng;
 use storage_proofs_core::{compound_proof::CompoundProof, proof::ProofScheme};
@@ -26,7 +26,8 @@ pub fn generate_random_groth16_parameters(
 
     let circuit = match seal_proof {
         RegisteredSealProof::StackedDRG2KiBV1P1 | RegisteredSealProof::StackedDRG8MiBV1 => {
-            let public_params = StackedDrg::<SectorShapeBase, DefaultPieceHasher>::setup(&setup_params)?;
+            let public_params =
+                StackedDrg::<SectorShapeBase, DefaultPieceHasher>::setup(&setup_params)?;
             storage_proofs_porep::stacked::StackedCompound::<
                 SectorShapeBase,
                 DefaultPieceHasher,
@@ -65,26 +66,10 @@ pub enum PoRepError {
 }
 
 fn seal_to_config(seal_proof: RegisteredSealProof) -> filecoin_proofs::PoRepConfig {
-    match seal_proof {
-        RegisteredSealProof::StackedDRG2KiBV1P1 => {
-            // https://github.com/filecoin-project/rust-filecoin-proofs-api/blob/b44e7cecf2a120aa266b6886628e869ba67252af/src/registry.rs#L308
-            let sector_size = SECTOR_SIZE_2_KIB;
-            // https://github.com/filecoin-project/rust-filecoin-proofs-api/blob/b44e7cecf2a120aa266b6886628e869ba67252af/src/registry.rs#L292
-            // https://github.com/filecoin-project/rust-filecoin-proofs-api/blob/b44e7cecf2a120aa266b6886628e869ba67252af/src/registry.rs#L52
-            let porep_id = [0u8; 32];
-            let api_version = storage_proofs_core::api_version::ApiVersion::V1_2_0;
-
-            filecoin_proofs::PoRepConfig::new_groth16(sector_size, porep_id, api_version)
-        }
-        RegisteredSealProof::StackedDRG8MiBV1 => {
-            // https://github.com/filecoin-project/rust-filecoin-proofs-api/blob/b44e7cecf2a120aa266b6886628e869ba67252af/src/registry.rs#L308
-            let sector_size = SECTOR_SIZE_8_MIB;
-            // https://github.com/filecoin-project/rust-filecoin-proofs-api/blob/b44e7cecf2a120aa266b6886628e869ba67252af/src/registry.rs#L292
-            // https://github.com/filecoin-project/rust-filecoin-proofs-api/blob/b44e7cecf2a120aa266b6886628e869ba67252af/src/registry.rs#L52
-            let porep_id = [1u8; 32];
-            let api_version = storage_proofs_core::api_version::ApiVersion::V1_2_0;
-
-            filecoin_proofs::PoRepConfig::new_groth16(sector_size, porep_id, api_version)
-        },
-    }
+    let api_version = storage_proofs_core::api_version::ApiVersion::V1_2_0;
+    filecoin_proofs::PoRepConfig::new_groth16(
+        seal_proof.sector_size().bytes(),
+        seal_proof.porep_id(),
+        api_version,
+    )
 }

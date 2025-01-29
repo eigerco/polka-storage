@@ -5,13 +5,18 @@ use bellperson::groth16;
 use blstrs::Bls12;
 use filecoin_hashers::Domain;
 use filecoin_proofs::{
-    add_piece, as_safe_commitment, parameters::setup_params, DefaultPieceDomain, DefaultPieceHasher, PaddedBytesAmount, PoRepConfig, SealCommitPhase1Output, SealPreCommitOutput, SealPreCommitPhase1Output, SectorShape2KiB, SectorShape8MiB, UnpaddedBytesAmount
+    add_piece, as_safe_commitment, parameters::setup_params, DefaultPieceDomain,
+    DefaultPieceHasher, PaddedBytesAmount, PoRepConfig, SealCommitPhase1Output,
+    SealPreCommitOutput, SealPreCommitPhase1Output, SectorShape2KiB, SectorShape8MiB,
+    UnpaddedBytesAmount,
 };
 use primitives::{
     commitment::{
         piece::{PaddedPieceSize, PieceInfo},
         CommD, CommP, CommR, Commitment,
-    }, proofs::RegisteredSealProof, sector::SectorNumber
+    },
+    proofs::RegisteredSealProof,
+    sector::SectorNumber,
 };
 use storage_proofs_core::{compound_proof, compound_proof::CompoundProof};
 use storage_proofs_porep::stacked::{self, StackedCompound, StackedDrg};
@@ -65,24 +70,21 @@ where
 }
 pub struct Sealer<SectorShape> {
     porep_config: PoRepConfig,
-    _sector_shape: PhantomData<SectorShape>
+    _sector_shape: PhantomData<SectorShape>,
 }
 
-
-pub fn select_sealer(seal: RegisteredSealProof) -> Sealer<impl filecoin_proofs::MerkleTreeTrait + 'static> {
+pub fn select_sealer(
+    seal: RegisteredSealProof,
+) -> Sealer<impl filecoin_proofs::MerkleTreeTrait + 'static> {
     match seal {
-        RegisteredSealProof::StackedDRG2KiBV1P1 => {
-            Sealer::<SectorShape2KiB> {
-                porep_config: seal_to_config(seal),
-                _sector_shape: PhantomData,
-            }
+        RegisteredSealProof::StackedDRG2KiBV1P1 => Sealer::<SectorShape2KiB> {
+            porep_config: seal_to_config(seal),
+            _sector_shape: PhantomData,
         },
-        RegisteredSealProof::StackedDRG8MiBV1 => {
-            Sealer::<SectorShape8MiB> {
-                porep_config: seal_to_config(seal),
-                _sector_shape: PhantomData,
-            }
-        }
+        RegisteredSealProof::StackedDRG8MiBV1 => Sealer::<SectorShape8MiB> {
+            porep_config: seal_to_config(seal),
+            _sector_shape: PhantomData,
+        },
     }
 }
 

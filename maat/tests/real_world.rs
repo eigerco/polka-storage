@@ -7,7 +7,9 @@ use maat::*;
 use polka_storage_proofs::{porep, post};
 use polka_storage_provider_common::{deadline::Deadline, sector::UnsealedSector};
 use primitives::{
-    commitment::{CommP, Commitment}, proofs::RegisteredPoStProof, sector::SectorNumber
+    commitment::{CommP, Commitment},
+    proofs::RegisteredPoStProof,
+    sector::SectorNumber,
 };
 use storagext::{
     clients::ProofsClientExt,
@@ -29,19 +31,17 @@ use zombienet_sdk::NetworkConfigExt;
 /// Network's collator name. Used for logs and so on.
 const COLLATOR_NAME: &str = "collator";
 
-async fn register_storage_provider<Keypair>(client: &storagext::Client, charlie: &Keypair, post_proof: RegisteredPoStProof)
-where
+async fn register_storage_provider<Keypair>(
+    client: &storagext::Client,
+    charlie: &Keypair,
+    post_proof: RegisteredPoStProof,
+) where
     Keypair: subxt::tx::Signer<PolkaStorageConfig>,
 {
     let peer_id = PeerId::random();
 
     let result = client
-        .register_storage_provider(
-            charlie,
-            peer_id,
-            post_proof,
-            true,
-        )
+        .register_storage_provider(charlie, peer_id, post_proof, true)
         .await
         .unwrap()
         .unwrap();
@@ -54,14 +54,10 @@ where
 
         assert_eq!(event.owner, charlie.account_id().clone().into());
         assert_eq!(event.info.sector_size, post_proof.sector_size());
-        assert_eq!(
-            event.info.window_post_proof_type,
-            post_proof,
-        );
+        assert_eq!(event.info.window_post_proof_type, post_proof,);
         assert_eq!(
             event.info.window_post_partition_sectors,
-            post_proof
-                .window_post_partitions_sector()
+            post_proof.window_post_partitions_sector()
         );
     }
 
