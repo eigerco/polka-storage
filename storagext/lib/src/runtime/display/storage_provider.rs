@@ -1,5 +1,5 @@
 use crate::runtime::{
-    runtime_types::pallet_storage_provider::{fault, sector},
+    runtime_types::{pallet_storage_provider::fault, primitives::sector::pre_commit},
     storage_provider::{events, Event},
 };
 
@@ -33,7 +33,7 @@ impl std::fmt::Display for fault::RecoveryDeclaration {
     }
 }
 
-impl<T> std::fmt::Display for sector::SectorPreCommitInfo<T>
+impl<T> std::fmt::Display for pre_commit::SectorPreCommitInfo<T>
 where
     T: std::fmt::Display,
 {

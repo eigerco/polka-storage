@@ -25,11 +25,11 @@ pub mod display;
         with = "::primitives::proofs::RegisteredPoStProof",
     ),
     substitute_type(
-        path = "primitives::sector::SectorSize",
+        path = "primitives::sector::size::SectorSize",
         with = "::primitives::sector::SectorSize",
     ),
     substitute_type(
-        path = "primitives::sector::SectorNumber",
+        path = "primitives::sector::number::SectorNumber",
         with = "::primitives::sector::SectorNumber",
     ),
     // impl Deserialize
@@ -89,11 +89,11 @@ pub mod display;
         derive = "::serde::Serialize"
     ),
     derive_for_type(
-        path = "pallet_storage_provider::sector::SectorPreCommitInfo",
+        path = "primitives::sector::pre_commit::SectorPreCommitInfo",
         derive = "::serde::Serialize"
     ),
     derive_for_type(
-        path = "pallet_storage_provider::sector::ProveCommitSector",
+        path = "primitives::sector::prove_commit::ProveCommitSector",
         derive = "::serde::Serialize"
     ),
     derive_for_type(
