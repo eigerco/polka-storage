@@ -7,7 +7,7 @@ use maat::*;
 use polka_storage_proofs::{porep, post};
 use polka_storage_provider_common::{deadline::Deadline, sector::UnsealedSector};
 use primitives::{
-    commitment::{CommP, Commitment}, proofs::RegisteredPoStProof, sector::{SectorNumber, SectorSize}
+    commitment::{CommP, Commitment}, proofs::RegisteredPoStProof, sector::SectorNumber
 };
 use storagext::{
     clients::ProofsClientExt,
@@ -53,14 +53,14 @@ where
         let event = event.unwrap();
 
         assert_eq!(event.owner, charlie.account_id().clone().into());
-        assert_eq!(event.info.sector_size, SectorSize::_2KiB);
+        assert_eq!(event.info.sector_size, post_proof.sector_size());
         assert_eq!(
             event.info.window_post_proof_type,
-            primitives::proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1
+            post_proof,
         );
         assert_eq!(
             event.info.window_post_partition_sectors,
-            primitives::proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1
+            post_proof
                 .window_post_partitions_sector()
         );
     }
