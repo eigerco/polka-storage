@@ -1,3 +1,14 @@
+//! Peer Resolver example
+//!
+//! This example shows how to use the rendezvous client protocol to
+//! connect to rendezvous bootstrap, and send a discovery message,
+//! requesting the bootstrap node to return their registrations.
+//! Then it will check the registrations to see if a given Peer ID
+//! is contained in them to get a Peer ID to multiaddr mapping.
+//! If the bootstrap node does not have information on the given Peer
+//! ID, the example will return an error.
+//! NOTE: This example is to be removed and implemented into the
+//! client at some point.
 use std::time::Duration;
 
 use anyhow::{bail, Result};
@@ -59,7 +70,6 @@ async fn discover(
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
                 if peer_id == rendezvous_point {
                     tracing::info!("Connection established with rendezvous point {}", peer_id);
-                    tracing::info!("Connected to rendezvous point, discovering nodes...");
 
                     // Requesting rendezvous point for peer discovery
                     swarm

@@ -7,7 +7,6 @@ repository = "https://github.com/eigerco/polka-storage"
 
 [workspace]
 members = [
-  "examples/peer-resolver",
   "lib/polka-storage-proofs",
   "maat",
   "mater/cli",
