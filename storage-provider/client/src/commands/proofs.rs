@@ -1,6 +1,5 @@
 use std::{
-    fs::File,
-    io::{BufReader, Write},
+    io::Write,
     path::PathBuf,
     str::FromStr,
 };
@@ -12,7 +11,7 @@ use polka_storage_proofs::{
     post::{self, ReplicaInfo},
     ZeroPaddingReader,
 };
-use polka_storage_provider_common::commp::{calculate_piece_commitment, commp, CommPError};
+use polka_storage_provider_common::commp::{commp, CommPError};
 use primitives::{
     commitment::{
         piece::{PaddedPieceSize, PieceInfo},
@@ -157,7 +156,7 @@ impl ProofsCommand {
                     .map_err(|e| UtilsCommandError::InvalidCARv2(input_path.clone(), e))?;
 
                 // Calculate the piece commitment.
-                let commitment =
+                let (commitment, padded_piece_size) =
                     commp(&input_path).map_err(|err| UtilsCommandError::CommPError(err))?;
                 let cid = commitment.cid();
 
