@@ -17,9 +17,13 @@
   outputs = { self, nixpkgs, flake-utils, rust-overlay, zombienet }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        overlays = [ (import rust-overlay) zombienet.overlays.default ];
+        overlays = [
+          (import rust-overlay)
+          zombienet.overlays.default
+        ];
         pkgs = import nixpkgs {
           inherit system overlays;
+
         };
         rustToolchain = pkgs.pkgsBuildHost.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
         buildInputs = with pkgs; [
@@ -58,6 +62,7 @@
           LIBCLANG_PATH = "${llvmPackages.libclang.lib}/lib";
           PROTOC = "${protobuf}/bin/protoc";
           RUST_SRC_PATH = "${rustToolchain}/lib/rustlib/src/rust/library/";
+          CFLAGS = "-DJEMALLOC_STRERROR_R_RETURNS_CHAR_WITH_GNU_SOURCE";
         };
       }
     );
