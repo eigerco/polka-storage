@@ -20,7 +20,6 @@
         overlays = [ (import rust-overlay) zombienet.overlays.default ];
         pkgs = import nixpkgs {
           inherit system overlays;
-
         };
         rustToolchain = pkgs.pkgsBuildHost.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
         buildInputs = with pkgs; [
