@@ -1,4 +1,8 @@
-use std::{fs::File, io::{BufReader, Read}, path::Path};
+use std::{
+    fs::File,
+    io::{BufReader, Read},
+    path::Path,
+};
 
 use filecoin_hashers::{
     sha256::{Sha256Domain, Sha256Hasher},
@@ -24,8 +28,7 @@ pub fn commp<P: AsRef<Path>>(path: P) -> Result<(Commitment<CommP>, PaddedPieceS
     let padded_with_zeroes = *padded_piece_size.unpadded();
 
     let buffered = BufReader::new(source_file);
-    let mut zero_padding_reader = ZeroPaddingReader::new(buffered,
-        padded_with_zeroes);
+    let mut zero_padding_reader = ZeroPaddingReader::new(buffered, padded_with_zeroes);
 
     calculate_piece_commitment(&mut zero_padding_reader, padded_piece_size)
         .map(|commp| (commp, padded_piece_size))
@@ -79,9 +82,9 @@ pub enum CommPError {
 mod tests {
     use std::{env, io::Cursor, path::Path};
 
+    use filecoin_proofs::generate_piece_commitment;
     use polka_storage_proofs::ZeroPaddingReader;
     use primitives::{commitment::piece::PaddedPieceSize, sector::SectorSize};
-    use filecoin_proofs::generate_piece_commitment;
 
     use crate::commp::commp;
 
@@ -102,13 +105,11 @@ mod tests {
 
         let piece_info = generate_piece_commitment(
             ZeroPaddingReader::new(f, *size.unpadded()),
-                size.unpadded().into()
-        ).unwrap();
+            size.unpadded().into(),
+        )
+        .unwrap();
 
-        assert_eq!(
-            piece_info.commitment,
-            commitment.raw(),
-        );
+        assert_eq!(piece_info.commitment, commitment.raw(),);
     }
 
     #[test]

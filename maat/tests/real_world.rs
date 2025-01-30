@@ -5,10 +5,7 @@ use libp2p::PeerId;
 use maat::*;
 use polka_storage_proofs::{porep, post};
 use polka_storage_provider_common::{commp::commp, deadline::Deadline, sector::UnsealedSector};
-use primitives::{
-    proofs::RegisteredPoStProof,
-    sector::SectorNumber,
-};
+use primitives::{proofs::RegisteredPoStProof, sector::SectorNumber};
 use storagext::{
     clients::ProofsClientExt,
     multipair::MultiPairSigner,
@@ -340,7 +337,11 @@ async fn real_world_use_case() {
     add_balance(&client, &alice_kp, balance).await;
 
     let (commp, piece_size) = commp(&data_file_path).unwrap();
-    tracing::debug!("piece_size of {} = {}", data_file_path.display(), *piece_size);
+    tracing::debug!(
+        "piece_size of {} = {}",
+        data_file_path.display(),
+        *piece_size
+    );
     let sector_end_block = 165;
 
     // Publish a storage deal

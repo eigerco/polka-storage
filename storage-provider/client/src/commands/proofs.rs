@@ -157,8 +157,8 @@ impl ProofsCommand {
                     .map_err(|e| UtilsCommandError::InvalidCARv2(input_path.clone(), e))?;
 
                 // Calculate the piece commitment.
-                let commitment = commp(&input_path)
-                    .map_err(|err| UtilsCommandError::CommPError(err))?;
+                let commitment =
+                    commp(&input_path).map_err(|err| UtilsCommandError::CommPError(err))?;
                 let cid = commitment.cid();
 
                 // NOTE(@jmg-duarte,09/10/2024): too lazy for proper json
