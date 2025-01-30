@@ -54,6 +54,8 @@ build-polka-storage-provider-client:
 build-polka-storage-provider-server:
   cargo build --release -p polka-storage-provider-server
 
+build-polka-storage-provider: build-polka-storage-provider-server build-polka-storage-provider-client
+
 # Build the storagext CLI binary
 build-storagext-cli:
   cargo build --release -p storagext-cli
