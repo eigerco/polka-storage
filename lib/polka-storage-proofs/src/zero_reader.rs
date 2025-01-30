@@ -56,12 +56,12 @@ mod tests {
 
     /// Sole purpose of this reader is to simulate the file reading in the OS.
     /// When we give it a buf of a certain buf.length(), it might read n < buf.length().
-    struct IOSimulatingReader {
+    struct IncompleteReader {
         read_count: usize,
         served_data: Vec<Vec<u8>>,
     }
 
-    impl Read for IOSimulatingReader {
+    impl Read for IncompleteReader {
         fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
             if self.read_count == self.served_data.len() {
                 return Ok(0);
@@ -79,14 +79,9 @@ mod tests {
 
     #[test]
     fn test_zero_padding_reader_with_not_full_reads() {
-        let r = IOSimulatingReader {
+        let r = IncompleteReader {
             read_count: 0,
-            served_data: vec![
-                vec![1, 2, 3, 4],
-                vec![5, 6],
-                vec![7, 8, 9],
-                vec![10]
-            ]
+            served_data: vec![vec![1, 2, 3, 4], vec![5, 6], vec![7, 8, 9], vec![10]],
         };
         let total_size_with_padding = 12;
         let mut reader = ZeroPaddingReader::new(r, total_size_with_padding);
