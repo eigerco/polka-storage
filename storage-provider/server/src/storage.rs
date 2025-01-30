@@ -11,7 +11,7 @@ use axum::{
 use futures::{TryFutureExt, TryStreamExt};
 use mater::Cid;
 use polka_storage_proofs::ZeroPaddingReader;
-use polka_storage_provider_common::commp::{calculate_piece_commitment, CommPError};
+use polka_storage_provider_common::commp::{calculate_piece_commitment, commp, CommPError};
 use primitives::{commitment::piece::PaddedPieceSize, proofs::RegisteredPoStProof};
 use tokio::{
     fs::{self, File},
@@ -269,13 +269,7 @@ async fn upload(
     // is CPU intensive — i.e. blocking — potentially improvement is to move this completely out of
     // the tokio runtime into an OS thread
     let piece_commitment_cid = tokio::task::spawn_blocking(move || -> Result<_, CommPError> {
-        // Yes, we're reloading the file, this requires the std version
-        let file = std::fs::File::open(&piece_path)?;
-        let file_size = file.metadata()?.len();
-        let piece_size = PaddedPieceSize::from_arbitrary_size(file_size);
-        let buffered = std::io::BufReader::new(file);
-        let reader = ZeroPaddingReader::new(buffered, *piece_size);
-        let piece_commitment = calculate_piece_commitment(reader, piece_size)?;
+        let (piece_commitment, _) = commp(&piece_path)?;
         let piece_commitment_cid = piece_commitment.cid();
         tracing::debug!(path = %piece_path.display(), commp = %piece_commitment_cid, "calculated piece commitment");
         Ok(piece_commitment_cid)
@@ -470,12 +464,7 @@ mod delia_endpoints {
 
         // Calculate piece commitment
         let piece_commitment_cid = tokio::task::spawn_blocking(move || -> Result<_, CommPError> {
-            let file = std::fs::File::open(&file_path)?;
-            let file_size = file.metadata()?.len();
-            let piece_size = PaddedPieceSize::from_arbitrary_size(file_size);
-            let buffered = std::io::BufReader::new(file);
-            let reader = ZeroPaddingReader::new(buffered, *piece_size);
-            let piece_commitment = calculate_piece_commitment(reader, piece_size)?;
+            let (piece_commitment, _) = commp(&piece_path)?;
             let piece_commitment_cid = piece_commitment.cid();
             tracing::debug!(path = %file_path.display(), commp = %piece_commitment_cid, "calculated piece commitment");
             Ok(piece_commitment_cid)

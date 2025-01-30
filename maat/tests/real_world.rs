@@ -1,13 +1,11 @@
 use std::{collections::BTreeSet, env, path::Path, sync::Arc, time::Duration};
 
-use cid::Cid;
 use codec::Encode;
 use libp2p::PeerId;
 use maat::*;
 use polka_storage_proofs::{porep, post};
-use polka_storage_provider_common::{deadline::Deadline, sector::UnsealedSector};
+use polka_storage_provider_common::{commp::commp, deadline::Deadline, sector::UnsealedSector};
 use primitives::{
-    commitment::{CommP, Commitment},
     proofs::RegisteredPoStProof,
     sector::SectorNumber,
 };
@@ -263,7 +261,7 @@ async fn real_world_use_case() {
     let workspace_root = env::var("CARGO_MANIFEST_DIR").unwrap();
     let data_file_path = Path::new(&workspace_root)
         .join("..")
-        .join("examples/test-data-big.car");
+        .join("examples/big_file_184k.car");
     tracing::info!("loading example file from {:?}", data_file_path);
 
     let temp_dir = tempdir().unwrap();
@@ -341,17 +339,14 @@ async fn real_world_use_case() {
     tracing::debug!("adding {} balance to alice", balance);
     add_balance(&client, &alice_kp, balance).await;
 
-    // Valid piece cid of `examples/test-data-big.car`.
-    // Calculated with executing `polka-storage-provider-client proofs commp examples/test-data-big.car`.
-    let piece_cid =
-        Cid::try_from("baga6ea4seaqbfhdvmk5qygevit25ztjwl7voyikb5k2fqcl2lsuefhaqtukuiii").unwrap();
-    let commp = Commitment::<CommP>::from_cid(&piece_cid).unwrap();
+    let (commp, piece_size) = commp(&data_file_path).unwrap();
+    tracing::debug!("piece_size of {} = {}", data_file_path.display(), *piece_size);
     let sector_end_block = 165;
 
     // Publish a storage deal
     let deal = DealProposal {
-        piece_cid,
-        piece_size: 2048,
+        piece_cid: commp.cid(),
+        piece_size: *piece_size,
         client: alice_kp.account_id().clone(),
         provider: charlie_kp.account_id().clone(),
         label: "My lovely big data".to_string(),
