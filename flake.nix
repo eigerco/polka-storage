@@ -17,10 +17,7 @@
   outputs = { self, nixpkgs, flake-utils, rust-overlay, zombienet }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        overlays = [
-          (import rust-overlay)
-          zombienet.overlays.default
-        ];
+        overlays = [ (import rust-overlay) zombienet.overlays.default ];
         pkgs = import nixpkgs {
           inherit system overlays;
 
