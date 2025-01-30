@@ -86,9 +86,8 @@ mod tests {
     use polka_storage_proofs::ZeroPaddingReader;
     use primitives::{commitment::piece::PaddedPieceSize, sector::SectorSize};
 
-    use crate::commp::commp;
-
     use super::calculate_piece_commitment;
+    use crate::commp::commp;
 
     #[test]
     fn test_filecoin_commp_matches_ours() {
