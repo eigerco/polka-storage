@@ -1,8 +1,4 @@
-use std::{
-    io::Write,
-    path::PathBuf,
-    str::FromStr,
-};
+use std::{io::Write, path::PathBuf, str::FromStr};
 
 use codec::Encode;
 use mater::CarV2Reader;
