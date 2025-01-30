@@ -129,11 +129,11 @@ mod tests {
         assert_eq!(buffer, [1, 2, 3, 4]);
         // Second read
         let read = reader.read(&mut buffer).unwrap();
-        assert_eq!(read, 4);
-        assert_eq!(buffer, [5, 6, 0, 0]);
+        assert_eq!(read, 2);
+        assert_eq!(buffer, [5, 6, 3, 4]);
         // Third read
         let read = reader.read(&mut buffer).unwrap();
-        assert_eq!(read, 2);
+        assert_eq!(read, 4);
         assert_eq!(buffer, [0, 0, 0, 0]);
         // Fourth read
         let read = reader.read(&mut buffer).unwrap();
