@@ -9,7 +9,7 @@
 //! ID, the example will return an error.
 //! NOTE: This example is to be removed and implemented into the
 //! client at some point.
-use std::{time::Duration, error::Error};
+use std::{error::Error, time::Duration};
 
 use clap::Parser;
 use libp2p::{
@@ -93,7 +93,10 @@ async fn discover(
                         });
                     }
                 }
-                return Err(format!("No registered multi-addresses found for Peer ID {peer_id_to_find}").into());
+                return Err(format!(
+                    "No registered multi-addresses found for Peer ID {peer_id_to_find}"
+                )
+                .into());
             }
 
             other => tracing::debug!("Other event: {other:?}"),
