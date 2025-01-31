@@ -23,6 +23,7 @@ use crate::{missing_keypair_error, operation_takes_a_while, OutputFormat};
 fn parse_post_proof(src: &str) -> Result<RegisteredPoStProof, String> {
     match src {
         "2KiB" => Ok(RegisteredPoStProof::StackedDRGWindow2KiBV1P1),
+        "8MiB" => Ok(RegisteredPoStProof::StackedDRGWindow8MiBV1),
         unknown => Err(format!("Unknown PoSt Proof type: {}", unknown)),
     }
 }

@@ -1,15 +1,11 @@
 use std::{collections::BTreeSet, env, path::Path, sync::Arc, time::Duration};
 
-use cid::Cid;
 use codec::Encode;
 use libp2p::PeerId;
 use maat::*;
 use polka_storage_proofs::{porep, post};
-use polka_storage_provider_common::{deadline::Deadline, sector::UnsealedSector};
-use primitives::{
-    commitment::{CommP, Commitment},
-    sector::{SectorNumber, SectorSize},
-};
+use polka_storage_provider_common::{commp::commp, deadline::Deadline, sector::UnsealedSector};
+use primitives::{proofs::RegisteredPoStProof, sector::SectorNumber};
 use storagext::{
     clients::ProofsClientExt,
     multipair::MultiPairSigner,
@@ -30,19 +26,17 @@ use zombienet_sdk::NetworkConfigExt;
 /// Network's collator name. Used for logs and so on.
 const COLLATOR_NAME: &str = "collator";
 
-async fn register_storage_provider<Keypair>(client: &storagext::Client, charlie: &Keypair)
-where
+async fn register_storage_provider<Keypair>(
+    client: &storagext::Client,
+    charlie: &Keypair,
+    post_proof: RegisteredPoStProof,
+) where
     Keypair: subxt::tx::Signer<PolkaStorageConfig>,
 {
     let peer_id = PeerId::random();
 
     let result = client
-        .register_storage_provider(
-            charlie,
-            peer_id,
-            primitives::proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
-            true,
-        )
+        .register_storage_provider(charlie, peer_id, post_proof, true)
         .await
         .unwrap()
         .unwrap();
@@ -54,15 +48,11 @@ where
         let event = event.unwrap();
 
         assert_eq!(event.owner, charlie.account_id().clone().into());
-        assert_eq!(event.info.sector_size, SectorSize::_2KiB);
-        assert_eq!(
-            event.info.window_post_proof_type,
-            primitives::proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1
-        );
+        assert_eq!(event.info.sector_size, post_proof.sector_size());
+        assert_eq!(event.info.window_post_proof_type, post_proof,);
         assert_eq!(
             event.info.window_post_partition_sectors,
-            primitives::proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1
-                .window_post_partitions_sector()
+            post_proof.window_post_partitions_sector()
         );
     }
 
@@ -268,7 +258,7 @@ async fn real_world_use_case() {
     let workspace_root = env::var("CARGO_MANIFEST_DIR").unwrap();
     let data_file_path = Path::new(&workspace_root)
         .join("..")
-        .join("examples/test-data-big.car");
+        .join("examples/big_file_184k.car");
     tracing::info!("loading example file from {:?}", data_file_path);
 
     let temp_dir = tempdir().unwrap();
@@ -282,7 +272,7 @@ async fn real_world_use_case() {
 
     tracing::info!("generating PoRep parameters...");
     // NOTE: it can take 1-2 minutes on slower machines. can be cached someday, but I think it's good enough for now.
-    let seal_proof = primitives::proofs::RegisteredSealProof::StackedDRG2KiBV1P1;
+    let seal_proof = primitives::proofs::RegisteredSealProof::StackedDRG8MiBV1;
 
     let porep_parameters = porep::generate_random_groth16_parameters(seal_proof).unwrap();
     porep_parameters.write(&mut porep_parameters_file).unwrap();
@@ -290,7 +280,7 @@ async fn real_world_use_case() {
     let porep_mapped_parameters = porep::load_groth16_parameters(porep_parameters_path).unwrap();
 
     tracing::info!("generating PoSt parameters...");
-    let post_proof = primitives::proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
+    let post_proof = primitives::proofs::RegisteredPoStProof::StackedDRGWindow8MiBV1;
     let post_parameters = post::generate_random_groth16_parameters(post_proof).unwrap();
     post_parameters.write(&mut post_parameters_file).unwrap();
     // We need to read it again, as Proof Generating machine requires it in this form and that's the API of bellperson.
@@ -309,7 +299,7 @@ async fn real_world_use_case() {
     let alice_kp = pair_signer_from_str::<Sr25519Pair>("//Alice");
     let charlie_kp = pair_signer_from_str::<Sr25519Pair>("//Charlie");
 
-    register_storage_provider(&client, &charlie_kp).await;
+    register_storage_provider(&client, &charlie_kp, post_proof).await;
     // Set PoRep VerifyingKey extrinsic only accepts scale-encoded bytes of Verifying Key in substrate form.
     let porep_vk =
         polka_storage_proofs::VerifyingKey::<bls12_381::Bls12>::try_from(porep_parameters.vk)
@@ -346,17 +336,18 @@ async fn real_world_use_case() {
     tracing::debug!("adding {} balance to alice", balance);
     add_balance(&client, &alice_kp, balance).await;
 
-    // Valid piece cid of `examples/test-data-big.car`.
-    // Calculated with executing `polka-storage-provider-client proofs commp examples/test-data-big.car`.
-    let piece_cid =
-        Cid::try_from("baga6ea4seaqbfhdvmk5qygevit25ztjwl7voyikb5k2fqcl2lsuefhaqtukuiii").unwrap();
-    let commp = Commitment::<CommP>::from_cid(&piece_cid).unwrap();
+    let (commp, piece_size) = commp(&data_file_path).unwrap();
+    tracing::debug!(
+        "piece_size of {} = {}",
+        data_file_path.display(),
+        *piece_size
+    );
     let sector_end_block = 165;
 
     // Publish a storage deal
     let deal = DealProposal {
-        piece_cid,
-        piece_size: 2048,
+        piece_cid: commp.cid(),
+        piece_size: *piece_size,
         client: alice_kp.account_id().clone(),
         provider: charlie_kp.account_id().clone(),
         label: "My lovely big data".to_string(),

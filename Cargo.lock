@@ -13897,6 +13897,7 @@ dependencies = [
  "chrono",
  "cid 0.11.1",
  "filecoin-hashers",
+ "filecoin-proofs",
  "fr32",
  "hex",
  "jsonrpsee 0.24.7",

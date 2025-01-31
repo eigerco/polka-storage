@@ -29,5 +29,8 @@ tokio = { workspace = true, features = ["fs"] }
 tokio-util = { workspace = true, features = ["rt"] }
 tracing = { workspace = true }
 
+[dev-dependencies]
+filecoin-proofs.workspace = true
+
 [lints]
 workspace = true
