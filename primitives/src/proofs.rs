@@ -54,7 +54,7 @@ pub enum RegisteredSealProof {
     #[cfg_attr(feature = "serde", serde(alias = "2KiB"))]
     StackedDRG2KiBV1P1,
     #[cfg_attr(feature = "clap", clap(name = "8MiB"))]
-    #[cfg_attr(feature = "serde", serde(alias = "2MiB"))]
+    #[cfg_attr(feature = "serde", serde(alias = "8MiB"))]
     StackedDRG8MiBV1,
 }
 
@@ -142,8 +142,8 @@ pub enum RegisteredPoStProof {
     #[cfg_attr(feature = "clap", clap(name = "2KiB"))]
     #[cfg_attr(feature = "serde", serde(alias = "2KiB"))]
     StackedDRGWindow2KiBV1P1,
-    #[cfg_attr(feature = "clap", clap(name = "8KiB"))]
-    #[cfg_attr(feature = "serde", serde(alias = "8KiB"))]
+    #[cfg_attr(feature = "clap", clap(name = "8MiB"))]
+    #[cfg_attr(feature = "serde", serde(alias = "8MiB"))]
     StackedDRGWindow8MiBV1,
 }
 
