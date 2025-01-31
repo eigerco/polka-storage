@@ -9,9 +9,8 @@
 //! ID, the example will return an error.
 //! NOTE: This example is to be removed and implemented into the
 //! client at some point.
-use std::time::Duration;
+use std::{time::Duration, error::Error};
 
-use anyhow::{bail, Result};
 use clap::Parser;
 use libp2p::{
     futures::StreamExt,
@@ -43,7 +42,7 @@ struct Cli {
     rendezvous_point: PeerId,
 }
 
-fn create_swarm() -> Result<Swarm<Behaviour>> {
+fn create_swarm() -> Result<Swarm<Behaviour>, Box<dyn Error>> {
     Ok(SwarmBuilder::with_new_identity()
         .with_tokio()
         .with_tcp(
@@ -61,7 +60,7 @@ async fn discover(
     peer_id_to_find: PeerId,
     rendezvous_point_address: Multiaddr,
     rendezvous_point: PeerId,
-) -> Result<PeerInfo> {
+) -> Result<PeerInfo, Box<dyn Error>> {
     // Dial in to the rendezvous point.
     swarm.dial(rendezvous_point_address)?;
 
@@ -94,7 +93,7 @@ async fn discover(
                         });
                     }
                 }
-                bail!("No registered multi-addresses found for Peer ID {peer_id_to_find}");
+                return Err(format!("No registered multi-addresses found for Peer ID {peer_id_to_find}").into());
             }
 
             other => tracing::debug!("Other event: {other:?}"),
@@ -103,7 +102,7 @@ async fn discover(
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<(), Box<dyn Error>> {
     let _ = tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .try_init();
