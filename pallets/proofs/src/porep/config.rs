@@ -96,6 +96,8 @@ fn partitions(seal_proof: RegisteredSealProof) -> usize {
     match seal_proof {
         RegisteredSealProof::StackedDRG2KiBV1P1 => 1,
         RegisteredSealProof::StackedDRG8MiBV1 => 1,
+        RegisteredSealProof::StackedDRG512MiBV1 => 1,
+        RegisteredSealProof::StackedDRG1GiBV1 => 1,
     }
 }
 
@@ -105,6 +107,8 @@ fn minimum_challenges(seal_proof: RegisteredSealProof) -> usize {
     match seal_proof {
         RegisteredSealProof::StackedDRG2KiBV1P1 => 2,
         RegisteredSealProof::StackedDRG8MiBV1 => 2,
+        RegisteredSealProof::StackedDRG512MiBV1 => 2,
+        RegisteredSealProof::StackedDRG1GiBV1 => 2,
     }
 }
 

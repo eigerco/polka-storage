@@ -1,8 +1,14 @@
 use std::{path::PathBuf, sync::Arc};
 
-use polka_storage_proofs::porep::{
-    sealer::{prepare_piece, select_sealer, BlstrsProof, PreCommitOutput, SubstrateProof},
-    PoRepError, PoRepParameters,
+use polka_storage_proofs::{
+    match_seal_proof,
+    porep::{
+        sealer::{
+            add_piece, pad_sector, precommit_sector, prepare_piece, prove_sector, BlstrsProof,
+            PreCommitOutput, SubstrateProof,
+        },
+        PoRepError, PoRepParameters,
+    },
 };
 use primitives::{
     commitment::{piece::PieceInfo, CommD, CommP, CommR, Commitment},
@@ -104,7 +110,6 @@ impl UnsealedSector {
         commitment: Commitment<CommP>,
     ) -> Result<(), SectorError> {
         self.deals.push((deal_id, deal));
-        let sealer = select_sealer(self.seal_proof);
 
         // would love to use something like scoped spawn blocking
         let pieces = self.piece_infos.clone();
@@ -117,7 +122,7 @@ impl UnsealedSector {
                 let (padded_reader, piece_info) = prepare_piece(piece_path, commitment)?;
                 tracing::info!("Adding piece...");
                 let occupied_piece_space =
-                    sealer.add_piece(padded_reader, piece_info, &pieces, unsealed_sector)?;
+                    add_piece(padded_reader, piece_info, &pieces, unsealed_sector)?;
 
                 Ok((piece_info, occupied_piece_space))
             });
@@ -136,13 +141,15 @@ impl UnsealedSector {
         cache_dir_path: PathBuf,
         sealed_path: PathBuf,
     ) -> Result<PreCommittedSector, SectorError> {
-        let sealer = select_sealer(self.seal_proof);
-
         tokio::fs::create_dir_all(&cache_dir_path).await?;
         tokio::fs::File::create_new(&sealed_path).await?;
 
         // Pad sector so CommD can be properly calculated.
-        self.piece_infos = sealer.pad_sector(&self.piece_infos, self.occupied_sector_space)?;
+        self.piece_infos = pad_sector(
+            self.seal_proof,
+            &self.piece_infos,
+            self.occupied_sector_space,
+        )?;
         tracing::debug!("piece_infos: {:?}", self.piece_infos);
         tracing::info!("Padded sector, commencing pre-commit and getting last finalized block");
 
@@ -173,14 +180,16 @@ impl UnsealedSector {
 
             let piece_infos = self.piece_infos.clone();
             tokio::task::spawn_blocking(move || {
-                sealer.precommit_sector(
+                match_seal_proof!(self.seal_proof,
+                    <_, _, _> precommit_sector,
+                    self.seal_proof,
                     cache_dir,
                     unsealed_path,
                     sealed_path,
                     prover_id,
                     sector_number,
                     ticket,
-                    &piece_infos,
+                    &piece_infos
                 )
             })
         };
@@ -348,8 +357,6 @@ impl PreCommittedSector {
         // 10 blocks = 1 minute, only testnet
         const PRECOMMIT_CHALLENGE_DELAY: u64 = 10;
 
-        let sealer = select_sealer(self.seal_proof);
-
         let seal_randomness_height = self.seal_randomness_height;
         let Some(digest) = xt_client.get_randomness(seal_randomness_height).await? else {
             tracing::error!("Out-of-the-state transition, this SHOULD NOT happen");
@@ -408,7 +415,10 @@ impl PreCommittedSector {
                 let piece_infos = self.piece_infos.clone();
 
                 tokio::task::spawn_blocking(move || {
-                    sealer.prove_sector(
+                    match_seal_proof!(
+                        self.seal_proof,
+                        <_, _> prove_sector,
+                        self.seal_proof,
                         porep_params.as_ref(),
                         cache_dir,
                         sealed_path,
@@ -420,7 +430,7 @@ impl PreCommittedSector {
                             comm_r: self.comm_r,
                             comm_d: self.comm_d,
                         },
-                        &piece_infos,
+                        &piece_infos
                     )
                 })
             };
