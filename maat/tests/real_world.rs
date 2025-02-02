@@ -265,25 +265,49 @@ async fn real_world_use_case() {
     let unsealed_sector_path = temp_dir.path().join("unsealed_sector");
     let cache_dir_path = temp_dir.path().join("cache_dir");
     let sealed_sector_path = temp_dir.path().join("sealed_sector");
-    let porep_parameters_path = temp_dir.path().join("porep_params");
-    let post_parameters_path = temp_dir.path().join("post_params");
-    let mut porep_parameters_file = std::fs::File::create(porep_parameters_path.clone()).unwrap();
-    let mut post_parameters_file = std::fs::File::create(post_parameters_path.clone()).unwrap();
 
-    tracing::info!("generating PoRep parameters...");
-    // NOTE: it can take 1-2 minutes on slower machines. can be cached someday, but I think it's good enough for now.
     let seal_proof = primitives::proofs::RegisteredSealProof::StackedDRG8MiBV1;
+    let post_proof = primitives::proofs::RegisteredPoStProof::StackedDRGWindow8MiBV1;
 
-    let porep_parameters = porep::generate_random_groth16_parameters(seal_proof).unwrap();
-    porep_parameters.write(&mut porep_parameters_file).unwrap();
+    let parameters_cache_path = Path::new(&workspace_root).join("../target/");
+    let porep_parameters_path =
+        parameters_cache_path.join(format!("porep_params_{}", seal_proof.sector_size()));
+    let post_parameters_path =
+        parameters_cache_path.join(format!("post_params_{}", post_proof.sector_size()));
+    if !porep_parameters_path.exists() {
+        tracing::info!(
+            "PoRep params at path {} - NOT CACHED! generating parameters...",
+            porep_parameters_path.display()
+        );
+        let mut porep_parameters_file =
+            std::fs::File::create(porep_parameters_path.clone()).unwrap();
+
+        let porep_parameters = porep::generate_random_groth16_parameters(seal_proof).unwrap();
+        porep_parameters.write(&mut porep_parameters_file).unwrap();
+    } else {
+        tracing::info!(
+            "using PoRep cached params at path: {}",
+            porep_parameters_path.display()
+        );
+    }
+
+    if !post_parameters_path.exists() {
+        let mut post_parameters_file = std::fs::File::create(post_parameters_path.clone()).unwrap();
+        tracing::info!(
+            "PoSt params at path {} - NOT CACHED! generating parameters....",
+            post_parameters_path.display()
+        );
+        let post_parameters = post::generate_random_groth16_parameters(post_proof).unwrap();
+        post_parameters.write(&mut post_parameters_file).unwrap();
+    } else {
+        tracing::info!(
+            "using PoSt cached params at path: {}",
+            porep_parameters_path.display()
+        );
+    }
+
     // We need to read it again, as Proof Generating machine requires it in this form and that's the API of bellperson.
     let porep_mapped_parameters = porep::load_groth16_parameters(porep_parameters_path).unwrap();
-
-    tracing::info!("generating PoSt parameters...");
-    let post_proof = primitives::proofs::RegisteredPoStProof::StackedDRGWindow8MiBV1;
-    let post_parameters = post::generate_random_groth16_parameters(post_proof).unwrap();
-    post_parameters.write(&mut post_parameters_file).unwrap();
-    // We need to read it again, as Proof Generating machine requires it in this form and that's the API of bellperson.
     let post_mapped_parameters =
         Arc::new(post::load_groth16_parameters(post_parameters_path).unwrap());
 
@@ -301,9 +325,10 @@ async fn real_world_use_case() {
 
     register_storage_provider(&client, &charlie_kp, post_proof).await;
     // Set PoRep VerifyingKey extrinsic only accepts scale-encoded bytes of Verifying Key in substrate form.
-    let porep_vk =
-        polka_storage_proofs::VerifyingKey::<bls12_381::Bls12>::try_from(porep_parameters.vk)
-            .unwrap();
+    let porep_vk = polka_storage_proofs::VerifyingKey::<bls12_381::Bls12>::try_from(
+        porep_mapped_parameters.vk.clone(),
+    )
+    .unwrap();
     let porep_vk_scale = Encode::encode(&porep_vk);
     set_porep_verifying_key(
         &client,
@@ -312,9 +337,10 @@ async fn real_world_use_case() {
     )
     .await;
 
-    let post_vk =
-        polka_storage_proofs::VerifyingKey::<bls12_381::Bls12>::try_from(post_parameters.vk)
-            .unwrap();
+    let post_vk = polka_storage_proofs::VerifyingKey::<bls12_381::Bls12>::try_from(
+        post_mapped_parameters.vk.clone(),
+    )
+    .unwrap();
     let post_vk_scale = Encode::encode(&post_vk);
     set_post_verifying_key(
         &client,
