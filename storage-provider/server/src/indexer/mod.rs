@@ -45,6 +45,7 @@ where
 
     // Wait for tasks that are still executing.
     tracker.close();
+    info!("Waiting for IndexWorker to finish");
     tracker.wait().await;
     info!("IndexWorker has stopped");
 
@@ -129,7 +130,7 @@ where
 {
     let raw_piece = File::open(&location).await?;
     let mut reader = CarV2Reader::new(raw_piece);
-    reader.read_pragma().await.unwrap();
+    reader.read_pragma().await?;
     let header = reader.read_header().await?;
     let _v1_header = reader.read_v1_header().await?;
 
