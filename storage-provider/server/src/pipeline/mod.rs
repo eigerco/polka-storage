@@ -21,6 +21,7 @@ use tokio::sync::{
     Mutex, Semaphore,
 };
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
+use tracing::Instrument;
 use types::{
     AddPieceMessage, PipelineMessage, PreCommitMessage, ProveCommitMessage,
     SubmitWindowedPoStMessage,
@@ -48,6 +49,8 @@ pub enum PipelineError {
     SchedulingError,
     #[error("Custom error: {0}")]
     CustomError(String),
+    #[error(transparent)]
+    JoinError(#[from] tokio::task::JoinError),
 }
 /// Pipeline shared state.
 pub struct PipelineState {
@@ -139,10 +142,11 @@ impl PipelineOperations for TaskTracker {
             piece_path,
             commitment,
         } = msg;
+        let tracker = self.clone();
         self.spawn(async move {
             tokio::select! {
                 // AddPiece is cancellation safe, as it can be retried and the state will be fine.
-                res = add_piece(state, piece_path, commitment, deal, published_deal_id) => {
+                res = add_piece(tracker, state, piece_path, commitment, deal, published_deal_id) => {
                     match res {
                         Ok(_) => tracing::info!("Add Piece for piece {}, deal id {}, finished successfully.", commitment, published_deal_id),
                         Err(err) => tracing::error!(%err, "Add Piece for piece {}, deal id {}, failed!", commitment, published_deal_id),
@@ -263,7 +267,8 @@ fn process(
     }
 }
 
-/// Finds or creates a sector for the given piece.
+/// Finds or creates a sector for the given piece. Returns the [`UnsealedSector`] and a `bool`
+/// indicating if the sector was created or not.
 ///
 /// * If no sectors exist, it creates one and returns it.
 /// * If no sectors with enough size to harbor the piece exist, it creates one and returns it.
@@ -272,7 +277,7 @@ fn process(
 async fn find_or_create_sector_for_piece(
     state: &Arc<PipelineState>,
     deal: &DealProposal, // We pass the DealProposal instead of the sector number for better logs
-) -> Result<UnsealedSector, PipelineError> {
+) -> Result<(UnsealedSector, bool), PipelineError> {
     tracing::debug!(
         "Searching for sector for piece with size: {}",
         deal.piece_size
@@ -292,14 +297,17 @@ async fn find_or_create_sector_for_piece(
     // NOTE(@jmg-duarte,03/02/2025): we can't keep creating sectors forever just because they dont fit
     // (or maybe we can) but FC keeps a limit on new sectors, I don't have a solution for this NOW
     // but we can keep this here while this implementation develops
+    // (possible) SOLUTION: pre-check sector availability when receiving deals and decide there
+    // whether we're taking the deal or not
     if let Some(sector) = sector {
         // NOTE(@jmg-duarte,03/02/2025): as per our filter, errors return false, as such an error couldn't be returned
         return sector
-            .inspect(|sector| {
+            .map(|sector| {
                 tracing::debug!(
                     sector_number = %sector.sector_number,
                     "Found sector for piece!",
                 );
+                (sector, false)
             })
             .map_err(PipelineError::from);
     }
@@ -318,7 +326,7 @@ async fn find_or_create_sector_for_piece(
     let sector =
         UnsealedSector::create(state.server_info.seal_proof, sector_number, unsealed_path).await?;
 
-    Ok(sector)
+    Ok((sector, true))
 }
 
 /// Finds a sector to which a piece will fit and adds it to the sector.
@@ -327,31 +335,33 @@ async fn find_or_create_sector_for_piece(
 /// When dropped when waiting, the sector state won't be preserved and adding piece can be retried.
 #[tracing::instrument(skip(state, deal, commitment))]
 async fn add_piece(
+    tracker: TaskTracker,
     state: Arc<PipelineState>,
     piece_path: PathBuf,
     commitment: Commitment<CommP>,
     deal: DealProposal,
     deal_id: u64,
 ) -> Result<(), PipelineError> {
-    // Mutex scope
-    let sector = {
-        let _guard = state.add_piece_serializer.lock().await;
+    // This guard MUST be scoped to the entire add_piece logic!
+    // Otherwise, depending on the fill percentage it can happen that two tasks try to send
+    // pre_commit messages that would later result in processing issues.
+    // Given a fill_threshold that is low enough, without a lock on this entire method,
+    // if two pieces are added past the fill threshold, two pre commit messages will be sent
+    // which will then race and create issues
+    let _guard = state.add_piece_serializer.lock().await;
 
-        tracing::info!("Adding a piece...");
-        let mut sector = find_or_create_sector_for_piece(&state, &deal).await?;
+    tracing::info!("Adding a piece...");
+    let (mut sector, created) = find_or_create_sector_for_piece(&state, &deal).await?;
 
-        sector
-            .add_piece(deal_id, deal, piece_path, commitment)
-            .await?;
-        tracing::info!("Finished adding a piece");
+    sector
+        .add_piece(deal_id, deal, piece_path, commitment)
+        .await?;
+    tracing::info!("Finished adding a piece");
 
-        // Update the database with the latest sector information
-        state
-            .db
-            .insert_unsealed_sector(sector.sector_number, &sector)?;
-
-        sector
-    };
+    // Update the database with the latest sector information
+    state
+        .db
+        .insert_unsealed_sector(sector.sector_number, &sector)?;
 
     let fill_percentage = sector.fill_percentage();
     let fill_threshold = state.server_info.sealing_configuration.fill_threshold as u64;
@@ -363,42 +373,84 @@ async fn add_piece(
         );
         // TODO(@th7nder,30/10/2024): simplification, as we're always scheduling a precommit just after adding a piece and creating a new sector.
         // Ideally sector won't be finalized after one piece has been added and the precommit will depend on the start_block?
-        state
+        return Ok(state
             .pipeline_sender
             .send(PipelineMessage::PreCommit(PreCommitMessage {
                 sector_number: sector.sector_number,
-            }))?;
-    } else {
-        tracing::debug!(
-            sector_number = %sector.sector_number,
-            "Occupation at {}; not pre-committing yet",
-            fill_percentage
-        );
+            }))?);
+    }
+    tracing::debug!(
+        sector_number = %sector.sector_number,
+        "Occupation at {}; not pre-committing yet",
+        fill_percentage
+    );
+
+    // If the sector is new, we schedule it's pre-commit task submission
+    if created {
+        schedule_pre_commit(state.clone(), tracker, sector);
     }
 
     Ok(())
 }
 
-#[tracing::instrument(skip(state))]
+fn schedule_pre_commit(state: Arc<PipelineState>, tracker: TaskTracker, sector: UnsealedSector) {
+    let delay = state.server_info.sealing_configuration.wait_deals_delay;
+    let span = tracing::info_span!("add_piece");
+    tracing::info!(
+        // Since the span is moved for the instrument call, we can't span.enter()
+        // doing a span.in_scope(|| ...) is also a bit overkill for a log
+        parent: &span,
+        "Sector was created, launching task to pre-commit in {} seconds",
+        delay.as_secs()
+    );
+    // We don't care for the returned JoinHandle, but that's ok because the TaskTracker has it!
+    let _ = tracker.spawn(
+        async move {
+            tokio::time::sleep(delay).await;
+            let sector_number = sector.sector_number;
+            tracing::info!(%sector_number, "Awoken from sleep, submitting pre-commit task!");
+            match state
+                .pipeline_sender
+                .send(PipelineMessage::pre_commit(sector_number))
+            {
+                Ok(()) => tracing::info!(%sector_number, "Successfully submitted task!"),
+                // Not sure what we can do if the task fails, maybe try to re-submit?
+                // Not even sure when this can happen asides from an OOM since we're using an unbounded channel
+                Err(err) => tracing::error!(%sector_number, "Failed to submit task: {}", err),
+            }
+        }
+        .instrument(span),
+    );
+}
+
 /// Creates a replica and calls pre-commit on-chain.
 ///
 /// This method is *NOT CANCELLATION SAFE*.
 /// When interrupted while waiting for the extrinsic call to return,
 /// the Storage Provider is not consistent of the on-chain state,
 /// cancelling this task effectively breaks the state sync.
+#[tracing::instrument(skip(state))]
 async fn precommit(
     state: Arc<PipelineState>,
     sector_number: SectorNumber,
 ) -> Result<(), PipelineError> {
     tracing::info!("Starting pre-commit");
 
-    let Some(sector) = state.db.get_unsealed_sector(sector_number)? else {
-        tracing::error!("Tried to precommit non-existing sector");
-        return Err(PipelineError::SectorNotFound);
-    };
-
-    // We could probably move this down the line, to ensure some kind of durability
-    state.db.remove_unsealed_sector(sector_number)?;
+    // This unit of work effectively works as a "block", since `remove_unsealed_sector`
+    // blocks the row it removes, meaning that even if two tasks race here,
+    // the DB will stop one from doing an outdated read
+    let state_for_task = state.clone();
+    let sector = tokio::task::spawn_blocking(move || {
+        match state_for_task.db.remove_unsealed_sector(sector_number)? {
+            Some(sector) => return Ok(sector),
+            None => {
+                // This is a partial error since the sector may *just* have been pre-committed
+                tracing::warn!(%sector_number, "Tried to precommit non-existing unsealed sector");
+                return Err(PipelineError::SectorNotFound);
+            }
+        }
+    })
+    .await??;
 
     let cache_dir_path = state.sealing_cache_dir.join(sector_number.to_string());
     let sealed_path = state.sealed_sectors_dir.join(sector_number.to_string());
