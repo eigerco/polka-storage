@@ -348,6 +348,12 @@ impl RocksDBLid {
         // as long as it doesnt fail
         for it in iterator {
             let (key, _) = it?;
+
+            // Filter out the keys not prefixed with the cursor
+            if !key.as_ref().starts_with(cursor_prefix.as_bytes()) {
+                continue;
+            }
+
             let (_, mh_key) = key.split_at(cursor_prefix.len());
 
             // Without the closure, the only alternative is to use goto's to skip from the `return Ok(())` to the deletion of the key
@@ -621,8 +627,8 @@ impl Service for RocksDBLid {
         for it in iterator {
             let (key, value) = it?;
 
-            // TODO(@cernicc,31/01/2025): The NEXT_CURSOR_KEY is returned as a key. Not sure why.
-            if key.as_ref() == NEXT_CURSOR_KEY.as_bytes() {
+            // Filter out the keys not prefixed with the cursor
+            if !key.as_ref().starts_with(cursor_prefix.as_bytes()) {
                 continue;
             }
 
@@ -1070,7 +1076,7 @@ mod test {
     #[test]
     fn cursor() {
         let db = init_database();
-        assert!(db.get_next_cursor().is_err());
+        assert_eq!(db.get_next_cursor().unwrap(), (100, key_cursor_prefix(100)));
         assert!(db.set_next_cursor(1010).is_ok());
         let cursor = db.get_next_cursor();
         assert_eq!(cursor.unwrap(), (1010, key_cursor_prefix(1010)));
@@ -1262,11 +1268,11 @@ mod test {
         ));
 
         // Ensure mh -> offset also gets removed when indexes are removed
-        assert!(db
-            .database
-            .prefix_iterator("/0/")
-            .collect::<Vec<_>>()
-            .is_empty());
+        assert_eq!(
+            db.database.prefix_iterator("/0/").collect::<Vec<_>>().len(),
+            // "next_cursor" key is returned
+            1
+        );
     }
 
     #[test]
@@ -1352,7 +1358,9 @@ mod test {
         // Ensure the multihash -> offset entries were also added
         assert_eq!(
             db.database.prefix_iterator("/0/").collect::<Vec<_>>().len(),
-            2
+            // We also receive a "next_cursor" key because of the nature how the
+            // prefix_iterator works
+            3
         );
     }
 
@@ -1394,7 +1402,9 @@ mod test {
 
         assert_eq!(
             db.database.prefix_iterator("/0/").collect::<Vec<_>>().len(),
-            2
+            // We also receive a "next_cursor" key because of the nature how the
+            // prefix_iterator works
+            3
         );
         // Ensure it's empty after removal
         assert!(db.remove_indexes(cid).is_ok());
@@ -1409,11 +1419,11 @@ mod test {
         assert!(indexes.is_empty());
 
         // Ensure mh -> offset also gets removed when indexes are removed
-        assert!(db
-            .database
-            .prefix_iterator("/0/")
-            .collect::<Vec<_>>()
-            .is_empty());
+        assert_eq!(
+            db.database.prefix_iterator("/0/").collect::<Vec<_>>().len(),
+            // "next_cursor" is the only key left
+            1
+        );
     }
 
     #[test]
