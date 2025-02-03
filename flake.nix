@@ -58,6 +58,8 @@
           LIBCLANG_PATH = "${llvmPackages.libclang.lib}/lib";
           PROTOC = "${protobuf}/bin/protoc";
           RUST_SRC_PATH = "${rustToolchain}/lib/rustlib/src/rust/library/";
+          # Workaround https://github.com/NixOS/nixpkgs/issues/370494#issuecomment-2625163369.
+          CFLAGS = "-DJEMALLOC_STRERROR_R_RETURNS_CHAR_WITH_GNU_SOURCE";
         };
       }
     );

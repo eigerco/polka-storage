@@ -1,3 +1,4 @@
+use core::marker::PhantomData;
 use std::{fs::File, path::Path};
 
 use bellperson::groth16;
@@ -6,7 +7,8 @@ use filecoin_hashers::Domain;
 use filecoin_proofs::{
     add_piece, as_safe_commitment, parameters::setup_params, DefaultPieceDomain,
     DefaultPieceHasher, PaddedBytesAmount, PoRepConfig, SealCommitPhase1Output,
-    SealPreCommitOutput, SealPreCommitPhase1Output, SectorShapeBase, UnpaddedBytesAmount,
+    SealPreCommitOutput, SealPreCommitPhase1Output, SectorShape2KiB, SectorShape8MiB,
+    UnpaddedBytesAmount,
 };
 use primitives::{
     commitment::{
@@ -66,17 +68,27 @@ where
 
     Ok((piece_padded_file, piece_info))
 }
-pub struct Sealer {
+pub struct Sealer<SectorShape> {
     porep_config: PoRepConfig,
+    _sector_shape: PhantomData<SectorShape>,
 }
 
-impl Sealer {
-    pub fn new(seal_proof: RegisteredSealProof) -> Self {
-        Self {
-            porep_config: seal_to_config(seal_proof),
-        }
+pub fn select_sealer(
+    seal: RegisteredSealProof,
+) -> Sealer<impl filecoin_proofs::MerkleTreeTrait + 'static> {
+    match seal {
+        RegisteredSealProof::StackedDRG2KiBV1P1 => Sealer::<SectorShape2KiB> {
+            porep_config: seal_to_config(seal),
+            _sector_shape: PhantomData,
+        },
+        RegisteredSealProof::StackedDRG8MiBV1 => Sealer::<SectorShape8MiB> {
+            porep_config: seal_to_config(seal),
+            _sector_shape: PhantomData,
+        },
     }
+}
 
+impl<SectorShape: filecoin_proofs::MerkleTreeTrait + 'static> Sealer<SectorShape> {
     /// Adds a Piece and padding to already existing sector file and returns how many bytes were written.
     /// It can return more bytes than the piece size, as it adds padding so a proper Merkle Tree can be created out of the sector.
     /// You need to supply current pieces which are already in the sector, otherwise they'll be overwritten.
@@ -213,7 +225,7 @@ impl Sealer {
             .map(|p| (*p).into())
             .collect::<Vec<filecoin_proofs::PieceInfo>>();
 
-        let p1_output: SealPreCommitPhase1Output<SectorShapeBase> =
+        let p1_output: SealPreCommitPhase1Output<SectorShape> =
             filecoin_proofs::seal_pre_commit_phase1(
                 &self.porep_config,
                 cache_directory,
@@ -275,7 +287,7 @@ impl Sealer {
             .map(filecoin_proofs::PieceInfo::from)
             .collect::<Vec<_>>();
 
-        let scp1: filecoin_proofs::SealCommitPhase1Output<SectorShapeBase> =
+        let scp1: filecoin_proofs::SealCommitPhase1Output<SectorShape> =
             filecoin_proofs::seal_commit_phase1_inner(
                 &self.porep_config,
                 cache_path,
@@ -318,12 +330,12 @@ impl Sealer {
         };
 
         let compound_public_params =
-            <StackedCompound<SectorShapeBase, DefaultPieceHasher> as CompoundProof<
-                StackedDrg<'_, SectorShapeBase, DefaultPieceHasher>,
+            <StackedCompound<SectorShape, DefaultPieceHasher> as CompoundProof<
+                StackedDrg<'_, SectorShape, DefaultPieceHasher>,
                 _,
             >>::setup(&compound_setup_params)?;
 
-        let groth_proofs = StackedCompound::<SectorShapeBase, DefaultPieceHasher>::circuit_proofs(
+        let groth_proofs = StackedCompound::<SectorShape, DefaultPieceHasher>::circuit_proofs(
             &public_inputs,
             vanilla_proofs,
             &compound_public_params.vanilla_params,
@@ -446,7 +458,9 @@ mod test {
     // Biggest possible piece size
     #[case(vec![2048])]
     fn padding_for_sector(#[case] piece_sizes: Vec<usize>) {
-        let sealer = Sealer::new(RegisteredSealProof::StackedDRG2KiBV1P1);
+        use primitives::proofs::RegisteredSealProof;
+
+        let sealer = select_sealer(RegisteredSealProof::StackedDRG2KiBV1P1);
 
         let piece_infos: Vec<(Cursor<Vec<u8>>, PieceInfo)> = piece_sizes
             .into_iter()

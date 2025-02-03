@@ -1,7 +1,7 @@
 use std::{path::PathBuf, sync::Arc};
 
 use polka_storage_proofs::porep::{
-    sealer::{prepare_piece, BlstrsProof, PreCommitOutput, Sealer, SubstrateProof},
+    sealer::{prepare_piece, select_sealer, BlstrsProof, PreCommitOutput, SubstrateProof},
     PoRepError, PoRepParameters,
 };
 use primitives::{
@@ -112,7 +112,7 @@ impl UnsealedSector {
         commitment: Commitment<CommP>,
     ) -> Result<(), SectorError> {
         self.deals.push((deal_id, deal));
-        let sealer = Sealer::new(self.seal_proof);
+        let sealer = select_sealer(self.seal_proof);
 
         let handle: JoinHandle<Result<(PieceInfo, u64), SectorError>> =
             tokio::task::spawn_blocking({
@@ -149,7 +149,7 @@ impl UnsealedSector {
         cache_dir_path: PathBuf,
         sealed_path: PathBuf,
     ) -> Result<PreCommittedSector, SectorError> {
-        let sealer: Sealer = Sealer::new(self.seal_proof);
+        let sealer = select_sealer(self.seal_proof);
 
         tokio::fs::create_dir_all(&cache_dir_path).await?;
         tokio::fs::File::create_new(&sealed_path).await?;
@@ -355,7 +355,7 @@ impl PreCommittedSector {
         // 10 blocks = 1 minute, only testnet
         const PRECOMMIT_CHALLENGE_DELAY: u64 = 10;
 
-        let sealer: Sealer = Sealer::new(self.seal_proof);
+        let sealer = select_sealer(self.seal_proof);
 
         let seal_randomness_height = self.seal_randomness_height;
         let Some(digest) = xt_client.get_randomness(seal_randomness_height).await? else {
@@ -444,6 +444,7 @@ impl PreCommittedSector {
             }
         };
 
+        // TODO(@th7nder,28/01/2025): adjust proofs in PoRep for bigger sector sizes
         // We use sector size 2KiB only at this point, which guarantees to have 1 proof, because it has 1 partition in the config.
         // That's why `prove_commit` will always generate a 1 proof.
         let proof: SubstrateProof = proofs[0]

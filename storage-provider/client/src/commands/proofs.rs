@@ -1,18 +1,13 @@
-use std::{
-    fs::File,
-    io::{BufReader, Write},
-    path::PathBuf,
-    str::FromStr,
-};
+use std::{io::Write, path::PathBuf, str::FromStr};
 
 use codec::Encode;
 use mater::CarV2Reader;
 use polka_storage_proofs::{
-    porep::{self, sealer::Sealer},
+    porep::{self, sealer::select_sealer},
     post::{self, ReplicaInfo},
     ZeroPaddingReader,
 };
-use polka_storage_provider_common::commp::{calculate_piece_commitment, CommPError};
+use polka_storage_provider_common::commp::{commp, CommPError};
 use primitives::{
     commitment::{
         piece::{PaddedPieceSize, PieceInfo},
@@ -157,20 +152,8 @@ impl ProofsCommand {
                     .map_err(|e| UtilsCommandError::InvalidCARv2(input_path.clone(), e))?;
 
                 // Calculate the piece commitment.
-                let source_file = File::open(&input_path)?;
-                let file_size = source_file.metadata()?.len();
-
-                let buffered = BufReader::new(source_file);
-                let padded_piece_size = PaddedPieceSize::from_arbitrary_size(file_size as u64);
-                let mut zero_padding_reader = ZeroPaddingReader::new(buffered, *padded_piece_size);
-
-                // The calculate_piece_commitment blocks the thread. We could
-                // use tokio::task::spawn_blocking to avoid this, but in this
-                // case it doesn't matter because this is the only thing we are
-                // working on.
-                let commitment =
-                    calculate_piece_commitment(&mut zero_padding_reader, padded_piece_size)
-                        .map_err(|err| UtilsCommandError::CommPError(err))?;
+                let (commitment, padded_piece_size) =
+                    commp(&input_path).map_err(|err| UtilsCommandError::CommPError(err))?;
                 let cid = commitment.cid();
 
                 // NOTE(@jmg-duarte,09/10/2024): too lazy for proper json
@@ -314,7 +297,7 @@ impl ProofsCommand {
                 )?;
 
                 println!("Creating sector...");
-                let sealer = Sealer::new(seal_proof);
+                let sealer = select_sealer(seal_proof);
                 let piece_infos = sealer
                     .create_sector(vec![(piece_file, piece_info)], unsealed_sector)
                     .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;

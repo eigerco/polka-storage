@@ -8,6 +8,7 @@ use ed25519_dalek::pkcs8::{DecodePublicKey, PublicKeyBytes};
 use jsonrpsee::core::ClientError;
 use libp2p::{identity::ed25519::PublicKey as EdPubKey, PeerId};
 use polka_storage_provider_common::rpc::StorageProviderRpcClient;
+use primitives::DealId;
 use storagext::{
     deser::DeserializablePath,
     multipair::{MultiPairArgs, MultiPairSigner},
@@ -99,6 +100,15 @@ pub(crate) enum Cli {
         client_deal_proposal: SxtClientDealProposal,
     },
 
+    /// Retrieve a deal proposal.
+    RetrieveDeal {
+        /// URL of the providers RPC server.
+        #[arg(long, default_value = DEFAULT_RPC_SERVER_URL)]
+        rpc_server_url: Url,
+        /// The target deal ID.
+        deal_id: DealId,
+    },
+
     /// Sign a storage deal using the provided key, will output the deal as a JSON
     /// — no information is shared across the network.
     SignDeal {
@@ -144,6 +154,10 @@ impl Cli {
                 rpc_server_url,
                 client_deal_proposal,
             } => Self::publish_deal(rpc_server_url, client_deal_proposal).await,
+            Self::RetrieveDeal {
+                rpc_server_url,
+                deal_id,
+            } => Self::retrieve_deal(rpc_server_url, deal_id).await,
             Self::SignDeal {
                 deal_proposal,
                 signer_key,
@@ -180,6 +194,13 @@ impl Cli {
         let client = PolkaStorageRpcClient::new(&rpc_server_url).await?;
         let result = client.publish_deal(client_deal_proposal).await?;
         println!("Successfully published deal of id: {}", result);
+        Ok(())
+    }
+
+    async fn retrieve_deal(rpc_server_url: Url, deal_id: DealId) -> Result<(), CliError> {
+        let client = PolkaStorageRpcClient::new(&rpc_server_url).await?;
+        let result = client.retrieve_deal(deal_id).await?;
+        println!("{}", result);
         Ok(())
     }
 

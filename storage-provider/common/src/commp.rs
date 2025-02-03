@@ -1,16 +1,38 @@
-use std::io::Read;
+use std::{
+    fs::File,
+    io::{BufReader, Read},
+    path::Path,
+};
 
 use filecoin_hashers::{
     sha256::{Sha256Domain, Sha256Hasher},
     Domain,
 };
 use fr32::Fr32Reader;
+use polka_storage_proofs::ZeroPaddingReader;
 use primitives::{
     commitment::{piece::PaddedPieceSize, CommP, Commitment},
     NODE_SIZE,
 };
 use storage_proofs_core::merkle::BinaryMerkleTree;
 use thiserror::Error;
+
+/// Calculates piece commitment for the file at a path.
+/// Assumes the file at path is a CARv2 archive.
+pub fn commp<P: AsRef<Path>>(path: P) -> Result<(Commitment<CommP>, PaddedPieceSize), CommPError> {
+    let source_file = File::open(path.as_ref())?;
+    let file_size = source_file.metadata()?.len();
+
+    let padded_piece_size = PaddedPieceSize::from_arbitrary_size(file_size as u64);
+    // how many zeroes we need to add, so after Fr32 padding it'll be a power of two
+    let padded_with_zeroes = *padded_piece_size.unpadded();
+
+    let buffered = BufReader::new(source_file);
+    let mut zero_padding_reader = ZeroPaddingReader::new(buffered, padded_with_zeroes);
+
+    calculate_piece_commitment(&mut zero_padding_reader, padded_piece_size)
+        .map(|commp| (commp, padded_piece_size))
+}
 
 /// Calculate the piece commitment for a given data source.
 ///
@@ -58,12 +80,36 @@ pub enum CommPError {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Cursor;
+    use std::{env, io::Cursor, path::Path};
 
+    use filecoin_proofs::generate_piece_commitment;
     use polka_storage_proofs::ZeroPaddingReader;
     use primitives::{commitment::piece::PaddedPieceSize, sector::SectorSize};
 
     use super::calculate_piece_commitment;
+    use crate::commp::commp;
+
+    #[test]
+    fn test_filecoin_commp_matches_ours() {
+        let workspace_root = env::var("CARGO_MANIFEST_DIR").unwrap();
+        let path = Path::new(&workspace_root)
+            .join("../..")
+            .join("examples/big_file_184k.car");
+
+        let (commitment, _) = commp(&path).unwrap();
+
+        let f = std::fs::File::open(&path).unwrap();
+        let len = f.metadata().unwrap().len();
+        let size = PaddedPieceSize::from_arbitrary_size(len);
+
+        let piece_info = generate_piece_commitment(
+            ZeroPaddingReader::new(f, *size.unpadded()),
+            size.unpadded().into(),
+        )
+        .unwrap();
+
+        assert_eq!(piece_info.commitment, commitment.raw(),);
+    }
 
     #[test]
     fn test_calculate_piece_commitment() {
