@@ -9,7 +9,7 @@ use polka_storage_proofs::{
 use polka_storage_provider_common::{
     deadline::Deadline,
     rpc::ServerInfo,
-    sector::{PreCommittedSector, SectorError, UnsealedSector},
+    sector::{PreCommittedSector, ProvenSector, SectorError, UnsealedSector},
 };
 use primitives::{
     commitment::{CommP, Commitment},
@@ -21,12 +21,16 @@ use tokio::sync::{
     Semaphore,
 };
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
+use tracing::error;
 use types::{
     AddPieceMessage, PipelineMessage, PreCommitMessage, ProveCommitMessage,
     SubmitWindowedPoStMessage,
 };
 
-use crate::db::{DBError, DealDB};
+use crate::{
+    db::{DBError, DealDB},
+    indexer::IndexMessage,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum PipelineError {
@@ -63,6 +67,8 @@ pub struct PipelineState {
     pub xt_keypair: storagext::multipair::MultiPairSigner,
     pub pipeline_sender: UnboundedSender<PipelineMessage>,
     pub prove_commit_throttle: Arc<Semaphore>,
+
+    pub indexer_tx: UnboundedSender<IndexMessage>,
 }
 
 #[tracing::instrument(skip_all)]
@@ -169,14 +175,21 @@ impl PipelineOperations for TaskTracker {
         msg: ProveCommitMessage,
         token: CancellationToken,
     ) {
+        let indexer_tx = state.indexer_tx.clone();
+
         let ProveCommitMessage { sector_number } = msg;
         self.spawn(async move {
             match prove_commit(state, sector_number, token).await {
-                Ok(_) => {
+                Ok(sector) => {
                     tracing::info!(
                         "ProveCommit for sector {} finished successfully.",
                         sector_number
-                    )
+                    );
+
+                    // Start indexing the sector
+                    if let Err(err) = indexer_tx.send(IndexMessage::IndexSector(sector)) {
+                        error!(?err, "error occurred while messaging the indexer");
+                    }
                 }
                 Err(err) => {
                     tracing::error!(%err, "Failed ProveCommit for Sector: {}", sector_number)
@@ -343,7 +356,7 @@ async fn prove_commit(
     state: Arc<PipelineState>,
     sector_number: SectorNumber,
     token: CancellationToken,
-) -> Result<(), PipelineError> {
+) -> Result<ProvenSector, PipelineError> {
     tracing::info!("Starting prove commit");
     let Some(sector) = state.db.get_sector::<PreCommittedSector>(sector_number)? else {
         tracing::error!("Tried to precommit non-existing sector");
@@ -362,7 +375,7 @@ async fn prove_commit(
 
     state.db.save_sector(sector.sector_number, &sector)?;
 
-    Ok(())
+    Ok(sector)
 }
 
 #[tracing::instrument(skip(state))]

@@ -5,13 +5,13 @@ use libp2p::Multiaddr;
 use polka_storage_retrieval::Server;
 use tokio_util::sync::CancellationToken;
 
-use crate::{local_index_directory::Service, ServerError};
+use crate::{indexer::local_index_directory::Service, ServerError};
 
 mod blockstore;
 
 pub struct RetrievalServerConfig<I> {
     pub listen_address: Multiaddr,
-    pub unsealed_sectors_dir: PathBuf,
+    pub raw_pieces_dir: PathBuf,
     pub indexer: Arc<I>,
 }
 
@@ -25,7 +25,7 @@ where
 {
     // Blockstore used by the retrieval server provider
     let blockstore = Arc::new(ProviderBlockstore::new(
-        config.unsealed_sectors_dir,
+        config.raw_pieces_dir,
         config.indexer,
     ));
 

@@ -4,7 +4,7 @@
 
 mod config;
 mod db;
-mod local_index_directory;
+mod indexer;
 mod p2p;
 mod pipeline;
 mod retrieval;
@@ -14,8 +14,11 @@ mod storage;
 use std::{env::temp_dir, net::SocketAddr, ops::Deref, path::PathBuf, sync::Arc, time::Duration};
 
 use clap::Parser;
+use indexer::{
+    local_index_directory::rdb::{RocksDBLid, RocksDBStateStoreConfig},
+    start_indexer, IndexMessage, IndexerState,
+};
 use libp2p::{identity::Keypair, Multiaddr, PeerId};
-use local_index_directory::rdb::{RocksDBLid, RocksDBStateStoreConfig};
 use p2p::{
     run_bootstrap_node, run_register_node, BootstrapConfig, NodeType, P2PError, P2PState,
     RegisterConfig,
@@ -50,7 +53,6 @@ use url::Url;
 use crate::{
     config::ConfigurationArgs,
     db::{DBError, DealDB},
-    local_index_directory::rdb::{RocksDBLid, RocksDBStateStoreConfig},
     pipeline::{start_pipeline, PipelineState},
     rpc::{start_rpc_server, RpcServerState},
     storage::{start_upload_server, StorageServerState},
@@ -96,6 +98,8 @@ struct SetupOutput {
     pipeline_state: PipelineState,
     pipeline_rx: UnboundedReceiver<PipelineMessage>,
     p2p_state: P2PState,
+    indexer_state: IndexerState<RocksDBLid>,
+    indexer_rx: UnboundedReceiver<IndexMessage>,
     retrieval_config: RetrievalServerConfig<RocksDBLid>,
 }
 
@@ -190,7 +194,7 @@ pub enum ServerError {
     RetrievalServer(#[from] polka_storage_retrieval::server::ServerError),
 
     #[error(transparent)]
-    Lid(#[from] crate::local_index_directory::LidError),
+    Lid(#[from] crate::indexer::local_index_directory::LidError),
 }
 
 /// Takes an expression that returns a `Result<Result<T, E2>, E1>`.
@@ -389,6 +393,8 @@ impl Server {
             pipeline_rx,
             p2p_state,
             retrieval_config,
+            indexer_state,
+            indexer_rx,
         } = self.setup().await?;
 
         let cancellation_token = CancellationToken::new();
@@ -407,9 +413,13 @@ impl Server {
             pipeline_rx,
             cancellation_token.child_token(),
         ));
-
         let retrieval_task = tokio::spawn(start_retrieval(
             retrieval_config,
+            cancellation_token.child_token(),
+        ));
+        let indexer_task = tokio::spawn(start_indexer(
+            indexer_state,
+            indexer_rx,
             cancellation_token.child_token(),
         ));
 
@@ -423,23 +433,31 @@ impl Server {
         tracing::info!("sent shutdown signal");
 
         // Wait for the tasks to finish
-        let (upload_result, rpc_task, pipeline_task, p2p_task, retrieval_task) = tokio::join!(
+        let (upload_result, rpc_task, pipeline_task, p2p_task, indexer_task, retrieval_task) = tokio::join!(
             storage_task,
             rpc_task,
             pipeline_task,
             p2p_task,
+            indexer_task,
             retrieval_task
         );
 
         // Inspect and log errors
-        let (upload_result, rpc_task, pipeline_task, p2p_task) =
-            inspect_and_log_nested_errors!(upload_result, rpc_task, pipeline_task, p2p_task);
+        let (upload_result, rpc_task, pipeline_task, p2p_task, indexer_task, retrieval_task) = inspect_and_log_nested_errors!(
+            upload_result,
+            rpc_task,
+            pipeline_task,
+            p2p_task,
+            indexer_task,
+            retrieval_task
+        );
 
         // Exit with error
         upload_result??;
         rpc_task??;
         pipeline_task??;
         p2p_task??;
+        indexer_task??;
         retrieval_task??;
 
         Ok(())
@@ -471,8 +489,10 @@ impl Server {
         tokio::fs::create_dir_all(sealing_cache_dir.as_ref()).await?;
         tokio::fs::create_dir_all(index_dir.as_ref()).await?;
 
-        // Indexer used by the system
-        let indexer = Arc::new(RocksDBLid::new(RocksDBStateStoreConfig {
+        // Channel used to action the indexer
+        let (indexer_tx, indexer_rx) = tokio::sync::mpsc::unbounded_channel::<IndexMessage>();
+        // Indexer underlying database
+        let lid = Arc::new(RocksDBLid::new(RocksDBStateStoreConfig {
             path: index_dir.deref().clone(),
         })?);
 
@@ -516,6 +536,7 @@ impl Server {
             xt_keypair: self.multi_pair_signer,
             pipeline_sender: pipeline_tx,
             prove_commit_throttle: Arc::new(Semaphore::new(self.parallel_prove_commits)),
+            indexer_tx,
         };
 
         let p2p_state = P2PState {
@@ -526,11 +547,14 @@ impl Server {
             registration_ttl: self.registration_ttl,
         };
 
-        let unsealed_sectors_dir = unsealed_sector_storage_dir.deref().clone();
+        let indexer_state = IndexerState {
+            lid: Arc::clone(&lid),
+        };
+        let raw_pieces_dir = car_piece_storage_dir.deref().clone();
         let retrieval_config = RetrievalServerConfig {
             listen_address: self.retrieval_listen_address,
-            unsealed_sectors_dir,
-            indexer,
+            raw_pieces_dir,
+            indexer: Arc::clone(&lid),
         };
 
         Ok(SetupOutput {
@@ -540,6 +564,8 @@ impl Server {
             pipeline_rx,
             p2p_state,
             retrieval_config,
+            indexer_state,
+            indexer_rx,
         })
     }
 

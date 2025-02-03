@@ -20,6 +20,7 @@ polka-storage-retrieval = { workspace = true }
 primitives = { workspace = true, features = ["clap", "serde", "std"] }
 storagext = { workspace = true, features = ["clap"] }
 
+async-stream.workspace = true
 async-trait = { workspace = true }
 axum = { workspace = true, features = ["macros", "multipart"] }
 base64 = { workspace = true }

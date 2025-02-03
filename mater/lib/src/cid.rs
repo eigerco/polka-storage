@@ -3,8 +3,10 @@ use tokio::io::{AsyncRead, AsyncReadExt};
 
 use crate::{async_varint::read_varint, IDENTITY_CODE};
 
+/// Extension trait for Cid
 pub trait CidExt {
-    async fn read_bytes_async<R>(r: R) -> Result<(Self, usize), Error>
+    /// Reads the bytes from a byte stream.
+    fn read_bytes_async<R>(r: R) -> impl std::future::Future<Output = Result<(Self, usize), Error>>
     where
         Self: Sized,
         R: AsyncRead + Unpin;
@@ -13,8 +15,10 @@ pub trait CidExt {
     fn get_identity_data(&self) -> Option<&[u8]>;
 }
 
+/// Extension trait for Multihash
 pub trait MultihashExt {
-    async fn read_async<R>(r: R) -> Result<(Self, usize), Error>
+    /// Reads the bytes from a byte stream.
+    fn read_async<R>(r: R) -> impl std::future::Future<Output = Result<(Self, usize), Error>>
     where
         Self: Sized,
         R: AsyncRead + Unpin;
@@ -62,7 +66,6 @@ impl<const S: usize> MultihashExt for Multihash<S> {
     /// https://github.com/multiformats/rust-multihash/blob/90a6c19ec71ced09469eec164a3586aafeddfbbd/src/multihash.rs#L271
     async fn read_async<R>(mut r: R) -> Result<(Self, usize), Error>
     where
-        Self: Sized,
         R: AsyncRead + Unpin,
     {
         let (code, code_bytes_read): (u64, usize) = read_varint(&mut r).await?;

@@ -66,12 +66,12 @@ impl Default for Header {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BlockMetadata {
     /// Cid of the block
-    cid: Cid,
+    pub cid: Cid,
     /// Offset of the data section relative to the start of the underlying
     /// reader.
-    data_offset_source: u64,
+    pub data_offset_source: u64,
     /// Size of the data section of the block
-    data_size: u64,
+    pub data_size: u64,
 }
 
 #[cfg(test)]
