@@ -18,11 +18,13 @@ When resolving the [Peer ID][1] to a [multi address][2] the connected bootstrap 
 
 ## Proposals
 
-### Collators as Bootstrap Nodes
+### Bootstrap Node Collator Service
 
 [Collators][3] maintain parachains by collecting parachain transactions from users and producing state transition proofs for relay chain validators.
 Since collators are already well known within the network it makes sense for them to be bootstrap nodes an contain the P2P information.
 The collators will act as [rendezvous][4] servers at which all the storage provider will register, providing information about their [Peer ID][1] and [multi address][2].
+The bootstrap node will be implemented as a service into the collator node.
+This ensures that all collators will run a bootstrap node.
 
 Solving the bootstrap nodes not knowing the registration information that they each hold there are 2 options.
 
