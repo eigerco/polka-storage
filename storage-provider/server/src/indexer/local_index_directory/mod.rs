@@ -1,7 +1,7 @@
 // TODO(@cernicc,23/01/2025): Remove this after the index is integrated
 #![allow(dead_code)]
 
-use std::string;
+use std::{ops::Deref, string};
 
 use base64::Engine;
 use cid::{
@@ -69,40 +69,40 @@ pub enum LidError {
     Base64DecodeError(#[from] base64::DecodeError),
 }
 
-// /// A [`FlaggedPiece`] is a piece that has been flagged for the user's attention
-// /// (e.g. the index is missing).
-// ///
-// /// Source: <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/model/model.go#L86-L95>
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct FlaggedPiece {
-//     pub piece_cid: Cid,
-//     pub storage_provider_address: StorageProviderAddress,
-//     pub created_at: chrono::DateTime<chrono::Utc>,
-//     pub updated_at: chrono::DateTime<chrono::Utc>,
-//     pub has_unsealed_copy: bool,
-// }
+/// A [`FlaggedPiece`] is a piece that has been flagged for the user's attention
+/// (e.g. the index is missing).
+///
+/// Source: <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/model/model.go#L86-L95>
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FlaggedPiece {
+    pub piece_cid: Cid,
+    pub storage_provider_address: StorageProviderAddress,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+    pub has_unsealed_copy: bool,
+}
 
-// impl FlaggedPiece {
-//     /// Construct a new [`FlaggedPiece`].
-//     ///
-//     /// * `created_at` and `updated_at` will be set to `now`.
-//     /// * `has_unsealed_copy` will be set to `false`.
-//     pub fn new(piece_cid: Cid, storage_provider_address: StorageProviderAddress) -> Self {
-//         let now = chrono::Utc::now();
-//         Self {
-//             piece_cid,
-//             storage_provider_address,
-//             created_at: now,
-//             updated_at: now,
-//             has_unsealed_copy: false,
-//         }
-//     }
-// }
+impl FlaggedPiece {
+    /// Construct a new [`FlaggedPiece`].
+    ///
+    /// * `created_at` and `updated_at` will be set to `now`.
+    /// * `has_unsealed_copy` will be set to `false`.
+    pub fn new(piece_cid: Cid, storage_provider_address: StorageProviderAddress) -> Self {
+        let now = chrono::Utc::now();
+        Self {
+            piece_cid,
+            storage_provider_address,
+            created_at: now,
+            updated_at: now,
+            has_unsealed_copy: false,
+        }
+    }
+}
 
-// pub struct FlaggedPiecesListFilter {
-//     pub storage_provider_address: StorageProviderAddress,
-//     pub has_unsealed_copy: bool,
-// }
+pub struct FlaggedPiecesListFilter {
+    pub storage_provider_address: StorageProviderAddress,
+    pub has_unsealed_copy: bool,
+}
 
 // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/model/model.go#L50-L62
 
@@ -183,30 +183,30 @@ impl Default for PieceInfo {
     }
 }
 
-// // TODO(@jmg-duarte,14/06/2024): validate miner address
+// TODO(@jmg-duarte,14/06/2024): validate miner address
 
-// /// The storage provider address.
-// ///
-// /// It is a special type from `filecoin-project/go-address`
-// /// however, it's simply a wrapper to `string`:
-// /// https://github.com/filecoin-project/go-address/blob/365a7c8d0e85c731c192e65ece5f5b764026e85d/address.go#L39-L40
-// #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-// pub struct StorageProviderAddress(String);
+/// The storage provider address.
+///
+/// It is a special type from `filecoin-project/go-address`
+/// however, it's simply a wrapper to `string`:
+/// https://github.com/filecoin-project/go-address/blob/365a7c8d0e85c731c192e65ece5f5b764026e85d/address.go#L39-L40
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct StorageProviderAddress(String);
 
-// // The Deref implementation eases usages like checking whether the address is empty.
-// impl Deref for StorageProviderAddress {
-//     type Target = String;
+// The Deref implementation eases usages like checking whether the address is empty.
+impl Deref for StorageProviderAddress {
+    type Target = String;
 
-//     fn deref(&self) -> &Self::Target {
-//         &self.0
-//     }
-// }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
-// impl From<String> for StorageProviderAddress {
-//     fn from(value: String) -> Self {
-//         Self(value)
-//     }
-// }
+impl From<String> for StorageProviderAddress {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
 
 /// Information about a single *storage* deal for a given piece.
 ///
@@ -225,25 +225,27 @@ pub struct DealInfo {
     #[serde(rename = "u")]
     pub deal_uuid: Uuid,
 
-    // // NOTE(@jmg-duarte,17/06/2024): this will probably not be needed
-    // /// Wether this deal was performed using `go-fil-markets`.
-    // ///
-    // /// See the following links for more information:
-    // /// * <https://boost.filecoin.io/configuration/legacy-deal-configuration>
-    // /// * <https://filecoin.io/blog/posts/make-lightning-fast-storage-deals-with-boost-v1.0>
-    // #[serde(rename = "y")]
-    // pub is_legacy: bool,
+    // NOTE(@jmg-duarte,17/06/2024): this will probably not be needed
+    /// Wether this deal was performed using `go-fil-markets`.
+    ///
+    /// See the following links for more information:
+    /// * <https://boost.filecoin.io/configuration/legacy-deal-configuration>
+    /// * <https://filecoin.io/blog/posts/make-lightning-fast-storage-deals-with-boost-v1.0>
+    #[serde(rename = "y")]
+    pub is_legacy: bool,
+
     /// Identifier for a deal on the chain.
     ///
     /// See [`DealId`] for more information.
     #[serde(rename = "i")]
     pub chain_deal_id: DealId,
 
-    // /// The storage provider's address.
-    // ///
-    // /// See [`StorageProviderAddress`] for more information.
-    // #[serde(rename = "m")]
-    // pub storage_provider_address: StorageProviderAddress,
+    /// The storage provider's address.
+    ///
+    /// See [`StorageProviderAddress`] for more information.
+    #[serde(rename = "m")]
+    pub storage_provider_address: StorageProviderAddress,
+
     /// The sector number where the piece is stored in.
     ///
     /// See [`SectorNumber`] for more information.
@@ -267,15 +269,16 @@ pub struct DealInfo {
     /// The length of the piece's CAR file.
     #[serde(rename = "c")]
     pub car_length: u64,
-    // /// Wether this deal is a [direct deal][1].
-    // ///
-    // /// A direct deal is usually made for data larger than 4Gb as it will contain a single piece,
-    // /// a non-direct deal is an [aggregated deal][2], which is aggregated from small scale data (< 4Gb).
-    // ///
-    // /// [1]: https://docs.filecoin.io/smart-contracts/programmatic-storage/direct-deal-making
-    // /// [2]: https://docs.filecoin.io/smart-contracts/programmatic-storage/aggregated-deal-making
-    // #[serde(rename = "d")]
-    // pub is_direct_deal: bool,
+
+    /// Wether this deal is a [direct deal][1].
+    ///
+    /// A direct deal is usually made for data larger than 4Gb as it will contain a single piece,
+    /// a non-direct deal is an [aggregated deal][2], which is aggregated from small scale data (< 4Gb).
+    ///
+    /// [1]: https://docs.filecoin.io/smart-contracts/programmatic-storage/direct-deal-making
+    /// [2]: https://docs.filecoin.io/smart-contracts/programmatic-storage/aggregated-deal-making
+    #[serde(rename = "d")]
+    pub is_direct_deal: bool,
 }
 
 pub trait Service {
@@ -379,52 +382,52 @@ pub trait Service {
     ///   that cannot be found, returns [`LidError::MultihashNotFound`].
     fn remove_indexes(&self, piece_cid: Cid) -> Result<(), LidError>;
 
-    // /// Flag the piece with the given [`Cid`].
-    // ///
-    // /// * If the piece & storage provider address pair is not found, a new entry will be stored.
-    // fn flag_piece(
-    //     &self,
-    //     piece_cid: Cid,
-    //     has_unsealed_copy: bool,
-    //     storage_provider_address: StorageProviderAddress,
-    // ) -> Result<(), LidError>;
+    /// Flag the piece with the given [`Cid`].
+    ///
+    /// * If the piece & storage provider address pair is not found, a new entry will be stored.
+    fn flag_piece(
+        &self,
+        piece_cid: Cid,
+        has_unsealed_copy: bool,
+        storage_provider_address: StorageProviderAddress,
+    ) -> Result<(), LidError>;
 
-    // /// Unflag the piece with the given [`Cid`].
-    // ///
-    // /// * If the piece & storage provider address pair is not found, this is a no-op.
-    // fn unflag_piece(
-    //     &self,
-    //     piece_cid: Cid,
-    //     storage_provider_address: StorageProviderAddress,
-    // ) -> Result<(), LidError>;
+    /// Unflag the piece with the given [`Cid`].
+    ///
+    /// * If the piece & storage provider address pair is not found, this is a no-op.
+    fn unflag_piece(
+        &self,
+        piece_cid: Cid,
+        storage_provider_address: StorageProviderAddress,
+    ) -> Result<(), LidError>;
 
-    // /// List the flagged pieces matching the filter.
-    // ///
-    // /// * If the filter is `None`, then all flagged pieces will be matched.
-    // /// * If no pieces are found, returns an empty [`Vec`].
-    // /// * Pieces flagged before `cursor` will be filtered out.
-    // /// * Pieces are sorted according to when they were first flagged — see [`FlaggedPiece::created_at`].
-    // /// * Offset and limit are applied _after_ sorting the pieces.
-    // fn flagged_pieces_list(
-    //     &self,
-    //     filter: Option<FlaggedPiecesListFilter>,
-    //     cursor: chrono::DateTime<chrono::Utc>, // this name doesn't make much sense but it's the original one,
-    //     offset: usize,
-    //     limit: usize,
-    // ) -> Result<Vec<FlaggedPiece>, LidError>;
+    /// List the flagged pieces matching the filter.
+    ///
+    /// * If the filter is `None`, then all flagged pieces will be matched.
+    /// * If no pieces are found, returns an empty [`Vec`].
+    /// * Pieces flagged before `cursor` will be filtered out.
+    /// * Pieces are sorted according to when they were first flagged — see [`FlaggedPiece::created_at`].
+    /// * Offset and limit are applied _after_ sorting the pieces.
+    fn flagged_pieces_list(
+        &self,
+        filter: Option<FlaggedPiecesListFilter>,
+        cursor: chrono::DateTime<chrono::Utc>, // this name doesn't make much sense but it's the original one,
+        offset: usize,
+        limit: usize,
+    ) -> Result<Vec<FlaggedPiece>, LidError>;
 
-    // /// Count all pieces that match the given filter.
-    // ///
-    // /// * If the filter is `None`, then all flagged pieces will be counted.
-    // /// * If no pieces are found, returns `0`.
-    // fn flagged_pieces_count(
-    //     &self,
-    //     filter: Option<FlaggedPiecesListFilter>,
-    // ) -> Result<u64, LidError>;
+    /// Count all pieces that match the given filter.
+    ///
+    /// * If the filter is `None`, then all flagged pieces will be counted.
+    /// * If no pieces are found, returns `0`.
+    fn flagged_pieces_count(
+        &self,
+        filter: Option<FlaggedPiecesListFilter>,
+    ) -> Result<u64, LidError>;
 
-    // /// Returns the [`Cid`]s of the next pieces to be checked for a given storage provider.
-    // fn next_pieces_to_check(
-    //     &mut self,
-    //     storage_provider_address: StorageProviderAddress,
-    // ) -> Result<Vec<Cid>, LidError>;
+    /// Returns the [`Cid`]s of the next pieces to be checked for a given storage provider.
+    fn next_pieces_to_check(
+        &mut self,
+        storage_provider_address: StorageProviderAddress,
+    ) -> Result<Vec<Cid>, LidError>;
 }

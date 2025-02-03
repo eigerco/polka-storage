@@ -1,5 +1,5 @@
 // The name of this file is `rdb.rs` to avoid clashing with the `rocksdb` import.
-use std::{collections::HashMap, path::PathBuf, time::Duration};
+use std::{collections::HashMap, path::PathBuf, str::FromStr, time::Duration};
 
 use base64::Engine;
 use cid::{multihash::Multihash, Cid};
@@ -12,8 +12,9 @@ use serde::{de::DeserializeOwned, Serialize};
 use uuid::Uuid;
 
 use super::{
-    multihash_base64, rdb_ext::WriteBatchWithTransactionExt, DealInfo, IndexRecord, LidError,
-    OffsetSize, PieceInfo, Service,
+    multihash_base64, rdb_ext::WriteBatchWithTransactionExt, DealInfo, FlaggedPiece,
+    FlaggedPiecesListFilter, IndexRecord, LidError, OffsetSize, PieceInfo, Service,
+    StorageProviderAddress,
 };
 
 const RAW_CODEC: u64 = 0x55;
@@ -78,9 +79,9 @@ fn key_cursor_prefix(cursor: u64) -> String {
 }
 
 /// Returns a key for flagging a piece, like `/<cid>/<address>`.
-// fn key_flag_piece(cid: &Cid, address: &StorageProviderAddress) -> String {
-//     format!("/{}/{}", cid, address.0)
-// }
+fn key_flag_piece(cid: &Cid, address: &StorageProviderAddress) -> String {
+    format!("/{}/{}", cid, address.0)
+}
 
 pub struct RocksDBStateStoreConfig {
     pub path: PathBuf,
@@ -705,264 +706,266 @@ impl Service for RocksDBLid {
         self.remove_indexes_with_cursor(piece_cid, metadata.cursor)
     }
 
-    // /// For a detailed description, see [`Service::flag_piece`].
-    // ///
-    // /// This information is stored in the [`PIECE_CID_TO_FLAGGED_CF`] column family.
-    // ///
-    // /// Sources:
-    // /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L561-L603>
-    // /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L246-L265>
-    // fn flag_piece(
-    //     &self,
-    //     piece_cid: Cid,
-    //     has_unsealed_copy: bool,
-    //     storage_provider_address: StorageProviderAddress,
-    // ) -> Result<(), LidError> {
-    //     let key = key_flag_piece(&piece_cid, &storage_provider_address);
-    //     let mut metadata = self
-    //         .get_value_at_key(&key, PIECE_CID_TO_FLAGGED_CF)?
-    //         .unwrap_or_else(|| FlaggedPiece::new(piece_cid, storage_provider_address));
+    /// For a detailed description, see [`Service::flag_piece`].
+    ///
+    /// This information is stored in the [`PIECE_CID_TO_FLAGGED_CF`] column family.
+    ///
+    /// Sources:
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L561-L603>
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L246-L265>
+    fn flag_piece(
+        &self,
+        piece_cid: Cid,
+        has_unsealed_copy: bool,
+        storage_provider_address: StorageProviderAddress,
+    ) -> Result<(), LidError> {
+        let key = key_flag_piece(&piece_cid, &storage_provider_address);
+        let mut metadata = self
+            .get_value_at_key(&key, PIECE_CID_TO_FLAGGED_CF)?
+            .unwrap_or_else(|| FlaggedPiece::new(piece_cid, storage_provider_address));
 
-    //     metadata.updated_at = chrono::Utc::now();
-    //     metadata.has_unsealed_copy = has_unsealed_copy;
+        metadata.updated_at = chrono::Utc::now();
+        metadata.has_unsealed_copy = has_unsealed_copy;
 
-    //     self.put_value_at_key(key, &metadata, PIECE_CID_TO_FLAGGED_CF)
-    // }
+        self.put_value_at_key(key, &metadata, PIECE_CID_TO_FLAGGED_CF)
+    }
 
-    // /// For a detailed description, see [`Service::unflag_piece`].
-    // ///
-    // /// This information is stored in the [`PIECE_CID_TO_FLAGGED_CF`] column family.
-    // ///
-    // /// Sources:
-    // /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L605-L629>
-    // /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L838-L847>
-    // fn unflag_piece(
-    //     &self,
-    //     piece_cid: Cid,
-    //     storage_provider_address: StorageProviderAddress,
-    // ) -> Result<(), LidError> {
-    //     let key = key_flag_piece(&piece_cid, &storage_provider_address);
-    //     self.remove_value_at_key(key, PIECE_CID_TO_FLAGGED_CF)
-    // }
+    /// For a detailed description, see [`Service::unflag_piece`].
+    ///
+    /// This information is stored in the [`PIECE_CID_TO_FLAGGED_CF`] column family.
+    ///
+    /// Sources:
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L605-L629>
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L838-L847>
+    fn unflag_piece(
+        &self,
+        piece_cid: Cid,
+        storage_provider_address: StorageProviderAddress,
+    ) -> Result<(), LidError> {
+        let key = key_flag_piece(&piece_cid, &storage_provider_address);
+        self.remove_value_at_key(key, PIECE_CID_TO_FLAGGED_CF)
+    }
 
-    // /// For a detailed description, see [`Service::flagged_pieces_list`].
-    // ///
-    // /// This information is stored in the [`PIECE_CID_TO_FLAGGED_CF`] column family.
-    // ///
-    // /// Sources:
-    // /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L631-L653>
-    // /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L719-L793>
-    // fn flagged_pieces_list(
-    //     &self,
-    //     filter: Option<FlaggedPiecesListFilter>,
-    //     cursor: chrono::DateTime<chrono::Utc>,
-    //     offset: usize,
-    //     limit: usize,
-    // ) -> Result<Vec<FlaggedPiece>, LidError> {
-    //     let iterator = self
-    //         .database
-    //         .iterator_cf(self.cf_handle(PIECE_CID_TO_FLAGGED_CF), IteratorMode::Start);
+    /// For a detailed description, see [`Service::flagged_pieces_list`].
+    ///
+    /// This information is stored in the [`PIECE_CID_TO_FLAGGED_CF`] column family.
+    ///
+    /// Sources:
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L631-L653>
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L719-L793>
+    fn flagged_pieces_list(
+        &self,
+        filter: Option<FlaggedPiecesListFilter>,
+        cursor: chrono::DateTime<chrono::Utc>,
+        offset: usize,
+        limit: usize,
+    ) -> Result<Vec<FlaggedPiece>, LidError> {
+        let iterator = self
+            .database
+            .iterator_cf(self.cf_handle(PIECE_CID_TO_FLAGGED_CF), IteratorMode::Start);
 
-    //     let mut flagged_pieces = vec![];
-    //     for line in iterator {
-    //         let (key, value) = line?;
+        let mut flagged_pieces = vec![];
+        for line in iterator {
+            let (key, value) = line?;
 
-    //         // This one should never happen but who knows?
-    //         let key = String::from_utf8(key.to_vec())?;
-    //         // The key starts with a "/", skip it
-    //         let mut split = key.split('/').skip(1);
+            // This one should never happen but who knows?
+            let key = String::from_utf8(key.to_vec())?;
+            // The key starts with a "/", skip it
+            let mut split = key.split('/').skip(1);
 
-    //         // Using let/else instead of .ok_or/.ok_or_else avoids using .clone
-    //         let Some(piece_cid) = split.next() else {
-    //             return Err(LidError::InvalidFlaggedPieceKeyError(key));
-    //         };
-    //         // They don't actually check that the full key is well formed, they just check if it isn't ill-formed
-    //         // by checking if the length after splitting is != 0 and that the CID is valid
-    //         // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L740-L748
+            // Using let/else instead of .ok_or/.ok_or_else avoids using .clone
+            let Some(piece_cid) = split.next() else {
+                return Err(LidError::InvalidFlaggedPieceKeyError(key));
+            };
+            // They don't actually check that the full key is well formed, they just check if it isn't ill-formed
+            // by checking if the length after splitting is != 0 and that the CID is valid
+            // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L740-L748
 
-    //         let piece_cid = Cid::from_str(piece_cid)?;
-    //         let flagged_metadata = match ciborium::from_reader::<FlaggedPiece, _>(value.as_ref()) {
-    //             Ok(value) => Ok(value),
-    //             Err(err) => Err(LidError::Deserialization(err.to_string())),
-    //         }?;
+            let piece_cid = Cid::from_str(piece_cid)?;
+            let flagged_metadata = match ciborium::from_reader::<FlaggedPiece, _>(value.as_ref()) {
+                Ok(value) => Ok(value),
+                Err(err) => Err(LidError::Deserialization(err.to_string())),
+            }?;
 
-    //         if let Some(filter) = &filter {
-    //             // NOTE(@jmg-duarte,05/06/2024): The check order is not arbitrary,
-    //             // it's the same as the order in boostd-data, maybe it has a reason,
-    //             // maybe it doesn't, keeping it the same for now...
-    //             // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L756-L766
-    //             if filter.has_unsealed_copy != flagged_metadata.has_unsealed_copy {
-    //                 continue;
-    //             }
+            if let Some(filter) = &filter {
+                // NOTE(@jmg-duarte,05/06/2024): The check order is not arbitrary,
+                // it's the same as the order in boostd-data, maybe it has a reason,
+                // maybe it doesn't, keeping it the same for now...
+                // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L756-L766
+                if filter.has_unsealed_copy != flagged_metadata.has_unsealed_copy {
+                    continue;
+                }
 
-    //             // NOTE(@jmg-duarte,05/06/2024): We could check the address against the key and
-    //             // possibly avoid deserializing, but the original code only checks after deserializing
-    //             // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L750-L762
-    //             if !filter.storage_provider_address.is_empty()
-    //                 && filter.storage_provider_address != flagged_metadata.storage_provider_address
-    //             {
-    //                 continue;
-    //             }
-    //         }
+                // NOTE(@jmg-duarte,05/06/2024): We could check the address against the key and
+                // possibly avoid deserializing, but the original code only checks after deserializing
+                // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L750-L762
+                if !filter.storage_provider_address.is_empty()
+                    && filter.storage_provider_address != flagged_metadata.storage_provider_address
+                {
+                    continue;
+                }
+            }
 
-    //         if flagged_metadata.created_at < cursor {
-    //             continue;
-    //         }
+            if flagged_metadata.created_at < cursor {
+                continue;
+            }
 
-    //         flagged_pieces.push(FlaggedPiece {
-    //             piece_cid,
-    //             storage_provider_address: flagged_metadata.storage_provider_address,
-    //             created_at: flagged_metadata.created_at,
-    //             updated_at: flagged_metadata.updated_at,
-    //             has_unsealed_copy: flagged_metadata.has_unsealed_copy,
-    //         });
-    //     }
+            flagged_pieces.push(FlaggedPiece {
+                piece_cid,
+                storage_provider_address: flagged_metadata.storage_provider_address,
+                created_at: flagged_metadata.created_at,
+                updated_at: flagged_metadata.updated_at,
+                has_unsealed_copy: flagged_metadata.has_unsealed_copy,
+            });
+        }
 
-    //     // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L776-L778
-    //     flagged_pieces.sort_by(|l, r| l.created_at.cmp(&r.created_at));
+        // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L776-L778
+        flagged_pieces.sort_by(|l, r| l.created_at.cmp(&r.created_at));
 
-    //     if offset > 0 {
-    //         if offset >= flagged_pieces.len() {
-    //             return Ok(vec![]);
-    //         } else {
-    //             flagged_pieces = flagged_pieces.split_off(offset);
-    //         }
-    //     }
+        if offset > 0 {
+            if offset >= flagged_pieces.len() {
+                return Ok(vec![]);
+            } else {
+                flagged_pieces = flagged_pieces.split_off(offset);
+            }
+        }
 
-    //     if flagged_pieces.len() > limit {
-    //         flagged_pieces.truncate(limit);
-    //     }
+        if flagged_pieces.len() > limit {
+            flagged_pieces.truncate(limit);
+        }
 
-    //     Ok(flagged_pieces)
-    // }
+        Ok(flagged_pieces)
+    }
 
-    // /// For a detailed description, see [`Service::flagged_pieces_count`].
-    // ///
-    // /// This information is stored in the [`PIECE_CID_TO_FLAGGED_CF`] column family.
-    // ///
-    // /// Sources:
-    // /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L654-L676>
-    // /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L795-L837>
-    // fn flagged_pieces_count(
-    //     &self,
-    //     filter: Option<FlaggedPiecesListFilter>,
-    // ) -> Result<u64, LidError> {
-    //     let iterator = self
-    //         .database
-    //         .iterator_cf(self.cf_handle(PIECE_CID_TO_FLAGGED_CF), IteratorMode::Start);
+    /// For a detailed description, see [`Service::flagged_pieces_count`].
+    ///
+    /// This information is stored in the [`PIECE_CID_TO_FLAGGED_CF`] column family.
+    ///
+    /// Sources:
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L654-L676>
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L795-L837>
+    fn flagged_pieces_count(
+        &self,
+        filter: Option<FlaggedPiecesListFilter>,
+    ) -> Result<u64, LidError> {
+        let iterator = self
+            .database
+            .iterator_cf(self.cf_handle(PIECE_CID_TO_FLAGGED_CF), IteratorMode::Start);
 
-    //     if let Some(filter) = filter {
-    //         let mut count: u64 = 0;
-    //         for line in iterator {
-    //             let (_, value) = line?;
+        if let Some(filter) = filter {
+            let mut count: u64 = 0;
+            for line in iterator {
+                let (_, value) = line?;
 
-    //             let flagged_metadata =
-    //                 match ciborium::from_reader::<FlaggedPiece, _>(value.as_ref()) {
-    //                     Ok(value) => Ok(value),
-    //                     Err(err) => Err(LidError::Deserialization(err.to_string())),
-    //                 }?;
+                let flagged_metadata =
+                    match ciborium::from_reader::<FlaggedPiece, _>(value.as_ref()) {
+                        Ok(value) => Ok(value),
+                        Err(err) => Err(LidError::Deserialization(err.to_string())),
+                    }?;
 
-    //             // NOTE(@jmg-duarte,05/06/2024): The check order is not arbitrary,
-    //             // it's the same as the order in boostd-data, maybe it has a reason,
-    //             // maybe it doesn't, keeping it the same for now...
-    //             // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L823-L829
-    //             if filter.has_unsealed_copy != flagged_metadata.has_unsealed_copy {
-    //                 continue;
-    //             }
+                // NOTE(@jmg-duarte,05/06/2024): The check order is not arbitrary,
+                // it's the same as the order in boostd-data, maybe it has a reason,
+                // maybe it doesn't, keeping it the same for now...
+                // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L823-L829
+                if filter.has_unsealed_copy != flagged_metadata.has_unsealed_copy {
+                    continue;
+                }
 
-    //             if !filter.storage_provider_address.is_empty()
-    //                 && filter.storage_provider_address != flagged_metadata.storage_provider_address
-    //             {
-    //                 continue;
-    //             }
+                if !filter.storage_provider_address.is_empty()
+                    && filter.storage_provider_address != flagged_metadata.storage_provider_address
+                {
+                    continue;
+                }
 
-    //             count += 1;
-    //         }
-    //         Ok(count)
-    //     } else {
-    //         Ok(iterator.count() as u64)
-    //     }
-    // }
+                count += 1;
+            }
+            Ok(count)
+        } else {
+            Ok(iterator.count() as u64)
+        }
+    }
 
-    // /// For a detailed description, see [`Self::next_pieces_to_check`].
-    // ///
-    // /// This information is stored in the [`PIECE_CID_TO_CURSOR_CF`] column family.
-    // ///
-    // /// Sources:
-    // /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L540-L559>
-    // /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L404-L479>
-    // fn next_pieces_to_check(
-    //     &mut self,
-    //     storage_provider_address: StorageProviderAddress,
-    // ) -> Result<Vec<Cid>, LidError> {
-    //     let mut cids = vec![];
+    /// For a detailed description, see [`Self::next_pieces_to_check`].
+    ///
+    /// This information is stored in the [`PIECE_CID_TO_CURSOR_CF`] column family.
+    ///
+    /// Sources:
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/service.go#L540-L559>
+    /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L404-L479>
+    fn next_pieces_to_check(
+        &mut self,
+        storage_provider_address: StorageProviderAddress,
+    ) -> Result<Vec<Cid>, LidError> {
+        let mut cids = vec![];
 
-    //     // Leveraging the `DBRawIteratorWithThreadMode` should bring more performance
-    //     // but requires deeper knowledge of RocksDB, this is good enough for now
-    //     let iter = self
-    //         .database
-    //         .iterator_cf(self.cf_handle(PIECE_CID_TO_CURSOR_CF), IteratorMode::Start)
-    //         // Looks silly but it's faithful to the original implementation
-    //         // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L389-L390
-    //         .skip(self.offset)
-    //         .take(PIECES_TRACKER_BATCH_SIZE);
+        // Leveraging the `DBRawIteratorWithThreadMode` should bring more performance
+        // but requires deeper knowledge of RocksDB, this is good enough for now
+        let iter = self
+            .database
+            .iterator_cf(self.cf_handle(PIECE_CID_TO_CURSOR_CF), IteratorMode::Start)
+            // Looks silly but it's faithful to the original implementation
+            // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L389-L390
+            .skip(self.offset)
+            .take(PIECES_TRACKER_BATCH_SIZE);
 
-    //     let mut seen_pieces = 0;
-    //     for it in iter {
-    //         let (key, value) = it?;
-    //         seen_pieces += 1;
+        let mut seen_pieces = 0;
+        for it in iter {
+            let (key, value) = it?;
+            seen_pieces += 1;
 
-    //         let key_str = Cid::read_bytes(key.as_ref())?;
-    //         // TODO(@jmg-duarte,14/06/2024): missing an encoding step here
-    //         // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L421-L422
-    //         let checked_key = {
-    //             let mut key = storage_provider_address.0.clone();
-    //             key.push_str(&key_str.to_string());
-    //             key
-    //         };
+            let key_str = Cid::read_bytes(key.as_ref())?;
+            // TODO(@jmg-duarte,14/06/2024): missing an encoding step here
+            // https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L421-L422
+            let checked_key = {
+                let mut key = storage_provider_address.0.clone();
+                key.push_str(&key_str.to_string());
+                key
+            };
 
-    //         if let Some(last_checked) = self.checked.get(&checked_key) {
-    //             if *last_checked > (chrono::Utc::now() - MIN_PIECE_CHECK_PERIOD) {
-    //                 continue;
-    //             }
-    //         }
+            if let Some(last_checked) = self.checked.get(&checked_key) {
+                if *last_checked > (chrono::Utc::now() - MIN_PIECE_CHECK_PERIOD) {
+                    continue;
+                }
+            }
 
-    //         let cid = Cid::read_bytes(key.as_ref())?;
-    //         let metadata: PieceInfo = ciborium::from_reader(value.as_ref())
-    //             .map_err(|err| LidError::Deserialization(err.to_string()))?;
-    //         for deal in metadata.deals {
-    //             if deal.storage_provider_address == storage_provider_address {
-    //                 self.checked.insert(checked_key.clone(), chrono::Utc::now());
-    //                 cids.push(cid);
-    //                 break;
-    //             }
-    //         }
-    //     }
-    //     self.offset += seen_pieces;
+            let cid = Cid::read_bytes(key.as_ref())?;
+            let metadata: PieceInfo = ciborium::from_reader(value.as_ref())
+                .map_err(|err| LidError::Deserialization(err.to_string()))?;
+            for deal in metadata.deals {
+                if deal.storage_provider_address == storage_provider_address {
+                    self.checked.insert(checked_key.clone(), chrono::Utc::now());
+                    cids.push(cid);
+                    break;
+                }
+            }
+        }
+        self.offset += seen_pieces;
 
-    //     if seen_pieces < PIECES_TRACKER_BATCH_SIZE {
-    //         self.offset = 0;
-    //     }
+        if seen_pieces < PIECES_TRACKER_BATCH_SIZE {
+            self.offset = 0;
+        }
 
-    //     Ok(cids)
-    // }
+        Ok(cids)
+    }
 }
 
 #[cfg(test)]
 mod test {
     use std::str::FromStr;
 
-    use cid::Cid;
+    use cid::{multihash::Multihash, Cid};
     use rocksdb::DEFAULT_COLUMN_FAMILY_NAME;
+    use sha2::{Digest, Sha256};
     use tempfile::tempdir;
 
     use super::{RocksDBLid, RocksDBStateStoreConfig};
     use crate::indexer::local_index_directory::{
         rdb::{
-            key_cursor_prefix, MULTIHASH_TO_PIECE_CID_CF, PIECE_CID_TO_CURSOR_CF,
+            key_cursor_prefix, key_flag_piece, MULTIHASH_TO_PIECE_CID_CF, PIECE_CID_TO_CURSOR_CF,
             PIECE_CID_TO_FLAGGED_CF, RAW_CODEC,
         },
-        DealInfo, IndexRecord, LidError, OffsetSize, PieceInfo, Service,
+        DealInfo, FlaggedPiece, FlaggedPiecesListFilter, IndexRecord, LidError, OffsetSize,
+        PieceInfo, Service, StorageProviderAddress,
     };
 
     fn init_database() -> RocksDBLid {
@@ -985,14 +988,14 @@ mod test {
     fn dummy_deal_info() -> DealInfo {
         DealInfo {
             deal_uuid: uuid::Uuid::new_v4(),
-            // is_legacy: false,
+            is_legacy: false,
             chain_deal_id: 1337,
-            // storage_provider_address: "address".to_string().into(),
+            storage_provider_address: "address".to_string().into(),
             sector_number: 42.into(),
             piece_offset: 10,
             piece_length: 10,
             car_length: 97,
-            // is_direct_deal: false,
+            is_direct_deal: false,
         }
     }
 
@@ -1482,288 +1485,288 @@ mod test {
         assert_eq!(pieces, vec![cids[0], cids[1]]);
     }
 
-    // #[test]
-    // fn flag_piece() {
-    //     let db = init_database();
-    //     let cid = cids_vec()[0];
-    //     // The address of the top storage provider at the time of writing (12/6/24)
-    //     let storage_provider_address =
-    //         StorageProviderAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
-    //     let key = key_flag_piece(&cid, &storage_provider_address);
+    #[test]
+    fn flag_piece() {
+        let db = init_database();
+        let cid = cids_vec()[0];
+        // The address of the top storage provider at the time of writing (12/6/24)
+        let storage_provider_address =
+            StorageProviderAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
+        let key = key_flag_piece(&cid, &storage_provider_address);
 
-    //     assert!(db
-    //         .get_value_at_key::<_, Option<FlaggedPiece>>(&key, PIECE_CID_TO_FLAGGED_CF)
-    //         .unwrap()
-    //         .is_none());
+        assert!(db
+            .get_value_at_key::<_, Option<FlaggedPiece>>(&key, PIECE_CID_TO_FLAGGED_CF)
+            .unwrap()
+            .is_none());
 
-    //     assert!(db
-    //         .flag_piece(cid, true, storage_provider_address.clone())
-    //         .is_ok());
+        assert!(db
+            .flag_piece(cid, true, storage_provider_address.clone())
+            .is_ok());
 
-    //     let flagged_piece: FlaggedPiece = db
-    //         .get_value_at_key(key, PIECE_CID_TO_FLAGGED_CF)
-    //         .unwrap()
-    //         .unwrap();
+        let flagged_piece: FlaggedPiece = db
+            .get_value_at_key(key, PIECE_CID_TO_FLAGGED_CF)
+            .unwrap()
+            .unwrap();
 
-    //     assert_eq!(flagged_piece.piece_cid, cid);
-    //     assert_eq!(
-    //         flagged_piece.storage_provider_address,
-    //         storage_provider_address
-    //     );
-    //     assert!(flagged_piece.has_unsealed_copy);
-    // }
+        assert_eq!(flagged_piece.piece_cid, cid);
+        assert_eq!(
+            flagged_piece.storage_provider_address,
+            storage_provider_address
+        );
+        assert!(flagged_piece.has_unsealed_copy);
+    }
 
-    // #[test]
-    // fn unflag_piece() {
-    //     let db = init_database();
-    //     let cid = cids_vec()[0];
-    //     // The address of the top storage provider at the time of writing (12/6/24)
-    //     let storage_provider_address =
-    //         StorageProviderAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
-    //     let key = key_flag_piece(&cid, &storage_provider_address);
+    #[test]
+    fn unflag_piece() {
+        let db = init_database();
+        let cid = cids_vec()[0];
+        // The address of the top storage provider at the time of writing (12/6/24)
+        let storage_provider_address =
+            StorageProviderAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
+        let key = key_flag_piece(&cid, &storage_provider_address);
 
-    //     assert!(matches!(
-    //         db.unflag_piece(cid, storage_provider_address.clone()),
-    //         Ok(())
-    //     ));
+        assert!(matches!(
+            db.unflag_piece(cid, storage_provider_address.clone()),
+            Ok(())
+        ));
 
-    //     assert!(db
-    //         .get_value_at_key::<_, Option<FlaggedPiece>>(&key, PIECE_CID_TO_FLAGGED_CF)
-    //         .unwrap()
-    //         .is_none());
+        assert!(db
+            .get_value_at_key::<_, Option<FlaggedPiece>>(&key, PIECE_CID_TO_FLAGGED_CF)
+            .unwrap()
+            .is_none());
 
-    //     assert!(db
-    //         .flag_piece(cid, true, storage_provider_address.clone())
-    //         .is_ok());
+        assert!(db
+            .flag_piece(cid, true, storage_provider_address.clone())
+            .is_ok());
 
-    //     let flagged_piece: FlaggedPiece = db
-    //         .get_value_at_key(&key, PIECE_CID_TO_FLAGGED_CF)
-    //         .unwrap()
-    //         .unwrap();
+        let flagged_piece: FlaggedPiece = db
+            .get_value_at_key(&key, PIECE_CID_TO_FLAGGED_CF)
+            .unwrap()
+            .unwrap();
 
-    //     assert_eq!(flagged_piece.piece_cid, cid);
-    //     assert_eq!(
-    //         flagged_piece.storage_provider_address,
-    //         storage_provider_address
-    //     );
-    //     assert!(flagged_piece.has_unsealed_copy);
+        assert_eq!(flagged_piece.piece_cid, cid);
+        assert_eq!(
+            flagged_piece.storage_provider_address,
+            storage_provider_address
+        );
+        assert!(flagged_piece.has_unsealed_copy);
 
-    //     assert!(db
-    //         .unflag_piece(cid, storage_provider_address.clone())
-    //         .is_ok());
+        assert!(db
+            .unflag_piece(cid, storage_provider_address.clone())
+            .is_ok());
 
-    //     assert!(db
-    //         .get_value_at_key::<_, Option<FlaggedPiece>>(&key, PIECE_CID_TO_FLAGGED_CF)
-    //         .unwrap()
-    //         .is_none());
-    // }
+        assert!(db
+            .get_value_at_key::<_, Option<FlaggedPiece>>(&key, PIECE_CID_TO_FLAGGED_CF)
+            .unwrap()
+            .is_none());
+    }
 
-    // #[test]
-    // fn flagged_pieces_count() {
-    //     let db = init_database();
-    //     let cid = cids_vec()[0];
-    //     // The address of the top storage provider at the time of writing (12/6/24)
-    //     let storage_provider_address =
-    //         StorageProviderAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
+    #[test]
+    fn flagged_pieces_count() {
+        let db = init_database();
+        let cid = cids_vec()[0];
+        // The address of the top storage provider at the time of writing (12/6/24)
+        let storage_provider_address =
+            StorageProviderAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
 
-    //     assert!(db
-    //         .flag_piece(cid, true, storage_provider_address.clone())
-    //         .is_ok());
+        assert!(db
+            .flag_piece(cid, true, storage_provider_address.clone())
+            .is_ok());
 
-    //     // All pieces
-    //     assert_eq!(db.flagged_pieces_count(None).unwrap(), 1);
-    //     // Should ignore empty address
-    //     assert_eq!(
-    //         db.flagged_pieces_count(Some(FlaggedPiecesListFilter {
-    //             storage_provider_address: StorageProviderAddress("".to_string()),
-    //             has_unsealed_copy: true
-    //         }))
-    //         .unwrap(),
-    //         1
-    //     );
-    //     assert_eq!(
-    //         db.flagged_pieces_count(Some(FlaggedPiecesListFilter {
-    //             storage_provider_address: StorageProviderAddress("a".to_string()),
-    //             has_unsealed_copy: true
-    //         }))
-    //         .unwrap(),
-    //         0
-    //     );
-    //     // Right address but the flagged piece has `has_unsealed_copy: true`
-    //     assert_eq!(
-    //         db.flagged_pieces_count(Some(FlaggedPiecesListFilter {
-    //             storage_provider_address: storage_provider_address.clone(),
-    //             has_unsealed_copy: false
-    //         }))
-    //         .unwrap(),
-    //         0
-    //     );
-    //     // All filters match
-    //     assert_eq!(
-    //         db.flagged_pieces_count(Some(FlaggedPiecesListFilter {
-    //             storage_provider_address: storage_provider_address,
-    //             has_unsealed_copy: true
-    //         }))
-    //         .unwrap(),
-    //         1
-    //     )
-    // }
+        // All pieces
+        assert_eq!(db.flagged_pieces_count(None).unwrap(), 1);
+        // Should ignore empty address
+        assert_eq!(
+            db.flagged_pieces_count(Some(FlaggedPiecesListFilter {
+                storage_provider_address: StorageProviderAddress("".to_string()),
+                has_unsealed_copy: true
+            }))
+            .unwrap(),
+            1
+        );
+        assert_eq!(
+            db.flagged_pieces_count(Some(FlaggedPiecesListFilter {
+                storage_provider_address: StorageProviderAddress("a".to_string()),
+                has_unsealed_copy: true
+            }))
+            .unwrap(),
+            0
+        );
+        // Right address but the flagged piece has `has_unsealed_copy: true`
+        assert_eq!(
+            db.flagged_pieces_count(Some(FlaggedPiecesListFilter {
+                storage_provider_address: storage_provider_address.clone(),
+                has_unsealed_copy: false
+            }))
+            .unwrap(),
+            0
+        );
+        // All filters match
+        assert_eq!(
+            db.flagged_pieces_count(Some(FlaggedPiecesListFilter {
+                storage_provider_address: storage_provider_address,
+                has_unsealed_copy: true
+            }))
+            .unwrap(),
+            1
+        )
+    }
 
-    // #[test]
-    // fn flagged_pieces_list() {
-    //     let db = init_database();
-    //     let cids = cids_vec();
-    //     // The address of the top storage provider at the time of writing (12/6/24)
-    //     let storage_provider_address =
-    //         StorageProviderAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
+    #[test]
+    fn flagged_pieces_list() {
+        let db = init_database();
+        let cids = cids_vec();
+        // The address of the top storage provider at the time of writing (12/6/24)
+        let storage_provider_address =
+            StorageProviderAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
 
-    //     assert!(db
-    //         .flag_piece(cids[0], true, storage_provider_address.clone())
-    //         .is_ok());
+        assert!(db
+            .flag_piece(cids[0], true, storage_provider_address.clone())
+            .is_ok());
 
-    //     // To test the cursor functionality
-    //     let after_first = chrono::Utc::now();
+        // To test the cursor functionality
+        let after_first = chrono::Utc::now();
 
-    //     assert!(db
-    //         .flag_piece(cids[1], false, storage_provider_address.clone())
-    //         .is_ok());
-    //     assert!(db
-    //         .flag_piece(cids[2], true, storage_provider_address.clone())
-    //         .is_ok());
+        assert!(db
+            .flag_piece(cids[1], false, storage_provider_address.clone())
+            .is_ok());
+        assert!(db
+            .flag_piece(cids[2], true, storage_provider_address.clone())
+            .is_ok());
 
-    //     assert_eq!(
-    //         db.flagged_pieces_list(None, chrono::DateTime::UNIX_EPOCH, 0, 1000)
-    //             .unwrap()
-    //             .into_iter()
-    //             .map(|fp| fp.piece_cid)
-    //             .collect::<Vec<_>>(),
-    //         cids
-    //     );
+        assert_eq!(
+            db.flagged_pieces_list(None, chrono::DateTime::UNIX_EPOCH, 0, 1000)
+                .unwrap()
+                .into_iter()
+                .map(|fp| fp.piece_cid)
+                .collect::<Vec<_>>(),
+            cids
+        );
 
-    //     assert_eq!(
-    //         db.flagged_pieces_list(None, chrono::DateTime::UNIX_EPOCH, 0, 1)
-    //             .unwrap()
-    //             .into_iter()
-    //             .map(|fp| fp.piece_cid)
-    //             .collect::<Vec<_>>(),
-    //         cids[..1]
-    //     );
+        assert_eq!(
+            db.flagged_pieces_list(None, chrono::DateTime::UNIX_EPOCH, 0, 1)
+                .unwrap()
+                .into_iter()
+                .map(|fp| fp.piece_cid)
+                .collect::<Vec<_>>(),
+            cids[..1]
+        );
 
-    //     assert_eq!(
-    //         db.flagged_pieces_list(None, chrono::DateTime::UNIX_EPOCH, 1, 1)
-    //             .unwrap()
-    //             .into_iter()
-    //             .map(|fp| fp.piece_cid)
-    //             .collect::<Vec<_>>(),
-    //         cids[1..2]
-    //     );
+        assert_eq!(
+            db.flagged_pieces_list(None, chrono::DateTime::UNIX_EPOCH, 1, 1)
+                .unwrap()
+                .into_iter()
+                .map(|fp| fp.piece_cid)
+                .collect::<Vec<_>>(),
+            cids[1..2]
+        );
 
-    //     assert_eq!(
-    //         db.flagged_pieces_list(None, after_first, 0, 1000)
-    //             .unwrap()
-    //             .into_iter()
-    //             .map(|fp| fp.piece_cid)
-    //             .collect::<Vec<_>>(),
-    //         cids[1..]
-    //     );
+        assert_eq!(
+            db.flagged_pieces_list(None, after_first, 0, 1000)
+                .unwrap()
+                .into_iter()
+                .map(|fp| fp.piece_cid)
+                .collect::<Vec<_>>(),
+            cids[1..]
+        );
 
-    //     assert_eq!(
-    //         db.flagged_pieces_list(
-    //             Some(FlaggedPiecesListFilter {
-    //                 storage_provider_address: StorageProviderAddress("".to_string()),
-    //                 has_unsealed_copy: false
-    //             }),
-    //             chrono::DateTime::UNIX_EPOCH,
-    //             1,
-    //             1000
-    //         )
-    //         .unwrap()
-    //         .into_iter()
-    //         .map(|fp| fp.piece_cid)
-    //         .collect::<Vec<_>>(),
-    //         vec![]
-    //     );
-    //     assert_eq!(
-    //         db.flagged_pieces_list(
-    //             Some(FlaggedPiecesListFilter {
-    //                 storage_provider_address: StorageProviderAddress("a".to_string()),
-    //                 has_unsealed_copy: false
-    //             }),
-    //             chrono::DateTime::UNIX_EPOCH,
-    //             0,
-    //             1000
-    //         )
-    //         .unwrap()
-    //         .into_iter()
-    //         .map(|fp| fp.piece_cid)
-    //         .collect::<Vec<_>>(),
-    //         vec![]
-    //     );
+        assert_eq!(
+            db.flagged_pieces_list(
+                Some(FlaggedPiecesListFilter {
+                    storage_provider_address: StorageProviderAddress("".to_string()),
+                    has_unsealed_copy: false
+                }),
+                chrono::DateTime::UNIX_EPOCH,
+                1,
+                1000
+            )
+            .unwrap()
+            .into_iter()
+            .map(|fp| fp.piece_cid)
+            .collect::<Vec<_>>(),
+            vec![]
+        );
+        assert_eq!(
+            db.flagged_pieces_list(
+                Some(FlaggedPiecesListFilter {
+                    storage_provider_address: StorageProviderAddress("a".to_string()),
+                    has_unsealed_copy: false
+                }),
+                chrono::DateTime::UNIX_EPOCH,
+                0,
+                1000
+            )
+            .unwrap()
+            .into_iter()
+            .map(|fp| fp.piece_cid)
+            .collect::<Vec<_>>(),
+            vec![]
+        );
 
-    //     assert_eq!(
-    //         db.flagged_pieces_list(
-    //             Some(FlaggedPiecesListFilter {
-    //                 storage_provider_address,
-    //                 has_unsealed_copy: false
-    //             }),
-    //             chrono::DateTime::UNIX_EPOCH,
-    //             0,
-    //             1000
-    //         )
-    //         .unwrap()
-    //         .into_iter()
-    //         .map(|fp| fp.piece_cid)
-    //         .collect::<Vec<_>>(),
-    //         vec![cids[1]]
-    //     );
-    // }
+        assert_eq!(
+            db.flagged_pieces_list(
+                Some(FlaggedPiecesListFilter {
+                    storage_provider_address,
+                    has_unsealed_copy: false
+                }),
+                chrono::DateTime::UNIX_EPOCH,
+                0,
+                1000
+            )
+            .unwrap()
+            .into_iter()
+            .map(|fp| fp.piece_cid)
+            .collect::<Vec<_>>(),
+            vec![cids[1]]
+        );
+    }
 
-    // #[test]
-    // fn next_pieces_to_check() {
-    //     let mut db = init_database();
-    //     let mut cids = vec![];
-    //     let storage_provider_address =
-    //         StorageProviderAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
+    #[test]
+    fn next_pieces_to_check() {
+        let mut db = init_database();
+        let mut cids = vec![];
+        let storage_provider_address =
+            StorageProviderAddress("f24yeyklfsjvav6onmm4k2lbkfi6chnke5ivt5wbq".to_string());
 
-    //     // 1024 + 512 (a batch and a half)
-    //     for i in 0..1536u64 {
-    //         let digest = Sha256::digest(i.to_le_bytes());
-    //         let mh = Multihash::wrap(0x12, digest.as_ref()).unwrap();
-    //         let cid = Cid::new_v1(RAW_CODEC, mh);
-    //         cids.push(cid);
-    //         let mut piece_info = PieceInfo::default();
-    //         piece_info.deals.push(DealInfo {
-    //             deal_uuid: uuid::Uuid::new_v4(),
-    //             is_legacy: false,
-    //             chain_deal_id: i,
-    //             // storage_provider_address: storage_provider_address.clone(),
-    //             sector_number: 0.into(),
-    //             piece_offset: 0,
-    //             piece_length: 0,
-    //             car_length: 0,
-    //             // is_direct_deal: false,
-    //         });
-    //         db.set_piece_cid_to_metadata(cid, &piece_info).unwrap();
-    //     }
-    //     // The DB does not ensure order, so we "create" one.
-    //     cids.sort();
+        // 1024 + 512 (a batch and a half)
+        for i in 0..1536u64 {
+            let digest = Sha256::digest(i.to_le_bytes());
+            let mh = Multihash::wrap(0x12, digest.as_ref()).unwrap();
+            let cid = Cid::new_v1(RAW_CODEC, mh);
+            cids.push(cid);
+            let mut piece_info = PieceInfo::default();
+            piece_info.deals.push(DealInfo {
+                deal_uuid: uuid::Uuid::new_v4(),
+                is_legacy: false,
+                chain_deal_id: i,
+                storage_provider_address: storage_provider_address.clone(),
+                sector_number: 0.into(),
+                piece_offset: 0,
+                piece_length: 0,
+                car_length: 0,
+                is_direct_deal: false,
+            });
+            db.set_piece_cid_to_metadata(cid, &piece_info).unwrap();
+        }
+        // The DB does not ensure order, so we "create" one.
+        cids.sort();
 
-    //     let first_batch = {
-    //         let mut v = db
-    //             .next_pieces_to_check(storage_provider_address.clone())
-    //             .unwrap();
-    //         v.sort();
-    //         v
-    //     };
-    //     assert_eq!(first_batch, cids[0..1024]);
+        let first_batch = {
+            let mut v = db
+                .next_pieces_to_check(storage_provider_address.clone())
+                .unwrap();
+            v.sort();
+            v
+        };
+        assert_eq!(first_batch, cids[0..1024]);
 
-    //     let second_batch = {
-    //         let mut v = db
-    //             .next_pieces_to_check(storage_provider_address.clone())
-    //             .unwrap();
-    //         v.sort();
-    //         v
-    //     };
-    //     assert_eq!(second_batch, cids[1024..]);
-    // }
+        let second_batch = {
+            let mut v = db
+                .next_pieces_to_check(storage_provider_address.clone())
+                .unwrap();
+            v.sort();
+            v
+        };
+        assert_eq!(second_batch, cids[1024..]);
+    }
 }
