@@ -107,7 +107,7 @@ impl RocksDBLid {
     /// * If the column families ([`PIECE_CID_TO_CURSOR_CF`],
     ///   [`MULTIHASH_TO_PIECE_CID_CF`], [`PIECE_CID_TO_FLAGGED_CF`],
     ///   [`CURSOR_TO_OFFSET_SIZE_CF`]) do not exist, they will be created.
-    /// * If the cursor is not initialized. It will be initialized with the 0 value.
+    /// * If the cursor is not initialized. It will be initialized with the 100 value.
     pub fn new(config: RocksDBStateStoreConfig) -> Result<Self, LidError>
     where
         Self: Sized,

@@ -48,6 +48,7 @@ fn default_retrieval_address() -> Multiaddr {
         .parse()
         .expect("multiaddres is correct")
 }
+
 #[derive(Debug, Clone, Deserialize, Args)]
 #[group(multiple = true, conflicts_with = "config")]
 #[serde(deny_unknown_fields)]
