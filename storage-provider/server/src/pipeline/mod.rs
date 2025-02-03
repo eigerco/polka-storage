@@ -66,6 +66,10 @@ pub struct PipelineState {
 
     // Ideally, these two are queried from the chain, however, subxt ships them based on the runtime
     // as such, beware what runtime you compiled subxt for!
+    #[allow(unused)]
+    // unused for now, useful later when figuring out the proper bounds between deals
+    // namely, for PreCommitBatchSlack in the Sealing configuration
+    // reference: https://lotus.filecoin.io/storage-providers/advanced-configurations/sealing/
     pub min_sector_expiration: u64,
     pub max_sector_expiration: u64,
 }
@@ -285,7 +289,6 @@ async fn add_piece(
 
     tracing::info!("Adding a piece...");
 
-    // NOTE(@jmg-duarte,31/01/2025): Unsure if getting the best block would be better
     let current_block = state.xt_client.height(true).await?;
     // When adding a piece/deal to a sector, we must ensure the sector remains valid
     // i.e. no invariants are broken; as such we must ensure that the deal being added
