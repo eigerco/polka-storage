@@ -1203,6 +1203,7 @@ pub mod pallet {
             activation: BlockNumberFor<T>,
             expiration: BlockNumberFor<T>,
         ) -> Result<(), Error<T>> {
+            log::debug!(target: LOG_TARGET, "validate_expiration: {:?} {:?} {:?}", curr_block, activation, expiration);
             // Expiration must be after activation. Check this explicitly to avoid an underflow below.
             ensure!(
                 expiration >= activation,

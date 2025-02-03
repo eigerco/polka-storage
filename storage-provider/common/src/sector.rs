@@ -153,11 +153,11 @@ impl UnsealedSector {
         tracing::debug!("piece_infos: {:?}", self.piece_infos);
         tracing::info!("Padded sector, commencing pre-commit and getting last finalized block");
 
-        let current_block = xt_client.height(true).await?;
-        tracing::info!("Current block: {current_block}");
+        let seal_randomness_height = xt_client.height(true).await?;
+        tracing::info!("Current block: {seal_randomness_height}");
 
         let digest = xt_client
-            .get_randomness(current_block)
+            .get_randomness(seal_randomness_height)
             .await?
             .expect("randomness to be available as we wait for it");
 
@@ -167,7 +167,7 @@ impl UnsealedSector {
         let ticket = draw_randomness(
             &digest,
             DomainSeparationTag::SealRandomness,
-            current_block,
+            seal_randomness_height,
             &entropy,
         );
 
@@ -204,8 +204,6 @@ impl UnsealedSector {
         let sealing_output_commr = Commitment::<CommR>::from(sealing_output.comm_r);
         let sealing_output_commd = Commitment::<CommD>::from(sealing_output.comm_d);
 
-        tracing::debug!("Precommiting at block: {}", current_block);
-
         // We're taking the maximum deal_block as per Lotus BasicPreCommitPolicy
         // https://github.com/filecoin-project/lotus/blob/cb1ff81cc2c74ac5ad4cba62d69fd74c973f7b34/storage/pipeline/precommit_policy.go#L36-L37
         // We don't support Mode 2 as we don't support commited capacity
@@ -215,6 +213,9 @@ impl UnsealedSector {
             .map(|(_, deal)| deal.end_block)
             .max()
             .expect("always at least 1 deal in a sector");
+
+            let current_block = xt_client.height(true).await?;
+        tracing::info!("Current block: {current_block}, Seal Randomness: {seal_randomness_height}");
 
         let result = xt_client
             .pre_commit_sectors(
@@ -226,7 +227,7 @@ impl UnsealedSector {
                     seal_proof: self.seal_proof,
                     sealed_cid: sealing_output_commr.cid(),
                     unsealed_cid: sealing_output_commd.cid(),
-                    seal_randomness_height: current_block,
+                    seal_randomness_height,
                 }],
                 true,
             )
@@ -253,7 +254,7 @@ impl UnsealedSector {
             sealed_path,
             sealing_output_commr,
             sealing_output_commd,
-            current_block,
+            seal_randomness_height,
             precommited_sectors[0].block,
         )
         .await?)
