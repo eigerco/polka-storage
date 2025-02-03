@@ -9,7 +9,7 @@ use polka_storage_proofs::{
 use polka_storage_provider_common::{
     deadline::Deadline,
     rpc::ServerInfo,
-    sector::{PreCommittedSector, SectorError, UnsealedSector},
+    sector::{PreCommittedSector, ProvenSector, SectorError, UnsealedSector},
 };
 use primitives::{
     commitment::{CommP, Commitment},
@@ -27,6 +27,10 @@ use types::{
 };
 
 use crate::db::{DBError, DealDB};
+
+/// Size percentage to seal and pre-commit a sector.
+// NOTE(@jmg-duarte,05/02/2025): this is a placeholder until the time-based approach is done
+const OCCUPATION_FACTOR: u64 = 75;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PipelineError {
@@ -257,9 +261,42 @@ fn process(
     }
 }
 
-async fn find_sector_for_piece(
+/// Finds or creates a sector for the given piece.
+///
+/// * If no sectors exist, it creates one and returns it.
+/// * If no sectors with enough size to harbor the piece exist, it creates one and returns it.
+/// * If a sector with enough size to harbor the piece exists, it returns it.
+#[tracing::instrument(skip_all)]
+async fn find_or_create_sector_for_piece(
     state: &Arc<PipelineState>,
+    piece_size: u64,
 ) -> Result<UnsealedSector, PipelineError> {
+    tracing::debug!("Searching for sector for piece with size: {}", piece_size);
+    // Find the first sector with enough space for the piece
+    let sector = state.db.iter_unsealed_sectors().find(|res| match res {
+        Ok(unsealed_sector) => unsealed_sector.occupied_sector_space > piece_size,
+        // Errors return false since, well, they're not valid sectors
+        _ => false,
+    });
+
+    // If we found a sector with space, we return it, otherwise, we'll create a new one
+    // NOTE(@jmg-duarte,03/02/2025): we can't keep creating sectors forever just because they dont fit
+    // (or maybe we can) but FC keeps a limit on new sectors, I don't have a solution for this NOW
+    // but we can keep this here while this implementation develops
+    if let Some(sector) = sector {
+        // NOTE(@jmg-duarte,03/02/2025): as per our filter, errors return false, as such an error couldn't be returned
+        return sector
+            .inspect(|sector| {
+                tracing::debug!(
+                    sector_number = %sector.sector_number,
+                    "Found sector for piece"
+                );
+            })
+            .map_err(PipelineError::from);
+    }
+
+    // NOTE(@jmg-duarte,03/02/2025): comment below no longer applies but im keeping it until
+    // we have a full implementation in place
     // TODO(@th7nder,30/10/2024): simplification, we're always creating a new sector for storing a piece.
     // It should not work like that, sectors should be filled with pieces according to *some* algorithm.
     let sector_number = state
@@ -285,11 +322,17 @@ async fn add_piece(
     deal: DealProposal,
     deal_id: u64,
 ) -> Result<(), PipelineError> {
-    let mut sector = find_sector_for_piece(&state).await?;
-
     tracing::info!("Adding a piece...");
-
+    let mut sector = find_or_create_sector_for_piece(&state, deal.piece_size).await?;
+    // Check the height *after* getting the sector to get "the freshest" block
     let current_block = state.xt_client.height(true).await?;
+
+    let deal_expiration_distance = deal.end_block - current_block;
+    // We don't check for the minimum expiration because:
+    // * A future deal may come that makes the sector valid
+    // * We can always set the sector lifetime to match the minimum at the expense of the SP
+    // TODO(@jmg-duarte,05/02/2025): Check what Filecoin does in this case
+
     // When adding a piece/deal to a sector, we must ensure the sector remains valid
     // i.e. no invariants are broken; as such we must ensure that the deal being added
     // does not expire beyond the maximum sector expiration.
@@ -304,7 +347,13 @@ async fn add_piece(
     // "invisible" agreement between the client and SP that it just should work
     // The most useful piece of source is in:
     // https://github.com/filecoin-project/lotus/blob/a526c480d40898a079c806748639e8db07aa2298/storage/pipeline/input.go#L566
-    if deal.end_block - current_block < state.max_sector_expiration {
+    if deal_expiration_distance > state.max_sector_expiration {
+        tracing::error!(
+            current_block,
+            end_block = deal.end_block,
+            max_sector_expiration = state.max_sector_expiration,
+            "deal expires after maximum sector expiration"
+        );
         return Err(PipelineError::CustomError(
             "deal expires after the maximum sector expiration".to_string(),
         ));
@@ -315,15 +364,32 @@ async fn add_piece(
         .await?;
     tracing::info!("Finished adding a piece");
 
-    state.db.save_sector(sector.sector_number, &sector)?;
-
-    // TODO(@th7nder,30/10/2024): simplification, as we're always scheduling a precommit just after adding a piece and creating a new sector.
-    // Ideally sector won't be finalized after one piece has been added and the precommit will depend on the start_block?
+    // Update the database with the latest sector information
     state
-        .pipeline_sender
-        .send(PipelineMessage::PreCommit(PreCommitMessage {
-            sector_number: sector.sector_number,
-        }))?;
+        .db
+        .insert_unsealed_sector(sector.sector_number, &sector)?;
+
+    // TODO: break maat to ensure this works, probably using a small file in the 8mb thing works
+    let occupation_percent = sector.occupation_percent();
+    if occupation_percent > OCCUPATION_FACTOR {
+        tracing::debug!(
+            "Occupation above {} > {}%; pre-committing",
+            occupation_percent,
+            OCCUPATION_FACTOR,
+        );
+        // TODO(@th7nder,30/10/2024): simplification, as we're always scheduling a precommit just after adding a piece and creating a new sector.
+        // Ideally sector won't be finalized after one piece has been added and the precommit will depend on the start_block?
+        state
+            .pipeline_sender
+            .send(PipelineMessage::PreCommit(PreCommitMessage {
+                sector_number: sector.sector_number,
+            }))?;
+    } else {
+        tracing::debug!(
+            "Occupation at {}; not pre-committing yet",
+            occupation_percent
+        );
+    }
 
     Ok(())
 }
@@ -341,10 +407,13 @@ async fn precommit(
 ) -> Result<(), PipelineError> {
     tracing::info!("Starting pre-commit");
 
-    let Some(sector) = state.db.get_sector::<UnsealedSector>(sector_number)? else {
+    let Some(sector) = state.db.get_unsealed_sector(sector_number)? else {
         tracing::error!("Tried to precommit non-existing sector");
         return Err(PipelineError::SectorNotFound);
     };
+
+    // We could probably move this down the line, to ensure some kind of durability
+    state.db.remove_unsealed_sector(sector_number)?;
 
     let cache_dir_path = state.sealing_cache_dir.join(sector_number.to_string());
     let sealed_path = state.sealed_sectors_dir.join(sector_number.to_string());
@@ -402,7 +471,7 @@ async fn submit_windowed_post(
     deadline_index: u64,
 ) -> Result<(), PipelineError> {
     let deadline = Deadline::new(deadline_index, state.server_info.post_proof);
-    let sector_storage = |sector_number| match state.db.get_sector(sector_number) {
+    let sector_storage = |sector_number| match state.db.get_sector::<ProvenSector>(sector_number) {
         Ok(sector) => sector,
         Err(e) => {
             tracing::error!("failed to get sector: {}", e);
