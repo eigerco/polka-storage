@@ -10,7 +10,9 @@ use axum::{
 };
 use futures::{TryFutureExt, TryStreamExt};
 use mater::Cid;
-use polka_storage_provider_common::commp::{commp, CommPError};
+use mater::create_filestore;
+use polka_storage_provider_common::commp::commp;
+use polka_storage_provider_common::commp::{calculate_piece_commitment, CommPError};
 use primitives::{commitment::piece::PaddedPieceSize, proofs::RegisteredPoStProof};
 use tokio::{
     fs::{self, File},
@@ -22,6 +24,8 @@ use tokio_util::{
 };
 use tower_http::trace::TraceLayer;
 use uuid::Uuid;
+
+use mater::{DEFAULT_CHUNK_SIZE, DEFAULT_TREE_WIDTH};
 
 #[cfg(feature = "delia")]
 mod delia_imports {
@@ -115,8 +119,13 @@ fn configure_router(state: Arc<StorageServerState>) -> Router {
 
     #[cfg(not(feature = "delia"))]
     fn config_non_delia(state: Arc<StorageServerState>) -> Router {
+        // Type annotation required to satisfy Send bounds needed for UnixFS processing
+        // across async operations and thread boundaries
         Router::new()
-            .route("/upload/:cid", put(upload))
+            .route(
+                "/upload/:cid",
+                put(upload as fn(State<Arc<StorageServerState>>, Path<String>, Request<Body>) -> _),
+            )
             .route("/download/:cid", get(download))
             .with_state(state)
             .layer(
@@ -160,9 +169,9 @@ fn configure_router(state: Arc<StorageServerState>) -> Router {
 /// ```
 #[tracing::instrument(skip_all, fields(cid))]
 async fn upload(
-    ref s @ State(ref state): State<Arc<StorageServerState>>,
+    State(state): State<Arc<StorageServerState>>,
     Path(cid): Path<String>,
-    request: Request,
+    request: Request<Body>,
 ) -> Result<String, (StatusCode, String)> {
     let deal_cid = cid::Cid::from_str(&cid).map_err(|err| {
         tracing::error!(cid, "failed to parse cid");
@@ -193,20 +202,25 @@ async fn upload(
 
     // Branching needed here since the resulting `StreamReader`s don't have the same type
     let file_cid = if request.headers().contains_key("Content-Type") {
-        // Handle multipart forms
-        let mut multipart = Multipart::from_request(request, &s)
+        // Handle the multipart data
+        let mut multipart = Multipart::from_request(request, &state)
             .await
             .map_err(|err| (StatusCode::BAD_REQUEST, err.to_string()))?;
-        let Some(field) = multipart
-            .next_field()
-            .map_err(|err| (StatusCode::BAD_REQUEST, err.to_string()))
-            .await?
-        else {
-            return Err((StatusCode::BAD_REQUEST, "empty request".to_string()));
-        };
 
-        let field_reader = StreamReader::new(field.map_err(std::io::Error::other));
-        stream_contents_to_car(state.car_piece_storage_dir.clone().as_ref(), field_reader)
+        // Get the field data
+        let field_bytes = multipart
+            .next_field()
+            .await
+            .map_err(|err| (StatusCode::BAD_REQUEST, err.to_string()))?
+            .ok_or_else(|| (StatusCode::BAD_REQUEST, "empty request".to_string()))?
+            .bytes()
+            .await
+            .map_err(|err| (StatusCode::BAD_REQUEST, err.to_string()))?;
+
+        // Create reader from the field data
+        let reader = std::io::Cursor::new(field_bytes);
+
+        stream_contents_to_car(state.car_piece_storage_dir.clone().as_ref(), reader)
             .await
             .map_err(|err| {
                 tracing::error!(%err, "failed to store file into CAR archive");
@@ -366,13 +380,21 @@ fn content_path(folder: &std::path::Path, cid: Cid) -> (String, PathBuf) {
     (name, path)
 }
 
-/// Reads bytes from the source and writes them to a CAR file.
+/// Converts a source stream into a CARv2 file and writes it to an output stream.
+///
+/// Send + 'static bounds are required because the UnixFS processing involves:
+/// - Async stream processing that may cross thread boundaries
+/// - State management for DAG construction and deduplication
+/// - Block tracking that must be thread-safe
+///
+/// The expanded trait bounds ensure that all data can be safely moved between
+/// threads during async operations.
 async fn stream_contents_to_car<R>(
     folder: &std::path::Path,
     source: R,
 ) -> Result<Cid, Box<dyn std::error::Error>>
 where
-    R: AsyncRead + Unpin,
+    R: AsyncRead + Unpin + Send + 'static,
 {
     // Temp file which will be used to store the CAR file content. The temp
     // director has a randomized name and is created in the same folder as the
@@ -384,7 +406,14 @@ where
     // Stream the body from source to the temp file.
     let file = File::create(&temp_file_path).await?;
     let writer = BufWriter::new(file);
-    let cid = mater::create_filestore(source, writer, mater::Config::default()).await?;
+
+    let config = mater::Config::Balanced {
+        chunk_size: DEFAULT_CHUNK_SIZE,
+        tree_width: DEFAULT_TREE_WIDTH,
+        raw_mode: false, // Default to UnixFS
+    };
+
+    let cid = create_filestore(source, writer, config).await?;
     tracing::trace!("finished writing the CAR archive");
 
     // If the file is successfully written, we can now move it to the final

@@ -29,6 +29,7 @@ thiserror.workspace = true
 tokio = { workspace = true, features = ["fs", "macros", "rt-multi-thread"] }
 tokio-stream.workspace = true
 tokio-util = { workspace = true, features = ["io"] }
+tracing = { workspace = true }
 
 # Optional dependencies
 blockstore = { workspace = true, optional = true }

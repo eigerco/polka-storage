@@ -1,9 +1,7 @@
-use std::path::PathBuf;
-
-use clap::Parser;
-
 use crate::{convert::convert_file_to_car, error::Error, extract::extract_file_from_car};
-
+use clap::Parser;
+use mater::Config;
+use std::path::PathBuf;
 mod convert;
 mod error;
 mod extract;
@@ -19,21 +17,32 @@ enum MaterCli {
         input_path: PathBuf,
 
         /// Optional path to output CARv2 file.
-        /// If no output path is given it will store the `.car` file in the same location.
+        /// If no output path is given it will store the .car file in the same location.
         output_path: Option<PathBuf>,
 
         /// If enabled, only the resulting CID will be printed.
         #[arg(short, long, action)]
         quiet: bool,
 
-        /// If enabled, the output will overwrite any existing files.
+        /// If enabled, content will be stored directly without UnixFS wrapping.
+        /// By default, content is wrapped in UnixFS format for IPFS compatibility.
         #[arg(long, action)]
-        overwrite: bool,
+        raw: bool,
+
+        /// Size of each chunk in bytes. Defaults to 256 KiB.
+        #[arg(long)]
+        chunk_size: Option<usize>,
+
+        /// Maximum number of children per parent node. Defaults to 174.
+        #[arg(long)]
+        tree_width: Option<usize>,
     },
+
     /// Convert a CARv2 file to its original format
     Extract {
         /// Path to CARv2 file
         input_path: PathBuf,
+
         /// Path to output file
         output_path: Option<PathBuf>,
     },
@@ -46,14 +55,24 @@ async fn main() -> Result<(), Error> {
             input_path,
             output_path,
             quiet,
-            overwrite,
+            raw,
+            chunk_size,
+            tree_width,
         } => {
             let output_path = output_path.unwrap_or_else(|| {
                 let mut new_path = input_path.clone();
                 new_path.set_extension("car");
                 new_path
             });
-            let cid = convert_file_to_car(&input_path, &output_path, overwrite).await?;
+
+            // Build config with UnixFS wrapping by default
+            let config = Config::balanced(
+                chunk_size.unwrap_or(256 * 1024),
+                tree_width.unwrap_or(174),
+                raw,
+            );
+
+            let cid = convert_file_to_car(&input_path, &output_path, config).await?;
 
             if quiet {
                 println!("{}", cid);
@@ -75,14 +94,12 @@ async fn main() -> Result<(), Error> {
                 new_path
             });
             extract_file_from_car(&input_path, &output_path).await?;
-
             println!(
-                "Successfully converted CARv2 file {} and saved it to to {}",
+                "Successfully converted CARv2 file {} and saved it to {}",
                 input_path.display(),
                 output_path.display()
             );
         }
     }
-
     Ok(())
 }

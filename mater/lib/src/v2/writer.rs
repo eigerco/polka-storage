@@ -100,6 +100,7 @@ where
 mod tests {
     use std::{collections::BTreeMap, io::Cursor};
 
+    use crate::Config;
     use ipld_core::cid::Cid;
     use sha2::Sha256;
     use tokio::{
@@ -245,7 +246,8 @@ mod tests {
             .unwrap();
         // https://github.com/ipfs/boxo/blob/f4fe8997dcbeb39b3a4842d8f08b34739bfd84a4/chunker/parse.go#L13
         let file_chunker = ReaderStream::with_capacity(file, 1024 * 256);
-        let nodes = stream_balanced_tree(file_chunker, 11)
+        let config = Config::balanced(1024 * 256, 11, false);
+        let nodes = stream_balanced_tree(file_chunker, 11, &config)
             .collect::<Result<Vec<_>, _>>()
             .await
             .unwrap();

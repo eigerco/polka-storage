@@ -9,16 +9,11 @@ use crate::error::Error;
 pub(crate) async fn convert_file_to_car(
     input_path: &PathBuf,
     output_path: &PathBuf,
-    overwrite: bool,
+    config: Config,
 ) -> Result<Cid, Error> {
     let source_file = File::open(input_path).await?;
-    let output_file = if overwrite {
-        File::create(output_path).await
-    } else {
-        File::create_new(output_path).await
-    }?;
-    let cid = create_filestore(source_file, output_file, Config::default()).await?;
-
+    let output_file = File::create(output_path).await?;
+    let cid = create_filestore(source_file, output_file, config).await?;
     Ok(cid)
 }
 
@@ -26,17 +21,15 @@ pub(crate) async fn convert_file_to_car(
 /// MaterError cases are not handled because these are tested in the mater library.
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use anyhow::Result;
     use mater::Cid;
+    use mater::Config;
+    use std::str::FromStr;
     use tempfile::tempdir;
     use tokio::{fs::File, io::AsyncWriteExt};
 
-    use crate::{convert::convert_file_to_car, error::Error};
-
     #[tokio::test]
-    async fn convert_file_to_car_success() -> Result<()> {
+    async fn convert_file_to_car_raw_success() -> Result<()> {
         // Setup: Create a dummy input file
         let temp_dir = tempdir()?;
         let input_path = temp_dir.path().join("test_input.txt");
@@ -49,17 +42,13 @@ mod tests {
         // Define output path
         let output_path = temp_dir.path().join("test_output.car");
 
+        // Configure in raw mode
+        let config = Config::balanced_raw(256 * 1024, 174);
+
         // Call the function under test
-        let result = convert_file_to_car(&input_path, &output_path, false).await;
-
-        // Assert the result is Ok
+        let result = super::convert_file_to_car(&input_path, &output_path, config).await;
         assert!(result.is_ok());
-
-        // Verify that the CID is as expected
         assert_eq!(result?, expected_cid);
-
-        // Close temporary directory
-        temp_dir.close()?;
 
         Ok(())
     }
@@ -69,19 +58,15 @@ mod tests {
         // Define non-existent input path
         let temp_dir = tempdir()?;
         let input_path = temp_dir.path().join("non_existent_input.txt");
-
         // Define output path
         let output_path = temp_dir.path().join("test_output.car");
 
+        let config = Config::default();
+
         // Call the function under test
-        let result = convert_file_to_car(&input_path, &output_path, false).await;
-
-        // Assert the result is an error
+        let result = super::convert_file_to_car(&input_path, &output_path, config).await;
         assert!(result.is_err());
-        assert!(matches!(result, Err(Error::IoError(..))));
-
-        // Close temporary directory
-        temp_dir.close()?;
+        assert!(matches!(result, Err(super::Error::IoError(..))));
 
         Ok(())
     }
@@ -97,17 +82,13 @@ mod tests {
         // Create output file
         let output_path = temp_dir.path().join("output_file");
         File::create_new(&output_path).await?;
-        println!("gets here");
+
+        let config = Config::default();
 
         // Call the function under test
-        let result = convert_file_to_car(&input_path, &output_path, false).await;
-
-        // Assert the result is an error
+        let result = super::convert_file_to_car(&input_path, &output_path, config).await;
         assert!(result.is_err());
-        assert!(matches!(result, Err(Error::IoError(..))));
-
-        // Close temporary directory
-        temp_dir.close()?;
+        assert!(matches!(result, Err(super::Error::IoError(..))));
 
         Ok(())
     }

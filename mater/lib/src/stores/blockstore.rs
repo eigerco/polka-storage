@@ -12,10 +12,10 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_stream::StreamExt;
 use tokio_util::io::ReaderStream;
 
-use super::{DEFAULT_BLOCK_SIZE, DEFAULT_TREE_WIDTH};
+use super::{DEFAULT_CHUNK_SIZE, DEFAULT_TREE_WIDTH};
 use crate::{
     multicodec::SHA_256_CODE, unixfs::stream_balanced_tree, CarV1Header, CarV2Header, CarV2Writer,
-    Error, Index, IndexEntry, MultihashIndexSorted, SingleWidthIndex,
+    Config, Error, Index, IndexEntry, MultihashIndexSorted, SingleWidthIndex,
 };
 
 /// The [`Blockstore`] stores pairs of [`Cid`] and [`Bytes`] in memory.
@@ -76,7 +76,7 @@ impl Blockstore {
             root: None,
             blocks: IndexMap::new(),
             indexed: HashSet::new(),
-            chunk_size: chunk_size.unwrap_or(DEFAULT_BLOCK_SIZE),
+            chunk_size: chunk_size.unwrap_or(DEFAULT_CHUNK_SIZE),
             tree_width: tree_width.unwrap_or(DEFAULT_TREE_WIDTH),
         }
     }
@@ -85,10 +85,14 @@ impl Blockstore {
     /// converting the contents into a CARv2 file.
     pub async fn read<R>(&mut self, reader: R) -> Result<(), Error>
     where
-        R: AsyncRead + Unpin,
+        R: AsyncRead + Unpin + Send + 'static,
     {
         let chunks = ReaderStream::with_capacity(reader, self.chunk_size);
-
+        let config = Config::Balanced {
+            chunk_size: self.chunk_size,
+            tree_width: self.tree_width,
+            raw_mode: true,
+        };
         // The `stream -> pin -> peekable` combo instead of `stream -> peekable -> pin` feels weird
         // but it has to do with two things:
         // - The fact that the stream can be self-referential:
@@ -98,7 +102,7 @@ impl Blockstore {
         //    https://github.com/tokio-rs/tokio/blob/14c17fc09656a30230177b600bacceb9db33e942/tokio-stream/src/stream_ext/peekable.rs#L26-L37
         //  - futures::Peekable::peek(self: Pin<&mut Self>)
         //    https://github.com/rust-lang/futures-rs/blob/c507ff833728e2979cf5519fc931ea97308ec876/futures-util/src/stream/stream/peek.rs#L38-L40
-        let tree = stream_balanced_tree(chunks, self.tree_width);
+        let tree = stream_balanced_tree(chunks, self.tree_width, &config);
         tokio::pin!(tree);
         let mut tree = tree.peekable();
 
@@ -206,7 +210,7 @@ impl Default for Blockstore {
             root: None,
             blocks: IndexMap::new(),
             indexed: HashSet::new(),
-            chunk_size: DEFAULT_BLOCK_SIZE,
+            chunk_size: DEFAULT_CHUNK_SIZE,
             tree_width: DEFAULT_TREE_WIDTH,
         }
     }
