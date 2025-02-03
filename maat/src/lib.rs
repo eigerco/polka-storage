@@ -97,6 +97,7 @@ pub fn local_testnet_config() -> NetworkConfig {
         .with_relaychain(|relaychain| {
             relaychain
                 .with_chain("rococo-local")
+                .with_chain_spec_path("../zombienet/rococo-local.json")
                 .with_node(|node| node.polkadot_node("relay-1"))
                 .with_node(|node| node.polkadot_node("relay-2"))
         })

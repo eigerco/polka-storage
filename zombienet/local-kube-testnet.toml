@@ -3,6 +3,7 @@ image_pull_policy = "IfNotPresent"
 
 [relaychain]
 chain = "rococo-local"
+chain_spec_path = "./zombienet/rococo-local.json"
 default_args = ["--detailed-log-output", "-lparachain=debug,xcm=trace,runtime=trace"]
 default_image = "docker.io/parity/polkadot:v1.13.0"
 

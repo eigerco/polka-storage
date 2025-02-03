@@ -1,5 +1,27 @@
 {
   "nodes": {
+    "fenix": {
+      "inputs": {
+        "nixpkgs": [
+          "polkadot",
+          "nixpkgs"
+        ],
+        "rust-analyzer-src": "rust-analyzer-src"
+      },
+      "locked": {
+        "lastModified": 1737959729,
+        "narHash": "sha256-gw2xWck01Pj7evavkDYItQOOlfC7+KeBmfc/ASIRknc=",
+        "owner": "nix-community",
+        "repo": "fenix",
+        "rev": "a77faba92a766d05ed815e3d88f3e0b4cb0731ff",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "fenix",
+        "type": "github"
+      }
+    },
     "flake-parts": {
       "inputs": {
         "nixpkgs-lib": "nixpkgs-lib"
@@ -69,6 +91,29 @@
         "type": "github"
       }
     },
+    "polkadot": {
+      "inputs": {
+        "fenix": "fenix",
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "systems": "systems_2",
+        "zombienet": "zombienet"
+      },
+      "locked": {
+        "lastModified": 1738503883,
+        "narHash": "sha256-QaSQ+ZcpFTT8fgvT3qKWISd3E160C8HnGLxE0C4+EpI=",
+        "owner": "andresilva",
+        "repo": "polkadot.nix",
+        "rev": "ac4e91a0c75cf422b80f06d6edcecb9bf63727e3",
+        "type": "github"
+      },
+      "original": {
+        "owner": "andresilva",
+        "repo": "polkadot.nix",
+        "type": "github"
+      }
+    },
     "process-compose": {
       "locked": {
         "lastModified": 1693927910,
@@ -88,8 +133,25 @@
       "inputs": {
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs",
-        "rust-overlay": "rust-overlay",
-        "zombienet": "zombienet"
+        "polkadot": "polkadot",
+        "rust-overlay": "rust-overlay"
+      }
+    },
+    "rust-analyzer-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1737875522,
+        "narHash": "sha256-PkT88NCsweL62NiWhpcv3wvR8DmgE6stIH6h5qemrzs=",
+        "owner": "rust-lang",
+        "repo": "rust-analyzer",
+        "rev": "2df4ecfc74bbadf1281e13d73f8424f7b5c1514b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "rust-lang",
+        "ref": "nightly",
+        "repo": "rust-analyzer",
+        "type": "github"
       }
     },
     "rust-overlay": {
@@ -127,10 +189,26 @@
         "type": "github"
       }
     },
+    "systems_2": {
+      "locked": {
+        "lastModified": 1681028828,
+        "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
+        "owner": "nix-systems",
+        "repo": "default",
+        "rev": "da67096a3b9bf56a91d16901293e51ba5b49a27e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-systems",
+        "repo": "default",
+        "type": "github"
+      }
+    },
     "zombienet": {
       "inputs": {
         "flake-parts": "flake-parts",
         "nixpkgs": [
+          "polkadot",
           "nixpkgs"
         ],
         "process-compose": "process-compose"

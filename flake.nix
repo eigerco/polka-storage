@@ -7,17 +7,13 @@
         nixpkgs.follows = "nixpkgs";
       };
     };
-    zombienet = {
-      url = "github:paritytech/zombienet";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-      };
-    };
+    polkadot.url = "github:andresilva/polkadot.nix";
+    polkadot.inputs.nixpkgs.follows = "nixpkgs";
   };
-  outputs = { self, nixpkgs, flake-utils, rust-overlay, zombienet }:
+  outputs = { self, nixpkgs, flake-utils, rust-overlay, polkadot }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        overlays = [ (import rust-overlay) zombienet.overlays.default ];
+        overlays = [ (import rust-overlay) polkadot.overlays.default ];
         pkgs = import nixpkgs {
           inherit system overlays;
         };
@@ -31,13 +27,13 @@
           mdbook-linkcheck
           openssl
           pkg-config
-          polkadot
           rustToolchain
           subxt
           taplo
           jq
-          # Due to zombienet's flake.nix, needs to be prefixed with pkg.zombienet
-          pkgs.zombienet.default
+          # Due to polkadot's flake.nix, needs to be prefixed with pkgs.polkadot
+          pkgs.polkadot
+          pkgs.zombienet
           # rust-fil-proofs OpenCL dependencies (https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/README.md?plain=1#L74)
           ocl-icd
           hwloc
