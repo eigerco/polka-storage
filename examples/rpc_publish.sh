@@ -29,6 +29,7 @@ CONFIG="/tmp/config.toml"
 P2P_PUBLIC_KEY="/tmp/public.pem"
 P2P_PRIVATE_KEY="/tmp/private.pem"
 P2P_ADDRESS="/ip4/127.0.0.1/tcp/62649"
+P2P_BOOTSTRAP_PEER_ID="12D3KooWJsSUCM8ZMHd6ms8YcE324raSWDHLdMN3caDSNNAoKLfH"
 
 # Generate ED25519 private key to be replaced with a polka-storage-provider-client command
 # Generate ED25519 private key
@@ -54,7 +55,8 @@ post_proof = '2KiB'
 porep_parameters = '2KiB.porep.params'
 post_parameters = '2KiB.post.params'
 rendezvous_point_address = '$P2P_ADDRESS'
-p2p_key = '@$P2P_PRIVATE_KEY'" > "$CONFIG"
+p2p_key = '@$P2P_PRIVATE_KEY'
+rendezvous_point = '$P2P_BOOTSTRAP_PEER_ID'" > "$CONFIG"
 
 
 # Setup balances
