@@ -5,7 +5,7 @@ Date: 31/01/25
 
 ## Abstract
 
-Currently, bootstrap nodes are only aware of registrations, [Peer ID][1] and [multiaddress][2]'s, that they hold themselves.
+Currently, bootstrap nodes are only aware of registrations, [Peer ID][1] and [multiaddress][2]'s, that they hold themselves because they do not share this information with each other.
 This document discusses improvements on the P2P bootstrapping protocol to share information about peers with each other.
 The documents outlines 2 different solutions; having bootstrap nodes exchange information between each other and connecting to all bootstrap nodes when resolving a [Peer ID][1] to a [multiaddress][2].
 The preferred solution would be to have bootstrap nodes gossip amongst themselves to ensure that the registration information is replicated and recoverable.
