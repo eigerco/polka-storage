@@ -293,8 +293,7 @@ impl RocksDBLid {
     /// Source:
     /// * <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/ldb/db.go#L109-L118>
     fn get_next_cursor(&self) -> Result<(u64, String), LidError> {
-        let pinned_slice: Option<rocksdb::DBPinnableSlice> =
-            self.database.get_pinned(NEXT_CURSOR_KEY)?;
+        let pinned_slice = self.database.get_pinned(NEXT_CURSOR_KEY)?;
         let Some(pinned_slice) = pinned_slice else {
             // In most places the original source code has some special handling for the missing key,
             // however, that does not apply for a missing cursor

@@ -86,10 +86,10 @@ where
                 info!(%piece_cid, "indexing completed");
             }
             Ok(Err(err)) => {
-                error!(?err, "piece indexing failed with an error");
+                error!(%piece_cid, ?err, "piece indexing failed with an error");
             }
             Err(err) => {
-                error!(?err, "piece indexing panicked");
+                error!(%piece_cid, ?err, "piece indexing panicked");
             }
         };
     }
@@ -106,7 +106,7 @@ where
     pin_mut!(blocks);
 
     let mut records = vec![];
-    if let Some(metadata) = blocks.next().await {
+    while let Some(metadata) = blocks.next().await {
         let metadata = metadata?;
 
         records.push(IndexRecord {

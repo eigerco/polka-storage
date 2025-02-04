@@ -65,6 +65,8 @@ where
             .raw_pieces_dir
             .join(piece_cid.to_string())
             .with_extension("car");
+        // TODO(@cernicc,04/02/2025): Currently we are opening the file for each
+        // block. This can be optimized by holding a pool of open file handlers.
         let mut raw_piece = File::open(&raw_pieces_path).await.map_err(|_| {
             blockstore::Error::StoredDataError(format!("piece {:?} not found", raw_pieces_path))
         })?;
