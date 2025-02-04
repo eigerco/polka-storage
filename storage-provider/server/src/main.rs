@@ -16,7 +16,7 @@ use std::{env::temp_dir, net::SocketAddr, ops::Deref, path::PathBuf, sync::Arc, 
 use clap::Parser;
 use indexer::{
     local_index_directory::rdb::{RocksDBLid, RocksDBStateStoreConfig},
-    start_indexer, IndexMessage, IndexerState,
+    start_indexer, IndexerMessage, IndexerState,
 };
 use libp2p::{identity::Keypair, Multiaddr, PeerId};
 use p2p::{
@@ -99,7 +99,7 @@ struct SetupOutput {
     pipeline_rx: UnboundedReceiver<PipelineMessage>,
     p2p_state: P2PState,
     indexer_state: IndexerState<RocksDBLid>,
-    indexer_rx: UnboundedReceiver<IndexMessage>,
+    indexer_rx: UnboundedReceiver<IndexerMessage>,
     retrieval_config: RetrievalServerConfig<RocksDBLid>,
 }
 
@@ -490,7 +490,7 @@ impl Server {
         tokio::fs::create_dir_all(index_dir.as_ref()).await?;
 
         // Channel used to action the indexer
-        let (indexer_tx, indexer_rx) = tokio::sync::mpsc::unbounded_channel::<IndexMessage>();
+        let (indexer_tx, indexer_rx) = tokio::sync::mpsc::unbounded_channel::<IndexerMessage>();
         // Indexer underlying database
         let lid = Arc::new(RocksDBLid::new(RocksDBStateStoreConfig {
             path: index_dir.deref().clone(),
@@ -522,6 +522,7 @@ impl Server {
             xt_keypair: self.multi_pair_signer.clone(),
             listen_address: self.rpc_listen_address,
             pipeline_sender: pipeline_tx.clone(),
+            indexer_tx,
         };
 
         let pipeline_state = PipelineState {
@@ -536,7 +537,6 @@ impl Server {
             xt_keypair: self.multi_pair_signer,
             pipeline_sender: pipeline_tx,
             prove_commit_throttle: Arc::new(Semaphore::new(self.parallel_prove_commits)),
-            indexer_tx,
         };
 
         let p2p_state = P2PState {

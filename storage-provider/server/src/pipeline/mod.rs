@@ -27,10 +27,7 @@ use types::{
     SubmitWindowedPoStMessage,
 };
 
-use crate::{
-    db::{DBError, DealDB},
-    indexer::IndexMessage,
-};
+use crate::db::{DBError, DealDB};
 
 #[derive(Debug, thiserror::Error)]
 pub enum PipelineError {
@@ -67,8 +64,6 @@ pub struct PipelineState {
     pub xt_keypair: storagext::multipair::MultiPairSigner,
     pub pipeline_sender: UnboundedSender<PipelineMessage>,
     pub prove_commit_throttle: Arc<Semaphore>,
-
-    pub indexer_tx: UnboundedSender<IndexMessage>,
 }
 
 #[tracing::instrument(skip_all)]
@@ -175,21 +170,14 @@ impl PipelineOperations for TaskTracker {
         msg: ProveCommitMessage,
         token: CancellationToken,
     ) {
-        let indexer_tx = state.indexer_tx.clone();
-
         let ProveCommitMessage { sector_number } = msg;
         self.spawn(async move {
             match prove_commit(state, sector_number, token).await {
-                Ok(sector) => {
+                Ok(_) => {
                     tracing::info!(
                         "ProveCommit for sector {} finished successfully.",
                         sector_number
                     );
-
-                    // Start indexing the sector
-                    if let Err(err) = indexer_tx.send(IndexMessage::IndexSector(sector)) {
-                        error!(?err, "error occurred while messaging the indexer");
-                    }
                 }
                 Err(err) => {
                     tracing::error!(%err, "Failed ProveCommit for Sector: {}", sector_number)

@@ -1,10 +1,13 @@
-use std::{path::Path, sync::Arc};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use async_stream::try_stream;
 use futures::{pin_mut, Stream, StreamExt};
 use local_index_directory::{IndexRecord, OffsetSize, Service};
 use mater::{BlockMetadata, CarV2Reader};
-use polka_storage_provider_common::sector::ProvenSector;
+use primitives::commitment::{CommP, Commitment};
 use tokio::{fs::File, io::AsyncSeekExt, sync::mpsc::UnboundedReceiver, task::spawn_blocking};
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use tracing::{debug, error, info, instrument};
@@ -14,9 +17,14 @@ use crate::ServerError;
 pub mod local_index_directory;
 
 #[derive(Debug, Clone)]
-pub enum IndexMessage {
-    /// Start indexing the sector
-    IndexSector(ProvenSector),
+pub enum IndexerMessage {
+    /// Start indexing the raw piece
+    IndexPiece {
+        /// Piece commitment
+        commitment: Commitment<CommP>,
+        /// Raw piece path
+        piece_path: PathBuf,
+    },
 }
 
 #[derive(Clone)]
@@ -26,7 +34,7 @@ pub struct IndexerState<D> {
 
 pub async fn start_indexer<D>(
     state: IndexerState<D>,
-    mut indexer_rx: UnboundedReceiver<IndexMessage>,
+    mut indexer_rx: UnboundedReceiver<IndexerMessage>,
     token: CancellationToken,
 ) -> Result<(), ServerError>
 where
@@ -52,47 +60,51 @@ where
     Ok(())
 }
 
-fn on_command<D>(command: IndexMessage, db: Arc<D>, tracker: &TaskTracker)
+fn on_command<D>(command: IndexerMessage, db: Arc<D>, tracker: &TaskTracker)
 where
     D: Service + Send + Sync + 'static,
 {
     debug!("Command received: {command:?}");
 
     match command {
-        IndexMessage::IndexSector(sector) => {
-            tracker.spawn(on_index_sector(db, sector));
+        IndexerMessage::IndexPiece {
+            commitment,
+            piece_path,
+        } => {
+            tracker.spawn(on_index_piece(db, commitment, piece_path));
         }
     }
 }
 
-#[instrument(skip_all, fields(sector = %sector.sector_number))]
-async fn on_index_sector<D>(db: Arc<D>, sector: ProvenSector) -> Result<(), ServerError>
+#[instrument(skip_all, fields(piece_cid = %commitment.cid()))]
+async fn on_index_piece<D>(
+    db: Arc<D>,
+    commitment: Commitment<CommP>,
+    piece_path: PathBuf,
+) -> Result<(), ServerError>
 where
     D: Service + Send + Sync + 'static,
 {
-    for (commitment, location) in sector.pieces_locations {
-        let piece_cid = commitment.cid();
-        info!(%piece_cid, "indexing piece");
+    info!("indexing piece");
 
-        let records = piece_indexes(&location).await?;
-        // Move adding the index to the blocking pool. The RocksDB API is sync.
-        match spawn_blocking({
-            let db = Arc::clone(&db);
-            move || db.add_index(piece_cid, records, true)
-        })
-        .await
-        {
-            Ok(Ok(_)) => {
-                info!(%piece_cid, "indexing completed");
-            }
-            Ok(Err(err)) => {
-                error!(%piece_cid, ?err, "piece indexing failed with an error");
-            }
-            Err(err) => {
-                error!(%piece_cid, ?err, "piece indexing panicked");
-            }
-        };
-    }
+    let records = piece_indexes(&piece_path).await?;
+    // Move adding the index to the blocking pool. The RocksDB API is sync.
+    match spawn_blocking({
+        let db = Arc::clone(&db);
+        move || db.add_index(commitment.cid(), records, true)
+    })
+    .await
+    {
+        Ok(Ok(_)) => {
+            info!("indexing completed");
+        }
+        Ok(Err(err)) => {
+            error!(?err, "piece indexing failed with an error");
+        }
+        Err(err) => {
+            error!(?err, "piece indexing panicked");
+        }
+    };
 
     Ok(())
 }
