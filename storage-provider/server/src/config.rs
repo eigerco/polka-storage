@@ -12,7 +12,7 @@ use serde::Deserialize;
 use url::Url;
 
 use crate::{
-    p2p::{deser_keypair, keypair_value_parser, string_to_peer_id_option, NodeType},
+    p2p::{deser_keypair, keypair_value_parser, string_to_peer_id},
     DEFAULT_NODE_ADDRESS,
 };
 
@@ -111,11 +111,6 @@ pub struct ConfigurationArgs {
     #[arg(long, required = false)]
     pub(crate) post_parameters: PathBuf,
 
-    /// P2P Node type, can be either a bootstrap node or a registration node.
-    #[serde(default = "NodeType::default")]
-    #[arg(long, default_value_t = NodeType::Bootstrap, required = false)]
-    pub(crate) node_type: NodeType,
-
     /// P2P ED25519 private key
     #[serde(deserialize_with = "deser_keypair")]
     #[arg(long, value_parser = keypair_value_parser, required = false)]
@@ -127,10 +122,9 @@ pub struct ConfigurationArgs {
     pub(crate) rendezvous_point_address: Multiaddr,
 
     /// PeerID of the bootstrap node used by the registration node.
-    /// Optional because it is not used by the bootstrap node.
-    #[serde(default, deserialize_with = "string_to_peer_id_option")]
+    #[serde(deserialize_with = "string_to_peer_id")]
     #[arg(long, required = false)]
-    pub(crate) rendezvous_point: Option<PeerId>,
+    pub(crate) rendezvous_point: PeerId,
 
     /// TTL of the p2p registration in seconds
     #[serde(default = "default_registration_ttl")]

@@ -27,5 +27,7 @@ pub async fn run_bootstrap_node(config: BootstrapConfig) {
     info!("Starting P2P bootstrap node");
     let (swarm, addr) = config.create_swarm().expect("Could not create swarm");
 
-    bootstrap(swarm, addr).await.expect("Could not run bootstrap node");
+    bootstrap(swarm, addr)
+        .await
+        .expect("Could not run bootstrap node");
 }

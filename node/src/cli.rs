@@ -120,11 +120,11 @@ pub struct RunCmd {
     pub base: cumulus_client_cli::RunCmd,
 
     /// P2P ED25519 private key
-    #[arg(long, value_parser = keypair_value_parser)]
+    #[arg(long, value_parser = keypair_value_parser, required = false)]
     pub p2p_key: Option<Keypair>,
 
     /// Listen address that the bootstrap node binds to.
-    #[arg(long)]
+    #[arg(long, required = false)]
     pub p2p_listen_address: Option<Multiaddr>,
 }
 

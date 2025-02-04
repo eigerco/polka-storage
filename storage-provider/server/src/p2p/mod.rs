@@ -1,37 +1,16 @@
-use std::{fmt::Display, path::PathBuf, str::FromStr};
+use std::{path::PathBuf, str::FromStr};
 
-use bootstrap::bootstrap;
-use clap::ValueEnum;
 use ed25519_dalek::{pkcs8::DecodePrivateKey, SigningKey};
 use libp2p::{identity::Keypair, rendezvous::Namespace, Multiaddr, PeerId};
 use register::register;
-use serde::{de, Deserialize};
+use serde::de;
 use tokio_util::sync::CancellationToken;
 
-mod bootstrap;
 mod register;
 
-pub(crate) use bootstrap::BootstrapConfig;
 pub(crate) use register::RegisterConfig;
 
 const P2P_NAMESPACE: &str = "polka-storage";
-
-#[derive(Default, Debug, Clone, Copy, ValueEnum, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum NodeType {
-    #[default]
-    Bootstrap,
-    Register,
-}
-
-impl Display for NodeType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            NodeType::Bootstrap => write!(f, "bootstrap"),
-            NodeType::Register => write!(f, "register"),
-        }
-    }
-}
 
 #[derive(Debug, thiserror::Error)]
 pub enum P2PError {
@@ -55,9 +34,6 @@ pub enum P2PError {
 /// Holds all the information needed for spawning a node.
 /// Node can be either a bootstrap or a registration node.
 pub(crate) struct P2PState {
-    /// P2P Node type, bootstrap or registration
-    pub(crate) node_type: NodeType,
-
     /// P2P ED25519 private key
     pub(crate) p2p_key: Keypair,
 
@@ -67,7 +43,7 @@ pub(crate) struct P2PState {
 
     /// PeerID of the bootstrap node used by the registration node.
     /// Optional because it is not used by the bootstrap node.
-    pub(crate) rendezvous_point: Option<PeerId>,
+    pub(crate) rendezvous_point: PeerId,
 
     /// TTL of the p2p registration in seconds
     pub(crate) registration_ttl: u64,
@@ -99,38 +75,9 @@ pub(crate) fn keypair_value_parser(src: &str) -> Result<Keypair, String> {
 
 /// Parses a string to an optional Peer ID.
 /// Used in the [`ConfigurationArgs`] rendezvous_point field.
-pub(crate) fn string_to_peer_id_option<'de, D: de::Deserializer<'de>>(
-    d: D,
-) -> Result<Option<PeerId>, D::Error> {
-    let s: Option<String> = de::Deserialize::deserialize(d)?;
-    match s {
-        Some(s) => Ok(Some(PeerId::from_str(&s).map_err(de::Error::custom)?)),
-        None => Ok(None),
-    }
-}
-
-/// Runs a bootstrap node from the given config.
-/// The `CancellationToken` is used for a graceful shutdown if the user presses ctrl+c
-pub async fn run_bootstrap_node(
-    config: BootstrapConfig,
-    token: CancellationToken,
-) -> Result<(), P2PError> {
-    tracing::info!("Starting P2P bootstrap node");
-    let (swarm, addr) = config.create_swarm()?;
-
-    tokio::select! {
-        res = bootstrap(swarm, addr) => {
-            if let Err(e) = res {
-                tracing::error!("Failed to start P2P node. Reason: {e}");
-                return Err(e);
-            }
-        },
-        _ = token.cancelled() => {
-            tracing::info!("P2P node has been stopped by the cancellation token...");
-        },
-    }
-
-    Ok(())
+pub(crate) fn string_to_peer_id<'de, D: de::Deserializer<'de>>(d: D) -> Result<PeerId, D::Error> {
+    let s: String = de::Deserialize::deserialize(d)?;
+    PeerId::from_str(&s).map_err(de::Error::custom)
 }
 
 /// Runs a registration node from the given config.
