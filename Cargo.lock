@@ -13794,10 +13794,13 @@ dependencies = [
  "cumulus-primitives-parachain-inherent 0.7.0",
  "cumulus-relay-chain-interface",
  "docify",
+ "ed25519-dalek",
  "frame-benchmarking 28.0.0",
  "frame-benchmarking-cli",
  "futures",
+ "hex",
  "jsonrpsee 0.24.7",
+ "libp2p 0.54.1",
  "log",
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
@@ -13835,6 +13838,7 @@ dependencies = [
  "substrate-build-script-utils",
  "substrate-frame-rpc-system",
  "substrate-prometheus-endpoint",
+ "thiserror 2.0.8",
 ]
 
 [[package]]

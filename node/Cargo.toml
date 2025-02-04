@@ -29,10 +29,13 @@ cumulus-primitives-core = { workspace = true, default-features = true }
 cumulus-primitives-parachain-inherent = { workspace = true, default-features = true }
 cumulus-relay-chain-interface = { workspace = true, default-features = true }
 docify = { workspace = true }
+ed25519-dalek = { workspace = true, features = ["pem", "pkcs8"] }
 frame-benchmarking = { workspace = true, default-features = true }
 frame-benchmarking-cli = { workspace = true, default-features = true }
 futures = { workspace = true }
+hex = { workspace = true, features = ["std"] }
 jsonrpsee = { features = ["server"], workspace = true }
+libp2p = { workspace = true, features = ["identify", "macros", "noise", "rendezvous", "tcp", "tokio", "yamux"] }
 log = { workspace = true, default-features = true }
 pallet-transaction-payment-rpc = { workspace = true, default-features = true }
 polkadot-cli = { features = ["rococo-native"], workspace = true, default-features = true }
@@ -66,6 +69,7 @@ sp-keystore = { workspace = true, default-features = true }
 sp-runtime = { workspace = true, default-features = true }
 sp-timestamp = { workspace = true, default-features = true }
 substrate-frame-rpc-system = { workspace = true, default-features = true }
+thiserror = { workspace = true }
 xcm.workspace = true
 
 [build-dependencies]
