@@ -28,9 +28,16 @@ release-testnet:
 # run the testnet without building
 run-testnet:
     mkdir -p /tmp/zombienet
-    openssl genpkey -algorithm ED25519 -out /tmp/zombienet/private.pem
-    openssl pkey -in /tmp/zombienet/private.pem -pubout -out /tmp/zombienet/public.pem # Generate public key so script can get the Peer ID
+    openssl genpkey -algorithm ED25519 -out /tmp/zombienet/charlie-private.pem
+    openssl pkey -in /tmp/zombienet/charlie-private.pem -pubout -out /tmp/zombienet/charlie-public.pem # Generate public key so script can get the Peer ID
     zombienet -p native spawn zombienet/local-testnet.toml
+
+# Run a single collator
+run-collator:
+    mkdir -p /tmp/zombienet
+    openssl genpkey -algorithm ED25519 -out /tmp/zombienet/david-private.pem
+    openssl pkey -in /tmp/zombienet/david-private.pem -pubout -out /tmp/zombienet/david-public.pem # Generate public key so script can get the Peer ID
+    zombienet -p native spawn zombienet/local-david-collator.toml
 
 # Run the testing building it before
 testnet: release-testnet run-testnet
@@ -165,8 +172,8 @@ load-to-minikube:
 
 kube-testnet:
     mkdir -p /tmp/zombienet
-    openssl genpkey -algorithm ED25519 -out /tmp/zombienet/private.pem
-    openssl pkey -in /tmp/zombienet/private.pem -pubout -out /tmp/zombienet/public.pem # Generate public key so script can get the Peer ID
+    openssl genpkey -algorithm ED25519 -out /tmp/zombienet/charlie-private.pem
+    openssl pkey -in /tmp/zombienet/charlie-private.pem -pubout -out /tmp/zombienet/charlie-public.pem # Generate public key so script can get the Peer ID
     zombienet -p kubernetes spawn zombienet/local-kube-testnet.toml
 
 # The tarpaulin calls for test coverage have the following options:

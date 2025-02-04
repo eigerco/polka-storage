@@ -17,6 +17,7 @@ name = "polka-storage-node"
 polka-storage-runtime.workspace = true
 primitives = { workspace = true, features = ["std"] }
 
+bincode = { workspace = true }
 clap = { features = ["derive"], workspace = true }
 codec = { workspace = true, default-features = true }
 color-print = { workspace = true }
@@ -34,7 +35,18 @@ frame-benchmarking = { workspace = true, default-features = true }
 frame-benchmarking-cli = { workspace = true, default-features = true }
 futures = { workspace = true }
 jsonrpsee = { features = ["server"], workspace = true }
-libp2p = { workspace = true, features = ["identify", "macros", "noise", "rendezvous", "tcp", "tokio", "yamux"] }
+libp2p = { workspace = true, features = [
+  "cbor",
+  "gossipsub",
+  "identify",
+  "macros",
+  "noise",
+  "rendezvous",
+  "request-response",
+  "tcp",
+  "tokio",
+  "yamux",
+] }
 log = { workspace = true, default-features = true }
 pallet-transaction-payment-rpc = { workspace = true, default-features = true }
 polkadot-cli = { features = ["rococo-native"], workspace = true, default-features = true }
@@ -69,6 +81,7 @@ sp-runtime = { workspace = true, default-features = true }
 sp-timestamp = { workspace = true, default-features = true }
 substrate-frame-rpc-system = { workspace = true, default-features = true }
 thiserror = { workspace = true }
+tokio = { workspace = true, features = ["macros"] }
 xcm.workspace = true
 
 [build-dependencies]

@@ -13,7 +13,7 @@ PROVIDER="//Charlie"
 P2P_ADDRESS="/ip4/127.0.0.1/tcp/62649"
 P2P_PUBLIC_KEY="/tmp/polka-storage-provider/public.pem"
 P2P_PRIVATE_KEY="/tmp/polka-storage-provider/private.pem"
-P2P_BOOTSTRAP_PUBLIC_KEY="/tmp/zombienet/public.pem"
+P2P_BOOTSTRAP_PUBLIC_KEY="/tmp/zombienet/charlie-public.pem"
 # Config file location
 CONFIG="/tmp/polka-storage-provider/config.toml"
 

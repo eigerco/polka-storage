@@ -10,11 +10,7 @@ default_args = ["--detailed-log-output", "-lparachain=debug,xcm=trace,runtime=tr
 default_command = "polkadot"
 
 [[relaychain.nodes]]
-name = "alice"
-validator = true
-
-[[relaychain.nodes]]
-name = "bob"
+name = "erin"
 validator = true
 
 [[parachains]]
@@ -25,17 +21,17 @@ cumulus_based = true
 # We'll have a proper Parachain ID in the *future*, but for now, let's stick to 1000 (which is AssetHub and trusted).
 id = 1000
 
-# run charlie as parachain collator
+# run david as parachain collator
 [[parachains.collators]]
 args = [
-  "--bootstrap-addresses=/ip4/127.0.0.1/tcp/1337",
-  "--detailed-log-output",
-  "--p2p-key=@/tmp/zombienet/charlie-private.pem",
-  "--p2p-listen-address=/ip4/127.0.0.1/tcp/62649",
-  "--pool-type=fork-aware",
-  "-lparachain=debug,xcm=trace,runtime=trace,txpool=debug,basic-authorship=debug",
+    "--bootstrap-addresses=/ip4/127.0.0.1/tcp/62649",
+    "--detailed-log-output",
+    "--p2p-key=@/tmp/zombienet/david-private.pem",
+    "--p2p-listen-address=/ip4/127.0.0.1/tcp/1337",
+    "--pool-type=fork-aware",
+    "-lparachain=debug,xcm=trace,runtime=trace,txpool=debug,basic-authorship=debug",
 ]
 command = "target/release/polka-storage-node"
-name = "charlie"
+name = "david"
 validator = true
-ws_port = 42069
+ws_port = 42068
