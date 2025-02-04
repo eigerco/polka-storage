@@ -44,7 +44,6 @@ fn default_node_address() -> Url {
 
 fn default_retrieval_address() -> Multiaddr {
     "/ip4/127.0.0.1/tcp/8002"
-        .to_string()
         .parse()
         .expect("multiaddres is correct")
 }
