@@ -61,12 +61,12 @@ where
             .map_err(|err| blockstore::Error::StoredDataError(err.to_string()))?;
 
         // Open the raw piece and read the block
-        let raw_pieces_dir = self
+        let raw_pieces_path = self
             .raw_pieces_dir
             .join(piece_cid.to_string())
             .with_extension("car");
-        let mut raw_piece = File::open(&raw_pieces_dir).await.map_err(|_| {
-            blockstore::Error::StoredDataError(format!("piece {:?} not found", raw_pieces_dir))
+        let mut raw_piece = File::open(&raw_pieces_path).await.map_err(|_| {
+            blockstore::Error::StoredDataError(format!("piece {:?} not found", raw_pieces_path))
         })?;
         raw_piece
             .seek(SeekFrom::Start(block.offset))

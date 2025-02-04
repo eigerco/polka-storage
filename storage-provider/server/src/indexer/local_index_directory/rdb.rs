@@ -275,7 +275,7 @@ impl RocksDBLid {
     fn init_cursor(&self) -> Result<(), LidError> {
         if let Err(err) = self.get_next_cursor() {
             if matches!(err, LidError::CursorNotFound) {
-                self.set_next_cursor(100)?;
+                self.set_next_cursor(0)?;
             } else {
                 return Err(err);
             }
