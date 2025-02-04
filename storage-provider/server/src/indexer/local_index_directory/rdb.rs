@@ -1075,7 +1075,7 @@ mod test {
     #[test]
     fn cursor() {
         let db = init_database();
-        assert_eq!(db.get_next_cursor().unwrap(), (100, key_cursor_prefix(100)));
+        assert_eq!(db.get_next_cursor().unwrap(), (0, key_cursor_prefix(0)));
         assert!(db.set_next_cursor(1010).is_ok());
         let cursor = db.get_next_cursor();
         assert_eq!(cursor.unwrap(), (1010, key_cursor_prefix(1010)));
