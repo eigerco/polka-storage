@@ -17,9 +17,23 @@
         pkgs = import nixpkgs {
           inherit system overlays;
         };
+
         rustToolchain = pkgs.pkgsBuildHost.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+
+        # It's because on MacOS, we're using Clang and underlying dependency (wasm-opt-rs) is failing to compile.
+        # It fails to compile because Nix's Clang wrapper gives a warning about cross-compilation.
+        # CRATE_CC_NO_DEFAULTS disables `--target` flag passed to the `clang++`.
+        # It may have some unintended consequences, but didn't see any yet.
+        # - https://github.com/andresilva/polkadot.nix/issues/36
+        # - https://github.com/NixOS/nixpkgs/pull/323869#issuecomment-2635436334
+        customPolkadot = if pkgs.stdenv.isDarwin then
+          pkgs.polkadot.overrideAttrs (old: {
+            CRATE_CC_NO_DEFAULTS = "1";
+          })
+        else
+          pkgs.polkadot;
+
         buildInputs = with pkgs; [
-          cargo-expand
           cargo-tarpaulin
           clang
           just
@@ -31,8 +45,8 @@
           subxt
           taplo
           jq
-          # Due to polkadot's flake.nix, needs to be prefixed with pkgs.polkadot
-          pkgs.polkadot
+          customPolkadot
+          # Due to polkadot's flake.nix, needs to be prefixed with pkgs.zombienet
           pkgs.zombienet
           # rust-fil-proofs OpenCL dependencies (https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/README.md?plain=1#L74)
           ocl-icd
@@ -51,6 +65,7 @@
           inherit buildInputs;
 
           OPENSSL_NO_VENDOR = 1;
+          CRATE_CC_NO_DEFAULTS = 1;
           LIBCLANG_PATH = "${llvmPackages.libclang.lib}/lib";
           PROTOC = "${protobuf}/bin/protoc";
           RUST_SRC_PATH = "${rustToolchain}/lib/rustlib/src/rust/library/";
