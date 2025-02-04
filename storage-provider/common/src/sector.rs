@@ -327,6 +327,8 @@ impl PreCommittedSector {
         seal_randomness_height: u64,
         precommit_block: u64,
     ) -> Result<Self, std::io::Error> {
+        tokio::fs::remove_file(unsealed.unsealed_path).await?;
+
         Ok(Self {
             seal_proof: unsealed.seal_proof,
             sector_number: unsealed.sector_number,
