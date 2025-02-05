@@ -114,6 +114,8 @@ pub trait StorageProviderClientExt {
     ) -> impl Future<Output = Result<Option<DeadlineState>, subxt::Error>>;
 
     fn proving_period_info(&self) -> Result<ProvingPeriodInfo, subxt::Error>;
+
+    fn sector_expiration_bounds(&self) -> Result<(u64, u64), subxt::Error>;
 }
 
 pub struct ProvingPeriodInfo {
@@ -122,15 +124,6 @@ pub struct ProvingPeriodInfo {
 }
 
 impl StorageProviderClientExt for crate::runtime::client::Client {
-    fn proving_period_info(&self) -> Result<ProvingPeriodInfo, subxt::Error> {
-        let query = runtime::constants()
-            .storage_provider()
-            .w_po_st_period_deadlines();
-        let deadlines = self.client.constants().at(&query)?;
-
-        Ok(ProvingPeriodInfo { deadlines })
-    }
-
     #[tracing::instrument(level = "debug", skip_all, fields(deadline_index))]
     async fn deadline_state(
         &self,
@@ -365,5 +358,32 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
             .map_ok(|kv| bs58::encode(kv.value.info.peer_id.0.as_slice()).into_string())
             .try_collect()
             .await
+    }
+
+    // NOTE: the constants API does not use the network, relying instead on the compiled metadata
+    // this means that the subxt MUST match the runtime it's connected to, otherwise, the constants
+    // may make no sense (in case they're not equal across runtimes)
+
+    fn proving_period_info(&self) -> Result<ProvingPeriodInfo, subxt::Error> {
+        let query = runtime::constants()
+            .storage_provider()
+            .w_po_st_period_deadlines();
+        let deadlines = self.client.constants().at(&query)?;
+
+        Ok(ProvingPeriodInfo { deadlines })
+    }
+
+    fn sector_expiration_bounds(&self) -> Result<(u64, u64), subxt::Error> {
+        let min_sect_exp_addr = runtime::ConstantsApi
+            .storage_provider()
+            .min_sector_expiration();
+        let max_sect_exp_addr = runtime::ConstantsApi
+            .storage_provider()
+            .max_sector_expiration();
+
+        let min_sector_expiration = self.client.constants().at(&min_sect_exp_addr)?;
+        let max_sector_expiration = self.client.constants().at(&max_sect_exp_addr)?;
+
+        Ok((min_sector_expiration, max_sector_expiration))
     }
 }

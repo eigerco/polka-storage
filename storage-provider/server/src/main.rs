@@ -509,6 +509,9 @@ impl Server {
             post_proof: self.post_proof,
         };
 
+        let (min_sector_expiration, max_sector_expiration) =
+            xt_client.sector_expiration_bounds()?;
+
         let rpc_state = RpcServerState {
             server_info: ServerInfo::new(
                 self.multi_pair_signer.account_id(),
@@ -537,6 +540,8 @@ impl Server {
             xt_keypair: self.multi_pair_signer,
             pipeline_sender: pipeline_tx,
             prove_commit_throttle: Arc::new(Semaphore::new(self.parallel_prove_commits)),
+            min_sector_expiration,
+            max_sector_expiration,
         };
 
         let p2p_state = P2PState {
