@@ -222,9 +222,9 @@ impl DealDB {
         };
 
         // This serialization error *should* never happen if you didn't f-up any insert calls
-        Ok(serde_json::from_reader(slice.as_ref())
+        serde_json::from_reader(slice.as_ref())
             .map(Some)
-            .map_err(DBError::InvalidSectorData)?)
+            .map_err(DBError::InvalidSectorData)
     }
 
     pub fn remove_unsealed_sector(&self, sector_number: SectorNumber) -> Result<(), DBError> {
