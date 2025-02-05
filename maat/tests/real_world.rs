@@ -266,8 +266,8 @@ async fn real_world_use_case() {
     let cache_dir_path = temp_dir.path().join("cache_dir");
     let sealed_sector_path = temp_dir.path().join("sealed_sector");
 
-    let seal_proof = primitives::proofs::RegisteredSealProof::StackedDRG512MiBV1;
-    let post_proof = primitives::proofs::RegisteredPoStProof::StackedDRGWindow512MiBV1;
+    let seal_proof = primitives::proofs::RegisteredSealProof::StackedDRG8MiBV1;
+    let post_proof = primitives::proofs::RegisteredPoStProof::StackedDRGWindow8MiBV1;
 
     let parameters_cache_path = Path::new(&workspace_root).join("../target/");
     let porep_parameters_path =
