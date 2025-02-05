@@ -337,11 +337,10 @@ pub async fn start_parachain_node(
         })
     };
 
-    if parachain_config.role.is_authority() {
-        let bootstrap_config = bootstrap_config.ok_or("Could not find bootstrap config")?;
+    if let Some(config) = bootstrap_config {
         task_manager
             .spawn_handle()
-            .spawn("p2p", None, run_bootstrap_node(bootstrap_config));
+            .spawn("p2p", None, run_bootstrap_node(config));
     }
 
     sc_service::spawn_tasks(sc_service::SpawnTasksParams {
