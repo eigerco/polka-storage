@@ -1126,6 +1126,7 @@ pub mod pallet {
                 open: deadline.is_open(),
                 challenge_block: deadline.challenge,
                 start: deadline.open_at,
+                close: deadline.close_at,
             })
         }
 
@@ -1159,6 +1160,7 @@ pub mod pallet {
                 open: deadline.is_open(),
                 challenge_block: deadline.challenge,
                 start: deadline.open_at,
+                close: deadline.close_at,
             })
         }
 
