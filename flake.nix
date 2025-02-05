@@ -65,7 +65,7 @@
           inherit buildInputs;
 
           OPENSSL_NO_VENDOR = 1;
-          CRATE_CC_NO_DEFAULTS = 1;
+          CRATE_CC_NO_DEFAULTS = lib.optionalString pkgs.stdenv.isDarwin "1";
           LIBCLANG_PATH = "${llvmPackages.libclang.lib}/lib";
           PROTOC = "${protobuf}/bin/protoc";
           RUST_SRC_PATH = "${rustToolchain}/lib/rustlib/src/rust/library/";
