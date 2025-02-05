@@ -119,11 +119,14 @@ pub struct RunCmd {
     #[clap(flatten)]
     pub base: cumulus_client_cli::RunCmd,
 
-    /// P2P ED25519 private key
+    /// Key used in the P2P network of Storage Providers and Collators.
+    /// This key generates the Peer ID that storage providers use to register.
+    /// It must be an ED25519 private key, either in PEM format or passed in directly.
     #[arg(long, value_parser = keypair_value_parser, required = false)]
     pub p2p_key: Option<Keypair>,
 
-    /// Listen address that the bootstrap node binds to.
+    /// Listen address in the P2P network of Storage Providers and Collators
+    /// that the bootstrap node binds to.
     #[arg(long, required = false)]
     pub p2p_listen_address: Option<Multiaddr>,
 }
