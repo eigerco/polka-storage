@@ -1,5 +1,13 @@
-use std::path::PathBuf;
+use std::{
+    fs::File,
+    io::Write,
+    path::{Path, PathBuf},
+};
 
+use ed25519_dalek::{
+    pkcs8::{spki::der::pem::LineEnding, EncodePrivateKey},
+    SigningKey,
+};
 use storagext::PolkaStorageConfig;
 use subxt::{
     ext::{
@@ -8,6 +16,7 @@ use subxt::{
     },
     tx::PairSigner,
 };
+use tempfile::tempdir;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer};
 use zombienet_configuration::shared::node::{Buildable, Initial, NodeConfigBuilder};
@@ -92,6 +101,10 @@ pub fn local_testnet_config() -> NetworkConfig {
         .display()
         .to_string();
     let polka_storage_node_binary_path = binding.as_str();
+    let temp_dir = tempdir().unwrap();
+    let file_path = temp_dir.path().join("private_key.pem");
+    generate_pem_file(&file_path);
+    let p2p_arg = format!("--p2p-key={}", file_path.display());
 
     NetworkConfigBuilder::new()
         .with_relaychain(|relaychain| {
@@ -111,6 +124,8 @@ pub fn local_testnet_config() -> NetworkConfig {
                         .with_args(vec![
                             ("--pool-type", "fork-aware").into(),
                             ("-lruntime=trace,parachain=debug").into(),
+                            ("--p2p-listen-address=/ip4/127.0.0.1/tcp/62649").into(),
+                            (p2p_arg.as_str()).into(),
                         ])
                 })
         })
@@ -137,4 +152,11 @@ where
 {
     let keypair = Pair::from_string(s, None).unwrap();
     PairSigner::<PolkaStorageConfig, P>::new(keypair)
+}
+
+fn generate_pem_file<P: AsRef<Path>>(path: P) {
+    let signing_key = SigningKey::from([0; 32]);
+    let pem = signing_key.to_pkcs8_pem(LineEnding::default()).unwrap();
+    let mut file = File::create(path).unwrap();
+    write!(file, "{}", *pem).unwrap();
 }
