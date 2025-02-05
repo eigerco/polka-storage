@@ -1,5 +1,4 @@
-use std::{io, net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
-
+use std::{net::SocketAddr, path::PathBuf, pin::Pin, str::FromStr, sync::Arc};
 use axum::{
     body::Body,
     extract::{FromRequest, MatchedPath, Multipart, Path, Request, State},
@@ -8,10 +7,10 @@ use axum::{
     routing::{get, put},
     Router,
 };
-use futures::{TryFutureExt, TryStreamExt};
-use mater::Cid;
+use futures::{Stream, TryStreamExt};
+use mater::{create_filestore, Cid, Config};
 use polka_storage_provider_common::commp::{commp, CommPError};
-use primitives::{commitment::piece::PaddedPieceSize, proofs::RegisteredPoStProof};
+use primitives::proofs::RegisteredPoStProof;
 use tokio::{
     fs::{self, File},
     io::{AsyncRead, BufWriter},
@@ -21,7 +20,14 @@ use tokio_util::{
     sync::CancellationToken,
 };
 use tower_http::trace::TraceLayer;
+use bytes::Bytes;
 use uuid::Uuid;
+use std::io;
+use primitives::commitment::piece::PaddedPieceSize;
+
+
+/// A boxed stream of bytes for reading request content
+type BoxedStream = Pin<Box<dyn Stream<Item = Result<Bytes, std::io::Error>> + Send>>;
 
 #[cfg(feature = "delia")]
 mod delia_imports {
@@ -115,8 +121,13 @@ fn configure_router(state: Arc<StorageServerState>) -> Router {
 
     #[cfg(not(feature = "delia"))]
     fn config_non_delia(state: Arc<StorageServerState>) -> Router {
+        // Type annotation required to satisfy Send bounds needed for UnixFS processing
+        // across async operations and thread boundaries
         Router::new()
-            .route("/upload/:cid", put(upload))
+            .route(
+                "/upload/:cid",
+                put(upload as fn(State<Arc<StorageServerState>>, Path<String>, Request<Body>) -> _),
+            )
             .route("/download/:cid", get(download))
             .with_state(state)
             .layer(
@@ -160,20 +171,21 @@ fn configure_router(state: Arc<StorageServerState>) -> Router {
 /// ```
 #[tracing::instrument(skip_all, fields(cid))]
 async fn upload(
-    ref s @ State(ref state): State<Arc<StorageServerState>>,
+    State(ref state): State<Arc<StorageServerState>>,
     Path(cid): Path<String>,
     request: Request,
 ) -> Result<String, (StatusCode, String)> {
+    // Parse the provided CID.
     let deal_cid = cid::Cid::from_str(&cid).map_err(|err| {
         tracing::error!(cid, "failed to parse cid");
         (StatusCode::BAD_REQUEST, err.to_string())
     })?;
 
+    // Use deal_db (we need it now, so we clone it)
     let deal_db_conn = state.deal_db.clone();
-    // If the deal hasn't been accepted, reject the upload
-    let proposed_deal =
-        // Move the fetch to the blocking pool since the RocksDB API is sync
-        tokio::task::spawn_blocking(move || match deal_db_conn.get_proposed_deal(deal_cid) {
+    // If the deal hasn't been accepted, reject the upload.
+    let proposed_deal = tokio::task::spawn_blocking(move || {
+        match deal_db_conn.get_proposed_deal(deal_cid) {
             Ok(Some(proposed_deal)) => Ok(proposed_deal),
             Ok(None) => {
                 tracing::error!(cid = %deal_cid, "deal proposal was not found");
@@ -186,52 +198,59 @@ async fn upload(
                 tracing::error!(%err, "failed to fetch proposed deal");
                 Err((StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))
             }
-        }).await.map_err(|err| {
-            tracing::error!(%err, "failed to execute blocking task");
-            (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
-        })??;
+        }
+    })
+    .await
+    .map_err(|err| {
+        tracing::error!(%err, "failed to execute blocking task");
+        (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
+    })??;
 
-    // Branching needed here since the resulting `StreamReader`s don't have the same type
+    // Determine how to obtain the file's bytes:
     let file_cid = if request.headers().contains_key("Content-Type") {
-        // Handle multipart forms
-        let mut multipart = Multipart::from_request(request, &s)
-            .await
-            .map_err(|err| (StatusCode::BAD_REQUEST, err.to_string()))?;
-        let Some(field) = multipart
-            .next_field()
-            .map_err(|err| (StatusCode::BAD_REQUEST, err.to_string()))
-            .await?
-        else {
-            return Err((StatusCode::BAD_REQUEST, "empty request".to_string()));
-        };
-
-        let field_reader = StreamReader::new(field.map_err(std::io::Error::other));
-        stream_contents_to_car(state.car_piece_storage_dir.clone().as_ref(), field_reader)
+        // For multipart/form-data, we stream the field contents.
+        let state_clone = state.clone();
+        let stream: BoxedStream = Box::pin(async_stream::try_stream! {
+            let mut multipart = Multipart::from_request(request, &state_clone)
+                .await
+                .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?;
+            // Get the next field.
+            let mut field = multipart
+                .next_field()
+                .await
+                .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?
+                .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "empty request"))?;
+            // Yield each chunk as it becomes available.
+            while let Ok(Some(chunk)) = field.chunk().await {
+                yield chunk;
+            }
+        });
+        let field_reader = StreamReader::new(stream);
+        stream_contents_to_car(state.car_piece_storage_dir.as_ref(), field_reader)
             .await
             .map_err(|err| {
                 tracing::error!(%err, "failed to store file into CAR archive");
                 (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
             })?
     } else {
-        // Read the request body into a CAR archive
+        // For direct uploads, convert the request body into a stream.
         let body_reader = StreamReader::new(
             request
                 .into_body()
                 .into_data_stream()
                 .map_err(|err| io::Error::new(io::ErrorKind::Other, err)),
         );
-        stream_contents_to_car(state.car_piece_storage_dir.clone().as_ref(), body_reader)
+        stream_contents_to_car(state.car_piece_storage_dir.as_ref(), body_reader)
             .await
             .map_err(|err| {
                 tracing::error!(%err, "failed to store file into CAR archive");
                 (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
             })?
     };
+
     tracing::debug!("generated cid: {file_cid}");
 
-    // NOTE(@jmg-duarte,03/10/2024): Maybe we should just register the file in RocksDB and keep a
-    // background process that vacuums the disk as necessary to simplify error handling here
-
+    // Open the CAR file to check its size.
     let (_, file_path) = content_path(&state.car_piece_storage_dir, file_cid);
     let file = File::open(&file_path).await.map_err(|err| {
         tracing::error!(%err, path = %file_path.display(), "failed to open file");
@@ -239,24 +258,19 @@ async fn upload(
     })?;
     let file_size = file
         .metadata()
-        .map_ok(|metadata| metadata.len())
         .await
+        .map(|m| m.len())
         .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
 
-    // Check the piece size first since it's the cheap check
+    // Check that the piece size matches the proposal.
     let piece_size = PaddedPieceSize::from_arbitrary_size(file_size);
-    if !(proposed_deal.piece_size == *piece_size) {
+    if proposed_deal.piece_size != *piece_size {
         tracing::trace!(
             expected = proposed_deal.piece_size,
             actual = *piece_size,
             "piece size does not match the proposal piece size"
         );
-
-        // Not handling the error since there's little to be done here...
-        let _ = tokio::fs::remove_file(&file_path).await.inspect_err(
-            |err| tracing::error!(%err, path = %file_path.display(), "failed to delete file"),
-        );
-
+        let _ = tokio::fs::remove_file(&file_path).await;
         return Err((
             StatusCode::BAD_REQUEST,
             "piece size does not match proposal".to_string(),
@@ -264,13 +278,15 @@ async fn upload(
     }
 
     let piece_path = file_path.clone();
-    // Calculate the piece commitment in the blocking thread pool since `calculate_piece_commitment`
-    // is CPU intensive — i.e. blocking — potentially improvement is to move this completely out of
-    // the tokio runtime into an OS thread
+    // Calculate the piece commitment in a blocking task.
     let piece_commitment_cid = tokio::task::spawn_blocking(move || -> Result<_, CommPError> {
         let (piece_commitment, _) = commp(&piece_path)?;
         let piece_commitment_cid = piece_commitment.cid();
-        tracing::debug!(path = %piece_path.display(), commp = %piece_commitment_cid, "calculated piece commitment");
+        tracing::debug!(
+            path = %piece_path.display(),
+            commp = %piece_commitment_cid,
+            "calculated piece commitment"
+        );
         Ok(piece_commitment_cid)
     })
     .await
@@ -284,10 +300,7 @@ async fn upload(
     })?;
 
     if proposed_deal.piece_cid != piece_commitment_cid {
-        if let Err(err) = tokio::fs::remove_file(&file_path).await {
-            tracing::error!(%err, path = %file_path.display(), "failed to remove uploaded piece");
-        }
-
+        let _ = tokio::fs::remove_file(&file_path).await;
         return Err((
             StatusCode::BAD_REQUEST,
             format!(
@@ -298,17 +311,15 @@ async fn upload(
     }
 
     tracing::trace!("renaming car file");
-    // We need to rename the file since the original storage name is based on the whole deal proposal CID,
-    // however, the piece is stored based on its piece_cid
     tokio::fs::rename(
         file_path,
         content_path(&state.car_piece_storage_dir, piece_commitment_cid).1,
     )
+    .await
     .map_err(|err| {
         tracing::error!(%err, "failed to rename the CAR file");
         (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
-    })
-    .await?;
+    })?;
 
     Ok(proposed_deal.piece_cid.to_string())
 }
@@ -366,13 +377,21 @@ fn content_path(folder: &std::path::Path, cid: Cid) -> (String, PathBuf) {
     (name, path)
 }
 
-/// Reads bytes from the source and writes them to a CAR file.
+/// Converts a source stream into a CARv2 file and writes it to an output stream.
+///
+/// Send + 'static bounds are required because the UnixFS processing involves:
+/// - Async stream processing that may cross thread boundaries
+/// - State management for DAG construction and deduplication
+/// - Block tracking that must be thread-safe
+///
+/// The expanded trait bounds ensure that all data can be safely moved between
+/// threads during async operations.
 async fn stream_contents_to_car<R>(
     folder: &std::path::Path,
     source: R,
 ) -> Result<Cid, Box<dyn std::error::Error>>
 where
-    R: AsyncRead + Unpin,
+    R: AsyncRead + Unpin + Send + 'static,
 {
     // Temp file which will be used to store the CAR file content. The temp
     // director has a randomized name and is created in the same folder as the
@@ -384,7 +403,10 @@ where
     // Stream the body from source to the temp file.
     let file = File::create(&temp_file_path).await?;
     let writer = BufWriter::new(file);
-    let cid = mater::create_filestore(source, writer, mater::Config::default()).await?;
+
+    let config = Config::default();
+
+    let cid = create_filestore(source, writer, config).await?;
     tracing::trace!("finished writing the CAR archive");
 
     // If the file is successfully written, we can now move it to the final

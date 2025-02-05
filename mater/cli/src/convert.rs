@@ -9,6 +9,7 @@ use crate::error::Error;
 pub(crate) async fn convert_file_to_car(
     input_path: &PathBuf,
     output_path: &PathBuf,
+    config: Config,
     overwrite: bool,
 ) -> Result<Cid, Error> {
     let source_file = File::open(input_path).await?;
@@ -17,7 +18,7 @@ pub(crate) async fn convert_file_to_car(
     } else {
         File::create_new(output_path).await
     }?;
-    let cid = create_filestore(source_file, output_file, Config::default()).await?;
+    let cid = create_filestore(source_file, output_file, config).await?;
 
     Ok(cid)
 }
@@ -29,14 +30,12 @@ mod tests {
     use std::str::FromStr;
 
     use anyhow::Result;
-    use mater::Cid;
+    use mater::{Cid, Config, DEFAULT_CHUNK_SIZE, DEFAULT_TREE_WIDTH};
     use tempfile::tempdir;
     use tokio::{fs::File, io::AsyncWriteExt};
 
-    use crate::{convert::convert_file_to_car, error::Error};
-
     #[tokio::test]
-    async fn convert_file_to_car_success() -> Result<()> {
+    async fn convert_file_to_car_raw_success() -> Result<()> {
         // Setup: Create a dummy input file
         let temp_dir = tempdir()?;
         let input_path = temp_dir.path().join("test_input.txt");
@@ -49,8 +48,11 @@ mod tests {
         // Define output path
         let output_path = temp_dir.path().join("test_output.car");
 
+        // Configure in raw mode
+        let config = Config::balanced_raw(DEFAULT_CHUNK_SIZE, DEFAULT_TREE_WIDTH);
+
         // Call the function under test
-        let result = convert_file_to_car(&input_path, &output_path, false).await;
+        let result = super::convert_file_to_car(&input_path, &output_path, config, false).await;
 
         // Assert the result is Ok
         assert!(result.is_ok());
@@ -73,15 +75,11 @@ mod tests {
         // Define output path
         let output_path = temp_dir.path().join("test_output.car");
 
+        let config = Config::default();
+
         // Call the function under test
-        let result = convert_file_to_car(&input_path, &output_path, false).await;
-
-        // Assert the result is an error
-        assert!(result.is_err());
-        assert!(matches!(result, Err(Error::IoError(..))));
-
-        // Close temporary directory
-        temp_dir.close()?;
+        let result = super::convert_file_to_car(&input_path, &output_path, config, false).await;
+        assert!(matches!(result, Err(super::Error::IoError(..))));
 
         Ok(())
     }
@@ -94,21 +92,23 @@ mod tests {
         let mut input_file = File::create(&input_path).await?;
         tokio::io::AsyncWriteExt::write_all(&mut input_file, b"test data").await?;
 
-        // Create output file
+        // Create output file so that the file already exists.
+        // Since we are not allowing overwrites (overwrite = false), this should trigger an error.
         let output_path = temp_dir.path().join("output_file");
         File::create_new(&output_path).await?;
         println!("gets here");
 
-        // Call the function under test
-        let result = convert_file_to_car(&input_path, &output_path, false).await;
+        // Provide a configuration (using default in this example).
+        let config = Config::default();
 
-        // Assert the result is an error
+        // Call the function under test with the config and overwrite flag set to false.
+        let result = super::convert_file_to_car(&input_path, &output_path, config, false).await;
+
+        // Assert the result is an error, specifically an IoError.
         assert!(result.is_err());
-        assert!(matches!(result, Err(Error::IoError(..))));
+        assert!(matches!(result, Err(super::Error::IoError(..))));
 
-        // Close temporary directory
         temp_dir.close()?;
-
         Ok(())
     }
 }
