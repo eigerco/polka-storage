@@ -11,7 +11,10 @@ version = "0.1.0"
 cid = { workspace = true, default-features = false, features = ["alloc"] }
 clap = { workspace = true, features = ["derive"], optional = true }
 codec = { workspace = true, features = ["derive"] }
+ed25519-dalek = { workspace = true, optional = true, features = ["pem"] }
 filecoin-proofs = { workspace = true, optional = true }
+hex = { workspace = true, optional = true }
+libp2p = { workspace = true, optional = true }
 scale-decode = { workspace = true, features = ["derive"] }
 scale-encode = { workspace = true, features = ["derive"] }
 scale-info = { workspace = true, features = ["derive"] }
@@ -35,6 +38,7 @@ workspace = true
 builder = []
 clap = ["dep:clap", "std"]
 default = ["std"]
+p2p = ["dep:ed25519-dalek", "dep:hex", "dep:libp2p"]
 serde = ["dep:serde"]
 std = [
   "cid/scale-codec",

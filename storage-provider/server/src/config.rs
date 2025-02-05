@@ -7,12 +7,13 @@ use std::{
 use clap::Args;
 use libp2p::{identity::Keypair, Multiaddr, PeerId};
 use polka_storage_provider_common::config::sealing::SealingConfiguration;
+use primitives::p2p::keypair_value_parser;
 use primitives::proofs::{RegisteredPoStProof, RegisteredSealProof};
 use serde::Deserialize;
 use url::Url;
 
 use crate::{
-    p2p::{deser_keypair, keypair_value_parser, string_to_peer_id},
+    p2p::{deser_keypair, string_to_peer_id},
     DEFAULT_NODE_ADDRESS,
 };
 
