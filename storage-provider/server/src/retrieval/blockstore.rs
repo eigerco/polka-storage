@@ -123,3 +123,85 @@ fn to_blockstore_cid<const S: usize>(cid: &CidGeneric<S>) -> Result<Cid, Error> 
 
     Ok(Cid::new(cid.version(), cid.codec(), hash).expect("we know cid is correct here"))
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{path::Path, sync::Arc};
+
+    use blockstore::Blockstore;
+    use cid::{multihash::Multihash, Cid};
+    use futures::{pin_mut, StreamExt};
+    use mater::{stream_blocks_metadata, IDENTITY_CODE, RAW_CODE};
+    use primitives::commitment::{CommP, Commitment};
+    use tempfile::{tempdir, TempDir};
+    use tokio::{fs::File, io::BufReader};
+
+    use super::ProviderBlockstore;
+    use crate::indexer::local_index_directory::rdb::{RocksDBLid, RocksDBStateStoreConfig};
+
+    /// Initialize a new blockstore and index a given piece
+    async fn init_blockstore<P>(location: P) -> (TempDir, ProviderBlockstore<RocksDBLid>)
+    where
+        P: AsRef<Path>,
+    {
+        // Dummy piece commitment
+        let dummy_commitment = Commitment::<CommP>::from([0; 32]);
+
+        // Index database
+        let temp_dir = tempdir().unwrap();
+        let db = Arc::new(
+            RocksDBLid::new(RocksDBStateStoreConfig {
+                path: temp_dir.path().into(),
+            })
+            .unwrap(),
+        );
+
+        // Move piece to the location used by the blockstore and rename the file to its pice_cid
+        let raw_piece_path = temp_dir
+            .path()
+            .join(dummy_commitment.cid().to_string())
+            .with_extension("car");
+        tokio::fs::copy(&location, &raw_piece_path).await.unwrap();
+
+        // Index the piece
+        crate::indexer::tests::index_piece(Arc::clone(&db), dummy_commitment, raw_piece_path)
+            .await
+            .unwrap();
+
+        let blockstore = ProviderBlockstore::new(temp_dir.path(), db);
+        (temp_dir, blockstore)
+    }
+
+    #[tokio::test]
+    async fn test_get_identity_cid() {
+        let (_guard, blockstore) =
+            init_blockstore("tests/fixtures/spaceglenda_wrapped_v2.car").await;
+
+        let payload = b"Hello World!";
+        let multihash = Multihash::wrap(IDENTITY_CODE, payload).unwrap();
+        let identity_cid = Cid::new_v1(RAW_CODE, multihash);
+
+        let has_block = blockstore.has(&identity_cid).await.unwrap();
+        assert!(has_block);
+
+        let content = blockstore.get(&identity_cid).await.unwrap().unwrap();
+        assert_eq!(payload.to_vec(), content);
+    }
+
+    #[tokio::test]
+    async fn test_get_block() {
+        let piece_path = "tests/fixtures/spaceglenda_wrapped_v2.car";
+        let (_guard, blockstore) = init_blockstore(&piece_path).await;
+
+        // Check if blocks are provided by the blockstore
+        let file = File::open(piece_path).await.unwrap();
+        let reader = BufReader::new(file);
+        let blocks = stream_blocks_metadata(reader).await.unwrap();
+        pin_mut!(blocks);
+
+        while let Some(Ok(block)) = blocks.next().await {
+            let blockstore_block = blockstore.get(&block.cid).await.unwrap().unwrap();
+            assert!(!blockstore_block.is_empty());
+        }
+    }
+}

@@ -15,6 +15,7 @@ mod cid;
 mod multicodec;
 mod stores;
 mod unixfs;
+mod utils;
 mod v1;
 mod v2;
 
@@ -23,6 +24,7 @@ pub use cid::{CidExt, MultihashExt};
 pub use ipld_core::cid::Cid;
 pub use multicodec::{DAG_PB_CODE, IDENTITY_CODE, RAW_CODE};
 pub use stores::{create_filestore, Blockstore, Config, FileBlockstore};
+pub use utils::stream_blocks_metadata;
 pub use v1::{BlockMetadata, Header as CarV1Header, Reader as CarV1Reader, Writer as CarV1Writer};
 pub use v2::{
     verify_cid, Characteristics, Header as CarV2Header, Index, IndexEntry, IndexSorted,

@@ -3,12 +3,11 @@ use std::{
     sync::Arc,
 };
 
-use async_stream::try_stream;
-use futures::{pin_mut, Stream, StreamExt};
+use futures::{pin_mut, StreamExt};
 use local_index_directory::{IndexRecord, OffsetSize, Service};
-use mater::{BlockMetadata, CarV2Reader};
+use mater::stream_blocks_metadata;
 use primitives::commitment::{CommP, Commitment};
-use tokio::{fs::File, io::AsyncSeekExt, sync::mpsc::UnboundedReceiver, task::spawn_blocking};
+use tokio::{fs::File, io::BufReader, sync::mpsc::UnboundedReceiver, task::spawn_blocking};
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use tracing::{debug, error, info, instrument};
 
@@ -77,17 +76,18 @@ where
 }
 
 #[instrument(skip_all, fields(piece_cid = %commitment.cid()))]
-async fn on_index_piece<D>(
+async fn on_index_piece<D, P>(
     db: Arc<D>,
     commitment: Commitment<CommP>,
-    piece_path: PathBuf,
+    piece_path: P,
 ) -> Result<(), ServerError>
 where
     D: Service + Send + Sync + 'static,
+    P: AsRef<Path>,
 {
     info!("indexing piece");
 
-    let records = piece_indexes(&piece_path).await?;
+    let records = piece_indexes(piece_path).await?;
     // Move adding the index to the blocking pool. The RocksDB API is sync.
     match spawn_blocking({
         let db = Arc::clone(&db);
@@ -114,7 +114,9 @@ async fn piece_indexes<P>(location: P) -> Result<Vec<IndexRecord>, ServerError>
 where
     P: AsRef<Path>,
 {
-    let blocks = stream_blocks_metadata(&location).await?;
+    let file = File::open(location).await?;
+    let reader = BufReader::new(file);
+    let blocks = stream_blocks_metadata(reader).await?;
     pin_mut!(blocks);
 
     let mut records = vec![];
@@ -133,50 +135,41 @@ where
     Ok(records)
 }
 
-/// Stream blocks metadata from car file until completion.
-async fn stream_blocks_metadata<P>(
-    location: P,
-) -> Result<impl Stream<Item = Result<BlockMetadata, mater::Error>>, ServerError>
-where
-    P: AsRef<Path>,
-{
-    let raw_piece = File::open(&location).await?;
-    let mut reader = CarV2Reader::new(raw_piece);
-    reader.read_pragma().await?;
-    let header = reader.read_header().await?;
-    let _v1_header = reader.read_v1_header().await?;
-
-    Ok(try_stream! {
-        loop {
-            let metadata = reader.read_block_metadata().await?;
-            let position = reader.get_inner_mut().stream_position().await?;
-            let data_end = header.data_offset + header.data_size;
-
-            yield metadata;
-
-            // This is the last block
-            if position >= data_end {
-                break;
-            }
-        }
-    })
-}
-
 #[cfg(test)]
-mod tests {
-    use std::{path::PathBuf, sync::Arc};
+pub mod tests {
+    use std::{
+        path::{Path, PathBuf},
+        sync::Arc,
+    };
 
     use futures::{pin_mut, StreamExt};
+    use mater::stream_blocks_metadata;
     use primitives::commitment::{CommP, Commitment};
     use tempfile::tempdir;
+    use tokio::{fs::File, io::BufReader};
 
-    use crate::indexer::{
-        local_index_directory::{
-            rdb::{RocksDBLid, RocksDBStateStoreConfig},
-            Service,
+    use crate::{
+        indexer::{
+            local_index_directory::{
+                rdb::{RocksDBLid, RocksDBStateStoreConfig},
+                Service,
+            },
+            on_index_piece,
         },
-        on_index_piece, stream_blocks_metadata,
+        ServerError,
     };
+
+    pub(crate) async fn index_piece<D, P>(
+        db: Arc<D>,
+        commitment: Commitment<CommP>,
+        piece_path: P,
+    ) -> Result<(), ServerError>
+    where
+        D: Service + Send + Sync + 'static,
+        P: AsRef<Path>,
+    {
+        on_index_piece(db, commitment, piece_path).await
+    }
 
     #[tokio::test]
     async fn test_on_index_piece() {
@@ -204,7 +197,9 @@ mod tests {
         assert!(db.get_piece_metadata(dummy_commitment.cid()).is_ok());
 
         // Check indexed blocks
-        let blocks = stream_blocks_metadata(piece_path).await.unwrap();
+        let file = File::open(piece_path).await.unwrap();
+        let reader = BufReader::new(file);
+        let blocks = stream_blocks_metadata(reader).await.unwrap();
         pin_mut!(blocks);
 
         while let Some(Ok(data)) = blocks.next().await {
