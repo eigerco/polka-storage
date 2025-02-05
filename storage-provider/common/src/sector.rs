@@ -214,7 +214,7 @@ impl UnsealedSector {
             .max()
             .expect("always at least 1 deal in a sector");
 
-            let current_block = xt_client.height(true).await?;
+        let current_block = xt_client.height(true).await?;
         tracing::info!("Current block: {current_block}, Seal Randomness: {seal_randomness_height}");
 
         let result = xt_client
