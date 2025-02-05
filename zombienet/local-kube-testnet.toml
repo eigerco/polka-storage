@@ -25,7 +25,12 @@ id = 1000
 
 # run charlie as parachain collator
 [[parachains.collators]]
-args = ["--detailed-log-output", "-lparachain=debug,xcm=trace,runtime=trace"]
+args = [
+    "--detailed-log-output",
+    "--p2p-key=@zombienet/private.pem",
+    "--p2p-listen-address=/ip4/127.0.0.1/tcp/62649",
+    "-lparachain=debug,xcm=trace,runtime=trace",
+]
 command = "polka-storage-node"
 image = "polkadotstorage.azurecr.io/parachain-node:0.1.0"
 name = "charlie"
