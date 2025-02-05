@@ -255,6 +255,7 @@ impl UnsealedSector {
             sealing_output_commr,
             sealing_output_commd,
             seal_randomness_height,
+            ticket,
             precommited_sectors[0].block,
         )
         .await?)
@@ -308,6 +309,11 @@ pub struct PreCommittedSector {
     /// Available at [`SectorState::Sealed`] and later.
     pub seal_randomness_height: u64,
 
+    /// Fetched randomness at block `seal_randomness_height`.
+    /// We fetch it and save it, as its cleared on-chain every X blocks.
+    /// If it takes too long, [`PipelineMessage::ProveCommit`] won't have data to properly execute.
+    pub seal_randomness: [u8; 32],
+
     /// Block at which the sector was precommitted (extrinsic submitted on-chain).
     ///
     /// It is used as a randomness seed to create a PoRep.
@@ -327,6 +333,7 @@ impl PreCommittedSector {
         comm_r: Commitment<CommR>,
         comm_d: Commitment<CommD>,
         seal_randomness_height: u64,
+        seal_randomness: [u8; 32],
         precommit_block: u64,
     ) -> Result<Self, std::io::Error> {
         tokio::fs::remove_file(unsealed.unsealed_path).await?;
@@ -341,6 +348,7 @@ impl PreCommittedSector {
             comm_r,
             comm_d,
             seal_randomness_height,
+            seal_randomness,
             precommit_block,
         })
     }
@@ -358,22 +366,12 @@ impl PreCommittedSector {
         // 10 blocks = 1 minute, only testnet
         const PRECOMMIT_CHALLENGE_DELAY: u64 = 10;
 
-        let seal_randomness_height = self.seal_randomness_height;
-        let Some(digest) = xt_client.get_randomness(seal_randomness_height).await? else {
-            tracing::error!("Out-of-the-state transition, this SHOULD NOT happen");
-            return Err(SectorError::RandomnessNotAvailable);
-        };
-
-        let entropy = xt_keypair.account_id().encode();
         // Must match pallet's logic or otherwise proof won't be verified:
         // https://github.com/eigerco/polka-storage/blob/af51a9b121c9b02e0bf6f02f5e835091ab46af76/pallets/storage-provider/src/lib.rs#L1539
-        let ticket = draw_randomness(
-            &digest,
-            DomainSeparationTag::SealRandomness,
-            seal_randomness_height,
-            &entropy,
-        );
+        let seal_randomness_height = self.seal_randomness_height;
+        let ticket = self.seal_randomness;
 
+        let entropy = xt_keypair.account_id().encode();
         let prove_commit_block = self.precommit_block + PRECOMMIT_CHALLENGE_DELAY;
         tracing::info!("Wait for block {} to get randomness", prove_commit_block);
         tokio::select! {
