@@ -101,7 +101,12 @@ impl Deadline {
         };
 
         if deadline_state.partitions.len() == 0 {
-            tracing::info!("There are not partitions in this deadline yet. Nothing to prove here.");
+            tracing::info!("There are not partitions in this deadline yet — nothing to prove here. Waiting for deadline close: {}", deadline.close);
+            // Wait until the current deadline closes, so we can exit an re-schedule,
+            // NOTE(@jmg-duarte,05/02/2025): IMO placing this wait here saves on complexity for now
+            // but ideally, we'd want to reschedule the task and have it wait BEFORE it exits here
+            // I can't really justify *why* it's just my spidey sense tingling
+            xt_client.wait_for_height(deadline.close, true).await?;
             return Ok(());
         }
 
@@ -114,7 +119,15 @@ impl Deadline {
         );
 
         if all_sectors.len() == 0 {
-            tracing::info!("Every sector expired... Nothing to prove here.");
+            tracing::info!(
+                "Every sector expired — nothing to prove here. Waiting for deadline close: {}",
+                deadline.close
+            );
+            // Wait until the current deadline closes, so we can exit an re-schedule,
+            // NOTE(@jmg-duarte,05/02/2025): IMO placing this wait here saves on complexity for now
+            // but ideally, we'd want to reschedule the task and have it wait BEFORE it exits here
+            // I can't really justify *why* it's just my spidey sense tingling
+            xt_client.wait_for_height(deadline.close, true).await?;
             return Ok(());
         }
 
