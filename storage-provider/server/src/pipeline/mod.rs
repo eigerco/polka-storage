@@ -15,7 +15,7 @@ use primitives::{
     commitment::{CommP, Commitment},
     sector::SectorNumber,
 };
-use storagext::{types::market::DealProposal, StorageProviderClientExt};
+use storagext::{types::market::DealProposal, StorageProviderClientExt, SystemClientExt};
 use tokio::sync::{
     mpsc::{error::SendError, UnboundedReceiver, UnboundedSender},
     Semaphore,
@@ -63,6 +63,15 @@ pub struct PipelineState {
     pub xt_keypair: storagext::multipair::MultiPairSigner,
     pub pipeline_sender: UnboundedSender<PipelineMessage>,
     pub prove_commit_throttle: Arc<Semaphore>,
+
+    // Ideally, these two are queried from the chain, however, subxt ships them based on the runtime
+    // as such, beware what runtime you compiled subxt for!
+    #[allow(unused)]
+    // unused for now, useful later when figuring out the proper bounds between deals
+    // namely, for PreCommitBatchSlack in the Sealing configuration
+    // reference: https://lotus.filecoin.io/storage-providers/advanced-configurations/sealing/
+    pub min_sector_expiration: u64,
+    pub max_sector_expiration: u64,
 }
 
 #[tracing::instrument(skip_all)]
@@ -279,6 +288,28 @@ async fn add_piece(
     let mut sector = find_sector_for_piece(&state).await?;
 
     tracing::info!("Adding a piece...");
+
+    let current_block = state.xt_client.height(true).await?;
+    // When adding a piece/deal to a sector, we must ensure the sector remains valid
+    // i.e. no invariants are broken; as such we must ensure that the deal being added
+    // does not expire beyond the maximum sector expiration.
+    //
+    // NOTE(@jmg-duarte,31/01/2025): there's an hidden issue here that we can't address just now
+    // the min/max sector expirations are moving targets, calculated from the current block
+    // this means that we can only truly validate the invariants when submitting the pre-commit
+    // Only when addressing issue #671 we will be able to fully solve this, since as soon as a deal
+    // is added to a sector the clock starts ticking, if we wait too long the minimum expiration
+    // may itself "expire".
+    // The FC codebase doesn't really have any clues how this is solved, being probably left as an
+    // "invisible" agreement between the client and SP that it just should work
+    // The most useful piece of source is in:
+    // https://github.com/filecoin-project/lotus/blob/a526c480d40898a079c806748639e8db07aa2298/storage/pipeline/input.go#L566
+    if deal.end_block - current_block < state.max_sector_expiration {
+        return Err(PipelineError::CustomError(
+            "deal expires after the maximum sector expiration".to_string(),
+        ));
+    }
+
     sector
         .add_piece(deal_id, deal, piece_path, commitment)
         .await?;
