@@ -161,3 +161,63 @@ where
         }
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{path::PathBuf, sync::Arc};
+
+    use futures::{pin_mut, StreamExt};
+    use primitives::commitment::{CommP, Commitment};
+    use tempfile::tempdir;
+
+    use crate::indexer::{
+        local_index_directory::{
+            rdb::{RocksDBLid, RocksDBStateStoreConfig},
+            Service,
+        },
+        on_index_piece, stream_blocks_metadata,
+    };
+
+    #[tokio::test]
+    async fn test_on_index_piece() {
+        // Index database
+        let indexer_dir = tempdir().unwrap();
+        let db = Arc::new(
+            RocksDBLid::new(RocksDBStateStoreConfig {
+                path: indexer_dir.path().into(),
+            })
+            .unwrap(),
+        );
+
+        // Index the piece
+        let dummy_commitment = Commitment::<CommP>::from([0; 32]);
+        let piece_path = PathBuf::from("tests/fixtures/spaceglenda_wrapped_v2.car");
+        on_index_piece(Arc::clone(&db), dummy_commitment, piece_path.clone())
+            .await
+            .unwrap();
+
+        // Index records should be returned
+        let index = db.get_index(dummy_commitment.cid()).unwrap();
+        assert_eq!(index.len(), 5);
+
+        // Piece exists
+        assert!(db.get_piece_metadata(dummy_commitment.cid()).is_ok());
+
+        // Check indexed blocks
+        let blocks = stream_blocks_metadata(piece_path).await.unwrap();
+        pin_mut!(blocks);
+
+        while let Some(Ok(data)) = blocks.next().await {
+            // Check if piece exists for the block
+            let indexed_pieces = db.pieces_containing_multihash(*data.cid.hash()).unwrap();
+            assert_eq!(indexed_pieces, vec![dummy_commitment.cid()]);
+
+            // Check the indexed offset size for the block
+            let indexed_offset = db
+                .get_offset_size(dummy_commitment.cid(), *data.cid.hash())
+                .unwrap();
+            assert_eq!(indexed_offset.offset, data.data_offset_source);
+            assert_eq!(indexed_offset.size, data.data_size);
+        }
+    }
+}
