@@ -17,11 +17,11 @@ pub type PoRepParameters = groth16::MappedParameters<Bls12>;
 
 #[macro_export]
 macro_rules! match_seal_proof {
-    ($seal_proof:expr, $func:ident, $($args:expr),*) => {
-        match_seal_proof!($seal_proof, <> $func, $($args),*)
+    ($seal_proof:expr, $func:ident::<_>($($args:expr),*)) => {
+        match_seal_proof!($seal_proof, $func::<_,>($($args),*))
     };
 
-    ($seal_proof:expr, <$($generic:ty),*> $func:ident, $($args:expr),*) => {
+    ($seal_proof:expr, $func:ident::<_, $($generic:ty),*>($($args:expr),*)) => {
         match $seal_proof {
             RegisteredSealProof::StackedDRG2KiBV1P1 => $func::<::filecoin_proofs::SectorShape2KiB, $($generic),*>($($args),*),
             RegisteredSealProof::StackedDRG8MiBV1 => $func::<::filecoin_proofs::SectorShape8MiB, $($generic),*>($($args),*),
@@ -50,7 +50,7 @@ pub fn generate_random_groth16_parameters(
     let porep_config = seal_to_config(seal_proof);
     let setup_params = filecoin_proofs::parameters::setup_params(&porep_config)?;
 
-    match_seal_proof!(seal_proof, <> generate_params, &setup_params)
+    match_seal_proof!(seal_proof, generate_params::<_>(&setup_params))
 }
 
 /// Loads Groth16 parameters from the specified path.

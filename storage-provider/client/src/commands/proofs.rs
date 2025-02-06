@@ -311,32 +311,34 @@ impl ProofsCommand {
                 println!("Precommitting...");
                 let precommit = match_seal_proof!(
                     seal_proof,
-                    <_, _, _> precommit_sector,
-                    seal_proof,
-                    &cache_directory,
-                    unsealed_sector_path,
-                    &sealed_sector_path,
-                    prover_id,
-                    sector_number,
-                    ticket,
-                    &piece_infos
+                    precommit_sector::<_, _, _, _>(
+                        seal_proof,
+                        &cache_directory,
+                        unsealed_sector_path,
+                        &sealed_sector_path,
+                        prover_id,
+                        sector_number,
+                        ticket,
+                        &piece_infos
+                    )
                 )
                 .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
 
                 println!("Proving...");
                 let proofs = match_seal_proof!(
                     seal_proof,
-                    <_, _> prove_sector,
-                    seal_proof,
-                    &proof_parameters,
-                    &cache_directory,
-                    &sealed_sector_path,
-                    prover_id,
-                    sector_number,
-                    ticket,
-                    Some(seed),
-                    precommit,
-                    &piece_infos
+                    prove_sector::<_, _, _>(
+                        seal_proof,
+                        &proof_parameters,
+                        &cache_directory,
+                        &sealed_sector_path,
+                        prover_id,
+                        sector_number,
+                        ticket,
+                        Some(seed),
+                        precommit,
+                        &piece_infos
+                    )
                 )
                 .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
 
@@ -452,12 +454,13 @@ impl ProofsCommand {
                 let prover_id = derive_prover_id(signer.account_id());
                 let proofs = match_post_proof!(
                     post_type,
-                    generate_window_post,
-                    post_type,
-                    &proof_parameters,
-                    randomness,
-                    prover_id,
-                    replicas
+                    generate_window_post::<_>(
+                        post_type,
+                        &proof_parameters,
+                        randomness,
+                        prover_id,
+                        replicas
+                    )
                 )
                 .map_err(|e| UtilsCommandError::GeneratePoStError(e))?;
 

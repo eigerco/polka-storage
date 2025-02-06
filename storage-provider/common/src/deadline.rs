@@ -166,12 +166,13 @@ impl Deadline {
             tokio::task::spawn_blocking(move || {
                 match_post_proof!(
                     post_proof,
-                    generate_window_post,
-                    post_proof,
-                    &post_params,
-                    randomness,
-                    prover_id,
-                    replicas
+                    generate_window_post::<_>(
+                        post_proof,
+                        &post_params,
+                        randomness,
+                        prover_id,
+                        replicas
+                    )
                 )
             })
         };

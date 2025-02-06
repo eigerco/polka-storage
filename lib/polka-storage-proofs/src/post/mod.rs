@@ -22,11 +22,11 @@ pub type PoStParameters = groth16::MappedParameters<Bls12>;
 
 #[macro_export]
 macro_rules! match_post_proof {
-    ($seal_proof:expr, $func:ident, $($args:expr),*) => {
-        match_post_proof!($seal_proof, <> $func, $($args),*)
+    ($seal_proof:expr, $func:ident::<_>($($args:expr),*)) => {
+        match_post_proof!($seal_proof, $func::<_,>($($args),*))
     };
 
-    ($seal_proof:expr, <$($generic:ty),*> $func:ident, $($args:expr),*) => {
+    ($seal_proof:expr, $func:ident::<_, $($generic:ty),*>($($args:expr),*)) => {
         match $seal_proof {
             RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => $func::<::filecoin_proofs::SectorShape2KiB, $($generic),*>($($args),*),
             RegisteredPoStProof::StackedDRGWindow8MiBV1 => $func::<::filecoin_proofs::SectorShape8MiB, $($generic),*>($($args),*),
@@ -56,7 +56,7 @@ pub fn generate_random_groth16_parameters(
 ) -> Result<groth16::Parameters<Bls12>, PoStError> {
     let post_config = seal_to_config(seal_proof);
 
-    match_post_proof!(seal_proof, generate_params, post_config)
+    match_post_proof!(seal_proof, generate_params::<_>(post_config))
 }
 
 /// Loads Groth16 parameters from the specified path.

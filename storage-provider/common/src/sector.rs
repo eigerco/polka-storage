@@ -180,16 +180,18 @@ impl UnsealedSector {
 
             let piece_infos = self.piece_infos.clone();
             tokio::task::spawn_blocking(move || {
-                match_seal_proof!(self.seal_proof,
-                    <_, _, _> precommit_sector,
+                match_seal_proof!(
                     self.seal_proof,
-                    cache_dir,
-                    unsealed_path,
-                    sealed_path,
-                    prover_id,
-                    sector_number,
-                    ticket,
-                    &piece_infos
+                    precommit_sector::<_, _, _, _>(
+                        self.seal_proof,
+                        cache_dir,
+                        unsealed_path,
+                        sealed_path,
+                        prover_id,
+                        sector_number,
+                        ticket,
+                        &piece_infos
+                    )
                 )
             })
         };
@@ -416,20 +418,21 @@ impl PreCommittedSector {
                 tokio::task::spawn_blocking(move || {
                     match_seal_proof!(
                         self.seal_proof,
-                        <_, _> prove_sector,
-                        self.seal_proof,
-                        porep_params.as_ref(),
-                        cache_dir,
-                        sealed_path,
-                        prover_id,
-                        self.sector_number,
-                        ticket,
-                        Some(seed),
-                        PreCommitOutput {
-                            comm_r: self.comm_r,
-                            comm_d: self.comm_d,
-                        },
-                        &piece_infos
+                        prove_sector::<_, _, _>(
+                            self.seal_proof,
+                            porep_params.as_ref(),
+                            cache_dir,
+                            sealed_path,
+                            prover_id,
+                            self.sector_number,
+                            ticket,
+                            Some(seed),
+                            PreCommitOutput {
+                                comm_r: self.comm_r,
+                                comm_d: self.comm_d,
+                            },
+                            &piece_infos
+                        )
                     )
                 })
             };
