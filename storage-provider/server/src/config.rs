@@ -112,27 +112,27 @@ pub struct ConfigurationArgs {
 
     /// P2P Node type, can be either a bootstrap node or a registration node.
     #[serde(default = "NodeType::default")]
-    #[arg(long, default_value_t = NodeType::Bootstrap)]
+    #[arg(long, default_value_t = NodeType::Bootstrap, required = false)]
     pub(crate) node_type: NodeType,
 
     /// P2P ED25519 private key
     #[serde(deserialize_with = "deser_keypair")]
-    #[arg(long, value_parser = keypair_value_parser)]
+    #[arg(long, value_parser = keypair_value_parser, required = false)]
     pub(crate) p2p_key: Keypair,
 
     /// Rendezvous point address that the registration node connects to
     /// or the bootstrap node binds to.
-    #[arg(long)]
+    #[arg(long, required = false)]
     pub(crate) rendezvous_point_address: Multiaddr,
 
     /// PeerID of the bootstrap node used by the registration node.
     /// Optional because it is not used by the bootstrap node.
     #[serde(default, deserialize_with = "string_to_peer_id_option")]
-    #[arg(long)]
+    #[arg(long, required = false)]
     pub(crate) rendezvous_point: Option<PeerId>,
 
     /// TTL of the p2p registration in seconds
     #[serde(default = "default_registration_ttl")]
-    #[arg(long, default_value_t = DEFAULT_REGISTRATION_TTL)]
+    #[arg(long, default_value_t = DEFAULT_REGISTRATION_TTL, required = false)]
     pub(crate) registration_ttl: u64,
 }
