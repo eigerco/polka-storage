@@ -250,9 +250,8 @@ impl UnsealedSector {
         .await?)
     }
 
-    /// Returns the percentage of occupied space
+    /// Returns the percentage of occupied space.
     pub fn occupation_percent(&self) -> u64 {
-        // HACK: this gives a percentage without going to floats
         (self.occupied_sector_space * 100) / self.seal_proof.sector_size().bytes()
     }
 }

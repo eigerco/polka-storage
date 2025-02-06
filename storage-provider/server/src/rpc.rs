@@ -11,7 +11,7 @@ use primitives::{
 };
 use storagext::{
     types::market::{ClientDealProposal as SxtClientDealProposal, DealProposal as SxtDealProposal},
-    MarketClientExt,
+    MarketClientExt, StorageProviderClientExt, SystemClientExt,
 };
 use subxt::tx::Signer;
 use tokio::sync::mpsc::UnboundedSender;
@@ -39,6 +39,125 @@ pub struct RpcServerState {
     pub pipeline_sender: UnboundedSender<PipelineMessage>,
 }
 
+impl RpcServerState {
+    async fn validate_deal_proposal(&self, deal: &SxtDealProposal) -> Result<(), RpcError> {
+        if deal.start_block > deal.end_block {
+            return Err(RpcError::invalid_params(
+                format!(
+                    "Deal's start block cannot be after end block: start_block = {}, end_block = {}",
+                    deal.start_block, deal.end_block
+                ),
+                None,
+            ));
+        }
+
+        let current_block = self.xt_client.height(true).await?;
+        if deal.start_block < current_block {
+            return Err(RpcError::invalid_params(
+                format!(
+                    "Deal starts in the past: current_block = {}, deal_start_block = {}",
+                    current_block, deal.start_block
+                ),
+                None,
+            ));
+        }
+
+        // We don't check for the minimum expiration because:
+        // * A future deal may come that makes the sector valid
+        // * We can always set the sector lifetime to match the minimum at the expense of the SP
+        // TODO(@jmg-duarte,05/02/2025): Check what Filecoin does in this case
+
+        // When adding a piece/deal to a sector, we must ensure the sector remains valid
+        // i.e. no invariants are broken; as such we must ensure that the deal being added
+        // does not expire beyond the maximum sector expiration.
+        //
+        // NOTE(@jmg-duarte,31/01/2025): there's an hidden issue here that we can't address just now
+        // the min/max sector expirations are moving targets, calculated from the current block
+        // this means that we can only truly validate the invariants when submitting the pre-commit
+        // Only when addressing issue #671 we will be able to fully solve this, since as soon as a deal
+        // is added to a sector the clock starts ticking, if we wait too long the minimum expiration
+        // may itself "expire".
+        // The FC codebase doesn't really have any clues how this is solved, being probably left as an
+        // "invisible" agreement between the client and SP that it just should work
+        // The most useful piece of source is in:
+        // https://github.com/filecoin-project/lotus/blob/a526c480d40898a079c806748639e8db07aa2298/storage/pipeline/input.go#L566
+        let (_, max_sector_expiration) = self
+            .xt_client
+            .sector_expiration_bounds()
+            .map_err(|err| RpcError::internal_error(err, None))?;
+        // We know that this doesn't underflow because we know that:
+        // * deal.start_block > current_block
+        // * deal.start_block < deal.end_block
+        // As such, deal.end_block > current_block
+        let deal_end_distance = deal.end_block - current_block;
+        if deal_end_distance > max_sector_expiration {
+            return Err(RpcError::invalid_params(
+                format!(
+                    concat!(
+                        "Deal expiration is beyond the maximum accepted limit: ",
+                        "deal.end_block = {}, (current) expiration_limit_block = {}",
+                    ),
+                    deal.end_block,
+                    current_block + max_sector_expiration
+                ),
+                None,
+            ));
+        }
+
+        let post_sector_size = self.server_info.post_proof.sector_size().bytes();
+        if deal.piece_size > post_sector_size {
+            return Err(RpcError::invalid_params(
+                format!(
+                    "Deal starts in the past: current_block = {}, deal_start_block = {}",
+                    current_block, deal.start_block
+                ),
+                None,
+            ));
+        }
+
+        let provider_id = self.xt_keypair.account_id();
+        if deal.provider != provider_id {
+            return Err(RpcError::invalid_params(
+                format!(
+                    "Deal starts in the past: current_block = {}, deal_start_block = {}",
+                    current_block, deal.start_block
+                ),
+                None,
+            ));
+        }
+
+        let piece_cid_codec = deal.piece_cid.codec();
+        if piece_cid_codec != CommP::multicodec() {
+            return Err(RpcError::invalid_params(
+                format!(
+                    "Deal starts in the past: current_block = {}, deal_start_block = {}",
+                    current_block, deal.start_block
+                ),
+                None,
+            ));
+        }
+
+        if !deal.piece_size.is_power_of_two() {
+            return Err(RpcError::invalid_params(
+                format!(
+                    "Deal starts in the past: current_block = {}, deal_start_block = {}",
+                    current_block, deal.start_block
+                ),
+                None,
+            ));
+        }
+
+        if deal.storage_price_per_block == 0 {
+            return Err(RpcError::invalid_params(
+                "Price per block must be greater than 0".to_string(),
+                None,
+            ));
+        }
+
+        Ok(())
+    }
+}
+
 #[async_trait::async_trait]
 impl StorageProviderRpcServer for RpcServerState {
     async fn info(&self) -> Result<ServerInfo, RpcError> {
@@ -47,48 +166,9 @@ impl StorageProviderRpcServer for RpcServerState {
 
     async fn propose_deal(&self, deal: SxtDealProposal) -> Result<CidString, RpcError> {
         // TODO(@jmg-duarte,26/11/2024): proper unit or e2e testing of these validations
-
-        if deal.piece_size > self.server_info.post_proof.sector_size().bytes() {
-            return Err(RpcError::invalid_params(
-                "Piece size cannot be larger than the registered sector size",
-                None,
-            ));
-        }
-
-        if deal.start_block > deal.end_block {
-            return Err(RpcError::invalid_params(
-                "start_block cannot be after end_block",
-                None,
-            ));
-        }
-
-        if deal.provider != self.xt_keypair.account_id() {
-            return Err(RpcError::invalid_params(
-                "deal's provider ID does not match the current provider ID",
-                None,
-            ));
-        }
-
-        if deal.piece_cid.codec() != CommP::multicodec() {
-            return Err(RpcError::invalid_params(
-                "piece_cid is not a piece commitment",
-                None,
-            ));
-        }
-
-        if !deal.piece_size.is_power_of_two() {
-            return Err(RpcError::invalid_params(
-                "invalid piece_size, must be a power of two",
-                None,
-            ));
-        }
-
-        if deal.storage_price_per_block == 0 {
-            return Err(RpcError::invalid_params(
-                "storage_price_per_block must be greater than 0",
-                None,
-            ));
-        }
+        self.validate_deal_proposal(&deal)
+            .await
+            .map_err(|err| RpcError::invalid_params(err, None))?;
 
         let storage_provider_balance = self
             .xt_client

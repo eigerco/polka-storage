@@ -324,40 +324,6 @@ async fn add_piece(
 ) -> Result<(), PipelineError> {
     tracing::info!("Adding a piece...");
     let mut sector = find_or_create_sector_for_piece(&state, deal.piece_size).await?;
-    // Check the height *after* getting the sector to get "the freshest" block
-    let current_block = state.xt_client.height(true).await?;
-
-    let deal_expiration_distance = deal.end_block - current_block;
-    // We don't check for the minimum expiration because:
-    // * A future deal may come that makes the sector valid
-    // * We can always set the sector lifetime to match the minimum at the expense of the SP
-    // TODO(@jmg-duarte,05/02/2025): Check what Filecoin does in this case
-
-    // When adding a piece/deal to a sector, we must ensure the sector remains valid
-    // i.e. no invariants are broken; as such we must ensure that the deal being added
-    // does not expire beyond the maximum sector expiration.
-    //
-    // NOTE(@jmg-duarte,31/01/2025): there's an hidden issue here that we can't address just now
-    // the min/max sector expirations are moving targets, calculated from the current block
-    // this means that we can only truly validate the invariants when submitting the pre-commit
-    // Only when addressing issue #671 we will be able to fully solve this, since as soon as a deal
-    // is added to a sector the clock starts ticking, if we wait too long the minimum expiration
-    // may itself "expire".
-    // The FC codebase doesn't really have any clues how this is solved, being probably left as an
-    // "invisible" agreement between the client and SP that it just should work
-    // The most useful piece of source is in:
-    // https://github.com/filecoin-project/lotus/blob/a526c480d40898a079c806748639e8db07aa2298/storage/pipeline/input.go#L566
-    if deal_expiration_distance > state.max_sector_expiration {
-        tracing::error!(
-            current_block,
-            end_block = deal.end_block,
-            max_sector_expiration = state.max_sector_expiration,
-            "deal expires after maximum sector expiration"
-        );
-        return Err(PipelineError::CustomError(
-            "deal expires after the maximum sector expiration".to_string(),
-        ));
-    }
 
     sector
         .add_piece(deal_id, deal, piece_path, commitment)
@@ -386,6 +352,7 @@ async fn add_piece(
             }))?;
     } else {
         tracing::debug!(
+            sector_number = %sector.sector_number,
             "Occupation at {}; not pre-committing yet",
             occupation_percent
         );
