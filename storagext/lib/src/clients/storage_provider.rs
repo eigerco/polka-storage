@@ -381,6 +381,8 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
             .storage_provider()
             .max_sector_expiration();
 
+        // Since this API doesn't query the network, I'm not sure when this can fail
+        // at least in our case, where this library is our "fence" around the subxt API
         let min_sector_expiration = self.client.constants().at(&min_sect_exp_addr)?;
         let max_sector_expiration = self.client.constants().at(&max_sect_exp_addr)?;
 
