@@ -40,8 +40,6 @@ where
         let mut buf = BytesMut::with_capacity(chunk_size);
 
         loop {
-            // BytesMut::reserve *may* allocate more memory than requested to avoid further
-            // allocations, while that's very helpful, it's also unpredictable.
             if buf.capacity() < chunk_size {
                 // BytesMut::reserve *may* allocate more memory than requested to avoid further
                 // allocations, while that's very helpful, it's also unpredictable.
