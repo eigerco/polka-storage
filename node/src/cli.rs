@@ -130,4 +130,3 @@ pub struct RunCmd {
     #[arg(long, required = false)]
     pub p2p_listen_address: Option<Multiaddr>,
 }
-
