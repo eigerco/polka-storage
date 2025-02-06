@@ -20,6 +20,37 @@ use crate::{
 
 pub type PoStParameters = groth16::MappedParameters<Bls12>;
 
+/// Automatically sets the generic parameters for any function that is generic over a SectorShape (sector size).
+///
+/// If a function has multiple generic parameters, the first one needs to be SectorShape.
+///
+/// # Reasoning
+///
+/// Underlying `rust-fil-proofs` functions used for proving are generic.
+/// Those generics are dependant on the sector size.
+/// To avoid writing match statemenet every time we need to use `rust-fil-proofs`, we created a macro.
+///
+/// # Examples
+///
+/// ```
+/// # #[macro_use] extern crate polka_storage_proofs;
+/// fn foo<SectorShape: filecoin_proofs::MerkleTreeTrait + 'static>() {}
+///
+/// match_post_proof!(
+///     primitives::proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+///     foo::<_>()
+/// );
+/// ```
+///
+/// ```
+/// # #[macro_use] extern crate polka_storage_proofs;
+/// fn bar<SectorShape: filecoin_proofs::MerkleTreeTrait + 'static, R: AsRef<std::path::Path>>() {}
+///
+/// match_post_proof!(
+///     primitives::proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+///     bar::<_, std::path::PathBuf>()
+/// );
+/// ```
 #[macro_export]
 macro_rules! match_post_proof {
     ($seal_proof:expr, $func:ident::<_>($($args:expr),*)) => {
@@ -28,10 +59,10 @@ macro_rules! match_post_proof {
 
     ($seal_proof:expr, $func:ident::<_, $($generic:ty),*>($($args:expr),*)) => {
         match $seal_proof {
-            RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => $func::<::filecoin_proofs::SectorShape2KiB, $($generic),*>($($args),*),
-            RegisteredPoStProof::StackedDRGWindow8MiBV1 => $func::<::filecoin_proofs::SectorShape8MiB, $($generic),*>($($args),*),
-            RegisteredPoStProof::StackedDRGWindow512MiBV1 => $func::<::filecoin_proofs::SectorShape512MiB, $($generic),*>($($args),*),
-            RegisteredPoStProof::StackedDRGWindow1GiBV1 => $func::<::filecoin_proofs::SectorShape1GiB, $($generic),*>($($args),*),
+            ::primitives::proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => $func::<::filecoin_proofs::SectorShape2KiB, $($generic),*>($($args),*),
+            ::primitives::proofs::RegisteredPoStProof::StackedDRGWindow8MiBV1 => $func::<::filecoin_proofs::SectorShape8MiB, $($generic),*>($($args),*),
+            ::primitives::proofs::RegisteredPoStProof::StackedDRGWindow512MiBV1 => $func::<::filecoin_proofs::SectorShape512MiB, $($generic),*>($($args),*),
+            ::primitives::proofs::RegisteredPoStProof::StackedDRGWindow1GiBV1 => $func::<::filecoin_proofs::SectorShape1GiB, $($generic),*>($($args),*),
         }
     };
 }

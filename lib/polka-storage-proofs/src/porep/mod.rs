@@ -15,6 +15,37 @@ use crate::types::Commitment;
 
 pub type PoRepParameters = groth16::MappedParameters<Bls12>;
 
+/// Automatically sets the generic parameters for any function that is generic over a SectorShape (sector size).
+///
+/// If a function has multiple generic parameters, the first one needs to be SectorShape.
+///
+/// # Reasoning
+///
+/// Underlying `rust-fil-proofs` functions used for proving are generic.
+/// Those generics are dependant on the sector size.
+/// To avoid writing match statemenet every time we need to use `rust-fil-proofs`, we created a macro.
+///
+/// # Examples
+///
+/// ```
+/// # #[macro_use] extern crate polka_storage_proofs;
+/// fn foo<SectorShape: filecoin_proofs::MerkleTreeTrait + 'static>() {}
+///
+/// match_seal_proof!(
+///     primitives::proofs::RegisteredSealProof::StackedDRG2KiBV1P1,
+///     foo::<_>()
+/// );
+/// ```
+///
+/// ```
+/// # #[macro_use] extern crate polka_storage_proofs;
+/// fn bar<SectorShape: filecoin_proofs::MerkleTreeTrait + 'static, R: AsRef<std::path::Path>>() {}
+///
+/// match_seal_proof!(
+///     primitives::proofs::RegisteredSealProof::StackedDRG2KiBV1P1,
+///     bar::<_, std::path::PathBuf>()
+/// );
+/// ```
 #[macro_export]
 macro_rules! match_seal_proof {
     ($seal_proof:expr, $func:ident::<_>($($args:expr),*)) => {
@@ -23,10 +54,10 @@ macro_rules! match_seal_proof {
 
     ($seal_proof:expr, $func:ident::<_, $($generic:ty),*>($($args:expr),*)) => {
         match $seal_proof {
-            RegisteredSealProof::StackedDRG2KiBV1P1 => $func::<::filecoin_proofs::SectorShape2KiB, $($generic),*>($($args),*),
-            RegisteredSealProof::StackedDRG8MiBV1 => $func::<::filecoin_proofs::SectorShape8MiB, $($generic),*>($($args),*),
-            RegisteredSealProof::StackedDRG512MiBV1 => $func::<::filecoin_proofs::SectorShape512MiB, $($generic),*>($($args),*),
-            RegisteredSealProof::StackedDRG1GiBV1 => $func::<::filecoin_proofs::SectorShape1GiB, $($generic),*>($($args),*),
+            ::primitives::proofs::RegisteredSealProof::StackedDRG2KiBV1P1 => $func::<::filecoin_proofs::SectorShape2KiB, $($generic),*>($($args),*),
+            ::primitives::proofs::RegisteredSealProof::StackedDRG8MiBV1 => $func::<::filecoin_proofs::SectorShape8MiB, $($generic),*>($($args),*),
+            ::primitives::proofs::RegisteredSealProof::StackedDRG512MiBV1 => $func::<::filecoin_proofs::SectorShape512MiB, $($generic),*>($($args),*),
+            ::primitives::proofs::RegisteredSealProof::StackedDRG1GiBV1 => $func::<::filecoin_proofs::SectorShape1GiB, $($generic),*>($($args),*),
         }
     };
 }
