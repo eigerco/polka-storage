@@ -256,9 +256,7 @@ mod test {
     use tokio::fs::File;
 
     use super::*;
-    use crate::{
-        test_utils::assert_buffer_eq, DEFAULT_CHUNK_SIZE, DEFAULT_TREE_WIDTH,
-    };
+    use crate::{test_utils::assert_buffer_eq, DEFAULT_CHUNK_SIZE, DEFAULT_TREE_WIDTH};
 
     async fn test_filestore_roundtrip<P1, P2>(original: P1, expected: P2)
     where
@@ -403,5 +401,4 @@ mod test {
             "Block count mismatch"
         );
     }
-
 }

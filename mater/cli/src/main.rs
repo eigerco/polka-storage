@@ -67,11 +67,7 @@ async fn main() -> Result<(), Error> {
             });
 
             // Build config with UnixFS wrapping by default
-            let config = Config::balanced(
-                chunk_size,
-                tree_width,
-                raw,
-            );
+            let config = Config::balanced(chunk_size, tree_width, raw);
 
             let cid = convert_file_to_car(&input_path, &output_path, config, false).await?;
 

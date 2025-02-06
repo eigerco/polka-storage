@@ -20,23 +20,23 @@ mod v2;
 
 // We need to re-expose this because `read_block` returns `(Cid, Vec<u8>)`.
 pub use ipld_core::cid::Cid;
+use ipld_core::codec::Codec;
 use ipld_dagpb::DagPbCodec;
 pub use multicodec::{DAG_PB_CODE, IDENTITY_CODE, RAW_CODE};
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::io::SeekFrom;
 pub use stores::{
     create_filestore, Blockstore, Config, FileBlockstore, DEFAULT_CHUNK_SIZE, DEFAULT_TREE_WIDTH,
 };
+use tokio::io::AsyncSeekExt;
+use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncSeek};
 pub use v1::{Header as CarV1Header, Reader as CarV1Reader, Writer as CarV1Writer};
 pub use v2::{
     verify_cid, Characteristics, Header as CarV2Header, Index, IndexEntry, IndexSorted,
     MultihashIndexSorted, Reader as CarV2Reader, SingleWidthIndex, Writer as CarV2Writer,
 };
-use tokio::io::AsyncSeekExt;
-use std::collections::HashMap;
-use std::io::SeekFrom;
-use tokio::io::{AsyncReadExt, AsyncSeek};
-use tokio::io::AsyncWriteExt;
-use std::collections::HashSet;
-use ipld_core::codec::Codec;
 
 /// Represents the location and size of a block in the CAR file.
 pub struct BlockLocation {
@@ -88,8 +88,8 @@ where
             if current_cid.codec() == crate::multicodec::DAG_PB_CODE {
                 let mut cursor = std::io::Cursor::new(&block_bytes);
                 // Propagate any error that occurs during decoding.
-                let pb_node: ipld_dagpb::PbNode = DagPbCodec::decode(&mut cursor)
-                    .map_err(Error::DagPbError)?;
+                let pb_node: ipld_dagpb::PbNode =
+                    DagPbCodec::decode(&mut cursor).map_err(Error::DagPbError)?;
                 for link in pb_node.links {
                     if !processed.contains(&link.cid) {
                         to_process.push(link.cid);
@@ -109,7 +109,10 @@ where
     /// Given a reader positioned at the start of a CAR file,
     /// load the CARv2 index and build a mapping of CID -> (offset, size).
     /// For simplicity, assume the CAR header has been read and the index offset is known.
-    pub async fn load_index(mut reader: R, index_offset: u64) -> Result<HashMap<Cid, BlockLocation>, Error> {
+    pub async fn load_index(
+        mut reader: R,
+        index_offset: u64,
+    ) -> Result<HashMap<Cid, BlockLocation>, Error> {
         // Seek to the start of the index.
         reader.seek(SeekFrom::Start(index_offset)).await?;
         // Parse the index according to the CARv2 spec. For demonstration,

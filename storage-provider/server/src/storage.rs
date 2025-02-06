@@ -1,4 +1,3 @@
-use std::{net::SocketAddr, path::PathBuf, pin::Pin, str::FromStr, sync::Arc};
 use axum::{
     body::Body,
     extract::{FromRequest, MatchedPath, Multipart, Path, Request, State},
@@ -7,10 +6,14 @@ use axum::{
     routing::{get, put},
     Router,
 };
+use bytes::Bytes;
 use futures::{Stream, TryStreamExt};
 use mater::{create_filestore, Cid, Config};
 use polka_storage_provider_common::commp::{commp, CommPError};
+use primitives::commitment::piece::PaddedPieceSize;
 use primitives::proofs::RegisteredPoStProof;
+use std::io;
+use std::{net::SocketAddr, path::PathBuf, pin::Pin, str::FromStr, sync::Arc};
 use tokio::{
     fs::{self, File},
     io::{AsyncRead, BufWriter},
@@ -20,11 +23,7 @@ use tokio_util::{
     sync::CancellationToken,
 };
 use tower_http::trace::TraceLayer;
-use bytes::Bytes;
 use uuid::Uuid;
-use std::io;
-use primitives::commitment::piece::PaddedPieceSize;
-
 
 /// A boxed stream of bytes for reading request content
 type BoxedStream = Pin<Box<dyn Stream<Item = Result<Bytes, std::io::Error>> + Send>>;
@@ -184,8 +183,8 @@ async fn upload(
     // Use deal_db (we need it now, so we clone it)
     let deal_db_conn = state.deal_db.clone();
     // If the deal hasn't been accepted, reject the upload.
-    let proposed_deal = tokio::task::spawn_blocking(move || {
-        match deal_db_conn.get_proposed_deal(deal_cid) {
+    let proposed_deal =
+        tokio::task::spawn_blocking(move || match deal_db_conn.get_proposed_deal(deal_cid) {
             Ok(Some(proposed_deal)) => Ok(proposed_deal),
             Ok(None) => {
                 tracing::error!(cid = %deal_cid, "deal proposal was not found");
@@ -198,13 +197,12 @@ async fn upload(
                 tracing::error!(%err, "failed to fetch proposed deal");
                 Err((StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))
             }
-        }
-    })
-    .await
-    .map_err(|err| {
-        tracing::error!(%err, "failed to execute blocking task");
-        (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
-    })??;
+        })
+        .await
+        .map_err(|err| {
+            tracing::error!(%err, "failed to execute blocking task");
+            (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
+        })??;
 
     // Determine how to obtain the file's bytes:
     let file_cid = if request.headers().contains_key("Content-Type") {

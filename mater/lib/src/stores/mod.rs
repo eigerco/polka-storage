@@ -93,8 +93,11 @@ mod tests {
         let chunk_size = 1024;
         let tree_width = 10;
 
-        let Config::Balanced { chunk_size: cs, tree_width: tw, raw_mode } =
-            Config::balanced_unixfs(chunk_size, tree_width);
+        let Config::Balanced {
+            chunk_size: cs,
+            tree_width: tw,
+            raw_mode,
+        } = Config::balanced_unixfs(chunk_size, tree_width);
         assert_eq!(cs, chunk_size);
         assert_eq!(tw, tree_width);
         assert!(!raw_mode);
@@ -105,8 +108,11 @@ mod tests {
         let chunk_size = 1024;
         let tree_width = 10;
 
-        let Config::Balanced { chunk_size: cs, tree_width: tw, raw_mode } =
-            Config::balanced_raw(chunk_size, tree_width);
+        let Config::Balanced {
+            chunk_size: cs,
+            tree_width: tw,
+            raw_mode,
+        } = Config::balanced_raw(chunk_size, tree_width);
         assert_eq!(cs, chunk_size);
         assert_eq!(tw, tree_width);
         assert!(raw_mode);
