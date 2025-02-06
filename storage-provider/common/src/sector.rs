@@ -95,6 +95,7 @@ impl UnsealedSector {
         })
     }
 
+    /// Adds a deal (piece) to a sector.
     pub async fn add_piece(
         &mut self,
         deal_id: u64,
@@ -123,7 +124,7 @@ impl UnsealedSector {
 
         let (piece_info, occupied_piece_space) = handle.await??;
         self.piece_infos.push(piece_info);
-        self.occupied_sector_space = self.occupied_sector_space + occupied_piece_space;
+        self.occupied_sector_space += occupied_piece_space;
 
         Ok(())
     }
@@ -247,6 +248,11 @@ impl UnsealedSector {
             precommited_sectors[0].block,
         )
         .await?)
+    }
+
+    /// Returns the percentage of occupied space.
+    pub fn occupation_percent(&self) -> u64 {
+        (self.occupied_sector_space * 100) / self.seal_proof.sector_size().bytes()
     }
 }
 
