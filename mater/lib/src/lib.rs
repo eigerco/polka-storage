@@ -20,6 +20,7 @@ mod v2;
 
 // We need to re-expose this because `read_block` returns `(Cid, Vec<u8>)`.
 pub use ipld_core::cid::Cid;
+use ipld_dagpb::DagPbCodec;
 pub use multicodec::{DAG_PB_CODE, IDENTITY_CODE, RAW_CODE};
 pub use stores::{
     create_filestore, Blockstore, Config, FileBlockstore, DEFAULT_CHUNK_SIZE, DEFAULT_TREE_WIDTH,
@@ -29,6 +30,125 @@ pub use v2::{
     verify_cid, Characteristics, Header as CarV2Header, Index, IndexEntry, IndexSorted,
     MultihashIndexSorted, Reader as CarV2Reader, SingleWidthIndex, Writer as CarV2Writer,
 };
+use tokio::io::AsyncSeekExt;
+use std::collections::HashMap;
+use std::io::SeekFrom;
+use tokio::io::{AsyncReadExt, AsyncSeek};
+use tokio::io::AsyncWriteExt;
+use std::collections::HashSet;
+use ipld_core::codec::Codec;
+
+/// Represents the location and size of a block in the CAR file.
+pub struct BlockLocation {
+    /// The byte offset in the CAR file where the block starts.
+    pub offset: u64,
+    /// The size (in bytes) of the block.
+    pub size: u64,
+}
+
+/// A simple blockstore backed by a CAR file and its index.
+pub struct CarBlockStore<R> {
+    reader: R,
+    /// Mapping from CID to block location.
+    pub index: HashMap<Cid, BlockLocation>,
+}
+
+impl<R> CarBlockStore<R>
+where
+    R: AsyncSeekExt + AsyncReadExt + Unpin,
+{
+    /// Extract content by traversing the UnixFS DAG using the index.
+    pub async fn extract_content_via_index<W>(
+        &mut self,
+        root: &Cid,
+        output: &mut W,
+    ) -> Result<(), Error>
+    where
+        W: AsyncWriteExt + Unpin,
+    {
+        // To avoid processing a block more than once.
+        let mut processed = HashSet::new();
+        // We use a stack for DFS traversal.
+        let mut to_process = vec![root.clone()];
+
+        while let Some(current_cid) = to_process.pop() {
+            if processed.contains(&current_cid) {
+                continue;
+            }
+            processed.insert(current_cid.clone());
+
+            // Retrieve block by CID via the index.
+            let block_bytes = self.get_block(&current_cid).await?;
+
+            // Write the raw block data. In a real UnixFS traversal you might need
+            // to reconstruct file content in order.
+            output.write_all(&block_bytes).await?;
+
+            // If the block is a DAG-PB node, decode and enqueue its children.
+            if current_cid.codec() == crate::multicodec::DAG_PB_CODE {
+                let cursor = std::io::Cursor::new(&block_bytes);
+                let mut reader = std::io::BufReader::new(cursor);
+                let pb_node_result: Result<ipld_dagpb::PbNode, _> = DagPbCodec::decode(&mut reader);
+                if let Ok(pb_node) = pb_node_result {
+                    for link in pb_node.links {
+                        if !processed.contains(&link.cid) {
+                            to_process.push(link.cid);
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl<R> CarBlockStore<R>
+where
+    R: AsyncSeek + AsyncReadExt + Unpin,
+{
+    /// Given a reader positioned at the start of a CAR file,
+    /// load the CARv2 index and build a mapping of CID -> (offset, size).
+    /// For simplicity, assume the CAR header has been read and the index offset is known.
+    pub async fn load_index(mut reader: R, index_offset: u64) -> Result<HashMap<Cid, BlockLocation>, Error> {
+        // Seek to the start of the index.
+        reader.seek(SeekFrom::Start(index_offset)).await?;
+        // Parse the index according to the CARv2 spec. For demonstration,
+        // we assume a very simple format where each index entry is:
+        //   [CID length (u8)][CID bytes][offset (u64)][size (u64)]
+        let mut index = HashMap::new();
+        // In a real implementation you’d read until EOF or index length.
+        // Here we use a simple loop:
+        loop {
+            let mut cid_len_buf = [0u8; 1];
+            if let Err(_) = reader.read_exact(&mut cid_len_buf).await {
+                break; // end of index
+            }
+            let cid_len = cid_len_buf[0] as usize;
+            let mut cid_buf = vec![0u8; cid_len];
+            reader.read_exact(&mut cid_buf).await?;
+            let cid = Cid::try_from(cid_buf).map_err(|e| Error::Other(e.to_string()))?;
+
+            let offset = reader.read_u64_le().await?;
+            let size = reader.read_u64_le().await?;
+            index.insert(cid, BlockLocation { offset, size });
+        }
+        Ok(index)
+    }
+
+    /// Retrieve a block by its CID. This method uses the in-memory index
+    /// to seek directly to the block’s location.
+    pub async fn get_block(&mut self, cid: &Cid) -> Result<Vec<u8>, Error> {
+        if let Some(location) = self.index.get(cid) {
+            self.reader.seek(SeekFrom::Start(location.offset)).await?;
+            let mut buf = vec![0u8; location.size as usize];
+            self.reader.read_exact(&mut buf).await?;
+            Ok(buf)
+        } else {
+            Err(Error::BlockNotFound(cid.to_string()))
+        }
+    }
+}
 
 /// CAR handling errors.
 #[derive(Debug, thiserror::Error)]
@@ -113,6 +233,14 @@ pub enum Error {
     /// See [`DagPbError`](ipld_dagpb::Error) for more information.
     #[error(transparent)]
     DagPbError(#[from] ipld_dagpb::Error),
+
+    /// Catch-all error for miscellaneous cases.
+    #[error("other error: {0}")]
+    Other(String),
+
+    /// Error indicating that the requested block could not be found.
+    #[error("block not found: {0}")]
+    BlockNotFound(String),
 }
 
 #[cfg(test)]
