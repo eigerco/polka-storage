@@ -1,13 +1,13 @@
 #![cfg_attr(not(feature = "std"), no_std)] // no_std by default, requires "std" for std-support
 
 pub mod commitment;
-#[cfg(feature = "p2p")]
-pub mod p2p;
 pub mod pallets;
 pub mod proofs;
 pub mod randomness;
 pub mod sector;
 
+#[cfg(feature = "std")]
+pub mod p2p;
 #[cfg(feature = "testing")]
 pub mod testing {
     // NOTE(@jmg-duarte,22/01/2025): Since there's only one thing, star import for now.

@@ -15,7 +15,7 @@ name = "polka-storage-node"
 
 [dependencies]
 polka-storage-runtime.workspace = true
-primitives = { workspace = true, features = ["p2p"] }
+primitives = { workspace = true, features = ["std"] }
 
 clap = { features = ["derive"], workspace = true }
 codec = { workspace = true, default-features = true }

@@ -38,13 +38,15 @@ workspace = true
 builder = []
 clap = ["dep:clap", "std"]
 default = ["std"]
-p2p = ["dep:ed25519-dalek", "dep:hex", "dep:libp2p"]
 serde = ["dep:serde"]
 std = [
   "cid/scale-codec",
   "cid/std",
   "codec/std",
+  "dep:ed25519-dalek",
   "dep:filecoin-proofs",
+  "dep:hex",
+  "dep:libp2p",
   "scale-info/std",
   "serde/std",
   "sha2/std",

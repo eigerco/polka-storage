@@ -104,7 +104,6 @@ pub fn local_testnet_config() -> NetworkConfig {
     let temp_dir = tempdir().unwrap();
     let file_path = temp_dir.path().join("private_key.pem");
     generate_pem_file(&file_path);
-    let p2p_arg = format!("--p2p-key={}", file_path.display());
 
     NetworkConfigBuilder::new()
         .with_relaychain(|relaychain| {
@@ -125,7 +124,7 @@ pub fn local_testnet_config() -> NetworkConfig {
                             ("--pool-type", "fork-aware").into(),
                             ("-lruntime=trace,parachain=debug").into(),
                             ("--p2p-listen-address=/ip4/127.0.0.1/tcp/62649").into(),
-                            (p2p_arg.as_str()).into(),
+                            (format!("--p2p-key={}", file_path.display()).as_str()).into(),
                         ])
                 })
         })

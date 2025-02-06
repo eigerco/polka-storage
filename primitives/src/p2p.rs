@@ -5,6 +5,7 @@ use libp2p::identity::Keypair;
 
 /// Parses a ED25519 private key into a Keypair.
 /// Takes in a private key or the path to a PEM file, depending on the @ prefix.
+#[cfg(feature = "std")]
 pub fn keypair_value_parser(src: &str) -> Result<Keypair, String> {
     let key = if let Some(stripped) = src.strip_prefix('@') {
         let path = PathBuf::from_str(stripped)
