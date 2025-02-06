@@ -221,8 +221,8 @@ pub fn run() -> Result<()> {
             }
         }
         None => {
-            let runner = cli.create_runner(&cli.run.normalize())?;
-            let collator_options = cli.run.collator_options();
+            let runner = cli.create_runner(&cli.run.base.normalize())?;
+            let collator_options = cli.run.base.collator_options();
 
             runner.run_node_until_exit(|config| async move {
                 let bootstrap_config = if config.role.is_authority() {

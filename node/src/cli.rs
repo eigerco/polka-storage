@@ -131,10 +131,3 @@ pub struct RunCmd {
     pub p2p_listen_address: Option<Multiaddr>,
 }
 
-impl std::ops::Deref for RunCmd {
-    type Target = cumulus_client_cli::RunCmd;
-
-    fn deref(&self) -> &Self::Target {
-        &self.base
-    }
-}
