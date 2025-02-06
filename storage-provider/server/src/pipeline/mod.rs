@@ -15,7 +15,7 @@ use primitives::{
     commitment::{CommP, Commitment},
     sector::SectorNumber,
 };
-use storagext::{types::market::DealProposal, StorageProviderClientExt, SystemClientExt};
+use storagext::{types::market::DealProposal, StorageProviderClientExt};
 use tokio::sync::{
     mpsc::{error::SendError, UnboundedReceiver, UnboundedSender},
     Semaphore,
@@ -67,15 +67,6 @@ pub struct PipelineState {
     pub xt_keypair: storagext::multipair::MultiPairSigner,
     pub pipeline_sender: UnboundedSender<PipelineMessage>,
     pub prove_commit_throttle: Arc<Semaphore>,
-
-    // Ideally, these two are queried from the chain, however, subxt ships them based on the runtime
-    // as such, beware what runtime you compiled subxt for!
-    #[allow(unused)]
-    // unused for now, useful later when figuring out the proper bounds between deals
-    // namely, for PreCommitBatchSlack in the Sealing configuration
-    // reference: https://lotus.filecoin.io/storage-providers/advanced-configurations/sealing/
-    pub min_sector_expiration: u64,
-    pub max_sector_expiration: u64,
 }
 
 #[tracing::instrument(skip_all)]
