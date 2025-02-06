@@ -28,7 +28,7 @@ pub type PoStParameters = groth16::MappedParameters<Bls12>;
 ///
 /// Underlying `rust-fil-proofs` functions used for proving are generic.
 /// Those generics are dependant on the sector size.
-/// This macro avoids the boilerplate of writing a `match` expression every time we need to use `rust-fil-proofs`.
+/// This macro avoids the boilerplate of writing a `match` statement every time we need to use `rust-fil-proofs`.
 ///
 /// # Examples
 ///
