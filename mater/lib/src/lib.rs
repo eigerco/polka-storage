@@ -86,14 +86,13 @@ where
 
             // If the block is a DAG-PB node, decode and enqueue its children.
             if current_cid.codec() == crate::multicodec::DAG_PB_CODE {
-                let cursor = std::io::Cursor::new(&block_bytes);
-                let mut reader = std::io::BufReader::new(cursor);
-                let pb_node_result: Result<ipld_dagpb::PbNode, _> = DagPbCodec::decode(&mut reader);
-                if let Ok(pb_node) = pb_node_result {
-                    for link in pb_node.links {
-                        if !processed.contains(&link.cid) {
-                            to_process.push(link.cid);
-                        }
+                let mut cursor = std::io::Cursor::new(&block_bytes);
+                // Propagate any error that occurs during decoding.
+                let pb_node: ipld_dagpb::PbNode = DagPbCodec::decode(&mut cursor)
+                    .map_err(Error::DagPbError)?;
+                for link in pb_node.links {
+                    if !processed.contains(&link.cid) {
+                        to_process.push(link.cid);
                     }
                 }
             }
@@ -120,11 +119,10 @@ where
         // In a real implementation you’d read until EOF or index length.
         // Here we use a simple loop:
         loop {
-            let mut cid_len_buf = [0u8; 1];
-            if let Err(_) = reader.read_exact(&mut cid_len_buf).await {
-                break; // end of index
-            }
-            let cid_len = cid_len_buf[0] as usize;
+            let cid_len = match reader.read_u8().await {
+                Ok(n) => n as usize,
+                Err(_) => break,
+            };
             let mut cid_buf = vec![0u8; cid_len];
             reader.read_exact(&mut cid_buf).await?;
             let cid = Cid::try_from(cid_buf).map_err(|e| Error::Other(e.to_string()))?;
@@ -238,7 +236,7 @@ pub enum Error {
     #[error("other error: {0}")]
     Other(String),
 
-    /// Error indicating that the requested block could not be found.
+    /// Error indicating that the requested block could not be found found in the CAR file's index.
     #[error("block not found: {0}")]
     BlockNotFound(String),
 }
