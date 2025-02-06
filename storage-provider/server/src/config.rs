@@ -7,8 +7,10 @@ use std::{
 use clap::Args;
 use libp2p::{identity::Keypair, Multiaddr, PeerId};
 use polka_storage_provider_common::config::sealing::SealingConfiguration;
-use primitives::p2p::keypair_value_parser;
-use primitives::proofs::{RegisteredPoStProof, RegisteredSealProof};
+use primitives::{
+    p2p::keypair_value_parser,
+    proofs::{RegisteredPoStProof, RegisteredSealProof},
+};
 use serde::Deserialize;
 use url::Url;
 
