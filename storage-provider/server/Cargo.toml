@@ -19,9 +19,11 @@ polka-storage-provider-common = { workspace = true }
 primitives = { workspace = true, features = ["clap", "serde", "std"] }
 storagext = { workspace = true, features = ["clap"] }
 
+async-stream.workspace = true
 async-trait = { workspace = true }
 axum = { workspace = true, features = ["macros", "multipart"] }
 base64 = { workspace = true }
+bytes.workspace = true
 chrono = { workspace = true, features = ["serde"] }
 ciborium = { workspace = true }
 cid = { workspace = true, features = ["serde", "std"] }
@@ -51,8 +53,6 @@ tracing-appender = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 url = { workspace = true, features = ["serde"] }
 uuid = { workspace = true, features = ["serde", "v4"] }
-async-stream.workspace = true
-bytes.workspace = true
 
 [dev-dependencies]
 sha2 = { workspace = true }
