@@ -10,10 +10,8 @@ use bytes::Bytes;
 use futures::{Stream, TryStreamExt};
 use mater::{create_filestore, Cid, Config};
 use polka_storage_provider_common::commp::{commp, CommPError};
-use primitives::commitment::piece::PaddedPieceSize;
-use primitives::proofs::RegisteredPoStProof;
-use std::io;
-use std::{net::SocketAddr, path::PathBuf, pin::Pin, str::FromStr, sync::Arc};
+use primitives::{commitment::piece::PaddedPieceSize, proofs::RegisteredPoStProof};
+use std::{io, net::SocketAddr, path::PathBuf, pin::Pin, str::FromStr, sync::Arc};
 use tokio::{
     fs::{self, File},
     io::{AsyncRead, BufWriter},
@@ -47,11 +45,8 @@ use crate::db::DealDB;
 /// Shared state of the storage server.
 pub struct StorageServerState {
     pub car_piece_storage_dir: Arc<PathBuf>,
-
     pub deal_db: Arc<DealDB>,
-
     pub listen_address: SocketAddr,
-
     // I think this just needs the sector size actually
     #[allow(dead_code)]
     pub post_proof: RegisteredPoStProof,
