@@ -92,8 +92,11 @@ fn configure_router(state: Arc<StorageServerState>) -> Router {
             .route(
                 "/upload/:cid",
                 put(upload)
-                    // Without disable we can't handle
-                    .layer(DefaultBodyLimit::disable()),
+                    // Limit upload size to maximum sector size
+                    .layer(DefaultBodyLimit::max(
+                        // Cast is safe because we're not supporting 32-bit systems
+                        state.post_proof.sector_size().bytes() as usize,
+                    )),
             )
             .route("/download/:cid", get(download))
             .route("/calculate_piece_cid", put(calculate_piece_cid))
@@ -128,8 +131,11 @@ fn configure_router(state: Arc<StorageServerState>) -> Router {
             .route(
                 "/upload/:cid",
                 put(upload)
-                    // Without disable we can't handle
-                    .layer(DefaultBodyLimit::disable()),
+                    // Limit upload size to maximum sector size
+                    .layer(DefaultBodyLimit::max(
+                        // Cast is safe because we're not supporting 32-bit systems
+                        state.post_proof.sector_size().bytes() as usize,
+                    )),
             )
             .route("/download/:cid", get(download))
             .with_state(state)
