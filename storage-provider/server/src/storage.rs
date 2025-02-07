@@ -20,6 +20,10 @@ use tokio::{
 use tower_http::trace::TraceLayer;
 use uuid::Uuid;
 
+// Add these missing imports:
+use tokio_util::io::{ReaderStream, StreamReader};
+use tokio_util::sync::CancellationToken;
+
 /// A boxed stream of bytes for reading request content
 type BoxedStream = Pin<Box<dyn Stream<Item = Result<Bytes, std::io::Error>> + Send>>;
 
@@ -475,7 +479,8 @@ mod delia_endpoints {
 
         // Calculate piece commitment
         let piece_commitment_cid = tokio::task::spawn_blocking(move || -> Result<_, CommPError> {
-            let (piece_commitment, _) = commp(&piece_path)?;
+            // Use `file_path` here instead of the undefined `piece_path`
+            let (piece_commitment, _) = commp(&file_path)?;
             let piece_commitment_cid = piece_commitment.cid();
             tracing::debug!(path = %file_path.display(), commp = %piece_commitment_cid, "calculated piece commitment");
             Ok(piece_commitment_cid)
