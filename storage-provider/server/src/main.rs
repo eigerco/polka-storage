@@ -23,7 +23,7 @@ use polka_storage_proofs::{
     porep::{self, PoRepParameters},
     post::{self, PoStParameters},
 };
-use polka_storage_provider_common::rpc::ServerInfo;
+use polka_storage_provider_common::{config::sealing::SealingConfiguration, rpc::ServerInfo};
 use primitives::proofs::{RegisteredPoStProof, RegisteredSealProof};
 use rand::Rng;
 use storagext::{
@@ -276,6 +276,9 @@ pub struct Server {
 
     /// TTL of the p2p registration in seconds
     registration_ttl: u64,
+
+    /// Sealing parameters (e.g. how long to wait before sealing).
+    sealing_configuration: SealingConfiguration,
 }
 
 impl TryFrom<ServerCli> for Server {
@@ -358,6 +361,7 @@ impl TryFrom<ServerCli> for Server {
             rendezvous_point_address: args.rendezvous_point_address,
             rendezvous_point: args.rendezvous_point,
             registration_ttl: args.registration_ttl,
+            sealing_configuration: args.sealing_configuration,
         })
     }
 }
@@ -458,6 +462,7 @@ impl Server {
                 self.seal_proof,
                 self.post_proof,
                 storage_provider_info.proving_period_start,
+                self.sealing_configuration,
             ),
             deal_db: deal_database.clone(),
             car_piece_storage_dir: car_piece_storage_dir.clone(),

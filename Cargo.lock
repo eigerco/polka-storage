@@ -13897,6 +13897,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "cid 0.11.1",
+ "clap",
  "filecoin-hashers",
  "filecoin-proofs",
  "fr32",

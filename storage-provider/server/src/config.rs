@@ -6,6 +6,7 @@ use std::{
 
 use clap::Args;
 use libp2p::{identity::Keypair, Multiaddr, PeerId};
+use polka_storage_provider_common::config::sealing::SealingConfiguration;
 use primitives::proofs::{RegisteredPoStProof, RegisteredSealProof};
 use serde::Deserialize;
 use url::Url;
@@ -135,4 +136,8 @@ pub struct ConfigurationArgs {
     #[serde(default = "default_registration_ttl")]
     #[arg(long, default_value_t = DEFAULT_REGISTRATION_TTL, required = false)]
     pub(crate) registration_ttl: u64,
+
+    #[clap(flatten)]
+    #[serde(default)]
+    pub(crate) sealing_configuration: SealingConfiguration,
 }

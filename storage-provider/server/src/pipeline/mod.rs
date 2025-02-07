@@ -28,10 +28,6 @@ use types::{
 
 use crate::db::{DBError, DealDB};
 
-/// Size percentage to seal and pre-commit a sector.
-// NOTE(@jmg-duarte,05/02/2025): this is a placeholder until the time-based approach is done
-const OCCUPATION_FACTOR: u64 = 75;
-
 #[derive(Debug, thiserror::Error)]
 pub enum PipelineError {
     #[error(transparent)]
@@ -328,11 +324,12 @@ async fn add_piece(
 
     // TODO: break maat to ensure this works, probably using a small file in the 8mb thing works
     let occupation_percent = sector.occupation_percent();
-    if occupation_percent > OCCUPATION_FACTOR {
+    let fill_threshold = state.server_info.sealing_configuration.fill_percentage as u64;
+    if occupation_percent > fill_threshold {
         tracing::debug!(
             "Occupation above {} > {}%; pre-committing",
             occupation_percent,
-            OCCUPATION_FACTOR,
+            fill_threshold,
         );
         // TODO(@th7nder,30/10/2024): simplification, as we're always scheduling a precommit just after adding a piece and creating a new sector.
         // Ideally sector won't be finalized after one piece has been added and the precommit will depend on the start_block?

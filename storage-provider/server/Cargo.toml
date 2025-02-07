@@ -15,7 +15,7 @@ delia = []
 # "Homegrown" crates
 mater = { workspace = true }
 polka-storage-proofs = { workspace = true, features = ["std", "substrate"] }
-polka-storage-provider-common = { workspace = true }
+polka-storage-provider-common = { workspace = true, features = ["clap"] }
 primitives = { workspace = true, features = ["clap", "serde", "std"] }
 storagext = { workspace = true, features = ["clap"] }
 
