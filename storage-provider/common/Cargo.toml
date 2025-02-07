@@ -18,6 +18,7 @@ codec = { workspace = true }
 filecoin-hashers.workspace = true
 filecoin-proofs.workspace = true
 
+clap = { workspace = true, features = ["derive"], optional = true }
 fr32.workspace = true
 hex = { workspace = true, features = ["std"] }
 jsonrpsee = { workspace = true, features = ["http-client", "macros", "server", "ws-client"] }
@@ -30,7 +31,6 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["fs"] }
 tokio-util = { workspace = true, features = ["rt"] }
 tracing = { workspace = true }
-clap = { workspace = true, features = ["derive"], optional = true }
 
 [lints]
 workspace = true
