@@ -68,13 +68,13 @@ where
         // To avoid processing a block more than once.
         let mut processed = HashSet::new();
         // We use a stack for DFS traversal.
-        let mut to_process = vec![root.clone()];
+        let mut to_process = vec![*root];
 
         while let Some(current_cid) = to_process.pop() {
             if processed.contains(&current_cid) {
                 continue;
             }
-            processed.insert(current_cid.clone());
+            processed.insert(current_cid);
 
             // Retrieve block by CID via the index.
             let block_bytes = self.get_block(&current_cid).await?;
