@@ -80,6 +80,8 @@ pub async fn start_upload_server(
 fn configure_router(state: Arc<StorageServerState>) -> Router {
     #[cfg(feature = "delia")]
     fn config_delia(state: Arc<StorageServerState>) -> Router {
+        use axum::extract::DefaultBodyLimit;
+
         let cors = CorsLayer::new()
             .allow_origin(Any)
             .allow_methods([Method::GET, Method::POST, Method::PUT, Method::OPTIONS])
@@ -87,7 +89,12 @@ fn configure_router(state: Arc<StorageServerState>) -> Router {
             .max_age(std::time::Duration::from_secs(3600));
 
         Router::new()
-            .route("/upload/:cid", put(upload))
+            .route(
+                "/upload/:cid",
+                put(upload)
+                    // Without disable we can't handle
+                    .layer(DefaultBodyLimit::disable()),
+            )
             .route("/download/:cid", get(download))
             .route("/calculate_piece_cid", put(calculate_piece_cid))
             .route("/encode_proposal", post(encode_proposal))
@@ -115,8 +122,15 @@ fn configure_router(state: Arc<StorageServerState>) -> Router {
 
     #[cfg(not(feature = "delia"))]
     fn config_non_delia(state: Arc<StorageServerState>) -> Router {
+        use axum::extract::DefaultBodyLimit;
+
         Router::new()
-            .route("/upload/:cid", put(upload))
+            .route(
+                "/upload/:cid",
+                put(upload)
+                    // Without disable we can't handle
+                    .layer(DefaultBodyLimit::disable()),
+            )
             .route("/download/:cid", get(download))
             .with_state(state)
             .layer(
