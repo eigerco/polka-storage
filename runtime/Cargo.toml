@@ -25,6 +25,7 @@ pallet-market = { workspace = true, default-features = false }
 pallet-proofs = { workspace = true, default-features = false }
 pallet-randomness = { workspace = true, default-features = false }
 pallet-storage-provider = { workspace = true, default-features = false }
+pallet-storage-provider-benchmarks = { workspace = true, default-features = false }
 primitives = { workspace = true, default-features = false }
 
 codec = { workspace = true, default-features = false, features = ["chain-error", "derive"] }
@@ -118,6 +119,7 @@ std = [
   "pallet-market/std",
   "pallet-message-queue/std",
   "pallet-session/std",
+  "pallet-storage-provider-benchmarks/std",
   "pallet-storage-provider/std",
   "pallet-sudo/std",
   "pallet-timestamp/std",
@@ -166,6 +168,7 @@ runtime-benchmarks = [
   "pallet-message-queue/runtime-benchmarks",
   "pallet-proofs/runtime-benchmarks",
   "pallet-randomness/runtime-benchmarks",
+  "pallet-storage-provider-benchmarks/runtime-benchmarks",
   "pallet-storage-provider/runtime-benchmarks",
   "pallet-sudo/runtime-benchmarks",
   "pallet-timestamp/runtime-benchmarks",
@@ -195,6 +198,7 @@ try-runtime = [
   "pallet-market/try-runtime",
   "pallet-message-queue/try-runtime",
   "pallet-session/try-runtime",
+  "pallet-storage-provider-benchmarks/try-runtime",
   "pallet-storage-provider/try-runtime",
   "pallet-sudo/try-runtime",
   "pallet-timestamp/try-runtime",
