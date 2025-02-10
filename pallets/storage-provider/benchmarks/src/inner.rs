@@ -51,15 +51,12 @@ type BoundedPeerIdBytes = BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>;
 
 #[benchmarks(
     where
-        T: pallet_storage_provider::Config<
+        T: crate::Config<
             PeerId = BoundedPeerIdBytes,
-            AccountId = AccountId32
-        > + pallet_market::Config<
             AccountId = AccountId32,
             OffchainSignature = MultiSignature,
-        > + pallet_balances::Config
-        + frame_system::Config,
-        <<<T as frame_system::Config>::Block as sp_runtime::traits::Block>::Header as sp_runtime::traits::Header>::Number: From<u64>
+        >,
+        BlockNumberFor<T>: From<u64>
 )]
 mod benchmarks {
 
