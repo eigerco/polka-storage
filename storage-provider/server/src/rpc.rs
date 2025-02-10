@@ -52,7 +52,7 @@ impl RpcServerState {
         }
 
         let current_block = self.xt_client.height(true).await?;
-        if deal.start_block < current_block {
+        if current_block > deal.start_block {
             return Err(RpcError::invalid_params(
                 format!(
                     "Deal starts in the past: current_block = {}, deal_start_block = {}",
@@ -108,8 +108,8 @@ impl RpcServerState {
         if deal.piece_size > post_sector_size {
             return Err(RpcError::invalid_params(
                 format!(
-                    "Deal starts in the past: current_block = {}, deal_start_block = {}",
-                    current_block, deal.start_block
+                    "Deal piece size is larger than the supported sector size: piece_size = {}, sector_size = {}",
+                    deal.piece_size, post_sector_size
                 ),
                 None,
             ));
@@ -119,19 +119,20 @@ impl RpcServerState {
         if deal.provider != provider_id {
             return Err(RpcError::invalid_params(
                 format!(
-                    "Deal starts in the past: current_block = {}, deal_start_block = {}",
-                    current_block, deal.start_block
+                    "Deal provider does not match current provider: deal_provider_id = {}, current_provider_id = {}",
+                    deal.provider, provider_id
                 ),
                 None,
             ));
         }
 
         let piece_cid_codec = deal.piece_cid.codec();
-        if piece_cid_codec != CommP::multicodec() {
+        let commp_codec = CommP::multicodec();
+        if piece_cid_codec != commp_codec {
             return Err(RpcError::invalid_params(
                 format!(
-                    "Deal starts in the past: current_block = {}, deal_start_block = {}",
-                    current_block, deal.start_block
+                    "Piece's CID codec is not a piece commitment: piece_cid_codec = {}, commitment_cid_codec = {}",
+                    piece_cid_codec, commp_codec
                 ),
                 None,
             ));
@@ -140,8 +141,8 @@ impl RpcServerState {
         if !deal.piece_size.is_power_of_two() {
             return Err(RpcError::invalid_params(
                 format!(
-                    "Deal starts in the past: current_block = {}, deal_start_block = {}",
-                    current_block, deal.start_block
+                    "Deal's piece size not a power of two: piece_size = {}",
+                    deal.piece_size
                 ),
                 None,
             ));
