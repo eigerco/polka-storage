@@ -16,8 +16,6 @@ use sp_runtime::{
     BuildStorage, MultiSignature,
 };
 
-use crate::utils::{account, ALICE, BOB, CHARLIE};
-
 type Block = frame_system::mocking::MockBlock<Test>;
 type BlockNumber = u64;
 
@@ -154,25 +152,12 @@ impl pallet_storage_provider::Config for Test {
 
 impl crate::Config for Test {}
 
-/// Initial funds of all accounts.
-const INITIAL_FUNDS: u64 = 50000;
-
 pub fn new_test_ext() -> sp_io::TestExternalities {
     let _ = env_logger::try_init();
-    let mut t = frame_system::GenesisConfig::<Test>::default()
+    let t = frame_system::GenesisConfig::<Test>::default()
         .build_storage()
         .unwrap()
         .into();
-
-    pallet_balances::GenesisConfig::<Test> {
-        balances: vec![
-            (account(ALICE), INITIAL_FUNDS),
-            (account(BOB), INITIAL_FUNDS),
-            (account(CHARLIE), INITIAL_FUNDS),
-        ],
-    }
-    .assimilate_storage(&mut t)
-    .unwrap();
 
     let mut ext = sp_io::TestExternalities::new(t);
     ext.execute_with(|| System::set_block_number(1));
