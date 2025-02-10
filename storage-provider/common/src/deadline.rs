@@ -1,8 +1,9 @@
 use std::{collections::BTreeSet, sync::Arc};
 
 use polka_storage_proofs::{
+    match_post_proof,
     porep::sealer::{BlstrsProof, SubstrateProof},
-    post::{self, PoStParameters, ReplicaInfo},
+    post::{self, generate_window_post, PoStParameters, ReplicaInfo},
 };
 use primitives::{
     proofs::{derive_prover_id, RegisteredPoStProof},
@@ -163,12 +164,15 @@ impl Deadline {
             let post_proof = self.post_proof;
 
             tokio::task::spawn_blocking(move || {
-                post::generate_window_post(
+                match_post_proof!(
                     post_proof,
-                    &post_params,
-                    randomness,
-                    prover_id,
-                    replicas,
+                    generate_window_post::<_>(
+                        post_proof,
+                        &post_params,
+                        randomness,
+                        prover_id,
+                        replicas
+                    )
                 )
             })
         };

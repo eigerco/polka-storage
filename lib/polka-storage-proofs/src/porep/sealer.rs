@@ -1,14 +1,12 @@
-use core::marker::PhantomData;
 use std::{fs::File, path::Path};
 
 use bellperson::groth16;
 use blstrs::Bls12;
 use filecoin_hashers::Domain;
 use filecoin_proofs::{
-    add_piece, as_safe_commitment, parameters::setup_params, DefaultPieceDomain,
-    DefaultPieceHasher, PaddedBytesAmount, PoRepConfig, SealCommitPhase1Output,
-    SealPreCommitOutput, SealPreCommitPhase1Output, SectorShape2KiB, SectorShape8MiB,
-    UnpaddedBytesAmount,
+    as_safe_commitment, parameters::setup_params, DefaultPieceDomain, DefaultPieceHasher,
+    MerkleTreeTrait, PaddedBytesAmount, SealCommitPhase1Output, SealPreCommitOutput,
+    SealPreCommitPhase1Output, UnpaddedBytesAmount,
 };
 use primitives::{
     commitment::{
@@ -68,283 +66,273 @@ where
 
     Ok((piece_padded_file, piece_info))
 }
-pub struct Sealer<SectorShape> {
-    porep_config: PoRepConfig,
-    _sector_shape: PhantomData<SectorShape>,
-}
 
-pub fn select_sealer(
-    seal: RegisteredSealProof,
-) -> Sealer<impl filecoin_proofs::MerkleTreeTrait + 'static> {
-    match seal {
-        RegisteredSealProof::StackedDRG2KiBV1P1 => Sealer::<SectorShape2KiB> {
-            porep_config: seal_to_config(seal),
-            _sector_shape: PhantomData,
-        },
-        RegisteredSealProof::StackedDRG8MiBV1 => Sealer::<SectorShape8MiB> {
-            porep_config: seal_to_config(seal),
-            _sector_shape: PhantomData,
-        },
+/// Adds a Piece and padding to already existing sector file and returns how many bytes were written.
+/// It can return more bytes than the piece size, as it adds padding so a proper Merkle Tree can be created out of the sector.
+/// You need to supply current pieces which are already in the sector, otherwise they'll be overwritten.
+pub fn add_piece<R: std::io::Read, W: std::io::Write>(
+    piece_data: R,
+    piece: PieceInfo,
+    current_pieces: &Vec<PieceInfo>,
+    mut unsealed_sector: W,
+) -> Result<u64, PoRepError> {
+    let current_pieces_lengths: Vec<UnpaddedBytesAmount> = current_pieces
+        .into_iter()
+        .map(|p| p.size.unpadded().into())
+        .collect();
+
+    let (calculated_piece_info, written_bytes) = filecoin_proofs::add_piece(
+        piece_data,
+        &mut unsealed_sector,
+        piece.size.unpadded().into(),
+        &current_pieces_lengths,
+    )?;
+
+    if piece.commitment.cid().hash().digest() != calculated_piece_info.commitment {
+        return Err(PoRepError::InvalidPieceCid(
+            0,
+            piece.commitment.cid().hash().digest().try_into().unwrap(),
+            calculated_piece_info.commitment,
+        ));
     }
+
+    Ok(written_bytes.into())
 }
 
-impl<SectorShape: filecoin_proofs::MerkleTreeTrait + 'static> Sealer<SectorShape> {
-    /// Adds a Piece and padding to already existing sector file and returns how many bytes were written.
-    /// It can return more bytes than the piece size, as it adds padding so a proper Merkle Tree can be created out of the sector.
-    /// You need to supply current pieces which are already in the sector, otherwise they'll be overwritten.
-    pub fn add_piece<R: std::io::Read, W: std::io::Write>(
-        &self,
-        piece_data: R,
-        piece: PieceInfo,
-        current_pieces: &Vec<PieceInfo>,
-        mut unsealed_sector: W,
-    ) -> Result<u64, PoRepError> {
-        let current_pieces_lengths: Vec<UnpaddedBytesAmount> = current_pieces
-            .into_iter()
-            .map(|p| p.size.unpadded().into())
-            .collect();
+/// Adds zero-piece padding to the sector, to fill it out completely, so a proper CommD merkle tree can be calculated.
+/// Accepts current pieces in the sector and how much space they occupy. The space occupied can be calculated by storing results
+/// of [`Self::add_piece`] outputs.
+/// E.g. when sector of size 2048 has a pieces which are 1024 + 256, it'll add zero-commitment pieces so it sums up to 2048.
+pub fn pad_sector(
+    seal_proof: RegisteredSealProof,
+    current_pieces: &Vec<PieceInfo>,
+    sector_occupied_space: u64,
+) -> Result<Vec<PieceInfo>, PoRepError> {
+    let porep_config = seal_to_config(seal_proof);
 
-        let (calculated_piece_info, written_bytes) = add_piece(
-            piece_data,
+    let mut result_pieces = current_pieces.clone();
+    let sector_size: UnpaddedBytesAmount = porep_config.sector_size.into();
+    let padding_pieces = filler_pieces(sector_size - UnpaddedBytesAmount(sector_occupied_space));
+    result_pieces.extend(padding_pieces.into_iter().map(PieceInfo::from));
+
+    Ok(result_pieces)
+}
+
+/// Takes all of the pieces and puts them in a sector with padding.
+/// # Arguments
+///
+/// * `pieces` - source of the data and its expected unpadded length and CommP.
+/// * `unsealed_sector` - where the sector data should be stored (all of it's pieces padded to the sector size).
+///
+/// # References:
+/// * <https://github.com/filecoin-project/rust-fil-proofs/blob/master/filecoin-proofs/src/api/mod.rs#L416>
+/// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/filecoin-proofs/tests/pieces.rs#L369>
+/// * <https://github.com/filecoin-project/rust-fil-proofs/blob/master/fil-proofs-tooling/src/shared.rs#L103>
+pub fn create_sector<R: std::io::Read, W: std::io::Write>(
+    seal_proof: RegisteredSealProof,
+    pieces: Vec<(R, PieceInfo)>,
+    mut unsealed_sector: W,
+) -> Result<Vec<PieceInfo>, PoRepError> {
+    if pieces.is_empty() {
+        return Err(PoRepError::EmptySector);
+    }
+
+    let mut result_pieces: Vec<PieceInfo> = Vec::with_capacity(pieces.len());
+    let mut piece_lengths: Vec<UnpaddedBytesAmount> = Vec::with_capacity(pieces.len());
+    let mut sector_occupied_space: UnpaddedBytesAmount = UnpaddedBytesAmount(0);
+    for (idx, (reader, piece)) in pieces.into_iter().enumerate() {
+        let fc_piece: filecoin_proofs::PieceInfo = piece.into();
+        let (calculated_piece_info, written_bytes) = filecoin_proofs::add_piece(
+            reader,
             &mut unsealed_sector,
-            piece.size.unpadded().into(),
-            &current_pieces_lengths,
+            fc_piece.size,
+            &piece_lengths,
         )?;
 
-        if piece.commitment.cid().hash().digest() != calculated_piece_info.commitment {
+        piece_lengths.push(fc_piece.size);
+
+        // We need to add `written_bytes` not `piece.size`, as `add_piece` adds padding.
+        sector_occupied_space = sector_occupied_space + written_bytes;
+
+        if fc_piece.commitment != calculated_piece_info.commitment {
             return Err(PoRepError::InvalidPieceCid(
-                0,
-                piece.commitment.cid().hash().digest().try_into().unwrap(),
+                idx,
+                fc_piece.commitment,
                 calculated_piece_info.commitment,
             ));
         }
 
-        Ok(written_bytes.into())
+        result_pieces.push(piece);
     }
 
-    /// Adds zero-piece padding to the sector, to fill it out completely, so a proper CommD merkle tree can be calculated.
-    /// Accepts current pieces in the sector and how much space they occupy. The space occupied can be calculated by storing results
-    /// of [`Self::add_piece`] outputs.
-    /// E.g. when sector of size 2048 has a pieces which are 1024 + 256, it'll add zero-commitment pieces so it sums up to 2048.
-    pub fn pad_sector(
-        &self,
-        current_pieces: &Vec<PieceInfo>,
-        sector_occupied_space: u64,
-    ) -> Result<Vec<PieceInfo>, PoRepError> {
-        let mut result_pieces = current_pieces.clone();
-        let sector_size: UnpaddedBytesAmount = self.porep_config.sector_size.into();
-        let padding_pieces =
-            filler_pieces(sector_size - UnpaddedBytesAmount(sector_occupied_space));
-        result_pieces.extend(padding_pieces.into_iter().map(PieceInfo::from));
+    let result_pieces = pad_sector(seal_proof, &result_pieces, sector_occupied_space.into())?;
 
-        Ok(result_pieces)
-    }
+    Ok(result_pieces)
+}
 
-    /// Takes all of the pieces and puts them in a sector with padding.
-    /// # Arguments
-    ///
-    /// * `pieces` - source of the data and its expected unpadded length and CommP.
-    /// * `unsealed_sector` - where the sector data should be stored (all of it's pieces padded to the sector size).
-    ///
-    /// # References:
-    /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/master/filecoin-proofs/src/api/mod.rs#L416>
-    /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/filecoin-proofs/tests/pieces.rs#L369>
-    /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/master/fil-proofs-tooling/src/shared.rs#L103>
-    pub fn create_sector<R: std::io::Read, W: std::io::Write>(
-        &self,
-        pieces: Vec<(R, PieceInfo)>,
-        mut unsealed_sector: W,
-    ) -> Result<Vec<PieceInfo>, PoRepError> {
-        if pieces.is_empty() {
-            return Err(PoRepError::EmptySector);
-        }
+/// Takes the data contained in `unsealed_sector`, seals it and puts it into `sealed_sector`.
+/// Outputs CommR and CommD.
+///
+/// # Arguments
+/// - `cache_directory` - cache where temporary data to speed up computation is stored.
+/// - `unsealed_sector` - sector's storage path, where all of the pieces are stored.
+/// - `sealed_sector` - a path where sealed data will be written.
+/// - `prover_id` - id of a proving entity, must match between Proving and Verification.
+/// - `sector_id` - id of a sector, must match between Proving and Verification.
+/// - `ticket` - randomness seed, must match between Proving and Verification.
+/// - `piece_infos` - list of pieces contained in the `unsealed_sector`.
+///
+/// # References:
+/// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/filecoin-proofs/src/api/seal.rs#L58>
+/// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/filecoin-proofs/src/api/seal.rs#L210>
+pub fn precommit_sector<
+    SectorShape: MerkleTreeTrait + 'static,
+    UnsealedSector: AsRef<Path>,
+    SealedSector: AsRef<Path>,
+    CacheDirectory: AsRef<Path>,
+>(
+    seal_proof: RegisteredSealProof,
+    cache_directory: CacheDirectory,
+    unsealed_sector: UnsealedSector,
+    sealed_sector: SealedSector,
+    prover_id: ProverId,
+    sector_id: SectorNumber,
+    ticket: Ticket,
+    piece_infos: &[PieceInfo],
+) -> Result<PreCommitOutput, PoRepError> {
+    let porep_config = seal_to_config(seal_proof);
+    let cache_directory = cache_directory.as_ref();
+    let sealed_sector = sealed_sector.as_ref();
 
-        let mut result_pieces: Vec<PieceInfo> = Vec::with_capacity(pieces.len());
-        let mut piece_lengths: Vec<UnpaddedBytesAmount> = Vec::with_capacity(pieces.len());
-        let mut sector_occupied_space: UnpaddedBytesAmount = UnpaddedBytesAmount(0);
-        for (idx, (reader, piece)) in pieces.into_iter().enumerate() {
-            let fc_piece: filecoin_proofs::PieceInfo = piece.into();
-            let (calculated_piece_info, written_bytes) =
-                add_piece(reader, &mut unsealed_sector, fc_piece.size, &piece_lengths)?;
+    let piece_infos = piece_infos
+        .into_iter()
+        .map(|p| (*p).into())
+        .collect::<Vec<filecoin_proofs::PieceInfo>>();
 
-            piece_lengths.push(fc_piece.size);
-
-            // We need to add `written_bytes` not `piece.size`, as `add_piece` adds padding.
-            sector_occupied_space = sector_occupied_space + written_bytes;
-
-            if fc_piece.commitment != calculated_piece_info.commitment {
-                return Err(PoRepError::InvalidPieceCid(
-                    idx,
-                    fc_piece.commitment,
-                    calculated_piece_info.commitment,
-                ));
-            }
-
-            result_pieces.push(piece);
-        }
-
-        let result_pieces = self.pad_sector(&result_pieces, sector_occupied_space.into())?;
-
-        Ok(result_pieces)
-    }
-
-    /// Takes the data contained in `unsealed_sector`, seals it and puts it into `sealed_sector`.
-    /// Outputs CommR and CommD.
-    ///
-    /// # Arguments
-    /// - `cache_directory` - cache where temporary data to speed up computation is stored.
-    /// - `unsealed_sector` - sector's storage path, where all of the pieces are stored.
-    /// - `sealed_sector` - a path where sealed data will be written.
-    /// - `prover_id` - id of a proving entity, must match between Proving and Verification.
-    /// - `sector_id` - id of a sector, must match between Proving and Verification.
-    /// - `ticket` - randomness seed, must match between Proving and Verification.
-    /// - `piece_infos` - list of pieces contained in the `unsealed_sector`.
-    ///
-    /// # References:
-    /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/filecoin-proofs/src/api/seal.rs#L58>
-    /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/filecoin-proofs/src/api/seal.rs#L210>
-    pub fn precommit_sector<
-        UnsealedSector: AsRef<Path>,
-        SealedSector: AsRef<Path>,
-        CacheDirectory: AsRef<Path>,
-    >(
-        &self,
-        cache_directory: CacheDirectory,
-        unsealed_sector: UnsealedSector,
-        sealed_sector: SealedSector,
-        prover_id: ProverId,
-        sector_id: SectorNumber,
-        ticket: Ticket,
-        piece_infos: &[PieceInfo],
-    ) -> Result<PreCommitOutput, PoRepError> {
-        let cache_directory = cache_directory.as_ref();
-        let sealed_sector = sealed_sector.as_ref();
-
-        let piece_infos = piece_infos
-            .into_iter()
-            .map(|p| (*p).into())
-            .collect::<Vec<filecoin_proofs::PieceInfo>>();
-
-        let p1_output: SealPreCommitPhase1Output<SectorShape> =
-            filecoin_proofs::seal_pre_commit_phase1(
-                &self.porep_config,
-                cache_directory,
-                unsealed_sector,
-                sealed_sector,
-                prover_id,
-                storage_proofs_core::sector::SectorId::from(u64::from(sector_id)),
-                ticket,
-                &piece_infos,
-            )?;
-
-        let SealPreCommitOutput { comm_r, comm_d } = filecoin_proofs::seal_pre_commit_phase2(
-            &self.porep_config,
-            p1_output,
+    let p1_output: SealPreCommitPhase1Output<SectorShape> =
+        filecoin_proofs::seal_pre_commit_phase1(
+            &porep_config,
             cache_directory,
+            unsealed_sector,
             sealed_sector,
+            prover_id,
+            storage_proofs_core::sector::SectorId::from(u64::from(sector_id)),
+            ticket,
+            &piece_infos,
         )?;
 
-        Ok(PreCommitOutput {
-            comm_r: Commitment::from(comm_r),
-            comm_d: Commitment::from(comm_d),
-        })
-    }
+    let SealPreCommitOutput { comm_r, comm_d } = filecoin_proofs::seal_pre_commit_phase2(
+        &porep_config,
+        p1_output,
+        cache_directory,
+        sealed_sector,
+    )?;
 
-    /// Generates a zk-SNARK proof guaranteeing a sealed_sector at `replica_path` is being stored.
-    ///
-    /// # Arguments:
-    /// - `proving_paramters` - Groth16 params generated by [`crate::porep::generate_random_parameters`] used to prove the sector.
-    /// - `cache_path` - cache directory where temporary data to speed up computation is stored.
-    /// - `replica_path` - a path where sealed data is stored
-    /// - `prover_id` - id of a proving entity, must match between Proving and Verification.
-    /// - `sector_id` - id of a sector, must match between Proving and Verification.
-    /// - `ticket` - randomness seed, must match between Proving and Verification.
-    /// - `seed` - randomness seed, must match between Proving and Verification.
-    /// - `pre_commit` - CommR and CommD produced by `precommit_sector`.
-    /// - `piece_infos` - list of pieces contained in the `replica_path`.
-    ///
-    /// # References:
-    /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/filecoin-proofs/src/api/seal.rs#L350>
-    /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/filecoin-proofs/src/api/seal.rs#L507>
-    pub fn prove_sector<CacheDirectory: AsRef<Path>, SealedSector: AsRef<Path>>(
-        &self,
-        proving_parameters: &groth16::MappedParameters<Bls12>,
-        cache_path: CacheDirectory,
-        replica_path: SealedSector,
-        prover_id: ProverId,
-        sector_id: SectorNumber,
-        ticket: Ticket,
-        seed: Option<Ticket>,
-        pre_commit: PreCommitOutput,
-        piece_infos: &[PieceInfo],
-    ) -> Result<Vec<groth16::Proof<Bls12>>, PoRepError> {
-        let cache_path = cache_path.as_ref();
-        let replica_path = replica_path.as_ref();
+    Ok(PreCommitOutput {
+        comm_r: Commitment::from(comm_r),
+        comm_d: Commitment::from(comm_d),
+    })
+}
 
-        let piece_infos = piece_infos
-            .into_iter()
-            .copied()
-            .map(filecoin_proofs::PieceInfo::from)
-            .collect::<Vec<_>>();
+/// Generates a zk-SNARK proof guaranteeing a sealed_sector at `replica_path` is being stored.
+///
+/// # Arguments:
+/// - `proving_paramters` - Groth16 params generated by [`crate::porep::generate_random_parameters`] used to prove the sector.
+/// - `cache_path` - cache directory where temporary data to speed up computation is stored.
+/// - `replica_path` - a path where sealed data is stored
+/// - `prover_id` - id of a proving entity, must match between Proving and Verification.
+/// - `sector_id` - id of a sector, must match between Proving and Verification.
+/// - `ticket` - randomness seed, must match between Proving and Verification.
+/// - `seed` - randomness seed, must match between Proving and Verification.
+/// - `pre_commit` - CommR and CommD produced by `precommit_sector`.
+/// - `piece_infos` - list of pieces contained in the `replica_path`.
+///
+/// # References:
+/// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/filecoin-proofs/src/api/seal.rs#L350>
+/// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/filecoin-proofs/src/api/seal.rs#L507>
+pub fn prove_sector<
+    SectorShape: MerkleTreeTrait + 'static,
+    CacheDirectory: AsRef<Path>,
+    SealedSector: AsRef<Path>,
+>(
+    seal_proof: RegisteredSealProof,
+    proving_parameters: &groth16::MappedParameters<Bls12>,
+    cache_path: CacheDirectory,
+    replica_path: SealedSector,
+    prover_id: ProverId,
+    sector_id: SectorNumber,
+    ticket: Ticket,
+    seed: Option<Ticket>,
+    pre_commit: PreCommitOutput,
+    piece_infos: &[PieceInfo],
+) -> Result<Vec<groth16::Proof<Bls12>>, PoRepError> {
+    let porep_config = seal_to_config(seal_proof);
+    let cache_path = cache_path.as_ref();
+    let replica_path = replica_path.as_ref();
 
-        let scp1: filecoin_proofs::SealCommitPhase1Output<SectorShape> =
-            filecoin_proofs::seal_commit_phase1_inner(
-                &self.porep_config,
-                cache_path,
-                replica_path,
-                prover_id,
-                storage_proofs_core::sector::SectorId::from(u64::from(sector_id)),
-                ticket,
-                seed,
-                pre_commit.into(),
-                &piece_infos,
-                false,
-            )?;
+    let piece_infos = piece_infos
+        .into_iter()
+        .copied()
+        .map(filecoin_proofs::PieceInfo::from)
+        .collect::<Vec<_>>();
 
-        let SealCommitPhase1Output {
-            vanilla_proofs,
-            comm_d,
-            comm_r,
-            replica_id,
+    let scp1: filecoin_proofs::SealCommitPhase1Output<SectorShape> =
+        filecoin_proofs::seal_commit_phase1_inner(
+            &porep_config,
+            cache_path,
+            replica_path,
+            prover_id,
+            storage_proofs_core::sector::SectorId::from(u64::from(sector_id)),
+            ticket,
             seed,
-            ticket: _,
-        } = scp1;
-
-        let comm_r_safe = as_safe_commitment(&comm_r, "comm_r")?;
-        let comm_d_safe = DefaultPieceDomain::try_from_bytes(&comm_d)?;
-
-        let public_inputs = stacked::PublicInputs {
-            replica_id,
-            tau: Some(stacked::Tau {
-                comm_d: comm_d_safe,
-                comm_r: comm_r_safe,
-            }),
-            k: None,
-            seed: Some(seed),
-        };
-
-        let compound_setup_params = compound_proof::SetupParams {
-            vanilla_params: setup_params(&self.porep_config)?,
-            partitions: Some(usize::from(self.porep_config.partitions)),
-            priority: false,
-        };
-
-        let compound_public_params =
-            <StackedCompound<SectorShape, DefaultPieceHasher> as CompoundProof<
-                StackedDrg<'_, SectorShape, DefaultPieceHasher>,
-                _,
-            >>::setup(&compound_setup_params)?;
-
-        let groth_proofs = StackedCompound::<SectorShape, DefaultPieceHasher>::circuit_proofs(
-            &public_inputs,
-            vanilla_proofs,
-            &compound_public_params.vanilla_params,
-            proving_parameters,
-            compound_public_params.priority,
+            pre_commit.into(),
+            &piece_infos,
+            false,
         )?;
 
-        Ok(groth_proofs)
-    }
+    let SealCommitPhase1Output {
+        vanilla_proofs,
+        comm_d,
+        comm_r,
+        replica_id,
+        seed,
+        ticket: _,
+    } = scp1;
+
+    let comm_r_safe = as_safe_commitment(&comm_r, "comm_r")?;
+    let comm_d_safe = DefaultPieceDomain::try_from_bytes(&comm_d)?;
+
+    let public_inputs = stacked::PublicInputs {
+        replica_id,
+        tau: Some(stacked::Tau {
+            comm_d: comm_d_safe,
+            comm_r: comm_r_safe,
+        }),
+        k: None,
+        seed: Some(seed),
+    };
+
+    let compound_setup_params = compound_proof::SetupParams {
+        vanilla_params: setup_params(&porep_config)?,
+        partitions: Some(usize::from(porep_config.partitions)),
+        priority: false,
+    };
+
+    let compound_public_params =
+        <StackedCompound<SectorShape, DefaultPieceHasher> as CompoundProof<
+            StackedDrg<'_, SectorShape, DefaultPieceHasher>,
+            _,
+        >>::setup(&compound_setup_params)?;
+
+    let groth_proofs = StackedCompound::<SectorShape, DefaultPieceHasher>::circuit_proofs(
+        &public_inputs,
+        vanilla_proofs,
+        &compound_public_params.vanilla_params,
+        proving_parameters,
+        compound_public_params.priority,
+    )?;
+
+    Ok(groth_proofs)
 }
 
 /// Takes remaining space to be filled with zero-byte pieces and generates filler pieces.
@@ -459,8 +447,7 @@ mod test {
     #[case(vec![2048])]
     fn padding_for_sector(#[case] piece_sizes: Vec<usize>) {
         use primitives::proofs::RegisteredSealProof;
-
-        let sealer = select_sealer(RegisteredSealProof::StackedDRG2KiBV1P1);
+        let seal_proof = RegisteredSealProof::StackedDRG2KiBV1P1;
 
         let piece_infos: Vec<(Cursor<Vec<u8>>, PieceInfo)> = piece_sizes
             .into_iter()
@@ -473,19 +460,19 @@ mod test {
             .collect();
 
         // Create a file-like sector where non-occupied bytes are 0
-        let sector_size = sealer.porep_config.sector_size.0 as usize;
+        let sector_size = seal_proof.sector_size().bytes() as usize;
         let mut staged_sector = vec![0u8; sector_size];
 
-        let pieces: Vec<filecoin_proofs::PieceInfo> = sealer
-            .create_sector(piece_infos, Cursor::new(&mut staged_sector))
-            .unwrap()
-            .into_iter()
-            .map(|p| p.into())
-            .collect();
+        let pieces: Vec<filecoin_proofs::PieceInfo> =
+            create_sector(seal_proof, piece_infos, Cursor::new(&mut staged_sector))
+                .unwrap()
+                .into_iter()
+                .map(|p| p.into())
+                .collect();
 
-        let pieces_commd =
-            filecoin_proofs::compute_comm_d(sealer.porep_config.sector_size, &pieces).unwrap();
-        let data_commd = compute_data_comm_d(sealer.porep_config.sector_size, &staged_sector);
+        let f_sector_size: filecoin_proofs::SectorSize = seal_proof.sector_size().bytes().into();
+        let pieces_commd = filecoin_proofs::compute_comm_d(f_sector_size, &pieces).unwrap();
+        let data_commd = compute_data_comm_d(f_sector_size, &staged_sector);
         assert_eq!(data_commd, pieces_commd)
     }
 

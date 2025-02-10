@@ -18,6 +18,7 @@ pub enum SectorSize {
     _2KiB,
     _8MiB,
     _512MiB,
+    _1GiB,
     _32GiB,
     _64GiB,
 }
@@ -30,6 +31,7 @@ impl SectorSize {
             SectorSize::_2KiB => 2 << 10,
             SectorSize::_8MiB => 8 << 20,
             SectorSize::_512MiB => 512 << 20,
+            SectorSize::_1GiB => 1 << 30,
             SectorSize::_32GiB => 32 << 30,
             SectorSize::_64GiB => 2 * (32 << 30),
         }
@@ -45,6 +47,7 @@ impl core::fmt::Display for SectorSize {
             SectorSize::_2KiB => write!(f, "2KiB"),
             SectorSize::_8MiB => write!(f, "8MiB"),
             SectorSize::_512MiB => write!(f, "512MiB"),
+            SectorSize::_1GiB => write!(f, "1GiB"),
             SectorSize::_32GiB => write!(f, "32GiB"),
             SectorSize::_64GiB => write!(f, "64GiB"),
         }

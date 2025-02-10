@@ -42,8 +42,9 @@ pub mod pallet {
     pub const LOG_TARGET: &'static str = "runtime::randomness";
 
     /// Size of previous [`AuthorVrf`] values. Used in [`AuthorVrfHistory`].
-    // This value is arbitrary, originally "inspired" by the 256 blocks of history the node keeps.
-    const HISTORY_SIZE: u32 = 256;
+    // This value is arbitrary, originally "inspired" by the 1024 blocks of history the node keeps.
+    // This has to be at least as long as the longest pre-commit. Currently around ~300 blocks for 512MB sector.
+    const HISTORY_SIZE: u32 = 1024;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {

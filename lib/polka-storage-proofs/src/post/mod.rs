@@ -3,8 +3,8 @@ use std::{collections::BTreeMap, path::PathBuf};
 use bellperson::groth16;
 use blstrs::Bls12;
 use filecoin_proofs::{
-    as_safe_commitment, parameters::window_post_setup_params, PoStType, PrivateReplicaInfo,
-    SectorShape2KiB, SectorShape8MiB, SectorShapeBase,
+    as_safe_commitment, parameters::window_post_setup_params, MerkleTreeTrait, PoStConfig,
+    PoStType, PrivateReplicaInfo,
 };
 use primitives::{proofs::RegisteredPoStProof, sector::SectorNumber};
 use rand::rngs::OsRng;
@@ -20,6 +20,65 @@ use crate::{
 
 pub type PoStParameters = groth16::MappedParameters<Bls12>;
 
+/// Automatically sets the generic parameters for any function that is generic over a SectorShape (sector size).
+///
+/// If a function has multiple generic parameters, the first one needs to be SectorShape.
+///
+/// # Reasoning
+///
+/// Underlying `rust-fil-proofs` functions used for proving are generic.
+/// Those generics are dependant on the sector size.
+/// This macro avoids the boilerplate of writing a `match` statement every time we need to use `rust-fil-proofs`.
+///
+/// # Examples
+///
+/// ```
+/// # #[macro_use] extern crate polka_storage_proofs;
+/// fn foo<SectorShape: filecoin_proofs::MerkleTreeTrait + 'static>() {}
+///
+/// match_post_proof!(
+///     primitives::proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+///     foo::<_>()
+/// );
+/// ```
+///
+/// ```
+/// # #[macro_use] extern crate polka_storage_proofs;
+/// fn bar<SectorShape: filecoin_proofs::MerkleTreeTrait + 'static, R: AsRef<std::path::Path>>() {}
+///
+/// match_post_proof!(
+///     primitives::proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+///     bar::<_, std::path::PathBuf>()
+/// );
+/// ```
+#[macro_export]
+macro_rules! match_post_proof {
+    ($seal_proof:expr, $func:ident::<_>($($args:expr),*)) => {
+        match_post_proof!($seal_proof, $func::<_,>($($args),*))
+    };
+
+    ($seal_proof:expr, $func:ident::<_, $($generic:ty),*>($($args:expr),*)) => {
+        match $seal_proof {
+            ::primitives::proofs::RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => $func::<::filecoin_proofs::SectorShape2KiB, $($generic),*>($($args),*),
+            ::primitives::proofs::RegisteredPoStProof::StackedDRGWindow8MiBV1 => $func::<::filecoin_proofs::SectorShape8MiB, $($generic),*>($($args),*),
+            ::primitives::proofs::RegisteredPoStProof::StackedDRGWindow512MiBV1 => $func::<::filecoin_proofs::SectorShape512MiB, $($generic),*>($($args),*),
+            ::primitives::proofs::RegisteredPoStProof::StackedDRGWindow1GiBV1 => $func::<::filecoin_proofs::SectorShape1GiB, $($generic),*>($($args),*),
+        }
+    };
+}
+
+fn generate_params<S: MerkleTreeTrait + 'static>(
+    post_config: PoStConfig,
+) -> Result<groth16::Parameters<Bls12>, PoStError> {
+    let public_params = filecoin_proofs::parameters::window_post_public_params::<S>(&post_config)?;
+    let circuit =
+        storage_proofs_post::fallback::FallbackPoStCompound::<S>::blank_circuit(&public_params);
+
+    Ok(groth16::generate_random_parameters::<Bls12, _, _>(
+        circuit, &mut OsRng,
+    )?)
+}
+
 /// Generates parameters for proving and verifying PoSt.
 /// It should be called once and then reused across provers and the verifier.
 /// Verifying Key is only needed for verification (no_std), rest of the params are required for proving (std).
@@ -28,19 +87,7 @@ pub fn generate_random_groth16_parameters(
 ) -> Result<groth16::Parameters<Bls12>, PoStError> {
     let post_config = seal_to_config(seal_proof);
 
-    let circuit = match seal_proof {
-        RegisteredPoStProof::StackedDRGWindow2KiBV1P1
-        | RegisteredPoStProof::StackedDRGWindow8MiBV1 => {
-            let public_params = filecoin_proofs::parameters::window_post_public_params::<
-                SectorShapeBase,
-            >(&post_config)?;
-            storage_proofs_post::fallback::FallbackPoStCompound::<SectorShapeBase>::blank_circuit(
-                &public_params,
-            )
-        }
-    };
-
-    Ok(groth16::generate_random_parameters(circuit, &mut OsRng)?)
+    match_post_proof!(seal_proof, generate_params::<_>(post_config))
 }
 
 /// Loads Groth16 parameters from the specified path.
@@ -59,11 +106,10 @@ pub struct ReplicaInfo {
 }
 
 /// Generates Windowed PoSt for a replica.
-/// Only supports 2KiB sectors.
 ///
 /// References:
 /// * <https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/filecoin-proofs/src/api/window_post.rs#L100>
-pub fn generate_window_post(
+pub fn generate_window_post<S: MerkleTreeTrait + 'static>(
     proof_type: RegisteredPoStProof,
     groth_params: &groth16::MappedParameters<Bls12>,
     randomness: Ticket,
@@ -87,42 +133,16 @@ pub fn generate_window_post(
         priority: post_config.priority,
     };
 
-    let (pub_params, replicas) = match proof_type {
-        RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => {
-            let pub_params: compound_proof::PublicParams<'_, FallbackPoSt<'_, SectorShape2KiB>> =
-                FallbackPoStCompound::setup(&setup_params)?;
+    let pub_params: compound_proof::PublicParams<'_, FallbackPoSt<'_, S>> =
+        FallbackPoStCompound::setup(&setup_params)?;
 
-            let mut replicas = BTreeMap::new();
-            for replica in partition_replicas {
-                replicas.insert(
-                    storage_proofs_core::sector::SectorId::from(u64::from(replica.sector_id)),
-                    PrivateReplicaInfo::<SectorShape2KiB>::new(
-                        replica.replica_path,
-                        replica.comm_r,
-                        replica.cache_path,
-                    )?,
-                );
-            }
-            (pub_params, replicas)
-        }
-        RegisteredPoStProof::StackedDRGWindow8MiBV1 => {
-            let pub_params: compound_proof::PublicParams<'_, FallbackPoSt<'_, SectorShape8MiB>> =
-                FallbackPoStCompound::setup(&setup_params)?;
-
-            let mut replicas = BTreeMap::new();
-            for replica in partition_replicas {
-                replicas.insert(
-                    storage_proofs_core::sector::SectorId::from(u64::from(replica.sector_id)),
-                    PrivateReplicaInfo::<SectorShape8MiB>::new(
-                        replica.replica_path,
-                        replica.comm_r,
-                        replica.cache_path,
-                    )?,
-                );
-            }
-            (pub_params, replicas)
-        }
-    };
+    let mut replicas = BTreeMap::new();
+    for replica in partition_replicas {
+        replicas.insert(
+            storage_proofs_core::sector::SectorId::from(u64::from(replica.sector_id)),
+            PrivateReplicaInfo::<S>::new(replica.replica_path, replica.comm_r, replica.cache_path)?,
+        );
+    }
 
     let trees: Vec<_> = replicas
         .values()
@@ -168,28 +188,18 @@ pub fn generate_window_post(
 /// * <https://github.com/filecoin-project/rust-filecoin-proofs-api/blob/b44e7cecf2a120aa266b6886628e869ba67252af/src/registry.rs#L644>
 fn seal_to_config(seal_proof: RegisteredPoStProof) -> filecoin_proofs::PoStConfig {
     match seal_proof {
-        RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => {
-            filecoin_proofs::PoStConfig {
-                sector_size: filecoin_proofs::SectorSize(seal_proof.sector_size().bytes()),
-                challenge_count: filecoin_proofs::WINDOW_POST_CHALLENGE_COUNT,
-                // https://github.com/filecoin-project/rust-fil-proofs/blob/266acc39a3ebd6f3d28c6ee335d78e2b7cea06bc/filecoin-proofs/src/constants.rs#L104
-                sector_count: 2,
-                typ: PoStType::Window,
-                priority: true,
-                api_version: storage_proofs_core::api_version::ApiVersion::V1_2_0,
-            }
-        }
-        RegisteredPoStProof::StackedDRGWindow8MiBV1 => {
-            filecoin_proofs::PoStConfig {
-                sector_size: filecoin_proofs::SectorSize(seal_proof.sector_size().bytes()),
-                challenge_count: filecoin_proofs::WINDOW_POST_CHALLENGE_COUNT,
-                // https://github.com/filecoin-project/rust-fil-proofs/blob/266acc39a3ebd6f3d28c6ee335d78e2b7cea06bc/filecoin-proofs/src/constants.rs#L104
-                sector_count: 2,
-                typ: PoStType::Window,
-                priority: true,
-                api_version: storage_proofs_core::api_version::ApiVersion::V1_2_0,
-            }
-        }
+        // https://github.com/filecoin-project/rust-fil-proofs/blob/266acc39a3ebd6f3d28c6ee335d78e2b7cea06bc/filecoin-proofs/src/constants.rs#L104
+        RegisteredPoStProof::StackedDRGWindow2KiBV1P1
+        | RegisteredPoStProof::StackedDRGWindow8MiBV1
+        | RegisteredPoStProof::StackedDRGWindow512MiBV1
+        | RegisteredPoStProof::StackedDRGWindow1GiBV1 => filecoin_proofs::PoStConfig {
+            sector_size: filecoin_proofs::SectorSize(seal_proof.sector_size().bytes()),
+            challenge_count: filecoin_proofs::WINDOW_POST_CHALLENGE_COUNT,
+            sector_count: 2,
+            typ: PoStType::Window,
+            priority: true,
+            api_version: storage_proofs_core::api_version::ApiVersion::V1_2_0,
+        },
     }
 }
 

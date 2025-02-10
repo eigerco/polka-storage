@@ -21,6 +21,7 @@ cid = { workspace = true, features = ["std"] }
 clap = { workspace = true, features = ["derive"] }
 codec = { workspace = true }
 ed25519-dalek = { workspace = true, features = ["pem", "pkcs8"] }
+filecoin-proofs.workspace = true
 hex = { workspace = true }
 jsonrpsee = { workspace = true, features = ["http-client", "macros", "server", "ws-client"] }
 libp2p.workspace = true

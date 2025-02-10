@@ -1,8 +1,14 @@
 use std::{path::PathBuf, sync::Arc};
 
-use polka_storage_proofs::porep::{
-    sealer::{prepare_piece, select_sealer, BlstrsProof, PreCommitOutput, SubstrateProof},
-    PoRepError, PoRepParameters,
+use polka_storage_proofs::{
+    match_seal_proof,
+    porep::{
+        sealer::{
+            add_piece, pad_sector, precommit_sector, prepare_piece, prove_sector, BlstrsProof,
+            PreCommitOutput, SubstrateProof,
+        },
+        PoRepError, PoRepParameters,
+    },
 };
 use primitives::{
     commitment::{piece::PieceInfo, CommD, CommP, CommR, Commitment},
@@ -110,7 +116,6 @@ impl UnsealedSector {
         commitment: Commitment<CommP>,
     ) -> Result<(), SectorError> {
         self.deals.push((deal_id, deal));
-        let sealer = select_sealer(self.seal_proof);
 
         let handle: JoinHandle<Result<(PieceInfo, u64), SectorError>> =
             tokio::task::spawn_blocking({
@@ -147,21 +152,23 @@ impl UnsealedSector {
         cache_dir_path: PathBuf,
         sealed_path: PathBuf,
     ) -> Result<PreCommittedSector, SectorError> {
-        let sealer = select_sealer(self.seal_proof);
-
         tokio::fs::create_dir_all(&cache_dir_path).await?;
         tokio::fs::File::create_new(&sealed_path).await?;
 
         // Pad sector so CommD can be properly calculated.
-        self.piece_infos = sealer.pad_sector(&self.piece_infos, self.occupied_sector_space)?;
+        self.piece_infos = pad_sector(
+            self.seal_proof,
+            &self.piece_infos,
+            self.occupied_sector_space,
+        )?;
         tracing::debug!("piece_infos: {:?}", self.piece_infos);
         tracing::info!("Padded sector, commencing pre-commit and getting last finalized block");
 
-        let current_block = xt_client.height(true).await?;
-        tracing::info!("Current block: {current_block}");
+        let seal_randomness_height = xt_client.height(true).await?;
+        tracing::info!("Current block: {seal_randomness_height}");
 
         let digest = xt_client
-            .get_randomness(current_block)
+            .get_randomness(seal_randomness_height)
             .await?
             .expect("randomness to be available as we wait for it");
 
@@ -171,7 +178,7 @@ impl UnsealedSector {
         let ticket = draw_randomness(
             &digest,
             DomainSeparationTag::SealRandomness,
-            current_block,
+            seal_randomness_height,
             &entropy,
         );
 
@@ -184,14 +191,18 @@ impl UnsealedSector {
 
             let piece_infos = self.piece_infos.clone();
             tokio::task::spawn_blocking(move || {
-                sealer.precommit_sector(
-                    cache_dir,
-                    unsealed_path,
-                    sealed_path,
-                    prover_id,
-                    sector_number,
-                    ticket,
-                    &piece_infos,
+                match_seal_proof!(
+                    self.seal_proof,
+                    precommit_sector::<_, _, _, _>(
+                        self.seal_proof,
+                        cache_dir,
+                        unsealed_path,
+                        sealed_path,
+                        prover_id,
+                        sector_number,
+                        ticket,
+                        &piece_infos
+                    )
                 )
             })
         };
@@ -206,8 +217,6 @@ impl UnsealedSector {
         let sealing_output_commr = Commitment::<CommR>::from(sealing_output.comm_r);
         let sealing_output_commd = Commitment::<CommD>::from(sealing_output.comm_d);
 
-        tracing::debug!("Precommiting at block: {}", current_block);
-
         // We're taking the maximum deal_block as per Lotus BasicPreCommitPolicy
         // https://github.com/filecoin-project/lotus/blob/cb1ff81cc2c74ac5ad4cba62d69fd74c973f7b34/storage/pipeline/precommit_policy.go#L36-L37
         // We don't support Mode 2 as we don't support commited capacity
@@ -217,6 +226,9 @@ impl UnsealedSector {
             .map(|(_, deal)| deal.end_block)
             .max()
             .expect("always at least 1 deal in a sector");
+
+        let current_block = xt_client.height(true).await?;
+        tracing::info!("Current block: {current_block}, Seal Randomness: {seal_randomness_height}");
 
         let result = xt_client
             .pre_commit_sectors(
@@ -228,7 +240,7 @@ impl UnsealedSector {
                     seal_proof: self.seal_proof,
                     sealed_cid: sealing_output_commr.cid(),
                     unsealed_cid: sealing_output_commd.cid(),
-                    seal_randomness_height: current_block,
+                    seal_randomness_height,
                 }],
                 true,
             )
@@ -255,7 +267,8 @@ impl UnsealedSector {
             sealed_path,
             sealing_output_commr,
             sealing_output_commd,
-            current_block,
+            seal_randomness_height,
+            ticket,
             precommited_sectors[0].block,
         )
         .await?)
@@ -314,6 +327,11 @@ pub struct PreCommittedSector {
     /// Available at [`SectorState::Sealed`] and later.
     pub seal_randomness_height: u64,
 
+    /// Fetched randomness at block `seal_randomness_height`.
+    /// We fetch it and save it, as its cleared on-chain every X blocks.
+    /// If it takes too long, [`PipelineMessage::ProveCommit`] won't have data to properly execute.
+    pub seal_randomness: [u8; 32],
+
     /// Block at which the sector was precommitted (extrinsic submitted on-chain).
     ///
     /// It is used as a randomness seed to create a PoRep.
@@ -333,6 +351,7 @@ impl PreCommittedSector {
         comm_r: Commitment<CommR>,
         comm_d: Commitment<CommD>,
         seal_randomness_height: u64,
+        seal_randomness: [u8; 32],
         precommit_block: u64,
     ) -> Result<Self, std::io::Error> {
         tokio::fs::remove_file(unsealed.unsealed_path).await?;
@@ -348,6 +367,7 @@ impl PreCommittedSector {
             comm_r,
             comm_d,
             seal_randomness_height,
+            seal_randomness,
             precommit_block,
         })
     }
@@ -365,24 +385,12 @@ impl PreCommittedSector {
         // 10 blocks = 1 minute, only testnet
         const PRECOMMIT_CHALLENGE_DELAY: u64 = 10;
 
-        let sealer = select_sealer(self.seal_proof);
-
-        let seal_randomness_height = self.seal_randomness_height;
-        let Some(digest) = xt_client.get_randomness(seal_randomness_height).await? else {
-            tracing::error!("Out-of-the-state transition, this SHOULD NOT happen");
-            return Err(SectorError::RandomnessNotAvailable);
-        };
-
-        let entropy = xt_keypair.account_id().encode();
         // Must match pallet's logic or otherwise proof won't be verified:
         // https://github.com/eigerco/polka-storage/blob/af51a9b121c9b02e0bf6f02f5e835091ab46af76/pallets/storage-provider/src/lib.rs#L1539
-        let ticket = draw_randomness(
-            &digest,
-            DomainSeparationTag::SealRandomness,
-            seal_randomness_height,
-            &entropy,
-        );
+        let seal_randomness_height = self.seal_randomness_height;
+        let ticket = self.seal_randomness;
 
+        let entropy = xt_keypair.account_id().encode();
         let prove_commit_block = self.precommit_block + PRECOMMIT_CHALLENGE_DELAY;
         tracing::info!("Wait for block {} to get randomness", prove_commit_block);
         tokio::select! {
@@ -425,19 +433,23 @@ impl PreCommittedSector {
                 let piece_infos = self.piece_infos.clone();
 
                 tokio::task::spawn_blocking(move || {
-                    sealer.prove_sector(
-                        porep_params.as_ref(),
-                        cache_dir,
-                        sealed_path,
-                        prover_id,
-                        self.sector_number,
-                        ticket,
-                        Some(seed),
-                        PreCommitOutput {
-                            comm_r: self.comm_r,
-                            comm_d: self.comm_d,
-                        },
-                        &piece_infos,
+                    match_seal_proof!(
+                        self.seal_proof,
+                        prove_sector::<_, _, _>(
+                            self.seal_proof,
+                            porep_params.as_ref(),
+                            cache_dir,
+                            sealed_path,
+                            prover_id,
+                            self.sector_number,
+                            ticket,
+                            Some(seed),
+                            PreCommitOutput {
+                                comm_r: self.comm_r,
+                                comm_d: self.comm_d,
+                            },
+                            &piece_infos
+                        )
                     )
                 })
             };
