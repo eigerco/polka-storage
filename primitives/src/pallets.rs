@@ -148,6 +148,8 @@ pub struct DeadlineInfo<BlockNumber> {
     pub challenge_block: BlockNumber,
     /// Block at which the deadline opens.
     pub start: BlockNumber,
+    /// Block at which the deadline closes.
+    pub close: BlockNumber,
 }
 
 /// Snapshot information about a deadline. It's partitions and sectors assigned to it.

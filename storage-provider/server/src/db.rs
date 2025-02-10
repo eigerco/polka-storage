@@ -3,6 +3,7 @@ use std::{
     sync::atomic::{AtomicU32, Ordering},
 };
 
+use polka_storage_provider_common::sector::UnsealedSector;
 use primitives::sector::{SectorNumber, SectorNumberError};
 use rocksdb::{ColumnFamily, ColumnFamilyDescriptor, Options as DBOptions, DB as RocksDB};
 use serde::{de::DeserializeOwned, Serialize};
@@ -31,8 +32,9 @@ pub enum DBError {
 
 const ACCEPTED_DEAL_PROPOSALS_CF: &str = "accepted_deal_proposals";
 const SECTORS_CF: &str = "sectors";
+const UNSEALED_SECTORS_CF: &str = "unsealed_sectors";
 
-const COLUMN_FAMILIES: [&str; 2] = [ACCEPTED_DEAL_PROPOSALS_CF, SECTORS_CF];
+const COLUMN_FAMILIES: [&str; 3] = [ACCEPTED_DEAL_PROPOSALS_CF, SECTORS_CF, UNSEALED_SECTORS_CF];
 
 pub struct DealDB {
     database: RocksDB,
@@ -192,5 +194,60 @@ impl DealDB {
         SectorNumber::try_from(previous + 1)
     }
 
-    // NOTE(@jmg-duarte,03/10/2024): I think that from here onwards we're very close of reinventing the LID, but so be it
+    /// Insert an unsealed sector.
+    pub fn insert_unsealed_sector(
+        &self,
+        sector_number: SectorNumber,
+        unsealed_sector: &UnsealedSector,
+    ) -> Result<(), DBError> {
+        let cf_handle = self.cf_handle(UNSEALED_SECTORS_CF);
+        let key = u32::from(sector_number).to_le_bytes();
+        let json = serde_json::to_vec(&unsealed_sector)?;
+        Ok(self.database.put_cf(cf_handle, key, json)?)
+    }
+
+    /// Get an unsealed sector.
+    pub fn get_unsealed_sector(
+        &self,
+        sector_number: SectorNumber,
+    ) -> Result<Option<UnsealedSector>, DBError> {
+        let cf_handle = self.cf_handle(UNSEALED_SECTORS_CF);
+        let sector_number_bytes = u32::from(sector_number).to_le_bytes();
+
+        let Some(slice) = self
+            .database
+            .get_pinned_cf(cf_handle, sector_number_bytes)?
+        else {
+            return Ok(None);
+        };
+
+        // This serialization error *should* never happen if you didn't f-up any insert calls
+        serde_json::from_reader(slice.as_ref())
+            .map(Some)
+            .map_err(DBError::InvalidSectorData)
+    }
+
+    pub fn remove_unsealed_sector(&self, sector_number: SectorNumber) -> Result<(), DBError> {
+        let cf_handle = self.cf_handle(UNSEALED_SECTORS_CF);
+        self.database
+            .delete_cf(cf_handle, u32::from(sector_number).to_le_bytes())
+            .map_err(DBError::from)
+    }
+
+    /// Iterator over unsealed sectors.
+    pub fn iter_unsealed_sectors(
+        &self,
+    ) -> impl Iterator<Item = Result<UnsealedSector, DBError>> + '_ {
+        let cf_handle = self.cf_handle(UNSEALED_SECTORS_CF);
+        self.database
+            .iterator_cf(cf_handle, rocksdb::IteratorMode::Start)
+            .flat_map(|res| {
+                res.map(|(_, value)| {
+                    // NOTE(@jmg-duarte,03/02/2025): maybe add an error! ?
+                    serde_json::from_slice::<UnsealedSector>(&value)
+                        .map_err(DBError::InvalidSectorData)
+                })
+                .map_err(DBError::from)
+            })
+    }
 }

@@ -174,3 +174,8 @@ mater-coverage:
     cargo tarpaulin -p mater --locked --skip-clean --fail-immediately --out html lcov --output-dir coverage/mater
 
 full-coverage: pallet-storage-provider-coverage market-coverage mater-coverage
+
+# Generate both PoRep and PoSt parameters given the size
+generate-proof-params sector-size:
+    cargo r -r -p polka-storage-provider-client -- proofs porep-params --seal-proof "{{sector-size}}"
+    cargo r -r -p polka-storage-provider-client -- proofs post-params --post-type "{{sector-size}}"

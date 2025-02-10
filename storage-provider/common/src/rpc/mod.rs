@@ -14,6 +14,7 @@ use storagext::types::market::{
 };
 use subxt::ext::sp_core::crypto::Ss58Codec;
 
+use crate::config::sealing::SealingConfiguration;
 pub use crate::rpc::error::RpcError;
 
 #[rpc(server, client, namespace = "v0")]
@@ -51,6 +52,8 @@ pub struct ServerInfo {
 
     pub post_proof: RegisteredPoStProof,
     pub proving_period_start: u64,
+
+    pub sealing_configuration: SealingConfiguration,
 }
 
 impl ServerInfo {
@@ -60,6 +63,7 @@ impl ServerInfo {
         seal_proof: RegisteredSealProof,
         post_proof: RegisteredPoStProof,
         proving_period_start: u64,
+        sealing_configuration: SealingConfiguration,
     ) -> Self {
         Self {
             start_time: Utc::now(),
@@ -67,6 +71,7 @@ impl ServerInfo {
             seal_proof,
             post_proof,
             proving_period_start,
+            sealing_configuration,
         }
     }
 }
