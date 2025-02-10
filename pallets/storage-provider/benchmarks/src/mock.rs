@@ -21,14 +21,34 @@ type BlockNumber = u64;
 
 const MINUTES: BlockNumber = 1;
 
-frame_support::construct_runtime!(
-    pub enum Test {
-        System: frame_system,
-        Balances: pallet_balances,
-        StorageProvider: pallet_storage_provider,
-        Market: pallet_market,
-    }
-);
+#[frame_support::runtime]
+mod runtime {
+    #[runtime::runtime]
+    #[runtime::derive(
+        RuntimeCall,
+        RuntimeEvent,
+        RuntimeError,
+        RuntimeOrigin,
+        RuntimeFreezeReason,
+        RuntimeHoldReason,
+        RuntimeSlashReason,
+        RuntimeLockId,
+        RuntimeTask
+    )]
+    pub struct Test;
+
+    #[runtime::pallet_index(0)]
+    pub type System = frame_system::Pallet<Test>;
+
+    #[runtime::pallet_index(1)]
+    pub type Balances = pallet_balances::Pallet<Test>;
+
+    #[runtime::pallet_index(2)]
+    pub type StorageProvider = pallet_storage_provider::Pallet<Test>;
+
+    #[runtime::pallet_index(3)]
+    pub type Market = pallet_market::Pallet<Test>;
+}
 
 pub type Signature = MultiSignature;
 pub type AccountPublic = <Signature as Verify>::Signer;
