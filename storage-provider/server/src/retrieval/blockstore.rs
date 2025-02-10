@@ -164,9 +164,8 @@ mod tests {
         tokio::fs::copy(&location, &raw_piece_path).await.unwrap();
 
         // Index the piece
-        crate::indexer::tests::index_piece(Arc::clone(&db), dummy_commitment, raw_piece_path)
-            .await
-            .unwrap();
+        crate::indexer::tests::index_piece_util(Arc::clone(&db), dummy_commitment, raw_piece_path)
+            .await;
 
         let blockstore = ProviderBlockstore::new(temp_dir.path(), db);
         (temp_dir, blockstore)

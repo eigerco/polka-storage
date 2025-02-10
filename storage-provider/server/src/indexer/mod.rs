@@ -1,11 +1,9 @@
-use std::{
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{path::Path, sync::Arc};
 
 use futures::{pin_mut, StreamExt};
 use local_index_directory::{IndexRecord, OffsetSize, Service};
 use mater::stream_blocks_metadata;
+use polka_storage_provider_common::sector::ProvenSector;
 use primitives::commitment::{CommP, Commitment};
 use tokio::{fs::File, io::BufReader, sync::mpsc::UnboundedReceiver, task::spawn_blocking};
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
@@ -17,13 +15,8 @@ pub mod local_index_directory;
 
 #[derive(Debug, Clone)]
 pub enum IndexerMessage {
-    /// Start indexing the raw piece
-    IndexPiece {
-        /// Piece commitment
-        commitment: Commitment<CommP>,
-        /// Raw piece path
-        piece_path: PathBuf,
-    },
+    /// Start indexing the sector
+    IndexSector(ProvenSector),
 }
 
 #[derive(Clone)]
@@ -66,28 +59,32 @@ where
     debug!("Command received: {command:?}");
 
     match command {
-        IndexerMessage::IndexPiece {
-            commitment,
-            piece_path,
-        } => {
-            tracker.spawn(on_index_piece(db, commitment, piece_path));
+        IndexerMessage::IndexSector(sector) => {
+            sector
+                .pieces_locations
+                .into_iter()
+                .for_each(|(commitment, piece_path)| {
+                    let db = Arc::clone(&db);
+                    tracker.spawn(index_piece(db, commitment, piece_path));
+                });
         }
     }
 }
 
 #[instrument(skip_all, fields(piece_cid = %commitment.cid()))]
-async fn on_index_piece<D, P>(
-    db: Arc<D>,
-    commitment: Commitment<CommP>,
-    piece_path: P,
-) -> Result<(), ServerError>
+async fn index_piece<D, P>(db: Arc<D>, commitment: Commitment<CommP>, piece_path: P)
 where
     D: Service + Send + Sync + 'static,
     P: AsRef<Path>,
 {
-    info!("indexing piece");
+    let records = match piece_indexes(piece_path).await {
+        Ok(records) => records,
+        Err(err) => {
+            error!(?err, "piece indexing failed with an error");
+            return;
+        }
+    };
 
-    let records = piece_indexes(piece_path).await?;
     // Move adding the index to the blocking pool. The RocksDB API is sync.
     match spawn_blocking({
         let db = Arc::clone(&db);
@@ -105,8 +102,6 @@ where
             error!(?err, "piece indexing panicked");
         }
     };
-
-    Ok(())
 }
 
 /// Prepares indexes of a raw piece.
@@ -148,27 +143,23 @@ pub mod tests {
     use tempfile::tempdir;
     use tokio::{fs::File, io::BufReader};
 
-    use crate::{
-        indexer::{
-            local_index_directory::{
-                rdb::{RocksDBLid, RocksDBStateStoreConfig},
-                Service,
-            },
-            on_index_piece,
+    use crate::indexer::{
+        index_piece,
+        local_index_directory::{
+            rdb::{RocksDBLid, RocksDBStateStoreConfig},
+            Service,
         },
-        ServerError,
     };
 
-    pub(crate) async fn index_piece<D, P>(
+    pub(crate) async fn index_piece_util<D, P>(
         db: Arc<D>,
         commitment: Commitment<CommP>,
         piece_path: P,
-    ) -> Result<(), ServerError>
-    where
+    ) where
         D: Service + Send + Sync + 'static,
         P: AsRef<Path>,
     {
-        on_index_piece(db, commitment, piece_path).await
+        index_piece(db, commitment, piece_path).await
     }
 
     #[tokio::test]
@@ -185,9 +176,7 @@ pub mod tests {
         // Index the piece
         let dummy_commitment = Commitment::<CommP>::from([0; 32]);
         let piece_path = PathBuf::from("tests/fixtures/spaceglenda_wrapped_v2.car");
-        on_index_piece(Arc::clone(&db), dummy_commitment, piece_path.clone())
-            .await
-            .unwrap();
+        index_piece(Arc::clone(&db), dummy_commitment, piece_path.clone()).await;
 
         // Index records should be returned
         let index = db.get_index(dummy_commitment.cid()).unwrap();

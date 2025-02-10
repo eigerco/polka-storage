@@ -527,7 +527,6 @@ impl Server {
             xt_keypair: self.multi_pair_signer.clone(),
             listen_address: self.rpc_listen_address,
             pipeline_sender: pipeline_tx.clone(),
-            indexer_tx,
         };
 
         let pipeline_state = PipelineState {
@@ -542,6 +541,7 @@ impl Server {
             xt_keypair: self.multi_pair_signer,
             pipeline_sender: pipeline_tx,
             prove_commit_throttle: Arc::new(Semaphore::new(self.parallel_prove_commits)),
+            indexer_tx,
         };
 
         let p2p_state = P2PState {

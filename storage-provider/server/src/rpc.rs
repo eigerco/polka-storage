@@ -21,7 +21,6 @@ use tracing::instrument;
 
 use crate::{
     db::DealDB,
-    indexer::IndexerMessage,
     pipeline::types::{AddPieceMessage, PipelineMessage},
 };
 
@@ -38,7 +37,6 @@ pub struct RpcServerState {
 
     pub listen_address: SocketAddr,
     pub pipeline_sender: UnboundedSender<PipelineMessage>,
-    pub indexer_tx: UnboundedSender<IndexerMessage>,
 }
 
 impl RpcServerState {
@@ -296,13 +294,6 @@ impl StorageProviderRpcServer for RpcServerState {
                 piece_path: piece_path.clone(),
                 commitment,
             }))
-            .map_err(|e| RpcError::internal_error(e, None))?;
-
-        self.indexer_tx
-            .send(IndexerMessage::IndexPiece {
-                commitment,
-                piece_path,
-            })
             .map_err(|e| RpcError::internal_error(e, None))?;
 
         Ok(deal_id)
