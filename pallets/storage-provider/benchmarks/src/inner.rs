@@ -65,5 +65,24 @@ mod benchmarks {
 
     use super::*;
 
+    #[benchmark]
+    fn register_storage_provider() {
+        let caller: T::AccountId = whitelisted_caller();
+        let peer_id: T::PeerId = b"peer_id".to_vec().try_into().unwrap();
+        let window_post_proof_type = RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
+
+        #[extrinsic_call]
+        _(
+            RawOrigin::Signed(caller.clone()),
+            peer_id.clone(),
+            window_post_proof_type,
+        );
+
+        let state = SpPallet::<T>::storage_providers(caller).unwrap();
+        assert_eq!(state.info.peer_id, peer_id);
+        assert_eq!(state.info.window_post_proof_type, window_post_proof_type);
+    }
+
+
     impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test);
 }
