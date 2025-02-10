@@ -148,3 +148,18 @@ jobs:
           --steps 5 \
           --repeat 1 \
           --template node/benchmark_template.hbs
+
+      - name: pallet-storage-provider — Run test benchmarks
+        run: cargo test --profile ci --locked -p pallet-storage-provider-benchmarks --features runtime-benchmarks -- benchmark --nocapture
+
+      - name: pallet-storage-provider — Run node benchmarks
+        run: |
+          cargo run \
+          -p polka-storage-node -r -F runtime-benchmarks -F testnet -- \
+          benchmark pallet \
+          --wasm-execution=compiled \
+          --pallet "pallet_storage_provider_benchmarks" \
+          --extrinsic "*" \
+          --steps 5 \
+          --repeat 1 \
+          --template node/benchmark_template.hbs
