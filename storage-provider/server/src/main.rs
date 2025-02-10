@@ -36,7 +36,7 @@ use storagext::{
 };
 use subxt::{self, tx::Signer};
 use tokio::{
-    sync::{mpsc::UnboundedReceiver, Semaphore},
+    sync::{mpsc::UnboundedReceiver, Mutex, Semaphore},
     task::{JoinError, JoinHandle},
 };
 use tokio_util::sync::CancellationToken;
@@ -93,12 +93,12 @@ struct SetupOutput {
 
 fn main() -> Result<(), ServerError> {
     // Logger initialization.
-    let file_appender = tracing_appender::rolling::daily("logs", "sp_server");
+    let file_appender = tracing_appender::rolling::daily("logs", "sp_server.log");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
 
     tracing_subscriber::registry()
         .with(fmt::layer())
-        .with(fmt::layer().with_writer(non_blocking).with_ansi(false))
+        .with(fmt::layer().with_ansi(false).with_writer(non_blocking))
         .with(
             EnvFilter::builder()
                 .with_default_directive(LevelFilter::INFO.into())
@@ -484,6 +484,7 @@ impl Server {
             xt_keypair: self.multi_pair_signer,
             pipeline_sender: pipeline_tx,
             prove_commit_throttle: Arc::new(Semaphore::new(self.parallel_prove_commits)),
+            add_piece_serializer: Mutex::new(()),
         };
 
         let p2p_state = P2PState {

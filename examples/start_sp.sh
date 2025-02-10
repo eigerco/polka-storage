@@ -42,7 +42,10 @@ echo '{
     "porep_parameters": "2KiB.porep.params",
     "post_parameters": "2KiB.post.params",
     "p2p_key": "@/tmp/private.pem",
-    "rendezvous_point_address": "/ip4/127.0.0.1/tcp/62649"
+    "rendezvous_point_address": "/ip4/127.0.0.1/tcp/62649",
+    "sealing_configuration": {
+        "fill_percentage": 75
+    }
 }' > /tmp/storage_provider.config.json
 RUST_LOG=debug target/release/polka-storage-provider-server \
     --sr25519-key "$PROVIDER" \

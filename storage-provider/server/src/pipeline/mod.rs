@@ -18,7 +18,7 @@ use primitives::{
 use storagext::{types::market::DealProposal, StorageProviderClientExt};
 use tokio::sync::{
     mpsc::{error::SendError, UnboundedReceiver, UnboundedSender},
-    Semaphore,
+    Mutex, Semaphore,
 };
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use types::{
@@ -63,6 +63,19 @@ pub struct PipelineState {
     pub xt_keypair: storagext::multipair::MultiPairSigner,
     pub pipeline_sender: UnboundedSender<PipelineMessage>,
     pub prove_commit_throttle: Arc<Semaphore>,
+
+    // NOTE(@jmg-duarte,10/02/2025):
+    // This is the wrong way of implementing serialization for `add_piece`!
+    // However, the right way involves a major refactor :(
+    //
+    // To improve on this, `add_piece` needs it's own task and a message queue to ensure it
+    // can't act on more than a single message at a time; instead of a new task being spawned for
+    // each incoming add_piece request.
+    //
+    // To have multiple add_piece running concurrently, we need to make use of RocksDB's
+    // transactions + get_for_update(exclusive: true)
+    // This is not trivial and requires a refactor on the DB side!
+    pub add_piece_serializer: Mutex<()>,
 }
 
 #[tracing::instrument(skip_all)]
@@ -236,7 +249,9 @@ fn process(
     token: CancellationToken,
 ) {
     match msg {
-        PipelineMessage::AddPiece(msg) => tracker.add_piece(state.clone(), msg, token.clone()),
+        PipelineMessage::AddPiece(msg) => {
+            tracker.add_piece(state.clone(), msg, token.clone());
+        }
         PipelineMessage::PreCommit(msg) => tracker.precommit(state.clone(), msg),
         PipelineMessage::ProveCommit(msg) => {
             tracker.prove_commit(state.clone(), msg, token.clone())
@@ -256,12 +271,19 @@ fn process(
 #[tracing::instrument(skip_all)]
 async fn find_or_create_sector_for_piece(
     state: &Arc<PipelineState>,
-    piece_size: u64,
+    deal: &DealProposal, // We pass the DealProposal instead of the sector number for better logs
 ) -> Result<UnsealedSector, PipelineError> {
-    tracing::debug!("Searching for sector for piece with size: {}", piece_size);
+    tracing::debug!(
+        "Searching for sector for piece with size: {}",
+        deal.piece_size
+    );
     // Find the first sector with enough space for the piece
     let sector = state.db.iter_unsealed_sectors().find(|res| match res {
-        Ok(unsealed_sector) => unsealed_sector.occupied_sector_space > piece_size,
+        Ok(unsealed_sector) => {
+            let free_space = unsealed_sector.free_space();
+            tracing::debug!(sector_number = %unsealed_sector.sector_number, free_space = free_space, "Checking sector...");
+            free_space > deal.piece_size
+        },
         // Errors return false since, well, they're not valid sectors
         _ => false,
     });
@@ -276,7 +298,7 @@ async fn find_or_create_sector_for_piece(
             .inspect(|sector| {
                 tracing::debug!(
                     sector_number = %sector.sector_number,
-                    "Found sector for piece"
+                    "Found sector for piece!",
                 );
             })
             .map_err(PipelineError::from);
@@ -290,6 +312,8 @@ async fn find_or_create_sector_for_piece(
         .db
         .next_sector_number()
         .map_err(|err| PipelineError::CustomError(err.to_string()))?;
+    tracing::debug!(%sector_number, "Could not find a sector for piece, creating a new one...");
+
     let unsealed_path = state.unsealed_sectors_dir.join(sector_number.to_string());
     let sector =
         UnsealedSector::create(state.server_info.seal_proof, sector_number, unsealed_path).await?;
@@ -309,25 +333,31 @@ async fn add_piece(
     deal: DealProposal,
     deal_id: u64,
 ) -> Result<(), PipelineError> {
-    tracing::info!("Adding a piece...");
-    let mut sector = find_or_create_sector_for_piece(&state, deal.piece_size).await?;
+    // Mutex scope
+    let sector = {
+        let _guard = state.add_piece_serializer.lock().await;
 
-    sector
-        .add_piece(deal_id, deal, piece_path, commitment)
-        .await?;
-    tracing::info!("Finished adding a piece");
+        tracing::info!("Adding a piece...");
+        let mut sector = find_or_create_sector_for_piece(&state, &deal).await?;
 
-    // Update the database with the latest sector information
-    state
-        .db
-        .insert_unsealed_sector(sector.sector_number, &sector)?;
+        sector
+            .add_piece(deal_id, deal, piece_path, commitment)
+            .await?;
+        tracing::info!("Finished adding a piece");
 
-    // TODO: break maat to ensure this works, probably using a small file in the 8mb thing works
+        // Update the database with the latest sector information
+        state
+            .db
+            .insert_unsealed_sector(sector.sector_number, &sector)?;
+
+        sector
+    };
+
     let occupation_percent = sector.occupation_percent();
     let fill_threshold = state.server_info.sealing_configuration.fill_percentage as u64;
-    if occupation_percent > fill_threshold {
+    if sector.occupation_percent() > fill_threshold {
         tracing::debug!(
-            "Occupation above {} > {}%; pre-committing",
+            "Occupation level at {}%, above limit of {}% - pre-committing",
             occupation_percent,
             fill_threshold,
         );

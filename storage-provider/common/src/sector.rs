@@ -263,6 +263,11 @@ impl UnsealedSector {
         .await?)
     }
 
+    /// Returns the free space in the sector.
+    pub fn free_space(&self) -> u64 {
+        self.seal_proof.sector_size().bytes() - self.occupied_sector_space
+    }
+
     /// Returns the percentage of occupied space.
     pub fn occupation_percent(&self) -> u64 {
         (self.occupied_sector_space * 100) / self.seal_proof.sector_size().bytes()
