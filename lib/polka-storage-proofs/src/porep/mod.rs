@@ -5,15 +5,72 @@ pub mod sealer;
 
 use bellperson::groth16;
 use blstrs::Bls12;
-use filecoin_proofs::{DefaultPieceHasher, SectorShapeBase};
+use filecoin_proofs::{DefaultPieceHasher, MerkleTreeTrait};
 use primitives::proofs::RegisteredSealProof;
 use rand::rngs::OsRng;
 use storage_proofs_core::{compound_proof::CompoundProof, proof::ProofScheme};
-use storage_proofs_porep::stacked::StackedDrg;
+use storage_proofs_porep::stacked::{SetupParams, StackedCompound, StackedDrg};
 
 use crate::types::Commitment;
 
 pub type PoRepParameters = groth16::MappedParameters<Bls12>;
+
+/// Automatically sets the generic parameters for any function that is generic over a SectorShape (sector size).
+///
+/// If a function has multiple generic parameters, the first one needs to be SectorShape.
+///
+/// # Reasoning
+///
+/// Underlying `rust-fil-proofs` functions used for proving are generic.
+/// Those generics are dependant on the sector size.
+/// To avoid writing match statemenet every time we need to use `rust-fil-proofs`, we created a macro.
+///
+/// # Examples
+///
+/// ```
+/// # #[macro_use] extern crate polka_storage_proofs;
+/// fn foo<SectorShape: filecoin_proofs::MerkleTreeTrait + 'static>() {}
+///
+/// match_seal_proof!(
+///     primitives::proofs::RegisteredSealProof::StackedDRG2KiBV1P1,
+///     foo::<_>()
+/// );
+/// ```
+///
+/// ```
+/// # #[macro_use] extern crate polka_storage_proofs;
+/// fn bar<SectorShape: filecoin_proofs::MerkleTreeTrait + 'static, R: AsRef<std::path::Path>>() {}
+///
+/// match_seal_proof!(
+///     primitives::proofs::RegisteredSealProof::StackedDRG2KiBV1P1,
+///     bar::<_, std::path::PathBuf>()
+/// );
+/// ```
+#[macro_export]
+macro_rules! match_seal_proof {
+    ($seal_proof:expr, $func:ident::<_>($($args:expr),*)) => {
+        match_seal_proof!($seal_proof, $func::<_,>($($args),*))
+    };
+
+    ($seal_proof:expr, $func:ident::<_, $($generic:ty),*>($($args:expr),*)) => {
+        match $seal_proof {
+            ::primitives::proofs::RegisteredSealProof::StackedDRG2KiBV1P1 => $func::<::filecoin_proofs::SectorShape2KiB, $($generic),*>($($args),*),
+            ::primitives::proofs::RegisteredSealProof::StackedDRG8MiBV1 => $func::<::filecoin_proofs::SectorShape8MiB, $($generic),*>($($args),*),
+            ::primitives::proofs::RegisteredSealProof::StackedDRG512MiBV1 => $func::<::filecoin_proofs::SectorShape512MiB, $($generic),*>($($args),*),
+            ::primitives::proofs::RegisteredSealProof::StackedDRG1GiBV1 => $func::<::filecoin_proofs::SectorShape1GiB, $($generic),*>($($args),*),
+        }
+    };
+}
+
+fn generate_params<S: MerkleTreeTrait + 'static>(
+    setup_params: &SetupParams,
+) -> Result<groth16::Parameters<Bls12>, PoRepError> {
+    let public_params = StackedDrg::<S, DefaultPieceHasher>::setup(setup_params)?;
+    let circuit = StackedCompound::<S, DefaultPieceHasher>::blank_circuit(&public_params);
+    Ok(groth16::generate_random_parameters::<Bls12, _, _>(
+        circuit, &mut OsRng,
+    )?)
+}
 
 /// Generates parameters for proving and verifying PoRep.
 /// It should be called once and then reused across provers and the verifier.
@@ -24,20 +81,7 @@ pub fn generate_random_groth16_parameters(
     let porep_config = seal_to_config(seal_proof);
     let setup_params = filecoin_proofs::parameters::setup_params(&porep_config)?;
 
-    let circuit = match seal_proof {
-        RegisteredSealProof::StackedDRG2KiBV1P1 | RegisteredSealProof::StackedDRG8MiBV1 => {
-            let public_params =
-                StackedDrg::<SectorShapeBase, DefaultPieceHasher>::setup(&setup_params)?;
-            storage_proofs_porep::stacked::StackedCompound::<
-                SectorShapeBase,
-                DefaultPieceHasher,
-            >::blank_circuit(&public_params)
-        }
-    };
-
-    Ok(groth16::generate_random_parameters::<Bls12, _, _>(
-        circuit, &mut OsRng,
-    )?)
+    match_seal_proof!(seal_proof, generate_params::<_>(&setup_params))
 }
 
 /// Loads Groth16 parameters from the specified path.

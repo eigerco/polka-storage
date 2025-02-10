@@ -3,8 +3,12 @@ use std::{io::Write, path::PathBuf, str::FromStr};
 use codec::Encode;
 use mater::CarV2Reader;
 use polka_storage_proofs::{
-    porep::{self, sealer::select_sealer},
-    post::{self, ReplicaInfo},
+    match_post_proof, match_seal_proof,
+    porep::{
+        self,
+        sealer::{create_sector, precommit_sector, prove_sector},
+    },
+    post::{self, generate_window_post, ReplicaInfo},
     ZeroPaddingReader,
 };
 use polka_storage_provider_common::commp::{commp, CommPError};
@@ -297,30 +301,34 @@ impl ProofsCommand {
                 )?;
 
                 println!("Creating sector...");
-                let sealer = select_sealer(seal_proof);
-                let piece_infos = sealer
-                    .create_sector(vec![(piece_file, piece_info)], unsealed_sector)
-                    .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
+                let piece_infos =
+                    create_sector(seal_proof, vec![(piece_file, piece_info)], unsealed_sector)
+                        .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
 
                 let prover_id = derive_prover_id(signer.account_id());
                 println!("Prover ID: {}", hex::encode(prover_id));
 
                 println!("Precommitting...");
-                let precommit = sealer
-                    .precommit_sector(
+                let precommit = match_seal_proof!(
+                    seal_proof,
+                    precommit_sector::<_, _, _, _>(
+                        seal_proof,
                         &cache_directory,
                         unsealed_sector_path,
                         &sealed_sector_path,
                         prover_id,
                         sector_number,
                         ticket,
-                        &piece_infos,
+                        &piece_infos
                     )
-                    .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
+                )
+                .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
 
                 println!("Proving...");
-                let proofs = sealer
-                    .prove_sector(
+                let proofs = match_seal_proof!(
+                    seal_proof,
+                    prove_sector::<_, _, _>(
+                        seal_proof,
                         &proof_parameters,
                         &cache_directory,
                         &sealed_sector_path,
@@ -329,9 +337,10 @@ impl ProofsCommand {
                         ticket,
                         Some(seed),
                         precommit,
-                        &piece_infos,
+                        &piece_infos
                     )
-                    .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
+                )
+                .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
 
                 println!("CommD: {}", precommit.comm_d.cid());
                 println!("CommR: {}", precommit.comm_r.cid());
@@ -443,12 +452,15 @@ impl ProofsCommand {
                     .map_err(|e| UtilsCommandError::GeneratePoStError(e))?;
 
                 let prover_id = derive_prover_id(signer.account_id());
-                let proofs = post::generate_window_post(
+                let proofs = match_post_proof!(
                     post_type,
-                    &proof_parameters,
-                    randomness,
-                    prover_id,
-                    replicas,
+                    generate_window_post::<_>(
+                        post_type,
+                        &proof_parameters,
+                        randomness,
+                        prover_id,
+                        replicas
+                    )
                 )
                 .map_err(|e| UtilsCommandError::GeneratePoStError(e))?;
 

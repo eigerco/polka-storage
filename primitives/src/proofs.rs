@@ -56,6 +56,12 @@ pub enum RegisteredSealProof {
     #[cfg_attr(feature = "clap", clap(name = "8MiB"))]
     #[cfg_attr(feature = "serde", serde(alias = "8MiB"))]
     StackedDRG8MiBV1,
+    #[cfg_attr(feature = "clap", clap(name = "512MiB"))]
+    #[cfg_attr(feature = "serde", serde(alias = "512MiB"))]
+    StackedDRG512MiBV1,
+    #[cfg_attr(feature = "clap", clap(name = "1GiB"))]
+    #[cfg_attr(feature = "serde", serde(alias = "1GiB"))]
+    StackedDRG1GiBV1,
 }
 
 impl RegisteredSealProof {
@@ -63,6 +69,8 @@ impl RegisteredSealProof {
         match self {
             RegisteredSealProof::StackedDRG2KiBV1P1 => SectorSize::_2KiB,
             RegisteredSealProof::StackedDRG8MiBV1 => SectorSize::_8MiB,
+            RegisteredSealProof::StackedDRG512MiBV1 => SectorSize::_512MiB,
+            RegisteredSealProof::StackedDRG1GiBV1 => SectorSize::_1GiB,
         }
     }
 
@@ -74,6 +82,10 @@ impl RegisteredSealProof {
                 RegisteredPoStProof::StackedDRGWindow2KiBV1P1
             }
             RegisteredSealProof::StackedDRG8MiBV1 => RegisteredPoStProof::StackedDRGWindow8MiBV1,
+            RegisteredSealProof::StackedDRG512MiBV1 => {
+                RegisteredPoStProof::StackedDRGWindow512MiBV1
+            }
+            RegisteredSealProof::StackedDRG1GiBV1 => RegisteredPoStProof::StackedDRGWindow1GiBV1,
         }
     }
 
@@ -85,6 +97,8 @@ impl RegisteredSealProof {
         match self {
             RegisteredSealProof::StackedDRG2KiBV1P1 => 192,
             RegisteredSealProof::StackedDRG8MiBV1 => 192,
+            RegisteredSealProof::StackedDRG512MiBV1 => 192,
+            RegisteredSealProof::StackedDRG1GiBV1 => 192,
         }
     }
 
@@ -117,6 +131,9 @@ impl RegisteredSealProof {
         match self {
             RegisteredSealProof::StackedDRG2KiBV1P1 => 0,
             RegisteredSealProof::StackedDRG8MiBV1 => 1,
+            RegisteredSealProof::StackedDRG512MiBV1 => 2,
+            // NOTE(@th7nder,31/01/2025): there is no such thing as 1GiB in registered in FC
+            RegisteredSealProof::StackedDRG1GiBV1 => 20,
         }
     }
 
@@ -145,6 +162,12 @@ pub enum RegisteredPoStProof {
     #[cfg_attr(feature = "clap", clap(name = "8MiB"))]
     #[cfg_attr(feature = "serde", serde(alias = "8MiB"))]
     StackedDRGWindow8MiBV1,
+    #[cfg_attr(feature = "clap", clap(name = "512MiB"))]
+    #[cfg_attr(feature = "serde", serde(alias = "512MiB"))]
+    StackedDRGWindow512MiBV1,
+    #[cfg_attr(feature = "clap", clap(name = "1GiB"))]
+    #[cfg_attr(feature = "serde", serde(alias = "1GiB"))]
+    StackedDRGWindow1GiBV1,
 }
 
 impl RegisteredPoStProof {
@@ -153,6 +176,8 @@ impl RegisteredPoStProof {
         match self {
             RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => SectorSize::_2KiB,
             RegisteredPoStProof::StackedDRGWindow8MiBV1 => SectorSize::_8MiB,
+            RegisteredPoStProof::StackedDRGWindow512MiBV1 => SectorSize::_512MiB,
+            RegisteredPoStProof::StackedDRGWindow1GiBV1 => SectorSize::_1GiB,
         }
     }
 
@@ -163,6 +188,8 @@ impl RegisteredPoStProof {
         match self {
             RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => 2,
             RegisteredPoStProof::StackedDRGWindow8MiBV1 => 2,
+            RegisteredPoStProof::StackedDRGWindow512MiBV1 => 2,
+            RegisteredPoStProof::StackedDRGWindow1GiBV1 => 2,
         }
     }
 
@@ -174,6 +201,8 @@ impl RegisteredPoStProof {
         match self {
             RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => 2,
             RegisteredPoStProof::StackedDRGWindow8MiBV1 => 2,
+            RegisteredPoStProof::StackedDRGWindow512MiBV1 => 2,
+            RegisteredPoStProof::StackedDRGWindow1GiBV1 => 2,
         }
     }
 

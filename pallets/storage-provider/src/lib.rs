@@ -498,8 +498,19 @@ pub mod pallet {
 
                 let deposit = calculate_pre_commit_deposit::<T>();
 
-                let sector_on_chain =
-                    SectorPreCommitOnChainInfo::new(sector.clone(), deposit, current_block);
+                let entropy = owner.encode();
+                let randomness = get_randomness::<T>(
+                    DomainSeparationTag::SealRandomness,
+                    sector.seal_randomness_height,
+                    &entropy,
+                )?;
+
+                let sector_on_chain = SectorPreCommitOnChainInfo::new(
+                    sector.clone(),
+                    deposit,
+                    current_block,
+                    randomness,
+                );
 
                 // Push deal amounts for later verification
                 deal_amounts.try_push(sector_on_chain.info.deal_ids.len()).expect("Programmer error: cannot have more that MAX_SECTORS_PER_CALL deal_amount because of previous bounds");
@@ -1203,6 +1214,7 @@ pub mod pallet {
             activation: BlockNumberFor<T>,
             expiration: BlockNumberFor<T>,
         ) -> Result<(), Error<T>> {
+            log::debug!(target: LOG_TARGET, "validate_expiration: {:?} {:?} {:?}", curr_block, activation, expiration);
             // Expiration must be after activation. Check this explicitly to avoid an underflow below.
             ensure!(
                 expiration >= activation,
@@ -1659,11 +1671,6 @@ pub mod pallet {
             })?;
 
         let entropy = owner.encode();
-        let randomness = get_randomness::<T>(
-            DomainSeparationTag::SealRandomness,
-            precommit.info.seal_randomness_height,
-            &entropy,
-        )?;
         let interactive_randomness = get_randomness::<T>(
             DomainSeparationTag::InteractiveSealChallengeSeed,
             interactive_block_number,
@@ -1673,7 +1680,7 @@ pub mod pallet {
         let prover_id = derive_prover_id(owner);
 
         log::debug!(target: LOG_TARGET, "Performing prove commit for, seal_randomness_height {:?}, pre_commit_block: {:?}, prove_commit_block: {:?}, entropy: {}, ticket: {}, seed: {}",
-            precommit.info.seal_randomness_height, precommit.pre_commit_block_number, interactive_block_number, hex::encode(entropy), hex::encode(randomness), hex::encode(interactive_randomness));
+            precommit.info.seal_randomness_height, precommit.pre_commit_block_number, interactive_block_number, hex::encode(entropy), hex::encode(precommit.seal_randomness), hex::encode(interactive_randomness));
         log::debug!(target: LOG_TARGET, "Prover Id: {}, Sector Number: {}", hex::encode(prover_id), precommit.info.sector_number);
 
         // Verify the porep proof
@@ -1683,7 +1690,7 @@ pub mod pallet {
             commr.raw(),
             commd.raw(),
             precommit.info.sector_number,
-            randomness,
+            precommit.seal_randomness,
             interactive_randomness,
             proof,
         )
