@@ -131,7 +131,7 @@ impl UnsealedSector {
                     let (padded_reader, piece_info) = prepare_piece(piece_path, commitment)?;
                     tracing::info!("Adding piece...");
                     let occupied_piece_space =
-                        sealer.add_piece(padded_reader, piece_info, &pieces, unsealed_sector)?;
+                        add_piece(padded_reader, piece_info, &pieces, unsealed_sector)?;
 
                     Ok((piece_info, occupied_piece_space))
                 }
