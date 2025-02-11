@@ -38,6 +38,10 @@ use sc_telemetry::{Telemetry, TelemetryHandle, TelemetryWorker, TelemetryWorkerH
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sp_keystore::KeystorePtr;
 
+pub mod p2p;
+
+use crate::service::p2p::{run_bootstrap_node, BootstrapConfig};
+
 #[docify::export(wasm_executor)]
 type ParachainExecutor = WasmExecutor<ParachainHostFunctions>;
 
@@ -245,6 +249,7 @@ pub async fn start_parachain_node(
     collator_options: CollatorOptions,
     para_id: ParaId,
     hwbench: Option<sc_sysinfo::HwBench>,
+    bootstrap_config: Option<BootstrapConfig>,
 ) -> sc_service::error::Result<(TaskManager, Arc<ParachainClient>)> {
     let parachain_config = prepare_node_config(parachain_config);
 
@@ -331,6 +336,12 @@ pub async fn start_parachain_node(
             crate::rpc::create_full(deps).map_err(Into::into)
         })
     };
+
+    if let Some(config) = bootstrap_config {
+        task_manager
+            .spawn_handle()
+            .spawn("p2p", None, run_bootstrap_node(config));
+    }
 
     sc_service::spawn_tasks(sc_service::SpawnTasksParams {
         rpc_builder,
