@@ -53,6 +53,7 @@ async fn main() -> Result<(), Error> {
                 new_path.set_extension("car");
                 new_path
             });
+
             let cid = convert_file_to_car(&input_path, &output_path, overwrite).await?;
 
             if quiet {

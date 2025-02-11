@@ -12,7 +12,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_stream::StreamExt;
 use tokio_util::io::ReaderStream;
 
-use super::{DEFAULT_BLOCK_SIZE, DEFAULT_TREE_WIDTH};
+use super::{DEFAULT_CHUNK_SIZE, DEFAULT_TREE_WIDTH};
 use crate::{
     multicodec::SHA_256_CODE, unixfs::stream_balanced_tree, CarV1Header, CarV2Header, CarV2Writer,
     Error, Index, IndexEntry, MultihashIndexSorted, SingleWidthIndex,
@@ -76,7 +76,7 @@ impl Blockstore {
             root: None,
             blocks: IndexMap::new(),
             indexed: HashSet::new(),
-            chunk_size: chunk_size.unwrap_or(DEFAULT_BLOCK_SIZE),
+            chunk_size: chunk_size.unwrap_or(DEFAULT_CHUNK_SIZE),
             tree_width: tree_width.unwrap_or(DEFAULT_TREE_WIDTH),
         }
     }
@@ -206,7 +206,7 @@ impl Default for Blockstore {
             root: None,
             blocks: IndexMap::new(),
             indexed: HashSet::new(),
-            chunk_size: DEFAULT_BLOCK_SIZE,
+            chunk_size: DEFAULT_CHUNK_SIZE,
             tree_width: DEFAULT_TREE_WIDTH,
         }
     }

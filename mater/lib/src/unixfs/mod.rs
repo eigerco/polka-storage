@@ -13,6 +13,7 @@ use ipld_dagpb::{DagPbCodec, PbLink, PbNode};
 use quick_protobuf::MessageWrite;
 use sha2::Sha256;
 use tokio_stream::{Stream, StreamExt};
+pub use unixfs_pb::{mod_Data, Data};
 
 use crate::{
     multicodec::{generate_multihash, DAG_PB_CODE, RAW_CODE},
@@ -41,7 +42,105 @@ enum TreeNode {
 }
 
 impl TreeNode {
-    fn encode(self) -> Result<((Cid, Bytes), LinkInfo), Error> {
+    fn encode_unixfs_leaf_node(chunk: &Bytes) -> Result<((Cid, Bytes), LinkInfo), Error> {
+        let chunk_len = chunk.len() as u64;
+
+        // Build UnixFS metadata
+        let unixfs_data = Data {
+            Type: mod_Data::DataType::File,
+            filesize: Some(chunk_len),
+            blocksizes: vec![chunk_len],
+            Data: Some(chunk.to_vec().into()),
+            hashType: None,
+            fanout: None,
+        };
+
+        // Encode UnixFS data and create DAG-PB node
+        let mut data_buf = Vec::new();
+        {
+            let mut w = quick_protobuf::Writer::new(&mut data_buf);
+            unixfs_data.write_message(&mut w)?;
+        }
+
+        let pb_node = PbNode {
+            links: vec![],
+            data: Some(data_buf.clone().into()),
+        };
+
+        let encoded = DagPbCodec::encode_to_vec(&pb_node)?;
+        let mh = generate_multihash::<Sha256, _>(&encoded);
+        let cid = Cid::new_v1(DAG_PB_CODE, mh);
+
+        let info = LinkInfo {
+            raw_data_length: chunk_len,
+            encoded_data_length: encoded.len() as u64,
+        };
+
+        Ok(((cid, encoded.into()), info))
+    }
+
+    fn encode_unixfs_stem_node(
+        children: Vec<(Cid, LinkInfo)>,
+    ) -> Result<((Cid, Bytes), LinkInfo), Error> {
+        // Process all children in a single pass, gathering totals and building links and blocksizes
+        let (total_raw_size, total_encoded_size, pb_links, blocksizes) = children.iter().fold(
+            (
+                0u64,
+                0u64,
+                Vec::with_capacity(children.len()),
+                Vec::with_capacity(children.len()),
+            ),
+            |(raw_sum, encoded_sum, mut links, mut sizes), (child_cid, link_info)| {
+                sizes.push(link_info.raw_data_length);
+                links.push(PbLink {
+                    cid: *child_cid,
+                    name: Some("".to_string()),
+                    size: Some(link_info.encoded_data_length),
+                });
+                (
+                    raw_sum + link_info.raw_data_length,
+                    encoded_sum + link_info.encoded_data_length,
+                    links,
+                    sizes,
+                )
+            },
+        );
+
+        // Create UnixFS metadata
+        let unixfs_data = Data {
+            Type: mod_Data::DataType::File,
+            filesize: Some(total_raw_size),
+            blocksizes,
+            Data: None,
+            hashType: None,
+            fanout: None,
+        };
+
+        // Encode UnixFS data
+        let mut data_buf = Vec::new();
+        {
+            let mut w = quick_protobuf::Writer::new(&mut data_buf);
+            unixfs_data.write_message(&mut w)?;
+        }
+
+        // Create DAG-PB node
+        let pb_node = PbNode {
+            links: pb_links,
+            data: Some(data_buf.clone().into()),
+        };
+
+        let encoded = DagPbCodec::encode_to_vec(&pb_node)?;
+        let mh = generate_multihash::<Sha256, _>(&encoded);
+        let cid = Cid::new_v1(DAG_PB_CODE, mh);
+
+        let info = LinkInfo {
+            raw_data_length: data_buf.len() as u64,
+            encoded_data_length: encoded.len() as u64 + total_encoded_size,
+        };
+
+        Ok(((cid, encoded.into()), info))
+    }
+    fn encode_raw(self) -> Result<((Cid, Bytes), LinkInfo), Error> {
         match self {
             TreeNode::Leaf(bytes) => {
                 let data_length = bytes.len() as u64;
@@ -261,9 +360,9 @@ where
 
         let input = input
             .err_into::<Error>()
-            // The TreeNode::Leaf(data).encode() just wraps it with a Cid marking the payload as Raw
+            // The TreeNode::Leaf(data).encode_raw() just wraps it with a Cid marking the payload as Raw
             // we may be able move this responsibility to the caller for more efficient memory usage
-            .map(|data| data.and_then(|data| TreeNode::Leaf(data).encode()))
+            .map(|data| data.and_then(|data| TreeNode::Leaf(data).encode_raw()))
             .err_into::<Error>();
         tokio::pin!(input);
 
@@ -293,7 +392,7 @@ where
                     // it's most likely less performant (I didn't measure)
                     // due to the different nature of the approaches (batch vs iterator)
                     let links = std::mem::replace(&mut tree[level], Vec::with_capacity(width));
-                    let (block @ (cid, _), link_info) = TreeNode::Stem(links).encode()?;
+                    let (block @ (cid, _), link_info) = TreeNode::Stem(links).encode_raw()?;
                     yield block;
 
                     tree[level + 1].push((cid, link_info));
@@ -317,7 +416,7 @@ where
         // Once `input` is exhausted, we need to perform cleanup of any leftovers,
         // to do so, we start by popping levels from the front and building stems over them.
         while let Some(links) = tree.pop_front() {
-            let (block @ (cid, _), link_info) = TreeNode::Stem(links).encode()?;
+            let (block @ (cid, _), link_info) = TreeNode::Stem(links).encode_raw()?;
             yield block;
 
             // If there's still a level in the front, it means the stem we just built will have a parent
@@ -327,6 +426,59 @@ where
             }
             // Once there's nothing else in the front, that means we just yielded the root
             // and the current `while` will stop in the next iteration
+        }
+    }
+}
+
+pub fn stream_balanced_tree_unixfs<I>(
+    input: I,
+    width: usize,
+) -> impl Stream<Item = Result<(Cid, Bytes), Error>>
+where
+    I: Stream<Item = std::io::Result<Bytes>>,
+{
+    try_stream! {
+        let mut tree: VecDeque<Vec<(Cid, LinkInfo)>> = VecDeque::new();
+        tree.push_back(vec![]);
+
+        tokio::pin!(input);
+
+        while let Some(data) = input.next().await {
+            let data = data?;
+            let (block @ (cid, _), link_info) = TreeNode::encode_unixfs_leaf_node(&data)?;
+            yield block;
+
+            tree[0].push((cid, link_info));
+
+            // Build parent nodes when necessary
+            for level in 0..tree.len() {
+                if tree[level].len() < width {
+                    break;
+                }
+
+                let links = std::mem::replace(&mut tree[level], Vec::new());
+                let (block @ (cid, _), link_info) = TreeNode::encode_unixfs_stem_node(links)?;
+                yield block;
+
+                if level + 1 == tree.len() {
+                    tree.push_back(vec![]);
+                }
+                tree[level + 1].push((cid, link_info));
+            }
+        }
+
+        // Finalize tree: Flush remaining levels
+        while let Some(links) = tree.pop_front() {
+            if links.is_empty() {
+                continue;
+            }
+
+            let (block @ (cid, _), link_info) = TreeNode::encode_unixfs_stem_node(links)?;
+            yield block;
+
+            if let Some(next_level) = tree.front_mut() {
+                next_level.push((cid, link_info));
+            }
         }
     }
 }
@@ -360,7 +512,7 @@ mod tests {
         if num_chunks / degree == 0 {
             let chunk = chunks.next().await.unwrap().unwrap();
             let leaf = TreeNode::Leaf(chunk);
-            let (block, _) = leaf.encode().unwrap();
+            let (block, _) = leaf.encode_raw().unwrap();
             tree[0].push(block);
             return tree;
         }
@@ -368,7 +520,7 @@ mod tests {
         while let Some(chunk) = chunks.next().await {
             let chunk = chunk.unwrap();
             let leaf = TreeNode::Leaf(chunk);
-            let (block @ (cid, _), link_info) = leaf.encode().unwrap();
+            let (block @ (cid, _), link_info) = leaf.encode_raw().unwrap();
             links[0].push((cid, link_info));
             tree[0].push(block);
         }
@@ -380,7 +532,7 @@ mod tests {
             let mut links_layer = Vec::with_capacity(count);
             for links in prev_layer.chunks(degree) {
                 let stem = TreeNode::Stem(links.to_vec());
-                let (block @ (cid, _), link_info) = stem.encode().unwrap();
+                let (block @ (cid, _), link_info) = stem.encode_raw().unwrap();
                 links_layer.push((cid, link_info));
                 tree_layer.push(block);
             }
@@ -444,12 +596,12 @@ mod tests {
 
     fn make_leaf(data: usize) -> ((Cid, Bytes), LinkInfo) {
         TreeNode::Leaf(BytesMut::from(&data.to_be_bytes()[..]).freeze())
-            .encode()
+            .encode_raw()
             .unwrap()
     }
 
     fn make_stem(links: Vec<(Cid, LinkInfo)>) -> ((Cid, Bytes), LinkInfo) {
-        TreeNode::Stem(links).encode().unwrap()
+        TreeNode::Stem(links).encode_raw().unwrap()
     }
 
     #[tokio::test]
