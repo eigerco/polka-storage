@@ -1,6 +1,6 @@
 #![cfg(feature = "runtime-benchmarks")]
 
-use alloc::vec;
+use alloc::{vec, vec::Vec};
 
 use frame_benchmarking::v2::*;
 use frame_support::{
@@ -22,11 +22,11 @@ use primitives::{
         CommP, Commitment,
     },
     proofs::RegisteredPoStProof,
-    sector::{builder::SectorPreCommitInfoBuilder, SectorPreCommitInfo},
+    sector::builder::SectorPreCommitInfoBuilder,
     MAX_SECTORS_PER_CALL, PEER_ID_MAX_BYTES,
 };
 use sp_core::Get;
-use sp_runtime::{AccountId32, MultiSignature};
+use sp_runtime::{AccountId32, MultiSignature, MultiSigner};
 
 use crate::utils::{
     generate_benchmark_account, sign_proposal, ClientDealProposalOf, DealProposalOf, ALICE, CHARLIE,
@@ -60,6 +60,8 @@ type BoundedPeerIdBytes = BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>;
 )]
 mod benchmarks {
 
+    use primitives::{commitment::CommD, sector::SectorPreCommitInfo, MAX_LABEL_SIZE};
+
     use super::*;
 
     const EXISTENTIAL_DEPOSIT: u32 = 1_000_000_000;
@@ -82,52 +84,34 @@ mod benchmarks {
         assert_eq!(state.info.window_post_proof_type, window_post_proof_type);
     }
 
-    #[benchmark]
-    fn pre_commit_sectors() {
-        let (sp_id, _) = generate_benchmark_account(CHARLIE);
-        let (alice_id, alice_sign) = generate_benchmark_account(ALICE);
-
-        {
-            pallet_balances::Pallet::<T>::make_free_balance_be(
-                &sp_id,
-                (EXISTENTIAL_DEPOSIT * 2).into(),
-            );
-            pallet_balances::Pallet::<T>::make_free_balance_be(
-                &alice_id,
-                (EXISTENTIAL_DEPOSIT * 2).into(),
-            );
-        }
-
-        let peer_id: T::PeerId = ALICE.as_bytes().to_vec().try_into().unwrap();
-        let window_post_proof_type = RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
-
-        assert_ok!(SpPallet::<T>::register_storage_provider(
-            RawOrigin::Signed(sp_id.clone()).into(),
-            peer_id.clone(),
-            window_post_proof_type,
-        ));
-
-        assert_ok!(MarketPallet::<T>::add_balance(
-            RawOrigin::Signed(sp_id.clone()).into(),
-            EXISTENTIAL_DEPOSIT.into()
-        ));
-
-        assert_ok!(MarketPallet::<T>::add_balance(
-            RawOrigin::Signed(alice_id.clone()).into(),
-            EXISTENTIAL_DEPOSIT.into()
-        ));
-
+    fn create_test_commitment() -> (Commitment<CommP>, Commitment<CommD>) {
         let piece_commitment = Commitment::<CommP>::from(*b"dummydummydummydummydummydummydu");
         let unsealed_cid = compute_unsealed_sector_commitment(
-            window_post_proof_type.sector_size(),
+            RegisteredPoStProof::StackedDRGWindow2KiBV1P1.sector_size(),
             &[PieceInfo {
                 commitment: piece_commitment,
-                size: PaddedPieceSize::new(128).unwrap(),
+                size: PaddedPieceSize::new(2048).unwrap(),
             }],
         )
         .unwrap();
+        (piece_commitment, unsealed_cid)
+    }
+
+    struct TestProposal<T: pallet_market::Config> {
+        proposal: ClientDealProposalOf<T>,
+        sector_pre_commit: SectorPreCommitInfo<BlockNumberFor<T>>,
+    }
+
+    fn create_test_proposal<T>(
+        id: u8,
+        provider: <T as frame_system::Config>::AccountId,
+        client: (<T as frame_system::Config>::AccountId, MultiSigner),
+    ) -> TestProposal<T> where T: crate::Config, <<<T as frame_system::Config>::Block as sp_runtime::traits::Block>::Header as sp_runtime::traits::Header>::Number: From<u64>{
+        let (piece_commitment, unsealed_cid) = create_test_commitment();
 
         let min_dur = T::MinDealDuration::get();
+
+        let label = vec![id as u8; MAX_LABEL_SIZE as usize];
 
         let proposal = DealProposalOf::<T> {
             piece_cid: piece_commitment
@@ -135,38 +119,103 @@ mod benchmarks {
                 .to_bytes()
                 .try_into()
                 .expect("hash is always 32 bytes"),
-            piece_size: 128,
-            client: alice_id,
-            provider: sp_id.clone(),
-            label: vec![0xb, 0xe, 0xe, 0xf].try_into().unwrap(),
+            piece_size: 2048,
+            client: client.0,
+            provider,
+            label: BoundedVec::try_from(label).unwrap(),
             start_block: 1.into(),
             end_block: min_dur + 1.into(),
             storage_price_per_block: 5u32.into(),
             provider_collateral: 25u32.into(),
             state: DealState::Published,
         };
-        let deal = sign_proposal::<T>(alice_sign, proposal);
-        assert_ok!(MarketPallet::<T>::publish_storage_deals(
+
+        let proposal = sign_proposal::<T>(client.1, proposal);
+
+        let sector_pre_commit = SectorPreCommitInfoBuilder::<BlockNumberFor<T>>::default()
+            .raw_unsealed_cid(unsealed_cid.cid().to_bytes().try_into().unwrap())
+            .sector_number(
+                (id as u32)
+                    .try_into()
+                    .expect("n only goes up to 32 so this should be ok"),
+            )
+            .deals(vec![id as u64])
+            .build();
+
+        TestProposal {
+            proposal,
+            sector_pre_commit,
+        }
+    }
+
+    fn create_account_with_balance<T>(
+        name: &'static str,
+        balance: u32,
+    ) -> (AccountId32, MultiSigner)
+    where
+        T: crate::Config<AccountId = AccountId32>,
+    {
+        let account = generate_benchmark_account(name);
+        pallet_balances::Pallet::<T>::make_free_balance_be(&account.0, balance.into());
+        account
+    }
+
+    fn create_and_register_storage_provider<T>(name: &'static str, balance: u32) -> AccountId32
+    where
+        T: crate::Config<AccountId = AccountId32, PeerId = BoundedPeerIdBytes>,
+    {
+        let account = create_account_with_balance::<T>(name, balance);
+
+        let peer_id: T::PeerId = name.as_bytes().to_vec().try_into().unwrap();
+        assert_ok!(SpPallet::<T>::register_storage_provider(
+            RawOrigin::Signed(account.0.clone()).into(),
+            peer_id.clone(),
+            RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+        ));
+        account.0
+    }
+
+    #[benchmark]
+    fn pre_commit_sectors(n: Linear<1, MAX_SECTORS_PER_CALL>) {
+        let alice = create_account_with_balance::<T>(ALICE, EXISTENTIAL_DEPOSIT * 2);
+        let sp_id = create_and_register_storage_provider::<T>(CHARLIE, EXISTENTIAL_DEPOSIT * 2);
+
+        assert_ok!(MarketPallet::<T>::add_balance(
             RawOrigin::Signed(sp_id.clone()).into(),
-            vec![deal].try_into().unwrap(),
+            EXISTENTIAL_DEPOSIT.into()
         ));
 
-        let sector = SectorPreCommitInfoBuilder::default()
-            .raw_unsealed_cid(unsealed_cid.cid().to_bytes().try_into().unwrap())
-            .deals(vec![0])
-            .build();
-        let sectors: BoundedVec<
-            SectorPreCommitInfo<BlockNumberFor<T>>,
-            ConstU32<MAX_SECTORS_PER_CALL>,
-        > = vec![sector].try_into().unwrap();
+        assert_ok!(MarketPallet::<T>::add_balance(
+            RawOrigin::Signed(alice.0.clone()).into(),
+            EXISTENTIAL_DEPOSIT.into()
+        ));
 
-        frame_system::Pallet::<T>::reset_events();
+        let mut proposals = Vec::new();
+        let mut sectors = Vec::new();
+
+        for idx in 0..n {
+            let TestProposal::<T> {
+                proposal,
+                sector_pre_commit,
+            } = create_test_proposal(idx as u8, sp_id.clone(), alice.clone());
+
+            proposals.push(proposal);
+            sectors.push(sector_pre_commit);
+        }
+
+        assert_ok!(MarketPallet::<T>::publish_storage_deals(
+            RawOrigin::Signed(sp_id.clone()).into(),
+            proposals.try_into().unwrap(),
+        ));
+
+        let sectors: BoundedVec<_, ConstU32<{ MAX_SECTORS_PER_CALL }>> =
+            sectors.try_into().unwrap();
 
         #[extrinsic_call]
-        _(RawOrigin::Signed(sp_id.clone()), sectors.clone());
+        _(RawOrigin::Signed(sp_id.clone()), sectors);
 
         let state = SpPallet::<T>::storage_providers(sp_id).unwrap();
-        let balance: BalanceOf<T> = 1_u32.into();
+        let balance: BalanceOf<T> = (n * 1_u32).into();
         assert_eq!(state.pre_commit_deposits, balance);
     }
 
