@@ -249,10 +249,8 @@ mod test {
     use crate::{
         stores::{filestore::create_filestore, Config},
         test_utils::assert_buffer_eq,
-        DEFAULT_CHUNK_SIZE,
+        DEFAULT_CHUNK_SIZE, DEFAULT_TREE_WIDTH,
     };
-
-    use crate::DEFAULT_TREE_WIDTH;
 
     async fn test_filestore_roundtrip<P1, P2>(original: P1, expected: P2)
     where

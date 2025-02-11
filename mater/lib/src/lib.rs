@@ -28,8 +28,9 @@ pub use ipld_core::cid::Cid;
 use ipld_core::codec::Codec;
 use ipld_dagpb::DagPbCodec;
 pub use multicodec::{DAG_PB_CODE, IDENTITY_CODE, RAW_CODE};
-pub use stores::{create_filestore, Blockstore, Config, FileBlockstore};
-pub use stores::{DEFAULT_CHUNK_SIZE, DEFAULT_TREE_WIDTH};
+pub use stores::{
+    create_filestore, Blockstore, Config, FileBlockstore, DEFAULT_CHUNK_SIZE, DEFAULT_TREE_WIDTH,
+};
 use tokio::io::{AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWriteExt};
 pub use v1::{Header as CarV1Header, Reader as CarV1Reader, Writer as CarV1Writer};
 pub use v2::{
