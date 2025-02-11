@@ -25,7 +25,7 @@ pub enum Config {
         /// The number of children per parent node.
         tree_width: usize,
         /// If false it's unixfs
-        raw: bool
+        raw: bool,
     },
 }
 
@@ -35,7 +35,7 @@ impl Config {
         Self::Balanced {
             chunk_size,
             tree_width,
-            raw
+            raw,
         }
     }
 
@@ -55,7 +55,7 @@ impl Default for Config {
         Self::Balanced {
             chunk_size: DEFAULT_CHUNK_SIZE,
             tree_width: DEFAULT_TREE_WIDTH,
-            raw: false
+            raw: false,
         }
     }
 }

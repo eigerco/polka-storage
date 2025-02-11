@@ -6,8 +6,10 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite};
 
 use super::Config;
 use crate::{
-    multicodec::SHA_256_CODE, unixfs::{stream_balanced_tree, stream_balanced_tree_unixfs}, CarV1Header, CarV2Header, CarV2Writer,
-    Error, Index, IndexEntry, MultihashIndexSorted, SingleWidthIndex,
+    multicodec::SHA_256_CODE,
+    unixfs::{stream_balanced_tree, stream_balanced_tree_unixfs},
+    CarV1Header, CarV2Header, CarV2Writer, Error, Index, IndexEntry, MultihashIndexSorted,
+    SingleWidthIndex,
 };
 
 /// Converts a source stream into a CARv2 file and writes it to an output stream.
@@ -239,14 +241,15 @@ where
 mod test {
     use std::path::Path;
 
-    use tempfile::tempdir;
-    use tokio::fs::File;
     use ipld_core::codec::Codec;
     use quick_protobuf::MessageRead;
+    use tempfile::tempdir;
+    use tokio::fs::File;
 
     use crate::{
         stores::{filestore::create_filestore, Config},
-        test_utils::assert_buffer_eq, DEFAULT_CHUNK_SIZE,
+        test_utils::assert_buffer_eq,
+        DEFAULT_CHUNK_SIZE,
     };
 
     use crate::DEFAULT_TREE_WIDTH;
@@ -297,7 +300,6 @@ mod test {
             .await
             .unwrap();
 
-
         // Read back and verify structure.
         let file = File::open(&temp_path).await.unwrap();
         let mut reader = crate::CarV2Reader::new(file);
@@ -335,20 +337,20 @@ mod test {
                 parent_blocks.insert(cid);
 
                 // Track level changes.
-                    if !current_level_nodes.is_empty()
-                        && current_level_nodes
-                            .iter()
-                            .any(|n| pb_node.links.iter().any(|l| l.cid == *n))
-                    {
-                        level_sizes.push(0);
-                        current_level = level_sizes.len() - 1;
-                        current_level_nodes.clear();
-                    }
+                if !current_level_nodes.is_empty()
+                    && current_level_nodes
+                        .iter()
+                        .any(|n| pb_node.links.iter().any(|l| l.cid == *n))
+                {
+                    level_sizes.push(0);
+                    current_level = level_sizes.len() - 1;
+                    current_level_nodes.clear();
                 }
-
-                level_sizes[current_level] += 1;
-                current_level_nodes.insert(cid);
             }
+
+            level_sizes[current_level] += 1;
+            current_level_nodes.insert(cid);
+        }
 
         // Verify structure.
         assert!(!leaf_blocks.is_empty(), "No leaf nodes found");
