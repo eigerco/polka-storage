@@ -353,12 +353,12 @@ async fn add_piece(
         sector
     };
 
-    let occupation_percent = sector.occupation_percent();
-    let fill_threshold = state.server_info.sealing_configuration.fill_percentage as u64;
-    if sector.occupation_percent() > fill_threshold {
+    let fill_percentage = sector.fill_percentage();
+    let fill_threshold = state.server_info.sealing_configuration.fill_threshold as u64;
+    if fill_percentage > fill_threshold {
         tracing::debug!(
             "Occupation level at {}%, above limit of {}% - pre-committing",
-            occupation_percent,
+            fill_percentage,
             fill_threshold,
         );
         // TODO(@th7nder,30/10/2024): simplification, as we're always scheduling a precommit just after adding a piece and creating a new sector.
@@ -372,7 +372,7 @@ async fn add_piece(
         tracing::debug!(
             sector_number = %sector.sector_number,
             "Occupation at {}; not pre-committing yet",
-            occupation_percent
+            fill_percentage
         );
     }
 

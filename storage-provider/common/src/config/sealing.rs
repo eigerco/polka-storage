@@ -11,7 +11,7 @@
 use serde::{Deserialize, Deserializer, Serialize};
 
 /// Returns the default fill percentage.
-const fn default_fill_percentage() -> u8 {
+const fn default_fill_threshold() -> u8 {
     95
 }
 
@@ -25,7 +25,7 @@ fn validate_percentage(percentage: u8) -> Result<u8, String> {
     Ok(percentage)
 }
 
-fn fill_percentage_deserializer<'de, D>(deserializer: D) -> Result<u8, D::Error>
+fn fill_threshold_deserializer<'de, D>(deserializer: D) -> Result<u8, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -44,16 +44,16 @@ pub struct SealingConfiguration {
     /// sectors not to wait long for "the perfect piece"; alternatively, keep this value at 100%
     /// while lowering [`wait_deals_delay`](`Self::wait_deals_delay`).
     #[serde(
-        default = "default_fill_percentage",
+        default = "default_fill_threshold",
         // The custom serializer enables custom validations
-        deserialize_with = "fill_percentage_deserializer"
+        deserialize_with = "fill_threshold_deserializer"
     )]
     #[cfg_attr(feature = "clap", arg(
         long,
-        default_value_t = default_fill_percentage(),
-        value_parser = fill_percentage_parser
+        default_value_t = default_fill_threshold(),
+        value_parser = fill_threshold_parser
     ))]
-    pub fill_percentage: u8,
+    pub fill_threshold: u8,
 }
 
 // This default is implemented for when `sealing_configuration` is missing from the config file,
@@ -63,7 +63,7 @@ pub struct SealingConfiguration {
 impl Default for SealingConfiguration {
     fn default() -> Self {
         Self {
-            fill_percentage: default_fill_percentage(),
+            fill_threshold: default_fill_threshold(),
         }
     }
 }
@@ -71,7 +71,7 @@ impl Default for SealingConfiguration {
 /// Parses an integer between 0 and 100, values outside the range are considered invalid
 /// and return an error.
 #[cfg(feature = "clap")]
-fn fill_percentage_parser(src: &str) -> Result<u8, String> {
+fn fill_threshold_parser(src: &str) -> Result<u8, String> {
     src.trim()
         .parse::<u8>()
         .map_err(|err| err.to_string())
