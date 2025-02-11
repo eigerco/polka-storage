@@ -5,6 +5,8 @@ This chapter covers the Polka Storage Provider server.
 ## P2P Key generation
 
 The Polka Storage Provider server runs a p2p node that is used to map Peer ID's to Multi-addresses.
+The generated Peer ID is used for on-chain registration and inside the P2P network.
+Both these Peer ID's must be the same.
 The server can run either a bootstrap node, used to aid in discovery,
 or a registration node, which registers to a bootstrap node with their Peer ID to Multi-address mapping.
 For both of these node types, the server needs an ed25519 private key.

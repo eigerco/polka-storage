@@ -14,10 +14,7 @@ use std::{env::temp_dir, net::SocketAddr, path::PathBuf, sync::Arc, time::Durati
 
 use clap::Parser;
 use libp2p::{identity::Keypair, Multiaddr, PeerId};
-use p2p::{
-    run_bootstrap_node, run_register_node, BootstrapConfig, NodeType, P2PError, P2PState,
-    RegisterConfig,
-};
+use p2p::{run_register_node, P2PError, P2PState, RegisterConfig};
 use pipeline::types::PipelineMessage;
 use polka_storage_proofs::{
     porep::{self, PoRepParameters},
@@ -260,9 +257,6 @@ pub struct Server {
     /// The number of prove commits to be run in parallel.
     parallel_prove_commits: usize,
 
-    /// P2P Network node type, can either be a bootstrap or registration node
-    node_type: NodeType,
-
     /// P2P ED25519 private key
     p2p_key: Keypair,
 
@@ -272,7 +266,7 @@ pub struct Server {
 
     /// PeerID of the bootstrap node used by the registration node.
     /// Optional because it is not used by the bootstrap node.
-    rendezvous_point: Option<PeerId>,
+    rendezvous_point: PeerId,
 
     /// TTL of the p2p registration in seconds
     registration_ttl: u64,
@@ -356,7 +350,6 @@ impl TryFrom<ServerCli> for Server {
             porep_parameters,
             post_parameters,
             parallel_prove_commits: args.parallel_prove_commits.get(),
-            node_type: args.node_type,
             p2p_key: args.p2p_key,
             rendezvous_point_address: args.rendezvous_point_address,
             rendezvous_point: args.rendezvous_point,
@@ -488,7 +481,6 @@ impl Server {
         };
 
         let p2p_state = P2PState {
-            node_type: self.node_type,
             p2p_key: self.p2p_key,
             rendezvous_point_address: self.rendezvous_point_address,
             rendezvous_point: self.rendezvous_point,
@@ -566,23 +558,11 @@ fn spawn_p2p_task(
     p2p_state: P2PState,
     cancellation_token: CancellationToken,
 ) -> Result<JoinHandle<Result<(), P2PError>>, ServerError> {
-    match p2p_state.node_type {
-        NodeType::Bootstrap => {
-            let config =
-                BootstrapConfig::new(p2p_state.p2p_key, p2p_state.rendezvous_point_address);
-            Ok(tokio::spawn(run_bootstrap_node(config, cancellation_token)))
-        }
-        NodeType::Register => {
-            let Some(rendezvous_point) = p2p_state.rendezvous_point else {
-                return Err(ServerError::P2P(P2PError::InvalidBehaviourConfig));
-            };
-            let config = RegisterConfig::new(
-                p2p_state.p2p_key,
-                p2p_state.rendezvous_point_address,
-                rendezvous_point,
-                p2p_state.registration_ttl,
-            );
-            Ok(tokio::spawn(run_register_node(config, cancellation_token)))
-        }
-    }
+    let config = RegisterConfig::new(
+        p2p_state.p2p_key,
+        p2p_state.rendezvous_point_address,
+        p2p_state.rendezvous_point,
+        p2p_state.registration_ttl,
+    );
+    Ok(tokio::spawn(run_register_node(config, cancellation_token)))
 }

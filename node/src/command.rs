@@ -12,7 +12,7 @@ use sc_service::config::{BasePath, PrometheusConfig};
 use crate::{
     chain_spec,
     cli::{Cli, RelayChainCli, Subcommand},
-    service::new_partial,
+    service::{new_partial, p2p::BootstrapConfig},
 };
 
 fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
@@ -221,10 +221,28 @@ pub fn run() -> Result<()> {
             }
         }
         None => {
-            let runner = cli.create_runner(&cli.run.normalize())?;
-            let collator_options = cli.run.collator_options();
+            let runner = cli.create_runner(&cli.run.base.normalize())?;
+            let collator_options = cli.run.base.collator_options();
 
             runner.run_node_until_exit(|config| async move {
+                let bootstrap_config = if config.role.is_authority() {
+                    let p2p_key = cli
+                        .run
+                        .p2p_key
+                        .ok_or(
+                            "This node is configured as authority, so it will be used as Bootstrap node for Storage Provider & Collator network, but the key is missing. Set the --p2p-key argument of the node."
+                        )?;
+                    let p2p_listen_address = cli
+                        .run
+                        .p2p_listen_address
+                        .ok_or(
+                            "This node is configured as authority, so it will be used as Bootstrap node for Storage Provider & Collator network, but the listen address is missing. Set the --p2p-listen-address argument of the node."
+                        )?;
+                    Some(BootstrapConfig::new(p2p_key, p2p_listen_address))
+                } else {
+                    None
+                };
+
                 let hwbench = (!cli.no_hardware_benchmarks)
                     .then_some(config.database.path().map(|database_path| {
                         let _ = std::fs::create_dir_all(database_path);
@@ -268,6 +286,7 @@ pub fn run() -> Result<()> {
                     collator_options,
                     id,
                     hwbench,
+                    bootstrap_config,
                 )
                 .await
                 .map(|r| r.0)

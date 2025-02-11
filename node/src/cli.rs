@@ -1,5 +1,8 @@
 use std::path::PathBuf;
 
+use libp2p::{identity::Keypair, Multiaddr};
+use primitives::p2p::keypair_value_parser;
+
 /// Sub-commands supported by the collator.
 #[derive(Debug, clap::Subcommand)]
 #[allow(clippy::large_enum_variant)]
@@ -64,7 +67,7 @@ pub struct Cli {
     pub subcommand: Option<Subcommand>,
 
     #[command(flatten)]
-    pub run: cumulus_client_cli::RunCmd,
+    pub run: RunCmd,
 
     /// Disable automatic hardware benchmarks.
     ///
@@ -108,4 +111,22 @@ impl RelayChainCli {
             base: clap::Parser::parse_from(relay_chain_args),
         }
     }
+}
+
+#[derive(Debug, clap::Parser)]
+#[group(skip)]
+pub struct RunCmd {
+    #[clap(flatten)]
+    pub base: cumulus_client_cli::RunCmd,
+
+    /// Key used in the P2P network of Storage Providers and Collators.
+    /// This key generates the Peer ID that storage providers use to register.
+    /// It must be an ED25519 private key, either in PEM format or passed in directly.
+    #[arg(long, value_parser = keypair_value_parser, required = false)]
+    pub p2p_key: Option<Keypair>,
+
+    /// Listen address in the P2P network of Storage Providers and Collators
+    /// that the bootstrap node binds to.
+    #[arg(long, required = false)]
+    pub p2p_listen_address: Option<Multiaddr>,
 }
