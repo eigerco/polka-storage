@@ -59,7 +59,7 @@ pub(crate) fn deser_keypair<'de, D: de::Deserializer<'de>>(d: D) -> Result<Keypa
 
 /// Parses a string to an optional Peer ID.
 /// Used in the [`ConfigurationArgs`] rendezvous_point field.
-pub(crate) fn string_to_peer_id<'de, D: de::Deserializer<'de>>(d: D) -> Result<PeerId, D::Error> {
+pub(crate) fn deserialize_string_to_peer_id<'de, D: de::Deserializer<'de>>(d: D) -> Result<PeerId, D::Error> {
     let s: String = de::Deserialize::deserialize(d)?;
     PeerId::from_str(&s).map_err(de::Error::custom)
 }

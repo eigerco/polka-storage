@@ -15,7 +15,7 @@ use serde::Deserialize;
 use url::Url;
 
 use crate::{
-    p2p::{deser_keypair, string_to_peer_id},
+    p2p::{deser_keypair, deserialize_string_to_peer_id},
     DEFAULT_NODE_ADDRESS,
 };
 
@@ -125,7 +125,7 @@ pub struct ConfigurationArgs {
     pub(crate) rendezvous_point_address: Multiaddr,
 
     /// PeerID of the bootstrap node used by the registration node.
-    #[serde(deserialize_with = "string_to_peer_id")]
+    #[serde(deserialize_with = "deserialize_string_to_peer_id")]
     #[arg(long, required = false)]
     pub(crate) rendezvous_point: PeerId,
 
