@@ -26,12 +26,12 @@ INPUT_TMP_FILE="/tmp/$INPUT_FILE_NAME.car"
 # Config file location
 CONFIG="/tmp/config.toml"
 # P2P Node variables
-P2P_PUBLIC_KEY="/tmp/public.pem"
-P2P_PRIVATE_KEY="/tmp/private.pem"
+P2P_PUBLIC_KEY="/tmp/polka-storage/public.pem"
+P2P_PRIVATE_KEY="/tmp/polka-storage/private.pem"
 P2P_ADDRESS="/ip4/127.0.0.1/tcp/62649"
 
-# Generate ED25519 private key to be replaced with a polka-storage-provider-client command
 # Generate ED25519 private key
+mkdir -p /tmp/storage-provider
 openssl genpkey -algorithm ED25519 -out "$P2P_PRIVATE_KEY"
 # -outpubkey is only available in OpenSSL 3.4.0 onwards
 # https://github.com/openssl/openssl/commit/6c03fa21ed4bbc9fd6d3013fdf9f4646d231f831

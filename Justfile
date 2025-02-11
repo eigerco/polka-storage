@@ -27,7 +27,9 @@ release-testnet:
 # Generate a private key for the P2P network and
 # run the testnet without building
 run-testnet:
-    openssl genpkey -algorithm ED25519 -out /tmp/polka-storage/private.pem
+    mkdir -p /tmp/zombienet
+    openssl genpkey -algorithm ED25519 -out /tmp/zombienet/private.pem
+    openssl pkey -in /tmp/zombienet/private.pem -pubout -out /tmp/zombienet/public.pem # Generate public key so script can get the Peer ID
     zombienet -p native spawn zombienet/local-testnet.toml
 
 # Run the testing building it before
@@ -154,7 +156,9 @@ load-to-minikube:
     minikube image load ghcr.io/polka-storage-node:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[] | select(.name == "polka-storage-node") | .version')"
 
 kube-testnet:
-    openssl genpkey -algorithm ED25519 -out /tmp/polka-storage/private.pem
+    mkdir -p /tmp/zombienet
+    openssl genpkey -algorithm ED25519 -out /tmp/zombienet/private.pem
+    openssl pkey -in /tmp/zombienet/private.pem -pubout -out /tmp/zombienet/public.pem # Generate public key so script can get the Peer ID
     zombienet -p kubernetes spawn zombienet/local-kube-testnet.toml
 
 # The tarpaulin calls for test coverage have the following options:

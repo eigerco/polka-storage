@@ -27,7 +27,7 @@ id = 1000
 [[parachains.collators]]
 args = [
   "--detailed-log-output",
-  "--p2p-key=@/tmp/private.pem",
+  "--p2p-key=@/tmp/zombienet/private.pem",
   "--p2p-listen-address=/ip4/127.0.0.1/tcp/62649",
   "-lparachain=debug,xcm=trace,runtime=trace",
 ]
