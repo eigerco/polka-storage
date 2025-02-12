@@ -24,7 +24,7 @@ async fn balanced_import<Src, Out>(
     mut output: Out,
     chunk_size: usize,
     tree_width: usize,
-) -> Result<Cid, Error>
+) -> Result<Option<Cid>, Error>
 where
     Src: AsyncRead + Unpin,
     Out: AsyncWrite + AsyncSeek + Unpin,
@@ -85,18 +85,21 @@ where
     let placeholder_header_v1 = CarV1Header::default();
     position += writer.write_v1_header(&placeholder_header_v1).await?;
 
-    let mut root = None;
+    let mut root: Option<Cid> = None;
     let mut entries = vec![];
+
+    // Collect blocks and track final root
     while let Some(node) = nodes.next().await {
         let (node_cid, node_bytes) = node?;
-        let digest = node_cid.hash().digest().to_owned();
+        let digest = node_cid.hash().digest().to_vec();
+
+        // Index entry for the block
         let entry = IndexEntry::new(digest, (position - car_v1_start) as u64);
         entries.push(entry);
-        position += writer.write_block(&node_cid, &node_bytes).await?;
 
-        if nodes.as_mut().peek().await.is_none() {
-            root = Some(node_cid);
-        }
+        // Write the block
+        position += writer.write_block(&node_cid, &node_bytes).await?;
+        root = Some(node_cid);
     }
 
     let index_offset = position;
@@ -111,18 +114,17 @@ where
     writer.get_inner_mut().rewind().await?;
     let header = CarV2Header::new(
         false,
-        car_v1_start.try_into().unwrap(),
-        (index_offset - car_v1_start).try_into().unwrap(),
-        index_offset.try_into().unwrap(),
+        car_v1_start as u64,
+        (index_offset - car_v1_start) as u64,
+        index_offset as u64,
     );
     writer.write_header(&header).await?;
 
-    let header_v1 = CarV1Header::new(vec![root.unwrap()]);
+    let header_v1 = CarV1Header::new(root.into_iter().collect());
     writer.write_v1_header(&header_v1).await?;
 
     writer.finish().await?;
-
-    Ok(root.unwrap())
+    Ok(header_v1.roots.first().cloned())
 }
 
 async fn balanced_import_unixfs<Src, Out>(
@@ -229,9 +231,12 @@ where
             raw,
         } => {
             if raw {
-                balanced_import(source, output, chunk_size, tree_width).await
+                let maybe_cid = balanced_import(source, output, chunk_size, tree_width).await?;
+                let cid = maybe_cid.ok_or(Error::EmptyRootsError)?;
+                Ok(cid)
             } else {
-                balanced_import_unixfs(source, output, chunk_size, tree_width).await
+                let cid = balanced_import_unixfs(source, output, chunk_size, tree_width).await?;
+                Ok(cid)
             }
         }
     }

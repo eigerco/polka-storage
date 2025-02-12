@@ -20,7 +20,7 @@ mod v2;
 
 use std::{
     collections::{HashMap, HashSet},
-    io::SeekFrom,
+    io::{ErrorKind, SeekFrom},
 };
 
 // We need to re-expose this because `read_block` returns `(Cid, Vec<u8>)`.
@@ -57,7 +57,7 @@ impl<R> CarBlockStore<R>
 where
     R: AsyncSeekExt + AsyncReadExt + Unpin,
 {
-    /// Extract content by traversing the UnixFS DAG using the index.
+    /// Extracts content by traversing the UnixFS DAG using the index.
     pub async fn extract_content_via_index<W>(
         &mut self,
         root: &Cid,
@@ -77,11 +77,18 @@ where
             }
             processed.insert(current_cid);
 
-            // Retrieve block by CID via the index.
-            let block_bytes = self.get_block(&current_cid).await?;
+            // Now returns Result<Option<Vec<u8>>, Error>
+            let maybe_block_bytes = self.get_block(&current_cid).await?;
 
-            // Write the raw block data. In a real UnixFS traversal you might need
-            // to reconstruct file content in order.
+            // If the block is missing, decide how to handle that:
+            let block_bytes = match maybe_block_bytes {
+                Some(bytes) => bytes,
+                // If you consider a missing block an error, return here:
+                None => return Err(Error::BlockNotFound(current_cid.to_string())),
+            };
+
+            // Write the raw block data. In a real UnixFS traversal, you might need
+            // to reconstruct the file content in the correct order, handle directories, etc.
             output.write_all(&block_bytes).await?;
 
             // If the block is a DAG-PB node, decode and enqueue its children.
@@ -90,6 +97,7 @@ where
                 // Propagate any error that occurs during decoding.
                 let pb_node: ipld_dagpb::PbNode =
                     DagPbCodec::decode(&mut cursor).map_err(Error::DagPbError)?;
+
                 for link in pb_node.links {
                     if !processed.contains(&link.cid) {
                         to_process.push(link.cid);
@@ -106,47 +114,87 @@ impl<R> CarBlockStore<R>
 where
     R: AsyncSeek + AsyncReadExt + Unpin,
 {
-    /// Given a reader positioned at the start of a CAR file,
-    /// load the CARv2 index and build a mapping of CID -> (offset, size).
-    /// For simplicity, assume the CAR header has been read and the index offset is known.
+    /// Loads the CARv2 index at the specified `index_offset` and constructs a
+    /// mapping from [`Cid`] to [`BlockLocation`] (offset, size).
+    ///
+    /// # Index Format
+    ///
+    /// > **Note on Spec Compliance**
+    /// > The [CARv2 specification](https://ipld.io/specs/transport/car/carv2/#index-format) states
+    /// > that the first byte(s) at the index offset contain a varint-based multicodec code to
+    /// > identify the index format (e.g., `IndexSorted`, `MultihashIndexSorted`), and the remaining
+    /// > bytes follow that format’s rules.
+    /// >
+    /// > **Here**, we do **not** parse any varint-based format code; instead we assume a single,
+    /// > fixed layout for each index entry:
+    /// >
+    /// > ```text
+    /// > [CID length (u8)] [CID bytes] [offset (u64)] [size (u64)]
+    /// > ```
+    /// >
+    /// > If you need to handle multiple official CARv2 index types, you must first read the varint
+    /// > code and dispatch to the appropriate parser. As of now, this function assumes a single
+    /// > custom format is sufficient for our use case.
+    ///
+    /// We read entries in a loop until reaching EOF, at which point we assume
+    /// there are no more index entries. Any I/O errors other than EOF cause an
+    /// immediate return with an error.
+    ///
+    /// # Assumptions
+    ///
+    /// - The CAR header has already been processed, and `index_offset`
+    ///   points to the start of the index data.
+    /// - `cid_len` fits within a single `u8`; larger CIDs are not expected.
+    ///   If your use case requires arbitrary-length CIDs or multiple index formats,
+    ///   you’ll need to extend this function accordingly.
+    ///
+    /// # Errors
+    ///
+    /// - Returns [`Error::IoError`] if any non-EOF I/O error occurs.
+    /// - Returns [`Error::InvalidCid`] if CID decoding fails.
+    /// - Returns [`Error::BlockNotFound`] if a requested block is missing (in `get_block`).
     pub async fn load_index(
         mut reader: R,
         index_offset: u64,
     ) -> Result<HashMap<Cid, BlockLocation>, Error> {
         // Seek to the start of the index.
         reader.seek(SeekFrom::Start(index_offset)).await?;
-        // Parse the index according to the CARv2 spec. For demonstration,
-        // we assume a very simple format where each index entry is:
-        //   [CID length (u8)][CID bytes][offset (u64)][size (u64)]
+
         let mut index = HashMap::new();
-        // In a real implementation you’d read until EOF or index length.
-        // Here we use a simple loop:
+
+        // Continuously parse index entries until EOF.
         loop {
             let cid_len = match reader.read_u8().await {
-                Ok(n) => n as usize,
-                Err(_) => break,
+                Ok(byte) => byte as usize,
+                Err(e) if e.kind() == ErrorKind::UnexpectedEof => {
+                    // End of index data
+                    break;
+                }
+                Err(e) => return Err(Error::IoError(e)),
             };
+
             let mut cid_buf = vec![0u8; cid_len];
             reader.read_exact(&mut cid_buf).await?;
-            let cid = Cid::try_from(cid_buf).map_err(|_| Error::InvalidCid)?;
+            let cid = Cid::try_from(cid_buf).map_err(Error::CidError)?;
 
             let offset = reader.read_u64_le().await?;
             let size = reader.read_u64_le().await?;
             index.insert(cid, BlockLocation { offset, size });
         }
+
         Ok(index)
     }
 
-    /// Retrieve a block by its CID. This method uses the in-memory index
-    /// to seek directly to the block’s location.
-    pub async fn get_block(&mut self, cid: &Cid) -> Result<Vec<u8>, Error> {
+    /// Returns `Some(Vec<u8>)` if the block is found, or `None` if it's missing.
+    /// I/O errors are still returned as `Error::IoError`.
+    pub async fn get_block(&mut self, cid: &Cid) -> Result<Option<Vec<u8>>, Error> {
         if let Some(location) = self.index.get(cid) {
             self.reader.seek(SeekFrom::Start(location.offset)).await?;
             let mut buf = vec![0u8; location.size as usize];
             self.reader.read_exact(&mut buf).await?;
-            Ok(buf)
+            Ok(Some(buf))
         } else {
-            Err(Error::BlockNotFound(cid.to_string()))
+            Ok(None)
         }
     }
 }
