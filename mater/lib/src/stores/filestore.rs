@@ -378,6 +378,7 @@ mod test {
     #[tokio::test]
     async fn test_filestore_spaceglenda_matches_unixfs_reference() {
         use std::path::Path;
+
         use tempfile::tempdir;
         use tokio::fs::File;
 
@@ -408,6 +409,7 @@ mod test {
     #[ignore]
     async fn generate_spaceglenda_unixfs_reference() -> Result<(), Box<dyn std::error::Error>> {
         use std::path::Path;
+
         use tokio::fs::File;
 
         let source_path = Path::new("tests/fixtures/original/spaceglenda.jpg");
