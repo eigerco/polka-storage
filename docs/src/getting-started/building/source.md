@@ -47,7 +47,7 @@ $ sudo apt install -y libhwloc-dev \
 
 Running `polka-storage-provider-client` & `polka-storage-provider-server` via CUDA gives significant performance boosts
 as parts of the proving algorithm can be sent-off to the GPU. By default components are compiled with OpenCL.
-It's not possible to compile client without NVIDIA Graphics card.
+It's not possible to compile client without NVIDIA Graphics card if the CUDA feature is enabled.
 
 <div class="warning">
 **FOR DEVELOPERS**: It's possible to run CUDA on your WSL2, however the setup is different than for native linux installation.
@@ -117,7 +117,7 @@ Where `<BINARY-NAME>` is one of:
 If you want to use proofs with CUDA enabled acceleration, you need to set `cuda` feature flags for both `polka-storage-provider-client` and `polka-storage-provider-server`.
 
 ```bash
-cargo build --release -p polka-storage-provider-client --no-default-features --features cuda
+cargo build --release -p polka-storage-provider-server --no-default-features --features cuda
 cargo build --release -p polka-storage-provider-client --no-default-features --features cuda
 ```
 
@@ -127,7 +127,7 @@ For more information on what each binary does, refer to [Building](./index.md).
 ### Just recipes
 
 To simplify the building process, we've written some [Just](https://github.com/casey/just) recipes.
-If you set environment variable `POLKA_STORAGE_CUDA=true`,the commands below build both `polka-storage-provider-client` and `polka-storage-provider-server` with CUDA support.
+If you set environment variable `POLKA_STORAGE_CUDA=true`, the commands below build both `polka-storage-provider-client` and `polka-storage-provider-server` with CUDA support.
 
 | Command                               | Description                                                                                                         |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
