@@ -13,7 +13,6 @@ use crate::{
 };
 
 /// Converts a source stream into a CARv2 file and writes it to an output stream.
-//
 // The expanded trait bounds are required because:
 // - `Send + 'static`: The async stream operations require the ability to move the source/output
 //   between threads and ensure they live long enough for the entire async operation
@@ -127,6 +126,17 @@ where
     Ok(header_v1.roots.first().cloned())
 }
 
+/// Similar to [`balanced_import`], this function also creates a “balanced” CARv2 layout.
+// Unlike [`balanced_import`], it handles UnixFS blocks and ensures there is always at
+// least one root (returning an error otherwise).
+// We keep this separate from [`balanced_import`] because:
+// UnixFS Data: This function encodes blocks differently, wrapping them with UnixFS
+//   metadata rather than raw.
+// Guaranteed Root: We return an error if no root is found, whereas [`balanced_import`]
+//   allows for an empty result (`Option<Cid>`).
+// Implementation Clarity: Combining both approaches into a single function would
+//   introduce extra branching and logic. If we find a cleaner abstraction in the future,
+//   we may unify them.
 async fn balanced_import_unixfs<Src, Out>(
     mut source: Src,
     mut output: Out,
@@ -268,7 +278,7 @@ mod test {
         let source_file = File::open(original).await.unwrap();
         let output_file = File::create(&temp_path).await.unwrap();
 
-        let config = Config::balanced_raw(DEFAULT_CHUNK_SIZE, DEFAULT_TREE_WIDTH);
+        let config = Config::balanced(DEFAULT_CHUNK_SIZE, DEFAULT_TREE_WIDTH, true);
         create_filestore(source_file, output_file, config)
             .await
             .unwrap();
@@ -298,7 +308,7 @@ mod test {
         let source_file = File::open(&input_path).await.unwrap();
         let output_file = File::create(&temp_path).await.unwrap();
 
-        let config = Config::balanced_unixfs(TEST_CHUNK_SIZE, TEST_TREE_WIDTH);
+        let config = Config::balanced(TEST_CHUNK_SIZE, TEST_TREE_WIDTH, false);
         create_filestore(source_file, output_file, config)
             .await
             .unwrap();
@@ -363,6 +373,53 @@ mod test {
             leaf_blocks.len() + parent_blocks.len(),
             "Block count mismatch"
         );
+    }
+
+    #[tokio::test]
+    async fn test_filestore_spaceglenda_matches_unixfs_reference() {
+        use std::path::Path;
+        use tempfile::tempdir;
+        use tokio::fs::File;
+
+        // 1. Prepare paths
+        let temp_dir = tempdir().unwrap();
+        let output_path = temp_dir.path().join("output_glenda.car");
+        let reference_path = Path::new("tests/fixtures/car_v2/spaceglenda_unixfs.car");
+        let original_glenda = Path::new("tests/fixtures/original/spaceglenda.jpg");
+
+        // 2. Generate our CAR file
+        let source_file = File::open(&original_glenda).await.unwrap();
+        let output_file = File::create(&output_path).await.unwrap();
+
+        let config = Config::balanced(DEFAULT_CHUNK_SIZE, DEFAULT_TREE_WIDTH, false);
+        create_filestore(source_file, output_file, config)
+            .await
+            .unwrap();
+
+        // 3. Read both files
+        let our_car = tokio::fs::read(&output_path).await.unwrap();
+        let reference_car = tokio::fs::read(&reference_path).await.unwrap();
+
+        // 4. Compare byte-for-byte
+        assert_eq!(our_car, reference_car, "Our CAR differs from reference");
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn generate_spaceglenda_unixfs_reference() -> Result<(), Box<dyn std::error::Error>> {
+        use std::path::Path;
+        use tokio::fs::File;
+
+        let source_path = Path::new("tests/fixtures/original/spaceglenda.jpg");
+        let ref_path = Path::new("tests/fixtures/car_v2/spaceglenda_unixfs.car");
+
+        let output_file = File::create(&ref_path).await?;
+
+        let config = Config::balanced(DEFAULT_CHUNK_SIZE, DEFAULT_TREE_WIDTH, false);
+        let source_file = File::open(&source_path).await?;
+        create_filestore(source_file, output_file, config).await?;
+
+        Ok(())
     }
 
     #[tokio::test]

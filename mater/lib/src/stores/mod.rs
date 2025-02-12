@@ -38,16 +38,6 @@ impl Config {
             raw,
         }
     }
-
-    /// Creates a new balanced tree configuration with UnixFS wrapping (recommended).
-    pub fn balanced_unixfs(chunk_size: usize, tree_width: usize) -> Self {
-        Self::balanced(chunk_size, tree_width, false)
-    }
-
-    /// Creates a new balanced tree configuration with raw storage.
-    pub fn balanced_raw(chunk_size: usize, tree_width: usize) -> Self {
-        Self::balanced(chunk_size, tree_width, true)
-    }
 }
 
 impl Default for Config {

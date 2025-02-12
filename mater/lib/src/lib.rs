@@ -55,63 +55,6 @@ pub struct CarBlockStore<R> {
 
 impl<R> CarBlockStore<R>
 where
-    R: AsyncSeekExt + AsyncReadExt + Unpin,
-{
-    /// Extracts content by traversing the UnixFS DAG using the index.
-    pub async fn extract_content_via_index<W>(
-        &mut self,
-        root: &Cid,
-        output: &mut W,
-    ) -> Result<(), Error>
-    where
-        W: AsyncWriteExt + Unpin,
-    {
-        // To avoid processing a block more than once.
-        let mut processed = HashSet::new();
-        // We use a stack for DFS traversal.
-        let mut to_process = vec![*root];
-
-        while let Some(current_cid) = to_process.pop() {
-            if processed.contains(&current_cid) {
-                continue;
-            }
-            processed.insert(current_cid);
-
-            // Now returns Result<Option<Vec<u8>>, Error>
-            let maybe_block_bytes = self.get_block(&current_cid).await?;
-
-            // If the block is missing, decide how to handle that:
-            let block_bytes = match maybe_block_bytes {
-                Some(bytes) => bytes,
-                // If you consider a missing block an error, return here:
-                None => return Err(Error::BlockNotFound(current_cid.to_string())),
-            };
-
-            // Write the raw block data. In a real UnixFS traversal, you might need
-            // to reconstruct the file content in the correct order, handle directories, etc.
-            output.write_all(&block_bytes).await?;
-
-            // If the block is a DAG-PB node, decode and enqueue its children.
-            if current_cid.codec() == crate::multicodec::DAG_PB_CODE {
-                let mut cursor = std::io::Cursor::new(&block_bytes);
-                // Propagate any error that occurs during decoding.
-                let pb_node: ipld_dagpb::PbNode =
-                    DagPbCodec::decode(&mut cursor).map_err(Error::DagPbError)?;
-
-                for link in pb_node.links {
-                    if !processed.contains(&link.cid) {
-                        to_process.push(link.cid);
-                    }
-                }
-            }
-        }
-
-        Ok(())
-    }
-}
-
-impl<R> CarBlockStore<R>
-where
     R: AsyncSeek + AsyncReadExt + Unpin,
 {
     /// Loads the CARv2 index at the specified `index_offset` and constructs a
@@ -196,6 +139,54 @@ where
         } else {
             Ok(None)
         }
+    }
+
+    /// Extracts content by traversing the UnixFS DAG using the index.
+    pub async fn extract_content_via_index<W>(
+        &mut self,
+        root: &Cid,
+        output: &mut W,
+    ) -> Result<(), Error>
+    where
+        W: AsyncWriteExt + Unpin,
+    {
+        // To avoid processing a block more than once.
+        let mut processed = HashSet::new();
+        // We use a stack for DFS traversal.
+        let mut to_process = vec![*root];
+
+        while let Some(current_cid) = to_process.pop() {
+            processed.insert(current_cid);
+
+            // Retrieve the block by CID. (get_block returns Option<Vec<u8>>)
+            let maybe_block_bytes = self.get_block(&current_cid).await?;
+            let block_bytes = match maybe_block_bytes {
+                Some(bytes) => bytes,
+                None => return Err(Error::BlockNotFound(current_cid.to_string())),
+            };
+
+            // Write the raw block data
+            output.write_all(&block_bytes).await?;
+
+            // If the block isn't DAG-PB, we fail fast with an error.
+            if current_cid.codec() != crate::multicodec::DAG_PB_CODE {
+                return Err(Error::UnsupportedCidCodec(current_cid.codec()));
+            }
+
+            // Decode the DAG-PB node.
+            let mut cursor = std::io::Cursor::new(&block_bytes);
+            let pb_node: ipld_dagpb::PbNode =
+                DagPbCodec::decode(&mut cursor).map_err(Error::DagPbError)?;
+
+            // Enqueue its children if they haven't been processed yet
+            for link in pb_node.links {
+                if !processed.contains(&link.cid) {
+                    to_process.push(link.cid);
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -286,6 +277,10 @@ pub enum Error {
     /// Error indicating that the requested block could not be found found in the CAR file's index.
     #[error("block not found: {0}")]
     BlockNotFound(String),
+
+    /// Returned when we try to decode a block with a codec that isn't supported.
+    #[error("unsupported CID codec: {0}")]
+    UnsupportedCidCodec(u64),
 }
 
 #[cfg(test)]
