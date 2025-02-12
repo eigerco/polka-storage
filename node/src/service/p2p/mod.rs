@@ -1,9 +1,5 @@
-use std::str::FromStr;
-
 use bootstrap::bootstrap;
-use libp2p::{Multiaddr, PeerId};
 use log::info;
-use serde::{de, Deserialize, Serialize, Serializer};
 
 mod bootstrap;
 
@@ -38,22 +34,4 @@ pub async fn run_bootstrap_node(config: BootstrapConfig) {
     bootstrap(swarm, addr, bootstrap_addresses)
         .await
         .expect("Could not run bootstrap node");
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PeerInfo {
-    #[serde(serialize_with = "serialize_peer_id")]
-    #[serde(deserialize_with = "deserialize_peer_id")]
-    pub peer_id: PeerId,
-    pub multiaddrs: Vec<Multiaddr>,
-}
-
-fn deserialize_peer_id<'de, D: de::Deserializer<'de>>(d: D) -> Result<PeerId, D::Error> {
-    let s: String = de::Deserialize::deserialize(d)?;
-    PeerId::from_str(&s).map_err(de::Error::custom)
-}
-
-fn serialize_peer_id<S: Serializer>(id: &PeerId, serializer: S) -> Result<S::Ok, S::Error> {
-    let id = id.to_string();
-    serializer.collect_str(&id)
 }

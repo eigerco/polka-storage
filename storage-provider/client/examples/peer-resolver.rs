@@ -1,133 +1,103 @@
-//! Peer Resolver example
-//!
-//! This example shows how to use the rendezvous client protocol to
-//! connect to rendezvous bootstrap, and send a discovery message,
-//! requesting the bootstrap node to return their registrations.
-//! Then it will check the registrations to see if a given Peer ID
-//! is contained in them to get a Peer ID to multiaddr mapping.
-//! If the bootstrap node does not have information on the given Peer
-//! ID, the example will return an error.
-//! NOTE: This example is to be removed and implemented into the
-//! client at some point.
-use std::{error::Error, time::Duration};
+use std::time::Duration;
 
+use anyhow::Result;
 use clap::Parser;
+use libp2p::futures::StreamExt;
+use libp2p::request_response::{Message, ProtocolSupport};
+use libp2p::swarm::SwarmEvent;
 use libp2p::{
-    futures::StreamExt,
-    noise,
-    rendezvous::client::{Behaviour, Event},
-    swarm::SwarmEvent,
-    tcp, yamux, Multiaddr, PeerId, Swarm, SwarmBuilder,
+    noise, request_response, tcp, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder,
 };
+use primitives::p2p::PeerInfo;
 use tracing_subscriber::EnvFilter;
 
-#[derive(Debug)]
-struct PeerInfo {
-    peer_id: PeerId,
-    multiaddresses: Vec<Multiaddr>,
-}
-
-#[derive(Parser)]
-struct Cli {
-    /// Peer ID to resolve
-    #[arg(long)]
-    peer_id: PeerId,
-
-    /// Rendezvous point address of the bootstrap node
-    #[arg(long)]
-    rendezvous_point_address: Multiaddr,
-
-    /// PeerID of the bootstrap node
-    #[arg(long)]
-    rendezvous_point: PeerId,
-}
-
-fn create_swarm() -> Result<Swarm<Behaviour>, Box<dyn Error>> {
-    Ok(SwarmBuilder::with_new_identity()
+/// Create a discovery swarm
+fn create_discover_swarm() -> Result<Swarm<request_response::cbor::Behaviour<String, PeerInfo>>>
+{
+    let swarm = SwarmBuilder::with_new_identity()
         .with_tokio()
         .with_tcp(
             tcp::Config::default(),
             noise::Config::new,
             yamux::Config::default,
         )?
-        .with_behaviour(|key| Behaviour::new(key.clone()))?
+        .with_behaviour(|_| {
+            request_response::cbor::Behaviour::new(
+                [(
+                    StreamProtocol::new("/resolver/1.0.0"),
+                    ProtocolSupport::Full,
+                )],
+                request_response::Config::default(),
+            )
+        })?
         .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(Duration::from_secs(10)))
-        .build())
+        .build();
+    Ok(swarm)
 }
 
-async fn discover(
-    swarm: &mut Swarm<Behaviour>,
-    peer_id_to_find: PeerId,
-    rendezvous_point_address: Multiaddr,
-    rendezvous_point: PeerId,
-) -> Result<PeerInfo, Box<dyn Error>> {
-    // Dial in to the rendezvous point.
-    swarm.dial(rendezvous_point_address)?;
+/// Run the discovery swarm and request the peer ID to multiaddrs mapping.
+async fn run_discover(
+    mut swarm: Swarm<request_response::cbor::Behaviour<String, PeerInfo>>,
+    bootstrap_addr: Multiaddr,
+    bootstrap_id: &PeerId,
+    resolve_id: PeerId,
+) -> Result<PeerInfo> {
+    swarm.dial(bootstrap_addr)?;
 
     loop {
-        match swarm.select_next_some().await {
-            SwarmEvent::ConnectionEstablished { peer_id, .. } => {
-                if peer_id == rendezvous_point {
-                    tracing::info!("Connection established with rendezvous point {}", peer_id);
-
-                    // Requesting rendezvous point for peer discovery
-                    swarm
-                        .behaviour_mut()
-                        .discover(None, None, None, rendezvous_point);
+        tokio::select! {
+            event = swarm.select_next_some() => match event {
+                SwarmEvent::Behaviour(event) => match event {
+                    libp2p::request_response::Event::Message { peer, message } =>
+                    if let Message::Response { request_id, response } = message {
+                        tracing::info!("Received response with id {request_id} from {peer}");
+                        return Ok(response);
+                    },
+                    libp2p::request_response::Event::OutboundFailure {
+                        peer,
+                        request_id,
+                        error,
+                    } => tracing::warn!("Failed to send message with id {request_id} to {peer}: {error}"),
+                    libp2p::request_response::Event::InboundFailure {
+                        peer,
+                        request_id,
+                        error,
+                    } => tracing::warn!("Failed to receive message with id {request_id} from {peer}: {error}"),
+                    libp2p::request_response::Event::ResponseSent { peer, request_id } => tracing::info!("Request with id {request_id} sent to {peer}"),
+                },
+                SwarmEvent::ConnectionEstablished { peer_id, .. } => {
+                    tracing::info!("Connected to {}", peer_id);
+                    swarm.behaviour_mut().send_request(bootstrap_id, resolve_id.to_string());
                 }
+                other => tracing::debug!("Received other event: {other:?}"),
             }
-            // Received discovered event from the rendezvous point
-            SwarmEvent::Behaviour(Event::Discovered { registrations, .. }) => {
-                // Check registrations
-                for registration in &registrations {
-                    // Get peer ID from the registration record
-                    let peer_id = registration.record.peer_id();
-                    // skip self
-                    if &peer_id == swarm.local_peer_id() {
-                        continue;
-                    }
-                    if peer_id == peer_id_to_find {
-                        return Ok(PeerInfo {
-                            peer_id,
-                            multiaddresses: registration.record.addresses().to_vec(),
-                        });
-                    }
-                }
-                return Err(format!(
-                    "No registered multi-addresses found for Peer ID {peer_id_to_find}"
-                )
-                .into());
-            }
-
-            other => tracing::debug!("Other event: {other:?}"),
         }
     }
+}
+
+#[derive(Parser)]
+struct Cli {
+    #[arg(long)]
+    bootstrap_addr: Multiaddr,
+    #[arg(long)]
+    bootstrap_id: PeerId,
+    #[arg(long)]
+    resolve_id: PeerId,
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main() -> Result<()> {
     let _ = tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .try_init();
-    let args = Cli::parse();
-
-    let mut swarm = create_swarm()?;
-    match discover(
-        &mut swarm,
-        args.peer_id,
-        args.rendezvous_point_address,
-        args.rendezvous_point,
-    )
-    .await
-    {
-        Ok(peer_info) => {
-            println!("Found peer with Peer ID {}", args.peer_id);
-            println!("Peer Info:");
-            println!("Peer ID: {}", peer_info.peer_id);
-            println!("Multiaddresses: {:?}", peer_info.multiaddresses);
-        }
-        Err(e) => eprintln!("{e}"),
-    }
-
+    let cli = Cli::parse();
+    let swarm = create_discover_swarm()?;
+    println!("Attempting to get multiaddrs for peer {:?}", cli.resolve_id);
+    let peer_info =
+        run_discover(swarm, cli.bootstrap_addr, &cli.bootstrap_id, cli.resolve_id).await?;
+    println!(
+        "Got multiaddrs {:?} for peer {:?}",
+        peer_info.multiaddrs, peer_info.peer_id
+    );
     Ok(())
 }

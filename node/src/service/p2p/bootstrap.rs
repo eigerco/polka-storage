@@ -15,8 +15,9 @@ use libp2p::{
     tcp, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder,
 };
 use log::{debug, error, info, warn};
+use primitives::p2p::PeerInfo;
 
-use crate::service::p2p::{P2PError, PeerInfo, DEFAULT_REGISTRATION_TTL};
+use crate::service::p2p::{P2PError, DEFAULT_REGISTRATION_TTL};
 
 const GOSSIP_TOPIC: &str = "registrar";
 
