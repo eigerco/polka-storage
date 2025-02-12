@@ -62,9 +62,11 @@ impl TreeNode {
             unixfs_data.write_message(&mut w)?;
         }
 
+        let data_len = data_buf.len() as u64;
+
         let pb_node = PbNode {
             links: vec![],
-            data: Some(data_buf.clone().into()),
+            data: Some(data_buf.into()),
         };
 
         let encoded = DagPbCodec::encode_to_vec(&pb_node)?;
@@ -72,7 +74,7 @@ impl TreeNode {
         let cid = Cid::new_v1(DAG_PB_CODE, mh);
 
         let info = LinkInfo {
-            raw_data_length: chunk_len,
+            raw_data_length: data_len,
             encoded_data_length: encoded.len() as u64,
         };
 
@@ -133,6 +135,7 @@ impl TreeNode {
 
         Ok(((cid, encoded.into()), info))
     }
+
     fn encode_raw(self) -> Result<((Cid, Bytes), LinkInfo), Error> {
         match self {
             TreeNode::Leaf(bytes) => {
