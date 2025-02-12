@@ -82,29 +82,22 @@ impl TreeNode {
     fn encode_unixfs_stem_node(
         children: Vec<(Cid, LinkInfo)>,
     ) -> Result<((Cid, Bytes), LinkInfo), Error> {
+        let mut total_raw_size: u64 = 0;
+        let mut total_encoded_size: u64 = 0;
+        let mut pb_links = Vec::with_capacity(children.len());
+        let mut blocksizes = Vec::with_capacity(children.len());
         // Process all children in a single pass, gathering totals and building links and blocksizes
-        let (total_raw_size, total_encoded_size, pb_links, blocksizes) = children.iter().fold(
-            (
-                0u64,
-                0u64,
-                Vec::with_capacity(children.len()),
-                Vec::with_capacity(children.len()),
-            ),
-            |(raw_sum, encoded_sum, mut links, mut sizes), (child_cid, link_info)| {
-                sizes.push(link_info.raw_data_length);
-                links.push(PbLink {
-                    cid: *child_cid,
-                    name: Some("".to_string()),
-                    size: Some(link_info.encoded_data_length),
-                });
-                (
-                    raw_sum + link_info.raw_data_length,
-                    encoded_sum + link_info.encoded_data_length,
-                    links,
-                    sizes,
-                )
-            },
-        );
+        for (cid, link_info) in children {
+            pb_links.push(PbLink {
+                cid,
+                name: Some("".to_string()),
+                size: Some(link_info.encoded_data_length),
+            });
+            blocksizes.push(link_info.raw_data_length);
+
+            total_raw_size += link_info.raw_data_length;
+            total_encoded_size += link_info.encoded_data_length;
+        }
 
         // Create UnixFS metadata
         let unixfs_data = Data {
