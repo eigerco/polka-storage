@@ -21,6 +21,12 @@ pub enum PipelineMessage {
     SchedulePoSts,
 }
 
+impl PipelineMessage {
+    pub fn pre_commit(sector_number: SectorNumber) -> Self {
+        Self::PreCommit(PreCommitMessage { sector_number })
+    }
+}
+
 /// Deal to be added to a sector with its contents.
 #[derive(Debug)]
 pub struct AddPieceMessage {

@@ -5,7 +5,9 @@ use std::{
 
 use polka_storage_provider_common::sector::UnsealedSector;
 use primitives::sector::{SectorNumber, SectorNumberError};
-use rocksdb::{ColumnFamily, ColumnFamilyDescriptor, Options as DBOptions, DB as RocksDB};
+use rocksdb::{
+    ColumnFamily, ColumnFamilyDescriptor, Options as DBOptions, TransactionDB, TransactionDBOptions,
+};
 use serde::{de::DeserializeOwned, Serialize};
 use storagext::types::market::{ConversionError, DealProposal};
 
@@ -37,7 +39,7 @@ const UNSEALED_SECTORS_CF: &str = "unsealed_sectors";
 const COLUMN_FAMILIES: [&str; 3] = [ACCEPTED_DEAL_PROPOSALS_CF, SECTORS_CF, UNSEALED_SECTORS_CF];
 
 pub struct DealDB {
-    database: RocksDB,
+    database: TransactionDB,
     last_sector_number: AtomicU32,
 }
 
@@ -50,12 +52,15 @@ impl DealDB {
         opts.create_if_missing(true);
         opts.create_missing_column_families(true);
 
+        // Lock timeout of 1s by default
+        let tx_opts = TransactionDBOptions::default();
+
         let cfs = COLUMN_FAMILIES
             .into_iter()
             .map(|cf_name| ColumnFamilyDescriptor::new(cf_name, DBOptions::default()));
 
         let db = Self {
-            database: RocksDB::open_cf_descriptors(&opts, path, cfs)?,
+            database: TransactionDB::open_cf_descriptors(&opts, &tx_opts, path, cfs)?,
             last_sector_number: AtomicU32::new(0),
         };
 
@@ -206,32 +211,36 @@ impl DealDB {
         Ok(self.database.put_cf(cf_handle, key, json)?)
     }
 
-    /// Get an unsealed sector.
-    pub fn get_unsealed_sector(
+    /// Removes and returns a given [`UnsealedSector`], if it doesn't exist, returns `None`.
+    /// Locks the passed key for the duration of this operation!
+    ///
+    /// Removal is only done on success!
+    pub fn remove_unsealed_sector(
         &self,
         sector_number: SectorNumber,
     ) -> Result<Option<UnsealedSector>, DBError> {
         let cf_handle = self.cf_handle(UNSEALED_SECTORS_CF);
         let sector_number_bytes = u32::from(sector_number).to_le_bytes();
 
-        let Some(slice) = self
-            .database
-            .get_pinned_cf(cf_handle, sector_number_bytes)?
-        else {
-            return Ok(None);
+        let txn = self.database.transaction();
+
+        // Effectively *lock* the row
+        let unsealed_sector = {
+            let Some(slice) = txn.get_pinned_for_update_cf(cf_handle, sector_number_bytes, true)?
+            else {
+                return Ok(None);
+            };
+            // This serialization error *should* never happen if you didn't f-up any insert calls
+            serde_json::from_reader(slice.as_ref()).map_err(DBError::InvalidSectorData)?
         };
 
-        // This serialization error *should* never happen if you didn't f-up any insert calls
-        serde_json::from_reader(slice.as_ref())
-            .map(Some)
-            .map_err(DBError::InvalidSectorData)
-    }
+        // Delete the row
+        txn.delete_cf(cf_handle, u32::from(sector_number).to_le_bytes())
+            .map_err(DBError::from)?;
 
-    pub fn remove_unsealed_sector(&self, sector_number: SectorNumber) -> Result<(), DBError> {
-        let cf_handle = self.cf_handle(UNSEALED_SECTORS_CF);
-        self.database
-            .delete_cf(cf_handle, u32::from(sector_number).to_le_bytes())
-            .map_err(DBError::from)
+        txn.commit()?;
+
+        Ok(Some(unsealed_sector))
     }
 
     /// Iterator over unsealed sectors.

@@ -94,8 +94,10 @@ fn main() -> Result<(), ServerError> {
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
 
     tracing_subscriber::registry()
-        .with(fmt::layer())
+        // File appender *MUST* go first, otherwise `with_ansi` isn't respected
+        // More info: https://github.com/tokio-rs/tracing/issues/3089
         .with(fmt::layer().with_ansi(false).with_writer(non_blocking))
+        .with(fmt::layer())
         .with(
             EnvFilter::builder()
                 .with_default_directive(LevelFilter::INFO.into())
