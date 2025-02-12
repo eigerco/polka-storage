@@ -13902,6 +13902,7 @@ dependencies = [
  "filecoin-proofs",
  "fr32",
  "hex",
+ "itertools 0.13.0",
  "jsonrpsee 0.24.7",
  "parity-scale-codec",
  "polka-storage-proofs",

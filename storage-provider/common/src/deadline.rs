@@ -1,5 +1,6 @@
-use std::{collections::BTreeSet, sync::Arc};
+use std::sync::Arc;
 
+use itertools::Itertools;
 use polka_storage_proofs::{
     match_post_proof,
     porep::sealer::{BlstrsProof, SubstrateProof},
@@ -9,14 +10,18 @@ use primitives::{
     proofs::{derive_prover_id, RegisteredPoStProof},
     randomness::{draw_randomness, DomainSeparationTag},
     sector::SectorNumber,
+    PartitionNumber, MAX_PROOFS_PER_BLOCK,
 };
 use storagext::{
     runtime::runtime_types::primitives::pallets::DeadlineInfo,
     types::storage_provider::{PartitionState, PoStProof, SubmitWindowedPoStParams},
     RandomnessClientExt, StorageProviderClientExt, SystemClientExt,
 };
-use subxt::{ext::codec::Encode, tx::Signer};
-use tokio::task::{JoinError, JoinHandle};
+use subxt::{
+    ext::{codec::Encode, futures::future::try_join_all},
+    tx::Signer,
+};
+use tokio::task::JoinError;
 
 use crate::sector::ProvenSector;
 
@@ -101,27 +106,17 @@ impl Deadline {
             return Err(DeadlineError::DeadlineStateNotFound(self.deadline_index));
         };
 
-        if deadline_state.partitions.len() == 0 {
-            tracing::info!("There are not partitions in this deadline yet — nothing to prove here. Waiting for deadline close: {}", deadline.close);
-            // Wait until the current deadline closes, so we can exit an re-schedule,
-            // NOTE(@jmg-duarte,05/02/2025): IMO placing this wait here saves on complexity for now
-            // but ideally, we'd want to reschedule the task and have it wait BEFORE it exits here
-            // I can't really justify *why* it's just my spidey sense tingling
-            xt_client.wait_for_height(deadline.close, true).await?;
-            return Ok(());
-        }
-
-        let partitions = deadline_state.partitions.keys().cloned().collect();
-        let all_sectors = BTreeSet::from_iter(
-            deadline_state
+        // This executes if there are no partitions in the deadline, or if those
+        // partitions have no sectors to prove. In that case we just hang until
+        // the next deadline.
+        if deadline_state.partitions.is_empty()
+            || deadline_state
                 .partitions
-                .into_iter()
-                .flat_map(|(_, PartitionState { sectors })| sectors),
-        );
-
-        if all_sectors.len() == 0 {
+                .iter()
+                .all(|s| s.1.sectors.is_empty())
+        {
             tracing::info!(
-                "Every sector expired — nothing to prove here. Waiting for deadline close: {}",
+                "There is nothing to prove here. Waiting for deadline close: {}",
                 deadline.close
             );
             // Wait until the current deadline closes, so we can exit an re-schedule,
@@ -130,19 +125,6 @@ impl Deadline {
             // I can't really justify *why* it's just my spidey sense tingling
             xt_client.wait_for_height(deadline.close, true).await?;
             return Ok(());
-        }
-
-        let mut replicas = Vec::new();
-        for sector_number in all_sectors {
-            let sector = sector_storage(sector_number)
-                .ok_or(DeadlineError::SectorNotFound(sector_number))?;
-
-            replicas.push(ReplicaInfo {
-                sector_id: sector_number,
-                comm_r: sector.comm_r.raw(),
-                cache_path: sector.cache_path.clone(),
-                replica_path: sector.sealed_path.clone(),
-            });
         }
 
         let prover_id = derive_prover_id(xt_keypair.account_id());
@@ -158,8 +140,96 @@ impl Deadline {
             &entropy,
         );
 
-        tracing::info!("Proving PoSt partitions... {:?}", partitions);
-        let handle: JoinHandle<Result<Vec<BlstrsProof>, _>> = {
+        // We can only push a limited number of proofs in a single extrinsic
+        // call. So we are chunking the partitions and limiting the number of
+        // proofs generated. 1 proof == 1 partition
+        let chunked_partitions = deadline_state
+            .partitions
+            .into_iter()
+            .chunks(MAX_PROOFS_PER_BLOCK as usize);
+
+        // Prepare the proofs for required partitions
+        let proofs_futures = chunked_partitions
+            .into_iter()
+            .map(|partitions| {
+                let partitions = partitions.collect();
+                tracing::info!("Proving PoSt partitions... {:?}", partitions);
+
+                let post_params = Arc::clone(&post_params);
+                self.generate_proofs_for_partitions(
+                    partitions,
+                    prover_id,
+                    randomness,
+                    post_params,
+                    &sector_storage,
+                )
+            })
+            .collect::<Vec<_>>();
+
+        // Generated proofs
+        let partitions_proofs = try_join_all(proofs_futures).await?;
+
+        // Wait for the current deadline to open
+        tracing::info!("Wait for block {} for open deadline", deadline.start);
+        xt_client.wait_for_height(deadline.start, true).await?;
+
+        // Submit generated proofs
+        for (partitions, proofs) in partitions_proofs {
+            let result = xt_client
+                .submit_windowed_post(
+                    xt_keypair,
+                    SubmitWindowedPoStParams {
+                        deadline: self.deadline_index,
+                        partitions,
+                        proofs,
+                    },
+                    true,
+                )
+                .await?
+                .expect("waiting for finalization should always give results");
+
+            let posts = result
+                .events
+                .find::<storagext::runtime::storage_provider::events::ValidPoStSubmitted>()
+                .map(|result| result.map_err(|err| subxt::Error::from(err)))
+                .collect::<Result<Vec<_>, _>>()?;
+
+            tracing::info!("Successfully submitted PoSt on-chain: {:?}", posts);
+        }
+
+        Ok(())
+    }
+
+    async fn generate_proofs_for_partitions<SectorStorage>(
+        &self,
+        partitions: Vec<(PartitionNumber, PartitionState)>,
+        prover_id: [u8; 32],
+        randomness: [u8; 32],
+        post_params: Arc<PoStParameters>,
+        sector_storage: SectorStorage,
+    ) -> Result<(Vec<PartitionNumber>, Vec<PoStProof>), DeadlineError>
+    where
+        SectorStorage: Fn(SectorNumber) -> Option<ProvenSector>,
+    {
+        // Get replicas for sectors part of the partitions
+        let replicas = partitions
+            .iter()
+            .flat_map(|(_id, state)| {
+                state.sectors.iter().map(|sector_number| {
+                    sector_storage(*sector_number)
+                        .ok_or(DeadlineError::SectorNotFound(*sector_number))
+                        .map(|sector| ReplicaInfo {
+                            sector_id: sector.sector_number,
+                            comm_r: sector.comm_r.raw(),
+                            cache_path: sector.cache_path.clone(),
+                            replica_path: sector.sealed_path.clone(),
+                        })
+                })
+            })
+            .collect::<Result<Vec<_>, DeadlineError>>()?;
+
+        // Generate proofs
+        let proofs: Vec<BlstrsProof> = {
             let post_params = post_params.clone();
             let post_proof = self.post_proof;
 
@@ -175,10 +245,10 @@ impl Deadline {
                     )
                 )
             })
-        };
-        let proofs = handle.await??;
-        tracing::info!("Generated PoSt proof for partitions: {:?}", partitions);
+        }
+        .await??;
 
+        // Map proofs to our internal type
         let proofs = proofs
             .into_iter()
             .map(|p| PoStProof {
@@ -191,30 +261,8 @@ impl Deadline {
             })
             .collect::<Vec<_>>();
 
-        tracing::info!("Wait for block {} for open deadline", deadline.start,);
-        xt_client.wait_for_height(deadline.start, true).await?;
+        let partition_numbers = partitions.iter().map(|(number, _)| *number).collect();
 
-        let result = xt_client
-            .submit_windowed_post(
-                xt_keypair,
-                SubmitWindowedPoStParams {
-                    deadline: self.deadline_index,
-                    partitions,
-                    proofs,
-                },
-                true,
-            )
-            .await?
-            .expect("waiting for finalization should always give results");
-
-        let posts = result
-            .events
-            .find::<storagext::runtime::storage_provider::events::ValidPoStSubmitted>()
-            .map(|result| result.map_err(|err| subxt::Error::from(err)))
-            .collect::<Result<Vec<_>, _>>()?;
-
-        tracing::info!("Successfully submitted PoSt on-chain: {:?}", posts);
-
-        Ok(())
+        Ok((partition_numbers, proofs))
     }
 }
