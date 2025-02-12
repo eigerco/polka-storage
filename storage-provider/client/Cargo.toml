@@ -42,6 +42,6 @@ libp2p = { workspace = true, features = ["identify", "macros", "noise", "rendezv
 workspace = true
 
 [features]
+cuda = ["polka-storage-proofs/cuda", "polka-storage-proofs/std", "polka-storage-proofs/substrate"]
 default = ["opencl"]
-cuda = ["polka-storage-proofs/std", "polka-storage-proofs/cuda", "polka-storage-proofs/substrate"]
-opencl = ["polka-storage-proofs/std", "polka-storage-proofs/opencl", "polka-storage-proofs/substrate"]
+opencl = ["polka-storage-proofs/opencl", "polka-storage-proofs/std", "polka-storage-proofs/substrate"]

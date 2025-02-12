@@ -39,9 +39,9 @@ rstest = { workspace = true }
 workspace = true
 
 [features]
+cuda = ["filecoin-proofs?/cuda", "filecoin-proofs?/multicore-sdr", "std"]
 default = ["opencl"]
-cuda = ["std", "filecoin-proofs?/cuda",  "filecoin-proofs?/multicore-sdr"]
-opencl = ["std", "filecoin-proofs?/opencl",  "filecoin-proofs?/multicore-sdr"]
+opencl = ["filecoin-proofs?/multicore-sdr", "filecoin-proofs?/opencl", "std"]
 std = [
   "codec?/std",
   "dep:anyhow",

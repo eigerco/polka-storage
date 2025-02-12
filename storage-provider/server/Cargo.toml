@@ -8,10 +8,10 @@ repository.workspace = true
 version = "0.1.0"
 
 [features]
+cuda = ["polka-storage-proofs/cuda", "polka-storage-proofs/std", "polka-storage-proofs/substrate"]
 default = ["opencl"]
 delia = []
-cuda = ["polka-storage-proofs/std", "polka-storage-proofs/substrate", "polka-storage-proofs/cuda"]
-opencl = ["polka-storage-proofs/std", "polka-storage-proofs/substrate", "polka-storage-proofs/opencl"]
+opencl = ["polka-storage-proofs/opencl", "polka-storage-proofs/std", "polka-storage-proofs/substrate"]
 
 [dependencies]
 # "Homegrown" crates
