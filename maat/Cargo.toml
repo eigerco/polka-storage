@@ -8,7 +8,7 @@ repository.workspace = true
 version = "0.1.0"
 
 [features]
-default = ["target-debug", "target-release"]
+default = ["target-debug", "target-release", "opencl"]
 # Target the polka-storage-node in `target/debug` or `target/release`
 # if *both* flags are enabled, it will first check for `target/release`
 # and if not found, check for `target-debug`
@@ -17,6 +17,8 @@ default = ["target-debug", "target-release"]
 # `--no-default-features` flag and `--features` with your desired feature
 target-debug = []
 target-release = []
+opencl = ["polka-storage-proofs/opencl"]
+cuda = ["polka-storage-proofs/cuda"]
 
 [dependencies]
 bls12_381 = { workspace = true }
