@@ -43,9 +43,28 @@ $ sudo apt install -y libhwloc-dev \
     curl
 ```
 
+### CUDA
+
+Running `polka-storage-provider-client` & `polka-storage-provider-server` via CUDA gives significant performance boosts
+as parts of the proving algorithm can be sent-off to the GPU. By default components are compiled with OpenCL.
+It's not possible to compile client without NVIDIA Graphics card.
+
 <div class="warning">
+**FOR DEVELOPERS**: It's possible to run CUDA on your WSL2, however the setup is different than for native linux installation.
+Details can be found <a href="https://docs.nvidia.com/cuda/wsl-user-guide/index.html">here</a>.
+</div>
+
+Requirements:
+* GCC 13
+* NVIDIA GPU
+* [Cuda drivers & toolkit (nvcc)](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#overview)
+
+
+<div class="warning">
+
 Not all of the binaries can be built from the polka-storage repository!
 We depend on the <a href="https://github.com/paritytech/zombienet/releases/tag/v1.3.116">zombienet</a> and <a href="https://github.com/paritytech/polkadot-sdk/releases/tag/polkadot-stable2409-2">polkadot, polkadot-prepare-worker, polkadot-execute-worker</a> binaries which need to be downloaded regardless (if not using <a href="#using-nix">Nix</a>).
+
 </div>
 
 ## Using Nix
@@ -95,12 +114,20 @@ Where `<BINARY-NAME>` is one of:
 - `storagext-cli`
 - `mater-cli`
 
+If you want to use proofs with CUDA enabled acceleration, you need to set `cuda` feature flags for both `polka-storage-provider-client` and `polka-storage-provider-server`.
+
+```bash
+cargo build --release -p polka-storage-provider-client --no-default-features --features cuda
+cargo build --release -p polka-storage-provider-client --no-default-features --features cuda
+```
+
 
 For more information on what each binary does, refer to [Building](./index.md).
 
 ### Just recipes
 
 To simplify the building process, we've written some [Just](https://github.com/casey/just) recipes.
+If you set environment variable `POLKA_STORAGE_CUDA=true`,the commands below build both `polka-storage-provider-client` and `polka-storage-provider-server` with CUDA support.
 
 | Command                               | Description                                                                                                         |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
