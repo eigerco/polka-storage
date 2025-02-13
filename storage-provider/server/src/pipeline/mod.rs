@@ -297,8 +297,8 @@ async fn precommit(
         // We remove ourselves from the scheduled pre-commits
         let mut scheduled_pre_commits = state.scheduled_pre_commits.lock().await;
         if scheduled_pre_commits.remove(&sector_number).is_none() {
-            tracing::warn!(%sector_number, "No task was found!");
-            // Maybe we should do an early return in this case?
+            tracing::warn!(%sector_number, "No task was found! Not pre-committing.");
+            return Ok(());
         }
     }
 

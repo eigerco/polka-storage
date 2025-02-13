@@ -177,8 +177,9 @@ async fn schedule_pre_commit(
             );
 
             *old_deadline = deadline;
-            let old_abort_handle = std::mem::replace(old_cancellation_sender, cancellation_sender);
-            if old_abort_handle.send(()).is_err() {
+            let old_cancellation_sender =
+                std::mem::replace(old_cancellation_sender, cancellation_sender);
+            if old_cancellation_sender.send(()).is_err() {
                 tracing::error!("Failed to send cancellation value");
             }
 
