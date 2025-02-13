@@ -8,7 +8,6 @@
 //! to the bootstrap node.
 use std::time::Duration;
 
-use anyhow::{bail, Result};
 use clap::Parser;
 use libp2p::{
     futures::StreamExt,
@@ -22,14 +21,15 @@ use tracing_subscriber::EnvFilter;
 
 /// Create a discovery swarm
 fn create_discover_swarm(
-) -> Result<Swarm<request_response::cbor::Behaviour<PeerIdRequest, PeerInfoResponse>>> {
+) -> Result<Swarm<request_response::cbor::Behaviour<PeerIdRequest, PeerInfoResponse>>, String> {
     let swarm = SwarmBuilder::with_new_identity()
         .with_tokio()
         .with_tcp(
             tcp::Config::default(),
             noise::Config::new,
             yamux::Config::default,
-        )?
+        )
+        .map_err(|e| format!("{e:?}"))?
         .with_behaviour(|_| {
             request_response::cbor::Behaviour::new(
                 [(
@@ -38,7 +38,8 @@ fn create_discover_swarm(
                 )],
                 request_response::Config::default(),
             )
-        })?
+        })
+        .map_err(|e| format!("{e:?}"))?
         .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(Duration::from_secs(10)))
         .build();
     Ok(swarm)
@@ -50,8 +51,8 @@ async fn run_discover(
     bootstrap_addr: Multiaddr,
     bootstrap_id: &PeerId,
     resolve_id: PeerId,
-) -> Result<PeerInfoResponse> {
-    swarm.dial(bootstrap_addr)?;
+) -> Result<PeerInfoResponse, String> {
+    swarm.dial(bootstrap_addr).map_err(|e| format!("{e:?}"))?;
 
     loop {
         tokio::select! {
@@ -73,7 +74,7 @@ async fn run_discover(
                         error,
                     } => {
                         tracing::error!("Failed to send message with id {request_id} to {peer}: {error}");
-                        bail!("Failed to send message with id {request_id} to {peer}: {error}");
+                        return Err(format!("Failed to send message with id {request_id} to {peer}: {error}"));
                     }
                     request_response::Event::InboundFailure {
                         peer,
@@ -81,7 +82,7 @@ async fn run_discover(
                         error,
                     } => {
                         tracing::error!("Failed to receive message with id {request_id} from {peer}: {error}");
-                        bail!("Failed to receive message with id {request_id} from {peer}: {error}")
+                        return Err(format!("Failed to receive message with id {request_id} from {peer}: {error}"));
                     }
                     other => tracing::debug!("Unreachable event: {other:?}")
                 },
@@ -109,7 +110,7 @@ struct Cli {
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<(), String> {
     let _ = tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .try_init();
