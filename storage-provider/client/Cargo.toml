@@ -10,7 +10,7 @@ version = "0.1.0"
 [dependencies]
 # "Homegrown" crates
 mater = { workspace = true }
-polka-storage-proofs = { workspace = true, features = ["std", "substrate"] }
+polka-storage-proofs = { workspace = true, default-features = false }
 polka-storage-provider-common = { workspace = true }
 primitives = { workspace = true, features = ["clap", "std"] }
 storagext = { workspace = true, features = ["clap"] }
@@ -40,3 +40,8 @@ libp2p = { workspace = true, features = ["identify", "macros", "noise", "rendezv
 
 [lints]
 workspace = true
+
+[features]
+cuda = ["polka-storage-proofs/cuda", "polka-storage-proofs/std", "polka-storage-proofs/substrate"]
+default = ["opencl"]
+opencl = ["polka-storage-proofs/opencl", "polka-storage-proofs/std", "polka-storage-proofs/substrate"]

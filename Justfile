@@ -52,11 +52,19 @@ build-polka-storage-node:
 
 # Build the polka storage provider client
 build-polka-storage-provider-client:
-  cargo build --release -p polka-storage-provider-client
+  if [ -n "${POLKA_STORAGE_CUDA+x}" ] && [ "${POLKA_STORAGE_CUDA}" = "true" ]; then \
+    cargo build --release -p polka-storage-provider-client --no-default-features --features cuda; \
+  else \
+    cargo build --release -p polka-storage-provider-client; \
+  fi
 
 # Build the polka storage provider server
 build-polka-storage-provider-server:
-  cargo build --release -p polka-storage-provider-server
+  if [ -n "${POLKA_STORAGE_CUDA+x}" ] && [ "${POLKA_STORAGE_CUDA}" = "true" ]; then \
+    cargo build --release -p polka-storage-provider-server --no-default-features --features cuda; \
+  else \
+    cargo build --release -p polka-storage-provider-server; \
+  fi
 
 build-polka-storage-provider: build-polka-storage-provider-server build-polka-storage-provider-client
 
