@@ -34,6 +34,40 @@ pub struct PeerInfo {
     pub multiaddrs: Vec<Multiaddr>,
 }
 
+/// This enum is used in the request response P2P protocol.
+/// PeerInfoResponse::NotFound is returned when the requested peer ID was not found.
+/// PeerInfoResponse::Found(..) is returned when the requested peer ID was found.
+/// The latter holds the relevant [`PeerInfo`] inside.
+#[cfg(feature = "std")]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum PeerInfoResponse {
+    Found(PeerInfo),
+    NotFound(PeerIdRequest),
+}
+
+/// The request type used for the request response P2P protocol.
+/// We cannot use PeerId directly because it does not implement
+/// Serialize and Deserialize.
+#[cfg(feature = "std")]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PeerIdRequest(
+    #[serde(serialize_with = "serialize_peer_id")]
+    #[serde(deserialize_with = "deserialize_peer_id")]
+    PeerId,
+);
+
+impl From<PeerId> for PeerIdRequest {
+    fn from(value: PeerId) -> Self {
+        Self(value)
+    }
+}
+
+impl Into<PeerId> for PeerIdRequest {
+    fn into(self) -> PeerId {
+        self.0
+    }
+}
+
 fn deserialize_peer_id<'de, D: de::Deserializer<'de>>(d: D) -> Result<PeerId, D::Error> {
     let s: String = de::Deserialize::deserialize(d)?;
     PeerId::from_str(&s).map_err(de::Error::custom)
@@ -42,26 +76,4 @@ fn deserialize_peer_id<'de, D: de::Deserializer<'de>>(d: D) -> Result<PeerId, D:
 fn serialize_peer_id<S: Serializer>(id: &PeerId, serializer: S) -> Result<S::Ok, S::Error> {
     let id = id.to_string();
     serializer.collect_str(&id)
-}
-
-/// Wrapper struct for Peer ID so we can implement `Deserialize` and `Serialize`
-/// and use this type in the request response behaviour.
-#[cfg(feature = "std")]
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct WPeerId(
-    #[serde(serialize_with = "serialize_peer_id")]
-    #[serde(deserialize_with = "deserialize_peer_id")]
-    PeerId,
-);
-
-impl From<PeerId> for WPeerId {
-    fn from(value: PeerId) -> Self {
-        Self(value)
-    }
-}
-
-impl Into<PeerId> for WPeerId {
-    fn into(self) -> PeerId {
-        self.0
-    }
 }

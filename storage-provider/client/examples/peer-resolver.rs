@@ -16,11 +16,12 @@ use libp2p::swarm::SwarmEvent;
 use libp2p::{
     noise, request_response, tcp, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder,
 };
-use primitives::p2p::{PeerInfo, WPeerId};
+use primitives::p2p::{PeerIdRequest, PeerInfoResponse};
 use tracing_subscriber::EnvFilter;
 
 /// Create a discovery swarm
-fn create_discover_swarm() -> Result<Swarm<request_response::cbor::Behaviour<WPeerId, PeerInfo>>> {
+fn create_discover_swarm(
+) -> Result<Swarm<request_response::cbor::Behaviour<PeerIdRequest, PeerInfoResponse>>> {
     let swarm = SwarmBuilder::with_new_identity()
         .with_tokio()
         .with_tcp(
@@ -44,11 +45,11 @@ fn create_discover_swarm() -> Result<Swarm<request_response::cbor::Behaviour<WPe
 
 /// Run the discovery swarm and request the peer ID to multiaddrs mapping.
 async fn run_discover(
-    mut swarm: Swarm<request_response::cbor::Behaviour<WPeerId, PeerInfo>>,
+    mut swarm: Swarm<request_response::cbor::Behaviour<PeerIdRequest, PeerInfoResponse>>,
     bootstrap_addr: Multiaddr,
     bootstrap_id: &PeerId,
     resolve_id: PeerId,
-) -> Result<PeerInfo> {
+) -> Result<PeerInfoResponse> {
     swarm.dial(bootstrap_addr)?;
 
     loop {
@@ -116,9 +117,12 @@ async fn main() -> Result<()> {
     println!("Attempting to get multiaddrs for peer {:?}", cli.resolve_id);
     let peer_info =
         run_discover(swarm, cli.bootstrap_addr, &cli.bootstrap_id, cli.resolve_id).await?;
-    println!(
-        "Got multiaddrs {:#?} for peer {:?}",
-        peer_info.multiaddrs, peer_info.peer_id
-    );
+    match peer_info {
+        PeerInfoResponse::NotFound(peer) => println!("Peer {:?} is not registered", peer),
+        PeerInfoResponse::Found(info) => println!(
+            "Got multiaddrs {:#?} for peer {:?}",
+            info.multiaddrs, info.peer_id
+        ),
+    }
     Ok(())
 }

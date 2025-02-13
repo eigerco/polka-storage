@@ -14,7 +14,7 @@ use libp2p::{
     tcp, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder,
 };
 use log::{debug, error, info, warn};
-use primitives::p2p::{PeerInfo, WPeerId};
+use primitives::p2p::{PeerIdRequest, PeerInfo, PeerInfoResponse};
 
 use crate::service::p2p::{P2PError, DEFAULT_REGISTRATION_TTL};
 
@@ -25,7 +25,7 @@ pub struct BootstrapBehaviour {
     pub rendezvous: rendezvous::server::Behaviour,
     pub identify: identify::Behaviour,
     pub gossipsub: gossipsub::Behaviour,
-    pub request_response: request_response::cbor::Behaviour<WPeerId, PeerInfo>,
+    pub request_response: request_response::cbor::Behaviour<PeerIdRequest, PeerInfoResponse>,
 }
 
 pub struct BootstrapConfig {
@@ -185,7 +185,7 @@ fn on_rendezvous_event(
                             info.multiaddrs.push(addr.clone())
                         }
                     }
-                }  )
+                })
                 .or_insert(peer_info);
             // Send registration information to other bootstrap nodes.
             match swarm
@@ -236,7 +236,7 @@ fn on_gossipsub_event(
                             info.multiaddrs.push(addr.clone())
                         }
                     }
-                }  )
+                })
                 .or_insert(peer_info);
         }
         other => debug!("Encountered other gossipsub event: {other:?}"),
@@ -246,7 +246,7 @@ fn on_gossipsub_event(
 /// Handles events within the request_response protocol
 fn on_request_response_event(
     swarm: &mut Swarm<BootstrapBehaviour>,
-    event: request_response::Event<WPeerId, PeerInfo>,
+    event: request_response::Event<PeerIdRequest, PeerInfoResponse>,
     registrations: &HashMap<PeerId, PeerInfo>,
 ) {
     match event {
@@ -260,20 +260,25 @@ fn on_request_response_event(
             {
                 info!("Got request with id {request_id} from {peer}");
                 let id: PeerId = request.into();
-                match registrations.get(&id) {
+                let response = match registrations.get(&id) {
                     Some(peer_info) => {
-                        // Sending the peer information back to the client who opened the channel.
-                        if swarm
-                            .behaviour_mut()
-                            .request_response
-                            .send_response(channel, peer_info.clone())
-                            .is_err()
-                        {
-                            // Could add retries here.
-                            error!("Failed to send peer info to {peer:?}");
-                        }
+                        info!("Peer {id:?} found in registrations");
+                        PeerInfoResponse::Found(peer_info.clone())
                     }
-                    None => warn!("Peer {id:?} not found in registrations"),
+                    None => {
+                        info!("Peer {id:?} not found in registrations");
+                        PeerInfoResponse::NotFound(id.into())
+                    }
+                };
+                // Sending the peer information back to the client who opened the channel.
+                // Could add retries here.
+                if swarm
+                    .behaviour_mut()
+                    .request_response
+                    .send_response(channel, response)
+                    .is_err()
+                {
+                    error!("Failed to send peer info to {peer:?}");
                 }
             }
         }
