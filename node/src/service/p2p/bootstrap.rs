@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::{Error, ErrorKind};
-use std::str::FromStr;
 use std::time::Duration;
 
 use libp2p::{
@@ -15,7 +14,7 @@ use libp2p::{
     tcp, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder,
 };
 use log::{debug, error, info, warn};
-use primitives::p2p::PeerInfo;
+use primitives::p2p::{PeerInfo, WPeerId};
 
 use crate::service::p2p::{P2PError, DEFAULT_REGISTRATION_TTL};
 
@@ -26,7 +25,7 @@ pub struct BootstrapBehaviour {
     pub rendezvous: rendezvous::server::Behaviour,
     pub identify: identify::Behaviour,
     pub gossipsub: gossipsub::Behaviour,
-    pub request_response: request_response::cbor::Behaviour<String, PeerInfo>,
+    pub request_response: request_response::cbor::Behaviour<WPeerId, PeerInfo>,
 }
 
 pub struct BootstrapConfig {
@@ -109,8 +108,10 @@ pub(crate) async fn bootstrap(
     info!("Starting P2P bootstrap node at {addr}");
     swarm.listen_on(addr)?;
     for addr in bootstrap_addresses {
-        info!("Dialing {addr}");
-        swarm.dial(addr)?;
+        info!("Attempting to dial peer at {addr}");
+        if swarm.dial(addr.clone()).is_err() {
+            warn!("Failed to dial peer");
+        }
     }
     swarm
         .behaviour_mut()
@@ -146,11 +147,18 @@ fn on_rendezvous_event(
 ) {
     match event {
         rendezvous::server::Event::RegistrationExpired(registration) => {
+            let id = registration.record.peer_id();
             info!(
                 "Registration for peer {} expired in namespace {}",
-                registration.record.peer_id(),
-                registration.namespace
+                id, registration.namespace
             );
+            // Registration expired, remove entry from hashmap
+            if registrations.remove(&id).is_none() {
+                error!(
+                    "Could not remove registration for {:?} because it was not found",
+                    id
+                );
+            }
         }
         rendezvous::server::Event::PeerRegistered { peer, registration } => {
             info!(
@@ -161,6 +169,7 @@ fn on_rendezvous_event(
                 peer_id: peer,
                 multiaddrs: registration.record.addresses().to_vec(),
             };
+            // Serialize PeerInfo
             let encoded_peer_info = match bincode::serialize(&peer_info) {
                 Ok(info) => info,
                 Err(..) => {
@@ -168,14 +177,24 @@ fn on_rendezvous_event(
                     return;
                 }
             };
-            registrations.insert(peer, peer_info);
+            registrations
+                .entry(peer)
+                .and_modify(|info| {
+                    for addr in peer_info.multiaddrs.iter() {
+                        if !info.multiaddrs.contains(addr) {
+                            info.multiaddrs.push(addr.clone())
+                        }
+                    }
+                }  )
+                .or_insert(peer_info);
+            // Send registration information to other bootstrap nodes.
             match swarm
                 .behaviour_mut()
                 .gossipsub
                 .publish(IdentTopic::new(GOSSIP_TOPIC), encoded_peer_info)
             {
-                Ok(..) => info!("Successfully published new peer info"),
-                Err(..) => error!("Failed to publish new peer info"),
+                Ok(..) => info!("Successfully published new peer info for peer {peer}"),
+                Err(..) => error!("Failed to publish new peer info for peer {peer}"),
             }
         }
         other => debug!("Encountered other rendezvous event: {other:?}"),
@@ -189,6 +208,7 @@ fn on_gossipsub_event(
     registrations: &mut HashMap<PeerId, PeerInfo>,
 ) {
     match event {
+        // Received a message with peer information from another bootstrap node.
         gossipsub::Event::Message {
             propagation_source: peer_id,
             message_id: id,
@@ -208,7 +228,16 @@ fn on_gossipsub_event(
                 "Got registration: {:?} with id: {} from peer: {:?}",
                 peer_info, id, peer_id
             );
-            registrations.insert(peer_info.peer_id, peer_info);
+            registrations
+                .entry(peer_info.peer_id)
+                .and_modify(|info| {
+                    for addr in peer_info.multiaddrs.iter() {
+                        if !info.multiaddrs.contains(addr) {
+                            info.multiaddrs.push(addr.clone())
+                        }
+                    }
+                }  )
+                .or_insert(peer_info);
         }
         other => debug!("Encountered other gossipsub event: {other:?}"),
     }
@@ -217,10 +246,11 @@ fn on_gossipsub_event(
 /// Handles events within the request_response protocol
 fn on_request_response_event(
     swarm: &mut Swarm<BootstrapBehaviour>,
-    event: request_response::Event<String, PeerInfo>,
+    event: request_response::Event<WPeerId, PeerInfo>,
     registrations: &HashMap<PeerId, PeerInfo>,
 ) {
     match event {
+        // Message received, looking up the mapping
         request_response::Event::Message { peer, message } => {
             if let Message::Request {
                 request,
@@ -229,22 +259,17 @@ fn on_request_response_event(
             } = message
             {
                 info!("Got request with id {request_id} from {peer}");
-                let id = match PeerId::from_str(&request) {
-                    Ok(id) => id,
-                    Err(..) => {
-                        error!("Received invalid peer ID");
-                        return;
-                    }
-                };
-                info!("Looking up {id:?}");
+                let id: PeerId = request.into();
                 match registrations.get(&id) {
                     Some(peer_info) => {
+                        // Sending the peer information back to the client who opened the channel.
                         if swarm
                             .behaviour_mut()
                             .request_response
                             .send_response(channel, peer_info.clone())
                             .is_err()
                         {
+                            // Could add retries here.
                             error!("Failed to send peer info to {peer:?}");
                         }
                     }
@@ -263,7 +288,7 @@ fn on_request_response_event(
             error,
         } => warn!("Failed to receive message with id {request_id} from {peer}: {error}"),
         request_response::Event::ResponseSent { peer, request_id } => {
-            info!("Request with id {request_id} sent to {peer}")
+            debug!("Request with id {request_id} sent to {peer}")
         }
     }
 }

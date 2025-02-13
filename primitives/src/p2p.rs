@@ -43,3 +43,25 @@ fn serialize_peer_id<S: Serializer>(id: &PeerId, serializer: S) -> Result<S::Ok,
     let id = id.to_string();
     serializer.collect_str(&id)
 }
+
+/// Wrapper struct for Peer ID so we can implement `Deserialize` and `Serialize`
+/// and use this type in the request response behaviour.
+#[cfg(feature = "std")]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct WPeerId(
+    #[serde(serialize_with = "serialize_peer_id")]
+    #[serde(deserialize_with = "deserialize_peer_id")]
+    PeerId,
+);
+
+impl From<PeerId> for WPeerId {
+    fn from(value: PeerId) -> Self {
+        Self(value)
+    }
+}
+
+impl Into<PeerId> for WPeerId {
+    fn into(self) -> PeerId {
+        self.0
+    }
+}
