@@ -10,11 +10,12 @@ use std::time::Duration;
 
 use anyhow::{bail, Result};
 use clap::Parser;
-use libp2p::futures::StreamExt;
-use libp2p::request_response::{Message, ProtocolSupport};
-use libp2p::swarm::SwarmEvent;
 use libp2p::{
-    noise, request_response, tcp, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder,
+    futures::StreamExt,
+    noise,
+    request_response::{self, Message, ProtocolSupport},
+    swarm::SwarmEvent,
+    tcp, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder,
 };
 use primitives::p2p::{PeerIdRequest, PeerInfoResponse};
 use tracing_subscriber::EnvFilter;

@@ -1,7 +1,9 @@
-use std::collections::HashMap;
-use std::hash::{DefaultHasher, Hash, Hasher};
-use std::io::{Error, ErrorKind};
-use std::time::Duration;
+use std::{
+    collections::HashMap,
+    hash::{DefaultHasher, Hash, Hasher},
+    io::{Error, ErrorKind},
+    time::Duration,
+};
 
 use libp2p::{
     futures::StreamExt,
