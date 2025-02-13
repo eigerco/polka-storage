@@ -41,8 +41,7 @@ pub enum StorageProviderCommand {
         /// PeerId in Storage Provider P2P network.
         peer_id: PeerId,
         /// Proof of Space Time type.
-        /// Can only be "2KiB" meaning `RegisteredPoStProof::StackedDRGWindow2KiBV1P1`.
-        #[arg(long, value_parser = parse_post_proof, default_value = "2KiB")]
+        #[arg(long, value_parser = parse_post_proof, default_value = "8MiB")]
         post_proof: RegisteredPoStProof,
     },
 
