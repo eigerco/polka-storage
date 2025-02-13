@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
+use futures::future::join_all;
 use itertools::Itertools;
 use polka_storage_proofs::{
     match_post_proof,
-    porep::sealer::{BlstrsProof, SubstrateProof},
+    porep::sealer::SubstrateProof,
     post::{self, generate_window_post, PoStParameters, ReplicaInfo},
 };
 use primitives::{
@@ -17,10 +18,7 @@ use storagext::{
     types::storage_provider::{PartitionState, PoStProof, SubmitWindowedPoStParams},
     RandomnessClientExt, StorageProviderClientExt, SystemClientExt,
 };
-use subxt::{
-    ext::{codec::Encode, futures::future::join_all},
-    tx::Signer,
-};
+use subxt::{ext::codec::Encode, tx::Signer};
 use tokio::task::JoinError;
 
 use crate::sector::ProvenSector;
@@ -71,15 +69,15 @@ impl Deadline {
             .ok_or(DeadlineError::DeadlineNotFound(self.deadline_index))
     }
 
-    pub async fn submit_windowed_post<SectorStorage>(
+    pub async fn submit_windowed_post<F>(
         &self,
         xt_client: Arc<storagext::Client>,
         xt_keypair: &storagext::multipair::MultiPairSigner,
         post_params: Arc<PoStParameters>,
-        sector_storage: SectorStorage,
+        sector_storage: F,
     ) -> Result<(), DeadlineError>
     where
-        SectorStorage: Fn(SectorNumber) -> Option<ProvenSector>,
+        F: Fn(SectorNumber) -> Option<ProvenSector>,
     {
         let deadline = self.get_info(xt_client.clone(), xt_keypair).await?;
 
@@ -184,7 +182,7 @@ impl Deadline {
         Ok(())
     }
 
-    async fn generate_and_submit<SectorStorage>(
+    async fn generate_and_submit<F>(
         &self,
         xt_client: Arc<storagext::Client>,
         xt_keypair: &storagext::multipair::MultiPairSigner,
@@ -193,10 +191,10 @@ impl Deadline {
         prover_id: [u8; 32],
         randomness: [u8; 32],
         post_params: Arc<PoStParameters>,
-        sector_storage: SectorStorage,
+        sector_storage: F,
     ) -> Result<(), DeadlineError>
     where
-        SectorStorage: Fn(SectorNumber) -> Option<ProvenSector>,
+        F: Fn(SectorNumber) -> Option<ProvenSector>,
     {
         // Generate proofs for partitions
         let (partitions, proofs) = self
@@ -238,16 +236,16 @@ impl Deadline {
         Ok(())
     }
 
-    async fn generate_proofs_for_partitions<SectorStorage>(
+    async fn generate_proofs_for_partitions<F>(
         &self,
         partitions: Vec<(PartitionNumber, PartitionState)>,
         prover_id: [u8; 32],
         randomness: [u8; 32],
         post_params: Arc<PoStParameters>,
-        sector_storage: SectorStorage,
+        sector_storage: F,
     ) -> Result<(Vec<PartitionNumber>, Vec<PoStProof>), DeadlineError>
     where
-        SectorStorage: Fn(SectorNumber) -> Option<ProvenSector>,
+        F: Fn(SectorNumber) -> Option<ProvenSector>,
     {
         // Get replicas for sectors part of the partitions
         let replicas = partitions
@@ -267,7 +265,7 @@ impl Deadline {
             .collect::<Result<Vec<_>, DeadlineError>>()?;
 
         // Generate proofs
-        let proofs: Vec<BlstrsProof> = {
+        let proofs = {
             let post_params = post_params.clone();
             let post_proof = self.post_proof;
 
@@ -283,17 +281,17 @@ impl Deadline {
                     )
                 )
             })
-        }
-        .await??;
+        };
 
         // Map proofs to our internal type
         let proofs = proofs
+            .await??
             .into_iter()
             .map(|p| PoStProof {
                 post_proof: self.post_proof,
                 proof_bytes: codec::Encode::encode(
                     &TryInto::<SubstrateProof>::try_into(p.clone()).expect(
-                        "converstion between rust-fil-proofs and polka-storage-proofs to work",
+                        "converstion between rust-fil-proofs and polka-storage-proofs should work",
                     ),
                 ),
             })

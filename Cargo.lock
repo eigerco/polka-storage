@@ -13901,6 +13901,7 @@ dependencies = [
  "filecoin-hashers",
  "filecoin-proofs",
  "fr32",
+ "futures",
  "hex",
  "itertools 0.13.0",
  "jsonrpsee 0.24.7",
