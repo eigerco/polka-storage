@@ -9,7 +9,7 @@ use primitives::{
     sector::SectorNumber,
 };
 use storagext::{types::market::DealProposal, SystemClientExt};
-use tokio::task::JoinHandle;
+use tokio::sync::oneshot;
 use tokio_util::task::TaskTracker;
 use tracing::Instrument;
 
@@ -164,28 +164,42 @@ async fn schedule_pre_commit(
     let deadline = Utc::now() + when;
     let mut scheduled_pre_commits = state.scheduled_pre_commits.lock().await;
     match scheduled_pre_commits.get_mut(&sector_number) {
-        Some((old_deadline, old_abort_handle)) if deadline < *old_deadline => {
-            tracing::debug!(%sector_number, old_task_id = %old_abort_handle.id(), "Existing deadline is older than the new one, aborting existing task: old_deadline = {}, new_deadline = {}", old_deadline, deadline);
-            old_abort_handle.abort();
-
+        Some((old_deadline, old_cancellation_sender)) if deadline < *old_deadline => {
+            tracing::debug!(%sector_number, "Existing deadline is older than the new one, cancelling existing task: old_deadline = {}, new_deadline = {}", old_deadline, deadline);
             let state_for_task = state.clone();
-            let scheduled_pre_commit =
-                schedule_send_pre_commit(state_for_task, tracker, sector_number, when);
+
+            let (cancellation_sender, cancellation_receiver) = oneshot::channel();
+            schedule_send_pre_commit(
+                state_for_task,
+                tracker,
+                sector_number,
+                when,
+                cancellation_receiver,
+            );
+
             *old_deadline = deadline;
-            *old_abort_handle = scheduled_pre_commit.abort_handle();
-            tracing::debug!(%sector_number, "Existing deadline & task have been replaced: new_task_id = {}, new_deadline = {}", scheduled_pre_commit.id(), deadline);
+            let old_abort_handle = std::mem::replace(old_cancellation_sender, cancellation_sender);
+            if old_abort_handle.send(()).is_err() {
+                tracing::error!("Failed to send cancellation value");
+            }
+
+            tracing::debug!(%sector_number, "Existing deadline & task have been replaced: new_deadline = {}", deadline);
         }
-        Some((old_deadline, old_abort_handle)) => {
-            tracing::debug!(%sector_number, old_task_id = %old_abort_handle.id(), "Existing deadling is newer than the new one: old_deadline = {}, new_deadline = {}", old_deadline, deadline);
+        Some((old_deadline, _)) => {
+            tracing::debug!(%sector_number, "Existing deadline is newer than the new one: old_deadline = {}, new_deadline = {}", old_deadline, deadline);
         }
         None => {
+            tracing::debug!(%sector_number, "No deadline existing existed, creating it.");
+            let (cancellation_sender, cancellation_receiver) = oneshot::channel();
             let state_for_task = state.clone();
-            let scheduled_pre_commit =
-                schedule_send_pre_commit(state_for_task, tracker, sector_number, when);
-            scheduled_pre_commits.insert(
+            schedule_send_pre_commit(
+                state_for_task,
+                tracker,
                 sector_number,
-                (deadline, scheduled_pre_commit.abort_handle()),
+                when,
+                cancellation_receiver,
             );
+            scheduled_pre_commits.insert(sector_number, (deadline, cancellation_sender));
         }
     }
 }
@@ -196,7 +210,8 @@ fn schedule_send_pre_commit(
     tracker: TaskTracker,
     sector_number: SectorNumber,
     when: Duration,
-) -> JoinHandle<()> {
+    cancellation_receiver: oneshot::Receiver<()>,
+) {
     let span = tracing::info_span!("add_piece");
     tracing::info!(
         // Since the span is moved for the instrument call, we can't span.enter()
@@ -206,9 +221,20 @@ fn schedule_send_pre_commit(
         when.as_secs()
     );
     // We don't care for the returned JoinHandle, but that's ok because the TaskTracker has it!
-    tracker.spawn(
+    let _ = tracker.spawn(
         async move {
-            tokio::time::sleep(when).await;
+            match tokio::time::timeout(when, cancellation_receiver).await {
+                Ok(Ok(())) => {
+                    tracing::debug!(%sector_number, "Received cancellation signal, not sending message.");
+                    return;
+                },
+                Ok(Err(err)) => {
+                    tracing::error!(%sector_number, "Failed to receive message with error (will return): {err}");
+                    return;
+                },
+                Err(_elapsed) => tracing::debug!(%sector_number, "No cancelation signal was received"),
+            }
+
             tracing::info!(%sector_number, "Awoken from sleep, submitting pre-commit task!");
             match state.send_pre_commit(sector_number) {
                 Ok(()) => tracing::info!(%sector_number, "Successfully submitted task!"),
@@ -218,5 +244,5 @@ fn schedule_send_pre_commit(
             }
         }
         .instrument(span),
-    )
+    );
 }

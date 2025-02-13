@@ -15,12 +15,9 @@ use polka_storage_provider_common::{
 };
 use primitives::sector::SectorNumber;
 use storagext::StorageProviderClientExt;
-use tokio::{
-    sync::{
-        mpsc::{error::SendError, UnboundedReceiver, UnboundedSender},
-        Mutex, Semaphore,
-    },
-    task::AbortHandle,
+use tokio::sync::{
+    mpsc::{error::SendError, UnboundedReceiver, UnboundedSender},
+    oneshot, Mutex, Semaphore,
 };
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use types::{
@@ -85,7 +82,7 @@ pub struct PipelineState {
     pub add_piece_serializer: Mutex<()>,
 
     // Store the estimated date of execution of the task and its abort handle for re-scheduling
-    pub scheduled_pre_commits: Mutex<HashMap<SectorNumber, (DateTime<Utc>, AbortHandle)>>,
+    pub scheduled_pre_commits: Mutex<HashMap<SectorNumber, (DateTime<Utc>, oneshot::Sender<()>)>>,
 }
 
 impl PipelineState {
@@ -295,6 +292,15 @@ async fn precommit(
     sector_number: SectorNumber,
 ) -> Result<(), PipelineError> {
     tracing::info!("Starting pre-commit");
+
+    {
+        // We remove ourselves from the scheduled pre-commits
+        let mut scheduled_pre_commits = state.scheduled_pre_commits.lock().await;
+        if scheduled_pre_commits.remove(&sector_number).is_none() {
+            tracing::warn!(%sector_number, "No task was found!");
+            // Maybe we should do an early return in this case?
+        }
+    }
 
     // This unit of work effectively works as a "block", since `remove_unsealed_sector`
     // blocks the row it removes, meaning that even if two tasks race here,

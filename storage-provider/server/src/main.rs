@@ -390,6 +390,8 @@ impl Server {
             cancellation_token.child_token(),
         ));
 
+        tracing::info!("Successfully launched all sub-services, ready for work!");
+
         // Wait for SIGTERM on the main thread and once received "unblock"
         tokio::signal::ctrl_c()
             .await
