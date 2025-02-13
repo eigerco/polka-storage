@@ -28,7 +28,7 @@ id = 1000
 args = [
   "--bootstrap-addresses=/ip4/127.0.0.1/tcp/1337",
   "--detailed-log-output",
-  "--p2p-key=@/tmp/zombienet/private.pem",
+  "--p2p-key=@/tmp/zombienet/charlie-private.pem",
   "--p2p-listen-address=/ip4/127.0.0.1/tcp/62649",
   "-lparachain=debug,xcm=trace,runtime=trace",
 ]
@@ -36,19 +36,4 @@ command = "polka-storage-node"
 image = "polkadotstorage.azurecr.io/parachain-node:0.1.0"
 name = "charlie"
 rpc_port = 42069
-validator = true
-
-# run david as parachain collator
-[[parachains.collators]]
-args = [
-  "--bootstrap-addresses=/ip4/127.0.0.1/tcp/62649",
-  "--detailed-log-output",
-  "--p2p-key=@/tmp/zombienet/private.pem",
-  "--p2p-listen-address=/ip4/127.0.0.1/tcp/1337",
-  "-lparachain=debug,xcm=trace,runtime=trace",
-]
-command = "polka-storage-node"
-image = "polkadotstorage.azurecr.io/parachain-node:0.1.0"
-name = "david"
-rpc_port = 42068
 validator = true
