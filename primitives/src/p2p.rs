@@ -1,7 +1,7 @@
 use std::{path::PathBuf, str::FromStr};
 
 use ed25519_dalek::{pkcs8::DecodePrivateKey, SigningKey};
-use libp2p::{Multiaddr, PeerId, identity::Keypair};
+use libp2p::{identity::Keypair, Multiaddr, PeerId};
 use serde::{de, Deserialize, Serialize, Serializer};
 
 /// Parses a ED25519 private key into a Keypair.
