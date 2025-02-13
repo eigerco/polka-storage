@@ -18,7 +18,7 @@ use storagext::{
     RandomnessClientExt, StorageProviderClientExt, SystemClientExt,
 };
 use subxt::{
-    ext::{codec::Encode, futures::future::try_join_all},
+    ext::{codec::Encode, futures::future::join_all},
     tx::Signer,
 };
 use tokio::task::JoinError;
@@ -149,14 +149,19 @@ impl Deadline {
             .chunks(MAX_PROOFS_PER_BLOCK as usize);
 
         // Prepare the proofs for required partitions
-        let proofs_futures = chunked_partitions
+        let proving_futures = chunked_partitions
             .into_iter()
             .map(|partitions| {
                 let partitions = partitions.collect();
                 tracing::info!("Proving PoSt partitions... {:?}", partitions);
 
                 let post_params = Arc::clone(&post_params);
-                self.generate_proofs_for_partitions(
+                let xt_client = Arc::clone(&xt_client);
+                let deadline = deadline.clone();
+                self.generate_and_submit(
+                    xt_client,
+                    xt_keypair,
+                    deadline,
                     partitions,
                     prover_id,
                     randomness,
@@ -166,36 +171,69 @@ impl Deadline {
             })
             .collect::<Vec<_>>();
 
-        // Generated proofs
-        let partitions_proofs = try_join_all(proofs_futures).await?;
+        // Proving results
+        let proving_results = join_all(proving_futures).await;
+        for result in &proving_results {
+            if let Err(err) = result {
+                tracing::error!("Failed to submit post for deadline, {}", err);
+            }
+        }
+
+        // Ok here doesn't mean that the post was successfully submitted for all
+        // partitions. it only means that the process was completed.
+        Ok(())
+    }
+
+    async fn generate_and_submit<SectorStorage>(
+        &self,
+        xt_client: Arc<storagext::Client>,
+        xt_keypair: &storagext::multipair::MultiPairSigner,
+        deadline: DeadlineInfo<u64>,
+        partitions: Vec<(PartitionNumber, PartitionState)>,
+        prover_id: [u8; 32],
+        randomness: [u8; 32],
+        post_params: Arc<PoStParameters>,
+        sector_storage: SectorStorage,
+    ) -> Result<(), DeadlineError>
+    where
+        SectorStorage: Fn(SectorNumber) -> Option<ProvenSector>,
+    {
+        // Generate proofs for partitions
+        let (partitions, proofs) = self
+            .generate_proofs_for_partitions(
+                partitions,
+                prover_id,
+                randomness,
+                post_params,
+                sector_storage,
+            )
+            .await?;
 
         // Wait for the current deadline to open
         tracing::info!("Wait for block {} for open deadline", deadline.start);
         xt_client.wait_for_height(deadline.start, true).await?;
 
-        // Submit generated proofs
-        for (partitions, proofs) in partitions_proofs {
-            let result = xt_client
-                .submit_windowed_post(
-                    xt_keypair,
-                    SubmitWindowedPoStParams {
-                        deadline: self.deadline_index,
-                        partitions,
-                        proofs,
-                    },
-                    true,
-                )
-                .await?
-                .expect("waiting for finalization should always give results");
+        // Submit proofs
+        let result = xt_client
+            .submit_windowed_post(
+                xt_keypair,
+                SubmitWindowedPoStParams {
+                    deadline: self.deadline_index,
+                    partitions,
+                    proofs,
+                },
+                true,
+            )
+            .await?
+            .expect("waiting for finalization should always give results");
 
-            let posts = result
-                .events
-                .find::<storagext::runtime::storage_provider::events::ValidPoStSubmitted>()
-                .map(|result| result.map_err(|err| subxt::Error::from(err)))
-                .collect::<Result<Vec<_>, _>>()?;
+        let posts = result
+            .events
+            .find::<storagext::runtime::storage_provider::events::ValidPoStSubmitted>()
+            .map(|result| result.map_err(|err| subxt::Error::from(err)))
+            .collect::<Result<Vec<_>, _>>()?;
 
-            tracing::info!("Successfully submitted PoSt on-chain: {:?}", posts);
-        }
+        tracing::info!("Successfully submitted PoSt on-chain: {:?}", posts);
 
         Ok(())
     }

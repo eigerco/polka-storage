@@ -475,7 +475,7 @@ async fn submit_windowed_post(
     {
         tracing::error!("failed to submit post for deadline, {}", e);
     } else {
-        tracing::info!("submitted post successfully");
+        tracing::info!("completed post submition");
     }
 
     schedule_post(state, deadline_index)?;
