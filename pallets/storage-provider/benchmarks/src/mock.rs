@@ -82,6 +82,7 @@ impl pallet_market::Config for Test {
     type MaxDealsPerBlock = ConstU32<500>;
 }
 
+// Sourced from the Testnet runtime defined in <runtime/src/configs/mod.rs>.
 parameter_types! {
     // Storage Provider Pallet
     pub const WPoStPeriodDeadlines: u64 = 10;
@@ -170,7 +171,7 @@ impl pallet_storage_provider::Config for Test {
     type AddressedSectorsMax = AddressedSectorsMax;
 }
 
-impl crate::Config for Test {}
+impl crate::pallet::Config for Test {}
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
     let _ = env_logger::try_init();

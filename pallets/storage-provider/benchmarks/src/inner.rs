@@ -3,12 +3,7 @@
 use alloc::{vec, vec::Vec};
 
 use frame_benchmarking::v2::*;
-use frame_support::{
-    assert_ok,
-    pallet_prelude::ConstU32,
-    traits::{Currency, OnInitialize},
-    BoundedVec,
-};
+use frame_support::{assert_ok, pallet_prelude::ConstU32, traits::Currency, BoundedVec};
 use frame_system::{pallet_prelude::BlockNumberFor, RawOrigin};
 use pallet_market::{DealState, Pallet as MarketPallet};
 use pallet_storage_provider::{
@@ -28,25 +23,13 @@ use primitives::{
 use sp_core::Get;
 use sp_runtime::{AccountId32, MultiSignature, MultiSigner};
 
-use crate::utils::{
-    generate_benchmark_account, sign_proposal, ClientDealProposalOf, DealProposalOf, ALICE, CHARLIE,
+use crate::{
+    utils::{
+        generate_benchmark_account, sign_proposal, ClientDealProposalOf, DealProposalOf, ALICE,
+        CHARLIE,
+    },
+    Config, Pallet,
 };
-
-pub struct Pallet<T: Config>(pallet_storage_provider::Pallet<T>);
-pub trait Config:
-    pallet_storage_provider::Config
-    + pallet_balances::Config
-    + pallet_market::Config
-    + frame_system::Config
-{
-}
-
-impl<T: Config> OnInitialize<BlockNumberFor<T>> for Pallet<T> {
-    fn on_initialize(n: BlockNumberFor<T>) -> frame_support::weights::Weight {
-        pallet_storage_provider::Pallet::<T>::on_initialize(n)
-    }
-}
-
 type BoundedPeerIdBytes = BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>;
 
 #[benchmarks(
