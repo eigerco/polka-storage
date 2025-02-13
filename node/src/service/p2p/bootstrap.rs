@@ -112,7 +112,7 @@ pub(crate) async fn bootstrap(
     for addr in bootstrap_addresses {
         info!("Attempting to dial peer at {addr}");
         if swarm.dial(addr.clone()).is_err() {
-            warn!("Failed to dial peer");
+            warn!("Failed to dial peer at address {addr}");
         }
     }
     swarm
