@@ -20,7 +20,9 @@ filecoin-proofs.workspace = true
 
 clap = { workspace = true, features = ["derive"], optional = true }
 fr32.workspace = true
+futures = { workspace = true }
 hex = { workspace = true, features = ["std"] }
+itertools = { workspace = true }
 jsonrpsee = { workspace = true, features = ["http-client", "macros", "server", "ws-client"] }
 polka-storage-proofs = { workspace = true, features = ["std", "substrate"] }
 serde = { workspace = true }
