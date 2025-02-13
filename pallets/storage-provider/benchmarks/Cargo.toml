@@ -35,11 +35,6 @@ frame-system = { workspace = true, default-features = false }
 
 [dev-dependencies]
 env_logger = { workspace = true }
-multihash-codetable = { workspace = true, features = ["blake2b"] }
-pallet-balances = { workspace = true, default-features = false }
-pallet-market = { workspace = true, default-features = false }
-primitives = { workspace = true, default-features = false, features = ["builder", "testing"] }
-rstest = { workspace = true }
 
 [features]
 default = ["std"]
