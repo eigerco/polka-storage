@@ -1,3 +1,11 @@
+//! This example show how to connect to a bootstrap node within the P2P network
+//! and request a Peer ID to Multiaddrs mapping.
+//! This client uses libp2p's request response protocol to request a Multiaddrs
+//! connected to a given Peer ID.
+//! The Multiaddr of the bootstrap node needs to be known because the client
+//! needs to dial (connect) to the bootstrap node to send a request.
+//! The Peer ID of the bootstrap node needs to be known to send the request
+//! to the bootstrap node.
 use std::time::Duration;
 
 use anyhow::Result;
@@ -77,10 +85,13 @@ async fn run_discover(
 
 #[derive(Parser)]
 struct Cli {
+    /// Multiaddr of the bootstrap node.
     #[arg(long)]
     bootstrap_addr: Multiaddr,
+    /// PeerID of the bootstrap node.
     #[arg(long)]
     bootstrap_id: PeerId,
+    /// Peer ID to request the Multiaddrs for.
     #[arg(long)]
     resolve_id: PeerId,
 }
