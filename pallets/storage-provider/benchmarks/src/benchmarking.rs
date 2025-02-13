@@ -24,10 +24,8 @@ use sp_core::Get;
 use sp_runtime::{AccountId32, MultiSignature, MultiSigner};
 
 use crate::{
-    utils::{
-        generate_benchmark_account, sign_proposal, ClientDealProposalOf, DealProposalOf, ALICE,
-        CHARLIE,
-    },
+    accounts::{generate_benchmark_account, ALICE, STORAGE_PROVIDER},
+    deal_proposals::{sign_proposal, ClientDealProposalOf, DealProposalOf},
     Config, Pallet,
 };
 type BoundedPeerIdBytes = BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>;
@@ -43,9 +41,8 @@ type BoundedPeerIdBytes = BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>;
 )]
 mod benchmarks {
 
-    use primitives::{commitment::CommD, sector::SectorPreCommitInfo, MAX_LABEL_SIZE};
-
     use super::*;
+    use primitives::{commitment::CommD, sector::SectorPreCommitInfo, MAX_LABEL_SIZE};
 
     const EXISTENTIAL_DEPOSIT: u32 = 1_000_000_000;
 
@@ -161,7 +158,8 @@ mod benchmarks {
     #[benchmark]
     fn pre_commit_sectors(n: Linear<1, MAX_SECTORS_PER_CALL>) {
         let alice = create_account_with_balance::<T>(ALICE, EXISTENTIAL_DEPOSIT * 2);
-        let sp_id = create_and_register_storage_provider::<T>(CHARLIE, EXISTENTIAL_DEPOSIT * 2);
+        let sp_id =
+            create_and_register_storage_provider::<T>(STORAGE_PROVIDER, EXISTENTIAL_DEPOSIT * 2);
 
         assert_ok!(MarketPallet::<T>::add_balance(
             RawOrigin::Signed(sp_id.clone()).into(),
