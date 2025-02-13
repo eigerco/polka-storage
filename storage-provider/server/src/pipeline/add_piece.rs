@@ -63,7 +63,7 @@ pub async fn add_piece(
         );
         // TODO(@th7nder,30/10/2024): simplification, as we're always scheduling a precommit just after adding a piece and creating a new sector.
         // Ideally sector won't be finalized after one piece has been added and the precommit will depend on the start_block?
-        return Ok(state.send_pre_commit(sector_number)?);
+        return state.send_pre_commit(sector_number);
     }
     tracing::debug!(
         %sector_number,
@@ -119,12 +119,11 @@ async fn find_or_create_sector_for_piece(
     if let Some(sector) = sector {
         // NOTE(@jmg-duarte,03/02/2025): as per our filter, errors return false, as such an error couldn't be returned
         return sector
-            .map(|sector| {
+            .inspect(|sector| {
                 tracing::debug!(
                     sector_number = %sector.sector_number,
                     "Found sector for piece!",
                 );
-                sector
             })
             .map_err(PipelineError::from);
     }
