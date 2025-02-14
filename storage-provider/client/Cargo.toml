@@ -36,7 +36,7 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 url = { workspace = true }
 
 [dev-dependencies]
-libp2p = { workspace = true, features = ["identify", "macros", "noise", "rendezvous", "tcp", "tokio", "yamux"] }
+libp2p = { workspace = true, features = ["cbor", "macros", "noise", "request-response", "tcp", "tokio", "yamux"] }
 
 [lints]
 workspace = true
