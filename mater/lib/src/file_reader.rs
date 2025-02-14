@@ -1,20 +1,26 @@
-use std::{collections::HashMap, ops::Deref, path::Path};
+use std::{collections::HashMap, io::Cursor, ops::Deref, path::Path};
 
 use async_stream::try_stream;
-use futures::Stream;
+use futures::{Stream, TryStreamExt};
 use ipld_core::{cid::Cid, codec::Codec};
 use ipld_dagpb::{DagPbCodec, PbNode};
-use tokio::{fs::File, io::AsyncSeekExt};
+use tokio::{
+    fs::File,
+    io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWriteExt},
+};
 
 use crate::{multicodec, v1::BlockMetadata, v2, Error};
 
 /// CAR file loader.
-pub struct FileLoader {
-    reader: v2::Reader<File>,
+pub struct FileLoader<R>
+where
+    R: AsyncRead + AsyncSeek + Unpin,
+{
+    reader: v2::Reader<R>,
     index: HashMap<Cid, PartialNode>,
 }
 
-impl FileLoader {
+impl FileLoader<File> {
     /// Creates a [`FileLoader`] from the given file path.
     pub async fn from_path<P>(path: P) -> Result<Self, Error>
     where
@@ -28,6 +34,25 @@ impl FileLoader {
         loader.index().await?;
         Ok(loader)
     }
+}
+
+impl FileLoader<Cursor<Vec<u8>>> {
+    /// Creates a [`FileLoader`] from a vector of bytes.
+    pub async fn from_vec(vec: Vec<u8>) -> Result<Self, Error> {
+        let mut loader = Self {
+            reader: v2::Reader::new(Cursor::new(vec)),
+            index: HashMap::new(),
+        };
+        loader.index().await?;
+        Ok(loader)
+    }
+}
+
+impl<R> FileLoader<R>
+where
+    R: AsyncRead + AsyncSeek + Unpin,
+{
+    // pub async fn from_buffer(buffer: Vec<u8>) -> Result<>
 
     /// Returns the root of the CAR file.
     ///
@@ -52,8 +77,7 @@ impl FileLoader {
     /// This function performs indexing *naively*, it will sequentially read all block "headers"
     /// (Cid, data start offset and data length) without loading the blocks into memory.
     async fn index(&mut self) -> Result<(), Error> {
-        // Indexing must alwasy be made from the start
-        self.reader.get_inner_mut().rewind().await?;
+        // Indexing must always be made from the start
 
         let _ = self.reader.read_pragma().await?;
         let v2_header = self.reader.read_header().await?;
@@ -111,6 +135,22 @@ impl FileLoader {
             }
         }
     }
+
+    /// Writes the content tree for the given [`Cid`] into `w`.
+    ///
+    /// This is equivalent to reading the stream of blocks from [`Self::load_cid`] into a writer.
+    pub async fn copy_cid<W>(&mut self, cid: &Cid, mut w: W) -> Result<(), Error>
+    where
+        W: AsyncWriteExt + Unpin,
+    {
+        let loader = self.load_cid(cid);
+        tokio::pin!(loader);
+        while let Some((_, block)) = loader.try_next().await? {
+            w.write_all(block.as_slice()).await?;
+        }
+        w.flush().await?;
+        Ok(())
+    }
 }
 
 /// Partial "re-implementation" of [`unixfs::TreeNode`].
@@ -139,5 +179,34 @@ impl TryFrom<BlockMetadata> for PartialNode {
             multicodec::DAG_PB_CODE => Ok(Self::Stem(value)),
             _ => Err(Error::InvalidCid),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::io::Cursor;
+
+    use crate::{Blockstore, FileLoader};
+
+    /// Ensures that duplicated blocks
+    #[tokio::test]
+    async fn read_duplicated_blocks() {
+        let raw_input = std::iter::repeat(0).take(4096).collect::<Vec<u8>>();
+
+        let mut bs = Blockstore::with_parameters(Some(1024), None);
+        bs.read(Cursor::new(raw_input.clone())).await.unwrap();
+
+        // 1519 is the expected CAR file size after deduplicating and writing the CAR file
+        let mut out_car_buffer = Vec::with_capacity(1519);
+        bs.write(&mut out_car_buffer).await.unwrap();
+        assert_eq!(out_car_buffer.len(), 1519);
+
+        let mut loader = FileLoader::from_vec(out_car_buffer).await.unwrap();
+        let root = loader.root().await.unwrap();
+
+        let mut out_check = Cursor::new(vec![1u8; 4096]);
+        loader.copy_cid(&root, &mut out_check).await.unwrap();
+
+        assert_eq!(raw_input, out_check.into_inner());
     }
 }

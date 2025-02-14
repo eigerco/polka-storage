@@ -1,8 +1,7 @@
-use std::{io::Cursor, path::PathBuf};
+use std::path::PathBuf;
 
-use futures::TryStreamExt;
 use mater::FileLoader;
-use tokio::{fs::File, io::AsyncWriteExt, pin};
+use tokio::fs::File;
 
 use crate::error::Error;
 
@@ -12,7 +11,7 @@ pub(crate) async fn extract_file_from_car(
     output_path: &PathBuf,
     overwrite: bool,
 ) -> Result<(), Error> {
-    let mut output_file = if overwrite {
+    let output_file = if overwrite {
         File::create(&output_path).await?
     } else {
         File::create_new(&output_path).await?
@@ -21,18 +20,9 @@ pub(crate) async fn extract_file_from_car(
     let mut loader = FileLoader::from_path(input_path)
         .await
         .map_err(|_| Error::InvalidCarFile)?;
+
     let root = loader.root().await?;
-    let blocks = loader.load_cid(&root);
-    pin!(blocks);
-    while let Some((_, block)) = blocks.try_next().await? {
-        // Need the Cursor for the AsyncRead over Vec<u8>
-        let mut cursor = Cursor::new(block);
-        // No need for a BufReader since we're wrapping over an in-memory buffer
-        tokio::io::copy(&mut cursor, &mut output_file).await?;
-    }
-
-    output_file.flush().await?;
-
+    loader.copy_cid(&root, output_file).await?;
     Ok(())
 }
 
