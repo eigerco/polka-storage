@@ -117,8 +117,8 @@ pub struct SealingConfiguration {
     #[cfg_attr(feature = "clap", arg(long, default_value = "6h", value_parser = duration_value_parser))]
     pub wait_deals_delay: Duration,
 
-    /// The amount of time before a sector's earliest deal expiration; once hit, the sector is
-    /// sealed & pre-committed.
+    /// The amount of time before a sector's earliest deal start; once hit, the sector is sealed &
+    /// pre-committed.
     #[serde(
         default = "default_pre_commit_submission_slack",
         deserialize_with = "duration_deserializer"

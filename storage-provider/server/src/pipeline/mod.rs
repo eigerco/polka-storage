@@ -158,7 +158,7 @@ impl PipelineOperations for TaskTracker {
         let tracker = self.clone();
         self.spawn(async move {
             tokio::select! {
-                // AddPiece is cancellation safe, as it can be retried and the state will be fine.
+                // AddPiece is NOT cancellation safe, cancelling it will make the program state inconsistent.
                 res = add_piece(tracker, state, piece_path, commitment, deal, published_deal_id) => {
                     match res {
                         Ok(_) => tracing::info!("Add Piece for piece {}, deal id {}, finished successfully.", commitment, published_deal_id),
@@ -297,7 +297,7 @@ async fn precommit(
         // We remove ourselves from the scheduled pre-commits
         let mut scheduled_pre_commits = state.scheduled_pre_commits.lock().await;
         if scheduled_pre_commits.remove(&sector_number).is_none() {
-            tracing::warn!(%sector_number, "No task was found! Not pre-committing.");
+            tracing::warn!(%sector_number, "No task was found! Skipping pre-commiting as sector should have been pre-commited before.");
             return Ok(());
         }
     }

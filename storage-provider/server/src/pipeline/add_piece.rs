@@ -19,9 +19,9 @@ use crate::{
 };
 
 /// Finds a sector to which a piece will fit and adds it to the sector.
-/// This function is *cancellation safe* as if future is dropped,
-/// it can be dropped only when waiting for `spawn_blocking`.
-/// When dropped when waiting, the sector state won't be preserved and adding piece can be retried.
+///
+/// This function is *not* cancellation safe. If cancelled the system state may become inconsistent
+/// and the sector the piece belongs to may never be scheduled for pre-commit.
 #[tracing::instrument(skip(tracker, state, deal, commitment))]
 pub async fn add_piece(
     tracker: TaskTracker,
@@ -61,8 +61,6 @@ pub async fn add_piece(
             fill_percentage,
             fill_threshold,
         );
-        // TODO(@th7nder,30/10/2024): simplification, as we're always scheduling a precommit just after adding a piece and creating a new sector.
-        // Ideally sector won't be finalized after one piece has been added and the precommit will depend on the start_block?
         return state.send_pre_commit(sector_number);
     }
     tracing::debug!(
@@ -104,7 +102,7 @@ async fn find_or_create_sector_for_piece(
         Ok(unsealed_sector) => {
             let free_space = unsealed_sector.free_space();
             tracing::debug!(sector_number = %unsealed_sector.sector_number, free_space = free_space, "Checking sector...");
-            free_space > deal.piece_size
+            free_space >= deal.piece_size
         },
         // Errors return false since, well, they're not valid sectors
         _ => false,
@@ -160,11 +158,11 @@ async fn schedule_pre_commit(
     sector_number: SectorNumber,
     when: Duration,
 ) {
-    let deadline = Utc::now() + when;
+    let precommit_target_time = Utc::now() + when;
     let mut scheduled_pre_commits = state.scheduled_pre_commits.lock().await;
     match scheduled_pre_commits.get_mut(&sector_number) {
-        Some((old_deadline, old_cancellation_sender)) if deadline < *old_deadline => {
-            tracing::debug!(%sector_number, "Existing deadline is older than the new one, cancelling existing task: old_deadline = {}, new_deadline = {}", old_deadline, deadline);
+        Some((old_deadline, old_cancellation_sender)) if precommit_target_time < *old_deadline => {
+            tracing::debug!(%sector_number, "Existing deadline is older than the new one, cancelling existing task: old_deadline = {}, new_deadline = {}", old_deadline, precommit_target_time);
             let state_for_task = state.clone();
 
             let (cancellation_sender, cancellation_receiver) = oneshot::channel();
@@ -176,20 +174,20 @@ async fn schedule_pre_commit(
                 cancellation_receiver,
             );
 
-            *old_deadline = deadline;
+            *old_deadline = precommit_target_time;
             let old_cancellation_sender =
                 std::mem::replace(old_cancellation_sender, cancellation_sender);
             if old_cancellation_sender.send(()).is_err() {
                 tracing::error!("Failed to send cancellation value");
             }
 
-            tracing::debug!(%sector_number, "Existing deadline & task have been replaced: new_deadline = {}", deadline);
+            tracing::debug!(%sector_number, "Existing deadline & task have been replaced: new_deadline = {}", precommit_target_time);
         }
         Some((old_deadline, _)) => {
-            tracing::debug!(%sector_number, "Existing deadline is newer than the new one: old_deadline = {}, new_deadline = {}", old_deadline, deadline);
+            tracing::debug!(%sector_number, "Existing deadline is newer than the new one: old_deadline = {}, new_deadline = {}", old_deadline, precommit_target_time);
         }
         None => {
-            tracing::debug!(%sector_number, "No deadline existing existed, creating it.");
+            tracing::debug!(%sector_number, "Pre-commit wasn't scheduled, scheduling it to execute at {}.", precommit_target_time);
             let (cancellation_sender, cancellation_receiver) = oneshot::channel();
             let state_for_task = state.clone();
             schedule_send_pre_commit(
@@ -199,7 +197,8 @@ async fn schedule_pre_commit(
                 when,
                 cancellation_receiver,
             );
-            scheduled_pre_commits.insert(sector_number, (deadline, cancellation_sender));
+            scheduled_pre_commits
+                .insert(sector_number, (precommit_target_time, cancellation_sender));
         }
     }
 }
