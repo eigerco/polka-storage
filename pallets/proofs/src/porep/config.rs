@@ -16,6 +16,7 @@ pub struct Config {
     porep_id: PoRepID,
     nodes: usize,
     challenges: InteractiveChallenges,
+    required_partitions: usize,
 }
 
 /// References:
@@ -71,6 +72,7 @@ impl Config {
             // PRE-COND: sector size must be divisible by 32
             nodes: (seal_proof.sector_size().bytes() / 32) as usize,
             challenges: InteractiveChallenges::new(partitions, minimum_challenges(seal_proof)),
+            required_partitions: partitions,
         }
     }
 
@@ -87,6 +89,12 @@ impl Config {
 
     pub fn challenges(&self, leaves: usize, replica_id: &Fr, seed: &[u8; 32], k: u8) -> Vec<usize> {
         self.challenges.derive(leaves, replica_id, seed, k)
+    }
+
+    /// Expected number of partitions for given PoRep.
+    /// 1 partition == 1 proof.
+    pub fn required_partitions(&self) -> usize {
+        self.required_partitions
     }
 }
 

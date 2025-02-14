@@ -120,8 +120,7 @@ impl ProofScheme {
             challenge_hasher.update(&u64::from(sector.id).to_le_bytes()[..]);
 
             for n in 0..self.config.challenges_per_sector {
-                // let sector_index =
-                //     partition_index * self.config.challenged_sectors_per_partition + i;
+                // https://github.com/filecoin-project/rust-fil-proofs/blob/8e96f1de6ca8468f5308773c3706c1a25509cf95/storage-proofs-post/src/fallback/utils.rs#L14
                 let challenge_index = n as u64;
                 let challenged_leaf =
                     self.generate_leaf_challenge_inner(challenge_hasher.clone(), challenge_index);

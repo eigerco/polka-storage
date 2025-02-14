@@ -141,6 +141,12 @@ pub struct ProveCommitSector {
     pub sector_number: SectorNumber,
     /// Raw proof bytes serialized with [`parity_scale_codec::Encode::encode`]
     /// and using [`bls12_381::Bls12`] as a curve.
+    #[serde(flatten)]
+    pub proofs: Vec<PoRepProof>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+pub struct PoRepProof {
     #[serde(with = "hex")]
     pub proof: Vec<u8>,
 }
@@ -149,7 +155,13 @@ impl From<ProveCommitSector> for RuntimeProveCommitSector {
     fn from(value: ProveCommitSector) -> Self {
         Self {
             sector_number: value.sector_number,
-            proof: value.proof.into_bounded_byte_vec(),
+            proofs: bounded_vec::BoundedVec(
+                value
+                    .proofs
+                    .into_iter()
+                    .map(|p| p.proof.into_bounded_byte_vec())
+                    .collect::<Vec<_>>(),
+            ),
         }
     }
 }
