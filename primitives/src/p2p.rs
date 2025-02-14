@@ -4,9 +4,13 @@ use ed25519_dalek::{pkcs8::DecodePrivateKey, SigningKey};
 use libp2p::{identity::Keypair, Multiaddr, PeerId};
 use serde::{de, Deserialize, Serialize, Serializer};
 
+pub const GOSSIP_TOPIC: &str = "registrar";
+pub const IDENTIFY_PROTOCOL_VERSION: &str = "identify/1.0.0";
+pub const REQUEST_RESPONSE_STREAM_PROTOCOL: &str = "/resolver/1.0.0";
+pub const DEFAULT_REGISTRATION_TTL: u64 = 86400;
+
 /// Parses a ED25519 private key into a Keypair.
 /// Takes in a private key or the path to a PEM file, depending on the @ prefix.
-#[cfg(feature = "std")]
 pub fn keypair_value_parser(src: &str) -> Result<Keypair, String> {
     let key = if let Some(stripped) = src.strip_prefix('@') {
         let path = PathBuf::from_str(stripped)
@@ -24,7 +28,6 @@ pub fn keypair_value_parser(src: &str) -> Result<Keypair, String> {
 /// Struct holds peer information.
 /// - PeerId: Registered Peer ID.
 /// - multiaddrs: Vec of multiaddresses the peer has registered.
-#[cfg(feature = "std")]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PeerInfo {
     #[serde(serialize_with = "serialize_peer_id")]
@@ -37,7 +40,6 @@ pub struct PeerInfo {
 /// PeerInfoResponse::NotFound is returned when the requested peer ID was not found.
 /// PeerInfoResponse::Found(..) is returned when the requested peer ID was found.
 /// The latter holds the relevant [`PeerInfo`] inside.
-#[cfg(feature = "std")]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum PeerInfoResponse {
     Found(PeerInfo),
@@ -47,7 +49,6 @@ pub enum PeerInfoResponse {
 /// The request type used for the request response P2P protocol.
 /// We cannot use PeerId directly because it does not implement
 /// Serialize and Deserialize.
-#[cfg(feature = "std")]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PeerIdRequest(
     #[serde(serialize_with = "serialize_peer_id")]

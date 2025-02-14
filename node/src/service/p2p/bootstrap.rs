@@ -16,11 +16,12 @@ use libp2p::{
     tcp, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder,
 };
 use log::{debug, error, info, warn};
-use primitives::p2p::{PeerIdRequest, PeerInfo, PeerInfoResponse};
+use primitives::p2p::{
+    PeerIdRequest, PeerInfo, PeerInfoResponse, DEFAULT_REGISTRATION_TTL, GOSSIP_TOPIC,
+    IDENTIFY_PROTOCOL_VERSION, REQUEST_RESPONSE_STREAM_PROTOCOL
+};
 
-use crate::service::p2p::{P2PError, DEFAULT_REGISTRATION_TTL};
-
-const GOSSIP_TOPIC: &str = "registrar";
+use crate::service::p2p::P2PError;
 
 #[derive(NetworkBehaviour)]
 pub struct BootstrapBehaviour {
@@ -76,7 +77,7 @@ impl BootstrapConfig {
                     ),
                     // The identify behaviour is used to share the external address and the public key with connecting clients.
                     identify: identify::Behaviour::new(identify::Config::new(
-                        "identify/1.0.0".to_string(),
+                        IDENTIFY_PROTOCOL_VERSION.to_string(),
                         key.public(),
                     )),
                     gossipsub: gossipsub::Behaviour::new(
@@ -85,7 +86,7 @@ impl BootstrapConfig {
                     )?,
                     request_response: request_response::cbor::Behaviour::new(
                         [(
-                            StreamProtocol::new("/resolver/1.0.0"),
+                            StreamProtocol::new(REQUEST_RESPONSE_STREAM_PROTOCOL),
                             ProtocolSupport::Full,
                         )],
                         request_response::Config::default(),
@@ -175,20 +176,11 @@ fn on_rendezvous_event(
             let encoded_peer_info = match bincode::serialize(&peer_info) {
                 Ok(info) => info,
                 Err(..) => {
-                    error!("Failed to serialize peer_info");
+                    error!(peer_info:?; "Failed to serialize peer_info");
                     return;
                 }
             };
-            registrations
-                .entry(peer)
-                .and_modify(|info| {
-                    for addr in peer_info.multiaddrs.iter() {
-                        if !info.multiaddrs.contains(addr) {
-                            info.multiaddrs.push(addr.clone())
-                        }
-                    }
-                })
-                .or_insert(peer_info);
+            insert_or_update_registrations(registrations, peer_info);
             // Send registration information to other bootstrap nodes.
             match swarm
                 .behaviour_mut()
@@ -196,7 +188,7 @@ fn on_rendezvous_event(
                 .publish(IdentTopic::new(GOSSIP_TOPIC), encoded_peer_info)
             {
                 Ok(..) => info!("Successfully published new peer info for peer {peer}"),
-                Err(..) => error!("Failed to publish new peer info for peer {peer}"),
+                Err(e) => error!(e:?; "Failed to publish new peer info for peer {peer}"),
             }
         }
         other => debug!("Encountered other rendezvous event: {other:?}"),
@@ -222,7 +214,7 @@ fn on_gossipsub_event(
             let peer_info: PeerInfo = match bincode::deserialize(&message.data) {
                 Ok(info) => info,
                 Err(..) => {
-                    error!("Received invalid peer info");
+                    error!(message:? = message.data; "Received invalid peer info from peer {peer_id:?}");
                     return;
                 }
             };
@@ -230,16 +222,7 @@ fn on_gossipsub_event(
                 "Got registration: {:?} with id: {} from peer: {:?}",
                 peer_info, id, peer_id
             );
-            registrations
-                .entry(peer_info.peer_id)
-                .and_modify(|info| {
-                    for addr in peer_info.multiaddrs.iter() {
-                        if !info.multiaddrs.contains(addr) {
-                            info.multiaddrs.push(addr.clone())
-                        }
-                    }
-                })
-                .or_insert(peer_info);
+            insert_or_update_registrations(registrations, peer_info);
         }
         other => debug!("Encountered other gossipsub event: {other:?}"),
     }
@@ -298,4 +281,22 @@ fn on_request_response_event(
             debug!("Request with id {request_id} sent to {peer}")
         }
     }
+}
+
+/// Take the HashMap and update the entry based on peer_info.peer_id
+/// or insert a new entry.
+fn insert_or_update_registrations(
+    registrations: &mut HashMap<PeerId, PeerInfo>,
+    peer_info: PeerInfo,
+) {
+    registrations
+        .entry(peer_info.peer_id)
+        .and_modify(|info| {
+            for addr in peer_info.multiaddrs.iter() {
+                if !info.multiaddrs.contains(addr) {
+                    info.multiaddrs.push(addr.clone())
+                }
+            }
+        })
+        .or_insert(peer_info);
 }

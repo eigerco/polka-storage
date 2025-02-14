@@ -5,8 +5,6 @@ mod bootstrap;
 
 pub(crate) use bootstrap::BootstrapConfig;
 
-const DEFAULT_REGISTRATION_TTL: u64 = 86400;
-
 #[derive(Debug, thiserror::Error)]
 pub enum P2PError {
     #[error(transparent)]

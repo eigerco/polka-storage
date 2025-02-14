@@ -47,7 +47,7 @@ libp2p = { workspace = true, features = [
   "tokio",
   "yamux",
 ] }
-log = { workspace = true, default-features = true }
+log = { workspace = true, features = ["kv"], default-features = true }
 pallet-transaction-payment-rpc = { workspace = true, default-features = true }
 polkadot-cli = { features = ["rococo-native"], workspace = true, default-features = true }
 polkadot-primitives = { workspace = true, default-features = true }
