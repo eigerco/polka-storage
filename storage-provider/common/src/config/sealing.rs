@@ -14,13 +14,17 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 /// Default amount of time to wait to seal an unfilled sector.
 const fn default_wait_deals_delay() -> Duration {
-    // 24 hours * 60 minutes * 60 seconds =
-    Duration::from_secs(24 * 60 * 60)
+    Duration::from_secs(6 * 60 * 60)
 }
 
 /// Returns the default fill percentage.
 const fn default_fill_threshold() -> u8 {
     95
+}
+
+/// Default amount of time before the expiration of the sectors earliest deal.
+const fn default_pre_commit_submission_slack() -> Duration {
+    Duration::from_secs(60 * 60)
 }
 
 fn validate_percentage(percentage: u8) -> Result<u8, String> {
@@ -105,14 +109,22 @@ pub struct SealingConfiguration {
     ))]
     pub fill_threshold: u8,
 
-    /// The amount of time to wait before sealing an unfilled sector, defaults to 24 hours.
-    /// If the sector is empty, it will not be sealed.
+    /// The amount of time to wait before sealing an unfilled sector, defaults to 6 hours.
     #[serde(
         default = "default_wait_deals_delay",
         deserialize_with = "duration_deserializer"
     )]
-    #[cfg_attr(feature = "clap", arg(long, default_value = "24h", value_parser = duration_value_parser))]
+    #[cfg_attr(feature = "clap", arg(long, default_value = "6h", value_parser = duration_value_parser))]
     pub wait_deals_delay: Duration,
+
+    /// The amount of time before a sector's earliest deal start; once hit, the sector is sealed &
+    /// pre-committed.
+    #[serde(
+        default = "default_pre_commit_submission_slack",
+        deserialize_with = "duration_deserializer"
+    )]
+    #[cfg_attr(feature = "clap", arg(long, default_value = "1h", value_parser = duration_value_parser))]
+    pub pre_commit_submission_slack: Duration,
 }
 
 // This default is implemented for when `sealing_configuration` is missing from the config file,
@@ -124,6 +136,7 @@ impl Default for SealingConfiguration {
         Self {
             fill_threshold: default_fill_threshold(),
             wait_deals_delay: default_wait_deals_delay(),
+            pre_commit_submission_slack: default_pre_commit_submission_slack(),
         }
     }
 }

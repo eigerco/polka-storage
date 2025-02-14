@@ -10,7 +10,9 @@ mod pipeline;
 mod rpc;
 mod storage;
 
-use std::{env::temp_dir, net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
+use std::{
+    collections::HashMap, env::temp_dir, net::SocketAddr, path::PathBuf, sync::Arc, time::Duration,
+};
 
 use clap::Parser;
 use libp2p::{identity::Keypair, Multiaddr, PeerId};
@@ -388,6 +390,8 @@ impl Server {
             cancellation_token.child_token(),
         ));
 
+        tracing::info!("Successfully launched all sub-services, ready for work!");
+
         // Wait for SIGTERM on the main thread and once received "unblock"
         tokio::signal::ctrl_c()
             .await
@@ -480,6 +484,7 @@ impl Server {
             pipeline_sender: pipeline_tx,
             prove_commit_throttle: Arc::new(Semaphore::new(self.parallel_prove_commits)),
             add_piece_serializer: Mutex::new(()),
+            scheduled_pre_commits: Mutex::new(HashMap::new()),
         };
 
         let p2p_state = P2PState {

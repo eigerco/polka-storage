@@ -6,17 +6,18 @@ trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 # requires the testnet to be running!
 export DISABLE_XT_WAIT_WARNING=1
 
+mkdir -p /tmp/polka-storage-provider
+
 CLIENT="//Alice"
 PROVIDER="//Charlie"
 P2P_ADDRESS="/ip4/127.0.0.1/tcp/62649"
-P2P_PUBLIC_KEY="/tmp/polka-storage/public.pem"
-P2P_PRIVATE_KEY="/tmp/polka-storage/private.pem"
+P2P_PUBLIC_KEY="/tmp/polka-storage-provider/public.pem"
+P2P_PRIVATE_KEY="/tmp/polka-storage-provider/private.pem"
 P2P_BOOTSTRAP_PUBLIC_KEY="/tmp/zombienet/public.pem"
 # Config file location
-CONFIG="/tmp/storage-provider/config.toml"
+CONFIG="/tmp/polka-storage-provider/config.toml"
 
 # Generate ED25519 private key
-mkdir -p /tmp/storage-provider
 openssl genpkey -algorithm ED25519 -out "$P2P_PRIVATE_KEY"
 # -outpubkey is only available in OpenSSL 3.4.0 onwards
 # https://github.com/openssl/openssl/commit/6c03fa21ed4bbc9fd6d3013fdf9f4646d231f831
@@ -42,22 +43,23 @@ wait
 # It's a test setup based on the local verifying keys, everyone can run those extrinsics currently.
 # Each of the keys is different, because the processes are running in parallel.
 # If they were running in parallel on the same account, they'd conflict with each other on the transaction nonce.
-RUST_LOG=debug target/release/storagext-cli --sr25519-key "//Charlie" storage-provider register "$P2P_SP_PEER_ID" &
-RUST_LOG=debug target/release/storagext-cli --sr25519-key "//Alice" proofs set-porep-verifying-key @2KiB.porep.vk.scale &
-RUST_LOG=debug target/release/storagext-cli --sr25519-key "//Bob" proofs set-post-verifying-key @2KiB.post.vk.scale &
+RUST_LOG=debug target/release/storagext-cli --sr25519-key "//Charlie" storage-provider register --post-proof "8MiB" "$P2P_SP_PEER_ID" &
+RUST_LOG=debug target/release/storagext-cli --sr25519-key "//Alice" proofs set-porep-verifying-key @8MiB.porep.vk.scale &
+RUST_LOG=debug target/release/storagext-cli --sr25519-key "//Bob" proofs set-post-verifying-key @8MiB.post.vk.scale &
 wait
 
-echo "seal_proof = '2KiB'
-post_proof = '2KiB'
-porep_parameters = '2KiB.porep.params'
-post_parameters = '2KiB.post.params'
+echo "seal_proof = '8MiB'
+post_proof = '8MiB'
+porep_parameters = '8MiB.porep.params'
+post_parameters = '8MiB.post.params'
 rendezvous_point_address = '$P2P_ADDRESS'
 p2p_key = '@$P2P_PRIVATE_KEY'
 rendezvous_point = '$P2P_BOOTSTRAP_PEER_ID'
 [sealing_configuration]
 fill_threshold = 80
-wait_deals_delay = '2m'" > "$CONFIG"
+wait_deals_delay = '1h'
+pre_commit_submission_slack = '1m'" > "$CONFIG"
 
-RUST_LOG=debug target/release/polka-storage-provider-server \
+RUST_LOG="polka_storage_provider_server=debug" target/release/polka-storage-provider-server \
     --sr25519-key "$PROVIDER" \
     --config "$CONFIG"

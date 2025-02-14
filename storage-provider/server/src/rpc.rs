@@ -24,6 +24,8 @@ use crate::{
     pipeline::types::{AddPieceMessage, PipelineMessage},
 };
 
+pub const SECS_PER_BLOCK: u64 = 6;
+
 /// RPC server shared state.
 pub struct RpcServerState {
     pub server_info: ServerInfo,
@@ -57,6 +59,27 @@ impl RpcServerState {
                 format!(
                     "Deal starts in the past: current_block = {}, deal_start_block = {}",
                     current_block, deal.start_block
+                ),
+                None,
+            ));
+        }
+
+        let deal_start_distance = deal.start_block - current_block;
+        let minimum_start_distance = self
+            .server_info
+            .sealing_configuration
+            .pre_commit_submission_slack
+            .as_secs()
+            / SECS_PER_BLOCK;
+        // NOTE(@jmg-duarte,12/02/2025): we could consider the deal size when doing this,
+        // if a deal is going to fill up a single sector, we could let it through as long as
+        // its deal_start_distance > pre_commit_submission_slack
+        if deal_start_distance < minimum_start_distance {
+            return Err(RpcError::invalid_params(
+                format!(
+                    "Deal starts too early: start_block = {}, (current) minimum_start_block = {}",
+                    deal.start_block,
+                    current_block + minimum_start_distance,
                 ),
                 None,
             ));
