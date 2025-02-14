@@ -24,8 +24,12 @@ release: lint
 release-testnet:
     cargo build --release --features polka-storage-runtime/testnet --bin polka-storage-node
 
-# Run the testnet without building
+# Generate a private key for the P2P network and
+# run the testnet without building
 run-testnet:
+    mkdir -p /tmp/zombienet
+    openssl genpkey -algorithm ED25519 -out /tmp/zombienet/private.pem
+    openssl pkey -in /tmp/zombienet/private.pem -pubout -out /tmp/zombienet/public.pem # Generate public key so script can get the Peer ID
     zombienet -p native spawn zombienet/local-testnet.toml
 
 # Run the testing building it before
@@ -48,11 +52,19 @@ build-polka-storage-node:
 
 # Build the polka storage provider client
 build-polka-storage-provider-client:
-  cargo build --release -p polka-storage-provider-client
+  if [ -n "${POLKA_STORAGE_CUDA+x}" ] && [ "${POLKA_STORAGE_CUDA}" = "true" ]; then \
+    cargo build --release -p polka-storage-provider-client --no-default-features --features cuda; \
+  else \
+    cargo build --release -p polka-storage-provider-client; \
+  fi
 
 # Build the polka storage provider server
 build-polka-storage-provider-server:
-  cargo build --release -p polka-storage-provider-server
+  if [ -n "${POLKA_STORAGE_CUDA+x}" ] && [ "${POLKA_STORAGE_CUDA}" = "true" ]; then \
+    cargo build --release -p polka-storage-provider-server --no-default-features --features cuda; \
+  else \
+    cargo build --release -p polka-storage-provider-server; \
+  fi
 
 build-polka-storage-provider: build-polka-storage-provider-server build-polka-storage-provider-client
 
@@ -152,6 +164,9 @@ load-to-minikube:
     minikube image load ghcr.io/polka-storage-node:"$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[] | select(.name == "polka-storage-node") | .version')"
 
 kube-testnet:
+    mkdir -p /tmp/zombienet
+    openssl genpkey -algorithm ED25519 -out /tmp/zombienet/private.pem
+    openssl pkey -in /tmp/zombienet/private.pem -pubout -out /tmp/zombienet/public.pem # Generate public key so script can get the Peer ID
     zombienet -p kubernetes spawn zombienet/local-kube-testnet.toml
 
 # The tarpaulin calls for test coverage have the following options:

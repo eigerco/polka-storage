@@ -322,6 +322,7 @@ impl From<Vec<TerminationDeclaration>> for RuntimeTerminateSectorsParams {
     }
 }
 
+#[derive(Debug)]
 pub struct PartitionState {
     pub sectors: BTreeSet<SectorNumber>,
 }

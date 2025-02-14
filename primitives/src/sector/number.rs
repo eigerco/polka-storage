@@ -21,6 +21,7 @@ use crate::MAX_SECTORS;
     Ord,
     PartialOrd,
     Eq,
+    Hash,
     Encode,
     EncodeAsType,
     TypeInfo,

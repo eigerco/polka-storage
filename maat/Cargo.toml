@@ -8,13 +8,15 @@ repository.workspace = true
 version = "0.1.0"
 
 [features]
-default = ["target-debug", "target-release"]
+default = ["opencl", "target-debug", "target-release"]
 # Target the polka-storage-node in `target/debug` or `target/release`
 # if *both* flags are enabled, it will first check for `target/release`
 # and if not found, check for `target-debug`
 #
 # To forcefully test one of them only, run `cargo test` with the
 # `--no-default-features` flag and `--features` with your desired feature
+cuda = ["polka-storage-proofs/cuda"]
+opencl = ["polka-storage-proofs/opencl"]
 target-debug = []
 target-release = []
 
@@ -23,6 +25,7 @@ bls12_381 = { workspace = true }
 bs58.workspace = true
 cid.workspace = true
 codec = { workspace = true }
+ed25519-dalek = { workspace = true, features = ["pem"] }
 futures.workspace = true
 hex = { workspace = true }
 libp2p = { workspace = true, features = ["ecdsa", "identify"] }
@@ -33,6 +36,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["std"] }
 storagext = { workspace = true }
 subxt = { workspace = true, features = ["substrate-compat"] }
+tempfile = { workspace = true }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true, features = ["rt"] }
@@ -42,9 +46,6 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 zombienet-configuration.workspace = true
 zombienet-sdk.workspace = true
 zombienet-support.workspace = true
-
-[dev-dependencies]
-tempfile = { workspace = true }
 
 [lints]
 workspace = true

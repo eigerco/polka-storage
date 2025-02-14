@@ -8,9 +8,9 @@ use libp2p::{
     swarm::{NetworkBehaviour, SwarmEvent},
     tcp, yamux, Multiaddr, Swarm, SwarmBuilder,
 };
+use log::{debug, info};
 
-use super::P2PError;
-use crate::config::DEFAULT_REGISTRATION_TTL;
+use crate::service::p2p::{P2PError, DEFAULT_REGISTRATION_TTL};
 
 #[derive(NetworkBehaviour)]
 pub struct BootstrapBehaviour {
@@ -62,21 +62,19 @@ pub(crate) async fn bootstrap(
     mut swarm: Swarm<BootstrapBehaviour>,
     addr: Multiaddr,
 ) -> Result<(), P2PError> {
-    tracing::info!("Starting P2P bootstrap node at {addr}");
+    info!("Starting P2P bootstrap node at {addr}");
     swarm.listen_on(addr)?;
-    while let Some(event) = swarm.next().await {
-        match event {
+    loop {
+        match swarm.select_next_some().await {
             SwarmEvent::NewListenAddr { address, .. } => {
-                tracing::info!("Listening on {}", address);
+                info!("Listening on {}", address);
             }
             SwarmEvent::Behaviour(BootstrapBehaviourEvent::Rendezvous(
                 rendezvous::server::Event::PeerRegistered { peer, registration },
             )) => {
-                tracing::info!(
+                info!(
                     "Peer {} registered for namespace '{}' for {} seconds",
-                    peer,
-                    registration.namespace,
-                    registration.ttl
+                    peer, registration.namespace, registration.ttl
                 );
             }
             SwarmEvent::Behaviour(BootstrapBehaviourEvent::Rendezvous(
@@ -86,7 +84,7 @@ pub(crate) async fn bootstrap(
                 },
             )) => {
                 if !registrations.is_empty() {
-                    tracing::info!(
+                    info!(
                         "Served peer {} with {} new registrations",
                         enquirer,
                         registrations.len()
@@ -96,14 +94,13 @@ pub(crate) async fn bootstrap(
             SwarmEvent::Behaviour(BootstrapBehaviourEvent::Rendezvous(
                 rendezvous::server::Event::RegistrationExpired(registration),
             )) => {
-                tracing::info!(
+                info!(
                     "Registration for peer {} expired in namespace {}",
                     registration.record.peer_id(),
                     registration.namespace
                 );
             }
-            other => tracing::debug!("Encountered event: {other:?}"),
+            other => debug!("Encountered event: {other:?}"),
         }
     }
-    Ok(())
 }

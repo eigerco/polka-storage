@@ -11,7 +11,10 @@ mod retrieval;
 mod rpc;
 mod storage;
 
-use std::{env::temp_dir, net::SocketAddr, ops::Deref, path::PathBuf, sync::Arc, time::Duration};
+use std::{
+    collections::HashMap, env::temp_dir, net::SocketAddr, ops::Deref, path::PathBuf, sync::Arc,
+    time::Duration,
+};
 
 use clap::Parser;
 use indexer::{
@@ -19,10 +22,7 @@ use indexer::{
     start_indexer, IndexerMessage, IndexerState,
 };
 use libp2p::{identity::Keypair, Multiaddr, PeerId};
-use p2p::{
-    run_bootstrap_node, run_register_node, BootstrapConfig, NodeType, P2PError, P2PState,
-    RegisterConfig,
-};
+use p2p::{run_register_node, P2PError, P2PState, RegisterConfig};
 use pipeline::types::PipelineMessage;
 use polka_storage_proofs::{
     porep::{self, PoRepParameters},
@@ -42,7 +42,7 @@ use storagext::{
 };
 use subxt::{self, tx::Signer};
 use tokio::{
-    sync::{mpsc::UnboundedReceiver, Semaphore},
+    sync::{mpsc::UnboundedReceiver, Mutex, Semaphore},
     task::{JoinError, JoinHandle},
 };
 use tokio_util::sync::CancellationToken;
@@ -105,12 +105,14 @@ struct SetupOutput {
 
 fn main() -> Result<(), ServerError> {
     // Logger initialization.
-    let file_appender = tracing_appender::rolling::daily("logs", "sp_server");
+    let file_appender = tracing_appender::rolling::daily("logs", "sp_server.log");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
 
     tracing_subscriber::registry()
+        // File appender *MUST* go first, otherwise `with_ansi` isn't respected
+        // More info: https://github.com/tokio-rs/tracing/issues/3089
+        .with(fmt::layer().with_ansi(false).with_writer(non_blocking))
         .with(fmt::layer())
-        .with(fmt::layer().with_writer(non_blocking).with_ansi(false))
         .with(
             EnvFilter::builder()
                 .with_default_directive(LevelFilter::INFO.into())
@@ -281,9 +283,6 @@ pub struct Server {
     /// The number of prove commits to be run in parallel.
     parallel_prove_commits: usize,
 
-    /// P2P Network node type, can either be a bootstrap or registration node
-    node_type: NodeType,
-
     /// P2P ED25519 private key
     p2p_key: Keypair,
 
@@ -293,7 +292,7 @@ pub struct Server {
 
     /// PeerID of the bootstrap node used by the registration node.
     /// Optional because it is not used by the bootstrap node.
-    rendezvous_point: Option<PeerId>,
+    rendezvous_point: PeerId,
 
     /// TTL of the p2p registration in seconds
     registration_ttl: u64,
@@ -377,7 +376,6 @@ impl TryFrom<ServerCli> for Server {
             porep_parameters,
             post_parameters,
             parallel_prove_commits: args.parallel_prove_commits.get(),
-            node_type: args.node_type,
             p2p_key: args.p2p_key,
             rendezvous_point_address: args.rendezvous_point_address,
             rendezvous_point: args.rendezvous_point,
@@ -426,6 +424,8 @@ impl Server {
             indexer_rx,
             cancellation_token.child_token(),
         ));
+
+        tracing::info!("Successfully launched all sub-services, ready for work!");
 
         // Wait for SIGTERM on the main thread and once received "unblock"
         tokio::signal::ctrl_c()
@@ -541,11 +541,12 @@ impl Server {
             xt_keypair: self.multi_pair_signer,
             pipeline_sender: pipeline_tx,
             prove_commit_throttle: Arc::new(Semaphore::new(self.parallel_prove_commits)),
+            add_piece_serializer: Mutex::new(()),
+            scheduled_pre_commits: Mutex::new(HashMap::new()),
             indexer_tx,
         };
 
         let p2p_state = P2PState {
-            node_type: self.node_type,
             p2p_key: self.p2p_key,
             rendezvous_point_address: self.rendezvous_point_address,
             rendezvous_point: self.rendezvous_point,
@@ -636,23 +637,11 @@ fn spawn_p2p_task(
     p2p_state: P2PState,
     cancellation_token: CancellationToken,
 ) -> Result<JoinHandle<Result<(), P2PError>>, ServerError> {
-    match p2p_state.node_type {
-        NodeType::Bootstrap => {
-            let config =
-                BootstrapConfig::new(p2p_state.p2p_key, p2p_state.rendezvous_point_address);
-            Ok(tokio::spawn(run_bootstrap_node(config, cancellation_token)))
-        }
-        NodeType::Register => {
-            let Some(rendezvous_point) = p2p_state.rendezvous_point else {
-                return Err(ServerError::P2P(P2PError::InvalidBehaviourConfig));
-            };
-            let config = RegisterConfig::new(
-                p2p_state.p2p_key,
-                p2p_state.rendezvous_point_address,
-                rendezvous_point,
-                p2p_state.registration_ttl,
-            );
-            Ok(tokio::spawn(run_register_node(config, cancellation_token)))
-        }
-    }
+    let config = RegisterConfig::new(
+        p2p_state.p2p_key,
+        p2p_state.rendezvous_point_address,
+        p2p_state.rendezvous_point,
+        p2p_state.registration_ttl,
+    );
+    Ok(tokio::spawn(run_register_node(config, cancellation_token)))
 }
