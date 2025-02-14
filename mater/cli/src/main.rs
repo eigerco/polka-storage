@@ -36,6 +36,9 @@ enum MaterCli {
         input_path: PathBuf,
         /// Path to output file
         output_path: Option<PathBuf>,
+        /// If enabled, the output will overwrite any existing files.
+        #[arg(long, action)]
+        overwrite: bool,
     },
 }
 
@@ -68,13 +71,14 @@ async fn main() -> Result<(), Error> {
         MaterCli::Extract {
             input_path,
             output_path,
+            overwrite,
         } => {
             let output_path = output_path.unwrap_or_else(|| {
                 let mut new_path = input_path.clone();
                 new_path.set_extension("");
                 new_path
             });
-            extract_file_from_car(&input_path, &output_path).await?;
+            extract_file_from_car(&input_path, &output_path, overwrite).await?;
 
             println!(
                 "Successfully converted CARv2 file {} and saved it to to {}",
