@@ -12,9 +12,15 @@ use crate::error::Error;
 pub(crate) async fn extract_file_from_car(
     input_path: &PathBuf,
     output_path: &PathBuf,
+    overwrite: bool,
 ) -> Result<(), Error> {
     let source_file = File::open(&input_path).await?;
-    let mut output_file = File::create_new(&output_path).await?;
+    let mut output_file = if overwrite {
+        File::create(&output_path).await?
+    } else {
+        File::create_new(&output_path).await?
+    };
+
     let size = source_file.metadata().await?.len();
 
     // Return error if the file is empty (no headers, pragma)
