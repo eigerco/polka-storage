@@ -1,4 +1,9 @@
-use std::{collections::HashMap, io::Cursor, ops::Deref, path::Path};
+use std::{
+    collections::{HashMap, VecDeque},
+    io::Cursor,
+    ops::Deref,
+    path::Path,
+};
 
 use async_stream::try_stream;
 use futures::{Stream, TryStreamExt};
@@ -26,7 +31,7 @@ impl FileLoader<File> {
     where
         P: AsRef<Path>,
     {
-        let file = File::open(path).await?;
+        let file = File::open(path).await.unwrap();
         let mut loader = Self {
             reader: v2::Reader::new(file),
             index: HashMap::new(),
@@ -52,8 +57,6 @@ impl<R> FileLoader<R>
 where
     R: AsyncRead + AsyncSeek + Unpin,
 {
-    // pub async fn from_buffer(buffer: Vec<u8>) -> Result<>
-
     /// Returns the root of the CAR file.
     ///
     /// If the number of roots is not 1, returns [`Error::WrongNumberOfRoots`].
@@ -78,7 +81,7 @@ where
     /// (Cid, data start offset and data length) without loading the blocks into memory.
     async fn index(&mut self) -> Result<(), Error> {
         // Indexing must always be made from the start
-
+        self.reader.get_inner_mut().rewind().await?;
         let _ = self.reader.read_pragma().await?;
         let v2_header = self.reader.read_header().await?;
         let _ = self.reader.read_v1_header().await?;
@@ -100,15 +103,16 @@ where
     }
 
     /// Traverse the tree under the given [`Cid`], yielding the data in the leaves.
-    pub fn load_cid<'a>(
+    fn load_cid<'a>(
         &'a mut self,
         cid: &'a Cid,
     ) -> impl Stream<Item = Result<(Cid, Vec<u8>), Error>> + 'a {
         try_stream! {
             let partial_node = self.index.get(&cid).ok_or(Error::InvalidCid)?;
-            let mut stack = vec![partial_node];
+            let mut stack = VecDeque::new();
+            stack.push_back(partial_node);
 
-            while let Some(partial_node) = stack.pop() {
+            while let Some(partial_node) = stack.pop_front() {
                 match partial_node {
                     PartialNode::Leaf(metadata) => {
                         self.reader
@@ -128,7 +132,7 @@ where
                         let pb_node: PbNode = DagPbCodec::decode_from_slice(block.as_slice())?;
                         for link in pb_node.links {
                             let partial_node = self.index.get(&link.cid).ok_or(Error::InvalidCid)?;
-                            stack.push(partial_node);
+                            stack.push_back(partial_node);
                         }
                     }
                 }
@@ -139,17 +143,27 @@ where
     /// Writes the content tree for the given [`Cid`] into `w`.
     ///
     /// This is equivalent to reading the stream of blocks from [`Self::load_cid`] into a writer.
-    pub async fn copy_cid<W>(&mut self, cid: &Cid, mut w: W) -> Result<(), Error>
+    async fn copy_cid<W>(&mut self, cid: &Cid, mut w: W) -> Result<(), Error>
     where
         W: AsyncWriteExt + Unpin,
     {
         let loader = self.load_cid(cid);
         tokio::pin!(loader);
-        while let Some((_, block)) = loader.try_next().await? {
+        while let Some((cid, block)) = loader.try_next().await? {
+            println!("{}", cid);
             w.write_all(block.as_slice()).await?;
         }
         w.flush().await?;
         Ok(())
+    }
+
+    /// Writes the content tree from the root into `w`.
+    pub async fn copy_to_writer<W>(&mut self, mut writer: W) -> Result<(), Error>
+    where
+        W: AsyncWriteExt + Unpin,
+    {
+        let root = self.root().await?;
+        self.copy_cid(&root, &mut writer).await
     }
 }
 
@@ -208,5 +222,25 @@ mod test {
         loader.copy_cid(&root, &mut out_check).await.unwrap();
 
         assert_eq!(raw_input, out_check.into_inner());
+    }
+
+    #[tokio::test]
+    async fn read_wrapped() {
+        let spaceglenda_original = tokio::fs::read("tests/fixtures/original/spaceglenda.jpg")
+            .await
+            .unwrap();
+        let mut spaceglenda_wrapped_loader =
+            FileLoader::from_path("tests/fixtures/car_v2/spaceglenda_wrapped.car")
+                .await
+                .unwrap();
+
+        let mut out_buffer: Vec<u8> = vec![];
+        let root = spaceglenda_wrapped_loader.root().await.unwrap();
+        spaceglenda_wrapped_loader
+            .copy_cid(&root, &mut out_buffer)
+            .await
+            .unwrap();
+
+        crate::test_utils::assert_buffer_eq!(spaceglenda_original, &out_buffer);
     }
 }

@@ -1,9 +1,7 @@
 use std::path::PathBuf;
 
-use mater::{create_filestore, Cid, Config};
+use mater::{create_filestore, Cid, Config, Error};
 use tokio::fs::File;
-
-use crate::error::Error;
 
 /// Converts a file at location `input_path` to a CARv2 file at `output_path`
 pub(crate) async fn convert_file_to_car(
@@ -29,11 +27,11 @@ mod tests {
     use std::str::FromStr;
 
     use anyhow::Result;
-    use mater::Cid;
+    use mater::{Cid, Error};
     use tempfile::tempdir;
     use tokio::{fs::File, io::AsyncWriteExt};
 
-    use crate::{convert::convert_file_to_car, error::Error};
+    use crate::convert::convert_file_to_car;
 
     #[tokio::test]
     async fn convert_file_to_car_success() -> Result<()> {

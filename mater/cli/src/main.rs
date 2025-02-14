@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
 use clap::Parser;
+use mater::Error;
 
-use crate::{convert::convert_file_to_car, error::Error, extract::extract_file_from_car};
+use crate::{convert::convert_file_to_car, extract::extract_file_from_car};
 
 mod convert;
-mod error;
 mod extract;
 
 /// Command-line interface for converting files to and from CAR format.

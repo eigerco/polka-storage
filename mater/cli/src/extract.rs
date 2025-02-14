@@ -1,9 +1,7 @@
 use std::path::PathBuf;
 
-use mater::FileLoader;
+use mater::{Error, FileLoader};
 use tokio::fs::File;
-
-use crate::error::Error;
 
 /// Extracts a file to `output_path` from the CARv2 file at `input_path`
 pub(crate) async fn extract_file_from_car(
@@ -17,13 +15,10 @@ pub(crate) async fn extract_file_from_car(
         File::create_new(&output_path).await?
     };
 
-    let mut loader = FileLoader::from_path(input_path)
+    FileLoader::from_path(input_path)
+        .await?
+        .copy_to_writer(output_file)
         .await
-        .map_err(|_| Error::InvalidCarFile)?;
-
-    let root = loader.root().await?;
-    loader.copy_cid(&root, output_file).await?;
-    Ok(())
 }
 
 /// Tests for file extraction.
@@ -33,13 +28,14 @@ mod tests {
     use std::path::PathBuf;
 
     use anyhow::Result;
+    use mater::Error;
     use tempfile::tempdir;
     use tokio::{
         fs::{remove_file, File},
         io::AsyncReadExt,
     };
 
-    use crate::{error::Error, extract_file_from_car};
+    use crate::extract_file_from_car;
 
     /// Tests successful extraction of contents from a CARv2 file
     #[tokio::test]
@@ -157,7 +153,7 @@ mod tests {
 
         // Assert the function returns an error
         assert!(result.is_err());
-        assert!(matches!(result, Err(Error::InvalidCarFile)));
+        assert!(matches!(result, Err(Error::IoError(..))));
 
         // Remove files
         remove_file(output_path).await?;
