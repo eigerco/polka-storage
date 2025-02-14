@@ -18,7 +18,7 @@ use libp2p::{
 use log::{debug, error, info, warn};
 use primitives::p2p::{
     PeerIdRequest, PeerInfo, PeerInfoResponse, DEFAULT_REGISTRATION_TTL, GOSSIP_TOPIC,
-    IDENTIFY_PROTOCOL_VERSION, REQUEST_RESPONSE_STREAM_PROTOCOL
+    IDENTIFY_PROTOCOL_VERSION, REQUEST_RESPONSE_STREAM_PROTOCOL,
 };
 
 use crate::service::p2p::P2PError;
