@@ -27,10 +27,9 @@ use types::{
 };
 
 use crate::{
-    {
     db::{DBError, DealDB},
-    pipeline::add_piece::add_piece,
     indexer::IndexerMessage,
+    pipeline::add_piece::add_piece,
 };
 
 #[derive(Debug, thiserror::Error)]
