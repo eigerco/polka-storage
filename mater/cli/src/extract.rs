@@ -60,7 +60,7 @@ mod tests {
         let output_path = temp_dir.path().join("output_file");
 
         // Call the function under test
-        let result = extract_file_from_car(&input_path, &output_path).await;
+        let result = extract_file_from_car(&input_path, &output_path, false).await;
         // Assert the function succeeded
         assert!(result.is_ok());
 
@@ -92,7 +92,7 @@ mod tests {
         let output_path = temp_dir.path().join("output_file");
 
         // Call the function under test
-        let result = extract_file_from_car(&input_path, &output_path).await;
+        let result = extract_file_from_car(&input_path, &output_path, false).await;
         // Assert the function succeeded
         assert!(result.is_ok());
 
@@ -119,7 +119,7 @@ mod tests {
         let output_path = temp_dir.path().join("test_output/output_file");
 
         // Call the function under test
-        let result = extract_file_from_car(&input_path, &output_path).await;
+        let result = extract_file_from_car(&input_path, &output_path, false).await;
 
         // Assert the function returns an error
         assert!(result.is_err());
@@ -140,7 +140,7 @@ mod tests {
         File::create(&output_path).await?;
 
         // Call the function under test
-        let result = extract_file_from_car(&input_path, &output_path).await;
+        let result = extract_file_from_car(&input_path, &output_path, false).await;
 
         // Assert the function returns an error
         assert!(result.is_err());
@@ -163,7 +163,7 @@ mod tests {
         File::create_new(&input_path).await?;
 
         // Call the function under test
-        let result = extract_file_from_car(&input_path, &output_path).await;
+        let result = extract_file_from_car(&input_path, &output_path, false).await;
 
         // Assert the function returns an error
         assert!(result.is_err());
