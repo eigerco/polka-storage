@@ -173,7 +173,7 @@ fn on_rendezvous_event(
                 multiaddrs: registration.record.addresses().to_vec(),
             };
             // Serialize PeerInfo
-            let encoded_peer_info = match bincode::serialize(&peer_info) {
+            let encoded_peer_info = match serde_json::to_vec(&peer_info) {
                 Ok(info) => info,
                 Err(..) => {
                     error!(peer_info:?; "Failed to serialize peer_info");
@@ -208,10 +208,12 @@ fn on_gossipsub_event(
             message_id: id,
             message,
         } => {
+            // Got a message from ourselves, return early.
             if peer_id == local_peer_id {
                 return;
             }
-            let peer_info: PeerInfo = match bincode::deserialize(&message.data) {
+            // Deserialize peer info
+            let peer_info: PeerInfo = match serde_json::from_slice(&message.data) {
                 Ok(info) => info,
                 Err(..) => {
                     error!(message:? = message.data; "Received invalid peer info from peer {peer_id:?}");

@@ -17,7 +17,6 @@ name = "polka-storage-node"
 polka-storage-runtime.workspace = true
 primitives = { workspace = true, features = ["std"] }
 
-bincode = { workspace = true }
 clap = { features = ["derive"], workspace = true }
 codec = { workspace = true, default-features = true }
 color-print = { workspace = true }

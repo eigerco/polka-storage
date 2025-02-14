@@ -13874,7 +13874,6 @@ dependencies = [
 name = "polka-storage-node"
 version = "0.0.0"
 dependencies = [
- "bincode",
  "clap",
  "color-print",
  "cumulus-client-cli",
