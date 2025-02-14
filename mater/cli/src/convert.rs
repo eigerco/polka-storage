@@ -97,7 +97,6 @@ mod tests {
         // Create output file
         let output_path = temp_dir.path().join("output_file");
         File::create_new(&output_path).await?;
-        println!("gets here");
 
         // Call the function under test
         let result = convert_file_to_car(&input_path, &output_path, false).await;

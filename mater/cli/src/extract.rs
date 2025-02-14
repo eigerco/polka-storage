@@ -1,9 +1,11 @@
-use std::path::PathBuf;
+use std::{io::Cursor, path::PathBuf};
 
-use mater::CarV2Reader;
+use futures::{StreamExt, TryStreamExt};
+use mater::{CarV2Reader, FileLoader};
 use tokio::{
     fs::File,
     io::{AsyncWriteExt, BufReader},
+    pin,
 };
 
 use crate::error::Error;
@@ -14,22 +16,22 @@ pub(crate) async fn extract_file_from_car(
     output_path: &PathBuf,
     overwrite: bool,
 ) -> Result<(), Error> {
-    let source_file = File::open(&input_path).await?;
     let mut output_file = if overwrite {
         File::create(&output_path).await?
     } else {
         File::create_new(&output_path).await?
     };
 
-    let size = source_file.metadata().await?.len();
-
-    // Return error if the file is empty (no headers, pragma)
-    if size == 0 {
-        return Err(Error::InvalidCarFile);
+    let mut loader = FileLoader::from_path(input_path).await?;
+    let root = loader.root().await?;
+    let blocks = loader.load_cid(&root);
+    pin!(blocks);
+    while let Some((cid, block)) = blocks.try_next().await? {
+        // Need the Cursor for the AsyncRead over Vec<u8>
+        let mut cursor = Cursor::new(block);
+        // No need for a BufReader since we're wrapping over an in-memory buffer
+        tokio::io::copy(&mut cursor, &mut output_file).await?;
     }
-
-    let mut reader = CarV2Reader::new(BufReader::new(source_file));
-    reader.extract_content(&mut output_file).await?;
 
     output_file.flush().await?;
 

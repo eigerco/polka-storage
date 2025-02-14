@@ -12,6 +12,7 @@
 
 mod async_varint;
 mod cid;
+mod file_reader;
 mod multicodec;
 mod stores;
 mod unixfs;
@@ -19,6 +20,7 @@ mod v1;
 mod v2;
 
 // We need to re-expose this because `read_block` returns `(Cid, Vec<u8>)`.
+pub use file_reader::FileLoader;
 pub use ipld_core::cid::Cid;
 pub use multicodec::{DAG_PB_CODE, IDENTITY_CODE, RAW_CODE};
 pub use stores::{create_filestore, Blockstore, Config, FileBlockstore};

@@ -1,7 +1,7 @@
 /// Utility functions for the mater crate. The contents were mostly borrowed
 /// from the <https://github.com/dermesser/integer-encoding-rs>.
 ///
-/// The original issue why we needed to borrow the implantation of the reader
+/// The original issue why we needed to borrow the implementation of the reader
 /// and writer is
 /// <https://github.com/dermesser/integer-encoding-rs/blob/4f57046ae90b6b923ff235a91f0729d3cf868d72/src/writer.rs#L20>.
 /// This specifies the Send bound as optional. The side effect of this choice is
