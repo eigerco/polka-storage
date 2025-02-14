@@ -34,8 +34,9 @@ impl LinkInfo {
     }
 }
 
+// pub(crate) so it doesn't break doclinks
 #[derive(Debug)]
-enum TreeNode {
+pub(crate) enum TreeNode {
     Leaf(Bytes),
     Stem(Vec<(Cid, LinkInfo)>),
 }

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, ops::Deref, path::Path};
 
-use async_stream::{stream, try_stream};
+use async_stream::try_stream;
 use futures::Stream;
 use ipld_core::{cid::Cid, codec::Codec};
 use ipld_dagpb::{DagPbCodec, PbNode};
@@ -8,40 +8,14 @@ use tokio::{fs::File, io::AsyncSeekExt};
 
 use crate::{multicodec, v1::BlockMetadata, v2, Error};
 
+/// CAR file loader.
 pub struct FileLoader {
     reader: v2::Reader<File>,
     index: HashMap<Cid, PartialNode>,
 }
 
-enum PartialNode {
-    Leaf(BlockMetadata),
-    Stem(BlockMetadata),
-}
-
-impl Deref for PartialNode {
-    type Target = BlockMetadata;
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            PartialNode::Leaf(b) => b,
-            PartialNode::Stem(b) => b,
-        }
-    }
-}
-
-impl TryFrom<BlockMetadata> for PartialNode {
-    type Error = Error;
-
-    fn try_from(value: BlockMetadata) -> Result<Self, Self::Error> {
-        match value.cid.codec() {
-            multicodec::RAW_CODE => Ok(Self::Leaf(value)),
-            multicodec::DAG_PB_CODE => Ok(Self::Stem(value)),
-            _ => Err(Error::InvalidCid),
-        }
-    }
-}
-
 impl FileLoader {
+    /// Creates a [`FileLoader`] from the given file path.
     pub async fn from_path<P>(path: P) -> Result<Self, Error>
     where
         P: AsRef<Path>,
@@ -55,6 +29,9 @@ impl FileLoader {
         Ok(loader)
     }
 
+    /// Returns the root of the CAR file.
+    ///
+    /// If the number of roots is not 1, returns [`Error::WrongNumberOfRoots`].
     pub async fn root(&mut self) -> Result<Cid, Error> {
         self.reader.get_inner_mut().rewind().await?;
         self.reader.read_pragma().await?;
@@ -98,6 +75,7 @@ impl FileLoader {
         Ok(())
     }
 
+    /// Traverse the tree under the given [`Cid`], yielding the data in the leaves.
     pub fn load_cid<'a>(
         &'a mut self,
         cid: &'a Cid,
@@ -131,6 +109,35 @@ impl FileLoader {
                     }
                 }
             }
+        }
+    }
+}
+
+/// Partial "re-implementation" of [`unixfs::TreeNode`].
+enum PartialNode {
+    Leaf(BlockMetadata),
+    Stem(BlockMetadata),
+}
+
+impl Deref for PartialNode {
+    type Target = BlockMetadata;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            PartialNode::Leaf(b) => b,
+            PartialNode::Stem(b) => b,
+        }
+    }
+}
+
+impl TryFrom<BlockMetadata> for PartialNode {
+    type Error = Error;
+
+    fn try_from(value: BlockMetadata) -> Result<Self, Self::Error> {
+        match value.cid.codec() {
+            multicodec::RAW_CODE => Ok(Self::Leaf(value)),
+            multicodec::DAG_PB_CODE => Ok(Self::Stem(value)),
+            _ => Err(Error::InvalidCid),
         }
     }
 }
