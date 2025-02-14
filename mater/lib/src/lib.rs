@@ -9,6 +9,7 @@
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(rustdoc::private_intra_doc_links)]
 #![deny(unsafe_code)]
+#![deny(clippy::unwrap_used)]
 
 mod async_varint;
 mod cid;

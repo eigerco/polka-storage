@@ -31,7 +31,7 @@ impl FileLoader<File> {
     where
         P: AsRef<Path>,
     {
-        let file = File::open(path).await.unwrap();
+        let file = File::open(path).await?;
         let mut loader = Self {
             reader: v2::Reader::new(file),
             index: HashMap::new(),
