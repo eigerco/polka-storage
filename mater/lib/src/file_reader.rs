@@ -16,8 +16,9 @@ use tokio::{
 
 use crate::{multicodec, v1::BlockMetadata, v2, Error};
 
-/// CAR file loader.
-pub struct FileLoader<R>
+/// Extracts the raw data from a CARv2 file.
+/// It expects the CAR file to have only 1 root.
+pub struct CarExtractor<R>
 where
     R: AsyncRead + AsyncSeek + Unpin,
 {
@@ -25,7 +26,7 @@ where
     index: HashMap<Cid, PartialNode>,
 }
 
-impl FileLoader<File> {
+impl CarExtractor<File> {
     /// Creates a [`FileLoader`] from the given file path.
     pub async fn from_path<P>(path: P) -> Result<Self, Error>
     where
@@ -36,42 +37,41 @@ impl FileLoader<File> {
             reader: v2::Reader::new(file),
             index: HashMap::new(),
         };
-        loader.index().await?;
+        loader.naive_build_index().await?;
         Ok(loader)
     }
 }
 
-impl FileLoader<Cursor<Vec<u8>>> {
+impl CarExtractor<Cursor<Vec<u8>>> {
     /// Creates a [`FileLoader`] from a vector of bytes.
     pub async fn from_vec(vec: Vec<u8>) -> Result<Self, Error> {
         let mut loader = Self {
             reader: v2::Reader::new(Cursor::new(vec)),
             index: HashMap::new(),
         };
-        loader.index().await?;
+        loader.naive_build_index().await?;
         Ok(loader)
     }
 }
 
-impl<R> FileLoader<R>
+impl<R> CarExtractor<R>
 where
     R: AsyncRead + AsyncSeek + Unpin,
 {
     /// Returns the root of the CAR file.
     ///
-    /// If the number of roots is not 1, returns [`Error::WrongNumberOfRoots`].
-    pub async fn root(&mut self) -> Result<Cid, Error> {
+    /// Always returns a non-empty vector, if there are no roots the error
+    /// `Error::WrongNumberOfRoots` is returned.
+    pub async fn root(&mut self) -> Result<Vec<Cid>, Error> {
         self.reader.get_inner_mut().rewind().await?;
         self.reader.read_pragma().await?;
         self.reader.read_header().await?;
-        // We assume there's a single root
-        self.reader
-            .read_v1_header()
-            .await?
-            .roots
-            .first()
-            .copied()
-            .ok_or(Error::WrongNumberOfRoots)
+
+        let roots = self.reader.read_v1_header().await?.roots;
+        if roots.is_empty() {
+            return Err(Error::WrongNumberOfRoots);
+        }
+        Ok(roots)
     }
 
     /// Indexes the file.
@@ -79,7 +79,7 @@ where
     /// *Always* seeks to the start of the file before proceeding with indexing.
     /// This function performs indexing *naively*, it will sequentially read all block "headers"
     /// (Cid, data start offset and data length) without loading the blocks into memory.
-    async fn index(&mut self) -> Result<(), Error> {
+    async fn naive_build_index(&mut self) -> Result<(), Error> {
         // Indexing must always be made from the start
         self.reader.get_inner_mut().rewind().await?;
         let _ = self.reader.read_pragma().await?;
@@ -103,16 +103,16 @@ where
     }
 
     /// Traverse the tree under the given [`Cid`], yielding the data in the leaves.
-    fn load_cid<'a>(
+    fn tree_stream<'a>(
         &'a mut self,
         cid: &'a Cid,
     ) -> impl Stream<Item = Result<(Cid, Vec<u8>), Error>> + 'a {
         try_stream! {
-            let partial_node = self.index.get(&cid).ok_or(Error::InvalidCid)?;
-            let mut stack = VecDeque::new();
-            stack.push_back(partial_node);
+            let partial_node = self.index.get(&cid).ok_or_else(|| Error::MissingCid(*cid))?;
+            let mut queue = VecDeque::new();
+            queue.push_back(partial_node);
 
-            while let Some(partial_node) = stack.pop_front() {
+            while let Some(partial_node) = queue.pop_front() {
                 match partial_node {
                     PartialNode::Leaf(metadata) => {
                         self.reader
@@ -131,8 +131,8 @@ where
 
                         let pb_node: PbNode = DagPbCodec::decode_from_slice(block.as_slice())?;
                         for link in pb_node.links {
-                            let partial_node = self.index.get(&link.cid).ok_or(Error::InvalidCid)?;
-                            stack.push_back(partial_node);
+                            let partial_node = self.index.get(&link.cid).ok_or_else(|| Error::MissingCid(link.cid))?;
+                            queue.push_back(partial_node);
                         }
                     }
                 }
@@ -143,14 +143,13 @@ where
     /// Writes the content tree for the given [`Cid`] into `w`.
     ///
     /// This is equivalent to reading the stream of blocks from [`Self::load_cid`] into a writer.
-    async fn copy_cid<W>(&mut self, cid: &Cid, mut w: W) -> Result<(), Error>
+    async fn copy_tree<W>(&mut self, cid: &Cid, mut w: W) -> Result<(), Error>
     where
         W: AsyncWriteExt + Unpin,
     {
-        let loader = self.load_cid(cid);
+        let loader = self.tree_stream(cid);
         tokio::pin!(loader);
-        while let Some((cid, block)) = loader.try_next().await? {
-            println!("{}", cid);
+        while let Some((_, block)) = loader.try_next().await? {
             w.write_all(block.as_slice()).await?;
         }
         w.flush().await?;
@@ -158,12 +157,14 @@ where
     }
 
     /// Writes the content tree from the root into `w`.
+    ///
+    /// Assumes the file at least one root and will copy the file under the first root.
     pub async fn copy_to_writer<W>(&mut self, mut writer: W) -> Result<(), Error>
     where
         W: AsyncWriteExt + Unpin,
     {
-        let root = self.root().await?;
-        self.copy_cid(&root, &mut writer).await
+        let root = self.root().await?[0];
+        self.copy_tree(&root, &mut writer).await
     }
 }
 
@@ -191,7 +192,7 @@ impl TryFrom<BlockMetadata> for PartialNode {
         match value.cid.codec() {
             multicodec::RAW_CODE => Ok(Self::Leaf(value)),
             multicodec::DAG_PB_CODE => Ok(Self::Stem(value)),
-            _ => Err(Error::InvalidCid),
+            unknown_codec => Err(Error::UnknownCidCodec(unknown_codec)),
         }
     }
 }
@@ -200,7 +201,7 @@ impl TryFrom<BlockMetadata> for PartialNode {
 mod test {
     use std::io::Cursor;
 
-    use crate::{Blockstore, FileLoader};
+    use crate::{Blockstore, CarExtractor};
 
     /// Ensures that duplicated blocks
     #[tokio::test]
@@ -215,11 +216,11 @@ mod test {
         bs.write(&mut out_car_buffer).await.unwrap();
         assert_eq!(out_car_buffer.len(), 1519);
 
-        let mut loader = FileLoader::from_vec(out_car_buffer).await.unwrap();
+        let mut loader = CarExtractor::from_vec(out_car_buffer).await.unwrap();
         let root = loader.root().await.unwrap();
 
         let mut out_check = Cursor::new(vec![1u8; 4096]);
-        loader.copy_cid(&root, &mut out_check).await.unwrap();
+        loader.copy_tree(&root, &mut out_check).await.unwrap();
 
         assert_eq!(raw_input, out_check.into_inner());
     }
@@ -230,14 +231,14 @@ mod test {
             .await
             .unwrap();
         let mut spaceglenda_wrapped_loader =
-            FileLoader::from_path("tests/fixtures/car_v2/spaceglenda_wrapped.car")
+            CarExtractor::from_path("tests/fixtures/car_v2/spaceglenda_wrapped.car")
                 .await
                 .unwrap();
 
         let mut out_buffer: Vec<u8> = vec![];
         let root = spaceglenda_wrapped_loader.root().await.unwrap();
         spaceglenda_wrapped_loader
-            .copy_cid(&root, &mut out_buffer)
+            .copy_tree(&root, &mut out_buffer)
             .await
             .unwrap();
 

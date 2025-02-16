@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use mater::{Error, FileLoader};
+use mater::{CarExtractor, Error};
 use tokio::fs::File;
 
 /// Extracts a file to `output_path` from the CARv2 file at `input_path`
@@ -15,7 +15,7 @@ pub(crate) async fn extract_file_from_car(
         File::create_new(&output_path).await?
     };
 
-    FileLoader::from_path(input_path)
+    CarExtractor::from_path(input_path)
         .await?
         .copy_to_writer(output_file)
         .await
