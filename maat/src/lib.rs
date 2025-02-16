@@ -122,6 +122,7 @@ pub fn local_testnet_config(temp_dir_path: &std::path::Path) -> NetworkConfig {
                             ("--pool-type", "fork-aware").into(),
                             ("-lruntime=trace,parachain=debug").into(),
                             ("--p2p-listen-address=/ip4/127.0.0.1/tcp/62649").into(),
+                            ("--bootstrap-addresses=/ip4/127.0.0.1/tcp/1337").into(),
                             (format!("--p2p-key=@{}", file_path.display()).as_str()).into(),
                         ])
                 })
