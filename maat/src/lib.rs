@@ -16,7 +16,6 @@ use subxt::{
     },
     tx::PairSigner,
 };
-use tempfile::tempdir;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer};
 use zombienet_configuration::shared::node::{Buildable, Initial, NodeConfigBuilder};
@@ -95,14 +94,13 @@ impl NodeConfigBuilderExt for NodeConfigBuilder<Initial> {
 ///
 /// We could use the TOML file if wasn't for not having the same requirements as this description,
 /// for example, when reading the TOML file, [you need to explicitly set a timeout](https://github.com/paritytech/zombienet-sdk/issues/254)
-pub fn local_testnet_config() -> NetworkConfig {
+pub fn local_testnet_config(temp_dir_path: &std::path::Path) -> NetworkConfig {
     let binding = find_polka_storage_node()
         .expect("couldn't find the polka-storage-node binary")
         .display()
         .to_string();
     let polka_storage_node_binary_path = binding.as_str();
-    let temp_dir = tempdir().unwrap();
-    let file_path = temp_dir.path().join("private_key.pem");
+    let file_path = temp_dir_path.join("private_key.pem");
     generate_pem_file(&file_path);
 
     NetworkConfigBuilder::new()
@@ -124,7 +122,7 @@ pub fn local_testnet_config() -> NetworkConfig {
                             ("--pool-type", "fork-aware").into(),
                             ("-lruntime=trace,parachain=debug").into(),
                             ("--p2p-listen-address=/ip4/127.0.0.1/tcp/62649").into(),
-                            (format!("--p2p-key={}", file_path.display()).as_str()).into(),
+                            (format!("--p2p-key=@{}", file_path.display()).as_str()).into(),
                         ])
                 })
         })
