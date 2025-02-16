@@ -71,7 +71,7 @@ fn setup() {
     // Prove commit sector
     let sector = ProveCommitSector {
         sector_number,
-        proof: bounded_vec![0xd, 0xe, 0xa, 0xd],
+        proofs: bounded_vec![bounded_vec![0xd, 0xe, 0xa, 0xd]],
     };
 
     assert_ok!(StorageProvider::prove_commit_sectors(

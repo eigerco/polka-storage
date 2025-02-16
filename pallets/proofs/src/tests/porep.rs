@@ -10,6 +10,7 @@ use primitives::{
 };
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
+use sp_core::bounded_vec;
 use sp_runtime::BoundedVec;
 
 use crate::{mock::*, tests::TEST_SEED, Error, PoRepVerifyingKey};

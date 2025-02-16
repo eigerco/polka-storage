@@ -61,7 +61,7 @@ fn pre_commit_hook_slashed_deal() {
             RuntimeOrigin::signed(account(storage_provider)),
             bounded_vec![ProveCommitSector {
                 sector_number: 2.into(),
-                proof: bounded_vec![0xde],
+                proofs: bounded_vec![bounded_vec![0xde]],
             }],
         )
         .unwrap();

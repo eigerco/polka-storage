@@ -51,7 +51,7 @@ fn successfully_prove_sector() {
         // Test prove commits
         let sector = ProveCommitSector {
             sector_number,
-            proof: bounded_vec![0xd, 0xe, 0xa, 0xd],
+            proofs: bounded_vec![bounded_vec![0xd, 0xe, 0xa, 0xd]],
         };
 
         // Run to the block, where we will be able to prove commit the sector.
@@ -157,7 +157,7 @@ fn successfully_prove_multiple_sectors() {
             sectors
                 .try_push(ProveCommitSector {
                     sector_number,
-                    proof: bounded_vec![0xd, 0xe, 0xa, 0xd],
+                    proofs: bounded_vec![bounded_vec![0xd, 0xe, 0xa, 0xd]],
                 })
                 .expect("BoundedVec should fit all 6 elements");
             expected_sector_results
@@ -297,7 +297,7 @@ fn successfully_prove_after_period_start_and_check_mutability() {
             sectors
                 .try_push(ProveCommitSector {
                     sector_number,
-                    proof: bounded_vec![0xd, 0xe, 0xa, 0xd],
+                    proofs: bounded_vec![bounded_vec![0xd, 0xe, 0xa, 0xd]],
                 })
                 .expect("BoundedVec should fit all elements");
             expected_sector_results
@@ -322,7 +322,7 @@ fn fails_storage_provider_not_found() {
         // Test prove commits
         let sector = ProveCommitSector {
             sector_number: 1.into(),
-            proof: bounded_vec![0xd, 0xe, 0xa, 0xd],
+            proofs: bounded_vec![bounded_vec![0xd, 0xe, 0xa, 0xd]],
         };
 
         assert_noop!(
@@ -346,7 +346,7 @@ fn fails_storage_precommit_missing() {
         // Test prove commits
         let sector = ProveCommitSector {
             sector_number: 1.into(),
-            proof: bounded_vec![0xd, 0xe, 0xa, 0xd],
+            proofs: bounded_vec![bounded_vec![0xd, 0xe, 0xa, 0xd]],
         };
 
         assert_noop!(
@@ -394,7 +394,7 @@ fn fails_prove_commit_after_deadline() {
         // Test prove commits
         let sector = ProveCommitSector {
             sector_number,
-            proof: bounded_vec![0xd, 0xe, 0xa, 0xd],
+            proofs: bounded_vec![bounded_vec![0xd, 0xe, 0xa, 0xd]],
         };
 
         run_to_block(proving_at_block_number);
