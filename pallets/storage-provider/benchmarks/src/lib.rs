@@ -2,7 +2,7 @@
 
 extern crate alloc;
 
-#[cfg(any(feature = "runtime-benchmarks", test))]
+#[cfg(feature = "runtime-benchmarks")]
 mod accounts;
 
 #[cfg(feature = "runtime-benchmarks")]
