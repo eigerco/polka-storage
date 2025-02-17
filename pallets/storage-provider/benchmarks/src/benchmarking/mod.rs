@@ -1,5 +1,9 @@
 #![cfg(feature = "runtime-benchmarks")]
 
+mod accounts;
+mod deal_proposals;
+pub mod pallet;
+
 use alloc::{vec, vec::Vec};
 
 use frame_benchmarking::v2::*;
