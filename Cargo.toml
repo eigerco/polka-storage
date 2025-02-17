@@ -17,6 +17,7 @@ members = [
   "pallets/proofs",
   "pallets/randomness",
   "pallets/storage-provider",
+  "pallets/storage-provider/benchmarks",
   "primitives",
   "runtime",
   "storage-provider/client",
@@ -146,6 +147,7 @@ pallet-market = { path = "pallets/market", default-features = false }
 pallet-proofs = { path = "pallets/proofs", default-features = false }
 pallet-randomness = { path = "pallets/randomness", default-features = false }
 pallet-storage-provider = { path = "pallets/storage-provider", default-features = false }
+pallet-storage-provider-benchmarks = { path = "pallets/storage-provider/benchmarks", default-features = false }
 polka-storage-proofs = { path = "lib/polka-storage-proofs", default-features = false }
 polka-storage-provider-common = { path = "storage-provider/common" }
 polka-storage-retrieval = { path = "storage-retrieval/lib" }

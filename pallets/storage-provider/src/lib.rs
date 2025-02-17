@@ -10,10 +10,6 @@
 //! The Storage Provider Pallet is the source of truth for anything storage provider related.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-pub use pallet::{Config, Pallet};
-
-#[cfg(feature = "runtime-benchmarks")]
-mod benchmarks;
 
 #[cfg(test)]
 mod tests;
@@ -27,6 +23,8 @@ mod proofs;
 mod sector;
 mod sector_map;
 mod storage_provider;
+
+pub use pallet::*;
 
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
@@ -388,6 +386,7 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+        #[pallet::call_index(0)]
         pub fn register_storage_provider(
             origin: OriginFor<T>,
             peer_id: T::PeerId,
@@ -442,6 +441,7 @@ pub mod pallet {
         /// if that sector has not been proven by that time the deposit will be slashed.
         /// Reference implementation:
         /// * <https://github.com/filecoin-project/builtin-actors/blob/6906288334746318385cfd53edd7ea33ef03919f/actors/miner/src/lib.rs#L1453>
+        #[pallet::call_index(1)]
         pub fn pre_commit_sectors(
             origin: OriginFor<T>,
             sectors: BoundedVec<
@@ -572,6 +572,7 @@ pub mod pallet {
 
         /// Allows the storage providers to submit proof for their pre-committed
         /// sectors.
+        #[pallet::call_index(2)]
         pub fn prove_commit_sectors(
             origin: OriginFor<T>,
             sectors: BoundedVec<ProveCommitSector, ConstU32<MAX_SECTORS_PER_CALL>>,
@@ -704,6 +705,7 @@ pub mod pallet {
         }
 
         /// The SP uses this extrinsic to submit their Proof-of-Spacetime.
+        #[pallet::call_index(3)]
         pub fn submit_windowed_post(
             origin: OriginFor<T>,
             windowed_post: SubmitWindowedPoStParams,
@@ -856,6 +858,7 @@ pub mod pallet {
         ///
         /// References:
         /// * <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/lib.rs#L2648>
+        #[pallet::call_index(4)]
         pub fn declare_faults(origin: OriginFor<T>, params: DeclareFaultsParams) -> DispatchResult {
             let owner = ensure_signed(origin)?;
             let current_block = <frame_system::Pallet<T>>::block_number();
@@ -942,6 +945,7 @@ pub mod pallet {
         ///
         /// References:
         /// * <https://github.com/filecoin-project/builtin-actors/blob/0f205c378983ac6a08469b9f400cbb908eef64e2/actors/miner/src/lib.rs#L2620>
+        #[pallet::call_index(5)]
         pub fn declare_faults_recovered(
             origin: OriginFor<T>,
             params: DeclareFaultsRecoveredParams,
@@ -1020,6 +1024,7 @@ pub mod pallet {
         ///
         /// References:
         /// * https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/actors/miner/src/lib.rs#L2488-L2505
+        #[pallet::call_index(6)]
         pub fn terminate_sectors(
             origin: OriginFor<T>,
             params: TerminateSectorsParams,
