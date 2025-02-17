@@ -7,5 +7,9 @@
     "pallet-storage-provider/lcov.info",
     "pallet-market/lcov.info",
     "mater/lcov.info"
-  ]
+  ],
+  "rust-analyzer.cargo.targetDir": true,
+  "rust-analyzer.cargo.extraEnv": {
+    "SKIP_WASM_BUILD": "true"
+  },
 }
