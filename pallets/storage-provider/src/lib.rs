@@ -1642,8 +1642,8 @@ pub mod pallet {
         let max_proof_size = precommit.info.seal_proof.proof_size();
 
         // Check proof size
-        if proofs.iter().any(|p| p.len() > max_proof_size) {
-            log::error!(target: LOG_TARGET, "sector proof size {} exceeds max {}", proofs.len(), max_proof_size);
+        if let Some(proof) = proofs.iter().filter(|p| p.len() > max_proof_size).nth(0) {
+            log::error!(target: LOG_TARGET, "sector proof size {} exceeds max {}", proof.len(), max_proof_size);
             return Err(Error::<T>::InvalidProof)?;
         }
 
