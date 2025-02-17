@@ -158,7 +158,7 @@ jobs:
           -p polka-storage-node -r -F runtime-benchmarks -F testnet -- \
           benchmark pallet \
           --wasm-execution=compiled \
-          --pallet "pallet_storage_provider_benchmarks" \
+          --pallet "pallet_storage_provider" \
           --extrinsic "*" \
           --steps 5 \
           --repeat 1 \
