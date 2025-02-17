@@ -2,6 +2,8 @@ pub mod commd;
 pub mod piece;
 mod zero;
 
+extern crate alloc;
+
 use core::{fmt::Display, marker::PhantomData};
 
 use cid::{multihash::Multihash, Cid};
@@ -108,7 +110,7 @@ impl core::fmt::Debug for CommitmentError {
 }
 
 #[cfg_attr(feature = "serde", derive(::serde::Deserialize, ::serde::Serialize))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Commitment<Kind>
 where
     Kind: CommitmentKind,
@@ -162,6 +164,27 @@ where
         let hash = Multihash::wrap(multihash, &self.raw)
             .expect("multihash is large enough so it can wrap the commitment");
         Cid::new_v1(multicodec, hash)
+    }
+}
+
+impl<Kind> core::fmt::Debug for Commitment<Kind>
+where
+    Kind: CommitmentKind,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        use alloc::{format, string::String};
+
+        let mut hex = String::with_capacity(2 + &self.raw.len() * 2);
+        hex.push_str("0x");
+        f.debug_struct(&format!("Commitment<{}>", core::any::type_name::<Kind>()))
+            .field(
+                "raw",
+                &self.raw.iter().fold(hex, |mut acc, b| {
+                    acc.push_str(&format!("{:0x}", b));
+                    acc
+                }),
+            )
+            .finish()
     }
 }
 
