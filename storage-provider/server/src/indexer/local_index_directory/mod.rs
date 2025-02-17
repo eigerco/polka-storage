@@ -13,7 +13,6 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 pub mod rdb;
-pub mod rdb_ext;
 
 /// Convert a [`Multihash`] into a key (converts [`Multihash::digest`] to base-64).
 ///

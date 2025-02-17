@@ -5,16 +5,15 @@ use base64::Engine;
 use cid::{multihash::Multihash, Cid};
 use integer_encoding::{VarInt, VarIntReader};
 use rocksdb::{
-    ColumnFamily, ColumnFamilyDescriptor, IteratorMode, Options, WriteBatchWithTransaction,
-    DB as RocksDB,
+    AsColumnFamilyRef, ColumnFamily, ColumnFamilyDescriptor, IteratorMode, Options,
+    WriteBatchWithTransaction, DB as RocksDB,
 };
 use serde::{de::DeserializeOwned, Serialize};
 use uuid::Uuid;
 
 use super::{
-    multihash_base64, rdb_ext::WriteBatchWithTransactionExt, DealInfo, FlaggedPiece,
-    FlaggedPiecesListFilter, IndexRecord, LidError, OffsetSize, PieceInfo, Service,
-    StorageProviderAddress,
+    multihash_base64, DealInfo, FlaggedPiece, FlaggedPiecesListFilter, IndexRecord, LidError,
+    OffsetSize, PieceInfo, Service, StorageProviderAddress,
 };
 
 const RAW_CODEC: u64 = 0x55;
@@ -81,6 +80,40 @@ fn key_cursor_prefix(cursor: u64) -> String {
 /// Returns a key for flagging a piece, like `/<cid>/<address>`.
 fn key_flag_piece(cid: &Cid, address: &StorageProviderAddress) -> String {
     format!("/{}/{}", cid, address.0)
+}
+
+pub(crate) trait WriteBatchWithTransactionExt {
+    /// Insert a CBOR serialized value with the provided key.
+    fn put_cf_cbor<K, V>(
+        &mut self,
+        cf: &impl AsColumnFamilyRef,
+        key: K,
+        value: V,
+    ) -> Result<(), LidError>
+    where
+        K: AsRef<[u8]>,
+        V: Serialize;
+}
+
+impl<const TRANSACTION: bool> WriteBatchWithTransactionExt
+    for WriteBatchWithTransaction<TRANSACTION>
+{
+    fn put_cf_cbor<K, V>(
+        &mut self,
+        cf: &impl AsColumnFamilyRef,
+        key: K,
+        value: V,
+    ) -> Result<(), LidError>
+    where
+        K: AsRef<[u8]>,
+        V: Serialize,
+    {
+        let mut serialized = vec![];
+        if let Err(err) = ciborium::into_writer(&value, &mut serialized) {
+            return Err(LidError::Serialization(err.to_string()));
+        }
+        Ok(self.put_cf(cf, key, serialized))
+    }
 }
 
 pub struct RocksDBStateStoreConfig {
@@ -273,14 +306,11 @@ impl RocksDBLid {
 
     /// Initialize cursor with the default value if not set already.
     fn init_cursor(&self) -> Result<(), LidError> {
-        if let Err(err) = self.get_next_cursor() {
-            if matches!(err, LidError::CursorNotFound) {
-                self.set_next_cursor(0)?;
-            } else {
-                return Err(err);
-            }
+        match self.get_next_cursor() {
+            Ok(_) => Ok(()),
+            Err(LidError::CursorNotFound) => self.set_next_cursor(0),
+            Err(err) => Err(err),
         }
-        Ok(())
     }
 
     /// Get the next available cursor.
@@ -350,7 +380,7 @@ impl RocksDBLid {
 
             // Filter out the keys not prefixed with the cursor
             if !key.as_ref().starts_with(cursor_prefix.as_bytes()) {
-                continue;
+                break;
             }
 
             let (_, mh_key) = key.split_at(cursor_prefix.len());
@@ -628,7 +658,7 @@ impl Service for RocksDBLid {
 
             // Filter out the keys not prefixed with the cursor
             if !key.as_ref().starts_with(cursor_prefix.as_bytes()) {
-                continue;
+                break;
             }
 
             // With some trickery, we can probably get rid of this allocation

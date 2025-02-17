@@ -7,6 +7,7 @@ use tokio::{
     fs::File,
     io::{AsyncReadExt, AsyncSeekExt},
 };
+use tracing::debug;
 
 use crate::indexer::local_index_directory::Service;
 
@@ -46,11 +47,13 @@ where
 
         // Pieces containing the cid.
         let Ok(pieces) = self.indexer.pieces_containing_multihash(*cid.hash()) else {
+            debug!(multihash = ?cid.hash(), "no pieces containing a multihash");
             return Ok(None);
         };
 
         // We take the first piece that contains the multihash
         let Some(piece_cid) = pieces.first() else {
+            debug!(multihash = ?cid.hash(), "no piece containing a multihash");
             return Ok(None);
         };
 
@@ -97,13 +100,13 @@ where
         _data: &[u8],
     ) -> blockstore::Result<()> {
         Err(Error::FatalDatabaseError(
-            "put operation not supported".to_string(),
+            "Blockstore is read-only".to_string(),
         ))
     }
 
     async fn remove<const S: usize>(&self, _cid: &cid::CidGeneric<S>) -> blockstore::Result<()> {
         Err(Error::FatalDatabaseError(
-            "remove operation not supported".to_string(),
+            "Blockstore is read-only".to_string(),
         ))
     }
 
@@ -121,7 +124,8 @@ fn to_blockstore_cid<const S: usize>(cid: &CidGeneric<S>) -> Result<Cid, Error> 
         .resize::<64>()
         .map_err(|_| Error::CidError(CidError::InvalidMultihashLength(digest_size)))?;
 
-    Ok(Cid::new(cid.version(), cid.codec(), hash).expect("we know cid is correct here"))
+    Ok(Cid::new(cid.version(), cid.codec(), hash)
+        .expect("new CID is derived from a valid existing CID, this should never fail"))
 }
 
 #[cfg(test)]

@@ -314,7 +314,7 @@ impl StorageProviderRpcServer for RpcServerState {
             .send(PipelineMessage::AddPiece(AddPieceMessage {
                 deal: deal_proposal,
                 published_deal_id: deal_id,
-                piece_path: piece_path.clone(),
+                piece_path,
                 commitment,
             }))
             .map_err(|e| RpcError::internal_error(e, None))?;

@@ -69,7 +69,7 @@ pub struct ConfigurationArgs {
     #[arg(long, default_value_t = default_node_address())]
     pub(crate) node_url: Url,
 
-    /// Storage provider listen address.
+    /// Storage provider retrieval service listen address.
     #[serde(default = "default_retrieval_address")]
     #[arg(long, default_value_t = default_retrieval_address())]
     pub(crate) retrieval_listen_address: Multiaddr,
