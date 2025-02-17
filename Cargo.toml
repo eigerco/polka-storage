@@ -162,13 +162,13 @@ storagext = { path = "storagext/lib" }
 bellpepper-core = "0.2"
 bellperson = "0.26"
 blstrs = "0.7"
-filecoin-hashers = { version = "13.1.0", default-features = false }
-filecoin-proofs = { version = "18.1.0", default-features = false }
-fr32 = "11.1.0"
+filecoin-hashers = { path = "../rust-fil-proofs/filecoin-hashers", default-features = false }
+filecoin-proofs = { path = "../rust-fil-proofs/filecoin-proofs", default-features = false }
+fr32 = { path = "../rust-fil-proofs/fr32" }
 generic-array = "1.1.0"
-storage-proofs-core = { version = "18.1.0", default-features = false }
-storage-proofs-porep = { version = "18.1.0", default-features = false }
-storage-proofs-post = { version = "18.1.0", default-features = false }
+storage-proofs-core = { path = "../rust-fil-proofs/storage-proofs-core", default-features = false }
+storage-proofs-porep = { path = "../rust-fil-proofs/storage-proofs-porep", default-features = false }
+storage-proofs-post = { path = "../rust-fil-proofs/storage-proofs-post", default-features = false }
 
 # Substrate
 pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2412" }
