@@ -20,12 +20,13 @@ pub const MULTIHASH_INDEX_SORTED_CODE: u64 = 0x0401;
 // https://github.com/ipld/go-car/blob/45b81c1cc5117b3340dfdb025afeca90bfbe8d86/v2/index/mhindexsorted.go#L45-L53
 
 /// A index entry for a data block inside the CARv1.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct IndexEntry {
     /// Hash digest of the data.
     pub digest: Vec<u8>,
 
-    /// Offset to the first byte of the varint that prefix the CID:Bytes pair within the CARv1 payload.
+    /// Offset to the first byte of the varint prefixing the CID:Bytes pair from the start of the
+    /// CARv1 payload.
     ///
     /// See the [data section in the CARv1 specification](https://ipld.io/specs/transport/car/carv1/#data)
     /// for details on block encoding.
@@ -39,8 +40,26 @@ impl IndexEntry {
     }
 }
 
+impl core::fmt::Debug for IndexEntry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Each byte is represented as 2 characters + the 0x prefix
+        let mut hex = String::with_capacity(2 + self.digest.len() * 2);
+        hex.push_str("0x");
+        f.debug_struct("IndexEntry")
+            .field(
+                "digest",
+                &self.digest.iter().fold(hex, |mut acc, b| {
+                    acc.push_str(&format!("{:0x}", b));
+                    acc
+                }),
+            )
+            .field("offset", &self.offset)
+            .finish()
+    }
+}
+
 /// An index containing a single digest length.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SingleWidthIndex {
     /// The hash digest and the respective offset length.
     pub width: u32,
@@ -70,6 +89,19 @@ impl SingleWidthIndex {
             count,
             entries,
         }
+    }
+}
+
+/// Convert a [`SingleWidthIndex`] into a [`BTreeMap`].
+///
+/// This conversion loses the `width` information.
+impl From<SingleWidthIndex> for BTreeMap<Vec<u8>, u64> {
+    fn from(value: SingleWidthIndex) -> Self {
+        let mut tree = Self::new();
+        for entry in value.entries {
+            tree.insert(entry.digest, entry.offset);
+        }
+        tree
     }
 }
 

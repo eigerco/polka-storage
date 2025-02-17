@@ -9,9 +9,11 @@
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(rustdoc::private_intra_doc_links)]
 #![deny(unsafe_code)]
+#![deny(clippy::unwrap_used)]
 
 mod async_varint;
 mod cid;
+mod file_reader;
 mod multicodec;
 mod stores;
 mod unixfs;
@@ -19,6 +21,7 @@ mod v1;
 mod v2;
 
 // We need to re-expose this because `read_block` returns `(Cid, Vec<u8>)`.
+pub use file_reader::CarExtractor;
 pub use ipld_core::cid::Cid;
 pub use multicodec::{DAG_PB_CODE, IDENTITY_CODE, RAW_CODE};
 pub use stores::{create_filestore, Blockstore, Config, FileBlockstore};
@@ -87,6 +90,16 @@ pub enum Error {
     /// Error returned when CID verification fails
     #[error("CID is not as expected")]
     InvalidCid,
+
+    /// Unknown CID codec, currently supported ones are [`RAW`](crate::multicodec::RAW_CODE) and
+    /// [DAG-PB](crate::multicodec::DAG_PB_CODE).
+    #[error("Unknown CID codec: {0}")]
+    UnknownCidCodec(u64),
+
+    /// The CAR file references CIDs not present in the file, this may indicate file corruption
+    /// or just a malformed/malicious file.
+    #[error("CID is referenced in the file but it's missing: {0}")]
+    MissingCid(Cid),
 
     /// See [`CodecError`](serde_ipld_dagcbor::error::CodecError) for more information.
     #[error(transparent)]
