@@ -5,16 +5,15 @@ use base64::Engine;
 use cid::{multihash::Multihash, Cid};
 use integer_encoding::{VarInt, VarIntReader};
 use rocksdb::{
-    ColumnFamily, ColumnFamilyDescriptor, IteratorMode, Options, WriteBatchWithTransaction,
-    DB as RocksDB,
+    AsColumnFamilyRef, ColumnFamily, ColumnFamilyDescriptor, IteratorMode, Options,
+    WriteBatchWithTransaction, DB as RocksDB,
 };
 use serde::{de::DeserializeOwned, Serialize};
 use uuid::Uuid;
 
 use super::{
-    multihash_base64, rdb_ext::WriteBatchWithTransactionExt, DealInfo, FlaggedPiece,
-    FlaggedPiecesListFilter, IndexRecord, LidError, OffsetSize, PieceInfo, Service,
-    StorageProviderAddress,
+    multihash_base64, DealInfo, FlaggedPiece, FlaggedPiecesListFilter, IndexRecord, LidError,
+    OffsetSize, PieceInfo, Service, StorageProviderAddress,
 };
 
 const RAW_CODEC: u64 = 0x55;
@@ -83,6 +82,40 @@ fn key_flag_piece(cid: &Cid, address: &StorageProviderAddress) -> String {
     format!("/{}/{}", cid, address.0)
 }
 
+pub(crate) trait WriteBatchWithTransactionExt {
+    /// Insert a CBOR serialized value with the provided key.
+    fn put_cf_cbor<K, V>(
+        &mut self,
+        cf: &impl AsColumnFamilyRef,
+        key: K,
+        value: V,
+    ) -> Result<(), LidError>
+    where
+        K: AsRef<[u8]>,
+        V: Serialize;
+}
+
+impl<const TRANSACTION: bool> WriteBatchWithTransactionExt
+    for WriteBatchWithTransaction<TRANSACTION>
+{
+    fn put_cf_cbor<K, V>(
+        &mut self,
+        cf: &impl AsColumnFamilyRef,
+        key: K,
+        value: V,
+    ) -> Result<(), LidError>
+    where
+        K: AsRef<[u8]>,
+        V: Serialize,
+    {
+        let mut serialized = vec![];
+        if let Err(err) = ciborium::into_writer(&value, &mut serialized) {
+            return Err(LidError::Serialization(err.to_string()));
+        }
+        Ok(self.put_cf(cf, key, serialized))
+    }
+}
+
 pub struct RocksDBStateStoreConfig {
     pub path: PathBuf,
 }
@@ -107,6 +140,7 @@ impl RocksDBLid {
     /// * If the column families ([`PIECE_CID_TO_CURSOR_CF`],
     ///   [`MULTIHASH_TO_PIECE_CID_CF`], [`PIECE_CID_TO_FLAGGED_CF`],
     ///   [`CURSOR_TO_OFFSET_SIZE_CF`]) do not exist, they will be created.
+    /// * If the cursor is not initialized. It will be initialized with the 0 value.
     pub fn new(config: RocksDBStateStoreConfig) -> Result<Self, LidError>
     where
         Self: Sized,
@@ -123,11 +157,17 @@ impl RocksDBLid {
         opts.create_if_missing(true);
         opts.create_missing_column_families(true);
 
-        Ok(Self {
+        // Initialize the db
+        let database = Self {
             database: RocksDB::open_cf_descriptors(&opts, config.path, column_families)?,
             offset: 0,
             checked: HashMap::new(),
-        })
+        };
+
+        // Initialize the cursor
+        database.init_cursor()?;
+
+        Ok(database)
     }
 
     /// Get the column family handle for the given column family name.
@@ -264,6 +304,15 @@ impl RocksDBLid {
         Ok(multihash)
     }
 
+    /// Initialize cursor with the default value if not set already.
+    fn init_cursor(&self) -> Result<(), LidError> {
+        match self.get_next_cursor() {
+            Ok(_) => Ok(()),
+            Err(LidError::CursorNotFound) => self.set_next_cursor(0),
+            Err(err) => Err(err),
+        }
+    }
+
     /// Get the next available cursor.
     ///
     /// Returns [`LidError::CursorNotFound`] if no cursor has been set.
@@ -328,6 +377,12 @@ impl RocksDBLid {
         // as long as it doesnt fail
         for it in iterator {
             let (key, _) = it?;
+
+            // Filter out the keys not prefixed with the cursor
+            if !key.as_ref().starts_with(cursor_prefix.as_bytes()) {
+                break;
+            }
+
             let (_, mh_key) = key.split_at(cursor_prefix.len());
 
             // Without the closure, the only alternative is to use goto's to skip from the `return Ok(())` to the deletion of the key
@@ -600,6 +655,12 @@ impl Service for RocksDBLid {
         let mut records = vec![];
         for it in iterator {
             let (key, value) = it?;
+
+            // Filter out the keys not prefixed with the cursor
+            if !key.as_ref().starts_with(cursor_prefix.as_bytes()) {
+                break;
+            }
+
             // With some trickery, we can probably get rid of this allocation
             let key = key
                 .to_vec()
@@ -932,13 +993,13 @@ mod test {
     use sha2::{Digest, Sha256};
     use tempfile::tempdir;
 
-    use super::{key_flag_piece, RocksDBLid, RocksDBStateStoreConfig};
-    use crate::local_index_directory::{
+    use super::{RocksDBLid, RocksDBStateStoreConfig};
+    use crate::indexer::local_index_directory::{
         rdb::{
-            key_cursor_prefix, MULTIHASH_TO_PIECE_CID_CF, PIECE_CID_TO_CURSOR_CF,
+            key_cursor_prefix, key_flag_piece, MULTIHASH_TO_PIECE_CID_CF, PIECE_CID_TO_CURSOR_CF,
             PIECE_CID_TO_FLAGGED_CF, RAW_CODEC,
         },
-        DealId, DealInfo, FlaggedPiece, FlaggedPiecesListFilter, IndexRecord, LidError, OffsetSize,
+        DealInfo, FlaggedPiece, FlaggedPiecesListFilter, IndexRecord, LidError, OffsetSize,
         PieceInfo, Service, StorageProviderAddress,
     };
 
@@ -947,6 +1008,7 @@ mod test {
         let config = RocksDBStateStoreConfig {
             path: tmp_dir.path().join("rocksdb"),
         };
+
         RocksDBLid::new(config).unwrap()
     }
 
@@ -962,7 +1024,7 @@ mod test {
         DealInfo {
             deal_uuid: uuid::Uuid::new_v4(),
             is_legacy: false,
-            chain_deal_id: 1337.into(),
+            chain_deal_id: 1337,
             storage_provider_address: "address".to_string().into(),
             sector_number: 42.into(),
             piece_offset: 10,
@@ -1043,7 +1105,7 @@ mod test {
     #[test]
     fn cursor() {
         let db = init_database();
-        assert!(db.get_next_cursor().is_err());
+        assert_eq!(db.get_next_cursor().unwrap(), (0, key_cursor_prefix(0)));
         assert!(db.set_next_cursor(1010).is_ok());
         let cursor = db.get_next_cursor();
         assert_eq!(cursor.unwrap(), (1010, key_cursor_prefix(1010)));
@@ -1235,11 +1297,11 @@ mod test {
         ));
 
         // Ensure mh -> offset also gets removed when indexes are removed
-        assert!(db
-            .database
-            .prefix_iterator("/0/")
-            .collect::<Vec<_>>()
-            .is_empty());
+        assert_eq!(
+            db.database.prefix_iterator("/0/").collect::<Vec<_>>().len(),
+            // "next_cursor" key is returned
+            1
+        );
     }
 
     #[test]
@@ -1325,7 +1387,9 @@ mod test {
         // Ensure the multihash -> offset entries were also added
         assert_eq!(
             db.database.prefix_iterator("/0/").collect::<Vec<_>>().len(),
-            2
+            // We also receive a "next_cursor" key because of the nature how the
+            // prefix_iterator works
+            3
         );
     }
 
@@ -1367,7 +1431,9 @@ mod test {
 
         assert_eq!(
             db.database.prefix_iterator("/0/").collect::<Vec<_>>().len(),
-            2
+            // We also receive a "next_cursor" key because of the nature how the
+            // prefix_iterator works
+            3
         );
         // Ensure it's empty after removal
         assert!(db.remove_indexes(cid).is_ok());
@@ -1382,11 +1448,11 @@ mod test {
         assert!(indexes.is_empty());
 
         // Ensure mh -> offset also gets removed when indexes are removed
-        assert!(db
-            .database
-            .prefix_iterator("/0/")
-            .collect::<Vec<_>>()
-            .is_empty());
+        assert_eq!(
+            db.database.prefix_iterator("/0/").collect::<Vec<_>>().len(),
+            // "next_cursor" is the only key left
+            1
+        );
     }
 
     #[test]
@@ -1711,7 +1777,7 @@ mod test {
             piece_info.deals.push(DealInfo {
                 deal_uuid: uuid::Uuid::new_v4(),
                 is_legacy: false,
-                chain_deal_id: DealId(i),
+                chain_deal_id: i,
                 storage_provider_address: storage_provider_address.clone(),
                 sector_number: 0.into(),
                 piece_offset: 0,

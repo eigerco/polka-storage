@@ -44,6 +44,12 @@ fn default_node_address() -> Url {
     Url::parse(DEFAULT_NODE_ADDRESS).expect("DEFAULT_NODE_ADDRESS must be a valid Url")
 }
 
+fn default_retrieval_address() -> Multiaddr {
+    "/ip4/127.0.0.1/tcp/8002"
+        .parse()
+        .expect("multiaddres is correct")
+}
+
 #[derive(Debug, Clone, Deserialize, Args)]
 #[group(multiple = true, conflicts_with = "config")]
 #[serde(deny_unknown_fields)]
@@ -62,6 +68,11 @@ pub struct ConfigurationArgs {
     #[serde(default = "default_node_address")]
     #[arg(long, default_value_t = default_node_address())]
     pub(crate) node_url: Url,
+
+    /// Storage provider retrieval service listen address.
+    #[serde(default = "default_retrieval_address")]
+    #[arg(long, default_value_t = default_retrieval_address())]
+    pub(crate) retrieval_listen_address: Multiaddr,
 
     /// RocksDB storage directory.
     /// Defaults to a temporary random directory, like `/tmp/<random>/deals_database`.

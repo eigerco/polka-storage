@@ -8,11 +8,11 @@ use cid::{
     multihash::{self, Multihash},
     Cid,
 };
+use primitives::{sector::SectorNumber, DealId};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 pub mod rdb;
-pub mod rdb_ext;
 
 /// Convert a [`Multihash`] into a key (converts [`Multihash::digest`] to base-64).
 ///
@@ -182,16 +182,6 @@ impl Default for PieceInfo {
     }
 }
 
-/// Identifier for a retrieval deal (unique to a client)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct DealId(u64);
-
-impl From<u64> for DealId {
-    fn from(value: u64) -> Self {
-        Self(value)
-    }
-}
-
 // TODO(@jmg-duarte,14/06/2024): validate miner address
 
 /// The storage provider address.
@@ -213,19 +203,6 @@ impl Deref for StorageProviderAddress {
 
 impl From<String> for StorageProviderAddress {
     fn from(value: String) -> Self {
-        Self(value)
-    }
-}
-
-/// Numeric identifier for a sector. It is usually relative to a storage provider.
-///
-/// For more information on sectors, see:
-/// <https://spec.filecoin.io/#section-systems.filecoin_mining.sector>
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct SectorNumber(u64);
-
-impl From<u64> for SectorNumber {
-    fn from(value: u64) -> Self {
         Self(value)
     }
 }

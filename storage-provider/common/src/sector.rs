@@ -70,6 +70,11 @@ pub struct UnsealedSector {
     /// Indexes match with corresponding deals in [`Sector::deals`].
     pub piece_infos: Vec<PieceInfo>,
 
+    /// Tracks locations of the actual pieces added to the unsealed sector. This
+    /// vector does not contain padding pieces. It contains the actual pieces
+    /// corresponding with the deals from the users.
+    pub pieces_locations: Vec<(Commitment<CommP>, PathBuf)>,
+
     /// Tracks all of the deals that have been added to the sector.
     pub deals: Vec<(DealId, DealProposal)>,
 
@@ -97,6 +102,7 @@ impl UnsealedSector {
             occupied_sector_space: 0,
             piece_infos: vec![],
             deals: vec![],
+            pieces_locations: vec![],
             unsealed_path,
         })
     }
@@ -111,24 +117,29 @@ impl UnsealedSector {
     ) -> Result<(), SectorError> {
         self.deals.push((deal_id, deal));
 
-        // would love to use something like scoped spawn blocking
-        let pieces = self.piece_infos.clone();
-        let unsealed_path = self.unsealed_path.clone();
         let handle: JoinHandle<Result<(PieceInfo, u64), SectorError>> =
-            tokio::task::spawn_blocking(move || {
-                let unsealed_sector = std::fs::File::options().append(true).open(unsealed_path)?;
+            tokio::task::spawn_blocking({
+                let pieces = self.piece_infos.clone();
+                let unsealed_path = self.unsealed_path.clone();
+                let piece_path = piece_path.clone();
 
-                tracing::info!("Preparing piece...");
-                let (padded_reader, piece_info) = prepare_piece(piece_path, commitment)?;
-                tracing::info!("Adding piece...");
-                let occupied_piece_space =
-                    add_piece(padded_reader, piece_info, &pieces, unsealed_sector)?;
+                move || {
+                    let unsealed_sector =
+                        std::fs::File::options().append(true).open(unsealed_path)?;
 
-                Ok((piece_info, occupied_piece_space))
+                    tracing::info!("Preparing piece...");
+                    let (padded_reader, piece_info) = prepare_piece(piece_path, commitment)?;
+                    tracing::info!("Adding piece...");
+                    let occupied_piece_space =
+                        add_piece(padded_reader, piece_info, &pieces, unsealed_sector)?;
+
+                    Ok((piece_info, occupied_piece_space))
+                }
             });
 
         let (piece_info, occupied_piece_space) = handle.await??;
         self.piece_infos.push(piece_info);
+        self.pieces_locations.push((commitment, piece_path));
         self.occupied_sector_space += occupied_piece_space;
 
         Ok(())
@@ -289,6 +300,11 @@ pub struct PreCommittedSector {
     /// Indexes match with corresponding deals in [`Sector::deals`].
     pub piece_infos: Vec<PieceInfo>,
 
+    /// Tracks locations of the actual pieces added to the unsealed sector. This
+    /// vector does not contain padding pieces. It contains the actual pieces
+    /// corresponding with the deals from the users.
+    pub pieces_locations: Vec<(Commitment<CommP>, PathBuf)>,
+
     /// Tracks all of the deals that have been added to the sector.
     pub deals: Vec<(DealId, DealProposal)>,
 
@@ -349,6 +365,7 @@ impl PreCommittedSector {
             seal_proof: unsealed.seal_proof,
             sector_number: unsealed.sector_number,
             piece_infos: unsealed.piece_infos,
+            pieces_locations: unsealed.pieces_locations,
             deals: unsealed.deals,
             cache_path,
             sealed_path,
@@ -503,6 +520,11 @@ pub struct ProvenSector {
     /// Indexes match with corresponding deals in [`Sector::deals`].
     pub piece_infos: Vec<PieceInfo>,
 
+    /// Tracks locations of the actual pieces added to the unsealed sector. This
+    /// vector does not contain padding pieces. It contains the actual pieces
+    /// corresponding with the deals from the users.
+    pub pieces_locations: Vec<(Commitment<CommP>, PathBuf)>,
+
     /// Tracks all of the deals that have been added to the sector.
     pub deals: Vec<(DealId, DealProposal)>,
 
@@ -526,6 +548,7 @@ impl ProvenSector {
         Self {
             sector_number: sector.sector_number,
             piece_infos: sector.piece_infos,
+            pieces_locations: sector.pieces_locations,
             deals: sector.deals,
             cache_path: sector.cache_path,
             sealed_path: sector.sealed_path,
