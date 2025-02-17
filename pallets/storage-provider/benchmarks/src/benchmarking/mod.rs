@@ -2,10 +2,11 @@
 
 mod accounts;
 mod deal_proposals;
-pub mod pallet;
 
 use alloc::{vec, vec::Vec};
 
+use accounts::{generate_benchmark_account, ALICE, STORAGE_PROVIDER};
+use deal_proposals::{sign_proposal, ClientDealProposalOf, DealProposalOf};
 use frame_benchmarking::v2::*;
 use frame_support::{assert_ok, pallet_prelude::ConstU32, traits::Currency, BoundedVec};
 use frame_system::{pallet_prelude::BlockNumberFor, RawOrigin};
@@ -27,11 +28,7 @@ use primitives::{
 use sp_core::Get;
 use sp_runtime::{AccountId32, MultiSignature, MultiSigner};
 
-use crate::{
-    accounts::{generate_benchmark_account, ALICE, STORAGE_PROVIDER},
-    deal_proposals::{sign_proposal, ClientDealProposalOf, DealProposalOf},
-    Config, Pallet,
-};
+use crate::{Config, Pallet};
 type BoundedPeerIdBytes = BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>;
 
 #[benchmarks(
