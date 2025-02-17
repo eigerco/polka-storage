@@ -74,12 +74,12 @@ where
 async fn index_piece<I, P>(db: Arc<I>, commitment: Commitment<CommP>, piece_path: P)
 where
     I: Service + Send + Sync + 'static,
-    P: AsRef<Path> + Debug,
+    P: AsRef<Path>,
 {
     let records = match piece_indexes(&piece_path).await {
         Ok(records) => records,
         Err(err) => {
-            error!(?piece_path, ?err, "piece indexing failed with an error");
+            error!(piece_path = ?piece_path.as_ref(), ?err, "piece indexing failed with an error");
             return;
         }
     };
@@ -166,7 +166,7 @@ pub mod tests {
         piece_path: P,
     ) where
         D: Service + Send + Sync + 'static,
-        P: AsRef<Path> + Debug,
+        P: AsRef<Path>,
     {
         index_piece(db, commitment, piece_path).await
     }
