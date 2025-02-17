@@ -1642,11 +1642,9 @@ pub mod pallet {
         let max_proof_size = precommit.info.seal_proof.proof_size();
 
         // Check proof size
-        for proof in proofs.iter() {
-            if proof.len() > max_proof_size {
-                log::error!(target: LOG_TARGET, "sector proof size {} exceeds max {}", proof.len(), max_proof_size);
-                return Err(Error::<T>::InvalidProof)?;
-            }
+        if proofs.iter().any(|p| p.len() > max_proof_size) {
+            log::error!(target: LOG_TARGET, "sector proof size {} exceeds max {}", proofs.len(), max_proof_size);
+            return Err(Error::<T>::InvalidProof)?;
         }
 
         let current_block_number = <frame_system::Pallet<T>>::block_number();
