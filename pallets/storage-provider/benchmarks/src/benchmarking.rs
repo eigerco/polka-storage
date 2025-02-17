@@ -41,8 +41,9 @@ type BoundedPeerIdBytes = BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>;
 )]
 mod benchmarks {
 
-    use super::*;
     use primitives::{commitment::CommD, sector::SectorPreCommitInfo, MAX_LABEL_SIZE};
+
+    use super::*;
 
     const EXISTENTIAL_DEPOSIT: u32 = 1_000_000_000;
 
