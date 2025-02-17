@@ -43,7 +43,7 @@ impl CarExtractor<File> {
 }
 
 impl CarExtractor<Cursor<Vec<u8>>> {
-    /// Creates a [`FileLoader`] from a vector of bytes.
+    /// Creates a [`CarExtractor`] from a vector of bytes.
     pub async fn from_vec(vec: Vec<u8>) -> Result<Self, Error> {
         let mut loader = Self {
             reader: v2::Reader::new(Cursor::new(vec)),
