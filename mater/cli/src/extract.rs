@@ -6,6 +6,9 @@ use tokio::{
     io::{AsyncReadExt, BufReader},
 };
 
+/// Arbitrary value, it's just so the buffer doesn't constantly resize while loading the first bytes
+const STDIN_BUFFER_START_CAPACITY: usize = 16 * 1024;
+
 /// Extracts a file to `output_path` from the CARv2 file at `input_path`
 pub(crate) async fn extract_file_from_car(
     input_path: &PathBuf,
@@ -26,9 +29,7 @@ pub(crate) async fn extract_file_from_car(
         // forward means that said part of the stream hasn't been loaded into memory yet) start
         // loading file as needed before returning the new position
 
-        // Arbitrary value, it's just so the buffer doesn't constantly resize
-        // while loading the first bytes
-        let mut buffer = Vec::with_capacity(16 * 1024);
+        let mut buffer = Vec::with_capacity(STDIN_BUFFER_START_CAPACITY);
         let mut buffered_stdin = BufReader::new(tokio::io::stdin());
         buffered_stdin.read_to_end(&mut buffer).await?;
         CarExtractor::from_vec(buffer)
