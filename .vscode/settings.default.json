@@ -1,6 +1,8 @@
 {
   "files.trimTrailingWhitespace": true,
-  "rust-analyzer.rustfmt.extraArgs": ["+nightly"],
+  "rust-analyzer.rustfmt.extraArgs": [
+    "+nightly"
+  ],
   "rust-analyzer.check.workspace": false,
   "coverage-gutters.coverageBaseDir": "coverage",
   "coverage-gutters.coverageFileNames": [
@@ -11,5 +13,18 @@
   "rust-analyzer.cargo.targetDir": true,
   "rust-analyzer.cargo.extraEnv": {
     "SKIP_WASM_BUILD": "true"
+  }
+  // Recommended when developing benchmarks
+  /*
+  "rust-analyzer.cargo.features": [
+    "runtime-benchmarks"
+  ],
+  "rust-analyzer.procMacro.ignored": {
+    "frame_benchmarking": {
+      "v2::benchmarks": true,
+      "benchmarks": true,
+      "benchmark": true
+    }
   },
+  */
 }
