@@ -19,17 +19,17 @@ pub enum IndexerMessage {
 }
 
 #[derive(Clone)]
-pub struct IndexerState<D> {
-    pub lid: Arc<D>,
+pub struct IndexerState<I> {
+    pub lid: Arc<I>,
 }
 
-pub async fn start_indexer<D>(
-    state: IndexerState<D>,
+pub async fn start_indexer<I>(
+    state: IndexerState<I>,
     mut indexer_rx: UnboundedReceiver<IndexerMessage>,
     token: CancellationToken,
 ) -> Result<(), ServerError>
 where
-    D: Service + Send + Sync + 'static,
+    I: Service + Send + Sync + 'static,
 {
     let tracker = TaskTracker::new();
 
@@ -51,9 +51,9 @@ where
     Ok(())
 }
 
-fn on_command<D>(command: IndexerMessage, db: Arc<D>, tracker: &TaskTracker)
+fn on_command<I>(command: IndexerMessage, db: Arc<I>, tracker: &TaskTracker)
 where
-    D: Service + Send + Sync + 'static,
+    I: Service + Send + Sync + 'static,
 {
     debug!("Command received: {command:?}");
 
@@ -71,9 +71,9 @@ where
 }
 
 #[instrument(skip_all, fields(piece_cid = %commitment.cid()))]
-async fn index_piece<D, P>(db: Arc<D>, commitment: Commitment<CommP>, piece_path: P)
+async fn index_piece<I, P>(db: Arc<I>, commitment: Commitment<CommP>, piece_path: P)
 where
-    D: Service + Send + Sync + 'static,
+    I: Service + Send + Sync + 'static,
     P: AsRef<Path> + Debug,
 {
     let records = match piece_indexes(&piece_path).await {
