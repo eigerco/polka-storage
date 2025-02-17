@@ -343,9 +343,13 @@ mod benchmarks {
         // Run to 11 to enter pre-commit period
         run_to_block::<T>(11);
 
-        let mut proofs = BoundedVec::new();
-        // Empty proof is considered valid under the DummyProofVerifier
-        proofs.try_push(BoundedVec::new()).unwrap();
+        let proofs = {
+            // can't use bounded_vec![] in benchmarks
+            let mut proofs = BoundedVec::new();
+            // Empty proof is considered valid under the DummyProofVerifier
+            proofs.try_push(BoundedVec::new()).unwrap();
+            proofs
+        };
 
         // Similar pattern to before
         (0..n)
