@@ -129,4 +129,8 @@ pub struct RunCmd {
     /// that the bootstrap node binds to.
     #[arg(long, required = false)]
     pub p2p_listen_address: Option<Multiaddr>,
+
+    /// List of other bootstrap nodes
+    #[arg(long, required = false, num_args = 1..)]
+    pub bootstrap_addresses: Option<Vec<Multiaddr>>,
 }

@@ -65,10 +65,11 @@ impl Default for Header {
 /// BlockMetadata contains metadata about a block's section in a CAR file/stream.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BlockMetadata {
-    /// Cid of the block
+    /// Offset to the start of the block in relation to the start of the original buffer.
+    pub block_offset: u64,
+    /// [`Cid`] of the block.
     pub cid: Cid,
-    /// Offset of the data section relative to the start of the underlying
-    /// reader.
+    /// Offset to the start of the block's data in relation to the start of the original buffer.
     pub data_offset_source: u64,
     /// Size of the data section of the block
     pub data_size: u64,

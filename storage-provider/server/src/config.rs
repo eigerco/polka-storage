@@ -8,7 +8,7 @@ use clap::Args;
 use libp2p::{identity::Keypair, Multiaddr, PeerId};
 use polka_storage_provider_common::config::sealing::SealingConfiguration;
 use primitives::{
-    p2p::keypair_value_parser,
+    p2p::{keypair_value_parser, DEFAULT_REGISTRATION_TTL},
     proofs::{RegisteredPoStProof, RegisteredSealProof},
 };
 use serde::Deserialize;
@@ -18,8 +18,6 @@ use crate::{
     p2p::{deser_keypair, deserialize_string_to_peer_id},
     DEFAULT_NODE_ADDRESS,
 };
-
-pub const DEFAULT_REGISTRATION_TTL: u64 = 86400;
 
 /// Default address to bind the RPC server to.
 const fn default_rpc_listen_address() -> SocketAddr {

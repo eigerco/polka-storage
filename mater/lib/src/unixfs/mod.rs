@@ -1,7 +1,7 @@
 //! The original implementation of this module is located at
 //! <https://github.com/n0-computer/beetle/blob/3e137cb2bc18e1d458c3f72d5e817b03d9537d5d/iroh-unixfs/src/balanced_tree.rs>.
 
-mod unixfs_pb;
+pub(crate) mod unixfs_pb;
 
 use std::collections::VecDeque;
 
@@ -34,8 +34,9 @@ impl LinkInfo {
     }
 }
 
+// pub(crate) so it doesn't break doclinks
 #[derive(Debug)]
-enum TreeNode {
+pub(crate) enum TreeNode {
     Leaf(Bytes),
     Stem(Vec<(Cid, LinkInfo)>),
 }

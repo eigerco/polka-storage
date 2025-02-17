@@ -15,6 +15,7 @@ mater.workspace = true
 
 # Crates.io
 clap = { workspace = true, features = ["derive"] }
+futures = { workspace = true }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["fs", "macros", "rt-multi-thread"] }
 

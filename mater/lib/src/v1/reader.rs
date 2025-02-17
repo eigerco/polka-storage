@@ -60,20 +60,23 @@ pub(crate) async fn read_block_metadata<R>(mut reader: R) -> Result<BlockMetadat
 where
     R: AsyncRead + AsyncSeek + Unpin,
 {
+    let block_offset = reader.stream_position().await?;
+
     // Length of the block. This length contains the length of the cid and data.
-    let (full_block_length, _): (u64, _) = read_varint(&mut reader).await?;
+    let (full_block_length, varint_bytes_read): (u64, _) = read_varint(&mut reader).await?;
 
     // Cid of the block
     let (cid, cid_bytes_read) = Cid::read_bytes_async(&mut reader).await?;
 
     // Data section position and size
-    let data_offset_source = reader.stream_position().await?;
+    let data_offset_source = block_offset + (varint_bytes_read as u64) + (cid_bytes_read as u64);
     let data_size = full_block_length - cid_bytes_read as u64;
 
     // Skip block data section
     reader.seek(SeekFrom::Current(data_size as i64)).await?;
 
     Ok(BlockMetadata {
+        block_offset,
         cid,
         data_offset_source,
         data_size,

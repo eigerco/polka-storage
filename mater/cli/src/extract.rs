@@ -1,33 +1,24 @@
 use std::path::PathBuf;
 
-use mater::CarV2Reader;
-use tokio::{
-    fs::File,
-    io::{AsyncWriteExt, BufReader},
-};
-
-use crate::error::Error;
+use mater::{CarExtractor, Error};
+use tokio::fs::File;
 
 /// Extracts a file to `output_path` from the CARv2 file at `input_path`
 pub(crate) async fn extract_file_from_car(
     input_path: &PathBuf,
     output_path: &PathBuf,
+    overwrite: bool,
 ) -> Result<(), Error> {
-    let source_file = File::open(&input_path).await?;
-    let mut output_file = File::create_new(&output_path).await?;
-    let size = source_file.metadata().await?.len();
+    let output_file = if overwrite {
+        File::create(&output_path).await?
+    } else {
+        File::create_new(&output_path).await?
+    };
 
-    // Return error if the file is empty (no headers, pragma)
-    if size == 0 {
-        return Err(Error::InvalidCarFile);
-    }
-
-    let mut reader = CarV2Reader::new(BufReader::new(source_file));
-    reader.extract_content(&mut output_file).await?;
-
-    output_file.flush().await?;
-
-    Ok(())
+    CarExtractor::from_path(input_path)
+        .await?
+        .copy_to_writer(output_file)
+        .await
 }
 
 /// Tests for file extraction.
@@ -37,13 +28,14 @@ mod tests {
     use std::path::PathBuf;
 
     use anyhow::Result;
+    use mater::Error;
     use tempfile::tempdir;
     use tokio::{
         fs::{remove_file, File},
         io::AsyncReadExt,
     };
 
-    use crate::{error::Error, extract_file_from_car};
+    use crate::extract_file_from_car;
 
     /// Tests successful extraction of contents from a CARv2 file
     #[tokio::test]
@@ -54,7 +46,7 @@ mod tests {
         let output_path = temp_dir.path().join("output_file");
 
         // Call the function under test
-        let result = extract_file_from_car(&input_path, &output_path).await;
+        let result = extract_file_from_car(&input_path, &output_path, false).await;
         // Assert the function succeeded
         assert!(result.is_ok());
 
@@ -86,7 +78,7 @@ mod tests {
         let output_path = temp_dir.path().join("output_file");
 
         // Call the function under test
-        let result = extract_file_from_car(&input_path, &output_path).await;
+        let result = extract_file_from_car(&input_path, &output_path, false).await;
         // Assert the function succeeded
         assert!(result.is_ok());
 
@@ -113,7 +105,7 @@ mod tests {
         let output_path = temp_dir.path().join("test_output/output_file");
 
         // Call the function under test
-        let result = extract_file_from_car(&input_path, &output_path).await;
+        let result = extract_file_from_car(&input_path, &output_path, false).await;
 
         // Assert the function returns an error
         assert!(result.is_err());
@@ -134,7 +126,7 @@ mod tests {
         File::create(&output_path).await?;
 
         // Call the function under test
-        let result = extract_file_from_car(&input_path, &output_path).await;
+        let result = extract_file_from_car(&input_path, &output_path, false).await;
 
         // Assert the function returns an error
         assert!(result.is_err());
@@ -157,11 +149,11 @@ mod tests {
         File::create_new(&input_path).await?;
 
         // Call the function under test
-        let result = extract_file_from_car(&input_path, &output_path).await;
+        let result = extract_file_from_car(&input_path, &output_path, false).await;
 
         // Assert the function returns an error
         assert!(result.is_err());
-        assert!(matches!(result, Err(Error::InvalidCarFile)));
+        assert!(matches!(result, Err(Error::IoError(..))));
 
         // Remove files
         remove_file(output_path).await?;
