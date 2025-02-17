@@ -3,7 +3,7 @@ use tokio::io::{AsyncRead, AsyncReadExt};
 
 use crate::{async_varint::read_varint, IDENTITY_CODE};
 
-/// Extension trait for [`ipld_core::cid::Cid``]
+/// Extension trait for [`Cid`](ipld_core::cid::Cid)
 pub trait CidExt {
     /// Reads the bytes from a byte stream.
     fn read_bytes_async<R>(r: R) -> impl std::future::Future<Output = Result<(Self, usize), Error>>
@@ -15,7 +15,7 @@ pub trait CidExt {
     fn get_identity_data(&self) -> Option<&[u8]>;
 }
 
-/// Extension trait for [`ipld_core::cid::multihash::Multihash`]
+/// Extension trait for [`Multihash`](ipld_core::cid::multihash::Multihash)
 pub trait MultihashExt {
     /// Reads the bytes from a byte stream.
     fn read_async<R>(r: R) -> impl std::future::Future<Output = Result<(Self, usize), Error>>
