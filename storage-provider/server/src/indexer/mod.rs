@@ -142,7 +142,6 @@ where
 #[cfg(test)]
 pub mod tests {
     use std::{
-        fmt::Debug,
         path::{Path, PathBuf},
         sync::Arc,
     };
