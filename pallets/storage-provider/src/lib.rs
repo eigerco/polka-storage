@@ -61,8 +61,8 @@ pub mod pallet {
         proofs::{derive_prover_id, PublicReplicaInfo, RegisteredPoStProof},
         randomness::{draw_randomness, AuthorVrfHistory, DomainSeparationTag},
         sector::{ProveCommitSector, SectorNumber, SectorPreCommitInfo},
-        PartitionNumber, MAX_PARTITIONS_PER_DEADLINE, MAX_SEAL_PROOF_BYTES, MAX_SECTORS,
-        MAX_SECTORS_PER_CALL,
+        PartitionNumber, MAX_PARTITIONS_PER_DEADLINE, MAX_PROOFS_PER_BLOCK, MAX_SEAL_PROOF_BYTES,
+        MAX_SECTORS, MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::Zero;
@@ -601,7 +601,7 @@ pub mod pallet {
                 });
 
                 // Validate the proof
-                validate_seal_proof::<T>(&owner, &precommit, sector.proof)?;
+                validate_seal_proof::<T>(&owner, &precommit, sector.proofs)?;
 
                 // Sector deals that will be activated after the sector is
                 // successfully proven.
@@ -1634,12 +1634,15 @@ pub mod pallet {
     fn validate_seal_proof<T: Config>(
         owner: &T::AccountId,
         precommit: &SectorPreCommitOnChainInfo<BalanceOf<T>, BlockNumberFor<T>>,
-        proof: BoundedVec<u8, ConstU32<MAX_SEAL_PROOF_BYTES>>,
+        proofs: BoundedVec<
+            BoundedVec<u8, ConstU32<MAX_SEAL_PROOF_BYTES>>,
+            ConstU32<MAX_PROOFS_PER_BLOCK>,
+        >,
     ) -> Result<(), DispatchError> {
         let max_proof_size = precommit.info.seal_proof.proof_size();
 
         // Check proof size
-        if proof.len() > max_proof_size {
+        if let Some(proof) = proofs.iter().filter(|p| p.len() > max_proof_size).nth(0) {
             log::error!(target: LOG_TARGET, "sector proof size {} exceeds max {}", proof.len(), max_proof_size);
             return Err(Error::<T>::InvalidProof)?;
         }
@@ -1692,7 +1695,7 @@ pub mod pallet {
             precommit.info.sector_number,
             precommit.seal_randomness,
             interactive_randomness,
-            proof,
+            proofs,
         )
     }
 

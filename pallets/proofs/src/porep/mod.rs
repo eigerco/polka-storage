@@ -1,10 +1,12 @@
 mod config;
 
 use config::{Config, PoRepID};
+use frame_support::pallet_prelude::*;
 use primitives::{
     commitment::RawCommitment,
     proofs::{ProverId, RegisteredSealProof, Ticket},
     sector::SectorNumber,
+    MAX_PROOFS_PER_BLOCK,
 };
 use sha2::{Digest, Sha256};
 
@@ -20,6 +22,8 @@ use crate::{
     },
     vec, Error, Vec,
 };
+
+const LOG_TARGET: &'static str = "runtime::proofs::porep";
 
 /// A unique 32-byte ID assigned to each distinct replica.
 /// Replication is the entire process by which a sector is uniquely encoded into a replica.
@@ -89,6 +93,8 @@ pub enum ProofError {
     InvalidVerifyingKey,
     /// Returned in case of failed conversion, i.e. in `bytes_into_fr()`.
     Conversion,
+    /// When supplied number of proofs doesn't match required number of proofs (partitions).
+    InvalidNumberOfProofs,
 }
 
 impl From<VerificationError> for ProofError {
@@ -106,15 +112,18 @@ impl<T> From<ProofError> for Error<T> {
             ProofError::InvalidProof => Error::<T>::InvalidPoRepProof,
             ProofError::InvalidVerifyingKey => Error::<T>::InvalidVerifyingKey,
             ProofError::Conversion => Error::<T>::Conversion,
+            ProofError::InvalidNumberOfProofs => Error::<T>::InvalidPoRepProof,
         }
     }
 }
 
+#[derive(Clone)]
 pub struct Tau {
     comm_d: Fr,
     comm_r: Fr,
 }
 
+#[derive(Clone)]
 pub struct PublicInputs {
     replica_id: ReplicaId,
     tau: Tau,
@@ -145,10 +154,17 @@ impl ProofScheme {
         ticket: &Ticket,
         seed: &Ticket,
         vk: VerifyingKey<Bls12>,
-        proof: &Proof<Bls12>,
+        proofs: BoundedVec<Proof<Bls12>, ConstU32<MAX_PROOFS_PER_BLOCK>>,
     ) -> Result<(), ProofError> {
         let comm_d_fr = fr32::bytes_into_fr(comm_d).map_err(|_| ProofError::Conversion)?;
         let comm_r_fr = fr32::bytes_into_fr(comm_r).map_err(|_| ProofError::Conversion)?;
+
+        // Proof per partition
+        if proofs.len() != self.config.required_partitions() {
+            log::error!(target: LOG_TARGET, "Expected {} proofs (1 per partition) got {} proofs",
+                self.config.required_partitions(), proofs.len());
+            return Err(ProofError::InvalidNumberOfProofs);
+        }
 
         let replica_id = self.generate_replica_id(prover_id, sector, ticket, comm_d);
         let public_inputs = PublicInputs {
@@ -160,10 +176,17 @@ impl ProofScheme {
             seed: *seed,
         };
 
-        let public_inputs = self.generate_public_inputs(public_inputs, None)?;
         let pvk = prepare_verifying_key(vk);
 
-        verify_proof(&pvk, proof, public_inputs.as_slice()).map_err(Into::<ProofError>::into)
+        for partition_index in 0..proofs.len() {
+            let inputs =
+                self.generate_public_inputs(public_inputs.clone(), Some(partition_index))?;
+            verify_proof(&pvk, &proofs[partition_index], inputs.as_slice()).inspect_err(|_| {
+                log::error!(target: LOG_TARGET, "failed to verify partition {}", partition_index);
+            })?;
+        }
+
+        Ok(())
     }
 
     /// References:

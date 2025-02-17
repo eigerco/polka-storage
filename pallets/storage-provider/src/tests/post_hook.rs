@@ -159,7 +159,7 @@ fn precommit_and_prove(storage_provider: &'static str, deal_id: DealId, sector_n
         RuntimeOrigin::signed(account(storage_provider)),
         bounded_vec![ProveCommitSector {
             sector_number,
-            proof: bounded_vec![0xde],
+            proofs: bounded_vec![bounded_vec![0xde]],
         }],
     )
     .unwrap();

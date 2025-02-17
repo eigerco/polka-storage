@@ -280,7 +280,10 @@ pub mod testing {
             _sector: SectorNumber,
             _ticket: Ticket,
             _seed: Ticket,
-            _proof: BoundedVec<u8, ConstU32<MAX_SEAL_PROOF_BYTES>>,
+            _proofs: BoundedVec<
+                BoundedVec<u8, ConstU32<MAX_SEAL_PROOF_BYTES>>,
+                ConstU32<MAX_PROOFS_PER_BLOCK>,
+            >,
         ) -> sp_runtime::DispatchResult {
             Ok(())
         }

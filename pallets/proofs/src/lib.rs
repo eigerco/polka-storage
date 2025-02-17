@@ -141,28 +141,43 @@ pub mod pallet {
             sector: SectorNumber,
             ticket: Ticket,
             seed: Ticket,
-            proof: BoundedVec<u8, ConstU32<MAX_SEAL_PROOF_BYTES>>,
+            proofs: BoundedVec<
+                BoundedVec<u8, ConstU32<MAX_SEAL_PROOF_BYTES>>,
+                ConstU32<MAX_PROOFS_PER_BLOCK>,
+            >,
         ) -> DispatchResult {
-            let proof_len = proof.len();
-            ensure!(proof_len >= seal_proof.proof_size(), {
-                log::error!(
-                    target: LOG_TARGET,
-                    "PoRep proof submission does not contain enough bytes. Expected minimum length is {} got {}",
-                    seal_proof.proof_size(), proof_len
-                );
-                Error::<T>::InvalidPoRepProof
-            });
-            let proof = Proof::<Bls12>::decode(&mut proof.as_slice()).map_err(|e| {
-                log::error!(target: LOG_TARGET, "failed to parse PoRep proof {:?}", e);
-                Error::<T>::Conversion
-            })?;
+            let mut parsed_proofs = BoundedVec::new();
+            for proof in proofs.iter() {
+                let proof_len = proof.len();
+                ensure!(proof_len >= seal_proof.proof_size(), {
+                    log::error!(
+                        target: LOG_TARGET,
+                        "PoRep proof submission does not contain enough bytes. Expected minimum length is {} got {}",
+                        seal_proof.proof_size(), proof_len
+                    );
+                    Error::<T>::InvalidPoRepProof
+                });
+                let proof = Proof::<Bls12>::decode(&mut proof.as_slice()).map_err(|e| {
+                    log::error!(target: LOG_TARGET, "failed to parse PoRep proof {:?}", e);
+                    Error::<T>::Conversion
+                })?;
+
+                parsed_proofs.try_push(proof).expect("internal (porep::ProofScheme) and external (ProofVerification) apis have the same limits on number of proofs");
+            }
             let proof_scheme = porep::ProofScheme::setup(seal_proof);
 
             let vkey = PoRepVerifyingKey::<T>::get().ok_or(Error::<T>::MissingPoRepVerifyingKey)?;
             log::info!(target: LOG_TARGET, "Verifying PoRep proof for sector: {}...", sector);
             proof_scheme
                 .verify(
-                    &comm_r, &comm_d, &prover_id, sector, &ticket, &seed, vkey, &proof,
+                    &comm_r,
+                    &comm_d,
+                    &prover_id,
+                    sector,
+                    &ticket,
+                    &seed,
+                    vkey,
+                    parsed_proofs,
                 )
                 .map_err(Into::<Error<T>>::into)?;
 

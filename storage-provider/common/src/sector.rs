@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use storagext::{
     types::{
         market::DealProposal,
-        storage_provider::{ProveCommitSector, SectorPreCommitInfo},
+        storage_provider::{PoRepProof, ProveCommitSector, SectorPreCommitInfo},
     },
     RandomnessClientExt, StorageProviderClientExt, SystemClientExt,
 };
@@ -454,15 +454,15 @@ impl PreCommittedSector {
             }
         };
 
-        // TODO(@th7nder,28/01/2025): adjust proofs in PoRep for bigger sector sizes
-        // We use sector size 2KiB only at this point, which guarantees to have 1 proof, because it has 1 partition in the config.
-        // That's why `prove_commit` will always generate a 1 proof.
-        let proof: SubstrateProof = proofs[0]
-            .clone()
-            .try_into()
-            .expect("converstion between rust-fil-proofs and polka-storage-proofs to work");
+        let proofs = proofs
+            .into_iter()
+            .map(|p| PoRepProof {
+                proof: codec::Encode::encode(&TryInto::<SubstrateProof>::try_into(p).expect(
+                    "converstion between rust-fil-proofs and polka-storage-proofs should work",
+                )),
+            })
+            .collect::<Vec<_>>();
 
-        let proof = codec::Encode::encode(&proof);
         tracing::info!("Proven sector: {}", self.sector_number);
 
         let result = xt_client
@@ -470,7 +470,7 @@ impl PreCommittedSector {
                 xt_keypair,
                 vec![ProveCommitSector {
                     sector_number: self.sector_number,
-                    proof,
+                    proofs,
                 }],
                 true,
             )

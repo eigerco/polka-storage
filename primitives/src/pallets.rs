@@ -28,7 +28,10 @@ pub trait ProofVerification {
         sector: SectorNumber,
         ticket: Ticket,
         seed: Ticket,
-        proof: BoundedVec<u8, ConstU32<MAX_SEAL_PROOF_BYTES>>,
+        proofs: BoundedVec<
+            BoundedVec<u8, ConstU32<MAX_SEAL_PROOF_BYTES>>,
+            ConstU32<MAX_PROOFS_PER_BLOCK>,
+        >,
     ) -> DispatchResult;
 
     fn verify_post(
