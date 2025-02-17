@@ -52,9 +52,18 @@ async fn main() -> Result<(), Error> {
             overwrite,
         } => {
             let output_path = output_path.unwrap_or_else(|| {
-                let mut new_path = input_path.clone();
-                new_path.set_extension("car");
-                new_path
+                // If we let the output become `-.car` it isn't only weird
+                // terminals are annoying with it
+                if input_path.as_os_str() == "-" {
+                    let file_name = "stdin.car";
+                    let mut path = PathBuf::with_capacity(file_name.len());
+                    path.set_file_name(file_name);
+                    path
+                } else {
+                    let mut new_path = input_path.clone();
+                    new_path.set_extension("car");
+                    new_path
+                }
             });
             let cid = convert_file_to_car(&input_path, &output_path, overwrite).await?;
 
@@ -74,9 +83,26 @@ async fn main() -> Result<(), Error> {
             overwrite,
         } => {
             let output_path = output_path.unwrap_or_else(|| {
-                let mut new_path = input_path.clone();
-                new_path.set_extension("");
-                new_path
+                // If we let the output become `-` it isn't only weird
+                // terminals are annoying with it
+                if input_path.as_os_str() == "-" {
+                    let file_name = "stdin";
+                    let mut path = PathBuf::with_capacity(file_name.len());
+                    path.set_file_name(file_name);
+                    path
+                } else {
+                    let mut new_path = input_path.clone();
+                    if let Some(_) = new_path.extension() {
+                        // We don't check if the ext is `.car` because we don't care about the ext
+                        // being "right", we only care about the bytes, however, we remove the ext
+                        // if there is one
+                        new_path.set_extension("");
+                    } else {
+                        // If no extension existed, we must add one or we risk overwriting the file
+                        new_path.set_extension("out");
+                    }
+                    new_path
+                }
             });
             extract_file_from_car(&input_path, &output_path, overwrite).await?;
 

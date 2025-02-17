@@ -1,7 +1,13 @@
 use std::path::PathBuf;
 
 use mater::{CarExtractor, Error};
-use tokio::fs::File;
+use tokio::{
+    fs::File,
+    io::{AsyncReadExt, BufReader},
+};
+
+/// Arbitrary value, it's just so the buffer doesn't constantly resize while loading the first bytes
+const STDIN_BUFFER_START_CAPACITY: usize = 16 * 1024;
 
 /// Extracts a file to `output_path` from the CARv2 file at `input_path`
 pub(crate) async fn extract_file_from_car(
@@ -15,10 +21,27 @@ pub(crate) async fn extract_file_from_car(
         File::create_new(&output_path).await?
     };
 
-    CarExtractor::from_path(input_path)
-        .await?
-        .copy_to_writer(output_file)
-        .await
+    if input_path.as_os_str() == "-" {
+        // NOTE(@jmg-duarte,17/02/2025): this approach is bound to be inefficient for large inputs
+        // given that we're forced to load the whole input into memory upfront
+        // a possible alternative could be implementing a Reader that takes an AsyncRead
+        // and makes it AsyncSeek by keeping read contents in memory and forward seeks (where
+        // forward means that said part of the stream hasn't been loaded into memory yet) start
+        // loading file as needed before returning the new position
+
+        let mut buffer = Vec::with_capacity(STDIN_BUFFER_START_CAPACITY);
+        let mut buffered_stdin = BufReader::new(tokio::io::stdin());
+        buffered_stdin.read_to_end(&mut buffer).await?;
+        CarExtractor::from_vec(buffer)
+            .await?
+            .copy_to_writer(output_file)
+            .await
+    } else {
+        CarExtractor::from_path(input_path)
+            .await?
+            .copy_to_writer(output_file)
+            .await
+    }
 }
 
 /// Tests for file extraction.
