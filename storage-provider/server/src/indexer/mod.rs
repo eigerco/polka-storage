@@ -98,7 +98,7 @@ where
             error!(?err, "piece indexing failed with an error");
         }
         Err(err) => {
-            error!(?err, "piece indexing panicked");
+            error!(?err, "failed to join task");
         }
     };
 }
