@@ -62,7 +62,7 @@ where
     ///
     /// Always returns a non-empty vector, if there are no roots the error
     /// `Error::WrongNumberOfRoots` is returned.
-    pub async fn root(&mut self) -> Result<Vec<Cid>, Error> {
+    pub async fn roots(&mut self) -> Result<Vec<Cid>, Error> {
         self.reader.get_inner_mut().rewind().await?;
         self.reader.read_pragma().await?;
         self.reader.read_header().await?;
@@ -163,7 +163,7 @@ where
     where
         W: AsyncWriteExt + Unpin,
     {
-        let root = self.root().await?[0];
+        let root = self.roots().await?[0];
         self.copy_tree(&root, &mut writer).await
     }
 }
@@ -217,7 +217,7 @@ mod test {
         assert_eq!(out_car_buffer.len(), 1519);
 
         let mut loader = CarExtractor::from_vec(out_car_buffer).await.unwrap();
-        let root = loader.root().await.unwrap();
+        let root = loader.roots().await.unwrap()[0];
 
         let mut out_check = Cursor::new(vec![1u8; 4096]);
         loader.copy_tree(&root, &mut out_check).await.unwrap();
@@ -236,7 +236,7 @@ mod test {
                 .unwrap();
 
         let mut out_buffer: Vec<u8> = vec![];
-        let root = spaceglenda_wrapped_loader.root().await.unwrap();
+        let root = spaceglenda_wrapped_loader.roots().await.unwrap()[0];
         spaceglenda_wrapped_loader
             .copy_tree(&root, &mut out_buffer)
             .await
