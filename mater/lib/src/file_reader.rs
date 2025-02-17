@@ -27,7 +27,7 @@ where
 }
 
 impl CarExtractor<File> {
-    /// Creates a [`FileLoader`] from the given file path.
+    /// Creates a [`CarExtractor`] from the given file path.
     pub async fn from_path<P>(path: P) -> Result<Self, Error>
     where
         P: AsRef<Path>,
