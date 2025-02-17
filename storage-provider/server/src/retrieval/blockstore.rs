@@ -130,8 +130,7 @@ mod tests {
 
     use blockstore::Blockstore;
     use cid::{multihash::Multihash, Cid};
-    use futures::{pin_mut, StreamExt};
-    use mater::{stream_blocks_metadata, IDENTITY_CODE, RAW_CODE};
+    use mater::{CarV2Reader, IDENTITY_CODE, RAW_CODE};
     use primitives::commitment::{CommP, Commitment};
     use tempfile::{tempdir, TempDir};
     use tokio::{fs::File, io::BufReader};
@@ -195,12 +194,24 @@ mod tests {
         // Check if blocks are provided by the blockstore
         let file = File::open(piece_path).await.unwrap();
         let reader = BufReader::new(file);
-        let blocks = stream_blocks_metadata(reader).await.unwrap();
-        pin_mut!(blocks);
+        let mut reader = CarV2Reader::new(reader);
 
-        while let Some(Ok(block)) = blocks.next().await {
-            let blockstore_block = blockstore.get(&block.cid).await.unwrap().unwrap();
+        reader.read_pragma().await.unwrap();
+        let header = reader.read_header().await.unwrap();
+        let _v1_header = reader.read_v1_header().await.unwrap();
+        let data_end = header.data_offset + header.data_size;
+
+        loop {
+            let metadata = reader.read_block_metadata().await.unwrap();
+            let position = metadata.data_offset_source + metadata.data_size;
+
+            let blockstore_block = blockstore.get(&metadata.cid).await.unwrap().unwrap();
             assert!(!blockstore_block.is_empty());
+
+            // This is the last block
+            if position >= data_end {
+                break;
+            }
         }
     }
 }

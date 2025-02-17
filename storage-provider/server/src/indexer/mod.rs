@@ -1,8 +1,7 @@
-use std::{path::Path, sync::Arc};
+use std::{fmt::Debug, path::Path, sync::Arc};
 
-use futures::{pin_mut, StreamExt};
 use local_index_directory::{IndexRecord, OffsetSize, Service};
-use mater::stream_blocks_metadata;
+use mater::CarV2Reader;
 use polka_storage_provider_common::sector::ProvenSector;
 use primitives::commitment::{CommP, Commitment};
 use tokio::{fs::File, io::BufReader, sync::mpsc::UnboundedReceiver, task::spawn_blocking};
@@ -75,12 +74,12 @@ where
 async fn index_piece<D, P>(db: Arc<D>, commitment: Commitment<CommP>, piece_path: P)
 where
     D: Service + Send + Sync + 'static,
-    P: AsRef<Path>,
+    P: AsRef<Path> + Debug,
 {
-    let records = match piece_indexes(piece_path).await {
+    let records = match piece_indexes(&piece_path).await {
         Ok(records) => records,
         Err(err) => {
-            error!(?err, "piece indexing failed with an error");
+            error!(?piece_path, ?err, "piece indexing failed with an error");
             return;
         }
     };
@@ -111,12 +110,17 @@ where
 {
     let file = File::open(location).await?;
     let reader = BufReader::new(file);
-    let blocks = stream_blocks_metadata(reader).await?;
-    pin_mut!(blocks);
+    let mut reader = CarV2Reader::new(reader);
+
+    reader.read_pragma().await?;
+    let header = reader.read_header().await?;
+    let _v1_header = reader.read_v1_header().await?;
+    let data_end = header.data_offset + header.data_size;
 
     let mut records = vec![];
-    while let Some(metadata) = blocks.next().await {
-        let metadata = metadata?;
+    loop {
+        let metadata = reader.read_block_metadata().await?;
+        let position = metadata.data_offset_source + metadata.data_size;
 
         records.push(IndexRecord {
             cid: metadata.cid,
@@ -125,6 +129,11 @@ where
                 size: metadata.data_size,
             },
         });
+
+        // This is the last block
+        if position >= data_end {
+            break;
+        }
     }
 
     Ok(records)
@@ -133,12 +142,12 @@ where
 #[cfg(test)]
 pub mod tests {
     use std::{
+        fmt::Debug,
         path::{Path, PathBuf},
         sync::Arc,
     };
 
-    use futures::{pin_mut, StreamExt};
-    use mater::stream_blocks_metadata;
+    use mater::CarV2Reader;
     use primitives::commitment::{CommP, Commitment};
     use tempfile::tempdir;
     use tokio::{fs::File, io::BufReader};
@@ -147,7 +156,7 @@ pub mod tests {
         index_piece,
         local_index_directory::{
             rdb::{RocksDBLid, RocksDBStateStoreConfig},
-            Service,
+            IndexRecord, OffsetSize, Service,
         },
     };
 
@@ -157,7 +166,7 @@ pub mod tests {
         piece_path: P,
     ) where
         D: Service + Send + Sync + 'static,
-        P: AsRef<Path>,
+        P: AsRef<Path> + Debug,
     {
         index_piece(db, commitment, piece_path).await
     }
@@ -188,20 +197,43 @@ pub mod tests {
         // Check indexed blocks
         let file = File::open(piece_path).await.unwrap();
         let reader = BufReader::new(file);
-        let blocks = stream_blocks_metadata(reader).await.unwrap();
-        pin_mut!(blocks);
+        let mut reader = CarV2Reader::new(reader);
 
-        while let Some(Ok(data)) = blocks.next().await {
+        reader.read_pragma().await.unwrap();
+        let header = reader.read_header().await.unwrap();
+        let _v1_header = reader.read_v1_header().await.unwrap();
+        let data_end = header.data_offset + header.data_size;
+
+        let mut records = vec![];
+        loop {
+            let metadata = reader.read_block_metadata().await.unwrap();
+            let position = metadata.data_offset_source + metadata.data_size;
+
             // Check if piece exists for the block
-            let indexed_pieces = db.pieces_containing_multihash(*data.cid.hash()).unwrap();
+            let indexed_pieces = db
+                .pieces_containing_multihash(*metadata.cid.hash())
+                .unwrap();
             assert_eq!(indexed_pieces, vec![dummy_commitment.cid()]);
 
             // Check the indexed offset size for the block
             let indexed_offset = db
-                .get_offset_size(dummy_commitment.cid(), *data.cid.hash())
+                .get_offset_size(dummy_commitment.cid(), *metadata.cid.hash())
                 .unwrap();
-            assert_eq!(indexed_offset.offset, data.data_offset_source);
-            assert_eq!(indexed_offset.size, data.data_size);
+            assert_eq!(indexed_offset.offset, metadata.data_offset_source);
+            assert_eq!(indexed_offset.size, metadata.data_size);
+
+            records.push(IndexRecord {
+                cid: metadata.cid,
+                offset_size: OffsetSize {
+                    offset: metadata.data_offset_source,
+                    size: metadata.data_size,
+                },
+            });
+
+            // This is the last block
+            if position >= data_end {
+                break;
+            }
         }
     }
 }
