@@ -17,7 +17,7 @@ mater.workspace = true
 clap = { workspace = true, features = ["derive"] }
 futures = { workspace = true }
 thiserror.workspace = true
-tokio = { workspace = true, features = ["fs", "macros", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["fs", "io-std", "macros", "rt-multi-thread"] }
 
 [dev-dependencies]
 anyhow.workspace = true

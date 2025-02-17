@@ -52,9 +52,18 @@ async fn main() -> Result<(), Error> {
             overwrite,
         } => {
             let output_path = output_path.unwrap_or_else(|| {
-                let mut new_path = input_path.clone();
-                new_path.set_extension("car");
-                new_path
+                // If we let the output become `-.car` it isn't only weird
+                // terminals are annoying with it
+                if input_path.as_os_str() == "-" {
+                    let file_name = "stdin.car";
+                    let mut path = PathBuf::with_capacity(file_name.len());
+                    path.set_file_name(file_name);
+                    path
+                } else {
+                    let mut new_path = input_path.clone();
+                    new_path.set_extension("car");
+                    new_path
+                }
             });
             let cid = convert_file_to_car(&input_path, &output_path, overwrite).await?;
 
@@ -74,9 +83,18 @@ async fn main() -> Result<(), Error> {
             overwrite,
         } => {
             let output_path = output_path.unwrap_or_else(|| {
-                let mut new_path = input_path.clone();
-                new_path.set_extension("");
-                new_path
+                // If we let the output become `-.car` it isn't only weird
+                // terminals are annoying with it
+                if input_path.as_os_str() == "-" {
+                    let file_name = "stdin.car";
+                    let mut path = PathBuf::with_capacity(file_name.len());
+                    path.set_file_name(file_name);
+                    path
+                } else {
+                    let mut new_path = input_path.clone();
+                    new_path.set_extension("car");
+                    new_path
+                }
             });
             extract_file_from_car(&input_path, &output_path, overwrite).await?;
 

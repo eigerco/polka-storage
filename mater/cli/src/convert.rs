@@ -9,15 +9,18 @@ pub(crate) async fn convert_file_to_car(
     output_path: &PathBuf,
     overwrite: bool,
 ) -> Result<Cid, Error> {
-    let source_file = File::open(input_path).await?;
     let output_file = if overwrite {
         File::create(output_path).await
     } else {
         File::create_new(output_path).await
     }?;
-    let cid = create_filestore(source_file, output_file, Config::default()).await?;
 
-    Ok(cid)
+    if input_path.as_os_str() == "-" {
+        create_filestore(tokio::io::stdin(), output_file, Config::default()).await
+    } else {
+        let source_file = File::open(input_path).await?;
+        create_filestore(source_file, output_file, Config::default()).await
+    }
 }
 
 /// Tests for file conversion.
