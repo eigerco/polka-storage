@@ -13,31 +13,35 @@ use rand_xorshift::XorShiftRng;
 use sp_core::bounded_vec;
 use sp_runtime::BoundedVec;
 
-use crate::{mock::*, tests::TEST_SEED, Error, PoRepVerifyingKey};
+use crate::{mock::*, tests::TEST_SEED, Error, PoRepVerifyingKeys};
 
 #[test]
 fn sets_porep_verifying_key() {
     new_test_ext().execute_with(|| {
-        assert_eq!(None, PoRepVerifyingKey::<Test>::get());
+        let proof = RegisteredSealProof::StackedDRG2KiBV1P1;
+        assert_eq!(None, PoRepVerifyingKeys::<Test>::get(proof));
         let vk = default_porep_verifyingkey();
 
         assert_ok!(ProofsModule::set_porep_verifying_key(
             RuntimeOrigin::signed(1),
+            proof,
             vk.clone()
         ));
         let scale_vk: VerifyingKey<Bls12> = Decode::decode(&mut vk.as_slice()).unwrap();
-        assert_eq!(Some(scale_vk), PoRepVerifyingKey::<Test>::get());
+        assert_eq!(Some(scale_vk), PoRepVerifyingKeys::<Test>::get(proof));
     });
 }
 
 #[test]
 fn verification_invalid_verifyingkey() {
     new_test_ext().execute_with(|| {
+        let proof = RegisteredSealProof::StackedDRG2KiBV1P1;
         let mut rng = XorShiftRng::from_seed(TEST_SEED);
         let vkey = Encode::encode(&VerifyingKey::<Bls12>::random(&mut rng));
 
         assert_ok!(ProofsModule::set_porep_verifying_key(
             RuntimeOrigin::signed(1),
+            proof,
             vkey
         ));
 
@@ -72,9 +76,11 @@ fn porep_verification_succeeds() {
         let comm_d = default_porep_comm_d();
         let proof_bytes = default_porep_proof();
         let vkey_bytes = default_porep_verifyingkey();
+        let proof = RegisteredSealProof::StackedDRG2KiBV1P1;
 
         assert_ok!(ProofsModule::set_porep_verifying_key(
             RuntimeOrigin::signed(1),
+            proof,
             vkey_bytes
         ));
         assert_ok!(<ProofsModule as ProofVerification>::verify_porep(

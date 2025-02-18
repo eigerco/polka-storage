@@ -44,8 +44,8 @@ wait
 # Each of the keys is different, because the processes are running in parallel.
 # If they were running in parallel on the same account, they'd conflict with each other on the transaction nonce.
 RUST_LOG=debug target/release/storagext-cli --sr25519-key "//Charlie" storage-provider register --post-proof "8MiB" "$P2P_SP_PEER_ID" &
-RUST_LOG=debug target/release/storagext-cli --sr25519-key "//Alice" proofs set-porep-verifying-key @8MiB.porep.vk.scale &
-RUST_LOG=debug target/release/storagext-cli --sr25519-key "//Bob" proofs set-post-verifying-key @8MiB.post.vk.scale &
+RUST_LOG=debug target/release/storagext-cli --sr25519-key "//Alice" proofs set-porep-verifying-key --registered-proof 8MiB @8MiB.porep.vk.scale &
+RUST_LOG=debug target/release/storagext-cli --sr25519-key "//Bob" proofs set-post-verifying-key --registered-proof 8MiB @8MiB.post.vk.scale &
 wait
 
 echo "seal_proof = '8MiB'

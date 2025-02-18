@@ -1,4 +1,4 @@
-use codec::{Decode, Encode};
+use codec::{Decode, Encode, MaxEncodedLen};
 use scale_decode::DecodeAsType;
 use scale_encode::EncodeAsType;
 use scale_info::TypeInfo;
@@ -40,7 +40,18 @@ pub struct PublicReplicaInfo {
 
 #[allow(non_camel_case_types)]
 #[derive(
-    Debug, Decode, Encode, DecodeAsType, EncodeAsType, TypeInfo, Eq, PartialEq, Clone, Copy,
+    Debug,
+    Decode,
+    Encode,
+    DecodeAsType,
+    EncodeAsType,
+    TypeInfo,
+    Eq,
+    PartialEq,
+    Clone,
+    Copy,
+    Hash,
+    MaxEncodedLen,
 )]
 #[cfg_attr(feature = "clap", derive(::clap::ValueEnum))]
 #[cfg_attr(feature = "serde", derive(::serde::Deserialize, ::serde::Serialize))]
@@ -148,7 +159,18 @@ impl RegisteredSealProof {
 
 /// Proof of Spacetime type, indicating version and sector size of the proof.
 #[derive(
-    Debug, Decode, Encode, DecodeAsType, EncodeAsType, TypeInfo, PartialEq, Eq, Clone, Copy,
+    Debug,
+    Decode,
+    Encode,
+    DecodeAsType,
+    EncodeAsType,
+    TypeInfo,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    Hash,
+    MaxEncodedLen,
 )]
 #[cfg_attr(feature = "clap", derive(::clap::ValueEnum))]
 #[cfg_attr(feature = "serde", derive(::serde::Deserialize, ::serde::Serialize))]

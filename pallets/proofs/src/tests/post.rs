@@ -14,20 +14,22 @@ use sp_core::bounded_vec;
 use sp_runtime::{BoundedBTreeMap, BoundedVec};
 use sp_std::collections::btree_map::BTreeMap;
 
-use crate::{mock::*, tests::TEST_SEED, Error, PoRepVerifyingKey, PoStVerifyingKey};
+use crate::{mock::*, tests::TEST_SEED, Error, PoStVerifyingKeys};
 
 #[test]
 fn sets_post_verifying_key() {
     new_test_ext().execute_with(|| {
-        assert_eq!(None, PoRepVerifyingKey::<Test>::get());
+        let proof = RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
+        assert_eq!(None, PoStVerifyingKeys::<Test>::get(proof));
         let vk = default_post_verifyingkey();
 
         assert_ok!(ProofsModule::set_post_verifying_key(
             RuntimeOrigin::signed(1),
+            proof,
             vk.clone()
         ));
         let scale_vk: VerifyingKey<Bls12> = Decode::decode(&mut vk.as_slice()).unwrap();
-        assert_eq!(Some(scale_vk), PoStVerifyingKey::<Test>::get());
+        assert_eq!(Some(scale_vk), PoStVerifyingKeys::<Test>::get(proof));
     });
 }
 
@@ -38,6 +40,7 @@ fn post_verification_succeeds() {
 
         assert_ok!(ProofsModule::set_post_verifying_key(
             RuntimeOrigin::signed(1),
+            RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
             vkey_bytes
         ));
 
@@ -59,6 +62,7 @@ fn post_verification_fails() {
 
         assert_ok!(ProofsModule::set_post_verifying_key(
             RuntimeOrigin::signed(1),
+            RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
             vkey
         ));
 

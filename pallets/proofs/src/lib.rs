@@ -53,29 +53,27 @@ pub mod pallet {
     #[pallet::pallet]
     pub struct Pallet<T>(_);
 
-    /// Verifying Key for verifying all of the PoRep proofs generated for 2KiB sectors.
-    /// One per runtime.
-    ///
-    /// It should be set via some kind of trusted setup procedure.
-    /// /// Test key can be generated via `polka-storage-provider-client utils porep-params`.
-    /// To support more sector sizes for proofs, this data structure would need to be a Map from Sector Size to a Verifying Key.
+    /// [`VerifyingKey`]s for Proofs of Replication.
     #[pallet::storage]
-    pub type PoRepVerifyingKey<T: Config> = StorageValue<_, VerifyingKey<Bls12>, OptionQuery>;
+    pub type PoRepVerifyingKeys<T: Config> =
+        StorageMap<_, Blake2_128Concat, RegisteredSealProof, VerifyingKey<Bls12>>;
 
-    /// Verifying Key for verifying all of the PoSt proofs generated for 2KiB sectors.
-    /// One per runtime.
-    ///
-    /// It should be set via some kind of trusted setup procedure.
-    /// Test key can be generated via `polka-storage-provider-client utils post-params`.
-    /// To support more sector sizes for proofs, this data structure would need to be a Map from Sector Size to a Verifying Key.
+    /// [`VerifyingKey`]s for Proofs of Spacetime.
     #[pallet::storage]
-    pub type PoStVerifyingKey<T: Config> = StorageValue<_, VerifyingKey<Bls12>, OptionQuery>;
+    pub type PoStVerifyingKeys<T: Config> =
+        StorageMap<_, Blake2_128Concat, RegisteredPoStProof, VerifyingKey<Bls12>>;
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        PoRepVerifyingKeyChanged { who: T::AccountId },
-        PoStVerifyingKeyChanged { who: T::AccountId },
+        PoRepVerifyingKeyChanged {
+            who: T::AccountId,
+            proof: RegisteredSealProof,
+        },
+        PoStVerifyingKeyChanged {
+            who: T::AccountId,
+            proof: RegisteredPoStProof,
+        },
     }
 
     #[pallet::error]
@@ -95,6 +93,7 @@ pub mod pallet {
         #[pallet::weight((T::WeightInfo::set_porep_verifying_key(), DispatchClass::Operational))]
         pub fn set_porep_verifying_key(
             origin: OriginFor<T>,
+            registered_seal_proof: RegisteredSealProof,
             verifying_key: crate::Vec<u8>,
         ) -> DispatchResult {
             let caller = ensure_signed(origin)?;
@@ -104,10 +103,11 @@ pub mod pallet {
                     Error::<T>::Conversion
                 })?;
 
-            PoRepVerifyingKey::<T>::set(Some(vkey));
-
-            Self::deposit_event(Event::PoRepVerifyingKeyChanged { who: caller });
-
+            PoRepVerifyingKeys::<T>::insert(registered_seal_proof, vkey);
+            Self::deposit_event(Event::PoRepVerifyingKeyChanged {
+                who: caller,
+                proof: registered_seal_proof,
+            });
             Ok(())
         }
 
@@ -115,6 +115,7 @@ pub mod pallet {
         #[pallet::weight((T::WeightInfo::set_post_verifying_key(), DispatchClass::Operational))]
         pub fn set_post_verifying_key(
             origin: OriginFor<T>,
+            registered_post_proof: RegisteredPoStProof,
             verifying_key: crate::Vec<u8>,
         ) -> DispatchResult {
             let caller = ensure_signed(origin)?;
@@ -124,10 +125,11 @@ pub mod pallet {
                     Error::<T>::Conversion
                 })?;
 
-            PoStVerifyingKey::<T>::set(Some(vkey));
-
-            Self::deposit_event(Event::PoStVerifyingKeyChanged { who: caller });
-
+            PoStVerifyingKeys::<T>::insert(registered_post_proof, vkey);
+            Self::deposit_event(Event::PoStVerifyingKeyChanged {
+                who: caller,
+                proof: registered_post_proof,
+            });
             Ok(())
         }
     }
@@ -166,7 +168,8 @@ pub mod pallet {
             }
             let proof_scheme = porep::ProofScheme::setup(seal_proof);
 
-            let vkey = PoRepVerifyingKey::<T>::get().ok_or(Error::<T>::MissingPoRepVerifyingKey)?;
+            let vkey = PoRepVerifyingKeys::<T>::get(seal_proof)
+                .ok_or(Error::<T>::MissingPoRepVerifyingKey)?;
             log::info!(target: LOG_TARGET, "Verifying PoRep proof for sector: {}...", sector);
             proof_scheme
                 .verify(
@@ -220,7 +223,8 @@ pub mod pallet {
 
             let proof_scheme = post::ProofScheme::setup(post_type);
 
-            let vkey = PoStVerifyingKey::<T>::get().ok_or(Error::<T>::MissingPoStVerifyingKey)?;
+            let vkey = PoStVerifyingKeys::<T>::get(post_type)
+                .ok_or(Error::<T>::MissingPoStVerifyingKey)?;
             proof_scheme
                 .verify(randomness, replicas.clone(), vkey, parsed_proofs)
                 .map_err(|e| {

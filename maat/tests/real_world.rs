@@ -5,7 +5,10 @@ use libp2p::PeerId;
 use maat::*;
 use polka_storage_proofs::{porep, post};
 use polka_storage_provider_common::{commp::commp, deadline::Deadline, sector::UnsealedSector};
-use primitives::{proofs::RegisteredPoStProof, sector::SectorNumber};
+use primitives::{
+    proofs::{RegisteredPoStProof, RegisteredSealProof},
+    sector::SectorNumber,
+};
 use storagext::{
     clients::ProofsClientExt,
     multipair::MultiPairSigner,
@@ -92,12 +95,13 @@ where
 async fn set_porep_verifying_key<Keypair>(
     client: &storagext::Client,
     charlie: &Keypair,
+    seal_proof: RegisteredSealProof,
     vk: VerifyingKey,
 ) where
     Keypair: subxt::tx::Signer<PolkaStorageConfig>,
 {
     let result = client
-        .set_porep_verifying_key(charlie, vk, true)
+        .set_porep_verifying_key(charlie, seal_proof, vk, true)
         .await
         .unwrap()
         .unwrap();
@@ -114,12 +118,13 @@ async fn set_porep_verifying_key<Keypair>(
 async fn set_post_verifying_key<Keypair>(
     client: &storagext::Client,
     charlie: &Keypair,
+    post_proof: RegisteredPoStProof,
     vk: VerifyingKey,
 ) where
     Keypair: subxt::tx::Signer<PolkaStorageConfig>,
 {
     let result = client
-        .set_post_verifying_key(charlie, vk, true)
+        .set_post_verifying_key(charlie, post_proof, vk, true)
         .await
         .unwrap()
         .unwrap();
@@ -336,6 +341,7 @@ async fn real_world_use_case() {
     set_porep_verifying_key(
         &client,
         &charlie_kp,
+        seal_proof,
         VerifyingKey::from_raw_bytes(porep_vk_scale),
     )
     .await;
@@ -348,6 +354,7 @@ async fn real_world_use_case() {
     set_post_verifying_key(
         &client,
         &charlie_kp,
+        post_proof,
         VerifyingKey::from_raw_bytes(post_vk_scale),
     )
     .await;

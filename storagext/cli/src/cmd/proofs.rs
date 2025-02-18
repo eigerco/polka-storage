@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use clap::Subcommand;
+use primitives::proofs::{RegisteredPoStProof, RegisteredSealProof};
 use storagext::{
     clients::ProofsClientExt, multipair::MultiPairSigner, runtime::SubmissionResult,
     types::proofs::VerifyingKey, PolkaStorageConfig,
@@ -17,12 +18,18 @@ pub(crate) enum ProofsCommand {
         /// Verifying key. Either hex encoded as string or, if prepended with @, a path to a file containing the key's raw bytes.
         #[arg(value_parser = VerifyingKey::value_parser)]
         verifying_key: VerifyingKey,
+        /// The verifying key's proof kind.
+        #[arg(short, long, default_value = "2KiB")]
+        registered_proof: RegisteredSealProof,
     },
     /// Set PoRep verifying key
     SetPostVerifyingKey {
         /// Verifying key. Either hex encoded as string or, if prepended with @, a path to a file containing the key's raw bytes.
         #[arg(value_parser = VerifyingKey::value_parser)]
         verifying_key: VerifyingKey,
+        /// The verifying key's proof kind.
+        #[arg(short, long, default_value = "2KiB")]
+        registered_proof: RegisteredPoStProof,
     },
 }
 
@@ -46,7 +53,10 @@ impl ProofsCommand {
             // NOTE: subcommand_negates_reqs does not work for this since it only negates the parents'
             // requirements, and the global arguments (keys) are at the grandparent level
             // https://users.rust-lang.org/t/clap-ignore-global-argument-in-sub-command/101701/8
-            ProofsCommand::SetPorepVerifyingKey { verifying_key } => {
+            ProofsCommand::SetPorepVerifyingKey {
+                registered_proof,
+                verifying_key,
+            } => {
                 let Some(account_keypair) = account_keypair else {
                     return Err(missing_keypair_error::<Self>().into());
                 };
@@ -54,12 +64,16 @@ impl ProofsCommand {
                 Self::set_porep_verifying_key(
                     client,
                     account_keypair,
+                    registered_proof,
                     verifying_key,
                     wait_for_finalization,
                 )
                 .await?
             }
-            ProofsCommand::SetPostVerifyingKey { verifying_key } => {
+            ProofsCommand::SetPostVerifyingKey {
+                registered_proof,
+                verifying_key,
+            } => {
                 let Some(account_keypair) = account_keypair else {
                     return Err(missing_keypair_error::<Self>().into());
                 };
@@ -67,6 +81,7 @@ impl ProofsCommand {
                 Self::set_post_verifying_key(
                     client,
                     account_keypair,
+                    registered_proof,
                     verifying_key,
                     wait_for_finalization,
                 )
@@ -107,6 +122,7 @@ impl ProofsCommand {
     async fn set_porep_verifying_key<Client>(
         client: Client,
         account_keypair: MultiPairSigner,
+        registered_proof: RegisteredSealProof,
         verifying_key: VerifyingKey,
         wait_for_finalization: bool,
     ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
@@ -114,7 +130,12 @@ impl ProofsCommand {
         Client: ProofsClientExt,
     {
         let submission_result = client
-            .set_porep_verifying_key(&account_keypair, verifying_key, wait_for_finalization)
+            .set_porep_verifying_key(
+                &account_keypair,
+                registered_proof,
+                verifying_key,
+                wait_for_finalization,
+            )
             .await?
             .inspect(|result| {
                 tracing::debug!("[{}] PoRep Key successfully set", result.hash);
@@ -126,6 +147,7 @@ impl ProofsCommand {
     async fn set_post_verifying_key<Client>(
         client: Client,
         account_keypair: MultiPairSigner,
+        registered_proof: RegisteredPoStProof,
         verifying_key: VerifyingKey,
         wait_for_finalization: bool,
     ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
@@ -133,7 +155,12 @@ impl ProofsCommand {
         Client: ProofsClientExt,
     {
         let submission_result = client
-            .set_post_verifying_key(&account_keypair, verifying_key, wait_for_finalization)
+            .set_post_verifying_key(
+                &account_keypair,
+                registered_proof,
+                verifying_key,
+                wait_for_finalization,
+            )
             .await?
             .inspect(|result| {
                 tracing::debug!("[{}] PoSt Key successfully set", result.hash);
