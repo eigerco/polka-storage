@@ -63,8 +63,7 @@ pub async fn add_piece(
         );
 
         // Schedule a new precommit to be executed immediately
-        let when = Duration::from_secs(0);
-        schedule_pre_commit(state.clone(), tracker, sector_number, when).await;
+        schedule_pre_commit(state.clone(), tracker, sector_number, Duration::ZERO).await;
         return Ok(());
     }
     tracing::debug!(
