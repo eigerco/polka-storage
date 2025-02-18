@@ -11,6 +11,7 @@ use crate::Pallet as ProofsPallet;
     where T: crate::Config
 )]
 mod benchmarks {
+    use primitives::proofs::{RegisteredPoStProof, RegisteredSealProof};
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
 
@@ -33,9 +34,13 @@ mod benchmarks {
             .unwrap();
 
         #[extrinsic_call]
-        _(RawOrigin::Signed(whitelisted_caller()), vkey_bytes);
+        _(
+            RawOrigin::Signed(whitelisted_caller()),
+            RegisteredSealProof::StackedDRG2KiBV1P1,
+            vkey_bytes,
+        );
 
-        assert!(PoRepVerifyingKey::<T>::get().is_some());
+        assert!(PoRepVerifyingKeys::<T>::get(&RegisteredSealProof::StackedDRG2KiBV1P1).is_some());
     }
 
     #[benchmark]
@@ -48,9 +53,15 @@ mod benchmarks {
             .unwrap();
 
         #[extrinsic_call]
-        _(RawOrigin::Signed(whitelisted_caller()), vkey_bytes);
+        _(
+            RawOrigin::Signed(whitelisted_caller()),
+            RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+            vkey_bytes,
+        );
 
-        assert!(PoStVerifyingKey::<T>::get().is_some());
+        assert!(
+            PoStVerifyingKeys::<T>::get(&RegisteredPoStProof::StackedDRGWindow2KiBV1P1).is_some()
+        );
     }
 
     impl_benchmark_test_suite! {

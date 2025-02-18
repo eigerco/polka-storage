@@ -143,7 +143,7 @@ impl<E> VerifyingKey<E>
 where
     E: Engine<G1Affine = G1Affine, G2Affine = G2Affine>,
 {
-    /// Serialises the `VerifiyingKey` into a byte stream and writes it to the given buffer.
+    /// Serialises the `VerifyingKey` into a byte stream and writes it to the given buffer.
     pub fn into_bytes(&self, buf: &mut [u8]) -> Result<(), IntoBytesError> {
         if buf.len() < self.serialised_bytes() {
             return Err(IntoBytesError::InsufficientBufferLength);
