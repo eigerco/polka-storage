@@ -1,7 +1,6 @@
 use std::{
     collections::{HashMap, VecDeque},
     io::Cursor,
-    ops::Deref,
     path::Path,
 };
 
@@ -23,7 +22,7 @@ where
     R: AsyncRead + AsyncSeek + Unpin,
 {
     reader: v2::Reader<R>,
-    index: HashMap<Cid, PartialNode>,
+    index: HashMap<Cid, BlockMetadata>,
 }
 
 impl CarExtractor<File> {
@@ -95,8 +94,7 @@ where
             }
 
             let block_metadata = self.reader.read_block_metadata().await?;
-            self.index
-                .insert(block_metadata.cid, block_metadata.try_into()?);
+            self.index.insert(block_metadata.cid, block_metadata);
         }
 
         Ok(())
@@ -108,33 +106,37 @@ where
         cid: &'a Cid,
     ) -> impl Stream<Item = Result<(Cid, Vec<u8>), Error>> + 'a {
         try_stream! {
-            let partial_node = self.index.get(&cid).ok_or_else(|| Error::MissingCid(*cid))?;
+            let block_metadata = self.index.get(&cid).ok_or_else(|| Error::MissingCid(*cid))?;
             let mut queue = VecDeque::new();
-            queue.push_back(partial_node);
+            queue.push_back(block_metadata);
 
-            while let Some(partial_node) = queue.pop_front() {
-                match partial_node {
-                    PartialNode::Leaf(metadata) => {
+            while let Some(block_metadata) = queue.pop_front() {
+                match block_metadata.cid.codec() {
+                    multicodec::RAW_CODE => {
                         self.reader
                             .get_inner_mut()
-                            .seek(std::io::SeekFrom::Start(metadata.block_offset))
+                            .seek(std::io::SeekFrom::Start(block_metadata.block_offset))
                             .await?;
                         let block = self.reader.read_block().await?;
                         yield block;
                     }
-                    PartialNode::Stem(metadata) => {
+                    multicodec::DAG_PB_CODE => {
                         self.reader
                             .get_inner_mut()
-                            .seek(std::io::SeekFrom::Start(metadata.block_offset))
+                            .seek(std::io::SeekFrom::Start(block_metadata.block_offset))
                             .await?;
                         let (_, block) = self.reader.read_block().await?;
 
                         let pb_node: PbNode = DagPbCodec::decode_from_slice(block.as_slice())?;
                         for link in pb_node.links {
-                            let partial_node = self.index.get(&link.cid).ok_or_else(|| Error::MissingCid(link.cid))?;
-                            queue.push_back(partial_node);
+                            let block_metadata = self.index.get(&link.cid).ok_or_else(|| Error::MissingCid(link.cid))?;
+                            queue.push_back(block_metadata);
                         }
                     }
+                    unknown_codec => {
+                        // return doesn't work here
+                        Err(Error::UnknownCidCodec(unknown_codec))?;
+                    },
                 }
             }
         }
@@ -165,35 +167,6 @@ where
     {
         let root = self.roots().await?[0];
         self.copy_tree(&root, &mut writer).await
-    }
-}
-
-/// Partial "re-implementation" of [`unixfs::TreeNode`].
-enum PartialNode {
-    Leaf(BlockMetadata),
-    Stem(BlockMetadata),
-}
-
-impl Deref for PartialNode {
-    type Target = BlockMetadata;
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            PartialNode::Leaf(b) => b,
-            PartialNode::Stem(b) => b,
-        }
-    }
-}
-
-impl TryFrom<BlockMetadata> for PartialNode {
-    type Error = Error;
-
-    fn try_from(value: BlockMetadata) -> Result<Self, Self::Error> {
-        match value.cid.codec() {
-            multicodec::RAW_CODE => Ok(Self::Leaf(value)),
-            multicodec::DAG_PB_CODE => Ok(Self::Stem(value)),
-            unknown_codec => Err(Error::UnknownCidCodec(unknown_codec)),
-        }
     }
 }
 
