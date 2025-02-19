@@ -172,7 +172,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use std::io::Cursor;
+    use std::{io::Cursor, path::Path};
 
     use crate::{Blockstore, CarExtractor};
 
@@ -198,23 +198,56 @@ mod test {
         assert_eq!(raw_input, out_check.into_inner());
     }
 
-    #[tokio::test]
-    async fn read_wrapped() {
-        let spaceglenda_original = tokio::fs::read("tests/fixtures/original/spaceglenda.jpg")
-            .await
-            .unwrap();
-        let mut spaceglenda_wrapped_loader =
-            CarExtractor::from_path("tests/fixtures/car_v2/spaceglenda_wrapped.car")
-                .await
-                .unwrap();
+    async fn load_and_compare<P1, P2>(original: P1, path: P2)
+    where
+        P1: AsRef<Path>,
+        P2: AsRef<Path>,
+    {
+        let original = tokio::fs::read(original).await.unwrap();
+        let mut car = CarExtractor::from_path(path).await.unwrap();
 
         let mut out_buffer: Vec<u8> = vec![];
-        let root = spaceglenda_wrapped_loader.roots().await.unwrap()[0];
-        spaceglenda_wrapped_loader
-            .copy_tree(&root, &mut out_buffer)
+        let root = car.roots().await.unwrap()[0];
+        car.copy_tree(&root, &mut out_buffer).await.unwrap();
+
+        crate::test_utils::assert_buffer_eq!(original, &out_buffer);
+    }
+
+    #[tokio::test]
+    async fn read_empty() {
+        let mut car = CarExtractor::from_path("tests/fixtures/car_v2/empty.car")
             .await
             .unwrap();
+        let mut out_buffer: Vec<u8> = vec![];
+        let root = car.roots().await.unwrap()[0];
+        car.copy_tree(&root, &mut out_buffer).await.unwrap();
+        assert!(out_buffer.is_empty());
+    }
 
-        crate::test_utils::assert_buffer_eq!(spaceglenda_original, &out_buffer);
+    #[tokio::test]
+    async fn read_lorem() {
+        load_and_compare(
+            "tests/fixtures/original/lorem.txt",
+            "tests/fixtures/car_v2/lorem.car",
+        )
+        .await
+    }
+
+    #[tokio::test]
+    async fn read_spaceglenda() {
+        load_and_compare(
+            "tests/fixtures/original/spaceglenda.jpg",
+            "tests/fixtures/car_v2/spaceglenda.car",
+        )
+        .await
+    }
+
+    #[tokio::test]
+    async fn read_spaceglenda_wrapped() {
+        load_and_compare(
+            "tests/fixtures/original/spaceglenda.jpg",
+            "tests/fixtures/car_v2/spaceglenda_wrapped.car",
+        )
+        .await
     }
 }
