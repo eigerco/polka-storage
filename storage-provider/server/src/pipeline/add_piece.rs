@@ -61,7 +61,10 @@ pub async fn add_piece(
             fill_percentage,
             fill_threshold,
         );
-        return state.send_pre_commit(sector_number);
+
+        // Schedule a new precommit to be executed immediately
+        schedule_pre_commit(state.clone(), tracker, sector_number, Duration::ZERO).await;
+        return Ok(());
     }
     tracing::debug!(
         %sector_number,
@@ -76,6 +79,7 @@ pub async fn add_piece(
         state.server_info.sealing_configuration.wait_deals_delay,
         duration_to_deal_start,
     );
+
     // We always try to schedule a new pre-commit
     schedule_pre_commit(state.clone(), tracker, sector_number, when).await;
 
