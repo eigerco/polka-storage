@@ -1,0 +1,32 @@
+{
+  "files.trimTrailingWhitespace": true,
+  "rust-analyzer.rustfmt.extraArgs": [
+    "+nightly"
+  ],
+  "rust-analyzer.check.workspace": false,
+  "coverage-gutters.coverageBaseDir": "coverage",
+  "coverage-gutters.coverageFileNames": [
+    "pallet-storage-provider/lcov.info",
+    "pallet-market/lcov.info",
+    "mater/lcov.info"
+  ],
+  // Use a separate target directory for rust-analyzer
+  "rust-analyzer.cargo.targetDir": true,
+  // Rust-analyzer doesn't need to build the wasm binary
+  "rust-analyzer.cargo.extraEnv": {
+    "SKIP_WASM_BUILD": "true"
+  }
+  // Recommended when developing benchmarks
+  /*
+  "rust-analyzer.cargo.features": [
+    "runtime-benchmarks"
+  ],
+  "rust-analyzer.procMacro.ignored": {
+    "frame_benchmarking": {
+      "v2::benchmarks": true,
+      "benchmarks": true,
+      "benchmark": true
+    }
+  },
+  */
+}

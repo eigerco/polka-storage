@@ -5,7 +5,7 @@
 .idea
 .vscode/*
 # For team-wide VS Code configuration, like code-coverage extensions and previews
-!.vscode/settings.json
+!.vscode/settings.default.json
 # Recommended extensions for VS Code
 !.vscode/extensions.json
 
