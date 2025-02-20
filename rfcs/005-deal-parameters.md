@@ -35,13 +35,12 @@ Suggested values should be added to documentation so that storage providers can 
 ```json
 {
     "8MiB": {
-        "price_per_block": {
-            // Price is in the smallest unit (plancks)
-            "minimum": 1_000_000,
-            "maximum": null,
-        },
+        // Price is in blocks, in the smallest unit (plancks)
+        // Parsing can be added to support DOT units
+        "minimum_price": 1_000_000,
+        // Duration is in blocks
+        // Parsing can be added support hours, day, etc.
         "duration": {
-            // Duration is in block
             "minimum": 5_000,
             "maximum": 5_000_000,
         }
@@ -67,16 +66,14 @@ The deal parameters will be stored in a `StorageMap` where the `AccountId` is th
 <summary><b>Deal Parameter Types</b></summary>
 
 ```rust
-struct Bound<T> {
-    lower: Option<T>,
-    upper: Option<T>,
+struct DealDurationBound<BlockNumber> {
+    lower: Option<BlockNumber>,
+    upper: Option<BlockNumber>,
 }
 
-type DealDurationBounds = Bound<BlockNumber>
-
-struct DealParameters<Balance> {
+struct DealParameters<Balance, BlockNumber> {
     minimum_price: Balance,
-    duration: DealDurationBound,
+    duration: DealDurationBound<BlockNumber>,
 }
 
 #[pallet::storage]
@@ -85,7 +82,7 @@ pub type DealParametersTable<T: Config> =
         _, 
         _, 
         T::AccountId, 
-        StorageMap<_, _ SectorSize, DealParameters<BalanceOf<T>>>
+        StorageMap<_, _ SectorSize, DealParameters<BalanceOf<T>, BlockNumberFor<T>>>
     >
 ```
 
