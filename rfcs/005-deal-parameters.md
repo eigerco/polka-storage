@@ -25,7 +25,8 @@ The deal parameters are not shared during registration because we do not want to
 A new extrinsic will be added to the storage provider pallet in the polka-storage chain to allow storage providers to advertise their deal parameters on-chain.
 Storage clients will be able to query deal parameters of all storage providers so they can find the best deal for them.
 Deal parameters could have endless options, a good starting point is for storage providers to set a lower and upper bound for storage price per block and the duration of a deal.
-These parameters can be expanded to include things such as collateral bounds and different price bounds depending on the size of the deal.
+These parameters can be expanded to include things such as collateral bounds and different price bounds depending on the size or duration of the deal.
+Suggested values should be added to documentation so that storage providers can use them as a reference to start, encouraging storage providers to use this feature.
 
 <details open>
 
@@ -33,29 +34,31 @@ These parameters can be expanded to include things such as collateral bounds and
 
 ```json
 {
-    "price_per_block": {
-        // Price is in the smallest unit (plancks)
-        "minimum": 1_000_000,
-        "maximum": null,
-    },
-    "duration": {
-        // Duration is in block
-        "minimum": 5_000,
-        "maximum": 5_000_000,
+    "8MiB": {
+        "price_per_block": {
+            // Price is in the smallest unit (plancks)
+            "minimum": 1_000_000,
+            "maximum": null,
+        },
+        "duration": {
+            // Duration is in block
+            "minimum": 5_000,
+            "maximum": 5_000_000,
+        }
     }
 }
 ```
 
 </details>
 
-## Pallet Changes
+## Market Pallet
 
-### Storage Provider Pallet
+### Publishing Deal Parameters
 
-The storage provider pallet will need some changes to support deal parameters for automatic deal making.
-We do not want to force storage providers to set deal parameters so we need a new extrinsic to register deal parameters for a storage provider, `register_deal_parameters(origin: OriginFor<T>, deal_parameters: DealParameters<BalanceOf<T>, BlockNumberFor<T>>)`.
+The market provider pallet will need some changes to support deal parameters for automatic deal making.
+We do not want to force storage providers to set deal parameters so we need a new extrinsic to published deal parameters for a storage provider, `publish_deal_parameters(origin: OriginFor<T>, deal_parameters: DealParameters<BalanceOf<T>, BlockNumberFor<T>>)`.
 This extrinsic will be used for initial registration and to override any existing parameters that are already set.
-This will be a signed extrinsic that takes in the deal parameters and registers these parameters with the storage provider calling the extrinsic.
+This will be a signed extrinsic that takes in the deal parameters and published these parameters with the storage provider calling the extrinsic.
 
 The deal parameters will be stored in a `StorageMap` where the `AccountId` is the key and the `DealParameters` is the value.
 
@@ -64,53 +67,31 @@ The deal parameters will be stored in a `StorageMap` where the `AccountId` is th
 <summary><b>Deal Parameter Types</b></summary>
 
 ```rust
-struct DealPriceBound<Balance> {
-    lower: Balance,
-    upper: Option<Balance>,
+struct Bound<T> {
+    lower: Option<T>,
+    upper: Option<T>,
 }
 
-struct DealDurationBound<BlockNumber> {
-    lower: BlockNumber,
-    upper: Option<BlockNumber>,
-}
+type DealPriceBounds = Bound<Balance>;
+type DealDurationBounds = Bound<BlockNumber>
 
-struct DealParameters<Balance, BlockNumber> {
-    price: DealPriceBound<Balance>,
-    duration: DealDurationBound<BlockNumber>,
+struct DealParameters {
+    price: DealPriceBound,
+    duration: DealDurationBound,
 }
 
 #[pallet::storage]
 pub type DealParametersTable<T: Config> =
-    StorageMap<_, _, T::AccountId, DealParameters<BalanceOf<T>, BlockNumberFor<T>>>;
+    StorageMap<_, _, T::AccountId, DealParameters>
 ```
 
 </details>
 
-### Market Pallet
+### Deal Parameter Validation
 
 Deal parameters add additional validation to deals to check if the deals fall within the bounds of what the storage provider wants.
 Currently, deals are validated in the market pallet.
 This will not change when adding deal parameters, the checks will be extended to include the deal parameters.
-
-Since the storage provider pallet holds all the information about the deal parameters the simplest way to do this check would be to extend the `StorageProviderValidation` trait used by the market pallet to include a deal parameter check.
-
-<details open>
-
-<summary><b>StorageProviderValidation trait</b></summary>
-
-```rust
-pub trait StorageProviderValidation<AccountId, Balance, BlockNumber, OffchainSignature> {
-    ..
-
-    /// Checks that the proposed deal is within the bounds set by the storage provider
-    fn validate_deal_parameters(
-        storage_provider: &,
-        deal: ClientDealProposal<AccountId, Balance, BlockNumber, OffchainSignature>
-    ) -> bool;
-}
-```
-
-</details>
 
 ## Storage Provider
 
@@ -118,10 +99,9 @@ The storage provider server and client will need some changes to accommodate sup
 
 The storage provider client will mostly stay the same, only adding an interface to retrieve deal parameters.
 
-The storage provider server will check the proposed deal parameters to see if the values fall within what they accept and process deals in the same way.
-New config values will need to be added to the server so that the storage provider can supply the deal parameters.
-These values should align with what is registered on-chain.
-This means that whenever the storage provider server is (re)started, it should check that the given deal parameters align with what is stored on-chain and update the values if this is not the case.
+The storage provider server will check the proposed deal parameters, by getting them from the chain, to see if the values fall within what they accept and process deals in the same way.
+To update the deal parameters during runtime a privileged RPC endpoint will be added.
+Ideally, there would be a control interface for the storage provider to change these values.
 
 <details open>
 
