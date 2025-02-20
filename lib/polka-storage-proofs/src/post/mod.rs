@@ -188,14 +188,23 @@ pub fn generate_window_post<S: MerkleTreeTrait + 'static>(
 /// * <https://github.com/filecoin-project/rust-filecoin-proofs-api/blob/b44e7cecf2a120aa266b6886628e869ba67252af/src/registry.rs#L644>
 fn seal_to_config(seal_proof: RegisteredPoStProof) -> filecoin_proofs::PoStConfig {
     match seal_proof {
-        // https://github.com/filecoin-project/rust-fil-proofs/blob/266acc39a3ebd6f3d28c6ee335d78e2b7cea06bc/filecoin-proofs/src/constants.rs#L104
         RegisteredPoStProof::StackedDRGWindow2KiBV1P1
         | RegisteredPoStProof::StackedDRGWindow8MiBV1
         | RegisteredPoStProof::StackedDRGWindow512MiBV1
-        | RegisteredPoStProof::StackedDRGWindow1GiBV1 => filecoin_proofs::PoStConfig {
+        =>  filecoin_proofs::PoStConfig {
             sector_size: filecoin_proofs::SectorSize(seal_proof.sector_size().bytes()),
             challenge_count: filecoin_proofs::WINDOW_POST_CHALLENGE_COUNT,
+            // https://github.com/filecoin-project/rust-fil-proofs/blob/266acc39a3ebd6f3d28c6ee335d78e2b7cea06bc/filecoin-proofs/src/constants.rs#L104
             sector_count: 2,
+            typ: PoStType::Window,
+            priority: true,
+            api_version: storage_proofs_core::api_version::ApiVersion::V1_2_0,
+        },
+        RegisteredPoStProof::StackedDRGWindow1GiBV1 => filecoin_proofs::PoStConfig {
+            sector_size: filecoin_proofs::SectorSize(seal_proof.sector_size().bytes()),
+            challenge_count: filecoin_proofs::WINDOW_POST_CHALLENGE_COUNT,
+            // https://github.com/filecoin-project/rust-fil-proofs/blob/266acc39a3ebd6f3d28c6ee335d78e2b7cea06bc/filecoin-proofs/src/constants.rs#L104
+            sector_count: 100,
             typ: PoStType::Window,
             priority: true,
             api_version: storage_proofs_core::api_version::ApiVersion::V1_2_0,
