@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   check-files:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     outputs:
       skip: ${{ steps.check-files.outputs.skip }}
     steps:
@@ -43,7 +43,7 @@ jobs:
           fi
 
   docs:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - name: Setup mdBook
