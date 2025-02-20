@@ -1,13 +1,9 @@
-// NOTE(@jmg-duarte,28/05/2024): the blockstore can (and should) evolve to support other backends.
-// At the time of writing, there is no need invest more time in it because the current PR(#25) is delayed enough.
-
 use std::{
     collections::{BTreeMap, HashMap},
     io::Cursor,
 };
 
 use futures::stream::StreamExt;
-use integer_encoding::VarInt;
 use ipld_core::cid::Cid;
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite};
 
@@ -18,6 +14,7 @@ use crate::{
     v2, BlockMetadata, Error, Index, IndexEntry, IndexSorted, SingleWidthIndex,
 };
 
+/// CAR file writer.
 pub struct Blockwriter<W> {
     writer: v2::Writer<W>,
     index: HashMap<Cid, BlockMetadata>,
@@ -26,6 +23,7 @@ pub struct Blockwriter<W> {
 }
 
 impl<W> Blockwriter<W> {
+    /// Creates a new [`Blockwriter`] with the given `writer`.
     pub fn new(writer: W) -> Self {
         Self {
             writer: v2::Writer::new(writer),
@@ -35,22 +33,21 @@ impl<W> Blockwriter<W> {
         }
     }
 
+    /// Creates a new [`v1::Header`].
     fn header_v1(&self) -> v1::Header {
+        // Lack of partial moves make this clone "required"
         v1::Header::new(self.roots.clone())
     }
 
+    /// Creates a new [`v2::Header`].
     fn header_v2(&self, v1_header: &v1::Header) -> v2::Header {
-        let v1_header_encoded_len = v1_header.encoded_len();
-        let v1_header_varint = v1_header_encoded_len.required_space();
-        let v1_header_total_len = (v1_header_varint + v1_header_encoded_len) as u64;
-
         let total_block_encoded_len = self
             .index
             .values()
             .map(BlockMetadata::encoded_len)
             .sum::<u64>();
 
-        let v1_payload_len = v1_header_total_len + total_block_encoded_len;
+        let v1_payload_len = v1_header.encoded_len() as u64 + total_block_encoded_len;
 
         v2::Header::new(
             false,
@@ -62,6 +59,7 @@ impl<W> Blockwriter<W> {
 }
 
 impl Blockwriter<Cursor<Vec<u8>>> {
+    /// Creates an in-memory [`Blockwriter`].
     pub fn in_memory() -> Self {
         Self {
             writer: v2::Writer::new(Cursor::new(vec![])),
@@ -76,6 +74,7 @@ impl<W> Blockwriter<W>
 where
     W: AsyncWrite + AsyncSeek + Unpin,
 {
+    /// Writes the contents from `source`, adding a new root to [`Blockwriter`].
     pub async fn write_from<S>(&mut self, source: S) -> Result<(), Error>
     where
         S: AsyncRead + Unpin,
@@ -124,6 +123,7 @@ where
         Ok(())
     }
 
+    /// Writes the final header as well as the indexes, flushes the inner writer and returns it.
     pub async fn finish(mut self) -> Result<W, Error> {
         self.writer.get_inner_mut().rewind().await?;
 
@@ -138,6 +138,7 @@ where
             .seek(std::io::SeekFrom::Start(v2_header.index_offset))
             .await?;
 
+        // Abstracting away the index writing is not that simple because we have extra bookkeeping
         let mut multihash_index: BTreeMap<u64, BTreeMap<usize, Vec<IndexEntry>>> = BTreeMap::new();
         for (cid, metadata) in self.index {
             let entry = IndexEntry::new(

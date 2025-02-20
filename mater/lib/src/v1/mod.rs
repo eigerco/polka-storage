@@ -102,7 +102,9 @@ impl Header {
     /// Is this cheating? Yes. The alternative is to encode the CARv1 header twice.
     /// We can cache it, but for now, this should be better.
     pub fn encoded_len(&self) -> usize {
-        Self::cbor_static_overhead() + Self::cbor_cid_encoded_len() * self.roots.len()
+        let header_encoded_len =
+            Self::cbor_static_overhead() + Self::cbor_cid_encoded_len() * self.roots.len();
+        header_encoded_len.required_space() + header_encoded_len
     }
 }
 
