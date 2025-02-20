@@ -81,7 +81,7 @@ impl Header {
     }
 
     /// Returns the encoded length of the header, including the VarInt size prefix.
-    /// The size of the [`Header`] when encoded using [`DagCborCodec`].
+    /// The size of the [`Header`] when encoded using [`DagCborCodec`](serde_ipld_dagcbor::codec::DagCborCodec).
     ///
     /// The formula is: `overhead + 41 * roots.len()`.
     /// It is based on reversing the CBOR encoding, see an example:

@@ -17,12 +17,24 @@ use crate::{multicodec, v1::BlockMetadata, v2, Error};
 
 /// Extracts the raw data from a CARv2 file.
 /// It expects the CAR file to have only 1 root.
-pub struct CarExtractor<R>
-where
-    R: AsyncRead + AsyncSeek + Unpin,
-{
+pub struct CarExtractor<R> {
     reader: v2::Reader<R>,
     index: HashMap<Cid, BlockMetadata>,
+}
+
+impl<R> CarExtractor<R> {
+    /// Creates a new [`CarExtractor`] from the given reader.
+    pub async fn new(reader: R) -> Result<Self, Error>
+    where
+        R: AsyncRead + AsyncSeek + Unpin,
+    {
+        let mut self_ = Self {
+            reader: v2::Reader::new(reader),
+            index: HashMap::with_capacity(1),
+        };
+        self_.naive_build_index().await?;
+        Ok(self_)
+    }
 }
 
 impl CarExtractor<File> {
@@ -31,25 +43,14 @@ impl CarExtractor<File> {
     where
         P: AsRef<Path>,
     {
-        let file = File::open(path).await?;
-        let mut loader = Self {
-            reader: v2::Reader::new(file),
-            index: HashMap::new(),
-        };
-        loader.naive_build_index().await?;
-        Ok(loader)
+        Self::new(File::open(path).await?).await
     }
 }
 
 impl CarExtractor<Cursor<Vec<u8>>> {
     /// Creates a [`CarExtractor`] from a vector of bytes.
     pub async fn from_vec(vec: Vec<u8>) -> Result<Self, Error> {
-        let mut loader = Self {
-            reader: v2::Reader::new(Cursor::new(vec)),
-            index: HashMap::new(),
-        };
-        loader.naive_build_index().await?;
-        Ok(loader)
+        Self::new(Cursor::new(vec)).await
     }
 }
 
@@ -170,11 +171,227 @@ where
     }
 }
 
+#[cfg(feature = "blockstore")]
+pub(crate) mod blockstore {
+    use std::{any::type_name, ops::Deref, path::Path};
+
+    use blockstore::Blockstore;
+    use futures::TryFutureExt;
+    use ipld_core::cid::Cid;
+    use tokio::{
+        fs::File,
+        io::{AsyncRead, AsyncSeek, AsyncSeekExt},
+        sync::RwLock,
+    };
+
+    use crate::{stores::to_blockstore_cid, CarExtractor, CidExt, Error};
+
+    // Methods in here are marked as unused in the "main" `impl` because they're only used here.
+    impl<R> CarExtractor<R>
+    where
+        R: AsyncRead + AsyncSeek + Unpin,
+    {
+        fn has(&self, cid: &Cid) -> bool {
+            if cid.get_identity_data().is_some() {
+                return true;
+            }
+            // Since we're using the naive index, if the Cid isn't in the index, there is no Cid inside
+            self.index.contains_key(cid)
+        }
+
+        async fn get(&mut self, cid: &Cid) -> Result<Option<Vec<u8>>, Error> {
+            if let Some(identity_data) = cid.get_identity_data() {
+                return Ok(Some(identity_data.to_vec()));
+            }
+
+            match self.index.get(&cid) {
+                Some(metadata) => {
+                    // We could seek directly to the data and not read the Cid, but this is "canonical"
+                    self.reader
+                        .get_inner_mut()
+                        .seek(std::io::SeekFrom::Start(metadata.block_offset))
+                        .await?;
+                    let (_, block) = self.reader.read_block().await?;
+                    Ok(Some(block))
+                }
+                None => Ok(None),
+            }
+        }
+    }
+
+    /// A read-only [`blockstore::Blockstore`] implementation of [`CarExtractor`].
+    pub struct ReadOnlyBlockstore<R> {
+        inner: RwLock<CarExtractor<R>>,
+    }
+
+    impl<R> ReadOnlyBlockstore<R>
+    where
+        R: AsyncRead + AsyncSeek + Unpin + blockstore::cond_send::CondSync,
+    {
+        /// Create a new [`CarReadOnlyBlockstore`] from the given reader.
+        pub async fn new(reader: R) -> Result<Self, Error> {
+            Ok(Self {
+                inner: RwLock::new(CarExtractor::new(reader).await?),
+            })
+        }
+    }
+
+    impl ReadOnlyBlockstore<File> {
+        /// Create a new [`CarReadOnlyBlockstore<tokio::io::File>`](CarReadOnlyBlockstore) from the given path.
+        pub async fn from_path<P>(path: P) -> Result<Self, Error>
+        where
+            P: AsRef<Path>,
+        {
+            Self::new(File::open(path).await?).await
+        }
+    }
+
+    impl<R> Deref for ReadOnlyBlockstore<R> {
+        type Target = RwLock<CarExtractor<R>>;
+
+        fn deref(&self) -> &Self::Target {
+            &self.inner
+        }
+    }
+
+    impl<R> Blockstore for ReadOnlyBlockstore<R>
+    where
+        R: AsyncRead + AsyncSeek + Unpin + Send + Sync,
+    {
+        async fn get<const S: usize>(
+            &self,
+            cid: &ipld_core::cid::CidGeneric<S>,
+        ) -> blockstore::Result<Option<Vec<u8>>> {
+            let cid = to_blockstore_cid(cid)?;
+            self.inner
+                .write()
+                .await
+                .get(&cid)
+                .map_err(|err| blockstore::Error::FatalDatabaseError(err.to_string()))
+                .await
+        }
+
+        async fn has<const S: usize>(
+            &self,
+            cid: &ipld_core::cid::CidGeneric<S>,
+        ) -> blockstore::Result<bool> {
+            let cid = to_blockstore_cid(cid)?;
+            Ok(self.inner.read().await.has(&cid))
+        }
+
+        async fn put_keyed<const S: usize>(
+            &self,
+            _: &ipld_core::cid::CidGeneric<S>,
+            _: &[u8],
+        ) -> blockstore::Result<()> {
+            Err(blockstore::Error::FatalDatabaseError(format!(
+                "{} is read-only",
+                type_name::<Self>()
+            )))
+        }
+
+        async fn remove<const S: usize>(
+            &self,
+            _: &ipld_core::cid::CidGeneric<S>,
+        ) -> blockstore::Result<()> {
+            Err(blockstore::Error::FatalDatabaseError(format!(
+                "{} is read-only",
+                type_name::<Self>()
+            )))
+        }
+
+        async fn close(self) -> blockstore::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[cfg(test)]
+    mod test {
+        use std::{str::FromStr, sync::Arc};
+
+        use ipld_core::cid::{multihash::Multihash, Cid};
+        use sha2::Sha256;
+        use tokio::fs::File;
+
+        use super::*;
+        use crate::{
+            multicodec::generate_multihash, test_utils::assert_buffer_eq, IDENTITY_CODE, RAW_CODE,
+        };
+
+        type FileBlockstore = ReadOnlyBlockstore<File>;
+
+        #[tokio::test]
+        async fn test_identity_cid() {
+            let blockstore = FileBlockstore::from_path("tests/fixtures/car_v2/spaceglenda.car")
+                .await
+                .unwrap();
+
+            let payload = b"Hello World!";
+            let multihash = Multihash::wrap(IDENTITY_CODE, payload).unwrap();
+            let identity_cid = Cid::new_v1(RAW_CODE, multihash);
+
+            let has_block = blockstore.has(&identity_cid).await.unwrap();
+            assert!(has_block);
+
+            let content = blockstore.get(&identity_cid).await.unwrap().unwrap();
+            assert_buffer_eq!(&payload, &content);
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
+        async fn test_parallel_readers() {
+            let blockstore = FileBlockstore::from_path("tests/fixtures/car_v2/spaceglenda.car")
+                .await
+                .unwrap();
+            let blockstore = Arc::new(blockstore);
+
+            // CIDs of the content blocks that the spaceglenda.car contains. We are
+            // only looking at the raw content so that our validation is easier later.
+            let cids = vec![
+                Cid::from_str("bafkreic6kcrue6ms42ykrisq6or24pbrubnyouvmgvk7ft73fjd4ynslxi")
+                    .unwrap(),
+                Cid::from_str("bafkreicvuc5rwwjqzix7saaia55du44qqsnphdugvjxlbe446mjmupekl4")
+                    .unwrap(),
+                Cid::from_str("bafkreiepxrkqexuff4vhc4vp6co73ubbp2vmskbwwazaihln6wws2z4wly")
+                    .unwrap(),
+            ];
+
+            // Request many blocks
+            let handles = (0..100)
+                .into_iter()
+                .map(|i| {
+                    let requested = cids[i % cids.len()];
+                    tokio::spawn({
+                        let blockstore = Arc::clone(&blockstore);
+                        async move {
+                            (
+                                requested,
+                                blockstore.get(&requested).await.unwrap().unwrap(),
+                            )
+                        }
+                    })
+                })
+                .collect::<Vec<_>>();
+
+            // Validate if the blocks received are correct
+            for handle in handles {
+                let (requested_cid, block_bytes) = handle.await.expect("Panic in task");
+
+                // Generate the CID form the bytes. That way we can check if the
+                // block data returned is correct.
+                let multihash = generate_multihash::<Sha256, _>(&block_bytes);
+                let generated_cid = Cid::new_v1(RAW_CODE, multihash);
+
+                assert_eq!(requested_cid, generated_cid);
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::{io::Cursor, path::Path};
 
-    use crate::CarExtractor;
+    use crate::{test_utils::assert_buffer_eq, CarExtractor};
 
     #[tokio::test]
     async fn read_duplicated_blocks() {
@@ -189,7 +406,7 @@ mod test {
         let inner = out_check.into_inner();
         let result = inner.as_slice();
 
-        assert_eq!(expected, result);
+        assert_buffer_eq!(expected, result);
     }
 
     async fn load_and_compare<P1, P2>(original: P1, path: P2)

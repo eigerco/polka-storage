@@ -1,8 +1,5 @@
 //! A library to handle CAR files.
 //! Both version 1 and version 2 are supported.
-//!
-//! You can make use of the lower-level utilities such as [`CarV2Reader`] to read a CARv2 file,
-//! though these utilities were designed to be used in higher-level abstractions, like the [`Blockstore`].
 
 #![warn(unused_crate_dependencies)]
 #![warn(missing_docs)]
@@ -32,6 +29,15 @@ pub use v2::{
     verify_cid, Characteristics, Header as CarV2Header, Index, IndexEntry, IndexSorted,
     MultihashIndexSorted, Reader as CarV2Reader, SingleWidthIndex, Writer as CarV2Writer,
 };
+
+/// [`blockstore`] abstractions over CAR files.
+#[cfg(feature = "blockstore")]
+pub mod blockstore {
+    // Re-export the API so users don't need to add an extra crate in Cargo.toml
+    pub use blockstore::{Blockstore, Error};
+
+    pub use crate::file_reader::blockstore::ReadOnlyBlockstore;
+}
 
 /// CAR handling errors.
 #[derive(Debug, thiserror::Error)]

@@ -267,10 +267,10 @@ impl FileBlockstore {
 
 #[cfg(feature = "blockstore")]
 mod blockstore {
-    use blockstore::{block::CidError, Blockstore, Error};
-    use ipld_core::cid::{Cid, CidGeneric};
+    use blockstore::{Blockstore, Error};
+    use ipld_core::cid::CidGeneric;
 
-    use crate::FileBlockstore;
+    use crate::{stores::to_blockstore_cid, FileBlockstore};
 
     impl Blockstore for FileBlockstore {
         async fn get<const S: usize>(&self, cid: &CidGeneric<S>) -> Result<Option<Vec<u8>>, Error> {
@@ -312,18 +312,6 @@ mod blockstore {
                 .await
                 .map_err(|err| Error::FatalDatabaseError(err.to_string()))
         }
-    }
-
-    /// Convert CID with the generic Multihash size to the CID with the specific
-    /// Multihash size that the underlying blockstore expects.
-    fn to_blockstore_cid<const S: usize>(cid: &CidGeneric<S>) -> Result<Cid, Error> {
-        let digest_size = cid.hash().size() as usize;
-        let hash = cid
-            .hash()
-            .resize::<64>()
-            .map_err(|_| Error::CidError(CidError::InvalidMultihashLength(digest_size)))?;
-
-        Ok(Cid::new(cid.version(), cid.codec(), hash).expect("we know cid is correct here"))
     }
 }
 
