@@ -22,7 +22,7 @@ They can propose a deal within the parameters set by the storage provider and be
 
 Storage providers will be able to set their deal parameters by sharing these parameters after registering as a storage provider on the polka-storage chain.
 The deal parameters are not shared during registration because we do not want to force storage providers to use this feature.
-A new extrinsic will be added to the storage provider pallet in the polka-storage chain to allow storage providers to advertise their deal parameters on-chain.
+A new extrinsic will be added to the market pallet in the polka-storage chain to allow storage providers to advertise their deal parameters on-chain.
 Storage clients will be able to query deal parameters of all storage providers so they can find the best deal for them.
 Deal parameters could have endless options, a good starting point is for storage providers to set a lower and upper bound for storage price per block and the duration of a deal.
 These parameters can be expanded to include things such as collateral bounds and different price bounds depending on the size or duration of the deal.
@@ -72,17 +72,21 @@ struct Bound<T> {
     upper: Option<T>,
 }
 
-type DealPriceBounds = Bound<Balance>;
 type DealDurationBounds = Bound<BlockNumber>
 
-struct DealParameters {
-    price: DealPriceBound,
+struct DealParameters<Balance> {
+    minimum_price: Balance,
     duration: DealDurationBound,
 }
 
 #[pallet::storage]
 pub type DealParametersTable<T: Config> =
-    StorageMap<_, _, T::AccountId, DealParameters>
+    StorageMap<
+        _, 
+        _, 
+        T::AccountId, 
+        StorageMap<_, _ SectorSize, DealParameters<BalanceOf<T>>>
+    >
 ```
 
 </details>
