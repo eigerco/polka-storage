@@ -1,6 +1,7 @@
 mod reader;
 mod writer;
 
+use integer_encoding::VarInt;
 use ipld_core::cid::{multihash::Multihash, Cid};
 use serde::{Deserialize, Serialize};
 
@@ -38,6 +39,71 @@ impl Header {
     pub fn new(roots: Vec<Cid>) -> Self {
         Self { version: 1, roots }
     }
+
+    /// The static components of the CBOR encoded [`Header`].
+    ///
+    /// The following is a CBOR encoded [`Header`] with a single CID:
+    /// ```text
+    /// A2                                      # map(2)
+    ///    65                                   # text(5)
+    ///       726F6F7473                        # "roots"
+    ///    81                                   # array(1)
+    ///       D8 2A                             # tag(42)
+    ///          58 25                          # bytes(37)
+    ///             00015512206D623B17625E25CBDA46D17AC89C26B3DB63544701E2C0592626320DBEFD515B
+    ///    67                                   # text(7)
+    ///       76657273696F6E                    # "version"
+    ///    01                                   # unsigned(1)
+    /// ```
+    ///
+    /// When calculating the CBOR encoded length, the only thing that changes are the amount of
+    /// elements inside the array, as such, the static overhead is everything *but*:
+    /// ```text
+    ///       D8 2A                             # tag(42)
+    ///          58 25                          # bytes(37)
+    ///             00015512206D623B17625E25CBDA46D17AC89C26B3DB63544701E2C0592626320DBEFD515B
+    /// ```
+    const fn cbor_static_overhead() -> usize {
+        1 + // map
+        1 + // text
+        5 + // "roots"
+        1 + // array
+        1 + // text
+        7 + // "version"
+        1 // unsigned(1)
+    }
+
+    /// The length of the CBOR encoded [`Cid`].
+    const fn cbor_cid_encoded_len() -> usize {
+        2 + // tag(42)
+        2 + // bytes
+        37 // <cid>
+    }
+
+    /// Returns the encoded length of the header, including the VarInt size prefix.
+    /// The size of the [`Header`] when encoded using [`DagCborCodec`].
+    ///
+    /// The formula is: `overhead + 41 * roots.len()`.
+    /// It is based on reversing the CBOR encoding, see an example:
+    /// ```text
+    /// A2                                      # map(2)
+    ///    65                                   # text(5)
+    ///       726F6F7473                        # "roots"
+    ///    81                                   # array(1)
+    ///       D8 2A                             # tag(42)
+    ///          58 25                          # bytes(37)
+    ///             00015512206D623B17625E25CBDA46D17AC89C26B3DB63544701E2C0592626320DBEFD515B
+    ///    67                                   # text(7)
+    ///       76657273696F6E                    # "version"
+    ///    01                                   # unsigned(1)
+    /// ```
+    /// In this case we're always doing a single root, so we just use the fixed size: 58
+    ///
+    /// Is this cheating? Yes. The alternative is to encode the CARv1 header twice.
+    /// We can cache it, but for now, this should be better.
+    pub fn encoded_len(&self) -> usize {
+        Self::cbor_static_overhead() + Self::cbor_cid_encoded_len() * self.roots.len()
+    }
 }
 
 impl Default for Header {
@@ -73,6 +139,14 @@ pub struct BlockMetadata {
     pub data_offset_source: u64,
     /// Size of the data section of the block
     pub data_size: u64,
+}
+
+impl BlockMetadata {
+    /// The length of the encoded block, including the VarInt prefix and CID.
+    pub fn encoded_len(&self) -> u64 {
+        let len = self.cid.encoded_len() as u64 + self.data_size;
+        len.required_space() as u64 + len
+    }
 }
 
 #[cfg(test)]

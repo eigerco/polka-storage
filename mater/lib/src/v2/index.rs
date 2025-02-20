@@ -140,7 +140,7 @@ impl TryFrom<Vec<IndexEntry>> for SingleWidthIndex {
 ///
 /// For more details, read the [`Format 0x0400: IndexSorted`](https://ipld.io/specs/transport/car/carv2/#format-0x0400-indexsorted) section in the CARv2 specification.
 #[derive(Debug, PartialEq, Eq)]
-pub struct IndexSorted(Vec<SingleWidthIndex>);
+pub struct IndexSorted(pub Vec<SingleWidthIndex>);
 
 impl Deref for IndexSorted {
     type Target = Vec<SingleWidthIndex>;
