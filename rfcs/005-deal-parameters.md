@@ -54,7 +54,7 @@ Suggested values should be added to documentation so that storage providers can 
 
 ### Publishing Deal Parameters
 
-The market provider pallet will need some changes to support deal parameters for automatic deal making.
+The market pallet will need some changes to support deal parameters for automatic deal making.
 We do not want to force storage providers to set deal parameters so we need a new extrinsic to published deal parameters for a storage provider, `publish_deal_parameters(origin: OriginFor<T>, deal_parameters: DealParameters<BalanceOf<T>, BlockNumberFor<T>>)`.
 This extrinsic will be used for initial registration and to override any existing parameters that are already set.
 This will be a signed extrinsic that takes in the deal parameters and published these parameters with the storage provider calling the extrinsic.
