@@ -82,7 +82,7 @@ pub type DealParametersTable<T: Config> =
         _, 
         _, 
         T::AccountId, 
-        StorageMap<_, _ SectorSize, DealParameters<BalanceOf<T>, BlockNumberFor<T>>>
+        Vec<DealParameters<BalanceOf<T>, BlockNumberFor<T>>
     >
 ```
 
