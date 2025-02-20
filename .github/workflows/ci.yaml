@@ -2,7 +2,13 @@ name: CI
 
 on:
   pull_request:
-    types: [labeled]
+    types:
+    # These are the default types
+    - opened
+    - synchronize
+    - reopened
+    # This additional type is added to trigger on the 'ready for review' label being added
+    - labeled
   push:
     branches: [develop, main]
   workflow_dispatch: # manual launch
@@ -48,7 +54,7 @@ jobs:
         run: mdbook build docs
 
   toml:
-    if: ${{ needs.check-files.outputs.skip == 'false' && ((github.event.label.name == 'ready for review') || (github.ref_name == 'develop') || (github.ref_name == 'master')) }}
+    if: ${{ needs.check-files.outputs.skip == 'false' && (contains(github.event.pull_request.labels.*.name, 'ready for review') || (github.ref_name == 'develop') || (github.ref_name == 'master')) }}
     runs-on: self-hosted
     needs: check-files
     steps:
