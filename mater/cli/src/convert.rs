@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use mater::{create_filestore, Cid, Config, Error};
+use mater::{Blockwriter, Cid, Error};
 use tokio::fs::File;
 
 /// Converts a file at location `input_path` to a CARv2 file at `output_path`
@@ -16,10 +16,10 @@ pub(crate) async fn convert_file_to_car(
     }?;
 
     if input_path.as_os_str() == "-" {
-        create_filestore(tokio::io::stdin(), output_file, Config::default()).await
+        Blockwriter::import(tokio::io::stdin(), output_file).await
     } else {
         let source_file = File::open(input_path).await?;
-        create_filestore(source_file, output_file, Config::default()).await
+        Blockwriter::import(source_file, output_file).await
     }
 }
 
