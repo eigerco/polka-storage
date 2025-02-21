@@ -64,7 +64,7 @@ impl Default for Characteristics {
 pub struct Header {
     /// Describes certain features of the enclosed data.
     pub characteristics: Characteristics,
-    /// Byte-offset from the beginning of the CARv2 pragma to the first byte of the CARv1 data payload.
+    /// Byte-offset from the beginning of the CARv2 pragma to the first byte of the CARv1 payload.
     pub data_offset: u64,
     /// Byte-length of the CARv1 data payload.
     pub data_size: u64,

@@ -5,11 +5,15 @@ use std::{
     sync::OnceLock,
 };
 
-use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
-use mater::{create_filestore, Blockstore, Config};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use mater::{create_filestore, Blockwriter, Config};
 use rand::{prelude::SliceRandom, rngs::ThreadRng, Rng};
 use tempfile::{tempdir, TempDir};
-use tokio::{fs::File, runtime::Runtime as TokioExecutor};
+use tokio::{
+    fs::File,
+    io::{AsyncSeek, AsyncWrite},
+    runtime::Runtime as TokioExecutor,
+};
 
 static FILES: OnceLock<Vec<(Params, PathBuf, TempDir)>> = OnceLock::new();
 fn get_source_files() -> &'static Vec<(Params, PathBuf, TempDir)> {
@@ -131,53 +135,25 @@ fn generate_content(params: &Params) -> Vec<u8> {
     bytes
 }
 
-/// Read content to a Blockstore. This function is benchmarked.
-async fn read_content_benched(content: &[u8], mut store: Blockstore) {
+/// Read/Write content to a Blockstore. This function is benchmarked.
+async fn read_write_content_benched<W>(content: &[u8], mut store: Blockwriter<W>)
+where
+    W: AsyncWrite + AsyncSeek + Unpin,
+{
     let cursor = Cursor::new(content);
-    store.read(cursor).await.unwrap()
+    store.write_from(cursor).await.unwrap();
+    store.finish().await.unwrap();
 }
 
-fn read(c: &mut Criterion) {
+fn read_write(c: &mut Criterion) {
     let files = get_source_files();
 
     for (params, source_file, _) in files {
         let content = std::fs::read(&source_file).unwrap();
 
         c.bench_with_input(BenchmarkId::new("read", params), params, |b, _params| {
-            b.to_async(TokioExecutor::new().unwrap()).iter(|| {
-                read_content_benched(
-                    &content,
-                    Blockstore::with_parameters(Some(BLOCK_SIZE), None),
-                )
-            });
-        });
-    }
-}
-
-/// Write content from a Blockstore. This function is benchmarked.
-async fn write_contents_benched(buffer: Vec<u8>, store: Blockstore) {
-    store.write(buffer).await.unwrap();
-}
-
-fn write(c: &mut Criterion) {
-    let runtime = TokioExecutor::new().unwrap();
-    let files = get_source_files();
-
-    for (params, source_file, _) in files {
-        let mut blockstore = Blockstore::with_parameters(Some(BLOCK_SIZE), None);
-
-        // Read file contents to the blockstore
-        runtime.block_on(async {
-            let file = File::open(&source_file).await.unwrap();
-            blockstore.read(file).await.unwrap()
-        });
-
-        c.bench_with_input(BenchmarkId::new("write", params), &(), |b, _: &()| {
-            b.to_async(TokioExecutor::new().unwrap()).iter_batched(
-                || (blockstore.clone(), Vec::with_capacity(params.size)),
-                |(blockstore, buffer)| write_contents_benched(buffer, blockstore),
-                BatchSize::SmallInput,
-            );
+            b.to_async(TokioExecutor::new().unwrap())
+                .iter(|| read_write_content_benched(&content, Blockwriter::in_memory()));
         });
     }
 }
@@ -216,7 +192,6 @@ fn filestore(c: &mut Criterion) {
     }
 }
 
-criterion_group!(bench_reading, read);
-criterion_group!(bench_writing, write);
+criterion_group!(bench_reading, read_write);
 criterion_group!(bench_filestore, filestore);
-criterion_main!(bench_reading, bench_writing, bench_filestore);
+criterion_main!(bench_reading, bench_filestore);

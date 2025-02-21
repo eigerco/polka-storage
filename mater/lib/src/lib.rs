@@ -12,6 +12,7 @@
 #![cfg_attr(not(test), deny(clippy::unwrap_used))]
 
 mod async_varint;
+mod chunker;
 mod cid;
 mod file_reader;
 mod multicodec;
@@ -25,7 +26,7 @@ pub use cid::{CidExt, MultihashExt};
 pub use file_reader::CarExtractor;
 pub use ipld_core::cid::Cid;
 pub use multicodec::{DAG_PB_CODE, IDENTITY_CODE, RAW_CODE};
-pub use stores::{create_filestore, Blockstore, Config, FileBlockstore};
+pub use stores::{create_filestore, Blockwriter, Config, FileBlockstore};
 pub use v1::{BlockMetadata, Header as CarV1Header, Reader as CarV1Reader, Writer as CarV1Writer};
 pub use v2::{
     verify_cid, Characteristics, Header as CarV2Header, Index, IndexEntry, IndexSorted,

@@ -100,16 +100,16 @@ where
 mod tests {
     use std::{collections::BTreeMap, io::Cursor};
 
+    use futures::StreamExt;
     use ipld_core::cid::Cid;
     use sha2::Sha256;
     use tokio::{
         fs::File,
         io::{AsyncSeekExt, BufWriter},
     };
-    use tokio_stream::StreamExt;
-    use tokio_util::io::ReaderStream;
 
     use crate::{
+        chunker::byte_stream_chunker,
         multicodec::{generate_multihash, MultihashCode, RAW_CODE},
         test_utils::assert_buffer_eq,
         unixfs::stream_balanced_tree,
@@ -244,11 +244,11 @@ mod tests {
             .await
             .unwrap();
         // https://github.com/ipfs/boxo/blob/f4fe8997dcbeb39b3a4842d8f08b34739bfd84a4/chunker/parse.go#L13
-        let file_chunker = ReaderStream::with_capacity(file, 1024 * 256);
+        let file_chunker = byte_stream_chunker(file, 1024 * 256);
         let nodes = stream_balanced_tree(file_chunker, 11)
-            .collect::<Result<Vec<_>, _>>()
-            .await
-            .unwrap();
+            .map(|res| res.unwrap())
+            .collect::<Vec<_>>()
+            .await;
 
         // To simplify testing, the values were extracted using `car inspect`
         writer

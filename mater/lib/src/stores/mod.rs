@@ -2,7 +2,7 @@ mod blockstore;
 mod file;
 mod filestore;
 
-pub use blockstore::Blockstore;
+pub use blockstore::Blockwriter;
 pub use file::FileBlockstore;
 pub use filestore::create_filestore;
 

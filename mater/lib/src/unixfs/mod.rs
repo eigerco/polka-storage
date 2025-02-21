@@ -7,12 +7,11 @@ use std::collections::VecDeque;
 
 use async_stream::try_stream;
 use bytes::Bytes;
-use futures::TryStreamExt;
+use futures::{Stream, StreamExt, TryStreamExt};
 use ipld_core::{cid::Cid, codec::Codec};
 use ipld_dagpb::{DagPbCodec, PbLink, PbNode};
 use quick_protobuf::MessageWrite;
 use sha2::Sha256;
-use tokio_stream::{Stream, StreamExt};
 
 use crate::{
     multicodec::{generate_multihash, DAG_PB_CODE, RAW_CODE},
@@ -338,8 +337,6 @@ mod tests {
     //! In certain places, I made them check for byte equality as its way simpler
     //! and there's enough tests around the repo to ensure that if the underlying
     //! bytes are equal, the expected block sizes are as well.
-    //!
-    //! We also didn't write our own chunker, relying on [`tokio_util::io::ReadStream`] instead.
     //!
     //! [beetle]: https://github.com/n0-computer/beetle/blob/3e137cb2bc18e1d458c3f72d5e817b03d9537d5d/iroh-unixfs/src/balanced_tree.rs#L234-L507
 

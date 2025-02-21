@@ -174,24 +174,18 @@ where
 mod test {
     use std::{io::Cursor, path::Path};
 
-    use crate::{Blockstore, CarExtractor};
+    use crate::CarExtractor;
 
-    /// Ensures that duplicated blocks
     #[tokio::test]
     async fn read_duplicated_blocks() {
-        let raw_input = std::iter::repeat(0).take(4096).collect::<Vec<u8>>();
+        let raw_input = tokio::fs::read("tests/fixtures/original/zero")
+            .await
+            .unwrap();
 
-        let mut bs = Blockstore::with_parameters(Some(1024), None);
-        bs.read(Cursor::new(raw_input.clone())).await.unwrap();
-
-        // 1519 is the expected CAR file size after deduplicating and writing the CAR file
-        let mut out_car_buffer = Vec::with_capacity(1519);
-        bs.write(&mut out_car_buffer).await.unwrap();
-        assert_eq!(out_car_buffer.len(), 1519);
-
-        let mut loader = CarExtractor::from_vec(out_car_buffer).await.unwrap();
+        let mut loader = CarExtractor::from_path("tests/fixtures/car_v2/zero.car")
+            .await
+            .unwrap();
         let root = loader.roots().await.unwrap()[0];
-
         let mut out_check = Cursor::new(vec![1u8; 4096]);
         loader.copy_tree(&root, &mut out_check).await.unwrap();
 

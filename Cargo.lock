@@ -9190,8 +9190,6 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.8",
  "tokio",
- "tokio-stream",
- "tokio-util",
 ]
 
 [[package]]
