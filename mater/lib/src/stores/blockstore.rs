@@ -224,11 +224,14 @@ mod tests {
 
     #[tokio::test]
     async fn dedup() {
-        let reference = Cursor::new(vec![0u8; 524288]);
+        let input = Cursor::new(vec![0u8; 524288]);
         let mut store = Blockwriter::in_memory();
-        store.write_from(reference).await.unwrap();
+        store.write_from(input).await.unwrap();
         let output = store.finish().await.unwrap().into_inner();
 
+        let reference = tokio::fs::read("tests/fixtures/car_v2/zero.car")
+            .await
+            .unwrap();
         assert_buffer_eq!(&output, &reference);
     }
 }
