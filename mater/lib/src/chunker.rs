@@ -41,7 +41,7 @@ where
                     // the buffer may contain more than `chunk_size`,
                     // in that case we must yield the remaning complete chunks first
                     let chunk = match buf.len() {
-                        len if len <= 0 => break,
+                        0 => break,
                         len if len <= chunk_size => buf.split(),
                         _ => buf.split_to(chunk_size),
                     };
