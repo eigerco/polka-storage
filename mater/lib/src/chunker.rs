@@ -36,8 +36,15 @@ where
             // the reader returned 0 and break at a certain point
             if source.read_buf(&mut buf).await? == 0 {
                 // EOF but there's still content to yield -> yield it
-                if buf.len() > 0 {
-                    let chunk = buf.split();
+                loop {
+                    // Due to the lack of guarantees on the resulting size of `BytesMut::reserve`
+                    // the buffer may contain more than `chunk_size`,
+                    // in that case we must yield the remaning complete chunks first
+                    let chunk = match buf.len() {
+                        len if len <= 0 => break,
+                        len if len <= chunk_size => buf.split(),
+                        _ => buf.split_to(chunk_size),
+                    };
                     yield chunk.freeze();
                 }
                 break

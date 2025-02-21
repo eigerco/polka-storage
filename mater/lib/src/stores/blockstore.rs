@@ -183,7 +183,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
+    use std::{io::Cursor, path::Path};
 
     use tokio::fs::File;
 
@@ -200,8 +200,6 @@ mod tests {
         let mut store = Blockwriter::in_memory();
         store.write_from(file).await.unwrap();
         let output = store.finish().await.unwrap().into_inner();
-
-        tokio::fs::write("/tmp/zero.car", &output).await.unwrap();
 
         assert_buffer_eq!(&output, &reference);
     }
@@ -226,10 +224,11 @@ mod tests {
 
     #[tokio::test]
     async fn dedup() {
-        byte_eq(
-            "tests/fixtures/original/zero",
-            "tests/fixtures/car_v2/zero.car",
-        )
-        .await;
+        let reference = Cursor::new(vec![0u8; 524288]);
+        let mut store = Blockwriter::in_memory();
+        store.write_from(reference).await.unwrap();
+        let output = store.finish().await.unwrap().into_inner();
+
+        assert_buffer_eq!(&output, &reference);
     }
 }
