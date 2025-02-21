@@ -17,6 +17,11 @@ impl<W> Writer<W> {
     pub fn new(writer: W) -> Self {
         Self { writer }
     }
+
+    /// Get a mutable reference to the inner writer.
+    pub fn get_inner_mut(&mut self) -> &mut W {
+        &mut self.writer
+    }
 }
 
 impl<W> Writer<W>
@@ -68,11 +73,6 @@ where
     pub async fn finish(mut self) -> Result<W, Error> {
         self.writer.flush().await?;
         Ok(self.writer)
-    }
-
-    /// Get a mutable reference to the inner writer.
-    pub fn get_inner_mut(&mut self) -> &mut W {
-        &mut self.writer
     }
 }
 
