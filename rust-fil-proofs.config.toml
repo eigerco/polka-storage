@@ -1,0 +1,49 @@
+# The location to store downloaded parameter files required for proofs.
+parameter_cache = "/var/tmp/filecoin-proofs-parameters/"
+
+# The location to store the on-disk parents cache.
+parent_cache = "/var/tmp/filecoin-parents"
+# The max number of parent cache elements to have mapped in RAM at a time.
+sdr_parents_cache_size = 2_048
+
+# This enables the use of the GPU for column tree building.
+use_gpu_column_builder = true
+# If the GPU is used for column building, this is the batch size to send to the GPU at a time.
+max_gpu_column_batch_size = 400_000
+# This is the batch size for writing out the column tree elements to disk after it's generated.
+column_write_batch_size = 262_144
+
+# This enables the use of the GPU for tree r last building.
+use_gpu_tree_builder = true
+# If the GPU is used for tree r last building, this is the batch size to send to the GPU at a time.
+max_gpu_tree_batch_size = 700_000
+
+# This setting affects tree_r_last (MerkleTree) generation and access
+# and determines the size of the on disk tree caches.  This value MUST
+# NOT be changed after tree_r_last caches have been generated on your
+# system, as any remaining will no longer be accessible.  A tool
+# exists called 'update_tree_r_last' that can rebuild cache files if
+# it's required, but updating this setting is NOT recommended.
+rows_to_discard = 2
+
+# This value is defaulted to the number of cores available on your system.
+#window_post_synthesis_num_cpus = 8
+
+# This enables multicore SDR replication
+use_multicore_sdr = true
+
+# 0. Code Review
+
+# 1. Test out windowed PoSt
+# 2. Verify where to adjust in the Polka-Storage code (i don't know what SECTOR_COUNT in PoSt actually means)
+# - Sector Count in Partitions means actually how many sectors in a partition
+# - currently we can verify 10 per block, so the number of supported partitions is = BLOCKS_IN_A_DEADLINE * 10 as a upper upper bound
+# - 30 min = 10 blocks ina minute = 300 blocks * 10 = 3000, but SP probably takes more than 6 secs to produce a proof
+# - to be able to do more calculationes, I need to test out windowed Post with the params
+
+# 1. Adjust layers (?) to more (bump security even more)
+
+
+# RUST_LOG=debug ./target/release/polka-storage-provider-client proofs porep --sr25519-key "//Charlie" --seal-proof 1GiB --proof-parameters-path ./target/porep_params_1GiB --sector-id 1 --seal-randomness-height 20 --pre-commit-block-number 30 --cache-directory /tmp/tst-cache ./examples/big_file_184k.car baga6ea4seaqhx2sxpfc2f3k2o75m3acskihug7me3g4coyw6adjqnd6ioszfqay
+# RUST_LOG=debug ./target/release/polka-storage-provider-client proofs post --sr25519-key "//Charlie" --post-type 1GiB --proof-parameters-path ./target/post_params_1GiB --sector-number 1 --challenge-block 50 --cache-directory /tmp/tst-cache ./1.sector.sealed bagboea4b5abcaep6goq3swejyfjgmwhx5x2qlf565f437mxbgq72msyd6mv7ixdg
+# 2 sec raw of PoSt time without tweaking PoSt params
