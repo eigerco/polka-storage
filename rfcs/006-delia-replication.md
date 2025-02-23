@@ -1,0 +1,113 @@
+# RFC-006: Automated Multi-Deal Submission in Delia for Replication
+
+**Author:** Pete — @pete-eiger  
+**Date:** 2025-02-24
+
+## Abstract
+
+This RFC proposes modifications to the Delia storage deal flow so that, instead of submitting a single deal proposal, the client automatically submits three identical deal proposals. By looping through the proposal process three times and executing the necessary RPC calls in parallel, the client not only streamlines the storage deal process but also increases data replication in the protocol. This replication is a core feature of the Polka Storage solution, ensuring that data is redundantly stored across multiple providers for improved availability, durability, and resilience in a decentralized environment. This change lays the groundwork for further enhancements such as automated deal acceptance and flexible provider selection.
+
+## Introduction
+
+Polka Storage relies on replicating data across multiple storage providers to ensure high availability and fault tolerance. Currently, Delia handles storage deals on a one-to-one basis: a client calculates a piece CID, proposes a deal, uploads a file, and then publishes the deal. For true replication, it is desirable for a client to automatically generate multiple identical deals—specifically three—so that the same piece of data is stored redundantly.
+
+This RFC outlines the necessary modifications to the client-side deal flow to support the automatic submission of three deals. The changes will involve:
+
+- Looping through the existing deal proposal flow three times.
+- Making parallel JSON‑RPC calls against individual storage provider servers.
+- Aggregating status feedback in the user interface.
+- Addressing provider selection: either automatically choosing three providers or allowing the user to manually select three.
+
+## Motivation
+
+- **Replication:**  
+  Ensuring that data is stored in multiple locations is a cornerstone of a decentralized storage system. Automatically submitting three identical deals increases redundancy and resilience, so that if one deal or provider fails, the data remains available elsewhere.
+
+- **Efficiency:**  
+  Submitting multiple deals automatically streamlines the process and reduces manual intervention, which is especially important in a decentralized system where network conditions and provider availability may vary.
+
+- **User Experience:**  
+  Clients gain higher confidence in data durability when the system automatically issues multiple proposals, knowing that their data will be replicated across the network.
+
+- **Foundation for Further Enhancements:**  
+  This feature complements the automated deal acceptance framework (see RFC‑005) and opens the door for future optimizations such as dynamic batch sizing and advanced provider selection strategies.
+
+- **Market Dynamics:**  
+  Increasing deal submission frequency may improve price discovery and transparency, ultimately benefiting both storage providers and clients.
+
+## Proposed Changes
+
+### Client Modifications
+
+1. **Propose Deal (Three Times):**  
+   Instead of a single proposal, the client will loop through the proposal step three times. For each iteration:
+   - Construct an identical deal proposal (using the calculated piece CID, client address, and other necessary parameters).
+   - Send an RPC request (e.g. via `v0_propose_deal`) to the storage provider’s RPC API.
+   - Execute the calls in parallel since each storage provider server operates independently.
+
+2. **Upload File:**  
+   For each deal CID returned from the proposal call, the client uploads the file via an HTTP PUT request to the corresponding endpoint (e.g. `/upload/{dealCid}`).
+
+3. **Publish Deal:**  
+   After file upload, the client:
+   - Encodes the deal proposal via the storage provider server’s HTTP endpoint (e.g. `/encode_proposal`).
+   - Uses the Polkadot extension to sign the encoded proposal.
+   - Publishes the deal via a JSON‑RPC call (e.g. `v0_publish_deal`).
+
+### Provider Selection
+
+Currently, the FE allows the user to select one storage provider from a list. With the multi-deal approach for replication, we need to consider:
+
+- **Option A:** Automatically select three storage providers from the available list (for example (purely hypothetical atm), the top three based on performance or reputation), so that data is replicated across different nodes.
+- **Option B:** Allow the user to manually select three providers.
+
+### Storage Provider Considerations
+
+- **Server-Side Processing:**  
+  The storage provider server’s RPC endpoints remain unchanged. Since each storage provider runs its own server, the same client can submit three proposals without conflict.
+  
+- **On-Server Validation:**  
+  The storage provider’s automated acceptance parameters (as per RFC‑005) will determine which deals are accepted.
+
+### UX and Feedback
+
+- **Status Aggregation:**  
+  The FE should display the status of all three proposals (either aggregated or individually) so that the user is aware of the overall replication progress.
+- **Error Handling:**  
+  If one proposal fails while the others succeed, the client should clearly report the error and optionally offer a retry mechanism, ensuring that data replication is maintained.
+
+### Documentation
+
+- Update the Delia documentation to reflect the new multi-deal submission process with an emphasis on replication.
+- Include examples showing how a client initiates three simultaneous proposals to achieve redundancy.
+- Document any new UI changes related to replication.
+
+## Implementation Details
+
+- **Looping Mechanism:**  
+  Modify the existing deal proposal code to iterate three times. Each iteration constructs the same deal proposal and calls the RPC endpoint.
+  
+- **Parallel Execution:**  
+  Use async patterns (e.g., `Promise.all`) to issue the three RPC calls concurrently.
+  
+- **Signature & Publishing:**  
+  The encoding and signing process remains unchanged; each deal proposal is individually signed and published.
+  
+- **Error Handling:**  
+  Aggregate results from the three RPC calls. Decide on a strategy for partial failures (e.g., retry the failed proposals or notify the user for manual intervention).
+
+## Open Questions for Discussion
+
+1. **Batch Size Configuration:**  
+   Should we allow clients to specify a different number of deals (other than 3) for replication purposes, or is 3 the fixed value for the initial implementation?
+2. **Provider Selection Mode:**  
+   - Should the client automatically select three storage providers from the available list to maximize replication, or allow the user to manually choose three?
+   - If automatic, what criteria should be used?
+3. **Partial Failures:**  
+   What is the expected behavior if one or more proposals fail while others succeed? Should the client automatically retry the failed proposals, or simply notify the user?
+4. **UI Feedback:**  
+   How should the FE best present multiple deal statuses—aggregated or individually—to ensure clear user understanding of replication progress?
+5. **Integration with Deal Parameters:**  
+   Do we need any additional client-side validations to ensure all three deals meet the storage provider’s deal parameters, or is that solely handled on the server side?
+
+Feedback on the open questions and any additional considerations is welcome before final implementation.
