@@ -15,8 +15,8 @@ This RFC outlines the necessary modifications to the client-side deal flow to su
 
 - Looping through the existing deal proposal flow three times.
 - Making parallel JSON‑RPC calls against individual storage provider servers.
-- Aggregating status feedback in the user interface.
-- Addressing provider selection: either automatically choosing three providers or allowing the user to manually select three.
+- Aggregating status feedback in the user interface and implementing a retry mechanism.
+- Provider selection process update - instead of the user manually selecting one provider, Delia will automatically select 3 different storage providers at random. Users will still have the option to replace any of them in the UI.
 
 ## Motivation
 
@@ -31,9 +31,6 @@ This RFC outlines the necessary modifications to the client-side deal flow to su
 
 - **Foundation for Further Enhancements:**  
   This feature complements the automated deal acceptance framework (see RFC‑005) and opens the door for future optimizations such as dynamic batch sizing and advanced provider selection strategies.
-
-- **Market Dynamics:**  
-  Increasing deal submission frequency may improve price discovery and transparency, ultimately benefiting both storage providers and clients.
 
 ## Proposed Changes
 
@@ -56,10 +53,7 @@ This RFC outlines the necessary modifications to the client-side deal flow to su
 
 ### Provider Selection
 
-Currently, the FE allows the user to select one storage provider from a list. With the multi-deal approach for replication, we need to consider:
-
-- **Option A:** Automatically select three storage providers from the available list (for example (purely hypothetical atm), the top three based on performance or reputation), so that data is replicated across different nodes.
-- **Option B:** Allow the user to manually select three providers.
+Currently, the FE allows the user to select one storage provider from a list. With the multi-deal approach for replication, we will change that to let Delia automatically pick 3 different storage providers at random.
 
 ### Storage Provider Considerations
 
@@ -74,7 +68,7 @@ Currently, the FE allows the user to select one storage provider from a list. Wi
 - **Status Aggregation:**  
   The FE should display the status of all three proposals (either aggregated or individually) so that the user is aware of the overall replication progress.
 - **Error Handling:**  
-  If one proposal fails while the others succeed, the client should clearly report the error and optionally offer a retry mechanism, ensuring that data replication is maintained.
+  If one proposal fails while the others succeed, the client should clearly report the error and support a retry mechanism where it retries the failed storage provider 3 times, if all of them fail, Delia selects another storage provider at random, and repeats the process, aiming to ensure that the data is stored by 3 storage providers.
 
 ### Documentation
 
@@ -94,20 +88,7 @@ Currently, the FE allows the user to select one storage provider from a list. Wi
   The encoding and signing process remains unchanged; each deal proposal is individually signed and published.
   
 - **Error Handling:**  
-  Aggregate results from the three RPC calls. Decide on a strategy for partial failures (e.g., retry the failed proposals or notify the user for manual intervention).
+  Aggregate results from the three RPC calls. If there is a failed upload attempt, Delia will retry 3 times (for each failed provider), if all 3 are unsuccessful it will select another storage provider at random and repeat this, with the goal of ensuring that the data is stored by at least 3 different storage providers.
 
-## Open Questions for Discussion
-
-1. **Batch Size Configuration:**  
-   Should we allow clients to specify a different number of deals (other than 3) for replication purposes, or is 3 the fixed value for the initial implementation?
-2. **Provider Selection Mode:**  
-   - Should the client automatically select three storage providers from the available list to maximize replication, or allow the user to manually choose three?
-   - If automatic, what criteria should be used?
-3. **Partial Failures:**  
-   What is the expected behavior if one or more proposals fail while others succeed? Should the client automatically retry the failed proposals, or simply notify the user?
-4. **UI Feedback:**  
-   How should the FE best present multiple deal statuses—aggregated or individually—to ensure clear user understanding of replication progress?
-5. **Integration with Deal Parameters:**  
-   Do we need any additional client-side validations to ensure all three deals meet the storage provider’s deal parameters, or is that solely handled on the server side?
-
-Feedback on the open questions and any additional considerations is welcome before final implementation.
+## Future work
+There will be work needed to make data retrieval be "replication-aware".
