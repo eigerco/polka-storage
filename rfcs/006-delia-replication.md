@@ -5,7 +5,7 @@
 
 ## Abstract
 
-This RFC proposes modifications to the Delia storage deal flow so that, instead of submitting a single deal proposal, the client automatically submits three identical deal proposals. By looping through the proposal process three times and executing the necessary RPC calls in parallel, the client not only streamlines the storage deal process but also increases data replication in the protocol. This replication is a core feature of the Polka Storage solution, ensuring that data is redundantly stored across multiple providers for improved availability, durability, and resilience in a decentralized environment. This change lays the groundwork for further enhancements such as automated deal acceptance and flexible provider selection.
+This RFC proposes modifications to the Delia storage deal flow so that, instead of submitting a single deal proposal, the client automatically submits three identical deal proposals. By looping through the proposal process three times and executing the necessary RPC calls in parallel, the client not only streamlines the storage deal process but also increases data replication in the protocol. This replication is a core feature of the Polka Storage solution, ensuring that data is redundantly stored across multiple providers for improved availability, durability, and resilience in a decentralized environment.
 
 ## Introduction
 
