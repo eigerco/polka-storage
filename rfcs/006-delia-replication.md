@@ -41,7 +41,6 @@ This RFC outlines the necessary modifications to the client-side deal flow to su
 
 3. **Publish Deal:**  
    After file upload, the client:
-   - Encodes the deal proposal via the storage provider server’s HTTP endpoint (e.g. `/encode_proposal`).
    - Uses the Polkadot extension to sign the encoded proposal.
    - Publishes the deal via a JSON‑RPC call (e.g. `v0_publish_deal`).
 
