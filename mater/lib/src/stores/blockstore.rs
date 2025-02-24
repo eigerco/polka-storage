@@ -5,17 +5,21 @@ use std::{
 
 use futures::stream::StreamExt;
 use ipld_core::cid::Cid;
-use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite};
+use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt};
 
 use crate::{
     unixfs::stream_balanced_tree,
-    v1::{self},
-    v2, BlockMetadata, Config, Error, Index, IndexEntry, IndexSorted, SingleWidthIndex,
+    v1::{
+        CarWriter, {self},
+    },
+    v2,
+    v2::CarWriter as _,
+    BlockMetadata, Config, Error, Index, IndexEntry, IndexSorted, SingleWidthIndex,
 };
 
 /// CAR file writer.
 pub struct Blockwriter<W> {
-    writer: v2::Writer<W>,
+    writer: W,
     index: HashMap<Cid, BlockMetadata>,
     roots: Vec<Cid>,
     started: bool,
@@ -26,7 +30,7 @@ impl<W> Blockwriter<W> {
     /// Creates a new [`Blockwriter`] with the given `writer`.
     pub fn new(writer: W) -> Self {
         Self {
-            writer: v2::Writer::new(writer),
+            writer,
             index: HashMap::new(),
             roots: Vec::with_capacity(1),
             started: false,
@@ -63,7 +67,7 @@ impl Blockwriter<Cursor<Vec<u8>>> {
     /// Creates an in-memory [`Blockwriter`].
     pub fn in_memory() -> Self {
         Self {
-            writer: v2::Writer::new(Cursor::new(vec![])),
+            writer: Cursor::new(vec![]),
             index: HashMap::new(),
             roots: Vec::with_capacity(1),
             started: false,
@@ -95,12 +99,12 @@ where
         S: AsyncRead + Unpin,
     {
         if !self.started {
+            self.writer.write_v2_header(&Default::default()).await?;
             self.writer.write_header(&Default::default()).await?;
-            self.writer.write_v1_header(&Default::default()).await?;
             self.started = true;
         }
 
-        let mut current_position = self.writer.get_inner_mut().stream_position().await?;
+        let mut current_position = self.writer.stream_position().await?;
 
         let nodes = match self.config {
             Config::Balanced {
@@ -147,16 +151,15 @@ where
 
     /// Writes the final header as well as the indexes, flushes the inner writer and returns it.
     pub async fn finish(mut self) -> Result<W, Error> {
-        self.writer.get_inner_mut().rewind().await?;
+        self.writer.rewind().await?;
 
         let v1_header = self.header_v1();
         let v2_header = self.header_v2(&v1_header);
 
-        self.writer.write_header(&v2_header).await?;
-        self.writer.write_v1_header(&v1_header).await?;
+        self.writer.write_v2_header(&v2_header).await?;
+        self.writer.write_header(&v1_header).await?;
 
         self.writer
-            .get_inner_mut()
             .seek(std::io::SeekFrom::Start(v2_header.index_offset))
             .await?;
 
@@ -199,7 +202,8 @@ where
         );
         self.writer.write_index(&index).await?;
 
-        self.writer.finish().await
+        self.writer.flush().await?;
+        Ok(self.writer)
     }
 }
 
@@ -222,7 +226,6 @@ mod tests {
         let mut store = Blockwriter::in_memory();
         store.write_from(file).await.unwrap();
         let output = store.finish().await.unwrap().into_inner();
-
         assert_buffer_eq!(&output, &reference);
     }
 

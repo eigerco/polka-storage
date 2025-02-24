@@ -1,78 +1,62 @@
 use byteorder::{LittleEndian, WriteBytesExt};
-use ipld_core::cid::Cid;
 use tokio::io::{AsyncWrite, AsyncWriteExt};
 
 use super::{Header, PRAGMA};
 use crate::{v2::index::Index, Error};
 
-/// Low-level CARv2 writer.
-pub struct Writer<W> {
-    writer: W,
-}
-
-impl<W> Writer<W> {
-    /// Construct a new [`Writer`].
+/// Low-level, V2-specific writing functions for the CAR format.
+pub trait CarWriter {
+    /// Write a [`Header`].
     ///
-    /// Takes a write into which the data will be written.
-    pub fn new(writer: W) -> Self {
-        Self { writer }
-    }
+    /// Returns the number of bytes written.
+    fn write_v2_header(
+        &mut self,
+        header: &Header,
+    ) -> impl std::future::Future<Output = Result<usize, Error>>;
 
-    /// Get a mutable reference to the inner writer.
-    pub fn get_inner_mut(&mut self) -> &mut W {
-        &mut self.writer
-    }
+    /// Write an [`Index`].
+    ///
+    /// Returns the number of bytes written.
+    fn write_index(
+        &mut self,
+        index: &Index,
+    ) -> impl std::future::Future<Output = Result<usize, Error>>;
+
+    /// Write padding (`0x0` bytes).
+    ///
+    /// Returns the number of bytes written.
+    fn write_padding(
+        &mut self,
+        length: usize,
+    ) -> impl std::future::Future<Output = Result<usize, Error>>;
 }
 
-impl<W> Writer<W>
+impl<W> CarWriter for W
 where
     W: AsyncWrite + Unpin,
 {
     /// Write a [`Header`].
     ///
     /// Returns the number of bytes written.
-    pub async fn write_header(&mut self, header: &Header) -> Result<usize, Error> {
-        write_header(&mut self.writer, header).await
-    }
-
-    /// Write a [`crate::v1::Header`].
-    ///
-    /// Returns the number of bytes written.
-    pub async fn write_v1_header(&mut self, v1_header: &crate::v1::Header) -> Result<usize, Error> {
-        crate::v1::write_header(&mut self.writer, v1_header).await
-    }
-
-    /// Write a [`Cid`] and the respective data block.
-    ///
-    /// Returns the number of bytes written.
-    pub async fn write_block<Block>(&mut self, cid: &Cid, block: &Block) -> Result<usize, Error>
-    where
-        Block: AsRef<[u8]>,
-    {
-        crate::v1::write_block(&mut self.writer, cid, block).await
+    async fn write_v2_header(&mut self, header: &Header) -> Result<usize, Error> {
+        write_header(self, header).await
     }
 
     /// Write an [`Index`].
     ///
     /// Returns the number of bytes written.
-    pub async fn write_index(&mut self, index: &Index) -> Result<usize, Error> {
-        crate::v2::index::write_index(&mut self.writer, index).await
+    async fn write_index(&mut self, index: &Index) -> Result<usize, Error> {
+        crate::v2::index::write_index(self, index).await
     }
 
     /// Write padding (`0x0` bytes).
     ///
     /// Returns the number of bytes written.
-    pub async fn write_padding(&mut self, length: usize) -> Result<usize, Error> {
+    async fn write_padding(&mut self, length: usize) -> Result<usize, Error> {
         for _ in 0..length {
-            self.writer.write_u8(0).await?;
+            self.write_u8(0).await?;
         }
         Ok(length)
-    }
-
-    /// Flushes and returns the inner writer.
-    pub async fn finish(mut self) -> Result<W, Error> {
-        self.writer.flush().await?;
-        Ok(self.writer)
     }
 }
 
@@ -105,7 +89,7 @@ mod tests {
     use sha2::Sha256;
     use tokio::{
         fs::File,
-        io::{AsyncSeekExt, BufWriter},
+        io::{AsyncSeekExt, AsyncWriteExt, BufWriter},
     };
 
     use crate::{
@@ -113,19 +97,13 @@ mod tests {
         multicodec::{generate_multihash, MultihashCode, RAW_CODE},
         test_utils::assert_buffer_eq,
         unixfs::stream_balanced_tree,
+        v1::CarWriter,
         v2::{
             index::{IndexEntry, IndexSorted, SingleWidthIndex},
-            Header, Writer,
+            writer::CarWriter as _,
+            Header,
         },
     };
-
-    impl Writer<BufWriter<Vec<u8>>> {
-        fn test_writer() -> Self {
-            let buffer = Vec::new();
-            let buf_writer = BufWriter::new(buffer);
-            Writer::new(buf_writer)
-        }
-    }
 
     #[tokio::test]
     async fn header_lorem() {
@@ -133,14 +111,16 @@ mod tests {
             .await
             .unwrap();
 
-        let mut writer = Writer::test_writer();
+        let buffer = Vec::new();
+        let mut writer = BufWriter::new(buffer);
         // To simplify testing, the values were extracted using `car inspect`
         writer
-            .write_header(&Header::new(false, 51, 7661, 7712))
+            .write_v2_header(&Header::new(false, 51, 7661, 7712))
             .await
             .unwrap();
 
-        let inner = writer.finish().await.unwrap().into_inner();
+        writer.flush().await.unwrap();
+        let inner = writer.into_inner();
         assert_eq!(inner.len(), 51);
         assert_eq!(inner, file_contents[..51]);
     }
@@ -151,14 +131,16 @@ mod tests {
             .await
             .unwrap();
 
-        let mut writer = Writer::test_writer();
+        let buffer = Vec::new();
+        let mut writer = BufWriter::new(buffer);
         // To simplify testing, the values were extracted using `car inspect`
         writer
-            .write_header(&Header::new(false, 51, 654402, 654453))
+            .write_v2_header(&Header::new(false, 51, 654402, 654453))
             .await
             .unwrap();
 
-        let inner = writer.finish().await.unwrap().into_inner();
+        writer.flush().await.unwrap();
+        let inner = writer.into_inner();
         assert_eq!(inner.len(), 51);
         assert_eq!(inner, file_contents[..51]);
     }
@@ -167,8 +149,7 @@ mod tests {
     #[tokio::test]
     async fn full_lorem() {
         let cursor = Cursor::new(vec![]);
-        let buf_writer = BufWriter::new(cursor);
-        let mut writer = Writer::new(buf_writer);
+        let mut writer = BufWriter::new(cursor);
 
         let file_contents = tokio::fs::read("tests/fixtures/original/lorem.txt")
             .await
@@ -178,32 +159,25 @@ mod tests {
 
         // To simplify testing, the values were extracted using `car inspect`
         writer
-            .write_header(&Header::new(false, 51, 7661, 7712))
+            .write_v2_header(&Header::new(false, 51, 7661, 7712))
             .await
             .unwrap();
 
         // We start writing the CARv1 here and keep the stream positions
         // so that we can properly index the blocks later
-        let start_car_v1 = {
-            let inner = writer.get_inner_mut();
-            inner.stream_position().await.unwrap()
-        };
+        let start_car_v1 = writer.stream_position().await.unwrap();
 
         writer
-            .write_v1_header(&crate::v1::Header::new(vec![root_cid]))
+            .write_header(&crate::v1::Header::new(vec![root_cid]))
             .await
             .unwrap();
 
-        let start_car_v1_data = {
-            let inner = writer.get_inner_mut();
-            inner.stream_position().await.unwrap()
-        };
+        let start_car_v1_data = writer.stream_position().await.unwrap();
 
         // There's only one block
         writer.write_block(&root_cid, &file_contents).await.unwrap();
 
-        let inner = writer.get_inner_mut();
-        let written = inner.stream_position().await.unwrap();
+        let written = writer.stream_position().await.unwrap();
         assert_eq!(written, 7712);
 
         let mut mapping = BTreeMap::new();
@@ -222,14 +196,14 @@ mod tests {
         let index = crate::v2::index::Index::multihash(mapping);
         writer.write_index(&index).await.unwrap();
 
-        let mut buf_writer = writer.finish().await.unwrap();
-        buf_writer.rewind().await.unwrap();
+        writer.flush().await.unwrap();
+        writer.rewind().await.unwrap();
 
         let expected_header = tokio::fs::read("tests/fixtures/car_v2/lorem.car")
             .await
             .unwrap();
 
-        assert_buffer_eq!(&expected_header, buf_writer.get_ref().get_ref())
+        assert_buffer_eq!(&expected_header, writer.get_ref().get_ref())
     }
 
     // Byte to byte comparison to the spaceglenda.car file
@@ -237,8 +211,7 @@ mod tests {
     #[tokio::test]
     async fn full_spaceglenda() {
         let cursor = Cursor::new(vec![]);
-        let buf_writer = BufWriter::new(cursor);
-        let mut writer = Writer::new(buf_writer);
+        let mut writer = BufWriter::new(cursor);
 
         let file = File::open("tests/fixtures/original/spaceglenda.jpg")
             .await
@@ -252,34 +225,27 @@ mod tests {
 
         // To simplify testing, the values were extracted using `car inspect`
         writer
-            .write_header(&Header::new(false, 51, 654402, 654453))
+            .write_v2_header(&Header::new(false, 51, 654402, 654453))
             .await
             .unwrap();
 
         // We start writing the CARv1 here and keep the stream positions
         // so that we can properly index the blocks later
-        let start_car_v1 = {
-            let inner = writer.get_inner_mut();
-            inner.stream_position().await.unwrap()
-        };
+        let start_car_v1 = writer.stream_position().await.unwrap();
 
         writer
-            .write_v1_header(&crate::v1::Header::new(vec![nodes.last().unwrap().0]))
+            .write_header(&crate::v1::Header::new(vec![nodes.last().unwrap().0]))
             .await
             .unwrap();
 
         let mut offsets = vec![];
         for (cid, block) in &nodes {
             // write the blocks, saving their positions for the index
-            offsets.push({
-                let inner = writer.get_inner_mut();
-                inner.stream_position().await.unwrap() - start_car_v1
-            });
+            offsets.push(writer.stream_position().await.unwrap() - start_car_v1);
             writer.write_block(cid, block).await.unwrap();
         }
 
-        let inner = writer.get_inner_mut();
-        let written = inner.stream_position().await.unwrap();
+        let written = writer.stream_position().await.unwrap();
         assert_eq!(written, 654453);
 
         let mut mapping = BTreeMap::new();
@@ -302,13 +268,13 @@ mod tests {
         let index = crate::v2::index::Index::multihash(mapping);
         writer.write_index(&index).await.unwrap();
 
-        let mut buf_writer = writer.finish().await.unwrap();
-        buf_writer.rewind().await.unwrap();
+        writer.flush().await.unwrap();
+        writer.rewind().await.unwrap();
 
         let expected_header = tokio::fs::read("tests/fixtures/car_v2/spaceglenda.car")
             .await
             .unwrap();
 
-        assert_buffer_eq!(&expected_header, buf_writer.get_ref().get_ref());
+        assert_buffer_eq!(&expected_header, writer.get_ref().get_ref());
     }
 }

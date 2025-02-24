@@ -1,7 +1,7 @@
 use std::{io::Write, path::PathBuf, str::FromStr};
 
 use codec::Encode;
-use mater::CarV2Reader;
+use mater::CarV2ReaderExt;
 use polka_storage_proofs::{
     match_post_proof, match_seal_proof,
     porep::{
@@ -149,8 +149,7 @@ impl ProofsCommand {
             ProofsCommand::CalculatePieceCommitment { input_path } => {
                 // Check if the file is a CARv2 file. If it is, we can't calculate the piece commitment.
                 let mut source_file = tokio::fs::File::open(&input_path).await?;
-                let mut car_v2_reader = CarV2Reader::new(&mut source_file);
-                car_v2_reader
+                source_file
                     .is_car_file()
                     .await
                     .map_err(|e| UtilsCommandError::InvalidCARv2(input_path.clone(), e))?;
@@ -260,8 +259,7 @@ impl ProofsCommand {
                 )?;
 
                 let mut source_file = tokio::fs::File::open(&input_path).await?;
-                let mut car_v2_reader = CarV2Reader::new(&mut source_file);
-                car_v2_reader
+                source_file
                     .is_car_file()
                     .await
                     .map_err(|e| UtilsCommandError::InvalidCARv2(input_path.clone(), e))?;
