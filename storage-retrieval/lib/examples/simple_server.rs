@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use libp2p::Multiaddr;
-use mater::FileBlockstore;
+use mater::blockstore::ReadOnlyBlockstore;
 use polka_storage_retrieval::server::Server;
 
 #[tokio::main]
@@ -16,13 +16,18 @@ async fn main() -> Result<()> {
 
     // Example blockstore providing only a single file.
     let blockstore = Arc::new(
-        FileBlockstore::from_existing("./mater/lib/tests/fixtures/car_v2/spaceglenda_wrapped.car")
+        ReadOnlyBlockstore::from_path("./mater/lib/tests/fixtures/car_v2/spaceglenda_wrapped.car")
             .await?,
     );
+
+    let roots = blockstore.write().await.roots().await?;
+    tracing::info!("available roots: {:?}", roots);
 
     // Setup & run the server
     let server = Server::new(blockstore)?;
     let listener: Multiaddr = format!("/ip4/127.0.0.1/tcp/8989").parse()?;
+    tracing::info!(multiaddress = %listener);
+
     server.run(vec![listener], std::future::pending()).await?;
 
     Ok(())
