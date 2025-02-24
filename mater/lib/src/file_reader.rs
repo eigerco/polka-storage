@@ -178,10 +178,6 @@ mod test {
 
     #[tokio::test]
     async fn read_duplicated_blocks() {
-        let raw_input = tokio::fs::read("tests/fixtures/original/zero")
-            .await
-            .unwrap();
-
         let mut loader = CarExtractor::from_path("tests/fixtures/car_v2/zero.car")
             .await
             .unwrap();
@@ -189,7 +185,11 @@ mod test {
         let mut out_check = Cursor::new(vec![1u8; 4096]);
         loader.copy_tree(&root, &mut out_check).await.unwrap();
 
-        assert_eq!(raw_input, out_check.into_inner());
+        let expected = [0u8; 524288].as_slice();
+        let inner = out_check.into_inner();
+        let result = inner.as_slice();
+
+        assert_eq!(expected, result);
     }
 
     async fn load_and_compare<P1, P2>(original: P1, path: P2)

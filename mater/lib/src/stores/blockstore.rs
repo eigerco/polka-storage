@@ -7,11 +7,10 @@ use futures::stream::StreamExt;
 use ipld_core::cid::Cid;
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite};
 
-use super::{DEFAULT_BLOCK_SIZE, DEFAULT_TREE_WIDTH};
 use crate::{
     unixfs::stream_balanced_tree,
     v1::{self},
-    v2, BlockMetadata, Error, Index, IndexEntry, IndexSorted, SingleWidthIndex,
+    v2, BlockMetadata, Config, Error, Index, IndexEntry, IndexSorted, SingleWidthIndex,
 };
 
 /// CAR file writer.
@@ -20,6 +19,7 @@ pub struct Blockwriter<W> {
     index: HashMap<Cid, BlockMetadata>,
     roots: Vec<Cid>,
     started: bool,
+    config: Config,
 }
 
 impl<W> Blockwriter<W> {
@@ -30,6 +30,7 @@ impl<W> Blockwriter<W> {
             index: HashMap::new(),
             roots: Vec::with_capacity(1),
             started: false,
+            config: Default::default(),
         }
     }
 
@@ -66,6 +67,7 @@ impl Blockwriter<Cursor<Vec<u8>>> {
             index: HashMap::new(),
             roots: Vec::with_capacity(1),
             started: false,
+            config: Default::default(),
         }
     }
 }
@@ -74,6 +76,19 @@ impl<W> Blockwriter<W>
 where
     W: AsyncWrite + AsyncSeek + Unpin,
 {
+    /// Convert `source` into a CAR file, writing it to `writer`.
+    /// Returns the root [`Cid`].
+    pub async fn import<S>(source: S, writer: W) -> Result<Cid, Error>
+    where
+        S: AsyncRead + Unpin,
+    {
+        let mut writer = Self::new(writer);
+        writer.write_from(source).await?;
+        let root = *writer.roots.first().ok_or(Error::EmptyRootsError)?;
+        writer.finish().await?;
+        Ok(root)
+    }
+
     /// Writes the contents from `source`, adding a new root to [`Blockwriter`].
     pub async fn write_from<S>(&mut self, source: S) -> Result<(), Error>
     where
@@ -87,8 +102,15 @@ where
 
         let mut current_position = self.writer.get_inner_mut().stream_position().await?;
 
-        let chunker = crate::chunker::byte_stream_chunker(source, DEFAULT_BLOCK_SIZE);
-        let nodes = stream_balanced_tree(chunker, DEFAULT_TREE_WIDTH).peekable();
+        let nodes = match self.config {
+            Config::Balanced {
+                chunk_size,
+                tree_width,
+            } => {
+                let chunker = crate::chunker::byte_stream_chunker(source, chunk_size);
+                stream_balanced_tree(chunker, tree_width).peekable()
+            }
+        };
         tokio::pin!(nodes);
 
         let mut root = None;
