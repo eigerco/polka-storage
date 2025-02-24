@@ -79,4 +79,4 @@ Currently, the FE allows the user to select one storage provider from a list. Wi
   Aggregate results from the three RPC calls. If there is a failed upload attempt, Delia will retry 3 times (for each failed provider), if all 3 are unsuccessful it will select another storage provider at random and repeat this, with the goal of ensuring that the data is stored by at least 3 different storage providers.
 
 ## Future work
-There will be work needed to make data retrieval be "replication-aware".
+Implement N-ary replication instead of forcing 3 copies.
