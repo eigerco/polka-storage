@@ -6,7 +6,7 @@ use std::{
 };
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use mater::{create_filestore, Blockwriter, Config};
+use mater::Blockwriter;
 use rand::{prelude::SliceRandom, rngs::ThreadRng, Rng};
 use tempfile::{tempdir, TempDir};
 use tokio::{
@@ -169,17 +169,15 @@ fn prepare_source_file(content: &[u8]) -> (TempDir, PathBuf) {
     (temp_dir, file)
 }
 
-/// Create a filestore. This function is benchmarked.
-async fn create_filestore_benched(source: &Path, target: &Path) {
+/// Import a source into a writer. This function is benchmarked.
+async fn blockwriter_import(source: &Path, target: &Path) {
     let source_file = File::open(source).await.unwrap();
     let output_file = File::create(target).await.unwrap();
 
-    create_filestore(source_file, output_file, Config::default())
-        .await
-        .unwrap();
+    Blockwriter::import(source_file, output_file).await.unwrap();
 }
 
-fn filestore(c: &mut Criterion) {
+fn import(c: &mut Criterion) {
     let files = get_source_files();
 
     for (params, source_file, temp_dir) in files {
@@ -187,11 +185,11 @@ fn filestore(c: &mut Criterion) {
 
         c.bench_with_input(BenchmarkId::new("filestore", params), &(), |b, _: &()| {
             b.to_async(TokioExecutor::new().unwrap())
-                .iter(|| create_filestore_benched(&source_file, &target_file));
+                .iter(|| blockwriter_import(&source_file, &target_file));
         });
     }
 }
 
 criterion_group!(bench_reading, read_write);
-criterion_group!(bench_filestore, filestore);
-criterion_main!(bench_reading, bench_filestore);
+criterion_group!(bench_import, import);
+criterion_main!(bench_reading, bench_import);

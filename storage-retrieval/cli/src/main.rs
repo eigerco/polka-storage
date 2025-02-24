@@ -71,7 +71,7 @@ fn setup_tracing() -> Result<(), FromEnvError> {
                     .with_default_directive(if cfg!(debug_assertions) {
                         LevelFilter::DEBUG.into()
                     } else {
-                        LevelFilter::WARN.into()
+                        LevelFilter::INFO.into()
                     })
                     .from_env()?,
             ),

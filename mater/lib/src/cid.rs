@@ -30,7 +30,7 @@ impl<const S: usize> CidExt for CidGeneric<S> {
     }
 
     /// Async implementation of
-    /// https://github.com/multiformats/rust-cid/blob/eb03f566e9bfb19bad79b2691dbcb2541627c0b3/src/cid.rs#L143C12-L143C22
+    /// <https://github.com/multiformats/rust-cid/blob/eb03f566e9bfb19bad79b2691dbcb2541627c0b3/src/cid.rs#L143C12-L143C22>
     async fn read_bytes_async<R>(mut r: R) -> Result<(Self, usize), Error>
     where
         R: AsyncRead + Unpin,
@@ -63,7 +63,7 @@ impl<const S: usize> CidExt for CidGeneric<S> {
 
 impl<const S: usize> MultihashExt for Multihash<S> {
     /// Async implementation of
-    /// https://github.com/multiformats/rust-multihash/blob/90a6c19ec71ced09469eec164a3586aafeddfbbd/src/multihash.rs#L271
+    /// <https://github.com/multiformats/rust-multihash/blob/90a6c19ec71ced09469eec164a3586aafeddfbbd/src/multihash.rs#L271>
     async fn read_async<R>(mut r: R) -> Result<(Self, usize), Error>
     where
         R: AsyncRead + Unpin,

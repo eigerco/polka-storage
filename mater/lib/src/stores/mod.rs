@@ -1,10 +1,8 @@
 mod blockstore;
 mod file;
-mod filestore;
 
 pub use blockstore::Blockwriter;
 pub use file::FileBlockstore;
-pub use filestore::create_filestore;
 
 /// The default block size, as defined in
 /// [boxo](https://github.com/ipfs/boxo/blob/f4fe8997dcbeb39b3a4842d8f08b34739bfd84a4/chunker/parse.go#L13).
@@ -45,3 +43,24 @@ impl Default for Config {
         }
     }
 }
+
+#[cfg(feature = "blockstore")]
+mod _blockstore {
+    use blockstore::{block::CidError, Error};
+    use ipld_core::cid::{Cid, CidGeneric};
+
+    /// Convert CID with the generic Multihash size to the CID with the specific
+    /// Multihash size that the underlying blockstore expects.
+    pub fn to_blockstore_cid<const S: usize>(cid: &CidGeneric<S>) -> Result<Cid, Error> {
+        let digest_size = cid.hash().size() as usize;
+        let hash = cid
+            .hash()
+            .resize::<64>()
+            .map_err(|_| Error::CidError(CidError::InvalidMultihashLength(digest_size)))?;
+
+        Ok(Cid::new(cid.version(), cid.codec(), hash).expect("we know cid is correct here"))
+    }
+}
+
+#[cfg(feature = "blockstore")]
+pub(crate) use _blockstore::to_blockstore_cid;
