@@ -516,9 +516,149 @@ fn publish_storage_deals_fails_duplicate_deal_in_state() {
 }
 
 #[test]
+fn publish_storage_deals_fails_not_within_deal_parameters() {
+    new_test_ext().execute_with(|| {
+        register_storage_provider(account::<Test>(PROVIDER));
+        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 90);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 90);
+        // Default price = 5, default duration = 10
+        let deal_params: DealParameters<u64, u64> = DealParameters {
+            minimum_price_per_block: 10,
+            deal_duration: DealDurationBound {
+                lower: Some(1),
+                upper: Some(8),
+            },
+        };
+        assert_ok!(Market::publish_deal_parameters(
+            RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+            deal_params
+        ));
+        System::reset_events();
+
+        // Fail on duration
+        assert_noop!(
+            Market::publish_storage_deals(
+                RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+                bounded_vec![DealProposalBuilder::<Test>::default().signed(ALICE)]
+            ),
+            Error::<Test>::InvalidDealParameters
+        );
+
+        // Fail on price
+        assert_noop!(
+            Market::publish_storage_deals(
+                RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+                bounded_vec![DealProposalBuilder::<Test>::default()
+                    .end_block(107)
+                    .signed(ALICE)]
+            ),
+            Error::<Test>::InvalidDealParameters
+        );
+    })
+}
+
+#[test]
 fn publish_storage_deals() {
     new_test_ext().execute_with(|| {
         register_storage_provider(account::<Test>(PROVIDER));
+        let alice_proposal = DealProposalBuilder::<Test>::default().signed(ALICE);
+        let alice_start_block = 100;
+        let alice_deal_id = 0;
+        let alice_second_deal_id = 1;
+        // We're not expecting for it to go through, but the call should not fail.
+        let alice_second_proposal = DealProposalBuilder::<Test>::default()
+            .piece_size(37)
+            .signed(ALICE);
+        let bob_deal_id = 2;
+        let bob_start_block = 130;
+        let bob_proposal = DealProposalBuilder::<Test>::default()
+            .client(BOB)
+            .start_block(bob_start_block)
+            .end_block(135)
+            .storage_price_per_block(10)
+            .provider_collateral(15)
+            .signed(BOB);
+
+        let alice_hash = Market::hash_proposal(&alice_proposal.proposal);
+        let bob_hash = Market::hash_proposal(&bob_proposal.proposal);
+
+        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 100);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(BOB)), 70);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
+        System::reset_events();
+
+        assert_ok!(Market::publish_storage_deals(
+            RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+            bounded_vec![alice_proposal, alice_second_proposal, bob_proposal]
+        ));
+        assert_eq!(
+            BalanceTable::<Test>::get(account::<Test>(ALICE)),
+            BalanceEntry::<u64> {
+                free: 0,
+                locked: 100
+            }
+        );
+        assert_eq!(
+            BalanceTable::<Test>::get(account::<Test>(BOB)),
+            BalanceEntry::<u64> {
+                free: 20,
+                locked: 50
+            }
+        );
+        assert_eq!(
+            BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
+            BalanceEntry::<u64> {
+                free: 10,
+                locked: 65
+            }
+        );
+
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Market(Event::<Test>::DealsPublished {
+                provider: account::<Test>(PROVIDER),
+                deals: bounded_vec!(
+                    PublishedDeal {
+                        deal_id: alice_deal_id,
+                        client: account::<Test>(ALICE),
+                    },
+                    PublishedDeal {
+                        deal_id: alice_second_deal_id,
+                        client: account::<Test>(ALICE),
+                    },
+                    PublishedDeal {
+                        deal_id: bob_deal_id,
+                        client: account::<Test>(BOB),
+                    }
+                )
+            }),]
+        );
+        assert!(PendingProposals::<Test>::get().contains(&alice_hash));
+        assert!(PendingProposals::<Test>::get().contains(&bob_hash));
+        assert!(DealsForBlock::<Test>::get(&alice_start_block).contains(&alice_deal_id));
+        assert!(DealsForBlock::<Test>::get(&bob_start_block).contains(&bob_deal_id));
+    });
+}
+
+#[test]
+fn publish_storage_deals_with_deal_params() {
+    new_test_ext().execute_with(|| {
+        register_storage_provider(account::<Test>(PROVIDER));
+        let deal_params: DealParameters<u64, u64> = DealParameters {
+            minimum_price_per_block: 4,
+            deal_duration: DealDurationBound {
+                lower: Some(4),  // Shortest deal is 5 blocks
+                upper: Some(15), // longest deal is 10 blocks
+            },
+        };
+        // Publish deal params
+        assert_ok!(Market::publish_deal_parameters(
+            RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+            deal_params
+        ));
+        // Flush events, checked by other test.
+        System::reset_events();
+
         let alice_proposal = DealProposalBuilder::<Test>::default().signed(ALICE);
         let alice_start_block = 100;
         let alice_deal_id = 0;
@@ -1714,7 +1854,7 @@ fn publish_deal_parameters() {
         register_storage_provider(storage_provider.clone());
 
         let deal_params: DealParameters<u64, u64> = DealParameters {
-            minimum_price: 1_000,
+            minimum_price_per_block: 1_000,
             deal_duration: DealDurationBound {
                 lower: Some(100),
                 upper: Some(1_000_000),
@@ -1744,7 +1884,7 @@ fn publish_deal_parameters() {
 
         // Re-insert different deal parameters
         let deal_params_2: DealParameters<u64, u64> = DealParameters {
-            minimum_price: 10_000,
+            minimum_price_per_block: 10_000,
             deal_duration: DealDurationBound {
                 lower: Some(1_000),
                 upper: Some(100_000),
@@ -1782,7 +1922,7 @@ fn remove_deal_parameters() {
         register_storage_provider(storage_provider.clone());
 
         let deal_params: DealParameters<u64, u64> = DealParameters {
-            minimum_price: 1_000,
+            minimum_price_per_block: 1_000,
             deal_duration: DealDurationBound {
                 lower: Some(100),
                 upper: Some(1_000_000),

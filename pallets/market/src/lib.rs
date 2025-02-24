@@ -312,7 +312,7 @@ pub mod pallet {
     /// based on deal variables.
     #[derive(Clone, Eq, PartialEq, Encode, Decode, RuntimeDebug, TypeInfo, MaxEncodedLen)]
     pub struct DealParameters<Balance, BlockNumber> {
-        pub minimum_price: Balance,
+        pub minimum_price_per_block: Balance,
         pub deal_duration: DealDurationBound<BlockNumber>,
     }
 
@@ -556,6 +556,8 @@ pub mod pallet {
         DealDurationOutOfBounds,
         /// Deal's piece_cid is invalid.
         InvalidPieceCid,
+        /// Deal's parameters do no fall between what the SP has set with `publish_deal_parameters`
+        InvalidDealParameters,
     }
 
     /// Extrinsics exposed by the pallet
@@ -1178,6 +1180,9 @@ pub mod pallet {
                     return Err(e.into());
                 }
 
+                // Safety check on deal parameters, these should have been checked before publishing
+                Self::validate_deal_parameters(&provider, &deal.proposal)?;
+
                 // there is no Entry API in BoundedBTreeMap
                 let mut client_lockup =
                     if let Some(client_lockup) = total_client_lockup.get(&deal.proposal.client) {
@@ -1246,6 +1251,69 @@ pub mod pallet {
             }
 
             Ok((valid_deals, total_provider_lockup))
+        }
+
+        /// Validates that proposals fall between the parameters set by the storage provider.
+        /// Checks for deal duration and minimum price.
+        /// returns Ok(()) if the proposal is valid, `Err(InvalidDealParameters)` if invalid.
+        fn validate_deal_parameters(
+            provider: &T::AccountId,
+            proposal: &DealProposal<T::AccountId, BalanceOf<T>, BlockNumberFor<T>>,
+        ) -> DispatchResult {
+            if let Some(params) = SPDealParameters::<T>::get(provider) {
+                // Check that deal proposal falls between SPs set params
+                let deal_duration = proposal.end_block - proposal.start_block;
+                // Check deal duration
+                match (params.deal_duration.lower, params.deal_duration.upper) {
+                    (None, None) => (),
+                    (Some(lower), None) => {
+                        if deal_duration < lower {
+                            log::error!(
+                                target: LOG_TARGET,
+                                "Deal duration for deal between {:?} and {:?} is too short. {deal_duration} < {lower}",
+                                proposal.provider,
+                                proposal.client
+                            );
+                            return Err(Error::<T>::InvalidDealParameters.into());
+                        }
+                    }
+                    (None, Some(upper)) => {
+                        if deal_duration > upper {
+                            log::error!(
+                                target: LOG_TARGET,
+                                "Deal duration for deal between {:?} and {:?} is too long. {deal_duration} > {upper}",
+                                proposal.provider,
+                                proposal.client
+                            );
+                            return Err(Error::<T>::InvalidDealParameters.into());
+                        }
+                    }
+                    (Some(lower), Some(upper)) => {
+                        if deal_duration < lower || deal_duration > upper {
+                            log::error!(
+                                target: LOG_TARGET,
+                                "Deal duration for deal between {:?} and {:?} doesn't fall between the set bounds. {deal_duration} < {lower} || {deal_duration} > {upper}",
+                                proposal.provider,
+                                proposal.client
+                            );
+                            return Err(Error::<T>::InvalidDealParameters.into());
+                        }
+                    }
+                }
+                // Check deal price
+                if proposal.storage_price_per_block < params.minimum_price_per_block {
+                    log::error!(
+                        target: LOG_TARGET,
+                        "Deal price per block for deal between {:?} and {:?} is below the minimum price per block. {:?} < {:?}",
+                        proposal.provider,
+                        proposal.client,
+                        proposal.storage_price_per_block,
+                        params.minimum_price_per_block
+                    );
+                    return Err(Error::<T>::InvalidDealParameters.into());
+                }
+            }
+            Ok(())
         }
 
         // Used for deduplication purposes
