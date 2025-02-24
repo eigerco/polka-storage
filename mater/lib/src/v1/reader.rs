@@ -18,7 +18,7 @@ pub trait CarReader {
     /// * The read header does not have roots.
     ///
     /// For more information, check the [header specification](https://ipld.io/specs/transport/car/carv1/#header).
-    fn read_header(&mut self) -> impl std::future::Future<Output = Result<Header, Error>>;
+    fn read_v1_header(&mut self) -> impl std::future::Future<Output = Result<Header, Error>>;
 
     /// Reads a [`Cid`] and a data block.
     ///
@@ -38,7 +38,7 @@ impl<R> CarReader for R
 where
     R: AsyncRead + Unpin,
 {
-    async fn read_header(&mut self) -> Result<Header, Error> {
+    async fn read_v1_header(&mut self) -> Result<Header, Error> {
         let header_length: usize = read_varint(self).await?.0;
         let mut header_buffer = vec![0; header_length];
         self.read_exact(&mut header_buffer).await?;
@@ -146,7 +146,7 @@ mod tests {
             .await
             .unwrap();
         let mut reader = BufReader::new(file);
-        let header = reader.read_header().await.unwrap();
+        let header = reader.read_v1_header().await.unwrap();
 
         assert_eq!(header.version, 1);
         assert_eq!(header.roots.len(), 1);
@@ -163,7 +163,7 @@ mod tests {
 
         let file = File::open("tests/fixtures/car_v1/lorem.car").await.unwrap();
         let mut reader = BufReader::new(file);
-        let header = reader.read_header().await.unwrap();
+        let header = reader.read_v1_header().await.unwrap();
 
         assert_eq!(header.version, 1);
         assert_eq!(header.roots.len(), 1);
@@ -184,7 +184,7 @@ mod tests {
 
         let file = File::open("tests/fixtures/car_v1/lorem.car").await.unwrap();
         let mut reader = BufReader::new(file);
-        let header = reader.read_header().await.unwrap();
+        let header = reader.read_v1_header().await.unwrap();
 
         assert_eq!(header.version, 1);
         assert_eq!(header.roots.len(), 1);
@@ -199,7 +199,7 @@ mod tests {
     #[tokio::test]
     async fn v2_header() {
         let mut file = File::open("tests/fixtures/car_v2/lorem.car").await.unwrap();
-        let header = file.read_header().await;
+        let header = file.read_v1_header().await;
         println!("{:?}", header);
         assert!(matches!(
             header,

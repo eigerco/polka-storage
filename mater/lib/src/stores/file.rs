@@ -96,7 +96,7 @@ impl FileBlockstore {
         // Read the headers
         reader.read_pragma().await?;
         let v2_header = reader.read_v2_header().await?;
-        let v1_header = reader.read_header().await?;
+        let v1_header = reader.read_v1_header().await?;
 
         // This blockstore expects index to be used
         if v2_header.index_offset == 0 {
@@ -356,7 +356,7 @@ mod tests {
         let mut file = File::open(path).await.unwrap();
         file.read_pragma().await.unwrap();
         let header = file.read_v2_header().await?;
-        let v1_header = file.read_header().await?;
+        let v1_header = file.read_v1_header().await?;
 
         let (guard, blockstore_file, blockstore) = init_blockstore(v1_header.roots).await?;
 

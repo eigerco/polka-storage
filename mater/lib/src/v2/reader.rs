@@ -87,14 +87,14 @@ where
     async fn is_car_file(&mut self) -> Result<(), Error> {
         let _pragma = self.read_pragma().await?;
         let _header = self.read_v2_header().await?;
-        let _v1_header = self.read_header().await?;
+        let _v1_header = self.read_v1_header().await?;
         Ok(())
     }
 
     async fn verify_cid(&mut self, contents_cid: Cid) -> Result<(), Error> {
         let _pragma = self.read_pragma().await?;
         let _header = self.read_v2_header().await?;
-        let v1_header = self.read_header().await?;
+        let v1_header = self.read_v1_header().await?;
 
         if [contents_cid] != *v1_header.roots {
             return Err(Error::InvalidCid);
@@ -223,7 +223,7 @@ mod tests {
             .await
             .unwrap();
 
-        let v1_header = v1::CarReader::read_header(&mut file).await.unwrap();
+        let v1_header = v1::CarReader::read_v1_header(&mut file).await.unwrap();
         assert_eq!(v1_header.roots, vec![contents_cid]);
 
         loop {
@@ -287,7 +287,7 @@ mod tests {
         assert_eq!(header.data_size, 7661);
         assert_eq!(header.index_offset, 7712);
 
-        let v1_header = v1::CarReader::read_header(&mut file).await.unwrap();
+        let v1_header = v1::CarReader::read_v1_header(&mut file).await.unwrap();
         assert_eq!(v1_header.roots, vec![contents_cid]);
 
         loop {
@@ -337,7 +337,7 @@ mod tests {
         assert_eq!(header.data_size, 654402);
         assert_eq!(header.index_offset, 654453);
 
-        let v1_header = v1::CarReader::read_header(&mut file).await.unwrap();
+        let v1_header = v1::CarReader::read_v1_header(&mut file).await.unwrap();
         assert_eq!(v1_header.roots.len(), 1);
         assert_eq!(
             v1_header.roots[0]

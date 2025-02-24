@@ -75,7 +75,7 @@ where
         self.reader.read_pragma().await?;
         self.reader.read_v2_header().await?;
 
-        let roots = self.reader.read_header().await?.roots;
+        let roots = self.reader.read_v1_header().await?.roots;
         if roots.is_empty() {
             return Err(Error::WrongNumberOfRoots);
         }
@@ -92,7 +92,7 @@ where
         self.reader.rewind().await?;
         let _ = self.reader.read_pragma().await?;
         let v2_header = self.reader.read_v2_header().await?;
-        let _ = self.reader.read_header().await?;
+        let _ = self.reader.read_v1_header().await?;
 
         let data_end = v2_header.data_offset + v2_header.data_size;
 

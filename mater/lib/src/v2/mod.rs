@@ -184,7 +184,7 @@ mod tests {
         writer.read_pragma().await.unwrap();
         let read_header = writer.read_v2_header().await.unwrap();
         assert_eq!(read_header, written_header);
-        let read_header_v1 = writer.read_header().await.unwrap();
+        let read_header_v1 = writer.read_v1_header().await.unwrap();
         assert_eq!(read_header_v1, written_header_v1);
         let (read_cid, read_block) = writer.read_block().await.unwrap();
         assert_eq!(read_cid, root_cid);

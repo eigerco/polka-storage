@@ -188,7 +188,7 @@ mod tests {
 
         let buffer = writer.into_inner();
         let mut reader = Cursor::new(buffer);
-        let read_header = reader.read_header().await.unwrap();
+        let read_header = reader.read_v1_header().await.unwrap();
         assert_eq!(read_header, written_header);
 
         let (read_cid, read_block) = reader.read_block().await.unwrap();

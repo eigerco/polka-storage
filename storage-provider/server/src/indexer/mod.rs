@@ -113,7 +113,7 @@ where
 
     reader.read_pragma().await?;
     let header = reader.read_v2_header().await?;
-    let _v1_header = reader.read_header().await?;
+    let _v1_header = reader.read_v1_header().await?;
     let data_end = header.data_offset + header.data_size;
 
     let mut records = vec![];
@@ -198,7 +198,7 @@ pub mod tests {
 
         reader.read_pragma().await.unwrap();
         let header = reader.read_v2_header().await.unwrap();
-        let _v1_header = reader.read_header().await.unwrap();
+        let _v1_header = reader.read_v1_header().await.unwrap();
         let data_end = header.data_offset + header.data_size;
 
         let mut records = vec![];
