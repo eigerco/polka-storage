@@ -84,7 +84,7 @@ where
     {
         let mut writer = Self::new(writer);
         writer.write_from(source).await?;
-        let root = writer.roots.first().ok_or(Error::EmptyRootsError)?.clone();
+        let root = *writer.roots.first().ok_or(Error::EmptyRootsError)?;
         writer.finish().await?;
         Ok(root)
     }
