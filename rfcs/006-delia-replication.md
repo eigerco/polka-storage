@@ -23,9 +23,6 @@ This RFC outlines the necessary modifications to the client-side deal flow to su
 - **Replication:**  
   Ensuring that data is stored in multiple locations is a cornerstone of a decentralized storage system. Automatically submitting three identical deals increases redundancy and resilience, so that if one deal or provider fails, the data remains available elsewhere.
 
-- **Efficiency:**  
-  Submitting multiple deals automatically streamlines the process and reduces manual intervention, which is especially important in a decentralized system where network conditions and provider availability may vary.
-
 - **User Experience:**  
   Clients gain higher confidence in data durability when the system automatically issues multiple proposals, knowing that their data will be replicated across the network.
 
