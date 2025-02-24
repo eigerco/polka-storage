@@ -6,10 +6,10 @@ use ipld_core::cid::{multihash::Multihash, Cid};
 use serde::{Deserialize, Serialize};
 
 use crate::multicodec::{RAW_CODE, SHA_256_CODE};
-pub use crate::v1::{reader::Reader, writer::Writer};
-pub(crate) use crate::v1::{
-    reader::{read_block, read_block_metadata, read_header},
-    writer::{write_block, write_header},
+pub(crate) use crate::v1::writer::{write_block, write_header};
+pub use crate::v1::{
+    reader::{CarReader, CarReaderExt},
+    writer::CarWriter,
 };
 
 /// The SHA256 hash over a 32-byte array filled with zeroes.
@@ -157,20 +157,13 @@ mod tests {
 
     use ipld_core::cid::Cid;
     use sha2::Sha256;
-    use tokio::io::BufWriter;
+    use tokio::io::{AsyncWriteExt, BufWriter};
 
     use crate::{
         multicodec::{generate_multihash, RAW_CODE},
-        v1::{Header, Reader, Writer},
+        v1::{writer::CarWriter, Header},
+        CarV1Reader,
     };
-
-    impl Writer<BufWriter<Vec<u8>>> {
-        pub fn test_writer() -> Self {
-            let buffer = Vec::new();
-            let buf_writer = BufWriter::new(buffer);
-            Writer::new(buf_writer)
-        }
-    }
 
     #[tokio::test]
     async fn roundtrip_lorem() {
@@ -181,19 +174,20 @@ mod tests {
         let root_cid = Cid::new_v1(RAW_CODE, contents_multihash);
 
         let written_header = Header::new(vec![root_cid]);
-        let mut writer = crate::v1::Writer::test_writer();
+        let buffer = Vec::new();
+        let mut writer = BufWriter::new(buffer);
         writer.write_header(&written_header).await.unwrap();
 
         // There's only one block
         writer.write_block(&root_cid, &file_contents).await.unwrap();
-        let buf_writer = writer.finish().await.unwrap();
+        writer.flush().await.unwrap();
         let expected_header = tokio::fs::read("tests/fixtures/car_v1/lorem.car")
             .await
             .unwrap();
-        assert_eq!(&expected_header, buf_writer.get_ref());
+        assert_eq!(&expected_header, writer.get_ref());
 
-        let buffer = buf_writer.into_inner();
-        let mut reader = Reader::new(Cursor::new(buffer));
+        let buffer = writer.into_inner();
+        let mut reader = Cursor::new(buffer);
         let read_header = reader.read_header().await.unwrap();
         assert_eq!(read_header, written_header);
 

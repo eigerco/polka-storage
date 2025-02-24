@@ -134,7 +134,7 @@ mod tests {
 
     use blockstore::Blockstore;
     use cid::{multihash::Multihash, Cid};
-    use mater::{CarV2Reader, IDENTITY_CODE, RAW_CODE};
+    use mater::{CarV1Reader, CarV1ReaderExt, CarV2Reader, IDENTITY_CODE, RAW_CODE};
     use primitives::commitment::{CommP, Commitment};
     use tempfile::{tempdir, TempDir};
     use tokio::{fs::File, io::BufReader};
@@ -197,12 +197,11 @@ mod tests {
 
         // Check if blocks are provided by the blockstore
         let file = File::open(piece_path).await.unwrap();
-        let reader = BufReader::new(file);
-        let mut reader = CarV2Reader::new(reader);
+        let mut reader = BufReader::new(file);
 
         reader.read_pragma().await.unwrap();
-        let header = reader.read_header().await.unwrap();
-        let _v1_header = reader.read_v1_header().await.unwrap();
+        let header = reader.read_v2_header().await.unwrap();
+        let _v1_header = reader.read_header().await.unwrap();
         let data_end = header.data_offset + header.data_size;
 
         loop {

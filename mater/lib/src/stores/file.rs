@@ -10,10 +10,10 @@ use tokio::{
 };
 
 use crate::{
-    cid::CidExt,
+    ipld::CidExt,
     multicodec::SHA_256_CODE,
-    v1::{self, read_block, write_block},
-    v2::{self},
+    v1::{self, write_block, CarReader as _},
+    v2::{self, CarReader},
     CarV1Header, CarV2Header, Characteristics, Error, Index, IndexEntry, MultihashIndexSorted,
     SingleWidthIndex,
 };
@@ -91,13 +91,12 @@ impl FileBlockstore {
     where
         P: AsRef<Path>,
     {
-        let file = File::open(&path).await?;
-        let mut reader = v2::Reader::new(file);
+        let mut reader = File::open(&path).await?;
 
         // Read the headers
         reader.read_pragma().await?;
-        let v2_header = reader.read_header().await?;
-        let v1_header = reader.read_v1_header().await?;
+        let v2_header = reader.read_v2_header().await?;
+        let v1_header = reader.read_header().await?;
 
         // This blockstore expects index to be used
         if v2_header.index_offset == 0 {
@@ -105,8 +104,7 @@ impl FileBlockstore {
         }
 
         // Read the index
-        let inner = reader.get_inner_mut();
-        inner.seek(SeekFrom::Start(v2_header.index_offset)).await?;
+        reader.seek(SeekFrom::Start(v2_header.index_offset)).await?;
 
         let mut index_map = IndexMap::new();
         match reader.read_index().await? {
@@ -173,7 +171,7 @@ impl FileBlockstore {
             .await?;
 
         // Read the lock
-        let (block_cid, block_data) = read_block(&mut inner.store).await?;
+        let (block_cid, block_data) = inner.store.read_block().await?;
         debug_assert_eq!(block_cid, cid);
 
         // Move cursor back to the position where we'll continue writing next blocks.
@@ -334,7 +332,9 @@ mod tests {
     use crate::{
         multicodec::{generate_multihash, IDENTITY_CODE, RAW_CODE},
         test_utils::assert_buffer_eq,
-        CarV2Reader, Error, FileBlockstore,
+        v1::CarReader,
+        v2::CarReader as V2CarReader,
+        Error, FileBlockstore,
     };
 
     /// Initialize a new blockstore
@@ -353,16 +353,15 @@ mod tests {
     where
         P: AsRef<Path>,
     {
-        let file = File::open(path).await.unwrap();
-        let mut reader = CarV2Reader::new(file);
-        reader.read_pragma().await.unwrap();
-        let header = reader.read_header().await?;
-        let v1_header = reader.read_v1_header().await?;
+        let mut file = File::open(path).await.unwrap();
+        file.read_pragma().await.unwrap();
+        let header = file.read_v2_header().await?;
+        let v1_header = file.read_header().await?;
 
         let (guard, blockstore_file, blockstore) = init_blockstore(v1_header.roots).await?;
 
         loop {
-            match reader.read_block().await {
+            match file.read_block().await {
                 Ok((cid, data)) => {
                     // Add block to the store
                     blockstore.put_keyed(&cid, &data).await.unwrap();
@@ -375,7 +374,7 @@ mod tests {
                     assert_eq!(block, data);
 
                     // Kinda hacky, but better than doing a seek later on
-                    let position = reader.get_inner_mut().stream_position().await.unwrap();
+                    let position = file.stream_position().await.unwrap();
                     let data_end = header.data_offset + header.data_size;
                     if position >= data_end {
                         break;

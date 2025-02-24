@@ -13,23 +13,31 @@ use tokio::{
     io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWriteExt},
 };
 
-use crate::{multicodec, v1::BlockMetadata, v2, Error};
+use crate::{
+    multicodec,
+    v1::{BlockMetadata, CarReader, CarReaderExt},
+    v2::CarReader as _,
+    Error,
+};
 
 /// Extracts the raw data from a CARv2 file.
 /// It expects the CAR file to have only 1 root.
 pub struct CarExtractor<R> {
-    reader: v2::Reader<R>,
+    reader: R,
     index: HashMap<Cid, BlockMetadata>,
 }
 
-impl<R> CarExtractor<R> {
+impl<R> CarExtractor<R>
+where
+    R: AsyncRead + AsyncSeek + Unpin,
+{
     /// Creates a new [`CarExtractor`] from the given reader.
     pub async fn new(reader: R) -> Result<Self, Error>
     where
         R: AsyncRead + AsyncSeek + Unpin,
     {
         let mut self_ = Self {
-            reader: v2::Reader::new(reader),
+            reader,
             index: HashMap::with_capacity(1),
         };
         self_.naive_build_index().await?;
@@ -63,11 +71,11 @@ where
     /// Always returns a non-empty vector, if there are no roots the error
     /// `Error::WrongNumberOfRoots` is returned.
     pub async fn roots(&mut self) -> Result<Vec<Cid>, Error> {
-        self.reader.get_inner_mut().rewind().await?;
+        self.reader.rewind().await?;
         self.reader.read_pragma().await?;
-        self.reader.read_header().await?;
+        self.reader.read_v2_header().await?;
 
-        let roots = self.reader.read_v1_header().await?.roots;
+        let roots = self.reader.read_header().await?.roots;
         if roots.is_empty() {
             return Err(Error::WrongNumberOfRoots);
         }
@@ -81,15 +89,15 @@ where
     /// (Cid, data start offset and data length) without loading the blocks into memory.
     async fn naive_build_index(&mut self) -> Result<(), Error> {
         // Indexing must always be made from the start
-        self.reader.get_inner_mut().rewind().await?;
+        self.reader.rewind().await?;
         let _ = self.reader.read_pragma().await?;
-        let v2_header = self.reader.read_header().await?;
-        let _ = self.reader.read_v1_header().await?;
+        let v2_header = self.reader.read_v2_header().await?;
+        let _ = self.reader.read_header().await?;
 
         let data_end = v2_header.data_offset + v2_header.data_size;
 
         loop {
-            let position = self.reader.get_inner_mut().stream_position().await?;
+            let position = self.reader.stream_position().await?;
             if position >= data_end {
                 break;
             }
@@ -115,7 +123,6 @@ where
                 match block_metadata.cid.codec() {
                     multicodec::RAW_CODE => {
                         self.reader
-                            .get_inner_mut()
                             .seek(std::io::SeekFrom::Start(block_metadata.block_offset))
                             .await?;
                         let block = self.reader.read_block().await?;
@@ -123,7 +130,6 @@ where
                     }
                     multicodec::DAG_PB_CODE => {
                         self.reader
-                            .get_inner_mut()
                             .seek(std::io::SeekFrom::Start(block_metadata.block_offset))
                             .await?;
                         let (_, block) = self.reader.read_block().await?;
@@ -184,7 +190,7 @@ pub(crate) mod blockstore {
         sync::RwLock,
     };
 
-    use crate::{stores::to_blockstore_cid, CarExtractor, CidExt, Error};
+    use crate::{stores::to_blockstore_cid, v1::CarReader, CarExtractor, CidExt, Error};
 
     // Methods in here are marked as unused in the "main" `impl` because they're only used here.
     impl<R> CarExtractor<R>
@@ -208,7 +214,6 @@ pub(crate) mod blockstore {
                 Some(metadata) => {
                     // We could seek directly to the data and not read the Cid, but this is "canonical"
                     self.reader
-                        .get_inner_mut()
                         .seek(std::io::SeekFrom::Start(metadata.block_offset))
                         .await?;
                     let (_, block) = self.reader.read_block().await?;

@@ -6,8 +6,8 @@ use bitflags::bitflags;
 pub use index::{
     write_index, Index, IndexEntry, IndexSorted, MultihashIndexSorted, SingleWidthIndex,
 };
-pub use reader::{verify_cid, Reader};
-pub use writer::{write_header, Writer};
+pub use reader::{CarReader, CarReaderExt};
+pub use writer::{write_header, CarWriter};
 
 /// The pragma for a CARv2. This is also a valid CARv1 header, with version 2 and no root CIDs.
 ///
@@ -112,22 +112,24 @@ mod tests {
 
     use ipld_core::cid::Cid;
     use sha2::Sha256;
-    use tokio::io::{AsyncSeekExt, BufWriter};
+    use tokio::io::{AsyncSeekExt, AsyncWriteExt, BufWriter};
 
     use crate::{
         multicodec::{generate_multihash, MultihashCode, RAW_CODE},
         test_utils::assert_buffer_eq,
+        v1::CarWriter,
         v2::{
             index::{Index, IndexEntry, IndexSorted},
-            Header, Reader, Writer,
+            writer::CarWriter as _,
+            Header,
         },
+        CarV1Reader, CarV2Reader,
     };
 
     #[tokio::test]
     async fn roundtrip_lorem() {
         let cursor = Cursor::new(vec![]);
-        let buf_writer = BufWriter::new(cursor);
-        let mut writer = Writer::new(buf_writer);
+        let mut writer = BufWriter::new(cursor);
 
         let file_contents = tokio::fs::read("tests/fixtures/original/lorem.txt")
             .await
@@ -137,30 +139,21 @@ mod tests {
 
         let written_header = Header::new(false, 51, 7661, 7712);
         // To simplify testing, the values were extracted using `car inspect`
-        writer.write_header(&written_header).await.unwrap();
+        writer.write_v2_header(&written_header).await.unwrap();
 
         // We start writing the CARv1 here and keep the stream positions
         // so that we can properly index the blocks later
-        let start_car_v1 = {
-            let inner = writer.get_inner_mut();
-            inner.stream_position().await.unwrap()
-        };
+        let start_car_v1 = writer.stream_position().await.unwrap();
 
         let written_header_v1 = crate::v1::Header::new(vec![root_cid]);
-        writer.write_v1_header(&written_header_v1).await.unwrap();
+        writer.write_header(&written_header_v1).await.unwrap();
 
-        let start_car_v1_data = {
-            let inner = writer.get_inner_mut();
-            inner.stream_position().await.unwrap()
-        };
+        let start_car_v1_data = writer.stream_position().await.unwrap();
 
         // There's only one block
         writer.write_block(&root_cid, &file_contents).await.unwrap();
 
-        let written = {
-            let inner = writer.get_inner_mut();
-            inner.stream_position().await.unwrap()
-        };
+        let written = writer.stream_position().await.unwrap();
         assert_eq!(written, 7712);
 
         let mut mapping = BTreeMap::new();
@@ -179,24 +172,24 @@ mod tests {
         let written_index = Index::multihash(mapping);
         writer.write_index(&written_index).await.unwrap();
 
-        let mut buffer = writer.finish().await.unwrap().into_inner();
-        buffer.rewind().await.unwrap();
+        writer.flush().await.unwrap();
+        writer.rewind().await.unwrap();
+
         let expected_header = tokio::fs::read("tests/fixtures/car_v2/lorem.car")
             .await
             .unwrap();
 
-        assert_buffer_eq!(&expected_header, buffer.get_ref());
+        assert_buffer_eq!(&expected_header, writer.get_ref().get_ref());
 
-        let mut reader = Reader::new(buffer);
-        reader.read_pragma().await.unwrap();
-        let read_header = reader.read_header().await.unwrap();
+        writer.read_pragma().await.unwrap();
+        let read_header = writer.read_v2_header().await.unwrap();
         assert_eq!(read_header, written_header);
-        let read_header_v1 = reader.read_v1_header().await.unwrap();
+        let read_header_v1 = writer.read_header().await.unwrap();
         assert_eq!(read_header_v1, written_header_v1);
-        let (read_cid, read_block) = reader.read_block().await.unwrap();
+        let (read_cid, read_block) = writer.read_block().await.unwrap();
         assert_eq!(read_cid, root_cid);
         assert_eq!(read_block, file_contents);
-        let read_index = reader.read_index().await.unwrap();
+        let read_index = writer.read_index().await.unwrap();
         assert_eq!(read_index, written_index);
     }
 }
