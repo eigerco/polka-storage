@@ -16,7 +16,7 @@ This RFC outlines the necessary modifications to the client-side deal flow to su
 - Looping through the existing deal proposal flow three times.
 - Making parallel JSON‑RPC calls against individual storage provider servers.
 - Aggregating status feedback in the user interface and implementing a retry mechanism.
-- Provider selection process update - instead of the user manually selecting one provider, Delia will automatically select 3 different storage providers at random. Users will still have the option to replace any of them in the UI.
+- Provider selection process update - instead of the user manually selecting one provider, Delia will automatically select the 3 cheapest storage providers (by price per block). Users will still have the option to replace any of them in the UI, but they will still need to select a mininum of 3 providers.
 
 ## Motivation
 
@@ -47,7 +47,7 @@ This RFC outlines the necessary modifications to the client-side deal flow to su
 
 ### Provider Selection
 
-Currently, the FE allows the user to select one storage provider from a list. With the multi-deal approach for replication, we will change that to let Delia automatically pick 3 different storage providers at random.
+Currently, the FE allows the user to select one storage provider from a list. With the multi-deal approach for replication, we will change that to let Delia automatically pick the 3 cheapest storage providers.
 
 ### Storage Provider Considerations
 
@@ -62,7 +62,7 @@ Currently, the FE allows the user to select one storage provider from a list. Wi
 - **Status Aggregation:**  
   The FE should display the status of all three proposals (either aggregated or individually) so that the user is aware of the overall replication progress.
 - **Error Handling:**  
-  If one proposal fails while the others succeed, the client should clearly report the error and support a retry mechanism where it retries the failed storage provider 3 times, if all of them fail, Delia selects another storage provider at random, and repeats the process, aiming to ensure that the data is stored by 3 storage providers.
+  If one proposal fails while the others succeed, the client should clearly report the error and support a retry mechanism where it retries the failed storage provider 3 times, if all of them fail, Delia selects another storage provider (selecting the next one in line based on price), and repeats the process, aiming to ensure that the data is stored by 3 storage providers.
 
 ### Documentation
 
@@ -76,7 +76,7 @@ Currently, the FE allows the user to select one storage provider from a list. Wi
   Modify the existing deal proposal code to iterate three times. Each iteration constructs the same deal proposal and calls the RPC endpoint.
   
 - **Error Handling:**  
-  Aggregate results from the three RPC calls. If there is a failed upload attempt, Delia will retry 3 times (for each failed provider), if all 3 are unsuccessful it will select another storage provider at random and repeat this, with the goal of ensuring that the data is stored by at least 3 different storage providers.
+  Aggregate results from the three RPC calls. If there is a failed upload attempt, Delia will retry 3 times (for each failed provider), if all 3 are unsuccessful it will select another storage provider (the next one in line based on price) and repeat this, with the goal of ensuring that the data is stored by at least 3 different storage providers.
 
 ## Future work
 Implement N-ary replication instead of forcing 3 copies.
