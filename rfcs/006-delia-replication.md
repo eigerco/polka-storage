@@ -9,7 +9,7 @@ This RFC proposes modifications to the Delia storage deal flow so that, instead 
 
 ## Introduction
 
-Polka Storage relies on replicating data across multiple storage providers to ensure high availability and fault tolerance. Currently, Delia handles storage deals on a one-to-one basis: a client calculates a piece CID, proposes a deal, uploads a file, and then publishes the deal. For true replication, it is desirable for a client to automatically generate multiple identical deals—specifically three—so that the same piece of data is stored redundantly.
+Polka Storage will rely on replicating data across multiple storage providers to ensure high availability and fault tolerance. Currently, Delia handles storage deals on a one-to-one basis: a client calculates a piece CID, proposes a deal, uploads a file, and then publishes the deal. For true replication, it is desirable for a client to automatically generate multiple identical deals—specifically three—so that the same piece of data is stored redundantly.
 
 This RFC outlines the necessary modifications to the client-side deal flow to support the automatic submission of three deals. The changes will involve:
 
