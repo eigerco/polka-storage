@@ -405,7 +405,7 @@ mod test {
         let expected = [0u8; 524288].as_slice();
         let inner = out_check.into_inner();
         let result = inner.as_slice();
-      
+
         assert_buffer_eq!(expected, result);
     }
 
