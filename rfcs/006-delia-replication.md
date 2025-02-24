@@ -29,9 +29,6 @@ This RFC outlines the necessary modifications to the client-side deal flow to su
 - **User Experience:**  
   Clients gain higher confidence in data durability when the system automatically issues multiple proposals, knowing that their data will be replicated across the network.
 
-- **Foundation for Further Enhancements:**  
-  This feature complements the automated deal acceptance framework (see RFC‑005) and opens the door for future optimizations such as dynamic batch sizing and advanced provider selection strategies.
-
 ## Proposed Changes
 
 ### Client Modifications
