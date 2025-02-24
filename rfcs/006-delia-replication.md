@@ -81,12 +81,6 @@ Currently, the FE allows the user to select one storage provider from a list. Wi
 - **Looping Mechanism:**  
   Modify the existing deal proposal code to iterate three times. Each iteration constructs the same deal proposal and calls the RPC endpoint.
   
-- **Parallel Execution:**  
-  Use async patterns (e.g., `Promise.all`) to issue the three RPC calls concurrently.
-  
-- **Signature & Publishing:**  
-  The encoding and signing process remains unchanged; each deal proposal is individually signed and published.
-  
 - **Error Handling:**  
   Aggregate results from the three RPC calls. If there is a failed upload attempt, Delia will retry 3 times (for each failed provider), if all 3 are unsuccessful it will select another storage provider at random and repeat this, with the goal of ensuring that the data is stored by at least 3 different storage providers.
 
