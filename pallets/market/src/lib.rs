@@ -300,6 +300,22 @@ pub mod pallet {
         pub client_signature: OffchainSignature,
     }
 
+    /// Bounds for deal duration that storage providers want to accept.
+    /// Used in the [`DealParameters`]
+    #[derive(Clone, Eq, PartialEq, Encode, Decode, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+    pub struct DealDurationBound<BlockNumber> {
+        pub lower: Option<BlockNumber>,
+        pub upper: Option<BlockNumber>,
+    }
+
+    /// Deal Parameters set by storage providers on which deals they accept,
+    /// based on deal variables.
+    #[derive(Clone, Eq, PartialEq, Encode, Decode, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+    pub struct DealParameters<Balance, BlockNumber> {
+        pub minimum_price: Balance,
+        pub deal_duration: DealDurationBound<BlockNumber>,
+    }
+
     #[pallet::pallet]
     pub struct Pallet<T>(_);
 
@@ -364,6 +380,15 @@ pub mod pallet {
         BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
     >;
 
+    /// Holds deal parameters for storage provider
+    #[pallet::storage]
+    pub type SPDealParameters<T: Config> = StorageMap<
+        _,
+        Blake2_128Concat,
+        T::AccountId,
+        DealParameters<BalanceOf<T>, BlockNumberFor<T>>,
+    >;
+
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
@@ -419,6 +444,13 @@ pub mod pallet {
             provider: T::AccountId,
             deals: BoundedVec<PublishedDeal<T>, T::MaxDeals>,
         },
+        /// An SP has updated or published their deal parameters
+        DealParametersUpdated {
+            provider: T::AccountId,
+            deal_parameters: DealParameters<BalanceOf<T>, BlockNumberFor<T>>,
+        },
+        /// An SP has removed their deal parameters
+        DealParametersRemoved { provider: T::AccountId },
     }
 
     /// Utility type to ensure that the bound for deal settlement is in sync.
@@ -802,6 +834,40 @@ pub mod pallet {
                 unsuccessful,
             });
 
+            Ok(())
+        }
+
+        #[pallet::call_index(4)]
+        pub fn publish_deal_parameters(
+            origin: OriginFor<T>,
+            deal_parameters: DealParameters<BalanceOf<T>, BlockNumberFor<T>>,
+        ) -> DispatchResult {
+            let provider = ensure_signed(origin)?;
+            ensure!(
+                T::StorageProviderValidation::is_registered_storage_provider(&provider),
+                Error::<T>::StorageProviderNotRegistered
+            );
+            // Check if params exist, remove and insert.
+            if SPDealParameters::<T>::contains_key(&provider) {
+                SPDealParameters::<T>::remove(&provider)
+            }
+            SPDealParameters::<T>::insert(&provider, &deal_parameters);
+            Self::deposit_event(Event::<T>::DealParametersUpdated {
+                provider,
+                deal_parameters,
+            });
+            Ok(())
+        }
+
+        #[pallet::call_index(5)]
+        pub fn remove_deal_parameters(origin: OriginFor<T>) -> DispatchResult {
+            let provider = ensure_signed(origin)?;
+            ensure!(
+                T::StorageProviderValidation::is_registered_storage_provider(&provider),
+                Error::<T>::StorageProviderNotRegistered
+            );
+            SPDealParameters::<T>::remove(&provider);
+            Self::deposit_event(Event::<T>::DealParametersRemoved { provider });
             Ok(())
         }
     }

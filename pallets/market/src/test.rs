@@ -22,8 +22,9 @@ use crate::{
     error::DealSettlementError,
     mock::*,
     pallet::{lock_funds, slash_and_burn, unlock_funds},
-    ActiveDealState, BalanceEntry, BalanceTable, Config, DealState, DealsForBlock, Error, Event,
-    PendingProposals, Proposals, PublishedDeal, SectorDeals, SettledDealData,
+    ActiveDealState, BalanceEntry, BalanceTable, Config, DealDurationBound, DealParameters,
+    DealState, DealsForBlock, Error, Event, PendingProposals, Proposals, PublishedDeal,
+    SPDealParameters, SectorDeals, SettledDealData,
 };
 #[test]
 fn initial_state() {
@@ -1701,6 +1702,128 @@ fn on_sector_terminate_active() {
         assert_eq!(
             <Test as crate::pallet::Config>::Currency::total_issuance(),
             2985
+        );
+    });
+}
+
+#[test]
+fn publish_deal_parameters() {
+    let _ = env_logger::try_init();
+    new_test_ext().execute_with(|| {
+        let storage_provider = account::<Test>(PROVIDER);
+        register_storage_provider(storage_provider.clone());
+
+        let deal_params: DealParameters<u64, u64> = DealParameters {
+            minimum_price: 1_000,
+            deal_duration: DealDurationBound {
+                lower: Some(100),
+                upper: Some(1_000_000),
+            },
+        };
+
+        // Run extrinsic
+        assert_ok!(Market::publish_deal_parameters(
+            RuntimeOrigin::signed(storage_provider.clone()),
+            deal_params.clone()
+        ));
+
+        // Check events
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Market(Event::<Test>::DealParametersUpdated {
+                provider: storage_provider.clone(),
+                deal_parameters: deal_params.clone()
+            })]
+        );
+
+        // Check storage map
+        assert_eq!(
+            SPDealParameters::<Test>::try_get(&storage_provider),
+            Ok(deal_params)
+        );
+
+        // Re-insert different deal parameters
+        let deal_params_2: DealParameters<u64, u64> = DealParameters {
+            minimum_price: 10_000,
+            deal_duration: DealDurationBound {
+                lower: Some(1_000),
+                upper: Some(100_000),
+            },
+        };
+
+        // Run extrinsic
+        assert_ok!(Market::publish_deal_parameters(
+            RuntimeOrigin::signed(storage_provider.clone()),
+            deal_params_2.clone()
+        ));
+
+        // Check events
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Market(Event::<Test>::DealParametersUpdated {
+                provider: storage_provider.clone(),
+                deal_parameters: deal_params_2.clone()
+            })]
+        );
+
+        // Check storage map
+        assert_eq!(
+            SPDealParameters::<Test>::try_get(&storage_provider),
+            Ok(deal_params_2)
+        );
+    });
+}
+
+#[test]
+fn remove_deal_parameters() {
+    let _ = env_logger::try_init();
+    new_test_ext().execute_with(|| {
+        let storage_provider = account::<Test>(PROVIDER);
+        register_storage_provider(storage_provider.clone());
+
+        let deal_params: DealParameters<u64, u64> = DealParameters {
+            minimum_price: 1_000,
+            deal_duration: DealDurationBound {
+                lower: Some(100),
+                upper: Some(1_000_000),
+            },
+        };
+
+        // Run extrinsic
+        assert_ok!(Market::publish_deal_parameters(
+            RuntimeOrigin::signed(storage_provider.clone()),
+            deal_params.clone()
+        ));
+
+        // Check events
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Market(Event::<Test>::DealParametersUpdated {
+                provider: storage_provider.clone(),
+                deal_parameters: deal_params.clone()
+            })]
+        );
+
+        // Check storage map
+        assert_eq!(
+            SPDealParameters::<Test>::try_get(&storage_provider),
+            Ok(deal_params)
+        );
+
+        // Remove deal parameters
+        assert_ok!(Market::remove_deal_parameters(RuntimeOrigin::signed(
+            storage_provider.clone()
+        )));
+
+        // Check storage map
+        assert!(SPDealParameters::<Test>::try_get(&storage_provider).is_err());
+
+        // Check events
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Market(Event::<Test>::DealParametersRemoved {
+                provider: storage_provider.clone(),
+            })]
         );
     });
 }
