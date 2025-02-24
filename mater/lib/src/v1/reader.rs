@@ -5,8 +5,7 @@ use serde_ipld_dagcbor::codec::DagCborCodec;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt};
 
 use super::BlockMetadata;
-use crate::ipld::IpldExt;
-use crate::{async_varint::read_varint, v1::Header, v2::PRAGMA, Error};
+use crate::{async_varint::read_varint, ipld::IpldExt, v1::Header, v2::PRAGMA, Error};
 
 /// Low-level, reading functions for the CAR format.
 pub trait CarReader {

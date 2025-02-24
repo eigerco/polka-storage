@@ -2,9 +2,10 @@ use ipld_core::cid::Cid;
 use tokio::io::{AsyncRead, AsyncReadExt};
 
 use super::index::read_index;
-use crate::v1::CarReader as _;
 use crate::{
-    v1::{self},
+    v1::{
+        CarReader as _, {self},
+    },
     v2::{index::Index, Characteristics, Header, PRAGMA},
     Error,
 };
