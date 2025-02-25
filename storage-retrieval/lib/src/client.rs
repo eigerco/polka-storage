@@ -102,8 +102,7 @@ impl Client {
             .create_new(!settings.overwrite)
             .read(true)
             .open(car_path.clone())
-            .await
-            .inspect_err(|_| tracing::error!("{}", car_path.display()))?;
+            .await?;
         let blockstore = ReadWriteBlockstore::new(file).await?;
 
         Ok(Self {
