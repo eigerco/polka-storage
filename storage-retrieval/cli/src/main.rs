@@ -3,7 +3,7 @@ use std::{path::PathBuf, time::Duration};
 use cid::Cid;
 use clap::{command, Parser};
 use libp2p::Multiaddr;
-use polka_storage_retrieval::client::Client;
+use polka_storage_retrieval::client::{Client, ClientSettings};
 use tokio::time::timeout;
 use tracing::{error, info, level_filters::LevelFilter};
 use tracing_subscriber::{
@@ -16,14 +16,25 @@ struct Cli {
     /// Provider used for data download
     #[arg(long)]
     provider: Multiaddr,
-    /// The CAR file to write to.
+
+    /// The output file to write to.
     #[arg(long)]
     output: PathBuf,
+
+    /// Whether to overwrite existing files.
+    #[arg(long, action)]
+    overwrite: bool,
+
+    /// Whether to extract the retrieved file.
+    #[arg(long, action)]
+    extract: bool,
+
     /// Cancel the download if not completed after the specified duration in
     /// seconds. If not set the download will never timeout.
     #[arg(long, value_parser = parse_duration)]
     timeout: Option<Duration>,
-    /// payload CID
+
+    /// Payload CID
     #[arg(long)]
     payload_cid: Cid,
 }
@@ -34,12 +45,8 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let arguments = Cli::parse();
 
-    let client = Client::new(
-        arguments.output,
-        vec![arguments.provider],
-        vec![arguments.payload_cid],
-    )
-    .await?;
+    let settings = ClientSettings::new(arguments.output, arguments.extract, arguments.overwrite);
+    let client = Client::new(vec![arguments.provider], arguments.payload_cid, settings).await?;
 
     let download_result = match arguments.timeout {
         Some(duration) => timeout(duration, client.download()).await,

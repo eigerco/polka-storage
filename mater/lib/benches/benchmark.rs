@@ -6,7 +6,7 @@ use std::{
 };
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use mater::Blockwriter;
+use mater::FileWriter;
 use rand::{prelude::SliceRandom, rngs::ThreadRng, Rng};
 use tempfile::{tempdir, TempDir};
 use tokio::{
@@ -136,7 +136,7 @@ fn generate_content(params: &Params) -> Vec<u8> {
 }
 
 /// Read/Write content to a Blockstore. This function is benchmarked.
-async fn read_write_content_benched<W>(content: &[u8], mut store: Blockwriter<W>)
+async fn read_write_content_benched<W>(content: &[u8], mut store: FileWriter<W>)
 where
     W: AsyncWrite + AsyncSeek + Unpin,
 {
@@ -153,7 +153,7 @@ fn read_write(c: &mut Criterion) {
 
         c.bench_with_input(BenchmarkId::new("read", params), params, |b, _params| {
             b.to_async(TokioExecutor::new().unwrap())
-                .iter(|| read_write_content_benched(&content, Blockwriter::in_memory()));
+                .iter(|| read_write_content_benched(&content, FileWriter::in_memory()));
         });
     }
 }
@@ -174,7 +174,7 @@ async fn blockwriter_import(source: &Path, target: &Path) {
     let source_file = File::open(source).await.unwrap();
     let output_file = File::create(target).await.unwrap();
 
-    Blockwriter::import(source_file, output_file).await.unwrap();
+    FileWriter::import(source_file, output_file).await.unwrap();
 }
 
 fn import(c: &mut Criterion) {

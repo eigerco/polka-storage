@@ -22,16 +22,19 @@ use crate::{
 
 /// Extracts the raw data from a CARv2 file.
 /// It expects the CAR file to have only 1 root.
-pub struct CarExtractor<R> {
+///
+/// Disambiguation: this writer is not a [`File`](tokio::fs::File) writer,
+/// but rather a file writer in the CAR file format sense.
+pub struct FileReader<R> {
     reader: R,
     index: HashMap<Cid, BlockMetadata>,
 }
 
-impl<R> CarExtractor<R>
+impl<R> FileReader<R>
 where
     R: AsyncRead + AsyncSeek + Unpin,
 {
-    /// Creates a new [`CarExtractor`] from the given reader.
+    /// Creates a new [`FileReader`] from the given reader.
     pub async fn new(reader: R) -> Result<Self, Error>
     where
         R: AsyncRead + AsyncSeek + Unpin,
@@ -45,8 +48,8 @@ where
     }
 }
 
-impl CarExtractor<File> {
-    /// Creates a [`CarExtractor`] from the given file path.
+impl FileReader<File> {
+    /// Creates a [`FileReader`] from the given file path.
     pub async fn from_path<P>(path: P) -> Result<Self, Error>
     where
         P: AsRef<Path>,
@@ -55,14 +58,14 @@ impl CarExtractor<File> {
     }
 }
 
-impl CarExtractor<Cursor<Vec<u8>>> {
-    /// Creates a [`CarExtractor`] from a vector of bytes.
+impl FileReader<Cursor<Vec<u8>>> {
+    /// Creates a [`FileReader`] from a vector of bytes.
     pub async fn from_vec(vec: Vec<u8>) -> Result<Self, Error> {
         Self::new(Cursor::new(vec)).await
     }
 }
 
-impl<R> CarExtractor<R>
+impl<R> FileReader<R>
 where
     R: AsyncRead + AsyncSeek + Unpin,
 {
@@ -152,7 +155,7 @@ where
     /// Writes the content tree for the given [`Cid`] into `w`.
     ///
     /// This is equivalent to reading the stream of blocks from [`Self::load_cid`] into a writer.
-    async fn copy_tree<W>(&mut self, cid: &Cid, mut w: W) -> Result<(), Error>
+    pub async fn copy_tree<W>(&mut self, cid: &Cid, mut w: W) -> Result<(), Error>
     where
         W: AsyncWriteExt + Unpin,
     {
@@ -190,10 +193,10 @@ pub(crate) mod blockstore {
         sync::RwLock,
     };
 
-    use crate::{stores::to_blockstore_cid, v1::CarReader, CarExtractor, CidExt, Error};
+    use crate::{convert::to_blockstore_cid, v1::CarReader, CidExt, Error, FileReader};
 
     // Methods in here are marked as unused in the "main" `impl` because they're only used here.
-    impl<R> CarExtractor<R>
+    impl<R> FileReader<R>
     where
         R: AsyncRead + AsyncSeek + Unpin,
     {
@@ -224,9 +227,9 @@ pub(crate) mod blockstore {
         }
     }
 
-    /// A read-only [`blockstore::Blockstore`] implementation of [`CarExtractor`].
+    /// A read-only [`blockstore::Blockstore`] implementation of [`FileReader`].
     pub struct ReadOnlyBlockstore<R> {
-        inner: RwLock<CarExtractor<R>>,
+        inner: RwLock<FileReader<R>>,
     }
 
     impl<R> ReadOnlyBlockstore<R>
@@ -236,7 +239,7 @@ pub(crate) mod blockstore {
         /// Create a new [`CarReadOnlyBlockstore`] from the given reader.
         pub async fn new(reader: R) -> Result<Self, Error> {
             Ok(Self {
-                inner: RwLock::new(CarExtractor::new(reader).await?),
+                inner: RwLock::new(FileReader::new(reader).await?),
             })
         }
     }
@@ -252,7 +255,7 @@ pub(crate) mod blockstore {
     }
 
     impl<R> Deref for ReadOnlyBlockstore<R> {
-        type Target = RwLock<CarExtractor<R>>;
+        type Target = RwLock<FileReader<R>>;
 
         fn deref(&self) -> &Self::Target {
             &self.inner
@@ -396,11 +399,11 @@ pub(crate) mod blockstore {
 mod test {
     use std::{io::Cursor, path::Path};
 
-    use crate::{test_utils::assert_buffer_eq, CarExtractor};
+    use crate::{test_utils::assert_buffer_eq, FileReader};
 
     #[tokio::test]
     async fn read_duplicated_blocks() {
-        let mut loader = CarExtractor::from_path("tests/fixtures/car_v2/zero.car")
+        let mut loader = FileReader::from_path("tests/fixtures/car_v2/zero.car")
             .await
             .unwrap();
         let root = loader.roots().await.unwrap()[0];
@@ -420,7 +423,7 @@ mod test {
         P2: AsRef<Path>,
     {
         let original = tokio::fs::read(original).await.unwrap();
-        let mut car = CarExtractor::from_path(path).await.unwrap();
+        let mut car = FileReader::from_path(path).await.unwrap();
 
         let mut out_buffer: Vec<u8> = vec![];
         let root = car.roots().await.unwrap()[0];
@@ -431,7 +434,7 @@ mod test {
 
     #[tokio::test]
     async fn read_empty() {
-        let mut car = CarExtractor::from_path("tests/fixtures/car_v2/empty.car")
+        let mut car = FileReader::from_path("tests/fixtures/car_v2/empty.car")
             .await
             .unwrap();
         let mut out_buffer: Vec<u8> = vec![];

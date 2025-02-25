@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use mater::{CarExtractor, Error};
+use mater::{Error, FileReader};
 use tokio::{
     fs::File,
     io::{AsyncReadExt, BufReader},
@@ -32,12 +32,12 @@ pub(crate) async fn extract_file_from_car(
         let mut buffer = Vec::with_capacity(STDIN_BUFFER_START_CAPACITY);
         let mut buffered_stdin = BufReader::new(tokio::io::stdin());
         buffered_stdin.read_to_end(&mut buffer).await?;
-        CarExtractor::from_vec(buffer)
+        FileReader::from_vec(buffer)
             .await?
             .copy_to_writer(output_file)
             .await
     } else {
-        CarExtractor::from_path(input_path)
+        FileReader::from_path(input_path)
             .await?
             .copy_to_writer(output_file)
             .await

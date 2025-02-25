@@ -1,8 +1,12 @@
-mod blockstore;
-mod file;
+mod reader;
+mod writer;
 
-pub use blockstore::Blockwriter;
-pub use file::FileBlockstore;
+#[cfg(feature = "blockstore")]
+pub use reader::blockstore::ReadOnlyBlockstore;
+pub use reader::FileReader;
+#[cfg(feature = "blockstore")]
+pub use writer::blockstore::ReadWriteBlockstore;
+pub use writer::FileWriter;
 
 /// The default block size, as defined in
 /// [boxo](https://github.com/ipfs/boxo/blob/f4fe8997dcbeb39b3a4842d8f08b34739bfd84a4/chunker/parse.go#L13).

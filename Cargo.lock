@@ -9178,7 +9178,6 @@ dependencies = [
  "criterion",
  "digest 0.10.7",
  "futures",
- "indexmap 2.7.0",
  "integer-encoding",
  "ipld-core",
  "ipld-dagpb",

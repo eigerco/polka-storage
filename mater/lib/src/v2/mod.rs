@@ -3,11 +3,9 @@ mod reader;
 mod writer;
 
 use bitflags::bitflags;
-pub use index::{
-    write_index, Index, IndexEntry, IndexSorted, MultihashIndexSorted, SingleWidthIndex,
-};
+pub use index::{Index, IndexEntry, IndexSorted, MultihashIndexSorted, SingleWidthIndex};
 pub use reader::{CarReader, CarReaderExt};
-pub use writer::{write_header, CarWriter};
+pub use writer::CarWriter;
 
 /// The pragma for a CARv2. This is also a valid CARv1 header, with version 2 and no root CIDs.
 ///

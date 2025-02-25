@@ -10,20 +10,18 @@
 
 mod async_varint;
 mod chunker;
-mod file_reader;
+mod convert;
 mod ipld;
 mod multicodec;
-mod stores;
 mod unixfs;
 mod v1;
 mod v2;
 
 // We need to re-expose this because `read_block` returns `(Cid, Vec<u8>)`.
-pub use file_reader::CarExtractor;
+pub use convert::{Config, FileReader, FileWriter};
 pub use ipld::CidExt;
 pub use ipld_core::cid::Cid;
 pub use multicodec::{DAG_PB_CODE, IDENTITY_CODE, RAW_CODE};
-pub use stores::{Blockwriter, Config, FileBlockstore};
 pub use v1::{
     BlockMetadata, CarReader as CarV1Reader, CarReaderExt as CarV1ReaderExt,
     CarWriter as CarV1Writer, Header as CarV1Header,
@@ -40,7 +38,7 @@ pub mod blockstore {
     // Re-export the API so users don't need to add an extra crate in Cargo.toml
     pub use blockstore::{Blockstore, Error};
 
-    pub use crate::file_reader::blockstore::ReadOnlyBlockstore;
+    pub use crate::convert::{ReadOnlyBlockstore, ReadWriteBlockstore};
 }
 
 /// CAR handling errors.
