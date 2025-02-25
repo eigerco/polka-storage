@@ -26,7 +26,7 @@ pub struct FileWriter<W> {
 }
 
 impl<W> FileWriter<W> {
-    /// Creates a new [`Blockwriter`] with the given `writer`.
+    /// Creates a new [`FileWriter`] with the given `writer`.
     fn create(writer: W) -> Self {
         Self {
             writer,
@@ -65,7 +65,7 @@ impl<W> FileWriter<W>
 where
     W: AsyncWrite + Unpin,
 {
-    /// Creates a new [`Blockwriter`] from the passed `writer`.
+    /// Creates a new [`FileWriter`] from the passed `writer`.
     pub async fn new(writer: W) -> Result<Self, Error> {
         let mut self_ = Self::create(writer);
         self_.writer.write_v2_header(&Default::default()).await?;
@@ -75,7 +75,7 @@ where
 }
 
 impl FileWriter<Cursor<Vec<u8>>> {
-    /// Creates a new [`Blockwriter`] backed by an in-memory buffer.
+    /// Creates a new [`FileWriter`] backed by an in-memory buffer.
     pub async fn in_memory() -> Result<Self, Error> {
         Self::new(Cursor::new(vec![])).await
     }
@@ -98,7 +98,7 @@ where
         Ok(root)
     }
 
-    /// Writes the contents from `source`, adding a new root to [`Blockwriter`].
+    /// Writes the contents from `source`, adding a new root to [`FileWriter`].
     pub async fn write_from<S>(&mut self, source: S) -> Result<(), Error>
     where
         S: AsyncRead + Unpin,
@@ -205,7 +205,7 @@ where
         Ok(self.writer)
     }
 
-    /// Sets the roots before performing the finalization procedure — see [`Blockwriter::finish`]
+    /// Sets the roots before performing the finalization procedure — see [`FileWriter::finish`]
     /// for details.
     pub async fn finish_with_roots<I>(mut self, roots: I) -> Result<W, Error>
     where
@@ -296,7 +296,7 @@ pub(crate) mod blockstore {
     }
 
     impl<RW> ReadWriteBlockstore<RW> {
-        /// Returns the underlying [`Blockwriter`].
+        /// Returns the underlying [`FileWriter`].
         pub fn into_inner(self) -> FileWriter<RW> {
             self.inner.into_inner()
         }

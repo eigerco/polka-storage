@@ -153,8 +153,6 @@ where
     }
 
     /// Writes the content tree for the given [`Cid`] into `w`.
-    ///
-    /// This is equivalent to reading the stream of blocks from [`Self::load_cid`] into a writer.
     pub async fn copy_tree<W>(&mut self, cid: &Cid, mut w: W) -> Result<(), Error>
     where
         W: AsyncWriteExt + Unpin,
