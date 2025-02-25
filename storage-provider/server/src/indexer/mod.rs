@@ -1,7 +1,7 @@
 use std::{fmt::Debug, path::Path, sync::Arc};
 
 use local_index_directory::{IndexRecord, OffsetSize, Service};
-use mater::CarV2Reader;
+use mater::{CarV1Reader, CarV1ReaderExt, CarV2Reader};
 use polka_storage_provider_common::sector::ProvenSector;
 use primitives::commitment::{CommP, Commitment};
 use tokio::{fs::File, io::BufReader, sync::mpsc::UnboundedReceiver, task::spawn_blocking};
@@ -109,11 +109,10 @@ where
     P: AsRef<Path>,
 {
     let file = File::open(location).await?;
-    let reader = BufReader::new(file);
-    let mut reader = CarV2Reader::new(reader);
+    let mut reader = BufReader::new(file);
 
     reader.read_pragma().await?;
-    let header = reader.read_header().await?;
+    let header = reader.read_v2_header().await?;
     let _v1_header = reader.read_v1_header().await?;
     let data_end = header.data_offset + header.data_size;
 
@@ -146,7 +145,7 @@ pub mod tests {
         sync::Arc,
     };
 
-    use mater::CarV2Reader;
+    use mater::{CarV1Reader, CarV1ReaderExt, CarV2Reader};
     use primitives::commitment::{CommP, Commitment};
     use tempfile::tempdir;
     use tokio::{fs::File, io::BufReader};
@@ -195,11 +194,10 @@ pub mod tests {
 
         // Check indexed blocks
         let file = File::open(piece_path).await.unwrap();
-        let reader = BufReader::new(file);
-        let mut reader = CarV2Reader::new(reader);
+        let mut reader = BufReader::new(file);
 
         reader.read_pragma().await.unwrap();
-        let header = reader.read_header().await.unwrap();
+        let header = reader.read_v2_header().await.unwrap();
         let _v1_header = reader.read_v1_header().await.unwrap();
         let data_end = header.data_offset + header.data_size;
 

@@ -38,41 +38,37 @@ where
     Ok(varint_len + cid.encoded_len() + block.as_ref().len())
 }
 
-/// Low-level CARv1 writer.
-pub struct Writer<W> {
-    writer: W,
+/// Low-level, writing functions for the CAR format.
+pub trait CarWriter {
+    /// Write a [`crate::v1::Header`].
+    fn write_header(
+        &mut self,
+        header: &Header,
+    ) -> impl std::future::Future<Output = Result<usize, Error>>;
+
+    /// Write a [`Cid`] and the respective data block.
+    fn write_block<D>(
+        &mut self,
+        cid: &Cid,
+        data: &D,
+    ) -> impl std::future::Future<Output = Result<usize, Error>>
+    where
+        D: AsRef<[u8]>;
 }
 
-impl<W> Writer<W> {
-    /// Construct a new [`crate::v1::Writer`].
-    ///
-    /// Takes a writer into which the data will be written.
-    pub fn new(writer: W) -> Self {
-        Self { writer }
-    }
-}
-
-impl<W> Writer<W>
+impl<W> CarWriter for W
 where
     W: AsyncWrite + Unpin,
 {
-    /// Write a [`crate::v1::Header`].
-    pub async fn write_header(&mut self, header: &Header) -> Result<usize, Error> {
-        write_header(&mut self.writer, header).await
+    async fn write_header(&mut self, header: &Header) -> Result<usize, Error> {
+        write_header(self, header).await
     }
 
-    /// Write a [`Cid`] and the respective data block.
-    pub async fn write_block<D>(&mut self, cid: &Cid, data: &D) -> Result<usize, Error>
+    async fn write_block<D>(&mut self, cid: &Cid, data: &D) -> Result<usize, Error>
     where
         D: AsRef<[u8]>,
     {
-        write_block(&mut self.writer, cid, data).await
-    }
-
-    /// Flushes and returns the inner writer.
-    pub async fn finish(mut self) -> Result<W, Error> {
-        self.writer.flush().await?;
-        Ok(self.writer)
+        write_block(self, cid, data).await
     }
 }
 
@@ -80,8 +76,9 @@ where
 mod tests {
     use ipld_core::cid::Cid;
     use sha2::Sha256;
+    use tokio::io::{AsyncWriteExt, BufWriter};
 
-    use super::Writer;
+    use super::CarWriter;
     use crate::{
         multicodec::{generate_multihash, RAW_CODE},
         v1::Header,
@@ -95,18 +92,19 @@ mod tests {
         let contents_multihash = generate_multihash::<Sha256, _>(&file_contents);
         let root_cid = Cid::new_v1(RAW_CODE, contents_multihash);
 
-        let mut writer = Writer::test_writer();
+        let buffer = Vec::new();
+        let mut writer = BufWriter::new(buffer);
         writer
             .write_header(&Header::new(vec![root_cid]))
             .await
             .unwrap();
-        let buf_writer = writer.finish().await.unwrap();
+        writer.flush().await.unwrap();
 
         let expected_header = tokio::fs::read("tests/fixtures/car_v1/lorem_header.car")
             .await
             .unwrap();
 
-        assert_eq!(&expected_header, buf_writer.get_ref());
+        assert_eq!(&expected_header, writer.get_ref());
     }
 
     #[tokio::test]
@@ -117,18 +115,19 @@ mod tests {
         let contents_multihash = generate_multihash::<Sha256, _>(&file_contents);
         let root_cid = Cid::new_v1(RAW_CODE, contents_multihash);
 
-        let mut writer = Writer::test_writer();
+        let buffer = Vec::new();
+        let mut writer = BufWriter::new(buffer);
         writer
             .write_header(&Header::new(vec![root_cid]))
             .await
             .unwrap();
         // There's only one block
         writer.write_block(&root_cid, &file_contents).await.unwrap();
-        let buf_writer = writer.finish().await.unwrap();
+        writer.flush().await.unwrap();
 
         let expected_header = tokio::fs::read("tests/fixtures/car_v1/lorem.car")
             .await
             .unwrap();
-        assert_eq!(&expected_header, buf_writer.get_ref());
+        assert_eq!(&expected_header, writer.get_ref());
     }
 }

@@ -415,13 +415,13 @@ mod tests {
 
     use crate::{
         multicodec::{generate_multihash, MultihashCode, DAG_PB_CODE, RAW_CODE, SHA_256_CODE},
-        v1::read_block,
         v2::index::{
             read_index, read_index_entry, read_index_sorted, read_multihash_index_sorted,
             read_single_width_index, write_index, write_index_entry, write_index_sorted,
             write_multihash_index_sorted, write_single_width_index, Index, IndexEntry, IndexSorted,
             MultihashIndexSorted, SingleWidthIndex,
         },
+        CarV1Reader,
     };
 
     fn generate_single_width_index<H>(count: u64) -> SingleWidthIndex
@@ -496,7 +496,7 @@ mod tests {
             .await
             .unwrap();
 
-            let (cid, block) = read_block(&mut file).await.unwrap();
+            let (cid, block) = file.read_block().await.unwrap();
             assert_eq!(cid.hash().code(), SHA_256_CODE);
 
             // Sorting at this level is made byte-wise, so there's no short way
