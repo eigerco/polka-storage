@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 use hex::ToHex;
 use subxt::{
@@ -33,9 +33,9 @@ where
 pub struct Client {
     pub(crate) client: OnlineClient<PolkaStorageConfig>,
     pub(crate) legacy_rpc: LegacyRpcMethods<PolkaStorageConfig>,
-    /// We're not using AtomicU64 as we need to hold the critical sections across many instructions.
-    /// Look at [`Self::traced_submission`].
-    last_sent_nonce: Mutex<u64>,
+    // Not great since there's still a contention point here,
+    // but without something that "locks rows", we can't improve much
+    last_sent_nonces: Mutex<HashMap<subxt::ext::sp_core::crypto::AccountId32, u64>>,
 }
 
 impl Client {
@@ -60,7 +60,7 @@ impl Client {
         Ok(Self {
             client: OnlineClient::<_>::from_rpc_client(rpc_client.clone()).await?,
             legacy_rpc: LegacyRpcMethods::<_>::new(rpc_client.into()),
-            last_sent_nonce: Mutex::new(0),
+            last_sent_nonces: Mutex::new(HashMap::new()),
         })
     }
 
@@ -140,7 +140,10 @@ impl Client {
         if wait_for_finalization {
             // Critical section so the lock is released after nonce is updated in the node's txpool.
             let tx = {
-                let mut last_sent_nonce = self.last_sent_nonce.lock().await;
+                let mut last_sent_nonces = self.last_sent_nonces.lock().await;
+                let last_sent_nonce = last_sent_nonces
+                    .entry(account_keypair.account_id())
+                    .or_default();
 
                 let (current_nonce, ext) = self.extrinsic_with_nonce(call, account_keypair).await?;
                 let tx = ext.submit_and_watch().await?;
@@ -162,7 +165,10 @@ impl Client {
         } else {
             // Critical section so the lock is released after nonce is updated in the node's txpool.
             let hash = {
-                let mut last_sent_nonce = self.last_sent_nonce.lock().await;
+                let mut last_sent_nonces = self.last_sent_nonces.lock().await;
+                let last_sent_nonce = last_sent_nonces
+                    .entry(account_keypair.account_id())
+                    .or_default();
 
                 let (current_nonce, ext) = self.extrinsic_with_nonce(call, account_keypair).await?;
                 let tx_hash = ext.submit().await?;
