@@ -7,8 +7,9 @@ use crate::{
     runtime::{
         bounded_vec::IntoBoundedByteVec,
         runtime_types::pallet_market::pallet::{
-            ClientDealProposal as RuntimeClientDealProposal, DealProposal as RuntimeDealProposal,
-            DealState as RuntimeDealState,
+            ClientDealProposal as RuntimeClientDealProposal,
+            DealDurationBound as RuntimeDealDurationBound, DealParameters as RuntimeDealParameters,
+            DealProposal as RuntimeDealProposal, DealState as RuntimeDealState,
         },
     },
     BlockNumber, Currency, PolkaStorageConfig,
@@ -186,6 +187,30 @@ impl From<ClientDealProposal>
         Self {
             proposal: value.deal_proposal.into(),
             client_signature: Static(value.client_signature),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct DealDurationBound {
+    lower: Option<BlockNumber>,
+    upper: Option<BlockNumber>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct DealParameters {
+    pub minimum_price_per_block: Currency,
+    pub deal_duration: DealDurationBound,
+}
+
+impl From<DealParameters> for RuntimeDealParameters<Currency, BlockNumber> {
+    fn from(value: DealParameters) -> Self {
+        Self {
+            minimum_price_per_block: value.minimum_price_per_block,
+            deal_duration: RuntimeDealDurationBound {
+                lower: value.deal_duration.lower,
+                upper: value.deal_duration.upper,
+            },
         }
     }
 }

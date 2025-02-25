@@ -2,15 +2,24 @@
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Extrinsics](#extrinsics)
-  - [`add_balance`](#add_balance)
-  - [`withdraw_balance`](#withdraw_balance)
-  - [`settle_deal_payments`](#settle_deal_payments)
-  - [`publish_storage_deals`](#publish_storage_deals)
-- [Events](#events)
-- [Errors](#errors)
-- [Constants](#constants)
+- [Market Pallet](#market-pallet)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [Extrinsics\*](#extrinsics)
+    - [`add_balance`](#add_balance)
+      - [Example](#example)
+    - [`withdraw_balance`](#withdraw_balance)
+      - [Example](#example-1)
+    - [`publish_storage_deals`](#publish_storage_deals)
+      - [Deal Proposal Components](#deal-proposal-components)
+      - [Example](#example-2)
+    - [`settle_deal_payments`](#settle_deal_payments)
+      - [Example](#example-3)
+    - [`publish_deal_parameters`](#publish_deal_parameters)
+    - [`remove_deal_parameters`](#remove_deal_parameters)
+  - [Events](#events)
+  - [Errors](#errors)
+  - [Constants](#constants)
 
 ## Overview
 
@@ -176,6 +185,27 @@ storagext-cli --sr25519-key "//Alice" market settle-deal-payments 97 1010 1337 4
 
 [^settle_deal_payments]: Read more about the `settle-deal-payments` command in [_Storagext CLI/Subcommand `market`/`settle-deal-payments`_](../../storagext-cli/market.md#settle-deal-payments)
 
+### `publish_deal_parameters`
+
+This extrinsic lets the storage provider publish or update deal parameters.
+
+| Name                      | Description                                                                       | Type                                                     |
+| ------------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `minimum_price_per_block` | The minimum price per block the SP is willing to accept                           | Positive integer, in [Plancks](../../glossary.md#planck) |
+| `deal_duration`           | The optional lower and upper bound of a deal duration the SP is willing to accept | `DealDurationBound`                                      |
+
+Where `DealDurationBound` consists of:
+
+| Name  | Description                                        | Type             |
+| ----- | -------------------------------------------------- | ---------------- |
+| lower | Shortest deal duration the SP is willing to accept | Positive integer |
+| upper | Longest deal duration the SP is willing to accept  | Positive integer |
+
+### `remove_deal_parameters`
+
+A signed extrinsic allows a storage provider to remove the deal parameter they have previously set.
+If no deal parameters are present this extrinsic will not fail.
+
 ## Events
 
 The Market Pallet emits the following events:
@@ -247,5 +277,5 @@ The Market Pallet actions can fail with following errors:
 | ------------------ | ----------------------------------------------------------------------------- | ------------------------- |
 | `MaxDeals`         | How many deals can be published in a single batch of `publish_storage_deals`. | 128                       |
 | `MaxDealsPerBlock` | Maximum deals that can be scheduled to start at the same block.               | 128                       |
-| `MinDealDuration`  | Minimum time an activated deal should last.                                   | 5 Minutes (50 Blocks)    |
+| `MinDealDuration`  | Minimum time an activated deal should last.                                   | 5 Minutes (50 Blocks)     |
 | `MaxDealDuration`  | Maximum time an activated deal should last.                                   | 180 Minutes (1800 Blocks) |

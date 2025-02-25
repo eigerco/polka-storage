@@ -1270,7 +1270,7 @@ pub mod pallet {
                         if deal_duration < lower {
                             log::error!(
                                 target: LOG_TARGET,
-                                "Deal duration for deal between {:?} and {:?} is too short. {deal_duration} < {lower}",
+                                "Deal duration for deal between {:?} and {:?} is too short. {deal_duration:?} < {lower:?}",
                                 proposal.provider,
                                 proposal.client
                             );
@@ -1281,7 +1281,7 @@ pub mod pallet {
                         if deal_duration > upper {
                             log::error!(
                                 target: LOG_TARGET,
-                                "Deal duration for deal between {:?} and {:?} is too long. {deal_duration} > {upper}",
+                                "Deal duration for deal between {:?} and {:?} is too long. {deal_duration:?} > {upper:?}",
                                 proposal.provider,
                                 proposal.client
                             );
@@ -1292,7 +1292,7 @@ pub mod pallet {
                         if deal_duration < lower || deal_duration > upper {
                             log::error!(
                                 target: LOG_TARGET,
-                                "Deal duration for deal between {:?} and {:?} doesn't fall between the set bounds. {deal_duration} < {lower} || {deal_duration} > {upper}",
+                                "Deal duration for deal between {:?} and {:?} doesn't fall between the set bounds. {deal_duration:?} < {lower:?} || {deal_duration:?} > {upper:?}",
                                 proposal.provider,
                                 proposal.client
                             );
