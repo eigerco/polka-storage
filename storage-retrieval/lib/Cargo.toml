@@ -28,5 +28,6 @@ tracing = { workspace = true }
 
 [dev-dependencies]
 multihash-codetable = { workspace = true, features = ["sha2"] }
+rand = { workspace = true, default-features = true }
 tracing-appender = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }

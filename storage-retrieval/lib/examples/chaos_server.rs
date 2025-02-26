@@ -2,15 +2,77 @@
 //! blockstore. Because the server is simple it is used for manual testing of
 //! the retrieval client.
 
-use std::{env::args, sync::Arc};
+use std::{any::type_name, env::args, sync::Arc, time::Duration};
 
 use anyhow::{Context, Result};
+use blockstore::Blockstore;
 use libp2p::Multiaddr;
 use mater::blockstore::ReadOnlyBlockstore;
 use polka_storage_retrieval::server::Server;
-use tokio::fs::File;
+use rand::prelude::*;
+use tokio::{
+    fs::File,
+    io::{AsyncRead, AsyncSeek},
+};
 
 const DEFAULT_PORT: u16 = 8989;
+
+/// Adds random delays on the `get` calls.
+struct ChaosReadOnlyStore<R>(ReadOnlyBlockstore<R>);
+
+impl<R> Blockstore for ChaosReadOnlyStore<R>
+where
+    R: AsyncRead + AsyncSeek + Unpin + blockstore::cond_send::CondSync,
+{
+    fn get<const S: usize>(
+        &self,
+        cid: &cid::CidGeneric<S>,
+    ) -> impl futures::Future<Output = blockstore::Result<Option<Vec<u8>>>>
+           + blockstore::cond_send::CondSend {
+        async {
+            if rand::thread_rng().gen_bool(0.5) {
+                let dur = Duration::from_millis(thread_rng().gen_range(250..=1000));
+                tracing::info!("sleeping for {}", dur.as_millis());
+                tokio::time::sleep(dur).await;
+            }
+            self.0.get(cid).await
+        }
+    }
+
+    fn put_keyed<const S: usize>(
+        &self,
+        _: &cid::CidGeneric<S>,
+        _: &[u8],
+    ) -> impl futures::Future<Output = blockstore::Result<()>> + blockstore::cond_send::CondSend
+    {
+        async {
+            Err(blockstore::Error::FatalDatabaseError(format!(
+                "{} is read-only",
+                type_name::<Self>()
+            )))
+        }
+    }
+
+    fn remove<const S: usize>(
+        &self,
+        _: &cid::CidGeneric<S>,
+    ) -> impl futures::Future<Output = blockstore::Result<()>> + blockstore::cond_send::CondSend
+    {
+        async {
+            Err(blockstore::Error::FatalDatabaseError(format!(
+                "{} is read-only",
+                type_name::<Self>()
+            )))
+        }
+    }
+
+    fn close(
+        self,
+    ) -> impl futures::Future<Output = blockstore::Result<()>> + blockstore::cond_send::CondSend
+    {
+        async { Ok(()) }
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -35,7 +97,7 @@ async fn main() -> Result<()> {
     };
 
     // Example blockstore providing only a single file.
-    let blockstore = Arc::new((ReadOnlyBlockstore::new(file).await?));
+    let blockstore = Arc::new(ChaosReadOnlyStore(ReadOnlyBlockstore::new(file).await?));
 
     let roots = blockstore.write().await.roots().await?;
     tracing::info!("available roots: {:?}", roots);
