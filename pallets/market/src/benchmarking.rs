@@ -400,8 +400,10 @@ mod benchmarks {
         assert_eq!(MarketPallet::<T>::locked(&client).unwrap(), 0u32.into());
     }
 
+    /// `n` == 1: Publish
+    /// `n` == 2: Publish & Replace
     #[benchmark]
-    fn publish_deal_parameters() {
+    fn publish_deal_parameters(n: Linear<1, 2>) {
         let caller: T::AccountId = whitelisted_caller();
         // Register the caller as a storage provider
         pallet_storage_provider::Pallet::<T>::register_storage_provider(
@@ -419,6 +421,11 @@ mod benchmarks {
             },
         };
         let storage_provider: OriginFor<T> = RawOrigin::Signed(caller.clone()).into();
+
+        if n == 2 {
+            Pallet::<T>::publish_deal_parameters(storage_provider.clone(), deal_parameters.clone())
+                .unwrap();
+        }
 
         // #[extrinsic_call] requires type shenanigans, using #[block] is MUCH simpler
         #[block]
@@ -426,12 +433,13 @@ mod benchmarks {
             Pallet::<T>::publish_deal_parameters(storage_provider.clone(), deal_parameters.clone())
                 .unwrap();
         }
-
         assert_eq!(SPDealParameters::<T>::get(&caller), Some(deal_parameters));
     }
 
+    /// `n` == 1: Remove with nothing there
+    /// `n` == 2: Insert and remove
     #[benchmark]
-    fn remove_deal_parameters() {
+    fn remove_deal_parameters(n: Linear<1, 2>) {
         let caller: T::AccountId = whitelisted_caller();
         // Register the caller as a storage provider
         pallet_storage_provider::Pallet::<T>::register_storage_provider(
@@ -450,7 +458,10 @@ mod benchmarks {
         };
         let storage_provider: OriginFor<T> = RawOrigin::Signed(caller.clone()).into();
 
-        Pallet::<T>::publish_deal_parameters(storage_provider.clone(), deal_parameters).unwrap();
+        if n == 2 {
+            Pallet::<T>::publish_deal_parameters(storage_provider.clone(), deal_parameters)
+                .unwrap();
+        }
 
         // #[extrinsic_call] requires type shenanigans, using #[block] is MUCH simpler
         #[block]

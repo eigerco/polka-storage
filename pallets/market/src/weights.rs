@@ -38,8 +38,8 @@ pub trait WeightInfo {
     fn withdraw_balance() -> Weight;
     fn publish_storage_deals(n: u32, ) -> Weight;
     fn settle_deal_payments(n: u32, ) -> Weight;
-    fn publish_deal_parameters() -> Weight;
-    fn remove_deal_parameters() -> Weight;
+    fn publish_deal_parameters(n: u32, ) -> Weight;
+    fn remove_deal_parameters(n: u32, ) -> Weight;
 }
 
 /// Weight functions for `pallet_market`.
@@ -53,8 +53,8 @@ impl<T: frame_system::Config> WeightInfo for Weights<T> {
         // Proof Size summary in bytes:
         //  Measured:  `76`
         //  Estimated: `3593`
-        // Minimum execution time: 75_560_000 picoseconds.
-        Weight::from_parts(76_452_000, 0)
+        // Minimum execution time: 77_985_000 picoseconds.
+        Weight::from_parts(83_966_000, 0)
             .saturating_add(Weight::from_parts(0, 3593))
             .saturating_add(T::DbWeight::get().reads(2))
             .saturating_add(T::DbWeight::get().writes(2))
@@ -67,8 +67,8 @@ impl<T: frame_system::Config> WeightInfo for Weights<T> {
         // Proof Size summary in bytes:
         //  Measured:  `285`
         //  Estimated: `3750`
-        // Minimum execution time: 86_380_000 picoseconds.
-        Weight::from_parts(93_493_000, 0)
+        // Minimum execution time: 89_266_000 picoseconds.
+        Weight::from_parts(95_297_000, 0)
             .saturating_add(Weight::from_parts(0, 3750))
             .saturating_add(T::DbWeight::get().reads(2))
             .saturating_add(T::DbWeight::get().writes(2))
@@ -92,11 +92,11 @@ impl<T: frame_system::Config> WeightInfo for Weights<T> {
         // Proof Size summary in bytes:
         //  Measured:  `383`
         //  Estimated: `6323`
-        // Minimum execution time: 136_233_000 picoseconds.
-        Weight::from_parts(136_683_000, 0)
+        // Minimum execution time: 138_537_000 picoseconds.
+        Weight::from_parts(147_233_000, 0)
             .saturating_add(Weight::from_parts(0, 6323))
-            // Standard Error: 210_780
-            .saturating_add(Weight::from_parts(111_856_904, 0).saturating_mul(n.into()))
+            // Standard Error: 240_464
+            .saturating_add(Weight::from_parts(117_719_937, 0).saturating_mul(n.into()))
             .saturating_add(T::DbWeight::get().reads(7))
             .saturating_add(T::DbWeight::get().writes(5))
             .saturating_add(T::DbWeight::get().writes((1_u64).saturating_mul(n.into())))
@@ -110,11 +110,11 @@ impl<T: frame_system::Config> WeightInfo for Weights<T> {
         // Proof Size summary in bytes:
         //  Measured:  `372 + n * (336 ±0)`
         //  Estimated: `6311 + n * (2812 ±0)`
-        // Minimum execution time: 52_487_000 picoseconds.
-        Weight::from_parts(18_096_098, 0)
+        // Minimum execution time: 54_370_000 picoseconds.
+        Weight::from_parts(26_378_000, 0)
             .saturating_add(Weight::from_parts(0, 6311))
-            // Standard Error: 51_318
-            .saturating_add(Weight::from_parts(18_909_875, 0).saturating_mul(n.into()))
+            // Standard Error: 38_029
+            .saturating_add(Weight::from_parts(18_936_015, 0).saturating_mul(n.into()))
             .saturating_add(T::DbWeight::get().reads(2))
             .saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(n.into())))
             .saturating_add(T::DbWeight::get().writes(2))
@@ -125,27 +125,34 @@ impl<T: frame_system::Config> WeightInfo for Weights<T> {
     /// Proof: `StorageProvider::StorageProviders` (`max_values`: None, `max_size`: None, mode: `Measured`)
     /// Storage: `Market::SPDealParameters` (r:1 w:1)
     /// Proof: `Market::SPDealParameters` (`max_values`: None, `max_size`: None, mode: `Measured`)
-    fn publish_deal_parameters() -> Weight {
+    /// The range of component `n` is `[1, 2]`.
+    fn publish_deal_parameters(n: u32, ) -> Weight {
         // Proof Size summary in bytes:
-        //  Measured:  `186`
-        //  Estimated: `3651`
-        // Minimum execution time: 24_796_000 picoseconds.
-        Weight::from_parts(26_850_000, 0)
-            .saturating_add(Weight::from_parts(0, 3651))
+        //  Measured:  `76 + n * (110 ±0)`
+        //  Estimated: `3541 + n * (110 ±0)`
+        // Minimum execution time: 24_265_000 picoseconds.
+        Weight::from_parts(24_106_218, 0)
+            .saturating_add(Weight::from_parts(0, 3541))
+            // Standard Error: 102_291
+            .saturating_add(Weight::from_parts(2_739_840, 0).saturating_mul(n.into()))
             .saturating_add(T::DbWeight::get().reads(2))
             .saturating_add(T::DbWeight::get().writes(1))
+            .saturating_add(Weight::from_parts(0, 110).saturating_mul(n.into()))
     }
     /// Storage: `StorageProvider::StorageProviders` (r:1 w:0)
     /// Proof: `StorageProvider::StorageProviders` (`max_values`: None, `max_size`: None, mode: `Measured`)
     /// Storage: `Market::SPDealParameters` (r:0 w:1)
     /// Proof: `Market::SPDealParameters` (`max_values`: None, `max_size`: None, mode: `Measured`)
-    fn remove_deal_parameters() -> Weight {
+    /// The range of component `n` is `[1, 2]`.
+    fn remove_deal_parameters(n: u32, ) -> Weight {
         // Proof Size summary in bytes:
         //  Measured:  `110`
         //  Estimated: `3575`
-        // Minimum execution time: 20_929_000 picoseconds.
-        Weight::from_parts(21_439_000, 0)
+        // Minimum execution time: 20_117_000 picoseconds.
+        Weight::from_parts(22_167_483, 0)
             .saturating_add(Weight::from_parts(0, 3575))
+            // Standard Error: 60_643
+            .saturating_add(Weight::from_parts(162_608, 0).saturating_mul(n.into()))
             .saturating_add(T::DbWeight::get().reads(1))
             .saturating_add(T::DbWeight::get().writes(1))
     }
@@ -162,8 +169,8 @@ impl WeightInfo for () {
         // Proof Size summary in bytes:
         //  Measured:  `76`
         //  Estimated: `3593`
-        // Minimum execution time: 75_560_000 picoseconds.
-        Weight::from_parts(76_452_000, 0)
+        // Minimum execution time: 77_985_000 picoseconds.
+        Weight::from_parts(83_966_000, 0)
             .saturating_add(Weight::from_parts(0, 3593))
             .saturating_add(RocksDbWeight::get().reads(2))
             .saturating_add(RocksDbWeight::get().writes(2))
@@ -178,8 +185,8 @@ impl WeightInfo for () {
         // Proof Size summary in bytes:
         //  Measured:  `285`
         //  Estimated: `3750`
-        // Minimum execution time: 86_380_000 picoseconds.
-        Weight::from_parts(93_493_000, 0)
+        // Minimum execution time: 89_266_000 picoseconds.
+        Weight::from_parts(95_297_000, 0)
             .saturating_add(Weight::from_parts(0, 3750))
             .saturating_add(RocksDbWeight::get().reads(2))
             .saturating_add(RocksDbWeight::get().writes(2))
@@ -205,11 +212,11 @@ impl WeightInfo for () {
         // Proof Size summary in bytes:
         //  Measured:  `383`
         //  Estimated: `6323`
-        // Minimum execution time: 136_233_000 picoseconds.
-        Weight::from_parts(136_683_000, 0)
+        // Minimum execution time: 138_537_000 picoseconds.
+        Weight::from_parts(147_233_000, 0)
             .saturating_add(Weight::from_parts(0, 6323))
-            // Standard Error: 210_780
-            .saturating_add(Weight::from_parts(111_856_904, 0).saturating_mul(n.into()))
+            // Standard Error: 240_464
+            .saturating_add(Weight::from_parts(117_719_937, 0).saturating_mul(n.into()))
             .saturating_add(RocksDbWeight::get().reads(7))
             .saturating_add(RocksDbWeight::get().writes(5))
             .saturating_add(RocksDbWeight::get().writes((1_u64).saturating_mul(n.into())))
@@ -225,11 +232,11 @@ impl WeightInfo for () {
         // Proof Size summary in bytes:
         //  Measured:  `372 + n * (336 ±0)`
         //  Estimated: `6311 + n * (2812 ±0)`
-        // Minimum execution time: 52_487_000 picoseconds.
-        Weight::from_parts(18_096_098, 0)
+        // Minimum execution time: 54_370_000 picoseconds.
+        Weight::from_parts(26_378_000, 0)
             .saturating_add(Weight::from_parts(0, 6311))
-            // Standard Error: 51_318
-            .saturating_add(Weight::from_parts(18_909_875, 0).saturating_mul(n.into()))
+            // Standard Error: 38_029
+            .saturating_add(Weight::from_parts(18_936_015, 0).saturating_mul(n.into()))
             .saturating_add(RocksDbWeight::get().reads(2))
             .saturating_add(RocksDbWeight::get().reads((1_u64).saturating_mul(n.into())))
             .saturating_add(RocksDbWeight::get().writes(2))
@@ -240,31 +247,38 @@ impl WeightInfo for () {
     /// Proof: `StorageProvider::StorageProviders` (`max_values`: None, `max_size`: None, mode: `Measured`)
     /// Storage: `Market::SPDealParameters` (r:1 w:1)
     /// Proof: `Market::SPDealParameters` (`max_values`: None, `max_size`: None, mode: `Measured`)
-    fn publish_deal_parameters() -> Weight {
+    /// The range of component `n` is `[1, 2]`.
+    fn publish_deal_parameters(n: u32, ) -> Weight {
         use frame_support::weights::constants::RocksDbWeight;
 
         // Proof Size summary in bytes:
-        //  Measured:  `186`
-        //  Estimated: `3651`
-        // Minimum execution time: 24_796_000 picoseconds.
-        Weight::from_parts(26_850_000, 0)
-            .saturating_add(Weight::from_parts(0, 3651))
+        //  Measured:  `76 + n * (110 ±0)`
+        //  Estimated: `3541 + n * (110 ±0)`
+        // Minimum execution time: 24_265_000 picoseconds.
+        Weight::from_parts(24_106_218, 0)
+            .saturating_add(Weight::from_parts(0, 3541))
+            // Standard Error: 102_291
+            .saturating_add(Weight::from_parts(2_739_840, 0).saturating_mul(n.into()))
             .saturating_add(RocksDbWeight::get().reads(2))
             .saturating_add(RocksDbWeight::get().writes(1))
+            .saturating_add(Weight::from_parts(0, 110).saturating_mul(n.into()))
     }
     /// Storage: `StorageProvider::StorageProviders` (r:1 w:0)
     /// Proof: `StorageProvider::StorageProviders` (`max_values`: None, `max_size`: None, mode: `Measured`)
     /// Storage: `Market::SPDealParameters` (r:0 w:1)
     /// Proof: `Market::SPDealParameters` (`max_values`: None, `max_size`: None, mode: `Measured`)
-    fn remove_deal_parameters() -> Weight {
+    /// The range of component `n` is `[1, 2]`.
+    fn remove_deal_parameters(n: u32, ) -> Weight {
         use frame_support::weights::constants::RocksDbWeight;
 
         // Proof Size summary in bytes:
         //  Measured:  `110`
         //  Estimated: `3575`
-        // Minimum execution time: 20_929_000 picoseconds.
-        Weight::from_parts(21_439_000, 0)
+        // Minimum execution time: 20_117_000 picoseconds.
+        Weight::from_parts(22_167_483, 0)
             .saturating_add(Weight::from_parts(0, 3575))
+            // Standard Error: 60_643
+            .saturating_add(Weight::from_parts(162_608, 0).saturating_mul(n.into()))
             .saturating_add(RocksDbWeight::get().reads(1))
             .saturating_add(RocksDbWeight::get().writes(1))
     }

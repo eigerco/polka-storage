@@ -325,7 +325,7 @@ pub mod pallet {
         // so we limit the generics to the essential subset of traits only.
         //
         // Additional note: `BlockNumber`` will typically be a number, particularly in our network.
-        // As such, the Copy trait should be automatically included and shouldn't require extra work for future implementations. 
+        // As such, the Copy trait should be automatically included and shouldn't require extra work for future implementations.
         // Furthermore, the actual `BlockNumber` trait does require the `Copy` trait.
         // https://docs.rs/sp-runtime/40.1.0/sp_runtime/traits/trait.BlockNumber.html
     {
@@ -1322,7 +1322,7 @@ pub mod pallet {
                 return Err(Error::<T>::OutOfBoundsDeal.into());
             }
 
-            return Ok(())
+            return Ok(());
         }
 
         // Used for deduplication purposes
