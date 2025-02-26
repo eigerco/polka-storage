@@ -219,7 +219,7 @@ bench-node pallet steps="5" repeat="1":
         --template node/benchmark_template.hbs
 
 # Generate the benchmark weights
-generate-weights pallet output_file steps="5" repeat="1":
+generate-weights pallet steps="5" repeat="1":
     cargo run \
         -p polka-storage-node -r -F runtime-benchmarks -F testnet -- \
         benchmark pallet \
@@ -229,4 +229,4 @@ generate-weights pallet output_file steps="5" repeat="1":
         --steps "{{steps}}" \
         --repeat "{{repeat}}" \
         --template node/benchmark_template.hbs \
-        --output "{{output_file}}"
+        --output "pallets/{{pallet}}/src/weights.rs"
