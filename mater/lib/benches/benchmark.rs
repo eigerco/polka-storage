@@ -152,8 +152,9 @@ fn read_write(c: &mut Criterion) {
         let content = std::fs::read(&source_file).unwrap();
 
         c.bench_with_input(BenchmarkId::new("read", params), params, |b, _params| {
-            b.to_async(TokioExecutor::new().unwrap())
-                .iter(|| read_write_content_benched(&content, FileWriter::in_memory()));
+            b.to_async(TokioExecutor::new().unwrap()).iter(|| async {
+                read_write_content_benched(&content, FileWriter::in_memory().await.unwrap())
+            });
         });
     }
 }

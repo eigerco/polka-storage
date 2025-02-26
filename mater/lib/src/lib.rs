@@ -138,6 +138,9 @@ pub enum Error {
 
 #[cfg(test)]
 pub(crate) mod test_utils {
+    // Stops a false positive for the unused_crate_dependencies lint
+    use tempfile as _;
+
     /// Check if two given slices are equal.
     ///
     /// First checks if the two slices have the same size,
