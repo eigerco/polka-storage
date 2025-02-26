@@ -874,11 +874,10 @@ pub mod pallet {
                 T::StorageProviderValidation::is_registered_storage_provider(&provider),
                 Error::<T>::StorageProviderNotRegistered
             );
-            // Check if params exist, remove and insert.
-            if SPDealParameters::<T>::contains_key(&provider) {
-                SPDealParameters::<T>::remove(&provider)
-            }
-            SPDealParameters::<T>::insert(&provider, &deal_parameters);
+            // Update or insert deal parameters
+            SPDealParameters::<T>::mutate(&provider, |params| {
+                let _ = params.insert(deal_parameters.clone());
+            });
             Self::deposit_event(Event::<T>::DealParametersUpdated {
                 provider,
                 deal_parameters,
