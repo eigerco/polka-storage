@@ -318,8 +318,8 @@ pub mod pallet {
 
     impl<Balance, BlockNumber> DealParameters<Balance, BlockNumber>
     where
-        Balance: PartialOrd,            // For comparison
-        BlockNumber: PartialOrd + Copy, // Copy so we can match the Option
+        Balance: PartialOrd,
+        BlockNumber: PartialOrd + Copy,
         // `Balance` and `BlockNumber` are not directly tied to their `Config` counterparts.
         // The structure is flexible enough to be used for other purposes,
         // so we limit the generics to the essential subset of traits only.
