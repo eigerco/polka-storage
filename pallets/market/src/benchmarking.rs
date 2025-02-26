@@ -427,10 +427,7 @@ mod benchmarks {
                 .unwrap();
         }
 
-        assert_eq!(
-            SPDealParameters::<T>::get(&caller),
-            Some(deal_parameters)
-        );
+        assert_eq!(SPDealParameters::<T>::get(&caller), Some(deal_parameters));
     }
 
     #[benchmark]
@@ -458,14 +455,10 @@ mod benchmarks {
         // #[extrinsic_call] requires type shenanigans, using #[block] is MUCH simpler
         #[block]
         {
-            Pallet::<T>::remove_deal_parameters(storage_provider.clone())
-                .unwrap();
+            Pallet::<T>::remove_deal_parameters(storage_provider.clone()).unwrap();
         }
 
-        assert_eq!(
-            SPDealParameters::<T>::get(&caller),
-            None
-        );
+        assert_eq!(SPDealParameters::<T>::get(&caller), None);
     }
 
     impl_benchmark_test_suite! {
