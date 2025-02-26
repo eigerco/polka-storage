@@ -196,10 +196,10 @@ This extrinsic lets the storage provider publish or update deal parameters.
 
 Where `DealDurationBound` consists of:
 
-| Name  | Description                                        | Type             |
-| ----- | -------------------------------------------------- | ---------------- |
-| lower | Shortest deal duration the SP is willing to accept | Positive integer |
-| upper | Longest deal duration the SP is willing to accept  | Positive integer |
+| Name    | Description                                        | Type             |
+| ------- | -------------------------------------------------- | ---------------- |
+| `lower` | Shortest deal duration the SP is willing to accept | Positive integer |
+| `upper` | Longest deal duration the SP is willing to accept  | Positive integer |
 
 ### `remove_deal_parameters`
 
