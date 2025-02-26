@@ -189,17 +189,17 @@ storagext-cli --sr25519-key "//Alice" market settle-deal-payments 97 1010 1337 4
 
 This extrinsic lets the storage provider publish or update deal parameters.
 
-| Name                      | Description                                                                       | Type                                                     |
-| ------------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| `minimum_price_per_block` | The minimum price per block the SP is willing to accept                           | Positive integer, in [Plancks](../../glossary.md#planck) |
-| `deal_duration`           | The optional lower and upper bound of a deal duration the SP is willing to accept | `DealDurationBound`                                      |
+| Name                      | Description                                                               | Type                                                     |
+| ------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `minimum_price_per_block` | The minimum price per block the SP is willing to accept                   | Positive integer, in [Plancks](../../glossary.md#planck) |
+| `deal_duration`           | The lower and upper bounds of a deal duration the SP is willing to accept | `DealDurationBound`                                      |
 
 Where `DealDurationBound` consists of:
 
-| Name    | Description                                        | Type             |
-| ------- | -------------------------------------------------- | ---------------- |
-| `lower` | Shortest deal duration the SP is willing to accept | Positive integer |
-| `upper` | Longest deal duration the SP is willing to accept  | Positive integer |
+| Name    | Description                                        | Type                      |
+| ------- | -------------------------------------------------- | ------------------------- |
+| `lower` | Shortest deal duration the SP is willing to accept | Optional positive integer |
+| `upper` | Longest deal duration the SP is willing to accept  | Optional positive integer |
 
 ### `remove_deal_parameters`
 
