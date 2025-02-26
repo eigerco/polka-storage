@@ -428,13 +428,7 @@ impl pallet_storage_provider::Config for Runtime {
     type Currency = Balances;
     type Market = crate::Market;
 
-    #[cfg(not(feature = "runtime-benchmarks"))]
     type ProofVerification = crate::Proofs;
-    // FIX(@jmg-duarte,#695,22/1/25)
-    // It is true that this stops the weight of the proving process from being calculated
-    // but (right now) we cannot create a proof inside a benchmark, so this is the best we can do
-    #[cfg(feature = "runtime-benchmarks")]
-    type ProofVerification = primitives::testing::DummyProofsVerification;
 
     type WPoStProvingPeriod = WpostProvingPeriod;
     type WPoStChallengeWindow = WpostChallengeWindow;

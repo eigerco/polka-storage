@@ -223,16 +223,16 @@ comm_p := ```
 ```
 tmp_dir := `mktemp --directory`
 
-generate-bench-data:
+generate-bench-data sector_id:
     mkdir -p target/bench/proofs
     cargo run --release -p polka-storage-provider-client -- \
         proofs porep \
         --sr25519-key "//StorageProvider" \
         --seal-proof 8MiB \
         --proof-parameters-path ./target/porep_params_8MiB \
-        --sector-id 0 \
-        --seal-randomness-height 20 \
-        --pre-commit-block-number 30 \
+        --sector-id {{sector_id}} \
+        --seal-randomness-height 1 \
+        --pre-commit-block-number 5 \
         --cache-directory {{tmp_dir}} \
         --output-path target/bench/proofs \
         ./examples/big_file_184k.car \

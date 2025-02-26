@@ -156,8 +156,14 @@ impl ProofScheme {
         vk: VerifyingKey<Bls12>,
         proofs: BoundedVec<Proof<Bls12>, ConstU32<MAX_PROOFS_PER_BLOCK>>,
     ) -> Result<(), ProofError> {
-        let comm_d_fr = fr32::bytes_into_fr(comm_d).map_err(|_| ProofError::Conversion)?;
-        let comm_r_fr = fr32::bytes_into_fr(comm_r).map_err(|_| ProofError::Conversion)?;
+        let comm_d_fr = fr32::bytes_into_fr(comm_d).map_err(|e| {
+            log::error!(target: LOG_TARGET, "comm_d_fr failed: {e:?}");
+            ProofError::Conversion
+        })?;
+        let comm_r_fr = fr32::bytes_into_fr(comm_r).map_err(|e| {
+            log::error!(target: LOG_TARGET, "comm_d_fr failed: {e:?}");
+            ProofError::Conversion
+        })?;
 
         // Proof per partition
         if proofs.len() != self.config.required_partitions() {

@@ -5,7 +5,7 @@ mod deal_proposals;
 
 use alloc::{vec, vec::Vec};
 use core::cmp::min;
-use std::str::FromStr;
+use alloc::str::FromStr;
 
 use accounts::{generate_benchmark_account, ALICE, STORAGE_PROVIDER};
 use cid::Cid;
@@ -225,7 +225,7 @@ where
     ));
 
     // Run to 1 to get VRF randomness
-    run_to_block::<T>(20);
+    run_to_block::<T>(1);
 
     let sectors_pre_commits: BoundedVec<_, ConstU32<{ MAX_SECTORS_PER_CALL }>> =
         sectors_pre_commits.try_into().unwrap();
@@ -235,8 +235,8 @@ where
         sectors_pre_commits
     ));
 
-    // Run to 11 to enter pre-commit period
-    //run_to_block::<T>(11);
+    // Run to 5 to enter pre-commit period
+    run_to_block::<T>(5);
 
     let prove_sectors: BoundedVec<_, ConstU32<{ MAX_SECTORS_PER_CALL }>> =
         prove_sectors.try_into().unwrap();
@@ -246,7 +246,6 @@ where
         RegisteredSealProof::StackedDRG8MiBV1,
         BENCH_PARAMS_POREP_VK.to_vec(),
     ));
-    run_to_block::<T>(2);
 
     (sp_id, prove_sectors, total_fee as u32)
 }
@@ -254,13 +253,10 @@ where
 fn create_test_commitment() -> (Commitment<CommP>, Commitment<CommD>) {
     let piece_commitment = Commitment::<CommP>::from_cid(
         &Cid::from_str("baga6ea4seaqhx2sxpfc2f3k2o75m3acskihug7me3g4coyw6adjqnd6ioszfqay").unwrap(),
-    ).unwrap();
-    let unsealed_cid = compute_unsealed_sector_commitment(
-        RegisteredPoStProof::StackedDRGWindow8MiBV1.sector_size(),
-        &[PieceInfo {
-            commitment: piece_commitment,
-            size: PaddedPieceSize::new(2048).unwrap(),
-        }],
+    )
+    .unwrap();
+    let unsealed_cid = Commitment::<CommD>::from_cid(
+        &Cid::from_str("baga6ea4seaqjzzj3jpjqkmnzwjueswah6a7wbiahq6arqknv57znraeoiwm4kgq").unwrap(),
     )
     .unwrap();
     (piece_commitment, unsealed_cid)
@@ -302,7 +298,7 @@ struct TestProposal<T: pallet_market::Config> {
     prove_commit_sector: ProveCommitSector,
 }
 
-    fn create_test_proposal<T>(
+fn create_test_proposal<T>(
         id: u8,
         provider: <T as frame_system::Config>::AccountId,
         client: (<T as frame_system::Config>::AccountId, MultiSigner),
@@ -319,7 +315,7 @@ struct TestProposal<T: pallet_market::Config> {
             .to_bytes()
             .try_into()
             .expect("hash is always 32 bytes"),
-        piece_size: 2048,
+        piece_size: *PaddedPieceSize::from_arbitrary_size(185459),
         client: client.0,
         provider,
         label: BoundedVec::try_from(label).unwrap(),
@@ -345,7 +341,7 @@ struct TestProposal<T: pallet_market::Config> {
             T::SectorMaximumLifetime::get(),
             T::MaxSectorExpiration::get(),
         ))
-        .seal_randomness_height(20.into())
+        .seal_randomness_height(1.into())
         .build();
 
     let prove_commit_sector = ProveCommitSector {
