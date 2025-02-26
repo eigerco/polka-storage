@@ -541,7 +541,7 @@ fn publish_storage_deals_fails_not_within_deal_parameters() {
                 RuntimeOrigin::signed(account::<Test>(PROVIDER)),
                 bounded_vec![DealProposalBuilder::<Test>::default().signed(ALICE)]
             ),
-            Error::<Test>::InvalidDealParameters
+            Error::<Test>::OutOfBoundsDeal
         );
 
         // Fail on price
@@ -552,7 +552,7 @@ fn publish_storage_deals_fails_not_within_deal_parameters() {
                     .end_block(107)
                     .signed(ALICE)]
             ),
-            Error::<Test>::InvalidDealParameters
+            Error::<Test>::OutOfBoundsDeal
         );
     })
 }

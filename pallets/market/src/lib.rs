@@ -320,6 +320,14 @@ pub mod pallet {
     where
         Balance: PartialOrd,            // For comparison
         BlockNumber: PartialOrd + Copy, // Copy so we can match the Option
+        // `Balance` and `BlockNumber` are not directly tied to their `Config` counterparts.
+        // The structure is flexible enough to be used for other purposes,
+        // so we limit the generics to the essential subset of traits only.
+        //
+        // Additional note: `BlockNumber`` will typically be a number, particularly in our network.
+        // As such, the Copy trait should be automatically included and shouldn't require extra work for future implementations. 
+        // Furthermore, the actual `BlockNumber` trait does require the `Copy` trait.
+        // https://docs.rs/sp-runtime/40.1.0/sp_runtime/traits/trait.BlockNumber.html
     {
         /// Validates the deal parameters against the given deal duration
         /// Returns true if everything checks out
@@ -581,8 +589,8 @@ pub mod pallet {
         DealDurationOutOfBounds,
         /// Deal's piece_cid is invalid.
         InvalidPieceCid,
-        /// Deal's parameters do no fall between what the SP has set with `publish_deal_parameters`
-        InvalidDealParameters,
+        /// The proposed deal parameters' falls outside the parameter bounds set by the Storage Provider.
+        OutOfBoundsDeal,
     }
 
     /// Extrinsics exposed by the pallet
@@ -1206,7 +1214,7 @@ pub mod pallet {
                     return Err(e.into());
                 }
 
-                // Safety check on deal parameters, these should have been checked before publishing
+                // Safety check on deal parameters, these should be checked by the submitting SP before publishing.
                 Self::validate_deal_parameters(&provider, &deal.proposal)?;
 
                 // there is no Entry API in BoundedBTreeMap
@@ -1281,17 +1289,19 @@ pub mod pallet {
 
         /// Validates that proposals fall between the parameters set by the storage provider.
         /// Checks for deal duration and minimum price.
-        /// returns Ok(()) if the proposal is valid, `Err(InvalidDealParameters)` if invalid.
+        /// returns Ok(()) if the proposal is valid, `Err(OutOfBoundsDeal)` if invalid.
         fn validate_deal_parameters(
             provider: &T::AccountId,
             proposal: &DealProposal<T::AccountId, BalanceOf<T>, BlockNumberFor<T>>,
         ) -> DispatchResult {
-            if let Some(params) = SPDealParameters::<T>::get(provider) {
-                // Check that deal proposal falls between SPs set params
-                let deal_duration = proposal.end_block - proposal.start_block;
-                // Validate deal duration
-                if !params.validate_duration(deal_duration) {
-                    log::error!(
+            let Some(params) = SPDealParameters::<T>::get(provider) else {
+                return Ok(());
+            };
+            // Check that deal proposal falls between SPs set params
+            let deal_duration = proposal.end_block - proposal.start_block;
+            // Validate deal duration
+            if !params.validate_duration(deal_duration) {
+                log::error!(
                         "Invalid deal duration for deal between {:?} and {:?}. lower: {:?}, upper: {:?}, duration: {:?}",
                         proposal.provider,
                         proposal.client,
@@ -1299,20 +1309,20 @@ pub mod pallet {
                         params.deal_duration.upper,
                         deal_duration
                     );
-                    return Err(Error::<T>::InvalidDealParameters.into());
-                }
-                // Validate deal price
-                if !params.validate_storage_price(proposal.storage_price_per_block) {
-                    log::error!("Invalid price for deal between {:?} and {:?}. Minimum price: {:?}, proposed price: {:?}",
+                return Err(Error::<T>::OutOfBoundsDeal.into());
+            }
+            // Validate deal price
+            if !params.validate_storage_price(proposal.storage_price_per_block) {
+                log::error!("Invalid price for deal between {:?} and {:?}. Minimum price: {:?}, proposed price: {:?}",
                         proposal.provider,
                         proposal.client,
                         params.minimum_price_per_block,
                         proposal.storage_price_per_block,
                     );
-                    return Err(Error::<T>::InvalidDealParameters.into());
-                }
+                return Err(Error::<T>::OutOfBoundsDeal.into());
             }
-            Ok(())
+
+            return Ok(())
         }
 
         // Used for deduplication purposes
