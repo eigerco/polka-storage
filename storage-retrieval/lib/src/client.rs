@@ -1,6 +1,7 @@
-use std::{collections::HashMap, path::Path, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use beetswap::{Event, QueryId};
+use blockstore::Blockstore;
 use cid::Cid;
 use futures::StreamExt;
 use ipld_core::codec::Codec;
@@ -8,8 +9,12 @@ use ipld_dagpb::{DagPbCodec, PbNode};
 use libp2p::{Multiaddr, PeerId, Swarm};
 use libp2p_core::ConnectedPoint;
 use libp2p_swarm::{ConnectionId, DialError, SwarmEvent};
-use mater::{FileBlockstore, DAG_PB_CODE, RAW_CODE};
+use mater::{blockstore::ReadWriteBlockstore, FileReader, DAG_PB_CODE, RAW_CODE};
 use thiserror::Error;
+use tokio::{
+    fs::{File, OpenOptions},
+    io::AsyncSeekExt,
+};
 use tracing::{debug, error, info, instrument, trace};
 
 use crate::{new_swarm, Behaviour, BehaviourEvent, InitSwarmError};
@@ -29,11 +34,35 @@ pub enum ClientError {
     /// Error produced by the mater
     #[error("Mater error: {0}")]
     Mater(#[from] mater::Error),
+    /// I/O error.
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+    /// Blockstore error.
+    #[error(transparent)]
+    Blockstore(#[from] blockstore::Error),
+}
+
+pub struct ClientSettings {
+    output: PathBuf,
+    extract: bool,
+    overwrite: bool,
+}
+
+impl ClientSettings {
+    pub fn new(output: PathBuf, extract: bool, overwrite: bool) -> Self {
+        Self {
+            output,
+            extract,
+            overwrite,
+        }
+    }
 }
 
 /// A client is used to download blocks from the storage provider. Single client
 /// supports getting a single payload.
 pub struct Client {
+    settings: ClientSettings,
+
     /// Providers of data
     providers: Vec<Multiaddr>,
     /// Swarm instance
@@ -42,20 +71,19 @@ pub struct Client {
     /// all requested data.
     queries: HashMap<QueryId, Cid>,
     /// Blockstore used by the client to store blocks into.
-    blockstore: FileBlockstore,
+    blockstore: ReadWriteBlockstore<File>,
     /// Content roots being downloaded.
-    roots: Vec<Cid>,
+    root: Cid,
+
+    structure: HashMap<Cid, Cid>,
 }
 
 impl Client {
-    pub async fn new<P>(
-        path: P,
+    pub async fn new(
         providers: Vec<Multiaddr>,
-        roots: Vec<Cid>,
-    ) -> Result<Self, ClientError>
-    where
-        P: AsRef<Path>,
-    {
+        root: Cid,
+        settings: ClientSettings,
+    ) -> Result<Self, ClientError> {
         // The p2p node which is created by the client doesn't need a real
         // blockstore. The reason is that the blockstore is only used by the
         // node when sharing blocks with other peers.
@@ -66,14 +94,25 @@ impl Client {
         // swarm is, because the bitswap behaviour is adding blocks to the
         // blockstore in asynchronous manner. Because of that we couldn't know
         // when was the download actually finished.
-        let blockstore = FileBlockstore::new(path, roots.clone()).await?;
+        let mut car_path = settings.output.clone();
+        car_path.set_extension("car");
+        let file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .create_new(!settings.overwrite)
+            .read(true)
+            .open(car_path.clone())
+            .await?;
+        let blockstore = ReadWriteBlockstore::new(file).await?;
 
         Ok(Self {
+            settings,
             providers,
             swarm,
             queries: HashMap::new(),
             blockstore,
-            roots,
+            root,
+            structure: HashMap::new(),
         })
     }
 
@@ -85,21 +124,56 @@ impl Client {
         }
 
         // Start the download by requesting the roots of the trees.
-        self.roots
-            .clone()
-            .into_iter()
-            .for_each(|root| self.request_block(root));
+        self.request_block(self.root);
 
-        while let Some(event) = self.swarm.next().await {
+        loop {
+            let Some(event) = self.swarm.next().await else {
+                break;
+            };
+
             // Handle event received from the providers
             self.on_swarm_event(event).await?;
 
             // if no inflight queries, that means we received
             // everything requested. Finalize the blockstore.
             if self.queries.is_empty() {
-                self.blockstore.finalize(None).await?;
                 break;
             }
+        }
+
+        // NOTE(@jmg-duarte,25/02/2025): There is a way of doing this without the store,
+        // but I've spent enough time with this as of now.
+        // The solution is straightforward, even if not entirely simple to implement:
+        // Starting from the root, we get N links to the children, those links are always sorted
+        // and so, we're able to know which block goes where, as such it's just a matter of
+        // building a mapping (representing the file) which just tracks the cid -> offset,size
+        // and as the blocks come, seek to them and write the data, no CAR abstraction needed.
+
+        let inner = self.blockstore.into_inner();
+        let mut file = inner
+            .finish_with_roots(
+                self.structure
+                    .values()
+                    .copied()
+                    // We're expecting a single one, so this should be ok
+                    // if any issues arise, we can use an HashSet
+                    .filter(|cid| self.structure.contains_key(cid)),
+            )
+            .await?;
+
+        if self.settings.extract {
+            file.rewind().await?;
+
+            let mut extracted_file = if self.settings.overwrite {
+                File::create(&self.settings.output).await?
+            } else {
+                File::create_new(&self.settings.output).await?
+            };
+
+            FileReader::new(file)
+                .await?
+                .copy_tree(&self.root, &mut extracted_file)
+                .await?;
         }
 
         Ok(())
@@ -168,17 +242,18 @@ impl Client {
                 };
 
                 // Store the received block to a blockstore
+                info!("writing block with cid: {cid:?}");
                 self.blockstore.put_keyed(&cid, &data).await?;
-                info!("received new block {cid:?}");
 
                 match cid.codec() {
                     DAG_PB_CODE => {
                         let node = <DagPbCodec as Codec<PbNode>>::decode_from_slice(&data).unwrap();
 
-                        // Request a block for each new discoverd link
-                        node.links
-                            .iter()
-                            .for_each(|link| self.request_block(link.cid));
+                        node.links.iter().map(|link| link.cid).for_each(|l_cid| {
+                            tracing::debug!("inserting {}: {}", l_cid, cid);
+                            self.structure.insert(l_cid, cid);
+                            self.request_block(l_cid);
+                        });
                     }
                     RAW_CODE => {
                         debug!("{cid} raw block. nothing to do");

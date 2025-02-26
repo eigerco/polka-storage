@@ -6,7 +6,6 @@ use ipld_core::cid::{multihash::Multihash, Cid};
 use serde::{Deserialize, Serialize};
 
 use crate::multicodec::{RAW_CODE, SHA_256_CODE};
-pub(crate) use crate::v1::writer::{write_block, write_header};
 pub use crate::v1::{
     reader::{CarReader, CarReaderExt},
     writer::CarWriter,

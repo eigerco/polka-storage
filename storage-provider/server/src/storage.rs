@@ -404,7 +404,7 @@ where
     // Stream the body from source to the temp file.
     let file = File::create(&temp_file_path).await?;
     let writer = BufWriter::new(file);
-    let cid = mater::Blockwriter::import(source, writer).await?;
+    let cid = mater::FileWriter::import(source, writer).await?;
     tracing::trace!("finished writing the CAR archive");
 
     // If the file is successfully written, we can now move it to the final

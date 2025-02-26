@@ -17,7 +17,6 @@ byteorder = { workspace = true, features = ["i128"] }
 bytes.workspace = true
 digest.workspace = true
 futures.workspace = true
-indexmap.workspace = true
 integer-encoding = { workspace = true, features = ["tokio_async"] }
 ipld-core = { workspace = true, features = ["serde"] }
 ipld-dagpb.workspace = true
