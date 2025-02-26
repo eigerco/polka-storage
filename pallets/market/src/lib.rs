@@ -327,17 +327,17 @@ pub mod pallet {
         fn validate_duration(&self, proposed_deal_duration: BlockNumber) -> bool {
             match (self.deal_duration.lower, self.deal_duration.upper) {
                 (None, None) => true,
-                (Some(lower), None) => return proposed_deal_duration < lower,
-                (None, Some(upper)) => return proposed_deal_duration > upper,
+                (Some(lower), None) => return proposed_deal_duration > lower,
+                (None, Some(upper)) => return proposed_deal_duration < upper,
                 (Some(lower), Some(upper)) => {
-                    return proposed_deal_duration < lower || proposed_deal_duration > upper
+                    return proposed_deal_duration > lower || proposed_deal_duration < upper
                 }
             }
         }
 
         /// Validates that the price is higher than the SP set minimum.
         fn validate_storage_price(&self, proposed_storage_price: Balance) -> bool {
-            return proposed_storage_price <= self.minimum_price_per_block;
+            return proposed_storage_price >= self.minimum_price_per_block;
         }
     }
 
@@ -1291,14 +1291,25 @@ pub mod pallet {
                 // Validate deal duration
                 if !params.validate_duration(deal_duration) {
                     log::error!(
-                        "Invalid deal duration for deal between {:?} and {:?}",
+                        "Invalid deal duration for deal between {:?} and {:?}. lower: {:?}, upper: {:?}, duration: {:?}",
                         proposal.provider,
-                        proposal.client
+                        proposal.client,
+                        params.deal_duration.lower,
+                        params.deal_duration.upper,
+                        deal_duration
                     );
                     return Err(Error::<T>::InvalidDealParameters.into());
                 }
                 // Validate deal price
-                if !params.validate_storage_price(proposal.storage_price_per_block) {}
+                if !params.validate_storage_price(proposal.storage_price_per_block) {
+                    log::error!("Invalid price for deal between {:?} and {:?}. Minimum price: {:?}, proposed price: {:?}",
+                        proposal.provider,
+                        proposal.client,
+                        params.minimum_price_per_block,
+                        proposal.storage_price_per_block,
+                    );
+                    return Err(Error::<T>::InvalidDealParameters.into());
+                }
             }
             Ok(())
         }
