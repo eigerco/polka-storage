@@ -865,6 +865,7 @@ pub mod pallet {
         }
 
         #[pallet::call_index(4)]
+        #[pallet::weight((T::WeightInfo::publish_deal_parameters(), DispatchClass::Normal))]
         pub fn publish_deal_parameters(
             origin: OriginFor<T>,
             deal_parameters: DealParameters<BalanceOf<T>, BlockNumberFor<T>>,
@@ -886,6 +887,7 @@ pub mod pallet {
         }
 
         #[pallet::call_index(5)]
+        #[pallet::weight((T::WeightInfo::remove_deal_parameters(), DispatchClass::Normal))]
         pub fn remove_deal_parameters(origin: OriginFor<T>) -> DispatchResult {
             let provider = ensure_signed(origin)?;
             ensure!(

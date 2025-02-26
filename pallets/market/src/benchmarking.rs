@@ -400,6 +400,74 @@ mod benchmarks {
         assert_eq!(MarketPallet::<T>::locked(&client).unwrap(), 0u32.into());
     }
 
+    #[benchmark]
+    fn publish_deal_parameters() {
+        let caller: T::AccountId = whitelisted_caller();
+        // Register the caller as a storage provider
+        pallet_storage_provider::Pallet::<T>::register_storage_provider(
+            RawOrigin::Signed(caller.clone()).into(),
+            BoundedVec::try_from("placeholder".as_bytes().to_vec()).unwrap(),
+            RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+        )
+        .unwrap();
+
+        let deal_parameters: DealParameters<BalanceOf<T>, BlockNumberFor<T>> = DealParameters {
+            minimum_price_per_block: 1u32.into(),
+            deal_duration: DealDurationBound {
+                lower: Some(1u32.into()),
+                upper: Some(10u32.into()),
+            },
+        };
+        let storage_provider: OriginFor<T> = RawOrigin::Signed(caller.clone()).into();
+
+        // #[extrinsic_call] requires type shenanigans, using #[block] is MUCH simpler
+        #[block]
+        {
+            Pallet::<T>::publish_deal_parameters(storage_provider.clone(), deal_parameters.clone())
+                .unwrap();
+        }
+
+        assert_eq!(
+            SPDealParameters::<T>::get(&caller),
+            Some(deal_parameters)
+        );
+    }
+
+    #[benchmark]
+    fn remove_deal_parameters() {
+        let caller: T::AccountId = whitelisted_caller();
+        // Register the caller as a storage provider
+        pallet_storage_provider::Pallet::<T>::register_storage_provider(
+            RawOrigin::Signed(caller.clone()).into(),
+            BoundedVec::try_from("placeholder".as_bytes().to_vec()).unwrap(),
+            RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+        )
+        .unwrap();
+
+        let deal_parameters: DealParameters<BalanceOf<T>, BlockNumberFor<T>> = DealParameters {
+            minimum_price_per_block: 1u32.into(),
+            deal_duration: DealDurationBound {
+                lower: Some(1u32.into()),
+                upper: Some(10u32.into()),
+            },
+        };
+        let storage_provider: OriginFor<T> = RawOrigin::Signed(caller.clone()).into();
+
+        Pallet::<T>::publish_deal_parameters(storage_provider.clone(), deal_parameters).unwrap();
+
+        // #[extrinsic_call] requires type shenanigans, using #[block] is MUCH simpler
+        #[block]
+        {
+            Pallet::<T>::remove_deal_parameters(storage_provider.clone())
+                .unwrap();
+        }
+
+        assert_eq!(
+            SPDealParameters::<T>::get(&caller),
+            None
+        );
+    }
+
     impl_benchmark_test_suite! {
         MarketPallet,
         crate::mock::new_test_ext(),
