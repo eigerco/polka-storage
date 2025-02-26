@@ -203,7 +203,7 @@ generate-proof-params sector-size:
     cargo r -r -p polka-storage-provider-client -- proofs post-params --post-type "{{sector-size}}"
 
 bench-test pallet:
-    cargo test --profile ci --locked -p "pallet-{{pallet}}" --features runtime-benchmarks -- benchmark --nocapture
+    RUST_LOG=debug cargo test --profile ci --locked -p "pallet-{{pallet}}" --features runtime-benchmarks -- benchmark --nocapture
 
 bench-node pallet steps="5" repeat="1":
     cargo run \
@@ -215,3 +215,32 @@ bench-node pallet steps="5" repeat="1":
         --steps "{{steps}}" \
         --repeat "{{repeat}}" \
         --template node/benchmark_template.hbs
+
+comm_p := ```
+    cargo run --release -p polka-storage-provider-client -- \
+        proofs commp examples/big_file_184k.car \
+    | jq -r .cid
+```
+tmp_dir := `mktemp --directory`
+
+generate-bench-data:
+    mkdir -p target/bench/proofs
+    cargo run --release -p polka-storage-provider-client -- \
+        proofs porep \
+        --sr25519-key "//StorageProvider" \
+        --seal-proof 8MiB \
+        --proof-parameters-path ./target/porep_params_8MiB \
+        --sector-id 0 \
+        --seal-randomness-height 20 \
+        --pre-commit-block-number 30 \
+        --cache-directory {{tmp_dir}} \
+        --output-path target/bench/proofs \
+        ./examples/big_file_184k.car \
+        {{comm_p}}
+
+generate-bench-params:
+    mkdir -p target/bench/params
+    cargo run --release -p polka-storage-provider-client -- \
+        proofs porep-params \
+        --seal-proof 8MiB \
+        --output-path target/bench/params

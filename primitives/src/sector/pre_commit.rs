@@ -50,7 +50,7 @@ pub mod builder {
     /// [`SectorPreCommitInfo`] builder.
     ///
     /// Usage:
-    /// ```no_run
+    /// ```no_compile
     /// // Instances are created with defaults
     /// SectorPreCommitInfoBuilder::default()
     ///     .sector_number(10.into())
@@ -131,6 +131,16 @@ pub mod builder {
             unsealed_cid: BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>,
         ) -> Self {
             self.unsealed_cid = unsealed_cid;
+            self
+        }
+
+        pub fn seal_proof(mut self, seal_proof: RegisteredSealProof) -> Self {
+            self.seal_proof = seal_proof;
+            self
+        }
+
+        pub fn seal_randomness_height(mut self, seal_randomness_height: BlockNumber) -> Self {
+            self.seal_randomness_height = seal_randomness_height;
             self
         }
 

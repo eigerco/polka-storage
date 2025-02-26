@@ -6,6 +6,7 @@ pub trait Config:
     pallet_storage_provider::Config
     + pallet_balances::Config
     + pallet_market::Config
+    + pallet_proofs::Config
     + frame_system::Config
 {
 }

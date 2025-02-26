@@ -48,6 +48,9 @@ mod runtime {
 
     #[runtime::pallet_index(3)]
     pub type Market = pallet_market::Pallet<Test>;
+
+    #[runtime::pallet_index(4)]
+    pub type Proofs = pallet_proofs::Pallet<Test>;
 }
 
 pub type Signature = MultiSignature;
@@ -80,6 +83,11 @@ impl pallet_market::Config for Test {
     type MinDealDuration = MinDealDuration;
     type MaxDealDuration = MaxDealDuration;
     type MaxDealsPerBlock = ConstU32<500>;
+}
+
+impl pallet_proofs::Config for Test {
+    type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = ();
 }
 
 // Sourced from the Testnet runtime defined in <runtime/src/configs/mod.rs>.
@@ -152,7 +160,7 @@ impl pallet_storage_provider::Config for Test {
     type Market = Market;
 
     // Proof Verification Provider
-    type ProofVerification = primitives::testing::DummyProofsVerification;
+    type ProofVerification = Proofs;
 
     type WPoStProvingPeriod = WPoStProvingPeriod;
     type WPoStChallengeWindow = WPoStChallengeWindow;
