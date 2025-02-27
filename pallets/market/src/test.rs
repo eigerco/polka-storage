@@ -19,12 +19,14 @@ use sp_core::H256;
 use sp_runtime::AccountId32;
 
 use crate::{
+    deal_parameters::{
+        offchain_deal_param_conversion, OffchainDealDurationBound, OffchainDealParameters,
+    },
     error::DealSettlementError,
     mock::*,
     pallet::{lock_funds, slash_and_burn, unlock_funds},
-    ActiveDealState, BalanceEntry, BalanceTable, Config, DealDurationBound, DealParameters,
-    DealState, DealsForBlock, Error, Event, PendingProposals, Proposals, PublishedDeal,
-    SPDealParameters, SectorDeals, SettledDealData,
+    ActiveDealState, BalanceEntry, BalanceTable, Config, DealState, DealsForBlock, Error, Event,
+    PendingProposals, Proposals, PublishedDeal, SPDealParameters, SectorDeals, SettledDealData,
 };
 #[test]
 fn initial_state() {
@@ -522,9 +524,9 @@ fn publish_storage_deals_fails_not_within_deal_parameters() {
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 90);
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 90);
         // Default price = 5, default duration = 10
-        let deal_params: DealParameters<u64, u64> = DealParameters {
+        let deal_params: OffchainDealParameters<u64, u64> = OffchainDealParameters {
             minimum_price_per_block: 10,
-            deal_duration: DealDurationBound {
+            deal_duration: OffchainDealDurationBound {
                 lower: Some(1),
                 upper: Some(8),
             },
@@ -644,11 +646,11 @@ fn publish_storage_deals() {
 fn publish_storage_deals_with_deal_params() {
     new_test_ext().execute_with(|| {
         register_storage_provider(account::<Test>(PROVIDER));
-        let deal_params: DealParameters<u64, u64> = DealParameters {
+        let deal_params: OffchainDealParameters<u64, u64> = OffchainDealParameters {
             minimum_price_per_block: 4,
-            deal_duration: DealDurationBound {
-                lower: Some(4),  // Shortest deal is 5 blocks
-                upper: Some(15), // longest deal is 10 blocks
+            deal_duration: OffchainDealDurationBound {
+                lower: None,
+                upper: None,
             },
         };
         // Publish deal params
@@ -1853,18 +1855,23 @@ fn publish_deal_parameters() {
         let storage_provider = account::<Test>(PROVIDER);
         register_storage_provider(storage_provider.clone());
 
-        let deal_params: DealParameters<u64, u64> = DealParameters {
+        let offchain_deal_params: OffchainDealParameters<u64, u64> = OffchainDealParameters {
             minimum_price_per_block: 1_000,
-            deal_duration: DealDurationBound {
+            deal_duration: OffchainDealDurationBound {
                 lower: Some(100),
                 upper: Some(1_000_000),
             },
         };
+        let deal_params = offchain_deal_param_conversion(
+            offchain_deal_params.clone(),
+            <<Test as Config>::MinDealDuration as Get<u64>>::get(),
+            <<Test as Config>::MaxDealDuration as Get<u64>>::get(),
+        );
 
         // Run extrinsic
         assert_ok!(Market::publish_deal_parameters(
             RuntimeOrigin::signed(storage_provider.clone()),
-            deal_params.clone()
+            offchain_deal_params
         ));
 
         // Check events
@@ -1883,18 +1890,23 @@ fn publish_deal_parameters() {
         );
 
         // Re-insert different deal parameters
-        let deal_params_2: DealParameters<u64, u64> = DealParameters {
+        let offchain_deal_params_2: OffchainDealParameters<u64, u64> = OffchainDealParameters {
             minimum_price_per_block: 10_000,
-            deal_duration: DealDurationBound {
+            deal_duration: OffchainDealDurationBound {
                 lower: Some(1_000),
                 upper: Some(100_000),
             },
         };
+        let deal_params_2 = offchain_deal_param_conversion(
+            offchain_deal_params_2.clone(),
+            <<Test as Config>::MinDealDuration as Get<u64>>::get(),
+            <<Test as Config>::MaxDealDuration as Get<u64>>::get(),
+        );
 
         // Run extrinsic
         assert_ok!(Market::publish_deal_parameters(
             RuntimeOrigin::signed(storage_provider.clone()),
-            deal_params_2.clone()
+            offchain_deal_params_2.clone()
         ));
 
         // Check events
@@ -1921,18 +1933,23 @@ fn remove_deal_parameters() {
         let storage_provider = account::<Test>(PROVIDER);
         register_storage_provider(storage_provider.clone());
 
-        let deal_params: DealParameters<u64, u64> = DealParameters {
+        let offchain_deal_params: OffchainDealParameters<u64, u64> = OffchainDealParameters {
             minimum_price_per_block: 1_000,
-            deal_duration: DealDurationBound {
+            deal_duration: OffchainDealDurationBound {
                 lower: Some(100),
                 upper: Some(1_000_000),
             },
         };
+        let deal_params = offchain_deal_param_conversion(
+            offchain_deal_params.clone(),
+            <<Test as Config>::MinDealDuration as Get<u64>>::get(),
+            <<Test as Config>::MaxDealDuration as Get<u64>>::get(),
+        );
 
         // Run extrinsic
         assert_ok!(Market::publish_deal_parameters(
             RuntimeOrigin::signed(storage_provider.clone()),
-            deal_params.clone()
+            offchain_deal_params.clone()
         ));
 
         // Check events

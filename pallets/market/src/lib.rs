@@ -9,6 +9,7 @@
 
 pub use pallet::*;
 
+mod deal_parameters;
 mod error;
 pub mod weights;
 
@@ -56,7 +57,11 @@ pub mod pallet {
     use sp_arithmetic::traits::BaseArithmetic;
     use sp_std::vec::Vec;
 
-    use crate::{error::*, weights::WeightInfo};
+    use crate::{
+        deal_parameters::{offchain_deal_param_conversion, DealParameters, OffchainDealParameters},
+        error::*,
+        weights::WeightInfo,
+    };
 
     pub const LOG_TARGET: &'static str = "runtime::market";
 
@@ -298,67 +303,6 @@ pub mod pallet {
     pub struct ClientDealProposal<Address, Currency, BlockNumber, OffchainSignature> {
         pub proposal: DealProposal<Address, Currency, BlockNumber>,
         pub client_signature: OffchainSignature,
-    }
-
-    /// Bounds for deal duration that storage providers want to accept.
-    /// Used in the [`DealParameters`]
-    #[derive(Clone, Eq, PartialEq, Encode, Decode, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-    pub struct DealDurationBound<BlockNumber> {
-        pub lower: Option<BlockNumber>,
-        pub upper: Option<BlockNumber>,
-    }
-
-    /// Deal Parameters set by storage providers on which deals they accept,
-    /// based on deal variables.
-    #[derive(Clone, Eq, PartialEq, Encode, Decode, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-    pub struct DealParameters<Balance, BlockNumber> {
-        pub minimum_price_per_block: Balance,
-        pub deal_duration: DealDurationBound<BlockNumber>,
-    }
-
-    impl<Balance, BlockNumber> DealParameters<Balance, BlockNumber>
-    where
-        Balance: PartialOrd,
-        BlockNumber: PartialOrd + Copy,
-        // `Balance` and `BlockNumber` are not directly tied to their `Config` counterparts.
-        // The structure is flexible enough to be used for other purposes,
-        // so we limit the generics to the essential subset of traits only.
-        //
-        // Additional note: `BlockNumber` will typically be a number, particularly in our network.
-        // As such, the Copy trait should be automatically included and shouldn't require extra work for future implementations.
-        // Furthermore, the actual `BlockNumber` trait does require the `Copy` trait.
-        // https://docs.rs/sp-runtime/40.1.0/sp_runtime/traits/trait.BlockNumber.html
-    {
-        /// Validates the deal parameters against the given deal duration
-        /// Returns true if everything checks out
-        /// False if something is out of the duration bound
-        fn validate_duration(&self, proposed_deal_duration: BlockNumber) -> bool {
-            match (self.deal_duration.lower, self.deal_duration.upper) {
-                (None, None) => true,
-                (Some(lower), None) => return proposed_deal_duration > lower,
-                (None, Some(upper)) => return proposed_deal_duration < upper,
-                (Some(lower), Some(upper)) => {
-                    return proposed_deal_duration > lower || proposed_deal_duration < upper
-                }
-            }
-        }
-
-        /// Validates that the price is higher than the SP set minimum.
-        fn validate_storage_price(&self, proposed_storage_price: Balance) -> bool {
-            return proposed_storage_price >= self.minimum_price_per_block;
-        }
-
-        /// Validates that the deal parameter duration is within the given bounds
-        fn validate_duration_against(&self, minimum_duration: BlockNumber, maximum_duration: BlockNumber) -> bool {
-             match (self.deal_duration.lower, self.deal_duration.upper) {
-                (None, None) => true,
-                (Some(lower), None) => return lower >= minimum_duration,
-                (None, Some(upper)) => return upper <= maximum_duration,
-                (Some(lower), Some(upper)) => {
-                    return lower >= minimum_duration && upper <= maximum_duration
-                }
-            }
-        }
     }
 
     #[pallet::pallet]
@@ -894,14 +838,19 @@ pub mod pallet {
         #[pallet::weight((T::WeightInfo::publish_deal_parameters(2), DispatchClass::Normal))]
         pub fn publish_deal_parameters(
             origin: OriginFor<T>,
-            deal_parameters: DealParameters<BalanceOf<T>, BlockNumberFor<T>>,
+            deal_parameters: OffchainDealParameters<BalanceOf<T>, BlockNumberFor<T>>,
         ) -> DispatchResult {
             let provider = ensure_signed(origin)?;
             ensure!(
                 T::StorageProviderValidation::is_registered_storage_provider(&provider),
                 Error::<T>::StorageProviderNotRegistered
             );
-            Self::validate_submitted_deal_parameters(&deal_parameters)?;
+            let min_dur = T::MinDealDuration::get();
+            let max_dur = T::MaxDealDuration::get();
+            let deal_parameters = offchain_deal_param_conversion(deal_parameters, min_dur, max_dur);
+            if !deal_parameters.validate(min_dur, max_dur) {
+                log::error!(target: LOG_TARGET, "Invalid deal parameters submitted: {deal_parameters:?}");
+            }
             // Update or insert deal parameters
             SPDealParameters::<T>::mutate(&provider, |params| {
                 let _ = params.insert(deal_parameters.clone());
@@ -1196,20 +1145,6 @@ pub mod pallet {
             Ok(())
         }
 
-        fn validate_submitted_deal_parameters(deal_parameters: &DealParameters<BalanceOf<T>, BlockNumberFor<T>>) -> Result<(), Error<T>> {
-            ensure!(deal_parameters.minimum_price_per_block > BalanceOf::<T>::zero(), {
-                log::error!(target: LOG_TARGET, "deal parameter minimum price cannot be 0");
-                Error::<T>::DealParameterPriceTooLow
-            });
-            let min_dur = T::MinDealDuration::get();
-            let max_dur = T::MaxDealDuration::get();
-            ensure!(deal_parameters.validate_duration_against(min_dur, max_dur), {
-                log::error!(target: LOG_TARGET, "deal parameter duration invalid");
-                Error::<T>::DealParameterDurationInvalid
-            });
-            Ok(())
-        }
-
         fn validate_deals(
             caller: T::AccountId,
             deals: BoundedVec<
@@ -1252,7 +1187,17 @@ pub mod pallet {
                 }
 
                 // Safety check on deal parameters, these should be checked by the submitting SP before publishing.
-                Self::validate_deal_parameters(&provider, &deal.proposal)?;
+                if let Some(params) = SPDealParameters::<T>::get(&provider) {
+                    ensure!(params.check_against_proposed_deal(&deal.proposal), {
+                        log::error!(
+                            target: LOG_TARGET,
+                            "Proposed deal does not fit within the deal bounds set by the storage provider. Set deal parameters: {:?}, proposed deal: {:?}",
+                            params,
+                            deal.proposal
+                        );
+                        Error::<T>::OutOfBoundsDeal
+                    });
+                }
 
                 // there is no Entry API in BoundedBTreeMap
                 let mut client_lockup =
@@ -1322,44 +1267,6 @@ pub mod pallet {
             }
 
             Ok((valid_deals, total_provider_lockup))
-        }
-
-        /// Validates that proposals fall between the parameters set by the storage provider.
-        /// Checks for deal duration and minimum price.
-        /// returns Ok(()) if the proposal is valid, `Err(OutOfBoundsDeal)` if invalid.
-        fn validate_deal_parameters(
-            provider: &T::AccountId,
-            proposal: &DealProposal<T::AccountId, BalanceOf<T>, BlockNumberFor<T>>,
-        ) -> DispatchResult {
-            let Some(params) = SPDealParameters::<T>::get(provider) else {
-                return Ok(());
-            };
-            // Check that deal proposal falls between SPs set params
-            let deal_duration = proposal.end_block - proposal.start_block;
-            // Validate deal duration
-            if !params.validate_duration(deal_duration) {
-                log::error!(
-                        "Invalid deal duration for deal between {:?} and {:?}. lower: {:?}, upper: {:?}, duration: {:?}",
-                        proposal.provider,
-                        proposal.client,
-                        params.deal_duration.lower,
-                        params.deal_duration.upper,
-                        deal_duration
-                    );
-                return Err(Error::<T>::OutOfBoundsDeal.into());
-            }
-            // Validate deal price
-            if !params.validate_storage_price(proposal.storage_price_per_block) {
-                log::error!("Invalid price for deal between {:?} and {:?}. Minimum price: {:?}, proposed price: {:?}",
-                        proposal.provider,
-                        proposal.client,
-                        params.minimum_price_per_block,
-                        proposal.storage_price_per_block,
-                    );
-                return Err(Error::<T>::OutOfBoundsDeal.into());
-            }
-
-            return Ok(());
         }
 
         // Used for deduplication purposes
