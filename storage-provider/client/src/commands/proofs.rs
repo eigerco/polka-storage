@@ -147,60 +147,13 @@ impl ProofsCommand {
     pub async fn run(self) -> Result<(), CliError> {
         match self {
             ProofsCommand::CalculatePieceCommitment { input_path } => {
-                // Check if the file is a CARv2 file. If it is, we can't calculate the piece commitment.
-                let mut source_file = tokio::fs::File::open(&input_path).await?;
-                source_file
-                    .is_car_file()
-                    .await
-                    .map_err(|e| UtilsCommandError::InvalidCARv2(input_path.clone(), e))?;
-
-                // Calculate the piece commitment.
-                let (commitment, padded_piece_size) =
-                    commp(&input_path).map_err(|err| UtilsCommandError::CommPError(err))?;
-                let cid = commitment.cid();
-
-                // NOTE(@jmg-duarte,09/10/2024): too lazy for proper json
-                // plus adding an extra structure for such a small thing seems wasteful
-                println!("{{\n\t\"cid\": \"{cid}\",\n\t\"size\": {padded_piece_size}\n}}");
+                calculate_piece_commitment(input_path).await?;
             }
             ProofsCommand::GeneratePoRepParams {
                 seal_proof,
                 output_path,
             } => {
-                let output_path = if let Some(output_path) = output_path {
-                    output_path
-                } else {
-                    std::env::current_dir()?
-                };
-
-                let file_name: String = seal_proof.sector_size().to_string();
-
-                let (parameters_file_name, mut parameters_file) =
-                    file_with_extension(&output_path, file_name.as_str(), POREP_PARAMS_EXT)?;
-                let (vk_file_name, mut vk_file) =
-                    file_with_extension(&output_path, file_name.as_str(), POREP_VK_EXT)?;
-                let (vk_scale_file_name, mut vk_scale_file) =
-                    file_with_extension(&output_path, file_name.as_str(), POREP_VK_EXT_SCALE)?;
-
-                println!(
-                    "Generating params for {} sectors... It can take a couple of minutes ⌛",
-                    file_name
-                );
-                let parameters = porep::generate_random_groth16_parameters(seal_proof)
-                    .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
-                parameters.write(&mut parameters_file)?;
-                parameters.vk.write(&mut vk_file)?;
-
-                let vk =
-                    polka_storage_proofs::VerifyingKey::<bls12_381::Bls12>::try_from(parameters.vk)
-                        .map_err(|e| UtilsCommandError::FromBytesError(e))?;
-                let bytes = codec::Encode::encode(&vk);
-                vk_scale_file.write_all(&bytes)?;
-
-                println!("Generated parameters: ");
-                println!("{}", parameters_file_name.display());
-                println!("{}", vk_file_name.display());
-                println!("{}", vk_scale_file_name.display());
+                generate_porep_params(output_path, seal_proof)?;
             }
             ProofsCommand::PoRep {
                 signer_key,
@@ -214,190 +167,25 @@ impl ProofsCommand {
                 seal_randomness_height,
                 pre_commit_block_number,
             } => {
-                let Some(signer) = Option::<MultiPairSigner>::from(signer_key) else {
-                    return Err(UtilsCommandError::NoSigner)?;
-                };
-
-                let sector_number = SectorNumber::try_from(sector_id)
-                    .map_err(|_| UtilsCommandError::InvalidSectorId)?;
-
-                let entropy = signer.account_id().encode();
-                println!("Entropy: {}", hex::encode(&entropy));
-
-                let ticket = get_randomness(
-                    DomainSeparationTag::SealRandomness,
+                porep(
+                    signer_key,
+                    sector_id,
                     seal_randomness_height,
-                    &entropy,
-                );
-                println!(
-                    "[{seal_randomness_height}] Ticket randomness: {}",
-                    hex::encode(ticket)
-                );
-
-                // The number added is configured in runtime:
-                // https://github.com/eigerco/polka-storage/blob/18207759d7c6c175916d5bed70246d94a8f028f4/runtime/src/configs/mod.rs#L360
-                let interactive_block_number = pre_commit_block_number + 10;
-                let seed = get_randomness(
-                    DomainSeparationTag::InteractiveSealChallengeSeed,
-                    interactive_block_number,
-                    &entropy,
-                );
-                println!(
-                    "[{interactive_block_number}] Seed randomness: {}",
-                    hex::encode(seed)
-                );
-
-                let output_path = if let Some(output_path) = output_path {
-                    output_path
-                } else {
-                    std::env::current_dir()?
-                };
-                let (proof_scale_filename, mut proof_scale_file) = file_with_extension(
-                    &output_path,
-                    format!("{}", sector_id).as_str(),
-                    POREP_PROOF_EXT,
-                )?;
-
-                let mut source_file = tokio::fs::File::open(&input_path).await?;
-                source_file
-                    .is_car_file()
-                    .await
-                    .map_err(|e| UtilsCommandError::InvalidCARv2(input_path.clone(), e))?;
-
-                let proof_parameters = porep::load_groth16_parameters(proof_parameters_path)
-                    .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
-
-                let piece_file = std::fs::File::open(&input_path)
-                    .map_err(|e| UtilsCommandError::InvalidPieceFile(input_path.clone(), e))?;
-
-                let piece_file_length = piece_file
-                    .metadata()
-                    .map_err(|e| UtilsCommandError::InvalidPieceFile(input_path, e))?
-                    .len();
-
-                let piece_file_length = PaddedPieceSize::from_arbitrary_size(piece_file_length);
-                let piece_file = ZeroPaddingReader::new(piece_file, *piece_file_length.unpadded());
-
-                let commp = cid::Cid::from_str(&commp)
-                    .map_err(|e| UtilsCommandError::InvalidPieceCommP(commp, e))?;
-                let piece_info = PieceInfo {
-                    commitment: Commitment::try_from(commp)
-                        .map_err(|e| UtilsCommandError::InvalidPieceType(commp.to_string(), e))?,
-                    size: piece_file_length,
-                };
-
-                let (unsealed_sector_path, unsealed_sector) = file_with_extension(
-                    &output_path,
-                    format!("{}", sector_id).as_str(),
-                    "sector.unsealed",
-                )?;
-
-                let (sealed_sector_path, _) = file_with_extension(
-                    &output_path,
-                    format!("{}", sector_id).as_str(),
-                    "sector.sealed",
-                )?;
-
-                println!("Creating sector...");
-                let piece_infos =
-                    create_sector(seal_proof, vec![(piece_file, piece_info)], unsealed_sector)
-                        .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
-
-                let prover_id = derive_prover_id(signer.account_id());
-                println!("Prover ID: {}", hex::encode(prover_id));
-
-                println!("Precommitting...");
-                let precommit = match_seal_proof!(
+                    pre_commit_block_number,
+                    output_path,
+                    input_path,
+                    proof_parameters_path,
+                    commp,
                     seal_proof,
-                    precommit_sector::<_, _, _, _>(
-                        seal_proof,
-                        &cache_directory,
-                        unsealed_sector_path,
-                        &sealed_sector_path,
-                        prover_id,
-                        sector_number,
-                        ticket,
-                        &piece_infos
-                    )
+                    cache_directory,
                 )
-                .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
-
-                println!("Proving...");
-                let proofs = match_seal_proof!(
-                    seal_proof,
-                    prove_sector::<_, _, _>(
-                        seal_proof,
-                        &proof_parameters,
-                        &cache_directory,
-                        &sealed_sector_path,
-                        prover_id,
-                        sector_number,
-                        ticket,
-                        Some(seed),
-                        precommit,
-                        &piece_infos
-                    )
-                )
-                .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
-
-                println!(
-                    "[{seal_randomness_height}] Ticket randomness: {}",
-                    hex::encode(ticket)
-                );
-                println!(
-                    "[{interactive_block_number}] Seed randomness: {}",
-                    hex::encode(seed)
-                );
-                println!("CommD: {}", precommit.comm_d.cid());
-                println!("CommR: {}", precommit.comm_r.cid());
-                let substrate_proofs = proofs
-                    .into_iter()
-                    .map(polka_storage_proofs::Proof::<bls12_381::Bls12>::try_from)
-                    .collect::<Result<Vec<_>, _>>()
-                    .expect("conversion between rust-fil-proofs and polka-storage-proofs to work");
-                let scale_encoded_proof = codec::Encode::encode(&substrate_proofs);
-                proof_scale_file.write_all(&scale_encoded_proof)?;
-
-                println!("Wrote proof to {}", proof_scale_filename.display());
+                .await?;
             }
             ProofsCommand::GeneratePoStParams {
                 post_type,
                 output_path,
             } => {
-                let output_path = if let Some(output_path) = output_path {
-                    output_path
-                } else {
-                    std::env::current_dir()?
-                };
-
-                let file_name: String = post_type.sector_size().to_string();
-
-                let (parameters_file_name, mut parameters_file) =
-                    file_with_extension(&output_path, file_name.as_str(), POST_PARAMS_EXT)?;
-                let (vk_file_name, mut vk_file) =
-                    file_with_extension(&output_path, file_name.as_str(), POST_VK_EXT)?;
-                let (vk_scale_file_name, mut vk_scale_file) =
-                    file_with_extension(&output_path, file_name.as_str(), POST_VK_EXT_SCALE)?;
-
-                println!(
-                    "Generating PoSt params for {} sectors... It can take a few secs ⌛",
-                    file_name
-                );
-                let parameters = post::generate_random_groth16_parameters(post_type)
-                    .map_err(|e| UtilsCommandError::GeneratePoStError(e))?;
-                parameters.write(&mut parameters_file)?;
-                parameters.vk.write(&mut vk_file)?;
-
-                let vk =
-                    polka_storage_proofs::VerifyingKey::<bls12_381::Bls12>::try_from(parameters.vk)
-                        .map_err(|e| UtilsCommandError::FromBytesError(e))?;
-                let bytes = codec::Encode::encode(&vk);
-                vk_scale_file.write_all(&bytes)?;
-
-                println!("Generated parameters: ");
-                println!("{}", parameters_file_name.display());
-                println!("{}", vk_file_name.display());
-                println!("{}", vk_scale_file_name.display());
+                generate_post_params(output_path, post_type)?;
             }
             ProofsCommand::PoSt {
                 signer_key,
@@ -410,80 +198,328 @@ impl ProofsCommand {
                 sector_number,
                 challenge_block,
             } => {
-                let Some(signer) = Option::<MultiPairSigner>::from(signer_key) else {
-                    return Err(UtilsCommandError::NoSigner)?;
-                };
-
-                let entropy = signer.account_id().encode();
-                let randomness = get_randomness(
-                    DomainSeparationTag::WindowedPoStChallengeSeed,
+                post(
+                    signer_key,
                     challenge_block,
-                    &entropy,
-                );
-
-                let output_path = if let Some(output_path) = output_path {
-                    output_path
-                } else {
-                    std::env::current_dir()?
-                };
-
-                let (proof_scale_filename, mut proof_scale_file) = file_with_extension(
-                    &output_path,
-                    format!("{}", sector_number).as_str(),
-                    POST_PROOF_EXT,
-                )?;
-
-                let comm_r =
-                    cid::Cid::from_str(&comm_r).map_err(|_| UtilsCommandError::CommRError)?;
-
-                let sector_number = SectorNumber::try_from(sector_number)
-                    .map_err(|_| UtilsCommandError::InvalidSectorId)?;
-
-                let replicas = vec![ReplicaInfo {
-                    sector_id: sector_number,
-                    comm_r: comm_r
-                        .hash()
-                        .digest()
-                        .try_into()
-                        .map_err(|_| UtilsCommandError::CommRError)?,
+                    output_path,
+                    sector_number,
+                    comm_r,
                     replica_path,
-                    cache_path: cache_directory,
-                }];
-
-                println!("Loading parameters...");
-                let proof_parameters = post::load_groth16_parameters(proof_parameters_path)
-                    .map_err(|e| UtilsCommandError::GeneratePoStError(e))?;
-
-                let prover_id = derive_prover_id(signer.account_id());
-                let proofs = match_post_proof!(
+                    cache_directory,
+                    proof_parameters_path,
                     post_type,
-                    generate_window_post::<_>(
-                        post_type,
-                        &proof_parameters,
-                        randomness,
-                        prover_id,
-                        replicas
-                    )
-                )
-                .map_err(|e| UtilsCommandError::GeneratePoStError(e))?;
-
-                println!("Proving...");
-                let substrate_proofs = proofs
-                    .into_iter()
-                    .map(polka_storage_proofs::Proof::<bls12_381::Bls12>::try_from)
-                    .collect::<Result<Vec<_>, _>>()
-                    .expect("conversion between rust-fil-proofs and polka-storage-proofs to work");
-                proof_scale_file.write_all(&codec::Encode::encode(&substrate_proofs))?;
-                println!("Wrote proof to {}", proof_scale_filename.display());
-                println!(
-                    "[{challenge_block}] Randomness: {}",
-                    hex::encode(randomness)
-                );
+                )?;
             }
         }
 
         Ok(())
     }
+}
+
+async fn calculate_piece_commitment(input_path: PathBuf) -> Result<(), CliError> {
+    // Check if the file is a CARv2 file. If it is, we can't calculate the piece commitment.
+    let mut source_file = tokio::fs::File::open(&input_path).await?;
+    source_file
+        .is_car_file()
+        .await
+        .map_err(|e| UtilsCommandError::InvalidCARv2(input_path.clone(), e))?;
+
+    // Calculate the piece commitment.
+    let (commitment, padded_piece_size) =
+        commp(&input_path).map_err(|err| UtilsCommandError::CommPError(err))?;
+    let cid = commitment.cid();
+
+    // NOTE(@jmg-duarte,09/10/2024): too lazy for proper json
+    // plus adding an extra structure for such a small thing seems wasteful
+    println!("{{\n\t\"cid\": \"{cid}\",\n\t\"size\": {padded_piece_size}\n}}");
+    Ok(())
+}
+
+fn generate_porep_params(
+    output_path: Option<PathBuf>,
+    seal_proof: RegisteredSealProof,
+) -> Result<(), CliError> {
+    let output_path = if let Some(output_path) = output_path {
+        output_path
+    } else {
+        std::env::current_dir()?
+    };
+    let file_name: String = seal_proof.sector_size().to_string();
+    let (parameters_file_name, mut parameters_file) =
+        file_with_extension(&output_path, file_name.as_str(), POREP_PARAMS_EXT)?;
+    let (vk_file_name, mut vk_file) =
+        file_with_extension(&output_path, file_name.as_str(), POREP_VK_EXT)?;
+    let (vk_scale_file_name, mut vk_scale_file) =
+        file_with_extension(&output_path, file_name.as_str(), POREP_VK_EXT_SCALE)?;
+    println!(
+        "Generating params for {} sectors... It can take a couple of minutes ⌛",
+        file_name
+    );
+    let parameters = porep::generate_random_groth16_parameters(seal_proof)
+        .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
+    parameters.write(&mut parameters_file)?;
+    parameters.vk.write(&mut vk_file)?;
+    let vk = polka_storage_proofs::VerifyingKey::<bls12_381::Bls12>::try_from(parameters.vk)
+        .map_err(|e| UtilsCommandError::FromBytesError(e))?;
+    let bytes = codec::Encode::encode(&vk);
+    vk_scale_file.write_all(&bytes)?;
+    println!("Generated parameters: ");
+    println!("{}", parameters_file_name.display());
+    println!("{}", vk_file_name.display());
+    println!("{}", vk_scale_file_name.display());
+    Ok(())
+}
+
+async fn porep(
+    signer_key: MultiPairArgs,
+    sector_id: u32,
+    seal_randomness_height: u64,
+    pre_commit_block_number: u64,
+    output_path: Option<PathBuf>,
+    input_path: PathBuf,
+    proof_parameters_path: PathBuf,
+    commp: String,
+    seal_proof: RegisteredSealProof,
+    cache_directory: PathBuf,
+) -> Result<(), CliError> {
+    let Some(signer) = Option::<MultiPairSigner>::from(signer_key) else {
+        return Err(UtilsCommandError::NoSigner)?;
+    };
+    let sector_number =
+        SectorNumber::try_from(sector_id).map_err(|_| UtilsCommandError::InvalidSectorId)?;
+    let entropy = signer.account_id().encode();
+    println!("Entropy: {}", hex::encode(&entropy));
+    let ticket = get_randomness(
+        DomainSeparationTag::SealRandomness,
+        seal_randomness_height,
+        &entropy,
+    );
+    println!(
+        "[{seal_randomness_height}] Ticket randomness: {}",
+        hex::encode(ticket)
+    );
+
+    // The number added is configured in runtime:
+    // https://github.com/eigerco/polka-storage/blob/18207759d7c6c175916d5bed70246d94a8f028f4/runtime/src/configs/mod.rs#L360
+    let interactive_block_number = pre_commit_block_number + 10;
+    let seed = get_randomness(
+        DomainSeparationTag::InteractiveSealChallengeSeed,
+        interactive_block_number,
+        &entropy,
+    );
+    println!(
+        "[{interactive_block_number}] Seed randomness: {}",
+        hex::encode(seed)
+    );
+    let output_path = if let Some(output_path) = output_path {
+        output_path
+    } else {
+        std::env::current_dir()?
+    };
+    let (proof_scale_filename, mut proof_scale_file) = file_with_extension(
+        &output_path,
+        format!("{}", sector_id).as_str(),
+        POREP_PROOF_EXT,
+    )?;
+    let mut source_file = tokio::fs::File::open(&input_path).await?;
+    source_file
+        .is_car_file()
+        .await
+        .map_err(|e| UtilsCommandError::InvalidCARv2(input_path.clone(), e))?;
+    let proof_parameters = porep::load_groth16_parameters(proof_parameters_path)
+        .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
+    let piece_file = std::fs::File::open(&input_path)
+        .map_err(|e| UtilsCommandError::InvalidPieceFile(input_path.clone(), e))?;
+    let piece_file_length = piece_file
+        .metadata()
+        .map_err(|e| UtilsCommandError::InvalidPieceFile(input_path, e))?
+        .len();
+    let piece_file_length = PaddedPieceSize::from_arbitrary_size(piece_file_length);
+    let piece_file = ZeroPaddingReader::new(piece_file, *piece_file_length.unpadded());
+    let commp =
+        cid::Cid::from_str(&commp).map_err(|e| UtilsCommandError::InvalidPieceCommP(commp, e))?;
+    let piece_info = PieceInfo {
+        commitment: Commitment::try_from(commp)
+            .map_err(|e| UtilsCommandError::InvalidPieceType(commp.to_string(), e))?,
+        size: piece_file_length,
+    };
+    let (unsealed_sector_path, unsealed_sector) = file_with_extension(
+        &output_path,
+        format!("{}", sector_id).as_str(),
+        "sector.unsealed",
+    )?;
+    let (sealed_sector_path, _) = file_with_extension(
+        &output_path,
+        format!("{}", sector_id).as_str(),
+        "sector.sealed",
+    )?;
+    println!("Creating sector...");
+    let piece_infos = create_sector(seal_proof, vec![(piece_file, piece_info)], unsealed_sector)
+        .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
+    let prover_id = derive_prover_id(signer.account_id());
+    println!("Prover ID: {}", hex::encode(prover_id));
+    println!("Precommitting...");
+    let precommit = match_seal_proof!(
+        seal_proof,
+        precommit_sector::<_, _, _, _>(
+            seal_proof,
+            &cache_directory,
+            unsealed_sector_path,
+            &sealed_sector_path,
+            prover_id,
+            sector_number,
+            ticket,
+            &piece_infos
+        )
+    )
+    .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
+    println!("Proving...");
+    let proofs = match_seal_proof!(
+        seal_proof,
+        prove_sector::<_, _, _>(
+            seal_proof,
+            &proof_parameters,
+            &cache_directory,
+            &sealed_sector_path,
+            prover_id,
+            sector_number,
+            ticket,
+            Some(seed),
+            precommit,
+            &piece_infos
+        )
+    )
+    .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
+
+    println!(
+        "[{seal_randomness_height}] Ticket randomness: {}",
+        hex::encode(ticket)
+    );
+    println!(
+        "[{interactive_block_number}] Seed randomness: {}",
+        hex::encode(seed)
+    );
+    println!("CommD: {}", precommit.comm_d.cid());
+    println!("CommR: {}", precommit.comm_r.cid());
+    let substrate_proofs = proofs
+        .into_iter()
+        .map(polka_storage_proofs::Proof::<bls12_381::Bls12>::try_from)
+        .collect::<Result<Vec<_>, _>>()
+        .expect("conversion between rust-fil-proofs and polka-storage-proofs to work");
+    let scale_encoded_proof = codec::Encode::encode(&substrate_proofs);
+    proof_scale_file.write_all(&scale_encoded_proof)?;
+
+    println!("Wrote proof to {}", proof_scale_filename.display());
+    Ok(())
+}
+
+fn generate_post_params(
+    output_path: Option<PathBuf>,
+    post_type: RegisteredPoStProof,
+) -> Result<(), CliError> {
+    let output_path = if let Some(output_path) = output_path {
+        output_path
+    } else {
+        std::env::current_dir()?
+    };
+    let file_name: String = post_type.sector_size().to_string();
+    let (parameters_file_name, mut parameters_file) =
+        file_with_extension(&output_path, file_name.as_str(), POST_PARAMS_EXT)?;
+    let (vk_file_name, mut vk_file) =
+        file_with_extension(&output_path, file_name.as_str(), POST_VK_EXT)?;
+    let (vk_scale_file_name, mut vk_scale_file) =
+        file_with_extension(&output_path, file_name.as_str(), POST_VK_EXT_SCALE)?;
+    println!(
+        "Generating PoSt params for {} sectors... It can take a few secs ⌛",
+        file_name
+    );
+    let parameters = post::generate_random_groth16_parameters(post_type)
+        .map_err(|e| UtilsCommandError::GeneratePoStError(e))?;
+    parameters.write(&mut parameters_file)?;
+    parameters.vk.write(&mut vk_file)?;
+    let vk = polka_storage_proofs::VerifyingKey::<bls12_381::Bls12>::try_from(parameters.vk)
+        .map_err(|e| UtilsCommandError::FromBytesError(e))?;
+    let bytes = codec::Encode::encode(&vk);
+    vk_scale_file.write_all(&bytes)?;
+    println!("Generated parameters: ");
+    println!("{}", parameters_file_name.display());
+    println!("{}", vk_file_name.display());
+    println!("{}", vk_scale_file_name.display());
+    Ok(())
+}
+
+fn post(
+    signer_key: MultiPairArgs,
+    challenge_block: u64,
+    output_path: Option<PathBuf>,
+    sector_number: u32,
+    comm_r: String,
+    replica_path: PathBuf,
+    cache_directory: PathBuf,
+    proof_parameters_path: PathBuf,
+    post_type: RegisteredPoStProof,
+) -> Result<(), CliError> {
+    let Some(signer) = Option::<MultiPairSigner>::from(signer_key) else {
+        return Err(UtilsCommandError::NoSigner)?;
+    };
+    let entropy = signer.account_id().encode();
+    let randomness = get_randomness(
+        DomainSeparationTag::WindowedPoStChallengeSeed,
+        challenge_block,
+        &entropy,
+    );
+    let output_path = if let Some(output_path) = output_path {
+        output_path
+    } else {
+        std::env::current_dir()?
+    };
+    let (proof_scale_filename, mut proof_scale_file) = file_with_extension(
+        &output_path,
+        format!("{}", sector_number).as_str(),
+        POST_PROOF_EXT,
+    )?;
+    let comm_r = cid::Cid::from_str(&comm_r).map_err(|_| UtilsCommandError::CommRError)?;
+    let sector_number =
+        SectorNumber::try_from(sector_number).map_err(|_| UtilsCommandError::InvalidSectorId)?;
+    let replicas = vec![ReplicaInfo {
+        sector_id: sector_number,
+        comm_r: comm_r
+            .hash()
+            .digest()
+            .try_into()
+            .map_err(|_| UtilsCommandError::CommRError)?,
+        replica_path,
+        cache_path: cache_directory,
+    }];
+    println!("Loading parameters...");
+    let proof_parameters = post::load_groth16_parameters(proof_parameters_path)
+        .map_err(|e| UtilsCommandError::GeneratePoStError(e))?;
+    let prover_id = derive_prover_id(signer.account_id());
+    let proofs = match_post_proof!(
+        post_type,
+        generate_window_post::<_>(
+            post_type,
+            &proof_parameters,
+            randomness,
+            prover_id,
+            replicas
+        )
+    )
+    .map_err(|e| UtilsCommandError::GeneratePoStError(e))?;
+
+    println!("Proving...");
+    let substrate_proofs = proofs
+        .into_iter()
+        .map(polka_storage_proofs::Proof::<bls12_381::Bls12>::try_from)
+        .collect::<Result<Vec<_>, _>>()
+        .expect("conversion between rust-fil-proofs and polka-storage-proofs to work");
+    proof_scale_file.write_all(&codec::Encode::encode(&substrate_proofs))?;
+    println!("Wrote proof to {}", proof_scale_filename.display());
+    println!(
+        "[{challenge_block}] Randomness: {}",
+        hex::encode(randomness)
+    );
+    Ok(())
 }
 
 #[derive(Debug, thiserror::Error)]
