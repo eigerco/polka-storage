@@ -58,7 +58,7 @@ pub mod pallet {
     use sp_std::vec::Vec;
 
     use crate::{
-        deal_parameters::{offchain_deal_param_conversion, DealParameters, OffchainDealParameters},
+        deal_parameters::{DealParameters, OffchainDealParameters},
         error::*,
         weights::WeightInfo,
     };
@@ -549,10 +549,8 @@ pub mod pallet {
         OutOfBoundsDeal,
         /// The SP attempted to remove DealParameters while there are none present.
         NoDealParamsToRemove,
-        /// The submitted deal parameter price is too low (0)
-        DealParameterPriceTooLow,
-        /// The submitted deal parameter duration bound is invalid
-        DealParameterDurationInvalid,
+        /// The deal parameters that the SP submitted are not valid
+        InvalidDealParametersSubmitted,
     }
 
     /// Extrinsics exposed by the pallet
@@ -845,12 +843,12 @@ pub mod pallet {
                 T::StorageProviderValidation::is_registered_storage_provider(&provider),
                 Error::<T>::StorageProviderNotRegistered
             );
-            let min_dur = T::MinDealDuration::get();
-            let max_dur = T::MaxDealDuration::get();
-            let deal_parameters = offchain_deal_param_conversion(deal_parameters, min_dur, max_dur);
-            if !deal_parameters.validate(min_dur, max_dur) {
-                log::error!(target: LOG_TARGET, "Invalid deal parameters submitted: {deal_parameters:?}");
-            }
+            let deal_parameters = deal_parameters
+                .validate(T::MinDealDuration::get(), T::MaxDealDuration::get())
+                .map_err(|e| {
+                    log::error!(target: LOG_TARGET, "{e}");
+                    Error::<T>::InvalidDealParametersSubmitted
+                })?;
             // Update or insert deal parameters
             SPDealParameters::<T>::mutate(&provider, |params| {
                 let _ = params.insert(deal_parameters.clone());

@@ -19,9 +19,7 @@ use sp_core::H256;
 use sp_runtime::AccountId32;
 
 use crate::{
-    deal_parameters::{
-        offchain_deal_param_conversion, OffchainDealDurationBound, OffchainDealParameters,
-    },
+    deal_parameters::{OffchainDealDurationBound, OffchainDealParameters},
     error::DealSettlementError,
     mock::*,
     pallet::{lock_funds, slash_and_burn, unlock_funds},
@@ -527,8 +525,8 @@ fn publish_storage_deals_fails_not_within_deal_parameters() {
         let deal_params: OffchainDealParameters<u64, u64> = OffchainDealParameters {
             minimum_price_per_block: 10,
             deal_duration: OffchainDealDurationBound {
-                lower: Some(1),
-                upper: Some(8),
+                lower: Some(3),  // Chain minimum = 2
+                upper: Some(29), // Chain maximum = 30
             },
         };
         assert_ok!(Market::publish_deal_parameters(
@@ -1858,15 +1856,17 @@ fn publish_deal_parameters() {
         let offchain_deal_params: OffchainDealParameters<u64, u64> = OffchainDealParameters {
             minimum_price_per_block: 1_000,
             deal_duration: OffchainDealDurationBound {
-                lower: Some(100),
-                upper: Some(1_000_000),
+                lower: Some(3),  // Chain minimum = 2
+                upper: Some(29), // Chain maximum = 30
             },
         };
-        let deal_params = offchain_deal_param_conversion(
-            offchain_deal_params.clone(),
-            <<Test as Config>::MinDealDuration as Get<u64>>::get(),
-            <<Test as Config>::MaxDealDuration as Get<u64>>::get(),
-        );
+        let deal_params = offchain_deal_params
+            .clone()
+            .validate(
+                <<Test as Config>::MinDealDuration as Get<u64>>::get(),
+                <<Test as Config>::MaxDealDuration as Get<u64>>::get(),
+            )
+            .expect("Seamless conversion");
 
         // Run extrinsic
         assert_ok!(Market::publish_deal_parameters(
@@ -1893,15 +1893,18 @@ fn publish_deal_parameters() {
         let offchain_deal_params_2: OffchainDealParameters<u64, u64> = OffchainDealParameters {
             minimum_price_per_block: 10_000,
             deal_duration: OffchainDealDurationBound {
-                lower: Some(1_000),
-                upper: Some(100_000),
+                lower: Some(4),  // Chain minimum = 2
+                upper: Some(28), // Chain maximum = 30
             },
         };
-        let deal_params_2 = offchain_deal_param_conversion(
-            offchain_deal_params_2.clone(),
-            <<Test as Config>::MinDealDuration as Get<u64>>::get(),
-            <<Test as Config>::MaxDealDuration as Get<u64>>::get(),
-        );
+
+        let deal_params_2 = offchain_deal_params_2
+            .clone()
+            .validate(
+                <<Test as Config>::MinDealDuration as Get<u64>>::get(),
+                <<Test as Config>::MaxDealDuration as Get<u64>>::get(),
+            )
+            .expect("Seamless conversion");
 
         // Run extrinsic
         assert_ok!(Market::publish_deal_parameters(
@@ -1936,15 +1939,17 @@ fn remove_deal_parameters() {
         let offchain_deal_params: OffchainDealParameters<u64, u64> = OffchainDealParameters {
             minimum_price_per_block: 1_000,
             deal_duration: OffchainDealDurationBound {
-                lower: Some(100),
-                upper: Some(1_000_000),
+                lower: Some(3),  // Chain minimum = 2
+                upper: Some(29), // Chain maximum = 30
             },
         };
-        let deal_params = offchain_deal_param_conversion(
-            offchain_deal_params.clone(),
-            <<Test as Config>::MinDealDuration as Get<u64>>::get(),
-            <<Test as Config>::MaxDealDuration as Get<u64>>::get(),
-        );
+        let deal_params = offchain_deal_params
+            .clone()
+            .validate(
+                <<Test as Config>::MinDealDuration as Get<u64>>::get(),
+                <<Test as Config>::MaxDealDuration as Get<u64>>::get(),
+            )
+            .expect("Seamless conversion");
 
         // Run extrinsic
         assert_ok!(Market::publish_deal_parameters(

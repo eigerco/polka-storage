@@ -24,9 +24,7 @@ use sp_std::{vec, vec::Vec};
 use super::*;
 #[allow(unused)]
 use crate::{
-    deal_parameters::{
-        offchain_deal_param_conversion, OffchainDealDurationBound, OffchainDealParameters,
-    },
+    deal_parameters::{OffchainDealDurationBound, OffchainDealParameters},
     Pallet as MarketPallet,
 };
 
@@ -445,11 +443,10 @@ mod benchmarks {
             )
             .unwrap();
         }
-        let deal_parameters = offchain_deal_param_conversion(
-            offchain_deal_parameters.clone(),
-            T::MinDealDuration::get(),
-            T::MaxDealDuration::get(),
-        );
+        let deal_parameters = offchain_deal_parameters
+            .clone()
+            .validate(T::MinDealDuration::get(), T::MaxDealDuration::get())
+            .expect("Seamless conversion");
         assert_eq!(SPDealParameters::<T>::get(&caller), Some(deal_parameters));
     }
 

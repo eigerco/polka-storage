@@ -46,3 +46,21 @@ impl core::fmt::Debug for CommDError {
         core::fmt::Display::fmt(self, f)
     }
 }
+
+#[derive(TypeInfo, Encode, Decode, Clone, PartialEq, thiserror::Error)]
+pub enum DealParameterError<BlockNumber> {
+    #[error("Invalid deal duration bound, upper limit is smaller than lower. {0:?} > {1:?}")]
+    LowerLargerThanUpper(BlockNumber, BlockNumber),
+    #[error("Deal parameter lower duration bound is below the chain minimum. {0:?} < {1:?}")]
+    LowerBoundTooLow(BlockNumber, BlockNumber),
+    #[error("Deal parameter upper duration bound is above the chain maximum. {0:?} < {1:?}")]
+    UpperBoundTooHigh(BlockNumber, BlockNumber),
+    #[error("Minimum deal price cannot be 0")]
+    PriceCannotBeZero,
+}
+
+impl<BlockNumber: core::fmt::Debug> core::fmt::Debug for DealParameterError<BlockNumber> {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        core::fmt::Display::fmt(self, f)
+    }
+}
