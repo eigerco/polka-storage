@@ -217,7 +217,7 @@ where
 {
     let mut dialling = vec![];
     for (rendezvous_peer, rendezvous_addr) in nodes {
-        // Dial the the node if needed
+        // Start dialing the node if needed
         if !swarm.is_connected(rendezvous_peer) {
             if let Err(err) = swarm.dial(rendezvous_addr.clone()) {
                 warn!(?err, %rendezvous_peer, %rendezvous_addr, "rendezvous node dialing error");
@@ -225,11 +225,10 @@ where
             }
         }
 
-        // Add successful dials to available nodes
         dialling.push((*rendezvous_peer, rendezvous_addr.clone()));
     }
 
-    // Return error if we couldn't dial any nodes
+    // Return error if we cant dial any nodes
     if dialling.is_empty() {
         Err(P2pError::NoRendezvousNodesAvailable)
     } else {
