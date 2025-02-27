@@ -416,8 +416,8 @@ mod benchmarks {
         let deal_parameters: DealParameters<BalanceOf<T>, BlockNumberFor<T>> = DealParameters {
             minimum_price_per_block: 1u32.into(),
             deal_duration: DealDurationBound {
-                lower: Some(1u32.into()),
-                upper: Some(10u32.into()),
+                lower: Some(60u32.into()),
+                upper: Some(100u32.into()),
             },
         };
         let storage_provider: OriginFor<T> = RawOrigin::Signed(caller.clone()).into();
@@ -450,8 +450,8 @@ mod benchmarks {
         let deal_parameters: DealParameters<BalanceOf<T>, BlockNumberFor<T>> = DealParameters {
             minimum_price_per_block: 1u32.into(),
             deal_duration: DealDurationBound {
-                lower: Some(1u32.into()),
-                upper: Some(10u32.into()),
+                lower: Some(60u32.into()),
+                upper: Some(100u32.into()),
             },
         };
         let storage_provider: OriginFor<T> = RawOrigin::Signed(caller.clone()).into();

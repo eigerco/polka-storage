@@ -355,7 +355,7 @@ pub mod pallet {
                 (Some(lower), None) => return lower >= minimum_duration,
                 (None, Some(upper)) => return upper <= maximum_duration,
                 (Some(lower), Some(upper)) => {
-                    return lower >= minimum_duration || upper <= maximum_duration
+                    return lower >= minimum_duration && upper <= maximum_duration
                 }
             }
         }
