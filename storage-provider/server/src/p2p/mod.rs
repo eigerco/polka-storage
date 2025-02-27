@@ -121,7 +121,7 @@ where
 
         // We are dialing the rendezvous nodes. After the connection is
         // successfully established, the identify message received from the
-        // nodes tells us our public multiaddr which we'll later register.
+        // nodes tells us our public multiaddr which we'll register.
         let rendezvous_nodes = dial_rendezvous_nodes(&mut swarm, &args.rendezvous_nodes)?;
 
         Ok(Worker {
@@ -137,7 +137,7 @@ where
             select! {
                 _ = register_interval.tick() => {
                     // Check if there are any external addresses set, before we
-                    // actually try to register ourself with the rendezvous node
+                    // actually try to register ourself with the rendezvous nodes
                     if self.swarm.external_addresses().count() == 0 {
                         debug!("External address not known. Skip registration.");
                         register_interval.reset_after(Duration::from_secs(1));
