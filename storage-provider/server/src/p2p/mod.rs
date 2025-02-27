@@ -215,8 +215,7 @@ fn dial_rendezvous_nodes<B>(
 where
     B: Blockstore,
 {
-    let mut available = vec![];
-
+    let mut dialling = vec![];
     for (rendezvous_peer, rendezvous_addr) in nodes {
         // Dial the the node if needed
         if !swarm.is_connected(rendezvous_peer) {
@@ -227,14 +226,14 @@ where
         }
 
         // Add successful dials to available nodes
-        available.push((*rendezvous_peer, rendezvous_addr.clone()));
+        dialling.push((*rendezvous_peer, rendezvous_addr.clone()));
     }
 
     // Return error if we couldn't dial any nodes
-    if available.is_empty() {
+    if dialling.is_empty() {
         Err(P2pError::NoRendezvousNodesAvailable)
     } else {
-        Ok(available)
+        Ok(dialling)
     }
 }
 
