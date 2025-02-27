@@ -23,8 +23,6 @@ use tracing::{debug, error, info, instrument, trace};
 
 use crate::p2p::{new_swarm, Behaviour, BehaviourEvent, InitSwarmError};
 
-// use crate::p2p::{new_swarm, Behaviour, BehaviourEvent, InitSwarmError};
-
 /// Errors that can occur while retrieving some content.
 #[derive(Debug, Error)]
 pub enum ClientError {
