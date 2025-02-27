@@ -13879,11 +13879,19 @@ name = "polka-fetch"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "beetswap",
+ "blockstore",
  "cid 0.11.1",
  "clap",
+ "futures",
+ "ipld-core",
+ "ipld-dagpb",
  "libp2p 0.54.1",
+ "libp2p-core 0.42.0",
+ "libp2p-swarm 0.45.1",
+ "mater",
  "multihash-codetable",
- "polka-storage-retrieval",
+ "thiserror 2.0.8",
  "tokio",
  "tracing",
  "tracing-subscriber 0.3.19",
@@ -14041,6 +14049,7 @@ dependencies = [
  "async-trait",
  "axum",
  "base64 0.22.1",
+ "beetswap",
  "blockstore",
  "chrono",
  "ciborium",
@@ -14054,7 +14063,6 @@ dependencies = [
  "mater",
  "polka-storage-proofs",
  "polka-storage-provider-common",
- "polka-storage-retrieval",
  "primitives",
  "rand",
  "rocksdb",
@@ -14076,30 +14084,6 @@ dependencies = [
  "tracing-subscriber 0.3.19",
  "url",
  "uuid",
-]
-
-[[package]]
-name = "polka-storage-retrieval"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "beetswap",
- "blockstore",
- "cid 0.11.1",
- "futures",
- "ipld-core",
- "ipld-dagpb",
- "libp2p 0.54.1",
- "libp2p-core 0.42.0",
- "libp2p-swarm 0.45.1",
- "mater",
- "multihash-codetable",
- "rand",
- "thiserror 2.0.8",
- "tokio",
- "tracing",
- "tracing-appender",
- "tracing-subscriber 0.3.19",
 ]
 
 [[package]]

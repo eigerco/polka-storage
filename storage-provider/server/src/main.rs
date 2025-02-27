@@ -7,7 +7,6 @@ mod db;
 mod indexer;
 mod p2p;
 mod pipeline;
-mod retrieval;
 mod rpc;
 mod storage;
 
@@ -22,7 +21,7 @@ use indexer::{
     start_indexer, IndexerMessage, IndexerState,
 };
 use libp2p::{identity::Keypair, Multiaddr, PeerId};
-use p2p::{run_register_node, P2PError, P2PState, RegisterConfig};
+use p2p::{blockstore::PiecesBlockstore, start_p2p, P2pArgs, P2pError};
 use pipeline::types::PipelineMessage;
 use polka_storage_proofs::{
     porep::{self, PoRepParameters},
@@ -31,7 +30,6 @@ use polka_storage_proofs::{
 use polka_storage_provider_common::{config::sealing::SealingConfiguration, rpc::ServerInfo};
 use primitives::proofs::{RegisteredPoStProof, RegisteredSealProof};
 use rand::Rng;
-use retrieval::{start_retrieval, RetrievalServerConfig};
 use storagext::{
     multipair::{MultiPairArgs, MultiPairSigner},
     runtime::runtime_types::{
@@ -43,7 +41,7 @@ use storagext::{
 use subxt::{self, tx::Signer};
 use tokio::{
     sync::{mpsc::UnboundedReceiver, Mutex, Semaphore},
-    task::{JoinError, JoinHandle},
+    task::JoinError,
 };
 use tokio_util::sync::CancellationToken;
 use tracing::level_filters::LevelFilter;
@@ -97,10 +95,9 @@ struct SetupOutput {
     rpc_state: RpcServerState,
     pipeline_state: PipelineState,
     pipeline_rx: UnboundedReceiver<PipelineMessage>,
-    p2p_state: P2PState,
+    p2p_args: P2pArgs<PiecesBlockstore<RocksDBLid>>,
     indexer_state: IndexerState<RocksDBLid>,
     indexer_rx: UnboundedReceiver<IndexerMessage>,
-    retrieval_config: RetrievalServerConfig<RocksDBLid>,
 }
 
 fn main() -> Result<(), ServerError> {
@@ -190,10 +187,7 @@ pub enum ServerError {
     Json(#[from] serde_json::Error),
 
     #[error(transparent)]
-    P2P(#[from] P2PError),
-
-    #[error(transparent)]
-    RetrievalServer(#[from] polka_storage_retrieval::server::ServerError),
+    P2P(#[from] P2pError),
 
     #[error(transparent)]
     Lid(#[from] crate::indexer::local_index_directory::LidError),
@@ -253,9 +247,6 @@ pub struct Server {
     /// Parachain node RPC url.
     node_url: Url,
 
-    /// Storage provider listen address.
-    retrieval_listen_address: Multiaddr,
-
     /// Storage provider key pair.
     multi_pair_signer: MultiPairSigner,
 
@@ -286,6 +277,9 @@ pub struct Server {
     /// P2P ED25519 private key
     p2p_key: Keypair,
 
+    /// P2P listen address.
+    p2p_listen_address: Multiaddr,
+
     /// Rendezvous point address that the registration node connects to
     /// or the bootstrap node binds to.
     rendezvous_point_address: Multiaddr,
@@ -293,9 +287,6 @@ pub struct Server {
     /// PeerID of the bootstrap node used by the registration node.
     /// Optional because it is not used by the bootstrap node.
     rendezvous_point: PeerId,
-
-    /// TTL of the p2p registration in seconds
-    registration_ttl: u64,
 
     /// Sealing parameters (e.g. how long to wait before sealing).
     sealing_configuration: SealingConfiguration,
@@ -377,11 +368,10 @@ impl TryFrom<ServerCli> for Server {
             post_parameters,
             parallel_prove_commits: args.parallel_prove_commits.get(),
             p2p_key: args.p2p_key,
+            p2p_listen_address: args.p2p_listen_address,
             rendezvous_point_address: args.rendezvous_point_address,
             rendezvous_point: args.rendezvous_point,
-            registration_ttl: args.registration_ttl,
             sealing_configuration: args.sealing_configuration,
-            retrieval_listen_address: args.retrieval_listen_address,
         })
     }
 }
@@ -393,15 +383,14 @@ impl Server {
             rpc_state,
             pipeline_state,
             pipeline_rx,
-            p2p_state,
-            retrieval_config,
+            p2p_args,
             indexer_state,
             indexer_rx,
         } = self.setup().await?;
 
         let cancellation_token = CancellationToken::new();
 
-        let p2p_task = spawn_p2p_task(p2p_state, cancellation_token.child_token())?;
+        let p2p_task = start_p2p(p2p_args, cancellation_token.child_token())?;
         let rpc_task = tokio::spawn(start_rpc_server(
             rpc_state,
             cancellation_token.child_token(),
@@ -413,10 +402,6 @@ impl Server {
         let pipeline_task = tokio::spawn(start_pipeline(
             Arc::new(pipeline_state),
             pipeline_rx,
-            cancellation_token.child_token(),
-        ));
-        let retrieval_task = tokio::spawn(start_retrieval(
-            retrieval_config,
             cancellation_token.child_token(),
         ));
         let indexer_task = tokio::spawn(start_indexer(
@@ -437,23 +422,21 @@ impl Server {
         tracing::info!("sent shutdown signal");
 
         // Wait for the tasks to finish
-        let (upload_result, rpc_task, pipeline_task, p2p_task, indexer_task, retrieval_task) = tokio::join!(
+        let (upload_result, rpc_task, pipeline_task, p2p_task, indexer_task) = tokio::join!(
             storage_task,
             rpc_task,
             pipeline_task,
             p2p_task,
             indexer_task,
-            retrieval_task
         );
 
         // Inspect and log errors
-        let (upload_result, rpc_task, pipeline_task, p2p_task, indexer_task, retrieval_task) = inspect_and_log_nested_errors!(
+        let (upload_result, rpc_task, pipeline_task, p2p_task, indexer_task) = inspect_and_log_nested_errors!(
             upload_result,
             rpc_task,
             pipeline_task,
             p2p_task,
             indexer_task,
-            retrieval_task
         );
 
         // Exit with error
@@ -462,7 +445,6 @@ impl Server {
         pipeline_task??;
         p2p_task??;
         indexer_task??;
-        retrieval_task??;
 
         Ok(())
     }
@@ -546,30 +528,22 @@ impl Server {
             indexer_tx,
         };
 
-        let p2p_state = P2PState {
-            p2p_key: self.p2p_key,
-            rendezvous_point_address: self.rendezvous_point_address,
-            rendezvous_point: self.rendezvous_point,
-            registration_ttl: self.registration_ttl,
+        let raw_pieces_dir = car_piece_storage_dir.deref().clone();
+        let p2p_args = P2pArgs {
+            local_keypair: self.p2p_key,
+            rendezvous_nodes: vec![(self.rendezvous_point, self.rendezvous_point_address)],
+            listen_on: vec![self.p2p_listen_address],
+            blockstore: Arc::new(PiecesBlockstore::new(raw_pieces_dir, Arc::clone(&lid))),
         };
 
-        let indexer_state = IndexerState {
-            lid: Arc::clone(&lid),
-        };
-        let raw_pieces_dir = car_piece_storage_dir.deref().clone();
-        let retrieval_config = RetrievalServerConfig {
-            listen_address: self.retrieval_listen_address,
-            raw_pieces_dir,
-            indexer: Arc::clone(&lid),
-        };
+        let indexer_state = IndexerState { lid };
 
         Ok(SetupOutput {
             storage_state,
             rpc_state,
             pipeline_state,
             pipeline_rx,
-            p2p_state,
-            retrieval_config,
+            p2p_args,
             indexer_state,
             indexer_rx,
         })
@@ -629,19 +603,4 @@ impl Server {
             }
         }
     }
-}
-
-/// Spawns a p2p node and returns a `JoinHandle`.
-/// The node type is either bootstrap or registration depending on the `p2p_state.node_type` value.
-fn spawn_p2p_task(
-    p2p_state: P2PState,
-    cancellation_token: CancellationToken,
-) -> Result<JoinHandle<Result<(), P2PError>>, ServerError> {
-    let config = RegisterConfig::new(
-        p2p_state.p2p_key,
-        p2p_state.rendezvous_point_address,
-        p2p_state.rendezvous_point,
-        p2p_state.registration_ttl,
-    );
-    Ok(tokio::spawn(run_register_node(config, cancellation_token)))
 }

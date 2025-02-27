@@ -20,11 +20,10 @@ members = [
   "pallets/storage-provider/benchmarks",
   "primitives",
   "runtime",
+  "storage-fetch",
   "storage-provider/client",
   "storage-provider/common",
   "storage-provider/server",
-  "storage-retrieval/cli",
-  "storage-retrieval/lib",
   "storagext/cli",
   "storagext/lib",
 ]
@@ -149,7 +148,6 @@ pallet-storage-provider = { path = "pallets/storage-provider", default-features 
 pallet-storage-provider-benchmarks = { path = "pallets/storage-provider/benchmarks", default-features = false }
 polka-storage-proofs = { path = "lib/polka-storage-proofs", default-features = false }
 polka-storage-provider-common = { path = "storage-provider/common" }
-polka-storage-retrieval = { path = "storage-retrieval/lib" }
 polka-storage-runtime = { path = "runtime" }
 primitives = { path = "primitives", default-features = false }
 storagext = { path = "storagext/lib" }
