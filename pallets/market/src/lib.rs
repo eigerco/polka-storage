@@ -324,7 +324,7 @@ pub mod pallet {
         // The structure is flexible enough to be used for other purposes,
         // so we limit the generics to the essential subset of traits only.
         //
-        // Additional note: `BlockNumber`` will typically be a number, particularly in our network.
+        // Additional note: `BlockNumber` will typically be a number, particularly in our network.
         // As such, the Copy trait should be automatically included and shouldn't require extra work for future implementations.
         // Furthermore, the actual `BlockNumber` trait does require the `Copy` trait.
         // https://docs.rs/sp-runtime/40.1.0/sp_runtime/traits/trait.BlockNumber.html
@@ -346,6 +346,18 @@ pub mod pallet {
         /// Validates that the price is higher than the SP set minimum.
         fn validate_storage_price(&self, proposed_storage_price: Balance) -> bool {
             return proposed_storage_price >= self.minimum_price_per_block;
+        }
+
+        /// Validates that the deal parameter duration is within the given bounds
+        fn validate_duration_against(&self, minimum_duration: BlockNumber, maximum_duration: BlockNumber) -> bool {
+             match (self.deal_duration.lower, self.deal_duration.upper) {
+                (None, None) => true,
+                (Some(lower), None) => return lower >= minimum_duration,
+                (None, Some(upper)) => return upper <= maximum_duration,
+                (Some(lower), Some(upper)) => {
+                    return lower >= minimum_duration || upper <= maximum_duration
+                }
+            }
         }
     }
 
@@ -591,6 +603,12 @@ pub mod pallet {
         InvalidPieceCid,
         /// The proposed deal parameters' falls outside the parameter bounds set by the Storage Provider.
         OutOfBoundsDeal,
+        /// The SP attempted to remove DealParameters while there are none present.
+        NoDealParamsToRemove,
+        /// The submitted deal parameter price is too low (0)
+        DealParameterPriceTooLow,
+        /// The submitted deal parameter duration bound is invalid
+        DealParameterDurationInvalid,
     }
 
     /// Extrinsics exposed by the pallet
@@ -873,7 +891,7 @@ pub mod pallet {
         }
 
         #[pallet::call_index(4)]
-        #[pallet::weight((T::WeightInfo::publish_deal_parameters(), DispatchClass::Normal))]
+        #[pallet::weight((T::WeightInfo::publish_deal_parameters(2), DispatchClass::Normal))]
         pub fn publish_deal_parameters(
             origin: OriginFor<T>,
             deal_parameters: DealParameters<BalanceOf<T>, BlockNumberFor<T>>,
@@ -883,6 +901,7 @@ pub mod pallet {
                 T::StorageProviderValidation::is_registered_storage_provider(&provider),
                 Error::<T>::StorageProviderNotRegistered
             );
+            Self::validate_submitted_deal_parameters(&deal_parameters)?;
             // Update or insert deal parameters
             SPDealParameters::<T>::mutate(&provider, |params| {
                 let _ = params.insert(deal_parameters.clone());
@@ -901,6 +920,10 @@ pub mod pallet {
             ensure!(
                 T::StorageProviderValidation::is_registered_storage_provider(&provider),
                 Error::<T>::StorageProviderNotRegistered
+            );
+            ensure!(
+                SPDealParameters::<T>::contains_key(&provider),
+                Error::<T>::NoDealParamsToRemove
             );
             SPDealParameters::<T>::remove(&provider);
             Self::deposit_event(Event::<T>::DealParametersRemoved { provider });
@@ -1170,6 +1193,20 @@ pub mod pallet {
             // TODO(@th7nder,#81,18/06/2024): figure out the minimum collateral limits
             // <https://spec.filecoin.io/#section-systems.filecoin_markets.onchain_storage_market.storage_market_actor.storage-deal-collateral>
 
+            Ok(())
+        }
+
+        fn validate_submitted_deal_parameters(deal_parameters: &DealParameters<BalanceOf<T>, BlockNumberFor<T>>) -> Result<(), Error<T>> {
+            ensure!(deal_parameters.minimum_price_per_block > BalanceOf::<T>::zero(), {
+                log::error!(target: LOG_TARGET, "deal parameter minimum price cannot be 0");
+                Error::<T>::DealParameterPriceTooLow
+            });
+            let min_dur = T::MinDealDuration::get();
+            let max_dur = T::MaxDealDuration::get();
+            ensure!(deal_parameters.validate_duration_against(min_dur, max_dur), {
+                log::error!(target: LOG_TARGET, "deal parameter duration invalid");
+                Error::<T>::DealParameterDurationInvalid
+            });
             Ok(())
         }
 

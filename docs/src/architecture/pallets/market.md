@@ -2,24 +2,22 @@
 
 ## Table of Contents
 
-- [Market Pallet](#market-pallet)
-  - [Table of Contents](#table-of-contents)
-  - [Overview](#overview)
-  - [Extrinsics\*](#extrinsics)
-    - [`add_balance`](#add_balance)
-      - [Example](#example)
-    - [`withdraw_balance`](#withdraw_balance)
-      - [Example](#example-1)
-    - [`publish_storage_deals`](#publish_storage_deals)
-      - [Deal Proposal Components](#deal-proposal-components)
-      - [Example](#example-2)
-    - [`settle_deal_payments`](#settle_deal_payments)
-      - [Example](#example-3)
-    - [`publish_deal_parameters`](#publish_deal_parameters)
-    - [`remove_deal_parameters`](#remove_deal_parameters)
-  - [Events](#events)
-  - [Errors](#errors)
-  - [Constants](#constants)
+- [Overview](#overview)
+- [Extrinsics\*](#extrinsics)
+  - [`add_balance`](#add_balance)
+    - [Example](#example)
+  - [`withdraw_balance`](#withdraw_balance)
+    - [Example](#example-1)
+  - [`publish_storage_deals`](#publish_storage_deals)
+    - [Deal Proposal Components](#deal-proposal-components)
+    - [Example](#example-2)
+  - [`settle_deal_payments`](#settle_deal_payments)
+    - [Example](#example-3)
+  - [`publish_deal_parameters`](#publish_deal_parameters)
+  - [`remove_deal_parameters`](#remove_deal_parameters)
+- [Events](#events)
+- [Errors](#errors)
+- [Constants](#constants)
 
 ## Overview
 
@@ -204,7 +202,7 @@ Where `DealDurationBound` consists of:
 ### `remove_deal_parameters`
 
 A signed extrinsic allows a storage provider to remove the deal parameter they have previously set.
-If no deal parameters are present this extrinsic will not fail.
+If no deal parameters are present this extrinsic will be a no op.
 
 ## Events
 
