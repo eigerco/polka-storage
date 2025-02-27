@@ -21,6 +21,7 @@ use primitives::{
     randomness::{draw_randomness, DomainSeparationTag},
     sector::SectorNumber,
 };
+use serde_json::json;
 use storagext::multipair::{MultiPairArgs, MultiPairSigner};
 use subxt::tx::Signer;
 
@@ -205,9 +206,13 @@ async fn calculate_piece_commitment(input_path: PathBuf) -> Result<(), CliError>
         commp(&input_path).map_err(|err| UtilsCommandError::CommPError(err))?;
     let cid = commitment.cid();
 
-    // NOTE(@jmg-duarte,09/10/2024): too lazy for proper json
-    // plus adding an extra structure for such a small thing seems wasteful
-    println!("{{\n\t\"cid\": \"{cid}\",\n\t\"size\": {padded_piece_size}\n}}");
+    println!(
+        "{:#}",
+        json!({
+            "cid": cid.to_string(),
+            "size": padded_piece_size
+        })
+    );
     Ok(())
 }
 
