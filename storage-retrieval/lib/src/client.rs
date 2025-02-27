@@ -1,4 +1,8 @@
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+    sync::Arc,
+};
 
 use beetswap::{Event, QueryId};
 use blockstore::Blockstore;
@@ -74,8 +78,8 @@ pub struct Client {
     blockstore: ReadWriteBlockstore<File>,
     /// Content roots being downloaded.
     root: Cid,
-
-    structure: HashMap<Cid, Cid>,
+    /// CAR block DAG mapping children to parents. (The A in DAG isn't checked!)
+    dag: HashMap<Cid, Cid>,
 }
 
 impl Client {
@@ -112,7 +116,7 @@ impl Client {
             queries: HashMap::new(),
             blockstore,
             root,
-            structure: HashMap::new(),
+            dag: HashMap::new(),
         })
     }
 
@@ -152,12 +156,11 @@ impl Client {
         let inner = self.blockstore.into_inner();
         let mut file = inner
             .finish_with_roots(
-                self.structure
+                self.dag
                     .values()
                     .copied()
-                    // We're expecting a single one, so this should be ok
-                    // if any issues arise, we can use an HashSet
-                    .filter(|cid| self.structure.contains_key(cid)),
+                    .filter(|cid| !self.dag.contains_key(cid))
+                    .collect::<HashSet<_>>(),
             )
             .await?;
 
@@ -251,7 +254,7 @@ impl Client {
 
                         node.links.iter().map(|link| link.cid).for_each(|l_cid| {
                             tracing::debug!("inserting {}: {}", l_cid, cid);
-                            self.structure.insert(l_cid, cid);
+                            self.dag.insert(l_cid, cid);
                             self.request_block(l_cid);
                         });
                     }

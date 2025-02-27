@@ -14094,6 +14094,7 @@ dependencies = [
  "libp2p-swarm 0.45.1",
  "mater",
  "multihash-codetable",
+ "rand",
  "thiserror 2.0.8",
  "tokio",
  "tracing",

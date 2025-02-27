@@ -15,7 +15,7 @@ use tracing_subscriber::{
 struct Cli {
     /// Provider used for data download
     #[arg(long)]
-    provider: Multiaddr,
+    provider: Vec<Multiaddr>,
 
     /// The output file to write to.
     #[arg(long)]
@@ -46,7 +46,7 @@ async fn main() -> Result<(), anyhow::Error> {
     let arguments = Cli::parse();
 
     let settings = ClientSettings::new(arguments.output, arguments.extract, arguments.overwrite);
-    let client = Client::new(vec![arguments.provider], arguments.payload_cid, settings).await?;
+    let client = Client::new(arguments.provider, arguments.payload_cid, settings).await?;
 
     let download_result = match arguments.timeout {
         Some(duration) => timeout(duration, client.download()).await,
