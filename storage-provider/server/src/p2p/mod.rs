@@ -122,11 +122,11 @@ where
         // We are dialing the rendezvous nodes. After the connection is
         // successfully established, the identify message received from the
         // nodes tells us our public multiaddr which we'll register.
-        let rendezvous_nodes = dial_rendezvous_nodes(&mut swarm, &args.rendezvous_nodes)?;
+        dial_rendezvous_nodes(&mut swarm, &args.rendezvous_nodes);
 
         Ok(Worker {
             swarm,
-            rendezvous_nodes,
+            rendezvous_nodes: args.rendezvous_nodes,
         })
     }
 
@@ -145,7 +145,7 @@ where
                     }
 
                     // Dial rendezvous nodes again because the connection is not persisted
-                    dial_rendezvous_nodes(&mut self.swarm, &self.rendezvous_nodes)?;
+                    dial_rendezvous_nodes(&mut self.swarm, &self.rendezvous_nodes);
 
                     // Register with the nodes
                     request_registration(&mut self.swarm, &self.rendezvous_nodes);
@@ -205,17 +205,11 @@ where
     }
 }
 
-/// Dials rendezvous nodes. The `Ok` indicates that we successfully started a
-/// dialing procedure with the nodes. It doesn't indicate that we successfully
-/// connected to the nodes.
-fn dial_rendezvous_nodes<B>(
-    swarm: &mut Swarm<Behaviour<B>>,
-    nodes: &[(PeerId, Multiaddr)],
-) -> Result<Vec<(PeerId, Multiaddr)>, P2pError>
+/// Dials rendezvous nodes.
+fn dial_rendezvous_nodes<B>(swarm: &mut Swarm<Behaviour<B>>, nodes: &[(PeerId, Multiaddr)])
 where
     B: Blockstore,
 {
-    let mut dialling = vec![];
     for (rendezvous_peer, rendezvous_addr) in nodes {
         // Start dialing the node if needed
         if !swarm.is_connected(rendezvous_peer) {
@@ -224,15 +218,6 @@ where
                 continue;
             }
         }
-
-        dialling.push((*rendezvous_peer, rendezvous_addr.clone()));
-    }
-
-    // Return error if we cant dial any nodes
-    if dialling.is_empty() {
-        Err(P2pError::NoRendezvousNodesAvailable)
-    } else {
-        Ok(dialling)
     }
 }
 
