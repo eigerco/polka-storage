@@ -85,6 +85,14 @@ where
     bitswap: beetswap::Behaviour<MAX_MULTIHASH_LENGTH, B>,
 }
 
+/// Worker manages the P2P networking lifecycle and peer interactions.
+///
+/// The typical network flow is:
+/// 1. Start listening for connections
+/// 2. Connect to configured rendezvous nodes
+/// 3. Exchange identity information
+/// 4. Register our presence with the rendezvous nodes (repeated periodically)
+/// 5. Handle incoming bitswap requests
 struct Worker<B>
 where
     B: Blockstore + 'static,
