@@ -180,7 +180,11 @@ where
     #[instrument(level = "trace", skip(self))]
     fn on_identify_event(&mut self, event: IdentifyEvent) {
         match event {
-            // once `/identify` did its job, we know our external address
+            // once `/identify` did its job, we know the external address of the
+            // local node. The `observed_addr` is returned by the node with
+            // which we identified (and they identified with us). The
+            // `observed_addr` is an address that the other node observed when
+            // the local node connected.
             IdentifyEvent::Received { info, .. } => {
                 self.swarm.add_external_address(info.observed_addr);
             }
