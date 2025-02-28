@@ -21,7 +21,7 @@ use tokio::{
 };
 use tracing::{debug, error, info, instrument, trace};
 
-use crate::{new_swarm, Behaviour, BehaviourEvent, InitSwarmError};
+use crate::p2p::{new_swarm, Behaviour, BehaviourEvent, InitSwarmError};
 
 /// Errors that can occur while retrieving some content.
 #[derive(Debug, Error)]
@@ -29,9 +29,6 @@ pub enum ClientError {
     /// Error occurred while initialing swarm
     #[error("Swarm initialization error: {0}")]
     InitSwarm(#[from] InitSwarmError),
-    /// This error indicates that the download was timed out.
-    #[error("Download timeout")]
-    DownloadTimeout,
     /// Error occurred when trying to establish or upgrade an outbound connection.
     #[error("Dial error: {0}")]
     Dial(#[from] DialError),

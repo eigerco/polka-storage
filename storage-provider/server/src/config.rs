@@ -2,22 +2,20 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     num::NonZero,
     path::PathBuf,
+    str::FromStr,
 };
 
 use clap::Args;
 use libp2p::{identity::Keypair, Multiaddr, PeerId};
 use polka_storage_provider_common::config::sealing::SealingConfiguration;
 use primitives::{
-    p2p::{keypair_value_parser, DEFAULT_REGISTRATION_TTL},
+    p2p::keypair_value_parser,
     proofs::{RegisteredPoStProof, RegisteredSealProof},
 };
-use serde::Deserialize;
+use serde::{de::Error, Deserialize, Deserializer};
 use url::Url;
 
-use crate::{
-    p2p::{deser_keypair, deserialize_string_to_peer_id},
-    DEFAULT_NODE_ADDRESS,
-};
+use crate::DEFAULT_NODE_ADDRESS;
 
 /// Default address to bind the RPC server to.
 const fn default_rpc_listen_address() -> SocketAddr {
@@ -35,16 +33,11 @@ const fn default_parallel_prove_commits() -> NonZero<usize> {
     unsafe { NonZero::new_unchecked(2) }
 }
 
-/// Default registration TTL, how long the node is registered.
-const fn default_registration_ttl() -> u64 {
-    DEFAULT_REGISTRATION_TTL
-}
-
 fn default_node_address() -> Url {
     Url::parse(DEFAULT_NODE_ADDRESS).expect("DEFAULT_NODE_ADDRESS must be a valid Url")
 }
 
-fn default_retrieval_address() -> Multiaddr {
+fn default_p2p_listen_address() -> Multiaddr {
     "/ip4/127.0.0.1/tcp/8002"
         .parse()
         .expect("multiaddres is correct")
@@ -68,11 +61,6 @@ pub struct ConfigurationArgs {
     #[serde(default = "default_node_address")]
     #[arg(long, default_value_t = default_node_address())]
     pub(crate) node_url: Url,
-
-    /// Storage provider retrieval service listen address.
-    #[serde(default = "default_retrieval_address")]
-    #[arg(long, default_value_t = default_retrieval_address())]
-    pub(crate) retrieval_listen_address: Multiaddr,
 
     /// RocksDB storage directory.
     /// Defaults to a temporary random directory, like `/tmp/<random>/deals_database`.
@@ -128,22 +116,35 @@ pub struct ConfigurationArgs {
     #[arg(long, value_parser = keypair_value_parser, required = false)]
     pub(crate) p2p_key: Keypair,
 
-    /// Rendezvous point address that the registration node connects to
-    /// or the bootstrap node binds to.
+    /// P2P listen address.
+    #[serde(default = "default_p2p_listen_address")]
+    #[arg(long, default_value_t = default_p2p_listen_address())]
+    pub(crate) p2p_listen_address: Multiaddr,
+
+    /// Rendezvous multiaddr that the node registers to.
     #[arg(long, required = false)]
     pub(crate) rendezvous_point_address: Multiaddr,
 
-    /// PeerID of the bootstrap node used by the registration node.
+    /// PeerID of the rendezvous node used.
     #[serde(deserialize_with = "deserialize_string_to_peer_id")]
     #[arg(long, required = false)]
     pub(crate) rendezvous_point: PeerId,
 
-    /// TTL of the p2p registration in seconds
-    #[serde(default = "default_registration_ttl")]
-    #[arg(long, default_value_t = DEFAULT_REGISTRATION_TTL, required = false)]
-    pub(crate) registration_ttl: u64,
-
     #[clap(flatten)]
     #[serde(default)]
     pub(crate) sealing_configuration: SealingConfiguration,
+}
+
+/// Deserializes a ED25519 private key into a Keypair.
+/// Can either be the private key as a string or the path of a PEM file with an @ prefixed
+/// Calls `keypair_value_parser` after deserializing the source string
+fn deser_keypair<'de, D: Deserializer<'de>>(d: D) -> Result<Keypair, D::Error> {
+    let src: String = Deserialize::deserialize(d)?;
+    keypair_value_parser(&src).map_err(Error::custom)
+}
+
+/// Parses a string to an Peer ID.
+fn deserialize_string_to_peer_id<'de, D: Deserializer<'de>>(d: D) -> Result<PeerId, D::Error> {
+    let s: String = Deserialize::deserialize(d)?;
+    PeerId::from_str(&s).map_err(Error::custom)
 }

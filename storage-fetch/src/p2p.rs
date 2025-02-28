@@ -1,23 +1,18 @@
-pub mod client;
-pub mod server;
-
 use std::{sync::Arc, time::Duration};
 
 use ::blockstore::Blockstore;
-pub use client::Client;
 use libp2p::{noise, swarm::NetworkBehaviour, tcp, yamux, Swarm, SwarmBuilder};
-pub use server::Server;
 use thiserror::Error;
 
 const MAX_MULTIHASH_LENGTH: usize = 64;
 
 /// Custom Behaviour used by the server and client.
 #[derive(NetworkBehaviour)]
-struct Behaviour<B>
+pub struct Behaviour<B>
 where
     B: Blockstore + 'static,
 {
-    bitswap: beetswap::Behaviour<MAX_MULTIHASH_LENGTH, B>,
+    pub bitswap: beetswap::Behaviour<MAX_MULTIHASH_LENGTH, B>,
 }
 
 /// Error that can occur while initializing a swarm
@@ -29,7 +24,7 @@ pub enum InitSwarmError {
 }
 
 /// Initialize a new swarm with our custom Behaviour.
-fn new_swarm<B>(blockstore: Arc<B>) -> Result<Swarm<Behaviour<B>>, InitSwarmError>
+pub fn new_swarm<B>(blockstore: Arc<B>) -> Result<Swarm<Behaviour<B>>, InitSwarmError>
 where
     B: Blockstore + 'static,
 {

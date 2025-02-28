@@ -11,13 +11,14 @@ use tracing::debug;
 
 use crate::indexer::local_index_directory::Service;
 
-/// The blockstore that reads blocks directly from the raw pieces
-pub struct ProviderBlockstore<I> {
+/// The blockstore that reads blocks directly from the raw pieces. The indexer
+/// is used by the blockstore to retrieve locations of the requested blocks.
+pub struct PiecesBlockstore<I> {
     indexer: Arc<I>,
     raw_pieces_dir: PathBuf,
 }
 
-impl<I> ProviderBlockstore<I> {
+impl<I> PiecesBlockstore<I> {
     pub fn new<P>(raw_pieces_dir: P, indexer: Arc<I>) -> Self
     where
         I: Service,
@@ -30,7 +31,7 @@ impl<I> ProviderBlockstore<I> {
     }
 }
 
-impl<I> blockstore::Blockstore for ProviderBlockstore<I>
+impl<I> blockstore::Blockstore for PiecesBlockstore<I>
 where
     I: Service + Send + Sync + 'static,
 {
@@ -139,11 +140,11 @@ mod tests {
     use tempfile::{tempdir, TempDir};
     use tokio::{fs::File, io::BufReader};
 
-    use super::ProviderBlockstore;
+    use super::PiecesBlockstore;
     use crate::indexer::local_index_directory::rdb::{RocksDBLid, RocksDBStateStoreConfig};
 
     /// Initialize a new blockstore and index a given piece
-    async fn init_blockstore<P>(location: P) -> (TempDir, ProviderBlockstore<RocksDBLid>)
+    async fn init_blockstore<P>(location: P) -> (TempDir, PiecesBlockstore<RocksDBLid>)
     where
         P: AsRef<Path>,
     {
@@ -170,7 +171,7 @@ mod tests {
         crate::indexer::tests::index_piece_util(Arc::clone(&db), dummy_commitment, raw_piece_path)
             .await;
 
-        let blockstore = ProviderBlockstore::new(temp_dir.path(), db);
+        let blockstore = PiecesBlockstore::new(temp_dir.path(), db);
         (temp_dir, blockstore)
     }
 

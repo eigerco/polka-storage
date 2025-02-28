@@ -1,100 +1,260 @@
-use std::str::FromStr;
+use std::{sync::Arc, time::Duration};
 
-use libp2p::{identity::Keypair, rendezvous::Namespace, Multiaddr, PeerId};
-use primitives::p2p::keypair_value_parser;
-use register::register;
-use serde::de;
+use ::blockstore::Blockstore;
+use futures::StreamExt;
+use libp2p::{
+    identify::{self, Event as IdentifyEvent},
+    identity::Keypair,
+    rendezvous::{self, client::Event as RendezvousEvent, Namespace},
+    swarm::{NetworkBehaviour, SwarmEvent},
+    Multiaddr, PeerId, Swarm,
+};
+use primitives::p2p::DEFAULT_REGISTRATION_TTL;
+use swarm::new_swarm;
+use tokio::{select, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
+use tracing::{debug, error, info, instrument, warn};
 
-mod register;
+pub mod blockstore;
+mod error;
+mod swarm;
 
-pub(crate) use register::RegisterConfig;
+pub use error::P2pError;
 
+/// The time-to-live duration for node registration with rendezvous points.
+const REGISTRATION_TTL: Duration = Duration::from_secs(DEFAULT_REGISTRATION_TTL);
+
+/// Maximum length allowed for a multihash in bytes.
+const MAX_MULTIHASH_LENGTH: usize = 64;
+
+/// Unique namespace used for peer discovery and registration with rendezvous nodes.
 const P2P_NAMESPACE: &str = "polka-storage";
 
-#[derive(Debug, thiserror::Error)]
-pub enum P2PError {
-    #[error(transparent)]
-    Io(#[from] std::io::Error),
-    #[error(transparent)]
-    Dial(#[from] libp2p::swarm::DialError),
-    #[error("Invalid TCP config for swarm")]
-    InvalidTcpConfig,
-    #[error("Invalid behaviour config for swarm")]
-    InvalidBehaviourConfig,
-    #[error(transparent)]
-    TOMLError(#[from] toml::de::Error),
-    #[error("Failed to register at rendezvous point {0}")]
-    RegistrationFailed(PeerId),
-    #[error(transparent)]
-    P2PTransport(#[from] libp2p::TransportError<std::io::Error>),
-}
+/// The protocol version identifier string used by the identify protocol.
+const IDENTIFY_PROTOCOL_VERSION: &str = "polka-storage/1.0.0";
 
-/// State struct for P2P node.
-/// Holds all the information needed for spawning a node.
-/// Node can be either a bootstrap or a registration node.
-pub(crate) struct P2PState {
-    /// P2P ED25519 private key
-    pub(crate) p2p_key: Keypair,
+/// Starts a new P2P networking service in a separate tokio task.
+pub fn start_p2p<B>(
+    args: P2pArgs<B>,
+    cancellation_token: CancellationToken,
+) -> Result<JoinHandle<Result<(), P2pError>>, P2pError>
+where
+    B: Blockstore + Send + 'static,
+{
+    // Initialize the p2p worker and move it to the different task
+    let worker = Worker::new(args)?;
 
-    /// Rendezvous point address that the registration node connects to
-    /// or the bootstrap node binds to.
-    pub(crate) rendezvous_point_address: Multiaddr,
-
-    /// PeerID of the bootstrap node used by the registration node.
-    /// Optional because it is not used by the bootstrap node.
-    pub(crate) rendezvous_point: PeerId,
-
-    /// TTL of the p2p registration in seconds
-    pub(crate) registration_ttl: u64,
-}
-
-/// Deserializes a ED25519 private key into a Keypair.
-/// Can either be the private key as a string or the path of a PEM file with an @ prefixed
-/// Calls `keypair_value_parser` after deserializing the source string
-pub(crate) fn deser_keypair<'de, D: de::Deserializer<'de>>(d: D) -> Result<Keypair, D::Error> {
-    let src: String = de::Deserialize::deserialize(d)?;
-    keypair_value_parser(&src).map_err(de::Error::custom)
-}
-
-/// Parses a string to an optional Peer ID.
-/// Used in the [`ConfigurationArgs`] rendezvous_point field.
-pub(crate) fn deserialize_string_to_peer_id<'de, D: de::Deserializer<'de>>(
-    d: D,
-) -> Result<PeerId, D::Error> {
-    let s: String = de::Deserialize::deserialize(d)?;
-    PeerId::from_str(&s).map_err(de::Error::custom)
-}
-
-/// Runs a registration node from the given config.
-/// The `CancellationToken` is used for a graceful shutdown if the user presses ctrl+c
-pub async fn run_register_node(
-    config: RegisterConfig,
-    token: CancellationToken,
-) -> Result<(), P2PError> {
-    tracing::info!("Starting P2P register node");
-    let rendezvous_point = config.rendezvous_point;
-    let rendezvous_point_address = config.rendezvous_point_address.clone();
-    let registration_ttl = config.registration_ttl;
-    let mut swarm = config.create_swarm()?;
-
-    tokio::select! {
-        res = register(
-            &mut swarm,
-            rendezvous_point,
-            rendezvous_point_address,
-            registration_ttl,
-            Namespace::from_static(P2P_NAMESPACE),
-        ) => {
-            if let Err(e) = res {
-                tracing::error!("Failed to start P2P node. Reason: {e}");
-                return Err(e);
+    Ok(tokio::spawn(async move {
+        tokio::select! {
+            _ = cancellation_token.cancelled() => {
+                info!("P2P worker received shutdown signal");
             }
-        },
-        _ = token.cancelled() => {
-            tracing::info!("P2P node has been stopped by the cancellation token...");
-        },
+            result = worker.run() => {
+                match result {
+                    Ok(_) => info!("P2P worker completed"),
+                    Err(err) => error!("P2P failed with error: {}", err),
+                }
+            }
+        }
+
+        Ok(())
+    }))
+}
+
+/// Arguments used to configure the [`P2p`].
+pub struct P2pArgs<B>
+where
+    B: Blockstore,
+{
+    /// The keypair to be used as the identity.
+    pub local_keypair: Keypair,
+    /// List of rendezvous nodes to register to.
+    pub rendezvous_nodes: Vec<(PeerId, Multiaddr)>,
+    /// List of the addresses on which to listen for incoming connections.
+    pub listen_on: Vec<Multiaddr>,
+    /// The blockstore used for content retrieval.
+    pub blockstore: Arc<B>,
+}
+
+/// Our network behaviour.
+#[derive(NetworkBehaviour)]
+pub struct Behaviour<B>
+where
+    B: Blockstore + 'static,
+{
+    identify: identify::Behaviour,
+    rendezvous: rendezvous::client::Behaviour,
+    bitswap: beetswap::Behaviour<MAX_MULTIHASH_LENGTH, B>,
+}
+
+/// Worker manages the P2P networking lifecycle and peer interactions.
+///
+/// The typical network flow is:
+/// 1. Start listening for connections
+/// 2. Connect to configured rendezvous nodes
+/// 3. Exchange identity information
+/// 4. Register our presence with the rendezvous nodes (repeated periodically)
+/// 5. Handle incoming bitswap requests
+struct Worker<B>
+where
+    B: Blockstore + 'static,
+{
+    swarm: Swarm<Behaviour<B>>,
+    rendezvous_nodes: Vec<(PeerId, Multiaddr)>,
+}
+
+impl<B> Worker<B>
+where
+    B: Blockstore,
+{
+    pub fn new(args: P2pArgs<B>) -> Result<Self, P2pError> {
+        let identify = identify::Behaviour::new(identify::Config::new(
+            IDENTIFY_PROTOCOL_VERSION.to_string(),
+            args.local_keypair.public(),
+        ));
+
+        let rendezvous = rendezvous::client::Behaviour::new(args.local_keypair.clone());
+
+        let bitswap = beetswap::Behaviour::new(args.blockstore);
+
+        let behaviour = Behaviour {
+            identify,
+            rendezvous,
+            bitswap,
+        };
+
+        let mut swarm = new_swarm(args.local_keypair, behaviour)?;
+
+        for addr in args.listen_on {
+            swarm.listen_on(addr)?;
+        }
+
+        // We are dialing the rendezvous nodes. After the connection is
+        // successfully established, the identify message received from the
+        // nodes tells us our public multiaddr which we'll register.
+        dial_rendezvous_nodes(&mut swarm, &args.rendezvous_nodes);
+
+        Ok(Worker {
+            swarm,
+            rendezvous_nodes: args.rendezvous_nodes,
+        })
     }
 
-    Ok(())
+    async fn run(mut self) -> Result<(), P2pError> {
+        let mut register_interval = tokio::time::interval(REGISTRATION_TTL);
+
+        loop {
+            select! {
+                _ = register_interval.tick() => {
+                    // Check if there are any external addresses set, before we
+                    // actually try to register ourself with the rendezvous nodes
+                    if self.swarm.external_addresses().count() == 0 {
+                        debug!("External address not known. Skip registration.");
+                        register_interval.reset_after(Duration::from_secs(1));
+                        continue;
+                    }
+
+                    // Dial rendezvous nodes again because the connection is not persisted
+                    dial_rendezvous_nodes(&mut self.swarm, &self.rendezvous_nodes);
+
+                    // Register with the nodes
+                    request_registration(&mut self.swarm, &self.rendezvous_nodes);
+                }
+                event = self.swarm.select_next_some() => self.on_swarm_event(event),
+            }
+        }
+    }
+
+    fn on_swarm_event(&mut self, event: SwarmEvent<BehaviourEvent<B>>) {
+        match event {
+            SwarmEvent::Behaviour(ev) => match ev {
+                BehaviourEvent::Identify(ev) => self.on_identify_event(ev),
+                BehaviourEvent::Rendezvous(ev) => self.on_rendezvous_event(ev),
+                _ => {}
+            },
+            SwarmEvent::NewListenAddr { address, .. } => {
+                info!(%address, "Listening on");
+            }
+            _ => {}
+        }
+    }
+
+    #[instrument(level = "trace", skip(self))]
+    fn on_identify_event(&mut self, event: IdentifyEvent) {
+        match event {
+            // once `/identify` did its job, we know the external address of the
+            // local node. The `observed_addr` is returned by the node with
+            // which we identified (and they identified with us). The
+            // `observed_addr` is an address that the other node observed when
+            // the local node connected.
+            IdentifyEvent::Received { info, .. } => {
+                self.swarm.add_external_address(info.observed_addr);
+            }
+            _ => {}
+        }
+    }
+
+    #[instrument(level = "trace", skip(self))]
+    fn on_rendezvous_event(&mut self, event: RendezvousEvent) {
+        match event {
+            RendezvousEvent::Registered {
+                rendezvous_node,
+                ttl,
+                ..
+            } => {
+                info!(%rendezvous_node, %ttl, "Successfully registered");
+            }
+            RendezvousEvent::RegisterFailed {
+                rendezvous_node,
+                error,
+                ..
+            } => {
+                warn!(%rendezvous_node, ?error, "Registration failed");
+            }
+            RendezvousEvent::Expired { peer } => {
+                debug!(%peer, "Registration expired");
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Dials rendezvous nodes.
+fn dial_rendezvous_nodes<B>(swarm: &mut Swarm<Behaviour<B>>, nodes: &[(PeerId, Multiaddr)])
+where
+    B: Blockstore,
+{
+    for (rendezvous_peer, rendezvous_addr) in nodes {
+        // Start dialing the node if needed
+        if !swarm.is_connected(rendezvous_peer) {
+            if let Err(err) = swarm.dial(rendezvous_addr.clone()) {
+                warn!(?err, %rendezvous_peer, %rendezvous_addr, "rendezvous node dialing error");
+                continue;
+            }
+        }
+    }
+}
+
+/// Request registration with the rendezvous nodes.
+fn request_registration<B>(swarm: &mut Swarm<Behaviour<B>>, nodes: &[(PeerId, Multiaddr)])
+where
+    B: Blockstore,
+{
+    for (rendezvous_peer, rendezvous_addr) in nodes {
+        // Register with the node
+        let request_result = swarm.behaviour_mut().rendezvous.register(
+            Namespace::from_static(P2P_NAMESPACE),
+            *rendezvous_peer,
+            Some(REGISTRATION_TTL.as_secs()),
+        );
+
+        match request_result {
+            Ok(_) => {
+                info!(%rendezvous_peer, %rendezvous_addr, "Registration requested");
+            }
+            Err(err) => {
+                warn!(?err, %rendezvous_peer, %rendezvous_addr, "Registration request failed");
+            }
+        }
+    }
 }

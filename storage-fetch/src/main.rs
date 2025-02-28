@@ -2,13 +2,16 @@ use std::{path::PathBuf, time::Duration};
 
 use cid::Cid;
 use clap::{command, Parser};
+use client::{Client, ClientSettings};
 use libp2p::Multiaddr;
-use polka_storage_retrieval::client::{Client, ClientSettings};
 use tokio::time::timeout;
 use tracing::{error, info, level_filters::LevelFilter};
 use tracing_subscriber::{
     filter::FromEnvError, fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer,
 };
+
+mod client;
+mod p2p;
 
 #[derive(Parser, Debug)]
 #[command()]
