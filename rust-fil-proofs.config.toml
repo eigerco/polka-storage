@@ -1,8 +1,8 @@
 # The location to store downloaded parameter files required for proofs.
-parameter_cache = "/mnt/workspace/tmp/filecoin-proofs-parameters/"
+parameter_cache = "/mnt/workspace/eiger/tmp/filecoin-proofs-parameters/"
 
 # The location to store the on-disk parents cache.
-parent_cache = "/mnt/workspace/tmp/filecoin-parents"
+parent_cache = "/mnt/workspace/eiger/tmp/filecoin-parents"
 # The max number of parent cache elements to have mapped in RAM at a time.
 sdr_parents_cache_size = 2_048
 
