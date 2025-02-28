@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 use std::{any::type_name, time::Duration};
 
 use blockstore::Blockstore;
