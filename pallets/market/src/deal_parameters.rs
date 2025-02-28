@@ -14,7 +14,7 @@ pub struct OffchainDealDurationBound<BlockNumber> {
 
 impl<BlockNumber> OffchainDealDurationBound<BlockNumber>
 where
-    BlockNumber: sp_runtime::traits::BlockNumber,
+    BlockNumber: PartialOrd + Copy,
 {
     /// Validates [`OffchainDealDurationBound`] and places passed in values if any of them are None.
     /// The returns [`DealDurationBound`].
@@ -59,8 +59,8 @@ pub struct OffchainDealParameters<Balance, BlockNumber> {
 
 impl<Balance, BlockNumber> OffchainDealParameters<Balance, BlockNumber>
 where
-    Balance: frame_support::traits::tokens::Balance,
-    BlockNumber: sp_runtime::traits::BlockNumber,
+    Balance: frame_support::pallet_prelude::Zero,
+    BlockNumber: PartialOrd + Copy,
 {
     /// Validates [`OffchainDealParameters`] and places passed in values if any of them are None.
     /// The returns [`DealParameters`].
@@ -92,11 +92,8 @@ pub struct DealParameters<Balance, BlockNumber> {
 
 impl<Balance, BlockNumber> DealParameters<Balance, BlockNumber>
 where
-    Balance: PartialOrd + frame_support::traits::tokens::Balance,
+    Balance: PartialOrd,
     BlockNumber: sp_runtime::traits::BlockNumber,
-    // `Balance` and `BlockNumber` are not directly tied to their `Config` counterparts.
-    // The structure is flexible enough to be used for other purposes,
-    // so we limit the generics to the essential subset of traits only.
 {
     /// Checks the deal parameters against the given deal parameters
     /// Returns true if everything checks out
