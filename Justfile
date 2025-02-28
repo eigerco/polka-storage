@@ -202,9 +202,11 @@ generate-proof-params sector-size:
     cargo r -r -p polka-storage-provider-client -- proofs porep-params --seal-proof "{{sector-size}}"
     cargo r -r -p polka-storage-provider-client -- proofs post-params --post-type "{{sector-size}}"
 
+# Run the benchmark tests
 bench-test pallet:
     cargo test --profile ci --locked -p "pallet-{{pallet}}" --features runtime-benchmarks -- benchmark --nocapture
 
+# Run benchmarks 
 bench-node pallet steps="5" repeat="1":
     cargo run \
         -p polka-storage-node -r -F runtime-benchmarks -F testnet -- \
@@ -215,3 +217,16 @@ bench-node pallet steps="5" repeat="1":
         --steps "{{steps}}" \
         --repeat "{{repeat}}" \
         --template node/benchmark_template.hbs
+
+# Generate the benchmark weights
+generate-weights pallet steps="5" repeat="1":
+    cargo run \
+        -p polka-storage-node -r -F runtime-benchmarks -F testnet -- \
+        benchmark pallet \
+        --wasm-execution=compiled \
+        --pallet "pallet_{{pallet}}" \
+        --extrinsic "*" \
+        --steps "{{steps}}" \
+        --repeat "{{repeat}}" \
+        --template node/benchmark_template.hbs \
+        --output "pallets/{{pallet}}/src/weights.rs"

@@ -16,14 +16,17 @@ use primitives::{
     MAX_LABEL_SIZE, MAX_SECTORS_PER_CALL, PEER_ID_MAX_BYTES,
 };
 use scale_info::prelude::format;
-use sp_core::ed25519;
+use sp_core::{ed25519, Get};
 use sp_io::crypto::{ed25519_generate, ed25519_sign};
 use sp_runtime::{traits::IdentifyAccount, AccountId32, MultiSignature, MultiSigner};
 use sp_std::{vec, vec::Vec};
 
 use super::*;
 #[allow(unused)]
-use crate::Pallet as MarketPallet;
+use crate::{
+    deal_parameters::{OffchainDealDurationBound, OffchainDealParameters},
+    Pallet as MarketPallet,
+};
 
 type BoundedPeerIdBytes = BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>;
 const COLLATERAL: u32 = 10;
@@ -398,6 +401,85 @@ mod benchmarks {
             (EXISTENTIAL_DEPOSIT - cost).into()
         );
         assert_eq!(MarketPallet::<T>::locked(&client).unwrap(), 0u32.into());
+    }
+
+    /// `n` == 1: Publish
+    /// `n` == 2: Publish & Replace
+    #[benchmark]
+    fn publish_deal_parameters(n: Linear<1, 2>) {
+        let caller: T::AccountId = whitelisted_caller();
+        // Register the caller as a storage provider
+        pallet_storage_provider::Pallet::<T>::register_storage_provider(
+            RawOrigin::Signed(caller.clone()).into(),
+            BoundedVec::try_from("placeholder".as_bytes().to_vec()).unwrap(),
+            RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+        )
+        .unwrap();
+
+        let offchain_deal_parameters: OffchainDealParameters<BalanceOf<T>, BlockNumberFor<T>> =
+            OffchainDealParameters {
+                minimum_price_per_block: 1u32.into(),
+                deal_duration: OffchainDealDurationBound {
+                    lower: Some(60u32.into()),
+                    upper: Some(100u32.into()),
+                },
+            };
+        let storage_provider: OriginFor<T> = RawOrigin::Signed(caller.clone()).into();
+
+        if n == 2 {
+            Pallet::<T>::publish_deal_parameters(
+                storage_provider.clone(),
+                offchain_deal_parameters.clone(),
+            )
+            .unwrap();
+        }
+
+        // #[extrinsic_call] requires type shenanigans, using #[block] is MUCH simpler
+        #[block]
+        {
+            Pallet::<T>::publish_deal_parameters(
+                storage_provider.clone(),
+                offchain_deal_parameters.clone(),
+            )
+            .unwrap();
+        }
+        let deal_parameters = offchain_deal_parameters
+            .clone()
+            .validate(T::MinDealDuration::get(), T::MaxDealDuration::get())
+            .expect("Seamless conversion");
+        assert_eq!(SPDealParameters::<T>::get(&caller), Some(deal_parameters));
+    }
+
+    #[benchmark]
+    fn remove_deal_parameters() {
+        let caller: T::AccountId = whitelisted_caller();
+        // Register the caller as a storage provider
+        pallet_storage_provider::Pallet::<T>::register_storage_provider(
+            RawOrigin::Signed(caller.clone()).into(),
+            BoundedVec::try_from("placeholder".as_bytes().to_vec()).unwrap(),
+            RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+        )
+        .unwrap();
+
+        let deal_parameters: OffchainDealParameters<BalanceOf<T>, BlockNumberFor<T>> =
+            OffchainDealParameters {
+                minimum_price_per_block: 1u32.into(),
+                deal_duration: OffchainDealDurationBound {
+                    lower: Some(60u32.into()),
+                    upper: Some(100u32.into()),
+                },
+            };
+        let storage_provider: OriginFor<T> = RawOrigin::Signed(caller.clone()).into();
+
+        Pallet::<T>::publish_deal_parameters(storage_provider.clone(), deal_parameters).unwrap();
+
+        // #[extrinsic_call] requires type shenanigans, using #[block] is MUCH simpler
+        #[block]
+        {
+            Pallet::<T>::remove_deal_parameters(storage_provider.clone()).unwrap();
+        }
+
+        assert_eq!(SPDealParameters::<T>::get(&caller), None);
     }
 
     impl_benchmark_test_suite! {

@@ -45,7 +45,7 @@ itertools = { workspace = true, optional = true, default-features = false, featu
 sp-core = { workspace = true, default_features = false, optional = true }
 sp-io = { workspace = true, optional = true }
 sp-keystore = { workspace = true, default-features = false, optional = true }
-sp-runtime = { workspace = true, optional = true }
+sp-runtime = { workspace = true }
 
 [dev-dependencies]
 # Homegrown
@@ -78,7 +78,6 @@ runtime-benchmarks = [
   "sp-core",
   "sp-io",
   "sp-keystore",
-  "sp-runtime",
   "sp-runtime/runtime-benchmarks",
 ]
 std = [

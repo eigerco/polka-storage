@@ -9,9 +9,10 @@ use crate::{
         client::SubmissionResult,
         runtime_types::pallet_market::pallet::{
             BalanceEntry, ClientDealProposal as RuntimeClientDealProposal,
+            DealParameters as RuntimeDealParameters,
         },
     },
-    types::market::{ClientDealProposal, DealProposal},
+    types::market::{ClientDealProposal, DealParameters, DealProposal},
     BlockNumber, Currency, PolkaStorageConfig,
 };
 
@@ -22,6 +23,8 @@ type SpecializedRuntimeClientDealProposal = RuntimeClientDealProposal<
     BlockNumber,
     Static<subxt::ext::sp_runtime::MultiSignature>,
 >;
+
+type SpecializedRuntimeDealParameters = RuntimeDealParameters<Currency, BlockNumber>;
 
 /// The maximum number of deal IDs supported.
 // NOTE(@jmg-duarte,17/07/2024): ideally, should be read from the primitives or something
@@ -86,6 +89,31 @@ pub trait MarketClientExt {
     ) -> impl Future<Output = Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>;
+
+    /// Publish the given deal parameters
+    fn publish_deal_parameters<Keypair>(
+        &self,
+        account_keypair: &Keypair,
+        deal_parameters: DealParameters,
+        wait_for_finalization: bool,
+    ) -> impl Future<Output = Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>>
+    where
+        Keypair: subxt::tx::Signer<PolkaStorageConfig>;
+
+    /// Remove set deal parameters
+    fn remove_deal_parameters<Keypair>(
+        &self,
+        account_keypair: &Keypair,
+        wait_for_finalization: bool,
+    ) -> impl Future<Output = Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>>
+    where
+        Keypair: subxt::tx::Signer<PolkaStorageConfig>;
+
+    /// Retrieves the deal parameter for the given storage provider account
+    fn retrieve_deal_parameters(
+        &self,
+        account_id: <PolkaStorageConfig as subxt::Config>::AccountId,
+    ) -> impl Future<Output = Result<Option<SpecializedRuntimeDealParameters>, subxt::Error>>;
 
     /// Retrieve the balance for a given account (includes the `free` and `locked` balance).
     fn retrieve_balance(
@@ -261,6 +289,74 @@ impl MarketClientExt for crate::runtime::client::Client {
             .publish_storage_deals(bounded_unbounded_deals);
 
         self.traced_submission(&payload, account_keypair, wait_for_finalization)
+            .await
+    }
+
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        fields(
+            address = account_keypair.account_id().to_ss58check()
+        )
+    )]
+    async fn publish_deal_parameters<Keypair>(
+        &self,
+        account_keypair: &Keypair,
+        deal_parameters: DealParameters,
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
+    where
+        Keypair: subxt::tx::Signer<PolkaStorageConfig>,
+    {
+        let payload = runtime::tx()
+            .market()
+            .publish_deal_parameters(deal_parameters.into());
+
+        self.traced_submission(&payload, account_keypair, wait_for_finalization)
+            .await
+    }
+
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        fields(
+            address = account_keypair.account_id().to_ss58check()
+        )
+    )]
+    async fn remove_deal_parameters<Keypair>(
+        &self,
+        account_keypair: &Keypair,
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
+    where
+        Keypair: subxt::tx::Signer<PolkaStorageConfig>,
+    {
+        let payload = runtime::tx().market().remove_deal_parameters();
+
+        self.traced_submission(&payload, account_keypair, wait_for_finalization)
+            .await
+    }
+
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        fields(
+            address = account_id.to_ss58check()
+        )
+    )]
+    async fn retrieve_deal_parameters(
+        &self,
+        account_id: <PolkaStorageConfig as subxt::Config>::AccountId,
+    ) -> Result<Option<SpecializedRuntimeDealParameters>, subxt::Error> {
+        let deal_parameter_query = runtime::storage()
+            .market()
+            .sp_deal_parameters(subxt::utils::AccountId32::from(account_id));
+
+        self.client
+            .storage()
+            .at_latest()
+            .await?
+            .fetch(&deal_parameter_query)
             .await
     }
 

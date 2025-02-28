@@ -7,7 +7,7 @@ use storagext::{
     deser::DeserializablePath,
     multipair::{DebugPair, MultiPairSigner},
     runtime::SubmissionResult,
-    types::market::DealProposal as SxtDealProposal,
+    types::market::{DealParameters as SxtDealParameters, DealProposal as SxtDealProposal},
     MarketClientExt, PolkaStorageConfig,
 };
 use subxt::ext::sp_core::{
@@ -73,6 +73,22 @@ pub(crate) enum MarketCommand {
         deal_ids: Vec<DealId>,
     },
 
+    /// Publish SP deal parameters
+    PublishDealParameters {
+        /// Deal parameters for the given SP account
+        #[arg(long, value_parser = <SxtDealParameters as DeserializablePath>::deserialize_json)]
+        deal_parameters: SxtDealParameters,
+    },
+
+    /// Remove SP deal parameters
+    RemoveDealParameters,
+
+    /// Retrieve the deal parameters for a given SP account
+    RetrieveDealParameters {
+        /// The target account's ID.
+        account_id: <PolkaStorageConfig as subxt::Config>::AccountId,
+    },
+
     /// Retrieve the balance for a given account.
     RetrieveBalance {
         /// The target account's ID.
@@ -127,6 +143,15 @@ impl MarketCommand {
                     println!("{}", output_format.format(&deal)?);
                 } else {
                     tracing::error!("Could not find deal {}", deal_id);
+                }
+            }
+            MarketCommand::RetrieveDealParameters { account_id } => {
+                if let Some(params) = client.retrieve_deal_parameters(account_id.clone()).await? {
+                    tracing::debug!("Deal Parameters {:?}", params);
+
+                    println!("{}", output_format.format(&params)?);
+                } else {
+                    tracing::error!("Could not find deal parameters for {account_id}");
                 }
             }
             else_ => {
@@ -196,6 +221,18 @@ impl MarketCommand {
                     wait_for_finalization,
                 )
                 .await?
+            }
+            MarketCommand::PublishDealParameters { deal_parameters } => {
+                Self::publish_deal_parameters(
+                    client,
+                    account_keypair,
+                    deal_parameters,
+                    wait_for_finalization,
+                )
+                .await?
+            }
+            MarketCommand::RemoveDealParameters => {
+                Self::remove_deal_parameters(client, account_keypair, wait_for_finalization).await?
             }
             _unsigned => unreachable!("unsigned commands should have been previously handled"),
         };
@@ -314,6 +351,43 @@ impl MarketCommand {
                     result.hash,
                     amount
                 )
+            });
+
+        Ok(submission_result)
+    }
+
+    async fn publish_deal_parameters<Client>(
+        client: Client,
+        account_keypair: MultiPairSigner,
+        deal_parameters: SxtDealParameters,
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
+    where
+        Client: MarketClientExt,
+    {
+        let submission_result = client
+            .publish_deal_parameters(&account_keypair, deal_parameters, wait_for_finalization)
+            .await?
+            .inspect(|result| {
+                tracing::debug!("[{}] Successfully updated deal parameters", result.hash,)
+            });
+
+        Ok(submission_result)
+    }
+
+    async fn remove_deal_parameters<Client>(
+        client: Client,
+        account_keypair: MultiPairSigner,
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
+    where
+        Client: MarketClientExt,
+    {
+        let submission_result = client
+            .remove_deal_parameters(&account_keypair, wait_for_finalization)
+            .await?
+            .inspect(|result| {
+                tracing::debug!("[{}] Successfully updated deal parameters", result.hash,)
             });
 
         Ok(submission_result)

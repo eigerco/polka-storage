@@ -2,7 +2,9 @@ use crate::{
     runtime::{
         market::Event,
         runtime_types::{
-            pallet_market::pallet::{self, BalanceEntry, DealState},
+            pallet_market::pallet::{
+                self, BalanceEntry, DealDurationBound, DealParameters, DealState,
+            },
             polka_storage_runtime::Runtime,
         },
     },
@@ -124,6 +126,14 @@ impl std::fmt::Display for Event {
                 "Deal Terminated: {{ deal_id: {}, provider_account: {}, client_account: {} }}",
                 deal_id, provider, client
             )),
+            Event::DealParametersUpdated { provider, deal_parameters } => f.write_fmt(format_args!(
+                "Deal Parameters Update: {{ provider: {}, deal_parameters: {} }}",
+                provider, deal_parameters
+            )),
+            Event::DealParametersRemoved { provider } => f.write_fmt(format_args!(
+                "Deal Parameters Removed: {{ provider: {} }}",
+                provider
+            )),
         }
     }
 }
@@ -137,5 +147,44 @@ where
             "Balance {{ free: {}, locked: {} }}",
             self.free, self.locked
         ))
+    }
+}
+
+impl<Balance, BlockNumber> std::fmt::Display for DealParameters<Balance, BlockNumber>
+where
+    Balance: std::fmt::Display,
+    BlockNumber: std::fmt::Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "DealParameters {{ minimum_price_per_block: {}, deal_duration: {} }}",
+            self.minimum_price_per_block, self.deal_duration,
+        ))
+    }
+}
+
+impl<BlocNumber> std::fmt::Display for DealDurationBound<BlocNumber>
+where
+    BlocNumber: std::fmt::Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // matching because Option no impl Display
+        match (self.lower.as_ref(), self.upper.as_ref()) {
+            (Some(lower), Some(upper)) => f.write_fmt(format_args!(
+                "DealDurationBound {{ lower: {}, upper: {} }}",
+                lower, upper
+            )),
+            (None, Some(upper)) => f.write_fmt(format_args!(
+                "DealDurationBound {{ lower: None, upper: {}",
+                upper
+            )),
+            (Some(lower), None) => f.write_fmt(format_args!(
+                "DealDurationBound {{ lower: {}, upper: None",
+                lower
+            )),
+            (None, None) => f.write_fmt(format_args!(
+                "DealDurationBound {{ lower: None, upper: None }}"
+            )),
+        }
     }
 }

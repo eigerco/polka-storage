@@ -9,6 +9,7 @@
 
 pub use pallet::*;
 
+mod deal_parameters;
 mod error;
 pub mod weights;
 
@@ -56,7 +57,11 @@ pub mod pallet {
     use sp_arithmetic::traits::BaseArithmetic;
     use sp_std::vec::Vec;
 
-    use crate::{error::*, weights::WeightInfo};
+    use crate::{
+        deal_parameters::{DealParameters, OffchainDealParameters},
+        error::*,
+        weights::WeightInfo,
+    };
 
     pub const LOG_TARGET: &'static str = "runtime::market";
 
@@ -364,6 +369,15 @@ pub mod pallet {
         BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
     >;
 
+    /// Holds deal parameters for storage provider
+    #[pallet::storage]
+    pub type SPDealParameters<T: Config> = StorageMap<
+        _,
+        Blake2_128Concat,
+        T::AccountId,
+        DealParameters<BalanceOf<T>, BlockNumberFor<T>>,
+    >;
+
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
@@ -419,6 +433,13 @@ pub mod pallet {
             provider: T::AccountId,
             deals: BoundedVec<PublishedDeal<T>, T::MaxDeals>,
         },
+        /// An SP has updated or published their deal parameters
+        DealParametersUpdated {
+            provider: T::AccountId,
+            deal_parameters: DealParameters<BalanceOf<T>, BlockNumberFor<T>>,
+        },
+        /// An SP has removed their deal parameters
+        DealParametersRemoved { provider: T::AccountId },
     }
 
     /// Utility type to ensure that the bound for deal settlement is in sync.
@@ -524,6 +545,12 @@ pub mod pallet {
         DealDurationOutOfBounds,
         /// Deal's piece_cid is invalid.
         InvalidPieceCid,
+        /// The proposed deal parameters' falls outside the parameter bounds set by the Storage Provider.
+        OutOfBoundsDeal,
+        /// The SP attempted to remove DealParameters while there are none present.
+        NoDealParamsToRemove,
+        /// The deal parameters that the SP submitted are not valid
+        InvalidDealParametersSubmitted,
     }
 
     /// Extrinsics exposed by the pallet
@@ -802,6 +829,51 @@ pub mod pallet {
                 unsuccessful,
             });
 
+            Ok(())
+        }
+
+        #[pallet::call_index(4)]
+        #[pallet::weight((T::WeightInfo::publish_deal_parameters(2), DispatchClass::Normal))]
+        pub fn publish_deal_parameters(
+            origin: OriginFor<T>,
+            deal_parameters: OffchainDealParameters<BalanceOf<T>, BlockNumberFor<T>>,
+        ) -> DispatchResult {
+            let provider = ensure_signed(origin)?;
+            ensure!(
+                T::StorageProviderValidation::is_registered_storage_provider(&provider),
+                Error::<T>::StorageProviderNotRegistered
+            );
+            let deal_parameters = deal_parameters
+                .validate(T::MinDealDuration::get(), T::MaxDealDuration::get())
+                .map_err(|e| {
+                    log::error!(target: LOG_TARGET, "{e}");
+                    Error::<T>::InvalidDealParametersSubmitted
+                })?;
+            // Update or insert deal parameters
+            SPDealParameters::<T>::mutate(&provider, |params| {
+                let _ = params.insert(deal_parameters.clone());
+            });
+            Self::deposit_event(Event::<T>::DealParametersUpdated {
+                provider,
+                deal_parameters,
+            });
+            Ok(())
+        }
+
+        #[pallet::call_index(5)]
+        #[pallet::weight((T::WeightInfo::remove_deal_parameters(), DispatchClass::Normal))]
+        pub fn remove_deal_parameters(origin: OriginFor<T>) -> DispatchResult {
+            let provider = ensure_signed(origin)?;
+            ensure!(
+                T::StorageProviderValidation::is_registered_storage_provider(&provider),
+                Error::<T>::StorageProviderNotRegistered
+            );
+            ensure!(
+                SPDealParameters::<T>::contains_key(&provider),
+                Error::<T>::NoDealParamsToRemove
+            );
+            SPDealParameters::<T>::remove(&provider);
+            Self::deposit_event(Event::<T>::DealParametersRemoved { provider });
             Ok(())
         }
     }
@@ -1110,6 +1182,19 @@ pub mod pallet {
                 if let Err(e) = Self::sanity_check(&deal, &provider, current_block) {
                     log::error!(target: LOG_TARGET, "insane deal: idx {idx}, error: {e:?}");
                     return Err(e.into());
+                }
+
+                // Safety check on deal parameters, these should be checked by the submitting SP before publishing.
+                if let Some(params) = SPDealParameters::<T>::get(&provider) {
+                    ensure!(params.check_against_proposed_deal(&deal.proposal), {
+                        log::error!(
+                            target: LOG_TARGET,
+                            "Proposed deal does not fit within the deal bounds set by the storage provider. Set deal parameters: {:?}, proposed deal: {:?}",
+                            params,
+                            deal.proposal
+                        );
+                        Error::<T>::OutOfBoundsDeal
+                    });
                 }
 
                 // there is no Entry API in BoundedBTreeMap

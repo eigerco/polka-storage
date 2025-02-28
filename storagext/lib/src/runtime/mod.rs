@@ -124,6 +124,14 @@ pub mod display;
         path = "pallet_market::pallet::PublishedDeal",
         derive = "::serde::Serialize"
     ),
+    derive_for_type(
+        path = "pallet_market::pallet::DealParameters",
+        derive = "::serde::Serialize"
+    ),
+    derive_for_type(
+        path = "pallet_market::pallet::DealDurationBound",
+        derive = "::serde::Serialize"
+    ),
 )]
 mod polka_storage_runtime {}
 

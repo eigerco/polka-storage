@@ -19,11 +19,12 @@ use sp_core::H256;
 use sp_runtime::AccountId32;
 
 use crate::{
+    deal_parameters::{OffchainDealDurationBound, OffchainDealParameters},
     error::DealSettlementError,
     mock::*,
     pallet::{lock_funds, slash_and_burn, unlock_funds},
     ActiveDealState, BalanceEntry, BalanceTable, Config, DealState, DealsForBlock, Error, Event,
-    PendingProposals, Proposals, PublishedDeal, SectorDeals, SettledDealData,
+    PendingProposals, Proposals, PublishedDeal, SPDealParameters, SectorDeals, SettledDealData,
 };
 #[test]
 fn initial_state() {
@@ -515,9 +516,149 @@ fn publish_storage_deals_fails_duplicate_deal_in_state() {
 }
 
 #[test]
+fn publish_storage_deals_fails_not_within_deal_parameters() {
+    new_test_ext().execute_with(|| {
+        register_storage_provider(account::<Test>(PROVIDER));
+        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 90);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 90);
+        // Default price = 5, default duration = 10
+        let deal_params: OffchainDealParameters<u64, u64> = OffchainDealParameters {
+            minimum_price_per_block: 10,
+            deal_duration: OffchainDealDurationBound {
+                lower: Some(3),  // Chain minimum = 2
+                upper: Some(29), // Chain maximum = 30
+            },
+        };
+        assert_ok!(Market::publish_deal_parameters(
+            RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+            deal_params
+        ));
+        System::reset_events();
+
+        // Fail on duration
+        assert_noop!(
+            Market::publish_storage_deals(
+                RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+                bounded_vec![DealProposalBuilder::<Test>::default().signed(ALICE)]
+            ),
+            Error::<Test>::OutOfBoundsDeal
+        );
+
+        // Fail on price
+        assert_noop!(
+            Market::publish_storage_deals(
+                RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+                bounded_vec![DealProposalBuilder::<Test>::default()
+                    .end_block(107)
+                    .signed(ALICE)]
+            ),
+            Error::<Test>::OutOfBoundsDeal
+        );
+    })
+}
+
+#[test]
 fn publish_storage_deals() {
     new_test_ext().execute_with(|| {
         register_storage_provider(account::<Test>(PROVIDER));
+        let alice_proposal = DealProposalBuilder::<Test>::default().signed(ALICE);
+        let alice_start_block = 100;
+        let alice_deal_id = 0;
+        let alice_second_deal_id = 1;
+        // We're not expecting for it to go through, but the call should not fail.
+        let alice_second_proposal = DealProposalBuilder::<Test>::default()
+            .piece_size(37)
+            .signed(ALICE);
+        let bob_deal_id = 2;
+        let bob_start_block = 130;
+        let bob_proposal = DealProposalBuilder::<Test>::default()
+            .client(BOB)
+            .start_block(bob_start_block)
+            .end_block(135)
+            .storage_price_per_block(10)
+            .provider_collateral(15)
+            .signed(BOB);
+
+        let alice_hash = Market::hash_proposal(&alice_proposal.proposal);
+        let bob_hash = Market::hash_proposal(&bob_proposal.proposal);
+
+        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 100);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(BOB)), 70);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
+        System::reset_events();
+
+        assert_ok!(Market::publish_storage_deals(
+            RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+            bounded_vec![alice_proposal, alice_second_proposal, bob_proposal]
+        ));
+        assert_eq!(
+            BalanceTable::<Test>::get(account::<Test>(ALICE)),
+            BalanceEntry::<u64> {
+                free: 0,
+                locked: 100
+            }
+        );
+        assert_eq!(
+            BalanceTable::<Test>::get(account::<Test>(BOB)),
+            BalanceEntry::<u64> {
+                free: 20,
+                locked: 50
+            }
+        );
+        assert_eq!(
+            BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
+            BalanceEntry::<u64> {
+                free: 10,
+                locked: 65
+            }
+        );
+
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Market(Event::<Test>::DealsPublished {
+                provider: account::<Test>(PROVIDER),
+                deals: bounded_vec!(
+                    PublishedDeal {
+                        deal_id: alice_deal_id,
+                        client: account::<Test>(ALICE),
+                    },
+                    PublishedDeal {
+                        deal_id: alice_second_deal_id,
+                        client: account::<Test>(ALICE),
+                    },
+                    PublishedDeal {
+                        deal_id: bob_deal_id,
+                        client: account::<Test>(BOB),
+                    }
+                )
+            }),]
+        );
+        assert!(PendingProposals::<Test>::get().contains(&alice_hash));
+        assert!(PendingProposals::<Test>::get().contains(&bob_hash));
+        assert!(DealsForBlock::<Test>::get(&alice_start_block).contains(&alice_deal_id));
+        assert!(DealsForBlock::<Test>::get(&bob_start_block).contains(&bob_deal_id));
+    });
+}
+
+#[test]
+fn publish_storage_deals_with_deal_params() {
+    new_test_ext().execute_with(|| {
+        register_storage_provider(account::<Test>(PROVIDER));
+        let deal_params: OffchainDealParameters<u64, u64> = OffchainDealParameters {
+            minimum_price_per_block: 4,
+            deal_duration: OffchainDealDurationBound {
+                lower: None,
+                upper: None,
+            },
+        };
+        // Publish deal params
+        assert_ok!(Market::publish_deal_parameters(
+            RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+            deal_params
+        ));
+        // Flush events, checked by other test.
+        System::reset_events();
+
         let alice_proposal = DealProposalBuilder::<Test>::default().signed(ALICE);
         let alice_start_block = 100;
         let alice_deal_id = 0;
@@ -1701,6 +1842,150 @@ fn on_sector_terminate_active() {
         assert_eq!(
             <Test as crate::pallet::Config>::Currency::total_issuance(),
             2985
+        );
+    });
+}
+
+#[test]
+fn publish_deal_parameters() {
+    let _ = env_logger::try_init();
+    new_test_ext().execute_with(|| {
+        let storage_provider = account::<Test>(PROVIDER);
+        register_storage_provider(storage_provider.clone());
+
+        let offchain_deal_params: OffchainDealParameters<u64, u64> = OffchainDealParameters {
+            minimum_price_per_block: 1_000,
+            deal_duration: OffchainDealDurationBound {
+                lower: Some(3),  // Chain minimum = 2
+                upper: Some(29), // Chain maximum = 30
+            },
+        };
+        let deal_params = offchain_deal_params
+            .clone()
+            .validate(
+                <<Test as Config>::MinDealDuration as Get<u64>>::get(),
+                <<Test as Config>::MaxDealDuration as Get<u64>>::get(),
+            )
+            .expect("Seamless conversion");
+
+        // Run extrinsic
+        assert_ok!(Market::publish_deal_parameters(
+            RuntimeOrigin::signed(storage_provider.clone()),
+            offchain_deal_params
+        ));
+
+        // Check events
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Market(Event::<Test>::DealParametersUpdated {
+                provider: storage_provider.clone(),
+                deal_parameters: deal_params.clone()
+            })]
+        );
+
+        // Check storage map
+        assert_eq!(
+            SPDealParameters::<Test>::try_get(&storage_provider),
+            Ok(deal_params)
+        );
+
+        // Re-insert different deal parameters
+        let offchain_deal_params_2: OffchainDealParameters<u64, u64> = OffchainDealParameters {
+            minimum_price_per_block: 10_000,
+            deal_duration: OffchainDealDurationBound {
+                lower: Some(4),  // Chain minimum = 2
+                upper: Some(28), // Chain maximum = 30
+            },
+        };
+
+        let deal_params_2 = offchain_deal_params_2
+            .clone()
+            .validate(
+                <<Test as Config>::MinDealDuration as Get<u64>>::get(),
+                <<Test as Config>::MaxDealDuration as Get<u64>>::get(),
+            )
+            .expect("Seamless conversion");
+
+        // Run extrinsic
+        assert_ok!(Market::publish_deal_parameters(
+            RuntimeOrigin::signed(storage_provider.clone()),
+            offchain_deal_params_2.clone()
+        ));
+
+        // Check events
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Market(Event::<Test>::DealParametersUpdated {
+                provider: storage_provider.clone(),
+                deal_parameters: deal_params_2.clone()
+            })]
+        );
+
+        // Check storage map
+        assert_eq!(
+            SPDealParameters::<Test>::try_get(&storage_provider),
+            Ok(deal_params_2)
+        );
+    });
+}
+
+#[test]
+fn remove_deal_parameters() {
+    let _ = env_logger::try_init();
+    new_test_ext().execute_with(|| {
+        let storage_provider = account::<Test>(PROVIDER);
+        register_storage_provider(storage_provider.clone());
+
+        let offchain_deal_params: OffchainDealParameters<u64, u64> = OffchainDealParameters {
+            minimum_price_per_block: 1_000,
+            deal_duration: OffchainDealDurationBound {
+                lower: Some(3),  // Chain minimum = 2
+                upper: Some(29), // Chain maximum = 30
+            },
+        };
+        let deal_params = offchain_deal_params
+            .clone()
+            .validate(
+                <<Test as Config>::MinDealDuration as Get<u64>>::get(),
+                <<Test as Config>::MaxDealDuration as Get<u64>>::get(),
+            )
+            .expect("Seamless conversion");
+
+        // Run extrinsic
+        assert_ok!(Market::publish_deal_parameters(
+            RuntimeOrigin::signed(storage_provider.clone()),
+            offchain_deal_params.clone()
+        ));
+
+        // Check events
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Market(Event::<Test>::DealParametersUpdated {
+                provider: storage_provider.clone(),
+                deal_parameters: deal_params.clone()
+            })]
+        );
+
+        // Check storage map
+        assert_eq!(
+            SPDealParameters::<Test>::try_get(&storage_provider),
+            Ok(deal_params)
+        );
+
+        // Remove deal parameters
+        assert_ok!(Market::remove_deal_parameters(RuntimeOrigin::signed(
+            storage_provider.clone()
+        )));
+
+        // Check storage map
+        assert!(SPDealParameters::<Test>::try_get(&storage_provider).is_err());
+
+        // Check events
+        assert_eq!(
+            events(),
+            [RuntimeEvent::Market(Event::<Test>::DealParametersRemoved {
+                provider: storage_provider.clone(),
+            })]
         );
     });
 }
