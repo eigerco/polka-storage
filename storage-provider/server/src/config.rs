@@ -2,6 +2,7 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     num::NonZero,
     path::PathBuf,
+    str::FromStr,
 };
 
 use clap::Args;
@@ -11,13 +12,10 @@ use primitives::{
     p2p::keypair_value_parser,
     proofs::{RegisteredPoStProof, RegisteredSealProof},
 };
-use serde::Deserialize;
+use serde::{de::Error, Deserialize, Deserializer};
 use url::Url;
 
-use crate::{
-    p2p::{deser_keypair, deserialize_string_to_peer_id},
-    DEFAULT_NODE_ADDRESS,
-};
+use crate::DEFAULT_NODE_ADDRESS;
 
 /// Default address to bind the RPC server to.
 const fn default_rpc_listen_address() -> SocketAddr {
@@ -135,4 +133,18 @@ pub struct ConfigurationArgs {
     #[clap(flatten)]
     #[serde(default)]
     pub(crate) sealing_configuration: SealingConfiguration,
+}
+
+/// Deserializes a ED25519 private key into a Keypair.
+/// Can either be the private key as a string or the path of a PEM file with an @ prefixed
+/// Calls `keypair_value_parser` after deserializing the source string
+fn deser_keypair<'de, D: Deserializer<'de>>(d: D) -> Result<Keypair, D::Error> {
+    let src: String = Deserialize::deserialize(d)?;
+    keypair_value_parser(&src).map_err(Error::custom)
+}
+
+/// Parses a string to an Peer ID.
+fn deserialize_string_to_peer_id<'de, D: Deserializer<'de>>(d: D) -> Result<PeerId, D::Error> {
+    let s: String = Deserialize::deserialize(d)?;
+    PeerId::from_str(&s).map_err(Error::custom)
 }

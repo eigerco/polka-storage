@@ -1,4 +1,4 @@
-use std::{str::FromStr, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
 use ::blockstore::Blockstore;
 use futures::StreamExt;
@@ -9,12 +9,11 @@ use libp2p::{
     swarm::{NetworkBehaviour, SwarmEvent},
     Multiaddr, PeerId, Swarm,
 };
-use primitives::p2p::{keypair_value_parser, DEFAULT_REGISTRATION_TTL};
-use serde::de;
+use primitives::p2p::DEFAULT_REGISTRATION_TTL;
 use swarm::new_swarm;
 use tokio::{select, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, info, instrument, warn};
+use tracing::{debug, error, info, instrument, warn};
 
 pub mod blockstore;
 mod error;
@@ -48,10 +47,13 @@ where
     Ok(tokio::spawn(async move {
         tokio::select! {
             _ = cancellation_token.cancelled() => {
-                tracing::info!("P2P worker received shutdown signal");
+                info!("P2P worker received shutdown signal");
             }
-            _ = worker.run() => {
-                tracing::info!("P2P worker completed");
+            result = worker.run() => {
+                match result {
+                    Ok(_) => info!("P2P worker completed"),
+                    Err(err) => error!("P2P failed with error: {}", err),
+                }
             }
         }
 
@@ -255,20 +257,4 @@ where
             }
         }
     }
-}
-
-/// Deserializes a ED25519 private key into a Keypair.
-/// Can either be the private key as a string or the path of a PEM file with an @ prefixed
-/// Calls `keypair_value_parser` after deserializing the source string
-pub(crate) fn deser_keypair<'de, D: de::Deserializer<'de>>(d: D) -> Result<Keypair, D::Error> {
-    let src: String = de::Deserialize::deserialize(d)?;
-    keypair_value_parser(&src).map_err(de::Error::custom)
-}
-
-/// Parses a string to an Peer ID.
-pub(crate) fn deserialize_string_to_peer_id<'de, D: de::Deserializer<'de>>(
-    d: D,
-) -> Result<PeerId, D::Error> {
-    let s: String = de::Deserialize::deserialize(d)?;
-    PeerId::from_str(&s).map_err(de::Error::custom)
 }
