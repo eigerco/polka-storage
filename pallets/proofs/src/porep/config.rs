@@ -116,7 +116,7 @@ fn minimum_challenges(seal_proof: RegisteredSealProof) -> usize {
         RegisteredSealProof::StackedDRG2KiBV1P1 => 2,
         RegisteredSealProof::StackedDRG8MiBV1 => 2,
         RegisteredSealProof::StackedDRG512MiBV1 => 2,
-        RegisteredSealProof::StackedDRG1GiBV1 => 2349,
+        RegisteredSealProof::StackedDRG1GiBV1 => 176,
     }
 }
 
