@@ -111,7 +111,7 @@ impl RegisteredSealProof {
             RegisteredSealProof::StackedDRG2KiBV1P1 => 192,
             RegisteredSealProof::StackedDRG8MiBV1 => 192,
             RegisteredSealProof::StackedDRG512MiBV1 => 192,
-            RegisteredSealProof::StackedDRG1GiBV1 => 192,
+            RegisteredSealProof::StackedDRG1GiBV1 => 1920,
         }
     }
 
@@ -215,7 +215,7 @@ impl RegisteredPoStProof {
             RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => 2,
             RegisteredPoStProof::StackedDRGWindow8MiBV1 => 2,
             RegisteredPoStProof::StackedDRGWindow512MiBV1 => 2,
-            RegisteredPoStProof::StackedDRGWindow1GiBV1 => 2,
+            RegisteredPoStProof::StackedDRGWindow1GiBV1 => 2349,
         }
     }
 
@@ -228,7 +228,7 @@ impl RegisteredPoStProof {
             RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => 2,
             RegisteredPoStProof::StackedDRGWindow8MiBV1 => 2,
             RegisteredPoStProof::StackedDRGWindow512MiBV1 => 2,
-            RegisteredPoStProof::StackedDRGWindow1GiBV1 => 2,
+            RegisteredPoStProof::StackedDRGWindow1GiBV1 => 2349,
         }
     }
 
