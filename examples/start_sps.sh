@@ -14,7 +14,7 @@ export DISABLE_XT_WAIT_WARNING=1
 
 mkdir -p /tmp/polka-storage-provider
 
-P2P_ADDRESS="/ip4/127.0.0.1/tcp/62649"
+P2P_BOOTSTRAP_ADDRESS="/ip4/127.0.0.1/tcp/62649"
 P2P_BOOTSTRAP_PUBLIC_KEY="/tmp/zombienet/charlie-public.pem"
 
 # Adds funds to all test accounts
@@ -120,7 +120,7 @@ for ACCOUNT in "${ACCOUNTS[@]}"; do
         porep_parameters = '8MiB.porep.params'
         post_parameters = '8MiB.post.params'
         p2p_key = '@$(sp_private_key "$ACCOUNT")'
-        rendezvous_point_address = '$P2P_ADDRESS'
+        rendezvous_point_address = '$P2P_BOOTSTRAP_ADDRESS'
         rendezvous_point = '$P2P_BOOTSTRAP_PEER_ID'
         [sealing_configuration]
         fill_threshold = 0
