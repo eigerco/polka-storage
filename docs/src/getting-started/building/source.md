@@ -40,6 +40,7 @@ $ sudo apt install -y libhwloc-dev \
     clang \
     build-essential \
     git \
+    libssl-dev \ 
     curl
 ```
 
