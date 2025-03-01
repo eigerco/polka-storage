@@ -16,12 +16,13 @@ use std::{
 };
 
 use clap::Parser;
+use futures::FutureExt;
 use indexer::{
     local_index_directory::rdb::{RocksDBLid, RocksDBStateStoreConfig},
     start_indexer, IndexerMessage, IndexerState,
 };
 use libp2p::{identity::Keypair, Multiaddr, PeerId};
-use p2p::{blockstore::PiecesBlockstore, start_p2p, P2pArgs, P2pError};
+use p2p::{blockstore::PiecesBlockstore, P2pArgs, P2pError};
 use pipeline::types::PipelineMessage;
 use polka_storage_proofs::{
     porep::{self, PoRepParameters},
@@ -41,7 +42,7 @@ use storagext::{
 use subxt::{self, tx::Signer};
 use tokio::{
     sync::{mpsc::UnboundedReceiver, Mutex, Semaphore},
-    task::JoinError,
+    task::{JoinError, JoinSet},
 };
 use tokio_util::sync::CancellationToken;
 use tracing::level_filters::LevelFilter;
@@ -191,30 +192,6 @@ pub enum ServerError {
 
     #[error(transparent)]
     Lid(#[from] crate::indexer::local_index_directory::LidError),
-}
-
-/// Takes an expression that returns a `Result<Result<T, E2>, E1>`.
-/// It tries to inspect and log the first error (`E1`), otherwise,
-/// it inspects the result and tries to inspect the nested error (`E2`).
-///
-/// This macro is *roughly* equivalent to calling:
-/// ```text
-/// res // : Result<Result<T, E2>, E1>
-///     .inspect_err(|e| tracing::error!(%e))
-///     .inspect(|r| r.inspect_err(|e| tracing::error!(%e))
-/// ```
-macro_rules! inspect_and_log_nested_errors {
-    ($($task:expr),+ $(,)?) => {
-        (
-            $(
-                $task
-                    .inspect_err(|err| tracing::error!(%err))
-                    .inspect(|ok| {
-                        let _ = ok.as_ref().inspect_err(|err| tracing::error!(%err));
-                    })
-            ),+
-        )
-    };
 }
 
 /// The server arguments, as passed by the user, unvalidated.
@@ -390,63 +367,77 @@ impl Server {
 
         let cancellation_token = CancellationToken::new();
 
-        let p2p_task = start_p2p(p2p_args, cancellation_token.child_token())?;
-        let rpc_task = tokio::spawn(start_rpc_server(
-            rpc_state,
-            cancellation_token.child_token(),
-        ));
-        let storage_task = tokio::spawn(start_upload_server(
-            Arc::new(storage_state),
-            cancellation_token.child_token(),
-        ));
-        let pipeline_task = tokio::spawn(start_pipeline(
-            Arc::new(pipeline_state),
-            pipeline_rx,
-            cancellation_token.child_token(),
-        ));
-        let indexer_task = tokio::spawn(start_indexer(
-            indexer_state,
-            indexer_rx,
-            cancellation_token.child_token(),
-        ));
-
+        let mut tasks = JoinSet::new();
+        tasks.spawn(
+            start_rpc_server(rpc_state, cancellation_token.child_token())
+                .map(|result| ("RPC", result.map_err(ServerError::from))),
+        );
+        tasks.spawn(
+            p2p::Worker::new(p2p_args)?
+                .run(cancellation_token.child_token())
+                .map(|result| ("P2P", result.map_err(ServerError::from))),
+        );
+        tasks.spawn(
+            start_upload_server(Arc::new(storage_state), cancellation_token.child_token())
+                .map(|result| ("HTTP Storage", result.map_err(ServerError::from))),
+        );
+        tasks.spawn(
+            start_pipeline(
+                Arc::new(pipeline_state),
+                pipeline_rx,
+                cancellation_token.child_token(),
+            )
+            .map(|result| ("Pipeline", result.map_err(ServerError::from))),
+        );
+        tasks.spawn(
+            start_indexer(indexer_state, indexer_rx, cancellation_token.child_token())
+                .map(|result| ("Indexer", result.map_err(ServerError::from))),
+        );
         tracing::info!("Successfully launched all sub-services, ready for work!");
 
-        // Wait for SIGTERM on the main thread and once received "unblock"
-        tokio::signal::ctrl_c()
-            .await
-            .expect("failed to listen for event");
-        tracing::info!("SIGTERM received, shutting down...");
-
-        cancellation_token.cancel();
-        tracing::info!("sent shutdown signal");
-
-        // Wait for the tasks to finish
-        let (upload_result, rpc_task, pipeline_task, p2p_task, indexer_task) = tokio::join!(
-            storage_task,
-            rpc_task,
-            pipeline_task,
-            p2p_task,
-            indexer_task,
-        );
-
-        // Inspect and log errors
-        let (upload_result, rpc_task, pipeline_task, p2p_task, indexer_task) = inspect_and_log_nested_errors!(
-            upload_result,
-            rpc_task,
-            pipeline_task,
-            p2p_task,
-            indexer_task,
-        );
-
-        // Exit with error
-        upload_result??;
-        rpc_task??;
-        pipeline_task??;
-        p2p_task??;
-        indexer_task??;
-
-        Ok(())
+        // Keep the first error around as the "canonical return",
+        // since we can't return multiple values
+        let mut error = None;
+        loop {
+            tokio::select! {
+                result = tasks.join_next() => {
+                    match result {
+                        Some(Ok((task_name, task_result))) => {
+                            match task_result {
+                                Ok(()) => tracing::info!("{task_name} finished successfully!"),
+                                Err(err) => {
+                                    tracing::error!("{task_name} finished with error: {err}");
+                                    tracing::error!("Cancelling remaining tasks...");
+                                    if error.is_none() {
+                                        error = Some(err);
+                                    }
+                                    cancellation_token.cancel();
+                                },
+                            }
+                        }
+                        Some(Err(err)) => {
+                            tracing::error!("Failed to join task with error: {err}");
+                            cancellation_token.cancel();
+                        }
+                        None => {
+                            // This branch should run when all tasks have terminated,
+                            // thus, this is the most appropriate place to return the value
+                            match error {
+                                Some(err) => return Err(err),
+                                None => return Ok(()),
+                            }
+                        },
+                    }
+                }
+                result = tokio::signal::ctrl_c() => {
+                    match result {
+                        Ok(()) => tracing::info!("SIGTERM received, shutting down..."),
+                        Err(err) => tracing::error!("Failed to listen for SIGTERM with error: {err}"),
+                    }
+                    cancellation_token.cancel();
+                }
+            }
+        }
     }
 
     async fn setup(self) -> Result<SetupOutput, ServerError> {
