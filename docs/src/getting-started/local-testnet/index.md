@@ -25,9 +25,9 @@ We support `Linux x86_64 (Ubuntu 24.04.1 LTS/glibc 2.39+)` and `MacOS ARM x64`. 
 1. Download the binaries:
 
 ```bash
-wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-stable2407-1/polkadot
-wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-stable2407-1/polkadot-prepare-worker
-wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-stable2407-1/polkadot-execute-worker
+wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-stable2412/polkadot
+wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-stable2412/polkadot-prepare-worker
+wget https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-stable2412/polkadot-execute-worker
 wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-node-v0.0.0/polka-storage-node-linux-x86 -O polka-storage-node
 wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-provider-client-v0.1.0/polka-storage-provider-client-linux-x86 -O polka-storage-provider-client
 wget https://github.com/eigerco/polka-storage/releases/download/polka-storage-provider-server-v0.1.0/polka-storage-provider-server-linux-x86 -O polka-storage-provider-server
