@@ -22,7 +22,7 @@ do
     echo "Processing Sector ID: $SECTOR_ID"
     
     # Clear cache before run
-    CACHE_FOLDER="/mnt/workspace/eiger/tmp/sector-$SECTOR_ID-cache"
+    CACHE_FOLDER="/eiger/tmp/sector-$SECTOR_ID-cache"
     rm -r "$CACHE_FOLDER" 2>/dev/null  # Suppress error if folder doesn't exist
     mkdir "$CACHE_FOLDER"
     
