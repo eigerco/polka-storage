@@ -2,6 +2,12 @@
 #![warn(unused_crate_dependencies)]
 #![deny(clippy::unwrap_used)]
 
+// Explicit gate because:
+// * We're not testing on non-Unix systems
+// * Signal handling is very explicitly Unix-only
+#[cfg(not(target_family = "unix"))]
+compile_error!("polka-storage-provider-server is only compatible with Unix systems");
+
 mod config;
 mod db;
 mod indexer;
@@ -41,6 +47,7 @@ use storagext::{
 };
 use subxt::{self, tx::Signer};
 use tokio::{
+    signal::unix::{signal, SignalKind},
     sync::{mpsc::UnboundedReceiver, Mutex, Semaphore},
     task::{JoinError, JoinSet},
 };
@@ -395,6 +402,13 @@ impl Server {
         );
         tracing::info!("Successfully launched all sub-services, ready for work!");
 
+        // Infos here:
+        // https://www.gnu.org/software/libc/manual/html_node/Termination-Signals.html
+        let mut sigint_listener =
+            signal(SignalKind::interrupt()).expect("should be able to listen for SIGINT");
+        let mut sigterm_listener =
+            signal(SignalKind::terminate()).expect("should be able to listen for SIGTERM");
+
         // Keep the first error around as the "canonical return",
         // since we can't return multiple values
         let mut error = None;
@@ -417,6 +431,9 @@ impl Server {
                         }
                         Some(Err(err)) => {
                             tracing::error!("Failed to join task with error: {err}");
+                            if error.is_none() {
+                                error = Some(ServerError::from(err));
+                            }
                             cancellation_token.cancel();
                         }
                         None => {
@@ -429,11 +446,12 @@ impl Server {
                         },
                     }
                 }
-                result = tokio::signal::ctrl_c() => {
-                    match result {
-                        Ok(()) => tracing::info!("SIGTERM received, shutting down..."),
-                        Err(err) => tracing::error!("Failed to listen for SIGTERM with error: {err}"),
-                    }
+                _ = sigint_listener.recv() => {
+                    tracing::info!("SIGINT received, shutting down...");
+                    cancellation_token.cancel();
+                }
+                _ = sigterm_listener.recv() => {
+                    tracing::info!("SIGTERM received, shutting down...");
                     cancellation_token.cancel();
                 }
             }
