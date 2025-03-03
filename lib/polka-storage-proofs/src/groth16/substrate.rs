@@ -25,10 +25,17 @@ where
     E: Engine<G1Affine = G1Affine, G2Affine = G2Affine>,
 {
     fn decode<I: ::codec::Input>(input: &mut I) -> Result<Self, ::codec::Error> {
-        let mut buffer = [0u8; VERIFYINGKEY_MAX_BYTES];
+        // We can't allocate 1.4MiB required for PoSt on stack.
+        let mut buffer = alloc::vec::Vec::with_capacity(POST_VERIFYINGKEY_MAX_BYTES);
         let Some(n_bytes) = input.remaining_len()? else {
             return Err(::codec::Error::from("unable to get remaining_len"));
         };
+        if n_bytes > POST_VERIFYINGKEY_MAX_BYTES {
+            return Err(::codec::Error::from(
+                "provided verifying key is too big for the current limit of bytes",
+            ));
+        }
+        buffer.resize(n_bytes, 0);
         input.read(&mut buffer[..n_bytes])?;
         VerifyingKey::<E>::from_bytes(&buffer[..n_bytes])
             .map_err(|e| codec::Error::from(e.as_static_str()))
@@ -73,7 +80,7 @@ where
     E: Engine<G1Affine = G1Affine, G2Affine = G2Affine>,
 {
     fn max_encoded_len() -> usize {
-        VERIFYINGKEY_MAX_BYTES
+        MAX_PRODUCTION_POST_VK_IC_LEN
     }
 }
 
@@ -239,5 +246,25 @@ mod tests {
         let mut bytes_regular = vec![0u8; Proof::<Bls12>::serialised_bytes()];
         proof.into_bytes(&mut bytes_regular.as_mut_slice()).unwrap();
         assert_eq!(bytes_regular.as_slice(), bytes_scale.as_slice());
+    }
+
+    #[test]
+    fn decodes_production_1gib_porep_verifying_key() {
+        let vk_bytes = include_bytes!("../../../../examples/1GiB.porep.vk.scale");
+        // decode expects &mut mutability
+        let vk_bytes = vk_bytes.to_vec();
+        let key = VerifyingKey::<Bls12>::decode(&mut vk_bytes.as_slice());
+
+        assert!(key.is_ok(), "failed to parse 1GiB PoRep verifying key");
+    }
+
+    #[test]
+    fn decodes_production_1gib_post_verifying_key() {
+        let vk_bytes = include_bytes!("../../../../examples/1GiB.post.vk.scale");
+        // decode expects &mut mutability
+        let vk_bytes = vk_bytes.to_vec();
+        let key = VerifyingKey::<Bls12>::decode(&mut vk_bytes.as_slice());
+
+        assert!(key.is_ok(), "failed to parse 1GiB PoSt verifying key");
     }
 }

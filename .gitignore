@@ -31,13 +31,13 @@ coverage/
 
 # PoRep Params
 *.porep.params
-*.porep.vk
-*.porep.vk.scale
+/*.porep.vk
+/*.porep.vk.scale
 
 # PoSt Params
 *.post.params
-*.post.vk
-*.post.vk.scale
+/*.post.vk
+/*.post.vk.scale
 
 # File logs from the SP
 logs/

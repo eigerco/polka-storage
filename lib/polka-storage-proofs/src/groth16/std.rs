@@ -190,4 +190,36 @@ mod tests {
         // Compare initial struct with this one.
         assert_eq!(bp_proof, bp_proof_result);
     }
+
+    #[test]
+    fn decodes_production_1gib_porep_verifying_key() {
+        let vk_bytes = include_bytes!("../../../../examples/1GiB.porep.vk");
+        // decode expects &mut mutability
+        let vk_bytes = vk_bytes.to_vec();
+        let key = bp_g16::VerifyingKey::<blstrs::Bls12>::read(&mut vk_bytes.as_slice());
+
+        assert!(key.is_ok(), "failed to parse 1GiB PoRep verifying key");
+        let key = key.unwrap();
+        let substrate_key = VerifyingKey::<Bls12>::try_from(key);
+        assert!(
+            substrate_key.is_ok(),
+            "failed to convert 1GiB PoRep bellperson key to substrate key"
+        );
+    }
+
+    #[test]
+    fn decodes_production_1gib_post_verifying_key() {
+        let vk_bytes = include_bytes!("../../../../examples/1GiB.post.vk");
+        // decode expects &mut mutability
+        let vk_bytes = vk_bytes.to_vec();
+        let key = bp_g16::VerifyingKey::<blstrs::Bls12>::read(&mut vk_bytes.as_slice());
+
+        assert!(key.is_ok(), "failed to parse 1GiB PoSt verifying key");
+        let key = key.unwrap();
+        let substrate_key = VerifyingKey::<Bls12>::try_from(key);
+        assert!(
+            substrate_key.is_ok(),
+            "failed to convert 1GiB PoSt bellperson key to substrate key"
+        );
+    }
 }

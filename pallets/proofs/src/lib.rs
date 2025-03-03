@@ -24,7 +24,7 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-#[frame_support::pallet]
+#[frame_support::pallet(dev_mode)]
 pub mod pallet {
     pub const LOG_TARGET: &'static str = "runtime::proofs";
 
@@ -89,8 +89,9 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        #[pallet::call_index(0)]
-        #[pallet::weight((T::WeightInfo::set_porep_verifying_key(), DispatchClass::Operational))]
+        // TODO(@th7nder,#790,03/03/2025): benchmarking was previously done for small params, not for production 1GiB sectors
+        // #[pallet::call_index(0)]
+        // #[pallet::weight((T::WeightInfo::set_porep_verifying_key(), DispatchClass::Operational))]
         pub fn set_porep_verifying_key(
             origin: OriginFor<T>,
             registered_seal_proof: RegisteredSealProof,
@@ -111,8 +112,9 @@ pub mod pallet {
             Ok(())
         }
 
-        #[pallet::call_index(1)]
-        #[pallet::weight((T::WeightInfo::set_post_verifying_key(), DispatchClass::Operational))]
+        // TODO(@th7nder,#790,03/03/2025): benchmarking was previously done for small params, not for production 1GiB sectors
+        // #[pallet::call_index(1)]
+        // #[pallet::weight((T::WeightInfo::set_post_verifying_key(), DispatchClass::Operational))]
         pub fn set_post_verifying_key(
             origin: OriginFor<T>,
             registered_post_proof: RegisteredPoStProof,
