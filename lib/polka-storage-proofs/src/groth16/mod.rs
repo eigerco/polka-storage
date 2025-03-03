@@ -50,6 +50,15 @@ const G1AFFINE_UNCOMPRESSED_BYTES: usize = 96;
 /// The number of bytes when serialising a `G1Affine` by using `G1Affine::to_uncompressed()`.
 const G2AFFINE_UNCOMPRESSED_BYTES: usize = 192;
 
+/// Number of G1Affine constants in a [`VerifyingKey`].
+const G1AFFINE_PARAMS: usize = 3;
+/// Number of G2Affine constants in a [`VerifyingKey`].
+const G2AFFINE_PARAMS: usize = 3;
+/// Maximum number of ic params in a [`VerifyingKey`] in a secure PoRep of Sector Size of 1GiB.
+const MAX_PRODUCTION_POREP_VK_IC_LEN: usize = 328;
+/// Maximum number of ic params in a [`VerifyingKey`] in a secure PoSt of Sector Size of 1GiB.
+const MAX_PRODUCTION_POST_VK_IC_LEN: usize = 25840;
+
 /// This constant specifies the minimum number of bytes of a serialised `VerifyingKey`.
 ///
 /// It gets calculated by the defined number of serialised bytes of `G1Affine` and `G2Affine` in
@@ -58,7 +67,7 @@ const G2AFFINE_UNCOMPRESSED_BYTES: usize = 192;
 /// 3 x `G2Affine`. One serialised `u32` variable will be added.
 /// That computes to: 3 x 48 + 3 * 96 + 4 = 436.
 pub const VERIFYINGKEY_MIN_BYTES: usize =
-    3 * G1AFFINE_COMPRESSED_BYTES + 3 * G2AFFINE_COMPRESSED_BYTES + 4;
+    G1AFFINE_PARAMS * G1AFFINE_COMPRESSED_BYTES + G2AFFINE_PARAMS * G2AFFINE_COMPRESSED_BYTES + 4;
 
 /// This constant specifies the minimum number of bytes of a serialised `VerifyingKey` of usual
 /// public implementations. Usual public implementations means similar implementations in crates
@@ -69,15 +78,21 @@ pub const VERIFYINGKEY_MIN_BYTES: usize =
 /// serialised `G2Affine` are 192 bytes. In `VerifyingKey` we have for sure 3 x `G1Affine` and
 /// 3 x `G2Affine`. One serialised `u32` variable will be added.
 /// That computes to: 3 x 96 + 3 * 192 + 4 = 868.
-pub const VERIFYINGKEY_MIN_BYTES_STD: usize =
-    3 * G1AFFINE_UNCOMPRESSED_BYTES + 3 * G2AFFINE_UNCOMPRESSED_BYTES + 4;
+pub const VERIFYINGKEY_MIN_BYTES_STD: usize = G1AFFINE_PARAMS * G1AFFINE_UNCOMPRESSED_BYTES
+    + G2AFFINE_PARAMS * G2AFFINE_UNCOMPRESSED_BYTES
+    + 4;
 
-/// This constant specifies the maximum number of bytes of a serialised `VerifyingKey`.
-///
-/// The maximum number of parameters in field `ic` is 40 because its depedency can be resolved to
-/// possible sector sizes. This computes to: 3 * 96 + 3 * 192 + 4 + 40 * 96 = 4704.
-pub const VERIFYINGKEY_MAX_BYTES: usize =
-    43 * G1AFFINE_UNCOMPRESSED_BYTES + 3 * G2AFFINE_UNCOMPRESSED_BYTES + 4;
+/// This constant specifies the maximum number of bytes of a serialised PoRep 1GiB `VerifyingKey`.
+pub const POREP_VERIFYINGKEY_MAX_BYTES: usize = (G1AFFINE_PARAMS + MAX_PRODUCTION_POREP_VK_IC_LEN)
+    * G1AFFINE_COMPRESSED_BYTES
+    + G2AFFINE_PARAMS * G2AFFINE_COMPRESSED_BYTES
+    + 4;
+
+/// This constant specifies the maximum number of bytes of a serialised PoSt 1GiB `VerifyingKey`.
+pub const POST_VERIFYINGKEY_MAX_BYTES: usize = (G1AFFINE_PARAMS + MAX_PRODUCTION_POST_VK_IC_LEN)
+    * G1AFFINE_COMPRESSED_BYTES
+    + G2AFFINE_PARAMS * G2AFFINE_COMPRESSED_BYTES
+    + 4;
 
 /// This constant specifies the number of bytes of a serialised `Proof`.
 ///

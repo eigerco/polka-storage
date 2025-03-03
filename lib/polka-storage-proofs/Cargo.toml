@@ -40,7 +40,7 @@ workspace = true
 
 [features]
 cuda = ["filecoin-proofs?/cuda", "filecoin-proofs?/multicore-sdr", "std"]
-default = ["opencl"]
+default = ["opencl", "substrate"]
 opencl = ["filecoin-proofs?/multicore-sdr", "filecoin-proofs?/opencl", "std"]
 std = [
   "codec?/std",

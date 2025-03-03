@@ -24,12 +24,13 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-#[frame_support::pallet]
+#[frame_support::pallet(dev_mode)]
 pub mod pallet {
     pub const LOG_TARGET: &'static str = "runtime::proofs";
 
     use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeMap};
     use frame_system::pallet_prelude::*;
+    use polka_storage_proofs::POREP_VERIFYINGKEY_MAX_BYTES;
     use primitives::{
         commitment::RawCommitment,
         pallets::ProofVerification,
@@ -89,14 +90,19 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        #[pallet::call_index(0)]
-        #[pallet::weight((T::WeightInfo::set_porep_verifying_key(), DispatchClass::Operational))]
+        // TODO(@th7nder,#790,03/03/2025): benchmarking was previously done for small params, not for production 1GiB sectors
+        // #[pallet::call_index(0)]
+        // #[pallet::weight((T::WeightInfo::set_porep_verifying_key(), DispatchClass::Operational))]
         pub fn set_porep_verifying_key(
             origin: OriginFor<T>,
             registered_seal_proof: RegisteredSealProof,
             verifying_key: crate::Vec<u8>,
         ) -> DispatchResult {
             let caller = ensure_signed(origin)?;
+            if verifying_key.len() > POREP_VERIFYINGKEY_MAX_BYTES {
+                log::error!(target: LOG_TARGET, "verifying key is longer ({}) than the maximum expected ({})", verifying_key.len(), POREP_VERIFYINGKEY_MAX_BYTES);
+                return Err(Error::<T>::InvalidVerifyingKey.into());
+            }
             let vkey =
                 VerifyingKey::<Bls12>::decode(&mut verifying_key.as_slice()).map_err(|e| {
                     log::error!(target: LOG_TARGET, "failed to parse PoRep verifying key {:?}", e);
@@ -111,8 +117,9 @@ pub mod pallet {
             Ok(())
         }
 
-        #[pallet::call_index(1)]
-        #[pallet::weight((T::WeightInfo::set_post_verifying_key(), DispatchClass::Operational))]
+        // TODO(@th7nder,#790,03/03/2025): benchmarking was previously done for small params, not for production 1GiB sectors
+        // #[pallet::call_index(1)]
+        // #[pallet::weight((T::WeightInfo::set_post_verifying_key(), DispatchClass::Operational))]
         pub fn set_post_verifying_key(
             origin: OriginFor<T>,
             registered_post_proof: RegisteredPoStProof,
