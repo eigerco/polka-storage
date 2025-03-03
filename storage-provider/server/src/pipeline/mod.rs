@@ -278,14 +278,14 @@ fn process(
 ) {
     match msg {
         PipelineMessage::AddPiece(msg) => {
-            tracker.add_piece(state.clone(), msg, token.clone());
+            tracker.add_piece(state.clone(), msg, token.child_token());
         }
         PipelineMessage::PreCommit(msg) => tracker.precommit(state.clone(), msg),
         PipelineMessage::ProveCommit(msg) => {
-            tracker.prove_commit(state.clone(), msg, token.clone())
+            tracker.prove_commit(state.clone(), msg, token.child_token())
         }
         PipelineMessage::SubmitWindowedPoStMessage(msg) => {
-            tracker.submit_windowed_post(state.clone(), msg, token.clone())
+            tracker.submit_windowed_post(state.clone(), msg, token.child_token())
         }
         PipelineMessage::SchedulePoSts => tracker.schedule_posts(state.clone()),
     }

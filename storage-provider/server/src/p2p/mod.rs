@@ -11,9 +11,9 @@ use libp2p::{
 };
 use primitives::p2p::DEFAULT_REGISTRATION_TTL;
 use swarm::new_swarm;
-use tokio::{select, task::JoinHandle};
+use tokio::select;
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, info, instrument, warn};
 
 pub mod blockstore;
 mod error;
@@ -32,34 +32,6 @@ const P2P_NAMESPACE: &str = "polka-storage";
 
 /// The protocol version identifier string used by the identify protocol.
 const IDENTIFY_PROTOCOL_VERSION: &str = "polka-storage/1.0.0";
-
-/// Starts a new P2P networking service in a separate tokio task.
-pub fn start_p2p<B>(
-    args: P2pArgs<B>,
-    cancellation_token: CancellationToken,
-) -> Result<JoinHandle<Result<(), P2pError>>, P2pError>
-where
-    B: Blockstore + Send + 'static,
-{
-    // Initialize the p2p worker and move it to the different task
-    let worker = Worker::new(args)?;
-
-    Ok(tokio::spawn(async move {
-        tokio::select! {
-            _ = cancellation_token.cancelled() => {
-                info!("P2P worker received shutdown signal");
-            }
-            result = worker.run() => {
-                match result {
-                    Ok(_) => info!("P2P worker completed"),
-                    Err(err) => error!("P2P failed with error: {}", err),
-                }
-            }
-        }
-
-        Ok(())
-    }))
-}
 
 /// Arguments used to configure the [`P2p`].
 pub struct P2pArgs<B>
@@ -95,7 +67,7 @@ where
 /// 3. Exchange identity information
 /// 4. Register our presence with the rendezvous nodes (repeated periodically)
 /// 5. Handle incoming bitswap requests
-struct Worker<B>
+pub struct Worker<B>
 where
     B: Blockstore + 'static,
 {
@@ -140,7 +112,7 @@ where
         })
     }
 
-    async fn run(mut self) -> Result<(), P2pError> {
+    pub async fn run(mut self, cancellation_token: CancellationToken) -> Result<(), P2pError> {
         let mut register_interval = tokio::time::interval(REGISTRATION_TTL);
 
         loop {
@@ -161,6 +133,10 @@ where
                     request_registration(&mut self.swarm, &self.rendezvous_nodes);
                 }
                 event = self.swarm.select_next_some() => self.on_swarm_event(event),
+                _ = cancellation_token.cancelled() => {
+                    info!("P2P worker received shutdown signal");
+                    return Ok(());
+                }
             }
         }
     }
