@@ -100,13 +100,13 @@ parameter_types! {
     pub const MinSectorExpiration: BlockNumber = 5 * MINUTES;
     pub const MaxSectorExpiration: BlockNumber = 360 * MINUTES;
     pub const SectorMaximumLifetime: BlockNumber = 120 * MINUTES;
-    pub const MaxProveCommitDuration: BlockNumber = 5 * MINUTES;
+    // NOTE: Changed from Testnet's 5 to 15 since the pre-commit delay is 10 blocks.
+    pub const MaxProveCommitDuration: BlockNumber = 15 * MINUTES;
     pub const MaxPartitionsPerDeadline: u64 = 3000;
     pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
     pub const FaultDeclarationCutoff: BlockNumber = 2 * MINUTES;
-    // 0 allows us to publish the prove-commit on the same block as the
-    // pre-commit.
-    pub const PreCommitChallengeDelay: BlockNumber = 0;
+    // NOTE: Changed from Testnet's 0 to 10 to match the storage-provider client's `porep` command.
+    pub const PreCommitChallengeDelay: BlockNumber = 10;
     // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L299>
     pub const AddressedSectorsMax: u64 = 25_000;
 

@@ -371,7 +371,7 @@ parameter_types! {
 // used for benchmarking
 #[cfg(all(feature = "testnet", feature = "runtime-benchmarks"))]
 parameter_types! {
-    pub const PreCommitChallengeDelay: BlockNumber = 0;
+    pub const PreCommitChallengeDelay: BlockNumber = 10;
 }
 
 #[cfg(feature = "runtime-benchmarks")]

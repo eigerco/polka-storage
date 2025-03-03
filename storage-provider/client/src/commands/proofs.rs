@@ -1,12 +1,20 @@
-use std::{io::Write, path::PathBuf, str::FromStr};
+use std::{
+    fmt::Display,
+    io::Write,
+    ops::Deref,
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
+use clap::ValueEnum;
 use codec::Encode;
+use itertools::Itertools;
 use mater::CarV2Reader;
 use polka_storage_proofs::{
     match_post_proof, match_seal_proof,
     porep::{
         self,
-        sealer::{create_sector, precommit_sector, prove_sector},
+        sealer::{create_sector, precommit_sector, prove_sector, PreCommitOutput},
     },
     post::{self, generate_window_post, ReplicaInfo},
     ZeroPaddingReader,
@@ -15,15 +23,21 @@ use polka_storage_provider_common::commp::{commp, CommPError};
 use primitives::{
     commitment::{
         piece::{PaddedPieceSize, PieceInfo},
-        Commitment, CommitmentError,
+        CommD, CommP, CommR, Commitment, CommitmentError, CommitmentKind,
     },
     proofs::{derive_prover_id, RegisteredPoStProof, RegisteredSealProof},
     randomness::{draw_randomness, DomainSeparationTag},
-    sector::SectorNumber,
+    sector::{SectorNumber, SectorSize},
+    MAX_SECTORS_PER_CALL,
 };
+use quote::format_ident;
 use serde_json::json;
 use storagext::multipair::{MultiPairArgs, MultiPairSigner};
-use subxt::tx::Signer;
+use subxt::{
+    ext::sp_core::{sr25519, Pair},
+    tx::{PairSigner, Signer},
+};
+use tempfile::tempdir;
 
 use crate::CliError;
 
@@ -130,6 +144,59 @@ pub enum ProofsCommand {
         /// CID - CommR of a replica (output of `porep` command)
         comm_r: String,
     },
+    /// Generates PoRep params, PoSt params, proofs and commitments used for benchmarking.
+    #[clap(name = "benchmark-data")]
+    BenchmarkData {
+        /// Piece file, CARv2 archive created with `mater-cli convert`.
+        input_path: PathBuf,
+        /// PoRep and PoSt have multiple variants dependent on the sector size.
+        /// Parameters are required for each sector size.
+        #[arg(long)]
+        sector_size: SectorSizeArg,
+    },
+}
+
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SectorSizeArg {
+    #[clap(name = "2KiB")]
+    _2KiB,
+    #[clap(name = "8MiB")]
+    _8MiB,
+    #[clap(name = "512MiB")]
+    _512MiB,
+    #[clap(name = "1GiB")]
+    _1GiB,
+}
+
+impl SectorSizeArg {
+    fn porep(&self) -> RegisteredSealProof {
+        match self {
+            SectorSizeArg::_2KiB => RegisteredSealProof::StackedDRG2KiBV1P1,
+            SectorSizeArg::_8MiB => RegisteredSealProof::StackedDRG8MiBV1,
+            SectorSizeArg::_512MiB => RegisteredSealProof::StackedDRG512MiBV1,
+            SectorSizeArg::_1GiB => RegisteredSealProof::StackedDRG1GiBV1,
+        }
+    }
+
+    fn post(&self) -> RegisteredPoStProof {
+        match self {
+            SectorSizeArg::_2KiB => RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+            SectorSizeArg::_8MiB => RegisteredPoStProof::StackedDRGWindow8MiBV1,
+            SectorSizeArg::_512MiB => RegisteredPoStProof::StackedDRGWindow512MiBV1,
+            SectorSizeArg::_1GiB => RegisteredPoStProof::StackedDRGWindow1GiBV1,
+        }
+    }
+}
+
+impl Display for SectorSizeArg {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SectorSizeArg::_2KiB => write!(f, "2KiB"),
+            SectorSizeArg::_8MiB => write!(f, "8MiB"),
+            SectorSizeArg::_512MiB => write!(f, "512MiB"),
+            SectorSizeArg::_1GiB => write!(f, "1GiB"),
+        }
+    }
 }
 
 const POREP_PARAMS_EXT: &str = "porep.params";
@@ -142,6 +209,9 @@ const POST_VK_EXT_SCALE: &str = "post.vk.scale";
 
 const POREP_PROOF_EXT: &str = "sector.proof.porep.scale";
 const POST_PROOF_EXT: &str = "sector.proof.post.scale";
+
+const BENCH_CACHE_DIR: &str = "target/bench";
+const BENCH_DATA_DIR_TO_TARGET: &str = "../../../..";
 
 impl ProofsCommand {
     /// Run the command.
@@ -168,7 +238,22 @@ impl ProofsCommand {
                 seal_randomness_height,
                 pre_commit_block_number,
             } => {
-                porep(signer_key, sector_id, seal_randomness_height, pre_commit_block_number, output_path, input_path, proof_parameters_path, commp, seal_proof, cache_directory).await?;
+                let Some(signer) = Option::<MultiPairSigner>::from(signer_key) else {
+                    return Err(UtilsCommandError::NoSigner)?;
+                };
+                porep(
+                    &signer,
+                    sector_id,
+                    seal_randomness_height,
+                    pre_commit_block_number,
+                    output_path,
+                    input_path,
+                    proof_parameters_path,
+                    commp,
+                    seal_proof,
+                    cache_directory,
+                )
+                .await?;
             }
             ProofsCommand::GeneratePoStParams {
                 post_type,
@@ -187,7 +272,23 @@ impl ProofsCommand {
                 sector_number,
                 challenge_block,
             } => {
-                post(signer_key, challenge_block, output_path, sector_number, comm_r, replica_path, cache_directory, proof_parameters_path, post_type)?;
+                post(
+                    signer_key,
+                    challenge_block,
+                    output_path,
+                    sector_number,
+                    comm_r,
+                    replica_path,
+                    cache_directory,
+                    proof_parameters_path,
+                    post_type,
+                )?;
+            }
+            ProofsCommand::BenchmarkData {
+                input_path,
+                sector_size,
+            } => {
+                benchmark_data(input_path, sector_size).await?;
             }
         }
 
@@ -195,13 +296,17 @@ impl ProofsCommand {
     }
 }
 
-async fn calculate_piece_commitment(input_path: PathBuf) -> Result<(), CliError> {// Check if the file is a CARv2 file. If it is, we can't calculate the piece commitment.
+async fn calculate_piece_commitment(
+    input_path: impl AsRef<Path>,
+) -> Result<(Commitment<CommP>, PaddedPieceSize), CliError> {
+    let input_path = input_path.as_ref();
+    // Check if the file is a CARv2 file. If it is, we can't calculate the piece commitment.
     let mut source_file = tokio::fs::File::open(&input_path).await?;
     let mut car_v2_reader = CarV2Reader::new(&mut source_file);
     car_v2_reader
         .is_car_file()
         .await
-        .map_err(|e| UtilsCommandError::InvalidCARv2(input_path.clone(), e))?;
+        .map_err(|e| UtilsCommandError::InvalidCARv2(input_path.to_owned(), e))?;
     let (commitment, padded_piece_size) =
         commp(&input_path).map_err(|err| UtilsCommandError::CommPError(err))?;
     let cid = commitment.cid();
@@ -213,15 +318,16 @@ async fn calculate_piece_commitment(input_path: PathBuf) -> Result<(), CliError>
             "size": padded_piece_size
         })
     );
-    Ok(())
+
+    Ok((commitment, padded_piece_size))
 }
 
 fn generate_porep_params(
-    output_path: Option<PathBuf>,
+    output_path: Option<impl AsRef<Path>>,
     seal_proof: RegisteredSealProof,
 ) -> Result<(), CliError> {
     let output_path = if let Some(output_path) = output_path {
-        output_path
+        output_path.as_ref().to_owned()
     } else {
         std::env::current_dir()?
     };
@@ -241,7 +347,7 @@ fn generate_porep_params(
     parameters.write(&mut parameters_file)?;
     parameters.vk.write(&mut vk_file)?;
     let vk =
-        polka_storage_proofs::VerifyingKey::<bls12_381::Bls12>::try_from(parameters.vk)
+        polka_storage_proofs::VerifyingKey::<bls12_381::Bls12>::try_from(parameters.vk.clone())
             .map_err(|e| UtilsCommandError::FromBytesError(e))?;
     let bytes = codec::Encode::encode(&vk);
     vk_scale_file.write_all(&bytes)?;
@@ -253,20 +359,17 @@ fn generate_porep_params(
 }
 
 async fn porep(
-    signer_key: MultiPairArgs,
+    signer: &MultiPairSigner,
     sector_id: u32,
     seal_randomness_height: u64,
     pre_commit_block_number: u64,
-    output_path: Option<PathBuf>,
-    input_path: PathBuf,
-    proof_parameters_path: PathBuf,
+    output_path: Option<impl AsRef<Path>>,
+    input_path: impl AsRef<Path>,
+    proof_parameters_path: impl AsRef<Path>,
     commp: String,
     seal_proof: RegisteredSealProof,
-    cache_directory: PathBuf,
-) -> Result<(), CliError> {
-    let Some(signer) = Option::<MultiPairSigner>::from(signer_key) else {
-        return Err(UtilsCommandError::NoSigner)?;
-    };
+    cache_directory: impl AsRef<Path>,
+) -> Result<PreCommitOutput, CliError> {
     let sector_number =
         SectorNumber::try_from(sector_id).map_err(|_| UtilsCommandError::InvalidSectorId)?;
     let entropy = signer.account_id().encode();
@@ -291,7 +394,7 @@ async fn porep(
         hex::encode(seed)
     );
     let output_path = if let Some(output_path) = output_path {
-        output_path
+        output_path.as_ref().to_owned()
     } else {
         std::env::current_dir()?
     };
@@ -300,19 +403,21 @@ async fn porep(
         format!("{}", sector_id).as_str(),
         POREP_PROOF_EXT,
     )?;
+    let input_path = input_path.as_ref();
     let mut source_file = tokio::fs::File::open(&input_path).await?;
     let mut car_v2_reader = CarV2Reader::new(&mut source_file);
     car_v2_reader
         .is_car_file()
         .await
-        .map_err(|e| UtilsCommandError::InvalidCARv2(input_path.clone(), e))?;
-    let proof_parameters = porep::load_groth16_parameters(proof_parameters_path)
-        .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
+        .map_err(|e| UtilsCommandError::InvalidCARv2(input_path.to_owned(), e))?;
+    let proof_parameters =
+        porep::load_groth16_parameters(proof_parameters_path.as_ref().to_owned())
+            .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
     let piece_file = std::fs::File::open(&input_path)
-        .map_err(|e| UtilsCommandError::InvalidPieceFile(input_path.clone(), e))?;
+        .map_err(|e| UtilsCommandError::InvalidPieceFile(input_path.to_owned(), e))?;
     let piece_file_length = piece_file
         .metadata()
-        .map_err(|e| UtilsCommandError::InvalidPieceFile(input_path, e))?
+        .map_err(|e| UtilsCommandError::InvalidPieceFile(input_path.to_owned(), e))?
         .len();
     let piece_file_length = PaddedPieceSize::from_arbitrary_size(piece_file_length);
     let piece_file = ZeroPaddingReader::new(piece_file, *piece_file_length.unpadded());
@@ -381,7 +486,7 @@ async fn porep(
     proof_scale_file.write_all(&scale_encoded_proof)?;
     println!("Proof as HEX: {}", hex::encode(scale_encoded_proof));
     println!("Wrote proof to {}", proof_scale_filename.display());
-    Ok(())
+    Ok(precommit)
 }
 
 fn generate_post_params(
@@ -487,6 +592,209 @@ fn post(
     Ok(())
 }
 
+/// This is a temporary representation of the data that ends up in a separate `BenchmarkData` struct
+/// in `pallets/storage-provider/benchmarks/src/data.rs`
+#[derive(Debug)]
+pub struct BenchmarkData {
+    pub provider_name: String,
+    pub verifying_key_path: PathBuf,
+    pub seal_proof: RegisteredSealProof,
+    pub post_type: RegisteredPoStProof,
+    pub seal_randomness_height: u64,
+    pub pre_commit_block_number: u64,
+    pub comm_p: Commitment<CommP>,
+    pub sectors: Vec<SectorData>,
+}
+
+/// This is a temporary representation of the data that ends up in a separate `SectorData` struct
+/// in `pallets/storage-provider/benchmarks/src/data.rs`
+#[derive(Debug)]
+pub struct SectorData {
+    pub sector_number: SectorNumber,
+    pub padded_piece_size: PaddedPieceSize,
+    pub comm_r: Commitment<CommR>,
+    pub comm_d: Commitment<CommD>,
+    pub proof_path: PathBuf,
+}
+
+async fn benchmark_data(input_path: PathBuf, sector_size: SectorSizeArg) -> Result<(), CliError> {
+    const SEAL_RANDOMNESS_HEIGHT: u64 = 1;
+    const PRE_COMMIT_BLOCK_NUMBER: u64 = 5;
+    const PROVIDER_NAME: &str = "//StorageProvider";
+    let seal_proof = sector_size.porep();
+    let post_type = sector_size.post();
+
+    println!(
+        "--- Calculating piece commitment for {} ---",
+        input_path.display()
+    );
+    let (comm_p, padded_piece_size) = calculate_piece_commitment(&input_path).await?;
+
+    let params_root = PathBuf::from(BENCH_CACHE_DIR).join("params");
+
+    let sector_size = seal_proof.sector_size();
+    let porep_params_path = params_root.join(format!("{sector_size}.{POREP_PARAMS_EXT}"));
+    let porep_params_vk_path = params_root.join(format!("{sector_size}.{POREP_VK_EXT_SCALE}"));
+    if !tokio::fs::try_exists(&porep_params_vk_path).await? {
+        println!("--- Generating PoRep params for seal proof {seal_proof:?} ---");
+        tokio::fs::create_dir_all(&params_root).await?;
+        generate_porep_params(Some(&params_root), seal_proof)?;
+    } else {
+        println!("--- Using cached PoRep params for seal proof {seal_proof:?} ---");
+        println!("{}", porep_params_path.display());
+    };
+
+    let signer_key: MultiPairSigner = MultiPairSigner::Sr25519(PairSigner::new(
+        sr25519::Pair::from_string(PROVIDER_NAME, None).expect("hardcoded key to be valid"),
+    ));
+
+    let mut benchmark_data = BenchmarkData {
+        provider_name: PROVIDER_NAME.to_owned(),
+        verifying_key_path: porep_params_vk_path,
+        seal_proof,
+        post_type,
+        seal_randomness_height: SEAL_RANDOMNESS_HEIGHT,
+        pre_commit_block_number: PRE_COMMIT_BLOCK_NUMBER,
+        comm_p,
+        sectors: Vec::with_capacity(MAX_SECTORS_PER_CALL as usize),
+    };
+
+    let proofs_root = PathBuf::from(BENCH_CACHE_DIR)
+        .join("proofs")
+        .join(sector_size.to_string());
+    tokio::fs::create_dir_all(&proofs_root).await?;
+
+    for sector_number in 0..MAX_SECTORS_PER_CALL {
+        println!("--- Sealing sector {sector_number} ---");
+        let output_path = tempdir()?;
+        tokio::fs::create_dir_all(&output_path).await?;
+        let cache_directory = tempdir()?;
+        tokio::fs::create_dir_all(&cache_directory).await?;
+
+        let PreCommitOutput { comm_r, comm_d } = porep(
+            &signer_key,
+            sector_number,
+            SEAL_RANDOMNESS_HEIGHT,
+            PRE_COMMIT_BLOCK_NUMBER,
+            Some(&output_path),
+            &input_path,
+            &porep_params_path,
+            comm_p.to_string(),
+            seal_proof,
+            &cache_directory,
+        )
+        .await?;
+
+        let file_name = format!("{sector_number}.{POREP_PROOF_EXT}");
+        let proof_path = proofs_root.join(&file_name);
+        tokio::fs::copy(output_path.path().join(&file_name), &proof_path).await?;
+
+        benchmark_data.sectors.push(SectorData {
+            sector_number: SectorNumber::new(sector_number)
+                .expect("sector IDs <= MAX_SECTORS_PER_CALL are safe"),
+            padded_piece_size,
+            comm_r,
+            comm_d,
+            proof_path,
+        });
+        drop(output_path);
+        drop(cache_directory);
+    }
+    println!("--- Benchmarking data generated ---");
+    let constructor = emit_benchmark_constructor(sector_size, &benchmark_data);
+    println!("{constructor}");
+    Ok(())
+}
+
+fn emit_benchmark_constructor(sector_size: SectorSize, benchmark_data: &BenchmarkData) -> String {
+    let command = std::env::args().join(" ");
+    let BenchmarkData {
+        provider_name,
+        verifying_key_path,
+        seal_proof,
+        post_type,
+        seal_randomness_height,
+        pre_commit_block_number,
+        comm_p,
+        sectors,
+    } = benchmark_data;
+
+    let sectors = sectors
+        .iter()
+        .map(|sector| {
+            let SectorData {
+                sector_number,
+                padded_piece_size,
+                comm_r,
+                comm_d,
+                proof_path,
+            } = sector;
+            let sector_number = u32::from(*sector_number);
+            let padded_piece_size = padded_piece_size.deref();
+            let comm_r = emit_commitment(comm_r);
+            let comm_d = emit_commitment(comm_d);
+            let proof_path_rel = PathBuf::from(BENCH_DATA_DIR_TO_TARGET).join(proof_path);
+            let proof_path = proof_path_rel.to_string_lossy();
+            quote::quote! {
+                SectorData {
+                    sector_number: SectorNumber::new(#sector_number).expect("valid sector ID"),
+                    padded_piece_size: PaddedPieceSize::new(#padded_piece_size).expect("valid padded piece size"),
+                    comm_r: #comm_r,
+                    comm_d: #comm_d,
+                    proof: include_bytes!(#proof_path),
+                }
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let sector_size = format_ident!("_{sector_size}");
+    let verifying_key_path_rel = PathBuf::from(BENCH_DATA_DIR_TO_TARGET).join(verifying_key_path);
+    let verifying_key_path = verifying_key_path_rel.to_string_lossy();
+    let seal_proof = format_ident!("{seal_proof:?}");
+    let post_type = format_ident!("{post_type:?}");
+    let comm_p = emit_commitment(comm_p);
+    let code = quote::quote! {
+        SectorSize::#sector_size => {
+            BenchmarkData {
+                _phantom: PhantomData,
+                provider_name: #provider_name,
+                verifying_key: include_bytes!(#verifying_key_path),
+                seal_proof: RegisteredSealProof::#seal_proof,
+                post_type: RegisteredPoStProof::#post_type,
+                seal_randomness_height: #seal_randomness_height,
+                pre_commit_block_number: #pre_commit_block_number,
+                comm_p: #comm_p,
+                sectors: vec![#(#sectors),*],
+            }
+        }
+    };
+
+    format!(
+        "
+        // DO NOT MODIFY
+        // This code has been generated by `{command}`
+        {code}
+        "
+    )
+}
+
+fn emit_commitment<Kind: CommitmentKind>(
+    commitment: &Commitment<Kind>,
+) -> proc_macro2::TokenStream {
+    let commitment = commitment.cid().to_string();
+    // Hacky, but works.
+    let ty = std::any::type_name::<Kind>()
+        .rsplit_once("::")
+        .expect("valid path")
+        .1;
+    let kind = format_ident!("{ty}");
+    quote::quote! {
+        Commitment::<#kind>::from_cid(
+            &Cid::from_str(#commitment).expect("valid cid"),
+        ).expect("valid commitment")
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum UtilsCommandError {
     #[error("the commp command failed because: {0}")]
@@ -513,6 +821,10 @@ pub enum UtilsCommandError {
     InvalidCARv2(PathBuf, mater::Error),
     #[error("no signer key was provider")]
     NoSigner,
+    #[error("error when serializing to json: {0}")]
+    SerdeJson(#[from] serde_json::Error),
+    #[error("error when decoding from scale file: {0}")]
+    ParityScale(#[from] codec::Error),
 }
 
 fn file_with_extension(

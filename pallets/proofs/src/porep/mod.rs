@@ -161,7 +161,7 @@ impl ProofScheme {
             ProofError::Conversion
         })?;
         let comm_r_fr = fr32::bytes_into_fr(comm_r).map_err(|e| {
-            log::error!(target: LOG_TARGET, "comm_d_fr failed: {e:?}");
+            log::error!(target: LOG_TARGET, "comm_r_fr failed: {e:?}");
             ProofError::Conversion
         })?;
 
@@ -187,8 +187,8 @@ impl ProofScheme {
         for partition_index in 0..proofs.len() {
             let inputs =
                 self.generate_public_inputs(public_inputs.clone(), Some(partition_index))?;
-            verify_proof(&pvk, &proofs[partition_index], inputs.as_slice()).inspect_err(|_| {
-                log::error!(target: LOG_TARGET, "failed to verify partition {}", partition_index);
+            verify_proof(&pvk, &proofs[partition_index], inputs.as_slice()).inspect_err(|e| {
+                log::error!(target: LOG_TARGET, "failed to verify partition {}: {e:?}", partition_index);
             })?;
         }
 
