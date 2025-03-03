@@ -30,6 +30,7 @@ pub mod pallet {
 
     use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeMap};
     use frame_system::pallet_prelude::*;
+    use polka_storage_proofs::POREP_VERIFYINGKEY_MAX_BYTES;
     use primitives::{
         commitment::RawCommitment,
         pallets::ProofVerification,
@@ -98,6 +99,10 @@ pub mod pallet {
             verifying_key: crate::Vec<u8>,
         ) -> DispatchResult {
             let caller = ensure_signed(origin)?;
+            if verifying_key.len() > POREP_VERIFYINGKEY_MAX_BYTES {
+                log::error!(target: LOG_TARGET, "verifying key is longer ({}) than the maximum expected ({})", verifying_key.len(), POREP_VERIFYINGKEY_MAX_BYTES);
+                return Err(Error::<T>::InvalidVerifyingKey.into());
+            }
             let vkey =
                 VerifyingKey::<Bls12>::decode(&mut verifying_key.as_slice()).map_err(|e| {
                     log::error!(target: LOG_TARGET, "failed to parse PoRep verifying key {:?}", e);
