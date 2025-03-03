@@ -3,12 +3,9 @@
 
 use super::*;
 
-impl<E> Default for VerifyingKey<E>
-where
-    E: Engine<G1Affine = G1Affine, G2Affine = G2Affine>,
-{
+impl Default for VerifyingKey<Bls12> {
     fn default() -> Self {
-        VerifyingKey::<E> {
+        VerifyingKey::<Bls12> {
             alpha_g1: G1Affine::default(),
             beta_g1: G1Affine::default(),
             beta_g2: G2Affine::default(),
@@ -20,10 +17,7 @@ where
     }
 }
 
-impl<E> ::codec::Decode for VerifyingKey<E>
-where
-    E: Engine<G1Affine = G1Affine, G2Affine = G2Affine>,
-{
+impl ::codec::Decode for VerifyingKey<Bls12> {
     fn decode<I: ::codec::Input>(input: &mut I) -> Result<Self, ::codec::Error> {
         // We can't allocate 1.4MiB required for PoSt on stack.
         let mut buffer = alloc::vec::Vec::with_capacity(POST_VERIFYINGKEY_MAX_BYTES);
@@ -37,20 +31,14 @@ where
         }
         buffer.resize(n_bytes, 0);
         input.read(&mut buffer[..n_bytes])?;
-        VerifyingKey::<E>::from_bytes(&buffer[..n_bytes])
+        VerifyingKey::<Bls12>::from_bytes(&buffer[..n_bytes])
             .map_err(|e| codec::Error::from(e.as_static_str()))
     }
 }
 
-impl<E> ::codec::EncodeLike for VerifyingKey<E> where
-    E: Engine<G1Affine = G1Affine, G2Affine = G2Affine>
-{
-}
+impl ::codec::EncodeLike for VerifyingKey<Bls12> {}
 
-impl<E> ::codec::Encode for VerifyingKey<E>
-where
-    E: Engine<G1Affine = G1Affine, G2Affine = G2Affine>,
-{
+impl ::codec::Encode for VerifyingKey<Bls12> {
     fn size_hint(&self) -> usize {
         self.serialised_bytes()
     }
@@ -75,10 +63,7 @@ where
     }
 }
 
-impl<E> codec::MaxEncodedLen for VerifyingKey<E>
-where
-    E: Engine<G1Affine = G1Affine, G2Affine = G2Affine>,
-{
+impl codec::MaxEncodedLen for VerifyingKey<Bls12> {
     fn max_encoded_len() -> usize {
         MAX_PRODUCTION_POST_VK_IC_LEN
     }

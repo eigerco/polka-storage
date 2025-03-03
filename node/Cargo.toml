@@ -14,8 +14,9 @@ version = "0.0.0"
 name = "polka-storage-node"
 
 [dependencies]
+polka-storage-proofs = { workspace = true, features = ["substrate"] }
 polka-storage-runtime.workspace = true
-primitives = { workspace = true, features = ["std"] }
+primitives = { workspace = true, features = ["serde", "std"] }
 
 clap = { features = ["derive"], workspace = true }
 codec = { workspace = true, default-features = true }

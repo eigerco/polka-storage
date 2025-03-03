@@ -1,5 +1,5 @@
 use frame_support::derive_impl;
-use frame_system::{mocking::MockBlock, GenesisConfig};
+use frame_system::mocking::MockBlock;
 use sp_runtime::BuildStorage;
 
 // Configure a mock runtime to test the pallet.
@@ -38,7 +38,7 @@ impl crate::Config for Test {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    GenesisConfig::<Test>::default()
+    crate::GenesisConfig::<Test>::default()
         .build_storage()
         .unwrap()
         .into()

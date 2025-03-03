@@ -46,12 +46,6 @@ where
     }
 }
 
-impl std::fmt::Display for FromBytesError {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        write!(f, "{}", self.as_static_str())
-    }
-}
-
 impl std::error::Error for FromBytesError {}
 
 /// Method transforms a `blstrs::G1Affine` into a `bls12_381::G1Affine`.

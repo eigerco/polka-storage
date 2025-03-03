@@ -28,9 +28,11 @@ mod benchmarking;
 pub mod pallet {
     pub const LOG_TARGET: &'static str = "runtime::proofs";
 
-    use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeMap};
+    use frame_support::{
+        pallet_prelude::*, sp_runtime::BoundedBTreeMap, traits::BuildGenesisConfig,
+    };
     use frame_system::pallet_prelude::*;
-    use polka_storage_proofs::POREP_VERIFYINGKEY_MAX_BYTES;
+    use polka_storage_proofs::{VerifyingKey, POREP_VERIFYINGKEY_MAX_BYTES};
     use primitives::{
         commitment::RawCommitment,
         pallets::ProofVerification,
@@ -38,9 +40,10 @@ pub mod pallet {
         sector::SectorNumber,
         MAX_POST_PROOF_BYTES, MAX_PROOFS_PER_BLOCK, MAX_REPLICAS_PER_BLOCK, MAX_SEAL_PROOF_BYTES,
     };
+    use sp_std::collections::btree_map::BTreeMap;
 
     use crate::{
-        crypto::groth16::{Bls12, Proof, VerifyingKey},
+        crypto::groth16::{Bls12, Proof},
         porep, post,
         weights::WeightInfo,
     };
@@ -63,6 +66,37 @@ pub mod pallet {
     #[pallet::storage]
     pub type PoStVerifyingKeys<T: Config> =
         StorageMap<_, Blake2_128Concat, RegisteredPoStProof, VerifyingKey<Bls12>>;
+
+    #[pallet::genesis_config]
+    pub struct GenesisConfig<T: Config> {
+        #[serde(skip)]
+        pub _config: core::marker::PhantomData<T>,
+        pub post_keys: BTreeMap<RegisteredPoStProof, VerifyingKey<Bls12>>,
+        pub porep_keys: BTreeMap<RegisteredSealProof, VerifyingKey<Bls12>>,
+    }
+
+    impl<T: Config> Default for GenesisConfig<T> {
+        fn default() -> Self {
+            Self {
+                post_keys: BTreeMap::new(),
+                porep_keys: BTreeMap::new(),
+                _config: Default::default(),
+            }
+        }
+    }
+
+    #[pallet::genesis_build]
+    impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
+        fn build(&self) {
+            for (post_type, key) in &self.post_keys {
+                PoStVerifyingKeys::<T>::insert(post_type, key.clone());
+            }
+
+            for (porep_type, key) in &self.porep_keys {
+                PoRepVerifyingKeys::<T>::insert(porep_type, key.clone());
+            }
+        }
+    }
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -178,18 +212,18 @@ pub mod pallet {
             let vkey = PoRepVerifyingKeys::<T>::get(seal_proof)
                 .ok_or(Error::<T>::MissingPoRepVerifyingKey)?;
             log::info!(target: LOG_TARGET, "Verifying PoRep proof for sector: {}...", sector);
-            proof_scheme
-                .verify(
-                    &comm_r,
-                    &comm_d,
-                    &prover_id,
-                    sector,
-                    &ticket,
-                    &seed,
-                    vkey,
-                    parsed_proofs,
-                )
-                .map_err(Into::<Error<T>>::into)?;
+            let result = proof_scheme.verify(
+                &comm_r,
+                &comm_d,
+                &prover_id,
+                sector,
+                &ticket,
+                &seed,
+                vkey,
+                parsed_proofs,
+            );
+            log::info!(target: LOG_TARGET, "Verified PoRep proof for sector: {}", sector);
+            result.map_err(Into::<Error<T>>::into)?;
 
             Ok(())
         }
@@ -232,12 +266,15 @@ pub mod pallet {
 
             let vkey = PoStVerifyingKeys::<T>::get(post_type)
                 .ok_or(Error::<T>::MissingPoStVerifyingKey)?;
-            proof_scheme
-                .verify(randomness, replicas.clone(), vkey, parsed_proofs)
-                .map_err(|e| {
-                    log::warn!(target: LOG_TARGET, "failed to verify PoSt proof: {:?}, for replicas: {:?}", e, replicas);
-                    Error::<T>::InvalidPoStProof
-                })?;
+
+            log::info!(target: LOG_TARGET, "Verifying {} PoSt proofs for replicas {}...", parsed_proofs.len(), replicas.len());
+            let result = proof_scheme.verify(randomness, replicas.clone(), vkey, parsed_proofs);
+            log::info!(target: LOG_TARGET, "Verified PoSt proofs for replicas {}.", replicas.len());
+
+            result.map_err(|e| {
+                log::warn!(target: LOG_TARGET, "failed to verify PoSt proof: {:?}, for replicas: {:?}", e, replicas);
+                Error::<T>::InvalidPoStProof
+            })?;
 
             Ok(())
         }
