@@ -125,11 +125,19 @@ pub mod display;
         derive = "::serde::Serialize"
     ),
     derive_for_type(
-        path = "pallet_market::pallet::DealParameters",
+        path = "pallet_market::deal_parameters::DealParameters",
         derive = "::serde::Serialize"
     ),
     derive_for_type(
-        path = "pallet_market::pallet::DealDurationBound",
+        path = "pallet_market::deal_parameters::DealDurationBound",
+        derive = "::serde::Serialize"
+    ),
+    derive_for_type(
+        path = "pallet_market::deal_parameters::OffchainDealParameters",
+        derive = "::serde::Serialize"
+    ),
+    derive_for_type(
+        path = "pallet_market::deal_parameters::OffchainDealDurationBound",
         derive = "::serde::Serialize"
     ),
 )]
