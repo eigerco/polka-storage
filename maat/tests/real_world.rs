@@ -192,8 +192,8 @@ async fn real_world_use_case() {
     setup_logging();
 
     let cwd = std::env::current_dir().unwrap();
-    println!("Current working directory: {:?}", cwd);
-    
+    tracing::info!("Current working directory: {:?}", cwd);
+
     let workspace_root = env::var("CARGO_MANIFEST_DIR").unwrap();
     let data_file_path = Path::new(&workspace_root)
         .join("..")
