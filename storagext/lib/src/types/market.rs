@@ -6,10 +6,12 @@ use subxt::{ext::sp_runtime::MultiSignature, tx::Signer, utils::Static};
 use crate::{
     runtime::{
         bounded_vec::IntoBoundedByteVec,
-        runtime_types::pallet_market::pallet::{
-            ClientDealProposal as RuntimeClientDealProposal,
-            DealDurationBound as RuntimeDealDurationBound, DealParameters as RuntimeDealParameters,
-            DealProposal as RuntimeDealProposal, DealState as RuntimeDealState,
+        runtime_types::pallet_market::{
+            deal_parameters::{OffchainDealDurationBound, OffchainDealParameters},
+            pallet::{
+                ClientDealProposal as RuntimeClientDealProposal,
+                DealProposal as RuntimeDealProposal, DealState as RuntimeDealState,
+            },
         },
     },
     BlockNumber, Currency, PolkaStorageConfig,
@@ -203,11 +205,11 @@ pub struct DealParameters {
     pub deal_duration: DealDurationBound,
 }
 
-impl From<DealParameters> for RuntimeDealParameters<Currency, BlockNumber> {
+impl From<DealParameters> for OffchainDealParameters<Currency, BlockNumber> {
     fn from(value: DealParameters) -> Self {
         Self {
             minimum_price_per_block: value.minimum_price_per_block,
-            deal_duration: RuntimeDealDurationBound {
+            deal_duration: OffchainDealDurationBound {
                 lower: value.deal_duration.lower,
                 upper: value.deal_duration.upper,
             },

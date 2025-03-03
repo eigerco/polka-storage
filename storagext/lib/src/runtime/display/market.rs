@@ -2,8 +2,9 @@ use crate::{
     runtime::{
         market::Event,
         runtime_types::{
-            pallet_market::pallet::{
-                self, BalanceEntry, DealDurationBound, DealParameters, DealState,
+            pallet_market::{
+                deal_parameters::{DealDurationBound, DealParameters},
+                pallet::{self, BalanceEntry, DealState},
             },
             polka_storage_runtime::Runtime,
         },
@@ -163,28 +164,14 @@ where
     }
 }
 
-impl<BlocNumber> std::fmt::Display for DealDurationBound<BlocNumber>
+impl<BlockNumber> std::fmt::Display for DealDurationBound<BlockNumber>
 where
-    BlocNumber: std::fmt::Display,
+    BlockNumber: std::fmt::Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // matching because Option no impl Display
-        match (self.lower.as_ref(), self.upper.as_ref()) {
-            (Some(lower), Some(upper)) => f.write_fmt(format_args!(
-                "DealDurationBound {{ lower: {}, upper: {} }}",
-                lower, upper
-            )),
-            (None, Some(upper)) => f.write_fmt(format_args!(
-                "DealDurationBound {{ lower: None, upper: {}",
-                upper
-            )),
-            (Some(lower), None) => f.write_fmt(format_args!(
-                "DealDurationBound {{ lower: {}, upper: None",
-                lower
-            )),
-            (None, None) => f.write_fmt(format_args!(
-                "DealDurationBound {{ lower: None, upper: None }}"
-            )),
-        }
+        f.write_fmt(format_args!(
+            "DealDurationBound {{ lower: {}, upper: {} }}",
+            self.lower, self.upper
+        ))
     }
 }

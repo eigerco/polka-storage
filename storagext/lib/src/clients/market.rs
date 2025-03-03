@@ -7,9 +7,9 @@ use crate::{
     runtime::{
         self,
         client::SubmissionResult,
-        runtime_types::pallet_market::pallet::{
-            BalanceEntry, ClientDealProposal as RuntimeClientDealProposal,
-            DealParameters as RuntimeDealParameters,
+        runtime_types::pallet_market::{
+            deal_parameters::DealParameters as RuntimeDealParameters,
+            pallet::{BalanceEntry, ClientDealProposal as RuntimeClientDealProposal},
         },
     },
     types::market::{ClientDealProposal, DealParameters, DealProposal},
