@@ -309,10 +309,7 @@ impl Serialize for VerifyingKey<Bls12> {
     {
         let size = self.serialised_bytes();
         let mut buf = Vec::with_capacity(size);
-        // SAFETY: with_capacity(size) guarantees safety of buf.set_len(size)
-        unsafe {
-            buf.set_len(size);
-        }
+        buf.resize(size, 0);
 
         self.into_bytes(&mut buf)
             .map_err(|e| serde::ser::Error::custom(alloc::format!("into_bytes failed: {}", e)))?;
