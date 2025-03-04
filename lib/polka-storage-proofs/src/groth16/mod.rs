@@ -40,8 +40,10 @@ pub use pairing::{
     Engine, MillerLoopResult, MultiMillerLoop,
 };
 use rand_xorshift::XorShiftRng;
-use serde::de::{self, Visitor};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{
+    de::{self, Visitor},
+    Deserialize, Deserializer, Serialize, Serializer,
+};
 
 /// The number of bytes when serialising a `G1Affine` by using `G1Affine::to_compressed()`.
 const G1AFFINE_COMPRESSED_BYTES: usize = 48;
