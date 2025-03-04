@@ -55,7 +55,7 @@ docs:
 
 # Build the polka storage node binary
 build-polka-storage-node:
-  cargo build --release --features polka-storage-runtime/testnet -p polka-storage-node
+  cargo build --release --features polka-storage-runtime/testnet --bin polka-storage-node
 
 # Build the polka storage provider client
 build-polka-storage-provider-client:
@@ -209,7 +209,7 @@ bench-test pallet:
 # Run benchmarks 
 bench-node pallet steps="5" repeat="1":
     cargo run \
-        -p polka-storage-node -r -F runtime-benchmarks -F testnet -- \
+        --bin polka-storage-node -r -F runtime-benchmarks -F testnet -- \
         benchmark pallet \
         --wasm-execution=compiled \
         --pallet "pallet_{{pallet}}" \
@@ -221,7 +221,7 @@ bench-node pallet steps="5" repeat="1":
 # Generate the benchmark weights
 generate-weights pallet steps="5" repeat="1":
     cargo run \
-        -p polka-storage-node -r -F runtime-benchmarks -F testnet -- \
+        --bin polka-storage-node -r -F runtime-benchmarks -F testnet -- \
         benchmark pallet \
         --wasm-execution=compiled \
         --pallet "pallet_{{pallet}}" \
