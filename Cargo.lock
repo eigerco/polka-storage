@@ -13893,6 +13893,7 @@ dependencies = [
  "multihash-codetable",
  "polka-storage-provider-common",
  "primitives",
+ "serde",
  "storagext",
  "thiserror 2.0.8",
  "tokio",

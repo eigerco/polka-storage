@@ -1,22 +1,28 @@
 use std::{path::PathBuf, time::Duration};
 
-use clap::{command, Parser};
-use download::{DownloadClient, DownloadClientSettings};
+use anyhow::{anyhow, bail};
+use cid::Cid;
+use clap::{command, Parser, Subcommand};
 use libp2p::{Multiaddr, PeerId};
-use peer_resolver::find_multiaddr_storage_provider;
 use storagext::{MarketClientExt, StorageProviderClientExt};
-use tokio::time::timeout;
 use tracing::{error, info, level_filters::LevelFilter};
 use tracing_subscriber::{
     filter::FromEnvError, fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer,
 };
 
+use crate::{
+    download::{DownloadClient, DownloadClientSettings},
+    p2p::resolvers::{get_multiaddr_storage_provider, get_piece_info},
+};
+
 mod download;
-mod peer_resolver;
+mod p2p;
 
 #[derive(Parser, Debug)]
-#[command()]
 struct Cli {
+    #[command(subcommand)]
+    subcommand: SubCommand,
+
     /// The output file to write to.
     #[arg(long)]
     output: PathBuf,
@@ -33,71 +39,130 @@ struct Cli {
     /// seconds. If not set the download will never timeout.
     #[arg(long, value_parser = parse_duration)]
     timeout: Option<Duration>,
+}
 
-    /// Deal id
-    #[arg(long)]
-    deal_id: u64,
+#[derive(Debug, Subcommand)]
+pub enum SubCommand {
+    #[command()]
+    ByPayloadCid {
+        /// Provider used for data download
+        #[arg(long)]
+        provider_address: Vec<Multiaddr>,
 
-    /// Bootstrap node address
-    #[arg(long)]
-    bootstrap_address: Multiaddr,
+        /// Cid of the data being downloaded
+        #[arg(long)]
+        payload_cid: Cid,
+    },
+    #[command()]
+    ByDealId {
+        /// Deal id
+        #[arg(long)]
+        deal_id: u64,
 
-    /// Bootstrap node peerid
-    #[arg(long)]
-    bootstrap_peer: PeerId,
+        /// Bootstrap node address
+        #[arg(long)]
+        bootstrap_address: Multiaddr,
 
-    /// Parachain address
-    #[arg(long)]
-    parachain_address: String,
+        /// Bootstrap node peerid
+        #[arg(long)]
+        bootstrap_peer: PeerId,
+
+        /// Parachain address
+        #[arg(long)]
+        parachain_address: String,
+    },
+}
+
+impl SubCommand {
+    pub async fn run(
+        self,
+        output: PathBuf,
+        overwrite: bool,
+        extract: bool,
+        timeout: Option<Duration>,
+    ) -> Result<(), anyhow::Error> {
+        let (providers, payload_cid) = match self {
+            SubCommand::ByPayloadCid {
+                provider_address,
+                payload_cid,
+            } => {
+                // We know the provider and the content we wan't to retrieve
+                (provider_address, payload_cid)
+            }
+            SubCommand::ByDealId {
+                deal_id,
+                bootstrap_address,
+                bootstrap_peer,
+                parachain_address,
+            } => {
+                // Get deal info from the chain
+                let parachain_client =
+                    storagext::Client::new(parachain_address, 0, Duration::ZERO).await?;
+                let Some(deal_info) = parachain_client.retrieve_deal(deal_id).await? else {
+                    bail!("Deal not found on chain {deal_id}");
+                };
+
+                // Get storage provider from the chain
+                let Some(storage_provider) = parachain_client
+                    .retrieve_storage_provider(&deal_info.provider.clone().into())
+                    .await?
+                else {
+                    bail!("Storage provider not found on chain");
+                };
+                let sp_peer_id = PeerId::from_bytes(&storage_provider.info.peer_id.0)?;
+
+                // Peer id to multiaddress
+                let multiaddrs =
+                    get_multiaddr_storage_provider(bootstrap_peer, bootstrap_address, sp_peer_id)
+                        .await?;
+
+                // Find payload cid
+                let piece_info =
+                    get_piece_info(sp_peer_id, multiaddrs[0].clone(), deal_info.piece_cid).await?;
+                let payload_cid = piece_info
+                    .roots
+                    .get(0)
+                    .ok_or_else(|| anyhow!("no roots received for a piece"))?;
+
+                (multiaddrs, *payload_cid)
+            }
+        };
+
+        let settings = DownloadClientSettings::new(output, extract, overwrite);
+        let client = DownloadClient::new(providers, payload_cid, settings).await?;
+
+        let download_result = match timeout {
+            Some(duration) => tokio::time::timeout(duration, client.download()).await,
+            None => Ok(client.download().await),
+        };
+
+        match download_result {
+            Ok(Ok(_)) => {
+                info!("download successfully finished")
+            }
+            Ok(Err(err)) => error!(?err, "error occurred while downloading"),
+            Err(_) => error!("download timeout"),
+        }
+
+        Ok(())
+    }
 }
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     setup_tracing()?;
-    let args = Cli::parse();
 
-    // Get deal info from the chain
-    let parachain_client =
-        storagext::Client::new(args.parachain_address, 0, Duration::ZERO).await?;
-    let Some(deal_info) = parachain_client.retrieve_deal(args.deal_id).await? else {
-        error!(deal_id = args.deal_id, "Deal not found on chain");
-        return Ok(());
-    };
+    let cli_arguments = Cli::parse();
 
-    // Get storage provider from the chain
-    let Some(storage_provider) = parachain_client
-        .retrieve_storage_provider(&deal_info.provider.clone().into())
-        .await?
-    else {
-        error!(
-            deal_id = args.deal_id,
-            "Storage provider not found on chain"
-        );
-        return Ok(());
-    };
-    let sp_peer_id = PeerId::from_bytes(&storage_provider.info.peer_id.0)?;
-
-    // Peer id to multiaddress
-    let multiaddrs =
-        find_multiaddr_storage_provider(args.bootstrap_address, args.bootstrap_peer, sp_peer_id)
-            .await?
-            .into_iter()
-            .map(|multiaddr| (sp_peer_id, multiaddr))
-            .collect();
-
-    let settings = DownloadClientSettings::new(args.output, args.extract, args.overwrite);
-    let client = DownloadClient::new(multiaddrs, settings).await?;
-
-    let download_result = match args.timeout {
-        Some(duration) => timeout(duration, client.download(&deal_info.piece_cid)).await,
-        None => Ok(client.download(&deal_info.piece_cid).await),
-    };
-
-    match download_result {
-        Ok(Ok(_)) => info!("download successfully finished"),
-        Ok(Err(err)) => error!(?err, "error occurred while downloading"),
-        Err(_) => error!("download timeout"),
-    }
+    cli_arguments
+        .subcommand
+        .run(
+            cli_arguments.output,
+            cli_arguments.overwrite,
+            cli_arguments.extract,
+            cli_arguments.timeout,
+        )
+        .await?;
 
     Ok(())
 }

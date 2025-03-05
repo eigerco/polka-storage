@@ -24,6 +24,7 @@ mater = { workspace = true, features = ["blockstore"] }
 multihash-codetable = { workspace = true, features = ["sha2"] }
 polka-storage-provider-common = { workspace = true }
 primitives = { workspace = true }
+serde = { workspace = true }
 storagext = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "sync", "time"] }
