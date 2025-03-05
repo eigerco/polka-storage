@@ -32,7 +32,7 @@ const MAX_MULTIHASH_LENGTH: usize = 64;
 /// Errors that can occur while retrieving some content.
 #[derive(Debug, Error)]
 pub enum DownloadError {
-    /// Is used when the storage provider doesn't have a piece requested
+    /// When an unknown piece is requested
     #[error("Unknown piece")]
     PieceUnknown,
     /// Is returned for the car archives that have unsupported number of roots.
@@ -95,8 +95,8 @@ pub struct DownloadClient {
     queries: HashMap<QueryId, Cid>,
     /// Blockstore used by the client to store blocks into.
     blockstore: ReadWriteBlockstore<File>,
-    /// Content roots being downloaded. The root is set when we receive a
-    /// successful response from the storage providers.
+    /// The root is set when we receive a piece_cid to payload_cid mapping from
+    /// a storage provider. It is only set once.
     root: Option<Cid>,
     /// CAR block DAG mapping children to parents. (The A in DAG isn't checked!)
     dag: HashMap<Cid, Cid>,
