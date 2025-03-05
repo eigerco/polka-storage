@@ -180,6 +180,46 @@ impl RpcServerState {
 
         Ok(())
     }
+
+    /// This function validates the proposed deal is within the parameters set by the storage provider.
+    /// This should be called AFTER [`validate_deal_proposal`] to prevent underflow on the deal duration calculation.
+    /// [`validate_deal_proposal`] checks that start_block < end_block, preventing underflow here.
+    async fn validate_proposed_deal_within_parameters(
+        &self,
+        deal: &SxtDealProposal,
+    ) -> Result<(), RpcError> {
+        let Some(deal_parameters) = self
+            .xt_client
+            .retrieve_deal_parameters(self.xt_keypair.account_id())
+            .await?
+        else {
+            return Ok(());
+        };
+        // This will not underflow if this function is called after [`validate_deal_proposal`]
+        let deal_duration = deal.end_block - deal.start_block;
+        if deal.storage_price_per_block < deal_parameters.minimum_price_per_block {
+            return Err(RpcError::internal_error(
+                "Proposed deal price is below the minimum price set by the storage provider"
+                    .to_string(),
+                None,
+            ));
+        }
+        if deal_duration < deal_parameters.deal_duration.lower {
+            return Err(RpcError::internal_error(
+                "Proposed deal duration is shorter than the minimum set by the storage provider"
+                    .to_string(),
+                None,
+            ));
+        }
+        if deal_duration > deal_parameters.deal_duration.upper {
+            return Err(RpcError::internal_error(
+                "Proposed deal duration is shorter than the minimum set by the storage provider"
+                    .to_string(),
+                None,
+            ));
+        }
+        return Ok(());
+    }
 }
 
 #[async_trait::async_trait]
@@ -190,9 +230,8 @@ impl StorageProviderRpcServer for RpcServerState {
 
     async fn propose_deal(&self, deal: SxtDealProposal) -> Result<CidString, RpcError> {
         // TODO(@jmg-duarte,26/11/2024): proper unit or e2e testing of these validations
-        self.validate_deal_proposal(&deal)
-            .await
-            .map_err(|err| RpcError::invalid_params(err, None))?;
+        self.validate_deal_proposal(&deal).await?;
+        self.validate_proposed_deal_within_parameters(&deal).await?;
 
         let storage_provider_balance = self
             .xt_client

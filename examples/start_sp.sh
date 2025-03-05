@@ -16,6 +16,8 @@ P2P_PRIVATE_KEY="/tmp/polka-storage-provider/private.pem"
 P2P_BOOTSTRAP_PUBLIC_KEY="/tmp/zombienet/charlie-public.pem"
 # Config file location
 CONFIG="/tmp/polka-storage-provider/config.toml"
+# Deal parameters JSON location
+DEAL_PARAMS="/tmp/deal_params.json"
 
 # Generate ED25519 private key
 openssl genpkey -algorithm ED25519 -out "$P2P_PRIVATE_KEY"
@@ -43,9 +45,16 @@ wait
 # It's a test setup based on the local verifying keys, everyone can run those extrinsics currently.
 # Each of the keys is different, because the processes are running in parallel.
 # If they were running in parallel on the same account, they'd conflict with each other on the transaction nonce.
-RUST_LOG=debug target/release/storagext-cli --sr25519-key "//Charlie" storage-provider register --post-proof "8MiB" "$P2P_SP_PEER_ID" &
-RUST_LOG=debug target/release/storagext-cli --sr25519-key "//Alice" proofs set-porep-verifying-key --registered-proof 8MiB @8MiB.porep.vk.scale &
+RUST_LOG=debug target/release/storagext-cli --sr25519-key "$PROVIDER" storage-provider register --post-proof "8MiB" "$P2P_SP_PEER_ID" &
+RUST_LOG=debug target/release/storagext-cli --sr25519-key "$CLIENT" proofs set-porep-verifying-key --registered-proof 8MiB @8MiB.porep.vk.scale &
 RUST_LOG=debug target/release/storagext-cli --sr25519-key "//Bob" proofs set-post-verifying-key --registered-proof 8MiB @8MiB.post.vk.scale &
+wait
+
+echo '{ "minimum_price_per_block": 200, "deal_duration": { "lower": 50, "upper": 1800 }}' > "$DEAL_PARAMS"
+
+# Setup deal parameters, has to go after registration.
+RUST_LOG=debug target/release/storagext-cli --sr25519-key "$PROVIDER" market publish-deal-parameters \
+    --deal-parameters @"$DEAL_PARAMS" &
 wait
 
 echo "seal_proof = '8MiB'

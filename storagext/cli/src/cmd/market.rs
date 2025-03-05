@@ -387,7 +387,7 @@ impl MarketCommand {
             .remove_deal_parameters(&account_keypair, wait_for_finalization)
             .await?
             .inspect(|result| {
-                tracing::debug!("[{}] Successfully updated deal parameters", result.hash,)
+                tracing::debug!("[{}] Successfully removed deal parameters", result.hash,)
             });
 
         Ok(submission_result)
