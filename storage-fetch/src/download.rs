@@ -164,8 +164,12 @@ impl DownloadClient {
             // Handle event received from the providers
             self.on_swarm_event(event).await?;
 
-            // if no inflight queries, that means we received
-            // everything requested. Finalize the blockstore.
+            // if no inflight queries and the root is set, that means we
+            // received everything requested. We are checking if root is set
+            // because the root is None until we receive a response mapping
+            // piece_cid -> root_cid from the storage provider. The queries are
+            // also empty until we have a root set. That is because, without a
+            // root we don't know the block to start the data download with.
             if self.root.is_some() && self.queries.is_empty() {
                 break;
             }
