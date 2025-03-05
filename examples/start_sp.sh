@@ -6,18 +6,20 @@ trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 # requires the testnet to be running!
 export DISABLE_XT_WAIT_WARNING=1
 
-mkdir -p /tmp/polka-storage-provider
+TMP_PATH="$TMPDIR/polka-storage-provider"
+
+mkdir -p "$TMP_PATH"
 
 CLIENT="//Alice"
 PROVIDER="//Charlie"
 P2P_ADDRESS="/ip4/127.0.0.1/tcp/62649"
-P2P_PUBLIC_KEY="/tmp/polka-storage-provider/public.pem"
-P2P_PRIVATE_KEY="/tmp/polka-storage-provider/private.pem"
+P2P_PUBLIC_KEY="$TMP_PATH/public.pem"
+P2P_PRIVATE_KEY="$TMP_PATH/private.pem"
 P2P_BOOTSTRAP_PUBLIC_KEY="/tmp/zombienet/charlie-public.pem"
 # Config file location
-CONFIG="/tmp/polka-storage-provider/config.toml"
+CONFIG="$TMP_PATH/config.toml"
 # Deal parameters JSON location
-DEAL_PARAMS="/tmp/deal_params.json"
+DEAL_PARAMS="$TMP_PATH/deal_params.json"
 
 # Generate ED25519 private key
 openssl genpkey -algorithm ED25519 -out "$P2P_PRIVATE_KEY"

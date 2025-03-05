@@ -16,7 +16,9 @@ trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 # requires the testnet to be running!
 export DISABLE_XT_WAIT_WARNING=1
 
-mkdir -p /tmp/polka-storage
+TMP_PATH="$TMPDIR/polka-storage"
+
+mkdir -p "$TMP_PATH"
 
 CLIENT="//Alice"
 PROVIDER="//Charlie"
@@ -24,15 +26,16 @@ PROVIDER="//Charlie"
 INPUT_FILE="$1"
 INPUT_FILE_NAME="$(basename "$INPUT_FILE")"
 # CARv2 file location
-INPUT_TMP_FILE="/tmp/$INPUT_FILE_NAME.car"
+INPUT_TMP_FILE="$TMP_PATH/$INPUT_FILE_NAME.car"
 # Config file location
-CONFIG="/tmp/config.toml"
+CONFIG="$TMP_PATH/config.toml"
 # P2P Node variables
-P2P_PUBLIC_KEY="/tmp/polka-storage/public.pem"
-P2P_PRIVATE_KEY="/tmp/polka-storage/private.pem"
+P2P_PUBLIC_KEY="$TMP_PATH/public.pem"
+P2P_PRIVATE_KEY="$TMP_PATH/private.pem"
+P2P_BOOTSTRAP_PUBLIC_KEY="/tmp/zombienet/charlie-public.pem"
 P2P_ADDRESS="/ip4/127.0.0.1/tcp/62649"
 # Deal parameters JSON location
-DEAL_PARAMS="/tmp/deal_params.json"
+DEAL_PARAMS="$TMP_PATH/deal_params.json"
 
 # Generate ED25519 private key
 openssl genpkey -algorithm ED25519 -out "$P2P_PRIVATE_KEY"
@@ -41,7 +44,7 @@ openssl genpkey -algorithm ED25519 -out "$P2P_PRIVATE_KEY"
 openssl pkey -in "$P2P_PRIVATE_KEY" -pubout -out "$P2P_PUBLIC_KEY"
 
 # Generate Peer ID
-P2P_BOOTSTRAP_PEER_ID="$(target/release/polka-storage-provider-client generate-peer-id --pubkey "$P2P_PUBLIC_KEY")"
+P2P_BOOTSTRAP_PEER_ID="$(target/release/polka-storage-provider-client generate-peer-id --pubkey "$P2P_BOOTSTRAP_PUBLIC_KEY")"
 
 # Convert file to CARv2 format
 target/release/mater-cli convert -q --overwrite "$INPUT_FILE" "$INPUT_TMP_FILE" &&
