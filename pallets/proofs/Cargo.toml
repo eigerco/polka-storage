@@ -27,7 +27,7 @@ frame-system.workspace = true
 log = { workspace = true }
 num-bigint = { workspace = true }
 polka-storage-proofs = { workspace = true, features = ["substrate"] }
-primitives = { workspace = true }
+primitives = { workspace = true, features = ["serde"] }
 rand = { workspace = true, features = ["alloc"] }
 rand_chacha = { workspace = true }
 scale-info = { features = ["derive"], workspace = true }

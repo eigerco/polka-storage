@@ -28,7 +28,7 @@ mod substrate;
 extern crate alloc;
 
 use alloc::vec::Vec;
-use core::fmt::Debug;
+use core::fmt::{self, Debug};
 
 pub use bls12_381::{Bls12, G1Affine, G2Affine, Scalar};
 pub use pairing::{
@@ -40,6 +40,10 @@ pub use pairing::{
     Engine, MillerLoopResult, MultiMillerLoop,
 };
 use rand_xorshift::XorShiftRng;
+use serde::{
+    de::{self, Visitor},
+    Deserialize, Deserializer, Serialize, Serializer,
+};
 
 /// The number of bytes when serialising a `G1Affine` by using `G1Affine::to_compressed()`.
 const G1AFFINE_COMPRESSED_BYTES: usize = 48;
@@ -154,10 +158,7 @@ impl<E: Engine> PartialEq for VerifyingKey<E> {
     }
 }
 
-impl<E> VerifyingKey<E>
-where
-    E: Engine<G1Affine = G1Affine, G2Affine = G2Affine>,
-{
+impl VerifyingKey<Bls12> {
     /// Serialises the `VerifyingKey` into a byte stream and writes it to the given buffer.
     pub fn into_bytes(&self, buf: &mut [u8]) -> Result<(), IntoBytesError> {
         if buf.len() < self.serialised_bytes() {
@@ -181,7 +182,7 @@ where
     }
 
     /// Tries to deserialise a given byte stream into `VerifiyingKey`.
-    pub fn from_bytes(bytes: &[u8]) -> Result<VerifyingKey<E>, FromBytesError> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<VerifyingKey<Bls12>, FromBytesError> {
         // G1Affine::to_uncompressed() transforms it into 96 bytes.
         // G2Affine::to_uncompressed() transforms it into 192 bytes.
         if bytes.len() < VERIFYINGKEY_MIN_BYTES {
@@ -239,7 +240,7 @@ where
             );
         }
 
-        Ok(VerifyingKey::<E> {
+        Ok(VerifyingKey::<Bls12> {
             alpha_g1,
             beta_g1,
             beta_g2,
@@ -256,8 +257,8 @@ where
     }
 
     /// Method generates a `VerifyingKey` with random numbers.
-    pub fn random(rng: &mut XorShiftRng) -> VerifyingKey<E> {
-        VerifyingKey::<E> {
+    pub fn random(rng: &mut XorShiftRng) -> VerifyingKey<Bls12> {
+        VerifyingKey::<Bls12> {
             alpha_g1: rand_g1affine(rng),
             beta_g1: rand_g1affine(rng),
             beta_g2: rand_g2affine(rng),
@@ -266,6 +267,56 @@ where
             delta_g2: rand_g2affine(rng),
             ic: alloc::vec![rand_g1affine(rng), rand_g1affine(rng)],
         }
+    }
+}
+
+impl<'de> Deserialize<'de> for VerifyingKey<Bls12> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct VerifyingKeyVisitor;
+
+        impl<'de> Visitor<'de> for VerifyingKeyVisitor {
+            type Value = VerifyingKey<Bls12>;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a hex string representing a VerifyingKey")
+            }
+
+            fn visit_str<V>(self, value: &str) -> Result<Self::Value, V>
+            where
+                V: de::Error,
+            {
+                let hex_str = value.strip_prefix("0x").unwrap_or(value);
+                let bytes = hex::decode(hex_str)
+                    .map_err(|e| V::custom(alloc::format!("hex decode failed: {:?}", e)))?;
+
+                VerifyingKey::from_bytes(&bytes)
+                    .map_err(|e| V::custom(alloc::format!("from_bytes failed: {}", e)))
+            }
+        }
+
+        // Expect a string (hex representation)
+        deserializer.deserialize_str(VerifyingKeyVisitor)
+    }
+}
+
+impl Serialize for VerifyingKey<Bls12> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let size = self.serialised_bytes();
+        let mut buf = Vec::with_capacity(size);
+        buf.resize(size, 0);
+
+        self.into_bytes(&mut buf)
+            .map_err(|e| serde::ser::Error::custom(alloc::format!("into_bytes failed: {}", e)))?;
+
+        let hex_str = alloc::format!("0x{}", hex::encode(&buf));
+
+        serializer.serialize_str(&hex_str)
     }
 }
 
@@ -365,6 +416,14 @@ pub enum IntoBytesError {
     InsufficientBufferLength,
 }
 
+impl fmt::Display for IntoBytesError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            IntoBytesError::InsufficientBufferLength => write!(f, "insufficient buffer length"),
+        }
+    }
+}
+
 /// Error type on deserialisation of the above defined types. They can occur on deserialisation of a
 /// byte stream into the defined data type.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -381,6 +440,12 @@ pub enum FromBytesError {
     G2AffineConversion,
     /// A conversion error when using 'Scalar::from_compressed()`.
     ScalarConversion,
+}
+
+impl fmt::Display for FromBytesError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.as_static_str())
+    }
 }
 
 impl AsRef<str> for FromBytesError {

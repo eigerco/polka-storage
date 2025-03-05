@@ -1,4 +1,5 @@
 use cumulus_primitives_core::ParaId;
+use polka_storage_proofs::{Bls12, VerifyingKey};
 use polka_storage_runtime as runtime;
 use runtime::{AccountId, AuraId, Signature, EXISTENTIAL_DEPOSIT};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
@@ -171,6 +172,12 @@ fn testnet_genesis(
     root: AccountId,
     id: ParaId,
 ) -> serde_json::Value {
+    let post_1gib_vk = include_bytes!("../../examples/1GiB.post.vk.scale");
+    let post_1gib_vk = VerifyingKey::<Bls12>::from_bytes(post_1gib_vk).unwrap();
+
+    let porep_1gib_vk = include_bytes!("../../examples/1GiB.porep.vk.scale");
+    let porep_1gib_vk = VerifyingKey::<Bls12>::from_bytes(porep_1gib_vk).unwrap();
+
     serde_json::json!({
         "balances": {
             "balances": endowed_accounts.iter().cloned().map(|k| (k, 1u64 << 60)).collect::<Vec<_>>(),
@@ -196,6 +203,14 @@ fn testnet_genesis(
         },
         "polkadotXcm": {
             "safeXcmVersion": Some(SAFE_XCM_VERSION),
+        },
+        "proofs": {
+            "postKeys": {
+                "1GiB": post_1gib_vk,
+            },
+            "porepKeys": {
+                "1GiB": porep_1gib_vk,
+            }
         },
         "sudo": { "key": Some(root) }
     })
