@@ -81,8 +81,8 @@ impl DownloadClientSettings {
     }
 }
 
-/// A Downloadclient is used to download blocks from the storage provider. Single client
-/// supports getting a single payload.
+/// A [`DownloadClient`] is used to download blocks from the storage provider.
+/// Currently, the client only supports downloading a single file per instance.
 pub struct DownloadClient {
     settings: DownloadClientSettings,
 
