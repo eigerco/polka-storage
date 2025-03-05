@@ -53,7 +53,7 @@ where
     pub listen_on: Vec<Multiaddr>,
     /// The blockstore used for content retrieval.
     pub blockstore: Arc<B>,
-    /// Index db
+    /// Piece index database.
     pub index_db: Arc<I>,
 }
 
@@ -252,17 +252,17 @@ where
                     }
                 }
             }
-            request_response::Event::OutboundFailure {
+            RequestResponseEvent::OutboundFailure {
                 peer,
                 request_id,
                 error,
             } => warn!("Failed to send response with id {request_id} to {peer}: {error}"),
-            request_response::Event::InboundFailure {
+            RequestResponseEvent::InboundFailure {
                 peer,
                 request_id,
                 error,
             } => warn!("Failed to receive message with id {request_id} from {peer}: {error}"),
-            request_response::Event::ResponseSent { peer, request_id } => {
+            RequestResponseEvent::ResponseSent { peer, request_id } => {
                 debug!("Response with id {request_id} sent to {peer}")
             }
         }

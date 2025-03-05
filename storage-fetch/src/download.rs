@@ -191,6 +191,10 @@ impl DownloadClient {
             .await?;
 
         if self.settings.extract {
+            let Some(root) = &self.root else {
+                return Err(DownloadError::UnsupportedNumRoots);
+            };
+
             file.rewind().await?;
 
             let mut extracted_file = if self.settings.overwrite {
@@ -201,10 +205,7 @@ impl DownloadClient {
 
             FileReader::new(file)
                 .await?
-                .copy_tree(
-                    &self.root.expect("root should be known"),
-                    &mut extracted_file,
-                )
+                .copy_tree(&root, &mut extracted_file)
                 .await?;
         }
 

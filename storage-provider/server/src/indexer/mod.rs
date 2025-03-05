@@ -105,6 +105,14 @@ where
 }
 
 /// Prepares indexes of a raw piece.
+///
+/// # Returns
+///
+/// Returns a Result containing:
+/// - Ok((Vec<Cid>, Vec<IndexRecord>)): A tuple of:
+///   - Vector of Content IDs (roots from v1 header)
+///   - Vector of index records containing CIDs with their offsets and sizes
+/// - Err(ServerError): If any I/O or parsing operations fail
 async fn piece_indexes<P>(location: P) -> Result<(Vec<Cid>, Vec<IndexRecord>), ServerError>
 where
     P: AsRef<Path>,

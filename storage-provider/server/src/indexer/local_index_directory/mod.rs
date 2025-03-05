@@ -154,7 +154,7 @@ pub struct PieceInfo {
     /// Source: <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/model/model.go#L42-L46>
     pub complete_index: bool,
 
-    /// Roots of the car encapsulated in the piece.
+    /// Roots of the CAR archive encapsulated in the piece.
     pub roots: Vec<Cid>,
 
     /// Deals that this piece is related to.
@@ -344,6 +344,10 @@ pub trait Service {
     /// Differences to the original:
     /// * The original implementation streams the operation progress.
     /// * The original implementation does not support this operation through HTTP.
+    /// * The original implementation doesn't pass roots. In our case the roots
+    ///   are useful because the provider is first asked by the client for the
+    ///   roots of the specific piece, before the actual content transfer is
+    ///   being executed.
     fn add_index(
         &self,
         piece_cid: Cid,
