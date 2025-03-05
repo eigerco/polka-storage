@@ -41,6 +41,7 @@ default = ["std"]
 serde = ["dep:serde"]
 std = [
   "cid/scale-codec",
+  "cid/serde",
   "cid/std",
   "codec/std",
   "dep:ed25519-dalek",
