@@ -1,8 +1,9 @@
+use std::{path::PathBuf, time::Duration};
+
 use clap::{command, Parser};
 use download::{DownloadClient, DownloadClientSettings};
 use libp2p::{Multiaddr, PeerId};
 use peer_resolver::find_multiaddr_storage_provider;
-use std::{path::PathBuf, time::Duration};
 use storagext::{MarketClientExt, StorageProviderClientExt};
 use tokio::time::timeout;
 use tracing::{error, info, level_filters::LevelFilter};
