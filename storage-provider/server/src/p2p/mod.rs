@@ -6,20 +6,23 @@ use libp2p::{
     identify::{self, Event as IdentifyEvent},
     identity::Keypair,
     rendezvous::{self, client::Event as RendezvousEvent, Namespace},
+    request_response::{self, Event as RequestResponseEvent, Message, ProtocolSupport},
     swarm::{NetworkBehaviour, SwarmEvent},
-    Multiaddr, PeerId, Swarm,
+    Multiaddr, PeerId, StreamProtocol, Swarm,
 };
-use primitives::p2p::DEFAULT_REGISTRATION_TTL;
+use primitives::p2p::{PieceInfo, PieceInfoRequest, PieceInfoResponse, DEFAULT_REGISTRATION_TTL};
 use swarm::new_swarm;
 use tokio::select;
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, info, instrument, warn};
+use tracing::{debug, error, info, instrument, warn};
 
 pub mod blockstore;
 mod error;
 mod swarm;
 
 pub use error::P2pError;
+
+use crate::indexer::local_index_directory::Service;
 
 /// The time-to-live duration for node registration with rendezvous points.
 const REGISTRATION_TTL: Duration = Duration::from_secs(DEFAULT_REGISTRATION_TTL);
@@ -34,9 +37,10 @@ const P2P_NAMESPACE: &str = "polka-storage";
 const IDENTIFY_PROTOCOL_VERSION: &str = "polka-storage/1.0.0";
 
 /// Arguments used to configure the [`P2p`].
-pub struct P2pArgs<B>
+pub struct P2pArgs<B, I>
 where
     B: Blockstore,
+    I: Service,
 {
     /// The keypair to be used as the identity.
     pub local_keypair: Keypair,
@@ -46,6 +50,8 @@ where
     pub listen_on: Vec<Multiaddr>,
     /// The blockstore used for content retrieval.
     pub blockstore: Arc<B>,
+    /// Index db
+    pub index_db: Arc<I>,
 }
 
 /// Our network behaviour.
@@ -57,6 +63,7 @@ where
     identify: identify::Behaviour,
     rendezvous: rendezvous::client::Behaviour,
     bitswap: beetswap::Behaviour<MAX_MULTIHASH_LENGTH, B>,
+    request_response: request_response::cbor::Behaviour<PieceInfoRequest, PieceInfoResponse>,
 }
 
 /// Worker manages the P2P networking lifecycle and peer interactions.
@@ -67,19 +74,22 @@ where
 /// 3. Exchange identity information
 /// 4. Register our presence with the rendezvous nodes (repeated periodically)
 /// 5. Handle incoming bitswap requests
-pub struct Worker<B>
+pub struct Worker<B, I>
 where
     B: Blockstore + 'static,
+    I: Service + 'static,
 {
     swarm: Swarm<Behaviour<B>>,
     rendezvous_nodes: Vec<(PeerId, Multiaddr)>,
+    index_db: Arc<I>,
 }
 
-impl<B> Worker<B>
+impl<B, I> Worker<B, I>
 where
     B: Blockstore,
+    I: Service,
 {
-    pub fn new(args: P2pArgs<B>) -> Result<Self, P2pError> {
+    pub fn new(args: P2pArgs<B, I>) -> Result<Self, P2pError> {
         let identify = identify::Behaviour::new(identify::Config::new(
             IDENTIFY_PROTOCOL_VERSION.to_string(),
             args.local_keypair.public(),
@@ -89,10 +99,19 @@ where
 
         let bitswap = beetswap::Behaviour::new(args.blockstore);
 
+        let request_response = request_response::cbor::Behaviour::new(
+            [(
+                StreamProtocol::new("/request_resolver/1.0.0"),
+                ProtocolSupport::Full,
+            )],
+            request_response::Config::default(),
+        );
+
         let behaviour = Behaviour {
             identify,
             rendezvous,
             bitswap,
+            request_response,
         };
 
         let mut swarm = new_swarm(args.local_keypair, behaviour)?;
@@ -109,6 +128,7 @@ where
         Ok(Worker {
             swarm,
             rendezvous_nodes: args.rendezvous_nodes,
+            index_db: args.index_db,
         })
     }
 
@@ -146,6 +166,7 @@ where
             SwarmEvent::Behaviour(ev) => match ev {
                 BehaviourEvent::Identify(ev) => self.on_identify_event(ev),
                 BehaviourEvent::Rendezvous(ev) => self.on_rendezvous_event(ev),
+                BehaviourEvent::RequestResponse(ev) => self.on_request_response_event(ev),
                 _ => {}
             },
             SwarmEvent::NewListenAddr { address, .. } => {
@@ -191,6 +212,56 @@ where
                 debug!(%peer, "Registration expired");
             }
             _ => {}
+        }
+    }
+
+    #[instrument(level = "trace", skip(self))]
+    fn on_request_response_event(
+        &mut self,
+        event: RequestResponseEvent<PieceInfoRequest, PieceInfoResponse>,
+    ) {
+        match event {
+            RequestResponseEvent::Message { peer, message } => {
+                if let Message::Request {
+                    request,
+                    channel,
+                    request_id,
+                } = message
+                {
+                    info!("Got request with id {request_id} from {peer}");
+
+                    let response = match self.index_db.get_piece_metadata(request.piece_cid) {
+                        Ok(info) => PieceInfoResponse::Found(PieceInfo { roots: info.roots }),
+                        Err(err) => {
+                            error!(?err, "error occurred while retrieving piece info");
+                            PieceInfoResponse::NotFound(request.piece_cid)
+                        }
+                    };
+
+                    if self
+                        .swarm
+                        .behaviour_mut()
+                        .request_response
+                        .send_response(channel, response)
+                        .is_err()
+                    {
+                        error!("Failed to send piece info to {peer:?}");
+                    }
+                }
+            }
+            request_response::Event::OutboundFailure {
+                peer,
+                request_id,
+                error,
+            } => warn!("Failed to send response with id {request_id} to {peer}: {error}"),
+            request_response::Event::InboundFailure {
+                peer,
+                request_id,
+                error,
+            } => warn!("Failed to receive message with id {request_id} from {peer}: {error}"),
+            request_response::Event::ResponseSent { peer, request_id } => {
+                debug!("Response with id {request_id} sent to {peer}")
+            }
         }
     }
 }

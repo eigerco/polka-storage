@@ -1,25 +1,21 @@
-use std::{path::PathBuf, time::Duration};
-
-use cid::Cid;
 use clap::{command, Parser};
-use client::{Client, ClientSettings};
-use libp2p::Multiaddr;
+use download::{DownloadClient, DownloadClientSettings};
+use libp2p::{Multiaddr, PeerId};
+use peer_resolver::find_multiaddr_storage_provider;
+use std::{path::PathBuf, time::Duration};
+use storagext::{MarketClientExt, StorageProviderClientExt};
 use tokio::time::timeout;
 use tracing::{error, info, level_filters::LevelFilter};
 use tracing_subscriber::{
     filter::FromEnvError, fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer,
 };
 
-mod client;
-mod p2p;
+mod download;
+mod peer_resolver;
 
 #[derive(Parser, Debug)]
 #[command()]
 struct Cli {
-    /// Provider used for data download
-    #[arg(long)]
-    provider: Vec<Multiaddr>,
-
     /// The output file to write to.
     #[arg(long)]
     output: PathBuf,
@@ -37,23 +33,63 @@ struct Cli {
     #[arg(long, value_parser = parse_duration)]
     timeout: Option<Duration>,
 
-    /// Payload CID
+    /// Deal id
     #[arg(long)]
-    payload_cid: Cid,
+    deal_id: u64,
+
+    /// Bootstrap node address
+    #[arg(long)]
+    bootstrap_address: Multiaddr,
+
+    /// Bootstrap node peerid
+    #[arg(long)]
+    bootstrap_peer: PeerId,
+
+    /// Parachain address
+    #[arg(long)]
+    parachain_address: String,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     setup_tracing()?;
+    let args = Cli::parse();
 
-    let arguments = Cli::parse();
+    // Get deal info from the chain
+    let parachain_client =
+        storagext::Client::new(args.parachain_address, 0, Duration::ZERO).await?;
+    let Some(deal_info) = parachain_client.retrieve_deal(args.deal_id).await? else {
+        error!(deal_id = args.deal_id, "Deal not found on chain");
+        return Ok(());
+    };
 
-    let settings = ClientSettings::new(arguments.output, arguments.extract, arguments.overwrite);
-    let client = Client::new(arguments.provider, arguments.payload_cid, settings).await?;
+    // Get storage provider from the chain
+    let Some(storage_provider) = parachain_client
+        .retrieve_storage_provider(&deal_info.provider.clone().into())
+        .await?
+    else {
+        error!(
+            deal_id = args.deal_id,
+            "Storage provider not found on chain"
+        );
+        return Ok(());
+    };
+    let sp_peer_id = PeerId::from_bytes(&storage_provider.info.peer_id.0)?;
 
-    let download_result = match arguments.timeout {
-        Some(duration) => timeout(duration, client.download()).await,
-        None => Ok(client.download().await),
+    // Peer id to multiaddress
+    let multiaddrs =
+        find_multiaddr_storage_provider(args.bootstrap_address, args.bootstrap_peer, sp_peer_id)
+            .await?
+            .into_iter()
+            .map(|multiaddr| (sp_peer_id, multiaddr))
+            .collect();
+
+    let settings = DownloadClientSettings::new(args.output, args.extract, args.overwrite);
+    let client = DownloadClient::new(multiaddrs, settings).await?;
+
+    let download_result = match args.timeout {
+        Some(duration) => timeout(duration, client.download(&deal_info.piece_cid)).await,
+        None => Ok(client.download(&deal_info.piece_cid).await),
     };
 
     match download_result {

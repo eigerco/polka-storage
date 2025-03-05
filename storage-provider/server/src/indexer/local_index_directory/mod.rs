@@ -154,6 +154,9 @@ pub struct PieceInfo {
     /// Source: <https://github.com/filecoin-project/boost/blob/16a4de2af416575f60f88c723d84794f785d2825/extern/boostd-data/model/model.go#L42-L46>
     pub complete_index: bool,
 
+    /// Roots of the car encapsulated in the piece.
+    pub roots: Vec<Cid>,
+
     /// Deals that this piece is related to.
     ///
     /// Each deal can only pertain to a single piece, however,
@@ -176,6 +179,7 @@ impl Default for PieceInfo {
             // but in Go, structures cannot be `nil`, which is probably why they use that sentinel value
             indexed_at: None,
             complete_index: false,
+            roots: Vec::new(),
             deals: Vec::new(),
             cursor: 0,
         }
@@ -343,6 +347,7 @@ pub trait Service {
     fn add_index(
         &self,
         piece_cid: Cid,
+        roots: Vec<Cid>,
         records: Vec<IndexRecord>,
         is_complete_index: bool,
     ) -> Result<(), LidError>;

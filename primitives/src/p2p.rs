@@ -1,5 +1,6 @@
 use std::{path::PathBuf, str::FromStr};
 
+use cid::Cid;
 use ed25519_dalek::{pkcs8::DecodePrivateKey, SigningKey};
 use libp2p::{identity::Keypair, Multiaddr, PeerId};
 use serde::{de, Deserialize, Serialize, Serializer};
@@ -76,4 +77,20 @@ fn deserialize_peer_id<'de, D: de::Deserializer<'de>>(d: D) -> Result<PeerId, D:
 fn serialize_peer_id<S: Serializer>(id: &PeerId, serializer: S) -> Result<S::Ok, S::Error> {
     let id = id.to_string();
     serializer.collect_str(&id)
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PieceInfoRequest {
+    pub piece_cid: Cid,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum PieceInfoResponse {
+    Found(PieceInfo),
+    NotFound(Cid),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PieceInfo {
+    pub roots: Vec<Cid>,
 }

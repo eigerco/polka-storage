@@ -273,14 +273,14 @@ fn on_request_response_event(
             peer,
             request_id,
             error,
-        } => warn!("Failed to send message with id {request_id} to {peer}: {error}"),
+        } => warn!("Failed to send response with id {request_id} to {peer}: {error}"),
         request_response::Event::InboundFailure {
             peer,
             request_id,
             error,
         } => warn!("Failed to receive message with id {request_id} from {peer}: {error}"),
         request_response::Event::ResponseSent { peer, request_id } => {
-            debug!("Request with id {request_id} sent to {peer}")
+            debug!("Response with id {request_id} sent to {peer}")
         }
     }
 }
