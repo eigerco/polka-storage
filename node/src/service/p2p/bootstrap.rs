@@ -17,8 +17,8 @@ use libp2p::{
 };
 use log::{debug, error, info, warn};
 use primitives::p2p::{
-    PeerIdRequest, PeerInfo, PeerInfoResponse, DEFAULT_REGISTRATION_TTL, GOSSIP_TOPIC,
-    IDENTIFY_PROTOCOL_VERSION, REQUEST_RESPONSE_STREAM_PROTOCOL,
+    PeerIdRequest, PeerInfo, PeerInfoResponse, BOOTSTRAP_REQUEST_RESPONSE_PROTOCOL,
+    DEFAULT_REGISTRATION_TTL, GOSSIP_TOPIC, IDENTIFY_PROTOCOL_VERSION,
 };
 
 use crate::service::p2p::P2PError;
@@ -86,7 +86,7 @@ impl BootstrapConfig {
                     )?,
                     request_response: request_response::cbor::Behaviour::new(
                         [(
-                            StreamProtocol::new(REQUEST_RESPONSE_STREAM_PROTOCOL),
+                            StreamProtocol::new(BOOTSTRAP_REQUEST_RESPONSE_PROTOCOL),
                             ProtocolSupport::Full,
                         )],
                         request_response::Config::default(),

@@ -8,7 +8,7 @@ use libp2p::{
     swarm::SwarmEvent,
     tcp, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder,
 };
-use primitives::p2p::{PeerIdRequest, PeerInfoResponse, REQUEST_RESPONSE_STREAM_PROTOCOL};
+use primitives::p2p::{PeerIdRequest, PeerInfoResponse, BOOTSTRAP_REQUEST_RESPONSE_PROTOCOL};
 use tracing::{info, warn};
 
 pub async fn find_multiaddr_storage_provider(
@@ -48,7 +48,7 @@ fn create_swarm(
         .with_behaviour(|_| {
             request_response::cbor::Behaviour::new(
                 [(
-                    StreamProtocol::new(REQUEST_RESPONSE_STREAM_PROTOCOL),
+                    StreamProtocol::new(BOOTSTRAP_REQUEST_RESPONSE_PROTOCOL),
                     ProtocolSupport::Full,
                 )],
                 request_response::Config::default(),

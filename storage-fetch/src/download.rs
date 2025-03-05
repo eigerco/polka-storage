@@ -19,7 +19,7 @@ use libp2p::{
 use libp2p_core::ConnectedPoint;
 use libp2p_swarm::{ConnectionId, DialError, NetworkBehaviour, SwarmEvent};
 use mater::{blockstore::ReadWriteBlockstore, FileReader, DAG_PB_CODE, RAW_CODE};
-use primitives::p2p::{PieceInfoRequest, PieceInfoResponse};
+use primitives::p2p::{PieceInfoRequest, PieceInfoResponse, SP_REQUEST_RESPONSE_PROTOCOL};
 use thiserror::Error;
 use tokio::{
     fs::{File, OpenOptions},
@@ -380,7 +380,7 @@ where
     let bitswap = beetswap::Behaviour::new(blockstore);
     let request_response = request_response::cbor::Behaviour::new(
         [(
-            StreamProtocol::new("/request_resolver/1.0.0"),
+            StreamProtocol::new(SP_REQUEST_RESPONSE_PROTOCOL),
             ProtocolSupport::Full,
         )],
         request_response::Config::default(),

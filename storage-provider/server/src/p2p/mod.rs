@@ -10,7 +10,10 @@ use libp2p::{
     swarm::{NetworkBehaviour, SwarmEvent},
     Multiaddr, PeerId, StreamProtocol, Swarm,
 };
-use primitives::p2p::{PieceInfo, PieceInfoRequest, PieceInfoResponse, DEFAULT_REGISTRATION_TTL};
+use primitives::p2p::{
+    PieceInfo, PieceInfoRequest, PieceInfoResponse, DEFAULT_REGISTRATION_TTL,
+    SP_REQUEST_RESPONSE_PROTOCOL,
+};
 use swarm::new_swarm;
 use tokio::select;
 use tokio_util::sync::CancellationToken;
@@ -101,7 +104,7 @@ where
 
         let request_response = request_response::cbor::Behaviour::new(
             [(
-                StreamProtocol::new("/request_resolver/1.0.0"),
+                StreamProtocol::new(SP_REQUEST_RESPONSE_PROTOCOL),
                 ProtocolSupport::Full,
             )],
             request_response::Config::default(),
