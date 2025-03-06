@@ -128,7 +128,7 @@ impl std::fmt::Display for Event {
                 deal_id, provider, client
             )),
             Event::DealParametersUpdated { provider, deal_parameters } => f.write_fmt(format_args!(
-                "Deal Parameters Update: {{ provider: {}, deal_parameters: {} }}",
+                "Deal Parameters Updated: {{ provider: {}, deal_parameters: {} }}",
                 provider, deal_parameters
             )),
             Event::DealParametersRemoved { provider } => f.write_fmt(format_args!(

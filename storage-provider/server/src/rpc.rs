@@ -42,6 +42,8 @@ pub struct RpcServerState {
 }
 
 impl RpcServerState {
+    /// This function is a sanity check for a proposed deal and checks that the deal's
+    /// variables are within the limits set by the chain.
     async fn validate_deal_proposal(&self, deal: &SxtDealProposal) -> Result<(), RpcError> {
         if deal.start_block > deal.end_block {
             return Err(RpcError::invalid_params(
@@ -180,6 +182,58 @@ impl RpcServerState {
 
         Ok(())
     }
+
+    /// This function validates the proposed deal is within the parameters set by the storage provider.
+    /// This should be called AFTER [`validate_deal_proposal`] to prevent underflow on the deal duration calculation.
+    /// [`validate_deal_proposal`] checks that start_block < end_block, preventing underflow here.
+    async fn validate_proposed_deal_within_parameters(
+        &self,
+        deal: &SxtDealProposal,
+    ) -> Result<(), RpcError> {
+        // NOTE: This could be improved in 2 ways:
+        // 1. Store the deal parameters in memory and set up a subscription that updates the parameter when they change.
+        // 2. Add functionality for the  storage provider to include deal parameters to the storage-provider server
+        // and compare the passed in parameters with the ones on-chain and update the ones on chain if needed.
+        let Some(deal_parameters) = self
+            .xt_client
+            .retrieve_deal_parameters(self.xt_keypair.account_id())
+            .await?
+        else {
+            return Ok(());
+        };
+        // This will not underflow if this function is called after [`validate_deal_proposal`]
+        let deal_duration = deal.end_block - deal.start_block;
+        if deal.storage_price_per_block < deal_parameters.minimum_price_per_block {
+            return Err(RpcError::internal_error(
+                "Proposed deal price is below the minimum price set by the storage provider"
+                    .to_string(),
+                None,
+            ));
+        }
+        if deal_duration < deal_parameters.deal_duration.lower {
+            return Err(RpcError::internal_error(
+                "Proposed deal duration is shorter than the minimum set by the storage provider"
+                    .to_string(),
+                None,
+            ));
+        }
+        if deal_duration > deal_parameters.deal_duration.upper {
+            return Err(RpcError::internal_error(
+                "Proposed deal duration is shorter than the minimum set by the storage provider"
+                    .to_string(),
+                None,
+            ));
+        }
+        return Ok(());
+    }
+
+    /// This function does a sanity check on the deal by calling `validate_deal_proposal` and
+    /// checks that the incoming deal falls within the parameters set by the storage provider
+    /// by calling `validate_proposed_deal_within_parameters`.
+    async fn validate_proposed_deal(&self, deal: &SxtDealProposal) -> Result<(), RpcError> {
+        self.validate_deal_proposal(&deal).await?;
+        self.validate_proposed_deal_within_parameters(&deal).await
+    }
 }
 
 #[async_trait::async_trait]
@@ -190,9 +244,7 @@ impl StorageProviderRpcServer for RpcServerState {
 
     async fn propose_deal(&self, deal: SxtDealProposal) -> Result<CidString, RpcError> {
         // TODO(@jmg-duarte,26/11/2024): proper unit or e2e testing of these validations
-        self.validate_deal_proposal(&deal)
-            .await
-            .map_err(|err| RpcError::invalid_params(err, None))?;
+        self.validate_proposed_deal(&deal).await?;
 
         let storage_provider_balance = self
             .xt_client

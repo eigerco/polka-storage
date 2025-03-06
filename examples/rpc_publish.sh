@@ -16,29 +16,35 @@ trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 # requires the testnet to be running!
 export DISABLE_XT_WAIT_WARNING=1
 
+TMP_PATH="$TMPDIR/polka-storage"
+
+mkdir -p "$TMP_PATH"
+
 CLIENT="//Alice"
 PROVIDER="//Charlie"
 
 INPUT_FILE="$1"
 INPUT_FILE_NAME="$(basename "$INPUT_FILE")"
 # CARv2 file location
-INPUT_TMP_FILE="/tmp/$INPUT_FILE_NAME.car"
+INPUT_TMP_FILE="$TMP_PATH/$INPUT_FILE_NAME.car"
 # Config file location
-CONFIG="/tmp/config.toml"
+CONFIG="$TMP_PATH/config.toml"
 # P2P Node variables
-P2P_PUBLIC_KEY="/tmp/polka-storage/public.pem"
-P2P_PRIVATE_KEY="/tmp/polka-storage/private.pem"
+P2P_PUBLIC_KEY="$TMP_PATH/public.pem"
+P2P_PRIVATE_KEY="$TMP_PATH/private.pem"
+P2P_BOOTSTRAP_PUBLIC_KEY="/tmp/zombienet/charlie-public.pem"
 P2P_ADDRESS="/ip4/127.0.0.1/tcp/62649"
+# Deal parameters JSON location
+DEAL_PARAMS="$TMP_PATH/deal_params.json"
 
 # Generate ED25519 private key
-mkdir -p /tmp/storage-provider
 openssl genpkey -algorithm ED25519 -out "$P2P_PRIVATE_KEY"
 # -outpubkey is only available in OpenSSL 3.4.0 onwards
 # https://github.com/openssl/openssl/commit/6c03fa21ed4bbc9fd6d3013fdf9f4646d231f831
 openssl pkey -in "$P2P_PRIVATE_KEY" -pubout -out "$P2P_PUBLIC_KEY"
 
 # Generate Peer ID
-P2P_BOOTSTRAP_PEER_ID="$(target/release/polka-storage-provider-client generate-peer-id --pubkey "$P2P_PUBLIC_KEY")"
+P2P_BOOTSTRAP_PEER_ID="$(target/release/polka-storage-provider-client generate-peer-id --pubkey "$P2P_BOOTSTRAP_PUBLIC_KEY")"
 
 # Convert file to CARv2 format
 target/release/mater-cli convert -q --overwrite "$INPUT_FILE" "$INPUT_TMP_FILE" &&
@@ -52,13 +58,16 @@ PIECE_SIZE="$(echo "$INPUT_COMMP" | jq ".size")"
 PEER_ID="$(target/release/polka-storage-provider-client generate-peer-id --pubkey "$P2P_PUBLIC_KEY")"
 
 # echo config file in the file in the /tmp folder
-echo "seal_proof = '2KiB'
-post_proof = '2KiB'
-porep_parameters = '2KiB.porep.params'
-post_parameters = '2KiB.post.params'
+echo "seal_proof = '8MiB'
+post_proof = '8MiB'
+porep_parameters = '8MiB.porep.params'
+post_parameters = '8MiB.post.params'
 rendezvous_point_address = '$P2P_ADDRESS'
 p2p_key = '@$P2P_PRIVATE_KEY'
 rendezvous_point = '$P2P_BOOTSTRAP_PEER_ID'" > "$CONFIG"
+
+# echo deal parameters in the file in the /tmp folder
+echo '{ "minimum_price_per_block": 200, "deal_duration": { "lower": 50, "upper": 1800 }}' > "$DEAL_PARAMS"
 
 
 # Setup balances
@@ -71,10 +80,15 @@ wait
 # It's a test setup based on the local verifying keys, everyone can run those extrinsics currently.
 # Each of the keys is different, because the processes are running in parallel.
 # If they were running in parallel on the same account, they'd conflict with each other on the transaction nonce.
-target/release/storagext-cli --sr25519-key "//Charlie" storage-provider register "$PEER_ID" &
-target/release/storagext-cli --sr25519-key "//Alice" proofs set-porep-verifying-key @2KiB.porep.vk.scale &
-target/release/storagext-cli --sr25519-key "//Bob" proofs set-post-verifying-key @2KiB.post.vk.scale &
+target/release/storagext-cli --sr25519-key "$PROVIDER" storage-provider register "$PEER_ID" &
+target/release/storagext-cli --sr25519-key "$CLIENT" proofs set-porep-verifying-key @8MiB.porep.vk.scale &
+target/release/storagext-cli --sr25519-key "//Bob" proofs set-post-verifying-key @8MiB.post.vk.scale &
 
+wait
+
+# Setup deal parameters, has to go after registration.
+RUST_LOG=debug target/release/storagext-cli --sr25519-key "$PROVIDER" market publish-deal-parameters \
+    --deal-parameters @"$DEAL_PARAMS" &
 wait
 
 DEAL_JSON=$(
