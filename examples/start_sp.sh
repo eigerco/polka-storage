@@ -11,11 +11,17 @@ mkdir -p /tmp/polka-storage-provider
 CLIENT="//Alice"
 PROVIDER="//Charlie"
 P2P_ADDRESS="/ip4/127.0.0.1/tcp/62649"
-P2P_PUBLIC_KEY="./examples/storage_provider_public.pem"
-P2P_PRIVATE_KEY="./examples/storage_provider_private.pem"
+P2P_PUBLIC_KEY="/tmp/polka-storage-provider/public.pem"
+P2P_PRIVATE_KEY="/tmp/polka-storage-provider/private.pem"
 P2P_BOOTSTRAP_PUBLIC_KEY="/tmp/zombienet/charlie-public.pem"
 # Config file location
 CONFIG="/tmp/polka-storage-provider/config.toml"
+
+# Generate ED25519 private key
+openssl genpkey -algorithm ED25519 -out "$P2P_PRIVATE_KEY"
+# -outpubkey is only available in OpenSSL 3.4.0 onwards
+# https://github.com/openssl/openssl/commit/6c03fa21ed4bbc9fd6d3013fdf9f4646d231f831
+openssl pkey -in "$P2P_PRIVATE_KEY" -pubout -out "$P2P_PUBLIC_KEY"
 
 # Generate Peer ID
 P2P_SP_PEER_ID="$(target/release/polka-storage-provider-client generate-peer-id --pubkey "$P2P_PUBLIC_KEY")"
@@ -51,7 +57,7 @@ p2p_key = '@$P2P_PRIVATE_KEY'
 rendezvous_point = '$P2P_BOOTSTRAP_PEER_ID'
 [sealing_configuration]
 fill_threshold = 80
-wait_deals_delay = '5m'
+wait_deals_delay = '1h'
 pre_commit_submission_slack = '1m'" > "$CONFIG"
 
 RUST_LOG="polka_storage_provider_server=debug" target/release/polka-storage-provider-server \
