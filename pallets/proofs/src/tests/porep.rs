@@ -13,7 +13,11 @@ use rand_xorshift::XorShiftRng;
 use sp_core::bounded_vec;
 use sp_runtime::BoundedVec;
 
-use crate::{mock::*, tests::TEST_SEED, Error, PoRepVerifyingKeys};
+use crate::{
+    mock::*,
+    tests::{load_proof_file, raw_commitment_from_hex, TEST_SEED},
+    Error, PoRepVerifyingKeys,
+};
 
 #[test]
 fn sets_porep_verifying_key() {
@@ -92,6 +96,40 @@ fn porep_verification_succeeds() {
             ticket,
             seed,
             bounded_vec![BoundedVec::try_from(proof_bytes).expect("proof bytes should be valid")],
+        ));
+    });
+}
+
+#[test]
+fn porep_verification_for_1gib_succeeds() {
+    new_test_ext().execute_with(|| {
+        let seal_proof = RegisteredSealProof::StackedDRG1GiBV1;
+        let sector = SectorNumber::new(1).unwrap();
+        let prover_id =
+            hex::decode("77d14a2289dda9bbb32dd9313db096ef628101ac5bbb3b19301ede2c61915b09")
+                .unwrap()
+                .try_into()
+                .unwrap();
+        let ticket =
+            hex::decode("71145bb466d9f965f739d2421de5635c994a6817b8f059ed0c14ae4471de4508")
+                .unwrap()
+                .try_into()
+                .unwrap();
+        let seed = hex::decode("5613057fb39cec15a5cdc64343eb3905acf262a7fad21d30c825e2a974b1e910")
+            .unwrap()
+            .try_into()
+            .unwrap();
+
+        let comm_r = raw_commitment_from_hex(
+            "bagboea4b5abcbb7hcuvmqzykjtr6scxbs6el7v3a6o2suh7i2lviydha6xztfgii",
+        );
+        let comm_d = raw_commitment_from_hex(
+            "baga6ea4seaqcjdzgezdmdynwaoursai6zwafbxjmz7k4r3fnwwioizcwbq3zwki",
+        );
+        let proofs = load_proof_file("../../examples/1.sector.proof.porep.scale");
+
+        assert_ok!(<ProofsModule as ProofVerification>::verify_porep(
+            prover_id, seal_proof, comm_r, comm_d, sector, ticket, seed, proofs
         ));
     });
 }

@@ -1,8 +1,12 @@
-use alloc::collections::BTreeMap;
+use std::fs;
+
+use bls12_381::Bls12;
 use codec::Decode;
 use frame_support::derive_impl;
 use frame_system::mocking::MockBlock;
+use polka_storage_proofs::VerifyingKey;
 use sp_runtime::BuildStorage;
+use std::collections::BTreeMap;
 
 // Configure a mock runtime to test the pallet.
 #[frame_support::runtime]
@@ -42,19 +46,22 @@ impl crate::Config for Test {
 pub fn new_test_ext() -> sp_io::TestExternalities {
     let _ = env_logger::try_init();
 
-    let mut post_keys = BTreeMap::new();
-    let vkey_bytes = include_bytes!("../../../examples/1GiB.post.vk.scale").to_vec();
-    let vkey = Decode::decode(&mut vkey_bytes.as_slice()).unwrap();
-    post_keys.insert(primitives::proofs::RegisteredPoStProof::StackedDRGWindow1GiBV1, vkey);
-    
     let config = crate::GenesisConfig::<Test> {
-        porep_keys: BTreeMap::new(),
-        post_keys,
+        porep_keys: BTreeMap::from([(
+            primitives::proofs::RegisteredSealProof::StackedDRG1GiBV1,
+            load_key("../../examples/1GiB.porep.vk.scale"),
+        )]),
+        post_keys: BTreeMap::from([(
+            primitives::proofs::RegisteredPoStProof::StackedDRGWindow1GiBV1,
+            load_key("../../examples/1GiB.post.vk.scale"),
+        )]),
         _config: Default::default(),
     };
 
-    config
-        .build_storage()
-        .unwrap()
-        .into()
+    config.build_storage().unwrap().into()
+}
+
+fn load_key(path: &'static str) -> VerifyingKey<Bls12> {
+    let vkey_bytes = fs::read(path).expect("key file at the location to be available");
+    Decode::decode(&mut vkey_bytes.as_slice()).unwrap()
 }

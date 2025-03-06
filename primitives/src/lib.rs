@@ -73,7 +73,7 @@ pub const MAX_REPLICAS_PER_BLOCK: u32 = MAX_SECTORS_PER_PROOF * MAX_PROOFS_PER_B
 ///
 /// References:
 /// * <https://github.com/filecoin-project/ref-fvm/blob/32583cc05aa422c8e1e7ba81d56a888ac9d90e61/shared/src/sector/registered_proof.rs#L90>
-pub const MAX_SEAL_PROOF_BYTES: u32 = 1_920;
+pub const MAX_SEAL_PROOF_BYTES: u32 = 192;
 
 /// The fixed length, in bytes, of a PoSt proof.
 /// This value is the same as `PROOF_BYTES` in the `polka-storage-proofs` library.
