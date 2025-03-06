@@ -45,9 +45,9 @@ struct Cli {
 pub enum SubCommand {
     #[command()]
     ByPayloadCid {
-        /// Provider used for data download
+        /// Provider multiaddres used for the data download
         #[arg(long)]
-        provider_address: Vec<Multiaddr>,
+        provider: Vec<Multiaddr>,
 
         /// Cid of the data being downloaded
         #[arg(long)]
@@ -83,11 +83,11 @@ impl SubCommand {
     ) -> Result<(), anyhow::Error> {
         let (providers, payload_cid) = match self {
             SubCommand::ByPayloadCid {
-                provider_address,
+                provider,
                 payload_cid,
             } => {
                 // We know the provider and the payload cid. Nothing more to do.
-                (provider_address, payload_cid)
+                (provider, payload_cid)
             }
             SubCommand::ByDealId {
                 deal_id,

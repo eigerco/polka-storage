@@ -231,7 +231,7 @@ where
                     request_id,
                 } = message
                 {
-                    info!("Got request with id {request_id} from {peer}");
+                    trace!("Got request with id {request_id} from {peer}");
 
                     let response = match self.index_db.get_piece_metadata(request.piece_cid) {
                         Ok(info) => PieceInfoResponse::Found(PieceInfo { roots: info.roots }),
@@ -263,7 +263,7 @@ where
                 error,
             } => warn!("Failed to receive message with id {request_id} from {peer}: {error}"),
             RequestResponseEvent::ResponseSent { peer, request_id } => {
-                debug!("Response with id {request_id} sent to {peer}")
+                trace!("Response with id {request_id} sent to {peer}")
             }
         }
     }
