@@ -103,7 +103,7 @@ struct SetupOutput {
     rpc_state: RpcServerState,
     pipeline_state: PipelineState,
     pipeline_rx: UnboundedReceiver<PipelineMessage>,
-    p2p_args: P2pArgs<PiecesBlockstore<RocksDBLid>>,
+    p2p_args: P2pArgs<PiecesBlockstore<RocksDBLid>, RocksDBLid>,
     indexer_state: IndexerState<RocksDBLid>,
     indexer_rx: UnboundedReceiver<IndexerMessage>,
 }
@@ -543,6 +543,7 @@ impl Server {
             rendezvous_nodes: vec![(self.rendezvous_point, self.rendezvous_point_address)],
             listen_on: vec![self.p2p_listen_address],
             blockstore: Arc::new(PiecesBlockstore::new(raw_pieces_dir, Arc::clone(&lid))),
+            index_db: Arc::clone(&lid),
         };
 
         let indexer_state = IndexerState { lid };

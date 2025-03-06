@@ -601,6 +601,7 @@ impl Service for RocksDBLid {
     fn add_index(
         &self,
         piece_cid: Cid,
+        roots: Vec<Cid>,
         records: Vec<IndexRecord>,
         is_complete_index: bool,
     ) -> Result<(), LidError> {
@@ -632,6 +633,7 @@ impl Service for RocksDBLid {
             .collect::<Result<(), _>>()?;
 
         metadata.indexed_at = chrono::Utc::now().into();
+        metadata.roots.extend(roots);
         self.set_piece_cid_to_metadata(piece_cid, &metadata)
     }
 
@@ -1266,6 +1268,7 @@ mod test {
         let db = init_database();
         let cids = cids_vec();
         let piece_info = PieceInfo::default();
+        let roots = vec![cids[1]];
         let records = vec![
             IndexRecord {
                 cid: cids[1],
@@ -1288,7 +1291,7 @@ mod test {
         let received = db.get_piece_metadata(cids[0]);
         assert!(matches!(received, Ok(_)));
         assert_eq!(piece_info, received.unwrap());
-        assert!(db.add_index(cids[0], records.clone(), false).is_ok());
+        assert!(db.add_index(cids[0], roots, records.clone(), false).is_ok());
 
         assert!(db.remove_piece_metadata(cids[0]).is_ok());
         assert!(matches!(
@@ -1341,6 +1344,7 @@ mod test {
         let cids = cids_vec();
         let cid = cids[0];
         let deal_info = dummy_deal_info();
+        let roots = vec![cids[1]];
         let records = vec![
             IndexRecord {
                 cid: cids[1],
@@ -1359,7 +1363,7 @@ mod test {
         assert!(db.add_deal_for_piece(cid, deal_info.clone()).is_ok());
         assert_eq!(db.get_index(cid).unwrap(), vec![]);
         // Add the index records
-        assert!(db.add_index(cid, records.clone(), false).is_ok());
+        assert!(db.add_index(cid, roots, records.clone(), false).is_ok());
 
         // Get the index back
         let mut received = db.get_index(cid).unwrap();
@@ -1399,6 +1403,7 @@ mod test {
         let cids = cids_vec();
         let cid = cids[0];
         let deal_info = dummy_deal_info();
+        let roots = vec![cids[1]];
         let records = vec![
             IndexRecord {
                 cid: cids[1],
@@ -1417,7 +1422,7 @@ mod test {
             Err(LidError::PieceNotFound(_))
         ));
         assert!(db.add_deal_for_piece(cid, deal_info.clone()).is_ok());
-        assert!(db.add_index(cid, records.clone(), false).is_ok());
+        assert!(db.add_index(cid, roots, records.clone(), false).is_ok());
         // Ensure it's not empty
         let indexes: Vec<_> = db
             .database
@@ -1461,6 +1466,7 @@ mod test {
         let cids = cids_vec();
         let cid = cids[0];
         let deal_info = dummy_deal_info();
+        let roots = vec![cids[1]];
         let records = vec![
             IndexRecord {
                 cid: cids[1],
@@ -1491,7 +1497,7 @@ mod test {
         ));
 
         // Add the index records
-        assert!(db.add_index(cid, records.clone(), false).is_ok());
+        assert!(db.add_index(cid, roots, records.clone(), false).is_ok());
 
         let offset_size = db.get_offset_size(cid, *cids[1].hash()).unwrap();
         assert_eq!(records[0].offset_size, offset_size);
@@ -1505,6 +1511,7 @@ mod test {
         let db = init_database();
         let cids = cids_vec();
         let deal_info = dummy_deal_info();
+        let roots = vec![cids[2]];
         let records = vec![IndexRecord {
             cid: cids[2],
             offset_size: OffsetSize { offset: 0, size: 0 },
@@ -1515,8 +1522,10 @@ mod test {
 
         assert!(db.add_deal_for_piece(cids[0], deal_info.clone()).is_ok());
         assert!(db.add_deal_for_piece(cids[1], deal_info.clone()).is_ok());
-        assert!(db.add_index(cids[0], records.clone(), false).is_ok());
-        assert!(db.add_index(cids[1], records, false).is_ok());
+        assert!(db
+            .add_index(cids[0], roots.clone(), records.clone(), false)
+            .is_ok());
+        assert!(db.add_index(cids[1], roots, records, false).is_ok());
 
         let pieces = db
             .pieces_containing_multihash(cids[2].hash().to_owned())

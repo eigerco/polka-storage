@@ -10,10 +10,11 @@ use cid::Cid;
 use futures::StreamExt;
 use ipld_core::codec::Codec;
 use ipld_dagpb::{DagPbCodec, PbNode};
-use libp2p::{Multiaddr, PeerId, Swarm};
+use libp2p::{noise, Multiaddr, PeerId, Swarm};
 use libp2p_core::ConnectedPoint;
 use libp2p_swarm::{ConnectionId, DialError, SwarmEvent};
 use mater::{blockstore::ReadWriteBlockstore, FileReader, DAG_PB_CODE, RAW_CODE};
+use primitives::CID_SIZE_IN_BYTES;
 use thiserror::Error;
 use tokio::{
     fs::{File, OpenOptions},
@@ -21,14 +22,14 @@ use tokio::{
 };
 use tracing::{debug, error, info, instrument, trace};
 
-use crate::p2p::{new_swarm, Behaviour, BehaviourEvent, InitSwarmError};
+use crate::p2p::new_swarm;
 
 /// Errors that can occur while retrieving some content.
 #[derive(Debug, Error)]
-pub enum ClientError {
-    /// Error occurred while initialing swarm
-    #[error("Swarm initialization error: {0}")]
-    InitSwarm(#[from] InitSwarmError),
+pub enum DownloadError {
+    /// Failed to initialize noise protocol.
+    #[error("Failed to initialize noise: {0}")]
+    Noise(#[from] noise::Error),
     /// Error occurred when trying to establish or upgrade an outbound connection.
     #[error("Dial error: {0}")]
     Dial(#[from] DialError),
@@ -43,13 +44,13 @@ pub enum ClientError {
     Blockstore(#[from] blockstore::Error),
 }
 
-pub struct ClientSettings {
+pub struct DownloadClientSettings {
     output: PathBuf,
     extract: bool,
     overwrite: bool,
 }
 
-impl ClientSettings {
+impl DownloadClientSettings {
     pub fn new(output: PathBuf, extract: bool, overwrite: bool) -> Self {
         Self {
             output,
@@ -59,36 +60,37 @@ impl ClientSettings {
     }
 }
 
-/// A client is used to download blocks from the storage provider. Single client
-/// supports getting a single payload.
-pub struct Client {
-    settings: ClientSettings,
+/// A [`DownloadClient`] is used to download blocks from the storage provider.
+/// Currently, the client only supports downloading a single file per instance.
+pub struct DownloadClient {
+    settings: DownloadClientSettings,
 
     /// Providers of data
     providers: Vec<Multiaddr>,
     /// Swarm instance
-    swarm: Swarm<Behaviour<PassthroughBlockstore>>,
+    swarm: Swarm<beetswap::Behaviour<{ CID_SIZE_IN_BYTES as usize }, PassthroughBlockstore>>,
     /// The in flight block queries. If empty we know that the client received
     /// all requested data.
     queries: HashMap<QueryId, Cid>,
     /// Blockstore used by the client to store blocks into.
     blockstore: ReadWriteBlockstore<File>,
-    /// Content roots being downloaded.
+    /// Content root being downloaded.
     root: Cid,
     /// CAR block DAG mapping children to parents. (The A in DAG isn't checked!)
     dag: HashMap<Cid, Cid>,
 }
 
-impl Client {
+impl DownloadClient {
     pub async fn new(
         providers: Vec<Multiaddr>,
         root: Cid,
-        settings: ClientSettings,
-    ) -> Result<Self, ClientError> {
+        settings: DownloadClientSettings,
+    ) -> Result<Self, DownloadError> {
         // The p2p node which is created by the client doesn't need a real
         // blockstore. The reason is that the blockstore is only used by the
         // node when sharing blocks with other peers.
-        let swarm = new_swarm(Arc::new(PassthroughBlockstore))?;
+        let behaviour = beetswap::Behaviour::new(Arc::new(PassthroughBlockstore));
+        let swarm = new_swarm(behaviour)?;
 
         // Blockstore used to store blocks in. The reason why we separated the
         // actual blockstore used by the client and the blockstore passed to the
@@ -118,19 +120,17 @@ impl Client {
     }
 
     /// Start download of some content with a payload cid.
-    pub async fn download(mut self) -> Result<(), ClientError> {
+    pub async fn download(mut self) -> Result<(), DownloadError> {
         // Dial all providers
         for provider in self.providers.clone() {
             self.swarm.dial(provider)?;
         }
 
-        // Start the download by requesting the roots of the trees.
+        // Start the download by requesting the root
         self.request_block(self.root);
 
         loop {
-            let Some(event) = self.swarm.next().await else {
-                break;
-            };
+            let event = self.swarm.select_next_some().await;
 
             // Handle event received from the providers
             self.on_swarm_event(event).await?;
@@ -181,14 +181,14 @@ impl Client {
 
     fn request_block(&mut self, cid: Cid) {
         debug!("requesting block {cid}");
-        let query_id = self.swarm.behaviour_mut().bitswap.get(&cid);
+        let query_id = self.swarm.behaviour_mut().get(&cid);
         self.queries.insert(query_id, cid);
     }
 
     async fn on_swarm_event(
         &mut self,
-        event: SwarmEvent<BehaviourEvent<PassthroughBlockstore>>,
-    ) -> Result<(), ClientError> {
+        event: SwarmEvent<beetswap::Event>,
+    ) -> Result<(), DownloadError> {
         trace!(?event, "Received swarm event");
 
         match event {
@@ -207,7 +207,7 @@ impl Client {
             } => {
                 self.on_peer_disconnected(peer_id, connection_id);
             }
-            SwarmEvent::Behaviour(BehaviourEvent::Bitswap(event)) => {
+            SwarmEvent::Behaviour(event) => {
                 self.on_bitswap_event(event).await?;
             }
             _ => {
@@ -234,7 +234,7 @@ impl Client {
     }
 
     #[instrument(level = "trace", skip(self))]
-    async fn on_bitswap_event(&mut self, event: Event) -> Result<(), ClientError> {
+    async fn on_bitswap_event(&mut self, event: Event) -> Result<(), DownloadError> {
         match event {
             Event::GetQueryResponse { query_id, data } => {
                 let Some(cid) = self.queries.remove(&query_id) else {

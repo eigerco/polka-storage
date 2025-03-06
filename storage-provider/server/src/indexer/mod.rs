@@ -1,5 +1,6 @@
 use std::{fmt::Debug, path::Path, sync::Arc};
 
+use cid::Cid;
 use local_index_directory::{IndexRecord, OffsetSize, Service};
 use mater::{CarV1Reader, CarV1ReaderExt, CarV2Reader};
 use polka_storage_provider_common::sector::ProvenSector;
@@ -76,8 +77,8 @@ where
     I: Service + Send + Sync + 'static,
     P: AsRef<Path>,
 {
-    let records = match piece_indexes(&piece_path).await {
-        Ok(records) => records,
+    let (roots, records) = match piece_indexes(&piece_path).await {
+        Ok(data) => data,
         Err(err) => {
             error!(piece_path = ?piece_path.as_ref(), ?err, "piece indexing failed with an error");
             return;
@@ -87,7 +88,7 @@ where
     // Move adding the index to the blocking pool. The RocksDB API is sync.
     match spawn_blocking({
         let db = Arc::clone(&db);
-        move || db.add_index(commitment.cid(), records, true)
+        move || db.add_index(commitment.cid(), roots, records, true)
     })
     .await
     {
@@ -103,8 +104,9 @@ where
     };
 }
 
-/// Prepares indexes of a raw piece.
-async fn piece_indexes<P>(location: P) -> Result<Vec<IndexRecord>, ServerError>
+/// Returns the root CIDs and the index records mapping CIDs to their respective
+/// offsets and sizes.
+async fn piece_indexes<P>(location: P) -> Result<(Vec<Cid>, Vec<IndexRecord>), ServerError>
 where
     P: AsRef<Path>,
 {
@@ -113,7 +115,7 @@ where
 
     reader.read_pragma().await?;
     let header = reader.read_v2_header().await?;
-    let _v1_header = reader.read_v1_header().await?;
+    let v1_header = reader.read_v1_header().await?;
     let data_end = header.data_offset + header.data_size;
 
     let mut records = vec![];
@@ -135,7 +137,7 @@ where
         }
     }
 
-    Ok(records)
+    Ok((v1_header.roots, records))
 }
 
 #[cfg(test)]

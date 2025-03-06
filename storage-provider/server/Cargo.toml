@@ -34,7 +34,7 @@ futures = { workspace = true }
 hyper = { workspace = true }
 integer-encoding = { workspace = true }
 jsonrpsee = { workspace = true, features = ["http-client", "macros", "server", "ws-client"] }
-libp2p = { workspace = true, features = ["identify", "macros", "noise", "rendezvous", "tcp", "tokio", "yamux"] }
+libp2p = { workspace = true, features = ["cbor", "identify", "macros", "noise", "rendezvous", "request-response", "tcp", "tokio", "yamux"] }
 rand = { workspace = true }
 rocksdb = { workspace = true }
 sc-cli = { workspace = true }

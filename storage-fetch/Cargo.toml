@@ -17,11 +17,15 @@ clap = { workspace = true, features = ["derive"] }
 futures = { workspace = true }
 ipld-core = { workspace = true, features = ["serde"] }
 ipld-dagpb.workspace = true
-libp2p = { workspace = true, features = ["macros", "noise", "tcp", "tokio", "yamux"] }
+libp2p = { workspace = true, features = ["cbor", "macros", "noise", "request-response", "tcp", "tokio", "yamux"] }
 libp2p-core = { workspace = true }
 libp2p-swarm = { workspace = true }
 mater = { workspace = true, features = ["blockstore"] }
 multihash-codetable = { workspace = true, features = ["sha2"] }
+polka-storage-provider-common = { workspace = true }
+primitives = { workspace = true }
+serde = { workspace = true }
+storagext = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "sync", "time"] }
 tracing = { workspace = true }
