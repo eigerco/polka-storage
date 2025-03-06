@@ -17,7 +17,7 @@ use primitives::p2p::{
 use swarm::new_swarm;
 use tokio::select;
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, error, info, instrument, trace, warn};
+use tracing::{debug, error, info, instrument, warn};
 
 pub mod blockstore;
 mod error;
