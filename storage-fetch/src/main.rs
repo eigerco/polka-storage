@@ -86,7 +86,7 @@ impl SubCommand {
                 provider_address,
                 payload_cid,
             } => {
-                // We know the provider and the content we wan't to retrieve
+                // We know the provider and the payload cid. Nothing more to do.
                 (provider_address, payload_cid)
             }
             SubCommand::ByDealId {

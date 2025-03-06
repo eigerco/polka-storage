@@ -11,20 +11,21 @@ use libp2p::{
 };
 use libp2p_swarm::{NetworkBehaviour, SwarmEvent};
 use serde::{de::DeserializeOwned, Serialize};
-use tracing::info;
+use tracing::{info, instrument};
 
 pub mod resolvers;
 
 /// Creates a temporary P2P node. The node then connects to the specified peer
 /// and submits a request. The future resolves when the response is received or
 /// the error is observed.
+#[instrument]
 pub(crate) async fn request_from_peer_sync<Req, Resp>(
     protocol: &'static str,
     (peer_id, peer_multiaddr): (PeerId, Multiaddr),
     request: Req,
 ) -> Result<Resp, anyhow::Error>
 where
-    Req: Send + Serialize + DeserializeOwned + 'static,
+    Req: Debug + Send + Serialize + DeserializeOwned + 'static,
     Resp: Debug + Send + Serialize + DeserializeOwned + 'static,
 {
     let behaviour = ReqRespBehaviour::<Req, Resp>::new(
@@ -47,11 +48,12 @@ where
 }
 
 /// Pull the swarm until we receive the response from the peer or an error is observed.
+#[instrument(skip_all)]
 async fn wait_response<Req, Resp>(
     mut swarm: Swarm<ReqRespBehaviour<Req, Resp>>,
 ) -> Result<Resp, anyhow::Error>
 where
-    Req: Send + Serialize + DeserializeOwned,
+    Req: Debug + Send + Serialize + DeserializeOwned,
     Resp: Debug + Send + Serialize + DeserializeOwned,
 {
     loop {
@@ -61,12 +63,11 @@ where
             match event {
                 ReqRespEvent::Message { message, .. } => {
                     if let Message::Response { response, .. } = message {
-                        info!(?response, "Received peer info response");
+                        info!(?response, "Received response");
                         return Ok(response);
                     }
                 }
                 ReqRespEvent::OutboundFailure { error, .. } => {
-                    // This happens if we couldn't request the peer
                     bail!(error)
                 }
                 _ => {}

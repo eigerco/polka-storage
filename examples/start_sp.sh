@@ -51,7 +51,7 @@ p2p_key = '@$P2P_PRIVATE_KEY'
 rendezvous_point = '$P2P_BOOTSTRAP_PEER_ID'
 [sealing_configuration]
 fill_threshold = 80
-wait_deals_delay = '1h'
+wait_deals_delay = '5m'
 pre_commit_submission_slack = '1m'" > "$CONFIG"
 
 RUST_LOG="polka_storage_provider_server=debug" target/release/polka-storage-provider-server \
