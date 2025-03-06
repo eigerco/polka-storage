@@ -190,8 +190,7 @@ fn seal_to_config(seal_proof: RegisteredPoStProof) -> filecoin_proofs::PoStConfi
     match seal_proof {
         RegisteredPoStProof::StackedDRGWindow2KiBV1P1
         | RegisteredPoStProof::StackedDRGWindow8MiBV1
-        | RegisteredPoStProof::StackedDRGWindow512MiBV1
-        =>  filecoin_proofs::PoStConfig {
+        | RegisteredPoStProof::StackedDRGWindow512MiBV1 => filecoin_proofs::PoStConfig {
             sector_size: filecoin_proofs::SectorSize(seal_proof.sector_size().bytes()),
             challenge_count: filecoin_proofs::WINDOW_POST_CHALLENGE_COUNT,
             // https://github.com/filecoin-project/rust-fil-proofs/blob/266acc39a3ebd6f3d28c6ee335d78e2b7cea06bc/filecoin-proofs/src/constants.rs#L104

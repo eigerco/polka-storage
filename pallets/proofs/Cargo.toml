@@ -50,6 +50,8 @@ sp-core = { default-features = true, workspace = true }
 sp-io = { default-features = true, workspace = true }
 storage-proofs-core = { workspace = true }
 storage-proofs-porep = { workspace = true }
+cid = { workspace = true, features = ["serde", "std", "alloc"] }
+env_logger = { workspace = true }
 
 [features]
 default = ["std"]

@@ -1,3 +1,5 @@
+use alloc::collections::BTreeMap;
+use codec::Decode;
 use frame_support::derive_impl;
 use frame_system::mocking::MockBlock;
 use sp_runtime::BuildStorage;
@@ -38,7 +40,20 @@ impl crate::Config for Test {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    crate::GenesisConfig::<Test>::default()
+    let _ = env_logger::try_init();
+
+    let mut post_keys = BTreeMap::new();
+    let vkey_bytes = include_bytes!("../../../examples/1GiB.post.vk.scale").to_vec();
+    let vkey = Decode::decode(&mut vkey_bytes.as_slice()).unwrap();
+    post_keys.insert(primitives::proofs::RegisteredPoStProof::StackedDRGWindow1GiBV1, vkey);
+    
+    let config = crate::GenesisConfig::<Test> {
+        porep_keys: BTreeMap::new(),
+        post_keys,
+        _config: Default::default(),
+    };
+
+    config
         .build_storage()
         .unwrap()
         .into()

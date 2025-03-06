@@ -1,16 +1,20 @@
+use core::str::FromStr;
+
+use cid::Cid;
 use codec::{Decode, Encode};
 use frame_support::{assert_noop, assert_ok};
 use hex::FromHex;
-use polka_storage_proofs::{Bls12, VerifyingKey};
+use polka_storage_proofs::{Bls12, Proof, VerifyingKey};
 use primitives::{
     commitment::RawCommitment,
     pallets::ProofVerification,
     proofs::{PublicReplicaInfo, RegisteredPoStProof, Ticket},
     sector::SectorNumber,
+    MAX_POST_PROOF_BYTES, MAX_PROOFS_PER_BLOCK, MAX_SEAL_PROOF_BYTES,
 };
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
-use sp_core::bounded_vec;
+use sp_core::{bounded_vec, ConstU32};
 use sp_runtime::{BoundedBTreeMap, BoundedVec};
 use sp_std::collections::btree_map::BTreeMap;
 
@@ -77,6 +81,52 @@ fn post_verification_fails() {
             ),
             Error::<Test>::InvalidPoStProof
         );
+    });
+}
+
+#[test]
+fn post_verification_for_1gib_succeeds() {
+    new_test_ext().execute_with(|| {
+        let post_type = RegisteredPoStProof::StackedDRGWindow1GiBV1;
+        
+        let proof_bytes = include_bytes!("../../../../examples/1.sector.proof.post.scale").to_vec();
+        let sector_id = SectorNumber::new(1).unwrap();
+        let randomness: [u8; 32] =
+            hex::decode("d26f7c4273e16e2dbe85bacc05d236dd6eddead76c323f41f324d90d61dd2a17")
+                .unwrap()
+                .try_into()
+                .unwrap();
+        let cid =
+            Cid::from_str("bagboea4b5abcbb7hcuvmqzykjtr6scxbs6el7v3a6o2suh7i2lviydha6xztfgii")
+                .unwrap();
+        let mut replicas = BTreeMap::new();
+        replicas.insert(
+            sector_id,
+            PublicReplicaInfo {
+                comm_r: cid.hash().digest().try_into().unwrap(),
+            },
+        );
+
+        let proofs: Vec<Proof<Bls12>> = Decode::decode(&mut &proof_bytes[..]).unwrap();
+        let mut bounded_proofs: BoundedVec<
+            BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>,
+            ConstU32<MAX_PROOFS_PER_BLOCK>,
+        > = BoundedVec::new();
+        for proof in proofs {
+            let mut bytes_regular = vec![0u8; Proof::<Bls12>::serialised_bytes()];
+            proof.into_bytes(&mut bytes_regular.as_mut_slice()).unwrap();
+            
+            bounded_proofs.try_push(bytes_regular.try_into().unwrap()).unwrap();
+        }
+
+        log::debug!("Verifying PoSt...");
+        assert_ok!(<ProofsModule as ProofVerification>::verify_post(
+            post_type,
+            randomness,
+            BoundedBTreeMap::try_from(replicas).expect("replicas should be valid"),
+            bounded_proofs
+        ));
+        log::info!("Verified PoSt.");
     });
 }
 
