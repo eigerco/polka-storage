@@ -6,7 +6,7 @@ use primitives::p2p::{
     BOOTSTRAP_REQUEST_RESPONSE_PROTOCOL, SP_REQUEST_RESPONSE_PROTOCOL,
 };
 
-use super::request_from_peer_sync;
+use super::request_from_peer;
 
 /// Creates a temporary P2P node. The node dials up the bootstrap peer and
 /// requests an additional information about the storage provider identified by
@@ -16,9 +16,10 @@ pub async fn get_multiaddr_storage_provider(
     bootstrap_address: Multiaddr,
     sp_peer_id: PeerId,
 ) -> Result<Vec<Multiaddr>, anyhow::Error> {
-    let peer_info = request_from_peer_sync::<PeerIdRequest, PeerInfoResponse>(
+    let peer_info = request_from_peer::<PeerIdRequest, PeerInfoResponse>(
         BOOTSTRAP_REQUEST_RESPONSE_PROTOCOL,
-        (bootstrap_peer_id, bootstrap_address),
+        bootstrap_peer_id,
+        bootstrap_address,
         sp_peer_id.into(),
     )
     .await?;
@@ -36,9 +37,10 @@ pub async fn get_piece_info(
     sp_address: Multiaddr,
     piece_cid: Cid,
 ) -> Result<PieceInfo, anyhow::Error> {
-    let piece_info = request_from_peer_sync::<PieceInfoRequest, PieceInfoResponse>(
+    let piece_info = request_from_peer::<PieceInfoRequest, PieceInfoResponse>(
         SP_REQUEST_RESPONSE_PROTOCOL,
-        (sp_peer_id, sp_address),
+        sp_peer_id,
+        sp_address,
         PieceInfoRequest { piece_cid },
     )
     .await?;

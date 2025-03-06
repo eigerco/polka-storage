@@ -19,9 +19,10 @@ pub mod resolvers;
 /// and submits a request. The future resolves when the response is received or
 /// the error is observed.
 #[instrument]
-pub(crate) async fn request_from_peer_sync<Req, Resp>(
+pub(crate) async fn request_from_peer<Req, Resp>(
     protocol: &'static str,
-    (peer_id, peer_multiaddr): (PeerId, Multiaddr),
+    peer_id: PeerId,
+    peer_multiaddr: Multiaddr,
     request: Req,
 ) -> Result<Resp, anyhow::Error>
 where

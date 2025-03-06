@@ -231,7 +231,7 @@ where
                     request_id,
                 } = message
                 {
-                    trace!("Got request with id {request_id} from {peer}");
+                    debug!("Got request with id {request_id} from {peer}");
 
                     let response = match self.index_db.get_piece_metadata(request.piece_cid) {
                         Ok(info) => PieceInfoResponse::Found(PieceInfo { roots: info.roots }),
@@ -241,14 +241,13 @@ where
                         }
                     };
 
-                    if self
+                    let response_result = self
                         .swarm
                         .behaviour_mut()
                         .request_response
-                        .send_response(channel, response)
-                        .is_err()
-                    {
-                        error!("Failed to send piece info to {peer:?}");
+                        .send_response(channel, response);
+                    if let Err(err) = response_result {
+                        error!(%peer, ?err, "Failed to respond with piece info");
                     }
                 }
             }
@@ -263,7 +262,7 @@ where
                 error,
             } => warn!("Failed to receive message with id {request_id} from {peer}: {error}"),
             RequestResponseEvent::ResponseSent { peer, request_id } => {
-                trace!("Response with id {request_id} sent to {peer}")
+                debug!("Response with id {request_id} sent to {peer}")
             }
         }
     }
