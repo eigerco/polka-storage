@@ -459,6 +459,7 @@ impl ProofsCommand {
                 let proof_parameters = post::load_groth16_parameters(proof_parameters_path)
                     .map_err(|e| UtilsCommandError::GeneratePoStError(e))?;
 
+
                 let prover_id = derive_prover_id(signer.account_id());
                 let proofs = match_post_proof!(
                     post_type,

@@ -242,6 +242,7 @@ pub mod pallet {
                 ConstU32<MAX_PROOFS_PER_BLOCK>,
             >,
         ) -> DispatchResult {
+            log::debug!("got multiple proofs: {}", proofs.len());
             let replica_count = replicas.len();
             ensure!(replica_count <= post_type.sector_count() * proofs.len(), {
                 log::error!(

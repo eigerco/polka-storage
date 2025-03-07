@@ -13,7 +13,7 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     crypto::groth16::{
-        prepare_verifying_key, verify_proof, Bls12, Fr, Proof, VerificationError, VerifyingKey,
+        prepare_verifying_key, verify_proof, verify_proofs_batch, Bls12, Fr, Proof, VerificationError, VerifyingKey
     },
     fr32, Vec,
 };
@@ -82,9 +82,27 @@ impl ProofScheme {
             randomness,
             sectors: pub_sectors,
         };
+        log::debug!("preparing verifying key");
         let pvk = prepare_verifying_key(vk);
-
+        log::debug!("generating pulic inputs");
+        let mut agg_inputs = Vec::new();
         for partition_index in 0..proofs.len() {
+            let inputs =
+                self.generate_public_inputs(public_inputs.clone(), Some(partition_index))?;
+            agg_inputs.push(inputs);
+        }
+
+        log::debug!("generated public inputs, verifying...");
+        let res = verify_proofs_batch(&pvk, &proofs[..], agg_inputs.as_slice()).inspect_err(|_| {
+            log::error!(target: LOG_TARGET, "failed to verify all partitions");
+        })?;
+
+        if res {
+            Ok(())
+        } else {
+            Err(ProofError::InvalidProof)
+        }
+        /* for partition_index in 0..proofs.len() {
             let inputs =
                 self.generate_public_inputs(public_inputs.clone(), Some(partition_index))?;
             verify_proof(&pvk, &proofs[partition_index], inputs.as_slice()).inspect_err(|_| {
@@ -92,7 +110,7 @@ impl ProofScheme {
             })?;
         }
 
-        Ok(())
+        Ok(()) */
     }
 
     /// References:
@@ -172,6 +190,7 @@ impl From<VerificationError> for ProofError {
         match value {
             VerificationError::InvalidProof => ProofError::InvalidProof,
             VerificationError::InvalidVerifyingKey => ProofError::InvalidVerifyingKey,
+            VerificationError::InvalidInput => ProofError::InvalidProof,
         }
     }
 }
