@@ -203,7 +203,7 @@ fn seal_to_config(seal_proof: RegisteredPoStProof) -> filecoin_proofs::PoStConfi
             sector_size: filecoin_proofs::SectorSize(seal_proof.sector_size().bytes()),
             challenge_count: filecoin_proofs::WINDOW_POST_CHALLENGE_COUNT,
             // https://github.com/filecoin-project/rust-fil-proofs/blob/266acc39a3ebd6f3d28c6ee335d78e2b7cea06bc/filecoin-proofs/src/constants.rs#L104
-            sector_count: 500,
+            sector_count: 100,
             typ: PoStType::Window,
             priority: true,
             api_version: storage_proofs_core::api_version::ApiVersion::V1_2_0,
