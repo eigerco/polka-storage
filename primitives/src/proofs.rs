@@ -215,7 +215,7 @@ impl RegisteredPoStProof {
             RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => 2,
             RegisteredPoStProof::StackedDRGWindow8MiBV1 => 2,
             RegisteredPoStProof::StackedDRGWindow512MiBV1 => 2,
-            RegisteredPoStProof::StackedDRGWindow1GiBV1 => 50,
+            RegisteredPoStProof::StackedDRGWindow1GiBV1 => 25,
         }
     }
 
@@ -228,7 +228,7 @@ impl RegisteredPoStProof {
             RegisteredPoStProof::StackedDRGWindow2KiBV1P1 => 2,
             RegisteredPoStProof::StackedDRGWindow8MiBV1 => 2,
             RegisteredPoStProof::StackedDRGWindow512MiBV1 => 2,
-            RegisteredPoStProof::StackedDRGWindow1GiBV1 => 50,
+            RegisteredPoStProof::StackedDRGWindow1GiBV1 => 25,
         }
     }
 
