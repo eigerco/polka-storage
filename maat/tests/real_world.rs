@@ -304,8 +304,7 @@ async fn real_world_use_case() {
         .await
         .unwrap();
 
-    // in a network with no sectors, the 1st sector is always assigned to the 1st deadline (index: 0).
-    let deadline = Deadline::new(0, post_proof);
+    let deadline = Deadline::new(sector.deadline_index, post_proof);
     let sector_storage = |_sector_number| Some(sector.clone());
     deadline
         .submit_windowed_post(
