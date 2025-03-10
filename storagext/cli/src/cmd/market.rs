@@ -7,7 +7,7 @@ use storagext::{
     deser::DeserializablePath,
     multipair::{DebugPair, MultiPairSigner},
     runtime::SubmissionResult,
-    types::market::{DealParameters as SxtDealParameters, DealProposal as SxtDealProposal},
+    types::market::{DealProposal as SxtDealProposal, OffchainDealParameters},
     MarketClientExt, PolkaStorageConfig,
 };
 use subxt::ext::sp_core::{
@@ -76,8 +76,8 @@ pub(crate) enum MarketCommand {
     /// Publish SP deal parameters
     PublishDealParameters {
         /// Deal parameters for the given SP account
-        #[arg(long, value_parser = <SxtDealParameters as DeserializablePath>::deserialize_json)]
-        deal_parameters: SxtDealParameters,
+        #[arg(long, value_parser = <OffchainDealParameters as DeserializablePath>::deserialize_json)]
+        deal_parameters: OffchainDealParameters,
     },
 
     /// Remove SP deal parameters
@@ -88,6 +88,9 @@ pub(crate) enum MarketCommand {
         /// The target account's ID.
         account_id: <PolkaStorageConfig as subxt::Config>::AccountId,
     },
+
+    /// Retrieve all the deal parameters stored in the market pallet.
+    RetrieveAllDealParameters,
 
     /// Retrieve the balance for a given account.
     RetrieveBalance {
@@ -152,6 +155,18 @@ impl MarketCommand {
                     println!("{}", output_format.format(&params)?);
                 } else {
                     tracing::error!("Could not find deal parameters for {account_id}");
+                }
+            }
+            MarketCommand::RetrieveAllDealParameters => {
+                let deal_parameters = client.retrieve_all_deal_parameters().await?;
+
+                match output_format {
+                    OutputFormat::Plain => {
+                        println!("Deal Parameters: {:?}", deal_parameters)
+                    }
+                    OutputFormat::Json => {
+                        println!("{}", serde_json::to_string(&deal_parameters)?)
+                    }
                 }
             }
             else_ => {
@@ -359,7 +374,7 @@ impl MarketCommand {
     async fn publish_deal_parameters<Client>(
         client: Client,
         account_keypair: MultiPairSigner,
-        deal_parameters: SxtDealParameters,
+        deal_parameters: OffchainDealParameters,
         wait_for_finalization: bool,
     ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where

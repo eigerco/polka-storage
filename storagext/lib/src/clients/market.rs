@@ -12,7 +12,7 @@ use crate::{
             pallet::{BalanceEntry, ClientDealProposal as RuntimeClientDealProposal},
         },
     },
-    types::market::{ClientDealProposal, DealParameters, DealProposal},
+    types::market::{ClientDealProposal, DealProposal, OffchainDealParameters},
     BlockNumber, Currency, PolkaStorageConfig,
 };
 
@@ -94,7 +94,7 @@ pub trait MarketClientExt {
     fn publish_deal_parameters<Keypair>(
         &self,
         account_keypair: &Keypair,
-        deal_parameters: DealParameters,
+        deal_parameters: OffchainDealParameters,
         wait_for_finalization: bool,
     ) -> impl Future<Output = Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>>
     where
@@ -114,6 +114,19 @@ pub trait MarketClientExt {
         &self,
         account_id: <PolkaStorageConfig as subxt::Config>::AccountId,
     ) -> impl Future<Output = Result<Option<SpecializedRuntimeDealParameters>, subxt::Error>>;
+
+    /// Retrieves all deal parameters stored in the market pallet.
+    fn retrieve_all_deal_parameters(
+        &self,
+    ) -> impl Future<
+        Output = Result<
+            Vec<(
+                <crate::PolkaStorageConfig as subxt::Config>::AccountId,
+                SpecializedRuntimeDealParameters,
+            )>,
+            subxt::Error,
+        >,
+    >;
 
     /// Retrieve the balance for a given account (includes the `free` and `locked` balance).
     fn retrieve_balance(
@@ -302,7 +315,7 @@ impl MarketClientExt for crate::runtime::client::Client {
     async fn publish_deal_parameters<Keypair>(
         &self,
         account_keypair: &Keypair,
-        deal_parameters: DealParameters,
+        deal_parameters: OffchainDealParameters,
         wait_for_finalization: bool,
     ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
@@ -358,6 +371,37 @@ impl MarketClientExt for crate::runtime::client::Client {
             .await?
             .fetch(&deal_parameter_query)
             .await
+    }
+
+    async fn retrieve_all_deal_parameters(
+        &self,
+    ) -> Result<
+        Vec<(
+            <crate::PolkaStorageConfig as subxt::Config>::AccountId,
+            SpecializedRuntimeDealParameters,
+        )>,
+        subxt::Error,
+    > {
+        let deal_parameters_query = runtime::storage().market().sp_deal_parameters_iter();
+
+        let mut deal_params = self
+            .client
+            .storage()
+            .at_latest()
+            .await?
+            .iter(deal_parameters_query)
+            .await?;
+
+        let mut params = vec![];
+
+        while let Some(Ok(kv)) = deal_params.next().await {
+            let bytes = &kv.key_bytes[(kv.key_bytes.len() - 32)..];
+            let array_u8: [u8; 32] = bytes.try_into().expect("On-chain validation of accountIDs");
+            let account = <crate::PolkaStorageConfig as subxt::Config>::AccountId::from(array_u8);
+            params.push((account, kv.value))
+        }
+
+        Ok(params)
     }
 
     #[tracing::instrument(
