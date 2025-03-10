@@ -416,14 +416,18 @@ mod benchmarks {
         )
         .unwrap();
 
-        let offchain_deal_parameters: OffchainDealParameters<BalanceOf<T>, BlockNumberFor<T>> =
-            OffchainDealParameters {
-                minimum_price_per_block: 1u32.into(),
-                deal_duration: OffchainDealDurationBound {
-                    lower: Some(60u32.into()),
-                    upper: Some(100u32.into()),
-                },
-            };
+        let offchain_deal_parameters: OffchainDealParameters<
+            AccountId32,
+            BalanceOf<T>,
+            BlockNumberFor<T>,
+        > = OffchainDealParameters {
+            account: caller.clone(),
+            minimum_price_per_block: 1u32.into(),
+            deal_duration: OffchainDealDurationBound {
+                lower: Some(60u32.into()),
+                upper: Some(100u32.into()),
+            },
+        };
         let storage_provider: OriginFor<T> = RawOrigin::Signed(caller.clone()).into();
 
         if n == 2 {
@@ -461,8 +465,9 @@ mod benchmarks {
         )
         .unwrap();
 
-        let deal_parameters: OffchainDealParameters<BalanceOf<T>, BlockNumberFor<T>> =
+        let deal_parameters: OffchainDealParameters<AccountId32, BalanceOf<T>, BlockNumberFor<T>> =
             OffchainDealParameters {
+                account: caller.clone(),
                 minimum_price_per_block: 1u32.into(),
                 deal_duration: OffchainDealDurationBound {
                     lower: Some(60u32.into()),

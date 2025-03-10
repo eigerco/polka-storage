@@ -151,15 +151,17 @@ where
     }
 }
 
-impl<Balance, BlockNumber> std::fmt::Display for DealParameters<Balance, BlockNumber>
+impl<Address, Balance, BlockNumber> std::fmt::Display
+    for DealParameters<Address, Balance, BlockNumber>
 where
+    Address: std::fmt::Display,
     Balance: std::fmt::Display,
     BlockNumber: std::fmt::Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "DealParameters {{ minimum_price_per_block: {}, deal_duration: {} }}",
-            self.minimum_price_per_block, self.deal_duration,
+            "DealParameters {{ account: {}, minimum_price_per_block: {}, deal_duration: {} }}",
+            self.account, self.minimum_price_per_block, self.deal_duration,
         ))
     }
 }

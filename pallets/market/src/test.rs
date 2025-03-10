@@ -522,7 +522,8 @@ fn publish_storage_deals_fails_not_within_deal_parameters() {
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 90);
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 90);
         // Default price = 5, default duration = 10
-        let deal_params: OffchainDealParameters<u64, u64> = OffchainDealParameters {
+        let deal_params: OffchainDealParameters<AccountId32, u64, u64> = OffchainDealParameters {
+            account: account::<Test>(PROVIDER),
             minimum_price_per_block: 10,
             deal_duration: OffchainDealDurationBound {
                 lower: Some(3),  // Chain minimum = 2
@@ -644,7 +645,8 @@ fn publish_storage_deals() {
 fn publish_storage_deals_with_deal_params() {
     new_test_ext().execute_with(|| {
         register_storage_provider(account::<Test>(PROVIDER));
-        let deal_params: OffchainDealParameters<u64, u64> = OffchainDealParameters {
+        let deal_params: OffchainDealParameters<AccountId32, u64, u64> = OffchainDealParameters {
+            account: account::<Test>(PROVIDER),
             minimum_price_per_block: 4,
             deal_duration: OffchainDealDurationBound {
                 lower: None,
@@ -1853,13 +1855,15 @@ fn publish_deal_parameters() {
         let storage_provider = account::<Test>(PROVIDER);
         register_storage_provider(storage_provider.clone());
 
-        let offchain_deal_params: OffchainDealParameters<u64, u64> = OffchainDealParameters {
-            minimum_price_per_block: 1_000,
-            deal_duration: OffchainDealDurationBound {
-                lower: Some(3),  // Chain minimum = 2
-                upper: Some(29), // Chain maximum = 30
-            },
-        };
+        let offchain_deal_params: OffchainDealParameters<AccountId32, u64, u64> =
+            OffchainDealParameters {
+                account: account::<Test>(PROVIDER),
+                minimum_price_per_block: 1_000,
+                deal_duration: OffchainDealDurationBound {
+                    lower: Some(3),  // Chain minimum = 2
+                    upper: Some(29), // Chain maximum = 30
+                },
+            };
         let deal_params = offchain_deal_params
             .clone()
             .validate(
@@ -1890,13 +1894,15 @@ fn publish_deal_parameters() {
         );
 
         // Re-insert different deal parameters
-        let offchain_deal_params_2: OffchainDealParameters<u64, u64> = OffchainDealParameters {
-            minimum_price_per_block: 10_000,
-            deal_duration: OffchainDealDurationBound {
-                lower: Some(4),  // Chain minimum = 2
-                upper: Some(28), // Chain maximum = 30
-            },
-        };
+        let offchain_deal_params_2: OffchainDealParameters<AccountId32, u64, u64> =
+            OffchainDealParameters {
+                account: account::<Test>(PROVIDER),
+                minimum_price_per_block: 10_000,
+                deal_duration: OffchainDealDurationBound {
+                    lower: Some(4),  // Chain minimum = 2
+                    upper: Some(28), // Chain maximum = 30
+                },
+            };
 
         let deal_params_2 = offchain_deal_params_2
             .clone()
@@ -1936,13 +1942,15 @@ fn remove_deal_parameters() {
         let storage_provider = account::<Test>(PROVIDER);
         register_storage_provider(storage_provider.clone());
 
-        let offchain_deal_params: OffchainDealParameters<u64, u64> = OffchainDealParameters {
-            minimum_price_per_block: 1_000,
-            deal_duration: OffchainDealDurationBound {
-                lower: Some(3),  // Chain minimum = 2
-                upper: Some(29), // Chain maximum = 30
-            },
-        };
+        let offchain_deal_params: OffchainDealParameters<AccountId32, u64, u64> =
+            OffchainDealParameters {
+                account: account::<Test>(PROVIDER),
+                minimum_price_per_block: 1_000,
+                deal_duration: OffchainDealDurationBound {
+                    lower: Some(3),  // Chain minimum = 2
+                    upper: Some(29), // Chain maximum = 30
+                },
+            };
         let deal_params = offchain_deal_params
             .clone()
             .validate(

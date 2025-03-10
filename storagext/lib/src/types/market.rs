@@ -7,7 +7,10 @@ use crate::{
     runtime::{
         bounded_vec::IntoBoundedByteVec,
         runtime_types::pallet_market::{
-            deal_parameters::{OffchainDealDurationBound, OffchainDealParameters},
+            deal_parameters::{
+                OffchainDealDurationBound as PolkaStorageOffchainDealDurationBound,
+                OffchainDealParameters as PolkaStorageOffchainDealParameters,
+            },
             pallet::{
                 ClientDealProposal as RuntimeClientDealProposal,
                 DealProposal as RuntimeDealProposal, DealState as RuntimeDealState,
@@ -194,24 +197,32 @@ impl From<ClientDealProposal>
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
-pub struct DealDurationBound {
+pub struct OffchainDealDurationBound {
     lower: Option<BlockNumber>,
     upper: Option<BlockNumber>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
-pub struct DealParameters {
+pub struct OffchainDealParameters {
     pub minimum_price_per_block: Currency,
-    pub deal_duration: DealDurationBound,
+    pub deal_duration: OffchainDealDurationBound,
 }
 
-impl From<DealParameters> for OffchainDealParameters<Currency, BlockNumber> {
-    fn from(value: DealParameters) -> Self {
-        Self {
-            minimum_price_per_block: value.minimum_price_per_block,
-            deal_duration: OffchainDealDurationBound {
-                lower: value.deal_duration.lower,
-                upper: value.deal_duration.upper,
+impl OffchainDealParameters {
+    pub fn into_offchain_deal_parameters(
+        &self,
+        account: subxt::ext::subxt_core::utils::AccountId32,
+    ) -> PolkaStorageOffchainDealParameters<
+        subxt::ext::subxt_core::utils::AccountId32,
+        Currency,
+        BlockNumber,
+    > {
+        PolkaStorageOffchainDealParameters {
+            account,
+            minimum_price_per_block: self.minimum_price_per_block,
+            deal_duration: PolkaStorageOffchainDealDurationBound {
+                lower: self.deal_duration.lower,
+                upper: self.deal_duration.upper,
             },
         }
     }

@@ -375,7 +375,7 @@ pub mod pallet {
         _,
         Blake2_128Concat,
         T::AccountId,
-        DealParameters<BalanceOf<T>, BlockNumberFor<T>>,
+        DealParameters<T::AccountId, BalanceOf<T>, BlockNumberFor<T>>,
     >;
 
     #[pallet::event]
@@ -436,7 +436,7 @@ pub mod pallet {
         /// An SP has updated or published their deal parameters
         DealParametersUpdated {
             provider: T::AccountId,
-            deal_parameters: DealParameters<BalanceOf<T>, BlockNumberFor<T>>,
+            deal_parameters: DealParameters<T::AccountId, BalanceOf<T>, BlockNumberFor<T>>,
         },
         /// An SP has removed their deal parameters
         DealParametersRemoved { provider: T::AccountId },
@@ -836,7 +836,7 @@ pub mod pallet {
         #[pallet::weight((T::WeightInfo::publish_deal_parameters(2), DispatchClass::Normal))]
         pub fn publish_deal_parameters(
             origin: OriginFor<T>,
-            deal_parameters: OffchainDealParameters<BalanceOf<T>, BlockNumberFor<T>>,
+            deal_parameters: OffchainDealParameters<T::AccountId, BalanceOf<T>, BlockNumberFor<T>>,
         ) -> DispatchResult {
             let provider = ensure_signed(origin)?;
             ensure!(
