@@ -178,6 +178,12 @@ fn testnet_genesis(
     let porep_1gib_vk = include_bytes!("../../examples/1GiB.porep.vk.scale");
     let porep_1gib_vk = VerifyingKey::<Bls12>::from_bytes(porep_1gib_vk).unwrap();
 
+    let post_8mib_vk = include_bytes!("../../examples/8MiB.post.vk.scale");
+    let post_8mib_vk = VerifyingKey::<Bls12>::from_bytes(post_8mib_vk).unwrap();
+
+    let porep_8mib_vk = include_bytes!("../../examples/8MiB.porep.vk.scale");
+    let porep_8mib_vk = VerifyingKey::<Bls12>::from_bytes(porep_8mib_vk).unwrap();
+
     serde_json::json!({
         "balances": {
             "balances": endowed_accounts.iter().cloned().map(|k| (k, 1u64 << 60)).collect::<Vec<_>>(),
@@ -207,9 +213,11 @@ fn testnet_genesis(
         "proofs": {
             "postKeys": {
                 "1GiB": post_1gib_vk,
+                "8MiB": post_8mib_vk,
             },
             "porepKeys": {
                 "1GiB": porep_1gib_vk,
+                "8MiB": porep_8mib_vk,
             }
         },
         "sudo": { "key": Some(root) }
