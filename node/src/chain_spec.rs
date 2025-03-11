@@ -1,6 +1,6 @@
 use cumulus_primitives_core::ParaId;
 use polka_storage_proofs::{Bls12, VerifyingKey};
-use polka_storage_runtime as runtime;
+use polka_storage_runtime::{self as runtime, Balance, Market};
 use runtime::{AccountId, AuraId, Signature, EXISTENTIAL_DEPOSIT};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
@@ -157,6 +157,8 @@ pub fn local_testnet_config() -> ChainSpec {
             get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
             get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
             get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+            // Add funds to the market pallet account as we're adding some balance by default to it in its genesis Config.
+            Market::account_id(),
         ],
         get_account_id_from_seed::<sr25519::Public>("Alice"),
         1000.into(),
@@ -219,6 +221,18 @@ fn testnet_genesis(
                 "1GiB": porep_1gib_vk,
                 "8MiB": porep_8mib_vk,
             }
+        },
+        "market": {
+            // This is a nice default for `maat/tests/real_world.rs`.
+            // Add balance to Charlie - Storage Provider.
+            // Collateral (12 500 000) + pre_commit_deposit (1)
+            // 12 500 000 == deal.provider_collateral
+            // 1 == pallets/storage-provider/lib.rs:calculate_pre_commit_deposit
+            // NOTE(@th7nder,11/03/2025): please be aware, that this amount needs to be endowed to Market Pallet as well!
+            "balances": vec![
+                (get_account_id_from_seed::<sr25519::Public>("Charlie"), 12_500_000_001 as Balance),
+                (get_account_id_from_seed::<sr25519::Public>("Alice"), 25_000_000_000 as Balance)
+            ],
         },
         "sudo": { "key": Some(root) }
     })

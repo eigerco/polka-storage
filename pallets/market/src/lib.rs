@@ -31,7 +31,9 @@ pub mod pallet {
         ensure,
         pallet_prelude::*,
         sp_runtime::{
-            traits::{AccountIdConversion, CheckedAdd, CheckedSub, Hash, IdentifyAccount, Verify},
+            traits::{
+                AccountIdConversion, CheckedAdd, CheckedSub, Hash, IdentifyAccount, Verify, Zero,
+            },
             ArithmeticError, BoundedBTreeMap, RuntimeDebug,
         },
         traits::{
@@ -55,6 +57,7 @@ pub mod pallet {
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::BaseArithmetic;
+    use sp_std::collections::btree_set::BTreeSet;
     use sp_std::vec::Vec;
 
     use crate::{
@@ -307,6 +310,46 @@ pub mod pallet {
 
     #[pallet::pallet]
     pub struct Pallet<T>(_);
+
+    #[pallet::genesis_config]
+    pub struct GenesisConfig<T: Config> {
+        pub balances: Vec<(T::AccountId, BalanceOf<T>)>,
+    }
+
+    impl<T: Config> Default for GenesisConfig<T> {
+        fn default() -> Self {
+            Self {
+                balances: Default::default(),
+            }
+        }
+    }
+
+    #[pallet::genesis_build]
+    impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
+        fn build(&self) {
+            let endowed_accounts = self
+                .balances
+                .iter()
+                .map(|(x, _)| x)
+                .cloned()
+                .collect::<BTreeSet<_>>();
+
+            assert!(
+                endowed_accounts.len() == self.balances.len(),
+                "duplicate balances in genesis."
+            );
+
+            for &(ref who, free) in self.balances.iter() {
+                BalanceTable::<T>::insert(
+                    &who,
+                    BalanceEntry {
+                        free,
+                        locked: Zero::zero(),
+                    },
+                );
+            }
+        }
+    }
 
     /// [`BalanceTable`] is used to store balances for Storage Market Participants.
     /// Both Clients and Providers track their `free` and `locked` funds.

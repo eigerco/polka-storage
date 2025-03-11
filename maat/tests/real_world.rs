@@ -69,26 +69,6 @@ async fn register_storage_provider<Keypair>(
     assert_eq!(retrieved_peer_id, peer_id.to_bytes());
 }
 
-async fn add_balance<Keypair>(client: &storagext::Client, account: &Keypair, balance: u128)
-where
-    Keypair: subxt::tx::Signer<PolkaStorageConfig>,
-{
-    client
-        .add_balance(account, balance, true)
-        .await
-        .unwrap()
-        .unwrap();
-
-    let balance_entry = client
-        .retrieve_balance(account.account_id().clone())
-        .await
-        .unwrap()
-        .unwrap();
-
-    assert_eq!(balance_entry.free, balance);
-    assert_eq!(balance_entry.locked, 0);
-}
-
 async fn settle_deal_payments<Keypair>(
     client: &storagext::Client,
     charlie: &Keypair,
@@ -267,19 +247,6 @@ async fn real_world_use_case() {
     let charlie_kp = pair_signer_from_str::<Sr25519Pair>("//Charlie");
 
     register_storage_provider(&client, &charlie_kp, post_proof).await;
-
-    // Add balance to Charlie - Storage Provider.
-    // Collateral (12 500 000) + pre_commit_deposit (1)
-    // 12 500 000 == deal.provider_collateral
-    // 1 == pallets/storage-provider/lib.rs:calculate_pre_commit_deposit
-    let balance = 12_500_000_001;
-    tracing::debug!("adding {} balance to charlie", balance);
-    add_balance(&client, &charlie_kp, balance).await;
-
-    // Add balance to Alice
-    let balance = 25_000_000_000;
-    tracing::debug!("adding {} balance to alice", balance);
-    add_balance(&client, &alice_kp, balance).await;
 
     let (commp, piece_size) = commp(&data_file_path).unwrap();
     tracing::debug!(
