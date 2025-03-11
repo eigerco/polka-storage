@@ -57,8 +57,7 @@ pub mod pallet {
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::BaseArithmetic;
-    use sp_std::collections::btree_set::BTreeSet;
-    use sp_std::vec::Vec;
+    use sp_std::{collections::btree_set::BTreeSet, vec::Vec};
 
     use crate::{
         deal_parameters::{DealParameters, OffchainDealParameters},
