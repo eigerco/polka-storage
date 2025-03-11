@@ -60,8 +60,8 @@ PEER_ID="$(target/release/polka-storage-provider-client generate-peer-id --pubke
 # echo config file in the file in the /tmp folder
 echo "seal_proof = '8MiB'
 post_proof = '8MiB'
-porep_parameters = '8MiB.porep.params'
-post_parameters = '8MiB.post.params'
+porep_parameters = 'target/porep_params_8MiB'
+post_parameters = 'target/post_params_8MiB'
 rendezvous_point_address = '$P2P_ADDRESS'
 p2p_key = '@$P2P_PRIVATE_KEY'
 rendezvous_point = '$P2P_BOOTSTRAP_PEER_ID'" > "$CONFIG"
@@ -70,19 +70,10 @@ rendezvous_point = '$P2P_BOOTSTRAP_PEER_ID'" > "$CONFIG"
 echo '{ "minimum_price_per_block": 200, "deal_duration": { "lower": 50, "upper": 1800 }}' > "$DEAL_PARAMS"
 
 
-# Setup balances
-target/release/storagext-cli --sr25519-key "$CLIENT" market add-balance 250000000000 &
-target/release/storagext-cli --sr25519-key "$PROVIDER" market add-balance 250000000000 &
-# We can process a transaction by charlie and alice, but we can't in the same transaction
-# register one of them as the storage provider
-wait
-
 # It's a test setup based on the local verifying keys, everyone can run those extrinsics currently.
 # Each of the keys is different, because the processes are running in parallel.
 # If they were running in parallel on the same account, they'd conflict with each other on the transaction nonce.
-target/release/storagext-cli --sr25519-key "$PROVIDER" storage-provider register "$PEER_ID" &
-target/release/storagext-cli --sr25519-key "$CLIENT" proofs set-porep-verifying-key @8MiB.porep.vk.scale &
-target/release/storagext-cli --sr25519-key "//Bob" proofs set-post-verifying-key @8MiB.post.vk.scale &
+target/release/storagext-cli --sr25519-key "//Charlie" storage-provider register "$PEER_ID" 
 
 wait
 
