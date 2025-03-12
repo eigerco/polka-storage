@@ -2,13 +2,14 @@ use std::{io, net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
 
 use axum::{
     body::Body,
-    extract::{FromRequest, MatchedPath, Multipart, Path, Request, State},
+    extract::{DefaultBodyLimit, FromRequest, MatchedPath, Multipart, Path, Request, State},
     http::{header, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, put},
     Router,
 };
 use futures::{TryFutureExt, TryStreamExt};
+use hyper::Method;
 use mater::Cid;
 use polka_storage_provider_common::commp::{commp, CommPError};
 use primitives::{commitment::piece::PaddedPieceSize, proofs::RegisteredPoStProof};
@@ -20,22 +21,11 @@ use tokio_util::{
     io::{ReaderStream, StreamReader},
     sync::CancellationToken,
 };
-use tower_http::trace::TraceLayer;
+use tower_http::{
+    cors::{Any, CorsLayer},
+    trace::TraceLayer,
+};
 use uuid::Uuid;
-
-#[cfg(feature = "delia")]
-mod delia_imports {
-    pub use axum::{http::Method, response::Json, routing::post};
-    pub use codec::Encode;
-    pub use storagext::{
-        runtime::runtime_types::pallet_market::pallet::DealProposal as RuntimeDealProposal,
-        types::market::DealProposal as SxtDealProposal,
-    };
-    pub use tower_http::cors::{Any, CorsLayer};
-}
-
-#[cfg(feature = "delia")]
-use delia_imports::*;
 
 use crate::db::DealDB;
 
@@ -78,92 +68,43 @@ pub async fn start_upload_server(
 }
 
 fn configure_router(state: Arc<StorageServerState>) -> Router {
-    #[cfg(feature = "delia")]
-    fn config_delia(state: Arc<StorageServerState>) -> Router {
-        use axum::extract::DefaultBodyLimit;
+    // NOTE(@jmg-duarte,12/03/2025): this will need extra checking but for now it's ok
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::OPTIONS])
+        .allow_headers([header::CONTENT_TYPE])
+        .max_age(std::time::Duration::from_secs(3600));
 
-        let cors = CorsLayer::new()
-            .allow_origin(Any)
-            .allow_methods([Method::GET, Method::POST, Method::PUT, Method::OPTIONS])
-            .allow_headers([header::CONTENT_TYPE])
-            .max_age(std::time::Duration::from_secs(3600));
+    Router::new()
+        .route(
+            "/upload/:cid",
+            put(upload)
+                // Limit upload size to maximum sector size
+                .layer(DefaultBodyLimit::max(
+                    // Cast is safe because we're not supporting 32-bit systems
+                    state.post_proof.sector_size().bytes() as usize,
+                )),
+        )
+        .route("/download/:cid", get(download))
+        .with_state(state)
+        .layer(cors)
+        .layer(
+            TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
+                // Log the matched route's path (with placeholders not filled in).
+                // Use request.uri() or OriginalUri if you want the real path.
+                let matched_path = request
+                    .extensions()
+                    .get::<MatchedPath>()
+                    .map(MatchedPath::as_str);
 
-        Router::new()
-            .route(
-                "/upload/:cid",
-                put(upload)
-                    // Limit upload size to maximum sector size
-                    .layer(DefaultBodyLimit::max(
-                        // Cast is safe because we're not supporting 32-bit systems
-                        state.post_proof.sector_size().bytes() as usize,
-                    )),
-            )
-            .route("/download/:cid", get(download))
-            .route("/calculate_piece_cid", put(calculate_piece_cid))
-            .route("/encode_proposal", post(encode_proposal))
-            .layer(cors)
-            .with_state(state)
-            // Tracing layer
-            .layer(
-                TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
-                    // Log the matched route's path (with placeholders not filled in).
-                    // Use request.uri() or OriginalUri if you want the real path.
-                    let matched_path = request
-                        .extensions()
-                        .get::<MatchedPath>()
-                        .map(MatchedPath::as_str);
-
-                    tracing::info_span!(
-                        "request",
-                        method = ?request.method(),
-                        matched_path,
-                        request_id = %Uuid::new_v4()
-                    )
-                }),
-            )
-    }
-
-    #[cfg(not(feature = "delia"))]
-    fn config_non_delia(state: Arc<StorageServerState>) -> Router {
-        use axum::extract::DefaultBodyLimit;
-
-        Router::new()
-            .route(
-                "/upload/:cid",
-                put(upload)
-                    // Limit upload size to maximum sector size
-                    .layer(DefaultBodyLimit::max(
-                        // Cast is safe because we're not supporting 32-bit systems
-                        state.post_proof.sector_size().bytes() as usize,
-                    )),
-            )
-            .route("/download/:cid", get(download))
-            .with_state(state)
-            .layer(
-                TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
-                    // Log the matched route's path (with placeholders not filled in).
-                    // Use request.uri() or OriginalUri if you want the real path.
-                    let matched_path = request
-                        .extensions()
-                        .get::<MatchedPath>()
-                        .map(MatchedPath::as_str);
-
-                    tracing::info_span!(
-                        "request",
-                        method = ?request.method(),
-                        matched_path,
-                        request_id = %Uuid::new_v4()
-                    )
-                }),
-            )
-    }
-
-    #[cfg(feature = "delia")]
-    let router = config_delia(state);
-    #[cfg(not(feature = "delia"))]
-    let router = config_non_delia(state);
-
-    router
+                tracing::info_span!(
+                    "request",
+                    method = ?request.method(),
+                    matched_path,
+                    request_id = %Uuid::new_v4()
+                )
+            }),
+        )
 }
 
 /// Handler for the upload endpoint. It receives a stream of bytes, converts them
@@ -415,133 +356,3 @@ where
 
     Ok(cid)
 }
-
-#[cfg(feature = "delia")]
-mod delia_endpoints {
-    use super::*;
-
-    /// Calculate the CommP (Piece CID) for a given file.
-    ///
-    /// This endpoint exists as a helper for the deal-making flow because piece CID calculation
-    /// requires complex operations that are difficult to perform in a browser environment.
-    /// The calculation involves processing the file through IPLD chunking and computing
-    /// the piece commitment, which requires specific Rust dependencies.
-    ///
-    /// # Usage
-    /// ```http
-    /// PUT /calculate_piece_cid
-    /// Content-Type: multipart/form-data
-    ///
-    /// [file content as form data]
-    /// ```
-    ///
-    /// # Returns
-    /// Returns the calculated Piece CID as a plain text string on success.
-    /// This CID is required for creating storage deals and must be included
-    /// in the deal proposal.
-    pub async fn calculate_piece_cid(
-        ref s @ State(ref state): State<Arc<StorageServerState>>,
-        request: Request,
-    ) -> Result<String, (StatusCode, String)> {
-        let file_cid = if request.headers().contains_key("Content-Type") {
-            // Handle multipart forms
-            let mut multipart = Multipart::from_request(request, &s)
-                .await
-                .map_err(|err| (StatusCode::BAD_REQUEST, err.to_string()))?;
-            let Some(field) = multipart
-                .next_field()
-                .map_err(|err| (StatusCode::BAD_REQUEST, err.to_string()))
-                .await?
-            else {
-                return Err((StatusCode::BAD_REQUEST, "empty request".to_string()));
-            };
-
-            let field_reader = StreamReader::new(field.map_err(std::io::Error::other));
-            stream_contents_to_car(state.car_piece_storage_dir.clone().as_ref(), field_reader)
-                .await
-                .map_err(|err| {
-                    tracing::error!(%err, "failed to store file into CAR archive");
-                    (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
-                })?
-        } else {
-            // Direct upload handling
-            let body_reader = StreamReader::new(
-                request
-                    .into_body()
-                    .into_data_stream()
-                    .map_err(|err| io::Error::new(io::ErrorKind::Other, err)),
-            );
-            stream_contents_to_car(state.car_piece_storage_dir.clone().as_ref(), body_reader)
-                .await
-                .map_err(|err| {
-                    tracing::error!(%err, "failed to store file into CAR archive");
-                    (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
-                })?
-        };
-
-        let (_, file_path) = content_path(&state.car_piece_storage_dir, file_cid);
-
-        // Calculate piece commitment
-        let piece_commitment_cid = tokio::task::spawn_blocking(move || -> Result<_, CommPError> {
-            let (piece_commitment, _) = commp(&piece_path)?;
-            let piece_commitment_cid = piece_commitment.cid();
-            tracing::debug!(path = %file_path.display(), commp = %piece_commitment_cid, "calculated piece commitment");
-            Ok(piece_commitment_cid)
-        })
-        .await
-        .map_err(|err| {
-            tracing::error!(%err, "failed to execute blocking task");
-            (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
-        })?
-        .map_err(|err| {
-            (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
-        })?;
-
-        Ok(piece_commitment_cid.to_string())
-    }
-
-    /// Encode a deal proposal for signing.
-    ///
-    /// This endpoint exists because deal proposals must be signed by the client's private key,
-    /// which is managed by the Polkadot extension in the browser. However, the exact encoding
-    /// of the proposal must match what the chain expects, which requires chain-specific
-    /// serialization that can't be reliably performed in JavaScript.
-    ///
-    /// The encoded proposal returned by this endpoint can be directly signed by the
-    /// Polkadot extension and used in the `publish_deal` RPC call.
-    ///
-    /// # Usage
-    /// ```http
-    /// POST /encode_proposal
-    /// Content-Type: application/json
-    ///
-    /// {
-    ///   "client": "5...",
-    ///   "provider": "5...",
-    ///   "piece_cid": "baf...",
-    ///   "piece_size": 1048576,
-    ///   "stored_ask": {
-    ///     "price_per_byte": "1",
-    ///     "valid_until": 1000
-    ///   }
-    /// }
-    /// ```
-    ///
-    /// # Returns
-    /// Returns the SCALE-encoded proposal as a hex string, ready to be signed
-    /// by the Polkadot extension.
-    pub async fn encode_proposal(
-        State(_): State<Arc<StorageServerState>>,
-        Json(proposal): Json<SxtDealProposal>,
-    ) -> Json<Result<String, String>> {
-        // Convert to RuntimeDealProposal which implements Encode
-        let runtime_proposal: RuntimeDealProposal<_, _, _> = proposal.into();
-        // Encode the proposal - get raw bytes
-        let encoded = runtime_proposal.encode();
-        // Return the hex encoded proposal without the prefix
-        Json(Ok(format!("0x{}", hex::encode(&encoded))))
-    }
-}
-
-#[cfg(feature = "delia")]
-use delia_endpoints::*;
