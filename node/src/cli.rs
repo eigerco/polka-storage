@@ -146,15 +146,10 @@ pub struct RunCmd {
     #[arg(long, value_parser = keypair_value_parser, required = false)]
     pub p2p_key: Option<Keypair>,
 
-    /// TCP listen address in the P2P network of Storage Providers and Collators
-    /// that the bootstrap node binds to.
-    #[arg(long, default_value_t=default_p2p_tcp_multiaddr(), value_parser = validate_tcp_multiaddr)]
-    pub p2p_tcp_listen_address: Multiaddr,
-
     /// Listen address in the P2P network of Storage Providers and Collators
     /// that the bootstrap node binds to.
-    #[arg(long, required = false)]
-    pub p2p_listen_address: Option<Multiaddr>,
+    #[arg(long, default_value_t=default_p2p_tcp_multiaddr(), value_parser = validate_tcp_multiaddr)]
+    pub p2p_listen_address: Multiaddr,
 
     /// List of other bootstrap nodes
     #[arg(long, required = false, num_args = 1..)]
