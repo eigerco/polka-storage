@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, str::FromStr};
 
 use libp2p::{identity::Keypair, Multiaddr};
 use primitives::p2p::keypair_value_parser;
@@ -113,6 +113,28 @@ impl RelayChainCli {
     }
 }
 
+fn default_p2p_tcp_multiaddr() -> Multiaddr {
+    Multiaddr::from_str("/ip4/127.0.0.1/tcp/62649").expect("value should be a valid Multiaddr")
+}
+
+fn validate_tcp_multiaddr(s: &str) -> Result<Multiaddr, String> {
+    const IP4_TCP: [&'static str; 2] = ["ip4", "tcp"];
+    const IP6_TCP: [&'static str; 2] = ["ip6", "tcp"];
+
+    let multiaddress = Multiaddr::from_str(s).map_err(|err| err.to_string())?;
+    let protocols = multiaddress.protocol_stack().collect::<Vec<_>>();
+    if protocols.is_empty() {
+        // Not sure if this is even possible, but checking doesn't hurt
+        return Err(format!("No protocols were detected for {s}"));
+    }
+    // ip6 isn't tested but just like above, it doesn't hurt to check
+    if protocols.as_slice() != IP4_TCP && protocols.as_slice() != IP6_TCP {
+        return Err(format!("Unsupported protocol stack: {:?}", protocols));
+    }
+    Ok(multiaddress)
+}
+
+
 #[derive(Debug, clap::Parser)]
 #[group(skip)]
 pub struct RunCmd {
@@ -124,6 +146,11 @@ pub struct RunCmd {
     /// It must be an ED25519 private key, either in PEM format or passed in directly.
     #[arg(long, value_parser = keypair_value_parser, required = false)]
     pub p2p_key: Option<Keypair>,
+
+    /// TCP listen address in the P2P network of Storage Providers and Collators
+    /// that the bootstrap node binds to.
+    #[arg(long, default_value_t=default_p2p_tcp_multiaddr(), value_parser = validate_tcp_multiaddr)]
+    pub p2p_tcp_listen_address: Multiaddr,
 
     /// Listen address in the P2P network of Storage Providers and Collators
     /// that the bootstrap node binds to.

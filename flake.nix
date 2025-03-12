@@ -62,7 +62,9 @@
       with pkgs;
       {
         devShells.default = mkShell {
-          inherit buildInputs;
+          buildInputs = buildInputs ++ [
+            git
+          ];
 
           OPENSSL_NO_VENDOR = 1;
           CRATE_CC_NO_DEFAULTS = lib.optionalString pkgs.stdenv.isDarwin "1";
