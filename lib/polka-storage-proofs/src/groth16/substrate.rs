@@ -260,7 +260,7 @@ mod tests {
         let vk_bytes = vk_bytes.to_vec();
         let key = VerifyingKey::<Bls12>::decode(&mut vk_bytes.as_slice());
 
-        assert!(key.is_ok(), "failed to parse 1GiB PoRep verifying key");
+        assert!(key.is_ok(), "failed to parse 8MiB PoRep verifying key");
     }
 
     #[test]
@@ -270,6 +270,6 @@ mod tests {
         let vk_bytes = vk_bytes.to_vec();
         let key = VerifyingKey::<Bls12>::decode(&mut vk_bytes.as_slice());
 
-        assert!(key.is_ok(), "failed to parse 1GiB PoSt verifying key");
+        assert!(key.is_ok(), "failed to parse 8MiB PoSt verifying key");
     }
 }
