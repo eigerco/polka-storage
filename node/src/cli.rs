@@ -134,7 +134,6 @@ fn validate_tcp_multiaddr(s: &str) -> Result<Multiaddr, String> {
     Ok(multiaddress)
 }
 
-
 #[derive(Debug, clap::Parser)]
 #[group(skip)]
 pub struct RunCmd {
