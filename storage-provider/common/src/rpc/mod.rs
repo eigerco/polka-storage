@@ -10,7 +10,8 @@ use primitives::{
 };
 use serde::{Deserialize, Serialize};
 use storagext::types::market::{
-    ClientDealProposal as SxtClientDealProposal, DealProposal as SxtDealProposal,
+    ClientDealProposal as SxtClientDealProposal, DealParameters as SxtDealParameters,
+    DealProposal as SxtDealProposal,
 };
 use subxt::ext::sp_core::crypto::Ss58Codec;
 
@@ -35,6 +36,26 @@ pub trait StorageProviderRpc {
     /// Retrieve a deal proposal (includes the deal status).
     #[method(name = "retrieve_deal")]
     async fn retrieve_deal(&self, deal_id: DealId) -> Result<SxtDealProposal, RpcError>;
+
+    /// Retrieve deal parameters for a given storage provider.
+    /// Returns `None` if the given storage provider has not set any deal parameters.
+    #[method(name = "retrieve_sp_deal_parameters_for")]
+    async fn retrieve_sp_deal_parameters_for(
+        &self,
+        sp_account_id: <storagext::PolkaStorageConfig as subxt::Config>::AccountId,
+    ) -> Result<Option<SxtDealParameters>, RpcError>;
+
+    /// Retrieves all deal parameters contained in the market pallet
+    #[method(name = "retrieve_sp_deal_parameters")]
+    async fn retrieve_sp_deal_parameters(
+        &self,
+    ) -> Result<
+        Vec<(
+            <storagext::PolkaStorageConfig as subxt::Config>::AccountId,
+            SxtDealParameters,
+        )>,
+        RpcError,
+    >;
 }
 
 /// Storage Provider server information, such as start time and on-chain address.

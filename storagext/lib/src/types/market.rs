@@ -7,7 +7,11 @@ use crate::{
     runtime::{
         bounded_vec::IntoBoundedByteVec,
         runtime_types::pallet_market::{
-            deal_parameters::{OffchainDealDurationBound, OffchainDealParameters},
+            deal_parameters::{
+                DealParameters as RuntimeDealParameters,
+                OffchainDealDurationBound as RuntimeOffchainDealDurationBound,
+                OffchainDealParameters as RuntimeOffchainDealParameters,
+            },
             pallet::{
                 ClientDealProposal as RuntimeClientDealProposal,
                 DealProposal as RuntimeDealProposal, DealState as RuntimeDealState,
@@ -194,9 +198,33 @@ impl From<ClientDealProposal>
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
-pub struct DealDurationBound {
+pub struct OffchainDealDurationBound {
     lower: Option<BlockNumber>,
     upper: Option<BlockNumber>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct OffchainDealParameters {
+    pub minimum_price_per_block: Currency,
+    pub deal_duration: OffchainDealDurationBound,
+}
+
+impl From<OffchainDealParameters> for RuntimeOffchainDealParameters<Currency, BlockNumber> {
+    fn from(value: OffchainDealParameters) -> Self {
+        Self {
+            minimum_price_per_block: value.minimum_price_per_block,
+            deal_duration: RuntimeOffchainDealDurationBound {
+                lower: value.deal_duration.lower,
+                upper: value.deal_duration.upper,
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct DealDurationBound {
+    lower: BlockNumber,
+    upper: BlockNumber,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
@@ -205,11 +233,11 @@ pub struct DealParameters {
     pub deal_duration: DealDurationBound,
 }
 
-impl From<DealParameters> for OffchainDealParameters<Currency, BlockNumber> {
-    fn from(value: DealParameters) -> Self {
+impl From<RuntimeDealParameters<Currency, BlockNumber>> for DealParameters {
+    fn from(value: RuntimeDealParameters<Currency, BlockNumber>) -> Self {
         Self {
             minimum_price_per_block: value.minimum_price_per_block,
-            deal_duration: OffchainDealDurationBound {
+            deal_duration: DealDurationBound {
                 lower: value.deal_duration.lower,
                 upper: value.deal_duration.upper,
             },

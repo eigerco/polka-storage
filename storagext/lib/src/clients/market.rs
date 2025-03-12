@@ -12,7 +12,7 @@ use crate::{
             pallet::{BalanceEntry, ClientDealProposal as RuntimeClientDealProposal},
         },
     },
-    types::market::{ClientDealProposal, DealParameters, DealProposal},
+    types::market::{ClientDealProposal, DealProposal, OffchainDealParameters},
     BlockNumber, Currency, PolkaStorageConfig,
 };
 
@@ -94,7 +94,7 @@ pub trait MarketClientExt {
     fn publish_deal_parameters<Keypair>(
         &self,
         account_keypair: &Keypair,
-        deal_parameters: DealParameters,
+        deal_parameters: OffchainDealParameters,
         wait_for_finalization: bool,
     ) -> impl Future<Output = Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>>
     where
@@ -110,10 +110,23 @@ pub trait MarketClientExt {
         Keypair: subxt::tx::Signer<PolkaStorageConfig>;
 
     /// Retrieves the deal parameter for the given storage provider account
-    fn retrieve_deal_parameters(
+    fn retrieve_sp_deal_parameters_for(
         &self,
         account_id: <PolkaStorageConfig as subxt::Config>::AccountId,
     ) -> impl Future<Output = Result<Option<SpecializedRuntimeDealParameters>, subxt::Error>>;
+
+    /// Retrieves all deal parameters stored in the market pallet.
+    fn retrieve_sp_deal_parameters(
+        &self,
+    ) -> impl Future<
+        Output = Result<
+            Vec<(
+                <crate::PolkaStorageConfig as subxt::Config>::AccountId,
+                SpecializedRuntimeDealParameters,
+            )>,
+            subxt::Error,
+        >,
+    >;
 
     /// Retrieve the balance for a given account (includes the `free` and `locked` balance).
     fn retrieve_balance(
@@ -302,7 +315,7 @@ impl MarketClientExt for crate::runtime::client::Client {
     async fn publish_deal_parameters<Keypair>(
         &self,
         account_keypair: &Keypair,
-        deal_parameters: DealParameters,
+        deal_parameters: OffchainDealParameters,
         wait_for_finalization: bool,
     ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
@@ -344,7 +357,7 @@ impl MarketClientExt for crate::runtime::client::Client {
             address = account_id.to_ss58check()
         )
     )]
-    async fn retrieve_deal_parameters(
+    async fn retrieve_sp_deal_parameters_for(
         &self,
         account_id: <PolkaStorageConfig as subxt::Config>::AccountId,
     ) -> Result<Option<SpecializedRuntimeDealParameters>, subxt::Error> {
@@ -358,6 +371,41 @@ impl MarketClientExt for crate::runtime::client::Client {
             .await?
             .fetch(&deal_parameter_query)
             .await
+    }
+
+    async fn retrieve_sp_deal_parameters(
+        &self,
+    ) -> Result<
+        Vec<(
+            <crate::PolkaStorageConfig as subxt::Config>::AccountId,
+            SpecializedRuntimeDealParameters,
+        )>,
+        subxt::Error,
+    > {
+        let deal_parameters_query = runtime::storage().market().sp_deal_parameters_iter();
+
+        let mut deal_params = self
+            .client
+            .storage()
+            .at_latest()
+            .await?
+            .iter(deal_parameters_query)
+            .await?;
+
+        let mut params = vec![];
+
+        while let Some(Ok(kv)) = deal_params.next().await {
+            // The bytes for the AccountId are at the end of the key bytes.
+            // The format of the key bytes is concat(hash(scale_encoded_key), scale_encoded_key)
+            // https://github.com/paritytech/subxt/issues/1201
+            let mut account_buffer = [0; 32];
+            account_buffer.copy_from_slice(&kv.key_bytes[(kv.key_bytes.len() - 32)..]);
+            let account =
+                <crate::PolkaStorageConfig as subxt::Config>::AccountId::from(account_buffer);
+            params.push((account, kv.value))
+        }
+
+        Ok(params)
     }
 
     #[tracing::instrument(
