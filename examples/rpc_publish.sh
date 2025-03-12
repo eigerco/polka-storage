@@ -15,7 +15,7 @@ trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 
 # requires the testnet to be running!
 export DISABLE_XT_WAIT_WARNING=1
-
+TMPDIR="${TMPDIR:-/tmp}"
 TMP_PATH="$TMPDIR/polka-storage"
 
 mkdir -p "$TMP_PATH"
