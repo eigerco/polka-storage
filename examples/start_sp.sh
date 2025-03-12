@@ -5,7 +5,7 @@ trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 
 # requires the testnet to be running!
 export DISABLE_XT_WAIT_WARNING=1
-
+TMPDIR="${TMPDIR:-/tmp}"
 TMP_PATH="$TMPDIR/polka-storage-provider"
 
 mkdir -p "$TMP_PATH"
@@ -37,19 +37,8 @@ P2P_BOOTSTRAP_PEER_ID="$(target/release/polka-storage-provider-client generate-p
 
 echo "Peer ID for bootstrap node: $P2P_BOOTSTRAP_PEER_ID"
 
-# Setup balances
-RUST_LOG=debug target/release/storagext-cli --sr25519-key "$CLIENT" market add-balance 250000000000 &
-RUST_LOG=debug target/release/storagext-cli --sr25519-key "$PROVIDER" market add-balance 250000000000 &
-# We can process a transaction by charlie and alice, but we can't in the same transaction
-# register one of them as the storage provider
-wait
 
-# It's a test setup based on the local verifying keys, everyone can run those extrinsics currently.
-# Each of the keys is different, because the processes are running in parallel.
-# If they were running in parallel on the same account, they'd conflict with each other on the transaction nonce.
-RUST_LOG=debug target/release/storagext-cli --sr25519-key "$PROVIDER" storage-provider register --post-proof "8MiB" "$P2P_SP_PEER_ID" &
-RUST_LOG=debug target/release/storagext-cli --sr25519-key "$CLIENT" proofs set-porep-verifying-key --registered-proof 8MiB @8MiB.porep.vk.scale &
-RUST_LOG=debug target/release/storagext-cli --sr25519-key "//Bob" proofs set-post-verifying-key --registered-proof 8MiB @8MiB.post.vk.scale &
+RUST_LOG=debug target/release/storagext-cli --sr25519-key "//Charlie" storage-provider register --post-proof "8MiB" "$P2P_SP_PEER_ID" 
 wait
 
 echo '{ "minimum_price_per_block": 200, "deal_duration": { "lower": 50, "upper": 1800 }}' > "$DEAL_PARAMS"
@@ -61,8 +50,8 @@ wait
 
 echo "seal_proof = '8MiB'
 post_proof = '8MiB'
-porep_parameters = '8MiB.porep.params'
-post_parameters = '8MiB.post.params'
+porep_parameters = 'target/porep_params_8MiB'
+post_parameters = 'target/post_params_8MiB'
 rendezvous_point_address = '$P2P_ADDRESS'
 p2p_key = '@$P2P_PRIVATE_KEY'
 rendezvous_point = '$P2P_BOOTSTRAP_PEER_ID'

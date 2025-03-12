@@ -30,8 +30,8 @@ function setup_network_keys {
     # It's a test setup based on the local verifying keys, everyone can run those extrinsics currently.
     # Each of the keys is different, because the processes are running in parallel.
     # If they were running in parallel on the same account, they'd conflict with each other on the transaction nonce.
-    RUST_LOG="storagext=debug,storagext-cli=debug" target/release/storagext-cli --sr25519-key "//Alice" proofs set-porep-verifying-key --registered-proof 8MiB @8MiB.porep.vk.scale &
-    RUST_LOG="storagext=debug,storagext-cli=debug" target/release/storagext-cli --sr25519-key "//Bob" proofs set-post-verifying-key --registered-proof 8MiB @8MiB.post.vk.scale &
+    RUST_LOG="storagext=debug,storagext-cli=debug" target/release/storagext-cli --sr25519-key "//Alice" proofs set-porep-verifying-key --registered-proof 8MiB @examples/8MiB.porep.vk.scale &
+    RUST_LOG="storagext=debug,storagext-cli=debug" target/release/storagext-cli --sr25519-key "//Bob" proofs set-post-verifying-key --registered-proof 8MiB @examples/8MiB.post.vk.scale &
     wait
 }
 
@@ -98,8 +98,9 @@ function ports {
     esac
 }
 
-setup_balances
-setup_network_keys
+# Not necessary anymore, because Verifying Keys and balances are set in the genesis.
+# setup_balances
+# setup_network_keys
 
 declare -a ACCOUNTS=("//Alice" "//Bob" "//Charlie")
 for ACCOUNT in "${ACCOUNTS[@]}"; do
@@ -117,8 +118,8 @@ for ACCOUNT in "${ACCOUNTS[@]}"; do
         $(ports "$ACCOUNT")
         seal_proof = '8MiB'
         post_proof = '8MiB'
-        porep_parameters = '8MiB.porep.params'
-        post_parameters = '8MiB.post.params'
+        porep_parameters = 'target/porep_params_8MiB'
+        post_parameters = 'target/porep_params_8MiB'
         p2p_key = '@$(sp_private_key "$ACCOUNT")'
         rendezvous_point_address = '$P2P_BOOTSTRAP_ADDRESS'
         rendezvous_point = '$P2P_BOOTSTRAP_PEER_ID'

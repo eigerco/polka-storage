@@ -252,4 +252,24 @@ mod tests {
 
         assert!(key.is_ok(), "failed to parse 1GiB PoSt verifying key");
     }
+
+    #[test]
+    fn decodes_production_8mib_porep_verifying_key() {
+        let vk_bytes = include_bytes!("../../../../examples/8MiB.porep.vk.scale");
+        // decode expects &mut mutability
+        let vk_bytes = vk_bytes.to_vec();
+        let key = VerifyingKey::<Bls12>::decode(&mut vk_bytes.as_slice());
+
+        assert!(key.is_ok(), "failed to parse 8MiB PoRep verifying key");
+    }
+
+    #[test]
+    fn decodes_production_8mib_post_verifying_key() {
+        let vk_bytes = include_bytes!("../../../../examples/8MiB.post.vk.scale");
+        // decode expects &mut mutability
+        let vk_bytes = vk_bytes.to_vec();
+        let key = VerifyingKey::<Bls12>::decode(&mut vk_bytes.as_slice());
+
+        assert!(key.is_ok(), "failed to parse 8MiB PoSt verifying key");
+    }
 }

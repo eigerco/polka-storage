@@ -1,6 +1,5 @@
 use std::{collections::BTreeSet, env, path::Path, sync::Arc, time::Duration};
 
-use codec::Encode;
 use libp2p::PeerId;
 use maat::*;
 use polka_storage_proofs::{porep, post};
@@ -10,12 +9,10 @@ use primitives::{
     sector::SectorNumber,
 };
 use storagext::{
-    clients::ProofsClientExt,
     multipair::MultiPairSigner,
     runtime::runtime_types::pallet_market::pallet::DealState,
     types::{
         market::DealProposal,
-        proofs::VerifyingKey,
         storage_provider::{FaultDeclaration, RecoveryDeclaration},
     },
     MarketClientExt, PolkaStorageConfig, StorageProviderClientExt, SystemClientExt,
@@ -70,72 +67,6 @@ async fn register_storage_provider<Keypair>(
         .info;
     let retrieved_peer_id = retrieved_peer_info.peer_id.0.as_slice();
     assert_eq!(retrieved_peer_id, peer_id.to_bytes());
-}
-
-async fn add_balance<Keypair>(client: &storagext::Client, account: &Keypair, balance: u128)
-where
-    Keypair: subxt::tx::Signer<PolkaStorageConfig>,
-{
-    client
-        .add_balance(account, balance, true)
-        .await
-        .unwrap()
-        .unwrap();
-
-    let balance_entry = client
-        .retrieve_balance(account.account_id().clone())
-        .await
-        .unwrap()
-        .unwrap();
-
-    assert_eq!(balance_entry.free, balance);
-    assert_eq!(balance_entry.locked, 0);
-}
-
-async fn set_porep_verifying_key<Keypair>(
-    client: &storagext::Client,
-    charlie: &Keypair,
-    seal_proof: RegisteredSealProof,
-    vk: VerifyingKey,
-) where
-    Keypair: subxt::tx::Signer<PolkaStorageConfig>,
-{
-    let result = client
-        .set_porep_verifying_key(charlie, seal_proof, vk, true)
-        .await
-        .unwrap()
-        .unwrap();
-
-    for event in result
-        .events
-        .find::<storagext::runtime::proofs::events::PoRepVerifyingKeyChanged>()
-    {
-        let event = event.unwrap();
-        assert_eq!(event.who, charlie.account_id().clone().into());
-    }
-}
-
-async fn set_post_verifying_key<Keypair>(
-    client: &storagext::Client,
-    charlie: &Keypair,
-    post_proof: RegisteredPoStProof,
-    vk: VerifyingKey,
-) where
-    Keypair: subxt::tx::Signer<PolkaStorageConfig>,
-{
-    let result = client
-        .set_post_verifying_key(charlie, post_proof, vk, true)
-        .await
-        .unwrap()
-        .unwrap();
-
-    for event in result
-        .events
-        .find::<storagext::runtime::proofs::events::PoStVerifyingKeyChanged>()
-    {
-        let event = event.unwrap();
-        assert_eq!(event.who, charlie.account_id().clone().into());
-    }
 }
 
 async fn settle_deal_payments<Keypair>(
@@ -271,43 +202,27 @@ async fn real_world_use_case() {
     let cache_dir_path = temp_dir.path().join("cache_dir");
     let sealed_sector_path = temp_dir.path().join("sealed_sector");
 
-    let seal_proof = primitives::proofs::RegisteredSealProof::StackedDRG8MiBV1;
-    let post_proof = primitives::proofs::RegisteredPoStProof::StackedDRGWindow8MiBV1;
+    let seal_proof = RegisteredSealProof::StackedDRG8MiBV1;
+    let post_proof = RegisteredPoStProof::StackedDRGWindow8MiBV1;
 
     let parameters_cache_path = Path::new(&workspace_root).join("../target/");
     let porep_parameters_path =
         parameters_cache_path.join(format!("porep_params_{}", seal_proof.sector_size()));
     let post_parameters_path =
         parameters_cache_path.join(format!("post_params_{}", post_proof.sector_size()));
-    if !porep_parameters_path.exists() {
-        tracing::info!(
-            "PoRep params at path {} - NOT CACHED! generating parameters...",
-            porep_parameters_path.display()
-        );
-        let mut porep_parameters_file =
-            std::fs::File::create(porep_parameters_path.clone()).unwrap();
 
-        let porep_parameters = porep::generate_random_groth16_parameters(seal_proof).unwrap();
-        porep_parameters.write(&mut porep_parameters_file).unwrap();
-    } else {
-        tracing::info!(
-            "using PoRep cached params at path: {}",
-            porep_parameters_path.display()
+    if !porep_parameters_path.exists() {
+        panic!(
+            "PoRep params at path {} - NOT DOWNLOADED! use `just download-params {}` command to download.",
+            porep_parameters_path.display(),
+            seal_proof.sector_size(),
         );
     }
-
     if !post_parameters_path.exists() {
-        let mut post_parameters_file = std::fs::File::create(post_parameters_path.clone()).unwrap();
-        tracing::info!(
-            "PoSt params at path {} - NOT CACHED! generating parameters....",
-            post_parameters_path.display()
-        );
-        let post_parameters = post::generate_random_groth16_parameters(post_proof).unwrap();
-        post_parameters.write(&mut post_parameters_file).unwrap();
-    } else {
-        tracing::info!(
-            "using PoSt cached params at path: {}",
-            porep_parameters_path.display()
+        panic!(
+            "PoSt params at path {} - NOT DOWNLOADED! use `just download-params {}` command to download.",
+            post_parameters_path.display(),
+            post_proof.sector_size(),
         );
     }
 
@@ -332,45 +247,6 @@ async fn real_world_use_case() {
     let charlie_kp = pair_signer_from_str::<Sr25519Pair>("//Charlie");
 
     register_storage_provider(&client, &charlie_kp, post_proof).await;
-    // Set PoRep VerifyingKey extrinsic only accepts scale-encoded bytes of Verifying Key in substrate form.
-    let porep_vk = polka_storage_proofs::VerifyingKey::<bls12_381::Bls12>::try_from(
-        porep_mapped_parameters.vk.clone(),
-    )
-    .unwrap();
-    let porep_vk_scale = Encode::encode(&porep_vk);
-    set_porep_verifying_key(
-        &client,
-        &charlie_kp,
-        seal_proof,
-        VerifyingKey::from_raw_bytes(porep_vk_scale),
-    )
-    .await;
-
-    let post_vk = polka_storage_proofs::VerifyingKey::<bls12_381::Bls12>::try_from(
-        post_mapped_parameters.vk.clone(),
-    )
-    .unwrap();
-    let post_vk_scale = Encode::encode(&post_vk);
-    set_post_verifying_key(
-        &client,
-        &charlie_kp,
-        post_proof,
-        VerifyingKey::from_raw_bytes(post_vk_scale),
-    )
-    .await;
-
-    // Add balance to Charlie - Storage Provider.
-    // Collateral (12 500 000) + pre_commit_deposit (1)
-    // 12 500 000 == deal.provider_collateral
-    // 1 == pallets/storage-provider/lib.rs:calculate_pre_commit_deposit
-    let balance = 12_500_000_001;
-    tracing::debug!("adding {} balance to charlie", balance);
-    add_balance(&client, &charlie_kp, balance).await;
-
-    // Add balance to Alice
-    let balance = 25_000_000_000;
-    tracing::debug!("adding {} balance to alice", balance);
-    add_balance(&client, &alice_kp, balance).await;
 
     let (commp, piece_size) = commp(&data_file_path).unwrap();
     tracing::debug!(

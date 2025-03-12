@@ -202,6 +202,11 @@ generate-proof-params sector-size:
     cargo r -r -p polka-storage-provider-client -- proofs porep-params --seal-proof "{{sector-size}}"
     cargo r -r -p polka-storage-provider-client -- proofs post-params --post-type "{{sector-size}}"
 
+# sector-size = 8MiB, 1GiB available on the blob store
+download-params sector-size:
+    wget -O target/porep_params_{{sector-size}} https://polkastorage.blob.core.windows.net/proofs/{{sector-size}}.porep.params
+    wget -O target/post_params_{{sector-size}} https://polkastorage.blob.core.windows.net/proofs/{{sector-size}}.post.params
+
 # Run the benchmark tests
 bench-test pallet:
     cargo test --profile ci --locked -p "pallet-{{pallet}}" --features runtime-benchmarks -- benchmark --nocapture
