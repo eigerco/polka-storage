@@ -394,8 +394,8 @@ impl StorageProviderRpcServer for RpcServerState {
             .retrieve_sp_deal_parameters_for(sp_account_id)
             .await
         {
-            Ok(Some(params)) => Ok(Some(params.into())),
-            Ok(None) => Ok(None), // No need to return error on none, as the SP can choose to not set deal parameters
+            // No need to return error on none, as the SP can choose to not set deal parameters
+            Ok(params) => Ok(params.map(SxtDealParameters::from)),
             Err(err) => Err(RpcError::new(INTERNAL_ERROR_CODE, err.to_string(), None)),
         }
     }
