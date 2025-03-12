@@ -234,7 +234,8 @@ pub fn run() -> Result<()> {
                         )?;
                     Some(BootstrapConfig::new(
                         p2p_key,
-                         cli.run.p2p_listen_address,
+                         cli.run.p2p_tcp_listen_address,
+                         cli.run.p2p_websocket_listen_address,
                           cli.run.bootstrap_addresses.unwrap_or_default()))
                 } else {
                     None

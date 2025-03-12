@@ -34,6 +34,7 @@
           pkgs.polkadot;
 
         buildInputs = with pkgs; [
+          git
           cargo-tarpaulin
           clang
           just
@@ -62,9 +63,7 @@
       with pkgs;
       {
         devShells.default = mkShell {
-          buildInputs = buildInputs ++ [
-            git
-          ];
+          inherit buildInputs;
 
           OPENSSL_NO_VENDOR = 1;
           CRATE_CC_NO_DEFAULTS = lib.optionalString pkgs.stdenv.isDarwin "1";

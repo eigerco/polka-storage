@@ -32,23 +32,38 @@ pub struct BootstrapBehaviour {
 }
 
 pub struct BootstrapConfig {
-    address: Multiaddr,
+    tcp_address: Multiaddr,
+    websocket_address: Multiaddr,
     keypair: Keypair,
     bootstrap_addresses: Vec<Multiaddr>,
 }
 
 impl BootstrapConfig {
-    pub fn new(keypair: Keypair, address: Multiaddr, bootstrap_addresses: Vec<Multiaddr>) -> Self {
+    pub fn new(
+        keypair: Keypair,
+        tcp_address: Multiaddr,
+        websocket_address: Multiaddr,
+        bootstrap_addresses: Vec<Multiaddr>,
+    ) -> Self {
         Self {
-            address,
+            tcp_address,
+            websocket_address,
             keypair,
             bootstrap_addresses,
         }
     }
 
-    pub fn create_swarm(
+    pub async fn create_swarm(
         self,
-    ) -> Result<(Swarm<BootstrapBehaviour>, Multiaddr, Vec<Multiaddr>), P2PError> {
+    ) -> Result<
+        (
+            Swarm<BootstrapBehaviour>,
+            Multiaddr,
+            Multiaddr,
+            Vec<Multiaddr>,
+        ),
+        P2PError,
+    > {
         let swarm = SwarmBuilder::with_existing_identity(self.keypair)
             .with_tokio()
             .with_tcp(
@@ -57,6 +72,9 @@ impl BootstrapConfig {
                 yamux::Config::default,
             )
             .map_err(|_| P2PError::InvalidTcpConfig)?
+            .with_websocket(noise::Config::new, yamux::Config::default)
+            .await
+            .map_err(|_| P2PError::InvalidWebsocketConfig)?
             .with_behaviour(|key| {
                 // To content-address message, we can take the hash of message and use it as an ID.
                 let message_id_fn = |message: &gossipsub::Message| {
@@ -97,7 +115,12 @@ impl BootstrapConfig {
             .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(Duration::from_secs(10)))
             .build();
 
-        Ok((swarm, self.address, self.bootstrap_addresses))
+        Ok((
+            swarm,
+            self.tcp_address,
+            self.websocket_address,
+            self.bootstrap_addresses,
+        ))
     }
 }
 
@@ -105,15 +128,20 @@ impl BootstrapConfig {
 /// Listens on the given [`Multiaddr`]
 pub(crate) async fn bootstrap(
     mut swarm: Swarm<BootstrapBehaviour>,
-    addr: Multiaddr,
+    tcp_addr: Multiaddr,
+    ws_addr: Multiaddr,
     bootstrap_addresses: Vec<Multiaddr>,
 ) -> Result<(), P2PError> {
-    info!("Starting P2P bootstrap node at {addr}");
-    swarm.listen_on(addr)?;
+    info!("Starting P2P bootstrap node at {tcp_addr}");
+
+    swarm.listen_on(tcp_addr)?;
+    swarm.listen_on(ws_addr)?;
+
     for addr in bootstrap_addresses {
         info!("Attempting to dial peer at {addr}");
-        if swarm.dial(addr.clone()).is_err() {
-            warn!("Failed to dial peer at address {addr}");
+        match swarm.dial(addr.clone()) {
+            Ok(()) => info!("Successfully dialed {addr}"),
+            Err(err) => error!("Failed to dial peer at address {addr} with error: {err}"),
         }
     }
     swarm
