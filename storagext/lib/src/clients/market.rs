@@ -395,9 +395,13 @@ impl MarketClientExt for crate::runtime::client::Client {
         let mut params = vec![];
 
         while let Some(Ok(kv)) = deal_params.next().await {
-            let bytes = &kv.key_bytes[(kv.key_bytes.len() - 32)..];
-            let array_u8: [u8; 32] = bytes.try_into().expect("On-chain validation of accountIDs");
-            let account = <crate::PolkaStorageConfig as subxt::Config>::AccountId::from(array_u8);
+            // The bytes for the AccountId are at the end of the key bytes.
+            // The format of the key bytes is concat(hash(scale_encoded_key), scale_encoded_key)
+            // https://github.com/paritytech/subxt/issues/1201
+            let mut account_buffer = [0; 32];
+            account_buffer.copy_from_slice(&kv.key_bytes[(kv.key_bytes.len() - 32)..]);
+            let account =
+                <crate::PolkaStorageConfig as subxt::Config>::AccountId::from(account_buffer);
             params.push((account, kv.value))
         }
 
