@@ -46,6 +46,7 @@ libp2p = { workspace = true, features = [
   "websocket",
   "yamux",
 ] }
+libp2p-length-prefix-codec = { workspace = true }
 rand = { workspace = true }
 rocksdb = { workspace = true }
 sc-cli = { workspace = true }

@@ -8273,6 +8273,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "libp2p-length-prefix-codec"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "cbor4ii 0.3.3",
+ "futures",
+ "libp2p 0.54.1",
+ "serde",
+ "unsigned-varint 0.8.0",
+]
+
+[[package]]
 name = "libp2p-mdns"
 version = "0.44.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13910,6 +13922,7 @@ dependencies = [
  "ipld-dagpb",
  "libp2p 0.54.1",
  "libp2p-core 0.42.0",
+ "libp2p-length-prefix-codec",
  "libp2p-swarm 0.45.1",
  "mater",
  "multihash-codetable",
@@ -13927,6 +13940,8 @@ dependencies = [
 name = "polka-storage-node"
 version = "0.0.0"
 dependencies = [
+ "async-trait",
+ "cbor4ii 0.3.3",
  "clap",
  "color-print",
  "cumulus-client-cli",
@@ -13944,6 +13959,7 @@ dependencies = [
  "futures",
  "jsonrpsee 0.24.7",
  "libp2p 0.54.1",
+ "libp2p-length-prefix-codec",
  "log",
  "pallet-transaction-payment-rpc",
  "parity-scale-codec",
@@ -13985,6 +14001,7 @@ dependencies = [
  "substrate-prometheus-endpoint",
  "thiserror 2.0.8",
  "tokio",
+ "unsigned-varint 0.8.0",
 ]
 
 [[package]]
@@ -14089,6 +14106,7 @@ dependencies = [
  "integer-encoding",
  "jsonrpsee 0.24.7",
  "libp2p 0.54.1",
+ "libp2p-length-prefix-codec",
  "mater",
  "polka-storage-proofs",
  "polka-storage-provider-common",

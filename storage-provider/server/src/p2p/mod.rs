@@ -10,9 +10,10 @@ use libp2p::{
     swarm::{NetworkBehaviour, SwarmEvent},
     Multiaddr, PeerId, StreamProtocol, Swarm,
 };
+use libp2p_length_prefix_codec::LpCbor;
 use primitives::p2p::{
     PieceInfo, PieceInfoRequest, PieceInfoResponse, DEFAULT_REGISTRATION_TTL,
-    SP_REQUEST_RESPONSE_PROTOCOL,
+    IDENTIFY_PROTOCOL_VERSION, SP_REQUEST_RESPONSE_PROTOCOL,
 };
 use swarm::new_swarm;
 use tokio::select;
@@ -35,9 +36,6 @@ const MAX_MULTIHASH_LENGTH: usize = 64;
 
 /// Unique namespace used for peer discovery and registration with rendezvous nodes.
 const P2P_NAMESPACE: &str = "polka-storage";
-
-/// The protocol version identifier string used by the identify protocol.
-const IDENTIFY_PROTOCOL_VERSION: &str = "polka-storage/1.0.0";
 
 /// Arguments used to configure the [`P2p`].
 pub struct P2pArgs<B, I>
@@ -68,7 +66,7 @@ where
     identify: identify::Behaviour,
     rendezvous: rendezvous::client::Behaviour,
     bitswap: beetswap::Behaviour<MAX_MULTIHASH_LENGTH, B>,
-    request_response: request_response::cbor::Behaviour<PieceInfoRequest, PieceInfoResponse>,
+    request_response: request_response::Behaviour<LpCbor<PieceInfoRequest, PieceInfoResponse>>,
 }
 
 /// Worker manages the P2P networking lifecycle and peer interactions.
@@ -104,13 +102,14 @@ where
 
         let bitswap = beetswap::Behaviour::new(args.blockstore);
 
-        let request_response = request_response::cbor::Behaviour::new(
-            [(
-                StreamProtocol::new(SP_REQUEST_RESPONSE_PROTOCOL),
-                ProtocolSupport::Full,
-            )],
-            request_response::Config::default(),
-        );
+        let request_response =
+            request_response::Behaviour::<LpCbor<PieceInfoRequest, PieceInfoResponse>>::new(
+                [(
+                    StreamProtocol::new(SP_REQUEST_RESPONSE_PROTOCOL),
+                    ProtocolSupport::Full,
+                )],
+                request_response::Config::default(),
+            );
 
         let behaviour = Behaviour {
             identify,

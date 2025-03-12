@@ -29,24 +29,22 @@ openssl pkey -in "$P2P_PRIVATE_KEY" -pubout -out "$P2P_PUBLIC_KEY"
 
 # Generate Peer ID
 P2P_SP_PEER_ID="$(target/release/polka-storage-provider-client generate-peer-id --pubkey "$P2P_PUBLIC_KEY")"
-
 echo "Generated new peer ID for $PROVIDER: $P2P_SP_PEER_ID"
 
 # Get bootstrap P2P Peer ID. This works after running zombienet locally or in kubernetes
 P2P_BOOTSTRAP_PEER_ID="$(target/release/polka-storage-provider-client generate-peer-id --pubkey "$P2P_BOOTSTRAP_PUBLIC_KEY")"
-
 echo "Peer ID for bootstrap node: $P2P_BOOTSTRAP_PEER_ID"
 
 
-RUST_LOG=debug target/release/storagext-cli --sr25519-key "//Charlie" storage-provider register --post-proof "8MiB" "$P2P_SP_PEER_ID" 
+RUST_LOG='debug,jsonrpsee-client=off' target/release/storagext-cli --sr25519-key "//Charlie" storage-provider register --post-proof "8MiB" "$P2P_SP_PEER_ID"
 wait
 
 echo '{ "minimum_price_per_block": 200, "deal_duration": { "lower": 50, "upper": 1800 }}' > "$DEAL_PARAMS"
-
 # Setup deal parameters, has to go after registration.
-RUST_LOG=debug target/release/storagext-cli --sr25519-key "$PROVIDER" market publish-deal-parameters \
-    --deal-parameters @"$DEAL_PARAMS" &
-wait
+RUST_LOG='debug,jsonrpsee-client=off' target/release/storagext-cli \
+    --sr25519-key "$PROVIDER" \
+    market publish-deal-parameters \
+    --deal-parameters @"$DEAL_PARAMS"
 
 echo "seal_proof = '8MiB'
 post_proof = '8MiB'
@@ -56,7 +54,7 @@ rendezvous_point_address = '$P2P_ADDRESS'
 p2p_key = '@$P2P_PRIVATE_KEY'
 rendezvous_point = '$P2P_BOOTSTRAP_PEER_ID'
 [sealing_configuration]
-fill_threshold = 80
+fill_threshold = 0
 wait_deals_delay = '1h'
 pre_commit_submission_slack = '1m'" > "$CONFIG"
 

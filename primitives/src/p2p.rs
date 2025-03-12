@@ -6,7 +6,7 @@ use libp2p::{identity::Keypair, Multiaddr, PeerId};
 use serde::{de, Deserialize, Serialize, Serializer};
 
 pub const GOSSIP_TOPIC: &str = "registrar";
-pub const IDENTIFY_PROTOCOL_VERSION: &str = "identify/1.0.0";
+pub const IDENTIFY_PROTOCOL_VERSION: &str = "polka-storage/1.0.0";
 pub const BOOTSTRAP_REQUEST_RESPONSE_PROTOCOL: &str = "/polka-storage-bootstrap-req-resp/1.0.0";
 pub const SP_REQUEST_RESPONSE_PROTOCOL: &str = "/polka-storage-provider-req-resp/1.0.0";
 pub const DEFAULT_REGISTRATION_TTL: u64 = 86400;

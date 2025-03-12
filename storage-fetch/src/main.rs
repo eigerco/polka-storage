@@ -115,6 +115,7 @@ impl SubCommand {
                 let multiaddrs =
                     get_multiaddr_storage_provider(bootstrap_peer, bootstrap_address, sp_peer_id)
                         .await?;
+                tracing::debug!(?multiaddrs, "Found multiaddress for peer");
 
                 // Find payload cid
                 let piece_info =
