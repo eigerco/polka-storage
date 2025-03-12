@@ -1,9 +1,8 @@
 use std::{io, net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
 
-use axum::extract::DefaultBodyLimit;
 use axum::{
     body::Body,
-    extract::{FromRequest, MatchedPath, Multipart, Path, Request, State},
+    extract::{DefaultBodyLimit, FromRequest, MatchedPath, Multipart, Path, Request, State},
     http::{header, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, put},
@@ -22,8 +21,10 @@ use tokio_util::{
     io::{ReaderStream, StreamReader},
     sync::CancellationToken,
 };
-use tower_http::cors::{Any, CorsLayer};
-use tower_http::trace::TraceLayer;
+use tower_http::{
+    cors::{Any, CorsLayer},
+    trace::TraceLayer,
+};
 use uuid::Uuid;
 
 use crate::db::DealDB;
