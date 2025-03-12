@@ -39,15 +39,15 @@ pub trait StorageProviderRpc {
 
     /// Retrieve deal parameters for a given storage provider.
     /// Returns `None` if the given storage provider has not set any deal parameters.
-    #[method(name = "retrieve_deal_parameters")]
-    async fn retrieve_deal_parameters(
+    #[method(name = "retrieve_sp_deal_parameters_for")]
+    async fn retrieve_sp_deal_parameters_for(
         &self,
         sp_account_id: <storagext::PolkaStorageConfig as subxt::Config>::AccountId,
     ) -> Result<Option<SxtDealParameters>, RpcError>;
 
     /// Retrieves all deal parameters contained in the market pallet
-    #[method(name = "retrieve_all_deal_parameters")]
-    async fn retrieve_all_deal_parameters(
+    #[method(name = "retrieve_sp_deal_parameters")]
+    async fn retrieve_sp_deal_parameters(
         &self,
     ) -> Result<
         Vec<(

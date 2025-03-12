@@ -8,9 +8,9 @@ use crate::{
         bounded_vec::IntoBoundedByteVec,
         runtime_types::pallet_market::{
             deal_parameters::{
-                DealParameters as PolkaStorageDealParameters,
-                OffchainDealDurationBound as PolkaStorageOffchainDealDurationBound,
-                OffchainDealParameters as PolkaStorageOffchainDealParameters,
+                DealParameters as RuntimeDealParameters,
+                OffchainDealDurationBound as RuntimeOffchainDealDurationBound,
+                OffchainDealParameters as RuntimeOffchainDealParameters,
             },
             pallet::{
                 ClientDealProposal as RuntimeClientDealProposal,
@@ -209,11 +209,11 @@ pub struct OffchainDealParameters {
     pub deal_duration: OffchainDealDurationBound,
 }
 
-impl From<OffchainDealParameters> for PolkaStorageOffchainDealParameters<Currency, BlockNumber> {
+impl From<OffchainDealParameters> for RuntimeOffchainDealParameters<Currency, BlockNumber> {
     fn from(value: OffchainDealParameters) -> Self {
         Self {
             minimum_price_per_block: value.minimum_price_per_block,
-            deal_duration: PolkaStorageOffchainDealDurationBound {
+            deal_duration: RuntimeOffchainDealDurationBound {
                 lower: value.deal_duration.lower,
                 upper: value.deal_duration.upper,
             },
@@ -233,8 +233,8 @@ pub struct DealParameters {
     pub deal_duration: DealDurationBound,
 }
 
-impl From<PolkaStorageDealParameters<Currency, BlockNumber>> for DealParameters {
-    fn from(value: PolkaStorageDealParameters<Currency, BlockNumber>) -> Self {
+impl From<RuntimeDealParameters<Currency, BlockNumber>> for DealParameters {
+    fn from(value: RuntimeDealParameters<Currency, BlockNumber>) -> Self {
         Self {
             minimum_price_per_block: value.minimum_price_per_block,
             deal_duration: DealDurationBound {

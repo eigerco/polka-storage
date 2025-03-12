@@ -110,13 +110,13 @@ pub trait MarketClientExt {
         Keypair: subxt::tx::Signer<PolkaStorageConfig>;
 
     /// Retrieves the deal parameter for the given storage provider account
-    fn retrieve_deal_parameters(
+    fn retrieve_sp_deal_parameters_for(
         &self,
         account_id: <PolkaStorageConfig as subxt::Config>::AccountId,
     ) -> impl Future<Output = Result<Option<SpecializedRuntimeDealParameters>, subxt::Error>>;
 
     /// Retrieves all deal parameters stored in the market pallet.
-    fn retrieve_all_deal_parameters(
+    fn retrieve_sp_deal_parameters(
         &self,
     ) -> impl Future<
         Output = Result<
@@ -357,7 +357,7 @@ impl MarketClientExt for crate::runtime::client::Client {
             address = account_id.to_ss58check()
         )
     )]
-    async fn retrieve_deal_parameters(
+    async fn retrieve_sp_deal_parameters_for(
         &self,
         account_id: <PolkaStorageConfig as subxt::Config>::AccountId,
     ) -> Result<Option<SpecializedRuntimeDealParameters>, subxt::Error> {
@@ -373,7 +373,7 @@ impl MarketClientExt for crate::runtime::client::Client {
             .await
     }
 
-    async fn retrieve_all_deal_parameters(
+    async fn retrieve_sp_deal_parameters(
         &self,
     ) -> Result<
         Vec<(

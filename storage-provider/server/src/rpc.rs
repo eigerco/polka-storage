@@ -199,7 +199,7 @@ impl RpcServerState {
         // and compare the passed in parameters with the ones on-chain and update the ones on chain if needed.
         let Some(deal_parameters) = self
             .xt_client
-            .retrieve_deal_parameters(self.xt_keypair.account_id())
+            .retrieve_sp_deal_parameters_for(self.xt_keypair.account_id())
             .await?
         else {
             return Ok(());
@@ -385,11 +385,15 @@ impl StorageProviderRpcServer for RpcServerState {
         }
     }
 
-    async fn retrieve_deal_parameters(
+    async fn retrieve_sp_deal_parameters_for(
         &self,
         sp_account_id: <storagext::PolkaStorageConfig as subxt::Config>::AccountId,
     ) -> Result<Option<SxtDealParameters>, RpcError> {
-        match self.xt_client.retrieve_deal_parameters(sp_account_id).await {
+        match self
+            .xt_client
+            .retrieve_sp_deal_parameters_for(sp_account_id)
+            .await
+        {
             Ok(Some(params)) => Ok(Some(params.into())),
             Ok(None) => Ok(None), // No need to return error on none, as the SP can choose to not set deal parameters
             Err(err) => Err(RpcError::new(INTERNAL_ERROR_CODE, err.to_string(), None)),
@@ -397,7 +401,7 @@ impl StorageProviderRpcServer for RpcServerState {
     }
 
     /// Retrieves all deal parameters contained in the market pallet
-    async fn retrieve_all_deal_parameters(
+    async fn retrieve_sp_deal_parameters(
         &self,
     ) -> Result<
         Vec<(
@@ -406,7 +410,7 @@ impl StorageProviderRpcServer for RpcServerState {
         )>,
         RpcError,
     > {
-        match self.xt_client.retrieve_all_deal_parameters().await {
+        match self.xt_client.retrieve_sp_deal_parameters().await {
             Ok(params) => Ok(params
                 .into_iter()
                 .map(|(account, params)| (account.into(), params.into()))

@@ -7,7 +7,9 @@ use storagext::{
     deser::DeserializablePath,
     multipair::{DebugPair, MultiPairSigner},
     runtime::SubmissionResult,
-    types::market::{DealProposal as SxtDealProposal, OffchainDealParameters},
+    types::market::{
+        DealProposal as SxtDealProposal, OffchainDealParameters as SxtOffchainDealParameters,
+    },
     MarketClientExt, PolkaStorageConfig,
 };
 use subxt::ext::sp_core::{
@@ -76,8 +78,8 @@ pub(crate) enum MarketCommand {
     /// Publish SP deal parameters
     PublishDealParameters {
         /// Deal parameters for the given SP account
-        #[arg(long, value_parser = <OffchainDealParameters as DeserializablePath>::deserialize_json)]
-        deal_parameters: OffchainDealParameters,
+        #[arg(long, value_parser = <SxtOffchainDealParameters as DeserializablePath>::deserialize_json)]
+        deal_parameters: SxtOffchainDealParameters,
     },
 
     /// Remove SP deal parameters
@@ -149,7 +151,10 @@ impl MarketCommand {
                 }
             }
             MarketCommand::RetrieveDealParameters { account_id } => {
-                if let Some(params) = client.retrieve_deal_parameters(account_id.clone()).await? {
+                if let Some(params) = client
+                    .retrieve_sp_deal_parameters_for(account_id.clone())
+                    .await?
+                {
                     tracing::debug!("Deal Parameters {:?}", params);
 
                     println!("{}", output_format.format(&params)?);
@@ -158,7 +163,7 @@ impl MarketCommand {
                 }
             }
             MarketCommand::RetrieveAllDealParameters => {
-                let deal_parameters = client.retrieve_all_deal_parameters().await?;
+                let deal_parameters = client.retrieve_sp_deal_parameters().await?;
 
                 match output_format {
                     OutputFormat::Plain => {
@@ -374,7 +379,7 @@ impl MarketCommand {
     async fn publish_deal_parameters<Client>(
         client: Client,
         account_keypair: MultiPairSigner,
-        deal_parameters: OffchainDealParameters,
+        deal_parameters: SxtOffchainDealParameters,
         wait_for_finalization: bool,
     ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
