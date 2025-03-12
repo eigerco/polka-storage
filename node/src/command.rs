@@ -232,19 +232,10 @@ pub fn run() -> Result<()> {
                         .ok_or(
                             "This node is configured as authority, so it will be used as Bootstrap node for Storage Provider & Collator network, but the key is missing. Set the --p2p-key argument of the node."
                         )?;
-                    let p2p_listen_address = cli
-                        .run
-                        .p2p_listen_address
-                        .ok_or(
-                            "This node is configured as authority, so it will be used as Bootstrap node for Storage Provider & Collator network, but the listen address is missing. Set the --p2p-listen-address argument of the node."
-                        )?;
-                    let bootstrap_addresses = cli
-                        .run
-                        .bootstrap_addresses
-                        .ok_or(
-                            "This node is configured as authority, so it will be used as Bootstrap node for Storage Provider & Collator network, but the bootstrap addresses are missing. Set the --bootstrap-addresses argument of the node."
-                        )?;
-                    Some(BootstrapConfig::new(p2p_key, p2p_listen_address, bootstrap_addresses))
+                    Some(BootstrapConfig::new(
+                        p2p_key,
+                         cli.run.p2p_listen_address,
+                          cli.run.bootstrap_addresses.unwrap_or_default()))
                 } else {
                     None
                 };
