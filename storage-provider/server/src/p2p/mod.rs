@@ -165,8 +165,6 @@ where
     }
 
     fn on_swarm_event(&mut self, event: SwarmEvent<BehaviourEvent<B>>) {
-        dbg!(&event);
-
         match event {
             SwarmEvent::Behaviour(ev) => match ev {
                 BehaviourEvent::Identify(ev) => self.on_identify_event(ev),
