@@ -34,17 +34,17 @@ hyper = { workspace = true }
 integer-encoding = { workspace = true }
 jsonrpsee = { workspace = true, features = ["http-client", "macros", "server", "ws-client"] }
 libp2p = { workspace = true, features = [
-    "cbor",
-    "dns",
-    "identify",
-    "macros",
-    "noise",
-    "rendezvous",
-    "request-response",
-    "tcp",
-    "tokio",
-    "websocket",
-    "yamux",
+  "cbor",
+  "dns",
+  "identify",
+  "macros",
+  "noise",
+  "rendezvous",
+  "request-response",
+  "tcp",
+  "tokio",
+  "websocket",
+  "yamux",
 ] }
 rand = { workspace = true }
 rocksdb = { workspace = true }
