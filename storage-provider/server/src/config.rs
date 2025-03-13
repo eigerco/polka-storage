@@ -9,7 +9,7 @@ use clap::Args;
 use libp2p::{identity::Keypair, Multiaddr, PeerId};
 use polka_storage_provider_common::config::sealing::SealingConfiguration;
 use primitives::{
-    p2p::keypair_value_parser,
+    p2p::{keypair_value_parser, validate_tcp_multiaddr, validate_ws_multiaddr},
     proofs::{RegisteredPoStProof, RegisteredSealProof},
 };
 use serde::{de::Error, Deserialize, Deserializer};
@@ -37,10 +37,12 @@ fn default_node_address() -> Url {
     Url::parse(DEFAULT_NODE_ADDRESS).expect("DEFAULT_NODE_ADDRESS must be a valid Url")
 }
 
-fn default_p2p_listen_address() -> Multiaddr {
-    "/ip4/127.0.0.1/tcp/8002"
-        .parse()
-        .expect("multiaddres is correct")
+fn default_p2p_tcp_multiaddr() -> Multiaddr {
+    Multiaddr::from_str("/ip4/127.0.0.1/tcp/8002").expect("value should be a valid Multiaddr")
+}
+
+fn default_p2p_ws_multiaddr() -> Multiaddr {
+    Multiaddr::from_str("/ip4/127.0.0.1/tcp/8003/ws").expect("value should be a valid Multiaddr")
 }
 
 #[derive(Debug, Clone, Deserialize, Args)]
@@ -116,10 +118,15 @@ pub struct ConfigurationArgs {
     #[arg(long, value_parser = keypair_value_parser, required = false)]
     pub(crate) p2p_key: Keypair,
 
-    /// P2P listen address.
-    #[serde(default = "default_p2p_listen_address")]
-    #[arg(long, default_value_t = default_p2p_listen_address())]
-    pub(crate) p2p_listen_address: Multiaddr,
+    /// P2P TCP listen address.
+    #[serde(default = "default_p2p_tcp_multiaddr")]
+    #[arg(long, default_value_t = default_p2p_tcp_multiaddr(), value_parser = validate_tcp_multiaddr)]
+    pub(crate) p2p_tcp_listen_address: Multiaddr,
+
+    /// P2P websocket listen address.
+    #[serde(default = "default_p2p_ws_multiaddr")]
+    #[arg(long, default_value_t = default_p2p_ws_multiaddr(), value_parser = validate_ws_multiaddr)]
+    pub(crate) p2p_ws_listen_address: Multiaddr,
 
     /// Rendezvous multiaddr that the node registers to.
     #[arg(long, required = false)]

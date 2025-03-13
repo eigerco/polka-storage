@@ -10,6 +10,9 @@ pub enum P2pError {
     #[error("Failed to initialize noise: {0}")]
     InitNoise(String),
 
+    #[error("Invalid websocket config")]
+    InvalidWebsocketConfig,
+
     /// Error occured when trying to establish or upgrade an outbound connection.
     #[error("Dial error: {0}")]
     Dial(#[from] DialError),
