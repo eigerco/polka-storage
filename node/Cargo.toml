@@ -37,6 +37,7 @@ futures = { workspace = true }
 jsonrpsee = { features = ["server"], workspace = true }
 libp2p = { workspace = true, features = [
   "cbor",
+  "dns",
   "gossipsub",
   "identify",
   "macros",
@@ -45,6 +46,8 @@ libp2p = { workspace = true, features = [
   "request-response",
   "tcp",
   "tokio",
+  "tokio",
+  "websocket",
   "yamux",
 ] }
 log = { workspace = true, features = ["kv"], default-features = true }

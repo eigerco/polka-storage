@@ -134,6 +134,27 @@ fn validate_tcp_multiaddr(s: &str) -> Result<Multiaddr, String> {
     Ok(multiaddress)
 }
 
+fn default_p2p_ws_multiaddr() -> Multiaddr {
+    Multiaddr::from_str("/ip4/127.0.0.1/tcp/62650/ws").expect("value should be a valid Multiaddr")
+}
+
+fn validate_ws_multiaddr(s: &str) -> Result<Multiaddr, String> {
+    const IP4_TCP_WS: [&str; 3] = ["ip4", "tcp", "ws"];
+    const IP6_TCP_WS: [&str; 3] = ["ip6", "tcp", "ws"];
+
+    let multiaddress = Multiaddr::from_str(s).map_err(|err| err.to_string())?;
+    let protocols = multiaddress.protocol_stack().collect::<Vec<_>>();
+    if protocols.is_empty() {
+        // Not sure if this is even possible, but checking doesn't hurt
+        return Err(format!("No protocols were detected for {s}"));
+    }
+    // ip6 isn't tested but just like above, it doesn't hurt to check
+    if protocols.as_slice() != IP4_TCP_WS && protocols.as_slice() != IP6_TCP_WS {
+        return Err(format!("Unsupported protocol stack: {:?}", protocols));
+    }
+    Ok(multiaddress)
+}
+
 #[derive(Debug, clap::Parser)]
 #[group(skip)]
 pub struct RunCmd {
@@ -148,8 +169,13 @@ pub struct RunCmd {
 
     /// Listen address in the P2P network of Storage Providers and Collators
     /// that the bootstrap node binds to.
-    #[arg(long, default_value_t = default_p2p_tcp_multiaddr(), value_parser = validate_tcp_multiaddr)]
-    pub p2p_listen_address: Multiaddr,
+    #[arg(long, default_value_t=default_p2p_tcp_multiaddr(), value_parser = validate_tcp_multiaddr)]
+    pub p2p_tcp_listen_address: Multiaddr,
+
+    /// Websocket listen address in the P2P network of Storage Providers and Collators
+    /// that the bootstrap node binds to.
+    #[arg(long, default_value_t=default_p2p_ws_multiaddr(), value_parser = validate_ws_multiaddr)]
+    pub p2p_websocket_listen_address: Multiaddr,
 
     /// List of other bootstrap nodes
     #[arg(long, required = false, num_args = 1..)]

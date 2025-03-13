@@ -7967,7 +7967,7 @@ dependencies = [
  "libp2p-tcp 0.40.1",
  "libp2p-upnp 0.1.1",
  "libp2p-wasm-ext",
- "libp2p-websocket",
+ "libp2p-websocket 0.42.2",
  "libp2p-yamux 0.44.1",
  "multiaddr 0.18.2",
  "pin-project",
@@ -8002,6 +8002,7 @@ dependencies = [
  "libp2p-swarm 0.45.1",
  "libp2p-tcp 0.42.0",
  "libp2p-upnp 0.3.0",
+ "libp2p-websocket 0.44.0",
  "libp2p-yamux 0.46.0",
  "multiaddr 0.18.2",
  "pin-project",
@@ -8735,6 +8736,27 @@ dependencies = [
  "rw-stream-sink",
  "soketto 0.8.1",
  "thiserror 1.0.69",
+ "url",
+ "webpki-roots 0.25.4",
+]
+
+[[package]]
+name = "libp2p-websocket"
+version = "0.44.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "888b2ff2e5d8dcef97283daab35ad1043d18952b65e05279eecbe02af4c6e347"
+dependencies = [
+ "either",
+ "futures",
+ "futures-rustls 0.26.0",
+ "libp2p-core 0.42.0",
+ "libp2p-identity",
+ "parking_lot 0.12.3",
+ "pin-project-lite",
+ "rw-stream-sink",
+ "soketto 0.8.1",
+ "thiserror 1.0.69",
+ "tracing",
  "url",
  "webpki-roots 0.25.4",
 ]
