@@ -49,8 +49,10 @@ where
     pub local_keypair: Keypair,
     /// List of rendezvous nodes to register to.
     pub rendezvous_nodes: Vec<(PeerId, Multiaddr)>,
-    /// List of the addresses on which to listen for incoming connections.
-    pub listen_on: Vec<Multiaddr>,
+    /// P2P tcp listen address
+    pub p2p_tcp_listen_address: Multiaddr,
+    /// P2P ws listen address
+    pub p2p_ws_listen_address: Multiaddr,
     /// The blockstore used for content retrieval.
     pub blockstore: Arc<B>,
     /// Piece index database.
@@ -92,7 +94,7 @@ where
     B: Blockstore,
     I: Service,
 {
-    pub fn new(args: P2pArgs<B, I>) -> Result<Self, P2pError> {
+    pub async fn new(args: P2pArgs<B, I>) -> Result<Self, P2pError> {
         let identify = identify::Behaviour::new(identify::Config::new(
             IDENTIFY_PROTOCOL_VERSION.to_string(),
             args.local_keypair.public(),
@@ -117,11 +119,9 @@ where
             request_response,
         };
 
-        let mut swarm = new_swarm(args.local_keypair, behaviour)?;
-
-        for addr in args.listen_on {
-            swarm.listen_on(addr)?;
-        }
+        let mut swarm = new_swarm(args.local_keypair, behaviour).await?;
+        swarm.listen_on(args.p2p_tcp_listen_address)?;
+        swarm.listen_on(args.p2p_ws_listen_address)?;
 
         // We are dialing the rendezvous nodes. After the connection is
         // successfully established, the identify message received from the
@@ -165,6 +165,8 @@ where
     }
 
     fn on_swarm_event(&mut self, event: SwarmEvent<BehaviourEvent<B>>) {
+        dbg!(&event);
+
         match event {
             SwarmEvent::Behaviour(ev) => match ev {
                 BehaviourEvent::Identify(ev) => self.on_identify_event(ev),

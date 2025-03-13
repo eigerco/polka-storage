@@ -4,7 +4,7 @@ use libp2p::{identity::Keypair, noise, swarm::NetworkBehaviour, tcp, yamux, Swar
 
 use super::P2pError;
 
-pub(crate) fn new_swarm<B>(keypair: Keypair, behaviour: B) -> Result<Swarm<B>, P2pError>
+pub(crate) async fn new_swarm<B>(keypair: Keypair, behaviour: B) -> Result<Swarm<B>, P2pError>
 where
     B: NetworkBehaviour,
 {
@@ -15,6 +15,9 @@ where
             noise::Config::new,
             yamux::Config::default,
         )?
+        .with_websocket(noise::Config::new, yamux::Config::default)
+        .await
+        .map_err(|_| P2pError::InvalidWebsocketConfig)?
         .with_behaviour(|_| behaviour)
         .expect("Moving behaviour doesn't fail")
         .with_swarm_config(|config| config.with_idle_connection_timeout(Duration::from_secs(10)))

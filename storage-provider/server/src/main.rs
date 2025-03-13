@@ -261,8 +261,11 @@ pub struct Server {
     /// P2P ED25519 private key
     p2p_key: Keypair,
 
-    /// P2P listen address.
-    p2p_listen_address: Multiaddr,
+    /// P2P tcp listen address
+    p2p_tcp_listen_address: Multiaddr,
+
+    /// P2P ws listen address
+    p2p_ws_listen_address: Multiaddr,
 
     /// Rendezvous point address that the registration node connects to
     /// or the bootstrap node binds to.
@@ -352,7 +355,8 @@ impl TryFrom<ServerCli> for Server {
             post_parameters,
             parallel_prove_commits: args.parallel_prove_commits.get(),
             p2p_key: args.p2p_key,
-            p2p_listen_address: args.p2p_listen_address,
+            p2p_tcp_listen_address: args.p2p_tcp_listen_address,
+            p2p_ws_listen_address: args.p2p_ws_listen_address,
             rendezvous_point_address: args.rendezvous_point_address,
             rendezvous_point: args.rendezvous_point,
             sealing_configuration: args.sealing_configuration,
@@ -380,7 +384,8 @@ impl Server {
                 .map(|result| ("RPC", result.map_err(ServerError::from))),
         );
         tasks.spawn(
-            p2p::Worker::new(p2p_args)?
+            p2p::Worker::new(p2p_args)
+                .await?
                 .run(cancellation_token.child_token())
                 .map(|result| ("P2P", result.map_err(ServerError::from))),
         );
@@ -541,7 +546,8 @@ impl Server {
         let p2p_args = P2pArgs {
             local_keypair: self.p2p_key,
             rendezvous_nodes: vec![(self.rendezvous_point, self.rendezvous_point_address)],
-            listen_on: vec![self.p2p_listen_address],
+            p2p_tcp_listen_address: self.p2p_tcp_listen_address,
+            p2p_ws_listen_address: self.p2p_ws_listen_address,
             blockstore: Arc::new(PiecesBlockstore::new(raw_pieces_dir, Arc::clone(&lid))),
             index_db: Arc::clone(&lid),
         };

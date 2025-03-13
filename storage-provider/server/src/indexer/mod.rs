@@ -7,7 +7,7 @@ use polka_storage_provider_common::sector::ProvenSector;
 use primitives::commitment::{CommP, Commitment};
 use tokio::{fs::File, io::BufReader, sync::mpsc::UnboundedReceiver, task::spawn_blocking};
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
-use tracing::{debug, error, info, instrument};
+use tracing::{error, info, instrument};
 
 use crate::ServerError;
 
@@ -56,8 +56,6 @@ fn on_command<I>(command: IndexerMessage, db: Arc<I>, tracker: &TaskTracker)
 where
     I: Service + Send + Sync + 'static,
 {
-    debug!("Command received: {command:?}");
-
     match command {
         IndexerMessage::IndexSector(sector) => {
             sector
@@ -77,6 +75,8 @@ where
     I: Service + Send + Sync + 'static,
     P: AsRef<Path>,
 {
+    info!("indexing started");
+
     let (roots, records) = match piece_indexes(&piece_path).await {
         Ok(data) => data,
         Err(err) => {
