@@ -15,6 +15,7 @@ use libp2p::{
     swarm::{NetworkBehaviour, SwarmEvent},
     tcp, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder,
 };
+use libp2p_length_prefix_codec::LpCbor;
 use log::{debug, error, info, warn};
 use primitives::p2p::{
     PeerIdRequest, PeerInfo, PeerInfoResponse, BOOTSTRAP_REQUEST_RESPONSE_PROTOCOL,
@@ -28,7 +29,7 @@ pub struct BootstrapBehaviour {
     pub rendezvous: rendezvous::server::Behaviour,
     pub identify: identify::Behaviour,
     pub gossipsub: gossipsub::Behaviour,
-    pub request_response: request_response::cbor::Behaviour<PeerIdRequest, PeerInfoResponse>,
+    pub request_response: request_response::Behaviour<LpCbor<PeerIdRequest, PeerInfoResponse>>,
 }
 
 pub struct BootstrapConfig {
@@ -102,7 +103,7 @@ impl BootstrapConfig {
                         gossipsub::MessageAuthenticity::Signed(key.clone()),
                         gossipsub_config,
                     )?,
-                    request_response: request_response::cbor::Behaviour::new(
+                    request_response: request_response::Behaviour::new(
                         [(
                             StreamProtocol::new(BOOTSTRAP_REQUEST_RESPONSE_PROTOCOL),
                             ProtocolSupport::Full,

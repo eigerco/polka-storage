@@ -34,6 +34,7 @@
           pkgs.polkadot;
 
         buildInputs = with pkgs; [
+          wget
           git
           cargo-tarpaulin
           clang

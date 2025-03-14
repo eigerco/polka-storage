@@ -4,11 +4,10 @@ use anyhow::bail;
 use futures::StreamExt;
 use libp2p::{
     noise,
-    request_response::{
-        self, cbor::Behaviour as ReqRespBehaviour, Event as ReqRespEvent, Message, ProtocolSupport,
-    },
+    request_response::{self, Behaviour, Event as ReqRespEvent, Message, ProtocolSupport},
     tcp, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder,
 };
+use libp2p_length_prefix_codec::LpCbor;
 use libp2p_swarm::{NetworkBehaviour, SwarmEvent};
 use serde::{de::DeserializeOwned, Serialize};
 use tracing::{info, instrument};
@@ -29,7 +28,7 @@ where
     Req: Debug + Send + Serialize + DeserializeOwned + 'static,
     Resp: Debug + Send + Serialize + DeserializeOwned + 'static,
 {
-    let behaviour = ReqRespBehaviour::<Req, Resp>::new(
+    let behaviour = Behaviour::<LpCbor<Req, Resp>>::new(
         [(StreamProtocol::new(protocol), ProtocolSupport::Full)],
         request_response::Config::default(),
     );
@@ -42,6 +41,7 @@ where
     swarm.add_peer_address(peer_id, peer_multiaddr);
 
     // Send request to the peer
+    tracing::debug!(?peer_id, "Sending request to");
     swarm.behaviour_mut().send_request(&peer_id, request);
 
     // Wait for the response
@@ -51,28 +51,29 @@ where
 /// Pull the swarm until we receive the response from the peer or an error is observed.
 #[instrument(skip_all)]
 async fn wait_response<Req, Resp>(
-    mut swarm: Swarm<ReqRespBehaviour<Req, Resp>>,
+    mut swarm: Swarm<Behaviour<LpCbor<Req, Resp>>>,
 ) -> Result<Resp, anyhow::Error>
 where
     Req: Debug + Send + Serialize + DeserializeOwned,
     Resp: Debug + Send + Serialize + DeserializeOwned,
 {
+    tracing::debug!("Waiting for response");
     loop {
-        let event = swarm.select_next_some().await;
-
-        if let SwarmEvent::Behaviour(event) = event {
-            match event {
-                ReqRespEvent::Message { message, .. } => {
-                    if let Message::Response { response, .. } = message {
-                        info!(?response, "Received response");
-                        return Ok(response);
-                    }
+        match swarm.select_next_some().await {
+            SwarmEvent::Behaviour(event) => match event {
+                ReqRespEvent::Message {
+                    message: Message::Response { response, .. },
+                    ..
+                } => {
+                    info!(?response, "Received response");
+                    return Ok(response);
                 }
                 ReqRespEvent::OutboundFailure { error, .. } => {
                     bail!(error)
                 }
-                _ => {}
-            }
+                other => tracing::debug!(event=?other, "Received unhandled behaviour event"),
+            },
+            other => tracing::debug!(event=?other, "Received unhandled event"),
         }
     }
 }

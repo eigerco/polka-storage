@@ -14,10 +14,13 @@ version = "0.0.0"
 name = "polka-storage-node"
 
 [dependencies]
+libp2p-length-prefix-codec = { workspace = true }
 polka-storage-proofs = { workspace = true, features = ["substrate"] }
 polka-storage-runtime.workspace = true
 primitives = { workspace = true, features = ["serde", "std"] }
 
+async-trait = { workspace = true }
+cbor4ii = { workspace = true }
 clap = { features = ["derive"], workspace = true }
 codec = { workspace = true, default-features = true }
 color-print = { workspace = true }
@@ -45,7 +48,6 @@ libp2p = { workspace = true, features = [
   "rendezvous",
   "request-response",
   "tcp",
-  "tokio",
   "tokio",
   "websocket",
   "yamux",
@@ -85,6 +87,7 @@ sp-timestamp = { workspace = true, default-features = true }
 substrate-frame-rpc-system = { workspace = true, default-features = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
+unsigned-varint = { workspace = true }
 xcm.workspace = true
 
 [build-dependencies]

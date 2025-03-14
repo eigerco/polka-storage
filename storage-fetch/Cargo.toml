@@ -19,6 +19,7 @@ ipld-core = { workspace = true, features = ["serde"] }
 ipld-dagpb.workspace = true
 libp2p = { workspace = true, features = ["cbor", "macros", "noise", "request-response", "tcp", "tokio", "yamux"] }
 libp2p-core = { workspace = true }
+libp2p-length-prefix-codec = { workspace = true }
 libp2p-swarm = { workspace = true }
 mater = { workspace = true, features = ["blockstore"] }
 multihash-codetable = { workspace = true, features = ["sha2"] }

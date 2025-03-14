@@ -1,6 +1,7 @@
-use std::{net::SocketAddr, path::PathBuf, sync::Arc};
+use std::{net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 
 use axum::http::Method;
+use hyper::header;
 use jsonrpsee::{server::Server, types::error::INTERNAL_ERROR_CODE};
 use polka_storage_provider_common::rpc::{
     CidString, RpcError, ServerInfo, StorageProviderRpcServer,
@@ -426,21 +427,24 @@ pub async fn start_rpc_server(
     state: RpcServerState,
     token: CancellationToken,
 ) -> Result<(), std::io::Error> {
-    tracing::info!("Starting RPC server at {}", state.listen_address);
+    const HOUR: Duration = Duration::from_secs(3600);
 
     let cors = CorsLayer::new()
-        .allow_methods([Method::POST])
         .allow_origin(Any)
-        .allow_headers([hyper::header::CONTENT_TYPE]);
+        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::OPTIONS])
+        .allow_headers([header::CONTENT_TYPE])
+        .max_age(HOUR);
 
     let middleware = tower::ServiceBuilder::new().layer(cors);
 
+    let listen_address = state.listen_address;
     let server = Server::builder()
         .set_http_middleware(middleware)
-        .build(state.listen_address)
+        .build(&listen_address)
         .await?;
 
     let rpc = StorageProviderRpcServer::into_rpc(state);
+    tracing::info!("Starting RPC server at {}", listen_address);
     let server_handle = server.start(rpc);
     tracing::info!("RPC server started");
 

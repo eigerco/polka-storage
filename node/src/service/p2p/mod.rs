@@ -26,12 +26,15 @@ pub enum P2PError {
 /// Runs a bootstrap node from the given config.
 /// The `CancellationToken` is used for a graceful shutdown if the user presses ctrl+c
 pub async fn run_bootstrap_node(config: BootstrapConfig) {
-    info!("Starting P2P bootstrap node");
     let (swarm, tcp_addr, ws_addr, bootstrap_addresses) = config
         .create_swarm()
         .await
         .expect("Could not create bootstrap swarm");
 
+    info!(
+        "Starting P2P bootstrap node with PeerID: {}",
+        swarm.local_peer_id()
+    );
     bootstrap(swarm, tcp_addr, ws_addr, bootstrap_addresses)
         .await
         .expect("Could not run bootstrap node");
