@@ -54,7 +54,7 @@ rendezvous_point_address = '$P2P_ADDRESS'
 p2p_key = '@$P2P_PRIVATE_KEY'
 rendezvous_point = '$P2P_BOOTSTRAP_PEER_ID'
 [sealing_configuration]
-fill_threshold = 0
+fill_threshold = 80
 wait_deals_delay = '1h'
 pre_commit_submission_slack = '1m'" > "$CONFIG"
 

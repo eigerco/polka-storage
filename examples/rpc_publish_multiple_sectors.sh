@@ -29,7 +29,7 @@ PIECE_CID="$(echo "$INPUT_COMMP" | jq -r ".cid")"
 PIECE_SIZE="$(echo "$INPUT_COMMP" | jq ".size")"
 
 
-for i in $(seq 90 90 | tac);
+for i in $(seq 80 90 | tac);
 do
     DEAL_JSON=$(
         jq -n \
