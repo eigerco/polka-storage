@@ -18,6 +18,7 @@ mater = { workspace = true }
 polka-storage-proofs = { workspace = true, default-features = false }
 polka-storage-provider-common = { workspace = true, features = ["clap"] }
 primitives = { workspace = true, features = ["clap", "serde", "std"] }
+primitives-p2p = { workspace = true, features = ["serde"] }
 storagext = { workspace = true, features = ["clap"] }
 
 async-trait = { workspace = true }

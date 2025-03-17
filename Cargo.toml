@@ -20,6 +20,7 @@ members = [
   "pallets/storage-provider",
   "pallets/storage-provider/benchmarks",
   "primitives",
+  "primitives-p2p",
   "runtime",
   "storage-fetch",
   "storage-provider/client",
@@ -154,6 +155,7 @@ polka-storage-proofs = { path = "lib/polka-storage-proofs", default-features = f
 polka-storage-provider-common = { path = "storage-provider/common" }
 polka-storage-runtime = { path = "runtime" }
 primitives = { path = "primitives", default-features = false }
+primitives-p2p = { path = "primitives-p2p" }
 storagext = { path = "storagext/lib" }
 
 # FileCoin proofs
