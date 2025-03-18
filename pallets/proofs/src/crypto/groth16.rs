@@ -142,7 +142,7 @@ where
 
     for pub_input in public_inputs {
         if (pub_input.len() + 1) != pvk.ic.len() {
-            return Err(VerificationError::InvalidInput);
+            return Err(VerificationError::InvalidVerifyingKey);
         }
     }
 
