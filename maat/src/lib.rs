@@ -111,7 +111,6 @@ pub fn local_testnet_config(temp_dir_path: &std::path::Path) -> NetworkConfig {
                 .with_node(|node| node.polkadot_node("relay-1"))
                 .with_node(|node| node.polkadot_node("relay-2"))
         })
-        .with_global_settings(|c| c.with_base_dir("/eiger/tmp/zombienet"))
         .with_parachain(|parachain| {
             parachain
                 .with_id(1000)

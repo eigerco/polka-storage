@@ -561,7 +561,7 @@ impl ProvenSector {
             sealed_path: sector.sealed_path,
             comm_r: sector.comm_r,
             comm_d: sector.comm_d,
-            deadline_index
+            deadline_index,
         }
     }
 }

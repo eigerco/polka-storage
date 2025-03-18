@@ -111,7 +111,7 @@ impl RegisteredSealProof {
             RegisteredSealProof::StackedDRG2KiBV1P1 => 192,
             RegisteredSealProof::StackedDRG8MiBV1 => 192,
             RegisteredSealProof::StackedDRG512MiBV1 => 192,
-            RegisteredSealProof::StackedDRG1GiBV1 => 1920,
+            RegisteredSealProof::StackedDRG1GiBV1 => 192,
         }
     }
 

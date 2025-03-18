@@ -192,15 +192,15 @@ pub mod pallet {
             log::info!(target: LOG_TARGET, "verifying PoRep proofs: {}", proofs.len());
             let mut parsed_proofs = BoundedVec::new();
             for proof in proofs.iter() {
-                // let proof_len = proof.len();
-                // ensure!(proof_len >= seal_proof.proof_size(), {
-                //     log::error!(
-                //         target: LOG_TARGET,
-                //         "PoRep proof submission does not contain enough bytes. Expected minimum length is {} got {}",
-                //         seal_proof.proof_size(), proof_len
-                //     );
-                //     Error::<T>::InvalidPoRepProof
-                // });
+                let proof_len = proof.len();
+                ensure!(proof_len >= seal_proof.proof_size(), {
+                    log::error!(
+                        target: LOG_TARGET,
+                        "PoRep proof submission does not contain enough bytes. Expected minimum length is {} got {}",
+                        seal_proof.proof_size(), proof_len
+                    );
+                    Error::<T>::InvalidPoRepProof
+                });
                 let proof = Proof::<Bls12>::decode(&mut proof.as_slice()).map_err(|e| {
                     log::error!(target: LOG_TARGET, "failed to parse PoRep proof {:?}", e);
                     Error::<T>::Conversion
@@ -242,7 +242,6 @@ pub mod pallet {
                 ConstU32<MAX_PROOFS_PER_BLOCK>,
             >,
         ) -> DispatchResult {
-            log::debug!("got multiple proofs: {}", proofs.len());
             let replica_count = replicas.len();
             ensure!(replica_count <= post_type.sector_count() * proofs.len(), {
                 log::error!(

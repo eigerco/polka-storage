@@ -1,11 +1,11 @@
 //! Groth16 ZK-SNARK related implementations.
 
-use core::ops::{AddAssign, Neg, Mul, MulAssign};
+use core::ops::{AddAssign, Mul, MulAssign, Neg};
 
 use bls12_381::{multi_miller_loop, G2Prepared};
 use codec::{Decode, Encode};
-use pairing::{Engine, MillerLoopResult, group::Group};
 use ff::Field;
+use pairing::{group::Group, Engine, MillerLoopResult};
 pub use polka_storage_proofs::{Bls12, PrimeField, Proof, Scalar as Fr, VerifyingKey};
 use polka_storage_proofs::{Curve, MultiMillerLoop, PrimeCurveAffine};
 use primitives::randomness::{draw_randomness, DomainSeparationTag};
@@ -121,6 +121,14 @@ pub(crate) fn le_bytes_to_u64s(le_bytes: &[u8]) -> Vec<u64> {
         .collect()
 }
 
+/// Verifies multiple proofs using randomized batch verification.
+/// Performance benefit of this approach arises from computing two of the three Miller loops, and the final
+/// exponentation, per batch instead of per proof.
+///
+/// There is room for improvement, as efficient multiscalar multiplication wasn't implemented here.
+/// Reference:
+/// * https://zips.z.cash/protocol/protocol.pdf (Appendix B.2)
+/// * https://github.com/filecoin-project/bellperson/blob/95fd3fc10e740547b53ce8e86a04c49509af6a41/src/groth16/verifier.rs#L109
 pub fn verify_proofs_batch<E>(
     pvk: &PreparedVerifyingKey<E>,
     // rng: &mut R,
@@ -143,13 +151,10 @@ where
     let num_inputs = public_inputs[0].len();
     let num_proofs = proofs.len();
 
-    log::debug!("num proofs? woot: {}", num_proofs);
     if num_proofs < 2 {
         return verify_proof(pvk, &proofs[0], &public_inputs[0]);
     }
 
-
-    log::debug!("ok going down");
     let proof_num = proofs.len();
 
     // Choose random coefficients for combining the proofs
@@ -157,13 +162,14 @@ where
     let mut rand_z: Vec<_> = Vec::with_capacity(proof_num);
     let mut accum_y = E::Fr::ZERO;
 
+    // TODO(@th7nder,#810, 18/03/2025): this is unsafe! randomness must be fetched from the chain.
     use rand::Rng;
     use rand_xorshift::XorShiftRng;
     let rng = &mut XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0xd, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
+        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0xd, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
+        0xe5,
     ]);
 
-    log::debug!("generating random numbers");
     for _ in 0..proof_num {
         let t: u128 = rng.gen();
 
@@ -187,10 +193,7 @@ where
         rand_z_repr.push(repr);
         rand_z.push(fr);
     }
-    log::debug!("generated random numbers");
 
-    log::debug!("acc_g start");
-    // Calculate Accum_Gamma sequentially
     let mut acc_g = E::G1::identity();
     for i in 0..(num_inputs + 1) {
         let scalar = if i == 0 {
@@ -199,9 +202,8 @@ where
             let idx = i - 1;
             let mut cur_sum = rand_z[0];
             cur_sum.mul_assign(&public_inputs[0][idx]);
-            
-            for (pi_mont, mut rand_mont) in 
-                public_inputs.iter().zip(rand_z.iter().copied()).skip(1)
+
+            for (pi_mont, mut rand_mont) in public_inputs.iter().zip(rand_z.iter().copied()).skip(1)
             {
                 let pi_mont = &pi_mont[idx];
                 rand_mont.mul_assign(pi_mont);
@@ -209,24 +211,19 @@ where
             }
             cur_sum
         };
-        
+
         let term = pvk.ic[i].mul(scalar);
         acc_g.add_assign(&term);
     }
     let ml_g = E::multi_miller_loop(&[(&acc_g.to_affine(), &pvk.gamma_g2)]);
-    log::debug!("ml_g done");
 
-    // Calculate Accum_Delta sequentially
     let mut acc_d = E::G1::identity();
     for (proof, rand) in proofs.iter().zip(rand_z.iter()) {
         let term = proof.c.mul(*rand);
         acc_d.add_assign(&term);
     }
     let ml_d = E::multi_miller_loop(&[(&acc_d.to_affine(), &pvk.delta_g2)]);
-    log::debug!("ml_d done");
 
-    // Calculate Accum_AB sequentially 
-    // OLD
     let mut acc_ab = <E as MultiMillerLoop>::Result::default();
     for (proof, rand) in proofs.iter().zip(rand_z.iter()) {
         let mul_a = proof.a.mul(*rand);
@@ -234,39 +231,7 @@ where
         let term = E::multi_miller_loop(&[(&mul_a.to_affine(), &cur_neg_b.to_affine().into())]);
         acc_ab += term;
     }
-    log::debug!("acc_ab done");
 
-    // v2
-    // let mut pairs = Vec::with_capacity(num_proofs + 2);
-
-    // for (proof, rand) in proofs.iter().zip(rand_z.iter()) {
-    //     let mul_a = proof.a.mul(*rand).to_affine();
-    //     let neg_b: E::G2Prepared = (-proof.b).into();
-    //     pairs.push((mul_a, neg_b));
-    // }
-    // let acc_d_aff = acc_d.to_affine();
-    // let acc_g_aff = acc_g.to_affine();
-    // pairs.push((acc_d_aff, pvk.delta_g2.into()));
-    // pairs.push((acc_g_aff, pvk.gamma_g2.into()));
-
-    /* // Step 1: Store owned values in vectors
-    let mut mul_a_vec: Vec<E::G1Affine> = Vec::with_capacity(num_proofs);
-    let mut neg_b_vec: Vec<E::G2Prepared> = Vec::with_capacity(num_proofs);
-
-    for (proof, rand) in proofs.iter().zip(rand_z.iter()) {
-        let mul_a = proof.a.mul(*rand).to_affine(); // Compute G1Affine
-        let neg_b: E::G2Prepared = (-proof.b).into(); // Compute G2Prepared
-        mul_a_vec.push(mul_a); // Store owned value
-        neg_b_vec.push(neg_b); // Store owned value
-    }
-
-    // Step 2: Create pairs with references to the stored values
-    let mut pairs: Vec<(&E::G1Affine, &E::G2Prepared)> = Vec::with_capacity(num_proofs);
-    for (mul_a, neg_b) in mul_a_vec.iter().zip(neg_b_vec.iter()) {
-        pairs.push((mul_a, neg_b)); // References to owned data
-    }
-
-    let mut ml_all = E::multi_miller_loop(&pairs); */
     let mut ml_all = acc_ab;
     ml_all += ml_d;
     ml_all += ml_g;

@@ -350,7 +350,6 @@ impl ProofsCommand {
                 );
                 println!("CommD: {}", precommit.comm_d.cid());
                 println!("CommR: {}", precommit.comm_r.cid());
-                // println!("Proof: {:?}", proofs);
                 let substrate_proofs: Vec<polka_storage_proofs::Proof<bls12_381::Bls12>> = proofs
                     .into_iter()
                     .map(|p| {
@@ -362,7 +361,6 @@ impl ProofsCommand {
                 let scale_encoded_proof = codec::Encode::encode(&substrate_proofs);
                 proof_scale_file.write_all(&scale_encoded_proof)?;
 
-                // println!("Proof as HEX: {}", hex::encode(scale_encoded_proof));
                 println!("Wrote proof to {}", proof_scale_filename.display());
             }
             ProofsCommand::GeneratePoStParams {
@@ -458,7 +456,6 @@ impl ProofsCommand {
                 println!("Loading parameters...");
                 let proof_parameters = post::load_groth16_parameters(proof_parameters_path)
                     .map_err(|e| UtilsCommandError::GeneratePoStError(e))?;
-
 
                 let prover_id = derive_prover_id(signer.account_id());
                 let proofs = match_post_proof!(

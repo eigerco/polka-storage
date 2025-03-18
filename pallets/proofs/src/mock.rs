@@ -1,4 +1,4 @@
-use std::fs;
+use std::{collections::BTreeMap, fs};
 
 use bls12_381::Bls12;
 use codec::Decode;
@@ -6,7 +6,6 @@ use frame_support::derive_impl;
 use frame_system::mocking::MockBlock;
 use polka_storage_proofs::VerifyingKey;
 use sp_runtime::BuildStorage;
-use std::collections::BTreeMap;
 
 // Configure a mock runtime to test the pallet.
 #[frame_support::runtime]
