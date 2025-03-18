@@ -27,7 +27,7 @@ mod test_runtime {
 
     #[runtime::pallet_index(0)]
     pub type System = frame_system;
-    #[runtime::pallet_index(1)]
+    #[runtime::pallet_index(37)]
     pub type RandomnessModule = pallet_randomness;
 }
 

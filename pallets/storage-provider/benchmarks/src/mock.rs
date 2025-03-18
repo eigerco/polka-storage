@@ -40,13 +40,13 @@ mod runtime {
     #[runtime::pallet_index(0)]
     pub type System = frame_system::Pallet<Test>;
 
-    #[runtime::pallet_index(1)]
+    #[runtime::pallet_index(10)]
     pub type Balances = pallet_balances::Pallet<Test>;
 
-    #[runtime::pallet_index(2)]
+    #[runtime::pallet_index(34)]
     pub type StorageProvider = pallet_storage_provider::Pallet<Test>;
 
-    #[runtime::pallet_index(3)]
+    #[runtime::pallet_index(35)]
     pub type Market = pallet_market::Pallet<Test>;
 }
 
