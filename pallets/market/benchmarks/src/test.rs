@@ -8,6 +8,13 @@ use frame_support::{
     traits::Currency,
     BoundedVec,
 };
+use pallet_market::{
+    deal_parameters::{OffchainDealDurationBound, OffchainDealParameters},
+    error::DealSettlementError,
+    pallet::{lock_funds, slash_and_burn, unlock_funds},
+    ActiveDealState, BalanceEntry, BalanceTable, Config, DealState, DealsForBlock, Error, Event,
+    PendingProposals, Proposals, PublishedDeal, SPDealParameters, SectorDeals, SettledDealData,
+};
 use primitives::{
     commitment::{CommP, Commitment},
     pallets::{ActiveDeal, ActiveSector, Market as MarketTrait, SectorDeal},
@@ -18,14 +25,7 @@ use primitives::{
 use sp_core::H256;
 use sp_runtime::AccountId32;
 
-use crate::{
-    deal_parameters::{OffchainDealDurationBound, OffchainDealParameters},
-    error::DealSettlementError,
-    mock::*,
-    pallet::{lock_funds, slash_and_burn, unlock_funds},
-    ActiveDealState, BalanceEntry, BalanceTable, Config, DealState, DealsForBlock, Error, Event,
-    PendingProposals, Proposals, PublishedDeal, SPDealParameters, SectorDeals, SettledDealData,
-};
+use crate::mock::*;
 #[test]
 fn initial_state() {
     new_test_ext().execute_with(|| {
@@ -1516,7 +1516,7 @@ fn test_lock_funds() {
     let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
         assert_eq!(
-            <Test as crate::pallet::Config>::Currency::total_balance(&account::<Test>(PROVIDER)),
+            <Test as pallet_market::Config>::Currency::total_balance(&account::<Test>(PROVIDER)),
             1000
         );
         assert_ok!(Market::add_balance(
@@ -1524,7 +1524,7 @@ fn test_lock_funds() {
             90
         ));
         assert_eq!(
-            <Test as crate::pallet::Config>::Currency::total_balance(&account::<Test>(PROVIDER)),
+            <Test as pallet_market::Config>::Currency::total_balance(&account::<Test>(PROVIDER)),
             910
         );
         assert_ok!(lock_funds::<Test>(&account::<Test>(PROVIDER), 25));
@@ -1565,7 +1565,7 @@ fn test_unlock_funds() {
     let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
         assert_eq!(
-            <Test as crate::pallet::Config>::Currency::total_balance(&account::<Test>(PROVIDER)),
+            <Test as pallet_market::Config>::Currency::total_balance(&account::<Test>(PROVIDER)),
             1000
         );
         // We can't get all 100, otherwise the account would be reaped
@@ -1574,7 +1574,7 @@ fn test_unlock_funds() {
             90
         ));
         assert_eq!(
-            <Test as crate::pallet::Config>::Currency::total_balance(&account::<Test>(PROVIDER)),
+            <Test as pallet_market::Config>::Currency::total_balance(&account::<Test>(PROVIDER)),
             910
         );
         assert_ok!(lock_funds::<Test>(&account::<Test>(PROVIDER), 90));
@@ -1623,7 +1623,7 @@ fn slash_and_burn_acc() {
     let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
         assert_eq!(
-            <Test as crate::pallet::Config>::Currency::total_issuance(),
+            <Test as pallet_market::Config>::Currency::total_issuance(),
             3000
         );
         assert_ok!(Market::add_balance(
@@ -1647,7 +1647,7 @@ fn slash_and_burn_acc() {
             ]
         );
         assert_eq!(
-            <Test as crate::pallet::Config>::Currency::total_issuance(),
+            <Test as pallet_market::Config>::Currency::total_issuance(),
             2990
         );
 
@@ -1664,7 +1664,7 @@ fn slash_and_burn_acc() {
             Error::<Test>::InsufficientLockedFunds
         );
         assert_eq!(
-            <Test as crate::pallet::Config>::Currency::total_issuance(),
+            <Test as pallet_market::Config>::Currency::total_issuance(),
             2990
         );
     });
@@ -1840,7 +1840,7 @@ fn on_sector_terminate_active() {
         assert!(PendingProposals::<Test>::get().is_empty());
         assert!(!Proposals::<Test>::contains_key(1));
         assert_eq!(
-            <Test as crate::pallet::Config>::Currency::total_issuance(),
+            <Test as pallet_market::Config>::Currency::total_issuance(),
             2985
         );
     });

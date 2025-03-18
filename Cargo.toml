@@ -15,6 +15,7 @@ members = [
   "node",
   "pallets/faucet",
   "pallets/market",
+  "pallets/market/benchmarks",
   "pallets/proofs",
   "pallets/randomness",
   "pallets/storage-provider",
@@ -147,6 +148,7 @@ libp2p-length-prefix-codec = { path = "lib/libp2p-length-prefix-codec" }
 mater = { path = "mater/lib" }
 pallet-faucet = { path = "pallets/faucet", default-features = false }
 pallet-market = { path = "pallets/market", default-features = false }
+pallet-market-benchmarks = { path = "pallets/market/benchmarks", default-features = false }
 pallet-proofs = { path = "pallets/proofs", default-features = false }
 pallet-randomness = { path = "pallets/randomness", default-features = false }
 pallet-storage-provider = { path = "pallets/storage-provider", default-features = false }

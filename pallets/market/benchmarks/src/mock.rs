@@ -8,6 +8,7 @@ use frame_support::{
     PalletId,
 };
 use frame_system::pallet_prelude::BlockNumberFor;
+use pallet_market::{self, BalanceOf, ClientDealProposal, DealProposal};
 use primitives::{proofs::RegisteredPoStProof, PEER_ID_MAX_BYTES};
 use sp_core::Pair;
 use sp_keystore::{testing::MemoryKeystore, KeystoreExt};
@@ -16,24 +17,42 @@ use sp_runtime::{
     AccountId32, BuildStorage, MultiSignature, MultiSigner,
 };
 
-use crate::{self as pallet_market, BalanceOf, ClientDealProposal, DealProposal};
-
 type Block = frame_system::mocking::MockBlock<Test>;
 type BlockNumber = u64;
 
 const MINUTES: BlockNumber = 10;
 
-// Configure a mock runtime to test the pallet.
-frame_support::construct_runtime!(
-    pub enum Test
-    {
-        System: frame_system,
-        Balances: pallet_balances,
-        StorageProvider: pallet_storage_provider::pallet,
-        Market: pallet_market,
-        Proofs: pallet_proofs::pallet,
-    }
-);
+#[frame_support::runtime]
+mod runtime {
+    #[runtime::runtime]
+    #[runtime::derive(
+        RuntimeCall,
+        RuntimeEvent,
+        RuntimeError,
+        RuntimeOrigin,
+        RuntimeFreezeReason,
+        RuntimeHoldReason,
+        RuntimeSlashReason,
+        RuntimeLockId,
+        RuntimeTask
+    )]
+    pub struct Test;
+
+    #[runtime::pallet_index(0)]
+    pub type System = frame_system::Pallet<Test>;
+
+    #[runtime::pallet_index(10)]
+    pub type Balances = pallet_balances::Pallet<Test>;
+
+    #[runtime::pallet_index(34)]
+    pub type StorageProvider = pallet_storage_provider::Pallet<Test>;
+
+    #[runtime::pallet_index(35)]
+    pub type Market = pallet_market::Pallet<Test>;
+
+    #[runtime::pallet_index(36)]
+    pub type Proofs = pallet_proofs::Pallet<Test>;
+}
 
 pub type Signature = MultiSignature;
 pub type AccountPublic = <Signature as Verify>::Signer;
@@ -50,26 +69,6 @@ impl frame_system::Config for Test {
 #[derive_impl(pallet_balances::config_preludes::TestDefaultConfig)]
 impl pallet_balances::Config for Test {
     type AccountStore = System;
-}
-
-parameter_types! {
-    // Market Pallet
-    pub const MarketPalletId: PalletId = PalletId(*b"spMarket");
-
-    // Storage Provider Pallet
-    pub const WpostProvingPeriod: BlockNumber = 6 * MINUTES;
-    pub const WPoStPeriodDeadlines: u64 = 3;
-    pub const WpostChallengeWindow: BlockNumber = 2 * MINUTES;
-    pub const WpostChallengeLookBack: BlockNumber = MINUTES;
-    pub const MinSectorExpiration: BlockNumber = 5 * MINUTES;
-    pub const MaxSectorExpiration: BlockNumber = 60 * MINUTES;
-    pub const SectorMaximumLifetime: BlockNumber = 120 * MINUTES;
-    pub const MaxProveCommitDuration: BlockNumber = 5 * MINUTES;
-    pub const MaxPartitionsPerDeadline: u64 = 3000;
-    pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
-    pub const FaultDeclarationCutoff: BlockNumber = 1 * MINUTES;
-    // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L299>
-    pub const AddressedSectorsMax: u64 = 25_000;
 }
 
 // NOTE(@jmg-duarte,20/01/2025): this is not ideal, however, in the name of time this is A solution
@@ -93,7 +92,7 @@ parameter_types! {
     pub const PreCommitChallengeDelay: BlockNumber = 1 * MINUTES;
 }
 
-impl crate::Config for Test {
+impl pallet_market::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type PalletId = MarketPalletId;
     type WeightInfo = ();
@@ -106,6 +105,26 @@ impl crate::Config for Test {
     type MinDealDuration = MinDealDuration;
     type MaxDealDuration = MaxDealDuration;
     type MaxDealsPerBlock = ConstU32<32>;
+}
+
+parameter_types! {
+    // Market Pallet
+    pub const MarketPalletId: PalletId = PalletId(*b"spMarket");
+
+    // Storage Provider Pallet
+    pub const WPostProvingPeriod: BlockNumber = 6 * MINUTES;
+    pub const WPoStPeriodDeadlines: u64 = 3;
+    pub const WPostChallengeWindow: BlockNumber = 2 * MINUTES;
+    pub const WPostChallengeLookBack: BlockNumber = MINUTES;
+    pub const MinSectorExpiration: BlockNumber = 5 * MINUTES;
+    pub const MaxSectorExpiration: BlockNumber = 60 * MINUTES;
+    pub const SectorMaximumLifetime: BlockNumber = 120 * MINUTES;
+    pub const MaxProveCommitDuration: BlockNumber = 5 * MINUTES;
+    pub const MaxPartitionsPerDeadline: u64 = 3000;
+    pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
+    pub const FaultDeclarationCutoff: BlockNumber = 1 * MINUTES;
+    // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L299>
+    pub const AddressedSectorsMax: u64 = 25_000;
 }
 
 /// Randomness generator used by tests.
@@ -148,9 +167,9 @@ impl pallet_storage_provider::Config for Test {
     type Currency = Balances;
     type Market = Market;
     type ProofVerification = primitives::testing::DummyProofsVerification;
-    type WPoStProvingPeriod = WpostProvingPeriod;
-    type WPoStChallengeWindow = WpostChallengeWindow;
-    type WPoStChallengeLookBack = WpostChallengeLookBack;
+    type WPoStProvingPeriod = WPostProvingPeriod;
+    type WPoStChallengeWindow = WPostChallengeWindow;
+    type WPoStChallengeLookBack = WPostChallengeLookBack;
     type MinSectorExpiration = MinSectorExpiration;
     type MaxSectorExpiration = MaxSectorExpiration;
     type SectorMaximumLifetime = SectorMaximumLifetime;
@@ -169,6 +188,8 @@ impl pallet_proofs::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type WeightInfo = ();
 }
+
+impl crate::pallet::Config for Test {}
 
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 
