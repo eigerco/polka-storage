@@ -47,7 +47,7 @@ itertools = { workspace = true, optional = true, default-features = false, featu
 sp-core = { workspace = true, default_features = false, optional = true }
 sp-io = { workspace = true, optional = true }
 sp-keystore = { workspace = true, default-features = false, optional = true }
-sp-runtime = { workspace = true }
+sp-runtime = { workspace = true, default-features = false }
 
 [dev-dependencies]
 # Homegrown

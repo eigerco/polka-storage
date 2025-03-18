@@ -1,29 +1,146 @@
 use core::str::FromStr;
+use std::sync::Arc;
 
 use cid::Cid;
+use codec::Encode;
 use frame_support::{
     assert_err, assert_noop, assert_ok,
     pallet_prelude::{ConstU32, Get},
     sp_runtime::{bounded_vec, ArithmeticError, DispatchError, TokenError},
-    traits::Currency,
+    traits::{Currency, Hooks},
     BoundedVec,
 };
+use frame_system::pallet_prelude::BlockNumberFor;
 use pallet_market::{
     deal_parameters::{OffchainDealDurationBound, OffchainDealParameters},
     error::DealSettlementError,
     pallet::{lock_funds, slash_and_burn, unlock_funds},
-    ActiveDealState, BalanceEntry, BalanceTable, Config, DealState, DealsForBlock, Error, Event,
-    PendingProposals, Proposals, PublishedDeal, SPDealParameters, SectorDeals, SettledDealData,
+    ActiveDealState, BalanceEntry, BalanceOf, BalanceTable, ClientDealProposal, Config,
+    DealProposal, DealState, DealsForBlock, Error, Event, PendingProposals, Proposals,
+    PublishedDeal, SPDealParameters, SectorDeals, SettledDealData,
 };
 use primitives::{
     commitment::{CommP, Commitment},
     pallets::{ActiveDeal, ActiveSector, Market as MarketTrait, SectorDeal},
-    proofs::RegisteredSealProof,
+    proofs::{RegisteredPoStProof, RegisteredSealProof},
     sector::SectorNumber,
     DealId, CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR,
 };
-use sp_core::H256;
-use sp_runtime::AccountId32;
+use sp_core::{Pair, H256};
+use sp_keystore::{testing::MemoryKeystore, KeystoreExt};
+use sp_runtime::{traits::IdentifyAccount, AccountId32, BuildStorage, MultiSignature, MultiSigner};
+
+pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
+
+pub fn key_pair(name: &str) -> sp_core::sr25519::Pair {
+    sp_core::sr25519::Pair::from_string(name, None).unwrap()
+}
+
+pub fn account<T: frame_system::Config>(name: &str) -> AccountId32 {
+    let user_pair = key_pair(name);
+    let signer = MultiSigner::Sr25519(user_pair.public());
+    signer.into_account()
+}
+
+pub fn sign(pair: &sp_core::sr25519::Pair, bytes: &[u8]) -> MultiSignature {
+    MultiSignature::Sr25519(pair.sign(bytes))
+}
+
+pub(crate) type DealProposalOf<T> =
+    DealProposal<<T as frame_system::Config>::AccountId, BalanceOf<T>, BlockNumberFor<T>>;
+
+pub(crate) type ClientDealProposalOf<T> = ClientDealProposal<
+    <T as frame_system::Config>::AccountId,
+    BalanceOf<T>,
+    BlockNumberFor<T>,
+    MultiSignature,
+>;
+
+pub fn sign_proposal(client: &str, proposal: DealProposalOf<Test>) -> ClientDealProposalOf<Test> {
+    let alice_pair = key_pair(client);
+    let client_signature = sign(&alice_pair, &Encode::encode(&proposal));
+    ClientDealProposal {
+        proposal,
+        client_signature,
+    }
+}
+
+pub const ALICE: &'static str = "//Alice";
+pub const BOB: &'static str = "//Bob";
+pub const PROVIDER: &'static str = "//StorageProvider";
+pub const INITIAL_FUNDS: u64 = 1000;
+
+/// Build genesis storage according to the mock runtime.
+pub fn new_test_ext() -> sp_io::TestExternalities {
+    let _ = env_logger::try_init();
+    let mut t = frame_system::GenesisConfig::<Test>::default()
+        .build_storage()
+        .unwrap()
+        .into();
+    pallet_balances::GenesisConfig::<Test> {
+        balances: vec![
+            (account::<Test>(ALICE), INITIAL_FUNDS),
+            (account::<Test>(BOB), INITIAL_FUNDS),
+            (account::<Test>(PROVIDER), INITIAL_FUNDS),
+        ],
+    }
+    .assimilate_storage(&mut t)
+    .unwrap();
+
+    let mut ext = sp_io::TestExternalities::new(t);
+    ext.execute_with(|| System::set_block_number(1));
+
+    // Required to perform signatures. Given that benchmarks run inside the runtime, this is how
+    // we're able to prepare signed client deal proposals.
+    let keystore = MemoryKeystore::new();
+    ext.register_extension(KeystoreExt(Arc::new(keystore)));
+
+    ext
+}
+
+pub fn events() -> Vec<RuntimeEvent> {
+    let evt = System::events()
+        .into_iter()
+        .map(|evt| evt.event)
+        .collect::<Vec<_>>();
+    System::reset_events();
+    evt
+}
+
+/// Run until a particular block.
+///
+/// Stolen't from: <https://github.com/paritytech/polkadot-sdk/blob/7df94a469e02e1d553bd4050b0e91870d6a4c31b/substrate/frame/lottery/src/mock.rs#L87-L98>
+pub fn run_to_block(n: u64) {
+    while System::block_number() < n {
+        if System::block_number() > 1 {
+            StorageProvider::on_finalize(System::block_number());
+            Market::on_finalize(System::block_number());
+            System::on_finalize(System::block_number());
+        }
+
+        System::set_block_number(System::block_number() + 1);
+        System::on_initialize(System::block_number());
+        Market::on_initialize(System::block_number());
+        StorageProvider::on_initialize(System::block_number());
+    }
+}
+
+/// Register account as a provider.
+pub(crate) fn register_storage_provider(account: AccountIdOf<Test>) {
+    let peer_id: Vec<u8> = "storage_provider_1".as_bytes().to_vec();
+    let peer_id = BoundedVec::try_from(peer_id).unwrap();
+    let window_post_type = RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
+
+    // Register account as a storage provider.
+    assert_ok!(StorageProvider::register_storage_provider(
+        RuntimeOrigin::signed(account),
+        peer_id.clone(),
+        window_post_type,
+    ));
+
+    // Remove any events that were triggered during registration.
+    System::reset_events();
+}
 
 use crate::mock::*;
 #[test]

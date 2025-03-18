@@ -200,6 +200,7 @@ try-runtime = [
   "pallet-authorship/try-runtime",
   "pallet-balances/try-runtime",
   "pallet-collator-selection/try-runtime",
+  "pallet-market-benchmarks/try-runtime",
   "pallet-market/try-runtime",
   "pallet-message-queue/try-runtime",
   "pallet-session/try-runtime",
