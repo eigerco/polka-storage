@@ -17,7 +17,7 @@ use libp2p::{
 };
 use libp2p_length_prefix_codec::LpCbor;
 use log::{debug, error, info, warn};
-use primitives::p2p::{
+use primitives_p2p::{
     PeerIdRequest, PeerInfo, PeerInfoResponse, BOOTSTRAP_REQUEST_RESPONSE_PROTOCOL,
     DEFAULT_REGISTRATION_TTL, GOSSIP_TOPIC, IDENTIFY_PROTOCOL_VERSION,
 };

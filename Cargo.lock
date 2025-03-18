@@ -13928,6 +13928,7 @@ dependencies = [
  "multihash-codetable",
  "polka-storage-provider-common",
  "primitives",
+ "primitives-p2p",
  "serde",
  "storagext",
  "thiserror 2.0.8",
@@ -13968,6 +13969,7 @@ dependencies = [
  "polkadot-cli",
  "polkadot-primitives 7.0.0",
  "primitives",
+ "primitives-p2p",
  "sc-basic-authorship",
  "sc-chain-spec",
  "sc-cli",
@@ -14048,6 +14050,7 @@ dependencies = [
  "polka-storage-proofs",
  "polka-storage-provider-common",
  "primitives",
+ "primitives-p2p",
  "sc-cli",
  "serde",
  "serde_json",
@@ -14111,6 +14114,7 @@ dependencies = [
  "polka-storage-proofs",
  "polka-storage-provider-common",
  "primitives",
+ "primitives-p2p",
  "rand",
  "rocksdb",
  "sc-cli",
@@ -16211,7 +16215,6 @@ dependencies = [
  "ed25519-dalek",
  "filecoin-proofs",
  "hex",
- "libp2p 0.54.1",
  "parity-scale-codec",
  "rand",
  "scale-decode 0.14.0",
@@ -16226,6 +16229,17 @@ dependencies = [
  "sp-runtime 31.0.1",
  "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2412)",
  "thiserror 2.0.8",
+]
+
+[[package]]
+name = "primitives-p2p"
+version = "0.1.0"
+dependencies = [
+ "cid 0.11.1",
+ "ed25519-dalek",
+ "hex",
+ "libp2p 0.54.1",
+ "serde",
 ]
 
 [[package]]

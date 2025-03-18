@@ -11,7 +11,7 @@ use libp2p::{
     Multiaddr, PeerId, StreamProtocol, Swarm,
 };
 use libp2p_length_prefix_codec::LpCbor;
-use primitives::p2p::{
+use primitives_p2p::{
     PieceInfo, PieceInfoRequest, PieceInfoResponse, DEFAULT_REGISTRATION_TTL,
     IDENTIFY_PROTOCOL_VERSION, SP_REQUEST_RESPONSE_PROTOCOL,
 };

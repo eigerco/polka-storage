@@ -16,7 +16,7 @@ use libp2p::{
     swarm::SwarmEvent,
     tcp, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder,
 };
-use primitives::p2p::{PeerIdRequest, PeerInfoResponse, BOOTSTRAP_REQUEST_RESPONSE_PROTOCOL};
+use primitives_p2p::{PeerIdRequest, PeerInfoResponse, BOOTSTRAP_REQUEST_RESPONSE_PROTOCOL};
 use tracing_subscriber::EnvFilter;
 
 /// Create a discovery swarm

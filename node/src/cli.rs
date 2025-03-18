@@ -1,7 +1,7 @@
 use std::{path::PathBuf, str::FromStr};
 
 use libp2p::{identity::Keypair, Multiaddr};
-use primitives::p2p::{keypair_value_parser, validate_tcp_multiaddr, validate_ws_multiaddr};
+use primitives_p2p::{keypair_value_parser, validate_tcp_multiaddr, validate_ws_multiaddr};
 
 /// Sub-commands supported by the collator.
 #[derive(Debug, clap::Subcommand)]

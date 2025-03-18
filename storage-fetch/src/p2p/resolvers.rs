@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 use cid::Cid;
 use libp2p::{Multiaddr, PeerId};
-use primitives::p2p::{
+use primitives_p2p::{
     PeerIdRequest, PeerInfoResponse, PieceInfo, PieceInfoRequest, PieceInfoResponse,
     BOOTSTRAP_REQUEST_RESPONSE_PROTOCOL, SP_REQUEST_RESPONSE_PROTOCOL,
 };

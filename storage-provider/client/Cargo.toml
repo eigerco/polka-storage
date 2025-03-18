@@ -37,6 +37,7 @@ url = { workspace = true }
 
 [dev-dependencies]
 libp2p = { workspace = true, features = ["cbor", "macros", "noise", "request-response", "tcp", "tokio", "yamux"] }
+primitives-p2p = { workspace = true, features = ["serde"] }
 
 [lints]
 workspace = true
