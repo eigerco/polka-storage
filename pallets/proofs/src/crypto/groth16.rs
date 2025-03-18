@@ -2,17 +2,15 @@
 
 use core::ops::{AddAssign, Mul, MulAssign, Neg};
 
-use bls12_381::{multi_miller_loop, G2Prepared};
 use codec::{Decode, Encode};
 use ff::Field;
-use pairing::{group::Group, Engine, MillerLoopResult};
+use pairing::{group::Group, MillerLoopResult};
 pub use polka_storage_proofs::{Bls12, PrimeField, Proof, Scalar as Fr, VerifyingKey};
 use polka_storage_proofs::{Curve, MultiMillerLoop, PrimeCurveAffine};
-use primitives::randomness::{draw_randomness, DomainSeparationTag};
 use rand::SeedableRng;
 use scale_info::TypeInfo;
 
-use crate::{fr32::bytes_into_fr_repr_safe, Vec};
+use crate::Vec;
 
 /// The prepared verifying key needed in a Groth16 verification.
 ///
