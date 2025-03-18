@@ -162,13 +162,13 @@ storagext = { path = "storagext/lib" }
 bellpepper-core = "0.2"
 bellperson = "0.26"
 blstrs = "0.7"
-filecoin-hashers = { path = "../rust-fil-proofs/filecoin-hashers", default-features = false }
-filecoin-proofs = { path = "../rust-fil-proofs/filecoin-proofs", default-features = false }
-fr32 = { path = "../rust-fil-proofs/fr32" }
+filecoin-hashers = { git = "https://github.com/eigerco/rust-fil-proofs", tag = "v0.0.1", default-features = false }
+filecoin-proofs = { git = "https://github.com/eigerco/rust-fil-proofs", tag = "v0.0.1", default-features = false }
+fr32 = { git = "https://github.com/eigerco/rust-fil-proofs", tag = "v0.0.1" }
 generic-array = "1.1.0"
-storage-proofs-core = { path = "../rust-fil-proofs/storage-proofs-core", default-features = false }
-storage-proofs-porep = { path = "../rust-fil-proofs/storage-proofs-porep", default-features = false }
-storage-proofs-post = { path = "../rust-fil-proofs/storage-proofs-post", default-features = false }
+storage-proofs-core = { git = "https://github.com/eigerco/rust-fil-proofs", tag = "v0.0.1", default-features = false }
+storage-proofs-porep = { git = "https://github.com/eigerco/rust-fil-proofs", tag = "v0.0.1", default-features = false }
+storage-proofs-post = { git = "https://github.com/eigerco/rust-fil-proofs", tag = "v0.0.1", default-features = false }
 
 # Substrate
 pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2412" }

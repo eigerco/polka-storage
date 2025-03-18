@@ -5068,6 +5068,7 @@ dependencies = [
 [[package]]
 name = "filecoin-hashers"
 version = "13.1.0"
+source = "git+https://github.com/eigerco/rust-fil-proofs?tag=v0.0.1#d193458146bc1b8e8fdfecf07b36f5042390567c"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -5086,6 +5087,7 @@ dependencies = [
 [[package]]
 name = "filecoin-proofs"
 version = "18.1.0"
+source = "git+https://github.com/eigerco/rust-fil-proofs?tag=v0.0.1#d193458146bc1b8e8fdfecf07b36f5042390567c"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -5256,6 +5258,7 @@ dependencies = [
 [[package]]
 name = "fr32"
 version = "11.1.0"
+source = "git+https://github.com/eigerco/rust-fil-proofs?tag=v0.0.1#d193458146bc1b8e8fdfecf07b36f5042390567c"
 dependencies = [
  "anyhow",
  "blstrs",
@@ -19669,6 +19672,7 @@ dependencies = [
 [[package]]
 name = "sha2raw"
 version = "13.1.0"
+source = "git+https://github.com/eigerco/rust-fil-proofs?tag=v0.0.1#d193458146bc1b8e8fdfecf07b36f5042390567c"
 dependencies = [
  "byteorder",
  "cpufeatures",
@@ -22548,6 +22552,7 @@ dependencies = [
 [[package]]
 name = "storage-proofs-core"
 version = "18.1.0"
+source = "git+https://github.com/eigerco/rust-fil-proofs?tag=v0.0.1#d193458146bc1b8e8fdfecf07b36f5042390567c"
 dependencies = [
  "aes",
  "anyhow",
@@ -22581,6 +22586,7 @@ dependencies = [
 [[package]]
 name = "storage-proofs-porep"
 version = "18.1.0"
+source = "git+https://github.com/eigerco/rust-fil-proofs?tag=v0.0.1#d193458146bc1b8e8fdfecf07b36f5042390567c"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -22622,6 +22628,7 @@ dependencies = [
 [[package]]
 name = "storage-proofs-post"
 version = "18.1.0"
+source = "git+https://github.com/eigerco/rust-fil-proofs?tag=v0.0.1#d193458146bc1b8e8fdfecf07b36f5042390567c"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -22640,6 +22647,7 @@ dependencies = [
 [[package]]
 name = "storage-proofs-update"
 version = "18.1.0"
+source = "git+https://github.com/eigerco/rust-fil-proofs?tag=v0.0.1#d193458146bc1b8e8fdfecf07b36f5042390567c"
 dependencies = [
  "anyhow",
  "bellperson",
