@@ -35,6 +35,7 @@ frame-system = { workspace = true, default-features = false }
 
 [dev-dependencies]
 env_logger = { workspace = true }
+primitives = { workspace = true, default-features = false, features = ["builder", "testing"] }
 
 [features]
 default = ["std"]

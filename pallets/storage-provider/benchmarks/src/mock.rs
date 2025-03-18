@@ -1,8 +1,4 @@
-#![cfg(test)]
-
 extern crate alloc;
-
-use std::sync::Arc;
 
 use frame_support::{
     derive_impl, pallet_prelude::ConstU32, parameter_types, sp_runtime::BoundedVec, PalletId,
@@ -10,10 +6,9 @@ use frame_support::{
 use frame_system::pallet_prelude::BlockNumberFor;
 use primitives::PEER_ID_MAX_BYTES;
 use sp_arithmetic::traits::Zero;
-use sp_keystore::{testing::MemoryKeystore, KeystoreExt};
 use sp_runtime::{
     traits::{IdentifyAccount, IdentityLookup, Verify},
-    BuildStorage, MultiSignature,
+    MultiSignature,
 };
 
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -172,21 +167,3 @@ impl pallet_storage_provider::Config for Test {
 }
 
 impl crate::pallet::Config for Test {}
-
-pub fn new_test_ext() -> sp_io::TestExternalities {
-    let _ = env_logger::try_init();
-    let t = frame_system::GenesisConfig::<Test>::default()
-        .build_storage()
-        .unwrap()
-        .into();
-
-    let mut ext = sp_io::TestExternalities::new(t);
-    ext.execute_with(|| System::set_block_number(1));
-
-    // Required to perform signatures. Given that benchmarks run inside the runtime, this is how
-    // we're able to prepare signed client deal proposals.
-    let keystore = MemoryKeystore::new();
-    ext.register_extension(KeystoreExt(Arc::new(keystore)));
-
-    ext
-}
