@@ -12192,7 +12192,6 @@ dependencies = [
  "frame-system 28.0.0",
  "generic-array 1.1.1",
  "hex",
- "itertools 0.13.0",
  "log",
  "num-bigint",
  "pairing",

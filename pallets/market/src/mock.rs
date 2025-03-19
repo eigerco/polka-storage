@@ -64,7 +64,7 @@ parameter_types! {
     pub const MinSectorExpiration: BlockNumber = 5 * MINUTES;
     pub const MaxSectorExpiration: BlockNumber = 60 * MINUTES;
     pub const SectorMaximumLifetime: BlockNumber = 120 * MINUTES;
-    pub const MaxProveCommitDuration: BlockNumber = 30 * MINUTES;
+    pub const MaxProveCommitDuration: BlockNumber = 5 * MINUTES;
     pub const MaxPartitionsPerDeadline: u64 = 3000;
     pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
     pub const FaultDeclarationCutoff: BlockNumber = 1 * MINUTES;

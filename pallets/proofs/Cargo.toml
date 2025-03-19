@@ -24,7 +24,6 @@ ff = { workspace = true }
 frame-benchmarking = { optional = true, workspace = true }
 frame-support.workspace = true
 frame-system.workspace = true
-itertools = { workspace = true }
 log = { workspace = true }
 num-bigint = { workspace = true }
 pairing = { workspace = true }

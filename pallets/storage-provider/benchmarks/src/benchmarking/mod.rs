@@ -95,9 +95,6 @@ mod benchmarks {
 
         let label = vec![id as u8; MAX_LABEL_SIZE as usize];
 
-        let start_block = 400.into();
-        let end_block = start_block + min_dur + 1.into();
-
         let proposal = DealProposalOf::<T> {
             piece_cid: piece_commitment
                 .cid()
@@ -108,8 +105,8 @@ mod benchmarks {
             client: client.0,
             provider,
             label: BoundedVec::try_from(label).unwrap(),
-            start_block,
-            end_block,
+            start_block: 1.into(),
+            end_block: min_dur + 1.into(),
             storage_price_per_block: 5u32.into(),
             provider_collateral: 25u32.into(),
             state: DealState::Published,
@@ -118,7 +115,6 @@ mod benchmarks {
         let proposal = sign_proposal::<T>(client.1, proposal);
 
         let sector_pre_commit = SectorPreCommitInfoBuilder::<BlockNumberFor<T>>::default()
-            .expiration(460.into())
             .raw_unsealed_cid(unsealed_cid.cid().to_bytes().try_into().unwrap())
             .sector_number(
                 (id as u32)

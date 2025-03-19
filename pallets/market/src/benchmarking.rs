@@ -61,8 +61,8 @@ fn prepare_proposals<T>(
 where
     T: crate::Config,
 {
-    let start_block: u32 = 400;
-    let end_block: u32 = 450;
+    let start_block: u32 = 50;
+    let end_block: u32 = 100;
     let price_per_block: u32 = 10;
     let cost = (end_block - start_block) * price_per_block * n;
 
@@ -320,7 +320,6 @@ mod benchmarks {
                             .try_into()
                             .expect("n only goes up to 32 so this should be ok"),
                     )
-                    .expiration(460u32.into())
                     .raw_unsealed_cid(p.proposal.piece_cid.clone())
                     .build()
             })
@@ -344,8 +343,8 @@ mod benchmarks {
                     .unwrap();
             });
 
-        // Run to 290 to enter pre-commit period
-        run_to_block::<T>(290);
+        // Run to 11 to enter pre-commit period
+        run_to_block::<T>(11);
 
         let proofs = {
             // can't use bounded_vec![] in benchmarks
@@ -379,7 +378,7 @@ mod benchmarks {
                     .unwrap();
             });
 
-        run_to_block::<T>(480);
+        run_to_block::<T>(101);
 
         // We know that DealIds are incrementing integers, making this a "valid approach",
         // it is kinda cheating but this way we don't need to care for the events

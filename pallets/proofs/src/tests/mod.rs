@@ -27,13 +27,13 @@ pub fn raw_commitment_from_hex(hex_str: &str) -> [u8; 32] {
 pub fn load_proof_file(
     path: &str,
 ) -> BoundedVec<BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>, ConstU32<MAX_PROOFS_PER_BLOCK>> {
-    let proof_bytes = std::fs::read(path).unwrap().to_vec();
+    let proof_bytes = std::fs::read(path).unwrap();
     let proofs: Vec<Proof<Bls12>> = Decode::decode(&mut &proof_bytes[..]).unwrap();
     let mut bounded_proofs = BoundedVec::new();
 
     for proof in proofs {
         let mut bytes_regular = vec![0u8; Proof::<Bls12>::serialised_bytes()];
-        proof.into_bytes(&mut bytes_regular.as_mut_slice()).unwrap();
+        proof.into_bytes(bytes_regular.as_mut_slice()).unwrap();
         bounded_proofs
             .try_push(bytes_regular.try_into().unwrap())
             .unwrap();

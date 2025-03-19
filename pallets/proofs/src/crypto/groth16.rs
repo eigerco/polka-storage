@@ -123,6 +123,7 @@ pub(crate) fn le_bytes_to_u64s(le_bytes: &[u8]) -> Vec<u64> {
 /// Performance benefit of this approach arises from computing two of the three Miller loops, and the final
 /// exponentation, per batch instead of per proof.
 ///
+/// IMPORTANT! This code was not properly audited.
 /// There is room for improvement, as efficient multiscalar multiplication wasn't implemented here.
 /// Reference:
 /// * https://zips.z.cash/protocol/protocol.pdf (Appendix B.2)

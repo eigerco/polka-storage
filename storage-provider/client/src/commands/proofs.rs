@@ -350,14 +350,11 @@ impl ProofsCommand {
                 );
                 println!("CommD: {}", precommit.comm_d.cid());
                 println!("CommR: {}", precommit.comm_r.cid());
-                let substrate_proofs: Vec<polka_storage_proofs::Proof<bls12_381::Bls12>> = proofs
+                let substrate_proofs = proofs
                     .into_iter()
-                    .map(|p| {
-                        p.try_into().expect(
-                            "converstion between rust-fil-proofs and polka-storage-proofs to work",
-                        )
-                    })
-                    .collect();
+                    .map(polka_storage_proofs::Proof::<bls12_381::Bls12>::try_from)
+                    .collect::<Result<Vec<_>, _>>()
+                    .expect("conversion between rust-fil-proofs and polka-storage-proofs to work");
                 let scale_encoded_proof = codec::Encode::encode(&substrate_proofs);
                 proof_scale_file.write_all(&scale_encoded_proof)?;
 
@@ -471,14 +468,11 @@ impl ProofsCommand {
                 .map_err(|e| UtilsCommandError::GeneratePoStError(e))?;
 
                 println!("Proving...");
-                let substrate_proofs: Vec<polka_storage_proofs::Proof<bls12_381::Bls12>> = proofs
+                let substrate_proofs = proofs
                     .into_iter()
-                    .map(|p| {
-                        p.try_into().expect(
-                            "converstion between rust-fil-proofs and polka-storage-proofs to work",
-                        )
-                    })
-                    .collect();
+                    .map(polka_storage_proofs::Proof::<bls12_381::Bls12>::try_from)
+                    .collect::<Result<Vec<_>, _>>()
+                    .expect("conversion between rust-fil-proofs and polka-storage-proofs to work");
                 proof_scale_file.write_all(&codec::Encode::encode(&substrate_proofs))?;
                 println!("Wrote proof to {}", proof_scale_filename.display());
                 println!(
