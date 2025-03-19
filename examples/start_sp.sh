@@ -58,6 +58,6 @@ fill_threshold = 80
 wait_deals_delay = '1h'
 pre_commit_submission_slack = '1m'" > "$CONFIG"
 
-RUST_LOG="polka_storage_provider_server=debug,tower_http=debug,yamux=off,multistream_select=off,jsonrpsee-client=off,libp2p=debug" target/release/polka-storage-provider-server \
+RUST_LOG="polka_storage_provider_server=debug,tower_http=debug,yamux=off,multistream_select=off,jsonrpsee-client=off,libp2p=debug,storage_proofs_porep=debug,polka_storage_provider_common=debug" target/release/polka-storage-provider-server \
     --sr25519-key "$PROVIDER" \
     --config "$CONFIG"
