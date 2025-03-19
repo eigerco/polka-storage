@@ -49,7 +49,7 @@ pub type SectorPreCommitInfoBuilder = primitives::sector::builder::SectorPreComm
 type Block = frame_system::mocking::MockBlock<Test>;
 type BlockNumber = u64;
 
-const MINUTES: BlockNumber = 10;
+const MINUTES: BlockNumber = 1;
 
 frame_support::construct_runtime!(
     pub enum Test {
@@ -364,8 +364,8 @@ impl Default for DealProposalBuilder {
             client: account(BOB),
             provider: account(ALICE),
             label: bounded_vec![0xb, 0xe, 0xe, 0xf],
-            start_block: 100 * MINUTES,
-            end_block: 110 * MINUTES,
+            start_block: 100,
+            end_block: 110,
             storage_price_per_block: 5,
             provider_collateral: 25,
             state: DealState::Published,
