@@ -19,7 +19,7 @@ use sp_runtime::{
 type Block = frame_system::mocking::MockBlock<Test>;
 type BlockNumber = u64;
 
-const MINUTES: BlockNumber = 1;
+const MINUTES: BlockNumber = 10;
 
 #[frame_support::runtime]
 mod runtime {
