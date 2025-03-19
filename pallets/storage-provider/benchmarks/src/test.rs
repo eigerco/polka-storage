@@ -1,3 +1,6 @@
+// TODO(@Jinxit,19/03/2025): Remove this cfg if tests are moved here from pallet-storage-provider.
+#![cfg(feature = "runtime-benchmarks")]
+
 use std::sync::Arc;
 
 use sp_keystore::{testing::MemoryKeystore, KeystoreExt};
