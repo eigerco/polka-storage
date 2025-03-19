@@ -1381,9 +1381,9 @@ dependencies = [
 
 [[package]]
 name = "beetswap"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "55f2cf2244bd65e9f00adb06c6b5e951bab980fdacdd572ff035bf610628be99"
+checksum = "e4227c5fc06b7fd8a26daf3fa79861233116d0708ee7fae4c4109b7154298fbd"
 dependencies = [
  "asynchronous-codec 0.7.0",
  "blockstore",
@@ -1403,7 +1403,6 @@ dependencies = [
  "time",
  "tracing",
  "unsigned-varint 0.8.0",
- "void",
  "web-time",
 ]
 
