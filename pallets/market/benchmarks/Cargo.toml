@@ -24,15 +24,11 @@ codec = { workspace = true, default-features = false, features = ["derive"] }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
 
 cid = { workspace = true, default-features = false, features = ["scale-codec"] }
-hex = { workspace = true, default-features = false, features = ["alloc"] }
-log = { workspace = true }
-thiserror = { workspace = true, default-features = false }
 
 # frame deps
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 frame-support = { workspace = true, default-features = false }
 frame-system = { workspace = true, default-features = false }
-sp-arithmetic = { workspace = true, default-features = false }
 sp-std = { workspace = true, default-features = false }
 
 # Benchmark specific
@@ -86,7 +82,6 @@ std = [
   "frame-benchmarking?/std",
   "frame-support/std",
   "frame-system/std",
-  "hex/std",
   "pallet-balances/std",
   "pallet-market/std",
   "pallet-proofs/std",
