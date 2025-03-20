@@ -476,6 +476,12 @@ impl pallet_market::Config for Runtime {
 }
 
 impl pallet_proofs::Config for Runtime {
+    #[cfg(not(feature = "runtime-benchmarks"))]
+    type Randomness = crate::Randomness;
+
+    #[cfg(feature = "runtime-benchmarks")]
+    type Randomness = dummy::DummyRandomnessGenerator<Self>;
+
     type RuntimeEvent = RuntimeEvent;
     type WeightInfo = pallet_proofs::weights::Weights<Runtime>;
 }

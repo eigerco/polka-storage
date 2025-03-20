@@ -29,14 +29,14 @@ num-bigint = { workspace = true }
 pairing = { workspace = true }
 polka-storage-proofs = { workspace = true, features = ["substrate"] }
 primitives = { workspace = true, features = ["serde"] }
-rand = { workspace = true, features = ["alloc"] }
+rand = { workspace = true, default-features = false, features = ["alloc"] }
 rand_chacha = { workspace = true }
 scale-info = { features = ["derive"], workspace = true }
 sha2 = { workspace = true }
+sp-core = { default-features = false, workspace = true }
 sp-runtime.workspace = true
 sp-std.workspace = true
 
-# Runtime benchmarks
 rand_xorshift = { workspace = true }
 
 [dev-dependencies]
@@ -49,7 +49,6 @@ fr32 = { workspace = true }
 generic-array = { workspace = true }
 hex = { workspace = true }
 rand_xorshift = { workspace = true }
-sp-core = { default-features = true, workspace = true }
 sp-io = { default-features = true, workspace = true }
 storage-proofs-core = { workspace = true }
 storage-proofs-porep = { workspace = true }
