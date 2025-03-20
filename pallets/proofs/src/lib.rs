@@ -189,6 +189,7 @@ pub mod pallet {
                 ConstU32<MAX_PROOFS_PER_BLOCK>,
             >,
         ) -> DispatchResult {
+            log::info!(target: LOG_TARGET, "verifying PoRep proofs: {}", proofs.len());
             let mut parsed_proofs = BoundedVec::new();
             for proof in proofs.iter() {
                 let proof_len = proof.len();

@@ -12,8 +12,8 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     crypto::groth16::{
-        prepare_verifying_key, verify_proof, Bls12, Fr, PrimeField, Proof, VerificationError,
-        VerifyingKey,
+        prepare_verifying_key, verify_proofs_batch, Bls12, Fr, PrimeField, Proof,
+        VerificationError, VerifyingKey,
     },
     fr32,
     graphs::{
@@ -102,6 +102,7 @@ impl From<VerificationError> for ProofError {
         match value {
             VerificationError::InvalidProof => ProofError::InvalidProof,
             VerificationError::InvalidVerifyingKey => ProofError::InvalidVerifyingKey,
+            VerificationError::InvalidInput => ProofError::InvalidProof,
         }
     }
 }
@@ -178,15 +179,18 @@ impl ProofScheme {
 
         let pvk = prepare_verifying_key(vk);
 
+        let mut agg_inputs = vec![];
         for partition_index in 0..proofs.len() {
             let inputs =
                 self.generate_public_inputs(public_inputs.clone(), Some(partition_index))?;
-            verify_proof(&pvk, &proofs[partition_index], inputs.as_slice()).inspect_err(|_| {
-                log::error!(target: LOG_TARGET, "failed to verify partition {}", partition_index);
-            })?;
+            agg_inputs.push(inputs);
         }
 
-        Ok(())
+        if verify_proofs_batch(&pvk, &proofs[..], agg_inputs.as_slice())? {
+            Ok(())
+        } else {
+            Err(ProofError::InvalidProof)
+        }
     }
 
     /// References:

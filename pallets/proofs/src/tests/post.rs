@@ -14,7 +14,11 @@ use sp_core::bounded_vec;
 use sp_runtime::{BoundedBTreeMap, BoundedVec};
 use sp_std::collections::btree_map::BTreeMap;
 
-use crate::{mock::*, tests::TEST_SEED, Error, PoStVerifyingKeys};
+use crate::{
+    mock::*,
+    tests::{load_proof_file, raw_commitment_from_hex, TEST_SEED},
+    Error, PoStVerifyingKeys,
+};
 
 #[test]
 fn sets_post_verifying_key() {
@@ -77,6 +81,40 @@ fn post_verification_fails() {
             ),
             Error::<Test>::InvalidPoStProof
         );
+    });
+}
+
+#[test]
+fn post_verification_for_1gib_succeeds() {
+    new_test_ext().execute_with(|| {
+        let post_type = RegisteredPoStProof::StackedDRGWindow1GiBV1;
+
+        let sector_id = SectorNumber::new(1).unwrap();
+        let randomness: [u8; 32] =
+            hex::decode("d26f7c4273e16e2dbe85bacc05d236dd6eddead76c323f41f324d90d61dd2a17")
+                .unwrap()
+                .try_into()
+                .unwrap();
+        let mut replicas = BTreeMap::new();
+        replicas.insert(
+            sector_id,
+            PublicReplicaInfo {
+                comm_r: raw_commitment_from_hex(
+                    "bagboea4b5abcbb7hcuvmqzykjtr6scxbs6el7v3a6o2suh7i2lviydha6xztfgii",
+                ),
+            },
+        );
+
+        let proofs = load_proof_file("../../examples/1.sector.proof.post.scale");
+
+        log::debug!("Verifying PoSt...");
+        assert_ok!(<ProofsModule as ProofVerification>::verify_post(
+            post_type,
+            randomness,
+            BoundedBTreeMap::try_from(replicas).expect("replicas should be valid"),
+            proofs,
+        ));
+        log::info!("Verified PoSt.");
     });
 }
 

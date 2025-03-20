@@ -2071,7 +2071,6 @@ impl<T: frame_system::Config<AccountId = AccountId32>> Default for DealProposalB
             end_block: 110,
             storage_price_per_block: 5,
             provider_collateral: 25,
-            // TODO(@th7nder,01/07/2024): change this to Published
             state: DealState::Published,
         }
     }

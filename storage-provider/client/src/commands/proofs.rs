@@ -340,19 +340,24 @@ impl ProofsCommand {
                 )
                 .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
 
+                println!(
+                    "[{seal_randomness_height}] Ticket randomness: {}",
+                    hex::encode(ticket)
+                );
+                println!(
+                    "[{interactive_block_number}] Seed randomness: {}",
+                    hex::encode(seed)
+                );
                 println!("CommD: {}", precommit.comm_d.cid());
                 println!("CommR: {}", precommit.comm_r.cid());
-                println!("Proof: {:?}", proofs);
-                // We use sector size 2KiB only at this point, which guarantees to have 1 proof, because it has 1 partition in the config.
-                // That's why `prove_commit` will always generate a 1 proof.
-                let proof_scale: polka_storage_proofs::Proof<bls12_381::Bls12> = proofs[0]
-                    .clone()
-                    .try_into()
-                    .expect("converstion between rust-fil-proofs and polka-storage-proofs to work");
-                let scale_encoded_proof = codec::Encode::encode(&proof_scale);
+                let substrate_proofs = proofs
+                    .into_iter()
+                    .map(polka_storage_proofs::Proof::<bls12_381::Bls12>::try_from)
+                    .collect::<Result<Vec<_>, _>>()
+                    .expect("conversion between rust-fil-proofs and polka-storage-proofs to work");
+                let scale_encoded_proof = codec::Encode::encode(&substrate_proofs);
                 proof_scale_file.write_all(&scale_encoded_proof)?;
 
-                println!("Proof as HEX: {}", hex::encode(scale_encoded_proof));
                 println!("Wrote proof to {}", proof_scale_filename.display());
             }
             ProofsCommand::GeneratePoStParams {
@@ -463,13 +468,17 @@ impl ProofsCommand {
                 .map_err(|e| UtilsCommandError::GeneratePoStError(e))?;
 
                 println!("Proving...");
-                // We only prove a single sector here, so it'll only be 1 proof.
-                let proof_scale: polka_storage_proofs::Proof<bls12_381::Bls12> = proofs[0]
-                    .clone()
-                    .try_into()
-                    .expect("converstion between rust-fil-proofs and polka-storage-proofs to work");
-                proof_scale_file.write_all(&codec::Encode::encode(&proof_scale))?;
+                let substrate_proofs = proofs
+                    .into_iter()
+                    .map(polka_storage_proofs::Proof::<bls12_381::Bls12>::try_from)
+                    .collect::<Result<Vec<_>, _>>()
+                    .expect("conversion between rust-fil-proofs and polka-storage-proofs to work");
+                proof_scale_file.write_all(&codec::Encode::encode(&substrate_proofs))?;
                 println!("Wrote proof to {}", proof_scale_filename.display());
+                println!(
+                    "[{challenge_block}] Randomness: {}",
+                    hex::encode(randomness)
+                );
             }
         }
 

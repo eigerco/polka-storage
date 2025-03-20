@@ -229,7 +229,7 @@ mod tests {
         let proof = Proof::<Bls12>::random(&mut rng);
         let bytes_scale = proof.encode();
         let mut bytes_regular = vec![0u8; Proof::<Bls12>::serialised_bytes()];
-        proof.into_bytes(&mut bytes_regular.as_mut_slice()).unwrap();
+        proof.into_bytes(bytes_regular.as_mut_slice()).unwrap();
         assert_eq!(bytes_regular.as_slice(), bytes_scale.as_slice());
     }
 

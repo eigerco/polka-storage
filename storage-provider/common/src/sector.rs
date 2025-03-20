@@ -500,9 +500,13 @@ impl PreCommittedSector {
             .map(|result| result.map_err(|err| subxt::Error::from(err)))
             .collect::<Result<Vec<_>, _>>()?;
 
+        if proven_sectors.len() != 1 {
+            tracing::warn!("this is unsettling, shouldn't happen. We only Prove 1 sector at one time, got multiple");
+        }
+        let on_chain_sector = &proven_sectors[0];
         tracing::info!("Successfully proven sectors on-chain: {:?}", proven_sectors);
 
-        let sector = ProvenSector::create(self);
+        let sector = ProvenSector::create(self, on_chain_sector.sectors.0[0].deadline_idx);
 
         Ok(sector)
     }
@@ -540,11 +544,14 @@ pub struct ProvenSector {
 
     /// Data commitment of the sector.
     pub comm_d: Commitment<CommD>,
+
+    /// Deadline index at which the PoSt including the sector must be submitted
+    pub deadline_index: u64,
 }
 
 impl ProvenSector {
     /// Creates a [`ProvenSector`] from a [`PreCommittedSector`].
-    pub fn create(sector: PreCommittedSector) -> Self {
+    pub fn create(sector: PreCommittedSector, deadline_index: u64) -> Self {
         Self {
             sector_number: sector.sector_number,
             piece_infos: sector.piece_infos,
@@ -554,6 +561,7 @@ impl ProvenSector {
             sealed_path: sector.sealed_path,
             comm_r: sector.comm_r,
             comm_d: sector.comm_d,
+            deadline_index,
         }
     }
 }

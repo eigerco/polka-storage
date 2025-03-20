@@ -26,6 +26,7 @@ frame-support.workspace = true
 frame-system.workspace = true
 log = { workspace = true }
 num-bigint = { workspace = true }
+pairing = { workspace = true }
 polka-storage-proofs = { workspace = true, features = ["substrate"] }
 primitives = { workspace = true, features = ["serde"] }
 rand = { workspace = true, features = ["alloc"] }
@@ -36,10 +37,12 @@ sp-runtime.workspace = true
 sp-std.workspace = true
 
 # Runtime benchmarks
-rand_xorshift = { workspace = true, optional = true }
+rand_xorshift = { workspace = true }
 
 [dev-dependencies]
 blstrs = { workspace = true }
+cid = { workspace = true, features = ["alloc", "serde", "std"] }
+env_logger = { workspace = true }
 filecoin-hashers = { workspace = true }
 filecoin-proofs = { workspace = true }
 fr32 = { workspace = true }
@@ -57,7 +60,6 @@ runtime-benchmarks = [
   "frame-benchmarking/runtime-benchmarks",
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
-  "rand_xorshift",
   "sp-runtime/runtime-benchmarks",
 ]
 std = [
