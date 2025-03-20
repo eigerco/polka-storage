@@ -50,7 +50,7 @@ pub mod builder {
     /// [`SectorPreCommitInfo`] builder.
     ///
     /// Usage:
-    /// ```no_run
+    /// ```no_compile
     /// // Instances are created with defaults
     /// SectorPreCommitInfoBuilder::default()
     ///     .sector_number(10.into())

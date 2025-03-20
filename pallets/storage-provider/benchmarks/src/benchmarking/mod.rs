@@ -202,5 +202,5 @@ mod benchmarks {
         assert_eq!(state.pre_commit_deposits, balance);
     }
 
-    impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test);
+    impl_benchmark_test_suite!(Pallet, crate::test::new_test_ext(), crate::mock::Test);
 }

@@ -1,0 +1,95 @@
+[package]
+authors.workspace = true
+description = "Benchmarks for the Market Pallet"
+edition.workspace = true
+homepage.workspace = true
+license-file.workspace = true
+name = "pallet-market-benchmarks"
+publish = false
+repository.workspace = true
+version = "0.0.0"
+
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+# Homegrown
+primitives = { workspace = true, default-features = false }
+
+# De/Encoding
+codec = { workspace = true, default-features = false, features = ["derive"] }
+scale-info = { workspace = true, default-features = false, features = ["derive"] }
+
+cid = { workspace = true, default-features = false, features = ["scale-codec"] }
+
+# frame deps
+frame-benchmarking = { workspace = true, default-features = false, optional = true }
+frame-support = { workspace = true, default-features = false }
+frame-system = { workspace = true, default-features = false }
+sp-std = { workspace = true, default-features = false }
+
+# Benchmark specific
+## Homegrown
+pallet-balances = { workspace = true, default-features = false }
+pallet-market = { workspace = true, default-features = false }
+pallet-proofs = { workspace = true, default-features = false }
+pallet-storage-provider = { workspace = true, default-features = false }
+## Required for .chunks()
+itertools = { workspace = true, optional = true, default-features = false, features = ["use_alloc"] }
+## Substrate Primitives & Friends
+sp-core = { workspace = true, default_features = false, optional = true }
+sp-io = { workspace = true, optional = true }
+sp-keystore = { workspace = true, default-features = false, optional = true }
+sp-runtime = { workspace = true, default-features = false }
+
+[dev-dependencies]
+# Homegrown
+primitives = { workspace = true, default-features = false, features = ["builder", "testing"] }
+
+blake2b_simd = { workspace = true, default-features = true }
+env_logger = { workspace = true }
+# Just used in benchmarks but they're also considered tests
+itertools = { workspace = true, default-features = false, features = ["use_alloc"] }
+sp-core = { workspace = true, default-features = false }
+sp-io = { workspace = true }
+sp-keystore = { workspace = true, default-features = false }
+sp-runtime = { workspace = true, default-features = false }
+
+[features]
+default = ["std"]
+runtime-benchmarks = [
+  "frame-benchmarking/runtime-benchmarks",
+  "frame-support/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
+  "itertools",
+  "pallet-balances/runtime-benchmarks",
+  "pallet-market/runtime-benchmarks",
+  "pallet-proofs/runtime-benchmarks",
+  "pallet-storage-provider/runtime-benchmarks",
+  "primitives/builder",
+  "primitives/testing",
+  "sp-core",
+  "sp-io",
+  "sp-keystore",
+  "sp-runtime/runtime-benchmarks",
+]
+std = [
+  "cid/std",
+  "codec/std",
+  "frame-benchmarking?/std",
+  "frame-support/std",
+  "frame-system/std",
+  "pallet-balances/std",
+  "pallet-market/std",
+  "pallet-proofs/std",
+  "pallet-storage-provider/std",
+  "primitives/std",
+  "scale-info/std",
+  "sp-core/std",
+  "sp-io/std",
+  "sp-runtime/std",
+]
+try-runtime = ["frame-support/try-runtime", "frame-system/try-runtime", "sp-runtime/try-runtime"]

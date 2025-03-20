@@ -141,7 +141,7 @@ jobs:
           --template node/benchmark_template.hbs
 
       - name: pallet-market — Run test benchmarks
-        run: cargo test --profile ci --locked -p pallet-market --features runtime-benchmarks -- benchmark --nocapture
+        run: cargo test --profile ci --locked -p pallet-market-benchmarks --features runtime-benchmarks -- benchmark --nocapture
 
       - name: pallet-market — Run node benchmarks
         run: |

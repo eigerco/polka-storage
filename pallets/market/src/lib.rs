@@ -9,18 +9,9 @@
 
 pub use pallet::*;
 
-mod deal_parameters;
-mod error;
+pub mod deal_parameters;
+pub mod error;
 pub mod weights;
-
-#[cfg(test)]
-mod mock;
-
-#[cfg(test)]
-mod test;
-
-#[cfg(feature = "runtime-benchmarks")]
-mod benchmarking;
 
 #[frame_support::pallet(dev_mode)]
 pub mod pallet {
@@ -153,10 +144,10 @@ pub mod pallet {
     /// Reference: <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/deal.rs#L138>
     pub struct ActiveDealState<BlockNumber> {
         /// Sector in which given piece has been included
-        pub(crate) sector_number: SectorNumber,
+        pub sector_number: SectorNumber,
 
         /// At which block (time) the deal's sector has been activated.
-        pub(crate) sector_start_block: BlockNumber,
+        pub sector_start_block: BlockNumber,
 
         /// The last block (time) when the deal was updated — i.e. when a deal payment settlement was made.
         ///
@@ -167,7 +158,7 @@ pub mod pallet {
         /// Sources:
         /// * <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L985>
         /// * <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L1315>
-        pub(crate) last_updated_block: Option<BlockNumber>,
+        pub last_updated_block: Option<BlockNumber>,
 
         /// When the deal was last slashed, can be never.
         ///
@@ -207,11 +198,11 @@ pub mod pallet {
         /// [7]: https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/market/src/lib.rs#L904-L924
         /// [8]: https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/state.rs#L765
         /// [9]: https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/state.rs#L964-L997
-        pub(crate) slash_block: Option<BlockNumber>,
+        pub slash_block: Option<BlockNumber>,
     }
 
     impl<BlockNumber> ActiveDealState<BlockNumber> {
-        pub(crate) fn new(
+        pub fn new(
             sector_number: SectorNumber,
             sector_start_block: BlockNumber,
         ) -> ActiveDealState<BlockNumber> {
@@ -1313,7 +1304,7 @@ pub mod pallet {
         // We don't want to store another BTreeSet of DealProposals
         // We only care about hashes.
         // It is not an associated function, because T::Hashing is hard to use inside of there.
-        pub(crate) fn hash_proposal(
+        pub fn hash_proposal(
             proposal: &DealProposal<T::AccountId, BalanceOf<T>, BlockNumberFor<T>>,
         ) -> T::Hash {
             let bytes = Encode::encode(proposal);
@@ -1716,7 +1707,7 @@ pub mod pallet {
     ///
     /// # Pre-Conditions
     /// * The client MUST have the necessary funds locked.
-    pub(crate) fn perform_storage_payment<T: Config>(
+    pub fn perform_storage_payment<T: Config>(
         client: &T::AccountId,
         provider: &T::AccountId,
         amount: BalanceOf<T>,
@@ -1747,7 +1738,7 @@ pub mod pallet {
     ///
     /// Moves funds from `locked` to `free`.
     #[inline(always)]
-    pub(crate) fn unlock_funds<T: Config>(
+    pub fn unlock_funds<T: Config>(
         account_id: &T::AccountId,
         amount: BalanceOf<T>,
     ) -> DispatchResult {
@@ -1774,7 +1765,7 @@ pub mod pallet {
     ///
     /// Moves funds from `free` to `locked`.
     #[inline(always)]
-    pub(crate) fn lock_funds<T: Config>(
+    pub fn lock_funds<T: Config>(
         account_id: &T::AccountId,
         amount: BalanceOf<T>,
     ) -> DispatchResult {
@@ -1798,7 +1789,7 @@ pub mod pallet {
     /// Slash and burn the provided `amount` from a given account.
     ///
     /// Sets `locked` to `locked - amount` and burns `amount`.
-    pub(crate) fn slash_and_burn<T: Config>(
+    pub fn slash_and_burn<T: Config>(
         account_id: &T::AccountId,
         amount: BalanceOf<T>,
     ) -> DispatchResult {

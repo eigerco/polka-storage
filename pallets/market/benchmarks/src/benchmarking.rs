@@ -1,5 +1,3 @@
-#![cfg(feature = "runtime-benchmarks")]
-
 use codec::Encode;
 use frame_benchmarking::v2::*;
 use frame_support::{pallet_prelude::ConstU32, sp_runtime::BoundedVec, traits::Currency};
@@ -7,6 +5,11 @@ use frame_system::{
     self,
     pallet_prelude::{BlockNumberFor, OriginFor},
     RawOrigin,
+};
+use pallet_market::{
+    deal_parameters::{OffchainDealDurationBound, OffchainDealParameters},
+    BalanceOf, BalanceTable, ClientDealProposal, DealProposal, DealState, Pallet as MarketPallet,
+    SPDealParameters,
 };
 use pallet_storage_provider::Pallet as SpPallet;
 use primitives::{
@@ -21,12 +24,7 @@ use sp_io::crypto::{ed25519_generate, ed25519_sign};
 use sp_runtime::{traits::IdentifyAccount, AccountId32, MultiSignature, MultiSigner};
 use sp_std::{vec, vec::Vec};
 
-use super::*;
-#[allow(unused)]
-use crate::{
-    deal_parameters::{OffchainDealDurationBound, OffchainDealParameters},
-    Pallet as MarketPallet,
-};
+use crate::{Config, Pallet};
 
 type BoundedPeerIdBytes = BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>;
 const COLLATERAL: u32 = 10;
@@ -101,14 +99,13 @@ where
     return (proposals, cost);
 }
 
-#[frame_benchmarking::v2::benchmarks(
+#[benchmarks(
     where
-        T: crate::Config<OffchainSignature = sp_runtime::MultiSignature>,
-        T: pallet_balances::Config,
-        T: pallet_storage_provider::Config<
+        T: crate::Config<
             PeerId = BoundedPeerIdBytes,
+            AccountId = AccountId32,
+            OffchainSignature = sp_runtime::MultiSignature,
         >,
-        T: frame_system::Config<AccountId = AccountId32>
 )]
 mod benchmarks {
     use itertools::Itertools;
@@ -193,7 +190,7 @@ mod benchmarks {
         // #[extrinsic_call] requires type shenanigans, using #[block] is MUCH simpler
         #[block]
         {
-            Pallet::<T>::add_balance(
+            MarketPallet::<T>::add_balance(
                 RawOrigin::Signed(caller.clone()).into(),
                 EXISTENTIAL_DEPOSIT.into(),
             )
@@ -213,7 +210,7 @@ mod benchmarks {
             (EXISTENTIAL_DEPOSIT * 2).into(),
         );
         // Add some balance so we can withdraw it
-        Pallet::<T>::add_balance(
+        MarketPallet::<T>::add_balance(
             RawOrigin::Signed(caller.clone().into()).into(),
             EXISTENTIAL_DEPOSIT.into(),
         )
@@ -222,7 +219,7 @@ mod benchmarks {
         // #[extrinsic_call] requires type shenanigans, using #[block] is MUCH simpler
         #[block]
         {
-            Pallet::<T>::withdraw_balance(
+            MarketPallet::<T>::withdraw_balance(
                 RawOrigin::Signed(caller.clone()).into(),
                 EXISTENTIAL_DEPOSIT.into(),
             )
@@ -265,8 +262,11 @@ mod benchmarks {
         // #[extrinsic_call] requires type shenanigans, using #[block] is MUCH simpler
         #[block]
         {
-            Pallet::<T>::publish_storage_deals(RawOrigin::Signed(caller.clone()).into(), proposals)
-                .unwrap();
+            MarketPallet::<T>::publish_storage_deals(
+                RawOrigin::Signed(caller.clone()).into(),
+                proposals,
+            )
+            .unwrap();
         }
 
         let balance_entry = BalanceTable::<T>::get(&caller);
@@ -303,7 +303,8 @@ mod benchmarks {
         let proposals = BoundedVec::try_from(proposals).unwrap();
 
         let storage_provider: OriginFor<T> = RawOrigin::Signed(caller.clone()).into();
-        Pallet::<T>::publish_storage_deals(storage_provider.clone(), proposals.clone()).unwrap();
+        MarketPallet::<T>::publish_storage_deals(storage_provider.clone(), proposals.clone())
+            .unwrap();
 
         // Run to 1 to get VRF randomness
         run_to_block::<T>(1);
@@ -387,7 +388,7 @@ mod benchmarks {
         // #[extrinsic_call] requires type shenanigans, using #[block] is MUCH simpler
         #[block]
         {
-            Pallet::<T>::settle_deal_payments(storage_provider.clone(), deal_ids).unwrap();
+            MarketPallet::<T>::settle_deal_payments(storage_provider.clone(), deal_ids).unwrap();
         }
 
         assert_eq!(
@@ -427,7 +428,7 @@ mod benchmarks {
         let storage_provider: OriginFor<T> = RawOrigin::Signed(caller.clone()).into();
 
         if n == 2 {
-            Pallet::<T>::publish_deal_parameters(
+            MarketPallet::<T>::publish_deal_parameters(
                 storage_provider.clone(),
                 offchain_deal_parameters.clone(),
             )
@@ -437,7 +438,7 @@ mod benchmarks {
         // #[extrinsic_call] requires type shenanigans, using #[block] is MUCH simpler
         #[block]
         {
-            Pallet::<T>::publish_deal_parameters(
+            MarketPallet::<T>::publish_deal_parameters(
                 storage_provider.clone(),
                 offchain_deal_parameters.clone(),
             )
@@ -471,20 +472,21 @@ mod benchmarks {
             };
         let storage_provider: OriginFor<T> = RawOrigin::Signed(caller.clone()).into();
 
-        Pallet::<T>::publish_deal_parameters(storage_provider.clone(), deal_parameters).unwrap();
+        MarketPallet::<T>::publish_deal_parameters(storage_provider.clone(), deal_parameters)
+            .unwrap();
 
         // #[extrinsic_call] requires type shenanigans, using #[block] is MUCH simpler
         #[block]
         {
-            Pallet::<T>::remove_deal_parameters(storage_provider.clone()).unwrap();
+            MarketPallet::<T>::remove_deal_parameters(storage_provider.clone()).unwrap();
         }
 
         assert_eq!(SPDealParameters::<T>::get(&caller), None);
     }
 
     impl_benchmark_test_suite! {
-        MarketPallet,
-        crate::mock::new_test_ext(),
+        Pallet,
+        crate::test::new_test_ext(),
         crate::mock::Test,
     }
 }
