@@ -23,13 +23,16 @@ pub const NODE_SIZE: usize = 32;
 /// ref: <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/runtime/src/runtime/policy.rs#L283>
 pub const MAX_PARTITIONS_PER_DEADLINE: u32 = 3000;
 
+/// Establishes how many PoRep partitions can we verify in a single extrinsic.
+/// It's determined by the Groth16 timing limitations.
+/// Verification of 10 PoRep partitions (1GiB sector size) takes a whole block.
+pub const MAX_POREP_PROOFS_PER_BLOCK: u32 = 10;
+
 /// Establishes how many partitions can we verify in a single extrinsic.
-/// It's determined by the timing limitations, storage provider have an upper limit of 3000 partitions per deadline.
-/// With our current verification solution, it'll take around ~30 extrinsic calls to verify all of them.
-/// Verification of a single proof takes around ~100ms, block time is ~6000ms.
-/// This means 10 partitions will be verified in a ~1 sec.
-// TODO(@th7nder,#659,27/12/2024): possibly speed it up
-pub const MAX_PROOFS_PER_BLOCK: u32 = 10;
+/// It's determined by the timing limitations, storage provider have an upper limit of 300 partitions per deadline.
+/// With our current verification solution, it'll take around ~300 extrinsic calls to verify all of them.
+/// Verification of a single proof takes around ~2s, takes a whole block.
+pub const MAX_POST_PROOFS_PER_BLOCK: u32 = 1;
 
 /// Max number of sectors.
 /// <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/runtime/src/runtime/policy.rs#L262>
@@ -57,15 +60,15 @@ pub const MAX_DEALS_FOR_ALL_SECTORS: u32 = MAX_SECTORS_PER_CALL * MAX_DEALS_PER_
 pub const MAX_TERMINATIONS_PER_CALL: u32 = 32; // TODO(@jmg-duarte,25/07/2024): change for a better value
 
 /// The maximum amount of sectors allowed in proofs and replicas.
-/// This value is the absolute max, when the sector size is 32 GiB.
+/// This value is the absolute max, when the sector size is 1 GiB.
 /// Proofs and replicas are still dynamically checked for their size depending on the sector size.
 ///
 /// References:
 /// * Filecoin docs about PoSt: <https://spec.filecoin.io/algorithms/pos/post/#section-algorithms.pos.post.windowpost>
-pub const MAX_SECTORS_PER_PROOF: u32 = 2349;
+pub const MAX_SECTORS_PER_PROOF: u32 = 25;
 
 /// The maximum amount of replicas that can be processed in a single block.
-pub const MAX_REPLICAS_PER_BLOCK: u32 = MAX_SECTORS_PER_PROOF * MAX_PROOFS_PER_BLOCK;
+pub const MAX_REPLICAS_PER_BLOCK: u32 = MAX_SECTORS_PER_PROOF * MAX_POST_PROOFS_PER_BLOCK;
 
 /// The absolute maximum length, in bytes, a seal proof should be for the largest sector size.
 /// NOTE: Taken the value from `StackedDRG32GiBV1`,

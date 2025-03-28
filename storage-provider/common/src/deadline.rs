@@ -11,7 +11,7 @@ use primitives::{
     proofs::{derive_prover_id, RegisteredPoStProof},
     randomness::{draw_randomness, DomainSeparationTag},
     sector::SectorNumber,
-    PartitionNumber, MAX_PROOFS_PER_BLOCK,
+    PartitionNumber, MAX_POST_PROOFS_PER_BLOCK,
 };
 use storagext::{
     runtime::runtime_types::primitives::pallets::DeadlineInfo,
@@ -144,7 +144,7 @@ impl Deadline {
         let chunked_partitions = deadline_state
             .partitions
             .into_iter()
-            .chunks(MAX_PROOFS_PER_BLOCK as usize);
+            .chunks(MAX_POST_PROOFS_PER_BLOCK as usize);
 
         // Prepare the proofs for required partitions
         let proving_futures = chunked_partitions
@@ -247,7 +247,6 @@ impl Deadline {
     where
         F: Fn(SectorNumber) -> Option<ProvenSector>,
     {
-        // Get replicas for sectors part of the partitions
         let replicas = partitions
             .iter()
             .flat_map(|(_id, state)| {

@@ -59,8 +59,8 @@ pub mod pallet {
         proofs::{derive_prover_id, PublicReplicaInfo, RegisteredPoStProof},
         randomness::{draw_randomness, AuthorVrfHistory, DomainSeparationTag},
         sector::{ProveCommitSector, SectorNumber, SectorPreCommitInfo},
-        PartitionNumber, MAX_PARTITIONS_PER_DEADLINE, MAX_PROOFS_PER_BLOCK, MAX_SEAL_PROOF_BYTES,
-        MAX_SECTORS, MAX_SECTORS_PER_CALL,
+        PartitionNumber, MAX_PARTITIONS_PER_DEADLINE, MAX_POREP_PROOFS_PER_BLOCK,
+        MAX_SEAL_PROOF_BYTES, MAX_SECTORS, MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::Zero;
@@ -1641,7 +1641,7 @@ pub mod pallet {
         precommit: &SectorPreCommitOnChainInfo<BalanceOf<T>, BlockNumberFor<T>>,
         proofs: BoundedVec<
             BoundedVec<u8, ConstU32<MAX_SEAL_PROOF_BYTES>>,
-            ConstU32<MAX_PROOFS_PER_BLOCK>,
+            ConstU32<MAX_POREP_PROOFS_PER_BLOCK>,
         >,
     ) -> Result<(), DispatchError> {
         let max_proof_size = precommit.info.seal_proof.proof_size();

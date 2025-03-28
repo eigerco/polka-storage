@@ -15,7 +15,7 @@ use sp_runtime::BoundedVec;
 
 use crate::{
     mock::*,
-    tests::{load_proof_file, raw_commitment_from_hex, TEST_SEED},
+    tests::{load_porep_proof_file, raw_commitment_from_hex, TEST_SEED},
     Error, PoRepVerifyingKeys,
 };
 
@@ -126,7 +126,7 @@ fn porep_verification_for_1gib_succeeds() {
         let comm_d = raw_commitment_from_hex(
             "baga6ea4seaqcjdzgezdmdynwaoursai6zwafbxjmz7k4r3fnwwioizcwbq3zwki",
         );
-        let proofs = load_proof_file("../../examples/1.sector.proof.porep.scale");
+        let proofs = load_porep_proof_file("../../examples/1.sector.proof.porep.scale");
 
         assert_ok!(<ProofsModule as ProofVerification>::verify_porep(
             prover_id, seal_proof, comm_r, comm_d, sector, ticket, seed, proofs

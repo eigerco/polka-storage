@@ -6,7 +6,7 @@ use primitives::{
     commitment::RawCommitment,
     proofs::{ProverId, RegisteredSealProof, Ticket},
     sector::SectorNumber,
-    MAX_PROOFS_PER_BLOCK,
+    MAX_POREP_PROOFS_PER_BLOCK,
 };
 use sha2::{Digest, Sha256};
 
@@ -156,7 +156,7 @@ impl ProofScheme {
         seed: &Ticket,
         groth_randomness: &Ticket,
         vk: VerifyingKey<Bls12>,
-        proofs: BoundedVec<Proof<Bls12>, ConstU32<MAX_PROOFS_PER_BLOCK>>,
+        proofs: BoundedVec<Proof<Bls12>, ConstU32<MAX_POREP_PROOFS_PER_BLOCK>>,
     ) -> Result<(), ProofError> {
         let comm_d_fr = fr32::bytes_into_fr(comm_d).map_err(|_| ProofError::Conversion)?;
         let comm_r_fr = fr32::bytes_into_fr(comm_r).map_err(|_| ProofError::Conversion)?;
