@@ -154,6 +154,7 @@ impl ProofScheme {
         sector: SectorNumber,
         ticket: &Ticket,
         seed: &Ticket,
+        groth_randomness: &Ticket,
         vk: VerifyingKey<Bls12>,
         proofs: BoundedVec<Proof<Bls12>, ConstU32<MAX_PROOFS_PER_BLOCK>>,
     ) -> Result<(), ProofError> {
@@ -186,7 +187,7 @@ impl ProofScheme {
             agg_inputs.push(inputs);
         }
 
-        if verify_proofs_batch(&pvk, &proofs[..], agg_inputs.as_slice())? {
+        if verify_proofs_batch(&pvk, groth_randomness, &proofs[..], agg_inputs.as_slice())? {
             Ok(())
         } else {
             Err(ProofError::InvalidProof)

@@ -29,7 +29,9 @@ pub mod pallet {
     pub const LOG_TARGET: &'static str = "runtime::proofs";
 
     use frame_support::{
-        pallet_prelude::*, sp_runtime::BoundedBTreeMap, traits::BuildGenesisConfig,
+        pallet_prelude::*,
+        sp_runtime::BoundedBTreeMap,
+        traits::{BuildGenesisConfig, Randomness},
     };
     use frame_system::pallet_prelude::*;
     use polka_storage_proofs::{VerifyingKey, POREP_VERIFYINGKEY_MAX_BYTES};
@@ -50,6 +52,8 @@ pub mod pallet {
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
+        /// Randomness generator
+        type Randomness: Randomness<Self::Hash, BlockNumberFor<Self>>;
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         type WeightInfo: WeightInfo;
     }
@@ -120,6 +124,7 @@ pub mod pallet {
         InvalidVerifyingKey,
         /// Returned in case of failed conversion, i.e. in `bytes_into_fr()`.
         Conversion,
+        MissingRandomness,
     }
 
     #[pallet::call]
@@ -208,6 +213,7 @@ pub mod pallet {
 
                 parsed_proofs.try_push(proof).expect("internal (porep::ProofScheme) and external (ProofVerification) apis have the same limits on number of proofs");
             }
+            let (randomness, _) = T::Randomness::random(&comm_r);
             let proof_scheme = porep::ProofScheme::setup(seal_proof);
 
             let vkey = PoRepVerifyingKeys::<T>::get(seal_proof)
@@ -220,6 +226,10 @@ pub mod pallet {
                 sector,
                 &ticket,
                 &seed,
+                &randomness
+                    .as_ref()
+                    .try_into()
+                    .expect("pallet system hash to be configured with 32 bytes"),
                 vkey,
                 parsed_proofs,
             );
@@ -268,8 +278,20 @@ pub mod pallet {
             let vkey = PoStVerifyingKeys::<T>::get(post_type)
                 .ok_or(Error::<T>::MissingPoStVerifyingKey)?;
 
+            // As personalization parameter we use randomness used for the given partition.
+            let (groth_randomness, _) = T::Randomness::random(&randomness);
+
             log::info!(target: LOG_TARGET, "Verifying {} PoSt proofs for replicas {}...", parsed_proofs.len(), replicas.len());
-            let result = proof_scheme.verify(randomness, replicas.clone(), vkey, parsed_proofs);
+            let result = proof_scheme.verify(
+                randomness,
+                replicas.clone(),
+                groth_randomness
+                    .as_ref()
+                    .try_into()
+                    .expect("pallet system hash to be configured with 32 bytes"),
+                vkey,
+                parsed_proofs,
+            );
             log::info!(target: LOG_TARGET, "Verified PoSt proofs for replicas {}.", replicas.len());
 
             result.map_err(|e| {

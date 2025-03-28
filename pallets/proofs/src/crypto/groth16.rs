@@ -8,6 +8,7 @@ use pairing::{group::Group, MillerLoopResult};
 pub use polka_storage_proofs::{Bls12, PrimeField, Proof, Scalar as Fr, VerifyingKey};
 use polka_storage_proofs::{Curve, MultiMillerLoop, PrimeCurveAffine};
 use rand::SeedableRng;
+use rand_xorshift::XorShiftRng;
 use scale_info::TypeInfo;
 
 use crate::Vec;
@@ -107,16 +108,12 @@ pub enum VerificationError {
     InvalidInput,
 }
 
-pub(crate) fn le_bytes_to_u64s(le_bytes: &[u8]) -> Vec<u64> {
-    assert_eq!(
-        le_bytes.len() % 8,
-        0,
-        "length must be divisible by u64 byte length (8-bytes)"
-    );
-    le_bytes
-        .chunks(8)
-        .map(|chunk| u64::from_le_bytes(chunk.try_into().unwrap()))
-        .collect()
+fn seeded_rng(seed_bytes: &[u8; 32]) -> XorShiftRng {
+    let mut xored = [0u8; 16];
+    for i in 0..16 {
+        xored[i] = seed_bytes[i] ^ seed_bytes[i + 16];
+    }
+    XorShiftRng::from_seed(xored)
 }
 
 /// Verifies multiple proofs using randomized batch verification.
@@ -130,14 +127,13 @@ pub(crate) fn le_bytes_to_u64s(le_bytes: &[u8]) -> Vec<u64> {
 /// * https://github.com/filecoin-project/bellperson/blob/95fd3fc10e740547b53ce8e86a04c49509af6a41/src/groth16/verifier.rs#L109
 pub fn verify_proofs_batch<E>(
     pvk: &PreparedVerifyingKey<E>,
-    // rng: &mut R,
+    seed: &[u8; 32],
     proofs: &[Proof<E>],
     public_inputs: &[Vec<E::Fr>],
 ) -> Result<bool, VerificationError>
 where
     E: MultiMillerLoop,
     <E::Fr as PrimeField>::Repr: Sync + Copy,
-    // R: rand::RngCore,
 {
     debug_assert_eq!(proofs.len(), public_inputs.len());
 
@@ -161,31 +157,9 @@ where
     let mut rand_z: Vec<_> = Vec::with_capacity(proof_num);
     let mut accum_y = E::Fr::ZERO;
 
-    // TODO(@th7nder,#810, 18/03/2025): this is unsafe! randomness must be fetched from the chain.
-    use rand::Rng;
-    use rand_xorshift::XorShiftRng;
-    let rng = &mut XorShiftRng::from_seed([
-        0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0xd, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc,
-        0xe5,
-    ]);
-
+    let mut rng = seeded_rng(seed);
     for _ in 0..proof_num {
-        let t: u128 = rng.gen();
-
-        let mut repr = E::Fr::ZERO.to_repr();
-        let mut repr_u64s = le_bytes_to_u64s(repr.as_ref());
-        assert!(repr_u64s.len() > 1);
-
-        repr_u64s[0] = (t & (-1i64 as u128) >> 64) as u64;
-        repr_u64s[1] = (t >> 64) as u64;
-
-        for (i, limb) in repr_u64s.iter().enumerate() {
-            let start = i * 8;
-            let stop = start + 8;
-            repr.as_mut()[start..stop].copy_from_slice(&limb.to_le_bytes());
-        }
-
-        let fr = E::Fr::from_repr(repr).unwrap();
+        let fr = E::Fr::random(&mut rng);
         let repr = fr.to_repr();
 
         accum_y.add_assign(&fr);

@@ -176,6 +176,7 @@ impl pallet_storage_provider::Config for Test {
 }
 
 impl pallet_proofs::Config for Test {
+    type Randomness = DummyRandomnessGenerator<Self>;
     type RuntimeEvent = RuntimeEvent;
     type WeightInfo = ();
 }
