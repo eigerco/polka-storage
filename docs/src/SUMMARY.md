@@ -37,6 +37,7 @@
   - [`system`](./storagext-cli/system.md)
   - [`faucet`](./storagext-cli/faucet.md)
 - [Mater CLI](./mater-cli/index.md)
+- [Polka Fetch](./polka-fetch/index.md)
 - [Zombienet Configuration](./zombienet-config.md)
 
 ---

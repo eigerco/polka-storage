@@ -7,6 +7,21 @@ This chapter covers the provided commands and how to use them.
 The <a href="./index.md"><code>storagext-cli</code> getting started</a> page covers the basic flags necessary to operate the CLI and should be read first.
 </div>
 
+## Available Commands
+
+| Command                        | Description                                          |
+| ------------------------------ | ---------------------------------------------------- |
+| `add-balance`                  | Add balance to the given account                     |
+| `withdraw-balance`             | Withdraw balance from the given account              |
+| `publish-storage-deals`        | Publish storage deals on-chain                       |
+| `settle-deal-payments`         | Settle deal payments for the specified deal IDs      |
+| `publish-deal-parameters`      | Publish Storage Provider deal parameters             |
+| `remove-deal-parameters`       | Remove Storage Provider deal parameters              |
+| `retrieve-deal-parameters`     | Retrieve the deal parameters for a specific account  |
+| `retrieve-all-deal-parameters` | Retrieve all deal parameters stored in market pallet |
+| `retrieve-balance`             | Retrieve the balance for a given account             |
+| `retrieve-deal`                | Retrieve details of a specific deal                  |
+
 ## `add-balance`
 
 The `add-balance` adds balance to the market account of the extrinsic signer.
@@ -195,7 +210,76 @@ The `retrieve-deal` command fetches detailed information about a specific storag
 ### <a class="header" id="retrieve-deal.example" href="#retrieve-deal.example">Example</a>
 
 ```bash
-storagext-cli market market retrieve-deal 0
+storagext-cli market retrieve-deal 0
+```
+
+> This command **is not signed**, and does not need to be called using any of the `--X-key` flags.
+
+## `publish-deal-parameters`
+
+The `publish-deal-parameters` command allows a Storage Provider to publish deal parameters on-chain, specifying conditions under which they are willing to accept storage deals.
+
+### Parameters
+
+| Name                | Description                                  | Type                                                                                                                         |
+| ------------------- | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `--deal-parameters` | The deal parameters for the storage provider | JSON object. Can be passed as a string, or as a file path prefixed with `@` pointing to the file containing the JSON object. |
+
+### <a class="header" id="publish-deal-parameters.example" href="#publish-deal-parameters.example">Example</a>
+
+```bash
+storagext-cli --sr25519-key "//Alice" market publish-deal-parameters --deal-parameters @deal-params.json
+```
+
+Where `deal-params.json` is a file with contents similar to:
+
+```json
+{
+  "min_piece_size": 1024,
+  "max_piece_size": 1048576,
+  "min_deal_duration_blocks": 100,
+  "max_deal_duration_blocks": 10000,
+  "min_storage_price_per_block": 10,
+  "collateral_per_block": 100
+}
+```
+
+## `remove-deal-parameters`
+
+The `remove-deal-parameters` command removes previously published deal parameters from the chain.
+
+### <a class="header" id="remove-deal-parameters.example" href="#remove-deal-parameters.example">Example</a>
+
+```bash
+storagext-cli --sr25519-key "//Alice" market remove-deal-parameters
+```
+
+## `retrieve-deal-parameters`
+
+The `retrieve-deal-parameters` command fetches the deal parameters for a specific Storage Provider account from the chain.
+
+### Parameters
+
+| Name         | Description                                    |
+| ------------ | ---------------------------------------------- |
+| `ACCOUNT_ID` | The account ID to retrieve deal parameters for |
+
+### <a class="header" id="retrieve-deal-parameters.example" href="#retrieve-deal-parameters.example">Example</a>
+
+```bash
+storagext-cli market retrieve-deal-parameters 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+```
+
+> This command **is not signed**, and does not need to be called using any of the `--X-key` flags.
+
+## `retrieve-all-deal-parameters`
+
+The `retrieve-all-deal-parameters` command fetches all deal parameters stored in the market pallet.
+
+### <a class="header" id="retrieve-all-deal-parameters.example" href="#retrieve-all-deal-parameters.example">Example</a>
+
+```bash
+storagext-cli market retrieve-all-deal-parameters
 ```
 
 > This command **is not signed**, and does not need to be called using any of the `--X-key` flags.

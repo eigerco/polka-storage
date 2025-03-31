@@ -51,10 +51,10 @@ Storage Provider registration is the first extrinsic any storage provider must c
 
 Before a storage provider can register, they must set up a [PeerId](https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id). This [PeerId](https://docs.libp2p.io/concepts/fundamentals/peers/#peer-id) is used in the p2p network to connect to the storage provider.
 
-| Name                     | Description                                                                            | Type                                                           |
-| ------------------------ | -------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `peer_id`                | [libp2p](https://libp2p.io/) [ID](https://docs.libp2p.io/concepts/fundamentals/peers/) | Hex string of the PeerId bytes                                 |
-| `window_post_proof_type` | Proof type the storage provider uses                                                   | String, currently only `StackedDRGWindow2KiBV1P1` is available |
+| Name                     | Description                                                                            | Type                                                                                                                                          |
+| ------------------------ | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `peer_id`                | [libp2p](https://libp2p.io/) [ID](https://docs.libp2p.io/concepts/fundamentals/peers/) | Hex string of the PeerId bytes                                                                                                                |
+| `window_post_proof_type` | Proof type the storage provider uses                                                   | String, available types include `StackedDRGWindow2KiBV1P1`, `StackedDRGWindow8MiBV1`, `StackedDRGWindow512MiBV1` and `StackedDRGWindow1GiBV1` |
 
 #### <a class="header" id="register_storage_provider.example" href="#register_storage_provider.example">Example</a>
 
@@ -72,20 +72,20 @@ After publishing a deal, the storage provider needs to pre-commit the sector inf
 Sectors are not valid after pre-commit. The sectors need to be proven first.
 The pre-commit extrinsic takes in an array of the following values:
 
-| Name            | Description                                                               | Type                                                           |
-| --------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `seal_proof`    | Seal proof type this storage provider is using [^note]                    | String, currently only `StackedDRGWindow2KiBV1P1` is available |
-| `sector_number` | The sector number that is being pre-committed                             | Positive integer                                               |
-| `sealed_cid`    | [Commitment of replication](../../glossary.md#commitment-of-replication)  | Hex string of the sealed CID bytes                             |
-| `deal_ids`      | Deal IDs to be pre-committed, from `publish_storage_deals`                | Array of integers                                              |
-| `expiration`    | Expiration block of the pre-committed sector                              | Positive integer                                               |
-| `unsealed_cid`  | Commitment of data [sector sealing](../../glossary.md#commitment-of-data) | Hex string of the unsealed CID bytes                           |
+| Name            | Description                                                               | Type                                                                                                                  |
+| --------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `seal_proof`    | Seal proof type this storage provider is using [^note]                    | String, available types include `StackedDRG2KiBV1P1`, `StackedDRG8MiBV1`, `StackedDRG512MiBV1` and `StackedDRG1GiBV1` |
+| `sector_number` | The sector number that is being pre-committed                             | Positive integer                                                                                                      |
+| `sealed_cid`    | [Commitment of replication](../../glossary.md#commitment-of-replication)  | Hex string of the sealed CID bytes                                                                                    |
+| `deal_ids`      | Deal IDs to be pre-committed, from `publish_storage_deals`                | Array of integers                                                                                                     |
+| `expiration`    | Expiration block of the pre-committed sector                              | Positive integer                                                                                                      |
+| `unsealed_cid`  | Commitment of data [sector sealing](../../glossary.md#commitment-of-data) | Hex string of the unsealed CID bytes                                                                                  |
 
 <div class="warning">
 Sectors are not valid after pre-commit. The sectors need to be proven first.
 </div>
 
-[^note]: Only one seal-proof type supported at the moment, `2KiB`.
+[^note]: Available sector sizes include `2KiB`, `8MiB`, `512MiB` and `1GiB`.
 
 #### <a class="header" id="pre_commit_sectors.example" href="#pre_commit_sectors.example">Example</a>
 
@@ -145,12 +145,12 @@ Where `prove-commit-sector.json` is a file with contents similar to:
 
 A storage provider needs to periodically submit a [Proof-of-Spacetime](../../glossary.md#proofs) to prove that they are still storing the data they promised. Multiple proofs can be submitted at once.
 
-| Name          | Description                                                               | Type                                                           |
-| ------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `deadline`    | The deadline index which the submission targets                           | Positive integer                                               |
-| `partitions`  | The partitions being proven                                               | Array of positive integers                                     |
-| `post_proof`  | The proof type, should be consistent with the proof type for registration | String, currently only `StackedDRGWindow2KiBV1P1` is available |
-| `proof_bytes` | The proof submission, to be checked in the storage provider pallet.       | Hex string of the proof bytes                                  |
+| Name          | Description                                                               | Type                                                                                                                                          |
+| ------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `deadline`    | The deadline index which the submission targets                           | Positive integer                                                                                                                              |
+| `partitions`  | The partitions being proven                                               | Array of positive integers                                                                                                                    |
+| `post_proof`  | The proof type, should be consistent with the proof type for registration | String, available types include `StackedDRGWindow2KiBV1P1`, `StackedDRGWindow8MiBV1`, `StackedDRGWindow512MiBV1` and `StackedDRGWindow1GiBV1` |
+| `proof_bytes` | The proof submission, to be checked in the storage provider pallet.       | Hex string of the proof bytes                                                                                                                 |
 
 #### <a class="header" id="submit_windowed_post.example" href="#submit_windowed_post.example">Example</a>
 
@@ -280,7 +280,6 @@ Where the termination declarations contain:
 #### <a class="header" id="terminate_sectors.example" href="#terminate_sectors.example">Example</a>
 
 Storage provider `//Alice` terminating sectors[^terminate_sectors] on deadline 0, partition 0, sector 1.
-
 
 ```bash
 storagext-cli --sr25519-key "//Alice" storage-provider terminate-sectors @terminate-sectors.json

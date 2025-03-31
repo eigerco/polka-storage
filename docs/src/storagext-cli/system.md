@@ -10,12 +10,24 @@ The <a href="./index.md"><code>storagext-cli</code> getting started</a> page cov
 
 The command gets the current block height of the chain.
 
+### Parameters
+
+| Name                      | Description                                     | Type    |
+| ------------------------- | ----------------------------------------------- | ------- |
+| `--wait-for-finalization` | Wait for finalized blocks only (default: false) | Boolean |
+
 ### <a class="header" id="get-height.example" href="#get-height.example">Example</a>
 
-Getting the current block height of the chain.
+Getting the current block height of the chain:
 
 ```bash
 storagext-cli system get-height
+```
+
+Getting the current finalized block height only:
+
+```bash
+storagext-cli system get-height --wait-for-finalization
 ```
 
 ## `wait-for-height`
@@ -24,14 +36,21 @@ The command awaits for the chain to reach a specific block height. It will exit 
 
 ### Parameters
 
-| Name     | Description                  | Type             |
-| -------- | ---------------------------- | ---------------- |
-| `HEIGHT` | The block height to wait for | Positive integer |
+| Name                      | Description                                     | Type             |
+| ------------------------- | ----------------------------------------------- | ---------------- |
+| `HEIGHT`                  | The block height to wait for                    | Positive integer |
+| `--wait-for-finalization` | Wait for finalized blocks only (default: false) | Boolean          |
 
 ### <a class="header" id="wait-for-height.example" href="#wait-for-height.example">Example</a>
 
-Waiting for the chain to reach block height 100.
+Waiting for the chain to reach block height 100:
 
 ```bash
 storagext-cli system wait-for-height 100
+```
+
+Waiting for the chain to reach a finalized block height of 100:
+
+```bash
+storagext-cli system wait-for-height 100 --wait-for-finalization
 ```
