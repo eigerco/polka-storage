@@ -5,7 +5,7 @@ use frame_support::{
 };
 use primitives::{
     proofs::RegisteredPoStProof, PartitionNumber, MAX_PARTITIONS_PER_DEADLINE,
-    MAX_POST_PROOF_BYTES, MAX_PROOFS_PER_BLOCK,
+    MAX_POST_PROOFS_PER_BLOCK, MAX_POST_PROOF_BYTES,
 };
 use scale_info::TypeInfo;
 use sp_core::blake2_64;
@@ -30,7 +30,7 @@ pub struct SubmitWindowedPoStParams {
     /// The partition being proven.
     pub partitions: BoundedVec<PartitionNumber, ConstU32<MAX_PARTITIONS_PER_DEADLINE>>,
     /// The proof submission.
-    pub proofs: BoundedVec<PoStProof, ConstU32<MAX_PROOFS_PER_BLOCK>>,
+    pub proofs: BoundedVec<PoStProof, ConstU32<MAX_POST_PROOFS_PER_BLOCK>>,
 }
 
 /// Error type for proof operations.

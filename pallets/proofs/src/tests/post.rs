@@ -16,7 +16,7 @@ use sp_std::collections::btree_map::BTreeMap;
 
 use crate::{
     mock::*,
-    tests::{load_proof_file, raw_commitment_from_hex, TEST_SEED},
+    tests::{load_post_proof_file, raw_commitment_from_hex, TEST_SEED},
     Error, PoStVerifyingKeys,
 };
 
@@ -105,7 +105,7 @@ fn post_verification_for_1gib_succeeds() {
             },
         );
 
-        let proofs = load_proof_file("../../examples/1.sector.proof.post.scale");
+        let proofs = load_post_proof_file("../../examples/1.sector.proof.post.scale");
 
         log::debug!("Verifying PoSt...");
         assert_ok!(<ProofsModule as ProofVerification>::verify_post(

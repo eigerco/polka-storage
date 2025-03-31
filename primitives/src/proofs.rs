@@ -286,7 +286,8 @@ pub mod testing {
             Ticket,
         },
         sector::SectorNumber,
-        MAX_POST_PROOF_BYTES, MAX_PROOFS_PER_BLOCK, MAX_REPLICAS_PER_BLOCK, MAX_SEAL_PROOF_BYTES,
+        MAX_POREP_PROOFS_PER_BLOCK, MAX_POST_PROOFS_PER_BLOCK, MAX_POST_PROOF_BYTES,
+        MAX_REPLICAS_PER_BLOCK, MAX_SEAL_PROOF_BYTES,
     };
 
     /// A sentinel value for an invalid proof, everything else will be considered valid.
@@ -308,7 +309,7 @@ pub mod testing {
             _seed: Ticket,
             _proofs: BoundedVec<
                 BoundedVec<u8, ConstU32<MAX_SEAL_PROOF_BYTES>>,
-                ConstU32<MAX_PROOFS_PER_BLOCK>,
+                ConstU32<MAX_POREP_PROOFS_PER_BLOCK>,
             >,
         ) -> sp_runtime::DispatchResult {
             Ok(())
@@ -324,7 +325,7 @@ pub mod testing {
             >,
             proofs: BoundedVec<
                 BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>,
-                ConstU32<MAX_PROOFS_PER_BLOCK>,
+                ConstU32<MAX_POST_PROOFS_PER_BLOCK>,
             >,
         ) -> sp_runtime::DispatchResult {
             if *proofs[0] == INVALID_PROOF {

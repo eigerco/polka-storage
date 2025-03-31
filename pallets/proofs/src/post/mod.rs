@@ -7,7 +7,7 @@ use primitives::{
     commitment::RawCommitment,
     proofs::{PublicReplicaInfo, RegisteredPoStProof, Ticket},
     sector::SectorNumber,
-    MAX_PROOFS_PER_BLOCK, MAX_REPLICAS_PER_BLOCK, NODE_SIZE,
+    MAX_POST_PROOFS_PER_BLOCK, MAX_REPLICAS_PER_BLOCK, NODE_SIZE,
 };
 use sha2::{Digest, Sha256};
 
@@ -50,7 +50,7 @@ impl ProofScheme {
         >,
         groth_randomness: Ticket,
         vk: VerifyingKey<Bls12>,
-        proofs: BoundedVec<Proof<Bls12>, ConstU32<MAX_PROOFS_PER_BLOCK>>,
+        proofs: BoundedVec<Proof<Bls12>, ConstU32<MAX_POST_PROOFS_PER_BLOCK>>,
     ) -> Result<(), ProofError> {
         let randomness = fr32::bytes_into_fr(&randomness)
             .map_err(|_| ProofError::Conversion)?

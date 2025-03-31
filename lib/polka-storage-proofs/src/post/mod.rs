@@ -172,6 +172,11 @@ pub fn generate_window_post<S: MerkleTreeTrait + 'static>(
         randomness: randomness_safe,
         prover_id: prover_id_safe,
         sectors: pub_sectors,
+        // This is all-right.
+        // FallbackPoStCompound::prove overrides this parameter and sets it for each partition.
+        // As long as the verification logic also is compatible with this logic, it's good.
+        // k is local to each pair of the verification/generation batch.
+        // i.e. if we have 20 partitions to prove, two batches of 10 partitions, k = 0..10 in each batch.
         k: None,
     };
 
