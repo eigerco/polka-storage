@@ -322,7 +322,8 @@ parameter_types! {
     // The chain can verify 1 proof per block (of 25 sectors per partitions) currently.
     // It means deadline time (blocks) == max theoretical number of the partitions per deadline.
     // There is no global limit, so currently 1 Storage Provider could overload the entire chain.
-    pub const MaxPartitionsPerDeadline: u64 = WpostChallengeWindow;
+    // 1 deadline = 30 minutes, 30 * 10 blocks = 300.
+    pub const MaxPartitionsPerDeadline: u64 = 300;
 
     // Fault declaration/recovery functionality has been postponed, this won't make a difference until #592 is done.
     pub const FaultMaxAge: BlockNumber = 1 * DAYS;
