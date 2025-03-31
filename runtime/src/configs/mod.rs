@@ -313,7 +313,7 @@ parameter_types! {
     pub const WPoStPeriodDeadlines: u64 = 48;
     pub const WpostChallengeWindow: BlockNumber = 30 * MINUTES;
     // PoSt for a single partition is ~20sec, it's a huge margin to start generating the proofs before deadline starts.
-    pub const WPoStChallengeLookBack: BlockNumber = 10 * MINUTES; 
+    pub const WPoStChallengeLookBack: BlockNumber = 10 * MINUTES;
 
     // Finality in polkadot is 12-60 seconds, gives us a finalized randomness to base the challenge on.
     pub const PreCommitChallengeDelay: BlockNumber = 1 * MINUTES;
