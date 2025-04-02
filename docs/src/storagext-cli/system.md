@@ -12,9 +12,9 @@ The command gets the current block height of the chain.
 
 ### Parameters
 
-| Name                      | Description                                     | Type    |
-| ------------------------- | ----------------------------------------------- | ------- |
-| `--wait-for-finalization` | Wait for finalized blocks only (default: false) | Boolean |
+| Name                      | Description                                                                | Type    |
+| ------------------------- | -------------------------------------------------------------------------- | ------- |
+| `--wait-for-finalization` | Wait for [finalized](../glossary.md#finality) blocks only (default: false) | Boolean |
 
 ### <a class="header" id="get-height.example" href="#get-height.example">Example</a>
 
@@ -36,10 +36,10 @@ The command awaits for the chain to reach a specific block height. It will exit 
 
 ### Parameters
 
-| Name                      | Description                                     | Type             |
-| ------------------------- | ----------------------------------------------- | ---------------- |
-| `HEIGHT`                  | The block height to wait for                    | Positive integer |
-| `--wait-for-finalization` | Wait for finalized blocks only (default: false) | Boolean          |
+| Name                      | Description                                                                | Type             |
+| ------------------------- | -------------------------------------------------------------------------- | ---------------- |
+| `HEIGHT`                  | The block height to wait for                                               | Positive integer |
+| `--wait-for-finalization` | Wait for [finalized](../glossary.md#finality) blocks only (default: false) | Boolean          |
 
 ### <a class="header" id="wait-for-height.example" href="#wait-for-height.example">Example</a>
 
