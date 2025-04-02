@@ -328,13 +328,14 @@ parameter_types! {
     // Fault declaration/recovery functionality has been postponed, this won't make a difference until #592 is done.
     pub const FaultMaxAge: BlockNumber = 1 * DAYS;
     pub const FaultDeclarationCutoffSlack: BlockNumber = 1 * MINUTES;
-    pub const FaultDeclarationCutoff: BlockNumber = WPoStChallengeLookBack + FaultDeclarationCutoffSlack;
+    // WPoStChallengeLookBack + a bit of slack.
+    pub const FaultDeclarationCutoff: BlockNumber = (10 * MINUTES) + (1 * MINUTES);
     // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L299>
     pub const AddressedSectorsMax: u64 = 25_000;
 
     pub const MinSectorExpiration: BlockNumber = 1 * DAYS;
-    pub const MaxSectorExpirationSlack: BlockNumber = 30 * DAYS;
-    pub const MaxSectorExpiration: BlockNumber = 365 * DAYS + MaxSectorExpirationSlack;
+    // MinDealDuration + a bit of slack.
+    pub const MaxSectorExpiration: BlockNumber = 365 * DAYS + 30 * DAYS;
     pub const SectorMaximumLifetime: BlockNumber = 365 * DAYS;
     // Market Pallet
     pub const MinDealDuration: u64 = 1 * DAYS;
