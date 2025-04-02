@@ -17,6 +17,7 @@ This document provides definitions and explanations for terms used throughout th
     - [Deadline](#deadline)
     - [Extrinsics](#extrinsics)
     - [Fault](#fault)
+    - [Finality](#finality)
     - [Full Node](#full-node)
     - [Invulnerable](#invulnerable)
     - [Node](#node)
@@ -134,6 +135,13 @@ If a sector is faulty for too long, it will be terminated and the deal will be s
 For more information on faults, read the original Filecoin specification:
 <https://spec.filecoin.io/#section-glossary.fault>
 
+### Finality
+
+Finality in blockchain means reaching a point where a transaction is permanent and irreversible. Once a transaction achieves finality, it’s locked in and cannot be altered or undone. This is crucial in maintaining trust in blockchain systems, as it guarantees that transactions are secure and records remain immutable.
+
+For more information on the finality protocol:
+<https://spec.polkadot.network/sect-finality>
+
 ### Full Node
 
 A device (computer) that fully downloads and stores the entire blockchain of the parachain, validating and relaying
@@ -166,14 +174,12 @@ For more information on partitions, read the original Filecoin specification:
 [^logical]: They do not reflect the physical storage state, only existing in the context of deadlines and proofs.
 [^computational_limit]: Filecoin defined the limit at 2349 to cope with computational limits, [as described in the specification](https://spec.filecoin.io/#section-algorithms.pos.post.windowpost).
 
-
 ### Planck
 
 From the [Polkadot Wiki][1]:
 
 > The smallest unit for the account balance on Substrate based blockchains (Polkadot, Kusama, etc.) is Planck (a reference to Planck Length, the smallest possible distance in the physical Universe).
-> DOT's Planck is like BTC's [Satoshi](https://en.bitcoin.it/wiki/Satoshi_(unit)) or ETH's [Wei](https://ethereum.org/en/developers/docs/intro-to-ether/#denominations). Polkadot's native token DOT equals to \\(10^{10}\\) Planck and Kusama's native token KSM equals to \\(10^{12}\\) Planck.
-
+> DOT's Planck is like BTC's [Satoshi](<https://en.bitcoin.it/wiki/Satoshi_(unit)>) or ETH's [Wei](https://ethereum.org/en/developers/docs/intro-to-ether/#denominations). Polkadot's native token DOT equals to \\(10^{10}\\) Planck and Kusama's native token KSM equals to \\(10^{12}\\) Planck.
 
 ### Polkadot
 
@@ -199,9 +205,11 @@ There are two main types of proofs:
 
 A proving period is when storage providers' commitments are audited,
 and they must prove they are still storing the data from the deals they signed
+
 - the average period for proving all sectors maintained by a provider (default set to 24 hours).
 
 For more information on proving periods, read the original Filecoin specification:
+
 - Proving periods in the context of Window Proof of Spacetime — <https://spec.filecoin.io/#section-algorithms.pos.post.windowpost>
 - Proving periods in the context of Filecoin's system design — <https://spec.filecoin.io/#section-algorithms.pos.post.design>
 
