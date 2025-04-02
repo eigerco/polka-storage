@@ -1,6 +1,6 @@
 # Polka Fetch
 
-The polka-fetch is a cli tool, used to retrieve data stored in the Polka Storage network. It connects to the appropriate storage provider using the libp2p protocol and retrieves the requested data.
+The polka-fetch is a CLI tool, used to retrieve data stored in the Polka Storage network. It connects to the appropriate storage provider using the libp2p protocol and retrieves the requested data.
 
 ## Usage
 

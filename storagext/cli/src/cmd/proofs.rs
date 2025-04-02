@@ -19,7 +19,7 @@ pub(crate) enum ProofsCommand {
         #[arg(value_parser = VerifyingKey::value_parser)]
         verifying_key: VerifyingKey,
         /// The verifying key's proof kind.
-        #[arg(short, long, default_value = "2KiB")]
+        #[arg(short, long)]
         registered_proof: RegisteredSealProof,
     },
     /// Set PoRep verifying key
@@ -28,7 +28,7 @@ pub(crate) enum ProofsCommand {
         #[arg(value_parser = VerifyingKey::value_parser)]
         verifying_key: VerifyingKey,
         /// The verifying key's proof kind.
-        #[arg(short, long, default_value = "2KiB")]
+        #[arg(short, long)]
         registered_proof: RegisteredPoStProof,
     },
 }
