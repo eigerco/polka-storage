@@ -137,10 +137,10 @@ The `WINDOWED_POST` JSON object has the following structure:
 
 The `PROOF` JSON object has the following structure:
 
-| Name          | Description                                                                                                                                           |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `post_proof`  | Proof type ("2KiB", "8MiB", 512MiB, 1GiB, "StackedDRGWindow2KiBV1P1", "StackedDRGWindow8MiBV1", "StackedDRGWindow512MiBV1", "StackedDRGWindow1GiBV1") |
-| `proof_bytes` | Hex encoded proof                                                                                                                                     |
+| Name          | Description                                   |
+| ------------- | --------------------------------------------- |
+| `post_proof`  | Proof type ("1GiB", "StackedDRGWindow1GiBV1") |
+| `proof_bytes` | Hex encoded proof                             |
 
 ### <a class="header" id="submit-windowed-post.example" href="#submit-windowed-post.example">Example</a>
 
@@ -156,8 +156,8 @@ Where `window-proof.json` is a file with contents similar to:
 ```json
 {
   "deadline": 0,
-  "partition": [0],
-  "proof": {
+  "partitions": [0],
+  "proofs": {
     "post_proof": "8MiB",
     "proof_bytes": "07482439"
   }

@@ -235,12 +235,8 @@ Where `deal-params.json` is a file with contents similar to:
 
 ```json
 {
-  "min_piece_size": 1024,
-  "max_piece_size": 1048576,
-  "min_deal_duration_blocks": 100,
-  "max_deal_duration_blocks": 10000,
-  "min_storage_price_per_block": 10,
-  "collateral_per_block": 100
+  "minimum_price_per_block": 200,
+  "deal_duration": { "lower": 50, "upper": 1800 }
 }
 ```
 

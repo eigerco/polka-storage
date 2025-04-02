@@ -24,17 +24,11 @@ The `set-porep-verifying-key` adds PoRep (Proof of Replication) verifying key to
 | Name                       | Description                                            | Type   |
 | -------------------------- | ------------------------------------------------------ | ------ |
 | `KEY`                      | Hex encoded verifying key or file path prefixed with @ | String |
-| `--registered-proof`, `-r` | The verifying key's proof kind (default: "2KiB")       | String |
+| `--registered-proof`, `-r` | The verifying key's proof kind                         | String |
 
 ### <a class="header" id="set-porep-verifying-key.example" href="#set-porep-verifying-key.example">Example</a>
 
 Adding a PoRep verifying key to the chain:
-
-```bash
-storagext-cli --sr25519-key "//Alice" proofs set-porep-verifying-key @2KiB.porep.vk.scale
-```
-
-With a specific registered proof type:
 
 ```bash
 storagext-cli --sr25519-key "//Alice" proofs set-porep-verifying-key @8MiB.porep.vk.scale --registered-proof 8MiB
@@ -49,17 +43,11 @@ The `set-post-verifying-key` adds PoSt (Proof of Spacetime) verifying key to the
 | Name                       | Description                                            | Type   |
 | -------------------------- | ------------------------------------------------------ | ------ |
 | `KEY`                      | Hex encoded verifying key or file path prefixed with @ | String |
-| `--registered-proof`, `-r` | The verifying key's proof kind (default: "2KiB")       | String |
+| `--registered-proof`, `-r` | The verifying key's proof kind                         | String |
 
 ### <a class="header" id="set-post-verifying-key.example" href="#set-post-verifying-key.example">Example</a>
 
 Adding a PoSt verifying key to the chain:
-
-```bash
-storagext-cli --sr25519-key "//Alice" proofs set-post-verifying-key @2KiB.post.vk.scale
-```
-
-With a specific registered proof type:
 
 ```bash
 storagext-cli --sr25519-key "//Alice" proofs set-post-verifying-key @8MiB.post.vk.scale --registered-proof 8MiB
