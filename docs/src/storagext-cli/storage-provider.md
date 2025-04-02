@@ -157,10 +157,12 @@ Where `window-proof.json` is a file with contents similar to:
 {
   "deadline": 0,
   "partitions": [0],
-  "proofs": {
-    "post_proof": "8MiB",
-    "proof_bytes": "07482439"
-  }
+  "proofs": [
+    {
+      "post_proof": "1GiB",
+      "proof_bytes": "<hex_encoded_proof>"
+    }
+  ]
 }
 ```
 
