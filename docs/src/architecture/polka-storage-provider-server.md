@@ -98,7 +98,7 @@ To achieve that, the pipeline is composed of 3 main stages.
 
 The Add Piece stage gathers pieces into unsealed sectors, preparing them for the next steps.
 
-The system supports multiple sector sizes (2KiB, 8MiB, 512MiB and 1GiB). Depending on the configuration, pieces will be processed appropriately for the chosen sector size.
+While the system can theoretically support multiple sector sizes (2KiB, 8MiB, 512MiB and 1GiB), currently only the 1GiB sector size is considered safe for production use. Other sector sizes should be considered experimental and are not recommended for actual deployments.
 
 ### Pre Commit
 
@@ -112,5 +112,3 @@ After this process is completed, the Pre Commit information is submitted to the 
 The Prove Commit stage is where the [Proof of Replication](https://docs.filecoin.io/basics/the-blockchain/proofs#proof-of-replication-porep) is generated,
 after generation it is submitted to the network for validation and the sector is finally marked as `Active`,
 signaling that the Storage Provider has effectively stored the sector and is ready to start performing regular proof submissions.
-
-Note: The download functionality is now handled by the separate polka-fetch tool rather than being integrated directly in the Storage Provider Server.
