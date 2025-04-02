@@ -32,10 +32,10 @@ Download content directly using its payload CID and provider information:
 polka-fetch --output <OUTPUT_FILE> by-payload-cid --provider <PROVIDER_MULTIADDR> --payload-cid <CID>
 ```
 
-Options:
-
-- `--provider <MULTIADDR>` - Provider multiaddress used for the data download (can be specified multiple times)
-- `--payload-cid <CID>` - CID of the data being downloaded
+| Argument                 | Description                                                                        |
+| ------------------------ | ---------------------------------------------------------------------------------- |
+| `--provider <MULTIADDR>` | Provider multiaddress used for the data download (can be specified multiple times) |
+| `--payload-cid <CID>`    | CID of the data being downloaded                                                   |
 
 Example:
 
@@ -56,12 +56,12 @@ Download content by referencing a storage deal ID. The tool will automatically:
 polka-fetch --output <OUTPUT_FILE> by-deal-id --deal-id <DEAL_ID> --bootstrap-address <BOOTSTRAP_ADDR> --bootstrap-peer <PEER_ID> --parachain-address <PARACHAIN_URL>
 ```
 
-Options:
-
-- `--deal-id <DEAL_ID>` - The ID of the storage deal on the blockchain
-- `--bootstrap-address <MULTIADDR>` - Bootstrap node address (multiaddress format)
-- `--bootstrap-peer <PEER_ID>` - Bootstrap node peer ID
-- `--parachain-address <URL>` - Parachain node WebSocket URL (e.g., "ws://127.0.0.1:9944")
+| Argument                          | Description                                                |
+| --------------------------------- | ---------------------------------------------------------- |
+| `--deal-id <DEAL_ID>`             | The ID of the storage deal on the blockchain               |
+| `--bootstrap-address <MULTIADDR>` | Bootstrap node address (multiaddress format)               |
+| `--bootstrap-peer <PEER_ID>`      | Bootstrap node peer ID                                     |
+| `--parachain-address <URL>`       | Parachain node WebSocket URL (e.g., "ws://127.0.0.1:9944") |
 
 Example:
 
