@@ -92,13 +92,13 @@ The HTTP API exposes a single PUT method — `/upload/<cid>` where `<cid>` is th
 As shown in the previous illustration, the sealing pipeline is responsible for gathering pieces into sectors, sealing said sectors and proving their storage.
 To achieve that, the pipeline is composed of 3 main stages.
 
-![The sealine pipeline, composed of the stages: Add Piece, Pre Commit and Prove Commit](../images/architecture/storage-provider-pipeline.png)
+![The sealing pipeline, composed of the stages: Add Piece, Pre-Commit and Prove Commit](../images/architecture/storage-provider-pipeline.png)
 
 ### Add Piece
 
 The Add Piece stage gathers pieces into unsealed sectors, preparing them for the next steps.
 
-While the system can theoretically support multiple sector sizes (2KiB, 8MiB, 512MiB and 1GiB), currently only the 1GiB sector size is considered safe for production use. Other sector sizes should be considered experimental and are not recommended for actual deployments.
+While the system can theoretically support multiple sector sizes (2KiB, 8MiB, 512MiB and 1GiB), only the 1GiB sector size is considered safe for production use. Other sector sizes should be considered experimental and are not recommended for production deployments.
 
 ### Pre Commit
 
