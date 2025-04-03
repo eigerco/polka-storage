@@ -24,7 +24,7 @@ $ polka-storage-provider-client info --rpc-server-url "http://127.0.0.1:8000"
 
 ## `propose-deal`
 
-The `propose-deal` command sends an *unsigned* deal to the storage provider,
+The `propose-deal` command sends an _unsigned_ deal to the storage provider,
 if the storage provider accepts the deal, a CID will be returned,
 that CID can then be used to upload a file to the storage provider —
 for details on this process, refer to the [File Upload chapter](../../getting-started/demo-file-store.md).
@@ -53,7 +53,7 @@ bagaaieradsfmawozrmgjwxosarexpg7w7ytoe7xw2c63hv6svdc5hpucqo3a
 
 The `sign-deal` commands takes a deal like the one passed to [`propose-deal`](#propose-deal) and signs it using the passed key,
 the returned deal can then be used with [`publish-deal`](#publish-deal) to send a deal for publishing.
-*This command does not call out to the network.*
+_This command does not call out to the network._
 
 ```bash
 $ DEAL_TO_SIGN='{
@@ -113,6 +113,26 @@ $ SIGNED_DEAL='{
 }'
 $ polka-storage-provider-client publish-deal "$SIGNED_DEAL"
 0
+```
+
+## `retrieve-deal`
+
+The `retrieve-deal` command fetches the details of a specific deal from the storage provider by its ID.
+
+```bash
+$ polka-storage-provider-client retrieve-deal 0
+{
+  "piece_cid": "baga6ea4seaqj527iqfb2kqhy3tmpydzroiigyaie6g3txai2kc3ooyl7kgpeipi",
+  "piece_size": 2048,
+  "client": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+  "provider": "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y",
+  "label": "",
+  "start_block": 200,
+  "end_block": 250,
+  "storage_price_per_block": 500,
+  "provider_collateral": 1250,
+  "state": "Published"
+}
 ```
 
 ## `generate-peer-id`

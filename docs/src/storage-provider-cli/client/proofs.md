@@ -68,7 +68,7 @@ Generated parameters:
 Generates a 2KiB sector-size PoRep proof for an input file and its piece commitment.
 Creates the sector containing only 1 piece, [seals it](https://spec.filecoin.io/#section-algorithms.pos.porep) by creating a replica and then creates a proof for it.
 
-> This is a *demo command*, showcasing the ability to generate a PoRep
+> This is a _demo command_, showcasing the ability to generate a PoRep
 > given the proving parameters so it can later be used to verify proof on-chain.
 > It uses hardcoded values, which normally would be sourced from the chain i.e:
 >
@@ -81,8 +81,13 @@ Creates the sector containing only 1 piece, [seals it](https://spec.filecoin.io/
 ```bash
 polka-storage-provider-client proofs porep \
     --sr25519-key|--ecdsa-key|--ed25519-key <KEY> \
+    --seal-proof <SEAL_PROOF> \
     --cache-directory <CACHE_DIRECTORY> \
-    --proofs-parameters-path <PROVING_PARAMS_FILE> \
+    --proof-parameters-path <PROVING_PARAMS_FILE> \
+    --output-path <OUTPUT_PATH> \
+    --sector-id <SECTOR_ID> \
+    --seal-randomness-height <SEAL_RANDOMNESS_HEIGHT> \
+    --pre-commit-block-number <PRE_COMMIT_BLOCK_NUMBER> \
     <INPUT_FILE> <INPUT_FILE_PIECE_CID>
 ```
 
@@ -120,7 +125,7 @@ Wrote proof to [...]/polka-storage/77.sector.proof.porep.scale
 Generates a 2KiB sector-sized PoSt proof.
 To be able to create a PoSt proof, first you need to generate a PoRep proof and a replica via `porep` command.
 
-> This is a *demo command*, showcasing the ability to generate a PoSt,
+> This is a _demo command_, showcasing the ability to generate a PoSt,
 > given the proving parameters so it can later be used to verify proof on-chain.
 > It uses hardcoded values, which normally would be sourced from the chain i.e:
 >
@@ -130,11 +135,15 @@ To be able to create a PoSt proof, first you need to generate a PoRep proof and 
 > ```
 
 ```bash
-polka-storage-provider-client proofs post
+polka-storage-provider-client proofs post \
   --sr25519-key|--ecdsa-key|--ed25519-key <KEY> \
+  --post-type <POST_TYPE> \
   --proof-parameters-path <PROOF_PARAMETERS_PATH> \
   --cache-directory <CACHE_DIRECTORY> \
-  <REPLICA_PATH>
+  --output-path <OUTPUT_PATH> \
+  --sector-number <SECTOR_NUMBER> \
+  --challenge-block <CHALLENGE_BLOCK> \
+  <REPLICA_PATH> \
   <COMM_R>
 ```
 
