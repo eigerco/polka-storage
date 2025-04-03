@@ -13993,6 +13993,7 @@ dependencies = [
  "ed25519-dalek",
  "filecoin-proofs",
  "hex",
+ "itertools 0.13.0",
  "jsonrpsee 0.24.7",
  "libp2p 0.54.1",
  "mater",
@@ -14001,11 +14002,14 @@ dependencies = [
  "polka-storage-provider-common",
  "primitives",
  "primitives-p2p",
+ "proc-macro2",
+ "quote",
  "sc-cli",
  "serde",
  "serde_json",
  "storagext",
  "subxt 0.38.0",
+ "tempfile",
  "thiserror 2.0.8",
  "tokio",
  "tracing",
@@ -16299,9 +16303,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.92"
+version = "1.0.94"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "37d3544b3f2748c54e147655edb5025752e2303145b5aefb3c3ea2c78b973bb0"
+checksum = "a31971752e70b8b2686d7e46ec17fb38dad4051d94024c88df49b667caea9c84"
 dependencies = [
  "unicode-ident",
 ]

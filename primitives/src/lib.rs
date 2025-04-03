@@ -7,6 +7,9 @@ pub mod randomness;
 pub mod sector;
 
 #[cfg(feature = "testing")]
+pub mod test_data;
+
+#[cfg(feature = "testing")]
 pub mod testing {
     // NOTE(@jmg-duarte,22/01/2025): Since there's only one thing, star import for now.
     pub use crate::proofs::testing::*;
