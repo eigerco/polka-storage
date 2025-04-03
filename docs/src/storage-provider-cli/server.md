@@ -18,8 +18,8 @@ To generate the ed25519 keypair use the following command:
 openssl genpkey -algorithm ED25519 -out <PRIVATE_KEY_PATH> -outpubkey <PUBLIC_KEY_PATH>
 ```
 
-
 ## CLI Options
+
 <!-- Sadly, tables will not cut it here, since the text is just too big for the table. -->
 
 ### `--sr25519-key`
@@ -99,13 +99,17 @@ The path to the PoRep proving parameters. They are shared across all of the node
 
 The path to the PoSt proving parameters. They are shared across all of the nodes in the network, as the chain stores corresponding Verifying Key parameters.
 
-### `--node-type`
-
-The P2P node type that the server will be running. Can be either `bootstrap` or `registration` node.
-
 ### `--p2p-key`
 
 The ED25519 private key used by the P2P node.
+
+### `--p2p-tcp-listen-address`
+
+P2P TCP listen address. Defaults to `/ip4/127.0.0.1/tcp/8002`.
+
+### `--p2p-ws-listen-address`
+
+P2P websocket listen address. Defaults to `/ip4/127.0.0.1/tcp/8003/ws`.
 
 ### `--rendezvous-point-address`
 
@@ -115,39 +119,60 @@ Rendezvous point address that the registration node connects to or the bootstrap
 
 Peer ID of the rendezvous point that the registration node connects to. Only needed if running a registration P2P node.
 
-### `--registration-ttl`
+### `--parallel-prove-commits`
 
-The TTL of the p2p registration in seconds. After the node registration expires, the server automatically re-registers itself.
+The number of prove commits to run in parallel. Defaults to 2.
+
+### `--fill-threshold`
+
+Percentage above which a sector is considered "full". Defaults to 95%.
+
+### `--wait-deals-delay`
+
+Amount of time to wait before sealing an unfilled sector. Defaults to 6h.
+
+### `--pre-commit-submission-slack`
+
+Time before sector's earliest deal start. Defaults to 1h.
 
 ### `--config`
 
 Takes in a path to a configuration file, it supports both JSON and TOML (files _must_ have the right extension).
 The supported configuration parameters are:
 
-| Name                       | Default                        |
-| -------------------------- | ------------------------------ |
-| `upload-listen-address`    | `127.0.0.1:8000`               |
-| `rpc-listen-address`       | `127.0.0.1:8001`               |
-| `node-url`                 | `ws://127.0.0.1:42069`         |
-| `database-directory`       | `/tmp/<random>/deals_database` |
-| `storage-directory`        | `/tmp/<random>/deals_storage`  |
-| `seal-proof`               | `2KiB`                         |
-| `post-proof`               | `2KiB`                         |
-| `porep_parameters`         | NA                             |
-| `post_parameters`          | NA                             |
-| `node_type`                | `bootstrap`                    |
-| `p2p_key`                  | NA                             |
-| `rendezvous_point_address` | NA                             |
-| `rendezvous_point`         | `None`                         |
-| `registration_ttl`         | `24 hours`                     |
+| Name                          | Default                        |
+| ----------------------------- | ------------------------------ |
+| `upload-listen-address`       | `127.0.0.1:8001`               |
+| `rpc-listen-address`          | `127.0.0.1:8000`               |
+| `node-url`                    | `ws://127.0.0.1:42069`         |
+| `database-directory`          | `/tmp/<random>/deals_database` |
+| `storage-directory`           | `/tmp/<random>/deals_storage`  |
+| `seal-proof`                  | `2KiB`                         |
+| `post-proof`                  | `2KiB`                         |
+| `porep_parameters`            | NA                             |
+| `post_parameters`             | NA                             |
+| `p2p_key`                     | NA                             |
+| `p2p_tcp_listen_address`      | `/ip4/127.0.0.1/tcp/8002`      |
+| `p2p_ws_listen_address`       | `/ip4/127.0.0.1/tcp/8003/ws`   |
+| `rendezvous_point_address`    | NA                             |
+| `rendezvous_point`            | NA                             |
+| `parallel_prove_commits`      | `2`                            |
+| `fill_threshold`              | `95`                           |
+| `wait_deals_delay`            | `6h`                           |
+| `pre_commit_submission_slack` | `1h`                           |
 
 #### Bare bones configuration
 
 ```json
 {
-    "porep_parameters": "/home/storage_provider/porep.params",
-    "post_parameters": "/home/storage_provider/post.params",
-    "p2p_key": "/home/storage_provider/private_key.pem",
-    "rendezvous_point_address": "/ip4/127.0.0.1/tcp/62649",
+  "porep_parameters": "/home/storage_provider/porep.params",
+  "post_parameters": "/home/storage_provider/post.params",
+  "p2p_key": "/home/storage_provider/private_key.pem",
+  "rendezvous_point_address": "/ip4/127.0.0.1/tcp/62649",
+  "rendezvous_point": "12D3KooWS8yJQR7xtThQ4XE714GGXf9MfRZ1ukm3YDroitATbzL5",
+  "parallel_prove_commits": 2,
+  "fill_threshold": 95,
+  "wait_deals_delay": "6h",
+  "pre_commit_submission_slack": "1h"
 }
 ```
