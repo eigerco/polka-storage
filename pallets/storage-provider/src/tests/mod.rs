@@ -7,10 +7,10 @@ use frame_support::{
     traits::Hooks, PalletId,
 };
 use frame_system::pallet_prelude::BlockNumberFor;
-use pallet_market::{BalanceOf, ClientDealProposal, DealProposal, DealState};
 use primitives::{
     commitment::{CommP, Commitment},
     configs::{CurrencyProvider, MarketProvider, StorageProviderProvider},
+    deals::{ClientDealProposal, ClientDealProposalOf, DealProposalOf, DealState},
     proofs::RegisteredPoStProof,
     sector::SectorNumber,
     PartitionNumber, CID_SIZE_IN_BYTES, MAX_PARTITIONS_PER_DEADLINE, MAX_TERMINATIONS_PER_CALL,
@@ -190,16 +190,6 @@ impl pallet_storage_provider::Config for Test {
 }
 
 type AccountIdOf<Test> = <Test as frame_system::Config>::AccountId;
-
-type DealProposalOf<Test> =
-    DealProposal<<Test as frame_system::Config>::AccountId, BalanceOf<Test>, BlockNumberFor<Test>>;
-
-type ClientDealProposalOf<Test> = ClientDealProposal<
-    <Test as frame_system::Config>::AccountId,
-    BalanceOf<Test>,
-    BlockNumberFor<Test>,
-    MultiSignature,
->;
 
 const ALICE: &'static str = "//Alice";
 const BOB: &'static str = "//Bob";

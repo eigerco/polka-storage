@@ -10,18 +10,17 @@ use frame_support::{
     traits::{Currency, Hooks},
     BoundedVec,
 };
-use frame_system::pallet_prelude::BlockNumberFor;
 use pallet_market::{
     deal_parameters::{OffchainDealDurationBound, OffchainDealParameters},
     error::DealSettlementError,
     pallet::{lock_funds, slash_and_burn, unlock_funds},
-    ActiveDealState, BalanceEntry, BalanceOf, BalanceTable, ClientDealProposal, Config,
-    DealProposal, DealState, DealsForBlock, Error, Event, PendingProposals, Proposals,
+    BalanceEntry, BalanceTable, Config, DealsForBlock, Error, Event, PendingProposals, Proposals,
     PublishedDeal, SPDealParameters, SectorDeals, SettledDealData,
 };
 use primitives::{
     commitment::{CommP, Commitment},
     configs::{CurrencyProvider, MarketProvider},
+    deals::{ActiveDealState, ClientDealProposal, ClientDealProposalOf, DealProposalOf, DealState},
     pallets::{ActiveDeal, ActiveSector, Market as MarketTrait, SectorDeal},
     proofs::{RegisteredPoStProof, RegisteredSealProof},
     sector::SectorNumber,
@@ -46,16 +45,6 @@ pub fn account<T: frame_system::Config>(name: &str) -> AccountId32 {
 pub fn sign(pair: &sp_core::sr25519::Pair, bytes: &[u8]) -> MultiSignature {
     MultiSignature::Sr25519(pair.sign(bytes))
 }
-
-pub(crate) type DealProposalOf<T> =
-    DealProposal<<T as frame_system::Config>::AccountId, BalanceOf<T>, BlockNumberFor<T>>;
-
-pub(crate) type ClientDealProposalOf<T> = ClientDealProposal<
-    <T as frame_system::Config>::AccountId,
-    BalanceOf<T>,
-    BlockNumberFor<T>,
-    MultiSignature,
->;
 
 pub fn sign_proposal(client: &str, proposal: DealProposalOf<Test>) -> ClientDealProposalOf<Test> {
     let alice_pair = key_pair(client);

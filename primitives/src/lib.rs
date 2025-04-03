@@ -2,6 +2,7 @@
 
 pub mod commitment;
 pub mod configs;
+pub mod deals;
 pub mod pallets;
 pub mod proofs;
 pub mod randomness;

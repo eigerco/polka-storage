@@ -8,11 +8,11 @@ use frame_system::{
 };
 use pallet_market::{
     deal_parameters::{OffchainDealDurationBound, OffchainDealParameters},
-    BalanceOf, BalanceTable, ClientDealProposal, DealProposal, DealState, Pallet as MarketPallet,
-    SPDealParameters,
+    BalanceTable, Pallet as MarketPallet, SPDealParameters,
 };
 use pallet_storage_provider::Pallet as SpPallet;
 use primitives::{
+    configs::BalanceOf,
     commitment::{piece::PaddedPieceSize, CommP, Commitment},
     proofs::RegisteredPoStProof,
     sector::{builder::SectorPreCommitInfoBuilder, ProveCommitSector, SectorPreCommitInfo},

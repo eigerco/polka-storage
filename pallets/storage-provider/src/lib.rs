@@ -51,7 +51,7 @@ pub mod pallet {
     };
     use primitives::{
         commitment::{CommD, CommR, Commitment},
-        configs::{CurrencyProvider, StorageProviderProvider},
+        configs::{BalanceOf, CurrencyProvider, StorageProviderProvider},
         pallets::{
             DeadlineInfo as ExternalDeadlineInfo, Market, ProofVerification,
             StorageProviderValidation,
@@ -81,11 +81,6 @@ pub mod pallet {
             calculate_first_proving_period_start, StorageProviderInfo, StorageProviderState,
         },
     };
-
-    /// Allows to extract Balance of an account via the Config::Currency associated type.
-    /// BalanceOf is a sophisticated way of getting an u128.
-    pub type BalanceOf<T> =
-        <<T as Config>::Currency as Currency<<T as SystemConfig>::AccountId>>::Balance;
 
     #[pallet::pallet]
     #[pallet::without_storage_info] // Allows to define storage items without fixed size
