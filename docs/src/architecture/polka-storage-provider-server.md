@@ -96,7 +96,7 @@ To achieve that, the pipeline is composed of 3 main stages.
 
 ### Add Piece
 
-The Add Piece stage gathers pieces into unsealed sectors, preparing them for the next steps.
+The Add Piece stage gathers pieces into unsealed sectors, preparing them for the next steps. The pipeline uses a configured fill threshold (default 95%) to determine when a sector is ready for sealing, or will seal after a configured delay even if not completely filled.
 
 While the system can theoretically support multiple sector sizes (2KiB, 8MiB, 512MiB and 1GiB), only the 1GiB sector size is considered safe for production use. Other sector sizes should be considered experimental and are not recommended for production deployments.
 
