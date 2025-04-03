@@ -33,6 +33,7 @@ Dedicated CLIs
   - [`polka-storage-provider-server`](./storage-provider-cli/server.md) to launch the Storage Provider server.
   - [`polka-storage-provider-client`](./storage-provider-cli/client/index.md) to manage the wallet, propose & publish deals and do proof demos.
 - [`mater-cli`](./mater-cli/index.md) to convert or extract CARv2 files.
+- [`polka-fetch`](./polka-fetch/index.md) to retrieve stored files from the network.
 - [`storagext-cli`](./storagext-cli/index.md) to interact **directly** with the parachain — watch out, this is a low-level tool!
 
 Pallets:
@@ -41,6 +42,7 @@ Pallets:
 - [Market](./architecture/pallets/market.md)
 - [Proofs](./architecture/pallets/proofs.md)
 - [Randomness](./architecture/pallets/randomness.md)
+- [Faucet](./architecture/pallets/faucet.md)
 
 <p>
     <img
@@ -48,7 +50,7 @@ Pallets:
         alt="Polka Storage Client Upload">
 </p>
 
-**During  [Phase 1](https://polkadot.polkassembly.io/referenda/494), we implemented the following:**
+**During [Phase 1](https://polkadot.polkassembly.io/referenda/494), we implemented the following:**
 
 - Keeping track of [Storage Providers](./glossary.md#storage-provider),
 - [Publishing](./architecture/pallets/market.md#publish_storage_deals) Market Deals on-chain,
