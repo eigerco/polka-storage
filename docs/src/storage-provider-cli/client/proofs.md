@@ -91,6 +91,12 @@ polka-storage-provider-client proofs porep \
     <INPUT_FILE> <INPUT_FILE_PIECE_CID>
 ```
 
+For a detailed description of all parameters, run:
+
+```bash
+polka-storage-provider-client proofs porep --help
+```
+
 ### Example
 
 ```bash
@@ -145,6 +151,12 @@ polka-storage-provider-client proofs post \
   --challenge-block <CHALLENGE_BLOCK> \
   <REPLICA_PATH> \
   <COMM_R>
+```
+
+For a detailed description of all parameters, run:
+
+```bash
+polka-storage-provider-client proofs post --help
 ```
 
 ### Example
