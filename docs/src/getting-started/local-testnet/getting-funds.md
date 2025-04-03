@@ -10,6 +10,7 @@ Please make sure to follow the instructions on how to generate a new account if 
 You can read more about creating a Polkadot account using the extension in the following [link](https://support.polkadot.network/support/solutions/articles/65000098878-how-to-create-a-dot-account#How-to-create-an-account-with-the-Polkadot-extension)
 
 Or you can watch the following video:
+
 <iframe
     style="display:block; margin-left:auto; margin-right:auto"
     width="560"
@@ -47,11 +48,11 @@ Make sure to run the local testnet, you can find how to do so in the [local test
 > If you have changed the `ws_port` value in the zombienet configuration — `local-testnet.toml`,
 > this URL is different and you should change the port accordingly.
 
-Under the developer tab, navigate to *Sudo*.
+Under the developer tab, navigate to _Sudo_.
 
 ![sudo selection](../../images/transfer-funds/developer-sudo.png)
 
-Once you are in *Sudo* you should select `balances` from the submit dropdown.
+Once you are in _Sudo_ you should select `balances` from the submit dropdown.
 
 ![balance selection](../../images/transfer-funds/select-balance.png)
 

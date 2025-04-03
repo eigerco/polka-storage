@@ -22,7 +22,7 @@ We do provide an implementation of the storage provider, you can read more about
 
 ![](../images/architecture/pallets_overview.png)
 
-We've been focusing on implementing the core functionality by developing the market, storage provider, proofs and randomness pallets.
+We've been focusing on implementing the core functionality by developing the market, storage provider, proofs, randomness and faucet pallets.
 
 The market pallet handles all things related to deal payments and slashing,
 being informed by the storage provider when deals haven't been proven and applying slashing in those cases.
@@ -35,11 +35,12 @@ For a deeper dive on the pallets, you can read the [Pallets chapter](./pallets/i
 ## Resources on Parachains
 
 Reading:
-* [Parachains' Protocol Overview](https://wiki.polkadot.network/docs/learn-parachains-protocol)
-* [The Path of a Parachain Block](https://polkadot.com/blog/the-path-of-a-parachain-block)
+
+- [Parachains' Protocol Overview](https://wiki.polkadot.network/docs/learn-parachains-protocol)
+- [The Path of a Parachain Block](https://polkadot.com/blog/the-path-of-a-parachain-block)
 
 Videos:
-* [Introduction to Polkadot, Parachains, and Substrate](https://www.youtube.com/live/gT-9r1bcVHY?si=dmCJyWB5w2NY1bnu&t=1670)
-* [The Path of a Parachain Block - Joe Petrowski](https://www.youtube.com/watch?v=vRsBlVELQEo)
-* [The Path of a Parachain Block on Polkadot and Kusama Network](https://www.youtube.com/watch?v=m0vxqWwFfDs)
 
+- [Introduction to Polkadot, Parachains, and Substrate](https://www.youtube.com/live/gT-9r1bcVHY?si=dmCJyWB5w2NY1bnu&t=1670)
+- [The Path of a Parachain Block - Joe Petrowski](https://www.youtube.com/watch?v=vRsBlVELQEo)
+- [The Path of a Parachain Block on Polkadot and Kusama Network](https://www.youtube.com/watch?v=m0vxqWwFfDs)

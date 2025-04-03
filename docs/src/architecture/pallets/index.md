@@ -4,6 +4,7 @@
 - [`market`](market.md) - A pallet that handles the storage market operations.
 - [`proofs`](proofs.md) - A pallet responsible for verifying [PoRep](../../glossary.md#porep) and [PoSt](../../glossary.md#post).
 - [`randomness`](randomness.md) - A pallet providing randomness source for blocks, mainly used by Proofs.
+- [`faucet`](faucet.md) - A pallet that provides a means to distribute tokens for testing purposes.
 
 ## Overview
 
@@ -51,5 +52,3 @@ Finally, storage providers can then settle deal payments to receive their fair s
 Putting it all together, we get the following:
 
 <img id="figure-overview" src="../../images/overview_flow.svg" alt="The described flow">
-
-

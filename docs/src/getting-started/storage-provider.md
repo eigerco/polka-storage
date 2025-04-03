@@ -11,6 +11,7 @@ In this guide, we'll cover how to get up and running with the Storage Provider.
 
 To allow the Storage Provider to generate [PoRep](https://docs.filecoin.io/basics/the-blockchain/proofs#proof-of-replication-porep)
 and [PoSt](https://docs.filecoin.io/basics/the-blockchain/proofs#proof-of-spacetime-post) proofs we first generate the PoRep parameters:
+
 ```bash
 $ polka-storage-provider-client proofs porep-params
 Generating params for 2KiB sectors... It can take a couple of minutes ⌛
@@ -19,7 +20,9 @@ Generated parameters:
 /home/user/polka-storage/2KiB.porep.vk
 /home/user/polka-storage/2KiB.porep.vk.scale
 ```
+
 Then, we generate the PoSt parameters:
+
 ```bash
 $ polka-storage-provider-client proofs post-params
 Generating PoSt params for 2KiB sectors... It can take a few secs ⌛
@@ -31,12 +34,12 @@ Generated parameters:
 
 As advertised, the commands have generated the following files:
 
-* `2KiB.porep.params` — The PoRep parameters
-* `2KiB.porep.vk` — The PoRep verifying key
-* `2KiB.porep.vk.scale` — The PoRep verifying key, encoded in SCALE format
-* `2KiB.post.params` — The PoSt parameters
-* `2KiB.post.vk` — The PoSt verifying key
-* `2KiB.post.vk.scale` — The PoSt verifying key, encoded in SCALE format
+- `2KiB.porep.params` — The PoRep parameters
+- `2KiB.porep.vk` — The PoRep verifying key
+- `2KiB.porep.vk.scale` — The PoRep verifying key, encoded in SCALE format
+- `2KiB.post.params` — The PoSt parameters
+- `2KiB.post.vk` — The PoSt verifying key
+- `2KiB.post.vk.scale` — The PoSt verifying key, encoded in SCALE format
 
 ## Registering the Storage Provider
 
@@ -53,9 +56,9 @@ storagext-cli --ed25519-key <KEY> storage-provider register "<peer_id>"
 storagext-cli --ecdsa-key <KEY> storage-provider register "<peer_id>"
 ```
 
-
 Where `<KEY>` has been replaced accordingly to its key type.
-`<peer_id>` can be anything as it is currently used as a placeholder. *For example:*
+`<peer_id>` can be anything as it is currently used as a placeholder. _For example:_
+
 ```
 storagext-cli --sr25519-key "//Charlie" storage-provider register "placeholder"
 ```
@@ -68,10 +71,12 @@ storagext-cli --sr25519-key "//Charlie" proofs set-porep-verifying-key @2KiB.por
 ```
 
 > Additionally, you will need to add some balance to your Polka Storage escrow account, like so:
+>
 > ```
 > $ storagext-cli --sr25519-key "//Charlie" market add-balance 12500000000
 > [0x809d…8f10] Balance Added: { account: 5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y, amount: 12500000000 }
 > ```
+>
 > You can use other balance values! There's a minimum though — `1_000_000_000` (without the `_`).
 
 And you're ready!
@@ -79,7 +84,7 @@ And you're ready!
 ## Launching the server 🚀
 
 Similarly to the previous steps, here too you'll need to run a command.
-The following is the *minimal* command:
+The following is the _minimal_ command:
 
 ```bash
 polka-storage-provider-server \
@@ -91,6 +96,7 @@ polka-storage-provider-server \
 ```
 
 Where `--X-key <KEY>` matches the key type you used to register yourself with the network, in the previous step. For example:
+
 ```bash
 polka-storage-provider-server \
   --seal-proof 2KiB \
