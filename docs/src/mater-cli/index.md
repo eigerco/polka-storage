@@ -20,7 +20,7 @@ The convert command converts a file to CARv2 format.
 
 | Argument        | Description                                                                                                                          |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `<INPUT_PATH>`  | Path to input file                                                                                                                   |
+| `<INPUT_PATH>`  | Path to input file. Use `-` to read from stdin.                                                                                      |
 | `[OUTPUT_PATH]` | Optional path to output CARv2 file. If no output path is given it will store the `.car` file in the same location as the input file. |
 | `-q`/`--quiet`  | If enabled, only the resulting CID will be printed.                                                                                  |
 | `--overwrite`   | If enabled, the output will overwrite any existing files.                                                                            |
@@ -28,8 +28,8 @@ The convert command converts a file to CARv2 format.
 ### Example
 
 ```bash
-$ mater-cli convert random1024.piece
-Converted examples/random1024.piece and saved the CARv2 file at examples/random1024.car with a CID of bafkreidvyofebclo4kny43vpoe5kejg3mqtpq2eemaojzyvlwikwdvusxy
+$ mater-cli convert examples/test-data-big.txt
+Converted examples/test-data-big.txt and saved the CARv2 file at examples/random1024.car with a CID of bafkreidvyofebclo4kny43vpoe5kejg3mqtpq2eemaojzyvlwikwdvusxy
 ```
 
 You can verify the output file using [`go-car`](https://github.com/ipld/go-car):
@@ -61,8 +61,9 @@ Convert a CARv2 file to its original format.
 
 | Argument        | Description                                                                                                                    |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `<INPUT_PATH>`  | Path to CARv2 file                                                                                                             |
+| `<INPUT_PATH>`  | Path to CARv2 file. Use `-` to read from stdin.                                                                                |
 | `[OUTPUT_PATH]` | Optional path to output file. If no output path is given it will remove the extension and store the file in the same location. |
+| `--overwrite`   | If enabled, the output will overwrite any existing files.                                                                      |
 
 ### Example
 
@@ -79,6 +80,20 @@ $ car create --no-wrap -f examples/random1024.go.car examples/random1024.piece
 ```
 
 ```bash
-$ cargo run -r --bin mater-cli extract examples/random1024.go.car
+$ mater-cli extract examples/random1024.go.car
 Successfully converted CARv2 file examples/random1024.go.car and saved it to to examples/random1024.go
+```
+
+### Using stdin/stdout
+
+You can use the `mater-cli` with standard input and output streams:
+
+```bash
+# Convert a file and output to stdout
+$ cat ./examples/test-data-big.txt | mater-cli convert -
+Converted - and saved the CARv2 file at stdin.car with a CID of bafkreiechz74drg7tg5zswmxf4g2dnwhemlwdv7e3l5ypehdqdwaoyz3dy
+
+# Extract a CAR file from stdin
+$ cat stdin.car | mater-cli extract - output.txt
+Successfully converted CARv2 file - and saved it to to output.txt
 ```
