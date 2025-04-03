@@ -15,6 +15,9 @@
   // Rust-analyzer doesn't need to build the wasm binary
   "rust-analyzer.cargo.extraEnv": {
     "SKIP_WASM_BUILD": "true"
+  },
+  "[markdown]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   }
   // Recommended when developing benchmarks
   /*
