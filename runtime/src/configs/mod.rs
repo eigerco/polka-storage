@@ -308,42 +308,47 @@ impl pallet_collator_selection::Config for Runtime {
 #[cfg(not(feature = "testnet"))]
 parameter_types! {
     // Storage Provider Pallet
-    pub const WpostProvingPeriod: BlockNumber = DAYS;
-    // Half an hour (=48 per day)
-    // 30 * 60 = 30 minutes
-    // SLOT_DURATION is in milliseconds thats why we / 1000
-    pub const WpostChallengeWindow: BlockNumber = 30 * 60 / (SLOT_DURATION as BlockNumber / 1000);
-    pub const WPoStChallengeLookBack: BlockNumber = 10 * MINUTES;
-    pub const MinSectorExpiration: BlockNumber = 180 * DAYS;
-    pub const MaxSectorExpiration: BlockNumber = 1278 * DAYS;
-    pub const SectorMaximumLifetime: BlockNumber = (365 * DAYS) * 5; // 5 years
-    pub const MaxProveCommitDuration: BlockNumber =  (30 * DAYS) + 150;
+    pub const WPoStProvingPeriod: BlockNumber = DAYS;
+    // There are 48 deadlines in a day, so a deadline is 30 minutes.
     pub const WPoStPeriodDeadlines: u64 = 48;
-    pub const MaxPartitionsPerDeadline: u64 = 3000;
-    pub const DeclarationsMax: u64 = 3000;
-    pub const FaultMaxAge: BlockNumber = DAYS * 42;
-    /// Copied from FileCoin and adapted to substrate block time. WPoStChallengeLookBack + 125 blocks
-    /// <https://github.com/filecoin-project/builtin-actors/blob/6906288334746318385cfd53edd7ea33ef03919f/runtime/src/runtime/policy.rs#L327>
-    pub const FaultDeclarationCutoff: BlockNumber = (10 * MINUTES) + 125;
-    /// <https://github.com/filecoin-project/builtin-actors/blob/a45fb87910bca74d62215b0d58ed90cf78b6c8ff/runtime/src/runtime/policy.rs#L306>
-    pub const PreCommitChallengeDelay: BlockNumber = 75 * MINUTES;
+    pub const WPoStChallengeWindow: BlockNumber = 30 * MINUTES;
+    // PoSt for a single partition is ~20sec, it's a huge margin to start generating the proofs before deadline starts.
+    pub const WPoStChallengeLookBack: BlockNumber = 10 * MINUTES;
+
+    // Finality in polkadot is 12-60 seconds, gives us a finalized randomness to base the challenge on.
+    pub const PreCommitChallengeDelay: BlockNumber = 1 * MINUTES;
+    // With 1GiB sector size and max security params it takes ~22 minutes to create a replica and zk-SNARK on top of it.
+    pub const MaxProveCommitDuration: BlockNumber =  30 * MINUTES;
+    // The chain can verify 1 proof per block (of 25 sectors per partitions) currently.
+    // It means deadline time (blocks) == max theoretical number of the partitions per deadline.
+    // There is no global limit, so currently 1 Storage Provider could overload the entire chain.
+    // 1 deadline = 30 minutes, 30 * 10 blocks = 300.
+    pub const MaxPartitionsPerDeadline: u64 = 300;
+
+    // Fault declaration/recovery functionality has been postponed, this won't make a difference until #592 is done.
+    pub const FaultMaxAge: BlockNumber = 1 * DAYS;
+    pub const FaultDeclarationCutoffSlack: BlockNumber = 1 * MINUTES;
+    // WPoStChallengeLookBack + a bit of slack.
+    pub const FaultDeclarationCutoff: BlockNumber = (10 * MINUTES) + (1 * MINUTES);
     // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L299>
     pub const AddressedSectorsMax: u64 = 25_000;
 
+    pub const MinSectorExpiration: BlockNumber = 1 * DAYS;
+    // MinDealDuration + a bit of slack.
+    pub const MaxSectorExpiration: BlockNumber = 365 * DAYS + 30 * DAYS;
+    pub const SectorMaximumLifetime: BlockNumber = 365 * DAYS;
     // Market Pallet
-    /// Deal duration values copied from FileCoin.
-    /// <https://github.com/filecoin-project/builtin-actors/blob/c32c97229931636e3097d92cf4c43ac36a7b4b47/actors/market/src/policy.rs#L28>
-    pub const MinDealDuration: u64 = 20 * DAYS;
-    pub const MaxDealDuration: u64 = 1278 * DAYS;
+    pub const MinDealDuration: u64 = 1 * DAYS;
+    pub const MaxDealDuration: u64 = 365 * DAYS;
 
 }
 
 #[cfg(feature = "testnet")]
 parameter_types! {
     // Storage Provider Pallet
-    pub const WpostProvingPeriod: BlockNumber = 6 * MINUTES;
+    pub const WPoStProvingPeriod: BlockNumber = 6 * MINUTES;
     pub const WPoStPeriodDeadlines: u64 = 3;
-    pub const WpostChallengeWindow: BlockNumber = 2 * MINUTES;
+    pub const WPoStChallengeWindow: BlockNumber = 2 * MINUTES;
     pub const WPoStChallengeLookBack: BlockNumber = MINUTES;
     pub const MinSectorExpiration: BlockNumber = 5 * MINUTES;
     pub const MaxSectorExpiration: BlockNumber = 60 * MINUTES;
@@ -436,8 +441,8 @@ impl pallet_storage_provider::Config for Runtime {
     #[cfg(feature = "runtime-benchmarks")]
     type ProofVerification = primitives::testing::DummyProofsVerification;
 
-    type WPoStProvingPeriod = WpostProvingPeriod;
-    type WPoStChallengeWindow = WpostChallengeWindow;
+    type WPoStProvingPeriod = WPoStProvingPeriod;
+    type WPoStChallengeWindow = WPoStChallengeWindow;
     type WPoStChallengeLookBack = WPoStChallengeLookBack;
     type MinSectorExpiration = MinSectorExpiration;
     type MaxSectorExpiration = MaxSectorExpiration;
