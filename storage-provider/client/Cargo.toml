@@ -16,7 +16,9 @@ primitives = { workspace = true, features = ["clap", "std"] }
 storagext = { workspace = true, features = ["clap"] }
 
 async-trait = { workspace = true }
+bellperson = { workspace = true }
 bls12_381 = { workspace = true }
+blstrs = { workspace = true }
 cid = { workspace = true, features = ["std"] }
 clap = { workspace = true, features = ["derive"] }
 codec = { workspace = true }

@@ -321,7 +321,7 @@ async fn porep(
     } else {
         std::env::current_dir()?
     };
-    let (proof_scale_filename, mut proof_scale_file) = file_with_extension(
+    let (proof_scale_filename, proof_scale_file) = file_with_extension(
         &output_path,
         format!("{}", sector_id).as_str(),
         POREP_PROOF_EXT,
@@ -406,13 +406,7 @@ async fn porep(
     );
     println!("CommD: {}", precommit.comm_d.cid());
     println!("CommR: {}", precommit.comm_r.cid());
-    let substrate_proofs = proofs
-        .into_iter()
-        .map(polka_storage_proofs::Proof::<bls12_381::Bls12>::try_from)
-        .collect::<Result<Vec<_>, _>>()
-        .expect("conversion between rust-fil-proofs and polka-storage-proofs to work");
-    let scale_encoded_proof = codec::Encode::encode(&substrate_proofs);
-    proof_scale_file.write_all(&scale_encoded_proof)?;
+    write_proof_file(proofs, proof_scale_file)?;
 
     println!("Wrote proof to {}", proof_scale_filename.display());
     Ok(())
@@ -478,7 +472,7 @@ fn post(
     } else {
         std::env::current_dir()?
     };
-    let (proof_scale_filename, mut proof_scale_file) = file_with_extension(
+    let (proof_scale_filename, proof_scale_file) = file_with_extension(
         &output_path,
         format!("{}", sector_number).as_str(),
         POST_PROOF_EXT,
@@ -513,17 +507,31 @@ fn post(
     .map_err(|e| UtilsCommandError::GeneratePoStError(e))?;
 
     println!("Proving...");
-    let substrate_proofs = proofs
-        .into_iter()
-        .map(polka_storage_proofs::Proof::<bls12_381::Bls12>::try_from)
-        .collect::<Result<Vec<_>, _>>()
-        .expect("conversion between rust-fil-proofs and polka-storage-proofs to work");
-    proof_scale_file.write_all(&codec::Encode::encode(&substrate_proofs))?;
+    write_proof_file(proofs, proof_scale_file)?;
     println!("Wrote proof to {}", proof_scale_filename.display());
     println!(
         "[{challenge_block}] Randomness: {}",
         hex::encode(randomness)
     );
+    Ok(())
+}
+
+/// Converts multiple rust-fil-proofs to polka-storage-proofs, encodes them to a fixed length array,
+/// and writes those arrays sequentially to a single file.
+fn write_proof_file(
+    proofs: Vec<bellperson::groth16::Proof<blstrs::Bls12>>,
+    mut proof_scale_file: std::fs::File,
+) -> Result<(), CliError> {
+    let scale_encoded_proofs = proofs
+        .into_iter()
+        .flat_map(|proof| {
+            codec::Encode::encode(
+                &polka_storage_proofs::Proof::<bls12_381::Bls12>::try_from(proof)
+                    .expect("conversion between rust-fil-proofs and polka-storage-proofs to work"),
+            )
+        })
+        .collect::<Vec<_>>();
+    proof_scale_file.write_all(&scale_encoded_proofs)?;
     Ok(())
 }
 
