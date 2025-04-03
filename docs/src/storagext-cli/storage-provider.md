@@ -13,10 +13,10 @@ The `register` command registers as a storage provider. Before a user can start 
 
 ### Parameters
 
-| Name         | Description                                                                | Type   |
-| ------------ | -------------------------------------------------------------------------- | ------ |
-| `PEER_ID`    | The peer ID under which the registered provider will be tracked            | String |
-| `POST_PROOF` | The proof type that the provider will use to prove storage (Default: 2KiB) | String |
+| Name           | Description                                                                | Type   |
+| -------------- | -------------------------------------------------------------------------- | ------ |
+| `PEER_ID`      | The peer ID under which the registered provider will be tracked            | String |
+| `--post-proof` | The proof type that the provider will use to prove storage (Default: 8MiB) | String |
 
 ### <a class="header" id="register.example" href="#register.example">Example</a>
 
@@ -137,10 +137,10 @@ The `WINDOWED_POST` JSON object has the following structure:
 
 The `PROOF` JSON object has the following structure:
 
-| Name          | Description                                       |
-| ------------- | ------------------------------------------------- |
-| `post_proof`  | Proof type ("2KiB" or "StackedDRGWindow2KiBV1P1") |
-| `proof_bytes` | Hex encoded proof                                 |
+| Name          | Description                                   |
+| ------------- | --------------------------------------------- |
+| `post_proof`  | Proof type ("1GiB", "StackedDRGWindow1GiBV1") |
+| `proof_bytes` | Hex encoded proof                             |
 
 ### <a class="header" id="submit-windowed-post.example" href="#submit-windowed-post.example">Example</a>
 
@@ -157,10 +157,12 @@ Where `window-proof.json` is a file with contents similar to:
 {
   "deadline": 0,
   "partitions": [0],
-  "proof": {
-    "post_proof": "2KiB",
-    "proof_bytes": "07482439"
-  }
+  "proofs": [
+    {
+      "post_proof": "1GiB",
+      "proof_bytes": "<hex_encoded_proof>"
+    }
+  ]
 }
 ```
 

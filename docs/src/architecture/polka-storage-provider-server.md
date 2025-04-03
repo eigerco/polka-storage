@@ -1,6 +1,5 @@
 # Polka Storage Provider — Server Architecture
 
-
 The server has two main fronts, the JSON-RPC API which provides an interface for users to submit deal proposals to the storage provider,
 and the HTTP API which consists of a single endpoint where users are to submit their data — as illustrated below.
 
@@ -88,20 +87,18 @@ The JSON-RPC endpoint exposes the following methods:
 
 The HTTP API exposes a single PUT method — `/upload/<cid>` where `<cid>` is the CID returned as a result of `propose_deal`.
 
-
 ## Sealing Pipeline
 
 As shown in the previous illustration, the sealing pipeline is responsible for gathering pieces into sectors, sealing said sectors and proving their storage.
-To achieve that, the pipeline is (currently) composed of 3 main stages.
+To achieve that, the pipeline is composed of 3 main stages.
 
-![The sealine pipeline, currently composed of the stages: Add Piece, Pre Commit and Prove Commit](../images/architecture/storage-provider-pipeline.png)
+![The sealing pipeline, composed of the stages: Add Piece, Pre-Commit and Prove Commit](../images/architecture/storage-provider-pipeline.png)
 
 ### Add Piece
 
 The Add Piece stage gathers pieces into unsealed sectors, preparing them for the next steps.
 
-Given we're currently only supporting sectors with 2KiB size, we're converting single pieces into sectors —
-when a piece comes in, we convert it to a single sector, without gathering multiple pieces.
+While the system can theoretically support multiple sector sizes (2KiB, 8MiB, 512MiB and 1GiB), only the 1GiB sector size is considered safe for production use. Other sector sizes should be considered experimental and are not recommended for production deployments.
 
 ### Pre Commit
 
@@ -115,5 +112,3 @@ After this process is completed, the Pre Commit information is submitted to the 
 The Prove Commit stage is where the [Proof of Replication](https://docs.filecoin.io/basics/the-blockchain/proofs#proof-of-replication-porep) is generated,
 after generation it is submitted to the network for validation and the sector is finally marked as `Active`,
 signaling that the Storage Provider has effectively stored the sector and is ready to start performing regular proof submissions.
-
-<!-- TODO: remove the download API from the server until we implement deal retrieval -->

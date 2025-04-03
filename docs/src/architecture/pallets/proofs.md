@@ -45,7 +45,7 @@ Verifying Key is used to verify every PoRep proof across the network.
 Setting a verifying key from the [^account] `//Alice` account where proof is stored in the `./2KiB.porep.vk.scale` file.
 
 ```bash
-storagext-cli --sr25519-key "//Alice" proofs set-porep-verifying-key 2KiB.vk.scale
+storagext-cli --sr25519-key "//Alice" proofs set-porep-verifying-key @2KiB.vk.scale
 ```
 
 [^account]: Note that in the MVP every account can set a Verifying Key. It's a risky operation that can halt the entire network, because if verifying key changes, Storage Providers needs to update their generating parameters as well.
@@ -66,7 +66,7 @@ Verifying Key is used to verify every PoSt proof across the network.
 Setting a verifying key from the [^account] `//Alice` account where proof is stored in the `./2KiB.post.vk.scale` file.
 
 ```bash
-storagext-cli --sr25519-key "//Alice" proofs set-post-verifying-key 2KiB.vk.scale
+storagext-cli --sr25519-key "//Alice" proofs set-post-verifying-key @2KiB.vk.scale
 ```
 
 [^account]: Note that in the MVP every account can set a Verifying Key. It's a risky operation that can halt the entire network, because if verifying key changes, Storage Providers needs to update their generating parameters as well.
@@ -90,4 +90,3 @@ The Proofs Pallet actions can fail with the following errors:
 - `MissingPoRepVerifyingKey` - tried to verify PoRep proof, but the PoRep verifying key was not set previously with the [`set_porep_verifying_key`](#set_post_verifying_key) extrinsic.
 - `MissingPoStVerifyingKey` - tried to verify PoSt proof, but the PoSt verifying key was not set previously with the [`set_post_verifying_key`](#set_post_verifying_key) extrinsic.
 - `Conversion` - PoRep/PoSt Proof/VerifyingKey are in an invalid format and cannot be deserialized.
-
