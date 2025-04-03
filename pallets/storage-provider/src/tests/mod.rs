@@ -10,6 +10,7 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use pallet_market::{BalanceOf, ClientDealProposal, DealProposal, DealState};
 use primitives::{
     commitment::{CommP, Commitment},
+    configs::{CurrencyProvider, MarketProvider, StorageProviderProvider},
     proofs::RegisteredPoStProof,
     sector::SectorNumber,
     PartitionNumber, CID_SIZE_IN_BYTES, MAX_PARTITIONS_PER_DEADLINE, MAX_TERMINATIONS_PER_CALL,
@@ -82,14 +83,25 @@ impl pallet_market::Config for Test {
     type PalletId = MarketPalletId;
     type WeightInfo = ();
 
-    type Currency = Balances;
-    type OffchainSignature = Signature;
-    type OffchainPublic = AccountPublic;
     type StorageProviderValidation = StorageProvider;
-    type MaxDeals = ConstU32<500>;
-    type MinDealDuration = MinDealDuration;
     type MaxDealDuration = MaxDealDuration;
     type MaxDealsPerBlock = ConstU32<500>;
+}
+
+impl StorageProviderProvider for Test {
+    type MaxSectorExpiration = MaxSectorExpiration;
+    type SectorMaximumLifetime = SectorMaximumLifetime;
+}
+
+impl MarketProvider for Test {
+    type OffchainSignature = Signature;
+    type OffchainPublic = AccountPublic;
+    type MaxDeals = ConstU32<500>;
+    type MinDealDuration = MinDealDuration;
+}
+
+impl CurrencyProvider for Test {
+    type Currency = Balances;
 }
 
 parameter_types! {
@@ -157,7 +169,6 @@ impl pallet_storage_provider::Config for Test {
     type AuthorVrfHistory = DummyRandomnessGenerator<Self>;
 
     type PeerId = BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>; // https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
-    type Currency = Balances;
     type Market = Market;
 
     // Proof Verification Provider
@@ -167,8 +178,6 @@ impl pallet_storage_provider::Config for Test {
     type WPoStChallengeWindow = WPoStChallengeWindow;
     type WPoStChallengeLookBack = WPoStChallengeLookBack;
     type MinSectorExpiration = MinSectorExpiration;
-    type MaxSectorExpiration = MaxSectorExpiration;
-    type SectorMaximumLifetime = SectorMaximumLifetime;
     type MaxProveCommitDuration = MaxProveCommitDuration;
     type WPoStPeriodDeadlines = WPoStPeriodDeadlines;
     type MaxPartitionsPerDeadline = MaxPartitionsPerDeadline;

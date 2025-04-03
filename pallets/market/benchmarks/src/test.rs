@@ -21,6 +21,7 @@ use pallet_market::{
 };
 use primitives::{
     commitment::{CommP, Commitment},
+    configs::{CurrencyProvider, MarketProvider},
     pallets::{ActiveDeal, ActiveSector, Market as MarketTrait, SectorDeal},
     proofs::{RegisteredPoStProof, RegisteredSealProof},
     sector::SectorNumber,
@@ -435,7 +436,7 @@ fn publish_storage_deals_fails_min_duration_out_of_bounds() {
         register_storage_provider(account::<Test>(PROVIDER));
         let proposal = DealProposalBuilder::<Test>::default()
             .start_block(10)
-            .end_block(10 + <<Test as Config>::MinDealDuration as Get<u64>>::get() - 1)
+            .end_block(10 + <<Test as MarketProvider>::MinDealDuration as Get<u64>>::get() - 1)
             .signed(ALICE);
 
         assert_noop!(
@@ -1630,10 +1631,9 @@ fn settle_deal_payments_success_finished() {
 
 #[test]
 fn test_lock_funds() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
         assert_eq!(
-            <Test as pallet_market::Config>::Currency::total_balance(&account::<Test>(PROVIDER)),
+            <Test as CurrencyProvider>::Currency::total_balance(&account::<Test>(PROVIDER)),
             1000
         );
         assert_ok!(Market::add_balance(
@@ -1641,7 +1641,7 @@ fn test_lock_funds() {
             90
         ));
         assert_eq!(
-            <Test as pallet_market::Config>::Currency::total_balance(&account::<Test>(PROVIDER)),
+            <Test as CurrencyProvider>::Currency::total_balance(&account::<Test>(PROVIDER)),
             910
         );
         assert_ok!(lock_funds::<Test>(&account::<Test>(PROVIDER), 25));
@@ -1679,10 +1679,9 @@ fn test_lock_funds() {
 
 #[test]
 fn test_unlock_funds() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
         assert_eq!(
-            <Test as pallet_market::Config>::Currency::total_balance(&account::<Test>(PROVIDER)),
+            <Test as CurrencyProvider>::Currency::total_balance(&account::<Test>(PROVIDER)),
             1000
         );
         // We can't get all 100, otherwise the account would be reaped
@@ -1691,7 +1690,7 @@ fn test_unlock_funds() {
             90
         ));
         assert_eq!(
-            <Test as pallet_market::Config>::Currency::total_balance(&account::<Test>(PROVIDER)),
+            <Test as CurrencyProvider>::Currency::total_balance(&account::<Test>(PROVIDER)),
             910
         );
         assert_ok!(lock_funds::<Test>(&account::<Test>(PROVIDER), 90));
@@ -1737,12 +1736,8 @@ fn test_unlock_funds() {
 
 #[test]
 fn slash_and_burn_acc() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
-        assert_eq!(
-            <Test as pallet_market::Config>::Currency::total_issuance(),
-            3000
-        );
+        assert_eq!(<Test as CurrencyProvider>::Currency::total_issuance(), 3000);
         assert_ok!(Market::add_balance(
             RuntimeOrigin::signed(account::<Test>(PROVIDER)),
             75
@@ -1763,10 +1758,7 @@ fn slash_and_burn_acc() {
                 }),
             ]
         );
-        assert_eq!(
-            <Test as pallet_market::Config>::Currency::total_issuance(),
-            2990
-        );
+        assert_eq!(<Test as CurrencyProvider>::Currency::total_issuance(), 2990);
 
         assert_eq!(
             BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
@@ -1780,16 +1772,12 @@ fn slash_and_burn_acc() {
             slash_and_burn::<Test>(&account::<Test>(PROVIDER), 10),
             Error::<Test>::InsufficientLockedFunds
         );
-        assert_eq!(
-            <Test as pallet_market::Config>::Currency::total_issuance(),
-            2990
-        );
+        assert_eq!(<Test as CurrencyProvider>::Currency::total_issuance(), 2990);
     });
 }
 
 #[test]
 fn on_sector_terminate_unknown_deals() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
         System::reset_events();
@@ -1805,7 +1793,6 @@ fn on_sector_terminate_unknown_deals() {
 
 #[test]
 fn on_sector_terminate_deal_not_found() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
         System::reset_events();
@@ -1827,7 +1814,6 @@ fn on_sector_terminate_deal_not_found() {
 
 #[test]
 fn on_sector_terminate_invalid_caller() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
         System::reset_events();
@@ -1854,7 +1840,6 @@ fn on_sector_terminate_invalid_caller() {
 
 #[test]
 fn on_sector_terminate_not_active() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
         System::reset_events();
@@ -1886,7 +1871,6 @@ fn on_sector_terminate_not_active() {
 
 #[test]
 fn on_sector_terminate_active() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(BOB)), 75);
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
@@ -1956,16 +1940,12 @@ fn on_sector_terminate_active() {
         );
         assert!(PendingProposals::<Test>::get().is_empty());
         assert!(!Proposals::<Test>::contains_key(1));
-        assert_eq!(
-            <Test as pallet_market::Config>::Currency::total_issuance(),
-            2985
-        );
+        assert_eq!(<Test as CurrencyProvider>::Currency::total_issuance(), 2985);
     });
 }
 
 #[test]
 fn publish_deal_parameters() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
         let storage_provider = account::<Test>(PROVIDER);
         register_storage_provider(storage_provider.clone());
@@ -1980,7 +1960,7 @@ fn publish_deal_parameters() {
         let deal_params = offchain_deal_params
             .clone()
             .validate(
-                <<Test as Config>::MinDealDuration as Get<u64>>::get(),
+                <<Test as MarketProvider>::MinDealDuration as Get<u64>>::get(),
                 <<Test as Config>::MaxDealDuration as Get<u64>>::get(),
             )
             .expect("Seamless conversion");
@@ -2018,7 +1998,7 @@ fn publish_deal_parameters() {
         let deal_params_2 = offchain_deal_params_2
             .clone()
             .validate(
-                <<Test as Config>::MinDealDuration as Get<u64>>::get(),
+                <<Test as MarketProvider>::MinDealDuration as Get<u64>>::get(),
                 <<Test as Config>::MaxDealDuration as Get<u64>>::get(),
             )
             .expect("Seamless conversion");
@@ -2048,7 +2028,6 @@ fn publish_deal_parameters() {
 
 #[test]
 fn remove_deal_parameters() {
-    let _ = env_logger::try_init();
     new_test_ext().execute_with(|| {
         let storage_provider = account::<Test>(PROVIDER);
         register_storage_provider(storage_provider.clone());
@@ -2063,7 +2042,7 @@ fn remove_deal_parameters() {
         let deal_params = offchain_deal_params
             .clone()
             .validate(
-                <<Test as Config>::MinDealDuration as Get<u64>>::get(),
+                <<Test as MarketProvider>::MinDealDuration as Get<u64>>::get(),
                 <<Test as Config>::MaxDealDuration as Get<u64>>::get(),
             )
             .expect("Seamless conversion");

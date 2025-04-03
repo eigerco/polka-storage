@@ -43,15 +43,15 @@ pub mod pallet {
         ensure, fail,
         pallet_prelude::*,
         sp_runtime::traits::{CheckedAdd, CheckedSub, One},
-        traits::{Currency, Randomness, ReservableCurrency},
+        traits::Randomness,
     };
     use frame_system::{
         ensure_signed,
         pallet_prelude::{BlockNumberFor, *},
-        Config as SystemConfig,
     };
     use primitives::{
         commitment::{CommD, CommR, Commitment},
+        configs::{CurrencyProvider, StorageProviderProvider},
         pallets::{
             DeadlineInfo as ExternalDeadlineInfo, Market, ProofVerification,
             StorageProviderValidation,
@@ -92,7 +92,7 @@ pub mod pallet {
     pub struct Pallet<T>(_);
 
     #[pallet::config]
-    pub trait Config: frame_system::Config {
+    pub trait Config: frame_system::Config + CurrencyProvider + StorageProviderProvider {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -104,9 +104,6 @@ pub mod pallet {
         /// https://github.com/libp2p/specs/blob/2ea41e8c769f1bead8e637a9d4ebf8c791976e8a/peer-ids/peer-ids.md#peer-ids
         /// More information about libp2p peer ids: https://docs.libp2p.io/concepts/fundamentals/peers/
         type PeerId: Clone + Debug + Decode + Encode + Eq + TypeInfo;
-
-        /// Currency mechanism, used for the Market balances.
-        type Currency: ReservableCurrency<Self::AccountId>;
 
         /// Market trait implementation for activating deals.
         type Market: Market<Self::AccountId, BlockNumberFor<Self>, BalanceOf<Self>>;
@@ -196,14 +193,6 @@ pub mod pallet {
         /// Minimum number of blocks past the current block a sector may be set to expire.
         #[pallet::constant]
         type MinSectorExpiration: Get<BlockNumberFor<Self>>;
-
-        /// Maximum number of blocks past the current block a sector may be set to expire.
-        #[pallet::constant]
-        type MaxSectorExpiration: Get<BlockNumberFor<Self>>;
-
-        /// Maximum number of blocks a sector can stay in pre-committed state
-        #[pallet::constant]
-        type SectorMaximumLifetime: Get<BlockNumberFor<Self>>;
 
         /// Maximum duration to allow for the sealing process for seal algorithms.
         #[pallet::constant]

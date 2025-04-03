@@ -41,6 +41,7 @@ pub mod pallet {
             piece::{PaddedPieceSize, PieceInfo},
             CommP, Commitment, CommitmentError,
         },
+        configs::{CurrencyProvider, MarketProvider},
         pallets::{ActiveDeal, ActiveSector, Market, SectorDeal, StorageProviderValidation},
         proofs::RegisteredSealProof,
         sector::{SectorNumber, SectorSize},
@@ -58,18 +59,10 @@ pub mod pallet {
 
     pub const LOG_TARGET: &'static str = "runtime::market";
 
-    /// Allows to extract Balance of an account via the Config::Currency associated type.
-    /// BalanceOf is a sophisticated way of getting an u128.
-    pub type BalanceOf<T> =
-        <<T as Config>::Currency as Currency<<T as SystemConfig>::AccountId>>::Balance;
-
     #[pallet::config]
-    pub trait Config: frame_system::Config {
+    pub trait Config: frame_system::Config + CurrencyProvider + MarketProvider {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
-        /// The currency mechanism.
-        type Currency: ReservableCurrency<Self::AccountId>;
 
         /// The pallet weights;
         type WeightInfo: WeightInfo;
@@ -78,28 +71,8 @@ pub mod pallet {
         #[pallet::constant]
         type PalletId: Get<PalletId>;
 
-        /// Off-Chain signature type.
-        ///
-        /// Can verify whether an `Self::OffchainPublic` created a signature.
-        type OffchainSignature: Verify<Signer = Self::OffchainPublic> + Parameter;
-
-        /// Off-Chain public key.
-        ///
-        /// Must identify as an on-chain `Self::AccountId`.
-        type OffchainPublic: IdentifyAccount<AccountId = Self::AccountId>;
-
         /// Storage Provider trait implementation for SP validation to validate that given account id's are registered as SP.
         type StorageProviderValidation: StorageProviderValidation<Self::AccountId>;
-
-        /// How many deals can be published in a single batch of `publish_storage_deals`.
-        #[pallet::constant]
-        type MaxDeals: Get<u32>;
-
-        /// How many days should a deal last (activated). Minimum.
-        /// Filecoin uses 180 as default.
-        /// https://github.com/filecoin-project/builtin-actors/blob/c32c97229931636e3097d92cf4c43ac36a7b4b47/actors/market/src/policy.rs#L29
-        #[pallet::constant]
-        type MinDealDuration: Get<BlockNumberFor<Self>>;
 
         /// How many days should a deal last (activated). Maximum.
         /// Filecoin uses 1278 as default.
@@ -476,7 +449,7 @@ pub mod pallet {
     }
 
     /// Utility type to ensure that the bound for deal settlement is in sync.
-    pub type MaxSettleDeals<T> = <T as Config>::MaxDeals;
+    pub type MaxSettleDeals<T> = <T as MarketProvider>::MaxDeals;
 
     #[derive(TypeInfo, Encode, Decode, Clone, PartialEq)]
     pub struct PublishedDeal<T: Config> {
@@ -1008,7 +981,7 @@ pub mod pallet {
 
         /// <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L1388>
         fn validate_deals_for_sector(
-            deals: &BoundedVec<(DealId, DealProposalOf<T>), ConstU32<32>>,
+            deals: &BoundedVec<(DealId, DealProposalOf<T>), ConstU32<MAX_SECTORS_PER_CALL>>,
             provider: &T::AccountId,
             sector_number: SectorNumber,
             sector_expiry: BlockNumberFor<T>,

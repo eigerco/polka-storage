@@ -22,9 +22,12 @@ serde = { workspace = true, optional = true, features = ["derive"] }
 sha2 = { workspace = true }
 sp-api = { workspace = true }
 sp-core = { workspace = true }
+sp-io = { workspace = true, default-features = false }
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
 thiserror = { workspace = true }
+frame-support = { workspace = true, default-features = false }
+frame-system = { workspace = true, default-features = false }
 
 [dev-dependencies]
 rand = { workspace = true, default-features = true }
@@ -46,11 +49,14 @@ std = [
   "dep:ed25519-dalek",
   "dep:filecoin-proofs",
   "dep:hex",
+  "frame-support/std",
+  "frame-system/std",
   "scale-info/std",
   "serde/std",
   "sha2/std",
   "sp-api/std",
   "sp-core/std",
+  "sp-io/std",
   "sp-runtime/std",
   "sp-std/std",
   "thiserror/std",
