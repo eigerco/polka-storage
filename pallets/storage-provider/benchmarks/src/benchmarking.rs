@@ -55,15 +55,8 @@ mod benchmarks {
         let peer_id = provider.peer_id;
         let window_post_proof_type = data.post_type;
 
-        #[block]
-        {
-            SpPallet::<T>::register_storage_provider(
-                RawOrigin::Signed(caller.clone()).into(),
-                peer_id.clone(),
-                window_post_proof_type,
-            )
-            .unwrap();
-        }
+        #[extrinsic_call]
+        _(RawOrigin::Signed(caller.clone()), peer_id.clone(), window_post_proof_type);
 
         let state = SpPallet::<T>::storage_providers(caller).unwrap();
         assert_eq!(state.info.peer_id, peer_id);
@@ -71,23 +64,23 @@ mod benchmarks {
     }
 
     #[benchmark]
-    fn pre_commit_sectors(n: Linear<1, MAX_SECTORS_PER_CALL>) {
-        let (sp_id, sectors) = prepare_pre_commit_sectors::<T>(n);
+    fn pre_commit_sectors() {
+        let (sp_id, sectors) = prepare_pre_commit_sectors::<T>(1);
 
         #[extrinsic_call]
         _(RawOrigin::Signed(sp_id.clone()), sectors);
 
-        check_pre_commit_sectors::<T>(n, sp_id);
+        check_pre_commit_sectors::<T>(1, sp_id);
     }
 
     #[benchmark]
-    fn prove_commit_sectors(n: Linear<1, MAX_SECTORS_PER_CALL>) {
-        let (sp_id, prove_sectors, total_fee) = prepare_prove_commit_sectors::<T>(n);
+    fn prove_commit_sectors() {
+        let (sp_id, prove_sectors, total_fee) = prepare_prove_commit_sectors::<T>(1);
 
         #[extrinsic_call]
         _(RawOrigin::Signed(sp_id.clone()), prove_sectors.clone());
 
-        check_prove_commit_sectors::<T>(sp_id, prove_sectors, total_fee, n);
+        check_prove_commit_sectors::<T>(sp_id, prove_sectors, total_fee, 1);
     }
 
     impl_benchmark_test_suite!(Pallet, crate::test::new_test_ext(), crate::mock::Test);

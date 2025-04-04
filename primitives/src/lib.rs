@@ -48,8 +48,8 @@ pub const CID_SIZE_IN_BYTES: u32 = 64;
 
 /// Number of Sectors that can be provided in a single extrinsics call.
 /// Required for BoundedVec.
-/// It was selected arbitrarly, without precise calculations.
-pub const MAX_SECTORS_PER_CALL: u32 = 32;
+/// NOTE(@Jinxit,04/04/2025): Remove if we refactor to always use a single sector.
+pub const MAX_SECTORS_PER_CALL: u32 = 1;
 
 /// Number of Deals that can be contained in a single sector.
 /// Required for BoundedVec.
