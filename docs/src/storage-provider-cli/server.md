@@ -172,7 +172,7 @@ The supported configuration parameters are:
   "rendezvous_point": "12D3KooWS8yJQR7xtThQ4XE714GGXf9MfRZ1ukm3YDroitATbzL5",
   "parallel_prove_commits": 2,
   "fill_threshold": 95,
-  "wait_deals_delay": "6h",
+  "wait_deals_delay": "1h",
   "pre_commit_submission_slack": "1h"
 }
 ```
