@@ -41,7 +41,7 @@ the seed phrase for it is <sup><a href="https://stackoverflow.com/a/70518514">1<
 bottom drive obey lake curtain smoke basket hold race lonely fit walk//Alice
 ```
 
-If you're using your own keys, you will need to have funds available to perform deals.
+If you're using your own keys, you will need to have funds available to perform deals. For details on obtaining funds in a local testnet, refer to the [Getting Funds](../getting-started/local-testnet/getting-funds.md) section.
 
 ### Preparing a deal
 
@@ -49,7 +49,7 @@ If you're using your own keys, you will need to have funds available to perform 
 
 <img src="../images/deal-form.png" style="height: 300px; float:right;"/>
 
-- **Piece CID** — A unique identifier for your file, it is calculated with the `polka-storage-provider-client` tool.
+- **Piece CID** — A unique identifier for your file, it is calculated with the `polka-storage-provider-client proofs commp` tool.
 - **Piece Size** — The piece size for your file, it is calculated with the `polka-storage-provider-client` tool (this number _MUST_ be a power of two).
 - **Label** — A string up to 128 characters long, can contain anything you wish.
 - **Start Block** — The block at which the deal becomes active.
