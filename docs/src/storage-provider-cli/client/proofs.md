@@ -68,7 +68,7 @@ Generated parameters:
 Generates a 2KiB sector-size PoRep proof for an input file and its piece commitment.
 Creates the sector containing only 1 piece, [seals it](https://spec.filecoin.io/#section-algorithms.pos.porep) by creating a replica and then creates a proof for it.
 
-> This is a *demo command*, showcasing the ability to generate a PoRep
+> This is a _demo command_, showcasing the ability to generate a PoRep
 > given the proving parameters so it can later be used to verify proof on-chain.
 > It uses hardcoded values, which normally would be sourced from the chain i.e:
 >
@@ -81,10 +81,83 @@ Creates the sector containing only 1 piece, [seals it](https://spec.filecoin.io/
 ```bash
 polka-storage-provider-client proofs porep \
     --sr25519-key|--ecdsa-key|--ed25519-key <KEY> \
+    --seal-proof <SEAL_PROOF> \
     --cache-directory <CACHE_DIRECTORY> \
-    --proofs-parameters-path <PROVING_PARAMS_FILE> \
+    --proof-parameters-path <PROVING_PARAMS_FILE> \
+    --output-path <OUTPUT_PATH> \
+    --sector-id <SECTOR_ID> \
+    --seal-randomness-height <SEAL_RANDOMNESS_HEIGHT> \
+    --pre-commit-block-number <PRE_COMMIT_BLOCK_NUMBER> \
     <INPUT_FILE> <INPUT_FILE_PIECE_CID>
 ```
+
+<details>
+<summary>Click to view the command's arguments description</summary>
+
+```
+DEMO COMMAND - Generates PoRep for a piece file.
+
+Takes a piece file (in a CARv2 archive, unpadded), puts it into a sector (temp file), seals and proves it.
+
+When you run the command for the first time on a clean `cache_directory` it will fail, because `rust-fil-proofs` tries to validate cache based on
+https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/storage-proofs-porep/parent_cache.json.
+
+When you run the command for the second time, the cache is recreated and there are no verification issues.
+
+Usage: polka-storage-provider-client proofs porep [OPTIONS] --proof-parameters-path <PROOF_PARAMETERS_PATH> --cache-directory <CACHE_DIRECTORY> --sector-id <SECTOR_ID> --seal-randomness-height <SEAL_RANDOMNESS_HEIGHT> --pre-commit-block-number <PRE_COMMIT_BLOCK_NUMBER> <INPUT_PATH> <COMMP>
+
+Arguments:
+  <INPUT_PATH>
+          Piece file, CARv2 archive created with `mater-cli convert`
+
+  <COMMP>
+          CommP of a file, calculated with `commp` command
+
+Options:
+      --sr25519-key <SR25519_KEY>
+          Sr25519 keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
+
+          See `sp_core::crypto::Pair::from_string_with_seed` for more information.
+
+      --ecdsa-key <ECDSA_KEY>
+          ECDSA keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
+
+          See `sp_core::crypto::Pair::from_string_with_seed` for more information.
+
+      --ed25519-key <ED25519_KEY>
+          Ed25519 keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
+
+          See `sp_core::crypto::Pair::from_string_with_seed` for more information.
+
+  -s, --seal-proof <SEAL_PROOF>
+          PoRep has multiple variants dependent on the sector size. Parameters are required for each sector size and its corresponding PoRep Params
+
+          [default: 2KiB]
+          [possible values: 2KiB, 8MiB, 512MiB, 1GiB]
+
+  -p, --proof-parameters-path <PROOF_PARAMETERS_PATH>
+          Path to where parameters to corresponding `seal_proof` are stored
+
+  -c, --cache-directory <CACHE_DIRECTORY>
+          Directory where sector data like PersistentAux and TemporaryAux are stored
+
+  -o, --output-path <OUTPUT_PATH>
+          Directory where the proof files and the sector will be put. Defaults to the current directory
+
+      --sector-id <SECTOR_ID>
+          Sector number
+
+      --seal-randomness-height <SEAL_RANDOMNESS_HEIGHT>
+          The height at which we draw the randomness for deriving a sealed cid
+
+      --pre-commit-block-number <PRE_COMMIT_BLOCK_NUMBER>
+          Precommit block number
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
+
+</details>
 
 ### Example
 
@@ -120,7 +193,7 @@ Wrote proof to [...]/polka-storage/77.sector.proof.porep.scale
 Generates a 2KiB sector-sized PoSt proof.
 To be able to create a PoSt proof, first you need to generate a PoRep proof and a replica via `porep` command.
 
-> This is a *demo command*, showcasing the ability to generate a PoSt,
+> This is a _demo command_, showcasing the ability to generate a PoSt,
 > given the proving parameters so it can later be used to verify proof on-chain.
 > It uses hardcoded values, which normally would be sourced from the chain i.e:
 >
@@ -130,13 +203,75 @@ To be able to create a PoSt proof, first you need to generate a PoRep proof and 
 > ```
 
 ```bash
-polka-storage-provider-client proofs post
+polka-storage-provider-client proofs post \
   --sr25519-key|--ecdsa-key|--ed25519-key <KEY> \
+  --post-type <POST_TYPE> \
   --proof-parameters-path <PROOF_PARAMETERS_PATH> \
   --cache-directory <CACHE_DIRECTORY> \
-  <REPLICA_PATH>
+  --output-path <OUTPUT_PATH> \
+  --sector-number <SECTOR_NUMBER> \
+  --challenge-block <CHALLENGE_BLOCK> \
+  <REPLICA_PATH> \
   <COMM_R>
 ```
+
+<details>
+<summary>Click to view the command's arguments description</summary>
+
+```
+Creates a PoSt for a single sector
+
+Usage: polka-storage-provider-client proofs post [OPTIONS] --proof-parameters-path <PROOF_PARAMETERS_PATH> --cache-directory <CACHE_DIRECTORY> --sector-number <SECTOR_NUMBER> --challenge-block <CHALLENGE_BLOCK> <REPLICA_PATH> <COMM_R>
+
+Arguments:
+  <REPLICA_PATH>
+          Replica file generated with `porep` command e.g. `77.sector.sealed`
+
+  <COMM_R>
+          CID - CommR of a replica (output of `porep` command)
+
+Options:
+      --sr25519-key <SR25519_KEY>
+          Sr25519 keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
+
+          See `sp_core::crypto::Pair::from_string_with_seed` for more information.
+
+      --ecdsa-key <ECDSA_KEY>
+          ECDSA keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
+
+          See `sp_core::crypto::Pair::from_string_with_seed` for more information.
+
+      --ed25519-key <ED25519_KEY>
+          Ed25519 keypair, encoded as hex, BIP-39 or a dev phrase like `//Alice`.
+
+          See `sp_core::crypto::Pair::from_string_with_seed` for more information.
+
+      --post-type <POST_TYPE>
+          PoSt has multiple variants dependant on the sector size. Parameters are required for each sector size and its corresponding PoSt
+
+          [default: 2KiB]
+          [possible values: 2KiB, 8MiB, 512MiB, 1GiB]
+
+  -p, --proof-parameters-path <PROOF_PARAMETERS_PATH>
+          Path to where parameters to corresponding `post_type` are stored
+
+  -c, --cache-directory <CACHE_DIRECTORY>
+          Directory where cache data from `porep` for the `replica_path` sector command has been stored. It must be the same, or else it won't work
+
+  -o, --output-path <OUTPUT_PATH>
+          Directory where the PoSt proof will be stored. Defaults to the current directory
+
+      --sector-number <SECTOR_NUMBER>
+          Sector Number used in the PoRep command
+
+      --challenge-block <CHALLENGE_BLOCK>
+          Block Number at which the randomness should be fetched from. It comes from the [`pallet_storage_provider::DeadlineInfo::challenge`] field
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
+
+</details>
 
 ### Example
 

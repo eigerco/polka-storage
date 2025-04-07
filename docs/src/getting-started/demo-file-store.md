@@ -5,8 +5,8 @@ Before reading this guide, please follow the <a href="./local-testnet.md">local 
 You should have a working testnet and a Storage Provider running!
 </div>
 
-
 ## Storage Client
+
 <img class="right" src="../images/polkadot.svg" alt="The Polkadot logo" style="height: 100px; padding: 4px 8px 4px;">
 
 Alice is a [Storage User](../glossary.md#storage-user) and wants to store an image of her lovely Polkadot logo [`polkadot.svg`](../images/polkadot.svg) in the Polka Storage [parachain](../glossary.md#parachain).
@@ -35,7 +35,6 @@ $ polka-storage-provider-client proofs commp polkadot.car
 Afterwards, it's time to propose a deal, currently — i.e. while the network isn't live —
 any deals will be accepted by Charlie (the Storage Provider).
 
-
 Alice fills out the deal form according to a JSON template (`polka-logo-deal.json`):
 
 ```json
@@ -53,19 +52,18 @@ Alice fills out the deal form according to a JSON template (`polka-logo-deal.jso
 }
 ```
 
-* `piece_cid` — is the `cid` field from the previous step, where she calculated the piece commitment. It uniquely identifies the piece.
-* `piece_size` — is the `size` field from the previous step, where she calculated the piece commitment. It is the size of the processed piece, not the original file!
-* `client` — is the client's (i.e. the reader's) public key, encoded in bs58 format.
+- `piece_cid` — is the `cid` field from the previous step, where she calculated the piece commitment. It uniquely identifies the piece.
+- `piece_size` — is the `size` field from the previous step, where she calculated the piece commitment. It is the size of the processed piece, not the original file!
+- `client` — is the client's (i.e. the reader's) public key, encoded in bs58 format.
   For more information on how to generate your own keypair, read the [Polka Storage Provider CLI/`client`/`wallet`](../storage-provider-cli/client/wallet.md).
-* `provider` — is the storage provider's public key, encoded in bs58 format.
+- `provider` — is the storage provider's public key, encoded in bs58 format.
   If you don't know your storage provider's public key, you can query it using `polka-storage-provider-client`'s `info` command.
-* `label` — is an arbitrary string to be associated with the deal.
-* `start_block` — is the deal's start block, it MUST be positive and lower than `end_block`.
-* `end_block` — is the deal's end block, it must be positive and larger than `start_block`.
-* `storage_price_per_block` — the storage price over the duration of a single block — e.g. if your deal is 20 blocks long, it will cost `20 * storage_price_per_block` in total.
-* `provider_collateral` — the price to pay *by the storage provider* if they fail to uphold the deal.
-* `state` — the deal state, only `Published` is accepted.
-
+- `label` — is an arbitrary string to be associated with the deal.
+- `start_block` — is the deal's start block, it MUST be positive and lower than `end_block`.
+- `end_block` — is the deal's end block, it must be positive and larger than `start_block`.
+- `storage_price_per_block` — the storage price over the duration of a single block — e.g. if your deal is 20 blocks long, it will cost `20 * storage_price_per_block` in total.
+- `provider_collateral` — the price to pay _by the storage provider_ if they fail to uphold the deal.
+- `state` — the deal state, only `Published` is accepted.
 
 <div class="warning">
 
@@ -137,7 +135,8 @@ $ polka-storage-provider-client sign-deal --sr25519-key "//Alice" @polka-logo-de
 }
 ```
 
-> Hint: you can write the following command to *just* get the file:
+> Hint: you can write the following command to _just_ get the file:
+>
 > ```
 > polka-storage-provider-client sign-deal --sr25519-key "//Alice" @polka-logo-deal.json > signed-logo-deal.json
 > ```
@@ -159,8 +158,8 @@ On Alice's side, that's it!
 
 ## Additional Notes
 
-* As other parts of this project, file retrieval is actively being worked on! 🚧
-* Files stored in storage providers are public, as such, we suggest you encrypt your files.
+- As other parts of this project, file retrieval is actively being worked on! 🚧
+- Files stored in storage providers are public, as such, we suggest you encrypt your files.
   While file encryption is a broad enough topic, if you not sure about which tools to use,
   we suggest you keep it simple by compressing your file in a format such as [7zip](https://www.7-zip.org/) and using its encryption features.
   If 7zip doesn't cut it, you may want to take a look into [age](https://github.com/FiloSottile/age) or [VeraCrypt](https://www.veracrypt.fr/code/VeraCrypt/).

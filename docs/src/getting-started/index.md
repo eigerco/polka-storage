@@ -20,5 +20,3 @@ Before proceeding with the setup, please ensure the host system meets the follow
 - [_Local Testnet - Polka Storage Parachain_](local-testnet/index.md) — Covers how to setup a local testnet for the Polka Storage parachain, using Zombienet.
 - [_Launching a Storage Provider_](storage-provider.md) - Covers how to setup a Storage Provider.
 - [_Storing a file_](demo-file-store.md) — Covers how to store a file by the Storage Client.
-
-

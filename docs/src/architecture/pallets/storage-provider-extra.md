@@ -47,13 +47,11 @@ Sealing a sector using Proof-of-Replication (PoRep) is a computation-intensive p
 - **Run a SNARK on the Proof**: Compress the proof using a Succinct Non-interactive Argument of Knowledge (SNARK).
 - **Submit the Compressed Proof:** Submit the result of the compression to the blockchain as certification of the storage commitment.
 
-
 ## Usage
 
 ### Modifying storage provider information
 
 The `Storage Provider Pallet` allows storage providers to modify their information such as changing the peer id, through `change_peer_id` and changing owners, through `change_owner_address`.
-
 
 ## Storage Provider Flow
 

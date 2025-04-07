@@ -3,11 +3,11 @@
 This guide will outline how to setup your environment to build the Polka Storage parachain,
 we cover how to build the binaries directly on your system or using [Nix](https://nixos.org/download/) to ease the process.
 
-* [Get the code](#get-the-code)
-* [System dependencies](#system-dependencies)
-* [Using Nix](#using-nix)
-  * [Pre-requisites](#pre-requisites)
-* [Building](#building)
+- [Get the code](#get-the-code)
+- [System dependencies](#system-dependencies)
+- [Using Nix](#using-nix)
+  - [Pre-requisites](#pre-requisites)
+- [Building](#building)
 
 ## Get the code
 
@@ -22,9 +22,9 @@ cd polka-storage
 
 To build the binaries directly on your system you will need the following tools:
 
-* Rust 1.81.0 — you can install it using [`rustup`](https://rustup.rs/) and its [guide](https://rust-lang.github.io/rustup/installation/other.html) for help.
-* Other dependencies — keep reading, we'll get to it after the end of this list!
-* `just` (optional) — (after installing Rust) you can use `cargo install just` or check the [official list of packages](https://just.systems/man/en/packages.html).
+- Rust 1.81.0 — you can install it using [`rustup`](https://rustup.rs/) and its [guide](https://rust-lang.github.io/rustup/installation/other.html) for help.
+- Other dependencies — keep reading, we'll get to it after the end of this list!
+- `just` (optional) — (after installing Rust) you can use `cargo install just` or check the [official list of packages](https://just.systems/man/en/packages.html).
 
 The dependencies mentioned are for Linux distros using the `apt` family of package managers.
 Different systems may use different package managers, as such, they may require you to find the equivalent package.
@@ -40,7 +40,7 @@ $ sudo apt install -y libhwloc-dev \
     clang \
     build-essential \
     git \
-    libssl-dev \ 
+    libssl-dev \
     curl
 ```
 
@@ -56,15 +56,15 @@ Details can be found <a href="https://docs.nvidia.com/cuda/wsl-user-guide/index.
 </div>
 
 Requirements:
-* GCC 13
-* NVIDIA GPU
-* [Cuda drivers & toolkit (nvcc)](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#overview)
 
+- GCC 13
+- NVIDIA GPU
+- [Cuda drivers & toolkit (nvcc)](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#overview)
 
 <div class="warning">
 
 Not all of the binaries can be built from the polka-storage repository!
-We depend on the <a href="https://github.com/paritytech/zombienet/releases/tag/v1.3.116">zombienet</a> and <a href="https://github.com/paritytech/polkadot-sdk/releases/tag/polkadot-stable2409-2">polkadot, polkadot-prepare-worker, polkadot-execute-worker</a> binaries which need to be downloaded regardless (if not using <a href="#using-nix">Nix</a>).
+We depend on the <a href="https://github.com/paritytech/zombienet/releases/tag/v1.3.116">zombienet</a> and <a href="https://github.com/paritytech/polkadot-sdk/releases/tag/polkadot-stable2412">polkadot, polkadot-prepare-worker, polkadot-execute-worker</a> binaries which need to be downloaded regardless (if not using <a href="#using-nix">Nix</a>).
 
 </div>
 
@@ -122,7 +122,6 @@ cargo build --release -p polka-storage-provider-server --no-default-features --f
 cargo build --release -p polka-storage-provider-client --no-default-features --features cuda
 ```
 
-
 For more information on what each binary does, refer to [Building](./index.md).
 
 ### Just recipes
@@ -151,10 +150,11 @@ $ target/release/<BINARY-NAME>
 ```
 
 Where `<BINARY-NAME>` is one of:
-* `polka-storage-node`
-* `polka-storage-provider-server`
-* `polka-storage-provider-client`
-* `mater-cli`
-* `storagext-cli`
+
+- `polka-storage-node`
+- `polka-storage-provider-server`
+- `polka-storage-provider-client`
+- `mater-cli`
+- `storagext-cli`
 
 > Additionally, you can move them to a folder under your `$PATH` and run them as you would with any other binary.

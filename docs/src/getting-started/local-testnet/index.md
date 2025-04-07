@@ -265,6 +265,7 @@ This link will automatically connect to Charlie's node running on a local machin
 ## Checking the logs
 
 At the end of the `zombienet` output you should see a table like so:
+
 ```
 ┌───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │                                                         Node Information                                                          │
@@ -288,6 +289,7 @@ We strongly recommend you check the logs for the collator (in this case Charlie)
 
 > If the **Log Cmd** is shortened with `...`, try to search for the folder using the zombienet namespace, available at the top of the table.
 > For example:
+>
 > ```bash
 > $ ls /tmp | grep zombie-bcb786e1748ff0a6becd28289e1f70b9
 > ```
@@ -306,20 +308,23 @@ $ grep "<LOG_LEVEL>.*runtime::<EXTRINSIC_PALLET>" charlie.log
 ```
 
 Where `LOG_LEVEL` is one of:
-* `DEBUG`
-* `INFO`
-* `WARN`
-* `ERROR`
+
+- `DEBUG`
+- `INFO`
+- `WARN`
+- `ERROR`
 
 And the extrinsic pallet, is one of:
-* `storage_provider`
-* `market`
-* `proofs`
+
+- `storage_provider`
+- `market`
+- `proofs`
 
 > **Tip:** if you are running into the `AllProposalsInvalid` error,
 > try searching for `insane deal` in the logs, you should find the cause faster!
 >
 > For example:
+>
 > ```bash
 > $ grep "insane deal" -B 1 charlie.log
 > 2024-11-14 13:24:24.019 ERROR tokio-runtime-worker runtime::market: [Parachain] deal duration too short: 100 < 288000

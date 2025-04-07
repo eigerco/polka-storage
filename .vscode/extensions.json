@@ -10,5 +10,7 @@
         "ryanluker.vscode-coverage-gutters",
         // direnv, to use tool binaries from `nix` profile and set environment variables automatically
         "mkhl.direnv",
+        // Used for markdown formating
+        "esbenp.prettier-vscode"
     ]
 }
