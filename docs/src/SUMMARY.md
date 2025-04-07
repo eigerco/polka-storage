@@ -29,6 +29,7 @@
   - [`client`](./storage-provider-cli/client/index.md)
     - [`wallet`](./storage-provider-cli/client/wallet.md)
     - [`proofs`](./storage-provider-cli/client/proofs.md)
+- [Delia](./delia/index.md)
 - [Storagext CLI](./storagext-cli/index.md)
   - [`market`](./storagext-cli/market.md)
   - [`storage-provider`](./storagext-cli/storage-provider.md)
