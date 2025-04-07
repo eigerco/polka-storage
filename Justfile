@@ -204,8 +204,8 @@ generate-proof-params sector-size:
 
 # sector-size = 8MiB, 1GiB available on the blob store
 download-params sector-size:
-    wget -O target/porep_params_{{sector-size}} https://polkastorage.blob.core.windows.net/proofs/{{sector-size}}.porep.params
-    wget -O target/post_params_{{sector-size}} https://polkastorage.blob.core.windows.net/proofs/{{sector-size}}.post.params
+    wget -O target/porep_params_{{sector-size}} https://polkastore.blob.core.windows.net/params/{{sector-size}}.porep.params
+    wget -O target/post_params_{{sector-size}} https://polkastore.blob.core.windows.net/params/{{sector-size}}.post.params
 
 # Run the benchmark tests
 bench-test pallet:
