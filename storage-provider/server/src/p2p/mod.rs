@@ -3,13 +3,10 @@ use std::{sync::Arc, time::Duration};
 use ::blockstore::Blockstore;
 use futures::StreamExt;
 use libp2p::{
-    identify::{self, Event as IdentifyEvent},
+    identify::{self},
     identity::Keypair,
     request_response::{self, Event as RequestResponseEvent, Message, ProtocolSupport},
-    swarm::{
-        dial_opts::{DialOpts, PeerCondition},
-        NetworkBehaviour, SwarmEvent,
-    },
+    swarm::{NetworkBehaviour, SwarmEvent},
     Multiaddr, PeerId, StreamProtocol, Swarm,
 };
 use libp2p_length_prefix_codec::LpCbor;

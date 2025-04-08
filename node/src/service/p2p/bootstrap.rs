@@ -161,7 +161,7 @@ fn on_request_response_event(
 ) {
     match event {
         // Message received, looking up the mapping
-        request_response::Event::Message { peer, message } => {
+        request_response::Event::Message { message, .. } => {
             if let Message::Request {
                 request,
                 channel,
