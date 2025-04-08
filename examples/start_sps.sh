@@ -17,24 +17,6 @@ mkdir -p /tmp/polka-storage-provider
 P2P_BOOTSTRAP_ADDRESS="/ip4/127.0.0.1/tcp/62649"
 P2P_BOOTSTRAP_PUBLIC_KEY="/tmp/zombienet/charlie-public.pem"
 
-# Adds funds to all test accounts
-function setup_balances {
-    declare -a ACCOUNTS=("//Alice" "//Bob" "//Charlie" "//Dave" "//Eve" "//Ferdie")
-    for ACCOUNT in "${ACCOUNTS[@]}"; do
-        RUST_LOG="storagext=debug,storagext-cli=debug" target/release/storagext-cli --sr25519-key "$ACCOUNT" market add-balance 250000000000 &
-    done
-    wait
-}
-
-function setup_network_keys {
-    # It's a test setup based on the local verifying keys, everyone can run those extrinsics currently.
-    # Each of the keys is different, because the processes are running in parallel.
-    # If they were running in parallel on the same account, they'd conflict with each other on the transaction nonce.
-    RUST_LOG="storagext=debug,storagext-cli=debug" target/release/storagext-cli --sr25519-key "//Alice" proofs set-porep-verifying-key --registered-proof 8MiB @examples/8MiB.porep.vk.scale &
-    RUST_LOG="storagext=debug,storagext-cli=debug" target/release/storagext-cli --sr25519-key "//Bob" proofs set-post-verifying-key --registered-proof 8MiB @examples/8MiB.post.vk.scale &
-    wait
-}
-
 function register_storage_provider {
     local SP_NAME="$1"
     local P2P_SP_KEY_DIR="/tmp/polka-storage-provider/$SP_NAME"
@@ -76,60 +58,62 @@ function ports {
     case $1 in
         "//Alice")
             local PORT=45000
-            echo "upload_listen_address = '127.0.0.1:$PORT'
-                  rpc_listen_address = '127.0.0.1:$(echo "$PORT + 1" | bc)'
-                  retrieval_listen_address = '/ip4/127.0.0.1/tcp/$(echo "$PORT + 2" | bc)'" |
+            echo "upload_listen_address = '0.0.0.0:$PORT'
+                  rpc_listen_address = '0.0.0.0:$(echo "$PORT + 1" | bc)'
+                  p2p_tcp_listen_address = '/ip4/0.0.0.0/tcp/$(echo "$PORT + 2" | bc)'
+                  p2p_ws_listen_address = '/ip4/0.0.0.0/tcp/$(echo "$PORT + 3" | bc)/ws'" |
             sed "s/\s\+//"
             ;;
         "//Bob")
             local PORT=46000
-            echo "upload_listen_address = '127.0.0.1:$PORT'
-                  rpc_listen_address = '127.0.0.1:$(echo "$PORT + 1" | bc)'
-                  retrieval_listen_address = '/ip4/127.0.0.1/tcp/$(echo "$PORT + 2" | bc)'" |
+            echo "upload_listen_address = '0.0.0.0:$PORT'
+                  rpc_listen_address = '0.0.0.0:$(echo "$PORT + 1" | bc)'
+                  p2p_tcp_listen_address = '/ip4/0.0.0.0/tcp/$(echo "$PORT + 2" | bc)'
+                  p2p_ws_listen_address = '/ip4/0.0.0.0/tcp/$(echo "$PORT + 3" | bc)/ws'" |
             sed "s/\s\+//"
             ;;
         "//Charlie")
             local PORT=47000
-            echo "upload_listen_address = '127.0.0.1:$PORT'
-                  rpc_listen_address = '127.0.0.1:$(echo "$PORT + 1" | bc)'
-                  retrieval_listen_address = '/ip4/127.0.0.1/tcp/$(echo "$PORT + 2" | bc)'" |
+            echo "upload_listen_address = '0.0.0.0:$PORT'
+                  rpc_listen_address = '0.0.0.0:$(echo "$PORT + 1" | bc)'
+                  p2p_tcp_listen_address = '/ip4/0.0.0.0/tcp/$(echo "$PORT + 2" | bc)'
+                  p2p_ws_listen_address = '/ip4/0.0.0.0/tcp/$(echo "$PORT + 3" | bc)/ws'" |
             sed "s/\s\+//"
             ;;
     esac
 }
 
-# Not necessary anymore, because Verifying Keys and balances are set in the genesis.
-# setup_balances
-# setup_network_keys
+function main {
+    declare -a ACCOUNTS=("//Alice" "//Bob" "//Charlie")
+    for ACCOUNT in "${ACCOUNTS[@]}"; do
+        register_storage_provider "$ACCOUNT"
+    done
+    wait
 
-declare -a ACCOUNTS=("//Alice" "//Bob" "//Charlie")
-for ACCOUNT in "${ACCOUNTS[@]}"; do
-    register_storage_provider "$ACCOUNT"
-done
-wait
+    # Get bootstrap P2P Peer ID. This works after running zombienet locally or in kubernetes
+    P2P_BOOTSTRAP_PEER_ID="$(target/release/polka-storage-provider-client generate-peer-id --pubkey "$P2P_BOOTSTRAP_PUBLIC_KEY")"
+    echo "Peer ID for bootstrap node: $P2P_BOOTSTRAP_PEER_ID"
 
-# Get bootstrap P2P Peer ID. This works after running zombienet locally or in kubernetes
-P2P_BOOTSTRAP_PEER_ID="$(target/release/polka-storage-provider-client generate-peer-id --pubkey "$P2P_BOOTSTRAP_PUBLIC_KEY")"
-echo "Peer ID for bootstrap node: $P2P_BOOTSTRAP_PEER_ID"
+    for ACCOUNT in "${ACCOUNTS[@]}"; do
+        echo "
+            $(ports "$ACCOUNT")
+            seal_proof = '8MiB'
+            post_proof = '8MiB'
+            porep_parameters = 'target/porep_params_8MiB'
+            post_parameters = 'target/porep_params_8MiB'
+            p2p_key = '@$(sp_private_key "$ACCOUNT")'
+            rendezvous_point_address = '$P2P_BOOTSTRAP_ADDRESS'
+            rendezvous_point = '$P2P_BOOTSTRAP_PEER_ID'
+            [sealing_configuration]
+            fill_threshold = 0
+            wait_deals_delay = '5m'
+            pre_commit_submission_slack = '1m'" | sed 's/\s\+//' > "$(sp_key_dir "$ACCOUNT")/config.toml"
 
-declare -a ACCOUNTS=("//Alice" "//Bob" "//Charlie")
-for ACCOUNT in "${ACCOUNTS[@]}"; do
-    echo "
-        $(ports "$ACCOUNT")
-        seal_proof = '8MiB'
-        post_proof = '8MiB'
-        porep_parameters = 'target/porep_params_8MiB'
-        post_parameters = 'target/porep_params_8MiB'
-        p2p_key = '@$(sp_private_key "$ACCOUNT")'
-        rendezvous_point_address = '$P2P_BOOTSTRAP_ADDRESS'
-        rendezvous_point = '$P2P_BOOTSTRAP_PEER_ID'
-        [sealing_configuration]
-        fill_threshold = 0
-        wait_deals_delay = '5m'
-        pre_commit_submission_slack = '1m'" | sed 's/\s\+//' > "$(sp_key_dir "$ACCOUNT")/config.toml"
+        RUST_LOG="tower_http=debug,polka_storage_provider_server=debug,polka_storage_provider_server::p2p=trace,yamux=off,multistream_select=off,polka_storage_provider_common=debug" target/release/polka-storage-provider-server \
+            --sr25519-key "$ACCOUNT" \
+            --config "$(sp_key_dir "$ACCOUNT")/config.toml" &
+    done
+    wait
+}
 
-    RUST_LOG="polka_storage_provider_server=debug" target/release/polka-storage-provider-server \
-        --sr25519-key "$ACCOUNT" \
-        --config "$(sp_key_dir "$ACCOUNT")/config.toml" &
-done
-wait
+main

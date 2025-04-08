@@ -43,7 +43,7 @@ pub struct PeerIdRequest(
             deserialize_with = "deserialize_peer_id"
         )
     )]
-    PeerId,
+    pub PeerId,
 );
 
 impl From<PeerId> for PeerIdRequest {

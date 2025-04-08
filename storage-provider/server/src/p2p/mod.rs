@@ -5,9 +5,11 @@ use futures::StreamExt;
 use libp2p::{
     identify::{self, Event as IdentifyEvent},
     identity::Keypair,
-    rendezvous::{self, client::Event as RendezvousEvent, Namespace},
     request_response::{self, Event as RequestResponseEvent, Message, ProtocolSupport},
-    swarm::{NetworkBehaviour, SwarmEvent},
+    swarm::{
+        dial_opts::{DialOpts, PeerCondition},
+        NetworkBehaviour, SwarmEvent,
+    },
     Multiaddr, PeerId, StreamProtocol, Swarm,
 };
 use libp2p_length_prefix_codec::LpCbor;
@@ -33,9 +35,6 @@ const REGISTRATION_TTL: Duration = Duration::from_secs(DEFAULT_REGISTRATION_TTL)
 
 /// Maximum length allowed for a multihash in bytes.
 const MAX_MULTIHASH_LENGTH: usize = 64;
-
-/// Unique namespace used for peer discovery and registration with rendezvous nodes.
-const P2P_NAMESPACE: &str = "polka-storage";
 
 /// Arguments used to configure the [`P2p`].
 pub struct P2pArgs<B, I>
@@ -64,7 +63,6 @@ where
     B: Blockstore + 'static,
 {
     identify: identify::Behaviour,
-    rendezvous: rendezvous::client::Behaviour,
     bitswap: beetswap::Behaviour<MAX_MULTIHASH_LENGTH, B>,
     request_response: request_response::Behaviour<LpCbor<PieceInfoRequest, PieceInfoResponse>>,
 }
@@ -98,8 +96,6 @@ where
             args.local_keypair.public(),
         ));
 
-        let rendezvous = rendezvous::client::Behaviour::new(args.local_keypair.clone());
-
         let bitswap = beetswap::Behaviour::new(args.blockstore);
 
         let request_response =
@@ -113,7 +109,6 @@ where
 
         let behaviour = Behaviour {
             identify,
-            rendezvous,
             bitswap,
             request_response,
         };
@@ -140,19 +135,10 @@ where
         loop {
             select! {
                 _ = register_interval.tick() => {
-                    // Check if there are any external addresses set, before we
-                    // actually try to register ourself with the rendezvous nodes
-                    if self.swarm.external_addresses().count() == 0 {
-                        debug!("External address not known. Skip registration.");
-                        register_interval.reset_after(Duration::from_secs(1));
-                        continue;
-                    }
-
                     // Dial rendezvous nodes again because the connection is not persisted
+                    // On dialing the identify protocol *should* be exchanged which will trigger
+                    // a "re-register" in the Kadmelia server, adding it to the server's kbucket
                     dial_rendezvous_nodes(&mut self.swarm, &self.rendezvous_nodes);
-
-                    // Register with the nodes
-                    request_registration(&mut self.swarm, &self.rendezvous_nodes);
                 }
                 event = self.swarm.select_next_some() => self.on_swarm_event(event),
                 _ = cancellation_token.cancelled() => {
@@ -166,54 +152,13 @@ where
     fn on_swarm_event(&mut self, event: SwarmEvent<BehaviourEvent<B>>) {
         match event {
             SwarmEvent::Behaviour(ev) => match ev {
-                BehaviourEvent::Identify(ev) => self.on_identify_event(ev),
-                BehaviourEvent::Rendezvous(ev) => self.on_rendezvous_event(ev),
                 BehaviourEvent::RequestResponse(ev) => self.on_request_response_event(ev),
-                _ => {}
+                _ => tracing::trace!("Unhandled behaviour event: {ev:?}"),
             },
             SwarmEvent::NewListenAddr { address, .. } => {
                 info!(%address, "Listening on");
             }
-            _ => {}
-        }
-    }
-
-    #[instrument(level = "trace", skip(self))]
-    fn on_identify_event(&mut self, event: IdentifyEvent) {
-        match event {
-            // once `/identify` did its job, we know the external address of the
-            // local node. The `observed_addr` is returned by the node with
-            // which we identified (and they identified with us). The
-            // `observed_addr` is an address that the other node observed when
-            // the local node connected.
-            IdentifyEvent::Received { info, .. } => {
-                self.swarm.add_external_address(info.observed_addr);
-            }
-            _ => {}
-        }
-    }
-
-    #[instrument(level = "trace", skip(self))]
-    fn on_rendezvous_event(&mut self, event: RendezvousEvent) {
-        match event {
-            RendezvousEvent::Registered {
-                rendezvous_node,
-                ttl,
-                ..
-            } => {
-                info!(%rendezvous_node, %ttl, "Successfully registered");
-            }
-            RendezvousEvent::RegisterFailed {
-                rendezvous_node,
-                error,
-                ..
-            } => {
-                warn!(%rendezvous_node, ?error, "Registration failed");
-            }
-            RendezvousEvent::Expired { peer } => {
-                debug!(%peer, "Registration expired");
-            }
-            _ => {}
+            _ => tracing::trace!("Unhandled swarm event: {event:?}"),
         }
     }
 
@@ -223,45 +168,48 @@ where
         event: RequestResponseEvent<PieceInfoRequest, PieceInfoResponse>,
     ) {
         match event {
-            RequestResponseEvent::Message { peer, message } => {
-                if let Message::Request {
-                    request,
-                    channel,
-                    request_id,
-                } = message
-                {
-                    debug!("Got request with id {request_id} from {peer}");
+            RequestResponseEvent::Message {
+                peer,
+                message:
+                    Message::Request {
+                        request,
+                        channel,
+                        request_id,
+                    },
+            } => {
+                debug!("Got request with id {request_id} from {peer}");
 
-                    let response = match self.index_db.get_piece_metadata(request.piece_cid) {
-                        Ok(info) => PieceInfoResponse::Found(PieceInfo { roots: info.roots }),
-                        Err(err) => {
-                            error!(?err, "error occurred while retrieving piece info");
-                            PieceInfoResponse::NotFound(request.piece_cid)
-                        }
-                    };
-
-                    let response_result = self
-                        .swarm
-                        .behaviour_mut()
-                        .request_response
-                        .send_response(channel, response);
-                    if let Err(err) = response_result {
-                        error!(%peer, ?err, "Failed to respond with piece info");
+                let response = match self.index_db.get_piece_metadata(request.piece_cid) {
+                    Ok(info) => PieceInfoResponse::Found(PieceInfo { roots: info.roots }),
+                    Err(err) => {
+                        error!(?err, "error occurred while retrieving piece info");
+                        PieceInfoResponse::NotFound(request.piece_cid)
                     }
+                };
+
+                let response_result = self
+                    .swarm
+                    .behaviour_mut()
+                    .request_response
+                    .send_response(channel, response);
+                if let Err(err) = response_result {
+                    error!(%peer, ?err, "Failed to respond with piece info");
                 }
             }
             RequestResponseEvent::OutboundFailure {
                 peer,
                 request_id,
                 error,
-            } => warn!("Failed to send response with id {request_id} to {peer}: {error}"),
+            } => tracing::error!("Failed to send response with id {request_id} to {peer}: {error}"),
             RequestResponseEvent::InboundFailure {
                 peer,
                 request_id,
                 error,
-            } => warn!("Failed to receive message with id {request_id} from {peer}: {error}"),
-            RequestResponseEvent::ResponseSent { peer, request_id } => {
-                debug!("Response with id {request_id} sent to {peer}")
+            } => tracing::error!(
+                "Failed to receive message with id {request_id} from {peer}: {error}"
+            ),
+            RequestResponseEvent::ResponseSent { .. } | RequestResponseEvent::Message { .. } => {
+                tracing::trace!("Unhandled request response event: {event:?}")
             }
         }
     }
@@ -276,32 +224,8 @@ where
         // Start dialing the node if needed
         if !swarm.is_connected(rendezvous_peer) {
             if let Err(err) = swarm.dial(rendezvous_addr.clone()) {
-                warn!(?err, %rendezvous_peer, %rendezvous_addr, "rendezvous node dialing error");
+                warn!(%rendezvous_peer, %rendezvous_addr, "Failed to dial rendezvous node with error: {err}");
                 continue;
-            }
-        }
-    }
-}
-
-/// Request registration with the rendezvous nodes.
-fn request_registration<B>(swarm: &mut Swarm<Behaviour<B>>, nodes: &[(PeerId, Multiaddr)])
-where
-    B: Blockstore,
-{
-    for (rendezvous_peer, rendezvous_addr) in nodes {
-        // Register with the node
-        let request_result = swarm.behaviour_mut().rendezvous.register(
-            Namespace::from_static(P2P_NAMESPACE),
-            *rendezvous_peer,
-            Some(REGISTRATION_TTL.as_secs()),
-        );
-
-        match request_result {
-            Ok(_) => {
-                info!(%rendezvous_peer, %rendezvous_addr, "Registration requested");
-            }
-            Err(err) => {
-                warn!(?err, %rendezvous_peer, %rendezvous_addr, "Registration request failed");
             }
         }
     }
