@@ -171,7 +171,7 @@ fn on_request_response_event(
                 log::trace!("Received a request-response request ({request_id}): {request:?}");
                 let Some(kref) = swarm.behaviour_mut().kad.kbucket(request.0) else {
                     log::trace!("KBucket query returned None, we're the node containing the peer");
-                    let peer_id = swarm.local_peer_id().clone();
+                    let peer_id = *swarm.local_peer_id();
                     let multiaddrs = swarm.external_addresses().cloned().collect();
                     let peer_info = PeerInfoResponse::Found(PeerInfo {
                         peer_id,
@@ -210,7 +210,7 @@ fn on_request_response_event(
                     return;
                 };
 
-                let peer_id = entry.node.key.preimage().clone();
+                let peer_id = *entry.node.key.preimage();
                 let multiaddrs = entry.node.value.clone().into_vec();
                 let response = PeerInfoResponse::Found(PeerInfo {
                     peer_id,
