@@ -235,7 +235,7 @@ mod tests {
 
     #[test]
     fn decodes_production_1gib_porep_verifying_key() {
-        let vk_bytes = include_bytes!("../../../../examples/1GiB.porep.vk.scale");
+        let vk_bytes = include_bytes!("../../../../examples/benchmark/keys/1GiB.porep.vk.scale");
         // decode expects &mut mutability
         let vk_bytes = vk_bytes.to_vec();
         let key = VerifyingKey::<Bls12>::decode(&mut vk_bytes.as_slice());
@@ -245,7 +245,7 @@ mod tests {
 
     #[test]
     fn decodes_production_1gib_post_verifying_key() {
-        let vk_bytes = include_bytes!("../../../../examples/1GiB.post.vk.scale");
+        let vk_bytes = include_bytes!("../../../../examples/benchmark/keys/1GiB.post.vk.scale");
         // decode expects &mut mutability
         let vk_bytes = vk_bytes.to_vec();
         let key = VerifyingKey::<Bls12>::decode(&mut vk_bytes.as_slice());
@@ -255,7 +255,7 @@ mod tests {
 
     #[test]
     fn decodes_production_8mib_porep_verifying_key() {
-        let vk_bytes = include_bytes!("../../../../examples/8MiB.porep.vk.scale");
+        let vk_bytes = include_bytes!("../../../../examples/benchmark/keys/8MiB.porep.vk.scale");
         // decode expects &mut mutability
         let vk_bytes = vk_bytes.to_vec();
         let key = VerifyingKey::<Bls12>::decode(&mut vk_bytes.as_slice());
@@ -265,7 +265,7 @@ mod tests {
 
     #[test]
     fn decodes_production_8mib_post_verifying_key() {
-        let vk_bytes = include_bytes!("../../../../examples/8MiB.post.vk.scale");
+        let vk_bytes = include_bytes!("../../../../examples/benchmark/keys/8MiB.post.vk.scale");
         // decode expects &mut mutability
         let vk_bytes = vk_bytes.to_vec();
         let key = VerifyingKey::<Bls12>::decode(&mut vk_bytes.as_slice());

@@ -11,6 +11,7 @@ use sp_runtime::traits::{IdentifyAccount, Verify};
 pub type BalanceOf<T> = <<T as CurrencyProvider>::Currency as Currency<
     <T as frame_system::Config>::AccountId,
 >>::Balance;
+
 pub trait CurrencyProvider: frame_system::Config {
     /// The currency mechanism.
     type Currency: ReservableCurrency<<Self as frame_system::Config>::AccountId>;

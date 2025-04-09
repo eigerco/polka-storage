@@ -210,8 +210,10 @@ const POST_VK_EXT_SCALE: &str = "post.vk.scale";
 const POREP_PROOF_EXT: &str = "sector.proof.porep.scale";
 const POST_PROOF_EXT: &str = "sector.proof.post.scale";
 
-const BENCH_CACHE_DIR: &str = "target/bench";
-const BENCH_DATA_DIR_TO_TARGET: &str = "../..";
+const KEYS_DIR: &str = "examples/benchmark/keys";
+const PROOFS_DIR: &str = "examples/benchmark/proofs";
+const PARAMS_CACHE_DIR: &str = "target/params";
+const BENCH_DATA_DIR_TO_ROOT: &str = "../..";
 
 impl ProofsCommand {
     /// Run the command.
@@ -224,7 +226,7 @@ impl ProofsCommand {
                 seal_proof,
                 output_path,
             } => {
-                generate_porep_params(output_path, seal_proof)?;
+                generate_porep_params(output_path.clone(), output_path, seal_proof)?;
             }
             ProofsCommand::PoRep {
                 signer_key,
@@ -322,21 +324,27 @@ async fn calculate_piece_commitment(
 }
 
 fn generate_porep_params(
-    output_path: Option<impl AsRef<Path>>,
+    params_output_path: Option<impl AsRef<Path>>,
+    keys_output_path: Option<impl AsRef<Path>>,
     seal_proof: RegisteredSealProof,
 ) -> Result<(), CliError> {
-    let output_path = if let Some(output_path) = output_path {
-        output_path.as_ref().to_owned()
+    let params_output_path = if let Some(params_output_path) = params_output_path {
+        params_output_path.as_ref().to_owned()
+    } else {
+        std::env::current_dir()?
+    };
+    let keys_output_path = if let Some(keys_output_path) = keys_output_path {
+        keys_output_path.as_ref().to_owned()
     } else {
         std::env::current_dir()?
     };
     let file_name: String = seal_proof.sector_size().to_string();
     let (parameters_file_name, mut parameters_file) =
-        file_with_extension(&output_path, file_name.as_str(), POREP_PARAMS_EXT)?;
+        file_with_extension(&params_output_path, file_name.as_str(), POREP_PARAMS_EXT)?;
     let (vk_file_name, mut vk_file) =
-        file_with_extension(&output_path, file_name.as_str(), POREP_VK_EXT)?;
+        file_with_extension(&keys_output_path, file_name.as_str(), POREP_VK_EXT)?;
     let (vk_scale_file_name, mut vk_scale_file) =
-        file_with_extension(&output_path, file_name.as_str(), POREP_VK_EXT_SCALE)?;
+        file_with_extension(&keys_output_path, file_name.as_str(), POREP_VK_EXT_SCALE)?;
     println!(
         "Generating params for {} sectors... It can take a couple of minutes ⌛",
         file_name
@@ -654,15 +662,17 @@ async fn benchmark_data(input_path: PathBuf, sector_size: SectorSizeArg) -> Resu
     );
     let (comm_p, padded_piece_size) = calculate_piece_commitment(&input_path).await?;
 
-    let params_root = PathBuf::from(BENCH_CACHE_DIR).join("params");
+    let params_root = PathBuf::from(PARAMS_CACHE_DIR);
+    let keys_root = &PathBuf::from(KEYS_DIR);
 
     let sector_size = seal_proof.sector_size();
     let porep_params_path = params_root.join(format!("{sector_size}.{POREP_PARAMS_EXT}"));
-    let porep_params_vk_path = params_root.join(format!("{sector_size}.{POREP_VK_EXT_SCALE}"));
+    let porep_params_vk_path = keys_root.join(format!("{sector_size}.{POREP_VK_EXT_SCALE}"));
     if !tokio::fs::try_exists(&porep_params_vk_path).await? {
         println!("--- Generating PoRep params for seal proof {seal_proof:?} ---");
+        tokio::fs::create_dir_all(&keys_root).await?;
         tokio::fs::create_dir_all(&params_root).await?;
-        generate_porep_params(Some(&params_root), seal_proof)?;
+        generate_porep_params(Some(&params_root), Some(&keys_root), seal_proof)?;
     } else {
         println!("--- Using cached PoRep params for seal proof {seal_proof:?} ---");
         println!("{}", porep_params_path.display());
@@ -683,8 +693,7 @@ async fn benchmark_data(input_path: PathBuf, sector_size: SectorSizeArg) -> Resu
         sectors: Vec::with_capacity(MAX_SECTORS_PER_CALL as usize),
     };
 
-    let proofs_root = PathBuf::from(BENCH_CACHE_DIR)
-        .join("proofs")
+    let proofs_root = PathBuf::from(PROOFS_DIR)
         .join(sector_size.to_string());
     tokio::fs::create_dir_all(&proofs_root).await?;
 
@@ -757,7 +766,7 @@ fn emit_benchmark_constructor(sector_size: SectorSize, benchmark_data: &Benchmar
             let padded_piece_size = padded_piece_size.deref();
             let comm_r = emit_commitment(comm_r);
             let comm_d = emit_commitment(comm_d);
-            let proof_path_rel = PathBuf::from(BENCH_DATA_DIR_TO_TARGET).join(proof_path);
+            let proof_path_rel = PathBuf::from(BENCH_DATA_DIR_TO_ROOT).join(proof_path);
             let proof_path = proof_path_rel.to_string_lossy();
             quote::quote! {
                 SectorData {
@@ -772,7 +781,7 @@ fn emit_benchmark_constructor(sector_size: SectorSize, benchmark_data: &Benchmar
         .collect::<Vec<_>>();
 
     let sector_size = format_ident!("_{sector_size}");
-    let verifying_key_path_rel = PathBuf::from(BENCH_DATA_DIR_TO_TARGET).join(verifying_key_path);
+    let verifying_key_path_rel = PathBuf::from(BENCH_DATA_DIR_TO_ROOT).join(verifying_key_path);
     let verifying_key_path = verifying_key_path_rel.to_string_lossy();
     let seal_proof = format_ident!("{seal_proof:?}");
     let post_type = format_ident!("{post_type:?}");

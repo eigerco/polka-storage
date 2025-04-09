@@ -204,14 +204,15 @@ generate-proof-params sector-size:
 
 # sector-size = 8MiB, 1GiB available on the blob store
 download-params sector-size:
-    wget -O target/porep_params_{{sector-size}} https://polkastore.blob.core.windows.net/params/{{sector-size}}.porep.params
-    wget -O target/post_params_{{sector-size}} https://polkastore.blob.core.windows.net/params/{{sector-size}}.post.params
+    mkdir -p target/params
+    wget -O target/params/{{sector-size}}.porep.params https://polkastore.blob.core.windows.net/params/{{sector-size}}.porep.params
+    wget -O target/params/{{sector-size}}.post.params https://polkastore.blob.core.windows.net/params/{{sector-size}}.post.params
 
 # Run the benchmark tests
 bench-test pallet:
     cargo test --profile ci --locked -p "pallet-{{pallet}}" --features runtime-benchmarks -- benchmark --nocapture
 
-# Run benchmarks 
+# Run benchmarks
 bench-node pallet steps="5" repeat="1":
     cargo run \
         --bin polka-storage-node -r -F runtime-benchmarks -F testnet -- \
