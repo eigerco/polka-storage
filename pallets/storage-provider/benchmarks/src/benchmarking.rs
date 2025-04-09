@@ -17,7 +17,7 @@ use pallet_storage_provider::{pallet::Call, Pallet as SpPallet};
 use primitives::{
     configs::BalanceOf,
     proofs::RegisteredPoStProof,
-    sector::{ProveCommitSector, SectorNumber, SectorPreCommitInfo, SectorSize},
+    sector::{ProveCommitSector, SectorNumber, SectorPreCommitInfo},
     test_data::{generate_benchmark_account, BenchmarkData, StorageProviderData},
     MAX_SECTORS_PER_CALL, PEER_ID_MAX_BYTES,
 };
@@ -28,7 +28,6 @@ type BoundedPeerIdBytes = BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>;
 
 pub const ALICE: &'static str = "//Alice";
 const EXISTENTIAL_DEPOSIT: u32 = 1_000_000_000;
-const BENCHMARK_SECTOR_SIZE: SectorSize = SectorSize::_8MiB;
 
 #[benchmarks(
     where
@@ -49,7 +48,7 @@ mod benchmarks {
 
     #[benchmark]
     fn register_storage_provider() {
-        let data = BenchmarkData::<T>::load(BENCHMARK_SECTOR_SIZE);
+        let data = BenchmarkData::<T>::load();
         let provider = data.storage_provider();
         let caller = provider.account_id;
         let peer_id = provider.peer_id;
@@ -101,10 +100,10 @@ where
     BlockNumberFor<T>: From<u64> + Into<u64>,
     BalanceOf<T>: From<u32> + Encode,
 {
-    let data = BenchmarkData::<T>::load(BENCHMARK_SECTOR_SIZE);
+    let data = BenchmarkData::<T>::load();
     let alice = create_account_with_balance::<T>(ALICE, EXISTENTIAL_DEPOSIT * 2);
     let sp = data.storage_provider();
-    create_and_register_storage_provider_with_balance::<T>(&sp, EXISTENTIAL_DEPOSIT * 2);
+    create_and_register_storage_provider_with_balance::<T>(&sp, data.post_type, EXISTENTIAL_DEPOSIT * 2);
 
     assert_ok!(MarketPallet::<T>::add_balance(
         RawOrigin::Signed(sp.account_id.clone()).into(),
@@ -153,10 +152,10 @@ where
     BlockNumberFor<T>: From<u64> + Into<u64>,
     u64: TryFrom<BalanceOf<T>>,
 {
-    let data = BenchmarkData::<T>::load(BENCHMARK_SECTOR_SIZE);
+    let data = BenchmarkData::<T>::load();
     let alice = create_account_with_balance::<T>(ALICE, EXISTENTIAL_DEPOSIT * 2);
     let sp = data.storage_provider();
-    create_and_register_storage_provider_with_balance::<T>(&sp, EXISTENTIAL_DEPOSIT * 2);
+    create_and_register_storage_provider_with_balance::<T>(&sp, data.post_type, EXISTENTIAL_DEPOSIT * 2);
 
     assert_ok!(MarketPallet::<T>::add_balance(
         RawOrigin::Signed(sp.account_id.clone()).into(),
@@ -273,6 +272,7 @@ where
 
 fn create_and_register_storage_provider_with_balance<T>(
     provider: &StorageProviderData,
+    post_proof: RegisteredPoStProof,
     balance: u32,
 ) where
     T: crate::Config<AccountId = AccountId32, PeerId = BoundedPeerIdBytes>,
@@ -282,6 +282,6 @@ fn create_and_register_storage_provider_with_balance<T>(
     assert_ok!(SpPallet::<T>::register_storage_provider(
         RawOrigin::Signed(provider.account_id.clone()).into(),
         provider.peer_id.clone(),
-        RegisteredPoStProof::StackedDRGWindow8MiBV1,
+        post_proof,
     ));
 }

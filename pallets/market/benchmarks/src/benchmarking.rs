@@ -42,7 +42,6 @@ const EXISTENTIAL_DEPOSIT: u32 = 1_000_000_000;
 mod benchmarks {
 
     use frame_support::assert_ok;
-    use primitives::test_data::BENCH_SECTOR_SIZE;
 
     use super::*;
 
@@ -166,7 +165,7 @@ mod benchmarks {
     /// `n`: number of submitted deals
     #[benchmark]
     fn publish_storage_deals(n: Linear<1, MAX_DEALS_PER_SECTOR>) {
-        let data = BenchmarkData::<T>::load(BENCH_SECTOR_SIZE);
+        let data = BenchmarkData::<T>::load();
         let sp = data.storage_provider();
         setup_account_balance::<T>(sp.account_id.clone());
         // Register the caller as a storage provider
@@ -218,7 +217,7 @@ mod benchmarks {
     /// `n`: number of submitted deals
     #[benchmark]
     fn settle_deal_payments(n: Linear<1, MAX_DEALS_PER_SECTOR>) {
-        let data = BenchmarkData::<T>::load(BENCH_SECTOR_SIZE);
+        let data = BenchmarkData::<T>::load();
         let sp = data.storage_provider();
         setup_account_balance::<T>(sp.account_id.clone());
         // Register the caller as a storage provider
@@ -308,7 +307,7 @@ mod benchmarks {
     /// `n` == 2: Publish & Replace
     #[benchmark]
     fn publish_deal_parameters(n: Linear<1, 2>) {
-        let data = BenchmarkData::<T>::load(BENCH_SECTOR_SIZE);
+        let data = BenchmarkData::<T>::load();
         let sp = data.storage_provider();
         setup_account_balance::<T>(sp.account_id.clone());
         // Register the caller as a storage provider
@@ -358,7 +357,7 @@ mod benchmarks {
 
     #[benchmark]
     fn remove_deal_parameters() {
-        let data = BenchmarkData::<T>::load(BENCH_SECTOR_SIZE);
+        let data = BenchmarkData::<T>::load();
         let sp = data.storage_provider();
         setup_account_balance::<T>(sp.account_id.clone());
         // Register the caller as a storage provider
