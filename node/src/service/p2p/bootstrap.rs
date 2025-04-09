@@ -169,7 +169,6 @@ fn on_request_response_event(
             } = message
             {
                 log::trace!("Received a request-response request ({request_id}): {request:?}");
-                // When we receive a message from
                 let Some(kref) = swarm.behaviour_mut().kad.kbucket(request.0) else {
                     log::trace!("KBucket query returned None, we're the node containing the peer");
                     let peer_id = swarm.local_peer_id().clone();
@@ -179,11 +178,15 @@ fn on_request_response_event(
                         multiaddrs,
                     });
                     log::trace!("Sending response to request ({request_id}): {peer_info:?}");
-                    swarm
+
+                    if swarm
                         .behaviour_mut()
                         .request_response
                         .send_response(channel, peer_info)
-                        .unwrap(); // TODO: remove
+                        .is_err()
+                    {
+                        log::error!("Failed to send response to request {request_id}");
+                    }
                     return;
                 };
 
@@ -196,13 +199,17 @@ fn on_request_response_event(
                     .pop();
                 let Some(entry) = entry else {
                     log::trace!("Could not find peer {} in KBucket", request.0);
-                    swarm
+                    if swarm
                         .behaviour_mut()
                         .request_response
                         .send_response(channel, PeerInfoResponse::NotFound(request))
-                        .unwrap();
+                        .is_err()
+                    {
+                        log::error!("Failed to send response to request {request_id}")
+                    }
                     return;
                 };
+
                 let peer_id = entry.node.key.preimage().clone();
                 let multiaddrs = entry.node.value.clone().into_vec();
                 let response = PeerInfoResponse::Found(PeerInfo {
@@ -210,11 +217,14 @@ fn on_request_response_event(
                     multiaddrs,
                 });
                 log::trace!("Found entry in KBucket, sending response: {response:?}");
-                swarm
+                if swarm
                     .behaviour_mut()
                     .request_response
                     .send_response(channel, response)
-                    .unwrap();
+                    .is_err()
+                {
+                    log::error!("Failed to send response to request {request_id}");
+                }
             }
         }
         request_response::Event::OutboundFailure {
