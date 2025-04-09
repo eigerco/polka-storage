@@ -193,10 +193,7 @@ fn on_request_response_event(
                 log::trace!("KBucket contains peer {}, searching for it", request.0);
                 let entry = kref
                     .iter()
-                    .filter(|entry| entry.node.key.preimage() == &request.0)
-                    .take(1)
-                    .collect::<Vec<_>>()
-                    .pop();
+                    .find(|entry| entry.node.key.preimage() == &request.0);
                 let Some(entry) = entry else {
                     log::trace!("Could not find peer {} in KBucket", request.0);
                     if swarm
