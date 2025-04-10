@@ -281,7 +281,7 @@ where
         channel: ResponseChannel<services::Response>,
         request_id: InboundRequestId,
     ) {
-        tracing::trace!("Received request from {peer}: {request}");
+        tracing::trace!("Received request from {peer}: {request:?}");
         let services = match request {
             services::Request::All => self.services.clone(),
         };
