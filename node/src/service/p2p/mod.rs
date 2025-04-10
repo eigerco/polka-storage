@@ -19,8 +19,6 @@ pub enum P2PError {
     InvalidBehaviourConfig,
     #[error(transparent)]
     P2PTransport(#[from] libp2p::TransportError<std::io::Error>),
-    #[error(transparent)]
-    P2PSubscription(#[from] libp2p::gossipsub::SubscriptionError),
 }
 
 /// Runs a bootstrap node from the given config.

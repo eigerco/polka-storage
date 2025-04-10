@@ -230,8 +230,9 @@ fn testnet_genesis(
             // 1 == pallets/storage-provider/lib.rs:calculate_pre_commit_deposit
             // NOTE(@th7nder,11/03/2025): please be aware, that this amount needs to be endowed to Market Pallet as well!
             "balances": vec![
+                (get_account_id_from_seed::<sr25519::Public>("Alice"), 25_000_000_000 as Balance),
+                (get_account_id_from_seed::<sr25519::Public>("Bob"), 12_500_000_001 as Balance),
                 (get_account_id_from_seed::<sr25519::Public>("Charlie"), 12_500_000_001 as Balance),
-                (get_account_id_from_seed::<sr25519::Public>("Alice"), 25_000_000_000 as Balance)
             ],
         },
         "sudo": { "key": Some(root) }

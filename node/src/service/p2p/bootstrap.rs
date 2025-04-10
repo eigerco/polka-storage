@@ -1,35 +1,28 @@
-use std::{
-    collections::HashMap,
-    hash::{DefaultHasher, Hash, Hasher},
-    io::{Error, ErrorKind},
-    time::Duration,
-};
+use std::time::Duration;
 
 use libp2p::{
     futures::StreamExt,
-    gossipsub::{self, IdentTopic},
     identify,
     identity::Keypair,
-    noise, rendezvous,
+    kad, noise,
     request_response::{self, Message, ProtocolSupport},
     swarm::{NetworkBehaviour, SwarmEvent},
-    tcp, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder,
+    tcp, yamux, Multiaddr, StreamProtocol, Swarm, SwarmBuilder,
 };
 use libp2p_length_prefix_codec::LpCbor;
 use log::{debug, error, info, warn};
 use primitives_p2p::{
     PeerIdRequest, PeerInfo, PeerInfoResponse, BOOTSTRAP_REQUEST_RESPONSE_PROTOCOL,
-    DEFAULT_REGISTRATION_TTL, GOSSIP_TOPIC, IDENTIFY_PROTOCOL_VERSION,
+    IDENTIFY_PROTOCOL_VERSION,
 };
 
 use crate::service::p2p::P2PError;
 
 #[derive(NetworkBehaviour)]
 pub struct BootstrapBehaviour {
-    pub rendezvous: rendezvous::server::Behaviour,
     pub identify: identify::Behaviour,
-    pub gossipsub: gossipsub::Behaviour,
     pub request_response: request_response::Behaviour<LpCbor<PeerIdRequest, PeerInfoResponse>>,
+    pub kad: kad::Behaviour<kad::store::MemoryStore>,
 }
 
 pub struct BootstrapConfig {
@@ -77,38 +70,22 @@ impl BootstrapConfig {
             .await
             .map_err(|_| P2PError::InvalidWebsocketConfig)?
             .with_behaviour(|key| {
-                // To content-address message, we can take the hash of message and use it as an ID.
-                let message_id_fn = |message: &gossipsub::Message| {
-                    let mut s = DefaultHasher::new();
-                    message.data.hash(&mut s);
-                    gossipsub::MessageId::from(s.finish().to_string())
-                };
-                let gossipsub_config = gossipsub::ConfigBuilder::default()
-                    .message_id_fn(message_id_fn)
-                    .build()
-                    .map_err(|msg| Error::new(ErrorKind::Other, msg))?;
-
                 Ok(BootstrapBehaviour {
-                    // Rendezvous server behaviour for serving new peers to connecting nodes.
-                    rendezvous: rendezvous::server::Behaviour::new(
-                        rendezvous::server::Config::default()
-                            .with_max_ttl(DEFAULT_REGISTRATION_TTL), // Max TTL of 24 hours
-                    ),
                     // The identify behaviour is used to share the external address and the public key with connecting clients.
                     identify: identify::Behaviour::new(identify::Config::new(
                         IDENTIFY_PROTOCOL_VERSION.to_string(),
                         key.public(),
                     )),
-                    gossipsub: gossipsub::Behaviour::new(
-                        gossipsub::MessageAuthenticity::Signed(key.clone()),
-                        gossipsub_config,
-                    )?,
                     request_response: request_response::Behaviour::new(
                         [(
                             StreamProtocol::new(BOOTSTRAP_REQUEST_RESPONSE_PROTOCOL),
                             ProtocolSupport::Full,
                         )],
                         request_response::Config::default(),
+                    ),
+                    kad: kad::Behaviour::new(
+                        key.public().to_peer_id(),
+                        kad::store::MemoryStore::new(key.public().to_peer_id()),
                     ),
                 })
             })
@@ -145,11 +122,7 @@ pub(crate) async fn bootstrap(
             Err(err) => error!("Failed to dial peer at address {addr} with error: {err}"),
         }
     }
-    swarm
-        .behaviour_mut()
-        .gossipsub
-        .subscribe(&IdentTopic::new(GOSSIP_TOPIC))?;
-    let mut registrations = HashMap::new();
+
     loop {
         tokio::select! {
             event = swarm.select_next_some() => match event {
@@ -162,100 +135,22 @@ pub(crate) async fn bootstrap(
                 SwarmEvent::ConnectionClosed { peer_id, .. } => {
                     info!("Disconnected from {}", peer_id);
                 }
-                SwarmEvent::Behaviour(BootstrapBehaviourEvent::Rendezvous(event)) => on_rendezvous_event(&mut swarm, event, &mut registrations),
-                SwarmEvent::Behaviour(BootstrapBehaviourEvent::Gossipsub(event)) => on_gossipsub_event(event, *swarm.local_peer_id(), &mut registrations),
-                SwarmEvent::Behaviour(BootstrapBehaviourEvent::RequestResponse(event)) => on_request_response_event(&mut swarm, event, &registrations),
+                SwarmEvent::Behaviour(BootstrapBehaviourEvent::Identify(event)) => {
+                    match event {
+                        identify::Event::Received {  peer_id, info, .. } => {
+                            log::trace!("Received an identify received event");
+                            for addr in info.listen_addrs {
+                                log::debug!("Adding address to kademlia: peer_id={peer_id}, addr={addr:?}");
+                                swarm.behaviour_mut().kad.add_address(&peer_id, addr);
+                            }
+                        },
+                        _ => log::debug!("Unhandled Identify event: {event:?}"),
+                    };
+                }
+                SwarmEvent::Behaviour(BootstrapBehaviourEvent::RequestResponse(event)) => on_request_response_event(&mut swarm, event, ),
                 other => debug!("Encountered event: {other:?}"),
             }
         }
-    }
-}
-
-/// Handles events within the rendezvous protocol
-fn on_rendezvous_event(
-    swarm: &mut Swarm<BootstrapBehaviour>,
-    event: rendezvous::server::Event,
-    registrations: &mut HashMap<PeerId, PeerInfo>,
-) {
-    match event {
-        rendezvous::server::Event::RegistrationExpired(registration) => {
-            let id = registration.record.peer_id();
-            info!(
-                "Registration for peer {} expired in namespace {}",
-                id, registration.namespace
-            );
-            // Registration expired, remove entry from hashmap
-            if registrations.remove(&id).is_none() {
-                error!(
-                    "Could not remove registration for {:?} because it was not found",
-                    id
-                );
-            }
-        }
-        rendezvous::server::Event::PeerRegistered { peer, registration } => {
-            info!(
-                "Peer {} registered for namespace '{}' for {} seconds",
-                peer, registration.namespace, registration.ttl
-            );
-            let peer_info = PeerInfo {
-                peer_id: peer,
-                multiaddrs: registration.record.addresses().to_vec(),
-            };
-            // Serialize PeerInfo
-            let encoded_peer_info = match serde_json::to_vec(&peer_info) {
-                Ok(info) => info,
-                Err(..) => {
-                    error!(peer_info:?; "Failed to serialize peer_info");
-                    return;
-                }
-            };
-            insert_or_update_registrations(registrations, peer_info);
-            // Send registration information to other bootstrap nodes.
-            match swarm
-                .behaviour_mut()
-                .gossipsub
-                .publish(IdentTopic::new(GOSSIP_TOPIC), encoded_peer_info)
-            {
-                Ok(..) => info!("Successfully published new peer info for peer {peer}"),
-                Err(e) => error!(e:?; "Failed to publish new peer info for peer {peer}"),
-            }
-        }
-        other => debug!("Encountered other rendezvous event: {other:?}"),
-    }
-}
-
-/// Handles events within the gossipsub protocol
-fn on_gossipsub_event(
-    event: gossipsub::Event,
-    local_peer_id: PeerId,
-    registrations: &mut HashMap<PeerId, PeerInfo>,
-) {
-    match event {
-        // Received a message with peer information from another bootstrap node.
-        gossipsub::Event::Message {
-            propagation_source: peer_id,
-            message_id: id,
-            message,
-        } => {
-            // Got a message from ourselves, return early.
-            if peer_id == local_peer_id {
-                return;
-            }
-            // Deserialize peer info
-            let peer_info: PeerInfo = match serde_json::from_slice(&message.data) {
-                Ok(info) => info,
-                Err(..) => {
-                    error!(message:? = message.data; "Received invalid peer info from peer {peer_id:?}");
-                    return;
-                }
-            };
-            info!(
-                "Got registration: {:?} with id: {} from peer: {:?}",
-                peer_info, id, peer_id
-            );
-            insert_or_update_registrations(registrations, peer_info);
-        }
-        other => debug!("Encountered other gossipsub event: {other:?}"),
     }
 }
 
@@ -263,38 +158,69 @@ fn on_gossipsub_event(
 fn on_request_response_event(
     swarm: &mut Swarm<BootstrapBehaviour>,
     event: request_response::Event<PeerIdRequest, PeerInfoResponse>,
-    registrations: &HashMap<PeerId, PeerInfo>,
 ) {
     match event {
         // Message received, looking up the mapping
-        request_response::Event::Message { peer, message } => {
+        request_response::Event::Message { message, .. } => {
             if let Message::Request {
                 request,
                 channel,
                 request_id,
             } = message
             {
-                info!("Got request with id {request_id} from {peer}");
-                let id: PeerId = request.into();
-                let response = match registrations.get(&id) {
-                    Some(peer_info) => {
-                        info!("Peer {id:?} found in registrations");
-                        PeerInfoResponse::Found(peer_info.clone())
+                log::trace!("Received a request-response request ({request_id}): {request:?}");
+                let Some(kref) = swarm.behaviour_mut().kad.kbucket(request.0) else {
+                    log::trace!("KBucket query returned None, we're the node containing the peer");
+                    let peer_id = *swarm.local_peer_id();
+                    let multiaddrs = swarm.external_addresses().cloned().collect();
+                    let peer_info = PeerInfoResponse::Found(PeerInfo {
+                        peer_id,
+                        multiaddrs,
+                    });
+                    log::trace!("Sending response to request ({request_id}): {peer_info:?}");
+
+                    if swarm
+                        .behaviour_mut()
+                        .request_response
+                        .send_response(channel, peer_info)
+                        .is_err()
+                    {
+                        log::error!("Failed to send response to request {request_id}");
                     }
-                    None => {
-                        info!("Peer {id:?} not found in registrations");
-                        PeerInfoResponse::NotFound(id.into())
-                    }
+                    return;
                 };
-                // Sending the peer information back to the client who opened the channel.
-                // Could add retries here.
+
+                log::trace!("KBucket contains peer {}, searching for it", request.0);
+                let entry = kref
+                    .iter()
+                    .find(|entry| entry.node.key.preimage() == &request.0);
+                let Some(entry) = entry else {
+                    log::trace!("Could not find peer {} in KBucket", request.0);
+                    if swarm
+                        .behaviour_mut()
+                        .request_response
+                        .send_response(channel, PeerInfoResponse::NotFound(request))
+                        .is_err()
+                    {
+                        log::error!("Failed to send response to request {request_id}")
+                    }
+                    return;
+                };
+
+                let peer_id = *entry.node.key.preimage();
+                let multiaddrs = entry.node.value.clone().into_vec();
+                let response = PeerInfoResponse::Found(PeerInfo {
+                    peer_id,
+                    multiaddrs,
+                });
+                log::trace!("Found entry in KBucket, sending response: {response:?}");
                 if swarm
                     .behaviour_mut()
                     .request_response
                     .send_response(channel, response)
                     .is_err()
                 {
-                    error!("Failed to send peer info to {peer:?}");
+                    log::error!("Failed to send response to request {request_id}");
                 }
             }
         }
@@ -312,22 +238,4 @@ fn on_request_response_event(
             debug!("Response with id {request_id} sent to {peer}")
         }
     }
-}
-
-/// Take the HashMap and update the entry based on peer_info.peer_id
-/// or insert a new entry.
-fn insert_or_update_registrations(
-    registrations: &mut HashMap<PeerId, PeerInfo>,
-    peer_info: PeerInfo,
-) {
-    registrations
-        .entry(peer_info.peer_id)
-        .and_modify(|info| {
-            for addr in peer_info.multiaddrs.iter() {
-                if !info.multiaddrs.contains(addr) {
-                    info.multiaddrs.push(addr.clone())
-                }
-            }
-        })
-        .or_insert(peer_info);
 }

@@ -42,11 +42,10 @@ jsonrpsee = { features = ["server"], workspace = true }
 libp2p = { workspace = true, features = [
   "cbor",
   "dns",
-  "gossipsub",
   "identify",
+  "kad",
   "macros",
   "noise",
-  "rendezvous",
   "request-response",
   "tcp",
   "tokio",
