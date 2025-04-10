@@ -1,7 +1,11 @@
 use std::collections::HashMap;
 
+/// The services request/response protocol name.
 pub const PROTOCOL_NAME: &str = "/polka-storage/rr-services/1.0.0";
+// NOTE(@jmg-duarte,10/04/2025): at the cost of extra dependencies
+// (that we're already using in other crates) we could offer StreamProtocol here too
 
+/// Information about a specific service.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 pub struct ServiceInfo {
@@ -14,39 +18,13 @@ pub struct ServiceInfo {
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 pub struct Services(pub HashMap<String, ServiceInfo>);
 
-impl Services {
-    pub fn get(&self, service: &String) -> Services {
-        Services(match self.0.get(service) {
-            Some(info) => {
-                let mut m = HashMap::new();
-                m.insert(service.clone(), info.clone());
-                m
-            }
-            None => HashMap::new(),
-        })
-    }
-
-    pub fn get_n<'s, I>(&self, services: I) -> Services
-    where
-        I: Iterator<Item = &'s String>,
-    {
-        let mut m = HashMap::new();
-        for service in services {
-            if let Some(info) = self.0.get(service) {
-                m.insert(service.clone(), info.clone());
-            }
-        }
-        Services(m)
-    }
-}
-
-/// A service request, supports requesting information for
-/// single, multiple and all protocols available.
+/// A service request.
+// We could try to support something like `type Request = struct All;`
+// but this enables future extensions with minimal changes.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 pub enum Request {
-    Specific(String),
-    Multiple(Vec<String>),
+    // In any case, this will be serialized as `"All"` (at least under `serde_json` and `cbor4ii`).
     All,
 }
 
@@ -98,20 +76,6 @@ mod tests {
 
     #[test]
     fn request_shape() {
-        assert_eq!(
-            to_string(&Request::Specific("ws".to_string())).unwrap(),
-            to_string(&json!({"Specific": "ws"})).unwrap()
-        );
-
-        assert_eq!(
-            to_string(&Request::Multiple(vec![
-                "ws".to_string(),
-                "http".to_string()
-            ]))
-            .unwrap(),
-            to_string(&json!({"Multiple": ["ws", "http"]})).unwrap()
-        );
-
         assert_eq!(
             to_string(&Request::All).unwrap(),
             to_string(&json!("All")).unwrap()
