@@ -14,6 +14,8 @@ pub use request_response::{
     },
 };
 
+pub use request_response::services;
+
 pub const GOSSIP_TOPIC: &str = "registrar";
 pub const IDENTIFY_PROTOCOL_VERSION: &str = "polka-storage/1.0.0";
 pub const DEFAULT_REGISTRATION_TTL: u64 = 86400;
