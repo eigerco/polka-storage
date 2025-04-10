@@ -554,13 +554,13 @@ impl Server {
             services: {
                 let mut hm = HashMap::new();
                 hm.insert(
-                    "ws".to_string(),
+                    "rpc".to_string(),
                     ServiceInfo {
                         port: self.rpc_listen_address.port(),
                     },
                 );
                 hm.insert(
-                    "http".to_string(),
+                    "upload".to_string(),
                     ServiceInfo {
                         port: self.upload_listen_address.port(),
                     },
