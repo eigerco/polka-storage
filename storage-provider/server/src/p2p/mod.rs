@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
 use ::blockstore::Blockstore;
 use futures::StreamExt;
@@ -281,9 +281,8 @@ where
         channel: ResponseChannel<services::Response>,
         request_id: InboundRequestId,
     ) {
+        tracing::trace!("Received request from {peer}: {request}");
         let services = match request {
-            services::Request::Specific(service) => self.services.get(&service),
-            services::Request::Multiple(services) => self.services.get_n(services.iter()),
             services::Request::All => self.services.clone(),
         };
         if self
