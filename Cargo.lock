@@ -16189,6 +16189,7 @@ dependencies = [
  "hex",
  "libp2p 0.54.1",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

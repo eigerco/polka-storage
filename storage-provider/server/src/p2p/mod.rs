@@ -1,16 +1,20 @@
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use ::blockstore::Blockstore;
 use futures::StreamExt;
 use libp2p::{
     identify::{self},
     identity::Keypair,
-    request_response::{self, Event as RequestResponseEvent, Message, ProtocolSupport},
+    request_response::{
+        self, Event as RequestResponseEvent, InboundRequestId, Message, ProtocolSupport,
+        ResponseChannel,
+    },
     swarm::{NetworkBehaviour, SwarmEvent},
     Multiaddr, PeerId, StreamProtocol, Swarm,
 };
 use libp2p_length_prefix_codec::LpCbor;
 use primitives_p2p::{
+    services::{self, Services},
     PieceInfo, PieceInfoRequest, PieceInfoResponse, DEFAULT_REGISTRATION_TTL,
     IDENTIFY_PROTOCOL_VERSION, SP_REQUEST_RESPONSE_PROTOCOL,
 };
@@ -51,6 +55,8 @@ where
     pub blockstore: Arc<B>,
     /// Piece index database.
     pub index_db: Arc<I>,
+
+    pub services: Services,
 }
 
 /// Our network behaviour.
@@ -61,7 +67,30 @@ where
 {
     identify: identify::Behaviour,
     bitswap: beetswap::Behaviour<MAX_MULTIHASH_LENGTH, B>,
-    request_response: request_response::Behaviour<LpCbor<PieceInfoRequest, PieceInfoResponse>>,
+    piece_info_rr: request_response::Behaviour<LpCbor<PieceInfoRequest, PieceInfoResponse>>,
+    services_rr: request_response::Behaviour<LpCbor<services::Request, services::Response>>,
+}
+
+fn setup_piece_info_rr() -> request_response::Behaviour<LpCbor<PieceInfoRequest, PieceInfoResponse>>
+{
+    request_response::Behaviour::<LpCbor<PieceInfoRequest, PieceInfoResponse>>::new(
+        [(
+            StreamProtocol::new(SP_REQUEST_RESPONSE_PROTOCOL),
+            ProtocolSupport::Full,
+        )],
+        request_response::Config::default(),
+    )
+}
+
+fn setup_services_rr() -> request_response::Behaviour<LpCbor<services::Request, services::Response>>
+{
+    request_response::Behaviour::<LpCbor<services::Request, services::Response>>::new(
+        [(
+            StreamProtocol::new(services::PROTOCOL_NAME),
+            ProtocolSupport::Inbound,
+        )],
+        request_response::Config::default(),
+    )
 }
 
 /// Worker manages the P2P networking lifecycle and peer interactions.
@@ -80,6 +109,7 @@ where
     swarm: Swarm<Behaviour<B>>,
     rendezvous_nodes: Vec<(PeerId, Multiaddr)>,
     index_db: Arc<I>,
+    services: services::Services,
 }
 
 impl<B, I> Worker<B, I>
@@ -95,19 +125,11 @@ where
 
         let bitswap = beetswap::Behaviour::new(args.blockstore);
 
-        let request_response =
-            request_response::Behaviour::<LpCbor<PieceInfoRequest, PieceInfoResponse>>::new(
-                [(
-                    StreamProtocol::new(SP_REQUEST_RESPONSE_PROTOCOL),
-                    ProtocolSupport::Full,
-                )],
-                request_response::Config::default(),
-            );
-
         let behaviour = Behaviour {
             identify,
             bitswap,
-            request_response,
+            piece_info_rr: setup_piece_info_rr(),
+            services_rr: setup_services_rr(),
         };
 
         let mut swarm = new_swarm(args.local_keypair, behaviour).await?;
@@ -123,6 +145,7 @@ where
             swarm,
             rendezvous_nodes: args.rendezvous_nodes,
             index_db: args.index_db,
+            services: args.services,
         })
     }
 
@@ -149,7 +172,8 @@ where
     fn on_swarm_event(&mut self, event: SwarmEvent<BehaviourEvent<B>>) {
         match event {
             SwarmEvent::Behaviour(ev) => match ev {
-                BehaviourEvent::RequestResponse(ev) => self.on_request_response_event(ev),
+                BehaviourEvent::PieceInfoRr(ev) => self.on_piece_info_rr_event(ev),
+                BehaviourEvent::ServicesRr(event) => self.on_services_rr_event(event),
                 _ => tracing::trace!("Unhandled behaviour event: {ev:?}"),
             },
             SwarmEvent::NewListenAddr { address, .. } => {
@@ -159,8 +183,8 @@ where
         }
     }
 
-    #[instrument(level = "trace", skip(self))]
-    fn on_request_response_event(
+    #[instrument(level = "info", skip(self))]
+    fn on_piece_info_rr_event(
         &mut self,
         event: RequestResponseEvent<PieceInfoRequest, PieceInfoResponse>,
     ) {
@@ -173,26 +197,7 @@ where
                         channel,
                         request_id,
                     },
-            } => {
-                debug!("Got request with id {request_id} from {peer}");
-
-                let response = match self.index_db.get_piece_metadata(request.piece_cid) {
-                    Ok(info) => PieceInfoResponse::Found(PieceInfo { roots: info.roots }),
-                    Err(err) => {
-                        error!(?err, "error occurred while retrieving piece info");
-                        PieceInfoResponse::NotFound(request.piece_cid)
-                    }
-                };
-
-                let response_result = self
-                    .swarm
-                    .behaviour_mut()
-                    .request_response
-                    .send_response(channel, response);
-                if let Err(err) = response_result {
-                    error!(%peer, ?err, "Failed to respond with piece info");
-                }
-            }
+            } => self.on_piece_info_request(peer, request, channel, request_id),
             RequestResponseEvent::OutboundFailure {
                 peer,
                 request_id,
@@ -208,6 +213,87 @@ where
             RequestResponseEvent::ResponseSent { .. } | RequestResponseEvent::Message { .. } => {
                 tracing::trace!("Unhandled request response event: {event:?}")
             }
+        }
+    }
+
+    fn on_piece_info_request(
+        &mut self,
+        peer: PeerId,
+        request: PieceInfoRequest,
+        channel: ResponseChannel<PieceInfoResponse>,
+        request_id: InboundRequestId,
+    ) {
+        debug!("Got request with id {request_id} from {peer}");
+
+        let response = match self.index_db.get_piece_metadata(request.piece_cid) {
+            Ok(info) => PieceInfoResponse::Found(PieceInfo { roots: info.roots }),
+            Err(err) => {
+                error!(?err, "error occurred while retrieving piece info");
+                PieceInfoResponse::NotFound(request.piece_cid)
+            }
+        };
+
+        let response_result = self
+            .swarm
+            .behaviour_mut()
+            .piece_info_rr
+            .send_response(channel, response);
+        if let Err(err) = response_result {
+            error!(%peer, ?err, "Failed to respond with piece info");
+        }
+    }
+
+    #[instrument(skip(self))]
+    fn on_services_rr_event(
+        &mut self,
+        event: request_response::Event<services::Request, services::Response>,
+    ) {
+        match event {
+            RequestResponseEvent::Message {
+                peer,
+                message:
+                    request_response::Message::Request {
+                        request_id,
+                        request,
+                        channel,
+                    },
+            } => self.on_services_rr_request(peer, request, channel, request_id),
+            RequestResponseEvent::InboundFailure { .. } => {
+                tracing::error!("Inbound request failed with error: {event:?}")
+            }
+            RequestResponseEvent::ResponseSent { .. } => {
+                tracing::trace!("Unhandled event: {event:?}")
+            }
+            RequestResponseEvent::Message {
+                message: request_response::Message::Response { .. },
+                ..
+            }
+            | RequestResponseEvent::OutboundFailure { .. } => {
+                unreachable!("Protocol is configured as inbound only!")
+            }
+        }
+    }
+
+    fn on_services_rr_request(
+        &mut self,
+        peer: PeerId,
+        request: services::Request,
+        channel: ResponseChannel<services::Response>,
+        request_id: InboundRequestId,
+    ) {
+        let services = match request {
+            services::Request::Specific(service) => self.services.get(&service),
+            services::Request::Multiple(services) => self.services.get_n(services.iter()),
+            services::Request::All => self.services.clone(),
+        };
+        if self
+            .swarm
+            .behaviour_mut()
+            .services_rr
+            .send_response(channel, services::Response { services })
+            .is_err()
+        {
+            tracing::error!("Failed to send a response to request {request_id}");
         }
     }
 }

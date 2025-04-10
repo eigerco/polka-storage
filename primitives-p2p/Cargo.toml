@@ -8,16 +8,20 @@ repository.workspace = true
 version = "0.1.0"
 
 [features]
-serde = ["dep:serde"]
+serde = ["cid/serde", "dep:serde"]
 
 [dependencies]
-cid = { workspace = true, default-features = false, features = ["alloc"] }
+cid = { workspace = true, default-features = true }
 ed25519-dalek = { workspace = true, features = ["pem"] }
-hex = { workspace = true }
+hex = { workspace = true, default-features = true }
 libp2p = { workspace = true }
 
 # Optional dependencies
 serde = { workspace = true, optional = true, features = ["derive"] }
+
+[dev-dependencies]
+serde = { workspace = true, features = ["std"] }
+serde_json = { workspace = true, features = ["std"] }
 
 [lints]
 workspace = true

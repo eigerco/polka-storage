@@ -36,6 +36,7 @@ use polka_storage_proofs::{
 };
 use polka_storage_provider_common::{config::sealing::SealingConfiguration, rpc::ServerInfo};
 use primitives::proofs::{RegisteredPoStProof, RegisteredSealProof};
+use primitives_p2p::services::{ServiceInfo, Services};
 use rand::Rng;
 use storagext::{
     multipair::{MultiPairArgs, MultiPairSigner},
@@ -550,6 +551,22 @@ impl Server {
             p2p_ws_listen_address: self.p2p_ws_listen_address,
             blockstore: Arc::new(PiecesBlockstore::new(raw_pieces_dir, Arc::clone(&lid))),
             index_db: Arc::clone(&lid),
+            services: {
+                let mut hm = HashMap::new();
+                hm.insert(
+                    "ws".to_string(),
+                    ServiceInfo {
+                        port: self.rpc_listen_address.port(),
+                    },
+                );
+                hm.insert(
+                    "http".to_string(),
+                    ServiceInfo {
+                        port: self.upload_listen_address.port(),
+                    },
+                );
+                Services(hm)
+            },
         };
 
         let indexer_state = IndexerState { lid };
