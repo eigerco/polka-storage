@@ -253,7 +253,7 @@ impl ProofsCommand {
                     proof_parameters_path,
                     commp,
                     seal_proof,
-                    cache_directory,
+                    &cache_directory,
                 )
                 .await?;
             }
@@ -324,27 +324,20 @@ async fn calculate_piece_commitment(
 }
 
 fn generate_porep_params(
-    params_output_path: Option<impl AsRef<Path>>,
-    keys_output_path: Option<impl AsRef<Path>>,
+    params_output_path: Option<PathBuf>,
+    keys_output_path: Option<PathBuf>,
     seal_proof: RegisteredSealProof,
 ) -> Result<(), CliError> {
-    let params_output_path = if let Some(params_output_path) = params_output_path {
-        params_output_path.as_ref().to_owned()
-    } else {
-        std::env::current_dir()?
-    };
-    let keys_output_path = if let Some(keys_output_path) = keys_output_path {
-        keys_output_path.as_ref().to_owned()
-    } else {
-        std::env::current_dir()?
-    };
+    let current_dir = std::env::current_dir()?;
+    let params_output_path = params_output_path.unwrap_or_else(|| current_dir.clone());
+    let keys_output_path = keys_output_path.unwrap_or_else(move || current_dir);
     let file_name: String = seal_proof.sector_size().to_string();
     let (parameters_file_name, mut parameters_file) =
-        file_with_extension(&params_output_path, file_name.as_str(), POREP_PARAMS_EXT)?;
+        file_with_extension(params_output_path, file_name.as_str(), POREP_PARAMS_EXT)?;
     let (vk_file_name, mut vk_file) =
-        file_with_extension(&keys_output_path, file_name.as_str(), POREP_VK_EXT)?;
+        file_with_extension(keys_output_path.clone(), file_name.as_str(), POREP_VK_EXT)?;
     let (vk_scale_file_name, mut vk_scale_file) =
-        file_with_extension(&keys_output_path, file_name.as_str(), POREP_VK_EXT_SCALE)?;
+        file_with_extension(keys_output_path, file_name.as_str(), POREP_VK_EXT_SCALE)?;
     println!(
         "Generating params for {} sectors... It can take a couple of minutes ⌛",
         file_name
@@ -370,9 +363,9 @@ async fn porep(
     sector_id: u32,
     seal_randomness_height: u64,
     pre_commit_block_number: u64,
-    output_path: Option<impl AsRef<Path>>,
-    input_path: impl AsRef<Path>,
-    proof_parameters_path: impl AsRef<Path>,
+    output_path: Option<PathBuf>,
+    input_path: PathBuf,
+    proof_parameters_path: PathBuf,
     commp: String,
     seal_proof: RegisteredSealProof,
     cache_directory: impl AsRef<Path>,
@@ -404,24 +397,22 @@ async fn porep(
         hex::encode(seed)
     );
     let output_path = if let Some(output_path) = output_path {
-        output_path.as_ref().to_owned()
+        output_path
     } else {
         std::env::current_dir()?
     };
     let (proof_scale_filename, proof_scale_file) = file_with_extension(
-        &output_path,
+        output_path.clone(),
         format!("{}", sector_id).as_str(),
         POREP_PROOF_EXT,
     )?;
-    let input_path = input_path.as_ref();
     let mut source_file = tokio::fs::File::open(&input_path).await?;
     source_file
         .is_car_file()
         .await
         .map_err(|e| UtilsCommandError::InvalidCARv2(input_path.to_owned(), e))?;
-    let proof_parameters =
-        porep::load_groth16_parameters(proof_parameters_path.as_ref().to_owned())
-            .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
+    let proof_parameters = porep::load_groth16_parameters(proof_parameters_path)
+        .map_err(|e| UtilsCommandError::GeneratePoRepError(e))?;
     let piece_file = std::fs::File::open(&input_path)
         .map_err(|e| UtilsCommandError::InvalidPieceFile(input_path.to_owned(), e))?;
     let piece_file_length = piece_file
@@ -438,12 +429,12 @@ async fn porep(
         size: piece_file_length,
     };
     let (unsealed_sector_path, unsealed_sector) = file_with_extension(
-        &output_path,
+        output_path.clone(),
         format!("{}", sector_id).as_str(),
         "sector.unsealed",
     )?;
     let (sealed_sector_path, _) = file_with_extension(
-        &output_path,
+        output_path,
         format!("{}", sector_id).as_str(),
         "sector.sealed",
     )?;
@@ -512,11 +503,11 @@ fn generate_post_params(
     };
     let file_name: String = post_type.sector_size().to_string();
     let (parameters_file_name, mut parameters_file) =
-        file_with_extension(&output_path, file_name.as_str(), POST_PARAMS_EXT)?;
+        file_with_extension(output_path.clone(), file_name.as_str(), POST_PARAMS_EXT)?;
     let (vk_file_name, mut vk_file) =
-        file_with_extension(&output_path, file_name.as_str(), POST_VK_EXT)?;
+        file_with_extension(output_path.clone(), file_name.as_str(), POST_VK_EXT)?;
     let (vk_scale_file_name, mut vk_scale_file) =
-        file_with_extension(&output_path, file_name.as_str(), POST_VK_EXT_SCALE)?;
+        file_with_extension(output_path, file_name.as_str(), POST_VK_EXT_SCALE)?;
     println!(
         "Generating PoSt params for {} sectors... It can take a few secs ⌛",
         file_name
@@ -562,7 +553,7 @@ fn post(
         std::env::current_dir()?
     };
     let (proof_scale_filename, proof_scale_file) = file_with_extension(
-        &output_path,
+        output_path,
         format!("{}", sector_number).as_str(),
         POST_PROOF_EXT,
     )?;
@@ -669,9 +660,7 @@ async fn benchmark_data(input_path: PathBuf, sector_size: SectorSizeArg) -> Resu
     let porep_params_path = params_root.join(format!("{sector_size}.{POREP_PARAMS_EXT}"));
     let porep_params_vk_path = keys_root.join(format!("{sector_size}.{POREP_VK_EXT_SCALE}"));
     if !tokio::fs::try_exists(&porep_params_vk_path).await? {
-        return Err(CliError::MissingPoRepParams {
-            seal_proof,
-        });
+        return Err(CliError::MissingPoRepParams { seal_proof });
     }
     println!("--- Using pre-generated PoRep params for seal proof {seal_proof:?} ---");
     println!("{}", porep_params_path.display());
@@ -691,8 +680,7 @@ async fn benchmark_data(input_path: PathBuf, sector_size: SectorSizeArg) -> Resu
         sectors: Vec::with_capacity(MAX_SECTORS_PER_CALL as usize),
     };
 
-    let proofs_root = PathBuf::from(PROOFS_DIR)
-        .join(sector_size.to_string());
+    let proofs_root = PathBuf::from(PROOFS_DIR).join(sector_size.to_string());
     tokio::fs::create_dir_all(&proofs_root).await?;
 
     for sector_number in 0..MAX_SECTORS_PER_CALL {
@@ -707,9 +695,9 @@ async fn benchmark_data(input_path: PathBuf, sector_size: SectorSizeArg) -> Resu
             sector_number,
             SEAL_RANDOMNESS_HEIGHT,
             PRE_COMMIT_BLOCK_NUMBER,
-            Some(&output_path),
-            &input_path,
-            &porep_params_path,
+            Some(output_path.path().to_path_buf()),
+            input_path.clone(),
+            porep_params_path.clone(),
             comm_p.to_string(),
             seal_proof,
             &cache_directory,
@@ -859,17 +847,16 @@ pub enum UtilsCommandError {
 }
 
 fn file_with_extension(
-    output_path: &PathBuf,
+    mut output_path: PathBuf,
     file_name: &str,
     extension: &str,
 ) -> Result<(PathBuf, std::fs::File), UtilsCommandError> {
-    let mut new_path = output_path.clone();
-    new_path.push(file_name);
-    new_path.set_extension(extension);
+    output_path.push(file_name);
+    output_path.set_extension(extension);
 
-    let file = std::fs::File::create(new_path.clone())
-        .map_err(|e| UtilsCommandError::FileCreateError(new_path.clone(), e))?;
-    Ok((new_path, file))
+    let file = std::fs::File::create(&output_path)
+        .map_err(|e| UtilsCommandError::FileCreateError(output_path.clone(), e))?;
+    Ok((output_path, file))
 }
 
 fn get_randomness(
