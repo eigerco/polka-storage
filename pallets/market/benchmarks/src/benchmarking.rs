@@ -181,12 +181,12 @@ mod benchmarks {
         setup_account_balance::<T>(client.0.clone());
 
         let proposals = data.deal_proposals(&client, n);
-        let cost: u32 = proposals
+        let cost: BalanceOf<T> = proposals
             .iter()
             .map(|p| p.proposal.total_storage_fee().unwrap())
             .sum::<u128>()
             .try_into()
-            .unwrap();
+            .unwrap_or_else(|_| panic!("failed to convert proposal fees to balance"));
         let collaterals = proposals
             .iter()
             .map(|p| p.proposal.provider_collateral)
@@ -210,7 +210,10 @@ mod benchmarks {
         assert_eq!(balance_entry.locked, collaterals);
 
         let balance_entry = BalanceTable::<T>::get(&client.0);
-        assert_eq!(balance_entry.free, (EXISTENTIAL_DEPOSIT - cost).into());
+        assert_eq!(
+            balance_entry.free,
+            BalanceOf::<T>::from(EXISTENTIAL_DEPOSIT) - cost
+        );
         assert_eq!(balance_entry.locked, cost.into());
     }
 
