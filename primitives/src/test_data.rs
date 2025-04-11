@@ -23,20 +23,6 @@ use crate::{
     PEER_ID_MAX_BYTES,
 };
 
-// If this is changed, also update BenchmarkData in `storage-provider/client/src/commands/proofs.rs`.
-#[derive(Debug)]
-pub struct BenchmarkData<T> {
-    pub storage_provider_name: &'static str,
-    pub verifying_key: &'static [u8],
-    pub seal_proof: RegisteredSealProof,
-    pub post_type: RegisteredPoStProof,
-    pub seal_randomness_height: u64,
-    pub pre_commit_block_number: u64,
-    pub comm_p: Commitment<CommP>,
-    pub sectors: Vec<SectorData>,
-    _phantom: PhantomData<T>,
-}
-
 // If this is changed, also update SectorData in `storage-provider/client/src/commands/proofs.rs`.
 #[derive(Debug)]
 pub struct SectorData {
@@ -88,6 +74,20 @@ pub fn create_sr25519_signature(payload: &[u8], pubkey: MultiSigner) -> MultiSig
     let srpubkey = sr25519::Public::try_from(pubkey).unwrap();
     let srsig = sr25519_sign(0.into(), &srpubkey, payload).unwrap();
     srsig.into()
+}
+
+// If this is changed, also update BenchmarkData in `storage-provider/client/src/commands/proofs.rs`.
+#[derive(Debug)]
+pub struct BenchmarkData<T> {
+    pub storage_provider_name: &'static str,
+    pub verifying_key: &'static [u8],
+    pub seal_proof: RegisteredSealProof,
+    pub post_type: RegisteredPoStProof,
+    pub seal_randomness_height: u64,
+    pub pre_commit_block_number: u64,
+    pub comm_p: Commitment<CommP>,
+    pub sectors: Vec<SectorData>,
+    _phantom: PhantomData<T>,
 }
 
 impl<T> BenchmarkData<T> {
