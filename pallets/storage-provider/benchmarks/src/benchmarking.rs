@@ -55,7 +55,11 @@ mod benchmarks {
         let window_post_proof_type = data.post_type;
 
         #[extrinsic_call]
-        _(RawOrigin::Signed(caller.clone()), peer_id.clone(), window_post_proof_type);
+        _(
+            RawOrigin::Signed(caller.clone()),
+            peer_id.clone(),
+            window_post_proof_type,
+        );
 
         let state = SpPallet::<T>::storage_providers(caller).unwrap();
         assert_eq!(state.info.peer_id, peer_id);
@@ -103,7 +107,11 @@ where
     let data = BenchmarkData::<T>::load();
     let alice = create_account_with_balance::<T>(ALICE, EXISTENTIAL_DEPOSIT * 2);
     let sp = data.storage_provider();
-    create_and_register_storage_provider_with_balance::<T>(&sp, data.post_type, EXISTENTIAL_DEPOSIT * 2);
+    create_and_register_storage_provider_with_balance::<T>(
+        &sp,
+        data.post_type,
+        EXISTENTIAL_DEPOSIT * 2,
+    );
 
     assert_ok!(MarketPallet::<T>::add_balance(
         RawOrigin::Signed(sp.account_id.clone()).into(),
@@ -155,7 +163,11 @@ where
     let data = BenchmarkData::<T>::load();
     let alice = create_account_with_balance::<T>(ALICE, EXISTENTIAL_DEPOSIT * 2);
     let sp = data.storage_provider();
-    create_and_register_storage_provider_with_balance::<T>(&sp, data.post_type, EXISTENTIAL_DEPOSIT * 2);
+    create_and_register_storage_provider_with_balance::<T>(
+        &sp,
+        data.post_type,
+        EXISTENTIAL_DEPOSIT * 2,
+    );
 
     assert_ok!(MarketPallet::<T>::add_balance(
         RawOrigin::Signed(sp.account_id.clone()).into(),

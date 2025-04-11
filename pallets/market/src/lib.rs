@@ -43,7 +43,7 @@ pub mod pallet {
         pallets::{ActiveDeal, ActiveSector, Market, SectorDeal, StorageProviderValidation},
         proofs::RegisteredSealProof,
         sector::{SectorNumber, SectorSize},
-        DealId, MAX_DEALS_PER_SECTOR, MAX_DEALS_FOR_ALL_SECTORS
+        DealId, MAX_DEALS_FOR_ALL_SECTORS, MAX_DEALS_PER_SECTOR,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::BaseArithmetic;

@@ -59,8 +59,8 @@ pub mod pallet {
         proofs::{derive_prover_id, PublicReplicaInfo, RegisteredPoStProof},
         randomness::{draw_randomness, AuthorVrfHistory, DomainSeparationTag},
         sector::{ProveCommitSector, SectorNumber, SectorPreCommitInfo},
-        PartitionNumber, MAX_PARTITIONS_PER_DEADLINE, MAX_POREP_PROOFS_PER_BLOCK,
-        MAX_SEAL_PROOF_BYTES, MAX_SECTORS, MAX_SECTORS_PER_CALL, MAX_DEALS_PER_SECTOR
+        PartitionNumber, MAX_DEALS_PER_SECTOR, MAX_PARTITIONS_PER_DEADLINE,
+        MAX_POREP_PROOFS_PER_BLOCK, MAX_SEAL_PROOF_BYTES, MAX_SECTORS, MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::Zero;

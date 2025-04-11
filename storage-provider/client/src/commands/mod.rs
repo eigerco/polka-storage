@@ -8,8 +8,7 @@ use ed25519_dalek::pkcs8::{DecodePublicKey, PublicKeyBytes};
 use jsonrpsee::core::ClientError;
 use libp2p::{identity::ed25519::PublicKey as EdPubKey, PeerId};
 use polka_storage_provider_common::rpc::StorageProviderRpcClient;
-use primitives::proofs::RegisteredSealProof;
-use primitives::DealId;
+use primitives::{proofs::RegisteredSealProof, DealId};
 use storagext::{
     deser::DeserializablePath,
     multipair::{MultiPairArgs, MultiPairSigner},

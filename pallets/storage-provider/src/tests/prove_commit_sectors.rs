@@ -175,28 +175,31 @@ fn successfully_prove_multiple_sectors() {
             ));
             expected_sector_results_aggregated.push(expected_sector_results);
         }
-        let expected_events = [RuntimeEvent::Market(pallet_market::Event::DealActivated {
-                    deal_id: 0,
-                    client: account(ALICE),
-                    provider: account(storage_provider)
+        let expected_events = [
+            RuntimeEvent::Market(pallet_market::Event::DealActivated {
+                deal_id: 0,
+                client: account(ALICE),
+                provider: account(storage_provider),
+            }),
+            RuntimeEvent::Market(pallet_market::Event::DealActivated {
+                deal_id: 1,
+                client: account(BOB),
+                provider: account(storage_provider),
+            }),
+        ]
+        .into_iter()
+        .chain(
+            expected_sector_results_aggregated
+                .into_iter()
+                .map(|expected_sector_results| {
+                    RuntimeEvent::StorageProvider(Event::<Test>::SectorsProven {
+                        owner: account(storage_provider),
+                        sectors: expected_sector_results,
+                    })
                 }),
-                RuntimeEvent::Market(pallet_market::Event::DealActivated {
-                    deal_id: 1,
-                    client: account(BOB),
-                    provider: account(storage_provider)
-                })].into_iter().chain(
-expected_sector_results_aggregated.into_iter().map(|expected_sector_results|
-RuntimeEvent::StorageProvider(Event::<Test>::SectorsProven {
-                    owner: account(storage_provider),
-                    sectors: expected_sector_results
-                })
-)
-                )
-                .collect::<Vec<_>>();
-        assert_eq!(
-            events(),
-            expected_events
-        );
+        )
+        .collect::<Vec<_>>();
+        assert_eq!(events(), expected_events);
 
         // check that the funds are unlocked
         assert_eq!(Market::free(&account(storage_provider)), Some(20));
