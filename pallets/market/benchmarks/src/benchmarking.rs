@@ -1,4 +1,4 @@
-use core::fmt::Debug;
+use core::{fmt::Debug, ops::Add};
 
 use frame_benchmarking::v2::*;
 use frame_support::{pallet_prelude::ConstU32, sp_runtime::BoundedVec, traits::Currency};
@@ -35,7 +35,7 @@ const EXISTENTIAL_DEPOSIT: u32 = 1_000_000_000;
             AccountId = AccountId32,
             OffchainSignature = sp_runtime::MultiSignature,
         >,
-        BlockNumberFor<T>: From<u64>,
+        BlockNumberFor<T>: From<u64> + Into<u64> + Add,
         BalanceOf<T>: Sum + From<u32> + Encode,
         <T as pallet_market::Config>::RuntimeEvent: Debug,
 )]
@@ -247,8 +247,8 @@ mod benchmarks {
         MarketPallet::<T>::publish_storage_deals(storage_provider.clone(), proposals.clone())
             .unwrap();
 
-        // Run to 5 to enter pre-commit period
-        run_to_block::<T>(5);
+        // Run to pre-commit period
+        run_to_block::<T>(data.pre_commit_block_number.try_into().unwrap());
 
         let pre_commit_infos = data.pre_commit_sectors(n);
         SpPallet::<T>::pre_commit_sectors(storage_provider.clone(), pre_commit_infos.clone())
@@ -260,7 +260,13 @@ mod benchmarks {
             data.verifying_key.to_vec(),
         ));
 
-        run_to_block::<T>(15);
+        // Run to after pre-commit delay
+        run_to_block::<T>(
+            (BlockNumberFor::<T>::from(data.pre_commit_block_number)
+                + T::PreCommitChallengeDelay::get())
+            .try_into()
+            .unwrap_or_else(|_| panic!("failed to convert pre-commit delay block to block number")),
+        );
 
         let proofs = data.prove_commit_sectors(n);
         SpPallet::<T>::prove_commit_sectors(storage_provider.clone(), proofs).unwrap();

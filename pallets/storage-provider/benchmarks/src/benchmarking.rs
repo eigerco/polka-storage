@@ -1,13 +1,14 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use alloc::vec;
+use core::ops::Add;
 
 use codec::Encode;
 use frame_benchmarking::v2::*;
 use frame_support::{
     assert_ok,
     pallet_prelude::{ConstU32, One},
-    traits::{Currency, Hooks},
+    traits::{Currency, Get, Hooks},
     BoundedVec,
 };
 use frame_system::{pallet_prelude::BlockNumberFor, RawOrigin};
@@ -140,7 +141,7 @@ where
     BlockNumberFor<T>: From<u64> + Into<u64>,
 {
     let state = SpPallet::<T>::storage_providers(sp_id).unwrap();
-    let balance: BalanceOf<T> = (n * 1_u32).into();
+    let balance: BalanceOf<T> = n.into();
     assert_eq!(state.pre_commit_deposits, balance);
 }
 
@@ -157,7 +158,7 @@ where
             AccountId = AccountId32,
             OffchainSignature = MultiSignature,
         > + primitives::configs::MarketProvider,
-    BlockNumberFor<T>: From<u64> + Into<u64>,
+    BlockNumberFor<T>: From<u64> + Into<u64> + Add,
     u64: TryFrom<BalanceOf<T>>,
 {
     let data = BenchmarkData::<T>::load();
@@ -195,8 +196,8 @@ where
         proposals,
     ));
 
-    // Run to 5 to enter pre-commit period
-    run_to_block::<T>(5.into());
+    // Run to pre-commit period
+    run_to_block::<T>(data.pre_commit_block_number.into());
 
     assert_ok!(SpPallet::<T>::pre_commit_sectors(
         RawOrigin::Signed(sp.account_id.clone()).into(),
@@ -209,7 +210,10 @@ where
         data.verifying_key.to_vec(),
     ));
 
-    run_to_block::<T>(15.into());
+    // Run to after pre-commit delay
+    run_to_block::<T>(
+        BlockNumberFor::<T>::from(data.pre_commit_block_number) + T::PreCommitChallengeDelay::get(),
+    );
 
     (sp.account_id, prove_sectors, total_collateral as u32)
 }
