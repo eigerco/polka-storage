@@ -43,7 +43,7 @@ pub mod pallet {
         pallets::{ActiveDeal, ActiveSector, Market, SectorDeal, StorageProviderValidation},
         proofs::RegisteredSealProof,
         sector::{SectorNumber, SectorSize},
-        DealId, MAX_DEALS_PER_SECTOR, MAX_SECTORS_PER_CALL,
+        DealId, MAX_DEALS_PER_SECTOR, MAX_DEALS_FOR_ALL_SECTORS
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::BaseArithmetic;
@@ -812,7 +812,7 @@ pub mod pallet {
 
         /// <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L1388>
         fn validate_deals_for_sector(
-            deals: &BoundedVec<(DealId, DealProposalOf<T>), ConstU32<MAX_SECTORS_PER_CALL>>,
+            deals: &BoundedVec<(DealId, DealProposalOf<T>), ConstU32<MAX_DEALS_FOR_ALL_SECTORS>>,
             provider: &T::AccountId,
             sector_number: SectorNumber,
             sector_expiry: BlockNumberFor<T>,
@@ -875,10 +875,10 @@ pub mod pallet {
         fn proposals_for_deals(
             deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
         ) -> Result<
-            BoundedVec<(DealId, DealProposalOf<T>), ConstU32<MAX_SECTORS_PER_CALL>>,
+            BoundedVec<(DealId, DealProposalOf<T>), ConstU32<MAX_DEALS_FOR_ALL_SECTORS>>,
             DispatchError,
         > {
-            let mut unique_deals: BoundedBTreeSet<DealId, ConstU32<MAX_SECTORS_PER_CALL>> =
+            let mut unique_deals: BoundedBTreeSet<DealId, ConstU32<MAX_DEALS_PER_SECTOR>> =
                 BoundedBTreeSet::new();
             let mut proposals = BoundedVec::new();
             for deal_id in deal_ids {
@@ -1137,8 +1137,8 @@ pub mod pallet {
         /// Currently UnsealedCID is hardcoded as we `compute_commd` remains unimplemented because of #92.
         fn verify_deals_for_activation(
             storage_provider: &T::AccountId,
-            sector_deals: BoundedVec<SectorDeal<BlockNumberFor<T>>, ConstU32<MAX_SECTORS_PER_CALL>>,
-        ) -> Result<BoundedVec<Option<Cid>, ConstU32<MAX_SECTORS_PER_CALL>>, DispatchError>
+            sector_deals: BoundedVec<SectorDeal<BlockNumberFor<T>>, ConstU32<MAX_DEALS_PER_SECTOR>>,
+        ) -> Result<BoundedVec<Option<Cid>, ConstU32<MAX_DEALS_PER_SECTOR>>, DispatchError>
         {
             let curr_block = System::<T>::block_number();
             let mut unsealed_cids = BoundedVec::new();
@@ -1182,10 +1182,10 @@ pub mod pallet {
         /// PRE-COND: The caller of this function needs to make sure that the `storage_provider` account that is passed in is a registered storage provider.
         fn activate_deals(
             storage_provider: &T::AccountId,
-            sector_deals: BoundedVec<SectorDeal<BlockNumberFor<T>>, ConstU32<MAX_SECTORS_PER_CALL>>,
+            sector_deals: BoundedVec<SectorDeal<BlockNumberFor<T>>, ConstU32<MAX_DEALS_PER_SECTOR>>,
             compute_cid: bool,
         ) -> Result<
-            BoundedVec<ActiveSector<T::AccountId>, ConstU32<MAX_SECTORS_PER_CALL>>,
+            BoundedVec<ActiveSector<T::AccountId>, ConstU32<MAX_DEALS_PER_SECTOR>>,
             DispatchError,
         > {
             let mut activations = BoundedVec::new();

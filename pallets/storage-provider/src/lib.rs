@@ -60,7 +60,7 @@ pub mod pallet {
         randomness::{draw_randomness, AuthorVrfHistory, DomainSeparationTag},
         sector::{ProveCommitSector, SectorNumber, SectorPreCommitInfo},
         PartitionNumber, MAX_PARTITIONS_PER_DEADLINE, MAX_POREP_PROOFS_PER_BLOCK,
-        MAX_SEAL_PROOF_BYTES, MAX_SECTORS, MAX_SECTORS_PER_CALL,
+        MAX_SEAL_PROOF_BYTES, MAX_SECTORS, MAX_SECTORS_PER_CALL, MAX_DEALS_PER_SECTOR
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::Zero;
@@ -1514,10 +1514,10 @@ pub mod pallet {
 
         /// Verifies that the unsealed_cid (CommD) and checks that it matches the given unsealed CID.
         fn check_commd_for_pre_commit(
-            calculated_unsealed_cid: BoundedVec<Option<Cid>, ConstU32<MAX_SECTORS_PER_CALL>>,
+            calculated_unsealed_cid: BoundedVec<Option<Cid>, ConstU32<MAX_DEALS_PER_SECTOR>>,
             sector_amount: usize,
-            unsealed_cids: BoundedVec<Cid, ConstU32<MAX_SECTORS_PER_CALL>>,
-            deal_amounts: BoundedVec<usize, ConstU32<MAX_SECTORS_PER_CALL>>,
+            unsealed_cids: BoundedVec<Cid, ConstU32<MAX_DEALS_PER_SECTOR>>,
+            deal_amounts: BoundedVec<usize, ConstU32<MAX_DEALS_PER_SECTOR>>,
         ) -> Result<(), Error<T>> {
             ensure!(calculated_unsealed_cid.len() == sector_amount, {
                 log::error!(target: LOG_TARGET, "check_commd_for_pre_commit: failed to verify deals, invalid calculated_commd length: {}", calculated_unsealed_cid.len());

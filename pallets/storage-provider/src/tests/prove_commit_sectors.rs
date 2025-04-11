@@ -115,11 +115,11 @@ fn successfully_prove_multiple_sectors() {
         publish_deals(storage_provider);
 
         // Create 6 sectors in pre-commit
-        let mut sectors: BoundedVec<
-            SectorPreCommitInfo<BlockNumberFor<Test>>,
-            ConstU32<MAX_SECTORS_PER_CALL>,
-        > = bounded_vec![];
         for sector_number in 0..SECTORS_TO_COMMIT {
+            let mut sectors: BoundedVec<
+                SectorPreCommitInfo<BlockNumberFor<Test>>,
+                ConstU32<MAX_SECTORS_PER_CALL>,
+            > = bounded_vec![];
             sectors
                 .try_push(
                     SectorPreCommitInfoBuilder::default()
@@ -130,13 +130,13 @@ fn successfully_prove_multiple_sectors() {
                         .build(),
                 )
                 .expect("BoundedVec should fit all 6 elements");
-        }
 
-        // Run pre commit extrinsic
-        assert_ok!(StorageProvider::pre_commit_sectors(
-            RuntimeOrigin::signed(account(storage_provider)),
-            sectors.clone(),
-        ));
+            // Run pre commit extrinsic
+            assert_ok!(StorageProvider::pre_commit_sectors(
+                RuntimeOrigin::signed(account(storage_provider)),
+                sectors.clone(),
+            ));
+        }
 
         // Remove any events that were triggered until now.
         System::reset_events();
@@ -144,15 +144,16 @@ fn successfully_prove_multiple_sectors() {
         // Run to the block where we can prove commit the sector.
         run_to_block(System::block_number() + 2);
 
+        let mut expected_sector_results_aggregated = vec![];
         // Create 6 prove commits and the expected result
-        let mut sectors: BoundedVec<ProveCommitSector, ConstU32<MAX_SECTORS_PER_CALL>> =
-            bounded_vec![];
-        let mut expected_sector_results: BoundedVec<
-            ProveCommitResult,
-            ConstU32<MAX_SECTORS_PER_CALL>,
-        > = bounded_vec![];
         for sector_number in 0..SECTORS_TO_COMMIT {
+            let mut sectors: BoundedVec<ProveCommitSector, ConstU32<MAX_SECTORS_PER_CALL>> =
+                bounded_vec![];
             let sector_number = sector_number.try_into().unwrap();
+            let mut expected_sector_results: BoundedVec<
+                ProveCommitResult,
+                ConstU32<MAX_SECTORS_PER_CALL>,
+            > = bounded_vec![];
 
             sectors
                 .try_push(ProveCommitSector {
@@ -167,16 +168,14 @@ fn successfully_prove_multiple_sectors() {
                     partition_number: 0,
                 })
                 .expect("BoundedVec should fit all 6 elements");
-        }
 
-        assert_ok!(StorageProvider::prove_commit_sectors(
-            RuntimeOrigin::signed(account(storage_provider)),
-            sectors,
-        ));
-        assert_eq!(
-            events(),
-            [
-                RuntimeEvent::Market(pallet_market::Event::DealActivated {
+            assert_ok!(StorageProvider::prove_commit_sectors(
+                RuntimeOrigin::signed(account(storage_provider)),
+                sectors,
+            ));
+            expected_sector_results_aggregated.push(expected_sector_results);
+        }
+        let expected_events = [RuntimeEvent::Market(pallet_market::Event::DealActivated {
                     deal_id: 0,
                     client: account(ALICE),
                     provider: account(storage_provider)
@@ -185,12 +184,18 @@ fn successfully_prove_multiple_sectors() {
                     deal_id: 1,
                     client: account(BOB),
                     provider: account(storage_provider)
-                }),
-                RuntimeEvent::StorageProvider(Event::<Test>::SectorsProven {
+                })].into_iter().chain(
+expected_sector_results_aggregated.into_iter().map(|expected_sector_results|
+RuntimeEvent::StorageProvider(Event::<Test>::SectorsProven {
                     owner: account(storage_provider),
                     sectors: expected_sector_results
                 })
-            ]
+)
+                )
+                .collect::<Vec<_>>();
+        assert_eq!(
+            events(),
+            expected_events
         );
 
         // check that the funds are unlocked
@@ -229,12 +234,12 @@ fn successfully_prove_after_period_start_and_check_mutability() {
         // Run to block after period start (61)
         run_to_block(69);
 
-        // Create sectors in pre-commit
-        let mut sectors: BoundedVec<
-            SectorPreCommitInfo<BlockNumberFor<Test>>,
-            ConstU32<MAX_SECTORS_PER_CALL>,
-        > = bounded_vec![];
         for sector_number in 0..SECTORS_TO_COMMIT {
+            // Create sectors in pre-commit
+            let mut sectors: BoundedVec<
+                SectorPreCommitInfo<BlockNumberFor<Test>>,
+                ConstU32<MAX_SECTORS_PER_CALL>,
+            > = bounded_vec![];
             sectors
                 .try_push(
                     SectorPreCommitInfoBuilder::default()
@@ -246,13 +251,13 @@ fn successfully_prove_after_period_start_and_check_mutability() {
                         .build(),
                 )
                 .expect("BoundedVec should fit all elements");
-        }
 
-        // Run pre commit extrinsic
-        assert_ok!(StorageProvider::pre_commit_sectors(
-            RuntimeOrigin::signed(account(storage_provider)),
-            sectors.clone(),
-        ));
+            // Run pre commit extrinsic
+            assert_ok!(StorageProvider::pre_commit_sectors(
+                RuntimeOrigin::signed(account(storage_provider)),
+                sectors.clone(),
+            ));
+        }
 
         // Remove any events that were triggered until now.
         System::reset_events();
@@ -286,13 +291,9 @@ fn successfully_prove_after_period_start_and_check_mutability() {
                 assert!(is_mutable);
             }
         }
-        let mut sectors: BoundedVec<ProveCommitSector, ConstU32<MAX_SECTORS_PER_CALL>> =
-            bounded_vec![];
-        let mut expected_sector_results: BoundedVec<
-            ProveCommitResult,
-            ConstU32<MAX_SECTORS_PER_CALL>,
-        > = bounded_vec![];
         for sector_number in 0..SECTORS_TO_COMMIT {
+            let mut sectors: BoundedVec<ProveCommitSector, ConstU32<MAX_SECTORS_PER_CALL>> =
+                bounded_vec![];
             let sector_number = sector_number.try_into().unwrap();
             sectors
                 .try_push(ProveCommitSector {
@@ -300,19 +301,11 @@ fn successfully_prove_after_period_start_and_check_mutability() {
                     proofs: bounded_vec![bounded_vec![0xd, 0xe, 0xa, 0xd]],
                 })
                 .expect("BoundedVec should fit all elements");
-            expected_sector_results
-                .try_push(ProveCommitResult {
-                    sector_number,
-                    deadline_idx: 0, // due is grouped by partition so all elements will be at deadline_idx 0
-                    partition_number: 0,
-                })
-                .expect("BoundedVec should fit all elements");
+            assert_ok!(StorageProvider::prove_commit_sectors(
+                RuntimeOrigin::signed(account(storage_provider)),
+                sectors,
+            ));
         }
-
-        assert_ok!(StorageProvider::prove_commit_sectors(
-            RuntimeOrigin::signed(account(storage_provider)),
-            sectors,
-        ));
     });
 }
 
