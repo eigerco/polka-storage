@@ -8,6 +8,7 @@ use ed25519_dalek::pkcs8::{DecodePublicKey, PublicKeyBytes};
 use jsonrpsee::core::ClientError;
 use libp2p::{identity::ed25519::PublicKey as EdPubKey, PeerId};
 use polka_storage_provider_common::rpc::StorageProviderRpcClient;
+use primitives::proofs::RegisteredSealProof;
 use primitives::DealId;
 use storagext::{
     deser::DeserializablePath,
@@ -58,6 +59,9 @@ pub enum CliError {
 
     #[error(transparent)]
     DecodingError(#[from] libp2p::identity::DecodingError),
+
+    #[error("PoRep params for seal proof {seal_proof:?} not found, please download or generate them first")]
+    MissingPoRepParams { seal_proof: RegisteredSealProof },
 }
 
 /// A CLI application that facilitates management operations over a running full

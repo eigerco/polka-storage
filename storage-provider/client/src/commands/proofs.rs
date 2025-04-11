@@ -669,14 +669,12 @@ async fn benchmark_data(input_path: PathBuf, sector_size: SectorSizeArg) -> Resu
     let porep_params_path = params_root.join(format!("{sector_size}.{POREP_PARAMS_EXT}"));
     let porep_params_vk_path = keys_root.join(format!("{sector_size}.{POREP_VK_EXT_SCALE}"));
     if !tokio::fs::try_exists(&porep_params_vk_path).await? {
-        println!("--- Generating PoRep params for seal proof {seal_proof:?} ---");
-        tokio::fs::create_dir_all(&keys_root).await?;
-        tokio::fs::create_dir_all(&params_root).await?;
-        generate_porep_params(Some(&params_root), Some(&keys_root), seal_proof)?;
-    } else {
-        println!("--- Using cached PoRep params for seal proof {seal_proof:?} ---");
-        println!("{}", porep_params_path.display());
-    };
+        return Err(CliError::MissingPoRepParams {
+            seal_proof,
+        });
+    }
+    println!("--- Using pre-generated PoRep params for seal proof {seal_proof:?} ---");
+    println!("{}", porep_params_path.display());
 
     let signer_key: MultiPairSigner = MultiPairSigner::Sr25519(PairSigner::new(
         sr25519::Pair::from_string(PROVIDER_NAME, None).expect("hardcoded key to be valid"),
