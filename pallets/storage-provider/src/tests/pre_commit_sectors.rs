@@ -119,7 +119,7 @@ fn successfully_precommited_no_deals() {
 #[test]
 fn successfully_precommited_batch() {
     new_test_ext().execute_with(|| {
-        const SECTORS_TO_PRECOMMIT: u64 = 6;
+        const SECTORS_TO_PRECOMMIT: u64 = 1;
         // Register CHARLIE as a storage provider.
         let storage_provider = CHARLIE;
         register_storage_provider(account(storage_provider));

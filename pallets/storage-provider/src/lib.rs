@@ -43,15 +43,15 @@ pub mod pallet {
         ensure, fail,
         pallet_prelude::*,
         sp_runtime::traits::{CheckedAdd, CheckedSub, One},
-        traits::{Currency, Randomness, ReservableCurrency},
+        traits::Randomness,
     };
     use frame_system::{
         ensure_signed,
         pallet_prelude::{BlockNumberFor, *},
-        Config as SystemConfig,
     };
     use primitives::{
         commitment::{CommD, CommR, Commitment},
+        configs::{BalanceOf, CurrencyProvider, StorageProviderProvider},
         pallets::{
             DeadlineInfo as ExternalDeadlineInfo, Market, ProofVerification,
             StorageProviderValidation,
@@ -59,8 +59,8 @@ pub mod pallet {
         proofs::{derive_prover_id, PublicReplicaInfo, RegisteredPoStProof},
         randomness::{draw_randomness, AuthorVrfHistory, DomainSeparationTag},
         sector::{ProveCommitSector, SectorNumber, SectorPreCommitInfo},
-        PartitionNumber, MAX_PARTITIONS_PER_DEADLINE, MAX_POREP_PROOFS_PER_BLOCK,
-        MAX_SEAL_PROOF_BYTES, MAX_SECTORS, MAX_SECTORS_PER_CALL,
+        PartitionNumber, MAX_DEALS_PER_SECTOR, MAX_PARTITIONS_PER_DEADLINE,
+        MAX_POREP_PROOFS_PER_BLOCK, MAX_SEAL_PROOF_BYTES, MAX_SECTORS, MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
     use sp_arithmetic::traits::Zero;
@@ -82,17 +82,12 @@ pub mod pallet {
         },
     };
 
-    /// Allows to extract Balance of an account via the Config::Currency associated type.
-    /// BalanceOf is a sophisticated way of getting an u128.
-    pub type BalanceOf<T> =
-        <<T as Config>::Currency as Currency<<T as SystemConfig>::AccountId>>::Balance;
-
     #[pallet::pallet]
     #[pallet::without_storage_info] // Allows to define storage items without fixed size
     pub struct Pallet<T>(_);
 
     #[pallet::config]
-    pub trait Config: frame_system::Config {
+    pub trait Config: frame_system::Config + CurrencyProvider + StorageProviderProvider {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -104,9 +99,6 @@ pub mod pallet {
         /// https://github.com/libp2p/specs/blob/2ea41e8c769f1bead8e637a9d4ebf8c791976e8a/peer-ids/peer-ids.md#peer-ids
         /// More information about libp2p peer ids: https://docs.libp2p.io/concepts/fundamentals/peers/
         type PeerId: Clone + Debug + Decode + Encode + Eq + TypeInfo;
-
-        /// Currency mechanism, used for the Market balances.
-        type Currency: ReservableCurrency<Self::AccountId>;
 
         /// Market trait implementation for activating deals.
         type Market: Market<Self::AccountId, BlockNumberFor<Self>, BalanceOf<Self>>;
@@ -196,14 +188,6 @@ pub mod pallet {
         /// Minimum number of blocks past the current block a sector may be set to expire.
         #[pallet::constant]
         type MinSectorExpiration: Get<BlockNumberFor<Self>>;
-
-        /// Maximum number of blocks past the current block a sector may be set to expire.
-        #[pallet::constant]
-        type MaxSectorExpiration: Get<BlockNumberFor<Self>>;
-
-        /// Maximum number of blocks a sector can stay in pre-committed state
-        #[pallet::constant]
-        type SectorMaximumLifetime: Get<BlockNumberFor<Self>>;
 
         /// Maximum duration to allow for the sealing process for seal algorithms.
         #[pallet::constant]
@@ -1530,10 +1514,10 @@ pub mod pallet {
 
         /// Verifies that the unsealed_cid (CommD) and checks that it matches the given unsealed CID.
         fn check_commd_for_pre_commit(
-            calculated_unsealed_cid: BoundedVec<Option<Cid>, ConstU32<MAX_SECTORS_PER_CALL>>,
+            calculated_unsealed_cid: BoundedVec<Option<Cid>, ConstU32<MAX_DEALS_PER_SECTOR>>,
             sector_amount: usize,
-            unsealed_cids: BoundedVec<Cid, ConstU32<MAX_SECTORS_PER_CALL>>,
-            deal_amounts: BoundedVec<usize, ConstU32<MAX_SECTORS_PER_CALL>>,
+            unsealed_cids: BoundedVec<Cid, ConstU32<MAX_DEALS_PER_SECTOR>>,
+            deal_amounts: BoundedVec<usize, ConstU32<MAX_DEALS_PER_SECTOR>>,
         ) -> Result<(), Error<T>> {
             ensure!(calculated_unsealed_cid.len() == sector_amount, {
                 log::error!(target: LOG_TARGET, "check_commd_for_pre_commit: failed to verify deals, invalid calculated_commd length: {}", calculated_unsealed_cid.len());

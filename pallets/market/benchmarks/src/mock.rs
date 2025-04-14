@@ -2,7 +2,10 @@ extern crate alloc;
 
 use frame_support::{derive_impl, parameter_types, sp_runtime::BoundedVec, PalletId};
 use frame_system::pallet_prelude::BlockNumberFor;
-use primitives::PEER_ID_MAX_BYTES;
+use primitives::{
+    configs::{CurrencyProvider, MarketProvider, StorageProviderProvider},
+    PEER_ID_MAX_BYTES,
+};
 use sp_runtime::{
     traits::{ConstU32, IdentifyAccount, IdentityLookup, Verify, Zero},
     MultiSignature,
@@ -78,9 +81,10 @@ parameter_types! {
 
 #[cfg(feature = "runtime-benchmarks")]
 parameter_types! {
-    pub const MinDealDuration: u64 = 5 * MINUTES;
-    pub const MaxDealDuration: u64 = 180 * MINUTES;
-    pub const PreCommitChallengeDelay: BlockNumber = 1 * MINUTES;
+    // NOTE: Changed from Testnet's 0 to 10 to match the storage-provider client's `porep` command.
+    pub const PreCommitChallengeDelay: BlockNumber = 10;
+    pub const MinDealDuration: u64 = 2 * MINUTES;
+    pub const MaxDealDuration: u64 = 30 * MINUTES;
 }
 
 impl pallet_market::Config for Test {
@@ -88,34 +92,42 @@ impl pallet_market::Config for Test {
     type PalletId = MarketPalletId;
     type WeightInfo = ();
 
-    type Currency = Balances;
-    type OffchainSignature = Signature;
-    type OffchainPublic = AccountPublic;
     type StorageProviderValidation = StorageProvider;
-    type MaxDeals = ConstU32<32>;
-    type MinDealDuration = MinDealDuration;
     type MaxDealDuration = MaxDealDuration;
     type MaxDealsPerBlock = ConstU32<32>;
 }
 
-parameter_types! {
-    // Market Pallet
-    pub const MarketPalletId: PalletId = PalletId(*b"spMarket");
+impl MarketProvider for Test {
+    type OffchainSignature = Signature;
+    type OffchainPublic = AccountPublic;
+    type MaxDeals = ConstU32<32>;
+    type MinDealDuration = MinDealDuration;
+}
 
+impl CurrencyProvider for Test {
+    type Currency = Balances;
+}
+
+// Sourced from the Testnet runtime defined in <runtime/src/configs/mod.rs>.
+parameter_types! {
     // Storage Provider Pallet
-    pub const WPostProvingPeriod: BlockNumber = 6 * MINUTES;
-    pub const WPoStPeriodDeadlines: u64 = 3;
-    pub const WPostChallengeWindow: BlockNumber = 2 * MINUTES;
-    pub const WPostChallengeLookBack: BlockNumber = MINUTES;
+    pub const WPoStPeriodDeadlines: u64 = 10;
+    pub const WPoStProvingPeriod: BlockNumber = 40 * MINUTES;
+    pub const WPoStChallengeWindow: BlockNumber = 4 * MINUTES;
+    pub const WPoStChallengeLookBack: BlockNumber = MINUTES;
     pub const MinSectorExpiration: BlockNumber = 5 * MINUTES;
-    pub const MaxSectorExpiration: BlockNumber = 60 * MINUTES;
+    pub const MaxSectorExpiration: BlockNumber = 360 * MINUTES;
     pub const SectorMaximumLifetime: BlockNumber = 120 * MINUTES;
-    pub const MaxProveCommitDuration: BlockNumber = 5 * MINUTES;
+    // NOTE: Changed from Testnet's 5 to 15 since the pre-commit delay is 10 blocks.
+    pub const MaxProveCommitDuration: BlockNumber = 15 * MINUTES;
     pub const MaxPartitionsPerDeadline: u64 = 3000;
     pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
-    pub const FaultDeclarationCutoff: BlockNumber = 1 * MINUTES;
+    pub const FaultDeclarationCutoff: BlockNumber = 2 * MINUTES;
     // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L299>
     pub const AddressedSectorsMax: u64 = 25_000;
+
+    // Market Pallet
+    pub const MarketPalletId: PalletId = PalletId(*b"spMarket");
 }
 
 /// Randomness generator used by tests.
@@ -155,15 +167,12 @@ impl pallet_storage_provider::Config for Test {
     type Randomness = DummyRandomnessGenerator<Self>;
     type AuthorVrfHistory = DummyRandomnessGenerator<Self>;
     type PeerId = BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>; // https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
-    type Currency = Balances;
     type Market = Market;
     type ProofVerification = primitives::testing::DummyProofsVerification;
-    type WPoStProvingPeriod = WPostProvingPeriod;
-    type WPoStChallengeWindow = WPostChallengeWindow;
-    type WPoStChallengeLookBack = WPostChallengeLookBack;
+    type WPoStProvingPeriod = WPoStProvingPeriod;
+    type WPoStChallengeWindow = WPoStChallengeWindow;
+    type WPoStChallengeLookBack = WPoStChallengeLookBack;
     type MinSectorExpiration = MinSectorExpiration;
-    type MaxSectorExpiration = MaxSectorExpiration;
-    type SectorMaximumLifetime = SectorMaximumLifetime;
     type MaxProveCommitDuration = MaxProveCommitDuration;
     type WPoStPeriodDeadlines = WPoStPeriodDeadlines;
     type MaxPartitionsPerDeadline = MaxPartitionsPerDeadline;
@@ -173,6 +182,11 @@ impl pallet_storage_provider::Config for Test {
     // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L295>
     type AddressedPartitionsMax = MaxPartitionsPerDeadline;
     type AddressedSectorsMax = AddressedSectorsMax;
+}
+
+impl StorageProviderProvider for Test {
+    type MaxSectorExpiration = MaxSectorExpiration;
+    type SectorMaximumLifetime = SectorMaximumLifetime;
 }
 
 impl pallet_proofs::Config for Test {

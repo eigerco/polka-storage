@@ -16,19 +16,25 @@ primitives = { workspace = true, features = ["clap", "std"] }
 storagext = { workspace = true, features = ["clap"] }
 
 async-trait = { workspace = true }
+bellperson = { workspace = true }
 bls12_381 = { workspace = true }
+blstrs = { workspace = true }
 cid = { workspace = true, features = ["std"] }
 clap = { workspace = true, features = ["derive"] }
 codec = { workspace = true }
 ed25519-dalek = { workspace = true, features = ["pem", "pkcs8"] }
 filecoin-proofs.workspace = true
 hex = { workspace = true }
+itertools = { workspace = true }
 jsonrpsee = { workspace = true, features = ["http-client", "macros", "server", "ws-client"] }
 libp2p.workspace = true
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
 sc-cli = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 subxt = { workspace = true }
+tempfile = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }

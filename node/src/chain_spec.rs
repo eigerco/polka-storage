@@ -174,16 +174,16 @@ fn testnet_genesis(
     root: AccountId,
     id: ParaId,
 ) -> serde_json::Value {
-    let post_1gib_vk = include_bytes!("../../examples/1GiB.post.vk.scale");
+    let post_1gib_vk = include_bytes!("../../test-fixtures/keys/1GiB.post.vk.scale");
     let post_1gib_vk = VerifyingKey::<Bls12>::from_bytes(post_1gib_vk).unwrap();
 
-    let porep_1gib_vk = include_bytes!("../../examples/1GiB.porep.vk.scale");
+    let porep_1gib_vk = include_bytes!("../../test-fixtures/keys/1GiB.porep.vk.scale");
     let porep_1gib_vk = VerifyingKey::<Bls12>::from_bytes(porep_1gib_vk).unwrap();
 
-    let post_8mib_vk = include_bytes!("../../examples/8MiB.post.vk.scale");
+    let post_8mib_vk = include_bytes!("../../test-fixtures/keys/8MiB.post.vk.scale");
     let post_8mib_vk = VerifyingKey::<Bls12>::from_bytes(post_8mib_vk).unwrap();
 
-    let porep_8mib_vk = include_bytes!("../../examples/8MiB.porep.vk.scale");
+    let porep_8mib_vk = include_bytes!("../../test-fixtures/keys/8MiB.porep.vk.scale");
     let porep_8mib_vk = VerifyingKey::<Bls12>::from_bytes(porep_8mib_vk).unwrap();
 
     serde_json::json!({

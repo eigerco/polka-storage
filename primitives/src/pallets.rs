@@ -10,7 +10,7 @@ use crate::{
     sector::SectorNumber,
     DealId, PartitionNumber, MAX_DEALS_PER_SECTOR, MAX_PARTITIONS_PER_DEADLINE,
     MAX_POREP_PROOFS_PER_BLOCK, MAX_POST_PROOFS_PER_BLOCK, MAX_POST_PROOF_BYTES,
-    MAX_REPLICAS_PER_BLOCK, MAX_SEAL_PROOF_BYTES, MAX_SECTORS, MAX_SECTORS_PER_CALL,
+    MAX_REPLICAS_PER_BLOCK, MAX_SEAL_PROOF_BYTES, MAX_SECTORS,
 };
 
 pub trait StorageProviderValidation<AccountId> {
@@ -64,8 +64,8 @@ pub trait Market<AccountId, BlockNumber, Balance> {
     /// Computes UnsealedCID (CommD) for each sector or None for Committed Capacity sectors.
     fn verify_deals_for_activation(
         storage_provider: &AccountId,
-        sector_deals: BoundedVec<SectorDeal<BlockNumber>, ConstU32<MAX_SECTORS_PER_CALL>>,
-    ) -> Result<BoundedVec<Option<Cid>, ConstU32<MAX_SECTORS_PER_CALL>>, DispatchError>;
+        sector_deals: BoundedVec<SectorDeal<BlockNumber>, ConstU32<MAX_DEALS_PER_SECTOR>>,
+    ) -> Result<BoundedVec<Option<Cid>, ConstU32<MAX_DEALS_PER_SECTOR>>, DispatchError>;
 
     /// Activate a set of deals grouped by sector, returning the size and
     /// extra info about verified deals.
@@ -75,9 +75,9 @@ pub trait Market<AccountId, BlockNumber, Balance> {
     /// (and is implied by confirming the sector's data commitment is derived from the deal pieces).
     fn activate_deals(
         storage_provider: &AccountId,
-        sector_deals: BoundedVec<SectorDeal<BlockNumber>, ConstU32<MAX_SECTORS_PER_CALL>>,
+        sector_deals: BoundedVec<SectorDeal<BlockNumber>, ConstU32<MAX_DEALS_PER_SECTOR>>,
         compute_cid: bool,
-    ) -> Result<BoundedVec<ActiveSector<AccountId>, ConstU32<MAX_SECTORS_PER_CALL>>, DispatchError>;
+    ) -> Result<BoundedVec<ActiveSector<AccountId>, ConstU32<MAX_DEALS_PER_SECTOR>>, DispatchError>;
 
     /// Terminate a set of deals in response to their sector being terminated.
     ///

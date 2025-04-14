@@ -1,8 +1,9 @@
 use codec::{Decode, Encode};
 use frame_support::pallet_prelude::*;
+use primitives::deals::DealProposal;
 use scale_info::TypeInfo;
 
-use crate::{error::DealParameterError, DealProposal};
+use crate::error::DealParameterError;
 
 /// Bounds for deal duration that storage providers want to accept.
 /// Used in the [`OffchainDealParameters`]

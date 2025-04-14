@@ -205,11 +205,11 @@ async fn real_world_use_case() {
     let seal_proof = RegisteredSealProof::StackedDRG8MiBV1;
     let post_proof = RegisteredPoStProof::StackedDRGWindow8MiBV1;
 
-    let parameters_cache_path = Path::new(&workspace_root).join("../target/");
+    let parameters_cache_path = Path::new(&workspace_root).join("../target/params/");
     let porep_parameters_path =
-        parameters_cache_path.join(format!("porep_params_{}", seal_proof.sector_size()));
+        parameters_cache_path.join(format!("{}.porep.params", seal_proof.sector_size()));
     let post_parameters_path =
-        parameters_cache_path.join(format!("post_params_{}", post_proof.sector_size()));
+        parameters_cache_path.join(format!("{}.post.params", post_proof.sector_size()));
 
     if !porep_parameters_path.exists() {
         panic!(

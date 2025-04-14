@@ -21,10 +21,17 @@ sealed = { workspace = true }
 serde = { workspace = true, optional = true, features = ["derive"] }
 sha2 = { workspace = true }
 sp-api = { workspace = true }
+sp-arithmetic = { workspace = true, default-features = false }
 sp-core = { workspace = true }
+sp-io = { workspace = true, default-features = false }
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
 thiserror = { workspace = true }
+
+# Frame deps
+frame-benchmarking = { workspace = true, default-features = false, optional = true }
+frame-support = { workspace = true, default-features = false }
+frame-system = { workspace = true, default-features = false }
 
 [dev-dependencies]
 rand = { workspace = true, default-features = true }
@@ -46,15 +53,19 @@ std = [
   "dep:ed25519-dalek",
   "dep:filecoin-proofs",
   "dep:hex",
+  "frame-benchmarking?/std",
+  "frame-support/std",
+  "frame-system/std",
   "scale-info/std",
   "serde/std",
   "sha2/std",
   "sp-api/std",
   "sp-core/std",
+  "sp-io/std",
   "sp-runtime/std",
   "sp-std/std",
   "thiserror/std",
 ]
 # This feature provides testing utilities,
 # e.g. a dummy proof verifier
-testing = []
+testing = ["dep:frame-benchmarking"]

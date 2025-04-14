@@ -1,4 +1,5 @@
-use codec::Encode;
+use core::{fmt::Debug, ops::Add};
+
 use frame_benchmarking::v2::*;
 use frame_support::{pallet_prelude::ConstU32, sp_runtime::BoundedVec, traits::Currency};
 use frame_system::{
@@ -8,96 +9,24 @@ use frame_system::{
 };
 use pallet_market::{
     deal_parameters::{OffchainDealDurationBound, OffchainDealParameters},
-    BalanceOf, BalanceTable, ClientDealProposal, DealProposal, DealState, Pallet as MarketPallet,
-    SPDealParameters,
+    BalanceTable, Pallet as MarketPallet, SPDealParameters,
 };
+use pallet_proofs::Pallet as ProofsPallet;
 use pallet_storage_provider::Pallet as SpPallet;
 use primitives::{
-    commitment::{piece::PaddedPieceSize, CommP, Commitment},
-    proofs::RegisteredPoStProof,
-    sector::{builder::SectorPreCommitInfoBuilder, ProveCommitSector, SectorPreCommitInfo},
-    MAX_LABEL_SIZE, MAX_SECTORS_PER_CALL, PEER_ID_MAX_BYTES,
+    configs::BalanceOf,
+    test_data::{generate_benchmark_account, BenchmarkData},
+    MAX_DEALS_PER_SECTOR, PEER_ID_MAX_BYTES,
 };
-use scale_info::prelude::format;
-use sp_core::{ed25519, Get};
-use sp_io::crypto::{ed25519_generate, ed25519_sign};
-use sp_runtime::{traits::IdentifyAccount, AccountId32, MultiSignature, MultiSigner};
-use sp_std::{vec, vec::Vec};
+use sp_core::{Encode, Get};
+use sp_runtime::AccountId32;
+use sp_std::{iter::Sum, vec::Vec};
 
 use crate::{Config, Pallet};
 
 type BoundedPeerIdBytes = BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>;
-const COLLATERAL: u32 = 10;
-
-fn generate_benchmark_account(name: &'static str) -> (AccountId32, MultiSigner) {
-    // Generate a deterministic seed
-    let seed = format!("//{}", name);
-
-    let signer: sp_core::ed25519::Public =
-        ed25519_generate(0.into(), Some(seed.into_bytes())).into();
-    let signer: MultiSigner = signer.into();
-    let account_id = signer.clone().into_account();
-
-    (account_id, signer)
-}
-
-fn create_ed25519_signature(payload: &[u8], pubkey: MultiSigner) -> MultiSignature {
-    let edpubkey = ed25519::Public::try_from(pubkey).unwrap();
-    let edsig = ed25519_sign(0.into(), &edpubkey, payload).unwrap();
-    edsig.into()
-}
-
-fn prepare_proposals<T>(
-    n: u32,
-    caller: T::AccountId,
-    client: T::AccountId,
-    client_pair: MultiSigner,
-) -> (
-    Vec<ClientDealProposal<T::AccountId, BalanceOf<T>, BlockNumberFor<T>, MultiSignature>>,
-    u32,
-)
-where
-    T: crate::Config,
-{
-    let start_block: u32 = 50;
-    let end_block: u32 = 100;
-    let price_per_block: u32 = 10;
-    let cost = (end_block - start_block) * price_per_block * n;
-
-    let mut proposals = vec![];
-    for idx in 1..=n {
-        // Cast is safe since `n` never goes beyond 255
-        let label = vec![idx as u8; MAX_LABEL_SIZE as usize];
-
-        let proposal = DealProposal::<T::AccountId, BalanceOf<T>, BlockNumberFor<T>> {
-            piece_cid: Commitment::<CommP>::zero(PaddedPieceSize::MIN)
-                .cid()
-                .to_bytes()
-                .try_into()
-                .unwrap(),
-            piece_size: 2048,
-            client: client.clone(),
-            provider: caller.clone(),
-            label: BoundedVec::try_from(label).unwrap(),
-            start_block: start_block.into(),
-            end_block: end_block.into(),
-            storage_price_per_block: price_per_block.into(),
-            provider_collateral: COLLATERAL.into(),
-            state: DealState::<_>::Published,
-        };
-
-        let signed_deal_proposal =
-            create_ed25519_signature(proposal.encode().as_slice(), client_pair.clone()).into();
-
-        let proposal = ClientDealProposal::<T::AccountId, BalanceOf<T>, BlockNumberFor<T>, _> {
-            proposal,
-            client_signature: signed_deal_proposal,
-        };
-
-        proposals.push(proposal);
-    }
-    return (proposals, cost);
-}
+const CLIENT: &'static str = "//Client";
+const EXISTENTIAL_DEPOSIT: u32 = 1_000_000_000;
 
 #[benchmarks(
     where
@@ -106,13 +35,15 @@ where
             AccountId = AccountId32,
             OffchainSignature = sp_runtime::MultiSignature,
         >,
+        BlockNumberFor<T>: From<u64> + Into<u64> + Add,
+        BalanceOf<T>: Sum + From<u32> + Encode,
+        <T as pallet_market::Config>::RuntimeEvent: Debug,
 )]
 mod benchmarks {
-    use itertools::Itertools;
+
+    use frame_support::assert_ok;
 
     use super::*;
-
-    const EXISTENTIAL_DEPOSIT: u32 = 1_000_000_000;
 
     fn setup_account_balance<T>(account: T::AccountId)
     where
@@ -231,159 +162,133 @@ mod benchmarks {
         assert_eq!(balance_entry.locked, 0u32.into());
     }
 
-    // When running `cargo test` the first get's called,
-    // for the proper benchmarks we get the second
-    #[cfg(test)]
-    const MAX_DEALS: u32 = 32;
-    #[cfg(not(test))]
-    const MAX_DEALS: u32 = 128;
-
     /// `n`: number of submitted deals
     #[benchmark]
-    fn publish_storage_deals(n: Linear<1, MAX_DEALS>) {
-        let caller: T::AccountId = whitelisted_caller();
-        setup_account_balance::<T>(caller.clone());
+    fn publish_storage_deals(n: Linear<1, MAX_DEALS_PER_SECTOR>) {
+        let data = BenchmarkData::<T>::load();
+        let sp = data.storage_provider();
+        setup_account_balance::<T>(sp.account_id.clone());
         // Register the caller as a storage provider
         pallet_storage_provider::Pallet::<T>::register_storage_provider(
-            RawOrigin::Signed(caller.clone()).into(),
-            BoundedVec::try_from("placeholder".as_bytes().to_vec()).unwrap(),
-            RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+            RawOrigin::Signed(sp.account_id.clone()).into(),
+            sp.peer_id,
+            data.post_type,
         )
         .unwrap();
 
         // Setup a client account
-        let (client, client_pair): (T::AccountId, _) = generate_benchmark_account("client");
-        setup_account_balance::<T>(client.clone());
+        let client = generate_benchmark_account::<T>(CLIENT);
+        setup_account_balance::<T>(client.0.clone());
 
-        let (proposals, cost) =
-            prepare_proposals::<T>(n, caller.clone(), client.clone(), client_pair);
-        let proposals = BoundedVec::try_from(proposals).unwrap();
+        let proposals = data.deal_proposals(&client, n);
+        let cost: BalanceOf<T> = proposals
+            .iter()
+            .map(|p| p.proposal.total_storage_fee().unwrap())
+            .sum::<u128>()
+            .try_into()
+            .unwrap_or_else(|_| panic!("failed to convert proposal fees to balance"));
+        let collaterals = proposals
+            .iter()
+            .map(|p| p.proposal.provider_collateral)
+            .sum();
 
         // #[extrinsic_call] requires type shenanigans, using #[block] is MUCH simpler
         #[block]
         {
             MarketPallet::<T>::publish_storage_deals(
-                RawOrigin::Signed(caller.clone()).into(),
+                RawOrigin::Signed(sp.account_id.clone()).into(),
                 proposals,
             )
             .unwrap();
         }
 
-        let balance_entry = BalanceTable::<T>::get(&caller);
+        let balance_entry = BalanceTable::<T>::get(&sp.account_id);
         assert_eq!(
             balance_entry.free,
-            (EXISTENTIAL_DEPOSIT - (COLLATERAL * n)).into()
+            BalanceOf::<T>::from(EXISTENTIAL_DEPOSIT) - collaterals
         );
-        assert_eq!(balance_entry.locked, (COLLATERAL * n).into());
+        assert_eq!(balance_entry.locked, collaterals);
 
-        let balance_entry = BalanceTable::<T>::get(&client);
-        assert_eq!(balance_entry.free, (EXISTENTIAL_DEPOSIT - cost).into());
+        let balance_entry = BalanceTable::<T>::get(&client.0);
+        assert_eq!(
+            balance_entry.free,
+            BalanceOf::<T>::from(EXISTENTIAL_DEPOSIT) - cost
+        );
         assert_eq!(balance_entry.locked, cost.into());
     }
 
     /// `n`: number of submitted deals
     #[benchmark]
-    fn settle_deal_payments(n: Linear<1, MAX_DEALS>) {
-        let caller: T::AccountId = whitelisted_caller();
-        setup_account_balance::<T>(caller.clone());
+    fn settle_deal_payments(n: Linear<1, MAX_DEALS_PER_SECTOR>) {
+        let data = BenchmarkData::<T>::load();
+        let sp = data.storage_provider();
+        setup_account_balance::<T>(sp.account_id.clone());
         // Register the caller as a storage provider
         pallet_storage_provider::Pallet::<T>::register_storage_provider(
-            RawOrigin::Signed(caller.clone()).into(),
-            BoundedVec::try_from("placeholder".as_bytes().to_vec()).unwrap(),
-            RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+            RawOrigin::Signed(sp.account_id.clone()).into(),
+            sp.peer_id,
+            data.post_type,
         )
         .unwrap();
 
         // Setup a client account
-        let (client, client_pair): (T::AccountId, _) = generate_benchmark_account("client");
-        setup_account_balance::<T>(client.clone());
+        let client = generate_benchmark_account::<T>(CLIENT);
+        setup_account_balance::<T>(client.0.clone());
 
-        let (proposals, cost) =
-            prepare_proposals::<T>(n, caller.clone(), client.clone(), client_pair);
-        let proposals = BoundedVec::try_from(proposals).unwrap();
+        let proposals = data.deal_proposals(&client, n);
+        let cost: u32 = proposals
+            .iter()
+            .map(|p| p.proposal.total_storage_fee().unwrap())
+            .sum::<u128>()
+            .try_into()
+            .unwrap();
 
-        let storage_provider: OriginFor<T> = RawOrigin::Signed(caller.clone()).into();
+        let storage_provider: OriginFor<T> = RawOrigin::Signed(sp.account_id.clone()).into();
         MarketPallet::<T>::publish_storage_deals(storage_provider.clone(), proposals.clone())
             .unwrap();
 
-        // Run to 1 to get VRF randomness
-        run_to_block::<T>(1);
+        // Run to pre-commit period
+        run_to_block::<T>(data.pre_commit_block_number.try_into().unwrap());
 
-        proposals
-            .into_iter()
-            .enumerate()
-            // Create SectorPreCommitInfo from the proposals
-            .map(|(idx, p)| {
-                SectorPreCommitInfoBuilder::<BlockNumberFor<T>>::default()
-                    .deals(vec![idx as u64])
-                    .sector_number(
-                        (idx as u32)
-                            .try_into()
-                            .expect("n only goes up to 32 so this should be ok"),
-                    )
-                    .raw_unsealed_cid(p.proposal.piece_cid.clone())
-                    .build()
-            })
-            // Chunk into `MAX_DEALS` groups, required because of the cfg flag
-            // meaning that sometimes MAX_DEALS > MAX_SECTORS_PER_CALL
-            .chunks(MAX_SECTORS_PER_CALL as usize)
-            // Convert IntoChunks to Iterator
-            .into_iter()
-            // Convert the chunks into Vecs
-            .map(Vec::from_iter)
-            // Convert each chunk into a BoundedVec
-            .map(|sectors_for_call| {
-                BoundedVec::<
-                    SectorPreCommitInfo<BlockNumberFor<T>>,
-                    ConstU32<MAX_SECTORS_PER_CALL>
-                >::try_from(sectors_for_call).unwrap()
-            })
-            // Submit each "chunk"
-            .for_each(|pre_commit_infos| {
-                SpPallet::<T>::pre_commit_sectors(storage_provider.clone(), pre_commit_infos)
-                    .unwrap();
-            });
+        let pre_commit_infos = data.pre_commit_sectors(n);
+        SpPallet::<T>::pre_commit_sectors(storage_provider.clone(), pre_commit_infos.clone())
+            .unwrap();
 
-        // Run to 11 to enter pre-commit period
-        run_to_block::<T>(11);
+        assert_ok!(ProofsPallet::<T>::set_porep_verifying_key(
+            RawOrigin::Signed(sp.account_id.clone()).into(),
+            data.seal_proof,
+            data.verifying_key.to_vec(),
+        ));
 
-        let proofs = {
-            // can't use bounded_vec![] in benchmarks
-            let mut proofs = BoundedVec::new();
-            // Empty proof is considered valid under the DummyProofVerifier
-            proofs.try_push(BoundedVec::new()).unwrap();
-            proofs
-        };
+        // Run to after pre-commit delay
+        run_to_block::<T>(
+            (BlockNumberFor::<T>::from(data.pre_commit_block_number)
+                + T::PreCommitChallengeDelay::get())
+            .try_into()
+            .unwrap_or_else(|_| panic!("failed to convert pre-commit delay block to block number")),
+        );
 
-        // Similar pattern to before
-        (0..n)
-            // Create ProveCommitSectors from the `n` "index"
-            .map(|n| ProveCommitSector {
-                sector_number: n.try_into().unwrap(),
-                proofs: proofs.clone(),
-            })
-            // Chunk into MAX_SECTORS_PER_CALL due to the cfg
-            .chunks(MAX_SECTORS_PER_CALL as usize)
-            // Convert IntoChunks to Iterator
-            .into_iter()
-            // Convert the chunks into Vecs
-            .map(Vec::from_iter)
-            // Convert the Vecs into BoundedVecs
-            .map(|prove_commit_sectors| {
-                BoundedVec::<_, ConstU32<MAX_SECTORS_PER_CALL>>::try_from(prove_commit_sectors)
-                    .unwrap()
-            })
-            // Submit them
-            .for_each(|prove_commit_sectors| {
-                SpPallet::<T>::prove_commit_sectors(storage_provider.clone(), prove_commit_sectors)
-                    .unwrap();
-            });
+        let proofs = data.prove_commit_sectors(n);
+        SpPallet::<T>::prove_commit_sectors(storage_provider.clone(), proofs).unwrap();
 
-        run_to_block::<T>(101);
+        let expiration_block = pre_commit_infos
+            .iter()
+            .map(|info| info.expiration)
+            .max()
+            .unwrap();
+        run_to_block::<T>(
+            expiration_block
+                .try_into()
+                .unwrap_or_else(|_| panic!("failed to convert expiration block to block number")),
+        );
 
-        // We know that DealIds are incrementing integers, making this a "valid approach",
-        // it is kinda cheating but this way we don't need to care for the events
-        let deal_ids = BoundedVec::try_from(Vec::from_iter(0..(n as u64))).unwrap();
+        let deal_ids = pre_commit_infos
+            .iter()
+            .flat_map(|info| info.deal_ids.iter())
+            .copied()
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap();
 
         // #[extrinsic_call] requires type shenanigans, using #[block] is MUCH simpler
         #[block]
@@ -392,28 +297,33 @@ mod benchmarks {
         }
 
         assert_eq!(
-            MarketPallet::<T>::free(&caller).unwrap(),
+            MarketPallet::<T>::free(&sp.account_id).unwrap(),
             (EXISTENTIAL_DEPOSIT + cost).into()
         );
-        assert_eq!(MarketPallet::<T>::locked(&caller).unwrap(), 0u32.into());
+        assert_eq!(
+            MarketPallet::<T>::locked(&sp.account_id).unwrap(),
+            0u32.into()
+        );
 
         assert_eq!(
-            MarketPallet::<T>::free(&client).unwrap(),
+            MarketPallet::<T>::free(&client.0).unwrap(),
             (EXISTENTIAL_DEPOSIT - cost).into()
         );
-        assert_eq!(MarketPallet::<T>::locked(&client).unwrap(), 0u32.into());
+        assert_eq!(MarketPallet::<T>::locked(&client.0).unwrap(), 0u32.into());
     }
 
     /// `n` == 1: Publish
     /// `n` == 2: Publish & Replace
     #[benchmark]
     fn publish_deal_parameters(n: Linear<1, 2>) {
-        let caller: T::AccountId = whitelisted_caller();
+        let data = BenchmarkData::<T>::load();
+        let sp = data.storage_provider();
+        setup_account_balance::<T>(sp.account_id.clone());
         // Register the caller as a storage provider
         pallet_storage_provider::Pallet::<T>::register_storage_provider(
-            RawOrigin::Signed(caller.clone()).into(),
-            BoundedVec::try_from("placeholder".as_bytes().to_vec()).unwrap(),
-            RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+            RawOrigin::Signed(sp.account_id.clone()).into(),
+            sp.peer_id,
+            data.post_type,
         )
         .unwrap();
 
@@ -425,7 +335,7 @@ mod benchmarks {
                     upper: Some(100u32.into()),
                 },
             };
-        let storage_provider: OriginFor<T> = RawOrigin::Signed(caller.clone()).into();
+        let storage_provider: OriginFor<T> = RawOrigin::Signed(sp.account_id.clone()).into();
 
         if n == 2 {
             MarketPallet::<T>::publish_deal_parameters(
@@ -448,17 +358,22 @@ mod benchmarks {
             .clone()
             .validate(T::MinDealDuration::get(), T::MaxDealDuration::get())
             .expect("Seamless conversion");
-        assert_eq!(SPDealParameters::<T>::get(&caller), Some(deal_parameters));
+        assert_eq!(
+            SPDealParameters::<T>::get(&sp.account_id),
+            Some(deal_parameters)
+        );
     }
 
     #[benchmark]
     fn remove_deal_parameters() {
-        let caller: T::AccountId = whitelisted_caller();
+        let data = BenchmarkData::<T>::load();
+        let sp = data.storage_provider();
+        setup_account_balance::<T>(sp.account_id.clone());
         // Register the caller as a storage provider
         pallet_storage_provider::Pallet::<T>::register_storage_provider(
-            RawOrigin::Signed(caller.clone()).into(),
-            BoundedVec::try_from("placeholder".as_bytes().to_vec()).unwrap(),
-            RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
+            RawOrigin::Signed(sp.account_id.clone()).into(),
+            sp.peer_id,
+            data.post_type,
         )
         .unwrap();
 
@@ -470,7 +385,7 @@ mod benchmarks {
                     upper: Some(100u32.into()),
                 },
             };
-        let storage_provider: OriginFor<T> = RawOrigin::Signed(caller.clone()).into();
+        let storage_provider: OriginFor<T> = RawOrigin::Signed(sp.account_id.clone()).into();
 
         MarketPallet::<T>::publish_deal_parameters(storage_provider.clone(), deal_parameters)
             .unwrap();
@@ -481,7 +396,7 @@ mod benchmarks {
             MarketPallet::<T>::remove_deal_parameters(storage_provider.clone()).unwrap();
         }
 
-        assert_eq!(SPDealParameters::<T>::get(&caller), None);
+        assert_eq!(SPDealParameters::<T>::get(&sp.account_id), None);
     }
 
     impl_benchmark_test_suite! {

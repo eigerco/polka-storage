@@ -376,7 +376,7 @@ parameter_types! {
 // used for benchmarking
 #[cfg(all(feature = "testnet", feature = "runtime-benchmarks"))]
 parameter_types! {
-    pub const PreCommitChallengeDelay: BlockNumber = 0;
+    pub const PreCommitChallengeDelay: BlockNumber = 10;
 }
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -416,6 +416,10 @@ mod dummy {
     }
 }
 
+impl primitives::configs::CurrencyProvider for Runtime {
+    type Currency = Balances;
+}
+
 impl pallet_storage_provider::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
 
@@ -430,23 +434,14 @@ impl pallet_storage_provider::Config for Runtime {
     type AuthorVrfHistory = dummy::DummyRandomnessGenerator<Self>;
 
     type PeerId = BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>; // https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
-    type Currency = Balances;
     type Market = crate::Market;
 
-    #[cfg(not(feature = "runtime-benchmarks"))]
     type ProofVerification = crate::Proofs;
-    // FIX(@jmg-duarte,#695,22/1/25)
-    // It is true that this stops the weight of the proving process from being calculated
-    // but (right now) we cannot create a proof inside a benchmark, so this is the best we can do
-    #[cfg(feature = "runtime-benchmarks")]
-    type ProofVerification = primitives::testing::DummyProofsVerification;
 
     type WPoStProvingPeriod = WPoStProvingPeriod;
     type WPoStChallengeWindow = WPoStChallengeWindow;
     type WPoStChallengeLookBack = WPoStChallengeLookBack;
     type MinSectorExpiration = MinSectorExpiration;
-    type MaxSectorExpiration = MaxSectorExpiration;
-    type SectorMaximumLifetime = SectorMaximumLifetime;
     type MaxProveCommitDuration = MaxProveCommitDuration;
     type WPoStPeriodDeadlines = WPoStPeriodDeadlines;
     type MaxPartitionsPerDeadline = MaxPartitionsPerDeadline;
@@ -456,6 +451,11 @@ impl pallet_storage_provider::Config for Runtime {
     // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L295>
     type AddressedPartitionsMax = MaxPartitionsPerDeadline;
     type AddressedSectorsMax = AddressedSectorsMax;
+}
+
+impl primitives::configs::StorageProviderProvider for Runtime {
+    type MaxSectorExpiration = MaxSectorExpiration;
+    type SectorMaximumLifetime = SectorMaximumLifetime;
 }
 
 parameter_types! {
@@ -470,14 +470,16 @@ impl pallet_market::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type WeightInfo = pallet_market::weights::Weights<Runtime>;
 
-    type Currency = Balances;
+    type StorageProviderValidation = crate::StorageProvider;
+    type MaxDealsPerBlock = ConstU32<128>;
+    type MaxDealDuration = MaxDealDuration;
+}
+
+impl primitives::configs::MarketProvider for Runtime {
     type OffchainSignature = MultiSignature;
     type OffchainPublic = AccountPublic;
-    type StorageProviderValidation = crate::StorageProvider;
     type MaxDeals = ConstU32<128>;
-    type MaxDealsPerBlock = ConstU32<128>;
     type MinDealDuration = MinDealDuration;
-    type MaxDealDuration = MaxDealDuration;
 }
 
 impl pallet_proofs::Config for Runtime {

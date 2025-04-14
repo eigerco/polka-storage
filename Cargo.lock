@@ -12863,12 +12863,14 @@ dependencies = [
 name = "pallet-storage-provider-benchmarks"
 version = "0.0.0"
 dependencies = [
+ "cid 0.11.1",
  "env_logger 0.11.5",
  "frame-benchmarking 28.0.0",
  "frame-support 28.0.0",
  "frame-system 28.0.0",
  "pallet-balances 28.0.0",
  "pallet-market",
+ "pallet-proofs",
  "pallet-storage-provider",
  "parity-scale-codec",
  "primitives",
@@ -13985,12 +13987,15 @@ name = "polka-storage-provider-client"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "bellperson",
  "bls12_381",
+ "blstrs",
  "cid 0.11.1",
  "clap",
  "ed25519-dalek",
  "filecoin-proofs",
  "hex",
+ "itertools 0.13.0",
  "jsonrpsee 0.24.7",
  "libp2p 0.54.1",
  "mater",
@@ -13999,11 +14004,14 @@ dependencies = [
  "polka-storage-provider-common",
  "primitives",
  "primitives-p2p",
+ "proc-macro2",
+ "quote",
  "sc-cli",
  "serde",
  "serde_json",
  "storagext",
  "subxt 0.38.0",
+ "tempfile",
  "thiserror 2.0.8",
  "tokio",
  "tracing",
@@ -16163,6 +16171,9 @@ dependencies = [
  "clap",
  "ed25519-dalek",
  "filecoin-proofs",
+ "frame-benchmarking 28.0.0",
+ "frame-support 28.0.0",
+ "frame-system 28.0.0",
  "hex",
  "parity-scale-codec",
  "rand",
@@ -16174,7 +16185,9 @@ dependencies = [
  "serde_json",
  "sha2 0.10.8",
  "sp-api 26.0.0",
+ "sp-arithmetic 23.0.0",
  "sp-core 28.0.0",
+ "sp-io 30.0.0",
  "sp-runtime 31.0.1",
  "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2412)",
  "thiserror 2.0.8",
@@ -16297,9 +16310,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.92"
+version = "1.0.94"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "37d3544b3f2748c54e147655edb5025752e2303145b5aefb3c3ea2c78b973bb0"
+checksum = "a31971752e70b8b2686d7e46ec17fb38dad4051d94024c88df49b667caea9c84"
 dependencies = [
  "unicode-ident",
 ]
