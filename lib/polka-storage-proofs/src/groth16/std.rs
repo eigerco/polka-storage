@@ -187,7 +187,7 @@ mod tests {
 
     #[test]
     fn decodes_production_1gib_porep_verifying_key() {
-        let vk_bytes = include_bytes!("../../../../examples/benchmark/keys/1GiB.porep.vk");
+        let vk_bytes = include_bytes!("../../../../test-fixtures/keys/1GiB.porep.vk");
         // decode expects &mut mutability
         let vk_bytes = vk_bytes.to_vec();
         let key = bp_g16::VerifyingKey::<blstrs::Bls12>::read(&mut vk_bytes.as_slice());
@@ -203,7 +203,7 @@ mod tests {
 
     #[test]
     fn decodes_production_1gib_post_verifying_key() {
-        let vk_bytes = include_bytes!("../../../../examples/benchmark/keys/1GiB.post.vk");
+        let vk_bytes = include_bytes!("../../../../test-fixtures/keys/1GiB.post.vk");
         // decode expects &mut mutability
         let vk_bytes = vk_bytes.to_vec();
         let key = bp_g16::VerifyingKey::<blstrs::Bls12>::read(&mut vk_bytes.as_slice());

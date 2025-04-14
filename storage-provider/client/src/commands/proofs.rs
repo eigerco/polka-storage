@@ -210,8 +210,8 @@ const POST_VK_EXT_SCALE: &str = "post.vk.scale";
 const POREP_PROOF_EXT: &str = "sector.proof.porep.scale";
 const POST_PROOF_EXT: &str = "sector.proof.post.scale";
 
-const KEYS_DIR: &str = "examples/benchmark/keys";
-const PROOFS_DIR: &str = "examples/benchmark/proofs";
+const KEYS_DIR: &str = "test-fixtures/keys";
+const PROOFS_DIR: &str = "test-fixtures/proofs";
 const PARAMS_CACHE_DIR: &str = "target/params";
 const BENCH_DATA_DIR_TO_ROOT: &str = "../..";
 
