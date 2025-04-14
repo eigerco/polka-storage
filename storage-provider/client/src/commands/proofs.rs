@@ -659,7 +659,9 @@ async fn benchmark_data(input_path: PathBuf, sector_size: SectorSizeArg) -> Resu
     let sector_size = seal_proof.sector_size();
     let porep_params_path = params_root.join(format!("{sector_size}.{POREP_PARAMS_EXT}"));
     let porep_params_vk_path = keys_root.join(format!("{sector_size}.{POREP_VK_EXT_SCALE}"));
-    if !tokio::fs::try_exists(&porep_params_vk_path).await? {
+    if !tokio::fs::try_exists(&porep_params_path).await?
+        || !tokio::fs::try_exists(&porep_params_vk_path).await?
+    {
         return Err(CliError::MissingPoRepParams { seal_proof });
     }
     println!("--- Using pre-generated PoRep params for seal proof {seal_proof:?} ---");
