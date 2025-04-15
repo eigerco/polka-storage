@@ -25,11 +25,12 @@ pub struct BootstrapBehaviour {
     pub kad: kad::Behaviour<kad::store::MemoryStore>,
 }
 
+#[derive(Debug, Clone)]
 pub struct BootstrapConfig {
-    tcp_address: Multiaddr,
-    websocket_address: Multiaddr,
-    keypair: Keypair,
-    bootstrap_addresses: Vec<Multiaddr>,
+    pub tcp_address: Multiaddr,
+    pub websocket_address: Multiaddr,
+    pub keypair: Keypair,
+    pub bootstrap_addresses: Vec<Multiaddr>,
 }
 
 impl BootstrapConfig {

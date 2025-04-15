@@ -10,9 +10,11 @@ TMP_PATH="$TMPDIR/polka-storage-provider"
 
 mkdir -p "$TMP_PATH"
 
+COLLATOR_IP_ADDR="127.0.0.1"
+
 CLIENT="//Alice"
 PROVIDER="//Charlie"
-P2P_ADDRESS="/ip4/127.0.0.1/tcp/62649"
+P2P_ADDRESS="/ip4/$COLLATOR_IP_ADDR/tcp/62649"
 P2P_PUBLIC_KEY="$TMP_PATH/public.pem"
 P2P_PRIVATE_KEY="$TMP_PATH/private.pem"
 P2P_BOOTSTRAP_PUBLIC_KEY="/tmp/zombienet/charlie-public.pem"
@@ -36,12 +38,13 @@ P2P_BOOTSTRAP_PEER_ID="$(target/release/polka-storage-provider-client generate-p
 echo "Peer ID for bootstrap node: $P2P_BOOTSTRAP_PEER_ID"
 
 
-RUST_LOG='debug,jsonrpsee-client=off' target/release/storagext-cli --sr25519-key "//Charlie" storage-provider register --post-proof "8MiB" "$P2P_SP_PEER_ID"
+RUST_LOG='debug,jsonrpsee-client=off' target/release/storagext-cli --sr25519-key "//Charlie" --node-rpc "ws://$COLLATOR_IP_ADDR:42069" storage-provider register --post-proof "8MiB" "$P2P_SP_PEER_ID"
 wait
 
 echo '{ "minimum_price_per_block": 200, "deal_duration": { "lower": 50, "upper": 1800 }}' > "$DEAL_PARAMS"
 # Setup deal parameters, has to go after registration.
 RUST_LOG='debug,jsonrpsee-client=off' target/release/storagext-cli \
+    --node-rpc "ws://$COLLATOR_IP_ADDR:42069" \
     --sr25519-key "$PROVIDER" \
     market publish-deal-parameters \
     --deal-parameters @"$DEAL_PARAMS"
@@ -53,6 +56,7 @@ post_parameters = 'target/post_params_8MiB'
 rendezvous_point_address = '$P2P_ADDRESS'
 p2p_key = '@$P2P_PRIVATE_KEY'
 rendezvous_point = '$P2P_BOOTSTRAP_PEER_ID'
+node_url = 'ws://$COLLATOR_IP_ADDR:42069'
 [sealing_configuration]
 fill_threshold = 80
 wait_deals_delay = '1h'

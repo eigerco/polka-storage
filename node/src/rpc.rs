@@ -7,11 +7,15 @@
 
 use std::sync::Arc;
 
+use jsonrpsee::core::RpcResult;
+use libp2p::Multiaddr;
 use polka_storage_runtime::{opaque::Block, AccountId, Balance, Nonce};
 use sc_transaction_pool_api::TransactionPool;
 use sp_api::ProvideRuntimeApi;
 use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
+
+use crate::service::p2p::BootstrapConfig;
 
 /// A type representing all RPC extensions.
 pub type RpcExtension = jsonrpsee::RpcModule<()>;
@@ -22,6 +26,9 @@ pub struct FullDeps<C, P> {
     pub client: Arc<C>,
     /// Transaction pool instance.
     pub pool: Arc<P>,
+
+    /// The P2P bootstrap config.
+    pub p2p: Option<BootstrapConfig>,
 }
 
 /// Instantiate all RPC extensions.
@@ -44,9 +51,47 @@ where
     use substrate_frame_rpc_system::{System, SystemApiServer};
 
     let mut module = RpcExtension::new(());
-    let FullDeps { client, pool, .. } = deps;
+    let FullDeps {
+        client, pool, p2p, ..
+    } = deps;
 
     module.merge(System::new(client.clone(), pool).into_rpc())?;
     module.merge(TransactionPayment::new(client).into_rpc())?;
+    if let Some(config) = p2p {
+        module.merge(
+            PolkaStorageServices::new(vec![config.tcp_address, config.websocket_address])
+                .into_rpc(),
+        )?;
+    }
     Ok(module)
+}
+
+#[jsonrpsee::proc_macros::rpc(client, server)]
+trait PolkaStorageServicesApi {
+    /// Exposes the local listen multiaddresses. It will usually be either `0.0.0.0` or `127.0.0.1`.
+    ///
+    /// This is used by Delia to resolve the libp2p addresses for the request/response protocols.
+    #[method(name = "polkaStorage_getP2pMultiaddrs")]
+    async fn get_p2p_multiaddrs(&self) -> RpcResult<Vec<String>>;
+}
+
+struct PolkaStorageServices {
+    listen_addresses: Vec<Multiaddr>,
+}
+
+impl PolkaStorageServices {
+    fn new(listen_addresses: Vec<Multiaddr>) -> Self {
+        Self { listen_addresses }
+    }
+}
+
+#[async_trait::async_trait]
+impl PolkaStorageServicesApiServer for PolkaStorageServices {
+    async fn get_p2p_multiaddrs(&self) -> RpcResult<Vec<String>> {
+        return Ok(self
+            .listen_addresses
+            .iter()
+            .map(|addr| addr.to_string())
+            .collect());
+    }
 }

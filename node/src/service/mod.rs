@@ -323,6 +323,7 @@ pub async fn start_parachain_node(
         );
     }
 
+    let p2p_bootstrap_config = bootstrap_config.clone();
     let rpc_builder = {
         let client = client.clone();
         let transaction_pool = transaction_pool.clone();
@@ -331,16 +332,18 @@ pub async fn start_parachain_node(
             let deps = crate::rpc::FullDeps {
                 client: client.clone(),
                 pool: transaction_pool.clone(),
+                p2p: bootstrap_config.clone(),
             };
 
             crate::rpc::create_full(deps).map_err(Into::into)
         })
     };
 
-    if let Some(config) = bootstrap_config {
-        task_manager
+    match p2p_bootstrap_config {
+        Some(config) => task_manager
             .spawn_handle()
-            .spawn("p2p", None, run_bootstrap_node(config));
+            .spawn("p2p", None, run_bootstrap_node(config)),
+        None => log::warn!("No bootstrap config was provided, not launching bootstrap service..."),
     }
 
     sc_service::spawn_tasks(sc_service::SpawnTasksParams {
