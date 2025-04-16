@@ -17,7 +17,9 @@ use pallet_market::Pallet as MarketPallet;
 use pallet_proofs::Pallet as ProofsPallet;
 use pallet_storage_provider::{
     error::GeneralPalletError,
-    fault::{DeclareFaultsParams, FaultDeclaration},
+    fault::{
+        DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration, RecoveryDeclaration,
+    },
     Pallet as SpPallet,
 };
 use primitives::{
@@ -118,6 +120,24 @@ mod benchmarks {
         }
 
         check_declare_faults::<T>(faults);
+    }
+
+    /// `n`: number of submitted faulty sectors
+    // TODO(@Jinxit,#827,16/04/2025): Use `n: Linear<1, DECLARATIONS_MAX * MAX_TERMINATIONS_PER_CALL>`
+    //                                when we have more proven sectors to use.
+    #[benchmark]
+    fn declare_faults_recovered() {
+        let (sp_id, faults) = prepare_declare_faults_recovered::<T>(1);
+
+        #[block]
+        {
+            assert_ok_sp(SpPallet::<T>::declare_faults_recovered(
+                RawOrigin::Signed(sp_id.clone()).into(),
+                faults.clone(),
+            ));
+        }
+
+        check_declare_faults_recovered::<T>(faults);
     }
 
     impl_benchmark_test_suite!(Pallet, crate::test::new_test_ext(), crate::mock::Test);
@@ -340,6 +360,62 @@ where
         .collect::<Vec<_>>();
 
     assert_eq!(faults_sectors, deadline_sectors);
+}
+
+fn prepare_declare_faults_recovered<T>(n: u32) -> (AccountId32, DeclareFaultsRecoveredParams)
+where
+    T: crate::Config<
+            PeerId = BoundedPeerIdBytes,
+            AccountId = AccountId32,
+            OffchainSignature = MultiSignature,
+        > + primitives::configs::MarketProvider,
+    BlockNumberFor<T>: From<u64> + Into<u64> + Add,
+    u64: TryFrom<BalanceOf<T>>,
+{
+    let (sp_id, faults) = prepare_declare_faults::<T>(n);
+
+    assert_ok_sp(SpPallet::<T>::declare_faults(
+        RawOrigin::Signed(sp_id.clone()).into(),
+        faults.clone(),
+    ));
+
+    let recoveries = faults
+        .faults
+        .into_iter()
+        .map(|fault| RecoveryDeclaration {
+            deadline: fault.deadline,
+            partition: fault.partition,
+            sectors: fault.sectors,
+        })
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
+    (sp_id, DeclareFaultsRecoveredParams { recoveries })
+}
+
+fn check_declare_faults_recovered<T>(recoveries: DeclareFaultsRecoveredParams)
+where
+    T: crate::Config<AccountId = AccountId32>,
+{
+    let data = BenchmarkData::<T>::load();
+    let sp = data.storage_provider();
+
+    let state = SpPallet::<T>::storage_providers(sp.account_id.clone()).unwrap();
+
+    let recoveries_sectors = recoveries
+        .recoveries
+        .iter()
+        .flat_map(|f| f.sectors.iter())
+        .collect::<Vec<_>>();
+    let deadline_sectors = state
+        .deadlines
+        .due
+        .iter()
+        .flat_map(|dl| dl.partitions.iter())
+        .flat_map(|(_, p)| p.recoveries.iter())
+        .collect::<Vec<_>>();
+
+    assert_eq!(recoveries_sectors, deadline_sectors);
 }
 
 /// Run until a particular block.
