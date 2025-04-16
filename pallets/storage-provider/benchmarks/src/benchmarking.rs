@@ -18,7 +18,6 @@ use pallet_proofs::Pallet as ProofsPallet;
 use pallet_storage_provider::{
     error::GeneralPalletError,
     fault::{DeclareFaultsParams, FaultDeclaration},
-    pallet::Call,
     Pallet as SpPallet,
 };
 use primitives::{
@@ -59,12 +58,14 @@ mod benchmarks {
         let peer_id = provider.peer_id;
         let window_post_proof_type = data.post_type;
 
-        #[extrinsic_call]
-        _(
-            RawOrigin::Signed(caller.clone()),
-            peer_id.clone(),
-            window_post_proof_type,
-        );
+        #[block]
+        {
+            assert_ok_sp(SpPallet::<T>::register_storage_provider(
+                RawOrigin::Signed(caller.clone()).into(),
+                peer_id.clone(),
+                window_post_proof_type,
+            ));
+        }
 
         let state = SpPallet::<T>::storage_providers(caller).unwrap();
         assert_eq!(state.info.peer_id, peer_id);
@@ -75,8 +76,13 @@ mod benchmarks {
     fn pre_commit_sectors() {
         let (sp_id, _, sectors) = prepare_pre_commit_sectors::<T>(1);
 
-        #[extrinsic_call]
-        _(RawOrigin::Signed(sp_id.clone()), sectors);
+        #[block]
+        {
+            assert_ok_sp(SpPallet::<T>::pre_commit_sectors(
+                RawOrigin::Signed(sp_id.clone()).into(),
+                sectors,
+            ));
+        }
 
         check_pre_commit_sectors::<T>(1, sp_id);
     }
@@ -85,8 +91,13 @@ mod benchmarks {
     fn prove_commit_sectors() {
         let (sp_id, prove_sectors, total_fee) = prepare_prove_commit_sectors::<T>(1);
 
-        #[extrinsic_call]
-        _(RawOrigin::Signed(sp_id.clone()), prove_sectors.clone());
+        #[block]
+        {
+            assert_ok_sp(SpPallet::<T>::prove_commit_sectors(
+                RawOrigin::Signed(sp_id.clone()).into(),
+                prove_sectors.clone(),
+            ));
+        }
 
         check_prove_commit_sectors::<T>(sp_id, prove_sectors, total_fee);
     }
@@ -137,7 +148,7 @@ where
         (EXISTENTIAL_DEPOSIT * 2).into(),
     );
 
-    assert_ok!(SpPallet::<T>::register_storage_provider(
+    assert_ok_sp(SpPallet::<T>::register_storage_provider(
         RawOrigin::Signed(sp.account_id.clone()).into(),
         sp.peer_id.clone(),
         data.post_type,
@@ -205,9 +216,9 @@ where
         })
         .sum();
 
-    assert_ok!(SpPallet::<T>::pre_commit_sectors(
+    assert_ok_sp(SpPallet::<T>::pre_commit_sectors(
         RawOrigin::Signed(sp_id.clone()).into(),
-        sector_pre_commits
+        sector_pre_commits,
     ));
 
     assert_ok!(ProofsPallet::<T>::set_porep_verifying_key(
@@ -224,7 +235,7 @@ where
     (sp_id, prove_sectors, total_collateral as u32)
 }
 
-fn check_prove_commit_sectors<T: crate::Config>(
+fn check_prove_commit_sectors<T>(
     sp_id: T::AccountId,
     prove_sectors: BoundedVec<ProveCommitSector, ConstU32<MAX_SECTORS_PER_CALL>>,
     total_fee: u32,
@@ -268,7 +279,7 @@ fn check_prove_commit_sectors<T: crate::Config>(
     }));
 }
 
-fn prepare_declare_faults<T: crate::Config>(n: u32) -> (AccountId32, DeclareFaultsParams)
+fn prepare_declare_faults<T>(n: u32) -> (AccountId32, DeclareFaultsParams)
 where
     T: crate::Config<
             PeerId = BoundedPeerIdBytes,
@@ -280,9 +291,9 @@ where
 {
     let (sp_id, prove_sectors, _) = prepare_prove_commit_sectors::<T>(n);
 
-    assert_ok!(SpPallet::<T>::prove_commit_sectors(
+    assert_ok_sp(SpPallet::<T>::prove_commit_sectors(
         RawOrigin::Signed(sp_id.clone()).into(),
-        prove_sectors.clone()
+        prove_sectors.clone(),
     ));
 
     let faults = prove_sectors
@@ -306,7 +317,7 @@ where
     (sp_id, DeclareFaultsParams { faults })
 }
 
-fn check_declare_faults<T: crate::Config>(faults: DeclareFaultsParams)
+fn check_declare_faults<T>(faults: DeclareFaultsParams)
 where
     T: crate::Config<AccountId = AccountId32>,
 {
