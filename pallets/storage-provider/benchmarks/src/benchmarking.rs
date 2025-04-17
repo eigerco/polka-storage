@@ -92,8 +92,8 @@ mod benchmarks {
     }
 
     /// `n`: number of submitted faulty sectors
-    // TODO(@Jinxit,15/04/2025): Use `n: Linear<1, DECLARATIONS_MAX * MAX_TERMINATIONS_PER_CALL>`
-    //                           when we have more proven sectors to use.
+    // TODO(@Jinxit,#827,15/04/2025): Use `n: Linear<1, DECLARATIONS_MAX * MAX_TERMINATIONS_PER_CALL>`
+    //                                when we have more proven sectors to use.
     #[benchmark]
     fn declare_faults() {
         let (sp_id, faults) = prepare_declare_faults::<T>(1);
