@@ -77,13 +77,17 @@ impl pallet_market::Config for Test {
     type StorageProviderValidation = StorageProvider;
     type MaxDealDuration = MaxDealDuration;
     type MaxDealsPerBlock = ConstU32<32>;
+    type MinDealDuration = MinDealDuration;
 }
 
 impl primitives::configs::MarketProvider for Test {
     type OffchainSignature = Signature;
     type OffchainPublic = AccountPublic;
     type MaxDeals = ConstU32<32>;
-    type MinDealDuration = MinDealDuration;
+
+    fn min_deal_duration() -> BlockNumberFor<Self> {
+        <Test as pallet_market::Config>::MinDealDuration::get()
+    }
 }
 
 impl pallet_proofs::Config for Test {

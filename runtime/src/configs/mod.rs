@@ -481,13 +481,17 @@ impl pallet_market::Config for Runtime {
     type StorageProviderValidation = crate::StorageProvider;
     type MaxDealsPerBlock = ConstU32<128>;
     type MaxDealDuration = MaxDealDuration;
+    type MinDealDuration = MinDealDuration;
 }
 
 impl primitives::configs::MarketProvider for Runtime {
     type OffchainSignature = MultiSignature;
     type OffchainPublic = AccountPublic;
     type MaxDeals = ConstU32<128>;
-    type MinDealDuration = MinDealDuration;
+
+    fn min_deal_duration() -> BlockNumberFor<Self> {
+        <Runtime as pallet_market::Config>::MinDealDuration::get()
+    }
 }
 
 impl pallet_proofs::Config for Runtime {
