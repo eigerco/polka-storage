@@ -363,7 +363,7 @@ where
 /// to get the inner error as a user-friendly string.
 fn assert_ok_sp(res: Result<(), DispatchError>) {
     if let Err(sp_runtime::DispatchError::Module(module)) = &res {
-        if module.message == Some("GeneralPalletError") {
+        if let Some("GeneralPalletError") = module.message {
             let variant = GeneralPalletError::decode(&mut [module.error[1]].as_slice()).unwrap();
             panic!("{variant:#?}");
         }
