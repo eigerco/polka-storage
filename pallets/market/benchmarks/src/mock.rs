@@ -95,13 +95,17 @@ impl pallet_market::Config for Test {
     type StorageProviderValidation = StorageProvider;
     type MaxDealDuration = MaxDealDuration;
     type MaxDealsPerBlock = ConstU32<32>;
+    type MinDealDuration = MinDealDuration;
 }
 
 impl MarketProvider for Test {
     type OffchainSignature = Signature;
     type OffchainPublic = AccountPublic;
     type MaxDeals = ConstU32<32>;
-    type MinDealDuration = MinDealDuration;
+
+    fn min_deal_duration() -> BlockNumberFor<Self> {
+        <Test as pallet_market::Config>::MinDealDuration::get()
+    }
 }
 
 impl CurrencyProvider for Test {
@@ -173,6 +177,8 @@ impl pallet_storage_provider::Config for Test {
     type WPoStChallengeWindow = WPoStChallengeWindow;
     type WPoStChallengeLookBack = WPoStChallengeLookBack;
     type MinSectorExpiration = MinSectorExpiration;
+    type MaxSectorExpiration = MaxSectorExpiration;
+    type SectorMaximumLifetime = SectorMaximumLifetime;
     type MaxProveCommitDuration = MaxProveCommitDuration;
     type WPoStPeriodDeadlines = WPoStPeriodDeadlines;
     type MaxPartitionsPerDeadline = MaxPartitionsPerDeadline;
@@ -185,8 +191,13 @@ impl pallet_storage_provider::Config for Test {
 }
 
 impl StorageProviderProvider for Test {
-    type MaxSectorExpiration = MaxSectorExpiration;
-    type SectorMaximumLifetime = SectorMaximumLifetime;
+    fn max_sector_expiration() -> BlockNumberFor<Self> {
+        <Test as pallet_storage_provider::Config>::MaxSectorExpiration::get()
+    }
+
+    fn sector_maximum_lifetime() -> BlockNumberFor<Self> {
+        <Test as pallet_storage_provider::Config>::SectorMaximumLifetime::get()
+    }
 }
 
 impl pallet_proofs::Config for Test {

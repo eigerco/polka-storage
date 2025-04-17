@@ -425,7 +425,7 @@ fn publish_storage_deals_fails_min_duration_out_of_bounds() {
         register_storage_provider(account::<Test>(PROVIDER));
         let proposal = DealProposalBuilder::<Test>::default()
             .start_block(10)
-            .end_block(10 + <<Test as MarketProvider>::MinDealDuration as Get<u64>>::get() - 1)
+            .end_block(10 + <Test as MarketProvider>::min_deal_duration() - 1)
             .signed(ALICE);
 
         assert_noop!(
@@ -1949,7 +1949,7 @@ fn publish_deal_parameters() {
         let deal_params = offchain_deal_params
             .clone()
             .validate(
-                <<Test as MarketProvider>::MinDealDuration as Get<u64>>::get(),
+                <Test as MarketProvider>::min_deal_duration(),
                 <<Test as Config>::MaxDealDuration as Get<u64>>::get(),
             )
             .expect("Seamless conversion");
@@ -1987,7 +1987,7 @@ fn publish_deal_parameters() {
         let deal_params_2 = offchain_deal_params_2
             .clone()
             .validate(
-                <<Test as MarketProvider>::MinDealDuration as Get<u64>>::get(),
+                <Test as MarketProvider>::min_deal_duration(),
                 <<Test as Config>::MaxDealDuration as Get<u64>>::get(),
             )
             .expect("Seamless conversion");
@@ -2031,7 +2031,7 @@ fn remove_deal_parameters() {
         let deal_params = offchain_deal_params
             .clone()
             .validate(
-                <<Test as MarketProvider>::MinDealDuration as Get<u64>>::get(),
+                <Test as MarketProvider>::min_deal_duration(),
                 <<Test as Config>::MaxDealDuration as Get<u64>>::get(),
             )
             .expect("Seamless conversion");

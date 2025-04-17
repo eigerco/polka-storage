@@ -86,18 +86,27 @@ impl pallet_market::Config for Test {
     type StorageProviderValidation = StorageProvider;
     type MaxDealDuration = MaxDealDuration;
     type MaxDealsPerBlock = ConstU32<500>;
+    type MinDealDuration = MinDealDuration;
 }
 
 impl StorageProviderProvider for Test {
-    type MaxSectorExpiration = MaxSectorExpiration;
-    type SectorMaximumLifetime = SectorMaximumLifetime;
+    fn max_sector_expiration() -> BlockNumberFor<Self> {
+        <Test as pallet_storage_provider::Config>::MaxSectorExpiration::get()
+    }
+
+    fn sector_maximum_lifetime() -> BlockNumberFor<Self> {
+        <Test as pallet_storage_provider::Config>::SectorMaximumLifetime::get()
+    }
 }
 
 impl MarketProvider for Test {
     type OffchainSignature = Signature;
     type OffchainPublic = AccountPublic;
     type MaxDeals = ConstU32<500>;
-    type MinDealDuration = MinDealDuration;
+
+    fn min_deal_duration() -> BlockNumberFor<Self> {
+        <Test as pallet_market::Config>::MinDealDuration::get()
+    }
 }
 
 impl CurrencyProvider for Test {
@@ -187,6 +196,8 @@ impl pallet_storage_provider::Config for Test {
     // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L295>
     type AddressedPartitionsMax = MaxPartitionsPerDeadline;
     type AddressedSectorsMax = AddressedSectorsMax;
+    type MaxSectorExpiration = MaxSectorExpiration;
+    type SectorMaximumLifetime = SectorMaximumLifetime;
 }
 
 type AccountIdOf<Test> = <Test as frame_system::Config>::AccountId;

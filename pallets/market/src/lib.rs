@@ -83,6 +83,12 @@ pub mod pallet {
         /// Having this number too big can affect block production.
         #[pallet::constant]
         type MaxDealsPerBlock: Get<u32>;
+
+        /// How many days should a deal last (activated). Minimum.
+        /// Filecoin uses 180 as default.
+        /// https://github.com/filecoin-project/builtin-actors/blob/c32c97229931636e3097d92cf4c43ac36a7b4b47/actors/market/src/policy.rs#L29
+        #[pallet::constant]
+        type MinDealDuration: Get<BlockNumberFor<Self>>;
     }
 
     /// Stores balances info for both Storage Providers and Storage Users

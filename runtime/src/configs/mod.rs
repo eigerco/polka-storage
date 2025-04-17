@@ -38,6 +38,7 @@ use frame_support::{
 };
 use frame_system::{
     limits::{BlockLength, BlockWeights},
+    pallet_prelude::BlockNumberFor,
     EnsureRoot,
 };
 use pallet_xcm::{EnsureXcm, IsVoiceOfBody};
@@ -442,6 +443,8 @@ impl pallet_storage_provider::Config for Runtime {
     type WPoStChallengeWindow = WPoStChallengeWindow;
     type WPoStChallengeLookBack = WPoStChallengeLookBack;
     type MinSectorExpiration = MinSectorExpiration;
+    type MaxSectorExpiration = MaxSectorExpiration;
+    type SectorMaximumLifetime = SectorMaximumLifetime;
     type MaxProveCommitDuration = MaxProveCommitDuration;
     type WPoStPeriodDeadlines = WPoStPeriodDeadlines;
     type MaxPartitionsPerDeadline = MaxPartitionsPerDeadline;
@@ -454,8 +457,13 @@ impl pallet_storage_provider::Config for Runtime {
 }
 
 impl primitives::configs::StorageProviderProvider for Runtime {
-    type MaxSectorExpiration = MaxSectorExpiration;
-    type SectorMaximumLifetime = SectorMaximumLifetime;
+    fn max_sector_expiration() -> BlockNumberFor<Self> {
+        <Runtime as pallet_storage_provider::Config>::MaxSectorExpiration::get()
+    }
+
+    fn sector_maximum_lifetime() -> BlockNumberFor<Self> {
+        <Runtime as pallet_storage_provider::Config>::SectorMaximumLifetime::get()
+    }
 }
 
 parameter_types! {
@@ -473,13 +481,17 @@ impl pallet_market::Config for Runtime {
     type StorageProviderValidation = crate::StorageProvider;
     type MaxDealsPerBlock = ConstU32<128>;
     type MaxDealDuration = MaxDealDuration;
+    type MinDealDuration = MinDealDuration;
 }
 
 impl primitives::configs::MarketProvider for Runtime {
     type OffchainSignature = MultiSignature;
     type OffchainPublic = AccountPublic;
     type MaxDeals = ConstU32<128>;
-    type MinDealDuration = MinDealDuration;
+
+    fn min_deal_duration() -> BlockNumberFor<Self> {
+        <Runtime as pallet_market::Config>::MinDealDuration::get()
+    }
 }
 
 impl pallet_proofs::Config for Runtime {

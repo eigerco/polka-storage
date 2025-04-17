@@ -9,7 +9,7 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use sp_core::sr25519;
 use sp_io::crypto::{sr25519_generate, sr25519_sign};
 use sp_runtime::{
-    traits::{ConstU32, Get, IdentifyAccount},
+    traits::{ConstU32, IdentifyAccount},
     AccountId32, BoundedVec, MultiSignature, MultiSigner,
 };
 
@@ -122,7 +122,7 @@ impl<T> BenchmarkData<T> {
             .iter()
             .take(limit as usize)
             .map(|sector| {
-                let min_dur = T::MinDealDuration::get();
+                let min_dur = T::min_deal_duration();
                 let label = vec![u32::from(sector.sector_number) as u8; MAX_LABEL_SIZE as usize];
                 let proposal = DealProposalOf::<T> {
                     piece_cid: self
@@ -166,10 +166,7 @@ impl<T> BenchmarkData<T> {
                 deal_ids: vec![u64::from(sector.sector_number) as u64]
                     .try_into()
                     .unwrap(),
-                expiration: min(
-                    T::SectorMaximumLifetime::get(),
-                    T::MaxSectorExpiration::get(),
-                ),
+                expiration: min(T::sector_maximum_lifetime(), T::max_sector_expiration()),
                 unsealed_cid: sector.comm_d.cid().to_bytes().try_into().unwrap(),
                 seal_randomness_height: self.seal_randomness_height.into(),
             })

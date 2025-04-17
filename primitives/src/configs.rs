@@ -29,19 +29,21 @@ pub trait MarketProvider: frame_system::Config {
     type OffchainPublic: IdentifyAccount<AccountId = <Self as frame_system::Config>::AccountId>;
 
     /// How many deals can be published in a single batch of `publish_storage_deals`.
+    // TODO(@Jinxit,17/04/2025): Turn this into a function same like `min_deal_duration` and re-add
+    //                           the #[pallet::constant] in the pallet.
     type MaxDeals: Get<u32>;
 
     /// How many days should a deal last (activated). Minimum.
     /// Filecoin uses 180 as default.
     /// https://github.com/filecoin-project/builtin-actors/blob/c32c97229931636e3097d92cf4c43ac36a7b4b47/actors/market/src/policy.rs#L29
-    type MinDealDuration: Get<BlockNumberFor<Self>>;
+    fn min_deal_duration() -> BlockNumberFor<Self>;
 }
 
 /// Represents functions that are provided by the Storage Provider Pallet
 pub trait StorageProviderProvider: frame_system::Config {
     /// Maximum number of blocks past the current block a sector may be set to expire.
-    type MaxSectorExpiration: Get<BlockNumberFor<Self>>;
+    fn max_sector_expiration() -> BlockNumberFor<Self>;
 
     /// Maximum number of blocks a sector can stay in pre-committed state
-    type SectorMaximumLifetime: Get<BlockNumberFor<Self>>;
+    fn sector_maximum_lifetime() -> BlockNumberFor<Self>;
 }
