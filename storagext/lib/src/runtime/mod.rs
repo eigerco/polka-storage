@@ -34,11 +34,11 @@ pub mod display;
     ),
     // impl Deserialize
     derive_for_type(
-        path = "pallet_market::pallet::ActiveDealState",
+        path = "primitives::deals::active_deal_state::ActiveDealState",
         derive = "::serde::Deserialize"
     ),
     derive_for_type(
-        path = "pallet_market::pallet::DealState",
+        path = "primitives::deals::deal_state::DealState",
         derive = "::serde::Deserialize"
     ),
     derive_for_type(
@@ -113,11 +113,11 @@ pub mod display;
         derive = "::serde::Serialize"
     ),
     derive_for_type(
-        path = "pallet_market::pallet::ActiveDealState",
+        path = "primitives::deals::active_deal_state::ActiveDealState",
         derive = "::serde::Serialize"
     ),
     derive_for_type(
-        path = "pallet_market::pallet::DealState",
+        path = "primitives::deals::deal_state::DealState",
         derive = "::serde::Serialize"
     ),
     derive_for_type(
@@ -151,7 +151,9 @@ pub use self::polka_storage_runtime::*;
 mod test {
 
     use crate::{
-        runtime::runtime_types::pallet_market::pallet::{ActiveDealState, DealState},
+        runtime::runtime_types::primitives::deals::{
+            active_deal_state::ActiveDealState, deal_state::DealState,
+        },
         BlockNumber,
     };
 

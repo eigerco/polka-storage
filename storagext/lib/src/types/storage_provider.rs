@@ -366,7 +366,7 @@ mod tests {
     use primitives::proofs::RegisteredPoStProof;
 
     use crate::{
-        runtime::runtime_types::pallet_market::pallet::DealState as RuntimeDealState,
+        runtime::runtime_types::primitives::deals::deal_state::DealState as RuntimeDealState,
         types::{
             market::DealProposal,
             storage_provider::{

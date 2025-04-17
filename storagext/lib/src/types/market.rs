@@ -6,15 +6,16 @@ use subxt::{ext::sp_runtime::MultiSignature, tx::Signer, utils::Static};
 use crate::{
     runtime::{
         bounded_vec::IntoBoundedByteVec,
-        runtime_types::pallet_market::{
-            deal_parameters::{
+        runtime_types::{
+            pallet_market::deal_parameters::{
                 DealParameters as RuntimeDealParameters,
                 OffchainDealDurationBound as RuntimeOffchainDealDurationBound,
                 OffchainDealParameters as RuntimeOffchainDealParameters,
             },
-            pallet::{
-                ClientDealProposal as RuntimeClientDealProposal,
-                DealProposal as RuntimeDealProposal, DealState as RuntimeDealState,
+            primitives::deals::{
+                client_deal_proposal::ClientDealProposal as RuntimeClientDealProposal,
+                deal_proposal::DealProposal as RuntimeDealProposal,
+                deal_state::DealState as RuntimeDealState,
             },
         },
     },

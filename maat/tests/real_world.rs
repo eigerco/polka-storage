@@ -10,7 +10,7 @@ use primitives::{
 };
 use storagext::{
     multipair::MultiPairSigner,
-    runtime::runtime_types::pallet_market::pallet::DealState,
+    runtime::runtime_types::primitives::deals::deal_state::DealState,
     types::{
         market::DealProposal,
         storage_provider::{FaultDeclaration, RecoveryDeclaration},

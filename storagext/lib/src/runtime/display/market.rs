@@ -4,9 +4,10 @@ use crate::{
         runtime_types::{
             pallet_market::{
                 deal_parameters::{DealDurationBound, DealParameters},
-                pallet::{self, BalanceEntry, DealState},
+                pallet::{self, BalanceEntry},
             },
             polka_storage_runtime::Runtime,
+            primitives::deals::deal_state::DealState,
         },
     },
     types::market::DealProposal,
