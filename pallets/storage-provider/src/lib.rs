@@ -189,9 +189,17 @@ pub mod pallet {
         #[pallet::constant]
         type MinSectorExpiration: Get<BlockNumberFor<Self>>;
 
+        /// Maximum number of blocks past the current block a sector may be set to expire.
+        #[pallet::constant]
+        type MaxSectorExpiration: Get<BlockNumberFor<Self>>;
+
         /// Maximum duration to allow for the sealing process for seal algorithms.
         #[pallet::constant]
         type MaxProveCommitDuration: Get<BlockNumberFor<Self>>;
+
+        /// Maximum number of blocks a sector can stay in pre-committed state
+        #[pallet::constant]
+        type SectorMaximumLifetime: Get<BlockNumberFor<Self>>;
 
         /// Represents how many challenge deadline there are in 1 proving period.
         /// Closely tied to `WPoStChallengeWindow`

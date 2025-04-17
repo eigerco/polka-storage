@@ -40,8 +40,8 @@ pub trait MarketProvider: frame_system::Config {
 /// Represents functions that are provided by the Storage Provider Pallet
 pub trait StorageProviderProvider: frame_system::Config {
     /// Maximum number of blocks past the current block a sector may be set to expire.
-    type MaxSectorExpiration: Get<BlockNumberFor<Self>>;
+    fn max_sector_expiration() -> BlockNumberFor<Self>;
 
     /// Maximum number of blocks a sector can stay in pre-committed state
-    type SectorMaximumLifetime: Get<BlockNumberFor<Self>>;
+    fn sector_maximum_lifetime() -> BlockNumberFor<Self>;
 }

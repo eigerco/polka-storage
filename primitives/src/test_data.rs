@@ -166,10 +166,7 @@ impl<T> BenchmarkData<T> {
                 deal_ids: vec![u64::from(sector.sector_number) as u64]
                     .try_into()
                     .unwrap(),
-                expiration: min(
-                    T::SectorMaximumLifetime::get(),
-                    T::MaxSectorExpiration::get(),
-                ),
+                expiration: min(T::sector_maximum_lifetime(), T::max_sector_expiration()),
                 unsealed_cid: sector.comm_d.cid().to_bytes().try_into().unwrap(),
                 seal_randomness_height: self.seal_randomness_height.into(),
             })
