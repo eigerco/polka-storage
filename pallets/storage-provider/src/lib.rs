@@ -16,11 +16,11 @@ mod tests;
 
 mod deadline;
 pub mod error;
-mod expiration_queue;
+pub mod expiration_queue;
 pub mod fault;
 mod partition;
 mod proofs;
-mod sector;
+pub mod sector;
 mod sector_map;
 mod storage_provider;
 
