@@ -15,9 +15,9 @@
 mod tests;
 
 mod deadline;
-mod error;
+pub mod error;
 mod expiration_queue;
-mod fault;
+pub mod fault;
 mod partition;
 mod proofs;
 mod sector;

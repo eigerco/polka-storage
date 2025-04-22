@@ -1,26 +1,32 @@
 #![cfg(feature = "runtime-benchmarks")]
 
-use alloc::vec;
+use alloc::{collections::BTreeSet, vec, vec::Vec};
 use core::ops::Add;
 
-use codec::Encode;
+use codec::{Decode, Encode};
 use frame_benchmarking::v2::*;
 use frame_support::{
     assert_ok,
-    pallet_prelude::{ConstU32, One},
+    pallet_prelude::{ConstU32, DispatchError, One},
     traits::{Currency, Get, Hooks},
     BoundedVec,
 };
 use frame_system::{pallet_prelude::BlockNumberFor, RawOrigin};
+use itertools::Itertools;
 use pallet_market::Pallet as MarketPallet;
 use pallet_proofs::Pallet as ProofsPallet;
-use pallet_storage_provider::{pallet::Call, Pallet as SpPallet};
+use pallet_storage_provider::{
+    error::GeneralPalletError,
+    fault::{DeclareFaultsParams, FaultDeclaration},
+    pallet::Call,
+    Pallet as SpPallet,
+};
 use primitives::{
     configs::BalanceOf,
     deals::ClientDealProposalOf,
     sector::{ProveCommitSector, SectorPreCommitInfo},
     test_data::{generate_benchmark_account, BenchmarkData},
-    MAX_SECTORS_PER_CALL, PEER_ID_MAX_BYTES,
+    MAX_SECTORS_PER_CALL, MAX_TERMINATIONS_PER_CALL, PEER_ID_MAX_BYTES,
 };
 use sp_runtime::{AccountId32, MultiSignature, MultiSigner};
 
@@ -83,6 +89,24 @@ mod benchmarks {
         _(RawOrigin::Signed(sp_id.clone()), prove_sectors.clone());
 
         check_prove_commit_sectors::<T>(sp_id, prove_sectors, total_fee);
+    }
+
+    /// `n`: number of submitted faulty sectors
+    // TODO(@Jinxit,#827,15/04/2025): Use `n: Linear<1, DECLARATIONS_MAX * MAX_TERMINATIONS_PER_CALL>`
+    //                                when we have more proven sectors to use.
+    #[benchmark]
+    fn declare_faults() {
+        let (sp_id, faults) = prepare_declare_faults::<T>(1);
+
+        #[block]
+        {
+            assert_ok_sp(SpPallet::<T>::declare_faults(
+                RawOrigin::Signed(sp_id.clone()).into(),
+                faults.clone(),
+            ));
+        }
+
+        check_declare_faults::<T>(faults);
     }
 
     impl_benchmark_test_suite!(Pallet, crate::test::new_test_ext(), crate::mock::Test);
@@ -244,6 +268,69 @@ fn check_prove_commit_sectors<T: crate::Config>(
     }));
 }
 
+fn prepare_declare_faults<T: crate::Config>(n: u32) -> (AccountId32, DeclareFaultsParams)
+where
+    T: crate::Config<
+            PeerId = BoundedPeerIdBytes,
+            AccountId = AccountId32,
+            OffchainSignature = MultiSignature,
+        > + primitives::configs::MarketProvider,
+    BlockNumberFor<T>: From<u64> + Into<u64> + Add,
+    u64: TryFrom<BalanceOf<T>>,
+{
+    let (sp_id, prove_sectors, _) = prepare_prove_commit_sectors::<T>(n);
+
+    assert_ok!(SpPallet::<T>::prove_commit_sectors(
+        RawOrigin::Signed(sp_id.clone()).into(),
+        prove_sectors.clone()
+    ));
+
+    let faults = prove_sectors
+        .into_iter()
+        .chunks(MAX_TERMINATIONS_PER_CALL as usize)
+        .into_iter()
+        .enumerate()
+        .map(|(i, sectors)| FaultDeclaration {
+            deadline: i as u64,
+            partition: i as u32,
+            sectors: sectors
+                .into_iter()
+                .map(|s| s.sector_number)
+                .collect::<BTreeSet<_>>()
+                .try_into()
+                .unwrap(),
+        })
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
+    (sp_id, DeclareFaultsParams { faults })
+}
+
+fn check_declare_faults<T: crate::Config>(faults: DeclareFaultsParams)
+where
+    T: crate::Config<AccountId = AccountId32>,
+{
+    let data = BenchmarkData::<T>::load();
+    let sp = data.storage_provider();
+
+    let state = SpPallet::<T>::storage_providers(sp.account_id.clone()).unwrap();
+
+    let faults_sectors = faults
+        .faults
+        .iter()
+        .flat_map(|f| f.sectors.iter())
+        .collect::<Vec<_>>();
+    let deadline_sectors = state
+        .deadlines
+        .due
+        .iter()
+        .flat_map(|dl| dl.partitions.iter())
+        .flat_map(|(_, p)| p.faults.iter())
+        .collect::<Vec<_>>();
+
+    assert_eq!(faults_sectors, deadline_sectors);
+}
+
 /// Run until a particular block.
 ///
 /// Stolen from https://github.com/paritytech/polkadot-sdk/blob/1bc6ca606438a65c927f14be3f36634ca0e58e8f/substrate/frame/identity/src/benchmarking.rs#L48
@@ -270,4 +357,16 @@ where
     let account = generate_benchmark_account::<T>(name);
     pallet_balances::Pallet::<T>::make_free_balance_be(&account.0, balance.into());
     account
+}
+
+/// Asserts that the result was Ok, and additionally decodes the error if it was a GeneralPalletError
+/// to get the inner error as a user-friendly string.
+fn assert_ok_sp(res: Result<(), DispatchError>) {
+    if let Err(sp_runtime::DispatchError::Module(module)) = &res {
+        if let Some("GeneralPalletError") = module.message {
+            let variant = GeneralPalletError::decode(&mut [module.error[1]].as_slice()).unwrap();
+            panic!("{variant:#?}");
+        }
+    }
+    assert_ok!(res);
 }
