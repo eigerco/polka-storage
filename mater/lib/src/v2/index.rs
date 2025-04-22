@@ -266,8 +266,8 @@ where
     W: AsyncWrite + Unpin,
 {
     let mut written_bytes = 0;
-    writer.write_i32_le(index.0.len() as i32).await?;
-    written_bytes += size_of::<i32>();
+    writer.write_u32_le(index.0.len() as u32).await?;
+    written_bytes += size_of::<u32>();
     for (hash_code, index) in index.0.iter() {
         writer.write_u64_le(*hash_code).await?;
         written_bytes += size_of::<u64>();
@@ -284,8 +284,12 @@ where
     W: AsyncWrite + Unpin,
 {
     let mut written_bytes = 0;
-    writer.write_i32_le(index.0.len() as i32).await?;
-    written_bytes += size_of::<i32>();
+    // The number of different widths under the same multihash code:
+    // For example, this does not apply for hashes like SHA256
+    // since the digest length is part of their "identity", however,
+    // BLAKE3 has different digest lengths while keeping the same multihash code
+    writer.write_u32_le(index.0.len() as u32).await?;
+    written_bytes += size_of::<u32>();
     for idx in &index.0 {
         written_bytes += write_single_width_index(&mut writer, idx).await?;
     }
@@ -341,7 +345,7 @@ pub(crate) async fn read_multihash_index_sorted<R>(
 where
     R: AsyncRead + Unpin,
 {
-    let n_indexes = reader.read_i32_le().await?;
+    let n_indexes = reader.read_u32_le().await?;
     let mut indexes = BTreeMap::new();
     for _ in 0..n_indexes {
         let multihash_code = reader.read_u64_le().await?;
@@ -355,7 +359,7 @@ pub(crate) async fn read_index_sorted<R>(mut reader: R) -> Result<IndexSorted, E
 where
     R: AsyncRead + Unpin,
 {
-    let n_buckets = reader.read_i32_le().await?;
+    let n_buckets = reader.read_u32_le().await?;
     let mut buckets = Vec::with_capacity(n_buckets as usize);
     for _ in 0..n_buckets {
         let index = read_single_width_index(&mut reader).await?;
