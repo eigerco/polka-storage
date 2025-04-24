@@ -352,7 +352,7 @@ parameter_types! {
     pub const WPoStChallengeWindow: BlockNumber = 2 * MINUTES;
     pub const WPoStChallengeLookBack: BlockNumber = MINUTES;
     pub const MinSectorExpiration: BlockNumber = 5 * MINUTES;
-    pub const MaxSectorExpiration: BlockNumber = 60 * MINUTES;
+    pub const MaxSectorExpiration: BlockNumber = 365 * DAYS + 30 * DAYS;
     pub const SectorMaximumLifetime: BlockNumber = 120 * MINUTES;
     pub const MaxProveCommitDuration: BlockNumber = 5 * MINUTES;
     pub const MaxPartitionsPerDeadline: u64 = 3000;
@@ -364,7 +364,7 @@ parameter_types! {
 
     // Market Pallet
     pub const MinDealDuration: u64 = 5 * MINUTES;
-    pub const MaxDealDuration: u64 = 180 * MINUTES;
+    pub const MaxDealDuration: u64 = 365 * DAYS;
 }
 // NOTE(@jmg-duarte,22/01/2025): The following bit of code is confusing BUT
 // using #[cfg(...)] inside parameter_types results in errors
