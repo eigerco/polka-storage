@@ -41,7 +41,7 @@ echo "Peer ID for bootstrap node: $P2P_BOOTSTRAP_PEER_ID"
 RUST_LOG='debug,jsonrpsee-client=off' target/release/storagext-cli --sr25519-key "//Charlie" --node-rpc "ws://$COLLATOR_IP_ADDR:42069" storage-provider register --post-proof "8MiB" "$P2P_SP_PEER_ID"
 wait
 
-echo '{ "minimum_price_per_block": 200, "deal_duration": { "lower": 50, "upper": 1800 }}' > "$DEAL_PARAMS"
+echo '{ "minimum_price_per_block": 200, "deal_duration": { "lower": 50, "upper": 5256000 }}' > "$DEAL_PARAMS"
 # Setup deal parameters, has to go after registration.
 RUST_LOG='debug,jsonrpsee-client=off' target/release/storagext-cli \
     --node-rpc "ws://$COLLATOR_IP_ADDR:42069" \

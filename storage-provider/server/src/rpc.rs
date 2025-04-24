@@ -223,7 +223,7 @@ impl RpcServerState {
         }
         if deal_duration > deal_parameters.deal_duration.upper {
             return Err(RpcError::internal_error(
-                "Proposed deal duration is shorter than the minimum set by the storage provider"
+                "Proposed deal duration is longer than the minimum set by the storage provider"
                     .to_string(),
                 None,
             ));
