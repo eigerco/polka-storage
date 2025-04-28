@@ -17,9 +17,11 @@ use pallet_market::Pallet as MarketPallet;
 use pallet_proofs::Pallet as ProofsPallet;
 use pallet_storage_provider::{
     error::GeneralPalletError,
+    expiration_queue::ExpirationSet,
     fault::{
         DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration, RecoveryDeclaration,
     },
+    sector::{TerminateSectorsParams, TerminationDeclaration},
     Pallet as SpPallet,
 };
 use primitives::{
@@ -138,6 +140,24 @@ mod benchmarks {
         }
 
         check_declare_faults_recovered::<T>(faults);
+    }
+
+    /// `n`: number of submitted faulty sectors
+    // TODO(@Jinxit,#827,16/04/2025): Use `n: Linear<1, DECLARATIONS_MAX * MAX_TERMINATIONS_PER_CALL>`
+    //                                when we have more proven sectors to use.
+    #[benchmark]
+    fn terminate_sectors() {
+        let (sp_id, sectors) = prepare_terminate_sectors::<T>(1);
+
+        #[block]
+        {
+            assert_ok_sp(SpPallet::<T>::terminate_sectors(
+                RawOrigin::Signed(sp_id.clone()).into(),
+                sectors.clone(),
+            ));
+        }
+
+        check_terminate_sectors::<T>(sectors);
     }
 
     impl_benchmark_test_suite!(Pallet, crate::test::new_test_ext(), crate::mock::Test);
@@ -416,6 +436,80 @@ where
         .collect::<Vec<_>>();
 
     assert_eq!(recoveries_sectors, deadline_sectors);
+}
+
+fn prepare_terminate_sectors<T>(n: u32) -> (AccountId32, TerminateSectorsParams)
+where
+    T: crate::Config<
+            PeerId = BoundedPeerIdBytes,
+            AccountId = AccountId32,
+            OffchainSignature = MultiSignature,
+        > + primitives::configs::MarketProvider,
+    BlockNumberFor<T>: From<u64> + Into<u64> + Add,
+    u64: TryFrom<BalanceOf<T>>,
+{
+    let (sp_id, prove_sectors, _) = prepare_prove_commit_sectors::<T>(n);
+
+    assert_ok_sp(SpPallet::<T>::prove_commit_sectors(
+        RawOrigin::Signed(sp_id.clone()).into(),
+        prove_sectors.clone(),
+    ));
+
+    let terminations = prove_sectors
+        .into_iter()
+        .chunks(MAX_TERMINATIONS_PER_CALL as usize)
+        .into_iter()
+        .enumerate()
+        .map(|(i, sectors)| TerminationDeclaration {
+            deadline: i as u64,
+            partition: i as u32,
+            sectors: sectors
+                .into_iter()
+                .map(|s| s.sector_number)
+                .collect::<BTreeSet<_>>()
+                .try_into()
+                .unwrap(),
+        })
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
+
+    (sp_id, TerminateSectorsParams { terminations })
+}
+
+fn check_terminate_sectors<T>(terminations: TerminateSectorsParams)
+where
+    T: crate::Config<AccountId = AccountId32>,
+{
+    let data = BenchmarkData::<T>::load();
+    let sp = data.storage_provider();
+
+    let state = SpPallet::<T>::storage_providers(sp.account_id.clone()).unwrap();
+
+    let terminated_sectors = terminations
+        .terminations
+        .iter()
+        .flat_map(|f| f.sectors.iter())
+        .collect::<Vec<_>>();
+    let deadline_sectors = state
+        .deadlines
+        .due
+        .iter()
+        .flat_map(|dl| dl.partitions.iter())
+        .flat_map(|(_, p)| p.terminated.iter())
+        .collect::<Vec<_>>();
+
+    assert_eq!(terminated_sectors, deadline_sectors);
+
+    let expirations: Vec<ExpirationSet> = state
+        .deadlines
+        .due
+        .iter()
+        .flat_map(|dl| dl.partitions.iter())
+        .flat_map(|(_, p)| p.expirations.map.values())
+        .cloned()
+        .collect();
+    assert_eq!(expirations, Vec::new())
 }
 
 /// Run until a particular block.
