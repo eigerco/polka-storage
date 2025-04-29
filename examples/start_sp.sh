@@ -51,14 +51,14 @@ RUST_LOG='debug,jsonrpsee-client=off' target/release/storagext-cli \
 
 echo "seal_proof = '8MiB'
 post_proof = '8MiB'
-porep_parameters = 'target/porep_params_8MiB'
-post_parameters = 'target/post_params_8MiB'
+porep_parameters = 'target/params/8MiB.porep.params'
+post_parameters = 'target/params/8MiB.post.params'
 rendezvous_point_address = '$P2P_ADDRESS'
 p2p_key = '@$P2P_PRIVATE_KEY'
 rendezvous_point = '$P2P_BOOTSTRAP_PEER_ID'
 node_url = 'ws://$COLLATOR_IP_ADDR:42069'
 [sealing_configuration]
-fill_threshold = 80
+fill_threshold = 0
 wait_deals_delay = '1h'
 pre_commit_submission_slack = '1m'" > "$CONFIG"
 
