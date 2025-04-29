@@ -120,6 +120,12 @@ pub struct ConfigurationArgs {
     #[arg(long, value_delimiter = ',', num_args = 1.., default_values_t = default_p2p_multiaddrs())]
     pub(crate) p2p_listen_addresses: Vec<Multiaddr>,
 
+    #[arg(long)]
+    pub(crate) public_secure_upload_url: Option<String>,
+
+    #[arg(long)]
+    pub(crate) public_secure_rpc_url: Option<String>,
+
     /// Rendezvous multiaddr that the node registers to.
     #[arg(long, required = false)]
     pub(crate) rendezvous_point_address: Multiaddr,
