@@ -52,7 +52,11 @@ mod tests {
     #[test]
     fn service_info_shape() {
         assert_eq!(
-            to_string(&ServiceInfo { port: 100, secure_url: None }).unwrap(),
+            to_string(&ServiceInfo {
+                port: 100,
+                secure_url: None
+            })
+            .unwrap(),
             to_string(&json!({"port": 100})).unwrap()
         )
     }
@@ -62,7 +66,13 @@ mod tests {
         assert_eq!(
             to_string(&Services({
                 let mut h = HashMap::new();
-                h.insert("ws".to_string(), ServiceInfo { port: 1000, secure_url: None });
+                h.insert(
+                    "ws".to_string(),
+                    ServiceInfo {
+                        port: 1000,
+                        secure_url: None,
+                    },
+                );
                 h
             }))
             .unwrap(),
@@ -97,7 +107,13 @@ mod tests {
             to_string(&Response {
                 services: Services({
                     let mut h = HashMap::new();
-                    h.insert("ws".to_string(), ServiceInfo { port: 1000, secure_url: None });
+                    h.insert(
+                        "ws".to_string(),
+                        ServiceInfo {
+                            port: 1000,
+                            secure_url: None,
+                        },
+                    );
                     h
                 })
             })

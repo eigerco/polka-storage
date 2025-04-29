@@ -67,10 +67,7 @@ where
         }
         addresses.push(config.tcp_address);
         addresses.push(config.websocket_address);
-        module.merge(
-            PolkaStorageServices::new(addresses)
-                .into_rpc(),
-        )?;
+        module.merge(PolkaStorageServices::new(addresses).into_rpc())?;
     }
     Ok(module)
 }

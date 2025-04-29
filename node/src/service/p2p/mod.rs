@@ -33,7 +33,14 @@ pub async fn run_bootstrap_node(config: BootstrapConfig) {
         "Starting P2P bootstrap node with PeerID: {}",
         swarm.local_peer_id()
     );
-    bootstrap(swarm, tcp_addr, pub_tcp_addr, ws_addr, pub_ws_addr, bootstrap_addresses)
-        .await
-        .expect("Could not run bootstrap node");
+    bootstrap(
+        swarm,
+        tcp_addr,
+        pub_tcp_addr,
+        ws_addr,
+        pub_ws_addr,
+        bootstrap_addresses,
+    )
+    .await
+    .expect("Could not run bootstrap node");
 }

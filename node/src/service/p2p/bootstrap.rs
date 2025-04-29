@@ -128,7 +128,7 @@ pub(crate) async fn bootstrap(
     swarm.listen_on(tcp_addr)?;
     if let Some(addr) = pub_tcp_addr {
         swarm.add_external_address(addr);
-    } 
+    }
     swarm.listen_on(ws_addr)?;
     if let Some(addr) = pub_ws_addr {
         swarm.add_external_address(addr);
