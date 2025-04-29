@@ -15,7 +15,7 @@ use pallet_proofs::Pallet as ProofsPallet;
 use pallet_storage_provider::Pallet as SpPallet;
 use primitives::{
     configs::BalanceOf,
-    test_data::{generate_benchmark_account, BenchmarkData},
+    test_data::{benchmark_data::BenchmarkData, generate_benchmark_account},
     MAX_DEALS_PER_SECTOR, PEER_ID_MAX_BYTES,
 };
 use sp_core::{Encode, Get};
