@@ -634,6 +634,7 @@ fn write_proof_file(
 pub struct BenchmarkData {
     pub storage_provider_name: String,
     pub porep_verifying_key_path: PathBuf,
+    pub post_verifying_key_path: PathBuf,
     pub seal_proof: RegisteredSealProof,
     pub post_type: RegisteredPoStProof,
     pub comm_p: Commitment<CommP>,
@@ -650,6 +651,7 @@ pub struct SectorData {
     pub comm_r: Commitment<CommR>,
     pub comm_d: Commitment<CommD>,
     pub porep_proof_path: PathBuf,
+    pub post_proof_path: PathBuf,
 }
 
 async fn benchmark_data(input_path: PathBuf, sector_size: SectorSizeArg) -> Result<(), CliError> {
@@ -732,9 +734,20 @@ async fn benchmark_data(input_path: PathBuf, sector_size: SectorSizeArg) -> Resu
     println!("--- Using pre-generated PoRep params for seal proof {seal_proof:?} ---");
     println!("{}", porep_params_path.display());
 
+    let post_params_path = params_root.join(format!("{sector_size}.{POST_PARAMS_EXT}"));
+    let post_params_vk_path = keys_root.join(format!("{sector_size}.{POST_VK_EXT_SCALE}"));
+    if !tokio::fs::try_exists(&post_params_path).await?
+        || !tokio::fs::try_exists(&post_params_vk_path).await?
+    {
+        return Err(CliError::MissingPoStParams { post_type });
+    }
+    println!("--- Using pre-generated PoSt params for seal proof {seal_proof:?} ---");
+    println!("{}", post_params_path.display());
+
     let mut benchmark_data = BenchmarkData {
         storage_provider_name: PROVIDER_NAME.to_owned(),
         porep_verifying_key_path: porep_params_vk_path,
+        post_verifying_key_path: post_params_vk_path,
         seal_proof,
         post_type,
         comm_p,
@@ -770,6 +783,24 @@ async fn benchmark_data(input_path: PathBuf, sector_size: SectorSizeArg) -> Resu
         let porep_proof_path = proofs_root.join(&porep_file_name);
         tokio::fs::copy(output_path.path().join(&porep_file_name), &porep_proof_path).await?;
 
+        println!("--- Creating PoSt proof for sector {sector_number} ---");
+        let sealed_sector_path = output_path.path().join(format!("{}.sector.sealed", sector_number));
+        post(
+            &signer_key,
+            timeline.deadline_challenge_block().0,
+            Some(output_path.path().to_path_buf()),
+            sector_number,
+            comm_r.to_string(),
+            sealed_sector_path,
+            &cache_directory,
+            post_params_path.clone(),
+            post_type,
+        )?;
+
+        let post_file_name = format!("{sector_number}.{POST_PROOF_EXT}");
+        let post_proof_path = proofs_root.join(&post_file_name);
+        tokio::fs::copy(output_path.path().join(&post_file_name), &post_proof_path).await?;
+
         benchmark_data.sectors.push(SectorData {
             sector_number: SectorNumber::new(sector_number)
                 .expect("sector IDs <= MAX_SECTORS_PER_CALL are safe"),
@@ -777,6 +808,7 @@ async fn benchmark_data(input_path: PathBuf, sector_size: SectorSizeArg) -> Resu
             comm_r,
             comm_d,
             porep_proof_path,
+            post_proof_path,
         });
         drop(output_path);
         drop(cache_directory);
@@ -792,6 +824,7 @@ fn emit_benchmark_constructor(benchmark_data: &BenchmarkData) -> String {
     let BenchmarkData {
         storage_provider_name,
         porep_verifying_key_path,
+        post_verifying_key_path,
         seal_proof,
         post_type,
         comm_p,
@@ -808,6 +841,7 @@ fn emit_benchmark_constructor(benchmark_data: &BenchmarkData) -> String {
                 comm_r,
                 comm_d,
                 porep_proof_path,
+                post_proof_path,
             } = sector;
             let sector_number = u32::from(*sector_number);
             let padded_piece_size = padded_piece_size.deref();
@@ -815,6 +849,8 @@ fn emit_benchmark_constructor(benchmark_data: &BenchmarkData) -> String {
             let comm_d = emit_commitment(comm_d);
             let porep_proof_path_rel = PathBuf::from(BENCH_DATA_DIR_TO_ROOT).join(porep_proof_path);
             let porep_proof_path = porep_proof_path_rel.to_string_lossy();
+            let post_proof_path_rel = PathBuf::from(BENCH_DATA_DIR_TO_ROOT).join(post_proof_path);
+            let post_proof_path = post_proof_path_rel.to_string_lossy();
             quote::quote! {
                 SectorData {
                     sector_number: SectorNumber::new(#sector_number).expect("valid sector ID"),
@@ -822,6 +858,7 @@ fn emit_benchmark_constructor(benchmark_data: &BenchmarkData) -> String {
                     comm_r: #comm_r,
                     comm_d: #comm_d,
                     porep_proof: include_bytes!(#porep_proof_path),
+                    post_proof: include_bytes!(#post_proof_path),
                 }
             }
         })
@@ -830,6 +867,9 @@ fn emit_benchmark_constructor(benchmark_data: &BenchmarkData) -> String {
     let porep_verifying_key_path_rel =
         PathBuf::from(BENCH_DATA_DIR_TO_ROOT).join(porep_verifying_key_path);
     let porep_verifying_key_path = porep_verifying_key_path_rel.to_string_lossy();
+    let post_verifying_key_path_rel =
+        PathBuf::from(BENCH_DATA_DIR_TO_ROOT).join(post_verifying_key_path);
+    let post_verifying_key_path = post_verifying_key_path_rel.to_string_lossy();
     let seal_proof = format_ident!("{seal_proof:?}");
     let post_type = format_ident!("{post_type:?}");
     let comm_p = emit_commitment(comm_p);
@@ -838,6 +878,7 @@ fn emit_benchmark_constructor(benchmark_data: &BenchmarkData) -> String {
         BenchmarkData {
             storage_provider_name: #storage_provider_name,
             porep_verifying_key: include_bytes!(#porep_verifying_key_path),
+            post_verifying_key: include_bytes!(#post_verifying_key_path),
             seal_proof: RegisteredSealProof::#seal_proof,
             post_type: RegisteredPoStProof::#post_type,
             comm_p: #comm_p,
