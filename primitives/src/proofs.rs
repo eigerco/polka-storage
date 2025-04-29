@@ -2,7 +2,7 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use scale_decode::DecodeAsType;
 use scale_encode::EncodeAsType;
 use scale_info::TypeInfo;
-use sp_core::blake2_256;
+use sp_core::{blake2_256, blake2_64};
 
 use crate::{commitment::RawCommitment, sector::SectorSize};
 
@@ -239,6 +239,44 @@ impl RegisteredPoStProof {
     pub const fn _2KiB() -> Self {
         Self::StackedDRGWindow2KiBV1P1
     }
+}
+
+/// Assigns proving period offset randomly in the range [0, WPOST_PROVING_PERIOD)
+/// by hashing the address and current block number.
+///
+///
+/// # Panics
+/// Panics if `wpost_proving_period` is larger than `u32::MAX`.
+///
+/// Reference:
+/// * <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/miner/src/lib.rs#L4886>
+pub fn assign_proving_period_offset<AccountId, BlockNumber>(
+    addr: &AccountId,
+    current_block: BlockNumber,
+    wpost_proving_period: BlockNumber,
+) -> BlockNumber
+where
+    AccountId: Encode,
+    BlockNumber: sp_runtime::traits::BlockNumber,
+{
+    // Encode address and current block number
+    let mut addr = addr.encode();
+    let mut block_num = current_block.encode();
+    // Concatenate the encoded block number to the encoded address.
+    addr.append(&mut block_num);
+    // Hash the address and current block number for a pseudo-random offset.
+    let digest = blake2_64(&addr);
+    // Create a pseudo-random offset from the bytes of the hash of the address and current block number.
+    let mut offset = u64::from_be_bytes(digest);
+    let wpost_proving_period: u32 = wpost_proving_period
+        .try_into()
+        .unwrap_or_else(|_| panic!("wpost_proving_period must fit in a u32"));
+    // Mod with the proving period so it is within the valid range of [0, WPOST_PROVING_PERIOD)
+    offset %= wpost_proving_period as u64;
+    // Offset will now fit in a u32.
+    let offset = offset as u32;
+    // Convert into block number
+    BlockNumber::from(offset)
 }
 
 // serde_json requires std, hence, to test the serialization, we need:
