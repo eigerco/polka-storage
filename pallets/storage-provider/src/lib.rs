@@ -19,7 +19,7 @@ pub mod error;
 pub mod expiration_queue;
 pub mod fault;
 mod partition;
-mod proofs;
+pub mod proofs;
 pub mod sector;
 mod sector_map;
 mod storage_provider;

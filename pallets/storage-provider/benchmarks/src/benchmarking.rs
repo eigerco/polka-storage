@@ -21,15 +21,16 @@ use pallet_storage_provider::{
     fault::{
         DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration, RecoveryDeclaration,
     },
+    proofs::{PoStProof, SubmitWindowedPoStParams},
     sector::{TerminateSectorsParams, TerminationDeclaration},
     Pallet as SpPallet,
 };
 use primitives::{
     configs::BalanceOf,
     deals::ClientDealProposalOf,
-    sector::{ProveCommitSector, SectorPreCommitInfo},
+    sector::{ProveCommitSector, SectorNumber, SectorPreCommitInfo},
     test_data::{benchmark_data::BenchmarkData, generate_benchmark_account},
-    MAX_SECTORS_PER_CALL, MAX_TERMINATIONS_PER_CALL, PEER_ID_MAX_BYTES,
+    MAX_POST_PROOF_BYTES, MAX_SECTORS_PER_CALL, MAX_TERMINATIONS_PER_CALL, PEER_ID_MAX_BYTES,
 };
 use sp_runtime::{AccountId32, MultiSignature, MultiSigner};
 
@@ -144,7 +145,7 @@ mod benchmarks {
 
     /// `n`: number of submitted faulty sectors
     // TODO(@Jinxit,#827,16/04/2025): Use `n: Linear<1, DECLARATIONS_MAX * MAX_TERMINATIONS_PER_CALL>`
-    //                                when we have more proven sectors to use.
+    // when we have more proven sectors to use.
     #[benchmark]
     fn terminate_sectors() {
         let (sp_id, sectors) = prepare_terminate_sectors::<T>(1);
@@ -158,6 +159,24 @@ mod benchmarks {
         }
 
         check_terminate_sectors::<T>(sectors);
+    }
+
+    /// `n`: number of submitted proofs
+    // TODO(@Jinxit,#827,16/04/2025): Use `n: Linear<1, MAX_POST_PROOFS_PER_BLOCK>`
+    // when we have more proofs to use.
+    #[benchmark]
+    fn submit_windowed_post() {
+        let (sp_id, windowed_post) = prepare_submit_windowed_post::<T>(1);
+
+        #[block]
+        {
+            assert_ok_sp(SpPallet::<T>::submit_windowed_post(
+                RawOrigin::Signed(sp_id.clone()).into(),
+                windowed_post.clone(),
+            ));
+        }
+
+        check_submit_windowed_post::<T>(windowed_post);
     }
 
     impl_benchmark_test_suite!(Pallet, crate::test::new_test_ext(), crate::mock::Test);
@@ -516,6 +535,85 @@ where
     assert_eq!(expirations, Vec::new())
 }
 
+fn prepare_submit_windowed_post<T>(n: u32) -> (AccountId32, SubmitWindowedPoStParams)
+where
+    T: crate::Config<
+            PeerId = BoundedPeerIdBytes,
+            AccountId = AccountId32,
+            OffchainSignature = MultiSignature,
+        > + primitives::configs::MarketProvider,
+    BlockNumberFor<T>: From<u64> + Into<u64> + Add,
+    u64: TryFrom<BalanceOf<T>>,
+{
+    let data = BenchmarkData::<T>::load();
+    let (sp_id, prove_sectors, _) = prepare_prove_commit_sectors::<T>(n);
+
+    assert_ok_sp(SpPallet::<T>::prove_commit_sectors(
+        RawOrigin::Signed(sp_id.clone()).into(),
+        prove_sectors.clone(),
+    ));
+
+    assert_ok!(ProofsPallet::<T>::set_post_verifying_key(
+        RawOrigin::Signed(sp_id.clone()).into(),
+        data.post_type,
+        data.post_verifying_key.to_vec(),
+    ));
+
+    let sector = data.sectors.get(0).unwrap();
+    let proofs = sector
+        .post_proof
+        .chunks_exact(MAX_POST_PROOF_BYTES as usize)
+        .map(|chunk| PoStProof {
+            post_proof: data.post_type,
+            proof_bytes: chunk.to_vec().try_into().unwrap(),
+        })
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
+
+    run_to_block::<T>(data.timeline.submit_windowed_post().0);
+
+    (
+        sp_id,
+        SubmitWindowedPoStParams {
+            deadline: data.timeline.deadline_index(),
+            partitions: vec![0].try_into().unwrap(),
+            proofs,
+        },
+    )
+}
+
+fn check_submit_windowed_post<T>(windowed_post: SubmitWindowedPoStParams)
+where
+    T: crate::Config<AccountId = AccountId32>,
+    BlockNumberFor<T>: From<u64>,
+{
+    let data = BenchmarkData::<T>::load();
+    let sp = data.storage_provider();
+    let state = SpPallet::<T>::storage_providers(sp.account_id).unwrap();
+
+    let partitions_posted: Vec<u32> = state
+        .deadlines
+        .due
+        .iter()
+        .flat_map(|dl| dl.partitions_posted.iter().copied())
+        .collect();
+
+    let unproven: Vec<SectorNumber> = state
+        .deadlines
+        .due
+        .iter()
+        .flat_map(|dl| {
+            dl.partitions
+                .iter()
+                .flat_map(|(_, p)| p.unproven.iter().copied())
+        })
+        .collect();
+
+    assert_eq!(partitions_posted, windowed_post.partitions.to_vec());
+    assert_eq!(unproven, vec![]);
+}
+
 /// Run until a particular block.
 ///
 /// Stolen from https://github.com/paritytech/polkadot-sdk/blob/1bc6ca606438a65c927f14be3f36634ca0e58e8f/substrate/frame/identity/src/benchmarking.rs#L48
@@ -546,6 +644,7 @@ where
 
 /// Asserts that the result was Ok, and additionally decodes the error if it was a GeneralPalletError
 /// to get the inner error as a user-friendly string.
+#[track_caller]
 fn assert_ok_sp(res: Result<(), DispatchError>) {
     if let Err(sp_runtime::DispatchError::Module(module)) = &res {
         if let Some("GeneralPalletError") = module.message {
