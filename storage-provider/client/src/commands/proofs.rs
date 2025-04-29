@@ -630,7 +630,7 @@ pub struct BenchmarkData {
 }
 
 /// This is a temporary representation of the data that ends up in a separate `SectorData` struct
-/// in `primitives/src/test_data.rs`
+/// in `primitives/src/test_data/sector_data.rs`
 #[derive(Debug)]
 pub struct SectorData {
     pub sector_number: SectorNumber,
