@@ -257,7 +257,7 @@ mod benchmarks {
         assert_ok!(ProofsPallet::<T>::set_porep_verifying_key(
             RawOrigin::Signed(sp.account_id.clone()).into(),
             data.seal_proof,
-            data.verifying_key.to_vec(),
+            data.porep_verifying_key.to_vec(),
         ));
 
         // Run to after pre-commit delay
