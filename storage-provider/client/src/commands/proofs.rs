@@ -274,8 +274,11 @@ impl ProofsCommand {
                 sector_number,
                 challenge_block,
             } => {
+                let Some(signer) = Option::<MultiPairSigner>::from(signer_key) else {
+                    return Err(UtilsCommandError::NoSigner)?;
+                };
                 post(
-                    signer_key,
+                    &signer,
                     challenge_block,
                     output_path,
                     sector_number,
@@ -528,19 +531,16 @@ fn generate_post_params(
 }
 
 fn post(
-    signer_key: MultiPairArgs,
+    signer: &MultiPairSigner,
     challenge_block: u64,
     output_path: Option<PathBuf>,
     sector_number: u32,
     comm_r: String,
     replica_path: PathBuf,
-    cache_directory: PathBuf,
+    cache_directory: impl AsRef<Path>,
     proof_parameters_path: PathBuf,
     post_type: RegisteredPoStProof,
 ) -> Result<(), CliError> {
-    let Some(signer) = Option::<MultiPairSigner>::from(signer_key) else {
-        return Err(UtilsCommandError::NoSigner)?;
-    };
     let entropy = signer.account_id().encode();
     let randomness = get_randomness(
         DomainSeparationTag::WindowedPoStChallengeSeed,
@@ -568,7 +568,7 @@ fn post(
             .try_into()
             .map_err(|_| UtilsCommandError::CommRError)?,
         replica_path,
-        cache_path: cache_directory,
+        cache_path: cache_directory.as_ref().to_path_buf(),
     }];
     println!("Loading parameters...");
     let proof_parameters = post::load_groth16_parameters(proof_parameters_path)
