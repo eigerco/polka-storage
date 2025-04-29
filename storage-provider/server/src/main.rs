@@ -354,7 +354,6 @@ impl TryFrom<ServerCli> for Server {
             parallel_prove_commits: args.parallel_prove_commits.get(),
             p2p_key: args.p2p_key,
             p2p_listen_addresses: args.p2p_listen_addresses,
-
             rendezvous_point_address: args.rendezvous_point_address,
             rendezvous_point: args.rendezvous_point,
             sealing_configuration: args.sealing_configuration,
