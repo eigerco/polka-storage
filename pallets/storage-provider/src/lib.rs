@@ -1275,13 +1275,13 @@ pub mod pallet {
 
             // TODO(@th7nder,31/07/2024): this approach is suboptimal, as it's time complexity is O(StorageProviders * PreCommitedSectors).
             // We can reduce this by indexing pre-committed sectors by BlockNumber in which they're supposed to be activated in PreCommit and remove them in ProveCommit.
-            log::info!(target: LOG_TARGET, "checking pre_commited_sectors for block: {:?}", current_block);
+            log::debug!(target: LOG_TARGET, "checking pre_commited_sectors for block: {:?}", current_block);
 
             // We cannot modify storage map while inside `iter_keys()` as docs say it's undefined results.
             // And we can use `alloc::Vec`, because it's bounded by StorageProviders data structure anyways.
             let storage_providers: Vec<_> = StorageProviders::<T>::iter_keys().collect();
             for storage_provider in storage_providers {
-                log::info!(target: LOG_TARGET, "checking storage provider {:?}", storage_provider);
+                log::debug!(target: LOG_TARGET, "checking storage provider {:?}", storage_provider);
                 let Ok(mut state) = StorageProviders::<T>::try_get(storage_provider.clone()) else {
                     log::error!(target: LOG_TARGET, "catastrophe, couldn't find a storage provider based on key. it should have been there...");
                     continue;
@@ -1380,7 +1380,7 @@ pub mod pallet {
         /// * <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/state.rs#L1192>
         fn check_deadlines(current_block: BlockNumberFor<T>) {
             const LOG_TARGET: &'static str = "runtime::storage_provider::check_deadlines";
-            log::info!(target: LOG_TARGET, "block: {:?}", current_block);
+            log::debug!(target: LOG_TARGET, "block: {:?}", current_block);
 
             // We cannot modify storage map while inside `iter_keys()` as docs say it's undefined results.
             // And we can use `alloc::Vec`, because it's bounded by StorageProviders data structure anyways.
@@ -1388,14 +1388,14 @@ pub mod pallet {
             // TODO(@th7nder,13/08/2024): this approach is suboptimal, as it's time complexity is O(StorageProviders * PreCommitedSectors).
             // We can reduce this by indexing pre-committed sectors by BlockNumber in which they're supposed to be activated in PreCommit and remove them in ProveCommit.
             for storage_provider in storage_providers {
-                log::info!(target: LOG_TARGET, "block: {:?}, checking storage provider {:?}", current_block, storage_provider);
+                log::debug!(target: LOG_TARGET, "block: {:?}, checking storage provider {:?}", current_block, storage_provider);
                 let Ok(mut state) = StorageProviders::<T>::try_get(storage_provider.clone()) else {
                     log::error!(target: LOG_TARGET, "missing storage provider {:?} (should have been added before)", storage_provider);
                     continue;
                 };
 
                 if current_block < state.proving_period_start {
-                    log::info!(target: LOG_TARGET, "skipping checking sp: {:?} on block: {:?} < proving_start {:?}, because it hasn't started yet.",
+                    log::debug!(target: LOG_TARGET, "skipping checking sp: {:?} on block: {:?} < proving_start {:?}, because it hasn't started yet.",
                     storage_provider, current_block, state.proving_period_start);
                     continue;
                 }
@@ -1413,12 +1413,12 @@ pub mod pallet {
                 };
 
                 if !current_deadline.period_started() {
-                    log::info!(target: LOG_TARGET, "block: {:?}, period for deadline {:?}, sp {:?} has not yet started...", current_block, current_deadline.idx, storage_provider);
+                    log::debug!(target: LOG_TARGET, "block: {:?}, period for deadline {:?}, sp {:?} has not yet started...", current_block, current_deadline.idx, storage_provider);
                     continue;
                 }
 
                 if !current_deadline.has_elapsed() {
-                    log::info!(target: LOG_TARGET,
+                    log::debug!(target: LOG_TARGET,
                     "block: {:?}, deadline {:?} for sp {:?} not yet elapsed. open_at: {:?} < current {:?} < close_at {:?}",
                     current_block,
                     current_deadline.idx, storage_provider, current_deadline.open_at, current_block, current_deadline.close_at
@@ -1426,7 +1426,7 @@ pub mod pallet {
                     continue;
                 }
 
-                log::info!(target: LOG_TARGET, "block: {:?}, checking storage provider {:?} deadline: {:?}",
+                log::debug!(target: LOG_TARGET, "block: {:?}, checking storage provider {:?} deadline: {:?}",
                     current_block,
                     storage_provider,
                     current_deadline.idx,
@@ -1496,7 +1496,7 @@ pub mod pallet {
                         owner: storage_provider.clone(),
                         faulty_partitions: faulty_partitions.try_into().expect("should be able to create a BTreeMap with a MAX_PARTITIONS_PER_DEADLINE bound after iterating over a map with the same bound"),
                     })
-                } else {
+                } else if !deadline.partitions.is_empty() {
                     log::info!(target: LOG_TARGET, "block: {:?}, sp: {:?}, deadline: {:?} - all proofs submitted on time.",
                         current_block,
                         storage_provider,
