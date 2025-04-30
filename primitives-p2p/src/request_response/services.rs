@@ -57,7 +57,7 @@ mod tests {
                 secure_url: None
             })
             .unwrap(),
-            to_string(&json!({"port": 100})).unwrap()
+            to_string(&json!({"port": 100, "secure_url": null})).unwrap()
         )
     }
 
@@ -78,7 +78,8 @@ mod tests {
             .unwrap(),
             to_string(&json!({
                 "ws": {
-                    "port": 1000
+                    "port": 1000,
+                    "secure_url": null
                 }
             }))
             .unwrap()
@@ -121,7 +122,8 @@ mod tests {
             to_string(&json!({
                 "services": {
                     "ws": {
-                        "port": 1000
+                        "port": 1000,
+                        "secure_url": null
                     }
                 }
             }))
