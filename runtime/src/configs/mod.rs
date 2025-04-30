@@ -353,7 +353,7 @@ parameter_types! {
     pub const WPoStChallengeLookBack: BlockNumber = MINUTES;
     pub const MinSectorExpiration: BlockNumber = 5 * MINUTES;
     pub const MaxSectorExpiration: BlockNumber = 365 * DAYS + 30 * DAYS;
-    pub const SectorMaximumLifetime: BlockNumber = 120 * MINUTES;
+    pub const SectorMaximumLifetime: BlockNumber = 365 * DAYS;
     pub const MaxProveCommitDuration: BlockNumber = 5 * MINUTES;
     pub const MaxPartitionsPerDeadline: u64 = 3000;
     pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
