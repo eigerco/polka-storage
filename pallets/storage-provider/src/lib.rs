@@ -56,7 +56,9 @@ pub mod pallet {
             DeadlineInfo as ExternalDeadlineInfo, Market, ProofVerification,
             StorageProviderValidation,
         },
-        proofs::{derive_prover_id, PublicReplicaInfo, RegisteredPoStProof},
+        proofs::{
+            assign_proving_period_offset, derive_prover_id, PublicReplicaInfo, RegisteredPoStProof,
+        },
         randomness::{draw_randomness, AuthorVrfHistory, DomainSeparationTag},
         sector::{ProveCommitSector, SectorNumber, SectorPreCommitInfo},
         PartitionNumber, MAX_DEALS_PER_SECTOR, MAX_PARTITIONS_PER_DEADLINE,
@@ -71,7 +73,7 @@ pub mod pallet {
             DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration,
             RecoveryDeclaration,
         },
-        proofs::{assign_proving_period_offset, SubmitWindowedPoStParams},
+        proofs::SubmitWindowedPoStParams,
         sector::{
             ProveCommitResult, SectorOnChainInfo, SectorPreCommitOnChainInfo,
             TerminateSectorsParams, TerminationDeclaration,
@@ -397,8 +399,7 @@ pub mod pallet {
                 &owner,
                 current_block,
                 T::WPoStProvingPeriod::get(),
-            )
-            .map_err(|_| Error::<T>::ConversionError)?;
+            );
 
             let local_proving_start = calculate_first_proving_period_start::<BlockNumberFor<T>>(
                 current_block,
