@@ -1,15 +1,15 @@
 extern crate alloc;
 
 use alloc::{str::FromStr, vec, vec::Vec};
-use core::{cmp::min, marker::PhantomData};
+use core::marker::PhantomData;
 
 use cid::Cid;
 use codec::Encode;
-use frame_system::pallet_prelude::BlockNumberFor;
+use frame_system::{pallet_prelude::BlockNumberFor, Config};
 use sp_core::sr25519;
 use sp_io::crypto::{sr25519_generate, sr25519_sign};
 use sp_runtime::{
-    traits::{ConstU32, IdentifyAccount},
+    traits::{Block, ConstU32, Header, IdentifyAccount},
     AccountId32, BoundedVec, MultiSignature, MultiSigner,
 };
 
@@ -166,7 +166,9 @@ impl<T> BenchmarkData<T> {
                 deal_ids: vec![u64::from(sector.sector_number) as u64]
                     .try_into()
                     .unwrap(),
-                expiration: min(T::sector_maximum_lifetime(), T::max_sector_expiration()),
+                expiration: <<<T as Config>::Block as Block>::Header as Header>::Number::from(
+                    1200u64, // Using "old" value as testnet value is too long and will make benchmarks timeout.
+                ),
                 unsealed_cid: sector.comm_d.cid().to_bytes().try_into().unwrap(),
                 seal_randomness_height: self.seal_randomness_height.into(),
             })
