@@ -47,10 +47,7 @@ where
     pub local_keypair: Keypair,
     /// List of rendezvous nodes to register to.
     pub rendezvous_nodes: Vec<(PeerId, Multiaddr)>,
-    /// P2P tcp listen address
-    pub p2p_tcp_listen_address: Multiaddr,
-    /// P2P ws listen address
-    pub p2p_ws_listen_address: Multiaddr,
+    pub p2p_listen_addresses: Vec<Multiaddr>,
     /// The blockstore used for content retrieval.
     pub blockstore: Arc<B>,
     /// Piece index database.
@@ -133,8 +130,9 @@ where
         };
 
         let mut swarm = new_swarm(args.local_keypair, behaviour).await?;
-        swarm.listen_on(args.p2p_tcp_listen_address)?;
-        swarm.listen_on(args.p2p_ws_listen_address)?;
+        for listen_addr in args.p2p_listen_addresses.into_iter() {
+            swarm.listen_on(listen_addr)?;
+        }
 
         // We are dialing the rendezvous nodes. After the connection is
         // successfully established, the identify message received from the

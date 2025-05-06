@@ -9,7 +9,7 @@ use clap::Args;
 use libp2p::{identity::Keypair, Multiaddr, PeerId};
 use polka_storage_provider_common::config::sealing::SealingConfiguration;
 use primitives::proofs::{RegisteredPoStProof, RegisteredSealProof};
-use primitives_p2p::{keypair_value_parser, validate_tcp_multiaddr, validate_ws_multiaddr};
+use primitives_p2p::keypair_value_parser;
 use serde::{de::Error, Deserialize, Deserializer};
 use url::Url;
 
@@ -35,12 +35,11 @@ fn default_node_address() -> Url {
     Url::parse(DEFAULT_NODE_ADDRESS).expect("DEFAULT_NODE_ADDRESS must be a valid Url")
 }
 
-fn default_p2p_tcp_multiaddr() -> Multiaddr {
-    Multiaddr::from_str("/ip4/127.0.0.1/tcp/8002").expect("value should be a valid Multiaddr")
-}
-
-fn default_p2p_ws_multiaddr() -> Multiaddr {
-    Multiaddr::from_str("/ip4/127.0.0.1/tcp/8003/ws").expect("value should be a valid Multiaddr")
+fn default_p2p_multiaddrs() -> Vec<Multiaddr> {
+    vec![
+        Multiaddr::from_str("/ip4/0.0.0.0/tcp/8002").expect("value should be a valid Multiaddr"),
+        Multiaddr::from_str("/ip4/0.0.0.0/tcp/8003/ws").expect("value should be a valid Multiaddr"),
+    ]
 }
 
 #[derive(Debug, Clone, Deserialize, Args)]
@@ -116,15 +115,10 @@ pub struct ConfigurationArgs {
     #[arg(long, value_parser = keypair_value_parser, required = false)]
     pub(crate) p2p_key: Keypair,
 
-    /// P2P TCP listen address.
-    #[serde(default = "default_p2p_tcp_multiaddr")]
-    #[arg(long, default_value_t = default_p2p_tcp_multiaddr(), value_parser = validate_tcp_multiaddr)]
-    pub(crate) p2p_tcp_listen_address: Multiaddr,
-
-    /// P2P websocket listen address.
-    #[serde(default = "default_p2p_ws_multiaddr")]
-    #[arg(long, default_value_t = default_p2p_ws_multiaddr(), value_parser = validate_ws_multiaddr)]
-    pub(crate) p2p_ws_listen_address: Multiaddr,
+    /// P2P listen address.
+    #[serde(default = "default_p2p_multiaddrs")]
+    #[arg(long, value_delimiter = ',', num_args = 1.., default_values_t = default_p2p_multiaddrs())]
+    pub(crate) p2p_listen_addresses: Vec<Multiaddr>,
 
     /// Rendezvous multiaddr that the node registers to.
     #[arg(long, required = false)]

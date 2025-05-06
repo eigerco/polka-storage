@@ -60,24 +60,21 @@ function ports {
             local PORT=45000
             echo "upload_listen_address = '0.0.0.0:$PORT'
                   rpc_listen_address = '0.0.0.0:$(echo "$PORT + 1" | bc)'
-                  p2p_tcp_listen_address = '/ip4/0.0.0.0/tcp/$(echo "$PORT + 2" | bc)'
-                  p2p_ws_listen_address = '/ip4/0.0.0.0/tcp/$(echo "$PORT + 3" | bc)/ws'" |
+                  p2p_listen_addresses = '/ip4/0.0.0.0/tcp/$(echo "$PORT + 2" | bc),/ip4/0.0.0.0/tcp/$(echo "$PORT + 3" | bc)/ws'" |
             sed "s/\s\+//"
             ;;
         "//Bob")
             local PORT=46000
             echo "upload_listen_address = '0.0.0.0:$PORT'
                   rpc_listen_address = '0.0.0.0:$(echo "$PORT + 1" | bc)'
-                  p2p_tcp_listen_address = '/ip4/0.0.0.0/tcp/$(echo "$PORT + 2" | bc)'
-                  p2p_ws_listen_address = '/ip4/0.0.0.0/tcp/$(echo "$PORT + 3" | bc)/ws'" |
+                  p2p_listen_addresses = '/ip4/0.0.0.0/tcp/$(echo "$PORT + 2" | bc),/ip4/0.0.0.0/tcp/$(echo "$PORT + 3" | bc)/ws'" |
             sed "s/\s\+//"
             ;;
         "//Charlie")
             local PORT=47000
             echo "upload_listen_address = '0.0.0.0:$PORT'
                   rpc_listen_address = '0.0.0.0:$(echo "$PORT + 1" | bc)'
-                  p2p_tcp_listen_address = '/ip4/0.0.0.0/tcp/$(echo "$PORT + 2" | bc)'
-                  p2p_ws_listen_address = '/ip4/0.0.0.0/tcp/$(echo "$PORT + 3" | bc)/ws'" |
+                  p2p_listen_addresses = '/ip4/0.0.0.0/tcp/$(echo "$PORT + 2" | bc),/ip4/0.0.0.0/tcp/$(echo "$PORT + 3" | bc)/ws'" |
             sed "s/\s\+//"
             ;;
     esac
