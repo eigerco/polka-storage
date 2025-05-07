@@ -28,7 +28,7 @@ use primitives::{
     configs::BalanceOf,
     deals::ClientDealProposalOf,
     sector::{ProveCommitSector, SectorPreCommitInfo},
-    test_data::{generate_benchmark_account, BenchmarkData},
+    test_data::{benchmark_data::BenchmarkData, generate_benchmark_account},
     MAX_SECTORS_PER_CALL, MAX_TERMINATIONS_PER_CALL, PEER_ID_MAX_BYTES,
 };
 use sp_runtime::{AccountId32, MultiSignature, MultiSigner};

@@ -616,7 +616,7 @@ fn write_proof_file(
 }
 
 /// This is a temporary representation of the data that ends up in a separate `BenchmarkData` struct
-/// in `primitives/src/test_data.rs`
+/// in `primitives/src/test_data/benchmark_data.rs`
 #[derive(Debug)]
 pub struct BenchmarkData {
     pub storage_provider_name: String,
