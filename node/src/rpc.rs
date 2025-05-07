@@ -58,10 +58,16 @@ where
     module.merge(System::new(client.clone(), pool).into_rpc())?;
     module.merge(TransactionPayment::new(client).into_rpc())?;
     if let Some(config) = p2p {
-        module.merge(
-            PolkaStorageServices::new(vec![config.tcp_address, config.websocket_address])
-                .into_rpc(),
-        )?;
+        let mut addresses = vec![];
+        if let Some(addr) = config.public_tcp_address {
+            addresses.push(addr);
+        }
+        if let Some(addr) = config.public_websocket_address {
+            addresses.push(addr);
+        }
+        addresses.push(config.tcp_address);
+        addresses.push(config.websocket_address);
+        module.merge(PolkaStorageServices::new(addresses).into_rpc())?;
     }
     Ok(module)
 }

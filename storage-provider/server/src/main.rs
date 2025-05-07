@@ -265,6 +265,9 @@ pub struct Server {
     /// P2P listen address
     p2p_listen_addresses: Vec<Multiaddr>,
 
+    public_secure_upload_url: Option<String>,
+    public_secure_rpc_url: Option<String>,
+
     /// Rendezvous point address that the registration node connects to
     /// or the bootstrap node binds to.
     rendezvous_point_address: Multiaddr,
@@ -354,7 +357,8 @@ impl TryFrom<ServerCli> for Server {
             parallel_prove_commits: args.parallel_prove_commits.get(),
             p2p_key: args.p2p_key,
             p2p_listen_addresses: args.p2p_listen_addresses,
-
+            public_secure_rpc_url: args.public_secure_rpc_url,
+            public_secure_upload_url: args.public_secure_upload_url,
             rendezvous_point_address: args.rendezvous_point_address,
             rendezvous_point: args.rendezvous_point,
             sealing_configuration: args.sealing_configuration,
@@ -553,12 +557,14 @@ impl Server {
                     "rpc".to_string(),
                     ServiceInfo {
                         port: self.rpc_listen_address.port(),
+                        secure_url: self.public_secure_rpc_url,
                     },
                 );
                 hm.insert(
                     "upload".to_string(),
                     ServiceInfo {
                         port: self.upload_listen_address.port(),
+                        secure_url: self.public_secure_upload_url,
                     },
                 );
                 Services(hm)

@@ -28,7 +28,9 @@ pub struct BootstrapBehaviour {
 #[derive(Debug, Clone)]
 pub struct BootstrapConfig {
     pub tcp_address: Multiaddr,
+    pub public_tcp_address: Option<Multiaddr>,
     pub websocket_address: Multiaddr,
+    pub public_websocket_address: Option<Multiaddr>,
     pub keypair: Keypair,
     pub bootstrap_addresses: Vec<Multiaddr>,
 }
@@ -37,12 +39,16 @@ impl BootstrapConfig {
     pub fn new(
         keypair: Keypair,
         tcp_address: Multiaddr,
+        public_tcp_address: Option<Multiaddr>,
         websocket_address: Multiaddr,
+        public_websocket_address: Option<Multiaddr>,
         bootstrap_addresses: Vec<Multiaddr>,
     ) -> Self {
         Self {
             tcp_address,
+            public_tcp_address,
             websocket_address,
+            public_websocket_address,
             keypair,
             bootstrap_addresses,
         }
@@ -54,7 +60,9 @@ impl BootstrapConfig {
         (
             Swarm<BootstrapBehaviour>,
             Multiaddr,
+            Option<Multiaddr>,
             Multiaddr,
+            Option<Multiaddr>,
             Vec<Multiaddr>,
         ),
         P2PError,
@@ -97,7 +105,9 @@ impl BootstrapConfig {
         Ok((
             swarm,
             self.tcp_address,
+            self.public_tcp_address,
             self.websocket_address,
+            self.public_websocket_address,
             self.bootstrap_addresses,
         ))
     }
@@ -108,13 +118,21 @@ impl BootstrapConfig {
 pub(crate) async fn bootstrap(
     mut swarm: Swarm<BootstrapBehaviour>,
     tcp_addr: Multiaddr,
+    pub_tcp_addr: Option<Multiaddr>,
     ws_addr: Multiaddr,
+    pub_ws_addr: Option<Multiaddr>,
     bootstrap_addresses: Vec<Multiaddr>,
 ) -> Result<(), P2PError> {
     info!("Starting P2P bootstrap node at {tcp_addr}");
 
     swarm.listen_on(tcp_addr)?;
+    if let Some(addr) = pub_tcp_addr {
+        swarm.add_external_address(addr);
+    }
     swarm.listen_on(ws_addr)?;
+    if let Some(addr) = pub_ws_addr {
+        swarm.add_external_address(addr);
+    }
 
     for addr in bootstrap_addresses {
         info!("Attempting to dial peer at {addr}");

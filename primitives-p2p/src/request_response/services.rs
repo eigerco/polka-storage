@@ -10,6 +10,7 @@ pub const PROTOCOL_NAME: &str = "/polka-storage/rr-services/1.0.0";
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 pub struct ServiceInfo {
     pub port: u16,
+    pub secure_url: Option<String>,
 }
 
 /// Holds a map between protocol names to service information
@@ -51,8 +52,12 @@ mod tests {
     #[test]
     fn service_info_shape() {
         assert_eq!(
-            to_string(&ServiceInfo { port: 100 }).unwrap(),
-            to_string(&json!({"port": 100})).unwrap()
+            to_string(&ServiceInfo {
+                port: 100,
+                secure_url: None
+            })
+            .unwrap(),
+            to_string(&json!({"port": 100, "secure_url": null})).unwrap()
         )
     }
 
@@ -61,13 +66,20 @@ mod tests {
         assert_eq!(
             to_string(&Services({
                 let mut h = HashMap::new();
-                h.insert("ws".to_string(), ServiceInfo { port: 1000 });
+                h.insert(
+                    "ws".to_string(),
+                    ServiceInfo {
+                        port: 1000,
+                        secure_url: None,
+                    },
+                );
                 h
             }))
             .unwrap(),
             to_string(&json!({
                 "ws": {
-                    "port": 1000
+                    "port": 1000,
+                    "secure_url": null
                 }
             }))
             .unwrap()
@@ -96,7 +108,13 @@ mod tests {
             to_string(&Response {
                 services: Services({
                     let mut h = HashMap::new();
-                    h.insert("ws".to_string(), ServiceInfo { port: 1000 });
+                    h.insert(
+                        "ws".to_string(),
+                        ServiceInfo {
+                            port: 1000,
+                            secure_url: None,
+                        },
+                    );
                     h
                 })
             })
@@ -104,7 +122,8 @@ mod tests {
             to_string(&json!({
                 "services": {
                     "ws": {
-                        "port": 1000
+                        "port": 1000,
+                        "secure_url": null
                     }
                 }
             }))
