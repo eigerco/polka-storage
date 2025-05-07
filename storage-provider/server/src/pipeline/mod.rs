@@ -176,8 +176,11 @@ impl PipelineOperations for TaskTracker {
         });
     }
 
-    fn precommit(&self, state: Arc<PipelineState>, msg: PreCommitMessage) {
-        let PreCommitMessage { sector_number } = msg;
+    fn precommit(
+        &self,
+        state: Arc<PipelineState>,
+        PreCommitMessage { sector_number }: PreCommitMessage,
+    ) {
         self.spawn(async move {
             // Precommit is not cancellation safe.
             // TODO(@th7nder,#501, 04/11/2024): when it's cancelled, it can hang and user will have to wait for it to finish.
@@ -319,11 +322,11 @@ async fn precommit(
     let state_for_task = state.clone();
     let sector = tokio::task::spawn_blocking(move || {
         match state_for_task.db.remove_unsealed_sector(sector_number)? {
-            Some(sector) => return Ok(sector),
+            Some(sector) => Ok(sector),
             None => {
                 // This is a partial error since the sector may *just* have been pre-committed
                 tracing::warn!(%sector_number, "Tried to precommit non-existing unsealed sector");
-                return Err(PipelineError::SectorNotFound);
+                Err(PipelineError::SectorNotFound)
             }
         }
     })
