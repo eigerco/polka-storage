@@ -8,7 +8,7 @@ use frame_benchmarking::v2::*;
 use frame_support::{
     assert_ok,
     pallet_prelude::{ConstU32, DispatchError, One},
-    traits::{Currency, Get, Hooks},
+    traits::{Currency, Hooks},
     BoundedVec,
 };
 use frame_system::{pallet_prelude::BlockNumberFor, RawOrigin};
@@ -46,7 +46,6 @@ const EXISTENTIAL_DEPOSIT: u32 = 1_000_000_000;
             AccountId = AccountId32,
             OffchainSignature = MultiSignature,
         > + primitives::configs::MarketProvider,
-    BlockNumberFor<T>: From<u64> + Into<u64>,
     BalanceOf<T>: From<u32> + Encode,
     u64: TryFrom<BalanceOf<T>>,
 )]
@@ -176,7 +175,6 @@ where
         AccountId = AccountId32,
         OffchainSignature = MultiSignature,
     >,
-    BlockNumberFor<T>: From<u64> + Into<u64>,
     BalanceOf<T>: From<u32> + Encode,
 {
     let data = BenchmarkData::<T>::load();
@@ -187,6 +185,8 @@ where
         &sp.account_id,
         (EXISTENTIAL_DEPOSIT * 2).into(),
     );
+
+    run_to_block::<T>(data.timeline.register_storage_provider().0);
 
     assert_ok_sp(SpPallet::<T>::register_storage_provider(
         RawOrigin::Signed(sp.account_id.clone()).into(),
@@ -206,13 +206,15 @@ where
 
     let proposals = data.deal_proposals(&alice, n);
 
+    run_to_block::<T>(data.timeline.publish_storage_deals().0);
+
     assert_ok!(MarketPallet::<T>::publish_storage_deals(
         RawOrigin::Signed(sp.account_id.clone()).into(),
         proposals.clone(),
     ));
 
     // Run to pre-commit period
-    run_to_block::<T>(data.pre_commit_block_number.into());
+    run_to_block::<T>(data.timeline.pre_commit_sectors().0);
 
     let sectors = data.pre_commit_sectors(n);
     (sp.account_id, proposals, sectors)
@@ -221,7 +223,6 @@ where
 fn check_pre_commit_sectors<T>(n: u32, sp_id: AccountId32)
 where
     T: crate::Config<AccountId = AccountId32>,
-    BlockNumberFor<T>: From<u64> + Into<u64>,
 {
     let state = SpPallet::<T>::storage_providers(sp_id).unwrap();
     let balance: BalanceOf<T> = n.into();
@@ -241,7 +242,7 @@ where
             AccountId = AccountId32,
             OffchainSignature = MultiSignature,
         > + primitives::configs::MarketProvider,
-    BlockNumberFor<T>: From<u64> + Into<u64> + Add,
+    BlockNumberFor<T>: Add,
     u64: TryFrom<BalanceOf<T>>,
 {
     let data = BenchmarkData::<T>::load();
@@ -267,10 +268,7 @@ where
         data.porep_verifying_key.to_vec(),
     ));
 
-    // Run to after pre-commit delay
-    run_to_block::<T>(
-        BlockNumberFor::<T>::from(data.pre_commit_block_number) + T::PreCommitChallengeDelay::get(),
-    );
+    run_to_block::<T>(data.timeline.prove_commit_sectors().0);
 
     (sp_id, prove_sectors, total_collateral as u32)
 }
@@ -285,7 +283,7 @@ fn check_prove_commit_sectors<T>(
             AccountId = AccountId32,
             OffchainSignature = MultiSignature,
         > + primitives::configs::MarketProvider,
-    BlockNumberFor<T>: From<u64> + Into<u64> + Add,
+    BlockNumberFor<T>: Add,
     u64: TryFrom<BalanceOf<T>>,
 {
     assert_eq!(
@@ -326,7 +324,7 @@ where
             AccountId = AccountId32,
             OffchainSignature = MultiSignature,
         > + primitives::configs::MarketProvider,
-    BlockNumberFor<T>: From<u64> + Into<u64> + Add,
+    BlockNumberFor<T>: Add,
     u64: TryFrom<BalanceOf<T>>,
 {
     let (sp_id, prove_sectors, _) = prepare_prove_commit_sectors::<T>(n);
@@ -389,7 +387,7 @@ where
             AccountId = AccountId32,
             OffchainSignature = MultiSignature,
         > + primitives::configs::MarketProvider,
-    BlockNumberFor<T>: From<u64> + Into<u64> + Add,
+    BlockNumberFor<T>: Add,
     u64: TryFrom<BalanceOf<T>>,
 {
     let (sp_id, faults) = prepare_declare_faults::<T>(n);
@@ -445,7 +443,7 @@ where
             AccountId = AccountId32,
             OffchainSignature = MultiSignature,
         > + primitives::configs::MarketProvider,
-    BlockNumberFor<T>: From<u64> + Into<u64> + Add,
+    BlockNumberFor<T>: Add,
     u64: TryFrom<BalanceOf<T>>,
 {
     let (sp_id, prove_sectors, _) = prepare_prove_commit_sectors::<T>(n);

@@ -10,8 +10,12 @@ use crate::{
     deals::{ClientDealProposal, ClientDealProposalOf, DealProposalOf},
 };
 
+pub mod absolute_block_number;
 pub mod benchmark_data;
+pub mod deal_timeline;
+pub mod relative_block_number;
 mod sector_data;
+pub mod sector_timeline;
 mod storage_provider_data;
 
 pub fn generate_benchmark_account<T>(name: &'static str) -> (AccountId32, MultiSigner)
