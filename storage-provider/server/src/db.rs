@@ -159,17 +159,26 @@ impl DealDB {
         Ok(())
     }
 
-    /// Takes all of the existing sectors, finds the maximum sector id.
+    /// Takes all of the existing sectors sealed and unsealed, finds the maximum sector id.
     /// The simplest way possible of generating an id.
     /// This function is private for a reason. It should only be called once at the DealDB initialization.
     /// And then `last_sector_number` is incremented by `next_sector_number` only
     /// If it was called by multiple threads later than initialization, it could cause a race condition and data erasure.
     fn initialize_biggest_sector_number(&self) -> Result<(), DBError> {
         let mut biggest_sector_number = 0.into();
-        for item in self
+
+        let unsealed_sectors = self.database.iterator_cf(
+            self.cf_handle(UNSEALED_SECTORS_CF),
+            rocksdb::IteratorMode::Start,
+        );
+
+        let sealed_sectors = self
             .database
-            .iterator_cf(self.cf_handle(SECTORS_CF), rocksdb::IteratorMode::Start)
-        {
+            .iterator_cf(self.cf_handle(SECTORS_CF), rocksdb::IteratorMode::Start);
+
+        // Iterate all sectors and find the biggest sector number
+        let all_sectors = unsealed_sectors.chain(sealed_sectors);
+        for item in all_sectors {
             let (key, _) = item?;
             let key: [u8; 4] = key
                 .as_ref()
