@@ -12,6 +12,7 @@ use primitives::{proofs::RegisteredSealProof, DealId};
 use storagext::{
     deser::DeserializablePath,
     multipair::{MultiPairArgs, MultiPairSigner},
+    runtime::storage_provider::calls::types::register_storage_provider::WindowPostProofType,
     types::market::{ClientDealProposal as SxtClientDealProposal, DealProposal as SxtDealProposal},
 };
 use url::Url;
@@ -61,6 +62,11 @@ pub enum CliError {
 
     #[error("PoRep params for seal proof {seal_proof:?} not found, please download or generate them first")]
     MissingPoRepParams { seal_proof: RegisteredSealProof },
+
+    #[error(
+        "PoSt params for PoSt type {post_type:?} not found, please download or generate them first"
+    )]
+    MissingPoStParams { post_type: WindowPostProofType },
 }
 
 /// A CLI application that facilitates management operations over a running full
