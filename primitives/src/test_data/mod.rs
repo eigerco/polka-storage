@@ -13,6 +13,7 @@ use sp_runtime::{
     traits::{Block, ConstU32, Header, IdentifyAccount},
     AccountId32, BoundedVec, MultiSignature, MultiSigner,
 };
+use storage_provider_data::StorageProviderData;
 
 use crate::{
     commitment::{piece::PaddedPieceSize, CommD, CommP, CommR, Commitment},
@@ -21,17 +22,10 @@ use crate::{
     proofs::{RegisteredPoStProof, RegisteredSealProof},
     sector::{ProveCommitSector, SectorNumber, SectorPreCommitInfo},
     MAX_LABEL_SIZE, MAX_POREP_PROOFS_PER_BLOCK, MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_CALL,
-    PEER_ID_MAX_BYTES,
 };
 
 mod sector_data;
-
-#[derive(Debug)]
-pub struct StorageProviderData {
-    pub account_id: AccountId32,
-    pub sign: MultiSigner,
-    pub peer_id: BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>,
-}
+mod storage_provider_data;
 
 pub fn generate_benchmark_account<T>(name: &'static str) -> (AccountId32, MultiSigner)
 where
