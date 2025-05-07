@@ -210,7 +210,7 @@ download-params sector-size:
 
 # Run the benchmark tests
 bench-test pallet:
-    cargo test --profile ci --locked -p "pallet-{{pallet}}" --features runtime-benchmarks -- benchmark --nocapture
+    cargo test --profile ci --locked -p "pallet-{{pallet}}-benchmarks" --features runtime-benchmarks -- benchmark --nocapture
 
 # Run benchmarks
 bench-node pallet steps="5" repeat="1":

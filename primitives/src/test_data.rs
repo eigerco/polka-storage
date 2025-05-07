@@ -167,7 +167,7 @@ impl<T> BenchmarkData<T> {
                     .try_into()
                     .unwrap(),
                 expiration: <<<T as Config>::Block as Block>::Header as Header>::Number::from(
-                    1200u64, // Using "old" value as testnet value is too long and will make benchmarks timeout.
+                    500u64, // Using "old" value as testnet value is too long and will make benchmarks timeout.
                 ),
                 unsealed_cid: sector.comm_d.cid().to_bytes().try_into().unwrap(),
                 seal_randomness_height: self.seal_randomness_height.into(),
