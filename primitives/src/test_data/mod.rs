@@ -6,6 +6,7 @@ use core::marker::PhantomData;
 use cid::Cid;
 use codec::Encode;
 use frame_system::{pallet_prelude::BlockNumberFor, Config};
+use sector_data::SectorData;
 use sp_core::sr25519;
 use sp_io::crypto::{sr25519_generate, sr25519_sign};
 use sp_runtime::{
@@ -23,15 +24,7 @@ use crate::{
     PEER_ID_MAX_BYTES,
 };
 
-// If this is changed, also update SectorData in `storage-provider/client/src/commands/proofs.rs`.
-#[derive(Debug)]
-pub struct SectorData {
-    pub sector_number: SectorNumber,
-    pub padded_piece_size: PaddedPieceSize,
-    pub comm_r: Commitment<CommR>,
-    pub comm_d: Commitment<CommD>,
-    pub porep_proof: &'static [u8],
-}
+mod sector_data;
 
 #[derive(Debug)]
 pub struct StorageProviderData {
