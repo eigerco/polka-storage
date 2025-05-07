@@ -213,7 +213,7 @@ const POST_PROOF_EXT: &str = "sector.proof.post.scale";
 const KEYS_DIR: &str = "test-fixtures/keys";
 const PROOFS_DIR: &str = "test-fixtures/proofs";
 const PARAMS_CACHE_DIR: &str = "target/params";
-const BENCH_DATA_DIR_TO_ROOT: &str = "../..";
+const BENCH_DATA_DIR_TO_ROOT: &str = "../../..";
 
 impl ProofsCommand {
     /// Run the command.
