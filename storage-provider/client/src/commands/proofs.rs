@@ -27,7 +27,7 @@ use primitives::{
     },
     proofs::{derive_prover_id, RegisteredPoStProof, RegisteredSealProof},
     randomness::{draw_randomness, DomainSeparationTag},
-    sector::{SectorNumber, SectorSize},
+    sector::SectorNumber,
     MAX_SECTORS_PER_CALL,
 };
 use quote::format_ident;
@@ -620,7 +620,7 @@ fn write_proof_file(
 #[derive(Debug)]
 pub struct BenchmarkData {
     pub storage_provider_name: String,
-    pub verifying_key_path: PathBuf,
+    pub porep_verifying_key_path: PathBuf,
     pub seal_proof: RegisteredSealProof,
     pub post_type: RegisteredPoStProof,
     pub seal_randomness_height: u64,
@@ -637,7 +637,7 @@ pub struct SectorData {
     pub padded_piece_size: PaddedPieceSize,
     pub comm_r: Commitment<CommR>,
     pub comm_d: Commitment<CommD>,
-    pub proof_path: PathBuf,
+    pub porep_proof_path: PathBuf,
 }
 
 async fn benchmark_data(input_path: PathBuf, sector_size: SectorSizeArg) -> Result<(), CliError> {
@@ -656,7 +656,6 @@ async fn benchmark_data(input_path: PathBuf, sector_size: SectorSizeArg) -> Resu
     let params_root = PathBuf::from(PARAMS_CACHE_DIR);
     let keys_root = &PathBuf::from(KEYS_DIR);
 
-    let sector_size = seal_proof.sector_size();
     let porep_params_path = params_root.join(format!("{sector_size}.{POREP_PARAMS_EXT}"));
     let porep_params_vk_path = keys_root.join(format!("{sector_size}.{POREP_VK_EXT_SCALE}"));
     if !tokio::fs::try_exists(&porep_params_path).await?
@@ -673,7 +672,7 @@ async fn benchmark_data(input_path: PathBuf, sector_size: SectorSizeArg) -> Resu
 
     let mut benchmark_data = BenchmarkData {
         storage_provider_name: PROVIDER_NAME.to_owned(),
-        verifying_key_path: porep_params_vk_path,
+        porep_verifying_key_path: porep_params_vk_path,
         seal_proof,
         post_type,
         seal_randomness_height: SEAL_RANDOMNESS_HEIGHT,
@@ -706,9 +705,9 @@ async fn benchmark_data(input_path: PathBuf, sector_size: SectorSizeArg) -> Resu
         )
         .await?;
 
-        let file_name = format!("{sector_number}.{POREP_PROOF_EXT}");
-        let proof_path = proofs_root.join(&file_name);
-        tokio::fs::copy(output_path.path().join(&file_name), &proof_path).await?;
+        let porep_file_name = format!("{sector_number}.{POREP_PROOF_EXT}");
+        let porep_proof_path = proofs_root.join(&porep_file_name);
+        tokio::fs::copy(output_path.path().join(&porep_file_name), &porep_proof_path).await?;
 
         benchmark_data.sectors.push(SectorData {
             sector_number: SectorNumber::new(sector_number)
@@ -716,22 +715,22 @@ async fn benchmark_data(input_path: PathBuf, sector_size: SectorSizeArg) -> Resu
             padded_piece_size,
             comm_r,
             comm_d,
-            proof_path,
+            porep_proof_path,
         });
         drop(output_path);
         drop(cache_directory);
     }
     println!("--- Benchmarking data generated ---");
-    let constructor = emit_benchmark_constructor(sector_size, &benchmark_data);
+    let constructor = emit_benchmark_constructor(&benchmark_data);
     println!("{constructor}");
     Ok(())
 }
 
-fn emit_benchmark_constructor(sector_size: SectorSize, benchmark_data: &BenchmarkData) -> String {
+fn emit_benchmark_constructor(benchmark_data: &BenchmarkData) -> String {
     let command = std::env::args().join(" ");
     let BenchmarkData {
         storage_provider_name,
-        verifying_key_path,
+        porep_verifying_key_path,
         seal_proof,
         post_type,
         seal_randomness_height,
@@ -748,45 +747,43 @@ fn emit_benchmark_constructor(sector_size: SectorSize, benchmark_data: &Benchmar
                 padded_piece_size,
                 comm_r,
                 comm_d,
-                proof_path,
+                porep_proof_path,
             } = sector;
             let sector_number = u32::from(*sector_number);
             let padded_piece_size = padded_piece_size.deref();
             let comm_r = emit_commitment(comm_r);
             let comm_d = emit_commitment(comm_d);
-            let proof_path_rel = PathBuf::from(BENCH_DATA_DIR_TO_ROOT).join(proof_path);
-            let proof_path = proof_path_rel.to_string_lossy();
+            let porep_proof_path_rel = PathBuf::from(BENCH_DATA_DIR_TO_ROOT).join(porep_proof_path);
+            let porep_proof_path = porep_proof_path_rel.to_string_lossy();
             quote::quote! {
                 SectorData {
                     sector_number: SectorNumber::new(#sector_number).expect("valid sector ID"),
                     padded_piece_size: PaddedPieceSize::new(#padded_piece_size).expect("valid padded piece size"),
                     comm_r: #comm_r,
                     comm_d: #comm_d,
-                    proof: include_bytes!(#proof_path),
+                    porep_proof: include_bytes!(#porep_proof_path),
                 }
             }
         })
         .collect::<Vec<_>>();
 
-    let sector_size = format_ident!("_{sector_size}");
-    let verifying_key_path_rel = PathBuf::from(BENCH_DATA_DIR_TO_ROOT).join(verifying_key_path);
-    let verifying_key_path = verifying_key_path_rel.to_string_lossy();
+    let porep_verifying_key_path_rel =
+        PathBuf::from(BENCH_DATA_DIR_TO_ROOT).join(porep_verifying_key_path);
+    let porep_verifying_key_path = porep_verifying_key_path_rel.to_string_lossy();
     let seal_proof = format_ident!("{seal_proof:?}");
     let post_type = format_ident!("{post_type:?}");
     let comm_p = emit_commitment(comm_p);
     let code = quote::quote! {
-        SectorSize::#sector_size => {
-            BenchmarkData {
-                storage_provider_name: #storage_provider_name,
-                verifying_key: include_bytes!(#verifying_key_path),
-                seal_proof: RegisteredSealProof::#seal_proof,
-                post_type: RegisteredPoStProof::#post_type,
-                seal_randomness_height: #seal_randomness_height,
-                pre_commit_block_number: #pre_commit_block_number,
-                comm_p: #comm_p,
-                sectors: vec![#(#sectors),*],
-                _phantom: PhantomData,
-            }
+        BenchmarkData {
+            storage_provider_name: #storage_provider_name,
+            porep_verifying_key: include_bytes!(#porep_verifying_key_path),
+            seal_proof: RegisteredSealProof::#seal_proof,
+            post_type: RegisteredPoStProof::#post_type,
+            seal_randomness_height: #seal_randomness_height,
+            pre_commit_block_number: #pre_commit_block_number,
+            comm_p: #comm_p,
+            sectors: vec![#(#sectors),*],
+            _phantom: PhantomData,
         }
     };
 
