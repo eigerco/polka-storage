@@ -28,7 +28,7 @@ use primitives::{
     configs::BalanceOf,
     deals::ClientDealProposalOf,
     sector::{ProveCommitSector, SectorPreCommitInfo},
-    test_data::{generate_benchmark_account, BenchmarkData},
+    test_data::{benchmark_data::BenchmarkData, generate_benchmark_account},
     MAX_SECTORS_PER_CALL, MAX_TERMINATIONS_PER_CALL, PEER_ID_MAX_BYTES,
 };
 use sp_runtime::{AccountId32, MultiSignature, MultiSigner};
@@ -264,7 +264,7 @@ where
     assert_ok!(ProofsPallet::<T>::set_porep_verifying_key(
         RawOrigin::Signed(sp_id.clone()).into(),
         data.seal_proof,
-        data.verifying_key.to_vec(),
+        data.porep_verifying_key.to_vec(),
     ));
 
     // Run to after pre-commit delay
