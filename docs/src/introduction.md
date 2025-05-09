@@ -33,7 +33,8 @@ We've now completed Phase 3 and have started work on Phase 4.
 
 - **Client-Side Functionality**
   - Added in-browser CommP and piece size computation using WASM.
-  - Implemented receipt-based retrieval via Peer ID resolution and Bitswap integration.
+  - Added in-browser CARv2 file conversion, making this the first JS library to support the format.
+  - Implemented receipt-based retrieval via Peer ID resolution and Beetswap integration.
   - Automatically stored completed deal metadata locally for easier retrieval.
 
 - **UI/UX Improvements**
