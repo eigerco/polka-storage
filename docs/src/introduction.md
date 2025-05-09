@@ -33,7 +33,7 @@ We've now completed Phase 3 and have started work on Phase 4.
 
 - **Client-Side Functionality**
   - Added in-browser CommP and piece size computation using WASM.
-  - Implemented receipt-based retrieval via Peer ID resolution and Beetswap integration.
+  - Implemented receipt-based retrieval via Peer ID resolution and Bitswap integration.
   - Automatically stored completed deal metadata locally for easier retrieval.
 
 - **UI/UX Improvements**
