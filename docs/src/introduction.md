@@ -26,7 +26,7 @@ We've now completed Phase 3 and have started work on Phase 4.
   - Exposed non-libp2p services over libp2p for discovery.
 
 - **Stability Improvements**
-  - Fixed per-account nonce tracking.
+  - Improved per-account nonce tracking.
   - Resolved runtime issues with proof key handling, padding, and batching behavior.
 
 ### **Delia**
