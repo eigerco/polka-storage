@@ -21,7 +21,7 @@ We've now completed Phase 3 and have started work on Phase 4.
   - Implemented server-side deal parameter checks for automated deal validation.
 
 - **P2P Networking**
-  - Added Peer ID to Multiaddr resolution via libp2p request/response.
+  - Added Peer ID to Multiaddr resolution using Kademlia for peer discovery, with Multiaddr info served via libp2p request/response.
   - Moved P2P bootstrap functionality into the collator for improved deployment.
   - Exposed non-libp2p services over libp2p for discovery.
 
