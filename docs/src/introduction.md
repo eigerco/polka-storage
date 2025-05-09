@@ -4,9 +4,47 @@ Welcome to the Polka Storage project book. This document is a work in progress a
 
 This project aims to build a native storage network for Polkadot.
 
-We've now completed Phase 2 and have started work on Phase 3.
+We've now completed Phase 3 and have started work on Phase 4.
 
-**During [**Phase 2**](https://polkadot.polkassembly.io/referenda/1150), we have implemented:**
+## **During [**Phase 3**](https://polkadot.polkassembly.io/referenda/1541), we have implemented:**
+
+### **Polka-Storage**
+
+- **Proof Systems and Performance**
+  - Enabled Groth16 batch proof verification using on-chain randomness.
+  - Supported productionized 1 GiB sector sizes for PoRep and PoSt.
+  - Adjusted Windowed PoSt to be partition-aware and compatible with block time.
+  - Fine-tuned runtime constants for realistic mainnet timings in sealing and proof submission.
+
+- **Deal Automation**
+  - Introduced on-chain deal parameters published by storage providers via the market pallet.
+  - Implemented server-side deal parameter checks for automated deal validation.
+
+- **P2P Networking**
+  - Added Peer ID to Multiaddr resolution via libp2p request/response.
+  - Moved P2P bootstrap functionality into the collator for improved deployment.
+  - Exposed non-libp2p services over libp2p for discovery.
+
+- **Stability Improvements**
+  - Fixed per-account nonce tracking.
+  - Resolved runtime issues with proof key handling, padding, and batching behavior.
+
+### **Delia**
+
+- **Client-Side Functionality**
+  - Added in-browser CommP and piece size computation using WASM.
+  - Implemented receipt-based retrieval via Peer ID resolution and Beetswap integration.
+  - Automatically stored completed deal metadata locally for easier retrieval.
+
+- **UI/UX Improvements**
+  - Added validation to the deal proposal form.
+  - Improved form input handling and visual feedback.
+  - Enhanced network error handling and balance formatting.
+
+- **Documentation**
+  - Added user documentation covering deal flow, encryption, balance setup, and usage instructions.
+
+## **During [**Phase 2**](https://polkadot.polkassembly.io/referenda/1150), we have implemented:**
 
 - Storage Provider Pallet
   - [`terminate_sectors`](./architecture/pallets/storage-provider.md#terminate_sectors)
@@ -50,7 +88,7 @@ Pallets:
         alt="Polka Storage Client Upload">
 </p>
 
-**During [Phase 1](https://polkadot.polkassembly.io/referenda/494), we implemented the following:**
+## **During [Phase 1](https://polkadot.polkassembly.io/referenda/494), we implemented the following:**
 
 - Keeping track of [Storage Providers](./glossary.md#storage-provider),
 - [Publishing](./architecture/pallets/market.md#publish_storage_deals) Market Deals on-chain,
