@@ -12,7 +12,7 @@ We've now completed Phase 3 and have started work on Phase 4.
 
 - **Proof Systems and Performance**
   - Enabled Groth16 batch proof verification using on-chain randomness.
-  - Supported productionized 1 GiB sector sizes for PoRep and PoSt.
+  - Productionized 1 GiB sector sizes for PoRep and PoSt.
   - Adjusted Windowed PoSt to be partition-aware and compatible with block time.
   - Fine-tuned runtime constants for realistic mainnet timings in sealing and proof submission.
 
