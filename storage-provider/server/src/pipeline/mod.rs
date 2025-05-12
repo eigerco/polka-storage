@@ -20,7 +20,7 @@ use tokio::sync::{
     oneshot, Mutex, Semaphore,
 };
 use tokio_util::{sync::CancellationToken, task::TaskTracker};
-use tracing::error;
+use tracing::{error, warn};
 use types::{
     AddPieceMessage, PipelineMessage, PreCommitMessage, ProveCommitMessage,
     SubmitWindowedPoStMessage,
@@ -307,6 +307,22 @@ async fn precommit(
 ) -> Result<(), PipelineError> {
     tracing::info!("Starting pre-commit");
 
+    // While this scope is executing, we know that no pieces are being added to
+    // the sectors. We know that because of the locked `add_piece_serializer`.
+    // While we hold the lock, we move the sector to the sealing pending. That
+    // is needed, so that after the lock is dropped. The new pieces being added
+    // wont consider the current sector as viable.
+    {
+        let _lock = state.add_piece_serializer.lock().await;
+
+        let Some(sector) = state.db.remove_unsealed_sector(sector_number)? else {
+            tracing::warn!(%sector_number, "Tried to precommit non-existing unsealed sector");
+            return Err(PipelineError::SectorNotFound);
+        };
+
+        state.db.insert_pending_sealing_sector(&sector)?;
+    }
+
     {
         // We remove ourselves from the scheduled pre-commits
         let mut scheduled_pre_commits = state.scheduled_pre_commits.lock().await;
@@ -316,12 +332,15 @@ async fn precommit(
         }
     }
 
-    // This unit of work effectively works as a "block", since `remove_unsealed_sector`
+    // This unit of work effectively works as a "block", since `remove_pending_sealing_sector`
     // blocks the row it removes, meaning that even if two tasks race here,
     // the DB will stop one from doing an outdated read
     let state_for_task = state.clone();
     let sector = tokio::task::spawn_blocking(move || {
-        match state_for_task.db.remove_unsealed_sector(sector_number)? {
+        match state_for_task
+            .db
+            .remove_pending_sealing_sector(sector_number)?
+        {
             Some(sector) => Ok(sector),
             None => {
                 // This is a partial error since the sector may *just* have been pre-committed
