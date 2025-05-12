@@ -116,7 +116,7 @@ jobs:
       - name: pallet-proofs — Run node benchmarks
         run: |
           cargo run \
-          --bin polka-storage-node -r -F runtime-benchmarks -- \
+          -p polka-storage-node --bin polka-storage-node -r -F runtime-benchmarks -- \
           benchmark pallet \
           --wasm-execution=compiled \
           --pallet "pallet_proofs" \
@@ -131,7 +131,7 @@ jobs:
       - name: pallet-randomness — Run node benchmarks
         run: |
           cargo run \
-          --bin polka-storage-node -r -F runtime-benchmarks -- \
+          -p polka-storage-node --bin polka-storage-node -r -F runtime-benchmarks -- \
           benchmark pallet \
           --wasm-execution=compiled \
           --pallet "pallet_randomness" \
@@ -146,7 +146,7 @@ jobs:
       - name: pallet-market — Run node benchmarks
         run: |
           cargo run \
-          --bin polka-storage-node -r -F runtime-benchmarks -F testnet -- \
+          -p polka-storage-node --bin polka-storage-node -r -F runtime-benchmarks -F testnet -- \
           benchmark pallet \
           --wasm-execution=compiled \
           --pallet "pallet_market" \
@@ -161,7 +161,7 @@ jobs:
       - name: pallet-storage-provider — Run node benchmarks
         run: |
           cargo run \
-          --bin polka-storage-node -r -F runtime-benchmarks -F testnet -- \
+          -p polka-storage-node --bin polka-storage-node -r -F runtime-benchmarks -F testnet -- \
           benchmark pallet \
           --wasm-execution=compiled \
           --pallet "pallet_storage_provider" \

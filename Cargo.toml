@@ -30,6 +30,30 @@ members = [
   "storagext/cli",
   "storagext/lib",
 ]
+# Same as above except no `node`.
+default-members = [
+  "lib/libp2p-length-prefix-codec",
+  "lib/polka-storage-proofs",
+  "maat",
+  "mater/cli",
+  "mater/lib",
+  "pallets/faucet",
+  "pallets/market",
+  "pallets/market/benchmarks",
+  "pallets/proofs",
+  "pallets/randomness",
+  "pallets/storage-provider",
+  "pallets/storage-provider/benchmarks",
+  "primitives",
+  "primitives-p2p",
+  "runtime",
+  "storage-fetch",
+  "storage-provider/client",
+  "storage-provider/common",
+  "storage-provider/server",
+  "storagext/cli",
+  "storagext/lib",
+]
 resolver = "2"
 
 [profile.ci]
@@ -201,6 +225,7 @@ sp-core = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-
 sp-genesis-builder = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2412", default-features = false }
 sp-inherents = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2412", default-features = false }
 sp-io = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2412", default-features = false }
+sp-keyring = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2412", default-features = false }
 sp-keystore = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2412", default-features = false }
 sp-offchain = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2412", default-features = false }
 sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2412", default-features = false }
@@ -225,6 +250,7 @@ xcm-executor = { package = "staging-xcm-executor", git = "https://github.com/par
 frame-benchmarking = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2412", default-features = false }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2412" }
 frame-executive = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2412", default-features = false }
+frame-metadata-hash-extension = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2412", default-features = false }
 frame-support = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2412", default-features = false }
 frame-system = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2412", default-features = false }
 frame-system-benchmarking = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-stable2412", default-features = false }
