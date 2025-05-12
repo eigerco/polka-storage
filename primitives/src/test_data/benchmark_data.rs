@@ -6,10 +6,7 @@ use core::marker::PhantomData;
 use cid::Cid;
 use codec::Encode;
 use frame_system::pallet_prelude::BlockNumberFor;
-use sp_runtime::{
-    traits::{Block, ConstU32, Header},
-    AccountId32, BoundedVec, MultiSignature, MultiSigner,
-};
+use sp_runtime::{traits::ConstU32, AccountId32, BoundedVec, MultiSignature, MultiSigner};
 
 use crate::{
     commitment::{piece::PaddedPieceSize, CommD, CommP, CommR, Commitment},
@@ -18,31 +15,34 @@ use crate::{
     proofs::{RegisteredPoStProof, RegisteredSealProof},
     sector::{ProveCommitSector, SectorNumber, SectorPreCommitInfo},
     test_data::{
-        generate_benchmark_account, sector_data::SectorData, sign_proposal,
-        storage_provider_data::StorageProviderData,
+        absolute_block_number::Absolute, deal_timeline::DealTimeline, generate_benchmark_account,
+        relative_block_number::Relative, sector_data::SectorData, sector_timeline::SectorTimeline,
+        sign_proposal, storage_provider_data::StorageProviderData,
     },
     MAX_LABEL_SIZE, MAX_POREP_PROOFS_PER_BLOCK, MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_CALL,
 };
 
 // If this is changed, also update BenchmarkData in `storage-provider/client/src/commands/proofs.rs`.
 #[derive(Debug)]
-pub struct BenchmarkData<T> {
+pub struct BenchmarkData<T>
+where
+    T: frame_system::Config,
+{
     pub storage_provider_name: &'static str,
     pub porep_verifying_key: &'static [u8],
     pub seal_proof: RegisteredSealProof,
     pub post_type: RegisteredPoStProof,
-    pub seal_randomness_height: u64,
-    pub pre_commit_block_number: u64,
     pub comm_p: Commitment<CommP>,
     pub sectors: Vec<SectorData>,
+    pub timeline: SectorTimeline<BlockNumberFor<T>, T::AccountId>,
     _phantom: PhantomData<T>,
 }
 
-impl<T> BenchmarkData<T> {
-    pub fn storage_provider(&self) -> StorageProviderData
-    where
-        T: frame_system::Config<AccountId = AccountId32>,
-    {
+impl<T> BenchmarkData<T>
+where
+    T: frame_system::Config<AccountId = AccountId32>,
+{
+    pub fn storage_provider(&self) -> StorageProviderData {
         let (account_id, sign) = generate_benchmark_account::<T>(&self.storage_provider_name);
 
         let peer_id: &[u8; 32] = &account_id.as_ref();
@@ -60,17 +60,13 @@ impl<T> BenchmarkData<T> {
         limit: u32,
     ) -> BoundedVec<ClientDealProposalOf<T>, T::MaxDeals>
     where
-        T: frame_system::Config<AccountId = AccountId32>
-            + CurrencyProvider
-            + MarketProvider<OffchainSignature = MultiSignature>,
-        BlockNumberFor<T>: From<u64>,
+        T: CurrencyProvider + MarketProvider<OffchainSignature = MultiSignature>,
         BalanceOf<T>: From<u32> + Encode,
     {
         self.sectors
             .iter()
             .take(limit as usize)
             .map(|sector| {
-                let min_dur = T::min_deal_duration();
                 let label = vec![u32::from(sector.sector_number) as u8; MAX_LABEL_SIZE as usize];
                 let proposal = DealProposalOf::<T> {
                     piece_cid: self
@@ -83,8 +79,9 @@ impl<T> BenchmarkData<T> {
                     client: client.0.clone(),
                     provider: self.storage_provider().account_id,
                     label: BoundedVec::try_from(label).unwrap(),
-                    start_block: 100.into(),
-                    end_block: min_dur + 100.into(),
+                    // TODO(@Jinxit,29/04/2025): Make use of multiple deals instead of hardcoding for a single one.
+                    start_block: self.timeline.deals()[0].start().0,
+                    end_block: self.timeline.deals()[0].end().0,
                     storage_price_per_block: 5u32.into(),
                     provider_collateral: 25u32.into(),
                     state: DealState::Published,
@@ -102,7 +99,6 @@ impl<T> BenchmarkData<T> {
     ) -> BoundedVec<SectorPreCommitInfo<BlockNumberFor<T>>, ConstU32<MAX_SECTORS_PER_CALL>>
     where
         T: crate::configs::StorageProviderProvider,
-        BlockNumberFor<T>: From<u64>,
     {
         self.sectors
             .iter()
@@ -114,12 +110,9 @@ impl<T> BenchmarkData<T> {
                 deal_ids: vec![u64::from(sector.sector_number) as u64]
                     .try_into()
                     .unwrap(),
-                expiration:
-                    <<<T as frame_system::Config>::Block as Block>::Header as Header>::Number::from(
-                        500u64, // Using "old" value as testnet value is too long and will make benchmarks timeout.
-                    ),
+                expiration: self.timeline.sector_expiration().0,
                 unsealed_cid: sector.comm_d.cid().to_bytes().try_into().unwrap(),
-                seal_randomness_height: self.seal_randomness_height.into(),
+                seal_randomness_height: self.timeline.seal_randomness_height().0,
             })
             .collect::<Vec<_>>()
             .try_into()
@@ -153,14 +146,12 @@ impl<T> BenchmarkData<T> {
 
     pub fn load() -> BenchmarkData<T> {
         // DO NOT MODIFY
-        // This code has been generated by `./target/release/polka-storage-provider-client proofs benchmark-data --sector-size 1GiB examples/big_file_184k.car`
+        // This code has been generated by `target/release/polka-storage-provider-client proofs benchmark-data --sector-size 8MiB examples/big_file_184k.car`
         BenchmarkData {
             storage_provider_name: "//StorageProvider",
-            porep_verifying_key: include_bytes!("../../../test-fixtures/keys/1GiB.porep.vk.scale"),
-            seal_proof: RegisteredSealProof::StackedDRG1GiBV1,
-            post_type: RegisteredPoStProof::StackedDRGWindow1GiBV1,
-            seal_randomness_height: 1u64,
-            pre_commit_block_number: 5u64,
+            porep_verifying_key: include_bytes!("../../../test-fixtures/keys/8MiB.porep.vk.scale"),
+            seal_proof: RegisteredSealProof::StackedDRG8MiBV1,
+            post_type: RegisteredPoStProof::StackedDRGWindow8MiBV1,
             comm_p: Commitment::<CommP>::from_cid(
                 &Cid::from_str("baga6ea4seaqhx2sxpfc2f3k2o75m3acskihug7me3g4coyw6adjqnd6ioszfqay")
                     .expect("valid cid"),
@@ -172,22 +163,55 @@ impl<T> BenchmarkData<T> {
                     .expect("valid padded piece size"),
                 comm_r: Commitment::<CommR>::from_cid(
                     &Cid::from_str(
-                        "bagboea4b5abcapkxfabaucngl65mrhcl2uobpkg62ownxttwbqtdhuhi7uuds4rf",
+                        "bagboea4b5abcbux4vzeqgl5hi7r6xlndtzmymbpyq67w7coxyjepjcrbeo6k62sf",
                     )
                     .expect("valid cid"),
                 )
                 .expect("valid commitment"),
                 comm_d: Commitment::<CommD>::from_cid(
                     &Cid::from_str(
-                        "baga6ea4seaqcjdzgezdmdynwaoursai6zwafbxjmz7k4r3fnwwioizcwbq3zwki",
+                        "baga6ea4seaqjzzj3jpjqkmnzwjueswah6a7wbiahq6arqknv57znraeoiwm4kgq",
                     )
                     .expect("valid cid"),
                 )
                 .expect("valid commitment"),
                 porep_proof: include_bytes!(
-                    "../../../test-fixtures/proofs/1GiB/0.sector.proof.porep.scale"
+                    "../../../test-fixtures/proofs/8MiB/0.sector.proof.porep.scale"
                 ),
             }],
+            timeline: {
+                let _proving_period_offset = 15u32;
+                let _proving_period_start_initial = 75u32;
+                let _seal_randomness_height = 93u32;
+                let _sector_expiration = 230u32;
+                let _interactive_block_number = 110u32;
+                let _prove_commit_sectors = 111u32;
+                let _deadline_index = 0u32;
+                let _deadline_challenge_block = 245u32;
+                let _deadline_start = 255u32;
+                let _submit_windowed_post = 256u32;
+                let _deadline_close = 275u32;
+                SectorTimeline::new(
+                    AccountId32::new([
+                        182u8, 193u8, 149u8, 53u8, 114u8, 191u8, 35u8, 38u8, 36u8, 236u8, 20u8,
+                        137u8, 254u8, 55u8, 102u8, 15u8, 54u8, 170u8, 187u8, 9u8, 38u8, 195u8,
+                        121u8, 127u8, 99u8, 252u8, 61u8, 105u8, 112u8, 109u8, 83u8, 119u8,
+                    ]),
+                    Absolute::from(BlockNumberFor::<T>::from(1u32)),
+                    Absolute::from(BlockNumberFor::<T>::from(5u32)),
+                    Absolute::from(BlockNumberFor::<T>::from(100u32)),
+                    vec![DealTimeline::new(
+                        Absolute::from(BlockNumberFor::<T>::from(180u32)),
+                        Relative::from(BlockNumberFor::<T>::from(50u32)),
+                    )],
+                    3u32,
+                    Relative::from(BlockNumberFor::<T>::from(60u32)),
+                    Relative::from(BlockNumberFor::<T>::from(20u32)),
+                    Relative::from(BlockNumberFor::<T>::from(10u32)),
+                    Relative::from(BlockNumberFor::<T>::from(10u32)),
+                )
+                .expect("valid timeline")
+            },
             _phantom: PhantomData,
         }
     }

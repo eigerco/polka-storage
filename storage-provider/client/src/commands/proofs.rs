@@ -1,4 +1,6 @@
+use core::panic;
 use std::{
+    collections::HashSet,
     fmt::Display,
     io::Write,
     ops::Deref,
@@ -28,18 +30,29 @@ use primitives::{
     proofs::{derive_prover_id, RegisteredPoStProof, RegisteredSealProof},
     randomness::{draw_randomness, DomainSeparationTag},
     sector::SectorNumber,
+    test_data::{
+        absolute_block_number::Absolute, deal_timeline::DealTimeline,
+        relative_block_number::Relative, sector_timeline::SectorTimeline,
+    },
     MAX_SECTORS_PER_CALL,
 };
 use quote::format_ident;
 use serde_json::json;
 use storagext::multipair::{MultiPairArgs, MultiPairSigner};
 use subxt::{
-    ext::sp_core::{sr25519, Pair},
+    ext::{
+        sp_core::{sr25519, Pair},
+        sp_runtime::AccountId32,
+    },
     tx::{PairSigner, Signer},
 };
 use tempfile::tempdir;
 
 use crate::CliError;
+
+// Time is measured by number of blocks.
+const MILLISECS_PER_BLOCK: u32 = 6000;
+const MINUTES: u32 = 60_000 / (MILLISECS_PER_BLOCK as u32);
 
 /// Utils sub-commands.
 #[derive(Debug, clap::Subcommand)]
@@ -623,10 +636,9 @@ pub struct BenchmarkData {
     pub porep_verifying_key_path: PathBuf,
     pub seal_proof: RegisteredSealProof,
     pub post_type: RegisteredPoStProof,
-    pub seal_randomness_height: u64,
-    pub pre_commit_block_number: u64,
     pub comm_p: Commitment<CommP>,
     pub sectors: Vec<SectorData>,
+    pub timeline: SectorTimeline<u32, AccountId32>,
 }
 
 /// This is a temporary representation of the data that ends up in a separate `SectorData` struct
@@ -641,9 +653,61 @@ pub struct SectorData {
 }
 
 async fn benchmark_data(input_path: PathBuf, sector_size: SectorSizeArg) -> Result<(), CliError> {
-    const SEAL_RANDOMNESS_HEIGHT: u64 = 1;
-    const PRE_COMMIT_BLOCK_NUMBER: u64 = 5;
     const PROVIDER_NAME: &str = "//StorageProvider";
+    let signer_key: MultiPairSigner = MultiPairSigner::Sr25519(PairSigner::new(
+        sr25519::Pair::from_string(PROVIDER_NAME, None).expect("hardcoded key to be valid"),
+    ));
+
+    let proving_period = Relative::from(6 * MINUTES);
+    let mut deal_start = Absolute::zero() + proving_period * 2;
+    let mut quickest_post: Option<(Absolute<u32>, SectorTimeline<u32, _>)> = None;
+    let mut errors: HashSet<String> = HashSet::new();
+    // This loop will try to find a set of parameters that:
+    // 1. Make up a valid timeline.
+    // 2. Have the shortest block time before PoSt submission.
+    for _ in 0..100 {
+        // These are *somewhat* arbitrary but must fit conditions checked by SectorTimeline.
+        let register_storage_provider = 1;
+        let publish_storage_deals = 5;
+        let pre_commit_sectors = 100;
+        // The constants here (and `proving_period` above) are sourced from the
+        // Testnet runtime defined in <runtime/src/configs/mod.rs>.
+        let timeline = SectorTimeline::<u32, _>::new(
+            signer_key.account_id(),
+            register_storage_provider.into(),
+            publish_storage_deals.into(),
+            pre_commit_sectors.into(),
+            // Using the minimum deal duration.
+            vec![DealTimeline::new(deal_start.into(), (5 * MINUTES).into())],
+            3,
+            proving_period,
+            (2 * MINUTES).into(),
+            (1 * MINUTES).into(),
+            (1 * MINUTES).into(),
+        );
+        let timeline = match timeline {
+            Ok(timeline) => timeline,
+            Err(e) => {
+                errors.insert(e);
+                continue;
+            }
+        };
+        if timeline.deadline_index() == 0 {
+            let current = timeline.submit_windowed_post();
+            if let Some((prev, _)) = quickest_post {
+                if current < prev {
+                    quickest_post = Some((current, timeline));
+                }
+            } else {
+                quickest_post = Some((current, timeline));
+            }
+        }
+        deal_start = deal_start + proving_period;
+    }
+    let timeline = quickest_post
+        .unwrap_or_else(|| panic!("no valid proof timeline found, errors: {:#?}", errors))
+        .1;
+
     let seal_proof = sector_size.porep();
     let post_type = sector_size.post();
 
@@ -666,19 +730,14 @@ async fn benchmark_data(input_path: PathBuf, sector_size: SectorSizeArg) -> Resu
     println!("--- Using pre-generated PoRep params for seal proof {seal_proof:?} ---");
     println!("{}", porep_params_path.display());
 
-    let signer_key: MultiPairSigner = MultiPairSigner::Sr25519(PairSigner::new(
-        sr25519::Pair::from_string(PROVIDER_NAME, None).expect("hardcoded key to be valid"),
-    ));
-
     let mut benchmark_data = BenchmarkData {
         storage_provider_name: PROVIDER_NAME.to_owned(),
         porep_verifying_key_path: porep_params_vk_path,
         seal_proof,
         post_type,
-        seal_randomness_height: SEAL_RANDOMNESS_HEIGHT,
-        pre_commit_block_number: PRE_COMMIT_BLOCK_NUMBER,
         comm_p,
         sectors: Vec::with_capacity(MAX_SECTORS_PER_CALL as usize),
+        timeline: timeline.clone(),
     };
 
     let proofs_root = PathBuf::from(PROOFS_DIR).join(sector_size.to_string());
@@ -694,8 +753,8 @@ async fn benchmark_data(input_path: PathBuf, sector_size: SectorSizeArg) -> Resu
         let PreCommitOutput { comm_r, comm_d } = porep(
             &signer_key,
             sector_number,
-            SEAL_RANDOMNESS_HEIGHT,
-            PRE_COMMIT_BLOCK_NUMBER,
+            timeline.seal_randomness_height().0.into(),
+            timeline.pre_commit_sectors().0.into(),
             Some(output_path.path().to_path_buf()),
             input_path.clone(),
             porep_params_path.clone(),
@@ -733,10 +792,9 @@ fn emit_benchmark_constructor(benchmark_data: &BenchmarkData) -> String {
         porep_verifying_key_path,
         seal_proof,
         post_type,
-        seal_randomness_height,
-        pre_commit_block_number,
         comm_p,
         sectors,
+        timeline,
     } = benchmark_data;
 
     let sectors = sectors
@@ -773,16 +831,16 @@ fn emit_benchmark_constructor(benchmark_data: &BenchmarkData) -> String {
     let seal_proof = format_ident!("{seal_proof:?}");
     let post_type = format_ident!("{post_type:?}");
     let comm_p = emit_commitment(comm_p);
+    let timeline = emit_timeline(timeline);
     let code = quote::quote! {
         BenchmarkData {
             storage_provider_name: #storage_provider_name,
             porep_verifying_key: include_bytes!(#porep_verifying_key_path),
             seal_proof: RegisteredSealProof::#seal_proof,
             post_type: RegisteredPoStProof::#post_type,
-            seal_randomness_height: #seal_randomness_height,
-            pre_commit_block_number: #pre_commit_block_number,
             comm_p: #comm_p,
             sectors: vec![#(#sectors),*],
+            timeline: #timeline,
             _phantom: PhantomData,
         }
     };
@@ -810,6 +868,68 @@ fn emit_commitment<Kind: CommitmentKind>(
         Commitment::<#kind>::from_cid(
             &Cid::from_str(#commitment).expect("valid cid"),
         ).expect("valid commitment")
+    }
+}
+
+fn emit_timeline(timeline: &SectorTimeline<u32, AccountId32>) -> proc_macro2::TokenStream {
+    let storage_provider_account_id: [u8; 32] =
+        timeline.storage_provider_account_id().clone().into();
+    let register_storage_provider = timeline.register_storage_provider().0;
+    let publish_storage_deals = timeline.publish_storage_deals().0;
+    let pre_commit_sectors = timeline.pre_commit_sectors().0;
+    let deals = timeline.deals().iter().map(|t| {
+        let start = t.start().0;
+        let duration = t.duration().0;
+        quote::quote! {
+            DealTimeline::new(
+                Absolute::from(BlockNumberFor::<T>::from(#start)),
+                Relative::from(BlockNumberFor::<T>::from(#duration)),
+            )
+        }
+    });
+    let period_deadlines = timeline.period_deadlines();
+    let proving_period = timeline.proving_period().0;
+    let challenge_window = timeline.challenge_window().0;
+    let challenge_lookback = timeline.challenge_lookback().0;
+    let pre_commit_challenge_delay = timeline.pre_commit_challenge_delay().0;
+
+    let proving_period_offset = timeline.proving_period_offset().0;
+    let proving_period_start_initial = timeline.proving_period_start_initial().0;
+    let seal_randomness_height = timeline.seal_randomness_height().0;
+    let sector_expiration = timeline.sector_expiration().0;
+    let interactive_block_number = timeline.interactive_block_number().0;
+    let prove_commit_sectors = timeline.prove_commit_sectors().0;
+    let deadline_index = timeline.deadline_index();
+    let deadline_challenge_block = timeline.deadline_challenge_block().0;
+    let deadline_start = timeline.deadline_start().0;
+    let submit_windowed_post = timeline.submit_windowed_post().0;
+    let deadline_close = timeline.deadline_close().0;
+    quote::quote! {
+        {
+            let _proving_period_offset = #proving_period_offset;
+            let _proving_period_start_initial = #proving_period_start_initial;
+            let _seal_randomness_height = #seal_randomness_height;
+            let _sector_expiration = #sector_expiration;
+            let _interactive_block_number = #interactive_block_number;
+            let _prove_commit_sectors = #prove_commit_sectors;
+            let _deadline_index = #deadline_index;
+            let _deadline_challenge_block = #deadline_challenge_block;
+            let _deadline_start = #deadline_start;
+            let _submit_windowed_post = #submit_windowed_post;
+            let _deadline_close = #deadline_close;
+            SectorTimeline::new(
+                AccountId32::new([#(#storage_provider_account_id),*]),
+                Absolute::from(BlockNumberFor::<T>::from(#register_storage_provider)),
+                Absolute::from(BlockNumberFor::<T>::from(#publish_storage_deals)),
+                Absolute::from(BlockNumberFor::<T>::from(#pre_commit_sectors)),
+                vec![#(#deals),*],
+                #period_deadlines,
+                Relative::from(BlockNumberFor::<T>::from(#proving_period)),
+                Relative::from(BlockNumberFor::<T>::from(#challenge_window)),
+                Relative::from(BlockNumberFor::<T>::from(#pre_commit_challenge_delay)),
+                Relative::from(BlockNumberFor::<T>::from(#challenge_lookback)),
+            ).expect("valid timeline")
+        }
     }
 }
 

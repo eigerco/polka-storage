@@ -12,7 +12,7 @@ version = "0.1.0"
 mater = { workspace = true }
 polka-storage-proofs = { workspace = true, default-features = false }
 polka-storage-provider-common = { workspace = true }
-primitives = { workspace = true, features = ["clap", "std"] }
+primitives = { workspace = true, features = ["clap", "std", "testing"] }
 storagext = { workspace = true, features = ["clap"] }
 
 async-trait = { workspace = true }

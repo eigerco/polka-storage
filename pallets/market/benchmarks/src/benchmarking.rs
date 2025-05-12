@@ -72,14 +72,14 @@ mod benchmarks {
     /// Run until a particular block.
     ///
     /// Stolen't from: <https://github.com/paritytech/polkadot-sdk/blob/7df94a469e02e1d553bd4050b0e91870d6a4c31b/substrate/frame/lottery/src/mock.rs#L87-L98>
-    pub fn run_to_block<T>(n: u32)
+    pub fn run_to_block<T>(n: BlockNumberFor<T>)
     where
         T: crate::Config,
         T: pallet_storage_provider::Config,
     {
         use frame_support::traits::Hooks;
 
-        while frame_system::Pallet::<T>::block_number() < n.into() {
+        while frame_system::Pallet::<T>::block_number() < n {
             if frame_system::Pallet::<T>::block_number() > 1u32.into() {
                 pallet_storage_provider::Pallet::<T>::on_finalize(
                     frame_system::Pallet::<T>::block_number(),
@@ -248,7 +248,7 @@ mod benchmarks {
             .unwrap();
 
         // Run to pre-commit period
-        run_to_block::<T>(data.pre_commit_block_number.try_into().unwrap());
+        run_to_block::<T>(data.timeline.pre_commit_sectors().0);
 
         let pre_commit_infos = data.pre_commit_sectors(n);
         SpPallet::<T>::pre_commit_sectors(storage_provider.clone(), pre_commit_infos.clone())
@@ -261,12 +261,7 @@ mod benchmarks {
         ));
 
         // Run to after pre-commit delay
-        run_to_block::<T>(
-            (BlockNumberFor::<T>::from(data.pre_commit_block_number)
-                + T::PreCommitChallengeDelay::get())
-            .try_into()
-            .unwrap_or_else(|_| panic!("failed to convert pre-commit delay block to block number")),
-        );
+        run_to_block::<T>(data.timeline.prove_commit_sectors().0);
 
         let proofs = data.prove_commit_sectors(n);
         SpPallet::<T>::prove_commit_sectors(storage_provider.clone(), proofs).unwrap();
