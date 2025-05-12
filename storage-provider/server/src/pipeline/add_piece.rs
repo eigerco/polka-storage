@@ -50,7 +50,7 @@ pub async fn add_piece(
     tracing::info!(%sector_number, "Finished adding a piece");
 
     // Update the database with the latest sector information
-    state.db.insert_unsealed_sector(sector_number, &sector)?;
+    state.db.insert_unsealed_sector(&sector)?;
 
     let fill_percentage = sector.fill_percentage();
     let fill_threshold = state.server_info.sealing_configuration.fill_threshold as u64;

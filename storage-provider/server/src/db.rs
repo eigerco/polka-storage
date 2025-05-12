@@ -33,10 +33,19 @@ pub enum DBError {
 }
 
 const ACCEPTED_DEAL_PROPOSALS_CF: &str = "accepted_deal_proposals";
+/// Pre-committed and prove-committed sectors
 const SECTORS_CF: &str = "sectors";
+/// Sector open for adding new pieces.
 const UNSEALED_SECTORS_CF: &str = "unsealed_sectors";
+/// Sectors that are closed for adding new pieces and are waiting to be sealed.
+const PENDING_SEALING_SECTORS_CF: &str = "pending_sealing_sectors";
 
-const COLUMN_FAMILIES: [&str; 3] = [ACCEPTED_DEAL_PROPOSALS_CF, SECTORS_CF, UNSEALED_SECTORS_CF];
+const COLUMN_FAMILIES: [&str; 4] = [
+    ACCEPTED_DEAL_PROPOSALS_CF,
+    SECTORS_CF,
+    PENDING_SEALING_SECTORS_CF,
+    UNSEALED_SECTORS_CF,
+];
 
 pub struct DealDB {
     database: TransactionDB,
@@ -172,12 +181,19 @@ impl DealDB {
             rocksdb::IteratorMode::Start,
         );
 
+        let pending_sealing_sectors = self.database.iterator_cf(
+            self.cf_handle(PENDING_SEALING_SECTORS_CF),
+            rocksdb::IteratorMode::Start,
+        );
+
         let sealed_sectors = self
             .database
             .iterator_cf(self.cf_handle(SECTORS_CF), rocksdb::IteratorMode::Start);
 
         // Iterate all sectors and find the biggest sector number
-        let all_sectors = unsealed_sectors.chain(sealed_sectors);
+        let all_sectors = unsealed_sectors
+            .chain(pending_sealing_sectors)
+            .chain(sealed_sectors);
         for item in all_sectors {
             let (key, _) = item?;
             let key: [u8; 4] = key
@@ -208,27 +224,44 @@ impl DealDB {
         SectorNumber::try_from(previous + 1)
     }
 
-    /// Insert an unsealed sector.
-    pub fn insert_unsealed_sector(
+    fn insert_sector<Sector>(
         &self,
         sector_number: SectorNumber,
-        unsealed_sector: &UnsealedSector,
-    ) -> Result<(), DBError> {
-        let cf_handle = self.cf_handle(UNSEALED_SECTORS_CF);
+        sector: &Sector,
+        cf_name: &str,
+    ) -> Result<(), DBError>
+    where
+        Sector: Serialize,
+    {
+        let cf_handle = self.cf_handle(cf_name);
         let key = u32::from(sector_number).to_le_bytes();
-        let json = serde_json::to_vec(&unsealed_sector)?;
+        let json = serde_json::to_vec(&sector)?;
         Ok(self.database.put_cf(cf_handle, key, json)?)
     }
 
-    /// Removes and returns a given [`UnsealedSector`], if it doesn't exist, returns `None`.
+    /// Insert an unsealed sector.
+    pub fn insert_unsealed_sector(&self, sector: &UnsealedSector) -> Result<(), DBError> {
+        self.insert_sector(sector.sector_number, sector, UNSEALED_SECTORS_CF)
+    }
+
+    /// Insert unsealed sector that is ready for sealing.
+    pub fn insert_pending_sealing_sector(&self, sector: &UnsealedSector) -> Result<(), DBError> {
+        self.insert_sector(sector.sector_number, sector, PENDING_SEALING_SECTORS_CF)
+    }
+
+    /// Removes and returns a given Sector, if it doesn't exist, returns `None`.
     /// Locks the passed key for the duration of this operation!
     ///
     /// Removal is only done on success!
-    pub fn remove_unsealed_sector(
+    fn remove_sector<Sector>(
         &self,
         sector_number: SectorNumber,
-    ) -> Result<Option<UnsealedSector>, DBError> {
-        let cf_handle = self.cf_handle(UNSEALED_SECTORS_CF);
+        cf_name: &str,
+    ) -> Result<Option<Sector>, DBError>
+    where
+        Sector: DeserializeOwned,
+    {
+        let cf_handle = self.cf_handle(cf_name);
         let sector_number_bytes = u32::from(sector_number).to_le_bytes();
 
         let txn = self.database.transaction();
@@ -250,6 +283,28 @@ impl DealDB {
         txn.commit()?;
 
         Ok(Some(unsealed_sector))
+    }
+
+    /// Removes and returns a given [`UnsealedSector`], if it doesn't exist, returns `None`.
+    /// Locks the passed key for the duration of this operation!
+    ///
+    /// Removal is only done on success!
+    pub fn remove_unsealed_sector(
+        &self,
+        sector_number: SectorNumber,
+    ) -> Result<Option<UnsealedSector>, DBError> {
+        self.remove_sector(sector_number, UNSEALED_SECTORS_CF)
+    }
+
+    /// Removes and returns a given [`UnsealedSector`], if it doesn't exist, returns `None`.
+    /// Locks the passed key for the duration of this operation!
+    ///
+    /// Removal is only done on success!
+    pub fn remove_pending_sealing_sector(
+        &self,
+        sector_number: SectorNumber,
+    ) -> Result<Option<UnsealedSector>, DBError> {
+        self.remove_sector(sector_number, PENDING_SEALING_SECTORS_CF)
     }
 
     /// Iterator over unsealed sectors.
