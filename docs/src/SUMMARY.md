@@ -6,6 +6,7 @@
 
 - [Architecture](./architecture/index.md)
   - [Polka Storage Provider Server](./architecture/polka-storage-provider-server.md)
+  - [Delia](./architecture/delia.md)
   - [Pallets](./architecture/pallets/index.md)
     - [Market](./architecture/pallets/market.md)
     - [Storage Provider](./architecture/pallets/storage-provider.md)
