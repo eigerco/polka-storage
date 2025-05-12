@@ -72,7 +72,7 @@ mod benchmarks {
     /// Run until a particular block.
     ///
     /// Stolen't from: <https://github.com/paritytech/polkadot-sdk/blob/7df94a469e02e1d553bd4050b0e91870d6a4c31b/substrate/frame/lottery/src/mock.rs#L87-L98>
-    pub fn run_to_block<T>(n: frame_system::pallet_prelude::BlockNumberFor<T>)
+    pub fn run_to_block<T>(n: BlockNumberFor<T>)
     where
         T: crate::Config,
         T: pallet_storage_provider::Config,
