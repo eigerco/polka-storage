@@ -675,9 +675,7 @@ async fn benchmark_data(input_path: PathBuf, sector_size: SectorSizeArg) -> Resu
         let timeline = SectorTimeline::<u32, _>::new(
             signer_key.account_id(),
             register_storage_provider.into(),
-            // 5 is arbitrary.
             publish_storage_deals.into(),
-            // 10 is arbitrary.
             pre_commit_sectors.into(),
             // Using the minimum deal duration.
             vec![DealTimeline::new(deal_start.into(), (5 * MINUTES).into())],
