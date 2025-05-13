@@ -30,6 +30,7 @@ where
 {
     pub storage_provider_name: &'static str,
     pub porep_verifying_key: &'static [u8],
+    pub post_verifying_key: &'static [u8],
     pub seal_proof: RegisteredSealProof,
     pub post_type: RegisteredPoStProof,
     pub comm_p: Commitment<CommP>,
@@ -150,6 +151,7 @@ where
         BenchmarkData {
             storage_provider_name: "//StorageProvider",
             porep_verifying_key: include_bytes!("../../../test-fixtures/keys/8MiB.porep.vk.scale"),
+            post_verifying_key: include_bytes!("../../../test-fixtures/keys/8MiB.post.vk.scale"),
             seal_proof: RegisteredSealProof::StackedDRG8MiBV1,
             post_type: RegisteredPoStProof::StackedDRGWindow8MiBV1,
             comm_p: Commitment::<CommP>::from_cid(
@@ -177,6 +179,9 @@ where
                 .expect("valid commitment"),
                 porep_proof: include_bytes!(
                     "../../../test-fixtures/proofs/8MiB/0.sector.proof.porep.scale"
+                ),
+                post_proof: include_bytes!(
+                    "../../../test-fixtures/proofs/8MiB/0.sector.proof.post.scale"
                 ),
             }],
             timeline: {

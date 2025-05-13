@@ -11,4 +11,5 @@ pub struct SectorData {
     pub comm_r: Commitment<CommR>,
     pub comm_d: Commitment<CommD>,
     pub porep_proof: &'static [u8],
+    pub post_proof: &'static [u8],
 }
