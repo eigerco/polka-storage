@@ -35,7 +35,7 @@ The sealing and pre-committing takes some time, after that the storage provider 
 Subsequently, they [prove](./storage-provider.md#prove_commit_sectors) they stored the sectors by calling the [`prove_commit_sectors`](./storage-provider.md#prove_commit_sectors) extrinsic.
 
 Verification is done via the [Proofs Pallet](./proofs.md) and reported to the Market pallet to terminate the deal and apply penalties to the storage provider
-(remove and burn its collateral - i.e. `locked` funds) if they fail to activate the deal on time or properly maintain storage, the client's funds are returned.
+(remove and burn its collateral — i.e. `locked` funds) if they fail to activate the deal on time or properly maintain storage, the client's funds are returned.
 
 <img src="../../images/storage-provider/sector_activation.svg" alt="Deal activation">
 

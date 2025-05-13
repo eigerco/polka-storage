@@ -13,9 +13,7 @@
 
 ## Overview
 
-The Randomness Pallet provides secure randomness for on-chain operations, primarily for the proof systems used in storage verification.
-
-It captures and stores the VRF (Verifiable Random Function) output from each block author and maintains a history of these values for later use. This randomness is essential for the sealing pipeline's pre-commit and prove commit operations, which are used for generating replicas and proving sectors.
+The Randomness Pallet captures and stores the VRF (Verifiable Random Function) output from each block author and maintains a history of these values for later use. This randomness is essential for the sealing pipeline's pre-commit and prove commit operations, which are used for generating replicas and proving sectors.
 
 ## Usage
 
