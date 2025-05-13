@@ -782,7 +782,9 @@ async fn benchmark_data(input_path: PathBuf, sector_size: SectorSizeArg) -> Resu
         tokio::fs::copy(output_path.path().join(&porep_file_name), &porep_proof_path).await?;
 
         println!("--- Creating PoSt proof for sector {sector_number} ---");
-        let sealed_sector_path = output_path.path().join(format!("{}.sector.sealed", sector_number));
+        let sealed_sector_path = output_path
+            .path()
+            .join(format!("{}.sector.sealed", sector_number));
         post(
             &signer_key,
             timeline.deadline_challenge_block().0.into(),
