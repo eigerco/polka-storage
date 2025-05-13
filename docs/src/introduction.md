@@ -11,16 +11,19 @@ We've now completed Phase 3 and have started work on Phase 4.
 ### **Polka-Storage**
 
 - **Proof Systems and Performance**
+
   - Enabled Groth16 batch proof verification using on-chain randomness.
   - Productionized 1 GiB sector sizes for PoRep and PoSt.
   - Adjusted Windowed PoSt to be partition-aware and compatible with block production time.
   - Fine-tuned runtime constants for realistic mainnet timings in sealing and proof submission.
 
 - **Deal Automation**
+
   - Introduced on-chain deal parameters published by storage providers via the market pallet.
   - Implemented server-side deal parameter checks for automated deal validation.
 
 - **P2P Networking**
+
   - Added Peer ID to Multiaddr resolution using Kademlia for peer discovery, with Multiaddr info served to browser clients via libp2p request/response.
   - Moved P2P bootstrap functionality into the collator for improved deployment.
   - Exposed non-libp2p services over libp2p for discovery.
@@ -32,12 +35,14 @@ We've now completed Phase 3 and have started work on Phase 4.
 ### **Delia**
 
 - **Client-Side Functionality**
+
   - Added in-browser CommP and piece size computation using WASM.
   - Added in-browser CARv2 file conversion, making this the first JS library to support the format.
   - Implemented receipt-based retrieval via Peer ID resolution and Beetswap integration.
   - Automatically stored completed deal metadata locally for easier retrieval.
 
 - **UI/UX Improvements**
+
   - Added validation to the deal proposal form.
   - Improved form input handling and visual feedback.
   - Enhanced network error handling and balance formatting.
