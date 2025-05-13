@@ -550,7 +550,7 @@ fn post(
     sector_number: u32,
     comm_r: String,
     replica_path: PathBuf,
-    cache_directory: impl AsRef<Path>,
+    cache_directory: PathBuf,
     proof_parameters_path: PathBuf,
     post_type: RegisteredPoStProof,
 ) -> Result<(), CliError> {
@@ -581,7 +581,7 @@ fn post(
             .try_into()
             .map_err(|_| UtilsCommandError::CommRError)?,
         replica_path,
-        cache_path: cache_directory.as_ref().to_path_buf(),
+        cache_path: cache_directory,
     }];
     println!("Loading parameters...");
     let proof_parameters = post::load_groth16_parameters(proof_parameters_path)
@@ -790,7 +790,7 @@ async fn benchmark_data(input_path: PathBuf, sector_size: SectorSizeArg) -> Resu
             sector_number,
             comm_r.to_string(),
             sealed_sector_path,
-            &cache_directory,
+            cache_directory.path().to_path_buf(),
             post_params_path.clone(),
             post_type,
         )?;
