@@ -29,19 +29,18 @@ After publishing, the funds allocated for the deal will be moved from `free` to 
 <img src="../../images/market/publish_storage_deals.svg" alt="Publishing storage deals">
 
 At this point, the remaining responsibility is shifted to the storage provider, which needs to activate the deal.
-First, the storage provider needs to call `get_randomness` from the [Randomness Pallet](./randomness.md) in order to create a replica and
+First, the storage provider uses randomness (via the [Randomness trait](./randomness.md) implementation) in order to create a replica and
 [pre-commit](./storage-provider.md#pre_commit_sectors) the deal's sectors.
-The sealing and pre-committing takes some time, after that the storage provider needs to fetch yet another randomness seed to create a proof.
-Subsequently, they [prove](./storage-provider.md#prove_commit_sectors) they stored the sectors by calling [`prove_commit_sectors`](./storage-provider.md#prove_commit_sectors) extrinsics.
+The sealing and pre-committing takes some time, after that the storage provider needs additional randomness to create a proof.
+Subsequently, they [prove](./storage-provider.md#prove_commit_sectors) they stored the sectors by calling the [`prove_commit_sectors`](./storage-provider.md#prove_commit_sectors) extrinsic.
 
 Verification is done via the [Proofs Pallet](./proofs.md) and reported to the Market pallet to terminate the deal and apply penalties to the storage provider
-(remove and burn its collateral — i.e. `locked` funds) if they fail to activate the deal on time and return the funds to the client.
+(remove and burn its collateral — i.e. `locked` funds) if they fail to activate the deal on time or properly maintain storage, the client's funds are returned.
 
 <img src="../../images/storage-provider/sector_activation.svg" alt="Deal activation">
 
-Suppose the deal has been completed successfully or is **Active**.
-In that case, the storage provider is now required to periodically submit proofs that they're still storing the user's data
-— the storage provider does this by calculating a proof and submitting it using [`submit_windowed_post`](./storage-provider.md#submit_windowed_post).
+Once the deal becomes **Active**, the storage provider is required to periodically submit proofs that they're still storing the user's data
+— the storage provider does this by calculating a Proof-of-Spacetime (PoSt) and submitting it using the [`submit_windowed_post`](./storage-provider.md#submit_windowed_post) extrinsic.
 
 <img src="../../images/storage-provider/submit_windowed_post.svg" alt="Proving the data is still stored">
 

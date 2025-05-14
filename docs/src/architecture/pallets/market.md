@@ -247,7 +247,7 @@ The Market Pallet actions can fail with following errors:
   - Sector containing the deal expires before the deal.
   - Invalid deal state.
   - Deal is not pending.
-- `DealsTooLargeToFitIntoSector` - Sum of all deals piece sizes for a sector exceeds sector size. The sector size is based on the registered proof type. We currently only support registered `StackedDRG2KiBV1P1` proofs, which have 2KiB sector sizes.
+- `DealsTooLargeToFitIntoSector` - Sum of all deals piece sizes for a sector exceeds sector size. The sector size is based on the registered proof type.
 - `TooManyDealsPerBlock` - Tried to activate too many deals at a given `start_block`.
 - `StorageProviderNotRegistered` - An account tries to call `publish_storage_deals` but is not registered as a storage provider.
 - `CommD` - An error occurred when trying to calculate CommD.

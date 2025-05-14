@@ -13,15 +13,16 @@
 
 ## Overview
 
-The randomness pallet saves a random seed for each block when it's finalized and allows retrieval of this randomness at a later time.
-There is a limitation - the randomness is available only after the 81st block of the chain, due to randomness predictability earlier.
-Currently, the seeds are used for the sealing pipeline's pre-commit and prove commit, in other words generating a replica and proving a sector.
+The Randomness Pallet captures and stores the VRF (Verifiable Random Function) output from each block author and maintains a history of these values for later use. This randomness is essential for the sealing pipeline's pre-commit and prove commit operations, which are used for generating replicas and proving sectors.
 
 ## Usage
 
-This pallet exposes the interface to get randomness on-chain for a certain block via the trait `primitives_proofs::Randomness`
-or chain state query `pallet_randomness:SeedsMap`.
-Note that, you can only get a randomness for the `current_block - 1` and depending on the configuration, the old randomness seed will be removed after the associated block has passed.
+This pallet exposes randomness through two main interfaces:
+
+1. `frame_support::traits::Randomness` - A general trait for generating randomness based on a subject
+2. `primitives::randomness::AuthorVrfHistory` - A trait for accessing historical randomness values
+
+The randomness is derived from the block author's VRF output combined with a user-supplied subject, providing domain separation for different applications of the same underlying randomness.
 
 ## Extrinsics
 
@@ -35,4 +36,4 @@ The pallet does not emit any events.
 
 The Randomness Pallet actions can fail with the following errors:
 
-- `SeedNotAvailable` - the seed for the given block number is not available, which means the randomness pallet has not gathered randomness for this block yet.
+- `SeedNotAvailable` - Returned when attempting to access randomness for a block number that is not available in the history.
