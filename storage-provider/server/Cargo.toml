@@ -16,7 +16,7 @@ opencl = ["polka-storage-proofs/opencl", "polka-storage-proofs/std", "polka-stor
 # "Homegrown" crates
 mater = { workspace = true }
 polka-storage-proofs = { workspace = true, default-features = false }
-polka-storage-provider-common = { workspace = true, features = ["clap"] }
+polka-storage-provider-common = { workspace = true }
 primitives = { workspace = true, features = ["clap", "serde", "std"] }
 primitives-p2p = { workspace = true, features = ["serde"] }
 storagext = { workspace = true, features = ["clap"] }

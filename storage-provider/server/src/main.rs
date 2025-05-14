@@ -210,12 +210,9 @@ pub struct ServerCli {
     #[command(flatten)]
     multipair: MultiPairArgs,
 
-    #[command(flatten)]
-    args: Option<ConfigurationArgs>,
-
     /// Path to the server configuration file.
     #[arg(long)]
-    config: Option<PathBuf>,
+    config: PathBuf,
 }
 
 /// A valid server configuration. To be created using [`ServerConfiguration::try_from`].
@@ -284,27 +281,19 @@ impl TryFrom<ServerCli> for Server {
     type Error = ServerError;
 
     fn try_from(value: ServerCli) -> Result<Self, Self::Error> {
-        let args: ConfigurationArgs = if let Some(config) = value.config {
-            let config = config.canonicalize()?;
-            match config.extension() {
-                Some(ext) if ext == "toml" => {
-                    let config = std::fs::read_to_string(config)?;
-                    // NOTE: without the type anotation a warning about 2024 edition is issued
-                    toml::from_str::<ConfigurationArgs>(&config)?
-                }
-                Some(ext) if ext == "json" => {
-                    serde_json::from_reader(std::fs::File::open(config)?)?
-                }
-                Some(ext) => {
-                    println!("{:?}", ext);
-                    return Err(ServerError::InvalidConfig("unsupported file format"));
-                }
-                None => return Err(ServerError::InvalidConfig("could not detect file format")),
+        let config = value.config.canonicalize()?;
+        let args = match config.extension() {
+            Some(ext) if ext == "toml" => {
+                let config = std::fs::read_to_string(config)?;
+                // NOTE: without the type anotation a warning about 2024 edition is issued
+                toml::from_str::<ConfigurationArgs>(&config)?
             }
-        } else {
-            value.args.expect(
-                "if `config == None` and `args_required_else_help = true`, then args must be Some",
-            )
+            Some(ext) if ext == "json" => serde_json::from_reader(std::fs::File::open(config)?)?,
+            Some(ext) => {
+                println!("{:?}", ext);
+                return Err(ServerError::InvalidConfig("unsupported file format"));
+            }
+            None => return Err(ServerError::InvalidConfig("could not detect file format")),
         };
 
         if args.post_proof.sector_size() != args.seal_proof.sector_size() {

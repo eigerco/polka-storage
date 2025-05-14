@@ -18,7 +18,6 @@ codec = { workspace = true }
 filecoin-hashers.workspace = true
 filecoin-proofs.workspace = true
 
-clap = { workspace = true, features = ["derive"], optional = true }
 fr32.workspace = true
 futures = { workspace = true }
 hex = { workspace = true, features = ["std"] }

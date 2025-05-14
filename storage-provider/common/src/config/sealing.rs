@@ -89,7 +89,7 @@ where
 
 /// Configuration for the sealing process.
 #[derive(Debug, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "clap", derive(::clap::Args))]
+// #[cfg_attr(feature = "clap", derive(::clap::Args))]
 pub struct SealingConfiguration {
     /// The percentage above which a sector is considered "full", defaults to 95% of the registered
     /// sector size.
@@ -102,11 +102,6 @@ pub struct SealingConfiguration {
         // The custom serializer enables custom validations
         deserialize_with = "fill_threshold_deserializer"
     )]
-    #[cfg_attr(feature = "clap", arg(
-        long,
-        default_value_t = default_fill_threshold(),
-        value_parser = fill_threshold_parser
-    ))]
     pub fill_threshold: u8,
 
     /// The amount of time to wait before sealing an unfilled sector, defaults to 6 hours.
@@ -114,7 +109,6 @@ pub struct SealingConfiguration {
         default = "default_wait_deals_delay",
         deserialize_with = "duration_deserializer"
     )]
-    #[cfg_attr(feature = "clap", arg(long, default_value = "6h", value_parser = duration_value_parser))]
     pub wait_deals_delay: Duration,
 
     /// The amount of time before a sector's earliest deal start; once hit, the sector is sealed &
@@ -123,7 +117,6 @@ pub struct SealingConfiguration {
         default = "default_pre_commit_submission_slack",
         deserialize_with = "duration_deserializer"
     )]
-    #[cfg_attr(feature = "clap", arg(long, default_value = "1h", value_parser = duration_value_parser))]
     pub pre_commit_submission_slack: Duration,
 }
 
@@ -139,14 +132,4 @@ impl Default for SealingConfiguration {
             pre_commit_submission_slack: default_pre_commit_submission_slack(),
         }
     }
-}
-
-/// Parses an integer between 0 and 100, values outside the range are considered invalid
-/// and return an error.
-#[cfg(feature = "clap")]
-fn fill_threshold_parser(src: &str) -> Result<u8, String> {
-    src.trim()
-        .parse::<u8>()
-        .map_err(|err| err.to_string())
-        .and_then(validate_percentage)
 }
