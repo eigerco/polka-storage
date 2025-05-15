@@ -117,7 +117,6 @@ pub struct ConfigurationArgs {
     #[serde(deserialize_with = "deserialize_string_to_peer_id")]
     pub(crate) rendezvous_point: PeerId,
 
-    // #[clap(flatten)]
     #[serde(default)]
     pub(crate) sealing_configuration: SealingConfiguration,
 }

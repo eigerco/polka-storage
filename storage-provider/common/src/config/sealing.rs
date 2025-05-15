@@ -89,7 +89,6 @@ where
 
 /// Configuration for the sealing process.
 #[derive(Debug, Clone, Deserialize, Serialize)]
-// #[cfg_attr(feature = "clap", derive(::clap::Args))]
 pub struct SealingConfiguration {
     /// The percentage above which a sector is considered "full", defaults to 95% of the registered
     /// sector size.
