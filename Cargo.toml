@@ -84,6 +84,8 @@ hyper = "1.5.0"
 integer-encoding = "4.0.0"
 ipld-core = "0.4.1"
 ipld-dagpb = "0.2.1"
+rustls-pemfile = "2.2.0"
+rustls-pki-types = "1.12.0"
 # Use `use_alloc` for crates that compile to WASM
 itertools = { version = "0.13.0", default-features = false }
 jsonrpsee = { version = "0.24.7" }

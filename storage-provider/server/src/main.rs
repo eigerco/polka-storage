@@ -276,6 +276,10 @@ pub struct Server {
 
     /// Sealing parameters (e.g. how long to wait before sealing).
     sealing_configuration: SealingConfiguration,
+
+    tls_key_file: PathBuf,
+
+    tls_cert_file: PathBuf,
 }
 
 impl TryFrom<ServerCli> for Server {
@@ -353,6 +357,8 @@ impl TryFrom<ServerCli> for Server {
             rendezvous_point_address: args.rendezvous_point_address,
             rendezvous_point: args.rendezvous_point,
             sealing_configuration: args.sealing_configuration,
+            tls_key_file: args.tls_key_file,
+            tls_cert_file: args.tls_cert_file,
         })
     }
 }
@@ -561,6 +567,8 @@ impl Server {
                 );
                 Services(hm)
             },
+            tls_key_file: self.tls_key_file,
+            tls_cert_file: self.tls_cert_file,
         };
 
         let indexer_state = IndexerState { lid };

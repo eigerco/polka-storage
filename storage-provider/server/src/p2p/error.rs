@@ -28,6 +28,9 @@ pub enum P2pError {
     /// An error that happens when no rendezvous nodes are available
     #[error("No rendezvous nodes available")]
     NoRendezvousNodesAvailable,
+
+    #[error("Error initializing TLS: {0}")]
+    TlsInit(String),
 }
 
 impl From<noise::Error> for P2pError {
