@@ -28,9 +28,9 @@ pub struct BootstrapBehaviour {
 #[derive(Debug, Clone)]
 pub struct BootstrapConfig {
     pub tcp_address: Multiaddr,
-    pub public_tcp_address: Option<Multiaddr>,
+    pub public_tcp_address: Vec<Multiaddr>,
     pub websocket_address: Multiaddr,
-    pub public_websocket_address: Option<Multiaddr>,
+    pub public_websocket_address: Vec<Multiaddr>,
     pub keypair: Keypair,
     pub bootstrap_addresses: Vec<Multiaddr>,
 }
@@ -39,9 +39,9 @@ impl BootstrapConfig {
     pub fn new(
         keypair: Keypair,
         tcp_address: Multiaddr,
-        public_tcp_address: Option<Multiaddr>,
+        public_tcp_address: Vec<Multiaddr>,
         websocket_address: Multiaddr,
-        public_websocket_address: Option<Multiaddr>,
+        public_websocket_address: Vec<Multiaddr>,
         bootstrap_addresses: Vec<Multiaddr>,
     ) -> Self {
         Self {
@@ -60,9 +60,9 @@ impl BootstrapConfig {
         (
             Swarm<BootstrapBehaviour>,
             Multiaddr,
-            Option<Multiaddr>,
+            Vec<Multiaddr>,
             Multiaddr,
-            Option<Multiaddr>,
+            Vec<Multiaddr>,
             Vec<Multiaddr>,
         ),
         P2PError,
@@ -118,19 +118,19 @@ impl BootstrapConfig {
 pub(crate) async fn bootstrap(
     mut swarm: Swarm<BootstrapBehaviour>,
     tcp_addr: Multiaddr,
-    pub_tcp_addr: Option<Multiaddr>,
+    pub_tcp_addr: Vec<Multiaddr>,
     ws_addr: Multiaddr,
-    pub_ws_addr: Option<Multiaddr>,
+    pub_ws_addr: Vec<Multiaddr>,
     bootstrap_addresses: Vec<Multiaddr>,
 ) -> Result<(), P2PError> {
     info!("Starting P2P bootstrap node at {tcp_addr}");
 
     swarm.listen_on(tcp_addr)?;
-    if let Some(addr) = pub_tcp_addr {
+    for addr in pub_tcp_addr {
         swarm.add_external_address(addr);
     }
     swarm.listen_on(ws_addr)?;
-    if let Some(addr) = pub_ws_addr {
+    for addr in pub_ws_addr {
         swarm.add_external_address(addr);
     }
 

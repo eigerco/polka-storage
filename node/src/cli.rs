@@ -140,16 +140,16 @@ pub struct RunCmd {
 
     /// **Public** `p2p_tcp_listen_address`.
     /// When a node is behind NAT and public address is not directly assigned to the interface.
-    #[arg(long, value_parser = validate_tcp_multiaddr)]
-    pub p2p_tcp_public_listen_address: Option<Multiaddr>,
+    #[arg(long, value_parser = validate_tcp_multiaddr, value_delimiter = ',')]
+    pub p2p_tcp_public_listen_address: Vec<Multiaddr>,
 
     /// Websocket listen address in the P2P network of Storage Providers and Collators
     /// that the bootstrap node binds to.
     #[arg(long, default_value_t=default_p2p_ws_multiaddr(), value_parser = validate_ws_multiaddr)]
     pub p2p_websocket_listen_address: Multiaddr,
 
-    #[arg(long, value_parser = validate_ws_multiaddr)]
-    pub p2p_websocket_public_listen_address: Option<Multiaddr>,
+    #[arg(long, value_delimiter = ',')]
+    pub p2p_websocket_public_listen_address: Vec<Multiaddr>,
 
     /// List of other bootstrap nodes
     #[arg(long, required = false, num_args = 1..)]
