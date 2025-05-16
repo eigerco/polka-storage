@@ -59,12 +59,9 @@ where
     module.merge(TransactionPayment::new(client).into_rpc())?;
     if let Some(config) = p2p {
         let mut addresses = vec![];
-        if let Some(addr) = config.public_tcp_address {
-            addresses.push(addr);
-        }
-        if let Some(addr) = config.public_websocket_address {
-            addresses.push(addr);
-        }
+        // Not entirely sure about this but it *should* work
+        addresses.extend(config.public_tcp_address);
+        addresses.extend(config.public_websocket_address);
         addresses.push(config.tcp_address);
         addresses.push(config.websocket_address);
         module.merge(PolkaStorageServices::new(addresses).into_rpc())?;
