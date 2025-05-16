@@ -106,6 +106,10 @@ pub struct ConfigurationArgs {
     #[serde(default = "default_p2p_multiaddrs")]
     pub(crate) p2p_listen_addresses: Vec<Multiaddr>,
 
+    /// P2P external addresses, they will be added to the swarm without checking if they're reachable.
+    #[serde(default)]
+    pub(crate) p2p_external_addresses: Vec<Multiaddr>,
+
     pub(crate) public_secure_upload_url: Option<String>,
 
     pub(crate) public_secure_rpc_url: Option<String>,

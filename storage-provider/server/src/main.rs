@@ -261,6 +261,7 @@ pub struct Server {
 
     /// P2P listen address
     p2p_listen_addresses: Vec<Multiaddr>,
+    p2p_external_addresses: Vec<Multiaddr>,
 
     public_secure_upload_url: Option<String>,
     public_secure_rpc_url: Option<String>,
@@ -346,6 +347,7 @@ impl TryFrom<ServerCli> for Server {
             parallel_prove_commits: args.parallel_prove_commits.get(),
             p2p_key: args.p2p_key,
             p2p_listen_addresses: args.p2p_listen_addresses,
+            p2p_external_addresses: args.p2p_external_addresses,
             public_secure_rpc_url: args.public_secure_rpc_url,
             public_secure_upload_url: args.public_secure_upload_url,
             rendezvous_point_address: args.rendezvous_point_address,
@@ -538,6 +540,7 @@ impl Server {
             local_keypair: self.p2p_key,
             rendezvous_nodes: vec![(self.rendezvous_point, self.rendezvous_point_address)],
             p2p_listen_addresses: self.p2p_listen_addresses,
+            p2p_external_addresses: self.p2p_external_addresses,
             blockstore: Arc::new(PiecesBlockstore::new(raw_pieces_dir, Arc::clone(&lid))),
             index_db: Arc::clone(&lid),
             services: {

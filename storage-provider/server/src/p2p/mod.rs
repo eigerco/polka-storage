@@ -48,6 +48,7 @@ where
     /// List of rendezvous nodes to register to.
     pub rendezvous_nodes: Vec<(PeerId, Multiaddr)>,
     pub p2p_listen_addresses: Vec<Multiaddr>,
+    pub p2p_external_addresses: Vec<Multiaddr>,
     /// The blockstore used for content retrieval.
     pub blockstore: Arc<B>,
     /// Piece index database.
@@ -132,6 +133,10 @@ where
         let mut swarm = new_swarm(args.local_keypair, behaviour).await?;
         for listen_addr in args.p2p_listen_addresses.into_iter() {
             swarm.listen_on(listen_addr)?;
+        }
+
+        for external_addr in args.p2p_external_addresses.into_iter() {
+            swarm.add_external_address(external_addr);
         }
 
         // We are dialing the rendezvous nodes. After the connection is
