@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
 use ::blockstore::Blockstore;
 use futures::StreamExt;
@@ -55,10 +55,6 @@ where
     pub index_db: Arc<I>,
 
     pub services: Services,
-    /// TLS Key file for secure websockets (pem)
-    pub tls_key_file: PathBuf,
-    /// TLS Cert file for secure websockets (pem)
-    pub tls_cert_file: PathBuf,
 }
 
 /// Our network behaviour.
@@ -134,13 +130,7 @@ where
             services_rr: setup_services_rr(),
         };
 
-        let mut swarm = new_swarm(
-            args.local_keypair,
-            behaviour,
-            args.tls_key_file,
-            args.tls_cert_file,
-        )
-        .await?;
+        let mut swarm = new_swarm(args.local_keypair, behaviour).await?;
         for listen_addr in args.p2p_listen_addresses.into_iter() {
             swarm.listen_on(listen_addr)?;
         }

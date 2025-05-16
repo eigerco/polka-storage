@@ -50,8 +50,6 @@ libp2p = { workspace = true, features = [
 libp2p-length-prefix-codec = { workspace = true }
 rand = { workspace = true }
 rocksdb = { workspace = true }
-rustls-pemfile.workspace = true
-rustls-pki-types.workspace = true
 sc-cli = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

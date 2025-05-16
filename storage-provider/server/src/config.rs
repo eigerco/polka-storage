@@ -123,10 +123,6 @@ pub struct ConfigurationArgs {
 
     #[serde(default)]
     pub(crate) sealing_configuration: SealingConfiguration,
-
-    pub(crate) tls_key_file: PathBuf,
-
-    pub(crate) tls_cert_file: PathBuf,
 }
 
 /// Deserializes a ED25519 private key into a Keypair.
