@@ -17,8 +17,8 @@ mod rpc;
 mod storage;
 
 use std::{
-    collections::HashMap, env::temp_dir, net::SocketAddr, ops::Deref, path::PathBuf, sync::Arc,
-    time::Duration,
+    collections::HashMap, env::temp_dir, fmt::Debug, net::SocketAddr, ops::Deref, path::PathBuf,
+    sync::Arc, time::Duration,
 };
 
 use clap::Parser;
@@ -53,7 +53,7 @@ use tokio::{
     task::{JoinError, JoinSet},
 };
 use tokio_util::sync::CancellationToken;
-use tracing::level_filters::LevelFilter;
+use tracing::{info, level_filters::LevelFilter};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use url::Url;
 
@@ -278,6 +278,30 @@ pub struct Server {
     sealing_configuration: SealingConfiguration,
 }
 
+impl Debug for Server {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Server")
+            .field("upload_listen_address", &self.upload_listen_address)
+            .field("rpc_listen_address", &self.rpc_listen_address)
+            .field("node_url", &self.node_url)
+            .field("multi_pair_signer", &"*******")
+            .field("database_directory", &self.database_directory)
+            .field("storage_directory", &self.storage_directory)
+            .field("seal_proof", &self.seal_proof)
+            .field("post_proof", &self.post_proof)
+            .field("parallel_prove_commits", &self.parallel_prove_commits)
+            .field("p2p_key", &"*******")
+            .field("p2p_listen_addresses", &self.p2p_listen_addresses)
+            .field("p2p_external_addresses", &self.p2p_external_addresses)
+            .field("public_secure_upload_url", &self.public_secure_upload_url)
+            .field("public_secure_rpc_url", &self.public_secure_rpc_url)
+            .field("rendezvous_point_address", &self.rendezvous_point_address)
+            .field("rendezvous_point", &self.rendezvous_point)
+            .field("sealing_configuration", &self.sealing_configuration)
+            .finish()
+    }
+}
+
 impl TryFrom<ServerCli> for Server {
     type Error = ServerError;
 
@@ -359,6 +383,8 @@ impl TryFrom<ServerCli> for Server {
 
 impl Server {
     pub async fn run(self) -> Result<(), ServerError> {
+        info!(?self, "server configuration");
+
         let SetupOutput {
             storage_state,
             rpc_state,
