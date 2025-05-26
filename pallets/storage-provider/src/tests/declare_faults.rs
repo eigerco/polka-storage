@@ -385,7 +385,7 @@ pub(crate) fn setup_sp_with_one_sector(storage_provider: &str, storage_client: &
     // Add balance to the market pallet
     assert_ok!(Market::add_balance(
         RuntimeOrigin::signed(account(storage_provider)),
-        60
+        101
     ));
     assert_ok!(Market::add_balance(
         RuntimeOrigin::signed(account(storage_client)),
@@ -478,7 +478,7 @@ pub(crate) fn setup_sp_with_many_sectors_multiple_partitions(
     // deals so that the processing is a little faster.
     let deal_ids = {
         // Amounts needed for deals
-        let provider_amount_needed = desired_sectors * 70;
+        let provider_amount_needed = desired_sectors * 101;
         let client_amount_needed = desired_sectors * 60;
 
         // Move available balance of provider to the market pallet

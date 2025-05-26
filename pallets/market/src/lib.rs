@@ -19,7 +19,7 @@ pub mod pallet {
     use codec::{Decode, Encode};
     use frame_support::{
         dispatch::DispatchResult,
-        ensure,
+        ensure, fail,
         pallet_prelude::*,
         sp_runtime::{
             traits::{AccountIdConversion, CheckedAdd, CheckedSub, Hash, Verify, Zero},
@@ -433,7 +433,11 @@ pub mod pallet {
             let caller = ensure_signed(origin)?;
 
             BalanceTable::<T>::try_mutate(&caller, |balance| -> DispatchResult {
-                ensure!(balance.free >= amount, Error::<T>::InsufficientFreeFunds);
+                if balance.free < amount {
+                    log::error!(target: LOG_TARGET, "withdraw_balance: not enough free balance {:?} < {:?}", balance.free, amount);
+                    fail!(Error::<T>::InsufficientFreeFunds);
+                }
+
                 balance.free = balance
                     .free
                     .checked_sub(&amount)
@@ -576,6 +580,13 @@ pub mod pallet {
                     continue;
                 }
 
+                // Provider collateral
+                let provider_collateral: BalanceOf<T> = deal_proposal
+                    .provider_collateral()
+                    .ok_or(Error::<T>::UnexpectedValidationError)?
+                    .try_into()
+                    .map_err(|_| Error::<T>::UnexpectedValidationError)?;
+
                 // If the deal is not active (i.e. unpublished or published), there's nothing to settle
                 // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L1225-L1231
                 let DealState::Active(ref mut active_deal_state) = deal_proposal.state else {
@@ -658,7 +669,7 @@ pub mod pallet {
 
                 // NOTE(@jmg-duarte,28/06/2024): Maybe emit an event when the table is updated?
                 if complete_deal {
-                    unlock_funds::<T>(&deal_proposal.provider, deal_proposal.provider_collateral)?;
+                    unlock_funds::<T>(&deal_proposal.provider, provider_collateral)?;
                     Proposals::<T>::remove(deal_id);
                 } else {
                     // Otherwise, we update the proposal — `last_updated_block`
@@ -1065,9 +1076,17 @@ pub mod pallet {
                     return Err(Error::<T>::InsufficientFreeFunds.into());
                 }
 
+                // Provider collateral
+                let provider_collateral: BalanceOf<T> = deal
+                    .proposal
+                    .provider_collateral()
+                    .ok_or(Error::<T>::UnexpectedValidationError)?
+                    .try_into()
+                    .map_err(|_| Error::<T>::UnexpectedValidationError)?;
+
                 let mut provider_lockup = total_provider_lockup;
                 provider_lockup = provider_lockup
-                    .checked_add(&deal.proposal.provider_collateral)
+                    .checked_add(&provider_collateral)
                     .ok_or(DispatchError::Arithmetic(ArithmeticError::Overflow))?;
 
                 let provider_balance = BalanceTable::<T>::get(&deal.proposal.provider);
@@ -1383,11 +1402,15 @@ pub mod pallet {
                         &deal_proposal.provider,
                         total_payment,
                     )?;
+
+                    let provider_collateral: BalanceOf<T> = deal_proposal
+                        .provider_collateral()
+                        .ok_or(Error::<T>::UnexpectedValidationError)?
+                        .try_into()
+                        .map_err(|_| Error::<T>::UnexpectedValidationError)?;
+
                     // Slash and burn the provider collateral
-                    slash_and_burn::<T>(
-                        &deal_proposal.provider,
-                        deal_proposal.provider_collateral,
-                    )?;
+                    slash_and_burn::<T>(&deal_proposal.provider, provider_collateral)?;
 
                     // The remaining client locked funds should be counted from
                     // everything we just paid until the deal's end block
@@ -1474,9 +1497,20 @@ pub mod pallet {
                             proposal.provider,
                             deal_id
                         );
+
+                        let Some(provider_collateral) = proposal.provider_collateral() else {
+                            log::error!(target: LOG_TARGET, "on_finalize: invariant violated cannot calculate provider_collateral, deal {}", deal_id);
+                            continue;
+                        };
+                        let Ok(provider_collateral) =
+                            TryInto::<BalanceOf<T>>::try_into(provider_collateral)
+                        else {
+                            log::error!(target: LOG_TARGET, "on_finalize: invariant violated, cannot convert provider_collateral {}, deal {}", provider_collateral, deal_id);
+                            continue;
+                        };
+
                         // PRE-COND: deal MUST BE validated and the proper funds allocated
-                        let Ok(()) =
-                            slash_and_burn::<T>(&proposal.provider, proposal.provider_collateral)
+                        let Ok(()) = slash_and_burn::<T>(&proposal.provider, provider_collateral)
                         else {
                             log::error!(target: LOG_TARGET, "on_finalize: invariant violated, cannot slash the deal {}", deal_id);
                             continue;
@@ -1486,7 +1520,7 @@ pub mod pallet {
                             deal_id,
                             provider: proposal.provider.clone(),
                             client: proposal.client.clone(),
-                            amount: proposal.provider_collateral,
+                            amount: provider_collateral,
                         });
                     }
                     DealState::Active(_) => {
@@ -1580,7 +1614,10 @@ pub mod pallet {
         amount: BalanceOf<T>,
     ) -> DispatchResult {
         BalanceTable::<T>::try_mutate(account_id, |balance| -> DispatchResult {
-            ensure!(balance.free >= amount, Error::<T>::InsufficientFreeFunds);
+            if balance.free < amount {
+                log::error!(target: LOG_TARGET, "lock_funds: not enough free balance {:?} < {:?}", balance.free, amount);
+                fail!(Error::<T>::InsufficientFreeFunds);
+            }
 
             balance.free = balance
                 .free

@@ -484,7 +484,7 @@ fn publish_storage_deals_fails_start_time_expired() {
 fn publish_storage_deals_fails_different_providers() {
     new_test_ext().execute_with(|| {
         register_storage_provider(account::<Test>(PROVIDER));
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 60);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 100);
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 60);
         System::reset_events();
 
@@ -512,7 +512,7 @@ fn publish_storage_deals_fails_different_providers() {
 fn publish_storage_deals_fails_client_not_enough_funds_for_second_deal() {
     new_test_ext().execute_with(|| {
         register_storage_provider(account::<Test>(PROVIDER));
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 60);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 100);
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 60);
         System::reset_events();
 
@@ -683,7 +683,6 @@ fn publish_storage_deals() {
             .start_block(bob_start_block)
             .end_block(135)
             .storage_price_per_block(10)
-            .provider_collateral(15)
             .signed(BOB);
 
         let alice_hash = Market::hash_proposal(&alice_proposal.proposal);
@@ -781,7 +780,6 @@ fn publish_storage_deals_with_deal_params() {
             .start_block(bob_start_block)
             .end_block(135)
             .storage_price_per_block(10)
-            .provider_collateral(15)
             .signed(BOB);
 
         let alice_hash = Market::hash_proposal(&alice_proposal.proposal);
@@ -1158,7 +1156,6 @@ fn verifies_deals_on_block_finalization() {
             .start_block(alice_start_block)
             .end_block(alice_start_block + 10)
             .storage_price_per_block(5)
-            .provider_collateral(25)
             .signed(ALICE);
 
         let bob_start_block = 130;
@@ -1168,7 +1165,6 @@ fn verifies_deals_on_block_finalization() {
             .start_block(bob_start_block)
             .end_block(bob_start_block + 5)
             .storage_price_per_block(10)
-            .provider_collateral(15)
             .signed(BOB);
 
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 60);
@@ -1337,7 +1333,6 @@ fn settle_deal_payments_published() {
                 .start_block(1)
                 .end_block(11)
                 .storage_price_per_block(10)
-                .provider_collateral(15)
                 .unsigned(),
         );
 
@@ -1845,7 +1840,6 @@ fn on_sector_terminate_not_active() {
                 .start_block(0)
                 .end_block(10)
                 .storage_price_per_block(10)
-                .provider_collateral(15)
                 .unsigned(),
         );
 
@@ -1872,7 +1866,6 @@ fn on_sector_terminate_active() {
             .start_block(0)
             .end_block(10)
             .storage_price_per_block(5)
-            .provider_collateral(15)
             .state(DealState::Active(ActiveDealState::new(sector_number, 0)))
             .unsigned();
 
@@ -2134,7 +2127,6 @@ pub struct DealProposalBuilder<T: frame_system::Config> {
     start_block: u64,
     end_block: u64,
     storage_price_per_block: u64,
-    provider_collateral: u64,
     state: DealState<u64>,
 }
 
@@ -2155,7 +2147,6 @@ impl<T: frame_system::Config<AccountId = AccountId32>> Default for DealProposalB
             start_block: 100,
             end_block: 110,
             storage_price_per_block: 5,
-            provider_collateral: 25,
             state: DealState::Published,
         }
     }
@@ -2192,11 +2183,6 @@ impl<T: frame_system::Config<AccountId = AccountId32>> DealProposalBuilder<T> {
         self
     }
 
-    pub fn provider_collateral(mut self, price: u64) -> Self {
-        self.provider_collateral = price;
-        self
-    }
-
     pub fn piece_size(mut self, piece_size: u64) -> Self {
         self.piece_size = piece_size;
         self
@@ -2212,7 +2198,6 @@ impl<T: frame_system::Config<AccountId = AccountId32>> DealProposalBuilder<T> {
             start_block: self.start_block,
             end_block: self.end_block,
             storage_price_per_block: self.storage_price_per_block,
-            provider_collateral: self.provider_collateral,
             state: self.state,
         }
     }

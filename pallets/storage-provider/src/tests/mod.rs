@@ -314,7 +314,7 @@ fn register_storage_provider(account: AccountIdOf<Test>) {
 /// It also resets events to not interfere with [`events()`] assertions.
 /// Deal 1: Client = Alice, Provider = provided
 /// Deal 2: Client = Bob, Provider = provided
-/// Balances: Alice = 60, Bob = 70, Provider = 70
+/// Balances: Alice = 60, Bob = 70, Provider = 220
 fn publish_deals(storage_provider: &str) {
     // Add balance to the market pallet
     assert_ok!(Market::add_balance(
@@ -324,7 +324,7 @@ fn publish_deals(storage_provider: &str) {
     assert_ok!(Market::add_balance(RuntimeOrigin::signed(account(BOB)), 60));
     assert_ok!(Market::add_balance(
         RuntimeOrigin::signed(account(storage_provider)),
-        70
+        220
     ));
 
     // Publish the deal proposal
@@ -356,7 +356,6 @@ struct DealProposalBuilder {
     start_block: u64,
     end_block: u64,
     storage_price_per_block: u64,
-    provider_collateral: u64,
     state: DealState<u64>,
 }
 
@@ -377,7 +376,6 @@ impl Default for DealProposalBuilder {
             start_block: 100,
             end_block: 110,
             storage_price_per_block: 5,
-            provider_collateral: 25,
             state: DealState::Published,
         }
     }
@@ -409,7 +407,6 @@ impl DealProposalBuilder {
             start_block: self.start_block,
             end_block: self.end_block,
             storage_price_per_block: self.storage_price_per_block,
-            provider_collateral: self.provider_collateral,
             state: self.state,
         }
     }

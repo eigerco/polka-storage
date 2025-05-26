@@ -84,7 +84,6 @@ where
                     start_block: self.timeline.deals()[0].start().0,
                     end_block: self.timeline.deals()[0].end().0,
                     storage_price_per_block: 5u32.into(),
-                    provider_collateral: 25u32.into(),
                     state: DealState::Published,
                 };
                 sign_proposal::<T>(client.1.clone(), proposal)

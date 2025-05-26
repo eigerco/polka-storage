@@ -53,10 +53,6 @@ pub struct DealProposal<Address, Balance, BlockNumber> {
     /// Reference <https://spec.filecoin.io/#section-systems.filecoin_markets.onchain_storage_market.storage_deal_states>
     pub storage_price_per_block: Balance,
 
-    /// Amount of Balance (DOTs) Storage Provider stakes as Collateral for storing given `piece_cid`
-    /// There should be enough Balance added by `add_balance` by Storage Provider to cover it.
-    /// When the Deal fails/is terminated to early, this is the amount which get slashed.
-    pub provider_collateral: Balance,
     /// Current [`DealState`].
     /// It goes: `Published` -> `Active`
     pub state: DealState<BlockNumber>,
@@ -84,5 +80,10 @@ where
     pub fn piece_commitment(&self) -> Result<Commitment<CommP>, CommitmentError> {
         let commitment = Commitment::from_cid_bytes(&self.piece_cid[..])?;
         Ok(commitment)
+    }
+
+    // The current provider collateral is specified as double the storage fee
+    pub fn provider_collateral(&self) -> Option<u128> {
+        Some(self.total_storage_fee()? + self.total_storage_fee()?)
     }
 }
