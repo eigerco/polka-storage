@@ -187,10 +187,12 @@ mod benchmarks {
             .sum::<u128>()
             .try_into()
             .unwrap_or_else(|_| panic!("failed to convert proposal fees to balance"));
-        let collaterals = proposals
+        let collaterals: BalanceOf<T> = proposals
             .iter()
-            .map(|p| p.proposal.provider_collateral)
-            .sum();
+            .map(|p| p.proposal.provider_collateral().unwrap())
+            .sum::<u128>()
+            .try_into()
+            .unwrap_or_else(|_| panic!("failed to convert collaterals to balance"));
 
         // #[extrinsic_call] requires type shenanigans, using #[block] is MUCH simpler
         #[block]

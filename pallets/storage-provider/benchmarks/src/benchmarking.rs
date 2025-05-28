@@ -262,7 +262,6 @@ where
             OffchainSignature = MultiSignature,
         > + primitives::configs::MarketProvider,
     BlockNumberFor<T>: Add,
-    u64: TryFrom<BalanceOf<T>>,
 {
     let data = BenchmarkData::<T>::load();
     let (sp_id, proposals, sector_pre_commits) = prepare_pre_commit_sectors::<T>(n);
@@ -271,7 +270,7 @@ where
     let total_collateral: u64 = proposals
         .iter()
         .map(|p| {
-            u64::try_from(p.proposal.provider_collateral)
+            u64::try_from(p.proposal.provider_collateral().unwrap())
                 .unwrap_or_else(|_| panic!("failed to convert provider_collateral to u64"))
         })
         .sum();
