@@ -10,7 +10,9 @@
 pub use pallet::*;
 
 pub mod deal_parameters;
+mod dispatchables;
 pub mod error;
+mod hooks;
 pub mod weights;
 
 #[frame_support::pallet(dev_mode)]
@@ -22,31 +24,22 @@ pub mod pallet {
         ensure,
         pallet_prelude::*,
         sp_runtime::{
-            traits::{AccountIdConversion, CheckedAdd, CheckedSub, Hash, Verify, Zero},
-            ArithmeticError, BoundedBTreeMap, RuntimeDebug,
+            traits::{AccountIdConversion, CheckedAdd, CheckedSub, Hash, Zero},
+            ArithmeticError, RuntimeDebug,
         },
-        traits::{
-            Currency,
-            ExistenceRequirement::{AllowDeath, KeepAlive},
-            Hooks, WithdrawReasons,
-        },
+        traits::{ConstU32, Currency, ExistenceRequirement::KeepAlive, Hooks, WithdrawReasons},
         PalletId,
     };
-    use frame_system::{pallet_prelude::*, Pallet as System};
+    use frame_system::pallet_prelude::*;
     use primitives::{
-        commitment::{
-            commd::compute_unsealed_sector_commitment,
-            piece::{PaddedPieceSize, PieceInfo},
-        },
+        self,
         configs::{BalanceOf, CurrencyProvider, MarketProvider},
-        deals::{ActiveDealState, ClientDealProposal, DealProposal, DealProposalOf, DealState},
-        pallets::{ActiveDeal, ActiveSector, Market, SectorDeal, StorageProviderValidation},
-        proofs::RegisteredSealProof,
-        sector::{SectorNumber, SectorSize},
-        DealId, MAX_DEALS_FOR_ALL_SECTORS, MAX_DEALS_PER_SECTOR,
+        deals::{ClientDealProposal, DealProposal},
+        pallets::{ActiveSector, Market, SectorDeal, StorageProviderValidation},
+        sector::SectorNumber,
+        DealId, MAX_DEALS_PER_SECTOR,
     };
     use scale_info::TypeInfo;
-    use sp_arithmetic::traits::BaseArithmetic;
     use sp_std::{collections::btree_set::BTreeSet, vec::Vec};
 
     use crate::{
@@ -405,24 +398,7 @@ pub mod pallet {
         #[pallet::call_index(0)]
         #[pallet::weight((T::WeightInfo::add_balance(), DispatchClass::Normal))]
         pub fn add_balance(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult {
-            let caller = ensure_signed(origin)?;
-
-            BalanceTable::<T>::try_mutate(&caller, |balance| -> DispatchResult {
-                balance.free = balance
-                    .free
-                    .checked_add(&amount)
-                    .ok_or(ArithmeticError::Overflow)?;
-                T::Currency::transfer(&caller, &Self::account_id(), amount, KeepAlive)?;
-
-                Ok(())
-            })?;
-
-            Self::deposit_event(Event::<T>::BalanceAdded {
-                who: caller.clone(),
-                amount,
-            });
-
-            Ok(())
+            crate::dispatchables::add_balance::<T>(origin, amount)
         }
 
         /// Transfers `amount` of Balance from the Market Pallet account to the `origin`.
@@ -430,26 +406,7 @@ pub mod pallet {
         #[pallet::call_index(1)]
         #[pallet::weight((T::WeightInfo::withdraw_balance(), DispatchClass::Normal))]
         pub fn withdraw_balance(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult {
-            let caller = ensure_signed(origin)?;
-
-            BalanceTable::<T>::try_mutate(&caller, |balance| -> DispatchResult {
-                ensure!(balance.free >= amount, Error::<T>::InsufficientFreeFunds);
-                balance.free = balance
-                    .free
-                    .checked_sub(&amount)
-                    .ok_or(ArithmeticError::Underflow)?;
-                // The Market Pallet account will be reaped if no one is participating in the market.
-                T::Currency::transfer(&Self::account_id(), &caller, amount, AllowDeath)?;
-
-                Ok(())
-            })?;
-
-            Self::deposit_event(Event::<T>::BalanceWithdrawn {
-                who: caller.clone(),
-                amount,
-            });
-
-            Ok(())
+            crate::dispatchables::withdraw_balance::<T>(origin, amount)
         }
 
         /// Publish a new set of storage deals (not yet included in a sector).
@@ -472,57 +429,7 @@ pub mod pallet {
                 T::MaxDeals,
             >,
         ) -> DispatchResult {
-            let provider = ensure_signed(origin)?;
-            ensure!(
-                T::StorageProviderValidation::is_registered_storage_provider(&provider),
-                Error::<T>::StorageProviderNotRegistered
-            );
-            let current_block = <frame_system::Pallet<T>>::block_number();
-            let (valid_deals, total_provider_lockup) =
-                Self::validate_deals(provider.clone(), deals, current_block)?;
-
-            let mut published_deals = BoundedVec::new();
-
-            // Lock up funds for the clients and emit events
-            for deal in valid_deals.into_iter() {
-                // PRE-COND: always succeeds, validated by `validate_deals`
-                let client_fee: BalanceOf<T> = deal
-                    .total_storage_fee()
-                    .ok_or(Error::<T>::UnexpectedValidationError)?
-                    .try_into()
-                    .map_err(|_| Error::<T>::UnexpectedValidationError)?;
-
-                // PRE-COND: always succeeds, validated by `validate_deals`
-                lock_funds::<T>(&deal.client, client_fee)?;
-
-                let deal_id = Self::generate_deal_id();
-
-                let mut deals_for_block = DealsForBlock::<T>::get(&deal.start_block);
-                deals_for_block.try_insert(deal_id).map_err(|_| {
-                    log::error!("there is not enough space to activate all of the deals at the given block {:?}", deal.start_block);
-                    Error::<T>::TooManyDealsPerBlock
-                })?;
-                DealsForBlock::<T>::insert(deal.start_block, deals_for_block);
-                Proposals::<T>::insert(deal_id, deal.clone());
-
-                // Only deposit the event after storing everything
-                // force_push is ok since the bound is the same as the input one
-                published_deals.force_push(PublishedDeal {
-                    client: deal.client,
-                    deal_id,
-                });
-            }
-
-            // Lock up funds for the Storage Provider
-            // PRE-COND: always succeeds, validated by `validate_deals`
-            lock_funds::<T>(&provider, total_provider_lockup)?;
-
-            Self::deposit_event(Event::<T>::DealsPublished {
-                deals: published_deals,
-                provider,
-            });
-
-            Ok(())
+            crate::dispatchables::publish_storage_deals::<T>(origin, deals)
         }
 
         /// Settle pending deal payments for the given deal IDs.
@@ -548,131 +455,7 @@ pub mod pallet {
             // The original `deals` structure is a bitfield from fvm-ipld-bitfield
             deal_ids: BoundedVec<DealId, MaxSettleDeals<T>>,
         ) -> DispatchResult {
-            // Anyone with gas can settle payments, so we just check if the origin is signed
-            ensure_signed(origin)?;
-
-            // INVARIANT: slashed deals cannot show up here because slashing is fully processed by `on_sector_terminate`
-
-            let current_block = <frame_system::Pallet<T>>::block_number();
-
-            let mut successful = BoundedVec::<_, MaxSettleDeals<T>>::new();
-            let mut unsuccessful = BoundedVec::<_, MaxSettleDeals<T>>::new();
-
-            for deal_id in deal_ids {
-                // If the deal is not found, we register an error and move on
-                // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L1225-L1231
-                let Some(mut deal_proposal) = Proposals::<T>::get(deal_id) else {
-                    log::error!(target: LOG_TARGET, "deal not found — deal_id: {}", deal_id);
-                    // SAFETY: Always succeeds because the upper bound on the vecs should be the same as the input vec
-                    let _ = unsuccessful.try_push((deal_id, DealSettlementError::DealNotFound));
-                    continue;
-                };
-
-                // Deal isn't possibly valid yet
-                // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L1255-L1264
-                if deal_proposal.start_block > current_block {
-                    // SAFETY: Always succeeds because the upper bound on the vecs should be the same as the input vec
-                    let _ = unsuccessful.try_push((deal_id, DealSettlementError::EarlySettlement));
-                    continue;
-                }
-
-                // If the deal is not active (i.e. unpublished or published), there's nothing to settle
-                // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L1225-L1231
-                let DealState::Active(ref mut active_deal_state) = deal_proposal.state else {
-                    // If a deal is not published, there's nothing to settle
-                    // If a deal is published, but not active, it's supposed to be removed by cron/hooks
-
-                    // NOTE(@jmg-duarte,28/06/2024): maybe we should handle deals where deal_proposal.start_block < current_block — i.e. expired
-
-                    // SAFETY: Always succeeds because the upper bound on the vecs should be the same as the input vec
-                    let _ = unsuccessful.try_push((deal_id, DealSettlementError::DealNotActive));
-                    continue;
-                };
-
-                // If the last updated block is in the future, return an error
-                if let Some(last_updated_block) = active_deal_state.last_updated_block {
-                    if last_updated_block > current_block {
-                        log::error!(target: LOG_TARGET,
-                            "last_updated_block for deal is in the future — deal_id: {}, last_updated_block: {:?}",
-                            deal_id,
-                            last_updated_block
-                        );
-                        // SAFETY: Always succeeds because the upper bound on the vecs should be the same as the input vec
-                        let _ =
-                            unsuccessful.try_push((deal_id, DealSettlementError::FutureLastUpdate));
-                        continue;
-                    }
-                }
-
-                // If we never settled, the duration starts at `start_block`
-                let last_settled_block = active_deal_state
-                    .last_updated_block
-                    .unwrap_or(deal_proposal.start_block);
-
-                if last_settled_block > deal_proposal.end_block {
-                    // If the code reaches this, it's a big whoops
-                    log::error!(target: LOG_TARGET, "the last settled block cannot be bigger than the end block — last_settled_block: {:?}, end_block: {:?}",
-                        last_settled_block, deal_proposal.end_block);
-                    return Err(DispatchError::Corruption);
-                }
-
-                let (block_to_settle, complete_deal) = {
-                    if current_block >= deal_proposal.end_block {
-                        // The deal has been completed, as such, we'll remove it later on
-                        (deal_proposal.end_block, true)
-                    } else {
-                        (current_block, false)
-                    }
-                };
-
-                // If an error happens when converting here we have more to worry about than completing all settlements
-                let deal_settlement_amount: BalanceOf<T> = {
-                    // There's no great way to avoid the repeated code without macros or more generics magic
-                    // ArithmeticError::Overflow used as `duration` and `storage_price_per_block` can only be positive
-                    let duration: u128 = (block_to_settle - last_settled_block)
-                        .try_into()
-                        .map_err(|_| DispatchError::Arithmetic(ArithmeticError::Overflow))?;
-                    let storage_price_per_block: u128 = deal_proposal
-                        .storage_price_per_block
-                        .try_into()
-                        .map_err(|_| DispatchError::Arithmetic(ArithmeticError::Overflow))?;
-
-                    (duration * storage_price_per_block)
-                        .try_into()
-                        .map_err(|_| DispatchError::Arithmetic(ArithmeticError::Overflow))
-                }?;
-
-                perform_storage_payment::<T>(
-                    &deal_proposal.client,
-                    &deal_proposal.provider,
-                    deal_settlement_amount,
-                )?;
-
-                // SAFETY: Always succeeds because the upper bound on the vecs should be the same as the input vec
-                let _ = successful.try_push(SettledDealData {
-                    deal_id,
-                    client: deal_proposal.client.clone(),
-                    provider: deal_proposal.provider.clone(),
-                    amount: deal_settlement_amount,
-                });
-
-                // NOTE(@jmg-duarte,28/06/2024): Maybe emit an event when the table is updated?
-                if complete_deal {
-                    unlock_funds::<T>(&deal_proposal.provider, deal_proposal.provider_collateral)?;
-                    Proposals::<T>::remove(deal_id);
-                } else {
-                    // Otherwise, we update the proposal — `last_updated_block`
-                    active_deal_state.last_updated_block = Some(current_block);
-                    Proposals::<T>::insert(deal_id, deal_proposal);
-                }
-            }
-
-            Self::deposit_event(Event::<T>::DealsSettled {
-                successful,
-                unsuccessful,
-            });
-
-            Ok(())
+            crate::dispatchables::settle_deal_payments::<T>(origin, deal_ids)
         }
 
         #[pallet::call_index(4)]
@@ -681,43 +464,13 @@ pub mod pallet {
             origin: OriginFor<T>,
             deal_parameters: OffchainDealParameters<BalanceOf<T>, BlockNumberFor<T>>,
         ) -> DispatchResult {
-            let provider = ensure_signed(origin)?;
-            ensure!(
-                T::StorageProviderValidation::is_registered_storage_provider(&provider),
-                Error::<T>::StorageProviderNotRegistered
-            );
-            let deal_parameters = deal_parameters
-                .validate(T::MinDealDuration::get(), T::MaxDealDuration::get())
-                .map_err(|e| {
-                    log::error!(target: LOG_TARGET, "{e}");
-                    Error::<T>::InvalidDealParametersSubmitted
-                })?;
-            // Update or insert deal parameters
-            SPDealParameters::<T>::mutate(&provider, |params| {
-                let _ = params.insert(deal_parameters.clone());
-            });
-            Self::deposit_event(Event::<T>::DealParametersUpdated {
-                provider,
-                deal_parameters,
-            });
-            Ok(())
+            crate::dispatchables::publish_deal_parameters::<T>(origin, deal_parameters)
         }
 
         #[pallet::call_index(5)]
         #[pallet::weight((T::WeightInfo::remove_deal_parameters(), DispatchClass::Normal))]
         pub fn remove_deal_parameters(origin: OriginFor<T>) -> DispatchResult {
-            let provider = ensure_signed(origin)?;
-            ensure!(
-                T::StorageProviderValidation::is_registered_storage_provider(&provider),
-                Error::<T>::StorageProviderNotRegistered
-            );
-            ensure!(
-                SPDealParameters::<T>::contains_key(&provider),
-                Error::<T>::NoDealParamsToRemove
-            );
-            SPDealParameters::<T>::remove(&provider);
-            Self::deposit_event(Event::<T>::DealParametersRemoved { provider });
-            Ok(())
+            crate::dispatchables::remove_deal_parameters::<T>(origin)
         }
     }
 
@@ -747,367 +500,6 @@ pub mod pallet {
         /// If you need to keep using it, make sure you cache it and call it once.
         pub fn account_id() -> T::AccountId {
             T::PalletId::get().into_account_truncating()
-        }
-
-        /// Validates the signature of the given data with the provided signer's account ID.
-        ///
-        /// # Errors
-        ///
-        /// This function returns a [`WrongSignature`](crate::Error::WrongClientSignatureOnProposal)
-        /// error if the signature is invalid or the verification process fails.
-        pub fn validate_signature(
-            data: &[u8],
-            signature: &T::OffchainSignature,
-            signer: &T::AccountId,
-        ) -> Result<(), Error<T>> {
-            if signature.verify(data, &signer) {
-                return Ok(());
-            }
-
-            // NOTE: for security reasons modern UIs implicitly wrap the data requested to sign into
-            // <Bytes></Bytes>, that's why we support both wrapped and raw versions.
-            let prefix = b"<Bytes>";
-            let suffix = b"</Bytes>";
-            let mut wrapped = Vec::with_capacity(data.len() + prefix.len() + suffix.len());
-            wrapped.extend(prefix);
-            wrapped.extend(data);
-            wrapped.extend(suffix);
-
-            ensure!(
-                signature.verify(&*wrapped, &signer),
-                Error::<T>::WrongClientSignatureOnProposal
-            );
-
-            Ok(())
-        }
-
-        /// <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L1370>
-        fn compute_commd<'a>(
-            proposals: impl Iterator<Item = &'a DealProposalOf<T>>,
-            sector_type: RegisteredSealProof,
-        ) -> Result<Cid, DispatchError> {
-            let pieces = proposals
-                .map(|p| {
-                    let commitment = p.piece_commitment().map_err(|e| {
-                        log::error!(target: LOG_TARGET, "compute_commd: CommitmentError {e}");
-                        CommDError::CommitmentError(e)
-                    })?;
-                    let size = PaddedPieceSize::new(p.piece_size).map_err(|e| {
-                        log::error!(target: LOG_TARGET, "compute_commd: PaddedPieceSizeError {e:?}");
-                        CommDError::PaddedPieceSizeError(e)
-                    })?;
-
-                    Ok(PieceInfo { size, commitment })
-                })
-                .collect::<Result<Vec<_>, CommDError>>();
-
-            let pieces = pieces.map_err(|err| {
-                log::error!("error occurred while processing pieces: {:?}", err);
-                Error::<T>::CommD
-            })?;
-
-            let sector_size = sector_type.sector_size();
-            let comm_d =
-                compute_unsealed_sector_commitment(sector_size, &pieces).map_err(|err| {
-                    log::error!("error occurred while computing commd: {:?}", err);
-                    Error::<T>::CommD
-                })?;
-
-            Ok(comm_d.cid())
-        }
-
-        /// <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L1388>
-        fn validate_deals_for_sector(
-            deals: &BoundedVec<(DealId, DealProposalOf<T>), ConstU32<MAX_DEALS_FOR_ALL_SECTORS>>,
-            provider: &T::AccountId,
-            sector_number: SectorNumber,
-            sector_expiry: BlockNumberFor<T>,
-            sector_activation: BlockNumberFor<T>,
-            sector_size: SectorSize,
-        ) -> DispatchResult {
-            let mut total_deal_space = 0;
-            for (deal_id, deal) in deals {
-                Self::validate_deal_can_activate(deal, provider, sector_expiry, sector_activation)
-                    .map_err(|e| {
-                        log::error!(target: LOG_TARGET, "deal {} cannot be activated, because: {:?}", *deal_id, e);
-                        e
-                    })?;
-                total_deal_space += deal.piece_size;
-            }
-
-            ensure!(total_deal_space <= sector_size.bytes(), {
-                log::error!(target: LOG_TARGET, "cannot fit all of the deals into sector {}, {} < {}", sector_number, total_deal_space, sector_size.bytes());
-                Error::<T>::DealsTooLargeToFitIntoSector
-            });
-
-            Ok(())
-        }
-
-        /// <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L1570>
-        fn validate_deal_can_activate(
-            deal: &DealProposalOf<T>,
-            provider: &T::AccountId,
-            sector_expiry: BlockNumberFor<T>,
-            sector_activation: BlockNumberFor<T>,
-        ) -> Result<(), Error<T>> {
-            ensure!(*provider == deal.provider, Error::<T>::InvalidProvider);
-            ensure!(
-                deal.state == DealState::Published,
-                Error::<T>::InvalidDealState
-            );
-            ensure!(
-                sector_activation <= deal.start_block,
-                Error::<T>::StartBlockElapsed
-            );
-            ensure!(
-                sector_expiry >= deal.end_block,
-                Error::<T>::SectorExpiresBeforeDeal
-            );
-
-            // Confirm the deal is in the pending proposals set.
-            // It will be removed from this queue later, during cron.
-            // Failing this check is an internal invariant violation.
-            // The pending deals set exists to prevent duplicate proposals.
-            // It should be impossible to have a proposal, no deal state, and not be in pending deals.
-            let hash = Self::hash_proposal(&deal);
-            ensure!(
-                PendingProposals::<T>::get().contains(&hash),
-                Error::<T>::DealNotPending
-            );
-
-            Ok(())
-        }
-
-        fn proposals_for_deals(
-            deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
-        ) -> Result<
-            BoundedVec<(DealId, DealProposalOf<T>), ConstU32<MAX_DEALS_FOR_ALL_SECTORS>>,
-            DispatchError,
-        > {
-            let mut unique_deals: BoundedBTreeSet<DealId, ConstU32<MAX_DEALS_PER_SECTOR>> =
-                BoundedBTreeSet::new();
-            let mut proposals = BoundedVec::new();
-            for deal_id in deal_ids {
-                ensure!(!unique_deals.contains(&deal_id), {
-                    log::error!(target: LOG_TARGET, "deal {} is duplicated", deal_id);
-                    Error::<T>::DuplicateDeal
-                });
-
-                // PRE-COND: always succeeds, unique_deals has the same boundary as sector.deal_ids[]
-                unique_deals.try_insert(deal_id).map_err(|deal_id| {
-                    log::error!(target: LOG_TARGET, "failed to insert deal {}", deal_id);
-                    Error::<T>::DealPreconditionFailed
-                })?;
-
-                let proposal: DealProposalOf<T> =
-                    Proposals::<T>::try_get(&deal_id).map_err(|_| {
-                        log::error!(target: LOG_TARGET, "deal {} not found", deal_id);
-                        Error::<T>::DealNotFound
-                    })?;
-
-                // PRE-COND: always succeeds, unique_deals has the same boundary as sector.deal_ids[]
-                proposals
-                    .try_push((deal_id, proposal))
-                    .map_err(|_| {
-                            log::error!(target: LOG_TARGET, "failed to insert deal {} into proposals", deal_id);
-                            Error::<T>::DealPreconditionFailed
-                        }
-                    )?;
-            }
-
-            Ok(proposals)
-        }
-
-        fn generate_deal_id() -> DealId {
-            let ret = NextDealId::<T>::get();
-            let next = ret
-                .checked_add(1)
-                .expect("we ran out of free deal ids, not ideal");
-            NextDealId::<T>::set(next);
-            ret
-        }
-
-        fn sanity_check(
-            deal: &ClientDealProposal<
-                T::AccountId,
-                BalanceOf<T>,
-                BlockNumberFor<T>,
-                T::OffchainSignature,
-            >,
-            provider: &T::AccountId,
-            current_block: BlockNumberFor<T>,
-        ) -> Result<(), Error<T>> {
-            let encoded = Encode::encode(&deal.proposal);
-            log::trace!(target: LOG_TARGET, "sanity_check: encoded proposal: {}", hex::encode(&encoded));
-            Self::validate_signature(&encoded, &deal.client_signature, &deal.proposal.client)?;
-
-            // piece_commitment calls Commitment::from_cid_bytes -> Commitment::from_cid checking validity.
-            let _ = deal.proposal.piece_commitment().map_err(|e| {
-                log::error!(target: LOG_TARGET, "sanity_check: Invalid piece Cid {e}");
-                Error::<T>::InvalidPieceCid
-            })?;
-
-            ensure!(
-                deal.proposal.provider == *provider,
-                Error::<T>::ProposalsPublishedByIncorrectStorageProvider
-            );
-
-            ensure!(
-                deal.proposal.start_block < deal.proposal.end_block,
-                Error::<T>::DealEndBeforeStart
-            );
-
-            ensure!(
-                deal.proposal.start_block >= current_block,
-                Error::<T>::DealStartExpired
-            );
-
-            ensure!(
-                deal.proposal.state == DealState::Published,
-                Error::<T>::DealNotPublished
-            );
-
-            let min_dur = T::MinDealDuration::get();
-            let deal_duration = deal.proposal.duration();
-            ensure!(deal_duration >= min_dur, {
-                log::error!(target: LOG_TARGET, "deal duration too short: {deal_duration:?} < {min_dur:?}");
-                Error::<T>::DealDurationOutOfBounds
-            });
-
-            let max_dur = T::MaxDealDuration::get();
-            ensure!(deal_duration <= max_dur, {
-                log::error!(target: LOG_TARGET, "deal_duration too long: {deal_duration:?} > {max_dur:?}");
-                Error::<T>::DealDurationOutOfBounds
-            });
-
-            // TODO(@th7nder,#81,18/06/2024): figure out the minimum collateral limits
-            // <https://spec.filecoin.io/#section-systems.filecoin_markets.onchain_storage_market.storage_market_actor.storage-deal-collateral>
-
-            Ok(())
-        }
-
-        fn validate_deals(
-            caller: T::AccountId,
-            deals: BoundedVec<
-                ClientDealProposal<
-                    T::AccountId,
-                    BalanceOf<T>,
-                    BlockNumberFor<T>,
-                    T::OffchainSignature,
-                >,
-                T::MaxDeals,
-            >,
-            current_block: BlockNumberFor<T>,
-        ) -> Result<
-            (
-                Vec<DealProposal<T::AccountId, BalanceOf<T>, BlockNumberFor<T>>>,
-                BalanceOf<T>,
-            ),
-            DispatchError,
-        > {
-            ensure!(deals.len() > 0, Error::<T>::NoProposalsToBePublished);
-
-            // All deals should have the same provider, so get it once.
-            let provider = deals[0].proposal.provider.clone();
-            ensure!(
-                caller == provider,
-                Error::<T>::ProposalsPublishedByIncorrectStorageProvider
-            );
-
-            let mut total_client_lockup: BoundedBTreeMap<T::AccountId, BalanceOf<T>, T::MaxDeals> =
-                BoundedBTreeMap::new();
-            let mut total_provider_lockup: BalanceOf<T> = Default::default();
-            let mut message_proposals: BoundedBTreeSet<T::Hash, T::MaxDeals> =
-                BoundedBTreeSet::new();
-            let mut valid_deals = Vec::new();
-
-            for (idx, deal) in deals.into_iter().enumerate() {
-                if let Err(e) = Self::sanity_check(&deal, &provider, current_block) {
-                    log::error!(target: LOG_TARGET, "insane deal: idx {idx}, error: {e:?}");
-                    return Err(e.into());
-                }
-
-                // Safety check on deal parameters, these should be checked by the submitting SP before publishing.
-                if let Some(params) = SPDealParameters::<T>::get(&provider) {
-                    ensure!(params.check_against_proposed_deal(&deal.proposal), {
-                        log::error!(
-                            target: LOG_TARGET,
-                            "Proposed deal does not fit within the deal bounds set by the storage provider. Set deal parameters: {:?}, proposed deal: {:?}",
-                            params,
-                            deal.proposal
-                        );
-                        Error::<T>::OutOfBoundsDeal
-                    });
-                }
-
-                // there is no Entry API in BoundedBTreeMap
-                let mut client_lockup =
-                    if let Some(client_lockup) = total_client_lockup.get(&deal.proposal.client) {
-                        *client_lockup
-                    } else {
-                        Default::default()
-                    };
-                let client_fees: BalanceOf<T> = deal
-                    .proposal
-                    .total_storage_fee()
-                    .unwrap()
-                    .try_into()
-                    .ok()
-                    .unwrap();
-                client_lockup = client_lockup
-                    .checked_add(&client_fees)
-                    .ok_or(DispatchError::Arithmetic(ArithmeticError::Overflow))?;
-
-                let client_balance = BalanceTable::<T>::get(&deal.proposal.client);
-                if client_lockup > client_balance.free {
-                    log::error!(target: LOG_TARGET, "invalid deal: client {:?} not enough free balance {:?} < {:?} to cover deal idx: {}",
-                            deal.proposal.client, client_balance.free, client_lockup, idx);
-                    return Err(Error::<T>::InsufficientFreeFunds.into());
-                }
-
-                let mut provider_lockup = total_provider_lockup;
-                provider_lockup = provider_lockup
-                    .checked_add(&deal.proposal.provider_collateral)
-                    .ok_or(DispatchError::Arithmetic(ArithmeticError::Overflow))?;
-
-                let provider_balance = BalanceTable::<T>::get(&deal.proposal.provider);
-                if provider_lockup > provider_balance.free {
-                    log::error!(target: LOG_TARGET, "invalid deal: storage provider {:?} not enough free balance {:?} < {:?} to cover deal idx: {}",
-                            deal.proposal.provider, provider_balance.free, provider_lockup, idx);
-                    return Err(Error::<T>::InsufficientFreeFunds.into());
-                }
-
-                let hash = Self::hash_proposal(&deal.proposal);
-                let duplicate_in_state = PendingProposals::<T>::get().contains(&hash);
-                let duplicate_in_message = message_proposals.contains(&hash);
-                if duplicate_in_state || duplicate_in_message {
-                    log::error!(target: LOG_TARGET, "invalid deal: cannot publish duplicate deal idx: {}", idx);
-                    return Err(Error::<T>::DuplicateDeal.into());
-                }
-                let mut pending = PendingProposals::<T>::get();
-                if let Err(e) = pending.try_insert(hash) {
-                    log::error!(target: LOG_TARGET, "cannot publish: too many pending deal proposals, wait for them to be expired/activated, deal idx: {}, err: {:?}", idx, e);
-                    return Err(Error::<T>::TooManyPendingDeals.into());
-                }
-                PendingProposals::<T>::set(pending);
-                // PRE-COND: always succeeds, as there cannot be more deals than T::MaxDeals and this the size of the set
-                message_proposals.try_insert(hash).map_err(|_| {
-                    DispatchError::Other("Unable to insert hash. More deals than T::MaxDeals")
-                })?;
-                // PRE-COND: always succeeds as there cannot be more clients than T::MaxDeals
-                total_client_lockup
-                    .try_insert(deal.proposal.client.clone(), client_lockup)
-                    .map_err(|_| {
-                        DispatchError::Other(
-                            "Unable to update client lockup. More clients than T::MaxDeals",
-                        )
-                    })?;
-                total_provider_lockup = provider_lockup;
-
-                valid_deals.push(deal.proposal)
-            }
-
-            Ok((valid_deals, total_provider_lockup))
         }
 
         // Used for deduplication purposes
@@ -1146,37 +538,7 @@ pub mod pallet {
             sector_deals: BoundedVec<SectorDeal<BlockNumberFor<T>>, ConstU32<MAX_DEALS_PER_SECTOR>>,
         ) -> Result<BoundedVec<Option<Cid>, ConstU32<MAX_DEALS_PER_SECTOR>>, DispatchError>
         {
-            let curr_block = System::<T>::block_number();
-            let mut unsealed_cids = BoundedVec::new();
-            for sector in sector_deals {
-                let proposals = Self::proposals_for_deals(sector.deal_ids)?;
-                let sector_size = sector.sector_type.sector_size();
-                Self::validate_deals_for_sector(
-                    &proposals,
-                    storage_provider,
-                    sector.sector_number,
-                    sector.sector_expiry,
-                    curr_block,
-                    sector_size,
-                )?;
-
-                // Sealing a Sector without Deals, Committed Capacity Only.
-                let commd = if proposals.is_empty() {
-                    None
-                } else {
-                    Some(Self::compute_commd(
-                        proposals.iter().map(|(_, deal)| deal),
-                        sector.sector_type,
-                    )?)
-                };
-
-                // PRE-COND: can't fail, unsealed_cids<_, X> == BoundedVec<_ X> == sector_deals<_, X>
-                unsealed_cids
-                    .try_push(commd)
-                    .map_err(|_| "programmer error, there should be space for Cids")?;
-            }
-
-            Ok(unsealed_cids)
+            crate::dispatchables::verify_deals_for_activation::<T>(storage_provider, sector_deals)
         }
 
         /// Activate a set of deals grouped by sector, returning the size and
@@ -1194,104 +556,7 @@ pub mod pallet {
             BoundedVec<ActiveSector<T::AccountId>, ConstU32<MAX_DEALS_PER_SECTOR>>,
             DispatchError,
         > {
-            let mut activations = BoundedVec::new();
-            let curr_block = System::<T>::block_number();
-
-            let mut pending_proposals = PendingProposals::<T>::get();
-            for sector in sector_deals {
-                let mut sector_activated_deal_ids: BoundedVec<u64, ConstU32<MAX_DEALS_PER_SECTOR>> =
-                    BoundedVec::new();
-
-                let Ok(proposals) = Self::proposals_for_deals(sector.deal_ids) else {
-                    log::error!("failed to find deals for sector: {}", sector.sector_number);
-                    continue;
-                };
-
-                let sector_size = sector.sector_type.sector_size();
-                if let Err(e) = Self::validate_deals_for_sector(
-                    &proposals,
-                    storage_provider,
-                    sector.sector_number,
-                    sector.sector_expiry,
-                    curr_block,
-                    sector_size,
-                ) {
-                    log::error!(
-                        "failed to activate sector: {}, skipping... {:?}",
-                        sector.sector_number,
-                        e
-                    );
-                    continue;
-                }
-
-                let data_commitment = if compute_cid && !proposals.is_empty() {
-                    Some(Self::compute_commd(
-                        proposals.iter().map(|(_, deal)| deal),
-                        sector.sector_type,
-                    )?)
-                } else {
-                    None
-                };
-
-                let mut activated_deals: BoundedVec<_, ConstU32<MAX_DEALS_PER_SECTOR>> =
-                    BoundedVec::new();
-                for (deal_id, mut proposal) in proposals {
-                    // Make it Active! This is what's this function is about in the end.
-                    pending_proposals.remove(&Self::hash_proposal(&proposal));
-                    proposal.state =
-                        DealState::Active(ActiveDealState::new(sector.sector_number, curr_block));
-
-                    activated_deals
-                        .try_push(ActiveDeal {
-                            client: proposal.client.clone(),
-                            piece_cid: proposal
-                                .piece_commitment()
-                                .map_err(|e| {
-                                    log::error!(
-                                        "there is invalid cid saved on-chain for deal: {}, {:?}",
-                                        deal_id,
-                                        e
-                                    );
-                                    Error::<T>::DealPreconditionFailed
-                                })?
-                                .cid(),
-                            piece_size: proposal.piece_size,
-                        })
-                        .map_err(|_| {
-                            log::error!("failed to insert into `activated`, programmer's error");
-                            Error::<T>::DealPreconditionFailed
-                        })?;
-                    sector_activated_deal_ids.try_push(deal_id).map_err(|_| {
-                        log::error!(
-                            "failed to insert into `activated_deal_ids`, programmer's error"
-                        );
-                        Error::<T>::DealPreconditionFailed
-                    })?;
-
-                    Self::deposit_event(Event::<T>::DealActivated {
-                        deal_id,
-                        client: proposal.client.clone(),
-                        provider: proposal.provider.clone(),
-                    });
-                    Proposals::<T>::insert(deal_id, proposal);
-                }
-
-                // Insert activated deals for a sector
-                SectorDeals::<T>::insert(
-                    (storage_provider.clone(), sector.sector_number),
-                    sector_activated_deal_ids,
-                );
-
-                activations
-                    .try_push(ActiveSector {
-                        active_deals: activated_deals,
-                        unsealed_cid: data_commitment,
-                    })
-                    .map_err(|_| Error::<T>::DealPreconditionFailed)?;
-            }
-
-            PendingProposals::<T>::set(pending_proposals);
-            Ok(activations)
+            crate::dispatchables::activate_deals::<T>(storage_provider, sector_deals, compute_cid)
         }
 
         /// Terminate a set of deals in response to their sector being terminated.
@@ -1306,109 +571,7 @@ pub mod pallet {
             storage_provider: &T::AccountId,
             sectors: BoundedVec<SectorNumber, ConstU32<MAX_DEALS_PER_SECTOR>>,
         ) -> DispatchResult {
-            // TODO(@jmg-duarte,04/07/2024): check that the caller is actually a storage provider (?)
-
-            // NOTE(@jmg-duarte,03/07/2024): the usage of the `current_block` NEEDS to be revised
-            // in the future as this function MAY be called on a different block than the current one.
-            // This is a consequence of the fact that this function is called indirectly,
-            // through a chain of calls that start on deferred cron events
-            let current_block = <frame_system::Pallet<T>>::block_number();
-
-            for sector_id in sectors {
-                // In the original implementation, all sectors are popped, here, we take them all
-                let Some(deal_ids) = SectorDeals::<T>::take((storage_provider, sector_id)) else {
-                    // Not found sectors are ignored, if we don't find any, we don't do anything
-                    continue;
-                };
-
-                for deal_id in deal_ids {
-                    // Fetch the corresponding deal proposal, it's ok if it has already been deleted
-                    let Some(mut deal_proposal) = Proposals::<T>::get(deal_id) else {
-                        return Err(Error::<T>::DealNotFound.into());
-                    };
-
-                    // This should never happen, because we are getting deals
-                    // the storage provider with which we called the extrinsic.
-                    if *storage_provider != deal_proposal.provider {
-                        return Err(Error::<T>::InvalidCaller.into());
-                    }
-
-                    if deal_proposal.end_block <= current_block {
-                        // not slashing finished deals
-                        continue;
-                    }
-
-                    let hash_proposal = Self::hash_proposal(&deal_proposal);
-                    // If a sector is being terminated, it means that at some point,
-                    // the deals contained within were active
-                    let DealState::Active(ref mut active_deal_state) = deal_proposal.state else {
-                        return Err(Error::<T>::DealIsNotActive.into());
-                    };
-
-                    // https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/market/src/lib.rs#L840-L844
-                    if let Some(_) = active_deal_state.slash_block {
-                        log::warn!("deal {} was already slashed, terminating anyway", deal_id);
-                    }
-
-                    // https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/market/src/lib.rs#L846-L850
-                    if let None = active_deal_state.last_updated_block {
-                        PendingProposals::<T>::mutate(|pending_proposals| {
-                            pending_proposals.remove(&hash_proposal);
-                        });
-                    }
-
-                    // Handle payments
-                    // https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/market/src/state.rs#L922-L962
-
-                    // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/state.rs#L932-L933
-                    let payment_start_block = calculate_start_block(
-                        deal_proposal.start_block,
-                        active_deal_state.last_updated_block,
-                    );
-                    // The only reason we can use `current_block` is because of the line
-                    // https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/market/src/lib.rs#L852
-                    let payment_end_block =
-                        calculate_end_block(current_block, deal_proposal.end_block);
-                    let n_blocks_elapsed =
-                        calculate_elapsed_blocks(payment_start_block, payment_end_block);
-
-                    let total_payment = calculate_storage_price::<T>(
-                        n_blocks_elapsed,
-                        deal_proposal.storage_price_per_block,
-                    )?;
-
-                    // Pay any outstanding debts to the provider
-                    perform_storage_payment::<T>(
-                        &deal_proposal.client,
-                        &deal_proposal.provider,
-                        total_payment,
-                    )?;
-                    // Slash and burn the provider collateral
-                    slash_and_burn::<T>(
-                        &deal_proposal.provider,
-                        deal_proposal.provider_collateral,
-                    )?;
-
-                    // The remaining client locked funds should be counted from
-                    // everything we just paid until the deal's end block
-                    let remaining_client_collateral = calculate_storage_price::<T>(
-                        deal_proposal.end_block - payment_end_block,
-                        deal_proposal.storage_price_per_block,
-                    )?;
-                    // We then unlock those client funds
-                    unlock_funds::<T>(&deal_proposal.client, remaining_client_collateral)?;
-
-                    // Remove completed deal
-                    let _ = Proposals::<T>::remove(deal_id);
-
-                    Self::deposit_event(Event::<T>::DealTerminated {
-                        deal_id,
-                        client: deal_proposal.client.clone(),
-                        provider: deal_proposal.provider.clone(),
-                    });
-                }
-            }
-            Ok(())
+            crate::dispatchables::on_sectors_terminate::<T>(storage_provider, sectors)
         }
     }
 
@@ -1429,119 +592,8 @@ pub mod pallet {
         ///
         /// *This function should not fail at any point, if it fails, it's a bug.*
         fn on_finalize(current_block: BlockNumberFor<T>) {
-            let deal_ids = DealsForBlock::<T>::get(&current_block);
-            if deal_ids.is_empty() {
-                log::info!(target: LOG_TARGET, "on_finalize: no deals to process in block: {:?}", current_block);
-                return;
-            }
-
-            // INVARIANT: every deal in deal_ids is unique.
-            // PRE-COND: deal validation has been performed by `publish_storage_deals`.
-            let mut pending_proposals = PendingProposals::<T>::get();
-            for deal_id in deal_ids {
-                let Ok(proposal) = Proposals::<T>::try_get(&deal_id) else {
-                    // Proposal might have been cleaned up by manual settlement or termination prior to reaching
-                    // this scheduled block. Nothing more to do for this deal.
-                    continue;
-                };
-
-                match &proposal.state {
-                    DealState::Published => {
-                        debug_assert!(
-                            proposal.start_block == current_block,
-                            "deals are scheduled to be checked only at their start block"
-                        );
-
-                        // Deal has not been activated, time to slash!
-                        // PRE-COND: deal cannot make to this stage without being validated and proper funds allocated
-                        let Some(total_storage_fee) = proposal.total_storage_fee() else {
-                            log::error!(target: LOG_TARGET, "on_finalize: invariant violated cannot calculate total storage fee, deal {}", deal_id);
-                            continue;
-                        };
-                        let Ok(client_fee) = TryInto::<BalanceOf<T>>::try_into(total_storage_fee)
-                        else {
-                            log::error!(target: LOG_TARGET, "on_finalize: invariant violated, cannot convert total storage to {}, deal {}", total_storage_fee, deal_id);
-                            continue;
-                        };
-
-                        let Ok(()) = unlock_funds::<T>(&proposal.client, client_fee) else {
-                            log::error!(target: LOG_TARGET, "on_finalize: invariant violated, failed to return the fee to the client, deal {}", deal_id);
-                            continue;
-                        };
-
-                        log::info!(
-                            "on_finalize: slashing {:?} for not activating a deal {}",
-                            proposal.provider,
-                            deal_id
-                        );
-                        // PRE-COND: deal MUST BE validated and the proper funds allocated
-                        let Ok(()) =
-                            slash_and_burn::<T>(&proposal.provider, proposal.provider_collateral)
-                        else {
-                            log::error!(target: LOG_TARGET, "on_finalize: invariant violated, cannot slash the deal {}", deal_id);
-                            continue;
-                        };
-
-                        Self::deposit_event(Event::<T>::DealSlashed {
-                            deal_id,
-                            provider: proposal.provider.clone(),
-                            client: proposal.client.clone(),
-                            amount: proposal.provider_collateral,
-                        });
-                    }
-                    DealState::Active(_) => {
-                        log::info!(
-                            "on_finalize: deal {} has been properly activated before, all good.",
-                            deal_id
-                        );
-                        continue;
-                    }
-                }
-
-                // Deal has been processed, no need to process it twice.
-                Proposals::<T>::remove(&deal_id);
-                // PRE-COND: all deals in DealsPerBlock are published.
-                // All Published deals are hashed and added to [`PendingProposals`].
-                let _ = pending_proposals.remove(&Self::hash_proposal(&proposal));
-            }
-
-            PendingProposals::<T>::set(pending_proposals);
-            DealsForBlock::<T>::remove(&current_block);
+            crate::hooks::on_finalize::<T>(current_block)
         }
-    }
-
-    // NOTE(@jmg-duarte,01/07/2024): having free functions instead of implemented ones makes it harder
-    // to mistakenly make them public or interact weirdly with the Polkadot macros
-
-    /// Moves the provided `amount` from the `client`'s locked funds, to the provider's `free` funds.
-    ///
-    /// # Pre-Conditions
-    /// * The client MUST have the necessary funds locked.
-    pub fn perform_storage_payment<T: Config>(
-        client: &T::AccountId,
-        provider: &T::AccountId,
-        amount: BalanceOf<T>,
-    ) -> DispatchResult {
-        // These should have been checked when locking funds
-        BalanceTable::<T>::try_mutate(client, |balance| -> DispatchResult {
-            let locked = balance
-                .locked
-                .checked_sub(&amount)
-                .ok_or(ArithmeticError::Underflow)?;
-            balance.locked = locked;
-            Ok(())
-        })?;
-
-        BalanceTable::<T>::try_mutate(provider, |balance| -> DispatchResult {
-            let free = balance
-                .free
-                .checked_add(&amount)
-                .ok_or(ArithmeticError::Overflow)?;
-            balance.free = free;
-            Ok(())
-        })?;
-
-        Ok(())
     }
 
     /// Unlock a given `amount` of funds from the target account.
@@ -1625,64 +677,5 @@ pub mod pallet {
         )
         // If we burned X, tried to settle X and failed, we're in a bad state
         .map_err(|_| DispatchError::Corruption)
-    }
-
-    /// Calculate the start block.
-    ///
-    /// If `last_updated_block` is `None`, returns `start_block`.
-    /// Otherwise, returns the `max` between `start_block` and `last_updated_block`.
-    #[inline(always)]
-    fn calculate_start_block<BlockNumber: BaseArithmetic>(
-        start_block: BlockNumber,
-        last_updated_block: Option<BlockNumber>,
-    ) -> BlockNumber {
-        if let Some(last_updated_block) = last_updated_block {
-            core::cmp::max(start_block, last_updated_block)
-        } else {
-            start_block
-        }
-    }
-
-    /// Calculate the end block.
-    ///
-    /// Returns the `min` between the `current_block` and `end_block`.
-    #[inline(always)]
-    fn calculate_end_block<BlockNumber: BaseArithmetic>(
-        current_block: BlockNumber,
-        end_block: BlockNumber,
-    ) -> BlockNumber {
-        core::cmp::min(current_block, end_block)
-    }
-
-    /// Calculate the number of elapsed blocks.
-    ///
-    /// Returns the `max` between `end_block - start_block` and `0`.
-    #[inline(always)]
-    fn calculate_elapsed_blocks<BlockNumber: BaseArithmetic>(
-        start_block: BlockNumber,
-        end_block: BlockNumber,
-    ) -> BlockNumber {
-        // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/state.rs#L934-L935
-        core::cmp::max(end_block - start_block, 0.into())
-    }
-
-    /// Calculate the storage price for a given `n_blocks` at a rate of `price_per_block`.
-    ///
-    /// Internally, this function converts both values to [`u128`], multiplies them,
-    /// and converts back to [`BalanceOf<T>`], if at any point the conversion fails,
-    /// it is assumed to be an overflow and [`ArithmeticError::Overflow`] is returned.
-    #[inline(always)]
-    fn calculate_storage_price<T>(
-        n_blocks: BlockNumberFor<T>,
-        price_per_block: BalanceOf<T>,
-    ) -> Result<BalanceOf<T>, ArithmeticError>
-    where
-        T: Config,
-    {
-        let n_blocks =
-            TryInto::<u128>::try_into(n_blocks).map_err(|_| ArithmeticError::Overflow)?;
-        let price_per_block =
-            TryInto::<u128>::try_into(price_per_block).map_err(|_| ArithmeticError::Overflow)?;
-        TryInto::try_into(price_per_block * n_blocks).map_err(|_| ArithmeticError::Overflow)
     }
 }
