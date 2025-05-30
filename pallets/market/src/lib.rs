@@ -433,10 +433,10 @@ pub mod pallet {
             let caller = ensure_signed(origin)?;
 
             BalanceTable::<T>::try_mutate(&caller, |balance| -> DispatchResult {
-                if balance.free < amount {
+                ensure!(balance.free >= amount, {
                     log::error!(target: LOG_TARGET, "withdraw_balance: not enough free balance {:?} < {:?}", balance.free, amount);
-                    fail!(Error::<T>::InsufficientFreeFunds);
-                }
+                    Error::<T>::InsufficientFreeFunds
+                });
 
                 balance.free = balance
                     .free
@@ -1614,10 +1614,10 @@ pub mod pallet {
         amount: BalanceOf<T>,
     ) -> DispatchResult {
         BalanceTable::<T>::try_mutate(account_id, |balance| -> DispatchResult {
-            if balance.free < amount {
+            ensure!(balance.free >= amount, {
                 log::error!(target: LOG_TARGET, "lock_funds: not enough free balance {:?} < {:?}", balance.free, amount);
-                fail!(Error::<T>::InsufficientFreeFunds);
-            }
+                Error::<T>::InsufficientFreeFunds
+            });
 
             balance.free = balance
                 .free
