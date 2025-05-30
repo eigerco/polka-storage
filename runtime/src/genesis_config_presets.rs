@@ -1,14 +1,18 @@
 use alloc::{vec, vec::Vec};
+use core::iter::once;
 
 use cumulus_primitives_core::ParaId;
 use parachains_common::AuraId;
+use polka_storage_proofs::{Bls12, VerifyingKey};
+use primitives::proofs::{RegisteredPoStProof, RegisteredSealProof};
 use serde_json::Value;
 use sp_genesis_builder::PresetId;
 use sp_keyring::Sr25519Keyring;
 
 use crate::{
-    AccountId, BalancesConfig, CollatorSelectionConfig, ParachainInfoConfig, PolkadotXcmConfig,
-    RuntimeGenesisConfig, SessionConfig, SessionKeys, SudoConfig, EXISTENTIAL_DEPOSIT,
+    AccountId, Balance, BalancesConfig, CollatorSelectionConfig, Market, MarketConfig,
+    ParachainInfoConfig, PolkadotXcmConfig, ProofsConfig, RuntimeGenesisConfig, SessionConfig,
+    SessionKeys, SudoConfig, EXISTENTIAL_DEPOSIT,
 };
 
 /// The default XCM version to set in genesis config.
@@ -29,6 +33,18 @@ fn testnet_genesis(
     root: AccountId,
     id: ParaId,
 ) -> Value {
+    let post_1gib_vk = include_bytes!("../../test-fixtures/keys/1GiB.post.vk.scale");
+    let post_1gib_vk = VerifyingKey::<Bls12>::from_bytes(post_1gib_vk).unwrap();
+
+    let porep_1gib_vk = include_bytes!("../../test-fixtures/keys/1GiB.porep.vk.scale");
+    let porep_1gib_vk = VerifyingKey::<Bls12>::from_bytes(porep_1gib_vk).unwrap();
+
+    let post_8mib_vk = include_bytes!("../../test-fixtures/keys/8MiB.post.vk.scale");
+    let post_8mib_vk = VerifyingKey::<Bls12>::from_bytes(post_8mib_vk).unwrap();
+
+    let porep_8mib_vk = include_bytes!("../../test-fixtures/keys/8MiB.porep.vk.scale");
+    let porep_8mib_vk = VerifyingKey::<Bls12>::from_bytes(porep_8mib_vk).unwrap();
+
     let config = RuntimeGenesisConfig {
         balances: BalancesConfig {
             balances: endowed_accounts
@@ -68,6 +84,42 @@ fn testnet_genesis(
             ..Default::default()
         },
         sudo: SudoConfig { key: Some(root) },
+        proofs: ProofsConfig {
+            post_keys: [
+                (RegisteredPoStProof::StackedDRGWindow1GiBV1, post_1gib_vk),
+                (RegisteredPoStProof::StackedDRGWindow8MiBV1, post_8mib_vk),
+            ]
+            .into(),
+            porep_keys: [
+                (RegisteredSealProof::StackedDRG1GiBV1, porep_1gib_vk),
+                (RegisteredSealProof::StackedDRG8MiBV1, porep_8mib_vk),
+            ]
+            .into(),
+            ..Default::default()
+        },
+        market: MarketConfig {
+            // This is a nice default for `maat/tests/real_world.rs`.
+            // Add balance to Charlie - Storage Provider.
+            // Collateral (12 500 000) + pre_commit_deposit (1)
+            // 12 500 000 == deal.provider_collateral
+            // 1 == pallets/storage-provider/lib.rs:calculate_pre_commit_deposit
+            // NOTE(@th7nder,11/03/2025): please be aware, that this amount needs to be endowed to Market Pallet as well!
+            balances: [
+                (
+                    Sr25519Keyring::Alice.to_account_id(),
+                    25_000_000_000 as Balance,
+                ),
+                (
+                    Sr25519Keyring::Bob.to_account_id(),
+                    12_500_000_001 as Balance,
+                ),
+                (
+                    Sr25519Keyring::Charlie.to_account_id(),
+                    12_500_000_001 as Balance,
+                ),
+            ]
+            .into(),
+        },
         ..Default::default()
     };
 
@@ -89,6 +141,8 @@ fn local_testnet_genesis() -> Value {
         ],
         Sr25519Keyring::well_known()
             .map(|k| k.to_account_id())
+            // Add funds to the market pallet account as we're adding some balance by default to it in its genesis Config.
+            .chain(once(Market::account_id()))
             .collect(),
         Sr25519Keyring::Alice.to_account_id(),
         PARACHAIN_ID.into(),
@@ -136,4 +190,22 @@ pub fn preset_names() -> Vec<PresetId> {
         PresetId::from(sp_genesis_builder::DEV_RUNTIME_PRESET),
         PresetId::from(sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn check_presets() {
+        let builder = sc_chain_spec::GenesisConfigBuilderRuntimeCaller::<()>::new(
+            crate::WASM_BINARY.expect("wasm binary shall exists"),
+        );
+        assert!(builder
+            .get_storage_for_named_preset(Some(&sp_genesis_builder::DEV_RUNTIME_PRESET.to_string()))
+            .is_ok());
+        assert!(builder
+            .get_storage_for_named_preset(Some(
+                &sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET.to_string()
+            ))
+            .is_ok());
+    }
 }

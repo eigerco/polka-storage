@@ -18,6 +18,9 @@ targets = ["x86_64-unknown-linux-gnu"]
 [build-dependencies]
 substrate-wasm-builder = { workspace = true, optional = true }
 
+[dev-dependencies]
+sc-chain-spec = { workspace = true }
+
 [dependencies]
 # Local Pallets
 pallet-faucet = { workspace = true, default-features = false }
@@ -27,6 +30,7 @@ pallet-proofs = { workspace = true, default-features = false }
 pallet-randomness = { workspace = true, default-features = false }
 pallet-storage-provider = { workspace = true, default-features = false }
 pallet-storage-provider-benchmarks = { workspace = true, default-features = false, optional = true }
+polka-storage-proofs = { workspace = true, default-features = false }
 primitives = { workspace = true, default-features = false }
 
 codec = { workspace = true, default-features = false, features = ["chain-error", "derive"] }
