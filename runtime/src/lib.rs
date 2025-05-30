@@ -2,6 +2,8 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
 
+extern crate alloc;
+
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
@@ -13,7 +15,6 @@ mod genesis_config_presets;
 mod vrf;
 mod weights;
 
-extern crate alloc;
 use alloc::vec::Vec;
 
 use frame_support::{
@@ -612,7 +613,6 @@ impl_runtime_apis! {
             use cumulus_pallet_session_benchmarking::Pallet as SessionBench;
             use pallet_storage_provider_benchmarks::Pallet as StorageProviderBench;
             use pallet_market_benchmarks::Pallet as MarketBench;
-            use super::*;
 
             let mut list = Vec::<BenchmarkList>::new();
             list_benchmarks!(list, extra);
@@ -625,7 +625,6 @@ impl_runtime_apis! {
             config: frame_benchmarking::BenchmarkConfig
         ) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, alloc::string::String> {
             use frame_benchmarking::{BenchmarkError, Benchmarking, BenchmarkBatch};
-            use super::*;
 
             use frame_system_benchmarking::Pallet as SystemBench;
             impl frame_system_benchmarking::Config for Runtime {
