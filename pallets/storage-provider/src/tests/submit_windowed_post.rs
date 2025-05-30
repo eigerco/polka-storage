@@ -20,7 +20,7 @@ use crate::{
 ///
 /// 1. Registers Alice as a storage provider
 /// 2. Adds balances
-///     1. 100 for the storage provider
+///     1. 200 for the storage provider
 ///     2. 70 for the storage client
 /// 3. Publishes one storage deal
 fn setup() {
@@ -34,7 +34,7 @@ fn setup() {
     // Add balance to the market pallet
     assert_ok!(Market::add_balance(
         RuntimeOrigin::signed(account(storage_provider)),
-        101
+        200
     ));
     assert_ok!(Market::add_balance(
         RuntimeOrigin::signed(account(storage_client)),
