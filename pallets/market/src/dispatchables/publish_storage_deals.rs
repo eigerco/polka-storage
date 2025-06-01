@@ -175,19 +175,27 @@ where
         let client_balance = BalanceTable::<T>::get(&deal.proposal.client);
         if client_lockup > client_balance.free {
             log::error!(target: LOG_TARGET, "invalid deal: client {:?} not enough free balance {:?} < {:?} to cover deal idx: {}",
-                    deal.proposal.client, client_balance.free, client_lockup, idx);
+                            deal.proposal.client, client_balance.free, client_lockup, idx);
             return Err(Error::<T>::InsufficientFreeFunds.into());
         }
 
+        // Provider collateral
+        let provider_collateral: BalanceOf<T> = deal
+            .proposal
+            .provider_collateral()
+            .ok_or(Error::<T>::UnexpectedValidationError)?
+            .try_into()
+            .map_err(|_| Error::<T>::UnexpectedValidationError)?;
+
         let mut provider_lockup = total_provider_lockup;
         provider_lockup = provider_lockup
-            .checked_add(&deal.proposal.provider_collateral)
+            .checked_add(&provider_collateral)
             .ok_or(DispatchError::Arithmetic(ArithmeticError::Overflow))?;
 
         let provider_balance = BalanceTable::<T>::get(&deal.proposal.provider);
         if provider_lockup > provider_balance.free {
             log::error!(target: LOG_TARGET, "invalid deal: storage provider {:?} not enough free balance {:?} < {:?} to cover deal idx: {}",
-                    deal.proposal.provider, provider_balance.free, provider_lockup, idx);
+                            deal.proposal.provider, provider_balance.free, provider_lockup, idx);
             return Err(Error::<T>::InsufficientFreeFunds.into());
         }
 

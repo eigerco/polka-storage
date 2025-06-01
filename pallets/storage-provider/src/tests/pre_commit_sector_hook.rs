@@ -22,7 +22,7 @@ fn pre_commit_hook_slashed_deal() {
     new_test_ext().execute_with(|| {
         // TODO(@aidan46, #106, 2024-06-24): Set a logical value or calculation
         const DEAL_PRECOMMIT_DEPOSIT: u64 = 1;
-        const DEAL_COLLATERAL: u64 = 25;
+        const DEAL_COLLATERAL: u64 = 100;
 
         let storage_provider = CHARLIE;
         register_storage_provider(account(storage_provider));

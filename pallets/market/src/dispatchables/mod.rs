@@ -79,7 +79,7 @@ where
     Ok(())
 }
 
-fn proposals_for_deals<T>(
+pub fn proposals_for_deals<T>(
     deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
 ) -> Result<
     BoundedVec<(DealId, DealProposalOf<T>), ConstU32<MAX_DEALS_FOR_ALL_SECTORS>>,

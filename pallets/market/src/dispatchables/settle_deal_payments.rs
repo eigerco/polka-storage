@@ -4,8 +4,8 @@ use primitives::{configs::BalanceOf, deals::DealState, DealId};
 
 use super::perform_storage_payment;
 use crate::{
-    error::DealSettlementError, unlock_funds, Config, Event, MaxSettleDeals, Pallet, Proposals,
-    SettledDealData, LOG_TARGET,
+    error::DealSettlementError, unlock_funds, Config, Error, Event, MaxSettleDeals, Pallet,
+    Proposals, SettledDealData, LOG_TARGET,
 };
 
 pub fn settle_deal_payments<T>(
@@ -43,6 +43,13 @@ where
             let _ = unsuccessful.try_push((deal_id, DealSettlementError::EarlySettlement));
             continue;
         }
+
+        // Provider collateral
+        let provider_collateral: BalanceOf<T> = deal_proposal
+            .provider_collateral()
+            .ok_or(Error::<T>::UnexpectedValidationError)?
+            .try_into()
+            .map_err(|_| Error::<T>::UnexpectedValidationError)?;
 
         // If the deal is not active (i.e. unpublished or published), there's nothing to settle
         // https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/lib.rs#L1225-L1231
@@ -125,7 +132,7 @@ where
 
         // NOTE(@jmg-duarte,28/06/2024): Maybe emit an event when the table is updated?
         if complete_deal {
-            unlock_funds::<T>(&deal_proposal.provider, deal_proposal.provider_collateral)?;
+            unlock_funds::<T>(&deal_proposal.provider, provider_collateral)?;
             Proposals::<T>::remove(deal_id);
         } else {
             // Otherwise, we update the proposal — `last_updated_block`

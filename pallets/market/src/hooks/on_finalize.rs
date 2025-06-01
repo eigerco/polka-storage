@@ -54,9 +54,20 @@ where
                     proposal.provider,
                     deal_id
                 );
-                // PRE-COND: deal MUST BE validated and the proper funds allocated
-                let Ok(()) = slash_and_burn::<T>(&proposal.provider, proposal.provider_collateral)
+
+                let Some(provider_collateral) = proposal.provider_collateral() else {
+                    log::error!(target: LOG_TARGET, "on_finalize: invariant violated cannot calculate provider_collateral, deal {}", deal_id);
+                    continue;
+                };
+                let Ok(provider_collateral) =
+                    TryInto::<BalanceOf<T>>::try_into(provider_collateral)
                 else {
+                    log::error!(target: LOG_TARGET, "on_finalize: invariant violated, cannot convert provider_collateral {}, deal {}", provider_collateral, deal_id);
+                    continue;
+                };
+
+                // PRE-COND: deal MUST BE validated and the proper funds allocated
+                let Ok(()) = slash_and_burn::<T>(&proposal.provider, provider_collateral) else {
                     log::error!(target: LOG_TARGET, "on_finalize: invariant violated, cannot slash the deal {}", deal_id);
                     continue;
                 };
@@ -65,7 +76,7 @@ where
                     deal_id,
                     provider: proposal.provider.clone(),
                     client: proposal.client.clone(),
-                    amount: proposal.provider_collateral,
+                    amount: provider_collateral,
                 });
             }
             DealState::Active(_) => {

@@ -94,8 +94,15 @@ where
                 &deal_proposal.provider,
                 total_payment,
             )?;
+
+            let provider_collateral: BalanceOf<T> = deal_proposal
+                .provider_collateral()
+                .ok_or(Error::<T>::UnexpectedValidationError)?
+                .try_into()
+                .map_err(|_| Error::<T>::UnexpectedValidationError)?;
+
             // Slash and burn the provider collateral
-            slash_and_burn::<T>(&deal_proposal.provider, deal_proposal.provider_collateral)?;
+            slash_and_burn::<T>(&deal_proposal.provider, provider_collateral)?;
 
             // The remaining client locked funds should be counted from
             // everything we just paid until the deal's end block

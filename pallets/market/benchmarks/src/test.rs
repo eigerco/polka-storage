@@ -484,7 +484,7 @@ fn publish_storage_deals_fails_start_time_expired() {
 fn publish_storage_deals_fails_different_providers() {
     new_test_ext().execute_with(|| {
         register_storage_provider(account::<Test>(PROVIDER));
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 60);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 100);
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 60);
         System::reset_events();
 
@@ -512,7 +512,7 @@ fn publish_storage_deals_fails_different_providers() {
 fn publish_storage_deals_fails_client_not_enough_funds_for_second_deal() {
     new_test_ext().execute_with(|| {
         register_storage_provider(account::<Test>(PROVIDER));
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 60);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 100);
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 60);
         System::reset_events();
 
@@ -683,7 +683,6 @@ fn publish_storage_deals() {
             .start_block(bob_start_block)
             .end_block(135)
             .storage_price_per_block(10)
-            .provider_collateral(15)
             .signed(BOB);
 
         let alice_hash = Market::hash_proposal(&alice_proposal.proposal);
@@ -691,7 +690,7 @@ fn publish_storage_deals() {
 
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 100);
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(BOB)), 70);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 310);
         System::reset_events();
 
         assert_ok!(Market::publish_storage_deals(
@@ -716,7 +715,7 @@ fn publish_storage_deals() {
             BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
             BalanceEntry::<u64> {
                 free: 10,
-                locked: 65
+                locked: 300
             }
         );
 
@@ -781,7 +780,6 @@ fn publish_storage_deals_with_deal_params() {
             .start_block(bob_start_block)
             .end_block(135)
             .storage_price_per_block(10)
-            .provider_collateral(15)
             .signed(BOB);
 
         let alice_hash = Market::hash_proposal(&alice_proposal.proposal);
@@ -789,7 +787,7 @@ fn publish_storage_deals_with_deal_params() {
 
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 100);
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(BOB)), 70);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 310);
         System::reset_events();
 
         assert_ok!(Market::publish_storage_deals(
@@ -814,7 +812,7 @@ fn publish_storage_deals_with_deal_params() {
             BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
             BalanceEntry::<u64> {
                 free: 10,
-                locked: 65
+                locked: 300
             }
         );
 
@@ -1158,7 +1156,6 @@ fn verifies_deals_on_block_finalization() {
             .start_block(alice_start_block)
             .end_block(alice_start_block + 10)
             .storage_price_per_block(5)
-            .provider_collateral(25)
             .signed(ALICE);
 
         let bob_start_block = 130;
@@ -1168,12 +1165,11 @@ fn verifies_deals_on_block_finalization() {
             .start_block(bob_start_block)
             .end_block(bob_start_block + 5)
             .storage_price_per_block(10)
-            .provider_collateral(15)
             .signed(BOB);
 
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 60);
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(BOB)), 70);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 310);
         let _ = Market::publish_storage_deals(
             RuntimeOrigin::signed(account::<Test>(PROVIDER)),
             bounded_vec![alice_proposal, bob_proposal],
@@ -1221,8 +1217,8 @@ fn verifies_deals_on_block_finalization() {
         assert_eq!(
             BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
             BalanceEntry::<u64> {
-                free: 35,
-                locked: 40
+                free: 110,
+                locked: 200
             }
         );
         // After exceeding Bob's deal start_block,
@@ -1238,9 +1234,9 @@ fn verifies_deals_on_block_finalization() {
         assert_eq!(
             BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
             BalanceEntry::<u64> {
-                free: 35,
-                // 40 (locked) - 15 (lost collateral) = 25
-                locked: 25
+                free: 110,
+                // 200 (locked) - 100 (lost collateral) = 100
+                locked: 100
             }
         );
 
@@ -1248,14 +1244,14 @@ fn verifies_deals_on_block_finalization() {
         assert_eq!(
             events(),
             [
-                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded { amount: 15 }),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded { amount: 100 }),
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Withdraw {
                     who: Market::account_id(),
-                    amount: 15
+                    amount: 100
                 }),
                 RuntimeEvent::Market(Event::<Test>::DealSlashed {
                     deal_id: bob_deal_id,
-                    amount: 15,
+                    amount: 100,
                     provider: account::<Test>(PROVIDER),
                     client: account::<Test>(BOB),
                 })
@@ -1289,7 +1285,7 @@ fn settle_deal_payments_early() {
         let alice_proposal = DealProposalBuilder::<Test>::default().signed(ALICE);
 
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 60);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 160);
 
         assert_ok!(Market::publish_storage_deals(
             RuntimeOrigin::signed(account::<Test>(PROVIDER)),
@@ -1323,7 +1319,7 @@ fn settle_deal_payments_published() {
 
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 60);
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(BOB)), 70);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 160);
 
         assert_ok!(Market::publish_storage_deals(
             RuntimeOrigin::signed(account::<Test>(PROVIDER)),
@@ -1337,7 +1333,6 @@ fn settle_deal_payments_published() {
                 .start_block(1)
                 .end_block(11)
                 .storage_price_per_block(10)
-                .provider_collateral(15)
                 .unsigned(),
         );
 
@@ -1442,7 +1437,7 @@ fn settle_deal_payments_success() {
             .signed(ALICE);
 
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 60);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 160);
 
         assert_ok!(Market::publish_storage_deals(
             RuntimeOrigin::signed(account::<Test>(PROVIDER)),
@@ -1500,8 +1495,8 @@ fn settle_deal_payments_success() {
         assert_eq!(
             BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
             BalanceEntry::<u64> {
-                free: 75, // 50 (from 75 - collateral) + 5 * 5 (price per block * n blocks)
-                locked: 25
+                free: 85, // 60 (from 160 - collateral) + 5 * 5 (price per block * n blocks)
+                locked: 100
             }
         );
 
@@ -1541,7 +1536,7 @@ fn settle_deal_payments_success_finished() {
             .signed(ALICE);
 
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 60);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 160);
 
         assert_ok!(Market::publish_storage_deals(
             RuntimeOrigin::signed(account::<Test>(PROVIDER)),
@@ -1601,7 +1596,7 @@ fn settle_deal_payments_success_finished() {
         assert_eq!(
             BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
             BalanceEntry::<u64> {
-                free: 75 + 5 * 10, // 50 (from 75 - collateral + returned collateral (not slashed)) + (price per block * n blocks)
+                free: 160 + 5 * 10, // 160 (from 160 - collateral + returned collateral (not slashed)) + (price per block * n blocks)
                 locked: 0
             }
         );
@@ -1845,7 +1840,6 @@ fn on_sector_terminate_not_active() {
                 .start_block(0)
                 .end_block(10)
                 .storage_price_per_block(10)
-                .provider_collateral(15)
                 .unsigned(),
         );
 
@@ -1862,7 +1856,7 @@ fn on_sector_terminate_not_active() {
 fn on_sector_terminate_active() {
     new_test_ext().execute_with(|| {
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(BOB)), 75);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
+        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 160);
 
         let storage_provider = account::<Test>(PROVIDER);
         let sector_number = 0.into();
@@ -1872,12 +1866,11 @@ fn on_sector_terminate_active() {
             .start_block(0)
             .end_block(10)
             .storage_price_per_block(5)
-            .provider_collateral(15)
             .state(DealState::Active(ActiveDealState::new(sector_number, 0)))
             .unsigned();
 
         assert_ok!(lock_funds::<Test>(&account::<Test>(BOB), 5 * 10));
-        assert_ok!(lock_funds::<Test>(&storage_provider, 15));
+        assert_ok!(lock_funds::<Test>(&storage_provider, 100));
 
         let hash_proposal = Market::hash_proposal(&deal_proposal);
         let mut pending = PendingProposals::<Test>::get();
@@ -1908,17 +1901,17 @@ fn on_sector_terminate_active() {
             BalanceTable::<Test>::get(&storage_provider),
             BalanceEntry {
                 free: 65,  // the original 60 + 5 for the storage payment of a single block
-                locked: 0, // lost the 15 collateral
+                locked: 0, // lost the 100 collateral
             }
         );
 
         assert_eq!(
             events(),
             [
-                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded { amount: 15 }),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded { amount: 100 }),
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Withdraw {
                     who: Market::account_id(),
-                    amount: 15
+                    amount: 100
                 }),
                 RuntimeEvent::Market(Event::<Test>::DealTerminated {
                     deal_id: 1,
@@ -1929,7 +1922,7 @@ fn on_sector_terminate_active() {
         );
         assert!(PendingProposals::<Test>::get().is_empty());
         assert!(!Proposals::<Test>::contains_key(1));
-        assert_eq!(<Test as CurrencyProvider>::Currency::total_issuance(), 2985);
+        assert_eq!(<Test as CurrencyProvider>::Currency::total_issuance(), 2900);
     });
 }
 
@@ -2134,7 +2127,6 @@ pub struct DealProposalBuilder<T: frame_system::Config> {
     start_block: u64,
     end_block: u64,
     storage_price_per_block: u64,
-    provider_collateral: u64,
     state: DealState<u64>,
 }
 
@@ -2155,7 +2147,6 @@ impl<T: frame_system::Config<AccountId = AccountId32>> Default for DealProposalB
             start_block: 100,
             end_block: 110,
             storage_price_per_block: 5,
-            provider_collateral: 25,
             state: DealState::Published,
         }
     }
@@ -2192,11 +2183,6 @@ impl<T: frame_system::Config<AccountId = AccountId32>> DealProposalBuilder<T> {
         self
     }
 
-    pub fn provider_collateral(mut self, price: u64) -> Self {
-        self.provider_collateral = price;
-        self
-    }
-
     pub fn piece_size(mut self, piece_size: u64) -> Self {
         self.piece_size = piece_size;
         self
@@ -2212,7 +2198,6 @@ impl<T: frame_system::Config<AccountId = AccountId32>> DealProposalBuilder<T> {
             start_block: self.start_block,
             end_block: self.end_block,
             storage_price_per_block: self.storage_price_per_block,
-            provider_collateral: self.provider_collateral,
             state: self.state,
         }
     }
