@@ -24,13 +24,16 @@ primitives = { workspace = true, features = ["serde", "std"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
-subxt = { workspace = true, features = ["jsonrpsee", "reconnecting-rpc-client", "substrate-compat"] }
+subxt = { workspace = true, features = ["jsonrpsee", "reconnecting-rpc-client"] }
 subxt-signer = { workspace = true, features = ["subxt"] }
 thiserror = { workspace = true, default-features = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 url = { workspace = true }
+
+sp-core = { workspace = true }
+sp-runtime = { workspace = true }
 
 # Optional dependencies
 clap = { workspace = true, optional = true, features = ["derive"] }

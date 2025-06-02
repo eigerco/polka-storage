@@ -615,7 +615,7 @@ impl Server {
     > {
         let xt_client = storagext::Client::new(rpc_address, RETRY_NUMBER, RETRY_INTERVAL).await?;
 
-        let storage_provider_account_id = xt_keypair.account_id().into();
+        let storage_provider_account_id = subxt::utils::AccountId32(xt_keypair.account_id().into());
 
         // Check if the storage provider has been registered to the chain
         let storage_provider_info = xt_client
@@ -626,9 +626,7 @@ impl Server {
         xt_client
             // Once subxt breaks our code with https://github.com/paritytech/subxt/pull/1850
             // we'll be able to make all this uniform
-            .retrieve_balance(subxt::ext::sp_runtime::AccountId32::new(
-                storage_provider_account_id.0,
-            ))
+            .retrieve_balance(sp_runtime::AccountId32::new(storage_provider_account_id.0))
             .await?
             .ok_or(ServerError::NoMarketAccountStorageProvider)?;
 

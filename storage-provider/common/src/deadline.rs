@@ -63,8 +63,9 @@ impl Deadline {
     ) -> Result<DeadlineInfo<u64>, DeadlineError> {
         tracing::info!("Getting deadline info for {} deadline", self.deadline_index);
 
+        let account_id = subxt::utils::AccountId32(xt_keypair.account_id().into());
         xt_client
-            .deadline_info(&xt_keypair.account_id().into(), self.deadline_index)
+            .deadline_info(&account_id, self.deadline_index)
             .await?
             .ok_or(DeadlineError::DeadlineNotFound(self.deadline_index))
     }
@@ -96,8 +97,9 @@ impl Deadline {
             deadline.challenge_block
         );
 
+        let account_id = subxt::utils::AccountId32(xt_keypair.account_id().into());
         let Some(deadline_state) = xt_client
-            .deadline_state(&xt_keypair.account_id().into(), self.deadline_index)
+            .deadline_state(&account_id, self.deadline_index)
             .await?
         else {
             tracing::error!("Something went catastrophic, there is no current deadline state");

@@ -138,8 +138,9 @@ serde_json = { version = "1.0.121", default-features = false }
 serde_yaml = { version = "0.9" }
 sha2 = { version = "0.10.8", default-features = false }
 smallvec = "1.11.0"
-subxt = { version = "0.38.0" }
-subxt-signer = "0.38.0"
+subxt = { version = "0.40.0" }
+subxt-core = "0.40.0"
+subxt-signer = "0.40.0"
 syn = { version = "2.0.53" }
 tempfile = "3.10.1"
 thiserror = { version = "2.0.3", default-features = false }
@@ -157,8 +158,8 @@ url = "2.5.0"
 uuid = "1.8.0"
 
 # These need to match the ones in subxt
-scale-decode = { version = "0.14.0", default-features = false }
-scale-encode = { version = "0.8.0", default-features = false }
+scale-decode = { version = "0.16.0", default-features = false }
+scale-encode = { version = "0.10.0", default-features = false }
 
 # Testing
 rstest = { version = "0.22.0" }

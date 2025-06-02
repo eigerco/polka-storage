@@ -14,7 +14,7 @@ pub mod display;
     derive_for_all_types = "Clone, PartialEq, Eq",
     substitute_type(
         path = "sp_runtime::MultiSignature",
-        with = "::subxt::utils::Static<::subxt::ext::sp_runtime::MultiSignature>"
+        with = "::subxt::utils::Static<::sp_runtime::MultiSignature>"
     ),
     substitute_type(
         path = "primitives::proofs::RegisteredSealProof",

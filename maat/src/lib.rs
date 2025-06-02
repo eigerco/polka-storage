@@ -8,14 +8,9 @@ use ed25519_dalek::{
     pkcs8::{spki::der::pem::LineEnding, EncodePrivateKey},
     SigningKey,
 };
-use storagext::PolkaStorageConfig;
-use subxt::{
-    ext::{
-        sp_core::Pair,
-        sp_runtime::{traits::Verify, MultiSignature as SpMultiSignature},
-    },
-    tx::PairSigner,
-};
+use sp_core::Pair;
+use sp_runtime::{traits::Verify, MultiSignature as SpMultiSignature};
+use storagext::{pair_signer::PairSigner, PolkaStorageConfig};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer};
 use zombienet_configuration::shared::node::{Buildable, Initial, NodeConfigBuilder};

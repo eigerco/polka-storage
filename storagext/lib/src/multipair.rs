@@ -1,14 +1,11 @@
 use std::fmt::Debug;
 
-use subxt::{
-    ext::sp_core::{
-        crypto::Ss58Codec, ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair,
-        sr25519::Pair as Sr25519Pair,
-    },
-    tx::PairSigner,
+use sp_core::{
+    crypto::Ss58Codec, ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair,
+    sr25519::Pair as Sr25519Pair,
 };
 
-use crate::PolkaStorageConfig;
+use crate::{pair_signer::PairSigner, PolkaStorageConfig};
 
 /// Similar to other `Multi` types from Polkadot, this one wraps over [`PairSigner`],
 /// allowing keypairs to sign data.
@@ -72,16 +69,16 @@ impl subxt::tx::Signer<PolkaStorageConfig> for MultiPairSigner {
     }
 }
 
-/// [`DebugPair`] is a wrapper over types implementing [`Pair`](subxt::ext::sp_core::Pair),
+/// [`DebugPair`] is a wrapper over types implementing [`Pair`](sp_core::Pair),
 /// it provides a [`Debug`](std::fmt::Debug) which is required by `clap`.
 #[derive(Clone, PartialEq, Eq)]
 pub struct DebugPair<Pair>(pub(crate) Pair)
 where
-    Pair: subxt::ext::sp_core::Pair;
+    Pair: sp_core::Pair;
 
 impl<Pair> std::fmt::Debug for DebugPair<Pair>
 where
-    Pair: subxt::ext::sp_core::Pair,
+    Pair: sp_core::Pair,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("DebugPair")
@@ -92,7 +89,7 @@ where
 
 impl<Pair> DebugPair<Pair>
 where
-    Pair: subxt::ext::sp_core::Pair,
+    Pair: sp_core::Pair,
 {
     /// `clap`'s custom parsing function.
     // NOTE(@jmg-duarte): not added to the `clap` module since we always want to test this
@@ -156,7 +153,7 @@ pub use self::clap::*;
 mod test {
     //! These tests basically ensure that the underlying parsers aren't broken without warning.
 
-    use subxt::ext::sp_core::{
+    use sp_core::{
         ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair, sr25519::Pair as Sr25519Pair,
     };
 
@@ -165,7 +162,7 @@ mod test {
     #[track_caller]
     fn assert_debug_pair<P>(s: &str)
     where
-        P: subxt::ext::sp_core::Pair,
+        P: sp_core::Pair,
     {
         let result_pair = DebugPair::<P>::value_parser(s).unwrap();
         let expect_pair = P::from_string(s, None).unwrap();

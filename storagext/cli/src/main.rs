@@ -9,10 +9,10 @@ use cmd::{
     faucet::FaucetCommand, market::MarketCommand, proofs::ProofsCommand,
     randomness::RandomnessCommand, storage_provider::StorageProviderCommand, system::SystemCommand,
 };
-use storagext::multipair::{DebugPair, MultiPairSigner};
-use subxt::ext::sp_core::{
+use sp_core::{
     ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair, sr25519::Pair as Sr25519Pair,
 };
+use storagext::multipair::{DebugPair, MultiPairSigner};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{
     filter::FromEnvError, fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer,

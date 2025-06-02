@@ -3,6 +3,9 @@ use std::time::Duration;
 use anyhow::bail;
 use clap::{ArgGroup, Subcommand};
 use primitives::DealId;
+use sp_core::{
+    ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair, sr25519::Pair as Sr25519Pair,
+};
 use storagext::{
     deser::DeserializablePath,
     multipair::{DebugPair, MultiPairSigner},
@@ -11,9 +14,6 @@ use storagext::{
         DealProposal as SxtDealProposal, OffchainDealParameters as SxtOffchainDealParameters,
     },
     MarketClientExt, PolkaStorageConfig,
-};
-use subxt::ext::sp_core::{
-    ecdsa::Pair as ECDSAPair, ed25519::Pair as Ed25519Pair, sr25519::Pair as Sr25519Pair,
 };
 use url::Url;
 

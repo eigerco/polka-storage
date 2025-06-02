@@ -21,7 +21,8 @@ libp2p.workspace = true
 primitives = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-subxt = { workspace = true, features = ["jsonrpsee", "substrate-compat"] }
+sp-core = { workspace = true }
+subxt = { workspace = true, features = ["jsonrpsee"] }
 subxt-signer = { workspace = true, features = ["subxt"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread"] }

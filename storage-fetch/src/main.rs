@@ -104,7 +104,9 @@ impl SubCommand {
 
                 // Get storage provider from the chain
                 let Some(storage_provider) = parachain_client
-                    .retrieve_storage_provider(&deal_info.provider.clone().into())
+                    .retrieve_storage_provider(&subxt_core::utils::AccountId32(
+                        deal_info.provider.into(),
+                    ))
                     .await?
                 else {
                     bail!("Storage provider not found on chain");

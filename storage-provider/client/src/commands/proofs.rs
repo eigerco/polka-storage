@@ -38,14 +38,13 @@ use primitives::{
 };
 use quote::format_ident;
 use serde_json::json;
-use storagext::multipair::{MultiPairArgs, MultiPairSigner};
-use subxt::{
-    ext::{
-        sp_core::{sr25519, Pair},
-        sp_runtime::AccountId32,
-    },
-    tx::{PairSigner, Signer},
+use sp_core::{sr25519, Pair};
+use sp_runtime::AccountId32;
+use storagext::{
+    multipair::{MultiPairArgs, MultiPairSigner},
+    pair_signer::PairSigner,
 };
+use subxt::tx::Signer;
 use tempfile::tempdir;
 
 use crate::CliError;

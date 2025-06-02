@@ -1,5 +1,6 @@
 pub mod clients;
 pub mod multipair;
+pub mod pair_signer;
 pub mod runtime;
 pub mod types;
 
@@ -30,9 +31,9 @@ pub enum PolkaStorageConfig {}
 // going up and down, in and out the files, this helps!
 impl subxt::Config for PolkaStorageConfig {
     type Hash = subxt::utils::H256;
-    type AccountId = subxt::ext::sp_core::crypto::AccountId32;
+    type AccountId = sp_core::crypto::AccountId32;
     type Address = subxt::config::polkadot::MultiAddress<Self::AccountId, u32>;
-    type Signature = subxt::ext::sp_runtime::MultiSignature;
+    type Signature = sp_runtime::MultiSignature;
     type Hasher = subxt::config::substrate::BlakeTwo256;
     type Header = subxt::config::substrate::SubstrateHeader<
         BlockNumber,

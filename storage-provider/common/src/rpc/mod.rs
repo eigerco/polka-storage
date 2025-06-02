@@ -9,11 +9,11 @@ use primitives::{
     DealId,
 };
 use serde::{Deserialize, Serialize};
+use sp_core::crypto::Ss58Codec;
 use storagext::types::market::{
     ClientDealProposal as SxtClientDealProposal, DealParameters as SxtDealParameters,
     DealProposal as SxtDealProposal,
 };
-use subxt::ext::sp_core::crypto::Ss58Codec;
 
 use crate::config::sealing::SealingConfiguration;
 pub use crate::rpc::error::RpcError;
