@@ -2,6 +2,8 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
 
+extern crate alloc;
+
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
@@ -9,12 +11,12 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarks;
 mod configs;
+mod genesis_config_presets;
+mod vrf;
 mod weights;
 
-extern crate alloc;
 use alloc::vec::Vec;
 
-use cumulus_pallet_parachain_system::{RelayChainStateProof, RelayStateProof, ValidationData};
 use frame_support::{
     genesis_builder_helper::{build_state, get_preset},
     weights::{
@@ -26,7 +28,7 @@ use pallet_aura::Authorities;
 use smallvec::smallvec;
 use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_core::{crypto::KeyTypeId, hex2array, Get, OpaqueMetadata};
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
@@ -75,9 +77,9 @@ pub type SignedBlock = generic::SignedBlock<Block>;
 /// BlockId type as expected by this runtime.
 pub type BlockId = generic::BlockId<Block>;
 
-/// The SignedExtension to the basic transaction logic.
+/// The extension to the basic transaction logic.
 #[docify::export(template_signed_extra)]
-pub type SignedExtra = (
+pub type TxExtension = (
     frame_system::CheckNonZeroSender<Runtime>,
     frame_system::CheckSpecVersion<Runtime>,
     frame_system::CheckTxVersion<Runtime>,
@@ -87,11 +89,18 @@ pub type SignedExtra = (
     frame_system::CheckWeight<Runtime>,
     pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
     cumulus_primitives_storage_weight_reclaim::StorageWeightReclaim<Runtime>,
+    frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 );
 
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic =
-    generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
+    generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, TxExtension>;
+
+/// All migrations of the runtime, aside from the ones declared in the pallets.
+///
+/// This can be a tuple of types, each implementing `OnRuntimeUpgrade`.
+#[allow(unused_parens)]
+type Migrations = ();
 
 /// Executive: handles dispatch to the various modules.
 pub type Executive = frame_executive::Executive<
@@ -100,6 +109,7 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
+    Migrations,
 >;
 
 /// Handles converting a weight scalar to a fee value, based on the scale and granularity of the
@@ -118,7 +128,7 @@ impl WeightToFeePolynomial for WeightToFee {
     fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
         // in Rococo, extrinsic base weight (smallest non-zero weight) is mapped to 1 MILLIUNIT:
         // in our template, we map to 1/10 of that, or 1/10 MILLIUNIT
-        let p = MILLIUNIT / 10;
+        let p = MILLI_UNIT / 10;
         let q = 100 * Balance::from(ExtrinsicBaseWeight::get().ref_time());
         smallvec![WeightToFeeCoefficient {
             degree: 1,
@@ -141,6 +151,7 @@ pub mod opaque {
     };
 
     use super::*;
+
     /// Opaque block header type.
     pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
     /// Opaque block type.
@@ -177,26 +188,26 @@ mod block_times {
     /// slot_duration()`.
     ///
     /// Change this to adjust the block time.
-    pub const MILLISECS_PER_BLOCK: u64 = 6000;
+    pub const MILLI_SECS_PER_BLOCK: u64 = 6000;
 
     // NOTE: Currently it is not possible to change the slot duration after the chain has started.
     // Attempting to do so will brick block production.
-    pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
+    pub const SLOT_DURATION: u64 = MILLI_SECS_PER_BLOCK;
 }
 pub use block_times::*;
 
 // Time is measured by number of blocks.
-pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
+pub const MINUTES: BlockNumber = 60_000 / (MILLI_SECS_PER_BLOCK as BlockNumber);
 pub const HOURS: BlockNumber = MINUTES * 60;
 pub const DAYS: BlockNumber = HOURS * 24;
 
 // Unit = the base number of indivisible units for balances
 pub const UNIT: Balance = 1_000_000_000_000;
-pub const MILLIUNIT: Balance = 1_000_000_000;
-pub const MICROUNIT: Balance = 1_000_000;
+pub const MILLI_UNIT: Balance = 1_000_000_000;
+pub const MICRO_UNIT: Balance = 1_000_000;
 
 /// The existential deposit. Set to 1/10 of the Connected Relay Chain.
-pub const EXISTENTIAL_DEPOSIT: Balance = MILLIUNIT;
+pub const EXISTENTIAL_DEPOSIT: Balance = MILLI_UNIT;
 
 /// We assume that ~5% of the block weight is consumed by `on_initialize` handlers. This is
 /// used to limit the maximal weight of a single extrinsic.
@@ -614,8 +625,8 @@ impl_runtime_apis! {
             config: frame_benchmarking::BenchmarkConfig
         ) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, alloc::string::String> {
             use frame_benchmarking::{BenchmarkError, Benchmarking, BenchmarkBatch};
-            use frame_system_benchmarking::Pallet as SystemBench;
 
+            use frame_system_benchmarking::Pallet as SystemBench;
             impl frame_system_benchmarking::Config for Runtime {
                 fn setup_set_code_requirements(code: &Vec<u8>) -> Result<(), BenchmarkError> {
                     ParachainSystem::initialize_for_set_code_benchmark(code.len() as u32);
@@ -652,58 +663,11 @@ impl_runtime_apis! {
         }
 
         fn get_preset(id: &Option<sp_genesis_builder::PresetId>) -> Option<Vec<u8>> {
-            get_preset::<RuntimeGenesisConfig>(id, |_| None)
+            get_preset::<RuntimeGenesisConfig>(id, genesis_config_presets::get_preset)
         }
 
         fn preset_names() -> Vec<sp_genesis_builder::PresetId> {
-            Default::default()
+            genesis_config_presets::preset_names()
         }
-    }
-}
-
-// The following code cannot be placed out of this crate because of WASM constraints
-
-/// Storage Key for BABE's [`AuthorVrfRandomness`][1] — taken from the Polkadot UI for Relay Chain's
-/// version 8 and `pallet-babe` version `28.0.0`.
-///
-/// For more information on fetching runtime storage values, see:
-/// * <https://docs.substrate.io/build/runtime-storage/#accessing-storage-items>
-///
-/// [1]: https://github.com/paritytech/polkadot-sdk/blob/5b04b4598cc7b2c8e817a6304c7cdfaf002c1fee/substrate/frame/babe/src/lib.rs#L268-L273
-const AUTHOR_VRF_STORAGE_KEY: [u8; 32] =
-    hex2array!("1cb6f36e027abb2091cfb5110ab5087fd077dfdb8adb10f78f10a5df8742c545");
-
-/// Only callable after `set_validation_data` is called which forms this proof the same way
-fn relay_chain_state_proof<Runtime>() -> RelayChainStateProof
-where
-    Runtime: cumulus_pallet_parachain_system::Config,
-{
-    let relay_storage_root = ValidationData::<Runtime>::get()
-        .expect("set in `set_validation_data`")
-        .relay_parent_storage_root;
-    let relay_chain_state =
-        RelayStateProof::<Runtime>::get().expect("set in `set_validation_data`");
-    RelayChainStateProof::new(ParachainInfo::get(), relay_storage_root, relay_chain_state)
-        .expect("Invalid relay chain state proof, already constructed in `set_validation_data`")
-}
-
-pub struct BabeDataGetter<Runtime>(sp_std::marker::PhantomData<Runtime>);
-impl<Runtime> pallet_randomness::GetAuthorVrf<Runtime::Hash> for BabeDataGetter<Runtime>
-where
-    Runtime: cumulus_pallet_parachain_system::Config,
-{
-    // Tolerate panic here because only ever called in inherent (so can be omitted)
-    fn get_author_vrf() -> Option<Runtime::Hash> {
-        if cfg!(feature = "runtime-benchmarks") {
-            // storage reads as per actual reads
-            let _relay_storage_root = ValidationData::<Runtime>::get();
-            let _relay_chain_state = RelayStateProof::<Runtime>::get();
-            return Some(Default::default());
-        }
-        relay_chain_state_proof::<Runtime>()
-            .read_optional_entry(&AUTHOR_VRF_STORAGE_KEY)
-            .ok()
-            .flatten()
-            .expect("expected to be able to read epoch index from relay chain state proof")
     }
 }

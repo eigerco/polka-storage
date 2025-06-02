@@ -18,6 +18,9 @@ targets = ["x86_64-unknown-linux-gnu"]
 [build-dependencies]
 substrate-wasm-builder = { workspace = true, optional = true }
 
+[dev-dependencies]
+sc-chain-spec = { workspace = true }
+
 [dependencies]
 # Local Pallets
 pallet-faucet = { workspace = true, default-features = false }
@@ -27,6 +30,7 @@ pallet-proofs = { workspace = true, default-features = false }
 pallet-randomness = { workspace = true, default-features = false }
 pallet-storage-provider = { workspace = true, default-features = false }
 pallet-storage-provider-benchmarks = { workspace = true, default-features = false, optional = true }
+polka-storage-proofs = { workspace = true, default-features = false }
 primitives = { workspace = true, default-features = false }
 
 codec = { workspace = true, default-features = false, features = ["chain-error", "derive"] }
@@ -34,11 +38,13 @@ docify = { workspace = true }
 hex-literal = { workspace = true, optional = true }
 log = { workspace = true }
 scale-info = { workspace = true, default-features = false, features = ["derive"] }
+serde_json = { workspace = true, default-features = false, features = ["alloc"] }
 smallvec = { workspace = true }
 
 # Substrate / FRAME
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
 frame-executive = { workspace = true, default-features = false }
+frame-metadata-hash-extension = { workspace = true, default-features = false }
 frame-support = { workspace = true, default-features = false }
 frame-system = { workspace = true, default-features = false }
 frame-system-benchmarking = { workspace = true, default-features = false, optional = true }
@@ -63,6 +69,7 @@ sp-consensus-aura = { workspace = true, default-features = false }
 sp-core = { workspace = true, default-features = false }
 sp-genesis-builder = { workspace = true, default-features = false }
 sp-inherents = { workspace = true, default-features = false }
+sp-keyring = { workspace = true, default-features = false }
 sp-offchain = { workspace = true, default-features = false }
 sp-runtime = { workspace = true, default-features = false }
 sp-session = { workspace = true, default-features = false }
@@ -140,6 +147,7 @@ std = [
   "sp-core/std",
   "sp-genesis-builder/std",
   "sp-inherents/std",
+  "sp-keyring/std",
   "sp-offchain/std",
   "sp-runtime/std",
   "sp-session/std",
@@ -214,3 +222,16 @@ try-runtime = [
   "polkadot-runtime-common/try-runtime",
   "sp-runtime/try-runtime",
 ]
+
+# Enable the metadata hash generation.
+#
+# This is hidden behind a feature because it increases the compile time.
+# The wasm binary needs to be compiled twice, once to fetch the metadata,
+# generate the metadata hash and then a second time with the
+# `RUNTIME_METADATA_HASH` environment variable set for the `CheckMetadataHash`
+# extension.
+metadata-hash = ["substrate-wasm-builder/metadata-hash"]
+
+# A convenience feature for enabling things when doing a build
+# for an on-chain release.
+on-chain-release-build = ["metadata-hash"]
