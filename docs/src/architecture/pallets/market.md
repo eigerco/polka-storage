@@ -102,7 +102,6 @@ _This step corresponds to the "sign & send proposal" step in the [deal overview]
 | `start_block`             | Block number on which the deal should start                         | Positive integer                                                         |
 | `end_block`               | Block number on which the deal should end                           | Positive integer, `end_block > start_block`                              |
 | `storage_price_per_block` | Price for the storage specified per block[^storage_price_per_block] | Positive integer, in [Plancks](../../glossary.md#planck)                 |
-| `provider_collateral`     | Collateral which is slashed if the deal fails                       | Positive integer, in [Plancks](../../glossary.md#planck)                 |
 | `state`                   | Deal state. Can only be set to `Published`                          | String                                                                   |
 
 See the [original Filecoin specification](https://spec.filecoin.io/#section-systems.filecoin_markets.onchain_storage_market.storage_deal_flow) for details.
@@ -130,7 +129,6 @@ Where `deals.json` is a file with contents similar to:
     "start_block": 69,
     "end_block": 420,
     "storage_price_per_block": 15,
-    "provider_collateral": 2000,
     "state": "Published"
   },
   {
@@ -142,7 +140,6 @@ Where `deals.json` is a file with contents similar to:
     "start_block": 1010,
     "end_block": 1997,
     "storage_price_per_block": 1,
-    "provider_collateral": 3900,
     "state": "Published"
   }
 ]

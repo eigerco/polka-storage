@@ -54,7 +54,6 @@ pub struct DealProposal {
     pub start_block: BlockNumber,
     pub end_block: BlockNumber,
     pub storage_price_per_block: Currency,
-    pub provider_collateral: Currency,
     pub state: RuntimeDealState<BlockNumber>,
 }
 
@@ -65,6 +64,11 @@ impl DealProposal {
         let deal_duration = self.end_block - self.start_block;
         // Cast is save because it's to a bigger int size
         self.storage_price_per_block * (deal_duration as u128)
+    }
+
+    // Collateral required by the provider
+    pub fn provider_collateral(&self) -> Currency {
+        self.cost() + self.cost()
     }
 }
 
@@ -81,7 +85,6 @@ impl From<DealProposal>
             start_block: value.start_block,
             end_block: value.end_block,
             storage_price_per_block: value.storage_price_per_block,
-            provider_collateral: value.provider_collateral,
             state: value.state,
         }
     }
@@ -108,7 +111,6 @@ impl TryFrom<RuntimeDealProposal<subxt::ext::subxt_core::utils::AccountId32, Cur
             start_block: value.start_block,
             end_block: value.end_block,
             storage_price_per_block: value.storage_price_per_block,
-            provider_collateral: value.provider_collateral,
             state: value.state,
         })
     }

@@ -25,8 +25,8 @@ impl std::fmt::Display for DealState<u64> {
 impl std::fmt::Display for DealProposal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "Deal Proposal {{ piece_cid: {}, piece_size: {}, provider: {}, client: {}, label: {}, start_block: {}, end_block: {}, storage_price_per_block: {}, provider_collateral: {}, state: {} }}",
-            self.piece_cid, self.piece_size, self.provider, self.client, self.label, self.start_block, self.end_block, self.storage_price_per_block, self.provider_collateral, self.state
+            "Deal Proposal {{ piece_cid: {}, piece_size: {}, provider: {}, client: {}, label: {}, start_block: {}, end_block: {}, storage_price_per_block: {}, state: {} }}",
+            self.piece_cid, self.piece_size, self.provider, self.client, self.label, self.start_block, self.end_block, self.storage_price_per_block, self.state
         ))
     }
 }

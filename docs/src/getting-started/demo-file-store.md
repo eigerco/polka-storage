@@ -47,7 +47,6 @@ Alice fills out the deal form according to a JSON template (`polka-logo-deal.jso
   "start_block": 200,
   "end_block": 250,
   "storage_price_per_block": 500,
-  "provider_collateral": 1000100200,
   "state": "Published"
 }
 ```
@@ -62,7 +61,6 @@ Alice fills out the deal form according to a JSON template (`polka-logo-deal.jso
 - `start_block` — is the deal's start block, it MUST be positive and lower than `end_block`.
 - `end_block` — is the deal's end block, it must be positive and larger than `start_block`.
 - `storage_price_per_block` — the storage price over the duration of a single block — e.g. if your deal is 20 blocks long, it will cost `20 * storage_price_per_block` in total.
-- `provider_collateral` — the price to pay _by the storage provider_ if they fail to uphold the deal.
 - `state` — the deal state, only `Published` is accepted.
 
 <div class="warning">
@@ -126,7 +124,6 @@ $ polka-storage-provider-client sign-deal --sr25519-key "//Alice" @polka-logo-de
     "start_block": 200,
     "end_block": 250,
     "storage_price_per_block": 500,
-    "provider_collateral": 1000100200,
     "state": "Published"
   },
   "client_signature": {

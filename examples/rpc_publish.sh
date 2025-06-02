@@ -73,7 +73,7 @@ echo '{ "minimum_price_per_block": 200, "deal_duration": { "lower": 50, "upper":
 # It's a test setup based on the local verifying keys, everyone can run those extrinsics currently.
 # Each of the keys is different, because the processes are running in parallel.
 # If they were running in parallel on the same account, they'd conflict with each other on the transaction nonce.
-target/release/storagext-cli --sr25519-key "//Charlie" storage-provider register "$PEER_ID" 
+target/release/storagext-cli --sr25519-key "//Charlie" storage-provider register "$PEER_ID"
 
 wait
 
@@ -95,7 +95,6 @@ DEAL_JSON=$(
         "start_block": 200,
         "end_block": 250,
         "storage_price_per_block": 500,
-        "provider_collateral": 1250,
         "state": "Published"
     }'
 )

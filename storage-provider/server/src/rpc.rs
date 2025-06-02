@@ -256,7 +256,7 @@ impl StorageProviderRpcServer for RpcServerState {
             .await?
             .ok_or_else(|| RpcError::internal_error("Storage Provider not found", None))?;
 
-        if storage_provider_balance.free < deal.provider_collateral {
+        if storage_provider_balance.free < deal.provider_collateral() {
             return Err(RpcError::invalid_params(
                 "storage provider balance is lower than the deal's collateral",
                 None,
