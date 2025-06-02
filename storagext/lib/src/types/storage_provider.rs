@@ -461,7 +461,6 @@ mod tests {
             "start_block": 30,
             "end_block": 55,
             "storage_price_per_block": 1,
-            "provider_collateral": 1,
             "state": "Published"
         }
         "#;
@@ -484,7 +483,6 @@ mod tests {
             start_block: 30,
             end_block: 55,
             storage_price_per_block: 1,
-            provider_collateral: 1,
             state: RuntimeDealState::Published,
         };
 

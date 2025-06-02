@@ -266,7 +266,6 @@ async fn real_world_use_case() {
         start_block: 85,
         end_block: sector_end_block,
         storage_price_per_block: 300_000_000,
-        provider_collateral: 12_500_000_000,
         state: DealState::Published,
     };
     let deal_id = publish_storage_deals(&client, &charlie_kp, &alice_kp, deal.clone()).await;

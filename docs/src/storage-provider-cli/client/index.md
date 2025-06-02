@@ -41,7 +41,6 @@ $ DEAL_TO_PROPOSE='{
     "start_block": 200,
     "end_block": 250,
     "storage_price_per_block": 500,
-    "provider_collateral": 1250,
     "state": "Published"
 }'
 # when we omit the `--rpc-server-address` it defaults to "http://127.0.0.1:8000"
@@ -65,7 +64,6 @@ $ DEAL_TO_SIGN='{
     "start_block": 200,
     "end_block": 250,
     "storage_price_per_block": 500,
-    "provider_collateral": 1250,
     "state": "Published"
 }'
 $ polka-storage-provider-client sign-deal --sr25519-key "//Charlie" "$DEAL_TO_SIGN"
@@ -79,7 +77,6 @@ $ polka-storage-provider-client sign-deal --sr25519-key "//Charlie" "$DEAL_TO_SI
     "start_block": 200,
     "end_block": 250,
     "storage_price_per_block": 500,
-    "provider_collateral": 1250,
     "state": "Published"
   },
   "client_signature": {
@@ -104,7 +101,6 @@ $ SIGNED_DEAL='{
     "start_block": 200,
     "end_block": 250,
     "storage_price_per_block": 500,
-    "provider_collateral": 1250,
     "state": "Published"
   },
   "client_signature": {
@@ -130,7 +126,6 @@ $ polka-storage-provider-client retrieve-deal 0
   "start_block": 200,
   "end_block": 250,
   "storage_price_per_block": 500,
-  "provider_collateral": 1250,
   "state": "Published"
 }
 ```

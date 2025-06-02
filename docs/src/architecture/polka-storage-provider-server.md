@@ -45,7 +45,6 @@ The JSON-RPC endpoint exposes the following methods:
       "start_block": 200,
       "end_block": 250,
       "storage_price_per_block": 500,
-      "provider_collateral": 1250,
       "state": "Published"
     }
   ]
@@ -71,7 +70,6 @@ The JSON-RPC endpoint exposes the following methods:
         "start_block": 100000,
         "end_block": 100050,
         "storage_price_per_block": 500,
-        "provider_collateral": 1250,
         "state": "Published"
       },
       "client_signature": {

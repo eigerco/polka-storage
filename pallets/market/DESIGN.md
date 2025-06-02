@@ -1,4 +1,4 @@
-# Market Pallet 
+# Market Pallet
 
 ## Overview
 
@@ -56,16 +56,12 @@ struct DealProposal<Address, Balance, BlockNumber> {
     start_block: BlockNumber,
     /// When the Deal is supposed to end.
     end_block: BlockNumber,
-    /// `Deal` can be terminated early, by `on_sectors_terminate`. 
+    /// `Deal` can be terminated early, by `on_sectors_terminate`.
     /// Before that, a Storage Provider can payout it's earned fees by calling `on_settle_deal_payments`.
-    /// `on_settle_deal_payments` must know how much money it can payout, so it's related to the number of blocks (time) it was stored. 
+    /// `on_settle_deal_payments` must know how much money it can payout, so it's related to the number of blocks (time) it was stored.
     /// Reference <https://spec.filecoin.io/#section-systems.filecoin_markets.onchain_storage_market.storage_deal_states>
     storage_price_per_block: Balance,
 
-    /// Amount of Balance (DOTs) Storage Provider stakes as Collateral for storing given `piece_cid`
-    /// There should be enough Balance added by `add_balance` by Storage Provider to cover it.
-    /// When the Deal fails/is terminated to early, this is the amount which get slashed.
-    provider_collateral: Balance,
     /// Current [`DealState`].
     /// It goes: `Unpublished` -> `Published` -> `Active`
     state: DealState<BlockNumber>,
@@ -90,7 +86,7 @@ struct BalanceEntry<Currency> {
     locked: Currency,
 }
 
-/// After Storage Client has successfully negotiated with the Storage Provider, they prepare a DealProposal, 
+/// After Storage Client has successfully negotiated with the Storage Provider, they prepare a DealProposal,
 /// sign it with their signature and send to the Storage Provider.
 /// Storage Provider only after successful file transfer and verification of the data, calls an extrinsic `market.publish_storage_deals`.
 /// The extrinsic call is signed by the Storage Provider and Storage Client's signature is in the message.
@@ -112,20 +108,20 @@ struct SectorDeal<BlockNumber> {
 
 1. Storage Client and Storage Provider negotiate a deal off-chain.
 2. Storage Client calls `market.add_balance(amount: BalanceOf<T>)` to make sure it has enough funds in the market to cover the deal.
-    - amount is added to the `Market Pallet Account Id`, the AccountId is derived from PalletId.
+   - amount is added to the `Market Pallet Account Id`, the AccountId is derived from PalletId.
 3. Storage Provider calls `market.add_balance(amount: BalanceOf<T>)` to make sure it has enough funds to cover the deal collateral.
 4. In between now and a call by Storage Provider to `market.publish_storage_deals(deals: Vec<DealProposal>)`, any party can call `market.withdraw_balance(amount: BalanceOf<T>)`.
 5. Storage Provider calls `market.publish_storage_deals(deals: Vec<DealProposal>)`
-    - funds are locked in BalanceTable
-    - deals are now Published, if the Storage Provider does activate them within a timeframe, they're slashed.
+   - funds are locked in BalanceTable
+   - deals are now Published, if the Storage Provider does activate them within a timeframe, they're slashed.
 6. Storage Provider seals the sector.
 7. Storage Provider calls `market.activate_deals(sectors: Vec<SectorDeals>)`.
 8. Storage Provider can call `market.settle_deal_payments(deals: Vec<DealId>)` to receive funds periodically, for the storage per blocks elapsed.
-    - the gas processing fees are on SP, so they call it as frequently as they want
-    - anyone can call this method, the caller is paying for the gas, so usually it's only in Storage Provider interest to do that
+   - the gas processing fees are on SP, so they call it as frequently as they want
+   - anyone can call this method, the caller is paying for the gas, so usually it's only in Storage Provider interest to do that
 9. Storage Provider calls `market.on_sector_terminate(block: BlockNumber, sectors: Vec<SectorNumber>)` to notify market that the sectors no longer exist.
-    - if storage was terminated to early, slash the SP, return the funds to the client
-    - else, just clean-up data structures used for deals
+   - if storage was terminated to early, slash the SP, return the funds to the client
+   - else, just clean-up data structures used for deals
 10. In the meantime, on each block authored, a Hook is executed that checks whether the `Published` deal have been activated. If they were supposed to be activated, but were not, Storage Provider is slashed and client refunded.
 
 [1]: ../../docs/glossary.md#storage-user

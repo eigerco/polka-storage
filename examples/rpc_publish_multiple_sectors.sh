@@ -45,7 +45,6 @@ do
             "start_block": $start_block,
             "end_block": 250,
             "storage_price_per_block": 500,
-            "provider_collateral": 1250,
             "state": "Published"
         }'
     )
