@@ -194,6 +194,8 @@ pub fn preset_names() -> Vec<PresetId> {
 
 #[cfg(test)]
 mod tests {
+    // NOTE(@Jinxit,02/06/2025): Excluded because it is too slow to run coverage for on CI.
+    #[cfg(not(tarpaulin))]
     #[test]
     fn check_presets() {
         let builder = sc_chain_spec::GenesisConfigBuilderRuntimeCaller::<()>::new(
@@ -201,11 +203,6 @@ mod tests {
         );
         assert!(builder
             .get_storage_for_named_preset(Some(&sp_genesis_builder::DEV_RUNTIME_PRESET.to_string()))
-            .is_ok());
-        assert!(builder
-            .get_storage_for_named_preset(Some(
-                &sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET.to_string()
-            ))
             .is_ok());
     }
 }

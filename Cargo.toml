@@ -292,6 +292,7 @@ parachains-common = { git = "https://github.com/paritytech/polkadot-sdk", tag = 
 
 [workspace.lints.rust]
 suspicious_double_ref_op = { level = "allow", priority = 2 }
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(tarpaulin)'] }
 
 [workspace.lints.clippy]
 all = { level = "allow", priority = 0 }
