@@ -8,6 +8,7 @@ use primitives::{
     proofs::{RegisteredPoStProof, RegisteredSealProof},
     sector::SectorNumber,
 };
+use sp_core::sr25519::Pair as Sr25519Pair;
 use storagext::{
     multipair::MultiPairSigner,
     runtime::runtime_types::primitives::deals::deal_state::DealState,
@@ -17,7 +18,7 @@ use storagext::{
     },
     MarketClientExt, PolkaStorageConfig, StorageProviderClientExt, SystemClientExt,
 };
-use subxt::ext::sp_core::sr25519::Pair as Sr25519Pair;
+use subxt::utils::AccountId32;
 use tempfile::tempdir;
 use tokio::sync::Semaphore;
 use tokio_util::sync::CancellationToken;
@@ -47,7 +48,10 @@ async fn register_storage_provider<Keypair>(
     {
         let event = event.unwrap();
 
-        assert_eq!(event.owner, charlie.account_id().clone().into());
+        assert_eq!(
+            event.owner,
+            AccountId32(charlie.account_id().clone().into())
+        );
         assert_eq!(event.info.sector_size, post_proof.sector_size());
         assert_eq!(event.info.window_post_proof_type, post_proof,);
         assert_eq!(
@@ -57,9 +61,7 @@ async fn register_storage_provider<Keypair>(
     }
 
     let retrieved_peer_info = client
-        .retrieve_storage_provider(&subxt::utils::AccountId32::from(
-            charlie.account_id().clone(),
-        ))
+        .retrieve_storage_provider(&AccountId32(charlie.account_id().clone().into()))
         .await
         .unwrap()
         // this last unwrap ensures there's something there
@@ -92,11 +94,11 @@ async fn settle_deal_payments<Keypair>(
         assert_eq!(event.successful.0[0].amount, 24_000_000_000);
         assert_eq!(
             event.successful.0[0].provider,
-            charlie.account_id().clone().into()
+            AccountId32(charlie.account_id().clone().into())
         );
         assert_eq!(
             event.successful.0[0].client,
-            alice.account_id().clone().into()
+            AccountId32(alice.account_id().clone().into())
         );
     }
 }
@@ -126,9 +128,15 @@ where
         let event = event.unwrap();
         tracing::debug!(?event);
 
-        assert_eq!(event.provider, charlie.account_id().clone().into());
+        assert_eq!(
+            event.provider,
+            AccountId32(charlie.account_id().clone().into())
+        );
         assert_eq!(event.deals.0.len(), 1);
-        assert_eq!(event.deals.0[0].client, alice.account_id().clone().into());
+        assert_eq!(
+            event.deals.0[0].client,
+            AccountId32(alice.account_id().clone().into())
+        );
         assert_eq!(event.deals.0[0].deal_id, 0); // first deal ever
 
         return event.deals.0[0].deal_id;
@@ -157,7 +165,10 @@ where
         .find::<storagext::runtime::storage_provider::events::FaultsRecovered>()
     {
         let event = event.unwrap();
-        assert_eq!(event.owner, charlie.account_id().clone().into());
+        assert_eq!(
+            event.owner,
+            AccountId32(charlie.account_id().clone().into())
+        );
         assert_eq!(event.recoveries.0, recovery_declarations);
     }
 }
@@ -182,7 +193,10 @@ where
         .find::<storagext::runtime::storage_provider::events::FaultsDeclared>()
     {
         let event = event.unwrap();
-        assert_eq!(event.owner, charlie.account_id().clone().into());
+        assert_eq!(
+            event.owner,
+            AccountId32(charlie.account_id().clone().into())
+        );
         assert_eq!(event.faults.0, fault_declarations);
     }
 }

@@ -1,7 +1,8 @@
 use std::future::Future;
 
 use primitives::DealId;
-use subxt::{ext::sp_core::crypto::Ss58Codec, utils::Static};
+use sp_core::crypto::Ss58Codec;
+use subxt::utils::Static;
 
 use crate::{
     runtime::{
@@ -23,7 +24,7 @@ type SpecializedRuntimeClientDealProposal = RuntimeClientDealProposal<
     subxt::ext::subxt_core::utils::AccountId32,
     Currency,
     BlockNumber,
-    Static<subxt::ext::sp_runtime::MultiSignature>,
+    Static<sp_runtime::MultiSignature>,
 >;
 
 type SpecializedRuntimeDealParameters = RuntimeDealParameters<Currency, BlockNumber>;
@@ -365,7 +366,7 @@ impl MarketClientExt for crate::runtime::client::Client {
     ) -> Result<Option<SpecializedRuntimeDealParameters>, subxt::Error> {
         let deal_parameter_query = runtime::storage()
             .market()
-            .sp_deal_parameters(subxt::utils::AccountId32::from(account_id));
+            .sp_deal_parameters(subxt::utils::AccountId32(account_id.into()));
 
         self.client
             .storage()
@@ -423,7 +424,7 @@ impl MarketClientExt for crate::runtime::client::Client {
     ) -> Result<Option<BalanceEntry<u128>>, subxt::Error> {
         let balance_table_query = runtime::storage()
             .market()
-            .balance_table(subxt::utils::AccountId32::from(account_id));
+            .balance_table(subxt::utils::AccountId32(account_id.into()));
         self.client
             .storage()
             .at_latest()

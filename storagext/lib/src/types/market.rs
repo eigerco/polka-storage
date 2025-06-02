@@ -1,7 +1,8 @@
 use cid::Cid;
 use codec::Encode;
 use sha2::Digest;
-use subxt::{ext::sp_runtime::MultiSignature, tx::Signer, utils::Static};
+use sp_runtime::MultiSignature;
+use subxt::{tx::Signer, utils::Static};
 
 use crate::{
     runtime::{
@@ -79,8 +80,8 @@ impl From<DealProposal>
         Self {
             piece_cid: value.piece_cid.into_bounded_byte_vec(),
             piece_size: value.piece_size,
-            client: value.client.into(),
-            provider: value.provider.into(),
+            client: subxt::ext::subxt_core::utils::AccountId32(value.client.into()),
+            provider: subxt::ext::subxt_core::utils::AccountId32(value.provider.into()),
             label: value.label.into_bounded_byte_vec(),
             start_block: value.start_block,
             end_block: value.end_block,
@@ -181,7 +182,7 @@ pub struct ClientDealProposal {
 
     /// The signature of the [`DealProposal`].
     #[serde(alias = "signature")]
-    pub client_signature: subxt::ext::sp_runtime::MultiSignature,
+    pub client_signature: sp_runtime::MultiSignature,
 }
 
 impl From<ClientDealProposal>
@@ -189,7 +190,7 @@ impl From<ClientDealProposal>
         subxt::ext::subxt_core::utils::AccountId32,
         Currency,
         BlockNumber,
-        Static<subxt::ext::sp_runtime::MultiSignature>,
+        Static<sp_runtime::MultiSignature>,
     >
 {
     fn from(value: ClientDealProposal) -> Self {

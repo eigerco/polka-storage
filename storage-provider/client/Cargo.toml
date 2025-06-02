@@ -33,6 +33,8 @@ quote = { workspace = true }
 sc-cli = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+sp-core = { workspace = true }
+sp-runtime = { workspace = true }
 subxt = { workspace = true }
 tempfile = { workspace = true }
 thiserror = { workspace = true }

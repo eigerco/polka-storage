@@ -23,7 +23,7 @@ impl FaucetClientExt for crate::runtime::client::Client {
     ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error> {
         let payload = runtime::tx()
             .faucet()
-            .drip(subxt::utils::AccountId32::from(account_id));
+            .drip(subxt::utils::AccountId32(account_id.into()));
 
         self.unsigned(&payload, wait_for_finalization).await
     }

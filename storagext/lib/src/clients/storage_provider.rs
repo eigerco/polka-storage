@@ -3,10 +3,8 @@ use std::future::Future;
 use libp2p::PeerId as P2PPeerId;
 use primitives::proofs::RegisteredPoStProof;
 use runtime::runtime_types::bounded_collections::bounded_vec::BoundedVec;
-use subxt::{
-    ext::{futures::TryStreamExt, sp_core::crypto::Ss58Codec},
-    utils::AccountId32,
-};
+use sp_core::crypto::Ss58Codec;
+use subxt::{ext::futures::TryStreamExt, utils::AccountId32};
 
 use crate::{
     runtime::{

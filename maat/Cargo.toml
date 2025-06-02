@@ -34,8 +34,10 @@ polka-storage-provider-common = { workspace = true }
 primitives = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["std"] }
+sp-core = { workspace = true }
+sp-runtime = { workspace = true }
 storagext = { workspace = true }
-subxt = { workspace = true, features = ["substrate-compat"] }
+subxt = { workspace = true }
 tempfile = { workspace = true }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }

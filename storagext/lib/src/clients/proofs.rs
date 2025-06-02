@@ -1,6 +1,6 @@
 use futures::Future;
 use primitives::proofs::{RegisteredPoStProof, RegisteredSealProof};
-use subxt::ext::sp_core::crypto::Ss58Codec;
+use sp_core::crypto::Ss58Codec;
 
 use crate::{
     runtime::{self, SubmissionResult},

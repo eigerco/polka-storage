@@ -35,7 +35,7 @@ pub struct Client {
     pub(crate) legacy_rpc: LegacyRpcMethods<PolkaStorageConfig>,
     // Not great since there's still a contention point here,
     // but without something that "locks rows", we can't improve much
-    last_sent_nonces: Mutex<HashMap<subxt::ext::sp_core::crypto::AccountId32, u64>>,
+    last_sent_nonces: Mutex<HashMap<sp_core::crypto::AccountId32, u64>>,
 }
 
 impl Client {

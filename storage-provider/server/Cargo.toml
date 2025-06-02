@@ -41,6 +41,7 @@ rocksdb = { workspace = true }
 sc-cli = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+sp-runtime = { workspace = true }
 subxt = { workspace = true }
 tempfile = { workspace = true }
 thiserror = { workspace = true }
