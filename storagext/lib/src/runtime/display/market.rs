@@ -11,9 +11,10 @@ use crate::{
         },
     },
     types::market::DealProposal,
+    BlockNumber,
 };
 
-impl std::fmt::Display for DealState<u64> {
+impl std::fmt::Display for DealState<BlockNumber> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             DealState::Published => f.write_str("Published"),

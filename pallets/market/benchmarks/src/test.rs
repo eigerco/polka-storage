@@ -10,6 +10,7 @@ use frame_support::{
     traits::{Currency, Hooks},
     BoundedVec,
 };
+use frame_system::pallet_prelude::BlockNumberFor;
 use pallet_market::{
     deal_parameters::{OffchainDealDurationBound, OffchainDealParameters},
     error::DealSettlementError,
@@ -28,7 +29,10 @@ use primitives::{
 };
 use sp_core::{Pair, H256};
 use sp_keystore::{testing::MemoryKeystore, KeystoreExt};
-use sp_runtime::{traits::IdentifyAccount, AccountId32, BuildStorage, MultiSignature, MultiSigner};
+use sp_runtime::{
+    traits::IdentifyAccount, AccountId32, BuildStorage, MultiSignature, MultiSigner,
+    SaturatedConversion,
+};
 
 pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 
@@ -100,7 +104,7 @@ pub fn events() -> Vec<RuntimeEvent> {
 /// Run until a particular block.
 ///
 /// Stolen't from: <https://github.com/paritytech/polkadot-sdk/blob/7df94a469e02e1d553bd4050b0e91870d6a4c31b/substrate/frame/lottery/src/mock.rs#L87-L98>
-pub fn run_to_block(n: u64) {
+pub fn run_to_block(n: BlockNumberFor<Test>) {
     while System::block_number() < n {
         if System::block_number() > 1 {
             StorageProvider::on_finalize(System::block_number());
@@ -444,7 +448,9 @@ fn publish_storage_deals_fails_max_duration_out_of_bounds() {
         register_storage_provider(account::<Test>(PROVIDER));
         let proposal = DealProposalBuilder::<Test>::default()
             .start_block(100)
-            .end_block(100 + <<Test as Config>::MaxDealDuration as Get<u64>>::get() + 1)
+            .end_block(
+                100 + <<Test as Config>::MaxDealDuration as Get<BlockNumberFor<Test>>>::get() + 1,
+            )
             .signed(ALICE);
 
         assert_noop!(
@@ -465,7 +471,9 @@ fn publish_storage_deals_fails_start_time_expired() {
 
         let proposal = DealProposalBuilder::<Test>::default()
             .start_block(100)
-            .end_block(100 + <<Test as Config>::MaxDealDuration as Get<u64>>::get() + 1)
+            .end_block(
+                100 + <<Test as Config>::MaxDealDuration as Get<BlockNumberFor<Test>>>::get() + 1,
+            )
             .signed(ALICE);
 
         assert_noop!(
@@ -629,13 +637,14 @@ fn publish_storage_deals_fails_not_within_deal_parameters() {
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 90);
         let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 90);
         // Default price = 5, default duration = 10
-        let deal_params: OffchainDealParameters<u64, u64> = OffchainDealParameters {
-            minimum_price_per_block: 10,
-            deal_duration: OffchainDealDurationBound {
-                lower: Some(3),  // Chain minimum = 2
-                upper: Some(29), // Chain maximum = 30
-            },
-        };
+        let deal_params: OffchainDealParameters<u64, BlockNumberFor<Test>> =
+            OffchainDealParameters {
+                minimum_price_per_block: 10,
+                deal_duration: OffchainDealDurationBound {
+                    lower: Some(3),  // Chain minimum = 2
+                    upper: Some(29), // Chain maximum = 30
+                },
+            };
         assert_ok!(Market::publish_deal_parameters(
             RuntimeOrigin::signed(account::<Test>(PROVIDER)),
             deal_params
@@ -750,13 +759,14 @@ fn publish_storage_deals() {
 fn publish_storage_deals_with_deal_params() {
     new_test_ext().execute_with(|| {
         register_storage_provider(account::<Test>(PROVIDER));
-        let deal_params: OffchainDealParameters<u64, u64> = OffchainDealParameters {
-            minimum_price_per_block: 4,
-            deal_duration: OffchainDealDurationBound {
-                lower: None,
-                upper: None,
-            },
-        };
+        let deal_params: OffchainDealParameters<u64, BlockNumberFor<Test>> =
+            OffchainDealParameters {
+                minimum_price_per_block: 4,
+                deal_duration: OffchainDealDurationBound {
+                    lower: None,
+                    upper: None,
+                },
+            };
         // Publish deal params
         assert_ok!(Market::publish_deal_parameters(
             RuntimeOrigin::signed(account::<Test>(PROVIDER)),
@@ -1932,18 +1942,19 @@ fn publish_deal_parameters() {
         let storage_provider = account::<Test>(PROVIDER);
         register_storage_provider(storage_provider.clone());
 
-        let offchain_deal_params: OffchainDealParameters<u64, u64> = OffchainDealParameters {
-            minimum_price_per_block: 1_000,
-            deal_duration: OffchainDealDurationBound {
-                lower: Some(3),  // Chain minimum = 2
-                upper: Some(29), // Chain maximum = 30
-            },
-        };
+        let offchain_deal_params: OffchainDealParameters<u64, BlockNumberFor<Test>> =
+            OffchainDealParameters {
+                minimum_price_per_block: 1_000,
+                deal_duration: OffchainDealDurationBound {
+                    lower: Some(3),  // Chain minimum = 2
+                    upper: Some(29), // Chain maximum = 30
+                },
+            };
         let deal_params = offchain_deal_params
             .clone()
             .validate(
                 <Test as MarketProvider>::min_deal_duration(),
-                <<Test as Config>::MaxDealDuration as Get<u64>>::get(),
+                <<Test as Config>::MaxDealDuration as Get<BlockNumberFor<Test>>>::get(),
             )
             .expect("Seamless conversion");
 
@@ -1969,19 +1980,20 @@ fn publish_deal_parameters() {
         );
 
         // Re-insert different deal parameters
-        let offchain_deal_params_2: OffchainDealParameters<u64, u64> = OffchainDealParameters {
-            minimum_price_per_block: 10_000,
-            deal_duration: OffchainDealDurationBound {
-                lower: Some(4),  // Chain minimum = 2
-                upper: Some(28), // Chain maximum = 30
-            },
-        };
+        let offchain_deal_params_2: OffchainDealParameters<u64, BlockNumberFor<Test>> =
+            OffchainDealParameters {
+                minimum_price_per_block: 10_000,
+                deal_duration: OffchainDealDurationBound {
+                    lower: Some(4),  // Chain minimum = 2
+                    upper: Some(28), // Chain maximum = 30
+                },
+            };
 
         let deal_params_2 = offchain_deal_params_2
             .clone()
             .validate(
                 <Test as MarketProvider>::min_deal_duration(),
-                <<Test as Config>::MaxDealDuration as Get<u64>>::get(),
+                <<Test as Config>::MaxDealDuration as Get<BlockNumberFor<Test>>>::get(),
             )
             .expect("Seamless conversion");
 
@@ -2014,18 +2026,19 @@ fn remove_deal_parameters() {
         let storage_provider = account::<Test>(PROVIDER);
         register_storage_provider(storage_provider.clone());
 
-        let offchain_deal_params: OffchainDealParameters<u64, u64> = OffchainDealParameters {
-            minimum_price_per_block: 1_000,
-            deal_duration: OffchainDealDurationBound {
-                lower: Some(3),  // Chain minimum = 2
-                upper: Some(29), // Chain maximum = 30
-            },
-        };
+        let offchain_deal_params: OffchainDealParameters<u64, BlockNumberFor<Test>> =
+            OffchainDealParameters {
+                minimum_price_per_block: 1_000,
+                deal_duration: OffchainDealDurationBound {
+                    lower: Some(3),  // Chain minimum = 2
+                    upper: Some(29), // Chain maximum = 30
+                },
+            };
         let deal_params = offchain_deal_params
             .clone()
             .validate(
                 <Test as MarketProvider>::min_deal_duration(),
-                <<Test as Config>::MaxDealDuration as Get<u64>>::get(),
+                <<Test as Config>::MaxDealDuration as Get<BlockNumberFor<Test>>>::get(),
             )
             .expect("Seamless conversion");
 
@@ -2071,13 +2084,13 @@ fn remove_deal_parameters() {
 /// Builder with nice defaults for test purposes.
 struct SectorDealBuilder {
     sector_number: SectorNumber,
-    sector_expiry: u64,
+    sector_expiry: BlockNumberFor<Test>,
     sector_type: RegisteredSealProof,
     deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
 }
 
 impl SectorDealBuilder {
-    pub fn sector_expiry(mut self, sector_expiry: u64) -> Self {
+    pub fn sector_expiry(mut self, sector_expiry: BlockNumberFor<Test>) -> Self {
         self.sector_expiry = sector_expiry;
         self
     }
@@ -2095,8 +2108,8 @@ impl SectorDealBuilder {
         self
     }
 
-    pub fn build(self) -> SectorDeal<u64> {
-        SectorDeal::<u64> {
+    pub fn build(self) -> SectorDeal<BlockNumberFor<Test>> {
+        SectorDeal::<BlockNumberFor<Test>> {
             sector_number: self.sector_number,
             sector_expiry: self.sector_expiry,
             sector_type: self.sector_type,
@@ -2124,10 +2137,10 @@ pub struct DealProposalBuilder<T: frame_system::Config> {
     client: AccountIdOf<T>,
     provider: AccountIdOf<T>,
     label: BoundedVec<u8, ConstU32<128>>,
-    start_block: u64,
-    end_block: u64,
+    start_block: BlockNumberFor<T>,
+    end_block: BlockNumberFor<T>,
     storage_price_per_block: u64,
-    state: DealState<u64>,
+    state: DealState<BlockNumberFor<T>>,
 }
 
 impl<T: frame_system::Config<AccountId = AccountId32>> Default for DealProposalBuilder<T> {
@@ -2144,8 +2157,8 @@ impl<T: frame_system::Config<AccountId = AccountId32>> Default for DealProposalB
             client: account::<Test>(ALICE),
             provider: account::<Test>(PROVIDER),
             label: bounded_vec![0xb, 0xe, 0xe, 0xf],
-            start_block: 100,
-            end_block: 110,
+            start_block: 100u32.saturated_into::<BlockNumberFor<T>>(),
+            end_block: 110u32.saturated_into::<BlockNumberFor<T>>(),
             storage_price_per_block: 5,
             state: DealState::Published,
         }
@@ -2163,17 +2176,17 @@ impl<T: frame_system::Config<AccountId = AccountId32>> DealProposalBuilder<T> {
         self
     }
 
-    pub fn state(mut self, state: DealState<u64>) -> Self {
+    pub fn state(mut self, state: DealState<BlockNumberFor<T>>) -> Self {
         self.state = state;
         self
     }
 
-    pub fn start_block(mut self, start_block: u64) -> Self {
+    pub fn start_block(mut self, start_block: BlockNumberFor<T>) -> Self {
         self.start_block = start_block;
         self
     }
 
-    pub fn end_block(mut self, end_block: u64) -> Self {
+    pub fn end_block(mut self, end_block: BlockNumberFor<T>) -> Self {
         self.end_block = end_block;
         self
     }
@@ -2187,7 +2200,9 @@ impl<T: frame_system::Config<AccountId = AccountId32>> DealProposalBuilder<T> {
         self.piece_size = piece_size;
         self
     }
+}
 
+impl DealProposalBuilder<Test> {
     pub fn unsigned(self) -> DealProposalOf<Test> {
         DealProposalOf::<Test> {
             piece_cid: self.piece_cid,
