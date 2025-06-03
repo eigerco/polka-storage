@@ -116,8 +116,8 @@ parameter_types! {
     pub const AddressedSectorsMax: u64 = 25_000;
 
     // Market Pallet
-    pub const MinDealDuration: u64 = 5 * MINUTES;
-    pub const MaxDealDuration: u64 = 180 * MINUTES;
+    pub const MinDealDuration: BlockNumber = 5 * MINUTES;
+    pub const MaxDealDuration: BlockNumber = 180 * MINUTES;
 
     pub const PreCommitChallengeDelay: BlockNumber = 10;
     pub const MarketPalletId: PalletId = PalletId(*b"spMarket");

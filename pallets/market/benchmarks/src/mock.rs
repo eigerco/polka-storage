@@ -72,8 +72,8 @@ impl pallet_balances::Config for Test {
 // cargo t -p pallet-market -F runtime-benchmarks -- bench
 #[cfg(not(feature = "runtime-benchmarks"))]
 parameter_types! {
-    pub const MinDealDuration: u64 = 2;
-    pub const MaxDealDuration: u64 = 30;
+    pub const MinDealDuration: BlockNumber = 2;
+    pub const MaxDealDuration: BlockNumber = 30;
     // 0 allows us to publish the prove-commit on the same block as the
     // pre-commit.
     pub const PreCommitChallengeDelay: BlockNumber = 0;
@@ -83,8 +83,8 @@ parameter_types! {
 parameter_types! {
     // NOTE: Changed from Testnet's 0 to 10 to match the storage-provider client's `porep` command.
     pub const PreCommitChallengeDelay: BlockNumber = 10;
-    pub const MinDealDuration: u64 = 5 * MINUTES;
-    pub const MaxDealDuration: u64 = 180 * MINUTES;
+    pub const MinDealDuration: BlockNumber = 5 * MINUTES;
+    pub const MaxDealDuration: BlockNumber = 180 * MINUTES;
 }
 
 impl pallet_market::Config for Test {
