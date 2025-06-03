@@ -20,7 +20,7 @@ pub use crate::{
 pub type Currency = u128;
 
 /// BlockNumber as specified by the SCALE-encoded runtime.
-pub type BlockNumber = u64;
+pub type BlockNumber = u32;
 
 /// Parachain configuration for subxt.
 #[derive(Debug, Clone)]

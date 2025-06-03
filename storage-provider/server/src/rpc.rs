@@ -28,7 +28,7 @@ use crate::{
     pipeline::types::{AddPieceMessage, PipelineMessage},
 };
 
-pub const SECS_PER_BLOCK: u64 = 6;
+pub const SECS_PER_BLOCK: u32 = 6;
 
 /// RPC server shared state.
 pub struct RpcServerState {
@@ -75,7 +75,8 @@ impl RpcServerState {
             .server_info
             .sealing_configuration
             .pre_commit_submission_slack
-            .as_secs()
+            // SAFETY: u32::MAX is ~134 years, which is a useless slack
+            .as_secs() as u32
             / SECS_PER_BLOCK;
         // NOTE(@jmg-duarte,12/02/2025): we could consider the deal size when doing this,
         // if a deal is going to fill up a single sector, we could let it through as long as

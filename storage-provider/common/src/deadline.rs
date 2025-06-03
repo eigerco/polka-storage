@@ -16,7 +16,7 @@ use primitives::{
 use storagext::{
     runtime::runtime_types::primitives::pallets::DeadlineInfo,
     types::storage_provider::{PartitionState, PoStProof, SubmitWindowedPoStParams},
-    RandomnessClientExt, StorageProviderClientExt, SystemClientExt,
+    BlockNumber, RandomnessClientExt, StorageProviderClientExt, SystemClientExt,
 };
 use subxt::{ext::codec::Encode, tx::Signer};
 use tokio::task::JoinError;
@@ -60,7 +60,7 @@ impl Deadline {
         &self,
         xt_client: Arc<storagext::Client>,
         xt_keypair: &storagext::multipair::MultiPairSigner,
-    ) -> Result<DeadlineInfo<u64>, DeadlineError> {
+    ) -> Result<DeadlineInfo<BlockNumber>, DeadlineError> {
         tracing::info!("Getting deadline info for {} deadline", self.deadline_index);
 
         let account_id = subxt::utils::AccountId32(xt_keypair.account_id().into());
@@ -136,7 +136,7 @@ impl Deadline {
         let randomness = draw_randomness(
             &digest,
             DomainSeparationTag::WindowedPoStChallengeSeed,
-            deadline.challenge_block,
+            deadline.challenge_block.into(),
             &entropy,
         );
 
@@ -188,7 +188,7 @@ impl Deadline {
         &self,
         xt_client: Arc<storagext::Client>,
         xt_keypair: &storagext::multipair::MultiPairSigner,
-        deadline: DeadlineInfo<u64>,
+        deadline: DeadlineInfo<BlockNumber>,
         partitions: Vec<(PartitionNumber, PartitionState)>,
         prover_id: [u8; 32],
         randomness: [u8; 32],

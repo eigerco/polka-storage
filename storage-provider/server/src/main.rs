@@ -44,7 +44,7 @@ use storagext::{
         bounded_collections::bounded_vec::BoundedVec,
         pallet_storage_provider::storage_provider::StorageProviderState,
     },
-    MarketClientExt, StorageProviderClientExt,
+    BlockNumber, MarketClientExt, StorageProviderClientExt,
 };
 use subxt::{self, tx::Signer};
 use tokio::{
@@ -609,7 +609,7 @@ impl Server {
     ) -> Result<
         (
             storagext::Client,
-            StorageProviderState<BoundedVec<u8>, u128, u64>,
+            StorageProviderState<BoundedVec<u8>, u128, BlockNumber>,
         ),
         ServerError,
     > {
