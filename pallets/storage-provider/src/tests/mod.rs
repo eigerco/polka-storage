@@ -45,10 +45,11 @@ mod storage_provider_registration;
 mod submit_windowed_post;
 mod terminate_sectors;
 
-pub type SectorPreCommitInfoBuilder = primitives::sector::builder::SectorPreCommitInfoBuilder<u64>;
-
 type Block = frame_system::mocking::MockBlock<Test>;
-type BlockNumber = u64;
+type BlockNumber = BlockNumberFor<Test>;
+
+pub type SectorPreCommitInfoBuilder =
+    primitives::sector::builder::SectorPreCommitInfoBuilder<BlockNumber>;
 
 const MINUTES: BlockNumber = 1;
 
@@ -267,7 +268,7 @@ fn account(name: &str) -> AccountIdOf<Test> {
 /// Run until a particular block.
 ///
 /// Stolen't from: <https://github.com/paritytech/polkadot-sdk/blob/7df94a469e02e1d553bd4050b0e91870d6a4c31b/substrate/frame/lottery/src/mock.rs#L87-L98>
-pub fn run_to_block(n: u64) {
+pub fn run_to_block(n: BlockNumber) {
     while System::block_number() < n {
         if System::block_number() > 1 {
             StorageProvider::on_finalize(System::block_number());

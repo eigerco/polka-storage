@@ -228,11 +228,13 @@ where
 #[cfg(test)]
 mod tests {
     use frame_support::BoundedVec;
+    use frame_system::pallet_prelude::BlockNumberFor;
     use primitives::{proofs::RegisteredSealProof, sector::SectorNumber};
 
     use crate::{
         deadline::{assign_deadlines, Deadline},
         sector::SectorOnChainInfo,
+        tests::Test,
     };
 
     impl Default for SectorOnChainInfo<u64> {
@@ -405,7 +407,7 @@ mod tests {
         ];
 
         for (nth_tc, tc) in test_cases.iter().enumerate() {
-            let deadlines: Vec<Option<Deadline<u64>>> = tc
+            let deadlines: Vec<Option<Deadline<BlockNumberFor<Test>>>> = tc
                 .deadlines
                 .iter()
                 .cloned()
@@ -418,7 +420,7 @@ mod tests {
                 })
                 .collect();
 
-            let sectors: Vec<SectorOnChainInfo<u64>> = (0..tc.sectors)
+            let sectors: Vec<SectorOnChainInfo<BlockNumberFor<Test>>> = (0..tc.sectors)
                 .map(|s| SectorNumber::try_from(s).unwrap())
                 .map(|i| SectorOnChainInfo {
                     sector_number: i,

@@ -546,9 +546,14 @@ struct SectorExpirationSet {
 mod tests {
     extern crate alloc;
 
+    use frame_system::pallet_prelude::BlockNumberFor;
     use primitives::{sector::SectorNumber, MAX_SECTORS};
 
-    use crate::{expiration_queue::ExpirationQueue, sector::SectorOnChainInfo, tests::sector_set};
+    use crate::{
+        expiration_queue::ExpirationQueue,
+        sector::SectorOnChainInfo,
+        tests::{sector_set, Test},
+    };
 
     #[test]
     fn remove_sectors() {
@@ -561,7 +566,7 @@ mod tests {
             8, // run to block 8 so sector 1 and 4 are on time and sector 5 and 6 are early
             &sectors()[1..]
                 .iter()
-                .collect::<Vec<&SectorOnChainInfo<u64>>>(),
+                .collect::<Vec<&SectorOnChainInfo<BlockNumberFor<Test>>>>(),
         )
         .unwrap();
 
@@ -587,7 +592,7 @@ mod tests {
         assert_eq!(removed.early_sectors, expected_early_sectors);
     }
 
-    fn sectors() -> [SectorOnChainInfo<u64>; 6] {
+    fn sectors() -> [SectorOnChainInfo<BlockNumberFor<Test>>; 6] {
         [
             test_sector(2, 1),
             test_sector(3, 2),
@@ -598,7 +603,10 @@ mod tests {
         ]
     }
 
-    fn test_sector(expiration: u64, sector_number: u32) -> SectorOnChainInfo<u64> {
+    fn test_sector(
+        expiration: BlockNumberFor<Test>,
+        sector_number: u32,
+    ) -> SectorOnChainInfo<BlockNumberFor<Test>> {
         SectorOnChainInfo {
             expiration,
             sector_number: SectorNumber::new(sector_number).unwrap(),

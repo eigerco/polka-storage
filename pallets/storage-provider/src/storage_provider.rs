@@ -76,7 +76,7 @@ where
     /// * <https://spec.filecoin.io/#section-algorithms.pos.post.design>
     pub deadlines: Deadlines<BlockNumber>,
 
-    /// Deadlines with outstanding fees for early sector termination.
+    /// Deadline indexes with outstanding fees for early sector termination.
     pub early_terminations: BTreeSet<u64>,
 }
 

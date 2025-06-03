@@ -576,11 +576,12 @@ mod tests {
     extern crate alloc;
 
     use alloc::collections::BTreeMap;
+    use frame_system::pallet_prelude::BlockNumberFor;
 
     use super::*;
-    use crate::tests::sector_set;
+    use crate::tests::{sector_set, Test};
 
-    fn sectors() -> Vec<SectorOnChainInfo<u64>> {
+    fn sectors() -> Vec<SectorOnChainInfo<BlockNumberFor<Test>>> {
         vec![
             test_sector(2, 1),
             test_sector(3, 2),
@@ -591,7 +592,10 @@ mod tests {
         ]
     }
 
-    fn test_sector(expiration: u64, sector_number: u32) -> SectorOnChainInfo<u64> {
+    fn test_sector(
+        expiration: BlockNumberFor<Test>,
+        sector_number: u32,
+    ) -> SectorOnChainInfo<BlockNumberFor<Test>> {
         SectorOnChainInfo {
             expiration,
             sector_number: SectorNumber::try_from(sector_number).unwrap(),
@@ -601,8 +605,7 @@ mod tests {
 
     #[test]
     fn add_sectors() -> Result<(), GeneralPalletError> {
-        // Set up partition, using `u64` for block number because it is not relevant to this test.
-        let mut partition: Partition<u64> = Partition::new();
+        let mut partition: Partition<BlockNumberFor<Test>> = Partition::new();
         // Add some sectors
         let sectors_to_add = sectors();
 
@@ -623,8 +626,7 @@ mod tests {
 
     #[test]
     fn live_sectors() -> Result<(), GeneralPalletError> {
-        // Set up partition, using `u64` for block number because it is not relevant to this test.
-        let mut partition: Partition<u64> = Partition::new();
+        let mut partition: Partition<BlockNumberFor<Test>> = Partition::new();
 
         let sectors_to_add = sectors();
         // Add some sectors
@@ -662,8 +664,7 @@ mod tests {
 
     #[test]
     fn terminate_sectors() -> Result<(), GeneralPalletError> {
-        // Set up partition, using `u64` for block number because it is not relevant to this test.
-        let mut partition: Partition<u64> = Partition::new();
+        let mut partition: Partition<BlockNumberFor<Test>> = Partition::new();
         let all_sectors = sectors();
 
         // Add sectors
@@ -673,7 +674,7 @@ mod tests {
             all_sectors
                 .iter()
                 .map(|s| (s.sector_number, s.clone()))
-                .collect::<BTreeMap<SectorNumber, SectorOnChainInfo<u64>>>(),
+                .collect::<BTreeMap<SectorNumber, SectorOnChainInfo<BlockNumberFor<Test>>>>(),
         )
         .unwrap();
         // fault sector 3, 4, 5 and 6
@@ -714,8 +715,7 @@ mod tests {
 
     #[test]
     fn terminate_sectors_fail_sector_not_live() -> Result<(), GeneralPalletError> {
-        // Set up partition, using `u64` for block number because it is not relevant to this test.
-        let mut partition: Partition<u64> = Partition::new();
+        let mut partition: Partition<BlockNumberFor<Test>> = Partition::new();
 
         // Terminate a sector that is not live
         let result = partition.terminate_sectors(
@@ -735,9 +735,8 @@ mod tests {
 
     #[test]
     fn pop_early_terminations_till_max_sectors() -> Result<(), GeneralPalletError> {
-        // Set up partition, using `u64` for block number because it is not relevant to this test.
         let max_sectors = 1;
-        let mut partition: Partition<u64> = Partition::new();
+        let mut partition: Partition<BlockNumberFor<Test>> = Partition::new();
         let sectors = sectors();
         let sector_map = sectors
             .iter()
@@ -816,8 +815,7 @@ mod tests {
 
     #[test]
     fn pop_early_terminations() -> Result<(), GeneralPalletError> {
-        // Set up partition, using `u64` for block number because it is not relevant to this test.
-        let mut partition: Partition<u64> = Partition::new();
+        let mut partition: Partition<BlockNumberFor<Test>> = Partition::new();
         let sectors = sectors();
         let sector_map = sectors
             .iter()
@@ -876,15 +874,14 @@ mod tests {
 
     #[test]
     fn pop_expired_sectors() -> Result<(), GeneralPalletError> {
-        // Set up partition, using `u64` for block number because it is not relevant to this test.
-        let mut partition: Partition<u64> = Partition::new();
+        let mut partition: Partition<BlockNumberFor<Test>> = Partition::new();
         // Add some sectors
         let sectors_to_add = sectors();
         let all_sectors = sectors_to_add
             .iter()
             .cloned()
             .map(|s| (s.sector_number, s))
-            .collect::<BTreeMap<SectorNumber, SectorOnChainInfo<u64>>>()
+            .collect::<BTreeMap<SectorNumber, SectorOnChainInfo<BlockNumberFor<Test>>>>()
             .try_into()
             .unwrap();
 
