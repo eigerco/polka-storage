@@ -98,9 +98,8 @@ mod tests {
     use frame_system::pallet_prelude::BlockNumberFor;
     use rstest::rstest;
 
-    use crate::tests::Test;
-
     use super::calculate_first_proving_period_start;
+    use crate::tests::Test;
 
     // Adding +120 since it's always one full proving period ahead
     #[rstest]
