@@ -134,8 +134,8 @@ parameter_types! {
 
     // Market Pallet
     pub const MarketPalletId: PalletId = PalletId(*b"spMarket");
-    pub const MinDealDuration: u64 = 2 * MINUTES;
-    pub const MaxDealDuration: u64 = 30 * MINUTES;
+    pub const MinDealDuration: BlockNumber = 2 * MINUTES;
+    pub const MaxDealDuration: BlockNumber = 30 * MINUTES;
 }
 
 /// Randomness generator used by tests.
