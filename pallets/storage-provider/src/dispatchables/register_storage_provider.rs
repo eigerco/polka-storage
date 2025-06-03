@@ -95,9 +95,11 @@ where
 
 #[cfg(test)]
 mod tests {
+    use frame_system::pallet_prelude::BlockNumberFor;
     use rstest::rstest;
 
     use super::calculate_first_proving_period_start;
+    use crate::tests::Test;
 
     // Adding +120 since it's always one full proving period ahead
     #[rstest]
@@ -111,12 +113,16 @@ mod tests {
     #[case(124, 20, 120 + 140)]
     #[case(20, 5, 120 + 5)]
     fn calculate_proving_period(
-        #[case] current_block: u64,
-        #[case] offset: u64,
-        #[case] expected_start: u64,
+        #[case] current_block: BlockNumberFor<Test>,
+        #[case] offset: BlockNumberFor<Test>,
+        #[case] expected_start: BlockNumberFor<Test>,
     ) {
         assert_eq!(
-            calculate_first_proving_period_start::<u64>(current_block, offset, 120),
+            calculate_first_proving_period_start::<BlockNumberFor<Test>>(
+                current_block,
+                offset,
+                120
+            ),
             expected_start
         );
     }
