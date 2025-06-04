@@ -35,7 +35,7 @@ const EXISTENTIAL_DEPOSIT: u32 = 1_000_000_000;
             AccountId = AccountId32,
             OffchainSignature = sp_runtime::MultiSignature,
         >,
-        BlockNumberFor<T>: From<u64> + Into<u64> + Add,
+        BlockNumberFor<T>: From<u32> + Into<u32> + Add,
         BalanceOf<T>: Sum + From<u32> + Encode,
         <T as pallet_market::Config>::RuntimeEvent: Debug,
 )]
