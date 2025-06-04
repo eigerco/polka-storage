@@ -3,6 +3,7 @@ use scale_decode::DecodeAsType;
 use scale_encode::EncodeAsType;
 use scale_info::TypeInfo;
 use sp_core::{blake2_256, blake2_64};
+use sp_runtime::SaturatedConversion;
 
 use crate::{commitment::RawCommitment, sector::SectorSize};
 
@@ -261,7 +262,12 @@ where
 {
     // Encode address and current block number
     let mut addr = addr.encode();
-    let mut block_num = current_block.encode();
+    // This logic is dependent on the type of BlockNumber, it was previously u64
+    // when changing back to u32 it changes the way we calculate the proving period offset since
+    // u32=4 bytes and u64=8 bytes, breaking the benchmarks (given their hardcoded nature)
+    // We're keeping this as tech debt for now, but either way, the proving period offset
+    // probably shouldn't depend on the BlockNumber type but rather be fixed to either u32/u64
+    let mut block_num = (current_block.saturated_into::<u64>()).encode();
     // Concatenate the encoded block number to the encoded address.
     addr.append(&mut block_num);
     // Hash the address and current block number for a pseudo-random offset.
