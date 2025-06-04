@@ -113,7 +113,7 @@ pub trait StorageProviderClientExt {
 
     fn proving_period_info(&self) -> Result<ProvingPeriodInfo, subxt::Error>;
 
-    fn sector_expiration_bounds(&self) -> Result<(u64, u64), subxt::Error>;
+    fn sector_expiration_bounds(&self) -> Result<(BlockNumber, BlockNumber), subxt::Error>;
 }
 
 pub struct ProvingPeriodInfo {
@@ -371,7 +371,7 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
         Ok(ProvingPeriodInfo { deadlines })
     }
 
-    fn sector_expiration_bounds(&self) -> Result<(u64, u64), subxt::Error> {
+    fn sector_expiration_bounds(&self) -> Result<(BlockNumber, BlockNumber), subxt::Error> {
         let min_sect_exp_addr = runtime::ConstantsApi
             .storage_provider()
             .min_sector_expiration();
