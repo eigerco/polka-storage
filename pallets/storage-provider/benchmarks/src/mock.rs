@@ -12,7 +12,7 @@ use sp_runtime::{
 };
 
 type Block = frame_system::mocking::MockBlock<Test>;
-type BlockNumber = u64;
+type BlockNumber = BlockNumberFor<Test>;
 
 const MILLISECS_PER_BLOCK: u64 = 6000;
 const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);

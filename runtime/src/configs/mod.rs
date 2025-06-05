@@ -251,8 +251,8 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 }
 
 parameter_types! {
-    pub const Period: u64 = 6 * HOURS;
-    pub const Offset: u64 = 0;
+    pub const Period: u32 = 6 * HOURS;
+    pub const Offset: u32 = 0;
 }
 
 impl pallet_session::Config for Runtime {

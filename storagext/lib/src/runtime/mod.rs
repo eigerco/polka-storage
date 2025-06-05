@@ -73,7 +73,7 @@ pub mod display;
         derive = "::serde::Serialize"
     ),
     derive_for_type(
-        path = "bounded_collections::bounded_btree_map::BoundedBTreeMap",
+        path = "bounded_collections::bounded_btree_map::BoundedBTreeMap1",
         derive = "::serde::Serialize"
     ),
     derive_for_type(

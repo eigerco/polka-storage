@@ -1,5 +1,5 @@
 use frame_support::{derive_impl, parameter_types, traits::Hooks};
-use frame_system::{self as system};
+use frame_system::{self as system, pallet_prelude::BlockNumberFor};
 use sp_core::Pair;
 use sp_runtime::{
     traits::{IdentifyAccount, IdentityLookup, Verify},
@@ -11,7 +11,7 @@ use crate::{self as pallet_faucet, BalanceOf};
 pub const ALICE: &'static str = "//Alice";
 
 type Block = frame_system::mocking::MockBlock<Test>;
-type BlockNumber = u64;
+type BlockNumber = BlockNumberFor<Test>;
 
 frame_support::construct_runtime!(
     pub enum Test {
