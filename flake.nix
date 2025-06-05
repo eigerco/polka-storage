@@ -28,33 +28,30 @@
         else
           pkgs.polkadot;
 
-        buildInputs = with pkgs;
-          [
-            subxt
-            wget
-            git
-            cargo-tarpaulin
-            clang
-            just
-            mdbook
-            mdbook-linkcheck
-            openssl
-            pkg-config
-            rustToolchain
-            taplo
-            jq
-            customPolkadot
-            # Due to polkadot's flake.nix, needs to be prefixed with pkgs.zombienet
-            pkgs.zombienet
-            # rust-fil-proofs OpenCL dependencies (https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/README.md?plain=1#L74)
-            ocl-icd
-            hwloc
-          ] ++ (lib.optionals stdenv.isDarwin [
-            darwin.apple_sdk.frameworks.Security
-            darwin.apple_sdk.frameworks.CoreServices
-            darwin.apple_sdk.frameworks.SystemConfiguration
-            darwin.apple_sdk.frameworks.OpenCL
-          ]);
+        buildInputs = with pkgs; [
+          subxt
+          chain-spec-builder
+          polkadot-omni-chain-node
+          customPolkadot
+          # Due to polkadot's flake.nix, needs to be prefixed with pkgs.zombienet
+          pkgs.zombienet
+
+          wget
+          git
+          cargo-tarpaulin
+          clang
+          just
+          mdbook
+          mdbook-linkcheck
+          openssl
+          pkg-config
+          rustToolchain
+          taplo
+          jq
+          # rust-fil-proofs OpenCL dependencies (https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/README.md?plain=1#L74)
+          ocl-icd
+          hwloc
+        ];
       in with pkgs; {
         devShells.default = mkShell {
           inherit buildInputs;
