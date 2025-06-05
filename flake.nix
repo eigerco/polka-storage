@@ -29,12 +29,12 @@
           pkgs.polkadot;
 
         buildInputs = with pkgs; [
-          subxt
-          chain-spec-builder
-          polkadot-omni-chain-node
           customPolkadot
           # Due to polkadot's flake.nix, needs to be prefixed with pkgs.zombienet
           pkgs.zombienet
+          pkgs.subxt-cli
+          pkgs.polkadot-omni-node
+          pkgs.chain-spec-builder
 
           wget
           git
