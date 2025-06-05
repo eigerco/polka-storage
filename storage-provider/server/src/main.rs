@@ -168,9 +168,6 @@ pub enum ServerError {
     #[error("URL parse error: {0}")]
     ParseUrl(#[from] url::ParseError),
 
-    #[error(transparent)]
-    SubstrateCli(#[from] sc_cli::Error),
-
     #[error("Error occurred while working with a car file: {0}")]
     Mater(#[from] mater::Error),
 
