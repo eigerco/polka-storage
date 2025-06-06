@@ -23,6 +23,7 @@ members = [
   "primitives",
   "primitives-p2p",
   "runtime",
+  "storage-bootstrap",
   "storage-fetch",
   "storage-provider/client",
   "storage-provider/common",

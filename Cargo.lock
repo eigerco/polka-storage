@@ -13920,6 +13920,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "polka-storage-bootstrap"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "libp2p 0.54.1",
+ "libp2p-length-prefix-codec",
+ "primitives-p2p",
+ "thiserror 2.0.8",
+ "tokio",
+ "tracing",
+ "tracing-subscriber 0.3.19",
+]
+
+[[package]]
 name = "polka-storage-node"
 version = "0.0.0"
 dependencies = [
