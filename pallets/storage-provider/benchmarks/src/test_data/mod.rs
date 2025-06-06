@@ -1,13 +1,20 @@
 extern crate alloc;
 
+use codec::Encode;
+use primitives::deals::ClientDealProposal;
 use sp_core::sr25519;
 use sp_io::crypto::{sr25519_generate, sr25519_sign};
 use sp_runtime::{traits::IdentifyAccount, AccountId32, MultiSignature, MultiSigner};
 
+use crate::benchmarking::{ClientDealProposalOf, DealProposalOf};
+
 pub mod absolute_block_number;
+pub mod benchmark_data;
 pub mod deal_timeline;
 pub mod relative_block_number;
+mod sector_data;
 pub mod sector_timeline;
+mod storage_provider_data;
 
 pub fn generate_benchmark_account<T>(name: &'static str) -> (AccountId32, MultiSigner)
 where
@@ -25,6 +32,17 @@ where
     );
 
     (account_id, signer)
+}
+
+pub fn sign_proposal<T>(pubkey: MultiSigner, proposal: DealProposalOf<T>) -> ClientDealProposalOf<T>
+where
+    T: pallet_storage_provider::Config,
+{
+    let client_signature = create_sr25519_signature(&Encode::encode(&proposal), pubkey);
+    ClientDealProposal {
+        proposal,
+        client_signature,
+    }
 }
 
 pub fn create_sr25519_signature(payload: &[u8], pubkey: MultiSigner) -> MultiSignature {

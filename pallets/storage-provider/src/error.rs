@@ -1,5 +1,6 @@
 use codec::{Decode, Encode};
 use frame_support::{pallet_prelude::RuntimeDebug, PalletError};
+use primitives::commitment::{piece::PaddedPieceSizeError, CommitmentError};
 use scale_info::TypeInfo;
 
 #[derive(Decode, Encode, PalletError, TypeInfo, RuntimeDebug, PartialEq)]
@@ -69,4 +70,20 @@ pub enum GeneralPalletError {
     ExpirationQueueErrorSectorNotFound,
     /// Insertion failed
     ExpirationQueueErrorInsertionFailed,
+}
+
+// TODO: Implement TypeInfo for inner error so we can store them here.
+// For now logging will the error will do
+#[derive(TypeInfo, Encode, Decode, Clone, PartialEq, thiserror::Error)]
+pub enum CommDError {
+    #[error("CommDError for commitment {0}")]
+    CommitmentError(CommitmentError),
+    #[error("CommDError for piece size {0}")]
+    PaddedPieceSizeError(PaddedPieceSizeError),
+}
+
+impl core::fmt::Debug for CommDError {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        core::fmt::Display::fmt(self, f)
+    }
 }

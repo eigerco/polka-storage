@@ -12,7 +12,9 @@ use storagext::{
     deser::DeserializablePath,
     multipair::{MultiPairArgs, MultiPairSigner},
     runtime::storage_provider::calls::types::register_storage_provider::WindowPostProofType,
-    types::market::{ClientDealProposal as SxtClientDealProposal, DealProposal as SxtDealProposal},
+    types::storage_provider::{
+        ClientDealProposal as SxtClientDealProposal, DealProposal as SxtDealProposal,
+    },
 };
 use url::Url;
 

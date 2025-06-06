@@ -2,7 +2,7 @@ use cid::Cid;
 use codec::{Codec, Decode, Encode};
 use scale_info::TypeInfo;
 use sp_core::{ConstU32, RuntimeDebug};
-use sp_runtime::{BoundedBTreeMap, BoundedBTreeSet, BoundedVec, DispatchError, DispatchResult};
+use sp_runtime::{BoundedBTreeMap, BoundedBTreeSet, BoundedVec, DispatchResult};
 
 use crate::{
     commitment::RawCommitment,
@@ -12,11 +12,6 @@ use crate::{
     MAX_POREP_PROOFS_PER_BLOCK, MAX_POST_PROOFS_PER_BLOCK, MAX_POST_PROOF_BYTES,
     MAX_REPLICAS_PER_BLOCK, MAX_SEAL_PROOF_BYTES, MAX_SECTORS,
 };
-
-pub trait StorageProviderValidation<AccountId> {
-    /// Checks that the storage provider is registered.
-    fn is_registered_storage_provider(storage_provider: &AccountId) -> bool;
-}
 
 /// Entrypoint for proof verification implemented by Pallet Proofs.
 pub trait ProofVerification {
@@ -46,50 +41,6 @@ pub trait ProofVerification {
             BoundedVec<u8, ConstU32<MAX_POST_PROOF_BYTES>>,
             ConstU32<MAX_POST_PROOFS_PER_BLOCK>,
         >,
-    ) -> DispatchResult;
-}
-
-/// Represents functions that are provided by the Market Provider Pallet
-pub trait Market<AccountId, BlockNumber, Balance> {
-    /// Locks funds for pre-commit purposes.
-    fn lock_pre_commit_funds(who: &AccountId, amount: Balance) -> DispatchResult;
-
-    /// Unlocks funds for pre-commit purposes.
-    fn unlock_pre_commit_funds(who: &AccountId, amount: Balance) -> DispatchResult;
-
-    /// Slashes funds locked for pre-commit purposes.
-    fn slash_pre_commit_funds(who: &AccountId, amount: Balance) -> DispatchResult;
-
-    /// Verifies a given set of storage deals is valid for sectors being PreCommitted.
-    /// Computes UnsealedCID (CommD) for each sector or None for Committed Capacity sectors.
-    fn verify_deals_for_activation(
-        storage_provider: &AccountId,
-        sector_deals: BoundedVec<SectorDeal<BlockNumber>, ConstU32<MAX_DEALS_PER_SECTOR>>,
-    ) -> Result<BoundedVec<Option<Cid>, ConstU32<MAX_DEALS_PER_SECTOR>>, DispatchError>;
-
-    /// Activate a set of deals grouped by sector, returning the size and
-    /// extra info about verified deals.
-    /// Sectors' deals are activated in parameter-defined order.
-    /// Each sector's deals are activated or fail as a group, but independently of other sectors.
-    /// Note that confirming all deals fit within a sector is the caller's responsibility
-    /// (and is implied by confirming the sector's data commitment is derived from the deal pieces).
-    fn activate_deals(
-        storage_provider: &AccountId,
-        sector_deals: BoundedVec<SectorDeal<BlockNumber>, ConstU32<MAX_DEALS_PER_SECTOR>>,
-        compute_cid: bool,
-    ) -> Result<BoundedVec<ActiveSector<AccountId>, ConstU32<MAX_DEALS_PER_SECTOR>>, DispatchError>;
-
-    /// Terminate a set of deals in response to their sector being terminated.
-    ///
-    /// Slashes the provider collateral, refunds the partial unpaid escrow amount to the client.
-    ///
-    /// A sector can be terminated voluntarily — the storage provider terminates the sector —
-    /// or involuntarily — the sector has been faulty for more than 42 consecutive days.
-    ///
-    /// Source: <https://github.com/filecoin-project/builtin-actors/blob/54236ae89880bf4aa89b0dba6d9060c3fd2aacee/actors/market/src/lib.rs#L786-L876>
-    fn on_sectors_terminate(
-        storage_provider: &AccountId,
-        sectors: BoundedVec<SectorNumber, ConstU32<MAX_DEALS_PER_SECTOR>>,
     ) -> DispatchResult;
 }
 

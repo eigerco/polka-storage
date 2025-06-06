@@ -3,10 +3,9 @@ use frame_support::{
     traits::{Currency, ExistenceRequirement::KeepAlive},
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-use primitives::configs::BalanceOf;
 use sp_runtime::{traits::CheckedAdd, ArithmeticError};
 
-use crate::{BalanceTable, Config, Event, Pallet};
+use crate::{BalanceOf, BalanceTable, Config, Event, Pallet};
 
 pub fn add_balance<T>(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult
 where

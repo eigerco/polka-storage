@@ -10,10 +10,10 @@ use storagext::{
     deser::DeserializablePath,
     multipair::{DebugPair, MultiPairSigner},
     runtime::SubmissionResult,
-    types::market::{
+    types::storage_provider::{
         DealProposal as SxtDealProposal, OffchainDealParameters as SxtOffchainDealParameters,
     },
-    MarketClientExt, PolkaStorageConfig,
+    PolkaStorageConfig, StorageProviderClientExt,
 };
 use url::Url;
 
@@ -200,7 +200,7 @@ impl MarketCommand {
         wait_for_finalization: bool,
     ) -> Result<(), anyhow::Error>
     where
-        Client: MarketClientExt,
+        Client: StorageProviderClientExt,
     {
         operation_takes_a_while(wait_for_finalization);
 
@@ -271,7 +271,7 @@ impl MarketCommand {
                 event.map(|details| details.as_root_event::<storagext::runtime::Event>())
             })
             .filter_map(|event| match event {
-                Ok(storagext::runtime::Event::Market(e)) => Some(Ok(e)),
+                Ok(storagext::runtime::Event::StorageProvider(e)) => Some(Ok(e)),
                 Err(err) => Some(Err(err)),
                 _ => None,
             });
@@ -293,7 +293,7 @@ impl MarketCommand {
         wait_for_finalization: bool,
     ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
-        Client: MarketClientExt,
+        Client: StorageProviderClientExt,
     {
         let submission_result = client
             .add_balance(&account_keypair, amount, wait_for_finalization)
@@ -317,7 +317,7 @@ impl MarketCommand {
         wait_for_finalization: bool,
     ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
-        Client: MarketClientExt,
+        Client: StorageProviderClientExt,
     {
         let submission_result = client
             .publish_storage_deals(
@@ -341,7 +341,7 @@ impl MarketCommand {
         wait_for_finalization: bool,
     ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
-        Client: MarketClientExt,
+        Client: StorageProviderClientExt,
     {
         let submission_result = client
             .settle_deal_payments(&account_keypair, deal_ids, wait_for_finalization)
@@ -360,7 +360,7 @@ impl MarketCommand {
         wait_for_finalization: bool,
     ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
-        Client: MarketClientExt,
+        Client: StorageProviderClientExt,
     {
         let submission_result = client
             .withdraw_balance(&account_keypair, amount, wait_for_finalization)
@@ -383,7 +383,7 @@ impl MarketCommand {
         wait_for_finalization: bool,
     ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
-        Client: MarketClientExt,
+        Client: StorageProviderClientExt,
     {
         let submission_result = client
             .publish_deal_parameters(&account_keypair, deal_parameters, wait_for_finalization)
@@ -401,7 +401,7 @@ impl MarketCommand {
         wait_for_finalization: bool,
     ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
-        Client: MarketClientExt,
+        Client: StorageProviderClientExt,
     {
         let submission_result = client
             .remove_deal_parameters(&account_keypair, wait_for_finalization)

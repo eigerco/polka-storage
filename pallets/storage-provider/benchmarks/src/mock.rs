@@ -4,7 +4,7 @@ use frame_support::{
     derive_impl, pallet_prelude::ConstU32, parameter_types, sp_runtime::BoundedVec, PalletId,
 };
 use frame_system::pallet_prelude::BlockNumberFor;
-use primitives::{configs::CurrencyProvider, PEER_ID_MAX_BYTES};
+use primitives::PEER_ID_MAX_BYTES;
 use sp_arithmetic::traits::Zero;
 use sp_runtime::{
     traits::{IdentifyAccount, IdentityLookup, Verify},
@@ -42,9 +42,6 @@ mod runtime {
     #[runtime::pallet_index(34)]
     pub type StorageProvider = pallet_storage_provider::Pallet<Test>;
 
-    #[runtime::pallet_index(35)]
-    pub type Market = pallet_market::Pallet<Test>;
-
     #[runtime::pallet_index(4)]
     pub type Proofs = pallet_proofs::Pallet<Test>;
 }
@@ -66,31 +63,6 @@ impl pallet_balances::Config for Test {
     type AccountStore = System;
 }
 
-impl CurrencyProvider for Test {
-    type Currency = Balances;
-}
-
-impl pallet_market::Config for Test {
-    type RuntimeEvent = RuntimeEvent;
-    type PalletId = MarketPalletId;
-    type WeightInfo = ();
-
-    type StorageProviderValidation = StorageProvider;
-    type MaxDealDuration = MaxDealDuration;
-    type MaxDealsPerBlock = ConstU32<32>;
-    type MinDealDuration = MinDealDuration;
-}
-
-impl primitives::configs::MarketProvider for Test {
-    type OffchainSignature = Signature;
-    type OffchainPublic = AccountPublic;
-    type MaxDeals = ConstU32<32>;
-
-    fn min_deal_duration() -> BlockNumberFor<Self> {
-        <Test as pallet_market::Config>::MinDealDuration::get()
-    }
-}
-
 impl pallet_proofs::Config for Test {
     type Randomness = DummyRandomnessGenerator<Self>;
     type RuntimeEvent = RuntimeEvent;
@@ -100,6 +72,7 @@ impl pallet_proofs::Config for Test {
 // Sourced from the Testnet runtime defined in <runtime/src/configs/mod.rs>.
 parameter_types! {
     // Storage Provider Pallet
+    pub const StoragePalletId: PalletId = PalletId(*b"Storage_");
     pub const WPoStProvingPeriod: BlockNumber = 6 * MINUTES;
     pub const WPoStPeriodDeadlines: u64 = 3;
     pub const WPoStChallengeWindow: BlockNumber = 2 * MINUTES;
@@ -111,6 +84,7 @@ parameter_types! {
     pub const MaxPartitionsPerDeadline: u64 = 3000;
     pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
     pub const FaultDeclarationCutoff: BlockNumber = 1 * MINUTES;
+    pub const PreCommitChallengeDelay: BlockNumber = 10;
 
     // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L299>
     pub const AddressedSectorsMax: u64 = 25_000;
@@ -118,9 +92,6 @@ parameter_types! {
     // Market Pallet
     pub const MinDealDuration: BlockNumber = 5 * MINUTES;
     pub const MaxDealDuration: BlockNumber = 180 * MINUTES;
-
-    pub const PreCommitChallengeDelay: BlockNumber = 10;
-    pub const MarketPalletId: PalletId = PalletId(*b"spMarket");
 }
 
 /// Randomness generator used by tests.
@@ -156,18 +127,26 @@ where
 }
 
 impl pallet_storage_provider::Config for Test {
+    type PalletId = StoragePalletId;
     type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = ();
+    type Currency = Balances;
 
     // Randomness Provider
     type Randomness = DummyRandomnessGenerator<Self>;
     type AuthorVrfHistory = DummyRandomnessGenerator<Self>;
 
     type PeerId = BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>; // https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
-    type Market = Market;
 
     // Proof Verification Provider
     type ProofVerification = Proofs;
 
+    type OffchainSignature = Signature;
+    type OffchainPublic = AccountPublic;
+    type MaxDeals = ConstU32<32>;
+    type MaxDealDuration = MaxDealDuration;
+    type MaxDealsPerBlock = ConstU32<32>;
+    type MinDealDuration = MinDealDuration;
     type WPoStProvingPeriod = WPoStProvingPeriod;
     type WPoStChallengeWindow = WPoStChallengeWindow;
     type WPoStChallengeLookBack = WPoStChallengeLookBack;
@@ -183,16 +162,6 @@ impl pallet_storage_provider::Config for Test {
     // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L295>
     type AddressedPartitionsMax = MaxPartitionsPerDeadline;
     type AddressedSectorsMax = AddressedSectorsMax;
-}
-
-impl primitives::configs::StorageProviderProvider for Test {
-    fn max_sector_expiration() -> BlockNumberFor<Self> {
-        <Test as pallet_storage_provider::Config>::MaxSectorExpiration::get()
-    }
-
-    fn sector_maximum_lifetime() -> BlockNumberFor<Self> {
-        <Test as pallet_storage_provider::Config>::SectorMaximumLifetime::get()
-    }
 }
 
 impl crate::pallet::Config for Test {}

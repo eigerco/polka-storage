@@ -8,7 +8,7 @@ use primitives::{
     commitment::{CommP, Commitment},
     sector::SectorNumber,
 };
-use storagext::{types::market::DealProposal, SystemClientExt};
+use storagext::{types::storage_provider::DealProposal, SystemClientExt};
 use tokio::sync::oneshot;
 use tokio_util::task::TaskTracker;
 use tracing::Instrument;

@@ -13,9 +13,9 @@ use crate::{
     pallet::{Error, Event, StorageProviders},
     sector::ProveCommitResult,
     tests::{
-        account, events, publish_deals, register_storage_provider, run_to_block, Market,
-        RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System, Test,
-        ALICE, BOB, CHARLIE,
+        account, events, publish_deals, register_storage_provider, run_to_block, RuntimeEvent,
+        RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System, Test, ALICE, BOB,
+        CHARLIE,
     },
 };
 
@@ -64,12 +64,12 @@ fn successfully_prove_sector() {
         assert_eq!(
             events(),
             [
-                RuntimeEvent::Market(pallet_market::Event::DealActivated {
+                RuntimeEvent::StorageProvider(Event::<Test>::DealActivated {
                     deal_id: 0,
                     client: account(ALICE),
                     provider: account(storage_provider)
                 }),
-                RuntimeEvent::Market(pallet_market::Event::DealActivated {
+                RuntimeEvent::StorageProvider(Event::<Test>::DealActivated {
                     deal_id: 1,
                     client: account(BOB),
                     provider: account(storage_provider)
@@ -87,7 +87,7 @@ fn successfully_prove_sector() {
 
         // check that the funds are unlocked
         assert_eq!(
-            Market::free(&account(storage_provider)),
+            StorageProvider::free(&account(storage_provider)),
             // Provider reserved 70 tokens in the market pallet and 1 token is used for the pre-commit
             Some(20)
         );
@@ -176,12 +176,12 @@ fn successfully_prove_multiple_sectors() {
             expected_sector_results_aggregated.push(expected_sector_results);
         }
         let expected_events = [
-            RuntimeEvent::Market(pallet_market::Event::DealActivated {
+            RuntimeEvent::StorageProvider(Event::<Test>::DealActivated {
                 deal_id: 0,
                 client: account(ALICE),
                 provider: account(storage_provider),
             }),
-            RuntimeEvent::Market(pallet_market::Event::DealActivated {
+            RuntimeEvent::StorageProvider(Event::<Test>::DealActivated {
                 deal_id: 1,
                 client: account(BOB),
                 provider: account(storage_provider),
@@ -202,7 +202,7 @@ fn successfully_prove_multiple_sectors() {
         assert_eq!(events(), expected_events);
 
         // check that the funds are unlocked
-        assert_eq!(Market::free(&account(storage_provider)), Some(20));
+        assert_eq!(StorageProvider::free(&account(storage_provider)), Some(20));
         let sp_state = StorageProviders::<Test>::get(account(storage_provider))
             .expect("Should be able to get providers info");
 

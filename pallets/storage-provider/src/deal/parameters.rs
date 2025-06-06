@@ -3,8 +3,6 @@ use frame_support::pallet_prelude::*;
 use primitives::deals::DealProposal;
 use scale_info::TypeInfo;
 
-use crate::error::DealParameterError;
-
 /// Bounds for deal duration that storage providers want to accept.
 /// Used in the [`OffchainDealParameters`]
 #[derive(Clone, Eq, PartialEq, Encode, Decode, RuntimeDebug, TypeInfo, MaxEncodedLen)]
@@ -107,5 +105,23 @@ where
         proposal.storage_price_per_block >= self.minimum_price_per_block
             && deal_duration >= self.deal_duration.lower
             && deal_duration <= self.deal_duration.upper
+    }
+}
+
+#[derive(TypeInfo, Encode, Decode, Clone, PartialEq, thiserror::Error)]
+pub enum DealParameterError<BlockNumber> {
+    #[error("Invalid deal duration bound, upper limit is smaller than lower. {0:?} > {1:?}")]
+    LowerLargerThanUpper(BlockNumber, BlockNumber),
+    #[error("Deal parameter lower duration bound is below the chain minimum. {0:?} < {1:?}")]
+    LowerBoundTooLow(BlockNumber, BlockNumber),
+    #[error("Deal parameter upper duration bound is above the chain maximum. {0:?} < {1:?}")]
+    UpperBoundTooHigh(BlockNumber, BlockNumber),
+    #[error("Minimum deal price cannot be 0")]
+    PriceCannotBeZero,
+}
+
+impl<BlockNumber: core::fmt::Debug> core::fmt::Debug for DealParameterError<BlockNumber> {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        core::fmt::Display::fmt(self, f)
     }
 }
