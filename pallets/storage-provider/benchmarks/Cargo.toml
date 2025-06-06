@@ -19,7 +19,6 @@ cid = { workspace = true, default-features = false, features = ["alloc"] }
 codec = { workspace = true, default-features = false, features = ["derive"] }
 itertools = { workspace = true }
 pallet-balances = { workspace = true, default-features = false }
-pallet-market = { workspace = true, default-features = false }
 pallet-proofs = { workspace = true, default-features = false }
 pallet-storage-provider = { workspace = true, default-features = false }
 primitives = { workspace = true, default-features = false, features = ["builder", "testing"] }
@@ -47,7 +46,6 @@ runtime-benchmarks = [
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
   "pallet-balances/runtime-benchmarks",
-  "pallet-market/runtime-benchmarks",
   "pallet-proofs/runtime-benchmarks",
   "pallet-storage-provider/runtime-benchmarks",
   "sp-runtime/runtime-benchmarks",
@@ -58,7 +56,6 @@ std = [
   "frame-support/std",
   "frame-system/std",
   "pallet-balances/std",
-  "pallet-market/std",
   "pallet-proofs/std",
   "pallet-storage-provider/std",
   "primitives/std",

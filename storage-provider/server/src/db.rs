@@ -9,7 +9,7 @@ use rocksdb::{
     ColumnFamily, ColumnFamilyDescriptor, Options as DBOptions, TransactionDB, TransactionDBOptions,
 };
 use serde::{de::DeserializeOwned, Serialize};
-use storagext::types::market::{ConversionError, DealProposal};
+use storagext::types::storage_provider::{ConversionError, DealProposal};
 
 #[derive(Debug, thiserror::Error)]
 pub enum DBError {

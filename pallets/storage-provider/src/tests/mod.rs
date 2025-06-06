@@ -9,12 +9,13 @@ use frame_support::{
 use frame_system::pallet_prelude::BlockNumberFor;
 use primitives::{
     commitment::{CommP, Commitment},
-    configs::{CurrencyProvider, MarketProvider, StorageProviderProvider},
-    deals::{ClientDealProposal, ClientDealProposalOf, DealProposalOf, DealState},
-    proofs::RegisteredPoStProof,
+    configs::{BalanceOf, CurrencyProvider},
+    deals::{ClientDealProposal, DealProposal, DealState},
+    pallets::SectorDeal,
+    proofs::{RegisteredPoStProof, RegisteredSealProof},
     sector::SectorNumber,
-    PartitionNumber, CID_SIZE_IN_BYTES, MAX_PARTITIONS_PER_DEADLINE, MAX_TERMINATIONS_PER_CALL,
-    PEER_ID_MAX_BYTES,
+    DealId, PartitionNumber, CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR, MAX_PARTITIONS_PER_DEADLINE,
+    MAX_TERMINATIONS_PER_CALL, PEER_ID_MAX_BYTES,
 };
 use sp_arithmetic::traits::Zero;
 use sp_core::{bounded_vec, Pair};
@@ -36,6 +37,7 @@ mod deadline;
 mod declare_faults;
 mod declare_faults_recovered;
 mod expiration_queue;
+mod market;
 mod post_hook;
 mod pre_commit_sector_hook;
 mod pre_commit_sectors;
@@ -57,7 +59,6 @@ frame_support::construct_runtime!(
         System: frame_system,
         Balances: pallet_balances,
         StorageProvider: pallet_storage_provider::pallet,
-        Market: pallet_market,
     }
 );
 
@@ -78,44 +79,16 @@ impl pallet_balances::Config for Test {
     type AccountStore = System;
 }
 
-impl pallet_market::Config for Test {
-    type RuntimeEvent = RuntimeEvent;
-    type PalletId = MarketPalletId;
-    type WeightInfo = ();
-
-    type StorageProviderValidation = StorageProvider;
-    type MaxDealDuration = MaxDealDuration;
-    type MaxDealsPerBlock = ConstU32<500>;
-    type MinDealDuration = MinDealDuration;
-}
-
-impl StorageProviderProvider for Test {
-    fn max_sector_expiration() -> BlockNumberFor<Self> {
-        <Test as pallet_storage_provider::Config>::MaxSectorExpiration::get()
-    }
-
-    fn sector_maximum_lifetime() -> BlockNumberFor<Self> {
-        <Test as pallet_storage_provider::Config>::SectorMaximumLifetime::get()
-    }
-}
-
-impl MarketProvider for Test {
-    type OffchainSignature = Signature;
-    type OffchainPublic = AccountPublic;
-    type MaxDeals = ConstU32<500>;
-
-    fn min_deal_duration() -> BlockNumberFor<Self> {
-        <Test as pallet_market::Config>::MinDealDuration::get()
-    }
-}
-
 impl CurrencyProvider for Test {
     type Currency = Balances;
 }
 
 parameter_types! {
     // Storage Provider Pallet
+    pub const StoragePalletId: PalletId = PalletId(*b"Storagee");
     pub const WPoStPeriodDeadlines: u64 = 10;
+    pub const MinDealDuration: u64 = 2 * MINUTES;
+    pub const MaxDealDuration: u64 = 30 * MINUTES;
     pub const WPoStProvingPeriod: BlockNumber = 40 * MINUTES;
     pub const WPoStChallengeWindow: BlockNumber = 4 * MINUTES;
     pub const WPoStChallengeLookBack: BlockNumber = MINUTES;
@@ -131,11 +104,6 @@ parameter_types! {
     pub const PreCommitChallengeDelay: BlockNumber = 0;
     // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L299>
     pub const AddressedSectorsMax: u64 = 25_000;
-
-    // Market Pallet
-    pub const MarketPalletId: PalletId = PalletId(*b"spMarket");
-    pub const MinDealDuration: u64 = 2 * MINUTES;
-    pub const MaxDealDuration: u64 = 30 * MINUTES;
 }
 
 /// Randomness generator used by tests.
@@ -172,17 +140,24 @@ where
 
 impl pallet_storage_provider::Config for Test {
     type RuntimeEvent = RuntimeEvent;
+    type PalletId = StoragePalletId;
+    type WeightInfo = ();
 
     // Randomness Provider
     type Randomness = DummyRandomnessGenerator<Self>;
     type AuthorVrfHistory = DummyRandomnessGenerator<Self>;
 
     type PeerId = BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>; // https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
-    type Market = Market;
 
     // Proof Verification Provider
     type ProofVerification = primitives::testing::DummyProofsVerification;
 
+    type MaxDealDuration = MaxDealDuration;
+    type MaxDealsPerBlock = ConstU32<500>;
+    type MinDealDuration = MinDealDuration;
+    type OffchainSignature = Signature;
+    type OffchainPublic = AccountPublic;
+    type MaxDeals = ConstU32<500>;
     type WPoStProvingPeriod = WPoStProvingPeriod;
     type WPoStChallengeWindow = WPoStChallengeWindow;
     type WPoStChallengeLookBack = WPoStChallengeLookBack;
@@ -201,6 +176,16 @@ impl pallet_storage_provider::Config for Test {
 }
 
 type AccountIdOf<Test> = <Test as frame_system::Config>::AccountId;
+
+type DealProposalOf<Test> =
+    DealProposal<<Test as frame_system::Config>::AccountId, BalanceOf<Test>, BlockNumberFor<Test>>;
+
+type ClientDealProposalOf<Test> = ClientDealProposal<
+    <Test as frame_system::Config>::AccountId,
+    BalanceOf<Test>,
+    BlockNumberFor<Test>,
+    MultiSignature,
+>;
 
 const ALICE: &'static str = "//Alice";
 const BOB: &'static str = "//Bob";
@@ -317,18 +302,21 @@ fn register_storage_provider(account: AccountIdOf<Test>) {
 /// Balances: Alice = 60, Bob = 70, Provider = 220
 fn publish_deals(storage_provider: &str) {
     // Add balance to the market pallet
-    assert_ok!(Market::add_balance(
+    assert_ok!(StorageProvider::add_balance(
         RuntimeOrigin::signed(account(ALICE)),
         60
     ));
-    assert_ok!(Market::add_balance(RuntimeOrigin::signed(account(BOB)), 60));
-    assert_ok!(Market::add_balance(
+    assert_ok!(StorageProvider::add_balance(
+        RuntimeOrigin::signed(account(BOB)),
+        60
+    ));
+    assert_ok!(StorageProvider::add_balance(
         RuntimeOrigin::signed(account(storage_provider)),
         220
     ));
 
     // Publish the deal proposal
-    Market::publish_storage_deals(
+    StorageProvider::publish_storage_deals(
         RuntimeOrigin::signed(account(storage_provider)),
         bounded_vec![
             DealProposalBuilder::default()
@@ -397,6 +385,31 @@ impl DealProposalBuilder {
         self
     }
 
+    pub fn state(mut self, state: DealState<u64>) -> Self {
+        self.state = state;
+        self
+    }
+
+    pub fn start_block(mut self, start_block: u64) -> Self {
+        self.start_block = start_block;
+        self
+    }
+
+    pub fn end_block(mut self, end_block: u64) -> Self {
+        self.end_block = end_block;
+        self
+    }
+
+    pub fn storage_price_per_block(mut self, price: u64) -> Self {
+        self.storage_price_per_block = price;
+        self
+    }
+
+    pub fn piece_size(mut self, piece_size: u64) -> Self {
+        self.piece_size = piece_size;
+        self
+    }
+
     pub fn unsigned(self) -> DealProposalOf<Test> {
         DealProposalOf::<Test> {
             piece_cid: self.piece_cid,
@@ -415,6 +428,54 @@ impl DealProposalBuilder {
         let built = self.unsigned();
         let signed = sign_proposal(by, built);
         signed
+    }
+}
+
+/// Builder with nice defaults for test purposes.
+struct SectorDealBuilder {
+    sector_number: SectorNumber,
+    sector_expiry: u64,
+    sector_type: RegisteredSealProof,
+    deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
+}
+
+impl SectorDealBuilder {
+    pub fn sector_expiry(mut self, sector_expiry: u64) -> Self {
+        self.sector_expiry = sector_expiry;
+        self
+    }
+
+    pub fn sector_number(mut self, sector_number: SectorNumber) -> Self {
+        self.sector_number = sector_number;
+        self
+    }
+
+    pub fn deal_ids(
+        mut self,
+        deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
+    ) -> Self {
+        self.deal_ids = deal_ids;
+        self
+    }
+
+    pub fn build(self) -> SectorDeal<u64> {
+        SectorDeal::<u64> {
+            sector_number: self.sector_number,
+            sector_expiry: self.sector_expiry,
+            sector_type: self.sector_type,
+            deal_ids: self.deal_ids,
+        }
+    }
+}
+
+impl Default for SectorDealBuilder {
+    fn default() -> Self {
+        Self {
+            sector_number: 1.into(),
+            sector_expiry: 120,
+            sector_type: RegisteredSealProof::StackedDRG2KiBV1P1,
+            deal_ids: bounded_vec![1],
+        }
     }
 }
 

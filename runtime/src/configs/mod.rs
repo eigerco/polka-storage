@@ -421,8 +421,15 @@ impl primitives::configs::CurrencyProvider for Runtime {
     type Currency = Balances;
 }
 
+parameter_types! {
+    /// PalletId of Storage Pallet, used to convert it to AccountId which holds the market funds
+    pub const StoragePalletId: PalletId = PalletId(*b"Storagee");
+}
+
 impl pallet_storage_provider::Config for Runtime {
+    type PalletId = StoragePalletId;
     type RuntimeEvent = RuntimeEvent;
+    type WeightInfo = pallet_storage_provider::weights::Weights<Runtime>;
 
     #[cfg(not(feature = "runtime-benchmarks"))]
     type Randomness = crate::Randomness;
@@ -435,9 +442,15 @@ impl pallet_storage_provider::Config for Runtime {
     type AuthorVrfHistory = dummy::DummyRandomnessGenerator<Self>;
 
     type PeerId = BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>; // https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
-    type Market = crate::Market;
 
     type ProofVerification = crate::Proofs;
+
+    type MaxDealsPerBlock = ConstU32<128>;
+    type MaxDealDuration = MaxDealDuration;
+    type MinDealDuration = MinDealDuration;
+    type OffchainSignature = MultiSignature;
+    type OffchainPublic = AccountPublic;
+    type MaxDeals = ConstU32<128>;
 
     type WPoStProvingPeriod = WPoStProvingPeriod;
     type WPoStChallengeWindow = WPoStChallengeWindow;
@@ -473,16 +486,16 @@ parameter_types! {
 
 pub type AccountPublic = <MultiSignature as Verify>::Signer;
 
-impl pallet_market::Config for Runtime {
-    type PalletId = MarketPalletId;
-    type RuntimeEvent = RuntimeEvent;
-    type WeightInfo = pallet_market::weights::Weights<Runtime>;
+// impl pallet_market::Config for Runtime {
+//     type PalletId = MarketPalletId;
+//     type RuntimeEvent = RuntimeEvent;
+//     type WeightInfo = pallet_market::weights::Weights<Runtime>;
 
-    type StorageProviderValidation = crate::StorageProvider;
-    type MaxDealsPerBlock = ConstU32<128>;
-    type MaxDealDuration = MaxDealDuration;
-    type MinDealDuration = MinDealDuration;
-}
+//     type StorageProviderValidation = crate::StorageProvider;
+//     type MaxDealsPerBlock = ConstU32<128>;
+//     type MaxDealDuration = MaxDealDuration;
+//     type MinDealDuration = MinDealDuration;
+// }
 
 impl primitives::configs::MarketProvider for Runtime {
     type OffchainSignature = MultiSignature;
@@ -490,7 +503,8 @@ impl primitives::configs::MarketProvider for Runtime {
     type MaxDeals = ConstU32<128>;
 
     fn min_deal_duration() -> BlockNumberFor<Self> {
-        <Runtime as pallet_market::Config>::MinDealDuration::get()
+        todo!()
+        // <Runtime as pallet_market::Config>::MinDealDuration::get()
     }
 }
 

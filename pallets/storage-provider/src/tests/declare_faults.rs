@@ -11,7 +11,7 @@ use crate::{
     pallet::{Error, Event, StorageProviders, DECLARATIONS_MAX},
     tests::{
         account, events, new_test_ext, register_storage_provider, run_to_block, sector_set,
-        DealProposalBuilder, DeclareFaultsBuilder, Market, RuntimeEvent, RuntimeOrigin,
+        DealProposalBuilder, DeclareFaultsBuilder, RuntimeEvent, RuntimeOrigin,
         SectorPreCommitInfoBuilder, StorageProvider, System, Test, ALICE, BOB, CHARLIE,
     },
     Config,
@@ -382,12 +382,12 @@ pub(crate) fn setup_sp_with_one_sector(storage_provider: &str, storage_client: &
     // Register storage provider
     register_storage_provider(account(storage_provider));
 
-    // Add balance to the market pallet
-    assert_ok!(Market::add_balance(
+    // Add balance to the pallet
+    assert_ok!(StorageProvider::add_balance(
         RuntimeOrigin::signed(account(storage_provider)),
         101
     ));
-    assert_ok!(Market::add_balance(
+    assert_ok!(StorageProvider::add_balance(
         RuntimeOrigin::signed(account(storage_client)),
         70
     ));
@@ -399,7 +399,7 @@ pub(crate) fn setup_sp_with_one_sector(storage_provider: &str, storage_client: &
         .signed(storage_client);
 
     // Publish the deal proposal
-    assert_ok!(Market::publish_storage_deals(
+    assert_ok!(StorageProvider::publish_storage_deals(
         RuntimeOrigin::signed(account(storage_provider)),
         bounded_vec![deal_proposal],
     ));
@@ -481,14 +481,14 @@ pub(crate) fn setup_sp_with_many_sectors_multiple_partitions(
         let provider_amount_needed = desired_sectors * 101;
         let client_amount_needed = desired_sectors * 60;
 
-        // Move available balance of provider to the market pallet
-        assert_ok!(Market::add_balance(
+        // Move available balance of provider to the pallet
+        assert_ok!(StorageProvider::add_balance(
             RuntimeOrigin::signed(account(storage_provider)),
             provider_amount_needed as u64
         ));
 
-        // Move available balance of client to the market pallet
-        assert_ok!(Market::add_balance(
+        // Move available balance of client to the pallet
+        assert_ok!(StorageProvider::add_balance(
             RuntimeOrigin::signed(account(storage_client)),
             client_amount_needed as u64
         ));
@@ -509,7 +509,7 @@ pub(crate) fn setup_sp_with_many_sectors_multiple_partitions(
             .collect::<Vec<_>>();
 
         // Publish all proposals
-        assert_ok!(Market::publish_storage_deals(
+        assert_ok!(StorageProvider::publish_storage_deals(
             RuntimeOrigin::signed(account(storage_provider)),
             proposals.try_into().unwrap(),
         ));

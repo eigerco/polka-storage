@@ -4,12 +4,13 @@ use alloc::vec::Vec;
 
 use frame_support::pallet_prelude::{CheckedAdd, CheckedSub, Zero};
 use frame_system::pallet_prelude::BlockNumberFor;
-use primitives::{configs::BalanceOf, pallets::Market, sector::SectorNumber, MAX_SECTORS};
+use primitives::{configs::BalanceOf, sector::SectorNumber, MAX_SECTORS};
 use sp_core::ConstU32;
 use sp_runtime::BoundedVec;
 
 use crate::{
-    storage_provider::StorageProviderState, Config, Event, Pallet, StorageProviders, LOG_TARGET,
+    slash_and_burn, storage_provider::StorageProviderState, Config, Event, Pallet,
+    StorageProviders, LOG_TARGET,
 };
 
 /// Goes through all of the registered storage providers and checks if they have any expired pre committed sectors.
@@ -62,7 +63,7 @@ where
         state.pre_commit_deposits = slashed_deposits;
 
         // PRE-COND: currency was previously reserved in pre_commit
-        let Ok(()) = T::Market::slash_pre_commit_funds(&storage_provider, slash_amount) else {
+        let Ok(()) = slash_and_burn::<T>(&storage_provider, slash_amount) else {
             log::error!(target: LOG_TARGET, "failed to slash.. amount: {:?}, storage_provider: {:?}", slash_amount, storage_provider);
             continue;
         };

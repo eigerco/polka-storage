@@ -4,7 +4,7 @@ use primitives::{
     commitment::{CommP, Commitment},
     sector::SectorNumber,
 };
-use storagext::types::market::DealProposal;
+use storagext::types::storage_provider::DealProposal;
 
 /// Represents a task to be executed on the Storage Provider Pipeline
 #[derive(Debug)]

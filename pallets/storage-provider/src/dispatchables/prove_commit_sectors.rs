@@ -15,7 +15,7 @@ use frame_system::{
 use primitives::{
     commitment::{CommD, CommR, Commitment},
     configs::BalanceOf,
-    pallets::{Market, ProofVerification},
+    pallets::ProofVerification,
     proofs::derive_prover_id,
     randomness::DomainSeparationTag,
     sector::{ProveCommitSector, SectorNumber},
@@ -26,8 +26,9 @@ use sp_runtime::{BoundedVec, DispatchError};
 
 use super::{calculate_pre_commit_deposit, get_randomness};
 use crate::{
+    dispatchables::activate_deals,
     sector::{ProveCommitResult, SectorOnChainInfo, SectorPreCommitOnChainInfo},
-    Config, Error, Event, Pallet, StorageProviders, LOG_TARGET,
+    unlock_funds, Config, Error, Event, Pallet, StorageProviders, LOG_TARGET,
 };
 
 pub fn prove_commit_sectors<T>(
@@ -84,7 +85,7 @@ where
     // Activate the deals for the sectors that will be proven. This
     // action is not applied if Err is returned from the extrinsic.
     let compute_commd = sector_deals.len() > 0;
-    T::Market::activate_deals(&owner, sector_deals, compute_commd)?;
+    activate_deals::<T>(&owner, sector_deals, compute_commd)?;
 
     // Activate the new sectors and remove from pre-committed sectors.
     sector_numbers.iter().zip(&new_sectors).try_for_each(
@@ -154,7 +155,7 @@ where
     };
 
     // Unlock pre commit deposit funds.
-    T::Market::unlock_pre_commit_funds(&owner, pre_commit_deposit_to_unlock)?;
+    unlock_funds::<T>(&owner, pre_commit_deposit_to_unlock)?;
     StorageProviders::<T>::set(owner.clone(), Some(sp));
     Pallet::<T>::deposit_event(Event::SectorsProven {
         owner,

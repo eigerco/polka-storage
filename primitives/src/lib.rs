@@ -8,6 +8,7 @@ pub mod proofs;
 pub mod randomness;
 pub mod sector;
 
+// TODO: Remove this module. It was moved to the `pallet-storage-provider-benchmarks`
 #[cfg(feature = "testing")]
 pub mod test_data;
 

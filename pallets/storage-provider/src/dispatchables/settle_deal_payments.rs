@@ -4,14 +4,14 @@ use primitives::{configs::BalanceOf, deals::DealState, DealId};
 
 use super::perform_storage_payment;
 use crate::{
-    error::DealSettlementError, unlock_funds, Config, Error, Event, MaxSettleDeals, Pallet,
-    Proposals, SettledDealData, LOG_TARGET,
+    deal::{DealSettlementError, SettledDealData},
+    unlock_funds, Config, Error, Event, Pallet, Proposals, LOG_TARGET,
 };
 
 pub fn settle_deal_payments<T>(
     origin: OriginFor<T>,
     // The original `deals` structure is a bitfield from fvm-ipld-bitfield
-    deal_ids: BoundedVec<DealId, MaxSettleDeals<T>>,
+    deal_ids: BoundedVec<DealId, T::MaxDeals>,
 ) -> DispatchResult
 where
     T: Config,
@@ -23,8 +23,8 @@ where
 
     let current_block = <frame_system::Pallet<T>>::block_number();
 
-    let mut successful = BoundedVec::<_, MaxSettleDeals<T>>::new();
-    let mut unsuccessful = BoundedVec::<_, MaxSettleDeals<T>>::new();
+    let mut successful = BoundedVec::<_, T::MaxDeals>::new();
+    let mut unsuccessful = BoundedVec::<_, T::MaxDeals>::new();
 
     for deal_id in deal_ids {
         // If the deal is not found, we register an error and move on

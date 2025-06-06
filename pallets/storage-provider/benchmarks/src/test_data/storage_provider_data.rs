@@ -1,6 +1,5 @@
+use primitives::PEER_ID_MAX_BYTES;
 use sp_runtime::{traits::ConstU32, AccountId32, BoundedVec, MultiSigner};
-
-use crate::PEER_ID_MAX_BYTES;
 
 #[derive(Debug)]
 pub struct StorageProviderData {

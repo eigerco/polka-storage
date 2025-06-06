@@ -12,7 +12,6 @@ use frame_system::{
 use primitives::{
     commitment::{CommD, CommR, Commitment},
     configs::BalanceOf,
-    pallets::Market,
     randomness::DomainSeparationTag,
     sector::SectorPreCommitInfo,
     MAX_DEALS_PER_SECTOR, MAX_SECTORS_PER_CALL,
@@ -22,8 +21,9 @@ use sp_runtime::BoundedVec;
 
 use super::{calculate_pre_commit_deposit, get_randomness};
 use crate::{
-    sector::SectorPreCommitOnChainInfo, storage_provider::StorageProviderState, Config, Error,
-    Event, Pallet, StorageProviders, LOG_TARGET,
+    dispatchables::verify_deals_for_activation, lock_funds, sector::SectorPreCommitOnChainInfo,
+    storage_provider::StorageProviderState, Config, Error, Event, Pallet, StorageProviders,
+    LOG_TARGET,
 };
 
 pub fn pre_commit_sectors<T>(
@@ -113,8 +113,8 @@ where
         );
     }
 
-    let calculated_unsealed_cids =
-        T::Market::verify_deals_for_activation(&owner, all_sector_deals)?;
+    let calculated_unsealed_cids = verify_deals_for_activation::<T>(&owner, all_sector_deals)?;
+
     check_commd_for_pre_commit::<T>(
         calculated_unsealed_cids,
         sector_amount,
@@ -123,7 +123,7 @@ where
     )?;
 
     // Lock the pre-commit funds in the market account
-    T::Market::lock_pre_commit_funds(&owner, total_deposit)?;
+    lock_funds::<T>(&owner, total_deposit)?;
 
     StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResult {
         let sp = maybe_sp

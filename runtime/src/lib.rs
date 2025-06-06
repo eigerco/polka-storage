@@ -317,10 +317,8 @@ mod runtime {
     #[runtime::pallet_index(34)]
     pub type StorageProvider = pallet_storage_provider::pallet;
     #[runtime::pallet_index(35)]
-    pub type Market = pallet_market;
-    #[runtime::pallet_index(36)]
     pub type Proofs = pallet_proofs;
-    #[runtime::pallet_index(37)]
+    #[runtime::pallet_index(36)]
     pub type Randomness = pallet_randomness;
 }
 
@@ -386,12 +384,10 @@ mod runtime {
     #[runtime::pallet_index(34)]
     pub type StorageProvider = pallet_storage_provider::pallet;
     #[runtime::pallet_index(35)]
-    pub type Market = pallet_market;
-    #[runtime::pallet_index(36)]
     pub type Proofs = pallet_proofs;
-    #[runtime::pallet_index(37)]
+    #[runtime::pallet_index(36)]
     pub type Randomness = pallet_randomness;
-    #[runtime::pallet_index(38)]
+    #[runtime::pallet_index(37)]
     pub type Faucet = pallet_faucet;
 }
 
@@ -612,7 +608,6 @@ impl_runtime_apis! {
             use frame_system_benchmarking::Pallet as SystemBench;
             use cumulus_pallet_session_benchmarking::Pallet as SessionBench;
             use pallet_storage_provider_benchmarks::Pallet as StorageProviderBench;
-            use pallet_market_benchmarks::Pallet as MarketBench;
 
             let mut list = Vec::<BenchmarkList>::new();
             list_benchmarks!(list, extra);
@@ -642,8 +637,6 @@ impl_runtime_apis! {
             impl cumulus_pallet_session_benchmarking::Config for Runtime {}
             use pallet_storage_provider_benchmarks::Pallet as StorageProviderBench;
             impl pallet_storage_provider_benchmarks::Config for Runtime {}
-            use pallet_market_benchmarks::Pallet as MarketBench;
-            impl pallet_market_benchmarks::Config for Runtime {}
 
             use frame_support::traits::WhitelistedStorageKeys;
             let whitelist = AllPalletsWithSystem::whitelisted_storage_keys();

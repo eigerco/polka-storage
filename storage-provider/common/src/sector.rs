@@ -19,10 +19,7 @@ use primitives::{
 };
 use serde::{Deserialize, Serialize};
 use storagext::{
-    types::{
-        market::DealProposal,
-        storage_provider::{PoRepProof, ProveCommitSector, SectorPreCommitInfo},
-    },
+    types::storage_provider::{DealProposal, PoRepProof, ProveCommitSector, SectorPreCommitInfo},
     RandomnessClientExt, StorageProviderClientExt, SystemClientExt,
 };
 use subxt::{ext::codec::Encode, tx::Signer};

@@ -10,6 +10,7 @@ version = "0.1.0"
 [dependencies]
 # "Homegrown" crates
 mater = { workspace = true }
+# pallet-storage-provider-benchmarks = { workspace = true, features = ["testing"] }
 polka-storage-proofs = { workspace = true, default-features = false }
 polka-storage-provider-common = { workspace = true }
 primitives = { workspace = true, features = ["clap", "std", "testing"] }

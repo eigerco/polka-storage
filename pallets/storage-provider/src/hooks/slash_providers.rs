@@ -6,7 +6,13 @@ use crate::{
     Proposals, LOG_TARGET,
 };
 
-pub fn on_finalize<T>(current_block: BlockNumberFor<T>)
+/// When deals are published in [`publish_storage_deals`], they're added to the `DealsForBlock::<T>::get(current_block)` data structure.
+/// When they are activated in [`activate_deal`], their state is changed from `DealState::Published` to `DealState::Active`
+/// If it did not happen, when [`on_finalize`] reaches `current_block`, it gets Deals that were supposed to be `DealState::Active` from `DealForBlock`.
+/// If they are not `DealState::Active`, hook slashes the Storage Provider and returns all of the funds to the Client.
+///
+/// *This function should not fail at any point, if it fails, it's a bug.*
+pub fn slash_providers<T>(current_block: BlockNumberFor<T>)
 where
     T: Config,
 {

@@ -44,7 +44,7 @@ use storagext::{
         bounded_collections::bounded_vec::BoundedVec,
         pallet_storage_provider::storage_provider::StorageProviderState,
     },
-    MarketClientExt, StorageProviderClientExt,
+    StorageProviderClientExt,
 };
 use subxt::{self, tx::Signer};
 use tokio::{
