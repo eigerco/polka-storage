@@ -1,9 +1,9 @@
 use frame_support::{dispatch::DispatchResult, ensure, pallet_prelude::*, LOG_TARGET};
 use frame_system::pallet_prelude::*;
-use primitives::configs::BalanceOf;
 
 use crate::{
-    deal::parameters::OffchainDealParameters, Config, Error, Event, Pallet, SPDealParameters,
+    deal::parameters::OffchainDealParameters, BalanceOf, Config, Error, Event, Pallet,
+    SPDealParameters,
 };
 
 pub fn publish_deal_parameters<T>(

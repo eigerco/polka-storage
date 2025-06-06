@@ -1,9 +1,9 @@
 use frame_system::pallet_prelude::*;
-use primitives::{self, configs::BalanceOf, deals::DealState};
+use primitives::{self, deals::DealState};
 
 use crate::{
-    slash_and_burn, unlock_funds, Config, DealsForBlock, Event, Pallet, PendingProposals,
-    Proposals, LOG_TARGET,
+    slash_and_burn, unlock_funds, BalanceOf, Config, DealsForBlock, Event, Pallet,
+    PendingProposals, Proposals, LOG_TARGET,
 };
 
 /// When deals are published in [`publish_storage_deals`], they're added to the `DealsForBlock::<T>::get(current_block)` data structure.

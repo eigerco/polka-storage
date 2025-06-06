@@ -2,14 +2,12 @@ use frame_support::{
     dispatch::DispatchResult, pallet_prelude::*, sp_runtime::ArithmeticError, traits::ConstU32,
 };
 use frame_system::pallet_prelude::*;
-use primitives::{
-    configs::BalanceOf, deals::DealState, sector::SectorNumber, MAX_DEALS_PER_SECTOR,
-};
+use primitives::{deals::DealState, sector::SectorNumber, MAX_DEALS_PER_SECTOR};
 use sp_arithmetic::traits::BaseArithmetic;
 
 use crate::{
-    dispatchables::perform_storage_payment, slash_and_burn, unlock_funds, Config, Error, Event,
-    Pallet, PendingProposals, Proposals, SectorDeals,
+    dispatchables::perform_storage_payment, slash_and_burn, unlock_funds, BalanceOf, Config, Error,
+    Event, Pallet, PendingProposals, Proposals, SectorDeals,
 };
 
 pub fn on_sectors_terminate<T>(

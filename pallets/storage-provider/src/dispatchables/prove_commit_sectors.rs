@@ -14,7 +14,6 @@ use frame_system::{
 };
 use primitives::{
     commitment::{CommD, CommR, Commitment},
-    configs::BalanceOf,
     pallets::ProofVerification,
     proofs::derive_prover_id,
     randomness::DomainSeparationTag,
@@ -28,7 +27,7 @@ use super::{calculate_pre_commit_deposit, get_randomness};
 use crate::{
     dispatchables::activate_deals,
     sector::{ProveCommitResult, SectorOnChainInfo, SectorPreCommitOnChainInfo},
-    unlock_funds, Config, Error, Event, Pallet, StorageProviders, LOG_TARGET,
+    unlock_funds, BalanceOf, Config, Error, Event, Pallet, StorageProviders, LOG_TARGET,
 };
 
 pub fn prove_commit_sectors<T>(

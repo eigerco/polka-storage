@@ -46,12 +46,14 @@ pub mod pallet {
         dispatch::DispatchResult,
         pallet_prelude::*,
         sp_runtime::traits::Hash,
-        traits::{Currency, ExistenceRequirement::KeepAlive, Randomness, WithdrawReasons},
+        traits::{
+            Currency, ExistenceRequirement::KeepAlive, Randomness, ReservableCurrency,
+            WithdrawReasons,
+        },
         PalletId,
     };
     use frame_system::pallet_prelude::{BlockNumberFor, *};
     use primitives::{
-        configs::{BalanceOf, CurrencyProvider},
         deals::{ClientDealProposal, DealProposal},
         pallets::{DeadlineInfo as ExternalDeadlineInfo, ProofVerification},
         proofs::RegisteredPoStProof,
@@ -81,6 +83,14 @@ pub mod pallet {
         storage_provider::{StorageProviderInfo, StorageProviderState},
         weights::WeightInfo,
     };
+
+    /// Allows to extract Balance of an account via the Config::Currency associated type.
+    /// BalanceOf is a sophisticated way of getting an u128.
+    pub type BalanceOf<T> =
+        <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+
+    pub type DealProposalOf<T> =
+        DealProposal<<T as frame_system::Config>::AccountId, BalanceOf<T>, BlockNumberFor<T>>;
 
     #[pallet::pallet]
     #[pallet::without_storage_info] // Allows to define storage items without fixed size
@@ -127,9 +137,12 @@ pub mod pallet {
     }
 
     #[pallet::config]
-    pub trait Config: frame_system::Config + CurrencyProvider {
+    pub trait Config: frame_system::Config {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
+        /// The currency mechanism.
+        type Currency: ReservableCurrency<Self::AccountId>;
 
         /// The pallet weights;
         type WeightInfo: WeightInfo;

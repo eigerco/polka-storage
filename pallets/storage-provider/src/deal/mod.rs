@@ -1,10 +1,10 @@
 pub mod parameters;
 
 use codec::{Decode, Encode};
-use primitives::{self, configs::BalanceOf, DealId};
+use primitives::{self, DealId};
 use scale_info::TypeInfo;
 
-use crate::Config;
+use crate::{BalanceOf, Config};
 
 #[derive(TypeInfo, Encode, Decode, Clone, PartialEq)]
 pub struct PublishedDeal<T: Config> {

@@ -9,8 +9,7 @@ use frame_support::{
     BoundedVec,
 };
 use primitives::{
-    configs::CurrencyProvider,
-    deals::{ActiveDealState, DealProposalOf, DealState},
+    deals::{ActiveDealState, DealState},
     pallets::{ActiveDeal, ActiveSector, SectorDeal},
     proofs::RegisteredSealProof,
     DealId, MAX_DEALS_PER_SECTOR,
@@ -31,7 +30,7 @@ use crate::{
         DealProposalBuilder, RuntimeEvent, RuntimeOrigin, SectorDealBuilder, StorageProvider,
         System, Test, ALICE, BOB, CHARLIE, INITIAL_FUNDS,
     },
-    unlock_funds, BalanceTable, Config, DealsForBlock, PendingProposals, Proposals,
+    unlock_funds, BalanceTable, Config, DealProposalOf, DealsForBlock, PendingProposals, Proposals,
     SPDealParameters, SectorDeals,
 };
 
@@ -1642,7 +1641,7 @@ fn settle_deal_payments_success_finished() {
 fn test_lock_funds() {
     new_test_ext().execute_with(|| {
         assert_eq!(
-            <Test as CurrencyProvider>::Currency::total_balance(&account(CHARLIE)),
+            <Test as Config>::Currency::total_balance(&account(CHARLIE)),
             50_000
         );
         assert_ok!(StorageProvider::add_balance(
@@ -1650,7 +1649,7 @@ fn test_lock_funds() {
             90
         ));
         assert_eq!(
-            <Test as CurrencyProvider>::Currency::total_balance(&account(CHARLIE)),
+            <Test as Config>::Currency::total_balance(&account(CHARLIE)),
             49_910
         );
         assert_ok!(lock_funds::<Test>(&account(CHARLIE), 25));
@@ -1690,7 +1689,7 @@ fn test_lock_funds() {
 fn test_unlock_funds() {
     new_test_ext().execute_with(|| {
         assert_eq!(
-            <Test as CurrencyProvider>::Currency::total_balance(&account(CHARLIE)),
+            <Test as Config>::Currency::total_balance(&account(CHARLIE)),
             50_000
         );
         // We can't get all 100, otherwise the account would be reaped
@@ -1699,7 +1698,7 @@ fn test_unlock_funds() {
             90
         ));
         assert_eq!(
-            <Test as CurrencyProvider>::Currency::total_balance(&account(CHARLIE)),
+            <Test as Config>::Currency::total_balance(&account(CHARLIE)),
             49_910
         );
         assert_ok!(lock_funds::<Test>(&account(CHARLIE), 90));
@@ -1746,10 +1745,7 @@ fn test_unlock_funds() {
 #[test]
 fn slash_and_burn_acc() {
     new_test_ext().execute_with(|| {
-        assert_eq!(
-            <Test as CurrencyProvider>::Currency::total_issuance(),
-            150_000
-        );
+        assert_eq!(<Test as Config>::Currency::total_issuance(), 150_000);
         assert_ok!(StorageProvider::add_balance(
             RuntimeOrigin::signed(account(CHARLIE)),
             75
@@ -1770,10 +1766,7 @@ fn slash_and_burn_acc() {
                 }),
             ]
         );
-        assert_eq!(
-            <Test as CurrencyProvider>::Currency::total_issuance(),
-            149_990
-        );
+        assert_eq!(<Test as Config>::Currency::total_issuance(), 149_990);
 
         assert_eq!(
             BalanceTable::<Test>::get(account(CHARLIE)),
@@ -1787,10 +1780,7 @@ fn slash_and_burn_acc() {
             slash_and_burn::<Test>(&account(CHARLIE), 10),
             Error::<Test>::InsufficientLockedFunds
         );
-        assert_eq!(
-            <Test as CurrencyProvider>::Currency::total_issuance(),
-            149_990
-        );
+        assert_eq!(<Test as Config>::Currency::total_issuance(), 149_990);
     });
 }
 
@@ -1968,10 +1958,7 @@ fn on_sector_terminate_active() {
         );
         assert!(PendingProposals::<Test>::get().is_empty());
         assert!(!Proposals::<Test>::contains_key(1));
-        assert_eq!(
-            <Test as CurrencyProvider>::Currency::total_issuance(),
-            149900
-        );
+        assert_eq!(<Test as Config>::Currency::total_issuance(), 149900);
     });
 }
 

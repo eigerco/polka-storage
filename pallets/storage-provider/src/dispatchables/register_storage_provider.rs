@@ -3,15 +3,12 @@ use frame_system::{
     ensure_signed,
     pallet_prelude::{BlockNumberFor, OriginFor},
 };
-use primitives::{
-    configs::BalanceOf,
-    proofs::{assign_proving_period_offset, RegisteredPoStProof},
-};
+use primitives::proofs::{assign_proving_period_offset, RegisteredPoStProof};
 use sp_core::Get;
 
 use crate::{
     storage_provider::{StorageProviderInfo, StorageProviderState},
-    Config, Error, Event, Pallet, StorageProviders,
+    BalanceOf, Config, Error, Event, Pallet, StorageProviders,
 };
 
 pub fn register_storage_provider<T>(

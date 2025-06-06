@@ -12,7 +12,6 @@ use frame_system::{
     pallet_prelude::{BlockNumberFor, OriginFor},
 };
 use primitives::{
-    configs::BalanceOf,
     deals::{ClientDealProposal, DealProposal, DealState},
     DealId,
 };
@@ -20,8 +19,8 @@ use sp_runtime::{BoundedVec, DispatchError};
 use sp_std::vec::Vec;
 
 use crate::{
-    deal::PublishedDeal, lock_funds, BalanceTable, Config, DealsForBlock, Error, Event, NextDealId,
-    Pallet, PendingProposals, Proposals, SPDealParameters, LOG_TARGET,
+    deal::PublishedDeal, lock_funds, BalanceOf, BalanceTable, Config, DealsForBlock, Error, Event,
+    NextDealId, Pallet, PendingProposals, Proposals, SPDealParameters, LOG_TARGET,
 };
 
 pub fn publish_storage_deals<T>(

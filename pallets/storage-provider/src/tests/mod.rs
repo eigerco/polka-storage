@@ -9,8 +9,7 @@ use frame_support::{
 use frame_system::pallet_prelude::BlockNumberFor;
 use primitives::{
     commitment::{CommP, Commitment},
-    configs::{BalanceOf, CurrencyProvider},
-    deals::{ClientDealProposal, DealProposal, DealState},
+    deals::{ClientDealProposal, DealState},
     pallets::SectorDeal,
     proofs::{RegisteredPoStProof, RegisteredSealProof},
     sector::SectorNumber,
@@ -31,6 +30,7 @@ use crate::{
     },
     pallet::DECLARATIONS_MAX,
     proofs::{PoStProof, SubmitWindowedPoStParams},
+    BalanceOf, DealProposalOf,
 };
 
 mod deadline;
@@ -77,10 +77,6 @@ impl frame_system::Config for Test {
 #[derive_impl(pallet_balances::config_preludes::TestDefaultConfig)]
 impl pallet_balances::Config for Test {
     type AccountStore = System;
-}
-
-impl CurrencyProvider for Test {
-    type Currency = Balances;
 }
 
 parameter_types! {
@@ -142,6 +138,7 @@ impl pallet_storage_provider::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type PalletId = StoragePalletId;
     type WeightInfo = ();
+    type Currency = Balances;
 
     // Randomness Provider
     type Randomness = DummyRandomnessGenerator<Self>;
@@ -176,9 +173,6 @@ impl pallet_storage_provider::Config for Test {
 }
 
 type AccountIdOf<Test> = <Test as frame_system::Config>::AccountId;
-
-type DealProposalOf<Test> =
-    DealProposal<<Test as frame_system::Config>::AccountId, BalanceOf<Test>, BlockNumberFor<Test>>;
 
 type ClientDealProposalOf<Test> = ClientDealProposal<
     <Test as frame_system::Config>::AccountId,

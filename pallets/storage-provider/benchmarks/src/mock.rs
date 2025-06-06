@@ -4,7 +4,7 @@ use frame_support::{
     derive_impl, pallet_prelude::ConstU32, parameter_types, sp_runtime::BoundedVec, PalletId,
 };
 use frame_system::pallet_prelude::BlockNumberFor;
-use primitives::{configs::CurrencyProvider, PEER_ID_MAX_BYTES};
+use primitives::PEER_ID_MAX_BYTES;
 use sp_arithmetic::traits::Zero;
 use sp_runtime::{
     traits::{IdentifyAccount, IdentityLookup, Verify},
@@ -61,20 +61,6 @@ impl frame_system::Config for Test {
 #[derive_impl(pallet_balances::config_preludes::TestDefaultConfig)]
 impl pallet_balances::Config for Test {
     type AccountStore = System;
-}
-
-impl CurrencyProvider for Test {
-    type Currency = Balances;
-}
-
-impl primitives::configs::MarketProvider for Test {
-    type OffchainSignature = Signature;
-    type OffchainPublic = AccountPublic;
-    type MaxDeals = ConstU32<32>;
-
-    fn min_deal_duration() -> BlockNumberFor<Self> {
-        <Test as pallet_storage_provider::Config>::MinDealDuration::get()
-    }
 }
 
 impl pallet_proofs::Config for Test {
@@ -142,6 +128,7 @@ impl pallet_storage_provider::Config for Test {
     type PalletId = StoragePalletId;
     type RuntimeEvent = RuntimeEvent;
     type WeightInfo = ();
+    type Currency = Balances;
 
     // Randomness Provider
     type Randomness = DummyRandomnessGenerator<Self>;

@@ -11,7 +11,6 @@ use frame_system::{
 };
 use primitives::{
     commitment::{CommD, CommR, Commitment},
-    configs::BalanceOf,
     randomness::DomainSeparationTag,
     sector::SectorPreCommitInfo,
     MAX_DEALS_PER_SECTOR, MAX_SECTORS_PER_CALL,
@@ -22,8 +21,8 @@ use sp_runtime::BoundedVec;
 use super::{calculate_pre_commit_deposit, get_randomness};
 use crate::{
     dispatchables::verify_deals_for_activation, lock_funds, sector::SectorPreCommitOnChainInfo,
-    storage_provider::StorageProviderState, Config, Error, Event, Pallet, StorageProviders,
-    LOG_TARGET,
+    storage_provider::StorageProviderState, BalanceOf, Config, Error, Event, Pallet,
+    StorageProviders, LOG_TARGET,
 };
 
 pub fn pre_commit_sectors<T>(

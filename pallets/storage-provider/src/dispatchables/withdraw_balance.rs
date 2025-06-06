@@ -4,10 +4,9 @@ use frame_support::{
     traits::{Currency, ExistenceRequirement::AllowDeath},
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-use primitives::configs::BalanceOf;
 use sp_runtime::{traits::CheckedSub, ArithmeticError};
 
-use crate::{BalanceTable, Config, Error, Event, Pallet, LOG_TARGET};
+use crate::{BalanceOf, BalanceTable, Config, Error, Event, Pallet, LOG_TARGET};
 
 pub fn withdraw_balance<T>(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult
 where

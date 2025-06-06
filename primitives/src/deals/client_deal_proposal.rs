@@ -1,19 +1,8 @@
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_system::pallet_prelude::BlockNumberFor;
 use scale_info::TypeInfo;
 use sp_core::RuntimeDebug;
 
-use crate::{
-    configs::{BalanceOf, MarketProvider},
-    deals::deal_proposal::DealProposal,
-};
-
-pub type ClientDealProposalOf<T> = ClientDealProposal<
-    <T as frame_system::Config>::AccountId,
-    BalanceOf<T>,
-    BlockNumberFor<T>,
-    <T as MarketProvider>::OffchainSignature,
->;
+use crate::deals::deal_proposal::DealProposal;
 
 /// After Storage Client has successfully negotiated with the Storage Provider, they prepare a DealProposal,
 /// sign it with their signature and send to the Storage Provider.

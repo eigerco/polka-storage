@@ -1,14 +1,8 @@
 extern crate alloc;
 
-use codec::Encode;
 use sp_core::sr25519;
 use sp_io::crypto::{sr25519_generate, sr25519_sign};
 use sp_runtime::{traits::IdentifyAccount, AccountId32, MultiSignature, MultiSigner};
-
-use crate::{
-    configs::{BalanceOf, CurrencyProvider, MarketProvider},
-    deals::{ClientDealProposal, ClientDealProposalOf, DealProposalOf},
-};
 
 pub mod absolute_block_number;
 pub mod deal_timeline;
@@ -31,18 +25,6 @@ where
     );
 
     (account_id, signer)
-}
-
-pub fn sign_proposal<T>(pubkey: MultiSigner, proposal: DealProposalOf<T>) -> ClientDealProposalOf<T>
-where
-    T: frame_system::Config + CurrencyProvider + MarketProvider<OffchainSignature = MultiSignature>,
-    BalanceOf<T>: Encode,
-{
-    let client_signature = create_sr25519_signature(&Encode::encode(&proposal), pubkey);
-    ClientDealProposal {
-        proposal,
-        client_signature,
-    }
 }
 
 pub fn create_sr25519_signature(payload: &[u8], pubkey: MultiSigner) -> MultiSignature {

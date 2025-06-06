@@ -1,11 +1,11 @@
 use frame_support::{dispatch::DispatchResult, pallet_prelude::*, sp_runtime::ArithmeticError};
 use frame_system::pallet_prelude::*;
-use primitives::{configs::BalanceOf, deals::DealState, DealId};
+use primitives::{deals::DealState, DealId};
 
 use super::perform_storage_payment;
 use crate::{
     deal::{DealSettlementError, SettledDealData},
-    unlock_funds, Config, Error, Event, Pallet, Proposals, LOG_TARGET,
+    unlock_funds, BalanceOf, Config, Error, Event, Pallet, Proposals, LOG_TARGET,
 };
 
 pub fn settle_deal_payments<T>(

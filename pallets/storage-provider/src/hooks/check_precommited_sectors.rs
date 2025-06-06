@@ -4,12 +4,12 @@ use alloc::vec::Vec;
 
 use frame_support::pallet_prelude::{CheckedAdd, CheckedSub, Zero};
 use frame_system::pallet_prelude::BlockNumberFor;
-use primitives::{configs::BalanceOf, sector::SectorNumber, MAX_SECTORS};
+use primitives::{sector::SectorNumber, MAX_SECTORS};
 use sp_core::ConstU32;
 use sp_runtime::BoundedVec;
 
 use crate::{
-    slash_and_burn, storage_provider::StorageProviderState, Config, Event, Pallet,
+    slash_and_burn, storage_provider::StorageProviderState, BalanceOf, Config, Event, Pallet,
     StorageProviders, LOG_TARGET,
 };
 

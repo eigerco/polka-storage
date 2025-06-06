@@ -49,8 +49,7 @@ use primitives::{
         commd::compute_unsealed_sector_commitment,
         piece::{PaddedPieceSize, PieceInfo},
     },
-    configs::BalanceOf,
-    deals::{DealProposalOf, DealState},
+    deals::DealState,
     proofs::RegisteredSealProof,
     randomness::{draw_randomness, AuthorVrfHistory, DomainSeparationTag},
     sector::{SectorNumber, SectorSize},
@@ -63,8 +62,8 @@ use sp_runtime::{
 };
 
 use crate::{
-    error::CommDError, BalanceTable, Config, Error, Pallet, PendingProposals, Proposals,
-    StorageProviders, LOG_TARGET,
+    error::CommDError, BalanceOf, BalanceTable, Config, DealProposalOf, Error, Pallet,
+    PendingProposals, Proposals, StorageProviders, LOG_TARGET,
 };
 
 /// Calculate the required pre commit deposit amount

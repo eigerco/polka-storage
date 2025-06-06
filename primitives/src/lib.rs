@@ -1,7 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)] // no_std by default, requires "std" for std-support
 
 pub mod commitment;
-pub mod configs;
 pub mod deals;
 pub mod pallets;
 pub mod proofs;
