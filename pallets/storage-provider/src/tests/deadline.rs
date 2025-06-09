@@ -1,6 +1,8 @@
-use crate::deadline::DeadlineInfo;
+use frame_system::pallet_prelude::BlockNumberFor;
 
-fn default_deadline() -> DeadlineInfo<u64> {
+use crate::{deadline::DeadlineInfo, tests::Test};
+
+fn default_deadline() -> DeadlineInfo<BlockNumberFor<Test>> {
     let block_number = 112;
     let period_start = 100;
     let deadline_index = 0;
@@ -10,7 +12,7 @@ fn default_deadline() -> DeadlineInfo<u64> {
     let challenge_lookback = 20;
     let cutoff = 5;
 
-    DeadlineInfo::<u64>::new(
+    DeadlineInfo::<BlockNumberFor<Test>>::new(
         block_number,
         period_start,
         deadline_index,

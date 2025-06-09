@@ -12,7 +12,7 @@ use sp_runtime::{
 };
 
 type Block = frame_system::mocking::MockBlock<Test>;
-type BlockNumber = u64;
+type BlockNumber = BlockNumberFor<Test>;
 
 const MILLISECS_PER_BLOCK: u64 = 6000;
 const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
@@ -85,8 +85,8 @@ parameter_types! {
     pub const FaultMaxAge: BlockNumber = (5 * MINUTES) * 42;
     pub const FaultDeclarationCutoff: BlockNumber = 1 * MINUTES;
     pub const PreCommitChallengeDelay: BlockNumber = 10;
-    pub const MinDealDuration: u64 = 5 * MINUTES;
-    pub const MaxDealDuration: u64 = 180 * MINUTES;
+    pub const MinDealDuration: BlockNumber = 5 * MINUTES;
+    pub const MaxDealDuration: BlockNumber = 180 * MINUTES;
 
     // <https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/runtime/src/runtime/policy.rs#L299>
     pub const AddressedSectorsMax: u64 = 25_000;

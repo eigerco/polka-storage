@@ -817,19 +817,24 @@ mod tests {
     use alloc::collections::{BTreeMap, BTreeSet};
 
     use frame_support::{pallet_prelude::*, sp_runtime::BoundedBTreeSet};
+    use frame_system::pallet_prelude::BlockNumberFor;
     use primitives::{
         sector::SectorNumber, PartitionNumber, MAX_SECTORS, MAX_TERMINATIONS_PER_CALL,
     };
     use rstest::rstest;
 
     use crate::{
-        deadline::Deadline, error::GeneralPalletError, partition::TerminationResult,
-        sector::SectorOnChainInfo, sector_map::PartitionMap, tests::sector_set,
+        deadline::Deadline,
+        error::GeneralPalletError,
+        partition::TerminationResult,
+        sector::SectorOnChainInfo,
+        sector_map::PartitionMap,
+        tests::{sector_set, Test},
     };
 
     const PARTITION_SIZE: u64 = 4;
 
-    fn sectors() -> Vec<SectorOnChainInfo<u64>> {
+    fn sectors() -> Vec<SectorOnChainInfo<BlockNumberFor<Test>>> {
         vec![
             test_sector(2, 1),
             test_sector(3, 2),
@@ -843,7 +848,10 @@ mod tests {
         ]
     }
 
-    fn test_sector(expiration: u64, sector_number: u32) -> SectorOnChainInfo<u64> {
+    fn test_sector(
+        expiration: BlockNumberFor<Test>,
+        sector_number: u32,
+    ) -> SectorOnChainInfo<BlockNumberFor<Test>> {
         SectorOnChainInfo {
             expiration,
             sector_number: SectorNumber::new(sector_number).unwrap(),
@@ -857,9 +865,9 @@ mod tests {
     // Partition 1: sectors 5, 6, 7, 8
     // Partition 2: sectors 9
     fn add_sectors(
-        deadline: &mut Deadline<u64>,
+        deadline: &mut Deadline<BlockNumberFor<Test>>,
         prove: bool,
-    ) -> Result<Vec<SectorOnChainInfo<u64>>, GeneralPalletError> {
+    ) -> Result<Vec<SectorOnChainInfo<BlockNumberFor<Test>>>, GeneralPalletError> {
         let sectors = sectors();
 
         deadline.add_sectors(PARTITION_SIZE, &sectors)?;
@@ -898,7 +906,7 @@ mod tests {
         let all_sectors = sectors
             .iter()
             .map(|sector_info| (sector_info.sector_number, sector_info.clone()))
-            .collect::<BTreeMap<SectorNumber, SectorOnChainInfo<u64>>>()
+            .collect::<BTreeMap<SectorNumber, SectorOnChainInfo<BlockNumberFor<Test>>>>()
             .try_into()
             .unwrap();
         let partitions = Vec::from([0, 1, 2]).try_into().unwrap();
@@ -937,9 +945,9 @@ mod tests {
     // From partition 0: sectors 1 & 3
     // From partition 1: sectors 6
     fn add_then_terminate(
-        deadline: &mut Deadline<u64>,
+        deadline: &mut Deadline<BlockNumberFor<Test>>,
         prove: bool,
-    ) -> Result<Vec<SectorOnChainInfo<u64>>, GeneralPalletError> {
+    ) -> Result<Vec<SectorOnChainInfo<BlockNumberFor<Test>>>, GeneralPalletError> {
         let sectors = add_sectors(deadline, prove)?;
 
         let partition_sectors = BTreeMap::from([(0, sector_set(&[1, 3])), (1, sector_set(&[6]))]);
@@ -975,8 +983,8 @@ mod tests {
     }
 
     fn add_then_terminate_then_pop_early(
-        deadline: &mut Deadline<u64>,
-    ) -> Result<Vec<SectorOnChainInfo<u64>>, GeneralPalletError> {
+        deadline: &mut Deadline<BlockNumberFor<Test>>,
+    ) -> Result<Vec<SectorOnChainInfo<BlockNumberFor<Test>>>, GeneralPalletError> {
         let sectors = add_then_terminate(deadline, true)?;
 
         let (early_terminations, has_more) = deadline.pop_early_terminations(100, 100)?;
@@ -1026,9 +1034,9 @@ mod tests {
     //
     // Sector 5 will expire on-time at epoch 9 while 6 will expire early at epoch 9.
     fn add_then_mark_faulty(
-        deadline: &mut Deadline<u64>,
+        deadline: &mut Deadline<BlockNumberFor<Test>>,
         prove: bool,
-    ) -> Result<Vec<SectorOnChainInfo<u64>>, GeneralPalletError> {
+    ) -> Result<Vec<SectorOnChainInfo<BlockNumberFor<Test>>>, GeneralPalletError> {
         let sectors = add_sectors(deadline, prove)?;
         let mut p_map = PartitionMap::new();
         p_map.try_insert_sectors(0, sector_set(&[1]))?;
@@ -1039,7 +1047,7 @@ mod tests {
         let sector_map = sectors
             .iter()
             .map(|s| (s.sector_number, s.clone()))
-            .collect::<BTreeMap<SectorNumber, SectorOnChainInfo<u64>>>()
+            .collect::<BTreeMap<SectorNumber, SectorOnChainInfo<BlockNumberFor<Test>>>>()
             .try_into()
             .unwrap();
         deadline.record_faults(&sector_map, &mut p_map, fault_expiration_block)?;
@@ -1086,9 +1094,9 @@ mod tests {
     }
 
     fn terminate_sectors(
-        block_number: u64,
-        deadline: &mut Deadline<u64>,
-        sectors: Vec<SectorOnChainInfo<u64>>,
+        block_number: BlockNumberFor<Test>,
+        deadline: &mut Deadline<BlockNumberFor<Test>>,
+        sectors: Vec<SectorOnChainInfo<BlockNumberFor<Test>>>,
         partition_sectors: BTreeMap<
             PartitionNumber,
             BoundedBTreeSet<SectorNumber, ConstU32<MAX_TERMINATIONS_PER_CALL>>,
@@ -1379,7 +1387,7 @@ mod tests {
         let sector_map = sectors
             .iter()
             .map(|s| (s.sector_number, s.clone()))
-            .collect::<BTreeMap<SectorNumber, SectorOnChainInfo<u64>>>()
+            .collect::<BTreeMap<SectorNumber, SectorOnChainInfo<BlockNumberFor<Test>>>>()
             .try_into()
             .unwrap();
         let mut partition_sector_map = PartitionMap::new();
@@ -1410,7 +1418,7 @@ mod tests {
         let sector_map = sectors
             .iter()
             .map(|s| (s.sector_number, s.clone()))
-            .collect::<BTreeMap<SectorNumber, SectorOnChainInfo<u64>>>()
+            .collect::<BTreeMap<SectorNumber, SectorOnChainInfo<BlockNumberFor<Test>>>>()
             .try_into()
             .unwrap();
         let mut partition_sector_map = PartitionMap::default();
@@ -1437,7 +1445,7 @@ mod tests {
         let sector_map = sectors()
             .iter()
             .map(|s| (s.sector_number, s.clone()))
-            .collect::<BTreeMap<SectorNumber, SectorOnChainInfo<u64>>>()
+            .collect::<BTreeMap<SectorNumber, SectorOnChainInfo<BlockNumberFor<Test>>>>()
             .try_into()
             .unwrap();
         let partitions = Vec::from([3]).try_into().unwrap();
@@ -1458,7 +1466,7 @@ mod tests {
         let sector_map = sectors()
             .iter()
             .map(|s| (s.sector_number, s.clone()))
-            .collect::<BTreeMap<SectorNumber, SectorOnChainInfo<u64>>>()
+            .collect::<BTreeMap<SectorNumber, SectorOnChainInfo<BlockNumberFor<Test>>>>()
             .try_into()
             .unwrap();
         let partitions = Vec::from([0, 1]).try_into().unwrap();

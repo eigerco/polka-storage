@@ -8,6 +8,7 @@ use frame_support::{
     traits::Currency,
     BoundedVec,
 };
+use frame_system::pallet_prelude::BlockNumberFor;
 use primitives::{
     deals::{ActiveDealState, DealState},
     pallets::{ActiveDeal, ActiveSector, SectorDeal},
@@ -347,7 +348,9 @@ fn publish_storage_deals_fails_max_duration_out_of_bounds() {
             .client(ALICE)
             .provider(&CHARLIE)
             .start_block(100)
-            .end_block(100 + <<Test as Config>::MaxDealDuration as Get<u64>>::get() + 1)
+            .end_block(
+                100 + <<Test as Config>::MaxDealDuration as Get<BlockNumberFor<Test>>>::get() + 1,
+            )
             .signed(ALICE);
 
         assert_noop!(
@@ -370,7 +373,9 @@ fn publish_storage_deals_fails_start_time_expired() {
             .client(ALICE)
             .provider(&CHARLIE)
             .start_block(100)
-            .end_block(100 + <<Test as Config>::MaxDealDuration as Get<u64>>::get() + 1)
+            .end_block(
+                100 + <<Test as Config>::MaxDealDuration as Get<BlockNumberFor<Test>>>::get() + 1,
+            )
             .signed(ALICE);
 
         assert_noop!(
@@ -1968,18 +1973,19 @@ fn publish_deal_parameters() {
         let storage_provider = account(CHARLIE);
         register_storage_provider(storage_provider.clone());
 
-        let offchain_deal_params: OffchainDealParameters<u64, u64> = OffchainDealParameters {
-            minimum_price_per_block: 1_000,
-            deal_duration: OffchainDealDurationBound {
-                lower: Some(3),  // Chain minimum = 2
-                upper: Some(29), // Chain maximum = 30
-            },
-        };
+        let offchain_deal_params: OffchainDealParameters<u64, BlockNumberFor<Test>> =
+            OffchainDealParameters {
+                minimum_price_per_block: 1_000,
+                deal_duration: OffchainDealDurationBound {
+                    lower: Some(3),  // Chain minimum = 2
+                    upper: Some(29), // Chain maximum = 30
+                },
+            };
         let deal_params = offchain_deal_params
             .clone()
             .validate(
-                <<Test as Config>::MinDealDuration as Get<u64>>::get(),
-                <<Test as Config>::MaxDealDuration as Get<u64>>::get(),
+                <<Test as Config>::MinDealDuration as Get<BlockNumberFor<Test>>>::get(),
+                <<Test as Config>::MaxDealDuration as Get<BlockNumberFor<Test>>>::get(),
             )
             .expect("Seamless conversion");
 
@@ -2007,19 +2013,20 @@ fn publish_deal_parameters() {
         );
 
         // Re-insert different deal parameters
-        let offchain_deal_params_2: OffchainDealParameters<u64, u64> = OffchainDealParameters {
-            minimum_price_per_block: 10_000,
-            deal_duration: OffchainDealDurationBound {
-                lower: Some(4),  // Chain minimum = 2
-                upper: Some(28), // Chain maximum = 30
-            },
-        };
+        let offchain_deal_params_2: OffchainDealParameters<u64, BlockNumberFor<Test>> =
+            OffchainDealParameters {
+                minimum_price_per_block: 10_000,
+                deal_duration: OffchainDealDurationBound {
+                    lower: Some(4),  // Chain minimum = 2
+                    upper: Some(28), // Chain maximum = 30
+                },
+            };
 
         let deal_params_2 = offchain_deal_params_2
             .clone()
             .validate(
-                <<Test as Config>::MinDealDuration as Get<u64>>::get(),
-                <<Test as Config>::MaxDealDuration as Get<u64>>::get(),
+                <<Test as Config>::MinDealDuration as Get<BlockNumberFor<Test>>>::get(),
+                <<Test as Config>::MaxDealDuration as Get<BlockNumberFor<Test>>>::get(),
             )
             .expect("Seamless conversion");
 
@@ -2054,18 +2061,19 @@ fn remove_deal_parameters() {
         let storage_provider = account(CHARLIE);
         register_storage_provider(storage_provider.clone());
 
-        let offchain_deal_params: OffchainDealParameters<u64, u64> = OffchainDealParameters {
-            minimum_price_per_block: 1_000,
-            deal_duration: OffchainDealDurationBound {
-                lower: Some(3),  // Chain minimum = 2
-                upper: Some(29), // Chain maximum = 30
-            },
-        };
+        let offchain_deal_params: OffchainDealParameters<u64, BlockNumberFor<Test>> =
+            OffchainDealParameters {
+                minimum_price_per_block: 1_000,
+                deal_duration: OffchainDealDurationBound {
+                    lower: Some(3),  // Chain minimum = 2
+                    upper: Some(29), // Chain maximum = 30
+                },
+            };
         let deal_params = offchain_deal_params
             .clone()
             .validate(
-                <<Test as Config>::MinDealDuration as Get<u64>>::get(),
-                <<Test as Config>::MaxDealDuration as Get<u64>>::get(),
+                <<Test as Config>::MinDealDuration as Get<BlockNumberFor<Test>>>::get(),
+                <<Test as Config>::MaxDealDuration as Get<BlockNumberFor<Test>>>::get(),
             )
             .expect("Seamless conversion");
 

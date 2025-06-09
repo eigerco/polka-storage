@@ -1,4 +1,5 @@
 use frame_support::{assert_err, assert_noop, assert_ok, pallet_prelude::*};
+use frame_system::pallet_prelude::BlockNumberFor;
 use primitives::sector::{ProveCommitSector, SectorNumber};
 use rstest::rstest;
 use sp_core::bounded_vec;
@@ -555,7 +556,7 @@ pub(crate) fn setup_sp_with_many_sectors_multiple_partitions(
 /// Compare faults in deadlines and faults expected. Panic if faults in both are
 /// not equal.
 pub(crate) fn assert_exact_faulty_sectors(
-    deadlines: &Deadlines<u64>,
+    deadlines: &Deadlines<BlockNumberFor<Test>>,
     expected_faults: &[FaultDeclaration],
 ) {
     // Faulty sectors specified in the faults

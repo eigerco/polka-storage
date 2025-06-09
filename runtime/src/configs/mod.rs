@@ -250,8 +250,8 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 }
 
 parameter_types! {
-    pub const Period: u64 = 6 * HOURS;
-    pub const Offset: u64 = 0;
+    pub const Period: u32 = 6 * HOURS;
+    pub const Offset: u32 = 0;
 }
 
 impl pallet_session::Config for Runtime {
@@ -338,8 +338,8 @@ parameter_types! {
     pub const MaxSectorExpiration: BlockNumber = 365 * DAYS + 30 * DAYS;
     pub const SectorMaximumLifetime: BlockNumber = 365 * DAYS;
     // Market Pallet
-    pub const MinDealDuration: u64 = 1 * DAYS;
-    pub const MaxDealDuration: u64 = 365 * DAYS;
+    pub const MinDealDuration: BlockNumber = 1 * DAYS;
+    pub const MaxDealDuration: BlockNumber = 365 * DAYS;
 
 }
 
@@ -362,8 +362,8 @@ parameter_types! {
     pub const AddressedSectorsMax: u64 = 25_000;
 
     // Market Pallet
-    pub const MinDealDuration: u64 = 5 * MINUTES;
-    pub const MaxDealDuration: u64 = 365 * DAYS;
+    pub const MinDealDuration: BlockNumber = 5 * MINUTES;
+    pub const MaxDealDuration: BlockNumber = 365 * DAYS;
 }
 // NOTE(@jmg-duarte,22/01/2025): The following bit of code is confusing BUT
 // using #[cfg(...)] inside parameter_types results in errors

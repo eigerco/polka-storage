@@ -74,7 +74,7 @@ pub async fn add_piece(
 
     let current_block = state.xt_client.height(true).await?;
     let duration_to_deal_start =
-        Duration::from_secs((deal_start_block - current_block) * SECS_PER_BLOCK);
+        Duration::from_secs(((deal_start_block - current_block) * SECS_PER_BLOCK).into());
     let when = std::cmp::min(
         state.server_info.sealing_configuration.wait_deals_delay,
         duration_to_deal_start,

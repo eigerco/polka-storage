@@ -18,7 +18,7 @@ pub(crate) enum SystemCommand {
     /// Wait for a specific block height
     WaitForHeight {
         /// Block heights to wait for
-        height: u64,
+        height: storagext::BlockNumber,
 
         /// Wait for finalized blocks only
         #[arg(long, default_value_t = false)]

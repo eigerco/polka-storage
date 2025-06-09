@@ -1,17 +1,19 @@
 use std::future::Future;
 
+use crate::BlockNumber;
+
 pub trait SystemClientExt {
     /// Get the current height of the chain.
     /// It returns latest non-finalized block.
     fn height(
         &self,
         wait_for_finalization: bool,
-    ) -> impl Future<Output = Result<u64, subxt::Error>>;
+    ) -> impl Future<Output = Result<BlockNumber, subxt::Error>>;
 
     /// Wait for the chain to reach a specific height.
     fn wait_for_height(
         &self,
-        height: u64,
+        height: BlockNumber,
         wait_for_finalization: bool,
     ) -> impl Future<Output = Result<(), subxt::Error>>;
 }
@@ -19,7 +21,7 @@ pub trait SystemClientExt {
 impl SystemClientExt for crate::runtime::client::Client {
     /// Get the current height of the chain.
     /// It returns latest non-finalized block.
-    async fn height(&self, wait_for_finalization: bool) -> Result<u64, subxt::Error> {
+    async fn height(&self, wait_for_finalization: bool) -> Result<BlockNumber, subxt::Error> {
         let mut block_stream = if wait_for_finalization {
             // NOTE: This is not the best way to implement this
             // see the source for .at_latest() for a possibly better version
@@ -39,7 +41,7 @@ impl SystemClientExt for crate::runtime::client::Client {
     /// Wait for the chain to reach a specific height.
     async fn wait_for_height(
         &self,
-        height: u64,
+        height: BlockNumber,
         wait_for_finalization: bool,
     ) -> Result<(), subxt::Error> {
         let mut block_stream = if wait_for_finalization {

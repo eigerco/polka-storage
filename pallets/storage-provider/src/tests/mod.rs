@@ -47,10 +47,11 @@ mod storage_provider_registration;
 mod submit_windowed_post;
 mod terminate_sectors;
 
-pub type SectorPreCommitInfoBuilder = primitives::sector::builder::SectorPreCommitInfoBuilder<u64>;
-
 type Block = frame_system::mocking::MockBlock<Test>;
-type BlockNumber = u64;
+type BlockNumber = BlockNumberFor<Test>;
+
+pub type SectorPreCommitInfoBuilder =
+    primitives::sector::builder::SectorPreCommitInfoBuilder<BlockNumber>;
 
 const MINUTES: BlockNumber = 1;
 
@@ -83,8 +84,8 @@ parameter_types! {
     // Storage Provider Pallet
     pub const StoragePalletId: PalletId = PalletId(*b"Storagee");
     pub const WPoStPeriodDeadlines: u64 = 10;
-    pub const MinDealDuration: u64 = 2 * MINUTES;
-    pub const MaxDealDuration: u64 = 30 * MINUTES;
+    pub const MinDealDuration: BlockNumber = 2 * MINUTES;
+    pub const MaxDealDuration: BlockNumber = 30 * MINUTES;
     pub const WPoStProvingPeriod: BlockNumber = 40 * MINUTES;
     pub const WPoStChallengeWindow: BlockNumber = 4 * MINUTES;
     pub const WPoStChallengeLookBack: BlockNumber = MINUTES;
@@ -246,7 +247,7 @@ fn account(name: &str) -> AccountIdOf<Test> {
 /// Run until a particular block.
 ///
 /// Stolen't from: <https://github.com/paritytech/polkadot-sdk/blob/7df94a469e02e1d553bd4050b0e91870d6a4c31b/substrate/frame/lottery/src/mock.rs#L87-L98>
-pub fn run_to_block(n: u64) {
+pub fn run_to_block(n: BlockNumber) {
     while System::block_number() < n {
         if System::block_number() > 1 {
             StorageProvider::on_finalize(System::block_number());
@@ -329,19 +330,19 @@ fn publish_deals(storage_provider: &str) {
 
 /// Builder to simplify writing complex tests of [`DealProposal`].
 /// Exclusively uses [`Test`] for simplification purposes.
-struct DealProposalBuilder {
+pub struct DealProposalBuilder<T: frame_system::Config> {
     piece_cid: BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>,
     piece_size: u64,
-    client: AccountIdOf<Test>,
-    provider: AccountIdOf<Test>,
+    client: AccountIdOf<T>,
+    provider: AccountIdOf<T>,
     label: BoundedVec<u8, ConstU32<128>>,
-    start_block: u64,
-    end_block: u64,
+    start_block: BlockNumberFor<T>,
+    end_block: BlockNumberFor<T>,
     storage_price_per_block: u64,
-    state: DealState<u64>,
+    state: DealState<BlockNumberFor<T>>,
 }
 
-impl Default for DealProposalBuilder {
+impl<T: frame_system::Config<AccountId = AccountId32>> Default for DealProposalBuilder<T> {
     fn default() -> Self {
         let piece_commitment = Commitment::<CommP>::from(*b"dummydummydummydummydummydummydu");
 
@@ -351,45 +352,40 @@ impl Default for DealProposalBuilder {
                 .to_bytes()
                 .try_into()
                 .expect("hash is always 32 bytes"),
-            piece_size: 128, // Smallest piece size available for sector
-            client: account(BOB),
-            provider: account(ALICE),
+            piece_size: 128,
+            client: account::<Test>(ALICE),
+            provider: account::<Test>(PROVIDER),
             label: bounded_vec![0xb, 0xe, 0xe, 0xf],
-            start_block: 100,
-            end_block: 110,
+            start_block: 100u32.saturated_into::<BlockNumberFor<T>>(),
+            end_block: 110u32.saturated_into::<BlockNumberFor<T>>(),
             storage_price_per_block: 5,
             state: DealState::Published,
         }
     }
 }
 
-impl DealProposalBuilder {
-    pub fn client(mut self, client: &str) -> Self {
-        self.client = account(client);
+impl<T: frame_system::Config<AccountId = AccountId32>> DealProposalBuilder<T> {
+    pub fn client(mut self, client: &'static str) -> Self {
+        self.client = account::<Test>(client);
         self
     }
 
-    pub fn provider(mut self, provider: &str) -> Self {
-        self.provider = account(provider);
+    pub fn provider(mut self, provider: &'static str) -> Self {
+        self.provider = account::<Test>(provider);
         self
     }
 
-    pub fn label(mut self, label: Vec<u8>) -> Self {
-        self.label = BoundedVec::try_from(label).unwrap();
-        self
-    }
-
-    pub fn state(mut self, state: DealState<u64>) -> Self {
+    pub fn state(mut self, state: DealState<BlockNumberFor<T>>) -> Self {
         self.state = state;
         self
     }
 
-    pub fn start_block(mut self, start_block: u64) -> Self {
+    pub fn start_block(mut self, start_block: BlockNumberFor<T>) -> Self {
         self.start_block = start_block;
         self
     }
 
-    pub fn end_block(mut self, end_block: u64) -> Self {
+    pub fn end_block(mut self, end_block: BlockNumberFor<T>) -> Self {
         self.end_block = end_block;
         self
     }
@@ -418,7 +414,7 @@ impl DealProposalBuilder {
         }
     }
 
-    pub fn signed(self, by: &str) -> ClientDealProposalOf<Test> {
+    pub fn signed(self, by: &'static str) -> ClientDealProposalOf<Test> {
         let built = self.unsigned();
         let signed = sign_proposal(by, built);
         signed
@@ -428,13 +424,13 @@ impl DealProposalBuilder {
 /// Builder with nice defaults for test purposes.
 struct SectorDealBuilder {
     sector_number: SectorNumber,
-    sector_expiry: u64,
+    sector_expiry: BlockNumberFor<Test>,
     sector_type: RegisteredSealProof,
     deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
 }
 
 impl SectorDealBuilder {
-    pub fn sector_expiry(mut self, sector_expiry: u64) -> Self {
+    pub fn sector_expiry(mut self, sector_expiry: BlockNumberFor<Test>) -> Self {
         self.sector_expiry = sector_expiry;
         self
     }
@@ -452,8 +448,8 @@ impl SectorDealBuilder {
         self
     }
 
-    pub fn build(self) -> SectorDeal<u64> {
-        SectorDeal::<u64> {
+    pub fn build(self) -> SectorDeal<BlockNumberFor<Test>> {
+        SectorDeal::<BlockNumberFor<Test>> {
             sector_number: self.sector_number,
             sector_expiry: self.sector_expiry,
             sector_type: self.sector_type,

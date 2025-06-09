@@ -20,7 +20,7 @@ use primitives::{
 use serde::{Deserialize, Serialize};
 use storagext::{
     types::storage_provider::{DealProposal, PoRepProof, ProveCommitSector, SectorPreCommitInfo},
-    RandomnessClientExt, StorageProviderClientExt, SystemClientExt,
+    BlockNumber, RandomnessClientExt, StorageProviderClientExt, SystemClientExt,
 };
 use subxt::{ext::codec::Encode, tx::Signer};
 use tokio::{
@@ -175,7 +175,7 @@ impl UnsealedSector {
         let ticket = draw_randomness(
             &digest,
             DomainSeparationTag::SealRandomness,
-            seal_randomness_height,
+            seal_randomness_height.into(),
             &entropy,
         );
 
@@ -327,7 +327,7 @@ pub struct PreCommittedSector {
     ///
     /// It is used as a randomness seed to create a replica.
     /// Available at [`SectorState::Sealed`] and later.
-    pub seal_randomness_height: u64,
+    pub seal_randomness_height: BlockNumber,
 
     /// Fetched randomness at block `seal_randomness_height`.
     /// We fetch it and save it, as its cleared on-chain every X blocks.
@@ -338,7 +338,7 @@ pub struct PreCommittedSector {
     ///
     /// It is used as a randomness seed to create a PoRep.
     /// Available at [`SectorState::Precommitted`] and later.
-    pub precommit_block: u64,
+    pub precommit_block: BlockNumber,
 }
 
 impl PreCommittedSector {
@@ -352,9 +352,9 @@ impl PreCommittedSector {
         sealed_path: std::path::PathBuf,
         comm_r: Commitment<CommR>,
         comm_d: Commitment<CommD>,
-        seal_randomness_height: u64,
+        seal_randomness_height: BlockNumber,
         seal_randomness: [u8; 32],
-        precommit_block: u64,
+        precommit_block: BlockNumber,
     ) -> Result<Self, std::io::Error> {
         tokio::fs::remove_file(unsealed.unsealed_path).await?;
 
@@ -385,7 +385,7 @@ impl PreCommittedSector {
         // TODO(@th7nder,04/11/2024):
         // https://github.com/eigerco/polka-storage/blob/5edd4194f08f29d769c277577ccbb70bb6ff63bc/runtime/src/configs/mod.rs#L360
         // 10 blocks = 1 minute, only testnet
-        const PRECOMMIT_CHALLENGE_DELAY: u64 = 10;
+        const PRECOMMIT_CHALLENGE_DELAY: u32 = 10;
 
         // Must match pallet's logic or otherwise proof won't be verified:
         // https://github.com/eigerco/polka-storage/blob/af51a9b121c9b02e0bf6f02f5e835091ab46af76/pallets/storage-provider/src/lib.rs#L1539
@@ -412,7 +412,7 @@ impl PreCommittedSector {
         let seed = draw_randomness(
             &digest,
             DomainSeparationTag::InteractiveSealChallengeSeed,
-            prove_commit_block,
+            prove_commit_block.into(),
             &entropy,
         );
 

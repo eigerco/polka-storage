@@ -10,9 +10,12 @@ use primitives::{
 };
 use serde::{Deserialize, Serialize};
 use sp_core::crypto::Ss58Codec;
-use storagext::types::storage_provider::{
-    ClientDealProposal as SxtClientDealProposal, DealParameters as SxtDealParameters,
-    DealProposal as SxtDealProposal,
+use storagext::{
+    types::storage_provider::{
+        ClientDealProposal as SxtClientDealProposal, DealParameters as SxtDealParameters,
+        DealProposal as SxtDealProposal,
+    },
+    BlockNumber,
 };
 
 use crate::config::sealing::SealingConfiguration;
@@ -72,7 +75,7 @@ pub struct ServerInfo {
     pub seal_proof: RegisteredSealProof,
 
     pub post_proof: RegisteredPoStProof,
-    pub proving_period_start: u64,
+    pub proving_period_start: BlockNumber,
 
     pub sealing_configuration: SealingConfiguration,
 }
@@ -83,7 +86,7 @@ impl ServerInfo {
         address: <storagext::PolkaStorageConfig as subxt::Config>::AccountId,
         seal_proof: RegisteredSealProof,
         post_proof: RegisteredPoStProof,
-        proving_period_start: u64,
+        proving_period_start: BlockNumber,
         sealing_configuration: SealingConfiguration,
     ) -> Self {
         Self {

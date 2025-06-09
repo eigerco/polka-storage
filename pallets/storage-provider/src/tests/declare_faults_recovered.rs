@@ -1,4 +1,5 @@
 use frame_support::{assert_err, assert_noop, assert_ok};
+use frame_system::pallet_prelude::BlockNumberFor;
 use rstest::rstest;
 use sp_core::{bounded_vec, ConstU32};
 use sp_runtime::{traits::BlockNumberProvider, BoundedVec};
@@ -294,7 +295,7 @@ fn fault_recovery_past_cutoff_should_fail() {
 /// Compare faults in deadlines and faults expected. Panic if faults in both are
 /// not equal.
 pub(crate) fn assert_exact_recovered_sectors(
-    deadlines: &Deadlines<u64>,
+    deadlines: &Deadlines<BlockNumberFor<Test>>,
     expected_recoveries: &[RecoveryDeclaration],
 ) {
     // Faulty sectors specified in the faults
