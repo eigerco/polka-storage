@@ -1,5 +1,4 @@
 mod proofs;
-mod wallet;
 
 use std::path::PathBuf;
 
@@ -18,7 +17,6 @@ use storagext::{
 use url::Url;
 
 use self::proofs::ProofsCommand;
-pub(super) use crate::commands::wallet::WalletCommand;
 use crate::rpc_client::PolkaStorageRpcClient;
 
 /// Default RPC server's URL.
@@ -38,9 +36,6 @@ pub enum CliError {
 
     #[error("Substrate error: {0}")]
     Substrate(#[from] subxt::Error),
-
-    #[error(transparent)]
-    SubstrateCli(#[from] sc_cli::Error),
 
     #[error("Error occurred while working with a car file: {0}")]
     MaterError(#[from] mater::Error),
@@ -74,10 +69,6 @@ pub enum CliError {
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub(crate) enum Cli {
-    /// Command to manage wallet operations.
-    #[command(subcommand)]
-    Wallet(WalletCommand),
-
     /// Utility commands for storage related actions.
     #[command(subcommand)]
     Proofs(ProofsCommand),
@@ -144,15 +135,6 @@ impl Cli {
         let cli_arguments: Cli = Cli::parse();
 
         match cli_arguments {
-            Self::Wallet(cmd) => match cmd {
-                WalletCommand::GenerateNodeKey(cmd) => Ok(cmd.run()?),
-                WalletCommand::Generate(cmd) => Ok(cmd.run()?),
-                WalletCommand::Inspect(cmd) => Ok(cmd.run()?),
-                WalletCommand::InspectNodeKey(cmd) => Ok(cmd.run()?),
-                WalletCommand::Vanity(cmd) => Ok(cmd.run()?),
-                WalletCommand::Verify(cmd) => Ok(cmd.run()?),
-                WalletCommand::Sign(cmd) => Ok(cmd.run()?),
-            },
             Self::Proofs(utils) => Ok(utils.run().await?),
             Self::Info { rpc_server_url } => Self::info(rpc_server_url).await,
             Self::ProposeDeal {
