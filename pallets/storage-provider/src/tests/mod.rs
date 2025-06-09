@@ -20,7 +20,7 @@ use sp_arithmetic::traits::Zero;
 use sp_core::{bounded_vec, Pair};
 use sp_runtime::{
     traits::{IdentifyAccount, IdentityLookup, Verify},
-    BoundedBTreeSet, BuildStorage, MultiSignature, MultiSigner,
+    BoundedBTreeSet, BuildStorage, MultiSignature, MultiSigner, SaturatedConversion,
 };
 
 use crate::{
@@ -330,19 +330,19 @@ fn publish_deals(storage_provider: &str) {
 
 /// Builder to simplify writing complex tests of [`DealProposal`].
 /// Exclusively uses [`Test`] for simplification purposes.
-pub struct DealProposalBuilder<T: frame_system::Config> {
+pub struct DealProposalBuilder {
     piece_cid: BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>,
     piece_size: u64,
-    client: AccountIdOf<T>,
-    provider: AccountIdOf<T>,
+    client: AccountIdOf<Test>,
+    provider: AccountIdOf<Test>,
     label: BoundedVec<u8, ConstU32<128>>,
-    start_block: BlockNumberFor<T>,
-    end_block: BlockNumberFor<T>,
+    start_block: BlockNumberFor<Test>,
+    end_block: BlockNumberFor<Test>,
     storage_price_per_block: u64,
-    state: DealState<BlockNumberFor<T>>,
+    state: DealState<BlockNumberFor<Test>>,
 }
 
-impl<T: frame_system::Config<AccountId = AccountId32>> Default for DealProposalBuilder<T> {
+impl Default for DealProposalBuilder {
     fn default() -> Self {
         let piece_commitment = Commitment::<CommP>::from(*b"dummydummydummydummydummydummydu");
 
@@ -353,39 +353,44 @@ impl<T: frame_system::Config<AccountId = AccountId32>> Default for DealProposalB
                 .try_into()
                 .expect("hash is always 32 bytes"),
             piece_size: 128,
-            client: account::<Test>(ALICE),
-            provider: account::<Test>(PROVIDER),
+            client: account(BOB),
+            provider: account(ALICE),
             label: bounded_vec![0xb, 0xe, 0xe, 0xf],
-            start_block: 100u32.saturated_into::<BlockNumberFor<T>>(),
-            end_block: 110u32.saturated_into::<BlockNumberFor<T>>(),
+            start_block: 100u32.saturated_into::<BlockNumberFor<Test>>(),
+            end_block: 110u32.saturated_into::<BlockNumberFor<Test>>(),
             storage_price_per_block: 5,
             state: DealState::Published,
         }
     }
 }
 
-impl<T: frame_system::Config<AccountId = AccountId32>> DealProposalBuilder<T> {
-    pub fn client(mut self, client: &'static str) -> Self {
-        self.client = account::<Test>(client);
+impl DealProposalBuilder {
+    pub fn client(mut self, client: &str) -> Self {
+        self.client = account(client);
         self
     }
 
-    pub fn provider(mut self, provider: &'static str) -> Self {
-        self.provider = account::<Test>(provider);
+    pub fn provider(mut self, provider: &str) -> Self {
+        self.provider = account(provider);
         self
     }
 
-    pub fn state(mut self, state: DealState<BlockNumberFor<T>>) -> Self {
+    pub fn label(mut self, label: Vec<u8>) -> Self {
+        self.label = BoundedVec::try_from(label).unwrap();
+        self
+    }
+
+    pub fn state(mut self, state: DealState<BlockNumberFor<Test>>) -> Self {
         self.state = state;
         self
     }
 
-    pub fn start_block(mut self, start_block: BlockNumberFor<T>) -> Self {
+    pub fn start_block(mut self, start_block: BlockNumberFor<Test>) -> Self {
         self.start_block = start_block;
         self
     }
 
-    pub fn end_block(mut self, end_block: BlockNumberFor<T>) -> Self {
+    pub fn end_block(mut self, end_block: BlockNumberFor<Test>) -> Self {
         self.end_block = end_block;
         self
     }
@@ -414,7 +419,7 @@ impl<T: frame_system::Config<AccountId = AccountId32>> DealProposalBuilder<T> {
         }
     }
 
-    pub fn signed(self, by: &'static str) -> ClientDealProposalOf<Test> {
+    pub fn signed(self, by: &str) -> ClientDealProposalOf<Test> {
         let built = self.unsigned();
         let signed = sign_proposal(by, built);
         signed
