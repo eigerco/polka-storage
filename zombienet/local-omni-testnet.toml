@@ -23,9 +23,9 @@ id = 1000
 
 [parachains.collator]
 args = [
-    "--detailed-log-output",
-    "--pool-type=fork-aware",
-    "-lparachain=debug,xcm=trace,runtime=trace,txpool=debug,basic-authorship=debug,polka_storage_node::service::p2p=trace,libp2p=debug",
+  "--detailed-log-output",
+  "--pool-type=fork-aware",
+  "-lparachain=debug,xcm=trace,runtime=trace,txpool=debug,basic-authorship=debug,polka_storage_node::service::p2p=trace,libp2p=debug",
 ]
 command = "polkadot-omni-node"
 name = "charlie"
