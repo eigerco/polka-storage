@@ -1,3 +1,5 @@
+export CARGO_WASM_RUNTIME_PATH := "target/release/wbuild/polka-storage-runtime/polka_storage_runtime.compact.compressed.wasm"
+
 alias b := build
 alias r := release
 alias t := testnet
@@ -31,6 +33,18 @@ run-testnet:
     openssl genpkey -algorithm ED25519 -out /tmp/zombienet/charlie-private.pem
     openssl pkey -in /tmp/zombienet/charlie-private.pem -pubout -out /tmp/zombienet/charlie-public.pem # Generate public key so script can get the Peer ID
     zombienet -p native spawn zombienet/local-testnet.toml
+
+run-omni-testnet:
+    cargo b -r -F testnet -p polka-storage-runtime
+    chain-spec-builder create \
+        -t local \
+        -r $CARGO_WASM_RUNTIME_PATH \
+        --relay-chain rococo-local \
+        --para-id 1000 \
+        named-preset local_testnet
+
+    mkdir -p /tmp/zombienet
+    zombienet -p native spawn zombienet/local-omni-testnet.toml
 
 # Run a single collator
 run-collator:
@@ -214,22 +228,24 @@ bench-test pallet:
 
 # Run benchmarks
 bench-node pallet steps="5" repeat="1":
-    cargo run \
-        -p polka-storage-node --bin polka-storage-node -r -F runtime-benchmarks -F testnet -- \
+    cargo b -r -p polka-storage-runtime -F testnet -F runtime-benchmarks
+
+    frame-omni-bencher v1 \
         benchmark pallet \
-        --wasm-execution=compiled \
+        --runtime target/release/wbuild/polka-storage-runtime/polka_storage_runtime.compact.compressed.wasm \
         --pallet "pallet_{{pallet}}" \
         --extrinsic "*" \
         --steps "{{steps}}" \
         --repeat "{{repeat}}" \
-        --template node/benchmark_template.hbs
+
 
 # Generate the benchmark weights
 generate-weights pallet steps="5" repeat="1":
-    cargo run \
-        -p polka-storage-node --bin polka-storage-node -r -F runtime-benchmarks -F testnet -- \
+    cargo b -r -p polka-storage-runtime -F testnet -F runtime-benchmarks
+
+    frame-omni-bencher v1 \
         benchmark pallet \
-        --wasm-execution=compiled \
+        --runtime target/release/wbuild/polka-storage-runtime/polka_storage_runtime.compact.compressed.wasm \
         --pallet "pallet_{{pallet}}" \
         --extrinsic "*" \
         --steps "{{steps}}" \

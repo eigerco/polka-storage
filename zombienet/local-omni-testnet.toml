@@ -1,0 +1,32 @@
+[relaychain]
+chain = "rococo-local"
+# That's because in Nix supplied `polkadot` binary, `SKIP_WASM_BUILD=1` is disabled.
+# https://github.com/andresilva/polkadot.nix/blob/ac4e91a0c75cf422b80f06d6edcecb9bf63727e3/pkgs/polkadot-sdk/generic.nix#L84
+# Needed to generate chainspec by directly downloading polkadot binary (https://github.com/paritytech/polkadot-sdk/releases/download/polkadot-stable2412-1/polkadot)
+# and running /polkadot build-spec --chain rococo-local > rococo-local.json`.
+# We won't need to add `chain_spec_path` when https://github.com/paritytech/polkadot-sdk/pull/7008 is merged.
+chain_spec_path = "./zombienet/rococo-local.json"
+default_args = ["--detailed-log-output", "-lparachain=debug,xcm=trace,runtime=trace"]
+default_command = "polkadot"
+
+[[relaychain.nodes]]
+name = "alice"
+validator = true
+
+[[relaychain.nodes]]
+name = "bob"
+validator = true
+
+[[parachains]]
+chain_spec_path = "./chain_spec.json"
+id = 1000
+
+[parachains.collator]
+args = [
+  "--detailed-log-output",
+  "--pool-type=fork-aware",
+  "-lparachain=debug,xcm=trace,runtime=trace,txpool=debug,basic-authorship=debug,polka_storage_node::service::p2p=trace,libp2p=debug",
+]
+command = "polkadot-omni-node"
+name = "charlie"
+rpc_port = 42069
