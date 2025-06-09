@@ -16,17 +16,13 @@ use primitives_p2p::{
 };
 use tracing::{debug, error, info, warn};
 
-use crate::{swarm::create_swarm, P2PError};
-
-#[derive(NetworkBehaviour)]
-pub struct BootstrapBehaviour {
-    pub identify: identify::Behaviour,
-    pub request_response: request_response::Behaviour<LpCbor<PeerIdRequest, PeerInfoResponse>>,
-    pub kad: kad::Behaviour<kad::store::MemoryStore>,
-}
+use crate::{
+    behaviour::{self, Behaviour, Mode},
+    P2PError,
+};
 
 #[derive(Debug, Clone, clap::Parser)]
-pub struct BootstrapConfig {
+pub struct Bootstrap {
     /// Listening addresses.
     #[arg(long, value_delimiter=',', num_args=1..)]
     pub listen_addresses: Vec<Multiaddr>,
@@ -44,35 +40,31 @@ pub struct BootstrapConfig {
     pub keypair: Option<Keypair>,
 }
 
-impl BootstrapConfig {
-    pub async fn create_swarm(
-        self,
-    ) -> Result<
-        (
-            Swarm<BootstrapBehaviour>,
-            Vec<Multiaddr>,
-            Vec<Multiaddr>,
-            Vec<Multiaddr>,
-        ),
-        P2PError,
-    > {
-        Ok((
-            create_swarm(self.keypair).await?,
+impl Bootstrap {
+    pub async fn run(self) -> Result<(), P2PError> {
+        let swarm = behaviour::Behaviour::to_swarm(Mode::Server, self.keypair).await;
+        bootstrap(
+            swarm,
             self.listen_addresses,
             self.public_addresses,
             self.bootstrap_addresses,
-        ))
+        )
+        .await
     }
 }
 
 /// Run the rendezvous point (bootstrap node).
 /// Listens on the given [`Multiaddr`]
 pub(crate) async fn bootstrap(
-    mut swarm: Swarm<BootstrapBehaviour>,
+    mut swarm: Swarm<Behaviour>,
     listen_addresses: Vec<Multiaddr>,
     public_addresses: Vec<Multiaddr>,
     bootstrap_addresses: Vec<Multiaddr>,
 ) -> Result<(), P2PError> {
+    // Kad sets this when the external address get's confirmed
+    // but this case is always a server
+    swarm.behaviour_mut().kad.set_mode(Some(kad::Mode::Server));
+
     for addr in listen_addresses {
         info!("P2P bootstrap: listening at {addr}");
         swarm.listen_on(addr)?;
@@ -102,7 +94,7 @@ pub(crate) async fn bootstrap(
                 SwarmEvent::ConnectionClosed { peer_id, .. } => {
                     info!("Disconnected from {}", peer_id);
                 }
-                SwarmEvent::Behaviour(BootstrapBehaviourEvent::Identify(event)) => {
+                SwarmEvent::Behaviour(crate::behaviour::BehaviourEvent::Identify(event)) => {
                     match event {
                         identify::Event::Received {  peer_id, info, .. } => {
                             tracing::trace!("Received an identify received event");
@@ -114,7 +106,7 @@ pub(crate) async fn bootstrap(
                         _ => tracing::debug!("Unhandled Identify event: {event:?}"),
                     };
                 }
-                SwarmEvent::Behaviour(BootstrapBehaviourEvent::RequestResponse(event)) => on_request_response_event(&mut swarm, event, ),
+                SwarmEvent::Behaviour(crate::behaviour::BehaviourEvent::RequestResponse(event)) => on_request_response_event(&mut swarm, event, ),
                 other => debug!("Encountered event: {other:?}"),
             }
         }
@@ -123,7 +115,7 @@ pub(crate) async fn bootstrap(
 
 /// Handles events within the request_response protocol
 fn on_request_response_event(
-    swarm: &mut Swarm<BootstrapBehaviour>,
+    swarm: &mut Swarm<Behaviour>,
     event: request_response::Event<PeerIdRequest, PeerInfoResponse>,
 ) {
     match event {
