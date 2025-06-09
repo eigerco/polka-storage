@@ -38,7 +38,6 @@ libp2p = { workspace = true, features = ["cbor", "dns", "identify", "macros", "n
 libp2p-length-prefix-codec = { workspace = true }
 rand = { workspace = true }
 rocksdb = { workspace = true }
-sc-cli = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sp-runtime = { workspace = true }
