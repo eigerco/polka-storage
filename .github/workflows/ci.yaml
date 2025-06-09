@@ -3,12 +3,12 @@ name: CI
 on:
   pull_request:
     types:
-    # These are the default types
-    - opened
-    - synchronize
-    - reopened
-    # This additional type is added to trigger on the 'ready for review' label being added
-    - labeled
+      # These are the default types
+      - opened
+      - synchronize
+      - reopened
+      # This additional type is added to trigger on the 'ready for review' label being added
+      - labeled
   push:
     branches: [develop, main]
   workflow_dispatch: # manual launch
@@ -115,57 +115,57 @@ jobs:
 
       - name: pallet-proofs — Run node benchmarks
         run: |
-          cargo run \
-          -p polka-storage-node --bin polka-storage-node -r -F runtime-benchmarks -- \
-          benchmark pallet \
-          --wasm-execution=compiled \
-          --pallet "pallet_proofs" \
-          --extrinsic "*" \
-          --steps 5 \
-          --repeat 1 \
-          --template node/benchmark_template.hbs
+          cargo b -r -p polka-storage-runtime -F testnet -F runtime-benchmarks
+          nix develop -c \
+            frame-omni-bencher v1 \
+              benchmark pallet \
+              --wasm-execution=compiled \
+              --pallet "pallet_proofs" \
+              --extrinsic "*" \
+              --steps 5 \
+              --repeat 1
 
       - name: pallet-randomness — Run test benchmarks
         run: cargo test --profile ci --locked -p pallet-randomness --features runtime-benchmarks -- benchmark --nocapture
 
       - name: pallet-randomness — Run node benchmarks
         run: |
-          cargo run \
-          -p polka-storage-node --bin polka-storage-node -r -F runtime-benchmarks -- \
-          benchmark pallet \
-          --wasm-execution=compiled \
-          --pallet "pallet_randomness" \
-          --extrinsic "*" \
-          --steps 5 \
-          --repeat 1 \
-          --template node/benchmark_template.hbs
+          cargo b -r -p polka-storage-runtime -F testnet -F runtime-benchmarks
+          nix develop -c \
+            frame-omni-bencher v1 \
+              benchmark pallet \
+              --wasm-execution=compiled \
+              --pallet "pallet_randomness" \
+              --extrinsic "*" \
+              --steps 5 \
+              --repeat 1
 
       - name: pallet-market — Run test benchmarks
         run: cargo test --profile ci --locked -p pallet-market-benchmarks --features runtime-benchmarks -- benchmark --nocapture
 
       - name: pallet-market — Run node benchmarks
         run: |
-          cargo run \
-          -p polka-storage-node --bin polka-storage-node -r -F runtime-benchmarks -F testnet -- \
-          benchmark pallet \
-          --wasm-execution=compiled \
-          --pallet "pallet_market" \
-          --extrinsic "*" \
-          --steps 5 \
-          --repeat 1 \
-          --template node/benchmark_template.hbs
+          cargo b -r -p polka-storage-runtime -F testnet -F runtime-benchmarks
+          nix develop -c \
+            frame-omni-bencher v1 \
+              benchmark pallet \
+              --wasm-execution=compiled \
+              --pallet "pallet_market" \
+              --extrinsic "*" \
+              --steps 5 \
+              --repeat 1
 
       - name: pallet-storage-provider — Run test benchmarks
         run: cargo test --profile ci --locked -p pallet-storage-provider-benchmarks --features runtime-benchmarks -- benchmark --nocapture
 
       - name: pallet-storage-provider — Run node benchmarks
         run: |
-          cargo run \
-          -p polka-storage-node --bin polka-storage-node -r -F runtime-benchmarks -F testnet -- \
-          benchmark pallet \
-          --wasm-execution=compiled \
-          --pallet "pallet_storage_provider" \
-          --extrinsic "*" \
-          --steps 5 \
-          --repeat 1 \
-          --template node/benchmark_template.hbs
+          cargo b -r -p polka-storage-runtime -F testnet -F runtime-benchmarks
+          nix develop -c \
+            frame-omni-bencher v1 \
+              benchmark pallet \
+              --wasm-execution=compiled \
+              --pallet "pallet_storage_provider" \
+              --extrinsic "*" \
+              --steps 5 \
+              --repeat 1
