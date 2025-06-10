@@ -10,17 +10,17 @@ version = "0.1.0"
 [dependencies]
 clap = { workspace = true, features = ["derive"] }
 libp2p = { workspace = true, features = [
-    "cbor",
-    "dns",
-    "identify",
-    "kad",
-    "macros",
-    "noise",
-    "request-response",
-    "tcp",
-    "tokio",
-    "websocket",
-    "yamux",
+  "cbor",
+  "dns",
+  "identify",
+  "kad",
+  "macros",
+  "noise",
+  "request-response",
+  "tcp",
+  "tokio",
+  "websocket",
+  "yamux",
 ] }
 libp2p-length-prefix-codec = { workspace = true }
 primitives-p2p = { workspace = true, features = ["serde"] }

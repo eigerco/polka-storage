@@ -1,19 +1,13 @@
-use std::time::Duration;
-
 use libp2p::{
     futures::StreamExt,
     identify,
     identity::Keypair,
-    kad, noise,
-    request_response::{self, Message, ProtocolSupport},
-    swarm::{NetworkBehaviour, SwarmEvent},
-    tcp, yamux, Multiaddr, StreamProtocol, Swarm, SwarmBuilder,
+    kad,
+    request_response::{self, Message},
+    swarm::SwarmEvent,
+    Multiaddr, Swarm,
 };
-use libp2p_length_prefix_codec::LpCbor;
-use primitives_p2p::{
-    keypair_value_parser, PeerIdRequest, PeerInfo, PeerInfoResponse,
-    BOOTSTRAP_REQUEST_RESPONSE_PROTOCOL, IDENTIFY_PROTOCOL_VERSION,
-};
+use primitives_p2p::{keypair_value_parser, PeerIdRequest, PeerInfo, PeerInfoResponse};
 use tracing::{debug, error, info, warn};
 
 use crate::{
