@@ -236,7 +236,7 @@ bench-node pallet steps="5" repeat="1":
         --pallet "pallet_{{pallet}}" \
         --extrinsic "*" \
         --steps "{{steps}}" \
-        --repeat "{{repeat}}" \
+        --repeat "{{repeat}}"
 
 
 # Generate the benchmark weights
