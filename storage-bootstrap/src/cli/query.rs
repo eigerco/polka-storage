@@ -38,8 +38,7 @@ impl Query {
             match swarm.select_next_some().await {
                 libp2p::swarm::SwarmEvent::Behaviour(event) => match event {
                     crate::behaviour::BehaviourEvent::RequestResponse(event) => match event {
-                        libp2p::request_response::Event::Message { peer, message } => match message
-                        {
+                        libp2p::request_response::Event::Message { message, .. } => match message {
                             libp2p::request_response::Message::Response { response, .. } => {
                                 tracing::info!("Received response: {response:?}");
                                 return Ok(());
