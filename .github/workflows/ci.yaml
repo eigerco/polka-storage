@@ -119,7 +119,7 @@ jobs:
           nix develop -c \
             frame-omni-bencher v1 \
               benchmark pallet \
-              --wasm-execution=compiled \
+              --runtime target/release/wbuild/polka-storage-runtime/polka_storage_runtime.compact.compressed.wasm \
               --pallet "pallet_proofs" \
               --extrinsic "*" \
               --steps 5 \
@@ -134,7 +134,7 @@ jobs:
           nix develop -c \
             frame-omni-bencher v1 \
               benchmark pallet \
-              --wasm-execution=compiled \
+              --runtime target/release/wbuild/polka-storage-runtime/polka_storage_runtime.compact.compressed.wasm \
               --pallet "pallet_randomness" \
               --extrinsic "*" \
               --steps 5 \
@@ -149,7 +149,7 @@ jobs:
           nix develop -c \
             frame-omni-bencher v1 \
               benchmark pallet \
-              --wasm-execution=compiled \
+              --runtime target/release/wbuild/polka-storage-runtime/polka_storage_runtime.compact.compressed.wasm \
               --pallet "pallet_market" \
               --extrinsic "*" \
               --steps 5 \
@@ -164,7 +164,7 @@ jobs:
           nix develop -c \
             frame-omni-bencher v1 \
               benchmark pallet \
-              --wasm-execution=compiled \
+              --runtime target/release/wbuild/polka-storage-runtime/polka_storage_runtime.compact.compressed.wasm \
               --pallet "pallet_storage_provider" \
               --extrinsic "*" \
               --steps 5 \
