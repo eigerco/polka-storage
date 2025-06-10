@@ -101,98 +101,43 @@ jobs:
       - name: Run tests
         run: cargo tarpaulin --profile ci --locked --workspace --skip-clean --exclude maat
 
-  benchmarks-proofs:
+  # This is easier to configure in the GitHub settings
+  benchmarks:
     runs-on: self-hosted
     needs:
       - clippy_build_and_test
     env:
       RUSTFLAGS: -D warnings
+    strategy:
+      matrix:
+        target:
+          - name: proofs
+            crate: pallet-proofs
+            pallet: pallet_proofs
+          - name: randomness
+            crate: pallet-randomness
+            pallet: pallet_randomness
+          - name: market
+            crate: pallet-market-benchmarks
+            pallet: pallet_market
+          - name: storage-provider
+            crate: pallet-storage-provider-benchmarks
+            pallet: pallet_storage_provider
     steps:
       - uses: actions/checkout@v4
 
-      - name: pallet-proofs — Run test benchmarks
-        run: cargo test --profile ci --locked -p pallet-proofs --features runtime-benchmarks -- benchmark --nocapture
+      - name: Run test benchmarks
+        run: |
+          cargo test --profile ci --locked -p ${{ matrix.target.crate }} --features runtime-benchmarks -- benchmark --nocapture
 
-      - name: pallet-proofs — Run node benchmarks
+      - name: Run node benchmarks
         run: |
           cargo b -r -p polka-storage-runtime -F testnet -F runtime-benchmarks
           nix develop -c \
             frame-omni-bencher v1 \
               benchmark pallet \
               --runtime target/release/wbuild/polka-storage-runtime/polka_storage_runtime.compact.compressed.wasm \
-              --pallet "pallet_proofs" \
-              --extrinsic "*" \
-              --steps 5 \
-              --repeat 1
-
-  benchmarks-randomness:
-    runs-on: self-hosted
-    needs:
-      - clippy_build_and_test
-    env:
-      RUSTFLAGS: -D warnings
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: pallet-randomness — Run test benchmarks
-        run: cargo test --profile ci --locked -p pallet-randomness --features runtime-benchmarks -- benchmark --nocapture
-
-      - name: pallet-randomness — Run node benchmarks
-        run: |
-          cargo b -r -p polka-storage-runtime -F testnet -F runtime-benchmarks
-          nix develop -c \
-            frame-omni-bencher v1 \
-              benchmark pallet \
-              --runtime target/release/wbuild/polka-storage-runtime/polka_storage_runtime.compact.compressed.wasm \
-              --pallet "pallet_randomness" \
-              --extrinsic "*" \
-              --steps 5 \
-              --repeat 1
-
-  benchmarks-market:
-    runs-on: self-hosted
-    needs:
-      - clippy_build_and_test
-    env:
-      RUSTFLAGS: -D warnings
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: pallet-market — Run test benchmarks
-        run: cargo test --profile ci --locked -p pallet-market-benchmarks --features runtime-benchmarks -- benchmark --nocapture
-
-      - name: pallet-market — Run node benchmarks
-        run: |
-          cargo b -r -p polka-storage-runtime -F testnet -F runtime-benchmarks
-          nix develop -c \
-            frame-omni-bencher v1 \
-              benchmark pallet \
-              --runtime target/release/wbuild/polka-storage-runtime/polka_storage_runtime.compact.compressed.wasm \
-              --pallet "pallet_market" \
-              --extrinsic "*" \
-              --steps 5 \
-              --repeat 1
-
-  benchmarks-storage-provider:
-    runs-on: self-hosted
-    needs:
-      - clippy_build_and_test
-    env:
-      RUSTFLAGS: -D warnings
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: pallet-storage-provider — Run test benchmarks
-        run: cargo test --profile ci --locked -p pallet-storage-provider-benchmarks --features runtime-benchmarks -- benchmark --nocapture
-
-      - name: pallet-storage-provider — Run node benchmarks
-        run: |
-          cargo b -r -p polka-storage-runtime -F testnet -F runtime-benchmarks
-          nix develop -c \
-            frame-omni-bencher v1 \
-              benchmark pallet \
-              --runtime target/release/wbuild/polka-storage-runtime/polka_storage_runtime.compact.compressed.wasm \
-              --pallet "pallet_storage_provider" \
+              --pallet "${{ matrix.target.pallet }}" \
               --extrinsic "*" \
               --steps 5 \
               --repeat 1
