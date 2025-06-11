@@ -41,3 +41,6 @@ coverage/
 
 # File logs from the SP
 logs/
+
+# Polkadot node storage
+data/

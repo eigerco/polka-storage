@@ -1,6 +1,5 @@
 use alloc::{vec, vec::Vec};
 use core::iter::once;
-
 use cumulus_primitives_core::ParaId;
 use parachains_common::AuraId;
 use polka_storage_proofs::{Bls12, VerifyingKey};
@@ -17,8 +16,6 @@ use crate::{
 
 /// The default XCM version to set in genesis config.
 const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
-/// Parachain id used for gensis config presets of parachain template.
-const PARACHAIN_ID: u32 = 1000;
 
 /// Generate the session keys from individual elements.
 ///
@@ -31,7 +28,6 @@ fn testnet_genesis(
     invulnerables: Vec<(AccountId, AuraId)>,
     endowed_accounts: Vec<AccountId>,
     root: AccountId,
-    id: ParaId,
 ) -> Value {
     let post_1gib_vk = include_bytes!("../../test-fixtures/keys/1GiB.post.vk.scale");
     let post_1gib_vk = VerifyingKey::<Bls12>::from_bytes(post_1gib_vk).unwrap();
@@ -54,7 +50,9 @@ fn testnet_genesis(
                 .collect::<Vec<_>>(),
         },
         parachain_info: ParachainInfoConfig {
-            parachain_id: id,
+            // There is no reasonable default here - but at least 1000 is taken by AssetHub, so it should
+            // error if it's ever used in a real environment. Having a default is convenient for development.
+            parachain_id: ParaId::new(1000),
             ..Default::default()
         },
         collator_selection: CollatorSelectionConfig {
@@ -145,7 +143,6 @@ fn local_testnet_genesis() -> Value {
             .chain(once(Market::account_id()))
             .collect(),
         Sr25519Keyring::Alice.to_account_id(),
-        PARACHAIN_ID.into(),
     )
 }
 
@@ -166,7 +163,6 @@ fn development_config_genesis() -> Value {
             .map(|k| k.to_account_id())
             .collect(),
         Sr25519Keyring::Alice.to_account_id(),
-        PARACHAIN_ID.into(),
     )
 }
 
