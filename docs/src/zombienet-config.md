@@ -46,8 +46,8 @@ A list of tables defining multiple parachains, in our case, we only care for our
 
 The difference between them lies in the usage of container configurations:
 
-| Name                 | Description                                                                                                                                                                   |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `image_pull_policy`  | Defines when `zombienet` should pull an image; read more about it in the [Kubernetes documentation](https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy) |
-| `image`              | Defines which image to pull                                                                                                                                                   |
-| `ws_port`/`rpc_port` | Depending on the type of configuration (Native or Kubernetes), this variable sets the port for the collator RPC service                                                       |
+| Name                | Description                                                                                                                                                                   |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `image_pull_policy` | Defines when `zombienet` should pull an image; read more about it in the [Kubernetes documentation](https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy) |
+| `image`             | Defines which image to pull                                                                                                                                                   |
+| `rpc_port`          | The variable sets the port for the collator RPC service                                                                                                                       |
