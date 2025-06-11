@@ -45,7 +45,7 @@ Where the `<ACCOUNT>` is the [SS58 address](https://docs.substrate.io/learn/acco
 
 Make sure to run the local testnet, you can find how to do so in the [local testnet guide](index.md). Once the local testnet is up and running navigate to the polkadot-js web app interface by going to the [default polkadot.js web interface URL](https://polkadot.js.org/apps/?rpc=ws://127.0.0.1:42069).
 
-> If you have changed the `ws_port` value in the zombienet configuration — `local-testnet.toml`,
+> If you have changed the `rpc_port` value in the zombienet configuration — `local-testnet.toml`,
 > this URL is different and you should change the port accordingly.
 
 Under the developer tab, navigate to _Sudo_.

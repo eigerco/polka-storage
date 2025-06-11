@@ -35,5 +35,5 @@ args = [
 ]
 command = "target/release/polka-storage-node"
 name = "charlie"
+rpc_port = 42069
 validator = true
-ws_port = 42069
