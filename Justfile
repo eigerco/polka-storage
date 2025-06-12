@@ -252,3 +252,12 @@ generate-weights pallet steps="5" repeat="1":
         --repeat "{{repeat}}" \
         --template node/benchmark_template.hbs \
         --output "pallets/{{pallet}}/src/weights.rs"
+
+run-bootstrap:
+    # openssl genpkey -algorithm ED25519 -out /tmp/zombienet/charlie-private.pem
+    # openssl pkey -in /tmp/zombienet/charlie-private.pem -pubout -out /tmp/zombienet/charlie-public.pem # Generate public key so script can get the Peer ID
+    RUST_LOG=info,polka_storage_bootstrap=trace cargo r -r -p polka-storage-bootstrap -- \
+        run \
+        --listen-addresses "/ip4/0.0.0.0/tcp/5678,/ip4/0.0.0.0/tcp/5679/ws"
+    # --bootstrap-addresses "/ip4/127.0.0.1/tcp/51788/ws/p2p/12D3KooWQCkBm1BYtkHpocxCwMgR8yjitEeHGx8spzcDLGt2gkBm" \
+    # --keypair "@/tmp/zombienet/charlie-private.pem"
