@@ -3,6 +3,7 @@
 #![recursion_limit = "256"]
 
 extern crate alloc;
+extern crate core;
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]

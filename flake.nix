@@ -55,10 +55,17 @@
           subxt-cli
           srtool-cli
           frame-omni-bencher
+          subkey
           # Due to polkadot's flake.nix, needs to be prefixed with pkgs.zombienet
           pkgs.zombienet
-          # Required for srtool-cli
+          # Used for deterministic runtime builds.
           podman
+          srtool-cli
+          qemu
+          virtiofsd
+
+          # I couldn't figure out how to solve the permissions problem. So I've installed shadow utils directly on the system.
+          # shadow
 
           # rust-fil-proofs OpenCL dependencies (https://github.com/filecoin-project/rust-fil-proofs/blob/5a0523ae1ddb73b415ce2fa819367c7989aaf73f/README.md?plain=1#L74)
           ocl-icd

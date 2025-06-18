@@ -253,6 +253,56 @@ generate-weights pallet steps="5" repeat="1":
         --template node/benchmark_template.hbs \
         --output "pallets/{{pallet}}/src/weights.rs"
 
+build-runtime-deterministic:
+    # Init and start the podman VM. The 8GB of RAM is not immediately allocated, but the higher-than-default cap
+    # is necessary to build the runtime. The volume mount is necessary *if* the current working directory is not
+    # on the list of default mounts. The command will "fail" if the machine already exists and/or is running,
+    # so all errors are ignored for simplicity. The command output should be enough to debug any issues.
+    podman machine init --memory=8192 -v "$(pwd):$(pwd)" || true
+    podman machine start || true
+    # Build the runtime. The --root is needed because of https://github.com/paritytech/srtool/issues/46
+    srtool build \
+        --app \
+        --package polka-storage-runtime \
+        --runtime-dir runtime \
+        --verbose \
+        --build-opts='"--features testnet"' \
+        --root \
+        | tail -n1 | jq .  > target/runtime.json
+
+build-plain-chain-spec chain para-id:
+    chain-spec-builder --chain-spec-path "chainspecs/{{ chain }}.plain.json" create \
+        --relay-chain {{ chain }} \
+        --para-id {{ para-id }} \
+        --chain-name "Polka Storage" \
+        --chain-id "polka-storage" \
+        -t live \
+        --verify \
+        --runtime runtime/target/srtool/release/wbuild/polka-storage-runtime/polka_storage_runtime.compact.compressed.wasm \
+        patch chainspecs/{{ chain }}.patch.json
+
+build-raw-chain-spec chain para-id: (build-plain-chain-spec chain para-id)
+    chain-spec-builder --chain-spec-path "chainspecs/{{ chain }}.raw.json" convert-to-raw \
+    "chainspecs/{{ chain }}.plain.json"
+
+build-genesis chain para-id: (build-raw-chain-spec chain para-id)
+    target/release/polka-storage-node export-genesis-wasm --chain "chainspecs/{{ chain }}.raw.json" "target/{{ chain }}.para-wasm"
+    target/release/polka-storage-node export-genesis-state --chain "chainspecs/{{ chain }}.raw.json" "target/{{ chain }}.para-state"
+
+run-polka-storage-node chain:
+    target/release/polka-storage-node --collator \
+        --chain chainspecs/{{ chain }}.raw.json \
+        --base-path data \
+        --rpc-port 42069 \
+        --force-authoring \
+        --node-key-file ./data/chains/polka-storage/network/secret_ed25519 \
+        --p2p-key $(cat ./data/chains/polka-storage/network/secret_ed25519) \
+        --pool-type fork-aware \
+        -- \
+        --discover-local \
+        --sync warp \
+        --chain {{ chain }}
+
 run-bootstrap:
     # openssl genpkey -algorithm ED25519 -out /tmp/zombienet/charlie-private.pem
     # openssl pkey -in /tmp/zombienet/charlie-private.pem -pubout -out /tmp/zombienet/charlie-public.pem # Generate public key so script can get the Peer ID
