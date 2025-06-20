@@ -117,9 +117,6 @@ jobs:
           - name: randomness
             crate: pallet-randomness
             pallet: pallet_randomness
-          - name: market
-            crate: pallet-market-benchmarks
-            pallet: pallet_market
           - name: storage-provider
             crate: pallet-storage-provider-benchmarks
             pallet: pallet_storage_provider
