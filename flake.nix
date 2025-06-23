@@ -62,7 +62,7 @@
           podman
           srtool-cli
           qemu
-          virtiofsd
+          (pkgs.lib.optional pkgs.stdenv.isLinux virtiofsd)
 
           # I couldn't figure out how to solve the permissions problem. So I've installed shadow utils directly on the system.
           # shadow

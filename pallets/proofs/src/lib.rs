@@ -106,14 +106,8 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        PoRepVerifyingKeyChanged {
-            who: T::AccountId,
-            proof: RegisteredSealProof,
-        },
-        PoStVerifyingKeyChanged {
-            who: T::AccountId,
-            proof: RegisteredPoStProof,
-        },
+        PoRepVerifyingKeyChanged { proof: RegisteredSealProof },
+        PoStVerifyingKeyChanged { proof: RegisteredPoStProof },
     }
 
     #[pallet::error]
@@ -138,7 +132,7 @@ pub mod pallet {
             registered_seal_proof: RegisteredSealProof,
             verifying_key: crate::Vec<u8>,
         ) -> DispatchResult {
-            let caller = ensure_signed(origin)?;
+            ensure_root(origin)?;
             if verifying_key.len() > POREP_VERIFYINGKEY_MAX_BYTES {
                 log::error!(target: LOG_TARGET, "verifying key is longer ({}) than the maximum expected ({})", verifying_key.len(), POREP_VERIFYINGKEY_MAX_BYTES);
                 return Err(Error::<T>::InvalidVerifyingKey.into());
@@ -151,7 +145,6 @@ pub mod pallet {
 
             PoRepVerifyingKeys::<T>::insert(registered_seal_proof, vkey);
             Self::deposit_event(Event::PoRepVerifyingKeyChanged {
-                who: caller,
                 proof: registered_seal_proof,
             });
             Ok(())
@@ -165,7 +158,7 @@ pub mod pallet {
             registered_post_proof: RegisteredPoStProof,
             verifying_key: crate::Vec<u8>,
         ) -> DispatchResult {
-            let caller = ensure_signed(origin)?;
+            ensure_root(origin)?;
             let vkey =
                 VerifyingKey::<Bls12>::decode(&mut verifying_key.as_slice()).map_err(|e| {
                     log::error!(target: LOG_TARGET, "failed to parse PoSt verifying key {:?}", e);
@@ -174,7 +167,6 @@ pub mod pallet {
 
             PoStVerifyingKeys::<T>::insert(registered_post_proof, vkey);
             Self::deposit_event(Event::PoStVerifyingKeyChanged {
-                who: caller,
                 proof: registered_post_proof,
             });
             Ok(())
