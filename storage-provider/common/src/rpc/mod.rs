@@ -11,7 +11,7 @@ use primitives::{
 use serde::{Deserialize, Serialize};
 use sp_core::crypto::Ss58Codec;
 use storagext::{
-    types::market::{
+    types::storage_provider::{
         ClientDealProposal as SxtClientDealProposal, DealParameters as SxtDealParameters,
         DealProposal as SxtDealProposal,
     },

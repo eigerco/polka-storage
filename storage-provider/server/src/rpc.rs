@@ -11,11 +11,11 @@ use primitives::{
     DealId,
 };
 use storagext::{
-    types::market::{
+    types::storage_provider::{
         ClientDealProposal as SxtClientDealProposal, DealParameters as SxtDealParameters,
         DealProposal as SxtDealProposal,
     },
-    MarketClientExt, StorageProviderClientExt, SystemClientExt,
+    StorageProviderClientExt, SystemClientExt,
 };
 use subxt::tx::Signer;
 use tokio::sync::mpsc::UnboundedSender;
@@ -339,7 +339,7 @@ impl StorageProviderRpcServer for RpcServerState {
 
         let published_deals = result
             .events
-            .find_first::<storagext::runtime::market::events::DealsPublished>()
+            .find_first::<storagext::runtime::storage_provider::events::DealsPublished>()
             .map_err(|err| RpcError::internal_error(err, None))?;
         let Some(published_deals) = published_deals else {
             return Err(RpcError::internal_error(

@@ -4,7 +4,7 @@ use anyhow::{anyhow, bail};
 use cid::Cid;
 use clap::{command, Parser, Subcommand};
 use libp2p::{Multiaddr, PeerId};
-use storagext::{MarketClientExt, StorageProviderClientExt};
+use storagext::StorageProviderClientExt;
 use tracing::{error, info, level_filters::LevelFilter};
 use tracing_subscriber::{
     filter::FromEnvError, fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer,

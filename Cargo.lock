@@ -11577,50 +11577,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-market"
-version = "0.0.0"
-dependencies = [
- "blake2b_simd",
- "cid 0.11.1",
- "frame-support 28.0.0",
- "frame-system 28.0.0",
- "hex",
- "log",
- "parity-scale-codec",
- "primitives",
- "scale-info",
- "sp-arithmetic 23.0.0",
- "sp-runtime 31.0.1",
- "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2412)",
- "thiserror 2.0.8",
-]
-
-[[package]]
-name = "pallet-market-benchmarks"
-version = "0.0.0"
-dependencies = [
- "blake2b_simd",
- "cid 0.11.1",
- "env_logger 0.11.5",
- "frame-benchmarking 28.0.0",
- "frame-support 28.0.0",
- "frame-system 28.0.0",
- "itertools 0.13.0",
- "pallet-balances 28.0.0",
- "pallet-market",
- "pallet-proofs",
- "pallet-storage-provider",
- "parity-scale-codec",
- "primitives",
- "scale-info",
- "sp-core 28.0.0",
- "sp-io 30.0.0",
- "sp-keystore 0.34.0",
- "sp-runtime 31.0.1",
- "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2412)",
-]
-
-[[package]]
 name = "pallet-membership"
 version = "28.0.0"
 source = "git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2412#967989c5d94cb5d2060083ca7ddc5ac2cc2dd543"
@@ -12876,7 +12832,6 @@ dependencies = [
  "log",
  "multihash-codetable",
  "pallet-balances 28.0.0",
- "pallet-market",
  "pallet-proofs",
  "pallet-randomness",
  "parity-scale-codec",
@@ -12886,7 +12841,10 @@ dependencies = [
  "sp-arithmetic 23.0.0",
  "sp-core 28.0.0",
  "sp-io 30.0.0",
+ "sp-keystore 0.34.0",
  "sp-runtime 31.0.1",
+ "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2412)",
+ "thiserror 2.0.8",
 ]
 
 [[package]]
@@ -12900,7 +12858,6 @@ dependencies = [
  "frame-system 28.0.0",
  "itertools 0.13.0",
  "pallet-balances 28.0.0",
- "pallet-market",
  "pallet-proofs",
  "pallet-storage-provider",
  "parity-scale-codec",
@@ -14170,8 +14127,6 @@ dependencies = [
  "pallet-balances 28.0.0",
  "pallet-collator-selection 9.0.0",
  "pallet-faucet",
- "pallet-market",
- "pallet-market-benchmarks",
  "pallet-message-queue 31.0.0",
  "pallet-proofs",
  "pallet-randomness",

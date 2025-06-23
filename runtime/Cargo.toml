@@ -24,8 +24,6 @@ sc-chain-spec = { workspace = true }
 [dependencies]
 # Local Pallets
 pallet-faucet = { workspace = true, default-features = false }
-pallet-market = { workspace = true, default-features = false }
-pallet-market-benchmarks = { workspace = true, default-features = false, optional = true }
 pallet-proofs = { workspace = true, default-features = false }
 pallet-randomness = { workspace = true, default-features = false }
 pallet-storage-provider = { workspace = true, default-features = false }
@@ -124,8 +122,6 @@ std = [
   "pallet-authorship/std",
   "pallet-balances/std",
   "pallet-collator-selection/std",
-  "pallet-market-benchmarks?/std",
-  "pallet-market/std",
   "pallet-message-queue/std",
   "pallet-session/std",
   "pallet-storage-provider-benchmarks?/std",
@@ -167,7 +163,6 @@ runtime-benchmarks = [
   "cumulus-pallet-xcmp-queue/runtime-benchmarks",
   "cumulus-primitives-core/runtime-benchmarks",
   "cumulus-primitives-utility/runtime-benchmarks",
-  "dep:pallet-market-benchmarks",
   "dep:pallet-storage-provider-benchmarks",
   "frame-benchmarking/runtime-benchmarks",
   "frame-support/runtime-benchmarks",
@@ -176,8 +171,6 @@ runtime-benchmarks = [
   "hex-literal",
   "pallet-balances/runtime-benchmarks",
   "pallet-collator-selection/runtime-benchmarks",
-  "pallet-market-benchmarks?/runtime-benchmarks",
-  "pallet-market/runtime-benchmarks",
   "pallet-message-queue/runtime-benchmarks",
   "pallet-proofs/runtime-benchmarks",
   "pallet-randomness/runtime-benchmarks",
@@ -208,8 +201,6 @@ try-runtime = [
   "pallet-authorship/try-runtime",
   "pallet-balances/try-runtime",
   "pallet-collator-selection/try-runtime",
-  "pallet-market-benchmarks/try-runtime",
-  "pallet-market/try-runtime",
   "pallet-message-queue/try-runtime",
   "pallet-session/try-runtime",
   "pallet-storage-provider-benchmarks/try-runtime",

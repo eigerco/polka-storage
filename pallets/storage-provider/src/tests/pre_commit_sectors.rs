@@ -8,7 +8,7 @@ use super::new_test_ext;
 use crate::{
     pallet::{Error, Event, StorageProviders},
     tests::{
-        account, events, publish_deals, register_storage_provider, run_to_block, Market,
+        account, events, publish_deals, register_storage_provider, run_to_block,
         MaxProveCommitDuration, MaxSectorExpiration, RuntimeEvent, RuntimeOrigin,
         SectorPreCommitInfoBuilder, StorageProvider, System, Test, ALICE, CHARLIE,
     },
@@ -30,7 +30,7 @@ fn successfully_precommited() {
 
         // Check starting balance
         // 70 (initial SP funds) - 25 * 2 (deals) = 20
-        assert_eq!(Market::free(&account(storage_provider)), Some(20));
+        assert_eq!(StorageProvider::free(&account(storage_provider)), Some(20));
 
         // Run pre commit extrinsic
         assert_ok!(StorageProvider::pre_commit_sectors(
@@ -57,7 +57,7 @@ fn successfully_precommited() {
         assert_eq!(sp.pre_committed_sectors.len(), 1);
         assert_eq!(sp.pre_commit_deposits, 1);
         assert_eq!(
-            Market::free(&account(storage_provider)),
+            StorageProvider::free(&account(storage_provider)),
             Some(20 - 1) // 1 for pre-commit deposit
         );
     });
@@ -72,7 +72,7 @@ fn successfully_precommited_no_deals() {
         let storage_provider = CHARLIE;
         register_storage_provider(account(storage_provider));
 
-        Market::add_balance(
+        StorageProvider::add_balance(
             RuntimeOrigin::signed(account(storage_provider)),
             MARKET_BALANCE.into(),
         )
@@ -111,8 +111,8 @@ fn successfully_precommited_no_deals() {
         assert_eq!(sp.pre_committed_sectors.len(), 1);
         assert_eq!(sp.pre_commit_deposits, 1);
 
-        assert_eq!(Market::locked(&account(storage_provider)), Some(1)); // Single pre-commit = price is 1
-        assert_eq!(Market::free(&account(storage_provider)), Some(999));
+        assert_eq!(StorageProvider::locked(&account(storage_provider)), Some(1)); // Single pre-commit = price is 1
+        assert_eq!(StorageProvider::free(&account(storage_provider)), Some(999));
     });
 }
 
@@ -173,7 +173,7 @@ fn successfully_precommited_batch() {
         );
         assert_eq!(sp.pre_commit_deposits, SECTORS_TO_PRECOMMIT);
         assert_eq!(
-            Market::free(&account(storage_provider)),
+            StorageProvider::free(&account(storage_provider)),
             Some(20 - SECTORS_TO_PRECOMMIT)
         );
     });

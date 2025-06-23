@@ -6,9 +6,8 @@ use super::new_test_ext;
 use crate::{
     pallet::{Event, StorageProviders},
     tests::{
-        account, events, publish_deals, register_storage_provider, run_to_block, Market,
-        RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System, Test,
-        CHARLIE,
+        account, events, publish_deals, register_storage_provider, run_to_block, RuntimeEvent,
+        RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System, Test, ALICE, CHARLIE,
     },
 };
 
@@ -52,7 +51,7 @@ fn pre_commit_hook_slashed_deal() {
         .unwrap();
         // 2 deals = (collateral + precommit) * 2
         assert_eq!(
-            Market::locked(&account(storage_provider)),
+            StorageProvider::locked(&account(storage_provider)),
             // The cast is kind of an hack but we know it is safe
             Some((2 * (DEAL_COLLATERAL + DEAL_PRECOMMIT_DEPOSIT) as u32).into())
         );
@@ -81,10 +80,10 @@ fn pre_commit_hook_slashed_deal() {
         assert_eq!(sp.pre_commit_deposits, 0);
         // 1 deal got slashed so the respective locked funds *vanished*
         assert_eq!(
-            Market::locked(&account(storage_provider)),
+            StorageProvider::locked(&account(storage_provider)),
             // The cast is kind of an hack but we know it is safe
             // Not add the DEAL_PRECOMMIT_DEPOSIT because this has been unlocked after proving.
-            Some(((2 * DEAL_COLLATERAL) as u32).into())
+            Some((DEAL_COLLATERAL as u32).into())
         );
         let mut expected_faulty_sectors = BoundedBTreeSet::new();
         expected_faulty_sectors
@@ -102,12 +101,25 @@ fn pre_commit_hook_slashed_deal() {
                     faulty_partitions: expected_faulty_partitions,
                 }),
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded {
-                    amount: DEAL_PRECOMMIT_DEPOSIT
+                    amount: DEAL_COLLATERAL
                 }),
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Withdraw {
                     // The money was removed from the balance table, as such,
                     // the money is actually removed from the "pallet account"
-                    who: Market::account_id(),
+                    who: StorageProvider::account_id(),
+                    amount: DEAL_COLLATERAL,
+                }),
+                RuntimeEvent::StorageProvider(Event::DealSlashed {
+                    deal_id: 0,
+                    amount: DEAL_COLLATERAL,
+                    client: account(ALICE),
+                    provider: account(storage_provider)
+                }),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded {
+                    amount: DEAL_PRECOMMIT_DEPOSIT
+                }),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Withdraw {
+                    who: StorageProvider::account_id(),
                     amount: DEAL_PRECOMMIT_DEPOSIT,
                 }),
                 RuntimeEvent::StorageProvider(Event::<Test>::SectorsSlashed {

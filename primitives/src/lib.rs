@@ -1,13 +1,14 @@
 #![cfg_attr(not(feature = "std"), no_std)] // no_std by default, requires "std" for std-support
 
 pub mod commitment;
-pub mod configs;
 pub mod deals;
 pub mod pallets;
 pub mod proofs;
 pub mod randomness;
 pub mod sector;
 
+// TODO: Remove this module. It was moved to the `pallet-storage-provider-benchmarks`
+// NOTE: there's still some leftovers used in the benchmark code generation
 #[cfg(feature = "testing")]
 pub mod test_data;
 

@@ -9,9 +9,9 @@ use crate::{
     pallet::{Error, Event, StorageProviders},
     tests::{
         account, declare_faults::setup_sp_with_many_sectors_multiple_partitions, events,
-        new_test_ext, register_storage_provider, run_to_block, DealProposalBuilder, Market,
-        RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider,
-        SubmitWindowedPoStBuilder, System, Test, ALICE, BOB,
+        new_test_ext, register_storage_provider, run_to_block, DealProposalBuilder, RuntimeEvent,
+        RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, SubmitWindowedPoStBuilder,
+        System, Test, ALICE, BOB,
     },
     Config,
 };
@@ -32,11 +32,11 @@ fn setup() {
     register_storage_provider(account(storage_provider));
 
     // Add balance to the market pallet
-    assert_ok!(Market::add_balance(
+    assert_ok!(StorageProvider::add_balance(
         RuntimeOrigin::signed(account(storage_provider)),
         200
     ));
-    assert_ok!(Market::add_balance(
+    assert_ok!(StorageProvider::add_balance(
         RuntimeOrigin::signed(account(storage_client)),
         70
     ));
@@ -48,7 +48,7 @@ fn setup() {
         .signed(storage_client);
 
     // Publish the deal proposal
-    assert_ok!(Market::publish_storage_deals(
+    assert_ok!(StorageProvider::publish_storage_deals(
         RuntimeOrigin::signed(account(storage_provider)),
         bounded_vec![deal_proposal],
     ));

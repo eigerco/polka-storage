@@ -10,9 +10,9 @@ use sp_genesis_builder::PresetId;
 use sp_keyring::Sr25519Keyring;
 
 use crate::{
-    AccountId, Balance, BalancesConfig, CollatorSelectionConfig, Market, MarketConfig,
-    ParachainInfoConfig, PolkadotXcmConfig, ProofsConfig, RuntimeGenesisConfig, SessionConfig,
-    SessionKeys, SudoConfig, EXISTENTIAL_DEPOSIT,
+    AccountId, Balance, BalancesConfig, CollatorSelectionConfig, ParachainInfoConfig,
+    PolkadotXcmConfig, ProofsConfig, RuntimeGenesisConfig, SessionConfig, SessionKeys,
+    StorageProvider, StorageProviderConfig, SudoConfig, EXISTENTIAL_DEPOSIT,
 };
 
 /// The default XCM version to set in genesis config.
@@ -96,7 +96,7 @@ fn testnet_genesis(
             .into(),
             ..Default::default()
         },
-        market: MarketConfig {
+        storage_provider: StorageProviderConfig {
             // This is a nice default for `maat/tests/real_world.rs`.
             // Add balance to Charlie - Storage Provider.
             // Collateral (12 500 000) + pre_commit_deposit (1)
@@ -140,8 +140,8 @@ fn local_testnet_genesis() -> Value {
         ],
         Sr25519Keyring::well_known()
             .map(|k| k.to_account_id())
-            // Add funds to the market pallet account as we're adding some balance by default to it in its genesis Config.
-            .chain(once(Market::account_id()))
+            // Add funds to the pallet account as we're adding some balance by default to it in its genesis Config.
+            .chain(once(StorageProvider::account_id()))
             .collect(),
         Sr25519Keyring::Alice.to_account_id(),
     )

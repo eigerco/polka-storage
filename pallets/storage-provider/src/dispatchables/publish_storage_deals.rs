@@ -12,17 +12,15 @@ use frame_system::{
     pallet_prelude::{BlockNumberFor, OriginFor},
 };
 use primitives::{
-    configs::BalanceOf,
     deals::{ClientDealProposal, DealProposal, DealState},
-    pallets::StorageProviderValidation,
     DealId,
 };
 use sp_runtime::{BoundedVec, DispatchError};
 use sp_std::vec::Vec;
 
 use crate::{
-    lock_funds, BalanceTable, Config, DealsForBlock, Error, Event, NextDealId, Pallet,
-    PendingProposals, Proposals, PublishedDeal, SPDealParameters, LOG_TARGET,
+    deal::PublishedDeal, lock_funds, BalanceOf, BalanceTable, Config, DealsForBlock, Error, Event,
+    NextDealId, Pallet, PendingProposals, Proposals, SPDealParameters, LOG_TARGET,
 };
 
 pub fn publish_storage_deals<T>(
@@ -37,7 +35,7 @@ where
 {
     let provider = ensure_signed(origin)?;
     ensure!(
-        T::StorageProviderValidation::is_registered_storage_provider(&provider),
+        Pallet::<T>::is_registered_storage_provider(&provider),
         Error::<T>::StorageProviderNotRegistered
     );
     let current_block = <frame_system::Pallet<T>>::block_number();

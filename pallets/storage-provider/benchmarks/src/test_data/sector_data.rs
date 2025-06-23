@@ -1,4 +1,4 @@
-use crate::{
+use primitives::{
     commitment::{piece::PaddedPieceSize, CommD, CommR, Commitment},
     sector::SectorNumber,
 };

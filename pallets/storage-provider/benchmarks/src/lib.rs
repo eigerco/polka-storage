@@ -5,6 +5,9 @@ extern crate alloc;
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 
+#[cfg(feature = "runtime-benchmarks")]
+pub mod test_data;
+
 #[cfg(test)]
 mod mock;
 

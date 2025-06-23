@@ -1,148 +1,46 @@
 use core::str::FromStr;
-use std::sync::Arc;
 
 use cid::Cid;
-use codec::Encode;
 use frame_support::{
     assert_err, assert_noop, assert_ok,
     pallet_prelude::{ConstU32, Get},
     sp_runtime::{bounded_vec, ArithmeticError, DispatchError, TokenError},
-    traits::{Currency, Hooks},
+    traits::Currency,
     BoundedVec,
 };
 use frame_system::pallet_prelude::BlockNumberFor;
-use pallet_market::{
-    deal_parameters::{OffchainDealDurationBound, OffchainDealParameters},
-    error::DealSettlementError,
-    pallet::{lock_funds, slash_and_burn, unlock_funds},
-    BalanceEntry, BalanceTable, Config, DealsForBlock, Error, Event, PendingProposals, Proposals,
-    PublishedDeal, SPDealParameters, SectorDeals, SettledDealData,
-};
 use primitives::{
-    commitment::{CommP, Commitment},
-    configs::{CurrencyProvider, MarketProvider},
-    deals::{ActiveDealState, ClientDealProposal, ClientDealProposalOf, DealProposalOf, DealState},
-    pallets::{ActiveDeal, ActiveSector, Market as MarketTrait, SectorDeal},
-    proofs::{RegisteredPoStProof, RegisteredSealProof},
-    sector::SectorNumber,
-    DealId, CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR,
+    deals::{ActiveDealState, DealState},
+    pallets::{ActiveDeal, ActiveSector, SectorDeal},
+    proofs::RegisteredSealProof,
+    DealId, MAX_DEALS_PER_SECTOR,
 };
-use sp_core::{Pair, H256};
-use sp_keystore::{testing::MemoryKeystore, KeystoreExt};
-use sp_runtime::{
-    traits::IdentifyAccount, AccountId32, BuildStorage, MultiSignature, MultiSigner,
-    SaturatedConversion,
+use sp_core::H256;
+
+use crate::{
+    balance::BalanceEntry,
+    deal::{
+        parameters::{OffchainDealDurationBound, OffchainDealParameters},
+        DealSettlementError, PublishedDeal, SettledDealData,
+    },
+    lock_funds,
+    pallet::{Error, Event},
+    slash_and_burn,
+    tests::{
+        account, events, new_test_ext, register_storage_provider, run_to_block, Balances,
+        DealProposalBuilder, RuntimeEvent, RuntimeOrigin, SectorDealBuilder, StorageProvider,
+        System, Test, ALICE, BOB, CHARLIE, INITIAL_FUNDS,
+    },
+    unlock_funds, BalanceTable, Config, DealProposalOf, DealsForBlock, PendingProposals, Proposals,
+    SPDealParameters, SectorDeals,
 };
 
-pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
-
-pub fn key_pair(name: &str) -> sp_core::sr25519::Pair {
-    sp_core::sr25519::Pair::from_string(name, None).unwrap()
-}
-
-pub fn account<T: frame_system::Config>(name: &str) -> AccountId32 {
-    let user_pair = key_pair(name);
-    let signer = MultiSigner::Sr25519(user_pair.public());
-    signer.into_account()
-}
-
-pub fn sign(pair: &sp_core::sr25519::Pair, bytes: &[u8]) -> MultiSignature {
-    MultiSignature::Sr25519(pair.sign(bytes))
-}
-
-pub fn sign_proposal(client: &str, proposal: DealProposalOf<Test>) -> ClientDealProposalOf<Test> {
-    let alice_pair = key_pair(client);
-    let client_signature = sign(&alice_pair, &Encode::encode(&proposal));
-    ClientDealProposal {
-        proposal,
-        client_signature,
-    }
-}
-
-pub const ALICE: &'static str = "//Alice";
-pub const BOB: &'static str = "//Bob";
-pub const PROVIDER: &'static str = "//StorageProvider";
-pub const INITIAL_FUNDS: u64 = 1000;
-
-/// Build genesis storage according to the mock runtime.
-pub fn new_test_ext() -> sp_io::TestExternalities {
-    let _ = env_logger::try_init();
-    let mut t = frame_system::GenesisConfig::<Test>::default()
-        .build_storage()
-        .unwrap()
-        .into();
-    pallet_balances::GenesisConfig::<Test> {
-        balances: vec![
-            (account::<Test>(ALICE), INITIAL_FUNDS),
-            (account::<Test>(BOB), INITIAL_FUNDS),
-            (account::<Test>(PROVIDER), INITIAL_FUNDS),
-        ],
-    }
-    .assimilate_storage(&mut t)
-    .unwrap();
-
-    let mut ext = sp_io::TestExternalities::new(t);
-    ext.execute_with(|| System::set_block_number(1));
-
-    // Required to perform signatures. Given that benchmarks run inside the runtime, this is how
-    // we're able to prepare signed client deal proposals.
-    let keystore = MemoryKeystore::new();
-    ext.register_extension(KeystoreExt(Arc::new(keystore)));
-
-    ext
-}
-
-pub fn events() -> Vec<RuntimeEvent> {
-    let evt = System::events()
-        .into_iter()
-        .map(|evt| evt.event)
-        .collect::<Vec<_>>();
-    System::reset_events();
-    evt
-}
-
-/// Run until a particular block.
-///
-/// Stolen't from: <https://github.com/paritytech/polkadot-sdk/blob/7df94a469e02e1d553bd4050b0e91870d6a4c31b/substrate/frame/lottery/src/mock.rs#L87-L98>
-pub fn run_to_block(n: BlockNumberFor<Test>) {
-    while System::block_number() < n {
-        if System::block_number() > 1 {
-            StorageProvider::on_finalize(System::block_number());
-            Market::on_finalize(System::block_number());
-            System::on_finalize(System::block_number());
-        }
-
-        System::set_block_number(System::block_number() + 1);
-        System::on_initialize(System::block_number());
-        Market::on_initialize(System::block_number());
-        StorageProvider::on_initialize(System::block_number());
-    }
-}
-
-/// Register account as a provider.
-pub(crate) fn register_storage_provider(account: AccountIdOf<Test>) {
-    let peer_id: Vec<u8> = "storage_provider_1".as_bytes().to_vec();
-    let peer_id = BoundedVec::try_from(peer_id).unwrap();
-    let window_post_type = RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
-
-    // Register account as a storage provider.
-    assert_ok!(StorageProvider::register_storage_provider(
-        RuntimeOrigin::signed(account),
-        peer_id.clone(),
-        window_post_type,
-    ));
-
-    // Remove any events that were triggered during registration.
-    System::reset_events();
-}
-
-use crate::mock::*;
 #[test]
 fn initial_state() {
     new_test_ext().execute_with(|| {
-        assert_eq!(Balances::free_balance(Market::account_id()), 0);
+        assert_eq!(Balances::free_balance(StorageProvider::account_id()), 0);
         assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(ALICE)),
+            BalanceTable::<Test>::get(account(ALICE)),
             BalanceEntry::<u64> { free: 0, locked: 0 }
         );
     });
@@ -151,18 +49,15 @@ fn initial_state() {
 #[test]
 fn adds_and_withdraws_balances() {
     new_test_ext().execute_with(|| {
-        // Adds funds from an account to the Market
-        assert_ok!(Market::add_balance(
-            RuntimeOrigin::signed(account::<Test>(ALICE)),
+        // Adds funds from an account to the pallet
+        assert_ok!(StorageProvider::add_balance(
+            RuntimeOrigin::signed(account(ALICE)),
             10
         ));
-        assert_eq!(Balances::free_balance(Market::account_id()), 10);
+        assert_eq!(Balances::free_balance(StorageProvider::account_id()), 10);
+        assert_eq!(Balances::free_balance(account(ALICE)), INITIAL_FUNDS - 10);
         assert_eq!(
-            Balances::free_balance(account::<Test>(ALICE)),
-            INITIAL_FUNDS - 10
-        );
-        assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(ALICE)),
+            BalanceTable::<Test>::get(account(ALICE)),
             BalanceEntry::<u64> {
                 free: 10,
                 locked: 0,
@@ -170,17 +65,14 @@ fn adds_and_withdraws_balances() {
         );
 
         // Is able to withdraw added funds back
-        assert_ok!(Market::withdraw_balance(
-            RuntimeOrigin::signed(account::<Test>(ALICE)),
+        assert_ok!(StorageProvider::withdraw_balance(
+            RuntimeOrigin::signed(account(ALICE)),
             10
         ));
-        assert_eq!(Balances::free_balance(Market::account_id()), 0);
+        assert_eq!(Balances::free_balance(StorageProvider::account_id()), 0);
+        assert_eq!(Balances::free_balance(account(ALICE)), INITIAL_FUNDS);
         assert_eq!(
-            Balances::free_balance(account::<Test>(ALICE)),
-            INITIAL_FUNDS
-        );
-        assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(ALICE)),
+            BalanceTable::<Test>::get(account(ALICE)),
             BalanceEntry::<u64> { free: 0, locked: 0 }
         );
     });
@@ -189,17 +81,14 @@ fn adds_and_withdraws_balances() {
 #[test]
 fn adds_balance() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Market::add_balance(
-            RuntimeOrigin::signed(account::<Test>(ALICE)),
+        assert_ok!(StorageProvider::add_balance(
+            RuntimeOrigin::signed(account(ALICE)),
             10
         ));
-        assert_eq!(Balances::free_balance(Market::account_id()), 10);
+        assert_eq!(Balances::free_balance(StorageProvider::account_id()), 10);
+        assert_eq!(Balances::free_balance(account(ALICE)), INITIAL_FUNDS - 10);
         assert_eq!(
-            Balances::free_balance(account::<Test>(ALICE)),
-            INITIAL_FUNDS - 10
-        );
-        assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(ALICE)),
+            BalanceTable::<Test>::get(account(ALICE)),
             BalanceEntry::<u64> {
                 free: 10,
                 locked: 0,
@@ -210,19 +99,19 @@ fn adds_balance() {
             events(),
             [
                 RuntimeEvent::System(frame_system::Event::<Test>::NewAccount {
-                    account: Market::account_id()
+                    account: StorageProvider::account_id()
                 }),
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Endowed {
-                    account: Market::account_id(),
+                    account: StorageProvider::account_id(),
                     free_balance: 10
                 }),
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Transfer {
-                    from: account::<Test>(ALICE),
-                    to: Market::account_id(),
+                    from: account(ALICE),
+                    to: StorageProvider::account_id(),
                     amount: 10
                 }),
-                RuntimeEvent::Market(Event::<Test>::BalanceAdded {
-                    who: account::<Test>(ALICE),
+                RuntimeEvent::StorageProvider(Event::<Test>::BalanceAdded {
+                    who: account(ALICE),
                     amount: 10
                 })
             ]
@@ -230,7 +119,7 @@ fn adds_balance() {
 
         // Makes sure other accounts are unaffected
         assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(BOB)),
+            BalanceTable::<Test>::get(account(BOB)),
             BalanceEntry::<u64> { free: 0, locked: 0 }
         );
     });
@@ -240,10 +129,7 @@ fn adds_balance() {
 fn fails_to_add_balance_insufficient_funds() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Market::add_balance(
-                RuntimeOrigin::signed(account::<Test>(ALICE)),
-                INITIAL_FUNDS + 1
-            ),
+            StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), INITIAL_FUNDS + 1),
             TokenError::FundsUnavailable,
         );
     });
@@ -254,7 +140,7 @@ fn fails_to_add_balance_overflow() {
     new_test_ext().execute_with(|| {
         // Hard to do this without setting it explicitly in the map
         BalanceTable::<Test>::set(
-            account::<Test>(BOB),
+            account(BOB),
             BalanceEntry::<u64> {
                 free: u64::MAX,
                 locked: 0,
@@ -262,7 +148,7 @@ fn fails_to_add_balance_overflow() {
         );
 
         assert_noop!(
-            Market::add_balance(RuntimeOrigin::signed(account::<Test>(BOB)), 1),
+            StorageProvider::add_balance(RuntimeOrigin::signed(account(BOB)), 1),
             ArithmeticError::Overflow
         );
     });
@@ -271,20 +157,17 @@ fn fails_to_add_balance_overflow() {
 #[test]
 fn withdraws_balance() {
     new_test_ext().execute_with(|| {
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 10);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 10);
         System::reset_events();
 
-        assert_ok!(Market::withdraw_balance(
-            RuntimeOrigin::signed(account::<Test>(ALICE)),
+        assert_ok!(StorageProvider::withdraw_balance(
+            RuntimeOrigin::signed(account(ALICE)),
             10
         ));
-        assert_eq!(Balances::free_balance(Market::account_id()), 0);
+        assert_eq!(Balances::free_balance(StorageProvider::account_id()), 0);
+        assert_eq!(Balances::free_balance(account(ALICE)), INITIAL_FUNDS);
         assert_eq!(
-            Balances::free_balance(account::<Test>(ALICE)),
-            INITIAL_FUNDS
-        );
-        assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(ALICE)),
+            BalanceTable::<Test>::get(account(ALICE)),
             BalanceEntry::<u64> { free: 0, locked: 0 }
         );
 
@@ -292,15 +175,15 @@ fn withdraws_balance() {
             events(),
             [
                 RuntimeEvent::System(frame_system::Event::<Test>::KilledAccount {
-                    account: Market::account_id()
+                    account: StorageProvider::account_id()
                 }),
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Transfer {
-                    from: Market::account_id(),
-                    to: account::<Test>(ALICE),
+                    from: StorageProvider::account_id(),
+                    to: account(ALICE),
                     amount: 10
                 }),
-                RuntimeEvent::Market(Event::<Test>::BalanceWithdrawn {
-                    who: account::<Test>(ALICE),
+                RuntimeEvent::StorageProvider(Event::<Test>::BalanceWithdrawn {
+                    who: account(ALICE),
                     amount: 10
                 })
             ]
@@ -312,7 +195,7 @@ fn withdraws_balance() {
 fn fails_to_withdraw_balance() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Market::withdraw_balance(RuntimeOrigin::signed(account::<Test>(BOB)), 10),
+            StorageProvider::withdraw_balance(RuntimeOrigin::signed(account(BOB)), 10),
             Error::<Test>::InsufficientFreeFunds
         );
 
@@ -326,9 +209,12 @@ fn fails_to_withdraw_balance() {
 fn publish_storage_deals_fails_sp_not_registered() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Market::publish_storage_deals(
-                RuntimeOrigin::signed(account::<Test>(PROVIDER)),
-                bounded_vec![DealProposalBuilder::<Test>::default().signed(ALICE)]
+            StorageProvider::publish_storage_deals(
+                RuntimeOrigin::signed(account(CHARLIE)),
+                bounded_vec![DealProposalBuilder::default()
+                    .client(ALICE)
+                    .provider(&CHARLIE)
+                    .signed(ALICE)]
             ),
             Error::<Test>::StorageProviderNotRegistered
         );
@@ -338,10 +224,10 @@ fn publish_storage_deals_fails_sp_not_registered() {
 #[test]
 fn publish_storage_deals_fails_empty_deals() {
     new_test_ext().execute_with(|| {
-        register_storage_provider(account::<Test>(PROVIDER));
+        register_storage_provider(account(CHARLIE));
         assert_noop!(
-            Market::publish_storage_deals(
-                RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+            StorageProvider::publish_storage_deals(
+                RuntimeOrigin::signed(account(CHARLIE)),
                 bounded_vec![]
             ),
             Error::<Test>::NoProposalsToBePublished
@@ -352,11 +238,14 @@ fn publish_storage_deals_fails_empty_deals() {
 #[test]
 fn publish_storage_deals_fails_caller_not_provider() {
     new_test_ext().execute_with(|| {
-        register_storage_provider(account::<Test>(ALICE));
+        register_storage_provider(account(ALICE));
         assert_noop!(
-            Market::publish_storage_deals(
-                RuntimeOrigin::signed(account::<Test>(ALICE)),
-                bounded_vec![DealProposalBuilder::<Test>::default().signed(ALICE)]
+            StorageProvider::publish_storage_deals(
+                RuntimeOrigin::signed(account(ALICE)),
+                bounded_vec![DealProposalBuilder::default()
+                    .client(ALICE)
+                    .provider(&CHARLIE)
+                    .signed(ALICE)]
             ),
             Error::<Test>::ProposalsPublishedByIncorrectStorageProvider
         );
@@ -366,14 +255,17 @@ fn publish_storage_deals_fails_caller_not_provider() {
 #[test]
 fn publish_storage_deals_fails_invalid_signature() {
     new_test_ext().execute_with(|| {
-        register_storage_provider(account::<Test>(PROVIDER));
-        let mut deal = DealProposalBuilder::<Test>::default().signed(ALICE);
+        register_storage_provider(account(CHARLIE));
+        let mut deal = DealProposalBuilder::default()
+            .client(ALICE)
+            .provider(&CHARLIE)
+            .signed(ALICE);
         // Change the message contents so the signature does not match
         deal.proposal.piece_size = 1337;
 
         assert_noop!(
-            Market::publish_storage_deals(
-                RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+            StorageProvider::publish_storage_deals(
+                RuntimeOrigin::signed(account(CHARLIE)),
                 bounded_vec![deal]
             ),
             Error::<Test>::WrongClientSignatureOnProposal
@@ -384,15 +276,17 @@ fn publish_storage_deals_fails_invalid_signature() {
 #[test]
 fn publish_storage_deals_fails_end_before_start() {
     new_test_ext().execute_with(|| {
-        register_storage_provider(account::<Test>(PROVIDER));
-        let proposal = DealProposalBuilder::<Test>::default()
+        register_storage_provider(account(CHARLIE));
+        let proposal = DealProposalBuilder::default()
+            .client(ALICE)
+            .provider(&CHARLIE)
             // Make start_block > end_block
             .start_block(1337)
             .signed(ALICE);
 
         assert_noop!(
-            Market::publish_storage_deals(
-                RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+            StorageProvider::publish_storage_deals(
+                RuntimeOrigin::signed(account(CHARLIE)),
                 bounded_vec![proposal]
             ),
             Error::<Test>::DealEndBeforeStart
@@ -403,8 +297,10 @@ fn publish_storage_deals_fails_end_before_start() {
 #[test]
 fn publish_storage_deals_fails_must_be_unpublished() {
     new_test_ext().execute_with(|| {
-        register_storage_provider(account::<Test>(PROVIDER));
-        let proposal = DealProposalBuilder::<Test>::default()
+        register_storage_provider(account(CHARLIE));
+        let proposal = DealProposalBuilder::default()
+            .client(ALICE)
+            .provider(&CHARLIE)
             .state(DealState::Active(ActiveDealState {
                 sector_number: 0.into(),
                 sector_start_block: 0,
@@ -414,8 +310,8 @@ fn publish_storage_deals_fails_must_be_unpublished() {
             .signed(ALICE);
 
         assert_noop!(
-            Market::publish_storage_deals(
-                RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+            StorageProvider::publish_storage_deals(
+                RuntimeOrigin::signed(account(CHARLIE)),
                 bounded_vec![proposal]
             ),
             Error::<Test>::DealNotPublished
@@ -426,15 +322,17 @@ fn publish_storage_deals_fails_must_be_unpublished() {
 #[test]
 fn publish_storage_deals_fails_min_duration_out_of_bounds() {
     new_test_ext().execute_with(|| {
-        register_storage_provider(account::<Test>(PROVIDER));
-        let proposal = DealProposalBuilder::<Test>::default()
+        register_storage_provider(account(CHARLIE));
+        let proposal = DealProposalBuilder::default()
+            .client(ALICE)
+            .provider(&CHARLIE)
             .start_block(10)
-            .end_block(10 + <Test as MarketProvider>::min_deal_duration() - 1)
+            .end_block(10 + <<Test as Config>::MinDealDuration as Get<u64>>::get() - 1)
             .signed(ALICE);
 
         assert_noop!(
-            Market::publish_storage_deals(
-                RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+            StorageProvider::publish_storage_deals(
+                RuntimeOrigin::signed(account(CHARLIE)),
                 bounded_vec![proposal]
             ),
             Error::<Test>::DealDurationOutOfBounds
@@ -445,8 +343,10 @@ fn publish_storage_deals_fails_min_duration_out_of_bounds() {
 #[test]
 fn publish_storage_deals_fails_max_duration_out_of_bounds() {
     new_test_ext().execute_with(|| {
-        register_storage_provider(account::<Test>(PROVIDER));
-        let proposal = DealProposalBuilder::<Test>::default()
+        register_storage_provider(account(CHARLIE));
+        let proposal = DealProposalBuilder::default()
+            .client(ALICE)
+            .provider(&CHARLIE)
             .start_block(100)
             .end_block(
                 100 + <<Test as Config>::MaxDealDuration as Get<BlockNumberFor<Test>>>::get() + 1,
@@ -454,8 +354,8 @@ fn publish_storage_deals_fails_max_duration_out_of_bounds() {
             .signed(ALICE);
 
         assert_noop!(
-            Market::publish_storage_deals(
-                RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+            StorageProvider::publish_storage_deals(
+                RuntimeOrigin::signed(account(CHARLIE)),
                 bounded_vec![proposal]
             ),
             Error::<Test>::DealDurationOutOfBounds
@@ -466,10 +366,12 @@ fn publish_storage_deals_fails_max_duration_out_of_bounds() {
 #[test]
 fn publish_storage_deals_fails_start_time_expired() {
     new_test_ext().execute_with(|| {
-        register_storage_provider(account::<Test>(PROVIDER));
+        register_storage_provider(account(CHARLIE));
         run_to_block(101);
 
-        let proposal = DealProposalBuilder::<Test>::default()
+        let proposal = DealProposalBuilder::default()
+            .client(ALICE)
+            .provider(&CHARLIE)
             .start_block(100)
             .end_block(
                 100 + <<Test as Config>::MaxDealDuration as Get<BlockNumberFor<Test>>>::get() + 1,
@@ -477,8 +379,8 @@ fn publish_storage_deals_fails_start_time_expired() {
             .signed(ALICE);
 
         assert_noop!(
-            Market::publish_storage_deals(
-                RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+            StorageProvider::publish_storage_deals(
+                RuntimeOrigin::signed(account(CHARLIE)),
                 bounded_vec![proposal]
             ),
             Error::<Test>::DealStartExpired
@@ -491,18 +393,23 @@ fn publish_storage_deals_fails_start_time_expired() {
 #[test]
 fn publish_storage_deals_fails_different_providers() {
     new_test_ext().execute_with(|| {
-        register_storage_provider(account::<Test>(PROVIDER));
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 100);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 60);
+        register_storage_provider(account(CHARLIE));
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 100);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
         System::reset_events();
 
         assert_noop!(
-            Market::publish_storage_deals(
-                RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+            StorageProvider::publish_storage_deals(
+                RuntimeOrigin::signed(account(CHARLIE)),
                 bounded_vec![
-                    DealProposalBuilder::<Test>::default().signed(ALICE),
+                    DealProposalBuilder::default()
+                        .client(ALICE)
+                        .provider(&CHARLIE)
+                        .signed(ALICE),
                     // Proposal where second deal's provider is not a caller
-                    DealProposalBuilder::<Test>::default()
+                    DealProposalBuilder::default()
+                        .client(ALICE)
+                        .provider(&CHARLIE)
                         .client(BOB)
                         .provider(BOB)
                         .signed(BOB),
@@ -519,17 +426,22 @@ fn publish_storage_deals_fails_different_providers() {
 #[test]
 fn publish_storage_deals_fails_client_not_enough_funds_for_second_deal() {
     new_test_ext().execute_with(|| {
-        register_storage_provider(account::<Test>(PROVIDER));
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 100);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 60);
+        register_storage_provider(account(CHARLIE));
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 100);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
         System::reset_events();
 
         assert_noop!(
-            Market::publish_storage_deals(
-                RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+            StorageProvider::publish_storage_deals(
+                RuntimeOrigin::signed(account(CHARLIE)),
                 bounded_vec![
-                    DealProposalBuilder::<Test>::default().signed(ALICE),
-                    DealProposalBuilder::<Test>::default()
+                    DealProposalBuilder::default()
+                        .client(ALICE)
+                        .provider(&CHARLIE)
+                        .signed(ALICE),
+                    DealProposalBuilder::default()
+                        .client(ALICE)
+                        .provider(&CHARLIE)
                         .piece_size(10)
                         .signed(ALICE),
                 ]
@@ -546,18 +458,23 @@ fn publish_storage_deals_fails_client_not_enough_funds_for_second_deal() {
 #[test]
 fn publish_storage_deals_fails_provider_not_enough_funds_for_second_deal() {
     new_test_ext().execute_with(|| {
-        register_storage_provider(account::<Test>(PROVIDER));
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 40);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 90);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(BOB)), 90);
+        register_storage_provider(account(CHARLIE));
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 40);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 90);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(BOB)), 90);
         System::reset_events();
 
         assert_noop!(
-            Market::publish_storage_deals(
-                RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+            StorageProvider::publish_storage_deals(
+                RuntimeOrigin::signed(account(CHARLIE)),
                 bounded_vec![
-                    DealProposalBuilder::<Test>::default().signed(ALICE),
-                    DealProposalBuilder::<Test>::default()
+                    DealProposalBuilder::default()
+                        .client(ALICE)
+                        .provider(&CHARLIE)
+                        .signed(ALICE),
+                    DealProposalBuilder::default()
+                        .client(ALICE)
+                        .provider(&CHARLIE)
                         .client(BOB)
                         .signed(BOB),
                 ]
@@ -571,19 +488,23 @@ fn publish_storage_deals_fails_provider_not_enough_funds_for_second_deal() {
 #[test]
 fn publish_storage_deals_fails_duplicate_deal_in_message() {
     new_test_ext().execute_with(|| {
-        register_storage_provider(account::<Test>(PROVIDER));
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 90);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 90);
+        register_storage_provider(account(CHARLIE));
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 90);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 90);
         System::reset_events();
 
         assert_noop!(
-            Market::publish_storage_deals(
-                RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+            StorageProvider::publish_storage_deals(
+                RuntimeOrigin::signed(account(CHARLIE)),
                 bounded_vec![
-                    DealProposalBuilder::<Test>::default()
+                    DealProposalBuilder::default()
+                        .client(ALICE)
+                        .provider(&CHARLIE)
                         .storage_price_per_block(1)
                         .signed(ALICE),
-                    DealProposalBuilder::<Test>::default()
+                    DealProposalBuilder::default()
+                        .client(ALICE)
+                        .provider(&CHARLIE)
                         .storage_price_per_block(1)
                         .signed(ALICE),
                 ]
@@ -597,31 +518,37 @@ fn publish_storage_deals_fails_duplicate_deal_in_message() {
 #[test]
 fn publish_storage_deals_fails_duplicate_deal_in_state() {
     new_test_ext().execute_with(|| {
-        register_storage_provider(account::<Test>(PROVIDER));
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 90);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 90);
+        register_storage_provider(account(CHARLIE));
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 90);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 90);
         System::reset_events();
 
-        assert_ok!(Market::publish_storage_deals(
-            RuntimeOrigin::signed(account::<Test>(PROVIDER)),
-            bounded_vec![DealProposalBuilder::<Test>::default()
+        assert_ok!(StorageProvider::publish_storage_deals(
+            RuntimeOrigin::signed(account(CHARLIE)),
+            bounded_vec![DealProposalBuilder::default()
+                .client(ALICE)
+                .provider(&CHARLIE)
                 .storage_price_per_block(1)
                 .signed(ALICE),]
         ));
         assert_eq!(
             events(),
-            [RuntimeEvent::Market(Event::<Test>::DealsPublished {
-                provider: account::<Test>(PROVIDER),
-                deals: bounded_vec!(PublishedDeal {
-                    deal_id: 0,
-                    client: account::<Test>(ALICE),
-                })
-            })]
+            [RuntimeEvent::StorageProvider(
+                Event::<Test>::DealsPublished {
+                    provider: account(CHARLIE),
+                    deals: bounded_vec!(PublishedDeal {
+                        deal_id: 0,
+                        client: account(ALICE),
+                    })
+                }
+            )]
         );
         assert_noop!(
-            Market::publish_storage_deals(
-                RuntimeOrigin::signed(account::<Test>(PROVIDER)),
-                bounded_vec![DealProposalBuilder::<Test>::default()
+            StorageProvider::publish_storage_deals(
+                RuntimeOrigin::signed(account(CHARLIE)),
+                bounded_vec![DealProposalBuilder::default()
+                    .client(ALICE)
+                    .provider(&CHARLIE)
                     .storage_price_per_block(1)
                     .signed(ALICE),]
             ),
@@ -633,9 +560,9 @@ fn publish_storage_deals_fails_duplicate_deal_in_state() {
 #[test]
 fn publish_storage_deals_fails_not_within_deal_parameters() {
     new_test_ext().execute_with(|| {
-        register_storage_provider(account::<Test>(PROVIDER));
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 90);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 90);
+        register_storage_provider(account(CHARLIE));
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 90);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 90);
         // Default price = 5, default duration = 10
         let deal_params: OffchainDealParameters<u64, BlockNumberFor<Test>> =
             OffchainDealParameters {
@@ -645,26 +572,31 @@ fn publish_storage_deals_fails_not_within_deal_parameters() {
                     upper: Some(29), // Chain maximum = 30
                 },
             };
-        assert_ok!(Market::publish_deal_parameters(
-            RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+        assert_ok!(StorageProvider::publish_deal_parameters(
+            RuntimeOrigin::signed(account(CHARLIE)),
             deal_params
         ));
         System::reset_events();
 
         // Fail on duration
         assert_noop!(
-            Market::publish_storage_deals(
-                RuntimeOrigin::signed(account::<Test>(PROVIDER)),
-                bounded_vec![DealProposalBuilder::<Test>::default().signed(ALICE)]
+            StorageProvider::publish_storage_deals(
+                RuntimeOrigin::signed(account(CHARLIE)),
+                bounded_vec![DealProposalBuilder::default()
+                    .client(ALICE)
+                    .provider(&CHARLIE)
+                    .signed(ALICE)]
             ),
             Error::<Test>::OutOfBoundsDeal
         );
 
         // Fail on price
         assert_noop!(
-            Market::publish_storage_deals(
-                RuntimeOrigin::signed(account::<Test>(PROVIDER)),
-                bounded_vec![DealProposalBuilder::<Test>::default()
+            StorageProvider::publish_storage_deals(
+                RuntimeOrigin::signed(account(CHARLIE)),
+                bounded_vec![DealProposalBuilder::default()
+                    .client(ALICE)
+                    .provider(&CHARLIE)
                     .end_block(107)
                     .signed(ALICE)]
             ),
@@ -676,52 +608,59 @@ fn publish_storage_deals_fails_not_within_deal_parameters() {
 #[test]
 fn publish_storage_deals() {
     new_test_ext().execute_with(|| {
-        register_storage_provider(account::<Test>(PROVIDER));
-        let alice_proposal = DealProposalBuilder::<Test>::default().signed(ALICE);
+        register_storage_provider(account(CHARLIE));
+        let alice_proposal = DealProposalBuilder::default()
+            .client(ALICE)
+            .provider(&CHARLIE)
+            .signed(ALICE);
         let alice_start_block = 100;
         let alice_deal_id = 0;
         let alice_second_deal_id = 1;
         // We're not expecting for it to go through, but the call should not fail.
-        let alice_second_proposal = DealProposalBuilder::<Test>::default()
+        let alice_second_proposal = DealProposalBuilder::default()
+            .client(ALICE)
+            .provider(&CHARLIE)
             .piece_size(37)
             .signed(ALICE);
         let bob_deal_id = 2;
         let bob_start_block = 130;
-        let bob_proposal = DealProposalBuilder::<Test>::default()
+        let bob_proposal = DealProposalBuilder::default()
+            .client(ALICE)
+            .provider(&CHARLIE)
             .client(BOB)
             .start_block(bob_start_block)
             .end_block(135)
             .storage_price_per_block(10)
             .signed(BOB);
 
-        let alice_hash = Market::hash_proposal(&alice_proposal.proposal);
-        let bob_hash = Market::hash_proposal(&bob_proposal.proposal);
+        let alice_hash = StorageProvider::hash_proposal(&alice_proposal.proposal);
+        let bob_hash = StorageProvider::hash_proposal(&bob_proposal.proposal);
 
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 100);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(BOB)), 70);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 310);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 100);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(BOB)), 70);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 310);
         System::reset_events();
 
-        assert_ok!(Market::publish_storage_deals(
-            RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+        assert_ok!(StorageProvider::publish_storage_deals(
+            RuntimeOrigin::signed(account(CHARLIE)),
             bounded_vec![alice_proposal, alice_second_proposal, bob_proposal]
         ));
         assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(ALICE)),
+            BalanceTable::<Test>::get(account(ALICE)),
             BalanceEntry::<u64> {
                 free: 0,
                 locked: 100
             }
         );
         assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(BOB)),
+            BalanceTable::<Test>::get(account(BOB)),
             BalanceEntry::<u64> {
                 free: 20,
                 locked: 50
             }
         );
         assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
+            BalanceTable::<Test>::get(account(CHARLIE)),
             BalanceEntry::<u64> {
                 free: 10,
                 locked: 300
@@ -730,23 +669,25 @@ fn publish_storage_deals() {
 
         assert_eq!(
             events(),
-            [RuntimeEvent::Market(Event::<Test>::DealsPublished {
-                provider: account::<Test>(PROVIDER),
-                deals: bounded_vec!(
-                    PublishedDeal {
-                        deal_id: alice_deal_id,
-                        client: account::<Test>(ALICE),
-                    },
-                    PublishedDeal {
-                        deal_id: alice_second_deal_id,
-                        client: account::<Test>(ALICE),
-                    },
-                    PublishedDeal {
-                        deal_id: bob_deal_id,
-                        client: account::<Test>(BOB),
-                    }
-                )
-            }),]
+            [RuntimeEvent::StorageProvider(
+                Event::<Test>::DealsPublished {
+                    provider: account(CHARLIE),
+                    deals: bounded_vec!(
+                        PublishedDeal {
+                            deal_id: alice_deal_id,
+                            client: account(ALICE),
+                        },
+                        PublishedDeal {
+                            deal_id: alice_second_deal_id,
+                            client: account(ALICE),
+                        },
+                        PublishedDeal {
+                            deal_id: bob_deal_id,
+                            client: account(BOB),
+                        }
+                    )
+                }
+            ),]
         );
         assert!(PendingProposals::<Test>::get().contains(&alice_hash));
         assert!(PendingProposals::<Test>::get().contains(&bob_hash));
@@ -758,7 +699,7 @@ fn publish_storage_deals() {
 #[test]
 fn publish_storage_deals_with_deal_params() {
     new_test_ext().execute_with(|| {
-        register_storage_provider(account::<Test>(PROVIDER));
+        register_storage_provider(account(CHARLIE));
         let deal_params: OffchainDealParameters<u64, BlockNumberFor<Test>> =
             OffchainDealParameters {
                 minimum_price_per_block: 4,
@@ -768,58 +709,65 @@ fn publish_storage_deals_with_deal_params() {
                 },
             };
         // Publish deal params
-        assert_ok!(Market::publish_deal_parameters(
-            RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+        assert_ok!(StorageProvider::publish_deal_parameters(
+            RuntimeOrigin::signed(account(CHARLIE)),
             deal_params
         ));
         // Flush events, checked by other test.
         System::reset_events();
 
-        let alice_proposal = DealProposalBuilder::<Test>::default().signed(ALICE);
+        let alice_proposal = DealProposalBuilder::default()
+            .client(ALICE)
+            .provider(&CHARLIE)
+            .signed(ALICE);
         let alice_start_block = 100;
         let alice_deal_id = 0;
         let alice_second_deal_id = 1;
         // We're not expecting for it to go through, but the call should not fail.
-        let alice_second_proposal = DealProposalBuilder::<Test>::default()
+        let alice_second_proposal = DealProposalBuilder::default()
+            .client(ALICE)
+            .provider(&CHARLIE)
             .piece_size(37)
             .signed(ALICE);
         let bob_deal_id = 2;
         let bob_start_block = 130;
-        let bob_proposal = DealProposalBuilder::<Test>::default()
+        let bob_proposal = DealProposalBuilder::default()
+            .client(ALICE)
+            .provider(&CHARLIE)
             .client(BOB)
             .start_block(bob_start_block)
             .end_block(135)
             .storage_price_per_block(10)
             .signed(BOB);
 
-        let alice_hash = Market::hash_proposal(&alice_proposal.proposal);
-        let bob_hash = Market::hash_proposal(&bob_proposal.proposal);
+        let alice_hash = StorageProvider::hash_proposal(&alice_proposal.proposal);
+        let bob_hash = StorageProvider::hash_proposal(&bob_proposal.proposal);
 
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 100);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(BOB)), 70);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 310);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 100);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(BOB)), 70);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 310);
         System::reset_events();
 
-        assert_ok!(Market::publish_storage_deals(
-            RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+        assert_ok!(StorageProvider::publish_storage_deals(
+            RuntimeOrigin::signed(account(CHARLIE)),
             bounded_vec![alice_proposal, alice_second_proposal, bob_proposal]
         ));
         assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(ALICE)),
+            BalanceTable::<Test>::get(account(ALICE)),
             BalanceEntry::<u64> {
                 free: 0,
                 locked: 100
             }
         );
         assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(BOB)),
+            BalanceTable::<Test>::get(account(BOB)),
             BalanceEntry::<u64> {
                 free: 20,
                 locked: 50
             }
         );
         assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
+            BalanceTable::<Test>::get(account(CHARLIE)),
             BalanceEntry::<u64> {
                 free: 10,
                 locked: 300
@@ -828,23 +776,25 @@ fn publish_storage_deals_with_deal_params() {
 
         assert_eq!(
             events(),
-            [RuntimeEvent::Market(Event::<Test>::DealsPublished {
-                provider: account::<Test>(PROVIDER),
-                deals: bounded_vec!(
-                    PublishedDeal {
-                        deal_id: alice_deal_id,
-                        client: account::<Test>(ALICE),
-                    },
-                    PublishedDeal {
-                        deal_id: alice_second_deal_id,
-                        client: account::<Test>(ALICE),
-                    },
-                    PublishedDeal {
-                        deal_id: bob_deal_id,
-                        client: account::<Test>(BOB),
-                    }
-                )
-            }),]
+            [RuntimeEvent::StorageProvider(
+                Event::<Test>::DealsPublished {
+                    provider: account(CHARLIE),
+                    deals: bounded_vec!(
+                        PublishedDeal {
+                            deal_id: alice_deal_id,
+                            client: account(ALICE),
+                        },
+                        PublishedDeal {
+                            deal_id: alice_second_deal_id,
+                            client: account(ALICE),
+                        },
+                        PublishedDeal {
+                            deal_id: bob_deal_id,
+                            client: account(BOB),
+                        }
+                    )
+                }
+            ),]
         );
         assert!(PendingProposals::<Test>::get().contains(&alice_hash));
         assert!(PendingProposals::<Test>::get().contains(&bob_hash));
@@ -856,7 +806,13 @@ fn publish_storage_deals_with_deal_params() {
 #[test]
 fn verify_deals_for_activation() {
     new_test_ext().execute_with(|| {
-        publish_for_activation(1, DealProposalBuilder::<Test>::default().unsigned());
+        publish_for_activation(
+            1,
+            DealProposalBuilder::default()
+                .client(ALICE)
+                .provider(&CHARLIE)
+                .unsigned(),
+        );
 
         let deals = bounded_vec![
             SectorDeal {
@@ -883,7 +839,7 @@ fn verify_deals_for_activation() {
                 ),
                 None,
             ]),
-            Market::verify_deals_for_activation(&account::<Test>(PROVIDER), deals)
+            crate::dispatchables::verify_deals_for_activation::<Test>(&account(CHARLIE), deals)
         );
     });
 }
@@ -893,7 +849,9 @@ fn verify_deals_for_activation_fails_with_different_provider() {
     new_test_ext().execute_with(|| {
         publish_for_activation(
             1,
-            DealProposalBuilder::<Test>::default()
+            DealProposalBuilder::default()
+                .client(ALICE)
+                .provider(&CHARLIE)
                 .provider(BOB)
                 .unsigned(),
         );
@@ -901,7 +859,7 @@ fn verify_deals_for_activation_fails_with_different_provider() {
         let deals = bounded_vec![SectorDealBuilder::default().build()];
 
         assert_noop!(
-            Market::verify_deals_for_activation(&account::<Test>(PROVIDER), deals),
+            crate::dispatchables::verify_deals_for_activation::<Test>(&account(CHARLIE), deals),
             Error::<Test>::InvalidProvider
         );
     });
@@ -912,7 +870,9 @@ fn verify_deals_for_activation_fails_with_invalid_deal_state() {
     new_test_ext().execute_with(|| {
         publish_for_activation(
             1,
-            DealProposalBuilder::<Test>::default()
+            DealProposalBuilder::default()
+                .client(ALICE)
+                .provider(&CHARLIE)
                 .state(DealState::Active(ActiveDealState {
                     sector_number: 0.into(),
                     sector_start_block: 0,
@@ -925,7 +885,7 @@ fn verify_deals_for_activation_fails_with_invalid_deal_state() {
         let deals = bounded_vec![SectorDealBuilder::default().build()];
 
         assert_noop!(
-            Market::verify_deals_for_activation(&account::<Test>(PROVIDER), deals),
+            crate::dispatchables::verify_deals_for_activation::<Test>(&account(CHARLIE), deals),
             Error::<Test>::InvalidDealState
         );
     });
@@ -935,11 +895,17 @@ fn verify_deals_for_activation_fails_with_invalid_deal_state() {
 fn verify_deals_for_activation_fails_deal_not_in_pending() {
     new_test_ext().execute_with(|| {
         // do not use `publish_for_activation` as it puts deal in PendingProposals
-        Proposals::<Test>::insert(1, DealProposalBuilder::<Test>::default().unsigned());
+        Proposals::<Test>::insert(
+            1,
+            DealProposalBuilder::default()
+                .client(ALICE)
+                .provider(&CHARLIE)
+                .unsigned(),
+        );
         let deals = bounded_vec![SectorDealBuilder::default().build()];
 
         assert_noop!(
-            Market::verify_deals_for_activation(&account::<Test>(PROVIDER), deals),
+            crate::dispatchables::verify_deals_for_activation::<Test>(&account(CHARLIE), deals),
             Error::<Test>::DealNotPending
         );
     });
@@ -954,7 +920,9 @@ fn verify_deals_for_activation_fails_sector_activation_on_deal_from_the_past() {
 
         publish_for_activation(
             1,
-            DealProposalBuilder::<Test>::default()
+            DealProposalBuilder::default()
+                .client(ALICE)
+                .provider(&CHARLIE)
                 .start_block(1)
                 .unsigned(),
         );
@@ -962,7 +930,7 @@ fn verify_deals_for_activation_fails_sector_activation_on_deal_from_the_past() {
         let deals = bounded_vec![SectorDealBuilder::default().build()];
 
         assert_noop!(
-            Market::verify_deals_for_activation(&account::<Test>(PROVIDER), deals),
+            crate::dispatchables::verify_deals_for_activation::<Test>(&account(CHARLIE), deals),
             Error::<Test>::StartBlockElapsed
         );
     });
@@ -973,7 +941,9 @@ fn verify_deals_for_activation_fails_sector_expires_before_deal_ends() {
     new_test_ext().execute_with(|| {
         publish_for_activation(
             1,
-            DealProposalBuilder::<Test>::default()
+            DealProposalBuilder::default()
+                .client(ALICE)
+                .provider(&CHARLIE)
                 .start_block(10)
                 .end_block(15)
                 .unsigned(),
@@ -982,7 +952,7 @@ fn verify_deals_for_activation_fails_sector_expires_before_deal_ends() {
         let deals = bounded_vec![SectorDealBuilder::default().sector_expiry(11).build()];
 
         assert_noop!(
-            Market::verify_deals_for_activation(&account::<Test>(PROVIDER), deals),
+            crate::dispatchables::verify_deals_for_activation::<Test>(&account(CHARLIE), deals),
             Error::<Test>::SectorExpiresBeforeDeal
         );
     });
@@ -993,13 +963,17 @@ fn verify_deals_for_activation_fails_not_enough_space() {
     new_test_ext().execute_with(|| {
         publish_for_activation(
             1,
-            DealProposalBuilder::<Test>::default()
+            DealProposalBuilder::default()
+                .client(ALICE)
+                .provider(&CHARLIE)
                 .piece_size(1 << 10 /* 1 KiB */)
                 .unsigned(),
         );
         publish_for_activation(
             2,
-            DealProposalBuilder::<Test>::default()
+            DealProposalBuilder::default()
+                .client(ALICE)
+                .provider(&CHARLIE)
                 .piece_size(3 << 10 /* 3 KiB */)
                 .unsigned(),
         );
@@ -1010,7 +984,7 @@ fn verify_deals_for_activation_fails_not_enough_space() {
             .build()];
 
         assert_noop!(
-            Market::verify_deals_for_activation(&account::<Test>(PROVIDER), deals),
+            crate::dispatchables::verify_deals_for_activation::<Test>(&account(CHARLIE), deals),
             Error::<Test>::DealsTooLargeToFitIntoSector
         );
     });
@@ -1019,14 +993,20 @@ fn verify_deals_for_activation_fails_not_enough_space() {
 #[test]
 fn verify_deals_for_activation_fails_duplicate_deals() {
     new_test_ext().execute_with(|| {
-        publish_for_activation(1, DealProposalBuilder::<Test>::default().unsigned());
+        publish_for_activation(
+            1,
+            DealProposalBuilder::default()
+                .client(ALICE)
+                .provider(&CHARLIE)
+                .unsigned(),
+        );
 
         let deals = bounded_vec![SectorDealBuilder::default()
             .deal_ids(bounded_vec![1, 1])
             .build()];
 
         assert_noop!(
-            Market::verify_deals_for_activation(&account::<Test>(PROVIDER), deals),
+            crate::dispatchables::verify_deals_for_activation::<Test>(&account(CHARLIE), deals),
             Error::<Test>::DuplicateDeal
         );
     });
@@ -1040,7 +1020,7 @@ fn verify_deals_for_activation_fails_deal_not_found() {
             .build()];
 
         assert_noop!(
-            Market::verify_deals_for_activation(&account::<Test>(PROVIDER), deals),
+            crate::dispatchables::verify_deals_for_activation::<Test>(&account(CHARLIE), deals),
             Error::<Test>::DealNotFound
         );
     });
@@ -1049,9 +1029,14 @@ fn verify_deals_for_activation_fails_deal_not_found() {
 #[test]
 fn activate_deals() {
     new_test_ext().execute_with(|| {
-        register_storage_provider(account::<Test>(PROVIDER));
-        let alice_hash =
-            publish_for_activation(1, DealProposalBuilder::<Test>::default().unsigned());
+        register_storage_provider(account(CHARLIE));
+        let alice_hash = publish_for_activation(
+            1,
+            DealProposalBuilder::default()
+                .client(ALICE)
+                .provider(&CHARLIE)
+                .unsigned(),
+        );
 
         let deals = bounded_vec![
             SectorDealBuilder::default().build(),
@@ -1072,7 +1057,7 @@ fn activate_deals() {
             Ok(bounded_vec![
                 ActiveSector {
                     active_deals: bounded_vec![ActiveDeal {
-                        client: account::<Test>(ALICE),
+                        client: account(ALICE),
                         piece_cid: piece_cid,
                         piece_size: 128
                     }],
@@ -1083,7 +1068,7 @@ fn activate_deals() {
                     unsealed_cid: None
                 }
             ]),
-            Market::activate_deals(&account::<Test>(PROVIDER), deals, true)
+            crate::dispatchables::activate_deals::<Test>(&account(CHARLIE), deals, true)
         );
         assert!(!PendingProposals::<Test>::get().contains(&alice_hash));
     });
@@ -1092,10 +1077,21 @@ fn activate_deals() {
 #[test]
 fn activate_deals_fails_for_1_sector_but_succeeds_for_others() {
     new_test_ext().execute_with(|| {
-        register_storage_provider(account::<Test>(PROVIDER));
-        let alice_hash =
-            publish_for_activation(1, DealProposalBuilder::<Test>::default().unsigned());
-        let _ = publish_for_activation(2, DealProposalBuilder::<Test>::default().unsigned());
+        register_storage_provider(account(CHARLIE));
+        let alice_hash = publish_for_activation(
+            1,
+            DealProposalBuilder::default()
+                .client(ALICE)
+                .provider(&CHARLIE)
+                .unsigned(),
+        );
+        let _ = publish_for_activation(
+            2,
+            DealProposalBuilder::default()
+                .client(ALICE)
+                .provider(&CHARLIE)
+                .unsigned(),
+        );
         let deals = bounded_vec![
             SectorDealBuilder::default().build(),
             SectorDealBuilder::default()
@@ -1125,7 +1121,7 @@ fn activate_deals_fails_for_1_sector_but_succeeds_for_others() {
             Ok(bounded_vec![
                 ActiveSector {
                     active_deals: bounded_vec![ActiveDeal {
-                        client: account::<Test>(ALICE),
+                        client: account(ALICE),
                         piece_cid: piece_cid,
                         piece_size: 128
                     }],
@@ -1136,7 +1132,7 @@ fn activate_deals_fails_for_1_sector_but_succeeds_for_others() {
                     unsealed_cid: None
                 }
             ]),
-            Market::activate_deals(&account::<Test>(PROVIDER), deals, true)
+            crate::dispatchables::activate_deals::<Test>(&account(CHARLIE), deals, true)
         );
         assert!(!PendingProposals::<Test>::get().contains(&alice_hash));
     });
@@ -1147,7 +1143,7 @@ fn activate_deals_fails_for_1_sector_but_succeeds_for_others() {
 /// it's hash and saves it to `PendingProposals::<T>`.
 /// Behaves like `publish_storage_deals` without the validation and calling extrinsics.
 fn publish_for_activation(deal_id: DealId, deal: DealProposalOf<Test>) -> H256 {
-    let hash = Market::hash_proposal(&deal);
+    let hash = StorageProvider::hash_proposal(&deal);
     let mut pending = PendingProposals::<Test>::get();
     pending.try_insert(hash).unwrap();
     PendingProposals::<Test>::set(pending);
@@ -1159,10 +1155,12 @@ fn publish_for_activation(deal_id: DealId, deal: DealProposalOf<Test>) -> H256 {
 #[test]
 fn verifies_deals_on_block_finalization() {
     new_test_ext().execute_with(|| {
-        register_storage_provider(account::<Test>(PROVIDER));
+        register_storage_provider(account(CHARLIE));
         let alice_start_block = 100;
         let alice_deal_id = 0;
-        let alice_proposal = DealProposalBuilder::<Test>::default()
+        let alice_proposal = DealProposalBuilder::default()
+            .client(ALICE)
+            .provider(&CHARLIE)
             .start_block(alice_start_block)
             .end_block(alice_start_block + 10)
             .storage_price_per_block(5)
@@ -1170,22 +1168,24 @@ fn verifies_deals_on_block_finalization() {
 
         let bob_start_block = 130;
         let bob_deal_id = 1;
-        let bob_proposal = DealProposalBuilder::<Test>::default()
+        let bob_proposal = DealProposalBuilder::default()
+            .client(ALICE)
+            .provider(&CHARLIE)
             .client(BOB)
             .start_block(bob_start_block)
             .end_block(bob_start_block + 5)
             .storage_price_per_block(10)
             .signed(BOB);
 
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 60);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(BOB)), 70);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 310);
-        let _ = Market::publish_storage_deals(
-            RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(BOB)), 70);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 310);
+        let _ = StorageProvider::publish_storage_deals(
+            RuntimeOrigin::signed(account(CHARLIE)),
             bounded_vec![alice_proposal, bob_proposal],
         );
-        let _ = Market::activate_deals(
-            &account::<Test>(PROVIDER),
+        let _ = crate::dispatchables::activate_deals::<Test>(
+            &account(CHARLIE),
             bounded_vec![SectorDeal {
                 sector_number: 1.into(),
                 sector_expiry: 200,
@@ -1199,7 +1199,7 @@ fn verifies_deals_on_block_finalization() {
         // Scenario: Activate Alice's Deal, forget to do that for Bob's.
         // Alice's balance before the hook
         assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(ALICE)),
+            BalanceTable::<Test>::get(account(ALICE)),
             BalanceEntry::<u64> {
                 free: 10,
                 locked: 50
@@ -1209,7 +1209,7 @@ fn verifies_deals_on_block_finalization() {
         run_to_block(alice_start_block + 1);
         assert!(!DealsForBlock::<Test>::get(&alice_start_block).contains(&alice_deal_id));
         assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(ALICE)),
+            BalanceTable::<Test>::get(account(ALICE)),
             BalanceEntry::<u64> {
                 free: 10,
                 locked: 50
@@ -1218,14 +1218,14 @@ fn verifies_deals_on_block_finalization() {
 
         // Balances before processing the hook
         assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(BOB)),
+            BalanceTable::<Test>::get(account(BOB)),
             BalanceEntry::<u64> {
                 free: 20,
                 locked: 50
             }
         );
         assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
+            BalanceTable::<Test>::get(account(CHARLIE)),
             BalanceEntry::<u64> {
                 free: 110,
                 locked: 200
@@ -1235,14 +1235,14 @@ fn verifies_deals_on_block_finalization() {
         // Storage Provider should be slashed for Bob's amount and Bob refunded.
         run_to_block(bob_start_block + 1);
         assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(BOB)),
+            BalanceTable::<Test>::get(account(BOB)),
             BalanceEntry::<u64> {
                 free: 70,
                 locked: 0
             }
         );
         assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
+            BalanceTable::<Test>::get(account(CHARLIE)),
             BalanceEntry::<u64> {
                 free: 110,
                 // 200 (locked) - 100 (lost collateral) = 100
@@ -1256,14 +1256,14 @@ fn verifies_deals_on_block_finalization() {
             [
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded { amount: 100 }),
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Withdraw {
-                    who: Market::account_id(),
+                    who: StorageProvider::account_id(),
                     amount: 100
                 }),
-                RuntimeEvent::Market(Event::<Test>::DealSlashed {
+                RuntimeEvent::StorageProvider(Event::<Test>::DealSlashed {
                     deal_id: bob_deal_id,
                     amount: 100,
-                    provider: account::<Test>(PROVIDER),
-                    client: account::<Test>(BOB),
+                    provider: account(CHARLIE),
+                    client: account(BOB),
                 })
             ]
         )
@@ -1273,14 +1273,14 @@ fn verifies_deals_on_block_finalization() {
 #[test]
 fn settle_deal_payments_not_found() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Market::settle_deal_payments(
-            RuntimeOrigin::signed(account::<Test>(ALICE)),
+        assert_ok!(StorageProvider::settle_deal_payments(
+            RuntimeOrigin::signed(account(ALICE)),
             bounded_vec!(0)
         ));
 
         assert_eq!(
             events(),
-            [RuntimeEvent::Market(Event::<Test>::DealsSettled {
+            [RuntimeEvent::StorageProvider(Event::<Test>::DealsSettled {
                 successful: bounded_vec!(),
                 unsuccessful: bounded_vec!((0, DealSettlementError::DealNotFound))
             })]
@@ -1291,26 +1291,29 @@ fn settle_deal_payments_not_found() {
 #[test]
 fn settle_deal_payments_early() {
     new_test_ext().execute_with(|| {
-        register_storage_provider(account::<Test>(PROVIDER));
-        let alice_proposal = DealProposalBuilder::<Test>::default().signed(ALICE);
+        register_storage_provider(account(CHARLIE));
+        let alice_proposal = DealProposalBuilder::default()
+            .client(ALICE)
+            .provider(&CHARLIE)
+            .signed(ALICE);
 
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 60);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 160);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 160);
 
-        assert_ok!(Market::publish_storage_deals(
-            RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+        assert_ok!(StorageProvider::publish_storage_deals(
+            RuntimeOrigin::signed(account(CHARLIE)),
             bounded_vec![alice_proposal]
         ));
         System::reset_events();
 
-        assert_ok!(Market::settle_deal_payments(
-            RuntimeOrigin::signed(account::<Test>(ALICE)),
+        assert_ok!(StorageProvider::settle_deal_payments(
+            RuntimeOrigin::signed(account(ALICE)),
             bounded_vec!(0)
         ));
 
         assert_eq!(
             events(),
-            [RuntimeEvent::Market(Event::<Test>::DealsSettled {
+            [RuntimeEvent::StorageProvider(Event::<Test>::DealsSettled {
                 successful: bounded_vec!(),
                 unsuccessful: bounded_vec!((0, DealSettlementError::EarlySettlement))
             })]
@@ -1321,24 +1324,28 @@ fn settle_deal_payments_early() {
 #[test]
 fn settle_deal_payments_published() {
     new_test_ext().execute_with(|| {
-        register_storage_provider(account::<Test>(PROVIDER));
-        let alice_proposal = DealProposalBuilder::<Test>::default()
+        register_storage_provider(account(CHARLIE));
+        let alice_proposal = DealProposalBuilder::default()
+            .client(ALICE)
+            .provider(&CHARLIE)
             .start_block(1)
             .end_block(11)
             .signed(ALICE);
 
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 60);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(BOB)), 70);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 160);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(BOB)), 70);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 160);
 
-        assert_ok!(Market::publish_storage_deals(
-            RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+        assert_ok!(StorageProvider::publish_storage_deals(
+            RuntimeOrigin::signed(account(CHARLIE)),
             bounded_vec![alice_proposal]
         ));
 
         Proposals::<Test>::insert(
             1,
-            DealProposalBuilder::<Test>::default()
+            DealProposalBuilder::default()
+                .client(ALICE)
+                .provider(&CHARLIE)
                 .client(BOB)
                 .start_block(1)
                 .end_block(11)
@@ -1348,14 +1355,14 @@ fn settle_deal_payments_published() {
 
         System::reset_events();
 
-        assert_ok!(Market::settle_deal_payments(
-            RuntimeOrigin::signed(account::<Test>(ALICE)),
+        assert_ok!(StorageProvider::settle_deal_payments(
+            RuntimeOrigin::signed(account(ALICE)),
             bounded_vec!(0, 1, 2)
         ));
 
         assert_eq!(
             events(),
-            [RuntimeEvent::Market(Event::<Test>::DealsSettled {
+            [RuntimeEvent::StorageProvider(Event::<Test>::DealsSettled {
                 successful: bounded_vec!(),
                 unsuccessful: bounded_vec!(
                     (0, DealSettlementError::DealNotActive),
@@ -1370,12 +1377,14 @@ fn settle_deal_payments_published() {
 #[test]
 fn settle_deal_payments_active_future_last_update() {
     new_test_ext().execute_with(|| {
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 60);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 75);
 
         Proposals::<Test>::insert(
             0,
-            DealProposalBuilder::<Test>::default()
+            DealProposalBuilder::default()
+                .client(ALICE)
+                .provider(&CHARLIE)
                 .start_block(0)
                 .end_block(10)
                 .state(DealState::Active(ActiveDealState {
@@ -1388,14 +1397,14 @@ fn settle_deal_payments_active_future_last_update() {
         );
         System::reset_events();
 
-        assert_ok!(Market::settle_deal_payments(
-            RuntimeOrigin::signed(account::<Test>(ALICE)),
+        assert_ok!(StorageProvider::settle_deal_payments(
+            RuntimeOrigin::signed(account(ALICE)),
             bounded_vec!(0)
         ));
 
         assert_eq!(
             events(),
-            [RuntimeEvent::Market(Event::<Test>::DealsSettled {
+            [RuntimeEvent::StorageProvider(Event::<Test>::DealsSettled {
                 successful: bounded_vec!(),
                 unsuccessful: bounded_vec!((0, DealSettlementError::FutureLastUpdate))
             })]
@@ -1406,12 +1415,14 @@ fn settle_deal_payments_active_future_last_update() {
 #[test]
 fn settle_deal_payments_active_corruption() {
     new_test_ext().execute_with(|| {
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 60);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 75);
 
         Proposals::<Test>::insert(
             0,
-            DealProposalBuilder::<Test>::default()
+            DealProposalBuilder::default()
+                .client(ALICE)
+                .provider(&CHARLIE)
                 .start_block(0)
                 .end_block(10)
                 .state(DealState::Active(ActiveDealState {
@@ -1426,8 +1437,8 @@ fn settle_deal_payments_active_corruption() {
         System::reset_events();
 
         assert_err!(
-            Market::settle_deal_payments(
-                RuntimeOrigin::signed(account::<Test>(ALICE)),
+            StorageProvider::settle_deal_payments(
+                RuntimeOrigin::signed(account(ALICE)),
                 bounded_vec!(0)
             ),
             DispatchError::Corruption
@@ -1440,17 +1451,19 @@ fn settle_deal_payments_active_corruption() {
 #[test]
 fn settle_deal_payments_success() {
     new_test_ext().execute_with(|| {
-        register_storage_provider(account::<Test>(PROVIDER));
-        let alice_proposal = DealProposalBuilder::<Test>::default()
+        register_storage_provider(account(CHARLIE));
+        let alice_proposal = DealProposalBuilder::default()
+            .client(ALICE)
+            .provider(&CHARLIE)
             .start_block(1)
             .end_block(11)
             .signed(ALICE);
 
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 60);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 160);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 160);
 
-        assert_ok!(Market::publish_storage_deals(
-            RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+        assert_ok!(StorageProvider::publish_storage_deals(
+            RuntimeOrigin::signed(account(CHARLIE)),
             bounded_vec![alice_proposal]
         ));
 
@@ -1468,7 +1481,9 @@ fn settle_deal_payments_success() {
         assert_eq!(
             Proposals::<Test>::get(0),
             Some(
-                DealProposalBuilder::<Test>::default()
+                DealProposalBuilder::default()
+                    .client(ALICE)
+                    .provider(&CHARLIE)
                     .start_block(1)
                     .end_block(11)
                     .state(DealState::Active(ActiveDealState {
@@ -1484,26 +1499,26 @@ fn settle_deal_payments_success() {
 
         run_to_block(6);
 
-        assert_ok!(Market::settle_deal_payments(
-            RuntimeOrigin::signed(account::<Test>(ALICE)),
+        assert_ok!(StorageProvider::settle_deal_payments(
+            RuntimeOrigin::signed(account(ALICE)),
             bounded_vec!(0)
         ));
 
         assert_eq!(
             events(),
-            [RuntimeEvent::Market(Event::<Test>::DealsSettled {
+            [RuntimeEvent::StorageProvider(Event::<Test>::DealsSettled {
                 successful: bounded_vec!(SettledDealData {
                     deal_id: 0,
                     amount: 25,
-                    client: account::<Test>(ALICE),
-                    provider: account::<Test>(PROVIDER)
+                    client: account(ALICE),
+                    provider: account(CHARLIE)
                 }),
                 unsuccessful: bounded_vec!()
             })]
         );
 
         assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
+            BalanceTable::<Test>::get(account(CHARLIE)),
             BalanceEntry::<u64> {
                 free: 85, // 60 (from 160 - collateral) + 5 * 5 (price per block * n blocks)
                 locked: 100
@@ -1511,7 +1526,7 @@ fn settle_deal_payments_success() {
         );
 
         assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(ALICE)),
+            BalanceTable::<Test>::get(account(ALICE)),
             BalanceEntry::<u64> {
                 free: 10,
                 locked: 25, // 50 - 5 * 5 (price per block * n blocks)
@@ -1521,7 +1536,9 @@ fn settle_deal_payments_success() {
         assert_eq!(
             Proposals::<Test>::get(0),
             Some(
-                DealProposalBuilder::<Test>::default()
+                DealProposalBuilder::default()
+                    .client(ALICE)
+                    .provider(&CHARLIE)
                     .start_block(1)
                     .end_block(11)
                     .state(DealState::Active(ActiveDealState {
@@ -1539,17 +1556,19 @@ fn settle_deal_payments_success() {
 #[test]
 fn settle_deal_payments_success_finished() {
     new_test_ext().execute_with(|| {
-        register_storage_provider(account::<Test>(PROVIDER));
-        let alice_proposal = DealProposalBuilder::<Test>::default()
+        register_storage_provider(account(CHARLIE));
+        let alice_proposal = DealProposalBuilder::default()
+            .client(ALICE)
+            .provider(&CHARLIE)
             .start_block(1)
             .end_block(11)
             .signed(ALICE);
 
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(ALICE)), 60);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 160);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 160);
 
-        assert_ok!(Market::publish_storage_deals(
-            RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+        assert_ok!(StorageProvider::publish_storage_deals(
+            RuntimeOrigin::signed(account(CHARLIE)),
             bounded_vec![alice_proposal]
         ));
 
@@ -1567,7 +1586,9 @@ fn settle_deal_payments_success_finished() {
         assert_eq!(
             Proposals::<Test>::get(0),
             Some(
-                DealProposalBuilder::<Test>::default()
+                DealProposalBuilder::default()
+                    .client(ALICE)
+                    .provider(&CHARLIE)
                     .start_block(1)
                     .end_block(11)
                     .state(DealState::Active(ActiveDealState {
@@ -1585,26 +1606,26 @@ fn settle_deal_payments_success_finished() {
         // Deal is finished
         run_to_block(12);
 
-        assert_ok!(Market::settle_deal_payments(
-            RuntimeOrigin::signed(account::<Test>(ALICE)),
+        assert_ok!(StorageProvider::settle_deal_payments(
+            RuntimeOrigin::signed(account(ALICE)),
             bounded_vec!(0)
         ));
 
         assert_eq!(
             events(),
-            [RuntimeEvent::Market(Event::<Test>::DealsSettled {
+            [RuntimeEvent::StorageProvider(Event::<Test>::DealsSettled {
                 successful: bounded_vec!(SettledDealData {
                     deal_id: 0,
                     amount: 50,
-                    client: account::<Test>(ALICE),
-                    provider: account::<Test>(PROVIDER)
+                    client: account(ALICE),
+                    provider: account(CHARLIE)
                 }),
                 unsuccessful: bounded_vec!()
             })]
         );
 
         assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
+            BalanceTable::<Test>::get(account(CHARLIE)),
             BalanceEntry::<u64> {
                 free: 160 + 5 * 10, // 160 (from 160 - collateral + returned collateral (not slashed)) + (price per block * n blocks)
                 locked: 0
@@ -1612,7 +1633,7 @@ fn settle_deal_payments_success_finished() {
         );
 
         assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(ALICE)),
+            BalanceTable::<Test>::get(account(ALICE)),
             BalanceEntry::<u64> {
                 free: 10,
                 locked: 50 - 5 * 10, // locked - (price per block * n blocks)
@@ -1627,29 +1648,29 @@ fn settle_deal_payments_success_finished() {
 fn test_lock_funds() {
     new_test_ext().execute_with(|| {
         assert_eq!(
-            <Test as CurrencyProvider>::Currency::total_balance(&account::<Test>(PROVIDER)),
-            1000
+            <Test as Config>::Currency::total_balance(&account(CHARLIE)),
+            50_000
         );
-        assert_ok!(Market::add_balance(
-            RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+        assert_ok!(StorageProvider::add_balance(
+            RuntimeOrigin::signed(account(CHARLIE)),
             90
         ));
         assert_eq!(
-            <Test as CurrencyProvider>::Currency::total_balance(&account::<Test>(PROVIDER)),
-            910
+            <Test as Config>::Currency::total_balance(&account(CHARLIE)),
+            49_910
         );
-        assert_ok!(lock_funds::<Test>(&account::<Test>(PROVIDER), 25));
+        assert_ok!(lock_funds::<Test>(&account(CHARLIE), 25));
         assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
+            BalanceTable::<Test>::get(account(CHARLIE)),
             BalanceEntry::<u64> {
                 free: 65,
                 locked: 25,
             }
         );
 
-        assert_ok!(lock_funds::<Test>(&account::<Test>(PROVIDER), 65));
+        assert_ok!(lock_funds::<Test>(&account(CHARLIE), 65));
         assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
+            BalanceTable::<Test>::get(account(CHARLIE)),
             BalanceEntry::<u64> {
                 free: 0,
                 locked: 90,
@@ -1657,12 +1678,12 @@ fn test_lock_funds() {
         );
 
         assert_err!(
-            lock_funds::<Test>(&account::<Test>(PROVIDER), 25),
+            lock_funds::<Test>(&account(CHARLIE), 25),
             Error::<Test>::InsufficientFreeFunds
         );
 
         assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
+            BalanceTable::<Test>::get(account(CHARLIE)),
             BalanceEntry::<u64> {
                 free: 0,
                 locked: 90,
@@ -1675,39 +1696,39 @@ fn test_lock_funds() {
 fn test_unlock_funds() {
     new_test_ext().execute_with(|| {
         assert_eq!(
-            <Test as CurrencyProvider>::Currency::total_balance(&account::<Test>(PROVIDER)),
-            1000
+            <Test as Config>::Currency::total_balance(&account(CHARLIE)),
+            50_000
         );
         // We can't get all 100, otherwise the account would be reaped
-        assert_ok!(Market::add_balance(
-            RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+        assert_ok!(StorageProvider::add_balance(
+            RuntimeOrigin::signed(account(CHARLIE)),
             90
         ));
         assert_eq!(
-            <Test as CurrencyProvider>::Currency::total_balance(&account::<Test>(PROVIDER)),
-            910
+            <Test as Config>::Currency::total_balance(&account(CHARLIE)),
+            49_910
         );
-        assert_ok!(lock_funds::<Test>(&account::<Test>(PROVIDER), 90));
+        assert_ok!(lock_funds::<Test>(&account(CHARLIE), 90));
         assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
+            BalanceTable::<Test>::get(account(CHARLIE)),
             BalanceEntry::<u64> {
                 free: 0,
                 locked: 90,
             }
         );
 
-        assert_ok!(unlock_funds::<Test>(&account::<Test>(PROVIDER), 30));
+        assert_ok!(unlock_funds::<Test>(&account(CHARLIE), 30));
         assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
+            BalanceTable::<Test>::get(account(CHARLIE)),
             BalanceEntry::<u64> {
                 free: 30,
                 locked: 60,
             }
         );
 
-        assert_ok!(unlock_funds::<Test>(&account::<Test>(PROVIDER), 60));
+        assert_ok!(unlock_funds::<Test>(&account(CHARLIE), 60));
         assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
+            BalanceTable::<Test>::get(account(CHARLIE)),
             BalanceEntry::<u64> {
                 free: 90,
                 locked: 0,
@@ -1715,11 +1736,11 @@ fn test_unlock_funds() {
         );
 
         assert_err!(
-            unlock_funds::<Test>(&account::<Test>(PROVIDER), 60),
+            unlock_funds::<Test>(&account(CHARLIE), 60),
             Error::<Test>::InsufficientLockedFunds
         );
         assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
+            BalanceTable::<Test>::get(account(CHARLIE)),
             BalanceEntry::<u64> {
                 free: 90,
                 locked: 0,
@@ -1731,31 +1752,31 @@ fn test_unlock_funds() {
 #[test]
 fn slash_and_burn_acc() {
     new_test_ext().execute_with(|| {
-        assert_eq!(<Test as CurrencyProvider>::Currency::total_issuance(), 3000);
-        assert_ok!(Market::add_balance(
-            RuntimeOrigin::signed(account::<Test>(PROVIDER)),
+        assert_eq!(<Test as Config>::Currency::total_issuance(), 150_000);
+        assert_ok!(StorageProvider::add_balance(
+            RuntimeOrigin::signed(account(CHARLIE)),
             75
         ));
 
         System::reset_events();
 
-        assert_ok!(lock_funds::<Test>(&account::<Test>(PROVIDER), 10));
-        assert_ok!(slash_and_burn::<Test>(&account::<Test>(PROVIDER), 10));
+        assert_ok!(lock_funds::<Test>(&account(CHARLIE), 10));
+        assert_ok!(slash_and_burn::<Test>(&account(CHARLIE), 10));
 
         assert_eq!(
             events(),
             [
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded { amount: 10 }),
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Withdraw {
-                    who: Market::account_id(),
+                    who: StorageProvider::account_id(),
                     amount: 10
                 }),
             ]
         );
-        assert_eq!(<Test as CurrencyProvider>::Currency::total_issuance(), 2990);
+        assert_eq!(<Test as Config>::Currency::total_issuance(), 149_990);
 
         assert_eq!(
-            BalanceTable::<Test>::get(account::<Test>(PROVIDER)),
+            BalanceTable::<Test>::get(account(CHARLIE)),
             BalanceEntry::<u64> {
                 free: 65,
                 locked: 0,
@@ -1763,21 +1784,21 @@ fn slash_and_burn_acc() {
         );
 
         assert_err!(
-            slash_and_burn::<Test>(&account::<Test>(PROVIDER), 10),
+            slash_and_burn::<Test>(&account(CHARLIE), 10),
             Error::<Test>::InsufficientLockedFunds
         );
-        assert_eq!(<Test as CurrencyProvider>::Currency::total_issuance(), 2990);
+        assert_eq!(<Test as Config>::Currency::total_issuance(), 149_990);
     });
 }
 
 #[test]
 fn on_sector_terminate_unknown_deals() {
     new_test_ext().execute_with(|| {
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 75);
         System::reset_events();
 
-        assert_ok!(Market::on_sectors_terminate(
-            &account::<Test>(PROVIDER),
+        assert_ok!(crate::dispatchables::on_sectors_terminate::<Test>(
+            &account(CHARLIE),
             bounded_vec![0.into()],
         ));
 
@@ -1788,17 +1809,20 @@ fn on_sector_terminate_unknown_deals() {
 #[test]
 fn on_sector_terminate_deal_not_found() {
     new_test_ext().execute_with(|| {
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 75);
         System::reset_events();
 
-        let storage_provider = account::<Test>(PROVIDER);
+        let storage_provider = account(CHARLIE);
         let sector_number = 0.into();
         let sector_deal_ids: BoundedVec<_, ConstU32<MAX_DEALS_PER_SECTOR>> = bounded_vec![1];
 
         SectorDeals::<Test>::insert((storage_provider.clone(), sector_number), sector_deal_ids);
 
         assert_err!(
-            Market::on_sectors_terminate(&storage_provider, bounded_vec![sector_number]),
+            crate::dispatchables::on_sectors_terminate::<Test>(
+                &storage_provider,
+                bounded_vec![sector_number]
+            ),
             Error::<Test>::DealNotFound
         );
 
@@ -1809,22 +1833,24 @@ fn on_sector_terminate_deal_not_found() {
 #[test]
 fn on_sector_terminate_invalid_caller() {
     new_test_ext().execute_with(|| {
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 75);
         System::reset_events();
 
         let sector_number = 0.into();
         let sector_deal_ids: BoundedVec<_, ConstU32<MAX_DEALS_PER_SECTOR>> = bounded_vec![1];
 
-        SectorDeals::<Test>::insert((account::<Test>(PROVIDER), sector_number), sector_deal_ids);
+        SectorDeals::<Test>::insert((account(CHARLIE), sector_number), sector_deal_ids);
         Proposals::<Test>::insert(
             1,
-            DealProposalBuilder::<Test>::default()
+            DealProposalBuilder::default()
+                .client(ALICE)
+                .provider(&CHARLIE)
                 .client(BOB)
                 .unsigned(),
         );
 
-        assert_ok!(Market::on_sectors_terminate(
-            &account::<Test>(BOB),
+        assert_ok!(crate::dispatchables::on_sectors_terminate::<Test>(
+            &account(BOB),
             bounded_vec![sector_number]
         ),);
 
@@ -1835,17 +1861,19 @@ fn on_sector_terminate_invalid_caller() {
 #[test]
 fn on_sector_terminate_not_active() {
     new_test_ext().execute_with(|| {
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 75);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 75);
         System::reset_events();
 
-        let storage_provider = account::<Test>(PROVIDER);
+        let storage_provider = account(CHARLIE);
         let sector_number = 0.into();
         let sector_deal_ids: BoundedVec<_, ConstU32<MAX_DEALS_PER_SECTOR>> = bounded_vec![1];
 
         SectorDeals::<Test>::insert((storage_provider.clone(), sector_number), sector_deal_ids);
         Proposals::<Test>::insert(
             1,
-            DealProposalBuilder::<Test>::default()
+            DealProposalBuilder::default()
+                .client(ALICE)
+                .provider(&CHARLIE)
                 .client(BOB)
                 .start_block(0)
                 .end_block(10)
@@ -1854,7 +1882,10 @@ fn on_sector_terminate_not_active() {
         );
 
         assert_err!(
-            Market::on_sectors_terminate(&storage_provider, bounded_vec![sector_number]),
+            crate::dispatchables::on_sectors_terminate::<Test>(
+                &storage_provider,
+                bounded_vec![sector_number]
+            ),
             Error::<Test>::DealIsNotActive
         );
 
@@ -1865,13 +1896,15 @@ fn on_sector_terminate_not_active() {
 #[test]
 fn on_sector_terminate_active() {
     new_test_ext().execute_with(|| {
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(BOB)), 75);
-        let _ = Market::add_balance(RuntimeOrigin::signed(account::<Test>(PROVIDER)), 160);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(BOB)), 75);
+        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 160);
 
-        let storage_provider = account::<Test>(PROVIDER);
+        let storage_provider = account(CHARLIE);
         let sector_number = 0.into();
         let sector_deal_ids: BoundedVec<_, ConstU32<MAX_DEALS_PER_SECTOR>> = bounded_vec![1];
-        let deal_proposal = DealProposalBuilder::<Test>::default()
+        let deal_proposal = DealProposalBuilder::default()
+            .client(ALICE)
+            .provider(&CHARLIE)
             .client(BOB)
             .start_block(0)
             .end_block(10)
@@ -1879,10 +1912,10 @@ fn on_sector_terminate_active() {
             .state(DealState::Active(ActiveDealState::new(sector_number, 0)))
             .unsigned();
 
-        assert_ok!(lock_funds::<Test>(&account::<Test>(BOB), 5 * 10));
+        assert_ok!(lock_funds::<Test>(&account(BOB), 5 * 10));
         assert_ok!(lock_funds::<Test>(&storage_provider, 100));
 
-        let hash_proposal = Market::hash_proposal(&deal_proposal);
+        let hash_proposal = StorageProvider::hash_proposal(&deal_proposal);
         let mut pending = PendingProposals::<Test>::get();
         pending
             .try_insert(hash_proposal)
@@ -1894,13 +1927,13 @@ fn on_sector_terminate_active() {
 
         System::reset_events();
 
-        assert_ok!(Market::on_sectors_terminate(
+        assert_ok!(crate::dispatchables::on_sectors_terminate::<Test>(
             &storage_provider,
             bounded_vec![sector_number],
         ));
 
         assert_eq!(
-            BalanceTable::<Test>::get(&account::<Test>(BOB)),
+            BalanceTable::<Test>::get(&account(BOB)),
             BalanceEntry {
                 free: 70,  // unlocked funds - 5 for the storage payment of a single block
                 locked: 0, // unlocked
@@ -1920,26 +1953,26 @@ fn on_sector_terminate_active() {
             [
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded { amount: 100 }),
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Withdraw {
-                    who: Market::account_id(),
+                    who: StorageProvider::account_id(),
                     amount: 100
                 }),
-                RuntimeEvent::Market(Event::<Test>::DealTerminated {
+                RuntimeEvent::StorageProvider(Event::<Test>::DealTerminated {
                     deal_id: 1,
-                    client: account::<Test>(BOB),
-                    provider: account::<Test>(PROVIDER)
+                    client: account(BOB),
+                    provider: account(CHARLIE)
                 })
             ]
         );
         assert!(PendingProposals::<Test>::get().is_empty());
         assert!(!Proposals::<Test>::contains_key(1));
-        assert_eq!(<Test as CurrencyProvider>::Currency::total_issuance(), 2900);
+        assert_eq!(<Test as Config>::Currency::total_issuance(), 149900);
     });
 }
 
 #[test]
 fn publish_deal_parameters() {
     new_test_ext().execute_with(|| {
-        let storage_provider = account::<Test>(PROVIDER);
+        let storage_provider = account(CHARLIE);
         register_storage_provider(storage_provider.clone());
 
         let offchain_deal_params: OffchainDealParameters<u64, BlockNumberFor<Test>> =
@@ -1953,13 +1986,13 @@ fn publish_deal_parameters() {
         let deal_params = offchain_deal_params
             .clone()
             .validate(
-                <Test as MarketProvider>::min_deal_duration(),
+                <<Test as Config>::MinDealDuration as Get<BlockNumberFor<Test>>>::get(),
                 <<Test as Config>::MaxDealDuration as Get<BlockNumberFor<Test>>>::get(),
             )
             .expect("Seamless conversion");
 
         // Run extrinsic
-        assert_ok!(Market::publish_deal_parameters(
+        assert_ok!(StorageProvider::publish_deal_parameters(
             RuntimeOrigin::signed(storage_provider.clone()),
             offchain_deal_params
         ));
@@ -1967,10 +2000,12 @@ fn publish_deal_parameters() {
         // Check events
         assert_eq!(
             events(),
-            [RuntimeEvent::Market(Event::<Test>::DealParametersUpdated {
-                provider: storage_provider.clone(),
-                deal_parameters: deal_params.clone()
-            })]
+            [RuntimeEvent::StorageProvider(
+                Event::<Test>::DealParametersUpdated {
+                    provider: storage_provider.clone(),
+                    deal_parameters: deal_params.clone()
+                }
+            )]
         );
 
         // Check storage map
@@ -1992,13 +2027,13 @@ fn publish_deal_parameters() {
         let deal_params_2 = offchain_deal_params_2
             .clone()
             .validate(
-                <Test as MarketProvider>::min_deal_duration(),
+                <<Test as Config>::MinDealDuration as Get<BlockNumberFor<Test>>>::get(),
                 <<Test as Config>::MaxDealDuration as Get<BlockNumberFor<Test>>>::get(),
             )
             .expect("Seamless conversion");
 
         // Run extrinsic
-        assert_ok!(Market::publish_deal_parameters(
+        assert_ok!(StorageProvider::publish_deal_parameters(
             RuntimeOrigin::signed(storage_provider.clone()),
             offchain_deal_params_2.clone()
         ));
@@ -2006,10 +2041,12 @@ fn publish_deal_parameters() {
         // Check events
         assert_eq!(
             events(),
-            [RuntimeEvent::Market(Event::<Test>::DealParametersUpdated {
-                provider: storage_provider.clone(),
-                deal_parameters: deal_params_2.clone()
-            })]
+            [RuntimeEvent::StorageProvider(
+                Event::<Test>::DealParametersUpdated {
+                    provider: storage_provider.clone(),
+                    deal_parameters: deal_params_2.clone()
+                }
+            )]
         );
 
         // Check storage map
@@ -2023,7 +2060,7 @@ fn publish_deal_parameters() {
 #[test]
 fn remove_deal_parameters() {
     new_test_ext().execute_with(|| {
-        let storage_provider = account::<Test>(PROVIDER);
+        let storage_provider = account(CHARLIE);
         register_storage_provider(storage_provider.clone());
 
         let offchain_deal_params: OffchainDealParameters<u64, BlockNumberFor<Test>> =
@@ -2037,13 +2074,13 @@ fn remove_deal_parameters() {
         let deal_params = offchain_deal_params
             .clone()
             .validate(
-                <Test as MarketProvider>::min_deal_duration(),
+                <<Test as Config>::MinDealDuration as Get<BlockNumberFor<Test>>>::get(),
                 <<Test as Config>::MaxDealDuration as Get<BlockNumberFor<Test>>>::get(),
             )
             .expect("Seamless conversion");
 
         // Run extrinsic
-        assert_ok!(Market::publish_deal_parameters(
+        assert_ok!(StorageProvider::publish_deal_parameters(
             RuntimeOrigin::signed(storage_provider.clone()),
             offchain_deal_params.clone()
         ));
@@ -2051,10 +2088,12 @@ fn remove_deal_parameters() {
         // Check events
         assert_eq!(
             events(),
-            [RuntimeEvent::Market(Event::<Test>::DealParametersUpdated {
-                provider: storage_provider.clone(),
-                deal_parameters: deal_params.clone()
-            })]
+            [RuntimeEvent::StorageProvider(
+                Event::<Test>::DealParametersUpdated {
+                    provider: storage_provider.clone(),
+                    deal_parameters: deal_params.clone()
+                }
+            )]
         );
 
         // Check storage map
@@ -2064,9 +2103,9 @@ fn remove_deal_parameters() {
         );
 
         // Remove deal parameters
-        assert_ok!(Market::remove_deal_parameters(RuntimeOrigin::signed(
-            storage_provider.clone()
-        )));
+        assert_ok!(StorageProvider::remove_deal_parameters(
+            RuntimeOrigin::signed(storage_provider.clone())
+        ));
 
         // Check storage map
         assert!(SPDealParameters::<Test>::try_get(&storage_provider).is_err());
@@ -2074,152 +2113,11 @@ fn remove_deal_parameters() {
         // Check events
         assert_eq!(
             events(),
-            [RuntimeEvent::Market(Event::<Test>::DealParametersRemoved {
-                provider: storage_provider.clone(),
-            })]
+            [RuntimeEvent::StorageProvider(
+                Event::<Test>::DealParametersRemoved {
+                    provider: storage_provider.clone(),
+                }
+            )]
         );
     });
-}
-
-/// Builder with nice defaults for test purposes.
-struct SectorDealBuilder {
-    sector_number: SectorNumber,
-    sector_expiry: BlockNumberFor<Test>,
-    sector_type: RegisteredSealProof,
-    deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
-}
-
-impl SectorDealBuilder {
-    pub fn sector_expiry(mut self, sector_expiry: BlockNumberFor<Test>) -> Self {
-        self.sector_expiry = sector_expiry;
-        self
-    }
-
-    pub fn sector_number(mut self, sector_number: SectorNumber) -> Self {
-        self.sector_number = sector_number;
-        self
-    }
-
-    pub fn deal_ids(
-        mut self,
-        deal_ids: BoundedVec<DealId, ConstU32<MAX_DEALS_PER_SECTOR>>,
-    ) -> Self {
-        self.deal_ids = deal_ids;
-        self
-    }
-
-    pub fn build(self) -> SectorDeal<BlockNumberFor<Test>> {
-        SectorDeal::<BlockNumberFor<Test>> {
-            sector_number: self.sector_number,
-            sector_expiry: self.sector_expiry,
-            sector_type: self.sector_type,
-            deal_ids: self.deal_ids,
-        }
-    }
-}
-
-impl Default for SectorDealBuilder {
-    fn default() -> Self {
-        Self {
-            sector_number: 1.into(),
-            sector_expiry: 120,
-            sector_type: RegisteredSealProof::StackedDRG2KiBV1P1,
-            deal_ids: bounded_vec![1],
-        }
-    }
-}
-
-/// Builder to simplify writing complex tests of [`DealProposal`].
-/// Exclusively uses [`Test`] for simplification purposes.
-pub struct DealProposalBuilder<T: frame_system::Config> {
-    piece_cid: BoundedVec<u8, ConstU32<CID_SIZE_IN_BYTES>>,
-    piece_size: u64,
-    client: AccountIdOf<T>,
-    provider: AccountIdOf<T>,
-    label: BoundedVec<u8, ConstU32<128>>,
-    start_block: BlockNumberFor<T>,
-    end_block: BlockNumberFor<T>,
-    storage_price_per_block: u64,
-    state: DealState<BlockNumberFor<T>>,
-}
-
-impl<T: frame_system::Config<AccountId = AccountId32>> Default for DealProposalBuilder<T> {
-    fn default() -> Self {
-        let piece_commitment = Commitment::<CommP>::from(*b"dummydummydummydummydummydummydu");
-
-        Self {
-            piece_cid: piece_commitment
-                .cid()
-                .to_bytes()
-                .try_into()
-                .expect("hash is always 32 bytes"),
-            piece_size: 128,
-            client: account::<Test>(ALICE),
-            provider: account::<Test>(PROVIDER),
-            label: bounded_vec![0xb, 0xe, 0xe, 0xf],
-            start_block: 100u32.saturated_into::<BlockNumberFor<T>>(),
-            end_block: 110u32.saturated_into::<BlockNumberFor<T>>(),
-            storage_price_per_block: 5,
-            state: DealState::Published,
-        }
-    }
-}
-
-impl<T: frame_system::Config<AccountId = AccountId32>> DealProposalBuilder<T> {
-    pub fn client(mut self, client: &'static str) -> Self {
-        self.client = account::<Test>(client);
-        self
-    }
-
-    pub fn provider(mut self, provider: &'static str) -> Self {
-        self.provider = account::<Test>(provider);
-        self
-    }
-
-    pub fn state(mut self, state: DealState<BlockNumberFor<T>>) -> Self {
-        self.state = state;
-        self
-    }
-
-    pub fn start_block(mut self, start_block: BlockNumberFor<T>) -> Self {
-        self.start_block = start_block;
-        self
-    }
-
-    pub fn end_block(mut self, end_block: BlockNumberFor<T>) -> Self {
-        self.end_block = end_block;
-        self
-    }
-
-    pub fn storage_price_per_block(mut self, price: u64) -> Self {
-        self.storage_price_per_block = price;
-        self
-    }
-
-    pub fn piece_size(mut self, piece_size: u64) -> Self {
-        self.piece_size = piece_size;
-        self
-    }
-}
-
-impl DealProposalBuilder<Test> {
-    pub fn unsigned(self) -> DealProposalOf<Test> {
-        DealProposalOf::<Test> {
-            piece_cid: self.piece_cid,
-            piece_size: self.piece_size,
-            client: self.client,
-            provider: self.provider,
-            label: self.label,
-            start_block: self.start_block,
-            end_block: self.end_block,
-            storage_price_per_block: self.storage_price_per_block,
-            state: self.state,
-        }
-    }
-
-    pub fn signed(self, by: &'static str) -> ClientDealProposalOf<Test> {
-        let built = self.unsigned();
-        let signed = sign_proposal(by, built);
-        signed
-    }
 }

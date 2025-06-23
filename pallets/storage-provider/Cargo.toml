@@ -26,7 +26,8 @@ scale-info = { workspace = true, default-features = false, features = ["derive"]
 sp-arithmetic = { workspace = true, default-features = false }
 sp-core = { workspace = true, default-features = false }
 sp-runtime = { workspace = true, default-features = false }
-
+sp-std = { workspace = true, default-features = false }
+thiserror = { workspace = true, default-features = false }
 
 # Frame deps
 frame-benchmarking = { workspace = true, default-features = false, optional = true }
@@ -37,10 +38,10 @@ frame-system = { workspace = true, default-features = false }
 env_logger = { workspace = true }
 multihash-codetable = { workspace = true, features = ["blake2b"] }
 pallet-balances = { workspace = true, default-features = false }
-pallet-market = { workspace = true, default-features = false }
 primitives = { workspace = true, default-features = false, features = ["builder", "testing"] }
 rstest = { workspace = true }
 sp-io = { workspace = true }
+sp-keystore = { workspace = true, default-features = false }
 
 [features]
 default = ["std"]
@@ -57,7 +58,6 @@ std = [
   "frame-support/std",
   "frame-system/std",
   "pallet-balances/std",
-  "pallet-market/std",
   "pallet-proofs/std",
   "pallet-randomness/std",
   "primitives/std",

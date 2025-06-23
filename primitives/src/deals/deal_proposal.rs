@@ -1,22 +1,13 @@
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::traits::Currency;
-use frame_system::pallet_prelude::BlockNumberFor;
 use scale_info::TypeInfo;
 use sp_arithmetic::traits::BaseArithmetic;
 use sp_runtime::{traits::ConstU32, BoundedVec, RuntimeDebug};
 
 use crate::{
     commitment::{CommP, Commitment, CommitmentError},
-    configs::CurrencyProvider,
     deals::deal_state::DealState,
     CID_SIZE_IN_BYTES, MAX_LABEL_SIZE,
 };
-
-pub type DealProposalOf<T> = DealProposal<
-    <T as frame_system::Config>::AccountId,
-    <<T as CurrencyProvider>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance,
-    BlockNumberFor<T>,
->;
 
 #[derive(Clone, Eq, PartialEq, Encode, Decode, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 /// Reference: <https://github.com/filecoin-project/builtin-actors/blob/17ede2b256bc819dc309edf38e031e246a516486/actors/market/src/deal.rs#L93>

@@ -12,11 +12,8 @@ use sp_core::sr25519::Pair as Sr25519Pair;
 use storagext::{
     multipair::MultiPairSigner,
     runtime::runtime_types::primitives::deals::deal_state::DealState,
-    types::{
-        market::DealProposal,
-        storage_provider::{FaultDeclaration, RecoveryDeclaration},
-    },
-    MarketClientExt, PolkaStorageConfig, StorageProviderClientExt, SystemClientExt,
+    types::storage_provider::{DealProposal, FaultDeclaration, RecoveryDeclaration},
+    PolkaStorageConfig, StorageProviderClientExt, SystemClientExt,
 };
 use subxt::utils::AccountId32;
 use tempfile::tempdir;
@@ -86,7 +83,7 @@ async fn settle_deal_payments<Keypair>(
 
     for event in settle_result
         .events
-        .find::<storagext::runtime::market::events::DealsSettled>()
+        .find::<storagext::runtime::storage_provider::events::DealsSettled>()
     {
         let event = event.unwrap();
         assert!(event.unsuccessful.0.is_empty());
@@ -123,7 +120,7 @@ where
 
     for event in deal_result
         .events
-        .find::<storagext::runtime::market::events::DealsPublished>()
+        .find::<storagext::runtime::storage_provider::events::DealsPublished>()
     {
         let event = event.unwrap();
         tracing::debug!(?event);

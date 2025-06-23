@@ -42,15 +42,15 @@ pub mod display;
         derive = "::serde::Deserialize"
     ),
     derive_for_type(
-        path = "pallet_market::pallet::PublishedDeal",
+        path = "pallet_storage_provider::deal::PublishedDeal",
         derive = "::serde::Deserialize"
     ),
     // impl Serialize
     derive_for_type(
-        path = "pallet_market::pallet::BalanceEntry",
+        path = "pallet_storage_provider::balance::BalanceEntry",
         derive = "::serde::Serialize"
     ),
-    derive_for_type(path = "pallet_market::pallet::Event", derive = "::serde::Serialize"),
+    derive_for_type(path = "pallet_storage_provider::pallet::Event", derive = "::serde::Serialize"),
     derive_for_type(
         path = "pallet_storage_provider::pallet::Event",
         derive = "::serde::Serialize"
@@ -77,11 +77,11 @@ pub mod display;
         derive = "::serde::Serialize"
     ),
     derive_for_type(
-        path = "pallet_market::pallet::SettledDealData",
+        path = "pallet_storage_provider::deal::SettledDealData",
         derive = "::serde::Serialize"
     ),
     derive_for_type(
-        path = "pallet_market::error::DealSettlementError",
+        path = "pallet_storage_provider::deal::DealSettlementError",
         derive = "::serde::Serialize"
     ),
     derive_for_type(
@@ -121,23 +121,23 @@ pub mod display;
         derive = "::serde::Serialize"
     ),
     derive_for_type(
-        path = "pallet_market::pallet::PublishedDeal",
+        path = "pallet_storage_provider::deal::PublishedDeal",
         derive = "::serde::Serialize"
     ),
     derive_for_type(
-        path = "pallet_market::deal_parameters::DealParameters",
+        path = "pallet_storage_provider::deal::parameters::DealParameters",
         derive = "::serde::Serialize"
     ),
     derive_for_type(
-        path = "pallet_market::deal_parameters::DealDurationBound",
+        path = "pallet_storage_provider::deal::parameters::DealDurationBound",
         derive = "::serde::Serialize"
     ),
     derive_for_type(
-        path = "pallet_market::deal_parameters::OffchainDealParameters",
+        path = "pallet_storage_provider::deal::parameters::OffchainDealParameters",
         derive = "::serde::Serialize"
     ),
     derive_for_type(
-        path = "pallet_market::deal_parameters::OffchainDealDurationBound",
+        path = "pallet_storage_provider::deal::parameters::OffchainDealDurationBound",
         derive = "::serde::Serialize"
     ),
 )]
