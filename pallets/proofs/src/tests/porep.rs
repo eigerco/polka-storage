@@ -27,7 +27,7 @@ fn sets_porep_verifying_key() {
         let vk = default_porep_verifyingkey();
 
         assert_ok!(ProofsModule::set_porep_verifying_key(
-            RuntimeOrigin::signed(1),
+            RuntimeOrigin::root(),
             proof,
             vk.clone()
         ));
@@ -44,7 +44,7 @@ fn verification_invalid_verifyingkey() {
         let vkey = Encode::encode(&VerifyingKey::<Bls12>::random(&mut rng));
 
         assert_ok!(ProofsModule::set_porep_verifying_key(
-            RuntimeOrigin::signed(1),
+            RuntimeOrigin::root(),
             proof,
             vkey
         ));
@@ -83,7 +83,7 @@ fn porep_verification_succeeds() {
         let proof = RegisteredSealProof::StackedDRG2KiBV1P1;
 
         assert_ok!(ProofsModule::set_porep_verifying_key(
-            RuntimeOrigin::signed(1),
+            RuntimeOrigin::root(),
             proof,
             vkey_bytes
         ));
