@@ -35,7 +35,7 @@ mod benchmarks {
 
         #[extrinsic_call]
         _(
-            RawOrigin::Signed(whitelisted_caller()),
+            RawOrigin::Root,
             RegisteredSealProof::StackedDRG2KiBV1P1,
             vkey_bytes,
         );
@@ -54,7 +54,7 @@ mod benchmarks {
 
         #[extrinsic_call]
         _(
-            RawOrigin::Signed(whitelisted_caller()),
+            RawOrigin::Root,
             RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
             vkey_bytes,
         );

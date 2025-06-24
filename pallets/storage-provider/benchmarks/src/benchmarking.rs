@@ -250,7 +250,7 @@ mod benchmarks {
             .unwrap();
 
         assert_ok!(ProofsPallet::<T>::set_porep_verifying_key(
-            RawOrigin::Signed(sp.account_id.clone()).into(),
+            RawOrigin::Root.into(),
             data.seal_proof,
             data.porep_verifying_key.to_vec(),
         ));
@@ -596,7 +596,7 @@ where
     ));
 
     assert_ok!(ProofsPallet::<T>::set_porep_verifying_key(
-        RawOrigin::Signed(sp_id.clone()).into(),
+        RawOrigin::Root.into(),
         data.seal_proof,
         data.porep_verifying_key.to_vec(),
     ));
@@ -860,7 +860,7 @@ where
     ));
 
     assert_ok!(ProofsPallet::<T>::set_post_verifying_key(
-        RawOrigin::Signed(sp_id.clone()).into(),
+        RawOrigin::Root.into(),
         data.post_type,
         data.post_verifying_key.to_vec(),
     ));

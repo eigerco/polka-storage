@@ -28,7 +28,7 @@ fn sets_post_verifying_key() {
         let vk = default_post_verifyingkey();
 
         assert_ok!(ProofsModule::set_post_verifying_key(
-            RuntimeOrigin::signed(1),
+            RuntimeOrigin::root(),
             proof,
             vk.clone()
         ));
@@ -43,7 +43,7 @@ fn post_verification_succeeds() {
         let (post_type, proof_bytes, vkey_bytes, randomness, replicas) = test_setup();
 
         assert_ok!(ProofsModule::set_post_verifying_key(
-            RuntimeOrigin::signed(1),
+            RuntimeOrigin::root(),
             RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
             vkey_bytes
         ));
@@ -65,7 +65,7 @@ fn post_verification_fails() {
         let vkey = Encode::encode(&VerifyingKey::<Bls12>::random(&mut rng));
 
         assert_ok!(ProofsModule::set_post_verifying_key(
-            RuntimeOrigin::signed(1),
+            RuntimeOrigin::root(),
             RegisteredPoStProof::StackedDRGWindow2KiBV1P1,
             vkey
         ));
