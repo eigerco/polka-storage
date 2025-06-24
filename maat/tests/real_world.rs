@@ -88,7 +88,7 @@ async fn settle_deal_payments<Keypair>(
         let event = event.unwrap();
         assert!(event.unsuccessful.0.is_empty());
         assert_eq!(event.successful.0[0].deal_id, 0);
-        assert_eq!(event.successful.0[0].amount, 24_000_000_000);
+        assert_eq!(event.successful.0[0].amount, 2_400_000_000);
         assert_eq!(
             event.successful.0[0].provider,
             AccountId32(charlie.account_id().clone().into())
@@ -276,7 +276,7 @@ async fn real_world_use_case() {
         label: "My lovely big data".to_string(),
         start_block: 85,
         end_block: sector_end_block,
-        storage_price_per_block: 300_000_000,
+        storage_price_per_block: 30_000_000,
         state: DealState::Published,
     };
     let deal_id = publish_storage_deals(&client, &charlie_kp, &alice_kp, deal.clone()).await;
