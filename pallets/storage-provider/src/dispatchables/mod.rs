@@ -1,3 +1,4 @@
+extern crate alloc;
 mod activate_deals;
 mod add_balance;
 mod declare_faults;
@@ -15,35 +16,23 @@ mod terminate_sectors;
 mod verify_deals_for_activation;
 mod withdraw_balance;
 
-pub use activate_deals::activate_deals;
-pub use add_balance::add_balance;
-pub use declare_faults::declare_faults;
-pub use declare_faults_recovered::declare_faults_recovered;
-pub use on_sectors_terminate::on_sectors_terminate;
-pub use pre_commit_sectors::pre_commit_sectors;
-pub use prove_commit_sectors::prove_commit_sectors;
-pub use publish_deal_parameters::publish_deal_parameters;
-pub use publish_storage_deals::publish_storage_deals;
-pub use register_storage_provider::register_storage_provider;
-pub use remove_deal_parameters::remove_deal_parameters;
-pub use settle_deal_payments::settle_deal_payments;
-pub use submit_windowed_post::submit_windowed_post;
-pub use terminate_sectors::terminate_sectors;
-pub use verify_deals_for_activation::verify_deals_for_activation;
-pub use withdraw_balance::withdraw_balance;
-
-extern crate alloc;
-
 use alloc::vec::Vec;
 
+pub use activate_deals::activate_deals;
+#[allow(deprecated)]
+pub use add_balance::add_balance;
 use cid::Cid;
+pub use declare_faults::declare_faults;
+pub use declare_faults_recovered::declare_faults_recovered;
 use frame_support::{
     dispatch::DispatchResult,
     ensure,
     pallet_prelude::{DispatchError, One},
-    traits::ConstU32,
+    traits::{BalanceStatus, ConstU32, ReservableCurrency},
 };
 use frame_system::pallet_prelude::BlockNumberFor;
+pub use on_sectors_terminate::on_sectors_terminate;
+pub use pre_commit_sectors::pre_commit_sectors;
 use primitives::{
     commitment::{
         commd::compute_unsealed_sector_commitment,
@@ -55,15 +44,23 @@ use primitives::{
     sector::{SectorNumber, SectorSize},
     DealId, MAX_DEALS_FOR_ALL_SECTORS, MAX_DEALS_PER_SECTOR,
 };
+pub use prove_commit_sectors::prove_commit_sectors;
+pub use publish_deal_parameters::publish_deal_parameters;
+pub use publish_storage_deals::publish_storage_deals;
+pub use register_storage_provider::register_storage_provider;
+pub use remove_deal_parameters::remove_deal_parameters;
+pub use settle_deal_payments::settle_deal_payments;
 use sp_core::Get;
-use sp_runtime::{
-    traits::{CheckedAdd, CheckedSub},
-    ArithmeticError, BoundedBTreeSet, BoundedVec,
-};
+use sp_runtime::{BoundedBTreeSet, BoundedVec};
+pub use submit_windowed_post::submit_windowed_post;
+pub use terminate_sectors::terminate_sectors;
+pub use verify_deals_for_activation::verify_deals_for_activation;
+#[allow(deprecated)]
+pub use withdraw_balance::withdraw_balance;
 
 use crate::{
-    error::CommDError, BalanceOf, BalanceTable, Config, DealProposalOf, Error, Pallet,
-    PendingProposals, Proposals, StorageProviders, LOG_TARGET,
+    error::CommDError, BalanceOf, Config, DealProposalOf, Error, Pallet, PendingProposals,
+    Proposals, StorageProviders, LOG_TARGET,
 };
 
 /// Calculate the required pre commit deposit amount
@@ -129,11 +126,15 @@ where
 }
 
 /// Get randomness from the chain and process it with domain separation.
-pub(crate) fn get_randomness<T: Config>(
+pub(crate) fn get_randomness<T>(
     personalization: DomainSeparationTag,
     block_number: BlockNumberFor<T>,
     entropy: &[u8],
-) -> Result<[u8; 32], DispatchError> {
+) -> Result<[u8; 32], DispatchError>
+where
+    T: Config,
+    BlockNumberFor<T>: TryInto<u64>,
+{
     // Get randomness from chain
     let Some(randomness) = T::AuthorVrfHistory::author_vrf_history(block_number) else {
         return Err(Error::<T>::MissingAuthorVRF.into());
@@ -168,25 +169,11 @@ pub fn perform_storage_payment<T>(
 where
     T: Config,
 {
-    // These should have been checked when locking funds
-    BalanceTable::<T>::try_mutate(client, |balance| -> DispatchResult {
-        let locked = balance
-            .locked
-            .checked_sub(&amount)
-            .ok_or(ArithmeticError::Underflow)?;
-        balance.locked = locked;
-        Ok(())
-    })?;
-
-    BalanceTable::<T>::try_mutate(provider, |balance| -> DispatchResult {
-        let free = balance
-            .free
-            .checked_add(&amount)
-            .ok_or(ArithmeticError::Overflow)?;
-        balance.free = free;
-        Ok(())
-    })?;
-
+    ensure!(
+        T::Currency::reserved_balance(client) >= amount,
+        Error::<T>::InsufficientLockedFunds
+    );
+    T::Currency::repatriate_reserved(client, provider, amount, BalanceStatus::Free)?;
     Ok(())
 }
 

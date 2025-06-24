@@ -4,8 +4,8 @@ use cid::Cid;
 use frame_support::{
     assert_err, assert_noop, assert_ok,
     pallet_prelude::{ConstU32, Get},
-    sp_runtime::{bounded_vec, ArithmeticError, DispatchError, TokenError},
-    traits::Currency,
+    sp_runtime::{bounded_vec, DispatchError},
+    traits::{BalanceStatus, Currency},
     BoundedVec,
 };
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -18,7 +18,6 @@ use primitives::{
 use sp_core::H256;
 
 use crate::{
-    balance::BalanceEntry,
     deal::{
         parameters::{OffchainDealDurationBound, OffchainDealParameters},
         DealSettlementError, PublishedDeal, SettledDealData,
@@ -29,9 +28,9 @@ use crate::{
     tests::{
         account, events, new_test_ext, register_storage_provider, run_to_block, Balances,
         DealProposalBuilder, RuntimeEvent, RuntimeOrigin, SectorDealBuilder, StorageProvider,
-        System, Test, ALICE, BOB, CHARLIE, INITIAL_FUNDS,
+        System, Test, ALICE, BOB, CHARLIE,
     },
-    unlock_funds, BalanceTable, Config, DealProposalOf, DealsForBlock, PendingProposals, Proposals,
+    unlock_funds, Config, DealProposalOf, DealsForBlock, PendingProposals, Proposals,
     SPDealParameters, SectorDeals,
 };
 
@@ -39,167 +38,6 @@ use crate::{
 fn initial_state() {
     new_test_ext().execute_with(|| {
         assert_eq!(Balances::free_balance(StorageProvider::account_id()), 0);
-        assert_eq!(
-            BalanceTable::<Test>::get(account(ALICE)),
-            BalanceEntry::<u64> { free: 0, locked: 0 }
-        );
-    });
-}
-
-#[test]
-fn adds_and_withdraws_balances() {
-    new_test_ext().execute_with(|| {
-        // Adds funds from an account to the pallet
-        assert_ok!(StorageProvider::add_balance(
-            RuntimeOrigin::signed(account(ALICE)),
-            10
-        ));
-        assert_eq!(Balances::free_balance(StorageProvider::account_id()), 10);
-        assert_eq!(Balances::free_balance(account(ALICE)), INITIAL_FUNDS - 10);
-        assert_eq!(
-            BalanceTable::<Test>::get(account(ALICE)),
-            BalanceEntry::<u64> {
-                free: 10,
-                locked: 0,
-            }
-        );
-
-        // Is able to withdraw added funds back
-        assert_ok!(StorageProvider::withdraw_balance(
-            RuntimeOrigin::signed(account(ALICE)),
-            10
-        ));
-        assert_eq!(Balances::free_balance(StorageProvider::account_id()), 0);
-        assert_eq!(Balances::free_balance(account(ALICE)), INITIAL_FUNDS);
-        assert_eq!(
-            BalanceTable::<Test>::get(account(ALICE)),
-            BalanceEntry::<u64> { free: 0, locked: 0 }
-        );
-    });
-}
-
-#[test]
-fn adds_balance() {
-    new_test_ext().execute_with(|| {
-        assert_ok!(StorageProvider::add_balance(
-            RuntimeOrigin::signed(account(ALICE)),
-            10
-        ));
-        assert_eq!(Balances::free_balance(StorageProvider::account_id()), 10);
-        assert_eq!(Balances::free_balance(account(ALICE)), INITIAL_FUNDS - 10);
-        assert_eq!(
-            BalanceTable::<Test>::get(account(ALICE)),
-            BalanceEntry::<u64> {
-                free: 10,
-                locked: 0,
-            }
-        );
-
-        assert_eq!(
-            events(),
-            [
-                RuntimeEvent::System(frame_system::Event::<Test>::NewAccount {
-                    account: StorageProvider::account_id()
-                }),
-                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Endowed {
-                    account: StorageProvider::account_id(),
-                    free_balance: 10
-                }),
-                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Transfer {
-                    from: account(ALICE),
-                    to: StorageProvider::account_id(),
-                    amount: 10
-                }),
-                RuntimeEvent::StorageProvider(Event::<Test>::BalanceAdded {
-                    who: account(ALICE),
-                    amount: 10
-                })
-            ]
-        );
-
-        // Makes sure other accounts are unaffected
-        assert_eq!(
-            BalanceTable::<Test>::get(account(BOB)),
-            BalanceEntry::<u64> { free: 0, locked: 0 }
-        );
-    });
-}
-
-#[test]
-fn fails_to_add_balance_insufficient_funds() {
-    new_test_ext().execute_with(|| {
-        assert_noop!(
-            StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), INITIAL_FUNDS + 1),
-            TokenError::FundsUnavailable,
-        );
-    });
-}
-
-#[test]
-fn fails_to_add_balance_overflow() {
-    new_test_ext().execute_with(|| {
-        // Hard to do this without setting it explicitly in the map
-        BalanceTable::<Test>::set(
-            account(BOB),
-            BalanceEntry::<u64> {
-                free: u64::MAX,
-                locked: 0,
-            },
-        );
-
-        assert_noop!(
-            StorageProvider::add_balance(RuntimeOrigin::signed(account(BOB)), 1),
-            ArithmeticError::Overflow
-        );
-    });
-}
-
-#[test]
-fn withdraws_balance() {
-    new_test_ext().execute_with(|| {
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 10);
-        System::reset_events();
-
-        assert_ok!(StorageProvider::withdraw_balance(
-            RuntimeOrigin::signed(account(ALICE)),
-            10
-        ));
-        assert_eq!(Balances::free_balance(StorageProvider::account_id()), 0);
-        assert_eq!(Balances::free_balance(account(ALICE)), INITIAL_FUNDS);
-        assert_eq!(
-            BalanceTable::<Test>::get(account(ALICE)),
-            BalanceEntry::<u64> { free: 0, locked: 0 }
-        );
-
-        assert_eq!(
-            events(),
-            [
-                RuntimeEvent::System(frame_system::Event::<Test>::KilledAccount {
-                    account: StorageProvider::account_id()
-                }),
-                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Transfer {
-                    from: StorageProvider::account_id(),
-                    to: account(ALICE),
-                    amount: 10
-                }),
-                RuntimeEvent::StorageProvider(Event::<Test>::BalanceWithdrawn {
-                    who: account(ALICE),
-                    amount: 10
-                })
-            ]
-        );
-    });
-}
-
-#[test]
-fn fails_to_withdraw_balance() {
-    new_test_ext().execute_with(|| {
-        assert_noop!(
-            StorageProvider::withdraw_balance(RuntimeOrigin::signed(account(BOB)), 10),
-            Error::<Test>::InsufficientFreeFunds
-        );
-
-        assert_eq!(events(), []);
     });
 }
 
@@ -394,8 +232,8 @@ fn publish_storage_deals_fails_start_time_expired() {
 fn publish_storage_deals_fails_different_providers() {
     new_test_ext().execute_with(|| {
         register_storage_provider(account(CHARLIE));
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 100);
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
+        Balances::make_free_balance_be(&account(CHARLIE), 101);
+        Balances::make_free_balance_be(&account(ALICE), 60);
         System::reset_events();
 
         assert_noop!(
@@ -427,8 +265,8 @@ fn publish_storage_deals_fails_different_providers() {
 fn publish_storage_deals_fails_client_not_enough_funds_for_second_deal() {
     new_test_ext().execute_with(|| {
         register_storage_provider(account(CHARLIE));
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 100);
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
+        Balances::make_free_balance_be(&account(CHARLIE), 100);
+        Balances::make_free_balance_be(&account(ALICE), 60);
         System::reset_events();
 
         assert_noop!(
@@ -459,9 +297,9 @@ fn publish_storage_deals_fails_client_not_enough_funds_for_second_deal() {
 fn publish_storage_deals_fails_provider_not_enough_funds_for_second_deal() {
     new_test_ext().execute_with(|| {
         register_storage_provider(account(CHARLIE));
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 40);
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 90);
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(BOB)), 90);
+        Balances::make_free_balance_be(&account(CHARLIE), 40);
+        Balances::make_free_balance_be(&account(ALICE), 90);
+        Balances::make_free_balance_be(&account(BOB), 90);
         System::reset_events();
 
         assert_noop!(
@@ -489,8 +327,8 @@ fn publish_storage_deals_fails_provider_not_enough_funds_for_second_deal() {
 fn publish_storage_deals_fails_duplicate_deal_in_message() {
     new_test_ext().execute_with(|| {
         register_storage_provider(account(CHARLIE));
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 90);
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 90);
+        Balances::make_free_balance_be(&account(CHARLIE), 90);
+        Balances::make_free_balance_be(&account(ALICE), 90);
         System::reset_events();
 
         assert_noop!(
@@ -519,8 +357,8 @@ fn publish_storage_deals_fails_duplicate_deal_in_message() {
 fn publish_storage_deals_fails_duplicate_deal_in_state() {
     new_test_ext().execute_with(|| {
         register_storage_provider(account(CHARLIE));
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 90);
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 90);
+        Balances::make_free_balance_be(&account(CHARLIE), 90);
+        Balances::make_free_balance_be(&account(ALICE), 90);
         System::reset_events();
 
         assert_ok!(StorageProvider::publish_storage_deals(
@@ -533,15 +371,23 @@ fn publish_storage_deals_fails_duplicate_deal_in_state() {
         ));
         assert_eq!(
             events(),
-            [RuntimeEvent::StorageProvider(
-                Event::<Test>::DealsPublished {
+            [
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Reserved {
+                    who: account(ALICE),
+                    amount: 10
+                }),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Reserved {
+                    who: account(CHARLIE),
+                    amount: 20
+                }),
+                RuntimeEvent::StorageProvider(Event::<Test>::DealsPublished {
                     provider: account(CHARLIE),
                     deals: bounded_vec!(PublishedDeal {
                         deal_id: 0,
                         client: account(ALICE),
                     })
-                }
-            )]
+                })
+            ]
         );
         assert_noop!(
             StorageProvider::publish_storage_deals(
@@ -561,8 +407,8 @@ fn publish_storage_deals_fails_duplicate_deal_in_state() {
 fn publish_storage_deals_fails_not_within_deal_parameters() {
     new_test_ext().execute_with(|| {
         register_storage_provider(account(CHARLIE));
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 90);
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 90);
+        Balances::make_free_balance_be(&account(CHARLIE), 90);
+        Balances::make_free_balance_be(&account(ALICE), 90);
         // Default price = 5, default duration = 10
         let deal_params: OffchainDealParameters<u64, BlockNumberFor<Test>> =
             OffchainDealParameters {
@@ -636,41 +482,44 @@ fn publish_storage_deals() {
         let alice_hash = StorageProvider::hash_proposal(&alice_proposal.proposal);
         let bob_hash = StorageProvider::hash_proposal(&bob_proposal.proposal);
 
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 100);
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(BOB)), 70);
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 310);
+        Balances::make_free_balance_be(&account(ALICE), 101);
+        Balances::make_free_balance_be(&account(BOB), 70);
+        Balances::make_free_balance_be(&account(CHARLIE), 310);
         System::reset_events();
 
         assert_ok!(StorageProvider::publish_storage_deals(
             RuntimeOrigin::signed(account(CHARLIE)),
             bounded_vec![alice_proposal, alice_second_proposal, bob_proposal]
         ));
-        assert_eq!(
-            BalanceTable::<Test>::get(account(ALICE)),
-            BalanceEntry::<u64> {
-                free: 0,
-                locked: 100
-            }
-        );
-        assert_eq!(
-            BalanceTable::<Test>::get(account(BOB)),
-            BalanceEntry::<u64> {
-                free: 20,
-                locked: 50
-            }
-        );
-        assert_eq!(
-            BalanceTable::<Test>::get(account(CHARLIE)),
-            BalanceEntry::<u64> {
-                free: 10,
-                locked: 300
-            }
-        );
+        assert_eq!(Balances::free_balance(account(ALICE)), 1);
+        assert_eq!(Balances::reserved_balance(account(ALICE)), 100);
+
+        assert_eq!(Balances::free_balance(account(BOB)), 20);
+        assert_eq!(Balances::reserved_balance(account(BOB)), 50);
+
+        assert_eq!(Balances::free_balance(account(CHARLIE)), 10);
+        assert_eq!(Balances::reserved_balance(account(CHARLIE)), 300);
 
         assert_eq!(
             events(),
-            [RuntimeEvent::StorageProvider(
-                Event::<Test>::DealsPublished {
+            [
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Reserved {
+                    who: account(ALICE),
+                    amount: 50
+                }),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Reserved {
+                    who: account(ALICE),
+                    amount: 50
+                }),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Reserved {
+                    who: account(BOB),
+                    amount: 50
+                }),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Reserved {
+                    who: account(CHARLIE),
+                    amount: 300
+                }),
+                RuntimeEvent::StorageProvider(Event::<Test>::DealsPublished {
                     provider: account(CHARLIE),
                     deals: bounded_vec!(
                         PublishedDeal {
@@ -686,8 +535,8 @@ fn publish_storage_deals() {
                             client: account(BOB),
                         }
                     )
-                }
-            ),]
+                }),
+            ]
         );
         assert!(PendingProposals::<Test>::get().contains(&alice_hash));
         assert!(PendingProposals::<Test>::get().contains(&bob_hash));
@@ -743,41 +592,44 @@ fn publish_storage_deals_with_deal_params() {
         let alice_hash = StorageProvider::hash_proposal(&alice_proposal.proposal);
         let bob_hash = StorageProvider::hash_proposal(&bob_proposal.proposal);
 
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 100);
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(BOB)), 70);
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 310);
+        Balances::make_free_balance_be(&account(ALICE), 101);
+        Balances::make_free_balance_be(&account(BOB), 70);
+        Balances::make_free_balance_be(&account(CHARLIE), 310);
         System::reset_events();
 
         assert_ok!(StorageProvider::publish_storage_deals(
             RuntimeOrigin::signed(account(CHARLIE)),
             bounded_vec![alice_proposal, alice_second_proposal, bob_proposal]
         ));
-        assert_eq!(
-            BalanceTable::<Test>::get(account(ALICE)),
-            BalanceEntry::<u64> {
-                free: 0,
-                locked: 100
-            }
-        );
-        assert_eq!(
-            BalanceTable::<Test>::get(account(BOB)),
-            BalanceEntry::<u64> {
-                free: 20,
-                locked: 50
-            }
-        );
-        assert_eq!(
-            BalanceTable::<Test>::get(account(CHARLIE)),
-            BalanceEntry::<u64> {
-                free: 10,
-                locked: 300
-            }
-        );
+        assert_eq!(Balances::free_balance(account(ALICE)), 1);
+        assert_eq!(Balances::reserved_balance(account(ALICE)), 100);
+
+        assert_eq!(Balances::free_balance(account(BOB)), 20);
+        assert_eq!(Balances::reserved_balance(account(BOB)), 50);
+
+        assert_eq!(Balances::free_balance(account(CHARLIE)), 10);
+        assert_eq!(Balances::reserved_balance(account(CHARLIE)), 300);
 
         assert_eq!(
             events(),
-            [RuntimeEvent::StorageProvider(
-                Event::<Test>::DealsPublished {
+            [
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Reserved {
+                    who: account(ALICE),
+                    amount: 50
+                }),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Reserved {
+                    who: account(ALICE),
+                    amount: 50
+                }),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Reserved {
+                    who: account(BOB),
+                    amount: 50
+                }),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Reserved {
+                    who: account(CHARLIE),
+                    amount: 300
+                }),
+                RuntimeEvent::StorageProvider(Event::<Test>::DealsPublished {
                     provider: account(CHARLIE),
                     deals: bounded_vec!(
                         PublishedDeal {
@@ -793,8 +645,8 @@ fn publish_storage_deals_with_deal_params() {
                             client: account(BOB),
                         }
                     )
-                }
-            ),]
+                }),
+            ]
         );
         assert!(PendingProposals::<Test>::get().contains(&alice_hash));
         assert!(PendingProposals::<Test>::get().contains(&bob_hash));
@@ -1177,9 +1029,9 @@ fn verifies_deals_on_block_finalization() {
             .storage_price_per_block(10)
             .signed(BOB);
 
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(BOB)), 70);
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 310);
+        Balances::make_free_balance_be(&account(ALICE), 60);
+        Balances::make_free_balance_be(&account(BOB), 70);
+        Balances::make_free_balance_be(&account(CHARLIE), 310);
         let _ = StorageProvider::publish_storage_deals(
             RuntimeOrigin::signed(account(CHARLIE)),
             bounded_vec![alice_proposal, bob_proposal],
@@ -1198,67 +1050,46 @@ fn verifies_deals_on_block_finalization() {
 
         // Scenario: Activate Alice's Deal, forget to do that for Bob's.
         // Alice's balance before the hook
-        assert_eq!(
-            BalanceTable::<Test>::get(account(ALICE)),
-            BalanceEntry::<u64> {
-                free: 10,
-                locked: 50
-            }
-        );
+        assert_eq!(Balances::free_balance(account(ALICE)), 10);
+        assert_eq!(Balances::reserved_balance(account(ALICE)), 50);
         // After Alice's block, nothing changes to the balance. It has been activated properly.
         run_to_block(alice_start_block + 1);
         assert!(!DealsForBlock::<Test>::get(&alice_start_block).contains(&alice_deal_id));
-        assert_eq!(
-            BalanceTable::<Test>::get(account(ALICE)),
-            BalanceEntry::<u64> {
-                free: 10,
-                locked: 50
-            }
-        );
+        assert_eq!(Balances::free_balance(account(ALICE)), 10);
+        assert_eq!(Balances::reserved_balance(account(ALICE)), 50);
 
         // Balances before processing the hook
-        assert_eq!(
-            BalanceTable::<Test>::get(account(BOB)),
-            BalanceEntry::<u64> {
-                free: 20,
-                locked: 50
-            }
-        );
-        assert_eq!(
-            BalanceTable::<Test>::get(account(CHARLIE)),
-            BalanceEntry::<u64> {
-                free: 110,
-                locked: 200
-            }
-        );
+        assert_eq!(Balances::free_balance(account(BOB)), 20);
+        assert_eq!(Balances::reserved_balance(account(BOB)), 50);
+
+        assert_eq!(Balances::free_balance(account(CHARLIE)), 110);
+        assert_eq!(Balances::reserved_balance(account(CHARLIE)), 200);
         // After exceeding Bob's deal start_block,
         // Storage Provider should be slashed for Bob's amount and Bob refunded.
         run_to_block(bob_start_block + 1);
+        assert_eq!(Balances::free_balance(account(BOB)), 70);
+        assert_eq!(Balances::reserved_balance(account(BOB)), 0);
+
+        assert_eq!(Balances::free_balance(account(CHARLIE)), 110);
         assert_eq!(
-            BalanceTable::<Test>::get(account(BOB)),
-            BalanceEntry::<u64> {
-                free: 70,
-                locked: 0
-            }
-        );
-        assert_eq!(
-            BalanceTable::<Test>::get(account(CHARLIE)),
-            BalanceEntry::<u64> {
-                free: 110,
-                // 200 (locked) - 100 (lost collateral) = 100
-                locked: 100
-            }
+            Balances::reserved_balance(account(CHARLIE)),
+            // 200 (locked) - 100 (lost collateral) = 100
+            100
         );
 
         assert!(!DealsForBlock::<Test>::get(&bob_start_block).contains(&bob_deal_id));
         assert_eq!(
             events(),
             [
-                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded { amount: 100 }),
-                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Withdraw {
-                    who: StorageProvider::account_id(),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Unreserved {
+                    who: account(BOB),
+                    amount: 50
+                }),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Slashed {
+                    who: account(CHARLIE),
                     amount: 100
                 }),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded { amount: 100 }),
                 RuntimeEvent::StorageProvider(Event::<Test>::DealSlashed {
                     deal_id: bob_deal_id,
                     amount: 100,
@@ -1297,8 +1128,8 @@ fn settle_deal_payments_early() {
             .provider(&CHARLIE)
             .signed(ALICE);
 
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 160);
+        Balances::make_free_balance_be(&account(ALICE), 60);
+        Balances::make_free_balance_be(&account(CHARLIE), 160);
 
         assert_ok!(StorageProvider::publish_storage_deals(
             RuntimeOrigin::signed(account(CHARLIE)),
@@ -1332,9 +1163,9 @@ fn settle_deal_payments_published() {
             .end_block(11)
             .signed(ALICE);
 
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(BOB)), 70);
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 160);
+        Balances::make_free_balance_be(&account(ALICE), 60);
+        Balances::make_free_balance_be(&account(BOB), 70);
+        Balances::make_free_balance_be(&account(CHARLIE), 160);
 
         assert_ok!(StorageProvider::publish_storage_deals(
             RuntimeOrigin::signed(account(CHARLIE)),
@@ -1377,8 +1208,8 @@ fn settle_deal_payments_published() {
 #[test]
 fn settle_deal_payments_active_future_last_update() {
     new_test_ext().execute_with(|| {
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 75);
+        Balances::make_free_balance_be(&account(ALICE), 60);
+        Balances::make_free_balance_be(&account(CHARLIE), 75);
 
         Proposals::<Test>::insert(
             0,
@@ -1415,8 +1246,8 @@ fn settle_deal_payments_active_future_last_update() {
 #[test]
 fn settle_deal_payments_active_corruption() {
     new_test_ext().execute_with(|| {
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 75);
+        Balances::make_free_balance_be(&account(ALICE), 60);
+        Balances::make_free_balance_be(&account(CHARLIE), 75);
 
         Proposals::<Test>::insert(
             0,
@@ -1459,8 +1290,8 @@ fn settle_deal_payments_success() {
             .end_block(11)
             .signed(ALICE);
 
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 160);
+        Balances::make_free_balance_be(&account(ALICE), 60);
+        Balances::make_free_balance_be(&account(CHARLIE), 160);
 
         assert_ok!(StorageProvider::publish_storage_deals(
             RuntimeOrigin::signed(account(CHARLIE)),
@@ -1506,31 +1337,37 @@ fn settle_deal_payments_success() {
 
         assert_eq!(
             events(),
-            [RuntimeEvent::StorageProvider(Event::<Test>::DealsSettled {
-                successful: bounded_vec!(SettledDealData {
-                    deal_id: 0,
+            [
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::ReserveRepatriated {
+                    from: account(ALICE),
+                    to: account(CHARLIE),
                     amount: 25,
-                    client: account(ALICE),
-                    provider: account(CHARLIE)
+                    destination_status: BalanceStatus::Free
                 }),
-                unsuccessful: bounded_vec!()
-            })]
+                RuntimeEvent::StorageProvider(Event::<Test>::DealsSettled {
+                    successful: bounded_vec!(SettledDealData {
+                        deal_id: 0,
+                        amount: 25,
+                        client: account(ALICE),
+                        provider: account(CHARLIE)
+                    }),
+                    unsuccessful: bounded_vec!()
+                })
+            ]
         );
 
         assert_eq!(
-            BalanceTable::<Test>::get(account(CHARLIE)),
-            BalanceEntry::<u64> {
-                free: 85, // 60 (from 160 - collateral) + 5 * 5 (price per block * n blocks)
-                locked: 100
-            }
+            Balances::free_balance(account(CHARLIE)),
+            // 60 (from 160 - collateral) + 5 * 5 (price per block * n blocks
+            85
         );
+        assert_eq!(Balances::reserved_balance(account(CHARLIE)), 100);
 
+        assert_eq!(Balances::free_balance(account(ALICE)), 10);
         assert_eq!(
-            BalanceTable::<Test>::get(account(ALICE)),
-            BalanceEntry::<u64> {
-                free: 10,
-                locked: 25, // 50 - 5 * 5 (price per block * n blocks)
-            }
+            Balances::reserved_balance(account(ALICE)),
+            // 50 - 5 * 5 (price per block * n blocks)
+            25
         );
 
         assert_eq!(
@@ -1564,8 +1401,8 @@ fn settle_deal_payments_success_finished() {
             .end_block(11)
             .signed(ALICE);
 
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(ALICE)), 60);
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 160);
+        Balances::make_free_balance_be(&account(ALICE), 60);
+        Balances::make_free_balance_be(&account(CHARLIE), 160);
 
         assert_ok!(StorageProvider::publish_storage_deals(
             RuntimeOrigin::signed(account(CHARLIE)),
@@ -1613,31 +1450,41 @@ fn settle_deal_payments_success_finished() {
 
         assert_eq!(
             events(),
-            [RuntimeEvent::StorageProvider(Event::<Test>::DealsSettled {
-                successful: bounded_vec!(SettledDealData {
-                    deal_id: 0,
+            [
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::ReserveRepatriated {
+                    from: account(ALICE),
+                    to: account(CHARLIE),
                     amount: 50,
-                    client: account(ALICE),
-                    provider: account(CHARLIE)
+                    destination_status: BalanceStatus::Free,
                 }),
-                unsuccessful: bounded_vec!()
-            })]
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Unreserved {
+                    who: account(CHARLIE),
+                    amount: 100,
+                }),
+                RuntimeEvent::StorageProvider(Event::<Test>::DealsSettled {
+                    successful: bounded_vec!(SettledDealData {
+                        deal_id: 0,
+                        amount: 50,
+                        client: account(ALICE),
+                        provider: account(CHARLIE)
+                    }),
+                    unsuccessful: bounded_vec!()
+                })
+            ]
         );
 
         assert_eq!(
-            BalanceTable::<Test>::get(account(CHARLIE)),
-            BalanceEntry::<u64> {
-                free: 160 + 5 * 10, // 160 (from 160 - collateral + returned collateral (not slashed)) + (price per block * n blocks)
-                locked: 0
-            }
+            Balances::free_balance(account(CHARLIE)),
+            // 160 (from 160 - collateral + returned collateral (not slashed)) + (price per block * n blocks)
+            160 + 5 * 10
         );
+        assert_eq!(Balances::reserved_balance(account(CHARLIE)), 0);
 
+        assert_eq!(Balances::free_balance(account(ALICE)), 10);
         assert_eq!(
-            BalanceTable::<Test>::get(account(ALICE)),
-            BalanceEntry::<u64> {
-                free: 10,
-                locked: 50 - 5 * 10, // locked - (price per block * n blocks)
-            }
+            Balances::reserved_balance(account(ALICE)),
+            // locked - (price per block * n blocks)
+            50 - 5 * 10
         );
 
         assert_eq!(Proposals::<Test>::get(0), None);
@@ -1647,116 +1494,59 @@ fn settle_deal_payments_success_finished() {
 #[test]
 fn test_lock_funds() {
     new_test_ext().execute_with(|| {
+        Balances::make_free_balance_be(&account(CHARLIE), 91);
         assert_eq!(
             <Test as Config>::Currency::total_balance(&account(CHARLIE)),
-            50_000
-        );
-        assert_ok!(StorageProvider::add_balance(
-            RuntimeOrigin::signed(account(CHARLIE)),
-            90
-        ));
-        assert_eq!(
-            <Test as Config>::Currency::total_balance(&account(CHARLIE)),
-            49_910
+            91
         );
         assert_ok!(lock_funds::<Test>(&account(CHARLIE), 25));
-        assert_eq!(
-            BalanceTable::<Test>::get(account(CHARLIE)),
-            BalanceEntry::<u64> {
-                free: 65,
-                locked: 25,
-            }
-        );
+        assert_eq!(Balances::free_balance(account(CHARLIE)), 91 - 25);
+        assert_eq!(Balances::reserved_balance(account(CHARLIE)), 25);
 
         assert_ok!(lock_funds::<Test>(&account(CHARLIE), 65));
-        assert_eq!(
-            BalanceTable::<Test>::get(account(CHARLIE)),
-            BalanceEntry::<u64> {
-                free: 0,
-                locked: 90,
-            }
-        );
+        assert_eq!(Balances::free_balance(account(CHARLIE)), 91 - 25 - 65);
+        assert_eq!(Balances::reserved_balance(account(CHARLIE)), 25 + 65);
 
         assert_err!(
             lock_funds::<Test>(&account(CHARLIE), 25),
             Error::<Test>::InsufficientFreeFunds
         );
 
-        assert_eq!(
-            BalanceTable::<Test>::get(account(CHARLIE)),
-            BalanceEntry::<u64> {
-                free: 0,
-                locked: 90,
-            }
-        );
+        assert_eq!(Balances::free_balance(account(CHARLIE)), 1);
+        assert_eq!(Balances::reserved_balance(account(CHARLIE)), 90);
     });
 }
 
 #[test]
 fn test_unlock_funds() {
     new_test_ext().execute_with(|| {
-        assert_eq!(
-            <Test as Config>::Currency::total_balance(&account(CHARLIE)),
-            50_000
-        );
-        // We can't get all 100, otherwise the account would be reaped
-        assert_ok!(StorageProvider::add_balance(
-            RuntimeOrigin::signed(account(CHARLIE)),
-            90
-        ));
-        assert_eq!(
-            <Test as Config>::Currency::total_balance(&account(CHARLIE)),
-            49_910
-        );
+        Balances::make_free_balance_be(&account(CHARLIE), 91);
         assert_ok!(lock_funds::<Test>(&account(CHARLIE), 90));
-        assert_eq!(
-            BalanceTable::<Test>::get(account(CHARLIE)),
-            BalanceEntry::<u64> {
-                free: 0,
-                locked: 90,
-            }
-        );
+        assert_eq!(Balances::free_balance(account(CHARLIE)), 1);
+        assert_eq!(Balances::reserved_balance(account(CHARLIE)), 90);
 
         assert_ok!(unlock_funds::<Test>(&account(CHARLIE), 30));
-        assert_eq!(
-            BalanceTable::<Test>::get(account(CHARLIE)),
-            BalanceEntry::<u64> {
-                free: 30,
-                locked: 60,
-            }
-        );
+        assert_eq!(Balances::free_balance(account(CHARLIE)), 31);
+        assert_eq!(Balances::reserved_balance(account(CHARLIE)), 60);
 
         assert_ok!(unlock_funds::<Test>(&account(CHARLIE), 60));
-        assert_eq!(
-            BalanceTable::<Test>::get(account(CHARLIE)),
-            BalanceEntry::<u64> {
-                free: 90,
-                locked: 0,
-            }
-        );
+        assert_eq!(Balances::free_balance(account(CHARLIE)), 91);
+        assert_eq!(Balances::reserved_balance(account(CHARLIE)), 0);
 
         assert_err!(
             unlock_funds::<Test>(&account(CHARLIE), 60),
             Error::<Test>::InsufficientLockedFunds
         );
-        assert_eq!(
-            BalanceTable::<Test>::get(account(CHARLIE)),
-            BalanceEntry::<u64> {
-                free: 90,
-                locked: 0,
-            }
-        );
+        assert_eq!(Balances::free_balance(account(CHARLIE)), 91);
+        assert_eq!(Balances::reserved_balance(account(CHARLIE)), 0);
     });
 }
 
 #[test]
 fn slash_and_burn_acc() {
     new_test_ext().execute_with(|| {
-        assert_eq!(<Test as Config>::Currency::total_issuance(), 150_000);
-        assert_ok!(StorageProvider::add_balance(
-            RuntimeOrigin::signed(account(CHARLIE)),
-            75
-        ));
+        assert_eq!(<Test as Config>::Currency::total_issuance(), 0);
+        Balances::make_free_balance_be(&account(CHARLIE), 75);
 
         System::reset_events();
 
@@ -1766,35 +1556,34 @@ fn slash_and_burn_acc() {
         assert_eq!(
             events(),
             [
-                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded { amount: 10 }),
-                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Withdraw {
-                    who: StorageProvider::account_id(),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Reserved {
+                    who: account(CHARLIE),
                     amount: 10
                 }),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Slashed {
+                    who: account(CHARLIE),
+                    amount: 10
+                }),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded { amount: 10 }),
             ]
         );
-        assert_eq!(<Test as Config>::Currency::total_issuance(), 149_990);
+        assert_eq!(<Test as Config>::Currency::total_issuance(), 65);
 
-        assert_eq!(
-            BalanceTable::<Test>::get(account(CHARLIE)),
-            BalanceEntry::<u64> {
-                free: 65,
-                locked: 0,
-            }
-        );
+        assert_eq!(Balances::free_balance(account(CHARLIE)), 65);
+        assert_eq!(Balances::reserved_balance(account(CHARLIE)), 0);
 
         assert_err!(
             slash_and_burn::<Test>(&account(CHARLIE), 10),
             Error::<Test>::InsufficientLockedFunds
         );
-        assert_eq!(<Test as Config>::Currency::total_issuance(), 149_990);
+        assert_eq!(<Test as Config>::Currency::total_issuance(), 65);
     });
 }
 
 #[test]
 fn on_sector_terminate_unknown_deals() {
     new_test_ext().execute_with(|| {
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 75);
+        Balances::make_free_balance_be(&account(CHARLIE), 75);
         System::reset_events();
 
         assert_ok!(crate::dispatchables::on_sectors_terminate::<Test>(
@@ -1809,7 +1598,7 @@ fn on_sector_terminate_unknown_deals() {
 #[test]
 fn on_sector_terminate_deal_not_found() {
     new_test_ext().execute_with(|| {
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 75);
+        Balances::make_free_balance_be(&account(CHARLIE), 75);
         System::reset_events();
 
         let storage_provider = account(CHARLIE);
@@ -1833,7 +1622,7 @@ fn on_sector_terminate_deal_not_found() {
 #[test]
 fn on_sector_terminate_invalid_caller() {
     new_test_ext().execute_with(|| {
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 75);
+        Balances::make_free_balance_be(&account(CHARLIE), 75);
         System::reset_events();
 
         let sector_number = 0.into();
@@ -1861,7 +1650,7 @@ fn on_sector_terminate_invalid_caller() {
 #[test]
 fn on_sector_terminate_not_active() {
     new_test_ext().execute_with(|| {
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 75);
+        Balances::make_free_balance_be(&account(CHARLIE), 75);
         System::reset_events();
 
         let storage_provider = account(CHARLIE);
@@ -1896,8 +1685,9 @@ fn on_sector_terminate_not_active() {
 #[test]
 fn on_sector_terminate_active() {
     new_test_ext().execute_with(|| {
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(BOB)), 75);
-        let _ = StorageProvider::add_balance(RuntimeOrigin::signed(account(CHARLIE)), 160);
+        Balances::make_free_balance_be(&account(BOB), 75);
+        Balances::make_free_balance_be(&account(CHARLIE), 160);
+        let total_issuance = <Test as Config>::Currency::total_issuance();
 
         let storage_provider = account(CHARLIE);
         let sector_number = 0.into();
@@ -1933,28 +1723,44 @@ fn on_sector_terminate_active() {
         ));
 
         assert_eq!(
-            BalanceTable::<Test>::get(&account(BOB)),
-            BalanceEntry {
-                free: 70,  // unlocked funds - 5 for the storage payment of a single block
-                locked: 0, // unlocked
-            }
+            Balances::free_balance(account(BOB)),
+            // unlocked funds - 5 for the storage payment of a single block
+            70
+        );
+        assert_eq!(
+            Balances::reserved_balance(account(BOB)),
+            // locked
+            0
         );
 
         assert_eq!(
-            BalanceTable::<Test>::get(&storage_provider),
-            BalanceEntry {
-                free: 65,  // the original 60 + 5 for the storage payment of a single block
-                locked: 0, // lost the 100 collateral
-            }
+            Balances::free_balance(&storage_provider),
+            // the original 60 + 5 for the storage payment of a single block
+            65
+        );
+        assert_eq!(
+            Balances::reserved_balance(&storage_provider),
+            // lost the 100 collateral
+            0
         );
 
         assert_eq!(
             events(),
             [
-                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded { amount: 100 }),
-                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Withdraw {
-                    who: StorageProvider::account_id(),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::ReserveRepatriated {
+                    from: account(BOB),
+                    to: account(CHARLIE),
+                    amount: 5,
+                    destination_status: BalanceStatus::Free
+                }),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Slashed {
+                    who: account(CHARLIE),
                     amount: 100
+                }),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded { amount: 100 }),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Unreserved {
+                    who: account(BOB),
+                    amount: 45
                 }),
                 RuntimeEvent::StorageProvider(Event::<Test>::DealTerminated {
                     deal_id: 1,
@@ -1965,7 +1771,10 @@ fn on_sector_terminate_active() {
         );
         assert!(PendingProposals::<Test>::get().is_empty());
         assert!(!Proposals::<Test>::contains_key(1));
-        assert_eq!(<Test as Config>::Currency::total_issuance(), 149900);
+        assert_eq!(
+            <Test as Config>::Currency::total_issuance(),
+            total_issuance - 100
+        );
     });
 }
 

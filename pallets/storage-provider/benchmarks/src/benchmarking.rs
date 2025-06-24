@@ -8,7 +8,7 @@ use frame_benchmarking::v2::*;
 use frame_support::{
     assert_ok,
     pallet_prelude::{ConstU32, DispatchError, One},
-    traits::{Currency, Hooks},
+    traits::{Currency, Hooks, ReservableCurrency},
     BoundedVec,
 };
 use frame_system::{
@@ -25,7 +25,7 @@ use pallet_storage_provider::{
     },
     proofs::{PoStProof, SubmitWindowedPoStParams},
     sector::{TerminateSectorsParams, TerminationDeclaration},
-    BalanceOf, BalanceTable, Pallet as SpPallet, SPDealParameters,
+    BalanceOf, Pallet as SpPallet, SPDealParameters,
 };
 use primitives::{
     deals::{ClientDealProposal, DealProposal},
@@ -68,7 +68,6 @@ const EXISTENTIAL_DEPOSIT: u32 = 1_000_000_000;
     u64: TryFrom<BalanceOf<T>>,
 )]
 mod benchmarks {
-
     use super::*;
 
     #[benchmark]
@@ -95,26 +94,11 @@ mod benchmarks {
 
     #[benchmark]
     fn add_balance() {
-        let caller = whitelisted_caller();
+        let caller: T::AccountId = whitelisted_caller();
 
-        // `make_free_balance_be` returns an imbalance that gets automatically dropped here
-        // if not consumed by other functions, that imbalance updates the total issuance on drop
-        // as such, it should be dropped ASAP so that when a transfer occurs the issuance is "valid"
-        // otherwise, an underflow occurs during the transfer
-        // https://github.com/paritytech/polkadot-sdk/blob/721f6d97613b0ece9c8414e8ec8ba31d2f67d40c/substrate/frame/balances/src/impl_currency.rs#L328-L345
-        // https://github.com/paritytech/polkadot-sdk/blob/721f6d97613b0ece9c8414e8ec8ba31d2f67d40c/substrate/frame/balances/src/impl_currency.rs#L222-L231
-        // https://github.com/paritytech/polkadot-sdk/blob/6eca7647dc99dd0e78aacb740ba931e99e6ba71f/substrate/frame/support/src/traits/tokens/fungible/regular.rs#L317-L339
-        // https://github.com/paritytech/polkadot-sdk/blob/721f6d97613b0ece9c8414e8ec8ba31d2f67d40c/substrate/frame/balances/src/impl_fungible.rs#L104-L151
-        pallet_balances::Pallet::<T>::make_free_balance_be(
-            &caller,
-            // Must add more than the amount that will be added to the market balance
-            // otherwise the account may not have enough to pay fees
-            (EXISTENTIAL_DEPOSIT * 2).into(),
-        );
-
-        // #[extrinsic_call] requires type shenanigans, using #[block] is MUCH simpler
         #[block]
         {
+            #[allow(deprecated)]
             SpPallet::<T>::add_balance(
                 RawOrigin::Signed(caller.clone()).into(),
                 EXISTENTIAL_DEPOSIT.into(),
@@ -122,28 +106,16 @@ mod benchmarks {
             .unwrap();
         }
 
-        let balance_entry = BalanceTable::<T>::get(&caller);
-        assert_eq!(balance_entry.free, EXISTENTIAL_DEPOSIT.into());
-        assert_eq!(balance_entry.locked, 0u32.into());
+        // add_balance is a no-op
     }
 
     #[benchmark]
     fn withdraw_balance() {
         let caller: T::AccountId = whitelisted_caller();
-        pallet_balances::Pallet::<T>::make_free_balance_be(
-            &caller,
-            (EXISTENTIAL_DEPOSIT * 2).into(),
-        );
-        // Add some balance so we can withdraw it
-        SpPallet::<T>::add_balance(
-            RawOrigin::Signed(caller.clone().into()).into(),
-            EXISTENTIAL_DEPOSIT.into(),
-        )
-        .unwrap();
 
-        // #[extrinsic_call] requires type shenanigans, using #[block] is MUCH simpler
         #[block]
         {
+            #[allow(deprecated)]
             SpPallet::<T>::withdraw_balance(
                 RawOrigin::Signed(caller.clone()).into(),
                 EXISTENTIAL_DEPOSIT.into(),
@@ -151,9 +123,7 @@ mod benchmarks {
             .unwrap();
         }
 
-        let balance_entry = BalanceTable::<T>::get(&caller);
-        assert_eq!(balance_entry.free, 0u32.into());
-        assert_eq!(balance_entry.locked, 0u32.into());
+        // withdraw_balance is a no-op
     }
 
     /// `n`: number of submitted deals
@@ -198,19 +168,21 @@ mod benchmarks {
             .unwrap();
         }
 
-        let balance_entry = BalanceTable::<T>::get(&sp.account_id);
+        let free_balance = T::Currency::free_balance(&sp.account_id);
+        let locked_balance = T::Currency::reserved_balance(&sp.account_id);
         assert_eq!(
-            balance_entry.free,
-            BalanceOf::<T>::from(EXISTENTIAL_DEPOSIT) - collaterals
+            free_balance,
+            BalanceOf::<T>::from(2 * EXISTENTIAL_DEPOSIT) - collaterals
         );
-        assert_eq!(balance_entry.locked, collaterals);
+        assert_eq!(locked_balance, collaterals);
 
-        let balance_entry = BalanceTable::<T>::get(&client.0);
+        let free_balance = T::Currency::free_balance(&client.0);
+        let locked_balance = T::Currency::reserved_balance(&client.0);
         assert_eq!(
-            balance_entry.free,
-            BalanceOf::<T>::from(EXISTENTIAL_DEPOSIT) - cost
+            free_balance,
+            BalanceOf::<T>::from(2 * EXISTENTIAL_DEPOSIT) - cost
         );
-        assert_eq!(balance_entry.locked, cost.into());
+        assert_eq!(locked_balance, cost.into());
     }
 
     /// `n`: number of submitted deals
@@ -288,13 +260,13 @@ mod benchmarks {
 
         assert_eq!(
             SpPallet::<T>::free(&sp.account_id).unwrap(),
-            (EXISTENTIAL_DEPOSIT + cost).into()
+            (2 * EXISTENTIAL_DEPOSIT + cost).into()
         );
         assert_eq!(SpPallet::<T>::locked(&sp.account_id).unwrap(), 0u32.into());
 
         assert_eq!(
             SpPallet::<T>::free(&client.0).unwrap(),
-            (EXISTENTIAL_DEPOSIT - cost).into()
+            (2 * EXISTENTIAL_DEPOSIT - cost).into()
         );
         assert_eq!(SpPallet::<T>::locked(&client.0).unwrap(), 0u32.into());
     }
@@ -528,16 +500,6 @@ where
         data.post_type,
     ));
 
-    assert_ok!(SpPallet::<T>::add_balance(
-        RawOrigin::Signed(sp.account_id.clone()).into(),
-        EXISTENTIAL_DEPOSIT.into()
-    ));
-
-    assert_ok!(SpPallet::<T>::add_balance(
-        RawOrigin::Signed(alice.0.clone()).into(),
-        EXISTENTIAL_DEPOSIT.into()
-    ));
-
     let proposals = data.deal_proposals(&alice, n);
 
     run_to_block::<T>(data.timeline.publish_storage_deals().0);
@@ -621,7 +583,7 @@ fn check_prove_commit_sectors<T>(
 {
     assert_eq!(
         SpPallet::<T>::free(&sp_id),
-        Some((EXISTENTIAL_DEPOSIT - total_fee).into()),
+        Some((2 * EXISTENTIAL_DEPOSIT - total_fee).into()),
     );
 
     let state = SpPallet::<T>::storage_providers(sp_id).unwrap();
@@ -952,19 +914,6 @@ where
     T: pallet_balances::Config,
 {
     pallet_balances::Pallet::<T>::make_free_balance_be(&account, (EXISTENTIAL_DEPOSIT * 2).into());
-
-    // Add some balance so we can withdraw it
-    SpPallet::<T>::add_balance(
-        RawOrigin::Signed(account.clone()).into(),
-        EXISTENTIAL_DEPOSIT.into(),
-    )
-    .unwrap();
-
-    assert_eq!(
-        SpPallet::<T>::free(&account).unwrap(),
-        EXISTENTIAL_DEPOSIT.into()
-    );
-    assert_eq!(SpPallet::<T>::locked(&account).unwrap(), 0u32.into());
 }
 
 /// Asserts that the result was Ok, and additionally decodes the error if it was a GeneralPalletError
