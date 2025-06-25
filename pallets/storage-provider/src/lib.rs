@@ -413,6 +413,11 @@ pub mod pallet {
             info: StorageProviderInfo<T::PeerId>,
             proving_period_start: BlockNumberFor<T>,
         },
+        /// Emitted when a storage provider deregisters.
+        StorageProviderDeregistered {
+            owner: T::AccountId,
+            info: StorageProviderInfo<T::PeerId>,
+        },
         /// Emitted when a storage provider pre commits some sectors.
         SectorsPreCommitted {
             /// Block at which sectors have been precommitted.
@@ -588,6 +593,8 @@ pub mod pallet {
         MissingAuthorVRF,
         /// After proving failed to return pre commit deposit.
         FailedToReturnPreCommitDeposit,
+        /// When an SP tries to deregister while it still has active deals
+        SPHasActiveDeals,
         /// Inner pallet errors
         GeneralPalletError(crate::error::GeneralPalletError),
     }
@@ -757,6 +764,12 @@ pub mod pallet {
             deal_ids: BoundedVec<DealId, T::MaxDeals>,
         ) -> DispatchResult {
             crate::dispatchables::settle_deal_payments::<T>(origin, deal_ids)
+        }
+
+        #[pallet::call_index(13)]
+        // #[pallet::weight((T::WeightInfo::deregister_storage_provider(), DispatchClass::Normal))]
+        pub fn deregister_storage_provider(origin: OriginFor<T>) -> DispatchResult {
+            crate::dispatchables::deregister_storage_provider::<T>(origin)
         }
     }
 

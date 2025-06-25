@@ -301,6 +301,11 @@ where
         &mut self.deadlines
     }
 
+    /// Simple getter for deadlines
+    pub fn get_deadlines(&self) -> &Deadlines<BlockNumber> {
+        &self.deadlines
+    }
+
     /// Returns deadline calculations for the current (according to state) proving period.
     ///
     /// **Pre-condition**: `current_block > self.proving_period_start`

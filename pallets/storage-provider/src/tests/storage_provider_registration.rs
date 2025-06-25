@@ -1,12 +1,19 @@
 use frame_support::{assert_noop, assert_ok};
 use primitives::proofs::RegisteredPoStProof;
+use sp_core::bounded_vec;
 use sp_runtime::{BoundedVec, DispatchError};
 
 use super::new_test_ext;
 use crate::{
     pallet::{Error, Event, StorageProviders},
+    sector::{TerminateSectorsParams, TerminationDeclaration},
     storage_provider::StorageProviderInfo,
-    tests::{account, events, RuntimeEvent, RuntimeOrigin, StorageProvider, Test, BOB},
+    tests::{
+        account, declare_faults::setup_sp_with_one_sector, events, register_storage_provider,
+        run_to_block, sector_set, DealProposalBuilder, RuntimeEvent, RuntimeOrigin,
+        StorageProvider, System, Test, ALICE, BOB,
+    },
+    Config,
 };
 
 /// Tests if storage provider registration is successful.
@@ -101,5 +108,135 @@ fn fails_double_register() {
             ),
             Error::<Test>::StorageProviderExists
         );
+    });
+}
+
+#[test]
+fn successful_deregistration_no_deals() {
+    new_test_ext().execute_with(|| {
+        // Register storage provider
+        register_storage_provider(account(ALICE));
+        let sp = StorageProviders::<Test>::get(account(ALICE)).unwrap();
+
+        // Attempt to de-register ALICE
+        assert_ok!(StorageProvider::deregister_storage_provider(
+            RuntimeOrigin::signed(account(ALICE))
+        ));
+
+        assert!(!StorageProviders::<Test>::contains_key(account(ALICE)));
+        assert_eq!(
+            events(),
+            [RuntimeEvent::StorageProvider(
+                Event::<Test>::StorageProviderDeregistered {
+                    owner: account(ALICE),
+                    info: sp.info
+                }
+            )]
+        );
+    })
+}
+
+#[test]
+fn successful_deregistration_after_sector_termination() {
+    new_test_ext().execute_with(|| {
+        // Setup accounts
+        let storage_provider = ALICE;
+        let storage_client = BOB;
+        setup_sp_with_one_sector(storage_provider, storage_client);
+        let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
+
+        // Terminate sectors so we can deregister
+        let deadline = 0;
+        let partition_num = 0;
+        let sector = 0;
+        let params = TerminateSectorsParams {
+            terminations: bounded_vec![TerminationDeclaration {
+                deadline,
+                partition: partition_num,
+                sectors: sector_set(&[sector])
+            }],
+        };
+
+        assert_ok!(StorageProvider::terminate_sectors(
+            RuntimeOrigin::signed(account(storage_provider)),
+            params
+        ));
+        System::reset_events();
+
+        assert_ok!(StorageProvider::deregister_storage_provider(
+            RuntimeOrigin::signed(account(storage_provider))
+        ));
+        assert_eq!(
+            events(),
+            [RuntimeEvent::StorageProvider(
+                Event::<Test>::StorageProviderDeregistered {
+                    owner: account(storage_provider),
+                    info: sp.info
+                }
+            )]
+        );
+    });
+}
+
+#[test]
+fn successful_deregistration_after_sector_expiration() {
+    new_test_ext().execute_with(|| {
+        // Setup accounts
+        let storage_provider = ALICE;
+        let storage_client = BOB;
+        setup_sp_with_one_sector(storage_provider, storage_client);
+        let sp = StorageProviders::<Test>::get(account(storage_provider)).unwrap();
+
+        // setup_sp_with_one_sector uses `DealProposalBuilder` default expiration.
+        // using the value from there in case the default changes
+        let expiration_block = DealProposalBuilder::default().end_block;
+        // expiration_block + FaultMaxAge = sector terminated by the system.
+        run_to_block(expiration_block + <Test as Config>::FaultMaxAge::get());
+
+        System::reset_events();
+
+        assert_ok!(StorageProvider::deregister_storage_provider(
+            RuntimeOrigin::signed(account(storage_provider))
+        ));
+
+        assert_eq!(
+            events(),
+            [RuntimeEvent::StorageProvider(
+                Event::<Test>::StorageProviderDeregistered {
+                    owner: account(storage_provider),
+                    info: sp.info
+                }
+            )]
+        );
+    })
+}
+
+#[test]
+fn fails_deregistration_with_active_deals() {
+    new_test_ext().execute_with(|| {
+        // Setup accounts
+        let storage_provider = ALICE;
+        let storage_client = BOB;
+        setup_sp_with_one_sector(storage_provider, storage_client);
+
+        assert_noop!(
+            StorageProvider::deregister_storage_provider(RuntimeOrigin::signed(account(
+                storage_provider
+            ))),
+            Error::<Test>::SPHasActiveDeals
+        );
+
+        assert_eq!(events(), []);
+    })
+}
+
+#[test]
+fn fails_deregistration_not_registered() {
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            StorageProvider::deregister_storage_provider(RuntimeOrigin::signed(account(ALICE))),
+            Error::<Test>::StorageProviderNotRegistered
+        );
+        assert_eq!(events(), []);
     });
 }
