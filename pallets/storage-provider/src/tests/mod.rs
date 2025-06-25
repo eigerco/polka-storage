@@ -3,8 +3,12 @@ use alloc::collections::BTreeSet;
 
 use codec::Encode;
 use frame_support::{
-    assert_ok, derive_impl, pallet_prelude::ConstU32, parameter_types, sp_runtime::BoundedVec,
-    traits::Hooks, PalletId,
+    assert_ok, derive_impl,
+    pallet_prelude::ConstU32,
+    parameter_types,
+    sp_runtime::BoundedVec,
+    traits::{Currency, Hooks},
+    PalletId,
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 use primitives::{
@@ -188,26 +192,13 @@ const ALICE: &'static str = "//Alice";
 const BOB: &'static str = "//Bob";
 const CHARLIE: &'static str = "//Charlie";
 
-/// Initial funds of all accounts.
-const INITIAL_FUNDS: u64 = 50000;
-
 // Build genesis storage according to the mock runtime.
 fn new_test_ext() -> sp_io::TestExternalities {
     let _ = env_logger::try_init();
-    let mut t = frame_system::GenesisConfig::<Test>::default()
+    let t = frame_system::GenesisConfig::<Test>::default()
         .build_storage()
         .unwrap()
         .into();
-
-    pallet_balances::GenesisConfig::<Test> {
-        balances: vec![
-            (account(ALICE), INITIAL_FUNDS),
-            (account(BOB), INITIAL_FUNDS),
-            (account(CHARLIE), INITIAL_FUNDS),
-        ],
-    }
-    .assimilate_storage(&mut t)
-    .unwrap();
 
     let mut ext = sp_io::TestExternalities::new(t);
     ext.execute_with(|| System::set_block_number(1));
@@ -299,18 +290,9 @@ fn register_storage_provider(account: AccountIdOf<Test>) {
 /// Balances: Alice = 60, Bob = 70, Provider = 220
 fn publish_deals(storage_provider: &str) {
     // Add balance to the market pallet
-    assert_ok!(StorageProvider::add_balance(
-        RuntimeOrigin::signed(account(ALICE)),
-        60
-    ));
-    assert_ok!(StorageProvider::add_balance(
-        RuntimeOrigin::signed(account(BOB)),
-        60
-    ));
-    assert_ok!(StorageProvider::add_balance(
-        RuntimeOrigin::signed(account(storage_provider)),
-        220
-    ));
+    Balances::make_free_balance_be(&account(ALICE), 60);
+    Balances::make_free_balance_be(&account(BOB), 60);
+    Balances::make_free_balance_be(&account(storage_provider), 220);
 
     // Publish the deal proposal
     StorageProvider::publish_storage_deals(

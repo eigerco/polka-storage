@@ -1,4 +1,4 @@
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{assert_noop, assert_ok, traits::Currency};
 use primitives::{sector::ProveCommitSector, testing::INVALID_PROOF, PartitionNumber};
 use rstest::rstest;
 use sp_core::bounded_vec;
@@ -9,9 +9,9 @@ use crate::{
     pallet::{Error, Event, StorageProviders},
     tests::{
         account, declare_faults::setup_sp_with_many_sectors_multiple_partitions, events,
-        new_test_ext, register_storage_provider, run_to_block, DealProposalBuilder, RuntimeEvent,
-        RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, SubmitWindowedPoStBuilder,
-        System, Test, ALICE, BOB,
+        new_test_ext, register_storage_provider, run_to_block, Balances, DealProposalBuilder,
+        RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider,
+        SubmitWindowedPoStBuilder, System, Test, ALICE, BOB,
     },
     Config,
 };
@@ -32,14 +32,8 @@ fn setup() {
     register_storage_provider(account(storage_provider));
 
     // Add balance to the market pallet
-    assert_ok!(StorageProvider::add_balance(
-        RuntimeOrigin::signed(account(storage_provider)),
-        200
-    ));
-    assert_ok!(StorageProvider::add_balance(
-        RuntimeOrigin::signed(account(storage_client)),
-        70
-    ));
+    Balances::make_free_balance_be(&account(storage_provider), 200);
+    Balances::make_free_balance_be(&account(storage_client), 70);
 
     // Generate a deal proposal
     let deal_proposal = DealProposalBuilder::default()

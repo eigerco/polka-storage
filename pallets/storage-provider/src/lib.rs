@@ -14,7 +14,6 @@
 #[cfg(test)]
 mod tests;
 
-mod balance;
 mod deadline;
 pub mod deal;
 mod dispatchables;
@@ -46,10 +45,7 @@ pub mod pallet {
         dispatch::DispatchResult,
         pallet_prelude::*,
         sp_runtime::traits::Hash,
-        traits::{
-            Currency, ExistenceRequirement::KeepAlive, Randomness, ReservableCurrency,
-            WithdrawReasons,
-        },
+        traits::{Currency, Imbalance, Randomness, ReservableCurrency},
         PalletId,
     };
     use frame_system::pallet_prelude::{BlockNumberFor, *};
@@ -63,12 +59,9 @@ pub mod pallet {
         MAX_SECTORS_PER_CALL,
     };
     use scale_info::TypeInfo;
-    use sp_arithmetic::ArithmeticError;
     use sp_runtime::traits::{AccountIdConversion, IdentifyAccount, Verify};
-    use sp_std::{collections::btree_set::BTreeSet, vec::Vec};
 
     use crate::{
-        balance::BalanceEntry,
         deadline::DeadlineInfo,
         deal::{
             parameters::{DealParameters, OffchainDealParameters},
@@ -95,46 +88,6 @@ pub mod pallet {
     #[pallet::pallet]
     #[pallet::without_storage_info] // Allows to define storage items without fixed size
     pub struct Pallet<T>(_);
-
-    #[pallet::genesis_config]
-    pub struct GenesisConfig<T: Config> {
-        pub balances: Vec<(T::AccountId, BalanceOf<T>)>,
-    }
-
-    impl<T: Config> Default for GenesisConfig<T> {
-        fn default() -> Self {
-            Self {
-                balances: Default::default(),
-            }
-        }
-    }
-
-    #[pallet::genesis_build]
-    impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
-        fn build(&self) {
-            let endowed_accounts = self
-                .balances
-                .iter()
-                .map(|(x, _)| x)
-                .cloned()
-                .collect::<BTreeSet<_>>();
-
-            assert!(
-                endowed_accounts.len() == self.balances.len(),
-                "duplicate balances in genesis."
-            );
-
-            for &(ref who, free) in self.balances.iter() {
-                BalanceTable::<T>::insert(
-                    &who,
-                    BalanceEntry {
-                        free,
-                        locked: Zero::zero(),
-                    },
-                );
-            }
-        }
-    }
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -334,17 +287,6 @@ pub mod pallet {
         T::AccountId,
         StorageProviderState<T::PeerId, BalanceOf<T>, BlockNumberFor<T>>,
     >;
-
-    /// [`BalanceTable`] is used to store balances for Storage Market Participants.
-    /// Both Clients and Providers track their `free` and `locked` funds.
-    /// * `free funds` can be added by `add_balance` method and withdrawn by `withdrawn_balance` method.
-    /// * `free funds` are converted to `locked_funds` when staked as collateral for _Deals_.
-    /// * `locked funds` cannot be withdrawn freely, first some process need to unlock it.
-    /// Invariant must be held at all times:
-    /// `account(MarketPallet).balance == all_accounts.map(|balance| balance[account]].locked + balance[account].free).sum()`
-    #[pallet::storage]
-    pub type BalanceTable<T: Config> =
-        StorageMap<_, Blake2_128Concat, T::AccountId, BalanceEntry<BalanceOf<T>>, ValueQuery>;
 
     /// Simple incremental ID generator for `Deal` Identification purposes.
     /// Starts as 0, increments once for each published deal.
@@ -692,7 +634,10 @@ pub mod pallet {
         /// Free balance can be withdrawn at any moment from the Market.
         #[pallet::call_index(3)]
         #[pallet::weight((T::WeightInfo::add_balance(), DispatchClass::Normal))]
+        #[deprecated(note = "This function is no-op and will be removed in the future.")]
+        #[allow(deprecated)]
         pub fn add_balance(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult {
+            #[allow(deprecated)]
             crate::dispatchables::add_balance::<T>(origin, amount)
         }
 
@@ -700,7 +645,10 @@ pub mod pallet {
         /// Only _free_ balance can be withdrawn.
         #[pallet::call_index(4)]
         #[pallet::weight((T::WeightInfo::withdraw_balance(), DispatchClass::Normal))]
+        #[deprecated(note = "This function is no-op and will be removed in the future.")]
+        #[allow(deprecated)]
         pub fn withdraw_balance(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult {
+            #[allow(deprecated)]
             crate::dispatchables::withdraw_balance::<T>(origin, amount)
         }
 
@@ -861,20 +809,14 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// Retrieve the locked balance for the given account.
         pub fn locked(who: &T::AccountId) -> Option<BalanceOf<T>> {
-            // try_get is required because the StorageMap has ValueQuery instead of OptionQuery
-            match BalanceTable::<T>::try_get(who) {
-                Ok(entry) => Some(entry.locked),
-                Err(_) => None,
-            }
+            let balance = T::Currency::reserved_balance(who);
+            Some(balance)
         }
 
         /// Retrieve the locked balance for the given account.
         pub fn free(who: &T::AccountId) -> Option<BalanceOf<T>> {
-            // try_get is required because the StorageMap has ValueQuery instead of OptionQuery
-            match BalanceTable::<T>::try_get(who) {
-                Ok(entry) => Some(entry.free),
-                Err(_) => None,
-            }
+            let balance = T::Currency::free_balance(who);
+            Some(balance)
         }
 
         /// Account Id of the pallet
@@ -978,23 +920,14 @@ pub mod pallet {
         account_id: &T::AccountId,
         amount: BalanceOf<T>,
     ) -> DispatchResult {
-        BalanceTable::<T>::try_mutate(account_id, |balance| -> DispatchResult {
-            ensure!(
-                balance.locked >= amount,
-                Error::<T>::InsufficientLockedFunds
-            );
-            balance.locked = balance
-                .locked
-                .checked_sub(&amount)
-                .ok_or(ArithmeticError::Underflow)?;
-
-            balance.free = balance
-                .free
-                .checked_add(&amount)
-                .ok_or(ArithmeticError::Overflow)?;
-
-            Ok(())
-        })
+        // TODO(@Jinxit,23/06/2025): Should we skip this check? By default pallet_balances will just
+        //  unreserve as much as is available without an error.
+        ensure!(
+            T::Currency::reserved_balance(account_id) >= amount,
+            Error::<T>::InsufficientLockedFunds
+        );
+        T::Currency::unreserve(account_id, amount);
+        Ok(())
     }
 
     /// Lock a given `amount` of funds from the target account.
@@ -1005,24 +938,12 @@ pub mod pallet {
         account_id: &T::AccountId,
         amount: BalanceOf<T>,
     ) -> DispatchResult {
-        BalanceTable::<T>::try_mutate(account_id, |balance| -> DispatchResult {
-            ensure!(balance.free >= amount, {
-                log::error!(target: LOG_TARGET, "lock_funds: not enough free balance {:?} < {:?}", balance.free, amount);
-                Error::<T>::InsufficientFreeFunds
-            });
-
-            balance.free = balance
-                .free
-                .checked_sub(&amount)
-                .ok_or(ArithmeticError::Underflow)?;
-
-            balance.locked = balance
-                .locked
-                .checked_add(&amount)
-                .ok_or(ArithmeticError::Overflow)?;
-
-            Ok(())
-        })
+        T::Currency::reserve(account_id, amount).map_err(|_| {
+            let free_balance = T::Currency::free_balance(account_id);
+            log::error!(target: LOG_TARGET, "lock_funds: not enough free balance {:?} < {:?}", free_balance, amount);
+            Error::<T>::InsufficientFreeFunds
+        })?;
+        Ok(())
     }
 
     /// Slash and burn the provided `amount` from a given account.
@@ -1032,27 +953,16 @@ pub mod pallet {
         account_id: &T::AccountId,
         amount: BalanceOf<T>,
     ) -> DispatchResult {
-        BalanceTable::<T>::try_mutate(account_id, |balance| -> DispatchResult {
-            ensure!(
-                balance.locked >= amount,
-                Error::<T>::InsufficientLockedFunds
-            );
-            balance.locked = balance
-                .locked
-                .checked_sub(&amount)
-                .ok_or(ArithmeticError::Underflow)?;
-            Ok(())
-        })?;
-        // Burn from circulating supply
-        let imbalance = T::Currency::burn(amount);
-        // Remove burned amount from the market account
-        T::Currency::settle(
-            &T::PalletId::get().into_account_truncating(),
-            imbalance,
-            WithdrawReasons::FEE,
-            KeepAlive,
-        )
-        // If we burned X, tried to settle X and failed, we're in a bad state
-        .map_err(|_| DispatchError::Corruption)
+        // TODO(@Jinxit,23/06/2025): Should we skip this check? By default pallet_balances will just
+        //  slash as much as is available without an error.
+        ensure!(
+            T::Currency::reserved_balance(account_id) >= amount,
+            Error::<T>::InsufficientLockedFunds
+        );
+        let (negative, _) = T::Currency::slash_reserved(account_id, amount);
+        let positive = T::Currency::burn(amount);
+        // If the negative and positive imbalances cancel out, this results in a SameOrOther::None which is safe to drop.
+        negative.offset(positive);
+        Ok(())
     }
 }

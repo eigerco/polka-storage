@@ -1,4 +1,4 @@
-use frame_support::{assert_err, assert_noop, assert_ok, pallet_prelude::*};
+use frame_support::{assert_err, assert_noop, assert_ok, pallet_prelude::*, traits::Currency};
 use frame_system::pallet_prelude::BlockNumberFor;
 use primitives::sector::{ProveCommitSector, SectorNumber};
 use rstest::rstest;
@@ -12,7 +12,7 @@ use crate::{
     pallet::{Error, Event, StorageProviders, DECLARATIONS_MAX},
     tests::{
         account, events, new_test_ext, register_storage_provider, run_to_block, sector_set,
-        DealProposalBuilder, DeclareFaultsBuilder, RuntimeEvent, RuntimeOrigin,
+        Balances, DealProposalBuilder, DeclareFaultsBuilder, RuntimeEvent, RuntimeOrigin,
         SectorPreCommitInfoBuilder, StorageProvider, System, Test, ALICE, BOB, CHARLIE,
     },
     Config,
@@ -384,14 +384,8 @@ pub(crate) fn setup_sp_with_one_sector(storage_provider: &str, storage_client: &
     register_storage_provider(account(storage_provider));
 
     // Add balance to the pallet
-    assert_ok!(StorageProvider::add_balance(
-        RuntimeOrigin::signed(account(storage_provider)),
-        101
-    ));
-    assert_ok!(StorageProvider::add_balance(
-        RuntimeOrigin::signed(account(storage_client)),
-        70
-    ));
+    Balances::make_free_balance_be(&account(storage_provider), 102);
+    Balances::make_free_balance_be(&account(storage_client), 70);
 
     // Generate a deal proposal
     let deal_proposal = DealProposalBuilder::default()
@@ -476,23 +470,13 @@ pub(crate) fn setup_sp_with_many_sectors_multiple_partitions(
     let desired_sectors: u32 = 10 * (2 + 2) + 1;
 
     // Publish as many deals as we need to fill the sectors. We are batching
-    // deals so that the processing is a little faster.
     let deal_ids = {
         // Amounts needed for deals
         let provider_amount_needed = desired_sectors * 101;
         let client_amount_needed = desired_sectors * 60;
 
-        // Move available balance of provider to the pallet
-        assert_ok!(StorageProvider::add_balance(
-            RuntimeOrigin::signed(account(storage_provider)),
-            provider_amount_needed as u64
-        ));
-
-        // Move available balance of client to the pallet
-        assert_ok!(StorageProvider::add_balance(
-            RuntimeOrigin::signed(account(storage_client)),
-            client_amount_needed as u64
-        ));
+        Balances::make_free_balance_be(&account(storage_provider), provider_amount_needed as u64);
+        Balances::make_free_balance_be(&account(storage_client), client_amount_needed as u64);
 
         // Deal proposals
         let deal_ids = 0..desired_sectors;

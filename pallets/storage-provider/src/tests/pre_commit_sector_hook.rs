@@ -100,14 +100,16 @@ fn pre_commit_hook_slashed_deal() {
                     owner: account(storage_provider),
                     faulty_partitions: expected_faulty_partitions,
                 }),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Unreserved {
+                    who: account(ALICE),
+                    amount: 50,
+                }),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Slashed {
+                    who: account(storage_provider),
+                    amount: DEAL_COLLATERAL,
+                }),
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded {
                     amount: DEAL_COLLATERAL
-                }),
-                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Withdraw {
-                    // The money was removed from the balance table, as such,
-                    // the money is actually removed from the "pallet account"
-                    who: StorageProvider::account_id(),
-                    amount: DEAL_COLLATERAL,
                 }),
                 RuntimeEvent::StorageProvider(Event::DealSlashed {
                     deal_id: 0,
@@ -115,12 +117,12 @@ fn pre_commit_hook_slashed_deal() {
                     client: account(ALICE),
                     provider: account(storage_provider)
                 }),
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Slashed {
+                    who: account(storage_provider),
+                    amount: DEAL_PRECOMMIT_DEPOSIT,
+                }),
                 RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded {
                     amount: DEAL_PRECOMMIT_DEPOSIT
-                }),
-                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Withdraw {
-                    who: StorageProvider::account_id(),
-                    amount: DEAL_PRECOMMIT_DEPOSIT,
                 }),
                 RuntimeEvent::StorageProvider(Event::<Test>::SectorsSlashed {
                     owner: account(storage_provider),

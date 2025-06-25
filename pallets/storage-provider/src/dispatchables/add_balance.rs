@@ -1,32 +1,13 @@
-use frame_support::{
-    dispatch::DispatchResult,
-    traits::{Currency, ExistenceRequirement::KeepAlive},
-};
+use frame_support::dispatch::DispatchResult;
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-use sp_runtime::{traits::CheckedAdd, ArithmeticError};
 
-use crate::{BalanceOf, BalanceTable, Config, Event, Pallet};
+use crate::{BalanceOf, Config};
 
-pub fn add_balance<T>(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult
+#[deprecated(note = "This function is no-op and will be removed in the future.")]
+pub fn add_balance<T>(origin: OriginFor<T>, _amount: BalanceOf<T>) -> DispatchResult
 where
     T: Config,
 {
-    let caller = ensure_signed(origin)?;
-
-    BalanceTable::<T>::try_mutate(&caller, |balance| -> DispatchResult {
-        balance.free = balance
-            .free
-            .checked_add(&amount)
-            .ok_or(ArithmeticError::Overflow)?;
-        T::Currency::transfer(&caller, &Pallet::<T>::account_id(), amount, KeepAlive)?;
-
-        Ok(())
-    })?;
-
-    Pallet::<T>::deposit_event(Event::<T>::BalanceAdded {
-        who: caller.clone(),
-        amount,
-    });
-
+    ensure_signed(origin)?;
     Ok(())
 }

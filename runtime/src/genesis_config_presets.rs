@@ -1,5 +1,4 @@
 use alloc::{vec, vec::Vec};
-use core::iter::once;
 
 use cumulus_primitives_core::ParaId;
 use parachains_common::AuraId;
@@ -11,8 +10,8 @@ use sp_keyring::Sr25519Keyring;
 
 use crate::{
     AccountId, Balance, BalancesConfig, CollatorSelectionConfig, ParachainInfoConfig,
-    PolkadotXcmConfig, ProofsConfig, RuntimeGenesisConfig, SessionConfig, SessionKeys,
-    StorageProvider, StorageProviderConfig, SudoConfig, EXISTENTIAL_DEPOSIT,
+    PolkadotXcmConfig, ProofsConfig, RuntimeGenesisConfig, SessionConfig, SessionKeys, SudoConfig,
+    EXISTENTIAL_DEPOSIT,
 };
 
 /// The default XCM version to set in genesis config.
@@ -27,7 +26,7 @@ pub fn template_session_keys(keys: AuraId) -> SessionKeys {
 
 fn testnet_genesis(
     invulnerables: Vec<(AccountId, AuraId)>,
-    endowed_accounts: Vec<AccountId>,
+    endowed_accounts: Vec<(AccountId, Balance)>,
     root: AccountId,
 ) -> Value {
     let post_1gib_vk = include_bytes!("../../test-fixtures/keys/1GiB.post.vk.scale");
@@ -44,11 +43,7 @@ fn testnet_genesis(
 
     let config = RuntimeGenesisConfig {
         balances: BalancesConfig {
-            balances: endowed_accounts
-                .iter()
-                .cloned()
-                .map(|k| (k, 1u128 << 60))
-                .collect::<Vec<_>>(),
+            balances: endowed_accounts,
         },
         parachain_info: ParachainInfoConfig {
             // There is no reasonable default here - but at least 1000 is taken by AssetHub, so it should
@@ -96,29 +91,6 @@ fn testnet_genesis(
             .into(),
             ..Default::default()
         },
-        storage_provider: StorageProviderConfig {
-            // This is a nice default for `maat/tests/real_world.rs`.
-            // Add balance to Charlie - Storage Provider.
-            // Collateral (12 500 000) + pre_commit_deposit (1)
-            // 12 500 000 == deal.provider_collateral
-            // 1 == pallets/storage-provider/lib.rs:calculate_pre_commit_deposit
-            // NOTE(@th7nder,11/03/2025): please be aware, that this amount needs to be endowed to Market Pallet as well!
-            balances: [
-                (
-                    Sr25519Keyring::Alice.to_account_id(),
-                    25_000_000_000 as Balance,
-                ),
-                (
-                    Sr25519Keyring::Bob.to_account_id(),
-                    12_500_000_001 as Balance,
-                ),
-                (
-                    Sr25519Keyring::Charlie.to_account_id(),
-                    12_500_000_001 as Balance,
-                ),
-            ]
-            .into(),
-        },
         ..Default::default()
     };
 
@@ -139,9 +111,29 @@ fn local_testnet_genesis() -> Value {
             ),
         ],
         Sr25519Keyring::well_known()
-            .map(|k| k.to_account_id())
+            .map(|k| (k.to_account_id(), 1u128 << 60))
+            .chain(
+                // This is a nice default for `maat/tests/real_world.rs`.
+                // Add balance to Charlie - Storage Provider.
+                // Collateral (12 500 000) + pre_commit_deposit (1)
+                // 12 500 000 == deal.provider_collateral
+                // 1 == pallets/storage-provider/lib.rs:calculate_pre_commit_deposit
+                [
+                    (
+                        Sr25519Keyring::Alice.to_account_id(),
+                        25_000_000_000 as Balance,
+                    ),
+                    (
+                        Sr25519Keyring::Bob.to_account_id(),
+                        12_500_000_001 as Balance,
+                    ),
+                    (
+                        Sr25519Keyring::Charlie.to_account_id(),
+                        12_500_000_001 as Balance,
+                    ),
+                ],
+            )
             // Add funds to the pallet account as we're adding some balance by default to it in its genesis Config.
-            .chain(once(StorageProvider::account_id()))
             .collect(),
         Sr25519Keyring::Alice.to_account_id(),
     )
@@ -161,7 +153,7 @@ fn development_config_genesis() -> Value {
             ),
         ],
         Sr25519Keyring::well_known()
-            .map(|k| k.to_account_id())
+            .map(|k| (k.to_account_id(), 1u128 << 60))
             .collect(),
         Sr25519Keyring::Alice.to_account_id(),
     )

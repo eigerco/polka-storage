@@ -1,10 +1,10 @@
-use frame_support::{assert_noop, assert_ok, pallet_prelude::*};
+use frame_support::{assert_noop, assert_ok, pallet_prelude::*, traits::Currency};
 use frame_system::pallet_prelude::BlockNumberFor;
 use primitives::{sector::SectorPreCommitInfo, MAX_SECTORS_PER_CALL};
 use sp_core::bounded_vec;
 use sp_runtime::{BoundedVec, DispatchError};
 
-use super::new_test_ext;
+use super::{new_test_ext, Balances};
 use crate::{
     pallet::{Error, Event, StorageProviders},
     tests::{
@@ -41,13 +41,17 @@ fn successfully_precommited() {
         // Check that the events were triggered
         assert_eq!(
             events(),
-            [RuntimeEvent::StorageProvider(
-                Event::<Test>::SectorsPreCommitted {
+            [
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Reserved {
+                    who: account(storage_provider),
+                    amount: 1
+                }),
+                RuntimeEvent::StorageProvider(Event::<Test>::SectorsPreCommitted {
                     block: 1,
                     owner: account(storage_provider),
                     sectors: bounded_vec![sector],
-                }
-            )]
+                })
+            ]
         );
 
         let sp = StorageProviders::<Test>::get(account(storage_provider))
@@ -72,11 +76,7 @@ fn successfully_precommited_no_deals() {
         let storage_provider = CHARLIE;
         register_storage_provider(account(storage_provider));
 
-        StorageProvider::add_balance(
-            RuntimeOrigin::signed(account(storage_provider)),
-            MARKET_BALANCE.into(),
-        )
-        .unwrap();
+        Balances::make_free_balance_be(&account(storage_provider), MARKET_BALANCE.into());
 
         System::reset_events();
 
@@ -95,13 +95,17 @@ fn successfully_precommited_no_deals() {
         // Check that the events were triggered
         assert_eq!(
             events(),
-            [RuntimeEvent::StorageProvider(
-                Event::<Test>::SectorsPreCommitted {
+            [
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Reserved {
+                    who: account(storage_provider),
+                    amount: 1
+                }),
+                RuntimeEvent::StorageProvider(Event::<Test>::SectorsPreCommitted {
                     block: 1,
                     owner: account(storage_provider),
                     sectors: bounded_vec![sector],
-                }
-            )]
+                })
+            ]
         );
 
         let sp = StorageProviders::<Test>::get(account(storage_provider))
@@ -154,13 +158,17 @@ fn successfully_precommited_batch() {
         // Check that the events were triggered
         assert_eq!(
             events(),
-            [RuntimeEvent::StorageProvider(
-                Event::<Test>::SectorsPreCommitted {
+            [
+                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Reserved {
+                    who: account(storage_provider),
+                    amount: 1
+                }),
+                RuntimeEvent::StorageProvider(Event::<Test>::SectorsPreCommitted {
                     block: 1,
                     owner: account(storage_provider),
                     sectors,
-                }
-            )]
+                })
+            ]
         );
 
         let sp = StorageProviders::<Test>::get(account(storage_provider))

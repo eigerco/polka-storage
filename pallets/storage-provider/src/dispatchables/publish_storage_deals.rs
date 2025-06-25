@@ -6,6 +6,7 @@ use frame_support::{
         traits::{CheckedAdd, Verify},
         ArithmeticError, BoundedBTreeMap,
     },
+    traits::{Currency, ReservableCurrency},
 };
 use frame_system::{
     ensure_signed,
@@ -19,8 +20,8 @@ use sp_runtime::{BoundedVec, DispatchError};
 use sp_std::vec::Vec;
 
 use crate::{
-    deal::PublishedDeal, lock_funds, BalanceOf, BalanceTable, Config, DealsForBlock, Error, Event,
-    NextDealId, Pallet, PendingProposals, Proposals, SPDealParameters, LOG_TARGET,
+    deal::PublishedDeal, lock_funds, BalanceOf, Config, DealsForBlock, Error, Event, NextDealId,
+    Pallet, PendingProposals, Proposals, SPDealParameters, LOG_TARGET,
 };
 
 pub fn publish_storage_deals<T>(
@@ -170,10 +171,11 @@ where
             .checked_add(&client_fees)
             .ok_or(DispatchError::Arithmetic(ArithmeticError::Overflow))?;
 
-        let client_balance = BalanceTable::<T>::get(&deal.proposal.client);
-        if client_lockup > client_balance.free {
-            log::error!(target: LOG_TARGET, "invalid deal: client {:?} not enough free balance {:?} < {:?} to cover deal idx: {}",
-                            deal.proposal.client, client_balance.free, client_lockup, idx);
+        // `can_reserve` also checks for the minimum balance to keep the account alive.
+        if !T::Currency::can_reserve(&deal.proposal.client, client_lockup) {
+            let client_balance = T::Currency::free_balance(&deal.proposal.client);
+            log::error!(target: LOG_TARGET, "invalid deal: client {:?} not enough free balance {:?} < {:?} + {:?} to cover deal idx: {}",
+                            deal.proposal.client, client_balance, client_lockup, T::Currency::minimum_balance(), idx);
             return Err(Error::<T>::InsufficientFreeFunds.into());
         }
 
@@ -190,10 +192,11 @@ where
             .checked_add(&provider_collateral)
             .ok_or(DispatchError::Arithmetic(ArithmeticError::Overflow))?;
 
-        let provider_balance = BalanceTable::<T>::get(&deal.proposal.provider);
-        if provider_lockup > provider_balance.free {
-            log::error!(target: LOG_TARGET, "invalid deal: storage provider {:?} not enough free balance {:?} < {:?} to cover deal idx: {}",
-                            deal.proposal.provider, provider_balance.free, provider_lockup, idx);
+        // `can_reserve` also checks for the minimum balance to keep the account alive.
+        if !T::Currency::can_reserve(&deal.proposal.provider, provider_lockup) {
+            let provider_balance = T::Currency::free_balance(&deal.proposal.provider);
+            log::error!(target: LOG_TARGET, "invalid deal: storage provider {:?} not enough free balance {:?} < {:?} + {:?} to cover deal idx: {}",
+                            deal.proposal.provider, provider_balance, provider_lockup, T::Currency::minimum_balance(), idx);
             return Err(Error::<T>::InsufficientFreeFunds.into());
         }
 
