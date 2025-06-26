@@ -1,4 +1,4 @@
-use alloc::{vec, vec::Vec};
+use alloc::{collections::BTreeMap, vec, vec::Vec};
 
 use cumulus_primitives_core::ParaId;
 use parachains_common::AuraId;
@@ -25,8 +25,8 @@ pub fn template_session_keys(keys: AuraId) -> SessionKeys {
 }
 
 fn testnet_genesis(
-    invulnerables: Vec<(AccountId, AuraId)>,
-    endowed_accounts: Vec<(AccountId, Balance)>,
+    invulnerables: BTreeMap<AccountId, AuraId>,
+    endowed_accounts: BTreeMap<AccountId, Balance>,
     root: AccountId,
 ) -> Value {
     let post_1gib_vk = include_bytes!("../../test-fixtures/keys/1GiB.post.vk.scale");
@@ -43,7 +43,7 @@ fn testnet_genesis(
 
     let config = RuntimeGenesisConfig {
         balances: BalancesConfig {
-            balances: endowed_accounts,
+            balances: endowed_accounts.into_iter().collect(),
         },
         parachain_info: ParachainInfoConfig {
             // There is no reasonable default here - but at least 1000 is taken by AssetHub, so it should
@@ -52,11 +52,7 @@ fn testnet_genesis(
             ..Default::default()
         },
         collator_selection: CollatorSelectionConfig {
-            invulnerables: invulnerables
-                .iter()
-                .cloned()
-                .map(|(acc, _)| acc)
-                .collect::<Vec<_>>(),
+            invulnerables: invulnerables.keys().cloned().collect::<Vec<_>>(),
             candidacy_bond: EXISTENTIAL_DEPOSIT * 16,
             ..Default::default()
         },
@@ -100,7 +96,7 @@ fn testnet_genesis(
 fn local_testnet_genesis() -> Value {
     testnet_genesis(
         // initial collators.
-        vec![
+        [
             (
                 Sr25519Keyring::Alice.to_account_id(),
                 Sr25519Keyring::Alice.public().into(),
@@ -109,9 +105,10 @@ fn local_testnet_genesis() -> Value {
                 Sr25519Keyring::Bob.to_account_id(),
                 Sr25519Keyring::Bob.public().into(),
             ),
-        ],
+        ]
+        .into(),
         Sr25519Keyring::well_known()
-            .map(|k| (k.to_account_id(), 1u128 << 60))
+            .map(|k| (k.to_account_id(), (1u128 << 60) as Balance))
             .chain(
                 // This is a nice default for `maat/tests/real_world.rs`.
                 // Add balance to Charlie - Storage Provider.
@@ -142,7 +139,7 @@ fn local_testnet_genesis() -> Value {
 fn development_config_genesis() -> Value {
     testnet_genesis(
         // initial collators.
-        vec![
+        [
             (
                 Sr25519Keyring::Alice.to_account_id(),
                 Sr25519Keyring::Alice.public().into(),
@@ -151,9 +148,10 @@ fn development_config_genesis() -> Value {
                 Sr25519Keyring::Bob.to_account_id(),
                 Sr25519Keyring::Bob.public().into(),
             ),
-        ],
+        ]
+        .into(),
         Sr25519Keyring::well_known()
-            .map(|k| (k.to_account_id(), 1u128 << 60))
+            .map(|k| (k.to_account_id(), (1u128 << 60) as Balance))
             .collect(),
         Sr25519Keyring::Alice.to_account_id(),
     )
