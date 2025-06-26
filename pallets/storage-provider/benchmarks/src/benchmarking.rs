@@ -92,6 +92,34 @@ mod benchmarks {
         assert_eq!(state.info.window_post_proof_type, window_post_proof_type);
     }
 
+    #[benchmark]
+    fn deregister_storage_provider() {
+        let data = BenchmarkData::<T>::load();
+        let provider = data.storage_provider();
+        let caller = provider.account_id;
+        let peer_id = provider.peer_id;
+        let window_post_proof_type = data.post_type;
+
+        assert_ok_sp(SpPallet::<T>::register_storage_provider(
+            RawOrigin::Signed(caller.clone()).into(),
+            peer_id.clone(),
+            window_post_proof_type,
+        ));
+
+        let state = SpPallet::<T>::storage_providers(caller.clone()).unwrap();
+        assert_eq!(state.info.peer_id, peer_id);
+        assert_eq!(state.info.window_post_proof_type, window_post_proof_type);
+
+        #[block]
+        {
+            assert_ok_sp(SpPallet::<T>::deregister_storage_provider(
+                RawOrigin::Signed(caller.clone()).into(),
+            ))
+        }
+
+        assert!(SpPallet::<T>::storage_providers(caller).is_none());
+    }
+
     /// `n`: number of submitted deals
     #[benchmark]
     fn publish_storage_deals(n: Linear<1, MAX_DEALS_PER_SECTOR>) {

@@ -767,7 +767,7 @@ pub mod pallet {
         }
 
         #[pallet::call_index(13)]
-        // #[pallet::weight((T::WeightInfo::deregister_storage_provider(), DispatchClass::Normal))]
+        #[pallet::weight((T::WeightInfo::deregister_storage_provider(), DispatchClass::Normal))]
         pub fn deregister_storage_provider(origin: OriginFor<T>) -> DispatchResult {
             crate::dispatchables::deregister_storage_provider::<T>(origin)
         }
