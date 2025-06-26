@@ -52,10 +52,7 @@ fn testnet_genesis(
             ..Default::default()
         },
         collator_selection: CollatorSelectionConfig {
-            invulnerables: invulnerables
-                .iter()
-                .map(|(acc, _)| acc.clone())
-                .collect::<Vec<_>>(),
+            invulnerables: invulnerables.keys().cloned().collect::<Vec<_>>(),
             candidacy_bond: EXISTENTIAL_DEPOSIT * 16,
             ..Default::default()
         },
