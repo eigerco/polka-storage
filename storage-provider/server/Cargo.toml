@@ -21,7 +21,6 @@ primitives = { workspace = true, features = ["clap", "serde", "std"] }
 primitives-p2p = { workspace = true, features = ["serde"] }
 storagext = { workspace = true, features = ["clap"] }
 
-async-trait = { workspace = true }
 axum = { workspace = true, features = ["macros", "multipart"] }
 base64 = { workspace = true }
 beetswap = { workspace = true }
@@ -33,7 +32,6 @@ clap = { workspace = true, features = ["derive"] }
 futures = { workspace = true }
 hyper = { workspace = true }
 integer-encoding = { workspace = true }
-jsonrpsee = { workspace = true, features = ["http-client", "macros", "server", "ws-client"] }
 libp2p = { workspace = true, features = ["cbor", "dns", "identify", "macros", "noise", "request-response", "tcp", "tokio", "websocket", "yamux"] }
 libp2p-length-prefix-codec = { workspace = true }
 rand = { workspace = true }
@@ -44,9 +42,8 @@ subxt = { workspace = true }
 tempfile = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "signal", "sync", "time"] }
-tokio-util = { workspace = true, features = ["rt"] }
+tokio-util = { workspace = true, features = ["io", "rt"] }
 toml = { workspace = true }
-tower = { workspace = true }
 tower-http = { workspace = true, features = ["cors", "trace"] }
 tracing = { workspace = true }
 tracing-appender = { workspace = true }

@@ -13,10 +13,9 @@ use tokio::sync::oneshot;
 use tokio_util::task::TaskTracker;
 use tracing::Instrument;
 
-use crate::{
-    pipeline::{PipelineError, PipelineState},
-    rpc::SECS_PER_BLOCK,
-};
+use crate::pipeline::{PipelineError, PipelineState};
+
+const SECS_PER_BLOCK: u32 = 6;
 
 /// Finds a sector to which a piece will fit and adds it to the sector.
 ///

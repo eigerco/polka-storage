@@ -22,10 +22,8 @@ fr32.workspace = true
 futures = { workspace = true }
 hex = { workspace = true, features = ["std"] }
 itertools = { workspace = true }
-jsonrpsee = { workspace = true, features = ["http-client", "macros", "server", "ws-client"] }
 polka-storage-proofs = { workspace = true, features = ["std", "substrate"] }
 serde = { workspace = true }
-serde_json = { workspace = true }
 storage-proofs-core.workspace = true
 subxt = { workspace = true }
 thiserror = { workspace = true }

@@ -1,26 +1,12 @@
-mod error;
-
 use std::fmt;
 
 use chrono::{DateTime, Utc};
-use jsonrpsee::proc_macros::rpc;
 use primitives::proofs::{RegisteredPoStProof, RegisteredSealProof};
 use serde::{Deserialize, Serialize};
 use sp_core::crypto::Ss58Codec;
-use storagext::{
-    types::storage_provider::ClientDealProposal as SxtClientDealProposal, BlockNumber,
-};
+use storagext::BlockNumber;
 
 use crate::config::sealing::SealingConfiguration;
-pub use crate::rpc::error::RpcError;
-
-#[rpc(server, client, namespace = "v0")]
-pub trait StorageProviderRpc {
-    /// Publish a deal, the published deal ID will be returned.
-    #[method(name = "publish_deal")]
-    async fn publish_deal(&self, deal: SxtClientDealProposal) -> Result<u64, RpcError>;
-}
-
 /// Storage Provider server information, such as start time and on-chain address.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ServerInfo {

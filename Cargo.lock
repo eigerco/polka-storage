@@ -7344,7 +7344,7 @@ checksum = "cfdb12a2381ea5b2e68c3469ec604a007b367778cdb14d09612c8069ebd616ad"
 dependencies = [
  "jsonrpsee-client-transport 0.22.5",
  "jsonrpsee-core 0.22.5",
- "jsonrpsee-http-client 0.22.5",
+ "jsonrpsee-http-client",
  "jsonrpsee-types 0.22.5",
 ]
 
@@ -7367,7 +7367,6 @@ checksum = "c5c71d8c1a731cc4227c2f698d377e7848ca12c8a48866fc5e6951c43a4db843"
 dependencies = [
  "jsonrpsee-client-transport 0.24.7",
  "jsonrpsee-core 0.24.7",
- "jsonrpsee-http-client 0.24.7",
  "jsonrpsee-proc-macros",
  "jsonrpsee-server",
  "jsonrpsee-types 0.24.7",
@@ -7525,31 +7524,6 @@ dependencies = [
  "hyper-rustls 0.24.2",
  "jsonrpsee-core 0.22.5",
  "jsonrpsee-types 0.22.5",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
- "tokio",
- "tower 0.4.13",
- "tracing",
- "url",
-]
-
-[[package]]
-name = "jsonrpsee-http-client"
-version = "0.24.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b3638bc4617f96675973253b3a45006933bde93c2fd8a6170b33c777cc389e5b"
-dependencies = [
- "async-trait",
- "base64 0.22.1",
- "http-body 1.0.1",
- "hyper 1.6.0",
- "hyper-rustls 0.27.4",
- "hyper-util",
- "jsonrpsee-core 0.24.7",
- "jsonrpsee-types 0.24.7",
- "rustls 0.23.20",
- "rustls-platform-verifier",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -13992,7 +13966,6 @@ dependencies = [
 name = "polka-storage-provider-client"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "bellperson",
  "bls12_381",
  "blstrs",
@@ -14002,7 +13975,6 @@ dependencies = [
  "filecoin-proofs",
  "hex",
  "itertools 0.13.0",
- "jsonrpsee 0.24.7",
  "libp2p 0.54.1",
  "mater",
  "parity-scale-codec",
@@ -14012,7 +13984,6 @@ dependencies = [
  "primitives-p2p",
  "proc-macro2",
  "quote",
- "serde",
  "serde_json",
  "sp-core 28.0.0",
  "sp-runtime 31.0.1",
@@ -14038,12 +14009,10 @@ dependencies = [
  "futures",
  "hex",
  "itertools 0.13.0",
- "jsonrpsee 0.24.7",
  "parity-scale-codec",
  "polka-storage-proofs",
  "primitives",
  "serde",
- "serde_json",
  "sp-core 28.0.0",
  "storage-proofs-core",
  "storagext",
@@ -14058,7 +14027,6 @@ dependencies = [
 name = "polka-storage-provider-server"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "axum",
  "base64 0.22.1",
  "beetswap",
@@ -14070,7 +14038,6 @@ dependencies = [
  "futures",
  "hyper 1.6.0",
  "integer-encoding",
- "jsonrpsee 0.24.7",
  "libp2p 0.54.1",
  "libp2p-length-prefix-codec",
  "mater",
@@ -14090,7 +14057,6 @@ dependencies = [
  "tokio",
  "tokio-util",
  "toml 0.8.19",
- "tower 0.4.13",
  "tower-http 0.5.2",
  "tracing",
  "tracing-appender",
