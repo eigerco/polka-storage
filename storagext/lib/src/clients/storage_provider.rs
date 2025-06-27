@@ -125,12 +125,6 @@ pub trait StorageProviderClientExt {
         >,
     >;
 
-    /// Retrieve the balance for a given account (includes the `free` and `locked` balance).
-    fn retrieve_free_balance(
-        &self,
-        account_id: <PolkaStorageConfig as subxt::Config>::AccountId,
-    ) -> impl Future<Output = Result<Option<u128>, subxt::Error>>;
-
     /// Retrieve the deal for a given deal ID.
     fn retrieve_deal(
         &self,
@@ -457,30 +451,6 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
         }
 
         Ok(params)
-    }
-
-    #[tracing::instrument(
-        level = "debug",
-        skip_all,
-        fields(
-            address = account_id.to_ss58check()
-        )
-    )]
-    async fn retrieve_free_balance(
-        &self,
-        account_id: <PolkaStorageConfig as subxt::Config>::AccountId,
-    ) -> Result<Option<u128>, subxt::Error> {
-        let balances = runtime::storage()
-            .system()
-            .account(subxt::utils::AccountId32(account_id.into()));
-        let account = self
-            .client
-            .storage()
-            .at_latest()
-            .await?
-            .fetch(&balances)
-            .await?;
-        Ok(account.map(|a| a.data.free))
     }
 
     #[tracing::instrument(level = "debug", skip_all, fields(deal_id))]

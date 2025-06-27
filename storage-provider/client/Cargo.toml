@@ -35,6 +35,7 @@ serde_json = { workspace = true }
 sp-core = { workspace = true }
 sp-runtime = { workspace = true }
 subxt = { workspace = true }
+surf = { workspace = true, features = ["h1-client-rustls"] }                                  # the encoding feature shouldn't be necessary
 tempfile = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }

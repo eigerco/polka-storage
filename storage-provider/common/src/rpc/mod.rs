@@ -8,10 +8,7 @@ use primitives::proofs::{RegisteredPoStProof, RegisteredSealProof};
 use serde::{Deserialize, Serialize};
 use sp_core::crypto::Ss58Codec;
 use storagext::{
-    types::storage_provider::{
-        ClientDealProposal as SxtClientDealProposal, DealProposal as SxtDealProposal,
-    },
-    BlockNumber,
+    types::storage_provider::ClientDealProposal as SxtClientDealProposal, BlockNumber,
 };
 
 use crate::config::sealing::SealingConfiguration;
@@ -19,11 +16,6 @@ pub use crate::rpc::error::RpcError;
 
 #[rpc(server, client, namespace = "v0")]
 pub trait StorageProviderRpc {
-    /// Propose a deal, the CID of the deal will be returned,
-    /// the CID is part of the path for file uploads.
-    #[method(name = "propose_deal")]
-    async fn propose_deal(&self, deal: SxtDealProposal) -> Result<CidString, RpcError>;
-
     /// Publish a deal, the published deal ID will be returned.
     #[method(name = "publish_deal")]
     async fn publish_deal(&self, deal: SxtClientDealProposal) -> Result<u64, RpcError>;

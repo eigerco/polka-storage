@@ -518,7 +518,18 @@ impl Server {
             .send(PipelineMessage::SchedulePoSts)
             .expect("queue not to be closed at the start-up of the server");
 
+        let server_info = ServerInfo::new(
+            self.multi_pair_signer.account_id(),
+            self.seal_proof,
+            self.post_proof,
+            storage_provider_info.proving_period_start,
+            self.sealing_configuration,
+        );
+
         let storage_state = StorageServerState {
+            server_info: server_info.clone(),
+            xt_client: xt_client.clone(),
+            xt_keypair: self.multi_pair_signer.clone(),
             car_piece_storage_dir: car_piece_storage_dir.clone(),
             deal_db: deal_database.clone(),
             listen_address: self.upload_listen_address,
@@ -526,13 +537,7 @@ impl Server {
         };
 
         let rpc_state = RpcServerState {
-            server_info: ServerInfo::new(
-                self.multi_pair_signer.account_id(),
-                self.seal_proof,
-                self.post_proof,
-                storage_provider_info.proving_period_start,
-                self.sealing_configuration,
-            ),
+            server_info,
             deal_db: deal_database.clone(),
             car_piece_storage_dir: car_piece_storage_dir.clone(),
             xt_client: xt_client.clone(),

@@ -64,6 +64,15 @@ pub enum CliError {
         "PoSt params for PoSt type {post_type:?} not found, please download or generate them first"
     )]
     MissingPoStParams { post_type: WindowPostProofType },
+
+    #[error("{0}")]
+    Http(surf::Error),
+}
+
+impl From<surf::Error> for CliError {
+    fn from(err: surf::Error) -> Self {
+        CliError::Http(err)
+    }
 }
 
 /// A CLI application that facilitates management operations over a running full
@@ -142,9 +151,11 @@ impl Cli {
         rpc_server_url: Url,
         deal_proposal: SxtDealProposal,
     ) -> Result<(), CliError> {
-        let client = PolkaStorageRpcClient::new(&rpc_server_url).await?;
-        let result = client.propose_deal(deal_proposal).await?;
-        println!("{}", result);
+        let response: String = surf::post(format!("{}/api/v0/propose_deal", &rpc_server_url))
+            .body_json(&deal_proposal)?
+            .recv_json()
+            .await?;
+        println!("{}", response);
         Ok(())
     }
 
