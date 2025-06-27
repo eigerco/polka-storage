@@ -6,10 +6,7 @@ use jsonrpsee::{server::Server, types::error::INTERNAL_ERROR_CODE};
 use polka_storage_provider_common::rpc::{
     CidString, RpcError, ServerInfo, StorageProviderRpcServer,
 };
-use primitives::{
-    commitment::{CommP, Commitment, CommitmentKind},
-    DealId,
-};
+use primitives::commitment::{CommP, Commitment, CommitmentKind};
 use storagext::{
     types::storage_provider::{
         ClientDealProposal as SxtClientDealProposal, DealParameters as SxtDealParameters,
@@ -377,14 +374,6 @@ impl StorageProviderRpcServer for RpcServerState {
             .map_err(|e| RpcError::internal_error(e, None))?;
 
         Ok(deal_id)
-    }
-
-    async fn retrieve_deal(&self, deal_id: DealId) -> Result<SxtDealProposal, RpcError> {
-        match self.xt_client.retrieve_deal(deal_id).await {
-            Ok(Some(proposal)) => Ok(proposal.into()),
-            Ok(None) => Err(RpcError::new(404, "deal not found", None)), // find a better error code?
-            Err(err) => Err(RpcError::new(INTERNAL_ERROR_CODE, err.to_string(), None)),
-        }
     }
 
     async fn retrieve_sp_deal_parameters_for(

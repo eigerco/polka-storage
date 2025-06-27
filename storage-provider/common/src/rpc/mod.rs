@@ -4,10 +4,7 @@ use std::fmt;
 
 use chrono::{DateTime, Utc};
 use jsonrpsee::proc_macros::rpc;
-use primitives::{
-    proofs::{RegisteredPoStProof, RegisteredSealProof},
-    DealId,
-};
+use primitives::proofs::{RegisteredPoStProof, RegisteredSealProof};
 use serde::{Deserialize, Serialize};
 use sp_core::crypto::Ss58Codec;
 use storagext::{
@@ -35,10 +32,6 @@ pub trait StorageProviderRpc {
     /// Publish a deal, the published deal ID will be returned.
     #[method(name = "publish_deal")]
     async fn publish_deal(&self, deal: SxtClientDealProposal) -> Result<u64, RpcError>;
-
-    /// Retrieve a deal proposal (includes the deal status).
-    #[method(name = "retrieve_deal")]
-    async fn retrieve_deal(&self, deal_id: DealId) -> Result<SxtDealProposal, RpcError>;
 
     /// Retrieve deal parameters for a given storage provider.
     /// Returns `None` if the given storage provider has not set any deal parameters.
