@@ -75,13 +75,6 @@ pub(crate) enum Cli {
     #[command(subcommand)]
     Proofs(ProofsCommand),
 
-    /// Retrieve information about the provider's node.
-    Info {
-        /// URL of the providers RPC server.
-        #[arg(long, default_value = DEFAULT_RPC_SERVER_URL)]
-        rpc_server_url: Url,
-    },
-
     /// Propose a storage deal.
     ProposeDeal {
         /// URL of the providers RPC server.
@@ -129,7 +122,6 @@ impl Cli {
 
         match cli_arguments {
             Self::Proofs(utils) => Ok(utils.run().await?),
-            Self::Info { rpc_server_url } => Self::info(rpc_server_url).await,
             Self::ProposeDeal {
                 rpc_server_url,
                 deal_proposal,
@@ -144,17 +136,6 @@ impl Cli {
             } => Self::sign_deal(deal_proposal, signer_key),
             Self::GeneratePeerID { pubkey } => Self::generate_peer_id(pubkey),
         }
-    }
-
-    async fn info(rpc_server_url: Url) -> Result<(), CliError> {
-        let client = PolkaStorageRpcClient::new(&rpc_server_url).await?;
-        let info = client.info().await?;
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&info)
-                .expect("type is serializable so this call should never fail")
-        );
-        Ok(())
     }
 
     async fn propose_deal(
