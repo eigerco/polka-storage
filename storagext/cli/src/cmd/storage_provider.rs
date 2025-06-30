@@ -45,6 +45,10 @@ pub enum StorageProviderCommand {
         post_proof: RegisteredPoStProof,
     },
 
+    /// Deregister account as a storage provider in the Storage Provider Pallet.
+    #[command(name = "deregister")]
+    DeregisterStorageProvider,
+
     /// Retrieve all registered Storage Providers.
     RetrieveStorageProviders,
 
@@ -168,6 +172,10 @@ impl StorageProviderCommand {
                 )
                 .await?
             }
+            StorageProviderCommand::DeregisterStorageProvider => {
+                Self::deregister_storage_provider(client, account_keypair, wait_for_finalization)
+                    .await?
+            }
             StorageProviderCommand::PreCommit { pre_commit_sectors } => {
                 Self::pre_commit(
                     client,
@@ -269,6 +277,27 @@ impl StorageProviderCommand {
                     result.hash,
                     peer_id,
                     post_proof
+                )
+            });
+
+        Ok(submission_result)
+    }
+
+    async fn deregister_storage_provider<Client>(
+        client: Client,
+        account_keypair: MultiPairSigner,
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
+    where
+        Client: StorageProviderClientExt,
+    {
+        let submission_result = client
+            .deregister_storage_provider(&account_keypair, wait_for_finalization)
+            .await?
+            .inspect(|result| {
+                tracing::debug!(
+                    "[{}] Successfully deregistered in Storage Provider Pallet",
+                    result.hash,
                 )
             });
 

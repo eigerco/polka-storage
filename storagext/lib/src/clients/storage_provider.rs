@@ -147,6 +147,14 @@ pub trait StorageProviderClientExt {
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>;
 
+    fn deregister_storage_provider<Keypair>(
+        &self,
+        account_keypair: &Keypair,
+        wait_for_finalization: bool,
+    ) -> impl Future<Output = Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>>
+    where
+        Keypair: subxt::tx::Signer<PolkaStorageConfig>;
+
     fn pre_commit_sectors<Keypair>(
         &self,
         account_keypair: &Keypair,
@@ -560,6 +568,29 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
         let payload = runtime::tx()
             .storage_provider()
             .register_storage_provider(peer_id.to_bytes().into_bounded_byte_vec(), post_proof);
+
+        self.traced_submission(&payload, account_keypair, wait_for_finalization)
+            .await
+    }
+
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        fields(
+            address = account_keypair.account_id().to_ss58check(),
+        )
+    )]
+    async fn deregister_storage_provider<Keypair>(
+        &self,
+        account_keypair: &Keypair,
+        wait_for_finalization: bool,
+    ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
+    where
+        Keypair: subxt::tx::Signer<PolkaStorageConfig>,
+    {
+        let payload = runtime::tx()
+            .storage_provider()
+            .deregister_storage_provider();
 
         self.traced_submission(&payload, account_keypair, wait_for_finalization)
             .await
