@@ -2,18 +2,14 @@ use std::{net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 
 use axum::http::Method;
 use hyper::header;
-use jsonrpsee::{server::Server, types::error::INTERNAL_ERROR_CODE};
+use jsonrpsee::server::Server;
 use polka_storage_provider_common::rpc::{
     CidString, RpcError, ServerInfo, StorageProviderRpcServer,
 };
-use primitives::{
-    commitment::{CommP, Commitment, CommitmentKind},
-    DealId,
-};
+use primitives::commitment::{CommP, Commitment, CommitmentKind};
 use storagext::{
     types::storage_provider::{
-        ClientDealProposal as SxtClientDealProposal, DealParameters as SxtDealParameters,
-        DealProposal as SxtDealProposal,
+        ClientDealProposal as SxtClientDealProposal, DealProposal as SxtDealProposal,
     },
     StorageProviderClientExt, SystemClientExt,
 };
@@ -243,10 +239,6 @@ impl RpcServerState {
 
 #[async_trait::async_trait]
 impl StorageProviderRpcServer for RpcServerState {
-    async fn info(&self) -> Result<ServerInfo, RpcError> {
-        Ok(self.server_info.clone())
-    }
-
     async fn propose_deal(&self, deal: SxtDealProposal) -> Result<CidString, RpcError> {
         // TODO(@jmg-duarte,26/11/2024): proper unit or e2e testing of these validations
         self.validate_proposed_deal(&deal).await?;
@@ -377,48 +369,6 @@ impl StorageProviderRpcServer for RpcServerState {
             .map_err(|e| RpcError::internal_error(e, None))?;
 
         Ok(deal_id)
-    }
-
-    async fn retrieve_deal(&self, deal_id: DealId) -> Result<SxtDealProposal, RpcError> {
-        match self.xt_client.retrieve_deal(deal_id).await {
-            Ok(Some(proposal)) => Ok(proposal.into()),
-            Ok(None) => Err(RpcError::new(404, "deal not found", None)), // find a better error code?
-            Err(err) => Err(RpcError::new(INTERNAL_ERROR_CODE, err.to_string(), None)),
-        }
-    }
-
-    async fn retrieve_sp_deal_parameters_for(
-        &self,
-        sp_account_id: <storagext::PolkaStorageConfig as subxt::Config>::AccountId,
-    ) -> Result<Option<SxtDealParameters>, RpcError> {
-        match self
-            .xt_client
-            .retrieve_sp_deal_parameters_for(sp_account_id)
-            .await
-        {
-            // No need to return error on none, as the SP can choose to not set deal parameters
-            Ok(params) => Ok(params.map(SxtDealParameters::from)),
-            Err(err) => Err(RpcError::new(INTERNAL_ERROR_CODE, err.to_string(), None)),
-        }
-    }
-
-    /// Retrieves all deal parameters contained in the market pallet
-    async fn retrieve_sp_deal_parameters(
-        &self,
-    ) -> Result<
-        Vec<(
-            <storagext::PolkaStorageConfig as subxt::Config>::AccountId,
-            SxtDealParameters,
-        )>,
-        RpcError,
-    > {
-        match self.xt_client.retrieve_sp_deal_parameters().await {
-            Ok(params) => Ok(params
-                .into_iter()
-                .map(|(account, params)| (account.into(), params.into()))
-                .collect()),
-            Err(err) => Err(RpcError::new(INTERNAL_ERROR_CODE, err.to_string(), None)),
-        }
     }
 }
 
