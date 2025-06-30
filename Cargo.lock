@@ -14081,7 +14081,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.8",
- "sp-runtime 31.0.1",
  "storagext",
  "subxt 0.40.1",
  "tempfile",

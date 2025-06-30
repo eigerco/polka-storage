@@ -245,11 +245,11 @@ impl StorageProviderRpcServer for RpcServerState {
 
         let storage_provider_balance = self
             .xt_client
-            .retrieve_balance(self.xt_keypair.account_id())
+            .retrieve_free_balance(self.xt_keypair.account_id())
             .await?
             .ok_or_else(|| RpcError::internal_error("Storage Provider not found", None))?;
 
-        if storage_provider_balance.free < deal.provider_collateral() {
+        if storage_provider_balance < deal.provider_collateral() {
             return Err(RpcError::invalid_params(
                 "storage provider balance is lower than the deal's collateral",
                 None,
@@ -258,11 +258,11 @@ impl StorageProviderRpcServer for RpcServerState {
 
         let client_balance = self
             .xt_client
-            .retrieve_balance(deal.client.clone())
+            .retrieve_free_balance(deal.client.clone())
             .await?
             .ok_or_else(|| RpcError::internal_error("Client not found", None))?;
 
-        if client_balance.free < deal.cost() {
+        if client_balance < deal.cost() {
             return Err(RpcError::invalid_params(
                 "client's balance is lower than the deal's cost",
                 None,

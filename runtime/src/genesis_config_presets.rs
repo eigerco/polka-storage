@@ -109,28 +109,6 @@ fn local_testnet_genesis() -> Value {
         .into(),
         Sr25519Keyring::well_known()
             .map(|k| (k.to_account_id(), (1u128 << 60) as Balance))
-            .chain(
-                // This is a nice default for `maat/tests/real_world.rs`.
-                // Add balance to Charlie - Storage Provider.
-                // Collateral (12 500 000) + pre_commit_deposit (1)
-                // 12 500 000 == deal.provider_collateral
-                // 1 == pallets/storage-provider/lib.rs:calculate_pre_commit_deposit
-                [
-                    (
-                        Sr25519Keyring::Alice.to_account_id(),
-                        25_000_000_000 as Balance,
-                    ),
-                    (
-                        Sr25519Keyring::Bob.to_account_id(),
-                        12_500_000_001 as Balance,
-                    ),
-                    (
-                        Sr25519Keyring::Charlie.to_account_id(),
-                        12_500_000_001 as Balance,
-                    ),
-                ],
-            )
-            // Add funds to the pallet account as we're adding some balance by default to it in its genesis Config.
             .collect(),
         Sr25519Keyring::Alice.to_account_id(),
     )

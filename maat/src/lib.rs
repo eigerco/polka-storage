@@ -16,6 +16,9 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilte
 use zombienet_configuration::shared::node::{Buildable, Initial, NodeConfigBuilder};
 use zombienet_sdk::{NetworkConfig, NetworkConfigBuilder};
 
+/// Network's collator name. Used for logs and so on.
+pub const COLLATOR_NAME: &str = "collator";
+
 /// Find the the `polka_storage_node` in the current project.
 ///
 /// If the feature `target-release` is enabled, this function will look for the `release` build,
@@ -112,7 +115,7 @@ pub fn local_testnet_config(temp_dir_path: &std::path::Path) -> NetworkConfig {
                 .cumulus_based(true)
                 .with_collator(|collator| {
                     collator
-                        .polka_storage_collator("collator", polka_storage_node_binary_path)
+                        .polka_storage_collator(COLLATOR_NAME, polka_storage_node_binary_path)
                         .with_args(vec![
                             ("--pool-type", "fork-aware").into(),
                             ("-lruntime=trace,parachain=debug").into(),

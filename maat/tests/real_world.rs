@@ -21,9 +21,6 @@ use tokio::sync::Semaphore;
 use tokio_util::sync::CancellationToken;
 use zombienet_sdk::NetworkConfigExt;
 
-/// Network's collator name. Used for logs and so on.
-const COLLATOR_NAME: &str = "collator";
-
 async fn register_storage_provider<Keypair>(
     client: &storagext::Client,
     charlie: &Keypair,

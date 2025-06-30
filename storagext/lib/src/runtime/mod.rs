@@ -45,11 +45,6 @@ pub mod display;
         path = "pallet_storage_provider::deal::PublishedDeal",
         derive = "::serde::Deserialize"
     ),
-    // impl Serialize
-    derive_for_type(
-        path = "pallet_storage_provider::balance::BalanceEntry",
-        derive = "::serde::Serialize"
-    ),
     derive_for_type(path = "pallet_storage_provider::pallet::Event", derive = "::serde::Serialize"),
     derive_for_type(
         path = "pallet_storage_provider::pallet::Event",
@@ -149,7 +144,6 @@ pub use client::SubmissionResult;
 pub use self::polka_storage_runtime::*;
 #[cfg(test)]
 mod test {
-
     use crate::{
         runtime::runtime_types::primitives::deals::{
             active_deal_state::ActiveDealState, deal_state::DealState,

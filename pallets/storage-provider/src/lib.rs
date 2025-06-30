@@ -629,36 +629,13 @@ pub mod pallet {
             crate::dispatchables::remove_deal_parameters::<T>(origin)
         }
 
-        /// Transfers `amount` of Balance from the `origin` to the Market Pallet account.
-        /// It is marked as _free_ in the Market bookkeeping.
-        /// Free balance can be withdrawn at any moment from the Market.
-        #[pallet::call_index(3)]
-        #[pallet::weight((T::WeightInfo::add_balance(), DispatchClass::Normal))]
-        #[deprecated(note = "This function is no-op and will be removed in the future.")]
-        #[allow(deprecated)]
-        pub fn add_balance(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult {
-            #[allow(deprecated)]
-            crate::dispatchables::add_balance::<T>(origin, amount)
-        }
-
-        /// Transfers `amount` of Balance from the Market Pallet account to the `origin`.
-        /// Only _free_ balance can be withdrawn.
-        #[pallet::call_index(4)]
-        #[pallet::weight((T::WeightInfo::withdraw_balance(), DispatchClass::Normal))]
-        #[deprecated(note = "This function is no-op and will be removed in the future.")]
-        #[allow(deprecated)]
-        pub fn withdraw_balance(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult {
-            #[allow(deprecated)]
-            crate::dispatchables::withdraw_balance::<T>(origin, amount)
-        }
-
         /// Publish a new set of storage deals (not yet included in a sector).
         /// It saves valid deals as [`DealState::Published`] and locks up client fees and provider's collaterals.
         /// Locked up balances cannot be withdrawn until a deal is terminated.
         /// All of the deals must belong to a single Storage Provider.
         /// It is permissive, if some of the deals are correct and some are not, it emits events for valid deals.
         /// On success emits [`Event::<T>::DealPublished`] for each successful deal.
-        #[pallet::call_index(5)]
+        #[pallet::call_index(3)]
         #[pallet::weight((T::WeightInfo::publish_storage_deals(deals.len() as u32), DispatchClass::Normal))]
         pub fn publish_storage_deals(
             origin: OriginFor<T>,
@@ -684,7 +661,7 @@ pub mod pallet {
         /// if that sector has not been proven by that time the deposit will be slashed.
         /// Reference implementation:
         /// * <https://github.com/filecoin-project/builtin-actors/blob/6906288334746318385cfd53edd7ea33ef03919f/actors/miner/src/lib.rs#L1453>
-        #[pallet::call_index(6)]
+        #[pallet::call_index(4)]
         #[pallet::weight((T::WeightInfo::pre_commit_sectors(), DispatchClass::Normal))]
         pub fn pre_commit_sectors(
             origin: OriginFor<T>,
@@ -698,7 +675,7 @@ pub mod pallet {
 
         /// Allows the storage providers to submit proof for their pre-committed
         /// sectors.
-        #[pallet::call_index(7)]
+        #[pallet::call_index(5)]
         #[pallet::weight((T::WeightInfo::prove_commit_sectors(), DispatchClass::Normal))]
         pub fn prove_commit_sectors(
             origin: OriginFor<T>,
@@ -708,7 +685,7 @@ pub mod pallet {
         }
 
         /// The SP uses this extrinsic to submit their Proof-of-Spacetime.
-        #[pallet::call_index(8)]
+        #[pallet::call_index(6)]
         #[pallet::weight((T::WeightInfo::submit_windowed_post(), DispatchClass::Normal))]
         pub fn submit_windowed_post(
             origin: OriginFor<T>,
@@ -721,7 +698,7 @@ pub mod pallet {
         ///
         /// References:
         /// * <https://github.com/filecoin-project/builtin-actors/blob/82d02e58f9ef456aeaf2a6c737562ac97b22b244/actors/miner/src/lib.rs#L2648>
-        #[pallet::call_index(9)]
+        #[pallet::call_index(7)]
         #[pallet::weight((T::WeightInfo::declare_faults(), DispatchClass::Normal))]
         pub fn declare_faults(origin: OriginFor<T>, params: DeclareFaultsParams) -> DispatchResult {
             crate::dispatchables::declare_faults::<T>(origin, params)
@@ -733,7 +710,7 @@ pub mod pallet {
         ///
         /// References:
         /// * <https://github.com/filecoin-project/builtin-actors/blob/0f205c378983ac6a08469b9f400cbb908eef64e2/actors/miner/src/lib.rs#L2620>
-        #[pallet::call_index(10)]
+        #[pallet::call_index(8)]
         #[pallet::weight((T::WeightInfo::declare_faults_recovered(), DispatchClass::Normal))]
         pub fn declare_faults_recovered(
             origin: OriginFor<T>,
@@ -747,7 +724,7 @@ pub mod pallet {
         ///
         /// References:
         /// * https://github.com/filecoin-project/builtin-actors/blob/8d957d2901c0f2044417c268f0511324f591cb92/actors/miner/src/lib.rs#L2488-L2505
-        #[pallet::call_index(11)]
+        #[pallet::call_index(9)]
         #[pallet::weight((T::WeightInfo::terminate_sectors(), DispatchClass::Normal))]
         pub fn terminate_sectors(
             origin: OriginFor<T>,
@@ -772,7 +749,7 @@ pub mod pallet {
         /// * The deal's last update is after the current block, meaning the deal's last update is in the future.
         ///   The returned error is [`DealSettlementError::FutureLastUpdate`].
         /// * The deal is not active
-        #[pallet::call_index(12)]
+        #[pallet::call_index(10)]
         #[pallet::weight((T::WeightInfo::settle_deal_payments(deal_ids.len() as u32), DispatchClass::Normal))]
         pub fn settle_deal_payments(
             origin: OriginFor<T>,

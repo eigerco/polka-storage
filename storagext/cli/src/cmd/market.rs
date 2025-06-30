@@ -30,20 +30,6 @@ where
 #[derive(Debug, Subcommand)]
 #[command(name = "market", about = "CLI Client to the Market Pallet", version)]
 pub(crate) enum MarketCommand {
-    /// Add balance to an account.
-    AddBalance {
-        /// Amount to add to the account.
-        #[arg(value_parser=parse_without_underscore::<storagext::Currency>)]
-        amount: storagext::Currency,
-    },
-
-    /// Withdraw balance from an account.
-    WithdrawBalance {
-        /// Amount to withdraw from the account.
-        #[arg(value_parser=parse_without_underscore::<storagext::Currency>)]
-        amount: storagext::Currency,
-    },
-
     /// Publish storage deals and sign by client_<key_type>_key
     #[command(group(ArgGroup::new("client_keypair").required(true).args(&["client_sr25519_key", "client_ecdsa_key", "client_ed25519_key"])))]
     PublishStorageDeals {
@@ -124,23 +110,6 @@ impl MarketCommand {
         let client = storagext::Client::new(node_rpc, n_retries, retry_interval).await?;
 
         match self {
-            // NOTE: subcommand_negates_reqs does not work for this since it only negates the parents'
-            // requirements, and the global arguments (keys) are at the grandparent level
-            // https://users.rust-lang.org/t/clap-ignore-global-argument-in-sub-command/101701/8
-            MarketCommand::RetrieveBalance { account_id } => {
-                if let Some(balance) = client.retrieve_balance(account_id.clone()).await? {
-                    tracing::debug!(
-                        "Account {} {{ free: {}, locked: {} }}",
-                        account_id,
-                        balance.free,
-                        balance.locked
-                    );
-
-                    println!("{}", output_format.format(&balance)?);
-                } else {
-                    tracing::error!("Could not find account {}", account_id);
-                }
-            }
             MarketCommand::RetrieveDeal { deal_id } => {
                 if let Some(deal) = client.retrieve_deal(deal_id).await? {
                     tracing::debug!("Deal {:?}", deal);
@@ -205,19 +174,12 @@ impl MarketCommand {
         operation_takes_a_while(wait_for_finalization);
 
         let submission_result = match self {
-            MarketCommand::AddBalance { amount } => {
-                Self::add_balance(client, account_keypair, amount, wait_for_finalization).await?
-            }
             MarketCommand::SettleDealPayments { deal_ids } => {
                 if deal_ids.is_empty() {
                     bail!("No deals provided to settle");
                 }
 
                 Self::settle_deal_payments(client, account_keypair, deal_ids, wait_for_finalization)
-                    .await?
-            }
-            MarketCommand::WithdrawBalance { amount } => {
-                Self::withdraw_balance(client, account_keypair, amount, wait_for_finalization)
                     .await?
             }
             MarketCommand::PublishStorageDeals {
@@ -286,29 +248,6 @@ impl MarketCommand {
         Ok(())
     }
 
-    async fn add_balance<Client>(
-        client: Client,
-        account_keypair: MultiPairSigner,
-        amount: u128,
-        wait_for_finalization: bool,
-    ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
-    where
-        Client: StorageProviderClientExt,
-    {
-        let submission_result = client
-            .add_balance(&account_keypair, amount, wait_for_finalization)
-            .await?
-            .inspect(|result| {
-                tracing::debug!(
-                    "[{}] Successfully added {} to Market Balance",
-                    result.hash,
-                    amount
-                );
-            });
-
-        Ok(submission_result)
-    }
-
     async fn publish_storage_deals<Client>(
         client: Client,
         account_keypair: MultiPairSigner,
@@ -348,29 +287,6 @@ impl MarketCommand {
             .await?
             .inspect(|result| {
                 tracing::debug!("[{}] Successfully settled deal payments", result.hash);
-            });
-
-        Ok(submission_result)
-    }
-
-    async fn withdraw_balance<Client>(
-        client: Client,
-        account_keypair: MultiPairSigner,
-        amount: u128,
-        wait_for_finalization: bool,
-    ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
-    where
-        Client: StorageProviderClientExt,
-    {
-        let submission_result = client
-            .withdraw_balance(&account_keypair, amount, wait_for_finalization)
-            .await?
-            .inspect(|result| {
-                tracing::debug!(
-                    "[{}] Successfully withdrew {} from Market Balance",
-                    result.hash,
-                    amount
-                )
             });
 
         Ok(submission_result)

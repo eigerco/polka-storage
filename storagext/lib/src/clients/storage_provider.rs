@@ -16,7 +16,7 @@ use crate::{
         client::SubmissionResult,
         runtime_types::{
             pallet_storage_provider::{
-                balance::BalanceEntry, deal::parameters::DealParameters as RuntimeDealParameters,
+                deal::parameters::DealParameters as RuntimeDealParameters,
                 storage_provider::StorageProviderState,
             },
             primitives::{
@@ -49,26 +49,6 @@ type SpecializedRuntimeDealParameters = RuntimeDealParameters<Currency, BlockNum
 const MAX_N_DEALS: usize = 32;
 
 pub trait StorageProviderClientExt {
-    /// Withdraw the given `amount` of balance.
-    fn withdraw_balance<Keypair>(
-        &self,
-        account_keypair: &Keypair,
-        amount: Currency,
-        wait_for_finalization: bool,
-    ) -> impl Future<Output = Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>>
-    where
-        Keypair: subxt::tx::Signer<PolkaStorageConfig>;
-
-    /// Add the given `amount` of balance.
-    fn add_balance<Keypair>(
-        &self,
-        account_keypair: &Keypair,
-        amount: Currency,
-        wait_for_finalization: bool,
-    ) -> impl Future<Output = Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>>
-    where
-        Keypair: subxt::tx::Signer<PolkaStorageConfig>;
-
     /// Settle deal payments for the provided [`DealId`]s.
     ///
     /// If `deal_ids` length is bigger than [`MAX_DEAL_IDS`], it will get truncated.
@@ -146,10 +126,10 @@ pub trait StorageProviderClientExt {
     >;
 
     /// Retrieve the balance for a given account (includes the `free` and `locked` balance).
-    fn retrieve_balance(
+    fn retrieve_free_balance(
         &self,
         account_id: <PolkaStorageConfig as subxt::Config>::AccountId,
-    ) -> impl Future<Output = Result<Option<BalanceEntry<u128>>, subxt::Error>>;
+    ) -> impl Future<Output = Result<Option<u128>, subxt::Error>>;
 
     /// Retrieve the deal for a given deal ID.
     fn retrieve_deal(
@@ -255,50 +235,6 @@ pub struct ProvingPeriodInfo {
 }
 
 impl StorageProviderClientExt for crate::runtime::client::Client {
-    #[tracing::instrument(
-        level = "debug",
-        skip_all,
-        fields(
-            address = account_keypair.account_id().to_ss58check(),
-            amount = amount
-        )
-    )]
-    async fn withdraw_balance<Keypair>(
-        &self,
-        account_keypair: &Keypair,
-        amount: Currency,
-        wait_for_finalization: bool,
-    ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
-    where
-        Keypair: subxt::tx::Signer<PolkaStorageConfig>,
-    {
-        let payload = runtime::tx().storage_provider().withdraw_balance(amount);
-        self.traced_submission(&payload, account_keypair, wait_for_finalization)
-            .await
-    }
-
-    #[tracing::instrument(
-        level = "debug",
-        skip_all,
-        fields(
-            address = account_keypair.account_id().to_ss58check(),
-            amount = amount
-        )
-    )]
-    async fn add_balance<Keypair>(
-        &self,
-        account_keypair: &Keypair,
-        amount: Currency,
-        wait_for_finalization: bool,
-    ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
-    where
-        Keypair: subxt::tx::Signer<PolkaStorageConfig>,
-    {
-        let payload = runtime::tx().storage_provider().add_balance(amount);
-        self.traced_submission(&payload, account_keypair, wait_for_finalization)
-            .await
-    }
-
     #[tracing::instrument(
         level = "debug",
         skip_all,
@@ -530,19 +466,21 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
             address = account_id.to_ss58check()
         )
     )]
-    async fn retrieve_balance(
+    async fn retrieve_free_balance(
         &self,
         account_id: <PolkaStorageConfig as subxt::Config>::AccountId,
-    ) -> Result<Option<BalanceEntry<u128>>, subxt::Error> {
-        let balance_table_query = runtime::storage()
-            .storage_provider()
-            .balance_table(subxt::utils::AccountId32(account_id.into()));
-        self.client
+    ) -> Result<Option<u128>, subxt::Error> {
+        let balances = runtime::storage()
+            .system()
+            .account(subxt::utils::AccountId32(account_id.into()));
+        let account = self
+            .client
             .storage()
             .at_latest()
             .await?
-            .fetch(&balance_table_query)
-            .await
+            .fetch(&balances)
+            .await?;
+        Ok(account.map(|a| a.data.free))
     }
 
     #[tracing::instrument(level = "debug", skip_all, fields(deal_id))]

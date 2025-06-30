@@ -619,14 +619,6 @@ impl Server {
             .retrieve_storage_provider(&storage_provider_account_id)
             .await?;
 
-        // Check if the account exists on the market
-        xt_client
-            // Once subxt breaks our code with https://github.com/paritytech/subxt/pull/1850
-            // we'll be able to make all this uniform
-            .retrieve_balance(sp_runtime::AccountId32::new(storage_provider_account_id.0))
-            .await?
-            .ok_or(ServerError::NoMarketAccountStorageProvider)?;
-
         match storage_provider_info {
             Some(storage_provider_info) => {
                 if &storage_provider_info.info.window_post_proof_type != post_proof {
