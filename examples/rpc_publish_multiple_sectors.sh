@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -e
+set -x
 
 if [ "$#" -ne 1 ]; then
     echo "$0: input file required"
@@ -29,7 +30,7 @@ PIECE_CID="$(echo "$INPUT_COMMP" | jq -r ".cid")"
 PIECE_SIZE="$(echo "$INPUT_COMMP" | jq ".size")"
 
 
-for i in $(seq 80 80 | tac);
+for i in $(seq 100 100 | tac);
 do
     DEAL_JSON=$(
         jq -n \
@@ -50,7 +51,7 @@ do
     )
     SIGNED_DEAL_JSON="$(RUST_LOG=error target/release/polka-storage-provider-client sign-deal --sr25519-key "$CLIENT" "$DEAL_JSON")"
 
-    DEAL_CID="$(RUST_LOG=error target/release/polka-storage-provider-client propose-deal "$DEAL_JSON")"
+    DEAL_CID="$(curl -X POST -H "Content-Type: application/json" -d "$DEAL_JSON" 'http://127.0.0.1:8001/api/v0/propose_deal' | jq -r)"
     echo "-------------------------- Uploading deal $i..."
     echo
     curl -X PUT -F "upload=@$INPUT_FILE" "http://localhost:8001/upload/$DEAL_CID"

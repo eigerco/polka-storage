@@ -138,7 +138,6 @@ smallvec = "1.11.0"
 subxt = { version = "0.40.1" }
 subxt-core = "0.40.1"
 subxt-signer = "0.40.1"
-surf = { version = "2.3.2", default-features = false }
 syn = { version = "2.0.53" }
 tempfile = "3.10.1"
 thiserror = { version = "2.0.3", default-features = false }

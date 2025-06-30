@@ -512,50 +512,12 @@ async fn validate_deal_proposal(
     Ok(())
 }
 
+#[tracing::instrument(skip_all, fields(deal))]
 async fn propose_deal(
     State(state): State<Arc<StorageServerState>>,
     Json(deal): Json<SxtDealProposal>,
 ) -> Result<Json<CidString>, (StatusCode, String)> {
     validate_deal_proposal(state.clone(), &deal).await?;
-
-    // let storage_provider_balance = state
-    //     .xt_client
-    //     .retrieve_balance(state.xt_keypair.account_id())
-    //     .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))
-    //     .await?
-    //     .ok_or_else(|| {
-    //         (
-    //             StatusCode::INTERNAL_SERVER_ERROR,
-    //             "Storage Provider not found".to_string(),
-    //         )
-    //     })?;
-
-    // if storage_provider_balance.free < deal.provider_collateral() {
-    //     return Err((
-    //         StatusCode::BAD_REQUEST,
-    //         "Storage provider balance is lower than the deal's collateral".to_string(),
-    //     ));
-    // }
-
-    // let client_balance = state
-    //     .xt_client
-    //     .retrieve_balance(deal.client.clone())
-    //     .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))
-    //     .await?
-    //     .ok_or_else(|| {
-    //         (
-    //             StatusCode::INTERNAL_SERVER_ERROR,
-    //             "Client not found".to_string(),
-    //         )
-    //     })?;
-
-    // if client_balance.free < deal.cost() {
-    //     return Err((
-    //         StatusCode::BAD_REQUEST,
-    //         "Client's balance is lower than the deal's cost".to_string(),
-    //     ));
-    // }
-
     let cid = state
         .deal_db
         .add_accepted_proposed_deal(&deal)

@@ -64,15 +64,6 @@ pub enum CliError {
         "PoSt params for PoSt type {post_type:?} not found, please download or generate them first"
     )]
     MissingPoStParams { post_type: WindowPostProofType },
-
-    #[error("{0}")]
-    Http(surf::Error),
-}
-
-impl From<surf::Error> for CliError {
-    fn from(err: surf::Error) -> Self {
-        CliError::Http(err)
-    }
 }
 
 /// A CLI application that facilitates management operations over a running full
@@ -83,16 +74,6 @@ pub(crate) enum Cli {
     /// Utility commands for storage related actions.
     #[command(subcommand)]
     Proofs(ProofsCommand),
-
-    /// Propose a storage deal.
-    ProposeDeal {
-        /// URL of the providers RPC server.
-        #[arg(long, default_value = DEFAULT_RPC_SERVER_URL)]
-        rpc_server_url: Url,
-        /// Storage deal to propose. Either JSON or a file path, prepended with an @.
-        #[arg(value_parser = <SxtDealProposal as DeserializablePath>::deserialize_json )]
-        deal_proposal: SxtDealProposal,
-    },
 
     /// Publish a signed storage deal.
     PublishDeal {
@@ -131,10 +112,6 @@ impl Cli {
 
         match cli_arguments {
             Self::Proofs(utils) => Ok(utils.run().await?),
-            Self::ProposeDeal {
-                rpc_server_url,
-                deal_proposal,
-            } => Self::propose_deal(rpc_server_url, deal_proposal).await,
             Self::PublishDeal {
                 rpc_server_url,
                 client_deal_proposal,
@@ -145,18 +122,6 @@ impl Cli {
             } => Self::sign_deal(deal_proposal, signer_key),
             Self::GeneratePeerID { pubkey } => Self::generate_peer_id(pubkey),
         }
-    }
-
-    async fn propose_deal(
-        rpc_server_url: Url,
-        deal_proposal: SxtDealProposal,
-    ) -> Result<(), CliError> {
-        let response: String = surf::post(format!("{}/api/v0/propose_deal", &rpc_server_url))
-            .body_json(&deal_proposal)?
-            .recv_json()
-            .await?;
-        println!("{}", response);
-        Ok(())
     }
 
     async fn publish_deal(
