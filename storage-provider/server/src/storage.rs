@@ -5,14 +5,25 @@ use axum::{
     extract::{DefaultBodyLimit, FromRequest, MatchedPath, Multipart, Path, Request, State},
     http::{header, StatusCode},
     response::{IntoResponse, Response},
-    routing::{get, put},
-    Router,
+    routing::{get, post, put},
+    Json, Router,
 };
 use futures::{TryFutureExt, TryStreamExt};
 use hyper::Method;
 use mater::Cid;
-use polka_storage_provider_common::commp::{commp, CommPError};
-use primitives::{commitment::piece::PaddedPieceSize, proofs::RegisteredPoStProof};
+use polka_storage_provider_common::{
+    commp::{commp, CommPError},
+    rpc::{CidString, ServerInfo},
+};
+use primitives::{
+    commitment::{piece::PaddedPieceSize, CommP, CommitmentKind},
+    proofs::RegisteredPoStProof,
+};
+use storagext::{
+    types::storage_provider::DealProposal as SxtDealProposal, StorageProviderClientExt,
+    SystemClientExt,
+};
+use subxt::tx::Signer;
 use tokio::{
     fs::{self, File},
     io::{AsyncRead, BufWriter},
@@ -31,11 +42,15 @@ use crate::db::DealDB;
 
 /// Shared state of the storage server.
 pub struct StorageServerState {
+    pub server_info: ServerInfo,
     pub car_piece_storage_dir: Arc<PathBuf>,
 
     pub deal_db: Arc<DealDB>,
 
     pub listen_address: SocketAddr,
+
+    pub xt_client: Arc<storagext::Client>,
+    pub xt_keypair: storagext::multipair::MultiPairSigner,
 
     // I think this just needs the sector size actually
     #[allow(dead_code)]
@@ -86,6 +101,7 @@ fn configure_router(state: Arc<StorageServerState>) -> Router {
                 )),
         )
         .route("/download/:cid", get(download))
+        .route("/api/v0/propose_deal", post(propose_deal))
         .with_state(state)
         .layer(cors)
         .layer(
@@ -355,4 +371,157 @@ where
     tracing::info!(?final_content_path, "CAR file created");
 
     Ok(cid)
+}
+
+async fn validate_deal_proposal(
+    state: Arc<StorageServerState>,
+    deal: &SxtDealProposal,
+) -> Result<(), (StatusCode, String)> {
+    if deal.start_block > deal.end_block {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!(
+                "Deal's start block cannot be after end block: start_block = {}, end_block = {}",
+                deal.start_block, deal.end_block
+            ),
+        ));
+    }
+
+    let current_block = state
+        .xt_client
+        .height(true)
+        .await
+        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+    if current_block > deal.start_block {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!(
+                "Deal starts in the past: current_block = {}, deal_start_block = {}",
+                current_block, deal.start_block
+            ),
+        ));
+    }
+
+    let deal_start_distance = deal.start_block - current_block;
+    let minimum_start_distance = state
+        .server_info
+        .sealing_configuration
+        .minimum_start_distance();
+    // NOTE(@jmg-duarte,12/02/2025): we could consider the deal size when doing this,
+    // if a deal is going to fill up a single sector, we could let it through as long as
+    // its deal_start_distance > pre_commit_submission_slack
+    if deal_start_distance < minimum_start_distance {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!(
+                "Deal starts too early: start_block = {}, (current) minimum_start_block = {}",
+                deal.start_block,
+                current_block + minimum_start_distance,
+            ),
+        ));
+    }
+
+    // We don't check for the minimum expiration because:
+    // * A future deal may come that makes the sector valid
+    // * We can always set the sector lifetime to match the minimum at the expense of the SP
+    // TODO(@jmg-duarte,05/02/2025): Check what Filecoin does in this case
+
+    // When adding a piece/deal to a sector, we must ensure the sector remains valid
+    // i.e. no invariants are broken; as such we must ensure that the deal being added
+    // does not expire beyond the maximum sector expiration.
+    //
+    // NOTE(@jmg-duarte,31/01/2025): there's an hidden issue here that we can't address just now
+    // the min/max sector expirations are moving targets, calculated from the current block
+    // this means that we can only truly validate the invariants when submitting the pre-commit
+    // Only when addressing issue #671 we will be able to fully solve this, since as soon as a deal
+    // is added to a sector the clock starts ticking, if we wait too long the minimum expiration
+    // may itself "expire".
+    // The FC codebase doesn't really have any clues how this is solved, being probably left as an
+    // "invisible" agreement between the client and SP that it just should work
+    // The most useful piece of source is in:
+    // https://github.com/filecoin-project/lotus/blob/a526c480d40898a079c806748639e8db07aa2298/storage/pipeline/input.go#L566
+    let (_, max_sector_expiration) = state
+        .xt_client
+        .sector_expiration_bounds()
+        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+    // We know that this doesn't underflow because we know that:
+    // * deal.start_block > current_block
+    // * deal.start_block < deal.end_block
+    // As such, deal.end_block > current_block
+    let deal_end_distance = deal.end_block - current_block;
+    if deal_end_distance > max_sector_expiration {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!(
+                "Deal expiration is beyond the maximum accepted limit: deal.end_block = {}, (current) expiration_limit_block = {}",
+                deal.end_block,
+                current_block + max_sector_expiration
+            ),
+        ));
+    }
+
+    let post_sector_size = state.server_info.post_proof.sector_size().bytes();
+    if deal.piece_size > post_sector_size {
+        return Err(
+            (
+                StatusCode::BAD_REQUEST,
+                format!(
+                    "Deal piece size is larger than the supported sector size: piece_size = {}, sector_size = {}",
+                    deal.piece_size, post_sector_size
+                )
+            )
+        );
+    }
+
+    let provider_id = state.xt_keypair.account_id();
+    if deal.provider != provider_id {
+        return Err((StatusCode::BAD_REQUEST,
+            format!(
+                "Deal provider does not match current provider: deal_provider_id = {}, current_provider_id = {}",
+                deal.provider, provider_id
+            )));
+    }
+
+    let piece_cid_codec = deal.piece_cid.codec();
+    let commp_codec = CommP::multicodec();
+    if piece_cid_codec != commp_codec {
+        return Err((StatusCode::BAD_REQUEST,
+            format!(
+                "Piece's CID codec is not a piece commitment: piece_cid_codec = {}, commitment_cid_codec = {}",
+                piece_cid_codec, commp_codec
+            )));
+    }
+
+    if !deal.piece_size.is_power_of_two() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!(
+                "Deal's piece size not a power of two: piece_size = {}",
+                deal.piece_size
+            ),
+        ));
+    }
+
+    if deal.storage_price_per_block == 0 {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Price per block must be greater than 0".to_string(),
+        ));
+    }
+
+    Ok(())
+}
+
+#[tracing::instrument(skip_all, fields(deal))]
+async fn propose_deal(
+    State(state): State<Arc<StorageServerState>>,
+    Json(deal): Json<SxtDealProposal>,
+) -> Result<Json<CidString>, (StatusCode, String)> {
+    validate_deal_proposal(state.clone(), &deal).await?;
+    let cid = state
+        .deal_db
+        .add_accepted_proposed_deal(&deal)
+        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+
+    Ok(Json(CidString::from(cid)))
 }

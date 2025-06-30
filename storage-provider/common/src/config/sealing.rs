@@ -132,3 +132,12 @@ impl Default for SealingConfiguration {
         }
     }
 }
+
+const SECONDS_PER_BLOCK: u32 = 6;
+
+impl SealingConfiguration {
+    pub fn minimum_start_distance(&self) -> u32 {
+        // SAFETY: u32::MAX is ~134 years, which is a useless slack
+        (self.pre_commit_submission_slack.as_secs() as u32) / SECONDS_PER_BLOCK
+    }
+}

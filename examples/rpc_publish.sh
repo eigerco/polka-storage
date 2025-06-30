@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -e
+set -x
 
 if [ "$#" -ne 1 ]; then
     echo "$0: input file required"
@@ -60,8 +61,8 @@ PEER_ID="$(target/release/polka-storage-provider-client generate-peer-id --pubke
 # echo config file in the file in the /tmp folder
 echo "seal_proof = '8MiB'
 post_proof = '8MiB'
-porep_parameters = 'target/porep_params_8MiB'
-post_parameters = 'target/post_params_8MiB'
+porep_parameters = 'target/params/8MiB.porep.params'
+post_parameters = 'target/params/8MiB.post.params'
 rendezvous_point_address = '$P2P_ADDRESS'
 p2p_key = '@$P2P_PRIVATE_KEY'
 rendezvous_point = '$P2P_BOOTSTRAP_PEER_ID'" > "$CONFIG"
@@ -103,7 +104,7 @@ SIGNED_DEAL_JSON="$(RUST_LOG=error target/release/polka-storage-provider-client 
 (RUST_LOG=debug target/release/polka-storage-provider-server --sr25519-key "$PROVIDER" --config "$CONFIG") &
 sleep 5 # gives time for the server to start
 
-DEAL_CID="$(RUST_LOG=error target/release/polka-storage-provider-client propose-deal "$DEAL_JSON")"
+DEAL_CID="$(curl -X POST -H "Content-Type: application/json" -d "$DEAL_JSON" 'http://127.0.0.1:8001/api/v0/propose_deal' | jq -r)"
 echo "$DEAL_CID"
 
 # Regular upload

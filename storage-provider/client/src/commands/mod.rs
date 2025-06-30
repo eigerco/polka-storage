@@ -75,16 +75,6 @@ pub(crate) enum Cli {
     #[command(subcommand)]
     Proofs(ProofsCommand),
 
-    /// Propose a storage deal.
-    ProposeDeal {
-        /// URL of the providers RPC server.
-        #[arg(long, default_value = DEFAULT_RPC_SERVER_URL)]
-        rpc_server_url: Url,
-        /// Storage deal to propose. Either JSON or a file path, prepended with an @.
-        #[arg(value_parser = <SxtDealProposal as DeserializablePath>::deserialize_json )]
-        deal_proposal: SxtDealProposal,
-    },
-
     /// Publish a signed storage deal.
     PublishDeal {
         /// URL of the providers RPC server.
@@ -122,10 +112,6 @@ impl Cli {
 
         match cli_arguments {
             Self::Proofs(utils) => Ok(utils.run().await?),
-            Self::ProposeDeal {
-                rpc_server_url,
-                deal_proposal,
-            } => Self::propose_deal(rpc_server_url, deal_proposal).await,
             Self::PublishDeal {
                 rpc_server_url,
                 client_deal_proposal,
@@ -136,16 +122,6 @@ impl Cli {
             } => Self::sign_deal(deal_proposal, signer_key),
             Self::GeneratePeerID { pubkey } => Self::generate_peer_id(pubkey),
         }
-    }
-
-    async fn propose_deal(
-        rpc_server_url: Url,
-        deal_proposal: SxtDealProposal,
-    ) -> Result<(), CliError> {
-        let client = PolkaStorageRpcClient::new(&rpc_server_url).await?;
-        let result = client.propose_deal(deal_proposal).await?;
-        println!("{}", result);
-        Ok(())
     }
 
     async fn publish_deal(
