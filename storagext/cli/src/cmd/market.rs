@@ -19,14 +19,6 @@ use url::Url;
 
 use crate::{missing_keypair_error, operation_takes_a_while, OutputFormat};
 
-/// Removes the `_` from a the input before calling [`parse`](std::std::FromStr::parse).
-fn parse_without_underscore<T>(s: &str) -> Result<T, T::Err>
-where
-    T: std::str::FromStr,
-{
-    s.replace('_', "").parse()
-}
-
 #[derive(Debug, Subcommand)]
 #[command(name = "market", about = "CLI Client to the Market Pallet", version)]
 pub(crate) enum MarketCommand {
@@ -327,16 +319,5 @@ impl MarketCommand {
             });
 
         Ok(submission_result)
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::parse_without_underscore;
-
-    #[test]
-    fn test_parse() {
-        let parsed = parse_without_underscore::<u128>("1_000_0").unwrap();
-        assert_eq!(parsed, 1_000_0);
     }
 }
