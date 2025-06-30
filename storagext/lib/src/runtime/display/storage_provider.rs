@@ -2,7 +2,6 @@ use crate::{
     runtime::{
         runtime_types::{
             pallet_storage_provider::{
-                balance::BalanceEntry,
                 deal::{
                     parameters::{DealDurationBound, DealParameters},
                     SettledDealData,
@@ -40,18 +39,6 @@ impl std::fmt::Display for SettledDealData<Runtime> {
         f.write_fmt(format_args!(
             "Settled Deal {{ deal_id: {}, provider_account: {}, client_account: {}, amount: {} }}",
             self.deal_id, self.provider, self.client, self.amount
-        ))
-    }
-}
-
-impl<T> std::fmt::Display for BalanceEntry<T>
-where
-    T: std::fmt::Display,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!(
-            "Balance {{ free: {}, locked: {} }}",
-            self.free, self.locked
         ))
     }
 }

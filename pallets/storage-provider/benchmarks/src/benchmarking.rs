@@ -92,40 +92,6 @@ mod benchmarks {
         assert_eq!(state.info.window_post_proof_type, window_post_proof_type);
     }
 
-    #[benchmark]
-    fn add_balance() {
-        let caller: T::AccountId = whitelisted_caller();
-
-        #[block]
-        {
-            #[allow(deprecated)]
-            SpPallet::<T>::add_balance(
-                RawOrigin::Signed(caller.clone()).into(),
-                EXISTENTIAL_DEPOSIT.into(),
-            )
-            .unwrap();
-        }
-
-        // add_balance is a no-op
-    }
-
-    #[benchmark]
-    fn withdraw_balance() {
-        let caller: T::AccountId = whitelisted_caller();
-
-        #[block]
-        {
-            #[allow(deprecated)]
-            SpPallet::<T>::withdraw_balance(
-                RawOrigin::Signed(caller.clone()).into(),
-                EXISTENTIAL_DEPOSIT.into(),
-            )
-            .unwrap();
-        }
-
-        // withdraw_balance is a no-op
-    }
-
     /// `n`: number of submitted deals
     #[benchmark]
     fn publish_storage_deals(n: Linear<1, MAX_DEALS_PER_SECTOR>) {

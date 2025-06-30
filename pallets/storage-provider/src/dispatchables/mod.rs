@@ -1,6 +1,5 @@
 extern crate alloc;
 mod activate_deals;
-mod add_balance;
 mod declare_faults;
 mod declare_faults_recovered;
 mod on_sectors_terminate;
@@ -14,13 +13,10 @@ mod settle_deal_payments;
 mod submit_windowed_post;
 mod terminate_sectors;
 mod verify_deals_for_activation;
-mod withdraw_balance;
 
 use alloc::vec::Vec;
 
 pub use activate_deals::activate_deals;
-#[allow(deprecated)]
-pub use add_balance::add_balance;
 use cid::Cid;
 pub use declare_faults::declare_faults;
 pub use declare_faults_recovered::declare_faults_recovered;
@@ -55,8 +51,6 @@ use sp_runtime::{BoundedBTreeSet, BoundedVec};
 pub use submit_windowed_post::submit_windowed_post;
 pub use terminate_sectors::terminate_sectors;
 pub use verify_deals_for_activation::verify_deals_for_activation;
-#[allow(deprecated)]
-pub use withdraw_balance::withdraw_balance;
 
 use crate::{
     error::CommDError, BalanceOf, Config, DealProposalOf, Error, Pallet, PendingProposals,
