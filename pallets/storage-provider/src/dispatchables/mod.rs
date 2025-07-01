@@ -2,6 +2,7 @@ extern crate alloc;
 mod activate_deals;
 mod declare_faults;
 mod declare_faults_recovered;
+mod deregister_storage_provider;
 mod on_sectors_terminate;
 mod pre_commit_sectors;
 mod prove_commit_sectors;
@@ -20,6 +21,7 @@ pub use activate_deals::activate_deals;
 use cid::Cid;
 pub use declare_faults::declare_faults;
 pub use declare_faults_recovered::declare_faults_recovered;
+pub use deregister_storage_provider::deregister_storage_provider;
 use frame_support::{
     dispatch::DispatchResult,
     ensure,

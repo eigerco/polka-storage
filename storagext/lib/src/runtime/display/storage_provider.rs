@@ -140,6 +140,10 @@ impl std::fmt::Display for Event {
                 "Storage Provider Registered: {{ owner: {}, info: {}, proving_period_start: {} }}",
                 owner, info, proving_period_start,
             )),
+            Event::StorageProviderDeregistered { owner, info } => f.write_fmt(format_args!(
+                "Storage Provider Deregistered: {{ owner: {}, info: {} }}",
+                owner, info,
+            )),
             Event::BalanceAdded { who, amount } => f.write_fmt(
                 format_args!("Balance Added: {{ account: {}, amount: {} }}", who, amount),
             ),
