@@ -1,10 +1,6 @@
 mod proofs;
 
-use std::path::PathBuf;
-
 use clap::Parser;
-use ed25519_dalek::pkcs8::{DecodePublicKey, PublicKeyBytes};
-use libp2p::{identity::ed25519::PublicKey as EdPubKey, PeerId};
 use primitives::proofs::RegisteredSealProof;
 use storagext::{
     deser::DeserializablePath,
@@ -39,12 +35,6 @@ pub enum CliError {
     #[error("no signer key was provider")]
     NoSigner,
 
-    #[error(transparent)]
-    PubKeyError(#[from] ed25519_dalek::pkcs8::spki::Error),
-
-    #[error(transparent)]
-    DecodingError(#[from] libp2p::identity::DecodingError),
-
     #[error("PoRep params for seal proof {seal_proof:?} not found, please download or generate them first")]
     MissingPoRepParams { seal_proof: RegisteredSealProof },
 
@@ -72,13 +62,6 @@ pub(crate) enum Cli {
         #[command(flatten)]
         signer_key: MultiPairArgs,
     },
-
-    /// Generate a Peer ID from a ED25519 public key pem file
-    GeneratePeerID {
-        /// Path to the ED25519 public key pem file
-        #[arg(long)]
-        pubkey: PathBuf,
-    },
 }
 
 impl Cli {
@@ -94,7 +77,6 @@ impl Cli {
                 deal_proposal,
                 signer_key,
             } => Self::sign_deal(deal_proposal, signer_key),
-            Self::GeneratePeerID { pubkey } => Self::generate_peer_id(pubkey),
         }
     }
 
@@ -113,16 +95,6 @@ impl Cli {
             serde_json::to_string_pretty(&signature)
                 .expect("the type is serializable, so this should never fail")
         );
-        Ok(())
-    }
-
-    fn generate_peer_id(path: PathBuf) -> Result<(), CliError> {
-        let pubkey_bytes = PublicKeyBytes::read_public_key_pem_file(path)?;
-        let pubkey = EdPubKey::try_from_bytes(&pubkey_bytes.to_bytes())?;
-        let key = libp2p::identity::PublicKey::from(pubkey);
-        let peer_id = PeerId::from_public_key(&key);
-
-        println!("{peer_id}");
         Ok(())
     }
 }

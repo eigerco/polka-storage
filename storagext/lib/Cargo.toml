@@ -20,6 +20,7 @@ frame-support = { workspace = true, features = ["std"] }
 futures.workspace = true
 hex = { workspace = true, features = ["serde"] }
 itertools = { workspace = true, default-features = true }
+multiaddr = { workspace = true }
 primitives = { workspace = true, features = ["serde", "std"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -37,7 +38,6 @@ sp-runtime = { workspace = true }
 
 # Optional dependencies
 clap = { workspace = true, optional = true, features = ["derive"] }
-libp2p.workspace = true
 
 [dev-dependencies]
 # "Duplicated" so we can always test clap-dependent things

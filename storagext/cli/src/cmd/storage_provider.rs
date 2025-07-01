@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use clap::Subcommand;
-use libp2p::Multiaddr;
+use multiaddr::Multiaddr;
 use primitives::{proofs::RegisteredPoStProof, sector::SectorNumber};
 use storagext::{
     deser::DeserializablePath,

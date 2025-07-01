@@ -25,10 +25,9 @@ bls12_381 = { workspace = true }
 bs58.workspace = true
 cid.workspace = true
 codec = { workspace = true }
-ed25519-dalek = { workspace = true, features = ["pem"] }
 futures.workspace = true
 hex = { workspace = true }
-libp2p = { workspace = true, features = ["ecdsa", "identify"] }
+multiaddr = { workspace = true }
 polka-storage-proofs = { workspace = true, features = ["std", "substrate"] }
 polka-storage-provider-common = { workspace = true }
 primitives = { workspace = true, features = ["serde"] }

@@ -21,11 +21,9 @@ blstrs = { workspace = true }
 cid = { workspace = true, features = ["std"] }
 clap = { workspace = true, features = ["derive"] }
 codec = { workspace = true }
-ed25519-dalek = { workspace = true, features = ["pem", "pkcs8"] }
 filecoin-proofs.workspace = true
 hex = { workspace = true }
 itertools = { workspace = true }
-libp2p.workspace = true
 proc-macro2 = { workspace = true }
 quote = { workspace = true }
 serde_json = { workspace = true }
@@ -38,10 +36,6 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 url = { workspace = true }
-
-[dev-dependencies]
-libp2p = { workspace = true, features = ["cbor", "macros", "noise", "request-response", "tcp", "tokio", "yamux"] }
-primitives-p2p = { workspace = true, features = ["serde"] }
 
 [lints]
 workspace = true

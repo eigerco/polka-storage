@@ -1,4 +1,4 @@
-use libp2p::Multiaddr;
+use multiaddr::Multiaddr;
 
 use crate::{
     runtime::{

@@ -1,11 +1,7 @@
 mod reader;
 mod writer;
 
-#[cfg(feature = "blockstore")]
-pub use reader::blockstore::ReadOnlyBlockstore;
 pub use reader::FileReader;
-#[cfg(feature = "blockstore")]
-pub use writer::blockstore::ReadWriteBlockstore;
 pub use writer::FileWriter;
 
 /// The default block size, as defined in
@@ -47,24 +43,3 @@ impl Default for Config {
         }
     }
 }
-
-#[cfg(feature = "blockstore")]
-mod _blockstore {
-    use blockstore::{block::CidError, Error};
-    use ipld_core::cid::{Cid, CidGeneric};
-
-    /// Convert CID with the generic Multihash size to the CID with the specific
-    /// Multihash size that the underlying blockstore expects.
-    pub fn to_blockstore_cid<const S: usize>(cid: &CidGeneric<S>) -> Result<Cid, Error> {
-        let digest_size = cid.hash().size() as usize;
-        let hash = cid
-            .hash()
-            .resize::<64>()
-            .map_err(|_| Error::CidError(CidError::InvalidMultihashLength(digest_size)))?;
-
-        Ok(Cid::new(cid.version(), cid.codec(), hash).expect("we know cid is correct here"))
-    }
-}
-
-#[cfg(feature = "blockstore")]
-pub(crate) use _blockstore::to_blockstore_cid;

@@ -142,10 +142,7 @@ where
 
 #[cfg(test)]
 pub mod tests {
-    use std::{
-        path::{Path, PathBuf},
-        sync::Arc,
-    };
+    use std::{path::PathBuf, sync::Arc};
 
     use mater::{CarV1Reader, CarV1ReaderExt, CarV2Reader};
     use primitives::commitment::{CommP, Commitment};
@@ -159,17 +156,6 @@ pub mod tests {
             IndexRecord, OffsetSize, Service,
         },
     };
-
-    pub(crate) async fn index_piece_util<D, P>(
-        db: Arc<D>,
-        commitment: Commitment<CommP>,
-        piece_path: P,
-    ) where
-        D: Service + Send + Sync + 'static,
-        P: AsRef<Path>,
-    {
-        index_piece(db, commitment, piece_path).await
-    }
 
     #[tokio::test]
     async fn test_on_index_piece() {

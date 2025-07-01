@@ -1,6 +1,6 @@
 use std::future::Future;
 
-use libp2p::Multiaddr;
+use multiaddr::Multiaddr;
 use primitives::{proofs::RegisteredPoStProof, DealId};
 use runtime::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 use sp_core::crypto::Ss58Codec;

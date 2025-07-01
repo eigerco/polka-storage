@@ -18,13 +18,10 @@ mater = { workspace = true }
 polka-storage-proofs = { workspace = true, default-features = false }
 polka-storage-provider-common = { workspace = true }
 primitives = { workspace = true, features = ["clap", "serde", "std"] }
-primitives-p2p = { workspace = true, features = ["serde"] }
 storagext = { workspace = true, features = ["clap"] }
 
 axum = { workspace = true, features = ["macros", "multipart"] }
 base64 = { workspace = true }
-beetswap = { workspace = true }
-blockstore = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 ciborium = { workspace = true }
 cid = { workspace = true, features = ["serde", "std"] }
@@ -32,8 +29,6 @@ clap = { workspace = true, features = ["derive"] }
 futures = { workspace = true }
 hyper = { workspace = true }
 integer-encoding = { workspace = true }
-libp2p = { workspace = true, features = ["cbor", "dns", "identify", "macros", "noise", "request-response", "tcp", "tokio", "websocket", "yamux"] }
-libp2p-length-prefix-codec = { workspace = true }
 rand = { workspace = true }
 rocksdb = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

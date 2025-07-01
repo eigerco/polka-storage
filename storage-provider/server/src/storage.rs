@@ -100,7 +100,7 @@ fn configure_router(state: Arc<StorageServerState>) -> Router {
 
     Router::new()
         .route(
-            "/upload/:cid",
+            "/api/v0/upload/:cid",
             put(upload)
                 // Limit upload size to maximum sector size
                 .layer(DefaultBodyLimit::max(

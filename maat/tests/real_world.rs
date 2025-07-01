@@ -1,7 +1,7 @@
 use std::{collections::BTreeSet, env, path::Path, sync::Arc, time::Duration};
 
-use libp2p::{Multiaddr, PeerId};
 use maat::*;
+use multiaddr::Multiaddr;
 use polka_storage_proofs::{porep, post};
 use polka_storage_provider_common::{commp::commp, deadline::Deadline, sector::UnsealedSector};
 use primitives::{
@@ -239,10 +239,7 @@ async fn real_world_use_case() {
     let post_mapped_parameters =
         Arc::new(post::load_groth16_parameters(post_parameters_path).unwrap());
 
-    let network = local_testnet_config(temp_dir.path())
-        .spawn_native()
-        .await
-        .unwrap();
+    let network = local_testnet_config().spawn_native().await.unwrap();
     tracing::debug!("base dir: {:?}", network.base_dir());
     let collator = network.get_node(COLLATOR_NAME).unwrap();
     let client = Arc::new(
