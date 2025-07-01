@@ -18,10 +18,10 @@ use primitives::{
     proofs::{RegisteredPoStProof, RegisteredSealProof},
     sector::SectorNumber,
     DealId, PartitionNumber, CID_SIZE_IN_BYTES, MAX_DEALS_PER_SECTOR, MAX_PARTITIONS_PER_DEADLINE,
-    MAX_TERMINATIONS_PER_CALL, PEER_ID_MAX_BYTES,
+    MAX_TERMINATIONS_PER_CALL, MULTIADDR_MAX_BYTES,
 };
 use sp_arithmetic::traits::Zero;
-use sp_core::{bounded_vec, Pair};
+use sp_core::{bounded_vec, offchain::OpaqueMultiaddr, Pair};
 use sp_runtime::{
     traits::{IdentifyAccount, IdentityLookup, Verify},
     BoundedBTreeSet, BuildStorage, MultiSignature, MultiSigner, SaturatedConversion,
@@ -151,7 +151,7 @@ impl pallet_storage_provider::Config for Test {
     type Randomness = DummyRandomnessGenerator<Self>;
     type AuthorVrfHistory = DummyRandomnessGenerator<Self>;
 
-    type PeerId = BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>; // https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
+    type Multiaddr = BoundedVec<u8, ConstU32<MULTIADDR_MAX_BYTES>>; // https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
 
     // Proof Verification Provider
     type ProofVerification = primitives::testing::DummyProofsVerification;
@@ -265,6 +265,7 @@ pub fn sector_set<const B: u32>(sectors: &[u32]) -> BoundedBTreeSet<SectorNumber
 
 /// Register account as a provider.
 fn register_storage_provider(account: AccountIdOf<Test>) {
+    // TODO: replace the bytes with a proper multiaddr
     let peer_id = "storage_provider_1".as_bytes().to_vec();
     let peer_id = BoundedVec::try_from(peer_id).unwrap();
     let window_post_type = RegisteredPoStProof::StackedDRGWindow2KiBV1P1;

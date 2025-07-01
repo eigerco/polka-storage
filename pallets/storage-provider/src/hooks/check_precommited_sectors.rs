@@ -84,7 +84,7 @@ where
 /// Returns an array of expired sector numbers and the total deposit to be slashed.
 fn detect_expired_precommit_sectors<T>(
     curr_block: BlockNumberFor<T>,
-    state: &StorageProviderState<T::PeerId, BalanceOf<T>, BlockNumberFor<T>>,
+    state: &StorageProviderState<T::Multiaddr, BalanceOf<T>, BlockNumberFor<T>>,
 ) -> (
     BoundedVec<SectorNumber, ConstU32<MAX_SECTORS>>,
     BalanceOf<T>,

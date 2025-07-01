@@ -1,3 +1,5 @@
+use libp2p::Multiaddr;
+
 use crate::{
     runtime::{
         runtime_types::{
@@ -118,10 +120,11 @@ where
 // using this one is easier for Display rather than coping with ultra-generic bounds
 impl std::fmt::Display for events::storage_provider_registered::Info {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = Multiaddr::try_from(self.multiaddr.0.clone()).unwrap();
+
         f.write_fmt(format_args!(
-            "Storage Provider Info: {{ peer_id: {}, window_post_proof_type: {:?}, sector_size: {:?}, window_post_partition_sectors: {} }}",
-            // This matches the libp2p implementation without requiring such a big dependency
-            bs58::encode(self.peer_id.0.as_slice()).into_string(),
+            "Storage Provider Info: {{ multiaddr: {:?}, window_post_proof_type: {:?}, sector_size: {:?}, window_post_partition_sectors: {} }}",
+            s,
             self.window_post_proof_type,
             self.sector_size,
             self.window_post_partition_sectors,

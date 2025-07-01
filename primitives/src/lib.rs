@@ -92,11 +92,14 @@ pub const MAX_SEAL_PROOF_BYTES: u32 = 192;
 /// * <https://github.com/filecoin-project/ref-fvm/blob/32583cc05aa422c8e1e7ba81d56a888ac9d90e61/shared/src/sector/registered_proof.rs#L159>
 pub const MAX_POST_PROOF_BYTES: u32 = 192;
 
-/// The maximum amount of bytes of a libp2p Peer ID.
-///
-/// References:
-/// * https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
-pub const PEER_ID_MAX_BYTES: u32 = 42;
+/// The maximum length of a Multiaddress in bytes.
+// Somewhat arbitrary but :
+// * `ip4` addresses are somewhat small at ~50 bytes,
+// * `ip6` addresses are similar at ~60 bytes,
+// * `dns` is where there are more complications with a maximum possible DNS size of 253 bytes (https://stackoverflow.com/a/32294443)
+//   If we do half that (128 bytes), we will get a Multiaddress with a byte length of ~170,
+//   128 should be plenty and if it isn't, we can increase it later.
+pub const MULTIADDR_MAX_BYTES: u32 = 170;
 
 /// The maximum size of a deal label.
 ///

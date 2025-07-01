@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use clap::Subcommand;
-use libp2p::PeerId;
+use libp2p::Multiaddr;
 use primitives::{proofs::RegisteredPoStProof, sector::SectorNumber};
 use storagext::{
     deser::DeserializablePath,
@@ -39,7 +39,7 @@ pub enum StorageProviderCommand {
     #[command(name = "register")]
     RegisterStorageProvider {
         /// PeerId in Storage Provider P2P network.
-        peer_id: PeerId,
+        multiaddr: Multiaddr,
         /// Proof of Space Time type.
         #[arg(long, value_parser = parse_post_proof, default_value = "8MiB")]
         post_proof: RegisteredPoStProof,
@@ -160,13 +160,13 @@ impl StorageProviderCommand {
 
         let submission_result = match self {
             StorageProviderCommand::RegisterStorageProvider {
-                peer_id,
+                multiaddr,
                 post_proof,
             } => {
                 Self::register_storage_provider(
                     client,
                     account_keypair,
-                    peer_id,
+                    multiaddr,
                     post_proof,
                     wait_for_finalization,
                 )
@@ -261,7 +261,7 @@ impl StorageProviderCommand {
     async fn register_storage_provider<Client>(
         client: Client,
         account_keypair: MultiPairSigner,
-        peer_id: PeerId,
+        multiaddr: Multiaddr,
         post_proof: RegisteredPoStProof,
         wait_for_finalization: bool,
     ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
@@ -269,13 +269,18 @@ impl StorageProviderCommand {
         Client: StorageProviderClientExt,
     {
         let submission_result = client
-            .register_storage_provider(&account_keypair, peer_id, post_proof, wait_for_finalization)
+            .register_storage_provider(
+                &account_keypair,
+                multiaddr.clone(),
+                post_proof,
+                wait_for_finalization,
+            )
             .await?
             .inspect(|result| {
                 tracing::debug!(
-                    "[{}] Successfully registered {}, seal: {:?} in Storage Provider Pallet",
+                    "[{}] Successfully registered {:?}, seal: {:?} in Storage Provider Pallet",
                     result.hash,
-                    peer_id,
+                    multiaddr,
                     post_proof
                 )
             });

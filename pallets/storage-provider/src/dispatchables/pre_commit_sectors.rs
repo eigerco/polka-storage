@@ -154,7 +154,7 @@ where
 /// - The proof type must correspond to the proof type submitted during registration.
 /// - The sector number must not be used previously.
 fn validate_sector_for_pre_commit<T>(
-    sp: &StorageProviderState<T::PeerId, BalanceOf<T>, BlockNumberFor<T>>,
+    sp: &StorageProviderState<T::Multiaddr, BalanceOf<T>, BlockNumberFor<T>>,
     sector: &SectorPreCommitInfo<BlockNumberFor<T>>,
 ) -> Result<(), Error<T>>
 where

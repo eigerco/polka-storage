@@ -4,7 +4,7 @@ use frame_support::{
     derive_impl, pallet_prelude::ConstU32, parameter_types, sp_runtime::BoundedVec, PalletId,
 };
 use frame_system::pallet_prelude::BlockNumberFor;
-use primitives::PEER_ID_MAX_BYTES;
+use primitives::MULTIADDR_MAX_BYTES;
 use sp_arithmetic::traits::Zero;
 use sp_runtime::{
     traits::{IdentifyAccount, IdentityLookup, Verify},
@@ -136,7 +136,7 @@ impl pallet_storage_provider::Config for Test {
     type Randomness = DummyRandomnessGenerator<Self>;
     type AuthorVrfHistory = DummyRandomnessGenerator<Self>;
 
-    type PeerId = BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>; // https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
+    type Multiaddr = BoundedVec<u8, ConstU32<MULTIADDR_MAX_BYTES>>; // https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#peer-ids
 
     // Proof Verification Provider
     type ProofVerification = Proofs;
