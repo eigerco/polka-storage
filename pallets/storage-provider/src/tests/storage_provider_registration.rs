@@ -9,9 +9,10 @@ use crate::{
     sector::{TerminateSectorsParams, TerminationDeclaration},
     storage_provider::StorageProviderInfo,
     tests::{
-        account, declare_faults::setup_sp_with_one_sector, events, register_storage_provider,
-        run_to_block, sector_set, DealProposalBuilder, RuntimeEvent, RuntimeOrigin,
-        StorageProvider, System, Test, ALICE, BOB,
+        account, declare_faults::setup_sp_with_one_sector, events, publish_deals,
+        register_storage_provider, run_to_block, sector_set, DealProposalBuilder, RuntimeEvent,
+        RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System, Test, ALICE, BOB,
+        CHARLIE,
     },
     Config,
 };
@@ -236,6 +237,45 @@ fn fails_deregistration_not_registered() {
         assert_noop!(
             StorageProvider::deregister_storage_provider(RuntimeOrigin::signed(account(ALICE))),
             Error::<Test>::StorageProviderNotRegistered
+        );
+        assert_eq!(events(), []);
+    });
+}
+
+#[test]
+fn fails_deregistration_pre_committed_sectors() {
+    new_test_ext().execute_with(|| {
+        // Setup accounts
+        let storage_provider = CHARLIE;
+
+        // Register storage provider
+        register_storage_provider(account(storage_provider));
+        // Set-up dependencies in Market Pallet
+        publish_deals(storage_provider);
+
+        // Sector to be pre-committed and proven
+        let sector_number = 1.into();
+
+        // Sector data
+        let sector = SectorPreCommitInfoBuilder::default()
+            .sector_number(sector_number)
+            .unsealed_cid("baga6ea4seaqhdbbdnon7gkuquzw6waekzqx5lbuio6a6wjie22pgfmwnv3a3wfi")
+            .build();
+
+        // Run pre commit extrinsic
+        assert_ok!(StorageProvider::pre_commit_sectors(
+            RuntimeOrigin::signed(account(storage_provider)),
+            bounded_vec![sector.clone()]
+        ));
+
+        // Remove any events that were triggered until now.
+        System::reset_events();
+
+        assert_noop!(
+            StorageProvider::deregister_storage_provider(RuntimeOrigin::signed(account(
+                storage_provider
+            ))),
+            Error::<Test>::SPHasPreCommittedSectors
         );
         assert_eq!(events(), []);
     });
