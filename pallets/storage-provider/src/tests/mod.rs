@@ -21,7 +21,7 @@ use primitives::{
     MAX_TERMINATIONS_PER_CALL, MULTIADDR_MAX_BYTES,
 };
 use sp_arithmetic::traits::Zero;
-use sp_core::{bounded_vec, offchain::OpaqueMultiaddr, Pair};
+use sp_core::{bounded_vec, Pair};
 use sp_runtime::{
     traits::{IdentifyAccount, IdentityLookup, Verify},
     BoundedBTreeSet, BuildStorage, MultiSignature, MultiSigner, SaturatedConversion,
