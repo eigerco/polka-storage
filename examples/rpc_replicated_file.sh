@@ -119,14 +119,14 @@ function upload_file {
         )
         SIGNED_DEAL_JSON="$(RUST_LOG=error target/release/polka-storage-provider-client sign-deal --sr25519-key "$CLIENT" "$DEAL_JSON")"
 
-        DEAL_CID="$(RUST_LOG=error target/release/polka-storage-provider-client propose-deal --rpc-server-url "$RPC_URL" "$DEAL_JSON")"
+        DEAL_CID="$(curl -X POST -H "Content-Type: application/json" -d "$DEAL_JSON" "$RPC_URL/api/v0/propose_deal" | jq -r)"
         echo "-------------------------- Uploading deal $i..."
         echo
         curl -X PUT -F "upload=@$INPUT_FILE" "$STORAGE_URL/upload/$DEAL_CID"
 
         echo
         echo "-------------------------- Publishing deal $i..."
-        target/release/polka-storage-provider-client publish-deal --rpc-server-url "$RPC_URL" "$SIGNED_DEAL_JSON"
+        curl -X POST -H "Content-Type: application/json" -d "$SIGNED_DEAL_JSON" "$RPC_URL/api/v0/publish_deal"
     done
 }
 

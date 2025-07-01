@@ -113,7 +113,7 @@ echo "$DEAL_CID"
 # Multipart upload
 curl -X PUT -F "upload=@$INPUT_FILE" "http://localhost:8001/upload/$DEAL_CID"
 
-target/release/polka-storage-provider-client publish-deal "$SIGNED_DEAL_JSON"
+curl -X POST -H "Content-Type: application/json" -d "$SIGNED_DEAL_JSON" 'http://127.0.0.1:8001/api/v0/publish_deal'
 
 # wait until user Ctrl+Cs so that the commitment can actually be calculated
 wait

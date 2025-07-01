@@ -13,7 +13,6 @@ mod db;
 mod indexer;
 mod p2p;
 mod pipeline;
-mod rpc;
 mod storage;
 
 use std::{
@@ -61,7 +60,6 @@ use crate::{
     config::ConfigurationArgs,
     db::{DBError, DealDB},
     pipeline::{start_pipeline, PipelineState},
-    rpc::{start_rpc_server, RpcServerState},
     storage::{start_upload_server, StorageServerState},
 };
 
@@ -101,7 +99,6 @@ fn get_random_temporary_folder() -> PathBuf {
 
 struct SetupOutput {
     storage_state: StorageServerState,
-    rpc_state: RpcServerState,
     pipeline_state: PipelineState,
     pipeline_rx: UnboundedReceiver<PipelineMessage>,
     p2p_args: P2pArgs<PiecesBlockstore<RocksDBLid>, RocksDBLid>,
@@ -220,9 +217,6 @@ pub struct Server {
     /// Storage server listen address.
     upload_listen_address: SocketAddr,
 
-    /// RPC server listen address.
-    rpc_listen_address: SocketAddr,
-
     /// Parachain node RPC url.
     node_url: Url,
 
@@ -261,7 +255,6 @@ pub struct Server {
     p2p_external_addresses: Vec<Multiaddr>,
 
     public_secure_upload_url: Option<String>,
-    public_secure_rpc_url: Option<String>,
 
     /// Rendezvous point address that the registration node connects to
     /// or the bootstrap node binds to.
@@ -279,7 +272,6 @@ impl Debug for Server {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Server")
             .field("upload_listen_address", &self.upload_listen_address)
-            .field("rpc_listen_address", &self.rpc_listen_address)
             .field("node_url", &self.node_url)
             .field("multi_pair_signer", &"*******")
             .field("database_directory", &self.database_directory)
@@ -291,7 +283,6 @@ impl Debug for Server {
             .field("p2p_listen_addresses", &self.p2p_listen_addresses)
             .field("p2p_external_addresses", &self.p2p_external_addresses)
             .field("public_secure_upload_url", &self.public_secure_upload_url)
-            .field("public_secure_rpc_url", &self.public_secure_rpc_url)
             .field("rendezvous_point_address", &self.rendezvous_point_address)
             .field("rendezvous_point", &self.rendezvous_point)
             .field("sealing_configuration", &self.sealing_configuration)
@@ -356,7 +347,6 @@ impl TryFrom<ServerCli> for Server {
 
         Ok(Self {
             upload_listen_address: args.upload_listen_address,
-            rpc_listen_address: args.rpc_listen_address,
             node_url: args.node_url,
             multi_pair_signer,
             database_directory,
@@ -369,7 +359,6 @@ impl TryFrom<ServerCli> for Server {
             p2p_key: args.p2p_key,
             p2p_listen_addresses: args.p2p_listen_addresses,
             p2p_external_addresses: args.p2p_external_addresses,
-            public_secure_rpc_url: args.public_secure_rpc_url,
             public_secure_upload_url: args.public_secure_upload_url,
             rendezvous_point_address: args.rendezvous_point_address,
             rendezvous_point: args.rendezvous_point,
@@ -384,7 +373,6 @@ impl Server {
 
         let SetupOutput {
             storage_state,
-            rpc_state,
             pipeline_state,
             pipeline_rx,
             p2p_args,
@@ -395,10 +383,6 @@ impl Server {
         let cancellation_token = CancellationToken::new();
 
         let mut tasks = JoinSet::new();
-        tasks.spawn(
-            start_rpc_server(rpc_state, cancellation_token.child_token())
-                .map(|result| ("RPC", result.map_err(ServerError::from))),
-        );
         tasks.spawn(
             p2p::Worker::new(p2p_args)
                 .await?
@@ -534,21 +518,12 @@ impl Server {
             deal_db: deal_database.clone(),
             listen_address: self.upload_listen_address,
             post_proof: self.post_proof,
-        };
-
-        let rpc_state = RpcServerState {
-            server_info,
-            deal_db: deal_database.clone(),
-            car_piece_storage_dir: car_piece_storage_dir.clone(),
-            xt_client: xt_client.clone(),
-            xt_keypair: self.multi_pair_signer.clone(),
-            listen_address: self.rpc_listen_address,
             pipeline_sender: pipeline_tx.clone(),
         };
 
         let pipeline_state = PipelineState {
             db: deal_database.clone(),
-            server_info: rpc_state.server_info.clone(),
+            server_info: server_info.clone(),
             unsealed_sectors_dir: unsealed_sector_storage_dir.clone(),
             sealed_sectors_dir: sealed_sector_storage_dir,
             sealing_cache_dir,
@@ -574,13 +549,6 @@ impl Server {
             services: {
                 let mut hm = HashMap::new();
                 hm.insert(
-                    "rpc".to_string(),
-                    ServiceInfo {
-                        port: self.rpc_listen_address.port(),
-                        secure_url: self.public_secure_rpc_url,
-                    },
-                );
-                hm.insert(
                     "upload".to_string(),
                     ServiceInfo {
                         port: self.upload_listen_address.port(),
@@ -595,7 +563,6 @@ impl Server {
 
         Ok(SetupOutput {
             storage_state,
-            rpc_state,
             pipeline_state,
             pipeline_rx,
             p2p_args,

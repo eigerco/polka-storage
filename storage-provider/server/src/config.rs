@@ -15,11 +15,6 @@ use url::Url;
 use crate::DEFAULT_NODE_ADDRESS;
 
 /// Default address to bind the RPC server to.
-const fn default_rpc_listen_address() -> SocketAddr {
-    SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8000)
-}
-
-/// Default address to bind the RPC server to.
 const fn default_upload_listen_address() -> SocketAddr {
     SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8001)
 }
@@ -47,10 +42,6 @@ pub struct ConfigurationArgs {
     /// The server's listen address.
     #[serde(default = "default_upload_listen_address")]
     pub(crate) upload_listen_address: SocketAddr,
-
-    /// The server's listen address.
-    #[serde(default = "default_rpc_listen_address")]
-    pub(crate) rpc_listen_address: SocketAddr,
 
     /// The target parachain node's address.
     #[serde(default = "default_node_address")]
@@ -111,8 +102,6 @@ pub struct ConfigurationArgs {
     pub(crate) p2p_external_addresses: Vec<Multiaddr>,
 
     pub(crate) public_secure_upload_url: Option<String>,
-
-    pub(crate) public_secure_rpc_url: Option<String>,
 
     /// Rendezvous multiaddr that the node registers to.
     pub(crate) rendezvous_point_address: Multiaddr,

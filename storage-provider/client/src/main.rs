@@ -7,7 +7,6 @@
 use primitives_p2p as _;
 
 pub(crate) mod commands;
-mod rpc_client;
 
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};

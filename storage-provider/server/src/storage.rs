@@ -16,17 +16,20 @@ use polka_storage_provider_common::{
     rpc::{CidString, ServerInfo},
 };
 use primitives::{
-    commitment::{piece::PaddedPieceSize, CommP, CommitmentKind},
+    commitment::{piece::PaddedPieceSize, CommP, Commitment, CommitmentKind},
     proofs::RegisteredPoStProof,
 };
 use storagext::{
-    types::storage_provider::DealProposal as SxtDealProposal, StorageProviderClientExt,
-    SystemClientExt,
+    types::storage_provider::{
+        ClientDealProposal as SxtClientDealProposal, DealProposal as SxtDealProposal,
+    },
+    StorageProviderClientExt, SystemClientExt,
 };
 use subxt::tx::Signer;
 use tokio::{
     fs::{self, File},
     io::{AsyncRead, BufWriter},
+    sync::mpsc::UnboundedSender,
 };
 use tokio_util::{
     io::{ReaderStream, StreamReader},
@@ -38,7 +41,10 @@ use tower_http::{
 };
 use uuid::Uuid;
 
-use crate::db::DealDB;
+use crate::{
+    db::DealDB,
+    pipeline::types::{AddPieceMessage, PipelineMessage},
+};
 
 /// Shared state of the storage server.
 pub struct StorageServerState {
@@ -55,6 +61,8 @@ pub struct StorageServerState {
     // I think this just needs the sector size actually
     #[allow(dead_code)]
     pub post_proof: RegisteredPoStProof,
+
+    pub pipeline_sender: UnboundedSender<PipelineMessage>,
 }
 
 #[tracing::instrument(skip_all)]
@@ -100,8 +108,9 @@ fn configure_router(state: Arc<StorageServerState>) -> Router {
                     state.post_proof.sector_size().bytes() as usize,
                 )),
         )
-        .route("/download/:cid", get(download))
+        .route("/api/v0/download/:cid", get(download))
         .route("/api/v0/propose_deal", post(propose_deal))
+        .route("/api/v0/publish_deal", post(publish_deal))
         .with_state(state)
         .layer(cors)
         .layer(
@@ -524,4 +533,100 @@ async fn propose_deal(
         .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
 
     Ok(Json(CidString::from(cid)))
+}
+
+#[tracing::instrument(skip_all, fields(deal))]
+async fn publish_deal(
+    State(state): State<Arc<StorageServerState>>,
+    Json(deal): Json<SxtClientDealProposal>,
+) -> Result<Json<u64>, (StatusCode, String)> {
+    if deal.deal_proposal.piece_size > state.server_info.post_proof.sector_size().bytes() {
+        // once again, the rpc error is wrong, we'll need to fix that
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Piece size cannot be larger than the registered sector size".to_string(),
+        ));
+    }
+
+    let deal_proposal_cid = deal
+        .deal_proposal
+        .json_cid()
+        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+
+    // Check if this deal proposal has been accepted or not, error if not
+    if state
+        .deal_db
+        .get_proposed_deal(deal_proposal_cid)
+        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?
+        .is_none()
+    {
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Proposal has not been found — have you proposed the deal first?".to_string(),
+        ));
+    }
+
+    // Check if the respective piece has been uploaded, error if not
+    let piece_cid = deal.deal_proposal.piece_cid;
+    let piece_path = state.car_piece_storage_dir.join(format!("{piece_cid}.car"));
+    if !piece_path.exists() || !piece_path.is_file() {
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Piece has not been uploaded yet".to_string(),
+        ));
+    }
+
+    // TODO(@jmg-duarte,25/11/2024): don't batch the deals for better errors
+
+    let deal_proposal = deal.deal_proposal.clone();
+    // TODO(@jmg-duarte,#428,04/10/2024):
+    // There's a small bug here, currently, xt_client waits for a "full extrisic submission"
+    // meaning that it will wait until the block where it is included in is finalized
+    // however, due to https://github.com/paritytech/subxt/issues/1668 it may wrongly fail.
+    // Fixing this requires the xt_client not wait for the finalization, it's not hard to do
+    // it just requires some API design
+    let result = state
+        .xt_client
+        .publish_signed_storage_deals(&state.xt_keypair, vec![deal], true)
+        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))
+        .await?
+        .expect("we're waiting for the finalization so it should NEVER be None");
+
+    let published_deals = result
+        .events
+        .find_first::<storagext::runtime::storage_provider::events::DealsPublished>()
+        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+    let Some(published_deals) = published_deals else {
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to find any published deals".to_string(),
+        ));
+    };
+
+    // We currently just support a single deal and if there's no published deals,
+    // an error MUST've happened
+    debug_assert_eq!(published_deals.deals.0.len(), 1);
+
+    // We always publish only 1 deal
+    let deal_id = published_deals
+        .deals
+        .0
+        .first()
+        .expect("we only support a single deal")
+        .deal_id;
+
+    let commitment = Commitment::from_cid(&piece_cid)
+        .map_err(|err| (StatusCode::BAD_REQUEST, err.to_string()))?;
+
+    state
+        .pipeline_sender
+        .send(PipelineMessage::AddPiece(AddPieceMessage {
+            deal: deal_proposal,
+            published_deal_id: deal_id,
+            piece_path,
+            commitment,
+        }))
+        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+
+    Ok(Json(deal_id))
 }

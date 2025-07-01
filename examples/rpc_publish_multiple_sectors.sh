@@ -58,7 +58,7 @@ do
 
     echo
     echo "-------------------------- Publishing deal $i..."
-    target/release/polka-storage-provider-client publish-deal "$SIGNED_DEAL_JSON" &
+    curl -X POST -H "Content-Type: application/json" -d "$SIGNED_DEAL_JSON" 'http://127.0.0.1:8001/api/v0/publish_deal' &
 done
 
 # wait until user Ctrl+Cs so that the commitment can actually be calculated
