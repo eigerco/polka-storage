@@ -16,6 +16,12 @@ where
         }
     };
 
+    // Check pre-committed sectors, if there are any, block deregistration.
+    if sp.pre_committed_sectors.len() > 0 {
+        log::error!("{owner:?} has pre-committed sectors, cannot deregister");
+        return Err(Error::<T>::SPHasPreCommittedSectors.into());
+    }
+
     // Get live sectors for registered SP
     // Having live sectors == deals still active
     let live_sectors = sp

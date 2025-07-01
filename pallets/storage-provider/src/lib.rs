@@ -593,8 +593,10 @@ pub mod pallet {
         MissingAuthorVRF,
         /// After proving failed to return pre commit deposit.
         FailedToReturnPreCommitDeposit,
-        /// When an SP tries to deregister while it still has active deals
+        /// When an SP tries to deregister while it still has active deals.
         SPHasActiveDeals,
+        /// When an SP tries to deregister while it still has pre committed sectors.
+        SPHasPreCommittedSectors,
         /// Inner pallet errors
         GeneralPalletError(crate::error::GeneralPalletError),
     }
