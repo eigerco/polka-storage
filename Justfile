@@ -22,9 +22,10 @@ build: lint
 release: lint
     cargo build --release
 
-# Generate a private key for the P2P network and
-# run the testnet without building
-run-testnet:
+build-runtime:
+    cargo b -r -F testnet -p polka-storage-runtime
+
+build-chain-spec: build-runtime
     chain-spec-builder create \
         -t local \
         -r $CARGO_WASM_RUNTIME_PATH \
@@ -32,13 +33,11 @@ run-testnet:
         --para-id 1000 \
         named-preset local_testnet
 
+# Generate a private key for the P2P network and
+# run the testnet without building
+testnet: build-chain-spec
     mkdir -p /tmp/zombienet
     zombienet -p native spawn zombienet/local-omni-testnet.toml
-
-build-runtime:
-    cargo b -r -F testnet -p polka-storage-runtime
-
-testnet: build-runtime run-testnet
 
 # Run a single collator
 run-collator:
