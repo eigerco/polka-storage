@@ -27,7 +27,7 @@ fn default_node_address() -> Url {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-// #[serde(deny_unknown_fields)]
+#[serde(deny_unknown_fields)]
 pub struct ConfigurationArgs {
     /// The server's listen address.
     #[serde(default = "default_upload_listen_address")]
