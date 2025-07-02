@@ -8,7 +8,6 @@ pub trait Config:
     + pallet_proofs::Config
     + frame_system::Config
 {
-    // type Currency: ReservableCurrency<Self::AccountId>;
 }
 
 impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {

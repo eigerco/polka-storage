@@ -6,7 +6,7 @@ use primitives::{
 };
 use sp_core::bounded_vec;
 
-use super::{new_test_ext, MaxProveCommitDuration};
+use super::{new_test_ext, Balances, MaxProveCommitDuration};
 use crate::{
     deadline::deadline_is_mutable,
     error::GeneralPalletError,
@@ -74,10 +74,6 @@ fn successfully_prove_sector() {
                     client: account(BOB),
                     provider: account(storage_provider)
                 }),
-                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Unreserved {
-                    who: account(storage_provider),
-                    amount: 1,
-                }),
                 RuntimeEvent::StorageProvider(Event::<Test>::SectorsProven {
                     owner: account(storage_provider),
                     sectors: bounded_vec![ProveCommitResult {
@@ -91,9 +87,9 @@ fn successfully_prove_sector() {
 
         // check that the funds are unlocked
         assert_eq!(
-            StorageProvider::free(&account(storage_provider)),
+            Balances::free_balance(&account(storage_provider)),
             // Provider reserved 70 tokens in the market pallet and 1 token is used for the pre-commit
-            Some(20)
+            20
         );
         let sp_state = StorageProviders::<Test>::get(account(storage_provider))
             .expect("Should be able to get providers info");
@@ -195,23 +191,19 @@ fn successfully_prove_multiple_sectors() {
             .into_iter()
             .chain(expected_sector_results_aggregated.into_iter().flat_map(
                 |expected_sector_results| {
-                    [
-                        RuntimeEvent::Balances(pallet_balances::Event::<Test>::Unreserved {
-                            who: account(storage_provider),
-                            amount: 1,
-                        }),
-                        RuntimeEvent::StorageProvider(Event::<Test>::SectorsProven {
+                    [RuntimeEvent::StorageProvider(
+                        Event::<Test>::SectorsProven {
                             owner: account(storage_provider),
                             sectors: expected_sector_results,
-                        }),
-                    ]
+                        },
+                    )]
                 },
             ))
             .collect::<Vec<_>>();
         assert_eq!(events(), expected_events);
 
         // check that the funds are unlocked
-        assert_eq!(StorageProvider::free(&account(storage_provider)), Some(20));
+        assert_eq!(Balances::free_balance(&account(storage_provider)), 20);
         let sp_state = StorageProviders::<Test>::get(account(storage_provider))
             .expect("Should be able to get providers info");
 

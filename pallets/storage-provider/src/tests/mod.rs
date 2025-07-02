@@ -143,6 +143,7 @@ where
 
 impl pallet_storage_provider::Config for Test {
     type RuntimeEvent = RuntimeEvent;
+    type RuntimeHoldReason = RuntimeHoldReason;
     type PalletId = StoragePalletId;
     type WeightInfo = ();
     type Currency = Balances;

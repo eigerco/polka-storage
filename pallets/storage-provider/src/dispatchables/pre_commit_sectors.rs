@@ -1,10 +1,6 @@
 use cid::Cid;
 use codec::Encode;
-use frame_support::{
-    dispatch::DispatchResult,
-    ensure, fail,
-    pallet_prelude::{CheckedAdd, Zero},
-};
+use frame_support::{dispatch::DispatchResult, ensure, fail, traits::fungible::MutateHold};
 use frame_system::{
     ensure_signed,
     pallet_prelude::{BlockNumberFor, OriginFor},
@@ -20,8 +16,8 @@ use sp_runtime::BoundedVec;
 
 use super::{calculate_pre_commit_deposit, get_randomness};
 use crate::{
-    dispatchables::verify_deals_for_activation, lock_funds, sector::SectorPreCommitOnChainInfo,
-    storage_provider::StorageProviderState, BalanceOf, Config, Error, Event, Pallet,
+    dispatchables::verify_deals_for_activation, sector::SectorPreCommitOnChainInfo,
+    storage_provider::StorageProviderState, BalanceOf, Config, Error, Event, HoldReason, Pallet,
     StorageProviders, LOG_TARGET,
 };
 
@@ -45,8 +41,6 @@ where
         SectorPreCommitOnChainInfo<BalanceOf<T>, BlockNumberFor<T>>,
         ConstU32<MAX_SECTORS_PER_CALL>,
     > = BoundedVec::new();
-    // Total deposit amount to avoid mutating the SP multiple times and reserve only once.
-    let mut total_deposit = BalanceOf::<T>::zero();
     // sector deals for all pre commits
     let mut all_sector_deals = BoundedVec::new();
     // unsealed_cids for all sectors
@@ -98,11 +92,12 @@ where
         all_sector_deals.try_push((&sector_on_chain).into()).expect(
                     "Programmer error: sector deals cannot be more that MAX_SECTORS_PER_CALL because of previous bounds",
                 );
-        // Add deposit to total deposit and push sector_on_chain to on_chain_sectors
-        // to avoid mutation of the SP for every sector.
-        total_deposit = total_deposit
-                    .checked_add(&deposit)
-                    .expect("Programmer error: Total deposit overflow should not happen because MAX_SECTORS_PER_CALL bound is lower than Balance::MAX");
+        // Multiple writes are cached at no extra cost, so we can deduct straight away.
+        T::Currency::hold(
+            &HoldReason::ProviderPreCommitDeposit.into(),
+            &owner,
+            deposit,
+        )?;
         on_chain_sectors
                     .try_push(sector_on_chain)
                     .expect("Programmer error: on chain sectors should fit in this BoundedVec due to previous validation");
@@ -120,9 +115,6 @@ where
         unsealed_cids,
         deal_amounts,
     )?;
-
-    // Lock the pre-commit funds in the market account
-    lock_funds::<T>(&owner, total_deposit)?;
 
     StorageProviders::<T>::try_mutate(&owner, |maybe_sp| -> DispatchResult {
         let sp = maybe_sp

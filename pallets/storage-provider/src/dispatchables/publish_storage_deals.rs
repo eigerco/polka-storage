@@ -6,7 +6,10 @@ use frame_support::{
         traits::{CheckedAdd, Verify},
         ArithmeticError, BoundedBTreeMap,
     },
-    traits::{Currency, ReservableCurrency},
+    traits::{
+        fungible::{Inspect, InspectHold, MutateHold},
+        tokens::{Fortitude, Preservation},
+    },
 };
 use frame_system::{
     ensure_signed,
@@ -20,7 +23,7 @@ use sp_runtime::{BoundedVec, DispatchError};
 use sp_std::vec::Vec;
 
 use crate::{
-    deal::PublishedDeal, lock_funds, BalanceOf, Config, DealsForBlock, Error, Event, NextDealId,
+    deal::PublishedDeal, BalanceOf, Config, DealsForBlock, Error, Event, HoldReason, NextDealId,
     Pallet, PendingProposals, Proposals, SPDealParameters, LOG_TARGET,
 };
 
@@ -43,6 +46,12 @@ where
     let (valid_deals, total_provider_lockup) =
         validate_deals::<T>(provider.clone(), deals, current_block)?;
 
+    T::Currency::hold(
+        &HoldReason::ProviderDealCollateral.into(),
+        &provider,
+        total_provider_lockup,
+    )?;
+
     let mut published_deals = BoundedVec::new();
 
     // Lock up funds for the clients and emit events
@@ -55,7 +64,7 @@ where
             .map_err(|_| Error::<T>::UnexpectedValidationError)?;
 
         // PRE-COND: always succeeds, validated by `validate_deals`
-        lock_funds::<T>(&deal.client, client_fee)?;
+        T::Currency::hold(&HoldReason::ClientDealFee.into(), &deal.client, client_fee)?;
 
         let deal_id = generate_deal_id::<T>();
 
@@ -77,10 +86,6 @@ where
             deal_id,
         });
     }
-
-    // Lock up funds for the Storage Provider
-    // PRE-COND: always succeeds, validated by `validate_deals`
-    lock_funds::<T>(&provider, total_provider_lockup)?;
 
     Pallet::<T>::deposit_event(Event::<T>::DealsPublished {
         deals: published_deals,
@@ -172,10 +177,18 @@ where
             .ok_or(DispatchError::Arithmetic(ArithmeticError::Overflow))?;
 
         // `can_reserve` also checks for the minimum balance to keep the account alive.
-        if !T::Currency::can_reserve(&deal.proposal.client, client_lockup) {
-            let client_balance = T::Currency::free_balance(&deal.proposal.client);
-            log::error!(target: LOG_TARGET, "invalid deal: client {:?} not enough free balance {:?} < {:?} + {:?} to cover deal idx: {}",
-                            deal.proposal.client, client_balance, client_lockup, T::Currency::minimum_balance(), idx);
+        if !T::Currency::can_hold(
+            &HoldReason::ClientDealFee.into(),
+            &deal.proposal.client,
+            client_lockup,
+        ) {
+            let client_balance = T::Currency::reducible_balance(
+                &deal.proposal.client,
+                Preservation::Preserve,
+                Fortitude::Polite,
+            );
+            log::error!(target: LOG_TARGET, "invalid deal: client {:?} not enough reducible balance {:?} < {:?} to cover deal idx: {}",
+                            deal.proposal.client, client_balance, client_lockup, idx);
             return Err(Error::<T>::InsufficientFreeFunds.into());
         }
 
@@ -193,10 +206,32 @@ where
             .ok_or(DispatchError::Arithmetic(ArithmeticError::Overflow))?;
 
         // `can_reserve` also checks for the minimum balance to keep the account alive.
-        if !T::Currency::can_reserve(&deal.proposal.provider, provider_lockup) {
-            let provider_balance = T::Currency::free_balance(&deal.proposal.provider);
-            log::error!(target: LOG_TARGET, "invalid deal: storage provider {:?} not enough free balance {:?} < {:?} + {:?} to cover deal idx: {}",
-                            deal.proposal.provider, provider_balance, provider_lockup, T::Currency::minimum_balance(), idx);
+        if !T::Currency::can_hold(
+            &HoldReason::ClientDealFee.into(),
+            &deal.proposal.client,
+            client_lockup,
+        ) {
+            let client_balance = T::Currency::reducible_balance(
+                &deal.proposal.client,
+                Preservation::Preserve,
+                Fortitude::Polite,
+            );
+            log::error!(target: LOG_TARGET, "invalid deal: client {:?} not enough reducible balance {:?} < {:?} to cover deal idx: {}",
+                            deal.proposal.client, client_balance, client_lockup, idx);
+            return Err(Error::<T>::InsufficientFreeFunds.into());
+        }
+        if !T::Currency::can_hold(
+            &HoldReason::ProviderDealCollateral.into(),
+            &deal.proposal.provider,
+            provider_lockup,
+        ) {
+            let provider_balance = T::Currency::reducible_balance(
+                &deal.proposal.provider,
+                Preservation::Preserve,
+                Fortitude::Polite,
+            );
+            log::error!(target: LOG_TARGET, "invalid deal: storage provider {:?} not enough reducible balance {:?} < {:?} to cover deal idx: {}",
+                            deal.proposal.provider, provider_balance, provider_lockup, idx);
             return Err(Error::<T>::InsufficientFreeFunds.into());
         }
 

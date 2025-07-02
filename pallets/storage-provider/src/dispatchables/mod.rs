@@ -26,7 +26,11 @@ use frame_support::{
     dispatch::DispatchResult,
     ensure,
     pallet_prelude::{DispatchError, One},
-    traits::{BalanceStatus, ConstU32, ReservableCurrency},
+    traits::{
+        fungible::MutateHold,
+        tokens::{Fortitude, Precision, Restriction},
+        ConstU32,
+    },
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 pub use on_sectors_terminate::on_sectors_terminate;
@@ -55,8 +59,8 @@ pub use terminate_sectors::terminate_sectors;
 pub use verify_deals_for_activation::verify_deals_for_activation;
 
 use crate::{
-    error::CommDError, BalanceOf, Config, DealProposalOf, Error, Pallet, PendingProposals,
-    Proposals, StorageProviders, LOG_TARGET,
+    error::CommDError, BalanceOf, Config, DealProposalOf, Error, HoldReason, Pallet,
+    PendingProposals, Proposals, StorageProviders, LOG_TARGET,
 };
 
 /// Calculate the required pre commit deposit amount
@@ -165,11 +169,15 @@ pub fn perform_storage_payment<T>(
 where
     T: Config,
 {
-    ensure!(
-        T::Currency::reserved_balance(client) >= amount,
-        Error::<T>::InsufficientLockedFunds
-    );
-    T::Currency::repatriate_reserved(client, provider, amount, BalanceStatus::Free)?;
+    T::Currency::transfer_on_hold(
+        &HoldReason::ClientDealFee.into(),
+        client,
+        provider,
+        amount,
+        Precision::Exact,
+        Restriction::Free,
+        Fortitude::Polite,
+    )?;
     Ok(())
 }
 

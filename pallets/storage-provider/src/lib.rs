@@ -45,7 +45,10 @@ pub mod pallet {
         dispatch::DispatchResult,
         pallet_prelude::*,
         sp_runtime::traits::Hash,
-        traits::{Currency, Imbalance, Randomness, ReservableCurrency},
+        traits::{
+            fungible::{Inspect, Mutate, MutateHold},
+            Randomness,
+        },
         PalletId,
     };
     use frame_system::pallet_prelude::{BlockNumberFor, *};
@@ -80,7 +83,7 @@ pub mod pallet {
     /// Allows to extract Balance of an account via the Config::Currency associated type.
     /// BalanceOf is a sophisticated way of getting an u128.
     pub type BalanceOf<T> =
-        <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+        <<T as Config>::Currency as Inspect<<T as frame_system::Config>::AccountId>>::Balance;
 
     pub type DealProposalOf<T> =
         DealProposal<<T as frame_system::Config>::AccountId, BalanceOf<T>, BlockNumberFor<T>>;
@@ -94,8 +97,12 @@ pub mod pallet {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
+        /// Overarching hold reason.
+        type RuntimeHoldReason: From<HoldReason>;
+
         /// The currency mechanism.
-        type Currency: ReservableCurrency<Self::AccountId>;
+        type Currency: MutateHold<Self::AccountId, Reason = Self::RuntimeHoldReason>
+            + Mutate<Self::AccountId>;
 
         /// The pallet weights;
         type WeightInfo: WeightInfo;
@@ -604,6 +611,13 @@ pub mod pallet {
         }
     }
 
+    #[pallet::composite_enum]
+    pub enum HoldReason {
+        ClientDealFee,
+        ProviderDealCollateral,
+        ProviderPreCommitDeposit,
+    }
+
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         #[pallet::call_index(0)]
@@ -796,18 +810,6 @@ pub mod pallet {
     // }
 
     impl<T: Config> Pallet<T> {
-        /// Retrieve the locked balance for the given account.
-        pub fn locked(who: &T::AccountId) -> Option<BalanceOf<T>> {
-            let balance = T::Currency::reserved_balance(who);
-            Some(balance)
-        }
-
-        /// Retrieve the locked balance for the given account.
-        pub fn free(who: &T::AccountId) -> Option<BalanceOf<T>> {
-            let balance = T::Currency::free_balance(who);
-            Some(balance)
-        }
-
         /// Account Id of the pallet
         ///
         /// This actually does computation.
@@ -899,59 +901,5 @@ pub mod pallet {
 
             Some(primitives::pallets::DeadlineState { partitions })
         }
-    }
-
-    /// Unlock a given `amount` of funds from the target account.
-    ///
-    /// Moves funds from `locked` to `free`.
-    #[inline(always)]
-    pub fn unlock_funds<T: Config>(
-        account_id: &T::AccountId,
-        amount: BalanceOf<T>,
-    ) -> DispatchResult {
-        // TODO(@Jinxit,23/06/2025): Should we skip this check? By default pallet_balances will just
-        //  unreserve as much as is available without an error.
-        ensure!(
-            T::Currency::reserved_balance(account_id) >= amount,
-            Error::<T>::InsufficientLockedFunds
-        );
-        T::Currency::unreserve(account_id, amount);
-        Ok(())
-    }
-
-    /// Lock a given `amount` of funds from the target account.
-    ///
-    /// Moves funds from `free` to `locked`.
-    #[inline(always)]
-    pub fn lock_funds<T: Config>(
-        account_id: &T::AccountId,
-        amount: BalanceOf<T>,
-    ) -> DispatchResult {
-        T::Currency::reserve(account_id, amount).map_err(|_| {
-            let free_balance = T::Currency::free_balance(account_id);
-            log::error!(target: LOG_TARGET, "lock_funds: not enough free balance {:?} < {:?}", free_balance, amount);
-            Error::<T>::InsufficientFreeFunds
-        })?;
-        Ok(())
-    }
-
-    /// Slash and burn the provided `amount` from a given account.
-    ///
-    /// Sets `locked` to `locked - amount` and burns `amount`.
-    pub fn slash_and_burn<T: Config>(
-        account_id: &T::AccountId,
-        amount: BalanceOf<T>,
-    ) -> DispatchResult {
-        // TODO(@Jinxit,23/06/2025): Should we skip this check? By default pallet_balances will just
-        //  slash as much as is available without an error.
-        ensure!(
-            T::Currency::reserved_balance(account_id) >= amount,
-            Error::<T>::InsufficientLockedFunds
-        );
-        let (negative, _) = T::Currency::slash_reserved(account_id, amount);
-        let positive = T::Currency::burn(amount);
-        // If the negative and positive imbalances cancel out, this results in a SameOrOther::None which is safe to drop.
-        negative.offset(positive);
-        Ok(())
     }
 }

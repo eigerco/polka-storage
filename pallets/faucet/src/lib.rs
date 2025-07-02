@@ -11,14 +11,14 @@ mod test;
 pub mod pallet {
     use frame_support::{
         pallet_prelude::*,
-        traits::{Currency, ReservableCurrency},
+        traits::fungible::{Inspect, Mutate},
     };
     use frame_system::{ensure_none, pallet_prelude::*};
 
     /// Allows to extract Balance of an account via the Config::Currency associated type.
     /// BalanceOf is a sophisticated way of getting an u128.
     pub type BalanceOf<T> =
-        <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+        <<T as Config>::Currency as Inspect<<T as frame_system::Config>::AccountId>>::Balance;
 
     #[pallet::pallet]
     pub struct Pallet<T>(_);
@@ -29,7 +29,7 @@ pub mod pallet {
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
         /// The currency mechanism.
-        type Currency: ReservableCurrency<Self::AccountId>;
+        type Currency: Mutate<Self::AccountId>;
 
         /// The amount that is dispensed in planck's
         #[pallet::constant]
@@ -96,9 +96,7 @@ pub mod pallet {
                 );
             }
             log::info!("Dripping {:?} to {account:?}", T::FaucetDripAmount::get());
-            // Infallible https://docs.rs/frame-support/latest/frame_support/traits/tokens/currency/trait.Currency.html#tymethod.issue
-            let imbalance = T::Currency::issue(T::FaucetDripAmount::get());
-            T::Currency::resolve_creating(&account, imbalance);
+            T::Currency::mint_into(&account, T::FaucetDripAmount::get())?;
             Drips::<T>::insert(account.clone(), current_block);
             Self::deposit_event(Event::<T>::Dripped {
                 who: account,

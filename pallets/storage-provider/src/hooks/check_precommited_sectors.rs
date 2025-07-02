@@ -2,14 +2,20 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use frame_support::pallet_prelude::{CheckedAdd, Zero};
+use frame_support::{
+    pallet_prelude::{CheckedAdd, Zero},
+    traits::{
+        fungible::MutateHold,
+        tokens::{Fortitude, Precision},
+    },
+};
 use frame_system::pallet_prelude::BlockNumberFor;
 use primitives::{sector::SectorNumber, MAX_SECTORS};
 use sp_core::ConstU32;
 use sp_runtime::BoundedVec;
 
 use crate::{
-    slash_and_burn, storage_provider::StorageProviderState, BalanceOf, Config, Event, Pallet,
+    storage_provider::StorageProviderState, BalanceOf, Config, Event, HoldReason, Pallet,
     StorageProviders, LOG_TARGET,
 };
 
@@ -57,8 +63,15 @@ where
         }
 
         // PRE-COND: currency was previously reserved in pre_commit
-        let Ok(()) = slash_and_burn::<T>(&storage_provider, slash_amount) else {
-            log::error!(target: LOG_TARGET, "failed to slash.. amount: {:?}, storage_provider: {:?}", slash_amount, storage_provider);
+        let slash_result = T::Currency::burn_held(
+            &HoldReason::ProviderPreCommitDeposit.into(),
+            &storage_provider,
+            slash_amount,
+            Precision::BestEffort,
+            Fortitude::Polite,
+        );
+        if slash_result != Ok(slash_amount) {
+            log::error!(target: LOG_TARGET, "failed to slash.. amount: {slash_amount:?}, storage_provider: {storage_provider:?}, result: {slash_result:?}");
             continue;
         };
 
