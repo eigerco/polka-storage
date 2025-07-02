@@ -108,24 +108,17 @@ jobs:
       - clippy_build_and_test
     env:
       RUSTFLAGS: -D warnings
-    strategy:
-      matrix:
-        target:
-          - name: proofs
-            crate: pallet-proofs
-            pallet: pallet_proofs
-          - name: randomness
-            crate: pallet-randomness
-            pallet: pallet_randomness
-          - name: storage-provider
-            crate: pallet-storage-provider-benchmarks
-            pallet: pallet_storage_provider
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Run test benchmarks
         run: |
-          cargo test --profile ci --locked -p ${{ matrix.target.crate }} --features runtime-benchmarks -- benchmark --nocapture
+          cargo test --profile ci --locked \
+            -p pallet-storage-provider-benchmarks
+            -p pallet-proofs \
+            -p pallet-randomness \
+            --features runtime-benchmarks -- benchmark --nocapture
 
       - name: Run node benchmarks
         run: |
@@ -134,7 +127,7 @@ jobs:
             frame-omni-bencher v1 \
               benchmark pallet \
               --runtime target/release/wbuild/polka-storage-runtime/polka_storage_runtime.compact.compressed.wasm \
-              --pallet "${{ matrix.target.pallet }}" \
+              --pallet "pallet_storage_provider,pallet_proofs,pallet_randomness" \
               --extrinsic "*" \
               --steps 5 \
               --repeat 1
