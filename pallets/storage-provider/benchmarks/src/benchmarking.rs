@@ -75,20 +75,20 @@ mod benchmarks {
         let data = BenchmarkData::<T>::load();
         let provider = data.storage_provider();
         let caller = provider.account_id;
-        let peer_id = provider.peer_id;
+        let multiaddr = provider.multiaddr;
         let window_post_proof_type = data.post_type;
 
         #[block]
         {
             assert_ok_sp(SpPallet::<T>::register_storage_provider(
                 RawOrigin::Signed(caller.clone()).into(),
-                peer_id.clone(),
+                multiaddr.clone(),
                 window_post_proof_type,
             ));
         }
 
         let state = SpPallet::<T>::storage_providers(caller).unwrap();
-        assert_eq!(state.info.peer_id, peer_id);
+        assert_eq!(state.info.multiaddr, multiaddr);
         assert_eq!(state.info.window_post_proof_type, window_post_proof_type);
     }
 
@@ -97,17 +97,17 @@ mod benchmarks {
         let data = BenchmarkData::<T>::load();
         let provider = data.storage_provider();
         let caller = provider.account_id;
-        let peer_id = provider.peer_id;
+        let multiaddr = provider.multiaddr;
         let window_post_proof_type = data.post_type;
 
         assert_ok_sp(SpPallet::<T>::register_storage_provider(
             RawOrigin::Signed(caller.clone()).into(),
-            peer_id.clone(),
+            multiaddr.clone(),
             window_post_proof_type,
         ));
 
         let state = SpPallet::<T>::storage_providers(caller.clone()).unwrap();
-        assert_eq!(state.info.peer_id, peer_id);
+        assert_eq!(state.info.multiaddr, multiaddr);
         assert_eq!(state.info.window_post_proof_type, window_post_proof_type);
 
         #[block]
@@ -129,7 +129,7 @@ mod benchmarks {
         // Register the caller as a storage provider
         pallet_storage_provider::Pallet::<T>::register_storage_provider(
             RawOrigin::Signed(sp.account_id.clone()).into(),
-            sp.peer_id,
+            sp.multiaddr,
             data.post_type,
         )
         .unwrap();
@@ -188,7 +188,7 @@ mod benchmarks {
         // Register the caller as a storage provider
         pallet_storage_provider::Pallet::<T>::register_storage_provider(
             RawOrigin::Signed(sp.account_id.clone()).into(),
-            sp.peer_id,
+            sp.multiaddr,
             data.post_type,
         )
         .unwrap();
@@ -275,7 +275,7 @@ mod benchmarks {
         // Register the caller as a storage provider
         pallet_storage_provider::Pallet::<T>::register_storage_provider(
             RawOrigin::Signed(sp.account_id.clone()).into(),
-            sp.peer_id,
+            sp.multiaddr,
             data.post_type,
         )
         .unwrap();
@@ -325,7 +325,7 @@ mod benchmarks {
         // Register the caller as a storage provider
         pallet_storage_provider::Pallet::<T>::register_storage_provider(
             RawOrigin::Signed(sp.account_id.clone()).into(),
-            sp.peer_id,
+            sp.multiaddr,
             data.post_type,
         )
         .unwrap();
@@ -490,7 +490,7 @@ where
 
     assert_ok_sp(SpPallet::<T>::register_storage_provider(
         RawOrigin::Signed(sp.account_id.clone()).into(),
-        sp.peer_id.clone(),
+        sp.multiaddr.clone(),
         data.post_type,
     ));
 
