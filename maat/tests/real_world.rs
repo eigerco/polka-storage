@@ -115,9 +115,10 @@ where
         .unwrap()
         .unwrap();
 
-    for event in deal_result
+    if let Some(event) = deal_result
         .events
         .find::<storagext::runtime::storage_provider::events::DealsPublished>()
+        .next()
     {
         let event = event.unwrap();
         tracing::debug!(?event);
