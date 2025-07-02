@@ -107,11 +107,8 @@ pub mod pallet {
         #[pallet::constant]
         type PalletId: Get<PalletId>;
 
-        /// Peer ID is derived by hashing an encoded public key.
-        /// Usually represented in bytes.
-        /// https://github.com/libp2p/specs/blob/2ea41e8c769f1bead8e637a9d4ebf8c791976e8a/peer-ids/peer-ids.md#peer-ids
-        /// More information about libp2p peer ids: https://docs.libp2p.io/concepts/fundamentals/peers/
-        type PeerId: Clone + Debug + Decode + Encode + Eq + TypeInfo;
+        /// The Multiaddr type
+        type Multiaddr: Clone + Debug + Decode + Encode + Eq + TypeInfo;
 
         /// Proof verification trait implementation for verifying proofs.
         type ProofVerification: ProofVerification;
@@ -285,7 +282,7 @@ pub mod pallet {
         _,
         _,
         T::AccountId,
-        StorageProviderState<T::PeerId, BalanceOf<T>, BlockNumberFor<T>>,
+        StorageProviderState<T::Multiaddr, BalanceOf<T>, BlockNumberFor<T>>,
     >;
 
     /// Simple incremental ID generator for `Deal` Identification purposes.
@@ -410,13 +407,13 @@ pub mod pallet {
         /// Emitted when a new storage provider is registered.
         StorageProviderRegistered {
             owner: T::AccountId,
-            info: StorageProviderInfo<T::PeerId>,
+            info: StorageProviderInfo<T::Multiaddr>,
             proving_period_start: BlockNumberFor<T>,
         },
         /// Emitted when a storage provider deregisters.
         StorageProviderDeregistered {
             owner: T::AccountId,
-            info: StorageProviderInfo<T::PeerId>,
+            info: StorageProviderInfo<T::Multiaddr>,
         },
         /// Emitted when a storage provider pre commits some sectors.
         SectorsPreCommitted {
@@ -613,12 +610,12 @@ pub mod pallet {
         #[pallet::weight((T::WeightInfo::register_storage_provider(), DispatchClass::Normal))]
         pub fn register_storage_provider(
             origin: OriginFor<T>,
-            peer_id: T::PeerId,
+            multiaddr: T::Multiaddr,
             window_post_proof_type: RegisteredPoStProof,
         ) -> DispatchResult {
             crate::dispatchables::register_storage_provider::<T>(
                 origin,
-                peer_id,
+                multiaddr,
                 window_post_proof_type,
             )
         }

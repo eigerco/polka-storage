@@ -39,7 +39,7 @@ fn successful_registration() {
         // `unwrap()` should be safe because of the above check.
         let sp_bob = StorageProviders::<Test>::get(account(BOB)).unwrap();
         // Check that storage provider information is correct.
-        assert_eq!(sp_bob.info.peer_id, peer_id);
+        assert_eq!(sp_bob.info.multiaddr, peer_id);
         assert_eq!(sp_bob.info.window_post_proof_type, window_post_type);
         assert_eq!(sp_bob.info.sector_size, expected_sector_size);
         assert_eq!(

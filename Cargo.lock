@@ -13823,50 +13823,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "polka-fetch"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "beetswap",
- "blockstore",
- "cid 0.11.1",
- "clap",
- "futures",
- "ipld-core",
- "ipld-dagpb",
- "libp2p 0.54.1",
- "libp2p-core 0.42.0",
- "libp2p-length-prefix-codec",
- "libp2p-swarm 0.45.1",
- "mater",
- "multihash-codetable",
- "polka-storage-provider-common",
- "primitives",
- "primitives-p2p",
- "serde",
- "storagext",
- "subxt-core 0.40.1",
- "thiserror 2.0.8",
- "tokio",
- "tracing",
- "tracing-subscriber 0.3.19",
-]
-
-[[package]]
-name = "polka-storage-bootstrap"
-version = "0.1.0"
-dependencies = [
- "clap",
- "libp2p 0.54.1",
- "libp2p-length-prefix-codec",
- "primitives-p2p",
- "thiserror 2.0.8",
- "tokio",
- "tracing",
- "tracing-subscriber 0.3.19",
-]
-
-[[package]]
 name = "polka-storage-node"
 version = "0.0.0"
 dependencies = [

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -e
+set -x
 
 trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 
@@ -38,7 +39,12 @@ P2P_BOOTSTRAP_PEER_ID="$(target/release/polka-storage-provider-client generate-p
 echo "Peer ID for bootstrap node: $P2P_BOOTSTRAP_PEER_ID"
 
 
-RUST_LOG='debug,jsonrpsee-client=off' target/release/storagext-cli --sr25519-key "//Charlie" --node-rpc "ws://$COLLATOR_IP_ADDR:42069" storage-provider register --post-proof "8MiB" "$P2P_SP_PEER_ID"
+RUST_LOG='debug,jsonrpsee-client=off' target/release/storagext-cli \
+    --sr25519-key "//Charlie" \
+    --node-rpc "ws://$COLLATOR_IP_ADDR:42069" \
+    storage-provider register \
+    --post-proof "8MiB" \
+    "/ip4/127.0.0.1/tcp/8001/p2p/$P2P_SP_PEER_ID"
 wait
 
 echo '{ "minimum_price_per_block": 200, "deal_duration": { "lower": 50, "upper": 5256000 }}' > "$DEAL_PARAMS"

@@ -26,12 +26,12 @@ const LOG_TARGET: &'static str = "runtime::storage_provider::storage_provider";
 
 /// This struct holds the state of a single storage provider.
 #[derive(RuntimeDebug, Decode, Encode, TypeInfo)]
-pub struct StorageProviderState<PeerId, Balance, BlockNumber>
+pub struct StorageProviderState<Multiaddr, Balance, BlockNumber>
 where
     BlockNumber: sp_runtime::traits::BlockNumber,
 {
     /// Contains static information about this storage provider
-    pub info: StorageProviderInfo<PeerId>,
+    pub info: StorageProviderInfo<Multiaddr>,
 
     /// Information for all proven and not-yet-garbage-collected sectors.
     pub sectors:
@@ -80,14 +80,14 @@ where
     pub early_terminations: BTreeSet<u64>,
 }
 
-impl<PeerId, Balance, BlockNumber> StorageProviderState<PeerId, Balance, BlockNumber>
+impl<Multiaddr, Balance, BlockNumber> StorageProviderState<Multiaddr, Balance, BlockNumber>
 where
-    PeerId: Clone + Decode + Encode + TypeInfo,
+    Multiaddr: Clone + Decode + Encode + TypeInfo,
     BlockNumber: sp_runtime::traits::BlockNumber + BaseArithmetic,
     Balance: BaseArithmetic,
 {
     pub fn new(
-        info: StorageProviderInfo<PeerId>,
+        info: StorageProviderInfo<Multiaddr>,
         period_start: BlockNumber,
         deadline_idx: u64,
         w_post_period_deadlines: u64,
@@ -377,10 +377,10 @@ where
 }
 
 /// Static information about the storage provider.
-#[derive(RuntimeDebug, Clone, Copy, Decode, Encode, TypeInfo, PartialEq)]
-pub struct StorageProviderInfo<PeerId> {
-    /// Libp2p identity that should be used when connecting to this Storage Provider
-    pub peer_id: PeerId,
+#[derive(RuntimeDebug, Clone, Decode, Encode, TypeInfo, PartialEq)]
+pub struct StorageProviderInfo<Multiaddr> {
+    /// Multiaddress of the Storage Provider
+    pub multiaddr: Multiaddr,
     /// The proof type used by this Storage provider for sealing sectors.
     /// Rationale: Different StorageProviders may use different proof types for sealing sectors. By storing
     /// the `window_post_proof_type`, we can ensure that the correct proof mechanisms are applied and verified
@@ -403,13 +403,13 @@ pub struct StorageProviderInfo<PeerId> {
     pub window_post_partition_sectors: u64,
 }
 
-impl<PeerId> StorageProviderInfo<PeerId> {
+impl<Multiaddr> StorageProviderInfo<Multiaddr> {
     /// Create a new instance of StorageProviderInfo
-    pub fn new(peer_id: PeerId, window_post_proof_type: RegisteredPoStProof) -> Self {
+    pub fn new(multiaddr: Multiaddr, window_post_proof_type: RegisteredPoStProof) -> Self {
         let sector_size = window_post_proof_type.sector_size();
         let window_post_partition_sectors = window_post_proof_type.window_post_partitions_sector();
         Self {
-            peer_id,
+            multiaddr,
             window_post_proof_type,
             sector_size,
             window_post_partition_sectors,

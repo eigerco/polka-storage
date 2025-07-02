@@ -1,6 +1,6 @@
 use std::{collections::BTreeSet, env, path::Path, sync::Arc, time::Duration};
 
-use libp2p::PeerId;
+use libp2p::{Multiaddr, PeerId};
 use maat::*;
 use polka_storage_proofs::{porep, post};
 use polka_storage_provider_common::{commp::commp, deadline::Deadline, sector::UnsealedSector};
@@ -28,10 +28,10 @@ async fn register_storage_provider<Keypair>(
 ) where
     Keypair: subxt::tx::Signer<PolkaStorageConfig>,
 {
-    let peer_id = PeerId::random();
+    let maddr = "/ip4/127.0.0.1/tcp/8000/ws".parse::<Multiaddr>().unwrap();
 
     let result = client
-        .register_storage_provider(charlie, peer_id, post_proof, true)
+        .register_storage_provider(charlie, maddr.clone(), post_proof, true)
         .await
         .unwrap()
         .unwrap();
@@ -61,8 +61,8 @@ async fn register_storage_provider<Keypair>(
         // this last unwrap ensures there's something there
         .unwrap()
         .info;
-    let retrieved_peer_id = retrieved_peer_info.peer_id.0.as_slice();
-    assert_eq!(retrieved_peer_id, peer_id.to_bytes());
+    let retrieved_peer_id = retrieved_peer_info.multiaddr.0.as_slice();
+    assert_eq!(retrieved_peer_id, maddr.to_vec());
 }
 
 async fn settle_deal_payments<Keypair>(

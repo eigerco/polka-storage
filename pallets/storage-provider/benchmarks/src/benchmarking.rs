@@ -31,7 +31,7 @@ use primitives::{
     deals::{ClientDealProposal, DealProposal},
     sector::{ProveCommitSector, SectorNumber, SectorPreCommitInfo},
     MAX_DEALS_PER_SECTOR, MAX_POST_PROOF_BYTES, MAX_SECTORS_PER_CALL, MAX_TERMINATIONS_PER_CALL,
-    PEER_ID_MAX_BYTES,
+    MULTIADDR_MAX_BYTES,
 };
 use sp_core::Get;
 use sp_runtime::{AccountId32, MultiSignature, MultiSigner};
@@ -41,7 +41,7 @@ use crate::{
     Config, Pallet,
 };
 
-type BoundedPeerIdBytes = BoundedVec<u8, ConstU32<PEER_ID_MAX_BYTES>>;
+type BoundedMultiaddrBytes = BoundedVec<u8, ConstU32<MULTIADDR_MAX_BYTES>>;
 
 pub type DealProposalOf<T> =
     DealProposal<<T as frame_system::Config>::AccountId, BalanceOf<T>, BlockNumberFor<T>>;
@@ -60,7 +60,7 @@ const EXISTENTIAL_DEPOSIT: u32 = 1_000_000_000;
 #[benchmarks(
     where
         T: crate::Config<
-            PeerId = BoundedPeerIdBytes,
+            Multiaddr = BoundedMultiaddrBytes,
             AccountId = AccountId32,
             OffchainSignature = MultiSignature,
         >,
@@ -75,20 +75,20 @@ mod benchmarks {
         let data = BenchmarkData::<T>::load();
         let provider = data.storage_provider();
         let caller = provider.account_id;
-        let peer_id = provider.peer_id;
+        let multiaddr = provider.multiaddr;
         let window_post_proof_type = data.post_type;
 
         #[block]
         {
             assert_ok_sp(SpPallet::<T>::register_storage_provider(
                 RawOrigin::Signed(caller.clone()).into(),
-                peer_id.clone(),
+                multiaddr.clone(),
                 window_post_proof_type,
             ));
         }
 
         let state = SpPallet::<T>::storage_providers(caller).unwrap();
-        assert_eq!(state.info.peer_id, peer_id);
+        assert_eq!(state.info.multiaddr, multiaddr);
         assert_eq!(state.info.window_post_proof_type, window_post_proof_type);
     }
 
@@ -97,17 +97,17 @@ mod benchmarks {
         let data = BenchmarkData::<T>::load();
         let provider = data.storage_provider();
         let caller = provider.account_id;
-        let peer_id = provider.peer_id;
+        let multiaddr = provider.multiaddr;
         let window_post_proof_type = data.post_type;
 
         assert_ok_sp(SpPallet::<T>::register_storage_provider(
             RawOrigin::Signed(caller.clone()).into(),
-            peer_id.clone(),
+            multiaddr.clone(),
             window_post_proof_type,
         ));
 
         let state = SpPallet::<T>::storage_providers(caller.clone()).unwrap();
-        assert_eq!(state.info.peer_id, peer_id);
+        assert_eq!(state.info.multiaddr, multiaddr);
         assert_eq!(state.info.window_post_proof_type, window_post_proof_type);
 
         #[block]
@@ -129,7 +129,7 @@ mod benchmarks {
         // Register the caller as a storage provider
         pallet_storage_provider::Pallet::<T>::register_storage_provider(
             RawOrigin::Signed(sp.account_id.clone()).into(),
-            sp.peer_id,
+            sp.multiaddr,
             data.post_type,
         )
         .unwrap();
@@ -188,7 +188,7 @@ mod benchmarks {
         // Register the caller as a storage provider
         pallet_storage_provider::Pallet::<T>::register_storage_provider(
             RawOrigin::Signed(sp.account_id.clone()).into(),
-            sp.peer_id,
+            sp.multiaddr,
             data.post_type,
         )
         .unwrap();
@@ -275,7 +275,7 @@ mod benchmarks {
         // Register the caller as a storage provider
         pallet_storage_provider::Pallet::<T>::register_storage_provider(
             RawOrigin::Signed(sp.account_id.clone()).into(),
-            sp.peer_id,
+            sp.multiaddr,
             data.post_type,
         )
         .unwrap();
@@ -325,7 +325,7 @@ mod benchmarks {
         // Register the caller as a storage provider
         pallet_storage_provider::Pallet::<T>::register_storage_provider(
             RawOrigin::Signed(sp.account_id.clone()).into(),
-            sp.peer_id,
+            sp.multiaddr,
             data.post_type,
         )
         .unwrap();
@@ -471,7 +471,7 @@ fn prepare_pre_commit_sectors<T>(
 )
 where
     T: crate::Config<
-        PeerId = BoundedPeerIdBytes,
+        Multiaddr = BoundedMultiaddrBytes,
         AccountId = AccountId32,
         OffchainSignature = MultiSignature,
     >,
@@ -490,7 +490,7 @@ where
 
     assert_ok_sp(SpPallet::<T>::register_storage_provider(
         RawOrigin::Signed(sp.account_id.clone()).into(),
-        sp.peer_id.clone(),
+        sp.multiaddr.clone(),
         data.post_type,
     ));
 
@@ -528,7 +528,7 @@ fn prepare_prove_commit_sectors<T>(
 )
 where
     T: crate::Config<
-        PeerId = BoundedPeerIdBytes,
+        Multiaddr = BoundedMultiaddrBytes,
         AccountId = AccountId32,
         OffchainSignature = MultiSignature,
     >,
@@ -568,7 +568,7 @@ fn check_prove_commit_sectors<T>(
     total_fee: u32,
 ) where
     T: crate::Config<
-        PeerId = BoundedPeerIdBytes,
+        Multiaddr = BoundedMultiaddrBytes,
         AccountId = AccountId32,
         OffchainSignature = MultiSignature,
     >,
@@ -609,7 +609,7 @@ fn check_prove_commit_sectors<T>(
 fn prepare_declare_faults<T>(n: u32) -> (AccountId32, DeclareFaultsParams)
 where
     T: crate::Config<
-        PeerId = BoundedPeerIdBytes,
+        Multiaddr = BoundedMultiaddrBytes,
         AccountId = AccountId32,
         OffchainSignature = MultiSignature,
     >,
@@ -671,7 +671,7 @@ where
 fn prepare_declare_faults_recovered<T>(n: u32) -> (AccountId32, DeclareFaultsRecoveredParams)
 where
     T: crate::Config<
-        PeerId = BoundedPeerIdBytes,
+        Multiaddr = BoundedMultiaddrBytes,
         AccountId = AccountId32,
         OffchainSignature = MultiSignature,
     >,
@@ -727,7 +727,7 @@ where
 fn prepare_terminate_sectors<T>(n: u32) -> (AccountId32, TerminateSectorsParams)
 where
     T: crate::Config<
-        PeerId = BoundedPeerIdBytes,
+        Multiaddr = BoundedMultiaddrBytes,
         AccountId = AccountId32,
         OffchainSignature = MultiSignature,
     >,
@@ -800,7 +800,7 @@ where
 fn prepare_submit_windowed_post<T>(n: u32) -> (AccountId32, SubmitWindowedPoStParams)
 where
     T: crate::Config<
-        PeerId = BoundedPeerIdBytes,
+        Multiaddr = BoundedMultiaddrBytes,
         AccountId = AccountId32,
         OffchainSignature = MultiSignature,
     >,

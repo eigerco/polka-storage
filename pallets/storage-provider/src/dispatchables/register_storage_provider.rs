@@ -13,7 +13,7 @@ use crate::{
 
 pub fn register_storage_provider<T>(
     origin: OriginFor<T>,
-    peer_id: T::PeerId,
+    multiaddr: T::Multiaddr,
     window_post_proof_type: RegisteredPoStProof,
 ) -> DispatchResult
 where
@@ -39,8 +39,8 @@ where
         offset,
         proving_period,
     );
-    let info = StorageProviderInfo::new(peer_id, window_post_proof_type);
-    let state = StorageProviderState::<T::PeerId, BalanceOf<T>, BlockNumberFor<T>>::new(
+    let info = StorageProviderInfo::new(multiaddr, window_post_proof_type);
+    let state = StorageProviderState::<T::Multiaddr, BalanceOf<T>, BlockNumberFor<T>>::new(
         info.clone(),
         local_proving_start,
         // Always zero since we're calculating the absolute first start

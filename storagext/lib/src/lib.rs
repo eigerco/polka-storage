@@ -10,7 +10,7 @@ pub mod deser;
 
 pub use crate::{
     clients::{FaucetClientExt, RandomnessClientExt, StorageProviderClientExt, SystemClientExt},
-    runtime::{bounded_vec::IntoBoundedByteVec, client::Client},
+    runtime::client::Client,
 };
 
 /// Currency as specified by the SCALE-encoded runtime.

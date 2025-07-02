@@ -18,7 +18,7 @@ use subxt::{tx::Signer, utils::Static};
 
 use crate::{
     runtime::{
-        bounded_vec::IntoBoundedByteVec,
+        bounded_vec::IntoErasedBoundedVec,
         runtime_types::{
             bounded_collections::{bounded_btree_set, bounded_vec},
             pallet_storage_provider::{
@@ -120,11 +120,11 @@ impl From<DealProposal>
 {
     fn from(value: DealProposal) -> Self {
         Self {
-            piece_cid: value.piece_cid.into_bounded_byte_vec(),
+            piece_cid: value.piece_cid.to_bytes().into_erased_bounded_vec(),
             piece_size: value.piece_size,
             client: subxt::ext::subxt_core::utils::AccountId32(value.client.into()),
             provider: subxt::ext::subxt_core::utils::AccountId32(value.provider.into()),
-            label: value.label.into_bounded_byte_vec(),
+            label: value.label.into_bytes().into_erased_bounded_vec(),
             start_block: value.start_block,
             end_block: value.end_block,
             storage_price_per_block: value.storage_price_per_block,
@@ -326,10 +326,10 @@ impl From<SectorPreCommitInfo> for RuntimeSectorPreCommitInfo<BlockNumber> {
         Self {
             seal_proof: value.seal_proof,
             sector_number: value.sector_number,
-            sealed_cid: value.sealed_cid.into_bounded_byte_vec(),
+            sealed_cid: value.sealed_cid.to_bytes().into_erased_bounded_vec(),
             deal_ids: crate::runtime::polka_storage_runtime::runtime_types::bounded_collections::bounded_vec::BoundedVec(value.deal_ids),
             expiration: value.expiration,
-            unsealed_cid: value.unsealed_cid.into_bounded_byte_vec(),
+            unsealed_cid: value.unsealed_cid.to_bytes().into_erased_bounded_vec(),
             seal_randomness_height: value.seal_randomness_height,
         }
     }
@@ -399,7 +399,7 @@ impl From<ProveCommitSector> for RuntimeProveCommitSector {
                 value
                     .proofs
                     .into_iter()
-                    .map(|p| p.proof.into_bounded_byte_vec())
+                    .map(|p| p.proof.into_erased_bounded_vec())
                     .collect::<Vec<_>>(),
             ),
         }
@@ -521,7 +521,7 @@ impl Into<RuntimePoStProof> for PoStProof {
     fn into(self) -> RuntimePoStProof {
         RuntimePoStProof {
             post_proof: self.post_proof,
-            proof_bytes: self.proof_bytes.into_bounded_byte_vec(),
+            proof_bytes: self.proof_bytes.into_erased_bounded_vec(),
         }
     }
 }

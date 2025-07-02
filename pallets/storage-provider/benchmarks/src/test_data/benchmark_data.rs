@@ -46,11 +46,11 @@ where
         let (account_id, sign) = generate_benchmark_account::<T>(&self.storage_provider_name);
 
         let peer_id: &[u8; 32] = &account_id.as_ref();
-        let peer_id = peer_id.to_vec().try_into().unwrap();
+        let multiaddr = peer_id.to_vec().try_into().unwrap();
         StorageProviderData {
             account_id,
             sign,
-            peer_id,
+            multiaddr,
         }
     }
 

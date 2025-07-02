@@ -1,6 +1,6 @@
 use std::future::Future;
 
-use libp2p::PeerId as P2PPeerId;
+use libp2p::Multiaddr;
 use primitives::{proofs::RegisteredPoStProof, DealId};
 use runtime::runtime_types::bounded_collections::bounded_vec::BoundedVec;
 use sp_core::crypto::Ss58Codec;
@@ -12,7 +12,7 @@ use subxt::{
 use crate::{
     runtime::{
         self,
-        bounded_vec::IntoBoundedByteVec,
+        bounded_vec::IntoErasedBoundedVec,
         client::SubmissionResult,
         runtime_types::{
             pallet_storage_provider::{
@@ -24,7 +24,6 @@ use crate::{
                 pallets::DeadlineInfo,
             },
         },
-        storage_provider::calls::types::register_storage_provider::PeerId,
     },
     types::storage_provider::{
         ClientDealProposal, DeadlineState, DealProposal, FaultDeclaration, OffchainDealParameters,
@@ -134,7 +133,7 @@ pub trait StorageProviderClientExt {
     fn register_storage_provider<Keypair>(
         &self,
         account_keypair: &Keypair,
-        peer_id: P2PPeerId,
+        multiaddrs: Multiaddr,
         post_proof: RegisteredPoStProof,
         wait_for_finalization: bool,
     ) -> impl Future<Output = Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>>
@@ -207,7 +206,10 @@ pub trait StorageProviderClientExt {
         &self,
         account_id: &AccountId32,
     ) -> impl Future<
-        Output = Result<Option<StorageProviderState<PeerId, Currency, BlockNumber>>, subxt::Error>,
+        Output = Result<
+            Option<StorageProviderState<BoundedVec<u8>, Currency, BlockNumber>>,
+            subxt::Error,
+        >,
     >;
 
     fn retrieve_registered_storage_providers(
@@ -528,7 +530,7 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
     async fn register_storage_provider<Keypair>(
         &self,
         account_keypair: &Keypair,
-        peer_id: P2PPeerId,
+        multiaddr: Multiaddr,
         post_proof: RegisteredPoStProof,
         wait_for_finalization: bool,
     ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
@@ -537,7 +539,7 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
     {
         let payload = runtime::tx()
             .storage_provider()
-            .register_storage_provider(peer_id.to_bytes().into_bounded_byte_vec(), post_proof);
+            .register_storage_provider(multiaddr.to_vec().into_erased_bounded_vec(), post_proof);
 
         self.traced_submission(&payload, account_keypair, wait_for_finalization)
             .await
@@ -708,7 +710,8 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
     async fn retrieve_storage_provider(
         &self,
         account_id: &AccountId32,
-    ) -> Result<Option<StorageProviderState<PeerId, Currency, BlockNumber>>, subxt::Error> {
+    ) -> Result<Option<StorageProviderState<BoundedVec<u8>, Currency, BlockNumber>>, subxt::Error>
+    {
         let storage_provider = runtime::storage()
             .storage_provider()
             .storage_providers(account_id);
@@ -736,7 +739,10 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
             .await?;
 
         storage_providers
-            .map_ok(|kv| bs58::encode(kv.value.info.peer_id.0.as_slice()).into_string())
+            .map_ok(|kv| {
+                let maddrs = Multiaddr::try_from(kv.value.info.multiaddr.0).unwrap();
+                format!("{:?}", maddrs)
+            })
             .try_collect()
             .await
     }
