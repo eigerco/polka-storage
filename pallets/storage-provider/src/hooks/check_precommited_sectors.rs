@@ -2,7 +2,7 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use frame_support::pallet_prelude::{CheckedAdd, CheckedSub, Zero};
+use frame_support::pallet_prelude::{CheckedAdd, Zero};
 use frame_system::pallet_prelude::BlockNumberFor;
 use primitives::{sector::SectorNumber, MAX_SECTORS};
 use sp_core::ConstU32;
@@ -55,12 +55,6 @@ where
                 continue;
             };
         }
-
-        let Some(slashed_deposits) = state.pre_commit_deposits.checked_sub(&slash_amount) else {
-            log::error!(target: LOG_TARGET, "catastrophe, failed to subtract from pre_commit_deposits {:?} - {:?} < 0", state.pre_commit_deposits, slash_amount);
-            continue;
-        };
-        state.pre_commit_deposits = slashed_deposits;
 
         // PRE-COND: currency was previously reserved in pre_commit
         let Ok(()) = slash_and_burn::<T>(&storage_provider, slash_amount) else {

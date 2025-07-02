@@ -129,9 +129,6 @@ where
             .as_mut()
             .ok_or(Error::<T>::StorageProviderNotFound)?;
 
-        // NOTE(@jmg-duarte,21/1/25): Not sure if this is still needed
-        sp.add_pre_commit_deposit(total_deposit)?;
-
         for sector_on_chain in on_chain_sectors {
             sp.put_pre_committed_sector(sector_on_chain)
                 .map_err(|e| Error::<T>::GeneralPalletError(e))?;

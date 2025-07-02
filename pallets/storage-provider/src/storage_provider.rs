@@ -13,7 +13,7 @@ use primitives::{
     MAX_SECTORS,
 };
 use scale_info::TypeInfo;
-use sp_arithmetic::{traits::BaseArithmetic, ArithmeticError};
+use sp_arithmetic::traits::BaseArithmetic;
 
 use crate::{
     deadline::{assign_deadlines, deadline_is_mutable, Deadline, DeadlineInfo, Deadlines},
@@ -36,9 +36,6 @@ where
     /// Information for all proven and not-yet-garbage-collected sectors.
     pub sectors:
         BoundedBTreeMap<SectorNumber, SectorOnChainInfo<BlockNumber>, ConstU32<MAX_SECTORS>>, // Cannot use ConstU64 here because of BoundedBTreeMap trait bound `Get<u32>`,
-
-    /// Total funds locked as pre_commit_deposit
-    pub pre_commit_deposits: Balance,
 
     /// Sectors that have been pre-committed but not yet proven.
     pub pre_committed_sectors: BoundedBTreeMap<
@@ -95,7 +92,6 @@ where
         Self {
             info,
             sectors: BoundedBTreeMap::new(),
-            pre_commit_deposits: 0.into(),
             pre_committed_sectors: BoundedBTreeMap::new(),
             proving_period_start: period_start,
             current_deadline: deadline_idx,
@@ -143,14 +139,6 @@ where
         if early_terminations {
             self.early_terminations.insert(dl_info.idx);
         }
-        Ok(())
-    }
-
-    pub fn add_pre_commit_deposit(&mut self, amount: Balance) -> Result<(), ArithmeticError> {
-        self.pre_commit_deposits = self
-            .pre_commit_deposits
-            .checked_add(&amount)
-            .ok_or(ArithmeticError::Overflow)?;
         Ok(())
     }
 

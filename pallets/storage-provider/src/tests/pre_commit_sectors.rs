@@ -32,6 +32,8 @@ fn successfully_precommited() {
         // 70 (initial SP funds) - 25 * 2 (deals) = 20
         assert_eq!(StorageProvider::free(&account(storage_provider)), Some(20));
 
+        let reserved_before = Balances::reserved_balance(&account(storage_provider));
+
         // Run pre commit extrinsic
         assert_ok!(StorageProvider::pre_commit_sectors(
             RuntimeOrigin::signed(account(storage_provider)),
@@ -59,7 +61,10 @@ fn successfully_precommited() {
 
         assert!(sp.sectors.is_empty()); // not yet proven
         assert_eq!(sp.pre_committed_sectors.len(), 1);
-        assert_eq!(sp.pre_commit_deposits, 1);
+        assert_eq!(
+            Balances::reserved_balance(&account(storage_provider)),
+            reserved_before + 1
+        );
         assert_eq!(
             StorageProvider::free(&account(storage_provider)),
             Some(20 - 1) // 1 for pre-commit deposit
@@ -113,7 +118,6 @@ fn successfully_precommited_no_deals() {
 
         assert!(sp.sectors.is_empty()); // not yet proven
         assert_eq!(sp.pre_committed_sectors.len(), 1);
-        assert_eq!(sp.pre_commit_deposits, 1);
 
         assert_eq!(StorageProvider::locked(&account(storage_provider)), Some(1)); // Single pre-commit = price is 1
         assert_eq!(StorageProvider::free(&account(storage_provider)), Some(999));
@@ -179,7 +183,6 @@ fn successfully_precommited_batch() {
             sp.pre_committed_sectors.len(),
             (SECTORS_TO_PRECOMMIT as usize)
         );
-        assert_eq!(sp.pre_commit_deposits, SECTORS_TO_PRECOMMIT);
         assert_eq!(
             StorageProvider::free(&account(storage_provider)),
             Some(20 - SECTORS_TO_PRECOMMIT)

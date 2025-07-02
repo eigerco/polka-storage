@@ -3,11 +3,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use codec::Encode;
-use frame_support::{
-    dispatch::DispatchResult,
-    ensure,
-    pallet_prelude::{CheckedSub, Zero},
-};
+use frame_support::{dispatch::DispatchResult, ensure, pallet_prelude::Zero};
 use frame_system::{
     ensure_signed,
     pallet_prelude::{BlockNumberFor, OriginFor},
@@ -141,17 +137,6 @@ where
         .collect::<Vec<ProveCommitResult>>()
         .try_into()
         .expect("Programmer error: ProveCommitResult's should fit in bound of MAX_SECTORS");
-
-    // Reduce pre commit deposit amount in state
-    if let Some(pre_commit_deposits) = sp
-        .pre_commit_deposits
-        .checked_sub(&pre_commit_deposit_to_unlock)
-    {
-        sp.pre_commit_deposits = pre_commit_deposits
-    } else {
-        log::error!(target: LOG_TARGET, "catastrophe, failed to subtract from pre_commit_deposits {:?} - {:?} < 0", sp.pre_commit_deposits, pre_commit_deposit_to_unlock);
-        return Err(Error::<T>::FailedToReturnPreCommitDeposit.into());
-    };
 
     // Unlock pre commit deposit funds.
     unlock_funds::<T>(&owner, pre_commit_deposit_to_unlock)?;

@@ -2,7 +2,7 @@ use primitives::sector::{ProveCommitSector, SectorNumber};
 use sp_core::bounded_vec;
 use sp_runtime::{BoundedBTreeMap, BoundedBTreeSet};
 
-use super::new_test_ext;
+use super::{new_test_ext, Balances};
 use crate::{
     pallet::{Event, StorageProviders},
     tests::{
@@ -77,7 +77,10 @@ fn pre_commit_hook_slashed_deal() {
         // First sector removed from here because it was slashed, second one because it was proven.
         assert!(sp.pre_committed_sectors.is_empty());
         // No pre-commit deposit as the second deal has been proven and the first one is expired and thus slashed.
-        assert_eq!(sp.pre_commit_deposits, 0);
+        assert_eq!(
+            Balances::reserved_balance(&account(storage_provider)),
+            DEAL_COLLATERAL
+        );
         // 1 deal got slashed so the respective locked funds *vanished*
         assert_eq!(
             StorageProvider::locked(&account(storage_provider)),
