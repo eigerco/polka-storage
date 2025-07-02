@@ -375,7 +375,7 @@ mod tests {
                 comm_d: comm_d_fr,
                 comm_r: comm_r_fr,
             },
-            seed: seed.clone(),
+            seed: *seed,
         };
 
         proof_scheme

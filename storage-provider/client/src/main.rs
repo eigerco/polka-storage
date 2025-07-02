@@ -2,10 +2,6 @@
 #![warn(unused_crate_dependencies)]
 #![deny(clippy::unwrap_used)]
 
-// Rust thinks that primitives_p2p is unused even though it's in dev_dependencies & used in examples
-#[cfg(test)]
-use primitives_p2p as _;
-
 pub(crate) mod commands;
 
 use tracing::level_filters::LevelFilter;

@@ -1,13 +1,3 @@
-use std::{
-    fs::File,
-    io::Write,
-    path::{Path, PathBuf},
-};
-
-use ed25519_dalek::{
-    pkcs8::{spki::der::pem::LineEnding, EncodePrivateKey},
-    SigningKey,
-};
 use sp_core::Pair;
 use sp_runtime::{traits::Verify, MultiSignature as SpMultiSignature};
 use storagext::{pair_signer::PairSigner, PolkaStorageConfig};
@@ -18,44 +8,6 @@ use zombienet_sdk::{NetworkConfig, NetworkConfigBuilder};
 
 /// Network's collator name. Used for logs and so on.
 pub const COLLATOR_NAME: &str = "collator";
-
-/// Find the the `polka_storage_node` in the current project.
-///
-/// If the feature `target-release` is enabled, this function will look for the `release` build,
-/// likewise, if the `target-debug` feature is enabled it will look for the `debug` build.
-/// If both are enabled, the `release` build takes priority, if none are enabled, this function
-/// returns `None`, effectively failing.
-pub fn find_polka_storage_node() -> Option<PathBuf> {
-    // We're expecting the test binary to always be under /target/X/...
-    let current_exe = std::env::current_exe()
-        .unwrap()
-        // canonicalize to ensure following paths are always canonical
-        .canonicalize()
-        .unwrap();
-
-    let target_folder = current_exe
-        .ancestors()
-        .find(|parent| parent.ends_with("target"))
-        .expect("no target/ directory found");
-
-    if cfg!(feature = "target-release") {
-        let release_polka_storage_node = target_folder.join("release").join("polka-storage-node");
-        if release_polka_storage_node.exists() {
-            tracing::info!("found {}, using it", release_polka_storage_node.display());
-            return Some(release_polka_storage_node);
-        }
-    }
-
-    if cfg!(feature = "target-debug") {
-        let debug_polka_storage_node = target_folder.join("debug").join("polka-storage-node");
-        if debug_polka_storage_node.exists() {
-            tracing::info!("found {}, using it", debug_polka_storage_node.display());
-            return Some(debug_polka_storage_node);
-        }
-    }
-
-    return None;
-}
 
 pub trait NodeConfigBuilderExt {
     /// Build a node with the given name.
@@ -92,15 +44,7 @@ impl NodeConfigBuilderExt for NodeConfigBuilder<Initial> {
 ///
 /// We could use the TOML file if wasn't for not having the same requirements as this description,
 /// for example, when reading the TOML file, [you need to explicitly set a timeout](https://github.com/paritytech/zombienet-sdk/issues/254)
-pub fn local_testnet_config(temp_dir_path: &std::path::Path) -> NetworkConfig {
-    let binding = find_polka_storage_node()
-        .expect("couldn't find the polka-storage-node binary")
-        .display()
-        .to_string();
-    let polka_storage_node_binary_path = binding.as_str();
-    let file_path = temp_dir_path.join("private_key.pem");
-    generate_pem_file(&file_path);
-
+pub fn local_testnet_config() -> NetworkConfig {
     NetworkConfigBuilder::new()
         .with_relaychain(|relaychain| {
             relaychain
@@ -113,15 +57,13 @@ pub fn local_testnet_config(temp_dir_path: &std::path::Path) -> NetworkConfig {
             parachain
                 .with_id(1000)
                 .cumulus_based(true)
+                .with_chain_spec_path("../chain_spec.json")
                 .with_collator(|collator| {
                     collator
-                        .polka_storage_collator(COLLATOR_NAME, polka_storage_node_binary_path)
+                        .polka_storage_collator(COLLATOR_NAME, "polkadot-omni-node")
                         .with_args(vec![
                             ("--pool-type", "fork-aware").into(),
                             ("-lruntime=trace,parachain=debug").into(),
-                            ("--p2p-tcp-listen-address=/ip4/127.0.0.1/tcp/62649").into(),
-                            ("--bootstrap-addresses=/ip4/127.0.0.1/tcp/1337").into(),
-                            (format!("--p2p-key=@{}", file_path.display()).as_str()).into(),
                         ])
                 })
         })
@@ -148,11 +90,4 @@ where
 {
     let keypair = Pair::from_string(s, None).unwrap();
     PairSigner::<PolkaStorageConfig, P>::new(keypair)
-}
-
-fn generate_pem_file<P: AsRef<Path>>(path: P) {
-    let signing_key = SigningKey::from([0; 32]);
-    let pem = signing_key.to_pkcs8_pem(LineEnding::default()).unwrap();
-    let mut file = File::create(path).unwrap();
-    write!(file, "{}", *pem).unwrap();
 }

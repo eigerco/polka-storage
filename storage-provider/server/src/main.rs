@@ -11,7 +11,6 @@ compile_error!("polka-storage-provider-server is only compatible with Unix syste
 mod config;
 mod db;
 mod indexer;
-mod p2p;
 mod pipeline;
 mod storage;
 
@@ -26,8 +25,6 @@ use indexer::{
     local_index_directory::rdb::{RocksDBLid, RocksDBStateStoreConfig},
     start_indexer, IndexerMessage, IndexerState,
 };
-use libp2p::{identity::Keypair, Multiaddr, PeerId};
-use p2p::{blockstore::PiecesBlockstore, P2pArgs, P2pError};
 use pipeline::types::PipelineMessage;
 use polka_storage_proofs::{
     porep::{self, PoRepParameters},
@@ -35,7 +32,6 @@ use polka_storage_proofs::{
 };
 use polka_storage_provider_common::{config::sealing::SealingConfiguration, rpc::ServerInfo};
 use primitives::proofs::{RegisteredPoStProof, RegisteredSealProof};
-use primitives_p2p::services::{ServiceInfo, Services};
 use rand::Rng;
 use storagext::{
     multipair::{MultiPairArgs, MultiPairSigner},
@@ -101,7 +97,6 @@ struct SetupOutput {
     storage_state: StorageServerState,
     pipeline_state: PipelineState,
     pipeline_rx: UnboundedReceiver<PipelineMessage>,
-    p2p_args: P2pArgs<PiecesBlockstore<RocksDBLid>, RocksDBLid>,
     indexer_state: IndexerState<RocksDBLid>,
     indexer_rx: UnboundedReceiver<IndexerMessage>,
 }
@@ -190,9 +185,6 @@ pub enum ServerError {
     Json(#[from] serde_json::Error),
 
     #[error(transparent)]
-    P2P(#[from] P2pError),
-
-    #[error(transparent)]
     Lid(#[from] crate::indexer::local_index_directory::LidError),
 }
 
@@ -247,22 +239,7 @@ pub struct Server {
     /// The number of prove commits to be run in parallel.
     parallel_prove_commits: usize,
 
-    /// P2P ED25519 private key
-    p2p_key: Keypair,
-
-    /// P2P listen address
-    p2p_listen_addresses: Vec<Multiaddr>,
-    p2p_external_addresses: Vec<Multiaddr>,
-
     public_secure_upload_url: Option<String>,
-
-    /// Rendezvous point address that the registration node connects to
-    /// or the bootstrap node binds to.
-    rendezvous_point_address: Multiaddr,
-
-    /// PeerID of the bootstrap node used by the registration node.
-    /// Optional because it is not used by the bootstrap node.
-    rendezvous_point: PeerId,
 
     /// Sealing parameters (e.g. how long to wait before sealing).
     sealing_configuration: SealingConfiguration,
@@ -279,12 +256,7 @@ impl Debug for Server {
             .field("seal_proof", &self.seal_proof)
             .field("post_proof", &self.post_proof)
             .field("parallel_prove_commits", &self.parallel_prove_commits)
-            .field("p2p_key", &"*******")
-            .field("p2p_listen_addresses", &self.p2p_listen_addresses)
-            .field("p2p_external_addresses", &self.p2p_external_addresses)
             .field("public_secure_upload_url", &self.public_secure_upload_url)
-            .field("rendezvous_point_address", &self.rendezvous_point_address)
-            .field("rendezvous_point", &self.rendezvous_point)
             .field("sealing_configuration", &self.sealing_configuration)
             .finish()
     }
@@ -356,12 +328,7 @@ impl TryFrom<ServerCli> for Server {
             porep_parameters,
             post_parameters,
             parallel_prove_commits: args.parallel_prove_commits.get(),
-            p2p_key: args.p2p_key,
-            p2p_listen_addresses: args.p2p_listen_addresses,
-            p2p_external_addresses: args.p2p_external_addresses,
             public_secure_upload_url: args.public_secure_upload_url,
-            rendezvous_point_address: args.rendezvous_point_address,
-            rendezvous_point: args.rendezvous_point,
             sealing_configuration: args.sealing_configuration,
         })
     }
@@ -375,7 +342,6 @@ impl Server {
             storage_state,
             pipeline_state,
             pipeline_rx,
-            p2p_args,
             indexer_state,
             indexer_rx,
         } = self.setup().await?;
@@ -383,12 +349,6 @@ impl Server {
         let cancellation_token = CancellationToken::new();
 
         let mut tasks = JoinSet::new();
-        tasks.spawn(
-            p2p::Worker::new(p2p_args)
-                .await?
-                .run(cancellation_token.child_token())
-                .map(|result| ("P2P", result.map_err(ServerError::from))),
-        );
         tasks.spawn(
             start_upload_server(Arc::new(storage_state), cancellation_token.child_token())
                 .map(|result| ("HTTP Storage", result.map_err(ServerError::from))),
@@ -538,34 +498,12 @@ impl Server {
             indexer_tx,
         };
 
-        let raw_pieces_dir = car_piece_storage_dir.deref().clone();
-        let p2p_args = P2pArgs {
-            local_keypair: self.p2p_key,
-            rendezvous_nodes: vec![(self.rendezvous_point, self.rendezvous_point_address)],
-            p2p_listen_addresses: self.p2p_listen_addresses,
-            p2p_external_addresses: self.p2p_external_addresses,
-            blockstore: Arc::new(PiecesBlockstore::new(raw_pieces_dir, Arc::clone(&lid))),
-            index_db: Arc::clone(&lid),
-            services: {
-                let mut hm = HashMap::new();
-                hm.insert(
-                    "upload".to_string(),
-                    ServiceInfo {
-                        port: self.upload_listen_address.port(),
-                        secure_url: self.public_secure_upload_url,
-                    },
-                );
-                Services(hm)
-            },
-        };
-
         let indexer_state = IndexerState { lid };
 
         Ok(SetupOutput {
             storage_state,
             pipeline_state,
             pipeline_rx,
-            p2p_args,
             indexer_state,
             indexer_rx,
         })

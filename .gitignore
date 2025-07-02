@@ -44,3 +44,5 @@ logs/
 
 # Polkadot node storage
 data/
+
+chain_spec.json

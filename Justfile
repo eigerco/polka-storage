@@ -22,20 +22,10 @@ build: lint
 release: lint
     cargo build --release
 
-# Build the testnet binaries in release mode
-release-testnet:
-    cargo build --release --features polka-storage-runtime/testnet -p polka-storage-node --bin polka-storage-node
-
-# Generate a private key for the P2P network and
-# run the testnet without building
-run-testnet:
-    mkdir -p /tmp/zombienet
-    openssl genpkey -algorithm ED25519 -out /tmp/zombienet/charlie-private.pem
-    openssl pkey -in /tmp/zombienet/charlie-private.pem -pubout -out /tmp/zombienet/charlie-public.pem # Generate public key so script can get the Peer ID
-    zombienet -p native spawn zombienet/local-testnet.toml
-
-run-omni-testnet:
+build-runtime:
     cargo b -r -F testnet -p polka-storage-runtime
+
+build-chain-spec: build-runtime
     chain-spec-builder create \
         -t local \
         -r $CARGO_WASM_RUNTIME_PATH \
@@ -43,6 +33,9 @@ run-omni-testnet:
         --para-id 1000 \
         named-preset local_testnet
 
+# Generate a private key for the P2P network and
+# run the testnet without building
+testnet: build-chain-spec
     mkdir -p /tmp/zombienet
     zombienet -p native spawn zombienet/local-omni-testnet.toml
 
@@ -52,9 +45,6 @@ run-collator:
     openssl genpkey -algorithm ED25519 -out /tmp/zombienet/david-private.pem
     openssl pkey -in /tmp/zombienet/david-private.pem -pubout -out /tmp/zombienet/david-public.pem # Generate public key so script can get the Peer ID
     zombienet -p native spawn zombienet/local-david-collator.toml
-
-# Run the testing building it before
-testnet: release-testnet run-testnet
 
 test:
     cargo test --locked --workspace
@@ -66,10 +56,6 @@ fmt:
 # Serve the MDBook
 docs:
     mdbook serve -d docs/book docs/
-
-# Build the polka storage node binary
-build-polka-storage-node:
-  cargo build --release --features polka-storage-runtime/testnet -p polka-storage-node --bin polka-storage-node
 
 # Build the polka storage provider client
 build-polka-storage-provider-client:
@@ -98,7 +84,7 @@ build-mater-cli:
   cargo build --release -p mater-cli
 
 # Build all the binaries
-build-binaries-all: build-polka-storage-node build-polka-storage-provider-client build-polka-storage-provider-server build-storagext-cli build-mater-cli
+build-binaries-all: build-polka-storage-provider-client build-polka-storage-provider-server build-storagext-cli build-mater-cli
 
 
 # NOTE: Docker builds have no ghcr prefix because these are built locally.
@@ -290,24 +276,14 @@ build-genesis chain para-id: (build-raw-chain-spec chain para-id)
     target/release/polka-storage-node export-genesis-state --chain "chainspecs/{{ chain }}.raw.json" "target/{{ chain }}.para-state"
 
 run-polka-storage-node chain:
-    target/release/polka-storage-node --collator \
+    polkadot-omni-node --collator \
         --chain chainspecs/{{ chain }}.raw.json \
         --base-path data \
         --rpc-port 42069 \
         --force-authoring \
         --node-key-file ./data/chains/polka-storage/network/secret_ed25519 \
-        --p2p-key $(cat ./data/chains/polka-storage/network/secret_ed25519) \
         --pool-type fork-aware \
         -- \
         --discover-local \
         --sync warp \
         --chain {{ chain }}
-
-run-bootstrap:
-    # openssl genpkey -algorithm ED25519 -out /tmp/zombienet/charlie-private.pem
-    # openssl pkey -in /tmp/zombienet/charlie-private.pem -pubout -out /tmp/zombienet/charlie-public.pem # Generate public key so script can get the Peer ID
-    RUST_LOG=info,polka_storage_bootstrap=trace cargo r -r -p polka-storage-bootstrap -- \
-        run \
-        --listen-addresses "/ip4/0.0.0.0/tcp/5678,/ip4/0.0.0.0/tcp/5679/ws"
-    # --bootstrap-addresses "/ip4/127.0.0.1/tcp/51788/ws/p2p/12D3KooWQCkBm1BYtkHpocxCwMgR8yjitEeHGx8spzcDLGt2gkBm" \
-    # --keypair "@/tmp/zombienet/charlie-private.pem"
