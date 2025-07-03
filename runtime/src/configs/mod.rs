@@ -424,6 +424,7 @@ parameter_types! {
 impl pallet_storage_provider::Config for Runtime {
     type PalletId = StoragePalletId;
     type RuntimeEvent = RuntimeEvent;
+    type RuntimeHoldReason = RuntimeHoldReason;
     type WeightInfo = pallet_storage_provider::weights::Weights<Runtime>;
     type Currency = Balances;
 

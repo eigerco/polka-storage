@@ -8,7 +8,10 @@ use frame_benchmarking::v2::*;
 use frame_support::{
     assert_ok,
     pallet_prelude::{ConstU32, DispatchError, One},
-    traits::{Currency, Hooks, ReservableCurrency},
+    traits::{
+        fungible::{Inspect, InspectHold},
+        Currency, Hooks,
+    },
     BoundedVec,
 };
 use frame_system::{
@@ -25,7 +28,7 @@ use pallet_storage_provider::{
     },
     proofs::{PoStProof, SubmitWindowedPoStParams},
     sector::{TerminateSectorsParams, TerminationDeclaration},
-    BalanceOf, Pallet as SpPallet, SPDealParameters,
+    BalanceOf, HoldReason, Pallet as SpPallet, SPDealParameters,
 };
 use primitives::{
     deals::{ClientDealProposal, DealProposal},
@@ -68,6 +71,8 @@ const EXISTENTIAL_DEPOSIT: u32 = 1_000_000_000;
     u64: TryFrom<BalanceOf<T>>,
 )]
 mod benchmarks {
+    use pallet_storage_provider::HoldReason;
+
     use super::*;
 
     #[benchmark]
@@ -162,16 +167,20 @@ mod benchmarks {
             .unwrap();
         }
 
-        let free_balance = T::Currency::free_balance(&sp.account_id);
-        let locked_balance = T::Currency::reserved_balance(&sp.account_id);
+        let free_balance = T::Currency::balance(&sp.account_id);
+        let locked_balance = T::Currency::balance_on_hold(
+            &HoldReason::ProviderDealCollateral.into(),
+            &sp.account_id,
+        );
         assert_eq!(
             free_balance,
             BalanceOf::<T>::from(2 * EXISTENTIAL_DEPOSIT) - collaterals
         );
         assert_eq!(locked_balance, collaterals);
 
-        let free_balance = T::Currency::free_balance(&client.0);
-        let locked_balance = T::Currency::reserved_balance(&client.0);
+        let free_balance = T::Currency::balance(&client.0);
+        let locked_balance =
+            T::Currency::balance_on_hold(&HoldReason::ClientDealFee.into(), &client.0);
         assert_eq!(
             free_balance,
             BalanceOf::<T>::from(2 * EXISTENTIAL_DEPOSIT) - cost
@@ -253,16 +262,25 @@ mod benchmarks {
         }
 
         assert_eq!(
-            SpPallet::<T>::free(&sp.account_id).unwrap(),
+            T::Currency::balance(&sp.account_id),
             (2 * EXISTENTIAL_DEPOSIT + cost).into()
         );
-        assert_eq!(SpPallet::<T>::locked(&sp.account_id).unwrap(), 0u32.into());
+        assert_eq!(
+            T::Currency::balance_on_hold(
+                &HoldReason::ProviderDealCollateral.into(),
+                &sp.account_id
+            ),
+            0.into()
+        );
 
         assert_eq!(
-            SpPallet::<T>::free(&client.0).unwrap(),
+            T::Currency::balance(&client.0),
             (2 * EXISTENTIAL_DEPOSIT - cost).into()
         );
-        assert_eq!(SpPallet::<T>::locked(&client.0).unwrap(), 0u32.into());
+        assert_eq!(
+            T::Currency::balance_on_hold(&HoldReason::ProviderDealCollateral.into(), &client.0),
+            0.into()
+        );
     }
 
     /// `n` == 1: Publish
@@ -514,9 +532,12 @@ fn check_pre_commit_sectors<T>(n: u32, sp_id: AccountId32)
 where
     T: crate::Config<AccountId = AccountId32>,
 {
-    let state = SpPallet::<T>::storage_providers(sp_id).unwrap();
-    let balance: BalanceOf<T> = n.into();
-    assert_eq!(state.pre_commit_deposits, balance);
+    let state = SpPallet::<T>::storage_providers(sp_id.clone()).unwrap();
+    assert_eq!(state.pre_committed_sectors.len(), n as usize);
+    assert_eq!(
+        T::Currency::balance_on_hold(&HoldReason::ProviderPreCommitDeposit.into(), &sp_id),
+        n.into()
+    );
 }
 
 fn prepare_prove_commit_sectors<T>(
@@ -576,13 +597,15 @@ fn check_prove_commit_sectors<T>(
     u64: TryFrom<BalanceOf<T>>,
 {
     assert_eq!(
-        SpPallet::<T>::free(&sp_id),
-        Some((2 * EXISTENTIAL_DEPOSIT - total_fee).into()),
+        T::Currency::balance(&sp_id),
+        (2 * EXISTENTIAL_DEPOSIT - total_fee).into(),
     );
 
-    let state = SpPallet::<T>::storage_providers(sp_id).unwrap();
-    let balance: BalanceOf<T> = 0_u32.into();
-    assert_eq!(state.pre_commit_deposits, balance);
+    let state = SpPallet::<T>::storage_providers(sp_id.clone()).unwrap();
+    assert_eq!(
+        T::Currency::balance_on_hold(&HoldReason::ProviderPreCommitDeposit.into(), &sp_id),
+        0u32.into()
+    );
 
     // check that the sector has been activated
     assert!(!state.sectors.is_empty());

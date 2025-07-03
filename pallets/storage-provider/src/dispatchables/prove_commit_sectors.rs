@@ -6,7 +6,7 @@ use codec::Encode;
 use frame_support::{
     dispatch::DispatchResult,
     ensure,
-    pallet_prelude::{CheckedSub, Zero},
+    traits::{fungible::MutateHold, tokens::Precision},
 };
 use frame_system::{
     ensure_signed,
@@ -27,7 +27,7 @@ use super::{calculate_pre_commit_deposit, get_randomness};
 use crate::{
     dispatchables::activate_deals,
     sector::{ProveCommitResult, SectorOnChainInfo, SectorPreCommitOnChainInfo},
-    unlock_funds, BalanceOf, Config, Error, Event, Pallet, StorageProviders, LOG_TARGET,
+    BalanceOf, Config, Error, Event, HoldReason, Pallet, StorageProviders, LOG_TARGET,
 };
 
 pub fn prove_commit_sectors<T>(
@@ -46,7 +46,6 @@ where
     let mut new_sectors = BoundedVec::new();
     let mut sector_numbers: BoundedVec<SectorNumber, ConstU32<MAX_SECTORS_PER_CALL>> =
         BoundedVec::new();
-    let mut pre_commit_deposit_to_unlock = BalanceOf::<T>::zero();
 
     for sector in sectors {
         // Get pre-committed sector. This is the sector we are currently
@@ -78,7 +77,14 @@ where
             .try_push(new_sector)
             .expect("Programmer error: New sectors should fit in bound of MAX_SECTORS");
 
-        pre_commit_deposit_to_unlock += calculate_pre_commit_deposit::<T>();
+        let pre_commit_deposit_to_unlock = calculate_pre_commit_deposit::<T>();
+        // Unlock pre commit deposit funds.
+        T::Currency::release(
+            &HoldReason::ProviderPreCommitDeposit.into(),
+            &owner,
+            pre_commit_deposit_to_unlock,
+            Precision::Exact,
+        )?;
     }
 
     // Activate the deals for the sectors that will be proven. This
@@ -142,19 +148,6 @@ where
         .try_into()
         .expect("Programmer error: ProveCommitResult's should fit in bound of MAX_SECTORS");
 
-    // Reduce pre commit deposit amount in state
-    if let Some(pre_commit_deposits) = sp
-        .pre_commit_deposits
-        .checked_sub(&pre_commit_deposit_to_unlock)
-    {
-        sp.pre_commit_deposits = pre_commit_deposits
-    } else {
-        log::error!(target: LOG_TARGET, "catastrophe, failed to subtract from pre_commit_deposits {:?} - {:?} < 0", sp.pre_commit_deposits, pre_commit_deposit_to_unlock);
-        return Err(Error::<T>::FailedToReturnPreCommitDeposit.into());
-    };
-
-    // Unlock pre commit deposit funds.
-    unlock_funds::<T>(&owner, pre_commit_deposit_to_unlock)?;
     StorageProviders::<T>::set(owner.clone(), Some(sp));
     Pallet::<T>::deposit_event(Event::SectorsProven {
         owner,

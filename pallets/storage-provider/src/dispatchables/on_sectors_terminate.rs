@@ -1,13 +1,20 @@
 use frame_support::{
-    dispatch::DispatchResult, pallet_prelude::*, sp_runtime::ArithmeticError, traits::ConstU32,
+    dispatch::DispatchResult,
+    pallet_prelude::*,
+    sp_runtime::ArithmeticError,
+    traits::{
+        fungible::MutateHold,
+        tokens::{Fortitude, Precision},
+        ConstU32,
+    },
 };
 use frame_system::pallet_prelude::*;
 use primitives::{deals::DealState, sector::SectorNumber, MAX_DEALS_PER_SECTOR};
 use sp_arithmetic::traits::BaseArithmetic;
 
 use crate::{
-    dispatchables::perform_storage_payment, slash_and_burn, unlock_funds, BalanceOf, Config, Error,
-    Event, Pallet, PendingProposals, Proposals, SectorDeals,
+    dispatchables::perform_storage_payment, BalanceOf, Config, Error, Event, HoldReason, Pallet,
+    PendingProposals, Proposals, SectorDeals,
 };
 
 pub fn on_sectors_terminate<T>(
@@ -99,8 +106,14 @@ where
                 .try_into()
                 .map_err(|_| Error::<T>::UnexpectedValidationError)?;
 
-            // Slash and burn the provider collateral
-            slash_and_burn::<T>(&deal_proposal.provider, provider_collateral)?;
+            // Slash and burn the provider collateral, best effort to not break the hook due to faulty logic elsewhere
+            T::Currency::burn_held(
+                &HoldReason::ProviderDealCollateral.into(),
+                &deal_proposal.provider,
+                provider_collateral,
+                Precision::BestEffort,
+                Fortitude::Force,
+            )?;
 
             // The remaining client locked funds should be counted from
             // everything we just paid until the deal's end block
@@ -109,7 +122,12 @@ where
                 deal_proposal.storage_price_per_block,
             )?;
             // We then unlock those client funds
-            unlock_funds::<T>(&deal_proposal.client, remaining_client_collateral)?;
+            T::Currency::release(
+                &HoldReason::ClientDealFee.into(),
+                &deal_proposal.client,
+                remaining_client_collateral,
+                Precision::Exact,
+            )?;
 
             // Remove completed deal
             let _ = Proposals::<T>::remove(deal_id);

@@ -2,7 +2,7 @@ use primitives::sector::{ProveCommitSector, SectorNumber};
 use sp_core::bounded_vec;
 use sp_runtime::{BoundedBTreeMap, BoundedBTreeSet};
 
-use super::new_test_ext;
+use super::{new_test_ext, Balances};
 use crate::{
     pallet::{Event, StorageProviders},
     tests::{
@@ -51,9 +51,8 @@ fn pre_commit_hook_slashed_deal() {
         .unwrap();
         // 2 deals = (collateral + precommit) * 2
         assert_eq!(
-            StorageProvider::locked(&account(storage_provider)),
-            // The cast is kind of an hack but we know it is safe
-            Some((2 * (DEAL_COLLATERAL + DEAL_PRECOMMIT_DEPOSIT) as u32).into())
+            Balances::reserved_balance(&account(storage_provider)),
+            2 * (DEAL_COLLATERAL + DEAL_PRECOMMIT_DEPOSIT)
         );
 
         StorageProvider::prove_commit_sectors(
@@ -76,14 +75,10 @@ fn pre_commit_hook_slashed_deal() {
         assert!(sp.sectors.contains_key(&second_sector.sector_number));
         // First sector removed from here because it was slashed, second one because it was proven.
         assert!(sp.pre_committed_sectors.is_empty());
-        // No pre-commit deposit as the second deal has been proven and the first one is expired and thus slashed.
-        assert_eq!(sp.pre_commit_deposits, 0);
         // 1 deal got slashed so the respective locked funds *vanished*
         assert_eq!(
-            StorageProvider::locked(&account(storage_provider)),
-            // The cast is kind of an hack but we know it is safe
-            // Not add the DEAL_PRECOMMIT_DEPOSIT because this has been unlocked after proving.
-            Some((DEAL_COLLATERAL as u32).into())
+            Balances::reserved_balance(&account(storage_provider)),
+            DEAL_COLLATERAL
         );
         let mut expected_faulty_sectors = BoundedBTreeSet::new();
         expected_faulty_sectors
@@ -100,29 +95,11 @@ fn pre_commit_hook_slashed_deal() {
                     owner: account(storage_provider),
                     faulty_partitions: expected_faulty_partitions,
                 }),
-                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Unreserved {
-                    who: account(ALICE),
-                    amount: 50,
-                }),
-                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Slashed {
-                    who: account(storage_provider),
-                    amount: DEAL_COLLATERAL,
-                }),
-                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded {
-                    amount: DEAL_COLLATERAL
-                }),
                 RuntimeEvent::StorageProvider(Event::DealSlashed {
                     deal_id: 0,
                     amount: DEAL_COLLATERAL,
                     client: account(ALICE),
                     provider: account(storage_provider)
-                }),
-                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Slashed {
-                    who: account(storage_provider),
-                    amount: DEAL_PRECOMMIT_DEPOSIT,
-                }),
-                RuntimeEvent::Balances(pallet_balances::Event::<Test>::Rescinded {
-                    amount: DEAL_PRECOMMIT_DEPOSIT
                 }),
                 RuntimeEvent::StorageProvider(Event::<Test>::SectorsSlashed {
                     owner: account(storage_provider),

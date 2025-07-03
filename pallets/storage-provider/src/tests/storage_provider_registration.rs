@@ -3,7 +3,7 @@ use primitives::proofs::RegisteredPoStProof;
 use sp_core::bounded_vec;
 use sp_runtime::{BoundedVec, DispatchError};
 
-use super::new_test_ext;
+use super::{new_test_ext, Balances};
 use crate::{
     pallet::{Error, Event, StorageProviders},
     sector::{TerminateSectorsParams, TerminationDeclaration},
@@ -49,7 +49,7 @@ fn successful_registration() {
         // Check that pre commit sectors are empty.
         assert!(sp_bob.pre_committed_sectors.is_empty());
         // Check that no pre commit deposit is made
-        assert_eq!(sp_bob.pre_commit_deposits, 0);
+        assert_eq!(Balances::reserved_balance(&account(BOB)), 0);
         // Check that sectors are empty.
         assert!(sp_bob.sectors.is_empty());
         // Check that the event triggered

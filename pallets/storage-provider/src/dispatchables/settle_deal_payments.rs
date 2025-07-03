@@ -1,11 +1,16 @@
-use frame_support::{dispatch::DispatchResult, pallet_prelude::*, sp_runtime::ArithmeticError};
+use frame_support::{
+    dispatch::DispatchResult,
+    pallet_prelude::*,
+    sp_runtime::ArithmeticError,
+    traits::{fungible::MutateHold, tokens::Precision},
+};
 use frame_system::pallet_prelude::*;
 use primitives::{deals::DealState, DealId};
 
 use super::perform_storage_payment;
 use crate::{
     deal::{DealSettlementError, SettledDealData},
-    unlock_funds, BalanceOf, Config, Error, Event, Pallet, Proposals, LOG_TARGET,
+    BalanceOf, Config, Error, Event, HoldReason, Pallet, Proposals, LOG_TARGET,
 };
 
 pub fn settle_deal_payments<T>(
@@ -132,7 +137,12 @@ where
 
         // NOTE(@jmg-duarte,28/06/2024): Maybe emit an event when the table is updated?
         if complete_deal {
-            unlock_funds::<T>(&deal_proposal.provider, provider_collateral)?;
+            T::Currency::release(
+                &HoldReason::ProviderDealCollateral.into(),
+                &deal_proposal.provider,
+                provider_collateral,
+                Precision::Exact,
+            )?;
             Proposals::<T>::remove(deal_id);
         } else {
             // Otherwise, we update the proposal — `last_updated_block`

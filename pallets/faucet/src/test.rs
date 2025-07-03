@@ -14,19 +14,16 @@ fn drip() {
         assert_eq!(
             events(),
             [
-                RuntimeEvent::Balances(BalanceEvent::Issued {
-                    amount: <Test as crate::Config>::FaucetDripAmount::get()
-                }),
-                RuntimeEvent::Balances(BalanceEvent::Deposit {
-                    who: account.clone(),
-                    amount: <Test as crate::Config>::FaucetDripAmount::get()
-                }),
                 RuntimeEvent::System(SystemEvent::NewAccount {
                     account: account.clone()
                 }),
                 RuntimeEvent::Balances(BalanceEvent::Endowed {
                     account: account.clone(),
                     free_balance: <Test as crate::Config>::FaucetDripAmount::get()
+                }),
+                RuntimeEvent::Balances(BalanceEvent::Minted {
+                    who: account.clone(),
+                    amount: <Test as crate::Config>::FaucetDripAmount::get()
                 }),
                 RuntimeEvent::Faucet(Event::Dripped {
                     who: account.clone(),
@@ -80,10 +77,7 @@ fn drip_delay_succeeds() {
         assert_eq!(
             events(),
             [
-                RuntimeEvent::Balances(BalanceEvent::Issued {
-                    amount: <Test as crate::Config>::FaucetDripAmount::get()
-                }),
-                RuntimeEvent::Balances(BalanceEvent::Deposit {
+                RuntimeEvent::Balances(BalanceEvent::Minted {
                     who: account.clone(),
                     amount: <Test as crate::Config>::FaucetDripAmount::get()
                 }),

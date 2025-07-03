@@ -1,9 +1,13 @@
+use frame_support::traits::{
+    fungible::MutateHold,
+    tokens::{Fortitude, Precision},
+};
 use frame_system::pallet_prelude::*;
 use primitives::{self, deals::DealState};
 
 use crate::{
-    slash_and_burn, unlock_funds, BalanceOf, Config, DealsForBlock, Event, Pallet,
-    PendingProposals, Proposals, LOG_TARGET,
+    BalanceOf, Config, DealsForBlock, Event, HoldReason, Pallet, PendingProposals, Proposals,
+    LOG_TARGET,
 };
 
 /// When deals are published in [`publish_storage_deals`], they're added to the `DealsForBlock::<T>::get(current_block)` data structure.
@@ -50,10 +54,17 @@ where
                     continue;
                 };
 
-                let Ok(()) = unlock_funds::<T>(&proposal.client, client_fee) else {
-                    log::error!(target: LOG_TARGET, "on_finalize: invariant violated, failed to return the fee to the client, deal {}", deal_id);
+                let release_result = T::Currency::release(
+                    &HoldReason::ClientDealFee.into(),
+                    &proposal.client,
+                    client_fee,
+                    Precision::BestEffort,
+                );
+                // Expect to have released the client fee exactly
+                if release_result != Ok(client_fee) {
+                    log::error!(target: LOG_TARGET, "on_finalize: invariant violated, failed to return the fee to the client, deal {deal_id}, result: {release_result:?}");
                     continue;
-                };
+                }
 
                 log::info!(
                     "on_finalize: slashing {:?} for not activating a deal {}",
@@ -73,8 +84,15 @@ where
                 };
 
                 // PRE-COND: deal MUST BE validated and the proper funds allocated
-                let Ok(()) = slash_and_burn::<T>(&proposal.provider, provider_collateral) else {
-                    log::error!(target: LOG_TARGET, "on_finalize: invariant violated, cannot slash the deal {}", deal_id);
+                let slash_result = T::Currency::burn_held(
+                    &HoldReason::ProviderDealCollateral.into(),
+                    &proposal.provider,
+                    provider_collateral,
+                    Precision::BestEffort,
+                    Fortitude::Polite,
+                );
+                if slash_result != Ok(provider_collateral) {
+                    log::error!(target: LOG_TARGET, "on_finalize: invariant violated, could not fully slash the deal {deal_id}, result: {slash_result:?}");
                     continue;
                 };
 
