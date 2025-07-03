@@ -108,19 +108,34 @@ jobs:
           rustup show
           cargo --version
           cargo clippy --version
-          cargo tarpaulin --version
       - name: Build in dev mode
         run: cargo build --profile ci --locked
       - name: Cargo clippy
-        run: cargo clippy --profile ci --locked
+        run: cargo clippy --profile ci --locked --no-deps
+
+  check_tests:
+    runs-on: self-hosted
+    needs:
+      - format
+    env:
+      RUSTFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@v4
+      - name: List version
+        run: |
+          rustup show
+          cargo --version
+          cargo clippy --version
       - name: Run tests
-        run: cargo tarpaulin --profile ci --locked --workspace --skip-clean --exclude maat
+        run: cargo t --profile ci --locked --workspace --exclude maat
+      - name: Check tests
+        run: cargo clippy --profile ci --locked --no-deps
 
   # This is easier to configure in the GitHub settings
   benchmarks:
     runs-on: self-hosted
     needs:
-      - clippy_build_and_test
+      - format
     env:
       RUSTFLAGS: -D warnings
 
@@ -130,7 +145,7 @@ jobs:
       - name: Run test benchmarks
         run: |
           cargo test --profile ci --locked \
-            -p pallet-storage-provider-benchmarks
+            -p pallet-storage-provider-benchmarks \
             -p pallet-proofs \
             -p pallet-randomness \
             --features runtime-benchmarks -- benchmark --nocapture
