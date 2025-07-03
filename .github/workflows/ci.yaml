@@ -27,13 +27,28 @@ jobs:
       - uses: tj-actions/changed-files@c65cd883420fd2eb864698a825fc4162dd94482c #v44.5.7
         id: changed-files
         with:
+          # We check if workflow files were changed because changes to those should never be skipped either
           files: |
+            **/.github/workflows/*
             **/*.rs
             **/Cargo.toml
             **/*.scale
       - name: Check if proper files changed
         id: check-files
         run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]
+            echo "Triggered by workflow dispatch, not skipping."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # If it is one of these branches, always run completely
+          if [[ "${GITHUB_REF_NAME}" == "develop" || "${GITHUB_REF_NAME}" == "main" ]]; then
+            echo "On develop or main branch."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           if [[ "${{ steps.changed-files.outputs.any_changed }}" == "false" ]]; then
             echo "No files changed. Skipping CI."
             echo "skip=true" >> "$GITHUB_OUTPUT"
