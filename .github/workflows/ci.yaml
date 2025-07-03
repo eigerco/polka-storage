@@ -36,7 +36,7 @@ jobs:
       - name: Check if proper files changed
         id: check-files
         run: |
-          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
             echo "Triggered by workflow dispatch, not skipping."
             echo "skip=false" >> "$GITHUB_OUTPUT"
             exit 0
