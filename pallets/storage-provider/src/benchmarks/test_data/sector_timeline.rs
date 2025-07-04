@@ -5,7 +5,7 @@ use alloc::{format, string::String, vec::Vec};
 use codec::Encode;
 use primitives::proofs::assign_proving_period_offset;
 
-use crate::test_data::{
+use crate::benchmarks::test_data::{
     absolute_block_number::Absolute, deal_timeline::DealTimeline, relative_block_number::Relative,
 };
 
@@ -111,10 +111,6 @@ where
         Ok(t)
     }
 
-    pub fn storage_provider_account_id(&self) -> &AccountId {
-        &self.storage_provider_account_id
-    }
-
     pub fn register_storage_provider(&self) -> Absolute<BlockNumber> {
         self.register_storage_provider
     }
@@ -148,10 +144,6 @@ where
 
     pub fn deals(&self) -> &Vec<DealTimeline<BlockNumber>> {
         &self.deals
-    }
-
-    pub fn period_deadlines(&self) -> u32 {
-        self.period_deadlines
     }
 
     pub fn seal_randomness_height(&self) -> Absolute<BlockNumber> {
@@ -219,9 +211,5 @@ where
     pub fn submit_windowed_post(&self) -> Absolute<BlockNumber> {
         // Must be after the deadline, but there is no strict delay.
         self.deadline_start() + Relative::one()
-    }
-
-    pub fn deadline_close(&self) -> Absolute<BlockNumber> {
-        self.deadline_start() + self.challenge_window()
     }
 }

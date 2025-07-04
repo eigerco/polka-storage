@@ -6,13 +6,6 @@ use sp_runtime::traits::{One, Zero};
 pub struct Relative<BlockNumber>(pub BlockNumber);
 
 impl<BlockNumber> Relative<BlockNumber> {
-    pub fn zero() -> Self
-    where
-        BlockNumber: Zero,
-    {
-        Self(BlockNumber::zero())
-    }
-
     pub fn one() -> Self
     where
         BlockNumber: One,

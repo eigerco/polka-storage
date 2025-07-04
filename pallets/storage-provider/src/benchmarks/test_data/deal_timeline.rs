@@ -1,4 +1,6 @@
-use crate::test_data::{absolute_block_number::Absolute, relative_block_number::Relative};
+use crate::benchmarks::test_data::{
+    absolute_block_number::Absolute, relative_block_number::Relative,
+};
 
 #[derive(Debug, Clone)]
 pub struct DealTimeline<BlockNumber> {

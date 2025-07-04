@@ -34,6 +34,9 @@ frame-benchmarking = { workspace = true, default-features = false, optional = tr
 frame-support = { workspace = true, default-features = false }
 frame-system = { workspace = true, default-features = false }
 
+pallet-balances = { workspace = true, default-features = false, optional = true }
+sp-io = { workspace = true, optional = true }
+
 [dev-dependencies]
 env_logger = { workspace = true }
 multihash-codetable = { workspace = true, features = ["blake2b"] }
@@ -46,9 +49,12 @@ sp-keystore = { workspace = true, default-features = false }
 [features]
 default = ["std"]
 runtime-benchmarks = [
+  "dep:pallet-balances",
+  "dep:sp-io",
   "frame-benchmarking/runtime-benchmarks",
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
+  "pallet-balances/runtime-benchmarks",
   "primitives/testing",
   "sp-runtime/runtime-benchmarks",
 ]

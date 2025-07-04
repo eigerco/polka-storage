@@ -14,7 +14,7 @@ use primitives::{
 };
 use sp_runtime::{traits::ConstU32, AccountId32, BoundedVec, MultiSigner};
 
-use crate::test_data::{
+use crate::benchmarks::test_data::{
     absolute_block_number::Absolute, deal_timeline::DealTimeline, generate_benchmark_account,
     relative_block_number::Relative, sector_data::SectorData, sector_timeline::SectorTimeline,
     sign_proposal, storage_provider_data::StorageProviderData, ClientDealProposalOf,
@@ -43,13 +43,12 @@ where
     T: frame_system::Config<AccountId = AccountId32>,
 {
     pub fn storage_provider(&self) -> StorageProviderData {
-        let (account_id, sign) = generate_benchmark_account::<T>(&self.storage_provider_name);
+        let (account_id, _) = generate_benchmark_account::<T>(&self.storage_provider_name);
 
         let peer_id: &[u8; 32] = &account_id.as_ref();
         let multiaddr = peer_id.to_vec().try_into().unwrap();
         StorageProviderData {
             account_id,
-            sign,
             multiaddr,
         }
     }
@@ -60,7 +59,7 @@ where
         limit: u32,
     ) -> BoundedVec<ClientDealProposalOf<T>, T::MaxDeals>
     where
-        T: pallet_storage_provider::Config,
+        T: crate::Config,
     {
         self.sectors
             .iter()
