@@ -212,4 +212,9 @@ where
         // Must be after the deadline, but there is no strict delay.
         self.deadline_start() + Relative::one()
     }
+
+    #[allow(unused)]
+    pub fn deadline_close(&self) -> Absolute<BlockNumber> {
+        self.deadline_start() + self.challenge_window()
+    }
 }
