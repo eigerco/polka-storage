@@ -185,7 +185,7 @@ kube-testnet:
 
 pallet-storage-provider-coverage:
     mkdir -p coverage
-    cargo tarpaulin -p pallet-storage-provider -p pallet-storage-provider-benchmarks --locked --skip-clean --fail-immediately --out html lcov --output-dir coverage/pallet-storage-provider
+    cargo tarpaulin -p pallet-storage-provider --locked --skip-clean --fail-immediately --out html lcov --output-dir coverage/pallet-storage-provider
 
 market-coverage:
     mkdir -p coverage
@@ -210,7 +210,7 @@ download-params sector-size:
 
 # Run the benchmark tests
 bench-test pallet:
-    cargo test --profile ci --locked -p "pallet-{{pallet}}-benchmarks" --features runtime-benchmarks -- benchmark --nocapture
+    cargo test --profile ci --locked -p "pallet-{{pallet}}" --features runtime-benchmarks -- benchmark --nocapture
 
 # Run benchmarks
 bench-node pallet steps="5" repeat="1":

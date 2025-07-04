@@ -6,7 +6,7 @@ use sp_core::sr25519;
 use sp_io::crypto::{sr25519_generate, sr25519_sign};
 use sp_runtime::{traits::IdentifyAccount, AccountId32, MultiSignature, MultiSigner};
 
-use crate::benchmarking::{ClientDealProposalOf, DealProposalOf};
+use crate::benchmarks::benchmarking::{ClientDealProposalOf, DealProposalOf};
 
 pub mod absolute_block_number;
 pub mod benchmark_data;
@@ -36,7 +36,7 @@ where
 
 pub fn sign_proposal<T>(pubkey: MultiSigner, proposal: DealProposalOf<T>) -> ClientDealProposalOf<T>
 where
-    T: pallet_storage_provider::Config,
+    T: crate::Config,
 {
     let client_signature = create_sr25519_signature(&Encode::encode(&proposal), pubkey);
     ClientDealProposal {

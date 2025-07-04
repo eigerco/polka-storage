@@ -1,5 +1,7 @@
 #![cfg(feature = "runtime-benchmarks")]
 
+extern crate alloc;
+
 use alloc::{collections::BTreeSet, vec, vec::Vec};
 use core::ops::Add;
 
@@ -19,17 +21,6 @@ use frame_system::{
     RawOrigin,
 };
 use pallet_proofs::Pallet as ProofsPallet;
-use pallet_storage_provider::{
-    deal::parameters::{OffchainDealDurationBound, OffchainDealParameters},
-    error::GeneralPalletError,
-    expiration_queue::ExpirationSet,
-    fault::{
-        DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration, RecoveryDeclaration,
-    },
-    proofs::{PoStProof, SubmitWindowedPoStParams},
-    sector::{TerminateSectorsParams, TerminationDeclaration},
-    BalanceOf, HoldReason, Pallet as SpPallet, SPDealParameters,
-};
 use primitives::{
     deals::{ClientDealProposal, DealProposal},
     sector::{ProveCommitSector, SectorNumber, SectorPreCommitInfo},
@@ -40,8 +31,19 @@ use sp_core::Get;
 use sp_runtime::{AccountId32, MultiSignature, MultiSigner};
 
 use crate::{
-    test_data::{benchmark_data::BenchmarkData, generate_benchmark_account},
-    Config, Pallet,
+    benchmarks::{
+        test_data::{benchmark_data::BenchmarkData, generate_benchmark_account},
+        Config, Pallet,
+    },
+    deal::parameters::{OffchainDealDurationBound, OffchainDealParameters},
+    error::GeneralPalletError,
+    expiration_queue::ExpirationSet,
+    fault::{
+        DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration, RecoveryDeclaration,
+    },
+    proofs::{PoStProof, SubmitWindowedPoStParams},
+    sector::{TerminateSectorsParams, TerminationDeclaration},
+    BalanceOf, HoldReason, Pallet as SpPallet, SPDealParameters,
 };
 
 type BoundedMultiaddrBytes = BoundedVec<u8, ConstU32<MULTIADDR_MAX_BYTES>>;
@@ -51,7 +53,7 @@ pub type DealProposalOf<T> =
 
 pub type ClientDealProposalOf<T> = ClientDealProposal<
     <T as frame_system::Config>::AccountId,
-    pallet_storage_provider::BalanceOf<T>,
+    crate::BalanceOf<T>,
     BlockNumberFor<T>,
     MultiSignature,
 >;
@@ -62,7 +64,7 @@ const EXISTENTIAL_DEPOSIT: u32 = 1_000_000_000;
 
 #[benchmarks(
     where
-        T: crate::Config<
+        T: crate::benchmarks::Config<
             Multiaddr = BoundedMultiaddrBytes,
             AccountId = AccountId32,
             OffchainSignature = MultiSignature,
@@ -71,9 +73,8 @@ const EXISTENTIAL_DEPOSIT: u32 = 1_000_000_000;
     u64: TryFrom<BalanceOf<T>>,
 )]
 mod benchmarks {
-    use pallet_storage_provider::HoldReason;
-
     use super::*;
+    use crate::HoldReason;
 
     #[benchmark]
     fn register_storage_provider() {
@@ -132,7 +133,7 @@ mod benchmarks {
         let sp = data.storage_provider();
         setup_account_balance::<T>(sp.account_id.clone());
         // Register the caller as a storage provider
-        pallet_storage_provider::Pallet::<T>::register_storage_provider(
+        crate::Pallet::<T>::register_storage_provider(
             RawOrigin::Signed(sp.account_id.clone()).into(),
             sp.multiaddr,
             data.post_type,
@@ -195,7 +196,7 @@ mod benchmarks {
         let sp = data.storage_provider();
         setup_account_balance::<T>(sp.account_id.clone());
         // Register the caller as a storage provider
-        pallet_storage_provider::Pallet::<T>::register_storage_provider(
+        crate::Pallet::<T>::register_storage_provider(
             RawOrigin::Signed(sp.account_id.clone()).into(),
             sp.multiaddr,
             data.post_type,
@@ -291,7 +292,7 @@ mod benchmarks {
         let sp = data.storage_provider();
         setup_account_balance::<T>(sp.account_id.clone());
         // Register the caller as a storage provider
-        pallet_storage_provider::Pallet::<T>::register_storage_provider(
+        crate::Pallet::<T>::register_storage_provider(
             RawOrigin::Signed(sp.account_id.clone()).into(),
             sp.multiaddr,
             data.post_type,
@@ -341,7 +342,7 @@ mod benchmarks {
         let sp = data.storage_provider();
         setup_account_balance::<T>(sp.account_id.clone());
         // Register the caller as a storage provider
-        pallet_storage_provider::Pallet::<T>::register_storage_provider(
+        crate::Pallet::<T>::register_storage_provider(
             RawOrigin::Signed(sp.account_id.clone()).into(),
             sp.multiaddr,
             data.post_type,
@@ -371,8 +372,8 @@ mod benchmarks {
 
     impl_benchmark_test_suite! {
         Pallet,
-        crate::test::new_test_ext(),
-        crate::mock::Test,
+        crate::benchmarks::test::new_test_ext(),
+        crate::benchmarks::mock::Test,
     }
 
     #[benchmark]
@@ -477,7 +478,11 @@ mod benchmarks {
         check_submit_windowed_post::<T>(windowed_post);
     }
 
-    impl_benchmark_test_suite!(Pallet, crate::test::new_test_ext(), crate::mock::Test);
+    impl_benchmark_test_suite!(
+        Pallet,
+        crate::benchmarks::test::new_test_ext(),
+        crate::benchmarks::mock::Test
+    );
 }
 
 fn prepare_pre_commit_sectors<T>(
@@ -488,7 +493,7 @@ fn prepare_pre_commit_sectors<T>(
     BoundedVec<SectorPreCommitInfo<BlockNumberFor<T>>, ConstU32<{ MAX_SECTORS_PER_CALL }>>,
 )
 where
-    T: crate::Config<
+    T: crate::benchmarks::Config<
         Multiaddr = BoundedMultiaddrBytes,
         AccountId = AccountId32,
         OffchainSignature = MultiSignature,
@@ -530,7 +535,7 @@ where
 
 fn check_pre_commit_sectors<T>(n: u32, sp_id: AccountId32)
 where
-    T: crate::Config<AccountId = AccountId32>,
+    T: crate::benchmarks::Config<AccountId = AccountId32>,
 {
     let state = SpPallet::<T>::storage_providers(sp_id.clone()).unwrap();
     assert_eq!(state.pre_committed_sectors.len(), n as usize);
@@ -548,7 +553,7 @@ fn prepare_prove_commit_sectors<T>(
     u32,
 )
 where
-    T: crate::Config<
+    T: crate::benchmarks::Config<
         Multiaddr = BoundedMultiaddrBytes,
         AccountId = AccountId32,
         OffchainSignature = MultiSignature,
@@ -588,7 +593,7 @@ fn check_prove_commit_sectors<T>(
     prove_sectors: BoundedVec<ProveCommitSector, ConstU32<MAX_SECTORS_PER_CALL>>,
     total_fee: u32,
 ) where
-    T: crate::Config<
+    T: crate::benchmarks::Config<
         Multiaddr = BoundedMultiaddrBytes,
         AccountId = AccountId32,
         OffchainSignature = MultiSignature,
@@ -631,7 +636,7 @@ fn check_prove_commit_sectors<T>(
 
 fn prepare_declare_faults<T>(n: u32) -> (AccountId32, DeclareFaultsParams)
 where
-    T: crate::Config<
+    T: crate::benchmarks::Config<
         Multiaddr = BoundedMultiaddrBytes,
         AccountId = AccountId32,
         OffchainSignature = MultiSignature,
@@ -668,7 +673,7 @@ where
 
 fn check_declare_faults<T>(faults: DeclareFaultsParams)
 where
-    T: crate::Config<AccountId = AccountId32>,
+    T: crate::benchmarks::Config<AccountId = AccountId32>,
 {
     let data = BenchmarkData::<T>::load();
     let sp = data.storage_provider();
@@ -693,7 +698,7 @@ where
 
 fn prepare_declare_faults_recovered<T>(n: u32) -> (AccountId32, DeclareFaultsRecoveredParams)
 where
-    T: crate::Config<
+    T: crate::benchmarks::Config<
         Multiaddr = BoundedMultiaddrBytes,
         AccountId = AccountId32,
         OffchainSignature = MultiSignature,
@@ -724,7 +729,7 @@ where
 
 fn check_declare_faults_recovered<T>(recoveries: DeclareFaultsRecoveredParams)
 where
-    T: crate::Config<AccountId = AccountId32>,
+    T: crate::benchmarks::Config<AccountId = AccountId32>,
 {
     let data = BenchmarkData::<T>::load();
     let sp = data.storage_provider();
@@ -749,7 +754,7 @@ where
 
 fn prepare_terminate_sectors<T>(n: u32) -> (AccountId32, TerminateSectorsParams)
 where
-    T: crate::Config<
+    T: crate::benchmarks::Config<
         Multiaddr = BoundedMultiaddrBytes,
         AccountId = AccountId32,
         OffchainSignature = MultiSignature,
@@ -787,7 +792,7 @@ where
 
 fn check_terminate_sectors<T>(terminations: TerminateSectorsParams)
 where
-    T: crate::Config<AccountId = AccountId32>,
+    T: crate::benchmarks::Config<AccountId = AccountId32>,
 {
     let data = BenchmarkData::<T>::load();
     let sp = data.storage_provider();
@@ -822,7 +827,7 @@ where
 
 fn prepare_submit_windowed_post<T>(n: u32) -> (AccountId32, SubmitWindowedPoStParams)
 where
-    T: crate::Config<
+    T: crate::benchmarks::Config<
         Multiaddr = BoundedMultiaddrBytes,
         AccountId = AccountId32,
         OffchainSignature = MultiSignature,
@@ -870,7 +875,7 @@ where
 
 fn check_submit_windowed_post<T>(windowed_post: SubmitWindowedPoStParams)
 where
-    T: crate::Config<AccountId = AccountId32>,
+    T: crate::benchmarks::Config<AccountId = AccountId32>,
 {
     let data = BenchmarkData::<T>::load();
     let sp = data.storage_provider();
@@ -903,7 +908,7 @@ where
 /// Stolen from https://github.com/paritytech/polkadot-sdk/blob/1bc6ca606438a65c927f14be3f36634ca0e58e8f/substrate/frame/identity/src/benchmarking.rs#L48
 fn run_to_block<T: Config>(n: frame_system::pallet_prelude::BlockNumberFor<T>) {
     while frame_system::Pallet::<T>::block_number() < n {
-        crate::Pallet::<T>::on_finalize(frame_system::Pallet::<T>::block_number());
+        crate::benchmarks::Pallet::<T>::on_finalize(frame_system::Pallet::<T>::block_number());
         frame_system::Pallet::<T>::on_finalize(frame_system::Pallet::<T>::block_number());
 
         frame_system::Pallet::<T>::set_block_number(
@@ -912,13 +917,13 @@ fn run_to_block<T: Config>(n: frame_system::pallet_prelude::BlockNumberFor<T>) {
 
         frame_system::Pallet::<T>::on_initialize(frame_system::Pallet::<T>::block_number());
         ProofsPallet::<T>::on_initialize(frame_system::Pallet::<T>::block_number());
-        crate::Pallet::<T>::on_initialize(frame_system::Pallet::<T>::block_number());
+        crate::benchmarks::Pallet::<T>::on_initialize(frame_system::Pallet::<T>::block_number());
     }
 }
 
 fn create_account_with_balance<T>(name: &'static str, balance: u32) -> (AccountId32, MultiSigner)
 where
-    T: crate::Config<AccountId = AccountId32>,
+    T: crate::benchmarks::Config<AccountId = AccountId32>,
 {
     let account = generate_benchmark_account::<T>(name);
     pallet_balances::Pallet::<T>::make_free_balance_be(&account.0, balance.into());
@@ -927,7 +932,7 @@ where
 
 fn setup_account_balance<T>(account: T::AccountId)
 where
-    T: crate::Config,
+    T: crate::benchmarks::Config,
     T: pallet_balances::Config,
 {
     pallet_balances::Pallet::<T>::make_free_balance_be(&account, (EXISTENTIAL_DEPOSIT * 2).into());

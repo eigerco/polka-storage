@@ -149,7 +149,7 @@ jobs:
       - name: Run test benchmarks
         run: |
           cargo test --profile ci --locked \
-            -p pallet-storage-provider-benchmarks \
+            -p pallet-storage-provider \
             -p pallet-proofs \
             -p pallet-randomness \
             --features runtime-benchmarks -- benchmark --nocapture

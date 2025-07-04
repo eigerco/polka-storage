@@ -6,7 +6,7 @@ use std::sync::Arc;
 use sp_keystore::{testing::MemoryKeystore, KeystoreExt};
 use sp_runtime::BuildStorage;
 
-use crate::mock::Test;
+use crate::benchmarks::mock::Test;
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
     let _ = env_logger::try_init();

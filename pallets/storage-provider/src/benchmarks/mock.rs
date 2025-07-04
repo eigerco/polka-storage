@@ -40,7 +40,7 @@ mod runtime {
     pub type Balances = pallet_balances::Pallet<Test>;
 
     #[runtime::pallet_index(34)]
-    pub type StorageProvider = pallet_storage_provider::Pallet<Test>;
+    pub type StorageProvider = crate::Pallet<Test>;
 
     #[runtime::pallet_index(4)]
     pub type Proofs = pallet_proofs::Pallet<Test>;
@@ -126,7 +126,7 @@ where
     }
 }
 
-impl pallet_storage_provider::Config for Test {
+impl crate::Config for Test {
     type PalletId = StoragePalletId;
     type RuntimeEvent = RuntimeEvent;
     type RuntimeHoldReason = RuntimeHoldReason;
@@ -165,4 +165,4 @@ impl pallet_storage_provider::Config for Test {
     type AddressedSectorsMax = AddressedSectorsMax;
 }
 
-impl crate::pallet::Config for Test {}
+impl crate::benchmarks::pallet::Config for Test {}
