@@ -1,7 +1,7 @@
 use frame_support::dispatch::DispatchResult;
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 
-use crate::{Config, Error, Event, Pallet, StorageProviders};
+use crate::{Config, Error, Event, Pallet, SPDealParameters, StorageProviders};
 
 pub fn deregister_storage_provider<T>(origin: OriginFor<T>) -> DispatchResult
 where
@@ -42,6 +42,7 @@ where
     }
 
     StorageProviders::<T>::remove(&owner);
+    SPDealParameters::<T>::remove(&owner);
 
     // Emit event
     Pallet::<T>::deposit_event(Event::StorageProviderDeregistered {

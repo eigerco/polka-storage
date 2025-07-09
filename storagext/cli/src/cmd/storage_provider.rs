@@ -8,8 +8,9 @@ use storagext::{
     multipair::MultiPairSigner,
     runtime::SubmissionResult,
     types::storage_provider::{
-        FaultDeclaration as SxtFaultDeclaration, ProveCommitSector as SxtProveCommitSector,
-        RecoveryDeclaration as SxtRecoveryDeclaration,
+        FaultDeclaration as SxtFaultDeclaration,
+        OffchainDealParameters as SxtOffchainDealParameters,
+        ProveCommitSector as SxtProveCommitSector, RecoveryDeclaration as SxtRecoveryDeclaration,
         SectorPreCommitInfo as SxtSectorPreCommitInfo,
         SubmitWindowedPoStParams as SxtSubmitWindowedPoStParams,
         TerminationDeclaration as SxtTerminationDeclaration,
@@ -43,6 +44,9 @@ pub enum StorageProviderCommand {
         /// Proof of Space Time type.
         #[arg(long, value_parser = parse_post_proof, default_value = "8MiB")]
         post_proof: RegisteredPoStProof,
+        /// Deal parameters for the given SP account
+        #[arg(long, value_parser = <SxtOffchainDealParameters as DeserializablePath>::deserialize_json)]
+        deal_parameters: SxtOffchainDealParameters,
     },
 
     /// Deregister account as a storage provider in the Storage Provider Pallet.
@@ -162,12 +166,14 @@ impl StorageProviderCommand {
             StorageProviderCommand::RegisterStorageProvider {
                 multiaddr,
                 post_proof,
+                deal_parameters,
             } => {
                 Self::register_storage_provider(
                     client,
                     account_keypair,
                     multiaddr,
                     post_proof,
+                    deal_parameters,
                     wait_for_finalization,
                 )
                 .await?
@@ -263,6 +269,7 @@ impl StorageProviderCommand {
         account_keypair: MultiPairSigner,
         multiaddr: Multiaddr,
         post_proof: RegisteredPoStProof,
+        deal_parameters: SxtOffchainDealParameters,
         wait_for_finalization: bool,
     ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
@@ -273,6 +280,7 @@ impl StorageProviderCommand {
                 &account_keypair,
                 multiaddr.clone(),
                 post_proof,
+                deal_parameters,
                 wait_for_finalization,
             )
             .await?

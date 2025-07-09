@@ -139,9 +139,10 @@ impl std::fmt::Display for Event {
                 owner,
                 info,
                 proving_period_start,
+                deal_parameters,
             } => f.write_fmt(format_args!(
-                "Storage Provider Registered: {{ owner: {}, info: {}, proving_period_start: {} }}",
-                owner, info, proving_period_start,
+                "Storage Provider Registered: {{ owner: {}, info: {}, proving_period_start: {}, deal_parameters: {} }}",
+                owner, info, proving_period_start, deal_parameters
             )),
             Event::StorageProviderDeregistered { owner, info } => f.write_fmt(format_args!(
                 "Storage Provider Deregistered: {{ owner: {}, info: {} }}",

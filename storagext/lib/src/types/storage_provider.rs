@@ -245,8 +245,8 @@ impl From<ClientDealProposal>
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct OffchainDealDurationBound {
-    lower: Option<BlockNumber>,
-    upper: Option<BlockNumber>,
+    pub lower: Option<BlockNumber>,
+    pub upper: Option<BlockNumber>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]

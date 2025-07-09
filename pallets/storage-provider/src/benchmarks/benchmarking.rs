@@ -83,6 +83,14 @@ mod benchmarks {
         let caller = provider.account_id;
         let multiaddr = provider.multiaddr;
         let window_post_proof_type = data.post_type;
+        let offchain_deal_parameters: OffchainDealParameters<BalanceOf<T>, BlockNumberFor<T>> =
+            OffchainDealParameters {
+                minimum_price_per_block: 2u32.into(),
+                deal_duration: OffchainDealDurationBound {
+                    lower: Some(50u32.into()),
+                    upper: Some(80u32.into()),
+                },
+            };
 
         #[block]
         {
@@ -90,12 +98,18 @@ mod benchmarks {
                 RawOrigin::Signed(caller.clone()).into(),
                 multiaddr.clone(),
                 window_post_proof_type,
+                offchain_deal_parameters.clone(),
             ));
         }
 
-        let state = SpPallet::<T>::storage_providers(caller).unwrap();
+        let state = SpPallet::<T>::storage_providers(caller.clone()).unwrap();
         assert_eq!(state.info.multiaddr, multiaddr);
         assert_eq!(state.info.window_post_proof_type, window_post_proof_type);
+        let deal_parameters = offchain_deal_parameters
+            .clone()
+            .validate(T::MinDealDuration::get(), T::MaxDealDuration::get())
+            .expect("Seamless conversion");
+        assert_eq!(SPDealParameters::<T>::get(&caller), Some(deal_parameters));
     }
 
     #[benchmark]
@@ -105,11 +119,20 @@ mod benchmarks {
         let caller = provider.account_id;
         let multiaddr = provider.multiaddr;
         let window_post_proof_type = data.post_type;
+        let offchain_deal_parameters: OffchainDealParameters<BalanceOf<T>, BlockNumberFor<T>> =
+            OffchainDealParameters {
+                minimum_price_per_block: 2u32.into(),
+                deal_duration: OffchainDealDurationBound {
+                    lower: Some(50u32.into()),
+                    upper: Some(80u32.into()),
+                },
+            };
 
         assert_ok_sp(SpPallet::<T>::register_storage_provider(
             RawOrigin::Signed(caller.clone()).into(),
             multiaddr.clone(),
             window_post_proof_type,
+            offchain_deal_parameters,
         ));
 
         let state = SpPallet::<T>::storage_providers(caller.clone()).unwrap();
@@ -132,11 +155,20 @@ mod benchmarks {
         let data = BenchmarkData::<T>::load();
         let sp = data.storage_provider();
         setup_account_balance::<T>(sp.account_id.clone());
+        let offchain_deal_parameters: OffchainDealParameters<BalanceOf<T>, BlockNumberFor<T>> =
+            OffchainDealParameters {
+                minimum_price_per_block: 2u32.into(),
+                deal_duration: OffchainDealDurationBound {
+                    lower: Some(50u32.into()),
+                    upper: Some(80u32.into()),
+                },
+            };
         // Register the caller as a storage provider
         crate::Pallet::<T>::register_storage_provider(
             RawOrigin::Signed(sp.account_id.clone()).into(),
             sp.multiaddr,
             data.post_type,
+            offchain_deal_parameters,
         )
         .unwrap();
 
@@ -195,11 +227,20 @@ mod benchmarks {
         let data = BenchmarkData::<T>::load();
         let sp = data.storage_provider();
         setup_account_balance::<T>(sp.account_id.clone());
+        let offchain_deal_parameters: OffchainDealParameters<BalanceOf<T>, BlockNumberFor<T>> =
+            OffchainDealParameters {
+                minimum_price_per_block: 2u32.into(),
+                deal_duration: OffchainDealDurationBound {
+                    lower: Some(50u32.into()),
+                    upper: Some(80u32.into()),
+                },
+            };
         // Register the caller as a storage provider
         crate::Pallet::<T>::register_storage_provider(
             RawOrigin::Signed(sp.account_id.clone()).into(),
             sp.multiaddr,
             data.post_type,
+            offchain_deal_parameters,
         )
         .unwrap();
 
@@ -291,11 +332,20 @@ mod benchmarks {
         let data = BenchmarkData::<T>::load();
         let sp = data.storage_provider();
         setup_account_balance::<T>(sp.account_id.clone());
+        let offchain_deal_parameters: OffchainDealParameters<BalanceOf<T>, BlockNumberFor<T>> =
+            OffchainDealParameters {
+                minimum_price_per_block: 2u32.into(),
+                deal_duration: OffchainDealDurationBound {
+                    lower: Some(50u32.into()),
+                    upper: Some(80u32.into()),
+                },
+            };
         // Register the caller as a storage provider
         crate::Pallet::<T>::register_storage_provider(
             RawOrigin::Signed(sp.account_id.clone()).into(),
             sp.multiaddr,
             data.post_type,
+            offchain_deal_parameters.clone(),
         )
         .unwrap();
 
@@ -341,25 +391,24 @@ mod benchmarks {
         let data = BenchmarkData::<T>::load();
         let sp = data.storage_provider();
         setup_account_balance::<T>(sp.account_id.clone());
+        let offchain_deal_parameters: OffchainDealParameters<BalanceOf<T>, BlockNumberFor<T>> =
+            OffchainDealParameters {
+                minimum_price_per_block: 2u32.into(),
+                deal_duration: OffchainDealDurationBound {
+                    lower: Some(50u32.into()),
+                    upper: Some(80u32.into()),
+                },
+            };
         // Register the caller as a storage provider
         crate::Pallet::<T>::register_storage_provider(
             RawOrigin::Signed(sp.account_id.clone()).into(),
             sp.multiaddr,
             data.post_type,
+            offchain_deal_parameters,
         )
         .unwrap();
 
-        let deal_parameters: OffchainDealParameters<BalanceOf<T>, BlockNumberFor<T>> =
-            OffchainDealParameters {
-                minimum_price_per_block: 1u32.into(),
-                deal_duration: OffchainDealDurationBound {
-                    lower: Some(60u32.into()),
-                    upper: Some(100u32.into()),
-                },
-            };
         let storage_provider: OriginFor<T> = RawOrigin::Signed(sp.account_id.clone()).into();
-
-        SpPallet::<T>::publish_deal_parameters(storage_provider.clone(), deal_parameters).unwrap();
 
         // #[extrinsic_call] requires type shenanigans, using #[block] is MUCH simpler
         #[block]
@@ -503,7 +552,14 @@ where
     let data = BenchmarkData::<T>::load();
     let alice = create_account_with_balance::<T>(ALICE, EXISTENTIAL_DEPOSIT * 2);
     let sp = data.storage_provider();
-
+    let offchain_deal_parameters: OffchainDealParameters<BalanceOf<T>, BlockNumberFor<T>> =
+        OffchainDealParameters {
+            minimum_price_per_block: 2u32.into(),
+            deal_duration: OffchainDealDurationBound {
+                lower: Some(50u32.into()),
+                upper: Some(80u32.into()),
+            },
+        };
     pallet_balances::Pallet::<T>::make_free_balance_be(
         &sp.account_id,
         (EXISTENTIAL_DEPOSIT * 2).into(),
@@ -515,6 +571,7 @@ where
         RawOrigin::Signed(sp.account_id.clone()).into(),
         sp.multiaddr.clone(),
         data.post_type,
+        offchain_deal_parameters,
     ));
 
     let proposals = data.deal_proposals(&alice, n);

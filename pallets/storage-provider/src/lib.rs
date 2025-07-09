@@ -419,6 +419,7 @@ pub mod pallet {
             owner: T::AccountId,
             info: StorageProviderInfo<T::Multiaddr>,
             proving_period_start: BlockNumberFor<T>,
+            deal_parameters: DealParameters<BalanceOf<T>, BlockNumberFor<T>>,
         },
         /// Emitted when a storage provider deregisters.
         StorageProviderDeregistered {
@@ -629,11 +630,13 @@ pub mod pallet {
             origin: OriginFor<T>,
             multiaddr: T::Multiaddr,
             window_post_proof_type: RegisteredPoStProof,
+            deal_parameters: OffchainDealParameters<BalanceOf<T>, BlockNumberFor<T>>,
         ) -> DispatchResult {
             crate::dispatchables::register_storage_provider::<T>(
                 origin,
                 multiaddr,
                 window_post_proof_type,
+                deal_parameters,
             )
         }
 

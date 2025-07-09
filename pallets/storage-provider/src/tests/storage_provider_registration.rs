@@ -1,6 +1,7 @@
 use frame_support::{assert_noop, assert_ok};
+use frame_system::pallet_prelude::BlockNumberFor;
 use primitives::proofs::RegisteredPoStProof;
-use sp_core::bounded_vec;
+use sp_core::{bounded_vec, Get};
 use sp_runtime::{BoundedVec, DispatchError};
 
 use super::{new_test_ext, Balances};
@@ -10,11 +11,11 @@ use crate::{
     storage_provider::StorageProviderInfo,
     tests::{
         account, declare_faults::setup_sp_with_one_sector, events, publish_deals,
-        register_storage_provider, run_to_block, sector_set, DealProposalBuilder, RuntimeEvent,
-        RuntimeOrigin, SectorPreCommitInfoBuilder, StorageProvider, System, Test, ALICE, BOB,
-        CHARLIE,
+        register_storage_provider, run_to_block, sector_set, DealParametersBuilder,
+        DealProposalBuilder, RuntimeEvent, RuntimeOrigin, SectorPreCommitInfoBuilder,
+        StorageProvider, System, Test, ALICE, BOB, CHARLIE,
     },
-    Config,
+    Config, SPDealParameters,
 };
 
 /// Tests if storage provider registration is successful.
@@ -27,15 +28,27 @@ fn successful_registration() {
         let expected_sector_size = window_post_type.sector_size();
         let expected_partition_sectors = window_post_type.window_post_partitions_sector();
         let expected_sp_info = StorageProviderInfo::new(peer_id.clone(), window_post_type);
+        let offchain_deal_params = DealParametersBuilder::default().build();
+        let deal_params = offchain_deal_params
+            .clone()
+            .validate(
+                <<Test as Config>::MinDealDuration as Get<BlockNumberFor<Test>>>::get(),
+                <<Test as Config>::MaxDealDuration as Get<BlockNumberFor<Test>>>::get(),
+            )
+            .expect("Seamless conversion");
 
         // Register BOB as a storage provider.
         assert_ok!(StorageProvider::register_storage_provider(
             RuntimeOrigin::signed(account(BOB)),
             peer_id.clone(),
             window_post_type,
+            offchain_deal_params.clone(),
         ));
         assert!(StorageProviders::<Test>::contains_key(account(BOB)));
+        assert!(SPDealParameters::<Test>::contains_key(account(BOB)));
 
+        let bob_deal_params = SPDealParameters::<Test>::get(account(BOB)).unwrap();
+        assert_eq!(bob_deal_params, deal_params);
         // `unwrap()` should be safe because of the above check.
         let sp_bob = StorageProviders::<Test>::get(account(BOB)).unwrap();
         // Check that storage provider information is correct.
@@ -62,6 +75,7 @@ fn successful_registration() {
                     // It's calculated according to `calculate_first_proving_period` and is random (because offset)
                     // So first make the test fail, then put a correct value here.
                     proving_period_start: 69,
+                    deal_parameters: deal_params,
                 },
             )]
         );
@@ -74,12 +88,15 @@ fn fails_should_be_signed() {
         let peer_id = "storage_provider_1".as_bytes().to_vec();
         let peer_id = BoundedVec::try_from(peer_id).unwrap();
         let window_post_type = RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
+        // Default price = 5, default duration = 10
+        let offchain_deal_params = DealParametersBuilder::default().build();
 
         assert_noop!(
             StorageProvider::register_storage_provider(
                 RuntimeOrigin::none(),
                 peer_id.clone(),
                 window_post_type,
+                offchain_deal_params
             ),
             DispatchError::BadOrigin
         );
@@ -92,12 +109,15 @@ fn fails_double_register() {
         let peer_id = "storage_provider_1".as_bytes().to_vec();
         let peer_id = BoundedVec::try_from(peer_id).unwrap();
         let window_post_type = RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
+        // Default price = 5, default duration = 10
+        let offchain_deal_params = DealParametersBuilder::default().build();
 
         // Register BOB as a storage provider.
         assert_ok!(StorageProvider::register_storage_provider(
             RuntimeOrigin::signed(account(BOB)),
             peer_id.clone(),
             window_post_type,
+            offchain_deal_params.clone()
         ));
         assert!(StorageProviders::<Test>::contains_key(account(BOB)));
         // Try to register BOB again. Should fail
@@ -106,6 +126,7 @@ fn fails_double_register() {
                 RuntimeOrigin::signed(account(BOB)),
                 peer_id.clone(),
                 window_post_type,
+                offchain_deal_params
             ),
             Error::<Test>::StorageProviderExists
         );
