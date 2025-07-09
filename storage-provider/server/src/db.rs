@@ -3,6 +3,7 @@ use std::{
     sync::atomic::{AtomicU32, Ordering},
 };
 
+use metrics::{Counter, Gauge};
 use polka_storage_provider_common::sector::UnsealedSector;
 use primitives::sector::{SectorNumber, SectorNumberError};
 use rocksdb::{
@@ -52,6 +53,53 @@ pub struct DealDB {
     last_sector_number: AtomicU32,
 }
 
+// Using an empty enum over a unit-struct since the former cannot be built,
+// using a module would lead to the same effect but would require a use module::*;
+// The key idea here is providing ready-to-use methods to avoid mistakes when using metrics.
+enum DbMetrics {}
+impl DbMetrics {
+    const LAST_SECTOR_NUMBER: &str = "storage_provider.db.last_sector_number";
+    const UNSEALED_SECTORS: &str = "storage_provider.db.unsealed_sectors";
+    const PENDING_SECTORS: &str = "storage_provider.db.pending_sectors";
+    const ACTIVE_SECTORS: &str = "storage_provider.db.active_sectors";
+
+    fn setup() {
+        metrics::describe_counter!(
+            DbMetrics::LAST_SECTOR_NUMBER,
+            "The latest sector number available"
+        );
+        metrics::describe_gauge!(DbMetrics::UNSEALED_SECTORS, "The number of sealed sectors");
+        metrics::describe_gauge!(
+            DbMetrics::PENDING_SECTORS,
+            "The number of sectors pending sealing"
+        );
+        metrics::describe_gauge!(
+            DbMetrics::ACTIVE_SECTORS,
+            "The number of active sectors (pre-committed and being proven)"
+        );
+    }
+
+    #[inline(always)]
+    fn last_sector_number_counter() -> Counter {
+        metrics::counter!(Self::LAST_SECTOR_NUMBER)
+    }
+
+    #[inline(always)]
+    fn active_sectors_gauge() -> Gauge {
+        metrics::gauge!(Self::ACTIVE_SECTORS)
+    }
+
+    #[inline(always)]
+    fn unsealed_sectors_gauge() -> Gauge {
+        metrics::gauge!(Self::UNSEALED_SECTORS)
+    }
+
+    #[inline(always)]
+    fn pending_sectors_gauge() -> Gauge {
+        metrics::gauge!(Self::PENDING_SECTORS)
+    }
+}
+
 impl DealDB {
     pub fn new<P>(path: P) -> Result<Self, DBError>
     where
@@ -72,15 +120,91 @@ impl DealDB {
             database: TransactionDB::open_cf_descriptors(&opts, &tx_opts, path, cfs)?,
             last_sector_number: AtomicU32::new(0),
         };
-
         db.initialize_biggest_sector_number()?;
+        db.load_metrics();
         Ok(db)
+    }
+
+    fn load_metrics(&self) {
+        DbMetrics::setup();
+        DbMetrics::last_sector_number_counter()
+            .absolute(self.last_sector_number.load(Ordering::Relaxed).into());
+
+        let n_unsealed_sectors = self
+            .database
+            .full_iterator_cf(
+                self.cf_handle(UNSEALED_SECTORS_CF),
+                rocksdb::IteratorMode::Start,
+            )
+            .count() as u32;
+        DbMetrics::unsealed_sectors_gauge().set(n_unsealed_sectors);
+
+        let n_pending_sectors = self
+            .database
+            .full_iterator_cf(
+                self.cf_handle(PENDING_SEALING_SECTORS_CF),
+                rocksdb::IteratorMode::Start,
+            )
+            .count() as u32;
+        DbMetrics::pending_sectors_gauge().set(n_pending_sectors);
+
+        let n_active_sectors = self
+            .database
+            .full_iterator_cf(self.cf_handle(SECTORS_CF), rocksdb::IteratorMode::Start)
+            .count() as u32;
+        DbMetrics::active_sectors_gauge().set(n_active_sectors);
     }
 
     fn cf_handle(&self, name: &str) -> &ColumnFamily {
         self.database
             .cf_handle(name)
             .expect("column family should have been initialized on database startup")
+    }
+
+    /// Takes all the existing sectors sealed and unsealed, finds the maximum sector id.
+    /// The simplest way possible of generating an id.
+    /// This function is private for a reason. It should only be called once at the DealDB initialization.
+    /// And then `last_sector_number` is incremented by `next_sector_number` only
+    /// If it was called by multiple threads later than initialization, it could cause a race condition and data erasure.
+    fn initialize_biggest_sector_number(&self) -> Result<(), DBError> {
+        let mut biggest_sector_number = 0.into();
+
+        let unsealed_sectors = self.database.iterator_cf(
+            self.cf_handle(UNSEALED_SECTORS_CF),
+            rocksdb::IteratorMode::Start,
+        );
+
+        let pending_sealing_sectors = self.database.iterator_cf(
+            self.cf_handle(PENDING_SEALING_SECTORS_CF),
+            rocksdb::IteratorMode::Start,
+        );
+
+        let sealed_sectors = self
+            .database
+            .iterator_cf(self.cf_handle(SECTORS_CF), rocksdb::IteratorMode::Start);
+
+        // Iterate all sectors and find the biggest sector number
+        let all_sectors = unsealed_sectors
+            .chain(pending_sealing_sectors)
+            .chain(sealed_sectors);
+        for item in all_sectors {
+            let (key, _) = item?;
+            let key: [u8; 4] = key
+                .as_ref()
+                .try_into()
+                .expect("sector's key to be u32 le bytes");
+            // Unwrap safe. Can only fail if the sector number was manually
+            // inserted in the database.
+            let sector_id =
+                SectorNumber::new(u32::from_le_bytes(key)).expect("valid sector number");
+            biggest_sector_number = std::cmp::max(biggest_sector_number, sector_id);
+        }
+
+        // [`Ordering::Relaxed`] can be used here as this function is executed only on start-up and once.
+        // We don't mind, it's just a initialization.
+        self.last_sector_number
+            .store(biggest_sector_number.into(), Ordering::Relaxed);
+        Ok(())
     }
 
     /// Add the proposed (but not signed) deal to the database.
@@ -154,66 +278,6 @@ impl DealDB {
         Ok(Some(sector))
     }
 
-    pub fn save_sector<SectorType: Serialize>(
-        &self,
-        sector_number: SectorNumber,
-        sector: &SectorType,
-    ) -> Result<(), DBError> {
-        let cf_handle = self.cf_handle(SECTORS_CF);
-        let key = u32::from(sector_number).to_le_bytes();
-        let json = serde_json::to_vec(&sector)?;
-
-        self.database.put_cf(cf_handle, key, json)?;
-
-        Ok(())
-    }
-
-    /// Takes all of the existing sectors sealed and unsealed, finds the maximum sector id.
-    /// The simplest way possible of generating an id.
-    /// This function is private for a reason. It should only be called once at the DealDB initialization.
-    /// And then `last_sector_number` is incremented by `next_sector_number` only
-    /// If it was called by multiple threads later than initialization, it could cause a race condition and data erasure.
-    fn initialize_biggest_sector_number(&self) -> Result<(), DBError> {
-        let mut biggest_sector_number = 0.into();
-
-        let unsealed_sectors = self.database.iterator_cf(
-            self.cf_handle(UNSEALED_SECTORS_CF),
-            rocksdb::IteratorMode::Start,
-        );
-
-        let pending_sealing_sectors = self.database.iterator_cf(
-            self.cf_handle(PENDING_SEALING_SECTORS_CF),
-            rocksdb::IteratorMode::Start,
-        );
-
-        let sealed_sectors = self
-            .database
-            .iterator_cf(self.cf_handle(SECTORS_CF), rocksdb::IteratorMode::Start);
-
-        // Iterate all sectors and find the biggest sector number
-        let all_sectors = unsealed_sectors
-            .chain(pending_sealing_sectors)
-            .chain(sealed_sectors);
-        for item in all_sectors {
-            let (key, _) = item?;
-            let key: [u8; 4] = key
-                .as_ref()
-                .try_into()
-                .expect("sector's key to be u32 le bytes");
-            // Unwrap safe. Can only fail if the sector number was manually
-            // inserted in the database.
-            let sector_id =
-                SectorNumber::new(u32::from_le_bytes(key)).expect("valid sector number");
-            biggest_sector_number = std::cmp::max(biggest_sector_number, sector_id);
-        }
-
-        // [`Ordering::Relaxed`] can be used here as this function is executed only on start-up and once.
-        // We don't mind, it's just a initialization.
-        self.last_sector_number
-            .store(biggest_sector_number.into(), Ordering::Relaxed);
-        Ok(())
-    }
-
     /// Atomically increments sector_id counter, so it can be used as an identifier by a sector.
     /// Prior to all of the calls to this function, `initialize_biggest_sector_id` must be called at the node start-up.
     pub fn next_sector_number(&self) -> Result<SectorNumber, SectorNumberError> {
@@ -221,6 +285,7 @@ impl DealDB {
         // It does not depend on other Atomic variables and it does not matter which thread makes it first.
         // We just need it to be different on every thread that calls it concurrently, so the ids are not duplicated.
         let previous = self.last_sector_number.fetch_add(1, Ordering::Relaxed);
+        DbMetrics::last_sector_number_counter().increment(1);
         SectorNumber::try_from(previous + 1)
     }
 
@@ -239,14 +304,24 @@ impl DealDB {
         Ok(self.database.put_cf(cf_handle, key, json)?)
     }
 
+    pub fn save_sector<SectorType: Serialize>(
+        &self,
+        sector_number: SectorNumber,
+        sector: &SectorType,
+    ) -> Result<(), DBError> {
+        self.insert_sector(sector_number, sector, SECTORS_CF)
+    }
+
     /// Insert an unsealed sector.
     pub fn insert_unsealed_sector(&self, sector: &UnsealedSector) -> Result<(), DBError> {
         self.insert_sector(sector.sector_number, sector, UNSEALED_SECTORS_CF)
+            .inspect(|()| DbMetrics::unsealed_sectors_gauge().increment(1))
     }
 
     /// Insert unsealed sector that is ready for sealing.
     pub fn insert_pending_sealing_sector(&self, sector: &UnsealedSector) -> Result<(), DBError> {
         self.insert_sector(sector.sector_number, sector, PENDING_SEALING_SECTORS_CF)
+            .inspect(|()| DbMetrics::pending_sectors_gauge().increment(1))
     }
 
     /// Removes and returns a given Sector, if it doesn't exist, returns `None`.
@@ -294,6 +369,7 @@ impl DealDB {
         sector_number: SectorNumber,
     ) -> Result<Option<UnsealedSector>, DBError> {
         self.remove_sector(sector_number, UNSEALED_SECTORS_CF)
+            .inspect(|_| DbMetrics::unsealed_sectors_gauge().decrement(1))
     }
 
     /// Removes and returns a given [`UnsealedSector`], if it doesn't exist, returns `None`.
@@ -305,6 +381,7 @@ impl DealDB {
         sector_number: SectorNumber,
     ) -> Result<Option<UnsealedSector>, DBError> {
         self.remove_sector(sector_number, PENDING_SEALING_SECTORS_CF)
+            .inspect(|_| DbMetrics::pending_sectors_gauge().decrement(1))
     }
 
     /// Iterator over unsealed sectors.
@@ -322,5 +399,16 @@ impl DealDB {
                 })
                 .map_err(DBError::from)
             })
+    }
+
+    // This function is a hack while we don't fully separate the pre-committed sectors from the proven ones
+    pub fn measure_active_sectors(&self) {
+        let cf_handle = self.cf_handle(SECTORS_CF);
+        // SAFETY(cast): total number of sectors is u32
+        let active_sectors = self
+            .database
+            .iterator_cf(cf_handle, rocksdb::IteratorMode::Start)
+            .count() as u32;
+        DbMetrics::active_sectors_gauge().set(active_sectors);
     }
 }

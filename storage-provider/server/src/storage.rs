@@ -9,8 +9,9 @@ use axum::{
     Json, Router,
 };
 use futures::{TryFutureExt, TryStreamExt};
-use hyper::Method;
+use hyper::{header::CONTENT_TYPE, Method};
 use mater::Cid;
+use metrics_exporter_prometheus::PrometheusHandle;
 use polka_storage_provider_common::{
     commp::{commp, CommPError},
     rpc::{CidString, ServerInfo},
@@ -63,6 +64,8 @@ pub struct StorageServerState {
     pub post_proof: RegisteredPoStProof,
 
     pub pipeline_sender: UnboundedSender<PipelineMessage>,
+
+    pub metrics_recorder: PrometheusHandle,
 }
 
 #[tracing::instrument(skip_all)]
@@ -111,6 +114,7 @@ fn configure_router(state: Arc<StorageServerState>) -> Router {
         .route("/api/v0/download/:cid", get(download))
         .route("/api/v0/propose_deal", post(propose_deal))
         .route("/api/v0/publish_deal", post(publish_deal))
+        .route("/metrics", get(metrics))
         .with_state(state)
         .layer(cors)
         .layer(
@@ -130,6 +134,21 @@ fn configure_router(state: Arc<StorageServerState>) -> Router {
                 )
             }),
         )
+}
+
+async fn metrics(
+    State(state): State<Arc<StorageServerState>>,
+) -> Result<Response<String>, (StatusCode, String)> {
+    // HACK: while we dont separate the pre-commited sectors from proven
+    // will count the number of active sectors and report it to metrics
+    // Not super performant because it does a linear scan over the CF
+    state.deal_db.measure_active_sectors();
+
+    Response::builder()
+        .status(200)
+        .header(CONTENT_TYPE, "text/plain; charset=utf-8")
+        .body(state.metrics_recorder.render())
+        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))
 }
 
 /// Handler for the upload endpoint. It receives a stream of bytes, converts them
