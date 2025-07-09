@@ -427,7 +427,9 @@ impl Server {
     async fn setup(self) -> Result<SetupOutput, ServerError> {
         // Needs to be installed on top to avoid missing metrics events
         let builder = PrometheusBuilder::new();
-        let exporter_handle = builder.install_recorder().unwrap();
+        let exporter_handle = builder
+            .install_recorder()
+            .expect("Failed to install metrics recorder");
 
         let (xt_client, storage_provider_info) = Server::setup_storagext_client(
             self.node_url,
