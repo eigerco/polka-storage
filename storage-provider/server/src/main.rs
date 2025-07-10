@@ -25,6 +25,7 @@ use indexer::{
     local_index_directory::rdb::{RocksDBLid, RocksDBStateStoreConfig},
     start_indexer, IndexerMessage, IndexerState,
 };
+use metrics_exporter_prometheus::PrometheusBuilder;
 use pipeline::types::PipelineMessage;
 use polka_storage_proofs::{
     porep::{self, PoRepParameters},
@@ -424,6 +425,12 @@ impl Server {
     }
 
     async fn setup(self) -> Result<SetupOutput, ServerError> {
+        // Needs to be installed on top to avoid missing metrics events
+        let builder = PrometheusBuilder::new();
+        let exporter_handle = builder
+            .install_recorder()
+            .expect("Failed to install metrics recorder");
+
         let (xt_client, storage_provider_info) = Server::setup_storagext_client(
             self.node_url,
             &self.multi_pair_signer,
@@ -479,6 +486,7 @@ impl Server {
             listen_address: self.upload_listen_address,
             post_proof: self.post_proof,
             pipeline_sender: pipeline_tx.clone(),
+            metrics_recorder: exporter_handle,
         };
 
         let pipeline_state = PipelineState {
