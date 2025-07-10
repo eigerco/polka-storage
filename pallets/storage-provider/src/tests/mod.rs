@@ -29,6 +29,7 @@ use sp_runtime::{
 
 use crate::{
     self as pallet_storage_provider,
+    deal::parameters::{OffchainDealDurationBound, OffchainDealParameters},
     fault::{
         DeclareFaultsParams, DeclareFaultsRecoveredParams, FaultDeclaration, RecoveryDeclaration,
     },
@@ -270,12 +271,21 @@ fn register_storage_provider(account: AccountIdOf<Test>) {
     let peer_id = "storage_provider_1".as_bytes().to_vec();
     let peer_id = BoundedVec::try_from(peer_id).unwrap();
     let window_post_type = RegisteredPoStProof::StackedDRGWindow2KiBV1P1;
+    let offchain_deal_params: OffchainDealParameters<u64, BlockNumberFor<Test>> =
+        OffchainDealParameters {
+            minimum_price_per_block: 1,
+            deal_duration: OffchainDealDurationBound {
+                lower: Some(3),
+                upper: Some(29),
+            },
+        };
 
     // Register account as a storage provider.
     assert_ok!(StorageProvider::register_storage_provider(
         RuntimeOrigin::signed(account),
         peer_id.clone(),
         window_post_type,
+        offchain_deal_params
     ));
 
     // Remove any events that were triggered during registration.
@@ -606,6 +616,32 @@ impl DeclareFaultsRecoveredBuilder {
     pub fn build(self) -> DeclareFaultsRecoveredParams {
         DeclareFaultsRecoveredParams {
             recoveries: self.recoveries,
+        }
+    }
+}
+
+pub(crate) struct DealParametersBuilder {
+    minimum_price_per_block: BalanceOf<Test>,
+    deal_duration: OffchainDealDurationBound<BlockNumber>,
+}
+
+impl Default for DealParametersBuilder {
+    fn default() -> Self {
+        Self {
+            minimum_price_per_block: 1,
+            deal_duration: OffchainDealDurationBound {
+                lower: Some(3),
+                upper: Some(29),
+            },
+        }
+    }
+}
+
+impl DealParametersBuilder {
+    pub fn build(self) -> OffchainDealParameters<BalanceOf<Test>, BlockNumber> {
+        OffchainDealParameters {
+            minimum_price_per_block: self.minimum_price_per_block,
+            deal_duration: self.deal_duration,
         }
     }
 }

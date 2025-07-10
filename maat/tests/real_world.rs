@@ -12,7 +12,10 @@ use sp_core::sr25519::Pair as Sr25519Pair;
 use storagext::{
     multipair::MultiPairSigner,
     runtime::runtime_types::primitives::deals::deal_state::DealState,
-    types::storage_provider::{DealProposal, FaultDeclaration, RecoveryDeclaration},
+    types::storage_provider::{
+        DealProposal, FaultDeclaration, OffchainDealDurationBound, OffchainDealParameters,
+        RecoveryDeclaration,
+    },
     PolkaStorageConfig, StorageProviderClientExt, SystemClientExt,
 };
 use subxt::utils::AccountId32;
@@ -29,9 +32,15 @@ async fn register_storage_provider<Keypair>(
     Keypair: subxt::tx::Signer<PolkaStorageConfig>,
 {
     let maddr = "/ip4/127.0.0.1/tcp/8000/ws".parse::<Multiaddr>().unwrap();
-
+    let deal_parameters = OffchainDealParameters {
+        minimum_price_per_block: 200,
+        deal_duration: OffchainDealDurationBound {
+            lower: Some(50),
+            upper: Some(5256000),
+        },
+    };
     let result = client
-        .register_storage_provider(charlie, maddr.clone(), post_proof, true)
+        .register_storage_provider(charlie, maddr.clone(), post_proof, deal_parameters, true)
         .await
         .unwrap()
         .unwrap();

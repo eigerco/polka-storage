@@ -135,6 +135,7 @@ pub trait StorageProviderClientExt {
         account_keypair: &Keypair,
         multiaddrs: Multiaddr,
         post_proof: RegisteredPoStProof,
+        deal_parameters: OffchainDealParameters,
         wait_for_finalization: bool,
     ) -> impl Future<Output = Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>>
     where
@@ -532,14 +533,17 @@ impl StorageProviderClientExt for crate::runtime::client::Client {
         account_keypair: &Keypair,
         multiaddr: Multiaddr,
         post_proof: RegisteredPoStProof,
+        deal_parameters: OffchainDealParameters,
         wait_for_finalization: bool,
     ) -> Result<Option<SubmissionResult<PolkaStorageConfig>>, subxt::Error>
     where
         Keypair: subxt::tx::Signer<PolkaStorageConfig>,
     {
-        let payload = runtime::tx()
-            .storage_provider()
-            .register_storage_provider(multiaddr.to_vec().into_erased_bounded_vec(), post_proof);
+        let payload = runtime::tx().storage_provider().register_storage_provider(
+            multiaddr.to_vec().into_erased_bounded_vec(),
+            post_proof,
+            deal_parameters.into(),
+        );
 
         self.traced_submission(&payload, account_keypair, wait_for_finalization)
             .await

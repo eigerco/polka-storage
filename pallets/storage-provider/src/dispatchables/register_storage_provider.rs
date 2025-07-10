@@ -7,14 +7,16 @@ use primitives::proofs::{assign_proving_period_offset, RegisteredPoStProof};
 use sp_core::Get;
 
 use crate::{
+    deal::parameters::OffchainDealParameters,
     storage_provider::{StorageProviderInfo, StorageProviderState},
-    BalanceOf, Config, Error, Event, Pallet, StorageProviders,
+    BalanceOf, Config, Error, Event, Pallet, SPDealParameters, StorageProviders, LOG_TARGET,
 };
 
 pub fn register_storage_provider<T>(
     origin: OriginFor<T>,
     multiaddr: T::Multiaddr,
     window_post_proof_type: RegisteredPoStProof,
+    deal_parameters: OffchainDealParameters<BalanceOf<T>, BlockNumberFor<T>>,
 ) -> DispatchResult
 where
     T: Config,
@@ -25,6 +27,12 @@ where
         !StorageProviders::<T>::contains_key(&owner),
         Error::<T>::StorageProviderExists
     );
+    let deal_parameters = deal_parameters
+        .validate(T::MinDealDuration::get(), T::MaxDealDuration::get())
+        .map_err(|e| {
+            log::error!(target: LOG_TARGET, "{e}");
+            Error::<T>::InvalidDealParametersSubmitted
+        })?;
     let current_block = <frame_system::Pallet<T>>::block_number();
     let proving_period = T::WPoStProvingPeriod::get();
 
@@ -50,11 +58,15 @@ where
     );
     StorageProviders::<T>::insert(&owner, state);
 
+    // Insert deal parameters
+    SPDealParameters::<T>::insert(&owner, deal_parameters.clone());
+
     // Emit event
     Pallet::<T>::deposit_event(Event::StorageProviderRegistered {
         owner,
         info,
         proving_period_start: local_proving_start,
+        deal_parameters,
     });
     Ok(())
 }

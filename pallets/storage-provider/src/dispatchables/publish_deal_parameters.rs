@@ -24,7 +24,7 @@ where
             log::error!(target: LOG_TARGET, "{e}");
             Error::<T>::InvalidDealParametersSubmitted
         })?;
-    // Update or insert deal parameters
+    // Update deal parameters
     SPDealParameters::<T>::mutate(&provider, |params| {
         let _ = params.insert(deal_parameters.clone());
     });
