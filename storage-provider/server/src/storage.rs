@@ -37,10 +37,7 @@ use tokio::{
     io::{AsyncRead, BufWriter},
     sync::mpsc::UnboundedSender,
 };
-use tokio_util::{
-    io::{ReaderStream, StreamReader},
-    sync::CancellationToken,
-};
+use tokio_util::{io::StreamReader, sync::CancellationToken};
 use tower_http::{
     cors::{Any, CorsLayer},
     trace::TraceLayer,
