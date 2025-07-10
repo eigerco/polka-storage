@@ -15,8 +15,8 @@ mod pipeline;
 mod storage;
 
 use std::{
-    collections::HashMap, env::temp_dir, fmt::Debug, net::SocketAddr, ops::Deref, path::PathBuf,
-    sync::Arc, time::Duration,
+    collections::HashMap, env::temp_dir, fmt::Debug, net::SocketAddr, path::PathBuf, sync::Arc,
+    time::Duration,
 };
 
 use clap::Parser;
@@ -441,26 +441,24 @@ impl Server {
         let deal_database = Arc::new(DealDB::new(self.database_directory)?);
 
         // Car piece storage directory — i.e. the CAR archives from the input streams
-        let car_piece_storage_dir = Arc::new(self.storage_directory.join(CAR_PIECE_DIRECTORY_NAME));
-        let unsealed_sector_storage_dir =
-            Arc::new(self.storage_directory.join(UNSEALED_SECTOR_DIRECTORY_NAME));
-        let sealed_sector_storage_dir =
-            Arc::new(self.storage_directory.join(SEALED_SECTOR_DIRECTORY_NAME));
-        let sealing_cache_dir = Arc::new(self.storage_directory.join(SEALING_CACHE_DIRECTORY_NANE));
-        let index_dir = Arc::new(self.storage_directory.join(INDEXER_DIRECTORY_NAME));
+        let car_piece_storage_dir = self.storage_directory.join(CAR_PIECE_DIRECTORY_NAME);
+        let unsealed_sectors_dir = self.storage_directory.join(UNSEALED_SECTOR_DIRECTORY_NAME);
+        let sealed_sectors_dir = self.storage_directory.join(SEALED_SECTOR_DIRECTORY_NAME);
+        let sealing_cache_dir = self.storage_directory.join(SEALING_CACHE_DIRECTORY_NANE);
+        let index_dir = self.storage_directory.join(INDEXER_DIRECTORY_NAME);
 
         // Create the storage directories
-        tokio::fs::create_dir_all(car_piece_storage_dir.as_ref()).await?;
-        tokio::fs::create_dir_all(unsealed_sector_storage_dir.as_ref()).await?;
-        tokio::fs::create_dir_all(sealed_sector_storage_dir.as_ref()).await?;
-        tokio::fs::create_dir_all(sealing_cache_dir.as_ref()).await?;
-        tokio::fs::create_dir_all(index_dir.as_ref()).await?;
+        tokio::fs::create_dir_all(&car_piece_storage_dir).await?;
+        tokio::fs::create_dir_all(&unsealed_sectors_dir).await?;
+        tokio::fs::create_dir_all(&sealed_sectors_dir).await?;
+        tokio::fs::create_dir_all(&sealing_cache_dir).await?;
+        tokio::fs::create_dir_all(&index_dir).await?;
 
         // Channel used to action the indexer
         let (indexer_tx, indexer_rx) = tokio::sync::mpsc::unbounded_channel::<IndexerMessage>();
         // Indexer underlying database
         let lid = Arc::new(RocksDBLid::new(RocksDBStateStoreConfig {
-            path: index_dir.deref().clone(),
+            path: index_dir,
         })?);
 
         let (pipeline_tx, pipeline_rx) = tokio::sync::mpsc::unbounded_channel::<PipelineMessage>();
@@ -481,7 +479,7 @@ impl Server {
             server_info: server_info.clone(),
             xt_client: xt_client.clone(),
             xt_keypair: self.multi_pair_signer.clone(),
-            car_piece_storage_dir: car_piece_storage_dir.clone(),
+            car_piece_storage_dir,
             deal_db: deal_database.clone(),
             listen_address: self.upload_listen_address,
             post_proof: self.post_proof,
@@ -492,8 +490,8 @@ impl Server {
         let pipeline_state = PipelineState {
             db: deal_database.clone(),
             server_info: server_info.clone(),
-            unsealed_sectors_dir: unsealed_sector_storage_dir.clone(),
-            sealed_sectors_dir: sealed_sector_storage_dir,
+            unsealed_sectors_dir,
+            sealed_sectors_dir,
             sealing_cache_dir,
             porep_parameters: Arc::new(self.porep_parameters),
             post_parameters: Arc::new(self.post_parameters),
