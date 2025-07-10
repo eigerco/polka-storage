@@ -1,4 +1,10 @@
-use std::{io, net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
+use std::{
+    io::{self, ErrorKind},
+    net::SocketAddr,
+    path::PathBuf,
+    str::FromStr,
+    sync::Arc,
+};
 
 use axum::{
     body::Body,
@@ -32,10 +38,7 @@ use tokio::{
     io::{AsyncRead, BufWriter},
     sync::mpsc::UnboundedSender,
 };
-use tokio_util::{
-    io::{ReaderStream, StreamReader},
-    sync::CancellationToken,
-};
+use tokio_util::{io::StreamReader, sync::CancellationToken};
 use tower_http::{
     cors::{Any, CorsLayer},
     trace::TraceLayer,
@@ -333,25 +336,34 @@ async fn download(
     let (file_name, path) = content_path(&state.car_piece_storage_dir, cid);
     tracing::info!(?path, "file requested");
 
-    // Check if the file exists
-    if !path.exists() {
-        tracing::error!(?path, "file not found");
-        return Err((StatusCode::NOT_FOUND, "file not found".to_string()));
-    }
-
     // Open car file
     let file = File::open(&path).await.map_err(|e| {
-        tracing::error!(?e, ?path, "failed to open file");
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "failed to open file".to_string(),
-        )
+        if let ErrorKind::NotFound = e.kind() {
+            tracing::error!(?path, "file not found");
+            (StatusCode::NOT_FOUND, "file not found".to_string())
+        } else {
+            tracing::error!(?e, ?path, "failed to open file");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "failed to open file".to_string(),
+            )
+        }
     })?;
 
-    // Convert the `AsyncRead` into a `Stream`
-    let stream = ReaderStream::new(file);
-    // Convert the `Stream` into the Body
-    let body = Body::from_stream(stream);
+    let mut reader = mater::FileReader::new(file)
+        .await
+        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+    let root = *reader
+        .roots()
+        .await
+        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?
+        .get(0)
+        .ok_or((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "malformed or corrupted file".to_string(),
+        ))?;
+    let body = Body::from_stream(reader.chunk_stream(root));
+
     // Response headers
     let headers = [
         (header::CONTENT_TYPE, "application/octet-stream"),
