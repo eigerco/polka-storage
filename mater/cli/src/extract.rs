@@ -1,9 +1,10 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, pin::pin};
 
+use futures::StreamExt;
 use mater::{Error, FileReader};
 use tokio::{
     fs::File,
-    io::{AsyncReadExt, BufReader},
+    io::{AsyncReadExt, AsyncWriteExt, BufReader},
 };
 
 /// Arbitrary value, it's just so the buffer doesn't constantly resize while loading the first bytes
@@ -15,7 +16,7 @@ pub(crate) async fn extract_file_from_car(
     output_path: &PathBuf,
     overwrite: bool,
 ) -> Result<(), Error> {
-    let output_file = if overwrite {
+    let mut output_file = if overwrite {
         File::create(&output_path).await?
     } else {
         File::create_new(&output_path).await?
@@ -27,21 +28,32 @@ pub(crate) async fn extract_file_from_car(
         // a possible alternative could be implementing a Reader that takes an AsyncRead
         // and makes it AsyncSeek by keeping read contents in memory and forward seeks (where
         // forward means that said part of the stream hasn't been loaded into memory yet) start
-        // loading file as needed before returning the new position
+        // loading file as needed before returning the new position.
 
         let mut buffer = Vec::with_capacity(STDIN_BUFFER_START_CAPACITY);
         let mut buffered_stdin = BufReader::new(tokio::io::stdin());
         buffered_stdin.read_to_end(&mut buffer).await?;
-        FileReader::from_vec(buffer)
-            .await?
-            .copy_to_writer(output_file)
-            .await
+
+        let mut reader = FileReader::from_vec(buffer).await?;
+        let root = *reader.roots().await?.get(0).ok_or(Error::EmptyRootsError)?;
+
+        let mut chunks = pin!(reader.chunk_stream(root));
+        while let Some(chunk) = chunks.next().await {
+            let chunk = chunk?;
+            output_file.write_all(&chunk).await?;
+        }
     } else {
-        FileReader::from_path(input_path)
-            .await?
-            .copy_to_writer(output_file)
-            .await
+        let mut reader = FileReader::from_path(input_path).await?;
+        let root = *reader.roots().await?.get(0).ok_or(Error::EmptyRootsError)?;
+
+        let mut chunks = pin!(reader.chunk_stream(root));
+        while let Some(chunk) = chunks.next().await {
+            let chunk = chunk?;
+            output_file.write_all(&chunk).await?;
+        }
     }
+
+    Ok(())
 }
 
 /// Tests for file extraction.

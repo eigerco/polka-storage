@@ -5,12 +5,12 @@ use std::{
 };
 
 use async_stream::try_stream;
-use futures::{Stream, TryStreamExt};
+use futures::{future, Stream, TryStreamExt};
 use ipld_core::{cid::Cid, codec::Codec};
 use ipld_dagpb::{DagPbCodec, PbNode};
 use tokio::{
     fs::File,
-    io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWriteExt},
+    io::{AsyncRead, AsyncSeek, AsyncSeekExt},
 };
 
 use crate::{
@@ -22,9 +22,6 @@ use crate::{
 
 /// Extracts the raw data from a CARv2 file.
 /// It expects the CAR file to have only 1 root.
-///
-/// Disambiguation: this writer is not a [`File`](tokio::fs::File) writer,
-/// but rather a file writer in the CAR file format sense.
 pub struct FileReader<R> {
     reader: R,
     index: HashMap<Cid, BlockMetadata>,
@@ -113,12 +110,9 @@ where
     }
 
     /// Traverse the tree under the given [`Cid`], yielding the data in the leaves.
-    fn tree_stream<'a>(
-        &'a mut self,
-        cid: &'a Cid,
-    ) -> impl Stream<Item = Result<(Cid, Vec<u8>), Error>> + 'a {
+    fn tree_stream(mut self, cid: Cid) -> impl Stream<Item = Result<(Cid, Vec<u8>), Error>> {
         try_stream! {
-            let block_metadata = self.index.get(&cid).ok_or_else(|| Error::MissingCid(*cid))?;
+            let block_metadata = self.index.get(&cid).ok_or_else(|| Error::MissingCid(cid))?;
             let mut queue = VecDeque::new();
             queue.push_back(block_metadata);
 
@@ -152,35 +146,21 @@ where
         }
     }
 
-    /// Writes the content tree for the given [`Cid`] into `w`.
-    pub async fn copy_tree<W>(&mut self, cid: &Cid, mut w: W) -> Result<(), Error>
-    where
-        W: AsyncWriteExt + Unpin,
-    {
-        let loader = self.tree_stream(cid);
-        tokio::pin!(loader);
-        while let Some((_, block)) = loader.try_next().await? {
-            w.write_all(block.as_slice()).await?;
-        }
-        w.flush().await?;
-        Ok(())
-    }
-
-    /// Writes the content tree from the root into `w`.
+    /// Returns a stream of the chunks of the tree under the provided [`Cid`].
     ///
-    /// Assumes the file at least one root and will copy the file under the first root.
-    pub async fn copy_to_writer<W>(&mut self, mut writer: W) -> Result<(), Error>
-    where
-        W: AsyncWriteExt + Unpin,
-    {
-        let root = self.roots().await?[0];
-        self.copy_tree(&root, &mut writer).await
+    /// To retrieve a full file, use [`FileReader::roots`] to retrieve the root
+    /// before using [`chunk_stream`].
+    pub fn chunk_stream(self, cid: Cid) -> impl Stream<Item = Result<Vec<u8>, Error>> {
+        self.tree_stream(cid)
+            .and_then(|(_, chunk)| future::ok(chunk))
     }
 }
 
 #[cfg(test)]
 mod test {
-    use std::{io::Cursor, path::Path};
+    use std::path::Path;
+
+    use futures::StreamExt;
 
     use crate::{test_utils::assert_buffer_eq, FileReader};
 
@@ -190,14 +170,19 @@ mod test {
             .await
             .unwrap();
         let root = loader.roots().await.unwrap()[0];
-        let mut out_check = Cursor::new(vec![1u8; 4096]);
-        loader.copy_tree(&root, &mut out_check).await.unwrap();
+
+        let mut buffer = vec![];
+        loader
+            .chunk_stream(root)
+            .for_each(|res| {
+                let chunk = res.unwrap();
+                buffer.extend(chunk);
+                futures::future::ready(())
+            })
+            .await;
 
         let expected = [0u8; 524288].as_slice();
-        let inner = out_check.into_inner();
-        let result = inner.as_slice();
-
-        assert_buffer_eq!(expected, result);
+        assert_buffer_eq!(expected, buffer.as_slice());
     }
 
     async fn load_and_compare<P1, P2>(original: P1, path: P2)
@@ -208,11 +193,18 @@ mod test {
         let original = tokio::fs::read(original).await.unwrap();
         let mut car = FileReader::from_path(path).await.unwrap();
 
-        let mut out_buffer: Vec<u8> = vec![];
         let root = car.roots().await.unwrap()[0];
-        car.copy_tree(&root, &mut out_buffer).await.unwrap();
 
-        crate::test_utils::assert_buffer_eq!(original, &out_buffer);
+        let mut out_buffer = vec![];
+        car.chunk_stream(root)
+            .for_each(|res| {
+                let chunk = res.unwrap();
+                out_buffer.extend(chunk);
+                futures::future::ready(())
+            })
+            .await;
+
+        assert_buffer_eq!(original, &out_buffer);
     }
 
     #[tokio::test]
@@ -220,9 +212,17 @@ mod test {
         let mut car = FileReader::from_path("tests/fixtures/car_v2/empty.car")
             .await
             .unwrap();
-        let mut out_buffer: Vec<u8> = vec![];
         let root = car.roots().await.unwrap()[0];
-        car.copy_tree(&root, &mut out_buffer).await.unwrap();
+
+        let mut out_buffer: Vec<u8> = vec![];
+        car.chunk_stream(root)
+            .for_each(|res| {
+                let chunk = res.unwrap();
+                out_buffer.extend(chunk);
+                futures::future::ready(())
+            })
+            .await;
+
         assert!(out_buffer.is_empty());
     }
 
