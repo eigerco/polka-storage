@@ -1,15 +1,18 @@
 use std::{
+    env::temp_dir,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     num::NonZero,
-    path::PathBuf,
+    path::{Path, PathBuf},
+    sync::OnceLock,
 };
 
 use polka_storage_provider_common::config::sealing::SealingConfiguration;
 use primitives::proofs::{RegisteredPoStProof, RegisteredSealProof};
+use rand::Rng;
 use serde::Deserialize;
 use url::Url;
 
-use crate::DEFAULT_NODE_ADDRESS;
+use crate::ServerError;
 
 /// Default address to bind the RPC server to.
 const fn default_upload_listen_address() -> SocketAddr {
@@ -22,16 +25,48 @@ const fn default_parallel_prove_commits() -> NonZero<usize> {
     unsafe { NonZero::new_unchecked(2) }
 }
 
+/// Default parachain node adress.
+const DEFAULT_NODE_ADDRESS: &str = "ws://127.0.0.1:42069";
+
 fn default_node_address() -> Url {
     Url::parse(DEFAULT_NODE_ADDRESS).expect("DEFAULT_NODE_ADDRESS must be a valid Url")
 }
 
+static RANDOM_PATH: OnceLock<PathBuf> = OnceLock::new();
+
+/// Generates a random temporary directory.
+///
+/// This function will always yield the same random path for a *single program execution*.
+fn default_random_directory() -> PathBuf {
+    RANDOM_PATH
+        .get_or_init(|| {
+            temp_dir().join(
+                rand::thread_rng()
+                    .sample_iter(&rand::distributions::Alphanumeric)
+                    .take(7)
+                    .map(char::from)
+                    .collect::<String>(),
+            )
+        })
+        .clone()
+}
+
+/// Returns the `default_random_directory` appended with `deals_storage`.
+fn default_storage_directory() -> PathBuf {
+    default_random_directory().join("deals_storage")
+}
+
+/// Returns the `default_random_directory` appended with `deals_database`.
+fn default_database_directory() -> PathBuf {
+    default_random_directory().join("deals_database")
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigurationArgs {
+pub struct ServerConfiguration {
     /// The server's listen address.
     #[serde(default = "default_upload_listen_address")]
-    pub(crate) upload_listen_address: SocketAddr,
+    pub(crate) listen_address: SocketAddr,
 
     /// The target parachain node's address.
     #[serde(default = "default_node_address")]
@@ -39,11 +74,13 @@ pub struct ConfigurationArgs {
 
     /// RocksDB storage directory.
     /// Defaults to a temporary random directory, like `/tmp/<random>/deals_database`.
-    pub(crate) database_directory: Option<PathBuf>,
+    #[serde(default = "default_database_directory")]
+    pub(crate) database_directory: PathBuf,
 
     /// Piece storage directory.
-    /// Defaults to a temporary random directory, like `/tmp/<random>/...`.
-    pub(crate) storage_directory: Option<PathBuf>,
+    /// Defaults to a temporary random directory, like `/tmp/<random>/deals_storage`.
+    #[serde(default = "default_storage_directory")]
+    pub(crate) storage_directory: PathBuf,
 
     /// The number of prove commits to be run in parallel.
     /// MUST BE > 0 or the pipeline will not progress.
@@ -53,8 +90,6 @@ pub struct ConfigurationArgs {
     #[serde(default = "default_parallel_prove_commits")]
     pub(crate) parallel_prove_commits: NonZero<usize>,
 
-    // NOTE: the following parameters are marked as "not required" so the CLI doesn't require them
-    // when --config is used, otherwise, they're very much required
     /// Proof of Replication proof type.
     #[serde(default = "RegisteredSealProof::_2KiB")]
     pub(crate) seal_proof: RegisteredSealProof,
@@ -79,8 +114,32 @@ pub struct ConfigurationArgs {
     /// **they need to be set** via an extrinsic pallet-proofs::set_post_verifyingkey.
     pub(crate) post_parameters: PathBuf,
 
-    pub(crate) public_secure_upload_url: Option<String>,
-
     #[serde(default)]
     pub(crate) sealing_configuration: SealingConfiguration,
+}
+
+impl ServerConfiguration {
+    pub fn from_path<P>(path: P) -> Result<Self, ServerError>
+    where
+        P: AsRef<Path>,
+    {
+        let path = path.as_ref().canonicalize()?;
+        match path.extension() {
+            Some(ext) if ext == "toml" => {
+                let config = std::fs::read_to_string(path)?;
+                // NOTE: without the type annotation a warning about 2024 edition is issued
+                Ok(toml::from_str::<ServerConfiguration>(&config)?)
+            }
+            Some(ext) if ext == "json" => Ok(serde_json::from_reader(std::fs::File::open(path)?)?),
+            Some(_) => Err(ServerError::InvalidConfig("unsupported file format")),
+            None => Err(ServerError::InvalidConfig("could not detect file format")),
+        }
+        .and_then(|config| {
+            if config.post_proof.sector_size() != config.seal_proof.sector_size() {
+                Err(ServerError::SectorSizeMismatch)
+            } else {
+                Ok(config)
+            }
+        })
+    }
 }
