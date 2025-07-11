@@ -429,13 +429,7 @@ async fn run(
 }
 
 fn main() -> Result<(), ServerError> {
-    // Metrics initialization.
-    let builder = PrometheusBuilder::new();
-    let exporter_handle = builder
-        .install_recorder()
-        .expect("Failed to install metrics recorder");
-
-    // Logger initialization.
+    // Logger initialization
     let file_appender = tracing_appender::rolling::daily("logs", "sp_server.log");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
 
@@ -451,6 +445,12 @@ fn main() -> Result<(), ServerError> {
                 .from_env()?,
         )
         .init();
+
+    // Metrics initialization
+    let builder = PrometheusBuilder::new();
+    let exporter_handle = builder
+        .install_recorder()
+        .expect("Failed to install metrics recorder");
 
     let ServerCli { multipair, config } = ServerCli::parse();
     let multi_pair_signer =
