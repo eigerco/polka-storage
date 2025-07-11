@@ -59,9 +59,9 @@ pub enum PipelineError {
 pub struct PipelineState {
     pub server_info: ServerInfo,
     pub db: Arc<DealDB>,
-    pub unsealed_sectors_dir: Arc<PathBuf>,
-    pub sealed_sectors_dir: Arc<PathBuf>,
-    pub sealing_cache_dir: Arc<PathBuf>,
+    pub unsealed_sectors_dir: PathBuf,
+    pub sealed_sectors_dir: PathBuf,
+    pub sealing_cache_dir: PathBuf,
     pub porep_parameters: Arc<PoRepParameters>,
     pub post_parameters: Arc<PoStParameters>,
 

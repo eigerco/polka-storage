@@ -53,7 +53,7 @@ use crate::{
 /// Shared state of the storage server.
 pub struct StorageServerState {
     pub server_info: ServerInfo,
-    pub car_piece_storage_dir: Arc<PathBuf>,
+    pub car_piece_storage_dir: PathBuf,
 
     pub deal_db: Arc<DealDB>,
 
@@ -79,7 +79,7 @@ pub async fn start_upload_server(
     // Create a storage folder if it doesn't exist.
     if !state.car_piece_storage_dir.exists() {
         tracing::info!(folder = ?state.car_piece_storage_dir, "creating storage folder");
-        fs::create_dir_all(state.car_piece_storage_dir.as_ref()).await?;
+        fs::create_dir_all(&state.car_piece_storage_dir).await?;
     }
 
     tracing::info!("Starting HTTP storage server at: {}", state.listen_address);
@@ -214,7 +214,7 @@ async fn upload(
         };
 
         let field_reader = StreamReader::new(field.map_err(std::io::Error::other));
-        stream_contents_to_car(state.car_piece_storage_dir.clone().as_ref(), field_reader)
+        stream_contents_to_car(&state.car_piece_storage_dir, field_reader)
             .await
             .map_err(|err| {
                 tracing::error!(%err, "failed to store file into CAR archive");
@@ -228,7 +228,7 @@ async fn upload(
                 .into_data_stream()
                 .map_err(|err| io::Error::new(io::ErrorKind::Other, err)),
         );
-        stream_contents_to_car(state.car_piece_storage_dir.clone().as_ref(), body_reader)
+        stream_contents_to_car(&state.car_piece_storage_dir, body_reader)
             .await
             .map_err(|err| {
                 tracing::error!(%err, "failed to store file into CAR archive");
@@ -377,24 +377,28 @@ async fn download(
 }
 
 /// Returns the tuple of file name and path for a specified Cid.
-fn content_path(folder: &std::path::Path, cid: Cid) -> (String, PathBuf) {
+fn content_path<P>(folder: P, cid: Cid) -> (String, PathBuf)
+where
+    P: AsRef<std::path::Path>,
+{
     let name = format!("{cid}.car");
-    let path = folder.join(&name);
+    let path = folder.as_ref().join(&name);
     (name, path)
 }
 
 /// Reads bytes from the source and writes them to a CAR file.
-async fn stream_contents_to_car<R>(
-    folder: &std::path::Path,
+async fn stream_contents_to_car<R, P>(
+    folder: P,
     source: R,
 ) -> Result<Cid, Box<dyn std::error::Error>>
 where
     R: AsyncRead + Unpin,
+    P: AsRef<std::path::Path>,
 {
     // Temp file which will be used to store the CAR file content. The temp
     // director has a randomized name and is created in the same folder as the
     // finalized uploads are stored.
-    let temp_dir = tempfile::tempdir_in(folder)?;
+    let temp_dir = tempfile::tempdir_in(folder.as_ref())?;
     let temp_file_path = temp_dir.path().join("temp.car");
     tracing::trace!("writing file to {}", temp_file_path.display());
 
@@ -406,7 +410,7 @@ where
 
     // If the file is successfully written, we can now move it to the final
     // location.
-    let (_, final_content_path) = content_path(folder, cid);
+    let (_, final_content_path) = content_path(folder.as_ref(), cid);
     fs::rename(temp_file_path, &final_content_path).await?;
     tracing::info!(?final_content_path, "CAR file created");
 
