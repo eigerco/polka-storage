@@ -33,7 +33,7 @@ source "$(dirname "$0")/deal_common.sh"
 set_latest_block
 
 START_BLOCK=$((LATEST_BLOCK + 20))
-END_BLOCK=$((LATEST_BLOCK + 100))
+END_BLOCK=$((LATEST_BLOCK + 200))
 
 set_piece_vars "$INPUT_FILE" "$INPUT_TMP_FILE"
 

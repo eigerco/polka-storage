@@ -38,7 +38,7 @@ for i in "${!ACCOUNTS[@]}"; do
     # Populate LATEST_BLOCK with the latest finalized block
     set_latest_block
     START_BLOCK=$((LATEST_BLOCK + 20))
-    END_BLOCK=$((LATEST_BLOCK + 100))
+    END_BLOCK=$((LATEST_BLOCK + 200))
 
     # Populate PIECE_CID and PIECE_SIZE
     set_piece_vars "$INPUT_FILE" "$INPUT_TMP_FILE"

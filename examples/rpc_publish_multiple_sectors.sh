@@ -30,7 +30,7 @@ do
     set_latest_block
 
     START_BLOCK=$((i + $LATEST_BLOCK))
-    END_BLOCK=$((i + $LATEST_BLOCK + 100))
+    END_BLOCK=$((i + $LATEST_BLOCK + 200))
     publish_deal \
         "$CLIENT" \
         "$PROVIDER" \
@@ -38,8 +38,8 @@ do
         $PIECE_SIZE \
         $START_BLOCK \
         $END_BLOCK \
-        "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY" \
-        "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y" \
+        $(subkey inspect "${CLIENT}" | awk -F': +' '/SS58 Address/ {print $2}') \
+        $(subkey inspect "${PROVIDER}" | awk -F': +' '/SS58 Address/ {print $2}') \
         "$INPUT_FILE"
     echo "Published deal between ${PROVIDER} and ${CLIENT}"
 done
