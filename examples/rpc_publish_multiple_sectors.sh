@@ -15,7 +15,7 @@ trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM
 
 # requires the testnet to be running!
 export DISABLE_XT_WAIT_WARNING=1
-source "$(dirname "$0")/deal_functions.sh"
+source "$(dirname "$0")/deal_common.sh"
 
 CLIENT="//Alice"
 PROVIDER="//Charlie"

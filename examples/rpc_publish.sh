@@ -28,7 +28,7 @@ INPUT_FILE_NAME="$(basename "$INPUT_FILE")"
 # CARv2 file location
 INPUT_TMP_FILE="$TMP_PATH/$INPUT_FILE_NAME.car"
 
-source "$(dirname "$0")/deal_functions.sh"
+source "$(dirname "$0")/deal_common.sh"
 
 set_latest_block
 
@@ -44,8 +44,8 @@ publish_deal \
     $PIECE_SIZE \
     $START_BLOCK \
     $END_BLOCK \
-    "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY" \
-    "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y" \
+    $(subkey inspect "${CLIENT}" | awk -F': +' '/SS58 Address/ {print $2}') \
+    $(subkey inspect "${PROVIDER}" | awk -F': +' '/SS58 Address/ {print $2}') \
     "$INPUT_FILE"
 
 echo "Storage deal successfully published!"

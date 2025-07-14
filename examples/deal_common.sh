@@ -2,8 +2,8 @@
 
 # Sets PIECE_CID and PIECE_SIZE based on the input file.
 function set_piece_vars {
-    INPUT_FILE=$1
-    INPUT_TMP_FILE=$2
+    local INPUT_FILE=$1
+    local INPUT_TMP_FILE=$2
 
     # Convert file to CARv2 format  
     echo "Converting ${INPUT_FILE} to CARv2 format..."
@@ -23,16 +23,16 @@ function set_latest_block {
 # Full publish deal flow.
 # INPUT_FILE should be set before calling.
 function publish_deal {
-    CLIENT=$1
-    PROVIDER=$2
-    PIECE_CID=$3
-    PIECE_SIZE=$4
-    START_BLOCK=$5
-    END_BLOCK=$6
-    CLIENT_ACCOUNT=$7
-    PROVIDER_ACCOUNT=$8
-    INPUT_FILE=$9
-    PORT="${10:-8001}"
+    local CLIENT=$1
+    local PROVIDER=$2
+    local PIECE_CID=$3
+    local PIECE_SIZE=$4
+    local START_BLOCK=$5
+    local END_BLOCK=$6
+    local CLIENT_ACCOUNT=$7
+    local PROVIDER_ACCOUNT=$8
+    local INPUT_FILE=$9
+    local PORT="${10:-8001}"
 
     URL="http://127.0.0.1:"$PORT""
 
