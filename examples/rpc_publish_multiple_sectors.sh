@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -e
-set -x
 
 if [ "$#" -ne 1 ]; then
     echo "$0: input file required"
@@ -12,10 +11,11 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
-trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
+trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM
 
 # requires the testnet to be running!
 export DISABLE_XT_WAIT_WARNING=1
+source "$(dirname "$0")/deal_common.sh"
 
 CLIENT="//Alice"
 PROVIDER="//Charlie"
@@ -24,42 +24,24 @@ INPUT_FILE="$1"
 INPUT_FILE_NAME="$(basename "$INPUT_FILE")"
 INPUT_TMP_FILE="/tmp/$INPUT_FILE_NAME.car"
 
-target/release/mater-cli convert -q --overwrite "$INPUT_FILE" "$INPUT_TMP_FILE" &&
-INPUT_COMMP="$(target/release/polka-storage-provider-client proofs commp "$INPUT_TMP_FILE")"
-PIECE_CID="$(echo "$INPUT_COMMP" | jq -r ".cid")"
-PIECE_SIZE="$(echo "$INPUT_COMMP" | jq ".size")"
-
-
-for i in $(seq 100 100 | tac);
+for i in $(seq 50 60);
 do
-    DEAL_JSON=$(
-        jq -n \
-    --arg piece_cid "$PIECE_CID" \
-    --argjson start_block "$i" \
-    --argjson piece_size "$PIECE_SIZE" \
-    '{
-            "piece_cid": $piece_cid,
-            "piece_size": $piece_size,
-            "client": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
-            "provider": "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y",
-            "label": "",
-            "start_block": $start_block,
-            "end_block": 250,
-            "storage_price_per_block": 500,
-            "state": "Published"
-        }'
-    )
-    SIGNED_DEAL_JSON="$(RUST_LOG=error target/release/polka-storage-provider-client sign-deal --sr25519-key "$CLIENT" "$DEAL_JSON")"
+    set_piece_vars "$INPUT_FILE" "$INPUT_TMP_FILE"
+    set_latest_block
 
-    DEAL_CID="$(curl -X POST -H "Content-Type: application/json" -d "$DEAL_JSON" 'http://127.0.0.1:8001/api/v0/propose_deal' | jq -r)"
-    echo "-------------------------- Uploading deal $i..."
-    echo
-    curl -X PUT -F "upload=@$INPUT_FILE" "http://localhost:8001/upload/$DEAL_CID"
-
-    echo
-    echo "-------------------------- Publishing deal $i..."
-    curl -X POST -H "Content-Type: application/json" -d "$SIGNED_DEAL_JSON" 'http://127.0.0.1:8001/api/v0/publish_deal' &
+    START_BLOCK=$((i + $LATEST_BLOCK))
+    END_BLOCK=$((i + $LATEST_BLOCK + 200))
+    publish_deal \
+        "$CLIENT" \
+        "$PROVIDER" \
+        "$PIECE_CID" \
+        $PIECE_SIZE \
+        $START_BLOCK \
+        $END_BLOCK \
+        $(subkey inspect "${CLIENT}" --output-type json | jq -r '.ss58Address') \
+        $(subkey inspect "${PROVIDER}" --output-type json | jq -r '.ss58Address') \
+        "$INPUT_FILE"
+    echo "Published deal between ${PROVIDER} and ${CLIENT}"
 done
 
-# wait until user Ctrl+Cs so that the commitment can actually be calculated
-wait
+echo 'Done publishing deals'

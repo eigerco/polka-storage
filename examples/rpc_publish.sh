@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -e
-set -x
 
 if [ "$#" -ne 1 ]; then
     echo "$0: input file required"
@@ -12,12 +11,12 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
-trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
+trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM
 
 # requires the testnet to be running!
 export DISABLE_XT_WAIT_WARNING=1
 TMPDIR="${TMPDIR:-/tmp}"
-TMP_PATH="$TMPDIR/polka-storage"
+TMP_PATH="$TMPDIR/polka-storage-provider"
 
 mkdir -p "$TMP_PATH"
 
@@ -28,92 +27,25 @@ INPUT_FILE="$1"
 INPUT_FILE_NAME="$(basename "$INPUT_FILE")"
 # CARv2 file location
 INPUT_TMP_FILE="$TMP_PATH/$INPUT_FILE_NAME.car"
-# Config file location
-CONFIG="$TMP_PATH/config.toml"
-# P2P Node variables
-P2P_PUBLIC_KEY="$TMP_PATH/public.pem"
-P2P_PRIVATE_KEY="$TMP_PATH/private.pem"
-P2P_BOOTSTRAP_PUBLIC_KEY="/tmp/zombienet/charlie-public.pem"
-P2P_ADDRESS="/ip4/127.0.0.1/tcp/62649"
-# Deal parameters JSON location
-DEAL_PARAMS="$TMP_PATH/deal_params.json"
 
-# Generate ED25519 private key
-openssl genpkey -algorithm ED25519 -out "$P2P_PRIVATE_KEY"
-# -outpubkey is only available in OpenSSL 3.4.0 onwards
-# https://github.com/openssl/openssl/commit/6c03fa21ed4bbc9fd6d3013fdf9f4646d231f831
-openssl pkey -in "$P2P_PRIVATE_KEY" -pubout -out "$P2P_PUBLIC_KEY"
+source "$(dirname "$0")/deal_common.sh"
 
-# Generate Peer ID
-P2P_BOOTSTRAP_PEER_ID="$(target/release/polka-storage-provider-client generate-peer-id --pubkey "$P2P_BOOTSTRAP_PUBLIC_KEY")"
+set_latest_block
 
-# Convert file to CARv2 format
-target/release/mater-cli convert -q --overwrite "$INPUT_FILE" "$INPUT_TMP_FILE" &&
+START_BLOCK=$((LATEST_BLOCK + 20))
+END_BLOCK=$((LATEST_BLOCK + 200))
 
-# Calculate COMMP and set PIECE_CID and PIECE_SIZE
-INPUT_COMMP="$(target/release/polka-storage-provider-client proofs commp "$INPUT_TMP_FILE")"
-PIECE_CID="$(echo "$INPUT_COMMP" | jq -r ".cid")"
-PIECE_SIZE="$(echo "$INPUT_COMMP" | jq ".size")"
+set_piece_vars "$INPUT_FILE" "$INPUT_TMP_FILE"
 
-# Generate Peer ID from public key
-PEER_ID="$(target/release/polka-storage-provider-client generate-peer-id --pubkey "$P2P_PUBLIC_KEY")"
+publish_deal \
+    "$CLIENT" \
+    "$PROVIDER" \
+    "$PIECE_CID" \
+    $PIECE_SIZE \
+    $START_BLOCK \
+    $END_BLOCK \
+    $(subkey inspect "${CLIENT}" --output-type json | jq -r '.ss58Address') \
+    $(subkey inspect "${PROVIDER}" --output-type json | jq -r '.ss58Address') \
+    "$INPUT_FILE"
 
-# echo config file in the file in the /tmp folder
-echo "seal_proof = '8MiB'
-post_proof = '8MiB'
-porep_parameters = 'target/params/8MiB.porep.params'
-post_parameters = 'target/params/8MiB.post.params'
-rendezvous_point_address = '$P2P_ADDRESS'
-p2p_key = '@$P2P_PRIVATE_KEY'
-rendezvous_point = '$P2P_BOOTSTRAP_PEER_ID'" > "$CONFIG"
-
-# echo deal parameters in the file in the /tmp folder
-echo '{ "minimum_price_per_block": 200, "deal_duration": { "lower": 50, "upper": 1800 }}' > "$DEAL_PARAMS"
-
-
-# It's a test setup based on the local verifying keys, everyone can run those extrinsics currently.
-# Each of the keys is different, because the processes are running in parallel.
-# If they were running in parallel on the same account, they'd conflict with each other on the transaction nonce.
-target/release/storagext-cli --sr25519-key "//Charlie" storage-provider register "$PEER_ID"
-
-wait
-
-# Setup deal parameters, has to go after registration.
-RUST_LOG=debug target/release/storagext-cli --sr25519-key "$PROVIDER" market publish-deal-parameters \
-    --deal-parameters @"$DEAL_PARAMS" &
-wait
-
-DEAL_JSON=$(
-    jq -n \
-   --arg piece_cid "$PIECE_CID" \
-   --argjson piece_size "$PIECE_SIZE" \
-   '{
-        "piece_cid": $piece_cid,
-        "piece_size": $piece_size,
-        "client": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
-        "provider": "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y",
-        "label": "",
-        "start_block": 200,
-        "end_block": 250,
-        "storage_price_per_block": 500,
-        "state": "Published"
-    }'
-)
-SIGNED_DEAL_JSON="$(RUST_LOG=error target/release/polka-storage-provider-client sign-deal --sr25519-key "$CLIENT" "$DEAL_JSON")"
-
-(RUST_LOG=debug target/release/polka-storage-provider-server --sr25519-key "$PROVIDER" --config "$CONFIG") &
-sleep 5 # gives time for the server to start
-
-DEAL_CID="$(curl -X POST -H "Content-Type: application/json" -d "$DEAL_JSON" 'http://127.0.0.1:8001/api/v0/propose_deal' | jq -r)"
-echo "$DEAL_CID"
-
-# Regular upload
-# curl --upload-file "$INPUT_FILE" "http://localhost:8001/upload/$DEAL_CID"
-
-# Multipart upload
-curl -X PUT -F "upload=@$INPUT_FILE" "http://localhost:8001/upload/$DEAL_CID"
-
-curl -X POST -H "Content-Type: application/json" -d "$SIGNED_DEAL_JSON" 'http://127.0.0.1:8001/api/v0/publish_deal'
-
-# wait until user Ctrl+Cs so that the commitment can actually be calculated
-wait
+echo "Storage deal successfully published!"
