@@ -26,14 +26,14 @@ INPUT_FILE="$1"
 INPUT_FILE_NAME="$(basename "$INPUT_FILE")"
 INPUT_TMP_FILE="/tmp/$INPUT_FILE_NAME.car"
 CLIENT="//Eve"
-CLIENT_ACCOUNT=$(subkey inspect "${CLIENT}" | awk -F': +' '/SS58 Address/ {print $2}')
+CLIENT_ACCOUNT=$(subkey inspect "${CLIENT}" --output-type json | jq -r '.ss58Address')
 declare -a ACCOUNTS=("//Alice" "//Bob" "//Charlie")
 declare -a PORTS=("8001" "8002" "8003")
 
 for i in "${!ACCOUNTS[@]}"; do
     PROVIDER="${ACCOUNTS[$i]}"
     PORT="${PORTS[$i]}"
-    PROVIDER_ACCOUNT=$(subkey inspect "${PROVIDER}" | awk -F': +' '/SS58 Address/ {print $2}')
+    PROVIDER_ACCOUNT=$(subkey inspect "${PROVIDER}" --output-type json | jq -r '.ss58Address')
 
     # Populate LATEST_BLOCK with the latest finalized block
     set_latest_block

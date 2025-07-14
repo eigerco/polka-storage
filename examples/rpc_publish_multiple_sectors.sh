@@ -38,8 +38,8 @@ do
         $PIECE_SIZE \
         $START_BLOCK \
         $END_BLOCK \
-        $(subkey inspect "${CLIENT}" | awk -F': +' '/SS58 Address/ {print $2}') \
-        $(subkey inspect "${PROVIDER}" | awk -F': +' '/SS58 Address/ {print $2}') \
+        $(subkey inspect "${CLIENT}" --output-type json | jq -r '.ss58Address') \
+        $(subkey inspect "${PROVIDER}" --output-type json | jq -r '.ss58Address') \
         "$INPUT_FILE"
     echo "Published deal between ${PROVIDER} and ${CLIENT}"
 done
