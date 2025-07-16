@@ -94,7 +94,7 @@ where
 }
 
 /// Type that is emitted after a successful prove commit extrinsic.
-#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Decode, DecodeWithMemTracking, Encode, PartialEq, TypeInfo)]
 pub struct ProveCommitResult {
     /// The sector number that is proven.
     pub sector_number: SectorNumber,
@@ -119,12 +119,12 @@ impl ProveCommitResult {
 }
 
 /// Argument used for the `terminate_sectors` extrinsic
-#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Decode, DecodeWithMemTracking, Encode, PartialEq, TypeInfo)]
 pub struct TerminateSectorsParams {
     pub terminations: BoundedVec<TerminationDeclaration, ConstU32<DECLARATIONS_MAX>>,
 }
 
-#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Decode, DecodeWithMemTracking, Encode, PartialEq, TypeInfo)]
 pub struct TerminationDeclaration {
     pub deadline: u64,
     pub partition: PartitionNumber,

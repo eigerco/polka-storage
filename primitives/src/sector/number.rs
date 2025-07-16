@@ -2,7 +2,7 @@
 
 use core::marker::PhantomData;
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_decode::{
     visitor::{self},
     ToString, TypeResolver, Visitor,
@@ -27,6 +27,7 @@ use crate::MAX_SECTORS;
     TypeInfo,
     RuntimeDebug,
     MaxEncodedLen,
+    DecodeWithMemTracking,
 )]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize))]
 pub struct SectorNumber(u32);

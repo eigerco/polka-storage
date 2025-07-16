@@ -4,7 +4,7 @@ use primitives::{sector::SectorNumber, PartitionNumber, MAX_TERMINATIONS_PER_CAL
 use crate::pallet::DECLARATIONS_MAX;
 
 /// Used by the storage provider to indicate a fault.
-#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Decode, DecodeWithMemTracking, Encode, PartialEq, TypeInfo)]
 pub struct FaultDeclaration {
     /// The deadline to which the faulty sectors are assigned, in range [0..WPoStPeriodDeadlines)
     pub deadline: u64,
@@ -16,12 +16,12 @@ pub struct FaultDeclaration {
 
 /// Type use as a parameter for `declare_faults` extrinsic.
 /// Holds N amount of [`FaultDeclaration`] where N < DECLARATION_MAX.
-#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Decode, DecodeWithMemTracking, Encode, PartialEq, TypeInfo)]
 pub struct DeclareFaultsParams {
     pub faults: BoundedVec<FaultDeclaration, ConstU32<DECLARATIONS_MAX>>,
 }
 
-#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Decode, DecodeWithMemTracking, Encode, PartialEq, TypeInfo)]
 pub struct RecoveryDeclaration {
     /// The deadline to which the recovered sectors are assigned, in range [0..WPoStPeriodDeadlines)
     pub deadline: u64,
@@ -31,7 +31,7 @@ pub struct RecoveryDeclaration {
     pub sectors: BoundedBTreeSet<SectorNumber, ConstU32<MAX_TERMINATIONS_PER_CALL>>,
 }
 
-#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Decode, DecodeWithMemTracking, Encode, PartialEq, TypeInfo)]
 pub struct DeclareFaultsRecoveredParams {
     pub recoveries: BoundedVec<RecoveryDeclaration, ConstU32<DECLARATIONS_MAX>>,
 }

@@ -1,4 +1,4 @@
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_decode::DecodeAsType;
 use scale_encode::EncodeAsType;
 use scale_info::TypeInfo;
@@ -43,6 +43,7 @@ pub struct PublicReplicaInfo {
 #[derive(
     Debug,
     Decode,
+    DecodeWithMemTracking,
     Encode,
     DecodeAsType,
     EncodeAsType,
@@ -164,6 +165,7 @@ impl RegisteredSealProof {
 #[derive(
     Debug,
     Decode,
+    DecodeWithMemTracking,
     Encode,
     DecodeAsType,
     EncodeAsType,

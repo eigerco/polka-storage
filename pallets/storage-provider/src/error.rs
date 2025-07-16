@@ -1,9 +1,9 @@
-use codec::{Decode, Encode};
+use codec::{Decode, DecodeWithMemTracking, Encode};
 use frame_support::{pallet_prelude::RuntimeDebug, PalletError};
 use primitives::commitment::{piece::PaddedPieceSizeError, CommitmentError};
 use scale_info::TypeInfo;
 
-#[derive(Decode, Encode, PalletError, TypeInfo, RuntimeDebug, PartialEq)]
+#[derive(Decode, DecodeWithMemTracking, Encode, PalletError, TypeInfo, RuntimeDebug, PartialEq)]
 pub enum GeneralPalletError {
     /// Partition error module types
     /// Emitted when adding sectors fails
