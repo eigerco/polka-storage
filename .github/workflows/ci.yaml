@@ -139,7 +139,9 @@ jobs:
           cache-bin: false
           cache-directories: "~/.cargo/registry/src/**/librocksdb-sys-*"
       - name: Run tests
-        run: cargo t --profile ci --locked --workspace --exclude maat
+        run: |
+          echo $CARGO_HOME
+          cargo t --profile ci --locked --workspace --exclude maat
       - name: Check tests
         run: cargo clippy --profile ci --locked --no-deps
 
