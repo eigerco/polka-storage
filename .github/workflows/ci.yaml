@@ -105,6 +105,7 @@ jobs:
       - format
     env:
       RUSTFLAGS: -D warnings
+      CARGO_TARGET_DIR: ~/.global-target
     steps:
       - uses: actions/checkout@v4
       - name: List version
@@ -112,10 +113,11 @@ jobs:
           rustup show
           cargo --version
           cargo clippy --version
-      - uses: Swatinem/rust-cache@98c8021b550208e191a6a3145459bfc9fb29c4c0
-        with:
-          cache-bin: false
-          # cache-directories: "~/.cargo/registry/src/**/librocksdb-sys-*"
+      # - uses: Swatinem/rust-cache@98c8021b550208e191a6a3145459bfc9fb29c4c0
+      #   with:
+      #     # Without breaks this self-hosted runners: https://github.com/Swatinem/rust-cache/issues/16
+      #     cache-bin: false
+      #     # cache-directories: "~/.cargo/registry/src/**/librocksdb-sys-*"
       - name: Build in dev mode
         run: cargo build --profile ci --locked
       - name: Cargo clippy
@@ -127,6 +129,7 @@ jobs:
       - format
     env:
       RUSTFLAGS: -D warnings
+      CARGO_TARGET_DIR: ~/.global-target
     steps:
       - uses: actions/checkout@v4
       - name: List version
@@ -134,10 +137,11 @@ jobs:
           rustup show
           cargo --version
           cargo clippy --version
-      - uses: Swatinem/rust-cache@98c8021b550208e191a6a3145459bfc9fb29c4c0
-        with:
-          cache-bin: false
-          # cache-directories: "~/.cargo/registry/src/**/librocksdb-sys-*"
+      # - uses: Swatinem/rust-cache@98c8021b550208e191a6a3145459bfc9fb29c4c0
+      #   with:
+      #     # Without breaks this self-hosted runners: https://github.com/Swatinem/rust-cache/issues/16
+      #     cache-bin: false
+      #     # cache-directories: "~/.cargo/registry/src/**/librocksdb-sys-*"
       - name: Run tests
         run: |
           echo "$CARGO_HOME";
@@ -180,16 +184,18 @@ jobs:
       - format
     env:
       RUSTFLAGS: -D warnings
+      CARGO_TARGET_DIR: ~/.global-target
 
     if: ${{ needs.check-benchmarks.outputs.skip == 'false' }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: Swatinem/rust-cache@98c8021b550208e191a6a3145459bfc9fb29c4c0
-        with:
-          cache-bin: false
-          # cache-directories: "~/.cargo/registry/src/**/librocksdb-sys-*"
+      # - uses: Swatinem/rust-cache@98c8021b550208e191a6a3145459bfc9fb29c4c0
+      #   with:
+      #     # Without breaks this self-hosted runners: https://github.com/Swatinem/rust-cache/issues/16
+      #     cache-bin: false
+      #     # cache-directories: "~/.cargo/registry/src/**/librocksdb-sys-*"
 
       - name: Run test benchmarks
         run: |
