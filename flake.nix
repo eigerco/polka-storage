@@ -31,7 +31,6 @@
 
         buildInputs = with pkgs; [
           # Rust related deps
-          cargo-tarpaulin
           clang
           just
           mdbook

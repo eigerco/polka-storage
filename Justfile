@@ -176,24 +176,6 @@ kube-testnet:
     openssl pkey -in /tmp/zombienet/charlie-private.pem -pubout -out /tmp/zombienet/charlie-public.pem # Generate public key so script can get the Peer ID
     zombienet -p kubernetes spawn zombienet/local-kube-testnet.toml
 
-# The tarpaulin calls for test coverage have the following options:
-# --locked: To not update the Cargo.lock file.
-# --skip-clean: Prevents tarpaulin from running `cargo clean` to reduce runtime.
-# --fail-immediately: Makes tarpaulin stop when a test fails.
-# --out: Specifies the output type, html for humans, lcov for Coverage Gutters.
-# --output-dir: Specifies the output directory, these must be in sync with .vscode/settings.json and have extension Coverage Gutters to display it in VS Code.
-
-pallet-storage-provider-coverage:
-    mkdir -p coverage
-    cargo tarpaulin -p pallet-storage-provider --locked --skip-clean --fail-immediately --out html lcov --output-dir coverage/pallet-storage-provider
-
-market-coverage:
-    mkdir -p coverage
-    cargo tarpaulin -p pallet-market -p pallet-market-benchmarks --locked --skip-clean --fail-immediately --out html lcov --output-dir coverage/pallet-market
-
-mater-coverage:
-    mkdir -p coverage
-    cargo tarpaulin -p mater --locked --skip-clean --fail-immediately --out html lcov --output-dir coverage/mater
 
 full-coverage: pallet-storage-provider-coverage market-coverage mater-coverage
 
