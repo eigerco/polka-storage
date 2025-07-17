@@ -120,8 +120,10 @@ jobs:
       #     # Without breaks this self-hosted runners: https://github.com/Swatinem/rust-cache/issues/16
       #     cache-bin: false
       #     # cache-directories: "~/.cargo/registry/src/**/librocksdb-sys-*"
+      - run: rsync -aizu /home/ci/.global-target $PWD/target
       - name: Build in dev mode
         run: cargo build --profile ci --locked
+      - run: rsync -aizu $PWD/target /home/ci/.global-target
       - name: Cargo clippy
         run: cargo clippy --profile ci --locked --no-deps
 
@@ -145,8 +147,10 @@ jobs:
       #     # Without breaks this self-hosted runners: https://github.com/Swatinem/rust-cache/issues/16
       #     cache-bin: false
       #     # cache-directories: "~/.cargo/registry/src/**/librocksdb-sys-*"
+      - run: rsync -aizu /home/ci/.global-target $PWD/target
       - name: Run tests
         run: cargo t --profile ci --locked --workspace --exclude maat
+      - run: rsync -aizu $PWD/target /home/ci/.global-target
       - name: Check tests
         run: cargo clippy --profile ci --locked --no-deps
 
@@ -199,13 +203,15 @@ jobs:
       #     cache-bin: false
       #     # cache-directories: "~/.cargo/registry/src/**/librocksdb-sys-*"
 
+      - run: rsync -aizu $PWD/target /home/ci/.global-target
       - name: Run test benchmarks
         run: |
           cargo test --profile ci --locked \
-            -p pallet-storage-provider \
-            -p pallet-proofs \
-            -p pallet-randomness \
-            --features runtime-benchmarks -- benchmark --nocapture
+          -p pallet-storage-provider \
+          -p pallet-proofs \
+          -p pallet-randomness \
+          --features runtime-benchmarks -- benchmark --nocapture
+      - run: rsync -aizu /home/ci/.global-target $PWD/target
 
       - name: Run node benchmarks
         run: |
