@@ -159,8 +159,6 @@ pub fn preset_names() -> Vec<PresetId> {
 
 #[cfg(test)]
 mod tests {
-    // NOTE(@Jinxit,02/06/2025): Excluded because it is too slow to run coverage for on CI.
-    #[cfg(not(tarpaulin))]
     #[test]
     fn check_presets() {
         let builder = sc_chain_spec::GenesisConfigBuilderRuntimeCaller::<()>::new(

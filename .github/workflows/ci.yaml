@@ -35,7 +35,7 @@ jobs:
           files: |
             **/.github/workflows/*
             **/*.rs
-            **/Cargo.toml
+            **/Cargo.lock
             **/*.scale
       - name: Check if proper files changed
         id: check-files
@@ -135,13 +135,43 @@ jobs:
       - name: Check tests
         run: cargo clippy --profile ci --locked --no-deps
 
+  check-benchmarks:
+    runs-on: self-hosted
+    outputs:
+      skip: ${{ steps.check-benchmarks.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: tj-actions/changed-files@c65cd883420fd2eb864698a825fc4162dd94482c #v44.5.7
+        id: changed-files
+        with:
+          files: |
+            **/pallets/**/*.rs
+            **/primitives/**/*.rs
+            **/runtime/**/*.rs
+            **/test-fixtures/**/*.rs
+            **/Cargo.lock
+            **/*.scale
+      - name: Check if proper files changed
+        id: check-benchmarks
+        run: |
+          if [[ "${{ steps.changed-files.outputs.any_changed }}" == "false" ]]; then
+            echo "No files changed. Skipping CI."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Some files changed. Running CI."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
   # This is easier to configure in the GitHub settings
   benchmarks:
     runs-on: self-hosted
     needs:
+      - check-benchmarks
       - format
     env:
       RUSTFLAGS: -D warnings
+
+    if: ${{ needs.check-benchmarks.outputs.skip == 'false' }}
 
     steps:
       - uses: actions/checkout@v4
