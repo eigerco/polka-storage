@@ -105,7 +105,6 @@ jobs:
       - format
     env:
       RUSTFLAGS: -D warnings
-      CARGO_TARGET_DIR: /home/ci/.global-target
       CARGO_LOG: cargo::core::compiler::fingerprint=info
 
     steps:
@@ -133,7 +132,6 @@ jobs:
       - format
     env:
       RUSTFLAGS: -D warnings
-      CARGO_TARGET_DIR: /home/ci/.global-target
       CARGO_LOG: cargo::core::compiler::fingerprint=info
     steps:
       - uses: actions/checkout@v4
@@ -189,7 +187,6 @@ jobs:
       - format
     env:
       RUSTFLAGS: -D warnings
-      CARGO_TARGET_DIR: /home/ci/.global-target
       CARGO_LOG: cargo::core::compiler::fingerprint=info
 
     if: ${{ needs.check-benchmarks.outputs.skip == 'false' }}
