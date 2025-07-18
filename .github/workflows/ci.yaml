@@ -118,7 +118,7 @@ jobs:
       - name: Build in dev mode
         run: cargo build --profile ci --locked
       - name: Cargo clippy
-        run: cargo clippy --profile ci --locked --no-deps
+        run: cargo clippy --profile ci --locked --no-deps --all
 
   check_tests:
     runs-on: self-hosted
@@ -139,10 +139,7 @@ jobs:
       - run: ln -s /home/ci/.global-target $PWD/target
       - name: Run tests
         run: |
-          nix develop -c \
-            cargo nextest run --cargo-profile ci --locked --workspace --exclude maat
-      - name: Check tests
-        run: cargo clippy --profile ci --locked --no-deps
+          cargo nextest run --cargo-profile ci --locked --workspace --exclude maat
 
   check-benchmarks:
     runs-on: self-hosted
@@ -191,8 +188,7 @@ jobs:
       - run: ln -s /home/ci/.global-target $PWD/target
       - name: Run test benchmarks
         run: |
-          nix develop -c \
-            cargo nextest run --cargo-profile ci --locked \
+          cargo nextest run --cargo-profile ci --locked \
             -p pallet-storage-provider \
             -p pallet-proofs \
             -p pallet-randomness \
