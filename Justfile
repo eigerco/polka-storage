@@ -47,7 +47,7 @@ run-collator:
     zombienet -p native spawn zombienet/local-david-collator.toml
 
 test:
-    cargo test --locked --workspace
+    cargo nextest --locked --workspace
 
 fmt:
     taplo fmt
@@ -177,8 +177,6 @@ kube-testnet:
     zombienet -p kubernetes spawn zombienet/local-kube-testnet.toml
 
 
-full-coverage: pallet-storage-provider-coverage market-coverage mater-coverage
-
 # Generate both PoRep and PoSt parameters given the size
 generate-proof-params sector-size:
     cargo r -r -p polka-storage-provider-client -- proofs porep-params --seal-proof "{{sector-size}}"
@@ -192,7 +190,7 @@ download-params sector-size:
 
 # Run the benchmark tests
 bench-test pallet:
-    cargo test --profile ci --locked -p "pallet-{{pallet}}" --features runtime-benchmarks -- benchmark --nocapture
+    cargo nextest --cargo-profile ci --locked -p "pallet-{{pallet}}" --features runtime-benchmarks -- benchmark
 
 # Run benchmarks
 bench-node pallet steps="5" repeat="1":

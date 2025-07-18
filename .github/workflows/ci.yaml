@@ -11,8 +11,6 @@ on:
       - opened
       - synchronize
       - reopened
-      # This additional type is added to trigger on the 'ready for review' label being added
-      - labeled
   push:
     branches: [develop, main]
   workflow_dispatch: # manual launch
@@ -120,7 +118,7 @@ jobs:
       - name: Build in dev mode
         run: cargo build --profile ci --locked
       - name: Cargo clippy
-        run: cargo clippy --profile ci --locked --no-deps
+        run: cargo clippy --profile ci --locked --no-deps --all
 
   check_tests:
     runs-on: self-hosted
@@ -140,9 +138,8 @@ jobs:
       # If the mountain won't come to Muhammad, then Muhammad must go to the mountain
       - run: ln -s /home/ci/.global-target $PWD/target
       - name: Run tests
-        run: cargo t --profile ci --locked --workspace --exclude maat
-      - name: Check tests
-        run: cargo clippy --profile ci --locked --no-deps
+        run: |
+          cargo nextest run --cargo-profile ci --locked --workspace --exclude maat
 
   check-benchmarks:
     runs-on: self-hosted
@@ -191,11 +188,11 @@ jobs:
       - run: ln -s /home/ci/.global-target $PWD/target
       - name: Run test benchmarks
         run: |
-          cargo test --profile ci --locked \
-          -p pallet-storage-provider \
-          -p pallet-proofs \
-          -p pallet-randomness \
-          --features runtime-benchmarks -- benchmark --nocapture
+          cargo nextest run --cargo-profile ci --locked \
+            -p pallet-storage-provider \
+            -p pallet-proofs \
+            -p pallet-randomness \
+            --features runtime-benchmarks -- benchmark
 
       - name: Run node benchmarks
         run: |
