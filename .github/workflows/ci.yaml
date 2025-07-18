@@ -105,6 +105,8 @@ jobs:
       - format
     env:
       RUSTFLAGS: -D warnings
+      CARGO_LOG: cargo::core::compiler::fingerprint=info
+
     steps:
       - uses: actions/checkout@v4
       - name: List version
@@ -112,6 +114,9 @@ jobs:
           rustup show
           cargo --version
           cargo clippy --version
+      # CARGO_TARGET_DIR does not work due to the WASM build for the runtime
+      # If the mountain won't come to Muhammad, then Muhammad must go to the mountain
+      - run: ln -s /home/ci/.global-target $PWD/target
       - name: Build in dev mode
         run: cargo build --profile ci --locked
       - name: Cargo clippy
@@ -123,6 +128,7 @@ jobs:
       - format
     env:
       RUSTFLAGS: -D warnings
+      CARGO_LOG: cargo::core::compiler::fingerprint=info
     steps:
       - uses: actions/checkout@v4
       - name: List version
@@ -130,6 +136,9 @@ jobs:
           rustup show
           cargo --version
           cargo clippy --version
+      # CARGO_TARGET_DIR does not work due to the WASM build for the runtime
+      # If the mountain won't come to Muhammad, then Muhammad must go to the mountain
+      - run: ln -s /home/ci/.global-target $PWD/target
       - name: Run tests
         run: cargo t --profile ci --locked --workspace --exclude maat
       - name: Check tests
@@ -170,19 +179,23 @@ jobs:
       - format
     env:
       RUSTFLAGS: -D warnings
+      CARGO_LOG: cargo::core::compiler::fingerprint=info
 
     if: ${{ needs.check-benchmarks.outputs.skip == 'false' }}
 
     steps:
       - uses: actions/checkout@v4
 
+      # CARGO_TARGET_DIR does not work due to the WASM build for the runtime
+      # "If the mountain won't come to Muhammad, then Muhammad must go to the mountain"
+      - run: ln -s /home/ci/.global-target $PWD/target
       - name: Run test benchmarks
         run: |
           cargo test --profile ci --locked \
-            -p pallet-storage-provider \
-            -p pallet-proofs \
-            -p pallet-randomness \
-            --features runtime-benchmarks -- benchmark --nocapture
+          -p pallet-storage-provider \
+          -p pallet-proofs \
+          -p pallet-randomness \
+          --features runtime-benchmarks -- benchmark --nocapture
 
       - name: Run node benchmarks
         run: |
