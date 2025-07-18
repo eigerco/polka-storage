@@ -73,7 +73,7 @@ jobs:
         run: mdbook build docs
 
   toml:
-    if: ${{ needs.check-files.outputs.skip == 'false' && (contains(github.event.pull_request.labels.*.name, 'ready for review') || (github.ref_name == 'develop') || (github.ref_name == 'master')) }}
+    if: ${{ needs.check-files.outputs.skip == 'false' }}
     runs-on: self-hosted
     needs: check-files
     steps:
