@@ -138,7 +138,9 @@ jobs:
       # If the mountain won't come to Muhammad, then Muhammad must go to the mountain
       - run: ln -s /home/ci/.global-target $PWD/target
       - name: Run tests
-        run: cargo nextest run --cargo-profile ci --locked --workspace --exclude maat
+        run: |
+          nix develop -c \
+            cargo nextest run --cargo-profile ci --locked --workspace --exclude maat
       - name: Check tests
         run: cargo clippy --profile ci --locked --no-deps
 
@@ -189,11 +191,12 @@ jobs:
       - run: ln -s /home/ci/.global-target $PWD/target
       - name: Run test benchmarks
         run: |
-          cargo nextest run --cargo-profile ci --locked \
-          -p pallet-storage-provider \
-          -p pallet-proofs \
-          -p pallet-randomness \
-          --features runtime-benchmarks -- benchmark
+          nix develop -c \
+            cargo nextest run --cargo-profile ci --locked \
+            -p pallet-storage-provider \
+            -p pallet-proofs \
+            -p pallet-randomness \
+            --features runtime-benchmarks -- benchmark
 
       - name: Run node benchmarks
         run: |
