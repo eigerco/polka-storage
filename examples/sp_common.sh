@@ -42,7 +42,7 @@ generate_config_file() {
         echo "porep_parameters = 'target/params/8MiB.porep.params'"
         echo "post_parameters = 'target/params/8MiB.post.params'"
         echo "node_url = '$COLLATOR_WS_ADDR'"
-        echo "upload_listen_address = '127.0.0.1:$PORT'"
+        echo "listen_address = '127.0.0.1:$PORT'"
 
         if [ -n "$DB_DIR" ]; then
             echo "database_directory = '$DB_DIR'"
