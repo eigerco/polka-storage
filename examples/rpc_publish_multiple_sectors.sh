@@ -18,7 +18,7 @@ export DISABLE_XT_WAIT_WARNING=1
 source "$(dirname "$0")/deal_common.sh"
 
 CLIENT="//Eve"
-PROVIDER="//Charlie"
+PROVIDER="//Alice"
 
 INPUT_FILE="$1"
 INPUT_FILE_NAME="$(basename "$INPUT_FILE")"
