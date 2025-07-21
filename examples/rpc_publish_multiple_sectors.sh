@@ -17,8 +17,8 @@ trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM
 export DISABLE_XT_WAIT_WARNING=1
 source "$(dirname "$0")/deal_common.sh"
 
-CLIENT="//Alice"
-PROVIDER="//Charlie"
+CLIENT="//Eve"
+PROVIDER="//Alice"
 
 INPUT_FILE="$1"
 INPUT_FILE_NAME="$(basename "$INPUT_FILE")"
@@ -30,7 +30,7 @@ do
     set_latest_block
 
     START_BLOCK=$((i + $LATEST_BLOCK))
-    END_BLOCK=$((i + $LATEST_BLOCK + 200))
+    END_BLOCK=$((10000 + $START_BLOCK))
     publish_deal \
         "$CLIENT" \
         "$PROVIDER" \

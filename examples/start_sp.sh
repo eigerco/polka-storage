@@ -12,7 +12,7 @@ export DISABLE_XT_WAIT_WARNING=1
 # CONFIGURATION
 TMPDIR="${TMPDIR:-/tmp}"
 TMP_PATH="$TMPDIR/polka-storage-provider"
-PROVIDER="//Charlie"
+PROVIDER="//Alice"
 PORT="8001"
 CONFIG="$TMP_PATH/config.toml"
 DEAL_PARAMS="$TMP_PATH/deal_params.json"

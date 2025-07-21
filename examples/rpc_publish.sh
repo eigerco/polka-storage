@@ -20,8 +20,8 @@ TMP_PATH="$TMPDIR/polka-storage-provider"
 
 mkdir -p "$TMP_PATH"
 
-CLIENT="//Alice"
-PROVIDER="//Charlie"
+CLIENT="//Eve"
+PROVIDER="//Alice"
 
 INPUT_FILE="$1"
 INPUT_FILE_NAME="$(basename "$INPUT_FILE")"
@@ -33,7 +33,7 @@ source "$(dirname "$0")/deal_common.sh"
 set_latest_block
 
 START_BLOCK=$((LATEST_BLOCK + 20))
-END_BLOCK=$((LATEST_BLOCK + 200))
+END_BLOCK=$((START_BLOCK + 10000))
 
 set_piece_vars "$INPUT_FILE" "$INPUT_TMP_FILE"
 
