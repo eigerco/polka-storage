@@ -29,6 +29,10 @@ enum MaterCli {
         /// If enabled, the output will overwrite any existing files.
         #[arg(long, action)]
         overwrite: bool,
+
+        /// If enabled, the file will be wrapped with UnixFS information.
+        #[arg(long, action)]
+        wrap: bool,
     },
     /// Convert a CARv2 file to its original format
     Extract {
@@ -50,6 +54,7 @@ async fn main() -> Result<(), Error> {
             output_path,
             quiet,
             overwrite,
+            wrap,
         } => {
             let output_path = output_path.unwrap_or_else(|| {
                 // If we let the output become `-.car` it isn't only weird
@@ -65,7 +70,7 @@ async fn main() -> Result<(), Error> {
                     new_path
                 }
             });
-            let cid = convert_file_to_car(&input_path, &output_path, overwrite).await?;
+            let cid = convert_file_to_car(&input_path, &output_path, overwrite, wrap).await?;
 
             if quiet {
                 println!("{}", cid);

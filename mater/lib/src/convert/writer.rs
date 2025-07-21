@@ -4,15 +4,32 @@ use std::{
 };
 
 use futures::stream::StreamExt;
-use ipld_core::cid::Cid;
+use ipld_core::{cid::Cid, codec::Codec};
+use ipld_dagpb::{DagPbCodec, PbLink, PbNode};
+use quick_protobuf::MessageWrite;
+use sha2::Sha256;
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt};
 
 use crate::{
-    unixfs::stream_balanced_tree,
+    multicodec::generate_multihash,
+    unixfs::{stream_balanced_tree, unixfs_pb},
     v1::{self, CarWriter},
     v2::{self, CarWriter as _},
-    BlockMetadata, Config, Error, Index, IndexEntry, IndexSorted, SingleWidthIndex,
+    BlockMetadata, Config, Error, Index, IndexEntry, IndexSorted, SingleWidthIndex, DAG_PB_CODE,
 };
+
+/// Wrapping configuration
+pub enum Wrapping {
+    /// Do not wrap the file with UnixFS information.
+    NoWrap,
+    /// Wrap the file with UnixFS information.
+    Wrap {
+        /// File name.
+        filename: String,
+        /// File size.
+        filesize: u64,
+    },
+}
 
 /// CAR file writer.
 ///
@@ -87,19 +104,19 @@ where
 {
     /// Convert `source` into a CAR file, writing it to `writer`.
     /// Returns the root [`Cid`].
-    pub async fn import<S>(source: S, writer: W) -> Result<Cid, Error>
+    pub async fn import<S>(source: S, writer: W, wrap: Wrapping) -> Result<Cid, Error>
     where
         S: AsyncRead + Unpin,
     {
         let mut writer = Self::new(writer).await?;
-        writer.write_from(source).await?;
+        writer.write_from(source, wrap).await?;
         let root = *writer.roots.first().ok_or(Error::EmptyRootsError)?;
         writer.finish().await?;
         Ok(root)
     }
 
     /// Writes the contents from `source`, adding a new root to [`FileWriter`].
-    pub async fn write_from<S>(&mut self, source: S) -> Result<(), Error>
+    pub async fn write_from<S>(&mut self, source: S, wrapping: Wrapping) -> Result<(), Error>
     where
         S: AsyncRead + Unpin,
     {
@@ -136,7 +153,49 @@ where
             }
 
             if nodes.as_mut().peek().await.is_none() {
-                root = Some(node_cid);
+                if let Wrapping::Wrap { filename, filesize } = &wrapping {
+                    let block_offset = current_position;
+
+                    let link = PbLink {
+                        cid: node_cid,
+                        name: Some(filename.to_string()),
+                        size: Some(*filesize),
+                    };
+
+                    let pb_node_data = unixfs_pb::Data {
+                        Type: unixfs_pb::mod_Data::DataType::Directory,
+                        filesize: None,
+                        blocksizes: vec![],
+                        ..Default::default()
+                    };
+                    let mut pb_node_data_bytes = vec![];
+                    let mut pb_node_data_writer =
+                        quick_protobuf::Writer::new(&mut pb_node_data_bytes);
+                    pb_node_data.write_message(&mut pb_node_data_writer)?;
+
+                    let pb_node = PbNode {
+                        links: vec![link],
+                        data: Some(pb_node_data_bytes.into()),
+                    };
+
+                    let outer = DagPbCodec::encode_to_vec(&pb_node)?;
+                    let cid = Cid::new_v1(DAG_PB_CODE, generate_multihash::<Sha256, _>(&outer));
+
+                    let written = self.writer.write_block(&cid, &outer).await? as u64;
+                    current_position += written;
+                    self.index.insert(
+                        cid,
+                        BlockMetadata {
+                            block_offset,
+                            cid,
+                            data_offset_source: block_offset + written,
+                            data_size: outer.len() as u64,
+                        },
+                    );
+                    root = Some(cid);
+                } else {
+                    root = Some(node_cid);
+                }
             }
         }
 
@@ -233,7 +292,10 @@ mod tests {
         let reference = tokio::fs::read(reference).await.unwrap();
 
         let mut store = FileWriter::in_memory().await.unwrap();
-        store.write_from(file).await.unwrap();
+        store
+            .write_from(file, crate::Wrapping::NoWrap)
+            .await
+            .unwrap();
         let output = store.finish().await.unwrap().into_inner();
         assert_buffer_eq!(&output, &reference);
     }
@@ -260,7 +322,10 @@ mod tests {
     async fn dedup() {
         let input = Cursor::new(vec![0u8; 524288]);
         let mut store = FileWriter::in_memory().await.unwrap();
-        store.write_from(input).await.unwrap();
+        store
+            .write_from(input, crate::Wrapping::NoWrap)
+            .await
+            .unwrap();
         let output = store.finish().await.unwrap().into_inner();
 
         let reference = tokio::fs::read("tests/fixtures/car_v2/zero.car")

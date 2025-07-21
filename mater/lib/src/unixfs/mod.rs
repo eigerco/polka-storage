@@ -25,7 +25,7 @@ pub(crate) struct LinkInfo {
 }
 
 impl LinkInfo {
-    fn new(raw_data_length: u64, encoded_data_length: u64) -> Self {
+    pub fn new(raw_data_length: u64, encoded_data_length: u64) -> Self {
         Self {
             raw_data_length,
             encoded_data_length,
