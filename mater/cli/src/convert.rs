@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use mater::{Cid, Error, FileWriter};
+use mater::{Cid, Error, FileWriter, Wrapping};
 use tokio::fs::File;
 
 /// Converts a file at location `input_path` to a CARv2 file at `output_path`
@@ -8,6 +8,7 @@ pub(crate) async fn convert_file_to_car(
     input_path: &PathBuf,
     output_path: &PathBuf,
     overwrite: bool,
+    wrap: bool,
 ) -> Result<Cid, Error> {
     let output_file = if overwrite {
         File::create(output_path).await
@@ -16,10 +17,32 @@ pub(crate) async fn convert_file_to_car(
     }?;
 
     if input_path.as_os_str() == "-" {
-        FileWriter::import(tokio::io::stdin(), output_file).await
+        FileWriter::import(tokio::io::stdin(), output_file, Wrapping::NoWrap).await
     } else {
         let source_file = File::open(input_path).await?;
-        FileWriter::import(source_file, output_file).await
+        if wrap {
+            let filesize = source_file.metadata().await?.len();
+            let filename = input_path
+                .file_name()
+                .ok_or(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "filename was empty",
+                ))?
+                .to_str()
+                .ok_or(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "filename is not valid UTF-8",
+                ))?
+                .to_string();
+            FileWriter::import(
+                source_file,
+                output_file,
+                mater::Wrapping::Wrap { filename, filesize },
+            )
+            .await
+        } else {
+            FileWriter::import(source_file, output_file, mater::Wrapping::NoWrap).await
+        }
     }
 }
 
@@ -51,7 +74,7 @@ mod tests {
         let output_path = temp_dir.path().join("test_output.car");
 
         // Call the function under test
-        let result = convert_file_to_car(&input_path, &output_path, false).await;
+        let result = convert_file_to_car(&input_path, &output_path, false, false).await;
 
         // Assert the result is Ok
         assert!(result.is_ok());
@@ -75,7 +98,7 @@ mod tests {
         let output_path = temp_dir.path().join("test_output.car");
 
         // Call the function under test
-        let result = convert_file_to_car(&input_path, &output_path, false).await;
+        let result = convert_file_to_car(&input_path, &output_path, false, false).await;
 
         // Assert the result is an error
         assert!(result.is_err());
@@ -100,7 +123,7 @@ mod tests {
         File::create_new(&output_path).await?;
 
         // Call the function under test
-        let result = convert_file_to_car(&input_path, &output_path, false).await;
+        let result = convert_file_to_car(&input_path, &output_path, false, false).await;
 
         // Assert the result is an error
         assert!(result.is_err());

@@ -16,7 +16,7 @@ use axum::{
 };
 use futures::{TryFutureExt, TryStreamExt};
 use hyper::{header::CONTENT_TYPE, Method};
-use mater::Cid;
+use mater::{Cid, Wrapping};
 use metrics_exporter_prometheus::PrometheusHandle;
 use polka_storage_provider_common::{
     commp::{commp, CommPError},
@@ -405,7 +405,7 @@ where
     // Stream the body from source to the temp file.
     let file = File::create(&temp_file_path).await?;
     let writer = BufWriter::new(file);
-    let cid = mater::FileWriter::import(source, writer).await?;
+    let cid = mater::FileWriter::import(source, writer, Wrapping::NoWrap).await?;
     tracing::trace!("finished writing the CAR archive");
 
     // If the file is successfully written, we can now move it to the final

@@ -2,7 +2,7 @@ mod reader;
 mod writer;
 
 pub use reader::FileReader;
-pub use writer::FileWriter;
+pub use writer::{FileWriter, Wrapping};
 
 /// The default block size, as defined in
 /// [boxo](https://github.com/ipfs/boxo/blob/f4fe8997dcbeb39b3a4842d8f08b34739bfd84a4/chunker/parse.go#L13).

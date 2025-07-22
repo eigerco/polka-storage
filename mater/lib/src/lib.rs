@@ -18,7 +18,7 @@ mod v1;
 mod v2;
 
 // We need to re-expose this because `read_block` returns `(Cid, Vec<u8>)`.
-pub use convert::{Config, FileReader, FileWriter};
+pub use convert::{Config, FileReader, FileWriter, Wrapping};
 pub use ipld::CidExt;
 pub use ipld_core::cid::Cid;
 pub use multicodec::{DAG_PB_CODE, IDENTITY_CODE, RAW_CODE};
