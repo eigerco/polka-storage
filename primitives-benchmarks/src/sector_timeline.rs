@@ -3,13 +3,10 @@ extern crate alloc;
 use alloc::{format, string::String, vec::Vec};
 
 use codec::Encode;
+use primitives::proofs::assign_proving_period_offset;
 
 use crate::{
-    proofs::assign_proving_period_offset,
-    test_data::{
-        absolute_block_number::Absolute, deal_timeline::DealTimeline,
-        relative_block_number::Relative,
-    },
+    absolute_block_number::Absolute, deal_timeline::DealTimeline, relative_block_number::Relative,
 };
 
 #[derive(Debug, Clone)]

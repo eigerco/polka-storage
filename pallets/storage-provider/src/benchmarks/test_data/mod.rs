@@ -8,12 +8,8 @@ use sp_runtime::{traits::IdentifyAccount, AccountId32, MultiSignature, MultiSign
 
 use crate::benchmarks::benchmarking::{ClientDealProposalOf, DealProposalOf};
 
-pub mod absolute_block_number;
-pub mod benchmark_data;
-pub mod deal_timeline;
-pub mod relative_block_number;
+pub(crate) mod benchmark_data;
 mod sector_data;
-pub mod sector_timeline;
 mod storage_provider_data;
 
 pub fn generate_benchmark_account<T>(name: &'static str) -> (AccountId32, MultiSigner)

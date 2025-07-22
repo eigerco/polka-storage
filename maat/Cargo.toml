@@ -22,7 +22,6 @@ target-release = []
 
 [dependencies]
 bls12_381 = { workspace = true }
-bs58.workspace = true
 cid.workspace = true
 codec = { workspace = true }
 futures.workspace = true

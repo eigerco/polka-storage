@@ -3278,7 +3278,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f55bf8e7b65898637379c1b74eb1551107c8294ed26d855ceb9fd1a09cfc9bc0"
 dependencies = [
  "const-oid",
- "pem-rfc7468",
  "zeroize",
 ]
 
@@ -7122,7 +7121,6 @@ name = "maat"
 version = "0.1.0"
 dependencies = [
  "bls12_381",
- "bs58",
  "cid 0.11.1",
  "futures",
  "hex",
@@ -7616,7 +7614,7 @@ dependencies = [
  "blake3",
  "core2",
  "digest 0.10.7",
- "multihash-derive 0.8.1",
+ "multihash-derive",
  "sha2 0.10.8",
  "sha3",
  "unsigned-varint 0.7.2",
@@ -7635,17 +7633,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "multihash-codetable"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67996849749d25f1da9f238e8ace2ece8f9d6bdf3f9750aaf2ae7de3a5cad8ea"
-dependencies = [
- "blake2b_simd",
- "core2",
- "multihash-derive 0.9.1",
-]
-
-[[package]]
 name = "multihash-derive"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7657,30 +7644,6 @@ dependencies = [
  "quote",
  "syn 1.0.109",
  "synstructure 0.12.6",
-]
-
-[[package]]
-name = "multihash-derive"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f1b7edab35d920890b88643a765fc9bd295cf0201f4154dda231bef9b8404eb"
-dependencies = [
- "core2",
- "multihash 0.19.3",
- "multihash-derive-impl",
-]
-
-[[package]]
-name = "multihash-derive-impl"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3dc7141bd06405929948754f0628d247f5ca1865be745099205e5086da957cb"
-dependencies = [
- "proc-macro-crate 3.2.0",
- "proc-macro2",
- "quote",
- "syn 2.0.104",
- "synstructure 0.13.1",
 ]
 
 [[package]]
@@ -10233,12 +10196,12 @@ dependencies = [
  "frame-system 39.1.0",
  "hex",
  "log",
- "multihash-codetable",
  "pallet-balances 40.1.0",
  "pallet-proofs",
  "pallet-randomness",
  "parity-scale-codec",
  "primitives",
+ "primitives-benchmarks",
  "rstest",
  "scale-info",
  "sp-arithmetic 26.0.0",
@@ -10970,15 +10933,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pem-rfc7468"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88b39c9bfcfc231068454382784bb460aae594343fb030d46e9f50a645418412"
-dependencies = [
- "base64ct",
-]
-
-[[package]]
 name = "percent-encoding"
 version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11169,6 +11123,7 @@ dependencies = [
  "polka-storage-proofs",
  "polka-storage-provider-common",
  "primitives",
+ "primitives-benchmarks",
  "proc-macro2",
  "quote",
  "serde_json",
@@ -11221,7 +11176,6 @@ dependencies = [
  "cid 0.11.1",
  "clap",
  "futures",
- "hyper 1.5.2",
  "integer-encoding",
  "mater",
  "metrics",
@@ -12323,8 +12277,6 @@ version = "0.1.0"
 dependencies = [
  "cid 0.11.1",
  "clap",
- "ed25519-dalek",
- "filecoin-proofs",
  "frame-benchmarking 39.1.0",
  "frame-support 39.1.0",
  "frame-system 39.1.0",
@@ -12345,6 +12297,20 @@ dependencies = [
  "sp-runtime 40.1.0",
  "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?tag=polkadot-stable2412-7)",
  "thiserror 2.0.12",
+]
+
+[[package]]
+name = "primitives-benchmarks"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking 39.1.0",
+ "frame-support 39.1.0",
+ "frame-system 39.1.0",
+ "parity-scale-codec",
+ "primitives",
+ "sp-core 35.0.0",
+ "sp-io 39.0.1",
+ "sp-runtime 40.1.0",
 ]
 
 [[package]]
@@ -17107,7 +17073,6 @@ name = "storagext"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bs58",
  "cid 0.11.1",
  "clap",
  "frame-support 39.1.0",

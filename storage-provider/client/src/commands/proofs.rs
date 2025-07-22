@@ -30,11 +30,11 @@ use primitives::{
     proofs::{derive_prover_id, RegisteredPoStProof, RegisteredSealProof},
     randomness::{draw_randomness, DomainSeparationTag},
     sector::SectorNumber,
-    test_data::{
-        absolute_block_number::Absolute, deal_timeline::DealTimeline,
-        relative_block_number::Relative, sector_timeline::SectorTimeline,
-    },
     MAX_SECTORS_PER_CALL,
+};
+use primitives_benchmarks::{
+    absolute_block_number::Absolute, deal_timeline::DealTimeline, relative_block_number::Relative,
+    sector_timeline::SectorTimeline,
 };
 use quote::format_ident;
 use serde_json::json;

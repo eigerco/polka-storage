@@ -16,26 +16,6 @@ pub struct PieceInfo {
     pub size: PaddedPieceSize,
 }
 
-#[cfg(feature = "std")]
-impl From<filecoin_proofs::PieceInfo> for PieceInfo {
-    fn from(piece_info: filecoin_proofs::PieceInfo) -> Self {
-        Self {
-            commitment: Commitment::<CommP>::from(piece_info.commitment),
-            size: PaddedPieceSize::from_arbitrary_size(piece_info.size.0),
-        }
-    }
-}
-
-#[cfg(feature = "std")]
-impl From<PieceInfo> for filecoin_proofs::PieceInfo {
-    fn from(value: PieceInfo) -> Self {
-        filecoin_proofs::PieceInfo {
-            commitment: value.commitment.raw,
-            size: filecoin_proofs::UnpaddedBytesAmount(value.size.unpadded().0),
-        }
-    }
-}
-
 #[derive(PartialEq, Debug, Eq, Clone, Copy, thiserror::Error)]
 pub enum UnpaddedPieceError {
     #[error("minimum piece size is 127 bytes")]
@@ -48,7 +28,7 @@ pub enum UnpaddedPieceError {
 /// multiple of 127.
 #[cfg_attr(feature = "serde", derive(::serde::Deserialize, ::serde::Serialize))]
 #[derive(PartialEq, Debug, Eq, Clone, Copy)]
-pub struct UnpaddedPieceSize(u64);
+pub struct UnpaddedPieceSize(pub u64);
 
 impl UnpaddedPieceSize {
     /// The minimum pice size
@@ -98,20 +78,6 @@ impl Add for UnpaddedPieceSize {
     }
 }
 
-#[cfg(feature = "std")]
-impl From<filecoin_proofs::UnpaddedBytesAmount> for UnpaddedPieceSize {
-    fn from(value: filecoin_proofs::UnpaddedBytesAmount) -> Self {
-        Self(value.0)
-    }
-}
-
-#[cfg(feature = "std")]
-impl Into<filecoin_proofs::UnpaddedBytesAmount> for UnpaddedPieceSize {
-    fn into(self) -> filecoin_proofs::UnpaddedBytesAmount {
-        filecoin_proofs::UnpaddedBytesAmount(self.0)
-    }
-}
-
 #[derive(Clone, Eq, PartialEq, TypeInfo, Encode, Decode, thiserror::Error)]
 pub enum PaddedPieceSizeError {
     #[error("minimum piece size is 128 bytes")]
@@ -132,7 +98,7 @@ impl core::fmt::Debug for PaddedPieceSizeError {
 /// number.
 #[cfg_attr(feature = "serde", derive(::serde::Deserialize, ::serde::Serialize))]
 #[derive(PartialEq, Debug, Eq, Clone, Copy)]
-pub struct PaddedPieceSize(u64);
+pub struct PaddedPieceSize(pub u64);
 
 impl PaddedPieceSize {
     /// The minimum pice size
@@ -209,20 +175,6 @@ impl AddAssign for PaddedPieceSize {
 impl core::iter::Sum for PaddedPieceSize {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
         iter.fold(PaddedPieceSize(0), |acc, x| acc + x)
-    }
-}
-
-#[cfg(feature = "std")]
-impl From<filecoin_proofs::PaddedBytesAmount> for PaddedPieceSize {
-    fn from(value: filecoin_proofs::PaddedBytesAmount) -> Self {
-        Self(value.0)
-    }
-}
-
-#[cfg(feature = "std")]
-impl Into<filecoin_proofs::PaddedBytesAmount> for PaddedPieceSize {
-    fn into(self) -> filecoin_proofs::PaddedBytesAmount {
-        filecoin_proofs::PaddedBytesAmount(self.0)
     }
 }
 
