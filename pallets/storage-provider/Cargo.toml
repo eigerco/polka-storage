@@ -35,6 +35,7 @@ frame-support = { workspace = true, default-features = false }
 frame-system = { workspace = true, default-features = false }
 
 pallet-balances = { workspace = true, default-features = false, optional = true }
+primitives-benchmarks = { workspace = true, default-features = false, optional = true }
 sp-io = { workspace = true, optional = true }
 
 [dev-dependencies]
@@ -50,6 +51,7 @@ sp-keystore = { workspace = true, default-features = false }
 default = ["std"]
 runtime-benchmarks = [
   "dep:pallet-balances",
+  "dep:primitives-benchmarks",
   "dep:sp-io",
   "frame-benchmarking/runtime-benchmarks",
   "frame-support/runtime-benchmarks",
