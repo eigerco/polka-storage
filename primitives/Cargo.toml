@@ -11,8 +11,6 @@ version = "0.1.0"
 cid = { workspace = true, default-features = false, features = ["alloc"] }
 clap = { workspace = true, features = ["derive"], optional = true }
 codec = { workspace = true, features = ["derive"] }
-ed25519-dalek = { workspace = true, optional = true, features = ["pem"] }
-filecoin-proofs = { workspace = true, optional = true }
 hex = { workspace = true, optional = true }
 scale-decode = { workspace = true, features = ["derive"] }
 scale-encode = { workspace = true, features = ["derive"] }
@@ -27,12 +25,6 @@ sp-io = { workspace = true, default-features = false }
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
 thiserror = { workspace = true }
-
-# Frame deps
-frame-benchmarking = { workspace = true, default-features = false, optional = true }
-frame-support = { workspace = true, default-features = false }
-frame-system = { workspace = true, default-features = false }
-
 [dev-dependencies]
 rand = { workspace = true, default-features = true }
 serde_json = { workspace = true, default-features = true }
@@ -50,12 +42,7 @@ std = [
   "cid/serde",
   "cid/std",
   "codec/std",
-  "dep:ed25519-dalek",
-  "dep:filecoin-proofs",
   "dep:hex",
-  "frame-benchmarking?/std",
-  "frame-support/std",
-  "frame-system/std",
   "scale-info/std",
   "serde/std",
   "sha2/std",
@@ -68,4 +55,4 @@ std = [
 ]
 # This feature provides testing utilities,
 # e.g. a dummy proof verifier
-testing = ["dep:frame-benchmarking"]
+testing = []

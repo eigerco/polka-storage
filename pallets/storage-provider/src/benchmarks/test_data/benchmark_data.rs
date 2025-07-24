@@ -12,13 +12,15 @@ use primitives::{
     sector::{ProveCommitSector, SectorNumber, SectorPreCommitInfo},
     MAX_LABEL_SIZE, MAX_POREP_PROOFS_PER_BLOCK, MAX_SEAL_PROOF_BYTES, MAX_SECTORS_PER_CALL,
 };
+use primitives_benchmarks::{
+    absolute_block_number::Absolute, deal_timeline::DealTimeline, relative_block_number::Relative,
+    sector_timeline::SectorTimeline,
+};
 use sp_runtime::{traits::ConstU32, AccountId32, BoundedVec, MultiSigner};
 
 use crate::benchmarks::test_data::{
-    absolute_block_number::Absolute, deal_timeline::DealTimeline, generate_benchmark_account,
-    relative_block_number::Relative, sector_data::SectorData, sector_timeline::SectorTimeline,
-    sign_proposal, storage_provider_data::StorageProviderData, ClientDealProposalOf,
-    DealProposalOf,
+    generate_benchmark_account, sector_data::SectorData, sign_proposal,
+    storage_provider_data::StorageProviderData, ClientDealProposalOf, DealProposalOf,
 };
 
 // If this is changed, also update BenchmarkData in `storage-provider/client/src/commands/proofs.rs`.

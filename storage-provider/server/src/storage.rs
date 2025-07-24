@@ -9,13 +9,12 @@ use std::{
 use axum::{
     body::Body,
     extract::{DefaultBodyLimit, FromRequest, MatchedPath, Multipart, Path, Request, State},
-    http::{header, StatusCode},
+    http::{header, header::CONTENT_TYPE, Method, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, post, put},
     Json, Router,
 };
 use futures::{TryFutureExt, TryStreamExt};
-use hyper::{header::CONTENT_TYPE, Method};
 use mater::{Cid, Wrapping};
 use metrics_exporter_prometheus::PrometheusHandle;
 use polka_storage_provider_common::{

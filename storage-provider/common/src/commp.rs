@@ -104,7 +104,7 @@ mod tests {
 
         let piece_info = generate_piece_commitment(
             ZeroPaddingReader::new(f, *size.unpadded()),
-            size.unpadded().into(),
+            filecoin_proofs::UnpaddedBytesAmount(size.unpadded().0),
         )
         .unwrap();
 

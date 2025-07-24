@@ -141,7 +141,10 @@ where
     W: AsyncWrite + AsyncSeek + Unpin,
 {
     let cursor = Cursor::new(content);
-    store.write_from(cursor).await.unwrap();
+    store
+        .write_from(cursor, mater::Wrapping::NoWrap)
+        .await
+        .unwrap();
     store.finish().await.unwrap();
 }
 
@@ -175,7 +178,9 @@ async fn blockwriter_import(source: &Path, target: &Path) {
     let source_file = File::open(source).await.unwrap();
     let output_file = File::create(target).await.unwrap();
 
-    FileWriter::import(source_file, output_file).await.unwrap();
+    FileWriter::import(source_file, output_file, mater::Wrapping::NoWrap)
+        .await
+        .unwrap();
 }
 
 fn import(c: &mut Criterion) {

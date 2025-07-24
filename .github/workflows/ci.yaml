@@ -103,7 +103,6 @@ jobs:
       - format
     env:
       RUSTFLAGS: -D warnings
-      CARGO_LOG: cargo::core::compiler::fingerprint=info
 
     steps:
       - uses: actions/checkout@v4
@@ -126,7 +125,6 @@ jobs:
       - format
     env:
       RUSTFLAGS: -D warnings
-      CARGO_LOG: cargo::core::compiler::fingerprint=info
     steps:
       - uses: actions/checkout@v4
       - name: List version
@@ -176,7 +174,6 @@ jobs:
       - format
     env:
       RUSTFLAGS: -D warnings
-      CARGO_LOG: cargo::core::compiler::fingerprint=info
 
     if: ${{ needs.check-benchmarks.outputs.skip == 'false' }}
 

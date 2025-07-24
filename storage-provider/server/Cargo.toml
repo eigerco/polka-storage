@@ -27,7 +27,6 @@ ciborium = { workspace = true }
 cid = { workspace = true, features = ["serde", "std"] }
 clap = { workspace = true, features = ["derive"] }
 futures = { workspace = true }
-hyper = { workspace = true }
 integer-encoding = { workspace = true }
 metrics = { workspace = true }
 metrics-exporter-prometheus = { workspace = true }

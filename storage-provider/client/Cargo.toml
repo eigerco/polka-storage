@@ -13,6 +13,7 @@ mater = { workspace = true }
 polka-storage-proofs = { workspace = true, default-features = false }
 polka-storage-provider-common = { workspace = true }
 primitives = { workspace = true, features = ["clap", "std", "testing"] }
+primitives-benchmarks = { workspace = true, features = ["std"] }
 storagext = { workspace = true, features = ["clap"] }
 
 bellperson = { workspace = true }

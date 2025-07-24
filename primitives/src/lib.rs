@@ -7,11 +7,6 @@ pub mod proofs;
 pub mod randomness;
 pub mod sector;
 
-// TODO: Remove this module. It was moved to the `pallet-storage-provider`
-// NOTE: there's still some leftovers used in the benchmark code generation
-#[cfg(feature = "testing")]
-pub mod test_data;
-
 #[cfg(feature = "testing")]
 pub mod testing {
     // NOTE(@jmg-duarte,22/01/2025): Since there's only one thing, star import for now.

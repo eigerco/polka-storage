@@ -78,13 +78,13 @@ pub fn add_piece<R: std::io::Read, W: std::io::Write>(
 ) -> Result<u64, PoRepError> {
     let current_pieces_lengths: Vec<UnpaddedBytesAmount> = current_pieces
         .into_iter()
-        .map(|p| p.size.unpadded().into())
+        .map(|p| filecoin_proofs::UnpaddedBytesAmount(p.size.unpadded().0))
         .collect();
 
     let (calculated_piece_info, written_bytes) = filecoin_proofs::add_piece(
         piece_data,
         &mut unsealed_sector,
-        piece.size.unpadded().into(),
+        filecoin_proofs::UnpaddedBytesAmount(piece.size.unpadded().0),
         &current_pieces_lengths,
     )?;
 
@@ -113,7 +113,12 @@ pub fn pad_sector(
     let mut result_pieces = current_pieces.clone();
     let sector_size: UnpaddedBytesAmount = porep_config.sector_size.into();
     let padding_pieces = filler_pieces(sector_size - UnpaddedBytesAmount(sector_occupied_space));
-    result_pieces.extend(padding_pieces.into_iter().map(PieceInfo::from));
+    result_pieces.extend(padding_pieces.into_iter().map(|piece_info| {
+        primitives::commitment::piece::PieceInfo {
+            commitment: Commitment::<CommP>::from(piece_info.commitment),
+            size: PaddedPieceSize::from_arbitrary_size(piece_info.size.0),
+        }
+    }));
 
     Ok(result_pieces)
 }
@@ -141,7 +146,10 @@ pub fn create_sector<R: std::io::Read, W: std::io::Write>(
     let mut piece_lengths: Vec<UnpaddedBytesAmount> = Vec::with_capacity(pieces.len());
     let mut sector_occupied_space: UnpaddedBytesAmount = UnpaddedBytesAmount(0);
     for (idx, (reader, piece)) in pieces.into_iter().enumerate() {
-        let fc_piece: filecoin_proofs::PieceInfo = piece.into();
+        let fc_piece = filecoin_proofs::PieceInfo {
+            commitment: piece.commitment.raw(),
+            size: filecoin_proofs::UnpaddedBytesAmount(piece.size.unpadded().0),
+        };
         let (calculated_piece_info, written_bytes) = filecoin_proofs::add_piece(
             reader,
             &mut unsealed_sector,
@@ -206,7 +214,10 @@ pub fn precommit_sector<
 
     let piece_infos = piece_infos
         .into_iter()
-        .map(|p| (*p).into())
+        .map(|p| filecoin_proofs::PieceInfo {
+            commitment: p.commitment.raw(),
+            size: filecoin_proofs::UnpaddedBytesAmount(p.size.unpadded().0),
+        })
         .collect::<Vec<filecoin_proofs::PieceInfo>>();
 
     let p1_output: SealPreCommitPhase1Output<SectorShape> =
@@ -273,7 +284,10 @@ pub fn prove_sector<
     let piece_infos = piece_infos
         .into_iter()
         .copied()
-        .map(filecoin_proofs::PieceInfo::from)
+        .map(|p| filecoin_proofs::PieceInfo {
+            commitment: p.commitment.raw(),
+            size: filecoin_proofs::UnpaddedBytesAmount(p.size.unpadded().0),
+        })
         .collect::<Vec<_>>();
 
     let scp1: filecoin_proofs::SealCommitPhase1Output<SectorShape> =
@@ -467,7 +481,10 @@ mod test {
             create_sector(seal_proof, piece_infos, Cursor::new(&mut staged_sector))
                 .unwrap()
                 .into_iter()
-                .map(|p| p.into())
+                .map(|piece| filecoin_proofs::PieceInfo {
+                    commitment: piece.commitment.raw(),
+                    size: filecoin_proofs::UnpaddedBytesAmount(piece.size.unpadded().0),
+                })
                 .collect();
 
         let f_sector_size: filecoin_proofs::SectorSize = seal_proof.sector_size().bytes().into();
@@ -487,7 +504,13 @@ mod test {
             filecoin_proofs::generate_piece_commitment(Cursor::new(&mut piece_bytes), piece_size)
                 .unwrap();
 
-        (piece_bytes, piece_info.into())
+        (
+            piece_bytes,
+            primitives::commitment::piece::PieceInfo {
+                commitment: Commitment::<CommP>::from(piece_info.commitment),
+                size: PaddedPieceSize::from_arbitrary_size(piece_info.size.0),
+            },
+        )
     }
 
     /// Computes CommD from the raw data, not from the pieces.

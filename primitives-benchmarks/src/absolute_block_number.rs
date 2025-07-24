@@ -2,7 +2,7 @@ use core::ops::{Add, Div, Rem, Sub};
 
 use sp_runtime::traits::Zero;
 
-use crate::benchmarks::test_data::relative_block_number::Relative;
+use crate::relative_block_number::Relative;
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct Absolute<BlockNumber>(pub BlockNumber);
