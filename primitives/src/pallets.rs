@@ -1,3 +1,7 @@
+extern crate alloc;
+
+use alloc::vec::Vec;
+
 use cid::Cid;
 use codec::{Codec, Decode, Encode};
 use scale_info::TypeInfo;
@@ -6,6 +10,7 @@ use sp_runtime::{BoundedBTreeMap, BoundedBTreeSet, BoundedVec, DispatchResult};
 
 use crate::{
     commitment::RawCommitment,
+    deals::DealProposal,
     proofs::{ProverId, PublicReplicaInfo, RegisteredPoStProof, RegisteredSealProof, Ticket},
     sector::SectorNumber,
     DealId, PartitionNumber, MAX_DEALS_PER_SECTOR, MAX_PARTITIONS_PER_DEADLINE,
@@ -120,7 +125,11 @@ pub struct PartitionState {
 }
 
 sp_api::decl_runtime_apis! {
-    pub trait StorageProviderApi<AccountId> where AccountId: Codec
+    pub trait StorageProviderApi<AccountId, Balance, BlockNumber>
+    where
+        AccountId: Codec,
+        Balance: Codec,
+        BlockNumber: Codec,
     {
         /// Gets the information about the specified deadline of the storage provider.
         ///
@@ -136,5 +145,13 @@ sp_api::decl_runtime_apis! {
         /// Returns snapshot information about the deadline, i.e. which sectors are assigned to which partitions.
         /// When the deadline has not opened yet (deadline_start - WPoStChallengeWindow), it can change!
         fn deadline_state(storage_provider: AccountId, deadline_index: u64) -> Option<DeadlineState>;
+
+        fn get_proposals(
+            client: Option<Vec<AccountId>>,
+            provider: Option<Vec<AccountId>>,
+        ) -> Vec<(
+            DealId,
+            DealProposal<AccountId, Balance, BlockNumber>
+        )>;
     }
 }
