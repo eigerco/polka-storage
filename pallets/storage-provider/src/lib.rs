@@ -66,6 +66,7 @@ pub mod pallet {
     };
     use scale_info::TypeInfo;
     use sp_runtime::traits::{AccountIdConversion, IdentifyAccount, Verify};
+    use sp_std::vec::Vec;
 
     use crate::{
         deadline::DeadlineInfo,
@@ -906,6 +907,35 @@ pub mod pallet {
             }
 
             Some(primitives::pallets::DeadlineState { partitions })
+        }
+
+        pub fn get_proposals(
+            client: Option<Vec<T::AccountId>>,
+            provider: Option<Vec<T::AccountId>>,
+        ) -> Vec<(
+            DealId,
+            DealProposal<T::AccountId, BalanceOf<T>, BlockNumberFor<T>>,
+        )> {
+            Proposals::<T>::iter()
+                .filter_map(|(deal_id, proposal)| {
+                    // If client is provided, filter by client
+                    if let Some(c_list) = &client {
+                        if !c_list.contains(&proposal.client) {
+                            return None; // Skip this proposal if client is not in the list
+                        }
+                    }
+
+                    // If provider is provided, filter by provider
+                    if let Some(p_list) = &provider {
+                        if !p_list.contains(&proposal.provider) {
+                            return None; // Skip this proposal if provider is not in the list
+                        }
+                    }
+
+                    // If both client and provider match, include the proposal
+                    Some((deal_id, proposal))
+                })
+                .collect::<Vec<_>>()
         }
     }
 }
