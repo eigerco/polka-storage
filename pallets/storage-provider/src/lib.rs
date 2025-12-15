@@ -808,6 +808,12 @@ pub mod pallet {
             crate::hooks::check_deadlines::<T>(current_block);
             crate::hooks::slash_providers::<T>(current_block);
         }
+
+        fn on_runtime_upgrade() -> Weight {
+            let _ =
+                StorageProviders::<T>::clear(StorageProviders::<T>::iter().count() as u32, None);
+            T::DbWeight::get().reads(1)
+        }
     }
 
     // impl<T: Config> StorageProviderValidation<T::AccountId> for Pallet<T> {
